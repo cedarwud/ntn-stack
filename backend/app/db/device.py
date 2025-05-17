@@ -1,10 +1,11 @@
 from typing import Optional, Any
 from sqlmodel import Field, SQLModel
 from enum import Enum as PyEnum
+from sqlalchemy import String
 
 
 # --- Enum Definitions ---
-class DeviceRole(PyEnum):
+class DeviceRole(str, PyEnum):
     DESIRED = "desired"
     JAMMER = "jammer"
     RECEIVER = "receiver"
@@ -19,7 +20,7 @@ class DeviceBase(SQLModel):
     orientation_x: float = Field(default=0.0)
     orientation_y: float = Field(default=0.0)
     orientation_z: float = Field(default=0.0)
-    role: str = Field(...)  # required
+    role: DeviceRole = Field(..., sa_type=String(50))
     power_dbm: int = Field(default=0)
     active: bool = Field(default=True, index=True)
 

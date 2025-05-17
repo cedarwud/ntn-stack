@@ -5,7 +5,7 @@ from sqlmodel import SQLModel, select
 from sqlalchemy.sql.functions import count
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import engine, async_session_maker
-from app.db.models import Device, DeviceRole  # Import necessary models
+from app.db.device import Device, DeviceRole  # Import necessary models
 from app.core.config import (
     OUTPUT_DIR,
     configure_gpu_cpu,

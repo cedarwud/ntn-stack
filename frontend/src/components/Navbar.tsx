@@ -98,7 +98,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick, activeComponent }) => {
         <>
             <nav className="navbar">
                 <div className="navbar-container">
-                    <div className="navbar-logo">Sionna</div>
+                    <div className="navbar-logo">NTN Stack</div>
 
                     <div className="navbar-menu-toggle" onClick={toggleMenu}>
                         <span

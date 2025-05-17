@@ -4,7 +4,7 @@ from typing import List, Optional, Sequence, Any, Dict, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.db.models import Device, DeviceRole
+from app.db.device import Device, DeviceRole
 from app.schemas.device import DeviceCreate, DeviceUpdate
 
 logger = logging.getLogger(__name__)

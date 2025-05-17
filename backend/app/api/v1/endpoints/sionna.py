@@ -28,7 +28,7 @@ from app.core.config import (  # Import constants
     DOPPLER_IMAGE_PATH,  # 新增: 導入新的延遲多普勒圖路徑
 )
 from app.services import crud_device  # 新增: 導入 crud_device 以獲取設備資料
-from app.db.models import DeviceRole  # 新增: 導入 DeviceRole 枚舉
+from app.db.device import DeviceRole  # 新增: 導入 DeviceRole 枚舉
 
 # 新增: 導入 run_in_threadpool
 from fastapi.concurrency import run_in_threadpool

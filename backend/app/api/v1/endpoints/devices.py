@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session
-from app.db.models import DeviceRole
+from app.db.device import DeviceRole
 from app.schemas.device import Device as DeviceSchema, DeviceCreate, DeviceUpdate
 from app.services import crud_device
 

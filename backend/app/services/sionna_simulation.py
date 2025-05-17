@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 # Import models and config from their new locations
-from app.db.models import Device, DeviceRole
+from app.db.device import Device, DeviceRole
 from app.core.config import (
     NYCU_XML_PATH,
     CFR_PLOT_IMAGE_PATH,
