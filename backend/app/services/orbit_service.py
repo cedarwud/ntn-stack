@@ -4,15 +4,17 @@ import json
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timezone
 
-from skyfield.api import load, Topos, EarthSatellite
+from skyfield.api import load, Topos, EarthSatellite, wgs84
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from redis.asyncio import Redis as AsyncRedis  # Import async Redis
+from skyfield.framelib import itrs  # Import ITRS frame
 
 # Corrected import paths
 from app.db.ground_station import GroundStation as DBGroundStation
 from app.db.satellite_tle import SatelliteTLE as DBSatelliteTLE
 from app.schemas.ground_station import GroundStation as PydanticGroundStation
+from app.services.tle_service import TLE_DATA_CACHE_PREFIX, parse_tle_line_for_epoch
 
 logger = logging.getLogger(__name__)
 
@@ -150,9 +152,9 @@ async def get_visible_satellites(
         logger.warning("No TLE data available. Cannot calculate visibility.")
         return []
 
-    gs_topos = Topos(
-        latitude_degrees=ground_station.latitude_deg,
-        longitude_degrees=ground_station.longitude_deg,
+    gs_topos = wgs84.latlon(
+        ground_station.latitude_deg,
+        ground_station.longitude_deg,
         elevation_m=ground_station.altitude_m,
     )
 
@@ -174,6 +176,21 @@ async def get_visible_satellites(
         alt, az, distance = topocentric.altaz()
 
         if alt.degrees > min_elevation_deg:
+            ecef_x_km, ecef_y_km, ecef_z_km = None, None, None
+            try:
+                # Calculate ECEF (ITRS) coordinates
+                geocentric_position = satellite.at(sky_time)
+                # The .frame_xyz(itrs) converts to ITRS frame, which is ECEF.
+                # Result is a tuple of Distance objects (x, y, z)
+                itrf_vector = geocentric_position.frame_xyz(itrs).km
+                ecef_x_km = itrf_vector[0]
+                ecef_y_km = itrf_vector[1]
+                ecef_z_km = itrf_vector[2]
+            except Exception as e:
+                logger.error(
+                    f"Error calculating ECEF for {tle_data.get('name', 'UnknownSatellite')}: {e}"
+                )
+
             sat_info = {
                 "norad_id": tle_data.get("norad_id"),
                 "name": tle_data.get("name"),
@@ -182,7 +199,14 @@ async def get_visible_satellites(
                 "distance_km": round(distance.km, 2),
                 "line1": tle_data.get("line1"),
                 "line2": tle_data.get("line2"),
+                "ecef_x_km": ecef_x_km,
+                "ecef_y_km": ecef_y_km,
+                "ecef_z_km": ecef_z_km,
             }
+            # Use json.dumps for logging to see None as null if that's the case
+            logger.info(
+                f"Calculated satellite_info for {sat_info.get('name', 'UnknownSatellite')}: {json.dumps(sat_info)}"
+            )
             visible_satellites.append(sat_info)
 
     visible_satellites.sort(key=lambda s: s["elevation_deg"], reverse=True)

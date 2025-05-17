@@ -20,6 +20,7 @@ CELESTRAK_ONEWEB_TLE_URL = (
 )
 REDIS_LAST_TLE_SYNC_KEY = "tle_last_sync_timestamp"
 TLE_SYNC_INTERVAL_HOURS = 24
+TLE_DATA_CACHE_PREFIX = "tle:"
 
 
 def parse_tle_line_for_epoch(line1: str) -> Tuple[Optional[int], Optional[float]]:
