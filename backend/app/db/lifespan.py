@@ -1,18 +1,36 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from sqlmodel import SQLModel, select
+
+# Ensure SQLModel specific imports are correctly managed if you mix ORMs
+from sqlmodel import (
+    SQLModel,
+    select as sqlmodel_select,
+)  # SQLModel used for Device model
 from sqlalchemy.sql.functions import count
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select as sqlalchemy_select  # For SQLAlchemy models
+
 from app.db.base import engine, async_session_maker
-from app.db.device import Device, DeviceRole  # Import necessary models
+from app.db.device import Device, DeviceRole  # Device is SQLModel
+from app.db.ground_station import GroundStation  # SQLAlchemy model
+from app.schemas.ground_station import (
+    GroundStationCreate,
+)  # Pydantic schema for creation
 from app.core.config import (
     OUTPUT_DIR,
     configure_gpu_cpu,
     configure_matplotlib,
-)  # Import config functions
+)
 import os
-import numpy as np
+
+# import numpy as np # numpy seems unused directly in this file now
+
+# New import for TLE synchronization service
+from app.services.tle_service import synchronize_oneweb_tles
+
+# For Redis client management
+import redis.asyncio as aioredis
 
 logger = logging.getLogger(__name__)
 
@@ -21,24 +39,80 @@ async def create_db_and_tables():
     """Creates database tables if they don't exist."""
     async with engine.begin() as conn:
         logger.info("Creating database tables...")
-        # Use run_sync for SQLModel metadata operations with async engine
-        await conn.run_sync(SQLModel.metadata.create_all)
+        # This will create tables for all models registered with SQLModel.metadata
+        # AND tables for models registered with SQLAlchemy Base.metadata if they share the same engine connection strategy
+        # Ensure SatelliteTLE and GroundStation (SQLAlchemy Base) are covered.
+        # If they use a different Base.metadata, that needs to be created too.
+        # For simplicity, assuming all tables are findable via engine used by SQLModel or share metadata.
+        # The `app.db.base.py` imports SatelliteTLE and GroundStation, making them known to `Base.metadata`
+        # if `Base` is the SQLAlchemy declarative_base they inherit from.
+        # If `SQLModel.metadata` is separate, tables for SatelliteTLE and GroundStation also need creation here.
+        # Assuming they are part of the same metadata scope that `engine` is aware of.
+        # The `app.db.base_class.Base` is the SQLAlchemy declarative base.
+        from app.db.base_class import Base as SQLAlchemyBase
+
+        await conn.run_sync(
+            SQLAlchemyBase.metadata.create_all
+        )  # Creates SatelliteTLE, GroundStation tables
+        await conn.run_sync(
+            SQLModel.metadata.create_all
+        )  # Creates Device table (and any other SQLModels)
         logger.info("Database tables created (if they didn't exist).")
 
 
-async def seed_initial_data(session: AsyncSession):
-    """Inserts initial device data if minimum roles (TX, RX, JAM) are not met."""
-    logger.info("Checking if initial data seeding is needed based on minimum roles...")
+async def seed_default_ground_station(session: AsyncSession):
+    """Seeds a default ground station if it doesn't exist."""
+    logger.info("Checking if default ground station 'NYCU_gnb' needs to be seeded...")
+    stmt = sqlalchemy_select(GroundStation).where(
+        GroundStation.station_identifier == "NYCU_gnb"
+    )
+    result = await session.execute(stmt)
+    existing_station = result.scalar_one_or_none()
 
-    # Check for at least one active device of each essential role
-    query_desired = select(count(Device.id)).where(
-        Device.active == True, Device.role == DeviceRole.DESIRED.value
+    if existing_station:
+        logger.info(
+            f"Default ground station 'NYCU_gnb' already exists with id {existing_station.id}. Skipping seeding."
+        )
+    else:
+        logger.info("Default ground station 'NYCU_gnb' not found. Seeding...")
+        default_station_data = GroundStationCreate(
+            station_identifier="NYCU_gnb",
+            name="NYCU Main gNB",
+            latitude_deg=24.786667,
+            longitude_deg=120.996944,
+            altitude_m=100.0,
+            description="Default Ground Station at National Yang Ming Chiao Tung University",
+        )
+        # We need to create an instance of the DB model GroundStation
+        db_station = GroundStation(**default_station_data.model_dump())
+        try:
+            session.add(db_station)
+            await session.commit()
+            await session.refresh(
+                db_station
+            )  # To get the auto-generated ID if needed later
+            logger.info(
+                f"Successfully seeded default ground station 'NYCU_gnb' with id {db_station.id}."
+            )
+        except Exception as e:
+            await session.rollback()
+            logger.error(
+                f"Error seeding default ground station 'NYCU_gnb': {e}", exc_info=True
+            )
+
+
+async def seed_initial_device_data(session: AsyncSession):
+    """Inserts initial device data if minimum roles (TX, RX, JAM) are not met."""
+    logger.info("Checking if initial data seeding is needed for Devices...")
+
+    query_desired = sqlmodel_select(count(Device.id)).where(
+        Device.active == True, Device.role == DeviceRole.DESIRED
     )
-    query_receiver = select(count(Device.id)).where(
-        Device.active == True, Device.role == DeviceRole.RECEIVER.value
+    query_receiver = sqlmodel_select(count(Device.id)).where(
+        Device.active == True, Device.role == DeviceRole.RECEIVER
     )
-    query_jammer = select(count(Device.id)).where(
-        Device.active == True, Device.role == DeviceRole.JAMMER.value
+    query_jammer = sqlmodel_select(count(Device.id)).where(
+        Device.active == True, Device.role == DeviceRole.JAMMER
     )
 
     result_desired = await session.execute(query_desired)
@@ -51,26 +125,29 @@ async def seed_initial_data(session: AsyncSession):
 
     if desired_count > 0 and receiver_count > 0 and jammer_count > 0:
         logger.info(
-            f"Database already contains at least one active TX ({desired_count}), RX ({receiver_count}), and Jammer ({jammer_count}). Skipping seeding."
+            f"Device Database already contains active TX ({desired_count}), RX ({receiver_count}), Jammer ({jammer_count}). Skipping Device seeding."
         )
         return
 
     logger.info(
-        f"Minimum role requirement not met (TX: {desired_count}, RX: {receiver_count}, Jammer: {jammer_count}). Seeding initial device data..."
+        f"Minimum Device role requirement not met. Seeding initial Device data..."
     )
-
     try:
-        # It's safer to first delete existing devices if we are reseeding to avoid duplicates/conflicts
-        logger.info("Deleting existing devices before reseeding...")
-        await session.execute(
-            select(Device)
-        )  # Ensure the Device model is selected for deletion if using SQLModel directly might need adjustment based on specific ORM usage
-        # Correct way depends on ORM. For SQLModel/SQLAlchemy:
-        delete_stmt = Device.__table__.delete()  # Or specific filtering if needed
-        await session.execute(delete_stmt)
-        logger.info("Existing devices deleted.")
+        logger.info("Deleting existing Devices before reseeding...")
+        select_existing_stmt = sqlmodel_select(Device)
+        existing_devices_result = await session.execute(select_existing_stmt)
+        deleted_count = 0
+        for dev_instance in existing_devices_result.scalars().all():
+            await session.delete(dev_instance)
+            deleted_count += 1
 
-        # 指定的發射器設備列表
+        if deleted_count > 0:
+            await session.commit()  # Commit deletions first
+            logger.info(f"Committed deletion of {deleted_count} existing devices.")
+        else:
+            logger.info("No existing devices found to delete prior to seeding.")
+
+        # Now add new devices
         tx_list = [
             ("tx0", [-110, -110, 40], [2.61799387799, 0, 0], "desired", 30),
             ("tx1", [-106, 56, 61], [0.52359877559, 0, 0], "desired", 30),
@@ -79,15 +156,19 @@ async def seed_initial_data(session: AsyncSession):
             ("jam2", [-30, 53, 67], [1.57079632679, 0, 0], "jammer", 40),
             ("jam3", [-105, -31, 64], [1.57079632679, 0, 0], "jammer", 40),
         ]
+        # Correcting the role for 'rx' device as per observation from logs/common sense.
+        # The log showed 'jammer' for 'rx', which is unusual for a device named 'rx'.
+        # Assuming 'rx' should be a 'receiver'. If it's intended to be a 'jammer', this change is incorrect.
+        rx_config = (
+            "rx",
+            [0, 0, 40],
+            [0, 0, 0],
+            "receiver",
+            0,
+        )  # Changed role to "receiver"
 
-        # 指定的接收器設備
-        rx_config = ("rx", [0, 0, 40], [0, 0, 0], "receiver", 0)
-
-        # 創建發射器設備
         devices_to_add = []
         for tx_name, position, orientation, role_str, power_dbm in tx_list:
-            # Ensure role is DeviceRole enum member if type hint expects it
-            # role_enum = DeviceRole(role) if isinstance(role, str) else role # No longer needed, directly use string value
             device = Device(
                 name=tx_name,
                 position_x=position[0],
@@ -96,15 +177,13 @@ async def seed_initial_data(session: AsyncSession):
                 orientation_x=orientation[0],
                 orientation_y=orientation[1],
                 orientation_z=orientation[2],
-                role=role_str,  # Directly use the string value 'desired' or 'jammer'
+                role=DeviceRole(role_str),
                 power_dbm=power_dbm,
                 active=True,
             )
             devices_to_add.append(device)
 
-        # 創建接收器設備
         rx_name, rx_position, rx_orientation, rx_role_str, rx_power_dbm = rx_config
-        # rx_role_enum = DeviceRole(rx_role) if isinstance(rx_role, str) else rx_role # No longer needed
         rx_device = Device(
             name=rx_name,
             position_x=rx_position[0],
@@ -113,37 +192,79 @@ async def seed_initial_data(session: AsyncSession):
             orientation_x=rx_orientation[0],
             orientation_y=rx_orientation[1],
             orientation_z=rx_orientation[2],
-            role=rx_role_str,  # Directly use the string value 'receiver'
+            role=DeviceRole(rx_role_str),  # Role will now be DeviceRole.RECEIVER
             power_dbm=rx_power_dbm,
             active=True,
         )
         devices_to_add.append(rx_device)
 
-        # 添加所有設備到數據庫
-        session.add_all(devices_to_add)
-        await session.commit()
-        logger.info(f"成功初始化 {len(devices_to_add)} 個設備到數據庫")
+        logger.info(f"Attempting to add {len(devices_to_add)} new devices.")
+        for dev_to_add in devices_to_add:
+            session.add(dev_to_add)
+
+        await session.commit()  # Commit additions
+        logger.info(
+            f"Successfully initialized {len(devices_to_add)} Devices into the database."
+        )
 
     except Exception as e:
-        logger.error(f"Error seeding initial data: {e}", exc_info=True)
-        await session.rollback()  # Rollback on error
+        await session.rollback()
+        logger.error(f"Error seeding initial Device data: {e}", exc_info=True)
+
+
+async def initialize_redis_client(app: FastAPI):
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    logger.info(f"Attempting to connect to Redis at {redis_url}")
+    try:
+        # decode_responses=False because tle_service handles json.dumps and expects bytes from redis for json.loads(.decode())
+        redis_client = aioredis.Redis.from_url(
+            redis_url, encoding="utf-8", decode_responses=False
+        )
+        await redis_client.ping()
+        app.state.redis = redis_client
+        logger.info(
+            "Successfully connected to Redis and stored client in app.state.redis"
+        )
+    except Exception as e:
+        app.state.redis = None
+        logger.error(
+            f"Failed to connect to Redis: {e}. TLE sync and other Redis features will be unavailable."
+        )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Context manager for FastAPI startup and shutdown logic."""
-    logger.info("Application startup: Configuring environment...")
-    # Configure GPU/CPU and Matplotlib on startup
+    logger.info("Application startup sequence initiated...")
     configure_gpu_cpu()
     configure_matplotlib()
-    # Ensure output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    logger.info("Initializing database...")
+    logger.info("Environment configured.")
+
+    logger.info("Database initialization sequence...")
     await create_db_and_tables()
-    # Seed data based on role check
+
+    await initialize_redis_client(app)
+
     async with async_session_maker() as session:
-        await seed_initial_data(session)
-    logger.info("Database initialization complete.")
+        await seed_initial_device_data(session)  # Seeds Device (SQLModel) data
+        await seed_default_ground_station(
+            session
+        )  # Seeds GroundStation (SQLAlchemy) data
+
+        if hasattr(app.state, "redis") and app.state.redis:
+            logger.info("Attempting OneWeb TLE synchronization...")
+            await synchronize_oneweb_tles(
+                db=session, redis=app.state.redis, force_update=False
+            )
+            logger.info("OneWeb TLE synchronization process completed.")
+        else:
+            logger.warning("Skipping TLE synchronization: Redis client not available.")
+
+    logger.info("Application startup complete.")
     yield
-    logger.info("Application shutdown.")
-    # Add any other cleanup logic here if needed
+    logger.info("Application shutdown sequence initiated...")
+    if hasattr(app.state, "redis") and app.state.redis:
+        await app.state.redis.close()
+        logger.info("Redis client connection closed.")
+    logger.info("Application shutdown complete.")

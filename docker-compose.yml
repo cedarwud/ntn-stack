@@ -26,6 +26,19 @@ services:
       timeout: 5s
       retries: 5
 
+  redis: # <-- 新增 Redis 服務
+    image: redis:7-alpine # 使用官方的 Redis 映像，版本可選
+    container_name: redis_cache
+    networks:
+      - sionna-net
+    # ports: # 可選，如果需要在主機直接訪問 Redis，可以取消註解以下幾行
+      # - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -54,6 +67,8 @@ services:
       PYTHONUNBUFFERED: "1"
       # 資料庫連接 URL
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # Redis 連接 URL
+      REDIS_URL: redis://redis:6379/0 # <-- 修改這裡以指向 Docker 內的 Redis 服務名稱 "redis"
     
     # === GPU 支持 (使用 GPU 模式時取消註釋) ===
     # deploy:
@@ -69,6 +84,8 @@ services:
     depends_on: # <-- 讓 FastAPI 服務等待 DB 服務啟動 (healthcheck 更可靠)
       db:
         condition: service_healthy # 等待 DB healthcheck 成功
+      redis: # <-- 新增對 Redis 服務的依賴
+        condition: service_healthy # 等待 Redis healthcheck 成功
     # command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload # 開發時可取消註釋
     healthcheck: # <--- 新增 FastAPI 的 healthcheck
       # 嘗試連接 FastAPI 的根路徑 "/"。需要 curl。
@@ -104,3 +121,4 @@ networks:
 volumes: # <-- 新增 volume 定義
   postgres_data: # 用於持久化 PostgreSQL 數據
   frontend_node_modules:
+  redis_data: # <-- 新增 Redis 數據持久化 volume (可選，如果需要持久化 Redis 數據)
