@@ -1,0 +1,2 @@
+-- 查詢所有信號發射器
+SELECT * FROM device ORDER BY name;

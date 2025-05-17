@@ -1,0 +1,237 @@
+/* 側邊欄容器 */
+.sidebar-container {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 10px;
+  box-sizing: border-box;
+  color: #eaf6ff; /* 更亮的文字 */
+  /* 星空漸層背景 */
+  background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+  position: relative;
+  z-index: 0;
+}
+
+/* 側邊欄頭部樣式 */
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--dark-border);
+  align-items: center;
+}
+
+.sidebar-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #eaf6ff; /* 側邊欄標題更亮 */
+}
+
+.button-group {
+  display: flex;
+}
+
+.button-group button,
+.scene-selector select {
+  height: 30px;
+  box-sizing: border-box;
+}
+
+.button-group button {
+  padding: 0 12px;
+  cursor: pointer;
+  background-color: var(--dark-button-primary);
+  color: var(--dark-text);
+  border: none;
+  border-radius: 3px;
+  margin-right: 8px;
+  font-size: 0.8rem;
+}
+
+.button-group button:last-child {
+  background-color: var(--dark-button-secondary);
+  margin-right: 0;
+}
+
+.scene-selector select {
+  padding: 0 5px;
+  background-color: #162032;
+  border: 1px solid #485983;
+  border-radius: 3px;
+  color: #eaf6ff;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 500;
+  box-shadow: 0 0 2px rgba(72, 89, 131, 0.2);
+}
+
+.scene-selector select:hover {
+  background-color: #2a3244;
+  border-color: #5871ad;
+  box-shadow: 0 0 3px rgba(88, 113, 173, 0.3);
+}
+
+.scene-selector select:focus {
+  outline: none;
+  border-color: #6985c9;
+  box-shadow: 0 0 4px rgba(105, 133, 201, 0.4);
+}
+
+.scene-selector select option {
+  background-color: #1e2536;
+  color: #ffffff;
+  padding: 8px;
+}
+
+/* API狀態指示器 */
+.api-status {
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+  color: var(--dark-text-secondary);
+}
+
+.status-connected {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.status-disconnected {
+  color: #9e9e9e;
+  font-weight: bold;
+}
+
+.status-error {
+  color: #f44336;
+  font-weight: bold;
+}
+
+/* 操作按鈕 */
+.action-buttons {
+  margin-bottom: 15px;
+  justify-content: space-between;
+}
+
+/* 設備列表 */
+.devices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.device-item {
+  background: rgba(30, 37, 54, 0.85);
+  border-radius: 5px;
+  padding: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.device-header {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.device-header .delete-btn {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--dark-text-secondary);
+  cursor: pointer;
+  font-size: 20px;
+  padding: 0 5px;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.device-header .delete-btn:hover {
+  opacity: 1;
+}
+
+.device-content {
+  padding-top: 10px;
+  border-top: 1px solid var(--dark-border);
+}
+
+.device-name-input {
+  font-size: 1.0rem;
+  text-align: center;
+  width: calc(100% - 80px);
+  padding: 5px;
+  background-color: var(--dark-input-bg);
+  border: 1px solid var(--dark-border);
+  border-radius: 3px;
+  color: var(--dark-text);
+}
+
+/* 添加設備按鈕 */
+.add-device-container {
+  text-align: center;
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid var(--dark-border);
+}
+
+.add-device-btn {
+  padding: 6px 14px;
+  cursor: pointer;
+  background-color: rgba(40, 60, 100, 0.85);
+  color: #fff;
+  border: 1px solid #3a4a6a;
+  border-radius: 3px;
+  font-size: 0.85rem;
+}
+
+.add-device-btn:hover {
+  filter: brightness(90%);
+}
+
+/* 表格樣式 - 從 App.css 整合 */
+.device-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* 確保欄位寬度固定 */
+}
+
+.device-table th,
+.device-table td {
+  overflow: hidden;
+  width: 25%; /* 將所有欄位設定為等寬 */
+  text-align: center; /* 讓內容居中 */
+  padding: 2px;
+  vertical-align: middle;
+}
+
+.device-table th {
+  color: var(--dark-text-secondary);
+  font-size: 0.9rem;
+  font-weight: normal;
+  padding-bottom: 5px;
+}
+
+.device-table input[type="number"],
+.device-table input[type="text"],
+.device-table select {
+  width: 100%;
+  padding: 4px;
+  background-color: var(--dark-input-bg);
+  border: 1px solid var(--dark-border);
+  border-radius: 3px;
+  color: var(--dark-text);
+  box-sizing: border-box;
+  text-align: right;
+}
+
+/* 錯誤訊息 */
+.error-message {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  padding: 8px 12px;
+  margin: 8px 0;
+  border-radius: 4px;
+  border-left: 4px solid #f44336;
+} 

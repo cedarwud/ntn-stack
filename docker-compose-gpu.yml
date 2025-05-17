@@ -1,0 +1,99 @@
+# docker-compose-gpu.yml
+# GPU 模式專用配置文件
+# 使用方法: docker compose -f docker-compose-gpu.yml up
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: postgis_db
+    env_file:
+      - ./.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - sionna-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fastapi_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./.env
+      - ./backend/.env
+    environment:
+      # === GPU 模式設定 ===
+      # 使用 GPU 0 (RTX 4090)
+      CUDA_VISIBLE_DEVICES: "0"
+      
+      # === 渲染後端設定 ===
+      # 使用 EGL 作為 OpenGL 平台
+      PYOPENGL_PLATFORM: "egl"
+      # 使用 pyglet 作為 pyrender 後端
+      PYRENDER_BACKEND: "pyglet"
+      
+      # 其他通用設定
+      PYTHONUNBUFFERED: "1"
+      TF_FORCE_GPU_ALLOW_GROWTH: "true"
+      # 資料庫連接 URL
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    
+    # === GPU 支持 (已啟用) ===
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1  # 只使用一個 GPU
+              capabilities: [gpu]
+    
+    networks:
+      - sionna-net
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import socket; s = socket.create_connection((\"localhost\", 8000), timeout=5)' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: react_app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - sionna-net
+    depends_on:
+      backend:
+        condition: service_healthy
+
+networks:
+  sionna-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  frontend_node_modules: 
