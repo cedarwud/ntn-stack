@@ -76,6 +76,55 @@ logger.info(f"SINR Map Image Path (in container): {SINR_MAP_IMAGE_PATH}")
 logger.info(f"DOPPLER Image Path (in container): {DOPPLER_IMAGE_PATH}")
 
 
+# --- Default Observer Configuration ---
+# Helper function to get float from env or return None
+def get_float_env(var_name):
+    value = os.getenv(var_name)
+    if value is not None:
+        try:
+            return float(value)
+        except ValueError:
+            logger.warning(
+                f"Environment variable {var_name} ('{value}') is not a valid float. Ignoring."
+            )
+    return None
+
+
+# Observer Latitude
+DEFAULT_OBSERVER_LAT = get_float_env("OBSERVER_LAT")
+if DEFAULT_OBSERVER_LAT is None:
+    # TODO: Replace with actual database lookup if OBSERVER_LAT is not in env
+    logger.info(
+        "OBSERVER_LAT not found in environment variables. Using placeholder/database fallback."
+    )
+    DEFAULT_OBSERVER_LAT = 24.785_278  # Example: NYCU, replace with DB lookup
+    # Example DB lookup: default_observer_lat = db_service.get_default_observer_lat()
+
+# Observer Longitude
+DEFAULT_OBSERVER_LON = get_float_env("OBSERVER_LON")
+if DEFAULT_OBSERVER_LON is None:
+    # TODO: Replace with actual database lookup if OBSERVER_LON is not in env
+    logger.info(
+        "OBSERVER_LON not found in environment variables. Using placeholder/database fallback."
+    )
+    DEFAULT_OBSERVER_LON = 120.997_222  # Example: NYCU, replace with DB lookup
+    # Example DB lookup: default_observer_lon = db_service.get_default_observer_lon()
+
+# Observer Altitude (in meters, defaults to 0 if not specified)
+DEFAULT_OBSERVER_ALT = get_float_env("OBSERVER_ALT")
+if DEFAULT_OBSERVER_ALT is None:
+    # TODO: Replace with actual database lookup if OBSERVER_ALT is not in env
+    logger.info(
+        "OBSERVER_ALT not found in environment variables. Using placeholder/database fallback (0.0m)."
+    )
+    DEFAULT_OBSERVER_ALT = 0.0  # Default to sea level if not specified or found in DB
+    # Example DB lookup: default_observer_alt = db_service.get_default_observer_alt(default_value=0.0)
+
+logger.info(
+    f"Default Observer: LAT={DEFAULT_OBSERVER_LAT}, LON={DEFAULT_OBSERVER_LON}, ALT={DEFAULT_OBSERVER_ALT}m"
+)
+
+
 # --- GPU/CPU Configuration ---
 # (這部分邏輯也可以放在這裡，或在需要時執行)
 def configure_gpu_cpu():
