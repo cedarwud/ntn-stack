@@ -12,6 +12,34 @@
   z-index: 0;
 }
 
+/* 新增 scene-container 樣式 */
+.scene-container {
+  width: 100%;
+  height: 100%; /* 或根據佈局調整，例如 calc(100vh - headerHeight) */
+  position: relative; /* Starfield 是 absolute 定位，父容器需要 relative */
+  overflow: hidden; /* 確保 Starfield 不會導致不必要的滾動條 */
+  /* 星空漸層背景 */
+  background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+  color: #eaf6ff; /* 確保文字顏色與背景協調，如果有的話 */
+}
+
+/* Styles for image container and image within FloorView */
+.image-container {
+  position: relative; /* For absolutely positioned children like DeviceOverlaySVG */
+  width: 100%; /* Ensure it takes full width of its parent */
+  height: 100%; /* Ensure it takes full height, allowing img to use maxHeight against this */
+  display: flex; /* Optional: For centering the image if needed, along with align-items/justify-content */
+  align-items: center; /* Center image vertically */
+  justify-content: center; /* Center image horizontally */
+}
+
+.scene-image {
+  display: block; /* Default display state */
+  max-width: 100%;
+  max-height: calc(100vh - 60px); /* Assuming 60px navbar height */
+  object-fit: contain;
+}
+
 /* 側邊欄頭部樣式 */
 .sidebar-header {
   display: flex;

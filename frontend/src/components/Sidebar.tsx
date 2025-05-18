@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Device } from '../App'
 import '../styles/Sidebar.css'
 import { UAVManualDirection } from './UAVFlight' // Assuming UAVFlight exports this
+import { Device } from '../types/device'
+import SidebarStarfield from './SidebarStarfield' // Import the new component
+import DeviceItem from './DeviceItem' // Import DeviceItem
+import { useReceiverSelection } from '../hooks/useReceiverSelection' // Import the hook
 
 interface SidebarProps {
     devices: Device[]
@@ -20,84 +23,6 @@ interface SidebarProps {
     uavAnimation: boolean
     onUavAnimationChange: (val: boolean) => void // Parent will use selected IDs
     onSelectedReceiversChange?: (selectedIds: number[]) => void // New prop
-}
-
-// 星空星點動畫元件
-const STAR_COUNT = 60
-interface Star {
-    left: number
-    top: number
-    size: number
-    baseOpacity: number
-    phase: number
-    speed: number
-    animOpacity: number
-}
-function createStars(): Star[] {
-    return Array.from({ length: STAR_COUNT }, () => {
-        const baseOpacity = Math.random() * 0.7 + 0.3
-        return {
-            left: Math.random() * 100,
-            top: Math.random() * 100,
-            size: Math.random() * 1.5 + 0.5,
-            baseOpacity,
-            phase: Math.random() * Math.PI * 2,
-            speed: Math.random() * 1.0 + 1.0,
-            animOpacity: baseOpacity,
-        }
-    })
-}
-const SidebarStarfield: React.FC = () => {
-    const [starAnim, setStarAnim] = useState<Star[]>(() => createStars())
-    useEffect(() => {
-        let mounted = true
-        let frame = 0
-        const interval = setInterval(() => {
-            if (!mounted) return
-            setStarAnim((prev) =>
-                prev.map((star) => {
-                    const t = frame / 30
-                    const flicker = Math.sin(t * star.speed + star.phase) * 0.5
-                    let opacity = star.baseOpacity + flicker
-                    opacity = Math.max(0.15, Math.min(1, opacity))
-                    return { ...star, animOpacity: opacity }
-                })
-            )
-            frame++
-        }, 60)
-        return () => {
-            mounted = false
-            clearInterval(interval)
-        }
-    }, [])
-    return (
-        <div
-            style={{
-                position: 'absolute',
-                inset: 0,
-                zIndex: 0,
-                pointerEvents: 'none',
-            }}
-        >
-            {starAnim.map((star, i) => (
-                <div
-                    key={i}
-                    style={{
-                        position: 'absolute',
-                        left: `${star.left}%`,
-                        top: `${star.top}%`,
-                        width: `${star.size}px`,
-                        height: `${star.size}px`,
-                        borderRadius: '50%',
-                        background: 'white',
-                        opacity: star.animOpacity,
-                        filter: 'blur(0.5px)',
-                        transition: 'opacity 0.2s linear',
-                    }}
-                />
-            ))}
-        </div>
-    )
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -126,56 +51,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     // 新增：持續發送控制指令的 interval id
     const manualIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    // 修改：初始化 selectedReceiverIds 包含所有 receiver ID
-    // 這樣當 Sidebar 首次渲染時，所有 receiver badge 會呈現選中狀態
-    const [selectedReceiverIds, setSelectedReceiverIds] = useState<number[]>(
-        () => {
-            // 獲取設備列表中所有合法的 receiver ID
-            return devices
-                .filter(
-                    (device) => device.role === 'receiver' && device.id !== null
-                )
-                .map((device) => device.id as number)
-        }
-    )
-
-    // 同步 selectedReceiverIds 與父組件
-    useEffect(() => {
-        // 當組件掛載時，通知父組件當前選中的 receiver IDs
-        if (onSelectedReceiversChange) {
-            onSelectedReceiversChange(selectedReceiverIds)
-        }
-    }, []) // 僅在組件掛載時執行一次
-
-    // Effect to synchronize selectedReceiverIds with the current devices list
-    useEffect(() => {
-        const currentReceiverDeviceIds = devices
-            .filter((d) => d.role === 'receiver' && d.id !== null)
-            .map((d) => d.id as number)
-
-        setSelectedReceiverIds((prevSelected) => {
-            // 計算有效的 selectedIds（只包含當前存在的 receiver）
-            const newSelected = prevSelected.filter((id) =>
-                currentReceiverDeviceIds.includes(id)
-            )
-
-            // 如果沒有選中的接收器，則自動選中所有接收器
-            const finalSelected =
-                newSelected.length > 0
-                    ? newSelected
-                    : [...currentReceiverDeviceIds]
-
-            // 如果選擇變更，通知父組件
-            if (
-                JSON.stringify(finalSelected) !== JSON.stringify(prevSelected)
-            ) {
-                if (onSelectedReceiversChange) {
-                    onSelectedReceiversChange(finalSelected)
-                }
-            }
-            return finalSelected
-        })
-    }, [devices, onSelectedReceiversChange])
+    // Use the new hook for receiver selection
+    const { selectedReceiverIds, handleBadgeClick } = useReceiverSelection({
+        devices,
+        onSelectedReceiversChange,
+    })
 
     // 當 devices 更新時，初始化或更新本地輸入狀態
     useEffect(() => {
@@ -183,44 +63,53 @@ const Sidebar: React.FC<SidebarProps> = ({
             [key: string]: { x: string; y: string; z: string }
         } = {}
         devices.forEach((device) => {
-            // 如果該設備已有本地輸入狀態，保留它；否則，從設備初始化
-            if (!orientationInputs[device.id]) {
+            // 檢查 orientationInputs[device.id] 是否存在，如果不存在或其值與 device object 中的值不同，則進行初始化
+            const existingInput = orientationInputs[device.id]
+            const backendX = device.orientation_x?.toString() || '0'
+            const backendY = device.orientation_y?.toString() || '0'
+            const backendZ = device.orientation_z?.toString() || '0'
+
+            if (existingInput) {
+                // 如果存在本地狀態，比較後決定是否使用後端值來覆蓋（例如，如果外部更改了設備數據）
+                // 這裡的邏輯是，如果本地輸入與後端解析後的數值不直接對應（例如本地是 "1/2", 後端是 1.57...），
+                // 且後端的值不是初始的 '0'，則可能意味著後端的值已被更新，我們可能需要一種策略來決定是否刷新本地輸入框。
+                // 目前的策略是：如果 device object 中的 orientation 值不再是 0 (或 undefined)，
+                // 且 orientationInputs 中對應的值是 '0'，則用 device object 的值更新 input。
+                // 這有助於在外部修改了方向後，輸入框能反映這些更改，除非用戶已經開始編輯。
+                // 更複雜的同步邏輯可能需要考慮編輯狀態。
+                // 為了簡化，如果本地已有值，我們傾向於保留本地輸入，除非是從 '0' 開始。
                 newInputs[device.id] = {
-                    x: device.orientation_x?.toString() || '0',
-                    y: device.orientation_y?.toString() || '0',
-                    z: device.orientation_z?.toString() || '0',
+                    x:
+                        existingInput.x !== '0' && existingInput.x !== backendX
+                            ? existingInput.x
+                            : backendX,
+                    y:
+                        existingInput.y !== '0' && existingInput.y !== backendY
+                            ? existingInput.y
+                            : backendY,
+                    z:
+                        existingInput.z !== '0' && existingInput.z !== backendZ
+                            ? existingInput.z
+                            : backendZ,
                 }
             } else {
-                newInputs[device.id] = orientationInputs[device.id]
+                newInputs[device.id] = {
+                    x: backendX,
+                    y: backendY,
+                    z: backendZ,
+                }
             }
         })
         setOrientationInputs(newInputs)
-    }, [devices])
+    }, [devices]) // 依賴 devices prop
 
-    // Handler for badge click
-    const handleBadgeClick = (deviceId: number | null) => {
-        if (deviceId === null) return // Should not happen for displayed receiver badges
-
-        setSelectedReceiverIds((prevSelected) => {
-            const newSelected = prevSelected.includes(deviceId)
-                ? prevSelected.filter((id) => id !== deviceId)
-                : [...prevSelected, deviceId]
-
-            // Notify parent component of the change in selection
-            if (onSelectedReceiversChange) {
-                onSelectedReceiversChange(newSelected)
-            }
-            return newSelected
-        })
-    }
-
-    // 處理方向輸入的變化
-    const handleOrientationInput = (
+    // 處理方向輸入的變化 (重命名並調整)
+    const handleDeviceOrientationInputChange = (
         deviceId: number,
         axis: 'x' | 'y' | 'z',
         value: string
     ) => {
-        // 更新本地狀態
+        // 更新本地狀態以反映輸入框中的原始文本
         setOrientationInputs((prev) => ({
             ...prev,
             [deviceId]: {
@@ -229,7 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             },
         }))
 
-        // 檢查輸入是否包含分數格式
+        // 解析輸入值並更新實際的設備數據
         if (value.includes('/')) {
             const parts = value.split('/')
             if (parts.length === 2) {
@@ -240,18 +129,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                     !isNaN(denominator) &&
                     denominator !== 0
                 ) {
-                    // 計算分數值並乘以 π
                     const calculatedValue = (numerator / denominator) * Math.PI
-                    // 更新設備狀態
                     const orientationKey = `orientation_${axis}` as keyof Device
                     onDeviceChange(deviceId, orientationKey, calculatedValue)
                 }
             }
         } else {
-            // 嘗試將值解析為數字
             const numValue = parseFloat(value)
             if (!isNaN(numValue)) {
-                // 更新設備狀態
                 const orientationKey = `orientation_${axis}` as keyof Device
                 onDeviceChange(deviceId, orientationKey, numValue)
             }
@@ -304,178 +189,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     const jammerDevices = devices.filter(
         (device) =>
             device.id != null && device.id >= 0 && device.role === 'jammer'
-    )
-
-    const renderDeviceItem = (device: Device) => (
-        <div key={device.id} className="device-item">
-            <div className="device-header">
-                <input
-                    type="text"
-                    value={device.name}
-                    onChange={(e) =>
-                        onDeviceChange(device.id, 'name', e.target.value)
-                    }
-                    className="device-name-input"
-                />
-                <button
-                    className="delete-btn"
-                    onClick={() => onDeleteDevice(device.id)}
-                >
-                    &#10006;
-                </button>
-            </div>
-            <div className="device-content">
-                <table className="device-table">
-                    <thead>
-                        <tr>
-                            <th>類型</th>
-                            <th>X 位置</th>
-                            <th>Y 位置</th>
-                            <th>Z 位置</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>
-                                <select
-                                    value={device.role}
-                                    onChange={(e) =>
-                                        onDeviceChange(
-                                            device.id,
-                                            'role',
-                                            e.target.value
-                                        )
-                                    }
-                                    className="device-type-select"
-                                >
-                                    <option value="receiver">接收器</option>
-                                    <option value="desired">發射器</option>
-                                    <option value="jammer">干擾源</option>
-                                </select>
-                            </td>
-                            <td>
-                                <input
-                                    type="number"
-                                    value={device.position_x}
-                                    onChange={(e) =>
-                                        onDeviceChange(
-                                            device.id,
-                                            'position_x',
-                                            parseFloat(e.target.value) || 0
-                                        )
-                                    }
-                                />
-                            </td>
-                            <td>
-                                <input
-                                    type="number"
-                                    value={device.position_y}
-                                    onChange={(e) =>
-                                        onDeviceChange(
-                                            device.id,
-                                            'position_y',
-                                            parseFloat(e.target.value) || 0
-                                        )
-                                    }
-                                />
-                            </td>
-                            <td>
-                                <input
-                                    type="number"
-                                    value={device.position_z}
-                                    onChange={(e) =>
-                                        onDeviceChange(
-                                            device.id,
-                                            'position_z',
-                                            parseInt(e.target.value, 10) || 0
-                                        )
-                                    }
-                                />
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                {device.role !== 'receiver' && (
-                    <table className="device-table orientation-table">
-                        <thead>
-                            <tr>
-                                <th>功率 (dBm)</th>
-                                <th>X 方向</th>
-                                <th>Y 方向</th>
-                                <th>Z 方向</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>
-                                    <input
-                                        type="number"
-                                        value={device.power_dbm || 0}
-                                        onChange={(e) =>
-                                            onDeviceChange(
-                                                device.id,
-                                                'power_dbm',
-                                                parseInt(e.target.value, 10) ||
-                                                    0
-                                            )
-                                        }
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        type="text"
-                                        value={
-                                            orientationInputs[device.id]?.x ||
-                                            '0'
-                                        }
-                                        onChange={(e) =>
-                                            handleOrientationInput(
-                                                device.id,
-                                                'x',
-                                                e.target.value
-                                            )
-                                        }
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        type="text"
-                                        value={
-                                            orientationInputs[device.id]?.y ||
-                                            '0'
-                                        }
-                                        onChange={(e) =>
-                                            handleOrientationInput(
-                                                device.id,
-                                                'y',
-                                                e.target.value
-                                            )
-                                        }
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        type="text"
-                                        value={
-                                            orientationInputs[device.id]?.z ||
-                                            '0'
-                                        }
-                                        onChange={(e) =>
-                                            handleOrientationInput(
-                                                device.id,
-                                                'z',
-                                                e.target.value
-                                            )
-                                        }
-                                    />
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                )}
-            </div>
-        </div>
     )
 
     return (
@@ -787,7 +500,24 @@ const Sidebar: React.FC<SidebarProps> = ({
                         >
                             新增設備
                         </h3>
-                        {tempDevices.map(renderDeviceItem)}
+                        {tempDevices.map((device) => (
+                            <DeviceItem
+                                key={device.id}
+                                device={device}
+                                orientationInput={
+                                    orientationInputs[device.id] || {
+                                        x: '0',
+                                        y: '0',
+                                        z: '0',
+                                    }
+                                }
+                                onDeviceChange={onDeviceChange}
+                                onDeleteDevice={onDeleteDevice}
+                                onOrientationInputChange={
+                                    handleDeviceOrientationInputChange
+                                }
+                            />
+                        ))}
                     </>
                 )}
                 {/* 接收器 (Rx) */}
@@ -809,7 +539,24 @@ const Sidebar: React.FC<SidebarProps> = ({
                         >
                             接收器 (Rx)
                         </h3>
-                        {receiverDevices.map(renderDeviceItem)}
+                        {receiverDevices.map((device) => (
+                            <DeviceItem
+                                key={device.id}
+                                device={device}
+                                orientationInput={
+                                    orientationInputs[device.id] || {
+                                        x: '0',
+                                        y: '0',
+                                        z: '0',
+                                    }
+                                }
+                                onDeviceChange={onDeviceChange}
+                                onDeleteDevice={onDeleteDevice}
+                                onOrientationInputChange={
+                                    handleDeviceOrientationInputChange
+                                }
+                            />
+                        ))}
                     </>
                 )}
                 {/* 發射器 (Tx) */}
@@ -825,7 +572,24 @@ const Sidebar: React.FC<SidebarProps> = ({
                         >
                             發射器 (Tx)
                         </h3>
-                        {desiredDevices.map(renderDeviceItem)}
+                        {desiredDevices.map((device) => (
+                            <DeviceItem
+                                key={device.id}
+                                device={device}
+                                orientationInput={
+                                    orientationInputs[device.id] || {
+                                        x: '0',
+                                        y: '0',
+                                        z: '0',
+                                    }
+                                }
+                                onDeviceChange={onDeviceChange}
+                                onDeleteDevice={onDeleteDevice}
+                                onOrientationInputChange={
+                                    handleDeviceOrientationInputChange
+                                }
+                            />
+                        ))}
                     </>
                 )}
                 {/* 干擾源 (Jam) */}
@@ -841,7 +605,24 @@ const Sidebar: React.FC<SidebarProps> = ({
                         >
                             干擾源 (Jam)
                         </h3>
-                        {jammerDevices.map(renderDeviceItem)}
+                        {jammerDevices.map((device) => (
+                            <DeviceItem
+                                key={device.id}
+                                device={device}
+                                orientationInput={
+                                    orientationInputs[device.id] || {
+                                        x: '0',
+                                        y: '0',
+                                        z: '0',
+                                    }
+                                }
+                                onDeviceChange={onDeviceChange}
+                                onDeleteDevice={onDeleteDevice}
+                                onOrientationInputChange={
+                                    handleDeviceOrientationInputChange
+                                }
+                            />
+                        ))}
                     </>
                 )}
             </div>

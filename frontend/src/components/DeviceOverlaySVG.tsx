@@ -2,7 +2,7 @@ import React from 'react'
 
 export interface DeviceOverlaySVGProps {
     devices: any[]
-    imageRef: React.RefObject<HTMLImageElement>
+    imageRef: React.RefObject<HTMLImageElement | null>
     imageNaturalSize: { width: number; height: number } | null
     sceneToImageCoords: (
         x: number,

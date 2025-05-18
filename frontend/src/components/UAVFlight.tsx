@@ -1,5 +1,5 @@
-import { useRef, useEffect, useState, RefObject, useMemo } from 'react'
-import { useGLTF, Clone } from '@react-three/drei'
+import { useRef, useEffect, useState, useMemo } from 'react'
+import { useGLTF } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 // @ts-ignore

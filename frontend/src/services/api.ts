@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Device, DeviceCreate, DeviceUpdate } from '../types/device';
 
 // 後端API的基礎URL - 根據環境動態設置
 // 在開發模式下使用 localhost，在生產環境中使用真實 IP
@@ -14,49 +15,6 @@ export enum DeviceRole {
   RECEIVER = 'receiver',
 }
 
-// 設備介面（對應後端的 Device schema）
-export interface Device {
-  id: number;
-  name: string;
-  position_x: number;
-  position_y: number;
-  position_z: number;
-  orientation_x?: number;
-  orientation_y?: number;
-  orientation_z?: number;
-  role: string; // DeviceRole 的字串值
-  power_dbm?: number;
-  active: boolean;
-}
-
-// 用於創建設備的介面
-export interface DeviceCreate {
-  name: string;
-  position_x: number;
-  position_y: number;
-  position_z: number;
-  orientation_x?: number;
-  orientation_y?: number;
-  orientation_z?: number;
-  role: string;
-  power_dbm?: number;
-  active: boolean;
-}
-
-// 用於更新設備的介面
-export interface DeviceUpdate {
-  name?: string;
-  position_x?: number;
-  position_y?: number;
-  position_z?: number;
-  orientation_x?: number;
-  orientation_y?: number;
-  orientation_z?: number;
-  role?: string;
-  power_dbm?: number;
-  active?: boolean;
-}
-
 // 獲取所有設備
 export const getDevices = async (role?: string): Promise<Device[]> => {
   let url = `${API_BASE_URL}/devices/?limit=100`;
@@ -70,27 +28,6 @@ export const getDevices = async (role?: string): Promise<Device[]> => {
     return response.data;
   } catch (error) {
     console.error('獲取設備列表失敗:', error);
-    throw error;
-  }
-};
-
-// 獲取特定類型的設備（便捷方法）
-export const getJammers = async (): Promise<Device[]> => {
-  try {
-    const response = await axios.get<Device[]>(`${API_BASE_URL}/devices/jammers`);
-    return response.data;
-  } catch (error) {
-    console.error('獲取干擾器列表失敗:', error);
-    throw error;
-  }
-};
-
-export const getReceivers = async (): Promise<Device[]> => {
-  try {
-    const response = await axios.get<Device[]>(`${API_BASE_URL}/devices/receivers`);
-    return response.data;
-  } catch (error) {
-    console.error('獲取接收器列表失敗:', error);
     throw error;
   }
 };
