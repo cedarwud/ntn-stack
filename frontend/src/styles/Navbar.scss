@@ -39,25 +39,25 @@
   padding: 10px 0;
   font-weight: 500;
   transition: color 0.3s;
-}
 
-.navbar-item:hover {
-  color: #4a7bff;
-}
+  &:hover {
+    color: #4a7bff;
+  }
 
-.navbar-item.active {
-  color: #4a7bff;
-}
+  &.active {
+    color: #4a7bff;
 
-.navbar-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background-color: #4a7bff;
-  border-radius: 2px;
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #4a7bff;
+      border-radius: 2px;
+    }
+  }
 }
 
 .navbar-menu-toggle {
@@ -72,36 +72,36 @@
   height: 2px;
   background-color: white;
   transition: all 0.3s ease;
-}
 
-.menu-icon::before,
-.menu-icon::after {
-  content: '';
-  position: absolute;
-  width: 24px;
-  height: 2px;
-  background-color: white;
-  transition: all 0.3s ease;
-}
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 2px;
+    background-color: white;
+    transition: all 0.3s ease;
+  }
 
-.menu-icon::before {
-  transform: translateY(-8px);
-}
+  &::before {
+    transform: translateY(-8px);
+  }
 
-.menu-icon::after {
-  transform: translateY(8px);
-}
+  &::after {
+    transform: translateY(8px);
+  }
 
-.menu-icon.open {
-  background-color: transparent;
-}
+  &.open {
+    background-color: transparent;
 
-.menu-icon.open::before {
-  transform: rotate(45deg);
-}
+    &::before {
+      transform: rotate(45deg);
+    }
 
-.menu-icon.open::after {
-  transform: rotate(-45deg);
+    &::after {
+      transform: rotate(-45deg);
+    }
+  }
 }
 
 /* 響應式設計 */
@@ -124,12 +124,12 @@
     padding: 0;
     z-index: 999;
     visibility: hidden;
-  }
 
-  .navbar-menu.open {
-    transform: translateY(0);
-    opacity: 1;
-    visibility: visible;
+    &.open {
+      transform: translateY(0);
+      opacity: 1;
+      visibility: visible;
+    }
   }
 
   .navbar-item {
@@ -137,14 +137,13 @@
     padding: 15px 0;
     width: 100%;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
 
-  .navbar-item.active::after {
-    display: none;
-  }
-
-  .navbar-item.active {
-    background-color: #16163a;
+    &.active {
+      background-color: #16163a;
+      &::after {
+        display: none;
+      }
+    }
   }
 }
 
@@ -186,68 +185,61 @@
   background-color: #16163a;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
-}
 
-.modal-header h3 {
-  margin: 0;
-  color: white;
-  font-size: 1.2rem;
-  text-align: center;
+  h3 {
+    margin: 0;
+    color: white;
+    font-size: 1.2rem;
+    text-align: center;
+  }
 }
 
 /* 新增：彈窗標題中的最後更新時間樣式 */
 .last-update-header {
-    position: absolute;
-    right: 60px; /* 調整此值以確保在關閉按鈕左側 */
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 0.8rem;
-    color: #cccccc; /* 淺灰色 */
-    white-space: nowrap; /* 防止換行 */
-    opacity: 0.7; /* 稍微透明 */
+  position: absolute;
+  right: 60px; 
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.8rem;
+  color: #cccccc;
+  white-space: nowrap;
+  opacity: 0.7;
 }
 
 /* 新增：可刷新的彈窗標題樣式 */
 .modal-title-refreshable {
-  font-size: 1.2rem; /* Match original h3 size */
-  font-weight: 500; /* Match original h3 weight */
-  color: white; /* Match original h3 color */
-  cursor: pointer;
-  padding: 0; /* Remove padding from container */
-  border-radius: 4px;
-  transition: none; /* Remove transition from container */
-  user-select: none; /* Prevent text selection */
-  text-align: center;
-  margin: 0 10px; /* Keep margin for spacing */
-}
-
-.modal-title-refreshable:hover:not(.loading) {
-  /* background-color: #4285f4; */ /* REMOVE hover background from main div */
-  /* color: white; */ /* REMOVE hover color from main div */
-}
-
-/* Apply hover styles ONLY to the inner span */
-.modal-title-refreshable:hover:not(.loading) span {
-  background-color: #4285f4;
+  font-size: 1.2rem;
+  font-weight: 500;
   color: white;
-  padding: 3px 8px; /* Adjust padding for the span */
+  cursor: pointer;
+  padding: 0;
   border-radius: 4px;
-  display: inline-block; /* Allow background/padding */
-  transition: background-color 0.2s, color 0.2s;
-}
+  transition: none;
+  user-select: none;
+  text-align: center;
+  margin: 0 10px;
 
-.modal-title-refreshable.loading {
-  /* background-color: #a0a0a0; */ /* 註釋掉：恢復默認背景 */
-  cursor: not-allowed;
-}
+  &:hover:not(.loading) {
+    span {
+      background-color: #4285f4;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      transition: background-color 0.2s, color 0.2s;
+    }
+  }
 
-/* Ensure loading state resets span styles if needed */
-.modal-title-refreshable.loading span {
-    background-color: transparent !important; 
-    color: inherit !important; 
-    padding: 0 !important;
-    display: inline; /* Reset display */
-    border-radius: 0; 
+  &.loading {
+    cursor: not-allowed;
+    span {
+      background-color: transparent !important;
+      color: inherit !important;
+      padding: 0 !important;
+      display: inline;
+      border-radius: 0;
+    }
+  }
 }
 
 .close-button {
@@ -264,10 +256,10 @@
   right: 20px;
   top: 50%;
   transform: translateY(-50%);
-}
 
-.close-button:hover {
-  opacity: 1;
+  &:hover {
+    opacity: 1;
+  }
 }
 
 .modal-content {
@@ -288,11 +280,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
 
-.loading::after {
-  content: "...";
-  animation: dots 1.5s infinite;
+  &::after {
+    content: "...";
+    animation: dots 1.5s infinite;
+  }
 }
 
 @keyframes dots {
@@ -316,11 +308,16 @@
   width: 100%;
 }
 
-.view-image {
+.view-image { 
   max-width: 90%;
   border-radius: 4px;
   margin: 10px 0;
   object-fit: contain;
+
+  &.doppler-image-v2 {
+    max-width: 100%;
+    width: 100%;
+  }
 }
 
 /* Delay-Doppler 圖特殊樣式 */
@@ -333,20 +330,9 @@
 }
 
 /* v2 版本的延遲多普勒圖樣式 */
-.doppler-image-v2 {
+.doppler-image-v2 { 
   width: 100%;
   max-width: 100%;
-}
-
-.image-item.doppler-image-v2 {
-  width: 100%;
-  max-width: 1400px; /* 更大的最大寬度以填充更多空間 */
-}
-
-.view-image.doppler-image-v2 {
-  max-width: 100%;
-  width: 100%;
-  object-fit: contain;
 }
 
 .image-item {
@@ -355,11 +341,16 @@
   align-items: center;
   width: 90%;
   max-width: 1200px;
-}
 
-.image-item h4 {
-  margin: 0 0 10px 0;
-  color: #4a7bff;
+  h4 {
+    margin: 0 0 10px 0;
+    color: #4a7bff;
+  }
+  
+  &.doppler-image-v2 {
+    width: 100%;
+    max-width: 1400px; 
+  }
 }
 
 /* 響應式調整 */
@@ -378,33 +369,27 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
 
-.control-group {
-  display: flex;
-  gap: 15px;
-  flex-wrap: wrap;
-}
+  label {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    gap: 8px;
+  }
 
-.image-controls label {
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  gap: 8px;
-}
+  input[type="number"] {
+    width: 80px;
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
 
-.image-controls input[type="number"] {
-  width: 80px;
-  padding: 4px 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.image-controls select {
-  padding: 4px 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background-color: white;
+  select {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+  }
 }
 
 .refresh-button {
@@ -417,45 +402,21 @@
   font-weight: 500;
   transition: background-color 0.2s;
   align-self: flex-start;
-}
 
-.refresh-button:hover {
-  background-color: #3367d6;
-}
+  &:hover {
+    background-color: #3367d6;
+  }
 
-.refresh-button:disabled {
-  background-color: #a0a0a0;
-  cursor: not-allowed;
+  &:disabled {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+  }
 }
 
 .last-update {
   font-size: 12px;
   color: #666;
   margin-top: 5px;
-}
-
-.loading {
-  text-align: center;
-  padding: 20px;
-  font-style: italic;
-  color: #666;
-}
-
-.error {
-  text-align: center;
-  padding: 20px;
-  color: #d32f2f;
-  background-color: #ffebee;
-  border-radius: 4px;
-  margin-bottom: 15px;
-}
-
-.view-image {
-  display: block;
-  max-width: 100%;
-  margin: 0 auto;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* SINR Map 專用樣式 - 移除容器特定樣式 */

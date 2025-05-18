@@ -310,7 +310,7 @@ export const useDevices = () => {
             }
             return prevDevices; // 如果沒有找到設備或位置未改變，返回原始列表
         });
-        console.log(`useDevices: 已更新設備 ID ${deviceId} 的位置信息來自 UAV:`, pos);
+        // console.log(`useDevices: 已更新設備 ID ${deviceId} 的位置信息來自 UAV:`, pos); // 註解掉飛行時的 log
     };
 
     return {

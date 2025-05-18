@@ -2,9 +2,9 @@ import { Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { ContactShadows, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import Starfield from './Starfield'
+import Starfield from '../ui/Starfield'
 import MainScene from './MainScene'
-import { Device } from '../types/device'
+import { Device } from '../../types/device'
 
 interface SceneViewProps {
     devices: Device[]

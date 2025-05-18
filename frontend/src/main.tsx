@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
+import './styles/index.scss'
 import App from './App.tsx'
 
 // 攔截控制台警告以忽略特定的 Three.js 警告

@@ -49,28 +49,17 @@ const SidebarStarfield: React.FC = () => {
         }
     }, [])
     return (
-        <div
-            style={{
-                position: 'absolute',
-                inset: 0,
-                zIndex: 0,
-                pointerEvents: 'none',
-            }}
-        >
+        <div className="sidebar-starfield-container">
             {starAnim.map((star, i) => (
                 <div
                     key={i}
+                    className="sidebar-star"
                     style={{
-                        position: 'absolute',
                         left: `${star.left}%`,
                         top: `${star.top}%`,
                         width: `${star.size}px`,
                         height: `${star.size}px`,
-                        borderRadius: '50%',
-                        background: 'white',
                         opacity: star.animOpacity,
-                        filter: 'blur(0.5px)',
-                        transition: 'opacity 0.2s linear',
                     }}
                 />
             ))}

@@ -1,11 +1,11 @@
 // src/App.tsx
-import { useState, useEffect } from 'react'
-import SceneView from './components/StereogramView'
-import Layout from './components/Layout'
-import Sidebar from './components/Sidebar'
-import Navbar from './components/Navbar'
-import SceneViewer from './components/FloorView'
-import './App.css'
+import { useState, useCallback, useMemo } from 'react'
+import SceneView from './components/scene/StereogramView'
+import Layout from './components/layout/Layout'
+import Sidebar from './components/layout/Sidebar'
+import Navbar from './components/layout/Navbar'
+import SceneViewer from './components/scene/FloorView'
+import './styles/App.scss'
 import { Device } from './types/device'
 import { countActiveDevices } from './utils/deviceUtils'
 import { useDevices } from './hooks/useDevices'
@@ -46,6 +46,24 @@ function App() {
     >(null)
     const [uavAnimation, setUavAnimation] = useState(true)
     const [selectedReceiverIds, setSelectedReceiverIds] = useState<number[]>([])
+
+    const sortedDevicesForSidebar = useMemo(() => {
+        return [...tempDevices].sort((a, b) => {
+            const roleOrder: { [key: string]: number } = {
+                receiver: 1,
+                desired: 2,
+                jammer: 3,
+            }
+            const roleA = roleOrder[a.role] || 99
+            const roleB = roleOrder[b.role] || 99
+
+            if (roleA !== roleB) {
+                return roleA - roleB
+            }
+
+            return a.name.localeCompare(b.name)
+        })
+    }, [tempDevices])
 
     const handleApply = async () => {
         const { activeTx: currentActiveTx, activeRx: currentActiveRx } =
@@ -109,46 +127,52 @@ function App() {
         setActiveComponent(component)
     }
 
-    const handleSelectedReceiversChange = (ids: number[]) => {
-        console.log('選中的 receiver IDs:', ids)
+    const handleSelectedReceiversChange = useCallback((ids: number[]) => {
+        // console.log('選中的 receiver IDs:', ids) // 註解掉飛行時的 log
         setSelectedReceiverIds(ids)
-    }
+    }, [])
 
-    const handleManualControl = (
-        direction:
-            | 'up'
-            | 'down'
-            | 'left'
-            | 'right'
-            | 'ascend'
-            | 'descend'
-            | 'left-up'
-            | 'right-up'
-            | 'left-down'
-            | 'right-down'
-            | 'rotate-left'
-            | 'rotate-right'
-            | null
-    ) => {
-        if (selectedReceiverIds.length === 0) {
-            console.log('沒有選中的 receiver，無法控制 UAV')
-            return
-        }
+    const handleManualControl = useCallback(
+        (
+            direction:
+                | 'up'
+                | 'down'
+                | 'left'
+                | 'right'
+                | 'ascend'
+                | 'descend'
+                | 'left-up'
+                | 'right-up'
+                | 'left-down'
+                | 'right-down'
+                | 'rotate-left'
+                | 'rotate-right'
+                | null
+        ) => {
+            if (selectedReceiverIds.length === 0) {
+                console.log('沒有選中的 receiver，無法控制 UAV')
+                return
+            }
 
-        setManualDirection(direction)
-    }
+            setManualDirection(direction)
+        },
+        [selectedReceiverIds, setManualDirection]
+    )
 
-    const handleUAVPositionUpdate = (
-        pos: [number, number, number],
-        deviceId?: number
-    ) => {
-        if (deviceId === undefined || !selectedReceiverIds.includes(deviceId)) {
-            return
-        }
-        updateDevicePositionFromUAV(deviceId, pos)
-    }
+    const handleUAVPositionUpdate = useCallback(
+        (pos: [number, number, number], deviceId?: number) => {
+            if (
+                deviceId === undefined ||
+                !selectedReceiverIds.includes(deviceId)
+            ) {
+                return
+            }
+            updateDevicePositionFromUAV(deviceId, pos)
+        },
+        [selectedReceiverIds, updateDevicePositionFromUAV]
+    )
 
-    const renderActiveComponent = () => {
+    const renderActiveComponent = useCallback(() => {
         switch (activeComponent) {
             case '2DRT':
                 return (
@@ -177,7 +201,17 @@ function App() {
                     />
                 )
         }
-    }
+    }, [
+        activeComponent,
+        tempDevices,
+        auto,
+        manualDirection,
+        handleManualControl,
+        handleUAVPositionUpdate,
+        uavAnimation,
+        selectedReceiverIds,
+        refreshDeviceData,
+    ])
 
     if (loading) {
         return <div className="loading">載入中...</div>
@@ -193,21 +227,7 @@ function App() {
                 <Layout
                     sidebar={
                         <Sidebar
-                            devices={[...tempDevices].sort((a, b) => {
-                                const roleOrder: { [key: string]: number } = {
-                                    receiver: 1,
-                                    desired: 2,
-                                    jammer: 3,
-                                }
-                                const roleA = roleOrder[a.role] || 99
-                                const roleB = roleOrder[b.role] || 99
-
-                                if (roleA !== roleB) {
-                                    return roleA - roleB
-                                }
-
-                                return a.name.localeCompare(b.name)
-                            })}
+                            devices={sortedDevicesForSidebar}
                             onDeviceChange={handleDeviceChange}
                             onDeleteDevice={handleDeleteDevice}
                             onAddDevice={handleAddDevice}

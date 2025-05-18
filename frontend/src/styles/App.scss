@@ -12,12 +12,14 @@
   padding: 1.5em;
   will-change: filter;
   transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+
+  &:hover {
+    filter: drop-shadow(0 0 2em #646cffaa);
+  }
+
+  &.react:hover {
+    filter: drop-shadow(0 0 2em #61dafbaa);
+  }
 }
 
 @keyframes logo-spin {
@@ -88,32 +90,32 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-}
 
-.scene-selector select {
-  padding: 5px 10px;
-  border-radius: 4px;
-  border: 1px solid #666;
-  background-color: #444;
-  color: white;
+  select {
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid #666;
+    background-color: #444;
+    color: white;
+  }
 }
 
 .view-selector {
   display: flex;
   gap: 10px;
-}
 
-.view-selector button {
-  padding: 6px 12px;
-  border: none;
-  background-color: #444;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-}
+  button {
+    padding: 6px 12px;
+    border: none;
+    background-color: #444;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
 
-.view-selector button.active {
-  background-color: #0066cc;
+    &.active {
+      background-color: #0066cc;
+    }
+  }
 }
 
 .action-buttons {
@@ -131,15 +133,15 @@ body {
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
-}
 
-.apply-button:hover:not(:disabled) {
-  background-color: #3a6be6;
-}
+  &:hover:not(:disabled) {
+    background-color: #3a6be6;
+  }
 
-.apply-button:disabled {
-  background-color: #8ca6e9;
-  cursor: not-allowed;
+  &:disabled {
+    background-color: #8ca6e9;
+    cursor: not-allowed;
+  }
 }
 
 .cancel-button {
@@ -150,15 +152,15 @@ body {
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
-}
 
-.cancel-button:hover:not(:disabled) {
-  background-color: #d32f2f;
-}
+  &:hover:not(:disabled) {
+    background-color: #d32f2f;
+  }
 
-.cancel-button:disabled {
-  background-color: #e57373;
-  cursor: not-allowed;
+  &:disabled {
+    background-color: #e57373;
+    cursor: not-allowed;
+  }
 }
 
 .error-message {
@@ -174,10 +176,10 @@ body {
 .dark-theme {
   background-color: #222;
   color: #eee;
-}
 
-.dark-theme .main-content {
-  background-color: #333;
+  .main-content {
+    background-color: #333;
+  }
 }
 
 /* 載入中和錯誤訊息樣式 */

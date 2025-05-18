@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
-import '../styles/Sidebar.css'
-import { UAVManualDirection } from './UAVFlight' // Assuming UAVFlight exports this
-import { Device } from '../types/device'
-import SidebarStarfield from './SidebarStarfield' // Import the new component
-import DeviceItem from './DeviceItem' // Import DeviceItem
-import { useReceiverSelection } from '../hooks/useReceiverSelection' // Import the hook
+import '../../styles/Sidebar.scss'
+import { UAVManualDirection } from '../scene/UAVFlight' // Assuming UAVFlight exports this
+import { Device } from '../../types/device'
+import SidebarStarfield from '../ui/SidebarStarfield' // Import the new component
+import DeviceItem from '../devices/DeviceItem' // Import DeviceItem
+import { useReceiverSelection } from '../../hooks/useReceiverSelection' // Import the hook
 
 interface SidebarProps {
     devices: Device[]
@@ -192,58 +192,34 @@ const Sidebar: React.FC<SidebarProps> = ({
     )
 
     return (
-        <div className="sidebar-container" style={{ position: 'relative' }}>
+        <div className="sidebar-container">
             <SidebarStarfield />
             {activeComponent !== '2DRT' && (
                 <>
-                    <div
-                        className="sidebar-auto-row"
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            marginBottom: 8,
-                        }}
-                    >
+                    <div className="sidebar-auto-row">
                         <button
                             onClick={() => onAutoChange(!auto)}
-                            style={{ marginRight: 12 }}
+                            className="button-auto-toggle"
                         >
                             {auto ? '自動飛行：開啟' : '自動飛行：關閉'}
                         </button>
                         <button
                             onClick={() => onUavAnimationChange(!uavAnimation)}
-                            style={{ marginLeft: 12 }}
+                            className="button-animation-toggle"
                         >
                             {uavAnimation ? '動畫：開啟' : '動畫：關閉'}
                         </button>
                     </div>
                     {!auto && (
-                        <div
-                            className="manual-control-row"
-                            style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                marginBottom: 8,
-                                paddingBottom: 8,
-                                borderBottom: '1px solid var(--dark-border)',
-                            }}
-                        >
+                        <div className="manual-control-row">
                             {/* 第一排：↖ ↑ ↗ */}
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    marginBottom: 4,
-                                }}
-                            >
+                            <div className="manual-button-group with-margin-bottom">
                                 <button
                                     onMouseDown={() =>
                                         handleManualDown('left-up')
                                     }
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     ↖
                                 </button>
@@ -253,7 +229,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     }
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     ↑
                                 </button>
@@ -263,24 +238,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     }
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     ↗
                                 </button>
                             </div>
                             {/* 第二排：← ⟲ ⟳ → */}
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    marginBottom: 4,
-                                }}
-                            >
+                            <div className="manual-button-group with-margin-bottom">
                                 <button
                                     onMouseDown={() => handleManualDown('left')}
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     ←
                                 </button>
@@ -290,7 +257,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     }
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     ⟲
                                 </button>
@@ -300,7 +266,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     }
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     ⟳
                                 </button>
@@ -310,26 +275,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     }
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     →
                                 </button>
                             </div>
                             {/* 第三排：↙ ↓ ↘ */}
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    marginBottom: 4,
-                                }}
-                            >
+                            <div className="manual-button-group with-margin-bottom">
                                 <button
                                     onMouseDown={() =>
                                         handleManualDown('left-down')
                                     }
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     ↙
                                 </button>
@@ -339,7 +296,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     }
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     ↓
                                 </button>
@@ -349,23 +305,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     }
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     ↘
                                 </button>
                             </div>
                             {/* 升降排 */}
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                }}
-                            >
+                            <div className="manual-button-group">
                                 <button
                                     onMouseDown={() => handleManualDown('up')}
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     升
                                 </button>
@@ -373,7 +322,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     onMouseDown={() => handleManualDown('down')}
                                     onMouseUp={handleManualUp}
                                     onMouseLeave={handleManualUp}
-                                    style={{ margin: 2 }}
                                 >
                                     降
                                 </button>
@@ -382,16 +330,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     )}
 
                     {/* UAV 名稱徽章區塊 */}
-                    <div
-                        className="uav-name-badges-container"
-                        style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: '5px', // 徽章之間的間距
-                            padding: '10px 0', // 容器的上下內邊距
-                            marginTop: '10px', // 與上方元素的間距
-                        }}
-                    >
+                    <div className="uav-name-badges-container">
                         {devices
                             .filter(
                                 (device) =>
@@ -406,28 +345,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 return (
                                     <span
                                         key={device.id} // device.id is not null here
-                                        className="uav-name-badge"
+                                        className={`uav-name-badge ${
+                                            isSelected ? 'selected' : ''
+                                        }`}
                                         onClick={() =>
                                             handleBadgeClick(
                                                 device.id as number
                                             )
                                         }
-                                        style={{
-                                            backgroundColor: isSelected
-                                                ? 'rgba(50, 50, 75, 0.95)' // 更新：再次調暗選中背景
-                                                : 'rgba(40, 40, 70, 0.8)',
-                                            color: '#e0e0e0',
-                                            padding: '4px 10px',
-                                            borderRadius: '12px',
-                                            fontSize: '0.9em',
-                                            margin: '3px',
-                                            border: isSelected
-                                                ? '2px solid rgba(120, 120, 160, 0.8)' // 更新：再次調暗選中邊框
-                                                : '1px solid rgba(100, 100, 150, 0.5)',
-                                            cursor: 'pointer', // Indicate clickable
-                                            transition:
-                                                'background-color 0.2s ease, border-color 0.2s ease', // Smooth transition
-                                        }}
                                     >
                                         {device.name}
                                     </span>
@@ -447,18 +372,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 )}
             </div>
 
-            <div
-                className="sidebar-actions-combined"
-                style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    paddingTop: '10px', // Preserve some top padding
-                    paddingBottom: '10px', // Add some bottom padding
-                    borderBottom: '1px solid var(--dark-border)', // Optional: add a separator line
-                    marginBottom: '10px', // Optional: add some margin below
-                }}
-            >
+            <div className="sidebar-actions-combined">
                 <button onClick={onAddDevice} className="add-device-btn">
                     添加設備
                 </button>
@@ -471,8 +385,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                             !hasTempDevices ||
                             auto
                         }
-                        className="add-device-btn"
-                        style={{ marginRight: '8px' }} // Add some space between apply and cancel
+                        className="add-device-btn button-apply-action"
                     >
                         套用
                     </button>
@@ -490,16 +403,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {/* 新增設備區塊 */}
                 {tempDevices.length > 0 && (
                     <>
-                        <h3
-                            style={{
-                                marginTop: '10px',
-                                marginBottom: '5px',
-                                paddingTop: '10px',
-                                borderTop: '1px solid var(--dark-border)',
-                            }}
-                        >
-                            新增設備
-                        </h3>
+                        <h3 className="section-title">新增設備</h3>
                         {tempDevices.map((device) => (
                             <DeviceItem
                                 key={device.id}
@@ -524,18 +428,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {receiverDevices.length > 0 && (
                     <>
                         <h3
-                            style={{
-                                marginTop:
-                                    tempDevices.length > 0 ? '20px' : '10px',
-                                marginBottom: '5px',
-                                paddingTop: '10px',
-                                borderTop:
-                                    desiredDevices.length > 0 ||
-                                    jammerDevices.length > 0 ||
-                                    tempDevices.length > 0
-                                        ? '1px solid var(--dark-border)'
-                                        : 'none',
-                            }}
+                            className={`section-title ${
+                                tempDevices.length > 0 ? 'extra-margin-top' : ''
+                            } ${
+                                desiredDevices.length > 0 ||
+                                jammerDevices.length > 0 ||
+                                tempDevices.length > 0
+                                    ? 'with-border-top'
+                                    : ''
+                            }`}
                         >
                             接收器 (Rx)
                         </h3>
@@ -562,14 +463,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {/* 發射器 (Tx) */}
                 {desiredDevices.length > 0 && (
                     <>
-                        <h3
-                            style={{
-                                marginTop: '20px',
-                                marginBottom: '5px',
-                                paddingTop: '10px',
-                                borderTop: '1px solid var(--dark-border)',
-                            }}
-                        >
+                        <h3 className="section-title extra-margin-top">
                             發射器 (Tx)
                         </h3>
                         {desiredDevices.map((device) => (
@@ -595,14 +489,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {/* 干擾源 (Jam) */}
                 {jammerDevices.length > 0 && (
                     <>
-                        <h3
-                            style={{
-                                marginTop: '20px',
-                                marginBottom: '5px',
-                                paddingTop: '10px',
-                                borderTop: '1px solid var(--dark-border)',
-                            }}
-                        >
+                        <h3 className="section-title extra-margin-top">
                             干擾源 (Jam)
                         </h3>
                         {jammerDevices.map((device) => (

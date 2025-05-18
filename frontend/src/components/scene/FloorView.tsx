@@ -1,22 +1,22 @@
 // src/components/SceneViewer.tsx
 import React, { useCallback } from 'react'
-import CoordinateDisplay from './CoordinateDisplay'
-import { Device } from '../types/device'
-import '../styles/Sidebar.css'
-import Starfield from './Starfield'
+import CoordinateDisplay from '../ui/CoordinateDisplay'
+import { Device } from '../../types/device'
+import '../../styles/Sidebar.scss'
+import Starfield from '../ui/Starfield'
 import DeviceOverlaySVG from './DeviceOverlaySVG'
-import DevicePopover from './DevicePopover'
-import { useSceneImageManager } from '../hooks/useSceneImageManager'
+import DevicePopover from '../devices/DevicePopover'
+import { useSceneImageManager } from '../../hooks/useSceneImageManager'
 import {
     useDevicePopoverManager,
     NewDevice,
-} from '../hooks/useDevicePopoverManager'
-import { useFloorMouseInteractions } from '../hooks/useFloorMouseInteractions'
+} from '../../hooks/useDevicePopoverManager'
+import { useFloorMouseInteractions } from '../../hooks/useFloorMouseInteractions'
 import {
     COORDINATE_TRANSFORM as UTIL_COORDINATE_TRANSFORM,
     imageToSceneCoords as utilImageToSceneCoords,
     sceneToImageCoords as utilSceneToImageCoords,
-} from '../utils/coordinate'
+} from '../../utils/coordinate'
 
 interface SceneViewerProps {
     devices: Device[]

@@ -379,27 +379,27 @@ export default function UAVFlight({
 
     useEffect(() => {
         if (clonedScene && animations && animations.length > 0) {
-            // 診斷 log
-            console.log('=== AnimationClip tracks ===')
-            animations.forEach((clip: THREE.AnimationClip) => {
-                console.log(
-                    'clip:',
-                    clip.name,
-                    clip.tracks.map((t) => t.name)
-                )
-            })
-            console.log('=== clonedScene children ===')
-            clonedScene.traverse((obj: THREE.Object3D) => {
-                console.log('obj:', obj.name, obj.type)
-            })
+            // // 診斷 log (暫時註解掉以減少控制台輸出)
+            // console.log('=== AnimationClip tracks ===')
+            // animations.forEach((clip: THREE.AnimationClip) => {
+            //     console.log(
+            //         'clip:',
+            //         clip.name,
+            //         clip.tracks.map((t) => t.name)
+            //     )
+            // })
+            // console.log('=== clonedScene children ===')
+            // clonedScene.traverse((obj: THREE.Object3D) => {
+            //     console.log('obj:', obj.name, obj.type)
+            // })
 
             // 自動尋找動畫 root
             const animationRoot = findAnimationRoot(clonedScene)
-            console.log(
-                'AnimationMixer root:',
-                animationRoot.name,
-                animationRoot.type
-            )
+            // console.log(
+            //     'AnimationMixer root:',
+            //     animationRoot.name,
+            //     animationRoot.type
+            // )
             const newMixer = new THREE.AnimationMixer(animationRoot)
             const newActions: { [key: string]: THREE.AnimationAction } = {}
             animations.forEach((clip: THREE.AnimationClip) => {
@@ -429,17 +429,12 @@ export default function UAVFlight({
                     hoverAction.paused = false
                     hoverAction.setEffectiveWeight(1)
                     clonedScene.position.y = HOVER_ANIMATION_Y_OFFSET
-                    console.log(
-                        'UAVFlight: Applied hover Y offset:',
-                        HOVER_ANIMATION_Y_OFFSET
-                    )
                 } else {
                     hoverAction.stop()
                     hoverAction.paused = true
                     hoverAction.enabled = false
                     hoverAction.reset()
                     clonedScene.position.y = 0 // 恢復原始相對 Y 位置
-                    console.log('UAVFlight: Reset hover Y offset.')
                 }
             }
             // 停用所有非 hover 動畫

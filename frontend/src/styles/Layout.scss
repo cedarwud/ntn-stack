@@ -25,28 +25,27 @@
   overflow: hidden;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2); /* 添加陰影效果 */
   border-radius: 0 5px 5px 0; /* 可以選擇性地為右側添加圓角 */
-}
 
-/* 收起時的側邊欄 */
-.sidebar.collapsed {
-  transform: translateX(-100%); /* 向左移出畫面 */
-  box-shadow: none; /* 收起時移除陰影 */
-  border-right: none;
-  pointer-events: none;
-}
+  &.collapsed {
+    transform: translateX(-100%); /* 向左移出畫面 */
+    box-shadow: none; /* 收起時移除陰影 */
+    border-right: none;
+    pointer-events: none;
 
-/* 側邊欄內容容器 */
-.sidebar-content {
-  flex-grow: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  opacity: 1;
-  transition: opacity 0.1s ease 0.1s; /* 延遲一點再顯示/隱藏內容 */
-}
+    .sidebar-content {
+      opacity: 0;
+      transition: opacity 0.1s ease; /* 收起時立即隱藏 */
+    }
+  }
 
-.sidebar.collapsed .sidebar-content {
-    opacity: 0;
-    transition: opacity 0.1s ease; /* 收起時立即隱藏 */
+  /* 側邊欄內容容器 */
+  .sidebar-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    opacity: 1;
+    transition: opacity 0.1s ease 0.1s; /* 延遲一點再顯示/隱藏內容 */
+  }
 }
 
 /* 側邊欄切換按鈕 - 懸浮 */
@@ -67,10 +66,10 @@
   z-index: 1001; /* 確保在最上層 */
   transition: all 0.3s ease;
   font-size: 20px;
-}
 
-.sidebar-toggle:hover {
-  background-color: var(--dark-highlight);
+  &:hover {
+    background-color: var(--dark-highlight);
+  }
 }
 
 /* 主內容區域 - 修改為置中 + 計算高度 + 背景色 */
@@ -87,17 +86,17 @@
   background-color: #7F7F7F;
   box-sizing: border-box;
   /* padding: 20px; */ /* 移除內邊距，避免影響置中 */
-}
 
-/* 確保內容容器內的元素可以撐滿可用空間 (移除 !important) */
-.main-content > div {
-  /* flex-grow: 1; */ /* 不需要讓內部 div 填充 */
-  width: 100%;
-  height: 100%; /* 讓內部 div 佔滿 main-content 高度 */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  /* 確保內容容器內的元素可以撐滿可用空間 (移除 !important) */
+  > div {
+    /* flex-grow: 1; */ /* 不需要讓內部 div 填充 */
+    width: 100%;
+    height: 100%; /* 讓內部 div 佔滿 main-content 高度 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 /* --- 針對不同視圖容器設定大小 --- */
@@ -110,14 +109,13 @@
   align-items: center;
   width: 100%; /* 容器寬度佔滿 */
   height: 100%; /* 容器高度佔滿 */
-}
 
-.scene-viewer-container img, 
-.constellation-container img {
-  max-width: 100%; /* 圖片寬度不超過容器 */
-  max-height: 100%; /* 圖片高度不超過容器 */
-  object-fit: contain; /* 等比例縮放 */
-  /* 移除之前的 width/height auto */
+  img {
+    max-width: 100%; /* 圖片寬度不超過容器 */
+    max-height: 100%; /* 圖片高度不超過容器 */
+    object-fit: contain; /* 等比例縮放 */
+    /* 移除之前的 width/height auto */
+  }
 }
 
 /* 3D RT 容器 (.scene-container 內是 canvas) */
@@ -125,11 +123,11 @@
   width: 100%; /* 3D 容器寬度佔滿 */
   height: 100%; /* 3D 容器高度佔滿 */
   flex-grow: 1; /* 確保在 flex 佈局中填滿 */
-}
 
-.scene-container canvas {
-  width: 100% !important; /* Canvas 寬度佔滿 */
-  height: 100% !important; /* Canvas 高度佔滿 */
+  canvas {
+    width: 100% !important; /* Canvas 寬度佔滿 */
+    height: 100% !important; /* Canvas 高度佔滿 */
+  }
 }
 
 /* 移除舊的通用規則 

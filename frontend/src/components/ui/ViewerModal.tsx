@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import '../styles/Navbar.css' // Assuming styles from Navbar.css can be reused or adapted
+import '../../styles/Navbar.scss' // Assuming styles from Navbar.scss can be reused or adapted
 
 export interface ViewerModalProps {
     isOpen: boolean

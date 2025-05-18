@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react'
-import '../styles/Navbar.css'
-import SINRViewer from './viewers/SINRViewer'
-import CFRViewer from './viewers/CFRViewer'
-import DelayDopplerViewer from './viewers/DelayDopplerViewer'
-import TimeFrequencyViewer from './viewers/TimeFrequencyViewer'
-import ViewerModal from './ViewerModal'
-import { ViewerProps } from '../types/viewer'
+import '../../styles/Navbar.scss'
+import SINRViewer from '../viewers/SINRViewer'
+import CFRViewer from '../viewers/CFRViewer'
+import DelayDopplerViewer from '../viewers/DelayDopplerViewer'
+import TimeFrequencyViewer from '../viewers/TimeFrequencyViewer'
+import ViewerModal from '../ui/ViewerModal'
+import { ViewerProps } from '../../types/viewer'
 
 interface NavbarProps {
     onMenuClick: (component: string) => void
