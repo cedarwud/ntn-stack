@@ -27,7 +27,7 @@ function App() {
         updateDevicePositionFromUAV,
     } = useDevices()
 
-    const [activeComponent, setActiveComponent] = useState<string>('2DRT')
+    const [activeComponent, setActiveComponent] = useState<string>('3DRT')
     const [auto, setAuto] = useState(false)
     const [manualDirection, setManualDirection] = useState<
         | 'up'
@@ -46,24 +46,6 @@ function App() {
     >(null)
     const [uavAnimation, setUavAnimation] = useState(true)
     const [selectedReceiverIds, setSelectedReceiverIds] = useState<number[]>([])
-
-    useEffect(() => {
-        if (tempDevices.length > 0 && apiStatus === 'connected') {
-            const receiverIds = tempDevices
-                .filter(
-                    (device) =>
-                        device.role === 'receiver' &&
-                        device.id !== null &&
-                        device.id > 0
-                )
-                .map((device) => device.id as number)
-            setSelectedReceiverIds(receiverIds)
-            console.log(
-                'App.tsx: selectedReceiverIds updated based on tempDevices from useDevices',
-                receiverIds
-            )
-        }
-    }, [tempDevices, apiStatus])
 
     const handleApply = async () => {
         const { activeTx: currentActiveTx, activeRx: currentActiveRx } =

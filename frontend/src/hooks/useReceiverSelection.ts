@@ -31,22 +31,18 @@ export const useReceiverSelection = ({
 
     useEffect(() => {
         // This effect ensures selectedReceiverIds stays in sync with the available devices
-        // and auto-selects all if none are selected.
+        // 並允許全部不選
         const currentReceiverDeviceIds = devices
             .filter((d) => d.role === 'receiver' && d.id !== null)
             .map((d) => d.id as number);
 
         setSelectedReceiverIds((prevSelected) => {
+            // 僅保留目前還存在的 receiver id
             const newSelected = prevSelected.filter((id) =>
                 currentReceiverDeviceIds.includes(id)
             );
-            const finalSelected =
-                newSelected.length > 0
-                    ? newSelected
-                    : [...currentReceiverDeviceIds];
-            
-            // No need to call onSelectedReceiversChange here as the above useEffect handles it.
-            return finalSelected;
+            // 不再自動全選，允許 newSelected 為空
+            return newSelected;
         });
     }, [devices]); // Removed onSelectedReceiversChange from dependencies to avoid potential loop with parent
 
