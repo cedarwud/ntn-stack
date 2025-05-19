@@ -355,6 +355,26 @@ td {
   }
 }
 
+.collapsible-header {
+  cursor: pointer;
+  position: relative;
+  padding-left: 20px;
+
+  &::before {
+    content: '+';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    font-weight: bold;
+  }
+
+  &.expanded::before {
+    content: '-';
+  }
+}
+
 .sidebar-starfield-container {
   position: absolute;
   inset: 0;

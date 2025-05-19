@@ -57,6 +57,12 @@ const Sidebar: React.FC<SidebarProps> = ({
         onSelectedReceiversChange,
     })
 
+    // 新增：控制各個設備列表的展開狀態
+    const [showTempDevices, setShowTempDevices] = useState(false)
+    const [showReceiverDevices, setShowReceiverDevices] = useState(false)
+    const [showDesiredDevices, setShowDesiredDevices] = useState(false)
+    const [showJammerDevices, setShowJammerDevices] = useState(false)
+
     // 當 devices 更新時，初始化或更新本地輸入狀態
     useEffect(() => {
         const newInputs: {
@@ -403,32 +409,42 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {/* 新增設備區塊 */}
                 {tempDevices.length > 0 && (
                     <>
-                        <h3 className="section-title">新增設備</h3>
-                        {tempDevices.map((device) => (
-                            <DeviceItem
-                                key={device.id}
-                                device={device}
-                                orientationInput={
-                                    orientationInputs[device.id] || {
-                                        x: '0',
-                                        y: '0',
-                                        z: '0',
+                        <h3
+                            className={`section-title collapsible-header ${
+                                showTempDevices ? 'expanded' : ''
+                            }`}
+                            onClick={() => setShowTempDevices(!showTempDevices)}
+                        >
+                            新增設備
+                        </h3>
+                        {showTempDevices &&
+                            tempDevices.map((device) => (
+                                <DeviceItem
+                                    key={device.id}
+                                    device={device}
+                                    orientationInput={
+                                        orientationInputs[device.id] || {
+                                            x: '0',
+                                            y: '0',
+                                            z: '0',
+                                        }
                                     }
-                                }
-                                onDeviceChange={onDeviceChange}
-                                onDeleteDevice={onDeleteDevice}
-                                onOrientationInputChange={
-                                    handleDeviceOrientationInputChange
-                                }
-                            />
-                        ))}
+                                    onDeviceChange={onDeviceChange}
+                                    onDeleteDevice={onDeleteDevice}
+                                    onOrientationInputChange={
+                                        handleDeviceOrientationInputChange
+                                    }
+                                />
+                            ))}
                     </>
                 )}
                 {/* 接收器 (Rx) */}
                 {receiverDevices.length > 0 && (
                     <>
                         <h3
-                            className={`section-title ${
+                            className={`section-title collapsible-header ${
+                                showReceiverDevices ? 'expanded' : ''
+                            } ${
                                 tempDevices.length > 0 ? 'extra-margin-top' : ''
                             } ${
                                 desiredDevices.length > 0 ||
@@ -437,79 +453,99 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     ? 'with-border-top'
                                     : ''
                             }`}
+                            onClick={() =>
+                                setShowReceiverDevices(!showReceiverDevices)
+                            }
                         >
                             接收器 (Rx)
                         </h3>
-                        {receiverDevices.map((device) => (
-                            <DeviceItem
-                                key={device.id}
-                                device={device}
-                                orientationInput={
-                                    orientationInputs[device.id] || {
-                                        x: '0',
-                                        y: '0',
-                                        z: '0',
+                        {showReceiverDevices &&
+                            receiverDevices.map((device) => (
+                                <DeviceItem
+                                    key={device.id}
+                                    device={device}
+                                    orientationInput={
+                                        orientationInputs[device.id] || {
+                                            x: '0',
+                                            y: '0',
+                                            z: '0',
+                                        }
                                     }
-                                }
-                                onDeviceChange={onDeviceChange}
-                                onDeleteDevice={onDeleteDevice}
-                                onOrientationInputChange={
-                                    handleDeviceOrientationInputChange
-                                }
-                            />
-                        ))}
+                                    onDeviceChange={onDeviceChange}
+                                    onDeleteDevice={onDeleteDevice}
+                                    onOrientationInputChange={
+                                        handleDeviceOrientationInputChange
+                                    }
+                                />
+                            ))}
                     </>
                 )}
                 {/* 發射器 (Tx) */}
                 {desiredDevices.length > 0 && (
                     <>
-                        <h3 className="section-title extra-margin-top">
+                        <h3
+                            className={`section-title extra-margin-top collapsible-header ${
+                                showDesiredDevices ? 'expanded' : ''
+                            }`}
+                            onClick={() =>
+                                setShowDesiredDevices(!showDesiredDevices)
+                            }
+                        >
                             發射器 (Tx)
                         </h3>
-                        {desiredDevices.map((device) => (
-                            <DeviceItem
-                                key={device.id}
-                                device={device}
-                                orientationInput={
-                                    orientationInputs[device.id] || {
-                                        x: '0',
-                                        y: '0',
-                                        z: '0',
+                        {showDesiredDevices &&
+                            desiredDevices.map((device) => (
+                                <DeviceItem
+                                    key={device.id}
+                                    device={device}
+                                    orientationInput={
+                                        orientationInputs[device.id] || {
+                                            x: '0',
+                                            y: '0',
+                                            z: '0',
+                                        }
                                     }
-                                }
-                                onDeviceChange={onDeviceChange}
-                                onDeleteDevice={onDeleteDevice}
-                                onOrientationInputChange={
-                                    handleDeviceOrientationInputChange
-                                }
-                            />
-                        ))}
+                                    onDeviceChange={onDeviceChange}
+                                    onDeleteDevice={onDeleteDevice}
+                                    onOrientationInputChange={
+                                        handleDeviceOrientationInputChange
+                                    }
+                                />
+                            ))}
                     </>
                 )}
                 {/* 干擾源 (Jam) */}
                 {jammerDevices.length > 0 && (
                     <>
-                        <h3 className="section-title extra-margin-top">
+                        <h3
+                            className={`section-title extra-margin-top collapsible-header ${
+                                showJammerDevices ? 'expanded' : ''
+                            }`}
+                            onClick={() =>
+                                setShowJammerDevices(!showJammerDevices)
+                            }
+                        >
                             干擾源 (Jam)
                         </h3>
-                        {jammerDevices.map((device) => (
-                            <DeviceItem
-                                key={device.id}
-                                device={device}
-                                orientationInput={
-                                    orientationInputs[device.id] || {
-                                        x: '0',
-                                        y: '0',
-                                        z: '0',
+                        {showJammerDevices &&
+                            jammerDevices.map((device) => (
+                                <DeviceItem
+                                    key={device.id}
+                                    device={device}
+                                    orientationInput={
+                                        orientationInputs[device.id] || {
+                                            x: '0',
+                                            y: '0',
+                                            z: '0',
+                                        }
                                     }
-                                }
-                                onDeviceChange={onDeviceChange}
-                                onDeleteDevice={onDeleteDevice}
-                                onOrientationInputChange={
-                                    handleDeviceOrientationInputChange
-                                }
-                            />
-                        ))}
+                                    onDeviceChange={onDeviceChange}
+                                    onDeleteDevice={onDeleteDevice}
+                                    onOrientationInputChange={
+                                        handleDeviceOrientationInputChange
+                                    }
+                                />
+                            ))}
                     </>
                 )}
             </div>

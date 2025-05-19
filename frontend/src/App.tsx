@@ -44,7 +44,7 @@ function App() {
         | 'rotate-right'
         | null
     >(null)
-    const [uavAnimation, setUavAnimation] = useState(true)
+    const [uavAnimation, setUavAnimation] = useState(false)
     const [selectedReceiverIds, setSelectedReceiverIds] = useState<number[]>([])
 
     const sortedDevicesForSidebar = useMemo(() => {
