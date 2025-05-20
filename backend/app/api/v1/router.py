@@ -15,6 +15,9 @@ from app.api.v1.endpoints import coordinates
 # New import for satellite operations
 from app.api.v1.endpoints import satellite_operations
 
+# Import Open5GS API router
+from app.api import open5gs
+
 api_router = APIRouter()
 
 # Include existing routers (based on your project, adjust if needed)
@@ -41,3 +44,6 @@ api_router.include_router(
 api_router.include_router(
     satellite_operations.router, prefix="/satellite-ops", tags=["Satellite Operations"]
 )
+
+# Include the Open5GS API router
+api_router.include_router(open5gs.router, prefix="/open5gs", tags=["5G Network"])

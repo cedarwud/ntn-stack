@@ -114,11 +114,273 @@ services:
       backend: # <--- 修改依賴條件
         condition: service_healthy # 等待 backend 健康檢查通過
 
+  # ==== Open5GS (NGC) 服務 ==== 
+  mongo:
+    image: mongo
+    container_name: open5gs-mongo
+    environment:
+      MONGO_INITDB_DATABASE: open5gs
+    networks:
+      - sionna-net
+      - open5gs-net
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  amf:
+    image: gradiant/open5gs:2.7.5
+    command:
+      - open5gs-amfd
+    restart: on-failure
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  ausf:
+    image: gradiant/open5gs:2.7.5
+    command:
+      - open5gs-ausfd
+    restart: on-failure
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  bsf:
+    image: gradiant/open5gs:2.7.5
+    command:
+      - open5gs-bsfd
+    restart: on-failure
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  nrf:
+    image: gradiant/open5gs:2.7.5
+    command: open5gs-nrfd
+    restart: on-failure
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  nssf:
+    image: gradiant/open5gs:2.7.5
+    command: open5gs-nssfd
+    restart: on-failure
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  pcf:
+    image: gradiant/open5gs:2.7.5
+    command:
+      - open5gs-pcfd
+    environment:
+      DB_URI: mongodb://mongo/open5gs
+    restart: on-failure
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  scp:
+    image: gradiant/open5gs:2.7.5
+    command: open5gs-scpd
+    environment:
+      DB_URI: mongodb://mongo/open5gs
+    restart: on-failure
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  smf:
+    image: gradiant/open5gs:2.7.5
+    volumes:
+      - ./open5gs-and-ueransim/config/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml
+    restart: on-failure
+    command: open5gs-smfd
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  udm:
+    image: gradiant/open5gs:2.7.5
+    restart: on-failure
+    command:
+      - open5gs-udmd
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  udr:
+    image: gradiant/open5gs:2.7.5
+    restart: on-failure
+    environment:
+      DB_URI: mongodb://mongo/open5gs
+    command:
+      - open5gs-udrd
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  upf:
+    image: gradiant/open5gs:2.7.5
+    user: root
+    command:
+      - open5gs-upfd
+    cap_add:
+      - all
+    privileged: true
+    restart: on-failure
+    # environment:
+    # ENABLE_NAT: "false"
+    ports:
+      - "2152:2152/udp"
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  webui:
+    image: gradiant/open5gs-webui:2.7.5
+    restart: on-failure
+    environment:
+      DB_URI: mongodb://mongo/open5gs
+      NODE_ENV: dev
+    ports:
+      - "9999:9999"
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  # ==== UERANSIM 服務 ====
+  gnb1:
+    image: gradiant/ueransim:3.2.6
+    container_name: gnb1
+    command: 
+      - gnb
+    environment:
+      AMF_HOSTNAME: amf
+      GNB_HOSTNAME: gnb1
+      TAC: '1'
+      MCC: '999'
+      MNC: '70'
+      SST: '1'
+      SD: '0xffffff'
+    networks:
+      - open5gs-net
+    depends_on:
+      - amf
+
+  ues1:
+    image: gradiant/ueransim:3.2.6
+    command: ['ue','-n','3']
+    cap_add:
+      - all
+    privileged: true
+    environment:
+      GNB_HOSTNAME: gnb1
+      APN: internet
+      MSISDN: '0000000001'
+      MCC: '999'
+      MNC: '70'
+      KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+      OP_TYPE: OPC
+      OP: 'E8ED289DEBA952E4283B54E88E6183CA'
+      SST: '1'
+      SD: '0xffffff'
+    networks:
+      - open5gs-net
+    depends_on:
+      - gnb1
+
+  gnb2:
+    image: gradiant/ueransim:3.2.6
+    container_name: gnb2
+    command: 
+      - gnb
+    environment:
+      AMF_HOSTNAME: amf
+      GNB_HOSTNAME: gnb2
+      TAC: '1'
+      MCC: '999'
+      MNC: '70'
+      SST: '1'
+      SD: '0xffffff'
+    networks:
+      - open5gs-net
+    depends_on:
+      - amf
+
+  ues2:
+    image: gradiant/ueransim:3.2.6
+    command: ['ue','-n','3']
+    cap_add:
+      - all
+    privileged: true
+    environment:
+      GNB_HOSTNAME: gnb2
+      APN: internet
+      MSISDN: '0000000011'
+      MCC: '999'
+      MNC: '70'
+      KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+      OP_TYPE: OPC
+      OP: 'E8ED289DEBA952E4283B54E88E6183CA'
+      SST: '1'
+      SD: '0xffffff'
+    networks:
+      - open5gs-net
+    depends_on:
+      - gnb1
+
+  # ==== 用戶註冊服務 ====
+  subscriber-init:
+    image: gradiant/open5gs-dbctl:0.10.3
+    environment:
+      DB_URI: mongodb://mongo/open5gs
+    volumes:
+      - ./open5gs-and-ueransim/register_subscriber.sh:/register_subscriber.sh
+    command: ["bash", "/register_subscriber.sh"]
+    networks:
+      - open5gs-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
 networks:
   sionna-net:
+    driver: bridge
+  open5gs-net:
     driver: bridge
 
 volumes: # <-- 新增 volume 定義
   postgres_data: # 用於持久化 PostgreSQL 數據
   frontend_node_modules:
   redis_data: # <-- 新增 Redis 數據持久化 volume (可選，如果需要持久化 Redis 數據)
+  mongo_data: # <-- 用於持久化 Open5GS 的 MongoDB 數據

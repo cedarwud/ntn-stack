@@ -20,3 +20,6 @@ sqlalchemy[asyncio]>=2.0 # 確保是 2.0+ 版本支援 async
 psycopg[binary,pool] # PostgreSQL driver (binary 包含預編譯版本, pool 提供連接池)
 asyncpg             # SQLAlchemy asyncio 需要的 async driver
 geoalchemy2         # SQLAlchemy 的 PostGIS 擴充
+
+# --- 5G 相關套件 ---
+pymongo # 用於與 Open5GS MongoDB 數據庫交互
