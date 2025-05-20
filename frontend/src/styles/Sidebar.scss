@@ -388,4 +388,72 @@ td {
   background: white;
   filter: blur(0.5px);
   transition: opacity 0.2s linear;
+}
+
+.api-status-and-settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px; 
+  padding-bottom: 10px; 
+  border-bottom: 1px solid var(--dark-border); 
+}
+
+.satellite-count-control {
+  display: flex;
+  justify-content: space-between;
+  label {
+    margin-right: 8px;
+    font-size: 0.9rem;
+    color: var(--dark-text-secondary); // Match other labels
+  }
+  .satellite-count-input-field {
+    width: 60px; 
+    padding: 4px 6px;
+    background-color: var(--dark-input-bg);
+    border: 1px solid var(--dark-border);
+    border-radius: 3px;
+    color: var(--dark-text);
+    text-align: right;
+    font-size: 0.9rem;
+  }
+}
+
+.satellite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; // Spacing between satellite cards
+
+  .satellite-item {
+    background: rgba(30, 37, 54, 0.85); // Match device-item background
+    border-radius: 5px; // Match device-item border-radius
+    padding: 10px 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); // Match device-item shadow
+    border: 1px solid var(--dark-border-light, #2c3a54); // Subtle border like device items might have or a slightly lighter one
+
+    .satellite-name {
+      font-weight: 600; // Slightly bolder
+      color: var(--dark-text); // Match device text color
+      margin-bottom: 6px;
+      font-size: 1.0rem;
+    }
+    .satellite-details {
+      font-size: 0.88rem;
+      color: var(--dark-text-secondary, #aab8c5); // Standard secondary text color
+      line-height: 1.5;
+      
+      span { // If we decide to wrap parts of details in spans for styling
+        margin-right: 5px;
+        &:last-child {
+            margin-right: 0;
+        }
+      }
+    }
+  }
+  .loading-text, .no-data-text {
+    padding: 15px 10px;
+    text-align: center;
+    color: var(--dark-text-secondary, #aab8c5);
+    font-size: 0.9rem;
+  }
 } 

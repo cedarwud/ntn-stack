@@ -5,6 +5,7 @@ import { Device } from '../../types/device'
 import SidebarStarfield from '../ui/SidebarStarfield' // Import the new component
 import DeviceItem from '../devices/DeviceItem' // Import DeviceItem
 import { useReceiverSelection } from '../../hooks/useReceiverSelection' // Import the hook
+import { VisibleSatelliteInfo } from '../../types/satellite' // Import the new satellite type
 
 interface SidebarProps {
     devices: Device[]
@@ -23,6 +24,38 @@ interface SidebarProps {
     uavAnimation: boolean
     onUavAnimationChange: (val: boolean) => void // Parent will use selected IDs
     onSelectedReceiversChange?: (selectedIds: number[]) => void // New prop
+    onSatelliteDataUpdate?: (satellites: VisibleSatelliteInfo[]) => void // 衛星資料更新回調
+    onSatelliteCountChange?: (count: number) => void // 衛星顯示數量變更回調
+    satelliteDisplayCount?: number // 衛星顯示數量
+}
+
+// Helper function to fetch visible satellites
+async function fetchVisibleSatellites(
+    count: number,
+    minElevation: number = 0
+): Promise<VisibleSatelliteInfo[]> {
+    // In a real scenario, ensure your API base URL is configured correctly
+    // For example, process.env.REACT_APP_API_URL or a fixed string
+    const apiUrl = `/api/v1/satellite-ops/visible_satellites?count=${count}&min_elevation_deg=${minElevation}`
+    try {
+        const response = await fetch(apiUrl)
+        if (!response.ok) {
+            console.error(
+                `Error fetching satellites: ${response.status} ${response.statusText}`
+            )
+            const errorBody = await response.text()
+            console.error('Error body:', errorBody)
+            return []
+        }
+        const data = await response.json()
+        return data.satellites || [] // Assuming the API returns { satellites: [...] }
+    } catch (error) {
+        console.error(
+            'Network error or JSON parsing error fetching satellites:',
+            error
+        )
+        return []
+    }
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -42,6 +75,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     uavAnimation,
     onUavAnimationChange,
     onSelectedReceiversChange, // 接收從父組件傳來的回調函數
+    onSatelliteDataUpdate, // 新增衛星資料更新回調
+    onSatelliteCountChange, // 新增衛星顯示數量變更回調
+    satelliteDisplayCount: propSatelliteDisplayCount = 10, // 使用props或默認值
 }) => {
     // 為每個設備的方向值創建本地狀態
     const [orientationInputs, setOrientationInputs] = useState<{
@@ -62,6 +98,56 @@ const Sidebar: React.FC<SidebarProps> = ({
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
     const [showDesiredDevices, setShowDesiredDevices] = useState(false)
     const [showJammerDevices, setShowJammerDevices] = useState(false)
+
+    // 新增：Skyfield 衛星資料相關狀態
+    const [satelliteDisplayCount, setSatelliteDisplayCount] = useState<number>(
+        propSatelliteDisplayCount
+    )
+    const [skyfieldSatellites, setSkyfieldSatellites] = useState<
+        VisibleSatelliteInfo[]
+    >([])
+    const [showSkyfieldSection, setShowSkyfieldSection] =
+        useState<boolean>(false)
+    const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false)
+    const [minElevation, setMinElevation] = useState<number>(0) // 新增：最低仰角過濾
+
+    // 監聽 prop 變化，同步更新本地狀態
+    useEffect(() => {
+        setSatelliteDisplayCount(propSatelliteDisplayCount)
+    }, [propSatelliteDisplayCount])
+
+    // Effect to fetch satellites when count changes or on mount
+    useEffect(() => {
+        const loadSatellites = async () => {
+            setLoadingSatellites(true)
+            const satellites = await fetchVisibleSatellites(
+                satelliteDisplayCount,
+                minElevation // 使用最低仰角過濾
+            )
+
+            // 默認按仰角從高到低排序
+            let sortedSatellites = [...satellites]
+            sortedSatellites.sort((a, b) => b.elevation_deg - a.elevation_deg)
+
+            setSkyfieldSatellites(sortedSatellites)
+
+            // 通知父元件衛星資料已更新
+            if (onSatelliteDataUpdate) {
+                onSatelliteDataUpdate(sortedSatellites)
+            }
+
+            setLoadingSatellites(false)
+        }
+        loadSatellites()
+    }, [satelliteDisplayCount, minElevation, onSatelliteDataUpdate]) // 移除排序條件依賴
+
+    // 處理衛星顯示數量變更
+    const handleSatelliteCountChange = (count: number) => {
+        setSatelliteDisplayCount(count)
+        if (onSatelliteCountChange) {
+            onSatelliteCountChange(count)
+        }
+    }
 
     // 當 devices 更新時，初始化或更新本地輸入狀態
     useEffect(() => {
@@ -367,15 +453,59 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                 </>
             )}
-            <div className="api-status">
-                API 狀態:{' '}
-                {apiStatus === 'connected' ? (
-                    <span className="status-connected">已連接</span>
-                ) : apiStatus === 'error' ? (
-                    <span className="status-error">錯誤</span>
-                ) : (
-                    <span className="status-disconnected">未連接</span>
-                )}
+
+            {/* 衛星設置區域 - 獨立於API狀態 */}
+            <div className="satellite-settings-section">
+                <div className="satellite-count-control">
+                    <div>
+                        <label htmlFor="satellite-count-input">衛星數:</label>
+                        <input
+                            id="satellite-count-input"
+                            type="number"
+                            value={satelliteDisplayCount}
+                            onChange={(e) => {
+                                const count = parseInt(e.target.value, 10)
+                                if (!isNaN(count) && count > 0) {
+                                    handleSatelliteCountChange(count)
+                                } else if (e.target.value === '') {
+                                    // Allow clearing to type new number
+                                    handleSatelliteCountChange(1) // Or some default minimum
+                                }
+                            }}
+                            min="1"
+                            className="satellite-count-input-field"
+                        />
+                    </div>
+                    <div>
+                        {/* 保留最低仰角控制 */}
+                        <label
+                            htmlFor="min-elevation-input"
+                            style={{ marginLeft: '10px' }}
+                        >
+                            最低仰角:
+                        </label>
+                        <input
+                            id="min-elevation-input"
+                            type="number"
+                            value={minElevation}
+                            onChange={(e) => {
+                                const value = parseInt(e.target.value, 10)
+                                if (
+                                    !isNaN(value) &&
+                                    value >= 0 &&
+                                    value <= 90
+                                ) {
+                                    setMinElevation(value)
+                                } else if (e.target.value === '') {
+                                    setMinElevation(0)
+                                }
+                            }}
+                            min="0"
+                            max="90"
+                            className="satellite-count-input-field"
+                        />
+                    </div>
+                </div>
             </div>
 
             <div className="sidebar-actions-combined">
@@ -438,6 +568,69 @@ const Sidebar: React.FC<SidebarProps> = ({
                             ))}
                     </>
                 )}
+
+                {/* Skyfield 衛星資料區塊 */}
+                <>
+                    <h3
+                        className={`section-title collapsible-header ${
+                            showSkyfieldSection ? 'expanded' : ''
+                        } ${tempDevices.length > 0 ? 'extra-margin-top' : ''} ${
+                            tempDevices.length > 0 ? 'with-border-top' : ''
+                        }`}
+                        onClick={() =>
+                            setShowSkyfieldSection(!showSkyfieldSection)
+                        }
+                    >
+                        衛星 gNB (
+                        {loadingSatellites
+                            ? '讀取中...'
+                            : skyfieldSatellites.length}
+                        ){' '}
+                        {minElevation > 0 ? `[最低仰角: ${minElevation}°]` : ''}
+                    </h3>
+                    {showSkyfieldSection && (
+                        <div className="satellite-list">
+                            {loadingSatellites ? (
+                                <p className="loading-text">
+                                    正在載入衛星資料...
+                                </p>
+                            ) : skyfieldSatellites.length > 0 ? (
+                                skyfieldSatellites.map((sat) => (
+                                    <div
+                                        key={sat.norad_id}
+                                        className="satellite-item"
+                                    >
+                                        <div className="satellite-name">
+                                            {sat.name} (NORAD: {sat.norad_id})
+                                        </div>
+                                        <div className="satellite-details">
+                                            仰角:{' '}
+                                            <span
+                                                style={{
+                                                    color:
+                                                        sat.elevation_deg > 45
+                                                            ? '#ff3300'
+                                                            : '#0088ff',
+                                                }}
+                                            >
+                                                {sat.elevation_deg.toFixed(2)}°
+                                            </span>{' '}
+                                            | 方位角:{' '}
+                                            {sat.azimuth_deg.toFixed(2)}° |
+                                            距離: {sat.distance_km.toFixed(2)}{' '}
+                                            km
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="no-data-text">
+                                    無衛星資料可顯示。請調整最低仰角後重試。
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </>
+
                 {/* 接收器 (Rx) */}
                 {receiverDevices.length > 0 && (
                     <>
@@ -445,11 +638,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                             className={`section-title collapsible-header ${
                                 showReceiverDevices ? 'expanded' : ''
                             } ${
-                                tempDevices.length > 0 ? 'extra-margin-top' : ''
+                                tempDevices.length > 0 ||
+                                skyfieldSatellites.length > 0
+                                    ? 'extra-margin-top'
+                                    : '' // Adjusted condition
                             } ${
+                                tempDevices.length > 0 ||
+                                skyfieldSatellites.length > 0 || // Adjusted condition
                                 desiredDevices.length > 0 ||
-                                jammerDevices.length > 0 ||
-                                tempDevices.length > 0
+                                jammerDevices.length > 0
                                     ? 'with-border-top'
                                     : ''
                             }`}
@@ -457,7 +654,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 setShowReceiverDevices(!showReceiverDevices)
                             }
                         >
-                            接收器 (Rx)
+                            接收器 Rx ({receiverDevices.length})
                         </h3>
                         {showReceiverDevices &&
                             receiverDevices.map((device) => (
@@ -491,7 +688,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 setShowDesiredDevices(!showDesiredDevices)
                             }
                         >
-                            發射器 (Tx)
+                            發射器 Tx ({desiredDevices.length})
                         </h3>
                         {showDesiredDevices &&
                             desiredDevices.map((device) => (
@@ -525,7 +722,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 setShowJammerDevices(!showJammerDevices)
                             }
                         >
-                            干擾源 (Jam)
+                            干擾源 Jam ({jammerDevices.length})
                         </h3>
                         {showJammerDevices &&
                             jammerDevices.map((device) => (
@@ -552,5 +749,26 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
     )
 }
+
+// 添加新的CSS樣式
+const styleSheet = document.createElement('style')
+styleSheet.type = 'text/css'
+styleSheet.innerHTML = `
+.api-status-section {
+    padding: 8px;
+    margin-bottom: 10px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    text-align: center;
+}
+
+.satellite-settings-section {
+    padding: 8px;
+    margin-bottom: 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+`
+document.head.appendChild(styleSheet)
 
 export default Sidebar

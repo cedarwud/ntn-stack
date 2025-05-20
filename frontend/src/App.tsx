@@ -9,6 +9,7 @@ import './styles/App.scss'
 import { Device } from './types/device'
 import { countActiveDevices } from './utils/deviceUtils'
 import { useDevices } from './hooks/useDevices'
+import { VisibleSatelliteInfo } from './types/satellite'
 
 function App() {
     const {
@@ -26,6 +27,12 @@ function App() {
         cancelDeviceChanges,
         updateDevicePositionFromUAV,
     } = useDevices()
+
+    const [skyfieldSatellites, setSkyfieldSatellites] = useState<
+        VisibleSatelliteInfo[]
+    >([])
+    const [satelliteDisplayCount, setSatelliteDisplayCount] =
+        useState<number>(1)
 
     const [activeComponent, setActiveComponent] = useState<string>('3DRT')
     const [auto, setAuto] = useState(false)
@@ -132,6 +139,17 @@ function App() {
         setSelectedReceiverIds(ids)
     }, [])
 
+    const handleSatelliteDataUpdate = useCallback(
+        (satellites: VisibleSatelliteInfo[]) => {
+            setSkyfieldSatellites(satellites)
+        },
+        []
+    )
+
+    const handleSatelliteCountChange = useCallback((count: number) => {
+        setSatelliteDisplayCount(count)
+    }, [])
+
     const handleManualControl = useCallback(
         (
             direction:
@@ -191,6 +209,7 @@ function App() {
                         onUAVPositionUpdate={handleUAVPositionUpdate}
                         uavAnimation={uavAnimation}
                         selectedReceiverIds={selectedReceiverIds}
+                        satellites={skyfieldSatellites}
                     />
                 )
             default:
@@ -211,6 +230,7 @@ function App() {
         uavAnimation,
         selectedReceiverIds,
         refreshDeviceData,
+        skyfieldSatellites,
     ])
 
     if (loading) {
@@ -245,6 +265,9 @@ function App() {
                             onSelectedReceiversChange={
                                 handleSelectedReceiversChange
                             }
+                            onSatelliteDataUpdate={handleSatelliteDataUpdate}
+                            onSatelliteCountChange={handleSatelliteCountChange}
+                            satelliteDisplayCount={satelliteDisplayCount}
                         />
                     }
                     content={renderActiveComponent()}

@@ -6,6 +6,8 @@ import * as THREE from 'three'
 import { TextureLoader, RepeatWrapping, SRGBColorSpace } from 'three'
 import UAVFlight, { UAVManualDirection } from './UAVFlight'
 import StaticModel from './StaticModel'
+import { VisibleSatelliteInfo } from '../../types/satellite'
+import SatelliteManager from './satellite/SatelliteManager'
 
 const SCENE_URL = '/static/models/NYCU.glb'
 const BS_MODEL_URL = '/api/v1/sionna/models/tower'
@@ -29,6 +31,7 @@ export interface MainSceneProps {
     ) => void
     uavAnimation: boolean
     selectedReceiverIds?: number[]
+    satellites?: VisibleSatelliteInfo[]
 }
 
 const MainScene: React.FC<MainSceneProps> = ({
@@ -39,6 +42,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     onUAVPositionUpdate,
     uavAnimation,
     selectedReceiverIds = [],
+    satellites = [],
 }) => {
     // 加載主場景模型，使用 useMemo 避免重複加載
     const { scene: mainScene } = useGLTF(SCENE_URL) as any
@@ -210,6 +214,7 @@ const MainScene: React.FC<MainSceneProps> = ({
         <>
             <primitive object={prepared} castShadow receiveShadow />
             {deviceMeshes}
+            <SatelliteManager satellites={satellites} />
         </>
     )
 }

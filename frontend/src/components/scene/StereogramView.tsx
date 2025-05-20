@@ -5,6 +5,30 @@ import * as THREE from 'three'
 import Starfield from '../ui/Starfield'
 import MainScene from './MainScene'
 import { Device } from '../../types/device'
+import { VisibleSatelliteInfo } from '../../types/satellite'
+
+// 添加圖例组件
+const SatelliteLegend = () => {
+    return (
+        <div className="satellite-legend">
+            <h4>衛星圖例</h4>
+            <div className="legend-item">
+                <div className="color-sample high-elevation"></div>
+                <span>高仰角衛星 - 通訊優質</span>
+            </div>
+            <div className="legend-note">
+                • 接近頭頂，信號路徑短 • 連接穩定，抗干擾能力強
+            </div>
+            <div className="legend-item">
+                <div className="color-sample low-elevation"></div>
+                <span>低仰角衛星 - 信號較弱</span>
+            </div>
+            <div className="legend-note">
+                • 接近地平線，易受地形障礙影響 • 信號衰減大，連接易中斷
+            </div>
+        </div>
+    )
+}
 
 interface SceneViewProps {
     devices: Device[]
@@ -17,6 +41,7 @@ interface SceneViewProps {
     ) => void
     uavAnimation: boolean
     selectedReceiverIds?: number[]
+    satellites?: VisibleSatelliteInfo[]
 }
 
 export default function SceneView({
@@ -27,6 +52,7 @@ export default function SceneView({
     onUAVPositionUpdate,
     uavAnimation,
     selectedReceiverIds = [],
+    satellites = [],
 }: SceneViewProps) {
     return (
         <div
@@ -42,10 +68,14 @@ export default function SceneView({
         >
             {/* 星空星點層（在最底層，不影響互動） */}
             <Starfield starCount={180} />
+
+            {/* 添加衛星圖例 */}
+            <SatelliteLegend />
+
             {/* 3D Canvas內容照舊，會蓋在星空上 */}
             <Canvas
                 shadows
-                camera={{ position: [40, 80, 120], near: 0.1, far: 1e4 }}
+                camera={{ position: [0, 400, 500], near: 0.1, far: 1e4 }}
                 gl={{
                     toneMapping: THREE.ACESFilmicToneMapping,
                     toneMappingExposure: 1.2,
@@ -78,6 +108,7 @@ export default function SceneView({
                         onUAVPositionUpdate={onUAVPositionUpdate}
                         uavAnimation={uavAnimation}
                         selectedReceiverIds={selectedReceiverIds}
+                        satellites={satellites}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}
@@ -92,3 +123,56 @@ export default function SceneView({
         </div>
     )
 }
+
+// 添加CSS樣式
+const styleSheet = document.createElement('style')
+styleSheet.type = 'text/css'
+styleSheet.innerHTML = `
+.satellite-legend {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    z-index: 1000;
+}
+
+.satellite-legend h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.color-sample {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.high-elevation {
+    background-color: #ff3300;
+    box-shadow: 0 0 8px #ff3300;
+}
+
+.low-elevation {
+    background-color: #0088ff;
+    box-shadow: 0 0 8px #0088ff;
+}
+
+.legend-note {
+    font-size: 10px;
+    margin-top: 5px;
+    opacity: 0.8;
+}
+`
+document.head.appendChild(styleSheet)
