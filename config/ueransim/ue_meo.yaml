@@ -1,0 +1,69 @@
+# IMSI、KEY等用戶身份信息
+supi: 'imsi-999700000000001'
+mcc: '999'
+mnc: '70'
+key: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+op: 'E8ED289DEBA952E4283B54E88E6183CA'
+opType: 'OPC'
+amf: '8000'
+imei: '356938035643803'
+imeiSv: '4370816125816151'
+
+# UE和網絡之間的通信設置
+uacAic:
+  mps: false
+  mcs: false
+uacAcc:
+  normalClass: 0
+  class11: false
+  class12: false
+  class13: false
+  class14: false
+  class15: false
+
+# MEO環境下的UE特性參數
+# 高延遲環境優化
+highLatencyMode: true  # 啟用高延遲模式
+minConnRetryTimer: 8   # 連接重試最小間隔(秒)
+maxConnRetryTimer: 45  # 連接重試最大間隔(秒)
+connRetryCount: 10     # 連接重試次數
+
+# 功率控制參數
+initialPuschPower: 25  # 初始PUSCH功率(dBm)
+dynamicPowerControl: true # 動態功率控制
+powerRampingStep: 3    # 功率遞增步長(dB)
+
+# 超時和重傳參數
+rrcEstablishmentTimeout: 5000 # RRC建立超時(毫秒)
+registrationAttemptCount: 8   # 註冊嘗試次數
+serviceRequestTimeout: 5000   # 服務請求超時(毫秒)
+serviceRequestRetry: 8        # 服務請求重試次數
+pduSessionRetry: 10           # PDU會話建立重試次數
+pduSessionTimeout: 6000       # PDU會話建立超時(毫秒)
+
+# 多普勒效應處理
+dopplerCompensation: true     # 啟用多普勒效應補償
+frequencyTracking: true       # 頻率跟踪
+
+# TCP參數優化(MEO環境)
+tcpInitialRtt: 1500           # TCP初始RTT估計(毫秒)
+tcpMinRto: 2000               # 最小RTO(毫秒)
+tcpWindowScaling: true        # TCP窗口縮放
+
+# 連接恢復增強
+connRecoveryTimeout: 18000    # 連接恢復超時(毫秒)
+autoReconnect: true           # 自動重連
+keepaliveTimer: 120           # 保活定時器(秒)
+
+# UE數據會話配置
+configuredNssai:
+  - sst: 1
+    sd: 0xffffff
+
+# 默認會話
+defaultSession:
+  type: 'IPv4'
+  apn: 'internet'
+  slice:
+    sst: 1
+    sd: 0xffffff 

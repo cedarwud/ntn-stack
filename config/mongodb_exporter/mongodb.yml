@@ -1,0 +1,13 @@
+general:
+  collect_database: true  # 是否收集數據庫狀態指標
+  collect_collection: true  # 是否收集集合狀態指標
+  collect_topmetrics: true  # 是否收集最高級別的性能指標
+  collect_indexusage: true  # 是否收集索引使用統計
+  collect_connpoolstats: true  # 是否收集連接池統計
+  
+mongodb:
+  uri: mongodb://open5gs-mongo:27017
+  
+metrics:
+  gather_perdb_stats: true
+  gather_cluster_status: true 

@@ -1,0 +1,32 @@
+groups:
+  - name: core_network_alerts
+    rules:
+      # SMF過載告警
+      - alert: SMFOverload
+        expr: smf_session_setup_time_seconds > 8
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SMF會話建立時間過長"
+          description: "SMF會話建立時間為 {{ $value }} 秒，表明SMF可能過載"
+
+      # AMF連接失敗告警
+      - alert: AMFConnectionFailures
+        expr: increase(amf_connection_failures_total[5m]) > 10
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AMF連接失敗次數過多"
+          description: "過去5分鐘內AMF連接失敗 {{ $value }} 次"
+
+      # UPF轉發性能降低告警
+      - alert: UPFForwardingDegradation
+        expr: rate(upf_packets_dropped_total[5m]) / rate(upf_packets_total[5m]) > 0.02
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "UPF數據包轉發性能降低"
+          description: "UPF丟棄率達到 {{ $value | humanizePercentage }}，超過閾值(2%)" 

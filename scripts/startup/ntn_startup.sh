@@ -43,6 +43,10 @@ if [ "$CONTAINER_COUNT" -lt 10 ]; then
     # 額外等待10秒，確保所有服務完全初始化
     echo "等待服務初始化...(10秒)"
     sleep 10
+    
+    # 確保ntn-proxy服務啟動
+    echo "確保ntn-proxy服務啟動..."
+    docker compose up -d ntn-proxy
 fi
 
 # 2. 在宿主機上設置必要的系統參數
@@ -86,20 +90,36 @@ echo
 
 # 9. 啟動API代理服務
 echo "啟動API代理服務..."
-bash ./scripts/setup_proxy_api.sh
+if ! docker ps | grep -q "ntn-proxy"; then
+    echo "ntn-proxy服務未運行，正在啟動..."
+    docker compose up -d ntn-proxy
+else
+    echo "ntn-proxy服務已運行"
+fi
 echo
 
-# 10. 運行網絡診斷
+# 10. 運行增強版UE修復腳本
+echo "運行增強版UE修復腳本..."
+bash ./scripts/ntn_sat_ue_fix.sh
+echo
+
+# 11. 啟動自動恢復服務（一次性模式）
+echo "運行自動恢復服務..."
+bash ./scripts/ue_auto_recovery.sh once
+echo
+
+# 12. 運行網絡診斷
 echo "執行網絡診斷..."
 bash ./scripts/network_diagnostic.sh
 echo
 
-# 11. 完成
+# 13. 完成
 echo "===== NTN高延遲容錯網絡啟動完成 ====="
 echo "網絡模式: $DELAY_MODE"
 echo "您可以通過以下命令進行測試："
 echo "1. 測試UE基本連接: docker exec -it ntn-stack-ues1-1 ping -I uesimtun0 10.45.0.1"
 echo "2. 測試UE外部連接: docker exec -it ntn-stack-ues1-1 curl http://ntn-proxy:8888/api/proxy/http?url=https://example.com"
 echo "3. 運行性能測試: ./scripts/performance_test.sh --mode=both"
-echo "4. 切換網絡環境: ./scripts/ntn_simulator.sh --mode=ground"
-echo "5. 再次診斷網絡: ./scripts/network_diagnostic.sh" 
+echo "4. 切換網絡環境: ./scripts/ntn_simulator.sh --mode=[ground|leo|meo|geo]"
+echo "5. 診斷與修復: ./scripts/ntn_setup.sh fix"
+echo "6. 啟動持續自動恢復: nohup ./scripts/ue_auto_recovery.sh daemon > auto_recovery.log 2>&1 &" 

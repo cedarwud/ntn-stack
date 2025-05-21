@@ -3,3 +3,20 @@ venv
 .venv
 node_modules
 __pycache__
+
+# 日誌和臨時文件
+*.log
+logs/
+*/logs/
+config_generator.log
+performance_results/
+network_diagnostics/
+*.tmp
+
+# 生成的配置文件
+config/generated/
+test_report_*.txt
+
+# IDE配置
+.vscode/
+.idea/

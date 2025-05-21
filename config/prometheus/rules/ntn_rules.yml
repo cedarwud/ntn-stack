@@ -1,0 +1,103 @@
+groups:
+  - name: ntn_alerts
+    rules:
+      # UE連接告警
+      - alert: UEConnectionLost
+        expr: ntn_ue_connected == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "用戶設備失去連接"
+          description: "用戶設備 {{ $labels.ue_id }} 已經失去連接超過2分鐘"
+
+      # 網絡延遲告警
+      - alert: HighNetworkLatency
+        expr: histogram_quantile(0.95, sum by(le) (rate(ntn_ping_latency_bucket[5m]))) > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "網絡延遲過高"
+          description: "95%分位數網絡延遲超過500ms，當前值為 {{ $value }} ms"
+
+      # 吞吐量告警
+      - alert: LowThroughput
+        expr: ntn_ue_downlink_throughput < 1000000 or ntn_ue_uplink_throughput < 500000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "網絡吞吐量過低"
+          description: "用戶設備 {{ $labels.ue_id }} 的吞吐量過低，下行：{{ $value }} bps"
+
+      # 信號質量告警
+      - alert: LowSignalQuality
+        expr: ntn_ue_rsrp < -110
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "信號質量過低"
+          description: "用戶設備 {{ $labels.ue_id }} 的RSRP值為 {{ $value }} dBm，低於閾值"
+
+      # 衛星鏈路質量告警
+      - alert: SatelliteLinkQualityLow
+        expr: ntn_satellite_link_quality < 0.7
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "衛星鏈路質量下降"
+          description: "衛星 {{ $labels.satellite_id }} 的鏈路質量為 {{ $value }}，低於閾值0.7"
+
+      # 資源使用率告警
+      - alert: HighCPUUsage
+        expr: ntn_cpu_usage > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU使用率過高"
+          description: "容器 {{ $labels.container_id }} 的CPU使用率為 {{ $value }}%，超過80%閾值"
+
+      - alert: HighMemoryUsage
+        expr: ntn_memory_usage > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "內存使用率過高"
+          description: "容器 {{ $labels.container_id }} 的內存使用率為 {{ $value }}%，超過80%閾值"
+
+  - name: core_network_alerts
+    rules:
+      # SMF過載告警
+      - alert: SMFOverload
+        expr: smf_session_setup_time_seconds > 8
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SMF會話建立時間過長"
+          description: "SMF會話建立時間為 {{ $value }} 秒，表明SMF可能過載"
+
+      # AMF連接失敗告警
+      - alert: AMFConnectionFailures
+        expr: increase(amf_connection_failures_total[5m]) > 10
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AMF連接失敗次數過多"
+          description: "過去5分鐘內AMF連接失敗 {{ $value }} 次"
+
+      # UPF轉發性能降低告警
+      - alert: UPFForwardingDegradation
+        expr: rate(upf_packets_dropped_total[5m]) / rate(upf_packets_total[5m]) > 0.02
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "UPF數據包轉發性能降低"
+          description: "UPF丟棄率達到 {{ $value | humanizePercentage }}，超過閾值(2%)" 

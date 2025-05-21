@@ -1,0 +1,46 @@
+mcc: '999'          # 行動國家碼
+mnc: '70'           # 行動網絡碼
+
+nci: '0x000000010'  # NR Cell Identity (36 bits)
+idLength: 32        # 默認值，通常無需修改
+tac: 1              # 追踪區域碼
+
+gnbDuNgapIp: 127.0.0.1   # gNB要連接的IP，與AMF通信
+gnbDuN3Ip: 127.0.0.1     # gNB的N3接口IP，與UPF通信
+
+# 衛星通信特有參數 - MEO (中軌道衛星)
+linkLatency: 500         # 鏈路延遲(毫秒)
+linkJitter: 35           # 鏈路抖動(毫秒)
+linkLossRate: 0.03       # 鏈路丟包率(0-1)
+coverageRadius: 2500     # 覆蓋半徑(公里)
+orbitHeight: 8000        # 軌道高度(公里)
+
+# 衛星波束參數
+beamAzimuth: 0           # 方位角(度)
+beamElevation: 90        # 仰角(度)
+beamWidth: 35            # 波束寬度(度)
+
+# RRC和NGAP連接參數 - 適應MEO延遲特性
+rrcSetupTimeout: 4500    # RRC連接建立超時時間(毫秒)
+ngapSetupTimeout: 5000   # NGAP連接建立超時時間(毫秒)
+maxRrcRetries: 8         # RRC連接建立最大重試次數
+maxNgapRetries: 8        # NGAP連接建立最大重試次數
+
+# 切換參數
+handoverMarginDb: 4      # 切換裕度(dB)
+minTimeToTrigger: 800    # 最小觸發時間(毫秒)
+
+# 切片配置
+slices:
+  - sst: 1
+    sd: 0xffffff
+
+# 自適應功率控制
+dlPowerAdjustment: true  # 下行鏈路功率自動調整
+ulPowerControl: true     # 上行鏈路功率控制
+maxDlPower: 33           # 最大下行功率(dBm)
+maxUlPower: 25           # 最大上行功率(dBm)
+
+# 多普勒效應補償
+dopplerCompensation: true    # 啟用多普勒效應補償
+maxFreqOffset: 3500          # 最大頻率偏移(Hz) 

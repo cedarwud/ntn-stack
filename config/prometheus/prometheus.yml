@@ -1,0 +1,90 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+# Alertmanager配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# 規則文件
+rule_files:
+  - "rules/ntn_rules.yml"
+  - "rules/core_rules.yml"
+
+# 採集配置
+scrape_configs:
+  # Prometheus自身監控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 容器監控
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # Node Exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Open5GS核心網監控
+  - job_name: 'open5gs'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['open5gs-amf:9090', 'open5gs-smf:9090', 'open5gs-upf:9090', 'open5gs-pcf:9090', 'open5gs-nssf:9090']
+        labels:
+          group: 'core-network'
+          service: 'open5gs'
+          environment: 'production'
+
+  # UERANSIM監控
+  - job_name: 'ueransim'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['gnb1:9090', 'ntn-stack-ues1-1:9090']
+        labels:
+          group: 'ran'
+          service: 'ueransim'
+          environment: 'production'
+
+  # NTN特有監控
+  - job_name: 'ntn-metrics'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['metrics-exporter:9091']
+        labels:
+          service: 'ntn'
+          environment: 'production'
+
+  # MongoDB監控
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+        labels:
+          group: 'database'
+
+  # API監控
+  - job_name: 'ntn-api'
+    metrics_path: '/api/v1/metrics'
+    static_configs:
+      - targets: ['ntn-proxy:8888']
+        labels:
+          group: 'api'
+
+  # 其他監控
+  - job_name: 'config-api'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['config-api:8080']
+        labels:
+          service: 'api'
+          environment: 'production' 

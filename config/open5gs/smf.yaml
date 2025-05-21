@@ -36,13 +36,6 @@ smf:
     server:
       - dev: eth0
         port: 9090
-  # 增加超時參數配置
-  time:
-    t3585:
-      value: 15000 # 毫秒，原默認值增加
-    t3525:
-      value: 18000 # 毫秒，原6秒
-      max_count: 8 # 增加重傳次數
   session:
     - subnet: 10.45.0.0/16
       gateway: 10.45.0.1

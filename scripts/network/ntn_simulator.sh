@@ -134,7 +134,24 @@ check_container() {
 
 # 獲取容器網絡接口
 get_container_interface() {
-    docker exec "$1" ip route | grep default | awk '{print $5}'
+    local container=$1
+    
+    # 特殊處理UE容器
+    if [[ "$container" == *"ues"* ]]; then
+        # 對於UE容器，我們直接使用eth0，因為tc命令不支持@if格式的接口名
+        echo "eth0"
+        return
+    fi
+    
+    # 對於GNB和其他容器
+    interface=$(docker exec $container ip route 2>/dev/null | grep default | awk '{print $5}')
+    
+    # 如果沒有找到接口，使用默認值
+    if [ -z "$interface" ]; then
+        interface="eth0"
+    fi
+    
+    echo $interface
 }
 
 # 設置網絡延遲、丟包和帶寬限制
@@ -142,28 +159,34 @@ set_network_conditions() {
     local container=$1
     local interface=$2
     
+    # 檢查接口是否存在
+    if ! docker exec $container ip link show dev "$interface" >/dev/null 2>&1; then
+        echo "警告: 在容器 $container 中找不到接口 $interface，跳過設置"
+        return 1
+    fi
+    
     # 重置現有的tc設置
-    docker exec "$container" tc qdisc del dev "$interface" root 2>/dev/null || true
+    docker exec $container tc qdisc del dev "$interface" root 2>/dev/null || true
     
     # 如果啟用了帶寬限制
     if [ $BANDWIDTH -gt 0 ]; then
         # 先創建HTB根節點
-        docker exec "$container" tc qdisc add dev "$interface" root handle 1: htb default 10
-        docker exec "$container" tc class add dev "$interface" parent 1: classid 1:10 htb rate ${BANDWIDTH}mbit
+        docker exec $container tc qdisc add dev "$interface" root handle 1: htb default 10
+        docker exec $container tc class add dev "$interface" parent 1: classid 1:10 htb rate ${BANDWIDTH}mbit
         
         # 然後添加延遲、抖動和丟包
         if [ "$BURST" = "true" ]; then
-            # 添加周期性中斷模擬 - 每30秒中斷3秒
-            docker exec "$container" tc qdisc add dev "$interface" parent 1:10 handle 10: netem \
+            # 添加周期性中斷模擬 - 使用更合適的參數
+            docker exec $container tc qdisc add dev "$interface" parent 1:10 handle 10: netem \
                 delay ${DELAY}ms ${JITTER}ms distribution normal \
                 loss random ${LOSS}% \
                 corrupt 0.1% \
                 duplicate 0.1% \
                 reorder 0.5% \
-                gap 1000 offset 100
+                gap 1000
         else
             # 常規設置
-            docker exec "$container" tc qdisc add dev "$interface" parent 1:10 handle 10: netem \
+            docker exec $container tc qdisc add dev "$interface" parent 1:10 handle 10: netem \
                 delay ${DELAY}ms ${JITTER}ms distribution normal \
                 loss random ${LOSS}% \
                 corrupt 0.1% \
@@ -172,7 +195,7 @@ set_network_conditions() {
         fi
     else
         # 不限制帶寬，只添加延遲和丟包
-        docker exec "$container" tc qdisc add dev "$interface" root netem \
+        docker exec $container tc qdisc add dev "$interface" root netem \
             delay ${DELAY}ms ${JITTER}ms distribution normal \
             loss random ${LOSS}% \
             corrupt 0.1% \
@@ -181,7 +204,8 @@ set_network_conditions() {
     fi
     
     echo "已成功設置 $container 的網絡條件："
-    docker exec "$container" tc qdisc show dev "$interface"
+    docker exec $container tc qdisc show dev "$interface"
+    return 0
 }
 
 # 主函數
@@ -194,33 +218,38 @@ main() {
     
     # 獲取網絡接口
     GNB_INTERFACE=$(get_container_interface "$CONTAINER_GNB")
-    UE_INTERFACE=$(docker exec -it $CONTAINER_UE ip link | grep "eth0" | head -1 | awk '{print $2}' | sed 's/://')
-    if [ -z "$UE_INTERFACE" ]; then
-        UE_INTERFACE="eth0"  # 默認使用eth0作為備選接口
-    fi
+    UE_INTERFACE=$(get_container_interface "$CONTAINER_UE")
     
     echo "gNodeB接口: $GNB_INTERFACE"
     echo "UE接口: $UE_INTERFACE"
     
     # 設置gNodeB延遲
     set_network_conditions "$CONTAINER_GNB" "$GNB_INTERFACE"
+    GNB_SUCCESS=$?
     
     # 設置UE容器延遲
     echo "設置UE容器網絡條件..."
     set_network_conditions "$CONTAINER_UE" "$UE_INTERFACE"
+    UE_SUCCESS=$?
     
-    echo "NTN網絡環境模擬設置完成。"
+    # 顯示最終結果
+    echo "NTN網絡環境模擬設置狀態:"
     echo "模式: $MODE"
     echo "延遲: ${DELAY}ms"
     echo "抖動: ${JITTER}ms"
     echo "丟包率: ${LOSS}%"
     echo "帶寬限制: ${BANDWIDTH}Mbps"
     
-    echo "可通過以下命令測試連接狀態："
-    echo "  docker exec -it $CONTAINER_UE ping -I uesimtun0 10.45.0.1 -c 20"
-    echo "  docker exec -it $CONTAINER_UE ping -I uesimtun0 8.8.8.8 -c 10"
-    echo "查看UE連接狀態："
-    echo "  docker exec -it $CONTAINER_UE nr-cli imsi-999700000000001 -e \"status\""
+    # 如果兩個設置都成功，顯示測試命令
+    if [ $GNB_SUCCESS -eq 0 ] && [ $UE_SUCCESS -eq 0 ]; then
+        echo "設置成功，可通過以下命令測試連接狀態："
+        echo "  docker exec $CONTAINER_UE ping -I uesimtun0 10.45.0.1 -c 5"
+        echo "  docker exec $CONTAINER_UE ping -I uesimtun0 8.8.8.8 -c 5"
+        echo "查看UE連接狀態："
+        echo "  docker exec $CONTAINER_UE nr-cli imsi-999700000000001 -e \"status\""
+    else
+        echo "警告: 部分網絡條件設置失敗，請檢查容器接口配置"
+    fi
 }
 
 main 
