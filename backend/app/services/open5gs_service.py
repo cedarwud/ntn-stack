@@ -2,16 +2,17 @@ from typing import Dict, List, Optional, Any
 import pymongo
 from pymongo.collection import Collection
 from pymongo.database import Database
+from app.core.open5gs_config import MONGO_URI, DEFAULT_SUBSCRIBER_CONFIG
 
 
 class Open5GSService:
     """與Open5GS MongoDB數據庫交互的服務類"""
 
-    def __init__(self, mongo_uri: str = "mongodb://mongo:27017/open5gs"):
+    def __init__(self, mongo_uri: str = MONGO_URI):
         """初始化與Open5GS MongoDB的連接
 
         Args:
-            mongo_uri: MongoDB連接URI，默認指向Docker網絡中的mongo服務
+            mongo_uri: MongoDB連接URI，默認從配置文件獲取
         """
         self.mongo_client = pymongo.MongoClient(mongo_uri)
         self.db: Database = self.mongo_client.get_database()
@@ -58,46 +59,39 @@ class Open5GSService:
         Returns:
             操作是否成功
         """
-        # 此函數僅作為範例，實際實現需要構建完整的用戶文檔
-        # 完整實現應該參考open5gs-dbctl中的add命令
+        # 使用默認配置並添加特定參數
         try:
-            subscriber_doc = {
-                "imsi": imsi,
-                "security": {"k": key, "opc": opc, "op": None, "amf": "8000"},
-                "ambr": {
-                    "downlink": {"value": 1, "unit": 3},
-                    "uplink": {"value": 1, "unit": 3},
-                },
-                "slice": [
+            # 從默認配置複製基本結構
+            subscriber_doc = dict(DEFAULT_SUBSCRIBER_CONFIG)
+
+            # 設置用戶特定參數
+            subscriber_doc["imsi"] = imsi
+            subscriber_doc["security"]["k"] = key
+            subscriber_doc["security"]["opc"] = opc
+
+            # 設置會話參數
+            slice_config = {
+                "sst": sst,
+                "sd": sd,
+                "default_indicator": True,
+                "session": [
                     {
-                        "sst": sst,
-                        "sd": sd,
-                        "default_indicator": True,
-                        "session": [
-                            {
-                                "name": apn,
-                                "type": 1,
-                                "qos": {
-                                    "index": 9,
-                                    "arp": {
-                                        "priority_level": 8,
-                                        "pre_emption_capability": 1,
-                                        "pre_emption_vulnerability": 1,
-                                    },
-                                },
-                                "ambr": {
-                                    "downlink": {"value": 1, "unit": 3},
-                                    "uplink": {"value": 1, "unit": 3},
-                                },
-                            }
+                        "name": apn,
+                        "type": 3,
+                        "qos": DEFAULT_SUBSCRIBER_CONFIG["slice_default"]["session"][
+                            "qos"
+                        ],
+                        "ambr": DEFAULT_SUBSCRIBER_CONFIG["slice_default"]["session"][
+                            "ambr"
                         ],
                     }
                 ],
-                "access_restriction_data": 32,
-                "subscriber_status": 0,
-                "network_access_mode": 0,
-                "subscribed_rau_tau_timer": 12,
             }
+
+            subscriber_doc["slice"] = [slice_config]
+            # 刪除不需要的字段
+            if "slice_default" in subscriber_doc:
+                del subscriber_doc["slice_default"]
 
             result = self.subscribers.insert_one(subscriber_doc)
             return result.acknowledged

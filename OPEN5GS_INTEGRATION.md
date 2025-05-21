@@ -1,6 +1,6 @@
 # Open5GS 與 UERANSIM 整合指南
 
-本文檔提供有關如何將 Open5GS 和 UERANSIM 整合到現有後端系統的指南。
+本文檔提供有關如何將 Open5GS 和 UERANSIM 整合到現有後端系統的指南，以及 MongoDB 訂閱者管理的最佳實踐。
 
 ## 背景
 
@@ -26,6 +26,29 @@
 
 這兩者共同形成了完整的5G網路端到端解決方案：核心網 + 無線接入網 + 終端設備。
 
+## 檔案結構
+
+專案中與 Open5GS 相關的檔案組織如下：
+
+```
+ntn-stack/
+├── scripts/
+│   ├── mongo_init.js          # MongoDB 初始化腳本，添加訂閱者
+│   ├── register_subscriber.sh # 使用 open5gs-dbctl 註冊訂閱者的腳本
+│   └── open5gs-dbctl          # Open5GS 的資料庫管理工具
+├── config/
+│   ├── open5gs/               # Open5GS 配置檔案目錄
+│   └── ueransim/              # UERANSIM 配置檔案目錄
+└── backend/
+    └── app/
+        ├── api/
+        │   └── open5gs.py     # Open5GS API 端點定義
+        ├── core/
+        │   └── open5gs_config.py # Open5GS 配置設定
+        └── services/
+            └── open5gs_service.py # Open5GS 服務實現
+```
+
 ## 整合步驟
 
 1. **Docker Compose 整合**
@@ -40,6 +63,83 @@
 
 3. **修改用戶註冊腳本**
    - 更新 register_subscriber.sh 腳本以適應新的 Docker Compose 環境
+
+## 訂閱者管理
+
+### 訂閱者初始化
+
+系統啟動時，MongoDB 容器會自動執行 `/docker-entrypoint-initdb.d/mongo_init.js` 腳本初始化訂閱者數據。這個腳本會：
+
+1. 清空現有訂閱者表
+2. 添加預設的 6 個訂閱者
+3. 輸出訂閱者數量和列表
+
+訂閱者 IMSI 列表：
+- 999700000000001
+- 999700000000002
+- 999700000000003
+- 999700000000011
+- 999700000000012
+- 999700000000013
+
+### 訂閱者結構
+
+每個訂閱者的數據結構包含以下關鍵字段：
+
+```json
+{
+  "imsi": "999700000000001",
+  "subscribed_rau_tau_timer": 12,
+  "network_access_mode": 2,
+  "subscriber_status": 0,
+  "access_restriction_data": 32,
+  "security": {
+    "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
+    "opc": "E8ED289DEBA952E4283B54E88E6183CA",
+    "amf": "8000",
+    "op": null,
+    "sqn": Long("97")
+  },
+  "ambr": {
+    "uplink": { "value": 1, "unit": 3 },
+    "downlink": { "value": 1, "unit": 3 }
+  },
+  "slice": [
+    {
+      "sst": 1,
+      "default_indicator": true,
+      "session": [
+        {
+          "name": "internet",
+          "type": 3,
+          "qos": {
+            "index": 9,
+            "arp": {
+              "priority_level": 8,
+              "pre_emption_capability": 1,
+              "pre_emption_vulnerability": 1
+            }
+          },
+          "ambr": {
+            "uplink": { "value": 1, "unit": 3 },
+            "downlink": { "value": 1, "unit": 3 }
+          }
+        }
+      ]
+    }
+  ],
+  "imeisv": "4370816125816151"
+}
+```
+
+### 訂閱者管理 API
+
+後端提供了以下 API 端點來管理訂閱者：
+
+- `GET /api/v1/open5gs/subscribers` - 獲取所有訂閱者
+- `GET /api/v1/open5gs/subscribers/{imsi}` - 獲取特定訂閱者
+- `POST /api/v1/open5gs/subscribers` - 添加新訂閱者
+- `DELETE /api/v1/open5gs/subscribers/{imsi}` - 刪除訂閱者
 
 ## 使用方法
 
@@ -57,12 +157,27 @@ docker compose up -d
 
 ### 管理5G訂閱者
 
-可以通過以下API端點管理5G訂閱者：
+可以通過以下方式管理5G訂閱者：
 
-- 獲取所有訂閱者: `GET /api/v1/open5gs/subscribers`
-- 獲取特定訂閱者: `GET /api/v1/open5gs/subscribers/{imsi}`
-- 添加訂閱者: `POST /api/v1/open5gs/subscribers`
-- 刪除訂閱者: `DELETE /api/v1/open5gs/subscribers/{imsi}`
+#### 1. 使用API
+
+```bash
+# 獲取所有訂閱者
+curl http://localhost:8000/api/v1/open5gs/subscribers
+
+# 獲取特定訂閱者
+curl http://localhost:8000/api/v1/open5gs/subscribers/999700000000001
+```
+
+#### 2. 直接操作MongoDB
+
+```bash
+# 查看所有訂閱者
+docker exec -it open5gs-mongo mongosh open5gs --eval "db.subscribers.find().pretty()"
+
+# 查看訂閱者數量
+docker exec -it open5gs-mongo mongosh open5gs --eval "db.subscribers.count()"
+```
 
 ## 測試流程
 
@@ -82,10 +197,10 @@ docker compose up -d
 
 ```bash
 # 查看註冊的訂閱者
-docker exec open5gs-mongo mongo open5gs --eval "db.subscribers.find().pretty()"
+docker exec -it open5gs-mongo mongosh open5gs --eval "db.subscribers.find().pretty()"
 ```
 
-應該能看到6個訂閱者記錄，IMSI從999700000000001到999700000000013，這些是由`register_subscriber.sh`腳本添加的。
+應該能看到6個訂閱者記錄，IMSI從999700000000001到999700000000013，這些是由`mongo_init.js`腳本添加的。
 
 ### 3. 驗證API功能
 
@@ -115,26 +230,176 @@ ping -I uesimtun0 8.8.8.8
 traceroute -i uesimtun0 google.com
 ```
 
-如果以上步驟都成功，則表示：
-1. UE成功連接到gNodeB
-2. gNodeB成功連接到核心網AMF
-3. UE通過了身份驗證
-4. SMF和UPF正確配置了數據路徑
-5. 5G網絡連接已建立並能訪問互聯網
+## 測試結果範例
 
-## 測試成功的意義
+### 1. MongoDB中的訂閱者
 
-成功整合與測試表明：
+查詢MongoDB中的訂閱者資訊:
 
-1. **系統共存**：原有的後端系統與Open5GS/UERANSIM可以在同一個Docker環境中共存，不會互相衝突。
+```
+docker exec -it open5gs-mongo mongosh open5gs --eval "db.subscribers.find().pretty()"
+```
 
-2. **網絡互通**：所有服務能在Docker網絡中正確通信，特別是後端可以訪問Open5GS的MongoDB。
+結果會看到6個訂閱者，每個訂閱者包含完整的配置資訊，例如：
 
-3. **API整合**：FastAPI後端能夠查詢和管理Open5GS中的訂閱者數據。
+```json
+{
+  "_id": ObjectId('682d5174827520cd3ad861e0'),
+  "imsi": "999700000000001",
+  "subscribed_rau_tau_timer": 12,
+  "network_access_mode": 2,
+  "subscriber_status": 0,
+  "access_restriction_data": 32,
+  "security": {
+    "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
+    "opc": "E8ED289DEBA952E4283B54E88E6183CA",
+    "amf": "8000",
+    "op": null,
+    "sqn": Long("97")
+  },
+  "ambr": { "uplink": { "value": 1, "unit": 3 }, "downlink": { "value": 1, "unit": 3 } },
+  "slice": [
+    {
+      "sst": 1,
+      "default_indicator": true,
+      "session": [
+        {
+          "name": "internet",
+          "type": 3,
+          "qos": {
+            "index": 9,
+            "arp": {
+              "priority_level": 8,
+              "pre_emption_capability": 1,
+              "pre_emption_vulnerability": 1
+            }
+          },
+          "ambr": {
+            "uplink": { "value": 1, "unit": 3 },
+            "downlink": { "value": 1, "unit": 3 }
+          }
+        }
+      ]
+    }
+  ],
+  "imeisv": "4370816125816151"
+}
+```
 
-4. **功能完整**：完整的5G端到端功能可用，從UE到互聯網的數據路徑已建立。
+### 2. API查詢結果
 
-5. **單一管理**：所有組件可以通過一個命令(`docker compose up`)啟動和管理。
+通過API查詢訂閱者:
+
+```
+curl http://localhost:8000/api/v1/open5gs/subscribers
+```
+
+將返回所有訂閱者的JSON資料。
+
+### 3. UE網絡接口
+
+進入UE容器查看網絡接口:
+
+```
+docker exec -it ntn-stack-ues1-1 /bin/bash
+ip addr
+```
+
+可以看到多個網絡接口，包括:
+- `lo`: 本地回環
+- `eth0`: 容器網絡接口
+- `uesimtun0`, `uesimtun1`, `uesimtun2`: 虛擬UE網絡接口，用於5G連接
+
+每個UE接口都有獲得IP地址，如:
+```
+3: uesimtun0: <POINTOPOINT,PROMISC,NOTRAILERS,UP,LOWER_UP> mtu 1400 qdisc fq_codel state UNKNOWN group default qlen 500
+    link/none
+    inet 10.45.0.2/32 scope global uesimtun0
+```
+
+### 4. 網絡連接測試
+
+通過UE接口測試網絡連接:
+
+```
+ping -I uesimtun0 8.8.8.8
+```
+
+結果顯示可以成功ping通:
+```
+PING 8.8.8.8 (8.8.8.8) from 10.45.0.2 uesimtun0: 56(84) bytes of data.
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=114 time=7.62 ms
+64 bytes from 8.8.8.8: icmp_seq=2 ttl=114 time=6.89 ms
+64 bytes from 8.8.8.8: icmp_seq=3 ttl=114 time=7.02 ms
+64 bytes from 8.8.8.8: icmp_seq=4 ttl=114 time=6.49 ms
+64 bytes from 8.8.8.8: icmp_seq=5 ttl=114 time=7.06 ms
+--- 8.8.8.8 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4006ms
+rtt min/avg/max/mdev = 6.489/7.016/7.617/0.362 ms
+```
+
+traceroute測試:
+```
+traceroute -i uesimtun0 google.com
+```
+
+可以看到完整的網絡路由路徑，證明5G網絡接口可以成功訪問互聯網。
+
+## 故障排除
+
+### 問題：MongoDB 中看不到訂閱者
+
+如果在 MongoDB 中看不到訂閱者數據，可能是以下原因：
+
+1. MongoDB 初始化腳本未能正確執行
+2. 訂閱者初始化容器未正確運行
+
+**解決方案**：
+1. 確認 MongoDB 容器已正確掛載初始化腳本：
+   ```yaml
+   volumes:
+     - ./scripts/mongo_init.js:/docker-entrypoint-initdb.d/mongo_init.js
+   ```
+
+2. 手動執行初始化腳本：
+   ```bash
+   docker cp scripts/mongo_init.js open5gs-mongo:/tmp/
+   docker exec -it open5gs-mongo mongosh --file /tmp/mongo_init.js
+   ```
+
+3. 查看訂閱者數量：
+   ```bash
+   docker exec -it open5gs-mongo mongosh open5gs --eval "db.subscribers.find().count()"
+   ```
+
+### 問題：訂閱者API返回不正確的數據
+
+如果API返回的訂閱者數據與預期不符，可能是以下原因：
+
+1. 後端服務未正確連接到 MongoDB
+2. MongoDB中的數據有問題
+
+**解決方案**：
+1. 檢查後端配置文件中的 MongoDB 連接 URI
+2. 比較API返回的數據與直接在 MongoDB 中查詢的數據
+
+### 問題：gNodeB 連接問題
+
+1. 確保 AMF 服務器已啟動並運行
+2. 檢查 gNodeB 的 TAC, MCC, MNC 設置
+3. 查看gNodeB日誌：`docker logs gnb1`
+
+### 問題：UE 連接問題
+
+1. 確保訂閱者已在 Open5GS 中註冊
+2. 檢查 UE 的 IMSI, Key, OPC 與註冊的值匹配
+3. 檢查UE日誌：`docker logs ntn-stack-ues1-1`
+
+### 問題：網路連接問題
+
+1. 確認UPF的NAT功能正常工作
+2. 檢查容器網絡設置：`docker network inspect open5gs-net`
+3. 確認UE獲取了正確的IP地址：`docker exec -it ntn-stack-ues1-1 ip addr`
 
 ## 網絡架構
 
@@ -164,27 +429,19 @@ traceroute -i uesimtun0 google.com
 
 5. **開發網絡監控界面**：使用前端展示5G網絡狀態、連接的設備和網絡性能指標。
 
-## 故障排除
+## 測試成功的意義
 
-1. **MongoDB 連接問題**
-   - 確保 MongoDB 服務處於運行狀態
-   - 檢查連接 URI: `mongodb://mongo:27017/open5gs`
-   - 檢查MongoDB日誌：`docker logs open5gs-mongo`
+成功整合與測試表明：
 
-2. **gNodeB 連接問題**
-   - 確保 AMF 服務器已啟動並運行
-   - 檢查 gNodeB 的 TAC, MCC, MNC 設置
-   - 查看gNodeB日誌：`docker logs gnb1`
+1. **系統共存**：原有的後端系統與Open5GS/UERANSIM可以在同一個Docker環境中共存，不會互相衝突。
 
-3. **UE 連接問題**
-   - 確保訂閱者已在 Open5GS 中註冊
-   - 檢查 UE 的 IMSI, Key, OPC 與註冊的值匹配
-   - 檢查UE日誌：`docker logs ntn-stack-ues1-1`
+2. **網絡互通**：所有服務能在Docker網絡中正確通信，特別是後端可以訪問Open5GS的MongoDB。
 
-4. **網路連接問題**
-   - 確認UPF的NAT功能正常工作
-   - 檢查容器網絡設置：`docker network inspect open5gs-net`
-   - 確認UE獲取了正確的IP地址：`docker exec -it ntn-stack-ues1-1 ip addr`
+3. **API整合**：FastAPI後端能夠查詢和管理Open5GS中的訂閱者數據。
+
+4. **功能完整**：完整的5G端到端功能可用，從UE到互聯網的數據路徑已建立。
+
+5. **單一管理**：所有組件可以通過一個命令(`docker compose up`)啟動和管理。
 
 ## 參考資料
 

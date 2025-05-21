@@ -27,6 +27,21 @@ MONGO_CONTAINER=mongo
        subscriber_status {imsi subscriber_status_val={0,1} operator_determined_barring={0..8}}: Change TS 29.272 values for Subscriber-Status (7.3.29) and Operator-Determined-Barring (7.3.30)
 '
 
+echo "===== 開始註冊訂閱者 ====="
+echo "MongoDB URI: $DB_URI"
+
+# 確保MongoDB可連接
+echo "檢查MongoDB連接..."
+mongosh --quiet $DB_URI --eval "db.adminCommand('ping')"
+if [ $? -ne 0 ]; then
+    echo "無法連接到MongoDB，請檢查連接設定"
+    exit 1
+fi
+
+echo "清除現有訂閱者..."
+open5gs-dbctl reset
+
+echo "添加新訂閱者..."
 # 直接使用open5gs-dbctl，因為我們是在subscriber-init容器中執行這個腳本
 open5gs-dbctl add 999700000000001 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA952E4283B54E88E6183CA
 open5gs-dbctl add 999700000000002 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA952E4283B54E88E6183CA
@@ -34,3 +49,13 @@ open5gs-dbctl add 999700000000003 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA95
 open5gs-dbctl add 999700000000011 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA952E4283B54E88E6183CA
 open5gs-dbctl add 999700000000012 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA952E4283B54E88E6183CA
 open5gs-dbctl add 999700000000013 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA952E4283B54E88E6183CA
+
+# 驗證訂閱者列表
+echo "驗證已註冊的訂閱者數量："
+mongosh --quiet $DB_URI --eval "db.subscribers.countDocuments()"
+
+# 顯示已註冊的訂閱者
+echo "已註冊的訂閱者列表："
+open5gs-dbctl showfiltered
+
+echo "===== 訂閱者註冊完成 ====="

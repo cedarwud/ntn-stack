@@ -1,3 +1,5 @@
+# /config/open5gs/smf.yaml
+
 logger:
   file:
     path: /opt/open5gs/var/log/open5gs/smf.log

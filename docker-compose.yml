@@ -120,13 +120,14 @@ services:
     container_name: open5gs-mongo
     environment:
       MONGO_INITDB_DATABASE: open5gs
+    volumes:
+      - mongo_data:/data/db
+      - ./scripts/mongo_init.js:/docker-entrypoint-initdb.d/mongo_init.js
     networks:
       - sionna-net
       - open5gs-net
-    volumes:
-      - mongo_data:/data/db
     healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -212,7 +213,7 @@ services:
   smf:
     image: gradiant/open5gs:2.7.5
     volumes:
-      - ./open5gs-and-ueransim/config/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml
+      - ./config/open5gs/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml
     restart: on-failure
     command: open5gs-smfd
     networks:
@@ -365,8 +366,8 @@ services:
     environment:
       DB_URI: mongodb://mongo/open5gs
     volumes:
-      - ./open5gs-and-ueransim/register_subscriber.sh:/register_subscriber.sh
-    command: ["bash", "/register_subscriber.sh"]
+      - ./scripts/register_subscriber.sh:/app/register_subscriber.sh
+    command: ["bash", "/app/register_subscriber.sh"]
     networks:
       - open5gs-net
     depends_on:
