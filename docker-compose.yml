@@ -5,383 +5,397 @@
 # 3. 可選渲染後端: PYOPENGL_PLATFORM=egl (默認) 或 PYOPENGL_PLATFORM=osmesa 或 PYOPENGL_PLATFORM=glfw
 
 services:
-  db: # <-- 新增 PostgreSQL + PostGIS 服務
-    image: postgis/postgis:16-3.4 # 建議指定明確的版本，例如 PostgreSQL 16 + PostGIS 3.4
-    container_name: postgis_db # 給容器一個明確的名稱
-    env_file:
-      - ./.env # 從項目根目錄的 .env 讀取配置
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-user} # 從 .env 或預設值讀取
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password} # 從 .env 或預設值讀取
-      POSTGRES_DB: ${POSTGRES_DB:-appdb} # 從 .env 或預設值讀取
-    volumes:
-      - postgres_data:/var/lib/postgresql/data # 將資料庫數據持久化到 volume
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432" # 將主機的某個端口映射到容器的 5432 (方便外部工具連接，可選)
-    networks:
-      - sionna-net
-    healthcheck: # 可選，但建議加上，讓 backend 等待 db 啟動完成
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    db: # <-- 新增 PostgreSQL + PostGIS 服務
+        image: postgis/postgis:16-3.4 # 建議指定明確的版本，例如 PostgreSQL 16 + PostGIS 3.4
+        container_name: postgis_db # 給容器一個明確的名稱
+        env_file:
+            - ./.env # 從項目根目錄的 .env 讀取配置
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER:-user} # 從 .env 或預設值讀取
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password} # 從 .env 或預設值讀取
+            POSTGRES_DB: ${POSTGRES_DB:-appdb} # 從 .env 或預設值讀取
+        volumes:
+            - postgres_data:/var/lib/postgresql/data # 將資料庫數據持久化到 volume
+        ports:
+            - '${POSTGRES_PORT:-5432}:5432' # 將主機的某個端口映射到容器的 5432 (方便外部工具連接，可選)
+        networks:
+            - sionna-net
+        healthcheck: # 可選，但建議加上，讓 backend 等待 db 啟動完成
+            test:
+                ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+            interval: 10s
+            timeout: 5s
+            retries: 5
 
-  redis: # <-- 新增 Redis 服務
-    image: redis:7-alpine # 使用官方的 Redis 映像，版本可選
-    container_name: redis_cache
-    networks:
-      - sionna-net
-    # ports: # 可選，如果需要在主機直接訪問 Redis，可以取消註解以下幾行
-      # - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    redis: # <-- 新增 Redis 服務
+        image: redis:7-alpine # 使用官方的 Redis 映像，版本可選
+        container_name: redis_cache
+        networks:
+            - sionna-net
+        # ports: # 可選，如果需要在主機直接訪問 Redis，可以取消註解以下幾行
+        # - "6379:6379"
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 10s
+            timeout: 5s
+            retries: 5
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: fastapi_app # 給容器一個明確的名稱
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-    env_file:
-      - ./.env # 從項目根目錄的 .env 讀取配置
-      - ./backend/.env # 同時也加載 backend/.env 文件
-    environment:
-      # === 渲染和計算模式設定 ===
-      # CPU 模式：設定為 "-1" 強制使用 CPU
-      # GPU 模式：設定為 "" 或特定 GPU ID，如 "0" 或 "0,1"
-      CUDA_VISIBLE_DEVICES: "-1"
-      
-      # === 渲染後端設定 ===
-      # 支持三種模式：egl (默認), osmesa (純軟體), glfw (需要顯示器或虛擬顯示器)
-      PYOPENGL_PLATFORM: "egl"
-      # 可選設定 pyrender 的後端
-      PYRENDER_BACKEND: "pyglet"
-      
-      # 其他通用設定
-      PYTHONUNBUFFERED: "1"
-      # 資料庫連接 URL
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      # Redis 連接 URL
-      REDIS_URL: redis://redis:6379/0 # <-- 修改這裡以指向 Docker 內的 Redis 服務名稱 "redis"
-    
-    # === GPU 支持 (使用 GPU 模式時取消註釋) ===
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
-    
-    networks:
-      - sionna-net
-    depends_on: # <-- 讓 FastAPI 服務等待 DB 服務啟動 (healthcheck 更可靠)
-      db:
-        condition: service_healthy # 等待 DB healthcheck 成功
-      redis: # <-- 新增對 Redis 服務的依賴
-        condition: service_healthy # 等待 Redis healthcheck 成功
-    # command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload # 開發時可取消註釋
-    healthcheck: # <--- 新增 FastAPI 的 healthcheck
-      # 嘗試連接 FastAPI 的根路徑 "/"。需要 curl。
-      # test: ["CMD", "curl", "-f", "http://localhost:8000/"]
-      # 或者，如果不想安裝 curl，可以嘗試用 python 簡易檢查端口 (需要 python 在基礎鏡像中)
-      test: ["CMD-SHELL", "python -c 'import socket; s = socket.create_connection((\"localhost\", 8000), timeout=5)' || exit 1"]
-      interval: 10s       # 每 10 秒檢查一次
-      timeout: 5s         # 每次檢查超時 5 秒
-      retries: 5          # 重試 5 次失敗後標記為不健康
-      start_period: 30s   # 啟動後等待 30 秒再開始健康檢查 (給 FastAPI 足夠的啟動時間)
+    backend:
+        build:
+            context: ./backend
+            dockerfile: Dockerfile
+        container_name: fastapi_app # 給容器一個明確的名稱
+        ports:
+            - '8000:8000'
+        volumes:
+            - ./backend:/app
+        env_file:
+            - ./.env # 從項目根目錄的 .env 讀取配置
+            - ./backend/.env # 同時也加載 backend/.env 文件
+        environment:
+            # === 渲染和計算模式設定 ===
+            # CPU 模式：設定為 "-1" 強制使用 CPU
+            # GPU 模式：設定為 "" 或特定 GPU ID，如 "0" 或 "0,1"
+            CUDA_VISIBLE_DEVICES: '-1'
 
+            # === 渲染後端設定 ===
+            # 支持三種模式：egl (默認), osmesa (純軟體), glfw (需要顯示器或虛擬顯示器)
+            PYOPENGL_PLATFORM: 'egl'
+            # 可選設定 pyrender 的後端
+            PYRENDER_BACKEND: 'pyglet'
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: react_app # 給容器一個明確的名稱
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
-    networks:
-      - sionna-net
-    depends_on: # React 通常依賴 FastAPI
-      backend: # <--- 修改依賴條件
-        condition: service_healthy # 等待 backend 健康檢查通過
+            # 其他通用設定
+            PYTHONUNBUFFERED: '1'
+            # 資料庫連接 URL
+            DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+            # Redis 連接 URL
+            REDIS_URL: redis://redis:6379/0 # <-- 修改這裡以指向 Docker 內的 Redis 服務名稱 "redis"
 
-  # ==== Open5GS (NGC) 服務 ==== 
-  mongo:
-    image: mongo
-    container_name: open5gs-mongo
-    environment:
-      MONGO_INITDB_DATABASE: open5gs
-    volumes:
-      - mongo_data:/data/db
-      - ./scripts/mongo_init.js:/docker-entrypoint-initdb.d/mongo_init.js
-    networks:
-      - sionna-net
-      - open5gs-net
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+        # === GPU 支持 (使用 GPU 模式時取消註釋) ===
+        # deploy:
+        #   resources:
+        #     reservations:
+        #       devices:
+        #         - driver: nvidia
+        #           count: all
+        #           capabilities: [gpu]
 
-  amf:
-    image: gradiant/open5gs:2.7.5
-    command:
-      - open5gs-amfd
-    restart: on-failure
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+        networks:
+            - sionna-net
+        depends_on: # <-- 讓 FastAPI 服務等待 DB 服務啟動 (healthcheck 更可靠)
+            db:
+                condition: service_healthy # 等待 DB healthcheck 成功
+            redis: # <-- 新增對 Redis 服務的依賴
+                condition: service_healthy # 等待 Redis healthcheck 成功
+        # command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload # 開發時可取消註釋
+        healthcheck: # <--- 新增 FastAPI 的 healthcheck
+            # 嘗試連接 FastAPI 的根路徑 "/"。需要 curl。
+            # test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+            # 或者，如果不想安裝 curl，可以嘗試用 python 簡易檢查端口 (需要 python 在基礎鏡像中)
+            test:
+                [
+                    'CMD-SHELL',
+                    'python -c ''import socket; s = socket.create_connection(("localhost", 8000), timeout=5)'' || exit 1',
+                ]
+            interval: 10s # 每 10 秒檢查一次
+            timeout: 5s # 每次檢查超時 5 秒
+            retries: 5 # 重試 5 次失敗後標記為不健康
+            start_period: 30s # 啟動後等待 30 秒再開始健康檢查 (給 FastAPI 足夠的啟動時間)
 
-  ausf:
-    image: gradiant/open5gs:2.7.5
-    command:
-      - open5gs-ausfd
-    restart: on-failure
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    frontend:
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile
+        container_name: react_app # 給容器一個明確的名稱
+        ports:
+            - '5173:5173'
+        volumes:
+            - ./frontend:/app
+            - frontend_node_modules:/app/node_modules
+        networks:
+            - sionna-net
+        depends_on: # React 通常依賴 FastAPI
+            backend: # <--- 修改依賴條件
+                condition: service_healthy # 等待 backend 健康檢查通過
 
-  bsf:
-    image: gradiant/open5gs:2.7.5
-    command:
-      - open5gs-bsfd
-    restart: on-failure
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    # ==== Open5GS (NGC) 服務 ====
+    mongo:
+        image: mongo
+        container_name: open5gs-mongo
+        environment:
+            MONGO_INITDB_DATABASE: open5gs
+        volumes:
+            - mongo_data:/data/db
+            - ./scripts/mongo_init.js:/docker-entrypoint-initdb.d/mongo_init.js
+        networks:
+            - sionna-net
+            - open5gs-net
+        healthcheck:
+            test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
 
-  nrf:
-    image: gradiant/open5gs:2.7.5
-    command: open5gs-nrfd
-    restart: on-failure
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    amf:
+        image: gradiant/open5gs:2.7.5
+        command:
+            - open5gs-amfd
+        restart: on-failure
+        volumes:
+            - ./config/open5gs/amf.yaml:/opt/open5gs/etc/open5gs/amf.yaml
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  nssf:
-    image: gradiant/open5gs:2.7.5
-    command: open5gs-nssfd
-    restart: on-failure
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    ausf:
+        image: gradiant/open5gs:2.7.5
+        command:
+            - open5gs-ausfd
+        restart: on-failure
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  pcf:
-    image: gradiant/open5gs:2.7.5
-    command:
-      - open5gs-pcfd
-    environment:
-      DB_URI: mongodb://mongo/open5gs
-    restart: on-failure
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    bsf:
+        image: gradiant/open5gs:2.7.5
+        command:
+            - open5gs-bsfd
+        restart: on-failure
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  scp:
-    image: gradiant/open5gs:2.7.5
-    command: open5gs-scpd
-    environment:
-      DB_URI: mongodb://mongo/open5gs
-    restart: on-failure
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    nrf:
+        image: gradiant/open5gs:2.7.5
+        command: open5gs-nrfd
+        restart: on-failure
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  smf:
-    image: gradiant/open5gs:2.7.5
-    volumes:
-      - ./config/open5gs/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml
-    restart: on-failure
-    command: open5gs-smfd
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    nssf:
+        image: gradiant/open5gs:2.7.5
+        command: open5gs-nssfd
+        restart: on-failure
+        volumes:
+            - ./config/open5gs/nssf.yaml:/opt/open5gs/etc/open5gs/nssf.yaml
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  udm:
-    image: gradiant/open5gs:2.7.5
-    restart: on-failure
-    command:
-      - open5gs-udmd
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    pcf:
+        image: gradiant/open5gs:2.7.5
+        command:
+            - open5gs-pcfd
+        environment:
+            DB_URI: mongodb://mongo/open5gs
+        restart: on-failure
+        volumes:
+            - ./config/open5gs/pcf.yaml:/opt/open5gs/etc/open5gs/pcf.yaml
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  udr:
-    image: gradiant/open5gs:2.7.5
-    restart: on-failure
-    environment:
-      DB_URI: mongodb://mongo/open5gs
-    command:
-      - open5gs-udrd
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    scp:
+        image: gradiant/open5gs:2.7.5
+        command: open5gs-scpd
+        environment:
+            DB_URI: mongodb://mongo/open5gs
+        restart: on-failure
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  upf:
-    image: gradiant/open5gs:2.7.5
-    user: root
-    command:
-      - open5gs-upfd
-    cap_add:
-      - all
-    privileged: true
-    restart: on-failure
-    # environment:
-    # ENABLE_NAT: "false"
-    ports:
-      - "2152:2152/udp"
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    smf:
+        image: gradiant/open5gs:2.7.5
+        volumes:
+            - ./config/open5gs/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml
+        restart: on-failure
+        command: open5gs-smfd
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  webui:
-    image: gradiant/open5gs-webui:2.7.5
-    restart: on-failure
-    environment:
-      DB_URI: mongodb://mongo/open5gs
-      NODE_ENV: dev
-    ports:
-      - "9999:9999"
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    udm:
+        image: gradiant/open5gs:2.7.5
+        restart: on-failure
+        command:
+            - open5gs-udmd
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  # ==== UERANSIM 服務 ====
-  gnb1:
-    image: gradiant/ueransim:3.2.6
-    container_name: gnb1
-    command: 
-      - gnb
-    environment:
-      AMF_HOSTNAME: amf
-      GNB_HOSTNAME: gnb1
-      TAC: '1'
-      MCC: '999'
-      MNC: '70'
-      SST: '1'
-      SD: '0xffffff'
-    networks:
-      - open5gs-net
-    depends_on:
-      - amf
+    udr:
+        image: gradiant/open5gs:2.7.5
+        restart: on-failure
+        environment:
+            DB_URI: mongodb://mongo/open5gs
+        command:
+            - open5gs-udrd
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  ues1:
-    image: gradiant/ueransim:3.2.6
-    command: ['ue','-n','3']
-    cap_add:
-      - all
-    privileged: true
-    environment:
-      GNB_HOSTNAME: gnb1
-      APN: internet
-      MSISDN: '0000000001'
-      MCC: '999'
-      MNC: '70'
-      KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
-      OP_TYPE: OPC
-      OP: 'E8ED289DEBA952E4283B54E88E6183CA'
-      SST: '1'
-      SD: '0xffffff'
-    networks:
-      - open5gs-net
-    depends_on:
-      - gnb1
+    upf:
+        image: gradiant/open5gs:2.7.5
+        user: root
+        command:
+            - open5gs-upfd
+        cap_add:
+            - all
+        privileged: true
+        restart: on-failure
+        environment:
+            ENABLE_NAT: 'true'
+        ports:
+            - '2152:2152/udp'
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  gnb2:
-    image: gradiant/ueransim:3.2.6
-    container_name: gnb2
-    command: 
-      - gnb
-    environment:
-      AMF_HOSTNAME: amf
-      GNB_HOSTNAME: gnb2
-      TAC: '1'
-      MCC: '999'
-      MNC: '70'
-      SST: '1'
-      SD: '0xffffff'
-    networks:
-      - open5gs-net
-    depends_on:
-      - amf
+    webui:
+        image: gradiant/open5gs-webui:2.7.5
+        restart: on-failure
+        environment:
+            DB_URI: mongodb://mongo/open5gs
+            NODE_ENV: dev
+        ports:
+            - '9999:9999'
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
-  ues2:
-    image: gradiant/ueransim:3.2.6
-    command: ['ue','-n','3']
-    cap_add:
-      - all
-    privileged: true
-    environment:
-      GNB_HOSTNAME: gnb2
-      APN: internet
-      MSISDN: '0000000011'
-      MCC: '999'
-      MNC: '70'
-      KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
-      OP_TYPE: OPC
-      OP: 'E8ED289DEBA952E4283B54E88E6183CA'
-      SST: '1'
-      SD: '0xffffff'
-    networks:
-      - open5gs-net
-    depends_on:
-      - gnb1
+    # ==== UERANSIM 服務 ====
+    gnb1:
+        image: gradiant/ueransim:3.2.6
+        container_name: gnb1
+        command:
+            - gnb
+        environment:
+            AMF_HOSTNAME: amf
+            GNB_HOSTNAME: gnb1
+            TAC: '1'
+            MCC: '999'
+            MNC: '70'
+            SST: '1'
+            SD: '0xffffff'
+        cap_add:
+            - NET_ADMIN
+        networks:
+            - open5gs-net
+        depends_on:
+            - amf
 
-  # ==== 用戶註冊服務 ====
-  subscriber-init:
-    image: gradiant/open5gs-dbctl:0.10.3
-    environment:
-      DB_URI: mongodb://mongo/open5gs
-    volumes:
-      - ./scripts/register_subscriber.sh:/app/register_subscriber.sh
-    command: ["bash", "/app/register_subscriber.sh"]
-    networks:
-      - open5gs-net
-    depends_on:
-      mongo:
-        condition: service_healthy
+    ues1:
+        image: gradiant/ueransim:3.2.6
+        command: ['ue', '-n', '3']
+        cap_add:
+            - all
+        privileged: true
+        environment:
+            GNB_HOSTNAME: gnb1
+            APN: internet
+            MSISDN: '0000000001'
+            MCC: '999'
+            MNC: '70'
+            KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+            OP_TYPE: OPC
+            OP: 'E8ED289DEBA952E4283B54E88E6183CA'
+            SST: '1'
+            SD: '0xffffff'
+        networks:
+            - open5gs-net
+        depends_on:
+            - gnb1
+
+    gnb2:
+        image: gradiant/ueransim:3.2.6
+        container_name: gnb2
+        command:
+            - gnb
+        environment:
+            AMF_HOSTNAME: amf
+            GNB_HOSTNAME: gnb2
+            TAC: '1'
+            MCC: '999'
+            MNC: '70'
+            SST: '1'
+            SD: '0xffffff'
+        cap_add:
+            - NET_ADMIN
+        networks:
+            - open5gs-net
+        depends_on:
+            - amf
+
+    ues2:
+        image: gradiant/ueransim:3.2.6
+        command: ['ue', '-n', '3']
+        cap_add:
+            - all
+        privileged: true
+        environment:
+            GNB_HOSTNAME: gnb2
+            APN: internet
+            MSISDN: '0000000011'
+            MCC: '999'
+            MNC: '70'
+            KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+            OP_TYPE: OPC
+            OP: 'E8ED289DEBA952E4283B54E88E6183CA'
+            SST: '1'
+            SD: '0xffffff'
+        networks:
+            - open5gs-net
+        depends_on:
+            - gnb1
+
+    # ==== 用戶註冊服務 ====
+    subscriber-init:
+        image: gradiant/open5gs-dbctl:0.10.3
+        environment:
+            DB_URI: mongodb://mongo/open5gs
+        volumes:
+            - ./scripts/register_subscriber.sh:/app/register_subscriber.sh
+        command: ['bash', '/app/register_subscriber.sh']
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
 
 networks:
-  sionna-net:
-    driver: bridge
-  open5gs-net:
-    driver: bridge
+    sionna-net:
+        driver: bridge
+    open5gs-net:
+        driver: bridge
 
 volumes: # <-- 新增 volume 定義
-  postgres_data: # 用於持久化 PostgreSQL 數據
-  frontend_node_modules:
-  redis_data: # <-- 新增 Redis 數據持久化 volume (可選，如果需要持久化 Redis 數據)
-  mongo_data: # <-- 用於持久化 Open5GS 的 MongoDB 數據
+    postgres_data: # 用於持久化 PostgreSQL 數據
+    frontend_node_modules:
+    redis_data: # <-- 新增 Redis 數據持久化 volume (可選，如果需要持久化 Redis 數據)
+    mongo_data: # <-- 用於持久化 Open5GS 的 MongoDB 數據
