@@ -1,0 +1,111 @@
+ Container cadvisor  Running
+ Container open5gs-mongo  Running
+ Container postgis_db  Running
+ Container node-exporter  Running
+ Container prometheus  Running
+ Container ntn-stack-bsf-1  Running
+ Container ntn-stack-ausf-1  Running
+ Container ntn-stack-pcf-1  Running
+ Container alertmanager  Running
+ Container ntn-stack-scp-1  Running
+ Container grafana  Running
+ Container ntn-stack-smf-1  Running
+ Container ntn-stack-webui-1  Running
+ Container redis_cache  Running
+ Container ntn-proxy  Running
+ Container fastapi_app  Created
+ Container ntn-stack-nssf-1  Running
+ Container ntn-stack-amf-1  Running
+ Container ntn-stack-udr-1  Running
+ Container gnb1  Running
+ Container ntn-stack-subscriber-init-1  Created
+ Container ntn-stack-ues1-1  Running
+ Container ntn-stack-nrf-1  Running
+ Container ntn-stack-udm-1  Running
+ Container gnb2  Running
+ Container metrics-exporter  Running
+ Container ntn-stack-upf-1  Running
+ Container ntn-stack-ues2-1  Running
+ Container config-api  Running
+Attaching to alertmanager, cadvisor, config-api, fastapi_app, gnb1, gnb2, grafana, metrics-exporter, node-exporter, ntn-proxy, amf-1, ausf-1, bsf-1, nrf-1, nssf-1, pcf-1, scp-1, smf-1, subscriber-init-1, udm-1, udr-1, ues1-1, ues2-1, upf-1, webui-1, open5gs-mongo, postgis_db, prometheus, react_app, redis_cache
+[Ksubscriber-init-1 exited with code 0
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - Time-Frequency Image Path (in container): /app/app/static/images/channel_response_plots.png
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - Static Directory (in container): /app/app/static
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - Models Directory (in container): /app/app/static/models
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - Static Images Directory (in container): /app/app/static/images
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - NYCU Directory (in container): /app/app/static/NYCU
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - NYCU GLB Path (in container): /app/app/static/models/NYCU.glb
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - NYCU XML Path (in container): /app/app/static/NYCU/NYCU.xml
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - CFR Plot Image Path (in container): /app/app/static/images/cfr_plot.png
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - SINR Map Image Path (in container): /app/app/static/images/sinr_map.png
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - DOPPLER Image Path (in container): /app/app/static/images/delay_doppler.png
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - OBSERVER_LAT not found in environment variables. Using placeholder/database fallback.
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - OBSERVER_LON not found in environment variables. Using placeholder/database fallback.
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - OBSERVER_ALT not found in environment variables. Using placeholder/database fallback (0.0m).
+fastapi_app        | 2025-05-22 06:53:29,440 - INFO - Default Observer: LAT=24.785278, LON=120.997222, ALT=0.0m
+fastapi_app        | Traceback (most recent call last):
+fastapi_app        |   File "/usr/local/bin/uvicorn", line 8, in <module>
+fastapi_app        |     sys.exit(main())
+fastapi_app        |              ^^^^^^
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1442, in __call__
+fastapi_app        |     return self.main(*args, **kwargs)
+fastapi_app        |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1363, in main
+fastapi_app        |     rv = self.invoke(ctx)
+fastapi_app        |          ^^^^^^^^^^^^^^^^
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1226, in invoke
+fastapi_app        |     return ctx.invoke(self.callback, **ctx.params)
+fastapi_app        |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 794, in invoke
+fastapi_app        |     return callback(*args, **kwargs)
+fastapi_app        |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/uvicorn/main.py", line 413, in main
+fastapi_app        |     run(
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/uvicorn/main.py", line 580, in run
+fastapi_app        |     server.run()
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/uvicorn/server.py", line 66, in run
+fastapi_app        |     return asyncio.run(self.serve(sockets=sockets))
+fastapi_app        |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fastapi_app        |   File "/usr/local/lib/python3.11/asyncio/runners.py", line 190, in run
+fastapi_app        |     return runner.run(main)
+fastapi_app        |            ^^^^^^^^^^^^^^^^
+fastapi_app        |   File "/usr/local/lib/python3.11/asyncio/runners.py", line 118, in run
+fastapi_app        |     return self._loop.run_until_complete(task)
+fastapi_app        |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fastapi_app        |   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/uvicorn/server.py", line 70, in serve
+fastapi_app        |     await self._serve(sockets)
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/uvicorn/server.py", line 77, in _serve
+fastapi_app        |     config.load()
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/uvicorn/config.py", line 435, in load
+fastapi_app        |     self.loaded_app = import_from_string(self.app)
+fastapi_app        |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/uvicorn/importer.py", line 22, in import_from_string
+fastapi_app        |     raise exc from None
+fastapi_app        |   File "/usr/local/lib/python3.11/site-packages/uvicorn/importer.py", line 19, in import_from_string
+fastapi_app        |     module = importlib.import_module(module_str)
+fastapi_app        |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fastapi_app        |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+fastapi_app        |     return _bootstrap._gcd_import(name[level:], package, level)
+fastapi_app        |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fastapi_app        |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+fastapi_app        |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+fastapi_app        |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+fastapi_app        |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+fastapi_app        |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+fastapi_app        |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+fastapi_app        |   File "/app/app/main.py", line 8, in <module>
+fastapi_app        |     from app.db.lifespan import lifespan
+fastapi_app        |   File "/app/app/db/lifespan.py", line 17, in <module>
+fastapi_app        |     from app.domains.device.models.device_model import Device, DeviceRole  # 從領域模型導入
+fastapi_app        |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fastapi_app        |   File "/app/app/domains/device/__init__.py", line 9, in <module>
+fastapi_app        |     from app.domains.device.services.device_service import DeviceService
+fastapi_app        |   File "/app/app/domains/device/services/device_service.py", line 6, in <module>
+fastapi_app        |     from app.domains.device.interfaces.device_repository import DeviceRepository
+fastapi_app        |   File "/app/app/domains/device/interfaces/device_repository.py", line 5, in <module>
+fastapi_app        |     from app.schemas.device import DeviceCreate, DeviceUpdate  # 暫時使用舊的 schema，之後會遷移
+fastapi_app        |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fastapi_app        | ModuleNotFoundError: No module named 'app.schemas'
+Gracefully stopping... (press Ctrl+C again to force)
+dependency failed to start: container fastapi_app exited (1)

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './api';
 import ApiRoutes from '../config/apiRoutes';
 
 // 衛星相關類型定義
@@ -38,7 +38,7 @@ interface OrbitPoint {
 // 獲取所有衛星
 export const getSatellites = async (): Promise<Satellite[]> => {
   try {
-    const response = await axios.get<Satellite[]>(ApiRoutes.satellites.getAll);
+    const response = await api.get<Satellite[]>(ApiRoutes.satellites.getAll);
     return response.data;
   } catch (error) {
     console.error('獲取衛星列表失敗:', error);
@@ -49,7 +49,7 @@ export const getSatellites = async (): Promise<Satellite[]> => {
 // 根據ID獲取衛星
 export const getSatelliteById = async (id: string): Promise<Satellite> => {
   try {
-    const response = await axios.get<Satellite>(ApiRoutes.satellites.getById(id));
+    const response = await api.get<Satellite>(ApiRoutes.satellites.getById(id));
     return response.data;
   } catch (error) {
     console.error(`獲取衛星 ${id} 失敗:`, error);
@@ -60,7 +60,7 @@ export const getSatelliteById = async (id: string): Promise<Satellite> => {
 // 獲取衛星的TLE數據
 export const getSatelliteTLE = async (id: string): Promise<TLEData> => {
   try {
-    const response = await axios.get<TLEData>(ApiRoutes.satellites.getTLE(id));
+    const response = await api.get<TLEData>(ApiRoutes.satellites.getTLE(id));
     return response.data;
   } catch (error) {
     console.error(`獲取衛星 ${id} TLE數據失敗:`, error);
@@ -83,7 +83,7 @@ export const getSatellitePasses = async (
   if (minElevation !== undefined) params.min_elevation = minElevation.toString();
   
   try {
-    const response = await axios.get<SatellitePass[]>(url, { params });
+    const response = await api.get<SatellitePass[]>(url, { params });
     return response.data;
   } catch (error) {
     console.error(`獲取衛星 ${id} 過境數據失敗:`, error);
@@ -106,7 +106,7 @@ export const getSatelliteOrbit = async (
   if (pointCount !== undefined) params.point_count = pointCount.toString();
   
   try {
-    const response = await axios.get<OrbitPoint[]>(url, { params });
+    const response = await api.get<OrbitPoint[]>(url, { params });
     return response.data;
   } catch (error) {
     console.error(`獲取衛星 ${id} 軌道數據失敗:`, error);

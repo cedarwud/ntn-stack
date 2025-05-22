@@ -2,9 +2,9 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from app.core.config import DATABASE_URL
 from app.db.base_class import Base  # noqa
-from app.db.device import Device  # noqa
-from app.db.satellite_tle import SatelliteTLE  # noqa
-from app.db.ground_station import GroundStation  # noqa
+
+# 重構後的領域模型引用
+# 這些模型已被遷移到領域目錄中，不再需要從舊的db目錄導入
 
 # 使用 async engine
 # echo=False 可避免印出 SQL 指令，設為 True 可用於除錯

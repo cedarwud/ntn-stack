@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { ViewerProps } from '../../types/viewer'
+import { ApiRoutes } from '../../config/apiRoutes'
 
 // SINR Map 顯示組件
 const SINRViewer: React.FC<ViewerProps> = ({
@@ -14,9 +15,11 @@ const SINRViewer: React.FC<ViewerProps> = ({
     const [sinrVmax, setSinrVmax] = useState<number>(0)
     const [cellSize, setCellSize] = useState<number>(1.0)
     const [samplesPerTx, setSamplesPerTx] = useState<number>(10 ** 7)
+    const [retryCount, setRetryCount] = useState(0)
+    const maxRetries = 3
 
     const imageUrlRef = useRef<string | null>(null)
-    const API_PATH = '/api/v1/sionna/sinr-map'
+    const API_PATH = ApiRoutes.simulations.getSINRMap
 
     const updateTimestamp = useCallback(() => {
         const now = new Date()
@@ -31,7 +34,10 @@ const SINRViewer: React.FC<ViewerProps> = ({
     const loadSINRMapImage = useCallback(() => {
         setIsLoading(true)
         setError(null)
-        const apiUrl = `${API_PATH}?sinr_vmin=${sinrVmin}&sinr_vmax=${sinrVmax}&cell_size=${cellSize}&samples_per_tx=${samplesPerTx}`
+
+        // 添加timestamp參數防止緩存
+        const apiUrl = `${API_PATH}?sinr_vmin=${sinrVmin}&sinr_vmax=${sinrVmax}&cell_size=${cellSize}&samples_per_tx=${samplesPerTx}&t=${new Date().getTime()}`
+
         fetch(apiUrl)
             .then((response) => {
                 if (!response.ok) {
@@ -42,20 +48,50 @@ const SINRViewer: React.FC<ViewerProps> = ({
                 return response.blob()
             })
             .then((blob) => {
+                // 檢查是否收到了有效的圖片數據
+                if (blob.size === 0) {
+                    throw new Error('接收到空的圖像數據')
+                }
+
                 if (imageUrlRef.current) {
                     URL.revokeObjectURL(imageUrlRef.current)
                 }
                 const url = URL.createObjectURL(blob)
                 setImageUrl(url)
                 setIsLoading(false)
+                setRetryCount(0) // 重置重試次數
                 updateTimestamp()
             })
             .catch((err) => {
                 console.error('載入 SINR Map 失敗:', err)
-                setError('無法載入 SINR Map: ' + err.message)
+
+                // 處理可能的FileNotFoundError情況
+                if (err.message && err.message.includes('404')) {
+                    setError('圖像文件未找到: 後端可能正在生成圖像，請稍後重試')
+                } else {
+                    setError('無法載入 SINR Map: ' + err.message)
+                }
+
                 setIsLoading(false)
+
+                // 實現自動重試機制
+                const newRetryCount = retryCount + 1
+                setRetryCount(newRetryCount)
+
+                if (newRetryCount < maxRetries) {
+                    setTimeout(() => {
+                        loadSINRMapImage()
+                    }, 2000) // 2秒後重試
+                }
             })
-    }, [sinrVmin, sinrVmax, cellSize, samplesPerTx, updateTimestamp])
+    }, [
+        sinrVmin,
+        sinrVmax,
+        cellSize,
+        samplesPerTx,
+        updateTimestamp,
+        retryCount,
+    ])
 
     useEffect(() => {
         reportRefreshHandlerToNavbar(loadSINRMapImage)
@@ -87,12 +123,35 @@ const SINRViewer: React.FC<ViewerProps> = ({
         setSamplesPerTx(Number(e.target.value))
     }
 
+    const handleRetryClick = () => {
+        setRetryCount(0)
+        loadSINRMapImage()
+    }
+
     return (
         <div className="image-viewer sinr-image-container">
             {isLoading && (
                 <div className="loading">正在即時運算並生成 SINR Map...</div>
             )}
-            {error && <div className="error">{error}</div>}
+            {error && (
+                <div className="error">
+                    {error}
+                    <button
+                        onClick={handleRetryClick}
+                        style={{
+                            marginLeft: '10px',
+                            padding: '5px 10px',
+                            background: '#4285f4',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        重試
+                    </button>
+                </div>
+            )}
             {imageUrl && (
                 <img
                     src={imageUrl}

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './api';
 import ApiRoutes from '../config/apiRoutes';
 
 // 座標相關類型定義
@@ -30,7 +30,7 @@ interface CoordinateValidationResponse {
 // 轉換座標
 export const convertCoordinate = async (request: CoordinateConversionRequest): Promise<CoordinateConversionResponse> => {
   try {
-    const response = await axios.post<CoordinateConversionResponse>(
+    const response = await api.post<CoordinateConversionResponse>(
       ApiRoutes.coordinates.convert,
       request
     );
@@ -44,7 +44,7 @@ export const convertCoordinate = async (request: CoordinateConversionRequest): P
 // 驗證座標
 export const validateCoordinate = async (coordinate: Coordinate | string, format: 'decimal' | 'dms' | 'utm' = 'decimal'): Promise<CoordinateValidationResponse> => {
   try {
-    const response = await axios.post<CoordinateValidationResponse>(
+    const response = await api.post<CoordinateValidationResponse>(
       ApiRoutes.coordinates.validate,
       {
         coordinate,

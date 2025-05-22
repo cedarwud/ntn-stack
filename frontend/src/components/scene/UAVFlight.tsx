@@ -4,8 +4,9 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 // @ts-ignore
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js'
+import { ApiRoutes } from '../../config/apiRoutes'
 
-const UAV_MODEL_URL = '/api/v1/sionna/models/uav'
+const UAV_MODEL_URL = ApiRoutes.simulations.getModel('uav')
 
 // 請調整此值以補償懸停動畫的 Y 軸位移
 const HOVER_ANIMATION_Y_OFFSET = -1.28 // 範例值，如果向上跳了 5 個單位，則設為 -5

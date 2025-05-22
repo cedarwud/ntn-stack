@@ -39,9 +39,12 @@ logger.info(f"Mounted static directory '{STATIC_DIR}' at '/static'.")
 origins = [
     "http://localhost",
     "http://localhost:5173",  # 本地開發環境
+    "http://localhost:5174",  # 新增端口 5174
     "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",  # 新增端口 5174
     "http://120.126.151.101",
     "http://120.126.151.101:5173",  # 生產環境 IP 地址
+    "http://120.126.151.101:5174",  # 新增端口 5174
     # 添加任何其他需要的域名
 ]
 

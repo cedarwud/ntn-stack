@@ -3,17 +3,19 @@
  * 集中管理所有後端API路徑，便於維護和更新
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+// 使用相對路徑，不要加入前綴
+const API_BASE_URL = '/api/v1';
 
 export const ApiRoutes = {
-  // 設備領域API
+  // 設備領域API - 更新路徑以符合DDD結構
   devices: {
+    // 根據307重定向，可能需要調整路徑
     base: `${API_BASE_URL}/devices`,
-    getAll: `${API_BASE_URL}/devices`,
-    getById: (id: string) => `${API_BASE_URL}/devices/${id}`,
-    create: `${API_BASE_URL}/devices`,
-    update: (id: string) => `${API_BASE_URL}/devices/${id}`,
-    delete: (id: string) => `${API_BASE_URL}/devices/${id}`,
+    getAll: `${API_BASE_URL}/devices/`,  // 注意尾部斜線
+    getById: (id: string) => `${API_BASE_URL}/devices/${id}/`,
+    create: `${API_BASE_URL}/devices/`,
+    update: (id: string) => `${API_BASE_URL}/devices/${id}/`,
+    delete: (id: string) => `${API_BASE_URL}/devices/${id}/`,
   },
   
   // 座標領域API
@@ -38,10 +40,15 @@ export const ApiRoutes = {
   simulations: {
     base: `${API_BASE_URL}/simulations`,
     createSimulation: `${API_BASE_URL}/simulations/run`,
-    getCFRMap: `${API_BASE_URL}/simulations/cfr-map`,
+    // 更新為實際存在的API路徑
+    getCFRMap: `${API_BASE_URL}/simulations/cfr-plot`,
     getSINRMap: `${API_BASE_URL}/simulations/sinr-map`,
-    getDopplerMap: `${API_BASE_URL}/simulations/doppler-map`,
+    getDopplerMap: `${API_BASE_URL}/simulations/doppler-plots`,
+    getChannelResponsePlots: `${API_BASE_URL}/simulations/channel-response`,
+    getSceneImage: `${API_BASE_URL}/simulations/scene-image`,
     getResults: (id: string) => `${API_BASE_URL}/simulations/${id}/results`,
+    // 模型相關API路徑仍在sionna命名空間下
+    getModel: (modelName: string) => `${API_BASE_URL}/sionna/models/${modelName}`,
   },
   
   // 網路平台API (已從 /platform 更改為 /network)
@@ -55,16 +62,32 @@ export const ApiRoutes = {
       delete: (id: string) => `${API_BASE_URL}/network/subscribers/${id}`,
     },
     gNodeBs: {
-      getAll: `${API_BASE_URL}/network/gnodeb`,
-      getById: (id: string) => `${API_BASE_URL}/network/gnodeb/${id}`,
-      status: `${API_BASE_URL}/network/gnodeb/status`,
+      getAll: `${API_BASE_URL}/network/gnbs`,
+      getById: (id: string) => `${API_BASE_URL}/network/gnbs/${id}`,
+      status: `${API_BASE_URL}/network/gnbs/status`,
     },
     ues: {
-      getAll: `${API_BASE_URL}/network/ue`,
-      getById: (id: string) => `${API_BASE_URL}/network/ue/${id}`,
-      status: `${API_BASE_URL}/network/ue/status`,
+      getAll: `${API_BASE_URL}/network/ues`,
+      getById: (id: string) => `${API_BASE_URL}/network/ues/${id}`,
+      status: `${API_BASE_URL}/network/ues/status`,
     },
   },
+  
+  // 臨時的衛星可見性路由
+  satelliteOps: {
+    getVisibleSatellites: `${API_BASE_URL}/satellite-ops/visible_satellites`,
+  },
+  
+  // 臨時的 sionna 命名空間相關路由 (已不存在於後端，前端保留向後兼容)
+  sionna: {
+    getModel: (modelName: string) => `${API_BASE_URL}/sionna/models/${modelName}`,
+    // 這些路由已遷移到 simulations 命名空間下
+    getSceneImageDevices: `${API_BASE_URL}/simulations/scene-image`,
+    getSINRMap: `${API_BASE_URL}/simulations/sinr-map`,
+    getCFRPlot: `${API_BASE_URL}/simulations/cfr-plot`,
+    getDopplerPlots: `${API_BASE_URL}/simulations/doppler-plots`,
+    getChannelResponsePlots: `${API_BASE_URL}/simulations/channel-response`,
+  }
 };
 
 export default ApiRoutes; 

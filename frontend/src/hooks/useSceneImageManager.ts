@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { ApiRoutes } from '../config/apiRoutes';
 
 const FALLBACK_IMAGE_PATH = '/rendered_images/scene_with_devices.png';
 
@@ -19,7 +20,7 @@ export function useSceneImageManager() {
 
     const fetchImage = useCallback(
         async (signal: AbortSignal) => {
-            const rtEndpoint = '/api/v1/sionna/scene-image-devices';
+            const rtEndpoint = ApiRoutes.simulations.getSceneImage;
             setIsLoading(true);
             setError(null);
             setUsingFallback(false);
@@ -69,87 +70,60 @@ export function useSceneImageManager() {
                         `處理圖像時出錯: ${blobError instanceof Error ? blobError.message : String(blobError)}`
                     );
                 }
-            } catch (err) {
+            } catch (error: any) {
+                console.error('Error fetching image:', error);
+
                 if (timeoutId !== null) window.clearTimeout(timeoutId);
-                const typedError = err as Error;
-                if (typedError.name !== 'AbortError') {
-                    // console.error(`Failed to fetch image from ${rtEndpoint}:`, typedError);
-                    try {
-                        const fallbackResponse = await fetch(FALLBACK_IMAGE_PATH, {
-                            cache: 'no-cache',
-                            headers: { Pragma: 'no-cache', 'Cache-Control': 'no-cache' },
-                        });
-                        if (fallbackResponse.ok) {
-                            const fallbackBlob = await fallbackResponse.blob();
-                            if (fallbackBlob.size > 0) {
-                                const fallbackUrl = URL.createObjectURL(fallbackBlob);
-                                setImageUrl(fallbackUrl);
-                                prevImageUrlRef.current = fallbackUrl;
-                                setUsingFallback(true);
-                                setError(`使用備用圖像: ${typedError.message}`);
-                            } else { throw new Error('備用圖像 blob 為空'); }
-                        } else { throw new Error(`備用圖像請求失敗: ${fallbackResponse.status}`); }
-                    } catch (fallbackErr) {
-                        // console.error('Fallback image loading failed:', fallbackErr);
-                        setImageUrl(FALLBACK_IMAGE_PATH); // Last resort
-                        setUsingFallback(true);
-                        setError(`圖像載入失敗: ${typedError.message}`);
-                    }
-                } else {
-                    // console.log('Fetch aborted, ignoring error.');
-                }
-                
-                const currentRetry = retryCount + 1;
-                setRetryCount(currentRetry);
-                if (currentRetry >= 3) {
-                    setManualRetryMode(true);
-                } else {
-                    // console.log(`自動重試 (${currentRetry}/3)...`);
-                    setTimeout(() => {
-                         if (!signal.aborted) fetchImage(new AbortController().signal);
-                    }, 5000);
+
+                if (!signal.aborted) {
+                    setError('Error loading image: ' + error.message);
+                    setRetryCount((prev) => {
+                        const newCount = prev + 1;
+                        // If we've tried several times, use fallback
+                        if (newCount > 3) {
+                            setUsingFallback(true);
+                            setImageUrl(FALLBACK_IMAGE_PATH);
+                            setManualRetryMode(true);
+                            setIsLoading(false);
+                            return newCount;
+                        }
+                        return newCount;
+                    });
                 }
             } finally {
                 if (timeoutId !== null) window.clearTimeout(timeoutId);
                 setIsLoading(false);
             }
         },
-        [retryCount]
+        []
     );
 
-    const handleImageLoad = useCallback(() => {
-        if (imageRefToAttach.current) {
+    const handleImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
+        const img = event.target as HTMLImageElement;
+        if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
             setImageNaturalSize({
-                width: imageRefToAttach.current.naturalWidth,
-                height: imageRefToAttach.current.naturalHeight,
+                width: img.naturalWidth,
+                height: img.naturalHeight
             });
         }
         setIsLoading(false);
-        if (!usingFallback) {
-            setError(null);
-        }
-    }, [usingFallback]);
+    }, []);
 
-    const handleImageError = useCallback(
-        (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-            // console.error(`Image element failed to load src: ${imageUrl}`, e);
-            if (usingFallback || imageUrl === FALLBACK_IMAGE_PATH) {
-                setError(`備用圖片也無法載入，請檢查網絡連接`);
-            } else {
-                setImageUrl(FALLBACK_IMAGE_PATH);
-                setUsingFallback(true);
-                setError(`使用最後一次成功的圖像 (無法連接後端服務)`);
-            }
-            setIsLoading(false);
-        },
-        [imageUrl, usingFallback]
-    );
+    const handleImageError = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
+        console.error('Image failed to load', event);
+        // Only activate fallback after true error (not immediately)
+        setUsingFallback(true);
+        setImageUrl(FALLBACK_IMAGE_PATH);
+        setIsLoading(false);
+        setError('無法載入場景圖像，請檢查網絡或重試');
+    }, []);
 
+    // Load initial image
     useEffect(() => {
-        const controller = new AbortController();
-        fetchImage(controller.signal);
+        const abortController = new AbortController();
+        fetchImage(abortController.signal);
         return () => {
-            controller.abort();
+            abortController.abort();
             if (prevImageUrlRef.current) {
                 URL.revokeObjectURL(prevImageUrlRef.current);
                 prevImageUrlRef.current = null;

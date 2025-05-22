@@ -4,7 +4,7 @@ import {
     createDevice as apiCreateDevice,
     updateDevice as apiUpdateDevice,
     deleteDevice as apiDeleteDevice,
-} from '../services/api'
+} from '../services'
 import { Device, DeviceCreate, DeviceUpdate } from '../types/device'
 import { convertBackendToFrontend } from '../utils/deviceUtils'
 

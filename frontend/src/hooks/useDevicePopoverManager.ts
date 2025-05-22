@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, RefObject } from 'react';
 import { Device, DeviceCreate, DeviceUpdate } from '../types/device';
-import { createDevice, updateDevice, deleteDevice as apiDeleteDevice } from '../services/api';
+import { createDevice, updateDevice, deleteDevice as apiDeleteDevice } from '../services';
 import { generateDeviceName as utilGenerateDeviceName } from '../utils/deviceName';
 
 // Define the NewDevice interface (or import if it's shared)

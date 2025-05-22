@@ -6,6 +6,7 @@ import SidebarStarfield from '../ui/SidebarStarfield' // Import the new componen
 import DeviceItem from '../devices/DeviceItem' // Import DeviceItem
 import { useReceiverSelection } from '../../hooks/useReceiverSelection' // Import the hook
 import { VisibleSatelliteInfo } from '../../types/satellite' // Import the new satellite type
+import { ApiRoutes } from '../../config/apiRoutes' // 引入API路由配置
 
 interface SidebarProps {
     devices: Device[]
@@ -34,9 +35,8 @@ async function fetchVisibleSatellites(
     count: number,
     minElevation: number = 0
 ): Promise<VisibleSatelliteInfo[]> {
-    // In a real scenario, ensure your API base URL is configured correctly
-    // For example, process.env.REACT_APP_API_URL or a fixed string
-    const apiUrl = `/api/v1/satellite-ops/visible_satellites?count=${count}&min_elevation_deg=${minElevation}`
+    // 使用ApiRoutes定義的路徑
+    const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?count=${count}&min_elevation_deg=${minElevation}`
     try {
         const response = await fetch(apiUrl)
         if (!response.ok) {

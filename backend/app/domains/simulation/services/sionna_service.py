@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 # Import models and config from their new locations
-from app.db.device import Device, DeviceRole
+from app.domains.device.models.device_model import Device, DeviceRole
 from app.core.config import (
     NYCU_XML_PATH,
     CFR_PLOT_IMAGE_PATH,
@@ -26,7 +26,12 @@ from app.core.config import (
     CHANNEL_RESPONSE_IMAGE_PATH,
     SINR_MAP_IMAGE_PATH,
 )
-from app.services import crud_device  # 導入整合後的 crud_device 模塊
+
+# 從設備領域中導入設備服務和儲存庫
+from app.domains.device.services.device_service import DeviceService
+from app.domains.device.adapters.sqlmodel_device_repository import (
+    SQLModelDeviceRepository,
+)
 
 # Import interfaces and models
 from app.domains.simulation.interfaces.simulation_service_interface import (
@@ -334,9 +339,13 @@ async def generate_cfr_plot(
         # 準備輸出檔案
         prepare_output_file(output_path, "CFR 圖檔")
 
+        # 創建設備服務和儲存庫
+        device_repository = SQLModelDeviceRepository(session)
+        device_service = DeviceService(device_repository)
+
         logger.info("Fetching active receivers from database...")
-        active_receivers = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.RECEIVER.value
+        active_receivers = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.RECEIVER.value, active_only=True
         )
 
         if not active_receivers:
@@ -359,14 +368,14 @@ async def generate_cfr_plot(
 
         # 從資料庫獲取活動的發射器 (desired)
         logger.info("Fetching active desired transmitters from database...")
-        active_desired = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.DESIRED.value
+        active_desired = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.DESIRED.value, active_only=True
         )
 
         # 從資料庫獲取活動的干擾器 (jammer)
         logger.info("Fetching active jammers from database...")
-        active_jammers = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.JAMMER.value
+        active_jammers = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.JAMMER.value, active_only=True
         )
 
         # 構建 TX_LIST (發射器和干擾器列表)
@@ -633,22 +642,26 @@ async def generate_sinr_map(
         # GPU 設置
         gpus = _setup_gpu()
 
+        # 創建設備服務和儲存庫
+        device_repository = SQLModelDeviceRepository(session)
+        device_service = DeviceService(device_repository)
+
         # 從數據庫獲取活動的發射器 (desired)
         logger.info("從數據庫獲取活動的發射器...")
-        active_desired = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.DESIRED.value
+        active_desired = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.DESIRED.value, active_only=True
         )
 
         # 從數據庫獲取活動的干擾器 (jammer)
         logger.info("從數據庫獲取活動的干擾器...")
-        active_jammers = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.JAMMER.value
+        active_jammers = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.JAMMER.value, active_only=True
         )
 
         # 從數據庫獲取活動的接收器
         logger.info("從數據庫獲取活動的接收器...")
-        active_receivers = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.RECEIVER.value
+        active_receivers = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.RECEIVER.value, active_only=True
         )
 
         # 檢查是否有足夠的設備
@@ -894,22 +907,26 @@ async def generate_doppler_plots(
         # 設置 GPU
         _setup_gpu()
 
+        # 創建設備服務和儲存庫
+        device_repository = SQLModelDeviceRepository(session)
+        device_service = DeviceService(device_repository)
+
         # 從資料庫獲取活動的發射器 (desired)
         logger.info("從數據庫獲取活動的發射器...")
-        active_desired = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.DESIRED.value
+        active_desired = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.DESIRED.value, active_only=True
         )
 
         # 從資料庫獲取活動的干擾器 (jammer)
         logger.info("從數據庫獲取活動的干擾器...")
-        active_jammers = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.JAMMER.value
+        active_jammers = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.JAMMER.value, active_only=True
         )
 
         # 從資料庫獲取活動的接收器
         logger.info("從數據庫獲取活動的接收器...")
-        active_receivers = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.RECEIVER.value
+        active_receivers = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.RECEIVER.value, active_only=True
         )
 
         # 構建 TX_LIST
@@ -1194,22 +1211,26 @@ async def generate_channel_response_plots(
         # 準備輸出檔案
         prepare_output_file(output_path, "通道響應圖檔")
 
+        # 創建設備服務和儲存庫
+        device_repository = SQLModelDeviceRepository(session)
+        device_service = DeviceService(device_repository)
+
         # 從資料庫獲取活動的發射器 (desired)
         logger.info("從數據庫獲取活動的發射器...")
-        active_desired = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.DESIRED.value
+        active_desired = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.DESIRED.value, active_only=True
         )
 
         # 從資料庫獲取活動的干擾器 (jammer)
         logger.info("從數據庫獲取活動的干擾器...")
-        active_jammers = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.JAMMER.value
+        active_jammers = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.JAMMER.value, active_only=True
         )
 
         # 從資料庫獲取活動的接收器
         logger.info("從數據庫獲取活動的接收器...")
-        active_receivers = await crud_device.get_active_devices(
-            db=session, role=DeviceRole.RECEIVER.value
+        active_receivers = await device_service.get_devices(
+            skip=0, limit=100, role=DeviceRole.RECEIVER.value, active_only=True
         )
 
         # 檢查是否有足夠的設備進行模擬

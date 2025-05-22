@@ -12,11 +12,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select as sqlalchemy_select  # For SQLAlchemy models
 
 from app.db.base import engine, async_session_maker
-from app.db.device import Device, DeviceRole  # Device is SQLModel
-from app.db.ground_station import GroundStation  # SQLAlchemy model
-from app.schemas.ground_station import (
-    GroundStationCreate,
-)  # Pydantic schema for creation
+
+# 更新為領域驅動設計後的模型導入
+from app.domains.device.models.device_model import Device, DeviceRole  # 從領域模型導入
+
+# 取消註釋 ground_station 相關導入
+from app.domains.satellite.models.ground_station_model import (
+    GroundStation,
+)  # 從領域模型導入
+from app.domains.satellite.models.dto import GroundStationCreate  # 新的 DTO 路徑
+
 from app.core.config import (
     OUTPUT_DIR,
     configure_gpu_cpu,
@@ -27,7 +32,7 @@ import os
 # import numpy as np # numpy seems unused directly in this file now
 
 # New import for TLE synchronization service
-from app.services.tle_service import synchronize_oneweb_tles
+from app.domains.satellite.services.tle_service import synchronize_oneweb_tles
 
 # For Redis client management
 import redis.asyncio as aioredis
@@ -62,6 +67,7 @@ async def create_db_and_tables():
 
 async def seed_default_ground_station(session: AsyncSession):
     """Seeds a default ground station if it doesn't exist."""
+    # 還原種子數據函數內容
     logger.info("Checking if default ground station 'NYCU_gnb' needs to be seeded...")
     stmt = sqlalchemy_select(GroundStation).where(
         GroundStation.station_identifier == "NYCU_gnb"
@@ -246,25 +252,31 @@ async def lifespan(app: FastAPI):
 
     await initialize_redis_client(app)
 
-    async with async_session_maker() as session:
-        await seed_initial_device_data(session)  # Seeds Device (SQLModel) data
-        await seed_default_ground_station(
-            session
-        )  # Seeds GroundStation (SQLAlchemy) data
+    # 異步初始化資料庫
+    async with async_session_maker() as db_session:
+        # 初始化設備資料
+        await seed_initial_device_data(db_session)
+        # 暫時註釋掉地面站相關初始化 - 將在解決SQLModel配置問題後恢復
+        # await seed_default_ground_station(db_session)
 
-        if hasattr(app.state, "redis") and app.state.redis:
-            logger.info("Attempting OneWeb TLE synchronization...")
-            await synchronize_oneweb_tles(
-                db=session, redis=app.state.redis, force_update=False
-            )
-            logger.info("OneWeb TLE synchronization process completed.")
-        else:
-            logger.warning("Skipping TLE synchronization: Redis client not available.")
+    # 暫時註釋掉 TLE 相關同步 - 將在解決SQLModel配置問題後恢復
+    # if hasattr(app.state, "redis") and app.state.redis:
+    #     try:
+    #         # 自動同步 OneWeb TLE 資料
+    #         logger.info("Synchronizing OneWeb TLE data in the background...")
+    #         await synchronize_oneweb_tles(async_session_maker, app.state.redis)
+    #     except Exception as e:
+    #         logger.error(f"Error during OneWeb TLE synchronization: {e}", exc_info=True)
+    # else:
+    #     logger.warning("Redis unavailable, skipping OneWeb TLE synchronization")
 
     logger.info("Application startup complete.")
+
     yield
-    logger.info("Application shutdown sequence initiated...")
+
+    # 在應用程式關閉前執行
     if hasattr(app.state, "redis") and app.state.redis:
+        logger.info("Closing Redis connection...")
         await app.state.redis.close()
-        logger.info("Redis client connection closed.")
+
     logger.info("Application shutdown complete.")

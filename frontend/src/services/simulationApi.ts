@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './api';
 import ApiRoutes from '../config/apiRoutes';
 
 // 模擬相關類型定義
@@ -25,7 +25,7 @@ interface SimulationResult {
 // 創建新模擬
 export const createSimulation = async (parameters: SimulationParameters): Promise<SimulationResult> => {
   try {
-    const response = await axios.post<SimulationResult>(ApiRoutes.simulations.createSimulation, parameters);
+    const response = await api.post<SimulationResult>(ApiRoutes.simulations.createSimulation, parameters);
     return response.data;
   } catch (error) {
     console.error('創建模擬失敗:', error);
@@ -36,7 +36,7 @@ export const createSimulation = async (parameters: SimulationParameters): Promis
 // 獲取CFR地圖
 export const getCFRMap = async (simulationId: string): Promise<Blob> => {
   try {
-    const response = await axios.get(`${ApiRoutes.simulations.getCFRMap}?simulation_id=${simulationId}`, {
+    const response = await api.get(`${ApiRoutes.simulations.getCFRMap}?simulation_id=${simulationId}`, {
       responseType: 'blob'
     });
     return response.data;
@@ -49,7 +49,7 @@ export const getCFRMap = async (simulationId: string): Promise<Blob> => {
 // 獲取SINR地圖
 export const getSINRMap = async (simulationId: string): Promise<Blob> => {
   try {
-    const response = await axios.get(`${ApiRoutes.simulations.getSINRMap}?simulation_id=${simulationId}`, {
+    const response = await api.get(`${ApiRoutes.simulations.getSINRMap}?simulation_id=${simulationId}`, {
       responseType: 'blob'
     });
     return response.data;
@@ -62,7 +62,7 @@ export const getSINRMap = async (simulationId: string): Promise<Blob> => {
 // 獲取多普勒地圖
 export const getDopplerMap = async (simulationId: string): Promise<Blob> => {
   try {
-    const response = await axios.get(`${ApiRoutes.simulations.getDopplerMap}?simulation_id=${simulationId}`, {
+    const response = await api.get(`${ApiRoutes.simulations.getDopplerMap}?simulation_id=${simulationId}`, {
       responseType: 'blob'
     });
     return response.data;
@@ -75,7 +75,7 @@ export const getDopplerMap = async (simulationId: string): Promise<Blob> => {
 // 獲取模擬結果
 export const getSimulationResults = async (simulationId: string): Promise<SimulationResult> => {
   try {
-    const response = await axios.get<SimulationResult>(ApiRoutes.simulations.getResults(simulationId));
+    const response = await api.get<SimulationResult>(ApiRoutes.simulations.getResults(simulationId));
     return response.data;
   } catch (error) {
     console.error(`獲取模擬結果失敗: ${simulationId}`, error);

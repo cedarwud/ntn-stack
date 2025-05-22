@@ -1,8 +1,11 @@
 import logging
 import aiohttp
 import asyncio
-from typing import List, Dict, Any, Optional, Set
+import json
+from typing import List, Dict, Any, Optional, Set, Callable
 from datetime import datetime, timedelta
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import sgp4.api as sgp4
 from sgp4.earth_gravity import wgs72
@@ -17,6 +20,48 @@ from app.domains.satellite.adapters.sqlmodel_satellite_repository import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# 定義同步 OneWeb TLE 數據的函數
+async def synchronize_oneweb_tles(
+    session_factory: Callable[..., AsyncSession], redis_client: Redis
+) -> bool:
+    """同步 OneWeb 衛星的 TLE 數據
+
+    Args:
+        session_factory: 獲取資料庫會話的工廠函數
+        redis_client: Redis 客戶端
+
+    Returns:
+        bool: 同步是否成功
+    """
+    try:
+        logger.info("開始同步 OneWeb 衛星 TLE 數據...")
+
+        # 創建 TLE 服務和衛星儲存庫
+        satellite_repo = SQLModelSatelliteRepository(session_factory)
+        tle_service = TLEService(satellite_repo)
+
+        # 嘗試獲取 OneWeb 衛星的 TLE 數據
+        tle_data = await tle_service.fetch_tle_from_celestrak(
+            "starlink"
+        )  # 暫時用 starlink 代替，實際應該單獨獲取 OneWeb
+
+        if not tle_data:
+            logger.warning("未獲取到 OneWeb 衛星 TLE 數據")
+            return False
+
+        # 將 TLE 數據存入 Redis
+        tle_json = json.dumps(tle_data)
+        await redis_client.set("oneweb_tle_data", tle_json)
+        await redis_client.set("oneweb_tle_last_update", datetime.utcnow().isoformat())
+
+        logger.info(f"成功同步 {len(tle_data)} 個 OneWeb 衛星 TLE 數據")
+        return True
+
+    except Exception as e:
+        logger.error(f"同步 OneWeb 衛星 TLE 數據時出錯: {e}", exc_info=True)
+        return False
 
 
 class TLEService(TLEServiceInterface):

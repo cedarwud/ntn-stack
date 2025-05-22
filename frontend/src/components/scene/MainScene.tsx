@@ -8,10 +8,11 @@ import UAVFlight, { UAVManualDirection } from './UAVFlight'
 import StaticModel from './StaticModel'
 import { VisibleSatelliteInfo } from '../../types/satellite'
 import SatelliteManager from './satellite/SatelliteManager'
+import { ApiRoutes } from '../../config/apiRoutes'
 
 const SCENE_URL = '/static/models/NYCU.glb'
-const BS_MODEL_URL = '/api/v1/sionna/models/tower'
-const JAMMER_MODEL_URL = '/api/v1/sionna/models/jam'
+const BS_MODEL_URL = ApiRoutes.simulations.getModel('tower')
+const JAMMER_MODEL_URL = ApiRoutes.simulations.getModel('jam')
 const SATELLITE_TEXTURE_URL = '/static/NYCU/textures/EXPORT_GOOGLE_SAT_WM.png'
 const UAV_SCALE = 10
 

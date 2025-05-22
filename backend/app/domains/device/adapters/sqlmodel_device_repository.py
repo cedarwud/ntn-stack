@@ -5,7 +5,10 @@ from sqlmodel import select
 
 from app.domains.device.models.device_model import Device, DeviceRole
 from app.domains.device.interfaces.device_repository import DeviceRepository
-from app.schemas.device import DeviceCreate, DeviceUpdate  # 暫時使用舊的 schema，之後會遷移
+from app.domains.device.models.dto import (
+    DeviceCreate,
+    DeviceUpdate,
+)  # 使用領域內的 DTO 模型
 
 
 logger = logging.getLogger(__name__)
@@ -13,10 +16,10 @@ logger = logging.getLogger(__name__)
 
 class SQLModelDeviceRepository(DeviceRepository):
     """SQLModel 設備存儲庫實現"""
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
-    
+
     async def create(self, obj_in: DeviceCreate) -> Device:
         """創建一個新的設備記錄"""
         logger.info(f"Attempting to create device: {obj_in.name}")
@@ -45,23 +48,28 @@ class SQLModelDeviceRepository(DeviceRepository):
             await self.session.rollback()
             logger.error(f"Error creating device '{obj_in.name}': {e}", exc_info=True)
             raise  # 重新拋出異常，讓上層處理
-    
+
     async def get_by_id(self, device_id: int) -> Optional[Device]:
         """根據 ID 獲取設備"""
         logger.debug(f"Fetching device with ID: {device_id}")
         stmt = select(Device).where(Device.id == device_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
-    
+
     async def get_by_name(self, name: str) -> Optional[Device]:
         """根據名稱獲取設備"""
         logger.debug(f"Fetching device with name: {name}")
         stmt = select(Device).where(Device.name == name)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
-    
+
     async def get_multi(
-        self, *, skip: int = 0, limit: int = 100, role: Optional[str] = None, active_only: bool = False
+        self,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        role: Optional[str] = None,
+        active_only: bool = False,
     ) -> Sequence[Device]:
         """獲取設備列表，可選按角色過濾和只返回活躍設備"""
         logger.debug(
@@ -83,12 +91,14 @@ class SQLModelDeviceRepository(DeviceRepository):
 
         result = await self.session.execute(query)
         return result.scalars().all()
-    
+
     async def get_active(self, *, role: Optional[str] = None) -> List[Device]:
         """獲取活躍的設備列表，可選按角色過濾"""
         return await self.get_multi(role=role, active_only=True)
-    
-    async def update(self, *, db_obj: Device, obj_in: Union[DeviceUpdate, Dict[str, Any]]) -> Device:
+
+    async def update(
+        self, *, db_obj: Device, obj_in: Union[DeviceUpdate, Dict[str, Any]]
+    ) -> Device:
         """更新設備資訊"""
         logger.debug(f"Updating device: {db_obj.name} (ID: {db_obj.id})")
         try:
@@ -112,8 +122,10 @@ class SQLModelDeviceRepository(DeviceRepository):
             await self.session.rollback()
             logger.error(f"Error updating device {db_obj.name}: {e}", exc_info=True)
             raise
-    
-    async def update_by_id(self, *, device_id: int, device_in: Union[DeviceUpdate, Dict[str, Any]]) -> Device:
+
+    async def update_by_id(
+        self, *, device_id: int, device_in: Union[DeviceUpdate, Dict[str, Any]]
+    ) -> Device:
         """根據 ID 更新設備資訊"""
         logger.info(f"Attempting to update device with ID: {device_id}")
         try:
@@ -124,9 +136,11 @@ class SQLModelDeviceRepository(DeviceRepository):
             return await self.update(db_obj=db_device, obj_in=device_in)
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Error updating device with ID {device_id}: {e}", exc_info=True)
+            logger.error(
+                f"Error updating device with ID {device_id}: {e}", exc_info=True
+            )
             raise
-    
+
     async def remove(self, *, device_id: int) -> Optional[Device]:
         """刪除設備"""
         logger.debug(f"Removing device with ID: {device_id}")
@@ -145,5 +159,7 @@ class SQLModelDeviceRepository(DeviceRepository):
             return db_device
         except Exception as e:
             await self.session.rollback()
-            logger.error(f"Error removing device with ID {device_id}: {e}", exc_info=True)
-            raise 
+            logger.error(
+                f"Error removing device with ID {device_id}: {e}", exc_info=True
+            )
+            raise

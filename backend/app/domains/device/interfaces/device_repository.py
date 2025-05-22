@@ -2,7 +2,10 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any, Union, Sequence
 
 from app.domains.device.models.device_model import Device
-from app.schemas.device import DeviceCreate, DeviceUpdate  # 暫時使用舊的 schema，之後會遷移
+from app.domains.device.models.dto import (
+    DeviceCreate,
+    DeviceUpdate,
+)  # 使用領域內的 DTO 模型
 
 
 class DeviceRepository(ABC):
@@ -25,7 +28,12 @@ class DeviceRepository(ABC):
 
     @abstractmethod
     async def get_multi(
-        self, *, skip: int = 0, limit: int = 100, role: Optional[str] = None, active_only: bool = False
+        self,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        role: Optional[str] = None,
+        active_only: bool = False
     ) -> Sequence[Device]:
         """獲取設備列表，可選按角色過濾和只返回活躍設備"""
         pass
@@ -36,16 +44,20 @@ class DeviceRepository(ABC):
         pass
 
     @abstractmethod
-    async def update(self, *, db_obj: Device, obj_in: Union[DeviceUpdate, Dict[str, Any]]) -> Device:
+    async def update(
+        self, *, db_obj: Device, obj_in: Union[DeviceUpdate, Dict[str, Any]]
+    ) -> Device:
         """更新設備資訊"""
         pass
 
     @abstractmethod
-    async def update_by_id(self, *, device_id: int, device_in: Union[DeviceUpdate, Dict[str, Any]]) -> Device:
+    async def update_by_id(
+        self, *, device_id: int, device_in: Union[DeviceUpdate, Dict[str, Any]]
+    ) -> Device:
         """根據 ID 更新設備資訊"""
         pass
 
     @abstractmethod
     async def remove(self, *, device_id: int) -> Optional[Device]:
         """刪除設備"""
-        pass 
+        pass

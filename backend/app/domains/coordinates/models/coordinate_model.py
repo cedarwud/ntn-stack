@@ -1,6 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel, Field
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, Column, Field
+from sqlalchemy import Integer, String, Column as SAColumn
 
 
 class GeoCoordinate(BaseModel):
@@ -22,8 +23,10 @@ class CartesianCoordinate(BaseModel):
 class CoordinateTransformation(SQLModel, table=True):
     """座標轉換記錄，用於追蹤常用的座標轉換"""
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    source_system: str = Field(..., description="源座標系統")
-    target_system: str = Field(..., description="目標座標系統")
-    transformation_parameters: str = Field(..., description="轉換參數 (JSON 格式)")
-    description: Optional[str] = Field(None, description="轉換描述")
+    __tablename__ = "coordinatetransformation"
+
+    id: int = Field(primary_key=True, default=None)
+    source_system: str = Field(index=True)
+    target_system: str = Field(index=True)
+    transformation_parameters: str
+    description: Optional[str] = None

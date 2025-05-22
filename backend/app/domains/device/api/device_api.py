@@ -6,15 +6,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_session
 from app.domains.device.models.device_model import Device
 from app.domains.device.services.device_service import DeviceService
-from app.domains.device.adapters.sqlmodel_device_repository import SQLModelDeviceRepository
-from app.schemas.device import Device as DeviceSchema, DeviceCreate, DeviceUpdate  # 暫時使用舊的 schema，之後會遷移
+from app.domains.device.adapters.sqlmodel_device_repository import (
+    SQLModelDeviceRepository,
+)
+from app.domains.device.models.dto import (
+    DeviceCreate,
+    DeviceUpdate,
+    DeviceResponse as DeviceSchema,
+)  # 使用領域內的 DTO 模型
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 # 依賴注入函數，創建設備服務實例
-async def get_device_service(session: AsyncSession = Depends(get_session)) -> DeviceService:
+async def get_device_service(
+    session: AsyncSession = Depends(get_session),
+) -> DeviceService:
     """獲取設備服務實例，用於依賴注入"""
     repository = SQLModelDeviceRepository(session=session)
     return DeviceService(device_repository=repository)
@@ -101,7 +109,9 @@ async def update_existing_device(
     """
     logger.info(f"API: Received request to update device with ID: {device_id}")
     try:
-        updated_device = await device_service.update_device(device_id=device_id, device_data=device_in)
+        updated_device = await device_service.update_device(
+            device_id=device_id, device_data=device_in
+        )
         return DeviceSchema.from_orm(updated_device)
     except HTTPException:
         raise
@@ -133,4 +143,4 @@ async def delete_device_by_id(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while deleting the device: {str(e)}",
-        ) 
+        )
