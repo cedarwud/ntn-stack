@@ -14,6 +14,7 @@ class DeviceRole(str, PyEnum):
 # --- SQLModel Definitions ---
 class DeviceBase(SQLModel):
     """設備基礎模型，定義設備的共同屬性"""
+
     name: str = Field(index=True, unique=True)
     position_x: int = Field(...)  # required
     position_y: int = Field(...)  # required
@@ -29,4 +30,5 @@ class DeviceBase(SQLModel):
 # Represents the table structure, inherits validation from DeviceBase
 class Device(DeviceBase, table=True):
     """設備實體模型，對應資料庫中的設備表"""
-    id: Optional[int] = Field(default=None, primary_key=True) 
+
+    id: Optional[int] = Field(default=None, primary_key=True)

@@ -91,13 +91,19 @@ def _ensure_output_dir(output_path):
 
 def verify_output_file(output_path):
     """檢查輸出文件是否成功生成，可被外部調用"""
-    if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+    exists = os.path.exists(output_path)
+    size = os.path.getsize(output_path) if exists else -1
+    is_file = os.path.isfile(output_path) if exists else False
+
+    if exists and is_file and size > 0:
         logger.info(
-            f"成功生成文件: {output_path}, 大小: {os.path.getsize(output_path)} 字節"
+            f"SUCCESS: File verified. Path: {output_path}, Size: {size} bytes, IsFile: {is_file}"
         )
         return True
     else:
-        logger.error(f"文件生成失敗或文件為空: {output_path}")
+        logger.error(
+            f"FAILURE: File verification failed. Path: {output_path}, Exists: {exists}, Size: {size} bytes, IsFile: {is_file}"
+        )
         return False
 
 
@@ -1472,9 +1478,13 @@ class SionnaSimulationService(SimulationServiceInterface):
 
     async def generate_empty_scene_image(self, output_path: str) -> bool:
         """生成空場景圖像"""
-        logger.info("Generating empty scene image")
+        logger.info(
+            f"SionnaSimulationService: Generating empty scene image at {output_path}"
+        )
 
         # 準備輸出文件
+        # For empty scene, the output_path passed from API is relative,
+        # and prepare_output_file and subsequent functions handle it.
         prepare_output_file(output_path, "空場景圖像")
 
         # 嘗試設置 GPU
@@ -1489,7 +1499,7 @@ class SionnaSimulationService(SimulationServiceInterface):
         # 渲染並保存場景
         result = _render_crop_and_save(
             pr_scene,
-            output_path,
+            output_path,  # Uses the output_path as received
             bg_color_float=SCENE_BACKGROUND_COLOR_RGB,
             render_width=1200,
             render_height=858,
@@ -1501,47 +1511,52 @@ class SionnaSimulationService(SimulationServiceInterface):
 
     async def generate_cfr_plot(self, session: AsyncSession, output_path: str) -> bool:
         """生成通道頻率響應(CFR)圖像"""
-        logger.info("Generating CFR plot")
-        # 實現通道頻率響應圖生成邏輯
-        # 注意：這裡應該實現或調用已有的 generate_cfr_plot 函數
-        # 暫時返回 True，表示成功
-        return True
+        logger.info(
+            f"SionnaSimulationService: Calling global generate_cfr_plot, output_path: {output_path}"
+        )
+        return await generate_cfr_plot(session=session, output_path=output_path)
 
     async def generate_sinr_map(
         self,
         session: AsyncSession,
-        output_path: str,
+        output_path: str,  # This is an absolute path from config
         sinr_vmin: float = -40.0,
         sinr_vmax: float = 0.0,
         cell_size: float = 1.0,
         samples_per_tx: int = 10**7,
     ) -> bool:
         """生成SINR地圖"""
-        logger.info("Generating SINR map")
-        # 實現 SINR 地圖生成邏輯
-        # 注意：這裡應該實現或調用已有的 generate_sinr_map 函數
-        # 暫時返回 True，表示成功
-        return True
+        logger.info(
+            f"SionnaSimulationService: Calling global generate_sinr_map, output_path: {output_path}"
+        )
+        return await generate_sinr_map(
+            session=session,
+            output_path=output_path,
+            sinr_vmin=sinr_vmin,
+            sinr_vmax=sinr_vmax,
+            cell_size=cell_size,
+            samples_per_tx=samples_per_tx,
+        )
 
     async def generate_doppler_plots(
         self, session: AsyncSession, output_path: str
     ) -> bool:
         """生成延遲多普勒圖"""
-        logger.info("Generating Doppler plots")
-        # 實現延遲多普勒圖生成邏輯
-        # 注意：這裡應該實現或調用已有的 generate_doppler_plots 函數
-        # 暫時返回 True，表示成功
-        return True
+        logger.info(
+            f"SionnaSimulationService: Calling global generate_doppler_plots, output_path: {output_path}"
+        )
+        return await generate_doppler_plots(session=session, output_path=output_path)
 
     async def generate_channel_response_plots(
         self, session: AsyncSession, output_path: str
     ) -> bool:
         """生成通道響應圖"""
-        logger.info("Generating channel response plots")
-        # 實現通道響應圖生成邏輯
-        # 注意：這裡應該實現或調用已有的 generate_channel_response_plots 函數
-        # 暫時返回 True，表示成功
-        return True
+        logger.info(
+            f"SionnaSimulationService: Calling global generate_channel_response_plots, output_path: {output_path}"
+        )
+        return await generate_channel_response_plots(
+            session=session, output_path=output_path
+        )
 
     async def run_simulation(
         self, session: AsyncSession, params: SimulationParameters

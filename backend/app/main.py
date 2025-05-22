@@ -57,6 +57,13 @@ app.add_middleware(
 )
 logger.info("CORS middleware added with specific origins.")
 
+
+# --- Test Endpoint (Before API v1 Router) ---
+@app.get("/ping", tags=["Test"])
+async def ping():
+    return {"message": "pong"}
+
+
 # --- Include API Routers ---
 # Include the router for API version 1
 app.include_router(api_router, prefix="/api/v1")  # Add a /api/v1 prefix
