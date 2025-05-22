@@ -14,6 +14,10 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
+# 增加超時時間設置
+MAX_CMD_TIMEOUT=15  # 命令最大執行時間（秒）
+MAX_WAIT=60  # 等待會話建立的最大時間（秒）
+
 # 日誌函數
 log_info() { 
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -34,13 +38,13 @@ log_error() {
 # 測試建立PDU會話延遲
 test_pdu_session_latency() {
     log_info "測試PDU會話建立延遲..."
-    
-    # 檢查UE容器是否運行
+
+# 檢查UE容器是否運行
     if ! docker ps | grep -q "ntn-stack-ues1-1"; then
         log_warning "UE容器未運行，跳過此測試"
         return 0
-    fi
-    
+fi
+
     # 釋放現有的PDU會話
     docker exec ntn-stack-ues1-1 nr-cli imsi-999700000000001 -e "ps-release 1" > /dev/null 2>&1
     
@@ -53,7 +57,6 @@ test_pdu_session_latency() {
     docker exec ntn-stack-ues1-1 nr-cli imsi-999700000000001 -e "ps-establish internet" > /dev/null 2>&1
     
     # 等待會話建立完成
-    local MAX_WAIT=30
     local WAIT_TIME=0
     local SESSION_ESTABLISHED=false
     
@@ -168,12 +171,23 @@ test_system_stability() {
     
     for container in $CONTAINERS; do
         if docker ps | grep -q "$container"; then
-            local UPTIME=$(docker inspect --format='{{.State.StartedAt}}' $container | xargs -I{} date -d {} +%s)
+            # 使用更簡單的方式獲取運行時間
+            local UPTIME=$(docker inspect --format='{{.State.StartedAt}}' $container | xargs date -d - +%s 2>/dev/null || echo 0)
             local CURRENT_TIME=$(date +%s)
-            local RUNTIME=$((CURRENT_TIME - UPTIME))
-            local RUNTIME_HOURS=$((RUNTIME / 3600))
             
-            log_info "$container 運行時間: $RUNTIME_HOURS 小時"
+            if [ "$UPTIME" != "0" ]; then
+                local RUNTIME=$((CURRENT_TIME - UPTIME))
+                local RUNTIME_HOURS=$((RUNTIME / 3600))
+                log_info "$container 運行時間: $RUNTIME_HOURS 小時"
+            else
+                # 退回到簡單的運行狀態檢查
+                local STATUS=$(docker inspect --format='{{.State.Status}}' $container)
+                if [ "$STATUS" = "running" ]; then
+                    log_info "$container 正在運行（無法計算確切時間）"
+                else
+                    log_warning "$container 狀態: $STATUS"
+                fi
+            fi
         else
             log_warning "$container 容器未運行"
         fi

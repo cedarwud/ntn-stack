@@ -5,6 +5,8 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import sionna
 from app.api.v1.endpoints import devices
 from app.api.v1.endpoints import coordinates
+from app.api.v1.endpoints import satellite_operations
+from app.api.v1.endpoints import platform  # 新的平台API端點
 
 # Assuming these also exist or were intended based on previous attempts:
 # from app.api.v1.endpoints import device
@@ -13,10 +15,10 @@ from app.api.v1.endpoints import coordinates
 # from app.api.v1.endpoints import beamforming
 
 # New import for satellite operations
-from app.api.v1.endpoints import satellite_operations
+# from app.api.v1.endpoints import satellite_operations
 
 # Import Open5GS API router
-from app.api import open5gs
+# from app.api import open5gs
 
 api_router = APIRouter()
 
@@ -38,12 +40,14 @@ api_router.include_router(
 #     api_router.include_router(beamforming.router, prefix="/beamforming_ops", tags=["Beamforming Ops"])
 
 
-# Include the new satellite operations router
+# Include the satellite operations router
 # The prefix used here will be appended to /api/v1 from main.py
 # So the full path will be /api/v1/satellite-ops/...
 api_router.include_router(
     satellite_operations.router, prefix="/satellite-ops", tags=["Satellite Operations"]
 )
 
-# Include the Open5GS API router
-api_router.include_router(open5gs.router, prefix="/open5gs", tags=["5G Network"])
+# Include the new unified platform router (替換原有的Open5GS路由)
+api_router.include_router(
+    platform.router, prefix="/platform", tags=["5G Network Platform"]
+)

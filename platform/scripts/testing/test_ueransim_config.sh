@@ -68,10 +68,10 @@ test_config_generation() {
     # 嘗試所有可能的模板名稱
     for template in "${TEMPLATES[@]}"; do
         TEST_RESULT=$(curl -s -X POST "http://localhost:8080/generate?template_name=${template}&config_name=test_${template}" \
-            -H "Content-Type: application/json" \
+        -H "Content-Type: application/json" \
             -d '{"mcc":"999","mnc":"70","nci":"0x000000010"}' || echo '{"success":false}')
-        
-        if [[ "$TEST_RESULT" == *"success\":true"* ]]; then
+    
+    if [[ "$TEST_RESULT" == *"success\":true"* ]]; then
             log_success "配置生成成功: ${template}"
             SUCCESS=1
             break
@@ -131,7 +131,7 @@ test_config_application() {
             
             # 查找匹配的文件
             local FOUND_FILES=($(find "$search_dir" -type f -name "$pattern" 2>/dev/null | sort -r | head -3))
-            
+    
             if [ ${#FOUND_FILES[@]} -gt 0 ]; then
                 CONFIG_PATH="${FOUND_FILES[0]}"
                 log_success "找到配置文件: $CONFIG_PATH"
@@ -215,7 +215,7 @@ EOF
         else
             log_warning "配置應用測試未完全成功 (退出代碼: $EXIT_CODE)，但測試將繼續"
         fi
-        return 0
+    return 0
     fi
 }
 
@@ -236,9 +236,9 @@ test_config_switching() {
         
         # 生成配置
         local GEN_RESULT=$(curl -s -X POST "http://localhost:8080/generate?template_name=gnb_${mode}&config_name=test_${mode}" \
-            -H "Content-Type: application/json" \
+        -H "Content-Type: application/json" \
             -d '{"mcc":"999","mnc":"70","nci":"0x000000010"}' || echo '{"success":false}')
-        
+    
         if [[ "$GEN_RESULT" == *"success\":true"* ]]; then
             log_success "${mode}模式配置生成成功"
             SUCCESS=$((SUCCESS+1))
@@ -253,7 +253,7 @@ test_config_switching() {
         return 0
     else
         log_warning "網絡模式配置切換測試所有模式均配置失敗，但測試將繼續"
-        return 0
+    return 0
     fi
 }
 

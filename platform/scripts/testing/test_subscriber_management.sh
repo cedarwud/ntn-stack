@@ -127,7 +127,7 @@ test_mongodb_subscribers() {
     for imsi in "${IMSI_PATTERNS[@]}"; do
         for cmd_option in "${MONGO_CMD_OPTIONS[@]}"; do
             # 修改命令以查找特定IMSI
-            local find_cmd=${cmd_option/countDocuments({})/findOne\({imsi:\'$imsi\'}\)}
+            local find_cmd=${cmd_option//"db.subscribers.countDocuments({})"/"db.subscribers.findOne({imsi:'$imsi'})"}
             
             if run_with_timeout "docker exec $MONGO_CONTAINER $find_cmd | grep -q \"$imsi\"" 5; then
                 log_success "找到預設訂閱者 $imsi"

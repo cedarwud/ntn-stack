@@ -71,7 +71,7 @@ test_metrics_collection() {
     else
         log_warning "Prometheus沒有收集到任何基本指標"
     fi
-    
+
     # 檢查NTN特定指標
     log_info "檢查NTN特定指標..."
     local QUERY_RESULT=$(curl -s "http://localhost:9090/api/v1/query?query=ntn" 2>/dev/null)
@@ -100,10 +100,10 @@ test_alerting_system() {
     
     if [ "$STATUS" = "200" ]; then
         log_success "Alertmanager API可正常訪問"
-        
+    
         # 檢查告警規則是否已載入
         local ALERTS=$(curl -s "http://localhost:9090/api/v1/rules?type=alert" 2>/dev/null)
-        
+    
         if echo "$ALERTS" | grep -q "\"groups\""; then
             log_success "告警規則已成功載入"
         else

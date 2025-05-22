@@ -126,7 +126,7 @@ services:
             MONGO_INITDB_DATABASE: open5gs
         volumes:
             - mongo_data:/data/db
-            - ./scripts/config/mongo_init.js:/docker-entrypoint-initdb.d/mongo_init.js
+            - ./platform/scripts/config/mongo_init.js:/docker-entrypoint-initdb.d/mongo_init.js
         networks:
             - sionna-net
             - open5gs-net
@@ -142,7 +142,7 @@ services:
             - open5gs-amfd
         restart: on-failure
         volumes:
-            - ./config/open5gs/amf.yaml:/opt/open5gs/etc/open5gs/amf.yaml
+            - ./platform/config/open5gs/amf.yaml:/opt/open5gs/etc/open5gs/amf.yaml
         networks:
             - open5gs-net
         depends_on:
@@ -186,7 +186,7 @@ services:
         command: open5gs-nssfd
         restart: on-failure
         volumes:
-            - ./config/open5gs/nssf.yaml:/opt/open5gs/etc/open5gs/nssf.yaml
+            - ./platform/config/open5gs/nssf.yaml:/opt/open5gs/etc/open5gs/nssf.yaml
         networks:
             - open5gs-net
         depends_on:
@@ -201,7 +201,7 @@ services:
             DB_URI: mongodb://mongo/open5gs
         restart: on-failure
         volumes:
-            - ./config/open5gs/pcf.yaml:/opt/open5gs/etc/open5gs/pcf.yaml
+            - ./platform/config/open5gs/pcf.yaml:/opt/open5gs/etc/open5gs/pcf.yaml
         networks:
             - open5gs-net
         depends_on:
@@ -223,7 +223,7 @@ services:
     smf:
         image: gradiant/open5gs:2.7.5
         volumes:
-            - ./config/open5gs/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml
+            - ./platform/config/open5gs/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml
         restart: on-failure
         command: open5gs-smfd
         networks:
@@ -380,7 +380,7 @@ services:
         environment:
             DB_URI: mongodb://mongo/open5gs
         volumes:
-            - ./scripts/register_subscriber.sh:/app/register_subscriber.sh
+            - ./platform/scripts/config/register_subscriber.sh:/app/register_subscriber.sh
         command: ['bash', '/app/register_subscriber.sh']
         networks:
             - open5gs-net
@@ -391,13 +391,13 @@ services:
     # ==== 代理 API 服務 ====
     ntn-proxy:
         build:
-            context: ./services/proxy
+            context: ./platform/services/proxy
             dockerfile: Dockerfile
         container_name: ntn-proxy
         ports:
             - '3000:3000'
         volumes:
-            - ./services/proxy:/app
+            - ./platform/services/proxy:/app
             - /app/node_modules
         networks:
             - open5gs-net
@@ -415,14 +415,14 @@ services:
             start_period: 40s
 
     config-api:
-        build: ./services/config_api
+        build: ./platform/services/config_api
         container_name: config-api
         ports:
             - '8080:8080'
         volumes:
-            - ./services/config_api:/app
-            - ./config:/app/config
-            - ./scripts:/app/scripts
+            - ./platform/services/config_api:/app
+            - ./platform/config:/app/config
+            - ./platform/scripts:/app/scripts
         restart: unless-stopped
         environment:
             - TZ=Asia/Taipei
@@ -443,7 +443,7 @@ services:
         image: prom/prometheus:v2.49.0
         container_name: prometheus
         volumes:
-            - ./config/prometheus:/etc/prometheus
+            - ./platform/config/prometheus:/etc/prometheus
             - prometheus_data:/prometheus
         ports:
             - '9090:9090'
@@ -477,7 +477,7 @@ services:
         image: prom/alertmanager:v0.26.0
         container_name: alertmanager
         volumes:
-            - ./config/alertmanager:/etc/alertmanager
+            - ./platform/config/alertmanager:/etc/alertmanager
             - alertmanager_data:/alertmanager
         ports:
             - '9093:9093'
@@ -510,7 +510,7 @@ services:
         image: grafana/grafana:10.2.3
         container_name: grafana
         volumes:
-            - ./config/grafana:/etc/grafana
+            - ./platform/config/grafana:/etc/grafana
             - grafana_data:/var/lib/grafana
         ports:
             - '3001:3000'
@@ -533,12 +533,12 @@ services:
             start_period: 60s
 
     metrics-exporter:
-        build: ./services/monitor_api
+        build: ./platform/services/monitor_api
         container_name: metrics-exporter
         ports:
             - '9091:9091'
         volumes:
-            - ./services/monitor_api:/app
+            - ./platform/services/monitor_api:/app
         command: 'python metrics_exporter.py --port 9091 --simulate'
         restart: unless-stopped
         environment:

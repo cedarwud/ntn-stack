@@ -9,12 +9,12 @@ __pycache__
 logs/
 */logs/
 config_generator.log
-performance_results/
-network_diagnostics/
+platform/performance_results/
+platform/network_diagnostics/
 *.tmp
 
 # 生成的配置文件
-config/generated/
+platform/config/generated/
 test_report_*.txt
 
 # IDE配置
