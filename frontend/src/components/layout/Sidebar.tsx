@@ -112,6 +112,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false)
     const [minElevation, setMinElevation] = useState<number>(0) // 新增：最低仰角過濾
 
+    // 新增：衛星數據自動刷新定時器
+    const satelliteRefreshIntervalRef = useRef<ReturnType<
+        typeof setInterval
+    > | null>(null)
+
     // 監聽 prop 變化，同步更新本地狀態
     useEffect(() => {
         setSatelliteDisplayCount(propSatelliteDisplayCount)
@@ -139,8 +144,28 @@ const Sidebar: React.FC<SidebarProps> = ({
 
             setLoadingSatellites(false)
         }
+
+        // 立即加載衛星數據
         loadSatellites()
-    }, [satelliteDisplayCount, minElevation, onSatelliteDataUpdate]) // 移除排序條件依賴
+
+        // 設置每分鐘刷新一次衛星數據
+        if (satelliteRefreshIntervalRef.current) {
+            clearInterval(satelliteRefreshIntervalRef.current)
+        }
+
+        satelliteRefreshIntervalRef.current = setInterval(() => {
+            console.log('自動刷新衛星數據...')
+            loadSatellites()
+        }, 60000) // 每60秒刷新一次
+
+        // 清理定時器
+        return () => {
+            if (satelliteRefreshIntervalRef.current) {
+                clearInterval(satelliteRefreshIntervalRef.current)
+                satelliteRefreshIntervalRef.current = null
+            }
+        }
+    }, [satelliteDisplayCount, minElevation, onSatelliteDataUpdate])
 
     // 處理衛星顯示數量變更
     const handleSatelliteCountChange = (count: number) => {

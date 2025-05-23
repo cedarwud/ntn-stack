@@ -230,27 +230,7 @@ async def get_visible_satellites(
         # 按仰角從高到低排序
         visible_satellites.sort(key=lambda x: x.elevation_deg, reverse=True)
 
-        # 如果找到的衛星少於請求的數量，添加一些模擬衛星作為補充
-        if len(visible_satellites) < count:
-            missing_count = count - len(visible_satellites)
-            print(f"可見衛星不足，添加 {missing_count} 顆模擬衛星")
-
-            for i in range(missing_count):
-                elevation = random.uniform(min_elevation_deg, 90)
-                satellite = VisibleSatelliteInfo(
-                    norad_id=f"SIM-{40000 + i}",
-                    name=f"SIM-SAT-{1000 + i}",
-                    elevation_deg=elevation,
-                    azimuth_deg=random.uniform(0, 360),
-                    distance_km=random.uniform(500, 2000),
-                    velocity_km_s=random.uniform(5, 8),
-                    visible_for_sec=int(random.uniform(300, 1200)),
-                    orbit_altitude_km=random.uniform(500, 1200),
-                    magnitude=random.uniform(1, 5),
-                )
-                visible_satellites.append(satellite)
-
-        # 限制返回的衛星數量
+        # 限制返回的衛星數量（保留這個邏輯，以防實際衛星數量超過請求數量）
         visible_satellites = visible_satellites[:count]
 
         return {
