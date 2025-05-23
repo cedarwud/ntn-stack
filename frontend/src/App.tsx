@@ -32,7 +32,7 @@ function App() {
         VisibleSatelliteInfo[]
     >([])
     const [satelliteDisplayCount, setSatelliteDisplayCount] =
-        useState<number>(1)
+        useState<number>(50)
 
     const [activeComponent, setActiveComponent] = useState<string>('3DRT')
     const [auto, setAuto] = useState(false)

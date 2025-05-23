@@ -7,6 +7,7 @@ import DeviceItem from '../devices/DeviceItem' // Import DeviceItem
 import { useReceiverSelection } from '../../hooks/useReceiverSelection' // Import the hook
 import { VisibleSatelliteInfo } from '../../types/satellite' // Import the new satellite type
 import { ApiRoutes } from '../../config/apiRoutes' // 引入API路由配置
+import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName' // 修正路徑
 
 interface SidebarProps {
     devices: Device[]
@@ -94,7 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     })
 
     // 新增：控制各個設備列表的展開狀態
-    const [showTempDevices, setShowTempDevices] = useState(false)
+    const [showTempDevices, setShowTempDevices] = useState(true)
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
     const [showDesiredDevices, setShowDesiredDevices] = useState(false)
     const [showJammerDevices, setShowJammerDevices] = useState(false)
@@ -282,6 +283,20 @@ const Sidebar: React.FC<SidebarProps> = ({
         (device) =>
             device.id != null && device.id >= 0 && device.role === 'jammer'
     )
+
+    // 處理設備角色變更的函數
+    const handleDeviceRoleChange = (deviceId: number, newRole: string) => {
+        // 計算新名稱
+        const newName = utilGenerateDeviceName(
+            newRole,
+            devices.map((d) => ({ name: d.name }))
+        )
+
+        // 更新角色
+        onDeviceChange(deviceId, 'role', newRole)
+        // 更新名稱
+        onDeviceChange(deviceId, 'name', newName)
+    }
 
     return (
         <div className="sidebar-container">
@@ -564,6 +579,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     onOrientationInputChange={
                                         handleDeviceOrientationInputChange
                                     }
+                                    onDeviceRoleChange={handleDeviceRoleChange}
                                 />
                             ))}
                     </>
@@ -673,6 +689,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     onOrientationInputChange={
                                         handleDeviceOrientationInputChange
                                     }
+                                    onDeviceRoleChange={handleDeviceRoleChange}
                                 />
                             ))}
                     </>
@@ -707,6 +724,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     onOrientationInputChange={
                                         handleDeviceOrientationInputChange
                                     }
+                                    onDeviceRoleChange={handleDeviceRoleChange}
                                 />
                             ))}
                     </>
@@ -741,6 +759,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     onOrientationInputChange={
                                         handleDeviceOrientationInputChange
                                     }
+                                    onDeviceRoleChange={handleDeviceRoleChange}
                                 />
                             ))}
                     </>

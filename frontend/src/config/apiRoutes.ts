@@ -12,10 +12,10 @@ export const ApiRoutes = {
     // 根據307重定向，可能需要調整路徑
     base: `${API_BASE_URL}/devices`,
     getAll: `${API_BASE_URL}/devices/`,  // 注意尾部斜線
-    getById: (id: string) => `${API_BASE_URL}/devices/${id}/`,
     create: `${API_BASE_URL}/devices/`,
-    update: (id: string) => `${API_BASE_URL}/devices/${id}/`,
-    delete: (id: string) => `${API_BASE_URL}/devices/${id}/`,
+    getById: (id: string) => `${API_BASE_URL}/devices/${id}`,
+    update: (id: string) => `${API_BASE_URL}/devices/${id}`,
+    delete: (id: string) => `${API_BASE_URL}/devices/${id}`,
   },
   
   // 座標領域API

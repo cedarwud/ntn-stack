@@ -163,8 +163,19 @@ export const useDevicePopoverManager = ({
     );
     
     const handlePopoverRoleChange = useCallback((newRole: string) => {
-        setPopoverDevice(prev => ({ ...prev, role: newRole }));
-    }, []);
+        // 計算新名稱
+        const newName = utilGenerateDeviceName(
+            newRole,
+            devices.map(d => ({ name: d.name }))
+        );
+        
+        // 更新角色和名稱
+        setPopoverDevice(prev => ({ 
+            ...prev, 
+            role: newRole,
+            name: newName
+        }));
+    }, [devices]);
 
 
     const handleApplyPopover = useCallback(async (e: React.FormEvent) => {

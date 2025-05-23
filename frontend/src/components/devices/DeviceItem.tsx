@@ -11,6 +11,7 @@ interface DeviceItemProps {
         axis: 'x' | 'y' | 'z',
         value: string
     ) => void
+    onDeviceRoleChange?: (deviceId: number, newRole: string) => void
 }
 
 const DeviceItem: React.FC<DeviceItemProps> = ({
@@ -19,7 +20,17 @@ const DeviceItem: React.FC<DeviceItemProps> = ({
     onDeviceChange,
     onDeleteDevice,
     onOrientationInputChange,
+    onDeviceRoleChange,
 }) => {
+    const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newRole = e.target.value
+        if (onDeviceRoleChange) {
+            onDeviceRoleChange(device.id, newRole)
+        } else {
+            onDeviceChange(device.id, 'role', newRole)
+        }
+    }
+
     return (
         <div key={device.id} className="device-item">
             <div className="device-header">
@@ -53,13 +64,7 @@ const DeviceItem: React.FC<DeviceItemProps> = ({
                             <td>
                                 <select
                                     value={device.role}
-                                    onChange={(e) =>
-                                        onDeviceChange(
-                                            device.id,
-                                            'role',
-                                            e.target.value
-                                        )
-                                    }
+                                    onChange={handleRoleChange}
                                     className="device-type-select"
                                 >
                                     <option value="receiver">接收器</option>
