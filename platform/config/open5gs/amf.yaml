@@ -21,6 +21,7 @@ amf:
   ngap:
     server:
     - dev: eth0
+      port: 38412
   metrics:
     server:
     - dev: eth0
@@ -43,6 +44,7 @@ amf:
       mnc: 70
     s_nssai:
     - sst: 1
+      sd: 010203
   security:
     integrity_order: [NIA2, NIA1, NIA0]
     ciphering_order: [NEA0, NEA1, NEA2]
@@ -55,21 +57,21 @@ amf:
     #      value: 720   # 12 minutes * 60 = 720 seconds
     t3512:
       value: 1080 # 18 minutes * 60 = 1080 seconds，雙倍延長以適應衛星環境
-    #    t3513:
-    #      value: 40000 # 毫秒，加倍至40秒，適應GEO衛星延遲
-    #      max_count: 12 # 增加到12次，提高在高丟包率下的成功率
-    #    t3522:
-    #      value: 30000 # 毫秒，加倍至30秒
-    #      max_count: 8 # 增加嘗試次數
-    #    t3550:
-    #      value: 36000 # 毫秒，進一步增加超時時間
-    #      max_count: 12 # 增加到12次
-    #    t3555:
-    #      value: 30000 # 毫秒，配置註冊請求超時
-    #      max_count: 10 # 10次嘗試
-    #    t3570:
-    #      value: 30000 # 毫秒，配置身份請求超時
-    #      max_count: 10 # 10次嘗試
+    t3513:
+      value: 40000 # 毫秒，加倍至40秒，適應GEO衛星延遲
+      max_count: 12 # 增加到12次，提高在高丟包率下的成功率
+    t3522:
+      value: 30000 # 毫秒，加倍至30秒
+      max_count: 8 # 增加嘗試次數
+    t3550:
+      value: 36000 # 毫秒，進一步增加超時時間
+      max_count: 12 # 增加到12次
+    t3555:
+      value: 30000 # 毫秒，配置註冊請求超時
+      max_count: 10 # 10次嘗試
+    t3570:
+      value: 30000 # 毫秒，配置身份請求超時
+      max_count: 10 # 10次嘗試
 
 ################################################################################
 # SBI Server

@@ -90,8 +90,17 @@ echo "檢查容器狀態..."
 docker ps --format "{{.Names}}: {{.Status}}" 2>/dev/null || echo "無法執行docker命令"
 
 # 檢查網絡接口
-echo "檢查網絡接口..."
-ip a 2>/dev/null || echo "無法執行ip命令"
+echo "檢查容器網絡接口..."
+for c in $(docker ps --format '{{.Names}}'); do
+    log_info "容器 $c 的網卡狀態："
+    docker exec $c ip a 2>/dev/null | grep -E '^[0-9]+:|inet ' || true
+    # 可根據需要檢查特定接口
+    # docker exec $c ip link show eth0 2>/dev/null || true
+    # docker exec $c ip link show uesimtun0 2>/dev/null || true
+    # docker exec $c ip link show ogstun 2>/dev/null || true
+    # docker exec $c ip link show upf_gtp0 2>/dev/null || true
+    # ...
+done
 
 # 模擬問題檢測
 echo "檢測到以下問題:"
@@ -249,7 +258,7 @@ test_network_diagnostic() {
         log_warning "診斷腳本可能沒有檢查容器狀態"
     fi
     
-    if echo "$OUTPUT" | grep -q "網絡接口"; then
+    if echo "$OUTPUT" | grep -E -q "網絡接口|interface|網卡|ip a"; then
         log_success "診斷腳本檢查了網絡接口"
     else
         log_warning "診斷腳本可能沒有檢查網絡接口"

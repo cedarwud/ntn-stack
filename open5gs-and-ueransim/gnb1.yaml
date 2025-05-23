@@ -1,4 +1,3 @@
-version: '3'
 services: 
   gnb1:
     image: gradiant/ueransim:3.2.6
@@ -12,7 +11,7 @@ services:
       MCC: '999'
       MNC: '70'
       SST: '1'
-      SD: '010203'
+      SD: '0xffffff'
   ues1:
     image: gradiant/ueransim:3.2.6
     command: ['ue','-n','3']
@@ -29,4 +28,4 @@ services:
       OP_TYPE: OPC
       OP: 'E8ED289DEBA952E4283B54E88E6183CA'
       SST: '1'
-      SD: '010203'
+      SD: '0xffffff'

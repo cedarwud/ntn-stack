@@ -37,9 +37,42 @@
     -   network/ - 網絡配置腳本
     -   diagnostic/ - 診斷工具
     -   testing/ - 測試腳本
+    -   **fix_ue_registration.sh** - UE註冊問題修復腳本
 -   **metrics/** - 指標收集和導出工具
     -   metrics_exporter.py - NTN 特有指標導出器
 
 ## 使用方式
 
 平台層組件主要通過容器化方式部署和管理。請參考各子目錄的 README 文件了解具體使用方法。
+
+## 常見問題解決方案
+
+### UE註冊問題
+
+如果UE無法成功註冊到Open5GS網絡（報錯 "FIVEG_SERVICES_NOT_ALLOWED" 或 "5U3-ROAMING-NOT-ALLOWED"），可能是由於以下原因：
+
+1. UE配置與Open5GS中的訂閱者信息不匹配
+2. SIM卡未被正確識別為已插入
+3. KEY/OPC鑰匙不匹配
+4. 服務啟動順序問題
+
+**解決方案：**
+
+執行修復腳本：
+
+```bash
+cd /home/sat/ntn-stack
+./platform/scripts/fix_ue_registration.sh
+```
+
+這個腳本將：
+- 檢查並確保所有必要的服務正在運行
+- 重新初始化Open5GS中的訂閱者數據
+- 重啟UE容器，使新的配置生效
+- 檢查UE的註冊狀態
+
+如果問題仍然存在，可以手動檢查UE日誌：
+
+```bash
+docker logs $(docker ps -qf name=ues1) --tail 100
+```

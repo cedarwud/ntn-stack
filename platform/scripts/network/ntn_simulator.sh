@@ -22,6 +22,21 @@ SAT_MEO_DELAY=500     # MEO衛星延遲
 SAT_GEO_DELAY=750     # GEO衛星延遲
 GROUND_DELAY=50       # 地面延遲
 
+# 新增：處理位置參數作為模式
+if [[ "$1" == "leo" || "$1" == "meo" || "$1" == "geo" || "$1" == "ground" || "$1" == "default" ]]; then
+    MODE="$1"
+    echo "檢測到位置參數模式: $MODE"
+    shift  # 消耗掉模式參數
+    # 如果模式是 default，則重置為 ground，因為 default 通常意味著清除或恢復到基線
+    if [[ "$MODE" == "default" ]]; then
+        MODE="ground"
+        echo "模式 'default' 被解釋為 'ground'"
+    fi
+elif [[ -n "$1" && $1 != --* ]]; then # 如果第一個參數存在且不是以 -- 開頭的選項
+    echo "警告：檢測到未知的位置參數 '$1'。如果這是一個模式，請確保它是 leo, meo, geo, ground, 或 default。"
+    echo "將繼續使用默認模式: $MODE 或通過 --mode 指定的模式。"
+fi
+
 # 解析命令行參數
 while [[ $# -gt 0 ]]; do
     key="$1"
@@ -52,6 +67,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --mode=*)
             MODE="${key#*=}"
+            if [[ "$MODE" == "default" ]]; then # 如果通過 --mode=default 指定
+                MODE="ground" # 也將 default 解釋為 ground
+                echo "模式 'default' (通過 --mode 指定) 被解釋為 'ground'"
+            fi
             shift
             ;;
         --burst=*)
@@ -59,10 +78,9 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --help)
-            echo "用法: $0 [選項]"
+            echo "用法: $0 [模式] [選項] 或 $0 [選項] --mode=模式"
+            echo "模式 (可作為第一個位置參數): leo, meo, geo, ground, default"
             echo "選項:"
-            echo "  --mode=TYPE      選擇模式：sat（衛星）或ground（地面）（默認：sat）"
-            echo "                   sat模式還可以指定：leo, meo, geo（不同軌道高度的衛星）"
             echo "  --delay=N        設置單向延遲為N毫秒（默認：衛星250ms，地面50ms）"
             echo "  --jitter=N       設置延遲抖動為N毫秒（默認：衛星50ms，地面10ms）"
             echo "  --loss=N         設置丟包率為N%（默認：衛星2%，地面0.5%）"

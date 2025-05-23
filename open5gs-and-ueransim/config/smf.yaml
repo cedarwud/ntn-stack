@@ -1,5 +1,3 @@
-# /config/open5gs/smf.yaml
-
 logger:
   file:
     path: /opt/open5gs/var/log/open5gs/smf.log
@@ -32,8 +30,6 @@ smf:
   gtpu:
     server:
       - dev: eth0
-      # Add a specific port for GTP-U if necessary, though often not explicitly set here
-      # port: 2152
   metrics:
     server:
       - dev: eth0
@@ -46,8 +42,6 @@ smf:
   dns:
     - 8.8.8.8
     - 8.8.4.4
-    - 1.1.1.1
-    - 9.9.9.9
     - 2001:4860:4860::8888
     - 2001:4860:4860::8844
   mtu: 1400
@@ -57,19 +51,6 @@ smf:
 #  ctf:
 #    enabled: auto   # auto(default)|yes|no
   # freeDiameter: /opt/open5gs/etc/freeDiameter/smf.conf
-
-  # High Latency Optimizations
-  timer:
-    t3590: # PDU Session Establishment Timer
-      value: 6000 # milliseconds, increased for high latency
-      max_attempts: 5
-    t3591: # PDU Session Modification Timer
-      value: 6000 # milliseconds, increased for high latency
-      max_attempts: 5
-    t3592: # PDU Session Release Timer
-      value: 4000 # milliseconds, increased for high latency
-      max_attempts: 5
-
 ################################################################################
 # SMF Info
 ################################################################################

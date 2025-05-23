@@ -309,11 +309,13 @@ services:
             - open5gs-net
         depends_on:
             - amf
+            - subscriber-init  # 確保UE啟動前訂閱者已註冊
 
     ues1:
         image: gradiant/ueransim:3.2.6
         container_name: ntn-stack-ues1-1  # 指定一個固定的容器名稱
-        command: ["ue", "--imsi", "imsi-999700000000001"]
+        # 使用單行shell命令
+        command: /bin/bash -c "sleep 20 && /entrypoint.sh ue --imsi imsi-999700000000001"
         cap_add:
             - all  # 保留原有的權限
         privileged: true  # 保留特權模式
@@ -321,6 +323,7 @@ services:
             - open5gs-net  # 確保網絡連接
         depends_on:
             - gnb1
+            - subscriber-init  # 確保訂閱者已註冊
         # 添加額外的參數作為環境變量
         environment:
             GNB_HOSTNAME: gnb1
@@ -328,13 +331,25 @@ services:
             MCC: '999'
             MNC: '70'
             KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC' # 與 MongoDB 資料一致
-            OP_TYPE: OP                             # MODIFIED 使用OP而非OPC
+            OP_TYPE: OPC                             # 使用OPC而非OP
             OP: 'E8ED289DEBA952E4283B54E88E6183CA'   # 與 MongoDB 資料一致
             SST: '1'
             SD: '0x010203' # 與 MongoDB 資料一致
             SIM_INSERTED: 'true'                     # 確保SIM卡被視為已插入
             NR_UE_LOG_LEVEL: 'debug'                 # 啟用詳細日誌以便排錯
-            TZ: 'Asia/Taipei'                        # ADDED for consistency
+        # 添加額外的參數作為環境變量
+        environment:
+            GNB_HOSTNAME: gnb1
+            APN: internet
+            MCC: '999'
+            MNC: '70'
+            KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC' # 與 MongoDB 資料一致
+            OP_TYPE: OPC                             # 使用OPC而非OP
+            OP: 'E8ED289DEBA952E4283B54E88E6183CA'   # 與 MongoDB 資料一致
+            SST: '1'
+            SD: '0x010203' # 與 MongoDB 資料一致
+            SIM_INSERTED: 'true'                     # 確保SIM卡被視為已插入
+            NR_UE_LOG_LEVEL: 'debug'                 # 啟用詳細日誌以便排錯
 
     gnb2:
         image: gradiant/ueransim:3.2.6
@@ -359,7 +374,8 @@ services:
     ues2:
         image: gradiant/ueransim:3.2.6
         container_name: ntn-stack-ues2-1  # 指定一個固定的容器名稱
-        command: ["ue", "--imsi", "imsi-999700000000011", "-n", "3"]
+        # 使用單行shell命令
+        command: /bin/bash -c "sleep 30 && /entrypoint.sh ue --imsi imsi-999700000000011 -n 3"
         cap_add:
             - all  # 保留原有的權限
         privileged: true  # 保留特權模式
@@ -367,6 +383,7 @@ services:
             - open5gs-net  # 確保網絡連接
         depends_on:
             - gnb2
+            - subscriber-init  # 確保訂閱者已註冊
         # 使用環境變量控制UE數量
         environment:
             GNB_HOSTNAME: gnb2
@@ -375,16 +392,94 @@ services:
             MCC: '999'
             MNC: '70'
             KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
-            OP_TYPE: OP # MODIFIED
+            OP_TYPE: OPC
             OP: 'E8ED289DEBA952E4283B54E88E6183CA'
             SST: '1'
             SD: '0x010203'
             SIM_INSERTED: 'true'             # 確保SIM卡被視為已插入
             NR_UE_LOG_LEVEL: 'debug'         # 啟用詳細日誌以便排錯
-            TZ: 'Asia/Taipei'                # MOVED and ensured
+        # 使用環境變量控制UE數量
+        environment:
+            GNB_HOSTNAME: gnb2
+            APN: internet
+            MSISDN: '0000000011'
+            MCC: '999'
+            MNC: '70'
+            KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+            OP_TYPE: OPC
+            OP: 'E8ED289DEBA952E4283B54E88E6183CA'
+            SST: '1'
+            SD: '0x010203'
+            SIM_INSERTED: 'true'             # 確保SIM卡被視為已插入
+            NR_UE_LOG_LEVEL: 'debug'         # 啟用詳細日誌以便排錯
 
+    # ==== 用戶註冊服務 ====
+    subscriber-init:
+        image: gradiant/open5gs-dbctl:0.10.3
+        environment:
+            DB_URI: mongodb://mongo/open5gs
+        volumes:
+            - ./platform/scripts/config/register_subscriber.sh:/app/register_subscriber.sh
+        command: ['bash', '/app/register_subscriber.sh']
+        networks:
+            - open5gs-net
+        depends_on:
+            mongo:
+                condition: service_healthy
+
+    # ==== 代理 API 服務 ====
+    ntn-proxy:
+        build:
+            context: ./platform/services/proxy
+            dockerfile: Dockerfile
+        container_name: ntn-proxy
+        ports:
+            - '3000:3000'
+        volumes:
+            - ./platform/services/proxy:/app
+            - /app/node_modules
+        networks:
+            - open5gs-net
+            - sionna-net
+        restart: unless-stopped
+        environment:
+            - TZ=Asia/Taipei
+        depends_on:
+            - mongo
+        healthcheck:
+            test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+
+    config-api:
+        build: ./platform/services/config_api
+        container_name: config-api
+        ports:
+            - '8080:8080'
+        volumes:
+            - ./platform/services/config_api:/app
+            - ./platform/config:/app/config
+            - ./platform/scripts:/app/scripts
+        restart: unless-stopped
+        environment:
+            - TZ=Asia/Taipei
+        networks:
+            - open5gs-net
+            - sionna-net
+        depends_on:
+            - gnb1
+        healthcheck:
+            test: ['CMD', 'curl', '-f', 'http://localhost:8080/']
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+
+    # ==== 監控服務 ====
     prometheus:
-        image: prom/prometheus:v2.30.3
+        image: prom/prometheus:v2.49.0
         container_name: prometheus
         volumes:
             - ./platform/config/prometheus:/etc/prometheus

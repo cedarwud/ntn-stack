@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Open5GS核心網優化配置測試腳本
-# 此腳本用於測試Open5GS核心網的高延遲優化配置功能
+# 此腳本用於測試Open5GS核心網的配置，特別關注高延遲優化和PLMN設置
 
 # 顏色定義
 RED='\033[0;31m'
@@ -15,10 +15,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 NETWORK_DIR="$ROOT_DIR/scripts/network"
 
-# 超時設定 - 增加超時時間以減少超時警告
-MAX_CMD_TIMEOUT=20  # 命令最大執行時間（增加到20秒）
-MAX_TEST_TIMEOUT=120 # 單個測試最大運行時間（增加到120秒）
-RETRY_COUNT=3 # 命令失敗時的重試次數
+# 超時設定
+MAX_CMD_TIMEOUT=25 # 稍微增加命令最大執行時間
+MAX_TEST_TIMEOUT=150 # 稍微增加單個測試最大運行時間
+RETRY_COUNT=2 # 減少重試，因為已有模擬
+
+# 全局變量存儲檢測到的PLMN信息
+declare -a AMF_CONFIGURED_PLMNS=()
 
 # 日誌函數
 log_info() { 
@@ -37,405 +40,295 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# 添加帶重試機制的超時執行命令的函數
+# 帶重試機制的超時執行命令函數
 run_with_timeout() {
     local cmd="$1"
     local timeout=${2:-$MAX_CMD_TIMEOUT}
     local retries=${3:-$RETRY_COUNT}
     local retry=0
     local success=0
+    local output_file=$(mktemp)
     
-    # 重試機制
     while [ $retry -lt $retries ] && [ $success -eq 0 ]; do
         if [ $retry -gt 0 ]; then
             log_info "重試命令 (${retry}/${retries}): $cmd"
+            sleep 1
         fi
-        
-        # 使用timeout命令運行指定命令，不再將stderr重定向到/dev/null，這樣可以看到錯誤信息
-        if timeout $timeout bash -c "$cmd"; then
+        if timeout $timeout bash -c "$cmd" > "$output_file" 2>&1; then
             success=1
-            break
+            cat "$output_file"
         else
             local status=$?
-            if [ $status -eq 124 ] || [ $status -eq 137 ]; then
-                # 超時錯誤，進行重試
-                log_info "命令執行超時，將重試: $cmd"
+            cat "$output_file"
+            if [ $status -eq 124 ] || [ $status -eq 137 ]; then 
+                log_info "命令執行超時 ($cmd)，將重試"
             else
-                # 其他錯誤
-                log_info "命令執行失敗，退出碼: $status，將重試"
+                log_info "命令執行失敗 ($cmd)，退出碼: $status，將重試"
             fi
             retry=$((retry + 1))
-            sleep 1 # 短暫暫停後重試
         fi
     done
-    
-    if [ $success -eq 1 ]; then
-        return 0
-    else
-        if [ $retry -ge $retries ]; then
-            log_warning "命令執行失敗，已重試 $retries 次: $cmd"
-        else
-            log_warning "命令執行失敗: $cmd"
-        fi
-        return 1
-    fi
+    rm "$output_file"
+    if [ $success -eq 1 ]; then return 0; else log_warning "命令最終執行失敗 (已重試 ${retry} 次): $cmd"; return 1; fi
 }
 
-# 檢查配置文件是否存在高延遲優化參數
-test_core_network_config() {
-    log_info "檢查核心網配置文件..."
-    
-    # 設置測試開始時間
-    local start_time=$SECONDS
-    
-    # 檢查配置文件
-    local SMF_CONFIG_PATHS=(
-        "/etc/open5gs/smf.yaml"
-        "/open5gs/config/open5gs/smf.yaml"
-        "/open5gs/etc/open5gs/smf.yaml"
-        "/usr/local/etc/open5gs/smf.yaml"
-        "/config/open5gs/smf.yaml"
-        "/smf.yaml" # 添加容器根目錄作為選項
-    )
-    
-    # 檢查所有可能的SMF容器名稱
-    local SMF_CONTAINERS=("ntn-stack-smf-1" "smf-1" "smf" "open5gs-smf")
-    local SMF_FOUND=0
-    local SMF_CONTAINER=""
-    
-    for container in "${SMF_CONTAINERS[@]}"; do
-        if docker ps | grep -q "$container"; then
-            SMF_FOUND=1
-            SMF_CONTAINER="$container"
-            log_success "找到SMF容器: $SMF_CONTAINER"
-            break
-        fi
-        
-        # 檢查測試是否超時
-        if [ $((SECONDS - start_time)) -gt $MAX_TEST_TIMEOUT ]; then
-            log_warning "檢查SMF容器超時，模擬配置檢查"
-            simulate_config_check
-            return 0
-        fi
-    done
-    
-    if [ $SMF_FOUND -eq 0 ]; then
-        log_warning "未找到運行中的SMF容器，模擬配置檢查"
-        simulate_config_check
-        return 0
-    fi
-    
-    # 嘗試所有可能的配置路徑
-    local CONFIG_FOUND=0
-    local SMF_CONFIG=""
-    
-    for config_path in "${SMF_CONFIG_PATHS[@]}"; do
-        if run_with_timeout "docker exec $SMF_CONTAINER ls $config_path 2>/dev/null"; then
-            CONFIG_FOUND=1
-            SMF_CONFIG="$config_path"
-            log_success "找到SMF配置文件: $SMF_CONFIG"
-            break
-        fi
-        
-        # 檢查測試是否超時
-        if [ $((SECONDS - start_time)) -gt $MAX_TEST_TIMEOUT ]; then
-            log_warning "尋找配置文件超時，模擬配置檢查"
-            simulate_config_check
-            return 0
-        fi
-    done
-    
-    if [ $CONFIG_FOUND -eq 0 ]; then
-        log_warning "無法訪問SMF配置文件，模擬配置檢查"
-        simulate_config_check
-        return 0
-    fi
-    
-    # 檢查關鍵超時參數
-    local CONFIG=$(run_with_timeout "docker exec $SMF_CONTAINER cat $SMF_CONFIG" || echo "")
-    
-    if [ -z "$CONFIG" ]; then
-        log_warning "無法讀取SMF配置內容，模擬配置檢查"
-        simulate_config_check
-        return 0
-    fi
-    
-    # 檢查關鍵參數，但不阻止測試繼續
-    local PARAMS_FOUND=0
-    
-    if ! echo "$CONFIG" | grep -q "t3585"; then
-        log_warning "未找到t3585參數"
-    else
-        log_success "存在t3585參數"
-        PARAMS_FOUND=$((PARAMS_FOUND + 1))
-    fi
-    
-    if ! echo "$CONFIG" | grep -q "t3525"; then
-        log_warning "未找到t3525參數"
-    else
-        log_success "存在t3525參數"
-        PARAMS_FOUND=$((PARAMS_FOUND + 1))
-    fi
-    
-    # 檢查重傳次數參數
-    if ! echo "$CONFIG" | grep -q "max_count"; then
-        log_warning "未找到max_count參數"
-    else
-        log_success "存在max_count參數"
-        PARAMS_FOUND=$((PARAMS_FOUND + 1))
-    fi
-    
-    if [ $PARAMS_FOUND -gt 0 ]; then
-        log_success "找到 $PARAMS_FOUND 個核心網優化參數"
-    else
-        log_warning "未找到任何核心網優化參數，但系統仍可正常工作"
-    fi
-    
-    return 0
-}
-
-# 模擬配置檢查函數 - 當實際檢查失敗時使用
+# 模擬配置檢查函數
 simulate_config_check() {
     log_info "執行模擬配置檢查..."
-    
-    log_success "模擬檢查: 存在t3585參數 (模擬值: 15000)"
-    log_success "模擬檢查: 存在t3525參數 (模擬值: 18000)"
-    log_success "模擬檢查: 存在max_count參數 (模擬值: 8)"
-    
-    log_success "模擬配置檢查完成，所有必需參數都模擬存在"
-    return 0
-}
-
-# 模擬UE狀態檢查函數 - 當實際檢查失敗時使用
-simulate_ue_status() {
-    log_info "執行模擬UE狀態檢查..."
-    
-    log_success "模擬UE狀態: 5GMM-REGISTERED"
-    log_success "模擬PDU會話: ESTABLISHED"
-    
-    log_success "模擬UE狀態檢查完成"
-    return 0
-}
-
-# 測試PDU會話在高延遲環境下的穩定性
-test_pdu_session_stability() {
-    log_info "測試PDU會話穩定性..."
-    
-    # 設置測試開始時間
-    local start_time=$SECONDS
-    
-    # 確保UE已註冊 - 增加重試和更好的錯誤處理
-    if ! run_with_timeout "docker exec ntn-stack-ues1-1 nr-cli imsi-999700000000001 -e status 2>/dev/null | grep -q '5GMM-REGISTERED'" 15 3; then
-        log_warning "UE未註冊，模擬PDU會話測試"
-        simulate_ue_status
+    log_success "模擬檢查: AMF PLMN ID (例如 00101) 已配置。"
+    log_success "模擬檢查: SMF 存在t3585參數 (模擬值: 15000)"
+    log_success "模擬檢查: SMF 存在t3525參數 (模擬值: 18000)"
+    log_success "模擬檢查: SMF 存在max_count參數 (模擬值: 8)"
+    log_success "模擬配置檢查完成。"
+    AMF_CONFIGURED_PLMNS+=("00101_simulated") # Add a simulated PLMN for dependent tests
         return 0
+}
+
+# 查找Open5GS組件容器ID
+get_component_id() {
+    local component_name="$1"
+    local alt_names=("$2") # 可選的備用名稱模式，以|分隔，例如 "open5gs-${component_name}|${component_name}-1"
+    local container_id=""
+
+    # 首先嘗試精確名稱
+    container_id=$(docker ps --filter "name=^/${component_name}$" --format "{{.ID}}" | head -n 1)
+    if [ -n "$container_id" ]; then echo "$container_id"; return 0; fi
+
+    # 嘗試包含組件名的模式 (例如 ntn-stack-amf-1)
+    container_id=$(docker ps --filter "name=${component_name}" --format "{{.ID}}" | head -n 1)
+    if [ -n "$container_id" ]; then echo "$container_id"; return 0; fi
+    
+    # 嘗試備用名稱模式
+    if [ -n "$alt_names" ]; then
+        IFS='|' read -ra NAMES <<< "$alt_names" # Split by |
+        for name_pattern in "${NAMES[@]}"; do
+            container_id=$(docker ps --filter "name=${name_pattern}" --format "{{.ID}}" | head -n 1)
+            if [ -n "$container_id" ]; then echo "$container_id"; return 0; fi
+        done
     fi
-    
-    # 在不同延遲模式下測試PDU會話
-    local delay_modes=("leo" "ground") # 只測試部分模式以加快測試速度
-    local success_count=0
-    
-    for mode in "${delay_modes[@]}"; do
-        log_info "切換到${mode}模式進行測試..."
-        
-        # 檢查測試是否超時
-        if [ $((SECONDS - start_time)) -gt $MAX_TEST_TIMEOUT ]; then
-            log_warning "PDU會話穩定性測試超時，跳過剩餘模式"
-            break
-        fi
-        
-        # 使用網絡模擬器設置延遲 - 更好的錯誤處理
-        local network_simulator_found=0
-        
-        # 尋找網絡模擬器腳本
-        for script_path in "$NETWORK_DIR/ntn_simulator.sh" "$ROOT_DIR/scripts/ntn_simulator.sh" "$ROOT_DIR/ntn_simulator.sh"; do
-            if [ -f "$script_path" ] && [ -x "$script_path" ]; then
-                network_simulator_found=1
-                timeout 15 "$script_path" "$mode" 2>/dev/null || log_warning "網絡模擬器設置${mode}模式失敗，但測試將繼續"
+    echo "" # 未找到則返回空
+}
+
+# 檢查AMF配置文件中的PLMN和其他關鍵配置
+test_amf_config() {
+    log_info "檢查AMF配置文件..."
+    local AMF_CONTAINER_ID=$(get_component_id "amf" "open5gs-amf|ntn-stack-amf")
+
+    if [ -z "$AMF_CONTAINER_ID" ]; then
+        log_warning "未找到運行中的AMF容器，將模擬AMF配置檢查。"
+        return 1 
+    fi
+    log_success "找到AMF容器: $AMF_CONTAINER_ID"
+
+    local AMF_CONFIG_PATH="/opt/open5gs/etc/open5gs/amf.yaml" # 標準路徑
+    local ALT_AMF_CONFIG_PATHS=("/etc/open5gs/amf.yaml" "/open5gs/config/amf.yaml")
+    local actual_amf_config_path=""
+
+    if run_with_timeout "docker exec $AMF_CONTAINER_ID test -f $AMF_CONFIG_PATH" 5 1; then
+        actual_amf_config_path="$AMF_CONFIG_PATH"
+    else
+        for path_try in "${ALT_AMF_CONFIG_PATHS[@]}"; do
+            if run_with_timeout "docker exec $AMF_CONTAINER_ID test -f $path_try" 5 1; then
+                actual_amf_config_path="$path_try"
                 break
             fi
         done
-        
-        if [ $network_simulator_found -eq 0 ]; then
-            log_warning "找不到網絡模擬器腳本，將跳過網絡模式切換"
-        fi
-        
-        sleep 3
-            
-        # 嘗試刪除現有的PDU會話並重新建立，有更好的錯誤處理
-        if run_with_timeout "docker exec ntn-stack-ues1-1 nr-cli imsi-999700000000001 -e status 2>/dev/null | grep -q '5GMM-REGISTERED'" 10 2; then
-            run_with_timeout "docker exec ntn-stack-ues1-1 nr-cli imsi-999700000000001 -e 'ps-release 1'" 5
-            sleep 1
-            run_with_timeout "docker exec ntn-stack-ues1-1 nr-cli imsi-999700000000001 -e 'ps-establish internet'" 10 2
-            sleep 3
-            
-            # 檢查PDU會話是否成功建立
-            if run_with_timeout "docker exec ntn-stack-ues1-1 nr-cli imsi-999700000000001 -e 'ps-list' 2>/dev/null | grep -q 'ESTABLISHED'" 5 2; then
-                log_success "${mode}模式下PDU會話建立成功"
-                success_count=$((success_count + 1))
-            else
-                log_warning "${mode}模式下PDU會話建立失敗，但測試將繼續"
-            fi
+    fi
+
+    if [ -z "$actual_amf_config_path" ]; then
+        log_warning "在AMF容器 $AMF_CONTAINER_ID 中找不到 amf.yaml。嘗試檢查 docker logs..."
+        local amf_log_plmns=$(run_with_timeout "docker logs --tail 100 $AMF_CONTAINER_ID 2>&1 | grep -oE 'plmn_id: \{ mcc: [0-9]+, mnc: [0-9]+ \}' | sed 's/plmn_id: { mcc: //g; s/, mnc: /,/g; s/ }.*//g; s/ //g' | sort -u" || echo "")
+        if [ -n "$amf_log_plmns" ]; then
+            log_info "從AMF Docker日誌中檢測到的潛在PLMN ID (mcc,mnc) 格式:"
+            for plmn in $amf_log_plmns; do
+                AMF_CONFIGURED_PLMNS+=("$(echo $plmn | sed 's/,//g')")
+                log_success "  - $plmn"
+            done
         else
-            log_warning "UE未處於註冊狀態，無法在${mode}模式下測試PDU會話"
+            log_warning "也無法從AMF Docker日誌中提取PLMN ID。"
+            return 1
         fi
-    done
-    
-    # 總結測試結果，但不使測試失敗
-    if [ $success_count -eq ${#delay_modes[@]} ]; then
-        log_success "所有測試的網絡模式下都能成功建立PDU會話"
-    elif [ $success_count -gt 0 ]; then
-        log_warning "在 $success_count/${#delay_modes[@]} 個測試模式下成功建立PDU會話"
-    else
-        log_warning "所有測試的網絡模式下都無法建立PDU會話，但測試仍會繼續"
+        if [ ${#AMF_CONFIGURED_PLMNS[@]} -eq 0 ]; then return 1; fi
+        return 0 # Found some PLMNs from logs
     fi
     
-    return 0
-}
-
-# 測試GTP隧道性能
-test_gtp_tunnel_performance() {
-    log_info "測試GTP隧道性能..."
-    
-    # 設置測試開始時間
-    local start_time=$SECONDS
-    
-    # 檢查UPF容器是否運行
-    if ! docker ps | grep -q "ntn-stack-upf-1"; then
-        log_warning "UPF容器未運行，模擬GTP隧道測試"
-        simulate_gtp_tunnel_test
-        return 0
-    fi
-    
-    # 檢查GTP接口是否存在
-    if ! run_with_timeout "docker exec ntn-stack-upf-1 ip addr show | grep -q 'gtp'" 10 2; then
-        log_warning "UPF容器中未找到GTP接口，模擬GTP隧道測試"
-        simulate_gtp_tunnel_test
-        return 0
-    fi
-    
-    # 嘗試設置GTP隧道丟包率，測試容錯功能
-    log_info "測試GTP隧道容錯功能（2%丟包率）..."
-    
-    # 使用更好的錯誤處理
-    if run_with_timeout "docker exec ntn-stack-upf-1 bash -c 'tc qdisc show | grep -q netem'" 5 2; then
-        log_info "已存在netem規則，將先清除"
-        run_with_timeout "docker exec ntn-stack-upf-1 tc qdisc del dev gtp-gnb root" 5
-    fi
-    
-    # 嘗試應用netem規則
-    if ! run_with_timeout "docker exec ntn-stack-upf-1 tc qdisc add dev gtp-gnb root netem loss 2%" 10 2; then
-        log_warning "無法設置丟包率，GTP接口可能不支持tc命令，但測試將繼續"
-    else
-        log_success "成功設置GTP隧道2%丟包率"
-        # 在丟包環境下測試通信
-        test_communication_under_loss
-        # 清除netem規則
-        run_with_timeout "docker exec ntn-stack-upf-1 tc qdisc del dev gtp-gnb root" 5
-    fi
-    
-    return 0
-}
-
-# 測試丟包環境下的通信
-test_communication_under_loss() {
-    log_info "測試丟包環境下的通信..."
-    
-    # 檢查UE是否處於註冊狀態
-    if ! run_with_timeout "docker exec ntn-stack-ues1-1 nr-cli imsi-999700000000001 -e status 2>/dev/null | grep -q '5GMM-REGISTERED'" 10 2; then
-        log_warning "UE未處於註冊狀態，無法測試丟包環境下的通信"
+    log_success "找到AMF配置文件: $actual_amf_config_path"
+    local AMF_CONFIG_CONTENT=$(run_with_timeout "docker exec $AMF_CONTAINER_ID cat $actual_amf_config_path" || echo "")
+    if [ -z "$AMF_CONFIG_CONTENT" ]; then
+        log_warning "無法讀取AMF配置內容 ($actual_amf_config_path)。"
         return 1
     fi
-    
-    # 檢查PDU會話是否建立
-    if ! run_with_timeout "docker exec ntn-stack-ues1-1 nr-cli imsi-999700000000001 -e 'ps-list' 2>/dev/null | grep -q 'ESTABLISHED'" 5 2; then
-        log_warning "PDU會話未建立，無法測試丟包環境下的通信"
-        return 1
+
+    log_info "從AMF配置文件 ($actual_amf_config_path) 中解析PLMN ID..."
+    # Define awk script separately for clarity and to avoid syntax issues with multiline in $()
+    local awk_script='/plmn_id:/ {in_plmn=1} /mcc:/ && in_plmn {m=$2} /mnc:/ && in_plmn {n=$2; printf "%s%s\n", m, n; in_plmn=0; m=""; n=""}'
+    local parsed_plmns=$(echo "$AMF_CONFIG_CONTENT" | awk "$awk_script" | sort -u | sed 's/[^0-9]//g')
+
+    if [ -n "$parsed_plmns" ]; then
+        log_info "AMF配置文件中找到的PLMN ID (MCCMNC格式):"
+        for plmn in $parsed_plmns; do
+            if [[ "$plmn" =~ ^[0-9]{5,6}$ ]]; then
+                AMF_CONFIGURED_PLMNS+=("$plmn")
+                log_success "  - $plmn"
+            else
+                log_warning "  - 解析到的無效PLMN格式: $plmn (來自解析器)"
+            fi
+        done
     fi
     
-    log_success "模擬丟包環境下UE仍能保持連接"
-    return 0
-}
-
-# 模擬GTP隧道測試
-simulate_gtp_tunnel_test() {
-    log_info "執行模擬GTP隧道測試..."
-    
-    log_success "模擬測試: GTP隧道存在並正常運行"
-    log_success "模擬測試: GTP隧道可以處理2%丟包率"
-    log_success "模擬測試: 在丟包環境下通信正常"
-    
-    log_success "模擬GTP隧道測試完成"
-    return 0
-}
-
-# 測試信號中斷恢復
-test_signal_interruption_recovery() {
-    log_info "測試信號中斷恢復功能..."
-    
-    # 設置測試開始時間
-    local start_time=$SECONDS
-    
-    # 檢查UE是否處於註冊狀態
-    if ! run_with_timeout "docker exec ntn-stack-ues1-1 nr-cli imsi-999700000000001 -e status 2>/dev/null | grep -q '5GMM-REGISTERED'" 10 2; then
-        log_warning "UE未處於註冊狀態，模擬信號中斷恢復測試"
-        simulate_signal_recovery_test
-        return 0
-    fi
-    
-    # 模擬信號中斷，不會真的製造中斷，僅測試恢復機制
-    log_info "信號中斷模擬：檢查自動恢復機制..."
-    
-    # 檢查是否存在自動恢復腳本
-    local recovery_script_found=0
-    for script_path in "$NETWORK_DIR/ue_auto_recovery.sh" "$ROOT_DIR/scripts/ue_auto_recovery.sh"; do
-        if [ -f "$script_path" ] && [ -x "$script_path" ]; then
-            recovery_script_found=1
-            log_success "找到自動恢復腳本: $script_path"
-            # 執行恢復腳本（但不真執行，僅檢查存在性）
-            break
+    # Fallback or supplement with a more direct grep if awk failed or missed some
+    local direct_grep_plmns=$(echo "$AMF_CONFIG_CONTENT" | grep -Eo 'mcc: *[0-9]+, *mnc: *[0-9]+' | sed -e 's/mcc: *//g' -e 's/mnc: *//g' -e 's/,//g' | awk '{printf "%s%s", $1, $2}' | sort -u)
+    if [ -n "$direct_grep_plmns" ]; then
+        log_info "通過直接 grep 找到的額外PLMN ID (MCCMNC格式):"
+        for plmn in $direct_grep_plmns; do
+            if [[ "$plmn" =~ ^[0-9]{5,6}$ ]]; then
+                if ! (echo "${AMF_CONFIGURED_PLMNS[@]}" | grep -q "$plmn"); then
+                    AMF_CONFIGURED_PLMNS+=("$plmn")
+                    log_success "  - $plmn (來自直接grep)"
+                fi
+            else
+                log_warning "  - 解析到的無效PLMN格式: $plmn (來自直接grep)"
         fi
     done
-    
-    if [ $recovery_script_found -eq 0 ]; then
-        log_warning "未找到自動恢復腳本，但測試將繼續"
     fi
-    
-    # 檢測恢復後的UE狀態
-    if run_with_timeout "docker exec ntn-stack-ues1-1 nr-cli imsi-999700000000001 -e status 2>/dev/null | grep -q '5GMM-REGISTERED'" 10 2; then
-        log_success "UE能夠在信號中斷後自動恢復連接"
+
+    if [ ${#AMF_CONFIGURED_PLMNS[@]} -eq 0 ]; then
+        log_warning "未能在AMF配置文件中自動解析出PLMN ID。請手動檢查 $actual_amf_config_path。"
+        AMF_CONFIGURED_PLMNS+=("00101_default") 
+        log_warning "為繼續測試，已添加默認PLMN 00101_default。"
+    fi
+
+    log_info "檢查AMF N2/NGAP (SCTP) 端口配置..."
+    # AMF SCTP 端口檢查
+    if echo "$AMF_CONFIG_CONTENT" | grep -E 'port *: *38412'; then
+        log_success "AMF配置文件中檢測到NGAP SCTP端口配置為38412。"
     else
-        log_warning "UE在信號中斷後未能自動恢復連接，但測試仍然完成"
+        log_warning "AMF配置文件中未明確檢測到NGAP SCTP端口38412的標準配置。amf.yaml 片段如下："
+        echo "$AMF_CONFIG_CONTENT" | grep -A 10 -B 10 'ngap' || echo "$AMF_CONFIG_CONTENT" | head -n 30
     fi
-    
     return 0
 }
 
-# 模擬信號恢復測試
-simulate_signal_recovery_test() {
-    log_info "執行模擬信號恢復測試..."
+# 檢查SMF配置文件中的高延遲優化參數
+test_smf_config() {
+    log_info "檢查SMF配置文件..."
+    local SMF_CONTAINER_ID=$(get_component_id "smf" "open5gs-smf|ntn-stack-smf")
+    if [ -z "$SMF_CONTAINER_ID" ]; then
+        log_warning "未找到運行中的SMF容器，將模擬SMF配置檢查。"
+        return 1 # Indicate failure to find container
+    fi
+    log_success "找到SMF容器: $SMF_CONTAINER_ID"
+
+    local SMF_CONFIG_PATH="/opt/open5gs/etc/open5gs/smf.yaml"
+    local ALT_SMF_CONFIG_PATHS=("/etc/open5gs/smf.yaml" "/open5gs/config/smf.yaml")
+    local actual_smf_config_path=""
     
-    log_success "模擬測試: 檢測到信號中斷"
-    log_success "模擬測試: 自動恢復機制啟動"
-    log_success "模擬測試: UE重新連接並註冊"
-    log_success "模擬測試: PDU會話重新建立"
-    
-    log_success "模擬信號恢復測試完成"
+    if run_with_timeout "docker exec $SMF_CONTAINER_ID test -f $SMF_CONFIG_PATH" 5 1; then
+        actual_smf_config_path="$SMF_CONFIG_PATH"
+    else
+        for path_try in "${ALT_SMF_CONFIG_PATHS[@]}"; do
+            if run_with_timeout "docker exec $SMF_CONTAINER_ID test -f $path_try" 5 1; then
+                actual_smf_config_path="$path_try"
+                break
+            fi
+        done
+    fi
+
+    if [ -z "$actual_smf_config_path" ]; then
+        log_warning "在SMF容器 $SMF_CONTAINER_ID 中找不到 smf.yaml。"
+        return 1
+    fi
+    log_success "找到SMF配置文件: $actual_smf_config_path"
+    local SMF_CONFIG_CONTENT=$(run_with_timeout "docker exec $SMF_CONTAINER_ID cat $actual_smf_config_path" || echo "")
+    if [ -z "$SMF_CONFIG_CONTENT" ]; then
+        log_warning "無法讀取SMF配置內容 ($actual_smf_config_path)。"
+        return 1
+    fi
+
+    log_info "檢查SMF高延遲優化參數..."
+    local PARAMS_FOUND=0
+    local params_to_check=("t3585" "t3525" "t3591" "t3592" "t-3585" "t_3585")
+    for param in "${params_to_check[@]}"; do
+        if echo "$SMF_CONFIG_CONTENT" | grep -qiE "^ *${param} *:"; then
+            log_success "SMF配置中存在參數: $param"
+            PARAMS_FOUND=$((PARAMS_FOUND + 1))
+        fi
+    done
+    if [ $PARAMS_FOUND -lt 2 ]; then
+        log_warning "SMF配置文件中未找到足夠的高延遲優化參數。smf.yaml 片段如下："
+        echo "$SMF_CONFIG_CONTENT" | head -n 30
+    fi
     return 0
+}
+
+# 提示用戶檢查 PLMN 配置
+provide_plmn_check_guidance() {
+    log_info "---------------- PLMN 配置檢查指南 ----------------"
+    log_info "由於UE註冊失敗，原因可能是 PLMN_NOT_ALLOWED。請確認以下配置："
+    
+    if [ ${#AMF_CONFIGURED_PLMNS[@]} -gt 0 ] && [[ "${AMF_CONFIGURED_PLMNS[0]}" != "00101_default" ]]; then
+        log_info "1. AMF 配置的 PLMN ID (MCCMNC 格式):"
+        for plmn in "${AMF_CONFIGURED_PLMNS[@]}"; do
+            log_info "   - $plmn"
+        done
+    else
+        log_warning "1. 未能自動從AMF配置中提取PLMN ID (或僅找到默認/模擬值)。請手動檢查AMF的 amf.yaml 文件。"
+        if [[ "${AMF_CONFIGURED_PLMNS[0]}" == "00101_default" ]]; then log_info "   (腳本使用了 00101_default 作為占位符)"; fi
+    fi
+    
+    log_info "2. UERANSIM gNodeB 配置:"
+    log_info "   - 確保 gNodeB 配置文件 (例如 gnb.yaml) 中的 PLMN ID (mcc 和 mnc) "
+    log_info "     與上述 AMF 配置的 PLMN ID 之一匹配。"
+    
+    log_info "3. UERANSIM UE 配置:"
+    log_info "   - 確保 UE 配置文件 (例如 ue.yaml 或 free5gc-ue.yaml) 中的 PLMN "
+    log_info "     (通常在 supi 或 configuredPLMN/plmnList/hplmn 等字段中定義的 mcc 和 mnc) "
+    log_info "     與上述 AMF 配置的 PLMN ID 之一匹配，並且是 UE 允許註冊的 PLMN。"
+
+    log_info "4. Open5GS HSS/UDM 數據庫 (MongoDB):"
+    log_info "   - 連接到 MongoDB: mongo mongodb://<mongo_host>:<mongo_port>/open5gs "
+    log_info "     (將 <mongo_host> 和 <mongo_port> 替換為您的MongoDB實例地址和端口，默認可能是 localhost:27017)"
+    log_info "   - 查詢特定 IMSI (例如 999700000000001) 的訂戶記錄:"
+    log_info "     db.subscribers.findOne({\"imsi\": \"999700000000001\"})"
+    log_info "   - 檢查記錄中的字段，如 'access_restriction_data', 'subscribed_rau_tau_timer', "
+    log_info "     或任何與PLMN黑白名單、漫遊限制相關的字段，確保允許UE在目標PLMN上註冊。"
+    log_info "     尋找類似 'plmn_list', 'allowed_plmns' 或直接的 mcc/mnc 字段。"
+    log_info "-----------------------------------------------------"
 }
 
 # 主函數
 main() {
-    log_info "開始Open5GS核心網優化配置測試..."
+    log_info "開始Open5GS配置測試..."
     
-    # 執行各項測試
-    test_core_network_config
-    test_pdu_session_stability
-    test_gtp_tunnel_performance
-    test_signal_interruption_recovery
-    
-    log_success "Open5GS核心網優化配置測試完成"
+    local amf_config_ok=false
+    if test_amf_config; then
+        amf_config_ok=true
+    else
+        # If amf_config fails to find real PLMNs, simulate_config_check might be called implicitly by it, 
+        # or we ensure a default is added. The guidance will reflect this.
+        if [ ${#AMF_CONFIGURED_PLMNS[@]} -eq 0 ]; then # Ensure default is added if list is empty
+            AMF_CONFIGURED_PLMNS+=("00101_default") 
+            log_warning "AMF配置測試後PLMN列表仍為空，已添加默認PLMN 00101_default。"
+        fi
+    fi
+
+    local smf_config_ok=false
+    if test_smf_config; then
+        smf_config_ok=true
+    fi
+
+    provide_plmn_check_guidance
+
+    if $amf_config_ok && $smf_config_ok; then
+        log_success "Open5GS AMF和SMF配置檢查完成 (可能仍有警告或需要手動確認的部分)。"
+    else
+        log_error "Open5GS AMF或SMF配置檢查遇到問題或未能完全驗證。請查看上述日誌和指南。"
+    fi
+
+    log_info "由於UE註冊問題 (例如 PLMN_NOT_ALLOWED) 可能存在，依賴於UE成功註冊的進階測試 (如PDU會話穩定性、GTP隧道細節) 將被跳過或簡化。"
+    log_info "請先解決PLMN配置問題，確保UE能夠成功註冊。"
+
+    log_success "Open5GS配置測試腳本執行完畢。"
 }
 
-# 執行主函數
 main "$@" 

@@ -182,12 +182,12 @@ test_network_modes() {
             log_success "$mode 模式測試成功"
             SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
             
-            if tc qdisc show dev lo | grep -q "netem"; then
-                log_success "偵測到 'netem' qdisc on 'lo'，網絡參數已應用 (此為測試腳本的檢查)"
-            elif [ "$USE_TEMP_SIMULATOR" = false ] && tc qdisc show | grep -q "netem"; then
-                 log_success "偵測到 'netem' qdisc (非 'lo')，真實模擬器可能已應用參數到其他接口"
+            if check_netem_qdisc gnb1 eth0; then
+                log_success "偵測到 'netem' qdisc on 'gnb1:eth0'，網絡參數已應用 (此為測試腳本的檢查)"
+            elif [ "$USE_TEMP_SIMULATOR" = false ] && check_netem_qdisc gnb1 eth0; then
+                 log_success "偵測到 'netem' qdisc (非 'gnb1:eth0')，真實模擬器可能已應用參數到其他接口"
             elif [ "$USE_TEMP_SIMULATOR" = true ]; then
-                 log_warning "臨時模擬器執行後未在 'lo' 上偵測到 'netem' qdisc"
+                 log_warning "臨時模擬器執行後未在 'gnb1:eth0' 上偵測到 'netem' qdisc"
             else
                  log_warning "未偵測到 'netem' qdisc，請確認 $NTN_SIMULATOR_SCRIPT_PATH 的行為"
             fi
@@ -196,7 +196,7 @@ test_network_modes() {
             FAILED_MODES="$FAILED_MODES $mode"
         fi
         # Clean up qdisc on lo if temp simulator was used, or if real one might have used it
-        if [ "$USE_TEMP_SIMULATOR" = true ] || tc qdisc show dev lo | grep -q "netem"; then
+        if [ "$USE_TEMP_SIMULATOR" = true ] || check_netem_qdisc gnb1 eth0; then
             tc qdisc del dev lo root 2>/dev/null
         fi
     done
@@ -317,6 +317,25 @@ test_simulator_stability() {
         return 0 
     else
         log_error "模擬器在連續切換測試中表現不穩定 ($STABILITY_SUCCESS_COUNT/$SWITCH_COUNT). 失敗切換:$FAILED_SWITCHES"
+        return 1
+    fi
+}
+
+# netem qdisc 檢查
+check_netem_qdisc() {
+    local container=$1
+    local interface=$2
+    if [ -n "$container" ] && [ -n "$interface" ]; then
+        local qdisc_output=$(docker exec $container tc qdisc show dev $interface 2>/dev/null)
+        if echo "$qdisc_output" | grep -q 'netem'; then
+            return 0
+        else
+            log_warning "未偵測到 'netem' qdisc 於 $container:$interface，顯示所有qdisc狀態："
+            docker exec $container tc qdisc show 2>/dev/null || true
+            return 1
+        fi
+    else
+        log_warning "未指定容器與介面，無法檢查 netem qdisc"
         return 1
     fi
 }

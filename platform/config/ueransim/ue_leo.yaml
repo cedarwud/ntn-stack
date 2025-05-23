@@ -58,7 +58,7 @@ keepaliveTimer: 60            # 保活定時器(秒)
 # UE數據會話配置
 configuredNssai:
   - sst: 1
-    sd: 0xffffff
+    sd: "0xffffff" # Ensure SD is a string to match AMF config
 
 # 默認會話
 defaultSession:
@@ -66,4 +66,4 @@ defaultSession:
   apn: 'internet'
   slice:
     sst: 1
-    sd: 0xffffff 
+    sd: "0xffffff" # Ensure SD is a string to match AMF config

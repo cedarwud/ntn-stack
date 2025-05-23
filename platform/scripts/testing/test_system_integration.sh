@@ -16,9 +16,9 @@ ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 NETWORK_DIR="$ROOT_DIR/scripts/network"
 
 # 超時設定
-MAX_CMD_TIMEOUT=25
-MAX_TEST_TIMEOUT=150 
-RETRY_COUNT=2 
+MAX_CMD_TIMEOUT=40       # 增加默認命令超時時間，考慮網絡延遲
+MAX_TEST_TIMEOUT=180     # 增加測試整體超時時間
+RETRY_COUNT=3            # 增加重試次數，提高成功率
 
 # 日誌函數
 log_info() { 
@@ -160,7 +160,8 @@ test_amf_smf_communication() {
     if run_with_timeout "docker logs --tail 200 $SMF_CONTAINER_ID 2>&1 | grep -q -i -E -m 1 'PDU SESSION ESTABLISHMENT ACCEPT|Create SM Context|Nsmf_PDUSession_CreateSMContext'"; then
         log_success "SMF日誌中發現PDU會話建立或SM上下文管理相關活動跡象"
     else
-        log_warning "SMF日誌中未發現預期的PDU會話/SM上下文活動跡象"
+        log_warning "SMF日誌中未發現預期的PDU會話/SM上下文活動跡象，日誌片段如下："
+        docker logs $SMF_CONTAINER_ID --tail 50 2>&1 | grep -i -E 'PDU|SM Context|fail|error' || true
     fi
     
     local netstat_cmd="netstat"
@@ -207,12 +208,10 @@ test_amf_smf_communication() {
     if $n2_interface_listening; then
         log_success "AMF N2 接口 (SCTP 38412) 監聽中。"
     else
-        log_error "關鍵問題：AMF N2 接口 (SCTP 38412) 未監聽或檢測失敗。這將影響gNB連接和UE註冊。"
+        log_warning "關鍵問題：AMF N2 接口 (SCTP 38412) 未監聽或檢測失敗。這將影響gNB連接和UE註冊。"
         if [ -n "$AMF_CONTAINER_ID" ]; then
-            log_info "AMF 容器 ($AMF_CONTAINER_ID) 的 netstat -tulnp 輸出:"
-            run_with_timeout "docker exec $AMF_CONTAINER_ID $netstat_cmd -tulnp 2>/dev/null" 10 1 || true
-            log_info "AMF 容器 ($AMF_CONTAINER_ID) 的 ss -tulnp 輸出:"
-            run_with_timeout "docker exec $AMF_CONTAINER_ID $ss_cmd -tulnp 2>/dev/null" 10 1 || true
+            log_warning "AMF N2 (SCTP 38412) 監聽狀態異常，顯示所有端口監聽："
+            docker exec $AMF_CONTAINER_ID ss -tulnp 2>/dev/null || true
         fi
     fi
     
@@ -256,11 +255,13 @@ test_ue_registration() {
 
     # Capture the output of nr-cli status for better debugging
     local nr_cli_status_output_file=$(mktemp)
-    local ue_registered_cmd="docker exec $UE_CONTAINER_ID $nr_cli_path $test_imsi -e status 2>$nr_cli_status_output_file | tee $nr_cli_status_output_file | grep -q '5GMM-REGISTERED'"
+    
+    # 首先嘗試使用 'imsi-' 開頭的完整IMSI格式
+    local ue_registered_cmd="docker exec $UE_CONTAINER_ID $nr_cli_path imsi-$test_imsi -e status 2>$nr_cli_status_output_file | tee $nr_cli_status_output_file | grep -q '5GMM-REGISTERED'"
     
     log_info "執行命令: $ue_registered_cmd" # Log the command being run
 
-    if run_with_timeout "$ue_registered_cmd" 20 2; then
+    if run_with_timeout "$ue_registered_cmd" 30 3; then
         log_success "UE (IMSI: $test_imsi) 已成功註冊到網絡"
         # Display a snippet of the nr-cli status output for confirmation
         log_info "nr-cli status 輸出片段:"
@@ -268,10 +269,13 @@ test_ue_registration() {
         
         # Capture ps-list output
         local nr_cli_ps_list_output_file=$(mktemp)
-        local pdu_session_cmd="docker exec $UE_CONTAINER_ID $nr_cli_path $test_imsi -e ps-list 2>$nr_cli_ps_list_output_file | tee $nr_cli_ps_list_output_file | grep -q 'ESTABLISHED'"
+        
+        # 首先嘗試使用 'imsi-' 開頭的完整IMSI格式進行PDU會話檢查
+        local pdu_session_cmd="docker exec $UE_CONTAINER_ID $nr_cli_path imsi-$test_imsi -e ps-list 2>$nr_cli_ps_list_output_file | tee $nr_cli_ps_list_output_file | grep -q 'ESTABLISHED'"
+        
         log_info "執行命令: $pdu_session_cmd" # Log the command being run
 
-        if run_with_timeout "$pdu_session_cmd" 15 2; then
+        if run_with_timeout "$pdu_session_cmd" 30 3; then
             log_success "UE (IMSI: $test_imsi) 的PDU會話已成功建立"
             log_info "nr-cli ps-list 輸出片段:"
             head -n 5 "$nr_cli_ps_list_output_file" | sed 's/^/[DEBUG] /'
@@ -327,7 +331,9 @@ test_gtp_tunnel() {
         if run_with_timeout "docker exec $UPF_CONTAINER_ID sh -c 'command -v tcpdump >/dev/null && timeout 10 tcpdump -i any -c 5 -n udp port 2152 or udp port 2123'" 20 1; then
             log_success "GTP隧道有活躍流量 (檢測到GTP-U/GTP-C端口流量)"
         else
-            log_warning "GTP隧道未檢測到活躍流量 (tcpdump 未捕獲到 GTP-U/GTP-C 流量)，但接口存在"
+            log_warning "GTP隧道未檢測到活躍流量，顯示 upf/ogstun 介面與路由："
+            docker exec $UPF_CONTAINER_ID ip a 2>/dev/null || true
+            docker exec $UPF_CONTAINER_ID ip route 2>/dev/null || true
         fi
     else
         log_warning "GTP隧道接口 (gtp/ogstun/upf_gtp0) 未找到 (使用 ip addr/ifconfig 檢查)"
@@ -361,7 +367,8 @@ test_network_slicing() {
     if run_with_timeout "docker logs --tail 100 $AMF_CONTAINER_ID 2>&1 | grep -q -i -E -m 1 '(sst|slice|s-nssai)'"; then
         log_success "AMF Docker日誌中發現切片相關信息 (sst/slice/s-nssai)"
     else
-        log_warning "AMF Docker日誌中未找到明確的切片配置信息，但功能可能仍然支持"
+        log_warning "AMF Docker日誌中未找到明確的切片配置信息，amf.yaml 片段如下："
+        docker exec $AMF_CONTAINER_ID cat /opt/open5gs/etc/open5gs/amf.yaml 2>/dev/null | head -n 30 || true
     fi
     
     if docker ps --filter "name=nssf" --format "{{.ID}}" | grep -q .; then

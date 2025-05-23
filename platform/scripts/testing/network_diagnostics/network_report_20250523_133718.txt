@@ -1,0 +1,30 @@
+NTN網絡診斷報告
+日期: Fri May 23 01:37:18 PM UTC 2025
+===================================================
+
+問題: UE中未找到uesimtun0接口，PDU會話可能未建立
+問題: UE未建立PDU會話
+建議: 執行 './scripts/ue_setup.sh' 重新建立PDU會話
+UPF ogstun IP地址: 10.45.0.1
+SMF日誌中發現錯誤:
+05/23 13:36:20.752: [sbi] WARNING: [7] Failed to connect to scp port 7777: Connection refused (../lib/sbi/client.c:757)
+05/23 13:36:20.752: [sbi] WARNING: ogs_sbi_client_handler() failed [-1] (../lib/sbi/path.c:62)
+05/23 13:36:31.750: [smf] WARNING: Retry association with peer failed [172.18.0.17]:8805 (../src/smf/pfcp-sm.c:100)
+AMF日誌中發現錯誤:
+05/23 13:36:46.112: [gmm] WARNING: [suci-0-999-70-0000-0-0-0000000001] Authentication failure [21] (../src/amf/gmm-sm.c:1772)
+05/23 13:36:46.112: [gmm] WARNING: Authentication failure(Synch failure) (../src/amf/gmm-sm.c:1801)
+05/23 13:36:46.112: [gmm] ERROR: [suci-0-999-70-0000-0-0-0000000001] HTTP response error [401] (../src/amf/gmm-sm.c:1909)
+05/23 13:36:46.112: [amf] WARNING: [suci-0-999-70-0000-0-0-0000000001] Registration reject [111] (../src/amf/nas-path.c:211)
+05/23 13:36:46.112: [gmm] WARNING: [(null)] Failure in transaction; no context restoration. (../src/amf/gmm-sm.c:1917)
+問題: UE無法ping通UPF (10.45.0.1)
+建議:
+1. 確認UE和UPF配置: ./scripts/ue_setup.sh 和 ./scripts/upf_setup.sh
+2. 修復GTP隧道: ./scripts/gtp_fix.sh
+3. 設置網絡橋接: ./scripts/network_bridge.sh
+===================================================
+診斷總結:
+發現以下問題需要解決:
+
+建議的解決方案:
+1. 執行 './scripts/ntn_startup.sh' 全面重置和配置系統
+2. 手動執行個別修復腳本解決特定問題

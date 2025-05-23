@@ -12,7 +12,7 @@ services:
       MCC: '999'
       MNC: '70'
       SST: '1'
-      SD: '0xffffff'
+      SD: '010203'
 
   ues2:
     image: gradiant/ueransim:3.2.6
@@ -30,4 +30,4 @@ services:
       OP_TYPE: OPC
       OP: 'E8ED289DEBA952E4283B54E88E6183CA'
       SST: '1'
-      SD: '0xffffff'
+      SD: '010203'

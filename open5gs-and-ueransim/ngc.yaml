@@ -1,49 +1,42 @@
+version: '3'
+
 services:
   mongo:
     image: mongo
     environment:
       MONGO_INITDB_DATABASE: open5gs
-    volumes: # Added
-      - mongo_data:/data/db # Added
-    restart: on-failure # Added
+    volumes:
+      - mongo_data:/data/db # Use an explicitly named volume
+    restart: on-failure # Added for consistency
 
   amf:
     image: gradiant/open5gs:2.7.5
     command:
     - open5gs-amfd
     restart: on-failure
-    depends_on: # Added
-      - mongo   # Added
 
   ausf:
     image: gradiant/open5gs:2.7.5
     command:
     - open5gs-ausfd
     restart: on-failure
-    depends_on: # Added
-      - mongo   # Added
 
   bsf:
     image: gradiant/open5gs:2.7.5
     command:
     - open5gs-bsfd
     restart: on-failure
-    depends_on: # Added
-      - mongo   # Added
 
   nrf:
     image: gradiant/open5gs:2.7.5
     command: open5gs-nrfd
     restart: on-failure
-    depends_on: # Added
-      - mongo   # Added
 
   nssf:
     image: gradiant/open5gs:2.7.5
     command: open5gs-nssfd
     restart: on-failure
-    depends_on: # Added
-      - mongo   # Added
+
 
   pcf:
     image: gradiant/open5gs:2.7.5
@@ -66,20 +59,17 @@ services:
 
   smf:
     image: gradiant/open5gs:2.7.5
+    #It is necessary to mount the configuration file if pcfr is not deployed
     volumes:
-    - ../open5gs/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml  # Corrected path
+    - ./config/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml
     restart: on-failure
     command: open5gs-smfd
-    depends_on: # Added
-      - mongo   # Added
 
   udm:
     image: gradiant/open5gs:2.7.5
     restart: on-failure
     command:
     - open5gs-udmd
-    depends_on: # Added
-      - mongo   # Added
 
   udr:
     image: gradiant/open5gs:2.7.5
@@ -115,6 +105,11 @@ services:
     - 9999:9999
     depends_on: # Added
       - mongo   # Added
+
+  # portainer:
+  #   image: portainer/portainer-ce
+  #   ports:
+  #   - 9000:9000
 
 volumes: # Added
   mongo_data: {} # Added

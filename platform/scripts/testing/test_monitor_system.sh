@@ -72,14 +72,16 @@ test_metrics_collection() {
         log_warning "Prometheus沒有收集到任何基本指標"
     fi
 
-    # 檢查NTN特定指標
+    # 測試NTN特定指標
     log_info "檢查NTN特定指標..."
-    local QUERY_RESULT=$(curl -s "http://localhost:9090/api/v1/query?query=ntn" 2>/dev/null)
-    
-    if echo "$QUERY_RESULT" | grep -q "\"result\":\[\]"; then
+    NTN_METRICS=$(curl -s http://localhost:9090/api/v1/label/__name__/values | grep -E 'ntn|satellite|nonterrestrial|non-terrestrial' || true)
+    if [ -z "$NTN_METRICS" ]; then
         log_warning "未發現NTN特定指標"
+        log_info "自動列出所有可用Prometheus指標（前20條）："
+        curl -s http://localhost:9090/api/v1/label/__name__/values | jq '.data[:20]' || true
+        log_info "請確認NTN exporter或相關服務已啟動並正確導出指標。"
     else
-        log_success "發現NTN特定指標"
+        log_success "發現NTN相關指標: $NTN_METRICS"
     fi
     
     return 0
