@@ -9,7 +9,7 @@
 **目的**：將 Skyfield 計算的衛星位置數據轉換為 gNodeB 配置參數，實現衛星作為 5G 基站的模擬。
 
 **專案目標關聯**：
-這項任務直接支持 GPT.md 中的核心目標「LEO 衛星作為空中 gNodeB/NTN 基地台」。Skyfield 作為衛星軌道計算工具提供 ECEF/ENU 座標系中的位置數據，但這些數據無法直接用於 5G 網絡模擬 - 需要將物理世界的衛星位置轉化為無線網絡模型中的基站參數。GPT.md 流程圖中明確指出：「Daemon 服務每 n 秒用 Skyfield 拉 OneWeb TLE」、「FastAPI 轉換成 ECEF/ENU」，並同步更新 UERANSIM gNB 位置，這正是本任務的核心任務。
+這項任務直接支持核心目標「LEO 衛星作為空中 gNodeB/NTN 基地台」。Skyfield 作為衛星軌道計算工具提供 ECEF/ENU 座標系中的位置數據，但這些數據無法直接用於 5G 網絡模擬 - 需要將物理世界的衛星位置轉化為無線網絡模型中的基站參數。GPT.md 流程圖中明確指出：「Daemon 服務每 n 秒用 Skyfield 拉 OneWeb TLE」、「FastAPI 轉換成 ECEF/ENU」，並同步更新 UERANSIM gNB 位置，這正是本任務的核心任務。
 
 **方法**：
 
@@ -38,7 +38,7 @@
 **目的**：使用 UERANSIM 模擬 OneWeb 衛星作為 NTN gNodeB 的行為，實現 5G NTN 場景。
 
 **專案目標關聯**：
-這項任務直接實現了 GPT.md 中的核心目標「LEO 衛星作為空中 gNodeB/NTN 基地台」。OneWeb 作為具體的 LEO 衛星系統，其軌道高度、覆蓋特性和傳輸能力都需要在 UERANSIM 中進行特殊處理。GPT.md 表格中明確指出 LEO 衛星的角色：「依 Skyfield TLE 即時更新軌道」、「提供下行波束給 UAV 群」、「觸發 AI-RAN 及抗干擾控制邏輯」，這些功能都需要在 UERANSIM 中進行模擬和實現，以便與 5G 核心網進行 N2/N3 介面交互。
+這項任務直接實現了核心目標「LEO 衛星作為空中 gNodeB/NTN 基地台」。OneWeb 作為具體的 LEO 衛星系統，其軌道高度、覆蓋特性和傳輸能力都需要在 UERANSIM 中進行特殊處理。LEO 衛星的角色：「依 Skyfield TLE 即時更新軌道」、「提供下行波束給 UAV 群」、「觸發 AI-RAN 及抗干擾控制邏輯」，這些功能都需要在 UERANSIM 中進行模擬和實現，以便與 5G 核心網進行 N2/N3 介面交互。
 
 **方法**：
 

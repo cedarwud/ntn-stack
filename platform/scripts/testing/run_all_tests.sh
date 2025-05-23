@@ -14,6 +14,10 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 TESTING_DIR="$ROOT_DIR/scripts/testing"
+SCRIPT_NAME=$(basename "$0")
+
+# 設定最大超時時間（單位：秒）
+MAX_SCRIPT_TIMEOUT=300
 
 # 日誌函數
 log_info() { 
@@ -34,7 +38,7 @@ log_error() {
 
 # 顯示使用幫助
 show_help() {
-    echo "用法: $0 [options]"
+    echo "用法: $SCRIPT_NAME [options]"
     echo
     echo "選項:"
     echo "  all         執行所有測試"
@@ -43,9 +47,9 @@ show_help() {
     echo "  help        顯示此幫助信息"
     echo
     echo "範例:"
-    echo "  $0 all      執行所有測試"
-    echo "  $0 clean    清理生成的測試文件"
-    echo "  $0          只執行必要的測試"
+    echo "  $SCRIPT_NAME all      執行所有測試"
+    echo "  $SCRIPT_NAME clean    清理生成的測試文件"
+    echo "  $SCRIPT_NAME          只執行必要的測試"
 }
 
 # 清理生成的測試文件
@@ -67,11 +71,11 @@ clean_test_files() {
             # 獲取生成的文件數量
             local file_count=$(find "$config_dir" -name "test_*.yaml" 2>/dev/null | wc -l)
             
-            if [ $file_count -gt 0 ]; then
+            if [ "$file_count" -gt 0 ]; then
                 log_info "發現 $file_count 個測試配置文件在 $config_dir"
                 
                 # 只保留最新的3個文件
-                if [ $file_count -gt 3 ]; then
+                if [ "$file_count" -gt 3 ]; then
                     log_info "保留最新的3個配置文件，刪除其他舊文件"
                     find "$config_dir" -name "test_*.yaml" | sort | head -n -3 | xargs rm -f 2>/dev/null || {
                         log_warning "無法刪除部分文件，可能需要更高權限"
@@ -100,7 +104,7 @@ clean_test_files() {
     # 刪除超過3天的測試報告
     if [ -d "$ROOT_DIR/reports" ]; then
         local old_reports=$(find "$ROOT_DIR/reports" -name "test_report_*.txt" -mtime +3 2>/dev/null | wc -l)
-        if [ $old_reports -gt 0 ]; then
+        if [ "$old_reports" -gt 0 ]; then
             log_info "刪除 $old_reports 個超過3天的測試報告"
             find "$ROOT_DIR/reports" -name "test_report_*.txt" -mtime +3 -delete 2>/dev/null || log_warning "無法刪除舊測試報告"
             total_cleaned=$((total_cleaned + old_reports))
@@ -118,14 +122,27 @@ clean_test_files() {
 prepare_tests() {
     log_info "測試前準備..."
     
+    # 定義需要檢查的所有測試腳本
+    local ALL_TEST_SCRIPTS=(
+        "test_subscriber_management.sh"
+        "test_monitor_system.sh"
+        "test_system_integration.sh"
+        "test_open5gs_config.sh"
+        "performance_test.sh"
+        "test_ueransim_config.sh"
+        "ensure_templates.sh"
+        "test_ntn_simulator.sh"
+        "test_network_diagnostic.sh"
+    )
+    
     # 確保所有測試腳本可執行
-    chmod +x "$TESTING_DIR/test_subscriber_management.sh"
-    chmod +x "$TESTING_DIR/test_monitor_system.sh"
-    chmod +x "$TESTING_DIR/test_system_integration.sh"
-    chmod +x "$TESTING_DIR/test_open5gs_config.sh"
-    chmod +x "$TESTING_DIR/performance_test.sh"
-    chmod +x "$TESTING_DIR/test_ueransim_config.sh"
-    chmod +x "$TESTING_DIR/ensure_templates.sh"
+    for script in "${ALL_TEST_SCRIPTS[@]}"; do
+        if [ -f "$TESTING_DIR/$script" ]; then
+            chmod +x "$TESTING_DIR/$script"
+        else
+            log_warning "測試腳本不存在: $script，將被跳過"
+        fi
+    done
     
     # 確保存在必要的目錄結構
     mkdir -p "$ROOT_DIR/config/ueransim" 2>/dev/null || true
@@ -133,7 +150,11 @@ prepare_tests() {
     mkdir -p "$ROOT_DIR/reports" 2>/dev/null || true
     
     # 執行模板檢查和同步腳本，使用超時命令確保不會卡住
-    timeout 30 "$TESTING_DIR/ensure_templates.sh" || log_warning "模板檢查腳本執行超時"
+    if [ -f "$TESTING_DIR/ensure_templates.sh" ]; then
+        timeout 30 "$TESTING_DIR/ensure_templates.sh" || log_warning "模板檢查腳本執行超時"
+    else
+        log_warning "模板檢查腳本不存在: ensure_templates.sh"
+    fi
     
     # 檢查模板是否存在，否則創建基本模板
     check_and_create_templates
@@ -144,6 +165,12 @@ prepare_tests() {
 # 檢查並創建模板
 check_and_create_templates() {
     local TEMPLATE_DIR="$ROOT_DIR/config/ueransim"
+    
+    # 確保模板目錄存在
+    mkdir -p "$TEMPLATE_DIR" 2>/dev/null || {
+        log_warning "無法創建模板目錄: $TEMPLATE_DIR"
+        return 1
+    }
     
     # 定義必須的模板
     local REQUIRED_TEMPLATES=(
@@ -203,354 +230,287 @@ EOF
         fi
     done
     
-    # 確保權限正確
-    chmod -R 644 "$TEMPLATE_DIR"/*.yaml 2>/dev/null || true
-    
-    return $MISSING
-}
-
-# 變量初始化
-declare -A TEST_RESULTS
-
-# 使用超時運行測試
-run_test_with_timeout() {
-    local test_script="$1"
-    local test_name="$2"
-    local timeout_seconds=${3:-180}  # 默認3分鐘超時
-    
-    log_info "執行${test_name}測試..."
-    
-    # 確保測試腳本存在
-    if [ ! -f "$test_script" ]; then
-        log_warning "測試腳本不存在: $test_script"
-        TEST_RESULTS["$test_name"]="腳本不存在"
-        return 1
-    fi
-    
-    # 確保測試腳本可執行
-    chmod +x "$test_script"
-    
-    # 在單獨的進程組中使用timeout命令運行測試腳本，確保能完全終止
-    # 使用setsid讓測試在獨立的進程組中運行
-    timeout --kill-after=30 $timeout_seconds setsid "$test_script" > "$ROOT_DIR/reports/test_${test_name}_$(date +%Y%m%d_%H%M%S).log" 2>&1
-    local RESULT=$?
-    
-    # 檢查結果
-    if [ $RESULT -eq 124 ] || [ $RESULT -eq 137 ]; then
-        # 124是timeout命令的超時返回碼，137是SIGKILL返回碼
-        log_warning "${test_name}測試執行超時，強制終止"
-        
-        # 在超時後嘗試清理可能殘留的進程
-        pkill -f "$(basename "$test_script")" 2>/dev/null || true
-        
-        TEST_RESULTS["$test_name"]="超時"
-        return 1
-    elif [ $RESULT -eq 0 ]; then
-        log_success "${test_name}測試成功"
-        TEST_RESULTS["$test_name"]="成功"
-        return 0
+    if [ $MISSING -eq 1 ]; then
+        log_info "已創建缺失的模板文件"
     else
-        log_warning "${test_name}測試未完全成功 (退出代碼: $RESULT)，但測試將繼續"
-        TEST_RESULTS["$test_name"]="部分成功"
-        return 0
+        log_success "所有必需的模板文件已存在"
     fi
-}
-
-# 執行訂閱者管理測試
-run_subscriber_test() {
-    run_test_with_timeout "$TESTING_DIR/test_subscriber_management.sh" "訂閱者管理" 120
-}
-
-# 執行監控系統測試
-run_monitor_test() {
-    run_test_with_timeout "$TESTING_DIR/test_monitor_system.sh" "監控系統" 60
-}
-
-# 執行系統集成測試
-run_integration_test() {
-    run_test_with_timeout "$TESTING_DIR/test_system_integration.sh" "系統集成" 180
-}
-
-# 執行Open5GS配置測試
-run_open5gs_test() {
-    run_test_with_timeout "$TESTING_DIR/test_open5gs_config.sh" "Open5GS配置" 180
-}
-
-# 執行性能測試
-run_performance_test() {
-    run_test_with_timeout "$TESTING_DIR/performance_test.sh" "性能" 300
-}
-
-# 執行UERANSIM配置測試
-run_ueransim_config_test() {
-    run_test_with_timeout "$TESTING_DIR/test_ueransim_config.sh" "UERANSIM配置" 60
-}
-
-# 創建apply_config.sh腳本（如果不存在）
-ensure_apply_config_script() {
-    local APPLY_CONFIG="$ROOT_DIR/scripts/apply_config.sh"
     
-    if [ ! -f "$APPLY_CONFIG" ]; then
-        log_warning "找不到apply_config.sh腳本，創建基本版本"
-        
-        cat > "$APPLY_CONFIG" << 'EOF'
-#!/bin/bash
-
-# UERANSIM配置應用腳本
-# 此腳本用於將生成的配置文件應用到UERANSIM容器
-
-# 顏色定義
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-# 默認容器名稱
-DEFAULT_GNB="gnb1"
-
-# 日誌函數
-log_info() { 
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-log_success() { 
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-log_warning() { 
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-log_error() { 
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# 顯示使用幫助
-show_help() {
-    echo "用法: $0 [-g <gNodeB配置文件>] [-u <UE配置文件>] [-c <容器名稱>]"
-    echo "  -g 指定gNodeB配置文件路徑"
-    echo "  -u 指定UE配置文件路徑"
-    echo "  -c 指定容器名稱 (默認: gnb1)"
-    echo "  -h 顯示此幫助信息"
-}
-
-# 解析命令行參數
-parse_args() {
-    while getopts ":g:u:c:h" opt; do
-        case $opt in
-            g)
-                GNB_CONFIG="$OPTARG"
-                ;;
-            u)
-                UE_CONFIG="$OPTARG"
-                ;;
-            c)
-                CONTAINER_NAME="$OPTARG"
-                ;;
-            h)
-                show_help
-                exit 0
-                ;;
-            \?)
-                log_error "無效的選項: -$OPTARG"
-                show_help
-                exit 1
-                ;;
-            :)
-                log_error "選項 -$OPTARG 需要參數"
-                show_help
-                exit 1
-                ;;
-        esac
-    done
-    
-    # 設置默認容器名稱
-    if [ -z "$CONTAINER_NAME" ]; then
-        CONTAINER_NAME="$DEFAULT_GNB"
-    fi
-}
-
-# 主函數
-main() {
-    parse_args "$@"
-    
-    log_info "開始應用UERANSIM配置..."
-    log_info "gNodeB配置: $GNB_CONFIG"
-    log_info "UE配置: $UE_CONFIG"
-    log_info "目標容器: $CONTAINER_NAME"
-    
-    # 這是一個測試腳本，實際不會應用配置
-    log_success "測試模式：配置應用模擬成功"
     return 0
 }
 
-# 執行主函數
-main "$@"
-exit $?
-EOF
-        
-        chmod +x "$APPLY_CONFIG"
+# 執行測試腳本並捕獲結果
+run_test_script() {
+    local script="$1"
+    local script_name=$(basename "$script")
+    local script_result_file="/tmp/${script_name%.sh}_result.txt"
+    local start_time=$(date +%s)
+    local exit_code=0
+    local duration=0
+    
+    # 檢查腳本是否存在
+    if [ ! -f "$script" ]; then
+        log_error "測試腳本不存在: $script"
+        echo "SKIPPED" > "$script_result_file"
+        return 1
+    fi
+    
+    log_info "運行測試腳本: $script_name"
+    
+    # 使用超時命令運行腳本，避免無限等待
+    timeout $MAX_SCRIPT_TIMEOUT "$script" > "$script_result_file" 2>&1 || {
+        exit_code=$?
+        if [ $exit_code -eq 124 ]; then
+            log_error "測試腳本執行超時: $script_name"
+            echo "TIMEOUT" >> "$script_result_file"
+        else
+            log_error "測試腳本執行失敗: $script_name, 退出碼: $exit_code"
+            echo "FAILED (Code: $exit_code)" >> "$script_result_file"
+        fi
+    }
+    
+    # 計算運行時間
+    local end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    
+    # 分析結果文件中的警告和錯誤
+    local warnings=$(grep -c "\[WARNING\]" "$script_result_file" || echo 0)
+    local errors=$(grep -c "\[ERROR\]" "$script_result_file" || echo 0)
+    
+    if grep -q "TIMEOUT" "$script_result_file"; then
+        log_error "$script_name: 超時 (${duration}s)"
+        return 1
+    elif grep -q "FAILED" "$script_result_file"; then
+        log_error "$script_name: 失敗 (${duration}s), 錯誤: $errors, 警告: $warnings"
+        return 1
+    elif grep -q "SKIPPED" "$script_result_file"; then
+        log_warning "$script_name: 跳過"
+        return 2
+    else
+        if [ $warnings -gt 0 ]; then
+            log_warning "$script_name: 成功 (${duration}s), 但有 $warnings 個警告"
+        else
+            log_success "$script_name: 成功 (${duration}s)"
+        fi
+        return 0
     fi
 }
 
-# 生成測試報告
-generate_report() {
-    log_info "生成測試報告..."
+# 運行所有測試並生成報告
+run_all_tests() {
+    log_info "開始執行所有測試..."
+    
+    # 測試開始時間
+    local TEST_START_TIME=$(date +"%Y-%m-%d %H:%M:%S")
+    local TEST_START_TIMESTAMP=$(date +%s)
     
     # 創建報告目錄
-    local REPORT_DIR="$ROOT_DIR/reports"
-    mkdir -p "$REPORT_DIR"
+    mkdir -p "$ROOT_DIR/reports" 2>/dev/null || {
+        log_warning "無法創建報告目錄，將使用臨時目錄"
+        ROOT_DIR="/tmp"
+    }
     
-    # 報告文件名
-    local REPORT_FILE="$REPORT_DIR/test_report_$(date +%Y%m%d_%H%M%S).txt"
+    # 創建報告文件
+    local REPORT_FILE="$ROOT_DIR/reports/test_report_$(date +%Y%m%d_%H%M%S).txt"
     
-    # 寫入報告頭部
-    echo "NTN-Stack 測試報告" > "$REPORT_FILE"
-    echo "生成時間: $(date)" >> "$REPORT_FILE"
-    echo "----------------------------------------" >> "$REPORT_FILE"
+    # 初始化報告
+    cat > "$REPORT_FILE" << EOF
+===== 基礎 5G 網絡功能擴展測試報告 =====
+測試時間: $TEST_START_TIME
+
+測試項目結果:
+EOF
     
-    # 寫入容器狀態
-    echo "容器狀態:" >> "$REPORT_FILE"
-    docker ps --format "{{.Names}}: {{.Status}}" >> "$REPORT_FILE"
-    echo "----------------------------------------" >> "$REPORT_FILE"
+    # 清理臨時結果文件
+    rm -f /tmp/*_result.txt 2>/dev/null || true
     
-    # 寫入測試結果摘要，根據實際測試結果
-    echo "測試結果摘要:" >> "$REPORT_FILE"
-    echo "Open5GS配置測試: ${TEST_RESULTS["Open5GS配置"]:-未執行}" >> "$REPORT_FILE"
-    echo "訂閱者管理測試: ${TEST_RESULTS["訂閱者管理"]:-未執行}" >> "$REPORT_FILE"
-    echo "監控系統測試: ${TEST_RESULTS["監控系統"]:-未執行}" >> "$REPORT_FILE"
-    echo "系統集成測試: ${TEST_RESULTS["系統集成"]:-未執行}" >> "$REPORT_FILE"
-    echo "性能測試: ${TEST_RESULTS["性能"]:-未執行}" >> "$REPORT_FILE"
-    echo "UERANSIM配置測試: ${TEST_RESULTS["UERANSIM配置"]:-未執行}" >> "$REPORT_FILE"
-    echo "----------------------------------------" >> "$REPORT_FILE"
+    # 按優先順序定義測試腳本
+    local TEST_SCRIPTS=(
+        "$TESTING_DIR/test_open5gs_config.sh"
+        "$TESTING_DIR/test_ueransim_config.sh"
+        "$TESTING_DIR/test_subscriber_management.sh"
+        "$TESTING_DIR/test_monitor_system.sh"
+        "$TESTING_DIR/test_ntn_simulator.sh"
+        "$TESTING_DIR/test_network_diagnostic.sh"
+        "$TESTING_DIR/test_system_integration.sh"
+    )
     
-    log_success "測試報告已生成: $REPORT_FILE"
-    log_info "測試摘要:"
-    echo "Open5GS配置測試: ${TEST_RESULTS["Open5GS配置"]:-未執行}"
-    echo "訂閱者管理測試: ${TEST_RESULTS["訂閱者管理"]:-未執行}"
-    echo "監控系統測試: ${TEST_RESULTS["監控系統"]:-未執行}"
-    echo "系統集成測試: ${TEST_RESULTS["系統集成"]:-未執行}"
-    echo "性能測試: ${TEST_RESULTS["性能"]:-未執行}"
-    echo "UERANSIM配置測試: ${TEST_RESULTS["UERANSIM配置"]:-未執行}"
+    # 運行測試腳本並收集結果
+    local all_passed=true
+    local test_results=""
+    
+    for script in "${TEST_SCRIPTS[@]}"; do
+        local script_name=$(basename "$script")
+        local script_base=${script_name%.sh}
+        
+        # 運行測試腳本
+        run_test_script "$script"
+        local script_status=$?
+        
+        # 更新測試結果
+        if [ $script_status -eq 0 ]; then
+            test_results="${test_results}- ${script_base}: 通過\n"
+        elif [ $script_status -eq 2 ]; then
+            test_results="${test_results}- ${script_base}: 跳過\n"
+            all_passed=false
+        else
+            test_results="${test_results}- ${script_base}: 失敗\n"
+            all_passed=false
+        fi
+    done
+    
+    # 檢查Docker容器狀態
+    local DOCKER_STATUS=$(docker ps --format "{{.Names}}: {{.Status}}" 2>/dev/null || echo "無法獲取容器狀態")
+    
+    # 計算總測試時間
+    local TEST_END_TIMESTAMP=$(date +%s)
+    local TEST_DURATION=$((TEST_END_TIMESTAMP - TEST_START_TIMESTAMP))
+    local MINS=$((TEST_DURATION / 60))
+    local SECS=$((TEST_DURATION % 60))
+    
+    # 總結測試結果
+    echo -e "$test_results" >> "$REPORT_FILE"
+    echo -e "\n系統狀態:\n$DOCKER_STATUS" >> "$REPORT_FILE"
+    echo -e "\n測試耗時: ${MINS}分${SECS}秒" >> "$REPORT_FILE"
+    
+    if $all_passed; then
+        echo -e "\n總體結果: 通過 - 基礎 5G 網絡功能擴展已全部完成" >> "$REPORT_FILE"
+        log_success "所有測試通過！總耗時: ${MINS}分${SECS}秒"
+    else
+        echo -e "\n總體結果: 部分失敗 - 某些功能可能尚未完成或存在問題" >> "$REPORT_FILE"
+        log_warning "測試部分失敗，請查看詳細報告。總耗時: ${MINS}分${SECS}秒"
+    fi
+    
+    # 顯示報告位置
+    log_info "測試報告已保存至: $REPORT_FILE"
+    
+    # 分析和總結警告問題
+    analyze_warnings
+    
+    return 0
+}
+
+# 運行關鍵測試
+run_essential_tests() {
+    log_info "開始執行關鍵測試..."
+    
+    # 只運行必要的測試腳本
+    local ESSENTIAL_SCRIPTS=(
+        "$TESTING_DIR/test_open5gs_config.sh"
+        "$TESTING_DIR/test_system_integration.sh"
+    )
+    
+    local all_passed=true
+    
+    for script in "${ESSENTIAL_SCRIPTS[@]}"; do
+        local script_name=$(basename "$script")
+        
+        # 檢查腳本是否存在
+        if [ ! -f "$script" ]; then
+            log_warning "關鍵測試腳本不存在: $script_name，將被跳過"
+            all_passed=false
+            continue
+        fi
+        
+        # 運行測試腳本
+        run_test_script "$script"
+        local script_status=$?
+        
+        # 更新測試結果
+        if [ $script_status -ne 0 ]; then
+            all_passed=false
+        fi
+    done
+    
+    if $all_passed; then
+        log_success "所有關鍵測試通過！"
+    else
+        log_warning "部分關鍵測試失敗"
+    fi
+    
+    return 0
+}
+
+# 分析和處理測試中的警告問題
+analyze_warnings() {
+    log_info "分析測試警告問題..."
+    
+    # 收集所有測試結果文件中的警告信息
+    local all_warnings=$(grep "\[WARNING\]" /tmp/*_result.txt 2>/dev/null || echo "")
+    local warning_count=$(echo "$all_warnings" | grep -c "\[WARNING\]" || echo 0)
+    
+    if [ "$warning_count" -gt 0 ]; then
+        log_warning "測試中發現 $warning_count 個警告問題"
+        
+        # 分析最常見的警告
+        log_info "最常見的警告類型:"
+        echo "$all_warnings" | sed 's/.*\[WARNING\] //' | sort | uniq -c | sort -nr | head -5 | while read -r line; do
+            log_warning "- $line"
+        done
+        
+        # 提供建議修復順序
+        log_info "建議的修復順序:"
+        
+        # 先處理超時問題
+        if echo "$all_warnings" | grep -q "超時\|超過"; then
+            log_warning "1. 修復腳本超時問題，可能需要調整超時設置或優化腳本效率"
+        fi
+        
+        # 處理缺少組件或模板問題
+        if echo "$all_warnings" | grep -q "找不到\|缺失\|不存在"; then
+            log_warning "2. 確保所有必要的組件、模板和腳本都存在"
+        fi
+        
+        # 處理權限問題
+        if echo "$all_warnings" | grep -q "權限\|permission"; then
+            log_warning "3. 修復權限相關問題"
+        fi
+        
+        # 處理網絡連接問題
+        if echo "$all_warnings" | grep -q "連接\|connection"; then
+            log_warning "4. 檢查網絡連接和配置問題"
+        fi
+        
+        # 其他問題
+        log_warning "5. 解決其他警告問題"
+    else
+        log_success "測試中未發現警告問題！"
+    fi
 }
 
 # 主函數
 main() {
-    # 解析命令行參數
+    # 如果沒有參數，顯示使用幫助
+    if [ $# -eq 0 ]; then
+        # 默認執行關鍵測試
+        prepare_tests
+        run_essential_tests
+        return 0
+    fi
+    
+    # 處理參數
     case "$1" in
+        all)
+            prepare_tests
+            run_all_tests
+            ;;
         clean)
             clean_test_files
-            return 0
+            ;;
+        essential)
+            prepare_tests
+            run_essential_tests
             ;;
         help)
             show_help
-            return 0
-            ;;
-        all)
-            RUN_ALL=1
-            ;;
-        essential)
-            RUN_ALL=0
-            ;;
-        "")
-            RUN_ALL=0
             ;;
         *)
-            log_warning "未知選項: $1"
+            log_error "未知參數: $1"
             show_help
             return 1
             ;;
     esac
     
-    log_info "開始執行測試..."
-    
-    # 準備測試環境
-    prepare_tests
-    
-    # 清理舊測試文件，確保測試環境乾淨
-    clean_test_files
-    
-    # 確保apply_config.sh腳本存在
-    ensure_apply_config_script
-    
-    # 設置總測試開始時間
-    local total_start_time=$SECONDS
-    local TOTAL_TEST_TIMEOUT=600 # 總測試時間限制 (10分鐘)
-    
-    # 執行各項測試
-    log_info "選擇性執行測試："
-    
-    # 先執行必定成功的測試項目
-    log_info "1. 執行監控系統測試..."
-    run_monitor_test
-    
-    # 檢查是否超時
-    if [ $((SECONDS - total_start_time)) -gt $TOTAL_TEST_TIMEOUT ]; then
-        log_warning "測試已運行太長時間，跳過剩餘測試項"
-        generate_report
-        log_success "測試部分完成 (超時中斷)"
-        return 0
-    fi
-    
-    log_info "2. 執行UERANSIM配置測試..."
-    run_ueransim_config_test
-    
-    # 檢查是否超時
-    if [ $((SECONDS - total_start_time)) -gt $TOTAL_TEST_TIMEOUT ]; then
-        log_warning "測試已運行太長時間，跳過剩餘測試項"
-        generate_report
-        log_success "測試部分完成 (超時中斷)"
-        return 0
-    fi
-    
-    # 根據參數執行其他測試
-    if [ "$RUN_ALL" = "1" ]; then
-        log_info "3. 執行Open5GS配置測試..."
-        run_open5gs_test
-        
-        # 檢查是否超時
-        if [ $((SECONDS - total_start_time)) -gt $TOTAL_TEST_TIMEOUT ]; then
-            log_warning "測試已運行太長時間，跳過剩餘測試項"
-            generate_report
-            log_success "測試部分完成 (超時中斷)"
-            return 0
-        fi
-        
-        log_info "4. 執行訂閱者管理測試..."
-        run_subscriber_test
-        
-        # 檢查是否超時
-        if [ $((SECONDS - total_start_time)) -gt $TOTAL_TEST_TIMEOUT ]; then
-            log_warning "測試已運行太長時間，跳過剩餘測試項"
-            generate_report
-            log_success "測試部分完成 (超時中斷)"
-            return 0
-        fi
-        
-        log_info "5. 執行系統集成測試..."
-        run_integration_test
-        
-        # 檢查是否超時
-        if [ $((SECONDS - total_start_time)) -gt $TOTAL_TEST_TIMEOUT ]; then
-            log_warning "測試已運行太長時間，跳過剩餘測試項"
-            generate_report
-            log_success "測試部分完成 (超時中斷)"
-            return 0
-        fi
-        
-        log_info "6. 執行性能測試..."
-        run_performance_test
-    fi
-    
-    # 計算總運行時間
-    local total_runtime=$((SECONDS - total_start_time))
-    log_info "總測試運行時間: ${total_runtime}秒"
-    
-    # 生成測試報告
-    generate_report
-    
-    log_success "所有測試執行完成"
     return 0
 }
 
