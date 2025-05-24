@@ -58,6 +58,13 @@ smf:
 #    enabled: auto   # auto(default)|yes|no
   # freeDiameter: /opt/open5gs/etc/freeDiameter/smf.conf
 
+  info: # Added to explicitly define supported S-NSSAI and DNN
+    - s_nssai:
+        - sst: 1
+          sd: "010203"
+          dnn:
+            - internet
+
   # High Latency Optimizations
   timer:
     t3590: # PDU Session Establishment Timer

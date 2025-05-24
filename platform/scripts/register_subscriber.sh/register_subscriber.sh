@@ -1,71 +1,120 @@
 #!/bin/bash
 
-MONGO_CONTAINER=mongo # Adjusted to match platform's likely service name in ngc.yaml
-# It's common for docker-compose to name containers based on service name in the compose file.
-# If platform's ngc.yaml uses a different service name for mongo, this needs to be updated.
-# Or, even better, if the script is run *within* the docker network, it might just use 'mongo' as hostname.
+# Configuration
+MONGO_SERVICE_NAME="mongo"
+DB_NAME="open5gs"
+DEFAULT_SST=1         # Default SST value
+DEFAULT_SD="010203"   # Default SD value
+DEFAULT_APN="internet" # Default APN
 
-: 'open5gs-dbctl: Open5GS Database Configuration Tool (0.10.3)
-    FLAGS: --db_uri=mongodb://localhost
-    COMMANDS: >&2
-       add {imsi key opc}: adds a user to the database with default values
-       add {imsi ip key opc}: adds a user to the database with default values and a IPv4 address for the UE
-       addT1 {imsi key opc}: adds a user to the database with 3 differents apns
-       addT1 {imsi ip key opc}: adds a user to the database with 3 differents apns and the same IPv4 address for the each apn
-       remove {imsi}: removes a user from the database
-       reset: WIPES OUT the database and restores it to an empty default
-       static_ip {imsi ip4}: adds a static IP assignment to an already-existing user
-       static_ip6 {imsi ip6}: adds a static IPv6 assignment to an already-existing user
-       type {imsi type}: changes the PDN-Type of the first PDN: 1 = IPv4, 2 = IPv6, 3 = IPv4v6
-       help: displays this message and exits
-       default values are as follows: APN \"internet\", dl_bw/ul_bw 1 Gbps, PGW address is 127.0.0.3, IPv4 only
-       add_ue_with_apn {imsi key opc apn}: adds a user to the database with a specific apn,
-       add {imsi key opc apn sst sd}: adds a user to the database with a specific apn, sst and sd
-       update_apn {imsi apn slice_num}: adds an APN to the slice number slice_num of an existent UE
-       update_slice {imsi apn sst sd}: adds an slice to an existent UE
-       showall: shows the list of subscriber in the db
-       showpretty: shows the list of subscriber in the db in a pretty json tree format
-       showfiltered: shows {imsi key opc apn ip} information of subscriber
-       ambr_speed {imsi dl_value dl_unit ul_value ul_unit}: Change AMBR speed from a specific user and the  unit values are \"[0=bps 1=Kbps 2=Mbps 3=Gbps 4=Tbps ]\"
-       subscriber_status {imsi subscriber_status_val={0,1} operator_determined_barring={0..8}}: Change TS 29.272 values for Subscriber-Status (7.3.29) and Operator-Determined-Barring (7.3.30)
-'
+# Function to register a single UE
+register_ue() {
+    IMSI=$1
+    KEY=$2
+    OPC=$3
 
-# Use absolute path for open5gs-dbctl
-docker cp /home/sat/ntn-stack/open5gs-and-ueransim/open5gs-dbctl $MONGO_CONTAINER:/
+    echo "Registering UE: IMSI=$IMSI"
 
-# Corrected Docker network name to ueransim_default
-# Moved comments to separate lines to avoid issues with line continuation
-docker run -ti --rm \
-    --network ueransim_default \
-    -e DB_URI=mongodb://$MONGO_CONTAINER/open5gs \
-    gradiant/open5gs-dbctl:0.10.3 "open5gs-dbctl add 999700000000001 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA952E4283B54E88E6183CA"
+    # Add subscriber using open5gs-dbctl
+    echo "Attempting to add subscriber $IMSI..."
+    docker run -ti --rm --network ueransim_default -e DB_URI=mongodb://$MONGO_SERVICE_NAME/$DB_NAME gradiant/open5gs-dbctl:0.10.3 open5gs-dbctl add "$IMSI" "$KEY" "$OPC"
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to add subscriber $IMSI using open5gs-dbctl. Exit code: $?"
+        # Try to get more info if possible
+        docker run --rm --network ueransim_default mongo mongosh "mongodb://$MONGO_SERVICE_NAME/$DB_NAME" --eval "printjson(db.subscribers.findOne({imsi: '$IMSI'}))"
+        return 1
+    else
+        echo "Subscriber $IMSI added successfully or already exists."
+    fi
 
-# Corrected Docker network name
-docker run -ti --rm \
-    --network ueransim_default \
-    -e DB_URI=mongodb://$MONGO_CONTAINER/open5gs \
-    gradiant/open5gs-dbctl:0.10.3 "open5gs-dbctl add 999700000000002 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA952E4283B54E88E6183CA"
+    # Update slice information using mongosh
+    # This command first ensures a slice with the default SST exists, then sets its SD.
+    # If no slice array exists, it creates one.
+    # If a slice with the SST exists, it updates it.
+    # If no slice with the SST exists, it adds a new slice object.
+    echo "Attempting to update slice for $IMSI with SST=$DEFAULT_SST, SD=$DEFAULT_SD, APN=$DEFAULT_APN..."
+    docker run --rm --network ueransim_default mongo mongosh "mongodb://$MONGO_SERVICE_NAME/$DB_NAME" --eval '''
+    printjson(db.subscribers.updateOne(
+        { "imsi": "'$IMSI'" },
+        [
+            {
+                "$set": {
+                    "slice": {
+                        "$cond": {
+                            if: { "$isArray": "$slice" },
+                            then: {
+                                "$let": {
+                                    vars: {
+                                        elemMatchIndex: {
+                                            "$indexOfArray": [ "$slice.sst", '$DEFAULT_SST' ]
+                                        }
+                                    },
+                                    in: {
+                                        "$cond": {
+                                            if: { "$ne": [ "$$elemMatchIndex", -1 ] },
+                                            then: {
+                                                "$concatArrays": [
+                                                    { "$slice": [ "$slice", 0, "$$elemMatchIndex" ] },
+                                                    [
+                                                        {
+                                                            "$mergeObjects": [
+                                                                { "$arrayElemAt": [ "$slice", "$$elemMatchIndex" ] },
+                                                                { "sst": '$DEFAULT_SST', "sd": "'$DEFAULT_SD'", "default_indicator": true, "session": [ { "name": "'$DEFAULT_APN'", "type": 2, "pcc_rule": [], "ambr": { "uplink": { "value": 1000, "unit": 3 }, "downlink": { "value": 1000, "unit": 3 } }, "qos": { "index": 9, "arp": { "priority_level": 8, "pre_emption_capability": 1, "pre_emption_vulnerability": 1 } } } ] }
+                                                            ]
+                                                        }
+                                                    ],
+                                                    { "$slice": [ "$slice", { "$add": [ "$$elemMatchIndex", 1 ] }, { "$size": "$slice" } ] }
+                                                ]
+                                            },
+                                            else: {
+                                                "$concatArrays": [
+                                                    "$slice",
+                                                    [ { "sst": '$DEFAULT_SST', "sd": "'$DEFAULT_SD'", "default_indicator": true, "session": [ { "name": "'$DEFAULT_APN'", "type": 2, "pcc_rule": [], "ambr": { "uplink": { "value": 1000, "unit": 3 }, "downlink": { "value": 1000, "unit": 3 } }, "qos": { "index": 9, "arp": { "priority_level": 8, "pre_emption_capability": 1, "pre_emption_vulnerability": 1 } } } ] } ]
+                                                ]
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            else: [ { "sst": '$DEFAULT_SST', "sd": "'$DEFAULT_SD'", "default_indicator": true, "session": [ { "name": "'$DEFAULT_APN'", "type": 2, "pcc_rule": [], "ambr": { "uplink": { "value": 1000, "unit": 3 }, "downlink": { "value": 1000, "unit": 3 } }, "qos": { "index": 9, "arp": { "priority_level": 8, "pre_emption_capability": 1, "pre_emption_vulnerability": 1 } } } ] } ]
+                        }
+                    }
+                }
+            }
+        ]
+    ))
+    '''
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to update slice for $IMSI. Exit code: $?"
+        return 1
+    else
+        echo "Slice update command executed for $IMSI."
+    fi
 
-# Corrected Docker network name
-docker run -ti --rm \
-    --network ueransim_default \
-    -e DB_URI=mongodb://$MONGO_CONTAINER/open5gs \
-    gradiant/open5gs-dbctl:0.10.3 "open5gs-dbctl add 999700000000003 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA952E4283B54E88E6183CA"
+    # Verify the subscriber document
+    echo "Verifying subscriber $IMSI in database:"
+    docker run --rm --network ueransim_default mongo mongosh "mongodb://$MONGO_SERVICE_NAME/$DB_NAME" --eval "printjson(db.subscribers.findOne({imsi: '$IMSI'}))"
+    echo "-------------------------------------"
+    return 0
+}
 
-# Corrected Docker network name
-docker run -ti --rm \
-    --network ueransim_default \
-    -e DB_URI=mongodb://$MONGO_CONTAINER/open5gs \
-    gradiant/open5gs-dbctl:0.10.3 "open5gs-dbctl add 999700000000011 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA952E4283B54E88E6183CA"
+# Remove the explicit database reset, as simple_ue_registration_test.sh handles cleanup
+# echo "Attempting to reset database..."
+# docker run -ti --rm --network ueransim_default -e DB_URI=mongodb://$MONGO_SERVICE_NAME/$DB_NAME gradiant/open5gs-dbctl:0.10.3 open5gs-dbctl reset
+# if [ $? -ne 0 ]; then
+#     echo "Database reset failed. Please check MongoDB and open5gs-dbctl tool. Exiting."
+#     exit 1
+# else
+#     echo "Database reset successfully."
+# fi
 
-# Corrected Docker network name
-docker run -ti --rm \
-    --network ueransim_default \
-    -e DB_URI=mongodb://$MONGO_CONTAINER/open5gs \
-    gradiant/open5gs-dbctl:0.10.3 "open5gs-dbctl add 999700000000012 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA952E4283B54E88E6183CA"
+# Register multiple UEs
+# IMSI format: MCC=999, MNC=70, MSIN (10 digits)
+# UE1
+register_ue "999700000000001" "fec86ba6eb707dec029d5258914c19c2" "465b5ce8b199b49faa5f0a2ee238a6bc"
+# UE2
+register_ue "999700000000002" "fec86ba6eb707dec029d5258914c19c3" "465b5ce8b199b49faa5f0a2ee238a6bd"
+# UE3
+register_ue "999700000000003" "fec86ba6eb707dec029d5258914c19c4" "465b5ce8b199b49faa5f0a2ee238a6be"
 
-# Corrected Docker network name
-docker run -ti --rm \
-    --network ueransim_default \
-    -e DB_URI=mongodb://$MONGO_CONTAINER/open5gs \
-    gradiant/open5gs-dbctl:0.10.3 "open5gs-dbctl add 999700000000013 465B5CE8B199B49FAA5F0A2EE238A6BC E8ED289DEBA952E4283B54E88E6183CA"
+echo "Subscriber registration script finished."
