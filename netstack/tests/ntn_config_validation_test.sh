@@ -15,7 +15,7 @@ NC='\033[0m'
 
 # 測試設定
 API_BASE_URL="http://localhost:8080"
-CONFIG_DIR="./config"
+CONFIG_DIR="../config"
 TIMEOUT=30
 
 log_info() {

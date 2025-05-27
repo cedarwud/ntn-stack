@@ -179,7 +179,7 @@ test_continuous_slice_switching() {
         log_info "第 $i 輪: 切換到 $target_slice"
         
         if switch_time=$(test_single_slice_switch_silent "$target_slice" 2>/dev/null); then
-            success_count=$((success_count + 1))
+            ((success_count++))
             switch_times+=("$switch_time")
             total_time=$((total_time + switch_time))
             log_info "✅ 切換成功 (${switch_time}ms)"
@@ -271,7 +271,7 @@ test_concurrent_slice_switching() {
             http_code=$(echo "$result" | cut -d':' -f3)
             
             if [ "$http_code" == "200" ]; then
-                success_count=$((success_count + 1))
+                ((success_count++))
             fi
         fi
     done
@@ -308,10 +308,10 @@ test_error_handling() {
     
     if [ "$http_code" == "422" ] || [ "$http_code" == "400" ] || [ "$http_code" == "404" ]; then
         log_info "✅ 無效 IMSI 錯誤處理正確 (HTTP $http_code)"
-        passed=$((passed + 1))
+        ((passed++))
     else
         log_error "❌ 無效 IMSI 錯誤處理失敗 (HTTP $http_code)"
-        failed=$((failed + 1))
+        ((failed++))
     fi
     
     # 測試無效 Slice 類型
@@ -321,10 +321,10 @@ test_error_handling() {
     
     if [ "$http_code" == "422" ] || [ "$http_code" == "400" ]; then
         log_info "✅ 無效 Slice 類型錯誤處理正確 (HTTP $http_code)"
-        passed=$((passed + 1))
+        ((passed++))
     else
         log_error "❌ 無效 Slice 類型錯誤處理失敗 (HTTP $http_code)"
-        failed=$((failed + 1))
+        ((failed++))
     fi
     
     if [ $failed -eq 0 ]; then
@@ -412,9 +412,9 @@ main() {
     echo "📋 執行基本 Slice 切換測試..."
     for slice_type in "${SLICE_TYPES[@]}"; do
         if test_single_slice_switch "$slice_type" > /dev/null; then
-            passed=$((passed + 1))
+            ((passed++))
         else
-            failed=$((failed + 1))
+            ((failed++))
         fi
         echo ""
     done
@@ -422,36 +422,36 @@ main() {
     # 連續切換測試
     echo "🔄 執行連續 Slice 切換測試..."
     if test_continuous_slice_switching 6; then
-        passed=$((passed + 1))
+        ((passed++))
     else
-        failed=$((failed + 1))
+        ((failed++))
     fi
     echo ""
     
     # 並發切換測試
     echo "⚡ 執行並發 Slice 切換測試..."
     if test_concurrent_slice_switching 5; then
-        passed=$((passed + 1))
+        ((passed++))
     else
-        failed=$((failed + 1))
+        ((failed++))
     fi
     echo ""
     
     # 錯誤處理測試
     echo "🛡️ 執行錯誤處理測試..."
     if test_error_handling; then
-        passed=$((passed + 1))
+        ((passed++))
     else
-        failed=$((failed + 1))
+        ((failed++))
     fi
     echo ""
     
     # 效能測試
     echo "🏎️ 執行 Slice 效能測試..."
     if test_slice_performance; then
-        passed=$((passed + 1))
+        ((passed++))
     else
-        failed=$((failed + 1))
+        ((failed++))
     fi
     echo ""
     

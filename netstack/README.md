@@ -1,13 +1,3 @@
-make dev-up
-make test-connectivity
-make test-e2e
-make test-performance
-make test-slice-switch
-make test-ntn-latency
-make test-ueransim-config
-make test-ntn-config-validation
-make test-quick-ntn-validation
-
 ✅ 使用 make setup-development 進行日常開發
 ✅ 用戶資料會自動保留，無需重新註冊
 ✅ 如果遇到問題，make fix-connectivity 自動修復

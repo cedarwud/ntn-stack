@@ -272,7 +272,7 @@ stress_test() {
         fi
         
         if test_slice_switch "$target_slice" > /dev/null 2>&1; then
-            success_count=$((success_count + 1))
+            ((success_count++))
         fi
         
         sleep 1
@@ -317,17 +317,17 @@ main() {
     
     test_health_check
     health_status=$?
-    if [ $health_status -eq 0 ]; then passed=$((passed + 1)); else failed=$((failed + 1)); overall_status=1; fi
+    if [ $health_status -eq 0 ]; then ((passed++)); else ((failed++)); overall_status=1; fi
     echo ""
     
     test_list_ues
     list_ues_status=$?
-    if [ $list_ues_status -eq 0 ]; then passed=$((passed + 1)); else failed=$((failed + 1)); overall_status=1; fi
+    if [ $list_ues_status -eq 0 ]; then ((passed++)); else ((failed++)); overall_status=1; fi
     echo ""
     
     test_slice_types
     slice_types_status=$?
-    if [ $slice_types_status -eq 0 ]; then passed=$((passed + 1)); else failed=$((failed + 1)); overall_status=1; fi
+    if [ $slice_types_status -eq 0 ]; then ((passed++)); else ((failed++)); overall_status=1; fi
     echo ""
     
     # 檢查測試 UE 是否存在
@@ -335,28 +335,28 @@ main() {
     ue_exists=$?
     
     if [ $ue_exists -eq 0 ]; then
-        passed=$((passed + 1))
+        ((passed++))
         
         test_ue_stats
         stats_status=$?
-        if [ $stats_status -eq 0 ]; then passed=$((passed + 1)); else failed=$((failed + 1)); overall_status=1; fi
+        if [ $stats_status -eq 0 ]; then ((passed++)); else ((failed++)); overall_status=1; fi
         echo ""
         
         test_slice_switch "uRLLC"
         switch_urllc_status=$?
-        if [ $switch_urllc_status -eq 0 ]; then passed=$((passed + 1)); else failed=$((failed + 1)); overall_status=1; fi
+        if [ $switch_urllc_status -eq 0 ]; then ((passed++)); else ((failed++)); overall_status=1; fi
         echo ""
         
         test_slice_switch "eMBB"
         switch_embb_status=$?
-        if [ $switch_embb_status -eq 0 ]; then passed=$((passed + 1)); else failed=$((failed + 1)); overall_status=1; fi
+        if [ $switch_embb_status -eq 0 ]; then ((passed++)); else ((failed++)); overall_status=1; fi
         echo ""
         
         # 壓力測試
         echo -e "\n🔥 執行壓力測試..."
         stress_test
         stress_status=$?
-        if [ $stress_status -eq 0 ]; then passed=$((passed + 1)); else failed=$((failed + 1)); overall_status=1; fi
+        if [ $stress_status -eq 0 ]; then ((passed++)); else ((failed++)); overall_status=1; fi
     else
         log_error "❌ 測試 UE $TEST_IMSI 不存在或無法訪問"
         log_warning "請確保已註冊測試用戶: make register-subscribers"

@@ -77,7 +77,7 @@ warmup_test() {
         http_code=$(echo "$result" | cut -d':' -f2)
         
         if [ "$http_code" == "200" ]; then
-            success_count=$((success_count + 1))
+            ((success_count++))
         fi
         
         # 進度指示
@@ -128,7 +128,7 @@ test_api_response_times() {
             if [ "$http_code" == "200" ]; then
                 response_times+=("$response_time")
                 total_time=$((total_time + response_time))
-                success_count=$((success_count + 1))
+                ((success_count++))
             fi
         done
         
@@ -201,7 +201,7 @@ EOF
         
         if [ "$http_code" == "200" ]; then
             switch_times+=("$response_time")
-            success_count=$((success_count + 1))
+            ((success_count++))
         fi
         
         # 等待間隔
@@ -268,7 +268,7 @@ test_concurrent_load() {
                 http_code=$(echo "$result" | cut -d':' -f2)
                 
                 if [ "$http_code" == "200" ]; then
-                    user_success=$((user_success + 1))
+                    ((user_success++))
                     user_total_time=$((user_total_time + response_time))
                 fi
                 

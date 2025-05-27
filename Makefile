@@ -221,104 +221,123 @@ simworld-logs: ## 查看 SimWorld 日誌
 
 # ===== 測試 (Docker化) =====
 
-test: test-docker ## 執行完整的 Docker 化測試套件
+test: test-ntn-validation ## 執行完整的本地測試套件
 
-test-docker: ## 執行完整的 Docker 化測試套件
-	@echo "$(CYAN)🧪 執行完整的 Docker 化測試套件...$(RESET)"
-	@mkdir -p test-reports
-	@docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
-	@echo "$(GREEN)✅ 測試完成，報告可在 test-reports/ 目錄中查看$(RESET)"
+# ===== NetStack 核心測試 =====
 
-test-quick: ## 執行快速測試（只測試核心功能）
-	@echo "$(CYAN)⚡ 執行快速測試...$(RESET)"
-	@mkdir -p test-reports
-	@docker compose -f docker-compose.test.yml run --rm ntn-stack-tester \
-		python -m pytest tests/test_integration.py::TestNTNStackIntegration::test_services_health -v
-	@echo "$(GREEN)✅ 快速測試完成$(RESET)"
+test-ntn-validation: ## 🚀 執行 NTN 功能快速驗證
+	@echo "$(CYAN)🚀 執行 NTN 功能快速驗證...$(RESET)"
+	@cd netstack/tests && bash ./quick_ntn_validation.sh
+	@echo "$(GREEN)✅ NTN 功能驗證完成$(RESET)"
 
-test-unit: ## 執行單元測試
-	@echo "$(CYAN)🔬 執行單元測試...$(RESET)"
-	@mkdir -p test-reports
-	@docker compose -f docker-compose.test.yml run --rm ntn-stack-tester \
-		python -m pytest tests/ -m "not integration" -v
-	@echo "$(GREEN)✅ 單元測試完成$(RESET)"
+test-config-validation: ## ⚙️ 執行 NTN 配置驗證測試
+	@echo "$(CYAN)⚙️ 執行 NTN 配置驗證測試...$(RESET)"
+	@cd netstack/tests && bash ./ntn_config_validation_test.sh
+	@echo "$(GREEN)✅ NTN 配置驗證完成$(RESET)"
 
-test-integration: ## 執行整合測試
-	@echo "$(CYAN)🔗 執行整合測試...$(RESET)"
-	@mkdir -p test-reports
-	@docker compose -f docker-compose.test.yml run --rm ntn-stack-tester \
-		python -m pytest tests/test_integration.py -v
-	@echo "$(GREEN)✅ 整合測試完成$(RESET)"
+test-satellite-gnb: ## 🛰️ 執行衛星-gNodeB 整合測試
+	@echo "$(CYAN)🛰️ 執行衛星-gNodeB 整合測試...$(RESET)"
+	@cd netstack/tests && bash ./satellite_gnb_integration_test.sh
+	@echo "$(GREEN)✅ 衛星-gNodeB 整合測試完成$(RESET)"
 
-test-netstack: ## 測試 NetStack API 功能
-	@echo "$(CYAN)🔧 測試 NetStack API 功能...$(RESET)"
-	@mkdir -p test-reports
-	@docker compose -f docker-compose.test.yml run --rm ntn-stack-tester \
-		python -m pytest tests/test_netstack_api.py -v
-	@echo "$(GREEN)✅ NetStack 測試完成$(RESET)"
+test-ueransim: ## 📡 執行 UERANSIM 配置測試
+	@echo "$(CYAN)📡 執行 UERANSIM 配置測試...$(RESET)"
+	@cd netstack/tests && bash ./ueransim_config_test.sh
+	@echo "$(GREEN)✅ UERANSIM 配置測試完成$(RESET)"
 
-test-simworld: ## 測試 SimWorld API 功能
-	@echo "$(CYAN)🌍 測試 SimWorld API 功能...$(RESET)"
-	@mkdir -p test-reports
-	@docker compose -f docker-compose.test.yml run --rm ntn-stack-tester \
-		python -m pytest tests/test_simworld_api.py -v
-	@echo "$(GREEN)✅ SimWorld 測試完成$(RESET)"
+test-latency: ## 🕐 執行 NTN 延遲測試
+	@echo "$(CYAN)🕐 執行 NTN 延遲測試...$(RESET)"
+	@cd netstack/tests && bash ./ntn_latency_test.sh
+	@echo "$(GREEN)✅ NTN 延遲測試完成$(RESET)"
 
-test-satellite-mapping: ## 測試衛星映射功能
-	@echo "$(CYAN)🛰️  測試衛星映射功能...$(RESET)"
-	@mkdir -p test-reports
-	@docker compose -f docker-compose.test.yml run --rm ntn-stack-tester \
-		python -m pytest tests/test_netstack_api.py::TestNetStackAPI::test_satellite_gnb_mapping -v
-	@echo "$(GREEN)✅ 衛星映射測試完成$(RESET)"
+test-e2e: ## 🔄 執行端到端測試
+	@echo "$(CYAN)🔄 執行端到端測試...$(RESET)"
+	@cd netstack/tests && bash ./e2e_netstack.sh
+	@echo "$(GREEN)✅ 端到端測試完成$(RESET)"
 
-test-oneweb: ## 測試 OneWeb 星座功能
-	@echo "$(CYAN)🌐 測試 OneWeb 星座功能...$(RESET)"
-	@mkdir -p test-reports
-	@docker compose -f docker-compose.test.yml run --rm ntn-stack-tester \
-		python -m pytest tests/test_netstack_api.py::TestNetStackAPI::test_oneweb_constellation_initialize -v
-	@echo "$(GREEN)✅ OneWeb 星座測試完成$(RESET)"
+test-slice-switching: ## 🔀 執行切片切換測試
+	@echo "$(CYAN)🔀 執行切片切換測試...$(RESET)"
+	@cd netstack/tests && bash ./slice_switching_test.sh
+	@echo "$(GREEN)✅ 切片切換測試完成$(RESET)"
 
-test-legacy: ## 執行 NetStack 傳統測試 (原 shell 腳本功能的 pytest 版本)
-	@echo "$(CYAN)🔄 執行 NetStack 傳統測試...$(RESET)"
-	@mkdir -p test-reports
-	@docker compose -f docker-compose.test.yml run --rm ntn-stack-tester \
-		python -m pytest tests/test_netstack_legacy.py -v
-	@echo "$(GREEN)✅ NetStack 傳統測試執行完成$(RESET)"
+test-performance: ## ⚡ 執行性能測試
+	@echo "$(CYAN)⚡ 執行性能測試...$(RESET)"
+	@cd netstack/tests && bash ./performance_test.sh
+	@echo "$(GREEN)✅ 性能測試完成$(RESET)"
 
-test-netstack-shell: ## 執行 NetStack Shell 腳本測試
-	@echo "$(CYAN)🐚 執行 NetStack Shell 腳本測試...$(RESET)"
-	@mkdir -p test-reports
-	@docker compose -f docker-compose.test.yml run --rm ntn-stack-tester \
-		bash -c "cd netstack/tests && ./quick_ntn_validation.sh && ./test_connectivity.sh"
-	@echo "$(GREEN)✅ NetStack Shell 腳本測試完成$(RESET)"
+test-connectivity: ## 🔗 執行連接性測試
+	@echo "$(CYAN)🔗 執行連接性測試...$(RESET)"
+	@cd netstack/tests && bash ./test_connectivity.sh
+	@echo "$(GREEN)✅ 連接性測試完成$(RESET)"
 
-test-netstack-full: ## 執行完整 NetStack 測試（Python + Shell）
-	@echo "$(CYAN)🔧 執行完整 NetStack 測試...$(RESET)"
-	@$(MAKE) test-netstack
-	@$(MAKE) test-netstack-shell
-	@echo "$(GREEN)✅ 完整 NetStack 測試完成$(RESET)"
+# ===== 測試組合 =====
 
-test-reports: ## 啟動測試報告服務器
-	@echo "$(CYAN)📊 啟動測試報告服務器...$(RESET)"
-	@docker compose -f docker-compose.test.yml up test-reporter -d
-	@echo "$(GREEN)✅ 測試報告可在 http://localhost:8090 查看$(RESET)"
+test-all: ## 🎯 執行所有 NetStack 測試
+	@echo "$(CYAN)🎯 執行所有 NetStack 測試...$(RESET)"
+	@$(MAKE) test-ntn-validation
+	@$(MAKE) test-config-validation
+	@$(MAKE) test-satellite-gnb
+	@$(MAKE) test-ueransim
+	@$(MAKE) test-latency
+	@$(MAKE) test-e2e
+	@$(MAKE) test-slice-switching
+	@$(MAKE) test-performance
+	@$(MAKE) test-connectivity
+	@echo "$(GREEN)🎉 所有測試完成$(RESET)"
 
-test-clean: ## 清理測試環境
-	@echo "$(CYAN)🧹 清理測試環境...$(RESET)"
-	@docker compose -f docker-compose.test.yml down -v --remove-orphans
-	@docker system prune -f --filter "label=com.docker.compose.project=ntn-stack-test"
-	@echo "$(GREEN)✅ 測試環境清理完成$(RESET)"
+test-core: ## 🔧 執行核心功能測試
+	@echo "$(CYAN)🔧 執行核心功能測試...$(RESET)"
+	@$(MAKE) test-ntn-validation
+	@$(MAKE) test-config-validation
+	@$(MAKE) test-e2e
+	@$(MAKE) test-connectivity
+	@echo "$(GREEN)✅ 核心功能測試完成$(RESET)"
 
-# ===== 部署和運維 =====
+test-advanced: ## 🚀 執行進階功能測試
+	@echo "$(CYAN)🚀 執行進階功能測試...$(RESET)"
+	@$(MAKE) test-satellite-gnb
+	@$(MAKE) test-ueransim
+	@$(MAKE) test-latency
+	@$(MAKE) test-slice-switching
+	@$(MAKE) test-performance
+	@echo "$(GREEN)✅ 進階功能測試完成$(RESET)"
 
-deploy: ## 部署生產環境
-	@echo "$(CYAN)🚀 部署 NTN Stack 生產環境...$(RESET)"
-	@$(MAKE) build
-	@$(MAKE) start
-	@$(MAKE) test-quick
-	@echo "$(GREEN)✅ 生產環境部署完成$(RESET)"
+# ===== 從 netstack/Makefile 遷移的指令 =====
 
-down: stop ## 停止所有服務（別名）
+netstack-up: ## 🚀 啟動 NetStack 核心網
+	@echo "$(CYAN)🚀 啟動 NetStack 核心網...$(RESET)"
+	@cd netstack && $(MAKE) up
+
+netstack-down: ## 🛑 停止 NetStack 核心網
+	@echo "$(CYAN)🛑 停止 NetStack 核心網...$(RESET)"
+	@cd netstack && $(MAKE) down
+
+
+
+netstack-register-subscribers: ## 👤 註冊 NetStack 測試用戶
+	@echo "$(CYAN)👤 註冊 NetStack 測試用戶...$(RESET)"
+	@cd netstack && $(MAKE) register-subscribers
+
+netstack-start-ran: ## 📡 啟動 RAN 模擬器
+	@echo "$(CYAN)📡 啟動 RAN 模擬器...$(RESET)"
+	@cd netstack && $(MAKE) start-ran
+
+netstack-ping-test: ## 🏓 執行 NetStack Ping 測試
+	@echo "$(CYAN)🏓 執行 NetStack Ping 測試...$(RESET)"
+	@cd netstack && $(MAKE) ping-test
+
+netstack-diagnose: ## 🔍 診斷 NetStack 連線問題
+	@echo "$(CYAN)🔍 診斷 NetStack 連線問題...$(RESET)"
+	@cd netstack && $(MAKE) diagnose
+
+netstack-fix-connectivity: ## 🔧 修復 NetStack 連線問題
+	@echo "$(CYAN)🔧 修復 NetStack 連線問題...$(RESET)"
+	@cd netstack && $(MAKE) fix-connectivity
+
+test-clean: ## 🧹 清理測試結果和臨時文件
+	@echo "$(CYAN)🧹 清理測試結果和臨時文件...$(RESET)"
+	@rm -rf test-reports/ netstack/tests/test-reports/ netstack/tests/*.log
+	@echo "$(GREEN)✅ 測試清理完成$(RESET)"
 
 # ===== 監控和診斷 =====
 
@@ -387,6 +406,17 @@ backup: ## 備份重要數據
 	@echo "$(GREEN)✅ 數據備份完成: backups/$(TIMESTAMP)/$(RESET)"
 
 # ===== 特殊目標 =====
+
+# ===== 部署和運維 =====
+
+deploy: ## 部署生產環境
+	@echo "$(CYAN)🚀 部署 NTN Stack 生產環境...$(RESET)"
+	@$(MAKE) build
+	@$(MAKE) start
+	@$(MAKE) test-quick
+	@echo "$(GREEN)✅ 生產環境部署完成$(RESET)"
+
+down: stop ## 停止所有服務（別名）
 
 # ===== 開發工具 =====
 

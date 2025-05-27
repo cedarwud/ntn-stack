@@ -140,16 +140,27 @@ for container in "${UE_CONTAINERS[@]}"; do
     if docker ps --format '{{.Names}}' | grep -q "^$container$"; then
         log_info "  ✅ 容器運行中"
         
-        # 檢查網路介面
-        interface=$(docker exec "$container" ip route | grep uesimtun | head -1 | awk '{print $3}' 2>/dev/null || echo "")
+        # 檢查網路介面 - 修復檢查邏輯
+        interface=$(docker exec "$container" ip link show 2>/dev/null | grep uesimtun | awk '{print $2}' | sed 's/:$//' | head -1 || echo "")
         if [ -n "$interface" ]; then
             log_info "  ✅ 網路介面: $interface"
             
             # 檢查 IP 地址
-            ip_addr=$(docker exec "$container" ip addr show "$interface" | grep "inet " | awk '{print $2}' 2>/dev/null || echo "無")
+            ip_addr=$(docker exec "$container" ip addr show "$interface" 2>/dev/null | grep "inet " | awk '{print $2}' || echo "無IP")
             log_info "  ✅ IP 地址: $ip_addr"
+            
+            # 檢查路由
+            route_info=$(docker exec "$container" ip route show dev "$interface" 2>/dev/null | head -1 || echo "無路由")
+            log_info "  ✅ 路由: $route_info"
         else
-            log_error "  ❌ 沒有 uesimtun 網路介面"
+            # 更詳細的檢查
+            tun_check=$(docker exec "$container" ip link 2>/dev/null | grep tun || echo "")
+            if [ -n "$tun_check" ]; then
+                log_warning "  ⚠️ 發現TUN介面但非uesimtun:"
+                echo "$tun_check" | sed 's/^/    /'
+            else
+                log_error "  ❌ 沒有發現任何uesimtun網路介面"
+            fi
             
             # 顯示最近的日誌
             echo "  最近的日誌 (最後5行):"

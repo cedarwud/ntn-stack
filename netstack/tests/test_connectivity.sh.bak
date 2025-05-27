@@ -206,20 +206,20 @@ test_container_connectivity() {
         if [[ "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             # IP 位址直接測試
             if test_ping_connectivity "$container_name" "$target" "$interface"; then
-                passed=$((passed + 1))
+                ((passed++))
             else
-                failed=$((failed + 1))
+                ((failed++))
             fi
         else
             # 主機名稱先測試 DNS
             if test_dns_resolution "$container_name" "$target"; then
                 if test_ping_connectivity "$container_name" "$target" "$interface"; then
-                    passed=$((passed + 1))
+                    ((passed++))
                 else
-                    failed=$((failed + 1))
+                    ((failed++))
                 fi
             else
-                failed=$((failed + 1))
+                ((failed++))
             fi
         fi
         echo ""
@@ -227,25 +227,25 @@ test_container_connectivity() {
     
     # 測試 HTTP 連線
     if test_http_connectivity "$container_name" "http://httpbin.org/json"; then
-        passed=$((passed + 1))
+        ((passed++))
     else
-        failed=$((failed + 1))
+        ((failed++))
     fi
     echo ""
     
     # 測試路由追蹤
     if test_traceroute "$container_name" "8.8.8.8" "$interface"; then
-        passed=$((passed + 1))
+        ((passed++))
     else
-        failed=$((failed + 1))
+        ((failed++))
     fi
     echo ""
     
     # 測試頻寬
     if test_bandwidth "$container_name"; then
-        passed=$((passed + 1))
+        ((passed++))
     else
-        failed=$((failed + 1))
+        ((failed++))
     fi
     echo ""
     
@@ -274,7 +274,7 @@ main() {
     running_containers=0
     for container in "${UE_CONTAINERS[@]}"; do
         if check_container_running "$container"; then
-            running_containers=$((running_containers + 1))
+            ((running_containers++))
         fi
     done
     
@@ -310,10 +310,10 @@ main() {
         
         if test_container_connectivity "$container"; then
             log_info "✅ 容器 $container 測試通過"
-            passed=$((passed + 1))
+            ((passed++))
         else
             log_error "❌ 容器 $container 測試失敗"
-            failed=$((failed + 1))
+            ((failed++))
         fi
         
         echo ""
