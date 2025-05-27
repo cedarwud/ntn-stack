@@ -81,7 +81,7 @@ if __name__ == "__main__":
     import uvicorn
 
     logger.info(
-        "Starting Uvicorn server directly (use 'docker-compose up' for full setup)..."
+        "Starting Uvicorn server directly (use 'docker compose up' for full setup)..."
     )
     # This won't properly run the lifespan events like DB init unless configured differently.
     # Recommended to run via Docker Compose or `uvicorn app.main:app --reload` from the backend directory.

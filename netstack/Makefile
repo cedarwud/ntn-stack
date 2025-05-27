@@ -240,54 +240,23 @@ stop-ran: ## 📡 停止 RAN 模擬器
 	docker compose -f $(COMPOSE_FILE_RAN) down
 	@echo "$(GREEN)✅ RAN 模擬器已停止$(NC)"
 
-test-e2e: ## 🧪 執行端到端測試
-	@echo "$(BLUE)🧪 執行 E2E 測試...$(NC)"
-	@./tests/e2e_netstack.sh
+# ===== 測試指令 (已移至根目錄統一管理) =====
+# 注意：測試指令已移至根目錄的 Docker 化測試系統
+# 請使用根目錄的以下指令：
+#   make test            - 執行完整測試套件  
+#   make test-netstack   - 執行 NetStack 測試
+#   make test-legacy     - 執行傳統測試 (原 shell 腳本功能)
+#   make test-integration - 執行整合測試
 
-test-connectivity: ## 🌐 測試 UE 連線
-	@echo "$(BLUE)🌐 測試 UE 連線...$(NC)"
-	@./tests/test_connectivity.sh
-
-test-performance: ## ⚡ 執行效能測試
-	@echo "$(BLUE)⚡ 執行效能測試...$(NC)"
-	@./tests/performance_test.sh
-
-test-slice-switch: ## 🔀 執行 Slice 切換測試 (確保無註冊步驟)
-	@echo "$(BLUE)🔀 執行 Slice 切換測試 (via test-slice-switch)...$(NC)"
-	@./tests/slice_switching_test.sh
-
-test-ntn-latency: ## 🛰️ 執行 NTN 高延遲場景測試
-	@echo "$(BLUE)🛰️ 執行 NTN 高延遲場景測試...$(NC)"
-	@./tests/ntn_latency_test.sh
-
-test-ueransim-config: ## 📡 執行 UERANSIM 動態配置測試  
-	@echo "$(BLUE)📡 執行 UERANSIM 動態配置測試...$(NC)"
-	@./tests/ueransim_config_test.sh
-
-test-ntn-config-validation: ## ✅ 執行 NTN 配置驗證測試
-	@echo "$(BLUE)✅ 執行 NTN 配置驗證測試...$(NC)"
-	@./tests/ntn_config_validation_test.sh
-
-test-quick-ntn-validation: ## ⚡ 執行快速 NTN 驗證測試
-	@echo "$(BLUE)⚡ 執行快速 NTN 驗證測試...$(NC)"
-	@./tests/quick_ntn_validation.sh
-
-test-all-ntn: ## 🚀 執行所有 NTN 相關測試
-	@echo "$(GREEN)🚀 執行所有 NTN 相關測試...$(NC)"
-	@$(MAKE) test-ntn-latency
-	@$(MAKE) test-ueransim-config
-	@$(MAKE) test-ntn-config-validation
-	@$(MAKE) test-quick-ntn-validation
-	@echo "$(GREEN)✅ 所有 NTN 測試完成$(NC)"
-
-test-all: ## 🧪 執行所有測試 (包含 NTN 測試)
-	@echo "$(GREEN)🧪 執行完整測試套件...$(NC)"
-	@$(MAKE) test-e2e
-	@$(MAKE) test-connectivity
-	@$(MAKE) test-performance
-	@$(MAKE) test-slice-switch
-	@$(MAKE) test-all-ntn
-	@echo "$(GREEN)✅ 所有測試完成$(NC)"
+test-deprecated: ## ⚠️ 測試指令已移至根目錄統一管理
+	@echo "$(YELLOW)⚠️ 測試指令已移至根目錄統一管理$(NC)"
+	@echo "$(BLUE)請使用以下指令：$(NC)"
+	@echo "  $(GREEN)cd ../ && make test$(NC)            - 執行完整測試套件"
+	@echo "  $(GREEN)cd ../ && make test-netstack$(NC)   - 執行 NetStack 測試"
+	@echo "  $(GREEN)cd ../ && make test-legacy$(NC)     - 執行傳統測試"
+	@echo "  $(GREEN)cd ../ && make test-integration$(NC) - 執行整合測試"
+	@echo ""
+	@echo "$(CYAN)💡 測試已完全 Docker 化，無需 Python 虛擬環境$(NC)"
 
 lint: ## 🔍 程式碼檢查
 	@echo "$(BLUE)🔍 執行程式碼檢查...$(NC)"
@@ -351,8 +320,8 @@ verify-setup: ## ✅ 驗證環境設置是否正確
 	@echo "2. 檢查用戶註冊狀態..."
 	@$(MAKE) show-subscribers
 	@echo ""
-	@echo "3. 測試 UE 連線..."
-	@$(MAKE) test-connectivity
+	@echo "3. 測試 UE 連線 (使用根目錄統一測試)..."
+	@cd ../ && make test-netstack
 	@echo "$(GREEN)✅ 環境驗證完成$(NC)"
 
 diagnose: ## 🔍 診斷 UE 連線問題
@@ -369,6 +338,6 @@ fix-connectivity: ## 🔧 自動修復常見連線問題
 	@$(MAKE) start-ran
 	@echo "步驟 3: 等待服務穩定..."
 	@sleep 15
-	@echo "步驟 4: 測試連線..."
-	@$(MAKE) test-connectivity
+	@echo "步驟 4: 測試連線 (使用根目錄統一測試)..."
+	@cd ../ && make test-netstack
 	@echo "$(GREEN)✅ 修復完成$(NC)"

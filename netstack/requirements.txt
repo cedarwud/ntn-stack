@@ -13,4 +13,6 @@ asyncio-mqtt>=0.13.0
 # 新增：衛星位置轉換相關依賴
 skyfield>=1.46
 numpy>=1.24.0
-aiohttp>=3.9.0 
+aiohttp>=3.9.0
+aiofiles>=23.2.0
+pyyaml>=6.0.1 

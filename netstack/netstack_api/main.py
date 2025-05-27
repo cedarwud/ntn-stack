@@ -133,6 +133,14 @@ async def lifespan(app: FastAPI):
         simworld_api_url=os.getenv("SIMWORLD_API_URL", "http://simworld-backend:8000"),
         redis_client=redis_adapter.client if redis_adapter else None
     )
+    
+    # 初始化 OneWeb 衛星 gNodeB 服務
+    from .services.oneweb_satellite_gnb_service import OneWebSatelliteGnbService
+    oneweb_service = OneWebSatelliteGnbService(
+        satellite_mapping_service=satellite_gnb_service,
+        simworld_api_url=os.getenv("SIMWORLD_API_URL", "http://simworld-backend:8000"),
+        ueransim_config_dir=os.getenv("UERANSIM_CONFIG_DIR", "/tmp/ueransim_configs")
+    )
 
     # 儲存到應用程式狀態
     app.state.mongo_adapter = mongo_adapter
@@ -143,6 +151,7 @@ async def lifespan(app: FastAPI):
     app.state.health_service = health_service
     app.state.ueransim_service = ueransim_service
     app.state.satellite_gnb_service = satellite_gnb_service
+    app.state.oneweb_service = oneweb_service
 
     # 連接外部服務
     await mongo_adapter.connect()
@@ -154,6 +163,11 @@ async def lifespan(app: FastAPI):
 
     # 清理資源
     logger.info("🛑 NetStack API 關閉中...")
+    
+    # 關閉 OneWeb 服務
+    if hasattr(app.state, 'oneweb_service'):
+        await app.state.oneweb_service.shutdown()
+    
     await mongo_adapter.disconnect()
     await redis_adapter.disconnect()
     logger.info("✅ NetStack API 已關閉")
@@ -830,6 +844,250 @@ async def start_continuous_tracking(
         raise HTTPException(
             status_code=500,
             detail=f"啟動衛星追蹤失敗: {str(e)}"
+        )
+
+
+# ===== OneWeb 衛星 gNodeB 管理 =====
+
+
+@app.post("/api/v1/oneweb/constellation/initialize", tags=["OneWeb 衛星 gNodeB"])
+async def initialize_oneweb_constellation():
+    """
+    初始化 OneWeb 衛星群作為 gNodeB 節點
+    
+    建立 OneWeb LEO 衛星群的 5G NTN gNodeB 配置，包括軌道追蹤和動態配置管理
+    
+    Returns:
+        OneWeb 星座初始化結果
+    """
+    try:
+        oneweb_service = app.state.oneweb_service
+        
+        result = await oneweb_service.initialize_oneweb_constellation()
+        
+        return CustomJSONResponse(
+            content={
+                "success": True,
+                "message": "OneWeb 衛星群初始化成功",
+                "initialization_result": result,
+                "next_steps": [
+                    "使用 /api/v1/oneweb/orbital-tracking/start 啟動軌道追蹤",
+                    "使用 /api/v1/oneweb/constellation/status 查看星座狀態",
+                    "使用 /api/v1/oneweb/ueransim/deploy 部署 UERANSIM 配置"
+                ]
+            }
+        )
+        
+    except Exception as e:
+        logger.error("OneWeb 星座初始化失敗", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"OneWeb 星座初始化失敗: {str(e)}"
+        )
+
+
+@app.post("/api/v1/oneweb/orbital-tracking/start", tags=["OneWeb 衛星 gNodeB"])
+async def start_oneweb_orbital_tracking(
+    satellite_ids: Optional[str] = None,
+    update_interval: int = 30
+):
+    """
+    啟動 OneWeb 衛星軌道追蹤
+    
+    實現實時軌道數據同步和動態 gNodeB 配置更新
+    
+    Args:
+        satellite_ids: 要追蹤的衛星 ID 列表（逗號分隔），None 表示追蹤所有
+        update_interval: 軌道更新間隔（秒）
+    
+    Returns:
+        軌道追蹤啟動狀態
+    """
+    try:
+        oneweb_service = app.state.oneweb_service
+        
+        # 解析衛星 ID 列表
+        sat_ids = None
+        if satellite_ids:
+            try:
+                sat_ids = [int(sid.strip()) for sid in satellite_ids.split(",")]
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="無效的衛星 ID 格式，請使用逗號分隔的整數"
+                )
+        
+        if update_interval < 10:
+            raise HTTPException(
+                status_code=400,
+                detail="更新間隔不能少於 10 秒"
+            )
+        
+        # 啟動軌道追蹤
+        tracking_result = await oneweb_service.start_orbital_tracking(
+            satellite_ids=sat_ids,
+            update_interval_seconds=update_interval
+        )
+        
+        return CustomJSONResponse(
+            content={
+                "success": True,
+                "message": "OneWeb 軌道追蹤已啟動",
+                "tracking_result": tracking_result,
+                "monitoring": {
+                    "status_endpoint": "/api/v1/oneweb/constellation/status",
+                    "stop_endpoint": f"/api/v1/oneweb/orbital-tracking/stop/{tracking_result['task_id']}"
+                }
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("啟動 OneWeb 軌道追蹤失敗", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"啟動軌道追蹤失敗: {str(e)}"
+        )
+
+
+@app.delete("/api/v1/oneweb/orbital-tracking/stop/{task_id}", tags=["OneWeb 衛星 gNodeB"])
+async def stop_oneweb_orbital_tracking(task_id: str):
+    """
+    停止 OneWeb 軌道追蹤任務
+    
+    Args:
+        task_id: 追蹤任務 ID
+    
+    Returns:
+        停止結果
+    """
+    try:
+        oneweb_service = app.state.oneweb_service
+        
+        success = await oneweb_service.stop_orbital_tracking(task_id)
+        
+        if success:
+            return CustomJSONResponse(
+                content={
+                    "success": True,
+                    "message": f"軌道追蹤任務 {task_id} 已停止"
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"追蹤任務 {task_id} 不存在"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("停止軌道追蹤失敗", task_id=task_id, error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"停止軌道追蹤失敗: {str(e)}"
+        )
+
+
+@app.get("/api/v1/oneweb/constellation/status", tags=["OneWeb 衛星 gNodeB"])
+async def get_oneweb_constellation_status():
+    """
+    獲取 OneWeb 星座狀態
+    
+    Returns:
+        OneWeb 星座的詳細狀態信息
+    """
+    try:
+        oneweb_service = app.state.oneweb_service
+        
+        status = await oneweb_service.get_constellation_status()
+        
+        return CustomJSONResponse(
+            content={
+                "success": True,
+                "constellation_status": status,
+                "timestamp": datetime.now().isoformat()
+            }
+        )
+        
+    except Exception as e:
+        logger.error("獲取 OneWeb 星座狀態失敗", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"獲取星座狀態失敗: {str(e)}"
+        )
+
+
+@app.post("/api/v1/oneweb/ueransim/deploy", tags=["OneWeb 衛星 gNodeB"])
+async def deploy_oneweb_ueransim_configs():
+    """
+    部署 OneWeb 衛星的 UERANSIM gNodeB 配置
+    
+    為所有活躍的 OneWeb 衛星生成並部署 UERANSIM 配置文件
+    
+    Returns:
+        部署結果
+    """
+    try:
+        oneweb_service = app.state.oneweb_service
+        
+        # 獲取所有活躍衛星
+        constellation_status = await oneweb_service.get_constellation_status()
+        active_satellites = constellation_status["satellite_status"]
+        
+        if not active_satellites:
+            raise HTTPException(
+                status_code=400,
+                detail="沒有活躍的 OneWeb 衛星可部署"
+            )
+        
+        deployment_results = []
+        for satellite in active_satellites:
+            satellite_id = satellite["satellite_id"]
+            
+            try:
+                # 為每個衛星重新生成配置
+                await oneweb_service._regenerate_ueransim_config(satellite_id)
+                
+                deployment_results.append({
+                    "satellite_id": satellite_id,
+                    "satellite_name": satellite["name"],
+                    "status": "deployed",
+                    "config_file": f"/tmp/ueransim_configs/gnb-oneweb-{satellite_id}.yaml"
+                })
+                
+            except Exception as e:
+                deployment_results.append({
+                    "satellite_id": satellite_id,
+                    "satellite_name": satellite["name"],
+                    "status": "failed",
+                    "error": str(e)
+                })
+        
+        successful_deployments = sum(1 for result in deployment_results if result["status"] == "deployed")
+        
+        return CustomJSONResponse(
+            content={
+                "success": True,
+                "message": f"UERANSIM 配置部署完成，成功 {successful_deployments} 個",
+                "deployment_results": deployment_results,
+                "summary": {
+                    "total_satellites": len(active_satellites),
+                    "successful_deployments": successful_deployments,
+                    "failed_deployments": len(deployment_results) - successful_deployments
+                },
+                "config_directory": "/tmp/ueransim_configs"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("部署 OneWeb UERANSIM 配置失敗", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"部署 UERANSIM 配置失敗: {str(e)}"
         )
 
 

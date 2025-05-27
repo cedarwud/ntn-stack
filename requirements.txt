@@ -1,0 +1,26 @@
+# NTN Stack 測試程式依賴
+
+# HTTP 客戶端和異步支援
+aiohttp>=3.9.0
+asyncio>=3.4.3
+requests>=2.31.0
+
+# JSON 處理
+json5>=0.9.0
+
+# 命令行和日誌
+argparse>=1.4.0
+logging>=0.4.9.6
+
+# 測試框架
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-html>=3.2.0
+pytest-cov>=4.1.0
+
+# 測試報告和分析
+pytest-json-report>=1.5.0
+pytest-benchmark>=4.0.0
+
+# 檔案操作
+aiofiles>=23.2.0 

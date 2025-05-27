@@ -1,0 +1,135 @@
+version: '3.8'
+
+# NTN Stack 測試環境 Docker Compose
+# 整合所有測試功能到 Docker 環境中
+
+services:
+    # ===== 測試主服務 =====
+    ntn-stack-tester:
+        build:
+            context: .
+            dockerfile: tests/Dockerfile
+        container_name: ntn-stack-tester
+        networks:
+            - ntn-test-network
+        volumes:
+            - ./test-reports:/app/test-reports
+            - ./tests:/app/tests
+            - /var/run/docker.sock:/var/run/docker.sock # 允許測試容器管理其他容器
+        environment:
+            - NETSTACK_URL=http://netstack-api:8080
+            - SIMWORLD_URL=http://simworld-backend:8000
+            - PYTEST_ARGS=--verbose --tb=short
+            - TEST_OUTPUT_DIR=/app/test-reports
+        depends_on:
+            - netstack-api
+            - simworld-backend
+        command: >
+            sh -c "
+              echo '等待服務啟動...' &&
+              sleep 30 &&
+              python -m pytest tests/ -v --tb=short --junitxml=/app/test-reports/junit.xml &&
+              python test_ntn_stack.py --output /app/test-reports/integration_report.json
+            "
+
+    # ===== NetStack 服務 =====
+    netstack-redis:
+        image: redis:7-alpine
+        container_name: netstack-redis-test
+        networks:
+            - ntn-test-network
+        ports:
+            - '6380:6379'
+        command: redis-server --appendonly yes
+
+    netstack-mongo:
+        image: mongo:6
+        container_name: netstack-mongo-test
+        networks:
+            - ntn-test-network
+        ports:
+            - '27018:27017'
+        environment:
+            MONGO_INITDB_DATABASE: open5gs
+
+    netstack-api:
+        build:
+            context: ./netstack
+            dockerfile: Dockerfile
+        container_name: netstack-api-test
+        networks:
+            - ntn-test-network
+        ports:
+            - '8081:8080'
+        environment:
+            - DATABASE_URL=mongodb://netstack-mongo-test:27017/open5gs
+            - REDIS_URL=redis://netstack-redis-test:6379
+            - SIMWORLD_API_URL=http://simworld-backend:8000
+            - UERANSIM_CONFIG_DIR=/app/configs
+        depends_on:
+            - netstack-redis
+            - netstack-mongo
+            - simworld-backend
+        volumes:
+            - ./netstack/config:/app/config
+            - ueransim-configs:/app/configs
+
+    # ===== SimWorld 服務 =====
+    simworld-db:
+        image: postgres:15
+        container_name: simworld-db-test
+        networks:
+            - ntn-test-network
+        ports:
+            - '5433:5432'
+        environment:
+            POSTGRES_USER: user
+            POSTGRES_PASSWORD: password
+            POSTGRES_DB: appdb
+        volumes:
+            - simworld-db-data:/var/lib/postgresql/data
+
+    simworld-backend:
+        build:
+            context: ./simworld
+            dockerfile: Dockerfile
+        container_name: simworld-backend-test
+        networks:
+            - ntn-test-network
+        ports:
+            - '8001:8000'
+        environment:
+            - DATABASE_URL=postgresql://user:password@simworld-db-test:5432/appdb
+            - CUDA_VISIBLE_DEVICES=-1
+            - PYOPENGL_PLATFORM=egl
+        depends_on:
+            - simworld-db
+        volumes:
+            - ./simworld/scenes:/app/scenes
+            - simworld-data:/app/data
+
+    # ===== 測試監控和報告 =====
+    test-reporter:
+        image: nginx:alpine
+        container_name: test-reporter
+        networks:
+            - ntn-test-network
+        ports:
+            - '8090:80'
+        volumes:
+            - ./test-reports:/usr/share/nginx/html:ro
+            - ./tests/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+        depends_on:
+            - ntn-stack-tester
+
+networks:
+    ntn-test-network:
+        driver: bridge
+        ipam:
+            config:
+                - subnet: 172.20.0.0/16
+
+volumes:
+    simworld-db-data:
+    simworld-data:
+    ueransim-configs:
