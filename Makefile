@@ -10,7 +10,7 @@
 RED := \033[31m
 GREEN := \033[32m
 YELLOW := \033[33m
-BLUE := \033[34m
+BLUE := \033[1;34m
 MAGENTA := \033[35m
 CYAN := \033[36m
 WHITE := \033[37m
@@ -49,24 +49,6 @@ help: ## 顯示幫助信息
 	@echo "  $(GREEN)test-quick$(RESET)          執行快速測試"
 	@echo "  $(GREEN)test-report$(RESET)         生成詳細測試報告"
 
-# ===== 安裝和初始化 =====
-
-install: ## 安裝所有依賴
-	@echo "$(CYAN)📦 安裝專案依賴...$(RESET)"
-	@$(MAKE) netstack-install
-	@$(MAKE) simworld-install
-	@echo "$(GREEN)✅ 所有依賴安裝完成$(RESET)"
-
-netstack-install: ## 安裝 NetStack 依賴
-	@echo "$(BLUE)📦 安裝 NetStack 依賴...$(RESET)"
-	@cd $(NETSTACK_DIR) && pip install -r requirements.txt
-	@echo "$(GREEN)✅ NetStack 依賴安裝完成$(RESET)"
-
-simworld-install: ## 安裝 SimWorld 依賴
-	@echo "$(BLUE)📦 安裝 SimWorld 依賴...$(RESET)"
-	@cd $(SIMWORLD_DIR) && make install
-	@echo "$(GREEN)✅ SimWorld 依賴安裝完成$(RESET)"
-
 # ===== 服務啟動 =====
 
 start: all-start ## 啟動所有服務
@@ -89,12 +71,15 @@ all-start: ## 啟動 NetStack 和 SimWorld
 
 netstack-start: ## 啟動 NetStack 服務
 	@echo "$(BLUE)🚀 啟動 NetStack 服務...$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml -p $(COMPOSE_PROJECT_NAME)-netstack up -d
+	@echo "$(YELLOW)⏳ 先構建 NetStack API 映像...$(RESET)"
+	@cd $(NETSTACK_DIR) && docker build -t netstack-api:latest -f docker/Dockerfile .
+	@echo "$(YELLOW)⏳ 啟動 NetStack 服務...$(RESET)"
+	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml up -d
 	@echo "$(GREEN)✅ NetStack 服務已啟動$(RESET)"
 
 simworld-start: ## 啟動 SimWorld 服務
 	@echo "$(BLUE)🚀 啟動 SimWorld 服務...$(RESET)"
-	@cd $(SIMWORLD_DIR) && docker compose -p $(COMPOSE_PROJECT_NAME)-simworld up -d
+	@cd $(SIMWORLD_DIR) && docker compose up -d
 	@echo "$(GREEN)✅ SimWorld 服務已啟動$(RESET)"
 
 # ===== 服務停止 =====
@@ -109,12 +94,12 @@ all-stop: ## 停止 NetStack 和 SimWorld
 
 netstack-stop: ## 停止 NetStack 服務
 	@echo "$(BLUE)🛑 停止 NetStack 服務...$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml -p $(COMPOSE_PROJECT_NAME)-netstack down
+	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml down
 	@echo "$(GREEN)✅ NetStack 服務已停止$(RESET)"
 
 simworld-stop: ## 停止 SimWorld 服務
 	@echo "$(BLUE)🛑 停止 SimWorld 服務...$(RESET)"
-	@cd $(SIMWORLD_DIR) && docker-compose -p $(COMPOSE_PROJECT_NAME)-simworld down
+	@cd $(SIMWORLD_DIR) && docker compose down
 	@echo "$(GREEN)✅ SimWorld 服務已停止$(RESET)"
 
 # ===== 服務重啟 =====
@@ -151,12 +136,12 @@ all-build: ## 構建 NetStack 和 SimWorld
 
 netstack-build: ## 構建 NetStack 服務
 	@echo "$(BLUE)🔨 構建 NetStack 服務...$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml -p $(COMPOSE_PROJECT_NAME)-netstack build
+	@cd $(NETSTACK_DIR) && docker build -t netstack-api:latest -f docker/Dockerfile .
 	@echo "$(GREEN)✅ NetStack 服務構建完成$(RESET)"
 
 simworld-build: ## 構建 SimWorld 服務
 	@echo "$(BLUE)🔨 構建 SimWorld 服務...$(RESET)"
-	@cd $(SIMWORLD_DIR) && docker-compose -p $(COMPOSE_PROJECT_NAME)-simworld build
+	@cd $(SIMWORLD_DIR) && docker compose build
 	@echo "$(GREEN)✅ SimWorld 服務構建完成$(RESET)"
 
 # ===== 清理 =====
@@ -172,14 +157,14 @@ all-clean: ## 清理 NetStack 和 SimWorld 資源
 
 netstack-clean: ## 清理 NetStack 資源
 	@echo "$(BLUE)🧹 清理 NetStack 資源...$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml -p $(COMPOSE_PROJECT_NAME)-netstack down -v --remove-orphans
-	@docker system prune -f --filter "label=com.docker.compose.project=$(COMPOSE_PROJECT_NAME)-netstack"
+	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml down -v --remove-orphans
+	@docker system prune -f --filter "label=com.docker.compose.project=netstack"
 	@echo "$(GREEN)✅ NetStack 資源清理完成$(RESET)"
 
 simworld-clean: ## 清理 SimWorld 資源
 	@echo "$(BLUE)🧹 清理 SimWorld 資源...$(RESET)"
-	@cd $(SIMWORLD_DIR) && docker-compose -p $(COMPOSE_PROJECT_NAME)-simworld down -v --remove-orphans
-	@docker system prune -f --filter "label=com.docker.compose.project=$(COMPOSE_PROJECT_NAME)-simworld"
+	@cd $(SIMWORLD_DIR) && docker compose down -v --remove-orphans
+	@docker system prune -f --filter "label=com.docker.compose.project=simworld"
 	@echo "$(GREEN)✅ SimWorld 資源清理完成$(RESET)"
 
 clean-reports: ## 清理測試報告
@@ -193,10 +178,10 @@ status: ## 檢查所有服務狀態
 	@echo "$(CYAN)📊 檢查 NTN Stack 服務狀態...$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)NetStack 服務狀態:$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml -p $(COMPOSE_PROJECT_NAME)-netstack ps || echo "$(RED)❌ NetStack 服務未運行$(RESET)"
+	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml ps || echo "$(RED)❌ NetStack 服務未運行$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)SimWorld 服務狀態:$(RESET)"
-	@cd $(SIMWORLD_DIR) && docker-compose -p $(COMPOSE_PROJECT_NAME)-simworld ps || echo "$(RED)❌ SimWorld 服務未運行$(RESET)"
+	@cd $(SIMWORLD_DIR) && docker compose ps || echo "$(RED)❌ SimWorld 服務未運行$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)服務健康檢查:$(RESET)"
 	@curl -s $(NETSTACK_URL)/health > /dev/null && echo "$(GREEN)✅ NetStack 健康檢查通過$(RESET)" || echo "$(RED)❌ NetStack 健康檢查失敗$(RESET)"
@@ -204,11 +189,11 @@ status: ## 檢查所有服務狀態
 
 netstack-status: ## 檢查 NetStack 狀態
 	@echo "$(BLUE)📊 NetStack 服務狀態:$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml -p $(COMPOSE_PROJECT_NAME)-netstack ps
+	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml ps
 
 simworld-status: ## 檢查 SimWorld 狀態
 	@echo "$(BLUE)📊 SimWorld 服務狀態:$(RESET)"
-	@cd $(SIMWORLD_DIR) && docker-compose -p $(COMPOSE_PROJECT_NAME)-simworld ps
+	@cd $(SIMWORLD_DIR) && docker compose ps
 
 # ===== 日誌查看 =====
 
@@ -217,15 +202,22 @@ logs: all-logs ## 查看所有服務日誌
 all-logs: ## 查看 NetStack 和 SimWorld 日誌
 	@echo "$(CYAN)📋 查看所有 NTN Stack 服務日誌...$(RESET)"
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
-	@($(MAKE) netstack-logs &) && ($(MAKE) simworld-logs &) && wait
+	@trap 'echo "結束日誌查看"; exit 0' INT; \
+	(\
+		cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml logs -f & netstack_pid=$$!; \
+		cd $(SIMWORLD_DIR) && docker compose logs -f & simworld_pid=$$!; \
+		wait $$netstack_pid $$simworld_pid \
+	)
 
 netstack-logs: ## 查看 NetStack 日誌
 	@echo "$(BLUE)📋 NetStack 服務日誌:$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml -p $(COMPOSE_PROJECT_NAME)-netstack logs -f
+	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
+	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml logs -f
 
 simworld-logs: ## 查看 SimWorld 日誌
 	@echo "$(BLUE)📋 SimWorld 服務日誌:$(RESET)"
-	@cd $(SIMWORLD_DIR) && docker-compose -p $(COMPOSE_PROJECT_NAME)-simworld logs -f
+	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
+	@cd $(SIMWORLD_DIR) && docker compose logs -f
 
 # ===== 測試 (Docker化) =====
 
@@ -293,6 +285,19 @@ test-legacy: ## 執行 NetStack 傳統測試 (原 shell 腳本功能的 pytest �
 		python -m pytest tests/test_netstack_legacy.py -v
 	@echo "$(GREEN)✅ NetStack 傳統測試執行完成$(RESET)"
 
+test-netstack-shell: ## 執行 NetStack Shell 腳本測試
+	@echo "$(CYAN)🐚 執行 NetStack Shell 腳本測試...$(RESET)"
+	@mkdir -p test-reports
+	@docker compose -f docker-compose.test.yml run --rm ntn-stack-tester \
+		bash -c "cd netstack/tests && ./quick_ntn_validation.sh && ./test_connectivity.sh"
+	@echo "$(GREEN)✅ NetStack Shell 腳本測試完成$(RESET)"
+
+test-netstack-full: ## 執行完整 NetStack 測試（Python + Shell）
+	@echo "$(CYAN)🔧 執行完整 NetStack 測試...$(RESET)"
+	@$(MAKE) test-netstack
+	@$(MAKE) test-netstack-shell
+	@echo "$(GREEN)✅ 完整 NetStack 測試完成$(RESET)"
+
 test-reports: ## 啟動測試報告服務器
 	@echo "$(CYAN)📊 啟動測試報告服務器...$(RESET)"
 	@docker compose -f docker-compose.test.yml up test-reporter -d
@@ -314,27 +319,6 @@ deploy: ## 部署生產環境
 	@echo "$(GREEN)✅ 生產環境部署完成$(RESET)"
 
 down: stop ## 停止所有服務（別名）
-
-# ===== 開發工具 =====
-
-dev-setup: ## 設置開發環境
-	@echo "$(CYAN)🛠️ 設置 NTN Stack 開發環境...$(RESET)"
-	@$(MAKE) install
-	@$(MAKE) build
-	@echo "$(GREEN)✅ 開發環境設置完成$(RESET)"
-
-dev-start: ## 啟動開發環境
-	@echo "$(CYAN)🛠️ 啟動 NTN Stack 開發環境...$(RESET)"
-	@$(MAKE) start
-	@echo ""
-	@echo "$(CYAN)🌐 開發環境訪問地址:$(RESET)"
-	@echo "  NetStack API:     $(NETSTACK_URL)"
-	@echo "  NetStack Docs:    $(NETSTACK_URL)/docs"
-	@echo "  NetStack Metrics: $(NETSTACK_URL)/metrics"
-	@echo "  SimWorld:         $(SIMWORLD_URL)"
-
-dev-logs: ## 查看開發環境日誌
-	@$(MAKE) logs
 
 # ===== 監控和診斷 =====
 
@@ -403,6 +387,45 @@ backup: ## 備份重要數據
 	@echo "$(GREEN)✅ 數據備份完成: backups/$(TIMESTAMP)/$(RESET)"
 
 # ===== 特殊目標 =====
+
+# ===== 開發工具 =====
+
+dev-setup: ## 設置開發環境
+	@echo "$(CYAN)🛠️ 設置 NTN Stack 開發環境...$(RESET)"
+	@$(MAKE) install
+	@$(MAKE) build
+	@echo "$(GREEN)✅ 開發環境設置完成$(RESET)"
+
+dev-start: ## 啟動開發環境
+	@echo "$(CYAN)🛠️ 啟動 NTN Stack 開發環境...$(RESET)"
+	@$(MAKE) start
+	@echo ""
+	@echo "$(CYAN)🌐 開發環境訪問地址:$(RESET)"
+	@echo "  NetStack API:     $(NETSTACK_URL)"
+	@echo "  NetStack Docs:    $(NETSTACK_URL)/docs"
+	@echo "  NetStack Metrics: $(NETSTACK_URL)/metrics"
+	@echo "  SimWorld:         $(SIMWORLD_URL)"
+
+dev-logs: ## 查看開發環境日誌
+	@$(MAKE) logs
+
+# ===== 安裝和初始化 =====
+
+install: ## 安裝所有依賴
+	@echo "$(CYAN)📦 安裝專案依賴...$(RESET)"
+	@$(MAKE) netstack-install
+	@$(MAKE) simworld-install
+	@echo "$(GREEN)✅ 所有依賴安裝完成$(RESET)"
+
+netstack-install: ## 安裝 NetStack 依賴
+	@echo "$(BLUE)📦 安裝 NetStack 依賴...$(RESET)"
+	@cd $(NETSTACK_DIR) && pip install -r requirements.txt
+	@echo "$(GREEN)✅ NetStack 依賴安裝完成$(RESET)"
+
+simworld-install: ## 安裝 SimWorld 依賴
+	@echo "$(BLUE)📦 安裝 SimWorld 依賴...$(RESET)"
+	@cd $(SIMWORLD_DIR) && make install
+	@echo "$(GREEN)✅ SimWorld 依賴安裝完成$(RESET)"
 
 .PHONY: all
 all: help ## 顯示幫助（預設目標） 

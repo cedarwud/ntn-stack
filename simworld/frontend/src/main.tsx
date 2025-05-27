@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import './styles/index.scss'
 import App from './App.tsx'
 import axios from 'axios'
@@ -45,42 +45,59 @@ console.warn = function (...args) {
         return
     }
 
+    // 忽略 React Router 關於 startTransition 的警告
+    if (
+        args[0] &&
+        typeof args[0] === 'string' &&
+        args[0].includes('React Router Future Flag Warning') &&
+        args[0].includes('v7_startTransition')
+    ) {
+        return
+    }
+
     // 所有其他警告正常顯示
     originalWarn.apply(console, args)
 }
 
+// 使用 v7 的數據路由 API 創建路由
+const router = createBrowserRouter(
+    [
+        {
+            // 首頁重定向到 /nycu/stereogram
+            path: '/',
+            element: <Navigate to="/nycu/stereogram" replace />,
+        },
+        {
+            // /nycu 重定向到 /nycu/stereogram
+            path: '/nycu',
+            element: <Navigate to="/nycu/stereogram" replace />,
+        },
+        {
+            // 場景路由 - stereogram
+            path: '/:scene/stereogram',
+            element: <App activeView="stereogram" />,
+        },
+        {
+            // 場景路由 - floor-plan
+            path: '/:scene/floor-plan',
+            element: <App activeView="floor-plan" />,
+        },
+        {
+            // 404 重定向到預設場景
+            path: '*',
+            element: <Navigate to="/nycu/stereogram" replace />,
+        },
+    ],
+    {
+        future: {
+            // @ts-ignore - React Router v7 新特性
+            v7_startTransition: true,
+        },
+    }
+)
+
 createRoot(document.getElementById('root')!).render(
     <StrictMode>
-        <BrowserRouter>
-            <Routes>
-                {/* 首頁重定向到 /nycu/stereogram */}
-                <Route
-                    path="/"
-                    element={<Navigate to="/nycu/stereogram" replace />}
-                />
-
-                {/* /nycu 重定向到 /nycu/stereogram */}
-                <Route
-                    path="/nycu"
-                    element={<Navigate to="/nycu/stereogram" replace />}
-                />
-
-                {/* 場景路由 */}
-                <Route
-                    path="/:scene/stereogram"
-                    element={<App activeView="stereogram" />}
-                />
-                <Route
-                    path="/:scene/floor-plan"
-                    element={<App activeView="floor-plan" />}
-                />
-
-                {/* 404 重定向到預設場景 */}
-                <Route
-                    path="*"
-                    element={<Navigate to="/nycu/stereogram" replace />}
-                />
-            </Routes>
-        </BrowserRouter>
+        <RouterProvider router={router} />
     </StrictMode>
 )

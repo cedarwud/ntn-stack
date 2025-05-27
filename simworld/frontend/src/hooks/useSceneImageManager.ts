@@ -76,24 +76,30 @@ export function useSceneImageManager(sceneName?: string) {
                     );
                 }
             } catch (error: any) {
-                console.error('Error fetching image:', error);
+                // 只有當 signal 沒有被 abort 時才需要處理錯誤
+                // 如果是 AbortError 且是因為組件卸載，這是正常的行為
+                if (error.name === 'AbortError') {
+                    console.log('Image fetch aborted:', error.message || 'No reason provided');
+                } else {
+                    console.error('Error fetching image:', error);
+                    
+                    if (timeoutId !== null) window.clearTimeout(timeoutId);
 
-                if (timeoutId !== null) window.clearTimeout(timeoutId);
-
-                if (!signal.aborted) {
-                    setError('Error loading image: ' + error.message);
-                    setRetryCount((prev) => {
-                        const newCount = prev + 1;
-                        // If we've tried several times, use fallback
-                        if (newCount > 3) {
-                            setUsingFallback(true);
-                            setImageUrl(FALLBACK_IMAGE_PATH);
-                            setManualRetryMode(true);
-                            setIsLoading(false);
+                    if (!signal.aborted) {
+                        setError('Error loading image: ' + error.message);
+                        setRetryCount((prev) => {
+                            const newCount = prev + 1;
+                            // If we've tried several times, use fallback
+                            if (newCount > 3) {
+                                setUsingFallback(true);
+                                setImageUrl(FALLBACK_IMAGE_PATH);
+                                setManualRetryMode(true);
+                                setIsLoading(false);
+                                return newCount;
+                            }
                             return newCount;
-                        }
-                        return newCount;
-                    });
+                        });
+                    }
                 }
             } finally {
                 if (timeoutId !== null) window.clearTimeout(timeoutId);
@@ -125,10 +131,31 @@ export function useSceneImageManager(sceneName?: string) {
 
     // Load initial image
     useEffect(() => {
+        let isActive = true;
         const abortController = new AbortController();
-        fetchImage(abortController.signal);
+        
+        const loadImage = async () => {
+            if (!isActive) return;
+            try {
+                await fetchImage(abortController.signal);
+            } catch (error) {
+                if (isActive && !abortController.signal.aborted) {
+                    console.error('Failed to fetch image:', error);
+                }
+            }
+        };
+        
+        loadImage();
+        
         return () => {
-            abortController.abort();
+            isActive = false;
+            // In React 18, we can pass a reason to abort
+            try {
+                abortController.abort('Component unmounted');
+            } catch (e) {
+                // Fallback for browsers that don't support abort with reason
+                abortController.abort();
+            }
             if (prevImageUrlRef.current) {
                 URL.revokeObjectURL(prevImageUrlRef.current);
                 prevImageUrlRef.current = null;

@@ -1,0 +1,51 @@
+# NetStack API 測試環境 Dockerfile
+# 支援根目錄依賴引用
+
+FROM python:3.11-slim
+
+# 設定工作目錄
+WORKDIR /app
+
+# 安裝系統依賴
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
+
+# 複製根目錄的 requirements.txt（測試依賴）
+COPY requirements.txt ./root-requirements.txt
+
+# 複製 NetStack 的 requirements.txt（生產依賴）
+COPY netstack/requirements.txt ./netstack-requirements.txt
+
+# 安裝依賴
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r root-requirements.txt && \
+    pip install --no-cache-dir -r netstack-requirements.txt
+
+# 設定環境變數
+ENV PYTHONPATH="/app"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# 複製應用程式源碼
+COPY netstack/netstack_api/ ./netstack_api/
+
+# 建立日誌目錄
+RUN mkdir -p /var/log/netstack
+
+# 建立健康檢查腳本
+COPY netstack/docker/healthcheck.sh /usr/local/bin/healthcheck.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh
+
+# 暴露埠號
+EXPOSE 8080
+
+# 健康檢查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD /usr/local/bin/healthcheck.sh
+
+# 啟動命令
+CMD ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"] 

@@ -78,9 +78,15 @@ FROM production as development
 # 切換回 root 用戶來安裝開發工具
 USER root
 
-# 從構建階段複製 requirements-dev.txt 檔案
+# 從構建階段複製 requirements 檔案
 COPY --from=builder /app/requirements.txt /app/requirements.txt
 COPY --from=builder /app/requirements-dev.txt /app/requirements-dev.txt
+
+# 設定工作目錄
+WORKDIR /app
+
+# 複製根目錄的 requirements.txt 到正確位置
+COPY ../requirements.txt /app/../requirements.txt
 
 # 安裝開發依賴
 RUN pip install --no-cache-dir -r requirements-dev.txt

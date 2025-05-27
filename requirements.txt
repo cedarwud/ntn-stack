@@ -1,26 +1,47 @@
-# NTN Stack 測試程式依賴
+# ===== NTN Stack 整合依賴管理 =====
+# 此文件管理整個 NTN Stack 項目的測試、開發和整合依賴
 
-# HTTP 客戶端和異步支援
-aiohttp>=3.9.0
-asyncio>=3.4.3
-requests>=2.31.0
-
-# JSON 處理
-json5>=0.9.0
-
-# 命令行和日誌
-argparse>=1.4.0
-logging>=0.4.9.6
-
-# 測試框架
+# ===== 測試框架核心 =====
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
 pytest-html>=3.2.0
 pytest-cov>=4.1.0
-
-# 測試報告和分析
 pytest-json-report>=1.5.0
 pytest-benchmark>=4.0.0
+pytest-mock>=3.12.0
 
-# 檔案操作
-aiofiles>=23.2.0 
+# ===== HTTP 客戶端和異步支援 =====
+aiohttp>=3.9.0
+asyncio>=3.4.3
+requests>=2.31.0
+httpx>=0.25.2
+
+# ===== 數據處理和序列化 =====
+json5>=0.9.0
+pyyaml>=6.0.1
+pydantic>=2.5.0
+
+# ===== 天文學和數學計算（衛星軌道相關）=====
+skyfield>=1.46
+numpy>=1.24.0
+
+# ===== 檔案和 I/O 操作 =====
+aiofiles>=23.2.0
+
+# ===== 命令行和日誌 =====
+argparse>=1.4.0
+# 移除 logging 依賴，因為 Python 3 已內建此模組
+structlog>=23.2.0
+python-json-logger>=2.0.7
+
+# ===== 開發工具 =====
+black>=23.11.0
+isort>=5.12.0
+flake8>=6.1.0
+mypy>=1.7.1
+
+# ===== Docker 和容器管理 =====
+docker>=6.1.0
+
+# ===== 性能測試 =====
+locust>=2.17.0 

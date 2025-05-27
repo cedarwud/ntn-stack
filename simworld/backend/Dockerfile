@@ -47,7 +47,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 	pip install --no-cache-dir -r requirements.txt
 
 # 6. 複製應用程式碼到工作目錄
-# COPY . .
+COPY . .
 
 # 7. 暴露 Uvicorn 運行的端口
 EXPOSE 8000
