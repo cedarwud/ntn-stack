@@ -1,0 +1,41 @@
+nohup: ignoring input
+INFO:     Started server process [2640878]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8083 (Press CTRL+C to quit)
+INFO:     127.0.0.1:35738 - "GET /health HTTP/1.1" 200 OK
+2025-05-27 01:37:33 [info     ] 開始衛星位置轉換                       satellite_id=1 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [error    ] 從 simworld 獲取衛星位置失敗            error="Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]" service=satellite_gnb_mapping
+2025-05-27 01:37:33 [warning  ] 使用本地 Skyfield 計算衛星位置           satellite_id=1 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [info     ] 衛星位置轉換完成                       gnb_nci=0x00000001 satellite_id=1 service=satellite_gnb_mapping tx_power=12
+INFO:     127.0.0.1:35750 - "POST /api/v1/satellite-gnb/mapping HTTP/1.1" 200 OK
+2025-05-27 01:37:33 [info     ] 開始衛星位置轉換                       satellite_id=1 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [info     ] 開始衛星位置轉換                       satellite_id=2 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [info     ] 開始衛星位置轉換                       satellite_id=3 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [error    ] 從 simworld 獲取衛星位置失敗            error="Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]" service=satellite_gnb_mapping
+2025-05-27 01:37:33 [warning  ] 使用本地 Skyfield 計算衛星位置           satellite_id=1 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [info     ] 衛星位置轉換完成                       gnb_nci=0x00000001 satellite_id=1 service=satellite_gnb_mapping tx_power=12
+2025-05-27 01:37:33 [error    ] 從 simworld 獲取衛星位置失敗            error="Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]" service=satellite_gnb_mapping
+2025-05-27 01:37:33 [warning  ] 使用本地 Skyfield 計算衛星位置           satellite_id=2 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [info     ] 衛星位置轉換完成                       gnb_nci=0x00000002 satellite_id=2 service=satellite_gnb_mapping tx_power=12
+2025-05-27 01:37:33 [error    ] 從 simworld 獲取衛星位置失敗            error="Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]" service=satellite_gnb_mapping
+2025-05-27 01:37:33 [warning  ] 使用本地 Skyfield 計算衛星位置           satellite_id=3 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [info     ] 衛星位置轉換完成                       gnb_nci=0x00000003 satellite_id=3 service=satellite_gnb_mapping tx_power=12
+INFO:     127.0.0.1:35764 - "GET /api/v1/satellite-gnb/batch-mapping?satellite_ids=1,2,3&uav_latitude=25.0330&uav_longitude=121.5654&uav_altitude=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35778 - "POST /api/v1/satellite-gnb/start-tracking HTTP/1.1" 200 OK
+2025-05-27 01:37:33 [info     ] 開始衛星位置轉換                       satellite_id=1 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [error    ] 從 simworld 獲取衛星位置失敗            error="Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]" service=satellite_gnb_mapping
+2025-05-27 01:37:33 [warning  ] 使用本地 Skyfield 計算衛星位置           satellite_id=1 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [info     ] 衛星位置轉換完成                       gnb_nci=0x00000001 satellite_id=1 service=satellite_gnb_mapping tx_power=12
+/home/sat/ntn-stack/netstack/test_satellite_api.py:205: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+  "satellite_info": request.satellite.dict() if request.satellite else None,
+/home/sat/ntn-stack/netstack/test_satellite_api.py:206: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+  "uav_info": request.uav.dict() if request.uav else None,
+INFO:     127.0.0.1:35782 - "POST /api/v1/ueransim/config/generate HTTP/1.1" 200 OK
+2025-05-27 01:37:33 [info     ] 開始衛星位置轉換                       satellite_id=-1 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [error    ] 從 simworld 獲取衛星位置失敗            error="Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]" service=satellite_gnb_mapping
+2025-05-27 01:37:33 [warning  ] 使用本地 Skyfield 計算衛星位置           satellite_id=-1 service=satellite_gnb_mapping
+2025-05-27 01:37:33 [info     ] 衛星位置轉換完成                       gnb_nci=0x-0000001 satellite_id=-1 service=satellite_gnb_mapping tx_power=23
+INFO:     127.0.0.1:35790 - "POST /api/v1/satellite-gnb/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35792 - "GET /api/v1/satellite-gnb/batch-mapping?satellite_ids=invalid HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:35796 - "GET /health HTTP/1.1" 200 OK

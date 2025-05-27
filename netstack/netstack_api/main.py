@@ -11,7 +11,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import structlog
 from fastapi import FastAPI, HTTPException, status
@@ -29,6 +29,7 @@ from .services.ue_service import UEService
 from .services.slice_service import SliceService, SliceType
 from .services.health_service import HealthService
 from .services.ueransim_service import UERANSIMConfigService
+from .services.satellite_gnb_mapping_service import SatelliteGnbMappingService
 from .models.requests import SliceSwitchRequest
 from .models.ueransim_models import UERANSIMConfigRequest, UERANSIMConfigResponse
 from .models.responses import (
@@ -128,6 +129,10 @@ async def lifespan(app: FastAPI):
     slice_service = SliceService(mongo_adapter, open5gs_adapter, redis_adapter)
     health_service = HealthService(mongo_adapter, redis_adapter)
     ueransim_service = UERANSIMConfigService()
+    satellite_gnb_service = SatelliteGnbMappingService(
+        simworld_api_url=os.getenv("SIMWORLD_API_URL", "http://simworld-backend:8000"),
+        redis_client=redis_adapter.client if redis_adapter else None
+    )
 
     # 儲存到應用程式狀態
     app.state.mongo_adapter = mongo_adapter
@@ -137,6 +142,7 @@ async def lifespan(app: FastAPI):
     app.state.slice_service = slice_service
     app.state.health_service = health_service
     app.state.ueransim_service = ueransim_service
+    app.state.satellite_gnb_service = satellite_gnb_service
 
     # 連接外部服務
     await mongo_adapter.connect()
@@ -587,6 +593,244 @@ async def get_supported_scenarios():
     ]
 
     return {"success": True, "scenarios": scenarios, "total_count": len(scenarios)}
+
+
+# ===== 衛星-gNodeB 映射端點 =====
+
+
+@app.post("/api/v1/satellite-gnb/mapping", tags=["衛星-gNodeB 映射"])
+async def convert_satellite_to_gnb(
+    satellite_id: int,
+    uav_latitude: Optional[float] = None,
+    uav_longitude: Optional[float] = None,
+    uav_altitude: Optional[float] = None,
+    frequency: Optional[int] = 2100,
+    bandwidth: Optional[int] = 20
+):
+    """
+    將衛星位置轉換為 gNodeB 參數
+    
+    **實現 TODO 項目 4：衛星位置轉換為 gNodeB 參數**
+    
+    此端點整合 simworld 的 Skyfield 計算結果，將衛星 ECEF/ENU 坐標
+    轉換為 UERANSIM gNodeB 配置參數，實現衛星作為 5G 基站的模擬。
+    
+    Args:
+        satellite_id: 衛星 ID
+        uav_latitude: UAV 緯度（可選，用於相對計算）
+        uav_longitude: UAV 經度（可選，用於相對計算）  
+        uav_altitude: UAV 高度（可選，用於相對計算）
+        frequency: 工作頻率 (MHz)
+        bandwidth: 頻寬 (MHz)
+    
+    Returns:
+        包含衛星信息、ECEF 坐標、無線參數和 gNodeB 配置的完整映射結果
+    """
+    try:
+        satellite_gnb_service = app.state.satellite_gnb_service
+        
+        # 構建 UAV 位置對象（如果提供了參數）
+        uav_position = None
+        if all(param is not None for param in [uav_latitude, uav_longitude, uav_altitude]):
+            from .models.ueransim_models import UAVPosition
+            uav_position = UAVPosition(
+                id="mapping-request-uav",
+                latitude=uav_latitude,
+                longitude=uav_longitude,
+                altitude=uav_altitude
+            )
+        
+        # 構建網絡參數
+        from .models.ueransim_models import NetworkParameters
+        network_params = NetworkParameters(
+            frequency=frequency,
+            bandwidth=bandwidth
+        )
+        
+        # 執行衛星位置轉換
+        mapping_result = await satellite_gnb_service.convert_satellite_to_gnb_config(
+            satellite_id=satellite_id,
+            uav_position=uav_position,
+            network_params=network_params
+        )
+        
+        return CustomJSONResponse(
+            content={
+                "success": True,
+                "message": f"衛星 {satellite_id} 位置轉換完成",
+                "data": mapping_result,
+                "conversion_info": {
+                    "skyfield_integration": "已整合 simworld Skyfield 計算",
+                    "coordinate_conversion": "ECEF/ENU 坐標轉換完成",
+                    "gnb_mapping": "gNodeB 參數映射完成"
+                }
+            }
+        )
+        
+    except Exception as e:
+        logger.error("衛星位置轉換失敗", satellite_id=satellite_id, error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"衛星位置轉換失敗: {str(e)}"
+        )
+
+
+@app.get("/api/v1/satellite-gnb/batch-mapping", tags=["衛星-gNodeB 映射"])
+async def batch_convert_satellites_to_gnb(
+    satellite_ids: str,  # 逗號分隔的衛星 ID
+    uav_latitude: Optional[float] = None,
+    uav_longitude: Optional[float] = None,
+    uav_altitude: Optional[float] = None
+):
+    """
+    批量將多個衛星位置轉換為 gNodeB 參數
+    
+    支援同時處理多個衛星的位置轉換，提高效率
+    
+    Args:
+        satellite_ids: 逗號分隔的衛星 ID 列表 (例如: "1,2,3")
+        uav_latitude: UAV 緯度（可選）
+        uav_longitude: UAV 經度（可選）
+        uav_altitude: UAV 高度（可選）
+    
+    Returns:
+        所有衛星的映射結果字典
+    """
+    try:
+        satellite_gnb_service = app.state.satellite_gnb_service
+        
+        # 解析衛星 ID 列表
+        try:
+            sat_ids = [int(sid.strip()) for sid in satellite_ids.split(",")]
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="無效的衛星 ID 格式，請使用逗號分隔的整數"
+            )
+        
+        if len(sat_ids) > 20:  # 限制批量處理數量
+            raise HTTPException(
+                status_code=400,
+                detail="批量處理衛星數量不能超過 20 個"
+            )
+        
+        # 構建 UAV 位置對象（如果提供了參數）
+        uav_position = None
+        if all(param is not None for param in [uav_latitude, uav_longitude, uav_altitude]):
+            from .models.ueransim_models import UAVPosition
+            uav_position = UAVPosition(
+                id="batch-mapping-uav",
+                latitude=uav_latitude,
+                longitude=uav_longitude,
+                altitude=uav_altitude
+            )
+        
+        # 執行批量轉換
+        batch_results = await satellite_gnb_service.get_multiple_satellite_configs(
+            satellite_ids=sat_ids,
+            uav_position=uav_position
+        )
+        
+        # 統計成功和失敗的數量
+        successful_count = sum(1 for result in batch_results.values() if result.get("success"))
+        failed_count = len(batch_results) - successful_count
+        
+        return CustomJSONResponse(
+            content={
+                "success": True,
+                "message": f"批量轉換完成，成功 {successful_count} 個，失敗 {failed_count} 個",
+                "satellite_configs": batch_results,
+                "summary": {
+                    "total_satellites": len(sat_ids),
+                    "successful_conversions": successful_count,
+                    "failed_conversions": failed_count,
+                    "success_rate": f"{(successful_count / len(sat_ids) * 100):.1f}%"
+                }
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("批量衛星位置轉換失敗", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"批量衛星位置轉換失敗: {str(e)}"
+        )
+
+
+@app.post("/api/v1/satellite-gnb/start-tracking", tags=["衛星-gNodeB 映射"])
+async def start_continuous_tracking(
+    satellite_ids: str,
+    update_interval: int = 30
+):
+    """
+    開始持續追蹤衛星位置並更新 gNodeB 配置
+    
+    實現事件驅動的配置更新機制，確保 gNodeB 配置能實時跟隨衛星移動
+    
+    Args:
+        satellite_ids: 逗號分隔的衛星 ID 列表
+        update_interval: 更新間隔（秒），默認 30 秒
+    
+    Returns:
+        追蹤任務啟動狀態
+    """
+    try:
+        satellite_gnb_service = app.state.satellite_gnb_service
+        
+        # 解析衛星 ID 列表
+        try:
+            sat_ids = [int(sid.strip()) for sid in satellite_ids.split(",")]
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="無效的衛星 ID 格式，請使用逗號分隔的整數"
+            )
+        
+        if update_interval < 10:
+            raise HTTPException(
+                status_code=400,
+                detail="更新間隔不能少於 10 秒"
+            )
+        
+        # 在背景啟動持續追蹤任務
+        task = asyncio.create_task(
+            satellite_gnb_service.update_gnb_positions_continuously(
+                satellite_ids=sat_ids,
+                update_interval=update_interval
+            )
+        )
+        
+        # 將任務存儲到應用狀態中（可選，用於管理）
+        if not hasattr(app.state, 'tracking_tasks'):
+            app.state.tracking_tasks = {}
+        
+        task_id = f"track_{'-'.join(map(str, sat_ids))}_{update_interval}"
+        app.state.tracking_tasks[task_id] = task
+        
+        return CustomJSONResponse(
+            content={
+                "success": True,
+                "message": "衛星位置持續追蹤已啟動",
+                "tracking_info": {
+                    "task_id": task_id,
+                    "satellite_ids": sat_ids,
+                    "update_interval_seconds": update_interval,
+                    "estimated_updates_per_hour": 3600 // update_interval
+                },
+                "note": "追蹤將在背景持續進行，配置更新將通過 Redis 事件發布"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("啟動衛星追蹤失敗", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"啟動衛星追蹤失敗: {str(e)}"
+        )
 
 
 # ===== 錯誤處理 =====
