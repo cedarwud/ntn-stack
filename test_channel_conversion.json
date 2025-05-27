@@ -1,0 +1,31 @@
+{
+  "request_id": "test_satellite_channel_001",
+  "channel_parameters": {
+    "channel_id": "sat_channel_001",
+    "channel_type": "satellite",
+    "frequency_hz": 3600000000,
+    "path_loss_db": 162.5,
+    "shadow_fading_db": 3.2,
+    "multipath_components": [
+      {
+        "delay_s": 0.000001,
+        "power_db": -10.5,
+        "aoa_deg": 45.0,
+        "aod_deg": 135.0
+      }
+    ],
+    "delay_spread_s": 0.000002,
+    "azimuth_spread_deg": 15.5,
+    "elevation_spread_deg": 8.2,
+    "doppler_shift_hz": 1250.0,
+    "doppler_spread_hz": 50.0,
+    "sinr_db": 12.8,
+    "snr_db": 15.2,
+    "tx_position": [1200000, 0, 0],
+    "rx_position": [24.7867, 120.9967, 50]
+  },
+  "target_gnb_id": 1001,
+  "target_cell_id": 101,
+  "mapping_mode": "automatic",
+  "preserve_coverage": true
+} 

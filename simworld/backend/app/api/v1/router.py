@@ -14,6 +14,7 @@ from app.domains.device.api.device_api import router as device_router
 from app.domains.coordinates.api.coordinate_api import router as coordinates_router
 from app.domains.satellite.api.satellite_api import router as satellite_router
 from app.domains.simulation.api.simulation_api import router as simulation_router
+from app.domains.wireless.api.wireless_api import router as wireless_router
 
 # 引入 Skyfield 相關庫
 from skyfield.api import load, wgs84, EarthSatellite
@@ -70,6 +71,7 @@ api_router.include_router(satellite_router, prefix="/satellites", tags=["Satelli
 api_router.include_router(
     simulation_router, prefix="/simulations", tags=["Simulations"]
 )
+api_router.include_router(wireless_router, prefix="/wireless", tags=["Wireless"])
 
 
 # 添加模型資源路由
