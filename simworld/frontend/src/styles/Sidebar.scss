@@ -1,0 +1,459 @@
+/* 側邊欄容器 */
+.sidebar-container {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 10px;
+  box-sizing: border-box;
+  color: #eaf6ff; /* 更亮的文字 */
+  /* 星空漸層背景 */
+  background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+  position: relative;
+  z-index: 0;
+}
+
+/* 新增 scene-container 樣式 */
+.scene-container {
+  width: 100%;
+  height: 100%; /* 或根據佈局調整，例如 calc(100vh - headerHeight) */
+  position: relative; /* Starfield 是 absolute 定位，父容器需要 relative */
+  overflow: hidden; /* 確保 Starfield 不會導致不必要的滾動條 */
+  /* 星空漸層背景 */
+  background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+  color: #eaf6ff; /* 確保文字顏色與背景協調，如果有的話 */
+}
+
+/* Styles for image container and image within FloorView */
+.image-container {
+  position: relative; /* For absolutely positioned children like DeviceOverlaySVG */
+  width: 100%; /* Ensure it takes full width of its parent */
+  height: 100%; /* Ensure it takes full height, allowing img to use maxHeight against this */
+  display: flex; /* Optional: For centering the image if needed, along with align-items/justify-content */
+  align-items: center; /* Center image vertically */
+  justify-content: center; /* Center image horizontally */
+}
+
+.scene-image {
+  display: block; /* Default display state */
+  max-width: 100%;
+  max-height: calc(100vh - 60px); /* Assuming 60px navbar height */
+  object-fit: contain;
+}
+
+/* 側邊欄頭部樣式 */
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--dark-border);
+  align-items: center;
+
+  h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #eaf6ff; /* 側邊欄標題更亮 */
+  }
+}
+
+.button-group {
+  display: flex;
+
+  button {
+    height: 30px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    cursor: pointer;
+    background-color: var(--dark-button-primary);
+    color: var(--dark-text);
+    border: none;
+    border-radius: 3px;
+    margin-right: 8px;
+    font-size: 0.8rem;
+
+    &:last-child {
+      background-color: var(--dark-button-secondary);
+      margin-right: 0;
+    }
+  }
+}
+
+.scene-selector {
+  select {
+    height: 30px;
+    box-sizing: border-box;
+    padding: 0 5px;
+    background-color: #162032;
+    border: 1px solid #485983;
+    border-radius: 3px;
+    color: #eaf6ff;
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+    font-weight: 500;
+    box-shadow: 0 0 2px rgba(72, 89, 131, 0.2);
+
+    &:hover {
+      background-color: #2a3244;
+      border-color: #5871ad;
+      box-shadow: 0 0 3px rgba(88, 113, 173, 0.3);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: #6985c9;
+      box-shadow: 0 0 4px rgba(105, 133, 201, 0.4);
+    }
+
+    option {
+      background-color: #1e2536;
+      color: #ffffff;
+      padding: 8px;
+    }
+  }
+}
+
+/* API狀態指示器 */
+.api-status {
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+  color: var(--dark-text-secondary);
+}
+
+.status-connected {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.status-disconnected {
+  color: #9e9e9e;
+  font-weight: bold;
+}
+
+.status-error {
+  color: #f44336;
+  font-weight: bold;
+}
+
+/* 操作按鈕 */
+.action-buttons {
+  margin-bottom: 15px;
+  justify-content: space-between;
+}
+
+/* 設備列表 */
+.devices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.device-item {
+  background: rgba(30, 37, 54, 0.85);
+  border-radius: 5px;
+  padding: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.device-header {
+  position: relative;
+  margin-bottom: 10px;
+
+  .delete-btn {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--dark-text-secondary);
+    cursor: pointer;
+    font-size: 20px;
+    padding: 0 5px;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+    line-height: 1;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+.device-content {
+  padding-top: 10px;
+  border-top: 1px solid var(--dark-border);
+}
+
+.device-name-input {
+  font-size: 1.0rem;
+  text-align: center;
+  width: calc(100% - 80px);
+  padding: 5px;
+  background-color: var(--dark-input-bg);
+  border: 1px solid var(--dark-border);
+  border-radius: 3px;
+  color: var(--dark-text);
+}
+
+/* 添加設備按鈕 */
+.add-device-container {
+  text-align: center;
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid var(--dark-border);
+}
+
+.add-device-btn {
+  padding: 6px 14px;
+  cursor: pointer;
+  background-color: rgba(40, 60, 100, 0.85);
+  color: #fff;
+  border: 1px solid #3a4a6a;
+  border-radius: 3px;
+  font-size: 0.85rem;
+
+  &:hover {
+    filter: brightness(90%);
+  }
+}
+
+/* 表格樣式 - 從 App.scss 整合 */
+.device-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; 
+
+  th,
+td {
+    overflow: hidden;
+    width: 25%; 
+    text-align: center; 
+    padding: 2px;
+    vertical-align: middle;
+  }
+
+  th {
+    color: var(--dark-text-secondary);
+    font-size: 0.9rem;
+    font-weight: normal;
+    padding-bottom: 5px;
+  }
+
+  input[type="number"],
+  input[type="text"],
+  select {
+    width: 100%;
+    padding: 4px;
+    background-color: var(--dark-input-bg);
+    border: 1px solid var(--dark-border);
+    border-radius: 3px;
+    color: var(--dark-text);
+    box-sizing: border-box;
+    text-align: right;
+  }
+}
+
+/* 錯誤訊息 */
+.error-message {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  padding: 8px 12px;
+  margin: 8px 0;
+  border-radius: 4px;
+  border-left: 4px solid #f44336;
+}
+
+/* END OF EXISTING CSS */
+
+.sidebar-auto-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.button-auto-toggle {
+  margin-right: 12px;
+}
+
+.button-animation-toggle {
+  margin-left: 12px;
+}
+
+.button-apply-action {
+  margin-right: 8px;
+}
+
+.manual-control-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--dark-border);
+
+  .manual-button-group { 
+    display: flex;
+    justify-content: center;
+
+    &.with-margin-bottom { 
+      margin-bottom: 4px;
+    }
+
+    button { 
+      margin: 2px;
+    }
+  }
+}
+
+.uav-name-badges-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 10px 0;
+  margin-top: 10px;
+}
+
+.uav-name-badge {
+  color: #e0e0e0;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.9em;
+  margin: 3px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  background-color: rgba(40, 40, 70, 0.8); 
+  border: 1px solid rgba(100, 100, 150, 0.5); 
+
+  &.selected { 
+    background-color: rgba(50, 50, 75, 0.95);
+    border: 2px solid rgba(120, 120, 160, 0.8);
+  }
+}
+
+.sidebar-actions-combined {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--dark-border);
+  margin-bottom: 10px;
+}
+
+.section-title {
+  margin-bottom: 5px;
+  padding-top: 10px;
+  margin-top: 10px; 
+
+  &.with-border-top { 
+    border-top: 1px solid var(--dark-border);
+  }
+
+  &.extra-margin-top { 
+    margin-top: 20px;
+  }
+}
+
+.collapsible-header {
+  cursor: pointer;
+  position: relative;
+  padding-left: 20px;
+
+  &::before {
+    content: '+';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    font-weight: bold;
+  }
+
+  &.expanded::before {
+    content: '-';
+  }
+}
+
+.sidebar-starfield-container {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.sidebar-star {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  filter: blur(0.5px);
+  transition: opacity 0.2s linear;
+}
+
+.api-status-and-settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px; 
+  padding-bottom: 10px; 
+  border-bottom: 1px solid var(--dark-border); 
+}
+
+.satellite-count-control {
+  display: flex;
+  justify-content: space-between;
+  label {
+    margin-right: 8px;
+    font-size: 0.9rem;
+    color: var(--dark-text-secondary); // Match other labels
+  }
+  .satellite-count-input-field {
+    width: 60px; 
+    padding: 4px 6px;
+    background-color: var(--dark-input-bg);
+    border: 1px solid var(--dark-border);
+    border-radius: 3px;
+    color: var(--dark-text);
+    text-align: right;
+    font-size: 0.9rem;
+  }
+}
+
+.satellite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; // Spacing between satellite cards
+
+  .satellite-item {
+    background: rgba(30, 37, 54, 0.85); // Match device-item background
+    border-radius: 5px; // Match device-item border-radius
+    padding: 10px 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); // Match device-item shadow
+    border: 1px solid var(--dark-border-light, #2c3a54); // Subtle border like device items might have or a slightly lighter one
+
+    .satellite-name {
+      font-weight: 600; // Slightly bolder
+      color: var(--dark-text); // Match device text color
+      margin-bottom: 6px;
+      font-size: 1.0rem;
+    }
+    .satellite-details {
+      font-size: 0.88rem;
+      color: var(--dark-text-secondary, #aab8c5); // Standard secondary text color
+      line-height: 1.5;
+      
+      span { // If we decide to wrap parts of details in spans for styling
+        margin-right: 5px;
+        &:last-child {
+            margin-right: 0;
+        }
+      }
+    }
+  }
+  .loading-text, .no-data-text {
+    padding: 15px 10px;
+    text-align: center;
+    color: var(--dark-text-secondary, #aab8c5);
+    font-size: 0.9rem;
+  }
+} 

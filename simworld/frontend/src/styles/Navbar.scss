@@ -1,0 +1,518 @@
+.navbar {
+  background-color: #1a1a2e;
+  color: white;
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 60px;
+}
+
+/* 創建一個包裝器來處理hover效果 */
+.navbar-dropdown-wrapper {
+  position: relative;
+  height: 100%; /* 填滿navbar-container的高度 */
+  display: flex;
+  align-items: center;
+  
+  &:hover {
+    .navbar-logo {
+      color: #4a7bff;
+    }
+    
+    .scene-dropdown {
+      display: block;
+      opacity: 1;
+      transform: translateX(-50%); /* 保持水平置中 */
+    }
+  }
+}
+
+.navbar-logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  height: 100%; /* 填滿navbar-dropdown-wrapper的高度 */
+  
+  .dropdown-arrow {
+    font-size: 0.8rem;
+  }
+}
+
+.scene-dropdown {
+  position: fixed; /* 改用 fixed 定位，脫離原有的堆疊上下文 */
+  top: 58px; /* 固定在 navbar 下方的位置 */
+  background-color: #16163a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-width: 0 1px 1px 1px; /* 移除頂部邊框以實現無縫過渡 */
+  border-radius: 0 0 4px 4px; /* 只保留底部的圓角，頂部無圓角 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 2000; /* 提高 z-index，確保高於所有其他元素 */
+  width: 160px; /* 固定寬度，確保能容納最長的文字「陽明交通大學」 */
+  margin-top: 0; /* 移除margin以確保沒有空隙 */
+  transform: translateX(-50%); /* 水平置中 */
+  font-size: 1.2rem;
+  display: none; /* 初始狀態為隱藏，hover wrapper時才顯示 */
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.scene-option {
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: white; /* 確保默認顏色是白色 */
+  text-align: center; /* 文字置中 */
+  white-space: nowrap; /* 防止文字換行 */
+  overflow: hidden; /* 隱藏超出部分 */
+  text-overflow: ellipsis; /* 超出顯示省略號 */
+  
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  /* 只有被hover的選項會變色 */
+  &:hover {
+    background-color: #1f1f3a;
+    color: #4a7bff;
+  }
+  
+  &.active {
+    background-color: #4a7bff;
+    color: white;
+  }
+}
+
+.navbar-menu {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  height: 100%; /* 填滿navbar-container的高度 */
+}
+
+.navbar-item {
+  margin: 0 20px;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+  font-weight: 500;
+  transition: color 0.3s;
+  height: 100%; /* 填滿navbar-menu的高度 */
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    color: #4a7bff;
+  }
+
+  &.active {
+    color: #4a7bff;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #4a7bff;
+      border-radius: 2px;
+    }
+  }
+}
+
+.navbar-menu-toggle {
+  display: none;
+  cursor: pointer;
+}
+
+.menu-icon {
+  display: block;
+  position: relative;
+  width: 24px;
+  height: 2px;
+  background-color: white;
+  transition: all 0.3s ease;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 2px;
+    background-color: white;
+    transition: all 0.3s ease;
+  }
+
+  &::before {
+    transform: translateY(-8px);
+  }
+
+  &::after {
+    transform: translateY(8px);
+  }
+
+  &.open {
+    background-color: transparent;
+
+    &::before {
+      transform: rotate(45deg);
+    }
+
+    &::after {
+      transform: rotate(-45deg);
+    }
+  }
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .navbar-menu-toggle {
+    display: block;
+  }
+
+  .navbar-menu {
+    position: absolute;
+    top: 60px;
+    left: 0;
+    width: 100%;
+    flex-direction: column;
+    background-color: #1a1a2e;
+    text-align: center;
+    transform: translateY(-100%);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    padding: 0;
+    z-index: 999;
+    visibility: hidden;
+
+    &.open {
+      transform: translateY(0);
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+
+  .navbar-item {
+    margin: 0;
+    padding: 15px 0;
+    width: 100%;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+    &.active {
+      background-color: #16163a;
+      &::after {
+        display: none;
+      }
+    }
+  }
+}
+
+/* 彈窗樣式 */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1100;
+}
+
+.constellation-modal {
+  background-color: #1a1a2e;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+  animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: #16163a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+
+  h3 {
+    margin: 0;
+    color: white;
+    font-size: 1.2rem;
+    text-align: center;
+  }
+}
+
+/* 新增：彈窗標題中的最後更新時間樣式 */
+.last-update-header {
+  position: absolute;
+  right: 60px; 
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.8rem;
+  color: #cccccc;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+/* 新增：可刷新的彈窗標題樣式 */
+.modal-title-refreshable {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: white;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 4px;
+  transition: none;
+  user-select: none;
+  text-align: center;
+  margin: 0 10px;
+
+  &:hover:not(.loading) {
+    span {
+      background-color: #4285f4;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      transition: background-color 0.2s, color 0.2s;
+    }
+  }
+
+  &.loading {
+    cursor: not-allowed;
+    span {
+      background-color: transparent !important;
+      color: inherit !important;
+      padding: 0 !important;
+      display: inline;
+      border-radius: 0;
+    }
+  }
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 5px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.3s;
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  padding: 30px;
+  overflow-y: auto;
+  max-height: calc(90vh - 60px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 載入和錯誤提示樣式 */
+.loading {
+  color: #4a7bff;
+  margin: 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &::after {
+    content: "...";
+    animation: dots 1.5s infinite;
+  }
+}
+
+@keyframes dots {
+  0%, 20% { content: "."; }
+  40% { content: ".."; }
+  60%, 100% { content: "..."; }
+}
+
+.error {
+  color: #ff4a4a;
+  margin: 20px 0;
+  text-align: center;
+}
+
+/* 圖片查看器共用樣式 */
+.image-viewer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.view-image { 
+  max-width: 90%;
+  border-radius: 4px;
+  margin: 10px 0;
+  object-fit: contain;
+
+  &.doppler-image-v2 {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+/* Delay-Doppler 圖特殊樣式 */
+.delay-doppler-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 20px;
+  align-items: center;
+}
+
+/* v2 版本的延遲多普勒圖樣式 */
+.doppler-image-v2 { 
+  width: 100%;
+  max-width: 100%;
+}
+
+.image-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 90%;
+  max-width: 1200px;
+
+  h4 {
+    margin: 0 0 10px 0;
+    color: #4a7bff;
+  }
+  
+  &.doppler-image-v2 {
+    width: 100%;
+    max-width: 1400px; 
+  }
+}
+
+/* 響應式調整 */
+@media (min-width: 768px) {
+  .delay-doppler-container {
+    flex-direction: column;
+  }
+}
+
+/* 新增CFR圖表控制元素的樣式 */
+.image-controls {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  label {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    gap: 8px;
+  }
+
+  input[type="number"] {
+    width: 80px;
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+
+  select {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+  }
+}
+
+.refresh-button {
+  padding: 8px 16px;
+  background-color: #4285f4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  align-self: flex-start;
+
+  &:hover {
+    background-color: #3367d6;
+  }
+
+  &:disabled {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+  }
+}
+
+.last-update {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+}
+
+/* SINR Map 專用樣式 - 移除容器特定樣式 */
+/* .sinr-image-container {
+    flex-grow: 1; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    overflow: hidden; 
+    width: 100%; 
+} */
+
+/* 修改 SINR 圖片樣式，直接限制最大高度 */
+.sinr-view-image {
+    max-height: calc(90vh - 120px); /* 90vh - header(60px) - padding(2*30px) */
+    max-width: 100%; 
+    width: auto; 
+    height: auto; 
+    object-fit: contain; 
+} 

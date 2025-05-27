@@ -1,0 +1,142 @@
+/* 整體佈局結構 */
+.layout {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 側邊欄樣式 - 懸浮 & 下移 */
+.sidebar {
+  width: 370px;
+  height: calc(100vh - 60px); /* 修改：高度減去 Navbar 高度 */
+  position: fixed;
+  left: 0;
+  top: 60px; /* 修改：頂部對齊 Navbar 底部 */
+  transform: translateX(0); /* 展開狀態 */
+  transition: transform 0.3s ease; /* 只過渡 transform */
+  background-color: var(--dark-bg);
+  border-right: 1px solid var(--dark-border);
+  z-index: 1000; /* 低於切換按鈕，但在內容之上 */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2); /* 添加陰影效果 */
+  border-radius: 0 5px 5px 0; /* 可以選擇性地為右側添加圓角 */
+
+  &.collapsed {
+    transform: translateX(-100%); /* 向左移出畫面 */
+    box-shadow: none; /* 收起時移除陰影 */
+    border-right: none;
+    pointer-events: none;
+
+    .sidebar-content {
+      opacity: 0;
+      transition: opacity 0.1s ease; /* 收起時立即隱藏 */
+    }
+  }
+
+  /* 側邊欄內容容器 */
+  .sidebar-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    opacity: 1;
+    transition: opacity 0.1s ease 0.1s; /* 延遲一點再顯示/隱藏內容 */
+  }
+}
+
+/* 側邊欄切換按鈕 - 懸浮 */
+.sidebar-toggle {
+  position: fixed;
+  top: 10px; /* 向下移動一點 */
+  left: 20px; /* 向右移動一點 */
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background-color: rgba(45, 45, 45, 0.8);
+  color: var(--dark-text);
+  border: 1px solid var(--dark-border);
+  border-radius: 4px;
+  z-index: 1001; /* 確保在最上層 */
+  transition: all 0.3s ease;
+  font-size: 20px;
+
+  &:hover {
+    background-color: var(--dark-highlight);
+  }
+}
+
+/* 主內容區域 - 修改為置中 + 計算高度 + 背景色 */
+.main-content {
+  flex-grow: 1;
+  width: 100%;
+  height: calc(100vh - 60px); /* 明確設定高度，減去 Navbar 高度 (假設 60px) */
+  overflow: hidden; /* 禁止內部滾動 */
+  margin-left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #7F7F7F;
+  box-sizing: border-box;
+  /* padding: 20px; */ /* 移除內邊距，避免影響置中 */
+
+  /* 確保內容容器內的元素可以撐滿可用空間 (移除 !important) */
+  > div {
+    /* flex-grow: 1; */ /* 不需要讓內部 div 填充 */
+    width: 100%;
+    height: 100%; /* 讓內部 div 佔滿 main-content 高度 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* --- 針對不同視圖容器設定大小 --- */
+
+/* 2D RT 圖像容器 (.scene-viewer-container 內可能是 img) */
+.scene-viewer-container, 
+.constellation-container { /* 星座圖容器也可能需要類似設定 */
+  display: flex; /* 讓內部 img 可以更好地居中或縮放 */
+  justify-content: center;
+  align-items: center;
+  width: 100%; /* 容器寬度佔滿 */
+  height: 100%; /* 容器高度佔滿 */
+
+  img {
+    max-width: 100%; /* 圖片寬度不超過容器 */
+    max-height: 100%; /* 圖片高度不超過容器 */
+    object-fit: contain; /* 等比例縮放 */
+    /* 移除之前的 width/height auto */
+  }
+}
+
+/* 3D RT 容器 (.scene-container 內是 canvas) */
+.scene-container {
+  width: 100%; /* 3D 容器寬度佔滿 */
+  height: 100%; /* 3D 容器高度佔滿 */
+  flex-grow: 1; /* 確保在 flex 佈局中填滿 */
+
+  canvas {
+    width: 100% !important; /* Canvas 寬度佔滿 */
+    height: 100% !important; /* Canvas 高度佔滿 */
+  }
+}
+
+/* 移除舊的通用規則 
+canvas, .scene-container, .constellation-container, .scene-viewer-container {
+  width: auto !important; 
+  max-width: 100%; 
+  height: auto !important; 
+  max-height: 100%; 
+  flex-grow: 0; 
+  object-fit: contain; 
+}
+*/

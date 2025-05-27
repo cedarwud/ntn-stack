@@ -1,0 +1,345 @@
+logger:
+  file:
+    path: /opt/open5gs/var/log/open5gs/amf.log
+#  level: info   # fatal|error|warn|info(default)|debug|trace
+
+global:
+# max:
+#   ue: 1024 # The number of UE can be increased depending on memory size.
+#    peer: 64
+
+amf:
+  sbi:
+    server:
+      - dev: eth0
+        port: 7777
+    client:
+#      nrf:
+#        - uri: http://127.0.0.10:7777
+      scp:
+        - uri: http://scp:7777
+  ngap:
+    server:
+      - dev: eth0
+  metrics:
+    server:
+      - dev: eth0
+        port: 9090
+  guami:
+    - plmn_id:
+        mcc: 999
+        mnc: 70
+      amf_id:
+        region: 2
+        set: 1
+  tai:
+    - plmn_id:
+        mcc: 999
+        mnc: 70
+      tac: 1
+  plmn_support:
+    - plmn_id:
+        mcc: 999
+        mnc: 70
+      s_nssai:
+        - sd: 0x111111
+          sst: 1
+        - sd: 0x222222
+          sst: 2
+        - sd: 0x333333
+          sst: 3
+        
+  security:
+    integrity_order : [ NIA2, NIA1, NIA0 ]
+    ciphering_order : [ NEA0, NEA1, NEA2 ]
+  network_name:
+    full: Open5GS
+    short: Next
+  amf_name: open5gs-amf0
+  time:
+    # NTN優化：針對衛星通信高延遲場景的計時器配置
+    # 標準地面網絡延遲：1-5ms，衛星網絡延遲：20-50ms
+    t3502:
+      value: 1440   # 24分鐘 * 60 = 1440秒 (增加以適應衛星軌道變化)
+    t3512:
+      value: 1080   # 18分鐘 * 60 = 1080秒 (從9分鐘增加至18分鐘)
+    t3513:
+      value: 60     # 1分鐘，緊急情況下的快速重試
+    t3522:
+      value: 120    # 2分鐘，適應衛星切換時間
+    t3550:
+      value: 12     # 增加到12秒，適應NTN信令延遲
+    t3560:
+      value: 12     # 增加到12秒，適應衛星信號傳播延遲
+    t3565:
+      value: 16     # 增加到16秒，確保NTN環境下的服務請求可靠性
+    # NTN專用計時器
+    t3346:
+      value: 1800   # 30分鐘，衛星覆蓋間隙的等待時間
+    # N1計時器：針對NAS消息的高延遲優化
+    n1_t3510:
+      value: 60     # 1分鐘，註冊請求超時 (標準15秒增加到60秒)
+    n1_t3511:
+      value: 30     # 30秒，註冊reject後重試 (標準10秒增加到30秒)  
+    n1_t3521:
+      value: 60     # 1分鐘，deregistration請求 (標準15秒增加到60秒)
+    # N2計時器：針對NGAP消息的高延遲優化  
+    n2_t_relocprep:
+      value: 20     # 20秒，切換準備 (標準10秒增加到20秒)
+    n2_t_relocoverall:
+      value: 60     # 1分鐘，切換整體 (標準10秒增加到60秒)
+    # 衛星特定參數
+    satellite_mode:
+      enabled: true
+      leo_orbit_period: 6000        # LEO軌道週期(秒)，約100分鐘
+      max_elevation_angle: 90       # 最大仰角
+      min_elevation_angle: 10       # 最小可用仰角
+      handover_margin: 5            # 切換裕度(dB)
+      # 覆蓋預測參數
+      coverage_prediction:
+        enabled: true
+        prediction_window: 300      # 5分鐘預測窗口
+        update_interval: 30         # 30秒更新間隔
+
+################################################################################
+# SBI Server
+################################################################################
+#  o Bind to the address on the eth0 and advertise as open5gs-amf.svc.local
+#  sbi:
+#    server:
+#      - dev:eth0
+#        advertise: open5gs-amf.svc.local
+#
+#  o Specify a custom port number 7777 while binding to the given address
+#  sbi:
+#    server:
+#      - address: amf.localdomain
+#        port: 7777
+#
+#  o Bind to 127.0.0.5 and advertise as open5gs-amf.svc.local
+#  sbi:
+#    server:
+#      - address: 127.0.0.5
+#        port: 7777
+#        advertise: open5gs-amf.svc.local
+#
+#  o Bind to port 7777 but advertise with a different port number 8888
+#  sbi:
+#    server:
+#      - address: 127.0.0.5
+#        port: 7777
+#        advertise: open5gs-amf.svc.local:8888
+#
+################################################################################
+# SBI Client
+################################################################################
+#  o Direct Communication with NRF
+#  sbi:
+#    client:
+#      nrf:
+#        - uri: http://127.0.0.10:7777
+#
+#  o Indirect Communication by Delegating to SCP
+#  sbi:
+#    client:
+#      scp:
+#        - uri: http://127.0.0.200:7777
+#
+#  o Indirect Communication without Delegation
+#  sbi:
+#    client:
+#      nrf:
+#        - uri: http://127.0.0.10:7777
+#      scp:
+#        - uri: http://127.0.0.200:7777
+#      delegated:
+#        nrf:
+#          nfm: no    # Directly communicate NRF management functions
+#          disc: no   # Directly communicate NRF discovery
+#        scp:
+#          next: no   # Do not delegate to SCP for next-hop
+#
+#  o Indirect Communication with Delegated Discovery
+#  sbi:
+#    client:
+#      nrf:
+#        - uri: http://127.0.0.10:7777
+#      scp:
+#        - uri: http://127.0.0.200:7777
+#      delegated:
+#        nrf:
+#          nfm: no    # Directly communicate NRF management functions
+#          disc: yes  # Delegate discovery to SCP
+#        scp:
+#          next: yes  # Delegate to SCP for next-hop communications
+#
+#  o Default delegation: all communications are delegated to the SCP
+#  sbi:
+#    client:
+#      nrf:
+#        - uri: http://127.0.0.10:7777
+#      scp:
+#        - uri: http://127.0.0.200:7777
+#      # No 'delegated' section; defaults to AUTO delegation
+#
+################################################################################
+# HTTPS scheme with TLS
+################################################################################
+#  o Set as default if not individually set
+#  default:
+#    tls:
+#      server:
+#        scheme: https
+#        private_key: @sysconfdir@/open5gs/tls/amf.key
+#        cert: @sysconfdir@/open5gs/tls/amf.crt
+#      client:
+#        scheme: https
+#        cacert: @sysconfdir@/open5gs/tls/ca.crt
+#  sbi:
+#    server:
+#      - address: amf.localdomain
+#    client:
+#      nrf:
+#        - uri: https://nrf.localdomain
+#
+#  o Enable SSL key logging for Wireshark
+#    - This configuration allows capturing SSL/TLS session keys
+#      for debugging or analysis purposes using Wireshark.
+#  default:
+#    tls:
+#      server:
+#        scheme: https
+#        private_key: @sysconfdir@/open5gs/tls/amf.key
+#        cert: @sysconfdir@/open5gs/tls/amf.crt
+#        sslkeylogfile: @localstatedir@/log/open5gs/tls/amf-server-sslkeylog.log
+#      client:
+#        scheme: https
+#        cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/amf-client-sslkeylog.log
+#  sbi:
+#    server:
+#      - address: amf.localdomain
+#    client:
+#      nrf:
+#        - uri: https://nrf.localdomain
+#
+#  o Add client TLS verification
+#  default:
+#    tls:
+#      server:
+#        scheme: https
+#        private_key: @sysconfdir@/open5gs/tls/amf.key
+#        cert: @sysconfdir@/open5gs/tls/amf.crt
+#        verify_client: true
+#        verify_client_cacert: @sysconfdir@/open5gs/tls/ca.crt
+#      client:
+#        scheme: https
+#        cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        client_private_key: @sysconfdir@/open5gs/tls/amf.key
+#        client_cert: @sysconfdir@/open5gs/tls/amf.crt
+#  sbi:
+#    server:
+#      - address: amf.localdomain
+#    client:
+#      nrf:
+#        - uri: https://nrf.localdomain
+#
+################################################################################
+# NGAP Server
+################################################################################
+#  o Listen on address available in `eth0` interface
+#  ngap:
+#    server:
+#      - dev: eth0
+#
+################################################################################
+# 3GPP Specification
+################################################################################
+#  o GUAMI
+#  guami:
+#    - plmn_id:
+#        mcc: 999
+#        mnc: 70
+#      amf_id:
+#        region: 2
+#        set: 1
+#        pointer: 4
+#    - plmn_id:
+#        mcc: 001
+#        mnc: 01
+#      amf_id:
+#        region: 5
+#        set: 2
+#
+#  o TAI
+#  tai:
+#    - plmn_id:
+#        mcc: 001
+#        mnc: 01
+#      tac: [1, 3, 5]
+#  tai:
+#    - plmn_id:
+#        mcc: 002
+#        mnc: 02
+#      tac: [6-10, 15-18]
+#  tai:
+#    - plmn_id:
+#        mcc: 003
+#        mnc: 03
+#      tac: 20
+#    - plmn_id:
+#        mcc: 004
+#        mnc: 04
+#      tac: 21
+#  tai:
+#    - plmn_id:
+#        mcc: 005
+#        mnc: 05
+#      tac: [22, 28]
+#    - plmn_id:
+#        mcc: 006
+#        mnc: 06
+#      tac: [30-32, 34, 36-38, 40-42, 44, 46, 48]
+#    - plmn_id:
+#        mcc: 007
+#        mnc: 07
+#      tac: 50
+#    - plmn_id:
+#        mcc: 008
+#        mnc: 08
+#      tac: 60
+#    - plmn_id:
+#        mcc: 009
+#        mnc: 09
+#      tac: [70, 80]
+#
+#  o PLMN Support
+#  plmn_support:
+#    - plmn_id:
+#        mcc: 999
+#        mnc: 70
+#      s_nssai:
+#        - sst: 1
+#          sd: 010000
+#    - plmn_id:
+#        mcc: 999
+#        mnc: 70
+#      s_nssai:
+#        - sst: 1
+#
+#  o Access Control
+#  access_control:
+#    - default_reject_cause: 13
+#    - plmn_id:
+#        reject_cause: 15
+#        mcc: 001
+#        mnc: 01
+#    - plmn_id:
+#        mcc: 002
+#        mnc: 02
+#    - plmn_id:
+#        mcc: 999
+#        mnc: 70
+#
+#  o Relative Capacity
+#  relative_capacity: 100

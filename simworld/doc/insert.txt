@@ -1,0 +1,32 @@
+-- 刪除所有現有設備數據
+DELETE FROM device;
+
+-- 插入發射器設備
+INSERT INTO device (name, position_x, position_y, position_z, orientation_x, orientation_y, orientation_z, role, power_dbm, active) 
+VALUES 
+('tx0', -110, -110, 40, 2.61799387799, 0, 0, 'desired', 30, true),
+('tx1', -106, 56, 61, 0.52359877559, 0, 0, 'desired', 30, true),
+('tx2', 100, -30, 40, -1.57079632679, 0, 0, 'desired', 30, true),
+('jam1', 100, 60, 40, 1.57079632679, 0, 0, 'jammer', 40, true),
+('jam2', -30, 53, 67, 1.57079632679, 0, 0, 'jammer', 40, true),
+('jam3', -105, -31, 64, 1.57079632679, 0, 0, 'jammer', 40, true),
+('rx', 0, 0, 40, 0, 0, 0, 'receiver', 0, true);
+
+
+
+-- 刪除所有現有設備數據
+DELETE FROM device;
+
+-- 插入發射器設備
+INSERT INTO device (name, position_x, position_y, position_z, orientation_x, orientation_y, orientation_z, role, power_dbm, active) 
+VALUES 
+('tx0', -100, -100, 40, 2.61799387799, 0, 0, 'desired', 30, true),
+('tx1', -100, 50, 40, 0.52359877559, 0, 0, 'desired', 30, true),
+('tx2', 100, -100, 40, -1.57079632679, 0, 0, 'desired', 30, true),
+('jam1', 100, 50, 40, 1.57079632679, 0, 0, 'jammer', 40, true),
+('jam2', 50, 50, 40, 1.57079632679, 0, 0, 'jammer', 40, true),
+('jam3', -50, -50, 40, 1.57079632679, 0, 0, 'jammer', 40, true),
+('jam4', -100, 0, 40, 1.57079632679, 0, 0, 'jammer', 40, true),
+('jam5', 0, -100, 40, 1.57079632679, 0, 0, 'jammer', 40, true),
+('jam6', -100, -50, 40, 1.57079632679, 0, 0, 'jammer', 40, true),
+('rx', 0, 0, 40, 0, 0, 0, 'receiver', 0, true);

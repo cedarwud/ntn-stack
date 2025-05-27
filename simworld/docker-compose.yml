@@ -1,0 +1,110 @@
+# docker-compose.yml
+# GPU/CPU 模式切換指南:
+# 1. 使用 CPU 模式: 設定 CUDA_VISIBLE_DEVICES="-1" 且註釋掉 deploy 部分
+# 2. 使用 GPU 模式: 設定 CUDA_VISIBLE_DEVICES="" 或指定 GPU ID，並啟用 deploy 部分
+# 3. 可選渲染後端: PYOPENGL_PLATFORM=egl (默認) 或 PYOPENGL_PLATFORM=osmesa 或 PYOPENGL_PLATFORM=glfw
+
+services:
+    postgis: # <-- 新增 PostgreSQL + PostGIS 服務
+        image: postgis/postgis:16-3.4 # 建議指定明確的版本，例如 PostgreSQL 16 + PostGIS 3.4
+        container_name: postgis_db # 給容器一個明確的名稱
+        env_file:
+            - ./.env # 從項目根目錄的 .env 讀取配置
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER:-user} # 從 .env 或預設值讀取
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password} # 從 .env 或預設值讀取
+            POSTGRES_DB: ${POSTGRES_DB:-appdb} # 從 .env 或預設值讀取
+        volumes:
+            - postgres_data:/var/lib/postgresql/data # 將資料庫數據持久化到 volume
+        ports:
+            - '${POSTGRES_PORT:-5432}:5432' # 將主機的某個端口映射到容器的 5432 (方便外部工具連接，可選)
+        networks:
+            - sionna-net
+        healthcheck: # 可選，但建議加上，讓 backend 等待 postgis 啟動完成
+            test:
+                ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    backend:
+        build:
+            context: ./backend
+            dockerfile: Dockerfile
+        container_name: fastapi_app # 給容器一個明確的名稱
+        ports:
+            - '8888:8000'
+        volumes:
+            - ./backend:/app
+        env_file:
+            - ./.env # 從項目根目錄的 .env 讀取配置
+            - ./backend/.env # 同時也加載 backend/.env 文件
+        environment:
+            # === 渲染和計算模式設定 ===
+            # CPU 模式：設定為 "-1" 強制使用 CPU
+            # GPU 模式：設定為 "" 或特定 GPU ID，如 "0" 或 "0,1"
+            CUDA_VISIBLE_DEVICES: '-1'
+
+            # === 渲染後端設定 ===
+            # 支持三種模式：egl (默認), osmesa (純軟體), glfw (需要顯示器或虛擬顯示器)
+            PYOPENGL_PLATFORM: 'egl'
+            # 可選設定 pyrender 的後端
+            PYRENDER_BACKEND: 'pyglet'
+
+            # 其他通用設定
+            PYTHONUNBUFFERED: '1'
+            # 資料庫連接 URL
+            DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgis:5432/${POSTGRES_DB}
+
+        # === GPU 支持 (使用 GPU 模式時取消註釋) ===
+        # deploy:
+        #   resources:
+        #     reservations:
+        #       devices:
+        #         - driver: nvidia
+        #           count: all
+        #           capabilities: [gpu]
+
+        networks:
+            - sionna-net
+        depends_on: # <-- 讓 FastAPI 服務等待 DB 服務啟動 (healthcheck 更可靠)
+            postgis:
+                condition: service_healthy # 等待 DB healthcheck 成功
+        # command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload # 開發時可取消註釋
+        healthcheck: # <--- 新增 FastAPI 的 healthcheck
+            # 嘗試連接 FastAPI 的根路徑 "/"。需要 curl。
+            # test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+            # 或者，如果不想安裝 curl，可以嘗試用 python 簡易檢查端口 (需要 python 在基礎鏡像中)
+            test:
+                [
+                    'CMD-SHELL',
+                    'python -c ''import socket; s = socket.create_connection(("localhost", 8000), timeout=5)'' || exit 1',
+                ]
+            interval: 10s # 每 10 秒檢查一次
+            timeout: 5s # 每次檢查超時 5 秒
+            retries: 5 # 重試 5 次失敗後標記為不健康
+            start_period: 30s # 啟動後等待 30 秒再開始健康檢查 (給 FastAPI 足夠的啟動時間)
+
+    frontend:
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile
+        container_name: react_app # 給容器一個明確的名稱
+        ports:
+            - '5173:5173'
+        volumes:
+            - ./frontend:/app
+            - node_modules:/app/node_modules
+        networks:
+            - sionna-net
+        depends_on: # React 通常依賴 FastAPI
+            backend: # <--- 修改依賴條件
+                condition: service_healthy # 等待 backend 健康檢查通過
+
+networks:
+    sionna-net:
+        driver: bridge
+
+volumes: # <-- 新增 volume 定義
+    postgres_data: # 用於持久化 PostgreSQL 數據
+    node_modules:

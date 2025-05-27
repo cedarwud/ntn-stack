@@ -1,0 +1,192 @@
+networks:
+  compose_netstack-core:
+    external: true
+
+services:
+  # gNodeB 1 - eMBB 專用
+  gnb1:
+    image: gradiant/ueransim:3.2.6
+    container_name: netstack-gnb1
+    command: ["gnb"]
+    environment:
+      MCC: '999'
+      MNC: '70'
+      TAC: '1'
+      SST: '1'
+      SD: '0x111111'
+      N2_BIND_IP: 172.20.1.10
+      N3_BIND_IP: 172.20.1.10
+      N3_ADVERTISE_IP: 172.20.1.10
+      RADIO_BIND_IP: 172.20.1.10
+      AMF_IP: 172.20.0.20
+    cap_add:
+      - all
+    privileged: true
+    networks:
+      compose_netstack-core:
+        ipv4_address: 172.20.1.10
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pgrep", "nr-gnb"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # gNodeB 2 - uRLLC 專用  
+  gnb2:
+    image: gradiant/ueransim:3.2.6
+    container_name: netstack-gnb2
+    command: ["gnb"]
+    environment:
+      MCC: '999'
+      MNC: '70'
+      TAC: '1'
+      SST: '2'
+      SD: '0x222222'
+      N2_BIND_IP: 172.20.1.20
+      N3_BIND_IP: 172.20.1.20
+      N3_ADVERTISE_IP: 172.20.1.20
+      RADIO_BIND_IP: 172.20.1.20
+      AMF_IP: 172.20.0.20
+    cap_add:
+      - all
+    privileged: true
+    networks:
+      compose_netstack-core:
+        ipv4_address: 172.20.1.20
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pgrep", "nr-gnb"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # UE 群組 1 - eMBB Slice 用戶 (IMSI: 999700000000001)
+  ues1:
+    image: gradiant/ueransim:3.2.6
+    container_name: netstack-ues1
+    command: ["ue", "-n", "1"]
+    environment:
+      GNB_IP: 172.20.1.10
+      MCC: '999'
+      MNC: '70'
+      MSISDN: '0000000001'
+      KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+      OP_TYPE: 'OPC'
+      OP: 'E8ED289DEBA952E4283B54E88E6183CA'
+      APN: 'internet'
+      SST: '1'
+      SD: '0x111111'
+    cap_add:
+      - all
+    privileged: true
+    depends_on:
+      - gnb1
+    networks:
+      compose_netstack-core:
+        ipv4_address: 172.20.1.30
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  # UE 群組 2 - uRLLC Slice 用戶 (IMSI: 999700000000002)
+  ues2:
+    image: gradiant/ueransim:3.2.6
+    container_name: netstack-ues2
+    command: ["ue", "-n", "1"]
+    environment:
+      GNB_IP: 172.20.1.10
+      MCC: '999'
+      MNC: '70'
+      MSISDN: '0000000002'
+      KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+      OP_TYPE: 'OPC'
+      OP: 'E8ED289DEBA952E4283B54E88E6183CA'
+      APN: 'internet'
+      SST: '1'
+      SD: '0x111111'
+    cap_add:
+      - all
+    privileged: true
+    depends_on:
+      - gnb1
+    networks:
+      compose_netstack-core:
+        ipv4_address: 172.20.1.31
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  # UE 群組 3 - mMTC Slice 用戶 (IMSI: 999700000000003)
+  ues3:
+    image: gradiant/ueransim:3.2.6
+    container_name: netstack-ues3
+    command: ["ue", "-n", "1"]
+    environment:
+      GNB_IP: 172.20.1.10
+      MCC: '999'
+      MNC: '70'
+      MSISDN: '0000000003'
+      KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+      OP_TYPE: 'OPC'
+      OP: 'E8ED289DEBA952E4283B54E88E6183CA'
+      APN: 'internet'
+      SST: '1'
+      SD: '0x111111'
+    cap_add:
+      - all
+    privileged: true
+    depends_on:
+      - gnb1
+    networks:
+      compose_netstack-core:
+        ipv4_address: 172.20.1.32
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  # 測試用 UE (IMSI: 999700000000099)
+  ue-test:
+    image: gradiant/ueransim:3.2.6
+    container_name: netstack-ue-test
+    command: ["ue", "-n", "1"]
+    environment:
+      GNB_IP: 172.20.1.10
+      MCC: '999'
+      MNC: '70'
+      MSISDN: '0000000099'
+      KEY: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+      OP_TYPE: 'OPC'
+      OP: 'E8ED289DEBA952E4283B54E88E6183CA'
+      APN: 'internet'
+      SST: '1'
+      SD: '0x111111'
+    cap_add:
+      - all
+    privileged: true
+    depends_on:
+      - gnb1
+    networks:
+      compose_netstack-core:
+        ipv4_address: 172.20.1.33
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  # 網路效能測試工具
+  network-tester:
+    image: alpine:latest
+    container_name: netstack-network-tester
+    command: |
+      sh -c "
+        apk add --no-cache curl iproute2 iputils tcpdump iperf3 &&
+        while true; do sleep 3600; done
+      "
+    cap_add:
+      - NET_ADMIN
+    networks:
+      compose_netstack-core:
+        ipv4_address: 172.20.1.100
+    restart: unless-stopped
+    stdin_open: true
+    tty: true 

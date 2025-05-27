@@ -1,0 +1,23 @@
+fastapi
+uvicorn[standard]
+matplotlib
+Pillow
+sionna
+sionna-rt
+trimesh
+pyrender>=0.1.45  # 確保使用較新版本，支持多種渲染後端
+pyglet>=2.0.0  # 為 pyrender 提供渲染支持
+PyOpenGL>=3.1.0  # OpenGL 支持
+PyOpenGL_accelerate  # 可選但建議，提高 OpenGL 性能
+python-multipart  # 支援表單數據和文件上傳
+skyfield # 新增 skyfield 套件
+httpx # 用於非同步 HTTP 請求
+redis # 用於 Redis 客戶端
+aiohttp # 用於非同步 HTTP 客戶端
+
+# --- 新增資料庫相關套件 ---
+sqlmodel
+sqlalchemy[asyncio]>=2.0 # 確保是 2.0+ 版本支援 async
+psycopg[binary,pool] # PostgreSQL driver (binary 包含預編譯版本, pool 提供連接池)
+asyncpg             # SQLAlchemy asyncio 需要的 async driver
+geoalchemy2         # SQLAlchemy 的 PostGIS 擴充

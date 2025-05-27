@@ -1,0 +1,20 @@
+# UE21 - mMTC Slice (sst=3, sd=0x333333)
+supi: 'imsi-999700000000021'
+mcc: '999'
+mnc: '70'
+key: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+op: 'E8ED289DEBA952E4283B54E88E6183CA'
+opType: 'OPC'
+sessions:
+  - type: 'IPv4'
+    apn: 'internet'
+    slice:
+      sst: 3
+      sd: 0x333333
+
+# gNB 連接設定
+gnbSearchList:
+  - 172.20.1.10  # gnb1 IP address
+
+# 網路介面設定
+tunNamePrefix: 'uesimtun'

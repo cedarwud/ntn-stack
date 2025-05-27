@@ -1,0 +1,55 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'netstack'
+
+rule_files:
+  # - "alert_rules.yml"
+
+scrape_configs:
+  # NetStack API 指標
+  - job_name: 'netstack-api'
+    static_configs:
+      - targets: ['netstack-api:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Open5GS 核心網指標
+  - job_name: 'open5gs-amf'
+    static_configs:
+      - targets: ['netstack-amf:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'open5gs-smf'
+    static_configs:
+      - targets: ['netstack-smf:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'open5gs-upf'
+    static_configs:
+      - targets: ['netstack-upf:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # MongoDB 指標
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['netstack-mongo:27017']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Redis 指標
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['netstack-redis:6379']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Prometheus 自我監控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090'] 

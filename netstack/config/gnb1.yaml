@@ -1,0 +1,42 @@
+mcc: '999'
+mnc: '70'
+nci: 0x000000010
+idLength: 22
+tac: 1
+linkIp: 172.20.1.10
+ngapIp: 172.20.1.10
+gtpIp: 172.20.1.10
+
+# AMF 配置
+amfConfigs:
+  - address: 172.20.0.20
+    port: 38412
+
+# 支援的 PLMN 列表
+plmns:
+  - mcc: '999'
+    mnc: '70'
+    tac: 1
+    nssai:
+      - sst: 1
+        sd: 0x111111
+
+# 支援的 S-NSSAI 列表
+nssai:
+  - sst: 1
+    sd: 0x111111
+  - sst: 2  
+    sd: 0x222222
+  - sst: 3
+    sd: 0x333333
+
+# gNB 名稱，這個值在 5GC 中應該是唯一的
+name: 'UERANSIM-gnb-001-01-1'
+
+# 日誌級別
+logging:
+  level: info
+
+# NIA 和 NEA 算法
+niaAlg: [IA1, IA2, IA3]
+neaAlg: [EA0, EA1, EA2, EA3] 
