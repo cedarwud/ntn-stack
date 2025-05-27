@@ -30,7 +30,6 @@ up: build ## 🚀 啟動 NetStack 核心網
 # 完整工作流程命令
 dev-up: ## 🛠️ 完整的開發環境設置 (保留數據)
 	@echo "$(GREEN)🛠️ 設置開發環境...$(NC)"
-	@$(MAKE) down
 	@$(MAKE) up
 	@$(MAKE) register-subscribers
 	@$(MAKE) start-ran

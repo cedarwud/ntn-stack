@@ -57,49 +57,13 @@ amf:
     short: Next
   amf_name: open5gs-amf0
   time:
-    # NTN優化：針對衛星通信高延遲場景的計時器配置
-    # 標準地面網絡延遲：1-5ms，衛星網絡延遲：20-50ms
+    # 針對 NTN 環境適度調整的計時器（僅使用 Open5GS 支援的設定）
     t3502:
-      value: 1440   # 24分鐘 * 60 = 1440秒 (增加以適應衛星軌道變化)
+      value: 1440   # 24分鐘，適應衛星軌道變化
     t3512:
-      value: 1080   # 18分鐘 * 60 = 1080秒 (從9分鐘增加至18分鐘)
+      value: 1080   # 18分鐘，週期性註冊更新
     t3513:
-      value: 60     # 1分鐘，緊急情況下的快速重試
-    t3522:
-      value: 120    # 2分鐘，適應衛星切換時間
-    t3550:
-      value: 12     # 增加到12秒，適應NTN信令延遲
-    t3560:
-      value: 12     # 增加到12秒，適應衛星信號傳播延遲
-    t3565:
-      value: 16     # 增加到16秒，確保NTN環境下的服務請求可靠性
-    # NTN專用計時器
-    t3346:
-      value: 1800   # 30分鐘，衛星覆蓋間隙的等待時間
-    # N1計時器：針對NAS消息的高延遲優化
-    n1_t3510:
-      value: 60     # 1分鐘，註冊請求超時 (標準15秒增加到60秒)
-    n1_t3511:
-      value: 30     # 30秒，註冊reject後重試 (標準10秒增加到30秒)  
-    n1_t3521:
-      value: 60     # 1分鐘，deregistration請求 (標準15秒增加到60秒)
-    # N2計時器：針對NGAP消息的高延遲優化  
-    n2_t_relocprep:
-      value: 20     # 20秒，切換準備 (標準10秒增加到20秒)
-    n2_t_relocoverall:
-      value: 60     # 1分鐘，切換整體 (標準10秒增加到60秒)
-    # 衛星特定參數
-    satellite_mode:
-      enabled: true
-      leo_orbit_period: 6000        # LEO軌道週期(秒)，約100分鐘
-      max_elevation_angle: 90       # 最大仰角
-      min_elevation_angle: 10       # 最小可用仰角
-      handover_margin: 5            # 切換裕度(dB)
-      # 覆蓋預測參數
-      coverage_prediction:
-        enabled: true
-        prediction_window: 300      # 5分鐘預測窗口
-        update_interval: 30         # 30秒更新間隔
+      value: 60     # 1分鐘，緊急狀況重試
 
 ################################################################################
 # SBI Server

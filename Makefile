@@ -51,7 +51,7 @@ help: ## 顯示幫助信息
 
 # ===== 服務啟動 =====
 
-start: all-start ## 啟動所有服務
+up: all-start ## 啟動所有服務
 
 all-start: ## 啟動 NetStack 和 SimWorld
 	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
@@ -71,10 +71,7 @@ all-start: ## 啟動 NetStack 和 SimWorld
 
 netstack-start: ## 啟動 NetStack 服務
 	@echo "$(BLUE)🚀 啟動 NetStack 服務...$(RESET)"
-	@echo "$(YELLOW)⏳ 先構建 NetStack API 映像...$(RESET)"
-	@cd $(NETSTACK_DIR) && docker build -t netstack-api:latest -f docker/Dockerfile .
-	@echo "$(YELLOW)⏳ 啟動 NetStack 服務...$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml up -d
+	@cd ${NETSTACK_DIR} && $(MAKE) dev-up
 	@echo "$(GREEN)✅ NetStack 服務已啟動$(RESET)"
 
 simworld-start: ## 啟動 SimWorld 服務
@@ -84,7 +81,7 @@ simworld-start: ## 啟動 SimWorld 服務
 
 # ===== 服務停止 =====
 
-stop: all-stop ## 停止所有服務
+down: all-stop ## 停止所有服務
 
 all-stop: ## 停止 NetStack 和 SimWorld
 	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務...$(RESET)"
@@ -94,12 +91,30 @@ all-stop: ## 停止 NetStack 和 SimWorld
 
 netstack-stop: ## 停止 NetStack 服務
 	@echo "$(BLUE)🛑 停止 NetStack 服務...$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml down
+	@cd ${NETSTACK_DIR} && $(MAKE) down
 	@echo "$(GREEN)✅ NetStack 服務已停止$(RESET)"
 
 simworld-stop: ## 停止 SimWorld 服務
 	@echo "$(BLUE)🛑 停止 SimWorld 服務...$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose down
+	@echo "$(GREEN)✅ SimWorld 服務已停止$(RESET)"
+
+down-v: all-stop-v ## 停止所有服務
+
+all-stop-v: ## 停止 NetStack 和 SimWorld
+	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務...$(RESET)"
+	@$(MAKE) netstack-stop-v
+	@$(MAKE) simworld-stop-v
+	@echo "$(GREEN)✅ 所有服務已停止$(RESET)"
+
+netstack-stop-v: ## 停止 NetStack 服務
+	@echo "$(BLUE)🛑 停止 NetStack 服務...$(RESET)"
+	@cd ${NETSTACK_DIR} && $(MAKE) down-v
+	@echo "$(GREEN)✅ NetStack 服務已停止$(RESET)"
+
+simworld-stop-v: ## 停止 SimWorld 服務
+	@echo "$(BLUE)🛑 停止 SimWorld 服務...$(RESET)"
+	@cd $(SIMWORLD_DIR) && docker compose down -v
 	@echo "$(GREEN)✅ SimWorld 服務已停止$(RESET)"
 
 # ===== 服務重啟 =====
@@ -415,8 +430,6 @@ deploy: ## 部署生產環境
 	@$(MAKE) start
 	@$(MAKE) test-quick
 	@echo "$(GREEN)✅ 生產環境部署完成$(RESET)"
-
-down: stop ## 停止所有服務（別名）
 
 # ===== 開發工具 =====
 
