@@ -1,0 +1,59 @@
+{
+  "timestamp": "2025-05-28T01:11:25.060039",
+  "environment": "development",
+  "total_duration_seconds": 14.773329,
+  "test_suites": [
+    {
+      "suite_name": "整合測試",
+      "start_time": "2025-05-28T01:11:10.286774",
+      "environment": "development",
+      "tests": [
+        {
+          "test_name": "test_sionna_integration",
+          "test_path": "tests/integration/sionna_integration/test_sionna_integration.py",
+          "status": "passed",
+          "duration_seconds": 8.390337467193604,
+          "output": "🚀 開始 Sionna 無線通道模型與 UERANSIM 整合測試\n============================================================\n\n📋 執行測試: SimWorld Wireless API\n🔄 測試 SimWorld Wireless API...\n✅ SimWorld Wireless 健康檢查通過: healthy\n✅ SimWorld Wireless API 測試通過\n\n📋 執行測試: NetStack 健康 API\n🔄 測試 NetStack 健康 API...\n✅ NetStack 健康檢查通過: healthy\n✅ NetStack 健康 API 測試通過\n\n📋 執行測試: 快速通道模擬\n🔄 測試快速通道模擬...\n✅ 快速通道模擬成功，結果數量: 1\n   - SINR: -43.0 dB\n   - RSRP: -136.6 dBm\n   - CQI: 1\n   - 吞吐量: 2.3 Mbps\n✅ 快速通道模擬 測試通過\n\n📋 執行測試: 衛星 NTN 模擬\n�� 測試衛星 NTN 模擬...\n✅ 衛星 NTN 模擬成功，結果數量: 1\n   - 衛星高度: 550 km\n   - SINR: -135.3 dB\n   - RSRP: -225.9 dBm\n   - 延遲: 4.8 ms\n✅ 衛星 NTN 模擬 測試通過\n\n📋 執行測試: 無線統計\n🔄 測試無線統計...\n✅ 無線統計查詢成功\n   - 統計項目數: 4\n✅ 無線統計 測試通過\n\n📋 執行測試: 通道類型查詢\n🔄 測試通道類型查詢...\n✅ 通道類型查詢成功\n✅ 通道類型查詢 測試通過\n\n📋 執行測試: UERANSIM 配置生成\n🔄 測試 UERANSIM 配置生成...\n✅ UERANSIM 配置生成成功\n   - 配置已生成\n✅ UERANSIM 配置生成 測試通過\n\n📋 執行測試: 衛星 gNodeB 映射\n🔄 測試衛星 gNodeB 映射...\n✅ 衛星 gNodeB 映射成功\n   - 衛星 ID: 25544\n   - 映射完成: 衛星 25544 位置轉換完成\n✅ 衛星 gNodeB 映射 測試通過\n\n============================================================\n📊 測試結果摘要\n============================================================\nSimWorld Wireless API................... ✅ 通過\nNetStack 健康 API......................... ✅ 通過\n快速通道模擬.................................. ✅ 通過\n衛星 NTN 模擬............................... ✅ 通過\n無線統計.................................... ✅ 通過\n通道類型查詢.................................. ✅ 通過\nUERANSIM 配置生成........................... ✅ 通過\n衛星 gNodeB 映射............................ ✅ 通過\n------------------------------------------------------------\n總測試數: 8\n通過數: 8\n失敗數: 0\n成功率: 100.0%\n\n🎉 所有測試通過！Sionna 整合功能運行正常\n",
+          "error": "",
+          "details": {}
+        },
+        {
+          "test_name": "test_sionna_core",
+          "test_path": "tests/integration/sionna_integration/test_sionna_core.py",
+          "status": "passed",
+          "duration_seconds": 6.378255844116211,
+          "output": "🚀 開始 Sionna 核心功能測試\n============================================================\n\n📋 執行測試: 無線模組健康檢查\n🔄 測試無線模組健康檢查...\n✅ 無線模組健康: healthy\n   - GPU 可用: True\n   - 活躍模擬: 10\n   - 處理的通道數: 10\n✅ 無線模組健康檢查 測試通過\n\n📋 執行測試: 快速通道模擬\n🔄 測試快速通道模擬...\n✅ 快速模擬成功，結果數量: 1\n   📡 通道資訊:\n     - 通道 ID: ch_quick_4f0b00ba_0_0\n     - 頻率: 2.1 GHz\n     - 路徑損耗: 194.5 dB\n     - 多路徑數: 4\n   📊 RAN 參數:\n     - SINR: -25.9 dB\n     - RSRP: -119.5 dBm\n     - RSRQ: -19.5 dB\n     - CQI: 1\n     - 吞吐量: 2.3 Mbps\n     - 延遲: 3.0 ms\n✅ 快速通道模擬 測試通過\n\n📋 執行測試: 衛星 NTN 模擬\n🔄 測試衛星 NTN 模擬...\n✅ 衛星 NTN 模擬成功，結果數量: 1\n   🛰️ 衛星通道資訊:\n     - 衛星高度: 550 km\n     - 頻率: 20.0 GHz\n     - 路徑損耗: 303.2 dB\n     - 發送端位置: [0.0, 0.0, 550000.0]\n     - 接收端位置: [0.0, 0.0, 0.0]\n   📊 衛星 RAN 參數:\n     - SINR: -120.4 dB\n     - RSRP: -211.0 dBm\n     - RSRQ: -19.5 dB\n     - CQI: 1\n     - 延遲: 4.8 ms\n✅ 衛星 NTN 模擬 測試通過\n\n📋 執行測試: 通道模型指標\n🔄 測試通道模型指標...\n✅ 通道模型指標查詢成功\n   - 處理的通道總數: 12\n   - 平均轉換時間: 100.7 ms\n   - 成功率: 100.0%\n   - GPU 使用率: 80.0%\n   - 記憶體使用: 3072.0 MB\n✅ 通道模型指標 測試通過\n\n📋 執行測試: NetStack 健康狀態\n🔄 測試 NetStack 健康狀態...\n✅ NetStack 健康: healthy\n   - mongodb: healthy\n   - redis: healthy\n✅ NetStack 健康狀態 測試通過\n\n📋 執行測試: 衛星 gNodeB 映射\n🔄 測試衛星 gNodeB 映射...\n✅ 衛星 gNodeB 映射成功\n   - 衛星 ID: 25544\n   - 映射狀態: 衛星 25544 位置轉換完成\n✅ 衛星 gNodeB 映射 測試通過\n\n============================================================\n📊 Sionna 核心功能測試摘要\n============================================================\n無線模組健康檢查................................ ✅ 通過\n快速通道模擬.................................. ✅ 通過\n衛星 NTN 模擬............................... ✅ 通過\n通道模型指標.................................. ✅ 通過\nNetStack 健康狀態........................... ✅ 通過\n衛星 gNodeB 映射............................ ✅ 通過\n------------------------------------------------------------\n總測試數: 6\n通過數: 6\n失敗數: 0\n成功率: 100.0%\n\n🎉 所有核心功能測試通過！\n✨ Sionna 無線通道模型與 UERANSIM 整合功能完全正常\n",
+          "error": "",
+          "details": {}
+        }
+      ],
+      "summary": {
+        "total": 2,
+        "passed": 2,
+        "failed": 0,
+        "success_rate": 1.0
+      },
+      "service_health": {
+        "netstack": true,
+        "simworld": true
+      },
+      "duration_seconds": 14.773083448410034,
+      "end_time": "2025-05-28T01:11:25.059888",
+      "status": "passed"
+    }
+  ],
+  "overall_summary": {
+    "total_suites": 1,
+    "total_tests": 2,
+    "total_passed": 2,
+    "total_failed": 0,
+    "overall_success_rate": 1.0,
+    "suites_summary": [
+      {
+        "suite": "整合測試",
+        "status": "passed",
+        "success_rate": 1.0
+      }
+    ]
+  }
+}

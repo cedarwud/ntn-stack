@@ -34,6 +34,7 @@
     .scene-dropdown {
       display: block;
       opacity: 1;
+      visibility: visible;
       transform: translateX(-50%); /* 保持水平置中 */
     }
   }
@@ -70,7 +71,14 @@
   font-size: 1.2rem;
   display: none; /* 初始狀態為隱藏，hover wrapper時才顯示 */
   opacity: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  visibility: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+
+  &.show {
+    display: block;
+    opacity: 1;
+    visibility: visible;
+  }
 }
 
 .scene-option {

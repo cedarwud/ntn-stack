@@ -230,10 +230,10 @@ async def get_available_scenes():
         raise HTTPException(status_code=500, detail=f"獲取場景列表時出錯: {str(e)}")
 
 
-@router.get("/scene/{scene_name}", response_description="獲取特定場景信息")
+@router.get("/scenes/{scene_name}", response_description="獲取特定場景信息")
 async def get_scene_info(scene_name: str):
     """獲取特定場景的詳細信息"""
-    logger.info(f"--- API Request: /scene/{scene_name} (獲取場景信息) ---")
+    logger.info(f"--- API Request: /scenes/{scene_name} (獲取場景信息) ---")
 
     try:
         from app.core.config import (
@@ -274,10 +274,10 @@ async def get_scene_info(scene_name: str):
         raise HTTPException(status_code=500, detail=f"獲取場景信息時出錯: {str(e)}")
 
 
-@router.get("/scene/{scene_name}/model", response_description="獲取場景模型文件")
+@router.get("/scenes/{scene_name}/model", response_description="獲取場景模型文件")
 async def get_scene_model(scene_name: str):
     """獲取特定場景的3D模型文件"""
-    logger.info(f"--- API Request: /scene/{scene_name}/model (獲取場景模型) ---")
+    logger.info(f"--- API Request: /scenes/{scene_name}/model (獲取場景模型) ---")
 
     try:
         from app.core.config import get_scene_model_path

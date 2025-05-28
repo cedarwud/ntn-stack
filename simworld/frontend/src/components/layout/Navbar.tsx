@@ -45,6 +45,7 @@ const Navbar: React.FC<NavbarProps> = ({
 }) => {
     const navigate = useNavigate()
     const [isMenuOpen, setIsMenuOpen] = useState(false)
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
     // States for modal visibility
     const [showSINRModal, setShowSINRModal] = useState(false)
@@ -83,9 +84,12 @@ const Navbar: React.FC<NavbarProps> = ({
     }
 
     const handleSceneChange = (sceneKey: string) => {
+        console.log('Scene change clicked:', sceneKey)
+        console.log('Current activeComponent:', activeComponent)
         // 根據當前的視圖導航到新場景
         const currentView =
             activeComponent === '3DRT' ? 'stereogram' : 'floor-plan'
+        console.log('Navigating to:', `/${sceneKey}/${currentView}`)
         navigate(`/${sceneKey}/${currentView}`)
     }
 
@@ -204,13 +208,23 @@ const Navbar: React.FC<NavbarProps> = ({
         <>
             <nav className="navbar">
                 <div className="navbar-container">
-                    <div className="navbar-dropdown-wrapper">
-                        <div className="navbar-logo" ref={logoRef}>
+                    <div
+                        className="navbar-dropdown-wrapper"
+                        onMouseEnter={() => setIsDropdownOpen(true)}
+                        onMouseLeave={() => setIsDropdownOpen(false)}
+                    >
+                        <div
+                            className="navbar-logo"
+                            ref={logoRef}
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        >
                             {getSceneDisplayName(currentScene)}
                             <span className="dropdown-arrow">▼</span>
                         </div>
                         <div
-                            className="scene-dropdown"
+                            className={`scene-dropdown ${
+                                isDropdownOpen ? 'show' : ''
+                            }`}
                             style={{ left: `${dropdownPosition.left}px` }}
                         >
                             {Object.entries(SCENE_DISPLAY_NAMES).map(
@@ -223,6 +237,7 @@ const Navbar: React.FC<NavbarProps> = ({
                                         onClick={(e) => {
                                             e.stopPropagation()
                                             handleSceneChange(key)
+                                            setIsDropdownOpen(false)
                                         }}
                                     >
                                         {value}

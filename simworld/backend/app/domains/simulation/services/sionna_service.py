@@ -233,7 +233,7 @@ def _setup_pyrender_scene_from_glb() -> Optional[pyrender.Scene]:
         if not os.path.exists(NYCU_GLB_PATH) or os.path.getsize(NYCU_GLB_PATH) == 0:
             logger.error(f"GLB file not found or empty: {NYCU_GLB_PATH}")
             return None
-        scene_tm = trimesh.load(NYCU_GLB_PATH, force="scene")
+        scene_tm = trimesh.load(NYCU_GLB_PATH, force="scenes")
         logger.info("GLB file loaded.")
 
         # 2. Create pyrender scene with background and ambient light

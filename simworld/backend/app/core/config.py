@@ -38,8 +38,8 @@ APP_DIR = CORE_DIR.parent  # /app/app
 STATIC_DIR = APP_DIR / "static"  # Correct path: /app/app/static
 MODELS_DIR = STATIC_DIR / "models"  # Correct path: /app/app/static/models
 STATIC_IMAGES_DIR = STATIC_DIR / "images"  # Correct path: /app/app/static/images
-SCENE_DIR = STATIC_DIR / "scene"  # 新增: 場景總目錄路徑
-NYCU_DIR = SCENE_DIR / "NYCU"  # 更新: NYCU 目錄現在在 scene 子目錄下
+SCENE_DIR = STATIC_DIR / "scenes"  # 新增: 場景總目錄路徑
+NYCU_DIR = SCENE_DIR / "NYCU"  # 更新: NYCU 目錄現在在 scenes 子目錄下
 
 # 建立目錄
 # STATIC_DIR.mkdir(parents=True, exist_ok=True) # 目錄應該由 volume mount 提供，不需在 config 創建

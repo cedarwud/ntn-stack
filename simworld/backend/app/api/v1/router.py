@@ -15,6 +15,9 @@ from app.domains.coordinates.api.coordinate_api import router as coordinates_rou
 from app.domains.satellite.api.satellite_api import router as satellite_router
 from app.domains.simulation.api.simulation_api import router as simulation_router
 
+# Import wireless domain API router
+from app.domains.wireless.api.wireless_api import router as wireless_router
+
 # 引入 Skyfield 相關庫
 from skyfield.api import load, wgs84, EarthSatellite
 import numpy as np
@@ -71,6 +74,9 @@ api_router.include_router(
     simulation_router, prefix="/simulations", tags=["Simulations"]
 )
 
+# Register wireless domain API router
+api_router.include_router(wireless_router, prefix="/wireless", tags=["Wireless"])
+
 
 # 添加模型資源路由
 @api_router.get("/sionna/models/{model_name}", tags=["Models"])
@@ -107,7 +113,7 @@ async def get_scene_model(scene_name: str):
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         "static",
     )
-    scenes_dir = os.path.join(static_dir, "scene")
+    scenes_dir = os.path.join(static_dir, "scenes")
     scene_dir = os.path.join(scenes_dir, scene_name)
 
     # 獲取對應的場景模型文件

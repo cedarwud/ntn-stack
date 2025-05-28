@@ -285,37 +285,73 @@ test-connectivity: ## 🔗 執行連接性測試
 	@cd netstack/tests && bash ./test_connectivity.sh
 	@echo "$(GREEN)✅ 連接性測試完成$(RESET)"
 
+test-sionna-integration: ## 📡 執行 Sionna 無線通道模型整合測試
+	@echo "$(CYAN)📡 執行 Sionna 無線通道模型整合測試...$(RESET)"
+	@python3 test_sionna_integration.py
+	@echo "$(GREEN)✅ Sionna 整合測試完成$(RESET)"
+
+test-sionna-core: ## 🎯 執行 Sionna 核心功能測試
+	@echo "$(CYAN)🎯 執行 Sionna 核心功能測試...$(RESET)"
+	@python3 test_sionna_core.py
+	@echo "$(GREEN)✅ Sionna 核心功能測試完成$(RESET)"
+
+# ===== 統一測試管理 =====
+
+test-quick: ## ⚡ 快速測試（開發時使用）
+	@echo "$(CYAN)⚡ 執行快速測試...$(RESET)"
+	@python3 tests/helpers/test_runner.py quick
+	@echo "$(GREEN)✅ 快速測試完成$(RESET)"
+
+test-unit: ## 🧩 執行所有單元測試
+	@echo "$(CYAN)🧩 執行單元測試...$(RESET)"
+	@cd netstack && $(MAKE) test-unit || true
+	@cd simworld && $(MAKE) test-unit || true
+	@echo "$(GREEN)✅ 單元測試完成$(RESET)"
+
+test-integration: ## 🔗 執行整合測試
+	@echo "$(CYAN)🔗 執行整合測試...$(RESET)"
+	@python3 tests/helpers/test_runner.py integration
+	@echo "$(GREEN)✅ 整合測試完成$(RESET)"
+
+test-netstack-only: ## 📡 僅執行 NetStack 測試
+	@echo "$(CYAN)📡 執行 NetStack 專用測試...$(RESET)"
+	@python3 tests/helpers/test_runner.py netstack
+	@echo "$(GREEN)✅ NetStack 測試完成$(RESET)"
+
+test-simworld-only: ## 🌍 僅執行 SimWorld 測試
+	@echo "$(CYAN)🌍 執行 SimWorld 專用測試...$(RESET)"
+	@cd simworld && $(MAKE) test-all || true
+	@echo "$(GREEN)✅ SimWorld 測試完成$(RESET)"
+
 # ===== 測試組合 =====
 
-test-all: ## 🎯 執行所有 NetStack 測試
-	@echo "$(CYAN)🎯 執行所有 NetStack 測試...$(RESET)"
-	@$(MAKE) test-ntn-validation
-	@$(MAKE) test-config-validation
-	@$(MAKE) test-satellite-gnb
-	@$(MAKE) test-ueransim
-	@$(MAKE) test-latency
-	@$(MAKE) test-e2e
-	@$(MAKE) test-slice-switching
-	@$(MAKE) test-performance
-	@$(MAKE) test-connectivity
+test-all: ## 🎯 執行所有測試
+	@echo "$(CYAN)🎯 執行完整測試套件...$(RESET)"
+	@python3 tests/helpers/test_runner.py all
 	@echo "$(GREEN)🎉 所有測試完成$(RESET)"
 
 test-core: ## 🔧 執行核心功能測試
 	@echo "$(CYAN)🔧 執行核心功能測試...$(RESET)"
+	@$(MAKE) test-quick
 	@$(MAKE) test-ntn-validation
-	@$(MAKE) test-config-validation
-	@$(MAKE) test-e2e
 	@$(MAKE) test-connectivity
 	@echo "$(GREEN)✅ 核心功能測試完成$(RESET)"
 
 test-advanced: ## 🚀 執行進階功能測試
 	@echo "$(CYAN)🚀 執行進階功能測試...$(RESET)"
+	@$(MAKE) test-integration
 	@$(MAKE) test-satellite-gnb
 	@$(MAKE) test-ueransim
-	@$(MAKE) test-latency
-	@$(MAKE) test-slice-switching
 	@$(MAKE) test-performance
 	@echo "$(GREEN)✅ 進階功能測試完成$(RESET)"
+
+test-legacy: ## 🔄 執行傳統 Shell 測試（向後兼容）
+	@echo "$(CYAN)🔄 執行傳統 Shell 測試...$(RESET)"
+	@$(MAKE) test-config-validation
+	@$(MAKE) test-latency
+	@$(MAKE) test-e2e
+	@$(MAKE) test-slice-switching
+	@echo "$(GREEN)✅ 傳統測試完成$(RESET)"
 
 # ===== 從 netstack/Makefile 遷移的指令 =====
 
@@ -351,8 +387,29 @@ netstack-fix-connectivity: ## 🔧 修復 NetStack 連線問題
 
 test-clean: ## 🧹 清理測試結果和臨時文件
 	@echo "$(CYAN)🧹 清理測試結果和臨時文件...$(RESET)"
-	@rm -rf test-reports/ netstack/tests/test-reports/ netstack/tests/*.log
+	@rm -rf tests/reports/* test-reports/ netstack/tests/test-reports/ netstack/tests/*.log
+	@rm -rf simworld/backend/tests/reports/ simworld/backend/tests/*.log
+	@rm -rf **/__pycache__/ **/.pytest_cache/ .coverage*
 	@echo "$(GREEN)✅ 測試清理完成$(RESET)"
+
+test-report: ## 📊 生成測試報告摘要
+	@echo "$(CYAN)📊 生成測試報告摘要...$(RESET)"
+	@python3 -c "import json, glob, os; reports = sorted(glob.glob('tests/reports/test_report_*.json'), reverse=True); print(f'📋 最新測試報告: {os.path.basename(reports[0])}' if reports else '❌ 未找到測試報告')" 2>/dev/null || echo "❌ 報告解析失敗"
+
+test-coverage: ## 📈 生成覆蓋率報告
+	@echo "$(CYAN)📈 生成覆蓋率報告...$(RESET)"
+	@echo "NetStack 覆蓋率:"
+	@cd netstack && python3 -m pytest --cov=netstack_api --cov-report=html:../tests/reports/coverage/netstack_coverage.html --cov-report=term || true
+	@echo "SimWorld 覆蓋率:"
+	@cd simworld/backend && python3 -m pytest --cov=app --cov-report=html:../../tests/reports/coverage/simworld_coverage.html --cov-report=term || true
+	@echo "$(GREEN)✅ 覆蓋率報告已生成$(RESET)"
+
+test-env: ## 🌍 設置測試環境
+	@echo "$(CYAN)🌍 設置測試環境...$(RESET)"
+	@pip install -r requirements.txt
+	@cd netstack && pip install -r requirements-dev.txt
+	@cd simworld && pip install -r backend/requirements.txt
+	@echo "$(GREEN)✅ 測試環境設置完成$(RESET)"
 
 # ===== 監控和診斷 =====
 

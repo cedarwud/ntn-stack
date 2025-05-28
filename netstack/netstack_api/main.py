@@ -11,7 +11,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import structlog
 from fastapi import FastAPI, HTTPException, status
@@ -30,6 +30,8 @@ from .services.slice_service import SliceService, SliceType
 from .services.health_service import HealthService
 from .services.ueransim_service import UERANSIMConfigService
 from .services.satellite_gnb_mapping_service import SatelliteGnbMappingService
+from .services.sionna_integration_service import SionnaIntegrationService
+from .services.sionna_integration_service import SionnaIntegrationService
 from .models.requests import SliceSwitchRequest
 from .models.ueransim_models import UERANSIMConfigRequest, UERANSIMConfigResponse
 from .models.responses import (
@@ -143,6 +145,13 @@ async def lifespan(app: FastAPI):
         ueransim_config_dir=os.getenv("UERANSIM_CONFIG_DIR", "/tmp/ueransim_configs"),
     )
 
+    # 初始化 Sionna 整合服務
+    sionna_service = SionnaIntegrationService(
+        simworld_api_url=os.getenv("SIMWORLD_API_URL", "http://simworld-backend:8000"),
+        update_interval_sec=int(os.getenv("SIONNA_UPDATE_INTERVAL", "30")),
+        ueransim_config_dir=os.getenv("UERANSIM_CONFIG_DIR", "/tmp/ueransim_configs"),
+    )
+
     # 儲存到應用程式狀態
     app.state.mongo_adapter = mongo_adapter
     app.state.redis_adapter = redis_adapter
@@ -153,10 +162,14 @@ async def lifespan(app: FastAPI):
     app.state.ueransim_service = ueransim_service
     app.state.satellite_gnb_service = satellite_gnb_service
     app.state.oneweb_service = oneweb_service
+    app.state.sionna_service = sionna_service
 
     # 連接外部服務
     await mongo_adapter.connect()
     await redis_adapter.connect()
+
+    # 啟動 Sionna 整合服務
+    await sionna_service.start()
 
     logger.info("✅ NetStack API 啟動完成")
 
@@ -168,6 +181,10 @@ async def lifespan(app: FastAPI):
     # 關閉 OneWeb 服務
     if hasattr(app.state, "oneweb_service"):
         await app.state.oneweb_service.shutdown()
+
+    # 關閉 Sionna 整合服務
+    if hasattr(app.state, "sionna_service"):
+        await app.state.sionna_service.stop()
 
     await mongo_adapter.disconnect()
     await redis_adapter.disconnect()
@@ -1055,6 +1072,112 @@ async def deploy_oneweb_ueransim_configs():
     except Exception as e:
         logger.error("部署 OneWeb UERANSIM 配置失敗", error=str(e))
         raise HTTPException(status_code=500, detail=f"部署 UERANSIM 配置失敗: {str(e)}")
+
+
+# ===== Sionna 整合 API 端點 =====
+
+
+@app.post("/api/v1/sionna/channel-simulation", tags=["Sionna 整合"])
+async def request_sionna_channel_simulation(
+    ue_positions: List[Dict[str, Any]],
+    gnb_positions: List[Dict[str, Any]],
+    environment_type: str = "urban",
+    frequency_ghz: float = 2.1,
+    bandwidth_mhz: float = 20,
+):
+    """請求 Sionna 通道模擬"""
+    try:
+        sionna_service = app.state.sionna_service
+
+        result = await sionna_service.quick_channel_simulation_and_apply(
+            ue_positions=ue_positions,
+            gnb_positions=gnb_positions,
+            environment_type=environment_type,
+            frequency_ghz=frequency_ghz,
+            bandwidth_mhz=bandwidth_mhz,
+        )
+
+        return CustomJSONResponse(content=result)
+
+    except Exception as e:
+        logger.error(f"Sionna 通道模擬失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"通道模擬失敗: {str(e)}")
+
+
+@app.get("/api/v1/sionna/active-models", tags=["Sionna 整合"])
+async def get_active_channel_models():
+    """獲取活躍的通道模型"""
+    try:
+        sionna_service = app.state.sionna_service
+        models = await sionna_service.get_active_channel_models()
+
+        result = {
+            "active_models": models,
+            "count": len(models),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+        return CustomJSONResponse(content=result)
+
+    except Exception as e:
+        logger.error(f"獲取活躍通道模型失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取失敗: {str(e)}")
+
+
+@app.get("/api/v1/sionna/status", tags=["Sionna 整合"])
+async def get_sionna_service_status():
+    """獲取 Sionna 整合服務狀態"""
+    try:
+        sionna_service = app.state.sionna_service
+        status = sionna_service.get_service_status()
+
+        return CustomJSONResponse(content=status)
+
+    except Exception as e:
+        logger.error(f"獲取 Sionna 服務狀態失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"狀態查詢失敗: {str(e)}")
+
+
+@app.post("/api/v1/sionna/quick-test", tags=["Sionna 整合"])
+async def sionna_quick_test():
+    """Sionna 整合快速測試"""
+    try:
+        # 預設測試配置
+        ue_positions = [
+            {"position": [100, 0, 1.5]},
+            {"position": [500, 200, 1.5]},
+            {"position": [800, -100, 1.5]},
+        ]
+
+        gnb_positions = [{"position": [0, 0, 30]}, {"position": [1000, 0, 30]}]
+
+        sionna_service = app.state.sionna_service
+
+        result = await sionna_service.quick_channel_simulation_and_apply(
+            ue_positions=ue_positions,
+            gnb_positions=gnb_positions,
+            environment_type="urban",
+            frequency_ghz=2.1,
+            bandwidth_mhz=20,
+        )
+
+        test_result = {
+            "test_completed": True,
+            "test_config": {
+                "ue_count": len(ue_positions),
+                "gnb_count": len(gnb_positions),
+                "environment": "urban",
+                "frequency_ghz": 2.1,
+                "bandwidth_mhz": 20,
+            },
+            "result": result,
+        }
+
+        return CustomJSONResponse(content=test_result)
+
+    except Exception as e:
+        logger.error(f"Sionna 快速測試失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"測試失敗: {str(e)}")
 
 
 # ===== 錯誤處理 =====

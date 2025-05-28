@@ -55,10 +55,10 @@ export const ApiRoutes = {
   scenes: {
     base: `${API_BASE_URL}/simulations/scenes`,
     getAll: `${API_BASE_URL}/simulations/scenes`,
-    getScene: (sceneName: string) => `${API_BASE_URL}/simulations/scene/${sceneName}`,
-    getSceneModel: (sceneName: string) => `${API_BASE_URL}/simulations/scene/${sceneName}/model`,
+    getScene: (sceneName: string) => `${API_BASE_URL}/simulations/scenes/${sceneName}`,
+    getSceneModel: (sceneName: string) => `${API_BASE_URL}/simulations/scenes/${sceneName}/model`,
     getSceneTexture: (sceneName: string, textureName: string) => 
-      `/static/scene/${sceneName}/textures/${textureName}`,
+      `/static/scenes/${sceneName}/textures/${textureName}`,
   },
   
   // 臨時的衛星可見性路由

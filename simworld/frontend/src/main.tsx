@@ -74,12 +74,12 @@ const router = createBrowserRouter(
         },
         {
             // 場景路由 - stereogram
-            path: '/:scene/stereogram',
+            path: '/:scenes/stereogram',
             element: <App activeView="stereogram" />,
         },
         {
             // 場景路由 - floor-plan
-            path: '/:scene/floor-plan',
+            path: '/:scenes/floor-plan',
             element: <App activeView="floor-plan" />,
         },
         {

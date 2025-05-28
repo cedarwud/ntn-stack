@@ -1,11 +1,11 @@
 // src/App.tsx
 import { useState, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
-import SceneView from './components/scene/StereogramView'
+import SceneView from './components/scenes/StereogramView'
 import Layout from './components/layout/Layout'
 import Sidebar from './components/layout/Sidebar'
 import Navbar from './components/layout/Navbar'
-import SceneViewer from './components/scene/FloorView'
+import SceneViewer from './components/scenes/FloorView'
 import './styles/App.scss'
 import { Device } from './types/device'
 import { countActiveDevices } from './utils/deviceUtils'
@@ -17,10 +17,10 @@ interface AppProps {
 }
 
 function App({ activeView }: AppProps) {
-    const { scene } = useParams<{ scene: string }>()
+    const { scenes } = useParams<{ scenes: string }>()
 
     // 確保有預設場景
-    const currentScene = scene || 'nycu'
+    const currentScene = scenes || 'nycu'
 
     // 根據 activeView 設定初始組件
     const initialComponent = activeView === 'stereogram' ? '3DRT' : '2DRT'

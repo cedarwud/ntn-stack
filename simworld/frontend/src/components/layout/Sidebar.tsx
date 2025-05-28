@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import '../../styles/Sidebar.scss'
-import { UAVManualDirection } from '../scene/UAVFlight' // Assuming UAVFlight exports this
+import { UAVManualDirection } from '../scenes/UAVFlight' // Assuming UAVFlight exports this
 import { Device } from '../../types/device'
 import SidebarStarfield from '../ui/SidebarStarfield' // Import the new component
 import DeviceItem from '../devices/DeviceItem' // Import DeviceItem
