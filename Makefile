@@ -55,12 +55,16 @@ up: all-start ## 啟動所有服務
 
 all-start: ## 啟動 NetStack 和 SimWorld
 	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
+	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (創建網路)...$(RESET)"
+	@$(MAKE) netstack-start
+	@echo "$(YELLOW)⏳ 等待 NetStack 網路就緒...$(RESET)"
+	@sleep 15
+	@echo "$(YELLOW)⚡ 第二步：啟動 SimWorld (連接網路)...$(RESET)"
 	@$(MAKE) simworld-start
 	@echo "$(YELLOW)⏳ 等待 SimWorld 啟動完成...$(RESET)"
 	@sleep 10
-	@$(MAKE) netstack-start
-	@echo "$(YELLOW)⏳ 等待 NetStack 啟動完成...$(RESET)"
-	@sleep 15
+	@echo "$(YELLOW)🔗 驗證容器間網路連接...$(RESET)"
+	@$(MAKE) verify-network-connection
 	@$(MAKE) status
 	@echo "$(GREEN)✅ 所有服務啟動完成$(RESET)"
 	@echo ""
@@ -201,6 +205,26 @@ status: ## 檢查所有服務狀態
 	@echo "$(YELLOW)服務健康檢查:$(RESET)"
 	@curl -s $(NETSTACK_URL)/health > /dev/null && echo "$(GREEN)✅ NetStack 健康檢查通過$(RESET)" || echo "$(RED)❌ NetStack 健康檢查失敗$(RESET)"
 	@curl -s $(SIMWORLD_URL)/ > /dev/null && echo "$(GREEN)✅ SimWorld 健康檢查通過$(RESET)" || echo "$(RED)❌ SimWorld 健康檢查失敗$(RESET)"
+
+verify-network-connection: ## 🔗 驗證容器間網路連接
+	@echo "$(CYAN)🔗 驗證容器間網路連接...$(RESET)"
+	@echo "$(YELLOW)檢查網路配置:$(RESET)"
+	@docker network ls | grep -E "(netstack-core|sionna-net)" || echo "$(RED)❌ 網路不存在$(RESET)"
+	@echo "$(YELLOW)檢查 SimWorld backend 網路連接:$(RESET)"
+	@docker inspect fastapi_app --format='{{range $$network, $$config := .NetworkSettings.Networks}}{{$$network}}: {{$$config.IPAddress}} {{end}}' 2>/dev/null && echo "$(GREEN)✅ fastapi_app 容器網路正常$(RESET)" || echo "$(RED)❌ fastapi_app 容器未找到$(RESET)"
+	@echo "$(YELLOW)檢查 NetStack API 網路連接:$(RESET)"
+	@docker inspect netstack-api --format='{{range $$network, $$config := .NetworkSettings.Networks}}{{$$network}}: {{$$config.IPAddress}} {{end}}' 2>/dev/null && echo "$(GREEN)✅ netstack-api 容器網路正常$(RESET)" || echo "$(RED)❌ netstack-api 容器未找到$(RESET)"
+	@echo "$(YELLOW)測試跨服務 API 連接:$(RESET)"
+	@timeout 10s bash -c 'until docker exec fastapi_app curl -s http://172.20.0.40:8080/health > /dev/null 2>&1; do sleep 1; done' && echo "$(GREEN)✅ SimWorld -> NetStack 連接正常$(RESET)" || echo "$(RED)❌ SimWorld -> NetStack 連接失敗$(RESET)"
+	@timeout 10s bash -c 'until docker exec netstack-api curl -s http://172.20.0.2:8000/ > /dev/null 2>&1; do sleep 1; done' && echo "$(GREEN)✅ NetStack -> SimWorld 連接正常$(RESET)" || echo "$(RED)❌ NetStack -> SimWorld 連接失敗$(RESET)"
+
+fix-network-connection: ## 🔧 修復網路連接問題（緊急備用）
+	@echo "$(CYAN)🔧 修復網路連接問題...$(RESET)"
+	@echo "$(YELLOW)檢查是否需要手動連接網路...$(RESET)"
+	@docker inspect fastapi_app --format='{{range .NetworkSettings.Networks}}{{.NetworkMode}} {{end}}' | grep -q "compose_netstack-core" && echo "$(GREEN)✅ 網路已連接$(RESET)" || \
+	(echo "$(YELLOW)⚠️  需要手動連接網路，正在修復...$(RESET)" && \
+	 docker network connect compose_netstack-core fastapi_app && \
+	 echo "$(GREEN)✅ 網路連接已修復$(RESET)")
 
 netstack-status: ## 檢查 NetStack 狀態
 	@echo "$(BLUE)📊 NetStack 服務狀態:$(RESET)"
@@ -362,8 +386,6 @@ netstack-up: ## 🚀 啟動 NetStack 核心網
 netstack-down: ## 🛑 停止 NetStack 核心網
 	@echo "$(CYAN)🛑 停止 NetStack 核心網...$(RESET)"
 	@cd netstack && $(MAKE) down
-
-
 
 netstack-register-subscribers: ## 👤 註冊 NetStack 測試用戶
 	@echo "$(CYAN)👤 註冊 NetStack 測試用戶...$(RESET)"

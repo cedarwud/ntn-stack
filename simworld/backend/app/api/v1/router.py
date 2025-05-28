@@ -18,6 +18,9 @@ from app.domains.simulation.api.simulation_api import router as simulation_route
 # Import wireless domain API router
 from app.domains.wireless.api.wireless_api import router as wireless_router
 
+# Import interference domain API router
+from app.domains.interference.api.interference_api import router as interference_router
+
 # 引入 Skyfield 相關庫
 from skyfield.api import load, wgs84, EarthSatellite
 import numpy as np
@@ -76,6 +79,9 @@ api_router.include_router(
 
 # Register wireless domain API router
 api_router.include_router(wireless_router, prefix="/wireless", tags=["Wireless"])
+
+# Register interference domain API router
+api_router.include_router(interference_router, tags=["Interference"])
 
 
 # 添加模型資源路由

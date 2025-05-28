@@ -31,7 +31,7 @@ from .services.health_service import HealthService
 from .services.ueransim_service import UERANSIMConfigService
 from .services.satellite_gnb_mapping_service import SatelliteGnbMappingService
 from .services.sionna_integration_service import SionnaIntegrationService
-from .services.sionna_integration_service import SionnaIntegrationService
+from .services.interference_control_service import InterferenceControlService
 from .models.requests import SliceSwitchRequest
 from .models.ueransim_models import UERANSIMConfigRequest, UERANSIMConfigResponse
 from .models.responses import (
@@ -152,6 +152,15 @@ async def lifespan(app: FastAPI):
         ueransim_config_dir=os.getenv("UERANSIM_CONFIG_DIR", "/tmp/ueransim_configs"),
     )
 
+    # 初始化干擾控制服務
+    interference_service = InterferenceControlService(
+        simworld_api_url=os.getenv(
+            "SIMWORLD_API_URL", "http://host.docker.internal:8888"
+        ),
+        ueransim_config_dir=os.getenv("UERANSIM_CONFIG_DIR", "/tmp/ueransim_configs"),
+        update_interval_sec=float(os.getenv("INTERFERENCE_UPDATE_INTERVAL", "5.0")),
+    )
+
     # 儲存到應用程式狀態
     app.state.mongo_adapter = mongo_adapter
     app.state.redis_adapter = redis_adapter
@@ -163,6 +172,7 @@ async def lifespan(app: FastAPI):
     app.state.satellite_gnb_service = satellite_gnb_service
     app.state.oneweb_service = oneweb_service
     app.state.sionna_service = sionna_service
+    app.state.interference_service = interference_service
 
     # 連接外部服務
     await mongo_adapter.connect()
@@ -170,6 +180,9 @@ async def lifespan(app: FastAPI):
 
     # 啟動 Sionna 整合服務
     await sionna_service.start()
+
+    # 啟動干擾控制服務
+    await interference_service.start()
 
     logger.info("✅ NetStack API 啟動完成")
 
@@ -185,6 +198,10 @@ async def lifespan(app: FastAPI):
     # 關閉 Sionna 整合服務
     if hasattr(app.state, "sionna_service"):
         await app.state.sionna_service.stop()
+
+    # 關閉干擾控制服務
+    if hasattr(app.state, "interference_service"):
+        await app.state.interference_service.stop()
 
     await mongo_adapter.disconnect()
     await redis_adapter.disconnect()
@@ -1178,6 +1195,229 @@ async def sionna_quick_test():
     except Exception as e:
         logger.error(f"Sionna 快速測試失敗: {e}")
         raise HTTPException(status_code=500, detail=f"測試失敗: {str(e)}")
+
+
+# ===== 干擾控制與 AI-RAN 端點 =====
+
+
+@app.post("/api/v1/interference/jammer-scenario", tags=["干擾控制"])
+async def create_jammer_scenario(
+    scenario_name: str,
+    jammer_configs: List[Dict[str, Any]],
+    victim_positions: List[List[float]],
+    victim_frequency_mhz: float = 2150.0,
+    victim_bandwidth_mhz: float = 20.0,
+):
+    """
+    創建並執行干擾場景
+
+    模擬多種類型的干擾源攻擊，包括寬帶噪聲、掃頻、智能干擾等。
+    """
+    try:
+        interference_service = app.state.interference_service
+
+        result = await interference_service.simulate_jammer_scenario(
+            scenario_name=scenario_name,
+            jammer_configs=jammer_configs,
+            victim_positions=victim_positions,
+            victim_frequency_mhz=victim_frequency_mhz,
+            victim_bandwidth_mhz=victim_bandwidth_mhz,
+        )
+
+        return CustomJSONResponse(content=result)
+
+    except Exception as e:
+        logger.error(f"創建干擾場景失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"場景創建失敗: {str(e)}")
+
+
+@app.post("/api/v1/interference/ai-ran-decision", tags=["干擾控制"])
+async def request_ai_ran_decision(
+    interference_detections: List[Dict[str, Any]],
+    available_frequencies: List[float],
+    scenario_description: str = "UERANSIM 抗干擾決策請求",
+):
+    """
+    請求 AI-RAN 抗干擾決策
+
+    基於當前干擾狀態，使用深度強化學習算法生成最佳抗干擾策略。
+    支持毫秒級頻率跳變、自適應波束成形、動態功率控制等。
+    """
+    try:
+        interference_service = app.state.interference_service
+
+        result = await interference_service.request_ai_ran_decision(
+            interference_state=interference_detections,
+            available_frequencies=available_frequencies,
+            scenario_description=scenario_description,
+        )
+
+        return CustomJSONResponse(content=result)
+
+    except Exception as e:
+        logger.error(f"AI-RAN 決策失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"決策請求失敗: {str(e)}")
+
+
+@app.post("/api/v1/interference/apply-strategy", tags=["干擾控制"])
+async def apply_anti_jamming_strategy(
+    ai_decision: Dict[str, Any],
+    ue_config_path: Optional[str] = None,
+    gnb_config_path: Optional[str] = None,
+):
+    """
+    應用抗干擾策略到 UERANSIM 配置
+
+    將 AI-RAN 決策結果應用到實際的 UERANSIM 配置文件中，
+    實現動態的干擾對抗和網絡適應。
+    """
+    try:
+        interference_service = app.state.interference_service
+
+        result = await interference_service.apply_anti_jamming_strategy(
+            ai_decision=ai_decision,
+            ue_config_path=ue_config_path,
+            gnb_config_path=gnb_config_path,
+        )
+
+        return CustomJSONResponse(content=result)
+
+    except Exception as e:
+        logger.error(f"應用抗干擾策略失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"策略應用失敗: {str(e)}")
+
+
+@app.get("/api/v1/interference/status", tags=["干擾控制"])
+async def get_interference_control_status():
+    """獲取干擾控制服務狀態"""
+    try:
+        interference_service = app.state.interference_service
+        status = interference_service.get_service_status()
+
+        return CustomJSONResponse(
+            content={
+                "success": True,
+                "status": status,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"獲取干擾控制狀態失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"狀態查詢失敗: {str(e)}")
+
+
+@app.post("/api/v1/interference/quick-demo", tags=["干擾控制"])
+async def interference_quick_demo():
+    """
+    干擾控制快速演示
+
+    執行完整的干擾模擬 → AI-RAN 決策 → 策略應用流程，
+    展示系統的端到端抗干擾能力。
+    """
+    try:
+        interference_service = app.state.interference_service
+
+        # 1. 創建測試干擾場景
+        test_jammer_configs = [
+            {
+                "type": "sweep_jammer",
+                "position": [800, 200, 25],
+                "power_dbm": 35,
+                "frequency_band": {"center_freq_mhz": 2150, "bandwidth_mhz": 40},
+                "sweep_rate_mhz_per_sec": 1500,
+            }
+        ]
+
+        test_victim_positions = [[0, 0, 1.5], [300, 100, 1.5], [500, -200, 1.5]]
+
+        # 2. 執行干擾模擬
+        simulation_result = await interference_service.simulate_jammer_scenario(
+            scenario_name="快速演示場景",
+            jammer_configs=test_jammer_configs,
+            victim_positions=test_victim_positions,
+            victim_frequency_mhz=2150.0,
+            victim_bandwidth_mhz=20.0,
+        )
+
+        if not simulation_result["success"]:
+            raise Exception(
+                f"模擬失敗: {simulation_result.get('error', 'Unknown error')}"
+            )
+
+        # 3. 請求 AI-RAN 決策
+        detection_results = simulation_result["simulation_result"]["detection_results"]
+        available_freqs = [2130, 2140, 2160, 2170, 2180]
+
+        ai_ran_result = await interference_service.request_ai_ran_decision(
+            interference_state=detection_results[:3],  # 取前3個檢測結果
+            available_frequencies=available_freqs,
+            scenario_description="快速演示抗干擾決策",
+        )
+
+        # 4. 模擬策略應用（實際環境中會真正修改配置文件）
+        strategy_result = None
+        if ai_ran_result["success"]:
+            ai_decision = ai_ran_result["ai_decision"]
+            strategy_result = await interference_service.apply_anti_jamming_strategy(
+                ai_decision=ai_decision,
+                ue_config_path=None,  # 演示模式不修改實際文件
+                gnb_config_path=None,
+            )
+
+        # 5. 彙總結果
+        demo_result = {
+            "success": True,
+            "message": "干擾控制演示完成",
+            "demo_steps": {
+                "step1_simulation": {
+                    "description": "執行干擾模擬",
+                    "success": simulation_result["success"],
+                    "affected_victims": simulation_result.get("affected_victims", 0),
+                    "avg_sinr_degradation": simulation_result.get(
+                        "avg_sinr_degradation", 0
+                    ),
+                },
+                "step2_ai_decision": {
+                    "description": "AI-RAN 抗干擾決策",
+                    "success": ai_ran_result["success"],
+                    "decision_type": (
+                        ai_ran_result["ai_decision"]["decision_type"]
+                        if ai_ran_result["success"]
+                        else None
+                    ),
+                    "confidence_score": (
+                        ai_ran_result["ai_decision"]["confidence_score"]
+                        if ai_ran_result["success"]
+                        else 0
+                    ),
+                    "decision_time_ms": ai_ran_result.get("decision_time_ms", 0),
+                },
+                "step3_strategy_application": {
+                    "description": "應用抗干擾策略",
+                    "success": strategy_result["success"] if strategy_result else False,
+                    "applied_strategies": (
+                        strategy_result.get("applied_strategies", [])
+                        if strategy_result
+                        else []
+                    ),
+                },
+            },
+            "performance_summary": {
+                "total_processing_time_ms": (
+                    simulation_result["simulation_result"]["processing_time_ms"]
+                    + ai_ran_result.get("decision_time_ms", 0)
+                ),
+                "interference_mitigation_capability": "demonstrated",
+                "ai_ran_response_time_ms": ai_ran_result.get("decision_time_ms", 0),
+            },
+        }
+
+        return CustomJSONResponse(content=demo_result)
+
+    except Exception as e:
+        logger.error(f"干擾控制演示失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"演示失敗: {str(e)}")
 
 
 # ===== 錯誤處理 =====
