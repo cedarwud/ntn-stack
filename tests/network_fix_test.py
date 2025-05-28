@@ -20,7 +20,7 @@ class NetworkFixedTest:
     """解決網路問題的完整測試"""
 
     # 使用容器內部地址
-    SIMWORLD_CONTAINER_IP = "172.18.0.3"  # fastapi_app 容器 IP
+    SIMWORLD_CONTAINER_IP = "172.18.0.3"  # simworld_backend 容器 IP
     NETSTACK_CONTAINER_IP = "172.20.0.40"  # netstack-api 容器 IP
 
     SIMWORLD_BASE_URL = f"http://{SIMWORLD_CONTAINER_IP}:8000"  # 容器內部端口

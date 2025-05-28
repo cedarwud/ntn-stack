@@ -17,7 +17,7 @@ class NetworkFixedTest:
     """網路修復後的測試"""
 
     # 使用 NetStack 網路中的 IP 地址
-    SIMWORLD_NETSTACK_IP = "172.20.0.2"  # fastapi_app 在 NetStack 網路中的 IP
+    SIMWORLD_NETSTACK_IP = "172.20.0.2"  # simworld_backend 在 NetStack 網路中的 IP
     NETSTACK_API_IP = "172.20.0.40"  # netstack-api 容器 IP
 
     SIMWORLD_INTERNAL_URL = f"http://{SIMWORLD_NETSTACK_IP}:8000"

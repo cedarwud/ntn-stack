@@ -20,7 +20,7 @@ export default defineConfig({
         proxy: {
             // 將所有以 /api 開頭的請求都代理到後端
             '/api': {
-                target: 'http://fastapi_app:8000', // 改回使用Docker網絡中的服務名稱
+                target: 'http://simworld_backend:8000', // 改回使用Docker網絡中的服務名稱
                 changeOrigin: true, // 修改請求頭中的 Host 字段為目標 URL
                 secure: false, // 關閉安全檢查，允許自簽證書
                 rewrite: (path) => path, // 保持路徑不變
@@ -39,13 +39,13 @@ export default defineConfig({
             },
             // 增加對靜態文件的代理
             '/rendered_images': {
-                target: 'http://fastapi_app:8000',
+                target: 'http://simworld_backend:8000',
                 changeOrigin: true,
                 secure: false,
             },
             // 其他靜態資源路徑
             '/static': {
-                target: 'http://fastapi_app:8000',
+                target: 'http://simworld_backend:8000',
                 changeOrigin: true,
                 secure: false,
             }

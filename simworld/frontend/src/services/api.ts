@@ -15,7 +15,7 @@ api.interceptors.request.use((config) => {
   // 確保 URL 不包含 Docker 容器名稱或絕對域名
   if (config.url) {
     // 移除容器名稱、IP地址和域名，僅保留路徑部分
-    config.url = config.url.replace(/http(s)?:\/\/(fastapi_app|backend|localhost|120\.126\.151\.101)(:\d+)?/g, '');
+    config.url = config.url.replace(/http(s)?:\/\/(simworld_backend|backend|localhost|120\.126\.151\.101)(:\d+)?/g, '');
   }
   
   // 確保 URL 以 / 開頭

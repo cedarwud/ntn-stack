@@ -7,7 +7,7 @@
 services:
     postgis: # <-- 新增 PostgreSQL + PostGIS 服務
         image: postgis/postgis:16-3.4 # 建議指定明確的版本，例如 PostgreSQL 16 + PostGIS 3.4
-        container_name: postgis_db # 給容器一個明確的名稱
+        container_name: simworld_postgis # 給容器一個明確的名稱
         env_file:
             - ./.env # 從項目根目錄的 .env 讀取配置
         environment:
@@ -31,7 +31,7 @@ services:
         build:
             context: ./backend
             dockerfile: Dockerfile
-        container_name: fastapi_app # 給容器一個明確的名稱
+        container_name: simworld_backend # 給容器一個明確的名稱
         ports:
             - '8888:8000'
         volumes:
@@ -90,7 +90,7 @@ services:
         build:
             context: ./frontend
             dockerfile: Dockerfile
-        container_name: react_app # 給容器一個明確的名稱
+        container_name: simworld_frontend # 給容器一個明確的名稱
         ports:
             - '5173:5173'
         volumes:
