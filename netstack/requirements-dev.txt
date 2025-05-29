@@ -15,3 +15,10 @@ structlog>=23.2.0
 # NetStack 特有開發工具
 mkdocs>=1.5.3
 mkdocs-material>=9.4.8 
+
+# Prometheus metrics
+prometheus-client==0.20.0
+
+# Scientific computing (for connection quality algorithms)
+numpy==1.24.3
+scipy==1.11.4 

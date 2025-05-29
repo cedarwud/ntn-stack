@@ -14,9 +14,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import structlog
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.encoders import jsonable_encoder
 from prometheus_client import Counter, Histogram, generate_latest, CollectorRegistry
 from prometheus_client.exposition import generate_latest
@@ -32,6 +32,7 @@ from .services.ueransim_service import UERANSIMConfigService
 from .services.satellite_gnb_mapping_service import SatelliteGnbMappingService
 from .services.sionna_integration_service import SionnaIntegrationService
 from .services.interference_control_service import InterferenceControlService
+from .services.connection_quality_service import ConnectionQualityService
 from .models.requests import SliceSwitchRequest
 from .models.ueransim_models import UERANSIMConfigRequest, UERANSIMConfigResponse
 from .models.responses import (
@@ -54,7 +55,13 @@ from .models.uav_models import (
     TrajectoryPoint,
     UAVUEConfig,
     UAVPosition,
+    UAVConnectionQualityMetrics,
+    ConnectionQualityAssessment,
+    ConnectionQualityHistoricalData,
+    ConnectionQualityThresholds,
+    UAVSignalQuality,
 )
+from .metrics.prometheus_exporter import metrics_exporter
 
 
 # 自定義 JSON 編碼器
@@ -186,6 +193,12 @@ async def lifespan(app: FastAPI):
         update_interval_sec=float(os.getenv("UAV_UPDATE_INTERVAL", "5.0")),
     )
 
+    # 初始化 UAV-衛星連接質量評估服務
+    connection_quality_service = ConnectionQualityService(mongo_adapter)
+
+    # 設置服務之間的依賴關係
+    uav_ue_service.set_connection_quality_service(connection_quality_service)
+
     # 儲存到應用程式狀態
     app.state.mongo_adapter = mongo_adapter
     app.state.redis_adapter = redis_adapter
@@ -199,6 +212,12 @@ async def lifespan(app: FastAPI):
     app.state.sionna_service = sionna_service
     app.state.interference_service = interference_service
     app.state.uav_ue_service = uav_ue_service
+    app.state.connection_quality_service = connection_quality_service
+
+    # 將連接質量服務傳遞給全局變量供端點使用
+    globals()["connection_quality_service"] = connection_quality_service
+    globals()["uav_ue_service"] = uav_ue_service
+
 
     # 連接外部服務
     await mongo_adapter.connect()
@@ -306,16 +325,10 @@ async def health_check():
         )
 
 
-@app.get("/metrics", tags=["監控"])
-async def get_metrics():
-    """
-    Prometheus 指標端點
-
-    回傳系統運行指標，供 Prometheus 收集
-    """
-    return Response(
-        content=generate_latest(prometheus_registry), media_type="text/plain"
-    )
+@app.get("/metrics", response_class=PlainTextResponse)
+async def prometheus_metrics():
+    """Prometheus 指標端點"""
+    return metrics_exporter.get_metrics()
 
 
 # ===== UE 管理端點 =====
@@ -1935,6 +1948,233 @@ async def root():
         "metrics_url": "/metrics",
         "github": "https://github.com/yourorg/netstack",
     }
+
+
+# ===== UAV-衛星連接質量評估端點 =====
+
+
+@app.post(
+    "/api/v1/uav-satellite/connection-quality/start-monitoring/{uav_id}",
+    response_model=Dict[str, Any],
+    summary="開始 UAV 連接質量監控",
+    description="為指定 UAV 開始連續的連接質量監控和評估",
+)
+async def start_connection_quality_monitoring(
+    uav_id: str,
+    assessment_interval: int = Query(
+        default=30, ge=10, le=300, description="評估間隔（秒）"
+    ),
+):
+    """開始 UAV 連接質量監控"""
+    try:
+        await connection_quality_service.start_monitoring(uav_id, assessment_interval)
+
+        logger.info(
+            "開始 UAV 連接質量監控", uav_id=uav_id, interval=assessment_interval
+        )
+
+        return {
+            "success": True,
+            "message": f"已開始 UAV {uav_id} 的連接質量監控",
+            "uav_id": uav_id,
+            "assessment_interval_seconds": assessment_interval,
+            "monitoring_endpoints": {
+                "current_quality": f"/api/v1/uav-satellite/connection-quality/{uav_id}",
+                "quality_history": f"/api/v1/uav-satellite/connection-quality/{uav_id}/history",
+                "anomalies": f"/api/v1/uav-satellite/connection-quality/{uav_id}/anomalies",
+            },
+        }
+    except Exception as e:
+        logger.error("開始連接質量監控失敗", uav_id=uav_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"監控啟動失敗: {e}")
+
+
+@app.post(
+    "/api/v1/uav-satellite/connection-quality/stop-monitoring/{uav_id}",
+    response_model=Dict[str, Any],
+    summary="停止 UAV 連接質量監控",
+    description="停止指定 UAV 的連接質量監控",
+)
+async def stop_connection_quality_monitoring(uav_id: str):
+    """停止 UAV 連接質量監控"""
+    try:
+        await connection_quality_service.stop_monitoring(uav_id)
+
+        logger.info("停止 UAV 連接質量監控", uav_id=uav_id)
+
+        return {
+            "success": True,
+            "message": f"已停止 UAV {uav_id} 的連接質量監控",
+            "uav_id": uav_id,
+        }
+    except Exception as e:
+        logger.error("停止連接質量監控失敗", uav_id=uav_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"監控停止失敗: {e}")
+
+
+@app.get(
+    "/api/v1/uav-satellite/connection-quality/overview",
+    response_model=Dict[str, Any],
+    summary="獲取連接質量系統概覽",
+    description="獲取所有監控中 UAV 的連接質量概覽",
+)
+async def get_connection_quality_overview():
+    """獲取連接質量系統概覽"""
+    try:
+        # 直接呼叫服務的 get_system_overview 方法
+        overview = await connection_quality_service.get_system_overview()
+
+        logger.debug("獲取連接質量系統概覽")
+        return overview
+
+    except Exception as e:
+        logger.error("獲取連接質量概覽失敗", error=str(e))
+        raise HTTPException(status_code=500, detail=f"概覽獲取失敗: {e}")
+
+
+@app.put(
+    "/api/v1/uav-satellite/connection-quality/thresholds",
+    response_model=Dict[str, Any],
+    summary="更新連接質量評估閾值",
+    description="更新連接質量評估的閾值配置",
+)
+async def update_connection_quality_thresholds(thresholds: ConnectionQualityThresholds):
+    """更新連接質量評估閾值"""
+    try:
+        await connection_quality_service.update_thresholds(thresholds)
+
+        logger.info("更新連接質量評估閾值")
+
+        return {
+            "success": True,
+            "message": "連接質量評估閾值已更新",
+            "updated_thresholds": thresholds.dict(),
+        }
+
+    except Exception as e:
+        logger.error("更新連接質量閾值失敗", error=str(e))
+        raise HTTPException(status_code=500, detail=f"閾值更新失敗: {e}")
+
+
+@app.get(
+    "/api/v1/uav-satellite/connection-quality/thresholds",
+    response_model=ConnectionQualityThresholds,
+    summary="獲取連接質量評估閾值",
+    description="獲取當前的連接質量評估閾值配置",
+)
+async def get_connection_quality_thresholds():
+    """獲取連接質量評估閾值"""
+    try:
+        return connection_quality_service.thresholds
+    except Exception as e:
+        logger.error("獲取連接質量閾值失敗", error=str(e))
+        raise HTTPException(status_code=500, detail=f"閾值獲取失敗: {e}")
+
+
+@app.get(
+    "/api/v1/uav-satellite/connection-quality/{uav_id}",
+    response_model=ConnectionQualityAssessment,
+    summary="獲取 UAV 連接質量評估",
+    description="獲取指定 UAV 的當前連接質量評估結果",
+)
+async def get_connection_quality_assessment(
+    uav_id: str,
+    time_window_minutes: int = Query(
+        default=5, ge=1, le=60, description="評估時間窗口（分鐘）"
+    ),
+):
+    """獲取 UAV 連接質量評估"""
+    try:
+        assessment = await connection_quality_service.assess_connection_quality(
+            uav_id, time_window_minutes
+        )
+
+        logger.debug("獲取連接質量評估", uav_id=uav_id, grade=assessment.quality_grade)
+        return assessment
+
+    except ValueError as e:
+        logger.warning("獲取連接質量評估失敗", uav_id=uav_id, error=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("連接質量評估錯誤", uav_id=uav_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"評估失敗: {e}")
+
+
+@app.get(
+    "/api/v1/uav-satellite/connection-quality/{uav_id}/history",
+    response_model=ConnectionQualityHistoricalData,
+    summary="獲取 UAV 連接質量歷史",
+    description="獲取指定 UAV 的連接質量歷史數據和趨勢分析",
+)
+async def get_connection_quality_history(
+    uav_id: str,
+    hours: int = Query(
+        default=24, ge=1, le=168, description="歷史數據時間範圍（小時）"
+    ),
+):
+    """獲取 UAV 連接質量歷史"""
+    try:
+        history = await connection_quality_service.get_quality_history(uav_id, hours)
+
+        logger.debug(
+            "獲取連接質量歷史",
+            uav_id=uav_id,
+            hours=hours,
+            sample_count=history.sample_count,
+        )
+        return history
+
+    except Exception as e:
+        logger.error("獲取連接質量歷史失敗", uav_id=uav_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"歷史數據獲取失敗: {e}")
+
+
+@app.get(
+    "/api/v1/uav-satellite/connection-quality/{uav_id}/anomalies",
+    response_model=List[Dict[str, Any]],
+    summary="檢測 UAV 連接質量異常",
+    description="檢測指定 UAV 的連接質量異常事件",
+)
+async def detect_connection_quality_anomalies(uav_id: str):
+    """檢測 UAV 連接質量異常"""
+    try:
+        anomalies = await connection_quality_service.detect_anomalies(uav_id)
+
+        logger.debug("檢測連接質量異常", uav_id=uav_id, anomaly_count=len(anomalies))
+
+        return anomalies
+
+    except Exception as e:
+        logger.error("連接質量異常檢測失敗", uav_id=uav_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"異常檢測失敗: {e}")
+
+
+@app.post(
+    "/api/v1/uav-satellite/connection-quality/{uav_id}/update-signal",
+    response_model=UAVConnectionQualityMetrics,
+    summary="更新 UAV 信號質量數據",
+    description="更新指定 UAV 的信號質量數據並計算連接質量指標",
+)
+async def update_uav_signal_quality_for_assessment(
+    uav_id: str, signal_quality: UAVSignalQuality
+):
+    """更新 UAV 信號質量數據用於連接質量評估"""
+    try:
+        # 獲取 UAV 當前位置
+        uav_status = await uav_ue_service.get_uav_status(uav_id)
+        position = uav_status.current_position if uav_status else None
+
+        # 更新連接質量服務的信號質量數據
+        quality_metrics = await connection_quality_service.update_signal_quality(
+            uav_id, signal_quality, position
+        )
+
+        logger.debug("更新 UAV 信號質量數據", uav_id=uav_id)
+        return quality_metrics
+
+    except Exception as e:
+        logger.error("更新 UAV 信號質量失敗", uav_id=uav_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"信號質量更新失敗: {e}")
 
 
 if __name__ == "__main__":

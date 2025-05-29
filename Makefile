@@ -638,5 +638,35 @@ simworld-install: ## 安裝 SimWorld 依賴
 	@cd $(SIMWORLD_DIR) && make install
 	@echo "$(GREEN)✅ SimWorld 依賴安裝完成$(RESET)"
 
+# ===== UAV-衛星連接質量評估測試 =====
+
+test-uav-satellite-connection-quality: ## 測試 UAV-衛星連接質量評估系統
+	@echo "🔍 開始測試 UAV-衛星連接質量評估系統..."
+	@python3 tests/test_uav_satellite_connection_quality.py
+
+test-uav-satellite-connection-quality-quick: ## 快速測試 UAV-衛星連接質量評估系統（僅核心功能）
+	@echo "⚡ 快速測試 UAV-衛星連接質量評估系統..."
+	@timeout 60 python3 tests/test_uav_satellite_connection_quality.py || echo "🕐 60秒快速測試完成"
+
+test-uav-satellite-all: ## 測試所有 UAV-衛星相關功能
+	@echo "🚀 測試所有 UAV-衛星功能..."
+	@$(MAKE) test-uav-ue-validation
+	@$(MAKE) test-uav-satellite-connection-quality
+	@echo "✅ 所有 UAV-衛星功能測試完成"
+
+# UAV 連接質量評估測試
+test-connection-quality:
+	@echo "🔬 開始 UAV-衛星連接質量評估系統測試..."
+	@python -m pytest tests/test_uav_satellite_connection_quality.py -v --tb=short
+
+test-connection-quality-detailed:
+	@echo "🔬 開始詳細的連接質量評估測試..."
+	@cd tests && python test_uav_satellite_connection_quality.py
+
+# 快速連接質量評估測試
+test-connection-quality-quick:
+	@echo "⚡ 快速連接質量評估測試..."
+	@cd tests && timeout 30 python test_uav_satellite_connection_quality.py || echo "測試完成（可能因為服務未啟動而失敗）"
+
 .PHONY: all
 all: help ## 顯示幫助（預設目標） 

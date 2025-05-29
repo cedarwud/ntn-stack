@@ -37,6 +37,7 @@ from ..models.uav_models import (
     UAVListResponse,
     TrajectoryListResponse,
 )
+from .connection_quality_service import ConnectionQualityService
 
 logger = structlog.get_logger(__name__)
 
@@ -51,12 +52,14 @@ class UAVUEService:
         ueransim_config_dir: str = "/tmp/ueransim_configs",
         simworld_api_url: str = "http://simworld-backend:8000",
         update_interval_sec: float = 5.0,
+        connection_quality_service: Optional[ConnectionQualityService] = None,
     ):
         self.mongo_adapter = mongo_adapter
         self.redis_adapter = redis_adapter
         self.ueransim_config_dir = Path(ueransim_config_dir)
         self.simworld_api_url = simworld_api_url.rstrip("/")
         self.update_interval_sec = update_interval_sec
+        self.connection_quality_service = connection_quality_service
 
         # 確保配置目錄存在
         self.ueransim_config_dir.mkdir(parents=True, exist_ok=True)
@@ -70,6 +73,10 @@ class UAVUEService:
             config_dir=str(self.ueransim_config_dir),
             simworld_url=self.simworld_api_url,
         )
+
+    def set_connection_quality_service(self, service: ConnectionQualityService):
+        """設置連接質量服務（延遲注入避免循環依賴）"""
+        self.connection_quality_service = service
 
     async def create_trajectory(
         self, request: TrajectoryCreateRequest
@@ -329,6 +336,15 @@ class UAVUEService:
 
             # 根據信號質量自動切換網路
             await self._handle_signal_quality_change(uav_id, request.signal_quality)
+
+            # 更新連接質量評估服務（如果可用）
+            if self.connection_quality_service:
+                try:
+                    await self.connection_quality_service.update_signal_quality(
+                        uav_id, request.signal_quality, request.position
+                    )
+                except Exception as e:
+                    logger.warning("更新連接質量評估失敗", uav_id=uav_id, error=str(e))
 
         await self.mongo_adapter.update_one(
             "uav_status", {"uav_id": uav_id}, {"$set": update_data}
@@ -626,7 +642,7 @@ logs:
             )
 
     async def _simulate_signal_quality(self, position: UAVPosition) -> UAVSignalQuality:
-        """模擬信號質量"""
+        """模擬信號質量（增強版）"""
         # 基於高度和位置的簡單信號模型
         altitude_factor = max(
             0.1, 1.0 - (position.altitude / 10000.0)
@@ -644,7 +660,8 @@ logs:
         sinr = random.uniform(0.0, 20.0)
         cqi = min(15, max(0, int((sinr + 5) / 2)))
 
-        return UAVSignalQuality(
+        # 增強的信號質量模擬（包含新指標）
+        signal_quality = UAVSignalQuality(
             rsrp_dbm=rsrp,
             rsrq_db=rsrq,
             sinr_db=sinr,
@@ -652,7 +669,16 @@ logs:
             throughput_mbps=random.uniform(10.0, 100.0),
             latency_ms=random.uniform(20.0, 100.0),
             packet_loss_rate=random.uniform(0.0, 0.05),
+            # 新增的擴展指標
+            jitter_ms=random.uniform(1.0, 10.0),
+            link_budget_margin_db=random.uniform(5.0, 25.0),
+            doppler_shift_hz=random.uniform(-1000.0, 1000.0),
+            beam_alignment_score=random.uniform(0.7, 1.0),
+            interference_level_db=random.uniform(-120.0, -80.0),
+            measurement_confidence=random.uniform(0.8, 1.0),
         )
+
+        return signal_quality
 
     async def _handle_signal_quality_change(
         self, uav_id: str, signal_quality: UAVSignalQuality

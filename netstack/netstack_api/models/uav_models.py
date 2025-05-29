@@ -4,7 +4,7 @@ UAV UE 模擬相關的數據模型
 包含軌跡管理、UAV 狀態、UE 配置等模型定義
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta, UTC
 from enum import Enum
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, validator
@@ -50,10 +50,10 @@ class UAVTrajectory(BaseModel):
     mission_type: str = Field(default="reconnaissance", description="任務類型")
     points: List[TrajectoryPoint] = Field(..., min_items=2, description="軌跡點列表")
     created_at: datetime = Field(
-        default_factory=datetime.utcnow, description="創建時間"
+        default_factory=lambda: datetime.now(UTC), description="創建時間"
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow, description="更新時間"
+        default_factory=lambda: datetime.now(UTC), description="更新時間"
     )
 
     @validator("points")
@@ -76,7 +76,7 @@ class UAVPosition(BaseModel):
     longitude: float = Field(..., ge=-180, le=180, description="經度")
     altitude: float = Field(..., ge=0, le=50000, description="高度 (米)")
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="位置時間戳"
+        default_factory=lambda: datetime.now(UTC), description="位置時間戳"
     )
     speed: Optional[float] = Field(None, ge=0, description="速度 (m/s)")
     heading: Optional[float] = Field(None, ge=0, lt=360, description="航向角 (度)")
@@ -101,8 +101,156 @@ class UAVUEConfig(BaseModel):
     bandwidth_mhz: float = Field(default=20.0, description="頻寬 (MHz)")
 
 
+class UAVConnectionQualityMetrics(BaseModel):
+    """UAV 連接質量綜合指標"""
+
+    # 核心信號質量指標
+    sinr_db: Optional[float] = Field(None, description="信噪干擾比 (dB)")
+    rsrp_dbm: Optional[float] = Field(None, description="RSRP (dBm)")
+    rsrq_db: Optional[float] = Field(None, description="RSRQ (dB)")
+    cqi: Optional[int] = Field(
+        None, ge=0, le=15, description="Channel Quality Indicator"
+    )
+
+    # 性能指標
+    throughput_mbps: Optional[float] = Field(
+        None, ge=0, description="實際吞吐量 (Mbps)"
+    )
+    latency_ms: Optional[float] = Field(None, ge=0, description="端到端延遲 (ms)")
+    jitter_ms: Optional[float] = Field(None, ge=0, description="延遲抖動 (ms)")
+    packet_loss_rate: Optional[float] = Field(
+        None, ge=0, le=1, description="封包遺失率"
+    )
+
+    # 連接穩定性指標
+    connection_uptime_percent: Optional[float] = Field(
+        None, ge=0, le=100, description="連接正常時間百分比"
+    )
+    handover_success_rate: Optional[float] = Field(
+        None, ge=0, le=1, description="切換成功率"
+    )
+    reconnection_count: Optional[int] = Field(None, ge=0, description="重連次數")
+    signal_stability_score: Optional[float] = Field(
+        None, ge=0, le=1, description="信號穩定性評分"
+    )
+
+    # NTN 特有指標
+    doppler_shift_hz: Optional[float] = Field(None, description="多普勒頻移 (Hz)")
+    propagation_delay_ms: Optional[float] = Field(
+        None, ge=0, description="傳播延遲 (ms)"
+    )
+    link_budget_margin_db: Optional[float] = Field(None, description="鏈路餘裕 (dB)")
+    beam_alignment_quality: Optional[float] = Field(
+        None, ge=0, le=1, description="波束對準品質"
+    )
+
+    # 測量時間和有效性
+    measurement_timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), description="測量時間戳"
+    )
+    measurement_window_seconds: Optional[int] = Field(
+        None, ge=1, description="測量窗口時間 (秒)"
+    )
+    data_freshness_score: Optional[float] = Field(
+        None, ge=0, le=1, description="數據新鮮度評分"
+    )
+
+
+class ConnectionQualityAssessment(BaseModel):
+    """連接質量評估結果"""
+
+    # 綜合評估分數
+    overall_quality_score: float = Field(
+        ..., ge=0, le=100, description="綜合質量評分 (0-100)"
+    )
+    quality_grade: str = Field(..., description="質量等級 (優秀/良好/一般/差)")
+
+    # 各維度評分
+    signal_quality_score: float = Field(..., ge=0, le=100, description="信號質量評分")
+    performance_score: float = Field(..., ge=0, le=100, description="性能評分")
+    stability_score: float = Field(..., ge=0, le=100, description="穩定性評分")
+    ntn_adaptation_score: float = Field(..., ge=0, le=100, description="NTN 適配評分")
+
+    # 問題識別
+    identified_issues: List[str] = Field(
+        default_factory=list, description="發現的問題列表"
+    )
+    recommendations: List[str] = Field(default_factory=list, description="改善建議")
+
+    # 預測分析
+    quality_trend: Optional[str] = Field(
+        None, description="質量趨勢 (improving/stable/degrading)"
+    )
+    predicted_issues: List[str] = Field(
+        default_factory=list, description="預測可能出現的問題"
+    )
+
+    # 評估元數據
+    assessment_timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), description="評估時間"
+    )
+    confidence_level: float = Field(..., ge=0, le=1, description="評估置信度")
+    data_completeness: float = Field(..., ge=0, le=1, description="數據完整性")
+
+
+class ConnectionQualityHistoricalData(BaseModel):
+    """連接質量歷史數據"""
+
+    uav_id: str = Field(..., description="UAV ID")
+    start_time: datetime = Field(..., description="數據開始時間")
+    end_time: datetime = Field(..., description="數據結束時間")
+    sample_count: int = Field(..., ge=0, description="樣本數量")
+
+    # 統計摘要
+    metrics_summary: Dict[str, Dict[str, float]] = Field(
+        default_factory=dict, description="指標統計摘要 (mean, min, max, std)"
+    )
+
+    # 質量評估歷史
+    quality_assessments: List[ConnectionQualityAssessment] = Field(
+        default_factory=list, description="質量評估歷史記錄"
+    )
+
+    # 異常事件
+    anomaly_events: List[Dict[str, Any]] = Field(
+        default_factory=list, description="異常事件記錄"
+    )
+
+
+class ConnectionQualityThresholds(BaseModel):
+    """連接質量閾值配置"""
+
+    # 信號質量閾值
+    sinr_excellent_db: float = Field(default=15.0, description="SINR 優秀閾值")
+    sinr_good_db: float = Field(default=10.0, description="SINR 良好閾值")
+    sinr_poor_db: float = Field(default=0.0, description="SINR 差劣閾值")
+
+    rsrp_excellent_dbm: float = Field(default=-70.0, description="RSRP 優秀閾值")
+    rsrp_good_dbm: float = Field(default=-85.0, description="RSRP 良好閾值")
+    rsrp_poor_dbm: float = Field(default=-110.0, description="RSRP 差劣閾值")
+
+    # 性能閾值
+    throughput_excellent_mbps: float = Field(default=50.0, description="吞吐量優秀閾值")
+    throughput_good_mbps: float = Field(default=20.0, description="吞吐量良好閾值")
+    throughput_poor_mbps: float = Field(default=5.0, description="吞吐量差劣閾值")
+
+    latency_excellent_ms: float = Field(default=50.0, description="延遲優秀閾值")
+    latency_good_ms: float = Field(default=100.0, description="延遲良好閾值")
+    latency_poor_ms: float = Field(default=250.0, description="延遲差劣閾值")
+
+    # 穩定性閾值
+    packet_loss_excellent: float = Field(default=0.001, description="丟包率優秀閾值")
+    packet_loss_good: float = Field(default=0.01, description="丟包率良好閾值")
+    packet_loss_poor: float = Field(default=0.05, description="丟包率差劣閾值")
+
+    # 權重配置
+    signal_weight: float = Field(default=0.3, description="信號質量權重")
+    performance_weight: float = Field(default=0.4, description="性能權重")
+    stability_weight: float = Field(default=0.3, description="穩定性權重")
+
+
 class UAVSignalQuality(BaseModel):
-    """UAV 信號質量"""
+    """UAV 信號質量（擴展版）"""
 
     rsrp_dbm: Optional[float] = Field(None, description="RSRP (dBm)")
     rsrq_db: Optional[float] = Field(None, description="RSRQ (dB)")
@@ -115,8 +263,21 @@ class UAVSignalQuality(BaseModel):
     packet_loss_rate: Optional[float] = Field(
         None, ge=0, le=1, description="封包遺失率"
     )
+
+    # 新增的擴展指標
+    jitter_ms: Optional[float] = Field(None, ge=0, description="延遲抖動 (ms)")
+    link_budget_margin_db: Optional[float] = Field(None, description="鏈路餘裕 (dB)")
+    doppler_shift_hz: Optional[float] = Field(None, description="多普勒頻移 (Hz)")
+    beam_alignment_score: Optional[float] = Field(
+        None, ge=0, le=1, description="波束對準評分"
+    )
+    interference_level_db: Optional[float] = Field(None, description="干擾水平 (dB)")
+
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="測量時間戳"
+        default_factory=lambda: datetime.now(UTC), description="測量時間戳"
+    )
+    measurement_confidence: Optional[float] = Field(
+        None, ge=0, le=1, description="測量置信度"
     )
 
 
@@ -138,7 +299,7 @@ class UAVStatus(BaseModel):
     trajectory_id: Optional[str] = Field(None, description="當前軌跡 ID")
     mission_start_time: Optional[datetime] = Field(None, description="任務開始時間")
     last_update: datetime = Field(
-        default_factory=datetime.utcnow, description="最後更新時間"
+        default_factory=lambda: datetime.now(UTC), description="最後更新時間"
     )
 
 
