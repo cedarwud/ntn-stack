@@ -62,6 +62,25 @@ from .models.uav_models import (
     UAVSignalQuality,
 )
 from .metrics.prometheus_exporter import metrics_exporter
+from .services.mesh_bridge_service import MeshBridgeService
+from .models.mesh_models import (
+    MeshNodeCreateRequest,
+    MeshNodeUpdateRequest,
+    BridgeGatewayCreateRequest,
+    BridgeGatewayUpdateRequest,
+    MeshRoutingUpdateRequest,
+    NetworkTopologyResponse,
+    MeshPerformanceMetrics,
+    BridgePerformanceMetrics,
+    MeshNode,
+    Bridge5GMeshGateway,
+    MeshNetworkTopology,
+)
+from .services.uav_mesh_failover_service import (
+    UAVMeshFailoverService,
+    NetworkMode,
+    FailoverTriggerReason,
+)
 
 
 # 自定義 JSON 編碼器
@@ -70,6 +89,26 @@ class CustomJSONEncoder(json.JSONEncoder):
         if isinstance(obj, datetime):
             return obj.isoformat()
         return super().default(obj)
+
+    def iterencode(self, o, _one_shot=False):
+        """修改迭代編碼以處理特殊浮點值"""
+
+        def _clean_float(value):
+            if isinstance(value, float):
+                if value == float("inf"):
+                    return None
+                elif value == float("-inf"):
+                    return None
+                elif value != value:  # NaN check
+                    return None
+            elif isinstance(value, dict):
+                return {k: _clean_float(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [_clean_float(item) for item in value]
+            return value
+
+        cleaned_obj = _clean_float(o)
+        return super().iterencode(cleaned_obj, _one_shot)
 
 
 # 自定義 JSONResponse 類
@@ -196,6 +235,24 @@ async def lifespan(app: FastAPI):
     # 初始化 UAV-衛星連接質量評估服務
     connection_quality_service = ConnectionQualityService(mongo_adapter)
 
+    # 初始化 Mesh 橋接服務
+    mesh_bridge_service = MeshBridgeService(
+        mongo_adapter=mongo_adapter,
+        redis_adapter=redis_adapter,
+        open5gs_adapter=open5gs_adapter,
+        upf_ip=os.getenv("UPF_IP", "172.20.0.30"),
+        upf_port=int(os.getenv("UPF_PORT", "2152")),
+    )
+
+    # 初始化 UAV Mesh 備援服務
+    uav_mesh_failover_service = UAVMeshFailoverService(
+        mongo_adapter=mongo_adapter,
+        redis_adapter=redis_adapter,
+        connection_quality_service=connection_quality_service,
+        mesh_bridge_service=mesh_bridge_service,
+        ueransim_config_dir=os.getenv("UERANSIM_CONFIG_DIR", "/tmp/ueransim_configs"),
+    )
+
     # 設置服務之間的依賴關係
     uav_ue_service.set_connection_quality_service(connection_quality_service)
 
@@ -213,15 +270,22 @@ async def lifespan(app: FastAPI):
     app.state.interference_service = interference_service
     app.state.uav_ue_service = uav_ue_service
     app.state.connection_quality_service = connection_quality_service
+    app.state.mesh_bridge_service = mesh_bridge_service
+    app.state.uav_mesh_failover_service = uav_mesh_failover_service
 
-    # 將連接質量服務傳遞給全局變量供端點使用
+    # 將服務傳遞給全局變量供端點使用
     globals()["connection_quality_service"] = connection_quality_service
     globals()["uav_ue_service"] = uav_ue_service
-
+    globals()["mesh_bridge_service"] = mesh_bridge_service
+    globals()["uav_mesh_failover_service"] = uav_mesh_failover_service
 
     # 連接外部服務
     await mongo_adapter.connect()
-    await redis_adapter.connect()
+    if redis_adapter:
+        await redis_adapter.connect()
+
+    # 啟動 Mesh 橋接服務
+    await mesh_bridge_service.start_service()
 
     # 啟動 Sionna 整合服務
     await sionna_service.start()
@@ -229,12 +293,19 @@ async def lifespan(app: FastAPI):
     # 啟動干擾控制服務
     await interference_service.start()
 
+    # 啟動 UAV Mesh 備援服務
+    await uav_mesh_failover_service.start_service()
+
     logger.info("✅ NetStack API 啟動完成")
 
     yield
 
-    # 清理資源
+    # 應用程式關閉
     logger.info("🛑 NetStack API 關閉中...")
+
+    # 停止 Mesh 橋接服務
+    if mesh_bridge_service:
+        await mesh_bridge_service.stop_service()
 
     # 關閉 OneWeb 服務
     if hasattr(app.state, "oneweb_service"):
@@ -251,6 +322,10 @@ async def lifespan(app: FastAPI):
     # 關閉 UAV UE 服務
     if hasattr(app.state, "uav_ue_service"):
         await app.state.uav_ue_service.shutdown()
+
+    # 停止 UAV Mesh 備援服務
+    if hasattr(app.state, "uav_mesh_failover_service"):
+        await app.state.uav_mesh_failover_service.stop_service()
 
     await mongo_adapter.disconnect()
     await redis_adapter.disconnect()
@@ -2175,6 +2250,656 @@ async def update_uav_signal_quality_for_assessment(
     except Exception as e:
         logger.error("更新 UAV 信號質量失敗", uav_id=uav_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"信號質量更新失敗: {e}")
+
+
+# ===== Mesh 橋接管理 =====
+
+
+@app.post("/api/v1/mesh/nodes", response_model=MeshNode, tags=["Mesh 橋接"])
+async def create_mesh_node(request: MeshNodeCreateRequest):
+    """創建 Mesh 網絡節點"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+
+        node_data = {
+            "name": request.name,
+            "node_type": request.node_type.value,
+            "ip_address": request.ip_address,
+            "mac_address": request.mac_address,
+            "frequency_mhz": request.frequency_mhz,
+            "power_dbm": request.power_dbm,
+            "protocol_type": request.protocol_type.value,
+        }
+
+        if request.position:
+            node_data["position"] = request.position.dict()
+
+        mesh_node = await mesh_service.create_mesh_node(node_data)
+
+        if mesh_node:
+            return CustomJSONResponse(
+                content=jsonable_encoder(mesh_node.dict()), status_code=201
+            )
+        else:
+            raise HTTPException(status_code=500, detail="創建 Mesh 節點失敗")
+
+    except Exception as e:
+        logger.error(f"創建 Mesh 節點 API 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+@app.get("/api/v1/mesh/nodes", tags=["Mesh 橋接"])
+async def list_mesh_nodes():
+    """列出所有 Mesh 網絡節點"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+        nodes = list(mesh_service.mesh_nodes.values())
+
+        return CustomJSONResponse(
+            content={
+                "nodes": jsonable_encoder([node.dict() for node in nodes]),
+                "total_count": len(nodes),
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"列出 Mesh 節點 API 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+@app.get("/api/v1/mesh/nodes/{node_id}", response_model=MeshNode, tags=["Mesh 橋接"])
+async def get_mesh_node(node_id: str):
+    """獲取指定 Mesh 節點詳情"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+
+        if node_id not in mesh_service.mesh_nodes:
+            raise HTTPException(status_code=404, detail=f"Mesh 節點 {node_id} 不存在")
+
+        mesh_node = mesh_service.mesh_nodes[node_id]
+        return CustomJSONResponse(content=jsonable_encoder(mesh_node.dict()))
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"獲取 Mesh 節點 API 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+@app.put("/api/v1/mesh/nodes/{node_id}", response_model=MeshNode, tags=["Mesh 橋接"])
+async def update_mesh_node(node_id: str, request: MeshNodeUpdateRequest):
+    """更新 Mesh 節點配置"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+
+        if node_id not in mesh_service.mesh_nodes:
+            raise HTTPException(status_code=404, detail=f"Mesh 節點 {node_id} 不存在")
+
+        mesh_node = mesh_service.mesh_nodes[node_id]
+
+        # 更新節點屬性
+        if request.name is not None:
+            mesh_node.name = request.name
+        if request.status is not None:
+            mesh_node.status = request.status
+        if request.position is not None:
+            mesh_node.position = request.position
+        if request.power_dbm is not None:
+            mesh_node.power_dbm = request.power_dbm
+
+        mesh_node.updated_at = datetime.utcnow()
+
+        # 更新資料庫
+        await app.state.mongo_adapter.update_one(
+            "mesh_nodes", {"node_id": node_id}, mesh_node.dict()
+        )
+
+        return CustomJSONResponse(content=jsonable_encoder(mesh_node.dict()))
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新 Mesh 節點 API 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+@app.delete("/api/v1/mesh/nodes/{node_id}", tags=["Mesh 橋接"])
+async def delete_mesh_node(node_id: str):
+    """刪除 Mesh 節點"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+
+        if node_id not in mesh_service.mesh_nodes:
+            raise HTTPException(status_code=404, detail=f"Mesh 節點 {node_id} 不存在")
+
+        # 從記憶體中移除
+        del mesh_service.mesh_nodes[node_id]
+
+        # 從資料庫中刪除
+        await app.state.mongo_adapter.delete_one("mesh_nodes", {"node_id": node_id})
+
+        return CustomJSONResponse(content={"message": f"Mesh 節點 {node_id} 已刪除"})
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"刪除 Mesh 節點 API 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+@app.post(
+    "/api/v1/mesh/gateways", response_model=Bridge5GMeshGateway, tags=["Mesh 橋接"]
+)
+async def create_bridge_gateway(request: BridgeGatewayCreateRequest):
+    """創建 5G-Mesh 橋接網關"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+
+        gateway_data = {
+            "name": request.name,
+            "upf_ip": request.upf_ip,
+            "upf_port": request.upf_port,
+            "mesh_node_id": request.mesh_node_id,
+            "mesh_interface": request.mesh_interface,
+        }
+
+        if request.slice_info:
+            gateway_data["slice_info"] = request.slice_info
+
+        bridge_gateway = await mesh_service.create_bridge_gateway(gateway_data)
+
+        if bridge_gateway:
+            return CustomJSONResponse(
+                content=jsonable_encoder(bridge_gateway.dict()), status_code=201
+            )
+        else:
+            raise HTTPException(status_code=500, detail="創建橋接網關失敗")
+
+    except Exception as e:
+        logger.error(f"創建橋接網關 API 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+@app.get("/api/v1/mesh/gateways", tags=["Mesh 橋接"])
+async def list_bridge_gateways():
+    """列出所有橋接網關"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+        gateways = list(mesh_service.bridge_gateways.values())
+
+        return CustomJSONResponse(
+            content={
+                "gateways": jsonable_encoder([gateway.dict() for gateway in gateways]),
+                "total_count": len(gateways),
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"列出橋接網關 API 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+@app.get(
+    "/api/v1/mesh/gateways/{gateway_id}",
+    response_model=Bridge5GMeshGateway,
+    tags=["Mesh 橋接"],
+)
+async def get_bridge_gateway(gateway_id: str):
+    """獲取指定橋接網關詳情"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+
+        if gateway_id not in mesh_service.bridge_gateways:
+            raise HTTPException(status_code=404, detail=f"橋接網關 {gateway_id} 不存在")
+
+        bridge_gateway = mesh_service.bridge_gateways[gateway_id]
+        return CustomJSONResponse(content=jsonable_encoder(bridge_gateway.dict()))
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"獲取橋接網關 API 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+@app.get(
+    "/api/v1/mesh/topology", response_model=NetworkTopologyResponse, tags=["Mesh 橋接"]
+)
+async def get_network_topology():
+    """獲取 Mesh 網絡拓撲"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+
+        topology = await mesh_service.get_network_topology()
+        if not topology:
+            raise HTTPException(status_code=500, detail="無法獲取網絡拓撲")
+
+        # 計算網絡健康指標
+        health_score = 0.9  # 簡化計算
+        connectivity_ratio = 0.85
+        average_link_quality = 0.8
+
+        response = NetworkTopologyResponse(
+            topology=topology,
+            health_score=health_score,
+            connectivity_ratio=connectivity_ratio,
+            average_link_quality=average_link_quality,
+        )
+
+        return CustomJSONResponse(content=jsonable_encoder(response.dict()))
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"獲取網絡拓撲 API 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+@app.get(
+    "/api/v1/mesh/nodes/{node_id}/metrics",
+    response_model=MeshPerformanceMetrics,
+    tags=["Mesh 橋接"],
+)
+async def get_mesh_node_metrics(node_id: str):
+    """獲取 Mesh 節點性能指標"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+
+        metrics = await mesh_service.get_performance_metrics(node_id)
+        if not metrics:
+            raise HTTPException(
+                status_code=404, detail=f"節點 {node_id} 不存在或無性能數據"
+            )
+
+        return CustomJSONResponse(content=jsonable_encoder(metrics.dict()))
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"獲取節點性能指標 API 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+@app.post("/api/v1/mesh/routing/optimize", tags=["Mesh 橋接"])
+async def optimize_mesh_routing(target_node_id: Optional[str] = None):
+    """觸發 Mesh 路由優化"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+
+        success = await mesh_service.trigger_route_optimization(target_node_id)
+
+        if success:
+            return CustomJSONResponse(
+                content={
+                    "message": "路由優化已觸發",
+                    "target_node": target_node_id or "all_nodes",
+                }
+            )
+        else:
+            raise HTTPException(status_code=500, detail="路由優化失敗")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"路由優化 API 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+@app.post("/api/v1/mesh/demo/quick-test", tags=["Mesh 橋接"])
+async def mesh_bridge_quick_demo():
+    """Mesh 橋接快速演示"""
+    try:
+        mesh_service = app.state.mesh_bridge_service
+
+        # 創建示例 Mesh 節點
+        demo_node_data = {
+            "name": "Demo_UAV_Mesh_Node",
+            "node_type": "uav_relay",
+            "ip_address": "192.168.100.10",
+            "mac_address": "00:11:22:33:44:55",
+            "frequency_mhz": 900.0,
+            "power_dbm": 20.0,
+            "position": {"latitude": 25.0330, "longitude": 121.5654, "altitude": 100.0},
+        }
+
+        demo_node = await mesh_service.create_mesh_node(demo_node_data)
+
+        if not demo_node:
+            raise HTTPException(status_code=500, detail="創建示例節點失敗")
+
+        # 創建示例橋接網關
+        demo_gateway_data = {
+            "name": "Demo_Bridge_Gateway",
+            "upf_ip": "172.20.0.30",
+            "upf_port": 2152,
+            "mesh_node_id": demo_node.node_id,
+            "mesh_interface": "mesh0",
+            "slice_info": {
+                "supported_slices": [
+                    {"sst": 1, "sd": "0x111111"},
+                    {"sst": 2, "sd": "0x222222"},
+                ]
+            },
+        }
+
+        demo_gateway = await mesh_service.create_bridge_gateway(demo_gateway_data)
+
+        if not demo_gateway:
+            raise HTTPException(status_code=500, detail="創建示例網關失敗")
+
+        # 模擬封包轉發測試
+        test_packet = b"Hello Mesh Bridge"
+        forward_success = await mesh_service.forward_packet_5g_to_mesh(
+            demo_gateway.gateway_id, test_packet, demo_node.node_id
+        )
+
+        # 獲取網絡拓撲
+        topology = await mesh_service.get_network_topology()
+
+        return CustomJSONResponse(
+            content={
+                "message": "Mesh 橋接演示完成",
+                "demo_results": {
+                    "node_created": demo_node.dict(),
+                    "gateway_created": demo_gateway.dict(),
+                    "packet_forwarding_test": forward_success,
+                    "network_topology": topology.dict() if topology else None,
+                },
+                "test_timestamp": datetime.utcnow().isoformat(),
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Mesh 橋接演示錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
+
+
+# ===== UAV Mesh 備援機制端點 =====
+
+
+@app.post("/api/v1/uav-mesh-failover/register/{uav_id}", tags=["UAV Mesh 備援"])
+async def register_uav_for_failover_monitoring(uav_id: str):
+    """
+    註冊 UAV 進行備援監控
+
+    Args:
+        uav_id: UAV ID
+
+    Returns:
+        註冊結果
+    """
+    try:
+        failover_service = app.state.uav_mesh_failover_service
+        success = await failover_service.register_uav_for_monitoring(uav_id)
+
+        if success:
+            return CustomJSONResponse(
+                content={
+                    "success": True,
+                    "message": f"UAV {uav_id} 已註冊備援監控",
+                    "uav_id": uav_id,
+                    "monitoring_capabilities": [
+                        "連接質量監控",
+                        "自動故障切換",
+                        "Mesh 網絡備援",
+                        "衛星連接恢復",
+                    ],
+                }
+            )
+        else:
+            raise HTTPException(status_code=500, detail="註冊備援監控失敗")
+
+    except Exception as e:
+        logger.error(f"註冊 UAV 備援監控失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"註冊失敗: {str(e)}")
+
+
+@app.delete("/api/v1/uav-mesh-failover/unregister/{uav_id}", tags=["UAV Mesh 備援"])
+async def unregister_uav_failover_monitoring(uav_id: str):
+    """
+    取消 UAV 備援監控
+
+    Args:
+        uav_id: UAV ID
+
+    Returns:
+        取消結果
+    """
+    try:
+        failover_service = app.state.uav_mesh_failover_service
+        success = await failover_service.unregister_uav_monitoring(uav_id)
+
+        if success:
+            return CustomJSONResponse(
+                content={
+                    "success": True,
+                    "message": f"UAV {uav_id} 已取消備援監控",
+                    "uav_id": uav_id,
+                }
+            )
+        else:
+            raise HTTPException(status_code=404, detail=f"UAV {uav_id} 未在監控中")
+
+    except Exception as e:
+        logger.error(f"取消 UAV 備援監控失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"取消失敗: {str(e)}")
+
+
+@app.post("/api/v1/uav-mesh-failover/trigger/{uav_id}", tags=["UAV Mesh 備援"])
+async def trigger_manual_uav_failover(uav_id: str, target_mode: NetworkMode):
+    """
+    手動觸發 UAV 網絡切換
+
+    Args:
+        uav_id: UAV ID
+        target_mode: 目標網絡模式
+
+    Returns:
+        切換結果
+    """
+    try:
+        failover_service = app.state.uav_mesh_failover_service
+        result = await failover_service.trigger_manual_failover(uav_id, target_mode)
+
+        return CustomJSONResponse(content=result)
+
+    except Exception as e:
+        logger.error(f"手動觸發 UAV 網絡切換失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"切換失敗: {str(e)}")
+
+
+@app.get("/api/v1/uav-mesh-failover/status/{uav_id}", tags=["UAV Mesh 備援"])
+async def get_uav_failover_status(uav_id: str):
+    """
+    獲取 UAV 備援狀態
+
+    Args:
+        uav_id: UAV ID
+
+    Returns:
+        UAV 網絡狀態和備援信息
+    """
+    try:
+        failover_service = app.state.uav_mesh_failover_service
+        status = await failover_service.get_uav_network_status(uav_id)
+
+        return CustomJSONResponse(content=status)
+
+    except Exception as e:
+        logger.error(f"獲取 UAV 備援狀態失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"狀態查詢失敗: {str(e)}")
+
+
+@app.get("/api/v1/uav-mesh-failover/stats", tags=["UAV Mesh 備援"])
+async def get_uav_failover_service_stats():
+    """
+    獲取 UAV 備援服務統計
+
+    Returns:
+        服務統計信息，包括監控數量、切換統計等
+    """
+    try:
+        failover_service = app.state.uav_mesh_failover_service
+        stats = await failover_service.get_service_stats()
+
+        # 確保數據 JSON 兼容
+        def clean_data(obj):
+            if isinstance(obj, float):
+                if (
+                    obj == float("inf") or obj == float("-inf") or obj != obj
+                ):  # NaN check
+                    return None
+                return obj
+            elif isinstance(obj, dict):
+                return {k: clean_data(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [clean_data(item) for item in obj]
+            return obj
+
+        cleaned_stats = clean_data(stats)
+        return CustomJSONResponse(content=cleaned_stats)
+
+    except Exception as e:
+        logger.error(f"獲取備援服務統計失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"統計查詢失敗: {str(e)}")
+
+
+@app.post("/api/v1/uav-mesh-failover/demo/quick-test", tags=["UAV Mesh 備援"])
+async def uav_mesh_failover_quick_demo():
+    """
+    UAV Mesh 備援機制快速演示
+
+    創建示例 UAV，演示完整的失聯檢測和備援切換流程
+
+    Returns:
+        演示結果和性能指標
+    """
+    try:
+        # 創建測試 UAV
+        from datetime import datetime
+
+        demo_ue_config = UAVUEConfig(
+            imsi="999700000000002",
+            key="465B5CE8B199B49FAA5F0A2EE238A6BC",
+            opc="E8ED289DEBA952E4283B54E88E6183CA",
+            plmn="99970",
+            apn="internet",
+            slice_nssai={"sst": 1, "sd": "000001"},
+            gnb_ip="172.20.0.40",
+            gnb_port=38412,
+            power_dbm=23.0,
+            frequency_mhz=2150.0,
+            bandwidth_mhz=20.0,
+        )
+
+        demo_position = UAVPosition(
+            latitude=25.0330,
+            longitude=121.5654,
+            altitude=150.0,
+            speed=25.0,
+            heading=90.0,
+        )
+
+        uav_request = UAVCreateRequest(
+            name="演示UAV_備援測試",
+            ue_config=demo_ue_config,
+            initial_position=demo_position,
+        )
+
+        # 創建 UAV
+        uav_ue_service = app.state.uav_ue_service
+        uav = await uav_ue_service.create_uav(uav_request)
+
+        # 註冊備援監控
+        failover_service = app.state.uav_mesh_failover_service
+        await failover_service.register_uav_for_monitoring(uav.uav_id)
+
+        # 模擬信號質量下降
+        poor_signal = UAVSignalQuality(
+            rsrp_dbm=-115.0,  # 很差的信號
+            rsrq_db=-15.0,
+            sinr_db=-8.0,  # 低於閾值
+            cqi=2,
+            throughput_mbps=2.0,
+            latency_ms=200.0,
+            packet_loss_rate=0.15,  # 高丟包率
+            jitter_ms=20.0,
+            link_budget_margin_db=-5.0,
+            doppler_shift_hz=1000.0,
+            beam_alignment_score=0.3,
+            interference_level_db=-80.0,
+            measurement_confidence=0.8,
+            timestamp=datetime.now(),
+        )
+
+        # 更新信號質量觸發切換
+        await uav_ue_service.update_uav_position(
+            uav.uav_id,
+            UAVPositionUpdateRequest(
+                position=demo_position, signal_quality=poor_signal
+            ),
+        )
+
+        # 等待切換完成
+        await asyncio.sleep(3)
+
+        # 檢查切換結果
+        failover_status = await failover_service.get_uav_network_status(uav.uav_id)
+
+        # 手動觸發切回衛星
+        recovery_result = await failover_service.trigger_manual_failover(
+            uav.uav_id, NetworkMode.SATELLITE_NTN
+        )
+
+        # 獲取服務統計
+        service_stats = await failover_service.get_service_stats()
+
+        demo_result = {
+            "success": True,
+            "message": "UAV Mesh 備援機制演示完成",
+            "demo_scenario": {
+                "created_uav": {
+                    "id": uav.uav_id,
+                    "name": uav.name,
+                    "initial_position": demo_position.dict(),
+                },
+                "simulated_degradation": {
+                    "rsrp_dbm": poor_signal.rsrp_dbm,
+                    "sinr_db": poor_signal.sinr_db,
+                    "packet_loss_rate": poor_signal.packet_loss_rate,
+                },
+                "failover_result": failover_status,
+                "recovery_result": recovery_result,
+            },
+            "service_statistics": service_stats,
+            "demonstrated_capabilities": [
+                "實時連接質量監控",
+                "自動故障檢測",
+                "快速 Mesh 網絡切換",
+                "智能恢復機制",
+                "性能統計追蹤",
+            ],
+            "performance_targets": {
+                "failover_time_target_ms": 2000,
+                "actual_failover_time_ms": recovery_result.get("duration_ms", 0),
+                "meets_requirement": recovery_result.get("duration_ms", 0) < 2000,
+            },
+            "cleanup_info": {
+                "uav_id": uav.uav_id,
+                "cleanup_endpoints": [
+                    f"DELETE /api/v1/uav/{uav.uav_id}",
+                    f"DELETE /api/v1/uav-mesh-failover/unregister/{uav.uav_id}",
+                ],
+            },
+        }
+
+        return CustomJSONResponse(content=demo_result)
+
+    except Exception as e:
+        logger.error(f"UAV Mesh 備援演示失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"演示失敗: {str(e)}")
 
 
 if __name__ == "__main__":

@@ -6,3 +6,4 @@ __pycache__
 tests/reports/
 netstack/tests/test_results/
 .pytest_cache
+*.log
