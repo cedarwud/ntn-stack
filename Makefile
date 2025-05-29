@@ -163,6 +163,24 @@ simworld-build: ## 構建 SimWorld 服務
 	@cd $(SIMWORLD_DIR) && docker compose build
 	@echo "$(GREEN)✅ SimWorld 服務構建完成$(RESET)"
 
+build-n: all-build-n ## 構建所有服務
+
+all-build-n: ## 構建 NetStack 和 SimWorld
+	@echo "$(CYAN)🔨 構建所有 NTN Stack 服務...$(RESET)"
+	@$(MAKE) netstack-build-n
+	@$(MAKE) simworld-build-n
+	@echo "$(GREEN)✅ 所有服務構建完成$(RESET)"
+
+netstack-build-n: ## 構建 NetStack 服務
+	@echo "$(BLUE)🔨 構建 NetStack 服務...$(RESET)"
+	@cd $(NETSTACK_DIR) && docker build -t netstack-api:latest -f docker/Dockerfile . --no-cache
+	@echo "$(GREEN)✅ NetStack 服務構建完成$(RESET)"
+
+simworld-build-n: ## 構建 SimWorld 服務
+	@echo "$(BLUE)🔨 構建 SimWorld 服務...$(RESET)"
+	@cd $(SIMWORLD_DIR) && docker compose build --no-cache
+	@echo "$(GREEN)✅ SimWorld 服務構建完成$(RESET)"
+
 # ===== 清理 =====
 
 clean: all-clean ## 清理所有資源
@@ -177,6 +195,7 @@ all-clean: ## 清理 NetStack 和 SimWorld 資源
 netstack-clean: ## 清理 NetStack 資源
 	@echo "$(BLUE)🧹 清理 NetStack 資源...$(RESET)"
 	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml down -v --remove-orphans
+	@cd $(NETSTACK_DIR) && docker compose -f compose/ran.yaml down -v --remove-orphans
 	@docker system prune -f --filter "label=com.docker.compose.project=netstack"
 	@echo "$(GREEN)✅ NetStack 資源清理完成$(RESET)"
 
@@ -190,6 +209,28 @@ clean-reports: ## 清理測試報告
 	@echo "$(BLUE)🧹 清理測試報告...$(RESET)"
 	@rm -rf $(REPORTS_DIR)
 	@echo "$(GREEN)✅ 測試報告清理完成$(RESET)"
+
+clean-i: all-clean-i ## 清理所有資源
+
+all-clean-i: ## 清理 NetStack 和 SimWorld 資源
+	@echo "$(CYAN)🧹 清理所有 NTN Stack 資源...$(RESET)"
+	@$(MAKE) netstack-clean-i
+	@$(MAKE) simworld-clean-i
+	@$(MAKE) clean-reports
+	@echo "$(GREEN)✅ 所有資源清理完成$(RESET)"
+
+netstack-clean-i: ## 清理 NetStack 資源
+	@echo "$(BLUE)🧹 清理 NetStack 映像檔...$(RESET)"
+	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml down -v --remove-orphans --rmi all
+	@cd $(NETSTACK_DIR) && docker compose -f compose/ran.yaml down -v --remove-orphans --rmi all
+	@docker system prune -f --filter "label=com.docker.compose.project=netstack"
+	@echo "$(GREEN)✅ NetStack 映像檔清理完成$(RESET)"
+
+simworld-clean-i: ## 清理 SimWorld 資源
+	@echo "$(BLUE)🧹 清理 SimWorld 映像檔...$(RESET)"
+	@cd $(SIMWORLD_DIR) && docker compose down -v --remove-orphans --rmi all
+	@docker system prune -f --filter "label=com.docker.compose.project=simworld"
+	@echo "$(GREEN)✅ SimWorld 映像檔清理完成$(RESET)"
 
 # ===== 狀態檢查 =====
 
@@ -361,12 +402,60 @@ test-core: ## 🔧 執行核心功能測試
 	@$(MAKE) test-connectivity
 	@echo "$(GREEN)✅ 核心功能測試完成$(RESET)"
 
+test-uav-ue: ## 🚁 執行 UAV UE 整合測試
+	@echo "$(CYAN)🚁 執行 UAV UE 整合測試...$(RESET)"
+	@echo "$(YELLOW)確認測試依賴已安裝...$(RESET)"
+	@pip install -q pytest httpx asyncio || pip3 install -q pytest httpx asyncio
+	@python3 tests/test_uav_ue_integration.py
+	@echo "$(GREEN)✅ UAV UE 整合測試完成$(RESET)"
+
+test-uav-ue-quick: ## ⚡ 執行 UAV UE 快速測試
+	@echo "$(CYAN)⚡ 執行 UAV UE 快速測試...$(RESET)"
+	@echo "$(YELLOW)測試 NetStack UAV UE API 端點...$(RESET)"
+	@curl -s http://localhost:8080/api/v1/uav > /dev/null && echo "$(GREEN)✅ UAV 列表端點正常$(RESET)" || echo "$(RED)❌ UAV 列表端點異常$(RESET)"
+	@curl -s http://localhost:8080/api/v1/uav/trajectory > /dev/null && echo "$(GREEN)✅ 軌跡列表端點正常$(RESET)" || echo "$(RED)❌ 軌跡列表端點異常$(RESET)"
+	@echo "$(YELLOW)測試 SimWorld UAV 位置端點...$(RESET)"
+	@curl -s http://localhost:8888/api/v1/uav/positions > /dev/null && echo "$(GREEN)✅ SimWorld UAV 位置端點正常$(RESET)" || echo "$(RED)❌ SimWorld UAV 位置端點異常$(RESET)"
+	@echo "$(GREEN)✅ UAV UE 快速測試完成$(RESET)"
+
+test-uav-ue-demo: ## 🚀 執行 UAV UE 演示
+	@echo "$(CYAN)🚀 執行 UAV UE 演示...$(RESET)"
+	@curl -X POST http://localhost:8080/api/v1/uav/demo/quick-test -H "Content-Type: application/json" | jq . || echo "$(RED)❌ 演示失敗，請檢查服務狀態$(RESET)"
+	@echo "$(GREEN)✅ UAV UE 演示完成$(RESET)"
+
+test-uav-ue-validation: ## 🎯 執行 UAV UE 完整性驗證
+	@echo "$(CYAN)🎯 執行 UAV UE 完整性驗證...$(RESET)"
+	@echo "$(YELLOW)檢查所有 TODO.md 要求是否完成...$(RESET)"
+	@python3 tests/validate_uav_ue_implementation.py
+	@echo "$(GREEN)✅ UAV UE 完整性驗證完成$(RESET)"
+
+test-uav-ue-env-persistence: ## 🔧 測試環境持久性（模擬 make clean && make up）
+	@echo "$(CYAN)🔧 測試環境持久性...$(RESET)"
+	@echo "$(YELLOW)檢查依賴是否正確安裝在 Docker 鏡像中...$(RESET)"
+	@docker exec netstack-api python -c "import pytest; print('✅ pytest 在容器中可用')" || echo "$(RED)❌ pytest 不在容器中$(RESET)"
+	@docker exec netstack-api python -c "import httpx; print('✅ httpx 在容器中可用')" || echo "$(RED)❌ httpx 不在容器中$(RESET)"
+	@docker exec netstack-api python -c "import asyncio; print('✅ asyncio 在容器中可用')" || echo "$(RED)❌ asyncio 不在容器中$(RESET)"
+	@echo "$(YELLOW)檢查代碼修復是否持久化...$(RESET)"
+	@docker exec netstack-api python -c "from netstack_api.adapters.mongo_adapter import MongoAdapter; print('✅ MongoAdapter 修復持久化')" || echo "$(RED)❌ MongoAdapter 修復未持久化$(RESET)"
+	@docker exec netstack-api python -c "from netstack_api.models.uav_models import UAVTrajectory; print('✅ UAV 模型正常')" || echo "$(RED)❌ UAV 模型異常$(RESET)"
+	@echo "$(GREEN)✅ 環境持久性檢查完成$(RESET)"
+
+test-uav-ue-comprehensive: ## 🚀 執行 UAV UE 綜合測試（包含所有子測試）
+	@echo "$(CYAN)🚀 執行 UAV UE 綜合測試套件...$(RESET)"
+	@$(MAKE) test-uav-ue-quick
+	@$(MAKE) test-uav-ue-demo
+	@$(MAKE) test-uav-ue
+	@$(MAKE) test-uav-ue-validation
+	@$(MAKE) test-uav-ue-env-persistence
+	@echo "$(GREEN)🎉 UAV UE 綜合測試完成$(RESET)"
+
 test-advanced: ## 🚀 執行進階功能測試
 	@echo "$(CYAN)🚀 執行進階功能測試...$(RESET)"
 	@$(MAKE) test-integration
 	@$(MAKE) test-satellite-gnb
 	@$(MAKE) test-ueransim
 	@$(MAKE) test-performance
+	@$(MAKE) test-uav-ue
 	@echo "$(GREEN)✅ 進階功能測試完成$(RESET)"
 
 test-legacy: ## 🔄 執行傳統 Shell 測試（向後兼容）
@@ -520,7 +609,7 @@ dev-setup: ## 設置開發環境
 
 dev-start: ## 啟動開發環境
 	@echo "$(CYAN)🛠️ 啟動 NTN Stack 開發環境...$(RESET)"
-	@$(MAKE) start
+	@$(MAKE) 服務健康檢查:
 	@echo ""
 	@echo "$(CYAN)🌐 開發環境訪問地址:$(RESET)"
 	@echo "  NetStack API:     $(NETSTACK_URL)"

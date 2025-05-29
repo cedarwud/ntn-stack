@@ -41,6 +41,20 @@ from .models.responses import (
     SliceSwitchResponse,
     ErrorResponse,
 )
+from .models.uav_models import (
+    TrajectoryCreateRequest,
+    TrajectoryUpdateRequest,
+    UAVCreateRequest,
+    UAVMissionStartRequest,
+    UAVPositionUpdateRequest,
+    TrajectoryResponse,
+    UAVStatusResponse,
+    UAVListResponse,
+    TrajectoryListResponse,
+    TrajectoryPoint,
+    UAVUEConfig,
+    UAVPosition,
+)
 
 
 # 自定義 JSON 編碼器
@@ -161,6 +175,17 @@ async def lifespan(app: FastAPI):
         update_interval_sec=float(os.getenv("INTERFERENCE_UPDATE_INTERVAL", "5.0")),
     )
 
+    # 初始化 UAV UE 服務
+    from .services.uav_ue_service import UAVUEService
+
+    uav_ue_service = UAVUEService(
+        mongo_adapter=mongo_adapter,
+        redis_adapter=redis_adapter,
+        ueransim_config_dir=os.getenv("UERANSIM_CONFIG_DIR", "/tmp/ueransim_configs"),
+        simworld_api_url=os.getenv("SIMWORLD_API_URL", "http://simworld-backend:8000"),
+        update_interval_sec=float(os.getenv("UAV_UPDATE_INTERVAL", "5.0")),
+    )
+
     # 儲存到應用程式狀態
     app.state.mongo_adapter = mongo_adapter
     app.state.redis_adapter = redis_adapter
@@ -173,6 +198,7 @@ async def lifespan(app: FastAPI):
     app.state.oneweb_service = oneweb_service
     app.state.sionna_service = sionna_service
     app.state.interference_service = interference_service
+    app.state.uav_ue_service = uav_ue_service
 
     # 連接外部服務
     await mongo_adapter.connect()
@@ -202,6 +228,10 @@ async def lifespan(app: FastAPI):
     # 關閉干擾控制服務
     if hasattr(app.state, "interference_service"):
         await app.state.interference_service.stop()
+
+    # 關閉 UAV UE 服務
+    if hasattr(app.state, "uav_ue_service"):
+        await app.state.uav_ue_service.shutdown()
 
     await mongo_adapter.disconnect()
     await redis_adapter.disconnect()
@@ -1417,6 +1447,442 @@ async def interference_quick_demo():
 
     except Exception as e:
         logger.error(f"干擾控制演示失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"演示失敗: {str(e)}")
+
+
+# ===== UAV UE 管理端點 =====
+
+
+@app.post("/api/v1/uav/trajectory", tags=["UAV UE 管理"])
+async def create_trajectory(request: TrajectoryCreateRequest):
+    """
+    創建 UAV 飛行軌跡
+
+    Args:
+        request: 軌跡創建請求，包含軌跡名稱、描述、任務類型和軌跡點列表
+
+    Returns:
+        創建的軌跡詳情，包含計算的總距離和預估飛行時間
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        result = await uav_ue_service.create_trajectory(request)
+        return CustomJSONResponse(content=result.dict())
+    except Exception as e:
+        logger.error(f"創建軌跡失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"創建軌跡失敗: {str(e)}")
+
+
+@app.get("/api/v1/uav/trajectory/{trajectory_id}", tags=["UAV UE 管理"])
+async def get_trajectory(trajectory_id: str):
+    """
+    獲取指定軌跡詳情
+
+    Args:
+        trajectory_id: 軌跡 ID
+
+    Returns:
+        軌跡詳情，包含統計信息
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        result = await uav_ue_service.get_trajectory(trajectory_id)
+
+        if not result:
+            raise HTTPException(status_code=404, detail=f"找不到軌跡: {trajectory_id}")
+
+        return CustomJSONResponse(content=result.dict())
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"獲取軌跡失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取軌跡失敗: {str(e)}")
+
+
+@app.get("/api/v1/uav/trajectory", tags=["UAV UE 管理"])
+async def list_trajectories(limit: int = 100, offset: int = 0):
+    """
+    列出所有軌跡
+
+    Args:
+        limit: 每頁項目數量（預設 100）
+        offset: 偏移量（預設 0）
+
+    Returns:
+        軌跡列表和總數
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        result = await uav_ue_service.list_trajectories(limit=limit, offset=offset)
+        return CustomJSONResponse(content=result.dict())
+    except Exception as e:
+        logger.error(f"列出軌跡失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"列出軌跡失敗: {str(e)}")
+
+
+@app.put("/api/v1/uav/trajectory/{trajectory_id}", tags=["UAV UE 管理"])
+async def update_trajectory(trajectory_id: str, request: TrajectoryUpdateRequest):
+    """
+    更新軌跡
+
+    Args:
+        trajectory_id: 軌跡 ID
+        request: 軌跡更新請求
+
+    Returns:
+        更新後的軌跡詳情
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        result = await uav_ue_service.update_trajectory(trajectory_id, request)
+
+        if not result:
+            raise HTTPException(status_code=404, detail=f"找不到軌跡: {trajectory_id}")
+
+        return CustomJSONResponse(content=result.dict())
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新軌跡失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"更新軌跡失敗: {str(e)}")
+
+
+@app.delete("/api/v1/uav/trajectory/{trajectory_id}", tags=["UAV UE 管理"])
+async def delete_trajectory(trajectory_id: str):
+    """
+    刪除軌跡
+
+    Args:
+        trajectory_id: 軌跡 ID
+
+    Returns:
+        刪除結果
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        success = await uav_ue_service.delete_trajectory(trajectory_id)
+
+        if not success:
+            raise HTTPException(status_code=404, detail=f"找不到軌跡: {trajectory_id}")
+
+        return CustomJSONResponse(content={"success": True, "message": "軌跡刪除成功"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"刪除軌跡失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"刪除軌跡失敗: {str(e)}")
+
+
+@app.post("/api/v1/uav", tags=["UAV UE 管理"])
+async def create_uav(request: UAVCreateRequest):
+    """
+    創建新 UAV
+
+    Args:
+        request: UAV 創建請求，包含名稱、UE 配置和初始位置
+
+    Returns:
+        創建的 UAV 狀態
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        result = await uav_ue_service.create_uav(request)
+        return CustomJSONResponse(content=result.dict())
+    except Exception as e:
+        logger.error(f"創建 UAV 失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"創建 UAV 失敗: {str(e)}")
+
+
+@app.get("/api/v1/uav/{uav_id}", tags=["UAV UE 管理"])
+async def get_uav_status(uav_id: str):
+    """
+    獲取 UAV 狀態
+
+    Args:
+        uav_id: UAV ID
+
+    Returns:
+        UAV 詳細狀態，包含位置、信號質量、任務進度等
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        result = await uav_ue_service.get_uav_status(uav_id)
+
+        if not result:
+            raise HTTPException(status_code=404, detail=f"找不到 UAV: {uav_id}")
+
+        return CustomJSONResponse(content=result.dict())
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"獲取 UAV 狀態失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取 UAV 狀態失敗: {str(e)}")
+
+
+@app.get("/api/v1/uav", tags=["UAV UE 管理"])
+async def list_uavs(limit: int = 100, offset: int = 0):
+    """
+    列出所有 UAV
+
+    Args:
+        limit: 每頁項目數量（預設 100）
+        offset: 偏移量（預設 0）
+
+    Returns:
+        UAV 列表和總數
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        result = await uav_ue_service.list_uavs(limit=limit, offset=offset)
+        return CustomJSONResponse(content=result.dict())
+    except Exception as e:
+        logger.error(f"列出 UAV 失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"列出 UAV 失敗: {str(e)}")
+
+
+@app.post("/api/v1/uav/{uav_id}/mission/start", tags=["UAV UE 管理"])
+async def start_uav_mission(uav_id: str, request: UAVMissionStartRequest):
+    """
+    開始 UAV 任務
+
+    Args:
+        uav_id: UAV ID
+        request: 任務開始請求，包含軌跡 ID、開始時間和速度倍數
+
+    Returns:
+        更新後的 UAV 狀態
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        result = await uav_ue_service.start_mission(uav_id, request)
+
+        if not result:
+            raise HTTPException(status_code=404, detail=f"找不到 UAV: {uav_id}")
+
+        return CustomJSONResponse(content=result.dict())
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"開始 UAV 任務失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"開始任務失敗: {str(e)}")
+
+
+@app.post("/api/v1/uav/{uav_id}/mission/stop", tags=["UAV UE 管理"])
+async def stop_uav_mission(uav_id: str):
+    """
+    停止 UAV 任務
+
+    Args:
+        uav_id: UAV ID
+
+    Returns:
+        更新後的 UAV 狀態
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        result = await uav_ue_service.stop_mission(uav_id)
+
+        if not result:
+            raise HTTPException(status_code=404, detail=f"找不到 UAV: {uav_id}")
+
+        return CustomJSONResponse(content=result.dict())
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"停止 UAV 任務失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"停止任務失敗: {str(e)}")
+
+
+@app.put("/api/v1/uav/{uav_id}/position", tags=["UAV UE 管理"])
+async def update_uav_position(uav_id: str, request: UAVPositionUpdateRequest):
+    """
+    更新 UAV 位置
+
+    Args:
+        uav_id: UAV ID
+        request: 位置更新請求，包含新位置和可選的信號質量
+
+    Returns:
+        更新後的 UAV 狀態
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        result = await uav_ue_service.update_uav_position(uav_id, request)
+
+        if not result:
+            raise HTTPException(status_code=404, detail=f"找不到 UAV: {uav_id}")
+
+        return CustomJSONResponse(content=result.dict())
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新 UAV 位置失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"更新位置失敗: {str(e)}")
+
+
+@app.delete("/api/v1/uav/{uav_id}", tags=["UAV UE 管理"])
+async def delete_uav(uav_id: str):
+    """
+    刪除 UAV
+
+    Args:
+        uav_id: UAV ID
+
+    Returns:
+        刪除結果
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+        success = await uav_ue_service.delete_uav(uav_id)
+
+        if not success:
+            raise HTTPException(status_code=404, detail=f"找不到 UAV: {uav_id}")
+
+        return CustomJSONResponse(content={"success": True, "message": "UAV 刪除成功"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"刪除 UAV 失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"刪除 UAV 失敗: {str(e)}")
+
+
+@app.post("/api/v1/uav/demo/quick-test", tags=["UAV UE 管理"])
+async def uav_quick_demo():
+    """
+    UAV UE 快速演示
+
+    創建示例軌跡和 UAV，展示完整的 UAV UE 模擬流程
+
+    Returns:
+        演示結果和創建的資源 ID
+    """
+    try:
+        uav_ue_service = app.state.uav_ue_service
+
+        # 1. 創建示例軌跡
+        from datetime import datetime, timedelta
+
+        base_time = datetime.utcnow()
+        demo_points = [
+            TrajectoryPoint(
+                timestamp=base_time,
+                latitude=24.7881,
+                longitude=120.9971,
+                altitude=100,
+                speed=20.0,
+                heading=45.0,
+            ),
+            TrajectoryPoint(
+                timestamp=base_time + timedelta(minutes=5),
+                latitude=24.8000,
+                longitude=121.0100,
+                altitude=120,
+                speed=25.0,
+                heading=90.0,
+            ),
+            TrajectoryPoint(
+                timestamp=base_time + timedelta(minutes=10),
+                latitude=24.8200,
+                longitude=121.0300,
+                altitude=150,
+                speed=30.0,
+                heading=135.0,
+            ),
+            TrajectoryPoint(
+                timestamp=base_time + timedelta(minutes=15),
+                latitude=24.8100,
+                longitude=121.0500,
+                altitude=100,
+                speed=15.0,
+                heading=180.0,
+            ),
+        ]
+
+        trajectory_request = TrajectoryCreateRequest(
+            name="演示軌跡_偵察任務",
+            description="UAV UE 快速演示軌跡，模擬偵察任務",
+            mission_type="reconnaissance",
+            points=demo_points,
+        )
+
+        trajectory = await uav_ue_service.create_trajectory(trajectory_request)
+
+        # 2. 創建示例 UAV
+        demo_ue_config = UAVUEConfig(
+            imsi="999700000000001",
+            key="465B5CE8B199B49FAA5F0A2EE238A6BC",
+            opc="E8ED289DEBA952E4283B54E88E6183CA",
+            plmn="99970",
+            apn="internet",
+            slice_nssai={"sst": 1, "sd": "000001"},
+            gnb_ip="172.20.0.40",
+            gnb_port=38412,
+            power_dbm=23.0,
+            frequency_mhz=2150.0,
+            bandwidth_mhz=20.0,
+        )
+
+        demo_position = UAVPosition(
+            latitude=demo_points[0].latitude,
+            longitude=demo_points[0].longitude,
+            altitude=demo_points[0].altitude,
+            speed=demo_points[0].speed,
+            heading=demo_points[0].heading,
+        )
+
+        uav_request = UAVCreateRequest(
+            name="演示UAV_偵察機",
+            ue_config=demo_ue_config,
+            initial_position=demo_position,
+        )
+
+        uav = await uav_ue_service.create_uav(uav_request)
+
+        # 3. 開始演示任務
+        mission_request = UAVMissionStartRequest(
+            trajectory_id=trajectory.trajectory_id, speed_factor=2.0  # 加速演示
+        )
+
+        mission_status = await uav_ue_service.start_mission(uav.uav_id, mission_request)
+
+        demo_result = {
+            "success": True,
+            "message": "UAV UE 快速演示啟動成功",
+            "demo_resources": {
+                "trajectory": {
+                    "id": trajectory.trajectory_id,
+                    "name": trajectory.name,
+                    "total_distance_km": trajectory.total_distance_km,
+                    "estimated_duration_minutes": trajectory.estimated_duration_minutes,
+                },
+                "uav": {
+                    "id": uav.uav_id,
+                    "name": uav.name,
+                    "flight_status": mission_status.flight_status,
+                    "ue_connection_status": mission_status.ue_connection_status,
+                },
+            },
+            "demo_instructions": [
+                f"1. 追蹤 UAV 狀態: GET /api/v1/uav/{uav.uav_id}",
+                f"2. 查看軌跡詳情: GET /api/v1/uav/trajectory/{trajectory.trajectory_id}",
+                f"3. 停止任務: POST /api/v1/uav/{uav.uav_id}/mission/stop",
+                f"4. 清理資源: DELETE /api/v1/uav/{uav.uav_id}, DELETE /api/v1/uav/trajectory/{trajectory.trajectory_id}",
+            ],
+            "estimated_demo_duration_minutes": 7.5,  # 15分鐘軌跡 ÷ 2倍速
+            "monitoring_endpoints": {
+                "uav_status": f"/api/v1/uav/{uav.uav_id}",
+                "trajectory_info": f"/api/v1/uav/trajectory/{trajectory.trajectory_id}",
+                "all_uavs": "/api/v1/uav",
+                "all_trajectories": "/api/v1/uav/trajectory",
+            },
+        }
+
+        return CustomJSONResponse(content=demo_result)
+
+    except Exception as e:
+        logger.error(f"UAV 快速演示失敗: {e}")
         raise HTTPException(status_code=500, detail=f"演示失敗: {str(e)}")
 
 

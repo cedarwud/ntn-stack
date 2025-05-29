@@ -88,14 +88,22 @@ WORKDIR /app
 # 複製根目錄的 requirements.txt 到正確位置
 COPY ../requirements.txt /app/../requirements.txt
 
-# 安裝開發依賴
+# 安裝開發依賴（包含測試依賴）
 RUN pip install --no-cache-dir -r requirements-dev.txt
+
+# 確保安裝根目錄的測試依賴
+RUN pip install --no-cache-dir -r ../requirements.txt
+
+# 手動安裝關鍵測試依賴（確保持久性）
+RUN pip install --no-cache-dir pytest>=7.4.0 httpx>=0.25.2 asyncio-tools structlog
 
 # 安裝除錯工具
 RUN apt-get update && apt-get install -y \
     vim \
     htop \
     strace \
+    jq \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # 設定開發環境變數

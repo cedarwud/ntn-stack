@@ -6,6 +6,12 @@
 # 引用根目錄測試和開發依賴
 -r ../requirements.txt
 
+# 確保關鍵測試依賴存在（即使根目錄已定義，這裡再次確保）
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.25.2
+structlog>=23.2.0
+
 # NetStack 特有開發工具
 mkdocs>=1.5.3
 mkdocs-material>=9.4.8 

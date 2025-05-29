@@ -325,10 +325,100 @@ class MongoAdapter:
             文檔數量
         """
         try:
-            count = await self.db[collection].count_documents(query)
+            if self.db is None:
+                raise RuntimeError("資料庫未連接")
+
+            collection_obj = self.db[collection]
+            count = await collection_obj.count_documents(query)
             return count
+
         except Exception as e:
-            logger.error(
-                "計算文檔數量失敗", collection=collection, query=query, error=str(e)
-            )
+            logger.error("計算文檔數量失敗", collection=collection, error=str(e))
+            raise
+
+    async def insert_one(self, collection: str, document: Dict[str, Any]) -> str:
+        """
+        插入一個文檔
+
+        Args:
+            collection: 集合名稱
+            document: 要插入的文檔
+
+        Returns:
+            插入文檔的 ID
+        """
+        try:
+            if self.db is None:
+                raise RuntimeError("資料庫未連接")
+
+            collection_obj = self.db[collection]
+            result = await collection_obj.insert_one(document)
+            return str(result.inserted_id)
+
+        except Exception as e:
+            logger.error("插入文檔失敗", collection=collection, error=str(e))
+            raise
+
+    async def find_many(
+        self, collection: str, query: Dict[str, Any], limit: int = 100, skip: int = 0
+    ) -> List[Dict[str, Any]]:
+        """
+        查找多個文檔
+
+        Args:
+            collection: 集合名稱
+            query: 查詢條件
+            limit: 限制返回數量
+            skip: 跳過的文檔數量
+
+        Returns:
+            文檔列表
+        """
+        try:
+            if self.db is None:
+                raise RuntimeError("資料庫未連接")
+
+            collection_obj = self.db[collection]
+            cursor = collection_obj.find(query).skip(skip).limit(limit)
+            documents = await cursor.to_list(length=limit)
+            return documents
+
+        except Exception as e:
+            logger.error("查找文檔失敗", collection=collection, error=str(e))
+            raise
+
+    async def count(self, collection: str, query: Dict[str, Any]) -> int:
+        """
+        計算符合條件的文檔數量（簡化版）
+
+        Args:
+            collection: 集合名稱
+            query: 查詢條件
+
+        Returns:
+            文檔數量
+        """
+        return await self.count_documents(collection, query)
+
+    async def delete_one(self, collection: str, query: Dict[str, Any]):
+        """
+        刪除一個文檔
+
+        Args:
+            collection: 集合名稱
+            query: 查詢條件
+
+        Returns:
+            刪除結果對象
+        """
+        try:
+            if self.db is None:
+                raise RuntimeError("資料庫未連接")
+
+            collection_obj = self.db[collection]
+            result = await collection_obj.delete_one(query)
+            return result
+
+        except Exception as e:
+            logger.error("刪除文檔失敗", collection=collection, error=str(e))
             raise
