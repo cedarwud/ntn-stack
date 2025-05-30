@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, useRef, useCallback, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { ContactShadows, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
@@ -56,6 +56,41 @@ export default function SceneView({
     satellites = [],
     sceneName,
 }: SceneViewProps) {
+    const canvasRef = useRef<HTMLCanvasElement>(null)
+
+    // WebGL 上下文恢復處理
+    const handleWebGLContextLost = useCallback((event: Event) => {
+        console.warn('WebGL 上下文丟失，嘗試恢復...')
+        event.preventDefault()
+    }, [])
+
+    const handleWebGLContextRestored = useCallback(() => {
+        console.log('WebGL 上下文已恢復')
+    }, [])
+
+    // 添加 WebGL 上下文事件監聽器
+    useEffect(() => {
+        const canvas = canvasRef.current
+        if (canvas) {
+            canvas.addEventListener('webglcontextlost', handleWebGLContextLost)
+            canvas.addEventListener(
+                'webglcontextrestored',
+                handleWebGLContextRestored
+            )
+
+            return () => {
+                canvas.removeEventListener(
+                    'webglcontextlost',
+                    handleWebGLContextLost
+                )
+                canvas.removeEventListener(
+                    'webglcontextrestored',
+                    handleWebGLContextRestored
+                )
+            }
+        }
+    }, [handleWebGLContextLost, handleWebGLContextRestored])
+
     return (
         <div
             className="scene-container"
@@ -76,12 +111,22 @@ export default function SceneView({
 
             {/* 3D Canvas內容照舊，會蓋在星空上 */}
             <Canvas
+                ref={canvasRef}
                 shadows
                 camera={{ position: [0, 400, 500], near: 0.1, far: 1e4 }}
                 gl={{
                     toneMapping: THREE.ACESFilmicToneMapping,
                     toneMappingExposure: 1.2,
                     alpha: true,
+                    preserveDrawingBuffer: false,
+                    powerPreference: 'high-performance',
+                    antialias: true,
+                    failIfMajorPerformanceCaveat: false,
+                }}
+                onCreated={({ gl }) => {
+                    // 配置渲染器的上下文恢復選項
+                    gl.debug.checkShaderErrors = true
+                    console.log('WebGL 渲染器已創建')
                 }}
             >
                 <hemisphereLight args={[0xffffff, 0x444444, 1.0]} />

@@ -79,7 +79,8 @@ export function useSceneImageManager(sceneName?: string) {
                 // 只有當 signal 沒有被 abort 時才需要處理錯誤
                 // 如果是 AbortError 且是因為組件卸載，這是正常的行為
                 if (error.name === 'AbortError') {
-                    console.log('Image fetch aborted:', error.message || 'No reason provided');
+                    // 組件卸載導致的請求中止是正常行為，使用 debug 級別日誌
+                    console.debug('圖像請求已中止（組件卸載）:', error.message || '組件已卸載');
                 } else {
                     console.error('Error fetching image:', error);
                     

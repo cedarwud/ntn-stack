@@ -1,9 +1,12 @@
-import { StrictMode } from 'react'
+import React, { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
+import { RouterProvider, createBrowserRouter, Navigate } from 'react-router-dom'
 import './styles/index.scss'
 import App from './App.tsx'
 import axios from 'axios'
+
+// 導入性能監控器（自動啟動）
+import './utils/performanceMonitor'
 
 // 設定 axios 默認配置，忽略設置 baseURL
 // 讓所有請求都使用相對路徑，由 Vite 代理處理
@@ -20,9 +23,38 @@ axios.interceptors.request.use((config) => {
     return config
 })
 
-// 攔截控制台警告以忽略特定的 Three.js 警告
+// 攔截控制台警告和錯誤以忽略特定內容
 const originalWarn = console.warn
+const originalError = console.error
+
+// 檢查是否為瀏覽器擴展相關的錯誤
+function isExtensionRelated(message: string): boolean {
+    const extensionKeywords = [
+        'chrome-extension://',
+        'moz-extension://',
+        'CacheStore.js',
+        'GenAIWebpageEligibilityService',
+        'ActionableCoachmark',
+        'ShowOneChild',
+        'ch-content-script',
+        'content-script-utils',
+        'jquery-3.1.1.min.js',
+        'Cache get failed',
+        'Cache set failed',
+        'caches is not defined',
+    ]
+
+    return extensionKeywords.some((keyword) => message.includes(keyword))
+}
+
 console.warn = function (...args) {
+    const message = args[0]
+
+    // 過濾瀏覽器擴展相關的警告
+    if (message && typeof message === 'string' && isExtensionRelated(message)) {
+        return
+    }
+
     // 忽略 KHR_materials_pbrSpecularGlossiness 擴展警告
     if (
         args[0] &&
@@ -57,6 +89,30 @@ console.warn = function (...args) {
 
     // 所有其他警告正常顯示
     originalWarn.apply(console, args)
+}
+
+console.error = function (...args) {
+    const message = args[0]
+
+    // 過濾瀏覽器擴展相關的錯誤
+    if (message && typeof message === 'string' && isExtensionRelated(message)) {
+        return
+    }
+
+    // 過濾已知的無害錯誤
+    if (message && typeof message === 'string') {
+        const harmlessErrors = [
+            'ResizeObserver loop limit exceeded',
+            'Non-Error promise rejection captured',
+        ]
+
+        if (harmlessErrors.some((pattern) => message.includes(pattern))) {
+            return
+        }
+    }
+
+    // 所有其他錯誤正常顯示
+    originalError.apply(console, args)
 }
 
 // 使用 v7 的數據路由 API 創建路由

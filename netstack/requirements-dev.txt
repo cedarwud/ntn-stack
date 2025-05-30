@@ -28,7 +28,7 @@ prometheus-client==0.20.0
 
 # Scientific computing (for connection quality algorithms)
 numpy==1.24.3
-scipy==1.11.4
+scipy==1.11.4 
 
 # 異步工具和測試輔助
 asyncio-tools>=0.3.0

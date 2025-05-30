@@ -715,9 +715,15 @@ test-frontend-charts-dropdown: ## 🎨 測試前端圖表 Dropdown 功能
 	@python3 tests/test_frontend_charts_dropdown.py
 	@echo "$(GREEN)✅ 前端圖表 Dropdown 測試完成$(RESET)"
 
+test-frontend-error-handling: ## 🛡️ 測試前端錯誤處理功能
+	@echo "$(CYAN)🛡️ 測試前端錯誤處理功能...$(RESET)"
+	@python3 tests/test_frontend_error_handling.py
+	@echo "$(GREEN)✅ 前端錯誤處理測試完成$(RESET)"
+
 test-frontend-validation: ## 🌐 執行前端組件驗證
 	@echo "$(CYAN)🌐 執行前端組件驗證...$(RESET)"
 	@$(MAKE) test-frontend-charts-dropdown
+	@$(MAKE) test-frontend-error-handling
 	@echo "$(GREEN)✅ 前端組件驗證完成$(RESET)"
 
 test-frontend-dev-server: ## 🚀 啟動前端開發伺服器

@@ -6,6 +6,7 @@ import Layout from './components/layout/Layout'
 import Sidebar from './components/layout/Sidebar'
 import Navbar from './components/layout/Navbar'
 import SceneViewer from './components/scenes/FloorView'
+import ErrorBoundary from './components/ui/ErrorBoundary'
 import './styles/App.scss'
 import { Device } from './types/device'
 import { countActiveDevices } from './utils/deviceUtils'
@@ -256,44 +257,58 @@ function App({ activeView }: AppProps) {
     }
 
     return (
-        <div className="app-container">
-            <Navbar
-                onMenuClick={handleMenuClick}
-                activeComponent={activeComponent}
-                currentScene={currentScene}
-            />
-            <div className="content-wrapper">
-                <Layout
-                    sidebar={
-                        <Sidebar
-                            devices={sortedDevicesForSidebar}
-                            onDeviceChange={handleDeviceChange}
-                            onDeleteDevice={handleDeleteDevice}
-                            onAddDevice={handleAddDevice}
-                            onApply={handleApply}
-                            onCancel={handleCancel}
-                            loading={loading}
-                            apiStatus={apiStatus}
-                            hasTempDevices={hasTempDevices}
-                            auto={auto}
-                            onAutoChange={setAuto}
-                            onManualControl={handleManualControl}
-                            activeComponent={activeComponent}
-                            uavAnimation={uavAnimation}
-                            onUavAnimationChange={setUavAnimation}
-                            onSelectedReceiversChange={
-                                handleSelectedReceiversChange
-                            }
-                            onSatelliteDataUpdate={handleSatelliteDataUpdate}
-                            onSatelliteCountChange={handleSatelliteCountChange}
-                            satelliteDisplayCount={satelliteDisplayCount}
-                        />
-                    }
-                    content={renderActiveComponent()}
+        <ErrorBoundary>
+            <div className="app-container">
+                <Navbar
+                    onMenuClick={handleMenuClick}
                     activeComponent={activeComponent}
+                    currentScene={currentScene}
                 />
+                <div className="content-wrapper">
+                    <Layout
+                        sidebar={
+                            <ErrorBoundary fallback={<div>側邊欄發生錯誤</div>}>
+                                <Sidebar
+                                    devices={sortedDevicesForSidebar}
+                                    onDeviceChange={handleDeviceChange}
+                                    onDeleteDevice={handleDeleteDevice}
+                                    onAddDevice={handleAddDevice}
+                                    onApply={handleApply}
+                                    onCancel={handleCancel}
+                                    loading={loading}
+                                    apiStatus={apiStatus}
+                                    hasTempDevices={hasTempDevices}
+                                    auto={auto}
+                                    onAutoChange={setAuto}
+                                    onManualControl={handleManualControl}
+                                    activeComponent={activeComponent}
+                                    uavAnimation={uavAnimation}
+                                    onUavAnimationChange={setUavAnimation}
+                                    onSelectedReceiversChange={
+                                        handleSelectedReceiversChange
+                                    }
+                                    onSatelliteDataUpdate={
+                                        handleSatelliteDataUpdate
+                                    }
+                                    onSatelliteCountChange={
+                                        handleSatelliteCountChange
+                                    }
+                                    satelliteDisplayCount={
+                                        satelliteDisplayCount
+                                    }
+                                />
+                            </ErrorBoundary>
+                        }
+                        content={
+                            <ErrorBoundary fallback={<div>主視圖發生錯誤</div>}>
+                                {renderActiveComponent()}
+                            </ErrorBoundary>
+                        }
+                        activeComponent={activeComponent}
+                    />
+                </div>
             </div>
-        </div>
+        </ErrorBoundary>
     )
 }
 
