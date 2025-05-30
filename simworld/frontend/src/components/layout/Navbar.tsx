@@ -105,11 +105,6 @@ const Navbar: React.FC<NavbarProps> = ({
         onMenuClick('3DRT')
     }
 
-    const handleDashboardClick = () => {
-        navigate(`/${currentScene}/dashboard`)
-        onMenuClick('DASHBOARD')
-    }
-
     const modalConfigs: ModalConfig[] = [
         {
             id: 'sinr',
@@ -343,14 +338,6 @@ const Navbar: React.FC<NavbarProps> = ({
                             </div>
                         </li>
 
-                        <li
-                            className={`navbar-item ${
-                                activeComponent === 'DASHBOARD' ? 'active' : ''
-                            }`}
-                            onClick={handleDashboardClick}
-                        >
-                            儀表板
-                        </li>
                         <li
                             className={`navbar-item ${
                                 activeComponent === '2DRT' ? 'active' : ''
