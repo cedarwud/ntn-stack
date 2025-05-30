@@ -105,6 +105,10 @@ const Navbar: React.FC<NavbarProps> = ({
         onMenuClick('3DRT')
     }
 
+    const handleDashboardClick = () => {
+        navigate('/dashboard')
+    }
+
     const modalConfigs: ModalConfig[] = [
         {
             id: 'sinr',
@@ -292,7 +296,7 @@ const Navbar: React.FC<NavbarProps> = ({
                     </div>
 
                     <ul className={`navbar-menu ${isMenuOpen ? 'open' : ''}`}>
-                        {/* 數據可視化 Dropdown */}
+                        {/* 圖表 Dropdown */}
                         <li
                             className={`navbar-item navbar-dropdown-item ${
                                 hasActiveChart ? 'active' : ''
@@ -308,7 +312,7 @@ const Navbar: React.FC<NavbarProps> = ({
                                 className="dropdown-trigger"
                                 onClick={handleChartsDropdownToggle}
                             >
-                                數據可視化
+                                圖表
                                 <span className="dropdown-arrow-small">▼</span>
                             </span>
                             <div
@@ -353,6 +357,14 @@ const Navbar: React.FC<NavbarProps> = ({
                             onClick={handleStereogramClick}
                         >
                             Stereogram
+                        </li>
+                        <li
+                            className={`navbar-item ${
+                                activeComponent === 'dashboard' ? 'active' : ''
+                            }`}
+                            onClick={handleDashboardClick}
+                        >
+                            Dashboard
                         </li>
                     </ul>
                 </div>

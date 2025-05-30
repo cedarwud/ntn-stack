@@ -2,7 +2,7 @@
 """
 前端圖表 Dropdown 功能測試
 
-驗證 Navbar 中的 4 個圖表已成功整合為一個「數據可視化」dropdown
+驗證 Navbar 中的 4 個圖表已成功整合為一個「圖表」dropdown
 """
 
 import os
@@ -40,7 +40,7 @@ class FrontendChartsDropdownValidator:
             "handleChartsDropdownToggle",
             "handleChartsMouseEnter",
             "handleChartsMouseLeave",
-            "數據可視化",
+            "圖表",
         ]
 
         for element in required_elements:
@@ -244,7 +244,7 @@ class FrontendChartsDropdownValidator:
             "integration_completeness": "✅ 通過",
             "summary": {
                 "charts_consolidated": 4,
-                "dropdown_created": "數據可視化",
+                "dropdown_created": "圖表",
                 "mobile_support": True,
                 "responsive_design": True,
                 "accessibility_compliant": True,
@@ -305,7 +305,7 @@ def main():
     if result["validation_status"] == "success":
         print("\n✅ 前端圖表 Dropdown 整合成功！")
         print("\n📋 實現摘要：")
-        print("• 將 4 個圖表菜單項整合為一個「數據可視化」dropdown")
+        print("• 將 4 個圖表菜單項整合為一個「圖表」dropdown")
         print("• 支援桌面端 hover 和移動端 click 交互")
         print("• 保留所有原有的模態框功能")
         print("• 響應式設計適配不同屏幕尺寸")

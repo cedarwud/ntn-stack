@@ -1,4 +1,5 @@
 // src/App.tsx
+import React from 'react'
 import { useState, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import SceneView from './components/scenes/StereogramView'
@@ -12,6 +13,8 @@ import { Device } from './types/device'
 import { countActiveDevices } from './utils/deviceUtils'
 import { useDevices } from './hooks/useDevices'
 import { VisibleSatelliteInfo } from './types/satellite'
+import DataVisualizationDashboard from './components/dashboard/DataVisualizationDashboard'
+import './styles/Dashboard.scss'
 
 interface AppProps {
     activeView: 'stereogram' | 'floor-plan'

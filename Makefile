@@ -190,6 +190,7 @@ all-clean: ## 清理 NetStack 和 SimWorld 資源
 	@$(MAKE) netstack-clean
 	@$(MAKE) simworld-clean
 	@$(MAKE) clean-reports
+	@docker network rm compose_netstack-core
 	@echo "$(GREEN)✅ 所有資源清理完成$(RESET)"
 
 netstack-clean: ## 清理 NetStack 資源
@@ -217,8 +218,9 @@ all-clean-i: ## 清理 NetStack 和 SimWorld 資源
 	@$(MAKE) netstack-clean-i
 	@$(MAKE) simworld-clean-i
 	@$(MAKE) clean-reports
-	docker image prune -f
-	docker network prune -f
+	@docker network rm compose_netstack-core
+	@docker image prune -f
+	@docker network prune -f
 	@echo "$(GREEN)✅ 所有資源清理完成$(RESET)"
 
 netstack-clean-i: ## 清理 NetStack 資源

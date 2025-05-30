@@ -1,8 +1,10 @@
 import React, { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { RouterProvider, createBrowserRouter, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/index.scss'
 import App from './App.tsx'
+import DataVisualizationDashboard from './components/dashboard/DataVisualizationDashboard'
+import './styles/Dashboard.scss'
 import axios from 'axios'
 
 // 導入性能監控器（自動啟動）
@@ -115,45 +117,46 @@ console.error = function (...args) {
     originalError.apply(console, args)
 }
 
-// 使用 v7 的數據路由 API 創建路由
-const router = createBrowserRouter(
-    [
-        {
-            // 首頁重定向到 /nycu/stereogram
-            path: '/',
-            element: <Navigate to="/nycu/stereogram" replace />,
-        },
-        {
-            // /nycu 重定向到 /nycu/stereogram
-            path: '/nycu',
-            element: <Navigate to="/nycu/stereogram" replace />,
-        },
-        {
-            // 場景路由 - stereogram
-            path: '/:scenes/stereogram',
-            element: <App activeView="stereogram" />,
-        },
-        {
-            // 場景路由 - floor-plan
-            path: '/:scenes/floor-plan',
-            element: <App activeView="floor-plan" />,
-        },
-        {
-            // 404 重定向到預設場景
-            path: '*',
-            element: <Navigate to="/nycu/stereogram" replace />,
-        },
-    ],
-    {
-        future: {
-            // @ts-ignore - React Router v7 新特性
-            v7_startTransition: true,
-        },
-    }
-)
-
 createRoot(document.getElementById('root')!).render(
     <StrictMode>
-        <RouterProvider router={router} />
+        <BrowserRouter>
+            <Routes>
+                {/* 首頁重定向到 /nycu/stereogram */}
+                <Route
+                    path="/"
+                    element={<Navigate to="/nycu/stereogram" replace />}
+                />
+
+                {/* /nycu 重定向到 /nycu/stereogram */}
+                <Route
+                    path="/nycu"
+                    element={<Navigate to="/nycu/stereogram" replace />}
+                />
+
+                {/* 數據可視化儀表盤 */}
+                <Route
+                    path="/dashboard"
+                    element={<DataVisualizationDashboard />}
+                />
+
+                {/* 場景路由 - stereogram */}
+                <Route
+                    path="/:scenes/stereogram"
+                    element={<App activeView="stereogram" />}
+                />
+
+                {/* 場景路由 - floor-plan */}
+                <Route
+                    path="/:scenes/floor-plan"
+                    element={<App activeView="floor-plan" />}
+                />
+
+                {/* 404 重定向到預設場景 */}
+                <Route
+                    path="*"
+                    element={<Navigate to="/nycu/stereogram" replace />}
+                />
+            </Routes>
+        </BrowserRouter>
     </StrictMode>
 )
