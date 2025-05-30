@@ -82,6 +82,9 @@ from .services.uav_mesh_failover_service import (
     FailoverTriggerReason,
 )
 
+# 添加統一路由器導入
+from .routers.unified_api_router import unified_router
+
 
 # 自定義 JSON 編碼器
 class CustomJSONEncoder(json.JSONEncoder):
@@ -351,6 +354,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 註冊統一 API 路由器
+app.include_router(unified_router, tags=["統一 API"])
 
 
 @app.middleware("http")

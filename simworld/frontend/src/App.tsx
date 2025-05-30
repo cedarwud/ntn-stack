@@ -6,6 +6,7 @@ import Layout from './components/layout/Layout'
 import Sidebar from './components/layout/Sidebar'
 import Navbar from './components/layout/Navbar'
 import SceneViewer from './components/scenes/FloorView'
+import Dashboard from './components/dashboard/Dashboard'
 import './styles/App.scss'
 import { Device } from './types/device'
 import { countActiveDevices } from './utils/deviceUtils'
@@ -13,7 +14,7 @@ import { useDevices } from './hooks/useDevices'
 import { VisibleSatelliteInfo } from './types/satellite'
 
 interface AppProps {
-    activeView: 'stereogram' | 'floor-plan'
+    activeView: 'stereogram' | 'floor-plan' | 'dashboard'
 }
 
 function App({ activeView }: AppProps) {
@@ -23,7 +24,12 @@ function App({ activeView }: AppProps) {
     const currentScene = scenes || 'nycu'
 
     // 根據 activeView 設定初始組件
-    const initialComponent = activeView === 'stereogram' ? '3DRT' : '2DRT'
+    const initialComponent =
+        activeView === 'dashboard'
+            ? 'DASHBOARD'
+            : activeView === 'stereogram'
+            ? '3DRT'
+            : '2DRT'
 
     const {
         tempDevices,
@@ -228,6 +234,8 @@ function App({ activeView }: AppProps) {
                         sceneName={currentScene}
                     />
                 )
+            case 'DASHBOARD':
+                return <Dashboard currentScene={currentScene} />
             default:
                 return (
                     <SceneViewer

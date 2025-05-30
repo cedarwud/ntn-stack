@@ -1,3 +1,9 @@
+專案是使用 Makefile 來執行 sinworld 跟 netstack 的 docker 容器，如果要開發及測試請在現有的 docker 環境中執行，請按照原本二個專案各自的架構，做好關注點分離來完成 12. 後端 API 擴展與統一，請評估是要先維持現有架構來開發，還是漸進換成以下的架構，決定好就直接開始進行，完成後要有完整的測試程式，測試要 100%通過才結束
+
+1. NetStack 事件驅動架構（干擾檢測異步化）
+2. SimWorld CQRS 模式（衛星位置讀寫分離）
+3. 全面異步微服務架構
+
 4. Central Unit (CU) 和 Distributed Unit (DU) 分析
    基於代碼分析，CU 和 DU 概念屬於 UERANSIM 的實現，不是 Open5GS：
    分工說明：

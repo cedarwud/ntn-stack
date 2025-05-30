@@ -73,6 +73,11 @@ const router = createBrowserRouter(
             element: <Navigate to="/nycu/stereogram" replace />,
         },
         {
+            // 場景路由 - dashboard
+            path: '/:scenes/dashboard',
+            element: <App activeView="dashboard" />,
+        },
+        {
             // 場景路由 - stereogram
             path: '/:scenes/stereogram',
             element: <App activeView="stereogram" />,

@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
 
 # 複製需求檔案
 COPY requirements.txt requirements-dev.txt ./
+COPY ../requirements.txt ../requirements.txt
 
 # 建立虛擬環境並安裝 Python 依賴
 RUN python -m venv /opt/venv
@@ -73,29 +74,23 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 CMD ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
 # 開發階段
-FROM production as development
-
-# 切換回 root 用戶來安裝開發工具
-USER root
-
-# 從構建階段複製 requirements 檔案
-COPY --from=builder /app/requirements.txt /app/requirements.txt
-COPY --from=builder /app/requirements-dev.txt /app/requirements-dev.txt
+FROM builder as development
 
 # 設定工作目錄
 WORKDIR /app
 
-# 複製根目錄的 requirements.txt 到正確位置
-COPY ../requirements.txt /app/../requirements.txt
+# 安裝開發和測試依賴
+RUN pip install --no-cache-dir -r requirements-dev.txt && \
+    pip install --no-cache-dir -r ../requirements.txt
 
-# 安裝開發依賴（包含測試依賴）
-RUN pip install --no-cache-dir -r requirements-dev.txt
-
-# 確保安裝根目錄的測試依賴
-RUN pip install --no-cache-dir -r ../requirements.txt
-
-# 手動安裝關鍵測試依賴（確保持久性）
-RUN pip install --no-cache-dir pytest>=7.4.0 httpx>=0.25.2 asyncio-tools structlog
+# 確保關鍵測試依賴安裝
+RUN pip install --no-cache-dir \
+    pytest>=7.4.0 \
+    pytest-asyncio>=0.21.0 \
+    pytest-html>=3.2.0 \
+    pytest-cov>=4.1.0 \
+    httpx>=0.25.2 \
+    structlog>=23.2.0
 
 # 安裝除錯工具
 RUN apt-get update && apt-get install -y \
@@ -106,6 +101,20 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# 建立非 root 用戶
+RUN groupadd -r netstack && useradd -r -g netstack netstack
+
+# 複製應用程式源碼
+COPY netstack_api/ ./netstack_api/
+
+# 建立日誌和測試目錄
+RUN mkdir -p /var/log/netstack /app/test-reports && \
+    chown -R netstack:netstack /var/log/netstack /app/test-reports
+
+# 建立健康檢查腳本
+COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh
+
 # 設定開發環境變數
 ENV ENVIRONMENT=development
 ENV LOG_LEVEL=DEBUG
@@ -113,5 +122,12 @@ ENV LOG_LEVEL=DEBUG
 # 切換回應用程式用戶
 USER netstack
 
-# 開發模式啟動命令 (完全禁用重載和多工作進程，避免 Prometheus 指標重複註冊)
+# 暴露埠號
+EXPOSE 8080
+
+# 健康檢查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD /usr/local/bin/healthcheck.sh
+
+# 開發模式啟動命令
 CMD ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"] 

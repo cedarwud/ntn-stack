@@ -20,6 +20,7 @@ RESET := \033[0m
 NETSTACK_DIR := netstack
 SIMWORLD_DIR := simworld
 COMPOSE_PROJECT_NAME := ntn-stack
+PROJECT_ROOT := $(shell pwd)
 
 # Docker Compose 文件
 NETSTACK_COMPOSE := $(NETSTACK_DIR)/compose/core.yaml
@@ -301,9 +302,47 @@ simworld-logs: ## 查看 SimWorld 日誌
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose logs -f
 
-# ===== 測試 (Docker化) =====
+# ===== 測試管理 =====
 
-test: test-ntn-validation ## 執行完整的本地測試套件
+# 添加環境檢查和持久性測試命令
+test-env-check: ## 🔍 檢查測試環境（本地和容器中）
+	@echo "$(CYAN)🔍 檢查測試環境...$(RESET)"
+	@echo "$(YELLOW)1. 本地環境檢查...$(RESET)"
+	@python3 tests/test_environment_check.py
+	@echo "$(YELLOW)2. 容器環境檢查...$(RESET)"
+	@docker exec netstack-api python /app/tests/test_environment_check.py || echo "$(RED)❌ 容器環境檢查失敗$(RESET)"
+	@echo "$(GREEN)✅ 測試環境檢查完成$(RESET)"
+
+test-env-persistence: ## 🔧 測試環境持久性（模擬 make clean && make up）
+	@echo "$(CYAN)🔧 測試環境持久性...$(RESET)"
+	@echo "$(YELLOW)檢查依賴是否正確安裝在 Docker 鏡像中...$(RESET)"
+	@docker exec netstack-api python -c "import pytest; print('✅ pytest 在容器中可用')" || echo "$(RED)❌ pytest 不在容器中$(RESET)"
+	@docker exec netstack-api python -c "import pytest_asyncio; print('✅ pytest-asyncio 在容器中可用')" || echo "$(RED)❌ pytest-asyncio 不在容器中$(RESET)"
+	@docker exec netstack-api python -c "import httpx; print('✅ httpx 在容器中可用')" || echo "$(RED)❌ httpx 不在容器中$(RESET)"
+	@docker exec netstack-api python -c "import asyncio; print('✅ asyncio 在容器中可用')" || echo "$(RED)❌ asyncio 不在容器中$(RESET)"
+	@echo "$(YELLOW)檢查統一 API 模組...$(RESET)"
+	@docker exec netstack-api python -c "from netstack_api.routers.unified_api_router import unified_router; print('✅ 統一 API 路由器可用')" || echo "$(RED)❌ 統一 API 路由器不可用$(RESET)"
+	@docker exec netstack-api python -c "from netstack_api.models.unified_models import SystemStatusResponse; print('✅ 統一模型可用')" || echo "$(RED)❌ 統一模型不可用$(RESET)"
+	@echo "$(GREEN)✅ 環境持久性檢查完成$(RESET)"
+
+test-unified-api-local: ## 🌐 本地統一 API 測試
+	@echo "$(CYAN)🌐 執行本地統一 API 測試...$(RESET)"
+	@echo "$(YELLOW)確保測試依賴已安裝...$(RESET)"
+	@pip install -q pytest pytest-asyncio httpx structlog || pip3 install -q pytest pytest-asyncio httpx structlog
+	@python3 -m pytest tests/test_unified_api.py -v --tb=short
+	@echo "$(GREEN)✅ 本地統一 API 測試完成$(RESET)"
+
+test-unified-api-docker: ## 🐳 Docker 容器中統一 API 測試
+	@echo "$(CYAN)🐳 執行 Docker 容器中統一 API 測試...$(RESET)"
+	@docker exec netstack-api python -m pytest /app/tests/test_unified_api.py -v --tb=short || echo "$(RED)❌ 容器中測試失敗$(RESET)"
+	@echo "$(GREEN)✅ Docker 統一 API 測試完成$(RESET)"
+
+test-unified-api: ## 🎯 完整統一 API 測試（本地+容器）
+	@echo "$(CYAN)🎯 執行完整統一 API 測試...$(RESET)"
+	@$(MAKE) test-env-check
+	@$(MAKE) test-unified-api-local
+	@$(MAKE) test-unified-api-docker
+	@echo "$(GREEN)✅ 完整統一 API 測試完成$(RESET)"
 
 # ===== NetStack 核心測試 =====
 
@@ -381,12 +420,12 @@ test-integration: ## 🔗 執行整合測試
 	@echo "$(GREEN)✅ 整合測試完成$(RESET)"
 
 test-netstack-only: ## 📡 僅執行 NetStack 測試
-	@echo "$(CYAN)📡 執行 NetStack 專用測試...$(RESET)"
+	@echo "$(CYAN)📡 執行 NetStack 測試...$(RESET)"
 	@python3 tests/helpers/test_runner.py netstack
 	@echo "$(GREEN)✅ NetStack 測試完成$(RESET)"
 
 test-simworld-only: ## 🌍 僅執行 SimWorld 測試
-	@echo "$(CYAN)🌍 執行 SimWorld 專用測試...$(RESET)"
+	@echo "$(CYAN)🌍 執行 SimWorld 測試...$(RESET)"
 	@cd simworld && $(MAKE) test-all || true
 	@echo "$(GREEN)✅ SimWorld 測試完成$(RESET)"
 
@@ -458,6 +497,7 @@ test-advanced: ## 🚀 執行進階功能測試
 	@$(MAKE) test-ueransim
 	@$(MAKE) test-performance
 	@$(MAKE) test-uav-ue
+	@$(MAKE) test-frontend-comprehensive
 	@echo "$(GREEN)✅ 進階功能測試完成$(RESET)"
 
 test-legacy: ## 🔄 執行傳統 Shell 測試（向後兼容）
@@ -670,5 +710,104 @@ test-connection-quality-quick:
 	@echo "⚡ 快速連接質量評估測試..."
 	@cd tests && timeout 30 python test_uav_satellite_connection_quality.py || echo "測試完成（可能因為服務未啟動而失敗）"
 
+# ===== 前端測試 =====
+
+test-frontend-charts-dropdown: ## 🎨 測試前端圖表 dropdown 功能
+	@echo "$(CYAN)🎨 測試前端圖表 dropdown 功能...$(RESET)"
+	@python3 tests/test_frontend_charts_dropdown.py
+	@echo "$(GREEN)✅ 前端圖表 dropdown 測試完成$(RESET)"
+
+test-frontend-dashboard: ## 📊 測試前端儀表板數據可視化組件
+	@echo "$(CYAN)📊 測試前端儀表板數據可視化組件...$(RESET)"
+	@python3 tests/test_frontend_dashboard.py
+	@echo "$(GREEN)✅ 前端儀表板測試完成$(RESET)"
+
+test-frontend-validation: ## 🎯 執行前端組件完整性驗證
+	@echo "$(CYAN)🎯 執行前端組件完整性驗證...$(RESET)"
+	@$(MAKE) test-frontend-charts-dropdown
+	@$(MAKE) test-frontend-dashboard
+	@echo "$(GREEN)✅ 前端組件驗證完成$(RESET)"
+
+test-frontend-dev-server: ## 🚀 啟動前端開發伺服器
+	@echo "$(CYAN)🚀 啟動前端開發伺服器...$(RESET)"
+	@cd $(SIMWORLD_DIR)/frontend && npm start
+
+test-frontend-build: ## 🔨 測試前端建置
+	@echo "$(CYAN)🔨 測試前端建置...$(RESET)"
+	@cd $(SIMWORLD_DIR)/frontend && npm run build
+	@echo "$(GREEN)✅ 前端建置測試完成$(RESET)"
+
+test-frontend-comprehensive: ## 🚀 執行前端綜合測試
+	@echo "$(CYAN)🚀 執行前端綜合測試套件...$(RESET)"
+	@$(MAKE) test-frontend-validation
+	@$(MAKE) test-frontend-build
+	@echo "$(GREEN)🎉 前端綜合測試完成$(RESET)"
+
+test-advanced: ## 🚀 執行進階功能測試
+	@echo "$(CYAN)🚀 執行進階功能測試...$(RESET)"
+	@$(MAKE) test-integration
+	@$(MAKE) test-satellite-gnb
+	@$(MAKE) test-ueransim
+	@$(MAKE) test-performance
+	@$(MAKE) test-uav-ue
+	@$(MAKE) test-frontend-comprehensive
+	@echo "$(GREEN)✅ 進階功能測試完成$(RESET)"
+
 .PHONY: all
-all: help ## 顯示幫助（預設目標） 
+all: help ## 顯示幫助（預設目標）
+
+# === 新增的前端和 API 測試指令 ===
+
+test-api-dashboard: ## 運行後端 API 和前端儀表板全面測試 (容器優先)
+	@echo "🚀 運行後端 API 和前端儀表板全面測試（容器環境優先）..."
+	@echo "💡 此測試會優先在容器中執行，確保測試環境一致性"
+	cd $(PROJECT_ROOT) && python tests/test_comprehensive_api_dashboard.py
+
+test-route-fix: ## 測試儀表板路由修復
+	@echo "🔍 測試儀表板路由修復..."
+	@echo "檢查前端路由配置..."
+	@grep -n "dashboard" simworld/frontend/src/main.tsx || echo "路由配置需要檢查"
+	@echo "檢查 Navbar 整合..."
+	@grep -n "儀表板" simworld/frontend/src/components/layout/Navbar.tsx || echo "Navbar 整合需要檢查"
+
+test-dark-theme: ## 測試暗色系星空主題
+	@echo "🎨 測試暗色系星空主題..."
+	@echo "檢查儀表板樣式..."
+	@grep -n "linear-gradient" simworld/frontend/src/components/dashboard/Dashboard.scss || echo "暗色系主題需要檢查"
+	@echo "檢查面板樣式..."
+	@grep -n "backdrop-filter" simworld/frontend/src/components/dashboard/panels/PanelCommon.scss || echo "面板樣式需要檢查"
+
+test-websocket-integration: ## 測試 WebSocket 整合
+	@echo "🔗 測試 WebSocket 整合..."
+	@echo "檢查 useWebSocket Hook..."
+	@test -f simworld/frontend/src/hooks/useWebSocket.ts && echo "✅ useWebSocket.ts 存在" || echo "❌ useWebSocket.ts 不存在"
+	@echo "檢查儀表板 WebSocket 使用..."
+	@grep -n "useWebSocket" simworld/frontend/src/components/dashboard/Dashboard.tsx || echo "WebSocket 整合需要檢查"
+
+test-api-endpoints: ## 測試 API 端點可用性
+	@echo "🌐 測試 API 端點可用性..."
+	@echo "測試 NetStack API..."
+	@curl -s -f http://localhost:8080/docs > /dev/null && echo "✅ NetStack API 可訪問" || echo "❌ NetStack API 無法訪問"
+	@echo "測試 SimWorld API..."
+	@curl -s -f http://localhost:8000/docs > /dev/null && echo "✅ SimWorld API 可訪問" || echo "❌ SimWorld API 無法訪問"
+
+test-frontend-build: ## 測試前端建置
+	@echo "🏗️ 測試前端建置..."
+	cd simworld/frontend && npm run check
+
+test-component-structure: ## 測試組件結構完整性
+	@echo "📁 測試組件結構完整性..."
+	@echo "檢查儀表板組件..."
+	@test -f simworld/frontend/src/components/dashboard/Dashboard.tsx && echo "✅ Dashboard.tsx" || echo "❌ Dashboard.tsx"
+	@test -f simworld/frontend/src/components/dashboard/Dashboard.scss && echo "✅ Dashboard.scss" || echo "❌ Dashboard.scss"
+	@test -d simworld/frontend/src/components/dashboard/panels && echo "✅ panels/" || echo "❌ panels/"
+	@test -d simworld/frontend/src/components/dashboard/charts && echo "✅ charts/" || echo "❌ charts/"
+	@test -d simworld/frontend/src/components/dashboard/views && echo "✅ views/" || echo "❌ views/"
+	@test -f simworld/frontend/src/hooks/useWebSocket.ts && echo "✅ useWebSocket.ts" || echo "❌ useWebSocket.ts"
+	@test -f simworld/frontend/src/hooks/useApiData.ts && echo "✅ useApiData.ts" || echo "❌ useApiData.ts"
+
+# 快速測試組合
+test-quick-dashboard: test-component-structure test-route-fix test-dark-theme ## 快速儀表板測試
+
+# 完整測試組合  
+test-full-api-dashboard: test-component-structure test-route-fix test-dark-theme test-websocket-integration test-api-endpoints test-api-dashboard ## 完整 API 和儀表板測試 

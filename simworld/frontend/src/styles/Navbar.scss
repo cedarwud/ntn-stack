@@ -147,6 +147,84 @@
   }
 }
 
+/* 圖表 Dropdown 樣式 */
+.navbar-dropdown-item {
+  position: relative;
+  
+  &:hover {
+    .charts-dropdown {
+      display: block;
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+}
+
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  
+  .dropdown-arrow-small {
+    font-size: 0.7rem;
+    transition: transform 0.2s ease;
+  }
+  
+  &:hover .dropdown-arrow-small {
+    transform: rotate(180deg);
+  }
+}
+
+.charts-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #16163a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 2000;
+  min-width: 180px;
+  margin-top: 0;
+  display: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+
+  &.show {
+    display: block;
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.charts-dropdown-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: white;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  &:hover {
+    background-color: #1f1f3a;
+    color: #4a7bff;
+  }
+  
+  &.active {
+    background-color: #4a7bff;
+    color: white;
+  }
+}
+
 .navbar-menu-toggle {
   display: none;
   cursor: pointer;
@@ -231,6 +309,54 @@
         display: none;
       }
     }
+  }
+
+  /* 移動端圖表 dropdown 樣式 */
+  .navbar-dropdown-item {
+    position: static;
+    
+    .dropdown-trigger {
+      padding: 15px 0;
+      justify-content: center;
+    }
+    
+    .charts-dropdown {
+      position: static;
+      transform: none;
+      background-color: #0f0f1a;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      margin-top: 0;
+      display: none;
+      
+      &.show {
+        display: block;
+      }
+    }
+    
+    .charts-dropdown-item {
+      padding: 12px 20px;
+      background-color: #0f0f1a;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.9rem;
+      
+      &:hover {
+        background-color: #16163a;
+      }
+    }
+    
+    /* 移動端點擊展開機制 */
+    &:hover .charts-dropdown {
+      display: none; /* 取消hover效果 */
+    }
+  }
+  
+  /* 為移動端添加點擊切換功能 */
+  .navbar-dropdown-item.mobile-expanded .charts-dropdown {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 }
 

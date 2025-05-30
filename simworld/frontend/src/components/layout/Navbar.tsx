@@ -46,6 +46,8 @@ const Navbar: React.FC<NavbarProps> = ({
     const navigate = useNavigate()
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+    const [isChartsDropdownOpen, setIsChartsDropdownOpen] = useState(false)
+    const [isMobile, setIsMobile] = useState(false)
 
     // States for modal visibility
     const [showSINRModal, setShowSINRModal] = useState(false)
@@ -101,6 +103,11 @@ const Navbar: React.FC<NavbarProps> = ({
     const handleStereogramClick = () => {
         navigate(`/${currentScene}/stereogram`)
         onMenuClick('3DRT')
+    }
+
+    const handleDashboardClick = () => {
+        navigate(`/${currentScene}/dashboard`)
+        onMenuClick('DASHBOARD')
     }
 
     const modalConfigs: ModalConfig[] = [
@@ -204,6 +211,42 @@ const Navbar: React.FC<NavbarProps> = ({
         }
     }, [])
 
+    // 檢查是否為移動端
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth <= 768)
+        }
+
+        checkMobile()
+        window.addEventListener('resize', checkMobile)
+
+        return () => {
+            window.removeEventListener('resize', checkMobile)
+        }
+    }, [])
+
+    // 處理圖表 dropdown 的點擊/hover 事件
+    const handleChartsDropdownToggle = () => {
+        if (isMobile) {
+            setIsChartsDropdownOpen(!isChartsDropdownOpen)
+        }
+    }
+
+    const handleChartsMouseEnter = () => {
+        if (!isMobile) {
+            setIsChartsDropdownOpen(true)
+        }
+    }
+
+    const handleChartsMouseLeave = () => {
+        if (!isMobile) {
+            setIsChartsDropdownOpen(false)
+        }
+    }
+
+    // 檢查是否有任何圖表模態框打開
+    const hasActiveChart = modalConfigs.some((config) => config.isOpen)
+
     return (
         <>
             <nav className="navbar">
@@ -254,20 +297,60 @@ const Navbar: React.FC<NavbarProps> = ({
                     </div>
 
                     <ul className={`navbar-menu ${isMenuOpen ? 'open' : ''}`}>
-                        {modalConfigs.map((config) => (
-                            <li
-                                key={config.id}
-                                className={`navbar-item ${
-                                    config.isOpen ? 'active' : ''
-                                }`}
-                                onClick={(e) => {
-                                    e.preventDefault()
-                                    config.openModal()
-                                }}
+                        {/* 數據可視化 Dropdown */}
+                        <li
+                            className={`navbar-item navbar-dropdown-item ${
+                                hasActiveChart ? 'active' : ''
+                            } ${
+                                isMobile && isChartsDropdownOpen
+                                    ? 'mobile-expanded'
+                                    : ''
+                            }`}
+                            onMouseEnter={handleChartsMouseEnter}
+                            onMouseLeave={handleChartsMouseLeave}
+                        >
+                            <span
+                                className="dropdown-trigger"
+                                onClick={handleChartsDropdownToggle}
                             >
-                                {config.menuText}
-                            </li>
-                        ))}
+                                數據可視化
+                                <span className="dropdown-arrow-small">▼</span>
+                            </span>
+                            <div
+                                className={`charts-dropdown ${
+                                    isChartsDropdownOpen ? 'show' : ''
+                                }`}
+                            >
+                                {modalConfigs.map((config) => (
+                                    <div
+                                        key={config.id}
+                                        className={`charts-dropdown-item ${
+                                            config.isOpen ? 'active' : ''
+                                        }`}
+                                        onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            config.openModal()
+                                            setIsChartsDropdownOpen(false)
+                                            if (isMobile) {
+                                                setIsMenuOpen(false)
+                                            }
+                                        }}
+                                    >
+                                        {config.menuText}
+                                    </div>
+                                ))}
+                            </div>
+                        </li>
+
+                        <li
+                            className={`navbar-item ${
+                                activeComponent === 'DASHBOARD' ? 'active' : ''
+                            }`}
+                            onClick={handleDashboardClick}
+                        >
+                            儀表板
+                        </li>
                         <li
                             className={`navbar-item ${
                                 activeComponent === '2DRT' ? 'active' : ''
