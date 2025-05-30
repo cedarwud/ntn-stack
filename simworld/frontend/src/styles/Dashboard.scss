@@ -40,7 +40,7 @@ body, #root {
   margin: 0;
   padding: 0;
   height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden; // 只禁用水平捲軸，保留垂直捲軸
 }
 
 // ========== 導航欄樣式 ==========
@@ -188,19 +188,15 @@ body, #root {
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   padding-top: 64px; // 為導航欄留出空間
-  display: flex;
-  flex-direction: column;
 }
 
 // ========== 主體內容 ==========
 .dashboard-main {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem 2rem 2rem; // 增加底部 padding
   gap: 1.5rem;
-  height: calc(100vh - 64px); // 減去導航欄高度
-  overflow: hidden;
+  min-height: calc(100vh - 64px); // 使用 min-height 而不是固定 height
 }
 
 .dashboard-header {
@@ -371,7 +367,6 @@ body, #root {
 // ========== 內容區域 ==========
 .dashboard-content {
   flex: 1;
-  min-height: 0; // 防止溢出
   
   // 減少閃爍的過渡效果
   transition: opacity 0.3s ease;
@@ -385,7 +380,7 @@ body, #root {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto;
     gap: 1.5rem;
-    height: 100%;
+    margin-bottom: 2rem; // 增加底部間距
 
     .chart-container {
       background: var(--bg-card);
@@ -412,13 +407,14 @@ body, #root {
   }
 
   .single-chart {
-    height: 100%;
     background: var(--bg-card);
     border-radius: var(--border-radius-lg);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
     overflow: hidden;
     transition: var(--transition);
+    min-height: calc(100vh - 200px); // 確保有足夠高度
+    margin-bottom: 2rem; // 增加底部間距
 
     &:hover {
       border-color: var(--border-light);
@@ -436,35 +432,6 @@ body, #root {
   
   &.updating {
     opacity: 0.8;
-  }
-}
-
-// ========== 底部信息 ==========
-.dashboard-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 0;
-  border-top: 1px solid var(--border-color);
-  margin-top: auto;
-  flex-shrink: 0;
-
-  .footer-info {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-
-    .separator {
-      opacity: 0.6;
-    }
-  }
-
-  .footer-status {
-    font-size: 0.85rem;
-    color: var(--success-color);
-    font-weight: 500;
   }
 }
 
@@ -591,6 +558,7 @@ body, #root {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
+    flex-shrink: 0;
 
     h3 {
       margin: 0;
@@ -622,6 +590,7 @@ body, #root {
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
     margin-bottom: 1.5rem;
+    flex-shrink: 0;
 
     .summary-item {
       background: rgba(255, 255, 255, 0.05);
@@ -654,6 +623,7 @@ body, #root {
   .components-list {
     flex: 1;
     overflow-y: auto;
+    max-height: calc(100vh - 400px); // 確保有足夠空間顯示內容
 
     .component-item {
       background: rgba(255, 255, 255, 0.03);
@@ -741,6 +711,7 @@ body, #root {
     font-size: 0.75rem;
     color: #64748b;
     text-align: center;
+    flex-shrink: 0;
   }
 
   .loading, .error, .no-data {
@@ -795,6 +766,7 @@ body, #root {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
+    flex-shrink: 0;
 
     h3 {
       margin: 0;
@@ -820,6 +792,7 @@ body, #root {
   .uav-details {
     flex: 1;
     overflow-y: auto;
+    max-height: calc(100vh - 200px); // 確保有足夠空間顯示內容
 
     h4 {
       margin: 0 0 1rem 0;
@@ -915,6 +888,7 @@ body, #root {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     font-size: 0.75rem;
     color: #64748b;
+    flex-shrink: 0;
   }
 }
 

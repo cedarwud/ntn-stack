@@ -301,22 +301,6 @@ const DataVisualizationDashboard: React.FC<DataVisualizationDashboardProps> = ({
                     <div className="dashboard-content">
                         {renderTabContent()}
                     </div>
-
-                    {/* 儀表盤底部信息 */}
-                    <div className="dashboard-footer">
-                        <div className="footer-info">
-                            <span>NTN Stack 數據可視化平台</span>
-                            <span className="separator">•</span>
-                            <span>台灣大學 NetStack 實驗室</span>
-                            <span className="separator">•</span>
-                            <span>
-                                當前模式: {isWebSocketEnabled ? '實時' : '靜態'}
-                            </span>
-                        </div>
-                        <div className="footer-status">
-                            <span>系統運行正常</span>
-                        </div>
-                    </div>
                 </div>
             </div>
         </>

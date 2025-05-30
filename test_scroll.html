@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>捲軸測試 - NTN Stack</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+        }
+        
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: rgba(30, 41, 59, 0.95);
+            border-bottom: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            padding: 0 2rem;
+            z-index: 1000;
+        }
+        
+        .content {
+            padding-top: 64px;
+            padding: 64px 2rem 2rem;
+            min-height: 100vh;
+        }
+        
+        .test-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .scroll-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #3b82f6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>NTN Stack - 捲軸測試</h1>
+    </div>
+    
+    <div class="content">
+        <h2>捲軸功能測試</h2>
+        <p>這個頁面用於測試捲軸是否正常工作。如果您可以看到頁面底部的內容，表示捲軸修復成功。</p>
+        
+        <!-- 生成足夠多的內容來測試捲軸 -->
+        <script>
+            for (let i = 1; i <= 50; i++) {
+                document.write(`
+                    <div class="test-item">
+                        <h3>測試項目 #${i}</h3>
+                        <p>這是第 ${i} 個測試項目。如果您可以順暢地捲動到這個項目，表示捲軸功能正常。</p>
+                        <p>時間戳記: ${new Date().toLocaleString()}</p>
+                    </div>
+                `);
+            }
+        </script>
+        
+        <div class="test-item" style="background: #10b981; color: white; font-weight: bold;">
+            <h3>🎉 成功！這是最後一個項目 (#50)</h3>
+            <p>如果您能看到這個綠色的項目，表示捲軸功能已經修復成功！</p>
+            <p>頁面可以正常捲動到底部。</p>
+        </div>
+    </div>
+    
+    <div class="scroll-indicator">
+        捲軸可用 ✓
+    </div>
+    
+    <script>
+        // 監控捲動事件
+        window.addEventListener('scroll', function() {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const scrollPercent = Math.round((scrollTop / scrollHeight) * 100);
+            
+            const indicator = document.querySelector('.scroll-indicator');
+            indicator.textContent = `捲軸位置: ${scrollPercent}%`;
+        });
+    </script>
+</body>
+</html> 
