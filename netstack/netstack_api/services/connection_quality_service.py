@@ -581,13 +581,13 @@ class ConnectionQualityService:
                 recommendations.append("檢查是否存在干擾源")
             elif "吞吐量" in issue:
                 recommendations.append("優化調製方案或降低數據速率要求")
-                recommendations.append("檢查網絡擁塞情況")
+                recommendations.append("檢查網路擁塞情況")
             elif "延遲" in issue:
-                recommendations.append("優化網絡路由或減少處理節點")
+                recommendations.append("優化網路路由或減少處理節點")
                 recommendations.append("考慮使用低延遲的通信協議")
             elif "丟包" in issue:
                 recommendations.append("增強錯誤檢測和重傳機制")
-                recommendations.append("檢查網絡穩定性")
+                recommendations.append("檢查網路穩定性")
 
         # 通用建議
         if issues:

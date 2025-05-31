@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tier-1 Mesh 網絡與 5G 核心網橋接功能整合測試
+Tier-1 Mesh 網路與 5G 核心網橋接功能整合測試
 
 測試完整的 Mesh 橋接功能，包括節點管理、網關創建、封包轉發、
 路由優化等所有核心功能。
@@ -43,7 +43,7 @@ class MeshBridgeIntegrationTest:
                 ("Mesh 節點管理", self._test_mesh_node_management),
                 ("橋接網關創建", self._test_bridge_gateway_creation),
                 ("橋接網關管理", self._test_bridge_gateway_management),
-                ("網絡拓撲獲取", self._test_network_topology),
+                ("網路拓撲獲取", self._test_network_topology),
                 ("性能指標監控", self._test_performance_metrics),
                 ("路由優化", self._test_route_optimization),
                 ("封包轉發模擬", self._test_packet_forwarding),
@@ -342,13 +342,13 @@ class MeshBridgeIntegrationTest:
             return False
 
     async def _test_network_topology(self) -> bool:
-        """測試網絡拓撲獲取"""
+        """測試網路拓撲獲取"""
         try:
             response = await self.client.get(
                 f"{self.netstack_url}/api/v1/mesh/topology"
             )
             if response.status_code != 200:
-                logger.error("獲取網絡拓撲失敗")
+                logger.error("獲取網路拓撲失敗")
                 return False
 
             topology_data = response.json()
@@ -375,12 +375,12 @@ class MeshBridgeIntegrationTest:
                 return False
 
             logger.info(
-                f"✅ 網絡拓撲正常 - 節點: {len(topology['nodes'])}, 網關: {len(topology['gateways'])}"
+                f"✅ 網路拓撲正常 - 節點: {len(topology['nodes'])}, 網關: {len(topology['gateways'])}"
             )
             return True
 
         except Exception as e:
-            logger.error(f"網絡拓撲測試失敗: {e}")
+            logger.error(f"網路拓撲測試失敗: {e}")
             return False
 
     async def _test_performance_metrics(self) -> bool:

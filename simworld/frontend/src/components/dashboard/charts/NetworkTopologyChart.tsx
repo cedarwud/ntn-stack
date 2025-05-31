@@ -1,6 +1,6 @@
 /**
- * 網絡拓撲圖表組件
- * 使用 D3.js 顯示網絡節點和連接關係
+ * 網路拓撲圖表組件
+ * 使用 D3.js 顯示網路節點和連接關係
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { getMeshTopology, getMeshNodes } from '../../../services/netstackApi'
@@ -59,8 +59,8 @@ const NetworkTopologyChart: React.FC<NetworkTopologyChartProps> = ({
 
             setError(null)
         } catch (err) {
-            console.error('載入網絡拓撲失敗:', err)
-            setError('無法載入網絡拓撲數據')
+            console.error('載入網路拓撲失敗:', err)
+            setError('無法載入網路拓撲數據')
         } finally {
             setLoading(false)
         }
@@ -239,7 +239,7 @@ const NetworkTopologyChart: React.FC<NetworkTopologyChartProps> = ({
             <div className={`network-topology-chart ${className}`}>
                 <div className="loading">
                     <div className="loading-spinner"></div>
-                    <span>載入網絡拓撲中...</span>
+                    <span>載入網路拓撲中...</span>
                 </div>
             </div>
         )
@@ -248,7 +248,7 @@ const NetworkTopologyChart: React.FC<NetworkTopologyChartProps> = ({
     return (
         <div className={`network-topology-chart ${className}`}>
             <div className="chart-header">
-                <h3>網絡拓撲圖</h3>
+                <h3>網路拓撲圖</h3>
                 <div className="legend">
                     <div className="legend-item">
                         <span

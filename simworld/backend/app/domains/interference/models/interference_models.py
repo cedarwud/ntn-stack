@@ -412,7 +412,7 @@ class AIRANControlRequest(BaseModel):
     current_interference_state: List[InterferenceDetectionResult] = Field(
         ..., description="當前干擾狀態"
     )
-    current_network_performance: Dict[str, Any] = Field(..., description="當前網絡性能")
+    current_network_performance: Dict[str, Any] = Field(..., description="當前網路性能")
 
     # 約束條件
     available_frequencies_mhz: List[float] = Field(..., description="可用頻率列表")
@@ -519,7 +519,7 @@ class InterferenceMetrics(BaseModel):
         default=0.0, description="平均響應時間 (ms)"
     )
 
-    # 網絡性能指標
+    # 網路性能指標
     throughput_improvement_percent: float = Field(
         default=0.0, description="吞吐量改善百分比"
     )

@@ -1,7 +1,7 @@
 """
-UAV 失聯後的 Mesh 網絡備援機制服務
+UAV 失聯後的 Mesh 網路備援機制服務
 
-實現 UAV 與衛星失聯後，自動切換到 Mesh 網絡的備援機制，
+實現 UAV 與衛星失聯後，自動切換到 Mesh 網路的備援機制，
 確保在極端條件下維持通信連接，提升系統韌性。
 """
 
@@ -49,7 +49,7 @@ class FailoverTriggerReason(str, Enum):
 
 
 class NetworkMode(str, Enum):
-    """網絡模式"""
+    """網路模式"""
 
     SATELLITE_NTN = "satellite_ntn"  # 衛星 NTN 模式
     MESH_BACKUP = "mesh_backup"  # Mesh 備援模式
@@ -80,7 +80,7 @@ class FailoverEvent:
 
 
 class UAVMeshFailoverService:
-    """UAV Mesh 網絡備援服務"""
+    """UAV Mesh 網路備援服務"""
 
     def __init__(
         self,
@@ -179,7 +179,7 @@ class UAVMeshFailoverService:
                 logger.warning(f"UAV {uav_id} 已在監控中")
                 return True
 
-            # 設置初始網絡模式
+            # 設置初始網路模式
             self.uav_network_modes[uav_id] = NetworkMode.SATELLITE_NTN
 
             # 啟動個別監控任務
@@ -226,7 +226,7 @@ class UAVMeshFailoverService:
     async def trigger_manual_failover(
         self, uav_id: str, target_mode: NetworkMode
     ) -> Dict[str, Any]:
-        """手動觸發網絡切換"""
+        """手動觸發網路切換"""
         try:
             current_mode = self.uav_network_modes.get(uav_id, NetworkMode.SATELLITE_NTN)
 
@@ -234,7 +234,7 @@ class UAVMeshFailoverService:
                 # UAV 已經在目標模式，視為成功
                 return {
                     "success": True,
-                    "message": f"UAV {uav_id} 已在目標網絡模式 {target_mode.value}",
+                    "message": f"UAV {uav_id} 已在目標網路模式 {target_mode.value}",
                     "event_id": None,
                     "from_mode": current_mode.value,
                     "to_mode": target_mode.value,
@@ -267,7 +267,7 @@ class UAVMeshFailoverService:
             return {"success": False, "message": str(e)}
 
     async def get_uav_network_status(self, uav_id: str) -> Dict[str, Any]:
-        """獲取 UAV 網絡狀態"""
+        """獲取 UAV 網路狀態"""
         try:
             current_mode = self.uav_network_modes.get(uav_id, NetworkMode.SATELLITE_NTN)
 
@@ -308,7 +308,7 @@ class UAVMeshFailoverService:
             }
 
         except Exception as e:
-            logger.error(f"❌ 獲取 UAV {uav_id} 網絡狀態失敗: {e}")
+            logger.error(f"❌ 獲取 UAV {uav_id} 網路狀態失敗: {e}")
             return {"error": str(e)}
 
     async def get_service_stats(self) -> Dict[str, Any]:
@@ -349,7 +349,7 @@ class UAVMeshFailoverService:
             for uav in uav_data:
                 uav_id = uav.get("uav_id")
                 if uav_id:
-                    # 設置默認網絡模式
+                    # 設置默認網路模式
                     self.uav_network_modes[uav_id] = NetworkMode.SATELLITE_NTN
 
             logger.info(f"載入 {len(self.uav_network_modes)} 個 UAV 狀態")
@@ -515,12 +515,12 @@ class UAVMeshFailoverService:
             logger.error(f"發起衛星連接恢復失敗: {e}")
 
     async def _execute_failover(self, event: FailoverEvent) -> bool:
-        """執行網絡切換"""
+        """執行網路切換"""
         start_time = time.time()
 
         try:
             logger.info(
-                f"🔄 執行網絡切換: UAV {event.uav_id} "
+                f"🔄 執行網路切換: UAV {event.uav_id} "
                 f"{event.from_mode.value} → {event.to_mode.value}"
             )
 
@@ -545,12 +545,12 @@ class UAVMeshFailoverService:
                 self.uav_network_modes[event.uav_id] = event.to_mode
                 event.success = True
                 logger.info(
-                    f"✅ 網絡切換成功: UAV {event.uav_id}, " f"耗時 {duration_ms:.1f}ms"
+                    f"✅ 網路切換成功: UAV {event.uav_id}, " f"耗時 {duration_ms:.1f}ms"
                 )
             else:
                 # 切換失敗，回到原模式
                 self.uav_network_modes[event.uav_id] = event.from_mode
-                logger.error(f"❌ 網絡切換失敗: UAV {event.uav_id}")
+                logger.error(f"❌ 網路切換失敗: UAV {event.uav_id}")
 
             # 完成事件
             event.completion_timestamp = datetime.utcnow()
@@ -564,7 +564,7 @@ class UAVMeshFailoverService:
             return success
 
         except Exception as e:
-            logger.error(f"執行網絡切換異常: {e}")
+            logger.error(f"執行網路切換異常: {e}")
             duration_ms = (time.time() - start_time) * 1000
             event.metrics["duration_ms"] = duration_ms
             event.completion_timestamp = datetime.utcnow()
@@ -576,7 +576,7 @@ class UAVMeshFailoverService:
                 del self.active_failover_events[event.event_id]
 
     async def _switch_to_mesh_network(self, event: FailoverEvent) -> bool:
-        """切換到 Mesh 網絡"""
+        """切換到 Mesh 網路"""
         try:
             uav_id = event.uav_id
 
@@ -587,7 +587,7 @@ class UAVMeshFailoverService:
                 # 模擬創建 Mesh 節點
                 mock_mesh_node_id = f"mesh_node_{uav_id}"
                 event.metrics["mesh_node_id"] = mock_mesh_node_id
-                logger.info(f"✅ 測試 UAV {uav_id} 成功切換到 Mesh 網絡 (模擬)")
+                logger.info(f"✅ 測試 UAV {uav_id} 成功切換到 Mesh 網路 (模擬)")
                 return True
 
             # 1. 獲取 UAV 當前位置
@@ -653,11 +653,11 @@ class UAVMeshFailoverService:
             return True
 
         except Exception as e:
-            logger.error(f"切換到 Mesh 網絡失敗: {e}")
+            logger.error(f"切換到 Mesh 網路失敗: {e}")
             return False
 
     async def _switch_to_satellite_network(self, event: FailoverEvent) -> bool:
-        """切換回衛星網絡"""
+        """切換回衛星網路"""
         try:
             uav_id = event.uav_id
 
@@ -691,7 +691,7 @@ class UAVMeshFailoverService:
             return True
 
         except Exception as e:
-            logger.error(f"切換到衛星網絡失敗: {e}")
+            logger.error(f"切換到衛星網路失敗: {e}")
             return False
 
     async def _generate_mesh_ue_config(self, uav_id: str, mesh_node: MeshNode):
@@ -795,7 +795,7 @@ sessions:
       sst: {ue_config.get('slice_nssai', {}).get('sst', 1)}
       sd: {ue_config.get('slice_nssai', {}).get('sd', '000001')}
 
-# 網絡參數
+# 網路參數
 integrityMaxRate:
   uplink: full
   downlink: full

@@ -3,6 +3,7 @@
 
 .PHONY: help install test test-unit test-integration test-e2e test-api test-performance
 .PHONY: test-netstack test-simworld test-deployment test-all test-smoke
+.PHONY: test-priority test-critical test-high test-medium test-low
 .PHONY: coverage report clean clean-all setup check-env
 
 # 顏色定義
@@ -22,8 +23,15 @@ help:
 	@echo "  $(YELLOW)install$(NC)       - 安裝測試依賴"
 	@echo "  $(YELLOW)test$(NC)          - 執行所有測試"
 	@echo "  $(YELLOW)test-smoke$(NC)    - 煙霧測試"
+	@echo "  $(YELLOW)test-priority$(NC) - 按優先級執行測試 (推薦)"
 	@echo "  $(YELLOW)coverage$(NC)      - 執行測試並生成覆蓋率報告"
 	@echo "  $(YELLOW)report$(NC)        - 生成測試摘要報告"
+	@echo ""
+	@echo "$(GREEN)🎯 優先級測試:$(NC)"
+	@echo "  $(RED)test-critical$(NC)     - 只執行關鍵測試"
+	@echo "  $(YELLOW)test-high$(NC)         - 只執行高優先級測試"
+	@echo "  $(BLUE)test-medium$(NC)       - 只執行中優先級測試"
+	@echo "  $(CYAN)test-low$(NC)          - 只執行低優先級測試"
 	@echo ""
 	@echo "$(GREEN)🔧 測試類型:$(NC)"
 	@echo "  $(BLUE)test-unit$(NC)         - 單元測試"
@@ -64,7 +72,47 @@ check-env:
 	@echo "$(GREEN)環境檢查完成$(NC)"
 
 # ============================================================================
-# 測試執行
+# 優先級測試執行
+# ============================================================================
+
+# 按優先級執行所有測試 (推薦)
+test-priority: setup
+	@echo "$(RED)🎯 按優先級執行測試 - 高優先級測試必須 100% 通過$(NC)"
+	@python3 priority_test_runner.py
+	@echo "$(GREEN)✅ 優先級測試執行完成$(NC)"
+
+# 關鍵測試 (最高優先級)
+test-critical: setup
+	@echo "$(RED)🚨 執行關鍵測試...$(NC)"
+	@python3 priority_test_runner.py --priority CRITICAL
+	@echo "$(GREEN)✅ 關鍵測試執行完成$(NC)"
+
+# 高優先級測試
+test-high: setup
+	@echo "$(YELLOW)⚡ 執行高優先級測試...$(NC)"
+	@python3 priority_test_runner.py --priority HIGH
+	@echo "$(GREEN)✅ 高優先級測試執行完成$(NC)"
+
+# 中優先級測試
+test-medium: setup
+	@echo "$(BLUE)🔧 執行中優先級測試...$(NC)"
+	@python3 priority_test_runner.py --priority MEDIUM
+	@echo "$(GREEN)✅ 中優先級測試執行完成$(NC)"
+
+# 低優先級測試
+test-low: setup
+	@echo "$(CYAN)🔍 執行低優先級測試...$(NC)"
+	@python3 priority_test_runner.py --priority LOW
+	@echo "$(GREEN)✅ 低優先級測試執行完成$(NC)"
+
+# 強制執行所有優先級 (即使高優先級失敗)
+test-priority-all: setup
+	@echo "$(YELLOW)🔄 強制執行所有優先級測試...$(NC)"
+	@python3 priority_test_runner.py --continue-on-failure
+	@echo "$(GREEN)✅ 所有優先級測試執行完成$(NC)"
+
+# ============================================================================
+# 傳統測試執行
 # ============================================================================
 
 # 執行所有測試
@@ -129,6 +177,13 @@ report:
 	@python3 tools/test_summary.py
 	@echo "$(GREEN)✅ 測試摘要報告生成完成$(NC)"
 
+# 優先級測試報告
+report-priority:
+	@echo "$(YELLOW)📊 顯示優先級測試結果...$(NC)"
+	@test -f reports/priority_test_results.json && \
+		python3 -c "import json; print(json.dumps(json.load(open('reports/priority_test_results.json')), indent=2, ensure_ascii=False))" || \
+		echo "$(RED)❌ 未找到優先級測試結果，請先執行 make test-priority$(NC)"
+
 # ============================================================================
 # 清理
 # ============================================================================
@@ -138,11 +193,13 @@ clean:
 	@rm -rf .pytest_cache/ __pycache__/ .coverage
 	@find . -name "*.pyc" -delete
 	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+	@rm -f temp_result.json
 	@echo "$(GREEN)✅ 測試緩存清理完成$(NC)"
 
 clean-reports:
 	@echo "$(YELLOW)🗑️ 清理測試報告...$(NC)"
 	@rm -rf reports/test_results/* reports/coverage/*
+	@rm -f reports/priority_test_results.json
 	@echo "$(GREEN)✅ 測試報告清理完成$(NC)"
 
 clean-all: clean clean-reports
@@ -181,5 +238,5 @@ test-debug: setup
 # CI 模式 (適合持續整合)
 test-ci: setup
 	@echo "$(YELLOW)🤖 執行 CI 模式測試...$(NC)"
-	@python3 run_tests.py --type all --coverage --html 2>&1 | tee test_output.log
+	@python3 priority_test_runner.py 2>&1 | tee test_output.log
 	@echo "$(GREEN)✅ CI 模式測試完成$(NC)" 

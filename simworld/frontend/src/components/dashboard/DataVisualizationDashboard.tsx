@@ -1,6 +1,6 @@
 /**
  * 數據可視化儀表盤
- * 整合系統狀態、UAV 指標、網絡拓撲等圖表
+ * 整合系統狀態、UAV 指標、網路拓撲等圖表
  */
 import React, { useState, useMemo } from 'react'
 import SystemStatusChart from './charts/SystemStatusChart'
@@ -52,7 +52,7 @@ const DataVisualizationDashboard: React.FC<DataVisualizationDashboardProps> = ({
                 // UAV 數據更新
                 break
             case 'topology_change':
-                // 網絡拓撲變化
+                // 網路拓撲變化
                 break
             default:
                 break
@@ -63,7 +63,7 @@ const DataVisualizationDashboard: React.FC<DataVisualizationDashboardProps> = ({
         { id: 'overview', label: '總覽', icon: '📊' },
         { id: 'system', label: '系統狀態', icon: '🔧' },
         { id: 'uav', label: 'UAV 監控', icon: '🚁' },
-        { id: 'network', label: '網絡拓撲', icon: '🌐' },
+        { id: 'network', label: '網路拓撲', icon: '🌐' },
     ] as const
 
     // 導航欄項目

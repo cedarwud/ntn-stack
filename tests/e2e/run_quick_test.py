@@ -149,15 +149,15 @@ def simulate_basic_connectivity_test() -> Dict[str, Any]:
 
 
 def simulate_mesh_failover_test() -> Dict[str, Any]:
-    """模擬 Mesh 網絡備援測試"""
-    print("\n🔄 執行 Mesh 網絡備援測試...")
+    """模擬 Mesh 網路備援測試"""
+    print("\n🔄 執行 Mesh 網路備援測試...")
 
     test_start = time.time()
 
     steps = [
         ("建立主連接", 0.5, True),
         ("檢測連接中斷", 0.2, True),
-        ("切換到 Mesh 網絡", 1.5, True),
+        ("切換到 Mesh 網路", 1.5, True),
         ("驗證備援連接", 0.3, True),
         ("測試數據傳輸", 0.5, True),
     ]

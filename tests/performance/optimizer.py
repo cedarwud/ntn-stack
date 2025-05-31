@@ -214,7 +214,7 @@ class SystemMonitor:
                 category="system",
             )
 
-        # 網絡 I/O 指標
+        # 網路 I/O 指標
         net_io = psutil.net_io_counters()
         if net_io:
             metrics["network_sent_rate"] = PerformanceMetric(
@@ -606,7 +606,7 @@ class PerformanceOptimizer:
         ]:
             techniques.append("connection_pooling")
 
-        # 啟用網絡優化
+        # 啟用網路優化
         if self.config["optimization_strategies"]["network_optimization"]["enabled"]:
             techniques.append("network_optimization")
 

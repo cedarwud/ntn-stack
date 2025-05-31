@@ -2,7 +2,7 @@
 """
 衛星失聯到 Mesh 備援測試場景
 實現 TODO.md 中的場景3：衛星失聯切換到 Mesh 場景
-驗證網絡備援機制和恢復時間（2秒內重建連線）
+驗證網路備援機制和恢復時間（2秒內重建連線）
 """
 
 import asyncio
@@ -52,7 +52,7 @@ class SatelliteMeshFailoverTest:
             if not step2_result["success"]:
                 return results
 
-            # 步驟 3: 部署 Mesh 網絡節點
+            # 步驟 3: 部署 Mesh 網路節點
             step3_result = await self._deploy_mesh_nodes(session)
             results["steps"].append(step3_result)
             if not step3_result["success"]:
@@ -64,7 +64,7 @@ class SatelliteMeshFailoverTest:
             if not step4_result["success"]:
                 return results
 
-            # 步驟 5: 監控 Mesh 網絡發現
+            # 步驟 5: 監控 Mesh 網路發現
             step5_result = await self._monitor_mesh_discovery(session)
             results["steps"].append(step5_result)
             if not step5_result["success"]:
@@ -272,8 +272,8 @@ class SatelliteMeshFailoverTest:
             }
 
     async def _deploy_mesh_nodes(self, session: aiohttp.ClientSession) -> Dict:
-        """步驟3: 部署 Mesh 網絡節點"""
-        logger.info("📡 部署 Mesh 網絡節點")
+        """步驟3: 部署 Mesh 網路節點"""
+        logger.info("📡 部署 Mesh 網路節點")
         step_start = time.time()
 
         # Mesh 節點配置
@@ -336,10 +336,10 @@ class SatelliteMeshFailoverTest:
             if len(deployed_nodes) >= 2:  # 至少需要2個節點
                 self.test_data["mesh_nodes"] = deployed_nodes
 
-                # 等待 Mesh 網絡建立
+                # 等待 Mesh 網路建立
                 await asyncio.sleep(5)
 
-                # 驗證 Mesh 網絡連通性
+                # 驗證 Mesh 網路連通性
                 async with session.get(
                     f"{self.netstack_url}/api/v1/mesh/topology"
                 ) as response:
@@ -350,24 +350,24 @@ class SatelliteMeshFailoverTest:
                         step_duration = time.time() - step_start
 
                         return {
-                            "step_name": "部署 Mesh 網絡節點",
+                            "step_name": "部署 Mesh 網路節點",
                             "success": True,
                             "duration_ms": step_duration * 1000,
-                            "details": f"部署 {len(deployed_nodes)} 個 Mesh 節點，網絡連通",
+                            "details": f"部署 {len(deployed_nodes)} 個 Mesh 節點，網路連通",
                             "deployed_nodes": deployed_nodes,
                         }
                     else:
                         step_duration = time.time() - step_start
                         return {
-                            "step_name": "部署 Mesh 網絡節點",
+                            "step_name": "部署 Mesh 網路節點",
                             "success": False,
                             "duration_ms": step_duration * 1000,
-                            "error": "Mesh 網絡連通性驗證失敗",
+                            "error": "Mesh 網路連通性驗證失敗",
                         }
             else:
                 step_duration = time.time() - step_start
                 return {
-                    "step_name": "部署 Mesh 網絡節點",
+                    "step_name": "部署 Mesh 網路節點",
                     "success": False,
                     "duration_ms": step_duration * 1000,
                     "error": f"部署的 Mesh 節點數量不足: {len(deployed_nodes)} < 2",
@@ -375,9 +375,9 @@ class SatelliteMeshFailoverTest:
 
         except Exception as e:
             step_duration = time.time() - step_start
-            logger.error(f"❌ 部署 Mesh 網絡節點異常: {e}")
+            logger.error(f"❌ 部署 Mesh 網路節點異常: {e}")
             return {
-                "step_name": "部署 Mesh 網絡節點",
+                "step_name": "部署 Mesh 網路節點",
                 "success": False,
                 "duration_ms": step_duration * 1000,
                 "error": str(e),
@@ -446,8 +446,8 @@ class SatelliteMeshFailoverTest:
             }
 
     async def _monitor_mesh_discovery(self, session: aiohttp.ClientSession) -> Dict:
-        """步驟5: 監控 Mesh 網絡發現"""
-        logger.info("🔍 監控 Mesh 網絡發現")
+        """步驟5: 監控 Mesh 網路發現"""
+        logger.info("🔍 監控 Mesh 網路發現")
         step_start = time.time()
 
         max_discovery_time = 2.0  # 最大發現時間 2 秒 (符合要求)
@@ -459,7 +459,7 @@ class SatelliteMeshFailoverTest:
             discovery_time = 0
 
             while (time.time() - discovery_start) < max_discovery_time:
-                # 檢查 Mesh 網絡發現狀態
+                # 檢查 Mesh 網路發現狀態
                 async with session.get(
                     f"{self.netstack_url}/api/v1/mesh/discovery",
                     params={"uav_id": self.test_data["uav_id"]},
@@ -481,7 +481,7 @@ class SatelliteMeshFailoverTest:
                             self.failover_data["discovered_nodes"] = available_nodes
 
                             logger.info(
-                                f"✅ Mesh 網絡發現成功: {discovery_time:.1f}ms, 發現 {len(available_nodes)} 個節點"
+                                f"✅ Mesh 網路發現成功: {discovery_time:.1f}ms, 發現 {len(available_nodes)} 個節點"
                             )
                             break
 
@@ -493,7 +493,7 @@ class SatelliteMeshFailoverTest:
                 # 檢查發現時間是否符合要求 (< 500ms)
                 if discovery_time <= 500:
                     return {
-                        "step_name": "監控 Mesh 網絡發現",
+                        "step_name": "監控 Mesh 網路發現",
                         "success": True,
                         "duration_ms": step_duration * 1000,
                         "details": f"Mesh 發現時間: {discovery_time:.1f}ms, 發現節點數: {len(self.failover_data['discovered_nodes'])}",
@@ -502,7 +502,7 @@ class SatelliteMeshFailoverTest:
                     }
                 else:
                     return {
-                        "step_name": "監控 Mesh 網絡發現",
+                        "step_name": "監控 Mesh 網路發現",
                         "success": False,
                         "duration_ms": step_duration * 1000,
                         "error": f"Mesh 發現時間過長: {discovery_time:.1f}ms > 500ms",
@@ -510,17 +510,17 @@ class SatelliteMeshFailoverTest:
                     }
             else:
                 return {
-                    "step_name": "監控 Mesh 網絡發現",
+                    "step_name": "監控 Mesh 網路發現",
                     "success": False,
                     "duration_ms": step_duration * 1000,
-                    "error": f"在 {max_discovery_time} 秒內未發現 Mesh 網絡",
+                    "error": f"在 {max_discovery_time} 秒內未發現 Mesh 網路",
                 }
 
         except Exception as e:
             step_duration = time.time() - step_start
-            logger.error(f"❌ 監控 Mesh 網絡發現異常: {e}")
+            logger.error(f"❌ 監控 Mesh 網路發現異常: {e}")
             return {
-                "step_name": "監控 Mesh 網絡發現",
+                "step_name": "監控 Mesh 網路發現",
                 "success": False,
                 "duration_ms": step_duration * 1000,
                 "error": str(e),

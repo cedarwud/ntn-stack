@@ -3,7 +3,7 @@
     "id": null,
     "uid": "ntn-stack-overview",
     "title": "NTN Stack 系統總覽",
-    "description": "NTN Stack 非地面網絡系統監控總覽儀表板",
+    "description": "NTN Stack 非地面網路系統監控總覽儀表板",
     "tags": ["ntn", "stack", "monitoring", "overview"],
     "style": "dark",
     "timezone": "browser",

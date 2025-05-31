@@ -101,7 +101,7 @@ class FinalVerificationTest:
         return overall_status == "healthy"
 
     def test_feature_10_mesh_bridge_core(self):
-        """Feature #10: Tier-1 Mesh 網絡與 5G 核心網橋接 - 核心功能"""
+        """Feature #10: Tier-1 Mesh 網路與 5G 核心網橋接 - 核心功能"""
 
         # 1. 測試 Mesh 節點創建和管理
         node_data = {
@@ -168,7 +168,7 @@ class FinalVerificationTest:
         return demo_duration < 1000
 
     def test_feature_11_uav_failover_core(self):
-        """Feature #11: UAV 失聯後的 Mesh 網絡備援機制 - 核心功能"""
+        """Feature #11: UAV 失聯後的 Mesh 網路備援機制 - 核心功能"""
 
         # 測試備援演示功能
         response = requests.post(

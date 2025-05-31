@@ -4,8 +4,8 @@ NetStack API 最終綜合測試
 驗證所有關鍵功能，確保 100% 測試通過率
 
 測試範圍：
-1. Tier-1 Mesh 網絡與 5G 核心網橋接
-2. UAV 失聯後的 Mesh 網絡備援機制
+1. Tier-1 Mesh 網路與 5G 核心網橋接
+2. UAV 失聯後的 Mesh 網路備援機制
 """
 
 import asyncio
@@ -46,7 +46,7 @@ class FinalComprehensiveTest:
                 ("Mesh 橋接演示", self._test_mesh_bridge_demo),
                 ("UAV 創建和管理", self._test_uav_management),
                 ("UAV 備援服務註冊", self._test_uav_failover_registration),
-                ("手動網絡切換", self._test_manual_network_switching),
+                ("手動網路切換", self._test_manual_network_switching),
                 ("UAV 備援演示", self._test_uav_failover_demo),
                 ("系統統計和監控", self._test_system_statistics),
                 ("資源清理", self._test_cleanup),
@@ -312,7 +312,7 @@ class FinalComprehensiveTest:
         return success
 
     async def _test_manual_network_switching(self) -> bool:
-        """測試手動網絡切換"""
+        """測試手動網路切換"""
         # 使用測試用的 UAV ID，不依賴於實際創建的 UAV
         test_uav_id = "test_manual_switching"
 
@@ -476,8 +476,8 @@ class FinalComprehensiveTest:
 
         if pass_rate == 100.0:
             print(f"\n🎉 恭喜！所有測試都通過了！")
-            print(f"✅ Tier-1 Mesh 網絡與 5G 核心網橋接功能完全正常")
-            print(f"✅ UAV 失聯後的 Mesh 網絡備援機制完全正常")
+            print(f"✅ Tier-1 Mesh 網路與 5G 核心網橋接功能完全正常")
+            print(f"✅ UAV 失聯後的 Mesh 網路備援機制完全正常")
             print(f"✅ 系統滿足 TODO.md 中的所有功能要求")
         else:
             print(f"\n⚠️  存在測試失敗，請檢查並修復相關問題")

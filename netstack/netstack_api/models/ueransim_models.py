@@ -42,7 +42,7 @@ class UAVPosition(BaseModel):
 
 
 class NetworkParameters(BaseModel):
-    """網絡參數"""
+    """網路參數"""
 
     frequency: int = Field(2100, ge=1900, le=2700, description="頻率(MHz)")
     bandwidth: int = Field(20, description="頻寬(MHz)")
@@ -73,7 +73,7 @@ class UERANSIMConfigRequest(BaseModel):
     )
     uav: Optional[UAVPosition] = Field(None, description="無人機位置")
     uav_formation: Optional[List[UAVPosition]] = Field(None, description="無人機編隊")
-    network_params: Optional[NetworkParameters] = Field(None, description="網絡參數")
+    network_params: Optional[NetworkParameters] = Field(None, description="網路參數")
     handover_params: Optional[HandoverParameters] = Field(None, description="切換參數")
 
 
@@ -81,7 +81,7 @@ class GNBConfig(BaseModel):
     """gNodeB配置"""
 
     mcc: int = Field(999, description="移動國家代碼")
-    mnc: int = Field(70, description="移動網絡代碼")
+    mnc: int = Field(70, description="移動網路代碼")
     nci: str = Field("0x000000010", description="NR小區標識")
     id_length: int = Field(32, description="ID長度")
     tac: int = Field(1, description="追蹤區域代碼")
@@ -97,7 +97,7 @@ class UEConfig(BaseModel):
 
     supi: str = Field(..., description="用戶識別")
     mcc: int = Field(999, description="移動國家代碼")
-    mnc: int = Field(70, description="移動網絡代碼")
+    mnc: int = Field(70, description="移動網路代碼")
     op: str = Field("63bfa50ee6523365ff14c1f45f88737d", description="操作者密鑰")
     amf: str = Field("8000", description="AMF設定")
     imei: str = Field("356938035643803", description="設備識別")
@@ -112,7 +112,7 @@ class ScenarioInfo(BaseModel):
     generation_time: str = Field(..., description="生成時間")
     satellite_info: Optional[Dict[str, Any]] = Field(None, description="衛星信息")
     uav_info: Optional[Dict[str, Any]] = Field(None, description="無人機信息")
-    network_info: Optional[Dict[str, Any]] = Field(None, description="網絡信息")
+    network_info: Optional[Dict[str, Any]] = Field(None, description="網路信息")
 
 
 class UERANSIMConfigResponse(BaseModel):

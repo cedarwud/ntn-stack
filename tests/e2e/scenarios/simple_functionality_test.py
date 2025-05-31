@@ -192,7 +192,7 @@ class SimpleFunctionalityTest:
 
         if passed == total:
             print("\n🎉 所有簡化測試通過！核心功能正常！")
-            print("✅ Mesh 網絡橋接功能正常")
+            print("✅ Mesh 網路橋接功能正常")
             print("✅ UAV 備援機制功能正常")
             print("✅ 系統基本功能滿足要求")
             return True

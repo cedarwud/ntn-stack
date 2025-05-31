@@ -830,7 +830,7 @@ async def convert_satellite_to_gnb(
                 altitude=uav_altitude,
             )
 
-        # 構建網絡參數
+        # 構建網路參數
         from .models.ueransim_models import NetworkParameters
 
         network_params = NetworkParameters(frequency=frequency, bandwidth=bandwidth)
@@ -2292,7 +2292,7 @@ async def update_uav_signal_quality_for_assessment(
 
 @app.post("/api/v1/mesh/nodes", response_model=MeshNode, tags=["Mesh 橋接"])
 async def create_mesh_node(request: MeshNodeCreateRequest):
-    """創建 Mesh 網絡節點"""
+    """創建 Mesh 網路節點"""
     try:
         mesh_service = app.state.mesh_bridge_service
 
@@ -2325,7 +2325,7 @@ async def create_mesh_node(request: MeshNodeCreateRequest):
 
 @app.get("/api/v1/mesh/nodes", tags=["Mesh 橋接"])
 async def list_mesh_nodes():
-    """列出所有 Mesh 網絡節點"""
+    """列出所有 Mesh 網路節點"""
     try:
         mesh_service = app.state.mesh_bridge_service
         nodes = list(mesh_service.mesh_nodes.values())
@@ -2501,15 +2501,15 @@ async def get_bridge_gateway(gateway_id: str):
     "/api/v1/mesh/topology", response_model=NetworkTopologyResponse, tags=["Mesh 橋接"]
 )
 async def get_network_topology():
-    """獲取 Mesh 網絡拓撲"""
+    """獲取 Mesh 網路拓撲"""
     try:
         mesh_service = app.state.mesh_bridge_service
 
         topology = await mesh_service.get_network_topology()
         if not topology:
-            raise HTTPException(status_code=500, detail="無法獲取網絡拓撲")
+            raise HTTPException(status_code=500, detail="無法獲取網路拓撲")
 
-        # 計算網絡健康指標
+        # 計算網路健康指標
         health_score = 0.9  # 簡化計算
         connectivity_ratio = 0.85
         average_link_quality = 0.8
@@ -2526,7 +2526,7 @@ async def get_network_topology():
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"獲取網絡拓撲 API 錯誤: {e}")
+        logger.error(f"獲取網路拓撲 API 錯誤: {e}")
         raise HTTPException(status_code=500, detail=f"內部服務器錯誤: {str(e)}")
 
 
@@ -2628,7 +2628,7 @@ async def mesh_bridge_quick_demo():
             demo_gateway.gateway_id, test_packet, demo_node.node_id
         )
 
-        # 獲取網絡拓撲
+        # 獲取網路拓撲
         topology = await mesh_service.get_network_topology()
 
         return CustomJSONResponse(
@@ -2678,7 +2678,7 @@ async def register_uav_for_failover_monitoring(uav_id: str):
                     "monitoring_capabilities": [
                         "連接質量監控",
                         "自動故障切換",
-                        "Mesh 網絡備援",
+                        "Mesh 網路備援",
                         "衛星連接恢復",
                     ],
                 }
@@ -2725,11 +2725,11 @@ async def unregister_uav_failover_monitoring(uav_id: str):
 @app.post("/api/v1/uav-mesh-failover/trigger/{uav_id}", tags=["UAV Mesh 備援"])
 async def trigger_manual_uav_failover(uav_id: str, target_mode: NetworkMode):
     """
-    手動觸發 UAV 網絡切換
+    手動觸發 UAV 網路切換
 
     Args:
         uav_id: UAV ID
-        target_mode: 目標網絡模式
+        target_mode: 目標網路模式
 
     Returns:
         切換結果
@@ -2741,7 +2741,7 @@ async def trigger_manual_uav_failover(uav_id: str, target_mode: NetworkMode):
         return CustomJSONResponse(content=result)
 
     except Exception as e:
-        logger.error(f"手動觸發 UAV 網絡切換失敗: {e}")
+        logger.error(f"手動觸發 UAV 網路切換失敗: {e}")
         raise HTTPException(status_code=500, detail=f"切換失敗: {str(e)}")
 
 
@@ -2754,7 +2754,7 @@ async def get_uav_failover_status(uav_id: str):
         uav_id: UAV ID
 
     Returns:
-        UAV 網絡狀態和備援信息
+        UAV 網路狀態和備援信息
     """
     try:
         failover_service = app.state.uav_mesh_failover_service
@@ -2912,7 +2912,7 @@ async def uav_mesh_failover_quick_demo():
             "demonstrated_capabilities": [
                 "實時連接質量監控",
                 "自動故障檢測",
-                "快速 Mesh 網絡切換",
+                "快速 Mesh 網路切換",
                 "智能恢復機制",
                 "性能統計追蹤",
             ],

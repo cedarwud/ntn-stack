@@ -1,5 +1,5 @@
 """
-Mesh 網絡模擬模組
+Mesh 網路模擬模組
 為 NetStack Mesh 橋接服務提供模擬的 Mesh 節點數據
 """
 
@@ -28,7 +28,7 @@ class MeshNodeSimulation(BaseModel):
     velocity_mps: float = Field(default=0.0, description="移動速度 (m/s)")
     heading_degrees: float = Field(default=0.0, description="航向角度")
 
-    # 網絡狀態
+    # 網路狀態
     is_active: bool = Field(default=True, description="是否活躍")
     signal_strength_dbm: float = Field(default=-70.0, description="信號強度")
     throughput_mbps: float = Field(default=10.0, description="吞吐量")
@@ -69,7 +69,7 @@ class MeshLinkSimulation(BaseModel):
 
 
 class MeshNetworkSimulator:
-    """Mesh 網絡模擬器"""
+    """Mesh 網路模擬器"""
 
     def __init__(self):
         self.mesh_nodes: Dict[str, MeshNodeSimulation] = {}
@@ -93,7 +93,7 @@ class MeshNetworkSimulator:
         }
 
     async def start_simulation(self) -> bool:
-        """啟動 Mesh 網絡模擬"""
+        """啟動 Mesh 網路模擬"""
         try:
             if self.simulation_running:
                 return True
@@ -105,15 +105,15 @@ class MeshNetworkSimulator:
             self.simulation_task = asyncio.create_task(self._simulation_loop())
             self.simulation_running = True
 
-            print("🌐 Mesh 網絡模擬已啟動")
+            print("🌐 Mesh 網路模擬已啟動")
             return True
 
         except Exception as e:
-            print(f"❌ Mesh 網絡模擬啟動失敗: {e}")
+            print(f"❌ Mesh 網路模擬啟動失敗: {e}")
             return False
 
     async def stop_simulation(self) -> bool:
-        """停止 Mesh 網絡模擬"""
+        """停止 Mesh 網路模擬"""
         try:
             self.simulation_running = False
 
@@ -121,11 +121,11 @@ class MeshNetworkSimulator:
                 self.simulation_task.cancel()
                 await self.simulation_task
 
-            print("🛑 Mesh 網絡模擬已停止")
+            print("🛑 Mesh 網路模擬已停止")
             return True
 
         except Exception as e:
-            print(f"❌ Mesh 網絡模擬停止失敗: {e}")
+            print(f"❌ Mesh 網路模擬停止失敗: {e}")
             return False
 
     async def add_mesh_node(
@@ -266,12 +266,12 @@ class MeshNetworkSimulator:
             return []
 
     async def get_network_topology(self) -> Dict[str, Any]:
-        """獲取網絡拓撲"""
+        """獲取網路拓撲"""
         try:
             nodes_data = await self.get_mesh_nodes()
             links_data = await self.get_mesh_links()
 
-            # 計算網絡統計
+            # 計算網路統計
             total_nodes = len(nodes_data)
             active_nodes = sum(1 for node in nodes_data if node["status"]["is_active"])
             total_links = len(links_data)
@@ -300,7 +300,7 @@ class MeshNetworkSimulator:
             return topology
 
         except Exception as e:
-            print(f"❌ 獲取網絡拓撲失敗: {e}")
+            print(f"❌ 獲取網路拓撲失敗: {e}")
             return {}
 
     async def simulate_interference(

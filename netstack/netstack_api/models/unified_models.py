@@ -91,7 +91,7 @@ class ServiceDiscoveryResponse(BaseModel):
 
 
 class NetworkStatusUpdate(BaseModel):
-    """網絡狀態更新"""
+    """網路狀態更新"""
 
     timestamp: datetime = Field(..., description="更新時間")
     connection_count: int = Field(..., description="連接數")
@@ -217,7 +217,7 @@ class PerformanceMetrics(BaseModel):
     cpu_usage_percent: float = Field(..., description="CPU 使用率")
     memory_usage_mb: float = Field(..., description="內存使用量 (MB)")
     disk_usage_percent: float = Field(..., description="磁盤使用率")
-    network_io_mbps: Dict[str, float] = Field(..., description="網絡 I/O (Mbps)")
+    network_io_mbps: Dict[str, float] = Field(..., description="網路 I/O (Mbps)")
     active_connections: int = Field(..., description="活躍連接數")
     request_rate_per_second: float = Field(..., description="請求速率 (/秒)")
     error_rate_percent: float = Field(..., description="錯誤率")

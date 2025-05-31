@@ -69,7 +69,7 @@ export interface SystemStatus {
   };
 }
 
-// 網絡拓撲數據類型
+// 網路拓撲數據類型
 export interface NetworkNode {
   id: string;
   name: string;

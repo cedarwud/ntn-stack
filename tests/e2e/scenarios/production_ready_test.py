@@ -112,7 +112,7 @@ class ProductionReadyTest:
             return False
 
     def test_mesh_network_functionality(self):
-        """測試Mesh網絡功能"""
+        """測試Mesh網路功能"""
         # 測試創建和刪除節點的完整流程
         node_data = {
             "name": "ProductionTest_Node",
@@ -265,7 +265,7 @@ class ProductionReadyTest:
         critical_tests = [
             ("服務可用性檢查", self.test_service_availability),
             ("API端點可訪問性", self.test_api_endpoints_accessibility),
-            ("Mesh網絡功能", self.test_mesh_network_functionality),
+            ("Mesh網路功能", self.test_mesh_network_functionality),
             ("Mesh橋接性能", self.test_mesh_bridge_performance),
             ("UAV備援系統", self.test_uav_failover_system),
             ("服務統計功能", self.test_service_statistics),

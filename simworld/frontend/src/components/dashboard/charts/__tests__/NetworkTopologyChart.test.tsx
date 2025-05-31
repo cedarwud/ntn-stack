@@ -56,10 +56,10 @@ describe('NetworkTopologyChart', () => {
 
         render(<NetworkTopologyChart />)
 
-        expect(screen.getByText('載入網絡拓撲中...')).toBeInTheDocument()
+        expect(screen.getByText('載入網路拓撲中...')).toBeInTheDocument()
     })
 
-    it('應該正確渲染網絡拓撲數據', async () => {
+    it('應該正確渲染網路拓撲數據', async () => {
         vi.mocked(netstackApi.getMeshTopology).mockResolvedValue(
             mockTopologyData
         )
@@ -68,7 +68,7 @@ describe('NetworkTopologyChart', () => {
         render(<NetworkTopologyChart />)
 
         await waitFor(() => {
-            expect(screen.getByText('網絡拓撲圖')).toBeInTheDocument()
+            expect(screen.getByText('網路拓撲圖')).toBeInTheDocument()
         })
 
         // 檢查圖例
@@ -92,12 +92,12 @@ describe('NetworkTopologyChart', () => {
         render(<NetworkTopologyChart />)
 
         await waitFor(() => {
-            expect(screen.getByText('網絡拓撲圖')).toBeInTheDocument()
+            expect(screen.getByText('網路拓撲圖')).toBeInTheDocument()
         })
 
         // 應該顯示錯誤通知
         expect(
-            screen.getByText(/無法載入網絡拓撲數據 \(顯示模擬數據\)/)
+            screen.getByText(/無法載入網路拓撲數據 \(顯示模擬數據\)/)
         ).toBeInTheDocument()
         expect(screen.getByText('重試')).toBeInTheDocument()
 

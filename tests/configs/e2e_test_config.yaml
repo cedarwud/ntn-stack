@@ -86,7 +86,7 @@ test_scenarios:
   # 3. 衛星失聯切換到 Mesh 場景
   satellite_loss_mesh_failover:
     name: "衛星失聯切換到 Mesh 場景"
-    description: "驗證網絡備援機制和恢復時間（2秒內重建連線）"
+    description: "驗證網路備援機制和恢復時間（2秒內重建連線）"
     priority: 1
     timeout_seconds: 120
     performance_targets:
@@ -104,7 +104,7 @@ test_scenarios:
       - name: "模擬衛星失聯"
         endpoint: "/api/v1/satellite/disconnect"
         method: "POST"
-      - name: "監控 Mesh 網絡發現"
+      - name: "監控 Mesh 網路發現"
         endpoint: "/api/v1/mesh/discovery"
         method: "GET"
       - name: "驗證備援連接建立"

@@ -190,7 +190,7 @@ async def service_discovery():
                     service="simworld",
                 ),
             ],
-            # Mesh 網絡管理端點
+            # Mesh 網路管理端點
             "mesh": [
                 APIEndpointInfo(
                     path="/api/v1/mesh/nodes",
@@ -236,14 +236,14 @@ async def service_discovery():
 @unified_router.websocket("/ws/network-status")
 async def websocket_network_status(websocket: WebSocket):
     """
-    網絡狀態實時推送
+    網路狀態實時推送
 
-    推送網絡狀態更新，包括連接狀態、性能指標和告警
+    推送網路狀態更新，包括連接狀態、性能指標和告警
     """
     await manager.connect(websocket)
     try:
         while True:
-            # 獲取網絡狀態數據
+            # 獲取網路狀態數據
             status_data = await _get_network_status()
 
             # 發送狀態更新
@@ -257,7 +257,7 @@ async def websocket_network_status(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as e:
-        logger.error(f"WebSocket 網絡狀態推送錯誤: {e}")
+        logger.error(f"WebSocket 網路狀態推送錯誤: {e}")
         manager.disconnect(websocket)
 
 
@@ -439,7 +439,7 @@ async def _check_simworld_status() -> SystemComponentStatus:
 
 
 async def _get_network_status() -> NetworkStatusUpdate:
-    """獲取網絡狀態更新"""
+    """獲取網路狀態更新"""
     return NetworkStatusUpdate(
         timestamp=datetime.utcnow(),
         connection_count=42,

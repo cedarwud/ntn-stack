@@ -1,6 +1,6 @@
 """
-Mesh 網絡數據模型
-支援 Tier-1 Mesh 網絡與 5G 核心網橋接功能
+Mesh 網路數據模型
+支援 Tier-1 Mesh 網路與 5G 核心網橋接功能
 """
 
 from datetime import datetime
@@ -104,7 +104,7 @@ class MeshNeighbor(BaseModel):
 
 
 class MeshNode(BaseModel):
-    """Mesh 網絡節點"""
+    """Mesh 網路節點"""
 
     node_id: str = Field(..., description="節點唯一標識")
     name: str = Field(..., description="節點名稱")
@@ -114,7 +114,7 @@ class MeshNode(BaseModel):
     )
     position: Optional[MeshPosition] = Field(None, description="節點位置")
 
-    # 網絡配置
+    # 網路配置
     ip_address: str = Field(..., description="IP 地址")
     mac_address: str = Field(..., description="MAC 地址")
     frequency_mhz: float = Field(default=900.0, description="工作頻率 (MHz)")
@@ -163,7 +163,7 @@ class Bridge5GMeshGateway(BaseModel):
 
     # Mesh 側配置
     mesh_node_id: str = Field(..., description="關聯的 Mesh 節點 ID")
-    mesh_interface: str = Field(..., description="Mesh 網絡介面")
+    mesh_interface: str = Field(..., description="Mesh 網路介面")
 
     # 橋接配置
     packet_forwarding_enabled: bool = Field(default=True, description="封包轉發啟用")
@@ -220,10 +220,10 @@ class MeshTrafficFlow(BaseModel):
 
 
 class MeshNetworkTopology(BaseModel):
-    """Mesh 網絡拓撲"""
+    """Mesh 網路拓撲"""
 
     topology_id: str = Field(..., description="拓撲 ID")
-    network_name: str = Field(..., description="網絡名稱")
+    network_name: str = Field(..., description="網路名稱")
     nodes: List[MeshNode] = Field(default_factory=list, description="節點列表")
     gateways: List[Bridge5GMeshGateway] = Field(
         default_factory=list, description="橋接網關列表"
@@ -232,11 +232,11 @@ class MeshNetworkTopology(BaseModel):
         default_factory=list, description="活躍流量流"
     )
 
-    # 網絡指標
+    # 網路指標
     connectivity_matrix: Dict[str, Dict[str, bool]] = Field(
         default_factory=dict, description="連通性矩陣"
     )
-    network_diameter: int = Field(default=0, description="網絡直徑")
+    network_diameter: int = Field(default=0, description="網路直徑")
     average_path_length: float = Field(default=0.0, description="平均路徑長度")
 
     # 時間戳
@@ -282,7 +282,7 @@ class BridgeGatewayCreateRequest(BaseModel):
     upf_ip: str = Field(..., description="UPF IP 地址")
     upf_port: int = Field(default=2152, description="UPF GTP-U 端口")
     mesh_node_id: str = Field(..., description="關聯的 Mesh 節點 ID")
-    mesh_interface: str = Field(..., description="Mesh 網絡介面")
+    mesh_interface: str = Field(..., description="Mesh 網路介面")
     slice_info: Optional[Dict[str, Any]] = Field(None, description="支援的 Slice 信息")
 
 
@@ -304,16 +304,16 @@ class MeshRoutingUpdateRequest(BaseModel):
 
 
 class NetworkTopologyResponse(BaseModel):
-    """網絡拓撲響應"""
+    """網路拓撲響應"""
 
-    topology: MeshNetworkTopology = Field(..., description="網絡拓撲")
-    health_score: float = Field(..., description="網絡健康分數 (0-1)")
+    topology: MeshNetworkTopology = Field(..., description="網路拓撲")
+    health_score: float = Field(..., description="網路健康分數 (0-1)")
     connectivity_ratio: float = Field(..., description="連通性比率")
     average_link_quality: float = Field(..., description="平均鏈路質量")
 
 
 class MeshPerformanceMetrics(BaseModel):
-    """Mesh 網絡性能指標"""
+    """Mesh 網路性能指標"""
 
     node_id: str = Field(..., description="節點 ID")
 

@@ -91,7 +91,7 @@ class ChannelSimulationRequest(BaseModel):
     environment_type: str = Field(default="urban", description="環境類型")
     weather_condition: str = Field(default="clear", description="天氣條件")
 
-    # 網絡配置
+    # 網路配置
     carrier_frequency_hz: float = Field(..., description="載波頻率（Hz）")
     bandwidth_hz: float = Field(..., description="頻寬（Hz）")
 

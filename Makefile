@@ -51,6 +51,8 @@ help: ## 顯示幫助信息
 
 # ===== 服務啟動 =====
 
+fresh-up: clean-i build-n up ## 重新啟動所有服務
+
 up: all-start ## 啟動所有服務
 
 all-start: ## 啟動 NetStack 和 SimWorld
@@ -190,7 +192,6 @@ all-clean: ## 清理 NetStack 和 SimWorld 資源
 	@$(MAKE) netstack-clean
 	@$(MAKE) simworld-clean
 	@$(MAKE) clean-reports
-	@docker network rm compose_netstack-core
 	@echo "$(GREEN)✅ 所有資源清理完成$(RESET)"
 
 netstack-clean: ## 清理 NetStack 資源
@@ -223,7 +224,6 @@ all-clean-i: ## 清理 NetStack 和 SimWorld 資源
 	@$(MAKE) netstack-clean-i
 	@$(MAKE) simworld-clean-i
 	@$(MAKE) clean-reports
-	@docker network rm compose_netstack-core
 	@docker image prune -f
 	@docker network prune -f
 	@echo "$(GREEN)✅ 所有資源清理完成$(RESET)"

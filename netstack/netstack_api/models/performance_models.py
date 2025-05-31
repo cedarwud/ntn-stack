@@ -239,7 +239,7 @@ class SystemResourceMetric(BaseModel):
     memory_usage_percent: float = Field(..., description="內存使用率")
     memory_available_mb: float = Field(..., description="可用內存（MB）")
     disk_usage_percent: Optional[float] = Field(None, description="磁碟使用率")
-    network_io_mbps: Optional[float] = Field(None, description="網絡IO（Mbps）")
+    network_io_mbps: Optional[float] = Field(None, description="網路IO（Mbps）")
     timestamp: str = Field(..., description="時間戳")
 
     class Config:

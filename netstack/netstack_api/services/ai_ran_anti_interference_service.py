@@ -27,7 +27,7 @@ logger = structlog.get_logger(__name__)
 
 
 class AIRANNetwork(nn.Module):
-    """AI-RAN 深度強化學習網絡"""
+    """AI-RAN 深度強化學習網路"""
 
     def __init__(
         self, input_size: int = 20, hidden_size: int = 128, output_size: int = 10
@@ -44,14 +44,14 @@ class AIRANNetwork(nn.Module):
             nn.Dropout(0.2),
         )
 
-        # 動作價值網絡 (DQN)
+        # 動作價值網路 (DQN)
         self.q_network = nn.Sequential(
             nn.Linear(hidden_size // 2, hidden_size // 4),
             nn.ReLU(),
             nn.Linear(hidden_size // 4, output_size),
         )
 
-        # 策略網絡 (Actor-Critic)
+        # 策略網路 (Actor-Critic)
         self.policy_network = nn.Sequential(
             nn.Linear(hidden_size // 2, hidden_size // 4),
             nn.ReLU(),
@@ -59,7 +59,7 @@ class AIRANNetwork(nn.Module):
             nn.Softmax(dim=-1),
         )
 
-        # 價值網絡 (Critic)
+        # 價值網路 (Critic)
         self.value_network = nn.Sequential(
             nn.Linear(hidden_size // 2, hidden_size // 4),
             nn.ReLU(),
@@ -130,7 +130,7 @@ class AIRANAntiInterferenceService:
         self.batch_size = 32
         self.target_update_freq = 100
 
-        # 初始化 AI 網絡
+        # 初始化 AI 網路
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.ai_network = AIRANNetwork().to(self.device)
         self.target_network = AIRANNetwork().to(self.device)
@@ -238,7 +238,7 @@ class AIRANAntiInterferenceService:
                 torch.FloatTensor(state_features).unsqueeze(0).to(self.device)
             )
 
-            # AI 網絡推理
+            # AI 網路推理
             with torch.no_grad():
                 q_values, policy, value = self.ai_network(state_tensor)
 
@@ -301,7 +301,7 @@ class AIRANAntiInterferenceService:
                 )
                 execution_results.append(result)
 
-            # 更新當前網絡狀態
+            # 更新當前網路狀態
             if strategy == "frequency_hopping":
                 self.current_frequency = mitigation_params.get(
                     "new_frequency", self.current_frequency
@@ -385,7 +385,7 @@ class AIRANAntiInterferenceService:
                 if self.epsilon > self.epsilon_min:
                     self.epsilon *= self.epsilon_decay
 
-                # 更新目標網絡
+                # 更新目標網路
                 if episode % self.target_update_freq == 0:
                     self.target_network.load_state_dict(self.ai_network.state_dict())
 
@@ -721,7 +721,7 @@ class AIRANAntiInterferenceService:
 
     def _generate_simulation_environment(self) -> Dict:
         """生成模擬環境"""
-        # 隨機生成干擾和網絡狀態用於訓練
+        # 隨機生成干擾和網路狀態用於訓練
         num_interferors = np.random.randint(0, 5)
         interference_sources = []
 

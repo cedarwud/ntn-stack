@@ -1,6 +1,6 @@
 /**
  * NetStack API 服務層
- * 負責與 NetStack 後端 (port 8080) 交互，獲取網絡狀態、UAV 數據等
+ * 負責與 NetStack 後端 (port 8080) 交互，獲取網路狀態、UAV 數據等
  */
 import axios, { AxiosError } from 'axios';
 import { UAVData, SystemStatus, NetworkTopology } from '../types/charts';
@@ -41,7 +41,7 @@ const retryRequest = async <T>(
 // 判斷錯誤是否可重試
 const isRetryableError = (error: any): boolean => {
   if (!error.response) {
-    // 網絡錯誤，可重試
+    // 網路錯誤，可重試
     return true;
   }
   
@@ -291,7 +291,7 @@ export const getInterferenceStatus = async (): Promise<any> => {
 };
 
 /**
- * 獲取 Mesh 網絡拓撲
+ * 獲取 Mesh 網路拓撲
  */
 export const getMeshTopology = async (): Promise<any> => {
   try {

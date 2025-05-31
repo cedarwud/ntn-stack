@@ -1,6 +1,6 @@
 """
 Mesh 橋接服務
-實現 Tier-1 Mesh 網絡與 5G 核心網的橋接功能
+實現 Tier-1 Mesh 網路與 5G 核心網的橋接功能
 """
 
 import asyncio
@@ -182,7 +182,7 @@ class GTPTunnelManager:
             self.tunnel_stats[tunnel_id]["packets_down"] += 1
             self.tunnel_stats[tunnel_id]["bytes_down"] += len(user_packet)
 
-            # 實際轉發到 Mesh 網絡 (這裡模擬)
+            # 實際轉發到 Mesh 網路 (這裡模擬)
             logger.debug(
                 f"Forwarding downlink packet via tunnel {tunnel_id}, size: {len(user_packet)} bytes"
             )
@@ -537,14 +537,14 @@ class MeshBridgeService:
             return False
 
     async def get_network_topology(self) -> Optional[MeshNetworkTopology]:
-        """獲取網絡拓撲"""
+        """獲取網路拓撲"""
         try:
             topology_id = str(uuid4())
 
             # 計算連通性矩陣
             connectivity_matrix = await self._calculate_connectivity_matrix()
 
-            # 計算網絡指標
+            # 計算網路指標
             network_diameter = await self._calculate_network_diameter()
             average_path_length = await self._calculate_average_path_length()
 
@@ -562,7 +562,7 @@ class MeshBridgeService:
             return topology
 
         except Exception as e:
-            logger.error(f"❌ 獲取網絡拓撲失敗: {e}")
+            logger.error(f"❌ 獲取網路拓撲失敗: {e}")
             return None
 
     async def get_performance_metrics(
@@ -728,7 +728,7 @@ class MeshBridgeService:
         """更新節點狀態"""
         # 模擬節點狀態更新
         for node_id, node in self.mesh_nodes.items():
-            # 實際實現中會透過網絡檢測節點狀態
+            # 實際實現中會透過網路檢測節點狀態
             node.updated_at = datetime.utcnow()
 
     async def _update_link_quality(self):
@@ -801,7 +801,7 @@ class MeshBridgeService:
     async def _forward_to_mesh_network(
         self, packet_data: bytes, route_path: List[str], qos_policy: Dict[str, Any]
     ):
-        """轉發到 Mesh 網絡"""
+        """轉發到 Mesh 網路"""
         # 模擬封包轉發
         logger.debug(f"轉發封包路徑: {' -> '.join(route_path)}")
 
@@ -825,7 +825,7 @@ class MeshBridgeService:
         return matrix
 
     async def _calculate_network_diameter(self) -> int:
-        """計算網絡直徑"""
+        """計算網路直徑"""
         return len(self.mesh_nodes)  # 簡化計算
 
     async def _calculate_average_path_length(self) -> float:

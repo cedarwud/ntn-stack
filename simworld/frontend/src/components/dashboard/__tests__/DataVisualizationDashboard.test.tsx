@@ -53,7 +53,7 @@ describe('DataVisualizationDashboard', () => {
         expect(screen.getByText('總覽')).toBeInTheDocument()
         expect(screen.getByText('系統狀態')).toBeInTheDocument()
         expect(screen.getByText('UAV 監控')).toBeInTheDocument()
-        expect(screen.getByText('網絡拓撲')).toBeInTheDocument()
+        expect(screen.getByText('網路拓撲')).toBeInTheDocument()
     })
 
     it('應該默認顯示總覽頁面', () => {
@@ -97,13 +97,13 @@ describe('DataVisualizationDashboard', () => {
         ).not.toBeInTheDocument()
     })
 
-    it('應該能夠切換到網絡拓撲標籤', () => {
+    it('應該能夠切換到網路拓撲標籤', () => {
         render(<DataVisualizationDashboard />)
 
-        const networkTab = screen.getByText('網絡拓撲')
+        const networkTab = screen.getByText('網路拓撲')
         fireEvent.click(networkTab)
 
-        // 應該只顯示網絡拓撲圖表
+        // 應該只顯示網路拓撲圖表
         expect(
             screen.queryByTestId('system-status-chart')
         ).not.toBeInTheDocument()

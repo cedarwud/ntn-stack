@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-UAV 失聯後的 Mesh 網絡備援機制整合測試
+UAV 失聯後的 Mesh 網路備援機制整合測試
 
 測試完整的 UAV 備援機制，包括失聯檢測、自動切換、
 Mesh 配置生成、恢復機制等核心功能。
@@ -44,7 +44,7 @@ class UAVMeshFailoverIntegrationTest:
                 ("連接質量監控", self._test_connection_quality_monitoring),
                 ("失聯檢測觸發", self._test_connection_loss_detection),
                 ("自動 Mesh 切換", self._test_automatic_mesh_failover),
-                ("手動網絡切換", self._test_manual_network_switching),
+                ("手動網路切換", self._test_manual_network_switching),
                 ("衛星連接恢復", self._test_satellite_recovery),
                 ("切換性能測試", self._test_failover_performance),
                 ("多 UAV 並發切換", self._test_concurrent_uav_failover),
@@ -484,7 +484,7 @@ class UAVMeshFailoverIntegrationTest:
             return False
 
     async def _test_manual_network_switching(self) -> bool:
-        """測試手動網絡切換"""
+        """測試手動網路切換"""
         try:
             if len(self.test_uavs) < 2:
                 logger.error("需要至少 2 個 UAV 進行手動切換測試")
@@ -526,11 +526,11 @@ class UAVMeshFailoverIntegrationTest:
                 logger.error("手動切換到衛星結果不成功")
                 return False
 
-            logger.info("✅ 手動網絡切換成功")
+            logger.info("✅ 手動網路切換成功")
             return True
 
         except Exception as e:
-            logger.error(f"手動網絡切換測試失敗: {e}")
+            logger.error(f"手動網路切換測試失敗: {e}")
             return False
 
     async def _test_satellite_recovery(self) -> bool:

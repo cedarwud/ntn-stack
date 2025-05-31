@@ -172,7 +172,7 @@ class TestUnifiedAPI:
         """測試 WebSocket 連接"""
         logger.info("🧪 測試 WebSocket 連接")
 
-        # 測試網絡狀態 WebSocket
+        # 測試網路狀態 WebSocket
         try:
             async with httpx.AsyncClient() as client:
                 # 由於 httpx 不直接支持 WebSocket，我們測試 WebSocket 端點是否存在

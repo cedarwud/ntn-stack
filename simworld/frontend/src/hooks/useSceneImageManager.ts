@@ -127,7 +127,7 @@ export function useSceneImageManager(sceneName?: string) {
         setUsingFallback(true);
         setImageUrl(FALLBACK_IMAGE_PATH);
         setIsLoading(false);
-        setError('無法載入場景圖像，請檢查網絡或重試');
+        setError('無法載入場景圖像，請檢查網路或重試');
     }, []);
 
     // Load initial image

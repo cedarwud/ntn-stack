@@ -9,7 +9,7 @@
 # ===============================
 domains:
   ntn:
-    description: "非地面網絡 (Non-Terrestrial Network)"
+    description: "非地面網路 (Non-Terrestrial Network)"
     purpose: "UAV、衛星、空中基站等非地面通信組件"
     prefix: "ntn_"
     
@@ -29,8 +29,8 @@ domains:
     prefix: "sionna_"
     
   mesh:
-    description: "Mesh 網絡"
-    purpose: "UAV 間直接通信、ad-hoc 網絡"
+    description: "Mesh 網路"
+    purpose: "UAV 間直接通信、ad-hoc 網路"
     prefix: "mesh_"
     
   ai:
@@ -110,11 +110,11 @@ subsystems:
   mesh:
     routing:
       description: "路由管理"
-      metrics_focus: ["路由表", "路徑選擇", "網絡拓撲"]
+      metrics_focus: ["路由表", "路徑選擇", "網路拓撲"]
     
     discovery:
       description: "節點發現"
-      metrics_focus: ["鄰居發現", "服務發現", "網絡分割"]
+      metrics_focus: ["鄰居發現", "服務發現", "網路分割"]
     
     forwarding:
       description: "數據轉發"

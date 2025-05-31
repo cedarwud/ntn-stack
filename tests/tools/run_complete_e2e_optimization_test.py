@@ -224,7 +224,7 @@ class CompleteE2ETestRunner:
                 "latency" in failed_test.error_message
                 or "延遲" in failed_test.error_message
             ):
-                suggestions.append("優化網絡延遲：檢查網絡配置和路由")
+                suggestions.append("優化網路延遲：檢查網路配置和路由")
 
             if (
                 "throughput" in failed_test.error_message

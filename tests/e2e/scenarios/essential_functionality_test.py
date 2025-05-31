@@ -183,8 +183,8 @@ class EssentialFunctionalityTest:
 
         if passed == total:
             print("\n🎉 所有核心功能測試通過！系統正常運行！")
-            print("✅ Feature #10: Tier-1 Mesh 網絡與 5G 核心網橋接 - 正常")
-            print("✅ Feature #11: UAV 失聯後的 Mesh 網絡備援機制 - 正常")
+            print("✅ Feature #10: Tier-1 Mesh 網路與 5G 核心網橋接 - 正常")
+            print("✅ Feature #11: UAV 失聯後的 Mesh 網路備援機制 - 正常")
             print("✅ 系統滿足 TODO.md 中的核心功能要求")
             print("🚀 系統已準備好進行生產環境部署")
             return True

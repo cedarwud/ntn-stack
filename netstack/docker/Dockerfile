@@ -1,7 +1,7 @@
 # NetStack API Dockerfile
 # 基於 Python 3.11 的多階段建置
 
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # 設定工作目錄
 WORKDIR /app
@@ -26,7 +26,7 @@ RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # 生產階段
-FROM python:3.11-slim as production
+FROM python:3.11-slim AS production
 
 # 建立非 root 用戶
 RUN groupadd -r netstack && useradd -r -g netstack netstack
@@ -74,7 +74,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 CMD ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
 # 開發階段
-FROM builder as development
+FROM builder AS development
 
 # 設定工作目錄
 WORKDIR /app

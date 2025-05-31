@@ -43,7 +43,7 @@ common_labels:
     example: 'instance="netstack-api:8080"'
 
 # ===============================
-# 網絡標籤 (Network Labels)
+# 網路標籤 (Network Labels)
 # ===============================
 network_labels:
   component:
@@ -55,12 +55,12 @@ network_labels:
       - "pcf"         # 策略控制功能
       - "udm"         # 統一數據管理
       - "ausf"        # 認證服務功能
-      - "nrf"         # 網絡儲存庫功能
-      - "nssf"        # 網絡切片選擇功能
+      - "nrf"         # 網路儲存庫功能
+      - "nssf"        # 網路切片選擇功能
     example: 'component="amf"'
     
   interface:
-    description: "5G 網絡介面"
+    description: "5G 網路介面"
     values:
       - "n1"          # UE 與 AMF 之間
       - "n2"          # gNB 與 AMF 之間
@@ -155,7 +155,7 @@ uav_labels:
     values:
       - "satellite"   # 衛星連接
       - "terrestrial" # 地面連接
-      - "mesh"        # Mesh 網絡
+      - "mesh"        # Mesh 網路
       - "hybrid"      # 混合連接
     example: 'connection_type="satellite"'
     
@@ -259,7 +259,7 @@ ai_labels:
   algorithm:
     description: "演算法類型"
     values:
-      - "neural_network"      # 神經網絡
+      - "neural_network"      # 神經網路
       - "random_forest"       # 隨機森林
       - "svm"                 # 支持向量機
       - "reinforcement"       # 強化學習
@@ -294,7 +294,7 @@ quality_labels:
     example: 'priority="1"'
     
   slice_type:
-    description: "網絡切片類型"
+    description: "網路切片類型"
     values:
       - "embb"           # Enhanced Mobile Broadband
       - "urllc"          # Ultra-Reliable Low Latency Communications
@@ -355,7 +355,7 @@ label_patterns:
     
   network_component:
     labels: ["environment", "component", "interface", "protocol"]
-    description: "網絡組件指標"
+    description: "網路組件指標"
     
   radio_measurement:
     labels: ["uav_id", "cell_id", "frequency_band", "connection_type"]

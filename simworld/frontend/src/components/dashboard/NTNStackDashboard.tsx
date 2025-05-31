@@ -263,7 +263,7 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
     const tabs = [
         { id: 'overview', label: '總覽', icon: '📊' },
         { id: 'uav', label: 'UAV 監控', icon: '🚁' },
-        { id: 'network', label: '網絡拓撲', icon: '🌐' },
+        { id: 'network', label: '網路拓撲', icon: '🌐' },
         { id: 'ai', label: 'AI-RAN', icon: '🤖' },
         { id: 'performance', label: '性能分析', icon: '📈' },
     ] as const
@@ -657,7 +657,7 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
         </div>
     )
 
-    // 渲染網絡拓撲標籤
+    // 渲染網路拓撲標籤
     const renderNetworkTab = () => (
         <div className="network-container">
             <NetworkTopologyChart

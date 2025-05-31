@@ -144,7 +144,7 @@ class DockerMonitor:
             return False
 
     async def get_network_info(self, network_name: str) -> Dict[str, Any]:
-        """獲取網絡信息"""
+        """獲取網路信息"""
         if not self.client:
             return {}
 
@@ -157,7 +157,7 @@ class DockerMonitor:
                 "ipam": network.attrs.get("IPAM", {}),
             }
         except Exception as e:
-            logger.error(f"獲取網絡 {network_name} 信息失敗: {e}")
+            logger.error(f"獲取網路 {network_name} 信息失敗: {e}")
             return {}
 
 
@@ -491,13 +491,13 @@ class E2ETestFramework:
                 return False
             logger.info(f"✅ 容器 {container_name} 運行正常")
 
-        # 檢查網絡連接
+        # 檢查網路連接
         network_name = env_config["docker"]["network_name"]
         network_info = await self.docker_monitor.get_network_info(network_name)
         if not network_info:
-            logger.error(f"❌ 網絡 {network_name} 不存在")
+            logger.error(f"❌ 網路 {network_name} 不存在")
             return False
-        logger.info(f"✅ 網絡 {network_name} 正常")
+        logger.info(f"✅ 網路 {network_name} 正常")
 
         logger.info("✅ 環境驗證完成")
         return True
