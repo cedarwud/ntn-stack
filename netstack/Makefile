@@ -240,22 +240,30 @@ stop-ran: ## 📡 停止 RAN 模擬器
 	@echo "$(GREEN)✅ RAN 模擬器已停止$(NC)"
 
 # ===== 測試指令 (已移至根目錄統一管理) =====
-# 注意：測試指令已移至根目錄的 Docker 化測試系統
+# 注意：測試指令和測試文件已完全移至根目錄的統一測試系統
 # 請使用根目錄的以下指令：
-#   make test            - 執行完整測試套件  
-#   make test-netstack   - 執行 NetStack 測試
-#   make test-legacy     - 執行傳統測試 (原 shell 腳本功能)
-#   make test-integration - 執行整合測試
+#   cd ../ && make test            - 執行完整測試套件  
+#   cd ../ && make test-netstack   - 執行 NetStack 測試
+#   cd ../ && make test-legacy     - 執行傳統測試 (原 shell 腳本功能)
+#   cd ../ && make test-integration - 執行整合測試
 
-test-deprecated: ## ⚠️ 測試指令已移至根目錄統一管理
-	@echo "$(YELLOW)⚠️ 測試指令已移至根目錄統一管理$(NC)"
-	@echo "$(BLUE)請使用以下指令：$(NC)"
-	@echo "  $(GREEN)cd ../ && make test$(NC)            - 執行完整測試套件"
-	@echo "  $(GREEN)cd ../ && make test-netstack$(NC)   - 執行 NetStack 測試"
-	@echo "  $(GREEN)cd ../ && make test-legacy$(NC)     - 執行傳統測試"
-	@echo "  $(GREEN)cd ../ && make test-integration$(NC) - 執行整合測試"
+test-deprecated: ## ⚠️ 測試指令和文件已移至根目錄統一管理
+	@echo "$(YELLOW)⚠️ NetStack 測試已完全移至根目錄統一管理$(NC)"
+	@echo "$(BLUE)📁 測試文件位置：$(NC)"
+	@echo "  原 netstack/tests/ → tests/shell/netstack/"
+	@echo "  測試指令已整合至 tests/Makefile"
 	@echo ""
-	@echo "$(CYAN)💡 測試已完全 Docker 化，無需 Python 虛擬環境$(NC)"
+	@echo "$(BLUE)請使用以下指令：$(NC)"
+	@echo "  $(GREEN)cd ../tests && make help$(NC)              - 查看所有測試指令"
+	@echo "  $(GREEN)cd ../tests && make test-smoke$(NC)        - 快速煙霧測試"
+	@echo "  $(GREEN)cd ../tests && make test-netstack-only$(NC) - 僅執行 NetStack 測試"
+	@echo "  $(GREEN)cd ../tests && make test-shell-netstack$(NC) - NetStack Shell 腳本測試"
+	@echo ""
+	@echo "$(CYAN)💡 統一測試系統優勢：$(NC)"
+	@echo "  - 🎯 統一管理所有測試（NetStack + SimWorld）"
+	@echo "  - 📊 整合報告生成和覆蓋率分析"
+	@echo "  - 🔄 支援 CI/CD 自動化測試"
+	@echo "  - 🧪 提供多種測試套件（煙霧/快速/完整）"
 
 lint: ## 🔍 程式碼檢查
 	@echo "$(BLUE)🔍 執行程式碼檢查...$(NC)"
