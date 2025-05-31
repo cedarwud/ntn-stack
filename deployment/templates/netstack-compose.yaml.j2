@@ -1,0 +1,312 @@
+# NetStack Docker Compose 配置模板
+# 環境: {{ config.environment.value }}
+# 生成時間: {{ ansible_date_time.iso8601 if ansible_date_time is defined else "N/A" }}
+
+networks:
+  netstack-core:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: {{ config.network.subnet }}
+          gateway: {{ config.network.gateway }}
+
+volumes:
+  mongo_data:
+    driver: local
+  mongo_config:
+    driver: local
+  {% if config.backup_enabled %}
+  backup_storage:
+    driver: local
+  {% endif %}
+
+services:
+  # MongoDB 資料庫
+  mongo:
+    image: mongo:6.0
+    container_name: netstack-mongo
+    hostname: mongo
+    environment:
+      MONGO_INITDB_DATABASE: {{ config.custom_vars.get("MONGO_INITDB_DATABASE", "open5gs") }}
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+      {% if config.backup_enabled %}
+      - backup_storage:/backup
+      {% endif %}
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.10
+        aliases:
+          - mongo
+    restart: unless-stopped
+    {% if config.resources %}
+    deploy:
+      resources:
+        limits:
+          cpus: '{{ config.resources.cpu_limit }}'
+          memory: {{ config.resources.memory_limit }}
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    {% endif %}
+    {% if config.health_check_enabled %}
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    {% endif %}
+
+  # NRF 服務
+  nrf:
+    image: gradiant/open5gs:2.7.5
+    container_name: netstack-nrf
+    hostname: nrf
+    command: open5gs-nrfd
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.23
+        aliases:
+          - nrf
+    restart: unless-stopped
+    {% if config.resources %}
+    deploy:
+      resources:
+        limits:
+          cpus: '{{ config.resources.cpu_limit }}'
+          memory: {{ config.resources.memory_limit }}
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    {% endif %}
+    depends_on:
+      {% if config.health_check_enabled %}
+      mongo:
+        condition: service_healthy
+      {% else %}
+      - mongo
+      {% endif %}
+    {% if config.health_check_enabled %}
+    healthcheck:
+      test: ["CMD", "pgrep", "open5gs-nrfd"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    {% endif %}
+
+  # SCP 服務
+  scp:
+    image: gradiant/open5gs:2.7.5
+    container_name: netstack-scp
+    hostname: scp
+    command: open5gs-scpd
+    environment:
+      DB_URI: {{ config.custom_vars.get("DB_URI", "mongodb://mongo/open5gs") }}
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.26
+        aliases:
+          - scp
+    restart: unless-stopped
+    {% if config.resources %}
+    deploy:
+      resources:
+        limits:
+          cpus: '{{ config.resources.cpu_limit }}'
+          memory: {{ config.resources.memory_limit }}
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    {% endif %}
+    depends_on:
+      {% if config.health_check_enabled %}
+      nrf:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      {% else %}
+      - nrf
+      - mongo
+      {% endif %}
+    {% if config.health_check_enabled %}
+    healthcheck:
+      test: ["CMD", "pgrep", "open5gs-scpd"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    {% endif %}
+
+  # AMF 服務
+  amf:
+    image: gradiant/open5gs:2.7.5
+    container_name: netstack-amf
+    hostname: amf
+    volumes:
+      - ../config/amf.yaml:/opt/open5gs/etc/open5gs/amf.yaml
+    command: open5gs-amfd
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.20
+        aliases:
+          - amf
+    restart: unless-stopped
+    {% if config.resources %}
+    deploy:
+      resources:
+        limits:
+          cpus: '{{ config.resources.cpu_limit }}'
+          memory: {{ config.resources.memory_limit }}
+        reservations:
+          cpus: '0.3'
+          memory: 512M
+    {% endif %}
+    depends_on:
+      {% if config.health_check_enabled %}
+      mongo:
+        condition: service_healthy
+      nrf:
+        condition: service_healthy
+      scp:
+        condition: service_healthy
+      {% else %}
+      - mongo
+      - nrf
+      - scp
+      {% endif %}
+    {% if config.health_check_enabled %}
+    healthcheck:
+      test: ["CMD", "pgrep", "open5gs-amfd"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    {% endif %}
+
+  # NetStack API 服務
+  netstack-api:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      args:
+        - ENVIRONMENT={{ config.environment.value }}
+        {% if config.gpu_enabled %}
+        - ENABLE_GPU=true
+        {% endif %}
+    container_name: netstack-api
+    hostname: netstack-api
+    ports:
+      - "8080:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ENVIRONMENT={{ config.environment.value }}
+      - DEPLOYMENT_ENV={{ config.environment.value }}
+      {% for key, value in config.custom_vars.items() %}
+      - {{ key }}={{ value }}
+      {% endfor %}
+    volumes:
+      - ../:/app
+      - ../logs:/app/logs
+      {% if config.backup_enabled %}
+      - backup_storage:/app/backup
+      {% endif %}
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.40
+        aliases:
+          - netstack-api
+    restart: unless-stopped
+    {% if config.resources %}
+    deploy:
+      resources:
+        limits:
+          cpus: '{{ config.resources.cpu_limit }}'
+          memory: {{ config.resources.memory_limit }}
+        reservations:
+          cpus: '1'
+          memory: 1G
+    {% endif %}
+    depends_on:
+      {% if config.health_check_enabled %}
+      mongo:
+        condition: service_healthy
+      amf:
+        condition: service_healthy
+      {% else %}
+      - mongo
+      - amf
+      {% endif %}
+    {% if config.health_check_enabled %}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    {% endif %}
+
+  {% if config.monitoring_enabled %}
+  # Redis for caching and performance optimization
+  redis:
+    image: redis:7-alpine
+    container_name: netstack-redis
+    hostname: redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.60
+        aliases:
+          - redis
+    restart: unless-stopped
+    {% if config.resources %}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    {% endif %}
+    {% if config.health_check_enabled %}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    {% endif %}
+  {% endif %}
+
+  {% if config.backup_enabled %}
+  # Backup service for data protection
+  backup:
+    image: alpine:latest
+    container_name: netstack-backup
+    volumes:
+      - mongo_data:/source/mongo:ro
+      - backup_storage:/backup
+      - ../scripts/backup.sh:/backup.sh:ro
+    command: sh -c "chmod +x /backup.sh && /backup.sh"
+    networks:
+      - netstack-core
+    restart: "no"
+    depends_on:
+      {% if config.health_check_enabled %}
+      mongo:
+        condition: service_healthy
+      {% else %}
+      - mongo
+      {% endif %}
+  {% endif %}
+
+{% if config.monitoring_enabled %}
+volumes:
+  redis_data:
+    driver: local
+{% endif %} 

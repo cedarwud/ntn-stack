@@ -1,0 +1,36 @@
+# 部署流程優化與自動化依賴
+# Task 18 - 部署流程優化與自動化
+
+# 核心依賴
+PyYAML>=6.0
+Jinja2>=3.1.0
+docker>=6.0.0
+requests>=2.28.0
+asyncio-mqtt>=0.11.0
+
+# 測試依賴
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.10.0
+
+# 日誌和監控
+prometheus-client>=0.15.0
+structlog>=22.0.0
+
+# 資料庫連接
+psycopg2-binary>=2.9.0
+pymongo>=4.3.0
+redis>=4.5.0
+
+# 網路和安全
+ipaddress>=1.0.23
+cryptography>=3.4.8
+
+# 效能監控
+psutil>=5.9.0
+py-cpuinfo>=9.0.0
+
+# 開發工具
+black>=22.0.0
+flake8>=4.0.0
+mypy>=0.991 
