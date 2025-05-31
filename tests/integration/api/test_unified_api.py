@@ -111,10 +111,10 @@ class TestUnifiedAPI:
         test_satellite_id = 1
 
         try:
-            response = async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                f"{UNIFIED_API_BASE_URL}/satellite/{test_satellite_id}"
-            )
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(
+                    f"{UNIFIED_API_BASE_URL}/satellite/{test_satellite_id}"
+                )
 
             # 如果 SimWorld 服務可用，應該返回 200
             if response.status_code == 200:
@@ -149,9 +149,9 @@ class TestUnifiedAPI:
 
         try:
             response = async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{UNIFIED_API_BASE_URL}/wireless/quick-simulation", json=test_request
-            )
+                response = await client.post(
+                    f"{UNIFIED_API_BASE_URL}/wireless/quick-simulation", json=test_request
+                )
 
             # 如果 SimWorld 服務可用，應該返回 200
             if response.status_code == 200:
@@ -249,9 +249,9 @@ class TestUnifiedAPI:
         # 測試無效的請求數據
         response = async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-            f"{UNIFIED_API_BASE_URL}/wireless/quick-simulation",
-            json={"invalid": "data"},
-        )
+                f"{UNIFIED_API_BASE_URL}/wireless/quick-simulation",
+                json={"invalid": "data"},
+            )
         assert response.status_code in [400, 422, 500]
 
         logger.info("✅ 錯誤處理測試通過")
@@ -309,8 +309,8 @@ class TestUnifiedAPI:
         # 2. 服務發現
         discovery_response = async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
-            f"{UNIFIED_API_BASE_URL}/system/discovery"
-        )
+                f"{UNIFIED_API_BASE_URL}/system/discovery"
+            )
         assert discovery_response.status_code == 200
 
         # 3. 嘗試使用發現的端點
@@ -336,14 +336,14 @@ class TestUnifiedAPI:
 
                     if method == "GET":
                         response = async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                            f"{NETSTACK_BASE_URL}{test_path}"
-                        )
+                            response = await client.get(
+                                f"{NETSTACK_BASE_URL}{test_path}"
+                            )
                     elif method == "POST":
                         response = async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                            f"{NETSTACK_BASE_URL}{test_path}", json={}
-                        )
+                            response = await client.post(
+                                f"{NETSTACK_BASE_URL}{test_path}", json={}
+                            )
                     else:
                         continue
 
@@ -390,7 +390,7 @@ class TestUnifiedAPIPerformance:
 
             try:
                 response = async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(endpoint)
+                    response = await client.get(endpoint)
                 end_time = datetime.now()
 
                 response_time = (end_time - start_time).total_seconds()
@@ -411,9 +411,9 @@ class TestUnifiedAPIPerformance:
         async def make_request():
             try:
                 response = async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                    f"{UNIFIED_API_BASE_URL}/system/status"
-                )
+                    response = await client.get(
+                        f"{UNIFIED_API_BASE_URL}/system/status"
+                    )
                 return response.status_code == 200
             except:
                 return False

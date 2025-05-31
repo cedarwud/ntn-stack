@@ -1,579 +1,400 @@
 #!/usr/bin/env python3
 """
 NTN Stack 統一測試執行器
-支援不同測試套件的執行和管理
+提供跨專案的測試執行、報告生成和結果分析功能
 """
 
-import argparse
 import asyncio
 import json
-import logging
-import os
 import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import yaml
+import aiohttp
+import logging
 
 # 設置日誌
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("test_runner.log"), logging.StreamHandler()],
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-class TestResult:
-    """測試結果類別"""
-
-    def __init__(self, name: str, status: str, duration: float, details: str = ""):
-        self.name = name
-        self.status = status  # passed, failed, error, skipped
-        self.duration = duration
-        self.details = details
-        self.timestamp = datetime.now()
 
 
 class TestEnvironment:
     """測試環境管理"""
 
-    def __init__(self):
-        self.base_url = "http://localhost:8080"
-        self.simworld_frontend_url = "http://localhost:3000"
-        self.simworld_backend_url = "http://localhost:8000"
+    def __init__(self, env_name: str = "development"):
+        self.env_name = env_name
+        self.config = self._load_config()
+        self.netstack_url = self.config["environments"][env_name]["netstack"]["url"]
+        self.simworld_url = self.config["environments"][env_name]["simworld"]["url"]
 
-    async def check_services(self) -> Dict[str, bool]:
-        """檢查服務狀態"""
-        import aiohttp
+    def _load_config(self) -> Dict:
+        """載入測試配置"""
+        config_path = (
+            Path(__file__).parent.parent / "configs" / "test_environments.yaml"
+        )
+        with open(config_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
 
-        services = {
-            "netstack": f"{self.base_url}/health",
-            "simworld_frontend": self.simworld_frontend_url,
-            "simworld_backend": f"{self.simworld_backend_url}/health",
-        }
-
+    async def check_services_health(self) -> Dict[str, bool]:
+        """檢查服務健康狀態"""
         results = {}
+
         async with aiohttp.ClientSession() as session:
-            for service, url in services.items():
-                try:
-                    async with session.get(url, timeout=5) as response:
-                        results[service] = response.status == 200
-                except Exception as e:
-                    logger.warning(f"Service {service} check failed: {e}")
-                    results[service] = False
+            # 檢查 NetStack
+            try:
+                async with session.get(
+                    f"{self.netstack_url}/health", timeout=10
+                ) as response:
+                    results["netstack"] = response.status == 200
+            except Exception as e:
+                logger.warning(f"NetStack 健康檢查失敗: {e}")
+                results["netstack"] = False
+
+            # 檢查 SimWorld
+            try:
+                async with session.get(
+                    f"{self.simworld_url}/api/v1/wireless/health", timeout=10
+                ) as response:
+                    results["simworld"] = response.status == 200
+            except Exception as e:
+                logger.warning(f"SimWorld 健康檢查失敗: {e}")
+                results["simworld"] = False
 
         return results
 
-    def setup_environment(self):
-        """設置測試環境"""
-        logger.info("設置測試環境...")
-
-        # 創建必要的目錄
-        os.makedirs("reports", exist_ok=True)
-        os.makedirs("logs", exist_ok=True)
-
-        # 安裝依賴
-        try:
-            subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "pytest",
-                    "pytest-asyncio",
-                    "pytest-cov",
-                    "httpx",
-                    "requests",
-                    "aiohttp",
-                ],
-                check=True,
-                capture_output=True,
-            )
-            logger.info("測試依賴安裝完成")
-        except subprocess.CalledProcessError as e:
-            logger.error(f"依賴安裝失敗: {e}")
-            return False
-
-        return True
-
 
 class TestRunner:
-    """測試執行器"""
+    """統一測試執行器"""
 
-    def __init__(self):
-        self.environment = TestEnvironment()
-        self.results: List[TestResult] = []
-        self.test_suites = self._define_test_suites()
+    def __init__(self, environment: str = "development"):
+        self.environment = TestEnvironment(environment)
+        self.start_time = datetime.utcnow()
+        self.results = []
+        self.reports_dir = Path(__file__).parent.parent / "reports"
+        self.reports_dir.mkdir(exist_ok=True)
 
-    def _define_test_suites(self) -> Dict[str, Dict]:
-        """定義測試套件"""
-        return {
-            "smoke": {
-                "name": "煙霧測試",
-                "timeout": 30,
-                "tests": ["check_services", "basic_api_health"],
-            },
-            "quick": {
-                "name": "快速測試",
-                "timeout": 120,
-                "tests": ["check_services", "unit_tests_critical", "basic_integration"],
-            },
-            "core": {
-                "name": "核心測試",
-                "timeout": 300,
-                "tests": [
-                    "check_services",
-                    "unit_tests_all",
-                    "integration_api",
-                    "basic_e2e",
-                ],
-            },
-            "regression": {
-                "name": "回歸測試",
-                "timeout": 600,
-                "tests": [
-                    "check_services",
-                    "unit_tests_all",
-                    "integration_all",
-                    "e2e_critical",
-                ],
-            },
-            "full": {
-                "name": "完整測試",
-                "timeout": 1200,
-                "tests": [
-                    "check_services",
-                    "unit_tests_all",
-                    "integration_all",
-                    "e2e_all",
-                    "performance_basic",
-                ],
-            },
+    async def run_test_suite(self, suite_name: str, test_paths: List[str]) -> Dict:
+        """執行測試套件"""
+        logger.info(f"🚀 開始執行測試套件: {suite_name}")
+
+        suite_start = time.time()
+        suite_results = {
+            "suite_name": suite_name,
+            "start_time": datetime.utcnow().isoformat(),
+            "environment": self.environment.env_name,
+            "tests": [],
+            "summary": {},
         }
 
-    async def run_test_suite(
-        self, suite_name: str, timeout: Optional[int] = None
-    ) -> Dict:
-        """執行測試套件"""
-        if suite_name not in self.test_suites:
-            raise ValueError(f"未知的測試套件: {suite_name}")
+        # 檢查服務狀態
+        health_status = await self.environment.check_services_health()
+        suite_results["service_health"] = health_status
 
-        suite = self.test_suites[suite_name]
-        suite_timeout = timeout or suite["timeout"]
+        if not all(health_status.values()):
+            logger.error(f"❌ 服務健康檢查失敗: {health_status}")
+            suite_results["status"] = "failed"
+            suite_results["error"] = "Service health check failed"
+            return suite_results
 
-        logger.info(f"開始執行測試套件: {suite['name']}")
-        start_time = time.time()
+        # 執行測試
+        for test_path in test_paths:
+            test_result = await self._run_single_test(test_path)
+            suite_results["tests"].append(test_result)
 
-        try:
-            # 設置環境
-            if not self.environment.setup_environment():
-                raise Exception("環境設置失敗")
+        # 計算摘要
+        suite_duration = time.time() - suite_start
+        passed_count = sum(
+            1 for test in suite_results["tests"] if test["status"] == "passed"
+        )
+        total_count = len(suite_results["tests"])
 
-            # 執行測試
-            for test_name in suite["tests"]:
-                test_result = await self._run_single_test(test_name)
-                self.results.append(test_result)
-
-                if test_result.status == "failed":
-                    logger.error(f"測試失敗: {test_name}")
-
-            # 生成報告
-            suite_results = self._generate_suite_report(suite_name)
-
-            duration = time.time() - start_time
-            logger.info(f"測試套件 {suite['name']} 執行完成，耗時 {duration:.2f} 秒")
-
-            return {
-                "suite": suite_name,
-                "status": "completed",
-                "duration": duration,
+        suite_results.update(
+            {
+                "duration_seconds": suite_duration,
+                "end_time": datetime.utcnow().isoformat(),
                 "summary": {
-                    "total": len(self.results),
-                    "passed": sum(
-                        1 for test in self.results if test.status == "passed"
-                    ),
-                    "failed": sum(
-                        1 for test in self.results if test.status == "failed"
-                    ),
-                    "errors": sum(1 for test in self.results if test.status == "error"),
-                    "skipped": sum(
-                        1 for test in self.results if test.status == "skipped"
+                    "total": total_count,
+                    "passed": passed_count,
+                    "failed": total_count - passed_count,
+                    "success_rate": (
+                        passed_count / total_count if total_count > 0 else 0
                     ),
                 },
-                "tests": [
-                    {
-                        "name": test.name,
-                        "status": test.status,
-                        "duration": test.duration,
-                        "details": test.details,
-                    }
-                    for test in self.results
-                ],
             }
+        )
 
-        except Exception as e:
-            logger.error(f"測試套件執行失敗: {e}")
-            return {
-                "suite": suite_name,
-                "status": "failed",
-                "error": str(e),
-                "duration": time.time() - start_time,
-            }
+        suite_results["status"] = "passed" if passed_count == total_count else "failed"
 
-    async def _run_single_test(self, test_name: str) -> TestResult:
-        """執行單一測試"""
-        logger.info(f"執行測試: {test_name}")
+        logger.info(
+            f"✅ 測試套件完成: {suite_name} ({passed_count}/{total_count} 通過)"
+        )
+        return suite_results
+
+    async def _run_single_test(self, test_path: str) -> Dict:
+        """執行單個測試"""
         test_start = time.time()
+        test_name = Path(test_path).stem
+
+        logger.info(f"📋 執行測試: {test_name}")
 
         try:
-            if test_name == "check_services":
-                return await self._test_check_services()
-            elif test_name == "basic_api_health":
-                return await self._test_basic_api_health()
-            elif test_name == "unit_tests_critical":
-                return await self._test_unit_critical()
-            elif test_name == "unit_tests_all":
-                return await self._test_unit_all()
-            elif test_name == "integration_api":
-                return await self._test_integration_api()
-            elif test_name == "integration_all":
-                return await self._test_integration_all()
-            elif test_name == "basic_integration":
-                return await self._test_basic_integration()
-            elif test_name == "basic_e2e":
-                return await self._test_basic_e2e()
-            elif test_name == "e2e_critical":
-                return await self._test_e2e_critical()
-            elif test_name == "e2e_all":
-                return await self._test_e2e_all()
-            elif test_name == "performance_basic":
-                return await self._test_performance_basic()
+            # 根據文件類型決定執行方式
+            if test_path.endswith(".py"):
+                result = await self._run_python_test(test_path)
+            elif test_path.endswith(".sh"):
+                result = await self._run_shell_test(test_path)
             else:
-                return TestResult(
-                    test_name,
-                    "error",
-                    time.time() - test_start,
-                    f"未知的測試: {test_name}",
-                )
+                raise ValueError(f"不支援的測試文件類型: {test_path}")
+
+            test_duration = time.time() - test_start
+
+            return {
+                "test_name": test_name,
+                "test_path": test_path,
+                "status": "passed" if result["success"] else "failed",
+                "duration_seconds": test_duration,
+                "output": result.get("output", ""),
+                "error": result.get("error", ""),
+                "details": result.get("details", {}),
+            }
 
         except Exception as e:
             test_duration = time.time() - test_start
-            logger.error(f"測試 {test_name} 執行失敗: {e}")
-            return TestResult(test_name, "error", test_duration, str(e))
+            logger.error(f"❌ 測試執行異常: {test_name} - {e}")
 
-    async def _test_check_services(self) -> TestResult:
-        """檢查服務狀態測試"""
-        start_time = time.time()
+            return {
+                "test_name": test_name,
+                "test_path": test_path,
+                "status": "error",
+                "duration_seconds": test_duration,
+                "output": "",
+                "error": str(e),
+                "details": {},
+            }
 
+    async def _run_python_test(self, test_path: str) -> Dict:
+        """執行 Python 測試"""
         try:
-            services_status = await self.environment.check_services()
-            failed_services = [
-                name for name, status in services_status.items() if not status
-            ]
-
-            if failed_services:
-                return TestResult(
-                    "check_services",
-                    "failed",
-                    time.time() - start_time,
-                    f"服務未啟動: {', '.join(failed_services)}",
-                )
-            else:
-                return TestResult(
-                    "check_services",
-                    "passed",
-                    time.time() - start_time,
-                    "所有服務正常運行",
-                )
-
-        except Exception as e:
-            return TestResult(
-                "check_services", "error", time.time() - start_time, str(e)
+            # 使用 subprocess 執行 Python 測試
+            process = await asyncio.create_subprocess_exec(
+                sys.executable,
+                test_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=Path(__file__).parent.parent.parent,
             )
 
-    async def _test_basic_api_health(self) -> TestResult:
-        """基本 API 健康檢查測試"""
-        start_time = time.time()
+            stdout, stderr = await process.communicate()
 
-        try:
-            import aiohttp
-
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{self.environment.base_url}/health"
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return TestResult(
-                            "basic_api_health",
-                            "passed",
-                            time.time() - start_time,
-                            f"API 健康檢查通過: {data}",
-                        )
-                    else:
-                        return TestResult(
-                            "basic_api_health",
-                            "failed",
-                            time.time() - start_time,
-                            f"API 健康檢查失敗，狀態碼: {response.status}",
-                        )
+            return {
+                "success": process.returncode == 0,
+                "output": stdout.decode("utf-8"),
+                "error": stderr.decode("utf-8") if stderr else "",
+                "return_code": process.returncode,
+            }
 
         except Exception as e:
-            return TestResult(
-                "basic_api_health", "error", time.time() - start_time, str(e)
+            return {
+                "success": False,
+                "output": "",
+                "error": f"執行異常: {str(e)}",
+                "return_code": -1,
+            }
+
+    async def _run_shell_test(self, test_path: str) -> Dict:
+        """執行 Shell 測試"""
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "bash",
+                test_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=Path(test_path).parent,
             )
 
-    async def _test_unit_critical(self) -> TestResult:
-        """關鍵單元測試"""
-        return await self._run_pytest_tests("unit/netstack", "unit_tests_critical")
+            stdout, stderr = await process.communicate()
 
-    async def _test_unit_all(self) -> TestResult:
-        """所有單元測試"""
-        return await self._run_pytest_tests("unit/", "unit_tests_all")
+            return {
+                "success": process.returncode == 0,
+                "output": stdout.decode("utf-8"),
+                "error": stderr.decode("utf-8") if stderr else "",
+                "return_code": process.returncode,
+            }
 
-    async def _test_integration_api(self) -> TestResult:
-        """API 整合測試"""
-        return await self._run_pytest_tests("integration/api", "integration_api")
+        except Exception as e:
+            return {
+                "success": False,
+                "output": "",
+                "error": f"執行異常: {str(e)}",
+                "return_code": -1,
+            }
 
-    async def _test_integration_all(self) -> TestResult:
-        """所有整合測試"""
-        return await self._run_pytest_tests("integration/", "integration_all")
-
-    async def _test_basic_integration(self) -> TestResult:
-        """基本整合測試"""
-        return await self._run_pytest_tests("integration/services", "basic_integration")
-
-    async def _test_basic_e2e(self) -> TestResult:
-        """基本端到端測試"""
-        return await self._run_python_script(
-            "e2e/scenarios/simple_functionality_test.py", "basic_e2e"
+    def generate_report(self, results: List[Dict]) -> str:
+        """生成測試報告"""
+        report_file = (
+            self.reports_dir
+            / f"test_report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
         )
 
-    async def _test_e2e_critical(self) -> TestResult:
-        """關鍵端到端測試"""
-        return await self._run_python_script(
-            "e2e/scenarios/final_network_verification.py", "e2e_critical"
-        )
-
-    async def _test_e2e_all(self) -> TestResult:
-        """所有端到端測試"""
-        return await self._run_python_script(
-            "e2e/scenarios/final_comprehensive_test.py", "e2e_all"
-        )
-
-    async def _test_performance_basic(self) -> TestResult:
-        """基本性能測試"""
-        return await self._run_shell_script(
-            "shell/netstack/ntn_latency_test.sh", "performance_basic"
-        )
-
-    async def _run_pytest_tests(self, test_path: str, test_name: str) -> TestResult:
-        """執行 pytest 測試"""
-        start_time = time.time()
-
-        try:
-            if not Path(test_path).exists():
-                return TestResult(
-                    test_name,
-                    "skipped",
-                    time.time() - start_time,
-                    f"測試路徑不存在: {test_path}",
-                )
-
-            result = subprocess.run(
-                [sys.executable, "-m", "pytest", test_path, "-v", "--tb=short"],
-                capture_output=True,
-                text=True,
-                timeout=300,
-            )
-
-            duration = time.time() - start_time
-
-            if result.returncode == 0:
-                return TestResult(test_name, "passed", duration, "pytest 測試通過")
-            else:
-                return TestResult(
-                    test_name,
-                    "failed",
-                    duration,
-                    f"pytest 測試失敗:\n{result.stdout}\n{result.stderr}",
-                )
-
-        except subprocess.TimeoutExpired:
-            return TestResult(test_name, "error", time.time() - start_time, "測試超時")
-        except Exception as e:
-            return TestResult(test_name, "error", time.time() - start_time, str(e))
-
-    async def _run_python_script(self, script_path: str, test_name: str) -> TestResult:
-        """執行 Python 腳本測試"""
-        start_time = time.time()
-
-        try:
-            if not Path(script_path).exists():
-                return TestResult(
-                    test_name,
-                    "skipped",
-                    time.time() - start_time,
-                    f"腳本不存在: {script_path}",
-                )
-
-            result = subprocess.run(
-                [sys.executable, script_path],
-                capture_output=True,
-                text=True,
-                timeout=300,
-            )
-
-            duration = time.time() - start_time
-
-            if result.returncode == 0:
-                return TestResult(test_name, "passed", duration, "Python 腳本執行成功")
-            else:
-                return TestResult(
-                    test_name,
-                    "failed",
-                    duration,
-                    f"Python 腳本執行失敗:\n{result.stdout}\n{result.stderr}",
-                )
-
-        except subprocess.TimeoutExpired:
-            return TestResult(
-                test_name, "error", time.time() - start_time, "腳本執行超時"
-            )
-        except Exception as e:
-            return TestResult(test_name, "error", time.time() - start_time, str(e))
-
-    async def _run_shell_script(self, script_path: str, test_name: str) -> TestResult:
-        """執行 Shell 腳本測試"""
-        start_time = time.time()
-
-        try:
-            if not Path(script_path).exists():
-                return TestResult(
-                    test_name,
-                    "skipped",
-                    time.time() - start_time,
-                    f"腳本不存在: {script_path}",
-                )
-
-            result = subprocess.run(
-                ["bash", script_path], capture_output=True, text=True, timeout=300
-            )
-
-            duration = time.time() - start_time
-
-            if result.returncode == 0:
-                return TestResult(test_name, "passed", duration, "Shell 腳本執行成功")
-            else:
-                return TestResult(
-                    test_name,
-                    "failed",
-                    duration,
-                    f"Shell 腳本執行失敗:\n{result.stdout}\n{result.stderr}",
-                )
-
-        except subprocess.TimeoutExpired:
-            return TestResult(
-                test_name, "error", time.time() - start_time, "腳本執行超時"
-            )
-        except Exception as e:
-            return TestResult(test_name, "error", time.time() - start_time, str(e))
-
-    def _generate_suite_report(self, suite_name: str) -> Dict:
-        """生成測試套件報告"""
-        total_tests = len(self.results)
-        passed_tests = sum(1 for r in self.results if r.status == "passed")
-        failed_tests = sum(1 for r in self.results if r.status == "failed")
-        error_tests = sum(1 for r in self.results if r.status == "error")
-        skipped_tests = sum(1 for r in self.results if r.status == "skipped")
+        total_duration = (datetime.utcnow() - self.start_time).total_seconds()
 
         report = {
-            "suite": suite_name,
-            "timestamp": datetime.now().isoformat(),
-            "summary": {
-                "total": total_tests,
-                "passed": passed_tests,
-                "failed": failed_tests,
-                "errors": error_tests,
-                "skipped": skipped_tests,
-                "success_rate": (
-                    (passed_tests / total_tests * 100) if total_tests > 0 else 0
-                ),
-            },
-            "tests": [
+            "timestamp": datetime.utcnow().isoformat(),
+            "environment": self.environment.env_name,
+            "total_duration_seconds": total_duration,
+            "test_suites": results,
+            "overall_summary": self._calculate_overall_summary(results),
+        }
+
+        with open(report_file, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2, ensure_ascii=False)
+
+        logger.info(f"📊 測試報告已生成: {report_file}")
+        return str(report_file)
+
+    def _calculate_overall_summary(self, results: List[Dict]) -> Dict:
+        """計算總體摘要"""
+        total_tests = sum(result["summary"]["total"] for result in results)
+        total_passed = sum(result["summary"]["passed"] for result in results)
+        total_failed = sum(result["summary"]["failed"] for result in results)
+
+        return {
+            "total_suites": len(results),
+            "total_tests": total_tests,
+            "total_passed": total_passed,
+            "total_failed": total_failed,
+            "overall_success_rate": (
+                total_passed / total_tests if total_tests > 0 else 0
+            ),
+            "suites_summary": [
                 {
-                    "name": test.name,
-                    "status": test.status,
-                    "duration": test.duration,
-                    "details": test.details,
-                    "timestamp": test.timestamp.isoformat(),
+                    "suite": result["suite_name"],
+                    "status": result["status"],
+                    "success_rate": result["summary"]["success_rate"],
                 }
-                for test in self.results
+                for result in results
             ],
         }
 
-        # 保存報告
-        report_file = f"reports/test_report_{suite_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(report_file, "w", encoding="utf-8") as f:
-            json.dump(report, f, ensure_ascii=False, indent=2)
+    def print_summary(self, results: List[Dict]):
+        """印出測試摘要"""
+        print("\n" + "=" * 80)
+        print("📊 NTN Stack 測試結果摘要")
+        print("=" * 80)
 
-        logger.info(f"測試報告已保存: {report_file}")
-        return report
+        for result in results:
+            status_icon = "✅" if result["status"] == "passed" else "❌"
+            success_rate = result["summary"]["success_rate"] * 100
+            duration = result["duration_seconds"]
+
+            print(
+                f"{status_icon} {result['suite_name']:.<40} "
+                f"{result['summary']['passed']}/{result['summary']['total']} "
+                f"({success_rate:.1f}%) - {duration:.1f}s"
+            )
+
+        overall = self._calculate_overall_summary(results)
+        print("-" * 80)
+        print(
+            f"總計: {overall['total_passed']}/{overall['total_tests']} "
+            f"({overall['overall_success_rate']*100:.1f}%) 測試通過"
+        )
+
+        if overall["overall_success_rate"] >= 0.9:
+            print("🎉 優秀！所有測試幾乎都通過了！")
+        elif overall["overall_success_rate"] >= 0.7:
+            print("✅ 良好！大部分測試通過")
+        else:
+            print("⚠️ 需要注意！多個測試失敗")
+
+
+# 預定義測試套件
+TEST_SUITES = {
+    "quick": {
+        "name": "快速測試",
+        "paths": ["tests/integration/sionna_integration/test_sionna_core.py"],
+    },
+    "integration": {
+        "name": "整合測試",
+        "paths": [
+            "tests/integration/sionna_integration/test_sionna_integration.py",
+            "tests/integration/sionna_integration/test_sionna_core.py",
+        ],
+    },
+    "netstack": {
+        "name": "NetStack 測試",
+        "paths": [
+            "netstack/tests/e2e_netstack.sh",
+            "netstack/tests/test_connectivity.sh",
+        ],
+    },
+    "all": {
+        "name": "完整測試",
+        "paths": [
+            "tests/integration/sionna_integration/test_sionna_core.py",
+            "tests/integration/sionna_integration/test_sionna_integration.py",
+            "netstack/tests/quick_ntn_validation.sh",
+        ],
+    },
+}
 
 
 async def main():
     """主函數"""
+    import argparse
+
     parser = argparse.ArgumentParser(description="NTN Stack 統一測試執行器")
     parser.add_argument(
-        "--suite",
-        choices=["smoke", "quick", "core", "regression", "full"],
-        default="smoke",
-        help="要執行的測試套件",
+        "suite", choices=list(TEST_SUITES.keys()) + ["custom"], help="要執行的測試套件"
     )
-    parser.add_argument("--timeout", type=int, help="測試超時時間（秒）")
     parser.add_argument(
-        "--list-suites", action="store_true", help="列出所有可用的測試套件"
+        "--environment",
+        "-e",
+        default="development",
+        choices=["development", "ci", "staging"],
+        help="測試環境",
     )
+    parser.add_argument("--paths", nargs="+", help="自訂測試路徑 (使用 custom 套件時)")
 
     args = parser.parse_args()
 
-    runner = TestRunner()
+    runner = TestRunner(args.environment)
 
-    if args.list_suites:
-        print("可用的測試套件:")
-        for suite_name, suite_info in runner.test_suites.items():
-            print(
-                f"  {suite_name}: {suite_info['name']} (預設超時: {suite_info['timeout']}s)"
-            )
-        return
+    if args.suite == "custom":
+        if not args.paths:
+            print("❌ 使用 custom 套件時必須提供 --paths 參數")
+            sys.exit(1)
+        test_paths = args.paths
+        suite_name = "自訂測試"
+    else:
+        suite_config = TEST_SUITES[args.suite]
+        test_paths = suite_config["paths"]
+        suite_name = suite_config["name"]
 
     try:
-        result = await runner.run_test_suite(args.suite, args.timeout)
+        # 執行測試套件
+        result = await runner.run_test_suite(suite_name, test_paths)
 
-        # 輸出結果摘要
-        if result["status"] == "completed":
-            summary = result["summary"]
-            print(f"\n測試套件 '{args.suite}' 執行完成:")
-            print(f"  總計: {summary['total']}")
-            print(f"  通過: {summary['passed']}")
-            print(f"  失敗: {summary['failed']}")
-            print(f"  錯誤: {summary['errors']}")
-            print(f"  跳過: {summary['skipped']}")
-            print(f"  成功率: {summary['passed']/summary['total']*100:.1f}%")
-            print(f"  執行時間: {result['duration']:.2f} 秒")
+        # 生成報告
+        report_file = runner.generate_report([result])
 
-            # 如果有失敗的測試，返回非零退出碼
-            if summary["failed"] > 0 or summary["errors"] > 0:
-                sys.exit(1)
-        else:
-            print(f"測試套件執行失敗: {result.get('error', '未知錯誤')}")
-            sys.exit(1)
+        # 印出摘要
+        runner.print_summary([result])
 
+        # 返回適當的退出代碼
+        success_rate = result["summary"]["success_rate"]
+        exit_code = 0 if success_rate >= 0.7 else 1
+
+        sys.exit(exit_code)
+
+    except KeyboardInterrupt:
+        print("\n⏹️ 測試被用戶中斷")
+        sys.exit(1)
     except Exception as e:
-        logger.error(f"測試執行器錯誤: {e}")
+        print(f"\n💥 測試執行異常: {e}")
         sys.exit(1)
 
 
