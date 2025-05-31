@@ -1,0 +1,597 @@
+name: NTN Stack CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # 每日自動測試
+    - cron: '0 2 * * *'
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/ntn-stack
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "18"
+
+jobs:
+  # 代碼質量檢查
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black isort flake8 mypy pylint bandit safety
+          pip install -r netstack/requirements.txt
+
+      - name: Python code formatting check
+        run: |
+          black --check netstack/
+          isort --check-only netstack/
+
+      - name: Python linting
+        run: |
+          flake8 netstack/ --max-line-length=88 --extend-ignore=E203,W503
+          pylint netstack/netstack_api/ --disable=C0114,C0115,C0116 --exit-zero
+
+      - name: Python type checking
+        run: |
+          mypy netstack/netstack_api/ --ignore-missing-imports
+
+      - name: Security scanning
+        run: |
+          bandit -r netstack/netstack_api/ -f json -o bandit-report.json || true
+          safety check --json --output safety-report.json || true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: simworld/frontend/package-lock.json
+
+      - name: Install Node.js dependencies
+        working-directory: simworld/frontend
+        run: npm ci
+
+      - name: TypeScript/React linting
+        working-directory: simworld/frontend
+        run: |
+          npm run lint
+          npm run type-check
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+
+  # 單元測試
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: code-quality
+
+    strategy:
+      matrix:
+        component: [netstack, simworld-backend, simworld-frontend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python (NetStack & SimWorld Backend)
+        if: matrix.component != 'simworld-frontend'
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Set up Node.js (SimWorld Frontend)
+        if: matrix.component == 'simworld-frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: simworld/frontend/package-lock.json
+
+      - name: Install dependencies (NetStack)
+        if: matrix.component == 'netstack'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r netstack/requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Install dependencies (SimWorld Backend)
+        if: matrix.component == 'simworld-backend'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r simworld/backend/requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Install dependencies (SimWorld Frontend)
+        if: matrix.component == 'simworld-frontend'
+        working-directory: simworld/frontend
+        run: npm ci
+
+      - name: Run unit tests (NetStack)
+        if: matrix.component == 'netstack'
+        run: |
+          cd netstack
+          python -m pytest tests/unit/ -v --cov=netstack_api --cov-report=xml --cov-report=html
+
+      - name: Run unit tests (SimWorld Backend)
+        if: matrix.component == 'simworld-backend'
+        run: |
+          cd simworld/backend
+          python -m pytest tests/unit/ -v --cov=app --cov-report=xml --cov-report=html
+
+      - name: Run unit tests (SimWorld Frontend)
+        if: matrix.component == 'simworld-frontend'
+        working-directory: simworld/frontend
+        run: |
+          npm run test:unit -- --coverage --watchAll=false
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          file: ./coverage.xml
+          name: ${{ matrix.component }}-coverage
+          fail_ci_if_error: false
+
+  # 容器構建
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    strategy:
+      matrix:
+        service: 
+          - name: netstack-api
+            context: ./netstack
+            dockerfile: ./netstack/docker/Dockerfile
+          - name: simworld-backend
+            context: ./simworld/backend
+            dockerfile: ./simworld/backend/Dockerfile
+          - name: simworld-frontend
+            context: ./simworld/frontend
+            dockerfile: ./simworld/frontend/Dockerfile
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+  # 整合測試
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build-images
+    
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mongo:
+        image: mongo:6.0
+        env:
+          MONGO_INITDB_DATABASE: test_open5gs
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio requests docker-compose
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start NTN Stack services
+        run: |
+          # 使用最新構建的映像
+          export NETSTACK_IMAGE="${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_PREFIX }}-netstack-api:${{ github.sha }}"
+          export SIMWORLD_BACKEND_IMAGE="${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_PREFIX }}-simworld-backend:${{ github.sha }}"
+          export SIMWORLD_FRONTEND_IMAGE="${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_PREFIX }}-simworld-frontend:${{ github.sha }}"
+          
+          # 啟動服務
+          make all-start-ci
+          
+          # 等待服務就緒
+          timeout 300 bash -c 'until curl -f http://localhost:8080/health; do sleep 5; done'
+          timeout 300 bash -c 'until curl -f http://localhost:8888/health; do sleep 5; done'
+
+      - name: Run integration tests
+        run: |
+          cd tests/integration
+          python -m pytest -v --maxfail=5
+
+      - name: Run end-to-end tests
+        run: |
+          cd tests/e2e
+          python -m pytest -v --maxfail=3 --timeout=300
+
+      - name: Collect service logs
+        if: failure()
+        run: |
+          mkdir -p logs
+          docker-compose logs netstack-api > logs/netstack-api.log 2>&1
+          docker-compose logs simworld-backend > logs/simworld-backend.log 2>&1
+          docker-compose logs simworld-frontend > logs/simworld-frontend.log 2>&1
+
+      - name: Upload service logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: service-logs-${{ github.run_number }}
+          path: logs/
+
+  # 性能測試
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install performance test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install locust pytest-benchmark
+
+      - name: Start services for performance testing
+        run: |
+          make all-start-ci
+          timeout 300 bash -c 'until curl -f http://localhost:8080/health; do sleep 5; done'
+
+      - name: Run performance tests
+        run: |
+          cd tests/performance
+          # API 性能測試
+          locust -f locustfile.py --headless -u 50 -r 5 -t 5m --host http://localhost:8080
+          
+          # 基準測試
+          python -m pytest benchmark_tests.py --benchmark-json=benchmark-results.json
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results-${{ github.run_number }}
+          path: |
+            tests/performance/benchmark-results.json
+            tests/performance/locust-report.html
+
+  # 安全掃描
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: build-images
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_PREFIX }}-netstack-api:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Container security scanning
+        run: |
+          # 使用 docker-bench-security 掃描
+          docker run --rm --net host --pid host --userns host --cap-add audit_control \
+            -e DOCKER_CONTENT_TRUST=$DOCKER_CONTENT_TRUST \
+            -v /etc:/etc:ro \
+            -v /usr/bin/containerd:/usr/bin/containerd:ro \
+            -v /usr/bin/runc:/usr/bin/runc:ro \
+            -v /usr/lib/systemd:/usr/lib/systemd:ro \
+            -v /var/lib:/var/lib:ro \
+            -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            --label docker_bench_security \
+            docker/docker-bench-security || true
+
+  # 部署到測試環境
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [integration-tests, security-scan]
+    if: github.ref == 'refs/heads/develop'
+    
+    environment:
+      name: staging
+      url: https://ntn-stack-staging.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up deployment automation
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r deployment/requirements.txt
+
+      - name: Deploy to staging environment
+        env:
+          DEPLOY_ENV: staging
+          DOCKER_REGISTRY: ${{ env.DOCKER_REGISTRY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd deployment
+          python automation/deploy_manager.py deploy \
+            --environment staging \
+            --image-tag ${{ github.sha }} \
+            --registry ${{ env.DOCKER_REGISTRY }} \
+            --config configs/staging.yaml
+
+      - name: Run smoke tests
+        run: |
+          # 等待部署完成
+          sleep 60
+          
+          # 執行冒煙測試
+          curl -f https://ntn-stack-staging.example.com/health
+          curl -f https://ntn-stack-staging.example.com/api/v1/status
+
+      - name: Notify deployment status
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            NTN Stack 部署到測試環境 ${{ job.status }}
+            分支: ${{ github.ref }}
+            提交: ${{ github.sha }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # 部署到生產環境
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [performance-tests, deploy-staging]
+    if: github.ref == 'refs/heads/main'
+    
+    environment:
+      name: production
+      url: https://ntn-stack.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up deployment automation
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r deployment/requirements.txt
+
+      - name: Create deployment backup
+        env:
+          DEPLOY_ENV: production
+        run: |
+          cd deployment
+          python automation/deploy_manager.py backup \
+            --environment production \
+            --backup-type full
+
+      - name: Deploy to production environment
+        env:
+          DEPLOY_ENV: production
+          DOCKER_REGISTRY: ${{ env.DOCKER_REGISTRY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd deployment
+          python automation/deploy_manager.py deploy \
+            --environment production \
+            --image-tag ${{ github.sha }} \
+            --registry ${{ env.DOCKER_REGISTRY }} \
+            --config configs/production.yaml \
+            --rolling-update
+
+      - name: Run production health checks
+        run: |
+          # 等待滾動更新完成
+          sleep 120
+          
+          # 健康檢查
+          curl -f https://ntn-stack.example.com/health
+          curl -f https://ntn-stack.example.com/api/v1/system/health
+          
+          # 關鍵功能測試
+          python tests/production/critical_path_tests.py
+
+      - name: Monitor deployment metrics
+        run: |
+          cd monitoring
+          python tools/deployment_monitor.py \
+            --environment production \
+            --duration 300 \
+            --alert-threshold 95
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          cd deployment
+          python automation/deploy_manager.py rollback \
+            --environment production \
+            --to-previous
+
+      - name: Notify deployment status
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            🚀 NTN Stack 生產部署 ${{ job.status }}
+            分支: ${{ github.ref }}
+            提交: ${{ github.sha }}
+            環境: https://ntn-stack.example.com
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # 部署後監控
+  post-deployment-monitoring:
+    name: Post-Deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up monitoring tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r monitoring/requirements.txt
+
+      - name: Start monitoring dashboard
+        run: |
+          cd monitoring
+          python tools/deployment_monitor.py \
+            --environment production \
+            --duration 1800 \
+            --metrics-endpoint https://ntn-stack.example.com/metrics \
+            --alert-webhook ${{ secrets.MONITORING_WEBHOOK }}
+
+      - name: Generate deployment report
+        run: |
+          cd monitoring
+          python tools/report_generator.py \
+            --deployment-id ${{ github.run_number }} \
+            --environment production \
+            --output-format html \
+            --include-metrics \
+            --include-logs
+
+      - name: Upload deployment report
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-report-${{ github.run_number }}
+          path: monitoring/reports/
+
+  # 清理
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-production, post-deployment-monitoring]
+    if: always()
+
+    steps:
+      - name: Clean up old container images
+        run: |
+          # 保留最近 10 個版本
+          gh api --paginate \
+            "/orgs/${{ github.repository_owner }}/packages/container/ntn-stack-netstack-api/versions" \
+            --jq '.[] | select(.created_at < (now - 86400 * 30 | strftime("%Y-%m-%dT%H:%M:%SZ"))) | .id' \
+            | head -n -10 \
+            | xargs -I {} gh api -X DELETE "/orgs/${{ github.repository_owner }}/packages/container/ntn-stack-netstack-api/versions/{}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up test artifacts
+        run: |
+          # 清理測試環境資源
+          docker system prune -f
+          docker volume prune -f 
