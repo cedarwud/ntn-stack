@@ -211,6 +211,11 @@ clean-reports: ## 清理測試報告
 	@rm -rf $(REPORTS_DIR)
 	@echo "$(GREEN)✅ 測試報告清理完成$(RESET)"
 
+clean-project: ## 🧹 完整專案清理（移除不必要的檔案和目錄）
+	@echo "$(CYAN)🧹 執行完整專案清理...$(RESET)"
+	@bash scripts/cleanup_project.sh
+	@echo "$(GREEN)✅ 完整專案清理完成$(RESET)"
+
 clean-i: all-clean-i ## 清理所有資源
 
 all-clean-i: ## 清理 NetStack 和 SimWorld 資源
@@ -832,6 +837,11 @@ verify-architecture: ## 🔍 驗證三個重構目標達成情況
 	@echo "   - 跨服務通信: $$(curl -s http://localhost:8080/unified/system/discovery | jq -r '.services | length')個服務發現"
 	@echo ""
 	@echo "$(GREEN)🎯 架構驗證完成$(RESET)"
+
+verify-architecture-detailed: ## 🔬 詳細架構驗證（使用驗證腳本）
+	@echo "$(CYAN)🔬 執行詳細架構驗證...$(RESET)"
+	@python3 tests/tools/verify_architecture_status.py
+	@echo "$(GREEN)✅ 詳細架構驗證完成$(RESET)"
 
 architecture-health-check: ## 🏥 新架構健康檢查
 	@echo "$(CYAN)🏥 新架構健康檢查...$(RESET)"

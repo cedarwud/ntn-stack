@@ -15,6 +15,15 @@ httpx # 用於非同步 HTTP 請求
 redis # 用於 Redis 客戶端
 aiohttp # 用於非同步 HTTP 客戶端
 
+# --- 日誌和配置 ---
+structlog>=23.2.0  # 結構化日誌
+python-json-logger>=2.0.7  # JSON 日誌格式
+pyyaml>=6.0.1  # YAML 配置支援
+
+# --- 數據處理 ---
+numpy>=1.24.0  # 數值計算
+aiofiles>=23.2.0  # 異步檔案操作
+
 # --- 新增資料庫相關套件 ---
 sqlmodel
 sqlalchemy[asyncio]>=2.0 # 確保是 2.0+ 版本支援 async

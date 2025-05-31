@@ -14,11 +14,6 @@ from app.domains.satellite.services.cqrs_satellite_service import CQRSSatelliteS
 # 添加缺失的導入
 from app.db.database import database
 from app.domains.satellite.services.orbit_service import OrbitService
-from app.domains.wireless.services.wireless_channel_service import (
-    WirelessChannelService,
-)
-from app.domains.antenna.services.antenna_pattern_service import AntennaPatternService
-from app.domains.uav.services.uav_service import UAVService
 
 logger = logging.getLogger(__name__)
 
@@ -116,9 +111,6 @@ async def lifespan(app: FastAPI):
 
     # 初始化現有服務
     orbit_service = OrbitService()
-    wireless_service = WirelessChannelService()
-    antenna_service = AntennaPatternService()
-    uav_service = UAVService()
 
     # 初始化新的 CQRS 衛星服務
     cqrs_satellite_service = CQRSSatelliteService(orbit_service)
@@ -127,10 +119,7 @@ async def lifespan(app: FastAPI):
 
     # 將服務存儲到 app state
     app.state.orbit_service = orbit_service
-    app.state.wireless_service = wireless_service
-    app.state.antenna_service = antenna_service
-    app.state.uav_service = uav_service
-    app.state.cqrs_satellite_service = cqrs_satellite_service  # 新增
+    app.state.cqrs_satellite_service = cqrs_satellite_service
 
     logger.info("✅ SimWorld Backend 啟動完成")
 
