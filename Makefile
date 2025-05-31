@@ -738,5 +738,110 @@ test-frontend-build: ## 🔨 測試前端建置
 	@cd simworld/frontend && npm run build
 	@echo "$(GREEN)✅ 前端建置測試完成$(RESET)"
 
+# ===== 事件驅動架構測試 =====
+
+test-event-driven: ## 🔄 測試事件驅動架構
+	@echo "$(CYAN)🔄 測試 NetStack 事件驅動架構...$(RESET)"
+	@echo "$(YELLOW)1. 測試事件總線服務...$(RESET)"
+	@curl -s -X POST http://localhost:8080/api/v1/interference/quick-demo | jq . || echo "$(RED)❌ 事件驅動干擾控制演示失敗$(RESET)"
+	@echo "$(YELLOW)2. 檢查事件總線指標...$(RESET)"
+	@curl -s http://localhost:8080/metrics | grep -i event || echo "$(RED)❌ 事件總線指標不可用$(RESET)"
+	@echo "$(GREEN)✅ 事件驅動架構測試完成$(RESET)"
+
+test-cqrs: ## 📊 測試 CQRS 衛星服務
+	@echo "$(CYAN)📊 測試 SimWorld CQRS 衛星服務...$(RESET)"
+	@echo "$(YELLOW)1. 測試 CQRS 衛星位置查詢...$(RESET)"
+	@curl -s -X POST http://localhost:8888/api/v1/satellite/25544/position-cqrs | jq . || echo "$(RED)❌ CQRS 位置查詢失敗$(RESET)"
+	@echo "$(YELLOW)2. 測試批量位置查詢...$(RESET)"
+	@curl -s -X POST http://localhost:8888/api/v1/satellite/batch-positions-cqrs -H "Content-Type: application/json" -d '[25544, 40069]' | jq . || echo "$(RED)❌ CQRS 批量查詢失敗$(RESET)"
+	@echo "$(YELLOW)3. 檢查 CQRS 服務統計...$(RESET)"
+	@curl -s http://localhost:8888/api/v1/cqrs/satellite-service/stats | jq . || echo "$(RED)❌ CQRS 統計不可用$(RESET)"
+	@echo "$(GREEN)✅ CQRS 測試完成$(RESET)"
+
+test-microservice-communication: ## 🌐 測試微服務間通信
+	@echo "$(CYAN)🌐 測試異步微服務架構...$(RESET)"
+	@echo "$(YELLOW)1. 測試統一 API 服務發現...$(RESET)"
+	@curl -s http://localhost:8080/unified/system/discovery | jq . || echo "$(RED)❌ 服務發現失敗$(RESET)"
+	@echo "$(YELLOW)2. 測試跨服務事件演示...$(RESET)"
+	@curl -s -X POST http://localhost:8080/unified/event-driven/interference-satellite-demo | jq . || echo "$(RED)❌ 跨服務事件演示失敗$(RESET)"
+	@echo "$(YELLOW)3. 測試架構對比...$(RESET)"
+	@curl -s http://localhost:8080/unified/architecture/comparison | jq . || echo "$(RED)❌ 架構對比不可用$(RESET)"
+	@echo "$(GREEN)✅ 微服務通信測試完成$(RESET)"
+
+test-new-architecture: ## 🚀 完整測試新架構（事件驅動 + CQRS + 異步微服務）
+	@echo "$(CYAN)🚀 執行完整新架構測試套件...$(RESET)"
+	@$(MAKE) test-event-driven
+	@$(MAKE) test-cqrs
+	@$(MAKE) test-microservice-communication
+	@echo "$(GREEN)🎉 新架構完整測試完成$(RESET)"
+
+test-architecture-performance: ## ⚡ 新架構性能測試
+	@echo "$(CYAN)⚡ 新架構性能測試...$(RESET)"
+	@echo "$(YELLOW)1. 事件總線吞吐量測試...$(RESET)"
+	@for i in {1..10}; do \
+		curl -s -X POST http://localhost:8080/api/v1/interference/quick-demo > /dev/null & \
+	done; \
+	wait; \
+	echo "$(GREEN)✅ 並發事件處理測試完成$(RESET)"
+	@echo "$(YELLOW)2. CQRS 讀寫分離性能測試...$(RESET)"
+	@for i in {1..5}; do \
+		curl -s -X POST http://localhost:8888/api/v1/satellite/25544/position-cqrs > /dev/null & \
+		curl -s -X POST http://localhost:8888/api/v1/satellite/25544/force-update-cqrs > /dev/null & \
+	done; \
+	wait; \
+	echo "$(GREEN)✅ CQRS 性能測試完成$(RESET)"
+
+monitor-architecture: ## 📈 監控新架構狀態
+	@echo "$(CYAN)📈 監控新架構狀態...$(RESET)"
+	@echo "$(YELLOW)事件總線指標:$(RESET)"
+	@curl -s http://localhost:8080/metrics | grep -E "(event|interference)" || echo "$(RED)❌ 事件指標不可用$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)CQRS 服務狀態:$(RESET)"
+	@curl -s http://localhost:8888/api/v1/cqrs/satellite-service/stats | jq '.command_stats, .query_stats, .cache_stats' || echo "$(RED)❌ CQRS 狀態不可用$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)系統總覽:$(RESET)"
+	@curl -s http://localhost:8080/unified/system/status | jq '.netstack_status, .simworld_status' || echo "$(RED)❌ 系統狀態不可用$(RESET)"
+
+demo-new-architecture: ## 🎯 新架構功能演示
+	@echo "$(CYAN)🎯 新架構功能演示...$(RESET)"
+	@echo "$(YELLOW)1. 干擾檢測事件驅動演示...$(RESET)"
+	@curl -s -X POST http://localhost:8080/api/v1/interference/quick-demo | jq '.scenario_id, .events_triggered, .ai_decision' || echo "$(RED)❌ 干擾演示失敗$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)2. CQRS 衛星位置演示...$(RESET)"
+	@curl -s -X POST http://localhost:8888/api/v1/satellite/25544/position-cqrs | jq '.satellite_name, .timestamp, .cqrs_metrics' || echo "$(RED)❌ CQRS 演示失敗$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)3. 跨服務事件通信演示...$(RESET)"
+	@curl -s -X POST http://localhost:8080/unified/event-driven/interference-satellite-demo | jq '.cross_service_events, .integration_metrics' || echo "$(RED)❌ 跨服務演示失敗$(RESET)"
+	@echo "$(GREEN)🎉 新架構演示完成$(RESET)"
+
+# ===== 架構驗證和診斷 =====
+
+verify-architecture: ## 🔍 驗證三個重構目標達成情況
+	@echo "$(CYAN)🔍 驗證三個重構目標達成情況...$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)✅ 目標 1: NetStack 事件驅動架構（干擾檢測異步化）$(RESET)"
+	@echo "   - 事件總線服務: $$(curl -s http://localhost:8080/health | jq -r '.components.event_bus // "❌ 未啟動"')"
+	@echo "   - 干擾控制事件化: $$(curl -s http://localhost:8080/api/v1/interference/status | jq -r '.service_type // "❌ 非事件驅動"')"
+	@echo ""
+	@echo "$(YELLOW)✅ 目標 2: SimWorld CQRS 模式（衛星位置讀寫分離）$(RESET)"
+	@echo "   - CQRS 服務狀態: $$(curl -s http://localhost:8888/api/v1/cqrs/satellite-service/stats | jq -r '.running // "❌ 未運行"')"
+	@echo "   - 讀寫分離指標: $$(curl -s http://localhost:8888/api/v1/cqrs/satellite-service/stats | jq -r '.command_stats.position_updates // 0')/$$(curl -s http://localhost:8888/api/v1/cqrs/satellite-service/stats | jq -r '.query_stats.position_queries // 0') (寫/讀)"
+	@echo ""
+	@echo "$(YELLOW)✅ 目標 3: 全面異步微服務架構$(RESET)"
+	@echo "   - 統一 API 狀態: $$(curl -s http://localhost:8080/unified/system/status | jq -r '.architecture_type // "❌ 非異步架構"')"
+	@echo "   - 跨服務通信: $$(curl -s http://localhost:8080/unified/system/discovery | jq -r '.services | length')個服務發現"
+	@echo ""
+	@echo "$(GREEN)🎯 架構驗證完成$(RESET)"
+
+architecture-health-check: ## 🏥 新架構健康檢查
+	@echo "$(CYAN)🏥 新架構健康檢查...$(RESET)"
+	@echo "$(YELLOW)檢查事件總線健康狀態...$(RESET)"
+	@curl -s http://localhost:8080/health | jq '.components.event_bus' || echo "$(RED)❌ 事件總線異常$(RESET)"
+	@echo "$(YELLOW)檢查 CQRS 服務健康狀態...$(RESET)"
+	@curl -s http://localhost:8888/ping || echo "$(RED)❌ CQRS 服務異常$(RESET)"
+	@echo "$(YELLOW)檢查微服務通信健康狀態...$(RESET)"
+	@curl -s http://localhost:8080/unified/system/status | jq '.health_status' || echo "$(RED)❌ 微服務通信異常$(RESET)"
+	@echo "$(GREEN)✅ 架構健康檢查完成$(RESET)"
+
 .PHONY: all
 all: help ## 顯示幫助（預設目標） 

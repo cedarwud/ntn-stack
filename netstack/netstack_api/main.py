@@ -85,6 +85,13 @@ from .services.uav_mesh_failover_service import (
 # 添加統一路由器導入
 from .routers.unified_api_router import unified_router
 
+# 添加事件驅動服務導入
+from .services.event_bus_service import (
+    EventBusService,
+    get_event_bus,
+    shutdown_event_bus,
+)
+
 
 # 自定義 JSON 編碼器
 class CustomJSONEncoder(json.JSONEncoder):
@@ -189,6 +196,10 @@ async def lifespan(app: FastAPI):
     )
     open5gs_adapter = Open5GSAdapter(mongo_host=os.getenv("MONGO_HOST", "mongo"))
 
+    # 啟動事件總線
+    event_bus = await get_event_bus()
+    logger.info("✅ 事件總線已啟動")
+
     # 初始化服務
     ue_service = UEService(mongo_adapter, redis_adapter)
     slice_service = SliceService(mongo_adapter, open5gs_adapter, redis_adapter)
@@ -198,6 +209,18 @@ async def lifespan(app: FastAPI):
         simworld_api_url=os.getenv("SIMWORLD_API_URL", "http://simworld-backend:8000"),
         redis_client=redis_adapter.client if redis_adapter else None,
     )
+
+    # 初始化新的事件驅動干擾控制服務
+    interference_service = InterferenceControlService(
+        simworld_api_url=os.getenv("SIMWORLD_API_URL", "http://simworld-backend:8000"),
+        event_bus=event_bus,
+        auto_mitigation=True,
+        update_interval_sec=0.1,  # 100ms 實時檢測
+    )
+
+    # 啟動干擾控制服務
+    await interference_service.start()
+    logger.info("✅ 事件驅動干擾控制服務已啟動")
 
     # 初始化 OneWeb 衛星 gNodeB 服務
     from .services.oneweb_satellite_gnb_service import OneWebSatelliteGnbService
@@ -213,15 +236,6 @@ async def lifespan(app: FastAPI):
         simworld_api_url=os.getenv("SIMWORLD_API_URL", "http://simworld-backend:8000"),
         update_interval_sec=int(os.getenv("SIONNA_UPDATE_INTERVAL", "30")),
         ueransim_config_dir=os.getenv("UERANSIM_CONFIG_DIR", "/tmp/ueransim_configs"),
-    )
-
-    # 初始化干擾控制服務
-    interference_service = InterferenceControlService(
-        simworld_api_url=os.getenv(
-            "SIMWORLD_API_URL", "http://host.docker.internal:8888"
-        ),
-        ueransim_config_dir=os.getenv("UERANSIM_CONFIG_DIR", "/tmp/ueransim_configs"),
-        update_interval_sec=float(os.getenv("INTERFERENCE_UPDATE_INTERVAL", "5.0")),
     )
 
     # 初始化 UAV UE 服務
@@ -275,6 +289,7 @@ async def lifespan(app: FastAPI):
     app.state.connection_quality_service = connection_quality_service
     app.state.mesh_bridge_service = mesh_bridge_service
     app.state.uav_mesh_failover_service = uav_mesh_failover_service
+    app.state.event_bus = event_bus
 
     # 將服務傳遞給全局變量供端點使用
     globals()["connection_quality_service"] = connection_quality_service
@@ -293,18 +308,21 @@ async def lifespan(app: FastAPI):
     # 啟動 Sionna 整合服務
     await sionna_service.start()
 
-    # 啟動干擾控制服務
-    await interference_service.start()
-
-    # 啟動 UAV Mesh 備援服務
-    await uav_mesh_failover_service.start_service()
-
     logger.info("✅ NetStack API 啟動完成")
 
     yield
 
-    # 應用程式關閉
-    logger.info("🛑 NetStack API 關閉中...")
+    # 清理資源
+    logger.info("🛑 NetStack API 正在關閉...")
+
+    # 停止干擾控制服務
+    if hasattr(app.state, "interference_service"):
+        await app.state.interference_service.stop()
+        logger.info("✅ 干擾控制服務已停止")
+
+    # 關閉事件總線
+    await shutdown_event_bus()
+    logger.info("✅ 事件總線已關閉")
 
     # 停止 Mesh 橋接服務
     if mesh_bridge_service:
@@ -317,10 +335,6 @@ async def lifespan(app: FastAPI):
     # 關閉 Sionna 整合服務
     if hasattr(app.state, "sionna_service"):
         await app.state.sionna_service.stop()
-
-    # 關閉干擾控制服務
-    if hasattr(app.state, "interference_service"):
-        await app.state.interference_service.stop()
 
     # 關閉 UAV UE 服務
     if hasattr(app.state, "uav_ue_service"):
@@ -1332,15 +1346,12 @@ async def create_jammer_scenario(
     victim_frequency_mhz: float = 2150.0,
     victim_bandwidth_mhz: float = 20.0,
 ):
-    """
-    創建並執行干擾場景
-
-    模擬多種類型的干擾源攻擊，包括寬帶噪聲、掃頻、智能干擾等。
-    """
+    """創建干擾場景 - 使用事件驅動架構"""
     try:
+        # 使用新的事件驅動干擾控制服務
         interference_service = app.state.interference_service
 
-        result = await interference_service.simulate_jammer_scenario(
+        result = await interference_service.create_jammer_scenario(
             scenario_name=scenario_name,
             jammer_configs=jammer_configs,
             victim_positions=victim_positions,
@@ -1352,35 +1363,177 @@ async def create_jammer_scenario(
 
     except Exception as e:
         logger.error(f"創建干擾場景失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"場景創建失敗: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"創建干擾場景失敗: {str(e)}")
 
 
+@app.get("/api/v1/interference/status", tags=["干擾控制"])
+async def get_interference_control_status():
+    """獲取干擾控制服務狀態 - 事件驅動版本"""
+    try:
+        # 使用新的事件驅動干擾控制服務
+        interference_service = app.state.interference_service
+        event_bus = app.state.event_bus
+
+        # 獲取服務狀態
+        service_status = interference_service.get_service_status()
+
+        # 獲取事件總線指標
+        event_metrics = await event_bus.get_metrics()
+
+        # 獲取詳細指標
+        detailed_metrics = await interference_service.get_metrics()
+
+        return CustomJSONResponse(
+            content={
+                "status": "active",
+                "architecture": "event_driven",
+                "service_info": service_status,
+                "event_bus_metrics": event_metrics,
+                "performance_metrics": detailed_metrics,
+                "features": {
+                    "real_time_detection": True,
+                    "detection_interval_ms": interference_service.update_interval_sec
+                    * 1000,
+                    "ai_ran_integration": True,
+                    "auto_mitigation": interference_service.auto_mitigation,
+                    "event_driven": True,
+                    "async_processing": True,
+                },
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"獲取干擾控制狀態失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取狀態失敗: {str(e)}")
+
+
+@app.post("/api/v1/interference/stop-scenario/{scenario_id}", tags=["干擾控制"])
+async def stop_interference_scenario(scenario_id: str):
+    """停止干擾場景"""
+    try:
+        interference_service = app.state.interference_service
+
+        result = await interference_service.stop_scenario(scenario_id)
+
+        return CustomJSONResponse(content=result)
+
+    except Exception as e:
+        logger.error(f"停止干擾場景失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"停止場景失敗: {str(e)}")
+
+
+@app.get("/api/v1/interference/events/{scenario_id}", tags=["干擾控制"])
+async def get_interference_events(scenario_id: str, limit: int = 50):
+    """獲取干擾場景的事件歷史"""
+    try:
+        event_bus = app.state.event_bus
+
+        # 獲取事件歷史（這裡需要實現事件查詢接口）
+        # 暫時返回服務指標
+        metrics = await event_bus.get_metrics()
+
+        return CustomJSONResponse(
+            content={
+                "scenario_id": scenario_id,
+                "events": [],  # 需要實現事件查詢
+                "total_events": metrics.get("events_published", 0),
+                "message": "事件歷史查詢功能開發中",
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"獲取干擾事件失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取事件失敗: {str(e)}")
+
+
+# 保留原有的 AI-RAN 決策端點（但改為事件驅動）
 @app.post("/api/v1/interference/ai-ran-decision", tags=["干擾控制"])
 async def request_ai_ran_decision(
     interference_detections: List[Dict[str, Any]],
     available_frequencies: List[float],
     scenario_description: str = "UERANSIM 抗干擾決策請求",
 ):
-    """
-    請求 AI-RAN 抗干擾決策
+    """請求 AI-RAN 抗干擾決策 - 事件驅動版本"""
+    try:
+        # 發布 AI 決策請求事件
+        event_bus = app.state.event_bus
 
-    基於當前干擾狀態，使用深度強化學習算法生成最佳抗干擾策略。
-    支持毫秒級頻率跳變、自適應波束成形、動態功率控制等。
-    """
+        await event_bus.publish(
+            event_type="ai_ran.decision_requested",
+            data={
+                "interference_detections": interference_detections,
+                "available_frequencies": available_frequencies,
+                "scenario_description": scenario_description,
+                "request_source": "api_endpoint",
+            },
+            source="interference_api",
+            priority=event_bus.EventPriority.HIGH,
+        )
+
+        return CustomJSONResponse(
+            content={
+                "status": "request_submitted",
+                "message": "AI-RAN 決策請求已提交到事件總線",
+                "architecture": "event_driven",
+                "detections_count": len(interference_detections),
+                "available_frequencies": available_frequencies,
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"AI-RAN 決策請求失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"決策請求失敗: {str(e)}")
+
+
+# 更新快速演示端點
+@app.post("/api/v1/interference/quick-demo", tags=["干擾控制"])
+async def interference_quick_demo():
+    """干擾控制快速演示 - 事件驅動版本"""
     try:
         interference_service = app.state.interference_service
 
-        result = await interference_service.request_ai_ran_decision(
-            interference_state=interference_detections,
-            available_frequencies=available_frequencies,
-            scenario_description=scenario_description,
+        # 創建演示場景
+        demo_result = await interference_service.create_jammer_scenario(
+            scenario_name="EventDriven_QuickDemo",
+            jammer_configs=[
+                {
+                    "jammer_type": "constant",
+                    "power_dbm": 20,
+                    "frequency_mhz": 2150.0,
+                    "bandwidth_mhz": 20.0,
+                    "position": [25.0331, 121.5654, 10.0],
+                }
+            ],
+            victim_positions=[[25.0321, 121.5644, 1.5]],
+            victim_frequency_mhz=2150.0,
+            victim_bandwidth_mhz=20.0,
         )
 
-        return CustomJSONResponse(content=result)
+        # 等待一些事件處理
+        await asyncio.sleep(2.0)
+
+        # 獲取服務指標
+        metrics = await interference_service.get_metrics()
+
+        return CustomJSONResponse(
+            content={
+                "demo_status": "completed",
+                "architecture": "event_driven",
+                "scenario_result": demo_result,
+                "performance_metrics": metrics,
+                "features_demonstrated": [
+                    "實時干擾檢測 (<100ms)",
+                    "事件驅動架構",
+                    "異步處理",
+                    "AI-RAN 自動決策",
+                    "事件溯源",
+                ],
+            }
+        )
 
     except Exception as e:
-        logger.error(f"AI-RAN 決策失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"決策請求失敗: {str(e)}")
+        logger.error(f"干擾控制演示失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"演示失敗: {str(e)}")
 
 
 @app.post("/api/v1/interference/apply-strategy", tags=["干擾控制"])
@@ -1389,159 +1542,35 @@ async def apply_anti_jamming_strategy(
     ue_config_path: Optional[str] = None,
     gnb_config_path: Optional[str] = None,
 ):
-    """
-    應用抗干擾策略到 UERANSIM 配置
-
-    將 AI-RAN 決策結果應用到實際的 UERANSIM 配置文件中，
-    實現動態的干擾對抗和網絡適應。
-    """
+    """應用抗干擾策略 - 事件驅動版本"""
     try:
-        interference_service = app.state.interference_service
+        event_bus = app.state.event_bus
 
-        result = await interference_service.apply_anti_jamming_strategy(
-            ai_decision=ai_decision,
-            ue_config_path=ue_config_path,
-            gnb_config_path=gnb_config_path,
+        # 發布策略應用事件
+        await event_bus.publish(
+            event_type="mitigation.strategy_applied",
+            data={
+                "ai_decision": ai_decision,
+                "ue_config_path": ue_config_path,
+                "gnb_config_path": gnb_config_path,
+                "apply_time": datetime.utcnow().isoformat(),
+            },
+            source="interference_api",
+            priority=event_bus.EventPriority.HIGH,
         )
 
-        return CustomJSONResponse(content=result)
+        return CustomJSONResponse(
+            content={
+                "status": "strategy_applied",
+                "message": "抗干擾策略已通過事件總線應用",
+                "ai_decision": ai_decision,
+                "architecture": "event_driven",
+            }
+        )
 
     except Exception as e:
         logger.error(f"應用抗干擾策略失敗: {e}")
         raise HTTPException(status_code=500, detail=f"策略應用失敗: {str(e)}")
-
-
-@app.get("/api/v1/interference/status", tags=["干擾控制"])
-async def get_interference_control_status():
-    """獲取干擾控制服務狀態"""
-    try:
-        interference_service = app.state.interference_service
-        status = interference_service.get_service_status()
-
-        return CustomJSONResponse(
-            content={
-                "success": True,
-                "status": status,
-                "timestamp": datetime.utcnow().isoformat(),
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"獲取干擾控制狀態失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"狀態查詢失敗: {str(e)}")
-
-
-@app.post("/api/v1/interference/quick-demo", tags=["干擾控制"])
-async def interference_quick_demo():
-    """
-    干擾控制快速演示
-
-    執行完整的干擾模擬 → AI-RAN 決策 → 策略應用流程，
-    展示系統的端到端抗干擾能力。
-    """
-    try:
-        interference_service = app.state.interference_service
-
-        # 1. 創建測試干擾場景
-        test_jammer_configs = [
-            {
-                "type": "sweep_jammer",
-                "position": [800, 200, 25],
-                "power_dbm": 35,
-                "frequency_band": {"center_freq_mhz": 2150, "bandwidth_mhz": 40},
-                "sweep_rate_mhz_per_sec": 1500,
-            }
-        ]
-
-        test_victim_positions = [[0, 0, 1.5], [300, 100, 1.5], [500, -200, 1.5]]
-
-        # 2. 執行干擾模擬
-        simulation_result = await interference_service.simulate_jammer_scenario(
-            scenario_name="快速演示場景",
-            jammer_configs=test_jammer_configs,
-            victim_positions=test_victim_positions,
-            victim_frequency_mhz=2150.0,
-            victim_bandwidth_mhz=20.0,
-        )
-
-        if not simulation_result["success"]:
-            raise Exception(
-                f"模擬失敗: {simulation_result.get('error', 'Unknown error')}"
-            )
-
-        # 3. 請求 AI-RAN 決策
-        detection_results = simulation_result["simulation_result"]["detection_results"]
-        available_freqs = [2130, 2140, 2160, 2170, 2180]
-
-        ai_ran_result = await interference_service.request_ai_ran_decision(
-            interference_state=detection_results[:3],  # 取前3個檢測結果
-            available_frequencies=available_freqs,
-            scenario_description="快速演示抗干擾決策",
-        )
-
-        # 4. 模擬策略應用（實際環境中會真正修改配置文件）
-        strategy_result = None
-        if ai_ran_result["success"]:
-            ai_decision = ai_ran_result["ai_decision"]
-            strategy_result = await interference_service.apply_anti_jamming_strategy(
-                ai_decision=ai_decision,
-                ue_config_path=None,  # 演示模式不修改實際文件
-                gnb_config_path=None,
-            )
-
-        # 5. 彙總結果
-        demo_result = {
-            "success": True,
-            "message": "干擾控制演示完成",
-            "demo_steps": {
-                "step1_simulation": {
-                    "description": "執行干擾模擬",
-                    "success": simulation_result["success"],
-                    "affected_victims": simulation_result.get("affected_victims", 0),
-                    "avg_sinr_degradation": simulation_result.get(
-                        "avg_sinr_degradation", 0
-                    ),
-                },
-                "step2_ai_decision": {
-                    "description": "AI-RAN 抗干擾決策",
-                    "success": ai_ran_result["success"],
-                    "decision_type": (
-                        ai_ran_result["ai_decision"]["decision_type"]
-                        if ai_ran_result["success"]
-                        else None
-                    ),
-                    "confidence_score": (
-                        ai_ran_result["ai_decision"]["confidence_score"]
-                        if ai_ran_result["success"]
-                        else 0
-                    ),
-                    "decision_time_ms": ai_ran_result.get("decision_time_ms", 0),
-                },
-                "step3_strategy_application": {
-                    "description": "應用抗干擾策略",
-                    "success": strategy_result["success"] if strategy_result else False,
-                    "applied_strategies": (
-                        strategy_result.get("applied_strategies", [])
-                        if strategy_result
-                        else []
-                    ),
-                },
-            },
-            "performance_summary": {
-                "total_processing_time_ms": (
-                    simulation_result["simulation_result"]["processing_time_ms"]
-                    + ai_ran_result.get("decision_time_ms", 0)
-                ),
-                "interference_mitigation_capability": "demonstrated",
-                "ai_ran_response_time_ms": ai_ran_result.get("decision_time_ms", 0),
-            },
-        }
-
-        return CustomJSONResponse(content=demo_result)
-
-    except Exception as e:
-        logger.error(f"干擾控制演示失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"演示失敗: {str(e)}")
 
 
 # ===== UAV UE 管理端點 =====

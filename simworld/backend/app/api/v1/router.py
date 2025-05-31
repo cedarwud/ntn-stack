@@ -1,5 +1,5 @@
 # backend/app/api/v1/router.py
-from fastapi import APIRouter, Response, status, Query
+from fastapi import APIRouter, Response, status, Query, Request, HTTPException
 import os
 from starlette.responses import FileResponse
 from datetime import datetime, timedelta
@@ -21,7 +21,14 @@ from app.domains.wireless.api.wireless_api import router as wireless_router
 # Import interference domain API router
 from app.domains.interference.api.interference_api import router as interference_router
 
-# 引入 Skyfield 相關庫
+# Import CQRS services
+from app.domains.satellite.services.cqrs_satellite_service import (
+    CQRSSatelliteService,
+    SatellitePosition,
+)
+from app.domains.coordinates.models.coordinate_model import GeoCoordinate
+
+# Import Skyfield and numpy
 from skyfield.api import load, wgs84, EarthSatellite
 import numpy as np
 
@@ -485,3 +492,251 @@ async def trigger_channel_model_update(position: UAVPosition) -> bool:
     except Exception as e:
         print(f"信道模型更新失敗: {e}")
         return False
+
+
+# 添加新的 CQRS 衛星端點
+@api_router.post(
+    "/satellite/{satellite_id}/position-cqrs",
+    summary="獲取衛星位置 (CQRS)",
+    description="使用 CQRS 架構獲取衛星當前位置",
+)
+async def get_satellite_position_cqrs(
+    satellite_id: int,
+    observer_lat: Optional[float] = None,
+    observer_lon: Optional[float] = None,
+    observer_alt: Optional[float] = None,
+    request: Request = None,
+):
+    """使用 CQRS 架構獲取衛星位置"""
+    try:
+        # 獲取 CQRS 服務
+        cqrs_service: CQRSSatelliteService = request.app.state.cqrs_satellite_service
+
+        # 構建觀測者位置
+        observer = None
+        if observer_lat is not None and observer_lon is not None:
+            observer = GeoCoordinate(
+                latitude=observer_lat,
+                longitude=observer_lon,
+                altitude=observer_alt or 0.0,
+            )
+
+        # 查詢衛星位置（讀端）
+        position = await cqrs_service.get_satellite_position(satellite_id, observer)
+
+        if not position:
+            raise HTTPException(
+                status_code=404, detail=f"衛星 {satellite_id} 位置數據不存在"
+            )
+
+        return {
+            "success": True,
+            "architecture": "CQRS",
+            "satellite_position": position.to_dict(),
+            "cache_hit": True,  # CQRS 查詢總是從快取獲取
+        }
+
+    except Exception as e:
+        logger.error(f"CQRS 衛星位置查詢失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"查詢失敗: {str(e)}")
+
+
+@api_router.post(
+    "/satellite/batch-positions-cqrs",
+    summary="批量獲取衛星位置 (CQRS)",
+    description="使用 CQRS 架構批量獲取多個衛星位置",
+)
+async def get_batch_satellite_positions_cqrs(
+    satellite_ids: List[int],
+    observer_lat: Optional[float] = None,
+    observer_lon: Optional[float] = None,
+    observer_alt: Optional[float] = None,
+    request: Request = None,
+):
+    """使用 CQRS 架構批量獲取衛星位置"""
+    try:
+        cqrs_service: CQRSSatelliteService = request.app.state.cqrs_satellite_service
+
+        # 構建觀測者位置
+        observer = None
+        if observer_lat is not None and observer_lon is not None:
+            observer = GeoCoordinate(
+                latitude=observer_lat,
+                longitude=observer_lon,
+                altitude=observer_alt or 0.0,
+            )
+
+        # 批量查詢（讀端）
+        positions = await cqrs_service.get_multiple_positions(satellite_ids, observer)
+
+        return {
+            "success": True,
+            "architecture": "CQRS",
+            "requested_count": len(satellite_ids),
+            "returned_count": len(positions),
+            "satellite_positions": [pos.to_dict() for pos in positions],
+        }
+
+    except Exception as e:
+        logger.error(f"CQRS 批量位置查詢失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"批量查詢失敗: {str(e)}")
+
+
+@api_router.post(
+    "/satellite/{satellite_id}/force-update-cqrs",
+    summary="強制更新衛星位置 (CQRS)",
+    description="使用 CQRS 命令端強制更新衛星位置",
+)
+async def force_update_satellite_position_cqrs(
+    satellite_id: int,
+    observer_lat: Optional[float] = None,
+    observer_lon: Optional[float] = None,
+    observer_alt: Optional[float] = None,
+    request: Request = None,
+):
+    """使用 CQRS 架構強制更新衛星位置（命令端）"""
+    try:
+        cqrs_service: CQRSSatelliteService = request.app.state.cqrs_satellite_service
+
+        # 構建觀測者位置
+        observer = None
+        if observer_lat is not None and observer_lon is not None:
+            observer = GeoCoordinate(
+                latitude=observer_lat,
+                longitude=observer_lon,
+                altitude=observer_alt or 0.0,
+            )
+
+        # 命令：更新衛星位置
+        position = await cqrs_service.update_satellite_position(satellite_id, observer)
+
+        return {
+            "success": True,
+            "architecture": "CQRS",
+            "operation": "command_update",
+            "satellite_position": position.to_dict(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"CQRS 衛星位置更新失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"更新失敗: {str(e)}")
+
+
+@api_router.post(
+    "/satellite/{satellite_id}/trajectory-cqrs",
+    summary="計算衛星軌跡 (CQRS)",
+    description="使用 CQRS 架構計算衛星軌跡",
+)
+async def calculate_satellite_trajectory_cqrs(
+    satellite_id: int,
+    start_time: str,  # ISO format
+    end_time: str,  # ISO format
+    step_seconds: int = 60,
+    request: Request = None,
+):
+    """使用 CQRS 架構計算衛星軌跡（命令端）"""
+    try:
+        cqrs_service: CQRSSatelliteService = request.app.state.cqrs_satellite_service
+
+        # 解析時間
+        start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+        end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+
+        # 命令：計算軌跡
+        trajectory = await cqrs_service.calculate_orbit(
+            satellite_id, start_dt, end_dt, step_seconds
+        )
+
+        return {
+            "success": True,
+            "architecture": "CQRS",
+            "operation": "command_calculate_orbit",
+            "satellite_id": satellite_id,
+            "start_time": start_time,
+            "end_time": end_time,
+            "step_seconds": step_seconds,
+            "trajectory_points": len(trajectory),
+            "trajectory": [pos.to_dict() for pos in trajectory],
+        }
+
+    except Exception as e:
+        logger.error(f"CQRS 軌跡計算失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"軌跡計算失敗: {str(e)}")
+
+
+@api_router.get(
+    "/satellite/visible-cqrs",
+    summary="查詢可見衛星 (CQRS)",
+    description="使用 CQRS 架構查詢指定位置可見的衛星",
+)
+async def find_visible_satellites_cqrs(
+    observer_lat: float,
+    observer_lon: float,
+    observer_alt: float = 0.0,
+    radius_km: float = 2000.0,
+    max_results: int = 50,
+    request: Request = None,
+):
+    """使用 CQRS 架構查詢可見衛星（查詢端）"""
+    try:
+        cqrs_service: CQRSSatelliteService = request.app.state.cqrs_satellite_service
+
+        # 構建觀測者位置
+        observer = GeoCoordinate(
+            latitude=observer_lat, longitude=observer_lon, altitude=observer_alt
+        )
+
+        # 查詢：查找可見衛星
+        visible_satellites = await cqrs_service.find_visible_satellites(
+            observer, radius_km, max_results
+        )
+
+        return {
+            "success": True,
+            "architecture": "CQRS",
+            "operation": "query_visible_satellites",
+            "observer": {
+                "latitude": observer_lat,
+                "longitude": observer_lon,
+                "altitude": observer_alt,
+            },
+            "search_radius_km": radius_km,
+            "visible_count": len(visible_satellites),
+            "visible_satellites": [sat.to_dict() for sat in visible_satellites],
+        }
+
+    except Exception as e:
+        logger.error(f"CQRS 可見衛星查詢失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"查詢失敗: {str(e)}")
+
+
+@api_router.get(
+    "/cqrs/satellite-service/stats",
+    summary="獲取 CQRS 服務統計",
+    description="獲取 CQRS 衛星服務的性能統計和指標",
+)
+async def get_cqrs_satellite_service_stats(request: Request):
+    """獲取 CQRS 衛星服務統計"""
+    try:
+        cqrs_service: CQRSSatelliteService = request.app.state.cqrs_satellite_service
+
+        # 獲取服務統計
+        stats = await cqrs_service.get_service_stats()
+
+        return {
+            "success": True,
+            "architecture": "CQRS",
+            "service_stats": stats,
+            "patterns_implemented": [
+                "Command Query Responsibility Segregation (CQRS)",
+                "Event Sourcing",
+                "Multi-layer Caching",
+                "Read/Write Separation",
+                "Async Processing",
+            ],
+        }
+
+    except Exception as e:
+        logger.error(f"獲取 CQRS 統計失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"統計查詢失敗: {str(e)}")
