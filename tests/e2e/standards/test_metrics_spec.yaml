@@ -1,0 +1,518 @@
+# NTN Stack 端到端測試指標規範
+# 版本: v1.0.0
+# 更新日期: 2024-12-01
+
+metadata:
+  version: "1.0.0"
+  last_updated: "2024-12-01"
+  description: "NTN Stack 系統端到端測試指標統一規範"
+  maintainer: "NTN Stack Test Team"
+
+# 測試指標命名規範
+naming_convention:
+  format: "e2e_{category}_{metric_name}_{unit}"
+  description: "端到端測試_指標類別_指標名稱_單位"
+  examples:
+    - "e2e_latency_connection_establishment_ms"
+    - "e2e_throughput_data_transfer_mbps"
+    - "e2e_reliability_connection_success_rate"
+
+# 指標類別定義
+metric_categories:
+  latency:
+    description: "延遲相關指標"
+    prefix: "e2e_latency"
+    unit_types: ["ms", "us", "s"]
+    aggregation_methods: ["avg", "p50", "p95", "p99", "max"]
+    
+  throughput:
+    description: "吞吐量相關指標"
+    prefix: "e2e_throughput"
+    unit_types: ["bps", "kbps", "mbps", "gbps", "pps"]
+    aggregation_methods: ["avg", "max", "min"]
+    
+  reliability:
+    description: "可靠性相關指標"
+    prefix: "e2e_reliability"
+    unit_types: ["ratio", "percent", "count"]
+    aggregation_methods: ["avg", "sum", "count"]
+    
+  availability:
+    description: "可用性相關指標"
+    prefix: "e2e_availability"
+    unit_types: ["ratio", "percent", "seconds"]
+    aggregation_methods: ["avg", "min"]
+    
+  resource:
+    description: "資源使用相關指標"
+    prefix: "e2e_resource"
+    unit_types: ["percent", "bytes", "count"]
+    aggregation_methods: ["avg", "max", "sum"]
+    
+  error:
+    description: "錯誤相關指標"
+    prefix: "e2e_error"
+    unit_types: ["count", "rate", "percent"]
+    aggregation_methods: ["sum", "rate", "avg"]
+    
+  performance:
+    description: "性能相關指標"
+    prefix: "e2e_performance"
+    unit_types: ["score", "index", "ratio"]
+    aggregation_methods: ["avg", "weighted_avg"]
+
+# 關鍵性能指標 (KPI) 定義
+key_performance_indicators:
+  # 延遲指標
+  e2e_latency_connection_establishment_ms:
+    description: "UAV 與衛星建立連接的端到端延遲"
+    category: "latency"
+    unit: "ms"
+    target_value: "<= 50"
+    measurement_method: "RTT 測量"
+    critical_threshold: 100
+    warning_threshold: 75
+    
+  e2e_latency_data_transfer_ms:
+    description: "數據傳輸的端到端延遲"
+    category: "latency"
+    unit: "ms"
+    target_value: "<= 30"
+    measurement_method: "端到端數據包時間戳"
+    critical_threshold: 60
+    warning_threshold: 45
+    
+  e2e_latency_handover_interruption_ms:
+    description: "衛星切換中斷時間"
+    category: "latency"
+    unit: "ms"
+    target_value: "<= 2000"
+    measurement_method: "連接中斷檢測"
+    critical_threshold: 5000
+    warning_threshold: 3000
+    
+  # 吞吐量指標
+  e2e_throughput_max_data_rate_mbps:
+    description: "最大數據傳輸速率"
+    category: "throughput"
+    unit: "mbps"
+    target_value: ">= 100"
+    measurement_method: "大文件傳輸測試"
+    critical_threshold: 50
+    warning_threshold: 75
+    
+  e2e_throughput_sustained_rate_mbps:
+    description: "持續數據傳輸速率"
+    category: "throughput"
+    unit: "mbps"
+    target_value: ">= 80"
+    measurement_method: "長時間傳輸測試"
+    critical_threshold: 40
+    warning_threshold: 60
+    
+  # 可靠性指標
+  e2e_reliability_connection_success_rate:
+    description: "連接建立成功率"
+    category: "reliability"
+    unit: "percent"
+    target_value: ">= 95"
+    measurement_method: "連接嘗試統計"
+    critical_threshold: 85
+    warning_threshold: 90
+    
+  e2e_reliability_data_integrity_rate:
+    description: "數據完整性率"
+    category: "reliability"
+    unit: "percent"
+    target_value: "100"
+    measurement_method: "校驗和驗證"
+    critical_threshold: 98
+    warning_threshold: 99
+    
+  e2e_reliability_handover_success_rate:
+    description: "衛星切換成功率"
+    category: "reliability"
+    unit: "percent"
+    target_value: ">= 90"
+    measurement_method: "切換事件統計"
+    critical_threshold: 80
+    warning_threshold: 85
+    
+  # 可用性指標
+  e2e_availability_system_uptime_percent:
+    description: "系統可用性"
+    category: "availability"
+    unit: "percent"
+    target_value: ">= 99"
+    measurement_method: "服務健康檢查"
+    critical_threshold: 95
+    warning_threshold: 97
+    
+  e2e_availability_service_recovery_time_s:
+    description: "服務恢復時間"
+    category: "availability"
+    unit: "s"
+    target_value: "<= 2"
+    measurement_method: "故障注入測試"
+    critical_threshold: 10
+    warning_threshold: 5
+    
+  # 資源使用指標
+  e2e_resource_cpu_utilization_percent:
+    description: "CPU 使用率"
+    category: "resource"
+    unit: "percent"
+    target_value: "<= 80"
+    measurement_method: "系統監控"
+    critical_threshold: 90
+    warning_threshold: 85
+    
+  e2e_resource_memory_utilization_percent:
+    description: "記憶體使用率"
+    category: "resource"
+    unit: "percent"
+    target_value: "<= 85"
+    measurement_method: "系統監控"
+    critical_threshold: 95
+    warning_threshold: 90
+    
+  e2e_resource_network_utilization_percent:
+    description: "網絡使用率"
+    category: "resource"
+    unit: "percent"
+    target_value: "<= 90"
+    measurement_method: "網絡監控"
+    critical_threshold: 95
+    warning_threshold: 92
+    
+  # 錯誤指標
+  e2e_error_connection_failure_count:
+    description: "連接失敗次數"
+    category: "error"
+    unit: "count"
+    target_value: "0"
+    measurement_method: "錯誤日誌統計"
+    critical_threshold: 10
+    warning_threshold: 5
+    
+  e2e_error_data_corruption_rate:
+    description: "數據損壞率"
+    category: "error"
+    unit: "percent"
+    target_value: "0"
+    measurement_method: "數據校驗"
+    critical_threshold: 1
+    warning_threshold: 0.5
+    
+  # 性能指標
+  e2e_performance_system_efficiency_score:
+    description: "系統效率評分"
+    category: "performance"
+    unit: "score"
+    target_value: ">= 85"
+    measurement_method: "綜合性能評估"
+    critical_threshold: 60
+    warning_threshold: 75
+
+# 測試場景特定指標
+scenario_specific_metrics:
+  uav_satellite_connectivity:
+    metrics:
+      - e2e_latency_connection_establishment_ms
+      - e2e_reliability_connection_success_rate
+      - e2e_throughput_max_data_rate_mbps
+      - e2e_reliability_data_integrity_rate
+    duration: "3 minutes"
+    sample_rate: "1s"
+    
+  interference_detection:
+    metrics:
+      - e2e_latency_interference_detection_ms
+      - e2e_reliability_detection_accuracy_percent
+      - e2e_error_false_positive_count
+      - e2e_performance_mitigation_effectiveness_score
+    duration: "5 minutes"
+    sample_rate: "100ms"
+    custom_metrics:
+      e2e_latency_interference_detection_ms:
+        target_value: "<= 1000"
+        critical_threshold: 3000
+      e2e_reliability_detection_accuracy_percent:
+        target_value: ">= 95"
+        critical_threshold: 85
+    
+  mesh_failover:
+    metrics:
+      - e2e_latency_handover_interruption_ms
+      - e2e_reliability_handover_success_rate
+      - e2e_availability_service_recovery_time_s
+      - e2e_reliability_data_integrity_rate
+    duration: "5 minutes"
+    sample_rate: "100ms"
+    
+  performance_stress:
+    metrics:
+      - e2e_throughput_sustained_rate_mbps
+      - e2e_resource_cpu_utilization_percent
+      - e2e_resource_memory_utilization_percent
+      - e2e_resource_network_utilization_percent
+      - e2e_performance_system_efficiency_score
+    duration: "60 minutes"
+    sample_rate: "5s"
+    
+  multi_uav_coordination:
+    metrics:
+      - e2e_latency_inter_uav_communication_ms
+      - e2e_throughput_coordinated_bandwidth_mbps
+      - e2e_reliability_coordination_success_rate
+      - e2e_resource_bandwidth_sharing_efficiency_percent
+    duration: "15 minutes"
+    sample_rate: "1s"
+    custom_metrics:
+      e2e_latency_inter_uav_communication_ms:
+        target_value: "<= 20"
+        critical_threshold: 50
+      e2e_reliability_coordination_success_rate:
+        target_value: ">= 90"
+        critical_threshold: 80
+
+# 數據收集規範
+data_collection:
+  sampling_strategies:
+    continuous:
+      description: "連續採樣"
+      interval: "1s"
+      use_cases: ["基本功能測試", "短時間測試"]
+      
+    high_frequency:
+      description: "高頻採樣"
+      interval: "100ms"
+      use_cases: ["延遲敏感測試", "實時性能測試"]
+      
+    low_frequency:
+      description: "低頻採樣"
+      interval: "10s"
+      use_cases: ["長時間穩定性測試", "資源監控"]
+      
+    adaptive:
+      description: "自適應採樣"
+      base_interval: "1s"
+      max_interval: "10s"
+      trigger_conditions: ["error_rate > 1%", "latency > threshold"]
+      
+  storage_format:
+    primary: "prometheus"
+    secondary: "json"
+    archival: "parquet"
+    
+  retention_policy:
+    raw_data: "7 days"
+    aggregated_5m: "30 days"
+    aggregated_1h: "90 days"
+    aggregated_1d: "1 year"
+
+# 指標聚合規則
+aggregation_rules:
+  latency_metrics:
+    percentiles: [50, 75, 90, 95, 99]
+    window_size: "5m"
+    aggregation_functions: ["avg", "max", "min"]
+    
+  throughput_metrics:
+    moving_average_window: "1m"
+    peak_detection: true
+    trend_analysis: true
+    
+  reliability_metrics:
+    success_rate_calculation: "sliding_window"
+    window_size: "10m"
+    minimum_sample_size: 10
+    
+  resource_metrics:
+    smoothing_factor: 0.1
+    outlier_detection: true
+    baseline_calculation: "daily"
+
+# 告警規則
+alerting_rules:
+  critical_alerts:
+    e2e_latency_high:
+      condition: "e2e_latency_connection_establishment_ms > 100"
+      duration: "2m"
+      severity: "critical"
+      message: "端到端延遲超過臨界閾值"
+      
+    e2e_reliability_low:
+      condition: "e2e_reliability_connection_success_rate < 85"
+      duration: "5m"
+      severity: "critical"
+      message: "連接成功率低於臨界閾值"
+      
+    e2e_availability_down:
+      condition: "e2e_availability_system_uptime_percent < 95"
+      duration: "1m"
+      severity: "critical"
+      message: "系統可用性低於臨界閾值"
+      
+  warning_alerts:
+    e2e_latency_elevated:
+      condition: "e2e_latency_connection_establishment_ms > 75"
+      duration: "5m"
+      severity: "warning"
+      message: "端到端延遲升高"
+      
+    e2e_resource_high:
+      condition: "e2e_resource_cpu_utilization_percent > 85"
+      duration: "10m"
+      severity: "warning"
+      message: "CPU 使用率過高"
+      
+  informational_alerts:
+    e2e_throughput_suboptimal:
+      condition: "e2e_throughput_max_data_rate_mbps < 75"
+      duration: "15m"
+      severity: "info"
+      message: "吞吐量低於最佳水平"
+
+# 報告生成規範
+reporting_specifications:
+  test_summary_report:
+    format: "json"
+    sections:
+      - "test_overview"
+      - "kpi_summary"
+      - "pass_fail_status"
+      - "performance_analysis"
+      - "issue_summary"
+    metrics_included: "all_kpi"
+    
+  detailed_performance_report:
+    format: "html"
+    sections:
+      - "executive_summary"
+      - "detailed_metrics"
+      - "trend_analysis"
+      - "benchmark_comparison"
+      - "recommendations"
+    metrics_included: "all"
+    visualizations: true
+    
+  compliance_report:
+    format: "pdf"
+    sections:
+      - "compliance_summary"
+      - "target_achievement"
+      - "deviation_analysis"
+      - "certification_status"
+    metrics_included: "kpi_only"
+    
+  real_time_dashboard:
+    format: "grafana"
+    refresh_interval: "5s"
+    panels:
+      - "latency_overview"
+      - "throughput_trends"
+      - "reliability_status"
+      - "resource_utilization"
+      - "error_rates"
+
+# 基準線和比較
+baselines:
+  performance_baseline:
+    description: "性能基準線"
+    source: "historical_data"
+    calculation_method: "95th_percentile_last_30_days"
+    update_frequency: "weekly"
+    
+  regression_baseline:
+    description: "回歸測試基準線"
+    source: "previous_release"
+    calculation_method: "median_values"
+    tolerance: "5%"
+    
+  industry_benchmark:
+    description: "行業基準"
+    source: "external_reference"
+    comparison_metrics:
+      - "e2e_latency_connection_establishment_ms"
+      - "e2e_throughput_max_data_rate_mbps"
+      - "e2e_reliability_connection_success_rate"
+
+# 質量評估框架
+quality_assessment:
+  scoring_system:
+    excellent: ">= 90"
+    good: "80-89"
+    acceptable: "70-79"
+    poor: "60-69"
+    critical: "< 60"
+    
+  weighted_score_calculation:
+    latency_weight: 25
+    throughput_weight: 20
+    reliability_weight: 30
+    availability_weight: 15
+    resource_efficiency_weight: 10
+    
+  certification_criteria:
+    basic_certification:
+      required_score: 70
+      critical_failures_allowed: 0
+      
+    advanced_certification:
+      required_score: 85
+      warning_threshold_breaches_allowed: 2
+      
+    premium_certification:
+      required_score: 95
+      all_kpi_targets_met: true
+
+# 自定義指標擴展
+custom_metrics_framework:
+  plugin_interface:
+    base_class: "E2EMetric"
+    required_methods: ["collect", "validate", "aggregate"]
+    optional_methods: ["alert", "visualize"]
+    
+  configuration_schema:
+    name: "string"
+    description: "string"
+    category: "enum"
+    unit: "string"
+    target_value: "string"
+    collection_method: "function"
+    
+  validation_rules:
+    naming_pattern: "^e2e_[a-z]+_[a-z_]+_[a-z]+$"
+    description_required: true
+    target_value_format: "operator value"
+    
+  registration_process:
+    location: "tests/e2e/custom_metrics/"
+    filename_pattern: "custom_{metric_name}.py"
+    auto_discovery: true
+    validation_required: true
+
+# 監控集成
+monitoring_integration:
+  prometheus_config:
+    scrape_interval: "5s"
+    evaluation_interval: "10s"
+    external_labels:
+      environment: "e2e_test"
+      project: "ntn_stack"
+      
+  grafana_config:
+    datasource: "prometheus"
+    dashboard_template: "tests/e2e/templates/metrics_dashboard.json"
+    alert_notification_channels: ["email", "slack"]
+    
+  external_systems:
+    elasticsearch:
+      enabled: false
+      index_pattern: "e2e-metrics-*"
+      
+    influxdb:
+      enabled: false
+      database: "e2e_metrics"
+      retention_policy: "30d" 

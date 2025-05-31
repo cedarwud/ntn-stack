@@ -1,0 +1,111 @@
+{
+  "test_run_id": "quick_test_20250531_055337",
+  "timestamp": "20250531_055337",
+  "total_tests": 2,
+  "passed_tests": 2,
+  "failed_tests": 0,
+  "overall_success_rate": 100.0,
+  "test_results": [
+    {
+      "test_name": "uav_satellite_basic_connectivity",
+      "start_time": "2025-05-31T05:53:31.374511",
+      "steps": [
+        {
+          "name": "初始化 UAV 終端",
+          "duration_seconds": 1.0,
+          "success": true,
+          "timestamp": "2025-05-31T05:53:32.374691"
+        },
+        {
+          "name": "建立衛星連接",
+          "duration_seconds": 0.5,
+          "success": true,
+          "timestamp": "2025-05-31T05:53:32.874919"
+        },
+        {
+          "name": "測量連接質量",
+          "duration_seconds": 0.3,
+          "success": true,
+          "timestamp": "2025-05-31T05:53:33.175178"
+        },
+        {
+          "name": "執行數據傳輸",
+          "duration_seconds": 0.8,
+          "success": true,
+          "timestamp": "2025-05-31T05:53:33.975351"
+        },
+        {
+          "name": "驗證數據完整性",
+          "duration_seconds": 0.2,
+          "success": true,
+          "timestamp": "2025-05-31T05:53:34.175693"
+        }
+      ],
+      "metrics": {
+        "total_duration_seconds": 2.8012707233428955,
+        "connection_latency_ms": 45.2,
+        "data_throughput_mbps": 120.5,
+        "success_rate_percent": 100.0,
+        "target_latency_met": true,
+        "target_throughput_met": true
+      },
+      "success": true,
+      "end_time": "2025-05-31T05:53:34.175782"
+    },
+    {
+      "test_name": "mesh_failover_basic_switching",
+      "start_time": "2025-05-31T05:53:34.175823",
+      "steps": [
+        {
+          "name": "建立主連接",
+          "duration_seconds": 0.5,
+          "success": true,
+          "timestamp": "2025-05-31T05:53:34.675941"
+        },
+        {
+          "name": "檢測連接中斷",
+          "duration_seconds": 0.2,
+          "success": true,
+          "timestamp": "2025-05-31T05:53:34.876115"
+        },
+        {
+          "name": "切換到 Mesh 網絡",
+          "duration_seconds": 1.5,
+          "success": true,
+          "timestamp": "2025-05-31T05:53:36.376390"
+        },
+        {
+          "name": "驗證備援連接",
+          "duration_seconds": 0.3,
+          "success": true,
+          "timestamp": "2025-05-31T05:53:36.676659"
+        },
+        {
+          "name": "測試數據傳輸",
+          "duration_seconds": 0.5,
+          "success": true,
+          "timestamp": "2025-05-31T05:53:37.176967"
+        }
+      ],
+      "metrics": {
+        "total_duration_seconds": 3.0012407302856445,
+        "failover_time_ms": 1500,
+        "recovery_success": true,
+        "data_integrity_percent": 99.9,
+        "target_recovery_time_met": true
+      },
+      "success": true,
+      "end_time": "2025-05-31T05:53:37.177063"
+    }
+  ],
+  "summary": {
+    "key_metrics_met": true,
+    "performance_targets_achieved": true,
+    "system_stability": "Good",
+    "recommendations": [
+      "系統基本功能正常",
+      "可以進行更深入的測試",
+      "建議進行長時間穩定性測試"
+    ]
+  }
+}
