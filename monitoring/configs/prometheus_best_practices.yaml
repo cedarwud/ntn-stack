@@ -1,0 +1,419 @@
+# Prometheus 配置最佳實踐
+# 版本: 1.0.0
+#
+# 為 NTN Stack 系統定制的 Prometheus 配置規範和最佳實踐
+
+# ===============================
+# 全局配置 (Global Configuration)
+# ===============================
+global:
+  scrape_interval: 15s          # 預設抓取間隔
+  evaluation_interval: 15s      # 規則評估間隔
+  scrape_timeout: 10s           # 抓取超時時間
+  
+  external_labels:
+    cluster: 'ntn-stack'
+    environment: 'production'
+    region: 'asia-pacific'
+
+# ===============================
+# 標準化抓取間隔 (Scrape Intervals)
+# ===============================
+scrape_intervals:
+  critical:
+    interval: 1s
+    timeout: 500ms
+    description: "關鍵性能指標 (延遲、錯誤率)"
+    targets:
+      - "端到端延遲"
+      - "連接中斷事件"
+      - "安全告警"
+    
+  important:
+    interval: 5s
+    timeout: 3s
+    description: "重要業務指標"
+    targets:
+      - "API 響應時間"
+      - "無線信號品質"
+      - "系統資源使用"
+    
+  standard:
+    interval: 15s
+    timeout: 10s
+    description: "標準監控指標"
+    targets:
+      - "一般業務指標"
+      - "統計計數器"
+      - "基礎設施監控"
+    
+  slow:
+    interval: 60s
+    timeout: 30s
+    description: "慢變化指標"
+    targets:
+      - "配置變更"
+      - "長期趨勢"
+      - "報告生成"
+
+# ===============================
+# 抓取配置 (Scrape Configs)
+# ===============================
+scrape_configs:
+  # NetStack API - 關鍵服務
+  - job_name: 'netstack-api-critical'
+    scrape_interval: 5s
+    scrape_timeout: 3s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['netstack-api:8080']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(ntn_.*_latency_.*|ntn_.*_error_.*|ntn_.*_availability_.*)'
+        action: keep
+        
+  # NetStack API - 一般指標  
+  - job_name: 'netstack-api-standard'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['netstack-api:8080']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(ntn_.*_latency_.*|ntn_.*_error_.*|ntn_.*_availability_.*)'
+        action: drop
+
+  # Open5GS 核心網組件
+  - job_name: 'open5gs-amf'
+    scrape_interval: 10s
+    scrape_timeout: 8s
+    static_configs:
+      - targets: ['netstack-amf:9090']
+    relabel_configs:
+      - target_label: component
+        replacement: amf
+      - target_label: environment
+        replacement: production
+
+  - job_name: 'open5gs-smf'
+    scrape_interval: 10s
+    scrape_timeout: 8s
+    static_configs:
+      - targets: ['netstack-smf:9090']
+    relabel_configs:
+      - target_label: component
+        replacement: smf
+
+  - job_name: 'open5gs-upf'
+    scrape_interval: 5s  # UPF 是數據平面，需要更頻繁監控
+    scrape_timeout: 3s
+    static_configs:
+      - targets: ['netstack-upf:9090']
+    relabel_configs:
+      - target_label: component
+        replacement: upf
+
+  # SimWorld 服務
+  - job_name: 'simworld-api'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ['120.126.151.101:8888']
+    metrics_path: '/metrics'
+    relabel_configs:
+      - target_label: service
+        replacement: simworld
+      - target_label: component
+        replacement: simulation
+
+  # 系統資源監控
+  - job_name: 'node-exporter'
+    scrape_interval: 30s
+    scrape_timeout: 20s
+    static_configs:
+      - targets: ['node-exporter:9100']
+    relabel_configs:
+      - target_label: component
+        replacement: infrastructure
+
+  # GPU 監控 (Sionna)
+  - job_name: 'gpu-exporter'
+    scrape_interval: 10s
+    scrape_timeout: 8s
+    static_configs:
+      - targets: ['gpu-exporter:9400']
+    relabel_configs:
+      - target_label: component
+        replacement: gpu
+      - target_label: service
+        replacement: sionna
+
+  # Redis 監控
+  - job_name: 'redis-exporter'
+    scrape_interval: 30s
+    scrape_timeout: 20s
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    relabel_configs:
+      - target_label: component
+        replacement: cache
+
+  # MongoDB 監控
+  - job_name: 'mongodb-exporter'
+    scrape_interval: 30s
+    scrape_timeout: 20s
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+    relabel_configs:
+      - target_label: component
+        replacement: database
+
+# ===============================
+# 記錄規則 (Recording Rules)
+# ===============================
+rule_files:
+  - "recording_rules/*.yml"
+  - "alert_rules/*.yml"
+
+# 預計算規則示例
+recording_rules:
+  - name: "ntn.performance.rules"
+    interval: 30s
+    rules:
+      # 平均端到端延遲 (5分鐘)
+      - record: ntn:latency_e2e_avg_5m
+        expr: avg_over_time(ntn_uav_latency_ms[5m])
+        labels:
+          aggregation: "5m_avg"
+          
+      # 99% 分位數延遲 (5分鐘)
+      - record: ntn:latency_e2e_p99_5m
+        expr: histogram_quantile(0.99, rate(ntn_uav_latency_ms_bucket[5m]))
+        labels:
+          aggregation: "5m_p99"
+          
+      # 連接成功率 (1分鐘)
+      - record: ntn:connection_success_rate_1m
+        expr: rate(ntn_uav_connection_success_total[1m]) / rate(ntn_uav_connection_attempts_total[1m])
+        labels:
+          aggregation: "1m_rate"
+          
+      # 系統可用性 (5分鐘)
+      - record: ntn:system_availability_5m
+        expr: avg_over_time(up[5m])
+        labels:
+          aggregation: "5m_availability"
+
+  - name: "open5gs.performance.rules"
+    interval: 30s
+    rules:
+      # AMF 註冊成功率
+      - record: open5gs:amf_registration_success_rate_5m
+        expr: rate(open5gs_amf_registration_success_total[5m]) / rate(open5gs_amf_registration_attempts_total[5m])
+        
+      # UPF 數據吞吐量
+      - record: open5gs:upf_throughput_mbps_5m
+        expr: rate(open5gs_upf_bytes_transmitted_total[5m]) * 8 / 1024 / 1024
+
+# ===============================
+# 告警規則 (Alert Rules)
+# ===============================
+alert_rules:
+  - name: "ntn.critical.alerts"
+    rules:
+      # 端到端延遲過高
+      - alert: NTN_HighLatency
+        expr: ntn:latency_e2e_p99_5m > 50
+        for: 1m
+        labels:
+          severity: critical
+          component: ntn
+          category: performance
+        annotations:
+          summary: "NTN 端到端延遲過高"
+          description: "99% 分位數延遲 {{ $value }}ms 超過 50ms 閾值"
+          
+      # 連接成功率過低
+      - alert: NTN_LowConnectionSuccessRate
+        expr: ntn:connection_success_rate_1m < 0.95
+        for: 2m
+        labels:
+          severity: critical
+          component: ntn
+          category: availability
+        annotations:
+          summary: "UAV 連接成功率過低"
+          description: "連接成功率 {{ $value | humanizePercentage }} 低於 95%"
+          
+      # 服務不可用
+      - alert: NTN_ServiceDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "服務 {{ $labels.job }} 不可用"
+          description: "服務 {{ $labels.job }} 已經停止響應"
+
+  - name: "open5gs.critical.alerts"
+    rules:
+      # AMF 註冊失敗率過高
+      - alert: Open5GS_AMF_HighRegistrationFailure
+        expr: (1 - open5gs:amf_registration_success_rate_5m) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          component: amf
+          category: registration
+        annotations:
+          summary: "AMF 註冊失敗率過高"
+          description: "AMF 註冊失敗率 {{ $value | humanizePercentage }} 超過 5%"
+
+  - name: "system.resource.alerts"
+    rules:
+      # CPU 使用率過高
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+        annotations:
+          summary: "高 CPU 使用率"
+          description: "節點 {{ $labels.instance }} CPU 使用率 {{ $value }}% 超過 80%"
+          
+      # 記憶體使用率過高
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+        annotations:
+          summary: "高記憶體使用率"
+          description: "節點 {{ $labels.instance }} 記憶體使用率 {{ $value }}% 超過 85%"
+
+# ===============================
+# 資料保留策略 (Data Retention)
+# ===============================
+storage:
+  retention_policies:
+    # 高頻率關鍵指標 - 短期保留
+    critical_metrics:
+      retention: "7d"
+      resolution: "1s"
+      metrics_pattern: "ntn_.*_(latency|error|availability)_.*"
+      
+    # 標準指標 - 中期保留
+    standard_metrics:
+      retention: "30d"
+      resolution: "15s"
+      metrics_pattern: ".*"
+      
+    # 聚合指標 - 長期保留
+    aggregated_metrics:
+      retention: "1y"
+      resolution: "5m"
+      metrics_pattern: ".*:.*"  # Recording rules 產生的指標
+      
+  # 遠程存儲配置
+  remote_storage:
+    enabled: true
+    url: "http://prometheus-remote-storage:8080/receive"
+    compression: "snappy"
+    batch_size: 500
+    max_shards: 10
+
+# ===============================
+# 優化配置 (Optimization)
+# ===============================
+optimization:
+  # 減少高基數問題
+  cardinality_optimization:
+    enabled: true
+    max_series_per_metric: 10000
+    max_labels_per_series: 30
+    
+  # 查詢優化
+  query_optimization:
+    max_concurrent_queries: 20
+    query_timeout: "2m"
+    max_samples: 50000000
+    
+  # 記憶體優化
+  memory_optimization:
+    target_heap_size: "4GB"
+    max_chunks_to_persist: 524288
+    max_chunks_in_memory: 1048576
+
+# ===============================
+# 安全配置 (Security)
+# ===============================
+security:
+  authentication:
+    enabled: true
+    basic_auth:
+      username: "prometheus"
+      password_file: "/etc/prometheus/auth/password"
+      
+  authorization:
+    enabled: true
+    role_based_access:
+      - role: "admin"
+        permissions: ["read", "write", "admin"]
+      - role: "operator"
+        permissions: ["read", "write"]
+      - role: "viewer"
+        permissions: ["read"]
+        
+  tls:
+    enabled: true
+    cert_file: "/etc/prometheus/tls/prometheus.crt"
+    key_file: "/etc/prometheus/tls/prometheus.key"
+    
+  ip_filtering:
+    enabled: true
+    allowed_networks:
+      - "172.20.0.0/16"    # Docker 內部網絡
+      - "10.0.0.0/8"       # 內部網絡
+      - "192.168.0.0/16"   # 私有網絡
+
+# ===============================
+# 告警管理配置 (Alerting)
+# ===============================
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - "alertmanager:9093"
+      timeout: 10s
+      api_version: v2
+      
+  notification_routing:
+    group_by: ['alertname', 'cluster', 'service']
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 12h
+    
+    routes:
+      - match:
+          severity: critical
+        receiver: 'critical-alerts'
+        continue: true
+        
+      - match:
+          severity: warning
+        receiver: 'warning-alerts'
+        
+  receivers:
+    - name: 'critical-alerts'
+      webhook_configs:
+        - url: 'http://alert-handler:8080/critical'
+          send_resolved: true
+          
+    - name: 'warning-alerts'
+      webhook_configs:
+        - url: 'http://alert-handler:8080/warning'
+          send_resolved: true 

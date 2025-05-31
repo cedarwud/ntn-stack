@@ -1,0 +1,370 @@
+# NTN Stack 標準標籤規範
+# 版本: 1.0.0
+#
+# 定義所有指標使用的標準標籤集，確保多維度數據分析的一致性
+
+# ===============================
+# 公共標籤 (Common Labels)
+# ===============================
+common_labels:
+  environment:
+    description: "部署環境"
+    required: true
+    values:
+      - "dev"         # 開發環境
+      - "test"        # 測試環境  
+      - "staging"     # 預發布環境
+      - "prod"        # 生產環境
+      - "lab"         # 實驗室環境
+    example: 'environment="prod"'
+    
+  node:
+    description: "主機名或節點識別"
+    required: true
+    pattern: "^[a-z0-9-]+$"
+    example: 'node="ntn-node-01"'
+    
+  service:
+    description: "服務名稱"
+    required: true
+    pattern: "^[a-z0-9-]+$"
+    example: 'service="netstack-api"'
+    
+  version:
+    description: "服務版本"
+    required: false
+    pattern: "^v?[0-9]+\\.[0-9]+\\.[0-9]+$"
+    example: 'version="v1.2.3"'
+    
+  instance:
+    description: "服務實例識別"
+    required: false
+    pattern: "^[a-z0-9-]+:[0-9]+$"
+    example: 'instance="netstack-api:8080"'
+
+# ===============================
+# 網絡標籤 (Network Labels)
+# ===============================
+network_labels:
+  component:
+    description: "5G 核心網組件"
+    values:
+      - "amf"         # 存取和移動管理功能
+      - "smf"         # 會話管理功能
+      - "upf"         # 用戶平面功能
+      - "pcf"         # 策略控制功能
+      - "udm"         # 統一數據管理
+      - "ausf"        # 認證服務功能
+      - "nrf"         # 網絡儲存庫功能
+      - "nssf"        # 網絡切片選擇功能
+    example: 'component="amf"'
+    
+  interface:
+    description: "5G 網絡介面"
+    values:
+      - "n1"          # UE 與 AMF 之間
+      - "n2"          # gNB 與 AMF 之間
+      - "n3"          # gNB 與 UPF 之間
+      - "n4"          # SMF 與 UPF 之間
+      - "n6"          # UPF 與 DN 之間
+      - "n7"          # SMF 與 PCF 之間
+      - "n8"          # UDM 與 AMF 之間
+      - "n10"         # SMF 與 UDM 之間
+      - "n11"         # AMF 與 SMF 之間
+      - "n12"         # AUSF 與 AMF 之間
+      - "n13"         # UDM 與 AUSF 之間
+      - "n15"         # PCF 與 AMF 之間
+      - "n22"         # AMF 與 NSSF 之間
+    example: 'interface="n1"'
+    
+  protocol:
+    description: "協議類型"
+    values:
+      - "http"
+      - "grpc"
+      - "pfcp"        # Packet Forwarding Control Protocol
+      - "ngap"        # NG Application Protocol
+      - "nas"         # Non-Access Stratum
+      - "gtp"         # GPRS Tunneling Protocol
+    example: 'protocol="http"'
+
+# ===============================
+# 無線標籤 (Radio Labels)
+# ===============================
+radio_labels:
+  cell_id:
+    description: "小區識別"
+    pattern: "^[0-9a-f]{8}$"
+    example: 'cell_id="12345678"'
+    
+  frequency:
+    description: "頻率 (MHz)"
+    pattern: "^[0-9]+$"
+    example: 'frequency="3500"'
+    
+  bandwidth:
+    description: "頻寬 (MHz)"
+    values: ["5", "10", "15", "20", "25", "30", "40", "50", "60", "70", "80", "90", "100"]
+    example: 'bandwidth="20"'
+    
+  modulation:
+    description: "調製方式"
+    values:
+      - "qpsk"        # Quadrature Phase Shift Keying
+      - "16qam"       # 16-Quadrature Amplitude Modulation
+      - "64qam"       # 64-QAM
+      - "256qam"      # 256-QAM
+    example: 'modulation="64qam"'
+    
+  frequency_band:
+    description: "頻段"
+    values:
+      - "n1"          # 2100 MHz
+      - "n3"          # 1800 MHz
+      - "n7"          # 2600 MHz
+      - "n28"         # 700 MHz
+      - "n78"         # 3500 MHz
+      - "n79"         # 4700 MHz
+      - "n257"        # 28 GHz (mmWave)
+      - "n258"        # 26 GHz (mmWave)
+      - "n260"        # 39 GHz (mmWave)
+      - "n261"        # 28 GHz (mmWave)
+    example: 'frequency_band="n78"'
+
+# ===============================
+# UAV 標籤 (UAV Labels)
+# ===============================
+uav_labels:
+  uav_id:
+    description: "UAV 唯一識別碼"
+    pattern: "^uav-[0-9a-f]{8}$"
+    example: 'uav_id="uav-12345678"'
+    
+  altitude:
+    description: "飛行高度 (公尺)"
+    pattern: "^[0-9]+$"
+    example: 'altitude="100"'
+    
+  velocity:
+    description: "速度 (m/s)"
+    pattern: "^[0-9]+$"
+    example: 'velocity="25"'
+    
+  connection_type:
+    description: "連接類型"
+    values:
+      - "satellite"   # 衛星連接
+      - "terrestrial" # 地面連接
+      - "mesh"        # Mesh 網絡
+      - "hybrid"      # 混合連接
+    example: 'connection_type="satellite"'
+    
+  mission_type:
+    description: "任務類型"
+    values:
+      - "surveillance"    # 監控
+      - "delivery"        # 運送
+      - "rescue"          # 救援
+      - "inspection"      # 檢查
+      - "research"        # 研究
+      - "test"            # 測試
+    example: 'mission_type="surveillance"'
+
+# ===============================
+# 位置標籤 (Location Labels)
+# ===============================
+location_labels:
+  location:
+    description: "位置名稱"
+    pattern: "^[a-z0-9-_]+$"
+    example: 'location="taipei-101"'
+    
+  coordinates:
+    description: "座標 (緯度,經度)"
+    pattern: "^-?[0-9]+\\.[0-9]+,-?[0-9]+\\.[0-9]+$"
+    example: 'coordinates="25.0330,121.5654"'
+    
+  coverage_area:
+    description: "覆蓋區域"
+    values:
+      - "urban"           # 都市區域
+      - "suburban"        # 郊區
+      - "rural"           # 鄉村
+      - "maritime"        # 海域
+      - "mountainous"     # 山區
+      - "desert"          # 沙漠
+    example: 'coverage_area="urban"'
+    
+  region:
+    description: "地理區域"
+    values:
+      - "north"
+      - "south"
+      - "east"
+      - "west"
+      - "central"
+    example: 'region="north"'
+
+# ===============================
+# 測試標籤 (Test Labels)
+# ===============================
+test_labels:
+  test_id:
+    description: "測試識別碼"
+    pattern: "^test-[0-9a-f]{8}$"
+    example: 'test_id="test-12345678"'
+    
+  scenario:
+    description: "測試場景"
+    values:
+      - "baseline"                    # 基線測試
+      - "high_mobility"              # 高移動性
+      - "interference"               # 干擾測試
+      - "handover"                   # 切換測試
+      - "load_test"                  # 負載測試
+      - "stress_test"                # 壓力測試
+      - "failover"                   # 故障切換
+      - "beam_switching"             # 波束切換
+      - "mesh_formation"             # Mesh 組網
+    example: 'scenario="high_mobility"'
+    
+  test_case:
+    description: "測試案例"
+    pattern: "^tc-[0-9]+$"
+    example: 'test_case="tc-001"'
+    
+  test_phase:
+    description: "測試階段"
+    values:
+      - "setup"           # 設置階段
+      - "execution"       # 執行階段
+      - "validation"      # 驗證階段
+      - "cleanup"         # 清理階段
+    example: 'test_phase="execution"'
+
+# ===============================
+# AI/ML 標籤 (AI/ML Labels)
+# ===============================
+ai_labels:
+  model_name:
+    description: "AI 模型名稱"
+    pattern: "^[a-z0-9-_]+$"
+    example: 'model_name="interference_detection_v2"'
+    
+  model_version:
+    description: "模型版本"
+    pattern: "^v[0-9]+\\.[0-9]+$"
+    example: 'model_version="v1.2"'
+    
+  algorithm:
+    description: "演算法類型"
+    values:
+      - "neural_network"      # 神經網絡
+      - "random_forest"       # 隨機森林
+      - "svm"                 # 支持向量機
+      - "reinforcement"       # 強化學習
+      - "deep_learning"       # 深度學習
+      - "clustering"          # 聚類
+    example: 'algorithm="neural_network"'
+    
+  inference_type:
+    description: "推理類型"
+    values:
+      - "real_time"       # 實時推理
+      - "batch"           # 批次推理
+      - "streaming"       # 串流推理
+    example: 'inference_type="real_time"'
+
+# ===============================
+# 品質標籤 (Quality Labels)
+# ===============================
+quality_labels:
+  qos_class:
+    description: "服務品質等級"
+    values:
+      - "guaranteed_bit_rate"     # 保證比特率
+      - "non_guaranteed_bit_rate" # 非保證比特率
+      - "delay_critical"          # 延遲關鍵
+      - "mission_critical"        # 任務關鍵
+    example: 'qos_class="delay_critical"'
+    
+  priority:
+    description: "優先級"
+    values: ["1", "2", "3", "4", "5"]  # 1=最高優先級
+    example: 'priority="1"'
+    
+  slice_type:
+    description: "網絡切片類型"
+    values:
+      - "embb"           # Enhanced Mobile Broadband
+      - "urllc"          # Ultra-Reliable Low Latency Communications
+      - "mmtc"           # Massive Machine Type Communications
+      - "custom"         # 自定義切片
+    example: 'slice_type="urllc"'
+
+# ===============================
+# 安全標籤 (Security Labels)
+# ===============================
+security_labels:
+  security_level:
+    description: "安全等級"
+    values:
+      - "public"         # 公開
+      - "internal"       # 內部
+      - "confidential"   # 機密
+      - "restricted"     # 限制
+    example: 'security_level="internal"'
+    
+  auth_method:
+    description: "認證方法"
+    values:
+      - "5g_aka"         # 5G AKA
+      - "eap_aka"        # EAP-AKA
+      - "certificate"    # 證書認證
+      - "token"          # Token 認證
+    example: 'auth_method="5g_aka"'
+
+# ===============================
+# 標籤使用規則
+# ===============================
+label_rules:
+  general:
+    - "標籤名稱使用小寫字母和底線"
+    - "標籤值避免使用特殊字符"
+    - "保持標籤一致性，避免同義詞"
+    - "考慮標籤基數，避免過高基數問題"
+    
+  cardinality_limits:
+    - "高基數標籤 (如 uav_id): < 1000 個值"
+    - "中基數標籤 (如 cell_id): < 100 個值"  
+    - "低基數標籤 (如 environment): < 10 個值"
+    
+  best_practices:
+    - "使用有意義且可預測的標籤值"
+    - "避免在標籤中包含時間戳或動態數據"
+    - "標籤值應該相對穩定，不頻繁變更"
+    - "考慮查詢和聚合需求來設計標籤"
+
+# ===============================
+# 標籤組合模式
+# ===============================
+label_patterns:
+  basic_service:
+    labels: ["environment", "service", "version"]
+    description: "基本服務識別"
+    
+  network_component:
+    labels: ["environment", "component", "interface", "protocol"]
+    description: "網絡組件指標"
+    
+  radio_measurement:
+    labels: ["uav_id", "cell_id", "frequency_band", "connection_type"]
+    description: "無線測量指標"
+    
+  performance_testing:
+    labels: ["test_id", "scenario", "test_case", "environment"]
+    description: "性能測試指標"
+    
+  ai_inference:
+    labels: ["model_name", "model_version", "algorithm", "inference_type"]
+    description: "AI 推理指標" 
