@@ -1,0 +1,64 @@
+{
+  "test_execution": {
+    "timestamp": "2025-05-31T04:08:10.071897",
+    "overall_success": false,
+    "total_attempts": 3,
+    "max_attempts": 3
+  },
+  "test_summary": {
+    "total_tests": 6,
+    "passed": 0,
+    "failed": 6,
+    "error": 0,
+    "success_rate": 0.0
+  },
+  "performance_optimization": {
+    "executed": true,
+    "baseline_established": true,
+    "optimizations_applied": true
+  },
+  "detailed_results": [
+    {
+      "test_name": "normal_uav_satellite_connection",
+      "scenario": "UAV 正常連接衛星場景",
+      "status": "failed",
+      "duration_seconds": 0.002516508102416992,
+      "error_message": ""
+    },
+    {
+      "test_name": "satellite_loss_mesh_failover",
+      "scenario": "衛星失聯切換到 Mesh 場景",
+      "status": "failed",
+      "duration_seconds": 0.0012166500091552734,
+      "error_message": ""
+    },
+    {
+      "test_name": "interference_avoidance",
+      "scenario": "干擾出現和規避場景",
+      "status": "failed",
+      "duration_seconds": 0.000553131103515625,
+      "error_message": ""
+    },
+    {
+      "test_name": "multi_uav_access",
+      "scenario": "多 UAV 同時接入場景",
+      "status": "failed",
+      "duration_seconds": 0.000497,
+      "error_message": ""
+    },
+    {
+      "test_name": "high_load_performance",
+      "scenario": "高負載下的性能場景",
+      "status": "failed",
+      "duration_seconds": 0.000852,
+      "error_message": ""
+    },
+    {
+      "test_name": "long_duration_stability",
+      "scenario": "長時間運行場景",
+      "status": "failed",
+      "duration_seconds": 0.001045,
+      "error_message": ""
+    }
+  ]
+}

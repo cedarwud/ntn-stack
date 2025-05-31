@@ -1,0 +1,142 @@
+{
+  "test_execution": {
+    "start_time": "2025-05-31T03:56:26.059636",
+    "end_time": "2025-05-31T03:57:46.245309",
+    "total_duration_seconds": 80.185653,
+    "environment": "development"
+  },
+  "summary": {
+    "total_scenarios": 6,
+    "passed": 0,
+    "failed": 6,
+    "error": 0,
+    "timeout": 0,
+    "success_rate": 0.0
+  },
+  "detailed_results": [
+    {
+      "test_name": "normal_uav_satellite_connection",
+      "scenario": "UAV 正常連接衛星場景",
+      "status": "failed",
+      "start_time": "2025-05-31 03:57:46.208080",
+      "end_time": "2025-05-31 03:57:46.213429",
+      "duration_seconds": 0.005347251892089844,
+      "performance_metrics": {},
+      "error_message": "",
+      "detailed_logs": [
+        ""
+      ]
+    },
+    {
+      "test_name": "satellite_loss_mesh_failover",
+      "scenario": "衛星失聯切換到 Mesh 場景",
+      "status": "failed",
+      "start_time": "2025-05-31 03:57:46.213801",
+      "end_time": "2025-05-31 03:57:46.216258",
+      "duration_seconds": 0.002452850341796875,
+      "performance_metrics": {},
+      "error_message": "",
+      "detailed_logs": [
+        ""
+      ]
+    },
+    {
+      "test_name": "interference_avoidance",
+      "scenario": "干擾出現和規避場景",
+      "status": "failed",
+      "start_time": "2025-05-31 03:57:46.216525",
+      "end_time": "2025-05-31 03:57:46.235533",
+      "duration_seconds": 0.018996477127075195,
+      "performance_metrics": {},
+      "error_message": "",
+      "detailed_logs": [
+        ""
+      ]
+    },
+    {
+      "test_name": "multi_uav_access",
+      "scenario": "多 UAV 同時接入場景",
+      "status": "failed",
+      "start_time": "2025-05-31 03:57:46.235790",
+      "end_time": "2025-05-31 03:57:46.237864",
+      "duration_seconds": 0.002074,
+      "performance_metrics": {
+        "avg_latency_ms": 9.211540222167969,
+        "avg_throughput_mbps": 22.62534968075272,
+        "avg_cpu_usage_percent": 1.9,
+        "avg_memory_usage_mb": 10439.34375,
+        "avg_connection_count": 1.0,
+        "avg_error_rate": 0.08113070995739106
+      },
+      "error_message": "",
+      "detailed_logs": [
+        "執行步驟: 批量創建 UAV",
+        "  POST http://localhost:8080/api/v1/uav/batch/provision -> 404 (1.9ms)",
+        "  錯誤: HTTP 404"
+      ]
+    },
+    {
+      "test_name": "high_load_performance",
+      "scenario": "高負載下的性能場景",
+      "status": "failed",
+      "start_time": "2025-05-31 03:57:46.238458",
+      "end_time": "2025-05-31 03:57:46.241196",
+      "duration_seconds": 0.002738,
+      "performance_metrics": {
+        "avg_latency_ms": 9.211540222167969,
+        "avg_throughput_mbps": 22.62534968075272,
+        "avg_cpu_usage_percent": 1.9,
+        "avg_memory_usage_mb": 10439.34375,
+        "avg_connection_count": 1.0,
+        "avg_error_rate": 0.08113070995739106
+      },
+      "error_message": "",
+      "detailed_logs": [
+        "執行步驟: 創建多個 UAV 實例",
+        "  POST http://localhost:8080/api/v1/uav/batch/create -> 404 (2.6ms)",
+        "  錯誤: HTTP 404"
+      ]
+    },
+    {
+      "test_name": "long_duration_stability",
+      "scenario": "長時間運行場景",
+      "status": "failed",
+      "start_time": "2025-05-31 03:57:46.241608",
+      "end_time": "2025-05-31 03:57:46.244424",
+      "duration_seconds": 0.002816,
+      "performance_metrics": {
+        "avg_latency_ms": 9.211540222167969,
+        "avg_throughput_mbps": 22.62534968075272,
+        "avg_cpu_usage_percent": 1.9,
+        "avg_memory_usage_mb": 10439.34375,
+        "avg_connection_count": 1.0,
+        "avg_error_rate": 0.08113070995739106
+      },
+      "error_message": "",
+      "detailed_logs": [
+        "執行步驟: 建立基線指標",
+        "  POST http://localhost:8888/api/v1/system/baseline -> 404 (2.7ms)",
+        "  錯誤: HTTP 404"
+      ]
+    }
+  ],
+  "performance_analysis": {
+    "avg_latency_ms": 9.211540222167969,
+    "avg_throughput_mbps": 22.62534968075272,
+    "avg_cpu_usage_percent": 1.9,
+    "avg_memory_usage_mb": 10439.34375,
+    "avg_connection_count": 1.0,
+    "avg_error_rate": 0.08113070995739106
+  },
+  "performance_history": [
+    {
+      "timestamp": "2025-05-31T03:57:46.208527",
+      "latency_ms": 9.211540222167969,
+      "throughput_mbps": 22.62534968075272,
+      "cpu_usage_percent": 1.9,
+      "memory_usage_mb": 10439.34375,
+      "connection_count": 1,
+      "error_rate": 0.08113070995739106
+    }
+  ]
+}
