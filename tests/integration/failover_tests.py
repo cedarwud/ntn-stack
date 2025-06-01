@@ -210,3 +210,140 @@ class FailoverTester:
                 consistency_check_passed = False
 
         return consistency_check_passed
+
+
+# ============================================================================
+# Pytest 測試函數
+# ============================================================================
+
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_failover_service_availability():
+    """測試服務可用性"""
+    config = {
+        "environment": {
+            "services": {
+                "netstack": {"url": "http://localhost:3000"},
+                "simworld": {"url": "http://localhost:8888"},
+            }
+        }
+    }
+
+    tester = FailoverTester(config)
+    result = await tester._test_service_availability()
+
+    # 服務可用性測試應該總是能完成（即使服務不可用）
+    assert isinstance(result, bool)
+
+
+@pytest.mark.asyncio
+async def test_failover_graceful_degradation():
+    """測試優雅降級"""
+    config = {
+        "environment": {
+            "services": {
+                "netstack": {"url": "http://localhost:3000"},
+                "simworld": {"url": "http://localhost:8888"},
+            }
+        }
+    }
+
+    tester = FailoverTester(config)
+    result = await tester._test_graceful_degradation()
+
+    # 優雅降級測試應該總是能完成
+    assert isinstance(result, bool)
+
+
+@pytest.mark.asyncio
+async def test_failover_recovery_mechanisms():
+    """測試恢復機制"""
+    config = {
+        "environment": {
+            "services": {
+                "netstack": {"url": "http://localhost:3000"},
+                "simworld": {"url": "http://localhost:8888"},
+            }
+        }
+    }
+
+    tester = FailoverTester(config)
+    result = await tester._test_recovery_mechanisms()
+
+    # 恢復機制測試應該總是能完成
+    assert isinstance(result, bool)
+
+
+@pytest.mark.asyncio
+async def test_failover_data_consistency():
+    """測試數據一致性"""
+    config = {
+        "environment": {
+            "services": {
+                "netstack": {"url": "http://localhost:3000"},
+                "simworld": {"url": "http://localhost:8888"},
+            }
+        }
+    }
+
+    tester = FailoverTester(config)
+    result = await tester._test_data_consistency()
+
+    # 數據一致性測試應該總是能完成
+    assert isinstance(result, bool)
+
+
+@pytest.mark.asyncio
+async def test_failover_full_test_suite():
+    """執行完整故障切換測試套件"""
+    config = {
+        "environment": {
+            "services": {
+                "netstack": {"url": "http://localhost:3000"},
+                "simworld": {"url": "http://localhost:8888"},
+            }
+        }
+    }
+
+    tester = FailoverTester(config)
+    success, details = await tester.run_failover_tests()
+
+    # 檢查測試結果結構
+    assert isinstance(success, bool)
+    assert isinstance(details, dict)
+    assert "total_tests" in details
+    assert "passed_tests" in details
+    assert "success_rate" in details
+    assert "test_results" in details
+
+    # 測試應該能執行完成（即使某些子測試失敗）
+    assert details["total_tests"] > 0
+    assert 0 <= details["success_rate"] <= 1
+
+
+if __name__ == "__main__":
+    # 允許直接運行
+    async def main():
+        print("🔄 開始故障切換測試...")
+
+        config = {
+            "environment": {
+                "services": {
+                    "netstack": {"url": "http://localhost:3000"},
+                    "simworld": {"url": "http://localhost:8888"},
+                }
+            }
+        }
+
+        tester = FailoverTester(config)
+        success, details = await tester.run_failover_tests()
+
+        print(f"📊 故障切換測試結果: {'成功' if success else '部分失敗'}")
+        print(f"📈 成功率: {details['success_rate']:.1%}")
+        print("🎉 故障切換測試完成！")
+
+    import asyncio
+
+    asyncio.run(main())

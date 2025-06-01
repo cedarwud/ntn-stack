@@ -134,7 +134,7 @@ class TestPriorityConfig:
             ),
             # E2E 測試 - 最後執行
             "e2e_quick": TestCase(
-                path="e2e/run_quick_test.py",
+                path="e2e/test_e2e_quick.py",
                 priority=Priority.LOW,
                 description="端到端快速測試",
                 dependencies=["api_comprehensive"],

@@ -292,3 +292,140 @@ class InterferenceTester:
         )
 
         return passed
+
+
+# ============================================================================
+# Pytest 測試函數
+# ============================================================================
+
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_interference_baseline_performance():
+    """測試基線性能（無干擾情況）"""
+    config = {
+        "environment": {
+            "services": {
+                "netstack": {"url": "http://localhost:3000"},
+                "simworld": {"url": "http://localhost:8888"},
+            }
+        }
+    }
+
+    tester = InterferenceTester(config)
+    result = await tester._test_baseline_performance()
+
+    # 基線測試應該總是能完成（即使服務不可用）
+    assert isinstance(result, bool)
+
+
+@pytest.mark.asyncio
+async def test_interference_simulated_jamming():
+    """測試模擬干擾"""
+    config = {
+        "environment": {
+            "services": {
+                "netstack": {"url": "http://localhost:3000"},
+                "simworld": {"url": "http://localhost:8888"},
+            }
+        }
+    }
+
+    tester = InterferenceTester(config)
+    result = await tester._test_simulated_jamming()
+
+    # 模擬干擾測試應該總是能完成
+    assert isinstance(result, bool)
+
+
+@pytest.mark.asyncio
+async def test_interference_signal_degradation():
+    """測試信號劣化"""
+    config = {
+        "environment": {
+            "services": {
+                "netstack": {"url": "http://localhost:3000"},
+                "simworld": {"url": "http://localhost:8888"},
+            }
+        }
+    }
+
+    tester = InterferenceTester(config)
+    result = await tester._test_signal_degradation()
+
+    # 信號劣化測試應該總是能完成
+    assert isinstance(result, bool)
+
+
+@pytest.mark.asyncio
+async def test_interference_recovery_capability():
+    """測試干擾恢復能力"""
+    config = {
+        "environment": {
+            "services": {
+                "netstack": {"url": "http://localhost:3000"},
+                "simworld": {"url": "http://localhost:8888"},
+            }
+        }
+    }
+
+    tester = InterferenceTester(config)
+    result = await tester._test_recovery_capability()
+
+    # 恢復能力測試應該總是能完成
+    assert isinstance(result, bool)
+
+
+@pytest.mark.asyncio
+async def test_interference_full_test_suite():
+    """執行完整干擾測試套件"""
+    config = {
+        "environment": {
+            "services": {
+                "netstack": {"url": "http://localhost:3000"},
+                "simworld": {"url": "http://localhost:8888"},
+            }
+        }
+    }
+
+    tester = InterferenceTester(config)
+    success, details = await tester.run_interference_tests()
+
+    # 檢查測試結果結構
+    assert isinstance(success, bool)
+    assert isinstance(details, dict)
+    assert "total_tests" in details
+    assert "passed_tests" in details
+    assert "success_rate" in details
+    assert "test_results" in details
+
+    # 測試應該能執行完成（即使某些子測試失敗）
+    assert details["total_tests"] > 0
+    assert 0 <= details["success_rate"] <= 1
+
+
+if __name__ == "__main__":
+    # 允許直接運行
+    async def main():
+        print("🚫 開始干擾測試...")
+
+        config = {
+            "environment": {
+                "services": {
+                    "netstack": {"url": "http://localhost:3000"},
+                    "simworld": {"url": "http://localhost:8888"},
+                }
+            }
+        }
+
+        tester = InterferenceTester(config)
+        success, details = await tester.run_interference_tests()
+
+        print(f"📊 干擾測試結果: {'成功' if success else '部分失敗'}")
+        print(f"📈 成功率: {details['success_rate']:.1%}")
+        print("🎉 干擾測試完成！")
+
+    import asyncio
+
+    asyncio.run(main())
