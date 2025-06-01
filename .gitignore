@@ -52,8 +52,6 @@ coverage.xml
 
 # 測試報告和日誌
 tests/reports/
-tests/e2e/reports/
-test-reports/
 reports/
 netstack/tests/test_results/
 *.log
