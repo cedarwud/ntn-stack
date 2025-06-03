@@ -66,8 +66,11 @@ services:
         #           capabilities: [gpu]
 
         networks:
-            - sionna-net
-            - netstack-core # 連接到 NetStack 網路以實現跨服務通信
+            sionna-net:
+            netstack-core:
+                aliases:
+                    - simworld-backend
+                    - backend
         depends_on: # <-- 讓 FastAPI 服務等待 DB 服務啟動 (healthcheck 更可靠)
             postgis:
                 condition: service_healthy # 等待 DB healthcheck 成功

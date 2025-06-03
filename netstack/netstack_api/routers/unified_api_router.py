@@ -13,6 +13,7 @@ import httpx
 import asyncio
 import json
 from datetime import datetime
+import psutil
 
 from ..models.unified_models import (
     UnifiedHealthResponse,
@@ -380,8 +381,14 @@ async def wireless_simulation_proxy(request_data: Dict[str, Any]):
 async def _check_netstack_status() -> SystemComponentStatus:
     """檢查 NetStack 服務狀態"""
     try:
-        # 這裡應該檢查實際的 NetStack 服務狀態
-        # 暫時返回模擬狀態
+        # 獲取實際系統資源指標
+        cpu_percent = psutil.cpu_percent(interval=None)
+        memory = psutil.virtual_memory()
+        memory_percent = memory.percent
+
+        # 獲取活躍連接數 (估算)
+        active_connections = 24  # 可以後續整合實際統計
+
         return SystemComponentStatus(
             name="NetStack",
             healthy=True,
@@ -389,9 +396,9 @@ async def _check_netstack_status() -> SystemComponentStatus:
             version="1.0.0",
             last_health_check=datetime.utcnow(),
             metrics={
-                "cpu_usage": 45.2,
-                "memory_usage": 512.8,
-                "active_connections": 24,
+                "cpu_usage": round(cpu_percent, 1),
+                "memory_usage": round(memory_percent, 1),  # 修正：使用百分比
+                "active_connections": active_connections,
             },
         )
     except Exception as e:
@@ -409,9 +416,19 @@ async def _check_netstack_status() -> SystemComponentStatus:
 async def _check_simworld_status() -> SystemComponentStatus:
     """檢查 SimWorld 服務狀態"""
     try:
+        # 修正：使用正確的 ping 端點路徑
+        simworld_ping_url = "http://simworld-backend:8000/ping"
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{SIMWORLD_BASE_URL}/../ping", timeout=5.0)
+            response = await client.get(simworld_ping_url, timeout=5.0)
             if response.status_code == 200:
+                # 獲取實際系統資源指標
+                cpu_percent = psutil.cpu_percent(interval=None)
+                memory = psutil.virtual_memory()
+                memory_percent = memory.percent
+
+                # 估算活躍模擬數（可以後續從 SimWorld API 獲取）
+                active_simulations = 3
+
                 return SystemComponentStatus(
                     name="SimWorld",
                     healthy=True,
@@ -419,9 +436,9 @@ async def _check_simworld_status() -> SystemComponentStatus:
                     version="0.1.0",
                     last_health_check=datetime.utcnow(),
                     metrics={
-                        "cpu_usage": 38.7,
-                        "memory_usage": 768.3,
-                        "active_simulations": 3,
+                        "cpu_usage": round(cpu_percent, 1),
+                        "memory_usage": round(memory_percent, 1),  # 修正：使用百分比
+                        "active_simulations": active_simulations,
                     },
                 )
             else:

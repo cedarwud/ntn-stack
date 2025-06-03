@@ -34,6 +34,8 @@ dev-up: ## 🛠️ 完整的開發環境設置 (保留數據)
 	@$(MAKE) register-subscribers
 	@$(MAKE) start-ran
 	@sleep 15
+	@echo "$(YELLOW)🚁 初始化 UAV 數據和網絡拓撲...$(NC)"
+	@$(MAKE) init-demo-data
 	@echo "$(GREEN)✅ 開發環境設置完成，可開始測試$(NC)"
 
 dev-fresh: ## 🆕 全新環境設置 (清除所有數據)
@@ -43,6 +45,8 @@ dev-fresh: ## 🆕 全新環境設置 (清除所有數據)
 	@$(MAKE) register-subscribers
 	@$(MAKE) start-ran
 	@sleep 15
+	@echo "$(YELLOW)🚁 初始化 UAV 數據和網絡拓撲...$(NC)"
+	@$(MAKE) init-demo-data
 	@echo "$(GREEN)✅ 全新環境設置完成，可開始測試$(NC)"
 
 down: ## 🧹 清理容器但保留數據庫資料
@@ -348,3 +352,16 @@ fix-connectivity: ## 🔧 自動修復常見連線問題
 	@echo "步驟 4: 測試連線 (使用根目錄統一測試)..."
 	@cd ../ && make test-netstack
 	@echo "$(GREEN)✅ 修復完成$(NC)"
+
+init-demo-data: ## 🚁 初始化演示數據 (UAV、軌跡、網絡拓撲)
+	@echo "$(GREEN)🚁 初始化 UAV 演示數據...$(NC)"
+	@echo "等待 API 服務就緒..."
+	@sleep 5
+	@-curl -s -X POST http://localhost:8080/api/v1/uav/demo/quick-test -H "Content-Type: application/json" > /dev/null 2>&1 && echo "$(GREEN)✅ UAV 演示數據初始化成功$(NC)" || echo "$(YELLOW)⚠️ UAV 演示數據初始化失敗 (可能需要手動執行)$(NC)"
+	@-curl -s -X POST http://localhost:8080/api/v1/mesh/demo/quick-test -H "Content-Type: application/json" > /dev/null 2>&1 && echo "$(GREEN)✅ Mesh 網絡拓撲初始化成功$(NC)" || echo "$(YELLOW)⚠️ Mesh 網絡拓撲初始化失敗 (可能需要手動執行)$(NC)"
+	@-curl -s -X POST http://localhost:8080/api/v1/uav-mesh-failover/demo/quick-test -H "Content-Type: application/json" > /dev/null 2>&1 && echo "$(GREEN)✅ UAV 備援機制演示數據初始化成功$(NC)" || echo "$(YELLOW)⚠️ UAV 備援機制演示數據初始化失敗 (可能需要手動執行)$(NC)"
+	@echo "$(BLUE)📊 初始化結果摘要：$(NC)"
+	@echo "  - UAV 演示數據 (軌跡、UAV 狀態)"
+	@echo "  - Mesh 網絡拓撲"
+	@echo "  - UAV 備援機制演示"
+	@echo "$(CYAN)💡 您可以在 dashboard 中查看這些初始化的數據$(NC)"
