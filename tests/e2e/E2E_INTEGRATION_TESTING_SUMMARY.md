@@ -71,7 +71,7 @@
 
 -   `uav_satellite`: UAV 與衛星連接測試
 -   `interference`: 干擾檢測與規避測試
--   `mesh_failover`: Mesh 網絡備援測試
+-   `mesh_failover`: Mesh 網路備援測試
 -   `performance`: 性能壓力測試
 -   `multi_uav`: 多 UAV 協同測試
 -   `longrun`: 長時間穩定性測試
@@ -179,10 +179,10 @@ python tests/e2e/tools/scenario_executor.py --scenario all --report html
 
 **監控能力**:
 
--   **系統資源**: CPU、記憶體、磁盤、網絡
+-   **系統資源**: CPU、記憶體、磁盤、網路
 -   **服務健康**: HTTP 健康檢查、響應時間
 -   **容器狀態**: Docker 容器監控、資源使用
--   **網絡統計**: 接口流量、連接狀態
+-   **網路統計**: 接口流量、連接狀態
 
 **使用範例**:
 
@@ -288,7 +288,7 @@ python tests/e2e/tools/system_monitor.py --analysis performance --duration 1800
 
 **環境模擬器** (`environment_simulator.py`):
 
--   網絡條件模擬 (延遲、丟包、頻寬)
+-   網路條件模擬 (延遲、丟包、頻寬)
 -   干擾信號模擬
 -   UAV 移動軌跡模擬
 -   天氣條件模擬

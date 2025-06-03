@@ -2,7 +2,7 @@
 
 ## 概述
 
-本系統為 NTN Stack 非地面網絡項目提供統一的監控指標格式規範，確保來自不同組件的監控數據能夠一致整合，簡化儀表板開發和維護工作，提高系統診斷和分析能力。
+本系統為 NTN Stack 非地面網路項目提供統一的監控指標格式規範，確保來自不同組件的監控數據能夠一致整合，簡化儀表板開發和維護工作，提高系統診斷和分析能力。
 
 ## 核心組件
 
@@ -16,11 +16,11 @@
 
 **支援的領域 (Domain)**:
 
--   `ntn_` - 非地面網絡組件 (UAV、衛星、空中基站)
+-   `ntn_` - 非地面網路組件 (UAV、衛星、空中基站)
 -   `open5gs_` - 5G 核心網功能 (AMF、SMF、UPF、PCF)
 -   `ueransim_` - RAN 模擬器 (gNB、UE 模擬)
 -   `sionna_` - 無線模擬引擎 (GPU 計算、通道模擬)
--   `mesh_` - Mesh 網絡 (UAV 間直接通信)
+-   `mesh_` - Mesh 網路 (UAV 間直接通信)
 -   `ai_` - AI 智能控制 (機器學習、決策)
 
 ### 2. 標準標籤集 (`standards/standard_labels_spec.yaml`)
@@ -28,7 +28,7 @@
 定義了多維度數據分析的一致標籤集：
 
 -   **公共標籤**: environment, node, service, version, instance
--   **網絡標籤**: component, interface, protocol
+-   **網路標籤**: component, interface, protocol
 -   **無線標籤**: cell_id, frequency, bandwidth, modulation
 -   **UAV 標籤**: uav_id, altitude, velocity, connection_type
 -   **位置標籤**: location, coordinates, coverage_area
@@ -270,7 +270,7 @@ netstack_api_request_duration_seconds{environment="prod", method="GET", endpoint
 3. **指標模擬器連接失敗**
     - 檢查端口是否被占用
     - 確認防火牆設置
-    - 驗證網絡連接
+    - 驗證網路連接
 
 ### 日誌分析
 

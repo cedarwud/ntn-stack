@@ -18,7 +18,7 @@
 
 -   `uav_satellite` - UAV 與衛星連接測試
 -   `interference` - 干擾檢測與規避測試
--   `mesh_failover` - Mesh 網絡備援測試
+-   `mesh_failover` - Mesh 網路備援測試
 -   `performance` - 性能壓力測試
 -   `multi_uav` - 多 UAV 協同測試
 -   `longrun` - 長時間穩定性測試
@@ -28,9 +28,9 @@
 
 定義了測試環境的標準配置：
 
--   **硬體環境**: 服務器、網絡設備、終端設備規格
+-   **硬體環境**: 服務器、網路設備、終端設備規格
 -   **軟體環境**: 系統堆棧、依賴版本、配置參數
--   **網絡環境**: 延遲、丟包、頻寬模擬配置
+-   **網路環境**: 延遲、丟包、頻寬模擬配置
 -   **模擬器配置**: 衛星軌道、UAV 終端、干擾源設定
 
 ### 3. 測試指標定義 (`standards/test_metrics_spec.yaml`)
@@ -92,9 +92,9 @@ python tests/e2e/tools/system_monitor.py --analysis performance
 
 **監控指標**:
 
--   系統資源使用率 (CPU、記憶體、網絡)
+-   系統資源使用率 (CPU、記憶體、網路)
 -   服務健康狀態和響應時間
--   網絡連接質量和延遲
+-   網路連接質量和延遲
 -   錯誤和異常事件
 
 ### 3. 測試數據分析器 (`tools/test_analyzer.py`)
@@ -117,7 +117,7 @@ python tests/e2e/tools/test_analyzer.py --trend performance --period 30d
 模擬各種測試環境條件：
 
 ```bash
-# 啟動網絡條件模擬
+# 啟動網路條件模擬
 python tests/e2e/tools/environment_simulator.py --network-delay 100ms --packet-loss 1%
 
 # 啟動干擾模擬
@@ -177,10 +177,10 @@ python tests/e2e/run_full_suite.py
     - 驗證快速頻率跳變效果
     - 評估通信品質維持能力
 
-3. **Mesh 網絡備援場景** (`mesh_failover_recovery`)
+3. **Mesh 網路備援場景** (`mesh_failover_recovery`)
 
     - 驗證衛星失聯切換機制
-    - 測量網絡恢復時間 (目標 < 2s)
+    - 測量網路恢復時間 (目標 < 2s)
     - 評估數據連續性
 
 4. **高負載性能場景** (`performance_stress_test`)
@@ -226,7 +226,7 @@ python tests/e2e/run_full_suite.py
 | -------- | ---------- | ---------- | ---------- |
 | CPU      | 平均使用率 | < 80%      | 系統監控   |
 | 記憶體   | 使用率     | < 85%      | 記憶體監控 |
-| 網絡     | 頻寬使用率 | < 90%      | 網絡監控   |
+| 網路     | 頻寬使用率 | < 90%      | 網路監控   |
 | 存儲     | I/O 等待   | < 10%      | 存儲監控   |
 
 ## 測試報告
@@ -255,7 +255,7 @@ python tests/e2e/run_full_suite.py
 1. **測試環境初始化失敗**
 
     - 檢查依賴安裝
-    - 驗證網絡連接
+    - 驗證網路連接
     - 確認權限設定
 
 2. **測試超時或失敗**
@@ -267,7 +267,7 @@ python tests/e2e/run_full_suite.py
 3. **性能指標不達標**
     - 調整系統配置
     - 優化資源分配
-    - 檢查網絡條件
+    - 檢查網路條件
 
 ### 診斷工具
 
@@ -275,7 +275,7 @@ python tests/e2e/run_full_suite.py
 # 系統健康檢查
 python tests/e2e/tools/health_check.py
 
-# 網絡連接診斷
+# 網路連接診斷
 python tests/e2e/tools/network_diagnostic.py
 
 # 性能分析診斷
