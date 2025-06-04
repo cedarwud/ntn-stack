@@ -2,29 +2,20 @@
  * NTN Stack 統一儀表板
  * 整合所有系統監控和可視化功能
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
     LineChart,
     Line,
     AreaChart,
     Area,
-    BarChart,
-    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip,
-    Legend,
     ResponsiveContainer,
-    ScatterChart,
-    Scatter,
-    Cell,
-    PieChart,
-    Pie,
 } from 'recharts'
 import useWebSocket from '../../hooks/useWebSocket'
 import { Card, Alert, Spin, Progress, Tag, Badge, Statistic } from './ui'
-import SystemStatusChart from './charts/SystemStatusChart'
 import UAVMetricsChart from './charts/UAVMetricsChart'
 import NetworkTopologyChart from './charts/NetworkTopologyChart'
 

@@ -2,7 +2,7 @@
  * 通用實時圖表組件
  * 支持多種圖表類型和實時數據更新
  */
-import React, { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import {
     Chart as ChartJS,
     CategoryScale,

@@ -17,7 +17,7 @@ COPY package.json yarn.lock* package-lock.json* ./
 RUN npm install
 
 # 5. 複製所有前端程式碼
-# COPY . .
+COPY . .
 
 # 6. 暴露 Vite 開發伺服器端口
 EXPOSE 5173

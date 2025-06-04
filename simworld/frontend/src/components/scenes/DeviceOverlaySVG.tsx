@@ -1,5 +1,3 @@
-import React from 'react'
-
 export interface DeviceOverlaySVGProps {
     devices: any[]
     imageRef: React.RefObject<HTMLImageElement | null>

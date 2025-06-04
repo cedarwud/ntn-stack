@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, RefObject } from 'react';
+import { useState, useCallback, useMemo, RefObject } from 'react';
 import { debounce } from 'lodash';
 import { Device } from '../types/device'; // Assuming Device type is needed
 

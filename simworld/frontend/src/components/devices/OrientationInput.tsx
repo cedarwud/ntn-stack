@@ -1,5 +1,3 @@
-import React from 'react'
-
 export interface OrientationInputProps {
     value: { x: string; y: string; z: string }
     onChange: (axis: 'x' | 'y' | 'z', value: string) => void

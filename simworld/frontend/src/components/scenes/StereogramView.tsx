@@ -106,8 +106,8 @@ export default function SceneView({
             {/* 星空星點層（在最底層，不影響互動） */}
             <Starfield starCount={180} />
 
-            {/* 添加衛星圖例 */}
-            <SatelliteLegend />
+            {/* 添加衛星圖例 - 只有在有衛星資料時才顯示 */}
+            {satellites && satellites.length > 0 && <SatelliteLegend />}
 
             {/* 3D Canvas內容照舊，會蓋在星空上 */}
             <Canvas
