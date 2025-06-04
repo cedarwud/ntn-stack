@@ -1,4 +1,3 @@
-import React from 'react'
 import { Device } from '../../types/device'
 
 interface DeviceItemProps {

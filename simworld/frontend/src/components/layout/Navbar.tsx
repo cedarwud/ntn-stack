@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import type { FC, RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/Navbar.scss'
 import SINRViewer from '../viewers/SINRViewer'
@@ -34,11 +35,11 @@ interface ModalConfig {
     setLastUpdate: (time: string) => void
     isLoading: boolean
     setIsLoading: (loading: boolean) => void
-    refreshHandlerRef: React.MutableRefObject<(() => void) | null>
-    ViewerComponent: React.FC<ViewerProps>
+    refreshHandlerRef: RefObject<(() => void) | null>
+    ViewerComponent: FC<ViewerProps>
 }
 
-const Navbar: React.FC<NavbarProps> = ({
+const Navbar: FC<NavbarProps> = ({
     onMenuClick,
     activeComponent,
     currentScene,
@@ -348,7 +349,7 @@ const Navbar: React.FC<NavbarProps> = ({
                             }`}
                             onClick={handleFloorPlanClick}
                         >
-                            Floor Plan
+                            平面圖
                         </li>
                         <li
                             className={`navbar-item ${
@@ -356,7 +357,7 @@ const Navbar: React.FC<NavbarProps> = ({
                             }`}
                             onClick={handleStereogramClick}
                         >
-                            Stereogram
+                            立體圖
                         </li>
                         <li
                             className={`navbar-item ${

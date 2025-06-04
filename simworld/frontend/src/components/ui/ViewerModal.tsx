@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import '../../styles/Navbar.scss' // Assuming styles from Navbar.scss can be reused or adapted
 
 export interface ViewerModalProps {

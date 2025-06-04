@@ -1,5 +1,4 @@
 // src/App.tsx
-import React from 'react'
 import { useState, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import SceneView from './components/scenes/StereogramView'
@@ -13,7 +12,6 @@ import { Device } from './types/device'
 import { countActiveDevices } from './utils/deviceUtils'
 import { useDevices } from './hooks/useDevices'
 import { VisibleSatelliteInfo } from './types/satellite'
-import DataVisualizationDashboard from './components/dashboard/DataVisualizationDashboard'
 import './styles/Dashboard.scss'
 
 interface AppProps {
@@ -49,7 +47,8 @@ function App({ activeView }: AppProps) {
         VisibleSatelliteInfo[]
     >([])
     const [satelliteDisplayCount, setSatelliteDisplayCount] =
-        useState<number>(50)
+        useState<number>(10)
+    const [satelliteEnabled, setSatelliteEnabled] = useState<boolean>(false)
 
     const [activeComponent, setActiveComponent] =
         useState<string>(initialComponent)
@@ -69,7 +68,7 @@ function App({ activeView }: AppProps) {
         | 'rotate-right'
         | null
     >(null)
-    const [uavAnimation, setUavAnimation] = useState(true)
+    const [uavAnimation, setUavAnimation] = useState(false)
     const [selectedReceiverIds, setSelectedReceiverIds] = useState<number[]>([])
 
     const sortedDevicesForSidebar = useMemo(() => {
@@ -228,7 +227,7 @@ function App({ activeView }: AppProps) {
                         onUAVPositionUpdate={handleUAVPositionUpdate}
                         uavAnimation={uavAnimation}
                         selectedReceiverIds={selectedReceiverIds}
-                        satellites={skyfieldSatellites}
+                        satellites={satelliteEnabled ? skyfieldSatellites : []}
                         sceneName={currentScene}
                     />
                 )
@@ -252,6 +251,7 @@ function App({ activeView }: AppProps) {
         selectedReceiverIds,
         refreshDeviceData,
         skyfieldSatellites,
+        satelliteEnabled,
         currentScene,
     ])
 
@@ -298,6 +298,10 @@ function App({ activeView }: AppProps) {
                                     }
                                     satelliteDisplayCount={
                                         satelliteDisplayCount
+                                    }
+                                    satelliteEnabled={satelliteEnabled}
+                                    onSatelliteEnabledChange={
+                                        setSatelliteEnabled
                                     }
                                 />
                             </ErrorBoundary>

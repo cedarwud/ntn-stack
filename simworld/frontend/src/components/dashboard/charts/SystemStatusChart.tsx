@@ -2,7 +2,7 @@
  * 系統狀態圖表組件
  * 顯示各系統組件的健康狀態和指標
  */
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getSystemStatus } from '../../../services/netstackApi'
 import { SystemStatus } from '../../../types/charts'
 

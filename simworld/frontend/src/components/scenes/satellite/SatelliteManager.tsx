@@ -1,11 +1,10 @@
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { VisibleSatelliteInfo } from '../../../types/satellite'
 import SimplifiedSatellite from './SimplifiedSatellite'
 import { satellitePassTemplates } from '../../../utils/satellite/satellitePassTemplates'
-import { getColorFromElevation } from '../../../utils/satellite/satelliteHelpers'
 import {
     MAX_VISIBLE_SATELLITES,
     SAT_MODEL_URL,

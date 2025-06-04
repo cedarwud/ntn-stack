@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { ViewerProps } from '../../types/viewer'
 import { ApiRoutes } from '../../config/apiRoutes'
 

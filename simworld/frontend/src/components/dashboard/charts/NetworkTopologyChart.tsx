@@ -2,7 +2,7 @@
  * 網路拓撲圖表組件
  * 使用 D3.js 顯示網路節點和連接關係
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { getMeshTopology, getMeshNodes } from '../../../services/netstackApi'
 
 interface NetworkTopologyChartProps {

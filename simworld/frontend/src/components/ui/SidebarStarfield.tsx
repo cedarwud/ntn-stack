@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 
 // 星空星點動畫元件
 const STAR_COUNT = 60

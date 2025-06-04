@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import '../../styles/Sidebar.scss'
 import { UAVManualDirection } from '../scenes/UAVFlight' // Assuming UAVFlight exports this
 import { Device } from '../../types/device'
@@ -29,6 +29,8 @@ interface SidebarProps {
     onSatelliteDataUpdate?: (satellites: VisibleSatelliteInfo[]) => void // 衛星資料更新回調
     onSatelliteCountChange?: (count: number) => void // 衛星顯示數量變更回調
     satelliteDisplayCount?: number // 衛星顯示數量
+    satelliteEnabled?: boolean // 衛星開關狀態
+    onSatelliteEnabledChange?: (enabled: boolean) => void // 衛星開關回調
 }
 
 // Helper function to fetch visible satellites
@@ -79,6 +81,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     onSatelliteDataUpdate, // 新增衛星資料更新回調
     onSatelliteCountChange, // 新增衛星顯示數量變更回調
     satelliteDisplayCount: propSatelliteDisplayCount = 10, // 使用props或默認值
+    satelliteEnabled, // 衛星開關狀態
+    onSatelliteEnabledChange, // 衛星開關回調
 }) => {
     // 為每個設備的方向值創建本地狀態
     const [orientationInputs, setOrientationInputs] = useState<{
@@ -125,6 +129,16 @@ const Sidebar: React.FC<SidebarProps> = ({
     // Effect to fetch satellites when count changes or on mount
     useEffect(() => {
         const loadSatellites = async () => {
+            if (!satelliteEnabled) {
+                // 如果衛星開關關閉，清空數據並返回
+                setSkyfieldSatellites([])
+                if (onSatelliteDataUpdate) {
+                    onSatelliteDataUpdate([])
+                }
+                setLoadingSatellites(false)
+                return
+            }
+
             setLoadingSatellites(true)
             const satellites = await fetchVisibleSatellites(
                 satelliteDisplayCount,
@@ -145,18 +159,25 @@ const Sidebar: React.FC<SidebarProps> = ({
             setLoadingSatellites(false)
         }
 
-        // 立即加載衛星數據
-        loadSatellites()
-
-        // 設置每分鐘刷新一次衛星數據
+        // 清理現有定時器
         if (satelliteRefreshIntervalRef.current) {
             clearInterval(satelliteRefreshIntervalRef.current)
+            satelliteRefreshIntervalRef.current = null
         }
 
-        satelliteRefreshIntervalRef.current = setInterval(() => {
-            console.log('自動刷新衛星數據...')
+        if (satelliteEnabled) {
+            // 立即加載衛星數據
             loadSatellites()
-        }, 60000) // 每60秒刷新一次
+
+            // 設置每分鐘刷新一次衛星數據
+            satelliteRefreshIntervalRef.current = setInterval(() => {
+                console.log('自動刷新衛星數據...')
+                loadSatellites()
+            }, 60000) // 每60秒刷新一次
+        } else {
+            // 如果衛星開關關閉，清空數據
+            loadSatellites()
+        }
 
         // 清理定時器
         return () => {
@@ -165,7 +186,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                 satelliteRefreshIntervalRef.current = null
             }
         }
-    }, [satelliteDisplayCount, minElevation, onSatelliteDataUpdate])
+    }, [
+        satelliteDisplayCount,
+        minElevation,
+        onSatelliteDataUpdate,
+        satelliteEnabled,
+    ])
 
     // 處理衛星顯示數量變更
     const handleSatelliteCountChange = (count: number) => {
@@ -329,18 +355,31 @@ const Sidebar: React.FC<SidebarProps> = ({
             {activeComponent !== '2DRT' && (
                 <>
                     <div className="sidebar-auto-row">
-                        <button
+                        <div
                             onClick={() => onAutoChange(!auto)}
-                            className="button-auto-toggle"
+                            className={`toggle-badge ${auto ? 'active' : ''}`}
                         >
-                            {auto ? '自動飛行：開啟' : '自動飛行：關閉'}
-                        </button>
-                        <button
+                            自動飛行
+                        </div>
+                        <div
                             onClick={() => onUavAnimationChange(!uavAnimation)}
-                            className="button-animation-toggle"
+                            className={`toggle-badge ${
+                                uavAnimation ? 'active' : ''
+                            }`}
                         >
-                            {uavAnimation ? '動畫：開啟' : '動畫：關閉'}
-                        </button>
+                            動畫
+                        </div>
+                        <div
+                            onClick={() =>
+                                onSatelliteEnabledChange &&
+                                onSatelliteEnabledChange(!satelliteEnabled)
+                            }
+                            className={`toggle-badge ${
+                                satelliteEnabled ? 'active' : ''
+                            }`}
+                        >
+                            衛星
+                        </div>
                     </div>
                     {!auto && (
                         <div className="manual-control-row">
@@ -495,58 +534,63 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}
 
             {/* 衛星設置區域 - 獨立於API狀態 */}
-            <div className="satellite-settings-section">
-                <div className="satellite-count-control">
-                    <div>
-                        <label htmlFor="satellite-count-input">衛星數:</label>
-                        <input
-                            id="satellite-count-input"
-                            type="number"
-                            value={satelliteDisplayCount}
-                            onChange={(e) => {
-                                const count = parseInt(e.target.value, 10)
-                                if (!isNaN(count) && count > 0) {
-                                    handleSatelliteCountChange(count)
-                                } else if (e.target.value === '') {
-                                    // Allow clearing to type new number
-                                    handleSatelliteCountChange(1) // Or some default minimum
-                                }
-                            }}
-                            min="1"
-                            className="satellite-count-input-field"
-                        />
-                    </div>
-                    <div>
-                        {/* 保留最低仰角控制 */}
-                        <label
-                            htmlFor="min-elevation-input"
-                            style={{ marginLeft: '10px' }}
-                        >
-                            最低仰角:
-                        </label>
-                        <input
-                            id="min-elevation-input"
-                            type="number"
-                            value={minElevation}
-                            onChange={(e) => {
-                                const value = parseInt(e.target.value, 10)
-                                if (
-                                    !isNaN(value) &&
-                                    value >= 0 &&
-                                    value <= 90
-                                ) {
-                                    setMinElevation(value)
-                                } else if (e.target.value === '') {
-                                    setMinElevation(0)
-                                }
-                            }}
-                            min="0"
-                            max="90"
-                            className="satellite-count-input-field"
-                        />
+            {satelliteEnabled && (
+                <div className="satellite-settings-section">
+                    <div className="satellite-controls-row">
+                        <div className="satellite-count-control">
+                            <label htmlFor="satellite-count-input">
+                                衛星數:
+                            </label>
+                            <input
+                                id="satellite-count-input"
+                                type="number"
+                                value={satelliteDisplayCount}
+                                onChange={(e) => {
+                                    const value = parseInt(e.target.value, 10)
+                                    if (
+                                        !isNaN(value) &&
+                                        value > 0 &&
+                                        value <= 100
+                                    ) {
+                                        handleSatelliteCountChange(value)
+                                    } else if (e.target.value === '') {
+                                        handleSatelliteCountChange(1)
+                                    }
+                                }}
+                                min="1"
+                                max="100"
+                                className="satellite-count-input-field"
+                            />
+                        </div>
+
+                        <div className="satellite-count-control">
+                            <label htmlFor="min-elevation-input">
+                                最低仰角:
+                            </label>
+                            <input
+                                id="min-elevation-input"
+                                type="number"
+                                value={minElevation}
+                                onChange={(e) => {
+                                    const value = parseInt(e.target.value, 10)
+                                    if (
+                                        !isNaN(value) &&
+                                        value >= 0 &&
+                                        value <= 90
+                                    ) {
+                                        setMinElevation(value)
+                                    } else if (e.target.value === '') {
+                                        setMinElevation(0)
+                                    }
+                                }}
+                                min="0"
+                                max="90"
+                                className="satellite-count-input-field"
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             <div className="sidebar-actions-combined">
                 <button onClick={onAddDevice} className="add-device-btn">
@@ -611,66 +655,77 @@ const Sidebar: React.FC<SidebarProps> = ({
                 )}
 
                 {/* Skyfield 衛星資料區塊 */}
-                <>
-                    <h3
-                        className={`section-title collapsible-header ${
-                            showSkyfieldSection ? 'expanded' : ''
-                        } ${tempDevices.length > 0 ? 'extra-margin-top' : ''} ${
-                            tempDevices.length > 0 ? 'with-border-top' : ''
-                        }`}
-                        onClick={() =>
-                            setShowSkyfieldSection(!showSkyfieldSection)
-                        }
-                    >
-                        衛星 gNB (
-                        {loadingSatellites
-                            ? '讀取中...'
-                            : skyfieldSatellites.length}
-                        ){' '}
-                        {minElevation > 0 ? `[最低仰角: ${minElevation}°]` : ''}
-                    </h3>
-                    {showSkyfieldSection && (
-                        <div className="satellite-list">
-                            {loadingSatellites ? (
-                                <p className="loading-text">
-                                    正在載入衛星資料...
-                                </p>
-                            ) : skyfieldSatellites.length > 0 ? (
-                                skyfieldSatellites.map((sat) => (
-                                    <div
-                                        key={sat.norad_id}
-                                        className="satellite-item"
-                                    >
-                                        <div className="satellite-name">
-                                            {sat.name} (NORAD: {sat.norad_id})
+                {satelliteEnabled && (
+                    <>
+                        <h3
+                            className={`section-title collapsible-header ${
+                                showSkyfieldSection ? 'expanded' : ''
+                            } ${
+                                tempDevices.length > 0 ? 'extra-margin-top' : ''
+                            } ${
+                                tempDevices.length > 0 ? 'with-border-top' : ''
+                            }`}
+                            onClick={() =>
+                                setShowSkyfieldSection(!showSkyfieldSection)
+                            }
+                        >
+                            衛星 gNB (
+                            {loadingSatellites
+                                ? '讀取中...'
+                                : skyfieldSatellites.length}
+                            ){' '}
+                            {minElevation > 0
+                                ? `[最低仰角: ${minElevation}°]`
+                                : ''}
+                        </h3>
+                        {showSkyfieldSection && (
+                            <div className="satellite-list">
+                                {loadingSatellites ? (
+                                    <p className="loading-text">
+                                        正在載入衛星資料...
+                                    </p>
+                                ) : skyfieldSatellites.length > 0 ? (
+                                    skyfieldSatellites.map((sat) => (
+                                        <div
+                                            key={sat.norad_id}
+                                            className="satellite-item"
+                                        >
+                                            <div className="satellite-name">
+                                                {sat.name} (NORAD:{' '}
+                                                {sat.norad_id})
+                                            </div>
+                                            <div className="satellite-details">
+                                                仰角:{' '}
+                                                <span
+                                                    style={{
+                                                        color:
+                                                            sat.elevation_deg >
+                                                            45
+                                                                ? '#ff3300'
+                                                                : '#0088ff',
+                                                    }}
+                                                >
+                                                    {sat.elevation_deg.toFixed(
+                                                        2
+                                                    )}
+                                                    °
+                                                </span>{' '}
+                                                | 方位角:{' '}
+                                                {sat.azimuth_deg.toFixed(2)}° |
+                                                距離:{' '}
+                                                {sat.distance_km.toFixed(2)} km
+                                            </div>
                                         </div>
-                                        <div className="satellite-details">
-                                            仰角:{' '}
-                                            <span
-                                                style={{
-                                                    color:
-                                                        sat.elevation_deg > 45
-                                                            ? '#ff3300'
-                                                            : '#0088ff',
-                                                }}
-                                            >
-                                                {sat.elevation_deg.toFixed(2)}°
-                                            </span>{' '}
-                                            | 方位角:{' '}
-                                            {sat.azimuth_deg.toFixed(2)}° |
-                                            距離: {sat.distance_km.toFixed(2)}{' '}
-                                            km
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="no-data-text">
-                                    無衛星資料可顯示。請調整最低仰角後重試。
-                                </p>
-                            )}
-                        </div>
-                    )}
-                </>
+                                    ))
+                                ) : (
+                                    <p className="no-data-text">
+                                        無衛星資料可顯示。請調整最低仰角後重試。
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </>
+                )}
 
                 {/* 接收器 (Rx) */}
                 {receiverDevices.length > 0 && (
@@ -680,12 +735,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 showReceiverDevices ? 'expanded' : ''
                             } ${
                                 tempDevices.length > 0 ||
-                                skyfieldSatellites.length > 0
+                                (satelliteEnabled &&
+                                    skyfieldSatellites.length > 0)
                                     ? 'extra-margin-top'
-                                    : '' // Adjusted condition
+                                    : ''
                             } ${
                                 tempDevices.length > 0 ||
-                                skyfieldSatellites.length > 0 || // Adjusted condition
+                                (satelliteEnabled &&
+                                    skyfieldSatellites.length > 0) ||
                                 desiredDevices.length > 0 ||
                                 jammerDevices.length > 0
                                     ? 'with-border-top'

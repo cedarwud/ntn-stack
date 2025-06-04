@@ -2,7 +2,7 @@
  * UAV 指標圖表組件
  * 顯示 UAV 的信號質量、位置等實時數據
  */
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getUAVList } from '../../../services/netstackApi'
 import { UAVData } from '../../../types/charts'
 
