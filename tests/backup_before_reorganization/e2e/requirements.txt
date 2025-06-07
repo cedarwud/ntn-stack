@@ -1,0 +1,36 @@
+# NTN Stack 端到端測試專用依賴
+# 此檔案只包含 e2e 測試特有的依賴
+# 基礎測試依賴請參考根目錄的 requirements.txt
+
+# 數據處理和分析（e2e 測試結果分析用）
+pandas>=1.5.0
+numpy>=1.21.0
+matplotlib>=3.5.0
+
+# 系統監控（e2e 測試環境監控）
+psutil>=5.9.0
+
+# 網路測試工具（e2e 網路測試專用）
+ping3>=4.0.0
+scapy>=2.4.5
+
+# 並發處理（e2e 測試場景用）
+asyncio-throttle>=1.0.2
+aiofiles>=0.8.0
+
+# e2e 測試報告生成
+plotly>=5.11.0
+weasyprint>=57.0
+
+# 命令行工具（e2e 測試腳本用）
+click>=8.1.0
+colorama>=0.4.5
+tqdm>=4.64.0
+
+# 測試數據生成（e2e 場景模擬）
+faker>=15.0.0
+factory-boy>=3.2.0
+
+# 網路模擬（可選）
+# mininet>=2.3.0      # 需要時手動安裝
+# tc-netem>=0.1.0     # 需要時手動安裝 
