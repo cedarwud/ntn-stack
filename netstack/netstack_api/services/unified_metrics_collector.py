@@ -742,8 +742,456 @@ class SystemResourceCollector(ServiceCollector):
         return metrics
 
 
+class KPICollector:
+    """KPI指標收集器"""
+    
+    def __init__(self):
+        self.logger = logger.bind(component="kpi_collector")
+        
+    async def collect_ntn_kpis(self, session: aiohttp.ClientSession, base_url: str) -> List[MetricValue]:
+        """收集NTN系統KPI指標"""
+        metrics = []
+        
+        try:
+            # 端到端延遲KPI
+            async with session.get(f"{base_url}/api/v1/kpi/e2e-latency") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_e2e_latency_ms",
+                            value=data.get("avg_latency_ms", 0),
+                            labels={"kpi_type": "latency", "measurement": "e2e"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 覆蓋率KPI
+            async with session.get(f"{base_url}/api/v1/kpi/coverage") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_coverage_percent",
+                            value=data.get("coverage_percentage", 0),
+                            labels={"kpi_type": "coverage", "area": "total"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 傳輸速率KPI
+            async with session.get(f"{base_url}/api/v1/kpi/transmission-rate") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_transmission_rate_mbps",
+                            value=data.get("avg_rate_mbps", 0),
+                            labels={"kpi_type": "transmission", "direction": "total"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 可用性KPI
+            async with session.get(f"{base_url}/api/v1/kpi/availability") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_availability_percent",
+                            value=data.get("availability_percentage", 0),
+                            labels={"kpi_type": "availability", "service": "overall"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 衛星換手成功率KPI
+            async with session.get(f"{base_url}/api/v1/kpi/handover-success-rate") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_handover_success_rate_percent",
+                            value=data.get("success_rate_percentage", 0),
+                            labels={"kpi_type": "handover", "operation": "satellite_handover"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # AI-RAN性能KPI
+            async with session.get(f"{base_url}/api/v1/kpi/ai-ran-performance") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    
+                    # 干擾檢測準確率
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_ai_interference_detection_accuracy_percent",
+                            value=data.get("interference_detection_accuracy", 0),
+                            labels={"kpi_type": "ai_performance", "function": "interference_detection"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+                    
+                    # 資源分配效率
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_ai_resource_allocation_efficiency_percent",
+                            value=data.get("resource_allocation_efficiency", 0),
+                            labels={"kpi_type": "ai_performance", "function": "resource_allocation"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # UAV連通性KPI
+            async with session.get(f"{base_url}/api/v1/kpi/uav-connectivity") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_uav_connectivity_percent",
+                            value=data.get("connectivity_percentage", 0),
+                            labels={"kpi_type": "connectivity", "device_type": "uav"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # Mesh網路恢復性KPI
+            async with session.get(f"{base_url}/api/v1/kpi/mesh-resilience") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_mesh_resilience_score",
+                            value=data.get("resilience_score", 0),
+                            labels={"kpi_type": "resilience", "network_type": "mesh"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+                    
+        except Exception as e:
+            self.logger.error(f"收集NTN KPI指標失敗: {e}")
+        
+        return metrics
+    
+    async def collect_quality_kpis(self, session: aiohttp.ClientSession, base_url: str) -> List[MetricValue]:
+        """收集服務質量KPI指標"""
+        metrics = []
+        
+        try:
+            # 呼叫建立成功率
+            async with session.get(f"{base_url}/api/v1/kpi/call-setup-success-rate") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_call_setup_success_rate_percent",
+                            value=data.get("success_rate_percentage", 0),
+                            labels={"kpi_type": "quality", "service": "call_setup"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 呼叫中斷率
+            async with session.get(f"{base_url}/api/v1/kpi/call-drop-rate") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_call_drop_rate_percent",
+                            value=data.get("drop_rate_percentage", 0),
+                            labels={"kpi_type": "quality", "service": "call_drop"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 封包遺失率
+            async with session.get(f"{base_url}/api/v1/kpi/packet-loss-rate") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_packet_loss_rate_percent",
+                            value=data.get("loss_rate_percentage", 0),
+                            labels={"kpi_type": "quality", "metric": "packet_loss"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 抖動(Jitter)
+            async with session.get(f"{base_url}/api/v1/kpi/jitter") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_jitter_ms",
+                            value=data.get("avg_jitter_ms", 0),
+                            labels={"kpi_type": "quality", "metric": "jitter"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 信號品質(SINR)
+            async with session.get(f"{base_url}/api/v1/kpi/signal-quality") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_avg_sinr_db",
+                            value=data.get("avg_sinr_db", 0),
+                            labels={"kpi_type": "quality", "metric": "sinr"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+                    
+        except Exception as e:
+            self.logger.error(f"收集服務質量KPI指標失敗: {e}")
+        
+        return metrics
+    
+    async def collect_capacity_kpis(self, session: aiohttp.ClientSession, base_url: str) -> List[MetricValue]:
+        """收集容量和效能KPI指標"""
+        metrics = []
+        
+        try:
+            # 頻譜效率
+            async with session.get(f"{base_url}/api/v1/kpi/spectrum-efficiency") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_spectrum_efficiency_bps_hz",
+                            value=data.get("efficiency_bps_hz", 0),
+                            labels={"kpi_type": "capacity", "metric": "spectrum_efficiency"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 能量效率
+            async with session.get(f"{base_url}/api/v1/kpi/energy-efficiency") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_energy_efficiency_mbps_watt",
+                            value=data.get("efficiency_mbps_watt", 0),
+                            labels={"kpi_type": "capacity", "metric": "energy_efficiency"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 系統容量利用率
+            async with session.get(f"{base_url}/api/v1/kpi/capacity-utilization") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_capacity_utilization_percent",
+                            value=data.get("utilization_percentage", 0),
+                            labels={"kpi_type": "capacity", "metric": "utilization"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 並發用戶數
+            async with session.get(f"{base_url}/api/v1/kpi/concurrent-users") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_concurrent_users_count",
+                            value=data.get("user_count", 0),
+                            labels={"kpi_type": "capacity", "metric": "concurrent_users"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+                    
+        except Exception as e:
+            self.logger.error(f"收集容量KPI指標失敗: {e}")
+        
+        return metrics
+    
+    async def collect_performance_optimizer_kpis(self, session: aiohttp.ClientSession, base_url: str) -> List[MetricValue]:
+        """收集性能優化器KPI指標"""
+        metrics = []
+        
+        try:
+            # 優化執行成功率
+            async with session.get(f"{base_url}/api/v1/kpi/optimization-success-rate") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_optimization_success_rate_percent",
+                            value=data.get("success_rate_percentage", 0),
+                            labels={"kpi_type": "optimization", "metric": "success_rate"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 平均優化改善程度
+            async with session.get(f"{base_url}/api/v1/kpi/optimization-improvement") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_avg_optimization_improvement_percent",
+                            value=data.get("avg_improvement_percent", 0),
+                            labels={"kpi_type": "optimization", "metric": "improvement"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 性能目標達成率
+            async with session.get(f"{base_url}/api/v1/kpi/performance-target-achievement") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_performance_target_achievement_percent",
+                            value=data.get("achievement_percentage", 0),
+                            labels={"kpi_type": "optimization", "metric": "target_achievement"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 自動優化觸發頻率
+            async with session.get(f"{base_url}/api/v1/kpi/auto-optimization-frequency") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_auto_optimization_frequency_per_hour",
+                            value=data.get("frequency_per_hour", 0),
+                            labels={"kpi_type": "optimization", "metric": "auto_frequency"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # ML模型預測準確率
+            async with session.get(f"{base_url}/api/v1/kpi/ml-prediction-accuracy") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_ml_prediction_accuracy_percent",
+                            value=data.get("accuracy_percentage", 0),
+                            labels={"kpi_type": "optimization", "metric": "ml_accuracy"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+                    
+        except Exception as e:
+            self.logger.error(f"收集性能優化器KPI指標失敗: {e}")
+        
+        return metrics
+    
+    async def collect_testing_framework_kpis(self, session: aiohttp.ClientSession, base_url: str) -> List[MetricValue]:
+        """收集測試框架KPI指標"""
+        metrics = []
+        
+        try:
+            # E2E測試成功率
+            async with session.get(f"{base_url}/api/v1/kpi/e2e-test-success-rate") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_e2e_test_success_rate_percent",
+                            value=data.get("success_rate_percentage", 0),
+                            labels={"kpi_type": "testing", "test_type": "e2e"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 負載測試最大承載能力
+            async with session.get(f"{base_url}/api/v1/kpi/load-test-capacity") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_max_load_capacity_users",
+                            value=data.get("max_concurrent_users", 0),
+                            labels={"kpi_type": "testing", "test_type": "load"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 壓力測試系統穩定性
+            async with session.get(f"{base_url}/api/v1/kpi/stress-test-stability") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_stress_test_stability_score",
+                            value=data.get("stability_score", 0),
+                            labels={"kpi_type": "testing", "test_type": "stress"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 性能回歸檢測準確率
+            async with session.get(f"{base_url}/api/v1/kpi/regression-detection-accuracy") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_regression_detection_accuracy_percent",
+                            value=data.get("detection_accuracy_percent", 0),
+                            labels={"kpi_type": "testing", "test_type": "regression"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+            
+            # 測試自動化覆蓋率
+            async with session.get(f"{base_url}/api/v1/kpi/test-automation-coverage") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    metrics.append(
+                        MetricValue(
+                            metric_name="ntn_kpi_test_automation_coverage_percent",
+                            value=data.get("coverage_percentage", 0),
+                            labels={"kpi_type": "testing", "metric": "automation_coverage"},
+                            timestamp=time.time(),
+                            source_service="netstack-api"
+                        )
+                    )
+                    
+        except Exception as e:
+            self.logger.error(f"收集測試框架KPI指標失敗: {e}")
+        
+        return metrics
+
+
 class UnifiedMetricsCollector:
-    """統一指標收集服務"""
+    """統一指標收集服務 - 增強版本"""
 
     def __init__(
         self,
@@ -766,6 +1214,9 @@ class UnifiedMetricsCollector:
             SionnaChannelCollector("sionna-integration", "http://simworld-backend:8000"),
             SystemResourceCollector(),
         ]
+        
+        # 初始化KPI收集器
+        self.kpi_collector = KPICollector()
 
         # 收集統計
         self.collection_stats = {
@@ -774,11 +1225,16 @@ class UnifiedMetricsCollector:
             "failed_collections": 0,
             "last_collection_time": None,
             "metrics_collected": 0,
+            "kpi_metrics_collected": 0,
         }
 
         # 任務控制
         self.running = False
         self.collection_task: Optional[asyncio.Task] = None
+        
+        # KPI特定配置
+        self.kpi_collection_enabled = True
+        self.kpi_collection_interval = 30.0  # KPI收集間隔較長
 
     async def start_collection(self):
         """啟動指標收集"""
@@ -802,7 +1258,9 @@ class UnifiedMetricsCollector:
         self.logger.info("統一指標收集已停止")
 
     async def _collection_loop(self):
-        """指標收集循環"""
+        """增強的指標收集循環"""
+        kpi_last_collection = 0
+        
         while self.running:
             try:
                 start_time = time.time()
@@ -825,6 +1283,17 @@ class UnifiedMetricsCollector:
                         continue
                     all_metrics.extend(result)
 
+                # 檢查是否需要收集KPI指標
+                kpi_metrics = []
+                current_time = time.time()
+                if (self.kpi_collection_enabled and 
+                    current_time - kpi_last_collection >= self.kpi_collection_interval):
+                    
+                    self.logger.debug("開始收集KPI指標")
+                    kpi_metrics = await self._collect_kpi_metrics()
+                    all_metrics.extend(kpi_metrics)
+                    kpi_last_collection = current_time
+
                 # 儲存指標到 Redis 和 Prometheus
                 await self._store_metrics(all_metrics)
 
@@ -840,6 +1309,7 @@ class UnifiedMetricsCollector:
                         + 1,
                         "last_collection_time": datetime.utcnow().isoformat(),
                         "metrics_collected": len(all_metrics),
+                        "kpi_metrics_collected": len(kpi_metrics),
                         "collection_duration_sec": collection_time,
                     }
                 )
@@ -847,6 +1317,7 @@ class UnifiedMetricsCollector:
                 self.logger.debug(
                     "指標收集完成",
                     metrics_count=len(all_metrics),
+                    kpi_count=len(kpi_metrics),
                     duration=f"{collection_time:.2f}s",
                 )
 
@@ -856,6 +1327,37 @@ class UnifiedMetricsCollector:
 
             # 等待下一次收集
             await asyncio.sleep(self.collection_interval)
+
+    async def _collect_kpi_metrics(self) -> List[MetricValue]:
+        """收集KPI指標（增強版本）"""
+        metrics = []
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                # 收集NTN系統KPI
+                ntn_metrics = await self.kpi_collector.collect_ntn_kpis(session, "http://netstack-api:8080")
+                metrics.extend(ntn_metrics)
+                
+                # 收集服務質量KPI
+                quality_metrics = await self.kpi_collector.collect_quality_kpis(session, "http://netstack-api:8080")
+                metrics.extend(quality_metrics)
+                
+                # 收集容量KPI
+                capacity_metrics = await self.kpi_collector.collect_capacity_kpis(session, "http://netstack-api:8080")
+                metrics.extend(capacity_metrics)
+                
+                # 收集性能優化器KPI
+                optimizer_metrics = await self.kpi_collector.collect_performance_optimizer_kpis(session, "http://netstack-api:8080")
+                metrics.extend(optimizer_metrics)
+                
+                # 收集測試框架KPI
+                testing_metrics = await self.kpi_collector.collect_testing_framework_kpis(session, "http://netstack-api:8080")
+                metrics.extend(testing_metrics)
+                
+        except Exception as e:
+            self.logger.error(f"收集KPI指標失敗: {e}")
+        
+        return metrics
 
     async def _collect_from_service(
         self, collector: ServiceCollector
