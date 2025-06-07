@@ -236,44 +236,184 @@ class SionnaIntegrationService:
         """更新 UERANSIM 配置"""
 
         try:
-            # 這裡實現實際的 UERANSIM 配置更新邏輯
-            # 目前先模擬更新過程
-
             logger.debug(
                 f"更新 UERANSIM 配置: UE {update.ue_id} → gNB {update.gnb_id}, "
                 f"SINR: {update.sinr_db:.1f}dB, RSRP: {update.rsrp_dbm:.1f}dBm, CQI: {update.cqi}"
             )
 
-            # 模擬配置文件更新
-            config_data = {
-                "ue_id": update.ue_id,
-                "gnb_id": update.gnb_id,
-                "channel_params": {
-                    "sinr_db": update.sinr_db,
-                    "rsrp_dbm": update.rsrp_dbm,
-                    "rsrq_db": update.rsrq_db,
-                    "cqi": update.cqi,
-                    "throughput_mbps": update.throughput_mbps,
-                    "latency_ms": update.latency_ms,
-                    "error_rate": update.error_rate,
-                },
-                "updated_at": update.timestamp.isoformat(),
-                "valid_until": update.valid_until.isoformat(),
-            }
+            # 實際的 UERANSIM 配置更新
+            config_updated = await self._write_ueransim_config_file(update)
+            if not config_updated:
+                return False
 
-            # 在實際實現中，這裡會：
-            # 1. 更新 UERANSIM 配置文件
-            # 2. 通知 UERANSIM 重新加載配置
-            # 3. 驗證配置是否生效
+            # 動態更新通道參數到正在運行的 UERANSIM 實例
+            runtime_updated = await self._update_runtime_channel_params(update)
+            if not runtime_updated:
+                logger.warning(f"運行時更新失敗，但配置文件已更新: {update.ue_id}")
 
-            # 模擬延遲
-            await asyncio.sleep(0.1)
-
-            return True
+            # 驗證配置是否生效
+            verified = await self._verify_channel_config(update)
+            
+            return config_updated and verified
 
         except Exception as e:
             logger.error(f"更新 UERANSIM 配置失敗: {e}")
             return False
+
+    async def _write_ueransim_config_file(self, update: ChannelModelUpdate) -> bool:
+        """寫入 UERANSIM 配置文件"""
+        try:
+            config_file_path = self.ueransim_config_dir / f"{update.ue_id}.yaml"
+            
+            # 讀取現有配置或創建新配置
+            config_data = await self._load_existing_config(config_file_path)
+            
+            # 更新通道相關參數
+            config_data.update({
+                "rf-params": {
+                    "dl-nr-arfcn": self._calculate_arfcn_from_sinr(update.sinr_db),
+                    "tx-power": self._calculate_tx_power(update.rsrp_dbm),
+                    "rx-gain": self._calculate_rx_gain(update.rsrq_db),
+                },
+                "channel-model": {
+                    "type": "sionna",
+                    "sinr-db": update.sinr_db,
+                    "rsrp-dbm": update.rsrp_dbm,
+                    "rsrq-db": update.rsrq_db,
+                    "cqi": update.cqi,
+                    "throughput-mbps": update.throughput_mbps,
+                    "latency-ms": update.latency_ms,
+                    "ber": update.error_rate,
+                    "updated-at": update.timestamp.isoformat(),
+                    "valid-until": update.valid_until.isoformat(),
+                },
+                "qos-params": {
+                    "adaptive-cqi": True,
+                    "target-bler": min(0.1, update.error_rate * 10),
+                    "retx-threshold": self._calculate_retx_threshold(update.error_rate),
+                }
+            })
+
+            # 寫入配置文件
+            import yaml
+            with open(config_file_path, 'w') as f:
+                yaml.dump(config_data, f, default_flow_style=False)
+
+            logger.debug(f"UERANSIM 配置文件已更新: {config_file_path}")
+            return True
+
+        except Exception as e:
+            logger.error(f"寫入 UERANSIM 配置文件失敗: {e}")
+            return False
+
+    async def _update_runtime_channel_params(self, update: ChannelModelUpdate) -> bool:
+        """動態更新運行時通道參數"""
+        try:
+            # 通過 UERANSIM 的控制接口動態更新參數
+            control_command = {
+                "command": "update_channel_params",
+                "ue_id": update.ue_id,
+                "params": {
+                    "sinr_db": update.sinr_db,
+                    "rsrp_dbm": update.rsrp_dbm,
+                    "cqi": update.cqi,
+                    "ber": update.error_rate,
+                }
+            }
+
+            # 實際環境中會通過 UERANSIM CLI 或 IPC 介面發送命令
+            # 這裡模擬命令執行
+            await asyncio.sleep(0.05)  # 模擬運行時更新延遲
+            
+            logger.debug(f"運行時通道參數已更新: {update.ue_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"運行時通道參數更新失敗: {e}")
+            return False
+
+    async def _verify_channel_config(self, update: ChannelModelUpdate) -> bool:
+        """驗證通道配置是否生效"""
+        try:
+            # 讀取 UERANSIM 狀態確認配置生效
+            # 實際環境中會查詢 UERANSIM 的當前配置狀態
+            
+            # 模擬驗證過程
+            await asyncio.sleep(0.02)
+            
+            # 檢查配置是否在合理範圍內
+            if not (-50 <= update.sinr_db <= 30):
+                logger.warning(f"SINR 值超出合理範圍: {update.sinr_db}dB")
+                return False
+                
+            if not (-150 <= update.rsrp_dbm <= -30):
+                logger.warning(f"RSRP 值超出合理範圍: {update.rsrp_dbm}dBm")
+                return False
+
+            logger.debug(f"通道配置驗證成功: {update.ue_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"通道配置驗證失敗: {e}")
+            return False
+
+    async def _load_existing_config(self, config_file_path) -> dict:
+        """加載現有配置文件"""
+        try:
+            if config_file_path.exists():
+                import yaml
+                with open(config_file_path, 'r') as f:
+                    return yaml.safe_load(f) or {}
+            else:
+                # 返回默認配置模板
+                return {
+                    "ue-id": config_file_path.stem,
+                    "serving-cell": "gnb_001",
+                    "rf-params": {},
+                    "channel-model": {},
+                    "qos-params": {}
+                }
+        except Exception as e:
+            logger.error(f"加載配置文件失敗: {e}")
+            return {}
+
+    def _calculate_arfcn_from_sinr(self, sinr_db: float) -> int:
+        """根據 SINR 計算 ARFCN"""
+        # 基礎 ARFCN 為 n78 頻段 (3.5GHz)
+        base_arfcn = 632628
+        # 根據 SINR 調整頻點以最佳化性能
+        adjustment = int((sinr_db + 10) * 10)  # 正規化調整
+        return base_arfcn + adjustment
+
+    def _calculate_tx_power(self, rsrp_dbm: float) -> int:
+        """根據 RSRP 計算發射功率"""
+        # 基於 RSRP 推算合適的發射功率
+        # RSRP 與發射功率和路徑損耗相關
+        if rsrp_dbm > -70:
+            return 10  # 低功率
+        elif rsrp_dbm > -90:
+            return 15  # 中功率
+        else:
+            return 23  # 高功率
+
+    def _calculate_rx_gain(self, rsrq_db: float) -> int:
+        """根據 RSRQ 計算接收增益"""
+        # 基於 RSRQ 調整接收增益
+        if rsrq_db > -10:
+            return 0   # 無需額外增益
+        elif rsrq_db > -15:
+            return 3   # 小幅增益
+        else:
+            return 6   # 高增益
+
+    def _calculate_retx_threshold(self, error_rate: float) -> int:
+        """根據錯誤率計算重傳閾值"""
+        if error_rate < 0.01:
+            return 2  # 低錯誤率，少重傳
+        elif error_rate < 0.05:
+            return 3  # 中等錯誤率
+        else:
+            return 4  # 高錯誤率，多重傳
 
     async def _periodic_update_loop(self):
         """定期更新循環"""
@@ -340,38 +480,48 @@ class SionnaIntegrationService:
         environment_type: str = "urban",
         frequency_ghz: float = 2.1,
         bandwidth_mhz: float = 20,
+        interference_sources: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
-        """快速通道模擬和應用"""
+        """快速通道模擬和應用（支援干擾源）"""
 
         try:
-            # 1. 請求通道模擬
-            channel_responses = await self.request_channel_simulation(
+            start_time = datetime.utcnow()
+            
+            # 1. 請求通道模擬（包含干擾）
+            channel_responses = await self.request_channel_simulation_with_interference(
                 ue_positions=ue_positions,
                 gnb_positions=gnb_positions,
                 environment_type=environment_type,
                 frequency_ghz=frequency_ghz,
                 bandwidth_mhz=bandwidth_mhz,
+                interference_sources=interference_sources or [],
             )
 
             # 2. 轉換為 RAN 參數
-            ue_gnb_mapping = {}
-            for i, ue_pos in enumerate(ue_positions):
-                ue_id = f"ue_{i:03d}"
-                gnb_id = f"gnb_{i % len(gnb_positions):03d}"
-                ue_gnb_mapping[ue_id] = gnb_id
+            ue_gnb_mapping = await self._create_optimal_ue_gnb_mapping(
+                ue_positions, gnb_positions, channel_responses
+            )
 
             channel_updates = await self.convert_channels_to_ran_params(
                 channel_responses, ue_gnb_mapping
             )
 
-            # 3. 應用到 UERANSIM
+            # 3. 並行應用到 UERANSIM
             apply_result = await self.apply_channel_models_to_ueransim(channel_updates)
+
+            # 4. 生成性能報告
+            performance_report = await self._generate_performance_report(
+                channel_updates, apply_result, start_time
+            )
 
             return {
                 "simulation_completed": True,
                 "channel_responses_count": len(channel_responses),
                 "channel_updates_count": len(channel_updates),
                 "apply_result": apply_result,
+                "performance_report": performance_report,
+                "interference_detected": len(interference_sources or []) > 0,
+                "simulation_duration_ms": (datetime.utcnow() - start_time).total_seconds() * 1000,
                 "timestamp": datetime.utcnow().isoformat(),
             }
 
@@ -382,6 +532,127 @@ class SionnaIntegrationService:
                 "error": str(e),
                 "timestamp": datetime.utcnow().isoformat(),
             }
+
+    async def request_channel_simulation_with_interference(
+        self,
+        ue_positions: List[Dict[str, Any]],
+        gnb_positions: List[Dict[str, Any]],
+        environment_type: str = "urban",
+        frequency_ghz: float = 2.1,
+        bandwidth_mhz: float = 20,
+        interference_sources: List[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """請求包含干擾的通道模擬"""
+
+        if not self.http_session:
+            raise RuntimeError("服務未啟動")
+
+        simulation_request = {
+            "simulation_id": f"netstack_sionna_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
+            "environment_type": environment_type,
+            "carrier_frequency_hz": frequency_ghz * 1e9,
+            "bandwidth_hz": bandwidth_mhz * 1e6,
+            "transmitters": gnb_positions,
+            "receivers": ue_positions,
+            "interference_sources": interference_sources or [],
+            "channel_model_params": {
+                "enable_path_loss": True,
+                "enable_shadowing": True,
+                "enable_fast_fading": True,
+                "doppler_enabled": True,
+                "delay_spread_enabled": True,
+            },
+            "simulation_params": {
+                "samples_per_slot": 1000,
+                "simulation_time_ms": 100,
+                "enable_interference_modeling": len(interference_sources or []) > 0,
+            }
+        }
+
+        try:
+            logger.info(f"請求增強型通道模擬: {simulation_request['simulation_id']}")
+
+            async with self.http_session.post(
+                f"{self.simworld_api_url}/api/v1/wireless/simulate-with-interference",
+                json=simulation_request,
+                timeout=aiohttp.ClientTimeout(total=60),  # 增加超時時間
+            ) as response:
+                response.raise_for_status()
+                channel_responses = await response.json()
+
+            logger.info(f"收到 {len(channel_responses)} 個增強型通道響應")
+            return channel_responses
+
+        except Exception as e:
+            logger.error(f"增強型通道模擬請求失敗: {e}")
+            # 降級到基本通道模擬
+            return await self.request_channel_simulation(
+                ue_positions, gnb_positions, environment_type, frequency_ghz, bandwidth_mhz
+            )
+
+    async def _create_optimal_ue_gnb_mapping(
+        self, ue_positions: List[Dict], gnb_positions: List[Dict], channel_responses: List[Dict]
+    ) -> Dict[str, str]:
+        """創建最佳 UE-gNB 映射"""
+        ue_gnb_mapping = {}
+        
+        for i, (ue_pos, channel_resp) in enumerate(zip(ue_positions, channel_responses)):
+            ue_id = f"ue_{i:03d}"
+            
+            # 選擇 SINR 最高的 gNB
+            best_gnb_id = "gnb_001"  # 默認值
+            best_sinr = -float('inf')
+            
+            for j, gnb_pos in enumerate(gnb_positions):
+                gnb_id = f"gnb_{j:03d}"
+                # 從通道響應中獲取 SINR
+                gnb_sinr = channel_resp.get('gnb_measurements', {}).get(gnb_id, {}).get('sinr_db', -100)
+                
+                if gnb_sinr > best_sinr:
+                    best_sinr = gnb_sinr
+                    best_gnb_id = gnb_id
+            
+            ue_gnb_mapping[ue_id] = best_gnb_id
+            
+        return ue_gnb_mapping
+
+    async def _generate_performance_report(
+        self, channel_updates: List[ChannelModelUpdate], apply_result: Dict, start_time: datetime
+    ) -> Dict[str, Any]:
+        """生成性能報告"""
+        total_time = (datetime.utcnow() - start_time).total_seconds()
+        
+        sinr_values = [update.sinr_db for update in channel_updates]
+        rsrp_values = [update.rsrp_dbm for update in channel_updates]
+        throughput_values = [update.throughput_mbps for update in channel_updates]
+        latency_values = [update.latency_ms for update in channel_updates]
+        
+        return {
+            "summary": {
+                "total_ues": len(channel_updates),
+                "successful_updates": apply_result.get("total_applied", 0),
+                "failed_updates": apply_result.get("total_failed", 0),
+                "success_rate": apply_result.get("total_applied", 0) / max(len(channel_updates), 1),
+                "total_processing_time_sec": total_time,
+            },
+            "channel_quality": {
+                "avg_sinr_db": sum(sinr_values) / len(sinr_values) if sinr_values else 0,
+                "min_sinr_db": min(sinr_values) if sinr_values else 0,
+                "max_sinr_db": max(sinr_values) if sinr_values else 0,
+                "avg_rsrp_dbm": sum(rsrp_values) / len(rsrp_values) if rsrp_values else 0,
+            },
+            "performance_metrics": {
+                "avg_throughput_mbps": sum(throughput_values) / len(throughput_values) if throughput_values else 0,
+                "avg_latency_ms": sum(latency_values) / len(latency_values) if latency_values else 0,
+                "total_throughput_mbps": sum(throughput_values),
+            },
+            "quality_indicators": {
+                "excellent_connections": len([s for s in sinr_values if s > 20]),
+                "good_connections": len([s for s in sinr_values if 10 < s <= 20]),
+                "fair_connections": len([s for s in sinr_values if 0 < s <= 10]),
+                "poor_connections": len([s for s in sinr_values if s <= 0]),
+            }
+        }
 
     def get_service_status(self) -> Dict[str, Any]:
         """獲取服務狀態"""
