@@ -1,0 +1,334 @@
+# E2E 系統集成測試配置文件
+# 根據 TODO.md 第14項要求設計的端到端測試配置
+
+# ===============================
+# 測試環境配置
+# ===============================
+environments:
+  development:
+    name: "Development E2E Environment"
+    description: "開發環境端到端測試"
+    netstack:
+      url: "http://localhost:8080"
+      health_endpoint: "/health"
+      api_base: "/api/v1"
+      admin_base: "/admin"
+    simworld:
+      url: "http://localhost:8888"
+      health_endpoint: "/api/v1/wireless/health"
+      api_base: "/api/v1"
+      frontend_url: "http://localhost:5173"
+    docker:
+      network_name: "compose_netstack-core"
+      containers:
+        netstack_api: "netstack-api"
+        simworld_backend: "simworld_backend"
+        simworld_frontend: "simworld_frontend"
+        mongo: "netstack-mongo"
+        postgis: "simworld_postgis"
+
+# ===============================
+# 測試場景矩陣
+# ===============================
+test_scenarios:
+  # 1. UAV 正常連接衛星場景
+  normal_uav_satellite_connection:
+    name: "UAV 正常連接衛星場景"
+    description: "驗證基本通信功能和端到端延遲"
+    priority: 1
+    timeout_seconds: 60
+    performance_targets:
+      max_e2e_latency_ms: 50
+      min_throughput_mbps: 10
+      connection_success_rate: 99.5
+    test_steps:
+      - name: "初始化 UAV 位置"
+        endpoint: "/api/v1/uav/position"
+        method: "POST"
+      - name: "建立衛星連接"
+        endpoint: "/api/v1/satellite/connect"
+        method: "POST"
+      - name: "測試端到端 Ping"
+        endpoint: "/api/v1/connectivity/ping"
+        method: "GET"
+      - name: "數據傳輸測試"
+        endpoint: "/api/v1/data/transfer"
+        method: "POST"
+
+  # 2. 干擾出現和規避場景
+  interference_avoidance:
+    name: "干擾出現和規避場景"
+    description: "測試 AI-RAN 抗干擾能力和快速頻率跳變效果"
+    priority: 2
+    timeout_seconds: 90
+    performance_targets:
+      interference_detection_time_ms: 100
+      frequency_hop_time_ms: 50
+      communication_restoration_time_ms: 500
+      post_interference_throughput_retention: 80
+    test_steps:
+      - name: "建立正常連接"
+        endpoint: "/api/v1/uav/connect"
+        method: "POST"
+      - name: "注入干擾信號"
+        endpoint: "/api/v1/interference/inject"
+        method: "POST"
+      - name: "監控干擾檢測"
+        endpoint: "/api/v1/interference/status"
+        method: "GET"
+      - name: "驗證頻率跳變"
+        endpoint: "/api/v1/frequency/current"
+        method: "GET"
+      - name: "測試通信恢復"
+        endpoint: "/api/v1/connectivity/test"
+        method: "POST"
+
+  # 3. 衛星失聯切換到 Mesh 場景
+  satellite_loss_mesh_failover:
+    name: "衛星失聯切換到 Mesh 場景"
+    description: "驗證網路備援機制和恢復時間（2秒內重建連線）"
+    priority: 1
+    timeout_seconds: 120
+    performance_targets:
+      max_reconnection_time_ms: 2000
+      mesh_discovery_time_ms: 500
+      backup_link_establishment_ms: 1000
+      data_integrity_percentage: 100
+    test_steps:
+      - name: "建立衛星連接"
+        endpoint: "/api/v1/satellite/connect"
+        method: "POST"
+      - name: "開始數據傳輸"
+        endpoint: "/api/v1/data/stream/start"
+        method: "POST"
+      - name: "模擬衛星失聯"
+        endpoint: "/api/v1/satellite/disconnect"
+        method: "POST"
+      - name: "監控 Mesh 網路發現"
+        endpoint: "/api/v1/mesh/discovery"
+        method: "GET"
+      - name: "驗證備援連接建立"
+        endpoint: "/api/v1/mesh/connection/status"
+        method: "GET"
+      - name: "測試數據完整性"
+        endpoint: "/api/v1/data/verify"
+        method: "POST"
+
+  # 4. 高負載下的性能場景
+  high_load_performance:
+    name: "高負載下的性能場景"
+    description: "測試系統在極限條件下的吞吐量和穩定性"
+    priority: 3
+    timeout_seconds: 180
+    performance_targets:
+      max_concurrent_uavs: 50
+      min_aggregate_throughput_mbps: 100
+      cpu_usage_threshold: 80
+      memory_usage_threshold: 85
+      packet_loss_rate: 0.1
+    test_steps:
+      - name: "創建多個 UAV 實例"
+        endpoint: "/api/v1/uav/batch/create"
+        method: "POST"
+      - name: "並發連接測試"
+        endpoint: "/api/v1/uav/batch/connect"
+        method: "POST"
+      - name: "高並發數據傳輸"
+        endpoint: "/api/v1/data/batch/transfer"
+        method: "POST"
+      - name: "系統資源監控"
+        endpoint: "/api/v1/system/metrics"
+        method: "GET"
+      - name: "性能指標收集"
+        endpoint: "/api/v1/performance/report"
+        method: "GET"
+
+  # 5. 多 UAV 同時接入場景
+  multi_uav_access:
+    name: "多 UAV 同時接入場景"
+    description: "評估系統的擴展性和資源管理能力"
+    priority: 2
+    timeout_seconds: 150
+    performance_targets:
+      max_simultaneous_connections: 20
+      connection_establishment_time_ms: 1000
+      resource_allocation_fairness: 95
+      inter_uav_interference_db: -10
+    test_steps:
+      - name: "批量創建 UAV"
+        endpoint: "/api/v1/uav/batch/provision"
+        method: "POST"
+      - name: "同時連接測試"
+        endpoint: "/api/v1/uav/simultaneous/connect"
+        method: "POST"
+      - name: "資源分配驗證"
+        endpoint: "/api/v1/resources/allocation"
+        method: "GET"
+      - name: "干擾測量"
+        endpoint: "/api/v1/interference/measure"
+        method: "GET"
+      - name: "QoS 驗證"
+        endpoint: "/api/v1/qos/validate"
+        method: "POST"
+
+  # 6. 長時間運行場景
+  long_duration_stability:
+    name: "長時間運行場景"
+    description: "檢測系統的穩定性和資源洩漏情況"
+    priority: 3
+    timeout_seconds: 3600  # 1小時
+    performance_targets:
+      max_memory_growth_mb: 100
+      max_cpu_drift_percent: 5
+      connection_stability_percentage: 99.9
+      zero_memory_leaks: true
+    test_steps:
+      - name: "建立基線指標"
+        endpoint: "/api/v1/system/baseline"
+        method: "POST"
+      - name: "啟動長期監控"
+        endpoint: "/api/v1/monitoring/long_term/start"
+        method: "POST"
+      - name: "週期性健康檢查"
+        endpoint: "/api/v1/health/periodic"
+        method: "GET"
+        interval_seconds: 300  # 每5分鐘檢查
+      - name: "資源使用趨勢分析"
+        endpoint: "/api/v1/resources/trend"
+        method: "GET"
+      - name: "生成穩定性報告"
+        endpoint: "/api/v1/stability/report"
+        method: "POST"
+
+# ===============================
+# 性能指標和閾值
+# ===============================
+performance_metrics:
+  latency:
+    e2e_ping_ms:
+      target: 50
+      warning: 40
+      critical: 60
+      measurement_points: ["uav", "satellite", "gateway", "core"]
+    
+  throughput:
+    uplink_mbps:
+      target: 20
+      minimum: 10
+      measurement_duration_sec: 30
+    downlink_mbps:
+      target: 50
+      minimum: 25
+      measurement_duration_sec: 30
+    
+  reliability:
+    connection_success_rate:
+      target: 99.5
+      minimum: 98.0
+      sample_size: 1000
+    reconnection_time_ms:
+      target: 2000
+      maximum: 3000
+      measurement_count: 100
+    
+  resource_usage:
+    cpu_percentage:
+      normal: 60
+      warning: 80
+      critical: 90
+    memory_mb:
+      normal: 2048
+      warning: 3072
+      critical: 4096
+    disk_io_mbps:
+      normal: 100
+      warning: 200
+      critical: 300
+
+# ===============================
+# 測試數據配置
+# ===============================
+test_data:
+  uav_profiles:
+    - id: "uav_001"
+      type: "reconnaissance"
+      altitude_m: 500
+      speed_mps: 15
+      payload_kg: 2.5
+    - id: "uav_002"
+      type: "cargo"
+      altitude_m: 300
+      speed_mps: 8
+      payload_kg: 10.0
+    - id: "uav_003"
+      type: "surveillance"
+      altitude_m: 1000
+      speed_mps: 25
+      payload_kg: 1.0
+  
+  satellite_configurations:
+    - name: "LEO_Sat_1"
+      orbit_altitude_km: 550
+      inclination_deg: 53
+      frequency_ghz: 12.5
+    - name: "LEO_Sat_2"
+      orbit_altitude_km: 600
+      inclination_deg: 97
+      frequency_ghz: 14.2
+  
+  interference_patterns:
+    - type: "continuous_wave"
+      frequency_ghz: 12.4
+      power_dbm: -80
+      duration_sec: 10
+    - type: "pulse_jamming"
+      frequency_ghz: 12.6
+      power_dbm: -70
+      pulse_width_ms: 1
+      repetition_hz: 1000
+
+# ===============================
+# 測試報告配置
+# ===============================
+reporting:
+  output_formats: ["json", "html", "pdf"]
+  metrics_collection:
+    enabled: true
+    interval_seconds: 5
+    retention_hours: 24
+  
+  alerts:
+    performance_degradation:
+      enabled: true
+      threshold_percentage: 20
+    
+    test_failure:
+      enabled: true
+      notification_channels: ["log", "email"]
+  
+  dashboard:
+    real_time_monitoring: true
+    historical_analysis: true
+    custom_charts: ["latency_trend", "throughput_distribution", "error_rate"]
+
+# ===============================
+# 自動化和 CI/CD 配置
+# ===============================
+automation:
+  continuous_testing:
+    enabled: true
+    schedule: "0 */4 * * *"  # 每4小時執行一次
+    
+  regression_testing:
+    enabled: true
+    trigger_on: ["code_push", "config_change"]
+    
+  performance_regression:
+    enabled: true
+    baseline_comparison: true
+    acceptable_degradation_percent: 10
+    
+  auto_healing:
+    enabled: true
+    restart_on_failure: true
+    max_restart_attempts: 3 
