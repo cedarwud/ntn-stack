@@ -609,3 +609,321 @@ def event_handler(
         return func
 
     return decorator
+
+
+# 換手相關事件類型常數
+class HandoverEventTypes:
+    """換手事件類型常數"""
+    
+    # 預測事件
+    PREDICTION_CREATED = "handover.prediction.created"
+    PREDICTION_UPDATED = "handover.prediction.updated"
+    PREDICTION_EXPIRED = "handover.prediction.expired"
+    
+    # 計劃事件
+    PLAN_CREATED = "handover.plan.created"
+    PLAN_UPDATED = "handover.plan.updated"
+    PLAN_CANCELLED = "handover.plan.cancelled"
+    
+    # 執行事件
+    EXECUTION_STARTED = "handover.execution.started"
+    EXECUTION_PREPARING = "handover.execution.preparing"
+    EXECUTION_EXECUTING = "handover.execution.executing"
+    EXECUTION_COMPLETED = "handover.execution.completed"
+    EXECUTION_FAILED = "handover.execution.failed"
+    EXECUTION_ROLLBACK = "handover.execution.rollback"
+    
+    # 協調事件
+    COORDINATION_REQUESTED = "handover.coordination.requested"
+    COORDINATION_APPROVED = "handover.coordination.approved"
+    COORDINATION_REJECTED = "handover.coordination.rejected"
+    
+    # 指標事件
+    METRICS_UPDATED = "handover.metrics.updated"
+    PERFORMANCE_ALERT = "handover.performance.alert"
+    
+    # 衛星狀態事件
+    SATELLITE_AVAILABILITY_CHANGED = "satellite.availability.changed"
+    SATELLITE_LOAD_CHANGED = "satellite.load.changed"
+    
+    # UE 狀態事件
+    UE_SIGNAL_DEGRADED = "ue.signal.degraded"
+    UE_CONNECTION_LOST = "ue.connection.lost"
+    UE_HANDOVER_REQUIRED = "ue.handover.required"
+
+
+class HandoverEventBusExtension:
+    """換手事件總線擴展"""
+    
+    def __init__(self, event_bus: EventBusService):
+        self.event_bus = event_bus
+        self.handover_subscribers: Dict[str, List[Callable]] = {}
+        
+    async def publish_handover_event(
+        self,
+        event_type: str,
+        data: Dict[str, Any],
+        ue_id: Optional[str] = None,
+        satellite_id: Optional[str] = None,
+        priority: str = "NORMAL",
+        correlation_id: Optional[str] = None
+    ) -> str:
+        """發布換手相關事件"""
+        
+        # 轉換優先級
+        event_priority = EventPriority.NORMAL
+        if priority == "LOW":
+            event_priority = EventPriority.LOW
+        elif priority == "HIGH":
+            event_priority = EventPriority.HIGH
+        elif priority == "CRITICAL":
+            event_priority = EventPriority.CRITICAL
+        
+        # 增強事件數據
+        enhanced_data = {
+            **data,
+            "event_category": "handover",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        if ue_id:
+            enhanced_data["ue_id"] = ue_id
+        if satellite_id:
+            enhanced_data["satellite_id"] = satellite_id
+            
+        return await self.event_bus.publish(
+            event_type=event_type,
+            data=enhanced_data,
+            source="handover_service",
+            priority=event_priority,
+            correlation_id=correlation_id
+        )
+    
+    async def subscribe_to_handover_events(
+        self,
+        event_patterns: List[str],
+        handler_func: Callable,
+        subscriber_id: Optional[str] = None,
+        priority: int = 100
+    ) -> List[str]:
+        """訂閱換手事件模式"""
+        
+        handler_ids = []
+        
+        for pattern in event_patterns:
+            # 支持通配符模式
+            if pattern.endswith(".*"):
+                # 獲取所有匹配的事件類型
+                base_pattern = pattern[:-2]
+                matching_types = [
+                    event_type for event_type in dir(HandoverEventTypes)
+                    if not event_type.startswith("_") and 
+                    getattr(HandoverEventTypes, event_type).startswith(base_pattern)
+                ]
+                
+                for event_type_name in matching_types:
+                    event_type = getattr(HandoverEventTypes, event_type_name)
+                    handler_id = self.event_bus.register_handler(
+                        event_type=event_type,
+                        handler_func=handler_func,
+                        handler_id=f"{subscriber_id}_{event_type}" if subscriber_id else None,
+                        priority=priority
+                    )
+                    handler_ids.append(handler_id)
+            else:
+                # 精確匹配
+                handler_id = self.event_bus.register_handler(
+                    event_type=pattern,
+                    handler_func=handler_func,
+                    handler_id=f"{subscriber_id}_{pattern}" if subscriber_id else None,
+                    priority=priority
+                )
+                handler_ids.append(handler_id)
+        
+        return handler_ids
+    
+    async def publish_prediction_event(
+        self,
+        prediction_data: Dict[str, Any],
+        event_subtype: str = "created",
+        priority: str = "HIGH"
+    ) -> str:
+        """發布換手預測事件"""
+        
+        event_type = f"handover.prediction.{event_subtype}"
+        
+        return await self.publish_handover_event(
+            event_type=event_type,
+            data=prediction_data,
+            ue_id=prediction_data.get("ue_id"),
+            satellite_id=prediction_data.get("current_satellite"),
+            priority=priority,
+            correlation_id=prediction_data.get("prediction_id")
+        )
+    
+    async def publish_execution_event(
+        self,
+        execution_data: Dict[str, Any],
+        event_subtype: str = "started",
+        priority: str = "HIGH"
+    ) -> str:
+        """發布換手執行事件"""
+        
+        event_type = f"handover.execution.{event_subtype}"
+        
+        return await self.publish_handover_event(
+            event_type=event_type,
+            data=execution_data,
+            ue_id=execution_data.get("ue_id"),
+            satellite_id=execution_data.get("target_satellite"),
+            priority=priority,
+            correlation_id=execution_data.get("execution_id")
+        )
+    
+    async def publish_coordination_event(
+        self,
+        coordination_data: Dict[str, Any],
+        event_subtype: str = "requested",
+        priority: str = "NORMAL"
+    ) -> str:
+        """發布換手協調事件"""
+        
+        event_type = f"handover.coordination.{event_subtype}"
+        
+        return await self.publish_handover_event(
+            event_type=event_type,
+            data=coordination_data,
+            priority=priority,
+            correlation_id=coordination_data.get("coordination_id")
+        )
+    
+    async def publish_metrics_event(
+        self,
+        metrics_data: Dict[str, Any],
+        priority: str = "LOW"
+    ) -> str:
+        """發布換手指標事件"""
+        
+        return await self.publish_handover_event(
+            event_type=HandoverEventTypes.METRICS_UPDATED,
+            data=metrics_data,
+            priority=priority
+        )
+    
+    async def publish_alert_event(
+        self,
+        alert_data: Dict[str, Any],
+        priority: str = "HIGH"
+    ) -> str:
+        """發布換手性能警報事件"""
+        
+        return await self.publish_handover_event(
+            event_type=HandoverEventTypes.PERFORMANCE_ALERT,
+            data=alert_data,
+            ue_id=alert_data.get("ue_id"),
+            satellite_id=alert_data.get("satellite_id"),
+            priority=priority
+        )
+    
+    async def get_handover_event_history(
+        self,
+        event_type: Optional[str] = None,
+        ue_id: Optional[str] = None,
+        satellite_id: Optional[str] = None,
+        limit: int = 100
+    ) -> List[Event]:
+        """獲取換手事件歷史"""
+        
+        if event_type:
+            events = await self.event_bus.event_store.get_events_by_type(event_type, limit)
+        else:
+            # 獲取所有換手相關事件
+            all_handover_events = []
+            
+            for attr_name in dir(HandoverEventTypes):
+                if not attr_name.startswith("_"):
+                    event_type_value = getattr(HandoverEventTypes, attr_name)
+                    events = await self.event_bus.event_store.get_events_by_type(event_type_value, limit // 20)
+                    all_handover_events.extend(events)
+            
+            # 按時間排序
+            all_handover_events.sort(key=lambda e: e.timestamp, reverse=True)
+            events = all_handover_events[:limit]
+        
+        # 過濾條件
+        filtered_events = []
+        for event in events:
+            if ue_id and event.data.get("ue_id") != ue_id:
+                continue
+            if satellite_id and event.data.get("satellite_id") != satellite_id:
+                continue
+            filtered_events.append(event)
+        
+        return filtered_events
+    
+    async def get_handover_event_statistics(self) -> Dict[str, Any]:
+        """獲取換手事件統計"""
+        
+        stats = {
+            "event_counts": {},
+            "recent_activity": {},
+            "error_rates": {},
+            "average_processing_times": {}
+        }
+        
+        # 統計各類事件數量
+        for attr_name in dir(HandoverEventTypes):
+            if not attr_name.startswith("_"):
+                event_type = getattr(HandoverEventTypes, attr_name)
+                events = await self.event_bus.event_store.get_events_by_type(event_type, 1000)
+                stats["event_counts"][event_type] = len(events)
+                
+                # 最近1小時的活動
+                recent_events = [
+                    e for e in events 
+                    if (datetime.utcnow() - e.timestamp).total_seconds() < 3600
+                ]
+                stats["recent_activity"][event_type] = len(recent_events)
+        
+        return stats
+
+
+# 全局換手事件總線擴展實例
+_global_handover_event_bus: Optional[HandoverEventBusExtension] = None
+
+
+async def get_handover_event_bus() -> HandoverEventBusExtension:
+    """獲取全局換手事件總線擴展實例"""
+    global _global_handover_event_bus
+    
+    if _global_handover_event_bus is None:
+        main_event_bus = await get_event_bus()
+        _global_handover_event_bus = HandoverEventBusExtension(main_event_bus)
+    
+    return _global_handover_event_bus
+
+
+# 換手事件裝飾器
+def handover_event_handler(
+    event_patterns: List[str],
+    priority: int = 100,
+    subscriber_id: Optional[str] = None
+):
+    """換手事件處理器裝飾器"""
+    
+    def decorator(func):
+        async def register():
+            handover_bus = await get_handover_event_bus()
+            handler_ids = await handover_bus.subscribe_to_handover_events(
+                event_patterns=event_patterns,
+                handler_func=func,
+                subscriber_id=subscriber_id,
+                priority=priority
+            )
+            return handler_ids
+        
+        func._register_handover_handler = register
+        func._event_patterns = event_patterns
+        return func
+    
+    return decorator
