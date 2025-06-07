@@ -15,7 +15,7 @@ from sklearn.cluster import DBSCAN
 import warnings
 warnings.filterwarnings('ignore')
 
-from .test_data_collector import TestResult, TestSuite, PerformanceMetrics, TestDataManager
+from test_data_collector import TestResult, TestSuite, PerformanceMetrics, TestDataManager
 
 
 @dataclass

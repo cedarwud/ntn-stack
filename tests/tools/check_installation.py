@@ -63,7 +63,7 @@ def check_dependencies():
         ("plotly", "Interactive charts"),
         ("flask", "Web framework"),
         ("jinja2", "Template engine"),
-        ("pyyaml", "Configuration files"),
+        ("yaml", "Configuration files"),
         ("scipy", "Scientific computing"),
         ("sklearn", "Machine learning")
     ]

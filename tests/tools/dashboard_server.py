@@ -24,10 +24,10 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from .visualization_config import ConfigManager, VisualizationConfig
-from .test_data_collector import TestDataManager, TestSuite, PerformanceMetrics
-from .visualization_engine import VisualizationEngine, ChartData
-from .advanced_report_generator import AdvancedReportGenerator
+from visualization_config import ConfigManager, VisualizationConfig
+from test_data_collector import TestDataManager, TestSuite, PerformanceMetrics
+from visualization_engine import VisualizationEngine, ChartData
+from advanced_report_generator import AdvancedReportGenerator
 
 
 class DashboardAPI:

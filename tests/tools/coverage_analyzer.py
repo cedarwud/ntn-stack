@@ -17,8 +17,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-from .visualization_config import ChartConfig, ChartType
-from .visualization_engine import ChartData, BaseChartGenerator
+from visualization_config import ChartConfig, ChartType
+from visualization_engine import ChartData, BaseChartGenerator
 
 
 @dataclass
