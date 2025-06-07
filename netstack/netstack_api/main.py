@@ -85,6 +85,9 @@ from .services.uav_mesh_failover_service import (
 # 添加統一路由器導入
 from .routers.unified_api_router import unified_router
 
+# 添加 AI 決策路由器導入
+from .routers.ai_decision_router import router as ai_decision_router, initialize_ai_services, shutdown_ai_services
+
 # 添加事件驅動服務導入
 from .services.event_bus_service import (
     EventBusService,
@@ -308,6 +311,14 @@ async def lifespan(app: FastAPI):
     # 啟動 Sionna 整合服務
     await sionna_service.start()
 
+    # 初始化 AI 智慧決策服務
+    try:
+        await initialize_ai_services(redis_adapter)
+        logger.info("✅ AI 智慧決策服務已初始化")
+    except Exception as e:
+        logger.error("AI 智慧決策服務初始化失敗", error=str(e))
+        # 不阻塞應用啟動，但記錄錯誤
+
     logger.info("✅ NetStack API 啟動完成")
 
     yield
@@ -344,6 +355,13 @@ async def lifespan(app: FastAPI):
     if hasattr(app.state, "uav_mesh_failover_service"):
         await app.state.uav_mesh_failover_service.stop_service()
 
+    # 關閉 AI 智慧決策服務
+    try:
+        await shutdown_ai_services()
+        logger.info("✅ AI 智慧決策服務已關閉")
+    except Exception as e:
+        logger.error("AI 智慧決策服務關閉失敗", error=str(e))
+
     await mongo_adapter.disconnect()
     await redis_adapter.disconnect()
     logger.info("✅ NetStack API 已關閉")
@@ -371,6 +389,9 @@ app.add_middleware(
 
 # 註冊統一 API 路由器
 app.include_router(unified_router, tags=["統一 API"])
+
+# 註冊 AI 決策 API 路由器
+app.include_router(ai_decision_router, tags=["AI 智慧決策"])
 
 
 @app.middleware("http")
