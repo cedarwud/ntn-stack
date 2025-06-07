@@ -19,8 +19,8 @@ from pathlib import Path
 import base64
 from io import BytesIO
 
-from .visualization_config import ChartConfig, ChartType, VisualizationConfig
-from .test_data_collector import TestResult, TestSuite, PerformanceMetrics
+from visualization_config import ChartConfig, ChartType, VisualizationConfig
+from test_data_collector import TestResult, TestSuite, PerformanceMetrics
 
 
 @dataclass
@@ -623,7 +623,7 @@ class VisualizationEngine:
 
 if __name__ == "__main__":
     # 示例使用
-    from .visualization_config import ConfigManager
+    from visualization_config import ConfigManager
     
     config_manager = ConfigManager()
     config = config_manager.load_config()

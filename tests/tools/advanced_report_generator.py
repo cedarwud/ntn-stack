@@ -16,9 +16,9 @@ import numpy as np
 from weasyprint import HTML, CSS
 import plotly.io as pio
 
-from .visualization_config import VisualizationConfig, ReportConfig
-from .test_data_collector import TestResult, TestSuite, PerformanceMetrics, TestDataManager
-from .visualization_engine import VisualizationEngine, ChartData
+from visualization_config import VisualizationConfig, ReportConfig
+from test_data_collector import TestResult, TestSuite, PerformanceMetrics, TestDataManager
+from visualization_engine import VisualizationEngine, ChartData
 
 
 @dataclass
@@ -634,8 +634,8 @@ class AdvancedReportGenerator:
 
 if __name__ == "__main__":
     # 示例使用
-    from .visualization_config import ConfigManager
-    from .test_data_collector import TestDataManager
+    from visualization_config import ConfigManager
+    from test_data_collector import TestDataManager
     
     # 加載配置
     config_manager = ConfigManager()
