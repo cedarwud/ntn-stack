@@ -135,7 +135,9 @@ export interface ChartConfig {
 
 // WebSocket 事件類型
 export interface WebSocketEvent {
-  type: 'uav_update' | 'system_status' | 'performance_metrics' | 'topology_change';
+  type: 'uav_update' | 'system_status' | 'performance_metrics' | 'topology_change' | 
+        'sionna_channel_metrics' | 'interference_updates' | 'ai_ran_decisions' |
+        'doppler_analysis' | 'mobility_updates' | 'channel_state_information';
   data: any;
   timestamp: string;
 }

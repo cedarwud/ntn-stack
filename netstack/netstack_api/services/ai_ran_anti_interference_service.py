@@ -11,6 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import time
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
@@ -27,53 +28,111 @@ logger = structlog.get_logger(__name__)
 
 
 class AIRANNetwork(nn.Module):
-    """AI-RAN 深度強化學習網路"""
+    """AI-RAN 深度強化學習網路（優化版）"""
 
     def __init__(
-        self, input_size: int = 20, hidden_size: int = 128, output_size: int = 10
+        self, input_size: int = 20, hidden_size: int = 256, output_size: int = 10
     ):
         super(AIRANNetwork, self).__init__()
 
-        # 狀態編碼器
+        # 增強型狀態編碼器（添加 Batch Normalization 和 ResNet 連接）
         self.state_encoder = nn.Sequential(
             nn.Linear(input_size, hidden_size),
-            nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.1),  # 降低 dropout 率
+            
+            nn.Linear(hidden_size, hidden_size),
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.1),
+            
             nn.Linear(hidden_size, hidden_size // 2),
-            nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.BatchNorm1d(hidden_size // 2),
+            nn.ReLU(inplace=True),
         )
 
-        # 動作價值網路 (DQN)
-        self.q_network = nn.Sequential(
+        # 增強型動作價值網路 (Dueling DQN)
+        self.advantage_stream = nn.Sequential(
             nn.Linear(hidden_size // 2, hidden_size // 4),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Linear(hidden_size // 4, output_size),
         )
-
-        # 策略網路 (Actor-Critic)
-        self.policy_network = nn.Sequential(
+        
+        self.value_stream = nn.Sequential(
             nn.Linear(hidden_size // 2, hidden_size // 4),
-            nn.ReLU(),
-            nn.Linear(hidden_size // 4, output_size),
-            nn.Softmax(dim=-1),
-        )
-
-        # 價值網路 (Critic)
-        self.value_network = nn.Sequential(
-            nn.Linear(hidden_size // 2, hidden_size // 4),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Linear(hidden_size // 4, 1),
         )
 
-    def forward(self, state):
-        """前向傳播"""
-        encoded_state = self.state_encoder(state)
-        q_values = self.q_network(encoded_state)
-        policy = self.policy_network(encoded_state)
-        value = self.value_network(encoded_state)
+        # 增強型策略網路（添加注意力機制）
+        self.policy_attention = nn.MultiheadAttention(
+            embed_dim=hidden_size // 2, num_heads=4, batch_first=True
+        )
+        
+        self.policy_network = nn.Sequential(
+            nn.Linear(hidden_size // 2, hidden_size // 4),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_size // 4, output_size),
+        )
 
-        return q_values, policy, value
+        # 狀態價值網路
+        self.value_network = nn.Sequential(
+            nn.Linear(hidden_size // 2, hidden_size // 4),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_size // 4, 1),
+        )
+        
+        # 權重初始化
+        self._initialize_weights()
+
+    def _initialize_weights(self):
+        """Xavier 初始化"""
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+
+    def forward(self, state):
+        """前向傳播（優化版）"""
+        batch_size = state.size(0)
+        encoded_state = self.state_encoder(state)
+        
+        # Dueling DQN: Q(s,a) = V(s) + (A(s,a) - mean(A(s,a)))
+        value = self.value_stream(encoded_state)
+        advantage = self.advantage_stream(encoded_state)
+        q_values = value + (advantage - advantage.mean(dim=1, keepdim=True))
+        
+        # 注意力增強策略
+        # 將 encoded_state 擴展為sequence 維度以配合 MultiheadAttention
+        state_seq = encoded_state.unsqueeze(1)  # [batch_size, 1, hidden_size//2]
+        attended_state, _ = self.policy_attention(state_seq, state_seq, state_seq)
+        attended_state = attended_state.squeeze(1)  # [batch_size, hidden_size//2]
+        
+        policy_logits = self.policy_network(attended_state)
+        policy = torch.softmax(policy_logits, dim=-1)
+        
+        state_value = self.value_network(encoded_state)
+        
+        return q_values, policy, state_value
+
+    def get_action_with_confidence(self, state, epsilon=0.0):
+        """獲取動作和置信度"""
+        with torch.no_grad():
+            q_values, policy, value = self.forward(state)
+            
+            # 計算置信度
+            policy_entropy = -torch.sum(policy * torch.log(policy + 1e-8), dim=1)
+            confidence = 1.0 - (policy_entropy / torch.log(torch.tensor(policy.size(1), dtype=torch.float)))
+            
+            # 動作選擇
+            if torch.rand(1).item() < epsilon:
+                action = torch.randint(0, policy.size(1), (state.size(0),))
+            else:
+                action = torch.argmax(q_values, dim=1)
+                
+            return action, confidence, q_values, policy, value
 
 
 class ExperienceReplay:
@@ -226,67 +285,132 @@ class AIRANAntiInterferenceService:
             return {"success": False, "error": str(e)}
 
     async def ai_mitigation_decision(
-        self, interference_data: Dict, network_state: Dict
+        self, interference_data: Dict, network_state: Dict, fast_mode: bool = False
     ) -> Dict:
-        """AI 抗干擾決策"""
+        """優化的 AI 抗干擾決策（支援快速模式）"""
         try:
+            decision_start_time = time.time()
+            
             # 準備狀態特徵
-            state_features = self._extract_state_features(
-                interference_data, network_state
-            )
-            state_tensor = (
-                torch.FloatTensor(state_features).unsqueeze(0).to(self.device)
-            )
+            state_features = self._extract_state_features(interference_data, network_state)
+            state_tensor = torch.FloatTensor(state_features).unsqueeze(0).to(self.device)
 
-            # AI 網路推理
+            # AI 網路推理（優化版）
             with torch.no_grad():
-                q_values, policy, value = self.ai_network(state_tensor)
-
-                # ε-貪婪策略選擇動作
-                if np.random.random() < self.epsilon:
-                    # 探索：隨機選擇動作
-                    action = np.random.randint(0, len(self.interference_strategies))
-                else:
-                    # 利用：選擇最佳動作
+                if fast_mode:
+                    # 快速模式：只使用 Q 網路進行快速決策
+                    q_values, _, _ = self.ai_network(state_tensor)
                     action = torch.argmax(q_values).item()
+                    confidence = torch.softmax(q_values, dim=1).max().item()
+                    expected_value = q_values.max().item()
+                    policy_entropy = 0.0
+                else:
+                    # 完整模式：使用所有網路進行精確決策
+                    action, confidence_tensor, q_values, policy, value = self.ai_network.get_action_with_confidence(
+                        state_tensor, self.epsilon if not fast_mode else 0.0
+                    )
+                    action = action.item()
+                    confidence = confidence_tensor.item()
+                    expected_value = value.item()
+                    
+                    # 計算策略熵（作為不確定性指標）
+                    policy_entropy = (-policy * torch.log(policy + 1e-8)).sum().item()
 
-            # 獲取策略名稱
+            # 獲取策略名稱和參數
             strategy_names = list(self.interference_strategies.keys())
             selected_strategy = strategy_names[action % len(strategy_names)]
 
+            # 根據置信度調整策略參數
+            enhanced_network_state = network_state.copy()
+            enhanced_network_state.update({
+                "ai_confidence": confidence,
+                "strategy_certainty": 1.0 - policy_entropy if not fast_mode else 1.0,
+                "decision_mode": "fast" if fast_mode else "comprehensive"
+            })
+
             # 執行選定的抗干擾策略
             mitigation_result = await self.interference_strategies[selected_strategy](
-                interference_data, network_state
+                interference_data, enhanced_network_state
             )
 
-            # 記錄決策用於訓練
+            decision_time_ms = (time.time() - decision_start_time) * 1000
+
+            # 增強的決策記錄
             decision_record = {
                 "state_features": state_features,
                 "action": action,
                 "strategy": selected_strategy,
                 "timestamp": datetime.utcnow().isoformat(),
-                "confidence": float(torch.max(policy).item()),
-                "expected_value": float(value.item()),
+                "confidence": confidence,
+                "expected_value": expected_value,
+                "policy_entropy": policy_entropy,
+                "decision_time_ms": decision_time_ms,
+                "fast_mode": fast_mode,
+                "interference_severity": self._assess_interference_severity(interference_data),
+                "network_quality": self._assess_network_quality(network_state),
             }
 
-            await self.redis_adapter.set(
-                f"ai_ran_decision:{datetime.utcnow().timestamp()}",
-                json.dumps(decision_record),
-                expire=3600,
-            )
+            # 異步存儲決策記錄
+            asyncio.create_task(self._store_decision_record(decision_record))
 
             return {
                 "success": True,
                 "selected_strategy": selected_strategy,
-                "action_confidence": float(torch.max(policy).item()),
-                "expected_value": float(value.item()),
+                "action_confidence": confidence,
+                "expected_value": expected_value,
+                "policy_entropy": policy_entropy,
+                "decision_time_ms": decision_time_ms,
                 "mitigation_result": mitigation_result,
-                "decision_time": datetime.utcnow().isoformat(),
+                "interference_severity": decision_record["interference_severity"],
+                "network_quality": decision_record["network_quality"],
+                "decision_mode": "fast" if fast_mode else "comprehensive",
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
             self.logger.error("AI 抗干擾決策失敗", error=str(e))
             return {"success": False, "error": str(e)}
+
+    async def _store_decision_record(self, decision_record: Dict):
+        """異步存儲決策記錄"""
+        try:
+            await self.redis_adapter.set(
+                f"ai_ran_decision:{datetime.utcnow().timestamp()}",
+                json.dumps(decision_record),
+                expire=3600,
+            )
+        except Exception as e:
+            self.logger.error(f"存儲決策記錄失敗: {e}")
+
+    def _assess_interference_severity(self, interference_data: Dict) -> str:
+        """評估干擾嚴重程度"""
+        try:
+            avg_level = interference_data.get("interference_analysis", {}).get("average_level_db", -120)
+            if avg_level > -70:
+                return "critical"
+            elif avg_level > -85:
+                return "high"
+            elif avg_level > -100:
+                return "moderate"
+            else:
+                return "low"
+        except:
+            return "unknown"
+
+    def _assess_network_quality(self, network_state: Dict) -> str:
+        """評估網路品質"""
+        try:
+            sinr = network_state.get("sinr_db", 0)
+            if sinr > 20:
+                return "excellent"
+            elif sinr > 10:
+                return "good"
+            elif sinr > 0:
+                return "fair"
+            else:
+                return "poor"
+        except:
+            return "unknown"
 
     async def execute_mitigation(
         self, strategy: str, mitigation_params: Dict, target_ueransim_configs: List[str]

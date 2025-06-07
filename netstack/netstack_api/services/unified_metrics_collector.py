@@ -491,6 +491,176 @@ class SimWorldCollector(ServiceCollector):
         return metrics
 
 
+class SionnaChannelCollector(ServiceCollector):
+    """Sionna 通道指標收集器"""
+
+    async def collect_metrics(self) -> List[MetricValue]:
+        """收集 Sionna 通道指標"""
+        metrics = []
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                # 收集詳細通道指標
+                async with session.get(
+                    f"{self.endpoint_url}/api/v1/wireless/channel-metrics"
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+
+                        # 通道容量指標
+                        for channel_data in data.get("channel_metrics", []):
+                            ue_id = channel_data.get("ue_id", "unknown")
+                            gnb_id = channel_data.get("gnb_id", "unknown")
+                            frequency_band = channel_data.get("frequency_band", "unknown")
+                            
+                            # 通道容量
+                            if "channel_capacity_mbps" in channel_data:
+                                metrics.append(
+                                    MetricValue(
+                                        metric_name="sionna_channel_channel_capacity_mbps",
+                                        value=channel_data["channel_capacity_mbps"],
+                                        labels={
+                                            "ue_id": ue_id,
+                                            "gnb_id": gnb_id,
+                                            "frequency_band": frequency_band,
+                                        },
+                                        timestamp=time.time(),
+                                        source_service="simworld",
+                                    )
+                                )
+                            
+                            # 路徑損耗
+                            if "path_loss_db" in channel_data:
+                                metrics.append(
+                                    MetricValue(
+                                        metric_name="sionna_channel_path_loss_db",
+                                        value=channel_data["path_loss_db"],
+                                        labels={
+                                            "ue_id": ue_id,
+                                            "gnb_id": gnb_id,
+                                            "environment": channel_data.get("environment", "urban"),
+                                        },
+                                        timestamp=time.time(),
+                                        source_service="simworld",
+                                    )
+                                )
+                            
+                            # 多普勒頻移
+                            if "doppler_shift_hz" in channel_data:
+                                metrics.append(
+                                    MetricValue(
+                                        metric_name="sionna_channel_doppler_shift_hz",
+                                        value=channel_data["doppler_shift_hz"],
+                                        labels={
+                                            "ue_id": ue_id,
+                                            "gnb_id": gnb_id,
+                                            "mobility_type": channel_data.get("mobility_type", "stationary"),
+                                        },
+                                        timestamp=time.time(),
+                                        source_service="simworld",
+                                    )
+                                )
+                            
+                            # 延遲擴散
+                            if "delay_spread_ns" in channel_data:
+                                metrics.append(
+                                    MetricValue(
+                                        metric_name="sionna_channel_delay_spread_ns",
+                                        value=channel_data["delay_spread_ns"],
+                                        labels={
+                                            "ue_id": ue_id,
+                                            "gnb_id": gnb_id,
+                                            "environment": channel_data.get("environment", "urban"),
+                                        },
+                                        timestamp=time.time(),
+                                        source_service="simworld",
+                                    )
+                                )
+                            
+                            # 相干帶寬
+                            if "coherence_bandwidth_hz" in channel_data:
+                                metrics.append(
+                                    MetricValue(
+                                        metric_name="sionna_channel_coherence_bandwidth_hz",
+                                        value=channel_data["coherence_bandwidth_hz"],
+                                        labels={
+                                            "ue_id": ue_id,
+                                            "gnb_id": gnb_id,
+                                        },
+                                        timestamp=time.time(),
+                                        source_service="simworld",
+                                    )
+                                )
+                            
+                            # 衰落方差
+                            if "fading_variance_db" in channel_data:
+                                metrics.append(
+                                    MetricValue(
+                                        metric_name="sionna_channel_fading_variance_db",
+                                        value=channel_data["fading_variance_db"],
+                                        labels={
+                                            "ue_id": ue_id,
+                                            "gnb_id": gnb_id,
+                                            "fading_type": channel_data.get("fading_type", "rayleigh"),
+                                        },
+                                        timestamp=time.time(),
+                                        source_service="simworld",
+                                    )
+                                )
+
+                # 收集干擾控制指標
+                async with session.get(
+                    f"{self.endpoint_url}/api/v1/interference/metrics"
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+
+                        # 干擾強度指標
+                        for interference_data in data.get("interference_metrics", []):
+                            source_type = interference_data.get("source_type", "unknown")
+                            frequency_band = interference_data.get("frequency_band", "unknown")
+                            location = interference_data.get("location", "unknown")
+                            
+                            if "interference_level_dbm" in interference_data:
+                                metrics.append(
+                                    MetricValue(
+                                        metric_name="interference_control_interference_level_dbm",
+                                        value=interference_data["interference_level_dbm"],
+                                        labels={
+                                            "source_type": source_type,
+                                            "frequency_band": frequency_band,
+                                            "location": location,
+                                        },
+                                        timestamp=time.time(),
+                                        source_service="simworld",
+                                    )
+                                )
+
+                        # 緩解成功率指標
+                        for mitigation_data in data.get("mitigation_stats", []):
+                            strategy_type = mitigation_data.get("strategy_type", "unknown")
+                            interference_type = mitigation_data.get("interference_type", "unknown")
+                            
+                            if "success_rate_percent" in mitigation_data:
+                                metrics.append(
+                                    MetricValue(
+                                        metric_name="interference_control_mitigation_success_rate_percent",
+                                        value=mitigation_data["success_rate_percent"],
+                                        labels={
+                                            "strategy_type": strategy_type,
+                                            "interference_type": interference_type,
+                                        },
+                                        timestamp=time.time(),
+                                        source_service="simworld",
+                                    )
+                                )
+
+        except Exception as e:
+            self.logger.error("收集 Sionna 通道指標失敗", error=str(e))
+
+        return metrics
+
+
 class SystemResourceCollector(ServiceCollector):
     """系統資源指標收集器"""
 
@@ -593,6 +763,7 @@ class UnifiedMetricsCollector:
         self.collectors: List[ServiceCollector] = [
             NetStackAPICollector("netstack-api", "http://netstack-api:8080"),
             SimWorldCollector("simworld", "http://simworld-backend:8000"),
+            SionnaChannelCollector("sionna-integration", "http://simworld-backend:8000"),
             SystemResourceCollector(),
         ]
 

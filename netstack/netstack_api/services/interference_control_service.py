@@ -18,6 +18,7 @@ from pathlib import Path
 
 import aiohttp
 import structlog
+import numpy as np
 
 from .event_bus_service import (
     EventBusService,

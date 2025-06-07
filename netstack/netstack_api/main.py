@@ -2937,7 +2937,103 @@ async def uav_mesh_failover_quick_demo():
         raise HTTPException(status_code=500, detail=f"演示失敗: {str(e)}")
 
 
+# ===== Stage 4: Sionna 無線通道與 AI-RAN 抗干擾整合 API 端點 =====
+
+@app.post("/api/sionna/channel-simulation", tags=["Sionna Integration"])
+async def sionna_channel_simulation(request: dict):
+    """Sionna 無線通道模擬端點"""
+    try:
+        sionna_service = app.state.sionna_integration_service
+        result = await sionna_service.run_channel_simulation(
+            ue_positions=request.get("ue_positions", []),
+            gnb_positions=request.get("gnb_positions", []),
+            frequency_ghz=request.get("frequency_ghz", 2.1)
+        )
+        return {"success": True, "simulation_result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/airan/quick-decision", tags=["AI-RAN"])
+async def airan_quick_decision(request: dict):
+    """AI-RAN 快速決策端點"""
+    try:
+        airan_service = app.state.ai_ran_service
+        decision = await airan_service.make_quick_decision(
+            interference_level=request.get("interference_level", 0.5),
+            context=request.get("context", {})
+        )
+        return {"success": True, "decision": decision}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/metrics/summary", tags=["Metrics"])
+async def get_metrics_summary():
+    """取得指標摘要"""
+    try:
+        metrics_collector = app.state.unified_metrics_collector
+        summary = await metrics_collector.get_metrics_summary()
+        return {"success": True, "metrics": summary}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/interference/detect", tags=["Interference Control"])
+async def detect_interference(request: dict):
+    """干擾檢測端點"""
+    try:
+        interference_service = app.state.interference_control_service
+        detection_result = await interference_service.detect_interference(
+            source_type=request.get("source_type", "unknown"),
+            target_ue=request.get("target_ue", ""),
+            interference_level=request.get("interference_level", 0.0)
+        )
+        return {"success": True, "detection": detection_result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/frontend/sinr-viewer/config", tags=["Frontend API"])
+async def get_sinr_viewer_config():
+    """SINR Viewer 配置端點"""
+    return {
+        "success": True,
+        "config": {
+            "visualization_type": "heatmap",
+            "color_scale": "viridis",
+            "update_interval_ms": 1000
+        }
+    }
+
+
+@app.get("/api/frontend/interference-visualization/data", tags=["Frontend API"])
+async def get_interference_visualization_data():
+    """干擾視覺化數據端點"""
+    return {
+        "success": True,
+        "data": {
+            "interference_sources": [],
+            "affected_areas": [],
+            "mitigation_status": "active"
+        }
+    }
+
+
+@app.get("/api/frontend/spectrum-visualization/data", tags=["Frontend API"])
+async def get_spectrum_visualization_data():
+    """頻譜視覺化數據端點"""
+    return {
+        "success": True,
+        "data": {
+            "frequency_range": [2100, 2200],
+            "power_spectral_density": [],
+            "occupied_bands": []
+        }
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True, log_level="info")
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
