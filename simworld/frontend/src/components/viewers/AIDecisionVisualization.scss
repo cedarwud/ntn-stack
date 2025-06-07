@@ -1,0 +1,796 @@
+/**
+ * AI 決策過程透明化可視化樣式
+ */
+
+.ai-decision-visualization {
+  padding: 20px;
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  border-radius: 12px;
+  color: white;
+  min-height: 600px;
+
+  &.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    .loading-message {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: #b0c4de;
+    }
+
+    button {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+
+      &:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .visualization-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+
+    h3 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+      background: linear-gradient(45deg, #fff, #e3f2fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .real-time-indicator {
+        .indicator {
+          display: inline-flex;
+          align-items: center;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 500;
+
+          &.active {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            color: #4caf50;
+
+            &::before {
+              content: '●';
+              margin-right: 6px;
+              animation: pulse 2s infinite;
+            }
+          }
+
+          &.loading {
+            background: rgba(255, 152, 0, 0.2);
+            border: 1px solid rgba(255, 152, 0, 0.5);
+            color: #ff9800;
+
+            &::before {
+              content: '◐';
+              margin-right: 6px;
+              animation: spin 1s linear infinite;
+            }
+          }
+        }
+      }
+
+      .refresh-button {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 14px;
+
+        &:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.2);
+          transform: translateY(-1px);
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+
+  .visualization-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 4px;
+
+    .tab {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      padding: 12px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+      }
+
+      &.active {
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+    }
+  }
+
+  .visualization-content {
+    min-height: 400px;
+  }
+
+  // 總覽標籤樣式
+  .ai-decision-overview {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 20px;
+
+    .decision-summary {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+
+      .summary-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+
+        h4 {
+          margin: 0 0 16px 0;
+          font-size: 18px;
+          color: #e3f2fd;
+        }
+
+        .summary-stats {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+
+          .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+
+            label {
+              font-size: 12px;
+              color: rgba(255, 255, 255, 0.7);
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+
+            span {
+              font-size: 16px;
+              font-weight: 600;
+
+              &.mode {
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+
+                &.fast {
+                  background: rgba(255, 152, 0, 0.2);
+                  color: #ff9800;
+                }
+
+                &.comprehensive {
+                  background: rgba(76, 175, 80, 0.2);
+                  color: #4caf50;
+                }
+              }
+
+              &.confidence {
+                color: #4caf50;
+              }
+
+              &.priority {
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+
+                &.priority-3 {
+                  background: rgba(244, 67, 54, 0.2);
+                  color: #f44336;
+                }
+
+                &.priority-2 {
+                  background: rgba(255, 152, 0, 0.2);
+                  color: #ff9800;
+                }
+
+                &.priority-1 {
+                  background: rgba(76, 175, 80, 0.2);
+                  color: #4caf50;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      .confidence-chart {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+
+        h4 {
+          margin: 0 0 16px 0;
+          font-size: 18px;
+          color: #e3f2fd;
+        }
+      }
+    }
+
+    .actions-overview {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+
+      h4 {
+        margin: 0 0 16px 0;
+        font-size: 18px;
+        color: #e3f2fd;
+      }
+
+      .actions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+
+        .action-item {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+          padding: 12px;
+          border-left: 4px solid #4caf50;
+
+          .action-type {
+            font-weight: 600;
+            color: #e3f2fd;
+            margin-bottom: 4px;
+          }
+
+          .action-confidence, .action-improvement {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+          }
+
+          .action-improvement {
+            color: #4caf50;
+          }
+        }
+      }
+    }
+
+    .improvement-radar {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+
+      h4 {
+        margin: 0 0 16px 0;
+        font-size: 18px;
+        color: #e3f2fd;
+      }
+    }
+  }
+
+  // 決策步驟標籤樣式
+  .ai-decision-steps {
+    .steps-timeline {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      margin-bottom: 20px;
+
+      h4 {
+        margin: 0 0 16px 0;
+        font-size: 18px;
+        color: #e3f2fd;
+      }
+    }
+
+    .steps-details {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+
+      h4 {
+        margin: 0 0 16px 0;
+        font-size: 18px;
+        color: #e3f2fd;
+      }
+
+      .steps-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+
+        .step-item {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+          padding: 16px;
+
+          .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+
+            .step-number {
+              background: #4caf50;
+              color: white;
+              width: 24px;
+              height: 24px;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 12px;
+              font-weight: 600;
+            }
+
+            h5 {
+              margin: 0;
+              flex: 1;
+              font-size: 16px;
+              color: #e3f2fd;
+            }
+
+            .confidence {
+              padding: 4px 8px;
+              border-radius: 4px;
+              font-size: 12px;
+              font-weight: 600;
+
+              &.confidence-5 { background: rgba(76, 175, 80, 0.3); color: #4caf50; }
+              &.confidence-4 { background: rgba(139, 195, 74, 0.3); color: #8bc34a; }
+              &.confidence-3 { background: rgba(255, 193, 7, 0.3); color: #ffc107; }
+              &.confidence-2 { background: rgba(255, 152, 0, 0.3); color: #ff9800; }
+              &.confidence-1 { background: rgba(244, 67, 54, 0.3); color: #f44336; }
+              &.confidence-0 { background: rgba(158, 158, 158, 0.3); color: #9e9e9e; }
+            }
+          }
+
+          .step-description {
+            color: rgba(255, 255, 255, 0.8);
+            margin: 0 0 12px 0;
+            line-height: 1.5;
+          }
+
+          .step-metrics {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+          }
+
+          .step-result {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            overflow: auto;
+
+            pre {
+              margin: 0;
+              font-size: 11px;
+              color: #e3f2fd;
+              white-space: pre-wrap;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 學習預測標籤樣式
+  .ai-decision-prediction {
+    .prediction-summary {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      margin-bottom: 20px;
+
+      h4 {
+        margin: 0 0 16px 0;
+        font-size: 18px;
+        color: #e3f2fd;
+      }
+
+      .prediction-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+
+        .stat-card {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+          padding: 16px;
+          text-align: center;
+
+          label {
+            display: block;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .value {
+            font-size: 24px;
+            font-weight: 600;
+
+            &.positive { color: #4caf50; }
+            &.negative { color: #f44336; }
+            &.neutral { color: #9e9e9e; }
+          }
+        }
+      }
+    }
+
+    .detailed-predictions {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      margin-bottom: 20px;
+
+      h4 {
+        margin: 0 0 16px 0;
+        font-size: 18px;
+        color: #e3f2fd;
+      }
+
+      .predictions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+
+        .prediction-item {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+          padding: 16px;
+
+          label {
+            display: block;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .prediction-value {
+            .prediction-value > span {
+              font-size: 16px;
+              font-weight: 600;
+              display: block;
+              margin-bottom: 8px;
+
+              &.positive { color: #4caf50; }
+              &.negative { color: #f44336; }
+              &.neutral { color: #9e9e9e; }
+            }
+
+            .prediction-bar {
+              height: 4px;
+              background: rgba(255, 255, 255, 0.1);
+              border-radius: 2px;
+              overflow: hidden;
+
+              .prediction-fill {
+                height: 100%;
+                transition: width 0.3s ease;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .prediction-history {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+
+      h4 {
+        margin: 0 0 16px 0;
+        font-size: 18px;
+        color: #e3f2fd;
+      }
+    }
+  }
+
+  // 健康分析標籤樣式
+  .ai-decision-health {
+    .health-overview {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      margin-bottom: 20px;
+
+      h4 {
+        margin: 0 0 16px 0;
+        font-size: 18px;
+        color: #e3f2fd;
+      }
+
+      .health-score {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+
+        .score-circle {
+          position: relative;
+          width: 150px;
+          height: 150px;
+
+          .score-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+
+            .score-value {
+              display: block;
+              font-size: 32px;
+              font-weight: 600;
+              color: white;
+            }
+
+            .score-label {
+              display: block;
+              font-size: 12px;
+              color: rgba(255, 255, 255, 0.7);
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+          }
+        }
+      }
+
+      .health-status {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+
+        .status-item {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+          padding: 16px;
+          text-align: center;
+
+          label {
+            display: block;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .risk-level {
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+
+            &.high { background: rgba(244, 67, 54, 0.3); color: #f44336; }
+            &.medium { background: rgba(255, 152, 0, 0.3); color: #ff9800; }
+            &.low { background: rgba(255, 193, 7, 0.3); color: #ffc107; }
+            &.minimal { background: rgba(76, 175, 80, 0.3); color: #4caf50; }
+          }
+
+          .anomaly {
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+
+            &.detected { background: rgba(244, 67, 54, 0.3); color: #f44336; }
+            &.normal { background: rgba(76, 175, 80, 0.3); color: #4caf50; }
+          }
+        }
+      }
+    }
+
+    .health-recommendations {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+
+      h4 {
+        margin: 0 0 16px 0;
+        font-size: 18px;
+        color: #e3f2fd;
+      }
+
+      .recommendations-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+
+        .recommendation-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+          padding: 12px;
+
+          .recommendation-icon {
+            font-size: 16px;
+            margin-top: 2px;
+          }
+
+          .recommendation-text {
+            flex: 1;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.9);
+          }
+        }
+      }
+    }
+  }
+
+  // 決策歷史摘要
+  .decision-history-summary {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+
+    h4 {
+      margin: 0 0 16px 0;
+      font-size: 18px;
+      color: #e3f2fd;
+    }
+
+    .history-list {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px 0;
+
+      .history-item {
+        flex-shrink: 0;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 120px;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.15);
+          transform: translateY(-2px);
+        }
+
+        &.current {
+          background: rgba(76, 175, 80, 0.2);
+          border: 1px solid rgba(76, 175, 80, 0.5);
+        }
+
+        .history-time {
+          display: block;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.7);
+          margin-bottom: 4px;
+        }
+
+        .history-confidence {
+          display: block;
+          font-size: 16px;
+          font-weight: 600;
+          color: #4caf50;
+          margin-bottom: 4px;
+        }
+
+        .history-mode {
+          display: block;
+          font-size: 10px;
+          color: rgba(255, 255, 255, 0.6);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+      }
+    }
+  }
+}
+
+// 動畫
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .ai-decision-visualization {
+    padding: 16px;
+
+    .ai-decision-overview {
+      grid-template-columns: 1fr;
+
+      .decision-summary {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .visualization-header {
+      flex-direction: column;
+      gap: 16px;
+      align-items: flex-start;
+
+      .header-controls {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+
+    .visualization-tabs {
+      flex-wrap: wrap;
+
+      .tab {
+        flex: none;
+        min-width: calc(50% - 2px);
+      }
+    }
+  }
+}
