@@ -3,8 +3,6 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/index.scss'
 import App from './App.tsx'
-import DataVisualizationDashboard from './components/dashboard/DataVisualizationDashboard'
-import './styles/Dashboard.scss'
 import axios from 'axios'
 
 // 導入性能監控器（自動啟動）
@@ -133,11 +131,6 @@ createRoot(document.getElementById('root')!).render(
                     element={<Navigate to="/nycu/stereogram" replace />}
                 />
 
-                {/* 數據可視化儀表盤 */}
-                <Route
-                    path="/dashboard"
-                    element={<DataVisualizationDashboard />}
-                />
 
                 {/* 場景路由 - stereogram */}
                 <Route

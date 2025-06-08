@@ -74,6 +74,16 @@ interface SidebarProps {
     onPerformanceTrendAnalysisChange?: (enabled: boolean) => void
     automatedReportGenerationEnabled?: boolean
     onAutomatedReportGenerationChange?: (enabled: boolean) => void
+    
+    // 階段八功能開關
+    mlModelMonitoringEnabled?: boolean
+    onMLModelMonitoringChange?: (enabled: boolean) => void
+    predictiveMaintenanceEnabled?: boolean
+    onPredictiveMaintenanceChange?: (enabled: boolean) => void
+    adaptiveLearningEnabled?: boolean
+    onAdaptiveLearningChange?: (enabled: boolean) => void
+    intelligentRecommendationEnabled?: boolean
+    onIntelligentRecommendationChange?: (enabled: boolean) => void
 }
 
 // 功能開關配置
@@ -174,6 +184,15 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onPerformanceTrendAnalysisChange,
     automatedReportGenerationEnabled = false,
     onAutomatedReportGenerationChange,
+    // 階段八功能 props
+    mlModelMonitoringEnabled = false,
+    onMLModelMonitoringChange,
+    predictiveMaintenanceEnabled = false,
+    onPredictiveMaintenanceChange,
+    adaptiveLearningEnabled = false,
+    onAdaptiveLearningChange,
+    intelligentRecommendationEnabled = false,
+    onIntelligentRecommendationChange,
 }) => {
     // 現有狀態
     const [orientationInputs, setOrientationInputs] = useState<{
@@ -403,6 +422,43 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             onToggle: onAutomatedReportGenerationChange || (() => {}),
             icon: '📋',
             description: '自動化系統報告生成與管理'
+        },
+        // 階段八功能
+        {
+            id: 'mlModelMonitoring',
+            label: 'ML 模型監控',
+            category: 'phase8',
+            enabled: mlModelMonitoringEnabled,
+            onToggle: onMLModelMonitoringChange || (() => {}),
+            icon: '🧠',
+            description: '機器學習模型訓練、評估和性能監控'
+        },
+        {
+            id: 'predictiveMaintenance',
+            label: '預測性維護',
+            category: 'phase8',
+            enabled: predictiveMaintenanceEnabled,
+            onToggle: onPredictiveMaintenanceChange || (() => {}),
+            icon: '🔧',
+            description: '設備故障預測、維護排程和系統健康度監控'
+        },
+        {
+            id: 'adaptiveLearning',
+            label: '自適應學習系統',
+            category: 'phase8',
+            enabled: adaptiveLearningEnabled,
+            onToggle: onAdaptiveLearningChange || (() => {}),
+            icon: '🎯',
+            description: '機器學習模型的自適應學習和持續優化'
+        },
+        {
+            id: 'intelligentRecommendation',
+            label: '智能推薦系統',
+            category: 'phase8',
+            enabled: intelligentRecommendationEnabled,
+            onToggle: onIntelligentRecommendationChange || (() => {}),
+            icon: '💡',
+            description: '智能化的最佳化建議和決策支援'
         }
     ]
 
@@ -413,7 +469,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         { id: 'phase5', label: '階段五', icon: '🚁', disabled: false },
         { id: 'phase6', label: '階段六', icon: '🔄', disabled: false },
         { id: 'phase7', label: '階段七', icon: '📊', disabled: false },
-        { id: 'phase8', label: '階段八', icon: '🤖', disabled: true },
+        { id: 'phase8', label: '階段八', icon: '🤖', disabled: false },
     ]
 
     // 衛星數據獲取效果
