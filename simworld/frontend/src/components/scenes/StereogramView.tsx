@@ -7,6 +7,7 @@ import MainScene from './MainScene'
 import { Device } from '../../types/device'
 import { VisibleSatelliteInfo } from '../../types/satellite'
 import { SINRLegend } from './visualization/SINRHeatmap'
+import HandoverPerformanceDashboard from '../dashboard/HandoverPerformanceDashboard'
 
 // 添加圖例组件
 const SatelliteLegend = () => {
@@ -56,6 +57,10 @@ interface SceneViewProps {
     meshNetworkTopologyEnabled?: boolean
     satelliteUavConnectionEnabled?: boolean
     failoverMechanismEnabled?: boolean
+    // 階段六功能狀態
+    handoverPredictionEnabled?: boolean
+    handoverDecisionVisualizationEnabled?: boolean
+    handoverPerformanceDashboardEnabled?: boolean
 }
 
 export default function SceneView({
@@ -78,6 +83,9 @@ export default function SceneView({
     meshNetworkTopologyEnabled = false,
     satelliteUavConnectionEnabled = false,
     failoverMechanismEnabled = false,
+    handoverPredictionEnabled = false,
+    handoverDecisionVisualizationEnabled = false,
+    handoverPerformanceDashboardEnabled = false,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -134,6 +142,11 @@ export default function SceneView({
             
             {/* 添加 SINR 圖例 - 只有在啟用時才顯示 */}
             {sinrHeatmapEnabled && <SINRLegend />}
+            
+            {/* 添加換手性能儀表板 - 作為HTML覆蓋層 */}
+            {handoverPerformanceDashboardEnabled && (
+                <HandoverPerformanceDashboard enabled={handoverPerformanceDashboardEnabled} />
+            )}
 
             {/* 3D Canvas內容照舊，會蓋在星空上 */}
             <Canvas
@@ -193,6 +206,8 @@ export default function SceneView({
                         meshNetworkTopologyEnabled={meshNetworkTopologyEnabled}
                         satelliteUavConnectionEnabled={satelliteUavConnectionEnabled}
                         failoverMechanismEnabled={failoverMechanismEnabled}
+                        handoverPredictionEnabled={handoverPredictionEnabled}
+                        handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}

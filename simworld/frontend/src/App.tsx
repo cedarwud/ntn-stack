@@ -88,6 +88,11 @@ function App({ activeView }: AppProps) {
     const [satelliteUavConnectionEnabled, setSatelliteUavConnectionEnabled] = useState(false)
     const [failoverMechanismEnabled, setFailoverMechanismEnabled] = useState(false)
 
+    // 階段六功能狀態
+    const [handoverPredictionEnabled, setHandoverPredictionEnabled] = useState(false)
+    const [handoverDecisionVisualizationEnabled, setHandoverDecisionVisualizationEnabled] = useState(false)
+    const [handoverPerformanceDashboardEnabled, setHandoverPerformanceDashboardEnabled] = useState(false)
+
     const sortedDevicesForSidebar = useMemo(() => {
         return [...tempDevices].sort((a, b) => {
             const roleOrder: { [key: string]: number } = {
@@ -266,6 +271,10 @@ function App({ activeView }: AppProps) {
                         meshNetworkTopologyEnabled={meshNetworkTopologyEnabled}
                         satelliteUavConnectionEnabled={satelliteUavConnectionEnabled}
                         failoverMechanismEnabled={failoverMechanismEnabled}
+                        // 階段六功能狀態
+                        handoverPredictionEnabled={handoverPredictionEnabled}
+                        handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
+                        handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
                     />
                 )
             default:
@@ -300,6 +309,9 @@ function App({ activeView }: AppProps) {
         meshNetworkTopologyEnabled,
         satelliteUavConnectionEnabled,
         failoverMechanismEnabled,
+        handoverPredictionEnabled,
+        handoverDecisionVisualizationEnabled,
+        handoverPerformanceDashboardEnabled,
     ])
 
     if (loading) {
@@ -375,6 +387,13 @@ function App({ activeView }: AppProps) {
                                     onSatelliteUavConnectionChange={setSatelliteUavConnectionEnabled}
                                     failoverMechanismEnabled={failoverMechanismEnabled}
                                     onFailoverMechanismChange={setFailoverMechanismEnabled}
+                                    // 階段六功能狀態
+                                    handoverPredictionEnabled={handoverPredictionEnabled}
+                                    onHandoverPredictionChange={setHandoverPredictionEnabled}
+                                    handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
+                                    onHandoverDecisionVisualizationChange={setHandoverDecisionVisualizationEnabled}
+                                    handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
+                                    onHandoverPerformanceDashboardChange={setHandoverPerformanceDashboardEnabled}
                                 />
                             </ErrorBoundary>
                         }
