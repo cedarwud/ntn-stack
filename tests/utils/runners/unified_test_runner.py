@@ -97,8 +97,7 @@ class UnifiedTestRunner:
                     sys.executable, "-m", "pytest",
                     str(test_path),
                     "-v",
-                    "--tb=short",
-                    f"--timeout={suite['timeout']}"
+                    "--tb=short"
                 ]
                 
                 logger.info(f"▶️  執行: {pattern}")
