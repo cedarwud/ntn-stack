@@ -64,6 +64,16 @@ interface SidebarProps {
     onHandoverDecisionVisualizationChange?: (enabled: boolean) => void
     handoverPerformanceDashboardEnabled?: boolean
     onHandoverPerformanceDashboardChange?: (enabled: boolean) => void
+    
+    // 階段七功能開關
+    e2ePerformanceMonitoringEnabled?: boolean
+    onE2EPerformanceMonitoringChange?: (enabled: boolean) => void
+    testResultsVisualizationEnabled?: boolean
+    onTestResultsVisualizationChange?: (enabled: boolean) => void
+    performanceTrendAnalysisEnabled?: boolean
+    onPerformanceTrendAnalysisChange?: (enabled: boolean) => void
+    automatedReportGenerationEnabled?: boolean
+    onAutomatedReportGenerationChange?: (enabled: boolean) => void
 }
 
 // 功能開關配置
@@ -155,6 +165,15 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onHandoverDecisionVisualizationChange,
     handoverPerformanceDashboardEnabled = false,
     onHandoverPerformanceDashboardChange,
+    // 階段七功能 props
+    e2ePerformanceMonitoringEnabled = false,
+    onE2EPerformanceMonitoringChange,
+    testResultsVisualizationEnabled = false,
+    onTestResultsVisualizationChange,
+    performanceTrendAnalysisEnabled = false,
+    onPerformanceTrendAnalysisChange,
+    automatedReportGenerationEnabled = false,
+    onAutomatedReportGenerationChange,
 }) => {
     // 現有狀態
     const [orientationInputs, setOrientationInputs] = useState<{
@@ -347,6 +366,43 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             onToggle: onHandoverPerformanceDashboardChange || (() => {}),
             icon: '📊',
             description: '換手性能統計與分析儀表板'
+        },
+        // 階段七功能
+        {
+            id: 'e2ePerformanceMonitoring',
+            label: '端到端性能監控',
+            category: 'phase7',
+            enabled: e2ePerformanceMonitoringEnabled,
+            onToggle: onE2EPerformanceMonitoringChange || (() => {}),
+            icon: '📈',
+            description: '完整的端到端系統性能監控儀表板'
+        },
+        {
+            id: 'testResultsVisualization',
+            label: '測試結果可視化',
+            category: 'phase7',
+            enabled: testResultsVisualizationEnabled,
+            onToggle: onTestResultsVisualizationChange || (() => {}),
+            icon: '🧪',
+            description: '測試套件狀態與結果的 3D 可視化'
+        },
+        {
+            id: 'performanceTrendAnalysis',
+            label: '性能趨勢分析',
+            category: 'phase7',
+            enabled: performanceTrendAnalysisEnabled,
+            onToggle: onPerformanceTrendAnalysisChange || (() => {}),
+            icon: '📊',
+            description: '長期性能趨勢分析與預測'
+        },
+        {
+            id: 'automatedReportGeneration',
+            label: '自動化報告生成',
+            category: 'phase7',
+            enabled: automatedReportGenerationEnabled,
+            onToggle: onAutomatedReportGenerationChange || (() => {}),
+            icon: '📋',
+            description: '自動化系統報告生成與管理'
         }
     ]
 
@@ -356,7 +412,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         { id: 'phase4', label: '階段四', icon: '🔬' },
         { id: 'phase5', label: '階段五', icon: '🚁', disabled: false },
         { id: 'phase6', label: '階段六', icon: '🔄', disabled: false },
-        { id: 'phase7', label: '階段七', icon: '📊', disabled: true },
+        { id: 'phase7', label: '階段七', icon: '📊', disabled: false },
         { id: 'phase8', label: '階段八', icon: '🤖', disabled: true },
     ]
 

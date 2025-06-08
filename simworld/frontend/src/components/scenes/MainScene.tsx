@@ -25,6 +25,9 @@ import SatelliteUAVConnection from './visualization/SatelliteUAVConnection'
 import FailoverMechanism from './visualization/FailoverMechanism'
 import HandoverPredictionVisualization from '../viewers/HandoverPredictionVisualization'
 import SatelliteHandoverDecisionVisualization from '../viewers/SatelliteHandoverDecisionVisualization'
+import TestResultsVisualization from '../viewers/TestResultsVisualization'
+import PerformanceTrendAnalyzer from '../viewers/PerformanceTrendAnalyzer'
+import AutomatedReportGenerator from '../viewers/AutomatedReportGenerator'
 
 export interface MainSceneProps {
     devices: any[]
@@ -54,6 +57,10 @@ export interface MainSceneProps {
     // 階段六功能狀態
     handoverPredictionEnabled?: boolean
     handoverDecisionVisualizationEnabled?: boolean
+    // 階段七功能狀態
+    testResultsVisualizationEnabled?: boolean
+    performanceTrendAnalysisEnabled?: boolean
+    automatedReportGenerationEnabled?: boolean
 }
 
 const UAV_SCALE = 10
@@ -80,6 +87,9 @@ const MainScene: React.FC<MainSceneProps> = ({
     failoverMechanismEnabled = false,
     handoverPredictionEnabled = false,
     handoverDecisionVisualizationEnabled = false,
+    testResultsVisualizationEnabled = false,
+    performanceTrendAnalysisEnabled = false,
+    automatedReportGenerationEnabled = false,
 }) => {
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
@@ -328,6 +338,20 @@ const MainScene: React.FC<MainSceneProps> = ({
                 devices={devices} 
                 enabled={handoverDecisionVisualizationEnabled}
                 satellites={satellites} 
+            />
+            
+            {/* 階段七可視化覆蓋層 */}
+            <TestResultsVisualization 
+                devices={devices} 
+                enabled={testResultsVisualizationEnabled}
+            />
+            <PerformanceTrendAnalyzer 
+                devices={devices} 
+                enabled={performanceTrendAnalysisEnabled}
+            />
+            <AutomatedReportGenerator 
+                devices={devices} 
+                enabled={automatedReportGenerationEnabled}
             />
         </>
     )
