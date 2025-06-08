@@ -9,6 +9,10 @@ import { VisibleSatelliteInfo } from '../../types/satellite'
 import { SINRLegend } from './visualization/SINRHeatmap'
 import HandoverPerformanceDashboard from '../dashboard/HandoverPerformanceDashboard'
 import E2EPerformanceMonitoringDashboard from '../dashboard/E2EPerformanceMonitoringDashboard'
+import MLModelMonitoringDashboard from '../dashboard/MLModelMonitoringDashboard'
+import PredictiveMaintenanceViewer from '../viewers/PredictiveMaintenanceViewer'
+import AdaptiveLearningSystemViewer from '../viewers/AdaptiveLearningSystemViewer'
+import IntelligentRecommendationSystem from '../viewers/IntelligentRecommendationSystem'
 
 // 添加圖例组件
 const SatelliteLegend = () => {
@@ -67,6 +71,11 @@ interface SceneViewProps {
     testResultsVisualizationEnabled?: boolean
     performanceTrendAnalysisEnabled?: boolean
     automatedReportGenerationEnabled?: boolean
+    // 階段八功能狀態
+    mlModelMonitoringEnabled?: boolean
+    predictiveMaintenanceEnabled?: boolean
+    adaptiveLearningEnabled?: boolean
+    intelligentRecommendationEnabled?: boolean
 }
 
 export default function SceneView({
@@ -96,6 +105,10 @@ export default function SceneView({
     testResultsVisualizationEnabled = false,
     performanceTrendAnalysisEnabled = false,
     automatedReportGenerationEnabled = false,
+    mlModelMonitoringEnabled = false,
+    predictiveMaintenanceEnabled = false,
+    adaptiveLearningEnabled = false,
+    intelligentRecommendationEnabled = false,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -161,6 +174,23 @@ export default function SceneView({
             {/* 添加階段七HTML覆蓋層組件 */}
             {e2ePerformanceMonitoringEnabled && (
                 <E2EPerformanceMonitoringDashboard enabled={e2ePerformanceMonitoringEnabled} />
+            )}
+            
+            {/* 添加階段八HTML覆蓋層組件 */}
+            {mlModelMonitoringEnabled && (
+                <MLModelMonitoringDashboard enabled={mlModelMonitoringEnabled} />
+            )}
+            
+            {predictiveMaintenanceEnabled && (
+                <PredictiveMaintenanceViewer devices={devices} enabled={predictiveMaintenanceEnabled} />
+            )}
+            
+            {adaptiveLearningEnabled && (
+                <AdaptiveLearningSystemViewer devices={devices} enabled={adaptiveLearningEnabled} />
+            )}
+            
+            {intelligentRecommendationEnabled && (
+                <IntelligentRecommendationSystem devices={devices} enabled={intelligentRecommendationEnabled} />
             )}
 
             {/* 3D Canvas內容照舊，會蓋在星空上 */}

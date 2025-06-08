@@ -150,9 +150,6 @@ const Navbar: FC<NavbarProps> = ({
         onMenuClick('3DRT')
     }
 
-    const handleDashboardClick = () => {
-        navigate('/dashboard')
-    }
 
     const modalConfigs: ModalConfig[] = [
         {
@@ -510,14 +507,6 @@ const Navbar: FC<NavbarProps> = ({
                             onClick={handleStereogramClick}
                         >
                             立體圖
-                        </li>
-                        <li
-                            className={`navbar-item ${
-                                activeComponent === 'dashboard' ? 'active' : ''
-                            }`}
-                            onClick={handleDashboardClick}
-                        >
-                            Dashboard
                         </li>
                     </ul>
                 </div>
