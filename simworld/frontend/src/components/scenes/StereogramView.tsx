@@ -51,6 +51,11 @@ interface SceneViewProps {
     sionna3DVisualizationEnabled?: boolean
     realTimeMetricsEnabled?: boolean
     interferenceAnalyticsEnabled?: boolean
+    // 階段五功能狀態
+    uavSwarmCoordinationEnabled?: boolean
+    meshNetworkTopologyEnabled?: boolean
+    satelliteUavConnectionEnabled?: boolean
+    failoverMechanismEnabled?: boolean
 }
 
 export default function SceneView({
@@ -69,6 +74,10 @@ export default function SceneView({
     sionna3DVisualizationEnabled = false,
     realTimeMetricsEnabled = false,
     interferenceAnalyticsEnabled = false,
+    uavSwarmCoordinationEnabled = false,
+    meshNetworkTopologyEnabled = false,
+    satelliteUavConnectionEnabled = false,
+    failoverMechanismEnabled = false,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -180,6 +189,10 @@ export default function SceneView({
                         sionna3DVisualizationEnabled={sionna3DVisualizationEnabled}
                         realTimeMetricsEnabled={realTimeMetricsEnabled}
                         interferenceAnalyticsEnabled={interferenceAnalyticsEnabled}
+                        uavSwarmCoordinationEnabled={uavSwarmCoordinationEnabled}
+                        meshNetworkTopologyEnabled={meshNetworkTopologyEnabled}
+                        satelliteUavConnectionEnabled={satelliteUavConnectionEnabled}
+                        failoverMechanismEnabled={failoverMechanismEnabled}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}

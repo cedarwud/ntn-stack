@@ -328,6 +328,8 @@ const SimplifiedSatellite = React.memo(
                     initialPosition.z,
                     initialPosition.y,
                 ]}
+                userData={{ satelliteId: satellite.norad_id || satellite.id }}
+                name={`satellite-${satellite.norad_id || satellite.id}`}
             >
                 {/* 始終渲染完整模型，不做距離簡化 */}
                 <StaticModel

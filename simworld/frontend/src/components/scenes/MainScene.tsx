@@ -19,6 +19,10 @@ import AIRANVisualization from './visualization/AIRANVisualization'
 import Sionna3DVisualization from './visualization/Sionna3DVisualization'
 import RealTimeMetrics from './visualization/RealTimeMetrics'
 import InterferenceAnalytics from './visualization/InterferenceAnalytics'
+import UAVSwarmCoordination from './visualization/UAVSwarmCoordination'
+import MeshNetworkTopology from './visualization/MeshNetworkTopology'
+import SatelliteUAVConnection from './visualization/SatelliteUAVConnection'
+import FailoverMechanism from './visualization/FailoverMechanism'
 
 export interface MainSceneProps {
     devices: any[]
@@ -40,6 +44,11 @@ export interface MainSceneProps {
     sionna3DVisualizationEnabled?: boolean
     realTimeMetricsEnabled?: boolean
     interferenceAnalyticsEnabled?: boolean
+    // 階段五功能狀態
+    uavSwarmCoordinationEnabled?: boolean
+    meshNetworkTopologyEnabled?: boolean
+    satelliteUavConnectionEnabled?: boolean
+    failoverMechanismEnabled?: boolean
 }
 
 const UAV_SCALE = 10
@@ -60,6 +69,10 @@ const MainScene: React.FC<MainSceneProps> = ({
     sionna3DVisualizationEnabled = false,
     realTimeMetricsEnabled = false,
     interferenceAnalyticsEnabled = false,
+    uavSwarmCoordinationEnabled = false,
+    meshNetworkTopologyEnabled = false,
+    satelliteUavConnectionEnabled = false,
+    failoverMechanismEnabled = false,
 }) => {
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
@@ -277,6 +290,25 @@ const MainScene: React.FC<MainSceneProps> = ({
             <InterferenceAnalytics 
                 devices={devices} 
                 enabled={interferenceAnalyticsEnabled} 
+            />
+            
+            {/* 階段五可視化覆蓋層 */}
+            <UAVSwarmCoordination 
+                devices={devices} 
+                enabled={uavSwarmCoordinationEnabled} 
+            />
+            <MeshNetworkTopology 
+                devices={devices} 
+                enabled={meshNetworkTopologyEnabled} 
+            />
+            <SatelliteUAVConnection 
+                devices={devices} 
+                enabled={satelliteUavConnectionEnabled}
+                satellites={satellites} 
+            />
+            <FailoverMechanism 
+                devices={devices} 
+                enabled={failoverMechanismEnabled} 
             />
         </>
     )
