@@ -56,6 +56,14 @@ interface SidebarProps {
     onSatelliteUavConnectionChange?: (enabled: boolean) => void
     failoverMechanismEnabled?: boolean
     onFailoverMechanismChange?: (enabled: boolean) => void
+
+    // 階段六功能開關
+    handoverPredictionEnabled?: boolean
+    onHandoverPredictionChange?: (enabled: boolean) => void
+    handoverDecisionVisualizationEnabled?: boolean
+    onHandoverDecisionVisualizationChange?: (enabled: boolean) => void
+    handoverPerformanceDashboardEnabled?: boolean
+    onHandoverPerformanceDashboardChange?: (enabled: boolean) => void
 }
 
 // 功能開關配置
@@ -140,6 +148,13 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onSatelliteUavConnectionChange,
     failoverMechanismEnabled = false,
     onFailoverMechanismChange,
+    // 階段六功能 props
+    handoverPredictionEnabled = false,
+    onHandoverPredictionChange,
+    handoverDecisionVisualizationEnabled = false,
+    onHandoverDecisionVisualizationChange,
+    handoverPerformanceDashboardEnabled = false,
+    onHandoverPerformanceDashboardChange,
 }) => {
     // 現有狀態
     const [orientationInputs, setOrientationInputs] = useState<{
@@ -304,6 +319,34 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             onToggle: onFailoverMechanismChange || (() => {}),
             icon: '🔄',
             description: '智能網路故障轉移機制'
+        },
+        // 階段六功能
+        {
+            id: 'handoverPrediction',
+            label: '換手預測分析',
+            category: 'phase6',
+            enabled: handoverPredictionEnabled,
+            onToggle: onHandoverPredictionChange || (() => {}),
+            icon: '🔮',
+            description: '智能衛星換手預測與時間軸分析'
+        },
+        {
+            id: 'handoverDecisionVisualization',
+            label: '換手決策可視化',
+            category: 'phase6',
+            enabled: handoverDecisionVisualizationEnabled,
+            onToggle: onHandoverDecisionVisualizationChange || (() => {}),
+            icon: '🧠',
+            description: '衛星換手決策過程 3D 可視化'
+        },
+        {
+            id: 'handoverPerformanceDashboard',
+            label: '換手性能監控',
+            category: 'phase6',
+            enabled: handoverPerformanceDashboardEnabled,
+            onToggle: onHandoverPerformanceDashboardChange || (() => {}),
+            icon: '📊',
+            description: '換手性能統計與分析儀表板'
         }
     ]
 
@@ -312,7 +355,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         { id: 'basic', label: '基礎功能', icon: '⚙️' },
         { id: 'phase4', label: '階段四', icon: '🔬' },
         { id: 'phase5', label: '階段五', icon: '🚁', disabled: false },
-        { id: 'phase6', label: '階段六', icon: '🛰️', disabled: true },
+        { id: 'phase6', label: '階段六', icon: '🔄', disabled: false },
         { id: 'phase7', label: '階段七', icon: '📊', disabled: true },
         { id: 'phase8', label: '階段八', icon: '🤖', disabled: true },
     ]

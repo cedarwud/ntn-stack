@@ -23,6 +23,8 @@ import UAVSwarmCoordination from './visualization/UAVSwarmCoordination'
 import MeshNetworkTopology from './visualization/MeshNetworkTopology'
 import SatelliteUAVConnection from './visualization/SatelliteUAVConnection'
 import FailoverMechanism from './visualization/FailoverMechanism'
+import HandoverPredictionVisualization from '../viewers/HandoverPredictionVisualization'
+import SatelliteHandoverDecisionVisualization from '../viewers/SatelliteHandoverDecisionVisualization'
 
 export interface MainSceneProps {
     devices: any[]
@@ -49,6 +51,9 @@ export interface MainSceneProps {
     meshNetworkTopologyEnabled?: boolean
     satelliteUavConnectionEnabled?: boolean
     failoverMechanismEnabled?: boolean
+    // 階段六功能狀態
+    handoverPredictionEnabled?: boolean
+    handoverDecisionVisualizationEnabled?: boolean
 }
 
 const UAV_SCALE = 10
@@ -73,6 +78,8 @@ const MainScene: React.FC<MainSceneProps> = ({
     meshNetworkTopologyEnabled = false,
     satelliteUavConnectionEnabled = false,
     failoverMechanismEnabled = false,
+    handoverPredictionEnabled = false,
+    handoverDecisionVisualizationEnabled = false,
 }) => {
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
@@ -309,6 +316,18 @@ const MainScene: React.FC<MainSceneProps> = ({
             <FailoverMechanism 
                 devices={devices} 
                 enabled={failoverMechanismEnabled} 
+            />
+            
+            {/* 階段六可視化覆蓋層 */}
+            <HandoverPredictionVisualization 
+                devices={devices} 
+                enabled={handoverPredictionEnabled}
+                satellites={satellites} 
+            />
+            <SatelliteHandoverDecisionVisualization 
+                devices={devices} 
+                enabled={handoverDecisionVisualizationEnabled}
+                satellites={satellites} 
             />
         </>
     )
