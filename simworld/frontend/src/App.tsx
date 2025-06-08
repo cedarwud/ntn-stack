@@ -82,6 +82,12 @@ function App({ activeView }: AppProps) {
     const [realTimeMetricsEnabled, setRealTimeMetricsEnabled] = useState(false)
     const [interferenceAnalyticsEnabled, setInterferenceAnalyticsEnabled] = useState(false)
 
+    // 階段五功能狀態
+    const [uavSwarmCoordinationEnabled, setUavSwarmCoordinationEnabled] = useState(false)
+    const [meshNetworkTopologyEnabled, setMeshNetworkTopologyEnabled] = useState(false)
+    const [satelliteUavConnectionEnabled, setSatelliteUavConnectionEnabled] = useState(false)
+    const [failoverMechanismEnabled, setFailoverMechanismEnabled] = useState(false)
+
     const sortedDevicesForSidebar = useMemo(() => {
         return [...tempDevices].sort((a, b) => {
             const roleOrder: { [key: string]: number } = {
@@ -255,6 +261,11 @@ function App({ activeView }: AppProps) {
                         sionna3DVisualizationEnabled={sionna3DVisualizationEnabled}
                         realTimeMetricsEnabled={realTimeMetricsEnabled}
                         interferenceAnalyticsEnabled={interferenceAnalyticsEnabled}
+                        // 階段五功能狀態
+                        uavSwarmCoordinationEnabled={uavSwarmCoordinationEnabled}
+                        meshNetworkTopologyEnabled={meshNetworkTopologyEnabled}
+                        satelliteUavConnectionEnabled={satelliteUavConnectionEnabled}
+                        failoverMechanismEnabled={failoverMechanismEnabled}
                     />
                 )
             default:
@@ -285,6 +296,10 @@ function App({ activeView }: AppProps) {
         sionna3DVisualizationEnabled,
         realTimeMetricsEnabled,
         interferenceAnalyticsEnabled,
+        uavSwarmCoordinationEnabled,
+        meshNetworkTopologyEnabled,
+        satelliteUavConnectionEnabled,
+        failoverMechanismEnabled,
     ])
 
     if (loading) {
@@ -351,6 +366,15 @@ function App({ activeView }: AppProps) {
                                     onRealTimeMetricsChange={setRealTimeMetricsEnabled}
                                     interferenceAnalyticsEnabled={interferenceAnalyticsEnabled}
                                     onInterferenceAnalyticsChange={setInterferenceAnalyticsEnabled}
+                                    // 階段五功能開關
+                                    uavSwarmCoordinationEnabled={uavSwarmCoordinationEnabled}
+                                    onUavSwarmCoordinationChange={setUavSwarmCoordinationEnabled}
+                                    meshNetworkTopologyEnabled={meshNetworkTopologyEnabled}
+                                    onMeshNetworkTopologyChange={setMeshNetworkTopologyEnabled}
+                                    satelliteUavConnectionEnabled={satelliteUavConnectionEnabled}
+                                    onSatelliteUavConnectionChange={setSatelliteUavConnectionEnabled}
+                                    failoverMechanismEnabled={failoverMechanismEnabled}
+                                    onFailoverMechanismChange={setFailoverMechanismEnabled}
                                 />
                             </ErrorBoundary>
                         }

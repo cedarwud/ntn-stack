@@ -47,6 +47,15 @@ interface SidebarProps {
     onRealTimeMetricsChange?: (enabled: boolean) => void
     interferenceAnalyticsEnabled?: boolean
     onInterferenceAnalyticsChange?: (enabled: boolean) => void
+    // 階段五功能開關
+    uavSwarmCoordinationEnabled?: boolean
+    onUavSwarmCoordinationChange?: (enabled: boolean) => void
+    meshNetworkTopologyEnabled?: boolean
+    onMeshNetworkTopologyChange?: (enabled: boolean) => void
+    satelliteUavConnectionEnabled?: boolean
+    onSatelliteUavConnectionChange?: (enabled: boolean) => void
+    failoverMechanismEnabled?: boolean
+    onFailoverMechanismChange?: (enabled: boolean) => void
 }
 
 // 功能開關配置
@@ -122,6 +131,15 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onRealTimeMetricsChange,
     interferenceAnalyticsEnabled = false,
     onInterferenceAnalyticsChange,
+    // 階段五功能 props
+    uavSwarmCoordinationEnabled = false,
+    onUavSwarmCoordinationChange,
+    meshNetworkTopologyEnabled = false,
+    onMeshNetworkTopologyChange,
+    satelliteUavConnectionEnabled = false,
+    onSatelliteUavConnectionChange,
+    failoverMechanismEnabled = false,
+    onFailoverMechanismChange,
 }) => {
     // 現有狀態
     const [orientationInputs, setOrientationInputs] = useState<{
@@ -248,6 +266,44 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             onToggle: onInterferenceAnalyticsChange || (() => {}),
             icon: '🔍',
             description: '智能干擾模式分析與預測'
+        },
+        
+        // 階段五功能
+        {
+            id: 'uavSwarmCoordination',
+            label: 'UAV 群集協調',
+            category: 'phase5',
+            enabled: uavSwarmCoordinationEnabled,
+            onToggle: onUavSwarmCoordinationChange || (() => {}),
+            icon: '🚁',
+            description: '多 UAV 編隊飛行與群集協調'
+        },
+        {
+            id: 'meshNetworkTopology',
+            label: '網狀網路拓撲',
+            category: 'phase5',
+            enabled: meshNetworkTopologyEnabled,
+            onToggle: onMeshNetworkTopologyChange || (() => {}),
+            icon: '🕸️',
+            description: '網狀網路拓撲結構可視化'
+        },
+        {
+            id: 'satelliteUavConnection',
+            label: '衛星-UAV 連接',
+            category: 'phase5',
+            enabled: satelliteUavConnectionEnabled,
+            onToggle: onSatelliteUavConnectionChange || (() => {}),
+            icon: '🛰️',
+            description: '衛星與 UAV 連接狀態監控'
+        },
+        {
+            id: 'failoverMechanism',
+            label: '故障轉移機制',
+            category: 'phase5',
+            enabled: failoverMechanismEnabled,
+            onToggle: onFailoverMechanismChange || (() => {}),
+            icon: '🔄',
+            description: '智能網路故障轉移機制'
         }
     ]
 
@@ -255,7 +311,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     const categories = [
         { id: 'basic', label: '基礎功能', icon: '⚙️' },
         { id: 'phase4', label: '階段四', icon: '🔬' },
-        { id: 'phase5', label: '階段五', icon: '🚁', disabled: true },
+        { id: 'phase5', label: '階段五', icon: '🚁', disabled: false },
         { id: 'phase6', label: '階段六', icon: '🛰️', disabled: true },
         { id: 'phase7', label: '階段七', icon: '📊', disabled: true },
         { id: 'phase8', label: '階段八', icon: '🤖', disabled: true },
