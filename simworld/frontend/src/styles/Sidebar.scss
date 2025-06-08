@@ -485,4 +485,576 @@ td {
     color: var(--dark-text-secondary, #aab8c5);
     font-size: 0.9rem;
   }
-} 
+}
+
+/* Enhanced Sidebar 樣式 */
+.enhanced-sidebar-container {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 10px;
+  box-sizing: border-box;
+  color: #eaf6ff;
+  background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+  position: relative;
+  z-index: 0;
+}
+
+/* 功能控制面板 */
+.control-panel {
+  margin-bottom: 15px;
+  background: rgba(20, 30, 45, 0.8);
+  border-radius: 8px;
+  border: 1px solid rgba(70, 90, 120, 0.3);
+  overflow: hidden;
+}
+
+.control-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background: rgba(30, 40, 60, 0.9);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background: rgba(40, 50, 70, 0.9);
+  }
+  
+  .header-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #e0f2ff;
+  }
+  
+  .header-arrow {
+    font-size: 0.9rem;
+    color: #a0c8e8;
+    transition: transform 0.2s ease;
+    
+    &.expanded {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+/* 類別選擇標籤 */
+.category-tabs {
+  display: flex;
+  background: rgba(15, 25, 40, 0.9);
+  border-bottom: 1px solid rgba(70, 90, 120, 0.3);
+  overflow-x: auto;
+  
+  .category-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    color: #a0c8e8;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    
+    &:hover:not(.disabled) {
+      background: rgba(60, 80, 110, 0.5);
+      color: #c0d8f0;
+    }
+    
+    &.active {
+      background: rgba(74, 123, 175, 0.3);
+      color: #ffffff;
+      border-bottom: 2px solid #4a7baf;
+    }
+    
+    &.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      color: #606060;
+    }
+    
+    .tab-icon {
+      font-size: 1rem;
+    }
+    
+    .tab-label {
+      font-weight: 500;
+    }
+  }
+}
+
+/* 功能開關容器 */
+.feature-toggles-container {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feature-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background: rgba(25, 35, 50, 0.7);
+  border: 1px solid rgba(60, 80, 110, 0.4);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(35, 45, 65, 0.8);
+    border-color: rgba(80, 100, 130, 0.6);
+  }
+  
+  &.enabled {
+    background: rgba(74, 123, 175, 0.2);
+    border-color: rgba(74, 123, 175, 0.5);
+    
+    &:hover {
+      background: rgba(74, 123, 175, 0.3);
+    }
+  }
+  
+  .toggle-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    
+    .toggle-icon {
+      font-size: 1.2rem;
+    }
+    
+    .toggle-label {
+      font-weight: 500;
+      color: #e0f2ff;
+    }
+  }
+  
+  .toggle-switch {
+    width: 44px;
+    height: 24px;
+    background: rgba(100, 100, 120, 0.5);
+    border-radius: 12px;
+    position: relative;
+    transition: background-color 0.2s ease;
+    
+    &.on {
+      background: #4a7baf;
+    }
+    
+    .toggle-slider {
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    &.on .toggle-slider {
+      transform: translateX(20px);
+    }
+  }
+}
+
+/* 衛星設置 */
+.satellite-settings {
+  padding: 15px;
+  background: rgba(15, 25, 40, 0.8);
+  border-top: 1px solid rgba(70, 90, 120, 0.3);
+  
+  .setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+    
+    label {
+      font-size: 0.9rem;
+      color: #a0c8e8;
+      font-weight: 500;
+    }
+    
+    .setting-input {
+      width: 80px;
+      padding: 6px 8px;
+      background-color: rgba(30, 40, 60, 0.8);
+      border: 1px solid rgba(70, 90, 120, 0.5);
+      border-radius: 4px;
+      color: #e0f2ff;
+      text-align: right;
+      font-size: 0.9rem;
+      
+      &:focus {
+        outline: none;
+        border-color: #4a7baf;
+        box-shadow: 0 0 4px rgba(74, 123, 175, 0.3);
+      }
+    }
+  }
+}
+
+/* 手動控制面板 */
+.manual-control-panel {
+  padding: 15px;
+  background: rgba(15, 25, 40, 0.8);
+  border-top: 1px solid rgba(70, 90, 120, 0.3);
+  
+  .manual-control-title {
+    text-align: center;
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: #e0f2ff;
+    font-size: 1rem;
+  }
+  
+  .manual-control-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    
+    .manual-row {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      
+      button {
+        width: 40px;
+        height: 40px;
+        background: rgba(74, 123, 175, 0.7);
+        border: 1px solid rgba(74, 123, 175, 1);
+        border-radius: 6px;
+        color: white;
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.1s ease;
+        user-select: none;
+        
+        &:hover {
+          background: rgba(94, 143, 195, 0.8);
+        }
+        
+        &:active {
+          background: rgba(54, 103, 155, 0.9);
+          transform: scale(0.95);
+        }
+      }
+    }
+  }
+}
+
+/* UAV 選擇容器 */
+.uav-selection-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 0;
+  margin-bottom: 15px;
+  
+  .uav-badge {
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    background-color: rgba(60, 80, 110, 0.6);
+    color: #c0d8f0;
+    border: 1px solid rgba(80, 100, 130, 0.5);
+    
+    &:hover {
+      background-color: rgba(80, 100, 130, 0.7);
+      border-color: rgba(100, 120, 150, 0.7);
+    }
+    
+    &.selected {
+      background-color: rgba(74, 123, 175, 0.8);
+      color: white;
+      border-color: #4a7baf;
+      box-shadow: 0 2px 4px rgba(74, 123, 175, 0.3);
+    }
+  }
+}
+
+/* 設備操作按鈕 */
+.device-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(70, 90, 120, 0.3);
+  margin-bottom: 15px;
+  
+  .action-btn {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    
+    &.add-btn {
+      background: linear-gradient(135deg, rgba(74, 123, 175, 0.9), rgba(94, 143, 195, 0.8));
+      color: white;
+      border: 1px solid rgba(74, 123, 175, 0.7);
+      
+      &:hover {
+        background: linear-gradient(135deg, rgba(94, 143, 195, 1), rgba(114, 163, 215, 0.9));
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(74, 123, 175, 0.3);
+      }
+      
+      &:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(74, 123, 175, 0.4);
+      }
+    }
+    
+    &.apply-btn {
+      background: linear-gradient(135deg, rgba(76, 175, 80, 0.9), rgba(96, 195, 100, 0.8));
+      color: white;
+      border: 1px solid rgba(76, 175, 80, 0.7);
+      margin-right: 8px;
+      
+      &:hover:not(:disabled) {
+        background: linear-gradient(135deg, rgba(96, 195, 100, 1), rgba(116, 215, 120, 0.9));
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+      }
+      
+      &:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(76, 175, 80, 0.4);
+      }
+      
+      &:disabled {
+        background: rgba(100, 100, 120, 0.5);
+        color: #a0a0a0;
+        cursor: not-allowed;
+        border-color: rgba(120, 120, 140, 0.5);
+        transform: none;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      }
+    }
+    
+    &.cancel-btn {
+      background: linear-gradient(135deg, rgba(244, 67, 54, 0.9), rgba(255, 87, 74, 0.8));
+      color: white;
+      border: 1px solid rgba(244, 67, 54, 0.7);
+      
+      &:hover:not(:disabled) {
+        background: linear-gradient(135deg, rgba(255, 87, 74, 1), rgba(255, 107, 94, 0.9));
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
+      }
+      
+      &:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(244, 67, 54, 0.4);
+      }
+      
+      &:disabled {
+        background: rgba(100, 100, 120, 0.5);
+        color: #a0a0a0;
+        cursor: not-allowed;
+        border-color: rgba(120, 120, 140, 0.5);
+        transform: none;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      }
+    }
+  }
+  
+  .action-group {
+    display: flex;
+  }
+}
+
+/* 設備列表區段標題 */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  margin: 15px 0 10px 0;
+  cursor: pointer;
+  color: #e0f2ff;
+  font-weight: 600;
+  font-size: 1rem;
+  border-bottom: 1px solid rgba(70, 90, 120, 0.3);
+  transition: color 0.2s ease;
+  
+  &:hover {
+    color: #ffffff;
+  }
+  
+  &.expanded {
+    color: #4a7baf;
+  }
+  
+  .header-icon {
+    font-size: 1.1rem;
+  }
+  
+  .header-title {
+    flex: 1;
+  }
+  
+  .header-count {
+    font-size: 0.9rem;
+    color: #a0c8e8;
+    font-weight: normal;
+  }
+}
+
+/* 階段四專用控制面板 */
+.phase4-control-panel {
+  padding: 15px;
+  background: rgba(10, 20, 35, 0.9);
+  border-top: 1px solid rgba(70, 90, 120, 0.4);
+  border-radius: 0 0 6px 6px;
+  
+  .phase4-header {
+    margin-bottom: 15px;
+    
+    h4 {
+      margin: 0;
+      color: #e0f2ff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: center;
+      padding: 8px;
+      background: rgba(74, 123, 175, 0.2);
+      border-radius: 4px;
+      border: 1px solid rgba(74, 123, 175, 0.3);
+    }
+  }
+  
+  .phase4-status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 15px;
+    
+    .status-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px;
+      background: rgba(25, 35, 50, 0.8);
+      border-radius: 4px;
+      border: 1px solid rgba(60, 80, 110, 0.3);
+      
+      .status-label {
+        font-size: 0.8rem;
+        color: #a0c8e8;
+        margin-bottom: 4px;
+        text-align: center;
+      }
+      
+      .status-indicator {
+        font-size: 0.75rem;
+        font-weight: 500;
+        
+        &.active {
+          color: #4caf50;
+        }
+        
+        &.inactive {
+          color: #9e9e9e;
+        }
+      }
+    }
+  }
+  
+  .phase4-metrics {
+    background: rgba(15, 25, 40, 0.8);
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(60, 80, 110, 0.3);
+    
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      .metric-label {
+        font-size: 0.85rem;
+        color: #a0c8e8;
+      }
+      
+      .metric-value {
+        font-size: 0.85rem;
+        color: #e0f2ff;
+        font-weight: 600;
+        background: rgba(74, 123, 175, 0.2);
+        padding: 2px 6px;
+        border-radius: 3px;
+      }
+    }
+  }
+  
+  .phase4-actions {
+    display: flex;
+    gap: 8px;
+    
+    .phase4-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+      
+      &.optimize-btn {
+        background: linear-gradient(135deg, rgba(156, 39, 176, 0.8), rgba(186, 69, 206, 0.7));
+        color: white;
+        border: 1px solid rgba(156, 39, 176, 0.6);
+        
+        &:hover {
+          background: linear-gradient(135deg, rgba(176, 59, 196, 0.9), rgba(206, 89, 226, 0.8));
+          transform: translateY(-1px);
+          box-shadow: 0 3px 6px rgba(156, 39, 176, 0.3);
+        }
+      }
+      
+      &.analyze-btn {
+        background: linear-gradient(135deg, rgba(255, 152, 0, 0.8), rgba(255, 183, 77, 0.7));
+        color: white;
+        border: 1px solid rgba(255, 152, 0, 0.6);
+        
+        &:hover {
+          background: linear-gradient(135deg, rgba(255, 172, 20, 0.9), rgba(255, 203, 97, 0.8));
+          transform: translateY(-1px);
+          box-shadow: 0 3px 6px rgba(255, 152, 0, 0.3);
+        }
+      }
+      
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+}
