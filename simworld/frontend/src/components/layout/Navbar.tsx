@@ -13,9 +13,6 @@ import UAVSwarmCoordinationViewer from '../viewers/UAVSwarmCoordinationViewer'
 import MeshNetworkTopologyViewer from '../viewers/MeshNetworkTopologyViewer'
 import FrequencySpectrumVisualization from '../viewers/FrequencySpectrumVisualization'
 import AIRANDecisionVisualization from '../viewers/AIRANDecisionVisualization'
-import HandoverPredictionVisualization from '../viewers/HandoverPredictionVisualization'
-import SatelliteHandoverDecisionVisualization from '../viewers/SatelliteHandoverDecisionVisualization'
-import HandoverPerformanceDashboard from '../dashboard/HandoverPerformanceDashboard'
 import ViewerModal from '../ui/ViewerModal'
 import { ViewerProps } from '../../types/viewer'
 import {
@@ -72,9 +69,6 @@ const Navbar: FC<NavbarProps> = ({
     const [showMeshNetworkModal, setShowMeshNetworkModal] = useState(false)
     const [showFrequencySpectrumModal, setShowFrequencySpectrumModal] = useState(false)
     const [showAIRANDecisionModal, setShowAIRANDecisionModal] = useState(false)
-    const [showHandoverPredictionModal, setShowHandoverPredictionModal] = useState(false)
-    const [showHandoverDecisionModal, setShowHandoverDecisionModal] = useState(false)
-    const [showHandoverPerformanceModal, setShowHandoverPerformanceModal] = useState(false)
 
     // States for last update times
     const [sinrModalLastUpdate, setSinrModalLastUpdate] = useState<string>('')
@@ -95,12 +89,6 @@ const Navbar: FC<NavbarProps> = ({
         useState<string>('')
     const [airanDecisionModalLastUpdate, setAIRANDecisionModalLastUpdate] =
         useState<string>('')
-    const [handoverPredictionModalLastUpdate, setHandoverPredictionModalLastUpdate] =
-        useState<string>('')
-    const [handoverDecisionModalLastUpdate, setHandoverDecisionModalLastUpdate] =
-        useState<string>('')
-    const [handoverPerformanceModalLastUpdate, setHandoverPerformanceModalLastUpdate] =
-        useState<string>('')
 
     // Refs for refresh handlers
     const sinrRefreshHandlerRef = useRef<(() => void) | null>(null)
@@ -113,9 +101,6 @@ const Navbar: FC<NavbarProps> = ({
     const meshNetworkRefreshHandlerRef = useRef<(() => void) | null>(null)
     const frequencySpectrumRefreshHandlerRef = useRef<(() => void) | null>(null)
     const airanDecisionRefreshHandlerRef = useRef<(() => void) | null>(null)
-    const handoverPredictionRefreshHandlerRef = useRef<(() => void) | null>(null)
-    const handoverDecisionRefreshHandlerRef = useRef<(() => void) | null>(null)
-    const handoverPerformanceRefreshHandlerRef = useRef<(() => void) | null>(null)
 
     // States for loading status for header titles
     const [sinrIsLoadingForHeader, setSinrIsLoadingForHeader] =
@@ -139,12 +124,6 @@ const Navbar: FC<NavbarProps> = ({
     const [frequencySpectrumIsLoadingForHeader, setFrequencySpectrumIsLoadingForHeader] =
         useState<boolean>(true)
     const [airanDecisionIsLoadingForHeader, setAIRANDecisionIsLoadingForHeader] =
-        useState<boolean>(true)
-    const [handoverPredictionIsLoadingForHeader, setHandoverPredictionIsLoadingForHeader] =
-        useState<boolean>(true)
-    const [handoverDecisionIsLoadingForHeader, setHandoverDecisionIsLoadingForHeader] =
-        useState<boolean>(true)
-    const [handoverPerformanceIsLoadingForHeader, setHandoverPerformanceIsLoadingForHeader] =
         useState<boolean>(true)
 
     const toggleMenu = () => {
@@ -355,61 +334,6 @@ const Navbar: FC<NavbarProps> = ({
             setIsLoading: setAIRANDecisionIsLoadingForHeader,
             refreshHandlerRef: airanDecisionRefreshHandlerRef,
             ViewerComponent: AIRANDecisionVisualization,
-        },
-        // 階段六組件
-        {
-            id: 'handoverPrediction',
-            menuText: '換手預測分析',
-            titleConfig: {
-                base: '衛星換手預測與時間軸分析',
-                loading: '正在分析換手預測...',
-                hoverRefresh: '重新分析預測',
-            },
-            isOpen: showHandoverPredictionModal,
-            openModal: () => setShowHandoverPredictionModal(true),
-            closeModal: () => setShowHandoverPredictionModal(false),
-            lastUpdate: handoverPredictionModalLastUpdate,
-            setLastUpdate: setHandoverPredictionModalLastUpdate,
-            isLoading: handoverPredictionIsLoadingForHeader,
-            setIsLoading: setHandoverPredictionIsLoadingForHeader,
-            refreshHandlerRef: handoverPredictionRefreshHandlerRef,
-            ViewerComponent: HandoverPredictionVisualization,
-        },
-        {
-            id: 'handoverDecision',
-            menuText: '換手決策可視化',
-            titleConfig: {
-                base: '衛星換手決策過程 3D 可視化',
-                loading: '正在分析決策過程...',
-                hoverRefresh: '重新分析決策',
-            },
-            isOpen: showHandoverDecisionModal,
-            openModal: () => setShowHandoverDecisionModal(true),
-            closeModal: () => setShowHandoverDecisionModal(false),
-            lastUpdate: handoverDecisionModalLastUpdate,
-            setLastUpdate: setHandoverDecisionModalLastUpdate,
-            isLoading: handoverDecisionIsLoadingForHeader,
-            setIsLoading: setHandoverDecisionIsLoadingForHeader,
-            refreshHandlerRef: handoverDecisionRefreshHandlerRef,
-            ViewerComponent: SatelliteHandoverDecisionVisualization,
-        },
-        {
-            id: 'handoverPerformance',
-            menuText: '換手性能監控',
-            titleConfig: {
-                base: '換手性能統計與分析儀表板',
-                loading: '正在加載性能數據...',
-                hoverRefresh: '刷新性能數據',
-            },
-            isOpen: showHandoverPerformanceModal,
-            openModal: () => setShowHandoverPerformanceModal(true),
-            closeModal: () => setShowHandoverPerformanceModal(false),
-            lastUpdate: handoverPerformanceModalLastUpdate,
-            setLastUpdate: setHandoverPerformanceModalLastUpdate,
-            isLoading: handoverPerformanceIsLoadingForHeader,
-            setIsLoading: setHandoverPerformanceIsLoadingForHeader,
-            refreshHandlerRef: handoverPerformanceRefreshHandlerRef,
-            ViewerComponent: HandoverPerformanceDashboard,
         },
     ]
 

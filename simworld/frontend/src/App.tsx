@@ -93,6 +93,12 @@ function App({ activeView }: AppProps) {
     const [handoverDecisionVisualizationEnabled, setHandoverDecisionVisualizationEnabled] = useState(false)
     const [handoverPerformanceDashboardEnabled, setHandoverPerformanceDashboardEnabled] = useState(false)
 
+    // 階段七功能狀態
+    const [e2ePerformanceMonitoringEnabled, setE2EPerformanceMonitoringEnabled] = useState(false)
+    const [testResultsVisualizationEnabled, setTestResultsVisualizationEnabled] = useState(false)
+    const [performanceTrendAnalysisEnabled, setPerformanceTrendAnalysisEnabled] = useState(false)
+    const [automatedReportGenerationEnabled, setAutomatedReportGenerationEnabled] = useState(false)
+
     const sortedDevicesForSidebar = useMemo(() => {
         return [...tempDevices].sort((a, b) => {
             const roleOrder: { [key: string]: number } = {
@@ -275,6 +281,11 @@ function App({ activeView }: AppProps) {
                         handoverPredictionEnabled={handoverPredictionEnabled}
                         handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
                         handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
+                        // 階段七功能狀態
+                        e2ePerformanceMonitoringEnabled={e2ePerformanceMonitoringEnabled}
+                        testResultsVisualizationEnabled={testResultsVisualizationEnabled}
+                        performanceTrendAnalysisEnabled={performanceTrendAnalysisEnabled}
+                        automatedReportGenerationEnabled={automatedReportGenerationEnabled}
                     />
                 )
             default:
@@ -312,6 +323,10 @@ function App({ activeView }: AppProps) {
         handoverPredictionEnabled,
         handoverDecisionVisualizationEnabled,
         handoverPerformanceDashboardEnabled,
+        e2ePerformanceMonitoringEnabled,
+        testResultsVisualizationEnabled,
+        performanceTrendAnalysisEnabled,
+        automatedReportGenerationEnabled,
     ])
 
     if (loading) {
@@ -394,6 +409,15 @@ function App({ activeView }: AppProps) {
                                     onHandoverDecisionVisualizationChange={setHandoverDecisionVisualizationEnabled}
                                     handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
                                     onHandoverPerformanceDashboardChange={setHandoverPerformanceDashboardEnabled}
+                                    // 階段七功能狀態
+                                    e2ePerformanceMonitoringEnabled={e2ePerformanceMonitoringEnabled}
+                                    onE2EPerformanceMonitoringChange={setE2EPerformanceMonitoringEnabled}
+                                    testResultsVisualizationEnabled={testResultsVisualizationEnabled}
+                                    onTestResultsVisualizationChange={setTestResultsVisualizationEnabled}
+                                    performanceTrendAnalysisEnabled={performanceTrendAnalysisEnabled}
+                                    onPerformanceTrendAnalysisChange={setPerformanceTrendAnalysisEnabled}
+                                    automatedReportGenerationEnabled={automatedReportGenerationEnabled}
+                                    onAutomatedReportGenerationChange={setAutomatedReportGenerationEnabled}
                                 />
                             </ErrorBoundary>
                         }
