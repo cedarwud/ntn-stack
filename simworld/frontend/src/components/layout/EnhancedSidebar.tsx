@@ -90,7 +90,7 @@ interface SidebarProps {
 interface FeatureToggle {
     id: string
     label: string
-    category: 'basic' | 'phase4' | 'phase5' | 'phase6' | 'phase7' | 'phase8'
+    category: 'basic' | 'intelligence' | 'network' | 'coordination' | 'visualization'
     enabled: boolean
     onToggle: (enabled: boolean) => void
     icon?: string
@@ -211,6 +211,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
     const [showDesiredDevices, setShowDesiredDevices] = useState(false)
     const [showJammerDevices, setShowJammerDevices] = useState(false)
+    const [showUavSelection, setShowUavSelection] = useState(false)
 
     // 衛星相關狀態
     const [satelliteDisplayCount, setSatelliteDisplayCount] = useState<number>(
@@ -224,9 +225,23 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     const [minElevation, setMinElevation] = useState<number>(0)
     const satelliteRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+    // 處理衛星-UAV 連接開關，連動開啟衛星顯示
+    const handleSatelliteUavConnectionToggle = (enabled: boolean) => {
+        if (enabled && !satelliteEnabled) {
+            // 如果開啟衛星-UAV 連接但衛星顯示未開啟，則自動開啟衛星顯示
+            if (onSatelliteEnabledChange) {
+                onSatelliteEnabledChange(true)
+            }
+        }
+        // 調用原始的開關處理函數
+        if (onSatelliteUavConnectionChange) {
+            onSatelliteUavConnectionChange(enabled)
+        }
+    }
+
     // 功能開關配置
     const featureToggles: FeatureToggle[] = [
-        // 基礎功能
+        // 基礎控制
         {
             id: 'auto',
             label: '自動飛行',
@@ -265,187 +280,38 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             description: 'OneWeb 衛星星座顯示'
         },
         
-        // 階段四功能
-        {
-            id: 'interferenceVisualization',
-            label: '干擾源可視化',
-            category: 'phase4',
-            enabled: interferenceVisualizationEnabled,
-            onToggle: onInterferenceVisualizationChange || (() => {}),
-            icon: '📡',
-            description: '3D 干擾源範圍和影響可視化'
-        },
-        {
-            id: 'sinrHeatmap',
-            label: 'SINR 熱力圖',
-            category: 'phase4',
-            enabled: sinrHeatmapEnabled,
-            onToggle: onSinrHeatmapChange || (() => {}),
-            icon: '🔥',
-            description: '地面 SINR 信號強度熱力圖'
-        },
+        // 智能分析
         {
             id: 'aiRanVisualization',
             label: 'AI-RAN 決策',
-            category: 'phase4',
+            category: 'intelligence',
             enabled: aiRanVisualizationEnabled,
             onToggle: onAiRanVisualizationChange || (() => {}),
             icon: '🧠',
             description: 'AI-RAN 抗干擾決策過程可視化'
         },
         {
-            id: 'sionna3DVisualization',
-            label: 'Sionna 3D 模擬',
-            category: 'phase4',
-            enabled: sionna3DVisualizationEnabled,
-            onToggle: onSionna3DVisualizationChange || (() => {}),
-            icon: '📊',
-            description: 'Sionna 3D 無線環境模擬與可視化'
-        },
-        {
-            id: 'realTimeMetrics',
-            label: '即時性能指標',
-            category: 'phase4',
-            enabled: realTimeMetricsEnabled,
-            onToggle: onRealTimeMetricsChange || (() => {}),
-            icon: '⚡',
-            description: '即時網路性能指標監控'
-        },
-        {
             id: 'interferenceAnalytics',
             label: '干擾分析引擎',
-            category: 'phase4',
+            category: 'intelligence',
             enabled: interferenceAnalyticsEnabled,
             onToggle: onInterferenceAnalyticsChange || (() => {}),
             icon: '🔍',
             description: '智能干擾模式分析與預測'
         },
-        
-        // 階段五功能
-        {
-            id: 'uavSwarmCoordination',
-            label: 'UAV 群集協調',
-            category: 'phase5',
-            enabled: uavSwarmCoordinationEnabled,
-            onToggle: onUavSwarmCoordinationChange || (() => {}),
-            icon: '🚁',
-            description: '多 UAV 編隊飛行與群集協調'
-        },
-        {
-            id: 'meshNetworkTopology',
-            label: '網狀網路拓撲',
-            category: 'phase5',
-            enabled: meshNetworkTopologyEnabled,
-            onToggle: onMeshNetworkTopologyChange || (() => {}),
-            icon: '🕸️',
-            description: '網狀網路拓撲結構可視化'
-        },
-        {
-            id: 'satelliteUavConnection',
-            label: '衛星-UAV 連接',
-            category: 'phase5',
-            enabled: satelliteUavConnectionEnabled,
-            onToggle: onSatelliteUavConnectionChange || (() => {}),
-            icon: '🛰️',
-            description: '衛星與 UAV 連接狀態監控'
-        },
-        {
-            id: 'failoverMechanism',
-            label: '故障轉移機制',
-            category: 'phase5',
-            enabled: failoverMechanismEnabled,
-            onToggle: onFailoverMechanismChange || (() => {}),
-            icon: '🔄',
-            description: '智能網路故障轉移機制'
-        },
-        // 階段六功能
-        {
-            id: 'handoverPrediction',
-            label: '換手預測分析',
-            category: 'phase6',
-            enabled: handoverPredictionEnabled,
-            onToggle: onHandoverPredictionChange || (() => {}),
-            icon: '🔮',
-            description: '智能衛星換手預測與時間軸分析'
-        },
-        {
-            id: 'handoverDecisionVisualization',
-            label: '換手決策可視化',
-            category: 'phase6',
-            enabled: handoverDecisionVisualizationEnabled,
-            onToggle: onHandoverDecisionVisualizationChange || (() => {}),
-            icon: '🧠',
-            description: '衛星換手決策過程 3D 可視化'
-        },
-        {
-            id: 'handoverPerformanceDashboard',
-            label: '換手性能監控',
-            category: 'phase6',
-            enabled: handoverPerformanceDashboardEnabled,
-            onToggle: onHandoverPerformanceDashboardChange || (() => {}),
-            icon: '📊',
-            description: '換手性能統計與分析儀表板'
-        },
-        // 階段七功能
-        {
-            id: 'e2ePerformanceMonitoring',
-            label: '端到端性能監控',
-            category: 'phase7',
-            enabled: e2ePerformanceMonitoringEnabled,
-            onToggle: onE2EPerformanceMonitoringChange || (() => {}),
-            icon: '📈',
-            description: '完整的端到端系統性能監控儀表板'
-        },
-        {
-            id: 'testResultsVisualization',
-            label: '測試結果可視化',
-            category: 'phase7',
-            enabled: testResultsVisualizationEnabled,
-            onToggle: onTestResultsVisualizationChange || (() => {}),
-            icon: '🧪',
-            description: '測試套件狀態與結果的 3D 可視化'
-        },
-        {
-            id: 'performanceTrendAnalysis',
-            label: '性能趨勢分析',
-            category: 'phase7',
-            enabled: performanceTrendAnalysisEnabled,
-            onToggle: onPerformanceTrendAnalysisChange || (() => {}),
-            icon: '📊',
-            description: '長期性能趨勢分析與預測'
-        },
-        {
-            id: 'automatedReportGeneration',
-            label: '自動化報告生成',
-            category: 'phase7',
-            enabled: automatedReportGenerationEnabled,
-            onToggle: onAutomatedReportGenerationChange || (() => {}),
-            icon: '📋',
-            description: '自動化系統報告生成與管理'
-        },
-        // 階段八功能
         {
             id: 'mlModelMonitoring',
             label: 'ML 模型監控',
-            category: 'phase8',
+            category: 'intelligence',
             enabled: mlModelMonitoringEnabled,
             onToggle: onMLModelMonitoringChange || (() => {}),
-            icon: '🧠',
+            icon: '🤖',
             description: '機器學習模型訓練、評估和性能監控'
-        },
-        {
-            id: 'predictiveMaintenance',
-            label: '預測性維護',
-            category: 'phase8',
-            enabled: predictiveMaintenanceEnabled,
-            onToggle: onPredictiveMaintenanceChange || (() => {}),
-            icon: '🔧',
-            description: '設備故障預測、維護排程和系統健康度監控'
         },
         {
             id: 'adaptiveLearning',
             label: '自適應學習系統',
-            category: 'phase8',
+            category: 'intelligence',
             enabled: adaptiveLearningEnabled,
             onToggle: onAdaptiveLearningChange || (() => {}),
             icon: '🎯',
@@ -454,22 +320,171 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         {
             id: 'intelligentRecommendation',
             label: '智能推薦系統',
-            category: 'phase8',
+            category: 'intelligence',
             enabled: intelligentRecommendationEnabled,
             onToggle: onIntelligentRecommendationChange || (() => {}),
             icon: '💡',
             description: '智能化的最佳化建議和決策支援'
+        },
+        {
+            id: 'predictiveMaintenance',
+            label: '預測性維護',
+            category: 'intelligence',
+            enabled: predictiveMaintenanceEnabled,
+            onToggle: onPredictiveMaintenanceChange || (() => {}),
+            icon: '🔧',
+            description: '設備故障預測、維護排程和系統健康度監控'
+        },
+        
+        // 網路管理
+        {
+            id: 'meshNetworkTopology',
+            label: '網狀網路拓撲',
+            category: 'network',
+            enabled: meshNetworkTopologyEnabled,
+            onToggle: onMeshNetworkTopologyChange || (() => {}),
+            icon: '🕸️',
+            description: '網狀網路拓撲結構可視化'
+        },
+        {
+            id: 'satelliteUavConnection',
+            label: '衛星-UAV 連接',
+            category: 'network',
+            enabled: satelliteUavConnectionEnabled,
+            onToggle: handleSatelliteUavConnectionToggle,
+            icon: '🛰️',
+            description: '衛星與 UAV 連接狀態監控'
+        },
+        {
+            id: 'failoverMechanism',
+            label: '故障轉移機制',
+            category: 'network',
+            enabled: failoverMechanismEnabled,
+            onToggle: onFailoverMechanismChange || (() => {}),
+            icon: '🔄',
+            description: '智能網路故障轉移機制'
+        },
+        {
+            id: 'realTimeMetrics',
+            label: '即時性能指標',
+            category: 'network',
+            enabled: realTimeMetricsEnabled,
+            onToggle: onRealTimeMetricsChange || (() => {}),
+            icon: '⚡',
+            description: '即時網路性能指標監控'
+        },
+        {
+            id: 'e2ePerformanceMonitoring',
+            label: '端到端性能監控',
+            category: 'network',
+            enabled: e2ePerformanceMonitoringEnabled,
+            onToggle: onE2EPerformanceMonitoringChange || (() => {}),
+            icon: '📈',
+            description: '完整的端到端系統性能監控儀表板'
+        },
+        {
+            id: 'performanceTrendAnalysis',
+            label: '性能趨勢分析',
+            category: 'network',
+            enabled: performanceTrendAnalysisEnabled,
+            onToggle: onPerformanceTrendAnalysisChange || (() => {}),
+            icon: '📊',
+            description: '長期性能趨勢分析與預測'
+        },
+        
+        // 協調控制
+        {
+            id: 'uavSwarmCoordination',
+            label: 'UAV 群集協調',
+            category: 'coordination',
+            enabled: uavSwarmCoordinationEnabled,
+            onToggle: onUavSwarmCoordinationChange || (() => {}),
+            icon: '🚁',
+            description: '多 UAV 編隊飛行與群集協調'
+        },
+        {
+            id: 'handoverPrediction',
+            label: '換手預測分析',
+            category: 'coordination',
+            enabled: handoverPredictionEnabled,
+            onToggle: onHandoverPredictionChange || (() => {}),
+            icon: '🔮',
+            description: '智能衛星換手預測與時間軸分析'
+        },
+        {
+            id: 'handoverDecisionVisualization',
+            label: '換手決策可視化',
+            category: 'coordination',
+            enabled: handoverDecisionVisualizationEnabled,
+            onToggle: onHandoverDecisionVisualizationChange || (() => {}),
+            icon: '🔄',
+            description: '衛星換手決策過程 3D 可視化'
+        },
+        {
+            id: 'handoverPerformanceDashboard',
+            label: '換手性能監控',
+            category: 'coordination',
+            enabled: handoverPerformanceDashboardEnabled,
+            onToggle: onHandoverPerformanceDashboardChange || (() => {}),
+            icon: '📊',
+            description: '換手性能統計與分析儀表板'
+        },
+        {
+            id: 'automatedReportGeneration',
+            label: '自動化報告生成',
+            category: 'coordination',
+            enabled: automatedReportGenerationEnabled,
+            onToggle: onAutomatedReportGenerationChange || (() => {}),
+            icon: '📋',
+            description: '自動化系統報告生成與管理'
+        },
+        
+        // 可視化
+        {
+            id: 'interferenceVisualization',
+            label: '干擾源可視化',
+            category: 'visualization',
+            enabled: interferenceVisualizationEnabled,
+            onToggle: onInterferenceVisualizationChange || (() => {}),
+            icon: '📡',
+            description: '3D 干擾源範圍和影響可視化'
+        },
+        {
+            id: 'sinrHeatmap',
+            label: 'SINR 熱力圖',
+            category: 'visualization',
+            enabled: sinrHeatmapEnabled,
+            onToggle: onSinrHeatmapChange || (() => {}),
+            icon: '🔥',
+            description: '地面 SINR 信號強度熱力圖'
+        },
+        {
+            id: 'sionna3DVisualization',
+            label: 'Sionna 3D 模擬',
+            category: 'visualization',
+            enabled: sionna3DVisualizationEnabled,
+            onToggle: onSionna3DVisualizationChange || (() => {}),
+            icon: '📊',
+            description: 'Sionna 3D 無線環境模擬與可視化'
+        },
+        {
+            id: 'testResultsVisualization',
+            label: '測試結果可視化',
+            category: 'visualization',
+            enabled: testResultsVisualizationEnabled,
+            onToggle: onTestResultsVisualizationChange || (() => {}),
+            icon: '🧪',
+            description: '測試套件狀態與結果的 3D 可視化'
         }
     ]
 
     // 類別配置
     const categories = [
-        { id: 'basic', label: '基礎功能', icon: '⚙️' },
-        { id: 'phase4', label: '階段四', icon: '🔬' },
-        { id: 'phase5', label: '階段五', icon: '🚁', disabled: false },
-        { id: 'phase6', label: '階段六', icon: '🔄', disabled: false },
-        { id: 'phase7', label: '階段七', icon: '📊', disabled: false },
-        { id: 'phase8', label: '階段八', icon: '🤖', disabled: false },
+        { id: 'basic', label: '基礎控制', icon: '⚙️' },
+        { id: 'intelligence', label: '智能分析', icon: '🧠' },
+        { id: 'network', label: '網路管理', icon: '🕸️' },
+        { id: 'coordination', label: '協調控制', icon: '🚁' },
+        { id: 'visualization', label: '可視化', icon: '👁️' },
     ]
 
     // 衛星數據獲取效果
@@ -742,85 +757,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                 {/* 功能開關 */}
                                 {renderFeatureToggles()}
 
-                                {/* 階段四專用控制面板 */}
-                                {activeCategory === 'phase4' && (
-                                    <div className="phase4-control-panel">
-                                        <div className="phase4-header">
-                                            <h4>🔬 階段四：AI-RAN 抗干擾系統</h4>
-                                        </div>
-                                        
-                                        <div className="phase4-status-grid">
-                                            <div className="status-item">
-                                                <span className="status-label">Sionna 引擎</span>
-                                                <span className={`status-indicator ${true ? 'active' : 'inactive'}`}>
-                                                    {true ? '🟢 運行中' : '🔴 離線'}
-                                                </span>
-                                            </div>
-                                            
-                                            <div className="status-item">
-                                                <span className="status-label">AI 決策模型</span>
-                                                <span className={`status-indicator ${aiRanVisualizationEnabled ? 'active' : 'inactive'}`}>
-                                                    {aiRanVisualizationEnabled ? '🟢 啟用' : '⚪ 待啟用'}
-                                                </span>
-                                            </div>
-                                            
-                                            <div className="status-item">
-                                                <span className="status-label">干擾檢測</span>
-                                                <span className={`status-indicator ${interferenceVisualizationEnabled ? 'active' : 'inactive'}`}>
-                                                    {interferenceVisualizationEnabled ? '🟡 監控中' : '⚪ 停用'}
-                                                </span>
-                                            </div>
-                                            
-                                            <div className="status-item">
-                                                <span className="status-label">SINR 分析</span>
-                                                <span className={`status-indicator ${sinrHeatmapEnabled ? 'active' : 'inactive'}`}>
-                                                    {sinrHeatmapEnabled ? '🟢 分析中' : '⚪ 停用'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="phase4-metrics">
-                                            <div className="metric-row">
-                                                <span className="metric-label">干擾源數量:</span>
-                                                <span className="metric-value">{jammerDevices.length}</span>
-                                            </div>
-                                            <div className="metric-row">
-                                                <span className="metric-label">UAV 連接數:</span>
-                                                <span className="metric-value">{receiverDevices.length}</span>
-                                            </div>
-                                            <div className="metric-row">
-                                                <span className="metric-label">平均 SINR:</span>
-                                                <span className="metric-value">-85 dBm</span>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="phase4-actions">
-                                            <button 
-                                                className="phase4-btn optimize-btn"
-                                                onClick={() => {
-                                                    // 開啟所有階段四功能
-                                                    onInterferenceVisualizationChange && onInterferenceVisualizationChange(true)
-                                                    onSinrHeatmapChange && onSinrHeatmapChange(true)
-                                                    onAiRanVisualizationChange && onAiRanVisualizationChange(true)
-                                                    console.log('AI 優化系統已啟動：干擾檢測、SINR分析、智能決策')
-                                                }}
-                                            >
-                                                🧠 啟動 AI 優化
-                                            </button>
-                                            <button 
-                                                className="phase4-btn analyze-btn"
-                                                onClick={() => {
-                                                    // 只開啟干擾分析
-                                                    onInterferenceVisualizationChange && onInterferenceVisualizationChange(true)
-                                                    onSinrHeatmapChange && onSinrHeatmapChange(true)
-                                                    console.log('執行干擾分析：顯示干擾源和 SINR 熱力圖')
-                                                }}
-                                            >
-                                                🔍 執行干擾分析
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
 
                                 {/* 衛星設置 */}
                                 {satelliteEnabled && (
@@ -896,33 +832,123 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                         )}
                     </div>
 
-                    {/* UAV 選擇徽章 */}
+                    {/* UAV 選擇徽章 - 優化版 */}
                     <div className="uav-selection-container">
-                        {devices
-                            .filter(
-                                (device) =>
-                                    device.name &&
-                                    device.role === 'receiver' &&
-                                    device.id !== null
-                            )
-                            .map((device) => {
-                                const isSelected = selectedReceiverIds.includes(
-                                    device.id as number
-                                )
-                                return (
-                                    <span
-                                        key={device.id}
-                                        className={`uav-badge ${
-                                            isSelected ? 'selected' : ''
-                                        }`}
-                                        onClick={() =>
-                                            handleBadgeClick(device.id as number)
-                                        }
-                                    >
-                                        {device.name}
-                                    </span>
-                                )
-                            })}
+                        <div 
+                            className={`uav-selection-header ${showUavSelection ? 'expanded' : ''}`}
+                            onClick={() => setShowUavSelection(!showUavSelection)}
+                        >
+                            <span className="selection-title">🚁 UAV 接收器選擇</span>
+                            <span className="selection-count">
+                                {selectedReceiverIds.length} / {devices.filter(d => d.role === 'receiver' && d.id !== null).length}
+                            </span>
+                            <span className={`header-arrow ${showUavSelection ? 'expanded' : ''}`}>
+                                ▼
+                            </span>
+                        </div>
+                        {showUavSelection && (
+                            <>
+                                <div className="uav-badges-grid">
+                                    {devices
+                                        .filter(
+                                            (device) =>
+                                                device.name &&
+                                                device.role === 'receiver' &&
+                                                device.id !== null
+                                        )
+                                        .map((device) => {
+                                            const isSelected = selectedReceiverIds.includes(
+                                                device.id as number
+                                            )
+                                            // 設備狀態數據
+                                            const connectionStatus = device.active ? 'connected' : 'disconnected'
+                                            // 基於設備ID生成穩定的模擬數據
+                                            const deviceIdNum = typeof device.id === 'number' ? device.id : 0
+                                            const signalStrength = (deviceIdNum % 4) + 1 // 1-4 bars，基於ID固定
+                                            const batteryLevel = Math.max(20, 100 - (deviceIdNum * 7) % 80) // 20-100%，基於ID固定
+                                            
+                                            return (
+                                                <div
+                                                    key={device.id}
+                                                    className={`enhanced-uav-badge ${
+                                                        isSelected ? 'selected' : ''
+                                                    } ${connectionStatus}`}
+                                                    onClick={() =>
+                                                        handleBadgeClick(device.id as number)
+                                                    }
+                                                    title={`點擊${isSelected ? '取消選擇' : '選擇'} ${device.name}`}
+                                                >
+                                                    <div className="badge-header">
+                                                        <span className="device-name">{device.name}</span>
+                                                        <div className="status-indicators">
+                                                            <span className={`connection-dot ${connectionStatus}`}></span>
+                                                            <span className="signal-bars">
+                                                                {Array.from({ length: 4 }, (_, i) => (
+                                                                    <span
+                                                                        key={i}
+                                                                        className={`signal-bar ${
+                                                                            i < signalStrength ? 'active' : ''
+                                                                        }`}
+                                                                    ></span>
+                                                                ))}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="badge-info">
+                                                        <div className="info-item">
+                                                            <span className="info-label">位置:</span>
+                                                            <span className="info-value">
+                                                                ({device.position_x !== undefined ? device.position_x.toFixed(1) : '0.0'}, {device.position_y !== undefined ? device.position_y.toFixed(1) : '0.0'}, {device.position_z !== undefined ? device.position_z.toFixed(1) : '0.0'})
+                                                            </span>
+                                                        </div>
+                                                        <div className="info-item">
+                                                            <span className="info-label">功率:</span>
+                                                            <span className="info-value">
+                                                                {device.power_dbm?.toFixed(1) ?? 'N/A'} dBm
+                                                            </span>
+                                                        </div>
+                                                        <div className="info-item">
+                                                            <span className="info-label">電量:</span>
+                                                            <span className={`battery-level ${
+                                                                batteryLevel > 60 ? 'high' : 
+                                                                batteryLevel > 30 ? 'medium' : 'low'
+                                                            }`}>
+                                                                {batteryLevel}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    {isSelected && (
+                                                        <div className="selection-indicator">
+                                                            <span className="checkmark">✓</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                </div>
+                                {selectedReceiverIds.length > 0 && (
+                                    <div className="selection-actions">
+                                        <button
+                                            className="action-btn clear-selection"
+                                            onClick={() => onSelectedReceiversChange && onSelectedReceiversChange([])}
+                                        >
+                                            清除選擇
+                                        </button>
+                                        <button
+                                            className="action-btn select-all"
+                                            onClick={() => {
+                                                const allIds = devices
+                                                    .filter(d => d.role === 'receiver' && d.id !== null)
+                                                    .map(d => d.id as number)
+                                                onSelectedReceiversChange && onSelectedReceiversChange(allIds)
+                                            }}
+                                        >
+                                            全部選擇
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
                 </>
             )}
