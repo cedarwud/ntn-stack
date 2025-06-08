@@ -756,36 +756,254 @@ td {
   }
 }
 
-/* UAV 選擇容器 */
+/* UAV 選擇容器 - 優化版 */
 .uav-selection-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 0;
-  margin-bottom: 15px;
+  padding: 15px 0;
+  margin-bottom: 20px;
   
-  .uav-badge {
-    padding: 6px 12px;
-    border-radius: 15px;
-    font-size: 0.85rem;
+  .uav-selection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     cursor: pointer;
     transition: all 0.2s ease;
-    user-select: none;
-    background-color: rgba(60, 80, 110, 0.6);
-    color: #c0d8f0;
-    border: 1px solid rgba(80, 100, 130, 0.5);
+    border-radius: 6px;
     
     &:hover {
-      background-color: rgba(80, 100, 130, 0.7);
-      border-color: rgba(100, 120, 150, 0.7);
+      background: rgba(0, 212, 255, 0.1);
+    }
+    
+    &.expanded {
+      background: rgba(0, 212, 255, 0.15);
+      border-bottom-color: #00d4ff;
+    }
+    
+    .selection-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #00d4ff;
+    }
+    
+    .selection-count {
+      font-size: 0.8rem;
+      color: #ccc;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    
+    .header-arrow {
+      font-size: 0.8rem;
+      color: #a0c8e8;
+      transition: transform 0.2s ease;
+      
+      &.expanded {
+        transform: rotate(180deg);
+      }
+    }
+  }
+  
+  .uav-badges-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  
+  .enhanced-uav-badge {
+    position: relative;
+    padding: 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+    background: linear-gradient(135deg, rgba(60, 80, 110, 0.3) 0%, rgba(40, 60, 90, 0.3) 100%);
+    border: 2px solid rgba(80, 100, 130, 0.4);
+    backdrop-filter: blur(10px);
+    
+    &:hover {
+      background: linear-gradient(135deg, rgba(80, 100, 130, 0.4) 0%, rgba(60, 80, 110, 0.4) 100%);
+      border-color: rgba(100, 120, 150, 0.6);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
     
     &.selected {
-      background-color: rgba(74, 123, 175, 0.8);
-      color: white;
-      border-color: #4a7baf;
-      box-shadow: 0 2px 4px rgba(74, 123, 175, 0.3);
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(74, 123, 175, 0.3) 100%);
+      border-color: #00d4ff;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+      
+      .device-name {
+        color: #00d4ff;
+        font-weight: 600;
+      }
     }
+    
+    &.connected {
+      .connection-dot {
+        background: #4ade80;
+        box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+      }
+    }
+    
+    &.disconnected {
+      .connection-dot {
+        background: #ef4444;
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+      }
+      
+      .badge-info {
+        opacity: 0.6;
+      }
+    }
+    
+    .badge-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      
+      .device-name {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #e0f2fe;
+      }
+      
+      .status-indicators {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        .connection-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          animation: pulse 2s infinite;
+        }
+        
+        .signal-bars {
+          display: flex;
+          align-items: end;
+          gap: 2px;
+          
+          .signal-bar {
+            width: 3px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 1px;
+            transition: background 0.3s ease;
+            
+            &:nth-child(1) { height: 4px; }
+            &:nth-child(2) { height: 6px; }
+            &:nth-child(3) { height: 8px; }
+            &:nth-child(4) { height: 10px; }
+            
+            &.active {
+              background: #00d4ff;
+              box-shadow: 0 0 4px rgba(0, 212, 255, 0.6);
+            }
+          }
+        }
+      }
+    }
+    
+    .badge-info {
+      font-size: 0.75rem;
+      
+      .info-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 4px;
+        
+        .info-label {
+          color: #94a3b8;
+        }
+        
+        .info-value {
+          color: #cbd5e1;
+          font-family: monospace;
+        }
+        
+        .battery-level {
+          font-weight: 600;
+          
+          &.high {
+            color: #4ade80;
+          }
+          
+          &.medium {
+            color: #facc15;
+          }
+          
+          &.low {
+            color: #ef4444;
+          }
+        }
+      }
+    }
+    
+    .selection-indicator {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #00d4ff;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      .checkmark {
+        color: #1a1a2e;
+        font-size: 12px;
+        font-weight: 800;
+      }
+    }
+  }
+  
+  .selection-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    
+    .action-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &.clear-selection {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        
+        &:hover {
+          background: rgba(239, 68, 68, 0.3);
+        }
+      }
+      
+      &.select-all {
+        background: rgba(0, 212, 255, 0.2);
+        color: #00d4ff;
+        
+        &:hover {
+          background: rgba(0, 212, 255, 0.3);
+        }
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
   }
 }
 

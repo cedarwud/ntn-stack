@@ -223,6 +223,21 @@
     background-color: #4a7bff;
     color: white;
   }
+  
+  &.disabled {
+    cursor: default;
+    opacity: 0.6;
+    
+    &:hover {
+      background-color: transparent;
+      color: white;
+    }
+    
+    small {
+      margin-top: 4px;
+      font-style: italic;
+    }
+  }
 }
 
 .navbar-menu-toggle {

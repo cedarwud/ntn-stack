@@ -81,3 +81,4 @@ docker-compose.override.yml
 *.tmp
 *.temp
 *.backup
+.claude
