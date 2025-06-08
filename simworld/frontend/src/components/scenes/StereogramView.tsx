@@ -8,6 +8,7 @@ import { Device } from '../../types/device'
 import { VisibleSatelliteInfo } from '../../types/satellite'
 import { SINRLegend } from './visualization/SINRHeatmap'
 import HandoverPerformanceDashboard from '../dashboard/HandoverPerformanceDashboard'
+import E2EPerformanceMonitoringDashboard from '../dashboard/E2EPerformanceMonitoringDashboard'
 
 // 添加圖例组件
 const SatelliteLegend = () => {
@@ -61,6 +62,11 @@ interface SceneViewProps {
     handoverPredictionEnabled?: boolean
     handoverDecisionVisualizationEnabled?: boolean
     handoverPerformanceDashboardEnabled?: boolean
+    // 階段七功能狀態
+    e2ePerformanceMonitoringEnabled?: boolean
+    testResultsVisualizationEnabled?: boolean
+    performanceTrendAnalysisEnabled?: boolean
+    automatedReportGenerationEnabled?: boolean
 }
 
 export default function SceneView({
@@ -86,6 +92,10 @@ export default function SceneView({
     handoverPredictionEnabled = false,
     handoverDecisionVisualizationEnabled = false,
     handoverPerformanceDashboardEnabled = false,
+    e2ePerformanceMonitoringEnabled = false,
+    testResultsVisualizationEnabled = false,
+    performanceTrendAnalysisEnabled = false,
+    automatedReportGenerationEnabled = false,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -146,6 +156,11 @@ export default function SceneView({
             {/* 添加換手性能儀表板 - 作為HTML覆蓋層 */}
             {handoverPerformanceDashboardEnabled && (
                 <HandoverPerformanceDashboard enabled={handoverPerformanceDashboardEnabled} />
+            )}
+            
+            {/* 添加階段七HTML覆蓋層組件 */}
+            {e2ePerformanceMonitoringEnabled && (
+                <E2EPerformanceMonitoringDashboard enabled={e2ePerformanceMonitoringEnabled} />
             )}
 
             {/* 3D Canvas內容照舊，會蓋在星空上 */}
@@ -208,6 +223,9 @@ export default function SceneView({
                         failoverMechanismEnabled={failoverMechanismEnabled}
                         handoverPredictionEnabled={handoverPredictionEnabled}
                         handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
+                        testResultsVisualizationEnabled={testResultsVisualizationEnabled}
+                        performanceTrendAnalysisEnabled={performanceTrendAnalysisEnabled}
+                        automatedReportGenerationEnabled={automatedReportGenerationEnabled}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}
