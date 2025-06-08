@@ -6,6 +6,13 @@ import SINRViewer from '../viewers/SINRViewer'
 import CFRViewer from '../viewers/CFRViewer'
 import DelayDopplerViewer from '../viewers/DelayDopplerViewer'
 import TimeFrequencyViewer from '../viewers/TimeFrequencyViewer'
+import TestViewer from '../viewers/TestViewer'
+import InterferenceVisualization from '../viewers/InterferenceVisualization'
+import AIDecisionVisualization from '../viewers/AIDecisionVisualization'
+import UAVSwarmCoordinationViewer from '../viewers/UAVSwarmCoordinationViewer'
+import MeshNetworkTopologyViewer from '../viewers/MeshNetworkTopologyViewer'
+import FrequencySpectrumVisualization from '../viewers/FrequencySpectrumVisualization'
+import AIRANDecisionVisualization from '../viewers/AIRANDecisionVisualization'
 import ViewerModal from '../ui/ViewerModal'
 import { ViewerProps } from '../../types/viewer'
 import {
@@ -55,6 +62,13 @@ const Navbar: FC<NavbarProps> = ({
     const [showCFRModal, setShowCFRModal] = useState(false)
     const [showDelayDopplerModal, setShowDelayDopplerModal] = useState(false)
     const [showTimeFrequencyModal, setShowTimeFrequencyModal] = useState(false)
+    const [showTestModal, setShowTestModal] = useState(false)
+    const [showInterferenceModal, setShowInterferenceModal] = useState(false)
+    const [showAIDecisionModal, setShowAIDecisionModal] = useState(false)
+    const [showUAVSwarmModal, setShowUAVSwarmModal] = useState(false)
+    const [showMeshNetworkModal, setShowMeshNetworkModal] = useState(false)
+    const [showFrequencySpectrumModal, setShowFrequencySpectrumModal] = useState(false)
+    const [showAIRANDecisionModal, setShowAIRANDecisionModal] = useState(false)
 
     // States for last update times
     const [sinrModalLastUpdate, setSinrModalLastUpdate] = useState<string>('')
@@ -63,12 +77,30 @@ const Navbar: FC<NavbarProps> = ({
         useState<string>('')
     const [timeFrequencyModalLastUpdate, setTimeFrequencyModalLastUpdate] =
         useState<string>('')
+    const [interferenceModalLastUpdate, setInterferenceModalLastUpdate] =
+        useState<string>('')
+    const [aiDecisionModalLastUpdate, setAIDecisionModalLastUpdate] =
+        useState<string>('')
+    const [uavSwarmModalLastUpdate, setUAVSwarmModalLastUpdate] =
+        useState<string>('')
+    const [meshNetworkModalLastUpdate, setMeshNetworkModalLastUpdate] =
+        useState<string>('')
+    const [frequencySpectrumModalLastUpdate, setFrequencySpectrumModalLastUpdate] =
+        useState<string>('')
+    const [airanDecisionModalLastUpdate, setAIRANDecisionModalLastUpdate] =
+        useState<string>('')
 
     // Refs for refresh handlers
     const sinrRefreshHandlerRef = useRef<(() => void) | null>(null)
     const cfrRefreshHandlerRef = useRef<(() => void) | null>(null)
     const delayDopplerRefreshHandlerRef = useRef<(() => void) | null>(null)
     const timeFrequencyRefreshHandlerRef = useRef<(() => void) | null>(null)
+    const interferenceRefreshHandlerRef = useRef<(() => void) | null>(null)
+    const aiDecisionRefreshHandlerRef = useRef<(() => void) | null>(null)
+    const uavSwarmRefreshHandlerRef = useRef<(() => void) | null>(null)
+    const meshNetworkRefreshHandlerRef = useRef<(() => void) | null>(null)
+    const frequencySpectrumRefreshHandlerRef = useRef<(() => void) | null>(null)
+    const airanDecisionRefreshHandlerRef = useRef<(() => void) | null>(null)
 
     // States for loading status for header titles
     const [sinrIsLoadingForHeader, setSinrIsLoadingForHeader] =
@@ -81,6 +113,18 @@ const Navbar: FC<NavbarProps> = ({
         timeFrequencyIsLoadingForHeader,
         setTimeFrequencyIsLoadingForHeader,
     ] = useState<boolean>(true)
+    const [interferenceIsLoadingForHeader, setInterferenceIsLoadingForHeader] =
+        useState<boolean>(true)
+    const [aiDecisionIsLoadingForHeader, setAIDecisionIsLoadingForHeader] =
+        useState<boolean>(true)
+    const [uavSwarmIsLoadingForHeader, setUAVSwarmIsLoadingForHeader] =
+        useState<boolean>(true)
+    const [meshNetworkIsLoadingForHeader, setMeshNetworkIsLoadingForHeader] =
+        useState<boolean>(true)
+    const [frequencySpectrumIsLoadingForHeader, setFrequencySpectrumIsLoadingForHeader] =
+        useState<boolean>(true)
+    const [airanDecisionIsLoadingForHeader, setAIRANDecisionIsLoadingForHeader] =
+        useState<boolean>(true)
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen)
@@ -182,6 +226,114 @@ const Navbar: FC<NavbarProps> = ({
             setIsLoading: setTimeFrequencyIsLoadingForHeader,
             refreshHandlerRef: timeFrequencyRefreshHandlerRef,
             ViewerComponent: TimeFrequencyViewer,
+        },
+        {
+            id: 'interference',
+            menuText: '3D 干擾可視化',
+            titleConfig: {
+                base: '3D 干擾源和影響展示',
+                loading: '正在計算干擾模式...',
+                hoverRefresh: '重新計算干擾',
+            },
+            isOpen: showInterferenceModal,
+            openModal: () => setShowInterferenceModal(true),
+            closeModal: () => setShowInterferenceModal(false),
+            lastUpdate: interferenceModalLastUpdate,
+            setLastUpdate: setInterferenceModalLastUpdate,
+            isLoading: interferenceIsLoadingForHeader,
+            setIsLoading: setInterferenceIsLoadingForHeader,
+            refreshHandlerRef: interferenceRefreshHandlerRef,
+            ViewerComponent: InterferenceVisualization,
+        },
+        {
+            id: 'aiDecision',
+            menuText: 'AI 決策透明化',
+            titleConfig: {
+                base: 'AI-RAN 決策過程可視化',
+                loading: '正在分析 AI 決策過程...',
+                hoverRefresh: '重新分析決策',
+            },
+            isOpen: showAIDecisionModal,
+            openModal: () => setShowAIDecisionModal(true),
+            closeModal: () => setShowAIDecisionModal(false),
+            lastUpdate: aiDecisionModalLastUpdate,
+            setLastUpdate: setAIDecisionModalLastUpdate,
+            isLoading: aiDecisionIsLoadingForHeader,
+            setIsLoading: setAIDecisionIsLoadingForHeader,
+            refreshHandlerRef: aiDecisionRefreshHandlerRef,
+            ViewerComponent: AIDecisionVisualization,
+        },
+        {
+            id: 'uavSwarm',
+            menuText: 'UAV 群組協同',
+            titleConfig: {
+                base: 'UAV 群組 3D 軌跡和編隊顯示',
+                loading: '正在計算 UAV 群組協同...',
+                hoverRefresh: '重新載入 UAV 群組',
+            },
+            isOpen: showUAVSwarmModal,
+            openModal: () => setShowUAVSwarmModal(true),
+            closeModal: () => setShowUAVSwarmModal(false),
+            lastUpdate: uavSwarmModalLastUpdate,
+            setLastUpdate: setUAVSwarmModalLastUpdate,
+            isLoading: uavSwarmIsLoadingForHeader,
+            setIsLoading: setUAVSwarmIsLoadingForHeader,
+            refreshHandlerRef: uavSwarmRefreshHandlerRef,
+            ViewerComponent: UAVSwarmCoordinationViewer,
+        },
+        {
+            id: 'meshNetwork',
+            menuText: 'Mesh 網路拓撲',
+            titleConfig: {
+                base: 'Mesh 網路動態拓撲可視化',
+                loading: '正在分析網路拓撲...',
+                hoverRefresh: '重新分析拓撲',
+            },
+            isOpen: showMeshNetworkModal,
+            openModal: () => setShowMeshNetworkModal(true),
+            closeModal: () => setShowMeshNetworkModal(false),
+            lastUpdate: meshNetworkModalLastUpdate,
+            setLastUpdate: setMeshNetworkModalLastUpdate,
+            isLoading: meshNetworkIsLoadingForHeader,
+            setIsLoading: setMeshNetworkIsLoadingForHeader,
+            refreshHandlerRef: meshNetworkRefreshHandlerRef,
+            ViewerComponent: MeshNetworkTopologyViewer,
+        },
+        {
+            id: 'frequencySpectrum',
+            menuText: '頻譜分析',
+            titleConfig: {
+                base: '頻譜使用狀況和抗干擾效果',
+                loading: '正在掃描頻譜...',
+                hoverRefresh: '重新掃描頻譜',
+            },
+            isOpen: showFrequencySpectrumModal,
+            openModal: () => setShowFrequencySpectrumModal(true),
+            closeModal: () => setShowFrequencySpectrumModal(false),
+            lastUpdate: frequencySpectrumModalLastUpdate,
+            setLastUpdate: setFrequencySpectrumModalLastUpdate,
+            isLoading: frequencySpectrumIsLoadingForHeader,
+            setIsLoading: setFrequencySpectrumIsLoadingForHeader,
+            refreshHandlerRef: frequencySpectrumRefreshHandlerRef,
+            ViewerComponent: FrequencySpectrumVisualization,
+        },
+        {
+            id: 'airanDecision',
+            menuText: 'AI-RAN 進階決策',
+            titleConfig: {
+                base: 'AI-RAN 進階智能決策分析',
+                loading: '正在分析 AI-RAN 決策...',
+                hoverRefresh: '重新分析 AI-RAN',
+            },
+            isOpen: showAIRANDecisionModal,
+            openModal: () => setShowAIRANDecisionModal(true),
+            closeModal: () => setShowAIRANDecisionModal(false),
+            lastUpdate: airanDecisionModalLastUpdate,
+            setLastUpdate: setAIRANDecisionModalLastUpdate,
+            isLoading: airanDecisionIsLoadingForHeader,
+            setIsLoading: setAIRANDecisionIsLoadingForHeader,
+            refreshHandlerRef: airanDecisionRefreshHandlerRef,
+            ViewerComponent: AIRANDecisionVisualization,
         },
     ]
 
@@ -372,29 +524,31 @@ const Navbar: FC<NavbarProps> = ({
             </nav>
 
             {/* Render modals using ViewerModal component */}
-            {modalConfigs.map((config) => (
-                <ViewerModal
-                    key={config.id}
-                    isOpen={config.isOpen}
-                    onClose={config.closeModal}
-                    modalTitleConfig={config.titleConfig}
-                    lastUpdateTimestamp={config.lastUpdate}
-                    isLoading={config.isLoading}
-                    onRefresh={config.refreshHandlerRef.current}
-                    viewerComponent={
-                        <config.ViewerComponent
-                            onReportLastUpdateToNavbar={config.setLastUpdate}
-                            reportRefreshHandlerToNavbar={(
-                                handler: () => void
-                            ) => {
-                                config.refreshHandlerRef.current = handler
-                            }}
-                            reportIsLoadingToNavbar={config.setIsLoading}
-                            currentScene={currentScene}
-                        />
-                    }
-                />
-            ))}
+            {modalConfigs.map((config) => 
+                config.isOpen ? (
+                    <ViewerModal
+                        key={config.id}
+                        isOpen={config.isOpen}
+                        onClose={config.closeModal}
+                        modalTitleConfig={config.titleConfig}
+                        lastUpdateTimestamp={config.lastUpdate}
+                        isLoading={config.isLoading}
+                        onRefresh={config.refreshHandlerRef.current}
+                        viewerComponent={
+                            <config.ViewerComponent
+                                onReportLastUpdateToNavbar={config.setLastUpdate}
+                                reportRefreshHandlerToNavbar={(
+                                    handler: () => void
+                                ) => {
+                                    config.refreshHandlerRef.current = handler
+                                }}
+                                reportIsLoadingToNavbar={config.setIsLoading}
+                                currentScene={currentScene}
+                            />
+                        }
+                    />
+                ) : null
+            )}
         </>
     )
 }
