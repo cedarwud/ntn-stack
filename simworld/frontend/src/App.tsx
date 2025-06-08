@@ -3,7 +3,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import SceneView from './components/scenes/StereogramView'
 import Layout from './components/layout/Layout'
-import Sidebar from './components/layout/Sidebar'
+import EnhancedSidebar from './components/layout/EnhancedSidebar'
 import Navbar from './components/layout/Navbar'
 import SceneViewer from './components/scenes/FloorView'
 import ErrorBoundary from './components/ui/ErrorBoundary'
@@ -70,6 +70,17 @@ function App({ activeView }: AppProps) {
     >(null)
     const [uavAnimation, setUavAnimation] = useState(false)
     const [selectedReceiverIds, setSelectedReceiverIds] = useState<number[]>([])
+
+    // 新增階段四功能狀態
+    const [interferenceVisualizationEnabled, setInterferenceVisualizationEnabled] = useState(false)
+    const [sinrHeatmapEnabled, setSinrHeatmapEnabled] = useState(false)
+    const [aiRanVisualizationEnabled, setAiRanVisualizationEnabled] = useState(false)
+    const [manualControlEnabled, setManualControlEnabled] = useState(false) // 預設關閉手動控制
+    
+    // 新增的階段四擴展功能
+    const [sionna3DVisualizationEnabled, setSionna3DVisualizationEnabled] = useState(false)
+    const [realTimeMetricsEnabled, setRealTimeMetricsEnabled] = useState(false)
+    const [interferenceAnalyticsEnabled, setInterferenceAnalyticsEnabled] = useState(false)
 
     const sortedDevicesForSidebar = useMemo(() => {
         return [...tempDevices].sort((a, b) => {
@@ -207,6 +218,14 @@ function App({ activeView }: AppProps) {
         [selectedReceiverIds, updateDevicePositionFromUAV]
     )
 
+    const handleAutoChange = useCallback((newAuto: boolean) => {
+        setAuto(newAuto)
+        // 當自動飛行開啟時，自動關閉手動控制
+        if (newAuto && manualControlEnabled) {
+            setManualControlEnabled(false)
+        }
+    }, [manualControlEnabled])
+
     const renderActiveComponent = useCallback(() => {
         switch (activeComponent) {
             case '2DRT':
@@ -229,6 +248,13 @@ function App({ activeView }: AppProps) {
                         selectedReceiverIds={selectedReceiverIds}
                         satellites={satelliteEnabled ? skyfieldSatellites : []}
                         sceneName={currentScene}
+                        // 階段四功能狀態
+                        interferenceVisualizationEnabled={interferenceVisualizationEnabled}
+                        sinrHeatmapEnabled={sinrHeatmapEnabled}
+                        aiRanVisualizationEnabled={aiRanVisualizationEnabled}
+                        sionna3DVisualizationEnabled={sionna3DVisualizationEnabled}
+                        realTimeMetricsEnabled={realTimeMetricsEnabled}
+                        interferenceAnalyticsEnabled={interferenceAnalyticsEnabled}
                     />
                 )
             default:
@@ -253,6 +279,12 @@ function App({ activeView }: AppProps) {
         skyfieldSatellites,
         satelliteEnabled,
         currentScene,
+        interferenceVisualizationEnabled,
+        sinrHeatmapEnabled,
+        aiRanVisualizationEnabled,
+        sionna3DVisualizationEnabled,
+        realTimeMetricsEnabled,
+        interferenceAnalyticsEnabled,
     ])
 
     if (loading) {
@@ -271,7 +303,7 @@ function App({ activeView }: AppProps) {
                     <Layout
                         sidebar={
                             <ErrorBoundary fallback={<div>側邊欄發生錯誤</div>}>
-                                <Sidebar
+                                <EnhancedSidebar
                                     devices={sortedDevicesForSidebar}
                                     onDeviceChange={handleDeviceChange}
                                     onDeleteDevice={handleDeleteDevice}
@@ -282,7 +314,7 @@ function App({ activeView }: AppProps) {
                                     apiStatus={apiStatus}
                                     hasTempDevices={hasTempDevices}
                                     auto={auto}
-                                    onAutoChange={setAuto}
+                                    onAutoChange={handleAutoChange}
                                     onManualControl={handleManualControl}
                                     activeComponent={activeComponent}
                                     uavAnimation={uavAnimation}
@@ -303,6 +335,22 @@ function App({ activeView }: AppProps) {
                                     onSatelliteEnabledChange={
                                         setSatelliteEnabled
                                     }
+                                    // 新增階段四功能開關
+                                    interferenceVisualizationEnabled={interferenceVisualizationEnabled}
+                                    onInterferenceVisualizationChange={setInterferenceVisualizationEnabled}
+                                    sinrHeatmapEnabled={sinrHeatmapEnabled}
+                                    onSinrHeatmapChange={setSinrHeatmapEnabled}
+                                    aiRanVisualizationEnabled={aiRanVisualizationEnabled}
+                                    onAiRanVisualizationChange={setAiRanVisualizationEnabled}
+                                    manualControlEnabled={manualControlEnabled}
+                                    onManualControlEnabledChange={setManualControlEnabled}
+                                    // 新增的擴展功能
+                                    sionna3DVisualizationEnabled={sionna3DVisualizationEnabled}
+                                    onSionna3DVisualizationChange={setSionna3DVisualizationEnabled}
+                                    realTimeMetricsEnabled={realTimeMetricsEnabled}
+                                    onRealTimeMetricsChange={setRealTimeMetricsEnabled}
+                                    interferenceAnalyticsEnabled={interferenceAnalyticsEnabled}
+                                    onInterferenceAnalyticsChange={setInterferenceAnalyticsEnabled}
                                 />
                             </ErrorBoundary>
                         }

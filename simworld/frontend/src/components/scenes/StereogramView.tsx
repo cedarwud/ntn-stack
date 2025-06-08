@@ -6,6 +6,7 @@ import Starfield from '../ui/Starfield'
 import MainScene from './MainScene'
 import { Device } from '../../types/device'
 import { VisibleSatelliteInfo } from '../../types/satellite'
+import { SINRLegend } from './visualization/SINRHeatmap'
 
 // 添加圖例组件
 const SatelliteLegend = () => {
@@ -43,6 +44,13 @@ interface SceneViewProps {
     selectedReceiverIds?: number[]
     satellites?: VisibleSatelliteInfo[]
     sceneName: string // 新增場景名稱參數
+    // 階段四功能狀態
+    interferenceVisualizationEnabled?: boolean
+    sinrHeatmapEnabled?: boolean
+    aiRanVisualizationEnabled?: boolean
+    sionna3DVisualizationEnabled?: boolean
+    realTimeMetricsEnabled?: boolean
+    interferenceAnalyticsEnabled?: boolean
 }
 
 export default function SceneView({
@@ -55,6 +63,12 @@ export default function SceneView({
     selectedReceiverIds = [],
     satellites = [],
     sceneName,
+    interferenceVisualizationEnabled = false,
+    sinrHeatmapEnabled = false,
+    aiRanVisualizationEnabled = false,
+    sionna3DVisualizationEnabled = false,
+    realTimeMetricsEnabled = false,
+    interferenceAnalyticsEnabled = false,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -108,6 +122,9 @@ export default function SceneView({
 
             {/* 添加衛星圖例 - 只有在有衛星資料時才顯示 */}
             {satellites && satellites.length > 0 && <SatelliteLegend />}
+            
+            {/* 添加 SINR 圖例 - 只有在啟用時才顯示 */}
+            {sinrHeatmapEnabled && <SINRLegend />}
 
             {/* 3D Canvas內容照舊，會蓋在星空上 */}
             <Canvas
@@ -157,6 +174,12 @@ export default function SceneView({
                         selectedReceiverIds={selectedReceiverIds}
                         satellites={satellites}
                         sceneName={sceneName}
+                        interferenceVisualizationEnabled={interferenceVisualizationEnabled}
+                        sinrHeatmapEnabled={sinrHeatmapEnabled}
+                        aiRanVisualizationEnabled={aiRanVisualizationEnabled}
+                        sionna3DVisualizationEnabled={sionna3DVisualizationEnabled}
+                        realTimeMetricsEnabled={realTimeMetricsEnabled}
+                        interferenceAnalyticsEnabled={interferenceAnalyticsEnabled}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}

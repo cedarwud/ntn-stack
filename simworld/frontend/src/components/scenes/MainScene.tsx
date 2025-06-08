@@ -13,6 +13,12 @@ import {
     getBackendSceneName,
     getSceneTextureName,
 } from '../../utils/sceneUtils'
+import InterferenceOverlay from './visualization/InterferenceOverlay'
+import SINRHeatmap from './visualization/SINRHeatmap'
+import AIRANVisualization from './visualization/AIRANVisualization'
+import Sionna3DVisualization from './visualization/Sionna3DVisualization'
+import RealTimeMetrics from './visualization/RealTimeMetrics'
+import InterferenceAnalytics from './visualization/InterferenceAnalytics'
 
 export interface MainSceneProps {
     devices: any[]
@@ -27,6 +33,13 @@ export interface MainSceneProps {
     selectedReceiverIds?: number[]
     satellites?: VisibleSatelliteInfo[]
     sceneName: string
+    // 階段四功能狀態
+    interferenceVisualizationEnabled?: boolean
+    sinrHeatmapEnabled?: boolean
+    aiRanVisualizationEnabled?: boolean
+    sionna3DVisualizationEnabled?: boolean
+    realTimeMetricsEnabled?: boolean
+    interferenceAnalyticsEnabled?: boolean
 }
 
 const UAV_SCALE = 10
@@ -41,6 +54,12 @@ const MainScene: React.FC<MainSceneProps> = ({
     selectedReceiverIds = [],
     satellites = [],
     sceneName,
+    interferenceVisualizationEnabled = false,
+    sinrHeatmapEnabled = false,
+    aiRanVisualizationEnabled = false,
+    sionna3DVisualizationEnabled = false,
+    realTimeMetricsEnabled = false,
+    interferenceAnalyticsEnabled = false,
 }) => {
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
@@ -233,6 +252,32 @@ const MainScene: React.FC<MainSceneProps> = ({
             <primitive object={prepared} castShadow receiveShadow />
             {deviceMeshes}
             <SatelliteManager satellites={satellites} />
+            
+            {/* 階段四可視化覆蓋層 */}
+            <InterferenceOverlay 
+                devices={devices} 
+                enabled={interferenceVisualizationEnabled} 
+            />
+            <SINRHeatmap 
+                devices={devices} 
+                enabled={sinrHeatmapEnabled} 
+            />
+            <AIRANVisualization 
+                devices={devices} 
+                enabled={aiRanVisualizationEnabled} 
+            />
+            <Sionna3DVisualization 
+                devices={devices} 
+                enabled={sionna3DVisualizationEnabled} 
+            />
+            <RealTimeMetrics 
+                devices={devices} 
+                enabled={realTimeMetricsEnabled} 
+            />
+            <InterferenceAnalytics 
+                devices={devices} 
+                enabled={interferenceAnalyticsEnabled} 
+            />
         </>
     )
 }
