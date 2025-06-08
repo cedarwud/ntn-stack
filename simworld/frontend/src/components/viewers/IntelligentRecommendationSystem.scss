@@ -3,28 +3,34 @@
  */
 
 .intelligent-recommendation-system {
-  padding: 24px;
-  background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
-  border-radius: 16px;
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  width: 450px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  z-index: 1004;
+  padding: 25px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 15px;
   color: white;
-  min-height: 800px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 
   .system-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 32px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #333;
 
     h3 {
       margin: 0;
-      font-size: 28px;
-      font-weight: 700;
-      background: linear-gradient(45deg, #fff, #bdc3c7);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-size: 24px;
+      color: #00d4ff;
+      font-weight: 600;
     }
 
     .header-controls {

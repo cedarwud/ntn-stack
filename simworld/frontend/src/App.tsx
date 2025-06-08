@@ -12,7 +12,6 @@ import { Device } from './types/device'
 import { countActiveDevices } from './utils/deviceUtils'
 import { useDevices } from './hooks/useDevices'
 import { VisibleSatelliteInfo } from './types/satellite'
-import './styles/Dashboard.scss'
 
 interface AppProps {
     activeView: 'stereogram' | 'floor-plan'
@@ -98,6 +97,12 @@ function App({ activeView }: AppProps) {
     const [testResultsVisualizationEnabled, setTestResultsVisualizationEnabled] = useState(false)
     const [performanceTrendAnalysisEnabled, setPerformanceTrendAnalysisEnabled] = useState(false)
     const [automatedReportGenerationEnabled, setAutomatedReportGenerationEnabled] = useState(false)
+
+    // 階段八功能狀態
+    const [mlModelMonitoringEnabled, setMLModelMonitoringEnabled] = useState(false)
+    const [predictiveMaintenanceEnabled, setPredictiveMaintenanceEnabled] = useState(false)
+    const [adaptiveLearningEnabled, setAdaptiveLearningEnabled] = useState(false)
+    const [intelligentRecommendationEnabled, setIntelligentRecommendationEnabled] = useState(false)
 
     const sortedDevicesForSidebar = useMemo(() => {
         return [...tempDevices].sort((a, b) => {
@@ -286,6 +291,11 @@ function App({ activeView }: AppProps) {
                         testResultsVisualizationEnabled={testResultsVisualizationEnabled}
                         performanceTrendAnalysisEnabled={performanceTrendAnalysisEnabled}
                         automatedReportGenerationEnabled={automatedReportGenerationEnabled}
+                        // 階段八功能狀態
+                        mlModelMonitoringEnabled={mlModelMonitoringEnabled}
+                        predictiveMaintenanceEnabled={predictiveMaintenanceEnabled}
+                        adaptiveLearningEnabled={adaptiveLearningEnabled}
+                        intelligentRecommendationEnabled={intelligentRecommendationEnabled}
                     />
                 )
             default:
@@ -327,6 +337,10 @@ function App({ activeView }: AppProps) {
         testResultsVisualizationEnabled,
         performanceTrendAnalysisEnabled,
         automatedReportGenerationEnabled,
+        mlModelMonitoringEnabled,
+        predictiveMaintenanceEnabled,
+        adaptiveLearningEnabled,
+        intelligentRecommendationEnabled,
     ])
 
     if (loading) {
@@ -418,6 +432,15 @@ function App({ activeView }: AppProps) {
                                     onPerformanceTrendAnalysisChange={setPerformanceTrendAnalysisEnabled}
                                     automatedReportGenerationEnabled={automatedReportGenerationEnabled}
                                     onAutomatedReportGenerationChange={setAutomatedReportGenerationEnabled}
+                                    // 階段八功能狀態
+                                    mlModelMonitoringEnabled={mlModelMonitoringEnabled}
+                                    onMLModelMonitoringChange={setMLModelMonitoringEnabled}
+                                    predictiveMaintenanceEnabled={predictiveMaintenanceEnabled}
+                                    onPredictiveMaintenanceChange={setPredictiveMaintenanceEnabled}
+                                    adaptiveLearningEnabled={adaptiveLearningEnabled}
+                                    onAdaptiveLearningChange={setAdaptiveLearningEnabled}
+                                    intelligentRecommendationEnabled={intelligentRecommendationEnabled}
+                                    onIntelligentRecommendationChange={setIntelligentRecommendationEnabled}
                                 />
                             </ErrorBoundary>
                         }
