@@ -91,6 +91,14 @@ function App({ activeView }: AppProps) {
     const [handoverPredictionEnabled, setHandoverPredictionEnabled] = useState(false)
     const [handoverDecisionVisualizationEnabled, setHandoverDecisionVisualizationEnabled] = useState(false)
     const [handoverPerformanceDashboardEnabled, setHandoverPerformanceDashboardEnabled] = useState(false)
+    
+    // 3D 換手動畫狀態
+    const [handover3DAnimationEnabled, setHandover3DAnimationEnabled] = useState(true) // 預設啟用
+    const [handoverState, setHandoverState] = useState(null)
+    const [currentConnection, setCurrentConnection] = useState(null)
+    const [predictedConnection, setPredictedConnection] = useState(null)
+    const [isTransitioning, setIsTransitioning] = useState(false)
+    const [transitionProgress, setTransitionProgress] = useState(0)
 
     // 階段七功能狀態
     const [e2ePerformanceMonitoringEnabled, setE2EPerformanceMonitoringEnabled] = useState(false)
@@ -286,6 +294,17 @@ function App({ activeView }: AppProps) {
                         handoverPredictionEnabled={handoverPredictionEnabled}
                         handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
                         handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
+                        // 3D 換手動畫
+                        handover3DAnimationEnabled={handover3DAnimationEnabled}
+                        handoverState={handoverState}
+                        currentConnection={currentConnection}
+                        predictedConnection={predictedConnection}
+                        isTransitioning={isTransitioning}
+                        transitionProgress={transitionProgress}
+                        onHandoverEvent={(event) => {
+                            console.log('換手事件:', event)
+                            // 可以在這裡處理換手事件
+                        }}
                         // 階段七功能狀態
                         e2ePerformanceMonitoringEnabled={e2ePerformanceMonitoringEnabled}
                         testResultsVisualizationEnabled={testResultsVisualizationEnabled}
@@ -333,6 +352,12 @@ function App({ activeView }: AppProps) {
         handoverPredictionEnabled,
         handoverDecisionVisualizationEnabled,
         handoverPerformanceDashboardEnabled,
+        handover3DAnimationEnabled,
+        handoverState,
+        currentConnection,
+        predictedConnection,
+        isTransitioning,
+        transitionProgress,
         e2ePerformanceMonitoringEnabled,
         testResultsVisualizationEnabled,
         performanceTrendAnalysisEnabled,
@@ -441,6 +466,14 @@ function App({ activeView }: AppProps) {
                                     onAdaptiveLearningChange={setAdaptiveLearningEnabled}
                                     intelligentRecommendationEnabled={intelligentRecommendationEnabled}
                                     onIntelligentRecommendationChange={setIntelligentRecommendationEnabled}
+                                    // 3D 動畫狀態更新回調
+                                    onHandoverStateChange={setHandoverState}
+                                    onCurrentConnectionChange={setCurrentConnection}
+                                    onPredictedConnectionChange={setPredictedConnection}
+                                    onTransitionChange={(isTransitioning, progress) => {
+                                        setIsTransitioning(isTransitioning)
+                                        setTransitionProgress(progress)
+                                    }}
                                 />
                             </ErrorBoundary>
                         }

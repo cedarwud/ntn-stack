@@ -85,6 +85,12 @@ interface SidebarProps {
     onAdaptiveLearningChange?: (enabled: boolean) => void
     intelligentRecommendationEnabled?: boolean
     onIntelligentRecommendationChange?: (enabled: boolean) => void
+    
+    // 3D 動畫狀態更新回調
+    onHandoverStateChange?: (state: any) => void
+    onCurrentConnectionChange?: (connection: any) => void
+    onPredictedConnectionChange?: (connection: any) => void
+    onTransitionChange?: (isTransitioning: boolean, progress: number) => void
 }
 
 // 核心功能開關配置 - 根據 paper.md 計畫書精簡
@@ -647,6 +653,10 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                         selectedUEId={selectedReceiverIds[0]}
                                         isEnabled={true}
                                         mockMode={true}
+                                        onHandoverStateChange={onHandoverStateChange}
+                                        onCurrentConnectionChange={onCurrentConnectionChange}
+                                        onPredictedConnectionChange={onPredictedConnectionChange}
+                                        onTransitionChange={onTransitionChange}
                                     />
                                 )}
 

@@ -66,6 +66,14 @@ interface SceneViewProps {
     handoverPredictionEnabled?: boolean
     handoverDecisionVisualizationEnabled?: boolean
     handoverPerformanceDashboardEnabled?: boolean
+    // 3D 換手動畫相關
+    handover3DAnimationEnabled?: boolean
+    handoverState?: any
+    currentConnection?: any
+    predictedConnection?: any
+    isTransitioning?: boolean
+    transitionProgress?: number
+    onHandoverEvent?: (event: any) => void
     // 階段七功能狀態
     e2ePerformanceMonitoringEnabled?: boolean
     testResultsVisualizationEnabled?: boolean
@@ -101,6 +109,13 @@ export default function SceneView({
     handoverPredictionEnabled = false,
     handoverDecisionVisualizationEnabled = false,
     handoverPerformanceDashboardEnabled = false,
+    handover3DAnimationEnabled = false,
+    handoverState,
+    currentConnection,
+    predictedConnection,
+    isTransitioning = false,
+    transitionProgress = 0,
+    onHandoverEvent,
     e2ePerformanceMonitoringEnabled = false,
     testResultsVisualizationEnabled = false,
     performanceTrendAnalysisEnabled = false,
@@ -253,6 +268,13 @@ export default function SceneView({
                         failoverMechanismEnabled={failoverMechanismEnabled}
                         handoverPredictionEnabled={handoverPredictionEnabled}
                         handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
+                        handover3DAnimationEnabled={handover3DAnimationEnabled}
+                        handoverState={handoverState}
+                        currentConnection={currentConnection}
+                        predictedConnection={predictedConnection}
+                        isTransitioning={isTransitioning}
+                        transitionProgress={transitionProgress}
+                        onHandoverEvent={onHandoverEvent}
                         testResultsVisualizationEnabled={testResultsVisualizationEnabled}
                         performanceTrendAnalysisEnabled={performanceTrendAnalysisEnabled}
                         automatedReportGenerationEnabled={automatedReportGenerationEnabled}
