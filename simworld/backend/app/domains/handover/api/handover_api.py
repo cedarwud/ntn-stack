@@ -1,6 +1,6 @@
 import logging
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body, status, BackgroundTasks
 
 from app.domains.handover.models.handover_models import (
     HandoverPredictionRequest,
@@ -10,6 +10,7 @@ from app.domains.handover.models.handover_models import (
     HandoverStatusResponse,
 )
 from app.domains.handover.services.handover_service import HandoverService
+from app.domains.handover.services.fine_grained_sync_service import FineGrainedSyncService
 from app.domains.satellite.services.orbit_service import OrbitService
 from app.domains.satellite.adapters.sqlmodel_satellite_repository import SQLModelSatelliteRepository
 from app.domains.coordinates.models.coordinate_model import GeoCoordinate
