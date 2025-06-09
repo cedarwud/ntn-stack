@@ -28,6 +28,7 @@ import SatelliteHandoverDecisionVisualization from '../viewers/SatelliteHandover
 import TestResultsVisualization from '../viewers/TestResultsVisualization'
 import PerformanceTrendAnalyzer from '../viewers/PerformanceTrendAnalyzer'
 import AutomatedReportGenerator from '../viewers/AutomatedReportGenerator'
+import HandoverAnimation3D from './visualization/HandoverAnimation3D'
 
 export interface MainSceneProps {
     devices: any[]
@@ -57,6 +58,14 @@ export interface MainSceneProps {
     // 階段六功能狀態
     handoverPredictionEnabled?: boolean
     handoverDecisionVisualizationEnabled?: boolean
+    // 新增 3D 換手動畫相關 props
+    handover3DAnimationEnabled?: boolean
+    handoverState?: any
+    currentConnection?: any
+    predictedConnection?: any
+    isTransitioning?: boolean
+    transitionProgress?: number
+    onHandoverEvent?: (event: any) => void
     // 階段七功能狀態
     testResultsVisualizationEnabled?: boolean
     performanceTrendAnalysisEnabled?: boolean
@@ -87,6 +96,13 @@ const MainScene: React.FC<MainSceneProps> = ({
     failoverMechanismEnabled = false,
     handoverPredictionEnabled = false,
     handoverDecisionVisualizationEnabled = false,
+    handover3DAnimationEnabled = false,
+    handoverState,
+    currentConnection,
+    predictedConnection,
+    isTransitioning = false,
+    transitionProgress = 0,
+    onHandoverEvent,
     testResultsVisualizationEnabled = false,
     performanceTrendAnalysisEnabled = false,
     automatedReportGenerationEnabled = false,
@@ -338,6 +354,19 @@ const MainScene: React.FC<MainSceneProps> = ({
                 devices={devices} 
                 enabled={handoverDecisionVisualizationEnabled}
                 satellites={satellites} 
+            />
+            
+            {/* 3D 換手動畫 */}
+            <HandoverAnimation3D
+                devices={devices}
+                enabled={handover3DAnimationEnabled}
+                satellites={satellites}
+                handoverState={handoverState}
+                currentConnection={currentConnection}
+                predictedConnection={predictedConnection}
+                isTransitioning={isTransitioning}
+                transitionProgress={transitionProgress}
+                onHandoverEvent={onHandoverEvent}
             />
             
             {/* 階段七可視化覆蓋層 */}
