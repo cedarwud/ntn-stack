@@ -1,316 +1,420 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import TimePredictionTimeline from './TimePredictionTimeline';
-import SatelliteConnectionIndicator from './SatelliteConnectionIndicator';
-import HandoverControlPanel from './HandoverControlPanel';
-import { 
-  HandoverState, 
-  SatelliteConnection, 
-  TimePredictionData, 
-  BinarySearchIteration,
-  HandoverEvent 
-} from '../../types/handover';
-import { VisibleSatelliteInfo } from '../../types/satellite';
-import './HandoverManager.scss';
+import React, { useState, useEffect, useCallback } from 'react'
+import TimePredictionTimeline from './TimePredictionTimeline'
+import SatelliteConnectionIndicator from './SatelliteConnectionIndicator'
+import HandoverControlPanel from './HandoverControlPanel'
+import {
+    HandoverState,
+    SatelliteConnection,
+    TimePredictionData,
+    BinarySearchIteration,
+    HandoverEvent,
+} from '../../types/handover'
+import { VisibleSatelliteInfo } from '../../types/satellite'
+import './HandoverManager.scss'
 
 interface HandoverManagerProps {
-  satellites: VisibleSatelliteInfo[];
-  selectedUEId?: number;
-  isEnabled: boolean;
-  onHandoverEvent?: (event: HandoverEvent) => void;
-  mockMode?: boolean; // 用於開發測試
+    satellites: VisibleSatelliteInfo[]
+    selectedUEId?: number
+    isEnabled: boolean
+    onHandoverEvent?: (event: HandoverEvent) => void
+    mockMode?: boolean // 用於開發測試
+    // 3D 動畫狀態更新回調
+    onHandoverStateChange?: (state: HandoverState) => void
+    onCurrentConnectionChange?: (connection: SatelliteConnection | null) => void
+    onPredictedConnectionChange?: (connection: SatelliteConnection | null) => void
+    onTransitionChange?: (isTransitioning: boolean, progress: number) => void
 }
 
 const HandoverManager: React.FC<HandoverManagerProps> = ({
-  satellites,
-  selectedUEId,
-  isEnabled,
-  onHandoverEvent,
-  mockMode = true // 開發階段使用模擬數據
+    satellites,
+    selectedUEId,
+    isEnabled,
+    onHandoverEvent,
+    mockMode = true, // 開發階段使用模擬數據
+    onHandoverStateChange,
+    onCurrentConnectionChange,
+    onPredictedConnectionChange,
+    onTransitionChange,
 }) => {
-  // 換手狀態管理
-  const [handoverState, setHandoverState] = useState<HandoverState>({
-    currentSatellite: '',
-    predictedSatellite: '',
-    handoverTime: 0,
-    status: 'idle',
-    confidence: 0.95,
-    deltaT: 5 // 5秒間隔
-  });
+    // 換手狀態管理
+    const [handoverState, setHandoverState] = useState<HandoverState>({
+        currentSatellite: '',
+        predictedSatellite: '',
+        handoverTime: 0,
+        status: 'idle',
+        confidence: 0.95,
+        deltaT: 5, // 5秒間隔
+    })
 
-  // 時間預測數據
-  const [timePredictionData, setTimePredictionData] = useState<TimePredictionData>({
-    currentTime: Date.now(),
-    futureTime: Date.now() + 5000,
-    iterations: [],
-    accuracy: 0.95
-  });
+    // 時間預測數據
+    const [timePredictionData, setTimePredictionData] =
+        useState<TimePredictionData>({
+            currentTime: Date.now(),
+            futureTime: Date.now() + 5000,
+            iterations: [],
+            accuracy: 0.95,
+        })
 
-  // 衛星連接狀態
-  const [currentConnection, setCurrentConnection] = useState<SatelliteConnection | null>(null);
-  const [predictedConnection, setPredictedConnection] = useState<SatelliteConnection | null>(null);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [transitionProgress, setTransitionProgress] = useState(0);
+    // 衛星連接狀態
+    const [currentConnection, setCurrentConnection] =
+        useState<SatelliteConnection | null>(null)
+    const [predictedConnection, setPredictedConnection] =
+        useState<SatelliteConnection | null>(null)
+    const [isTransitioning, setIsTransitioning] = useState(false)
+    const [transitionProgress, setTransitionProgress] = useState(0)
 
-  // 模擬數據生成器（開發用）
-  const generateMockSatelliteConnection = useCallback((satellite: VisibleSatelliteInfo, isConnected: boolean = false): SatelliteConnection => {
-    return {
-      satelliteId: satellite.norad_id,
-      satelliteName: satellite.name,
-      elevation: satellite.elevation_deg,
-      azimuth: satellite.azimuth_deg,
-      distance: satellite.distance_km,
-      signalStrength: -60 - Math.random() * 40, // -60 to -100 dBm
-      isConnected,
-      isPredicted: !isConnected
-    };
-  }, []);
+    // 控制面板模式切換
+    const [controlMode, setControlMode] = useState<'auto' | 'manual'>('auto')
 
-  // 模擬二點預測算法
-  const simulateTwoPointPrediction = useCallback(() => {
-    if (!satellites.length) return;
+    // 模擬數據生成器（開發用）
+    const generateMockSatelliteConnection = useCallback(
+        (
+            satellite: VisibleSatelliteInfo,
+            isConnected: boolean = false
+        ): SatelliteConnection => {
+            return {
+                satelliteId: satellite.norad_id,
+                satelliteName: satellite.name,
+                elevation: satellite.elevation_deg,
+                azimuth: satellite.azimuth_deg,
+                distance: satellite.distance_km,
+                signalStrength: -60 - Math.random() * 40, // -60 to -100 dBm
+                isConnected,
+                isPredicted: !isConnected,
+            }
+        },
+        []
+    )
 
-    const now = Date.now();
-    const futureTime = now + handoverState.deltaT * 1000;
+    // 模擬二點預測算法
+    const simulateTwoPointPrediction = useCallback(() => {
+        if (!satellites.length) return
 
-    // 模擬選擇當前最佳衛星
-    const sortedSatellites = [...satellites].sort((a, b) => b.elevation_deg - a.elevation_deg);
-    const currentBest = sortedSatellites[0];
-    const futureBest = sortedSatellites[Math.random() < 0.7 ? 0 : 1]; // 70% 機率保持相同
+        const now = Date.now()
+        const futureTime = now + handoverState.deltaT * 1000
 
-    setHandoverState(prev => ({
-      ...prev,
-      currentSatellite: currentBest?.norad_id || '',
-      predictedSatellite: futureBest?.norad_id || '',
-      status: 'predicting'
-    }));
+        // 模擬選擇當前最佳衛星
+        const sortedSatellites = [...satellites].sort(
+            (a, b) => b.elevation_deg - a.elevation_deg
+        )
+        const currentBest = sortedSatellites[0]
+        const futureBest = sortedSatellites[Math.random() < 0.7 ? 0 : 1] // 70% 機率保持相同
 
-    // 更新連接狀態
-    if (currentBest) {
-      setCurrentConnection(generateMockSatelliteConnection(currentBest, true));
-    }
-    if (futureBest && futureBest.norad_id !== currentBest?.norad_id) {
-      setPredictedConnection(generateMockSatelliteConnection(futureBest, false));
-      // 模擬需要換手
-      simulateBinarySearch(now, futureTime);
-    } else {
-      setPredictedConnection(null);
-      setHandoverState(prev => ({ ...prev, handoverTime: 0, status: 'idle' }));
-    }
+        setHandoverState((prev) => ({
+            ...prev,
+            currentSatellite: currentBest?.norad_id || '',
+            predictedSatellite: futureBest?.norad_id || '',
+            status: 'predicting',
+        }))
 
-    // 更新時間預測數據
-    setTimePredictionData({
-      currentTime: now,
-      futureTime,
-      handoverTime: futureBest?.norad_id !== currentBest?.norad_id ? now + 2500 : undefined,
-      iterations: [],
-      accuracy: 0.95 + Math.random() * 0.04 // 95-99%
-    });
-  }, [satellites, handoverState.deltaT, generateMockSatelliteConnection]);
-
-  // 模擬 Binary Search Refinement
-  const simulateBinarySearch = useCallback((startTime: number, endTime: number) => {
-    const iterations: BinarySearchIteration[] = [];
-    let currentStart = startTime;
-    let currentEnd = endTime;
-    let iterationCount = 0;
-    const targetPrecision = 0.1; // 100ms
-
-    const performIteration = () => {
-      iterationCount++;
-      const midTime = (currentStart + currentEnd) / 2;
-      const precision = (currentEnd - currentStart) / 1000; // 轉換為秒
-      
-      const iteration: BinarySearchIteration = {
-        iteration: iterationCount,
-        startTime: currentStart,
-        endTime: currentEnd,
-        midTime,
-        satellite: `SAT-${Math.floor(Math.random() * 1000)}`,
-        precision,
-        completed: precision <= targetPrecision
-      };
-
-      iterations.push(iteration);
-
-      if (precision > targetPrecision && iterationCount < 10) {
-        // 模擬縮小搜索範圍
-        if (Math.random() < 0.5) {
-          currentEnd = midTime;
-        } else {
-          currentStart = midTime;
+        // 更新連接狀態
+        if (currentBest) {
+            setCurrentConnection(
+                generateMockSatelliteConnection(currentBest, true)
+            )
         }
-        
-        setTimeout(() => performIteration(), 500); // 500ms 延遲模擬計算時間
-      } else {
-        // 搜索完成
-        const finalHandoverTime = midTime;
-        setHandoverState(prev => ({
-          ...prev,
-          handoverTime: finalHandoverTime,
-          status: 'idle'
-        }));
-        
-        setTimePredictionData(prev => ({
-          ...prev,
-          handoverTime: finalHandoverTime,
-          iterations
-        }));
-      }
-    };
+        if (futureBest && futureBest.norad_id !== currentBest?.norad_id) {
+            setPredictedConnection(
+                generateMockSatelliteConnection(futureBest, false)
+            )
+            // 模擬需要換手
+            simulateBinarySearch(now, futureTime)
+        } else {
+            setPredictedConnection(null)
+            setHandoverState((prev) => ({
+                ...prev,
+                handoverTime: 0,
+                status: 'idle',
+            }))
+        }
 
-    performIteration();
-  }, []);
+        // 更新時間預測數據
+        setTimePredictionData({
+            currentTime: now,
+            futureTime,
+            handoverTime:
+                futureBest?.norad_id !== currentBest?.norad_id
+                    ? now + 2500
+                    : undefined,
+            iterations: [],
+            accuracy: 0.95 + Math.random() * 0.04, // 95-99%
+        })
+    }, [satellites, handoverState.deltaT, generateMockSatelliteConnection])
 
-  // 手動換手處理
-  const handleManualHandover = useCallback(async (targetSatelliteId: string) => {
-    const targetSatellite = satellites.find(s => s.norad_id === targetSatelliteId);
-    if (!targetSatellite || !currentConnection) return;
+    // 模擬 Binary Search Refinement
+    const simulateBinarySearch = useCallback(
+        (startTime: number, endTime: number) => {
+            const iterations: BinarySearchIteration[] = []
+            let currentStart = startTime
+            let currentEnd = endTime
+            let iterationCount = 0
+            const targetPrecision = 0.1 // 100ms
 
-    setHandoverState(prev => ({ ...prev, status: 'handover' }));
-    setIsTransitioning(true);
-    setTransitionProgress(0);
+            const performIteration = () => {
+                iterationCount++
+                const midTime = (currentStart + currentEnd) / 2
+                const precision = (currentEnd - currentStart) / 1000 // 轉換為秒
 
-    // 創建換手事件
-    const handoverEvent: HandoverEvent = {
-      id: `handover_${Date.now()}`,
-      timestamp: Date.now(),
-      fromSatellite: currentConnection.satelliteId,
-      toSatellite: targetSatelliteId,
-      duration: 0,
-      success: false,
-      reason: 'manual'
-    };
+                const iteration: BinarySearchIteration = {
+                    iteration: iterationCount,
+                    startTime: currentStart,
+                    endTime: currentEnd,
+                    midTime,
+                    satellite: `SAT-${Math.floor(Math.random() * 1000)}`,
+                    precision,
+                    completed: precision <= targetPrecision,
+                }
 
-    // 模擬換手過程
-    const startTime = Date.now();
-    const handoverDuration = 2000 + Math.random() * 3000; // 2-5秒
+                iterations.push(iteration)
 
-    const progressInterval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / handoverDuration, 1);
-      setTransitionProgress(progress);
+                if (precision > targetPrecision && iterationCount < 10) {
+                    // 模擬縮小搜索範圍
+                    if (Math.random() < 0.5) {
+                        currentEnd = midTime
+                    } else {
+                        currentStart = midTime
+                    }
 
-      if (progress >= 1) {
-        clearInterval(progressInterval);
-        
-        // 換手完成
-        const success = Math.random() > 0.1; // 90% 成功率
-        const newConnection = generateMockSatelliteConnection(targetSatellite, true);
-        
-        setCurrentConnection(newConnection);
-        setPredictedConnection(null);
-        setIsTransitioning(false);
-        setTransitionProgress(0);
-        
-        setHandoverState(prev => ({
-          ...prev,
-          currentSatellite: targetSatelliteId,
-          status: success ? 'complete' : 'failed'
-        }));
+                    setTimeout(() => performIteration(), 500) // 500ms 延遲模擬計算時間
+                } else {
+                    // 搜索完成
+                    const finalHandoverTime = midTime
+                    setHandoverState((prev) => ({
+                        ...prev,
+                        handoverTime: finalHandoverTime,
+                        status: 'idle',
+                    }))
 
-        // 發送換手事件
-        const completedEvent: HandoverEvent = {
-          ...handoverEvent,
-          duration: Date.now() - startTime,
-          success
-        };
-        onHandoverEvent?.(completedEvent);
+                    setTimePredictionData((prev) => ({
+                        ...prev,
+                        handoverTime: finalHandoverTime,
+                        iterations,
+                    }))
+                }
+            }
 
-        // 2秒後重置狀態
-        setTimeout(() => {
-          setHandoverState(prev => ({ ...prev, status: 'idle' }));
-        }, 2000);
-      }
-    }, 100);
+            performIteration()
+        },
+        []
+    )
 
-  }, [satellites, currentConnection, generateMockSatelliteConnection, onHandoverEvent]);
+    // 手動換手處理
+    const handleManualHandover = useCallback(
+        async (targetSatelliteId: string) => {
+            const targetSatellite = satellites.find(
+                (s) => s.norad_id === targetSatelliteId
+            )
+            if (!targetSatellite || !currentConnection) return
 
-  // 取消換手
-  const handleCancelHandover = useCallback(() => {
-    setIsTransitioning(false);
-    setTransitionProgress(0);
-    setHandoverState(prev => ({ ...prev, status: 'idle' }));
-  }, []);
+            setHandoverState((prev) => ({ ...prev, status: 'handover' }))
+            setIsTransitioning(true)
+            setTransitionProgress(0)
 
-  // 初始化和定期更新
-  useEffect(() => {
-    if (!isEnabled || !mockMode) return;
+            // 創建換手事件
+            const handoverEvent: HandoverEvent = {
+                id: `handover_${Date.now()}`,
+                timestamp: Date.now(),
+                fromSatellite: currentConnection.satelliteId,
+                toSatellite: targetSatelliteId,
+                duration: 0,
+                success: false,
+                reason: 'manual',
+            }
 
-    // 初始化
-    simulateTwoPointPrediction();
+            // 模擬換手過程
+            const startTime = Date.now()
+            const handoverDuration = 2000 + Math.random() * 3000 // 2-5秒
 
-    // 定期更新預測（每 deltaT 秒）
-    const interval = setInterval(() => {
-      simulateTwoPointPrediction();
-    }, handoverState.deltaT * 1000);
+            const progressInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime
+                const progress = Math.min(elapsed / handoverDuration, 1)
+                setTransitionProgress(progress)
 
-    return () => clearInterval(interval);
-  }, [isEnabled, mockMode, simulateTwoPointPrediction, handoverState.deltaT]);
+                if (progress >= 1) {
+                    clearInterval(progressInterval)
 
-  // 時間更新處理
-  const handleTimeUpdate = useCallback((currentTime: number) => {
-    setTimePredictionData(prev => ({
-      ...prev,
-      currentTime
-    }));
-  }, []);
+                    // 換手完成
+                    const success = Math.random() > 0.1 // 90% 成功率
+                    const newConnection = generateMockSatelliteConnection(
+                        targetSatellite,
+                        true
+                    )
 
-  if (!isEnabled) {
+                    setCurrentConnection(newConnection)
+                    setPredictedConnection(null)
+                    setIsTransitioning(false)
+                    setTransitionProgress(0)
+
+                    setHandoverState((prev) => ({
+                        ...prev,
+                        currentSatellite: targetSatelliteId,
+                        status: success ? 'complete' : 'failed',
+                    }))
+
+                    // 發送換手事件
+                    const completedEvent: HandoverEvent = {
+                        ...handoverEvent,
+                        duration: Date.now() - startTime,
+                        success,
+                    }
+                    onHandoverEvent?.(completedEvent)
+
+                    // 2秒後重置狀態
+                    setTimeout(() => {
+                        setHandoverState((prev) => ({
+                            ...prev,
+                            status: 'idle',
+                        }))
+                    }, 2000)
+                }
+            }, 100)
+        },
+        [
+            satellites,
+            currentConnection,
+            generateMockSatelliteConnection,
+            onHandoverEvent,
+        ]
+    )
+
+    // 取消換手
+    const handleCancelHandover = useCallback(() => {
+        setIsTransitioning(false)
+        setTransitionProgress(0)
+        setHandoverState((prev) => ({ ...prev, status: 'idle' }))
+    }, [])
+
+    // 初始化和定期更新
+    useEffect(() => {
+        if (!isEnabled || !mockMode || controlMode !== 'auto') return
+
+        // 初始化
+        simulateTwoPointPrediction()
+
+        // 定期更新預測（每 deltaT 秒）- 僅在自動模式下
+        const interval = setInterval(() => {
+            simulateTwoPointPrediction()
+        }, handoverState.deltaT * 1000)
+
+        return () => clearInterval(interval)
+    }, [isEnabled, mockMode, controlMode, simulateTwoPointPrediction, handoverState.deltaT])
+
+    // 時間更新處理
+    const handleTimeUpdate = useCallback((currentTime: number) => {
+        setTimePredictionData((prev) => ({
+            ...prev,
+            currentTime,
+        }))
+    }, [])
+
+    // 狀態同步到 3D 動畫
+    useEffect(() => {
+        if (onHandoverStateChange) {
+            onHandoverStateChange(handoverState)
+        }
+    }, [handoverState, onHandoverStateChange])
+
+    useEffect(() => {
+        if (onCurrentConnectionChange) {
+            onCurrentConnectionChange(currentConnection)
+        }
+    }, [currentConnection, onCurrentConnectionChange])
+
+    useEffect(() => {
+        if (onPredictedConnectionChange) {
+            onPredictedConnectionChange(predictedConnection)
+        }
+    }, [predictedConnection, onPredictedConnectionChange])
+
+    useEffect(() => {
+        if (onTransitionChange) {
+            onTransitionChange(isTransitioning, transitionProgress)
+        }
+    }, [isTransitioning, transitionProgress, onTransitionChange])
+
+    if (!isEnabled) {
+        return (
+            <div className="handover-manager disabled">
+                <div className="disabled-message">
+                    <h3>🔒 換手管理器已停用</h3>
+                    <p>請啟用換手相關功能來使用此面板</p>
+                </div>
+            </div>
+        )
+    }
+
     return (
-      <div className="handover-manager disabled">
-        <div className="disabled-message">
-          <h3>🔒 換手管理器已停用</h3>
-          <p>請啟用換手相關功能來使用此面板</p>
+        <div className="handover-manager">
+            <div className="manager-header">
+                <h2>🔄 LEO 衛星換手管理系統</h2>
+                {selectedUEId && (
+                    <div className="selected-ue">
+                        <span>控制 UE: {selectedUEId}</span>
+                    </div>
+                )}
+            </div>
+
+            <div className="manager-content">
+                {/* 二點預測時間軸 */}
+                <TimePredictionTimeline
+                    data={timePredictionData}
+                    isActive={isEnabled}
+                    onTimeUpdate={handleTimeUpdate}
+                />
+
+                {/* 模式切換控制 */}
+                <div className="mode-switcher">
+                    <div className="switcher-header">
+                        <span className="switcher-title">換手控制模式</span>
+                    </div>
+                    <div className="switcher-tabs">
+                        <button
+                            className={`switcher-tab ${controlMode === 'auto' ? 'active' : ''}`}
+                            onClick={() => setControlMode('auto')}
+                        >
+                            <span className="tab-icon">🤖</span>
+                            <span className="tab-label">自動預測</span>
+                        </button>
+                        <button
+                            className={`switcher-tab ${controlMode === 'manual' ? 'active' : ''}`}
+                            onClick={() => setControlMode('manual')}
+                        >
+                            <span className="tab-icon">🎮</span>
+                            <span className="tab-label">手動控制</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* 條件顯示：自動預測模式 - 衛星接入狀態指示器 */}
+                {controlMode === 'auto' && (
+                    <SatelliteConnectionIndicator
+                        currentConnection={currentConnection}
+                        predictedConnection={predictedConnection}
+                        isTransitioning={isTransitioning}
+                        transitionProgress={transitionProgress}
+                    />
+                )}
+
+                {/* 條件顯示：手動控制模式 - 手動換手控制面板 */}
+                {controlMode === 'manual' && (
+                    <HandoverControlPanel
+                        handoverState={handoverState}
+                        availableSatellites={satellites}
+                        currentConnection={currentConnection}
+                        onManualHandover={handleManualHandover}
+                        onCancelHandover={handleCancelHandover}
+                        isEnabled={isEnabled}
+                    />
+                )}
+            </div>
+
+            {/* {mockMode && (
+                <div className="mock-mode-indicator">
+                    ⚠️ 開發模式 - 使用模擬數據
+                </div>
+            )} */}
         </div>
-      </div>
-    );
-  }
+    )
+}
 
-  return (
-    <div className="handover-manager">
-      <div className="manager-header">
-        <h2>🔄 LEO 衛星換手管理系統</h2>
-        {selectedUEId && (
-          <div className="selected-ue">
-            <span>控制 UE: {selectedUEId}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="manager-content">
-        {/* 二點預測時間軸 */}
-        <TimePredictionTimeline
-          data={timePredictionData}
-          isActive={isEnabled}
-          onTimeUpdate={handleTimeUpdate}
-        />
-
-        {/* 衛星接入狀態指示器 */}
-        <SatelliteConnectionIndicator
-          currentConnection={currentConnection}
-          predictedConnection={predictedConnection}
-          isTransitioning={isTransitioning}
-          transitionProgress={transitionProgress}
-        />
-
-        {/* 手動換手控制面板 */}
-        <HandoverControlPanel
-          handoverState={handoverState}
-          availableSatellites={satellites}
-          currentConnection={currentConnection}
-          onManualHandover={handleManualHandover}
-          onCancelHandover={handleCancelHandover}
-          isEnabled={isEnabled}
-        />
-      </div>
-
-      {mockMode && (
-        <div className="mock-mode-indicator">
-          ⚠️ 開發模式 - 使用模擬數據
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default HandoverManager;
+export default HandoverManager
