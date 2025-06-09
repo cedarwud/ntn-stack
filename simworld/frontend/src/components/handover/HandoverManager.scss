@@ -53,19 +53,69 @@
     display: flex;
     flex-direction: column;
     gap: 24px;
+  }
 
-    // 響應式布局
-    @media (min-width: 1200px) {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: auto auto;
-      gap: 20px;
+  // 標籤頁導航
+  .tab-navigation {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 6px;
+    border: 1px solid rgba(64, 224, 255, 0.2);
+  }
 
-      // 時間軸橫跨兩列
-      & > :first-child {
-        grid-column: 1 / -1;
-      }
+  .tab-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: #b0d4e7;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    font-size: 14px;
+    flex: 1;
+    justify-content: center;
+
+    &:hover {
+      background: rgba(64, 224, 255, 0.1);
+      color: #e0f6ff;
     }
+
+    &.active {
+      background: rgba(64, 224, 255, 0.2);
+      color: #40e0ff;
+      font-weight: 600;
+      border: 1px solid rgba(64, 224, 255, 0.4);
+    }
+
+    .tab-icon {
+      font-size: 16px;
+    }
+
+    .tab-label {
+      white-space: nowrap;
+    }
+  }
+
+  // 標籤頁內容
+  .tab-content {
+    min-height: 400px;
+  }
+
+  .status-tab,
+  .algorithm-tab {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .disabled-message {

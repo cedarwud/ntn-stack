@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import TimePredictionTimeline from './TimePredictionTimeline'
 import SatelliteConnectionIndicator from './SatelliteConnectionIndicator'
 import HandoverControlPanel from './HandoverControlPanel'
+import SynchronizedAlgorithmVisualization from './SynchronizedAlgorithmVisualization'
 import {
     HandoverState,
     SatelliteConnection,
@@ -65,6 +66,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
     // 控制面板模式切換
     const [controlMode, setControlMode] = useState<'auto' | 'manual'>('auto')
+    
+    // 標籤頁狀態管理
+    const [activeTab, setActiveTab] = useState<'status' | 'algorithm'>('status')
 
     // 模擬數據生成器（開發用）
     const generateMockSatelliteConnection = useCallback(
@@ -385,27 +389,66 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                     onTimeUpdate={handleTimeUpdate}
                 />
 
-                {/* 條件顯示：自動預測模式 - 衛星接入狀態指示器 */}
-                {controlMode === 'auto' && (
-                    <SatelliteConnectionIndicator
-                        currentConnection={currentConnection}
-                        predictedConnection={predictedConnection}
-                        isTransitioning={isTransitioning}
-                        transitionProgress={transitionProgress}
-                    />
-                )}
+                {/* 標籤頁導航 */}
+                <div className="tab-navigation">
+                    <button 
+                        className={`tab-button ${activeTab === 'status' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('status')}
+                    >
+                        <span className="tab-icon">📡</span>
+                        <span className="tab-label">
+                            {controlMode === 'auto' ? '衛星接入狀態' : '手動控制面板'}
+                        </span>
+                    </button>
+                    {controlMode === 'auto' && (
+                        <button 
+                            className={`tab-button ${activeTab === 'algorithm' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('algorithm')}
+                        >
+                            <span className="tab-icon">🧮</span>
+                            <span className="tab-label">Fine-Grained Algorithm</span>
+                        </button>
+                    )}
+                </div>
 
-                {/* 條件顯示：手動控制模式 - 手動換手控制面板 */}
-                {controlMode === 'manual' && (
-                    <HandoverControlPanel
-                        handoverState={handoverState}
-                        availableSatellites={satellites}
-                        currentConnection={currentConnection}
-                        onManualHandover={handleManualHandover}
-                        onCancelHandover={handleCancelHandover}
-                        isEnabled={isEnabled}
-                    />
-                )}
+                {/* 標籤頁內容 */}
+                <div className="tab-content">
+                    {activeTab === 'status' && (
+                        <div className="status-tab">
+                            {controlMode === 'auto' ? (
+                                <SatelliteConnectionIndicator
+                                    currentConnection={currentConnection}
+                                    predictedConnection={predictedConnection}
+                                    isTransitioning={isTransitioning}
+                                    transitionProgress={transitionProgress}
+                                />
+                            ) : (
+                                <HandoverControlPanel
+                                    handoverState={handoverState}
+                                    availableSatellites={satellites}
+                                    currentConnection={currentConnection}
+                                    onManualHandover={handleManualHandover}
+                                    onCancelHandover={handleCancelHandover}
+                                    isEnabled={isEnabled}
+                                />
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'algorithm' && controlMode === 'auto' && (
+                        <div className="algorithm-tab">
+                            <SynchronizedAlgorithmVisualization
+                                satellites={satellites}
+                                selectedUEId={selectedUEId}
+                                isEnabled={isEnabled}
+                                onAlgorithmStep={(step) => {
+                                    console.log('算法步驟:', step)
+                                    // 可以在這裡處理算法步驟事件
+                                }}
+                            />
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* {mockMode && (

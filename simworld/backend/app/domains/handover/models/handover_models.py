@@ -24,12 +24,12 @@ class HandoverTriggerType(str, Enum):
 
 
 # 預測資料表 (R table) - 根據 IEEE INFOCOM 2024 論文
-class HandoverPredictionRecord(SQLModel, table=True):
+class HandoverPredictionTable(SQLModel, table=True):
     """
     換手預測記錄表 (R table)
     根據 IEEE INFOCOM 2024 論文的 Fine-Grained Synchronized Algorithm
     """
-    __tablename__ = "handover_prediction_record"
+    __tablename__ = "handover_prediction_table"
 
     id: Optional[int] = Field(
         default=None,
@@ -60,7 +60,7 @@ class HandoverPredictionRecord(SQLModel, table=True):
     # Binary Search Refinement 結果
     binary_search_iterations: int = Field(default=0, description="Binary Search 迭代次數")
     precision_achieved: float = Field(default=0.0, description="達到的精度 (秒)")
-    search_metadata: Optional[str] = Field(default=None, description="搜索過程元數據 JSON")
+    search_details: Optional[str] = Field(default=None, description="搜索過程詳細資訊 JSON")
     
     # 預測置信度和品質
     prediction_confidence: float = Field(description="預測置信度 (0-1)")
@@ -77,12 +77,24 @@ class BinarySearchIteration(BaseModel):
     """Binary Search Refinement 迭代記錄"""
     
     iteration: int = PydanticField(description="迭代次數")
-    start_time: datetime = PydanticField(description="搜索開始時間")
-    end_time: datetime = PydanticField(description="搜索結束時間")
-    mid_time: datetime = PydanticField(description="中點時間")
-    selected_satellite: str = PydanticField(description="中點時間選中的衛星")
+    start_time: float = PydanticField(description="搜索開始時間 (timestamp)")
+    end_time: float = PydanticField(description="搜索結束時間 (timestamp)")
+    mid_time: float = PydanticField(description="中點時間 (timestamp)")
+    satellite: str = PydanticField(description="中點時間選中的衛星")
     precision: float = PydanticField(description="當前精度 (秒)")
     completed: bool = PydanticField(description="是否完成")
+
+
+# 簡化的預測記錄 (用於服務層)
+class HandoverPredictionRecord(BaseModel):
+    """換手預測記錄 (用於內存快取)"""
+    
+    ue_id: str = PydanticField(description="UE 設備 ID")
+    current_satellite: str = PydanticField(description="當前最佳衛星 (AT)")
+    predicted_satellite: str = PydanticField(description="預測最佳衛星 (AT+Δt)")
+    handover_time: Optional[float] = PydanticField(default=None, description="換手觸發時間 Tp")
+    prediction_confidence: float = PydanticField(description="預測置信度")
+    last_updated: datetime = PydanticField(description="最後更新時間")
 
 
 # 手動換手請求
@@ -121,7 +133,7 @@ class ManualHandoverRequest(SQLModel, table=True):
     # 結果和元數據
     success: Optional[bool] = Field(default=None, description="是否成功")
     error_message: Optional[str] = Field(default=None, description="錯誤訊息")
-    metadata: Optional[str] = Field(default=None, description="額外元數據 JSON")
+    extra_data: Optional[str] = Field(default=None, description="額外資料 JSON")
 
 
 # API 請求/響應模型
@@ -140,8 +152,8 @@ class HandoverPredictionResponse(BaseModel):
     ue_id: int = PydanticField(description="UE 設備 ID")
     
     # 時間資訊
-    current_time: datetime = PydanticField(description="當前時間 T")
-    future_time: datetime = PydanticField(description="預測時間 T+Δt")
+    current_time: float = PydanticField(description="當前時間 T (timestamp)")
+    future_time: float = PydanticField(description="預測時間 T+Δt (timestamp)")
     delta_t_seconds: int = PydanticField(description="時間間隔 Δt")
     
     # 衛星選擇結果
@@ -150,9 +162,9 @@ class HandoverPredictionResponse(BaseModel):
     
     # 換手決策
     handover_required: bool = PydanticField(description="是否需要換手")
-    handover_trigger_time: Optional[datetime] = PydanticField(
+    handover_trigger_time: Optional[float] = PydanticField(
         default=None, 
-        description="換手觸發時間 Tp"
+        description="換手觸發時間 Tp (timestamp)"
     )
     
     # Binary Search 結果
