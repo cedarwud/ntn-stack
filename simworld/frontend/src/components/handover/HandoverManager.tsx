@@ -43,14 +43,14 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         handoverTime: 0,
         status: 'idle',
         confidence: 0.95,
-        deltaT: 5, // 5秒間隔
+        deltaT: 10, // 10秒間隔 - 平衡演示效果與真實感
     })
 
     // 時間預測數據
     const [timePredictionData, setTimePredictionData] =
         useState<TimePredictionData>({
             currentTime: Date.now(),
-            futureTime: Date.now() + 5000,
+            futureTime: Date.now() + 10000, // 對應 deltaT 的 10 秒
             iterations: [],
             accuracy: 0.95,
         })
@@ -134,7 +134,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             futureTime,
             handoverTime:
                 futureBest?.norad_id !== currentBest?.norad_id
-                    ? now + 2500
+                    ? now + 5000 // 調整為 5 秒，在 10 秒區間的中點
                     : undefined,
             iterations: [],
             accuracy: 0.95 + Math.random() * 0.04, // 95-99%
@@ -175,7 +175,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                         currentStart = midTime
                     }
 
-                    setTimeout(() => performIteration(), 500) // 500ms 延遲模擬計算時間
+                    setTimeout(() => performIteration(), 750) // 0.75秒延遲平衡計算時間
                 } else {
                     // 搜索完成
                     const finalHandoverTime = midTime
@@ -223,7 +223,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
             // 模擬換手過程
             const startTime = Date.now()
-            const handoverDuration = 2000 + Math.random() * 3000 // 2-5秒
+            const handoverDuration = 3500 + Math.random() * 3000 // 3.5-6.5秒 - 平衡速度與真實感
 
             const progressInterval = setInterval(() => {
                 const elapsed = Date.now() - startTime
@@ -354,36 +354,36 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                 )}
             </div>
 
+            {/* 模式切換控制 - 移到最頂部作為全局控制 */}
+            <div className="mode-switcher">
+                <div className="switcher-header">
+                    <span className="switcher-title">換手控制模式</span>
+                </div>
+                <div className="switcher-tabs">
+                    <button
+                        className={`switcher-tab ${controlMode === 'auto' ? 'active' : ''}`}
+                        onClick={() => setControlMode('auto')}
+                    >
+                        <span className="tab-icon">🤖</span>
+                        <span className="tab-label">自動預測</span>
+                    </button>
+                    <button
+                        className={`switcher-tab ${controlMode === 'manual' ? 'active' : ''}`}
+                        onClick={() => setControlMode('manual')}
+                    >
+                        <span className="tab-icon">🎮</span>
+                        <span className="tab-label">手動控制</span>
+                    </button>
+                </div>
+            </div>
+
             <div className="manager-content">
-                {/* 二點預測時間軸 */}
+                {/* 二點預測時間軸 - 在兩種模式下都顯示 */}
                 <TimePredictionTimeline
                     data={timePredictionData}
                     isActive={isEnabled}
                     onTimeUpdate={handleTimeUpdate}
                 />
-
-                {/* 模式切換控制 */}
-                <div className="mode-switcher">
-                    <div className="switcher-header">
-                        <span className="switcher-title">換手控制模式</span>
-                    </div>
-                    <div className="switcher-tabs">
-                        <button
-                            className={`switcher-tab ${controlMode === 'auto' ? 'active' : ''}`}
-                            onClick={() => setControlMode('auto')}
-                        >
-                            <span className="tab-icon">🤖</span>
-                            <span className="tab-label">自動預測</span>
-                        </button>
-                        <button
-                            className={`switcher-tab ${controlMode === 'manual' ? 'active' : ''}`}
-                            onClick={() => setControlMode('manual')}
-                        >
-                            <span className="tab-icon">🎮</span>
-                            <span className="tab-label">手動控制</span>
-                        </button>
-                    </div>
-                </div>
 
                 {/* 條件顯示：自動預測模式 - 衛星接入狀態指示器 */}
                 {controlMode === 'auto' && (

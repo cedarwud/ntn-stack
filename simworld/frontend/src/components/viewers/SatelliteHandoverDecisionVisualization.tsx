@@ -74,6 +74,11 @@ const SatelliteHandoverDecisionVisualization: React.FC<SatelliteHandoverDecision
             const uavs = devices.filter(d => d.role === 'receiver')
             const availableSatellites = satellites.length > 0 ? satellites : generateDefaultSatellites()
 
+            // 安全檢查：確保有可用的衛星
+            if (availableSatellites.length === 0) {
+                return
+            }
+
             const newDecisions: HandoverDecision[] = []
             const newPaths: HandoverPath[] = []
 
@@ -96,14 +101,18 @@ const SatelliteHandoverDecisionVisualization: React.FC<SatelliteHandoverDecision
                             isSelected: false
                         }))
 
-                    // 選擇最佳候選衛星
+                    // 選擇最佳候選衛星 - 檢查是否有候選衛星
+                    if (candidates.length === 0) {
+                        return // 跳過此次迭代，沒有候選衛星
+                    }
+                    
                     const bestCandidate = candidates.reduce((best, current) => 
                         current.score > best.score ? current : best
                     )
                     bestCandidate.isSelected = true
 
                     const decision: HandoverDecision = {
-                        id: `decision_${uav.id}_${Date.now()}`,
+                        id: `decision_${uav.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                         uavId: uav.id,
                         currentSatellite: {
                             id: currentSat.id || currentSat.norad_id,
@@ -130,7 +139,7 @@ const SatelliteHandoverDecisionVisualization: React.FC<SatelliteHandoverDecision
 
                     // 生成換手路徑
                     const path: HandoverPath = {
-                        id: `path_${uav.id}_${Date.now()}`,
+                        id: `path_${uav.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                         uavId: uav.id,
                         path: generateHandoverPath(
                             [uav.position_x || 0, (uav.position_z || 0) + 10, uav.position_y || 0],

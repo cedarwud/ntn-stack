@@ -216,6 +216,11 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onAdaptiveLearningChange,
     intelligentRecommendationEnabled = false,
     onIntelligentRecommendationChange,
+    // 3D 動畫狀態更新回調
+    onHandoverStateChange,
+    onCurrentConnectionChange,
+    onPredictedConnectionChange,
+    onTransitionChange,
 }) => {
     // 現有狀態
     const [orientationInputs, setOrientationInputs] = useState<{
