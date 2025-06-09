@@ -66,6 +66,17 @@ export const ApiRoutes = {
     getVisibleSatellites: `${API_BASE_URL}/satellite-ops/visible_satellites`,
   },
   
+  // 換手機制 API
+  handover: {
+    base: `${API_BASE_URL}/handover`,
+    prediction: `${API_BASE_URL}/handover/prediction`,
+    manualTrigger: `${API_BASE_URL}/handover/manual-trigger`,
+    getStatus: (handoverId: number) => `${API_BASE_URL}/handover/status/${handoverId}`,
+    getHistory: (ueId: number) => `${API_BASE_URL}/handover/history/${ueId}`,
+    getStatistics: `${API_BASE_URL}/handover/statistics`,
+    cancel: (handoverId: number) => `${API_BASE_URL}/handover/cancel/${handoverId}`,
+  },
+  
   // 臨時的 sionna 命名空間相關路由 (已不存在於後端，前端保留向後兼容)
   sionna: {
     getModel: (modelName: string) => `${API_BASE_URL}/sionna/models/${modelName}`,

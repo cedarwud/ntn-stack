@@ -1,0 +1,285 @@
+.time-prediction-timeline {
+  background: rgba(0, 20, 40, 0.95);
+  border: 1px solid rgba(64, 224, 255, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 16px 0;
+  color: #e0f6ff;
+  font-family: 'Monaco', 'Menlo', monospace;
+
+  .timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    
+    h3 {
+      margin: 0;
+      color: #40e0ff;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .accuracy-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+
+      .accuracy-meter {
+        position: relative;
+        width: 100px;
+        height: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
+
+        .accuracy-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #ff4444 0%, #ffaa00 50%, #44ff44 100%);
+          transition: width 0.3s ease;
+        }
+
+        .accuracy-text {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: white;
+          font-size: 10px;
+          font-weight: bold;
+          text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+      }
+    }
+  }
+
+  .timeline-container {
+    position: relative;
+    margin: 30px 0;
+
+    .timeline-track {
+      position: relative;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      overflow: hidden;
+
+      .timeline-progress {
+        height: 100%;
+        background: linear-gradient(90deg, #40e0ff, #0080ff);
+        border-radius: 4px;
+        transition: width 0.1s linear;
+      }
+
+      .handover-marker {
+        position: absolute;
+        top: -12px;
+        transform: translateX(-50%);
+        z-index: 10;
+
+        .marker-icon {
+          background: #ff6b35;
+          color: white;
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          box-shadow: 0 0 15px rgba(255, 107, 53, 0.6);
+          animation: pulse 2s infinite;
+        }
+
+        .marker-label {
+          position: absolute;
+          top: 35px;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 10px;
+          font-weight: bold;
+          color: #ff6b35;
+          text-align: center;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    .time-markers {
+      position: relative;
+      margin-top: 20px;
+
+      .time-marker {
+        position: absolute;
+        top: 0;
+
+        &.start {
+          left: 0;
+          transform: translateX(0);
+        }
+
+        &.end {
+          right: 0;
+          transform: translateX(0);
+        }
+
+        &.current {
+          transform: translateX(-50%);
+          z-index: 5;
+        }
+
+        .marker-point {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: #40e0ff;
+          border: 2px solid rgba(64, 224, 255, 0.3);
+          margin: 0 auto 8px auto;
+
+          &.current-indicator {
+            background: #ff6b35;
+            border-color: rgba(255, 107, 53, 0.3);
+            animation: pulse 1s infinite;
+          }
+        }
+
+        .marker-label {
+          text-align: center;
+          font-size: 11px;
+
+          strong {
+            display: block;
+            color: #40e0ff;
+            margin-bottom: 2px;
+          }
+
+          span {
+            color: #b0d4e7;
+            font-size: 10px;
+          }
+        }
+
+        &.current .marker-label strong {
+          color: #ff6b35;
+        }
+      }
+    }
+  }
+
+  .delta-info {
+    display: flex;
+    justify-content: space-around;
+    background: rgba(64, 224, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 20px 0;
+
+    .delta-item {
+      text-align: center;
+
+      .delta-label {
+        display: block;
+        font-size: 11px;
+        color: #b0d4e7;
+        margin-bottom: 4px;
+      }
+
+      .delta-value {
+        display: block;
+        font-size: 14px;
+        font-weight: bold;
+        color: #40e0ff;
+      }
+    }
+  }
+
+  .binary-search-iterations {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(64, 224, 255, 0.2);
+
+    h4 {
+      margin: 0 0 15px 0;
+      color: #40e0ff;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .iterations-list {
+      max-height: 200px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(64, 224, 255, 0.3) transparent;
+
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: rgba(64, 224, 255, 0.3);
+        border-radius: 3px;
+      }
+    }
+
+    .iteration-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      margin-bottom: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      border-left: 3px solid rgba(64, 224, 255, 0.3);
+      transition: all 0.3s ease;
+
+      &.active {
+        border-left-color: #ff6b35;
+        background: rgba(255, 107, 53, 0.1);
+      }
+
+      &.completed {
+        opacity: 0.7;
+      }
+
+      .iteration-number {
+        font-weight: bold;
+        color: #40e0ff;
+        min-width: 24px;
+        text-align: center;
+        font-size: 12px;
+      }
+
+      .iteration-details {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        font-size: 10px;
+
+        > div {
+          color: #b0d4e7;
+        }
+      }
+
+      .iteration-status {
+        font-size: 14px;
+      }
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+  }
+}

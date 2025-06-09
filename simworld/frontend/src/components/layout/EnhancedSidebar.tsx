@@ -8,6 +8,7 @@ import { useReceiverSelection } from '../../hooks/useReceiverSelection'
 import { VisibleSatelliteInfo } from '../../types/satellite'
 import { ApiRoutes } from '../../config/apiRoutes'
 import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName'
+import HandoverManager from '../handover/HandoverManager'
 
 interface SidebarProps {
     devices: Device[]
@@ -639,6 +640,15 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                 {/* 功能開關 */}
                                 {renderFeatureToggles()}
 
+                                {/* 換手管理器 - 當換手機制類別開啟時顯示 */}
+                                {activeCategory === 'handover' && satelliteEnabled && (
+                                    <HandoverManager
+                                        satellites={skyfieldSatellites}
+                                        selectedUEId={selectedReceiverIds[0]}
+                                        isEnabled={true}
+                                        mockMode={true}
+                                    />
+                                )}
 
                                 {/* 衛星設置 */}
                                 {satelliteEnabled && (
