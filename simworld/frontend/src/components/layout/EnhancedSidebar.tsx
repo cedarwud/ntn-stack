@@ -86,17 +86,33 @@ interface SidebarProps {
     onIntelligentRecommendationChange?: (enabled: boolean) => void
 }
 
-// 功能開關配置
+// 核心功能開關配置 - 根據 paper.md 計畫書精簡
 interface FeatureToggle {
     id: string
     label: string
-    category: 'basic' | 'intelligence' | 'network' | 'coordination' | 'visualization'
+    category: 'basic' | 'handover' | 'quality' | 'network'
     enabled: boolean
     onToggle: (enabled: boolean) => void
     icon?: string
     description?: string
-    hidden?: boolean // 新增 hidden 屬性
+    hidden?: boolean
 }
+
+// 定義核心功能和隱藏功能 - 未來擴展用
+// const CORE_HANDOVER_FEATURES = {
+//     basic: ['auto', 'uavAnimation', 'satelliteEnabled'],
+//     handover: ['handoverPrediction', 'handoverDecision', 'handoverPerformance'],
+//     quality: ['sinrHeatmap', 'interferenceVisualization'],
+//     network: ['satelliteUAVConnection']
+// }
+
+// const HIDDEN_FEATURES = [
+//     'adaptiveLearning', 'predictiveMaintenance', 'testVisualization',
+//     'intelligentRecommendation', 'automatedReporting', 'mlModelMonitoring',
+//     'e2ePerformanceMonitoring', 'performanceTrendAnalysis', 'realTimeMetrics',
+//     'interferenceAnalytics', 'sionna3DVisualization', 'uavSwarmCoordination',
+//     'meshNetworkTopology', 'failoverMechanism', 'aiRanVisualization'
+// ]
 
 // Helper function to fetch visible satellites
 async function fetchVisibleSatellites(
@@ -206,7 +222,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 
     // 擴展的UI狀態
     const [showControlPanel, setShowControlPanel] = useState(true)
-    const [activeCategory, setActiveCategory] = useState<string>('basic')
+    const [activeCategory, setActiveCategory] = useState<string>('handover') // 默認顯示換手機制
     const [showTempDevices, setShowTempDevices] = useState(true)
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
     const [showDesiredDevices, setShowDesiredDevices] = useState(false)
@@ -239,12 +255,12 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         }
     }
 
-    // 功能開關配置
+    // 精簡的核心功能開關配置 - 僅保留 8 個核心功能
     const featureToggles: FeatureToggle[] = [
-        // 基礎控制
+        // 基礎控制 (3個)
         {
             id: 'auto',
-            label: '自動飛行',
+            label: '自動飛行模式',
             category: 'basic',
             enabled: auto,
             onToggle: onAutoChange,
@@ -252,8 +268,8 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             description: 'UAV 自動飛行模式'
         },
         {
-            id: 'animation',
-            label: 'UAV 動畫',
+            id: 'uavAnimation',
+            label: 'UAV 飛行動畫',
             category: 'basic',
             enabled: uavAnimation,
             onToggle: onUavAnimationChange,
@@ -261,230 +277,97 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             description: 'UAV 飛行動畫效果'
         },
         {
-            id: 'manualControl',
-            label: '手動控制',
-            category: 'basic',
-            enabled: manualControlEnabled,
-            onToggle: onManualControlEnabledChange || (() => {}),
-            icon: '🕹️',
-            description: '顯示 UAV 手動控制面板',
-            hidden: auto // 自動飛行開啟時隱藏此開關
-        },
-        {
-            id: 'satellite',
-            label: '衛星顯示',
+            id: 'satelliteEnabled',
+            label: '衛星星座顯示',
             category: 'basic',
             enabled: satelliteEnabled,
             onToggle: onSatelliteEnabledChange || (() => {}),
             icon: '🛰️',
-            description: 'OneWeb 衛星星座顯示'
+            description: 'LEO 衛星星座顯示'
         },
         
-        // 智能分析
-        {
-            id: 'aiRanVisualization',
-            label: 'AI-RAN 決策',
-            category: 'intelligence',
-            enabled: aiRanVisualizationEnabled,
-            onToggle: onAiRanVisualizationChange || (() => {}),
-            icon: '🧠',
-            description: 'AI-RAN 抗干擾決策過程可視化'
-        },
-        {
-            id: 'interferenceAnalytics',
-            label: '干擾分析引擎',
-            category: 'intelligence',
-            enabled: interferenceAnalyticsEnabled,
-            onToggle: onInterferenceAnalyticsChange || (() => {}),
-            icon: '🔍',
-            description: '智能干擾模式分析與預測'
-        },
-        {
-            id: 'mlModelMonitoring',
-            label: 'ML 模型監控',
-            category: 'intelligence',
-            enabled: mlModelMonitoringEnabled,
-            onToggle: onMLModelMonitoringChange || (() => {}),
-            icon: '🤖',
-            description: '機器學習模型訓練、評估和性能監控'
-        },
-        {
-            id: 'adaptiveLearning',
-            label: '自適應學習系統',
-            category: 'intelligence',
-            enabled: adaptiveLearningEnabled,
-            onToggle: onAdaptiveLearningChange || (() => {}),
-            icon: '🎯',
-            description: '機器學習模型的自適應學習和持續優化'
-        },
-        {
-            id: 'intelligentRecommendation',
-            label: '智能推薦系統',
-            category: 'intelligence',
-            enabled: intelligentRecommendationEnabled,
-            onToggle: onIntelligentRecommendationChange || (() => {}),
-            icon: '💡',
-            description: '智能化的最佳化建議和決策支援'
-        },
-        {
-            id: 'predictiveMaintenance',
-            label: '預測性維護',
-            category: 'intelligence',
-            enabled: predictiveMaintenanceEnabled,
-            onToggle: onPredictiveMaintenanceChange || (() => {}),
-            icon: '🔧',
-            description: '設備故障預測、維護排程和系統健康度監控'
-        },
-        
-        // 網路管理
-        {
-            id: 'meshNetworkTopology',
-            label: '網狀網路拓撲',
-            category: 'network',
-            enabled: meshNetworkTopologyEnabled,
-            onToggle: onMeshNetworkTopologyChange || (() => {}),
-            icon: '🕸️',
-            description: '網狀網路拓撲結構可視化'
-        },
-        {
-            id: 'satelliteUavConnection',
-            label: '衛星-UAV 連接',
-            category: 'network',
-            enabled: satelliteUavConnectionEnabled,
-            onToggle: handleSatelliteUavConnectionToggle,
-            icon: '🛰️',
-            description: '衛星與 UAV 連接狀態監控'
-        },
-        {
-            id: 'failoverMechanism',
-            label: '故障轉移機制',
-            category: 'network',
-            enabled: failoverMechanismEnabled,
-            onToggle: onFailoverMechanismChange || (() => {}),
-            icon: '🔄',
-            description: '智能網路故障轉移機制'
-        },
-        {
-            id: 'realTimeMetrics',
-            label: '即時性能指標',
-            category: 'network',
-            enabled: realTimeMetricsEnabled,
-            onToggle: onRealTimeMetricsChange || (() => {}),
-            icon: '⚡',
-            description: '即時網路性能指標監控'
-        },
-        {
-            id: 'e2ePerformanceMonitoring',
-            label: '端到端性能監控',
-            category: 'network',
-            enabled: e2ePerformanceMonitoringEnabled,
-            onToggle: onE2EPerformanceMonitoringChange || (() => {}),
-            icon: '📈',
-            description: '完整的端到端系統性能監控儀表板'
-        },
-        {
-            id: 'performanceTrendAnalysis',
-            label: '性能趨勢分析',
-            category: 'network',
-            enabled: performanceTrendAnalysisEnabled,
-            onToggle: onPerformanceTrendAnalysisChange || (() => {}),
-            icon: '📊',
-            description: '長期性能趨勢分析與預測'
-        },
-        
-        // 協調控制
-        {
-            id: 'uavSwarmCoordination',
-            label: 'UAV 群集協調',
-            category: 'coordination',
-            enabled: uavSwarmCoordinationEnabled,
-            onToggle: onUavSwarmCoordinationChange || (() => {}),
-            icon: '🚁',
-            description: '多 UAV 編隊飛行與群集協調'
-        },
+        // 換手核心功能 (3個)
         {
             id: 'handoverPrediction',
-            label: '換手預測分析',
-            category: 'coordination',
+            label: '換手預測顯示',
+            category: 'handover',
             enabled: handoverPredictionEnabled,
             onToggle: onHandoverPredictionChange || (() => {}),
             icon: '🔮',
-            description: '智能衛星換手預測與時間軸分析'
+            description: '衛星換手預測與時間軸分析'
         },
         {
-            id: 'handoverDecisionVisualization',
+            id: 'handoverDecision',
             label: '換手決策可視化',
-            category: 'coordination',
+            category: 'handover',
             enabled: handoverDecisionVisualizationEnabled,
             onToggle: onHandoverDecisionVisualizationChange || (() => {}),
-            icon: '🔄',
-            description: '衛星換手決策過程 3D 可視化'
+            icon: '🎯',
+            description: '換手決策過程 3D 可視化'
         },
         {
-            id: 'handoverPerformanceDashboard',
+            id: 'handoverPerformance',
             label: '換手性能監控',
-            category: 'coordination',
+            category: 'handover',
             enabled: handoverPerformanceDashboardEnabled,
             onToggle: onHandoverPerformanceDashboardChange || (() => {}),
             icon: '📊',
-            description: '換手性能統計與分析儀表板'
-        },
-        {
-            id: 'automatedReportGeneration',
-            label: '自動化報告生成',
-            category: 'coordination',
-            enabled: automatedReportGenerationEnabled,
-            onToggle: onAutomatedReportGenerationChange || (() => {}),
-            icon: '📋',
-            description: '自動化系統報告生成與管理'
+            description: '換手性能統計與分析'
         },
         
-        // 可視化
-        {
-            id: 'interferenceVisualization',
-            label: '干擾源可視化',
-            category: 'visualization',
-            enabled: interferenceVisualizationEnabled,
-            onToggle: onInterferenceVisualizationChange || (() => {}),
-            icon: '📡',
-            description: '3D 干擾源範圍和影響可視化'
-        },
+        // 干擾與通信品質 (2個)
         {
             id: 'sinrHeatmap',
             label: 'SINR 熱力圖',
-            category: 'visualization',
+            category: 'quality',
             enabled: sinrHeatmapEnabled,
             onToggle: onSinrHeatmapChange || (() => {}),
             icon: '🔥',
             description: '地面 SINR 信號強度熱力圖'
         },
         {
-            id: 'sionna3DVisualization',
-            label: 'Sionna 3D 模擬',
-            category: 'visualization',
-            enabled: sionna3DVisualizationEnabled,
-            onToggle: onSionna3DVisualizationChange || (() => {}),
-            icon: '📊',
-            description: 'Sionna 3D 無線環境模擬與可視化'
+            id: 'interferenceVisualization',
+            label: '干擾源可視化',
+            category: 'quality',
+            enabled: interferenceVisualizationEnabled,
+            onToggle: onInterferenceVisualizationChange || (() => {}),
+            icon: '📡',
+            description: '3D 干擾源範圍和影響可視化'
         },
+        
+        // 網路拓撲 (1個)
         {
-            id: 'testResultsVisualization',
-            label: '測試結果可視化',
-            category: 'visualization',
-            enabled: testResultsVisualizationEnabled,
-            onToggle: onTestResultsVisualizationChange || (() => {}),
-            icon: '🧪',
-            description: '測試套件狀態與結果的 3D 可視化'
+            id: 'satelliteUAVConnection',
+            label: '衛星-UAV 連接',
+            category: 'network',
+            enabled: satelliteUavConnectionEnabled,
+            onToggle: handleSatelliteUavConnectionToggle,
+            icon: '🔗',
+            description: '衛星與 UAV 連接狀態監控'
         }
+        
+        // 手動控制面板會根據自動飛行狀態動態顯示
     ]
+    
+    // 動態添加手動控制開關（當自動飛行關閉時）
+    if (!auto) {
+        featureToggles.splice(3, 0, {
+            id: 'manualControl',
+            label: '手動控制面板',
+            category: 'basic',
+            enabled: manualControlEnabled,
+            onToggle: onManualControlEnabledChange || (() => {}),
+            icon: '🕹️',
+            description: '顯示 UAV 手動控制面板'
+        })
+    }
 
-    // 類別配置
+    // 精簡的類別配置 - 只保留 4 個核心類別
     const categories = [
         { id: 'basic', label: '基礎控制', icon: '⚙️' },
-        { id: 'intelligence', label: '智能分析', icon: '🧠' },
-        { id: 'network', label: '網路管理', icon: '🕸️' },
-        { id: 'coordination', label: '協調控制', icon: '🚁' },
-        { id: 'visualization', label: '可視化', icon: '👁️' },
+        { id: 'handover', label: '換手機制', icon: '🔄' },
+        { id: 'quality', label: '通信品質', icon: '📶' },
+        { id: 'network', label: '網路連接', icon: '🛰️' }
     ]
 
     // 衛星數據獲取效果
@@ -727,7 +610,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                             onClick={() => setShowControlPanel(!showControlPanel)}
                         >
                             <span className="header-title">
-                                🎛️ 功能控制面板
+                                🎛️ LEO 衛星換手機制控制
                             </span>
                             <span className={`header-arrow ${showControlPanel ? 'expanded' : ''}`}>
                                 ▼
@@ -743,10 +626,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                             key={category.id}
                                             className={`category-tab ${
                                                 activeCategory === category.id ? 'active' : ''
-                                            } ${category.disabled ? 'disabled' : ''}`}
-                                            onClick={() => !category.disabled && setActiveCategory(category.id)}
-                                            disabled={category.disabled}
-                                            title={category.disabled ? '即將推出' : category.label}
+                                            }`}
+                                            onClick={() => setActiveCategory(category.id)}
+                                            title={category.label}
                                         >
                                             <span className="tab-icon">{category.icon}</span>
                                             <span className="tab-label">{category.label}</span>
