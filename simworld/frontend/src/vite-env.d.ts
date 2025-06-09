@@ -1,5 +1,15 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_GATEWAY_URL: string
+  readonly VITE_PORT: string
+  // 更多環境變量可以在這裡聲明
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+
 // CSS 模組類型定義
 declare module '*.module.css' {
   const classes: { [key: string]: string };
