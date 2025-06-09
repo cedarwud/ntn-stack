@@ -1,0 +1,477 @@
+# Phase 3 生產環境配置
+# Blue-Green 部署和監控系統配置
+
+# Blue-Green 部署配置
+deployment:
+  strategy: "blue-green"
+  environments:
+    blue:
+      namespace: "ntn-blue"
+      label_selector: "environment=blue"
+    green:
+      namespace: "ntn-green" 
+      label_selector: "environment=green"
+  
+  # 服務配置
+  services:
+    netstack:
+      image: "ntn-stack/netstack"
+      tag: "latest"
+      port: 8080
+      replicas: 2
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "2000m"
+          memory: "4Gi"
+      health_check:
+        endpoint: "/api/v1/health"
+        initial_delay: 30
+        timeout: 10
+        retries: 3
+        interval: 10
+      environment:
+        CUDA_VISIBLE_DEVICES: "-1"
+        PYTHONUNBUFFERED: "1"
+        
+    simworld:
+      image: "ntn-stack/simworld"
+      tag: "latest"
+      port: 8000
+      replicas: 1
+      resources:
+        requests:
+          cpu: "1000m"
+          memory: "2Gi"
+        limits:
+          cpu: "4000m"
+          memory: "8Gi"
+      health_check:
+        endpoint: "/health"
+        initial_delay: 45
+        timeout: 15
+        retries: 3
+        interval: 15
+      environment:
+        CUDA_VISIBLE_DEVICES: "-1"
+        PYOPENGL_PLATFORM: "egl"
+        DATABASE_URL: "postgresql+asyncpg://user:password@postgis:5432/appdb"
+        
+    frontend:
+      image: "ntn-stack/frontend"
+      tag: "latest"
+      port: 5173
+      replicas: 2
+      resources:
+        requests:
+          cpu: "200m"
+          memory: "512Mi"
+        limits:
+          cpu: "1000m"
+          memory: "2Gi"
+      health_check:
+        endpoint: "/"
+        initial_delay: 20
+        timeout: 5
+        retries: 3
+        interval: 10
+      environment:
+        VITE_GATEWAY_URL: "http://gateway:8080"
+        VITE_API_BASE_URL: "http://simworld:8000"
+
+  # 負載均衡器配置
+  load_balancer:
+    type: "nginx"
+    initial_weights:
+      blue: 100
+      green: 0
+    switch_strategy: "gradual" # gradual, immediate
+    switch_stages:
+      - blue: 90
+        green: 10   # Stage 1
+      - blue: 70
+        green: 30   # Stage 2
+      - blue: 50
+        green: 50   # Stage 3
+      - blue: 20
+        green: 80   # Stage 4
+      - blue: 0
+        green: 100  # Stage 5
+    stage_duration: 30 # seconds
+    
+  # 部署流程配置
+  process:
+    preparation_timeout: 300    # 5 minutes
+    health_check_timeout: 600   # 10 minutes
+    switch_timeout: 300         # 5 minutes
+    stabilization_period: 600   # 10 minutes
+    rollback_timeout: 180       # 3 minutes
+
+# 監控配置
+monitoring:
+  # 數據收集
+  collection:
+    interval: 10               # 指標收集間隔 (秒)
+    retention_days: 30         # 數據保留天數
+    export_prometheus: true    # 導出 Prometheus 格式
+    
+  # 告警評估
+  alerting:
+    evaluation_interval: 30    # 告警評估間隔 (秒)
+    group_wait: 60            # 告警分組等待時間 (秒)
+    group_interval: 300       # 告警分組間隔 (秒)
+    repeat_interval: 3600     # 告警重複間隔 (秒)
+    
+  # 通知配置
+  notifications:
+    email:
+      enabled: true
+      smtp_server: "smtp.example.com"
+      smtp_port: 587
+      username: "alerts@ntn-stack.com"
+      password: "${SMTP_PASSWORD}"
+      recipients:
+        - "ops-team@ntn-stack.com"
+        - "dev-team@ntn-stack.com"
+      templates:
+        alert: |
+          🚨 NTN Stack 生產告警
+          
+          環境: {{ .environment }}
+          服務: {{ .service }}
+          嚴重程度: {{ .severity }}
+          
+          告警詳情:
+          {{ .message }}
+          
+          開始時間: {{ .started_at }}
+          
+        resolution: |
+          ✅ NTN Stack 告警已解決
+          
+          環境: {{ .environment }}
+          服務: {{ .service }}
+          
+          解決時間: {{ .resolved_at }}
+          持續時間: {{ .duration }}
+          
+    webhook:
+      enabled: true
+      url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+      timeout: 10
+      retries: 3
+      
+    pagerduty:
+      enabled: false
+      integration_key: "${PAGERDUTY_KEY}"
+      
+# SLA 和閾值配置
+sla:
+  # Phase 3 生產環境 SLA 要求
+  requirements:
+    error_rate_threshold: 0.001        # 錯誤率 < 0.1%
+    handover_success_rate: 0.995       # Handover 成功率 > 99.5%
+    handover_latency_ms: 50.0          # Handover 延遲 < 50ms
+    system_availability: 0.999         # 系統可用性 > 99.9%
+    response_time_ms: 100.0            # API 響應時間 < 100ms
+    
+  # 監控閾值
+  thresholds:
+    # 系統資源
+    system:
+      cpu_usage_warning: 0.7          # CPU 使用率警告閾值 70%
+      cpu_usage_critical: 0.8         # CPU 使用率嚴重閾值 80%
+      memory_usage_warning: 0.7       # 記憶體使用率警告閾值 70%
+      memory_usage_critical: 0.8      # 記憶體使用率嚴重閾值 80%
+      disk_usage_warning: 0.8         # 磁碟使用率警告閾值 80%
+      disk_usage_critical: 0.9        # 磁碟使用率嚴重閾值 90%
+      
+    # 應用性能
+    application:
+      response_time_warning: 80.0      # 響應時間警告閾值 80ms
+      response_time_critical: 100.0    # 響應時間嚴重閾值 100ms
+      error_rate_warning: 0.0005      # 錯誤率警告閾值 0.05%
+      error_rate_critical: 0.001      # 錯誤率嚴重閾值 0.1%
+      throughput_min: 100             # 最小吞吐量 100 RPS
+      
+    # NTN 特定指標
+    ntn:
+      handover_latency_warning: 40.0   # Handover 延遲警告閾值 40ms
+      handover_latency_critical: 50.0  # Handover 延遲嚴重閾值 50ms
+      handover_success_warning: 0.996  # Handover 成功率警告閾值 99.6%
+      handover_success_critical: 0.995 # Handover 成功率嚴重閾值 99.5%
+      active_ue_min: 5                # 最小活躍 UE 數量
+      satellite_connectivity_min: 2    # 最小衛星連接數
+      
+    # 微服務健康
+    microservices:
+      service_down_duration: 30        # 服務下線告警時間 30s
+      circuit_breaker_open_duration: 60 # 斷路器開啟告警時間 60s
+      health_check_failure_count: 3    # 健康檢查失敗次數閾值
+      
+# 告警規則配置
+alert_rules:
+  # 系統級告警
+  - name: "high_cpu_usage"
+    metric: "system_cpu_usage"
+    condition: ">"
+    warning_threshold: 0.7
+    critical_threshold: 0.8
+    duration: 300  # 5 minutes
+    description: "系統 CPU 使用率過高"
+    runbook_url: "https://wiki.ntn-stack.com/runbooks/high-cpu"
+    
+  - name: "high_memory_usage"
+    metric: "system_memory_usage" 
+    condition: ">"
+    warning_threshold: 0.7
+    critical_threshold: 0.8
+    duration: 300
+    description: "系統記憶體使用率過高"
+    runbook_url: "https://wiki.ntn-stack.com/runbooks/high-memory"
+    
+  # 應用級告警
+  - name: "high_error_rate"
+    metric: "http_error_rate"
+    condition: ">"
+    warning_threshold: 0.0005
+    critical_threshold: 0.001
+    duration: 120  # 2 minutes
+    description: "HTTP 錯誤率超過 SLA 閾值"
+    runbook_url: "https://wiki.ntn-stack.com/runbooks/high-error-rate"
+    
+  - name: "high_response_time"
+    metric: "http_request_duration_ms"
+    condition: ">"
+    warning_threshold: 80.0
+    critical_threshold: 100.0
+    duration: 180  # 3 minutes
+    description: "API 響應時間過慢"
+    runbook_url: "https://wiki.ntn-stack.com/runbooks/slow-response"
+    
+  # NTN 特定告警
+  - name: "handover_sla_violation"
+    metric: "handover_latency_ms"
+    condition: ">"
+    warning_threshold: 40.0
+    critical_threshold: 50.0
+    duration: 60   # 1 minute
+    description: "Handover 延遲超過 SLA 要求"
+    runbook_url: "https://wiki.ntn-stack.com/runbooks/handover-latency"
+    
+  - name: "low_handover_success_rate"
+    metric: "handover_success_rate"
+    condition: "<"
+    warning_threshold: 0.996
+    critical_threshold: 0.995
+    duration: 60
+    description: "Handover 成功率低於 SLA 要求"
+    runbook_url: "https://wiki.ntn-stack.com/runbooks/handover-failures"
+    
+  - name: "satellite_connectivity_loss"
+    metric: "active_satellites"
+    condition: "<"
+    warning_threshold: 3
+    critical_threshold: 2
+    duration: 30
+    description: "衛星連接數量不足"
+    runbook_url: "https://wiki.ntn-stack.com/runbooks/satellite-connectivity"
+    
+  # 服務健康告警
+  - name: "service_down"
+    metric: "service_up"
+    condition: "=="
+    warning_threshold: 0.5
+    critical_threshold: 0
+    duration: 30
+    description: "微服務不可用"
+    runbook_url: "https://wiki.ntn-stack.com/runbooks/service-down"
+    
+  - name: "circuit_breaker_open"
+    metric: "circuit_breaker_open"
+    condition: "=="
+    critical_threshold: 1
+    duration: 60
+    description: "斷路器處於開啟狀態"
+    runbook_url: "https://wiki.ntn-stack.com/runbooks/circuit-breaker"
+
+# 測試和驗證配置  
+testing:
+  # E2E 測試套件
+  e2e_tests:
+    - name: "ue_attachment_flow"
+      description: "UE 註冊流程測試"
+      timeout: 120
+      sla_requirement: true
+      
+    - name: "conditional_handover_e2e"
+      description: "條件切換端到端測試"
+      timeout: 60
+      sla_requirement: true
+      critical: true
+      
+    - name: "multi_satellite_coordination"
+      description: "多衛星協調測試"
+      timeout: 180
+      sla_requirement: true
+      
+    - name: "failover_recovery"
+      description: "故障恢復測試"
+      timeout: 300
+      sla_requirement: false
+      
+    - name: "performance_benchmark"
+      description: "性能基準測試"
+      timeout: 600
+      sla_requirement: true
+      
+  # 負載測試
+  load_testing:
+    enabled: true
+    duration: 300          # 5 minutes
+    concurrent_users: 100
+    ramp_up_time: 60      # 1 minute
+    target_rps: 500
+    
+  # 混沌工程
+  chaos_engineering:
+    enabled: false         # 生產環境謹慎啟用
+    scenarios:
+      - name: "pod_failure"
+        frequency: "weekly"
+        targets: ["netstack", "simworld"]
+      - name: "network_latency"
+        frequency: "monthly"
+        duration: 300
+
+# 安全配置
+security:
+  # 網路政策
+  network_policies:
+    enabled: true
+    default_deny: true
+    allowed_ingress:
+      - from_namespaces: ["ingress-nginx"]
+        to_ports: [80, 443]
+      - from_services: ["monitoring"]
+        to_ports: [8080, 8000, 5173]
+        
+  # 服務網格 (如果使用 Istio)
+  service_mesh:
+    enabled: false
+    mtls_mode: "STRICT"
+    
+  # 密鑰管理
+  secrets:
+    rotation_days: 90
+    encryption_at_rest: true
+    
+# 備份和災難恢復
+backup:
+  # 數據庫備份
+  database:
+    enabled: true
+    schedule: "0 2 * * *"    # 每日 2:00 AM
+    retention_days: 30
+    encryption: true
+    
+  # 配置備份
+  configuration:
+    enabled: true
+    schedule: "0 1 * * 0"    # 每週日 1:00 AM
+    retention_weeks: 12
+    
+  # 災難恢復
+  disaster_recovery:
+    rto_minutes: 60          # Recovery Time Objective: 1 hour
+    rpo_minutes: 15          # Recovery Point Objective: 15 minutes
+    backup_regions: ["us-west-2", "eu-west-1"]
+
+# 日誌配置
+logging:
+  # 日誌等級
+  level: "INFO"
+  
+  # 結構化日誌
+  structured: true
+  format: "json"
+  
+  # 日誌聚合
+  aggregation:
+    enabled: true
+    backend: "elasticsearch"  # elasticsearch, splunk, datadog
+    retention_days: 90
+    
+  # 日誌規則
+  rules:
+    - pattern: "ERROR|CRITICAL"
+      action: "alert"
+      severity: "high"
+    - pattern: "handover.*failed"
+      action: "alert" 
+      severity: "critical"
+    - pattern: "sla.*violation"
+      action: "alert"
+      severity: "critical"
+
+# 自動縮放配置
+autoscaling:
+  # 水平 Pod 自動縮放
+  hpa:
+    enabled: true
+    min_replicas: 2
+    max_replicas: 10
+    target_cpu_utilization: 70
+    target_memory_utilization: 80
+    
+  # 垂直 Pod 自動縮放
+  vpa:
+    enabled: true
+    update_mode: "Auto"
+    
+  # 叢集自動縮放
+  cluster_autoscaler:
+    enabled: true
+    min_nodes: 3
+    max_nodes: 20
+    scale_down_delay: "10m"
+
+# 合規性和審計
+compliance:
+  # 審計日誌
+  audit_logging:
+    enabled: true
+    retention_days: 365
+    
+  # 資料隱私
+  data_privacy:
+    pii_scrubbing: true
+    encryption_at_rest: true
+    encryption_in_transit: true
+    
+  # 法規遵循
+  regulations:
+    - "GDPR"
+    - "CCPA"
+    - "SOC2"
+
+# 環境特定配置
+environments:
+  staging:
+    replicas_multiplier: 0.5
+    resources_multiplier: 0.5
+    monitoring_interval: 30
+    
+  production:
+    replicas_multiplier: 1.0
+    resources_multiplier: 1.0
+    monitoring_interval: 10
+    high_availability: true
+    
+  development:
+    replicas_multiplier: 0.2
+    resources_multiplier: 0.2
+    monitoring_interval: 60
+    debug_mode: true
