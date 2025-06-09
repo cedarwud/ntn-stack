@@ -70,9 +70,9 @@ function App({ activeView }: AppProps) {
     const [uavAnimation, setUavAnimation] = useState(false)
     const [selectedReceiverIds, setSelectedReceiverIds] = useState<number[]>([])
 
-    // 新增階段四功能狀態
-    const [interferenceVisualizationEnabled, setInterferenceVisualizationEnabled] = useState(false)
-    const [sinrHeatmapEnabled, setSinrHeatmapEnabled] = useState(false)
+    // 新增階段四功能狀態 - 核心通信品質功能預設啟用
+    const [interferenceVisualizationEnabled, setInterferenceVisualizationEnabled] = useState(true)
+    const [sinrHeatmapEnabled, setSinrHeatmapEnabled] = useState(true)
     const [aiRanVisualizationEnabled, setAiRanVisualizationEnabled] = useState(false)
     const [manualControlEnabled, setManualControlEnabled] = useState(false) // 預設關閉手動控制
     
@@ -81,16 +81,16 @@ function App({ activeView }: AppProps) {
     const [realTimeMetricsEnabled, setRealTimeMetricsEnabled] = useState(false)
     const [interferenceAnalyticsEnabled, setInterferenceAnalyticsEnabled] = useState(false)
 
-    // 階段五功能狀態
+    // 階段五功能狀態 - 衛星連接功能預設啟用
     const [uavSwarmCoordinationEnabled, setUavSwarmCoordinationEnabled] = useState(false)
     const [meshNetworkTopologyEnabled, setMeshNetworkTopologyEnabled] = useState(false)
-    const [satelliteUavConnectionEnabled, setSatelliteUavConnectionEnabled] = useState(false)
+    const [satelliteUavConnectionEnabled, setSatelliteUavConnectionEnabled] = useState(true)
     const [failoverMechanismEnabled, setFailoverMechanismEnabled] = useState(false)
 
-    // 階段六功能狀態
-    const [handoverPredictionEnabled, setHandoverPredictionEnabled] = useState(false)
-    const [handoverDecisionVisualizationEnabled, setHandoverDecisionVisualizationEnabled] = useState(false)
-    const [handoverPerformanceDashboardEnabled, setHandoverPerformanceDashboardEnabled] = useState(false)
+    // 階段六功能狀態 - 換手核心功能預設啟用
+    const [handoverPredictionEnabled, setHandoverPredictionEnabled] = useState(true)
+    const [handoverDecisionVisualizationEnabled, setHandoverDecisionVisualizationEnabled] = useState(true)
+    const [handoverPerformanceDashboardEnabled, setHandoverPerformanceDashboardEnabled] = useState(true)
 
     // 階段七功能狀態
     const [e2ePerformanceMonitoringEnabled, setE2EPerformanceMonitoringEnabled] = useState(false)
