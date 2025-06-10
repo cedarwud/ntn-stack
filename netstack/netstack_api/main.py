@@ -91,6 +91,9 @@ from .routers.ai_decision_router import router as ai_decision_router, initialize
 # 添加核心同步路由器導入
 from .routers.core_sync_router import router as core_sync_router
 
+# 添加智能回退路由器導入
+from .routers.intelligent_fallback_router import router as intelligent_fallback_router
+
 # 添加事件驅動服務導入
 from .services.event_bus_service import (
     EventBusService,
@@ -398,6 +401,9 @@ app.include_router(ai_decision_router, tags=["AI 智慧決策"])
 
 # 註冊核心同步 API 路由器
 app.include_router(core_sync_router, tags=["核心同步機制"])
+
+# 註冊智能回退 API 路由器
+app.include_router(intelligent_fallback_router, tags=["智能回退機制"])
 
 
 @app.middleware("http")
