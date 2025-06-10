@@ -8,6 +8,7 @@ import { Device } from '../../types/device'
 import { VisibleSatelliteInfo } from '../../types/satellite'
 import { SINRLegend } from './visualization/SINRHeatmap'
 import HandoverPerformanceDashboard from '../dashboard/HandoverPerformanceDashboard'
+import PredictionAccuracyDashboard from '../dashboard/PredictionAccuracyDashboard'
 import E2EPerformanceMonitoringDashboard from '../dashboard/E2EPerformanceMonitoringDashboard'
 import MLModelMonitoringDashboard from '../dashboard/MLModelMonitoringDashboard'
 import PredictiveMaintenanceViewer from '../viewers/PredictiveMaintenanceViewer'
@@ -66,6 +67,7 @@ interface SceneViewProps {
     handoverPredictionEnabled?: boolean
     handoverDecisionVisualizationEnabled?: boolean
     handoverPerformanceDashboardEnabled?: boolean
+    predictionAccuracyDashboardEnabled?: boolean
     // 3D 換手動畫相關
     handover3DAnimationEnabled?: boolean
     handoverState?: any
@@ -109,6 +111,7 @@ export default function SceneView({
     handoverPredictionEnabled = false,
     handoverDecisionVisualizationEnabled = false,
     handoverPerformanceDashboardEnabled = false,
+    predictionAccuracyDashboardEnabled = false,
     handover3DAnimationEnabled = false,
     handoverState,
     currentConnection,
@@ -184,6 +187,11 @@ export default function SceneView({
             {/* 添加換手性能儀表板 - 作為HTML覆蓋層 */}
             {handoverPerformanceDashboardEnabled && (
                 <HandoverPerformanceDashboard enabled={handoverPerformanceDashboardEnabled} />
+            )}
+            
+            {/* 添加預測精度儀表板 - 作為HTML覆蓋層 */}
+            {predictionAccuracyDashboardEnabled && (
+                <PredictionAccuracyDashboard isEnabled={predictionAccuracyDashboardEnabled} />
             )}
             
             {/* 添加階段七HTML覆蓋層組件 */}
