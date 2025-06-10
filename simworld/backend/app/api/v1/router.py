@@ -24,6 +24,8 @@ from app.domains.interference.api.interference_api import router as interference
 # Import handover domain API router
 from app.domains.handover.api.handover_api import router as handover_router
 from app.domains.handover.api.fine_grained_sync_api import router as fine_grained_sync_router
+from app.domains.handover.api.constrained_access_api import router as constrained_access_router
+from app.domains.handover.api.weather_prediction_api import router as weather_prediction_router
 
 # Import CQRS services
 from app.domains.satellite.services.cqrs_satellite_service import (
@@ -99,6 +101,12 @@ api_router.include_router(handover_router, prefix="/handover", tags=["Handover"]
 
 # Register fine-grained sync API router
 api_router.include_router(fine_grained_sync_router)
+
+# Register constrained access API router
+api_router.include_router(constrained_access_router)
+
+# Register weather prediction API router
+api_router.include_router(weather_prediction_router)
 
 
 # 添加模型資源路由

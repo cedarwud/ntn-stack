@@ -65,6 +65,8 @@ interface SidebarProps {
     onHandoverDecisionVisualizationChange?: (enabled: boolean) => void
     handoverPerformanceDashboardEnabled?: boolean
     onHandoverPerformanceDashboardChange?: (enabled: boolean) => void
+    predictionAccuracyDashboardEnabled?: boolean
+    onPredictionAccuracyDashboardChange?: (enabled: boolean) => void
     
     // 階段七功能開關
     e2ePerformanceMonitoringEnabled?: boolean
@@ -198,6 +200,8 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onHandoverDecisionVisualizationChange,
     handoverPerformanceDashboardEnabled = false,
     onHandoverPerformanceDashboardChange,
+    predictionAccuracyDashboardEnabled = false,
+    onPredictionAccuracyDashboardChange,
     // 階段七功能 props
     e2ePerformanceMonitoringEnabled = false,
     onE2EPerformanceMonitoringChange,
@@ -325,6 +329,15 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             onToggle: onHandoverPerformanceDashboardChange || (() => {}),
             icon: '📊',
             description: '換手性能統計與分析'
+        },
+        {
+            id: 'predictionAccuracyDashboard',
+            label: '預測精度儀表板',
+            category: 'handover',
+            enabled: predictionAccuracyDashboardEnabled,
+            onToggle: onPredictionAccuracyDashboardChange || (() => {}),
+            icon: '🎯',
+            description: 'IEEE INFOCOM 2024 預測準確率分析'
         },
         
         // 干擾與通信品質 (2個)
