@@ -669,21 +669,15 @@ td {
   padding: 15px;
   background: rgba(15, 25, 40, 0.8);
   border-top: 1px solid rgba(70, 90, 120, 0.3);
-  
+  display: flex;
+  justify-content: space-around;
+
   .setting-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    
-    &:last-child {
-      margin-bottom: 0;
-    }
-    
     label {
       font-size: 0.9rem;
       color: #a0c8e8;
       font-weight: 500;
+      margin-right: 10px;
     }
     
     .setting-input {
