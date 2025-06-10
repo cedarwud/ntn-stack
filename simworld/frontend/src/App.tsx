@@ -7,6 +7,8 @@ import EnhancedSidebar from './components/layout/EnhancedSidebar'
 import Navbar from './components/layout/Navbar'
 import SceneViewer from './components/scenes/FloorView'
 import ErrorBoundary from './components/ui/ErrorBoundary'
+import HandoverComparisonDashboard from './components/dashboard/HandoverComparisonDashboard'
+import RealtimePerformanceMonitor from './components/dashboard/RealtimePerformanceMonitor'
 import './styles/App.scss'
 import { Device } from './types/device'
 import { countActiveDevices } from './utils/deviceUtils'
@@ -97,6 +99,9 @@ function App({ activeView }: AppProps) {
     
     // Stage 3 異常處理功能狀態
     const [anomalyAlertSystemEnabled, setAnomalyAlertSystemEnabled] = useState(false)
+    const [handoverComparisonDashboardEnabled, setHandoverComparisonDashboardEnabled] = useState(false)
+    const [realtimePerformanceMonitorEnabled, setRealtimePerformanceMonitorEnabled] = useState(false)
+    const [scenarioTestEnvironmentEnabled, setScenarioTestEnvironmentEnabled] = useState(false)
     
     // 3D 換手動畫狀態
     const [handover3DAnimationEnabled, setHandover3DAnimationEnabled] = useState(true) // 預設啟用
@@ -305,6 +310,9 @@ function App({ activeView }: AppProps) {
                         coreNetworkSyncEnabled={coreNetworkSyncEnabled}
                         // Stage 3 異常處理功能
                         anomalyAlertSystemEnabled={anomalyAlertSystemEnabled}
+                        handoverComparisonDashboardEnabled={handoverComparisonDashboardEnabled}
+                        realtimePerformanceMonitorEnabled={realtimePerformanceMonitorEnabled}
+                        scenarioTestEnvironmentEnabled={scenarioTestEnvironmentEnabled}
                         // 3D 換手動畫
                         handover3DAnimationEnabled={handover3DAnimationEnabled}
                         handoverState={handoverState}
@@ -471,6 +479,12 @@ function App({ activeView }: AppProps) {
                                     // Stage 3 異常處理功能
                                     anomalyAlertSystemEnabled={anomalyAlertSystemEnabled}
                                     onAnomalyAlertSystemChange={setAnomalyAlertSystemEnabled}
+                                    handoverComparisonDashboardEnabled={handoverComparisonDashboardEnabled}
+                                    onHandoverComparisonDashboardChange={setHandoverComparisonDashboardEnabled}
+                                    realtimePerformanceMonitorEnabled={realtimePerformanceMonitorEnabled}
+                                    onRealtimePerformanceMonitorChange={setRealtimePerformanceMonitorEnabled}
+                                    scenarioTestEnvironmentEnabled={scenarioTestEnvironmentEnabled}
+                                    onScenarioTestEnvironmentChange={setScenarioTestEnvironmentEnabled}
                                     // 階段七功能狀態
                                     e2ePerformanceMonitoringEnabled={e2ePerformanceMonitoringEnabled}
                                     onE2EPerformanceMonitoringChange={setE2EPerformanceMonitoringEnabled}

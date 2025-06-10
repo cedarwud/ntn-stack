@@ -352,34 +352,34 @@ const MainScene: React.FC<MainSceneProps> = ({
                 enabled={failoverMechanismEnabled} 
             />
             
-            {/* 階段六可視化覆蓋層 */}
+            {/* 階段六可視化覆蓋層 - 需要衛星-UAV 連接開啟才顯示 */}
             <HandoverPredictionVisualization 
                 devices={devices} 
-                enabled={handoverPredictionEnabled}
+                enabled={handoverPredictionEnabled && satelliteUavConnectionEnabled}
                 satellites={satellites} 
             />
             <SatelliteHandoverDecisionVisualization 
                 devices={devices} 
-                enabled={handoverDecisionVisualizationEnabled}
+                enabled={handoverDecisionVisualizationEnabled && satelliteUavConnectionEnabled}
                 satellites={satellites} 
             />
             <PredictionPath3D
-                enabled={predictionPath3DEnabled}
+                enabled={predictionPath3DEnabled && satelliteUavConnectionEnabled}
                 satellites={satellites}
                 selectedUAV={selectedReceiverIds.length > 0 ? devices.find(d => d.id === selectedReceiverIds[0]) : undefined}
                 predictionTimeHorizon={300}
             />
             
-            {/* Stage 3 異常可視化 */}
+            {/* Stage 3 異常可視化 - 需要衛星-UAV 連接開啟才顯示 */}
             <HandoverAnomalyVisualization
-                enabled={anomalyAlertSystemEnabled}
+                enabled={anomalyAlertSystemEnabled && satelliteUavConnectionEnabled}
                 devices={devices}
             />
             
-            {/* 3D 換手動畫 */}
+            {/* 3D 換手動畫 - 需要衛星-UAV 連接開啟才顯示 */}
             <HandoverAnimation3D
                 devices={devices}
-                enabled={handover3DAnimationEnabled}
+                enabled={handover3DAnimationEnabled && satelliteUavConnectionEnabled}
                 satellites={satellites}
                 handoverState={handoverState}
                 currentConnection={currentConnection}

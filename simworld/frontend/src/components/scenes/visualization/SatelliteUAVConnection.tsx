@@ -233,11 +233,12 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
             <ConnectionLinksVisualization 
                 connections={connections} 
                 devices={devices} 
-                satellites={processedSatellites} 
+                satellites={processedSatellites}
+                enabled={enabled}
             />
             
             {/* 連接狀態顯示 */}
-            <ConnectionStatusDisplay metrics={connectionMetrics} />
+            <ConnectionStatusDisplay metrics={connectionMetrics} enabled={enabled} />
             
             {/* 簡化的連接質量指示器 - 只顯示前3個 */}
             {connections.slice(0, 3).map((connection) => (
@@ -245,6 +246,7 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
                     key={connection.id}
                     connection={connection}
                     devices={devices}
+                    enabled={enabled}
                 />
             ))}
         </>
@@ -258,7 +260,8 @@ const ConnectionLinksVisualization: React.FC<{
     connections: SatelliteConnection[]
     devices: any[]
     satellites: any[]
-}> = ({ connections, devices, satellites }) => {
+    enabled: boolean
+}> = ({ connections, devices, satellites, enabled }) => {
     const { scene } = useThree()
     const [satellitePositions, setSatellitePositions] = useState<Map<string, [number, number, number]>>(new Map())
     
@@ -313,6 +316,11 @@ const ConnectionLinksVisualization: React.FC<{
         }
     })
 
+    // 如果功能被關閉，不渲染任何連接線
+    if (!enabled) {
+        return null
+    }
+
     return (
         <>
             {connections.map((connection) => {
@@ -359,9 +367,10 @@ const ConnectionLinksVisualization: React.FC<{
 const ConnectionQualityIndicator: React.FC<{
     connection: SatelliteConnection
     devices: any[]
-}> = ({ connection, devices }) => {
+    enabled: boolean
+}> = ({ connection, devices, enabled }) => {
     const uav = devices.find(d => d.id === connection.uavId)
-    if (!uav) return null
+    if (!uav || !enabled) return null
 
     const getQualityColor = (signalStrength: number) => {
         if (signalStrength > -60) return '#00ff00'
@@ -411,7 +420,8 @@ const ConnectionQualityIndicator: React.FC<{
 // 移除切換事件可視化以提升性能
 
 // 連接狀態顯示組件
-const ConnectionStatusDisplay: React.FC<{ metrics: any }> = ({ metrics }) => {
+const ConnectionStatusDisplay: React.FC<{ metrics: any; enabled: boolean }> = ({ metrics, enabled }) => {
+    if (!enabled) return null
     return (
         <group position={[-80, 80, 80]}>
             <Text
