@@ -27,6 +27,9 @@ from ..models.unified_models import (
     ServiceDiscoveryResponse,
 )
 
+# Import other routers
+from .core_sync_router import router as core_sync_router
+
 logger = logging.getLogger(__name__)
 
 # 創建統一路由器
