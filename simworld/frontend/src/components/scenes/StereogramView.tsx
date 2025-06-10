@@ -17,28 +17,7 @@ import IntelligentRecommendationSystem from '../viewers/IntelligentRecommendatio
 import CoreNetworkSyncViewer from '../viewers/CoreNetworkSyncViewer'
 import AnomalyAlertSystem from '../viewers/AnomalyAlertSystem'
 
-// 添加圖例组件
-const SatelliteLegend = () => {
-    return (
-        <div className="satellite-legend">
-            <h4>衛星圖例</h4>
-            <div className="legend-item">
-                <div className="color-sample high-elevation"></div>
-                <span>高仰角衛星 - 通訊優質</span>
-            </div>
-            <div className="legend-note">
-                • 接近頭頂，信號路徑短 • 連接穩定，抗干擾能力強
-            </div>
-            <div className="legend-item">
-                <div className="color-sample low-elevation"></div>
-                <span>低仰角衛星 - 信號較弱</span>
-            </div>
-            <div className="legend-note">
-                • 接近地平線，易受地形障礙影響 • 信號衰減大，連接易中斷
-            </div>
-        </div>
-    )
-}
+// 移除衛星圖例，因為已由側邊欄開關控制，不再需要額外說明
 
 interface SceneViewProps {
     devices: Device[]
@@ -188,8 +167,7 @@ export default function SceneView({
             {/* 星空星點層（在最底層，不影響互動） */}
             <Starfield starCount={180} />
 
-            {/* 添加衛星圖例 - 只有在有衛星資料時才顯示 */}
-            {satellites && satellites.length > 0 && <SatelliteLegend />}
+            {/* 衛星圖例已移除，由側邊欄開關控制 */}
             
             {/* 添加 SINR 圖例 - 只有在啟用時才顯示 */}
             {sinrHeatmapEnabled && <SINRLegend />}
@@ -326,51 +304,6 @@ export default function SceneView({
 const styleSheet = document.createElement('style')
 styleSheet.type = 'text/css'
 styleSheet.innerHTML = `
-.satellite-legend {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 10px;
-    border-radius: 5px;
-    font-size: 12px;
-    z-index: 1000;
-}
-
-.satellite-legend h4 {
-    margin-top: 0;
-    margin-bottom: 8px;
-    font-size: 14px;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 5px;
-}
-
-.color-sample {
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    margin-right: 8px;
-}
-
-.high-elevation {
-    background-color: #ff3300;
-    box-shadow: 0 0 8px #ff3300;
-}
-
-.low-elevation {
-    background-color: #0088ff;
-    box-shadow: 0 0 8px #0088ff;
-}
-
-.legend-note {
-    font-size: 10px;
-    margin-top: 5px;
-    opacity: 0.8;
-}
+/* 衛星圖例 CSS 已移除，不再需要 */
 `
 document.head.appendChild(styleSheet)

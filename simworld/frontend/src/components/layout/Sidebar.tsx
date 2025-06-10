@@ -537,58 +537,56 @@ const Sidebar: React.FC<SidebarProps> = ({
             {satelliteEnabled && (
                 <div className="satellite-settings-section">
                     <div className="satellite-settings">
-                        <div className="setting-row-combined">
-                            <div className="setting-item">
-                                <label htmlFor="satellite-count-input">
-                                    衛星數量
-                                </label>
-                                <input
-                                    id="satellite-count-input"
-                                    type="number"
-                                    value={satelliteDisplayCount}
-                                    onChange={(e) => {
-                                        const value = parseInt(e.target.value, 10)
-                                        if (
-                                            !isNaN(value) &&
-                                            value > 0 &&
-                                            value <= 100
-                                        ) {
-                                            handleSatelliteCountChange(value)
-                                        } else if (e.target.value === '') {
-                                            handleSatelliteCountChange(1)
-                                        }
-                                    }}
-                                    min="1"
-                                    max="100"
-                                    className="setting-input"
-                                />
-                            </div>
+                        <div className="setting-row">
+                            <label htmlFor="satellite-count-input">
+                                衛星數量
+                            </label>
+                            <input
+                                id="satellite-count-input"
+                                type="number"
+                                value={satelliteDisplayCount}
+                                onChange={(e) => {
+                                    const value = parseInt(e.target.value, 10)
+                                    if (
+                                        !isNaN(value) &&
+                                        value > 0 &&
+                                        value <= 100
+                                    ) {
+                                        handleSatelliteCountChange(value)
+                                    } else if (e.target.value === '') {
+                                        handleSatelliteCountChange(1)
+                                    }
+                                }}
+                                min="1"
+                                max="100"
+                                className="setting-input"
+                            />
+                        </div>
 
-                            <div className="setting-item">
-                                <label htmlFor="min-elevation-input">
-                                    最低仰角
-                                </label>
-                                <input
-                                    id="min-elevation-input"
-                                    type="number"
-                                    value={minElevation}
-                                    onChange={(e) => {
-                                        const value = parseInt(e.target.value, 10)
-                                        if (
-                                            !isNaN(value) &&
-                                            value >= 0 &&
-                                            value <= 90
-                                        ) {
-                                            setMinElevation(value)
-                                        } else if (e.target.value === '') {
-                                            setMinElevation(0)
-                                        }
-                                    }}
-                                    min="0"
-                                    max="90"
-                                    className="setting-input"
-                                />
-                            </div>
+                        <div className="setting-row">
+                            <label htmlFor="min-elevation-input">
+                                最低仰角
+                            </label>
+                            <input
+                                id="min-elevation-input"
+                                type="number"
+                                value={minElevation}
+                                onChange={(e) => {
+                                    const value = parseInt(e.target.value, 10)
+                                    if (
+                                        !isNaN(value) &&
+                                        value >= 0 &&
+                                        value <= 90
+                                    ) {
+                                        setMinElevation(value)
+                                    } else if (e.target.value === '') {
+                                        setMinElevation(0)
+                                    }
+                                }}
+                                min="0"
+                                max="90"
+                                className="setting-input"
+                            />
                         </div>
                     </div>
                 </div>

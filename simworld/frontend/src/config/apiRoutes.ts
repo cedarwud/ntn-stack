@@ -77,6 +77,18 @@ export const ApiRoutes = {
     cancel: (handoverId: number) => `${API_BASE_URL}/handover/cancel/${handoverId}`,
   },
   
+  // 場景測試驗證 API
+  scenarioTest: {
+    base: `${API_BASE_URL}/scenario-test`,
+    getAvailableScenarios: `${API_BASE_URL}/scenario-test/available-scenarios`,
+    runTest: `${API_BASE_URL}/scenario-test/run-test`,
+    runBatchTests: `${API_BASE_URL}/scenario-test/run-batch-tests`,
+    compareScenarios: `${API_BASE_URL}/scenario-test/compare-scenarios`,
+    getResults: (scenarioId: string) => `${API_BASE_URL}/scenario-test/results/${scenarioId}`,
+    getSummary: `${API_BASE_URL}/scenario-test/summary`,
+    health: `${API_BASE_URL}/scenario-test/health`,
+  },
+  
   // 臨時的 sionna 命名空間相關路由 (已不存在於後端，前端保留向後兼容)
   sionna: {
     getModel: (modelName: string) => `${API_BASE_URL}/sionna/models/${modelName}`,

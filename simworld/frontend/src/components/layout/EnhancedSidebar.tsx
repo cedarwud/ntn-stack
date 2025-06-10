@@ -107,7 +107,7 @@ interface SidebarProps {
 interface FeatureToggle {
     id: string
     label: string
-    category: 'basic' | 'handover' | 'quality' | 'network'
+    category: 'basic' | 'handover' | 'quality' | 'anomaly'
     enabled: boolean
     onToggle: (enabled: boolean) => void
     icon?: string
@@ -272,6 +272,21 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     const [minElevation, setMinElevation] = useState<number>(0)
     const satelliteRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+    // 處理衛星星座顯示開關，連帶控制衛星-UAV 連接
+    const handleSatelliteEnabledToggle = (enabled: boolean) => {
+        // 調用原始的衛星顯示開關處理函數
+        if (onSatelliteEnabledChange) {
+            onSatelliteEnabledChange(enabled)
+        }
+        
+        // 如果關閉衛星顯示，同時關閉衛星-UAV 連接
+        if (!enabled && satelliteUavConnectionEnabled) {
+            if (onSatelliteUavConnectionChange) {
+                onSatelliteUavConnectionChange(false)
+            }
+        }
+    }
+    
     // 處理衛星-UAV 連接開關，連動開啟衛星顯示
     const handleSatelliteUavConnectionToggle = (enabled: boolean) => {
         if (enabled && !satelliteEnabled) {
@@ -286,9 +301,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         }
     }
 
-    // 精簡的核心功能開關配置 - 僅保留 8 個核心功能
+    // 精簡的核心功能開關配置 - 根據 paper.md 優化為 8 個核心功能
     const featureToggles: FeatureToggle[] = [
-        // 基礎控制 (3個)
+        // 基礎控制 (4個)
         {
             id: 'auto',
             label: '自動飛行模式',
@@ -312,9 +327,18 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             label: '衛星星座顯示',
             category: 'basic',
             enabled: satelliteEnabled,
-            onToggle: onSatelliteEnabledChange || (() => {}),
+            onToggle: handleSatelliteEnabledToggle,
             icon: '🛰️',
             description: 'LEO 衛星星座顯示'
+        },
+        {
+            id: 'satelliteUAVConnection',
+            label: '衛星-UAV 連接',
+            category: 'basic',
+            enabled: satelliteUavConnectionEnabled && satelliteEnabled, // 只有衛星顯示開啟時才能啟用
+            onToggle: handleSatelliteUavConnectionToggle,
+            icon: '🔗',
+            description: '衛星與 UAV 連接狀態監控（需先開啟衛星顯示）'
         },
         
         // 換手核心功能 (3個)
@@ -334,7 +358,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             enabled: handoverDecisionVisualizationEnabled,
             onToggle: onHandoverDecisionVisualizationChange || (() => {}),
             icon: '🎯',
-            description: '換手決策過程 3D 可視化'
+            description: '換手決策過程 3D 可視化（含預測路徑）'
         },
         {
             id: 'handoverPerformance',
@@ -343,28 +367,10 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             enabled: handoverPerformanceDashboardEnabled,
             onToggle: onHandoverPerformanceDashboardChange || (() => {}),
             icon: '📊',
-            description: '換手性能統計與分析'
-        },
-        {
-            id: 'predictionAccuracyDashboard',
-            label: '預測精度儀表板',
-            category: 'handover',
-            enabled: predictionAccuracyDashboardEnabled,
-            onToggle: onPredictionAccuracyDashboardChange || (() => {}),
-            icon: '🎯',
-            description: 'IEEE INFOCOM 2024 預測準確率分析'
-        },
-        {
-            id: 'predictionPath3D',
-            label: '3D 預測路徑',
-            category: 'handover',
-            enabled: predictionPath3DEnabled,
-            onToggle: onPredictionPath3DChange || (() => {}),
-            icon: '🔮',
-            description: '衛星軌道與UAV路徑3D預測可視化'
+            description: '換手性能統計與分析（含預測精度）'
         },
         
-        // 干擾與通信品質 (2個)
+        // 通信品質 (2個)
         {
             id: 'sinrHeatmap',
             label: 'SINR 熱力圖',
@@ -384,33 +390,11 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             description: '3D 干擾源範圍和影響可視化'
         },
         
-        // 網路拓撲 (1個)
-        {
-            id: 'satelliteUAVConnection',
-            label: '衛星-UAV 連接',
-            category: 'network',
-            enabled: satelliteUavConnectionEnabled,
-            onToggle: handleSatelliteUavConnectionToggle,
-            icon: '🔗',
-            description: '衛星與 UAV 連接狀態監控'
-        },
-        
-        // IEEE INFOCOM 2024 核心同步功能
-        {
-            id: 'coreNetworkSync',
-            label: '核心網路同步',
-            category: 'handover',
-            enabled: coreNetworkSyncEnabled || false,
-            onToggle: onCoreNetworkSyncChange || (() => {}),
-            icon: '📡',
-            description: 'IEEE INFOCOM 2024 無信令同步機制'
-        },
-        
-        // Stage 3 異常處理功能
+        // 異常處理 (1個)
         {
             id: 'anomalyAlertSystem',
             label: '異常監控系統',
-            category: 'quality',
+            category: 'anomaly',
             enabled: anomalyAlertSystemEnabled || false,
             onToggle: onAnomalyAlertSystemChange || (() => {}),
             icon: '🚨',
@@ -418,6 +402,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         }
         
         // 手動控制面板會根據自動飛行狀態動態顯示
+        // 隱藏的非核心功能：predictionAccuracyDashboard, predictionPath3D, coreNetworkSync 等 17 個功能
     ]
     
     // 動態添加手動控制開關（當自動飛行關閉時）
@@ -438,7 +423,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         { id: 'basic', label: '基礎控制', icon: '⚙️' },
         { id: 'handover', label: '換手機制', icon: '🔄' },
         { id: 'quality', label: '通信品質', icon: '📶' },
-        { id: 'network', label: '網路連接', icon: '🛰️' }
+        { id: 'anomaly', label: '異常處理', icon: '🚨' }
     ]
 
     // 衛星數據獲取效果
