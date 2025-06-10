@@ -95,6 +95,9 @@ function App({ activeView }: AppProps) {
     const [predictionAccuracyDashboardEnabled, setPredictionAccuracyDashboardEnabled] = useState(false)
     const [coreNetworkSyncEnabled, setCoreNetworkSyncEnabled] = useState(false)
     
+    // Stage 3 異常處理功能狀態
+    const [anomalyAlertSystemEnabled, setAnomalyAlertSystemEnabled] = useState(false)
+    
     // 3D 換手動畫狀態
     const [handover3DAnimationEnabled, setHandover3DAnimationEnabled] = useState(true) // 預設啟用
     const [handoverState, setHandoverState] = useState(null)
@@ -300,6 +303,8 @@ function App({ activeView }: AppProps) {
                         handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
                         predictionAccuracyDashboardEnabled={predictionAccuracyDashboardEnabled}
                         coreNetworkSyncEnabled={coreNetworkSyncEnabled}
+                        // Stage 3 異常處理功能
+                        anomalyAlertSystemEnabled={anomalyAlertSystemEnabled}
                         // 3D 換手動畫
                         handover3DAnimationEnabled={handover3DAnimationEnabled}
                         handoverState={handoverState}
@@ -463,6 +468,9 @@ function App({ activeView }: AppProps) {
                                     onPredictionAccuracyDashboardChange={setPredictionAccuracyDashboardEnabled}
                                     coreNetworkSyncEnabled={coreNetworkSyncEnabled}
                                     onCoreNetworkSyncChange={setCoreNetworkSyncEnabled}
+                                    // Stage 3 異常處理功能
+                                    anomalyAlertSystemEnabled={anomalyAlertSystemEnabled}
+                                    onAnomalyAlertSystemChange={setAnomalyAlertSystemEnabled}
                                     // 階段七功能狀態
                                     e2ePerformanceMonitoringEnabled={e2ePerformanceMonitoringEnabled}
                                     onE2EPerformanceMonitoringChange={setE2EPerformanceMonitoringEnabled}

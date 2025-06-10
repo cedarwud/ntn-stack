@@ -536,57 +536,59 @@ const Sidebar: React.FC<SidebarProps> = ({
             {/* 衛星設置區域 - 獨立於API狀態 */}
             {satelliteEnabled && (
                 <div className="satellite-settings-section">
-                    <div className="satellite-controls-row">
-                        <div className="satellite-count-control">
-                            <label htmlFor="satellite-count-input">
-                                衛星數:
-                            </label>
-                            <input
-                                id="satellite-count-input"
-                                type="number"
-                                value={satelliteDisplayCount}
-                                onChange={(e) => {
-                                    const value = parseInt(e.target.value, 10)
-                                    if (
-                                        !isNaN(value) &&
-                                        value > 0 &&
-                                        value <= 100
-                                    ) {
-                                        handleSatelliteCountChange(value)
-                                    } else if (e.target.value === '') {
-                                        handleSatelliteCountChange(1)
-                                    }
-                                }}
-                                min="1"
-                                max="100"
-                                className="satellite-count-input-field"
-                            />
-                        </div>
+                    <div className="satellite-settings">
+                        <div className="setting-row-combined">
+                            <div className="setting-item">
+                                <label htmlFor="satellite-count-input">
+                                    衛星數量
+                                </label>
+                                <input
+                                    id="satellite-count-input"
+                                    type="number"
+                                    value={satelliteDisplayCount}
+                                    onChange={(e) => {
+                                        const value = parseInt(e.target.value, 10)
+                                        if (
+                                            !isNaN(value) &&
+                                            value > 0 &&
+                                            value <= 100
+                                        ) {
+                                            handleSatelliteCountChange(value)
+                                        } else if (e.target.value === '') {
+                                            handleSatelliteCountChange(1)
+                                        }
+                                    }}
+                                    min="1"
+                                    max="100"
+                                    className="setting-input"
+                                />
+                            </div>
 
-                        <div className="satellite-count-control">
-                            <label htmlFor="min-elevation-input">
-                                最低仰角:
-                            </label>
-                            <input
-                                id="min-elevation-input"
-                                type="number"
-                                value={minElevation}
-                                onChange={(e) => {
-                                    const value = parseInt(e.target.value, 10)
-                                    if (
-                                        !isNaN(value) &&
-                                        value >= 0 &&
-                                        value <= 90
-                                    ) {
-                                        setMinElevation(value)
-                                    } else if (e.target.value === '') {
-                                        setMinElevation(0)
-                                    }
-                                }}
-                                min="0"
-                                max="90"
-                                className="satellite-count-input-field"
-                            />
+                            <div className="setting-item">
+                                <label htmlFor="min-elevation-input">
+                                    最低仰角
+                                </label>
+                                <input
+                                    id="min-elevation-input"
+                                    type="number"
+                                    value={minElevation}
+                                    onChange={(e) => {
+                                        const value = parseInt(e.target.value, 10)
+                                        if (
+                                            !isNaN(value) &&
+                                            value >= 0 &&
+                                            value <= 90
+                                        ) {
+                                            setMinElevation(value)
+                                        } else if (e.target.value === '') {
+                                            setMinElevation(0)
+                                        }
+                                    }}
+                                    min="0"
+                                    max="90"
+                                    className="setting-input"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -868,6 +870,43 @@ styleSheet.innerHTML = `
     margin-bottom: 10px;
     background-color: rgba(0, 0, 0, 0.2);
     border-radius: 4px;
+}
+
+.satellite-controls-combined {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    width: 100%;
+}
+
+.satellite-control-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
+}
+
+.satellite-control-item label {
+    font-size: 12px;
+    color: #ccc;
+    white-space: nowrap;
+}
+
+.satellite-control-item .satellite-count-input-field {
+    width: 45px;
+    padding: 2px 4px;
+    border: 1px solid #555;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-radius: 3px;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.satellite-controls-row {
+    display: flex;
+    width: 100%;
 }
 `
 document.head.appendChild(styleSheet)

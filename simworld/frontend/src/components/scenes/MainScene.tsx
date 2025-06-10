@@ -28,6 +28,7 @@ import SatelliteHandoverDecisionVisualization from '../viewers/SatelliteHandover
 import TestResultsVisualization from '../viewers/TestResultsVisualization'
 import PerformanceTrendAnalyzer from '../viewers/PerformanceTrendAnalyzer'
 import AutomatedReportGenerator from '../viewers/AutomatedReportGenerator'
+import HandoverAnomalyVisualization from './visualization/HandoverAnomalyVisualization'
 import HandoverAnimation3D from './visualization/HandoverAnimation3D'
 import PredictionPath3D from './visualization/PredictionPath3D'
 
@@ -60,6 +61,8 @@ export interface MainSceneProps {
     handoverPredictionEnabled?: boolean
     handoverDecisionVisualizationEnabled?: boolean
     predictionPath3DEnabled?: boolean
+    // Stage 3 異常處理功能
+    anomalyAlertSystemEnabled?: boolean
     // 新增 3D 換手動畫相關 props
     handover3DAnimationEnabled?: boolean
     handoverState?: any
@@ -99,6 +102,8 @@ const MainScene: React.FC<MainSceneProps> = ({
     handoverPredictionEnabled = false,
     handoverDecisionVisualizationEnabled = false,
     predictionPath3DEnabled = false,
+    // Stage 3 異常處理功能
+    anomalyAlertSystemEnabled = false,
     handover3DAnimationEnabled = false,
     handoverState,
     currentConnection,
@@ -363,6 +368,12 @@ const MainScene: React.FC<MainSceneProps> = ({
                 satellites={satellites}
                 selectedUAV={selectedReceiverIds.length > 0 ? devices.find(d => d.id === selectedReceiverIds[0]) : undefined}
                 predictionTimeHorizon={300}
+            />
+            
+            {/* Stage 3 異常可視化 */}
+            <HandoverAnomalyVisualization
+                enabled={anomalyAlertSystemEnabled}
+                devices={devices}
             />
             
             {/* 3D 換手動畫 */}
