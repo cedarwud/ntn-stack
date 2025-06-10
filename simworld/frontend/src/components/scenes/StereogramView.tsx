@@ -15,6 +15,7 @@ import PredictiveMaintenanceViewer from '../viewers/PredictiveMaintenanceViewer'
 import AdaptiveLearningSystemViewer from '../viewers/AdaptiveLearningSystemViewer'
 import IntelligentRecommendationSystem from '../viewers/IntelligentRecommendationSystem'
 import CoreNetworkSyncViewer from '../viewers/CoreNetworkSyncViewer'
+import AnomalyAlertSystem from '../viewers/AnomalyAlertSystem'
 
 // 添加圖例组件
 const SatelliteLegend = () => {
@@ -71,6 +72,8 @@ interface SceneViewProps {
     handoverPerformanceDashboardEnabled?: boolean
     predictionAccuracyDashboardEnabled?: boolean
     coreNetworkSyncEnabled?: boolean
+    // Stage 3 異常處理功能
+    anomalyAlertSystemEnabled?: boolean
     // 3D 換手動畫相關
     handover3DAnimationEnabled?: boolean
     handoverState?: any
@@ -117,6 +120,8 @@ export default function SceneView({
     handoverPerformanceDashboardEnabled = false,
     predictionAccuracyDashboardEnabled = false,
     coreNetworkSyncEnabled = false,
+    // Stage 3 異常處理功能
+    anomalyAlertSystemEnabled = false,
     handover3DAnimationEnabled = false,
     handoverState,
     currentConnection,
@@ -202,6 +207,11 @@ export default function SceneView({
             {/* 添加核心網路同步監控 - 作為HTML覆蓋層 */}
             {coreNetworkSyncEnabled && (
                 <CoreNetworkSyncViewer enabled={coreNetworkSyncEnabled} devices={devices} />
+            )}
+            
+            {/* Stage 3 異常監控系統 - 作為HTML覆蓋層 */}
+            {anomalyAlertSystemEnabled && (
+                <AnomalyAlertSystem enabled={anomalyAlertSystemEnabled} devices={devices} />
             )}
             
             {/* 添加階段七HTML覆蓋層組件 */}

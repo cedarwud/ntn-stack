@@ -703,6 +703,46 @@ td {
       }
     }
   }
+  
+  /* 合併兩個設置項在同一行 */
+  .setting-row-combined {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 15px;
+    
+    .setting-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      
+      label {
+        font-size: 0.9rem;
+        color: #a0c8e8;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      
+      .setting-input {
+        width: 60px;
+        padding: 6px 8px;
+        background-color: rgba(30, 40, 60, 0.8);
+        border: 1px solid rgba(70, 90, 120, 0.5);
+        border-radius: 4px;
+        color: #e0f2ff;
+        text-align: right;
+        font-size: 0.9rem;
+        
+        &:focus {
+          outline: none;
+          border-color: #4a7baf;
+          box-shadow: 0 0 4px rgba(74, 123, 175, 0.3);
+        }
+      }
+    }
+  }
 }
 
 /* 手動控制面板 */

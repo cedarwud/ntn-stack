@@ -72,6 +72,10 @@ interface SidebarProps {
     coreNetworkSyncEnabled?: boolean
     onCoreNetworkSyncChange?: (enabled: boolean) => void
     
+    // Stage 3 異常處理功能開關
+    anomalyAlertSystemEnabled?: boolean
+    onAnomalyAlertSystemChange?: (enabled: boolean) => void
+    
     // 階段七功能開關
     e2ePerformanceMonitoringEnabled?: boolean
     onE2EPerformanceMonitoringChange?: (enabled: boolean) => void
@@ -210,6 +214,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onPredictionAccuracyDashboardChange,
     coreNetworkSyncEnabled = false,
     onCoreNetworkSyncChange,
+    // Stage 3 異常處理功能 props
+    anomalyAlertSystemEnabled = false,
+    onAnomalyAlertSystemChange,
     // 階段七功能 props
     e2ePerformanceMonitoringEnabled = false,
     onE2EPerformanceMonitoringChange,
@@ -397,6 +404,17 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             onToggle: onCoreNetworkSyncChange || (() => {}),
             icon: '📡',
             description: 'IEEE INFOCOM 2024 無信令同步機制'
+        },
+        
+        // Stage 3 異常處理功能
+        {
+            id: 'anomalyAlertSystem',
+            label: '異常監控系統',
+            category: 'quality',
+            enabled: anomalyAlertSystemEnabled || false,
+            onToggle: onAnomalyAlertSystemChange || (() => {}),
+            icon: '🚨',
+            description: 'IEEE INFOCOM 2024 換手異常檢測與智能回退'
         }
         
         // 手動控制面板會根據自動飛行狀態動態顯示
