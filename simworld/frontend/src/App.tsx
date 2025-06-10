@@ -91,6 +91,7 @@ function App({ activeView }: AppProps) {
     const [handoverPredictionEnabled, setHandoverPredictionEnabled] = useState(false)
     const [handoverDecisionVisualizationEnabled, setHandoverDecisionVisualizationEnabled] = useState(false)
     const [handoverPerformanceDashboardEnabled, setHandoverPerformanceDashboardEnabled] = useState(false)
+    const [predictionAccuracyDashboardEnabled, setPredictionAccuracyDashboardEnabled] = useState(false)
     
     // 3D 換手動畫狀態
     const [handover3DAnimationEnabled, setHandover3DAnimationEnabled] = useState(true) // 預設啟用
@@ -294,6 +295,7 @@ function App({ activeView }: AppProps) {
                         handoverPredictionEnabled={handoverPredictionEnabled}
                         handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
                         handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
+                        predictionAccuracyDashboardEnabled={predictionAccuracyDashboardEnabled}
                         // 3D 換手動畫
                         handover3DAnimationEnabled={handover3DAnimationEnabled}
                         handoverState={handoverState}
@@ -448,6 +450,8 @@ function App({ activeView }: AppProps) {
                                     onHandoverDecisionVisualizationChange={setHandoverDecisionVisualizationEnabled}
                                     handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
                                     onHandoverPerformanceDashboardChange={setHandoverPerformanceDashboardEnabled}
+                                    predictionAccuracyDashboardEnabled={predictionAccuracyDashboardEnabled}
+                                    onPredictionAccuracyDashboardChange={setPredictionAccuracyDashboardEnabled}
                                     // 階段七功能狀態
                                     e2ePerformanceMonitoringEnabled={e2ePerformanceMonitoringEnabled}
                                     onE2EPerformanceMonitoringChange={setE2EPerformanceMonitoringEnabled}

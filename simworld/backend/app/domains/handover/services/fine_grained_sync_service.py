@@ -11,8 +11,11 @@ import math
 import logging
 from dataclasses import dataclass
 
-from ..models.handover_models import HandoverPredictionRecord, BinarySearchIteration
+from ..models.simple_handover_models import HandoverPredictionRecord, BinarySearchIteration
 from ...satellite.services.orbit_service import OrbitService
+from .constrained_satellite_access_service import ConstrainedSatelliteAccessService
+from .weather_integrated_prediction_service import WeatherIntegratedPredictionService
+from .prediction_accuracy_optimizer import PredictionAccuracyOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +49,15 @@ class FineGrainedSyncService:
     def __init__(self, delta_t: int = 10):
         self.delta_t = delta_t  # 預測時間間隔（秒）
         self.orbit_service = OrbitService()
+        self.constrained_access_service = ConstrainedSatelliteAccessService()
+        self.weather_prediction_service = WeatherIntegratedPredictionService()
+        self.accuracy_optimizer = PredictionAccuracyOptimizer()  # 準確率優化器
         self.prediction_cache: Dict[str, HandoverPredictionRecord] = {}
         self.min_elevation_threshold = 10.0  # 最低仰角門檻（度）
         self.precision_threshold = 0.1  # Binary search 精度門檻（秒）
         self.max_iterations = 15  # 最大迭代次數
+        self.weather_integration_enabled = True  # 啟用天氣整合
+        self.accuracy_optimization_enabled = True  # 啟用準確率優化
         
     async def two_point_prediction(self, ue_id: str, ue_position: Tuple[float, float, float]) -> TwoPointPredictionResult:
         """
@@ -58,6 +66,14 @@ class FineGrainedSyncService:
         """
         try:
             current_time = time.time()
+            
+            # 使用優化器推薦的 delta_t
+            if self.accuracy_optimization_enabled:
+                optimized_delta_t = self.accuracy_optimizer.get_recommended_delta_t()
+                if optimized_delta_t != self.delta_t:
+                    logger.info(f"使用優化 delta_t: {self.delta_t} -> {optimized_delta_t}")
+                    self.delta_t = optimized_delta_t
+            
             future_time = current_time + self.delta_t
             
             logger.info(f"執行二點預測 - UE: {ue_id}, T: {current_time}, T+Δt: {future_time}")
@@ -146,23 +162,17 @@ class FineGrainedSyncService:
         logger.info(f"生成了 {len(satellites)} 顆模擬可見衛星 (timestamp: {timestamp})")
         return satellites
     
-    async def calculate_best_satellite(self, ue_position: Tuple[float, float, float], timestamp: float) -> SatelliteCandidate:
+    async def _fallback_satellite_selection(self, visible_satellites: List[Any], ue_position: Tuple[float, float, float]) -> SatelliteCandidate:
         """
-        計算指定時間點的最佳衛星
-        使用多因子評分機制選擇最佳衛星
+        回退衛星選擇策略
+        當約束式選擇失敗時使用的簡單選擇方法
         """
         try:
-            # 暫時使用模擬的可見衛星數據，直到實現完整的軌道服務
-            visible_satellites = self._generate_mock_visible_satellites(ue_position, timestamp)
-            
-            if not visible_satellites:
-                raise ValueError(f"在時間 {timestamp} 沒有可見衛星")
-            
             candidates = []
             
             for sat in visible_satellites:
-                # 計算衛星評分
-                score = await self.calculate_satellite_score(sat, ue_position, timestamp)
+                # 計算簡單評分
+                score = await self.calculate_satellite_score(sat, ue_position, time.time())
                 
                 candidate = SatelliteCandidate(
                     satellite_id=sat.norad_id,
@@ -178,13 +188,160 @@ class FineGrainedSyncService:
             # 選擇評分最高的衛星
             best_satellite = max(candidates, key=lambda x: x.score)
             
-            logger.debug(f"最佳衛星選擇: {best_satellite.name} (評分: {best_satellite.score:.2f})")
+            logger.info(f"回退策略選擇最佳衛星: {best_satellite.name} (評分: {best_satellite.score:.2f})")
+            
+            return best_satellite
+            
+        except Exception as e:
+            logger.error(f"回退策略失敗: {e}")
+            # 最後的保險策略：選擇第一個可用衛星
+            if visible_satellites:
+                sat = visible_satellites[0]
+                return SatelliteCandidate(
+                    satellite_id=sat.norad_id,
+                    name=sat.name,
+                    elevation=sat.elevation_deg,
+                    azimuth=sat.azimuth_deg,
+                    distance=sat.distance_km,
+                    signal_strength=-70.0,  # 假設值
+                    score=0.5  # 低評分
+                )
+            else:
+                raise ValueError("沒有可用的衛星")
+    
+    async def calculate_best_satellite(self, ue_position: Tuple[float, float, float], timestamp: float) -> SatelliteCandidate:
+        """
+        計算指定時間點的最佳衛星
+        使用多因子評分機制選擇最佳衛星
+        """
+        try:
+            # 獲取可見衛星數據
+            visible_satellites = self._generate_mock_visible_satellites(ue_position, timestamp)
+            
+            if not visible_satellites:
+                raise ValueError(f"在時間 {timestamp} 沒有可見衛星")
+            
+            # 轉換為約束服務需要的格式
+            satellite_data = []
+            for sat in visible_satellites:
+                satellite_data.append({
+                    'norad_id': sat.norad_id,
+                    'name': sat.name,
+                    'elevation_deg': sat.elevation_deg,
+                    'azimuth_deg': sat.azimuth_deg,
+                    'distance_km': sat.distance_km,
+                    'velocity_km_s': sat.velocity_km_s
+                })
+            
+            # 使用約束式衛星接入策略選擇最佳衛星
+            selected_candidate = await self.constrained_access_service.select_optimal_satellite(
+                ue_id=f"temp_ue_{int(timestamp)}",  # 臨時 UE ID
+                ue_position=ue_position,
+                available_satellites=satellite_data,
+                timestamp=timestamp,
+                consider_future=True
+            )
+            
+            # 如果啟用天氣整合，進一步優化選擇
+            if self.weather_integration_enabled and selected_candidate:
+                enhanced_candidate = await self._enhance_with_weather_prediction(
+                    selected_candidate, satellite_data, ue_position
+                )
+                if enhanced_candidate:
+                    selected_candidate = enhanced_candidate
+            
+            if not selected_candidate:
+                # 如果約束式選擇失敗，回退到簡單選擇
+                logger.warning("約束式選擇失敗，使用回退策略")
+                return await self._fallback_satellite_selection(visible_satellites, ue_position)
+            
+            # 轉換為 SatelliteCandidate 格式
+            best_satellite = SatelliteCandidate(
+                satellite_id=selected_candidate.satellite_id,
+                name=selected_candidate.satellite_name,
+                elevation=selected_candidate.elevation_deg,
+                azimuth=selected_candidate.azimuth_deg,
+                distance=selected_candidate.distance_km,
+                signal_strength=selected_candidate.signal_strength_dbm,
+                score=selected_candidate.overall_score
+            )
+            
+            logger.debug(f"約束式選擇最佳衛星: {best_satellite.name} (評分: {best_satellite.score:.2f})")
             
             return best_satellite
             
         except Exception as e:
             logger.error(f"最佳衛星計算失敗: {e}")
-            raise
+            # 嘗試使用回退策略
+            try:
+                visible_satellites = self._generate_mock_visible_satellites(ue_position, timestamp)
+                return await self._fallback_satellite_selection(visible_satellites, ue_position)
+            except:
+                raise e
+    
+    async def _enhance_with_weather_prediction(
+        self,
+        selected_candidate,
+        all_satellite_data: List[Dict],
+        ue_position: Tuple[float, float, float]
+    ):
+        """
+        使用天氣預測增強衛星選擇
+        如果天氣條件會嚴重影響當前選擇，重新評估
+        """
+        try:
+            # 準備天氣評估用的候選者數據
+            weather_candidates = []
+            for sat_data in all_satellite_data:
+                weather_candidates.append({
+                    'satellite_id': sat_data.get('norad_id'),
+                    'base_score': 0.8,  # 基礎評分
+                    'elevation_deg': sat_data.get('elevation_deg', 30.0),
+                    'signal_strength_dbm': -80.0  # 假設基礎信號強度
+                })
+            
+            # 執行天氣整合預測
+            weather_prediction = await self.weather_prediction_service.predict_with_weather_integration(
+                ue_id=f"weather_enhanced_{int(time.time())}",
+                ue_position=ue_position,
+                satellite_candidates=weather_candidates,
+                future_time_horizon_sec=self.delta_t * 3  # 預測3個時間間隔
+            )
+            
+            if weather_prediction.get('success'):
+                weather_selected = weather_prediction['selected_satellite']
+                weather_confidence = weather_prediction['prediction_confidence']
+                
+                # 如果天氣預測的信心度很高且與當前選擇不同，考慮切換
+                if (weather_confidence > 0.8 and 
+                    weather_selected['satellite_id'] != selected_candidate.satellite_id):
+                    
+                    logger.info(f"天氣預測建議切換衛星: {selected_candidate.satellite_id} -> {weather_selected['satellite_id']}")
+                    
+                    # 尋找對應的約束式候選者
+                    for sat_data in all_satellite_data:
+                        if sat_data.get('norad_id') == weather_selected['satellite_id']:
+                            # 重新執行約束式選擇，但優先考慮天氣推薦的衛星
+                            weather_enhanced = await self.constrained_access_service.select_optimal_satellite(
+                                ue_id=f"weather_pref_{int(time.time())}",
+                                ue_position=ue_position,
+                                available_satellites=[sat_data],  # 只考慮天氣推薦的衛星
+                                timestamp=time.time(),
+                                consider_future=True
+                            )
+                            
+                            if weather_enhanced and weather_enhanced.overall_score >= selected_candidate.overall_score * 0.9:
+                                logger.info(f"採用天氣增強建議: {weather_enhanced.satellite_name}")
+                                return weather_enhanced
+                            break
+                
+                logger.debug(f"天氣預測確認當前選擇 {selected_candidate.satellite_id} (信心度: {weather_confidence:.3f})")
+            
+            return selected_candidate
+            
+        except Exception as e:
+            logger.error(f"天氣預測增強失敗: {e}")
+            return selected_candidate
     
     async def calculate_satellite_score(self, satellite, ue_position: Tuple[float, float, float], timestamp: float) -> float:
         """
@@ -396,3 +553,78 @@ class FineGrainedSyncService:
             except Exception as e:
                 logger.error(f"持續預測過程中發生錯誤: {e}")
                 await asyncio.sleep(5)  # 錯誤時短暫等待後重試
+    
+    def enable_weather_integration(self, enabled: bool):
+        """啟用/禁用天氣整合"""
+        self.weather_integration_enabled = enabled
+        logger.info(f"天氣整合已{'啟用' if enabled else '禁用'}")
+    
+    def get_enhanced_prediction_statistics(self) -> Dict:
+        """獲取增強的預測統計信息"""
+        base_stats = {
+            "prediction_cache_size": len(self.prediction_cache),
+            "delta_t_seconds": self.delta_t,
+            "weather_integration_enabled": self.weather_integration_enabled,
+            "min_elevation_threshold": self.min_elevation_threshold,
+            "binary_search_precision": self.precision_threshold
+        }
+        
+        # 添加天氣預測統計
+        if self.weather_integration_enabled:
+            weather_stats = self.weather_prediction_service.get_weather_prediction_statistics()
+            base_stats.update({
+                "weather_predictions": weather_stats.get("total_predictions", 0),
+                "weather_average_confidence": weather_stats.get("average_confidence", 0.0),
+                "weather_cache_size": weather_stats.get("cache_size", 0)
+            })
+        
+        # 添加準確率優化統計
+        if self.accuracy_optimization_enabled:
+            accuracy_metrics = self.accuracy_optimizer.get_current_metrics()
+            base_stats.update({
+                "accuracy_current": accuracy_metrics.current_accuracy,
+                "accuracy_rolling": accuracy_metrics.rolling_accuracy,
+                "accuracy_trend": accuracy_metrics.accuracy_trend,
+                "accuracy_target_achieved": accuracy_metrics.target_achievement,
+                "predictions_evaluated": accuracy_metrics.predictions_evaluated
+            })
+        
+        return base_stats
+    
+    async def record_prediction_accuracy(
+        self,
+        ue_id: str,
+        predicted_satellite: str,
+        actual_satellite: str,
+        prediction_timestamp: float,
+        context: Optional[Dict] = None
+    ):
+        """
+        記錄預測準確率到優化器
+        """
+        if self.accuracy_optimization_enabled:
+            await self.accuracy_optimizer.record_prediction_result(
+                ue_id=ue_id,
+                predicted_satellite=predicted_satellite,
+                actual_satellite=actual_satellite,
+                prediction_timestamp=prediction_timestamp,
+                delta_t_used=self.delta_t,
+                context=context or {}
+            )
+    
+    def enable_accuracy_optimization(self, enabled: bool):
+        """啟用/禁用準確率優化"""
+        self.accuracy_optimization_enabled = enabled
+        logger.info(f"準確率優化已{'啟用' if enabled else '禁用'}")
+    
+    def get_accuracy_metrics(self):
+        """獲取準確率指標"""
+        if self.accuracy_optimization_enabled:
+            return self.accuracy_optimizer.get_current_metrics()
+        return None
+    
+    def get_accuracy_recommendations(self) -> List[str]:
+        """獲取準確率優化建議"""
+        if self.accuracy_optimization_enabled:
+            return self.accuracy_optimizer.get_optimization_recommendations()
+        return ["準確率優化未啟用"]
