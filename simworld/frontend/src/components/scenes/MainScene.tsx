@@ -29,6 +29,7 @@ import TestResultsVisualization from '../viewers/TestResultsVisualization'
 import PerformanceTrendAnalyzer from '../viewers/PerformanceTrendAnalyzer'
 import AutomatedReportGenerator from '../viewers/AutomatedReportGenerator'
 import HandoverAnimation3D from './visualization/HandoverAnimation3D'
+import PredictionPath3D from './visualization/PredictionPath3D'
 
 export interface MainSceneProps {
     devices: any[]
@@ -58,6 +59,7 @@ export interface MainSceneProps {
     // 階段六功能狀態
     handoverPredictionEnabled?: boolean
     handoverDecisionVisualizationEnabled?: boolean
+    predictionPath3DEnabled?: boolean
     // 新增 3D 換手動畫相關 props
     handover3DAnimationEnabled?: boolean
     handoverState?: any
@@ -96,6 +98,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     failoverMechanismEnabled = false,
     handoverPredictionEnabled = false,
     handoverDecisionVisualizationEnabled = false,
+    predictionPath3DEnabled = false,
     handover3DAnimationEnabled = false,
     handoverState,
     currentConnection,
@@ -354,6 +357,12 @@ const MainScene: React.FC<MainSceneProps> = ({
                 devices={devices} 
                 enabled={handoverDecisionVisualizationEnabled}
                 satellites={satellites} 
+            />
+            <PredictionPath3D
+                enabled={predictionPath3DEnabled}
+                satellites={satellites}
+                selectedUAV={selectedReceiverIds.length > 0 ? devices.find(d => d.id === selectedReceiverIds[0]) : undefined}
+                predictionTimeHorizon={300}
             />
             
             {/* 3D 換手動畫 */}

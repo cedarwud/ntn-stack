@@ -63,10 +63,14 @@ interface SidebarProps {
     onHandoverPredictionChange?: (enabled: boolean) => void
     handoverDecisionVisualizationEnabled?: boolean
     onHandoverDecisionVisualizationChange?: (enabled: boolean) => void
+    predictionPath3DEnabled?: boolean
+    onPredictionPath3DChange?: (enabled: boolean) => void
     handoverPerformanceDashboardEnabled?: boolean
     onHandoverPerformanceDashboardChange?: (enabled: boolean) => void
     predictionAccuracyDashboardEnabled?: boolean
     onPredictionAccuracyDashboardChange?: (enabled: boolean) => void
+    coreNetworkSyncEnabled?: boolean
+    onCoreNetworkSyncChange?: (enabled: boolean) => void
     
     // 階段七功能開關
     e2ePerformanceMonitoringEnabled?: boolean
@@ -198,10 +202,14 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onHandoverPredictionChange,
     handoverDecisionVisualizationEnabled = false,
     onHandoverDecisionVisualizationChange,
+    predictionPath3DEnabled = false,
+    onPredictionPath3DChange,
     handoverPerformanceDashboardEnabled = false,
     onHandoverPerformanceDashboardChange,
     predictionAccuracyDashboardEnabled = false,
     onPredictionAccuracyDashboardChange,
+    coreNetworkSyncEnabled = false,
+    onCoreNetworkSyncChange,
     // 階段七功能 props
     e2ePerformanceMonitoringEnabled = false,
     onE2EPerformanceMonitoringChange,
@@ -339,6 +347,15 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             icon: '🎯',
             description: 'IEEE INFOCOM 2024 預測準確率分析'
         },
+        {
+            id: 'predictionPath3D',
+            label: '3D 預測路徑',
+            category: 'handover',
+            enabled: predictionPath3DEnabled,
+            onToggle: onPredictionPath3DChange || (() => {}),
+            icon: '🔮',
+            description: '衛星軌道與UAV路徑3D預測可視化'
+        },
         
         // 干擾與通信品質 (2個)
         {
@@ -369,6 +386,17 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             onToggle: handleSatelliteUavConnectionToggle,
             icon: '🔗',
             description: '衛星與 UAV 連接狀態監控'
+        },
+        
+        // IEEE INFOCOM 2024 核心同步功能
+        {
+            id: 'coreNetworkSync',
+            label: '核心網路同步',
+            category: 'handover',
+            enabled: coreNetworkSyncEnabled || false,
+            onToggle: onCoreNetworkSyncChange || (() => {}),
+            icon: '📡',
+            description: 'IEEE INFOCOM 2024 無信令同步機制'
         }
         
         // 手動控制面板會根據自動飛行狀態動態顯示

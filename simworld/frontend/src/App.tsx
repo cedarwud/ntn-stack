@@ -90,8 +90,10 @@ function App({ activeView }: AppProps) {
     // 階段六功能狀態 - 換手核心功能預設關閉，由新組件控制
     const [handoverPredictionEnabled, setHandoverPredictionEnabled] = useState(false)
     const [handoverDecisionVisualizationEnabled, setHandoverDecisionVisualizationEnabled] = useState(false)
+    const [predictionPath3DEnabled, setPredictionPath3DEnabled] = useState(false)
     const [handoverPerformanceDashboardEnabled, setHandoverPerformanceDashboardEnabled] = useState(false)
     const [predictionAccuracyDashboardEnabled, setPredictionAccuracyDashboardEnabled] = useState(false)
+    const [coreNetworkSyncEnabled, setCoreNetworkSyncEnabled] = useState(false)
     
     // 3D 換手動畫狀態
     const [handover3DAnimationEnabled, setHandover3DAnimationEnabled] = useState(true) // 預設啟用
@@ -294,8 +296,10 @@ function App({ activeView }: AppProps) {
                         // 階段六功能狀態
                         handoverPredictionEnabled={handoverPredictionEnabled}
                         handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
+                        predictionPath3DEnabled={predictionPath3DEnabled}
                         handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
                         predictionAccuracyDashboardEnabled={predictionAccuracyDashboardEnabled}
+                        coreNetworkSyncEnabled={coreNetworkSyncEnabled}
                         // 3D 換手動畫
                         handover3DAnimationEnabled={handover3DAnimationEnabled}
                         handoverState={handoverState}
@@ -353,7 +357,10 @@ function App({ activeView }: AppProps) {
         failoverMechanismEnabled,
         handoverPredictionEnabled,
         handoverDecisionVisualizationEnabled,
+        predictionPath3DEnabled,
         handoverPerformanceDashboardEnabled,
+        predictionAccuracyDashboardEnabled,
+        coreNetworkSyncEnabled,
         handover3DAnimationEnabled,
         handoverState,
         currentConnection,
@@ -448,10 +455,14 @@ function App({ activeView }: AppProps) {
                                     onHandoverPredictionChange={setHandoverPredictionEnabled}
                                     handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
                                     onHandoverDecisionVisualizationChange={setHandoverDecisionVisualizationEnabled}
+                                    predictionPath3DEnabled={predictionPath3DEnabled}
+                                    onPredictionPath3DChange={setPredictionPath3DEnabled}
                                     handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
                                     onHandoverPerformanceDashboardChange={setHandoverPerformanceDashboardEnabled}
                                     predictionAccuracyDashboardEnabled={predictionAccuracyDashboardEnabled}
                                     onPredictionAccuracyDashboardChange={setPredictionAccuracyDashboardEnabled}
+                                    coreNetworkSyncEnabled={coreNetworkSyncEnabled}
+                                    onCoreNetworkSyncChange={setCoreNetworkSyncEnabled}
                                     // 階段七功能狀態
                                     e2ePerformanceMonitoringEnabled={e2ePerformanceMonitoringEnabled}
                                     onE2EPerformanceMonitoringChange={setE2EPerformanceMonitoringEnabled}

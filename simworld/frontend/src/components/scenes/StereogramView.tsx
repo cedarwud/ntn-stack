@@ -14,6 +14,7 @@ import MLModelMonitoringDashboard from '../dashboard/MLModelMonitoringDashboard'
 import PredictiveMaintenanceViewer from '../viewers/PredictiveMaintenanceViewer'
 import AdaptiveLearningSystemViewer from '../viewers/AdaptiveLearningSystemViewer'
 import IntelligentRecommendationSystem from '../viewers/IntelligentRecommendationSystem'
+import CoreNetworkSyncViewer from '../viewers/CoreNetworkSyncViewer'
 
 // 添加圖例组件
 const SatelliteLegend = () => {
@@ -66,8 +67,10 @@ interface SceneViewProps {
     // 階段六功能狀態
     handoverPredictionEnabled?: boolean
     handoverDecisionVisualizationEnabled?: boolean
+    predictionPath3DEnabled?: boolean
     handoverPerformanceDashboardEnabled?: boolean
     predictionAccuracyDashboardEnabled?: boolean
+    coreNetworkSyncEnabled?: boolean
     // 3D 換手動畫相關
     handover3DAnimationEnabled?: boolean
     handoverState?: any
@@ -110,8 +113,10 @@ export default function SceneView({
     failoverMechanismEnabled = false,
     handoverPredictionEnabled = false,
     handoverDecisionVisualizationEnabled = false,
+    predictionPath3DEnabled = false,
     handoverPerformanceDashboardEnabled = false,
     predictionAccuracyDashboardEnabled = false,
+    coreNetworkSyncEnabled = false,
     handover3DAnimationEnabled = false,
     handoverState,
     currentConnection,
@@ -192,6 +197,11 @@ export default function SceneView({
             {/* 添加預測精度儀表板 - 作為HTML覆蓋層 */}
             {predictionAccuracyDashboardEnabled && (
                 <PredictionAccuracyDashboard isEnabled={predictionAccuracyDashboardEnabled} />
+            )}
+            
+            {/* 添加核心網路同步監控 - 作為HTML覆蓋層 */}
+            {coreNetworkSyncEnabled && (
+                <CoreNetworkSyncViewer enabled={coreNetworkSyncEnabled} devices={devices} />
             )}
             
             {/* 添加階段七HTML覆蓋層組件 */}
@@ -276,6 +286,7 @@ export default function SceneView({
                         failoverMechanismEnabled={failoverMechanismEnabled}
                         handoverPredictionEnabled={handoverPredictionEnabled}
                         handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
+                        predictionPath3DEnabled={predictionPath3DEnabled}
                         handover3DAnimationEnabled={handover3DAnimationEnabled}
                         handoverState={handoverState}
                         currentConnection={currentConnection}
