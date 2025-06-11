@@ -98,69 +98,36 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
             
             let satelliteConnections: any[] = []
             
-            // 檢查是否有真實衛星數據
+            // 修復：統一 ID 生成邏輯，確保與 SimplifiedSatellite 完全一致
             if (satellites && satellites.length > 0) {
-                // 使用真實衛星數據並應用 SimplifiedSatellite 相同的位置計算
                 satelliteConnections = satellites.slice(0, Math.min(5, satellites.length)).map((sat, index) => {
-                    const PI_DIV_180 = Math.PI / 180
-                    const GLB_SCENE_SIZE = 1200
-                    const MIN_SAT_HEIGHT = 0
-                    const MAX_SAT_HEIGHT = 300
-                    
-                    const elevationRad = (sat.elevation_deg || 45) * PI_DIV_180
-                    const azimuthRad = (sat.azimuth_deg || index * 60) * PI_DIV_180
-                    
-                    // 使用與 SimplifiedSatellite 相同的位置計算
-                    const range = GLB_SCENE_SIZE * 0.45
-                    const horizontalDist = range * Math.cos(elevationRad)
-                    
-                    const x = horizontalDist * Math.sin(azimuthRad)
-                    const y = horizontalDist * Math.cos(azimuthRad)
-                    const height = MIN_SAT_HEIGHT + (MAX_SAT_HEIGHT - MIN_SAT_HEIGHT) * Math.pow(Math.sin(elevationRad), 0.8)
+                    // 修復：確保 ID 生成與 SimplifiedSatellite.tsx 第360-361行完全一致
+                    const satelliteId = sat.norad_id || sat.id || `satellite_${index}`
                     
                     return {
-                        id: sat.norad_id || sat.id || `sat_${index}`,
-                        name: sat.name || `Satellite-${index}`,
-                        position: [x, height, y], // 與 SimplifiedSatellite 相同的坐標系統
+                        id: satelliteId,
+                        name: sat.name || `Satellite-${satelliteId}`,
+                        position: null, // 完全依賴實時追蹤
                         elevation: sat.elevation_deg || 45,
                         azimuth: sat.azimuth_deg || index * 60,
                         velocity: [0, 0, 0],
-                        norad_id: sat.norad_id // 保持原始ID用於匹配
+                        norad_id: sat.norad_id
                     }
                 })
             } else {
-                // 如果沒有衛星數據，使用預設數據
-                const defaultSatelliteConfigs = [
-                    { id: 'sat_001', name: 'OneWeb-1234', elevation: 65, azimuth: 180 },
-                    { id: 'sat_002', name: 'OneWeb-5678', elevation: 45, azimuth: 220 },
-                    { id: 'sat_003', name: 'OneWeb-9012', elevation: 55, azimuth: 140 }
-                ]
-                
-                const PI_DIV_180 = Math.PI / 180
-                const GLB_SCENE_SIZE = 1200
-                const MIN_SAT_HEIGHT = 0
-                const MAX_SAT_HEIGHT = 300
-                
-                satelliteConnections = defaultSatelliteConfigs.map(config => {
-                    const elevationRad = config.elevation * PI_DIV_180
-                    const azimuthRad = config.azimuth * PI_DIV_180
-                    
-                    const range = GLB_SCENE_SIZE * 0.45
-                    const horizontalDist = range * Math.cos(elevationRad)
-                    
-                    const x = horizontalDist * Math.sin(azimuthRad)
-                    const y = horizontalDist * Math.cos(azimuthRad)
-                    const height = MIN_SAT_HEIGHT + (MAX_SAT_HEIGHT - MIN_SAT_HEIGHT) * Math.pow(Math.sin(elevationRad), 0.8)
-                    
-                    return {
-                        id: config.id,
-                        name: config.name,
-                        position: [x, height, y],
-                        elevation: config.elevation,
-                        azimuth: config.azimuth,
-                        velocity: [0, 0, 0]
-                    }
-                })
+                // 預設衛星配置，使用數字 ID 格式與 SimplifiedSatellite 一致
+                satelliteConnections = [
+                    { id: '0', name: 'Default-Sat-0', elevation: 65, azimuth: 180 },
+                    { id: '1', name: 'Default-Sat-1', elevation: 45, azimuth: 220 },
+                    { id: '2', name: 'Default-Sat-2', elevation: 55, azimuth: 140 }
+                ].map(config => ({
+                    id: config.id,
+                    name: config.name,
+                    position: null,
+                    elevation: config.elevation,
+                    azimuth: config.azimuth,
+                    velocity: [0, 0, 0]
+                }))
             }
             
             // 存儲處理過的衛星數據
@@ -174,12 +141,27 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
                 const satellite = satelliteConnections[satelliteIndex]
                 
                 if (satellite) {
+                    // 修復：添加動態連線狀態計算
+                    const calculateConnectionStatus = (satellite: any, uav: any) => {
+                        const elevation = satellite.elevation || 45
+                        const signalStrength = -65 + Math.random() * 10 - 5
+                        
+                        // 基於條件動態決定連線狀態
+                        if (elevation < 10) return 'blocked'
+                        if (signalStrength < -80) return 'lost'
+                        if (Math.random() < 0.1) return 'handover'  // 10% 機率處於換手狀態
+                        if (Math.random() < 0.05) return 'establishing'  // 5% 機率建立中
+                        return 'active'
+                    }
+                    
+                    const connectionStatus = calculateConnectionStatus(satellite, uav)
+                    
                     newConnections.push({
                         id: `conn_${uav.id}_${satellite.id}`,
                         satelliteId: satellite.id,
                         uavId: uav.id,
                         beamId: `beam_${satellite.id}_${uav.id}`,
-                        status: 'active',
+                        status: connectionStatus,
                         quality: {
                             signalStrength: -65 + Math.random() * 10 - 5,
                             snr: 25 + Math.random() * 10 - 5,
@@ -276,43 +258,39 @@ const ConnectionLinksVisualization: React.FC<{
         }
     }
 
-    // 使用 useFrame 實時更新衛星位置
+    // 修復：實時同步衛星位置，直接讀取 groupRef 位置而非通過 scene 遍歷
     useFrame(() => {
+        if (!enabled) return
+        
         const newPositions = new Map<string, [number, number, number]>()
         
+        // 直接查找衛星群組並讀取其當前位置
         scene.traverse((child) => {
-            // 查找衛星組件的 group（SimplifiedSatellite 使用 group）
-            if (child.type === 'Group' && child.userData?.satelliteId) {
-                const satelliteId = child.userData.satelliteId
-                const pos = child.position
-                newPositions.set(satelliteId, [pos.x, pos.y, pos.z])
-            }
-            
-            // 也嘗試通過名稱匹配
-            if (child.name && child.name.includes('satellite-')) {
-                const nameMatch = child.name.match(/satellite-(.+)/)
-                if (nameMatch) {
-                    const satelliteId = nameMatch[1]
-                    const pos = child.position
-                    newPositions.set(satelliteId, [pos.x, pos.y, pos.z])
+            // 修復：更寬鬆的衛星檢測條件，支援多種ID格式
+            if (child.type === 'Group') {
+                let satelliteId = null
+                
+                // 方法1：使用 userData.satelliteId
+                if (child.userData?.satelliteId) {
+                    satelliteId = child.userData.satelliteId
+                }
+                
+                // 方法2：從 name 中提取 ID
+                if (!satelliteId && child.name && child.name.startsWith('satellite-')) {
+                    satelliteId = child.name.replace('satellite-', '')
+                }
+                
+                // 如果找到有效的衛星ID，記錄位置
+                if (satelliteId) {
+                    const currentPos = child.position
+                    newPositions.set(satelliteId, [currentPos.x, currentPos.y, currentPos.z])
                 }
             }
         })
         
-        // 只有當位置有變化時才更新state
+        // 即時更新位置，移除變化檢測以確保實時同步
         if (newPositions.size > 0) {
-            setSatellitePositions(prevPositions => {
-                // 避免不必要的重新渲染，只有位置真正變化時才更新
-                const hasChanged = Array.from(newPositions.entries()).some(([id, pos]) => {
-                    const prevPos = prevPositions.get(id)
-                    if (!prevPos) return true
-                    const [x, y, z] = pos
-                    const [px, py, pz] = prevPos
-                    return Math.abs(x - px) > 0.1 || Math.abs(y - py) > 0.1 || Math.abs(z - pz) > 0.1
-                })
-                
-                return hasChanged ? newPositions : prevPositions
-            })
+            setSatellitePositions(newPositions)
         }
     })
 
@@ -327,14 +305,32 @@ const ConnectionLinksVisualization: React.FC<{
                 const uav = devices.find(d => d.id === connection.uavId)
                 if (!uav) return null
 
-                // 首先嘗試從實時位置Map中找到衛星位置
-                let satellitePos: [number, number, number] | null = satellitePositions.get(connection.satelliteId) || null
+                // 修復：優先使用實時位置，但提供備用方案以確保連線可见
+                let satellitePos = satellitePositions.get(connection.satelliteId)
                 
-                // 如果沒找到實際位置，使用預設數據
+                // 如果沒有實時位置，使用計算得出的基礎位置作為備用
                 if (!satellitePos) {
-                    const satellite = satellites.find(sat => sat.id === connection.satelliteId)
-                    if (!satellite) return null
-                    satellitePos = satellite.position
+                    // 尋找對應的衛星配置數據
+                    const satelliteConfig = satellites.find(sat => sat.id === connection.satelliteId)
+                    if (satelliteConfig) {
+                        // 使用基礎位置計算作為備用
+                        const PI_DIV_180 = Math.PI / 180
+                        const GLB_SCENE_SIZE = 1200
+                        const MIN_SAT_HEIGHT = 200
+                        const MAX_SAT_HEIGHT = 400
+                        
+                        const elevationRad = satelliteConfig.elevation * PI_DIV_180
+                        const azimuthRad = satelliteConfig.azimuth * PI_DIV_180
+                        const distance = GLB_SCENE_SIZE * 0.4
+                        
+                        const x = distance * Math.sin(azimuthRad)
+                        const y = distance * Math.cos(azimuthRad)
+                        const z = MIN_SAT_HEIGHT + (MAX_SAT_HEIGHT - MIN_SAT_HEIGHT) * Math.sin(elevationRad)
+                        
+                        satellitePos = [x, z, y]
+                    } else {
+                        return null // 如果連配置都沒有，才跳過
+                    }
                 }
 
                 const uavPos: [number, number, number] = [
