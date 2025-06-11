@@ -2,15 +2,15 @@
     position: fixed;
     top: 70px; // navbar 下方
     right: 20px;
-    width: 280px;
-    background: rgba(0, 20, 40, 0.95);
-    border: 1px solid rgba(0, 170, 255, 0.3);
+    width: 135px; // 減少寬度以適應直式佈局
+    background: rgba(0, 20, 40, 0.7); // 提高透明度（從0.95改為0.7）
+    border: 1px solid rgba(0, 170, 255, 0.2); // 降低邊框透明度
     border-radius: 12px;
     padding: 16px;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(8px); // 減少模糊效果
     z-index: 1000;
     font-family: 'Inter', 'Segoe UI', sans-serif;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); // 減少陰影
 
     .panel-header {
         display: flex;
@@ -32,33 +32,28 @@
         }
     }
 
-    .metrics-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 16px;
+    .metrics-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 0; // 移除底部邊距
 
         .metric-item {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.08); // 提高背景透明度
             border-radius: 8px;
-            padding: 12px;
+            padding: 10px 12px; // 減少垂直內邊距
             text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-
-            &.primary {
-                background: rgba(0, 170, 255, 0.1);
-                border-color: rgba(0, 170, 255, 0.3);
-            }
+            border: 1px solid rgba(255, 255, 255, 0.15); // 提高邊框透明度
 
             .metric-label {
-                font-size: 12px;
-                color: #aaaaaa;
-                margin-bottom: 4px;
+                font-size: 11px;
+                color: #cccccc; // 提高文字對比度
+                margin-bottom: 3px;
                 font-weight: 500;
             }
 
             .metric-value {
-                font-size: 18px;
+                font-size: 16px; // 減小字體以適應直式佈局
                 font-weight: 700;
                 
                 &.active {
@@ -80,45 +75,20 @@
         }
     }
 
-    .performance-indicator {
-        background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 170, 255, 0.1));
-        border-radius: 8px;
-        padding: 12px;
-        text-align: center;
-        border: 1px solid rgba(0, 255, 136, 0.2);
-
-        .performance-label {
-            font-size: 11px;
-            color: #888888;
-            margin-bottom: 4px;
-        }
-
-        .performance-improvement {
-            font-size: 14px;
-            color: #ffffff;
-            font-weight: 600;
-
-            .improvement-value {
-                color: #00ff88;
-                font-weight: 700;
-                font-size: 16px;
-            }
-        }
-    }
 
     // 響應式設計
     @media (max-width: 768px) {
         top: 60px;
         right: 10px;
-        width: 240px;
+        width: 180px; // 適應手機小尺寸
         padding: 12px;
 
         .panel-header h3 {
             font-size: 14px;
         }
 
-        .metrics-grid .metric-item .metric-value {
-            font-size: 16px;
+        .metrics-list .metric-item .metric-value {
+            font-size: 14px;
         }
     }
 
