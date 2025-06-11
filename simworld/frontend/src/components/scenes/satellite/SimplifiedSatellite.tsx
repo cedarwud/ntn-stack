@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react'
+import React, { useRef, useMemo, useState } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import StaticModel from '../StaticModel'
@@ -99,6 +99,15 @@ const SimplifiedSatellite = React.memo(
             updateFrequency: UPDATE_INTERVAL_NEAR,
         })
 
+        // 修復：移動 useState 到頂層，遵循 React hooks 規則
+        const [orbitState, setOrbitState] = useState({
+            currentTime: 0,
+            orbitPeriod: 90, // 90分鐘軌道週期
+            orbitRadius: GLB_SCENE_SIZE * 0.4,
+            initialAzimuth: satellite.azimuth_deg * PI_DIV_180,
+            initialElevation: satellite.elevation_deg * PI_DIV_180
+        })
+
         // 初始隨機位置 - 只計算一次以提高性能
         const initialPosition = useMemo(() => {
             const elevation = satellite.elevation_deg * PI_DIV_180
@@ -124,6 +133,26 @@ const SimplifiedSatellite = React.memo(
         // 動畫邏輯
         useFrame((state, delta) => {
             if (!groupRef.current) return
+
+            // 修復：實現軌道運動
+            setOrbitState(prev => {
+                const newTime = prev.currentTime + delta * 0.2 // 時間流逝速度調整
+                
+                // 計算軌道角度變化 (簡化的圓形軌道)
+                const orbitProgress = (newTime * 2 * Math.PI) / prev.orbitPeriod
+                const currentAzimuth = prev.initialAzimuth + orbitProgress
+                
+                // 更新衛星位置
+                const x = prev.orbitRadius * Math.sin(currentAzimuth)
+                const y = prev.orbitRadius * Math.cos(currentAzimuth)
+                const z = MIN_SAT_HEIGHT + (MAX_SAT_HEIGHT - MIN_SAT_HEIGHT) * Math.sin(prev.initialElevation)
+                
+                if (groupRef.current) {
+                    groupRef.current.position.set(x, z, y)
+                }
+                
+                return { ...prev, currentTime: newTime }
+            })
 
             // 優化：視距剔除檢查
             const distanceToCamera = groupRef.current.position.distanceTo(
