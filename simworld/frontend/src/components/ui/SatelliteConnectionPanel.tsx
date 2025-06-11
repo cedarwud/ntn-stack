@@ -78,13 +78,13 @@ const SatelliteConnectionPanel: React.FC<SatelliteConnectionPanelProps> = ({
                 <h3>衛星換手狀態</h3>
             </div>
             
-            <div className="metrics-grid">
-                <div className="metric-item primary">
+            <div className="metrics-list">
+                <div className="metric-item">
                     <div className="metric-label">活躍連接</div>
                     <div className="metric-value active">{metrics.activeConnections}</div>
                 </div>
                 
-                <div className="metric-item primary">
+                <div className="metric-item">
                     <div className="metric-label">換手延遲</div>
                     <div className="metric-value latency">
                         {metrics.handoverLatency.toFixed(1)} ms
@@ -103,13 +103,6 @@ const SatelliteConnectionPanel: React.FC<SatelliteConnectionPanelProps> = ({
                     <div className="metric-value handover">
                         {metrics.currentHandovers}
                     </div>
-                </div>
-            </div>
-            
-            <div className="performance-indicator">
-                <div className="performance-label">相較傳統方案</div>
-                <div className="performance-improvement">
-                    延遲改善 <span className="improvement-value">10x</span>
                 </div>
             </div>
         </div>
