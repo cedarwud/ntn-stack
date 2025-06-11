@@ -224,57 +224,8 @@ const HandoverStatusIndicator: React.FC<{
         }
     }
 
-    return (
-        <group position={[80, 80, 80]}>
-            <Text
-                position={[0, 20, 0]}
-                fontSize={8}
-                color={getStatusColor()}
-                anchorX="center"
-                anchorY="middle"
-            >
-                {getStatusText()}
-            </Text>
-            
-            {animationState.phase === 'switching' && (
-                <>
-                    <Text
-                        position={[0, 10, 0]}
-                        fontSize={5}
-                        color="#ffffff"
-                        anchorX="center"
-                        anchorY="middle"
-                    >
-                        進度: {(animationState.progress * 100).toFixed(0)}%
-                    </Text>
-                    
-                    {/* 進度條 */}
-                    <Line
-                        points={[[-20, 5, 0], [20, 5, 0]]}
-                        color="#333333"
-                        lineWidth={8}
-                    />
-                    <Line
-                        points={[[-20, 5, 0], [-20 + 40 * animationState.progress, 5, 0]]}
-                        color="#ff6b35"
-                        lineWidth={8}
-                    />
-                </>
-            )}
-            
-            {handoverState?.confidence && (
-                <Text
-                    position={[0, 0, 0]}
-                    fontSize={4}
-                    color="#aaaaaa"
-                    anchorX="center"
-                    anchorY="middle"
-                >
-                    置信度: {(handoverState.confidence * 100).toFixed(1)}%
-                </Text>
-            )}
-        </group>
-    )
+    // 移除 3D 場景中的狀態文字顯示 - 改為在 UI 面板中顯示
+    return null
 }
 
 // 連接線動畫

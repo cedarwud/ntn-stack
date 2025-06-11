@@ -227,11 +227,15 @@ export default function SceneView({
                 <IntelligentRecommendationSystem devices={devices} enabled={intelligentRecommendationEnabled} />
             )}
             
-            {/* 衛星連線狀態面板 - 顯示在右上角 */}
+            {/* 衛星連線狀態面板 - 顯示在右上角，簡化設計只顯示核心動態資訊 */}
             <SatelliteConnectionPanel 
                 enabled={satelliteUavConnectionEnabled} 
                 connections={satelliteConnections}
-                predictions={handoverPredictions}
+                isTransitioning={isTransitioning}
+                transitionProgress={transitionProgress}
+                currentConnection={currentConnection}
+                predictedConnection={predictedConnection}
+                handoverState={handoverState}
             />
 
             {/* 3D Canvas內容照舊，會蓋在星空上 */}

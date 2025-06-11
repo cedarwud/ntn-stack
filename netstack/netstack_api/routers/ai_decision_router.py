@@ -166,8 +166,8 @@ async def get_ai_decision_status(
 
 @router.post("/optimization/manual", response_model=Dict)
 async def trigger_manual_optimization(
-    request: ManualOptimizationRequest,
     background_tasks: BackgroundTasks,
+    request: ManualOptimizationRequest,
     service: AutomatedOptimizationService = Depends(get_optimization_service)
 ) -> Dict:
     """
@@ -276,9 +276,9 @@ async def detect_and_mitigate_interference(
 
 @router.post("/ai-ran/train", response_model=Dict)
 async def train_ai_ran_model(
+    background_tasks: BackgroundTasks,
     training_episodes: int = 1000,
     save_interval: int = 100,
-    background_tasks: BackgroundTasks,
     ai_ran_service: AIRANAntiInterferenceService = Depends(get_ai_ran_service)
 ) -> Dict:
     """

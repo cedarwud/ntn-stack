@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Text, Line } from '@react-three/drei'
+import { Line } from '@react-three/drei'
 
 interface SatelliteUAVConnectionProps {
     devices: any[]
@@ -16,6 +16,7 @@ interface SatelliteConnection {
     uavId: string | number
     beamId: string
     status: 'active' | 'handover' | 'establishing' | 'lost' | 'blocked'
+    connectionType?: 'current' | 'new' // 新增：標記連接類型
     quality: {
         signalStrength: number // dBm
         snr: number // dB
@@ -104,18 +105,19 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
             
             // 修復：統一 ID 生成邏輯，確保與 SimplifiedSatellite 完全一致
             if (satellites && satellites.length > 0) {
+                console.log('SatelliteUAVConnection 接收到的衛星數據:', satellites.length, '個衛星')
                 satelliteConnections = satellites.slice(0, Math.min(5, satellites.length)).map((sat, index) => {
-                    // 修復：確保 ID 生成與 SimplifiedSatellite.tsx 第360-361行完全一致
+                    // 修復：確保 ID 生成與 SimplifiedSatellite 完全一致
                     const satelliteId = sat.norad_id || sat.id || `satellite_${index}`
                     
                     return {
-                        id: satelliteId,
+                        id: satelliteId, // 使用統一的ID
+                        norad_id: satelliteId, // 保持一致性
                         name: sat.name || `Satellite-${satelliteId}`,
                         position: null, // 完全依賴實時追蹤
                         elevation: sat.elevation_deg || 45,
                         azimuth: sat.azimuth_deg || index * 60,
-                        velocity: [0, 0, 0],
-                        norad_id: sat.norad_id
+                        velocity: [0, 0, 0]
                     }
                 })
             } else {
@@ -137,82 +139,106 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
             // 存儲處理過的衛星數據
             setProcessedSatellites(satelliteConnections)
             
-            // 為每個 UAV 建立連接
+            // 重新設計的換手邏輯：支援雙連接線和 Make-Before-Break
             const newConnections: SatelliteConnection[] = []
+            const currentTime = Date.now()
+            const handoverCycle = 45000 // 45秒一個換手週期
+            const handoverProgress = (currentTime % handoverCycle) / handoverCycle
+            
+            // 時間階段定義（按照 process.md）
+            const isStablePhase = handoverProgress >= 0 && handoverProgress <= 0.67     // 0-30秒：穩定期
+            const isPreparePhase = handoverProgress > 0.67 && handoverProgress <= 0.78  // 30-35秒：準備期
+            const isEstablishPhase = handoverProgress > 0.78 && handoverProgress <= 0.84 // 35-38秒：建立期
+            const isSwitchPhase = handoverProgress > 0.84 && handoverProgress <= 0.89   // 38-40秒：切換期
+            const isCompletePhase = handoverProgress > 0.89                             // 40-45秒：完成期
+            
             uavs.forEach((uav, index) => {
-                // 循環使用衛星（如果 UAV 比衛星多）
-                const satelliteIndex = index % satelliteConnections.length
-                const satellite = satelliteConnections[satelliteIndex]
+                const baseIndex = index % satelliteConnections.length
+                const currentSatIndex = baseIndex
+                const nextSatIndex = (baseIndex + 1) % satelliteConnections.length
                 
-                if (satellite) {
-                    // 修復：穩定的連線狀態計算，減少閃爍
-                    const getStableConnectionStatus = (satellite: any, uav: any) => {
-                        const connectionKey = `${uav.id}_${satellite.id}`
-                        const currentTime = Date.now()
-                        const existingState = connectionStates.get(connectionKey)
-                        
-                        // 如果連線狀態在過去10秒內沒有變化，保持原狀態
-                        if (existingState && (currentTime - existingState.lastChange) < 10000) {
-                            return existingState.status
-                        }
-                        
-                        const elevation = satellite.elevation || 45
-                        const signalStrength = -65 + Math.random() * 10 - 5
-                        let newStatus: string
-                        
-                        // 基於條件決定連線狀態，但更穩定
-                        if (elevation < 10) {
-                            newStatus = 'blocked'
-                        } else if (signalStrength < -80) {
-                            newStatus = 'lost'
-                        } else {
-                            // 更穩定的狀態分配：大部分為 active
-                            const rand = Math.random()
-                            if (rand < 0.02) newStatus = 'handover'  // 2% 機率
-                            else if (rand < 0.03) newStatus = 'establishing'  // 1% 機率
-                            else newStatus = 'active' // 97% 機率
-                        }
-                        
-                        // 更新狀態記錄
-                        connectionStates.set(connectionKey, { 
-                            status: newStatus, 
-                            lastChange: currentTime 
-                        })
-                        
-                        return newStatus
+                const currentSat = satelliteConnections[currentSatIndex]
+                const nextSat = satelliteConnections[nextSatIndex]
+                
+                // 根據階段創建相應的連接
+                if (isStablePhase || isPreparePhase) {
+                    // 穩定期和準備期：只有舊連接
+                    if (currentSat) {
+                        const status = isPreparePhase ? 'handover' : 'active'
+                        newConnections.push(createConnection(uav, currentSat, status, 'current', handoverProgress))
                     }
-                    
-                    const connectionStatus = getStableConnectionStatus(satellite, uav)
-                    
-                    newConnections.push({
-                        id: `conn_${uav.id}_${satellite.id}`,
-                        satelliteId: satellite.id,
-                        uavId: uav.id,
-                        beamId: `beam_${satellite.id}_${uav.id}`,
-                        status: connectionStatus,
-                        quality: {
-                            signalStrength: -65 + Math.random() * 10 - 5,
-                            snr: 25 + Math.random() * 10 - 5,
-                            elevation: satellite.elevation,
-                            azimuth: satellite.azimuth,
-                            distance: 500 + Math.random() * 200,
-                            doppler: 1000 + Math.random() * 500 - 250
-                        },
-                        performance: {
-                            throughput: 100 + Math.random() * 50,
-                            latency: 20 + Math.random() * 10,
-                            jitter: 3 + Math.random() * 2,
-                            packetLoss: Math.random() * 2
-                        },
-                        beam: {
-                            beamWidth: 0.7 + Math.random() * 0.3,
-                            eirp: 60 + Math.random() * 10,
-                            frequency: 13 + Math.random() * 2,
-                            polarization: Math.random() > 0.5 ? 'LHCP' : 'RHCP'
-                        }
-                    })
+                } else if (isEstablishPhase) {
+                    // 建立期：舊連接 + 正在建立的新連接
+                    if (currentSat) {
+                        newConnections.push(createConnection(uav, currentSat, 'handover', 'current', handoverProgress))
+                    }
+                    if (nextSat) {
+                        newConnections.push(createConnection(uav, nextSat, 'establishing', 'new', handoverProgress))
+                    }
+                } else if (isSwitchPhase) {
+                    // 切換期：雙連接期（Make-Before-Break）
+                    if (currentSat) {
+                        newConnections.push(createConnection(uav, currentSat, 'lost', 'current', handoverProgress))
+                    }
+                    if (nextSat) {
+                        newConnections.push(createConnection(uav, nextSat, 'establishing', 'new', handoverProgress))
+                    }
+                } else if (isCompletePhase) {
+                    // 完成期：只有新連接
+                    if (nextSat) {
+                        newConnections.push(createConnection(uav, nextSat, 'active', 'new', handoverProgress))
+                    }
                 }
             })
+            
+            // 連接創建輔助函數
+            function createConnection(uav: any, satellite: any, status: string, type: 'current' | 'new', progress: number): SatelliteConnection {
+                const connectionKey = `${uav.id}_${satellite.id}`
+                const stableHash = (str: string) => {
+                    let hash = 0
+                    for (let i = 0; i < str.length; i++) {
+                        const char = str.charCodeAt(i)
+                        hash = ((hash << 5) - hash) + char
+                        hash = hash & hash
+                    }
+                    return Math.abs(hash)
+                }
+                
+                const hash = stableHash(connectionKey)
+                const signalBase = -65 + (hash % 10) - 5
+                const elevation = satellite.elevation || 45
+                const elevationBonus = Math.max(0, (elevation - 30) * 0.5)
+                const finalSignalStrength = signalBase + elevationBonus
+                
+                return {
+                    id: `conn_${type}_${uav.id}_${satellite.id}_${Math.floor(progress * 1000)}`,
+                    satelliteId: satellite.id,
+                    uavId: uav.id,
+                    beamId: `beam_${satellite.id}_${uav.id}`,
+                    status: status as any,
+                    connectionType: type, // 標記連接類型
+                    quality: {
+                        signalStrength: finalSignalStrength,
+                        snr: 25 + (hash % 10) - 5,
+                        elevation: satellite.elevation,
+                        azimuth: satellite.azimuth,
+                        distance: 500 + (hash % 200),
+                        doppler: 1000 + ((hash * 7) % 500) - 250
+                    },
+                    performance: {
+                        throughput: 100 + (hash % 50),
+                        latency: 20 + (hash % 10),
+                        jitter: 3 + ((hash * 3) % 4),
+                        packetLoss: (hash % 100) / 50
+                    },
+                    beam: {
+                        beamWidth: 0.7 + ((hash % 30) / 100),
+                        eirp: 60 + (hash % 10),
+                        frequency: 13 + ((hash % 20) / 10),
+                        polarization: (hash % 2) === 0 ? 'LHCP' : 'RHCP'
+                    }
+                }
+            }
             
             setConnections(newConnections)
             setHandoverEvents([])
@@ -258,15 +284,7 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
             
             {/* 移除 3D 場景中的連接狀態顯示，改為在 UI 面板中顯示 */}
             
-            {/* 簡化的連接質量指示器 - 只顯示前3個，沒有文字 */}
-            {connections.slice(0, 3).map((connection) => (
-                <ConnectionQualityIndicator
-                    key={connection.id}
-                    connection={connection}
-                    devices={devices}
-                    enabled={enabled}
-                />
-            ))}
+            {/* 移除3D場景中的連接質量指示器 - 所有資訊移至UI面板 */}
         </>
     )
 }
@@ -283,15 +301,68 @@ const ConnectionLinksVisualization: React.FC<{
     const { scene } = useThree()
     const [satellitePositions, setSatellitePositions] = useState<Map<string, [number, number, number]>>(new Map())
     
-    const getConnectionColor = (status: SatelliteConnection['status']) => {
+    // 獲取連接線的視覺屬性（顏色、透明度、虛實、粗細）
+    const getConnectionVisualProps = (connection: any, handoverProgress: number) => {
+        const status = connection.status
+        const type = connection.connectionType
+        
+        // 基礎顏色設定
+        let color = '#ffffff'
+        let opacity = 1.0
+        let dashed = false
+        let lineWidth = 2
+        
         switch (status) {
-            case 'active': return '#00ff00'
-            case 'handover': return '#ffaa00'
-            case 'establishing': return '#0088ff'
-            case 'lost': return '#ff0000'
-            case 'blocked': return '#666666'
-            default: return '#ffffff'
+            case 'active':
+                color = '#00ff00' // 綠色 = 穩定
+                opacity = 1.0
+                dashed = false
+                lineWidth = 3
+                break
+                
+            case 'handover':
+                color = '#ffaa00' // 黃色 = 準備/警告
+                // 準備期開始閃爍效果
+                opacity = 0.7 + 0.3 * Math.sin(Date.now() / 200)
+                dashed = false
+                lineWidth = 2
+                break
+                
+            case 'establishing':
+                color = '#0088ff' // 藍色 = 建立中
+                if (type === 'new') {
+                    // 新連接：從虛線逐漸變實線
+                    const establishProgress = handoverProgress > 0.78 ? (handoverProgress - 0.78) / 0.06 : 0
+                    opacity = 0.3 + 0.7 * establishProgress
+                    dashed = establishProgress < 0.5
+                    lineWidth = 1 + 2 * establishProgress
+                } else {
+                    opacity = 0.8
+                    dashed = true
+                    lineWidth = 2
+                }
+                break
+                
+            case 'lost':
+                color = '#666666' // 灰色 = 斷開中
+                if (type === 'current') {
+                    // 舊連接：逐漸淡出
+                    const fadeProgress = handoverProgress > 0.84 ? (handoverProgress - 0.84) / 0.05 : 0
+                    opacity = 1.0 - 0.7 * fadeProgress
+                    dashed = true
+                    lineWidth = 3 - 2 * fadeProgress
+                }
+                break
+                
+            case 'blocked':
+                color = '#333333'
+                opacity = 0.3
+                dashed = true
+                lineWidth = 1
+                break
         }
+        
+        return { color, opacity, dashed, lineWidth }
     }
 
     // 修復：實時同步衛星位置，直接讀取 groupRef 位置而非通過 scene 遍歷
@@ -341,15 +412,20 @@ const ConnectionLinksVisualization: React.FC<{
                 const uav = devices.find(d => d.id === connection.uavId)
                 if (!uav) return null
 
-                // 修復：優先使用實時位置，但提供備用方案以確保連線可见
+                // 計算當前換手進度（用於動畫效果）
+                const currentTime = Date.now()
+                const handoverCycle = 45000
+                const handoverProgress = (currentTime % handoverCycle) / handoverCycle
+
+                // 獲取連接線的視覺屬性
+                const visualProps = getConnectionVisualProps(connection, handoverProgress)
+
+                // 優先使用實時位置，但提供備用方案
                 let satellitePos = satellitePositions.get(connection.satelliteId)
                 
-                // 如果沒有實時位置，使用計算得出的基礎位置作為備用
                 if (!satellitePos) {
-                    // 尋找對應的衛星配置數據
                     const satelliteConfig = satellites.find(sat => sat.id === connection.satelliteId)
                     if (satelliteConfig) {
-                        // 使用基礎位置計算作為備用
                         const PI_DIV_180 = Math.PI / 180
                         const GLB_SCENE_SIZE = 1200
                         const MIN_SAT_HEIGHT = 200
@@ -365,7 +441,7 @@ const ConnectionLinksVisualization: React.FC<{
                         
                         satellitePos = [x, z, y]
                     } else {
-                        return null // 如果連配置都沒有，才跳過
+                        return null
                     }
                 }
 
@@ -381,11 +457,11 @@ const ConnectionLinksVisualization: React.FC<{
                     <Line
                         key={connection.id}
                         points={points}
-                        color={getConnectionColor(connection.status)}
-                        lineWidth={connection.status === 'active' ? 3 : 2}
-                        dashed={connection.status === 'handover'}
+                        color={visualProps.color}
+                        lineWidth={visualProps.lineWidth}
+                        dashed={visualProps.dashed}
                         transparent
-                        opacity={0.8}
+                        opacity={visualProps.opacity}
                     />
                 )
             })}
@@ -395,55 +471,7 @@ const ConnectionLinksVisualization: React.FC<{
 
 // 移除波束覆蓋可視化以提升性能
 
-// 精簡的連接質量指示器 - 只顯示核心指標
-const ConnectionQualityIndicator: React.FC<{
-    connection: SatelliteConnection
-    devices: any[]
-    enabled: boolean
-}> = ({ connection, devices, enabled }) => {
-    const uav = devices.find(d => d.id === connection.uavId)
-    if (!uav || !enabled) return null
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'active': return '#00ff00'
-            case 'handover': return '#ffaa00'
-            case 'establishing': return '#0088ff'
-            case 'lost': return '#ff0000'
-            case 'blocked': return '#666666'
-            default: return '#ffffff'
-        }
-    }
-
-    const getStatusText = (status: string) => {
-        switch (status) {
-            case 'active': return '✓'
-            case 'handover': return '🔄'
-            case 'establishing': return '🔗'
-            case 'lost': return '✗'
-            case 'blocked': return '🚫'
-            default: return '?'
-        }
-    }
-
-    return (
-        <group position={[
-            uav.position_x || 0,
-            (uav.position_z || 0) + 30,
-            uav.position_y || 0
-        ]}>
-            <Text
-                position={[0, 0, 0]}
-                fontSize={4}
-                color={getStatusColor(connection.status)}
-                anchorX="center"
-                anchorY="middle"
-            >
-                {getStatusText(connection.status)}
-            </Text>
-        </group>
-    )
-}
+// 移除 ConnectionQualityIndicator - 所有資訊移至UI面板
 
 // 移除切換事件可視化以提升性能
 

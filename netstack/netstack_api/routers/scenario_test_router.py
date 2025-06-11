@@ -4,7 +4,7 @@
 """
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel, Field
 from datetime import datetime
 import logging

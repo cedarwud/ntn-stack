@@ -1,0 +1,334 @@
+.integrated-handover-panel {
+  background: rgba(0, 20, 40, 0.95);
+  border: 1px solid rgba(64, 224, 255, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 16px 0;
+  color: #e0f6ff;
+  font-family: 'Monaco', 'Menlo', monospace;
+
+  &.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+
+    .disabled-message {
+      text-align: center;
+      padding: 40px 20px;
+
+      h3 {
+        color: #ff6b35;
+        margin-bottom: 10px;
+      }
+
+      p {
+        color: #b0d4e7;
+      }
+    }
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(64, 224, 255, 0.2);
+
+    h2 {
+      margin: 0;
+      color: #40e0ff;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .selected-ue {
+      font-size: 12px;
+      color: #b0d4e7;
+      background: rgba(64, 224, 255, 0.1);
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(64, 224, 255, 0.2);
+    }
+  }
+
+  .mode-switcher {
+    margin-bottom: 20px;
+
+    .switcher-header {
+      margin-bottom: 12px;
+
+      .switcher-title {
+        font-size: 14px;
+        color: #b0d4e7;
+        font-weight: 500;
+      }
+    }
+
+    .switcher-tabs {
+      display: flex;
+      gap: 8px;
+
+      .switcher-tab {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(64, 224, 255, 0.2);
+        border-radius: 8px;
+        color: #b0d4e7;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 14px;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.08);
+          border-color: rgba(64, 224, 255, 0.4);
+        }
+
+        &.active {
+          background: rgba(64, 224, 255, 0.15);
+          border-color: #40e0ff;
+          color: #40e0ff;
+          box-shadow: 0 0 10px rgba(64, 224, 255, 0.3);
+        }
+
+        .tab-icon {
+          font-size: 16px;
+        }
+
+        .tab-label {
+          font-weight: 500;
+        }
+      }
+    }
+  }
+
+  .tab-navigation {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 4px;
+
+    .tab-button {
+      flex: 1;
+      padding: 12px 16px;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      color: #b0d4e7;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 13px;
+      font-weight: 500;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #e0f6ff;
+      }
+
+      &.active {
+        background: rgba(64, 224, 255, 0.2);
+        color: #40e0ff;
+        box-shadow: 0 2px 8px rgba(64, 224, 255, 0.3);
+      }
+    }
+  }
+
+  .tab-content {
+    min-height: 300px;
+
+    .status-tab,
+    .prediction-tab,
+    .performance-tab {
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    .prediction-tab {
+      .prediction-metrics {
+        margin-top: 20px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        border: 1px solid rgba(64, 224, 255, 0.1);
+
+        h4 {
+          margin: 0 0 16px 0;
+          color: #40e0ff;
+          font-size: 16px;
+        }
+
+        .metrics-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 12px;
+
+          .metric-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid rgba(64, 224, 255, 0.1);
+
+            .metric-label {
+              display: block;
+              font-size: 11px;
+              color: #b0d4e7;
+              margin-bottom: 4px;
+            }
+
+            .metric-value {
+              display: block;
+              font-size: 18px;
+              font-weight: bold;
+              color: #40e0ff;
+            }
+          }
+        }
+      }
+    }
+
+    .performance-tab {
+      h4 {
+        margin: 0 0 20px 0;
+        color: #40e0ff;
+        font-size: 16px;
+      }
+
+      .performance-metrics {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 24px;
+
+        .metric-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 16px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 6px;
+          border: 1px solid rgba(64, 224, 255, 0.1);
+
+          .metric-label {
+            font-size: 13px;
+            color: #b0d4e7;
+          }
+
+          .metric-value {
+            font-size: 16px;
+            font-weight: bold;
+
+            &.success {
+              color: #00ff88;
+            }
+
+            &.failed {
+              color: #ff4444;
+            }
+
+            &.handover {
+              color: #ffaa00;
+            }
+          }
+        }
+      }
+
+      .performance-chart {
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        border: 1px solid rgba(64, 224, 255, 0.1);
+
+        h5 {
+          margin: 0 0 12px 0;
+          color: #40e0ff;
+          font-size: 14px;
+        }
+
+        .success-rate-bar {
+          position: relative;
+          height: 24px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          overflow: hidden;
+
+          .success-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #40e0ff);
+            border-radius: 12px;
+            transition: width 0.3s ease;
+          }
+
+          .success-rate-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: bold;
+            color: #001122;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .integrated-handover-panel {
+    padding: 16px;
+    margin: 12px 0;
+
+    .panel-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+
+      h2 {
+        font-size: 16px;
+      }
+    }
+
+    .mode-switcher .switcher-tabs {
+      flex-direction: column;
+
+      .switcher-tab {
+        justify-content: flex-start;
+      }
+    }
+
+    .tab-navigation {
+      flex-direction: column;
+
+      .tab-button {
+        text-align: left;
+      }
+    }
+
+    .tab-content {
+      min-height: 250px;
+
+      .prediction-tab .prediction-metrics .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+} 
