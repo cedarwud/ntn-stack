@@ -1,0 +1,138 @@
+.satellite-connection-panel {
+    position: fixed;
+    top: 70px; // navbar 下方
+    right: 20px;
+    width: 280px;
+    background: rgba(0, 20, 40, 0.95);
+    border: 1px solid rgba(0, 170, 255, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+    .panel-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(0, 170, 255, 0.2);
+
+        .panel-icon {
+            font-size: 20px;
+        }
+
+        h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #00aaff;
+        }
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+
+        .metric-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+
+            &.primary {
+                background: rgba(0, 170, 255, 0.1);
+                border-color: rgba(0, 170, 255, 0.3);
+            }
+
+            .metric-label {
+                font-size: 12px;
+                color: #aaaaaa;
+                margin-bottom: 4px;
+                font-weight: 500;
+            }
+
+            .metric-value {
+                font-size: 18px;
+                font-weight: 700;
+                
+                &.active {
+                    color: #00ff88;
+                }
+                
+                &.latency {
+                    color: #ffaa88;
+                }
+                
+                &.success {
+                    color: #aaffff;
+                }
+                
+                &.handover {
+                    color: #ffaa00;
+                }
+            }
+        }
+    }
+
+    .performance-indicator {
+        background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 170, 255, 0.1));
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        border: 1px solid rgba(0, 255, 136, 0.2);
+
+        .performance-label {
+            font-size: 11px;
+            color: #888888;
+            margin-bottom: 4px;
+        }
+
+        .performance-improvement {
+            font-size: 14px;
+            color: #ffffff;
+            font-weight: 600;
+
+            .improvement-value {
+                color: #00ff88;
+                font-weight: 700;
+                font-size: 16px;
+            }
+        }
+    }
+
+    // 響應式設計
+    @media (max-width: 768px) {
+        top: 60px;
+        right: 10px;
+        width: 240px;
+        padding: 12px;
+
+        .panel-header h3 {
+            font-size: 14px;
+        }
+
+        .metrics-grid .metric-item .metric-value {
+            font-size: 16px;
+        }
+    }
+
+    // 動畫效果
+    animation: slideInFromRight 0.3s ease-out;
+}
+
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
