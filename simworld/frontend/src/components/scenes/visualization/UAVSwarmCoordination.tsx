@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
-import { Text, Line } from '@react-three/drei'
+import { Line } from '@react-three/drei'
 
 interface UAVSwarmCoordinationProps {
     devices: any[]
@@ -284,45 +284,9 @@ const SwarmFormationVisualization: React.FC<{
             </mesh>
             
             {/* 編隊標籤 */}
-            <Text
-                position={[0, 25, 0]}
-                fontSize={6}
-                color={getFormationColor(formation.status)}
-                anchorX="center"
-                anchorY="middle"
-            >
-                {getFormationIcon(formation.type)} {formation.name}
-            </Text>
             
-            <Text
-                position={[0, 18, 0]}
-                fontSize={4}
-                color="#ffffff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                狀態: {formation.status.toUpperCase()}
-            </Text>
             
-            <Text
-                position={[0, 12, 0]}
-                fontSize={3.5}
-                color="#cccccc"
-                anchorX="center"
-                anchorY="middle"
-            >
-                質量: {formation.quality.toFixed(1)}%
-            </Text>
             
-            <Text
-                position={[0, 6, 0]}
-                fontSize={3}
-                color="#aaaaaa"
-                anchorX="center"
-                anchorY="middle"
-            >
-                成員: {formation.members.length} UAVs
-            </Text>
         </group>
     )
 }
@@ -367,83 +331,8 @@ const SwarmStatusDisplay: React.FC<{
     formations: SwarmFormation[]
     metrics: any
 }> = ({ formations, metrics }) => {
-    return (
-        <group position={[-80, 80, 80]}>
-            <Text
-                position={[0, 25, 0]}
-                fontSize={6}
-                color="#00ffaa"
-                anchorX="center"
-                anchorY="middle"
-            >
-                🚁 UAV 群集協調狀態
-            </Text>
-            
-            <Text
-                position={[0, 18, 0]}
-                fontSize={4}
-                color="#ffffff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                總 UAV 數量: {metrics.totalUAVs}
-            </Text>
-            
-            <Text
-                position={[0, 13, 0]}
-                fontSize={4}
-                color="#ffffff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                活躍群集: {metrics.activeSwarms}
-            </Text>
-            
-            <Text
-                position={[0, 8, 0]}
-                fontSize={3.5}
-                color="#88ff88"
-                anchorX="center"
-                anchorY="middle"
-            >
-                編隊合規性: {metrics.formationCompliance.toFixed(1)}%
-            </Text>
-            
-            <Text
-                position={[0, 3, 0]}
-                fontSize={3.5}
-                color="#88aaff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                通訊質量: {metrics.communicationQuality.toFixed(1)}%
-            </Text>
-            
-            <Text
-                position={[0, -2, 0]}
-                fontSize={3.5}
-                color="#ffaa88"
-                anchorX="center"
-                anchorY="middle"
-            >
-                協調效率: {metrics.coordinationEfficiency.toFixed(1)}%
-            </Text>
-
-            {/* 編隊詳細信息 */}
-            {formations.map((formation, index) => (
-                <Text
-                    key={formation.id}
-                    position={[0, -8 - index * 4, 0]}
-                    fontSize={2.5}
-                    color={formation.color}
-                    anchorX="center"
-                    anchorY="middle"
-                >
-                    {formation.name}: {formation.status} ({formation.quality.toFixed(0)}%)
-                </Text>
-            ))}
-        </group>
-    )
+    // 移除所有文字顯示，返回 null
+    return null
 }
 
 // 協調任務顯示組件
@@ -471,53 +360,8 @@ const CoordinationTaskDisplay: React.FC<{
         }
     }
 
-    return (
-        <group position={[80, 80, -80]}>
-            <Text
-                position={[0, 20, 0]}
-                fontSize={5}
-                color="#ffaa00"
-                anchorX="center"
-                anchorY="middle"
-            >
-                📋 協調任務狀態
-            </Text>
-            
-            {tasks.map((task, index) => (
-                <group key={task.id} position={[0, 10 - index * 12, 0]}>
-                    <Text
-                        position={[0, 6, 0]}
-                        fontSize={3.5}
-                        color={getPriorityColor(task.priority)}
-                        anchorX="center"
-                        anchorY="middle"
-                    >
-                        {getTaskIcon(task.type)} {task.description}
-                    </Text>
-                    
-                    <Text
-                        position={[0, 2, 0]}
-                        fontSize={3}
-                        color="#ffffff"
-                        anchorX="center"
-                        anchorY="middle"
-                    >
-                        優先級: {task.priority.toUpperCase()}
-                    </Text>
-                    
-                    <Text
-                        position={[0, -2, 0]}
-                        fontSize={3}
-                        color="#88ccff"
-                        anchorX="center"
-                        anchorY="middle"
-                    >
-                        進度: {task.progress.toFixed(1)}%
-                    </Text>
-                </group>
-            ))}
-        </group>
-    )
+    // 移除所有文字顯示，返回 null
+    return null
 }
 
 // 編隊軌跡預測組件

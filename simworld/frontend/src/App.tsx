@@ -310,7 +310,6 @@ function App({ activeView }: AppProps) {
                         coreNetworkSyncEnabled={coreNetworkSyncEnabled}
                         // Stage 3 異常處理功能
                         anomalyAlertSystemEnabled={anomalyAlertSystemEnabled}
-                        handoverComparisonDashboardEnabled={handoverComparisonDashboardEnabled}
                         realtimePerformanceMonitorEnabled={realtimePerformanceMonitorEnabled}
                         scenarioTestEnvironmentEnabled={scenarioTestEnvironmentEnabled}
                         // 3D 換手動畫
@@ -479,8 +478,7 @@ function App({ activeView }: AppProps) {
                                     // Stage 3 異常處理功能
                                     anomalyAlertSystemEnabled={anomalyAlertSystemEnabled}
                                     onAnomalyAlertSystemChange={setAnomalyAlertSystemEnabled}
-                                    handoverComparisonDashboardEnabled={handoverComparisonDashboardEnabled}
-                                    onHandoverComparisonDashboardChange={setHandoverComparisonDashboardEnabled}
+                                                onHandoverComparisonDashboardChange={setHandoverComparisonDashboardEnabled}
                                     realtimePerformanceMonitorEnabled={realtimePerformanceMonitorEnabled}
                                     onRealtimePerformanceMonitorChange={setRealtimePerformanceMonitorEnabled}
                                     scenarioTestEnvironmentEnabled={scenarioTestEnvironmentEnabled}

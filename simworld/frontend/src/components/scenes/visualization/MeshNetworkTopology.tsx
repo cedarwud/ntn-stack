@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
-import { Text, Line } from '@react-three/drei'
+import { Line } from '@react-three/drei'
 
 interface MeshNetworkTopologyProps {
     devices: any[]
@@ -92,28 +92,46 @@ const MeshNetworkTopology: React.FC<MeshNetworkTopologyProps> = ({ devices, enab
 
     return (
         <>
-            {/* 網路節點可視化 */}
-            {networkNodes.map((node) => (
-                <NetworkNodeVisualization
-                    key={node.id}
-                    node={node}
-                />
-            ))}
-            
-            {/* 網路連接線 */}
+            {/* 移除所有文字顯示，只保留幾何形狀和連接線 */}
+            <SimpleNetworkNodesVisualization nodes={networkNodes} />
             <NetworkLinksVisualization links={networkLinks} nodes={networkNodes} />
-            
-            {/* 路由路徑 */}
             <RoutingPathVisualization paths={routingPaths} nodes={networkNodes} />
-            
-            {/* 拓撲狀態顯示 */}
-            <TopologyStatusDisplay metrics={topologyMetrics} />
-            
-            {/* 網路覆蓋範圍 */}
             <NetworkCoverageVisualization nodes={networkNodes} />
-            
-            {/* 動態路由表 */}
-            <DynamicRoutingTable paths={routingPaths} />
+        </>
+    )
+}
+
+// 簡化的網路節點可視化組件 - 移除所有文字
+const SimpleNetworkNodesVisualization: React.FC<{ nodes: NetworkNode[] }> = ({ nodes }) => {
+    const getNodeColor = (type: string, status: string) => {
+        if (status === 'failed') return '#ff0000'
+        if (status === 'degraded') return '#ffaa00'
+        
+        switch (type) {
+            case 'satellite_gw': return '#00aaff'
+            case 'uav_relay': return '#00ff88'
+            case 'ground_station': return '#ffaa00'
+            case 'mesh_node': return '#ff6b35'
+            default: return '#ffffff'
+        }
+    }
+
+    return (
+        <>
+            {nodes.map((node) => (
+                <group key={node.id} position={node.position}>
+                    <mesh>
+                        <octahedronGeometry args={[8, 0]} />
+                        <meshStandardMaterial
+                            color={getNodeColor(node.type, node.status)}
+                            transparent
+                            opacity={0.8}
+                            emissive={getNodeColor(node.type, node.status)}
+                            emissiveIntensity={0.3}
+                        />
+                    </mesh>
+                </group>
+            ))}
         </>
     )
 }

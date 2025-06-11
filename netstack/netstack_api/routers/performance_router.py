@@ -147,7 +147,8 @@ async def get_performance_summary():
     "/optimize", response_model=OptimizationResultResponse, summary="觸發性能優化"
 )
 async def trigger_optimization(
-    request: PerformanceOptimizationRequest, background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    request: PerformanceOptimizationRequest
 ):
     """
     觸發性能優化操作
