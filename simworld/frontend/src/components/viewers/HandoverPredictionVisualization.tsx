@@ -7,6 +7,7 @@ interface HandoverPredictionVisualizationProps {
     devices: any[]
     enabled: boolean
     satellites?: any[]
+    onPredictionsUpdate?: (predictions: HandoverPrediction[]) => void
 }
 
 interface HandoverPrediction {
@@ -55,7 +56,8 @@ interface HandoverMetrics {
 const HandoverPredictionVisualization: React.FC<HandoverPredictionVisualizationProps> = ({ 
     devices, 
     enabled, 
-    satellites = [] 
+    satellites = [],
+    onPredictionsUpdate
 }) => {
     const [predictions, setPredictions] = useState<HandoverPrediction[]>([])
     const [handoverEvents, setHandoverEvents] = useState<HandoverEvent[]>([])
@@ -145,6 +147,11 @@ const HandoverPredictionVisualization: React.FC<HandoverPredictionVisualizationP
 
             setPredictions(newPredictions)
             setHandoverEvents(prev => [...prev.slice(-10), ...newEvents])
+            
+            // 傳遞預測數據給父組件
+            if (onPredictionsUpdate) {
+                onPredictionsUpdate(newPredictions)
+            }
 
             // 更新指標
             const totalPreds = newPredictions.length

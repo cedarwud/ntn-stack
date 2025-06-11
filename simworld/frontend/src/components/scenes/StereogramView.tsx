@@ -120,10 +120,16 @@ export default function SceneView({
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [satelliteConnections, setSatelliteConnections] = useState<any[]>([])
+    const [handoverPredictions, setHandoverPredictions] = useState<any[]>([])
     
     // 處理衛星連線數據更新
     const handleConnectionsUpdate = useCallback((connections: any[]) => {
         setSatelliteConnections(connections)
+    }, [])
+    
+    // 處理換手預測數據更新
+    const handlePredictionsUpdate = useCallback((predictions: any[]) => {
+        setHandoverPredictions(predictions)
     }, [])
 
     // WebGL 上下文恢復處理
@@ -225,6 +231,7 @@ export default function SceneView({
             <SatelliteConnectionPanel 
                 enabled={satelliteUavConnectionEnabled} 
                 connections={satelliteConnections}
+                predictions={handoverPredictions}
             />
 
             {/* 3D Canvas內容照舊，會蓋在星空上 */}
@@ -299,6 +306,7 @@ export default function SceneView({
                         performanceTrendAnalysisEnabled={performanceTrendAnalysisEnabled}
                         automatedReportGenerationEnabled={automatedReportGenerationEnabled}
                         onSatelliteConnectionsUpdate={handleConnectionsUpdate}
+                        onHandoverPredictionsUpdate={handlePredictionsUpdate}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}
