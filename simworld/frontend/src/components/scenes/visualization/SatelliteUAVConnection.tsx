@@ -7,6 +7,7 @@ interface SatelliteUAVConnectionProps {
     devices: any[]
     enabled: boolean
     satellites?: any[] // 從 props 傳入的衛星數據
+    onConnectionsUpdate?: (connections: SatelliteConnection[]) => void // 新增：傳遞連線數據給父組件
 }
 
 interface SatelliteConnection {
@@ -63,7 +64,8 @@ interface BeamCoverage {
 const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({ 
     devices, 
     enabled, 
-    satellites = [] 
+    satellites = [],
+    onConnectionsUpdate
 }) => {
     const [connections, setConnections] = useState<SatelliteConnection[]>([])
     const [handoverEvents, setHandoverEvents] = useState<HandoverEvent[]>([])
@@ -215,6 +217,11 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
             setConnections(newConnections)
             setHandoverEvents([])
             setBeamCoverages([])
+            
+            // 傳遞連線數據給父組件（用於 UI 面板顯示）
+            if (onConnectionsUpdate) {
+                onConnectionsUpdate(newConnections)
+            }
 
             // 更新指標
             setConnectionMetrics({
@@ -249,10 +256,9 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
                 enabled={enabled}
             />
             
-            {/* 連接狀態顯示 */}
-            <ConnectionStatusDisplay metrics={connectionMetrics} enabled={enabled} />
+            {/* 移除 3D 場景中的連接狀態顯示，改為在 UI 面板中顯示 */}
             
-            {/* 簡化的連接質量指示器 - 只顯示前3個 */}
+            {/* 簡化的連接質量指示器 - 只顯示前3個，沒有文字 */}
             {connections.slice(0, 3).map((connection) => (
                 <ConnectionQualityIndicator
                     key={connection.id}
@@ -389,7 +395,7 @@ const ConnectionLinksVisualization: React.FC<{
 
 // 移除波束覆蓋可視化以提升性能
 
-// 連接質量指示器組件
+// 精簡的連接質量指示器 - 只顯示核心指標
 const ConnectionQualityIndicator: React.FC<{
     connection: SatelliteConnection
     devices: any[]
@@ -398,46 +404,42 @@ const ConnectionQualityIndicator: React.FC<{
     const uav = devices.find(d => d.id === connection.uavId)
     if (!uav || !enabled) return null
 
-    const getQualityColor = (signalStrength: number) => {
-        if (signalStrength > -60) return '#00ff00'
-        if (signalStrength > -80) return '#ffaa00'
-        return '#ff4400'
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'active': return '#00ff00'
+            case 'handover': return '#ffaa00'
+            case 'establishing': return '#0088ff'
+            case 'lost': return '#ff0000'
+            case 'blocked': return '#666666'
+            default: return '#ffffff'
+        }
+    }
+
+    const getStatusText = (status: string) => {
+        switch (status) {
+            case 'active': return '✓'
+            case 'handover': return '🔄'
+            case 'establishing': return '🔗'
+            case 'lost': return '✗'
+            case 'blocked': return '🚫'
+            default: return '?'
+        }
     }
 
     return (
         <group position={[
             uav.position_x || 0,
-            (uav.position_z || 0) + 40,
+            (uav.position_z || 0) + 30,
             uav.position_y || 0
         ]}>
             <Text
-                position={[0, 8, 0]}
-                fontSize={3}
-                color={getQualityColor(connection.quality.signalStrength)}
-                anchorX="center"
-                anchorY="middle"
-            >
-                📶 {connection.quality.signalStrength.toFixed(1)} dBm
-            </Text>
-            
-            <Text
-                position={[0, 4, 0]}
-                fontSize={2.5}
-                color="#ffffff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                SNR: {connection.quality.snr.toFixed(1)} dB
-            </Text>
-            
-            <Text
                 position={[0, 0, 0]}
-                fontSize={2.5}
-                color="#aaaaaa"
+                fontSize={4}
+                color={getStatusColor(connection.status)}
                 anchorX="center"
                 anchorY="middle"
             >
-                仰角: {connection.quality.elevation.toFixed(1)}°
+                {getStatusText(connection.status)}
             </Text>
         </group>
     )
@@ -445,82 +447,10 @@ const ConnectionQualityIndicator: React.FC<{
 
 // 移除切換事件可視化以提升性能
 
-// 連接狀態顯示組件
+// 連接狀態顯示已移至 UI 面板，不再在 3D 場景中顯示
 const ConnectionStatusDisplay: React.FC<{ metrics: any; enabled: boolean }> = ({ metrics, enabled }) => {
-    if (!enabled) return null
-    return (
-        <group position={[-80, 80, 80]}>
-            <Text
-                position={[0, 25, 0]}
-                fontSize={6}
-                color="#00aaff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                🛰️ 衛星連接狀態
-            </Text>
-            
-            <Text
-                position={[0, 18, 0]}
-                fontSize={4}
-                color="#ffffff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                總連接數: {metrics.totalConnections}
-            </Text>
-            
-            <Text
-                position={[0, 13, 0]}
-                fontSize={4}
-                color="#00ff88"
-                anchorX="center"
-                anchorY="middle"
-            >
-                活躍連接: {metrics.activeConnections}
-            </Text>
-            
-            <Text
-                position={[0, 8, 0]}
-                fontSize={3.5}
-                color="#88ff88"
-                anchorX="center"
-                anchorY="middle"
-            >
-                平均信號: {metrics.averageSignalStrength.toFixed(1)} dBm
-            </Text>
-            
-            <Text
-                position={[0, 3, 0]}
-                fontSize={3.5}
-                color="#ffaa88"
-                anchorX="center"
-                anchorY="middle"
-            >
-                平均延遲: {metrics.averageLatency.toFixed(1)} ms
-            </Text>
-            
-            <Text
-                position={[0, -2, 0]}
-                fontSize={3.5}
-                color="#aaffff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                切換成功率: {metrics.handoverSuccessRate.toFixed(1)}%
-            </Text>
-            
-            <Text
-                position={[0, -7, 0]}
-                fontSize={3.5}
-                color="#ffaaff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                網路容量: {metrics.networkCapacity.toFixed(0)} Mbps
-            </Text>
-        </group>
-    )
+    // 不再渲染 3D 文字，改為使用 HTML UI 面板
+    return null
 }
 
 // 移除信號質量監控和多普勒效應可視化以提升性能
