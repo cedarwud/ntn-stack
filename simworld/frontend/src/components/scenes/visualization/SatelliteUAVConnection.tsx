@@ -69,6 +69,7 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
     const [handoverEvents, setHandoverEvents] = useState<HandoverEvent[]>([])
     const [beamCoverages, setBeamCoverages] = useState<BeamCoverage[]>([])
     const [processedSatellites, setProcessedSatellites] = useState<any[]>([])
+    const [connectionStates, setConnectionStates] = useState<Map<string, { status: string, lastChange: number }>>(new Map())
     const [connectionMetrics, setConnectionMetrics] = useState({
         totalConnections: 0,
         activeConnections: 0,
@@ -84,6 +85,7 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
             setConnections([])
             setHandoverEvents([])
             setBeamCoverages([])
+            setConnectionStates(new Map())
             return
         }
 
@@ -141,20 +143,44 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
                 const satellite = satelliteConnections[satelliteIndex]
                 
                 if (satellite) {
-                    // 修復：添加動態連線狀態計算
-                    const calculateConnectionStatus = (satellite: any, uav: any) => {
+                    // 修復：穩定的連線狀態計算，減少閃爍
+                    const getStableConnectionStatus = (satellite: any, uav: any) => {
+                        const connectionKey = `${uav.id}_${satellite.id}`
+                        const currentTime = Date.now()
+                        const existingState = connectionStates.get(connectionKey)
+                        
+                        // 如果連線狀態在過去10秒內沒有變化，保持原狀態
+                        if (existingState && (currentTime - existingState.lastChange) < 10000) {
+                            return existingState.status
+                        }
+                        
                         const elevation = satellite.elevation || 45
                         const signalStrength = -65 + Math.random() * 10 - 5
+                        let newStatus: string
                         
-                        // 基於條件動態決定連線狀態
-                        if (elevation < 10) return 'blocked'
-                        if (signalStrength < -80) return 'lost'
-                        if (Math.random() < 0.1) return 'handover'  // 10% 機率處於換手狀態
-                        if (Math.random() < 0.05) return 'establishing'  // 5% 機率建立中
-                        return 'active'
+                        // 基於條件決定連線狀態，但更穩定
+                        if (elevation < 10) {
+                            newStatus = 'blocked'
+                        } else if (signalStrength < -80) {
+                            newStatus = 'lost'
+                        } else {
+                            // 更穩定的狀態分配：大部分為 active
+                            const rand = Math.random()
+                            if (rand < 0.02) newStatus = 'handover'  // 2% 機率
+                            else if (rand < 0.03) newStatus = 'establishing'  // 1% 機率
+                            else newStatus = 'active' // 97% 機率
+                        }
+                        
+                        // 更新狀態記錄
+                        connectionStates.set(connectionKey, { 
+                            status: newStatus, 
+                            lastChange: currentTime 
+                        })
+                        
+                        return newStatus
                     }
                     
-                    const connectionStatus = calculateConnectionStatus(satellite, uav)
+                    const connectionStatus = getStableConnectionStatus(satellite, uav)
                     
                     newConnections.push({
                         id: `conn_${uav.id}_${satellite.id}`,
@@ -202,9 +228,13 @@ const SatelliteUAVConnection: React.FC<SatelliteUAVConnectionProps> = ({
         }
 
         analyzeConnections()
-        const interval = setInterval(analyzeConnections, 5000) // 每5秒更新
+        const interval = setInterval(analyzeConnections, 15000) // 每15秒更新，減少閃爍
 
-        return () => clearInterval(interval)
+        return () => {
+            clearInterval(interval)
+            // 清理連線狀態記錄
+            setConnectionStates(new Map())
+        }
     }, [devices, enabled, satellites])
 
     if (!enabled) return null
