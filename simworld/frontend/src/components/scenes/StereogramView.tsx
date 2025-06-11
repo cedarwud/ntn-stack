@@ -1,4 +1,4 @@
-import { Suspense, useRef, useCallback, useEffect } from 'react'
+import { Suspense, useRef, useCallback, useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { ContactShadows, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
@@ -16,6 +16,7 @@ import AdaptiveLearningSystemViewer from '../viewers/AdaptiveLearningSystemViewe
 import IntelligentRecommendationSystem from '../viewers/IntelligentRecommendationSystem'
 import CoreNetworkSyncViewer from '../viewers/CoreNetworkSyncViewer'
 import AnomalyAlertSystem from '../viewers/AnomalyAlertSystem'
+import SatelliteConnectionPanel from '../ui/SatelliteConnectionPanel'
 
 // 移除衛星圖例，因為已由側邊欄開關控制，不再需要額外說明
 
@@ -118,6 +119,12 @@ export default function SceneView({
     intelligentRecommendationEnabled = false,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
+    const [satelliteConnections, setSatelliteConnections] = useState<any[]>([])
+    
+    // 處理衛星連線數據更新
+    const handleConnectionsUpdate = useCallback((connections: any[]) => {
+        setSatelliteConnections(connections)
+    }, [])
 
     // WebGL 上下文恢復處理
     const handleWebGLContextLost = useCallback((event: Event) => {
@@ -213,6 +220,12 @@ export default function SceneView({
             {intelligentRecommendationEnabled && (
                 <IntelligentRecommendationSystem devices={devices} enabled={intelligentRecommendationEnabled} />
             )}
+            
+            {/* 衛星連線狀態面板 - 顯示在右上角 */}
+            <SatelliteConnectionPanel 
+                enabled={satelliteUavConnectionEnabled} 
+                connections={satelliteConnections}
+            />
 
             {/* 3D Canvas內容照舊，會蓋在星空上 */}
             <Canvas
@@ -285,6 +298,7 @@ export default function SceneView({
                         testResultsVisualizationEnabled={testResultsVisualizationEnabled}
                         performanceTrendAnalysisEnabled={performanceTrendAnalysisEnabled}
                         automatedReportGenerationEnabled={automatedReportGenerationEnabled}
+                        onSatelliteConnectionsUpdate={handleConnectionsUpdate}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}

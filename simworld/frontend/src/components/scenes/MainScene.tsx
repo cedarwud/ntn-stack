@@ -75,6 +75,8 @@ export interface MainSceneProps {
     testResultsVisualizationEnabled?: boolean
     performanceTrendAnalysisEnabled?: boolean
     automatedReportGenerationEnabled?: boolean
+    // 衛星連線數據回調
+    onSatelliteConnectionsUpdate?: (connections: any[]) => void
 }
 
 const UAV_SCALE = 10
@@ -114,6 +116,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     testResultsVisualizationEnabled = false,
     performanceTrendAnalysisEnabled = false,
     automatedReportGenerationEnabled = false,
+    onSatelliteConnectionsUpdate,
 }) => {
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
@@ -345,7 +348,8 @@ const MainScene: React.FC<MainSceneProps> = ({
             <SatelliteUAVConnection 
                 devices={devices} 
                 enabled={satelliteUavConnectionEnabled}
-                satellites={satellites} 
+                satellites={satellites}
+                onConnectionsUpdate={onSatelliteConnectionsUpdate}
             />
             <FailoverMechanism 
                 devices={devices} 
