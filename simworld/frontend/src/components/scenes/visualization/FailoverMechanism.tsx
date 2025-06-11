@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
-import { Text, Line } from '@react-three/drei'
+import { Line } from '@react-three/drei'
 
 interface FailoverMechanismProps {
     devices: any[]
@@ -120,32 +120,8 @@ const FailoverMechanism: React.FC<FailoverMechanismProps> = ({ devices, enabled 
 
     return (
         <>
-            {/* 連接狀態可視化 */}
-            {connections.map((connection) => (
-                <ConnectionStatusVisualization
-                    key={connection.id}
-                    connection={connection}
-                    devices={devices}
-                />
-            ))}
-            
-            {/* 故障轉移事件指示器 */}
-            <FailoverEventsVisualization events={failoverEvents} devices={devices} />
-            
-            {/* 網路冗餘線路 */}
+            {/* 移除所有文字顯示，只保留網路冗餘線路 */}
             <NetworkRedundancyVisualization connections={connections} devices={devices} />
-            
-            {/* 恢復動作顯示 */}
-            <RecoveryActionsVisualization actions={recoveryActions} devices={devices} />
-            
-            {/* 故障轉移統計 */}
-            <FailoverMetricsDisplay metrics={failoverMetrics} />
-            
-            {/* 網路健康狀態 */}
-            <NetworkHealthStatus connections={connections} />
-            
-            {/* 自動化決策邏輯 */}
-            <AutomatedDecisionLogic events={failoverEvents} />
         </>
     )
 }
@@ -415,35 +391,8 @@ const ConnectionStatusVisualization: React.FC<{
                 />
             </mesh>
             
-            <Text
-                position={[0, 8, 0]}
-                fontSize={3}
-                color={getStatusColor(connection.status)}
-                anchorX="center"
-                anchorY="middle"
-            >
-                {getConnectionIcon(connection.type)} {connection.type.replace('_', ' ').toUpperCase()}
-            </Text>
             
-            <Text
-                position={[0, 4, 0]}
-                fontSize={2.5}
-                color="#ffffff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                {connection.status.toUpperCase()}
-            </Text>
             
-            <Text
-                position={[0, 0, 0]}
-                fontSize={2}
-                color="#cccccc"
-                anchorX="center"
-                anchorY="middle"
-            >
-                切換: {connection.switchCount}次
-            </Text>
         </group>
     )
 }
@@ -489,35 +438,8 @@ const FailoverEventsVisualization: React.FC<{
                             device.position_y || 0
                         ]}
                     >
-                        <Text
-                            position={[0, 10, 0]}
-                            fontSize={4}
-                            color={getSeverityColor(event.severity)}
-                            anchorX="center"
-                            anchorY="middle"
-                        >
-                            {getTriggerIcon(event.trigger)} 故障轉移
-                        </Text>
                         
-                        <Text
-                            position={[0, 6, 0]}
-                            fontSize={3}
-                            color="#ffffff"
-                            anchorX="center"
-                            anchorY="middle"
-                        >
-                            {event.status.toUpperCase()} ({event.progress.toFixed(0)}%)
-                        </Text>
                         
-                        <Text
-                            position={[0, 2, 0]}
-                            fontSize={2.5}
-                            color="#aaaaaa"
-                            anchorX="center"
-                            anchorY="middle"
-                        >
-                            {event.fromConnection} → {event.toConnection}
-                        </Text>
                     </group>
                 )
             })}
@@ -597,25 +519,7 @@ const RecoveryActionsVisualization: React.FC<{
                             device.position_y || 0
                         ]}
                     >
-                        <Text
-                            position={[0, 6, 0]}
-                            fontSize={3}
-                            color={action.success ? '#00ff88' : '#ff6600'}
-                            anchorX="center"
-                            anchorY="middle"
-                        >
-                            {getActionIcon(action.action)} 恢復中
-                        </Text>
                         
-                        <Text
-                            position={[0, 2, 0]}
-                            fontSize={2.5}
-                            color="#ffffff"
-                            anchorX="center"
-                            anchorY="middle"
-                        >
-                            進度: {action.progress.toFixed(0)}%
-                        </Text>
                     </group>
                 )
             })}
@@ -627,75 +531,12 @@ const RecoveryActionsVisualization: React.FC<{
 const FailoverMetricsDisplay: React.FC<{ metrics: FailoverMetrics }> = ({ metrics }) => {
     return (
         <group position={[80, 60, 80]}>
-            <Text
-                position={[0, 25, 0]}
-                fontSize={6}
-                color="#ff8800"
-                anchorX="center"
-                anchorY="middle"
-            >
-                🔄 故障轉移統計
-            </Text>
             
-            <Text
-                position={[0, 18, 0]}
-                fontSize={4}
-                color="#ffffff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                總切換次數: {metrics.totalSwitches}
-            </Text>
             
-            <Text
-                position={[0, 13, 0]}
-                fontSize={4}
-                color="#00ff88"
-                anchorX="center"
-                anchorY="middle"
-            >
-                成功切換: {metrics.successfulSwitches}
-            </Text>
             
-            <Text
-                position={[0, 8, 0]}
-                fontSize={3.5}
-                color="#88ff88"
-                anchorX="center"
-                anchorY="middle"
-            >
-                平均切換時間: {metrics.averageSwitchTime.toFixed(1)}s
-            </Text>
             
-            <Text
-                position={[0, 3, 0]}
-                fontSize={3.5}
-                color="#ffaa88"
-                anchorX="center"
-                anchorY="middle"
-            >
-                連接可靠性: {metrics.connectionReliability.toFixed(1)}%
-            </Text>
             
-            <Text
-                position={[0, -2, 0]}
-                fontSize={3.5}
-                color="#aaffff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                冗餘級別: {metrics.networkRedundancy.toFixed(1)}%
-            </Text>
             
-            <Text
-                position={[0, -7, 0]}
-                fontSize={3.5}
-                color="#ffaaff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                恢復成功率: {metrics.recoveryRate.toFixed(1)}%
-            </Text>
         </group>
     )
 }
@@ -714,45 +555,9 @@ const NetworkHealthStatus: React.FC<{ connections: NetworkConnection[] }> = ({ c
 
     return (
         <group position={[-80, 60, 80]}>
-            <Text
-                position={[0, 20, 0]}
-                fontSize={5}
-                color="#00aaff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                ❤️ 網路健康狀態
-            </Text>
             
-            <Text
-                position={[0, 12, 0]}
-                fontSize={8}
-                color={getHealthColor(healthScore)}
-                anchorX="center"
-                anchorY="middle"
-            >
-                {healthScore.toFixed(0)}%
-            </Text>
             
-            <Text
-                position={[0, 6, 0]}
-                fontSize={3}
-                color="#ffffff"
-                anchorX="center"
-                anchorY="middle"
-            >
-                活躍連接: {activeConnections.length}/{connections.length}
-            </Text>
             
-            <Text
-                position={[0, 2, 0]}
-                fontSize={3}
-                color="#cccccc"
-                anchorX="center"
-                anchorY="middle"
-            >
-                系統狀態: {healthScore > 80 ? '優良' : healthScore > 60 ? '良好' : healthScore > 40 ? '注意' : '危險'}
-            </Text>
         </group>
     )
 }
@@ -763,37 +568,10 @@ const AutomatedDecisionLogic: React.FC<{ events: FailoverEvent[] }> = ({ events 
 
     return (
         <group position={[-80, 60, -80]}>
-            <Text
-                position={[0, 15, 0]}
-                fontSize={5}
-                color="#ffaa00"
-                anchorX="center"
-                anchorY="middle"
-            >
-                🤖 自動化決策
-            </Text>
             
             {recentEvents.map((event, index) => (
                 <group key={event.id} position={[0, 8 - index * 6, 0]}>
-                    <Text
-                        position={[0, 2, 0]}
-                        fontSize={2.5}
-                        color="#ffffff"
-                        anchorX="center"
-                        anchorY="middle"
-                    >
-                        決策 {index + 1}: {event.trigger}
-                    </Text>
                     
-                    <Text
-                        position={[0, -1, 0]}
-                        fontSize={2}
-                        color="#cccccc"
-                        anchorX="center"
-                        anchorY="middle"
-                    >
-                        動作: 切換至 {event.toConnection}
-                    </Text>
                 </group>
             ))}
         </group>

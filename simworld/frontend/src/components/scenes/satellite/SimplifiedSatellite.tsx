@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState } from 'react'
+import React, { useRef, useMemo } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import StaticModel from '../StaticModel'
@@ -99,8 +99,8 @@ const SimplifiedSatellite = React.memo(
             updateFrequency: UPDATE_INTERVAL_NEAR,
         })
 
-        // 修復：移動 useState 到頂層，遵循 React hooks 規則
-        const [orbitState, setOrbitState] = useState({
+        // 修復：使用 useRef 避免不必要的重渲染
+        const orbitStateRef = useRef({
             currentTime: 0,
             orbitPeriod: 90, // 90分鐘軌道週期
             orbitRadius: GLB_SCENE_SIZE * 0.4,
@@ -134,25 +134,8 @@ const SimplifiedSatellite = React.memo(
         useFrame((state, delta) => {
             if (!groupRef.current) return
 
-            // 修復：實現軌道運動
-            setOrbitState(prev => {
-                const newTime = prev.currentTime + delta * 0.2 // 時間流逝速度調整
-                
-                // 計算軌道角度變化 (簡化的圓形軌道)
-                const orbitProgress = (newTime * 2 * Math.PI) / prev.orbitPeriod
-                const currentAzimuth = prev.initialAzimuth + orbitProgress
-                
-                // 更新衛星位置
-                const x = prev.orbitRadius * Math.sin(currentAzimuth)
-                const y = prev.orbitRadius * Math.cos(currentAzimuth)
-                const z = MIN_SAT_HEIGHT + (MAX_SAT_HEIGHT - MIN_SAT_HEIGHT) * Math.sin(prev.initialElevation)
-                
-                if (groupRef.current) {
-                    groupRef.current.position.set(x, z, y)
-                }
-                
-                return { ...prev, currentTime: newTime }
-            })
+            // 修復：移除 useState 避免重渲染，直接更新 ref
+            orbitStateRef.current.currentTime += delta * 0.2
 
             // 優化：視距剔除檢查
             const distanceToCamera = groupRef.current.position.distanceTo(
@@ -267,19 +250,26 @@ const SimplifiedSatellite = React.memo(
             // 如果不可見則跳過其他計算
             if (!satelliteState.current.visible) return
 
-            // 計算3D空間中的位置
-            // 使用球面坐標到笛卡爾坐標的轉換
-            const range = GLB_SCENE_SIZE * 0.45 // 場景半徑
+            // 修復：統一位置計算系統，結合軌道運動與通過軌跡
+            // 基礎軌道位置
+            const orbitProgress = (orbitStateRef.current.currentTime * 2 * Math.PI) / orbitStateRef.current.orbitPeriod
+            const orbitAzimuth = orbitStateRef.current.initialAzimuth + orbitProgress * 0.3 // 慢速軌道運動
+            
+            // 疊加通過軌跡的局部變化
+            const localAzimuthOffset = (currentAzimuthRad - orbitStateRef.current.initialAzimuth) * 0.2
+            const finalAzimuth = orbitAzimuth + localAzimuthOffset
+            
+            // 計算最終位置
+            const range = GLB_SCENE_SIZE * 0.45
             const horizontalDist = range * Math.cos(currentElevationRad)
 
-            const x = horizontalDist * Math.sin(currentAzimuthRad)
-            const y = horizontalDist * Math.cos(currentAzimuthRad)
+            const x = horizontalDist * Math.sin(finalAzimuth)
+            const y = horizontalDist * Math.cos(finalAzimuth)
 
-            // 高度基於仰角 - 使用非線性映射讓變化更明顯
-            const height =
-                MIN_SAT_HEIGHT +
-                (MAX_SAT_HEIGHT - MIN_SAT_HEIGHT) *
-                    Math.pow(Math.sin(currentElevationRad), 0.8)
+            // 高度基於仰角和軌道高度的組合
+            const baseHeight = MIN_SAT_HEIGHT + (MAX_SAT_HEIGHT - MIN_SAT_HEIGHT) * Math.sin(orbitStateRef.current.initialElevation)
+            const elevationHeight = (MAX_SAT_HEIGHT - MIN_SAT_HEIGHT) * Math.pow(Math.sin(currentElevationRad), 0.8) * 0.3
+            const height = baseHeight + elevationHeight
 
             // 優化：只有在需要時才更新顏色 (遠處衛星減少顏色更新)
             const now = state.clock.elapsedTime
@@ -357,8 +347,8 @@ const SimplifiedSatellite = React.memo(
                     initialPosition.z,
                     initialPosition.y,
                 ]}
-                userData={{ satelliteId: satellite.norad_id || satellite.id }}
-                name={`satellite-${satellite.norad_id || satellite.id}`}
+                userData={{ satelliteId: satellite.norad_id }}
+                name={`satellite-${satellite.norad_id}`}
             >
                 {/* 始終渲染完整模型，不做距離簡化 */}
                 <StaticModel

@@ -103,8 +103,8 @@ router = APIRouter(
              summary="啟動核心同步服務",
              description="啟動 IEEE INFOCOM 2024 核心網路同步服務")
 async def start_core_sync_service(
-    request: CoreSyncStartRequest,
     background_tasks: BackgroundTasks,
+    request: CoreSyncStartRequest,
     service: CoreNetworkSyncService = Depends(get_core_sync_service)
 ):
     """啟動核心同步服務"""
