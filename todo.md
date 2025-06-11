@@ -12,7 +12,7 @@
 
 ---
 
-## 🎯 階段一：UI精簡與核心聚焦 (週1-2)
+## 🎯 階段一：UI精簡與核心聚焦
 
 ### 1.1 側邊欄功能大幅精簡
 
@@ -48,21 +48,25 @@ predictionPath3DEnabled           // 3D 預測路徑 (併入換手決策)
 coreNetworkSyncEnabled            // 核心網路同步 (後台執行)
 ```
 
-#### 🎯 保留的核心功能 (8個)
+#### 🎯 保留的核心功能 (9個)
 ```typescript
 // 基礎控制 (4個) - 基本系統操作
 auto: boolean                     // 自動飛行模式
 uavAnimation: boolean             // UAV 飛行動畫  
 satelliteEnabled: boolean         // 衛星星座顯示
 satelliteUAVConnection: boolean   // 衛星-UAV 連接
+manualControl: boolean           // 手動控制面板
 
 // 換手核心功能 (3個) - IEEE INFOCOM 2024 論文核心
 handoverPrediction: boolean       // 換手預測顯示 (Fine-Grained Sync)
 handoverDecision: boolean         // 換手決策可視化 (Fast Access Prediction)
 handoverPerformance: boolean      // 換手性能監控
 
-// 通信品質 (1個) - 通信效果展示
+// 通信品質 (2個) - 通信效果展示
 sinrHeatmap: boolean             // SINR 熱力圖
+interferenceVisualization: boolean // 干擾源可視化
+
+// 手動控制 (底部) - 精確控制面板
 ```
 
 #### 📝 實施步驟
@@ -103,6 +107,7 @@ const CORE_FEATURES = {
     { id: 'uavAnimation', label: 'UAV 飛行動畫', icon: '🎬' },
     { id: 'satelliteEnabled', label: '衛星星座顯示', icon: '🛰️' },
     { id: 'satelliteUAVConnection', label: '衛星-UAV 連接', icon: '🔗' }
+    { id: 'manualControl', label: '手動控制面板', icon: '🎮', position: 'bottom' }
   ],
   handover: [
     { id: 'handoverPrediction', label: '換手預測顯示', icon: '🔮', 
@@ -112,14 +117,15 @@ const CORE_FEATURES = {
     { id: 'handoverPerformance', label: '換手性能監控', icon: '📊' }
   ],
   quality: [
-    { id: 'sinrHeatmap', label: 'SINR 熱力圖', icon: '🔥' }
-  ]
+    { id: 'sinrHeatmap', label: 'SINR 熱力圖', icon: '🔥' },
+    { id: 'interferenceVisualization', label: '干擾源可視化', icon: '⚡' }
+  ],
 }
 ```
 
 ---
 
-## 🔬 階段二：核心算法可視化強化 (週3-4)
+## 🔬 階段二：核心算法可視化強化
 
 ### 2.1 Fine-Grained Synchronized Algorithm 專用展示
 
@@ -1111,6 +1117,290 @@ SimWorld Frontend
 
 ---
 
+## 🤖 階段七：AI/ML 整合與 Gymnasium 支援 (週13-14)
+
+### 7.1 現有 AI 組件分析與保留策略
+
+#### 目標：為未來 Farama-Foundation / Gymnasium RL 整合做準備
+
+#### 🧠 高價值 AI 組件 (隱藏保留)
+基於對專案的分析，以下 AI/ML 組件對 LEO 衛星換手 RL 優化具有重要價值：
+
+```typescript
+// 核心 AI 決策組件 (後端已實現)
+ai_decision_engine.py                    // AI 決策引擎核心
+handover_prediction_service.py          // 換手預測算法
+fast_access_prediction_service.py       // 快速接取預測算法
+enhanced_performance_optimizer.py       // 增強版性能優化器
+ai_ran_optimizations.py                 // AI-RAN 優化服務
+
+// 前端 AI 可視化組件 (隱藏但保留)
+AIDecisionVisualization.tsx             // AI 決策過程可視化
+AdaptiveLearningSystemViewer.tsx        // 自適應學習系統
+PredictiveMaintenanceViewer.tsx         // 預測性維護
+MLModelMonitoringDashboard.tsx          // ML 模型監控
+
+// 性能監控與訓練數據收集
+unified_metrics_collector.py            // 統一指標收集器
+real_time_monitoring_alerting.py        // 即時監控告警
+algorithm_verification_service.py        // 算法驗證服務
+```
+
+#### 🎯 Gymnasium RL 環境設計
+**新建檔案**: `netstack/netstack_api/rl_environment/leo_satellite_handover_env.py`
+
+```python
+import gymnasium as gym
+import numpy as np
+from gymnasium import spaces
+from typing import Dict, List, Tuple, Optional
+
+class LEOSatelliteHandoverEnv(gym.Env):
+    """
+    LEO 衛星換手強化學習環境
+    整合 IEEE INFOCOM 2024 算法作為 baseline
+    """
+    
+    def __init__(self, config: Dict = None):
+        super().__init__()
+        self.config = config or {}
+        
+        # 狀態空間定義
+        self.observation_space = spaces.Dict({
+            # UE 狀態
+            'ue_position': spaces.Box(low=-180, high=180, shape=(3,), dtype=np.float32),
+            'ue_velocity': spaces.Box(low=-50, high=50, shape=(3,), dtype=np.float32),
+            'ue_signal_quality': spaces.Box(low=-120, high=-40, shape=(1,), dtype=np.float32),
+            
+            # 衛星狀態 (考慮最多 10 個可見衛星)
+            'satellite_positions': spaces.Box(low=-20000, high=20000, shape=(10, 3), dtype=np.float32),
+            'satellite_elevations': spaces.Box(low=0, high=90, shape=(10,), dtype=np.float32),
+            'satellite_signal_strengths': spaces.Box(low=-120, high=-40, shape=(10,), dtype=np.float32),
+            
+            # 網路狀態
+            'current_satellite_id': spaces.Discrete(10),
+            'handover_history': spaces.Box(low=0, high=1, shape=(5,), dtype=np.float32),
+            'network_load': spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
+            
+            # 時間相關
+            'time_since_last_handover': spaces.Box(low=0, high=600, shape=(1,), dtype=np.float32),
+            'predicted_handover_time': spaces.Box(low=0, high=300, shape=(1,), dtype=np.float32)
+        })
+        
+        # 動作空間定義
+        self.action_space = spaces.Dict({
+            # 換手決策
+            'trigger_handover': spaces.Discrete(2),          # 是否觸發換手
+            'target_satellite': spaces.Discrete(10),         # 目標衛星選擇
+            'handover_timing': spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),  # 換手時機
+            
+            # 算法參數調整
+            'delta_t_adjustment': spaces.Box(low=0.5, high=2.0, shape=(1,), dtype=np.float32),  # Δt 調整
+            'confidence_threshold': spaces.Box(low=0.7, high=0.99, shape=(1,), dtype=np.float32),  # 信心閾值
+        })
+        
+        # 獎勵函數權重
+        self.reward_weights = {
+            'handover_success': 10.0,       # 換手成功獎勵
+            'latency_penalty': -1.0,        # 延遲懲罰
+            'unnecessary_handover': -5.0,   # 不必要換手懲罰
+            'signal_quality': 2.0,          # 信號品質獎勵
+            'network_efficiency': 1.0       # 網路效率獎勵
+        }
+        
+        # 整合現有服務
+        self.fine_grained_sync = None    # 將注入 FineGrainedSyncService
+        self.fast_access_prediction = None  # 將注入 FastAccessPredictionService
+        self.performance_monitor = None  # 將注入性能監控服務
+        
+    def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Tuple[Dict, Dict]:
+        """重置環境狀態"""
+        super().reset(seed=seed)
+        
+        # 初始化 UE 和衛星狀態
+        self.ue_state = self._initialize_ue_state()
+        self.satellite_states = self._initialize_satellite_states()
+        self.network_state = self._initialize_network_state()
+        
+        # 重置性能指標
+        self.episode_metrics = {
+            'total_handovers': 0,
+            'successful_handovers': 0,
+            'total_latency': 0.0,
+            'signal_quality_history': [],
+            'algorithm_performance': {}
+        }
+        
+        observation = self._get_observation()
+        info = {'episode_start': True}
+        
+        return observation, info
+        
+    def step(self, action: Dict) -> Tuple[Dict, float, bool, bool, Dict]:
+        """執行一步環境交互"""
+        
+        # 1. 應用 RL 動作
+        handover_triggered = bool(action['trigger_handover'])
+        target_satellite = int(action['target_satellite'])
+        timing_factor = float(action['handover_timing'][0])
+        
+        # 2. 獲取基準算法建議 (IEEE INFOCOM 2024)
+        baseline_prediction = self._get_baseline_prediction()
+        
+        # 3. 計算獎勵
+        reward = self._calculate_reward(action, baseline_prediction)
+        
+        # 4. 更新環境狀態
+        self._update_environment_state(action)
+        
+        # 5. 檢查終止條件
+        terminated = self._check_terminated()
+        truncated = self._check_truncated()
+        
+        # 6. 收集性能指標
+        info = self._collect_step_info(action, baseline_prediction)
+        
+        observation = self._get_observation()
+        
+        return observation, reward, terminated, truncated, info
+        
+    def _get_baseline_prediction(self) -> Dict:
+        """獲取基準算法 (IEEE INFOCOM 2024) 的預測結果"""
+        # 整合 Fine-Grained Sync 和 Fast Access Prediction
+        sync_prediction = self.fine_grained_sync.get_current_prediction()
+        access_prediction = self.fast_access_prediction.predict_optimal_access()
+        
+        return {
+            'recommended_handover': sync_prediction.get('needs_handover', False),
+            'recommended_satellite': access_prediction.get('best_satellite'),
+            'predicted_timing': sync_prediction.get('handover_time'),
+            'confidence': sync_prediction.get('confidence', 0.0)
+        }
+        
+    def _calculate_reward(self, action: Dict, baseline: Dict) -> float:
+        """計算 RL 獎勵函數"""
+        reward = 0.0
+        
+        # 與基準算法性能比較
+        if action['trigger_handover'] == baseline['recommended_handover']:
+            reward += self.reward_weights['handover_success']
+        
+        # 基於實際性能指標的獎勵
+        current_metrics = self.performance_monitor.get_current_metrics()
+        
+        # 延遲性能
+        latency = current_metrics.get('handover_latency', 0)
+        if latency < 50:  # IEEE INFOCOM 2024 目標
+            reward += self.reward_weights['latency_penalty'] * (50 - latency) / 50
+        else:
+            reward += self.reward_weights['latency_penalty'] * latency / 50
+            
+        # 信號品質
+        signal_quality = current_metrics.get('signal_quality', -100)
+        normalized_quality = (signal_quality + 100) / 60  # -100dBm to -40dBm
+        reward += self.reward_weights['signal_quality'] * normalized_quality
+        
+        return reward
+        
+    def get_algorithm_comparison(self) -> Dict:
+        """獲取 RL vs 基準算法的性能比較"""
+        return {
+            'rl_performance': self.episode_metrics,
+            'baseline_performance': self.fine_grained_sync.get_performance_metrics(),
+            'improvement_metrics': {
+                'latency_improvement': 0.0,
+                'accuracy_improvement': 0.0,
+                'efficiency_improvement': 0.0
+            }
+        }
+```
+
+#### 🔧 AI 組件整合策略
+**修改檔案**: `simworld/frontend/src/components/layout/EnhancedSidebar.tsx`
+
+```typescript
+// 新增 AI 功能切換 (隱藏模式)
+const AI_FEATURES = {
+  hidden: [
+    { id: 'aiDecisionVisualization', label: 'AI 決策可視化', category: 'ml' },
+    { id: 'adaptiveLearningSystem', label: '自適應學習系統', category: 'ml' },
+    { id: 'predictiveMaintenance', label: '預測性維護', category: 'ml' },
+    { id: 'mlModelMonitoring', label: 'ML 模型監控', category: 'ml' },
+    { id: 'performanceOptimization', label: '性能自動優化', category: 'optimization' },
+    { id: 'algorithmVerification', label: '算法驗證', category: 'verification' }
+  ]
+}
+
+// AI 功能開關 (開發者模式)
+const enableAIFeatures = process.env.NODE_ENV === 'development' || 
+                          localStorage.getItem('enable_ai_features') === 'true'
+```
+
+#### 📊 RL 訓練性能監控
+**新建檔案**: `simworld/frontend/src/components/ml/RLTrainingDashboard.tsx`
+
+```typescript
+const RLTrainingDashboard: React.FC = () => {
+  const [trainingMetrics, setTrainingMetrics] = useState<RLMetrics>()
+  
+  return (
+    <div className="rl-training-dashboard">
+      <h2>🤖 強化學習訓練監控</h2>
+      
+      {/* 訓練進度 */}
+      <div className="training-progress">
+        <h3>📈 訓練進度</h3>
+        <ProgressChart 
+          episodes={trainingMetrics?.episodes || 0}
+          avgReward={trainingMetrics?.avgReward || 0}
+          convergence={trainingMetrics?.convergence || false}
+        />
+      </div>
+      
+      {/* RL vs 基準算法比較 */}
+      <div className="algorithm-comparison">
+        <h3>⚖️ RL vs IEEE INFOCOM 2024 基準</h3>
+        <ComparisonChart
+          rlPerformance={trainingMetrics?.rlPerformance}
+          baselinePerformance={trainingMetrics?.baselinePerformance}
+          metrics={['latency', 'accuracy', 'efficiency']}
+        />
+      </div>
+      
+      {/* 獎勵函數分析 */}
+      <div className="reward-analysis">
+        <h3>🎯 獎勵函數分析</h3>
+        <RewardBreakdownChart
+          rewardComponents={trainingMetrics?.rewardComponents}
+        />
+      </div>
+    </div>
+  )
+}
+```
+
+### 7.2 未來 Gymnasium 整合路線圖
+
+#### 🗺️ 第一階段：基礎 RL 環境 (月 1-2)
+1. **環境建置**: 完成 LEOSatelliteHandoverEnv 基礎實現
+2. **基準整合**: 將 IEEE INFOCOM 2024 算法作為 baseline
+3. **指標定義**: 建立 RL 與基準算法的比較指標
+4. **簡單 Agent**: 實現 DQN/PPO 基礎 agent
+
+#### 🚀 第二階段：進階 RL 算法 (月 3-4)
+1. **多 Agent RL**: 支援多 UE 協調優化
+2. **層次 RL**: 結合 Fine-Grained Sync 的預測
+3. **元學習**: 快速適應不同衛星星座配置
+4. **安全 RL**: 確保換手決策的安全性
+
+#### 🎯 第三階段：產業化應用 (月 5-6)
+1. **真實數據**: 整合真實 LEO 衛星 TLE 數據
+2. **大規模測試**: 支援數千 UE 的 RL 優化
+3. **部署優化**: RL 模型的線上學習與更新
+4. **性能驗證**: 與 IEEE INFOCOM 2024 算法的全面比較
+
+---
+
 ## 📈 預期成果與效益
 
 ### 🎯 技術指標達成
@@ -1132,6 +1422,7 @@ SimWorld Frontend
 - **階段四** (週7-8): 前端核心展示優化
 - **階段五** (週9-10): 測試與驗證
 - **階段六** (週11-12): 性能調優與文檔
+- **階段七** (週13-14): AI/ML 整合與 Gymnasium 支援
 
 ---
 
@@ -1139,10 +1430,22 @@ SimWorld Frontend
 
 此計畫書針對當前 NTN Stack 專案進行全面分析，發現核心算法實現完整且性能優秀，但前端界面過於複雜，偏離了 IEEE INFOCOM 2024 論文的核心展示目標。
 
-通過分六個階段的系統性重構，將：
-1. **精簡前端功能**：從 20+ 功能減至 8 個核心功能
+通過分七個階段的系統性重構與優化，將：
+
+### 🎯 核心重構目標
+1. **精簡前端功能**：從 20+ 功能減至 9 個核心功能 (含手動控制面板)
 2. **突出核心創新**：為兩大核心算法創建專門展示區域
 3. **優化用戶體驗**：聚焦於論文技術的直觀演示
 4. **提升演示效果**：清晰展現 10 倍延遲改善的技術優勢
 
-最終達成一個功能聚焦、技術突出、演示效果卓越的 IEEE INFOCOM 2024 論文實現系統。
+### 🤖 AI/ML 整合策略
+5. **保留 AI 組件**：將現有 ML 功能隱藏但保留，為未來 RL 優化做準備
+6. **Gymnasium 整合**：建立 LEO 衛星換手 RL 環境，以 IEEE INFOCOM 2024 算法作為 baseline
+7. **性能對比**：建立 RL 與傳統算法的性能比較框架
+8. **未來擴展**：為強化學習在 LEO 衛星網路的應用奠定基礎
+
+### 🏆 預期成果
+最終達成一個功能聚焦、技術突出、演示效果卓越的 IEEE INFOCOM 2024 論文實現系統，同時為未來 AI/RL 驅動的衛星網路優化研究提供完整的基礎平台。
+
+### 🔮 未來願景
+此系統不僅展示了當前最先進的衛星換手算法，更為未來基於 Farama-Foundation/Gymnasium 的強化學習研究提供了完整的實驗環境，有潜力推動 LEO 衛星網路智能化的重大突破。
