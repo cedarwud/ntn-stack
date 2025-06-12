@@ -119,7 +119,7 @@ if DEFAULT_OBSERVER_LAT is None:
     logger.info(
         "OBSERVER_LAT not found in environment variables. Using placeholder/database fallback."
     )
-    DEFAULT_OBSERVER_LAT = 24.785_278  # Example: NYCU, replace with DB lookup
+    DEFAULT_OBSERVER_LAT = 24.943889  # 新座標: 24°56'38"N
     # Example DB lookup: default_observer_lat = db_service.get_default_observer_lat()
 
 # Observer Longitude
@@ -129,7 +129,7 @@ if DEFAULT_OBSERVER_LON is None:
     logger.info(
         "OBSERVER_LON not found in environment variables. Using placeholder/database fallback."
     )
-    DEFAULT_OBSERVER_LON = 120.997_222  # Example: NYCU, replace with DB lookup
+    DEFAULT_OBSERVER_LON = 121.370833  # 新座標: 121°22'15"E
     # Example DB lookup: default_observer_lon = db_service.get_default_observer_lon()
 
 # Observer Altitude (in meters, defaults to 0 if not specified)

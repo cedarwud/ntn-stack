@@ -1,0 +1,100 @@
+{
+  "summary": {
+    "total_tests": 9,
+    "passed": 1,
+    "failed": 8,
+    "warnings": 0,
+    "success_rate": 11.11111111111111
+  },
+  "detailed_results": [
+    {
+      "test": "TLE服務導入依賴",
+      "status": "FAIL",
+      "message": "導入失敗: No module named 'asyncpg'",
+      "timestamp": "2025-06-12T06:21:13.994887",
+      "details": {
+        "traceback": "Traceback (most recent call last):\n  File \"/home/sat/ntn-stack/test_tle_independence.py\", line 47, in test_tle_service_imports\n    from app.domains.satellite.services.tle_service import TLEService\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/__init__.py\", line 21, in <module>\n    from app.domains.satellite.adapters.sqlmodel_satellite_repository import (\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/adapters/sqlmodel_satellite_repository.py\", line 12, in <module>\n    from app.db.base import async_session_maker\n  File \"/home/sat/ntn-stack/simworld/backend/app/db/base.py\", line 11, in <module>\n    engine = create_async_engine(DATABASE_URL, echo=False, future=True)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py\", line 120, in create_async_engine\n    sync_engine = _create_engine(url, **kw)\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 2, in create_engine\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py\", line 281, in warned\n    return fn(*args, **kwargs)  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/engine/create.py\", line 602, in create_engine\n    dbapi = dbapi_meth(**dbapi_args)\n            ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 1100, in import_dbapi\n    return AsyncAdapt_asyncpg_dbapi(__import__(\"asyncpg\"))\n                                    ^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'asyncpg'\n"
+      }
+    },
+    {
+      "test": "TLE接口合規性",
+      "status": "FAIL",
+      "message": "測試失敗: No module named 'asyncpg'",
+      "timestamp": "2025-06-12T06:21:13.995488",
+      "details": {
+        "traceback": "Traceback (most recent call last):\n  File \"/home/sat/ntn-stack/test_tle_independence.py\", line 91, in test_tle_interface_compliance\n    from app.domains.satellite.services.tle_service import TLEService\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/__init__.py\", line 21, in <module>\n    from app.domains.satellite.adapters.sqlmodel_satellite_repository import (\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/adapters/sqlmodel_satellite_repository.py\", line 12, in <module>\n    from app.db.base import async_session_maker\n  File \"/home/sat/ntn-stack/simworld/backend/app/db/base.py\", line 11, in <module>\n    engine = create_async_engine(DATABASE_URL, echo=False, future=True)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py\", line 120, in create_async_engine\n    sync_engine = _create_engine(url, **kw)\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 2, in create_engine\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py\", line 281, in warned\n    return fn(*args, **kwargs)  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/engine/create.py\", line 602, in create_engine\n    dbapi = dbapi_meth(**dbapi_args)\n            ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 1100, in import_dbapi\n    return AsyncAdapt_asyncpg_dbapi(__import__(\"asyncpg\"))\n                                    ^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'asyncpg'\n"
+      }
+    },
+    {
+      "test": "TLE服務初始化",
+      "status": "FAIL",
+      "message": "初始化失敗: No module named 'asyncpg'",
+      "timestamp": "2025-06-12T06:21:13.999187",
+      "details": {
+        "traceback": "Traceback (most recent call last):\n  File \"/home/sat/ntn-stack/test_tle_independence.py\", line 128, in test_tle_service_initialization\n    from app.domains.satellite.services.tle_service import TLEService\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/__init__.py\", line 21, in <module>\n    from app.domains.satellite.adapters.sqlmodel_satellite_repository import (\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/adapters/sqlmodel_satellite_repository.py\", line 12, in <module>\n    from app.db.base import async_session_maker\n  File \"/home/sat/ntn-stack/simworld/backend/app/db/base.py\", line 11, in <module>\n    engine = create_async_engine(DATABASE_URL, echo=False, future=True)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py\", line 120, in create_async_engine\n    sync_engine = _create_engine(url, **kw)\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 2, in create_engine\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py\", line 281, in warned\n    return fn(*args, **kwargs)  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/engine/create.py\", line 602, in create_engine\n    dbapi = dbapi_meth(**dbapi_args)\n            ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 1100, in import_dbapi\n    return AsyncAdapt_asyncpg_dbapi(__import__(\"asyncpg\"))\n                                    ^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'asyncpg'\n"
+      }
+    },
+    {
+      "test": "TLE解析功能",
+      "status": "FAIL",
+      "message": "解析測試失敗: No module named 'asyncpg'",
+      "timestamp": "2025-06-12T06:21:13.999778",
+      "details": {
+        "traceback": "Traceback (most recent call last):\n  File \"/home/sat/ntn-stack/test_tle_independence.py\", line 171, in test_tle_parsing_independence\n    from app.domains.satellite.services.tle_service import TLEService\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/__init__.py\", line 21, in <module>\n    from app.domains.satellite.adapters.sqlmodel_satellite_repository import (\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/adapters/sqlmodel_satellite_repository.py\", line 12, in <module>\n    from app.db.base import async_session_maker\n  File \"/home/sat/ntn-stack/simworld/backend/app/db/base.py\", line 11, in <module>\n    engine = create_async_engine(DATABASE_URL, echo=False, future=True)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py\", line 120, in create_async_engine\n    sync_engine = _create_engine(url, **kw)\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 2, in create_engine\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py\", line 281, in warned\n    return fn(*args, **kwargs)  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/engine/create.py\", line 602, in create_engine\n    dbapi = dbapi_meth(**dbapi_args)\n            ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 1100, in import_dbapi\n    return AsyncAdapt_asyncpg_dbapi(__import__(\"asyncpg\"))\n                                    ^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'asyncpg'\n"
+      }
+    },
+    {
+      "test": "外部API整合",
+      "status": "FAIL",
+      "message": "API測試失敗: No module named 'asyncpg'",
+      "timestamp": "2025-06-12T06:21:14.000287",
+      "details": {
+        "traceback": "Traceback (most recent call last):\n  File \"/home/sat/ntn-stack/test_tle_independence.py\", line 226, in test_external_api_integration\n    from app.domains.satellite.services.tle_service import TLEService\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/__init__.py\", line 21, in <module>\n    from app.domains.satellite.adapters.sqlmodel_satellite_repository import (\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/adapters/sqlmodel_satellite_repository.py\", line 12, in <module>\n    from app.db.base import async_session_maker\n  File \"/home/sat/ntn-stack/simworld/backend/app/db/base.py\", line 11, in <module>\n    engine = create_async_engine(DATABASE_URL, echo=False, future=True)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py\", line 120, in create_async_engine\n    sync_engine = _create_engine(url, **kw)\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 2, in create_engine\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py\", line 281, in warned\n    return fn(*args, **kwargs)  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/engine/create.py\", line 602, in create_engine\n    dbapi = dbapi_meth(**dbapi_args)\n            ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 1100, in import_dbapi\n    return AsyncAdapt_asyncpg_dbapi(__import__(\"asyncpg\"))\n                                    ^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'asyncpg'\n"
+      }
+    },
+    {
+      "test": "Skyfield整合",
+      "status": "PASS",
+      "message": "Skyfield和SGP4整合正常",
+      "timestamp": "2025-06-12T06:21:14.003004",
+      "details": {
+        "sgp4_position": [
+          -6785.340586717826,
+          178.84087718970764,
+          3631.85046066422
+        ],
+        "skyfield_latitude": 28.28231741370145,
+        "skyfield_longitude": -102.87064308778493,
+        "skyfield_elevation": 1324.8949365724034
+      }
+    },
+    {
+      "test": "服務耦合性分析",
+      "status": "FAIL",
+      "message": "耦合性分析失敗: No module named 'asyncpg'",
+      "timestamp": "2025-06-12T06:21:14.003673",
+      "details": {
+        "traceback": "Traceback (most recent call last):\n  File \"/home/sat/ntn-stack/test_tle_independence.py\", line 324, in test_service_coupling_analysis\n    from app.domains.satellite.services.tle_service import TLEService\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/__init__.py\", line 21, in <module>\n    from app.domains.satellite.adapters.sqlmodel_satellite_repository import (\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/adapters/sqlmodel_satellite_repository.py\", line 12, in <module>\n    from app.db.base import async_session_maker\n  File \"/home/sat/ntn-stack/simworld/backend/app/db/base.py\", line 11, in <module>\n    engine = create_async_engine(DATABASE_URL, echo=False, future=True)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py\", line 120, in create_async_engine\n    sync_engine = _create_engine(url, **kw)\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 2, in create_engine\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py\", line 281, in warned\n    return fn(*args, **kwargs)  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/engine/create.py\", line 602, in create_engine\n    dbapi = dbapi_meth(**dbapi_args)\n            ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 1100, in import_dbapi\n    return AsyncAdapt_asyncpg_dbapi(__import__(\"asyncpg\"))\n                                    ^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'asyncpg'\n"
+      }
+    },
+    {
+      "test": "配置獨立性",
+      "status": "FAIL",
+      "message": "配置測試失敗: No module named 'asyncpg'",
+      "timestamp": "2025-06-12T06:21:14.004183",
+      "details": {
+        "traceback": "Traceback (most recent call last):\n  File \"/home/sat/ntn-stack/test_tle_independence.py\", line 392, in test_configuration_independence\n    from app.domains.satellite.services.tle_service import TLEService\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/__init__.py\", line 21, in <module>\n    from app.domains.satellite.adapters.sqlmodel_satellite_repository import (\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/adapters/sqlmodel_satellite_repository.py\", line 12, in <module>\n    from app.db.base import async_session_maker\n  File \"/home/sat/ntn-stack/simworld/backend/app/db/base.py\", line 11, in <module>\n    engine = create_async_engine(DATABASE_URL, echo=False, future=True)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py\", line 120, in create_async_engine\n    sync_engine = _create_engine(url, **kw)\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 2, in create_engine\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py\", line 281, in warned\n    return fn(*args, **kwargs)  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/engine/create.py\", line 602, in create_engine\n    dbapi = dbapi_meth(**dbapi_args)\n            ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 1100, in import_dbapi\n    return AsyncAdapt_asyncpg_dbapi(__import__(\"asyncpg\"))\n                                    ^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'asyncpg'\n"
+      }
+    },
+    {
+      "test": "錯誤處理獨立性",
+      "status": "FAIL",
+      "message": "錯誤處理測試失敗: No module named 'asyncpg'",
+      "timestamp": "2025-06-12T06:21:14.004671",
+      "details": {
+        "traceback": "Traceback (most recent call last):\n  File \"/home/sat/ntn-stack/test_tle_independence.py\", line 443, in test_error_handling_independence\n    from app.domains.satellite.services.tle_service import TLEService\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/__init__.py\", line 21, in <module>\n    from app.domains.satellite.adapters.sqlmodel_satellite_repository import (\n  File \"/home/sat/ntn-stack/simworld/backend/app/domains/satellite/adapters/sqlmodel_satellite_repository.py\", line 12, in <module>\n    from app.db.base import async_session_maker\n  File \"/home/sat/ntn-stack/simworld/backend/app/db/base.py\", line 11, in <module>\n    engine = create_async_engine(DATABASE_URL, echo=False, future=True)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py\", line 120, in create_async_engine\n    sync_engine = _create_engine(url, **kw)\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 2, in create_engine\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py\", line 281, in warned\n    return fn(*args, **kwargs)  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/engine/create.py\", line 602, in create_engine\n    dbapi = dbapi_meth(**dbapi_args)\n            ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/sat/ntn-stack/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 1100, in import_dbapi\n    return AsyncAdapt_asyncpg_dbapi(__import__(\"asyncpg\"))\n                                    ^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'asyncpg'\n"
+      }
+    }
+  ],
+  "generated_at": "2025-06-12T06:21:14.005345"
+}
