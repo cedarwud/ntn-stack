@@ -72,41 +72,33 @@ const SimplifiedSatellite = React.memo(
             }
         }, [])
 
-        // 使用 useRef 管理衛星數據
+        // 重新設計：真實的衛星軌跡運動
         const satelliteState = useRef({
-            // 通過時間 (秒)
-            passDuration:
-                PASS_DURATION_MIN +
-                Math.random() * (PASS_DURATION_MAX - PASS_DURATION_MIN),
-            // 通過進度 (0-1)
-            progress: Math.random(), // 隨機初始進度以錯開不同衛星
-            // 可見性狀態
+            // 基於真實衛星參數的軌道配置
+            passDuration: 180 + index * 30, // 180-450秒的通過時間（更真實的通過時間）
+            startAzimuth: satellite.azimuth_deg - 90, // 從當前方位角-90度開始
+            endAzimuth: satellite.azimuth_deg + 90,   // 到當前方位角+90度結束
+            maxElevation: satellite.max_elevation_deg || satellite.elevation_deg + 15, // 使用配置的最大仰角
+            
+            // 運動狀態
+            currentTime: Math.random() * 90, // 隨機起始時間，錯開衛星
+            currentElevationDeg: 0,
+            currentAzimuthDeg: 0,
+            currentDistance: 1000,
+            
+            // 永遠可見（簡化測試）
             visible: true,
-            // 仰角相關
-            currentElevationDeg: satellite.elevation_deg,
-            // 當前距離
-            currentDistance: satellite.distance_km || 1000,
-            // 色彩
-            color: getColorFromElevation(satellite.elevation_deg),
-            // 上次更新時間 - 用於節流
+            
+            // 視覺狀態
+            color: getColorFromElevation(45),
             lastUpdateTime: 0,
-            // 記錄位置和旋轉用於平滑過渡
             lastPosition: new THREE.Vector3(0, 0, 0),
             lastRotation: 0,
-            // 距離攝影機的距離
             distanceToCamera: 0,
-            // 更新頻率
             updateFrequency: UPDATE_INTERVAL_NEAR,
         })
 
-        // 修復：使用 useRef 避免不必要的重渲染
-        const orbitStateRef = useRef({
-            currentTime: 0,
-            orbitPeriod: 90, // 90分鐘軌道週期
-            orbitRadius: GLB_SCENE_SIZE * 0.4,
-            initialAzimuth: satellite.azimuth_deg * PI_DIV_180,
-            initialElevation: satellite.elevation_deg * PI_DIV_180
-        })
+        // 移除重複的 orbitStateRef，整合到 satelliteState 中
 
         // 初始隨機位置 - 只計算一次以提高性能
         const initialPosition = useMemo(() => {
@@ -130,160 +122,102 @@ const SimplifiedSatellite = React.memo(
             return frameCountRef.current % frequency === 0
         }
 
-        // 動畫邏輯
+        // 重新設計：持續軌道運動邏輯，支持換手流程
         useFrame((state, delta) => {
             if (!groupRef.current) return
 
-            // 修復：移除 useState 避免重渲染，直接更新 ref
-            orbitStateRef.current.currentTime += delta * 0.2
+            // 累積時間 - 持續運動，不重置
+            satelliteState.current.currentTime += delta
 
-            // 優化：視距剔除檢查
-            const distanceToCamera = groupRef.current.position.distanceTo(
-                camera.position
-            )
+            // 優化：視距剔除檢查（但衛星仍保持存在）
+            const distanceToCamera = groupRef.current.position.distanceTo(camera.position)
             satelliteState.current.distanceToCamera = distanceToCamera
 
-            // 如果超出最大可見距離，隱藏並跳過其餘計算
-            if (distanceToCamera > MAX_VISIBLE_DISTANCE) {
-                if (groupRef.current.visible) {
-                    groupRef.current.visible = false
-                }
-                return
-            }
-
             // 確定適合當前距離的更新頻率
-            const updateFrequency =
-                updateFrequencyLookup.getUpdateFrequency(distanceToCamera)
+            const updateFrequency = updateFrequencyLookup.getUpdateFrequency(distanceToCamera)
             satelliteState.current.updateFrequency = updateFrequency
 
-            // 優化：根據距離應用不同更新頻率
+            // 根據距離應用不同更新頻率
             if (!shouldUpdate(state, updateFrequency)) {
                 return
             }
 
-            // 獲取通過數據
-            const {
+            // === 真實衛星軌跡計算：從地平線升起，劃過天空，落下 ===
+            const { 
                 passDuration,
-                progress: currentProgress,
-                currentDistance,
+                startAzimuth,
+                endAzimuth,
+                maxElevation
             } = satelliteState.current
-
-            // 計算速度因子 - 距離越近，視角移動越快
-            const distanceFactor = calculateSpeedFactor(
-                groupRef.current.position.y,
-                currentDistance
-            )
-
-            // 更新進度，考慮距離因子和更新頻率
-            // 距離越近，視角運動越快
-            // 更新頻率越低，每次更新需要更大的步進
-            const progressDelta =
-                (delta * distanceFactor * updateFrequency) / passDuration
-            satelliteState.current.progress += progressDelta
-
-            // 進度循環
-            if (satelliteState.current.progress > 1) {
-                satelliteState.current.progress = 0
-
-                // 生成新的通過時間
-                satelliteState.current.passDuration =
-                    PASS_DURATION_MIN +
-                    Math.random() * (PASS_DURATION_MAX - PASS_DURATION_MIN)
-            }
-
-            // 計算當前通過位置
-            const progress = satelliteState.current.progress
-            const { startAzimuth, endAzimuth, maxElevation } = passTemplate
-
-            // 根據進度計算當前方位角 (線性)
-            const currentAzimuthDeg =
-                startAzimuth + (endAzimuth - startAzimuth) * progress
+            
+            // 通過進度：使用連續的sin波函數，避免重置跳閃
+            // 將軌跡設計為連續的8字形或圓形軌道，不重置
+            const continuousTime = satelliteState.current.currentTime * 0.5 // 減慢速度
+            const progress = (Math.sin(continuousTime * Math.PI / passDuration) + 1) / 2 // 0-1之間的連續值
+            
+            // 使用連續的有效進度，不再有重置
+            const validProgress = progress
+            
+            // 方位角：均速從起始點移動到結束點
+            const currentAzimuthDeg = startAzimuth + (endAzimuth - startAzimuth) * validProgress
             const currentAzimuthRad = currentAzimuthDeg * PI_DIV_180
-
-            // 根據進度計算當前仰角 (拋物線形狀)
-            // 使用sin函數創建平滑的仰角變化
-            const elevationProgress = Math.sin(progress * Math.PI) // 0->1->0
+            
+            // 仰角：拋物線軌跡，中間最高
+            // 使用 sin(π * progress) 創造平滑的升起-最高-落下軌跡
+            const elevationProgress = Math.sin(validProgress * Math.PI)
             const currentElevationDeg = maxElevation * elevationProgress
             const currentElevationRad = currentElevationDeg * PI_DIV_180
-
-            // 更新距離
-            const baseDistance = 1000 // 基準距離 (km)
-            const variationRange = 400 // 變化範圍 (km)
-            const normalizedDistance =
-                baseDistance - variationRange * Math.sin(progress * Math.PI)
-            satelliteState.current.currentDistance = normalizedDistance
-
-            // 保存當前仰角，用於顏色計算
+            
+            // 距離：基於真實的仰角-距離關係
+            // 仰角越高距離越近（因為衛星直接在頭頂）
+            const baseDistance = 550 // LEO 衛星高度 (km)
+            const currentDistance = baseDistance / Math.max(0.1, Math.sin(currentElevationRad))
+            
+            // 衛星始終可見，不再隱藏（避免跳閃）
+            // 允許完整的仰角範圍，不強制最低值
+            const adjustedElevationDeg = Math.max(0, currentElevationDeg) // 允許0度以上的所有仰角
+            const isVisible = true
+            
+            // 更新衛星狀態
             satelliteState.current.currentElevationDeg = currentElevationDeg
-
-            // 決定可見性 - 僅當仰角大於閾值時可見
-            const newVisible =
-                currentElevationDeg > VISIBILITY_ELEVATION_THRESHOLD
-
-            // 只有當可見性需要變更時才更新
-            if (newVisible !== satelliteState.current.visible) {
-                satelliteState.current.visible = newVisible
-
-                // 如果不可見且元素存在，就隱藏它
-                if (!newVisible && groupRef.current) {
-                    groupRef.current.visible = false
-                } else if (newVisible && groupRef.current) {
-                    groupRef.current.visible = true
-
-                    // 更新顏色
-                    const newColor = getColorFromElevation(currentElevationDeg)
-                    satelliteState.current.color = newColor
-                    if (materialRef.current) {
-                        materialRef.current.color = newColor
-                    }
-                    if (
-                        pointLightRef.current &&
-                        updateFrequencyLookup.shouldUpdateLight(
-                            distanceToCamera
-                        )
-                    ) {
-                        pointLightRef.current.color = newColor
-                    }
-                }
+            satelliteState.current.currentAzimuthDeg = currentAzimuthDeg
+            satelliteState.current.currentDistance = currentDistance
+            satelliteState.current.visible = isVisible
+            
+            // === 位置計算：球面到直角坐標系轉換 ===
+            // 場景半徑：基於仰角的動態距離
+            const sceneRadius = GLB_SCENE_SIZE * 0.4
+            const horizontalDistance = sceneRadius * Math.cos(currentElevationRad)
+            
+            // X, Y 座標：基於方位角
+            const x = horizontalDistance * Math.sin(currentAzimuthRad)
+            const y = horizontalDistance * Math.cos(currentAzimuthRad)
+            
+            // Z 座標（高度）：基於真實仰角，允許完整的高度範圍
+            const minHeight = MIN_SAT_HEIGHT
+            const maxHeight = MAX_SAT_HEIGHT
+            // 使用真實仰角計算高度，不限制最低值
+            const heightFactor = Math.sin(Math.max(0, currentElevationDeg) * PI_DIV_180)
+            const height = minHeight + (maxHeight - minHeight) * heightFactor
+            
+            // 更新位置 - 統一坐標系：(x, y, z) 對應 (x, z, y)
+            groupRef.current.position.set(x, height, y)
+            
+            // 控制可見性
+            groupRef.current.visible = isVisible
+            
+            // 調試：監控第一顆衛星的仰角變化
+            if (index === 0 && Math.floor(satelliteState.current.currentTime) % 5 === 0 && 
+                Math.floor(satelliteState.current.currentTime) !== Math.floor(satelliteState.current.currentTime - delta)) {
+                console.log(`🛰️ 衛星 ${index} - 仰角: ${currentElevationDeg.toFixed(1)}°, 進度: ${(validProgress * 100).toFixed(1)}%`)
             }
-
-            // 如果不可見則跳過其他計算
-            if (!satelliteState.current.visible) return
-
-            // 修復：統一位置計算系統，結合軌道運動與通過軌跡
-            // 基礎軌道位置
-            const orbitProgress = (orbitStateRef.current.currentTime * 2 * Math.PI) / orbitStateRef.current.orbitPeriod
-            const orbitAzimuth = orbitStateRef.current.initialAzimuth + orbitProgress * 0.3 // 慢速軌道運動
             
-            // 疊加通過軌跡的局部變化
-            const localAzimuthOffset = (currentAzimuthRad - orbitStateRef.current.initialAzimuth) * 0.2
-            const finalAzimuth = orbitAzimuth + localAzimuthOffset
-            
-            // 計算最終位置
-            const range = GLB_SCENE_SIZE * 0.45
-            const horizontalDist = range * Math.cos(currentElevationRad)
-
-            const x = horizontalDist * Math.sin(finalAzimuth)
-            const y = horizontalDist * Math.cos(finalAzimuth)
-
-            // 高度基於仰角和軌道高度的組合
-            const baseHeight = MIN_SAT_HEIGHT + (MAX_SAT_HEIGHT - MIN_SAT_HEIGHT) * Math.sin(orbitStateRef.current.initialElevation)
-            const elevationHeight = (MAX_SAT_HEIGHT - MIN_SAT_HEIGHT) * Math.pow(Math.sin(currentElevationRad), 0.8) * 0.3
-            const height = baseHeight + elevationHeight
-
-            // 優化：只有在需要時才更新顏色 (遠處衛星減少顏色更新)
+            // === 視覺效果更新 ===
+            // 顏色更新：基於仰角和信號強度
             const now = state.clock.elapsedTime
-            const timeSinceLastUpdate =
-                now - satelliteState.current.lastUpdateTime
-            const shouldUpdateColors =
-                timeSinceLastUpdate > 0.5 && // 節流
-                updateFrequencyLookup.shouldUpdateLight(distanceToCamera) && // 根據距離決定
-                Math.abs(
-                    currentElevationDeg -
-                        satelliteState.current.currentElevationDeg
-                ) > COLOR_UPDATE_THRESHOLD // 仰角變化顯著
-
-            if (shouldUpdateColors) {
+            const timeSinceLastUpdate = now - satelliteState.current.lastUpdateTime
+            
+            if (timeSinceLastUpdate > 0.5 && updateFrequencyLookup.shouldUpdateLight(distanceToCamera)) {
                 satelliteState.current.lastUpdateTime = now
                 const newColor = getColorFromElevation(currentElevationDeg)
                 satelliteState.current.color = newColor
@@ -296,38 +230,20 @@ const SimplifiedSatellite = React.memo(
                 }
             }
 
-            // 更新位置
-            groupRef.current.position.set(x, height, y)
-
-            // 優化：僅在較近距離計算朝向
-            if (distanceToCamera < DISTANCE_LOD_MEDIUM) {
-                // 計算朝向 - 始終朝向軌道方向
-                const nextProgress = Math.min(progress + 0.01, 1)
-                const nextAzimuthDeg =
-                    startAzimuth + (endAzimuth - startAzimuth) * nextProgress
-                const nextAzimuthRad = nextAzimuthDeg * PI_DIV_180
-
-                const facingDir = new THREE.Vector2(
-                    Math.sin(nextAzimuthRad) - Math.sin(currentAzimuthRad),
-                    Math.cos(nextAzimuthRad) - Math.cos(currentAzimuthRad)
-                )
-
-                // 只有當向量長度不為零時才更新旋轉
-                if (facingDir.length() > 0.001) {
-                    // 計算朝向方向
-                    const newRotation = Math.atan2(facingDir.x, facingDir.y)
-                    groupRef.current.rotation.y = newRotation
-                    satelliteState.current.lastRotation = newRotation
-                }
+            // 朝向計算：衛星面向運動方向（軌跡切線）
+            if (distanceToCamera < DISTANCE_LOD_MEDIUM && isVisible) {
+                // 計算運動方向：方位角的變化方向
+                const motionDirection = (endAzimuth - startAzimuth) > 0 ? 1 : -1
+                const rotationAngle = currentAzimuthRad + (motionDirection * Math.PI / 2)
+                groupRef.current.rotation.y = rotationAngle
+                satelliteState.current.lastRotation = rotationAngle
             } else {
-                // 遠處衛星使用上次計算的旋轉角度
-                groupRef.current.rotation.y =
-                    satelliteState.current.lastRotation
+                groupRef.current.rotation.y = satelliteState.current.lastRotation
             }
         })
 
-        // 如果不可見就不渲染
-        if (!satelliteState.current.visible) return null
+        // 根據衛星軌跡狀態決定是否渲染
+        // 注意：這裡我們始終渲染組件，但在 useFrame 中控制 visible 屬性
 
         // 根據距離調整衛星幾何體詳細度 - 性能優化
         // 在渲染時根據初始距離設定基本細節級別
@@ -347,7 +263,7 @@ const SimplifiedSatellite = React.memo(
                     initialPosition.z,
                     initialPosition.y,
                 ]}
-                userData={{ satelliteId: satellite.norad_id }}
+                userData={{ satelliteId: String(satellite.norad_id) }}
                 name={`satellite-${satellite.norad_id}`}
             >
                 {/* 始終渲染完整模型，不做距離簡化 */}
@@ -383,6 +299,17 @@ const SimplifiedSatellite = React.memo(
                     />
                 </mesh>
             </group>
+        )
+    },
+    // 優化的比較函數：只有關鍵屬性變化時才重新渲染
+    (prevProps, nextProps) => {
+        return (
+            prevProps.satellite.norad_id === nextProps.satellite.norad_id &&
+            prevProps.index === nextProps.index &&
+            prevProps.passTemplate === nextProps.passTemplate &&
+            // 避免因為小幅度的位置變化導致重新渲染
+            Math.abs(prevProps.satellite.elevation_deg - nextProps.satellite.elevation_deg) < 1 &&
+            Math.abs(prevProps.satellite.azimuth_deg - nextProps.satellite.azimuth_deg) < 1
         )
     }
 )

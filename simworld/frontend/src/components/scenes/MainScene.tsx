@@ -8,6 +8,7 @@ import UAVFlight, { UAVManualDirection } from './UAVFlight'
 import StaticModel from './StaticModel'
 import { VisibleSatelliteInfo } from '../../types/satellite'
 import SatelliteManager from './satellite/SatelliteManager'
+import StaticSatelliteManager from './satellite/StaticSatelliteManager'
 import { ApiRoutes } from '../../config/apiRoutes'
 import {
     getBackendSceneName,
@@ -21,7 +22,7 @@ import RealTimeMetrics from './visualization/RealTimeMetrics'
 import InterferenceAnalytics from './visualization/InterferenceAnalytics'
 import UAVSwarmCoordination from './visualization/UAVSwarmCoordination'
 import MeshNetworkTopology from './visualization/MeshNetworkTopology'
-import SatelliteUAVConnection from './visualization/SatelliteUAVConnection'
+// import SatelliteUAVConnection from './visualization/SatelliteUAVConnection' // TODO: 暫時移除，重構中
 import FailoverMechanism from './visualization/FailoverMechanism'
 import HandoverPredictionVisualization from '../viewers/HandoverPredictionVisualization'
 import SatelliteHandoverDecisionVisualization from '../viewers/SatelliteHandoverDecisionVisualization'
@@ -310,7 +311,10 @@ const MainScene: React.FC<MainSceneProps> = ({
         <>
             <primitive object={prepared} castShadow receiveShadow />
             {deviceMeshes}
-            <SatelliteManager satellites={satellites} />
+            {/* 使用靜態衛星管理器，完全避免重新載入和重新渲染 */}
+            <StaticSatelliteManager enabled={satellites.length > 0} />
+            {/* 備用：原始動態衛星管理器 */}
+            {/* <SatelliteManager satellites={satellites} /> */}
             
             {/* 階段四可視化覆蓋層 */}
             <InterferenceOverlay 
@@ -347,19 +351,24 @@ const MainScene: React.FC<MainSceneProps> = ({
                 devices={devices} 
                 enabled={meshNetworkTopologyEnabled} 
             />
-            <SatelliteUAVConnection 
+            {/* TODO: 已暫時移除SatelliteUAVConnection組件進行重構
+                原本的UAV-衛星連線機制已被移除，將在重構完成後重新實現
+                相關的UI面板和監控功能仍保留，使用假數據維持功能 */}
+            {/* <SatelliteUAVConnection 
                 devices={devices} 
                 enabled={satelliteUavConnectionEnabled}
                 satellites={satellites}
                 onConnectionsUpdate={onSatelliteConnectionsUpdate}
-            />
+            /> */}
             <FailoverMechanism 
                 devices={devices} 
                 enabled={failoverMechanismEnabled} 
             />
             
-            {/* 階段六可視化覆蓋層 - 需要衛星-UAV 連接開啟才顯示 */}
-            <HandoverPredictionVisualization 
+            {/* TODO: 階段六可視化覆蓋層暫時停用 - 等待重構完成
+                這些組件依賴SatelliteUAVConnection提供的連線數據
+                重構完成後將重新啟用並整合新的連線機制 */}
+            {/* <HandoverPredictionVisualization 
                 devices={devices} 
                 enabled={handoverPredictionEnabled && satelliteUavConnectionEnabled}
                 satellites={satellites}
@@ -375,15 +384,16 @@ const MainScene: React.FC<MainSceneProps> = ({
                 satellites={satellites}
                 selectedUAV={selectedReceiverIds.length > 0 ? devices.find(d => d.id === selectedReceiverIds[0]) : undefined}
                 predictionTimeHorizon={300}
-            />
+            /> */}
             
-            {/* Stage 3 異常可視化 - 需要衛星-UAV 連接開啟才顯示 */}
-            <HandoverAnomalyVisualization
+            {/* TODO: Stage 3 異常可視化和3D換手動畫暫時停用 - 等待重構完成
+                這些組件依賴SatelliteUAVConnection提供的連線數據和狀態
+                重構完成後將重新啟用並整合新的連線機制 */}
+            {/* <HandoverAnomalyVisualization
                 enabled={anomalyAlertSystemEnabled && satelliteUavConnectionEnabled}
                 devices={devices}
             />
             
-            {/* 3D 換手動畫 - 需要衛星-UAV 連接開啟才顯示 */}
             <HandoverAnimation3D
                 devices={devices}
                 enabled={handover3DAnimationEnabled && satelliteUavConnectionEnabled}
@@ -394,7 +404,7 @@ const MainScene: React.FC<MainSceneProps> = ({
                 isTransitioning={isTransitioning}
                 transitionProgress={transitionProgress}
                 onHandoverEvent={onHandoverEvent}
-            />
+            /> */}
             
             {/* 階段七可視化覆蓋層 */}
             <TestResultsVisualization 

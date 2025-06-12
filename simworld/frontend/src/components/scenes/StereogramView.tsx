@@ -18,6 +18,18 @@ import CoreNetworkSyncViewer from '../viewers/CoreNetworkSyncViewer'
 import AnomalyAlertSystem from '../viewers/AnomalyAlertSystem'
 import SatelliteConnectionPanel from '../ui/SatelliteConnectionPanel'
 
+/**
+ * TODO: 立體圖場景重構中
+ * 
+ * 原本的SatelliteUAVConnection組件已暫時移除進行重構
+ * 相關的UI面板(SatelliteConnectionPanel)保留但使用假數據
+ * 
+ * 重構完成後需要：
+ * 1. 重新整合新的衛星連線機制
+ * 2. 恢復真實數據流到UI面板
+ * 3. 重新啟用相關的可視化組件
+ */
+
 // 移除衛星圖例，因為已由側邊欄開關控制，不再需要額外說明
 
 interface SceneViewProps {
@@ -119,17 +131,19 @@ export default function SceneView({
     intelligentRecommendationEnabled = false,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
+    // TODO: 暫時停用真實連線數據，使用空陣列維持UI功能
+    // 等待重構完成後將重新整合真實的連線數據
     const [satelliteConnections, setSatelliteConnections] = useState<any[]>([])
     const [handoverPredictions, setHandoverPredictions] = useState<any[]>([])
     
-    // 處理衛星連線數據更新
+    // TODO: 暫時停用連線更新回調，重構後恢復
     const handleConnectionsUpdate = useCallback((connections: any[]) => {
-        setSatelliteConnections(connections)
+        // setSatelliteConnections(connections) // 暫時停用真實數據更新
     }, [])
     
-    // 處理換手預測數據更新
+    // TODO: 暫時停用預測更新回調，重構後恢復
     const handlePredictionsUpdate = useCallback((predictions: any[]) => {
-        setHandoverPredictions(predictions)
+        // setHandoverPredictions(predictions) // 暫時停用真實數據更新
     }, [])
 
     // WebGL 上下文恢復處理
@@ -227,8 +241,8 @@ export default function SceneView({
                 <IntelligentRecommendationSystem devices={devices} enabled={intelligentRecommendationEnabled} />
             )}
             
-            {/* 衛星連線狀態面板 - 顯示在右上角，簡化設計只顯示核心動態資訊 */}
-            <SatelliteConnectionPanel 
+            {/* TODO: 暫時隱藏換手監控UI面板，等待重構完成 */}
+            {/* <SatelliteConnectionPanel 
                 enabled={satelliteUavConnectionEnabled} 
                 connections={satelliteConnections}
                 isTransitioning={isTransitioning}
@@ -236,7 +250,7 @@ export default function SceneView({
                 currentConnection={currentConnection}
                 predictedConnection={predictedConnection}
                 handoverState={handoverState}
-            />
+            /> */}
 
             {/* 3D Canvas內容照舊，會蓋在星空上 */}
             <Canvas
