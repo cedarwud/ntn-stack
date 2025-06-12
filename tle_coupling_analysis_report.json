@@ -1,0 +1,106 @@
+{
+  "summary": {
+    "total_tests": 7,
+    "passed": 7,
+    "failed": 0,
+    "warnings": 0,
+    "success_rate": 100.0,
+    "independence_level": "HIGH"
+  },
+  "detailed_results": [
+    {
+      "test": "核心TLE功能",
+      "status": "PASS",
+      "message": "TLE核心功能正常，完全獨立運行",
+      "timestamp": "2025-06-12T09:33:49.708453",
+      "details": {
+        "validation": true,
+        "parsed_fields": [
+          "inclination_deg",
+          "period_minutes",
+          "apogee_km",
+          "perigee_km"
+        ],
+        "inclination": 87.40000000000002,
+        "period": 1.867704280155642
+      }
+    },
+    {
+      "test": "外部依賴隔離",
+      "status": "PASS",
+      "message": "外部API整合良好，獲取72條數據",
+      "timestamp": "2025-06-12T09:33:58.636159",
+      "details": {
+        "data_count": 72,
+        "sample_satellite": "NOAA 15"
+      }
+    },
+    {
+      "test": "儲存庫依賴注入",
+      "status": "PASS",
+      "message": "依賴注入正常，可使用不同儲存庫實現",
+      "timestamp": "2025-06-12T09:33:58.636190",
+      "details": {
+        "default_repo_type": "MockSatelliteRepository",
+        "custom_repo_type": "MockSatelliteRepository",
+        "mock_operation_success": true
+      }
+    },
+    {
+      "test": "Skyfield與SGP4整合",
+      "status": "PASS",
+      "message": "Skyfield和SGP4整合完美，計算結果正確",
+      "timestamp": "2025-06-12T09:33:58.638098",
+      "details": {
+        "sgp4_position": [
+          -6785.340586717826,
+          178.84087718970764,
+          3631.85046066422
+        ],
+        "skyfield_latitude": 28.28231741370145,
+        "skyfield_longitude": -102.87064308778493,
+        "skyfield_elevation_km": 1324.8949365724034
+      }
+    },
+    {
+      "test": "錯誤處理健全性",
+      "status": "PASS",
+      "message": "錯誤處理機制完善，服務健全",
+      "timestamp": "2025-06-12T09:33:58.638135",
+      "details": {
+        "invalid_tle_validation": true,
+        "parse_error_handling": true,
+        "invalid_category_handling": true
+      }
+    },
+    {
+      "test": "配置靈活性",
+      "status": "PASS",
+      "message": "配置系統靈活，支持多種配置方式",
+      "timestamp": "2025-06-12T09:33:58.638259",
+      "details": {
+        "celestrak_categories_configurable": true,
+        "spacetrack_config_from_env": true,
+        "default_fallback_working": true
+      }
+    },
+    {
+      "test": "耦合程度分析",
+      "status": "PASS",
+      "message": "整體耦合程度良好 (80.0%)",
+      "timestamp": "2025-06-12T09:33:58.638269",
+      "details": {
+        "coupling_analysis": {
+          "database_coupling": "LOW",
+          "external_api_coupling": "MEDIUM",
+          "framework_coupling": "LOW",
+          "configuration_coupling": "LOW",
+          "business_logic_coupling": "VERY_LOW"
+        },
+        "coupling_score": "20/25",
+        "independence_level": "HIGH"
+      }
+    }
+  ],
+  "generated_at": "2025-06-12T09:33:58.638329"
+}

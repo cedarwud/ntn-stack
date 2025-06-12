@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useWebSocket } from '../../hooks/useWebSocket'
+import { WebSocketEvent } from '../../types/charts'
 
 interface MetricComparison {
   metric: string
@@ -67,9 +68,9 @@ const AntiInterferenceComparisonDashboard: React.FC = () => {
     onMessage: handleWebSocketMessage,
   })
 
-  function handleWebSocketMessage(event: MessageEvent) {
+  function handleWebSocketMessage(event: WebSocketEvent) {
     try {
-      const data = JSON.parse(event.data)
+      const data = event.data
       
       switch (data.type) {
         case 'metric_comparison_update':
@@ -288,7 +289,7 @@ const AntiInterferenceComparisonDashboard: React.FC = () => {
             <div className="interference-events-section">
               <h3>Interference Events & Mitigation</h3>
               <div className="events-list">
-                {dashboardData.interferenceEvents.slice(0, 10).map((event, index) => (
+                {dashboardData.interferenceEvents.slice(0, 10).map((event) => (
                   <div key={event.id} className="event-item">
                     <div className="event-header">
                       <span className="event-id">#{event.id}</span>

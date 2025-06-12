@@ -153,7 +153,8 @@ export class ApiResponseValidator {
 }
 
 // 統一的API請求處理器
-async function handleApiRequest<T>(
+// This function is currently unused but kept for future API standardization
+/* async function handleApiRequest<T>(
   request: () => Promise<any>,
   validator?: (data: any) => data is T
 ): Promise<T> {
@@ -198,9 +199,10 @@ async function handleApiRequest<T>(
     }
     
     // 處理網絡錯誤和其他錯誤
-    if (error.response) {
-      const status = error.response.status;
-      const message = error.response.data?.message || error.message;
+    const axiosError = error as any;
+    if (axiosError.response) {
+      const status = axiosError.response.status;
+      const message = axiosError.response.data?.message || axiosError.message;
       
       if (status === 404) {
         throw new SatelliteApiError(ErrorCode.SATELLITE_NOT_FOUND, message);
@@ -213,10 +215,10 @@ async function handleApiRequest<T>(
     
     throw new SatelliteApiError(
       ErrorCode.NETWORK_ERROR,
-      error.message || '網絡請求失敗'
+      axiosError.message || '網絡請求失敗'
     );
   }
-}
+} */
 
 // API服務函數
 

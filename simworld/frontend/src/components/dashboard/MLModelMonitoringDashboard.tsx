@@ -235,7 +235,7 @@ const MLModelMonitoringDashboard: React.FC<MLModelMonitoringDashboardProps> = ({
   }, [selectedModel]);
 
   // 獲取預測統計
-  const fetchPredictionStats = useCallback(async (modelId: string) => {
+  const fetchPredictionStats = useCallback(async () => {
     try {
       // 模擬預測統計數據
       const mockStats: PredictionStats = {
@@ -304,7 +304,7 @@ const MLModelMonitoringDashboard: React.FC<MLModelMonitoringDashboardProps> = ({
 
   useEffect(() => {
     if (selectedModel) {
-      fetchPredictionStats(selectedModel.model_id);
+      fetchPredictionStats();
     }
   }, [selectedModel, fetchPredictionStats]);
 

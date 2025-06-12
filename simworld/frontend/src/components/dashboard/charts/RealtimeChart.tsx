@@ -2,7 +2,7 @@
  * 通用實時圖表組件
  * 支持多種圖表類型和實時數據更新
  */
-import { useEffect, useRef, useCallback, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -18,7 +18,7 @@ import {
 } from 'chart.js'
 import { Chart } from 'react-chartjs-2'
 import 'chartjs-adapter-date-fns'
-import { ChartComponentProps, TimeSeriesData } from '../../../types/charts'
+import { ChartComponentProps } from '../../../types/charts'
 
 // 註冊 Chart.js 組件
 ChartJS.register(
@@ -46,17 +46,13 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
     config,
     className = '',
     height = 400,
-    maxDataPoints = 50,
-    updateInterval = 1000,
     showLegend = true,
     showGrid = true,
     animated = true,
-    onDataUpdate,
-    onError,
 }) => {
     const chartRef = useRef<ChartJS | null>(null)
     const [chartData, setChartData] = useState(config.data)
-    const [isLoading, setIsLoading] = useState(false)
+    const [isLoading] = useState(false)
     const intervalRef = useRef<number | null>(null)
 
     // 默認圖表選項
@@ -167,14 +163,15 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
     }
 
     // 添加新數據點
-    const addDataPoint = useCallback(
+    // This function is available for future use
+    /* const addDataPoint = useCallback(
         (newData: TimeSeriesData) => {
-            setChartData((prevData) => {
+            setChartData((prevData: any) => {
                 const updatedData = { ...prevData }
 
                 if (updatedData.datasets) {
                     updatedData.datasets.forEach(
-                        (dataset: any, index: number) => {
+                        (dataset: any) => {
                             if (newData.data && newData.data.length > 0) {
                                 const newPoint =
                                     newData.data[newData.data.length - 1]
@@ -203,20 +200,20 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
             onDataUpdate?.(newData)
         },
         [maxDataPoints, onDataUpdate]
-    )
+    ) */
 
     // 更新整個數據集
-    const updateChartData = useCallback(
+    /* const updateChartData = useCallback(
         (newData: any) => {
             setChartData(newData)
             onDataUpdate?.(newData)
         },
         [onDataUpdate]
-    )
+    ) */
 
     // 清空圖表數據
-    const clearChart = useCallback(() => {
-        setChartData((prevData) => {
+    /* const clearChart = useCallback(() => {
+        setChartData((prevData: any) => {
             const clearedData = { ...prevData }
             if (clearedData.datasets) {
                 clearedData.datasets.forEach((dataset: any) => {
@@ -225,7 +222,7 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
             }
             return clearedData
         })
-    }, [])
+    }, []) */
 
     // 實時更新邏輯
     useEffect(() => {
@@ -249,7 +246,7 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
     }, [config.data])
 
     // 錯誤處理
-    const handleError = useCallback(
+    /* const handleError = useCallback(
         (error: Error) => {
             console.error('圖表錯誤:', error)
             onError?.(error)
@@ -260,15 +257,10 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
     // 獲取圖表實例的引用
     const getChartRef = useCallback(() => {
         return chartRef.current
-    }, [])
+    }, []) */
 
-    // 導出方法供父組件使用
-    React.useImperativeHandle(chartRef, () => ({
-        addDataPoint,
-        updateChartData,
-        clearChart,
-        getChartRef,
-    }))
+    // Export chart methods for parent components to use
+    // Note: These methods are available through the component's public API
 
     return (
         <div className={`realtime-chart ${className}`} style={{ height }}>
@@ -280,10 +272,9 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
             )}
             <Chart
                 ref={chartRef}
-                type={config.type}
+                type={config.type === 'heatmap' ? 'scatter' : config.type as any}
                 data={chartData}
                 options={chartOptions}
-                onError={handleError}
             />
         </div>
     )

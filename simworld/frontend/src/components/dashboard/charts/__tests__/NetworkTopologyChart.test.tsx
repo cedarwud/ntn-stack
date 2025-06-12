@@ -1,7 +1,6 @@
 /**
  * NetworkTopologyChart 組件測試
  */
-import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import NetworkTopologyChart from '../NetworkTopologyChart'

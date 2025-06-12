@@ -16,26 +16,8 @@ interface RLEngineMetrics {
   gpu_utilization?: number;
 }
 
-interface EnvironmentState {
-  env_name: string;
-  observation_space: number;
-  action_space: number;
-  current_episode: number;
-  episode_reward: number;
-  step_count: number;
-  is_done: boolean;
-  info: Record<string, any>;
-}
-
-interface DecisionHistory {
-  timestamp: number;
-  input_features: number[];
-  predicted_action: number[];
-  actual_reward: number;
-  confidence_score: number;
-  processing_method: 'rl_enhanced' | 'legacy_fallback' | 'emergency_fallback';
-  response_time: number;
-}
+// Note: Removed unused interfaces EnvironmentState and DecisionHistory
+// They can be re-added when needed for future features
 
 interface RLServiceStatus {
   interference_mitigation: {
@@ -63,19 +45,16 @@ interface RLServiceStatus {
 
 const GymnasiumRLMonitor: React.FC = () => {
   const [rlMetrics, setRLMetrics] = useState<RLEngineMetrics | null>(null);
-  const [environmentStates, setEnvironmentStates] = useState<EnvironmentState[]>([]);
-  const [decisionHistory, setDecisionHistory] = useState<DecisionHistory[]>([]);
   const [serviceStatus, setServiceStatus] = useState<RLServiceStatus | null>(null);
   const [selectedEngine, setSelectedEngine] = useState<'gymnasium' | 'legacy'>('gymnasium');
   const [isTraining, setIsTraining] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
   // 獲取 RL 系統狀態
   const fetchRLStatus = useCallback(async () => {
     try {
-      const response = await fetch('/api/v1/ai-decision/status');
-      const data = await response.json();
+      await fetch('/api/v1/ai-decision/status');
       
       // 模擬 RL 指標數據
       const mockMetrics: RLEngineMetrics = {

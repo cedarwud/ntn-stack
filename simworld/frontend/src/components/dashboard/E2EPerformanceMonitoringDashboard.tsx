@@ -4,8 +4,7 @@ import {
   getE2EPerformanceMetrics, 
   getSLACompliance, 
   getGatewayStatus,
-  getNTNStatus,
-  performSystemHealthCheck 
+  getNTNStatus
 } from '../../services/microserviceApi'
 
 interface E2EPerformanceMonitoringDashboardProps {
@@ -109,7 +108,7 @@ const E2EPerformanceMonitoringDashboard: React.FC<E2EPerformanceMonitoringDashbo
                 ]);
 
                 // 更新指標
-                setMetrics(prev => ({
+                setMetrics(() => ({
                     // 從微服務獲取的真實數據
                     systemLatency: e2eMetrics.sla_compliance?.handover_latency_ms || 38.5,
                     apiResponseTime: gatewayStatus.gateway_status?.average_response_time_ms || 45.2,
@@ -146,7 +145,7 @@ const E2EPerformanceMonitoringDashboard: React.FC<E2EPerformanceMonitoringDashbo
                 console.warn('⚠️ 無法獲取 Phase 2 指標，使用模擬數據:', error);
                 
                 // 降級到模擬數據
-                setMetrics(prev => ({
+                setMetrics(() => ({
                     systemLatency: 20 + Math.random() * 30,
                     apiResponseTime: 50 + Math.random() * 100,
                     throughput: 800 + Math.random() * 400,
@@ -238,7 +237,6 @@ const E2EPerformanceMonitoringDashboard: React.FC<E2EPerformanceMonitoringDashbo
     }
 
     const getRandomSeverity = (): 'critical' | 'warning' | 'info' => {
-        const severities = ['critical', 'warning', 'info']
         const weights = [0.1, 0.3, 0.6] // 危機告警較少
         const rand = Math.random()
         if (rand < weights[0]) return 'critical'
