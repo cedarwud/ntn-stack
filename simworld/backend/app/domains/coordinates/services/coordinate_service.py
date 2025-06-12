@@ -16,8 +16,8 @@ from app.domains.coordinates.interfaces.coordinate_service_interface import (
 logger = logging.getLogger(__name__)
 
 # --- GLB Coordinate Conversion Constants ---
-ORIGIN_LATITUDE_GLB = 24.786667  # 真實世界原點緯度 (GLB (0,0) 對應點)
-ORIGIN_LONGITUDE_GLB = 120.996944  # 真實世界原點經度 (GLB (0,0) 對應點)
+ORIGIN_LATITUDE_GLB = 24.943889  # 真實世界原點緯度 (GLB (0,0) 對應點): 24°56'38"N
+ORIGIN_LONGITUDE_GLB = 121.370833  # 真實世界原點經度 (GLB (0,0) 對應點): 121°22'15"E
 # GLB (100, 100) -> (真實): (24.785833 N, 120.997778 E)
 LATITUDE_SCALE_PER_GLB_Y = -0.000834 / 100  # 度 / GLB Y 單位
 LONGITUDE_SCALE_PER_GLB_X = 0.000834 / 100  # 度 / GLB X 單位
