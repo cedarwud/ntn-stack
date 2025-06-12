@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react'
 import './SatelliteConnectionPanel.scss'
 
+/**
+ * TODO: 此組件目前使用假數據維持UI功能
+ * 
+ * 原本的SatelliteUAVConnection組件已暫時移除進行重構
+ * 此面板目前完全依賴模擬數據來顯示換手狀態
+ * 
+ * 重構完成後需要：
+ * 1. 重新整合真實的衛星連線數據
+ * 2. 連接新的連線狀態管理系統
+ * 3. 移除假數據邏輯，恢復真實數據顯示
+ */
+
 // 對非技術人員友好的換手狀態指標
 interface HandoverStatusMetrics {
     currentSatellite: string // 當前連接的衛星名稱
@@ -23,36 +35,41 @@ interface SatelliteConnectionPanelProps {
     handoverState?: any // 換手狀態資訊
 }
 
-// 穩定的模擬數據生成器 - 與3D場景換手週期同步
+// 配合新的持續軌道系統的模擬數據生成器
 const generateStableMockData = () => {
-    const generateSatName = () => `STARLINK-${Math.floor(1000 + Math.random() * 8999)}`
+    // 使用固定的衛星名稱，配合新的軌道系統
+    const satelliteNames = [
+        'STARLINK-1001', 'STARLINK-1002', 'STARLINK-1003', 
+        'STARLINK-1004', 'STARLINK-1005'
+    ]
+    
     const reasons = ['signal_weak', 'better_option', 'coverage_edge'] as const
     const qualities = ['excellent', 'good', 'weak'] as const
     
     // 計算與3D場景同步的倒數時間（45秒週期）
-    const handoverCycle = 45000 // 45秒週期，與3D場景一致
+    const handoverCycle = 45000
     const currentTime = Date.now()
     const cycleProgress = (currentTime % handoverCycle) / handoverCycle
     
-    // 準備期在週期的67%開始（30秒），倒數5秒
+    // 基於時間選擇當前和下一個衛星（模擬真實的最佳衛星選擇）
+    const currentIndex = Math.floor(cycleProgress * 2) % satelliteNames.length
+    const nextIndex = (currentIndex + 1) % satelliteNames.length
+    
     let initialCountdown
     if (cycleProgress < 0.67) {
-        // 還沒到準備期，計算剩餘時間
         initialCountdown = Math.floor((0.67 - cycleProgress) * handoverCycle / 1000)
     } else if (cycleProgress >= 0.67 && cycleProgress <= 0.78) {
-        // 準備期：倒數5秒
         initialCountdown = Math.floor((0.78 - cycleProgress) * handoverCycle / 1000)
     } else {
-        // 已經在換手過程中或完成，計算到下一個週期
         initialCountdown = Math.floor((1.67 - cycleProgress) * handoverCycle / 1000)
     }
     
     return {
-        currentSat: generateSatName(),
-        nextSat: generateSatName(), 
-        signalQuality: qualities[Math.floor(Math.random() * qualities.length)],
-        reason: reasons[Math.floor(Math.random() * reasons.length)],
-        initialCountdown: Math.max(5, initialCountdown) // 最少5秒
+        currentSat: satelliteNames[currentIndex],
+        nextSat: satelliteNames[nextIndex], 
+        signalQuality: qualities[Math.floor(cycleProgress * qualities.length)],
+        reason: reasons[Math.floor(cycleProgress * reasons.length)],
+        initialCountdown: Math.max(5, initialCountdown)
     }
 }
 
@@ -133,45 +150,55 @@ const SatelliteConnectionPanel: React.FC<SatelliteConnectionPanelProps> = ({
             return
         }
         
-        // 檢查是否有真實數據
-        const hasRealData = currentConnection && predictedConnection && handoverState
-        
-        if (hasRealData) {
-            // 使用真實數據
-            const currentSat = currentConnection.satelliteName || `SAT-${currentConnection.satelliteId}`
-            const nextSat = predictedConnection.satelliteName || `SAT-${predictedConnection.satelliteId}`
-            const signalStrength = currentConnection.signalStrength || -100
+        // TODO: 暫時停用真實連線數據，使用假數據維持UI功能
+        // 等待重構完成後將重新整合真實的連線數據
+        // 原始邏輯：優先使用真實連線數據  
+        if (false && connections && connections.length > 0) {
+            // 分析雙連線狀態
+            const currentConnection = connections.find(c => c.status === 'active' || c.status === 'disconnecting')
+            const targetConnection = connections.find(c => c.status === 'establishing')
+            const isHandoverActive = connections.some(c => c.status === 'disconnecting' || c.status === 'establishing')
             
-            let signalQuality: HandoverStatusMetrics['signalQuality']
-            if (signalStrength > -60) signalQuality = 'excellent'
-            else if (signalStrength > -75) signalQuality = 'good'  
-            else if (signalStrength > -90) signalQuality = 'weak'
-            else signalQuality = 'lost'
-            
-            let handoverReason: HandoverStatusMetrics['handoverReason'] = 'none'
-            if (predictedConnection && currentConnection) {
-                if (signalStrength < -80) handoverReason = 'signal_weak'
-                else if (predictedConnection.elevation > currentConnection.elevation + 5) handoverReason = 'better_option'
-                else handoverReason = 'coverage_edge'
-            }
-            
-            const handoverTime = handoverState.handoverTime || 0
-            const now = Date.now()
-            const realCountdown = handoverTime > now ? Math.ceil((handoverTime - now) / 1000) : -1
-            
-            setMetrics({
-                currentSatellite: currentSat,
-                nextSatellite: nextSat,
-                handoverCountdown: realCountdown,
-                signalQuality,
-                handoverReason,
-                connectionStable: signalQuality === 'excellent' || signalQuality === 'good',
-                isHandoverInProgress: isTransitioning,
-                handoverProgress: isTransitioning ? transitionProgress * 100 : 0
-            })
-            
-            if (realCountdown > 0) {
-                setCountdown(realCountdown)
+            if (currentConnection) {
+                const currentSat = `STARLINK-${currentConnection.satelliteId}`
+                const targetSat = targetConnection ? `STARLINK-${targetConnection.satelliteId}` : '評估中'
+                const elevation = currentConnection.quality?.elevation || 0
+                
+                // 基於仰角判斷信號質量
+                let signalQuality: HandoverStatusMetrics['signalQuality']
+                if (elevation > 60) signalQuality = 'excellent'
+                else if (elevation > 45) signalQuality = 'good'  
+                else if (elevation > 15) signalQuality = 'weak'
+                else signalQuality = 'lost'
+                
+                // 換手原因
+                let handoverReason: HandoverStatusMetrics['handoverReason'] = 'none'
+                if (isHandoverActive) {
+                    if (elevation < 30) handoverReason = 'signal_weak'
+                    else handoverReason = 'better_option'
+                }
+                
+                // 計算換手進度
+                let handoverProgress = 0
+                if (isHandoverActive) {
+                    if (targetConnection?.status === 'establishing') {
+                        handoverProgress = 60 // 建立新連線階段
+                    }
+                    if (currentConnection?.status === 'disconnecting') {
+                        handoverProgress = 80 // 斷開舊連線階段
+                    }
+                }
+                
+                setMetrics({
+                    currentSatellite: currentSat,
+                    nextSatellite: targetSat,
+                    handoverCountdown: -1,
+                    signalQuality,
+                    handoverReason,
+                    connectionStable: !isHandoverActive && elevation > 30,
+                    isHandoverInProgress: isHandoverActive,
+                    handoverProgress
+                })
             }
         } else {
             // 使用模擬數據 - 只在需要重新開始時生成
@@ -179,7 +206,6 @@ const SatelliteConnectionPanel: React.FC<SatelliteConnectionPanelProps> = ({
                 stableDataRef.current = generateStableMockData()
                 phaseRef.current = 'preparing'
                 setCountdown(stableDataRef.current.initialCountdown)
-                console.log('生成新的換手週期:', stableDataRef.current)
             }
             
             if (stableDataRef.current) {
@@ -198,25 +224,23 @@ const SatelliteConnectionPanel: React.FC<SatelliteConnectionPanelProps> = ({
                 const isCompletePhase = cycleProgress > 0.89                          // 40-45秒：完成期
                 
                 if (isStablePhase) {
-                    // 穩定期：顯示當前衛星和下一個目標衛星
-                    const currentSatelliteName = cycleProgress < 0.5 ? data.currentSat : data.nextSat
-                    const nextSatelliteName = cycleProgress < 0.5 ? data.nextSat : data.currentSat
+                    // 穩定期：顯示當前衛星和下一個目標衛星（始終有數據）
                     setMetrics({
-                        currentSatellite: currentSatelliteName,
-                        nextSatellite: nextSatelliteName,  // 始終顯示下個目標
-                        handoverCountdown: countdown > 5 ? countdown : -1, // 顯示較長的倒數
+                        currentSatellite: data.currentSat,
+                        nextSatellite: data.nextSat,  // 始終顯示下個目標
+                        handoverCountdown: countdown > 5 ? countdown : -1, 
                         signalQuality: 'good',
-                        handoverReason: data.reason, // 顯示預期的換手原因
+                        handoverReason: data.reason, // 預期的換手原因
                         connectionStable: true,
                         isHandoverInProgress: false,
                         handoverProgress: 0
                     })
                 } else if (isPreparePhase) {
-                    // 準備期：顯示即將換手的倒數計時
+                    // 準備期：顯示即將換手的倒數計時（5秒倒數）
                     setMetrics({
                         currentSatellite: data.currentSat,
                         nextSatellite: data.nextSat,
-                        handoverCountdown: countdown,
+                        handoverCountdown: Math.max(1, Math.floor((0.78 - cycleProgress) * handoverCycle / 1000)),
                         signalQuality: data.signalQuality,
                         handoverReason: data.reason,
                         connectionStable: false,
@@ -224,7 +248,7 @@ const SatelliteConnectionPanel: React.FC<SatelliteConnectionPanelProps> = ({
                         handoverProgress: 0
                     })
                 } else if (isEstablishPhase) {
-                    // 建立期：正在建立新連接
+                    // 建立期：正在建立新連接（35-38秒，3秒建立期）
                     const establishProgress = ((cycleProgress - 0.78) / 0.06) * 100
                     setMetrics({
                         currentSatellite: data.currentSat,
@@ -234,10 +258,10 @@ const SatelliteConnectionPanel: React.FC<SatelliteConnectionPanelProps> = ({
                         handoverReason: data.reason,
                         connectionStable: false,
                         isHandoverInProgress: true,
-                        handoverProgress: establishProgress
+                        handoverProgress: Math.min(50, establishProgress) // 0-50%
                     })
                 } else if (isSwitchPhase) {
-                    // 切換期：雙連接期，正在切換
+                    // 切換期：雙連接期，正在切換（38-40秒，2秒切換期）
                     const switchProgress = ((cycleProgress - 0.84) / 0.05) * 100
                     setMetrics({
                         currentSatellite: data.currentSat,
@@ -247,15 +271,15 @@ const SatelliteConnectionPanel: React.FC<SatelliteConnectionPanelProps> = ({
                         handoverReason: data.reason,
                         connectionStable: false,
                         isHandoverInProgress: true,
-                        handoverProgress: 50 + switchProgress / 2 // 50-100%
+                        handoverProgress: Math.min(100, 50 + switchProgress / 2) // 50-100%
                     })
                 } else if (isCompletePhase) {
-                    // 完成期：換手完成，穩定在新衛星，準備下次換手
+                    // 完成期：換手完成，穩定在新衛星（40-45秒，5秒穩定期）
                     setMetrics({
-                        currentSatellite: data.nextSat,
-                        nextSatellite: data.currentSat, // 為下次換手準備
-                        handoverCountdown: countdown > 5 ? countdown : -1,
-                        signalQuality: 'good',
+                        currentSatellite: data.nextSat, // 現在連接到新衛星
+                        nextSatellite: data.currentSat, // 下次換手目標
+                        handoverCountdown: -1, // 完成期不顯示倒數
+                        signalQuality: 'excellent', // 換手完成，信號優秀
                         handoverReason: data.reason, // 顯示下次換手原因
                         connectionStable: true,
                         isHandoverInProgress: false,
@@ -280,6 +304,9 @@ const SatelliteConnectionPanel: React.FC<SatelliteConnectionPanelProps> = ({
         return null
     }
 
+    // TODO: 目前強制使用假數據，重構完成後恢復真實連線數據檢查
+    const hasRealConnections = false // 原本：connections && connections.length > 0
+
     // 信號品質指示器顏色
     const getSignalColor = (quality: string) => {
         switch (quality) {
@@ -302,12 +329,12 @@ const SatelliteConnectionPanel: React.FC<SatelliteConnectionPanelProps> = ({
         }
     }
     
-    // 換手原因文字
+    // 換手原因文字（基於距離邏輯）
     const getHandoverReasonText = (reason: string) => {
         switch (reason) {
-            case 'signal_weak': return '信號衰減'
-            case 'better_option': return '發現更佳衛星'
-            case 'coverage_edge': return '接近覆蓋邊緣'
+            case 'signal_weak': return '當前衛星距離過遠'
+            case 'better_option': return '發現更近的衛星'
+            case 'coverage_edge': return '衛星移動至邊緣'
             case 'none': return ''
             default: return ''
         }
@@ -326,72 +353,81 @@ const SatelliteConnectionPanel: React.FC<SatelliteConnectionPanelProps> = ({
             </div>
             
             <div className="compact-metrics">
-                {/* 換手進行中 */}
-                {metrics.isHandoverInProgress && (
-                    <div className="metric-item critical">
-                        <div className="metric-label">🔄 換手中</div>
+                {/* 換手狀態 - 最重要的資訊 */}
+                <div className="metric-item status-primary">
+                    <div className="metric-main">
+                        <div className="metric-label large">📶 連線狀態</div>
+                        <div className={`metric-value large ${metrics.isHandoverInProgress ? 'handover-active' : 'stable'}`}>
+                            {metrics.isHandoverInProgress ? '🔄 換手進行中' : '✅ 連線穩定'}
+                        </div>
+                    </div>
+                    {metrics.isHandoverInProgress && (
                         <div className="handover-progress">
                             <div 
                                 className="progress-bar"
                                 style={{ width: `${metrics.handoverProgress}%` }}
                             ></div>
-                            <span className="progress-text">
+                            <span className="progress-text large">
                                 {metrics.handoverProgress.toFixed(0)}%
                             </span>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
                 
-                {/* 當前衛星信息 - 始終顯示 */}
-                <div className="metric-item">
+                {/* 雙連線狀態顯示 */}
+                <div className="metric-item dual-connections">
                     <div className="metric-main">
-                        <div className="metric-label">📡 當前衛星</div>
-                        <div className="metric-value current-sat">
+                        <div className="metric-label medium">📡 當前連線</div>
+                        <div className={`metric-value medium quality-${metrics.signalQuality}`}>
                             {metrics.currentSatellite}
                         </div>
                     </div>
                     <div className="metric-sub-label">
-                        信號品質：{getSignalText(metrics.signalQuality)}
+                        信號: {getSignalText(metrics.signalQuality)}
                     </div>
+                    
+                    {metrics.isHandoverInProgress && (
+                        <>
+                            <div className="metric-main" style={{ marginTop: '8px' }}>
+                                <div className="metric-label medium">🎯 目標連線</div>
+                                <div className="metric-value medium target-satellite">
+                                    {metrics.nextSatellite}
+                                </div>
+                            </div>
+                            <div className="metric-sub-label">
+                                建立中...
+                            </div>
+                        </>
+                    )}
                 </div>
 
-                {/* 換手倒數計時 - 重新定義語義 */}
-                {!metrics.isHandoverInProgress && countdown > 0 && countdown <= 5 && metrics.nextSatellite && (
-                    <div className="metric-item countdown-item">
-                        <div className="metric-main">
-                            <div className="metric-label">⏱️ 開始換手程序</div>
-                            <div className="metric-value countdown">
-                                {countdown}s
-                            </div>
-                        </div>
-                        <div className="metric-sub-label">準備建立新連接</div>
-                    </div>
-                )}
-                
-                {/* 目標衛星和換手原因 - 始終顯示（如果有目標） */}
-                {metrics.nextSatellite && (
+                {/* 換手原因 */}
+                {metrics.handoverReason && metrics.handoverReason !== 'none' && (
                     <div className="metric-item reason-item">
                         <div className="metric-main">
-                            <div className="metric-label">🎯 下個目標</div>
-                            <div className="metric-value reason">
-                                {metrics.nextSatellite}
+                            <div className="metric-label medium">⚠️ 換手原因</div>
+                            <div className="metric-value medium reason">
+                                {getHandoverReasonText(metrics.handoverReason)}
                             </div>
                         </div>
-                        {metrics.handoverReason !== 'none' && (
-                            <div className="metric-sub-label">
-                                預期原因：{getHandoverReasonText(metrics.handoverReason)}
-                            </div>
-                        )}
                     </div>
                 )}
                 
-                {/* 換手狀態指示 */}
-                {!metrics.isHandoverInProgress && countdown <= 0 && (
-                    <div className="metric-item">
-                        <div className="metric-main">
-                            <div className="metric-label">✅ 連接狀態</div>
-                            <div className="metric-value stable">
-                                {metrics.connectionStable ? '穩定' : '準備中'}
+                {/* TODO: 連線參數暫時使用假數據 */}
+                {enabled && (
+                    <div className="metric-item params-item">
+                        <div className="metric-params">
+                            <div className="param">
+                                <span className="param-label">仰角:</span>
+                                <span className="param-value">45.0°</span> {/* TODO: 假數據 */}
+                            </div>
+                            <div className="param">
+                                <span className="param-label">距離:</span>
+                                <span className="param-value">580km</span> {/* TODO: 假數據 */}
+                            </div>
+                            <div className="param">
+                                <span className="param-label">信號:</span>
+                                <span className="param-value">-85.2dBm</span> {/* TODO: 假數據 */}
                             </div>
                         </div>
                     </div>

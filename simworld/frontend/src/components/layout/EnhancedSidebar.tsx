@@ -175,7 +175,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onSelectedReceiversChange,
     onSatelliteDataUpdate,
     onSatelliteCountChange,
-    satelliteDisplayCount: propSatelliteDisplayCount = 10,
+    satelliteDisplayCount: propSatelliteDisplayCount = 15,
     satelliteEnabled = false,
     onSatelliteEnabledChange,
     interferenceVisualizationEnabled = false,
@@ -426,23 +426,35 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         { id: 'anomaly', label: '異常處理', icon: '🚨' }
     ]
 
-    // 衛星數據獲取效果
+    // 靜態衛星數據管理：完全避免重新載入和重新渲染
+    const satelliteDataInitialized = useRef(false)
+    
     useEffect(() => {
         setSatelliteDisplayCount(propSatelliteDisplayCount)
     }, [propSatelliteDisplayCount])
 
     useEffect(() => {
-        const loadSatellites = async () => {
+        // 只在首次啟用衛星時載入一次，之後完全依賴內在軌道運動
+        const initializeSatellitesOnce = async () => {
             if (!satelliteEnabled) {
                 setSkyfieldSatellites([])
                 if (onSatelliteDataUpdate) {
                     onSatelliteDataUpdate([])
                 }
+                satelliteDataInitialized.current = false
                 setLoadingSatellites(false)
                 return
             }
 
+            // 如果已經初始化過，就不再重新載入
+            if (satelliteDataInitialized.current) {
+                console.log('🛰️ 衛星數據已初始化，使用內在軌道運動，避免重新載入')
+                return
+            }
+
+            console.log('🛰️ 首次初始化衛星數據...')
             setLoadingSatellites(true)
+            
             const satellites = await fetchVisibleSatellites(
                 satelliteDisplayCount,
                 minElevation
@@ -450,30 +462,26 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 
             let sortedSatellites = [...satellites]
             sortedSatellites.sort((a, b) => b.elevation_deg - a.elevation_deg)
-
+            
             setSkyfieldSatellites(sortedSatellites)
 
             if (onSatelliteDataUpdate) {
                 onSatelliteDataUpdate(sortedSatellites)
             }
 
+            satelliteDataInitialized.current = true
             setLoadingSatellites(false)
+            console.log('🛰️ 衛星數據初始化完成，後續使用內在運動邏輯')
         }
 
+        // 清理任何現有的刷新間隔
         if (satelliteRefreshIntervalRef.current) {
             clearInterval(satelliteRefreshIntervalRef.current)
             satelliteRefreshIntervalRef.current = null
         }
 
-        if (satelliteEnabled) {
-            loadSatellites()
-            satelliteRefreshIntervalRef.current = setInterval(() => {
-                console.log('自動刷新衛星數據...')
-                loadSatellites()
-            }, 60000)
-        } else {
-            loadSatellites()
-        }
+        // 只初始化一次，不設置定期刷新
+        initializeSatellitesOnce()
 
         return () => {
             if (satelliteRefreshIntervalRef.current) {
@@ -482,10 +490,8 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             }
         }
     }, [
-        satelliteDisplayCount,
-        minElevation,
-        onSatelliteDataUpdate,
-        satelliteEnabled,
+        satelliteEnabled, // 只依賴啟用狀態
+        // 移除其他依賴，避免重新載入
     ])
 
     // 設備方向輸入處理
