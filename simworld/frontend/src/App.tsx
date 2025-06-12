@@ -95,8 +95,7 @@ function App({ activeView }: AppProps) {
     const [predictionAccuracyDashboardEnabled, setPredictionAccuracyDashboardEnabled] = useState(false)
     const [coreNetworkSyncEnabled, setCoreNetworkSyncEnabled] = useState(false)
     
-    // Stage 3 異常處理功能狀態
-    const [anomalyAlertSystemEnabled, setAnomalyAlertSystemEnabled] = useState(false)
+    // Stage 3 功能狀態
     const [realtimePerformanceMonitorEnabled, setRealtimePerformanceMonitorEnabled] = useState(false)
     const [scenarioTestEnvironmentEnabled, setScenarioTestEnvironmentEnabled] = useState(false)
     
@@ -115,9 +114,7 @@ function App({ activeView }: AppProps) {
     const [automatedReportGenerationEnabled, setAutomatedReportGenerationEnabled] = useState(false)
 
     // 階段八功能狀態
-    const [mlModelMonitoringEnabled, setMLModelMonitoringEnabled] = useState(false)
     const [predictiveMaintenanceEnabled, setPredictiveMaintenanceEnabled] = useState(false)
-    const [adaptiveLearningEnabled, setAdaptiveLearningEnabled] = useState(false)
     const [intelligentRecommendationEnabled, setIntelligentRecommendationEnabled] = useState(false)
 
     const sortedDevicesForSidebar = useMemo(() => {
@@ -305,8 +302,7 @@ function App({ activeView }: AppProps) {
                         handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
                         predictionAccuracyDashboardEnabled={predictionAccuracyDashboardEnabled}
                         coreNetworkSyncEnabled={coreNetworkSyncEnabled}
-                        // Stage 3 異常處理功能
-                        anomalyAlertSystemEnabled={anomalyAlertSystemEnabled}
+                        // Stage 3 功能
                         realtimePerformanceMonitorEnabled={realtimePerformanceMonitorEnabled}
                         scenarioTestEnvironmentEnabled={scenarioTestEnvironmentEnabled}
                         // 3D 換手動畫
@@ -326,9 +322,7 @@ function App({ activeView }: AppProps) {
                         performanceTrendAnalysisEnabled={performanceTrendAnalysisEnabled}
                         automatedReportGenerationEnabled={automatedReportGenerationEnabled}
                         // 階段八功能狀態
-                        mlModelMonitoringEnabled={mlModelMonitoringEnabled}
                         predictiveMaintenanceEnabled={predictiveMaintenanceEnabled}
-                        adaptiveLearningEnabled={adaptiveLearningEnabled}
                         intelligentRecommendationEnabled={intelligentRecommendationEnabled}
                     />
                 )
@@ -380,9 +374,7 @@ function App({ activeView }: AppProps) {
         testResultsVisualizationEnabled,
         performanceTrendAnalysisEnabled,
         automatedReportGenerationEnabled,
-        mlModelMonitoringEnabled,
         predictiveMaintenanceEnabled,
-        adaptiveLearningEnabled,
         intelligentRecommendationEnabled,
     ])
 
@@ -472,9 +464,7 @@ function App({ activeView }: AppProps) {
                                     onPredictionAccuracyDashboardChange={setPredictionAccuracyDashboardEnabled}
                                     coreNetworkSyncEnabled={coreNetworkSyncEnabled}
                                     onCoreNetworkSyncChange={setCoreNetworkSyncEnabled}
-                                    // Stage 3 異常處理功能
-                                    anomalyAlertSystemEnabled={anomalyAlertSystemEnabled}
-                                    onAnomalyAlertSystemChange={setAnomalyAlertSystemEnabled}
+                                    // Stage 3 功能
                                     realtimePerformanceMonitorEnabled={realtimePerformanceMonitorEnabled}
                                     onRealtimePerformanceMonitorChange={setRealtimePerformanceMonitorEnabled}
                                     scenarioTestEnvironmentEnabled={scenarioTestEnvironmentEnabled}
@@ -489,12 +479,8 @@ function App({ activeView }: AppProps) {
                                     automatedReportGenerationEnabled={automatedReportGenerationEnabled}
                                     onAutomatedReportGenerationChange={setAutomatedReportGenerationEnabled}
                                     // 階段八功能狀態
-                                    mlModelMonitoringEnabled={mlModelMonitoringEnabled}
-                                    onMLModelMonitoringChange={setMLModelMonitoringEnabled}
                                     predictiveMaintenanceEnabled={predictiveMaintenanceEnabled}
                                     onPredictiveMaintenanceChange={setPredictiveMaintenanceEnabled}
-                                    adaptiveLearningEnabled={adaptiveLearningEnabled}
-                                    onAdaptiveLearningChange={setAdaptiveLearningEnabled}
                                     intelligentRecommendationEnabled={intelligentRecommendationEnabled}
                                     onIntelligentRecommendationChange={setIntelligentRecommendationEnabled}
                                     // 3D 動畫狀態更新回調

@@ -72,9 +72,7 @@ interface SidebarProps {
     coreNetworkSyncEnabled?: boolean
     onCoreNetworkSyncChange?: (enabled: boolean) => void
     
-    // Stage 3 異常處理功能開關
-    anomalyAlertSystemEnabled?: boolean
-    onAnomalyAlertSystemChange?: (enabled: boolean) => void
+    // Stage 3 功能開關
     realtimePerformanceMonitorEnabled?: boolean
     onRealtimePerformanceMonitorChange?: (enabled: boolean) => void
     scenarioTestEnvironmentEnabled?: boolean
@@ -91,12 +89,8 @@ interface SidebarProps {
     onAutomatedReportGenerationChange?: (enabled: boolean) => void
     
     // 階段八功能開關
-    mlModelMonitoringEnabled?: boolean
-    onMLModelMonitoringChange?: (enabled: boolean) => void
     predictiveMaintenanceEnabled?: boolean
     onPredictiveMaintenanceChange?: (enabled: boolean) => void
-    adaptiveLearningEnabled?: boolean
-    onAdaptiveLearningChange?: (enabled: boolean) => void
     intelligentRecommendationEnabled?: boolean
     onIntelligentRecommendationChange?: (enabled: boolean) => void
     
@@ -111,7 +105,7 @@ interface SidebarProps {
 interface FeatureToggle {
     id: string
     label: string
-    category: 'basic' | 'handover' | 'quality' | 'anomaly'
+    category: 'basic' | 'handover' | 'quality'
     enabled: boolean
     onToggle: (enabled: boolean) => void
     icon?: string
@@ -218,9 +212,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onPredictionAccuracyDashboardChange,
     coreNetworkSyncEnabled = false,
     onCoreNetworkSyncChange,
-    // Stage 3 異常處理功能 props
-    anomalyAlertSystemEnabled = false,
-    onAnomalyAlertSystemChange,
+    // Stage 3 功能 props
     realtimePerformanceMonitorEnabled = false,
     onRealtimePerformanceMonitorChange,
     scenarioTestEnvironmentEnabled = false,
@@ -235,12 +227,8 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     automatedReportGenerationEnabled = false,
     onAutomatedReportGenerationChange,
     // 階段八功能 props
-    mlModelMonitoringEnabled = false,
-    onMLModelMonitoringChange,
     predictiveMaintenanceEnabled = false,
     onPredictiveMaintenanceChange,
-    adaptiveLearningEnabled = false,
-    onAdaptiveLearningChange,
     intelligentRecommendationEnabled = false,
     onIntelligentRecommendationChange,
     // 3D 動畫狀態更新回調
@@ -398,16 +386,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             description: '3D 干擾源範圍和影響可視化'
         },
         
-        // 異常處理 (1個)
-        {
-            id: 'anomalyAlertSystem',
-            label: '異常監控系統',
-            category: 'anomaly',
-            enabled: anomalyAlertSystemEnabled || false,
-            onToggle: onAnomalyAlertSystemChange || (() => {}),
-            icon: '🚨',
-            description: 'IEEE INFOCOM 2024 換手異常檢測與智能回退'
-        }
         
         // 手動控制面板會根據自動飛行狀態動態顯示
         // 隱藏的非核心功能：predictionAccuracyDashboard, predictionPath3D, coreNetworkSync 等 17 個功能
@@ -426,12 +404,11 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         })
     }
 
-    // 精簡的類別配置 - 只保留 4 個核心類別
+    // 精簡的類別配置 - 只保留 3 個核心類別
     const categories = [
         { id: 'basic', label: '基礎控制', icon: '⚙️' },
         { id: 'handover', label: '換手機制', icon: '🔄' },
-        { id: 'quality', label: '通信品質', icon: '📶' },
-        { id: 'anomaly', label: '異常處理', icon: '🚨' }
+        { id: 'quality', label: '通信品質', icon: '📶' }
     ]
 
     // 靜態衛星數據管理：完全避免重新載入和重新渲染
