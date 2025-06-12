@@ -27,7 +27,7 @@ const PredictionAccuracyDashboard: React.FC<PredictionAccuracyDashboardProps> = 
   const [accuracyMetrics, setAccuracyMetrics] = useState<AccuracyMetrics | null>(null)
   const [accuracyTrend, setAccuracyTrend] = useState<AccuracyTrendData[]>([])
   const [recommendations, setRecommendations] = useState<OptimizationRecommendation[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   // 設定狀態
@@ -49,7 +49,7 @@ const PredictionAccuracyDashboard: React.FC<PredictionAccuracyDashboardProps> = 
       accuracy_trend: Math.random() > 0.6 ? 'improving' : Math.random() > 0.3 ? 'stable' : 'declining',
       predictions_evaluated: Math.floor(Math.random() * 1000) + 500,
       target_achievement: baseAccuracy >= 0.95,
-      confidence_interval: [Math.max(0.85, baseAccuracy - 0.03), Math.min(0.99, baseAccuracy + 0.03)],
+      confidence_interval: [Math.max(0.85, baseAccuracy - 0.03), Math.min(0.99, baseAccuracy + 0.03)] as [number, number],
       accuracy_by_context: {
         'weather_clear': 0.96 + Math.random() * 0.03,
         'weather_cloudy': 0.91 + Math.random() * 0.04,
@@ -62,46 +62,7 @@ const PredictionAccuracyDashboard: React.FC<PredictionAccuracyDashboardProps> = 
     return metrics
   }, [])
 
-  // 獲取準確率指標
-  const fetchAccuracyMetrics = useCallback(async () => {
-    if (!isEnabled) return
-
-    try {
-      // 只在初次載入時顯示 loading
-      if (!accuracyMetrics) {
-        setLoading(true)
-      }
-      setError(null)
-      
-      let metrics: AccuracyMetrics
-      try {
-        metrics = await HandoverAPIService.getAccuracyMetrics()
-      } catch (apiErr) {
-        console.warn('使用模擬數據替代 API 調用')
-        metrics = generateMockMetrics()
-      }
-      
-      console.log('設置準確率數據:', metrics)
-      setAccuracyMetrics(metrics)
-      
-      // 更新趨勢數據
-      setAccuracyTrend(prev => {
-        const newTrend = [...prev, {
-          timestamp: Date.now(),
-          accuracy: metrics.current_accuracy
-        }]
-        // 保留最近50個數據點
-        return newTrend.slice(-50)
-      })
-      
-    } catch (err) {
-      setError('獲取準確率指標失敗')
-      console.error('獲取準確率指標錯誤:', err)
-    } finally {
-      // 延遲隱藏 loading，避免閃爍
-      setTimeout(() => setLoading(false), 300)
-    }
-  }, [isEnabled]) // 移除 generateMockMetrics 依賴，避免重複調用
+  // 移除未使用的 fetchAccuracyMetrics 函數
 
   // 生成模擬建議數據
   const generateMockRecommendations = useCallback((): OptimizationRecommendation[] => {
@@ -122,35 +83,7 @@ const PredictionAccuracyDashboard: React.FC<PredictionAccuracyDashboardProps> = 
     }))
   }, [])
 
-  // 獲取優化建議
-  const fetchRecommendations = useCallback(async () => {
-    if (!isEnabled) return
-
-    try {
-      let recs: OptimizationRecommendation[]
-      try {
-        const response = await HandoverAPIService.getOptimizationRecommendations()
-        const apiRecs = response.recommendations || []
-        
-        // 將建議轉換為結構化格式
-        recs = apiRecs.map((rec: string, index: number) => ({
-          id: `rec_${index}`,
-          priority: rec.includes('準確率過低') || rec.includes('下降') ? 'high' : 
-                   rec.includes('機器學習') || rec.includes('參數') ? 'medium' : 'low',
-          recommendation: rec,
-          impact: rec.includes('準確率過低') ? '高影響' : 
-                 rec.includes('正在改善') ? '正面影響' : '中等影響'
-        })) as OptimizationRecommendation[]
-      } catch (apiErr) {
-        console.warn('使用模擬建議數據')
-        recs = generateMockRecommendations()
-      }
-      
-      setRecommendations(recs)
-    } catch (err) {
-      console.error('獲取優化建議錯誤:', err)
-    }
-  }, [isEnabled])
+  // 移除未使用的 fetchRecommendations 函數
 
   // 切換準確率優化
   const toggleAccuracyOptimization = useCallback(async () => {

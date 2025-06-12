@@ -3,7 +3,7 @@
  * 與新的微服務網關、gRPC服務管理器和NTN接口整合
  */
 import axios, { AxiosError } from 'axios';
-import { UAVData, SystemStatus, NetworkTopology } from '../types/charts';
+// import { UAVData, SystemStatus, NetworkTopology } from '../types/charts';
 
 // 微服務網關配置 - 使用 Vite 環境變量
 const MICROSERVICE_GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || 'http://localhost:8080';

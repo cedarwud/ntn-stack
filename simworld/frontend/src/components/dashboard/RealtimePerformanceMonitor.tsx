@@ -40,8 +40,7 @@ interface AlertItem {
 }
 
 const RealtimePerformanceMonitor: React.FC<RealtimePerformanceMonitorProps> = ({
-  enabled,
-  devices = []
+  enabled
 }) => {
   const [metrics, setMetrics] = useState<PerformanceMetrics[]>([]);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({

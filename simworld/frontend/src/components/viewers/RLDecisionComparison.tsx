@@ -384,7 +384,7 @@ const RLDecisionComparison: React.FC = () => {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .rl-decision-comparison {
           padding: 20px;
           background: #f8f9fa;

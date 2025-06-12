@@ -1,18 +1,18 @@
 /**
  * SystemStatusChart 組件測試
  */
-import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import SystemStatusChart from '../SystemStatusChart'
 import * as netstackApi from '../../../../services/netstackApi'
+import { SystemStatus } from '../../../../types/charts'
 
 // Mock NetStack API
 vi.mock('../../../../services/netstackApi', () => ({
     getSystemStatus: vi.fn(),
 }))
 
-const mockSystemStatus = {
+const mockSystemStatus: SystemStatus = {
     status: 'healthy',
     timestamp: '2024-01-01T10:00:00Z',
     components: {

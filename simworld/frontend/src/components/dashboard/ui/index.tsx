@@ -18,14 +18,22 @@ export const Card: FC<CardProps> = ({ children, className = '', title }) => (
 // Alert 組件
 export interface AlertProps {
     type?: 'info' | 'success' | 'warning' | 'error'
-    children: ReactNode
+    message?: string
+    description?: string
+    children?: ReactNode
     className?: string
+    closable?: boolean
+    onClose?: () => void
 }
 
 export const Alert: FC<AlertProps> = ({
     type = 'info',
+    message,
+    description,
     children,
     className = '',
+    closable = false,
+    onClose,
 }) => {
     const typeStyles = {
         info: 'bg-blue-50 border-blue-200 text-blue-800',
@@ -36,9 +44,19 @@ export const Alert: FC<AlertProps> = ({
 
     return (
         <div
-            className={`border rounded-md p-3 ${typeStyles[type]} ${className}`}
+            className={`border rounded-md p-3 ${typeStyles[type]} ${className} ${closable ? 'relative pr-8' : ''}`}
         >
+            {message && <div className="font-medium">{message}</div>}
+            {description && <div className="text-sm mt-1">{description}</div>}
             {children}
+            {closable && onClose && (
+                <button
+                    onClick={onClose}
+                    className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+                >
+                    ×
+                </button>
+            )}
         </div>
     )
 }
@@ -46,38 +64,69 @@ export const Alert: FC<AlertProps> = ({
 // Spin 組件
 export interface SpinProps {
     className?: string
+    size?: 'small' | 'default' | 'large'
 }
 
-export const Spin: FC<SpinProps> = ({ className = '' }) => (
-    <div
-        className={`animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 ${className}`}
-    ></div>
-)
+export const Spin: FC<SpinProps> = ({ className = '', size = 'default' }) => {
+    const sizeStyles = {
+        small: 'h-4 w-4',
+        default: 'h-6 w-6',
+        large: 'h-8 w-8',
+    }
+
+    return (
+        <div
+            className={`animate-spin rounded-full border-b-2 border-blue-500 ${sizeStyles[size]} ${className}`}
+        ></div>
+    )
+}
 
 // Progress 組件
 export interface ProgressProps {
     percent: number
     className?: string
     showInfo?: boolean
+    status?: 'success' | 'exception' | 'active' | 'normal'
+    size?: 'small' | 'default' | 'large'
 }
 
 export const Progress: FC<ProgressProps> = ({
     percent,
     className = '',
     showInfo = true,
-}) => (
-    <div className={`w-full ${className}`}>
-        <div className="bg-gray-200 rounded-full h-2">
-            <div
-                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${Math.min(Math.max(percent, 0), 100)}%` }}
-            />
+    status = 'normal',
+    size = 'default',
+}) => {
+    const statusStyles = {
+        success: 'bg-green-500',
+        exception: 'bg-red-500',
+        active: 'bg-blue-500',
+        normal: 'bg-blue-500',
+    }
+
+    const sizeStyles = {
+        small: 'h-1',
+        default: 'h-2',
+        large: 'h-3',
+    }
+
+    const progressColor = statusStyles[status]
+    const progressHeight = sizeStyles[size]
+
+    return (
+        <div className={`w-full ${className}`}>
+            <div className={`bg-gray-200 rounded-full ${progressHeight}`}>
+                <div
+                    className={`${progressColor} ${progressHeight} rounded-full transition-all duration-300`}
+                    style={{ width: `${Math.min(Math.max(percent, 0), 100)}%` }}
+                />
+            </div>
+            {showInfo && (
+                <span className="text-sm text-gray-600 mt-1">{percent}%</span>
+            )}
         </div>
-        {showInfo && (
-            <span className="text-sm text-gray-600 mt-1">{percent}%</span>
-        )}
-    </div>
-)
+    )
+}
 
 // Tag 組件
 export interface TagProps {
@@ -113,17 +162,30 @@ export const Tag: FC<TagProps> = ({
 
 // Badge 組件
 export interface BadgeProps {
-    count: number
+    status?: 'success' | 'error' | 'warning' | 'info'
+    text?: string
+    count?: number
     className?: string
 }
 
-export const Badge: FC<BadgeProps> = ({ count, className = '' }) => (
-    <span
-        className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full ${className}`}
-    >
-        {count}
-    </span>
-)
+export const Badge: FC<BadgeProps> = ({ status, text, count, className = '' }) => {
+    const statusStyles = {
+        success: 'bg-green-500',
+        error: 'bg-red-500',
+        warning: 'bg-yellow-500',
+        info: 'bg-blue-500',
+    }
+
+    const bgColor = status ? statusStyles[status] : 'bg-red-500'
+
+    return (
+        <span
+            className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white rounded-full ${bgColor} ${className}`}
+        >
+            {text || count}
+        </span>
+    )
+}
 
 // Statistic 組件
 export interface StatisticProps {
@@ -131,6 +193,8 @@ export interface StatisticProps {
     value: string | number
     suffix?: string
     prefix?: string
+    precision?: number
+    valueStyle?: { color?: string }
     className?: string
 }
 
@@ -139,14 +203,25 @@ export const Statistic: FC<StatisticProps> = ({
     value,
     suffix,
     prefix,
+    precision,
+    valueStyle,
     className = '',
-}) => (
-    <div className={`text-center ${className}`}>
-        <div className="text-2xl font-bold text-gray-900">
-            {prefix}
-            {value}
-            {suffix}
+}) => {
+    const formattedValue = typeof value === 'number' && precision !== undefined
+        ? value.toFixed(precision)
+        : value
+
+    return (
+        <div className={`text-center ${className}`}>
+            <div 
+                className="text-2xl font-bold text-gray-900"
+                style={valueStyle}
+            >
+                {prefix}
+                {formattedValue}
+                {suffix}
+            </div>
+            <div className="text-sm text-gray-500">{title}</div>
         </div>
-        <div className="text-sm text-gray-500">{title}</div>
-    </div>
-)
+    )
+}

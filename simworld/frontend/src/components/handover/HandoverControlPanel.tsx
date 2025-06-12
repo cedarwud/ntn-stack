@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { HandoverState, SatelliteConnection, HandoverEvent } from '../../types/handover';
+import React, { useState } from 'react';
+import { HandoverState, SatelliteConnection } from '../../types/handover';
 import { VisibleSatelliteInfo } from '../../types/satellite';
 import './HandoverControlPanel.scss';
 

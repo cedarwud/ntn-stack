@@ -29,6 +29,7 @@ interface SceneViewProps {
     ) => void
     uavAnimation: boolean
     selectedReceiverIds?: number[]
+    satellites?: any[]
     sceneName: string // 新增場景名稱參數
     // 階段四功能狀態
     interferenceVisualizationEnabled?: boolean
@@ -51,6 +52,8 @@ interface SceneViewProps {
     coreNetworkSyncEnabled?: boolean
     // Stage 3 異常處理功能
     anomalyAlertSystemEnabled?: boolean
+    realtimePerformanceMonitorEnabled?: boolean
+    scenarioTestEnvironmentEnabled?: boolean
     // 3D 換手動畫相關
     handover3DAnimationEnabled?: boolean
     handoverState?: any
@@ -98,6 +101,8 @@ export default function SceneView({
     coreNetworkSyncEnabled = false,
     // Stage 3 異常處理功能
     anomalyAlertSystemEnabled = false,
+    realtimePerformanceMonitorEnabled = false,
+    scenarioTestEnvironmentEnabled = false,
     handover3DAnimationEnabled = false,
     handoverState,
     currentConnection,

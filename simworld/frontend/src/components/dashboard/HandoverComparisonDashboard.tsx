@@ -1,16 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import './HandoverComparisonDashboard.scss';
 
 interface HandoverComparisonDashboardProps {
   enabled: boolean;
-  devices?: any[];
-}
-
-interface HandoverMethod {
-  id: string;
-  name: string;
-  description: string;
-  type: 'traditional' | 'accelerated';
 }
 
 interface HandoverMetrics {
@@ -53,8 +45,7 @@ interface TestScenario {
 }
 
 const HandoverComparisonDashboard: React.FC<HandoverComparisonDashboardProps> = ({
-  enabled,
-  devices = []
+  enabled
 }) => {
   const [comparisonResults, setComparisonResults] = useState<ComparisonResult[]>([]);
   const [currentTest, setCurrentTest] = useState<TestScenario | null>(null);
@@ -62,24 +53,6 @@ const HandoverComparisonDashboard: React.FC<HandoverComparisonDashboardProps> = 
   const [isRunningTest, setIsRunningTest] = useState(false);
   const [testProgress, setTestProgress] = useState(0);
   const [selectedMetric, setSelectedMetric] = useState<string>('latency');
-  
-  const chartRef = useRef<HTMLCanvasElement>(null);
-
-  // 換手方法定義
-  const handoverMethods: HandoverMethod[] = [
-    {
-      id: 'traditional',
-      name: '傳統換手',
-      description: 'RSRP/RSRQ 基礎測量觸發',
-      type: 'traditional'
-    },
-    {
-      id: 'ml_prediction',
-      name: 'IEEE INFOCOM 2024 加速換手',
-      description: 'ML預測驅動的低延遲換手',
-      type: 'accelerated'
-    }
-  ];
 
   // 測試場景定義
   const testScenarios: TestScenario[] = [

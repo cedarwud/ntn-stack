@@ -5,7 +5,6 @@ import {
   getRegisteredServices, 
   getNTNStatus,
   getAlgorithmStatus,
-  performSystemHealthCheck,
   getSystemAlerts 
 } from '../../services/microserviceApi'
 
