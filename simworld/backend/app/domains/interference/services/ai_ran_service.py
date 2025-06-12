@@ -18,22 +18,12 @@ from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 import json
 
-try:
-    import tensorflow as tf
-    from tensorflow import keras
-    from collections import deque
-    import random
+import tensorflow as tf
+from tensorflow import keras
+from collections import deque
+import random
 
-    AI_AVAILABLE = True
-except ImportError:
-    tf = None
-    keras = None
-    deque = None
-    random = None
-    AI_AVAILABLE = False
-
-# 暫時禁用 AI 模式來避免 Keras 版本問題
-AI_AVAILABLE = False
+AI_AVAILABLE = True
 
 from ..models.interference_models import (
     AIRANDecision,
@@ -47,6 +37,7 @@ from ..models.interference_models import (
     InterferenceDetectionResult,
     InterferenceMetrics,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -62,15 +53,12 @@ class DQNAgent:
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.learning_rate = learning_rate
-        self.model = self._build_model() if AI_AVAILABLE else None
-        self.target_model = self._build_model() if AI_AVAILABLE else None
+        self.model = self._build_model()
+        self.target_model = self._build_model()
         self.update_target_model()
 
     def _build_model(self):
         """構建DQN模型"""
-        if not AI_AVAILABLE:
-            return None
-
         model = keras.Sequential(
             [
                 keras.layers.Dense(64, input_dim=self.state_size, activation="relu"),
@@ -154,7 +142,7 @@ class AIRANService:
         # DQN 代理
         state_size = 20  # 干擾環境狀態維度
         action_size = len(self.available_frequencies)
-        self.dqn_agent = DQNAgent(state_size, action_size) if AI_AVAILABLE else None
+        self.dqn_agent = DQNAgent(state_size, action_size)
 
         # 跳頻模式
         self.hop_patterns = {}
