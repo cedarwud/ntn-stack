@@ -24,6 +24,10 @@ pyyaml>=6.0.1  # YAML 配置支援
 numpy>=1.24.0  # 數值計算
 aiofiles>=23.2.0  # 異步檔案操作
 
+# --- AI/ML 相關套件 ---
+tensorflow>=2.15.0  # TensorFlow 機器學習框架，新版本支援較新的 typing-extensions
+keras>=2.15.0  # Keras 深度學習 API
+
 # --- 新增資料庫相關套件 ---
 sqlmodel
 sqlalchemy[asyncio]>=2.0 # 確保是 2.0+ 版本支援 async

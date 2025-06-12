@@ -57,8 +57,6 @@ export interface MainSceneProps {
     handoverPredictionEnabled?: boolean
     handoverDecisionVisualizationEnabled?: boolean
     predictionPath3DEnabled?: boolean
-    // Stage 3 異常處理功能
-    anomalyAlertSystemEnabled?: boolean
     // 新增 3D 換手動畫相關 props
     handover3DAnimationEnabled?: boolean
     handoverState?: any
@@ -97,8 +95,6 @@ const MainScene: React.FC<MainSceneProps> = ({
     handoverPredictionEnabled = false,
     handoverDecisionVisualizationEnabled = false,
     predictionPath3DEnabled = false,
-    // Stage 3 異常處理功能
-    anomalyAlertSystemEnabled = false,
     handover3DAnimationEnabled = false,
     handoverState,
     currentConnection,

@@ -9,12 +9,9 @@ import { SINRLegend } from './visualization/SINRHeatmap'
 import HandoverPerformanceDashboard from '../dashboard/HandoverPerformanceDashboard'
 import PredictionAccuracyDashboard from '../dashboard/PredictionAccuracyDashboard'
 import E2EPerformanceMonitoringDashboard from '../dashboard/E2EPerformanceMonitoringDashboard'
-import MLModelMonitoringDashboard from '../dashboard/MLModelMonitoringDashboard'
 import PredictiveMaintenanceViewer from '../viewers/PredictiveMaintenanceViewer'
-import AdaptiveLearningSystemViewer from '../viewers/AdaptiveLearningSystemViewer'
 import IntelligentRecommendationSystem from '../viewers/IntelligentRecommendationSystem'
 import CoreNetworkSyncViewer from '../viewers/CoreNetworkSyncViewer'
-import AnomalyAlertSystem from '../viewers/AnomalyAlertSystem'
 
 // 移除衛星圖例，因為已由側邊欄開關控制，不再需要額外說明
 
@@ -50,8 +47,7 @@ interface SceneViewProps {
     handoverPerformanceDashboardEnabled?: boolean
     predictionAccuracyDashboardEnabled?: boolean
     coreNetworkSyncEnabled?: boolean
-    // Stage 3 異常處理功能
-    anomalyAlertSystemEnabled?: boolean
+    // Stage 3 功能
     realtimePerformanceMonitorEnabled?: boolean
     scenarioTestEnvironmentEnabled?: boolean
     // 3D 換手動畫相關
@@ -68,9 +64,7 @@ interface SceneViewProps {
     performanceTrendAnalysisEnabled?: boolean
     automatedReportGenerationEnabled?: boolean
     // 階段八功能狀態
-    mlModelMonitoringEnabled?: boolean
     predictiveMaintenanceEnabled?: boolean
-    adaptiveLearningEnabled?: boolean
     intelligentRecommendationEnabled?: boolean
 }
 
@@ -99,8 +93,7 @@ export default function SceneView({
     handoverPerformanceDashboardEnabled = false,
     predictionAccuracyDashboardEnabled = false,
     coreNetworkSyncEnabled = false,
-    // Stage 3 異常處理功能
-    anomalyAlertSystemEnabled = false,
+    // Stage 3 功能
     realtimePerformanceMonitorEnabled = false,
     scenarioTestEnvironmentEnabled = false,
     handover3DAnimationEnabled = false,
@@ -114,9 +107,7 @@ export default function SceneView({
     testResultsVisualizationEnabled = false,
     performanceTrendAnalysisEnabled = false,
     automatedReportGenerationEnabled = false,
-    mlModelMonitoringEnabled = false,
     predictiveMaintenanceEnabled = false,
-    adaptiveLearningEnabled = false,
     intelligentRecommendationEnabled = false,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -189,10 +180,6 @@ export default function SceneView({
                 <CoreNetworkSyncViewer enabled={coreNetworkSyncEnabled} devices={devices} />
             )}
             
-            {/* Stage 3 異常監控系統 - 作為HTML覆蓋層 */}
-            {anomalyAlertSystemEnabled && (
-                <AnomalyAlertSystem enabled={anomalyAlertSystemEnabled} devices={devices} />
-            )}
             
             {/* 添加階段七HTML覆蓋層組件 */}
             {e2ePerformanceMonitoringEnabled && (
@@ -200,17 +187,11 @@ export default function SceneView({
             )}
             
             {/* 添加階段八HTML覆蓋層組件 */}
-            {mlModelMonitoringEnabled && (
-                <MLModelMonitoringDashboard enabled={mlModelMonitoringEnabled} />
-            )}
             
             {predictiveMaintenanceEnabled && (
                 <PredictiveMaintenanceViewer devices={devices} enabled={predictiveMaintenanceEnabled} />
             )}
             
-            {adaptiveLearningEnabled && (
-                <AdaptiveLearningSystemViewer devices={devices} enabled={adaptiveLearningEnabled} />
-            )}
             
             {intelligentRecommendationEnabled && (
                 <IntelligentRecommendationSystem devices={devices} enabled={intelligentRecommendationEnabled} />

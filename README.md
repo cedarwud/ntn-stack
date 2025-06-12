@@ -1,5 +1,9 @@
 ● NTN Stack - 5G Non-Terrestrial Network 智能切換系統
 
+🐳 **執行環境**: 完全容器化微服務架構 (20+ Docker 容器)
+📁 **Claude Code 重要**: 請**必須**閱讀 [CLAUDE.md](./CLAUDE.md) 了解 Docker 多容器架構
+⚠️  **開發須知**: 所有代碼檢查都必須在容器內執行，主機環境不代表實際運行環境
+
   項目概述
 
   NTN Stack 是一個基於 5G 非地面網路 (Non-Terrestrial Network) 的智能切換系統，專注於衛星通信網路中的先進算法實現。系統採用 Fine-Grained Synchronized Algorithm 和 Fast Access Satellite Prediction Algorithm 等創新技術，實現低延遲、高可靠性的衛星間切換機制。
