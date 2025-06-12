@@ -7,7 +7,6 @@ import CFRViewer from '../viewers/CFRViewer'
 import DelayDopplerViewer from '../viewers/DelayDopplerViewer'
 import TimeFrequencyViewer from '../viewers/TimeFrequencyViewer'
 import TestViewer from '../viewers/TestViewer'
-import FrequencySpectrumVisualization from '../viewers/FrequencySpectrumVisualization'
 import ViewerModal from '../ui/ViewerModal'
 import { ViewerProps } from '../../types/viewer'
 import {
@@ -58,7 +57,6 @@ const Navbar: FC<NavbarProps> = ({
     const [showDelayDopplerModal, setShowDelayDopplerModal] = useState(false)
     const [showTimeFrequencyModal, setShowTimeFrequencyModal] = useState(false)
     const [showTestModal, setShowTestModal] = useState(false)
-    const [showFrequencySpectrumModal, setShowFrequencySpectrumModal] = useState(false)
     // States for last update times
     const [sinrModalLastUpdate, setSinrModalLastUpdate] = useState<string>('')
     const [cfrModalLastUpdate, setCfrModalLastUpdate] = useState<string>('')
@@ -66,14 +64,11 @@ const Navbar: FC<NavbarProps> = ({
         useState<string>('')
     const [timeFrequencyModalLastUpdate, setTimeFrequencyModalLastUpdate] =
         useState<string>('')
-    const [frequencySpectrumModalLastUpdate, setFrequencySpectrumModalLastUpdate] =
-        useState<string>('')
     // Refs for refresh handlers
     const sinrRefreshHandlerRef = useRef<(() => void) | null>(null)
     const cfrRefreshHandlerRef = useRef<(() => void) | null>(null)
     const delayDopplerRefreshHandlerRef = useRef<(() => void) | null>(null)
     const timeFrequencyRefreshHandlerRef = useRef<(() => void) | null>(null)
-    const frequencySpectrumRefreshHandlerRef = useRef<(() => void) | null>(null)
     // States for loading status for header titles
     const [sinrIsLoadingForHeader, setSinrIsLoadingForHeader] =
         useState<boolean>(true)
@@ -85,8 +80,6 @@ const Navbar: FC<NavbarProps> = ({
         timeFrequencyIsLoadingForHeader,
         setTimeFrequencyIsLoadingForHeader,
     ] = useState<boolean>(true)
-    const [frequencySpectrumIsLoadingForHeader, setFrequencySpectrumIsLoadingForHeader] =
-        useState<boolean>(true)
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen)
     }
@@ -185,24 +178,6 @@ const Navbar: FC<NavbarProps> = ({
             refreshHandlerRef: timeFrequencyRefreshHandlerRef,
             ViewerComponent: TimeFrequencyViewer,
         },
-        {
-            id: 'frequencySpectrum',
-            menuText: '頻譜分析',
-            titleConfig: {
-                base: '頻譜使用狀況和抗干擾效果',
-                loading: '正在掃描頻譜...',
-                hoverRefresh: '重新掃描頻譜',
-            },
-            isOpen: showFrequencySpectrumModal,
-            openModal: () => setShowFrequencySpectrumModal(true),
-            closeModal: () => setShowFrequencySpectrumModal(false),
-            lastUpdate: frequencySpectrumModalLastUpdate,
-            setLastUpdate: setFrequencySpectrumModalLastUpdate,
-            isLoading: frequencySpectrumIsLoadingForHeader,
-            setIsLoading: setFrequencySpectrumIsLoadingForHeader,
-            refreshHandlerRef: frequencySpectrumRefreshHandlerRef,
-            ViewerComponent: FrequencySpectrumVisualization,
-        },
     ]
 
     const [dropdownPosition, setDropdownPosition] = useState<{ left: number }>({
@@ -267,7 +242,7 @@ const Navbar: FC<NavbarProps> = ({
 
     // 檢查是否有任何圖表模態框打開
     const hasActiveChart = modalConfigs.some((config) => 
-        ['sinr', 'cfr', 'delayDoppler', 'timeFrequency', 'frequencySpectrum'].includes(config.id) && config.isOpen
+        ['sinr', 'cfr', 'delayDoppler', 'timeFrequency'].includes(config.id) && config.isOpen
     )
 
     return (
@@ -345,7 +320,7 @@ const Navbar: FC<NavbarProps> = ({
                                 }`}
                             >
                                 {modalConfigs.filter(config => 
-                                    ['sinr', 'cfr', 'delayDoppler', 'timeFrequency', 'frequencySpectrum'].includes(config.id)
+                                    ['sinr', 'cfr', 'delayDoppler', 'timeFrequency'].includes(config.id)
                                 ).map((config) => (
                                     <div
                                         key={config.id}

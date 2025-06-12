@@ -75,6 +75,10 @@ interface SidebarProps {
     // Stage 3 異常處理功能開關
     anomalyAlertSystemEnabled?: boolean
     onAnomalyAlertSystemChange?: (enabled: boolean) => void
+    realtimePerformanceMonitorEnabled?: boolean
+    onRealtimePerformanceMonitorChange?: (enabled: boolean) => void
+    scenarioTestEnvironmentEnabled?: boolean
+    onScenarioTestEnvironmentChange?: (enabled: boolean) => void
     
     // 階段七功能開關
     e2ePerformanceMonitoringEnabled?: boolean
@@ -217,6 +221,10 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     // Stage 3 異常處理功能 props
     anomalyAlertSystemEnabled = false,
     onAnomalyAlertSystemChange,
+    realtimePerformanceMonitorEnabled = false,
+    onRealtimePerformanceMonitorChange,
+    scenarioTestEnvironmentEnabled = false,
+    onScenarioTestEnvironmentChange,
     // 階段七功能 props
     e2ePerformanceMonitoringEnabled = false,
     onE2EPerformanceMonitoringChange,

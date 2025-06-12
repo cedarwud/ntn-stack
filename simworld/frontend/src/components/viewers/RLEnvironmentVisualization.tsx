@@ -318,7 +318,7 @@ const RLEnvironmentVisualization: React.FC<RLEnvironmentVisualizationProps> = ({
         </button>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .rl-env-visualization {
           padding: 20px;
           background: #f8f9fa;

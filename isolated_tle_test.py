@@ -181,8 +181,8 @@ class IsolatedTLEService:
             
             # 從 TLE 獲取各種軌道參數
             result = {
-                "inclination_deg": satellite.inclo * 180.0 / sgp4.pi,  # 軌道傾角（度）
-                "period_minutes": 2 * sgp4.pi / (satellite.no_kozai * 60),  # 軌道周期（分鐘）
+                "inclination_deg": satellite.inclo * 180.0 / 3.141592653589793,  # 軌道傾角（度）
+                "period_minutes": 2 * 3.141592653589793 / (satellite.no_kozai * 60),  # 軌道周期（分鐘）
                 "apogee_km": (satellite.alta + 1.0) * 6378.137,  # 遠地點高度（公里）
                 "perigee_km": (satellite.altp + 1.0) * 6378.137,  # 近地點高度（公里）
             }

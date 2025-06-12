@@ -605,7 +605,7 @@ const OptimizationResultsDashboard: React.FC<OptimizationResultsDashboardProps> 
       <div className="improvement-trends">
         <h4>改善趨勢</h4>
         <div className="improvement-metrics">
-          {optimizationResults.slice(0, 10).map((result, index) => (
+          {optimizationResults.slice(0, 10).map((result) => (
             <div key={result.optimization_id} className="improvement-item">
               <span className="cycle">#{result.optimization_cycle}</span>
               <div className="improvements">
@@ -707,7 +707,7 @@ const OptimizationResultsDashboard: React.FC<OptimizationResultsDashboardProps> 
         <div className="header-controls">
           <select 
             value={timeRange} 
-            onChange={(e) => setSelectedOptimization(null)}
+            onChange={() => setSelectedOptimization(null)}
             className="time-range-selector"
           >
             <option value="last_hour">過去一小時</option>

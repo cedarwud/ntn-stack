@@ -44,7 +44,7 @@ Object.defineProperty(window, 'matchMedia', {
 }
 
 // Mock Canvas for Chart.js
-const mockCanvas = vi.fn(() => ({
+const mockCanvasContext = {
   fillRect: vi.fn(),
   clearRect: vi.fn(),
   getImageData: vi.fn(() => ({
@@ -71,7 +71,14 @@ const mockCanvas = vi.fn(() => ({
   transform: vi.fn(),
   rect: vi.fn(),
   clip: vi.fn(),
-}))
+}
+
+const mockCanvas = vi.fn((contextType: string) => {
+  if (contextType === '2d') {
+    return mockCanvasContext
+  }
+  return null
+})
 
 if (typeof HTMLCanvasElement !== 'undefined') {
   HTMLCanvasElement.prototype.getContext = mockCanvas

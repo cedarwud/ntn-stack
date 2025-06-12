@@ -20,7 +20,7 @@ import UAVMetricsChart from './charts/UAVMetricsChart'
 import NetworkTopologyChart from './charts/NetworkTopologyChart'
 import MicroserviceArchitectureDashboard from './MicroserviceArchitectureDashboard'
 import E2EPerformanceMonitoringDashboard from './E2EPerformanceMonitoringDashboard'
-import { getGatewayStatus, getNTNStatus, performSystemHealthCheck } from '../../services/microserviceApi'
+import { getNTNStatus, performSystemHealthCheck } from '../../services/microserviceApi'
 
 interface NTNStackDashboardProps {
     className?: string
@@ -84,7 +84,7 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
         'overview' | 'uav' | 'network' | 'ai' | 'performance' | 'microservices' | 'e2e'
     >('overview')
     const [isRealtime, setIsRealtime] = useState(true)
-    const [refreshInterval, setRefreshInterval] = useState(5000)
+    const [refreshInterval] = useState(5000)
     const [timeRange, setTimeRange] = useState('1h')
 
     // 數據狀態
@@ -105,7 +105,7 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
     const [ntnInterfaceStatus, setNtnInterfaceStatus] = useState<any>(null)
 
     // WebSocket 連接
-    const { isConnected, connectionStatus } = useWebSocket({
+    const { isConnected } = useWebSocket({
         url: '/api/ws/metrics',
         enableReconnect: isRealtime,
         maxReconnectAttempts: 5,
