@@ -2,6 +2,7 @@ import logging
 import aiohttp
 import asyncio
 import json
+import os
 from typing import List, Dict, Any, Optional, Set, Callable
 from datetime import datetime, timedelta
 from redis.asyncio import Redis
@@ -42,10 +43,10 @@ async def synchronize_oneweb_tles(
         satellite_repo = SQLModelSatelliteRepository(session_factory)
         tle_service = TLEService(satellite_repo)
 
-        # 嘗試獲取 OneWeb 衛星的 TLE 數據
+        # 獲取 OneWeb 衛星的 TLE 數據
         tle_data = await tle_service.fetch_tle_from_celestrak(
-            "starlink"
-        )  # 暫時用 starlink 代替，實際應該單獨獲取 OneWeb
+            "oneweb"
+        )  # 使用 oneweb 分類，自動從 active 中篩選 OneWeb 衛星
 
         if not tle_data:
             logger.warning("未獲取到 OneWeb 衛星 TLE 數據")
@@ -86,6 +87,7 @@ class TLEService(TLEServiceInterface):
             "gps": "gps",
             "active": "active",
             "starlink": "starlink",
+            "oneweb": "active",  # OneWeb衛星在active分類中
         }
 
         # Space-Track API 配置
@@ -95,8 +97,9 @@ class TLEService(TLEServiceInterface):
         self._spacetrack_tle_url = (
             f"{self._spacetrack_base_url}/basicspacedata/query/class/tle_latest"
         )
-        self._spacetrack_username = None  # 應從環境變量讀取
-        self._spacetrack_password = None  # 應從環境變量讀取
+        # 從環境變數讀取Space-Track憑證
+        self._spacetrack_username = os.getenv("SPACETRACK_USERNAME")
+        self._spacetrack_password = os.getenv("SPACETRACK_PASSWORD")
 
     async def fetch_tle_from_celestrak(
         self, category: Optional[str] = None
