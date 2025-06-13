@@ -11,9 +11,9 @@ services:
         env_file:
             - ./backend/.env # 從 backend 目錄的 .env 讀取配置
         environment:
-            POSTGRES_USER: ${POSTGRES_USER:-user} # 從 .env 或預設值讀取
-            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password} # 從 .env 或預設值讀取
-            POSTGRES_DB: ${POSTGRES_DB:-appdb} # 從 .env 或預設值讀取
+            POSTGRES_USER: sat
+            POSTGRES_PASSWORD: "123"
+            POSTGRES_DB: ntn_stack
         volumes:
             - postgres_data:/var/lib/postgresql/data # 將資料庫數據持久化到 volume
         ports:
@@ -53,7 +53,7 @@ services:
             # 其他通用設定
             PYTHONUNBUFFERED: '1'
             # 資料庫連接 URL
-            DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgis:5432/${POSTGRES_DB}
+            DATABASE_URL: postgresql+asyncpg://sat:123@postgis:5432/ntn_stack
 
         # === GPU 支持 (使用 GPU 模式時取消註釋) ===
         # deploy:
@@ -65,11 +65,9 @@ services:
         #           capabilities: [gpu]
 
         networks:
-            sionna-net:
-            netstack-core:
-                aliases:
-                    - simworld-backend
-                    - backend
+            - sionna-net
+            # netstack-core 網路可選，只有在 NetStack 啟動時才連接
+            # - netstack-core
         depends_on: # <-- 讓 FastAPI 服務等待 DB 服務啟動 (healthcheck 更可靠)
             postgis:
                 condition: service_healthy # 等待 DB healthcheck 成功
@@ -107,9 +105,10 @@ services:
 networks:
     sionna-net:
         driver: bridge
-    netstack-core:
-        external: true
-        name: compose_netstack-core # 引用 NetStack 的外部網路
+    # netstack-core 網路註釋掉，讓 SimWorld 可以獨立啟動
+    # netstack-core:
+    #     external: true
+    #     name: compose_netstack-core # 引用 NetStack 的外部網路
 
 volumes: # <-- 新增 volume 定義
     postgres_data: # 用於持久化 PostgreSQL 數據
