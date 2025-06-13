@@ -9,7 +9,7 @@ services:
         image: postgis/postgis:16-3.4 # 建議指定明確的版本，例如 PostgreSQL 16 + PostGIS 3.4
         container_name: simworld_postgis # 給容器一個明確的名稱
         env_file:
-            - ./.env # 從項目根目錄的 .env 讀取配置
+            - ./backend/.env # 從 backend 目錄的 .env 讀取配置
         environment:
             POSTGRES_USER: ${POSTGRES_USER:-user} # 從 .env 或預設值讀取
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password} # 從 .env 或預設值讀取
@@ -37,8 +37,7 @@ services:
         volumes:
             - ./backend:/app
         env_file:
-            - ./.env # 從項目根目錄的 .env 讀取配置
-            - ./backend/.env # 同時也加載 backend/.env 文件
+            - ./backend/.env # 從 backend 目錄的 .env 讀取配置
         environment:
             # === 渲染和計算模式設定 ===
             # CPU 模式：設定為 "-1" 強制使用 CPU

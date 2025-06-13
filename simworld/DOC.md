@@ -1,9 +1,3 @@
-docker compose down --rmi all --volumes --remove-orphans
-
-docker compose up > log.txt 2>&1
-
-docker compose up -d --force-recreate backend
-
 更新座標為 24°56'38"N、121°22'15"E
 
 - 後端配置文件：更新 config.py 中的 DEFAULT_OBSERVER_LAT/LON
