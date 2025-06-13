@@ -55,18 +55,6 @@ fresh-up: clean-i build-n up ## 重新啟動所有服務
 
 up: all-start ## 啟動所有服務
 
-# ===== 簡化啟動 (僅核心服務) =====
-
-quick-start: ## 🚀 快速啟動 (僅核心服務，跳過用戶註冊)
-	@echo "$(CYAN)🚀 快速啟動 NTN Stack (僅核心服務)...$(RESET)"
-	@echo "$(YELLOW)⚡ 啟動 NetStack 核心網 (跳過用戶註冊)...$(RESET)"
-	@cd ${NETSTACK_DIR} && $(MAKE) up
-	@echo "$(YELLOW)⚡ 啟動 SimWorld...$(RESET)"
-	@$(MAKE) simworld-start
-	@$(MAKE) status
-	@echo "$(GREEN)✅ 核心服務啟動完成 (約 1 分鐘)$(RESET)"
-	@echo "$(CYAN)💡 如需完整功能，請運行 'make dev-setup' 進行用戶註冊$(RESET)"
-
 dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 	@echo "$(CYAN)🛠️ 設置開發環境 (用戶註冊 + 演示數據)...$(RESET)"
 	@cd ${NETSTACK_DIR} && $(MAKE) register-subscribers
