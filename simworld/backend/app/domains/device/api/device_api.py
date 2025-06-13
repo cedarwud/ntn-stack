@@ -3,7 +3,7 @@ from typing import List, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_session
+from app.api.dependencies import get_db_session
 from app.domains.device.models.device_model import Device
 from app.domains.device.services.device_service import DeviceService
 from app.domains.device.adapters.sqlmodel_device_repository import (
@@ -21,7 +21,7 @@ router = APIRouter()
 
 # 依賴注入函數，創建設備服務實例
 async def get_device_service(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db_session),
 ) -> DeviceService:
     """獲取設備服務實例，用於依賴注入"""
     repository = SQLModelDeviceRepository(session=session)
