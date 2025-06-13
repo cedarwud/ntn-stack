@@ -6,7 +6,6 @@ import SINRViewer from '../viewers/SINRViewer'
 import CFRViewer from '../viewers/CFRViewer'
 import DelayDopplerViewer from '../viewers/DelayDopplerViewer'
 import TimeFrequencyViewer from '../viewers/TimeFrequencyViewer'
-import TestViewer from '../viewers/TestViewer'
 import ViewerModal from '../ui/ViewerModal'
 import { ViewerProps } from '../../types/viewer'
 import {

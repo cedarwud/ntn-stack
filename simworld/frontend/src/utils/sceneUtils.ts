@@ -4,18 +4,18 @@
 
 // 場景名稱映射：前端路由參數 -> 後端場景目錄名稱
 export const SCENE_MAPPING = {
-    nycu: 'NYCU',
-    lotus: 'Lotus',
     ntpu: 'NTPU',
     nanliao: 'Nanliao',
+    nycu: 'NYCU',
+    lotus: 'Lotus',
 } as const
 
 // 場景顯示名稱映射
 export const SCENE_DISPLAY_NAMES = {
-    nycu: '陽明交通大學',
-    lotus: '荷花池',
     ntpu: '臺北大學',
     nanliao: '南寮漁港',
+    nycu: '陽明交通大學',
+    lotus: '荷花池',
 } as const
 
 // 場景座標轉換參數映射
