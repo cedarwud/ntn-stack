@@ -1,814 +1,117 @@
-# LEO 衛星網路低延遲換手機制實作計畫書
-
-## 專案背景與現況分析
-
-### 論文核心算法技術
-**Fine-Grained Synchronized Algorithm** 的核心創新在於無需 access network 與 core network 間的控制信令交互即可維持嚴格同步。算法採用**二點預測方法**：在時間點 T 和 T+Δt 預測 UE 接入衛星，並使用 **binary search refinement** 將預測誤差迭代減半至低於 RAN 層切換程序時間。
-
-**Fast Access Satellite Prediction Algorithm** 利用 LEO 衛星軌道的可預測性，整合**軌跡計算、天氣資訊和空間分佈優化**。算法通過約束式衛星接入策略顯著降低計算複雜度，同時保持 >95% 的切換觸發時間預測準確率。
-
-### 系統現況評估
-**已完成的基礎建設：**
-- **3D 可視化系統**：基於 React + Three.js 的完整 3D 渲染引擎
-- **地圖場景資源**：4 個真實場景（Lotus、NTPU、NYCU、Nanliao）含高精度建築模型
-- **3D 模型資產**：衛星（sat.glb）、UAV（uav.glb）、基站（tower.glb）、干擾源（jam.glb）
-- **後端服務架構**：FastAPI + Open5GS + UERANSIM + Skyfield 衛星軌道庫
-- **通信協議支援**：完整的 5G NTN 協議棧，包含 N2、N3、Xn 介面
-
-**目前功能過於分散的問題：**
-側邊欄擁有 20+ 個功能開關，包含 5 大類別：
-1. 基礎控制（自動飛行、UAV 動畫、衛星顯示）
-2. 智能分析（AI-RAN 決策、干擾分析、ML 監控等）
-3. 網路管理（網狀拓撲、性能監控、故障轉移等）
-4. 協調控制（UAV 群集、換手預測、換手決策等）
-5. 可視化（SINR 熱力圖、Sionna 3D、測試結果等）
-
-**核心問題識別：**
-- 缺乏針對論文算法的專門可視化
-- 換手功能散落在多個組件中，缺乏整合
-- 過多功能開關導致主要目標失焦
-- 未實現論文中的二點預測和同步機制的直觀展示
-
-## 實作計畫三階段詳細規劃
-
----
-
-## 第一階段：功能整合與核心換手介面建立
-
-### 1.1 前端側邊欄功能精簡重構
-
-**目標**：將現有 20+ 個功能開關精簡為 8 個核心控制項，讓使用者專注於換手機制演示。
-
-**保留的核心功能開關：**
-1. **基礎控制**
-   - 自動飛行模式
-   - UAV 飛行動畫
-   - 衛星星座顯示
-
-2. **換手核心功能**
-   - 換手預測顯示
-   - 換手決策可視化
-   - 換手性能監控
-
-3. **干擾與通信品質**
-   - SINR 熱力圖
-   - 干擾源可視化
-
-4. **網路拓撲**
-   - 衛星-UAV 連接狀態
-
-**隱藏的非核心功能：**
-- AI 自適應學習系統
-- 預測性維護
-- 複雜的測試可視化工具
-- 詳細的通道分析（CFR、時頻檢視器）
-- 智能推薦系統
-- 自動化報告生成
-
-**實作步驟：**
-```typescript
-// 修改 EnhancedSidebar.tsx
-const CORE_HANDOVER_FEATURES = {
-  basic: ['auto', 'uavAnimation', 'satelliteEnabled'],
-  handover: ['handoverPrediction', 'handoverDecision', 'handoverPerformance'],
-  quality: ['sinrHeatmap', 'interferenceVisualization'],
-  network: ['satelliteUAVConnection']
-};
-
-// 隱藏非核心功能
-const HIDDEN_FEATURES = [
-  'adaptiveLearning', 'predictiveMaintenance', 'testVisualization',
-  'intelligentRecommendation', 'automatedReporting', 'cfr', 'timeFrequency'
-];
-```
-
-### 1.2 換手機制核心可視化組件開發
-
-**1.2.1 二點預測時間軸組件**
-- 顯示當前時間 T 和預測時間 T+Δt
-- 可視化預測的換手觸發時間 Tp
-- 展示 binary search refinement 的迭代過程
-
-**1.2.2 衛星接入狀態指示器**
-- 即時顯示 UE 當前接入的衛星（AT）
-- 預測下一時段接入衛星（AT+Δt）
-- 連線狀態的動畫轉換效果
-
-**1.2.3 手動換手控制面板**
-- 簡化的衛星選擇介面
-- 手動觸發換手按鈕
-- 換手過程狀態顯示（開始→進行中→完成/失敗）
-
-**前端實作結構：**
-```tsx
-// src/components/handover/HandoverControlPanel.tsx
-interface HandoverState {
-  currentSatellite: string;    // AT
-  predictedSatellite: string;  // AT+Δt
-  handoverTime: number;        // Tp
-  status: 'idle' | 'predicting' | 'handover' | 'complete';
-}
-
-// src/components/handover/TimePredictionTimeline.tsx
-// 展示 T, T+Δt, Tp 的時間軸
-// src/components/handover/BinarySearchVisualization.tsx
-// 可視化 binary search refinement 過程
-```
-
-### 1.3 後端換手 API 與資料結構建立
-
-**1.3.1 預測資料表（R 表）實作**
-```python
-# netstack/netstack_api/models/handover_models.py
-@dataclass
-class HandoverPredictionRecord:
-    ue_id: str
-    current_satellite: str      # AT
-    predicted_satellite: str    # AT+Δt
-    handover_time: Optional[float]  # Tp (timestamp)
-    prediction_confidence: float
-    last_updated: datetime
-
-class HandoverPredictionTable:
-    def __init__(self):
-        self.records: Dict[str, HandoverPredictionRecord] = {}
-        self.update_interval = 5  # Δt in seconds
-    
-    async def update_predictions(self):
-        """每 Δt 時間更新預測表"""
-        pass
-    
-    async def calculate_handover_time(self, ue_id: str) -> Optional[float]:
-        """使用 binary search 計算 Tp"""
-        pass
-```
-
-**1.3.2 手動換手觸發 API**
-```python
-# netstack/netstack_api/routers/handover_router.py
-@router.post("/handover/manual")
-async def trigger_manual_handover(
-    ue_id: str,
-    target_satellite: str,
-    handover_service: HandoverService = Depends()
-):
-    """觸發手動換手"""
-    result = await handover_service.execute_handover(ue_id, target_satellite)
-    return {"status": "initiated", "handover_id": result.handover_id}
-
-@router.get("/handover/prediction/{ue_id}")
-async def get_handover_prediction(ue_id: str):
-    """取得 UE 的換手預測資訊"""
-    record = handover_prediction_table.get_record(ue_id)
-    return {
-        "current_satellite": record.current_satellite,
-        "predicted_satellite": record.predicted_satellite,
-        "handover_time": record.handover_time,
-        "confidence": record.prediction_confidence
-    }
-```
-
-### 1.4 3D 場景換手動畫實作
-
-**1.4.1 連線狀態可視化**
-- UE 與衛星間的連線以 3D 線條表示
-- 換手時連線轉移的平滑動畫效果
-- 不同狀態使用不同顏色（正常/換手中/異常）
-
-**1.4.2 衛星軌道與覆蓋範圍**
-- 即時衛星軌道路徑渲染
-- 衛星訊號覆蓋範圍的 3D 錐形投影
-- 預測換手時的視覺提示效果
-
-**實作組件：**
-```tsx
-// src/components/scenes/handover/HandoverConnectionVisualization.tsx
-// 負責 UE-衛星連線的 3D 動畫
-// src/components/scenes/handover/SatelliteCoverageVisualization.tsx
-// 負責衛星覆蓋範圍的可視化
-```
-
-**第一階段預期成果：**
-- 精簡後的側邊欄只保留 8 個核心功能開關
-- 可手動觸發 UE 在兩顆衛星間的換手
-- 3D 場景即時反映換手過程，包含連線轉移動畫
-- 建立基礎的 R 表資料結構和手動換手 API
-- 時間軸組件顯示 T、T+Δt、Tp 等關鍵時間點
-
----
-
-## 第二階段：同步演算法與自動預測機制實作
-
-### 2.1 Fine-Grained Synchronized Algorithm 核心實作
-
-**2.1.1 二點預測機制開發**
-```python
-# netstack/netstack_api/services/fine_grained_sync_service.py
-class FineGrainedSyncService:
-    def __init__(self, delta_t: int = 5):
-        self.delta_t = delta_t  # 預測時間間隔
-        self.prediction_table = HandoverPredictionTable()
-    
-    async def two_point_prediction(self, ue_id: str) -> Tuple[str, str]:
-        """
-        實作二點預測方法
-        返回: (AT, AT+Δt) - 當前和預測時段的接入衛星
-        """
-        current_time = time.time()
-        future_time = current_time + self.delta_t
-        
-        # 使用 Skyfield 計算衛星位置
-        current_satellite = await self.calculate_best_satellite(ue_id, current_time)
-        future_satellite = await self.calculate_best_satellite(ue_id, future_time)
-        
-        return current_satellite, future_satellite
-    
-    async def binary_search_refinement(self, ue_id: str, t_start: float, t_end: float) -> float:
-        """
-        使用 binary search 精確計算換手觸發時間 Tp
-        將預測誤差迭代減半至低於 RAN 層切換程序時間
-        """
-        precision_threshold = 0.1  # 100ms 精度
-        
-        while (t_end - t_start) > precision_threshold:
-            t_mid = (t_start + t_end) / 2
-            satellite_mid = await self.calculate_best_satellite(ue_id, t_mid)
-            satellite_start = await self.calculate_best_satellite(ue_id, t_start)
-            
-            if satellite_mid != satellite_start:
-                t_end = t_mid
-            else:
-                t_start = t_mid
-        
-        return (t_start + t_end) / 2
-```
-
-**2.1.2 同步機制實作**
-```python
-# netstack/netstack_api/services/core_network_sync_service.py
-class CoreNetworkSyncService:
-    """
-    實現核心網路與接入網路的狀態同步
-    無需傳統控制面信令，通過數據面資訊達成同步
-    """
-    
-    async def sync_ue_location_via_uplink(self, ue_id: str, gtp_packet: GTPPacket):
-        """
-        通過上行封包的 GTP-U extension header 同步 UE 位置
-        """
-        if gtp_packet.has_location_extension():
-            new_satellite_id = gtp_packet.get_satellite_id()
-            await self.update_ue_satellite_mapping(ue_id, new_satellite_id)
-    
-    async def maintain_context_without_signaling(self, ue_id: str):
-        """
-        在無控制信令情況下維持 UE 上下文
-        """
-        # 通過數據面流量推斷 UE 狀態變化
-        pass
-```
-
-### 2.2 Fast Access Satellite Prediction Algorithm 實作
-
-**2.2.1 約束式衛星接入策略**
-```python
-# netstack/netstack_api/services/satellite_prediction_service.py
-class SatellitePredictionService:
-    def __init__(self):
-        self.skyfield_loader = Loader('/var/data/skyfield')
-        self.satellites = self.load_satellite_tle_data()
-    
-    async def constrained_satellite_selection(self, ue_position: Tuple[float, float, float]) -> List[str]:
-        """
-        約束式衛星選擇策略
-        利用空間分佈特性減少候選衛星數量
-        """
-        # 基於 UE 地理位置劃分區域
-        region = self.get_spatial_region(ue_position)
-        
-        # 只考慮該區域的鄰近衛星
-        candidate_satellites = self.get_regional_satellites(region)
-        
-        # 進一步篩選：仰角 > 最低門檻
-        visible_satellites = []
-        for sat_id in candidate_satellites:
-            elevation = await self.calculate_elevation(sat_id, ue_position)
-            if elevation > self.min_elevation_threshold:
-                visible_satellites.append(sat_id)
-        
-        return visible_satellites
-    
-    async def predict_with_weather_integration(self, ue_id: str) -> Dict:
-        """
-        整合天氣資訊的預測算法
-        考慮大氣條件對信號傳播的影響
-        """
-        weather_data = await self.get_weather_conditions(ue_id)
-        atmospheric_loss = self.calculate_atmospheric_loss(weather_data)
-        
-        # 調整衛星選擇權重
-        satellite_scores = await self.calculate_satellite_scores_with_weather(
-            ue_id, atmospheric_loss
-        )
-        
-        return satellite_scores
-```
-
-**2.2.2 預測準確率優化**
-```python
-# netstack/netstack_api/services/prediction_optimizer.py
-class PredictionOptimizer:
-    def __init__(self):
-        self.accuracy_target = 0.95  # >95% 準確率目標
-        self.prediction_history = []
-    
-    async def adaptive_delta_t_adjustment(self):
-        """
-        根據預測準確率動態調整 Δt 時間間隔
-        """
-        recent_accuracy = self.calculate_recent_accuracy()
-        
-        if recent_accuracy < self.accuracy_target:
-            # 準確率低時縮短預測間隔
-            self.delta_t = max(3, self.delta_t - 1)
-        elif recent_accuracy > 0.98:
-            # 準確率很高時可以延長間隔以節省計算資源
-            self.delta_t = min(10, self.delta_t + 1)
-    
-    async def machine_learning_enhancement(self):
-        """
-        使用機器學習提升預測準確率
-        """
-        # 使用歷史數據訓練預測模型
-        features = self.extract_features_from_history()
-        model = self.train_prediction_model(features)
-        
-        return model
-```
-
-### 2.3 前端演算法可視化強化
-
-**2.3.1 同步演算法流程動畫**
-```tsx
-// src/components/handover/SynchronizedAlgorithmVisualization.tsx
-interface AlgorithmStep {
-  step: 'two_point_prediction' | 'binary_search' | 'sync_check' | 'handover_trigger';
-  timestamp: number;
-  data: any;
-  status: 'running' | 'completed' | 'error';
-}
-
-const SynchronizedAlgorithmVisualization: React.FC = () => {
-  const [algorithmSteps, setAlgorithmSteps] = useState<AlgorithmStep[]>([]);
-  const [currentStep, setCurrentStep] = useState<string>('');
-  
-  // 顯示算法執行的即時狀態
-  return (
-    <div className="algorithm-visualization">
-      <Timeline steps={algorithmSteps} />
-      <BinarySearchProgress iterations={binarySearchIterations} />
-      <SyncStatusIndicator syncAccuracy={syncAccuracy} />
-    </div>
-  );
-};
-```
-
-**2.3.2 預測精度可視化**
-```tsx
-// src/components/handover/PredictionAccuracyDashboard.tsx
-const PredictionAccuracyDashboard: React.FC = () => {
-  const [accuracyHistory, setAccuracyHistory] = useState<number[]>([]);
-  const [currentAccuracy, setCurrentAccuracy] = useState<number>(0);
-  
-  return (
-    <div className="prediction-dashboard">
-      <AccuracyGauge current={currentAccuracy} target={0.95} />
-      <AccuracyTrendChart history={accuracyHistory} />
-      <PredictionConfidenceMap satellites={visibleSatellites} />
-    </div>
-  );
-};
-```
-
-**2.3.3 3D 空間中的預測路徑視覺化**
-```tsx
-// src/components/scenes/PredictionPathVisualization.tsx
-const PredictionPathVisualization: React.FC = () => {
-  return (
-    <group>
-      {/* 顯示 UE 未來軌跡預測路徑 */}
-      <PredictedTrajectory path={predictedPath} />
-      
-      {/* 顯示可能接入的衛星群組 */}
-      <CandidateSatellites 
-        satellites={candidateSatellites}
-        selectedSatellite={predictedSatellite}
-      />
-      
-      {/* 顯示預測的切換點 */}
-      <HandoverPointMarker 
-        position={handoverPosition}
-        time={handoverTime}
-      />
-    </group>
-  );
-};
-```
-
-**第二階段預期成果：**
-- 完整實作二點預測機制和 binary search refinement
-- 建立約束式衛星選擇策略，顯著減少計算複雜度
-- 實現 >95% 的換手觸發時間預測準確率
-- 自動化換手流程，無需人工干預
-- 3D 場景中可視化預測算法的執行過程
-- 即時顯示預測精度和算法性能指標
-
----
-
-## 第三階段：異常處理機制與性能驗證展示
-
-### 3.1 異常換手回退機制實作
-
-**3.1.1 異常檢測與分類**
-```python
-# netstack/netstack_api/services/handover_fault_tolerance_service.py
-class HandoverFaultToleranceService:
-    def __init__(self):
-        self.timeout_threshold = 5.0  # 5秒超時門檻
-        self.retry_attempts = 3
-        
-    async def detect_handover_anomaly(self, handover_id: str) -> Optional[HandoverAnomaly]:
-        """
-        檢測換手異常情況
-        """
-        handover = await self.get_handover_status(handover_id)
-        
-        if handover.elapsed_time > self.timeout_threshold:
-            return HandoverAnomaly(
-                type='TIMEOUT',
-                severity='HIGH',
-                description=f'換手超時 {handover.elapsed_time}s'
-            )
-        
-        if handover.signal_quality < self.min_signal_threshold:
-            return HandoverAnomaly(
-                type='SIGNAL_DEGRADATION',
-                severity='MEDIUM',
-                description='目標衛星信號品質不足'
-            )
-        
-        if not handover.target_satellite_available:
-            return HandoverAnomaly(
-                type='TARGET_UNAVAILABLE',
-                severity='HIGH',
-                description='目標衛星不可用'
-            )
-        
-        return None
-    
-    async def execute_fallback_strategy(self, anomaly: HandoverAnomaly, ue_id: str):
-        """
-        執行回退策略
-        """
-        if anomaly.type == 'TIMEOUT':
-            # 策略1: 回滾到前一顆衛星
-            await self.rollback_to_previous_satellite(ue_id)
-            
-        elif anomaly.type == 'TARGET_UNAVAILABLE':
-            # 策略2: 選擇替代衛星
-            alternative_satellite = await self.find_alternative_satellite(ue_id)
-            if alternative_satellite:
-                await self.redirect_handover(ue_id, alternative_satellite)
-            else:
-                await self.rollback_to_previous_satellite(ue_id)
-        
-        elif anomaly.type == 'SIGNAL_DEGRADATION':
-            # 策略3: 延遲換手，等待信號改善
-            await self.delay_handover(ue_id, delay_seconds=2)
-```
-
-**3.1.2 智能回退決策引擎**
-```python
-# netstack/netstack_api/services/intelligent_fallback_service.py
-class IntelligentFallbackService:
-    def __init__(self):
-        self.decision_tree = self.build_fallback_decision_tree()
-    
-    async def make_fallback_decision(self, context: HandoverContext) -> FallbackAction:
-        """
-        基於當前環境狀況智能選擇回退策略
-        """
-        # 評估回退選項
-        options = await self.evaluate_fallback_options(context)
-        
-        # 選擇最佳策略
-        best_option = self.select_optimal_fallback(options)
-        
-        return FallbackAction(
-            strategy=best_option.strategy,
-            target=best_option.target,
-            estimated_recovery_time=best_option.recovery_time,
-            confidence=best_option.confidence
-        )
-    
-    async def learn_from_fallback_experience(self, fallback_result: FallbackResult):
-        """
-        從回退經驗中學習，改進未來決策
-        """
-        # 更新決策模型
-        self.update_decision_model(fallback_result)
-```
-
-### 3.2 多場景測試環境建立
-
-**3.2.1 使用者移動模式模擬**
-```python
-# netstack/netstack_api/services/mobility_simulation_service.py
-class MobilitySimulationService:
-    def __init__(self):
-        self.mobility_patterns = {
-            'stationary': StatinaryPattern(),
-            'linear': LinearMotionPattern(),
-            'random_walk': RandomWalkPattern(),
-            'circular': CircularMotionPattern(),
-            'highway': HighwayPattern(),
-            'urban': UrbanMobilityPattern()
-        }
-    
-    async def simulate_ue_movement(self, pattern: str, duration: int) -> List[Position]:
-        """
-        模擬不同移動模式下的 UE 軌跡
-        """
-        mobility_model = self.mobility_patterns[pattern]
-        return await mobility_model.generate_trajectory(duration)
-    
-    async def test_handover_under_mobility(self, pattern: str):
-        """
-        測試特定移動模式下的換手性能
-        """
-        trajectory = await self.simulate_ue_movement(pattern, duration=300)
-        handover_results = []
-        
-        for position in trajectory:
-            result = await self.handover_service.handle_position_update(position)
-            handover_results.append(result)
-        
-        return self.analyze_handover_performance(handover_results)
-```
-
-**3.2.2 衛星星座配置測試**
-```python
-# netstack/netstack_api/services/constellation_test_service.py
-class ConstellationTestService:
-    def __init__(self):
-        self.constellation_configs = {
-            'starlink': StarLinkConstellation(),
-            'oneweb': OneWebConstellation(),
-            'custom_leo': CustomLEOConstellation(),
-            'mixed': MixedConstellation()
-        }
-    
-    async def test_algorithm_with_constellation(self, constellation: str):
-        """
-        測試不同衛星星座配置下的算法性能
-        """
-        config = self.constellation_configs[constellation]
-        
-        # 載入星座 TLE 數據
-        await self.load_constellation_data(config)
-        
-        # 執行測試情境
-        test_results = await self.run_handover_test_suite(config)
-        
-        return {
-            'constellation': constellation,
-            'satellite_count': config.satellite_count,
-            'handover_frequency': test_results.handover_frequency,
-            'average_latency': test_results.average_latency,
-            'success_rate': test_results.success_rate
-        }
-```
-
-### 3.3 前端異常處理可視化
-
-**3.3.1 異常事件即時提示系統**
-```tsx
-// src/components/handover/AnomalyAlertSystem.tsx
-interface HandoverAnomaly {
-  id: string;
-  type: 'timeout' | 'signal_degradation' | 'target_unavailable';
-  severity: 'low' | 'medium' | 'high';
-  timestamp: number;
-  ue_id: string;
-  description: string;
-  fallback_action?: FallbackAction;
-}
-
-const AnomalyAlertSystem: React.FC = () => {
-  const [anomalies, setAnomalies] = useState<HandoverAnomaly[]>([]);
-  
-  return (
-    <div className="anomaly-alert-system">
-      <AnomalyNotificationBanner anomalies={anomalies} />
-      <AnomalyHistoryTimeline history={anomalies} />
-      <FallbackActionIndicator currentAction={currentFallbackAction} />
-    </div>
-  );
-};
-```
-
-**3.3.2 3D 場景中的異常可視化**
-```tsx
-// src/components/scenes/handover/HandoverAnomalyVisualization.tsx
-const HandoverAnomalyVisualization: React.FC = () => {
-  return (
-    <group>
-      {/* 異常 UE 的紅色警示效果 */}
-      <AnomalousUEIndicator 
-        ue={anomalousUE}
-        anomalyType={anomalyType}
-      />
-      
-      {/* 回退路徑的可視化 */}
-      <FallbackPathVisualization 
-        originalPath={originalHandoverPath}
-        fallbackPath={fallbackPath}
-      />
-      
-      {/* 替代衛星的高亮顯示 */}
-      <AlternativeSatelliteHighlight 
-        satellites={alternativeSatellites}
-        selected={selectedAlternative}
-      />
-    </group>
-  );
-};
-```
-
-### 3.4 性能對比與效果展示
-
-**3.4.1 傳統 vs. 加速換手對比系統**
-```tsx
-// src/components/dashboard/HandoverComparisonDashboard.tsx
-const HandoverComparisonDashboard: React.FC = () => {
-  const [traditionalResults, setTraditionalResults] = useState<HandoverMetrics>();
-  const [acceleratedResults, setAcceleratedResults] = useState<HandoverMetrics>();
-  
-  return (
-    <div className="comparison-dashboard">
-      <PerformanceComparisonChart 
-        traditional={traditionalResults}
-        accelerated={acceleratedResults}
-      />
-      
-      <MetricsTable>
-        <MetricRow 
-          metric="平均換手延遲"
-          traditional="150ms"
-          accelerated="15ms"
-          improvement="10x"
-        />
-        <MetricRow 
-          metric="成功率"
-          traditional="97.3%"
-          accelerated="99.6%"
-          improvement="+2.3%"
-        />
-        <MetricRow 
-          metric="預測準確率"
-          traditional="N/A"
-          accelerated="96.8%"
-          improvement="新功能"
-        />
-      </MetricsTable>
-    </div>
-  );
-};
-```
-
-**3.4.2 即時性能監控儀表板**
-```tsx
-// src/components/dashboard/RealtimePerformanceMonitor.tsx
-const RealtimePerformanceMonitor: React.FC = () => {
-  const [liveMetrics, setLiveMetrics] = useState<LiveMetrics>();
-  
-  useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8000/ws/metrics');
-    ws.onmessage = (event) => {
-      const metrics = JSON.parse(event.data);
-      setLiveMetrics(metrics);
-    };
-  }, []);
-  
-  return (
-    <div className="realtime-monitor">
-      <GaugeChart 
-        title="當前換手延遲"
-        value={liveMetrics?.currentLatency}
-        max={200}
-        target={50}
-      />
-      
-      <TrendChart 
-        title="換手成功率趨勢"
-        data={liveMetrics?.successRateTrend}
-      />
-      
-      <AlertPanel alerts={liveMetrics?.alerts} />
-    </div>
-  );
-};
-```
-
-### 3.5 場景測試與驗證
-
-**3.5.1 四場景換手測試**
-利用現有的四個真實場景進行測試：
-- **Lotus 場景**：校園環境，中等密度建築
-- **NTPU 場景**：都市環境，高密度建築  
-- **NYCU 場景**：科技園區，現代化建築
-- **Nanliao 場景**：郊區環境，低密度建築
-
-**3.5.2 多元化測試情境**
-```python
-# 測試矩陣
-test_scenarios = [
-    {
-        'scene': 'Lotus',
-        'mobility': 'stationary',
-        'constellation': 'starlink',
-        'weather': 'clear'
-    },
-    {
-        'scene': 'NTPU', 
-        'mobility': 'urban',
-        'constellation': 'oneweb',
-        'weather': 'rainy'
-    },
-    {
-        'scene': 'NYCU',
-        'mobility': 'linear',
-        'constellation': 'mixed',
-        'weather': 'cloudy'
-    },
-    {
-        'scene': 'Nanliao',
-        'mobility': 'random_walk',
-        'constellation': 'custom_leo',
-        'weather': 'clear'
-    }
-]
-```
-
-**第三階段預期成果：**
-- 完善的異常檢測和智能回退機制
-- 支援多種使用者移動模式和衛星星座配置測試
-- 即時異常提示和 3D 可視化
-- 傳統換手 vs. 加速換手的性能對比展示
-- 四個真實場景下的完整測試驗證
-- 系統在各種非理想情境下的穩健運行能力
-
----
-
-## 計畫實施時程與里程碑
-
-### 時程規劃（預估 12 週完成）
-
-**第一階段（週 1-4）**
-- 週 1-2：側邊欄功能精簡和重構
-- 週 3：換手核心 UI 組件開發  
-- 週 4：手動換手 API 和基礎動畫實作
-
-**第二階段（週 5-8）**
-- 週 5-6：二點預測和 binary search 算法實作
-- 週 7：約束式衛星選擇策略開發
-- 週 8：自動化換手流程和可視化整合
-
-**第三階段（週 9-12）**
-- 週 9-10：異常處理機制和回退策略實作
-- 週 11：多場景測試環境建立
-- 週 12：性能驗證和最終展示準備
-
-### 關鍵成功指標
-
-**技術指標：**
-- 換手延遲 < 50ms（目標：論文中的 10 倍改善）
-- 預測準確率 > 95%
-- 系統可用性 > 99%
-- 異常回退成功率 > 98%
-
-**使用者體驗指標：**
-- 側邊欄功能控制精簡至 8 個核心開關
-- 換手過程 3D 可視化流暢度 > 60 FPS
-- 異常情況回復時間 < 3 秒
-
-**展示效果指標：**
-- 支援 4 個場景的完整測試
-- 傳統 vs. 加速換手對比明確可見
-- 演算法過程視覺化清晰易懂
-
-## 總結
-
-本計畫書通過三個遞進階段，將現有的 NTN Stack 系統改造為專門展示 IEEE INFOCOM 2024 論文換手機制的演示平台。第一階段聚焦於介面精簡和核心功能建立；第二階段實現論文的核心算法；第三階段確保系統穩健性和展示效果。
-
-整個計畫充分利用現有的 3D 可視化基礎設施、地圖場景資源和後端服務架構，避免重複開發，專注於論文算法的實現和可視化。最終將交付一個功能聚焦、視覺直觀、技術先進的衛星換手機制演示系統。
+# 《Accelerating Handover in Mobile Satellite Network》技術筆記
+
+## 背景與問題動機
+
+**LEO衛星網路發展趨勢：** 隨著製造與發射技術的進步，**低地球軌道（LEO）衛星網路**快速興起，為地面用戶提供**全球覆蓋**的低延遲高頻寬服務。LEO衛星可補充傳統地面網路並提升抗災性，在5G/6G中被視為關鍵組成部分。截至目前，已有數以百萬計用戶使用LEO衛星網路服務。LEO衛星網路一般有**透明模式**與**再生模式**兩種架構（如Fig. 1所示）。透明模式下衛星僅作為訊號中繼（圖1a），但因所有資料須回傳地面閘道，導致延遲高且地面設施負擔重。再生模式（圖1b）則讓衛星執行部分基地台或網路功能，可減少對地面的依賴，提高效率。然而，目前多數星座初期仍採用透明模式，因此如何克服其中的性能瓶頸成為研究重點。
+
+**衛星網路中的切換挑戰：** 相較於地面行動網路，LEO衛星網路在**移動性與距離**上有顯著差異，導致**終端換手（handover）頻繁且延遲高**。由於LEO衛星軌道高度低、覆蓋範圍小，用戶終端平均**每約3分鐘**就需要切換一次服務衛星。實際換手週期可能更短，受天氣環境與終端接取策略影響。此外，衛星網路可在全球提供無縫覆蓋，意味著**終端與核心網路的距離**可能極為遙遠。換手訊號往往需經由多段**衛星間鏈路（ISL）**傳送回地面核心網，導致**長距離傳輸延遲**。例如，從倫敦到上海的換手控制訊號須跨越**約9000公里**（Fig. 2所示），產生極高的傳輸延遲並累積成顯著的換手時延。同時，每顆衛星可建立的ISL數量有限，訊號可能繞經更曲折路徑才能抵達核心網，進一步延長了換手延遲。這些因素使傳統行動網路中的換手機制在LEO網路中面臨**高頻率、高延遲**的嚴峻挑戰。基於3GPP標準的NTN（非地面網路）5G換手流程，必須經由核心網完成路徑切換，其**單次換手延遲平均約250毫秒**；在頻繁換手情況下，此延遲將嚴重影響即時性業務體驗。現有也有其他兩種針對衛星的優化換手方案：其一是假設附近**地面站輔助**（NTN-GS），由鄰近地面閘道記錄並協助換手資訊傳遞；其二是假設**太空中繼網路輔助**（NTN-SMN），由鄰近衛星擔任接取與核心網元直接處理換手。兩者透過減少或局部化核心網交互，可一定程度降低延遲，但仍未解決根本問題且實施成本高。在上述背景下，本論文針對**移動衛星網路高延遲換手**提出了新的解決方案。
+
+## 設計概覽
+
+**換手延遲來源分析：** 為瞭解LEO網路中換手耗時的主要瓶頸，作者團隊將整個換手流程劃分為三段：**(1) UE到無線接取網路（RAN）**，**(2) RAN到RAN**（源S-gNB到目標S-gNB），以及 **(3) RAN到核心網路**。透過初步實驗，團隊發現**RAN到核心網的訊號傳輸耗時**在總換手延遲中佔據主導地位。這是因為該過程涉及訊息穿越多跳衛星鏈路和衛星-地面鏈路，傳輸距離長且節點轉接多。換言之，**核心網與RAN之間的交互**是換手延遲最大的來源。因此，作者將設計目標鎖定在**減少甚至消除RAN–核心網交互**，以大幅縮短換手時間。
+
+**方案概要與關鍵挑戰：** 基於上述洞見，論文提出了一個全新的**Xn-based換手信令流程**，透過在**核心網增加適度計算**來預先同步，從而**避免在換手過程中與核心網即時交互**。核心構想是利用LEO衛星網路**可預測的衛星軌跡**與**獨特的星座空間分布**等內在特性，使換手程序僅涉及**UE與接取網路（衛星）的交互**。如此一來，本需往返核心網的控制信令得以免除，節省因長距離傳輸導致的大部分時間開銷。然而，移除核心網交互帶來**兩大新挑戰**：(1) **RAN–核心網同步**問題：傳統換手流程中，源/目標gNB與核心網會透過控制訊令保持上下行路由同步（例如Path Switch程序）。現在核心網缺乏實時訊號，如何在**無控制信令**下讓核心網仍與RAN同步切換，是首要難題。(2) **核心網預測計算壓力**問題：新方案要求核心網預先計算所有UE的服務衛星切換時間，頻繁的軌道與覆蓋預測會帶來**巨大計算負荷**，若無法有效緩解，可能導致核心網不勝負荷。
+
+為解決**挑戰一**（同步問題），作者設計了**細粒度的同步演算法**。核心網的使用者平面功能（UPF）將定期根據**兩個時間點**的衛星可見性來判斷UE是否需要換手。具體而言，利用衛星預測軌跡與天氣資訊，計算每個UE在未來**固定時間間隔** \$\Delta t\$ 前後兩個時刻的服務衛星，如若兩者不同則表示期間將發生換手，進一步透過**二分搜尋**精確定位換手觸發時刻。該同步演算法能在**不與RAN交互**的情況下，使核心網預先獲知換手時間與目標衛星，從而與RAN動作保持同步。
+
+為解決**挑戰二**（計算開銷問題），作者充分利用了LEO星座的**終端接取策略**與**空間分布特性**來優化預測演算法。他們將UE的接取策略分為兩類：**一致性接取**（consistent strategy）指UE傾向一直連接當前衛星直到訊號消失；**彈性接取**（flexible strategy）則允許UE在尚有覆蓋時就提前切換到更優衛星。演算法據此減少不必要的預測對象：對於採用**一致性**策略的UE，只需檢查其當前連接衛星在未來時刻是否仍可服務；若是，則不需換手計算，僅當**當前衛星將超出覆蓋**時才將該UE納入預測清單。而對於**彈性**策略的UE，演算法則**僅挑選那些屆時目前衛星不可用的UE**進行新衛星計算。此舉大幅縮小需要詳細預測的UE集合。接著，利用LEO衛星**空間均勻分布**的特性，將地表劃分成**網格區塊**（以單一衛星覆蓋範圍大小為邊長的矩形區域）。每個區塊只對應附近少數衛星，演算法預測時**僅需考慮UE所在區塊及鄰近區塊內的衛星**。換言之，為每個候選UE提供服務的候選衛星集合被限制在本地區域，避免全星座搜索，大幅降低計算複雜度。
+
+除了上述兩大核心設計，作者還提出**額外的優化與穩健性設計**以進一步降低延遲並提高系統可靠性。例如，在**接取衛星選擇策略**上增加一項簡單約束：**優先選擇軌道運行方向相近的下一顆衛星**。這意味著當UE需要切換時，從可見衛星中挑選一顆與原衛星**同向移動**的衛星作為目標。此策略容易實現，但實驗顯示能顯著減少換手延遲。其原因在於，同向衛星之間透過ISL傳輸資料的延遲較小（衛星間距離更近、接力節點更少），因此源S-gNB和目標S-gNB交換UE上下文資訊更快。另外，針對**預測不準**可能導致的失敗情形，作者探討了兩類主要成因：**使用者臨時移動**和**衛星軌道預測偏差**。並設計相應的**容錯策略**來提高系統穩健性，例如：一旦UE的位置有變動（註冊/移出或高速移動），立即觸發同步演算法的更新（即本文算法的「UE引發更新」機制），確保預測表R中的換手時間及目標隨之調整。對於軌道預測誤差，系統可結合最新軌道參數或藉由縮短預測週期來減小影響，同時在換手執行時預留適當時間餘裕，以避免核心網過早或過晚切換路由。以上的**額外設計**均旨在確保即便在不確定因素下，方案依然有效可行。
+
+## 詳細切換流程設計
+
+### 新式Xn-based換手訊令流程
+
+本論文重新設計了衛星網路的換手訊號流程（圖4），在**源S-gNB（衛星gNB）**與**目標S-gNB**之間沿用類似地面5G Xn介面換手的步驟，但**取消了RAN與核心網之間的大部分控制交互**。以下分步說明與標準流程的比較：
+
+* **步驟1 – 換手決策與請求（源S-gNB→目標S-gNB）**：當UE接近離開源衛星覆蓋時，來源S-gNB發出**換手請求**給目標S-gNB，告知其即將有UE切換過來。目標S-gNB收到請求後選定適當的接入資源。
+* **步驟2 – 資源準備與確認（目標S-gNB→源S-gNB）**：目標S-gNB預先為UE分配無線資源、建立接入上下文，然後回傳**換手請求確認**給源S-gNB。源S-gNB收到確認即視為換手準備完成。\*\*注意：\*\*在此時刻開始，UE原連至核心網的路徑將中斷，因為核心網尚未更新路由，後續下行資料暫時無法透過源衛星傳送給UE。這一中斷是方案設計使然，稍後由同步演算法的動作予以銜接。
+* **步驟3 – UE重接入 & 資料同步（源S-gNB⇄UE 以及 來源S-gNB→目標S-gNB）**：此階段同時進行兩件事： (3.a) **UE側換連接**：源S-gNB通知UE執行換手，UE斷開與源S-gNB的連結並與目標S-gNB建立新的RRC連線（對應圖4中的3.a.1 **RRC Reconfiguration**和3.a.2 **Reconfiguration ACK**）。 (3.b) **網路側資料傳遞**：源S-gNB將UE的相關上下文資訊（例如未送完的數據和序列號SN等）同步發送給目標S-gNB。同時目標S-gNB也可通知源S-gNB其接收數據的情況（如需要的SN狀態等）。這部分相當於標準Xn換手中的**SN Status Transfer**等步驟。透過3.a和3.b的並行處理，可確保UE迅速轉連至新衛星，同時新老衛星間的數據接續順利。
+* **步驟4\~9 – 省略核心網路交互**：在傳統5G NTN換手中，UE接入新基地台後，**目標gNB會透過核心網（AMF/SMF）執行路徑切換**（Path Switch）信令，包括：目標gNB向核心發送**路徑切換請求**、核心更新UE的承載路由、回覆確認，接著目標gNB通知源gNB釋放資源等一系列控制步驟。然而，在本方案中，**步驟4至步驟9的RAN–核心網控制訊號全部被避免**。由於衛星環境下這些步驟需經過多跳長距離傳輸，往往佔據主要延遲，本方案通過**預同步演算法**已讓核心網提前知悉換手，無需此時再交換控制訊息。因此，大幅縮減了換手延遲的長尾部分。
+* **步驟10 – 資源釋放完成換手**：最後，當目標S-gNB確認UE已順利連線並接管流量後，通知源S-gNB**釋放UE相關資源**。源S-gNB釋放無線和緩存資源後，整個換手流程正式完成。
+
+上述新流程的關鍵在於：**核心網的路徑切換不再依賴即時信令**，而是靠演算法的預測與同步來達成。當UE在步驟3完成附著到目標S-gNB時，核心網的UPF已在預測的換手時間點（tp）**自動切換下行資料路由**至目標S-gNB，使得UE能在新鏈路上接續收到資料。整個過程只保留了UE與兩個衛星基站之間以及兩衛星基站彼此之間必要的通訊，同步演算法扮演隱藏在幕後的協調者。圖4以虛線標註了**共享/移除的訊令與流程**，顯示標準流程中**需要核心網參與**的部分已被本方案所取代。透過這種設計，實現了\*\*“只涉及UE和接取網路”的換手\*\*，極大程度降低了換手時延。具體的同步演算法和預測演算法細節如下所述。
+
+### RAN–核心網同步演算法（算法1）
+
+為了解決無控制訊號下核心網與RAN的同步問題，作者提出了**UPF端的同步演算法**（算法1）。該演算法在核心網UPF中運行，核心思想是**定期預測**未來短時間內各UE的服務衛星變化，從而提前獲知換手將發生的時間與目標。以下我們深入解析算法步驟和資料結構：
+
+* **資料結構：** UPF內維護一張**UE-衛星對照表R**，其中每一列記錄一個UE的相關狀態，包括：UE位置信息（\$\mathit{Loc}*{ue}\$）、目前服務衛星的隧道ID和IP（\$\mathit{TEID}*{sat}\$、\$\mathit{IP}*{sat}\$）、**下一預期服務衛星**的隧道ID和IP（\$\mathit{TEID}*{p\text{-}sat}\$、\$\mathit{IP}\_{p\text{-}sat}\$），以及**預測的換手觸發時間** \$t\_p\$。Fig. 5繪製了表R中單行的結構示意，包含UE資訊、當前接入衛星資訊、下一接入衛星資訊以及\$t\_p\$欄位，UPF可根據此表進行資料轉發決策。
+
+* **週期性更新（Periodic Update）：** 同步演算法以固定週期 \$\Delta t\$ 執行迭代。設\$T\$為最近一次更新完成時刻（初始\$T=0\$），每當系統時鐘越過\$T\$，就觸發下一輪**週期更新**計算，用於預測$\[T, T+\Delta t]\$區間內的換手事件。步驟如下：
+
+  1. **取得目前時刻的UE–衛星映射** \$A\_{T}\$：從表R中讀出當前所有UE所連接的衛星 \$A\_{T}\[u]\$。
+  2. **預測下一周期的UE–衛星映射** \$A\_{T+\Delta t}\$：根據衛星軌道預報計算在時間\$T+\Delta t\$時每個UE將連接的衛星。記\$A\_t\$表示時刻\$t\$所有UE的接入衛星集合，則這一步得到\$A\_{T+\Delta t}\$。
+  3. **比較\$A\_{T}\$與\$A\_{T+\Delta t}\$，預測換手UE集合**：對每個UE \$u\$，若\$A\_{T}\[u] \neq A\_{T+\Delta t}\[u]\$，表示在區間$\[T, T+\Delta t]\$內該UE**將發生一次換手**。將此類UE加入候選集合，並進一步計算其**精確換手觸發時間**集合\$T\_p\$。演算法利用**二分搜尋**來逼近\$t\_p\$：對於每個即將換手的UE，在\$T\$與\$T+\Delta t\$之間取**中點** \$T+0.5\Delta t\$，計算該時刻UE連接的衛星，從而縮小換手發生的時間區間。然後再在較可能的一半時間區間內取中點重算，不斷迭代此過程，直至預測誤差小於RAN執行整個換手流程所需的時間。例如如果RAN側換手程序約耗時\$\delta\$毫秒，則當二分搜尋縮小時間區間使不確定性<\$\delta\$時即可停止。此時的中點即視為\$t\_p\$。演算法將每個候選UE對應的\$t\_p\$記錄在表R的\$t\_p\$欄位中。
+  4. **等待周期結束並更新表R：** 演算法計算完成後並不立即更新表R，而是**等待至時間點\$T+\Delta t\$真正來臨**再執行更新。這是為了避免過早覆蓋仍未使用完的預測結果，確保在整個\$\Delta t\$期間核心網都按照前一次預測信息運行。一旦時鐘達到\$T+\Delta t\$，將表R中的\*\*「當前衛星」欄替換為原「下一衛星」\*\*，並將新的預測下一周期衛星及\$t\_p\$填入表中，完成更新。同時將\$T\$設置為\$T+\Delta t\$，準備下一輪計算。
+
+* **UE事件驅動更新（Update caused by UE）：** 除了固定周期外，演算法還考慮**用戶狀態的突發變化**。當某UE發生位置變動、註冊上線或離線等事件時，RAN會通知核心網觸發對該UE的即時更新。演算法在收到UE事件時，對該UE執行一次單獨的預測計算：更新其當前接入衛星 \$A\_T\[u]\$、下一周期接入衛星 \$A\_{T+\Delta t}\[u]\$，並通過上述二分法計算新的\$t\_p\$。隨後及時地更新表R中的對應列資料。如此可保證即使UE移動速度或行為超出預期，核心網也能**動態調整預測**，維持與RAN的一致。
+
+上述同步演算法確保了UPF始終持有\*\*「現在的服務衛星」**與**「下一次換手的預定目標衛星與時間」**。當換手時刻\$t\_p\$到達時，UPF即可自動將該UE的下行資料轉向表R中記錄的目標S-gNB（新衛星）通道上。同理，在換手完成後，UPF也會根據表R更新後的新下一目標，預備下一次換手。由於**預測軌跡和UE位置具有一定誤差\*\*，演算法精心選擇\$\Delta t\$的長度以降低不確定性：\$\Delta t\$既不能過長（避免預測不准），又不能過短（避免過於頻繁計算）。作者建議選取\$\Delta t\$為數百毫秒等級，使每輪計算量可控且足夠精細。經此同步機制，核心網在無傳統控制信令的情況下，仍能**精確同步**RAN的換手行為。
+
+### 快速接取衛星預測演算法（算法2）
+
+同步演算法實現了核心網對換手時序的掌控，但頻繁的全網預測計算可能給UPF帶來沉重負擔。為此，作者設計了**快速接入衛星預測演算法**（算法2），利用接取策略和空間區塊優化計算，只關注**可能需要換手的UE**和**相關衛星**。該演算法的功能是在給定未來時刻\$t'\$時，高效計算得到每個UE在\$t'\$應該連接的衛星\$A\_{t'}\$（相當於完整軌跡演算的簡化版）。演算法2的流程如下：
+
+1. **預測衛星位置（Step 1）：** 根據預先獲取的衛星星曆（軌道預報數據），計算未來時刻\$t'\$所有衛星的位置集合 \$S\_{t'}\$。這些位置可用於判斷衛星覆蓋範圍和可用性。
+
+2. **篩選UE候選集UC（Step 2）：** 初始化候選UE集合 \$UC = \emptyset\$ 以及結果\$A\_{t'}\$（開始可先複製目前的\$A\_t\$作為初值）。接著對\*\*每個UE \$u$\*\*執行：
+
+   * 若UE採用**彈性接取**策略：檢查\$u\$當前連接的衛星 \$s = A\_t(u)\$ 在\$t'\$時是否仍可為\$u\$提供服務（例如\$t'\$時\$u\$是否仍在該衛星覆蓋範圍內)。如果**仍在覆蓋**，則預測\$A\_{t'}(u) = A\_t(u)\$（保持不變）；如果**屆時不可用**（衛星將落下地平線或無法服務），則將\$u\$加入候選集 \$UC\$等待後續重新選擇衛星，表示可能需要換手。
+   * 若UE採用**一致性接取**策略：演算法保守地將**所有此類UE**都加入候選集 \$UC\$。由於一致性策略的UE傾向不輕易切換，即使\$t'\$時仍在覆蓋也不會提前換手，但為了全面預測，演算法對這些UE依然進行下一步計算（此處稍顯保守，實作中也可僅檢查不可用時再加入）。如此處理確保不會漏掉任何可能發生強制換手的UE，同時由於一致性策略通常換手間隔較長，整體\$UC\$規模仍可控制。
+
+3. **劃分空間區塊（Step 3）：** 根據LEO衛星的覆蓋範圍，將地球表面劃分為若干**連續的矩形區塊** \$B = {B\_1, B\_2, ..., B\_n}\$，每個區塊邊長約為單一衛星服務的直徑。然後遍歷所有衛星的位置：對於每顆衛星\$s\_j \in S\_{t'}\$，識別其所在的區塊 \$B\_i\$，並將\$s\_j\$加入該區塊的衛星集合\$S\_i\$。劃分區塊將整個星座按地理位置分組，使每塊只包含有限幾顆在該區域上空的衛星。這利用了LEO衛星**規律的空間分布**：任何時刻，每個區域頭頂通常只有少數幾顆可能連線的衛星，因此無需考慮全星座。
+
+4. **計算新接入衛星（Step 4）：** 對每個在候選集 \$UC\$ 中的UE \$u\$，先找出其在\$t'\$時所處的區塊 \$B\_k\$（可根據\$u\$的預測位置或現有連接衛星推算）。接著**僅在該區塊\$B\_k\$及其鄰近區塊**的衛星集合中，尋找一顆適合作為\$u\$在\$t'\$的接入衛星\$s\$。挑選準則可依照最大訊號強度或最長可見時間等策略實現。由於只考慮局部區域的衛星，計算開銷大幅降低。同時為了避免邊界問題，鄰近區塊的衛星也一併考慮，以防\$u\$靠近區塊邊緣時更適合連接鄰區塊的衛星。選定後，將\$A\_{t'}(u)\$設定為這顆衛星\$s\$。
+
+5. **輸出結果：** 完成所有候選UE的處理後，演算法返回預測的整體映射關係\$A\_{t'}\$。
+
+演算法2透過以上步驟，**將預測重點放在真正需要換手的UE與區域上**。根據論文實驗，採用該演算法可將每輪預測計算處理的UE數量和衛星數量明顯降低。尤其是對於**一致性接取**策略的UE，多半維持原衛星連線而無需計算，新演算法僅做**可用性檢查**便跳過，使需要深入計算的UE比例下降。同時，空間區塊劃分使每個UE只需考慮附近的衛星，大幅減少了每次預測涉及的衛星數量。綜合這兩點，核心網每週期的預測計算量從原始的“O(總UE數×總衛星數)”降至近似“O(需要換手的UE數×鄰近衛星數)”，實現了**計算複雜度的極大緩解**。
+
+### 接取衛星選擇優化
+
+在同步和預測演算法確定了換手時機與目標候選後，**具體選擇哪一顆衛星作為目標**仍有優化空間。論文中作者提出一項**簡單有效的選擇優化策略**：在有多個目標候選衛星時，**優先選擇與源衛星運行方向相同或相近的衛星**。具體而言，如果UE原先連接的源S-gNB屬於按軌道方向由西向東移動的一組衛星，則在需要切換時，從下一刻可覆蓋UE的衛星中挑選**同樣由西向東運行**的那一顆作為目標S-gNB。同理，若源衛星屬於南北極軌道方向，則選擇下一顆也沿相近極軌方向的衛星。
+
+這一約束的動機在於：**同向鄰近衛星間的傳輸延遲更低**。LEO星座中衛星彼此之間通常以**星間鏈路（ISL）**連接，如果兩顆衛星在同一軌道平面或相鄰平面且運行方向一致，它們之間往往存在直接且短距離的鏈路；反之，若目標衛星處於反向軌道或遠距平面，源到目的衛星的資料傳遞可能需要繞行多跳，延遲增加。換手時源S-gNB需要將UE的上下文資料（緩存的IP封包等）傳送給目標S-gNB，**較短的ISL路徑**可縮短這一步驟耗時。此外，選擇同向衛星通常意味著**相對移動速度較低**（兩衛星彼此追趕速度小），UE切換到新衛星後可服務的持續時間更長，減少後續頻繁換手的可能性。作者在實驗中比較了**有無此優化**時的性能：結果顯示，不採用此約束選擇時，換手延遲平均增加約6.1倍。這證明了僅透過調整選擇目標衛星，就能**顯著改善換手效率**。因此，實作中建議在UE可見多顆候選衛星時，引入上述同向優先規則作為簡單的優化策略。
+
+### 換手預測穩健性與失敗對策
+
+由於本方案高度依賴預測，**處理預測誤差**對維持系統穩健非常重要。作者辨識出預測不準的兩個主要來源：**UE移動的不確定性**以及**衛星軌道預報誤差**。針對這些情況，論文在設計中考慮了相應對策：
+
+* **UE移動因素：** 若UE在兩次週期更新間移動速度或方向出人意料，可能導致核心網預測的換手時間\$t\_p\$與RAN實際換手時間不一致。為此，同步演算法特別引入了**UE事件更新機制**：當RAN監測到UE位置重大變化，立即通知UPF對該UE執行一次即時預測更新。這確保了表R中的\$t\_p\$能根據UE最新位置及軌跡迅速調整，縮短RAN與核心決策之間的差距。實作上，可在UE發起位置註冊、切片重選等程序時，或者檢測到UE高速移動時，主動觸發此更新。如此即使UE軌跡臨時改變，核心網仍可及時同步新的換手計畫。
+
+* **衛星預報因素：** 衛星軌道的預測一般非常精確，但長時間尺度上可能存在微小偏差（例如大氣阻力、重力攝動造成的誤差）。為降低軌道預報誤差影響，系統可採取**縮短預測窗口**和**多點校準**的策略。具體而言，可將同步演算法的\$\Delta t\$選取較小值，使預測僅針對較近的未來，減少軌道誤差累積；同時可利用衛星定期下行的軌位資訊，動態修正預測模型。作者也提及考慮**天氣資訊**對預測的影響——惡劣天氣可能臨時影響衛星通信品質，系統可從網際網路獲取天氣預報，在演算法中對可能的信道劣化情況進行預留（例如增加安全裕度，以稍提前路徑切換避免黑屏）。若即便如此仍發生預測失誤導致換手未按時完成，系統需有**故障緩解機制**：例如當目標S-gNB遲遲未收到UE接入或來源S-gNB未按預期釋放，則可以由目標S-gNB主動向核心網發起傳統Path Switch請求作為補救，確保UE不至失去連接。這類後備機制可作為最後保障，平衡系統的可靠性。
+
+透過上述方法，作者的方案在追求極致低延遲的同時，仍力求在不利情況下保持服務的連續性與正確性。實驗評估也驗證了在包含隨機移動和預測誤差的環境中，方案的確可行。
+
+## 原型實作與實驗評估
+
+### 實作架構與測試環境
+
+為驗證提出方案的實用性，作者搭建了一套**行動衛星網路原型系統**。原型基於開源的5G核心網Open5GS和UE/RAN模擬器UERANSIM進行修改擴展。他們在Open5GS中實現了上述同步演算法邏輯，使UPF能按照預測結果切換下行資料的路由；在UERANSIM中則模擬了**衛星 gNB（S-gNB）**節點，添加了支持LEO星座運動和Xn介面直接通信的功能。整個測試平台以**真實LEO衛星軌道數據**來驅動，包括Starlink和Kuiper等星座的軌跡資料。UE的地理位置及移動模式則可配置成不同場景（例如跨洲移動或靜止）。雖然論文未詳述實作細節，作者表示將於稍後發佈完整的原型實現說明。值得注意的是，此原型**完全遵循3GPP 5G架構**進行改造，證明所提方案具有實現上的可行性。
+
+測試時，作者選取多組場景進行**換手延遲性能評估**。對比對象包括三種換手策略： (1) **3GPP NTN標準流程（NTN）**：即完全依賴核心網Path Switch的標準非地面網路換手；(2) **地面站輔助換手（NTN-GS）**：參考以往IP衛星網策略，假設在LEO衛星可及的地面站緩存並直接轉發換手控制訊息，省去進入核心網的環節；(3) **太空中繼網路輔助換手（NTN-SMN）**：由衛星自身同時擔任接入和部分核心功能，使換手控制留在太空網路內完成（例如源衛星直接與鄰近軌道上下一顆衛星交換UE上下文，類似分散式核心網）。這兩種輔助方案本質上都是在**縮短換手信令傳輸路徑**，是已有研究中的改良策略。作者將本論文提出的方案與上述三者在各種情形下進行比較。測試還考慮了**不同的UE接取策略**（彈性vs一致性）以及**不同的星座**（Starlink vs Kuiper）對結果的影響。
+
+### 實驗結果與分析
+
+**換手延遲比較：** 圖8（a）和（b）展示了不同換手方案在**彈性**與**一致性**接取策略下的平均換手延遲。可以看到，**本方案的平均換手延遲僅約20.87毫秒**，遠低於標準NTN方案的250毫秒。相比兩種優化方案NTN-GS（約153毫秒）和NTN-SMN（約158.5毫秒），本方案也有明顯優勢。換言之，在所有測試場景下（不同接取策略與星座），**本方案均取得了最低的延遲**。作者指出，這約**10倍的延遲改善**主要來自於**移除了RAN–核心網之間的訊令交換**。事實上，NTN-GS和NTN-SMN透過不同手段避免了核心網的交互，但仍需要地面站或衛星執行類似核心的操作，延遲表現介於標準NTN與本方案之間。本方案則是真正將核心網從即時流程中解耦，因而效果最佳。
+
+**選擇優化的效果：** 圖8（a）與圖8（b）的對比強調了接取衛星選擇優化的重要性。圖8（a）為採用優化策略時的延遲，而圖8（b）禁用了該優化進行對照。結果顯示，**未優化時延遲平均增加約6.1倍**。例如在彈性策略下，不使用同向優先選擇的換手平均延遲是優化後的數倍。這證明作者提出的**簡單但有效的選擇機制**可顯著降低延遲。究其原因，如前所述，選擇同方向衛星能減少星間傳輸延遲，使整個換手過程更加順暢。同樣趨勢在**一致性策略**下也存在：未優化的情況換手延遲遠高於優化後，凸顯了**在衛星網路中優化目標衛星選擇的必要性**。
+
+**接取策略的影響：** 圖8（c）進一步比較了以**彈性**和**一致性**為換手觸發準則時的性能差異。可以觀察到，在本方案中，**彈性策略的平均換手延遲略低於一致性策略**（大約低10毫秒左右）。這是因為彈性策略往往讓UE提前切換至距離源衛星更近的下一衛星，兩衛星之間相距較近，資料傳遞延遲稍小。然而，彈性策略的**代價是換手次數增加**（因為有時在非必要時也換手）。一致性策略下每次換手延遲雖稍高，但換手頻率較低；彈性策略反之。作者指出，**換手觸發準則**本身是一個值得深入研究的方向，如何在延遲與切換頻度間取得平衡應根據應用需求選擇。本方案下兩種策略都適用且各有優劣，因此系統實現時可根據具體業務（例如對連續性要求高的可用一致性，對瞬時性能要求高的用彈性）來配置。
+
+**不同星座下的表現：** 作者也測試了方案在Starlink與Kuiper兩種星座下的效果，結果顯示**星座差異對換手延遲趨勢沒有改變**。無論是哪種衛星高度或軌道配置，本方案相較其他方案依然保持優勢，且兩種策略的相對表現類似。這意味著該方案具有**廣泛的適用性**，可推廣至不同LEO星座。當然，不同星座的具體數值會因衛星覆蓋時間不同有所區別（例如Kuiper衛星軌道較高，單星覆蓋時間略長），但整體結論一致：**減少RAN–核心交互**是普適的加速換手良策。
+
+綜上所述，實驗結果充分驗證了本論文方案的有效性：在多場景下都**顯著降低了換手時延**（達10倍量級），並且經由引入目標選擇優化，性能進一步提升。此外，對於系統參數（如接取策略、星座）有不同取捨時，方案仍能靈活適應並提供較傳統策略更佳的表現。
+
+## 方法評析與未來展望
+
+綜合上述技術細節與實驗結果，本論文提出的加速換手方法在LEO衛星網路情境下展示出獨特的優勢，同時也存在一些值得進一步研究的方面：
+
+**優點：** 首先，本方案成功**將核心網從換手即時流程中解耦**。透過預先同步，核心網UPF不再需要等待控制信令確認即可切換路由，這在高延遲星鏈環境中帶來巨大好處。實驗顯示延遲可降低約10倍。其次，方案巧妙地利用了LEO衛星**軌道可預測**和**覆蓋分布規律**的特性，提出**演算法創新**（同步演算法和快速預測演算法）使大規模的預測計算成為可能且開銷可控。第三，方案在減少延遲的同時，也**維持了標準架構的一致性**：整個流程基於5G Xn介面擴展，對UE和業務層透明，不改變通訊協議，只是重新排列/優化了執行順序。因此具有較強的**工程可行性**，從作者提供的原型實作也可看出並非紙上談兵。最後，論文還考量了**系統健壯性**，透過UE事件更新和安全時間裕度等措施減少預測失誤風險，並引入**目標選擇**等簡單規則進一步提升性能，設計較為全面。
+
+**缺點與限制：** 首先，方案極度依賴**預測準確度**。若衛星軌道或UE行為出現預期外的變化，預測誤差可能導致核心網切換路由與RAN實際換手不同步，帶來數據丟失或時延反彈。雖有容錯機制，但預測不准仍是潛在隱憂，需要高品質的星曆和位置資訊支援。其次，**核心網計算負擔**仍需關注。即便有演算法2優化，當UE數達到數百萬級時，UPF頻繁地計算大量軌道和位置仍是挑戰。如何在雲端或邊緣有效部署計算、以及確保UPF本身資源足夠，是實作中要解決的工程問題。再次，**可靠性和平滑切換**方面，本方案取消了傳統核心網的確認過程，缺乏即時反饋機制。如果換手過程中出現意外（例如目標S-gNB故障），沒有核心網協調可能延誤錯失最佳補救時機。因此未來或許需要引入**輕量級的訊號反饋**來增強可靠性，例如在換手完成或超時時讓目標S-gNB通知UPF二次確認，以備故障時採取行動。最後，從**標準化角度**看，本方案目前是學術提案，直接移除RAN–核心控制交互並不符合現行3GPP協議流程。若要推向實用，需要在標準組織中推動新的訊令流程制定，或至少在產業中達成共識。這需要額外的時間和努力。
+
+**可改進方向：** 針對上述限制，未來工作可從多方面優化：(1) **強化預測模型**：考慮機器學習方法融合歷史資料，對UE移動模式進行分類預測；或者利用卡爾曼濾波等技術不斷修正換手時間估計，以期提高精度。(2) **多重連接冗餘**：在關鍵應用中，可考慮讓UE在換手時**短暫同時連接源和目標衛星**（類似於雙連線或軟切換），UPF在\$t\_p\$前後一小段時間內**同時向兩路徑發送下行資料**，確保UE無論如何都能收到，待確認目標路徑穩定後再停止源路徑。這樣可進一步消除預測誤差對用戶體驗的影響，但實現時需解決衛星間干擾和UE射頻成本問題。(3) **分散計算壓力**：將部分預測計算下放給**邊緣或衛星**執行，例如讓衛星間協同預測區域內UE的換手時刻，再上報核心網彙總。衛星具有空間上的分區優勢，可減少單點的計算量，同時降低通信延遲。(4) **更廣泛的場景測試**：未來應在更複雜場景（如城市高樓阻擋、極端天氣、超高密度用戶）下測試方案，找出極端條件下可能的新問題，例如當大量UE同時換手時是否出現排隊延遲，UPF是否處理及時等，並據此優化系統調度。(5) **標準融合**：嘗試將本方案的思想融入3GPP正在研討的NTN改進提案中，例如定義新的消息以攜帶預測資訊，讓核心網與RAN在**非實時**頻道交換換手預告，從而既降低時延又不完全脫離協議。
+
+總的來說，《Accelerating Handover in Mobile Satellite Network》所提出的方法為未來的6G非地面網路提供了一個新思路：充分利用**LEO衛星的可預測性**，在系統架構上做減法（拿掉核心交互）和做加法（增加智能預測），以此克服頻繁換手的延遲瓶頸。此技術筆記詳細拆解了論文中的概念、演算法與實驗發現，希望能幫助開發者在實作中復現該方案。透過這些說明，開發者應對**同步演算法**與**快速預測演算法**的邏輯、資料結構有清晰理解，並能以此為基礎編寫代碼（例如在5G核心UPF模組中實作定時任務、在RAN模擬中實作Xn介面擴展）。當然，在落地過程中仍需結合實際網路情況進行調整和優化。期望未來有更多研究者對這一方向展開探索，進一步完善此方案，使其最終能應用於現實的大規模LEO衛星網路部署中，推動天地一體化6G網路的發展。
