@@ -323,7 +323,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
-      - SIMWORLD_API_URL=http://120.126.151.101:8888
+      - SIMWORLD_API_URL=http://simworld_backend:8000
     ports:
       - "8080:8080"
     depends_on:
