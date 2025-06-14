@@ -5,22 +5,18 @@ interface SatelliteControlPanelProps {
     satelliteEnabled: boolean
     satelliteAnimationEnabled: boolean
     satelliteSpeedMultiplier: number
-    showOrbitTracks: boolean
     onSatelliteEnabledChange: (enabled: boolean) => void
     onSatelliteAnimationEnabledChange: (enabled: boolean) => void
     onSatelliteSpeedChange: (speed: number) => void
-    onShowOrbitTracksChange: (show: boolean) => void
 }
 
 const SatelliteControlPanel: React.FC<SatelliteControlPanelProps> = ({
     satelliteEnabled,
     satelliteAnimationEnabled,
     satelliteSpeedMultiplier,
-    showOrbitTracks,
     onSatelliteEnabledChange,
     onSatelliteAnimationEnabledChange,
     onSatelliteSpeedChange,
-    onShowOrbitTracksChange,
 }) => {
     // 預設速度選項
     const speedOptions = [
@@ -68,18 +64,6 @@ const SatelliteControlPanel: React.FC<SatelliteControlPanelProps> = ({
                         </label>
                     </div>
                     
-                    <div className="control-item">
-                        <label className="control-label">
-                            <input
-                                type="checkbox"
-                                checked={showOrbitTracks}
-                                onChange={(e) => onShowOrbitTracksChange(e.target.checked)}
-                                disabled={!satelliteEnabled || !satelliteAnimationEnabled}
-                                className="control-checkbox"
-                            />
-                            <span className="control-text">顯示軌跡線</span>
-                        </label>
-                    </div>
                 </div>
 
                 {/* 速度控制 */}
