@@ -5,8 +5,8 @@
 
 export const SATELLITE_CONFIG = {
   // === 基本顯示參數 ===
-  VISIBLE_COUNT: 24,                // 可見衛星數量 (OneWeb 典型可見數量)
-  MIN_ELEVATION: 5,                 // 最低仰角（度，降低以獲得更多衛星）
+  VISIBLE_COUNT: 12,                // 可見衛星數量 (接近真實場景，提供豐富選擇)
+  MIN_ELEVATION: 0,                 // 最低仰角（度，包含地平線）
   
   // === 移動模擬參數 ===
   REAL_TIME_MULTIPLIER: 1,          // 實時速度倍數（1 = 真實速度）

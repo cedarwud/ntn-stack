@@ -33,6 +33,7 @@ interface AnimatedSatellite extends VisibleSatelliteInfo {
         orbitIndex: number
         velocity: [number, number, number]
         orbitPhase?: number  // 軌道相位（秒）
+        independentTime?: number  // 獨立時間週期（秒）
     }
 }
 
@@ -185,35 +186,43 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
             const satelliteKey = satellite.norad_id?.toString() || satellite.name
             const animState = satellite.animationState
             
-            // 計算過境時間參數
+            // 全新的連續覆蓋邏輯
             const deltaTime = delta * frameSpeedMultiplier
-            const transitDuration = 12 * 60 // 12分鐘過境時間（秒）
-            const orbitPeriod = SATELLITE_CONFIG.ORBITAL_PERIOD_MIN * 60 // 軌道週期（秒）
             
-            // 計算當前在軌道週期中的位置
-            if (!animState.orbitPhase) {
-                // 初始化軌道相位（基於衛星ID的隨機偏移）
+            // 優化：減少同時可見衛星，專注換手研究
+            const transitDuration = 12 * 60 // 12分鐘可見（縮短）
+            const cycleDuration = 40 * 60   // 40分鐘完整週期（增加間隔）
+            
+            // 初始化每顆衛星的獨立時間偏移
+            if (animState.independentTime === undefined) {
+                // 使用衛星ID或名稱的hash來確定穩定的索引
                 const satelliteHash = satellite.norad_id ? parseInt(satellite.norad_id) : satellite.name.length
-                animationRef.current[satelliteKey].animationState.orbitPhase = (satelliteHash % 100) / 100 * orbitPeriod
+                const stableIndex = satelliteHash % 3 // 確保0-2的索引
+                
+                // 3顆衛星，每顆錯開13.3分鐘（40分鐘÷3 = 13.3分鐘）
+                const timeOffset = stableIndex * (40 / 3) * 60 // 轉為秒
+                animationRef.current[satelliteKey].animationState.independentTime = timeOffset
+                
+                // 調試：輸出初始化信息
+                console.log(`🚀 初始化衛星 ${satellite.name}: 穩定索引=${stableIndex}, 時間偏移=${(timeOffset/60).toFixed(1)}分鐘`)
             }
             
-            // 更新軌道相位
-            const currentOrbitPhase = (animState.orbitPhase + deltaTime) % orbitPeriod
-            animationRef.current[satelliteKey].animationState.orbitPhase = currentOrbitPhase
+            // 更新獨立時間
+            const currentIndependentTime = (animState.independentTime + deltaTime) % cycleDuration
+            animationRef.current[satelliteKey].animationState.independentTime = currentIndependentTime
             
-            // 計算是否在可見過境期間
-            const gapDuration = orbitPeriod - transitDuration
-            const isVisible = currentOrbitPhase < transitDuration
+            // 判斷是否可見：前15分鐘可見，後15分鐘不可見
+            const isVisible = currentIndependentTime < transitDuration
             
             if (isVisible) {
                 // 在可見過境期間 - 實現升降軌跡
-                const transitProgress = currentOrbitPhase / transitDuration // 0 到 1
+                const transitProgress = currentIndependentTime / transitDuration // 0 到 1
                 
                 // 每個衛星有不同的過境參數（基於ID生成穩定的參數）
                 const satelliteHash = satellite.norad_id ? parseInt(satellite.norad_id) : satellite.name.length
-                const startAzimuth = (satelliteHash * 30) % 360 // 起始方位角
-                const azimuthSpan = 120 + (satelliteHash % 60) // 方位角跨度
-                const maxElevation = 20 + (satelliteHash % 50) // 最大仰角
+                const startAzimuth = (satelliteHash * 45) % 360 // 起始方位角，增加分散度
+                const azimuthSpan = 100 + (satelliteHash % 80) // 方位角跨度，增加變化
+                const maxElevation = 30 + (satelliteHash % 45) // 最大仰角 30-75°，提高可見性
                 
                 // 方位角線性變化（從起始到結束）
                 const currentAzimuth = (startAzimuth + azimuthSpan * transitProgress) % 360
@@ -232,7 +241,8 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                 }
             } else {
                 // 在不可見期間 - 衛星在地平線以下
-                const hiddenProgress = (currentOrbitPhase - transitDuration) / gapDuration
+                const hiddenDuration = cycleDuration - transitDuration
+                const hiddenProgress = (currentIndependentTime - transitDuration) / hiddenDuration
                 const satelliteHash = satellite.norad_id ? parseInt(satellite.norad_id) : satellite.name.length
                 const hiddenElevation = -10 - (hiddenProgress * 30) // 地平線以下
                 const hiddenAzimuth = ((satelliteHash * 30) % 360 + 240 * hiddenProgress) % 360
@@ -251,10 +261,26 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
 
         // 觸發重新渲染
         if (hasUpdated) {
-            setAnimatedSatellites(prev => [...prev.map(sat => {
-                const key = sat.norad_id?.toString() || sat.name
-                return animationRef.current[key] || sat
-            })])
+            setAnimatedSatellites(prev => {
+                const updated = [...prev.map(sat => {
+                    const key = sat.norad_id?.toString() || sat.name
+                    return animationRef.current[key] || sat
+                })]
+                
+                // 調試：每5秒輸出詳細時間狀態
+                const now = Date.now()
+                if (now % 5000 < 100) {
+                    const visibleCount = updated.filter(sat => sat.elevation_deg > 0).length
+                    const satDetails = updated.map(sat => {
+                        const timeInCycle = (sat.animationState.independentTime || 0) / 60 // 轉為分鐘
+                        const isVisible = sat.elevation_deg > 0 ? '✅' : '❌'
+                        return `${sat.name}:${timeInCycle.toFixed(1)}min${isVisible}`
+                    }).join(' | ')
+                    console.log(`🛰️ 狀態 [${visibleCount}/3可見]: ${satDetails}`)
+                }
+                
+                return updated
+            })
         }
     })
 
