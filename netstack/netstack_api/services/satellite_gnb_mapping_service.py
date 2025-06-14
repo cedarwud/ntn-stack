@@ -10,7 +10,7 @@ import math
 import logging
 import json
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 import structlog
 import aiohttp
 import redis.asyncio as redis
@@ -27,6 +27,7 @@ from ..models.ueransim_models import (
     UAVPosition,
     NetworkParameters,
 )
+from .simworld_tle_bridge_service import SimWorldTLEBridgeService
 
 logger = structlog.get_logger(__name__)
 
@@ -43,7 +44,7 @@ class SatelliteGnbMappingService:
 
     def __init__(
         self,
-        simworld_api_url: str = "http://simworld-backend:8000",
+        simworld_api_url: str = "http://localhost:8888",
         redis_client: Optional[redis.Redis] = None,
     ):
         self.logger = logger.bind(service="satellite_gnb_mapping")
@@ -53,6 +54,12 @@ class SatelliteGnbMappingService:
         # 緩存配置
         self.cache_ttl = 30  # 30秒緩存
         self.cache_prefix = "sat_gnb_mapping:"
+        
+        # 初始化 TLE 橋接服務
+        self.tle_bridge = SimWorldTLEBridgeService(
+            simworld_api_url=simworld_api_url,
+            redis_client=redis_client
+        )
 
     async def convert_satellite_to_gnb_config(
         self,
@@ -120,14 +127,53 @@ class SatelliteGnbMappingService:
     async def _get_satellite_position_from_simworld(
         self, satellite_id: int, observer_position: Optional[UAVPosition] = None
     ) -> Dict[str, any]:
-        """從 simworld 獲取衛星當前位置"""
+        """從 simworld 獲取衛星當前位置（透過 TLE 橋接服務）"""
+
+        try:
+            # 構建觀測者位置參數
+            observer_location = None
+            if observer_position:
+                observer_location = {
+                    "lat": observer_position.latitude,
+                    "lon": observer_position.longitude,
+                    "alt": observer_position.altitude / 1000,  # 轉為公里
+                }
+
+            # 使用 TLE 橋接服務獲取衛星位置
+            satellite_id_str = str(satellite_id)
+            positions = await self.tle_bridge.get_batch_satellite_positions(
+                [satellite_id_str], observer_location=observer_location
+            )
+
+            position_data = positions.get(satellite_id_str)
+            if position_data and position_data.get("success"):
+                self.logger.debug(
+                    "透過 TLE 橋接服務獲取衛星位置成功", 
+                    satellite_id=satellite_id
+                )
+                return position_data
+            else:
+                error_msg = position_data.get("error", "未知錯誤") if position_data else "無資料"
+                raise Exception(f"TLE 橋接服務返回錯誤: {error_msg}")
+
+        except Exception as e:
+            self.logger.error("透過 TLE 橋接服務獲取衛星位置失敗", error=str(e))
+            # 如果 TLE 橋接服務不可用，使用直接 API 呼叫作為備用
+            return await self._get_satellite_position_direct_api(
+                satellite_id, observer_position
+            )
+
+    async def _get_satellite_position_direct_api(
+        self, satellite_id: int, observer_position: Optional[UAVPosition] = None
+    ) -> Dict[str, any]:
+        """直接透過 SimWorld API 獲取衛星位置（備用方案）"""
 
         # 先檢查緩存
         if self.redis_client:
-            cache_key = f"{self.cache_prefix}position:{satellite_id}"
+            cache_key = f"{self.cache_prefix}position_direct:{satellite_id}"
             cached_result = await self.redis_client.get(cache_key)
             if cached_result:
-                self.logger.debug("使用緩存的衛星位置", satellite_id=satellite_id)
+                self.logger.debug("使用緩存的直接 API 衛星位置", satellite_id=satellite_id)
                 return json.loads(cached_result)
 
         try:
@@ -165,8 +211,8 @@ class SatelliteGnbMappingService:
                         raise Exception(f"無法獲取衛星位置，HTTP {response.status}")
 
         except Exception as e:
-            self.logger.error("從 simworld 獲取衛星位置失敗", error=str(e))
-            # 如果 simworld 不可用，使用本地 Skyfield 計算
+            self.logger.error("直接 API 獲取衛星位置失敗", error=str(e))
+            # 如果直接 API 也不可用，使用本地 Skyfield 計算
             return await self._calculate_position_locally(
                 satellite_id, observer_position
             )
@@ -519,3 +565,196 @@ class SatelliteGnbMappingService:
 
         except Exception as e:
             self.logger.warning("發布 gNodeB 更新事件失敗", error=str(e))
+
+    async def get_satellite_orbit_prediction(
+        self,
+        satellite_id: int,
+        time_range_hours: int = 2,
+        step_seconds: int = 60,
+        observer_position: Optional[UAVPosition] = None,
+    ) -> Dict[str, Any]:
+        """
+        獲取衛星軌道預測資料
+        
+        Args:
+            satellite_id: 衛星 ID
+            time_range_hours: 預測時間範圍（小時）
+            step_seconds: 時間步長（秒）
+            observer_position: 觀測者位置
+            
+        Returns:
+            軌道預測資料
+        """
+        start_time = datetime.utcnow()
+        end_time = start_time + timedelta(hours=time_range_hours)
+
+        observer_location = None
+        if observer_position:
+            observer_location = {
+                "lat": observer_position.latitude,
+                "lon": observer_position.longitude,
+                "alt": observer_position.altitude / 1000,
+            }
+
+        orbit_data = await self.tle_bridge.get_satellite_orbit_prediction(
+            str(satellite_id), start_time, end_time, step_seconds, observer_location
+        )
+
+        self.logger.info(
+            "獲取衛星軌道預測完成",
+            satellite_id=satellite_id,
+            prediction_points=len(orbit_data.get("positions", [])),
+        )
+
+        return orbit_data
+
+    async def predict_handover_timing(
+        self,
+        ue_id: str,
+        ue_position: UAVPosition,
+        current_satellite: int,
+        candidate_satellites: List[int],
+        search_range_seconds: int = 300,
+    ) -> Dict[str, Any]:
+        """
+        預測切換時機
+        
+        Args:
+            ue_id: UE 識別碼
+            ue_position: UE 位置
+            current_satellite: 當前接入衛星
+            candidate_satellites: 候選切換衛星列表
+            search_range_seconds: 搜尋範圍（秒）
+            
+        Returns:
+            切換時機預測結果
+        """
+        self.logger.info(
+            "開始預測切換時機",
+            ue_id=ue_id,
+            current_satellite=current_satellite,
+            candidate_count=len(candidate_satellites),
+        )
+
+        current_time = time.time()
+        search_end_time = current_time + search_range_seconds
+
+        ue_location = {
+            "lat": ue_position.latitude,
+            "lon": ue_position.longitude,
+            "alt": ue_position.altitude / 1000,
+        }
+
+        handover_predictions = []
+
+        for target_satellite in candidate_satellites:
+            if target_satellite == current_satellite:
+                continue
+
+            try:
+                # 使用二分搜尋計算精確切換時間
+                handover_time = await self.tle_bridge.binary_search_handover_time(
+                    ue_id=ue_id,
+                    ue_position=ue_location,
+                    source_satellite=str(current_satellite),
+                    target_satellite=str(target_satellite),
+                    t_start=current_time,
+                    t_end=search_end_time,
+                )
+
+                handover_predictions.append({
+                    "target_satellite": target_satellite,
+                    "handover_time": datetime.fromtimestamp(handover_time).isoformat(),
+                    "handover_timestamp": handover_time,
+                    "time_to_handover_seconds": handover_time - current_time,
+                })
+
+            except Exception as e:
+                self.logger.warning(
+                    f"預測到衛星 {target_satellite} 的切換時機失敗",
+                    error=str(e)
+                )
+
+        # 排序，最近的切換時間在前
+        handover_predictions.sort(key=lambda x: x["handover_timestamp"])
+
+        result = {
+            "ue_id": ue_id,
+            "current_satellite": current_satellite,
+            "prediction_time": datetime.utcnow().isoformat(),
+            "handover_predictions": handover_predictions,
+            "next_handover": handover_predictions[0] if handover_predictions else None,
+        }
+
+        self.logger.info(
+            "切換時機預測完成",
+            ue_id=ue_id,
+            predicted_handovers=len(handover_predictions),
+            next_handover_seconds=result["next_handover"]["time_to_handover_seconds"] if result["next_handover"] else None,
+        )
+
+        return result
+
+    async def sync_tle_data(self) -> Dict[str, Any]:
+        """
+        同步 TLE 資料
+        
+        Returns:
+            同步結果
+        """
+        self.logger.info("開始同步 TLE 資料")
+        
+        sync_result = await self.tle_bridge.sync_tle_updates_from_simworld()
+        
+        if sync_result.get("success"):
+            self.logger.info(
+                "TLE 資料同步成功",
+                synchronized_count=sync_result.get("synchronized_count"),
+            )
+        else:
+            self.logger.error("TLE 資料同步失敗", error=sync_result.get("error"))
+        
+        return sync_result
+
+    async def preload_critical_satellites(
+        self, critical_satellite_ids: List[int]
+    ) -> Dict[str, Any]:
+        """
+        預載關鍵衛星資料
+        
+        Args:
+            critical_satellite_ids: 關鍵衛星 ID 列表
+            
+        Returns:
+            預載結果
+        """
+        satellite_ids_str = [str(sid) for sid in critical_satellite_ids]
+        
+        preload_result = await self.tle_bridge.preload_critical_satellites(
+            satellite_ids_str
+        )
+        
+        self.logger.info(
+            "關鍵衛星資料預載完成",
+            preloaded_count=preload_result.get("preloaded_satellites"),
+            success_count=preload_result.get("position_success_count"),
+        )
+        
+        return preload_result
+
+    async def get_tle_health_status(self) -> Dict[str, Any]:
+        """
+        獲取 TLE 資料健康狀態
+        
+        Returns:
+            健康狀態資訊
+        """
+        health_status = await self.tle_bridge.get_tle_health_check()
+        
+        self.logger.debug(
+            "TLE 健康狀態檢查",
+            simworld_status=health_status.get("simworld_status"),
+            success=health_status.get("success"),
+        )
+        
+        return health_status

@@ -1,0 +1,67 @@
+{
+  "total_tests": 12,
+  "passed_tests": 12,
+  "failed_tests": 0,
+  "test_details": [
+    {
+      "test_name": "test_simworld_connection",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:06.764563"
+    },
+    {
+      "test_name": "test_netstack_connection",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:06.766954"
+    },
+    {
+      "test_name": "test_tle_bridge_service",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:06.767750"
+    },
+    {
+      "test_name": "test_satellite_gnb_mapping",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:06.772111"
+    },
+    {
+      "test_name": "test_orbit_prediction",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:06.789649"
+    },
+    {
+      "test_name": "test_batch_position_retrieval",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:06.796778"
+    },
+    {
+      "test_name": "test_binary_search_handover",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:06.884912"
+    },
+    {
+      "test_name": "test_cache_management",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:06.963601"
+    },
+    {
+      "test_name": "test_critical_satellite_preload",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:07.024073"
+    },
+    {
+      "test_name": "test_tle_sync",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:07.026603"
+    },
+    {
+      "test_name": "test_health_checks",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:07.028874"
+    },
+    {
+      "test_name": "test_api_endpoints",
+      "status": "PASSED",
+      "timestamp": "2025-06-14T16:44:07.034151"
+    }
+  ]
+}
