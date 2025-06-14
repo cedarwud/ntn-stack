@@ -315,9 +315,9 @@ def _generate_mock_satellites(ue_position: tuple, scenario_type: str) -> List[Di
     
     satellites = []
     satellite_names = [
-        "STARLINK-1007", "STARLINK-1008", "STARLINK-1009", "STARLINK-1010",
-        "STARLINK-1011", "STARLINK-1012", "ONEWEB-0001", "ONEWEB-0002", 
-        "ONEWEB-0003", "IRIDIUM-150", "IRIDIUM-151", "GLOBALSTAR-M001"
+        "ONEWEB-0012", "ONEWEB-0010", "ONEWEB-0008", "ONEWEB-0007", "ONEWEB-0006",
+        "ONEWEB-0001", "ONEWEB-0002", "ONEWEB-0003", "ONEWEB-0004", "ONEWEB-0005",
+        "ONEWEB-0011", "ONEWEB-0013"
     ]
     
     for i in range(num_satellites):

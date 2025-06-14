@@ -7,6 +7,7 @@ import DeviceItem from '../devices/DeviceItem' // Import DeviceItem
 import { useReceiverSelection } from '../../hooks/useReceiverSelection' // Import the hook
 import { VisibleSatelliteInfo } from '../../types/satellite' // Import the new satellite type
 import { ApiRoutes } from '../../config/apiRoutes' // 引入API路由配置
+import { SATELLITE_CONFIG } from '../../config/satellite.config' // 引入衛星配置
 import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName' // 修正路徑
 
 interface SidebarProps {
@@ -27,19 +28,14 @@ interface SidebarProps {
     onUavAnimationChange: (val: boolean) => void // Parent will use selected IDs
     onSelectedReceiversChange?: (selectedIds: number[]) => void // New prop
     onSatelliteDataUpdate?: (satellites: VisibleSatelliteInfo[]) => void // 衛星資料更新回調
-    onSatelliteCountChange?: (count: number) => void // 衛星顯示數量變更回調
-    satelliteDisplayCount?: number // 衛星顯示數量
     satelliteEnabled?: boolean // 衛星開關狀態
     onSatelliteEnabledChange?: (enabled: boolean) => void // 衛星開關回調
 }
 
-// Helper function to fetch visible satellites
-async function fetchVisibleSatellites(
-    count: number,
-    minElevation: number = 0
-): Promise<VisibleSatelliteInfo[]> {
-    // 使用ApiRoutes定義的路徑
-    const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?count=${count}&min_elevation_deg=${minElevation}`
+// Helper function to fetch visible satellites using fixed config
+async function fetchVisibleSatellites(): Promise<VisibleSatelliteInfo[]> {
+    // 使用固定配置參數
+    const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?count=${SATELLITE_CONFIG.VISIBLE_COUNT}&min_elevation_deg=${SATELLITE_CONFIG.MIN_ELEVATION}`
     try {
         const response = await fetch(apiUrl)
         if (!response.ok) {
@@ -79,8 +75,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     onUavAnimationChange,
     onSelectedReceiversChange, // 接收從父組件傳來的回調函數
     onSatelliteDataUpdate, // 新增衛星資料更新回調
-    onSatelliteCountChange, // 新增衛星顯示數量變更回調
-    satelliteDisplayCount: propSatelliteDisplayCount = 10, // 使用props或默認值
     satelliteEnabled, // 衛星開關狀態
     onSatelliteEnabledChange, // 衛星開關回調
 }) => {
@@ -105,26 +99,18 @@ const Sidebar: React.FC<SidebarProps> = ({
     const [showJammerDevices, setShowJammerDevices] = useState(false)
 
     // 新增：Skyfield 衛星資料相關狀態
-    const [satelliteDisplayCount, setSatelliteDisplayCount] = useState<number>(
-        propSatelliteDisplayCount
-    )
     const [skyfieldSatellites, setSkyfieldSatellites] = useState<
         VisibleSatelliteInfo[]
     >([])
     const [showSkyfieldSection, setShowSkyfieldSection] =
         useState<boolean>(false)
     const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false)
-    const [minElevation, setMinElevation] = useState<number>(0) // 新增：最低仰角過濾
 
     // 新增：衛星數據自動刷新定時器
     const satelliteRefreshIntervalRef = useRef<ReturnType<
         typeof setInterval
     > | null>(null)
 
-    // 監聽 prop 變化，同步更新本地狀態
-    useEffect(() => {
-        setSatelliteDisplayCount(propSatelliteDisplayCount)
-    }, [propSatelliteDisplayCount])
 
     // Effect to fetch satellites when count changes or on mount
     useEffect(() => {
@@ -140,10 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             }
 
             setLoadingSatellites(true)
-            const satellites = await fetchVisibleSatellites(
-                satelliteDisplayCount,
-                minElevation // 使用最低仰角過濾
-            )
+            const satellites = await fetchVisibleSatellites()
 
             // 默認按仰角從高到低排序
             let sortedSatellites = [...satellites]
@@ -187,19 +170,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             }
         }
     }, [
-        satelliteDisplayCount,
-        minElevation,
         onSatelliteDataUpdate,
         satelliteEnabled,
     ])
 
-    // 處理衛星顯示數量變更
-    const handleSatelliteCountChange = (count: number) => {
-        setSatelliteDisplayCount(count)
-        if (onSatelliteCountChange) {
-            onSatelliteCountChange(count)
-        }
-    }
+    // 移除衛星顯示數量變更處理函數
 
     // 當 devices 更新時，初始化或更新本地輸入狀態
     useEffect(() => {
@@ -533,64 +508,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </>
             )}
 
-            {/* 衛星設置區域 - 獨立於API狀態 */}
-            {satelliteEnabled && (
-                <div className="satellite-settings-section">
-                    <div className="satellite-settings">
-                        <div className="setting-row">
-                            <label htmlFor="satellite-count-input">
-                                衛星數量
-                            </label>
-                            <input
-                                id="satellite-count-input"
-                                type="number"
-                                value={satelliteDisplayCount}
-                                onChange={(e) => {
-                                    const value = parseInt(e.target.value, 10)
-                                    if (
-                                        !isNaN(value) &&
-                                        value > 0 &&
-                                        value <= 100
-                                    ) {
-                                        handleSatelliteCountChange(value)
-                                    } else if (e.target.value === '') {
-                                        handleSatelliteCountChange(1)
-                                    }
-                                }}
-                                min="1"
-                                max="100"
-                                className="setting-input"
-                            />
-                        </div>
-
-                        <div className="setting-row">
-                            <label htmlFor="min-elevation-input">
-                                最低仰角
-                            </label>
-                            <input
-                                id="min-elevation-input"
-                                type="number"
-                                value={minElevation}
-                                onChange={(e) => {
-                                    const value = parseInt(e.target.value, 10)
-                                    if (
-                                        !isNaN(value) &&
-                                        value >= 0 &&
-                                        value <= 90
-                                    ) {
-                                        setMinElevation(value)
-                                    } else if (e.target.value === '') {
-                                        setMinElevation(0)
-                                    }
-                                }}
-                                min="0"
-                                max="90"
-                                className="setting-input"
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <div className="sidebar-actions-combined">
                 <button onClick={onAddDevice} className="add-device-btn">
@@ -850,63 +767,5 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
     )
 }
-
-// 添加新的CSS樣式
-const styleSheet = document.createElement('style')
-styleSheet.type = 'text/css'
-styleSheet.innerHTML = `
-.api-status-section {
-    padding: 8px;
-    margin-bottom: 10px;
-    background-color: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-    text-align: center;
-}
-
-.satellite-settings-section {
-    padding: 8px;
-    margin-bottom: 10px;
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
-}
-
-.satellite-controls-combined {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 15px;
-    width: 100%;
-}
-
-.satellite-control-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex: 0 0 auto;
-}
-
-.satellite-control-item label {
-    font-size: 12px;
-    color: #ccc;
-    white-space: nowrap;
-}
-
-.satellite-control-item .satellite-count-input-field {
-    width: 45px;
-    padding: 2px 4px;
-    border: 1px solid #555;
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    border-radius: 3px;
-    font-size: 11px;
-    flex-shrink: 0;
-}
-
-.satellite-controls-row {
-    display: flex;
-    width: 100%;
-}
-`
-document.head.appendChild(styleSheet)
 
 export default Sidebar
