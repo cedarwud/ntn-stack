@@ -28,7 +28,7 @@ import AutomatedReportGenerator from '../viewers/AutomatedReportGenerator'
 import HandoverAnomalyVisualization from './visualization/HandoverAnomalyVisualization'
 import HandoverAnimation3D from './visualization/HandoverAnimation3D'
 import PredictionPath3D from './visualization/PredictionPath3D'
-import CleanSatelliteRenderer from '../visualization/CleanSatelliteRenderer'
+import DynamicSatelliteRenderer from '../visualization/DynamicSatelliteRenderer'
 
 export interface MainSceneProps {
     devices: any[]
@@ -74,7 +74,6 @@ export interface MainSceneProps {
     satellites?: any[]
     satelliteEnabled?: boolean
     satelliteSpeedMultiplier?: number
-    showOrbitTracks?: boolean
     currentConnection?: any
     predictedConnection?: any
 }
@@ -116,7 +115,6 @@ const MainScene: React.FC<MainSceneProps> = ({
     satellites = [],
     satelliteEnabled = false,
     satelliteSpeedMultiplier = 60,
-    showOrbitTracks = true,
 }) => {
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
@@ -363,8 +361,8 @@ const MainScene: React.FC<MainSceneProps> = ({
                 enabled={automatedReportGenerationEnabled}
             />
             
-            {/* 衛星渲染器 - 使用乾淨的新邏輯 */}
-            <CleanSatelliteRenderer
+            {/* 衛星渲染器 - 動態軌跡模擬 */}
+            <DynamicSatelliteRenderer
                 satellites={satellites}
                 enabled={satelliteEnabled}
                 currentConnection={currentConnection}

@@ -69,7 +69,6 @@ interface SceneViewProps {
     // 衛星相關 props（動畫永遠開啟）
     satelliteEnabled?: boolean
     satelliteSpeedMultiplier?: number
-    showOrbitTracks?: boolean
 }
 
 export default function SceneView({
@@ -115,7 +114,6 @@ export default function SceneView({
     intelligentRecommendationEnabled = false,
     satelliteEnabled = false,
     satelliteSpeedMultiplier = 60,
-    showOrbitTracks = true,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [satellites, setSatellites] = useState<any[]>([])
@@ -293,7 +291,6 @@ export default function SceneView({
                         satellites={satellites}
                         satelliteEnabled={satelliteEnabled}
                         satelliteSpeedMultiplier={satelliteSpeedMultiplier}
-                        showOrbitTracks={showOrbitTracks}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}
