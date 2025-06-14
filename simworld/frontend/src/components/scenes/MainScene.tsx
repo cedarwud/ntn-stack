@@ -28,7 +28,7 @@ import AutomatedReportGenerator from '../viewers/AutomatedReportGenerator'
 import HandoverAnomalyVisualization from './visualization/HandoverAnomalyVisualization'
 import HandoverAnimation3D from './visualization/HandoverAnimation3D'
 import PredictionPath3D from './visualization/PredictionPath3D'
-import DynamicSatelliteRenderer from '../visualization/DynamicSatelliteRenderer'
+import CleanSatelliteRenderer from '../visualization/CleanSatelliteRenderer'
 
 export interface MainSceneProps {
     devices: any[]
@@ -363,15 +363,14 @@ const MainScene: React.FC<MainSceneProps> = ({
                 enabled={automatedReportGenerationEnabled}
             />
             
-            {/* 衛星渲染器 - 動畫永遠開啟 */}
-            <DynamicSatelliteRenderer
+            {/* 衛星渲染器 - 使用乾淨的新邏輯 */}
+            <CleanSatelliteRenderer
                 satellites={satellites}
                 enabled={satelliteEnabled}
                 currentConnection={currentConnection}
                 predictedConnection={predictedConnection}
                 showLabels={true}
                 speedMultiplier={satelliteSpeedMultiplier}
-                showOrbitTracks={showOrbitTracks}
             />
         </>
     )
