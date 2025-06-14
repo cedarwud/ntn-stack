@@ -180,30 +180,30 @@ class HandoverService:
             List[Dict]: 可見衛星列表
         """
         # 這裡使用模擬數據，實際應該調用衛星軌道服務
-        # 模擬 Starlink/OneWeb 等 LEO 星座
+        # 模擬 OneWeb LEO 星座
         mock_satellites = [
             {
-                'norad_id': '44713',
-                'name': 'STARLINK-1007',
+                'norad_id': '44057',
+                'name': 'ONEWEB-0012',
                 'elevation_deg': 45.5 + (hash(str(timestamp)) % 20) / 10,
                 'azimuth_deg': 180.0 + (hash(str(timestamp)) % 180),
-                'distance_km': 550.0 + (hash(str(timestamp)) % 100),
+                'distance_km': 1150.0 + (hash(str(timestamp)) % 100),  # OneWeb 高度約 1200km
                 'signal_strength_dbm': -65.0 - (hash(str(timestamp)) % 20)
             },
             {
-                'norad_id': '44714',
-                'name': 'STARLINK-1008',
+                'norad_id': '44058',
+                'name': 'ONEWEB-0010',
                 'elevation_deg': 35.2 + (hash(str(timestamp) + "1") % 25) / 10,
                 'azimuth_deg': 90.0 + (hash(str(timestamp) + "1") % 180),
-                'distance_km': 580.0 + (hash(str(timestamp) + "1") % 120),
+                'distance_km': 1180.0 + (hash(str(timestamp) + "1") % 120),  # OneWeb 高度約 1200km
                 'signal_strength_dbm': -70.0 - (hash(str(timestamp) + "1") % 25)
             },
             {
-                'norad_id': '44715',
-                'name': 'STARLINK-1009',
+                'norad_id': '44059',
+                'name': 'ONEWEB-0008',
                 'elevation_deg': 28.8 + (hash(str(timestamp) + "2") % 15) / 10,
                 'azimuth_deg': 270.0 + (hash(str(timestamp) + "2") % 90),
-                'distance_km': 620.0 + (hash(str(timestamp) + "2") % 80),
+                'distance_km': 1220.0 + (hash(str(timestamp) + "2") % 80),  # OneWeb 高度約 1200km
                 'signal_strength_dbm': -75.0 - (hash(str(timestamp) + "2") % 15)
             }
         ]

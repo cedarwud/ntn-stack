@@ -509,6 +509,135 @@ td {
   overflow: hidden;
 }
 
+/* 衛星動畫控制樣式 */
+.satellite-animation-controls {
+  padding: 15px;
+  background: rgba(25, 35, 50, 0.9);
+  border: 1px solid rgba(64, 128, 255, 0.3);
+  border-radius: 6px;
+  margin-top: 10px;
+  
+  .control-section-title {
+    color: #4080ff;
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(64, 128, 255, 0.2);
+  }
+  
+  .control-item {
+    margin-bottom: 12px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
+  .control-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #e1e8ed;
+    font-size: 0.9rem;
+    cursor: pointer;
+    
+    .control-checkbox {
+      accent-color: #4080ff;
+    }
+    
+    .control-text {
+      user-select: none;
+    }
+  }
+  
+  .control-label {
+    color: #c8d0d8;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  
+  .speed-slider {
+    width: 100%;
+    height: 6px;
+    background: rgba(64, 128, 255, 0.2);
+    border-radius: 3px;
+    outline: none;
+    accent-color: #4080ff;
+    margin-bottom: 6px;
+    
+    &::-webkit-slider-thumb {
+      background: #4080ff;
+      box-shadow: 0 0 4px rgba(64, 128, 255, 0.5);
+    }
+  }
+  
+  .speed-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #8899aa;
+  }
+  
+  .speed-preset-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    
+    .speed-preset-btn {
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      background: rgba(40, 50, 70, 0.8);
+      color: #c8d0d8;
+      border: 1px solid rgba(64, 128, 255, 0.3);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background: rgba(64, 128, 255, 0.2);
+        border-color: rgba(64, 128, 255, 0.6);
+      }
+      
+      &.active {
+        background: rgba(64, 128, 255, 0.3);
+        border-color: #4080ff;
+        color: #ffffff;
+        box-shadow: 0 0 6px rgba(64, 128, 255, 0.3);
+      }
+    }
+  }
+  
+  .time-conversion {
+    background: rgba(30, 40, 55, 0.6);
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(64, 128, 255, 0.2);
+    
+    .conversion-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      font-size: 0.8rem;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      .conversion-label {
+        color: #8899aa;
+      }
+      
+      .conversion-value {
+        color: #4080ff;
+        font-weight: 500;
+      }
+    }
+  }
+}
+
 .control-panel-header {
   display: flex;
   justify-content: space-between;
