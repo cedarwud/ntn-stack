@@ -96,8 +96,6 @@ interface SidebarProps {
     // 衛星動畫控制（動畫永遠開啟）
     satelliteSpeedMultiplier?: number
     onSatelliteSpeedChange?: (speed: number) => void
-    showOrbitTracks?: boolean
-    onShowOrbitTracksChange?: (show: boolean) => void
     
     // 3D 動畫狀態更新回調
     onHandoverStateChange?: (state: any) => void
@@ -242,8 +240,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     // 衛星動畫控制 props（動畫永遠開啟）
     satelliteSpeedMultiplier = 60,
     onSatelliteSpeedChange,
-    showOrbitTracks = true,
-    onShowOrbitTracksChange,
 }) => {
     // 現有狀態
     const [orientationInputs, setOrientationInputs] = useState<{
@@ -686,18 +682,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                     <div className="satellite-animation-controls">
                                         <div className="control-section-title">🎭 衛星動畫控制</div>
                                         
-                                        {/* 軌跡線顯示開關 */}
-                                        <div className="control-item">
-                                            <label className="control-checkbox-label">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={showOrbitTracks}
-                                                    onChange={(e) => onShowOrbitTracksChange && onShowOrbitTracksChange(e.target.checked)}
-                                                    className="control-checkbox"
-                                                />
-                                                <span className="control-text">顯示軌跡線</span>
-                                            </label>
-                                        </div>
 
                                         {/* 速度控制滑塊 */}
                                         <div className="control-item">
