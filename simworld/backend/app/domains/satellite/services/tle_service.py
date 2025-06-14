@@ -9,6 +9,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import sgp4.api as sgp4
+import math
 from sgp4.earth_gravity import wgs72
 from sgp4.io import twoline2rv
 
@@ -129,7 +130,7 @@ class TLEService(TLEServiceInterface):
                     async with session.get(url) as response:
                         if response.status == 200:
                             text = await response.text()
-                            parsed_tle = self._parse_tle_text(text)
+                            parsed_tle = await self._parse_tle_text(text)
                             results.extend(parsed_tle)
                             logger.info(
                                 f"從 Celestrak 獲取了 {len(parsed_tle)} 條 {cat} 類別的 TLE 數據"
@@ -435,9 +436,9 @@ class TLEService(TLEServiceInterface):
 
             # 從 TLE 獲取各種軌道參數
             result = {
-                "inclination_deg": satellite.inclo * 180.0 / sgp4.pi,  # 軌道傾角（度）
+                "inclination_deg": satellite.inclo * 180.0 / math.pi,  # 軌道傾角（度）
                 "period_minutes": 2
-                * sgp4.pi
+                * math.pi
                 / (satellite.no_kozai * 60),  # 軌道周期（分鐘）
                 "apogee_km": (satellite.alta + 1.0) * 6378.137,  # 遠地點高度（公里）
                 "perigee_km": (satellite.altp + 1.0) * 6378.137,  # 近地點高度（公里）

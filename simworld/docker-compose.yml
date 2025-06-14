@@ -54,6 +54,8 @@ services:
             PYTHONUNBUFFERED: '1'
             # 資料庫連接 URL
             DATABASE_URL: postgresql+asyncpg://sat:123@postgis:5432/ntn_stack
+            # Redis 連接 URL (連接到 NetStack 的 Redis)
+            REDIS_URL: redis://netstack-redis:6379/0
 
         # === GPU 支持 (使用 GPU 模式時取消註釋) ===
         # deploy:
@@ -66,8 +68,7 @@ services:
 
         networks:
             - sionna-net
-            # netstack-core 網路可選，只有在 NetStack 啟動時才連接
-            # - netstack-core
+            - netstack-core
         depends_on: # <-- 讓 FastAPI 服務等待 DB 服務啟動 (healthcheck 更可靠)
             postgis:
                 condition: service_healthy # 等待 DB healthcheck 成功
@@ -105,10 +106,9 @@ services:
 networks:
     sionna-net:
         driver: bridge
-    # netstack-core 網路註釋掉，讓 SimWorld 可以獨立啟動
-    # netstack-core:
-    #     external: true
-    #     name: compose_netstack-core # 引用 NetStack 的外部網路
+    netstack-core:
+        external: true
+        name: compose_netstack-core
 
 volumes: # <-- 新增 volume 定義
     postgres_data: # 用於持久化 PostgreSQL 數據

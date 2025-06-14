@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import math
 
 import numpy as np
-from skyfield.api import load, wgs84, EarthSatellite
+from skyfield.api import load, wgs84, EarthSatellite, utc
 from skyfield.elementslib import osculating_elements_of
 from skyfield.timelib import Time
 
@@ -68,16 +68,14 @@ class OrbitService(OrbitServiceInterface):
         if not satellite:
             raise ValueError(f"找不到 ID 為 {satellite_id} 的衛星")
 
-        if (
-            not satellite.tle_data
-            or "line1" not in satellite.tle_data
-            or "line2" not in satellite.tle_data
-        ):
+        # 解析TLE數據
+        tle_data = satellite.get_tle_data()
+        if not tle_data:
             raise ValueError(f"衛星 {satellite.name} 缺少有效的 TLE 數據")
 
         # 創建 Skyfield 衛星對象
         sf_satellite = self._create_skyfield_satellite(
-            satellite.tle_data["line1"], satellite.tle_data["line2"]
+            tle_data.line1, tle_data.line2
         )
 
         # 生成時間點
@@ -89,6 +87,9 @@ class OrbitService(OrbitServiceInterface):
 
         for i in range(steps):
             current_time = start_time + timedelta(seconds=i * step_seconds)
+            # 確保時間帶有UTC時區信息
+            if current_time.tzinfo is None:
+                current_time = current_time.replace(tzinfo=utc)
             t = ts.from_datetime(current_time)
 
             # 計算衛星位置（地心慣性坐標系）
@@ -131,16 +132,14 @@ class OrbitService(OrbitServiceInterface):
         if not satellite:
             raise ValueError(f"找不到 ID 為 {satellite_id} 的衛星")
 
-        if (
-            not satellite.tle_data
-            or "line1" not in satellite.tle_data
-            or "line2" not in satellite.tle_data
-        ):
+        # 解析TLE數據
+        tle_data = satellite.get_tle_data()
+        if not tle_data:
             raise ValueError(f"衛星 {satellite.name} 缺少有效的 TLE 數據")
 
         # 創建 Skyfield 衛星對象
         sf_satellite = self._create_skyfield_satellite(
-            satellite.tle_data["line1"], satellite.tle_data["line2"]
+            tle_data.line1, tle_data.line2
         )
 
         # 創建觀測者位置
@@ -150,7 +149,11 @@ class OrbitService(OrbitServiceInterface):
             elevation_m=observer_location.altitude or 0.0,
         )
 
-        # 創建時間範圍
+        # 創建時間範圍，確保UTC時區
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=utc)
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=utc)
         t0 = ts.from_datetime(start_time)
         t1 = ts.from_datetime(end_time)
 
@@ -248,16 +251,14 @@ class OrbitService(OrbitServiceInterface):
         if not satellite:
             raise ValueError(f"找不到 ID 為 {satellite_id} 的衛星")
 
-        if (
-            not satellite.tle_data
-            or "line1" not in satellite.tle_data
-            or "line2" not in satellite.tle_data
-        ):
+        # 解析TLE數據
+        tle_data = satellite.get_tle_data()
+        if not tle_data:
             raise ValueError(f"衛星 {satellite.name} 缺少有效的 TLE 數據")
 
         # 創建 Skyfield 衛星對象
         sf_satellite = self._create_skyfield_satellite(
-            satellite.tle_data["line1"], satellite.tle_data["line2"]
+            tle_data.line1, tle_data.line2
         )
 
         # 當前時間
@@ -267,15 +268,18 @@ class OrbitService(OrbitServiceInterface):
         geocentric = sf_satellite.at(t)
         subpoint = geocentric.subpoint()
 
+        # 計算速度
+        velocity_data = self._calculate_velocity(sf_satellite, t)
+        
         # 基本位置信息
         position = {
             "satellite_id": satellite_id,
             "satellite_name": satellite.name,
             "timestamp": t.utc_datetime(),
-            "latitude": subpoint.latitude.degrees,
-            "longitude": subpoint.longitude.degrees,
-            "altitude": subpoint.elevation.km,
-            "velocity": self._calculate_velocity(sf_satellite, t),
+            "latitude": float(subpoint.latitude.degrees),
+            "longitude": float(subpoint.longitude.degrees),
+            "altitude": float(subpoint.elevation.km),
+            "velocity": float(velocity_data.get("speed", 0.0)),  # 只返回速度大小
         }
 
         # 如果提供了觀測者位置，計算相對於觀測者的數據
@@ -292,10 +296,10 @@ class OrbitService(OrbitServiceInterface):
 
             position.update(
                 {
-                    "elevation": alt.degrees,
-                    "azimuth": az.degrees,
-                    "range_km": distance.km,
-                    "visible": alt.degrees > 0,  # 如果仰角 > 0，則衛星可見
+                    "elevation": float(alt.degrees),
+                    "azimuth": float(az.degrees),
+                    "range": float(distance.km),
+                    "visible": bool(alt.degrees > 0),  # 如果仰角 > 0，則衛星可見
                 }
             )
 
@@ -306,12 +310,18 @@ class OrbitService(OrbitServiceInterface):
     ) -> Dict[str, float]:
         """計算衛星速度"""
         try:
-            # 獲取衛星位置和速度向量
-            geocentric = satellite.at(t)
-
-            # 從地心慣性坐標中提取速度分量
-            _, velocity, _ = geocentric._position_and_velocity_teme_km()
-
+            # 計算衛星在短時間間隔內的位置變化來估算速度
+            dt = 1.0 / 86400.0  # 1秒對應的天數
+            t1 = t
+            t2 = ts.tt_jd(t.tt + dt)
+            
+            # 獲取兩個時間點的位置
+            pos1 = satellite.at(t1).position.km
+            pos2 = satellite.at(t2).position.km
+            
+            # 計算速度向量 (km/s)
+            velocity = [(pos2[i] - pos1[i]) / 1.0 for i in range(3)]  # 1秒間隔
+            
             # 計算速度大小
             speed = math.sqrt(sum(v * v for v in velocity))
 
@@ -329,7 +339,7 @@ class OrbitService(OrbitServiceInterface):
         self,
         satellite_id: int,
         start_time: datetime,
-        revolutions: float = 1.0,
+        duration_minutes: int = 100,
         step_seconds: int = 60,
     ) -> Dict[str, Any]:
         """計算衛星地面軌跡"""
@@ -341,27 +351,20 @@ class OrbitService(OrbitServiceInterface):
         if not satellite:
             raise ValueError(f"找不到 ID 為 {satellite_id} 的衛星")
 
-        if (
-            not satellite.tle_data
-            or "line1" not in satellite.tle_data
-            or "line2" not in satellite.tle_data
-        ):
+        # 解析TLE數據
+        tle_data = satellite.get_tle_data()
+        if not tle_data:
             raise ValueError(f"衛星 {satellite.name} 缺少有效的 TLE 數據")
 
         # 創建 Skyfield 衛星對象
         sf_satellite = self._create_skyfield_satellite(
-            satellite.tle_data["line1"], satellite.tle_data["line2"]
-        )
-
-        # 估算軌道周期（秒）
-        t = ts.from_datetime(start_time)
-        elements = osculating_elements_of(sf_satellite.at(t))
-        period_minutes = (
-            2 * math.pi * math.sqrt(elements.semi_major_axis.km**3 / 398600.4418) / 60
+            tle_data.line1, tle_data.line2
         )
 
         # 計算結束時間
-        end_time = start_time + timedelta(minutes=period_minutes * revolutions)
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=utc)
+        end_time = start_time + timedelta(minutes=duration_minutes)
 
         # 生成軌跡點
         result = await self.propagate_orbit(

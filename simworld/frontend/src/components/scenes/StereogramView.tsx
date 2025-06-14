@@ -66,6 +66,10 @@ interface SceneViewProps {
     // 階段八功能狀態
     predictiveMaintenanceEnabled?: boolean
     intelligentRecommendationEnabled?: boolean
+    // 衛星相關 props（動畫永遠開啟）
+    satelliteEnabled?: boolean
+    satelliteSpeedMultiplier?: number
+    showOrbitTracks?: boolean
 }
 
 export default function SceneView({
@@ -109,8 +113,27 @@ export default function SceneView({
     automatedReportGenerationEnabled = false,
     predictiveMaintenanceEnabled = false,
     intelligentRecommendationEnabled = false,
+    satelliteEnabled = false,
+    satelliteSpeedMultiplier = 60,
+    showOrbitTracks = true,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
+    const [satellites, setSatellites] = useState<any[]>([])
+    
+    // 測試用：載入衛星數據
+    useEffect(() => {
+        if (satelliteEnabled) {
+            fetch('/api/v1/satellite-ops/visible_satellites?count=24&min_elevation_deg=5')
+                .then(res => res.json())
+                .then(data => {
+                    console.log('StereogramView: 載入衛星數據:', data.satellites?.length || 0)
+                    setSatellites(data.satellites || [])
+                })
+                .catch(err => console.error('StereogramView: 衛星數據載入失敗:', err))
+        } else {
+            setSatellites([])
+        }
+    }, [satelliteEnabled])
 
     // WebGL 上下文恢復處理
     const handleWebGLContextLost = useCallback((event: Event) => {
@@ -267,6 +290,10 @@ export default function SceneView({
                         testResultsVisualizationEnabled={testResultsVisualizationEnabled}
                         performanceTrendAnalysisEnabled={performanceTrendAnalysisEnabled}
                         automatedReportGenerationEnabled={automatedReportGenerationEnabled}
+                        satellites={satellites}
+                        satelliteEnabled={satelliteEnabled}
+                        satelliteSpeedMultiplier={satelliteSpeedMultiplier}
+                        showOrbitTracks={showOrbitTracks}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}

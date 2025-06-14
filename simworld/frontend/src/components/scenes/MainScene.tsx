@@ -28,6 +28,7 @@ import AutomatedReportGenerator from '../viewers/AutomatedReportGenerator'
 import HandoverAnomalyVisualization from './visualization/HandoverAnomalyVisualization'
 import HandoverAnimation3D from './visualization/HandoverAnimation3D'
 import PredictionPath3D from './visualization/PredictionPath3D'
+import DynamicSatelliteRenderer from '../visualization/DynamicSatelliteRenderer'
 
 export interface MainSceneProps {
     devices: any[]
@@ -69,6 +70,13 @@ export interface MainSceneProps {
     testResultsVisualizationEnabled?: boolean
     performanceTrendAnalysisEnabled?: boolean
     automatedReportGenerationEnabled?: boolean
+    // 衛星相關 props（動畫永遠開啟）
+    satellites?: any[]
+    satelliteEnabled?: boolean
+    satelliteSpeedMultiplier?: number
+    showOrbitTracks?: boolean
+    currentConnection?: any
+    predictedConnection?: any
 }
 
 const UAV_SCALE = 10
@@ -105,6 +113,10 @@ const MainScene: React.FC<MainSceneProps> = ({
     testResultsVisualizationEnabled = false,
     performanceTrendAnalysisEnabled = false,
     automatedReportGenerationEnabled = false,
+    satellites = [],
+    satelliteEnabled = false,
+    satelliteSpeedMultiplier = 60,
+    showOrbitTracks = true,
 }) => {
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
@@ -349,6 +361,17 @@ const MainScene: React.FC<MainSceneProps> = ({
             <AutomatedReportGenerator 
                 devices={devices} 
                 enabled={automatedReportGenerationEnabled}
+            />
+            
+            {/* 衛星渲染器 - 動畫永遠開啟 */}
+            <DynamicSatelliteRenderer
+                satellites={satellites}
+                enabled={satelliteEnabled}
+                currentConnection={currentConnection}
+                predictedConnection={predictedConnection}
+                showLabels={true}
+                speedMultiplier={satelliteSpeedMultiplier}
+                showOrbitTracks={showOrbitTracks}
             />
         </>
     )

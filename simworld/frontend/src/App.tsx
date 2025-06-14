@@ -45,9 +45,11 @@ function App({ activeView }: AppProps) {
     const [skyfieldSatellites, setSkyfieldSatellites] = useState<
         VisibleSatelliteInfo[]
     >([])
-    const [satelliteDisplayCount, setSatelliteDisplayCount] =
-        useState<number>(10)
     const [satelliteEnabled, setSatelliteEnabled] = useState<boolean>(true) // 預設開啟衛星顯示
+    
+    // 衛星動畫控制狀態（動畫永遠開啟，只保留速度和軌跡線控制）
+    const [satelliteSpeedMultiplier, setSatelliteSpeedMultiplier] = useState<number>(60) // 預設60倍速
+    const [showOrbitTracks, setShowOrbitTracks] = useState<boolean>(true) // 預設顯示軌跡線
 
     const [activeComponent, setActiveComponent] =
         useState<string>(initialComponent)
@@ -209,9 +211,6 @@ function App({ activeView }: AppProps) {
         []
     )
 
-    const handleSatelliteCountChange = useCallback((count: number) => {
-        setSatelliteDisplayCount(count)
-    }, [])
 
     const handleManualControl = useCallback(
         (
@@ -324,6 +323,10 @@ function App({ activeView }: AppProps) {
                         // 階段八功能狀態
                         predictiveMaintenanceEnabled={predictiveMaintenanceEnabled}
                         intelligentRecommendationEnabled={intelligentRecommendationEnabled}
+                        // 衛星功能狀態
+                        satelliteEnabled={satelliteEnabled}
+                        satelliteSpeedMultiplier={satelliteSpeedMultiplier}
+                        showOrbitTracks={showOrbitTracks}
                     />
                 )
             default:
@@ -376,6 +379,8 @@ function App({ activeView }: AppProps) {
         automatedReportGenerationEnabled,
         predictiveMaintenanceEnabled,
         intelligentRecommendationEnabled,
+        satelliteSpeedMultiplier,
+        showOrbitTracks,
     ])
 
     if (loading) {
@@ -415,12 +420,6 @@ function App({ activeView }: AppProps) {
                                     }
                                     onSatelliteDataUpdate={
                                         handleSatelliteDataUpdate
-                                    }
-                                    onSatelliteCountChange={
-                                        handleSatelliteCountChange
-                                    }
-                                    satelliteDisplayCount={
-                                        satelliteDisplayCount
                                     }
                                     satelliteEnabled={satelliteEnabled}
                                     onSatelliteEnabledChange={
@@ -491,6 +490,11 @@ function App({ activeView }: AppProps) {
                                         setIsTransitioning(isTransitioning)
                                         setTransitionProgress(progress)
                                     }}
+                                    // 衛星動畫控制 props（動畫永遠開啟）
+                                    satelliteSpeedMultiplier={satelliteSpeedMultiplier}
+                                    onSatelliteSpeedChange={setSatelliteSpeedMultiplier}
+                                    showOrbitTracks={showOrbitTracks}
+                                    onShowOrbitTracksChange={setShowOrbitTracks}
                                 />
                             </ErrorBoundary>
                         }

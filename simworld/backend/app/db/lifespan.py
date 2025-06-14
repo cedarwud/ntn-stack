@@ -37,6 +37,9 @@ from app.domains.satellite.services.tle_service import synchronize_oneweb_tles
 # For Redis client management
 import redis.asyncio as aioredis
 
+# Import satellite scheduler
+from app.services.satellite_scheduler import initialize_scheduler, shutdown_scheduler
+
 logger = logging.getLogger(__name__)
 
 
@@ -259,22 +262,33 @@ async def lifespan(app: FastAPI):
         # 恢復地面站相關初始化
         await seed_default_ground_station(db_session)
 
-    # 恢復 TLE 相關同步
+    # 恢復 TLE 相關同步和啟動調度器
     if hasattr(app.state, "redis") and app.state.redis:
         try:
             # 自動同步 OneWeb TLE 資料
             logger.info("Synchronizing OneWeb TLE data in the background...")
             await synchronize_oneweb_tles(async_session_maker, app.state.redis)
+            
+            # 啟動衛星數據定期更新調度器
+            logger.info("Starting satellite data scheduler...")
+            await initialize_scheduler(app.state.redis)
         except Exception as e:
-            logger.error(f"Error during OneWeb TLE synchronization: {e}", exc_info=True)
+            logger.error(f"Error during OneWeb TLE synchronization or scheduler startup: {e}", exc_info=True)
     else:
-        logger.warning("Redis unavailable, skipping OneWeb TLE synchronization")
+        logger.warning("Redis unavailable, skipping OneWeb TLE synchronization and scheduler")
 
     logger.info("Application startup complete.")
 
     yield
 
     # 在應用程式關閉前執行
+    try:
+        # 停止衛星數據調度器
+        logger.info("Shutting down satellite data scheduler...")
+        await shutdown_scheduler()
+    except Exception as e:
+        logger.error(f"Error shutting down scheduler: {e}", exc_info=True)
+    
     if hasattr(app.state, "redis") and app.state.redis:
         logger.info("Closing Redis connection...")
         await app.state.redis.close()

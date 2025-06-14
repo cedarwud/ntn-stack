@@ -9,6 +9,7 @@ import { VisibleSatelliteInfo } from '../../types/satellite'
 import { ApiRoutes } from '../../config/apiRoutes'
 import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName'
 import HandoverManager from '../handover/HandoverManager'
+import { SATELLITE_CONFIG } from '../../config/satellite.config'
 
 interface SidebarProps {
     devices: Device[]
@@ -28,8 +29,6 @@ interface SidebarProps {
     onUavAnimationChange: (val: boolean) => void
     onSelectedReceiversChange?: (selectedIds: number[]) => void
     onSatelliteDataUpdate?: (satellites: VisibleSatelliteInfo[]) => void
-    onSatelliteCountChange?: (count: number) => void
-    satelliteDisplayCount?: number
     satelliteEnabled?: boolean
     onSatelliteEnabledChange?: (enabled: boolean) => void
     // 新增的階段四功能開關
@@ -94,6 +93,12 @@ interface SidebarProps {
     intelligentRecommendationEnabled?: boolean
     onIntelligentRecommendationChange?: (enabled: boolean) => void
     
+    // 衛星動畫控制（動畫永遠開啟）
+    satelliteSpeedMultiplier?: number
+    onSatelliteSpeedChange?: (speed: number) => void
+    showOrbitTracks?: boolean
+    onShowOrbitTracksChange?: (show: boolean) => void
+    
     // 3D 動畫狀態更新回調
     onHandoverStateChange?: (state: any) => void
     onCurrentConnectionChange?: (connection: any) => void
@@ -132,7 +137,7 @@ interface FeatureToggle {
 // Helper function to fetch visible satellites
 async function fetchVisibleSatellites(
     count: number,
-    minElevation: number = 0
+    minElevation: number
 ): Promise<VisibleSatelliteInfo[]> {
     const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?count=${count}&min_elevation_deg=${minElevation}`
     try {
@@ -172,8 +177,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onUavAnimationChange,
     onSelectedReceiversChange,
     onSatelliteDataUpdate,
-    onSatelliteCountChange,
-    satelliteDisplayCount: propSatelliteDisplayCount = 15,
     satelliteEnabled = false,
     onSatelliteEnabledChange,
     interferenceVisualizationEnabled = false,
@@ -236,6 +239,11 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onCurrentConnectionChange,
     onPredictedConnectionChange,
     onTransitionChange,
+    // 衛星動畫控制 props（動畫永遠開啟）
+    satelliteSpeedMultiplier = 60,
+    onSatelliteSpeedChange,
+    showOrbitTracks = true,
+    onShowOrbitTracksChange,
 }) => {
     // 現有狀態
     const [orientationInputs, setOrientationInputs] = useState<{
@@ -256,16 +264,12 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     const [showJammerDevices, setShowJammerDevices] = useState(false)
     const [showUavSelection, setShowUavSelection] = useState(false)
 
-    // 衛星相關狀態
-    const [satelliteDisplayCount, setSatelliteDisplayCount] = useState<number>(
-        propSatelliteDisplayCount
-    )
+    // 衛星相關狀態已移除，使用固定配置
     const [skyfieldSatellites, setSkyfieldSatellites] = useState<
         VisibleSatelliteInfo[]
     >([])
     const [showSkyfieldSection, setShowSkyfieldSection] = useState<boolean>(false)
     const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false)
-    const [minElevation, setMinElevation] = useState<number>(0)
     const satelliteRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
     // 處理衛星星座顯示開關，連帶控制衛星-UAV 連接
@@ -414,9 +418,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     // 靜態衛星數據管理：完全避免重新載入和重新渲染
     const satelliteDataInitialized = useRef(false)
     
-    useEffect(() => {
-        setSatelliteDisplayCount(propSatelliteDisplayCount)
-    }, [propSatelliteDisplayCount])
 
     useEffect(() => {
         // 只在首次啟用衛星時載入一次，之後完全依賴內在軌道運動
@@ -441,8 +442,8 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             setLoadingSatellites(true)
             
             const satellites = await fetchVisibleSatellites(
-                satelliteDisplayCount,
-                minElevation
+                SATELLITE_CONFIG.VISIBLE_COUNT,
+                SATELLITE_CONFIG.MIN_ELEVATION
             )
 
             let sortedSatellites = [...satellites]
@@ -514,12 +515,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     }, [devices])
 
     // 處理衛星顯示數量變更
-    const handleSatelliteCountChange = (count: number) => {
-        setSatelliteDisplayCount(count)
-        if (onSatelliteCountChange) {
-            onSatelliteCountChange(count)
-        }
-    }
 
     // 方向輸入處理
     const handleDeviceOrientationInputChange = (
@@ -686,6 +681,79 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                 {/* 功能開關 */}
                                 {renderFeatureToggles()}
 
+                                {/* 衛星動畫速度控制 - 當衛星啟用時顯示 */}
+                                {activeCategory === 'basic' && satelliteEnabled && (
+                                    <div className="satellite-animation-controls">
+                                        <div className="control-section-title">🎭 衛星動畫控制</div>
+                                        
+                                        {/* 軌跡線顯示開關 */}
+                                        <div className="control-item">
+                                            <label className="control-checkbox-label">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={showOrbitTracks}
+                                                    onChange={(e) => onShowOrbitTracksChange && onShowOrbitTracksChange(e.target.checked)}
+                                                    className="control-checkbox"
+                                                />
+                                                <span className="control-text">顯示軌跡線</span>
+                                            </label>
+                                        </div>
+
+                                        {/* 速度控制滑塊 */}
+                                        <div className="control-item">
+                                            <div className="control-label">
+                                                動畫速度: {satelliteSpeedMultiplier}x
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="600"
+                                                step="1"
+                                                value={satelliteSpeedMultiplier}
+                                                onChange={(e) => onSatelliteSpeedChange && onSatelliteSpeedChange(Number(e.target.value))}
+                                                className="speed-slider"
+                                            />
+                                            <div className="speed-labels">
+                                                <span>1x</span>
+                                                <span>真實時間比例</span>
+                                                <span>600x</span>
+                                            </div>
+                                        </div>
+
+                                        {/* 預設速度按鈕 */}
+                                        <div className="control-item">
+                                            <div className="control-label">快速設定:</div>
+                                            <div className="speed-preset-buttons">
+                                                {[1, 10, 60, 120, 300].map(speed => (
+                                                    <button
+                                                        key={speed}
+                                                        className={`speed-preset-btn ${satelliteSpeedMultiplier === speed ? 'active' : ''}`}
+                                                        onClick={() => onSatelliteSpeedChange && onSatelliteSpeedChange(speed)}
+                                                    >
+                                                        {speed}x
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* 時間換算顯示 */}
+                                        <div className="control-item time-conversion">
+                                            <div className="conversion-info">
+                                                <span className="conversion-label">實際時間比例:</span>
+                                                <span className="conversion-value">
+                                                    1分鐘 = {(60 / satelliteSpeedMultiplier).toFixed(1)}秒
+                                                </span>
+                                            </div>
+                                            <div className="conversion-info">
+                                                <span className="conversion-label">軌道週期:</span>
+                                                <span className="conversion-value">
+                                                    {(109 * 60 / satelliteSpeedMultiplier).toFixed(0)}秒
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* 換手管理器 - 當換手機制類別開啟時顯示 */}
                                 {activeCategory === 'handover' && satelliteEnabled && (
                                     <HandoverManager
@@ -700,43 +768,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                     />
                                 )}
 
-                                {/* 衛星設置 */}
-                                {satelliteEnabled && (
-                                    <div className="satellite-settings">
-                                        <div className="setting-row">
-                                            <label>衛星數量:</label>
-                                            <input
-                                                type="number"
-                                                value={satelliteDisplayCount}
-                                                onChange={(e) => {
-                                                    const value = parseInt(e.target.value, 10)
-                                                    if (!isNaN(value) && value > 0 && value <= 100) {
-                                                        handleSatelliteCountChange(value)
-                                                    }
-                                                }}
-                                                min="1"
-                                                max="100"
-                                                className="setting-input"
-                                            />
-                                        </div>
-                                        <div className="setting-row">
-                                            <label>最低仰角:</label>
-                                            <input
-                                                type="number"
-                                                value={minElevation}
-                                                onChange={(e) => {
-                                                    const value = parseInt(e.target.value, 10)
-                                                    if (!isNaN(value) && value >= 0 && value <= 90) {
-                                                        setMinElevation(value)
-                                                    }
-                                                }}
-                                                min="0"
-                                                max="90"
-                                                className="setting-input"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
 
                                 {/* 手動控制面板 - 當自動飛行開啟時隱藏，且需要手動控制開關啟用 */}
                                 {!auto && manualControlEnabled && (

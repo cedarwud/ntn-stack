@@ -27,6 +27,9 @@ from app.domains.handover.api.fine_grained_sync_api import router as fine_graine
 from app.domains.handover.api.constrained_access_api import router as constrained_access_router
 from app.domains.handover.api.weather_prediction_api import router as weather_prediction_router
 
+# Import satellite admin API router
+from app.api.v1.satellite_admin_api import router as satellite_admin_router
+
 # Import CQRS services
 from app.domains.satellite.services.cqrs_satellite_service import (
     CQRSSatelliteService,
@@ -57,13 +60,13 @@ try:
     # 建立衛星字典，以名稱為鍵
     satellites_dict = {sat.name: sat for sat in satellites}
 
-    # 獲取各衛星類別，用於顯示
-    starlink_sats = [sat for sat in satellites if "STARLINK" in sat.name.upper()]
+    # 獲取各衛星類別，用於顯示 (優先 OneWeb)
     oneweb_sats = [sat for sat in satellites if "ONEWEB" in sat.name.upper()]
+    starlink_sats = [sat for sat in satellites if "STARLINK" in sat.name.upper()]
     globalstar_sats = [sat for sat in satellites if "GLOBALSTAR" in sat.name.upper()]
     iridium_sats = [sat for sat in satellites if "IRIDIUM" in sat.name.upper()]
     print(
-        f"通信衛星統計: Starlink: {len(starlink_sats)}, OneWeb: {len(oneweb_sats)}, Globalstar: {len(globalstar_sats)}, Iridium: {len(iridium_sats)}"
+        f"通信衛星統計: OneWeb: {len(oneweb_sats)}, Starlink: {len(starlink_sats)}, Globalstar: {len(globalstar_sats)}, Iridium: {len(iridium_sats)}"
     )
 
     SKYFIELD_LOADED = True
@@ -107,6 +110,9 @@ api_router.include_router(constrained_access_router)
 
 # Register weather prediction API router
 api_router.include_router(weather_prediction_router)
+
+# Register satellite admin API router
+api_router.include_router(satellite_admin_router)
 
 
 # 添加模型資源路由
@@ -176,6 +182,111 @@ class VisibleSatelliteInfo(BaseModel):
     magnitude: Optional[float] = None
 
 
+# 添加衛星軌跡端點
+@api_router.get("/satellite-ops/orbit/{satellite_id}", tags=["Satellites"])
+async def get_satellite_orbit(
+    satellite_id: str,
+    duration: int = Query(600, description="預測持續時間（秒）"),
+    step: int = Query(60, description="計算步長（秒）"),
+):
+    """獲取指定衛星的軌跡數據"""
+    try:
+        
+        # 由於目前使用模擬數據，生成基於軌道動力學的軌跡點
+        import math
+        from datetime import datetime, timedelta
+        
+        start_time = datetime.utcnow()
+        points = []
+        
+        # 模擬OneWeb衛星軌道參數
+        orbital_period = 109 * 60  # 109分鐘軌道週期
+        altitude = 1200  # km
+        inclination = 87.9  # 度
+        
+        # 生成多個完整的衛星過境軌跡
+        total_points = duration // step
+        observer_lat, observer_lon = 24.786667, 120.996944
+        
+        # 為不同衛星創建不同的過境軌跡
+        satellite_hash = hash(satellite_id) % 10  # 基於衛星ID的種子
+        
+        # 每個衛星有不同的過境路徑（在循環外定義）
+        base_azimuth_start = 30 + (satellite_hash * 30) % 360  # 不同起始方位
+        azimuth_span = 120 + (satellite_hash * 20) % 100  # 不同跨越角度
+        max_elevation = 20 + (satellite_hash * 10) % 70  # 不同最大仰角
+        
+        for i in range(total_points):
+            current_time = start_time + timedelta(seconds=i * step)
+            
+            # 每次過境約12分鐘，間隔約100分鐘（符合LEO軌道特性）
+            total_cycle = 100 * 60  # 100分鐘完整週期
+            transit_duration = 12 * 60  # 12分鐘可見時間
+            gap_duration = total_cycle - transit_duration  # 間隔時間
+            
+            # 計算在週期中的位置
+            cycle_position = (i * step) % total_cycle
+            
+            if cycle_position < transit_duration:
+                # 在過境階段 - 真實的升降軌跡
+                transit_progress = cycle_position / transit_duration
+                
+                azimuth_deg = (base_azimuth_start + azimuth_span * transit_progress) % 360
+                
+                # 拋物線形仰角變化：從地平線升起，到最高點，再落下
+                elevation_deg = max_elevation * math.sin(transit_progress * math.pi)
+                elevation_deg = max(0, elevation_deg)
+                
+            else:
+                # 在不可見階段（地平線以下）
+                elevation_deg = -10 - (cycle_position - transit_duration) / gap_duration * 30
+                azimuth_deg = (base_azimuth_start + azimuth_span + 
+                              (cycle_position - transit_duration) / gap_duration * 240) % 360
+            
+            # 計算地理位置（對所有點，包括不可見的）
+            azimuth_rad = math.radians(azimuth_deg)
+            
+            # 對於地平線以下的點，使用固定距離
+            if elevation_deg <= 0:
+                distance_factor = 2000  # 地平線以下使用固定距離
+            else:
+                distance_factor = 1200 / max(math.sin(math.radians(elevation_deg)), 0.1)
+                distance_factor = min(distance_factor, 2000)
+            
+            angular_distance = distance_factor / 111.32
+            latitude = observer_lat + angular_distance * math.cos(azimuth_rad) * 0.1
+            longitude = observer_lon + angular_distance * math.sin(azimuth_rad) * 0.1
+            
+            # 限制範圍
+            latitude = max(-90, min(90, latitude))
+            longitude = longitude % 360
+            if longitude > 180:
+                longitude -= 360
+            
+            points.append({
+                "timestamp": current_time.isoformat(),
+                "latitude": latitude,
+                "longitude": longitude,
+                "altitude": altitude,
+                "elevation_deg": elevation_deg,
+                "azimuth_deg": azimuth_deg
+            })
+        
+        return {
+            "satellite_id": satellite_id,
+            "satellite_name": f"Satellite-{satellite_id}",
+            "start_time": start_time.isoformat(),
+            "end_time": (start_time + timedelta(seconds=duration)).isoformat(),
+            "points": points
+        }
+        
+    except Exception as e:
+        print(f"Failed to get satellite orbit: {e}")  # 使用print替代logger
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e), "points": []}
+
+
 # 添加臨時的衛星可見性模擬端點
 @api_router.get("/satellite-ops/visible_satellites", tags=["Satellites"])
 async def get_visible_satellites(
@@ -232,8 +343,8 @@ async def get_visible_satellites(
         # 計算所有衛星在觀測點的方位角、仰角和距離
         visible_satellites = []
 
-        # 優先考慮通信衛星
-        priority_sats = starlink_sats + oneweb_sats + globalstar_sats + iridium_sats
+        # 優先考慮通信衛星 (OneWeb 優先)
+        priority_sats = oneweb_sats + starlink_sats + globalstar_sats + iridium_sats
         other_sats = [sat for sat in satellites if sat not in priority_sats]
         all_sats = priority_sats + other_sats
 
