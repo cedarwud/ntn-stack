@@ -156,14 +156,16 @@ class SimWorldTLEBridgeService:
             timestamp=timestamp,
         )
 
-        # 並行獲取所有衛星位置
-        tasks = []
-        for satellite_id in satellite_ids:
-            task = self._get_single_satellite_position(
-                satellite_id, timestamp, observer_location
-            )
-            tasks.append(task)
-
+        # 並行獲取所有衛星位置（限制併發數避免過載）
+        sem = asyncio.Semaphore(5)  # 限制同時只有 5 個請求
+        
+        async def safe_get_position(sat_id):
+            async with sem:
+                return await self._get_single_satellite_position(
+                    sat_id, timestamp, observer_location
+                )
+        
+        tasks = [safe_get_position(sat_id) for sat_id in satellite_ids]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # 整理結果
@@ -198,11 +200,19 @@ class SimWorldTLEBridgeService:
         if self.redis_client:
             cached_result = await self.redis_client.get(cache_key)
             if cached_result:
-                return json.loads(cached_result)
+                cached_data = json.loads(cached_result)
+                # 確保快取的數據也經過標準化
+                return self._normalize_position_data(cached_data)
 
         try:
             # 首先嘗試將satellite_id映射到資料庫ID
             db_satellite_id = await self._resolve_satellite_id(satellite_id)
+            
+            self.logger.debug(
+                "衛星ID映射",
+                input_id=satellite_id,
+                resolved_id=db_satellite_id
+            )
             
             timeout = aiohttp.ClientTimeout(total=5.0)  # 5秒超時
             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -220,6 +230,9 @@ class SimWorldTLEBridgeService:
                     if response.status == 200:
                         position_data = await response.json()
                         position_data["success"] = True
+                        
+                        # 修正數據格式問題：確保必要字段存在
+                        position_data = self._normalize_position_data(position_data)
                         
                         # 快取結果
                         if self.redis_client:
@@ -280,8 +293,8 @@ class SimWorldTLEBridgeService:
         except Exception as e:
             self.logger.warning(f"無法解析衛星ID {satellite_id}: {e}")
         
-        # 如果所有方法都失敗，返回原始ID（可能會導致404錯誤）
-        return satellite_id
+        # 如果所有方法都失敗，拋出明確的錯誤
+        raise ValueError(f"無法解析衛星ID: {satellite_id}，未在 SimWorld 資料庫中找到匹配項")
 
     async def sync_tle_updates_from_simworld(self) -> Dict[str, Any]:
         """
@@ -534,6 +547,42 @@ class SimWorldTLEBridgeService:
                 best_satellite = satellite_id
 
         return best_satellite
+
+    def _normalize_position_data(self, position_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        標準化位置數據格式，修正字段命名不一致問題
+        
+        Args:
+            position_data: 原始位置數據
+            
+        Returns:
+            標準化後的位置數據
+        """
+        # 處理經緯度字段命名不一致
+        if 'latitude' in position_data and 'lat' not in position_data:
+            position_data['lat'] = position_data['latitude']
+        if 'longitude' in position_data and 'lon' not in position_data:
+            position_data['lon'] = position_data['longitude']
+        if 'altitude' in position_data and 'alt' not in position_data:
+            position_data['alt'] = position_data['altitude']
+            
+        # 確保必要字段存在
+        if 'lat' not in position_data:
+            position_data['lat'] = 0.0
+        if 'lon' not in position_data:
+            position_data['lon'] = 0.0
+        if 'alt' not in position_data:
+            position_data['alt'] = 0.0
+            
+        # 確保仰角和距離字段存在 (用於接入品質計算)
+        if 'elevation' not in position_data:
+            position_data['elevation'] = 0.0
+        if 'range_km' not in position_data:
+            position_data['range_km'] = 1000.0  # 預設距離
+        if 'visible' not in position_data:
+            position_data['visible'] = True  # 預設可見
+            
+        return position_data
 
     def _calculate_access_score(
         self, satellite_position: Dict[str, Any], ue_position: Dict[str, float]

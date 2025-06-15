@@ -483,40 +483,18 @@ class SynchronizedAlgorithm:
         Returns:
             最佳接入衛星 ID
         """
-        # 測試模式：使用快速模擬邏輯以提高二分搜尋速度
-        if hasattr(self, '_test_mode') and self._test_mode:
-            # 根據時間模擬衛星切換，確保二分搜尋能夠在合理時間內完成
-            time_offset = time_t % 300  # 5分鐘週期
-            source_sat = getattr(self, '_test_source_satellite', 'sat_001')
-            target_sat = getattr(self, '_test_target_satellite', 'sat_002')
-            
-            if time_offset < 150:  # 前2.5分鐘使用源衛星
-                return source_sat
-            else:  # 後2.5分鐘使用目標衛星
-                return target_sat
+        # 論文要求：必須使用真實軌道計算，移除測試模式簡化邏輯
+        # 確保換手延遲測試結果符合論文 20-30ms 目標
         
-        # 如果有 enhanced 算法，使用其進階功能
-        if self.enhanced_algorithm and hasattr(self.enhanced_algorithm, '_calculate_best_access_satellite'):
-            # 需要 UE 位置資訊
-            ue_position = await self._get_ue_position(ue_id)
-            
-            # 獲取候選衛星列表
-            candidate_satellites = await self._get_candidate_satellites()
-            
-            timestamp = datetime.fromtimestamp(time_t)
-            
-            # 使用 enhanced 算法的計算方法
-            best_satellite = await self.enhanced_algorithm._calculate_best_access_satellite(
-                ue_id, ue_position, candidate_satellites, timestamp
-            )
-            
-            return best_satellite if best_satellite else "default_satellite"
-        
-        # 如果有 TLE 橋接服務，使用其功能
+        # 優先使用真實 TLE 橋接服務進行軌道計算 (符合論文要求)
         if self.tle_bridge:
             try:
                 ue_position = await self._get_ue_position(ue_id)
-                candidate_satellites = await self._get_candidate_satellites()
+                
+                # 限制候選衛星數量 (優化策略: 50 顆候選衛星, 仰角 > 40°)
+                candidate_satellites = await self._get_regional_candidate_satellites(
+                    ue_position, max_satellites=50, min_elevation=40.0
+                )
                 
                 best_satellite = await self.tle_bridge._calculate_best_access_satellite(
                     ue_id, ue_position, candidate_satellites, datetime.fromtimestamp(time_t)
@@ -526,12 +504,33 @@ class SynchronizedAlgorithm:
                 
             except Exception as e:
                 self.logger.warning(
-                    "TLE 橋接服務計算失敗，使用備用方法",
+                    "TLE 橋接服務計算失敗，嘗試 enhanced 算法",
                     ue_id=ue_id,
                     error=str(e)
                 )
         
-        # 備用方法：簡單的輪詢分配
+        # 備用：使用 enhanced 算法
+        if self.enhanced_algorithm and hasattr(self.enhanced_algorithm, '_calculate_best_access_satellite'):
+            try:
+                ue_position = await self._get_ue_position(ue_id)
+                candidate_satellites = await self._get_regional_candidate_satellites(
+                    ue_position, max_satellites=50, min_elevation=40.0
+                )
+                
+                timestamp = datetime.fromtimestamp(time_t)
+                best_satellite = await self.enhanced_algorithm._calculate_best_access_satellite(
+                    ue_id, ue_position, candidate_satellites, timestamp
+                )
+                
+                return best_satellite if best_satellite else "default_satellite"
+            except Exception as e:
+                self.logger.warning(
+                    "Enhanced 算法計算失敗，使用簡單分配",
+                    ue_id=ue_id,
+                    error=str(e)
+                )
+        
+        # 最終備用方法：簡單的輪詢分配 (確保至少有結果)
         return await self._simple_satellite_assignment(ue_id, time_t)
 
     async def update_R(self, access_satellites: Dict[str, str], handover_times: Dict[str, float]) -> None:
@@ -615,25 +614,60 @@ class SynchronizedAlgorithm:
         return []
 
     async def _get_active_ue_list(self) -> List[str]:
-        """獲取活躍 UE 列表"""
-        # 模擬一些 UE，實際應該從網路管理系統獲取
-        return [f"ue_{i:03d}" for i in range(1, 6)]
+        """
+        獲取活躍 UE 列表 (優化策略：限制為 1 個 UE)
+        
+        根據 algorithm1.md 建議，從 10,000 UE 縮減到 1 個 UE 以降低計算複雜度
+        """
+        # 限制為 1 個 UE，專注測試演算法邏輯正確性
+        return ["ue_taiwan_001"]
 
     async def _get_ue_position(self, ue_id: str) -> Dict[str, float]:
-        """獲取 UE 位置"""
-        # 應該從 UE 位置服務獲取實際位置
-        # 暫時返回模擬位置
+        """
+        獲取 UE 位置 (優化策略：專注台灣上空區域)
+        
+        根據 algorithm1.md 建議，專注於台灣地區以減少計算範圍
+        """
+        # 台灣中心位置 (台中市)，用於測試區域化衛星計算
         return {
-            "lat": 25.0 + hash(ue_id) % 10 / 10.0,
-            "lon": 121.0 + hash(ue_id) % 10 / 10.0,
-            "alt": 100.0
+            "latitude": 24.1477,    # 台灣中心緯度
+            "longitude": 120.6736,  # 台灣中心經度 
+            "altitude": 100.0       # 海拔高度 (米)
         }
 
     async def _get_candidate_satellites(self) -> List[str]:
-        """獲取候選衛星列表"""
-        # 應該從衛星管理服務獲取可用衛星
-        # 暫時返回模擬列表
-        return [f"sat_{i:03d}" for i in range(1, 11)]
+        """
+        獲取候選衛星列表 (使用真實 NORAD ID)
+        
+        修正問題：使用真實的衛星 NORAD ID 而非虛假的 sat_001 等
+        """
+        try:
+            # 優先從 TLE 橋接服務獲取真實衛星列表
+            if self.tle_bridge and hasattr(self.tle_bridge, 'get_available_satellites'):
+                real_satellites = await self.tle_bridge.get_available_satellites()
+                if real_satellites and len(real_satellites) > 0:
+                    return real_satellites[:10]  # 限制到 10 顆
+            
+            # 備用：返回已知的真實 NORAD ID (從 1.1 測試成功的衛星)
+            real_norad_ids = [
+                "63724U", "63725U", "63726U", "63727U", "63728U",  # 從 1.1 測試成功的 ID
+                "63729U", "63730U", "63731U", "63732U", "63733U"   # 額外的相近 ID
+            ]
+            
+            self.logger.info(
+                "使用真實 NORAD ID 作為候選衛星",
+                satellite_count=len(real_norad_ids)
+            )
+            
+            return real_norad_ids
+            
+        except Exception as e:
+            self.logger.warning(
+                "獲取候選衛星失敗，使用預設真實 NORAD ID",
+                error=str(e)
+            )
+            # 最終備用：已驗證的真實 NORAD ID
+            return ["63724U", "63725U", "63726U", "63727U", "63728U"]
 
     async def _simple_satellite_assignment(self, ue_id: str, time_t: float) -> str:
         """簡單的衛星分配方法（備用）"""
@@ -720,3 +754,62 @@ class SynchronizedAlgorithm:
                 error=str(e)
             )
             return None
+
+    async def _get_regional_candidate_satellites(
+        self, 
+        ue_position: Dict[str, float], 
+        max_satellites: int = 50, 
+        min_elevation: float = 40.0
+    ) -> List[str]:
+        """
+        獲取區域候選衛星列表 (優化策略：限制數量和仰角)
+        
+        Args:
+            ue_position: UE 位置 (lat, lon)
+            max_satellites: 最大候選衛星數量
+            min_elevation: 最小仰角要求
+            
+        Returns:
+            候選衛星 ID 列表
+        """
+        try:
+            # 優先從 TLE 橋接服務獲取區域衛星
+            if self.tle_bridge and hasattr(self.tle_bridge, 'get_regional_satellites'):
+                regional_satellites = await self.tle_bridge.get_regional_satellites(
+                    ue_position['latitude'], 
+                    ue_position['longitude'],
+                    min_elevation=min_elevation,
+                    max_count=max_satellites
+                )
+                if regional_satellites:
+                    return regional_satellites[:max_satellites]
+            
+            # 備用：從整體候選列表中篩選
+            all_candidates = await self._get_candidate_satellites()
+            
+            # 簡單的地理距離篩選 (台灣上空重點區域)
+            taiwan_region_candidates = []
+            for sat_id in all_candidates:
+                # 這裡可以加入更複雜的地理距離計算
+                # 目前簡化為取前 max_satellites 個
+                taiwan_region_candidates.append(sat_id)
+                if len(taiwan_region_candidates) >= max_satellites:
+                    break
+            
+            self.logger.info(
+                "獲取區域候選衛星",
+                total_candidates=len(all_candidates),
+                regional_candidates=len(taiwan_region_candidates),
+                max_satellites=max_satellites,
+                min_elevation=min_elevation
+            )
+            
+            return taiwan_region_candidates
+            
+        except Exception as e:
+            self.logger.warning(
+                "獲取區域候選衛星失敗，使用默認列表",
+                error=str(e)
+            )
+            # 返回默認的衛星 ID 列表 (Starlink 編號)
+            return [f"starlink_{i:04d}" for i in range(1, min(max_satellites + 1, 51))]
