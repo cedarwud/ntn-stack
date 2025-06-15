@@ -68,7 +68,8 @@ test_settings:
 test_data:
   satellites:
     iss_id: 25544
-    oneweb_sample_ids: [47960, 47961, 47962]
+    starlink_sample_ids: [44714, 44716, 44717]  # STARLINK-1008, 1010, 1011
+    kuiper_sample_ids: [63724, 63725, 63726]    # KUIPER-00008, 00009, 00010
     test_altitude_km: 550
   
   positions:

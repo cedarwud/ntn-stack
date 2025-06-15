@@ -127,10 +127,14 @@ laboratory_test_config:
         norad_id: 25544
         frequency_mhz: 437.8
         power_dbm: 30
-      oneweb_sample:
-        norad_ids: [47960, 47961, 47962]
-        frequency_mhz: 12750
-        power_dbm: 45
+      starlink_sample:
+        norad_ids: [44714, 44716, 44717]  # STARLINK-1008, 1010, 1011
+        frequency_mhz: 12000              # Starlink Ku-band
+        power_dbm: 40
+      kuiper_sample:
+        norad_ids: [63724, 63725, 63726]  # KUIPER-00008, 00009, 00010  
+        frequency_mhz: 12750              # Kuiper Ka-band
+        power_dbm: 42
     orbit_parameters:
       altitude_km: 550
       inclination_deg: 53
