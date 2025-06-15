@@ -1,0 +1,710 @@
+"""
+論文標準同步算法實作 - Algorithm 1
+
+完全按照論文《Accelerating Handover in Mobile Satellite Network》中的 Algorithm 1 實作
+提供標準化介面，整合現有的 enhanced_synchronized_algorithm.py 進階功能
+
+論文 Algorithm 1 流程：
+1. 初始化 T, R 表
+2. 進入無限迴圈
+3. 週期性更新 PERIODIC_UPDATE (每 Δt 時間)
+4. UE 位置/狀態改變時執行 UPDATE_UE
+5. 二分搜尋計算精確換手時間
+"""
+
+import asyncio
+import time
+import logging
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any, Set
+from dataclasses import dataclass, field
+from enum import Enum
+import json
+import uuid
+
+import structlog
+from .enhanced_synchronized_algorithm import EnhancedSynchronizedAlgorithm
+from .simworld_tle_bridge_service import SimWorldTLEBridgeService
+
+logger = structlog.get_logger(__name__)
+
+
+@dataclass
+class AccessInfo:
+    """論文標準接入資訊資料結構"""
+    ue_id: str
+    satellite_id: str
+    next_satellite_id: Optional[str] = None
+    handover_time: Optional[float] = None
+    last_update: datetime = field(default_factory=datetime.utcnow)
+    access_quality: float = 1.0
+    prediction_confidence: float = 1.0
+
+
+class AlgorithmState(Enum):
+    """演算法狀態"""
+    STOPPED = "stopped"
+    INITIALIZING = "initializing" 
+    RUNNING = "running"
+    PERIODIC_UPDATE = "periodic_update"
+    UE_UPDATE = "ue_update"
+    ERROR = "error"
+
+
+class SynchronizedAlgorithm:
+    """
+    論文標準同步算法 - Algorithm 1 實作
+    
+    按照論文規格提供標準化介面，同時整合 enhanced 版本的進階功能
+    """
+
+    def __init__(
+        self,
+        delta_t: float = 5.0,
+        binary_search_precision: float = 0.01,
+        simworld_tle_bridge: Optional[SimWorldTLEBridgeService] = None,
+        enhanced_algorithm: Optional[EnhancedSynchronizedAlgorithm] = None
+    ):
+        """
+        初始化同步算法
+        
+        Args:
+            delta_t: 週期更新時間間隔 Δt (秒)
+            binary_search_precision: 二分搜尋精度 (秒，預設 10ms)
+            simworld_tle_bridge: TLE 資料橋接服務
+            enhanced_algorithm: 進階演算法實例
+        """
+        self.logger = structlog.get_logger(__name__)
+        
+        # 論文核心參數
+        self.delta_t = delta_t
+        self.binary_search_precision = binary_search_precision
+        
+        # 論文資料結構
+        self.T: float = time.time()  # 上次更新時間戳
+        self.R: Dict[str, AccessInfo] = {}  # UE-衛星關係表
+        self.Tp: Dict[str, float] = {}  # 預測的換手時間表
+        
+        # 服務整合
+        self.tle_bridge = simworld_tle_bridge or SimWorldTLEBridgeService()
+        self.enhanced_algorithm = enhanced_algorithm
+        
+        # 演算法狀態
+        self.state = AlgorithmState.STOPPED
+        self.algorithm_task: Optional[asyncio.Task] = None
+        self.is_running = False
+        
+        # 效能統計
+        self.stats = {
+            "total_periodic_updates": 0,
+            "total_ue_updates": 0,
+            "total_handovers_predicted": 0,
+            "average_prediction_accuracy": 0.0,
+            "binary_search_iterations": [],
+            "last_update_duration_ms": 0.0
+        }
+        
+        self.logger.info(
+            "論文標準同步算法初始化完成",
+            delta_t=delta_t,
+            binary_search_precision=binary_search_precision
+        )
+
+    async def start_algorithm(self) -> Dict[str, Any]:
+        """
+        啟動同步算法主循環
+        
+        Returns:
+            啟動結果
+        """
+        if self.is_running:
+            return {"success": False, "message": "演算法已在運行中"}
+        
+        try:
+            self.logger.info("啟動論文標準同步算法")
+            self.state = AlgorithmState.INITIALIZING
+            
+            # 初始化 T, R 表
+            await self._initialize_algorithm_state()
+            
+            # 啟動主循環
+            self.is_running = True
+            self.state = AlgorithmState.RUNNING
+            self.algorithm_task = asyncio.create_task(self._algorithm_main_loop())
+            
+            # 如果有 enhanced 算法，也啟動它
+            if self.enhanced_algorithm:
+                await self.enhanced_algorithm.start_enhanced_algorithm()
+            
+            self.logger.info("論文標準同步算法啟動完成")
+            
+            return {
+                "success": True,
+                "algorithm_state": self.state.value,
+                "delta_t": self.delta_t,
+                "binary_search_precision": self.binary_search_precision,
+                "start_time": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            self.state = AlgorithmState.ERROR
+            self.logger.error("啟動同步算法失敗", error=str(e))
+            return {"success": False, "error": str(e)}
+
+    async def stop_algorithm(self) -> Dict[str, Any]:
+        """
+        停止同步算法
+        
+        Returns:
+            停止結果
+        """
+        if not self.is_running:
+            return {"success": False, "message": "演算法未在運行"}
+        
+        try:
+            self.logger.info("停止論文標準同步算法")
+            self.is_running = False
+            
+            if self.algorithm_task:
+                self.algorithm_task.cancel()
+                try:
+                    await self.algorithm_task
+                except asyncio.CancelledError:
+                    pass
+            
+            # 停止 enhanced 算法
+            if self.enhanced_algorithm:
+                await self.enhanced_algorithm.stop_enhanced_algorithm()
+            
+            self.state = AlgorithmState.STOPPED
+            self.logger.info("論文標準同步算法已停止")
+            
+            return {
+                "success": True,
+                "final_stats": self.stats,
+                "stop_time": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            self.logger.error("停止同步算法失敗", error=str(e))
+            return {"success": False, "error": str(e)}
+
+    async def _algorithm_main_loop(self):
+        """
+        演算法主循環 - 論文 Algorithm 1
+        
+        實作論文中的無限迴圈邏輯：
+        1. 檢查是否需要週期性更新
+        2. 檢查 UE 位置/狀態變化
+        3. 執行相應更新操作
+        """
+        self.logger.info("進入論文標準同步算法主循環")
+        
+        while self.is_running:
+            try:
+                current_time = time.time()
+                
+                # Algorithm 1: 檢查是否需要週期性更新
+                if current_time > self.T + self.delta_t:
+                    self.state = AlgorithmState.PERIODIC_UPDATE
+                    await self.periodic_update(current_time)
+                
+                # Algorithm 1: 檢查 UE 位置/狀態變化
+                ue_changes = await self._detect_ue_changes()
+                for ue_id in ue_changes:
+                    self.state = AlgorithmState.UE_UPDATE
+                    await self.update_ue(ue_id)
+                
+                self.state = AlgorithmState.RUNNING
+                
+                # 短暫休息避免過度佔用 CPU
+                await asyncio.sleep(0.1)
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.error("演算法主循環異常", error=str(e))
+                self.state = AlgorithmState.ERROR
+                await asyncio.sleep(1.0)  # 錯誤後等待
+
+    async def periodic_update(self, t: float) -> None:
+        """
+        週期性更新 - 論文 Algorithm 1 第 5-10 行
+        
+        Args:
+            t: 當前時間戳
+        """
+        start_time = time.time()
+        self.logger.info("執行週期性更新", current_time=t, delta_t=self.delta_t)
+        
+        try:
+            # Algorithm 1 第 6 行: 獲取當前時間 t 的接入衛星
+            At = await self.get_access_satellites(t)
+            
+            # Algorithm 1 第 7 行: 預測時間 t+Δt 的接入衛星
+            At_delta = await self.predict_access_satellites(t + self.delta_t)
+            
+            # Algorithm 1 第 8-10 行: 檢查換手需求並計算時間
+            handover_count = 0
+            for ue_id in At:
+                current_satellite = At.get(ue_id)
+                predicted_satellite = At_delta.get(ue_id)
+                
+                if current_satellite != predicted_satellite:
+                    # 需要換手，使用二分搜尋計算精確時間
+                    tp = await self.binary_search_handover_time(
+                        ue_id=ue_id,
+                        source_satellite=current_satellite,
+                        target_satellite=predicted_satellite,
+                        t_start=t,
+                        t_end=t + self.delta_t
+                    )
+                    
+                    self.Tp[ue_id] = tp
+                    handover_count += 1
+                    
+                    self.logger.info(
+                        "預測換手",
+                        ue_id=ue_id,
+                        source_satellite=current_satellite,
+                        target_satellite=predicted_satellite,
+                        handover_time=datetime.fromtimestamp(tp).isoformat()
+                    )
+            
+            # Algorithm 1 第 11 行: 等待系統時間達到 t 時刻
+            wait_time = max(0, t - time.time())
+            if wait_time > 0:
+                await asyncio.sleep(wait_time)
+            
+            # Algorithm 1 第 12 行: 更新 R 表
+            await self.update_R(At_delta, self.Tp)
+            
+            # Algorithm 1 第 13 行: 設定 T = t
+            self.T = t
+            
+            # 更新統計
+            self.stats["total_periodic_updates"] += 1
+            self.stats["total_handovers_predicted"] += handover_count
+            self.stats["last_update_duration_ms"] = (time.time() - start_time) * 1000
+            
+            self.logger.info(
+                "週期性更新完成",
+                handovers_predicted=handover_count,
+                update_duration_ms=self.stats["last_update_duration_ms"],
+                total_ue_count=len(At)
+            )
+            
+        except Exception as e:
+            self.logger.error("週期性更新失敗", error=str(e))
+            raise
+
+    async def update_ue(self, ue_id: str) -> None:
+        """
+        單一 UE 更新 - 論文 Algorithm 1 UPDATE_UE
+        
+        Args:
+            ue_id: UE 識別碼
+        """
+        self.logger.info("執行 UE 更新", ue_id=ue_id)
+        
+        try:
+            current_time = time.time()
+            
+            # 計算該 UE 的當前和預測接入衛星
+            current_satellite = await self.calculate_access_satellite(ue_id, current_time)
+            predicted_satellite = await self.calculate_access_satellite(
+                ue_id, current_time + self.delta_t
+            )
+            
+            # 如果需要換手，計算換手時間
+            if current_satellite != predicted_satellite:
+                tp = await self.binary_search_handover_time(
+                    ue_id=ue_id,
+                    source_satellite=current_satellite,
+                    target_satellite=predicted_satellite,
+                    t_start=current_time,
+                    t_end=current_time + self.delta_t
+                )
+                
+                self.Tp[ue_id] = tp
+                
+                self.logger.info(
+                    "UE 換手預測",
+                    ue_id=ue_id,
+                    source_satellite=current_satellite,
+                    target_satellite=predicted_satellite,
+                    handover_time=datetime.fromtimestamp(tp).isoformat()
+                )
+            
+            # 更新 R 表中該 UE 的記錄
+            if ue_id in self.R:
+                self.R[ue_id].satellite_id = current_satellite
+                self.R[ue_id].next_satellite_id = predicted_satellite
+                self.R[ue_id].handover_time = self.Tp.get(ue_id)
+                self.R[ue_id].last_update = datetime.utcnow()
+            else:
+                self.R[ue_id] = AccessInfo(
+                    ue_id=ue_id,
+                    satellite_id=current_satellite,
+                    next_satellite_id=predicted_satellite,
+                    handover_time=self.Tp.get(ue_id)
+                )
+            
+            # 更新統計
+            self.stats["total_ue_updates"] += 1
+            
+        except Exception as e:
+            self.logger.error("UE 更新失敗", ue_id=ue_id, error=str(e))
+            raise
+
+    async def binary_search_handover_time(
+        self,
+        ue_id: str,
+        source_satellite: str,
+        target_satellite: str,
+        t_start: float,
+        t_end: float
+    ) -> float:
+        """
+        二分搜尋計算精確換手時間 - 論文 Algorithm 1 核心方法
+        
+        Args:
+            ue_id: UE 識別碼
+            source_satellite: 當前衛星
+            target_satellite: 目標衛星  
+            t_start: 搜尋開始時間
+            t_end: 搜尋結束時間
+            
+        Returns:
+            精確的換手時間戳
+        """
+        self.logger.info(
+            "開始二分搜尋換手時間",
+            ue_id=ue_id,
+            source_satellite=source_satellite,
+            target_satellite=target_satellite,
+            search_range_seconds=t_end - t_start
+        )
+        
+        iterations = 0
+        
+        # 論文 Algorithm 1: 二分搜尋演算法
+        while t_end - t_start > self.binary_search_precision:
+            iterations += 1
+            t_mid = (t_start + t_end) / 2
+            
+            # 計算中間時間點的最佳接入衛星
+            sat_mid = await self.calculate_access_satellite(ue_id, t_mid)
+            
+            if sat_mid == source_satellite:
+                # 中間時間點仍使用源衛星，換手時間在後半段
+                t_start = t_mid
+            else:
+                # 中間時間點已切換到目標衛星，換手時間在前半段
+                t_end = t_mid
+            
+            # 防止無限迭代
+            if iterations > 50:
+                self.logger.warning(
+                    "二分搜尋達到最大迭代次數",
+                    ue_id=ue_id,
+                    iterations=iterations
+                )
+                break
+        
+        handover_time = t_end
+        
+        # 記錄統計
+        self.stats["binary_search_iterations"].append(iterations)
+        
+        self.logger.info(
+            "二分搜尋換手時間完成",
+            ue_id=ue_id,
+            handover_time=datetime.fromtimestamp(handover_time).isoformat(),
+            iterations=iterations,
+            final_precision_seconds=t_end - t_start
+        )
+        
+        return handover_time
+
+    async def get_access_satellites(self, time_t: float) -> Dict[str, str]:
+        """
+        獲取所有 UE 在時間 t 的接入衛星
+        
+        Args:
+            time_t: 時間戳
+            
+        Returns:
+            UE ID -> 衛星 ID 的映射
+        """
+        access_satellites = {}
+        
+        # 獲取所有活躍的 UE
+        ue_list = list(self.R.keys())
+        if not ue_list:
+            # 如果沒有已知 UE，可以從其他服務獲取
+            ue_list = await self._get_active_ue_list()
+        
+        # 為每個 UE 計算接入衛星
+        for ue_id in ue_list:
+            try:
+                satellite_id = await self.calculate_access_satellite(ue_id, time_t)
+                access_satellites[ue_id] = satellite_id
+            except Exception as e:
+                self.logger.warning(
+                    "計算 UE 接入衛星失敗",
+                    ue_id=ue_id,
+                    error=str(e)
+                )
+        
+        return access_satellites
+
+    async def predict_access_satellites(self, time_t: float) -> Dict[str, str]:
+        """
+        預測所有 UE 在時間 t 的接入衛星
+        
+        Args:
+            time_t: 預測時間戳
+            
+        Returns:
+            UE ID -> 預測衛星 ID 的映射
+        """
+        # 使用相同邏輯，但針對未來時間點
+        return await self.get_access_satellites(time_t)
+
+    async def calculate_access_satellite(self, ue_id: str, time_t: float) -> str:
+        """
+        計算指定 UE 在指定時間的最佳接入衛星
+        
+        Args:
+            ue_id: UE 識別碼
+            time_t: 時間戳
+            
+        Returns:
+            最佳接入衛星 ID
+        """
+        # 如果有 enhanced 算法，使用其進階功能
+        if self.enhanced_algorithm and hasattr(self.enhanced_algorithm, '_calculate_best_access_satellite'):
+            # 需要 UE 位置資訊
+            ue_position = await self._get_ue_position(ue_id)
+            
+            # 獲取候選衛星列表
+            candidate_satellites = await self._get_candidate_satellites()
+            
+            timestamp = datetime.fromtimestamp(time_t)
+            
+            # 使用 enhanced 算法的計算方法
+            best_satellite = await self.enhanced_algorithm._calculate_best_access_satellite(
+                ue_id, ue_position, candidate_satellites, timestamp
+            )
+            
+            return best_satellite if best_satellite else "default_satellite"
+        
+        # 如果有 TLE 橋接服務，使用其功能
+        if self.tle_bridge:
+            try:
+                ue_position = await self._get_ue_position(ue_id)
+                candidate_satellites = await self._get_candidate_satellites()
+                
+                best_satellite = await self.tle_bridge._calculate_best_access_satellite(
+                    ue_id, ue_position, candidate_satellites, datetime.fromtimestamp(time_t)
+                )
+                
+                return best_satellite if best_satellite else "default_satellite"
+                
+            except Exception as e:
+                self.logger.warning(
+                    "TLE 橋接服務計算失敗，使用備用方法",
+                    ue_id=ue_id,
+                    error=str(e)
+                )
+        
+        # 備用方法：簡單的輪詢分配
+        return await self._simple_satellite_assignment(ue_id, time_t)
+
+    async def update_R(self, access_satellites: Dict[str, str], handover_times: Dict[str, float]) -> None:
+        """
+        更新 R 表 - 論文 Algorithm 1 第 12 行
+        
+        Args:
+            access_satellites: 當前接入衛星映射
+            handover_times: 換手時間映射
+        """
+        self.logger.debug("更新 R 表", ue_count=len(access_satellites))
+        
+        for ue_id, satellite_id in access_satellites.items():
+            handover_time = handover_times.get(ue_id)
+            
+            if ue_id in self.R:
+                # 更新現有記錄
+                self.R[ue_id].satellite_id = satellite_id
+                self.R[ue_id].handover_time = handover_time
+                self.R[ue_id].last_update = datetime.utcnow()
+            else:
+                # 新增記錄
+                self.R[ue_id] = AccessInfo(
+                    ue_id=ue_id,
+                    satellite_id=satellite_id,
+                    handover_time=handover_time
+                )
+
+    async def get_algorithm_status(self) -> Dict[str, Any]:
+        """
+        獲取演算法狀態
+        
+        Returns:
+            詳細的狀態資訊
+        """
+        return {
+            "algorithm_state": self.state.value,
+            "is_running": self.is_running,
+            "delta_t": self.delta_t,
+            "binary_search_precision": self.binary_search_precision,
+            "last_update_time": datetime.fromtimestamp(self.T).isoformat(),
+            "active_ue_count": len(self.R),
+            "pending_handovers": len(self.Tp),
+            "performance_stats": self.stats,
+            "R_table_summary": {
+                ue_id: {
+                    "satellite_id": info.satellite_id,
+                    "next_satellite_id": info.next_satellite_id,
+                    "handover_time": datetime.fromtimestamp(info.handover_time).isoformat() if info.handover_time else None,
+                    "last_update": info.last_update.isoformat()
+                }
+                for ue_id, info in list(self.R.items())[:10]  # 顯示前 10 個
+            },
+            "enhanced_algorithm_active": self.enhanced_algorithm is not None and self.enhanced_algorithm.is_running if self.enhanced_algorithm else False
+        }
+
+    # 輔助方法
+
+    async def _initialize_algorithm_state(self):
+        """初始化演算法狀態"""
+        self.T = time.time()
+        self.R.clear()
+        self.Tp.clear()
+        
+        # 重置統計
+        self.stats = {
+            "total_periodic_updates": 0,
+            "total_ue_updates": 0,
+            "total_handovers_predicted": 0,
+            "average_prediction_accuracy": 0.0,
+            "binary_search_iterations": [],
+            "last_update_duration_ms": 0.0
+        }
+        
+        self.logger.info("演算法狀態初始化完成")
+
+    async def _detect_ue_changes(self) -> List[str]:
+        """檢測 UE 位置/狀態變化"""
+        # 這裡應該實作實際的 UE 變化檢測邏輯
+        # 暫時返回空列表，在實際部署時需要整合 UE 狀態監控
+        return []
+
+    async def _get_active_ue_list(self) -> List[str]:
+        """獲取活躍 UE 列表"""
+        # 模擬一些 UE，實際應該從網路管理系統獲取
+        return [f"ue_{i:03d}" for i in range(1, 6)]
+
+    async def _get_ue_position(self, ue_id: str) -> Dict[str, float]:
+        """獲取 UE 位置"""
+        # 應該從 UE 位置服務獲取實際位置
+        # 暫時返回模擬位置
+        return {
+            "lat": 25.0 + hash(ue_id) % 10 / 10.0,
+            "lon": 121.0 + hash(ue_id) % 10 / 10.0,
+            "alt": 100.0
+        }
+
+    async def _get_candidate_satellites(self) -> List[str]:
+        """獲取候選衛星列表"""
+        # 應該從衛星管理服務獲取可用衛星
+        # 暫時返回模擬列表
+        return [f"sat_{i:03d}" for i in range(1, 11)]
+
+    async def _simple_satellite_assignment(self, ue_id: str, time_t: float) -> str:
+        """簡單的衛星分配方法（備用）"""
+        # 基於 UE ID 和時間的簡單分配邏輯
+        candidates = await self._get_candidate_satellites()
+        if not candidates:
+            return "default_satellite"
+        
+        # 使用 hash 確保一致性
+        index = (hash(ue_id) + int(time_t)) % len(candidates)
+        return candidates[index]
+
+    # 與 enhanced algorithm 整合的方法
+
+    async def get_enhanced_prediction_result(self, ue_id: str, satellite_id: str) -> Optional[Dict[str, Any]]:
+        """
+        獲取進階預測結果
+        
+        Args:
+            ue_id: UE 識別碼
+            satellite_id: 衛星 ID
+            
+        Returns:
+            進階預測結果，如果沒有 enhanced 算法則返回 None
+        """
+        if not self.enhanced_algorithm:
+            return None
+        
+        try:
+            # 使用 enhanced 算法的二點預測
+            result = await self.enhanced_algorithm.execute_two_point_prediction(
+                ue_id, satellite_id
+            )
+            
+            return {
+                "prediction_id": result.prediction_id,
+                "consistency_score": result.consistency_score,
+                "temporal_stability": result.temporal_stability,
+                "extrapolation_confidence": result.extrapolation_confidence,
+                "prediction_method": "enhanced_two_point"
+            }
+            
+        except Exception as e:
+            self.logger.warning(
+                "獲取進階預測結果失敗",
+                ue_id=ue_id,
+                satellite_id=satellite_id,
+                error=str(e)
+            )
+            return None
+
+    async def trigger_enhanced_binary_search(self, ue_id: str, satellite_id: str) -> Optional[Dict[str, Any]]:
+        """
+        觸發進階二分搜尋
+        
+        Args:
+            ue_id: UE 識別碼
+            satellite_id: 衛星 ID
+            
+        Returns:
+            進階搜尋結果
+        """
+        if not self.enhanced_algorithm:
+            return None
+        
+        try:
+            # 先執行二點預測
+            two_point_result = await self.enhanced_algorithm.execute_two_point_prediction(
+                ue_id, satellite_id
+            )
+            
+            # 然後執行增強版二分搜尋
+            search_result = await self.enhanced_algorithm.execute_enhanced_binary_search(
+                two_point_result
+            )
+            
+            return search_result
+            
+        except Exception as e:
+            self.logger.warning(
+                "進階二分搜尋失敗",
+                ue_id=ue_id,
+                satellite_id=satellite_id,
+                error=str(e)
+            )
+            return None
