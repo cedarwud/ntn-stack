@@ -25,12 +25,13 @@ logger = logging.getLogger(__name__)
 
 
 # 定義同步 OneWeb TLE 數據的函數
-async def synchronize_oneweb_tles(
-    session_factory: Callable[..., AsyncSession], redis_client: Redis
+async def synchronize_constellation_tles(
+    constellation: str, session_factory: Callable[..., AsyncSession], redis_client: Redis
 ) -> bool:
-    """同步 OneWeb 衛星的 TLE 數據
+    """同步指定星座的 TLE 數據
 
     Args:
+        constellation: 星座名稱 ('oneweb', 'kuiper', 'starlink')
         session_factory: 獲取資料庫會話的工廠函數
         redis_client: Redis 客戶端
 
@@ -38,32 +39,50 @@ async def synchronize_oneweb_tles(
         bool: 同步是否成功
     """
     try:
-        logger.info("開始同步 OneWeb 衛星 TLE 數據...")
+        logger.info(f"開始同步 {constellation.upper()} 衛星 TLE 數據...")
 
         # 創建 TLE 服務和衛星儲存庫
         satellite_repo = SQLModelSatelliteRepository(session_factory)
         tle_service = TLEService(satellite_repo)
 
-        # 獲取 OneWeb 衛星的 TLE 數據
-        tle_data = await tle_service.fetch_tle_from_celestrak(
-            "oneweb"
-        )  # 使用 oneweb 分類，自動從 active 中篩選 OneWeb 衛星
+        # 獲取指定星座的 TLE 數據
+        all_tle_data = await tle_service.fetch_tle_from_celestrak(constellation)
 
-        if not tle_data:
-            logger.warning("未獲取到 OneWeb 衛星 TLE 數據")
+        if not all_tle_data:
+            logger.warning(f"未獲取到 {constellation.upper()} 衛星 TLE 數據")
             return False
 
-        # 將 TLE 數據存入 Redis
-        tle_json = json.dumps(tle_data)
-        await redis_client.set("oneweb_tle_data", tle_json)
-        await redis_client.set("oneweb_tle_last_update", datetime.utcnow().isoformat())
+        # 根據星座名稱過濾衛星
+        constellation_filter = {
+            'oneweb': 'ONEWEB',
+            'kuiper': 'KUIPER', 
+            'starlink': 'STARLINK'
+        }
+        
+        filter_name = constellation_filter.get(constellation.lower(), constellation.upper())
+        filtered_tle_data = [
+            tle for tle in all_tle_data 
+            if filter_name in tle['name'].upper()
+        ]
 
-        logger.info(f"成功同步 {len(tle_data)} 個 OneWeb 衛星 TLE 數據")
+        if not filtered_tle_data:
+            logger.warning(f"在 TLE 數據中未找到 {constellation.upper()} 衛星")
+            return False
+
+        # 將過濾後的 TLE 數據存入 Redis
+        tle_json = json.dumps(filtered_tle_data)
+        await redis_client.set(f"{constellation}_tle_data", tle_json)
+        await redis_client.set(f"{constellation}_tle_last_update", datetime.utcnow().isoformat())
+
+        logger.info(f"成功同步 {len(filtered_tle_data)} 個 {constellation.upper()} 衛星 TLE 數據")
         return True
 
     except Exception as e:
-        logger.error(f"同步 OneWeb 衛星 TLE 數據時出錯: {e}", exc_info=True)
+        logger.error(f"同步 {constellation.upper()} 衛星 TLE 數據時出錯: {e}", exc_info=True)
         return False
+
+
+# 移除向後兼容函數，統一使用 synchronize_constellation_tles
 
 
 class TLEService(TLEServiceInterface):
@@ -89,6 +108,7 @@ class TLEService(TLEServiceInterface):
             "active": "active",
             "starlink": "starlink",
             "oneweb": "active",  # OneWeb衛星在active分類中
+            "kuiper": "active",  # Kuiper衛星在active分類中
         }
 
         # Space-Track API 配置

@@ -45,40 +45,81 @@ import numpy as np
 SKYFIELD_LOADED = False
 SATELLITE_COUNT = 0
 
-# 嘗試加載時間尺度和衛星數據
-try:
-    print("開始加載 Skyfield 時間尺度和衛星數據...")
-    ts = load.timescale(builtin=True)
-    print("時間尺度加載成功")
+# 全局變數初始化
+ts = None
+satellites = []
+satellites_dict = {}
+starlink_sats = []
+kuiper_sats = []
+oneweb_sats = []
+globalstar_sats = []
+iridium_sats = []
 
-    # 優先使用 Celestrak 的活躍衛星數據
-    print("從 Celestrak 下載衛星數據...")
-    url = "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
-    satellites = load.tle_file(url)
-    print(f"衛星數據下載成功，共 {len(satellites)} 顆衛星")
+# 懶加載函數
+async def initialize_satellites():
+    global ts, satellites, satellites_dict, starlink_sats, kuiper_sats, oneweb_sats, globalstar_sats, iridium_sats, SKYFIELD_LOADED, SATELLITE_COUNT
+    
+    if SKYFIELD_LOADED:
+        return  # 已經初始化過了
+        
+    try:
+        print("開始加載 Skyfield 時間尺度和衛星數據...")
+        ts = load.timescale(builtin=True)
+        print("時間尺度加載成功")
 
-    # 建立衛星字典，以名稱為鍵
-    satellites_dict = {sat.name: sat for sat in satellites}
+        # 使用資料庫中的 Starlink + Kuiper 衛星數據
+        print("從資料庫載入 Starlink + Kuiper 衛星數據...")
+        from app.db.base import async_session_maker
+        from app.domains.satellite.adapters.sqlmodel_satellite_repository import SQLModelSatelliteRepository
+        import asyncio
+        import json
+        
+        async def load_satellites_from_db():
+            async with async_session_maker() as session:
+                repo = SQLModelSatelliteRepository()
+                repo._session = session
+                db_satellites = await repo.get_satellites()
+                
+                skyfield_satellites = []
+                for sat in db_satellites:
+                    if sat.tle_data:
+                        try:
+                            tle_dict = json.loads(sat.tle_data) if isinstance(sat.tle_data, str) else sat.tle_data
+                            line1 = tle_dict['line1']
+                            line2 = tle_dict['line2']
+                            skyfield_sat = EarthSatellite(line1, line2, sat.name, ts)
+                            skyfield_satellites.append(skyfield_sat)
+                        except Exception as e:
+                            print(f"載入衛星 {sat.name} 失敗: {e}")
+                
+                return skyfield_satellites
+        
+        satellites = await load_satellites_from_db()
+        print(f"從資料庫載入衛星成功，共 {len(satellites)} 顆衛星")
 
-    # 獲取各衛星類別，用於顯示 (優先 OneWeb)
-    oneweb_sats = [sat for sat in satellites if "ONEWEB" in sat.name.upper()]
-    starlink_sats = [sat for sat in satellites if "STARLINK" in sat.name.upper()]
-    globalstar_sats = [sat for sat in satellites if "GLOBALSTAR" in sat.name.upper()]
-    iridium_sats = [sat for sat in satellites if "IRIDIUM" in sat.name.upper()]
-    print(
-        f"通信衛星統計: OneWeb: {len(oneweb_sats)}, Starlink: {len(starlink_sats)}, Globalstar: {len(globalstar_sats)}, Iridium: {len(iridium_sats)}"
-    )
+        # 建立衛星字典，以名稱為鍵
+        satellites_dict = {sat.name: sat for sat in satellites}
 
-    SKYFIELD_LOADED = True
-    SATELLITE_COUNT = len(satellites)
+        # 獲取各衛星類別，用於顯示 (優先 Starlink + Kuiper)
+        starlink_sats = [sat for sat in satellites if "STARLINK" in sat.name.upper()]
+        kuiper_sats = [sat for sat in satellites if "KUIPER" in sat.name.upper()]
+        oneweb_sats = [sat for sat in satellites if "ONEWEB" in sat.name.upper()]
+        globalstar_sats = [sat for sat in satellites if "GLOBALSTAR" in sat.name.upper()]
+        iridium_sats = [sat for sat in satellites if "IRIDIUM" in sat.name.upper()]
+        print(
+            f"通信衛星統計: Starlink: {len(starlink_sats)}, Kuiper: {len(kuiper_sats)}, OneWeb: {len(oneweb_sats)}, Globalstar: {len(globalstar_sats)}, Iridium: {len(iridium_sats)}"
+        )
 
-except Exception as e:
-    print(f"錯誤：無法加載 Skyfield 數據: {e}")
-    ts = None
-    satellites = []
-    satellites_dict = {}
-    SKYFIELD_LOADED = False
-    SATELLITE_COUNT = 0
+        SKYFIELD_LOADED = True
+        SATELLITE_COUNT = len(satellites)
+
+    except Exception as e:
+        print(f"錯誤：無法加載 Skyfield 數據: {e}")
+        ts = None
+        satellites = []
+        satellites_dict = {}
+        SKYFIELD_LOADED = False
+        SATELLITE_COUNT = 0
 
 api_router = APIRouter()
 
@@ -297,6 +338,12 @@ async def get_visible_satellites(
     print(
         f"API 調用: get_visible_satellites(count={count}, min_elevation_deg={min_elevation_deg})"
     )
+    
+    # 強制重新載入衛星數據
+    global SKYFIELD_LOADED
+    SKYFIELD_LOADED = False
+    await initialize_satellites()
+    
     print(f"Skyfield 狀態: 已加載={SKYFIELD_LOADED}, 衛星數量={SATELLITE_COUNT}")
 
     # 使用台灣新竹附近的固定坐標作為觀測點
@@ -305,29 +352,11 @@ async def get_visible_satellites(
     print(f"觀測點座標: ({observer_lat}, {observer_lon})")
 
     if not SKYFIELD_LOADED or ts is None or not satellites:
-        # 如果 Skyfield 數據未加載成功，返回模擬數據
-        print("使用模擬數據，因為 Skyfield 未成功加載")
-        sim_satellites = []
-        for i in range(count):
-            # 生成隨機衛星數據
-            elevation = random.uniform(min_elevation_deg, 90)
-            satellite = VisibleSatelliteInfo(
-                norad_id=f"SIM-{40000 + i}",
-                name=f"SIM-SAT-{1000 + i}",
-                elevation_deg=elevation,
-                azimuth_deg=random.uniform(0, 360),
-                distance_km=random.uniform(500, 2000),
-                velocity_km_s=random.uniform(5, 8),
-                visible_for_sec=int(random.uniform(300, 1200)),
-                orbit_altitude_km=random.uniform(500, 1200),
-                magnitude=random.uniform(1, 5),
-            )
-            sim_satellites.append(satellite)
-
-        # 按仰角從高到低排序
-        sim_satellites.sort(key=lambda x: x.elevation_deg, reverse=True)
-
-        return {"satellites": sim_satellites, "status": "simulated"}
+        # 不使用模擬數據，而是拋出錯誤確保只使用真實數據
+        error_msg = f"無法載入真實衛星數據 - SKYFIELD_LOADED={SKYFIELD_LOADED}, satellites_count={len(satellites)}"
+        print(f"❌ {error_msg}")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail=error_msg)
 
     try:
         # 計算真實衛星數據
@@ -343,8 +372,8 @@ async def get_visible_satellites(
         # 計算所有衛星在觀測點的方位角、仰角和距離
         visible_satellites = []
 
-        # 優先考慮通信衛星 (OneWeb 優先)
-        priority_sats = oneweb_sats + starlink_sats + globalstar_sats + iridium_sats
+        # 優先考慮通信衛星 (Starlink + Kuiper 優先)
+        priority_sats = starlink_sats + kuiper_sats + oneweb_sats + globalstar_sats + iridium_sats
         other_sats = [sat for sat in satellites if sat not in priority_sats]
         all_sats = priority_sats + other_sats
 

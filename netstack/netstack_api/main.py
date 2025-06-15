@@ -237,14 +237,10 @@ async def lifespan(app: FastAPI):
     await interference_service.start()
     logger.info("✅ 事件驅動干擾控制服務已啟動")
 
-    # 初始化 OneWeb 衛星 gNodeB 服務
-    from .services.oneweb_satellite_gnb_service import OneWebSatelliteGnbService
-
-    oneweb_service = OneWebSatelliteGnbService(
-        satellite_mapping_service=satellite_gnb_service,
-        simworld_api_url=os.getenv("SIMWORLD_API_URL", "http://simworld-backend:8000"),
-        ueransim_config_dir=os.getenv("UERANSIM_CONFIG_DIR", "/tmp/ueransim_configs"),
-    )
+    # OneWeb 專用服務已停用，改用通用的 Starlink + Kuiper 配置
+    # from .services.oneweb_satellite_gnb_service import OneWebSatelliteGnbService
+    # oneweb_service = OneWebSatelliteGnbService(...)
+    oneweb_service = None
 
     # 初始化 Sionna 整合服務
     sionna_service = SionnaIntegrationService(
@@ -1051,10 +1047,21 @@ async def start_continuous_tracking(satellite_ids: str, update_interval: int = 3
         raise HTTPException(status_code=500, detail=f"啟動衛星追蹤失敗: {str(e)}")
 
 
-# ===== OneWeb 衛星 gNodeB 管理 =====
+# ===== OneWeb 衛星 gNodeB 管理 (已停用) =====
+# 注意：以下 OneWeb 專用 API 已停用，系統改用 Starlink + Kuiper 通用配置
+# 相關功能已整合到通用的衛星服務中
+
+"""
+已停用的 OneWeb API 端點：
+- POST /api/v1/oneweb/constellation/initialize
+- POST /api/v1/oneweb/orbital-tracking/start  
+- GET /api/v1/oneweb/constellation/status
+- POST /api/v1/oneweb/ueransim/deploy
+"""
 
 
-@app.post("/api/v1/oneweb/constellation/initialize", tags=["OneWeb 衛星 gNodeB"])
+# OneWeb API 已停用 - 改用 Starlink + Kuiper 配置
+# @app.post("/api/v1/oneweb/constellation/initialize", tags=["OneWeb 衛星 gNodeB"])
 async def initialize_oneweb_constellation():
     """
     初始化 OneWeb 衛星群作為 gNodeB 節點

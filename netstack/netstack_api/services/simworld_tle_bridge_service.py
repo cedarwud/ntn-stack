@@ -82,9 +82,13 @@ class SimWorldTLEBridgeService:
                 return json.loads(cached_result)
 
         try:
-            async with aiohttp.ClientSession() as session:
+            # 首先嘗試將satellite_id映射到資料庫ID
+            db_satellite_id = await self._resolve_satellite_id(satellite_id)
+            
+            timeout = aiohttp.ClientTimeout(total=5.0)  # 5秒超時
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 # 構建 SimWorld API 請求
-                url = f"{self.simworld_api_url}/api/v1/satellites/{satellite_id}/orbit/propagate"
+                url = f"{self.simworld_api_url}/api/v1/satellites/{db_satellite_id}/orbit/propagate"
                 
                 params = {
                     "start_time": start_time.isoformat(),
@@ -197,8 +201,12 @@ class SimWorldTLEBridgeService:
                 return json.loads(cached_result)
 
         try:
-            async with aiohttp.ClientSession() as session:
-                url = f"{self.simworld_api_url}/api/v1/satellites/{satellite_id}/position"
+            # 首先嘗試將satellite_id映射到資料庫ID
+            db_satellite_id = await self._resolve_satellite_id(satellite_id)
+            
+            timeout = aiohttp.ClientTimeout(total=5.0)  # 5秒超時
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                url = f"{self.simworld_api_url}/api/v1/satellites/{db_satellite_id}/position"
                 
                 params = {"timestamp": timestamp.isoformat()}
                 if observer_location:
@@ -226,6 +234,55 @@ class SimWorldTLEBridgeService:
         except Exception as e:
             raise Exception(f"獲取衛星 {satellite_id} 位置失敗: {str(e)}")
 
+    async def _resolve_satellite_id(self, satellite_id: str) -> str:
+        """
+        將衛星識別符映射到資料庫ID
+        
+        Args:
+            satellite_id: 可能是NORAD ID、衛星名稱或資料庫ID
+            
+        Returns:
+            資料庫中的衛星ID
+        """
+        # 如果已經是數字ID，先嘗試直接使用
+        if satellite_id.isdigit():
+            try:
+                async with aiohttp.ClientSession() as session:
+                    url = f"{self.simworld_api_url}/api/v1/satellites/{satellite_id}"
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            return satellite_id  # 直接是資料庫ID
+            except:
+                pass
+        
+        # 獲取所有衛星列表進行匹配
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = f"{self.simworld_api_url}/api/v1/satellites/"
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        satellites = await response.json()
+                        
+                        # 按優先級匹配：NORAD ID > 名稱 > 部分匹配
+                        for sat in satellites:
+                            # 精確匹配NORAD ID
+                            if sat.get("norad_id") == satellite_id:
+                                return str(sat["id"])
+                            # 精確匹配名稱
+                            if sat.get("name") == satellite_id:
+                                return str(sat["id"])
+                        
+                        # 部分匹配名稱（用於處理名稱中的空格和大小寫）
+                        for sat in satellites:
+                            if satellite_id.upper() in sat.get("name", "").upper():
+                                return str(sat["id"])
+                                
+        except Exception as e:
+            self.logger.warning(f"無法解析衛星ID {satellite_id}: {e}")
+        
+        # 如果所有方法都失敗，返回原始ID（可能會導致404錯誤）
+        return satellite_id
+
     async def sync_tle_updates_from_simworld(self) -> Dict[str, Any]:
         """
         從 SimWorld 同步 TLE 資料更新
@@ -236,7 +293,8 @@ class SimWorldTLEBridgeService:
         self.logger.info("開始同步 TLE 資料更新")
 
         try:
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=5.0)  # 5秒超時
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 # 獲取 TLE 更新狀態
                 url = f"{self.simworld_api_url}/api/v1/satellites/tle/status"
                 
@@ -533,7 +591,8 @@ class SimWorldTLEBridgeService:
             健康檢查結果
         """
         try:
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=5.0)  # 5秒超時
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 url = f"{self.simworld_api_url}/api/v1/satellites/tle/health"
                 
                 async with session.get(url) as response:

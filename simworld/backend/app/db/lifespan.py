@@ -32,7 +32,7 @@ import os
 # import numpy as np # numpy seems unused directly in this file now
 
 # New import for TLE synchronization service
-from app.domains.satellite.services.tle_service import synchronize_oneweb_tles
+from app.domains.satellite.services.tle_service import synchronize_constellation_tles
 
 # For Redis client management
 import redis.asyncio as aioredis
@@ -265,17 +265,47 @@ async def lifespan(app: FastAPI):
     # 恢復 TLE 相關同步和啟動調度器
     if hasattr(app.state, "redis") and app.state.redis:
         try:
-            # 自動同步 OneWeb TLE 資料
-            logger.info("Synchronizing OneWeb TLE data in the background...")
-            await synchronize_oneweb_tles(async_session_maker, app.state.redis)
-            
-            # 啟動衛星數據定期更新調度器
-            logger.info("Starting satellite data scheduler...")
-            await initialize_scheduler(app.state.redis)
+            # 導入新的星座同步函數
+            from app.domains.satellite.services.tle_service import (
+                synchronize_constellation_tles,
+            )
+
+            # 同步 Starlink 衛星 TLE 資料到 Redis（主要星座）
+            logger.info("Synchronizing Starlink TLE data in the background...")
+            starlink_success = await synchronize_constellation_tles(
+                "starlink", async_session_maker, app.state.redis
+            )
+
+            # 同步 Kuiper 衛星 TLE 資料到 Redis（補充星座）
+            logger.info("Synchronizing Kuiper TLE data in the background...")
+            kuiper_success = await synchronize_constellation_tles(
+                "kuiper", async_session_maker, app.state.redis
+            )
+
+            if starlink_success or kuiper_success:
+                # 同步 Redis 資料到資料庫（確保啟動時資料庫有衛星資料）
+                logger.info("Syncing Redis TLE data to database...")
+                from app.services.satellite_scheduler import SatelliteScheduler
+
+                temp_scheduler = SatelliteScheduler(app.state.redis)
+                await temp_scheduler._sync_redis_to_database()
+                logger.info("Redis to database sync completed")
+
+                # 啟動衛星數據定期更新調度器
+                logger.info("Starting satellite data scheduler...")
+                await initialize_scheduler(app.state.redis)
+            else:
+                logger.warning("Both Starlink and Kuiper synchronization failed")
+
         except Exception as e:
-            logger.error(f"Error during OneWeb TLE synchronization or scheduler startup: {e}", exc_info=True)
+            logger.error(
+                f"Error during Starlink/Kuiper TLE synchronization or scheduler startup: {e}",
+                exc_info=True,
+            )
     else:
-        logger.warning("Redis unavailable, skipping OneWeb TLE synchronization and scheduler")
+        logger.warning(
+            "Redis unavailable, skipping Starlink/Kuiper TLE synchronization and scheduler"
+        )
 
     logger.info("Application startup complete.")
 
@@ -288,7 +318,7 @@ async def lifespan(app: FastAPI):
         await shutdown_scheduler()
     except Exception as e:
         logger.error(f"Error shutting down scheduler: {e}", exc_info=True)
-    
+
     if hasattr(app.state, "redis") and app.state.redis:
         logger.info("Closing Redis connection...")
         await app.state.redis.close()

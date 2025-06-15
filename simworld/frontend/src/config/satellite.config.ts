@@ -1,12 +1,12 @@
 /**
  * 衛星顯示和移動模擬配置
- * 針對 OneWeb 衛星星座的固定參數設定
+ * 支援 Starlink + Kuiper 衛星星座的通用參數設定
  */
 
 export const SATELLITE_CONFIG = {
   // === 基本顯示參數 ===
   VISIBLE_COUNT: 12,                // 可見衛星數量 (接近真實場景，提供豐富選擇)
-  MIN_ELEVATION: 0,                 // 最低仰角（度，包含地平線）
+  MIN_ELEVATION: 5,                 // 最低仰角（度，包含地平線）
   
   // === 移動模擬參數 ===
   REAL_TIME_MULTIPLIER: 1,          // 實時速度倍數（1 = 真實速度）
@@ -26,15 +26,25 @@ export const SATELLITE_CONFIG = {
   SHOW_ORBIT_TRAILS: true,          // 顯示軌道軌跡
   TRAIL_LENGTH: 10,                 // 軌跡長度（分鐘）
   
-  // === OneWeb 軌道參數 ===
-  ONEWEB_ALTITUDE_KM: 1200,         // OneWeb 衛星軌道高度
-  ONEWEB_INCLINATION_DEG: 87.9,     // OneWeb 軌道傾角
-  ORBITAL_PERIOD_MIN: 109,          // OneWeb 軌道週期（分鐘）
+  // === 衛星星座軌道參數 ===
+  STARLINK_ALTITUDE_KM: 550,        // Starlink 衛星軌道高度
+  STARLINK_INCLINATION_DEG: 53.0,   // Starlink 軌道傾角
+  KUIPER_ALTITUDE_KM: 590,          // Kuiper 衛星軌道高度 
+  KUIPER_INCLINATION_DEG: 51.9,     // Kuiper 軌道傾角
+  ORBITAL_PERIOD_MIN: 96,           // LEO 軌道週期（分鐘）
   
   // === 換手相關參數 ===
   HANDOVER_ELEVATION_THRESHOLD: 25, // 換手觸發仰角閾值（度）
   HANDOVER_HYSTERESIS: 2,           // 換手滯後角度（度）
   SIGNAL_FADE_MARGIN: 3,            // 信號衰落裕度（dB）
+  
+  // === 邊界設定 ===  
+  VISIBILITY_BOUNDARY: {
+    MIN_ELEVATION_DEG: 5,           // 衛星出現的最低仰角（度）
+    MAX_ELEVATION_DEG: 90,          // 衛星消失的最高仰角（度）
+    AZIMUTH_RANGE_DEG: 360,         // 方位角範圍（度）
+    MAX_DISTANCE_KM: 2000,          // 最大可見距離（公里）
+  },
   
 } as const;
 
@@ -67,17 +77,20 @@ export function getTimeMultiplier(mode: SimulationMode): number {
 }
 
 /**
- * OneWeb 衛星標識符配置
- * 用於識別和追蹤特定的 OneWeb 衛星
+ * 衛星星座標識符配置
+ * 用於識別和追蹤特定的 Starlink 和 Kuiper 衛星
  */
-export const ONEWEB_SATELLITES = {
-  // OneWeb 第一批衛星的 NORAD ID 範圍
-  BATCH_1_START: 44713,
-  BATCH_1_END: 44718,
+export const CONSTELLATION_SATELLITES = {
+  // Starlink 衛星 NORAD ID 範圍
+  STARLINK_START: 44713,
+  STARLINK_END: 70000,
   
-  // OneWeb 最新批次的 NORAD ID 範圍（需要根據實際部署更新）
-  LATEST_BATCH_START: 50000,
-  LATEST_BATCH_END: 55000,
+  // Kuiper 衛星 NORAD ID 範圍
+  KUIPER_START: 63724,
+  KUIPER_END: 63750,
+  
+  // 支援的星座類型
+  SUPPORTED_CONSTELLATIONS: ['STARLINK', 'KUIPER'] as const,
 } as const;
 
 /**
