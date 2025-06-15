@@ -35,10 +35,10 @@
   - 修改 `satellite_gnb_mapping_service.py` 使用 SimWorld TLE 資料
   - 建立跨容器衛星資料同步機制
 
-### 1.2 同步演算法核心實作 ✅
+### 1.2 同步演算法核心實作 🔧
 **目標**: 實作論文 Algorithm 1 的精確版本
 
-**當前狀態**: ✅ **已完成論文標準化並整合進階功能**
+**當前狀態**: ⚠️ **需要修正關鍵問題**
 - [x] 已有 `enhanced_synchronized_algorithm.py` 進階實作
 - [x] 已有二點預測機制 (Two-Point Prediction)
 - [x] 已有 Binary Search Refinement (25ms 精度)
@@ -46,6 +46,29 @@
 - [x] **已完成**: 論文 Algorithm 1 標準介面 (`paper_synchronized_algorithm.py`)
 - [x] **已完成**: 論文標準資料結構 (AccessInfo)
 - [x] **已完成**: 整合橋接服務 (`algorithm_integration_bridge.py`)
+
+**⚠️ 關鍵問題發現**:
+- **測試模式問題**: 當前 0.1ms 結果來自測試模式的簡化邏輯 (第486-496行)
+- **衛星計算缺失**: `calculate_access_satellite` 方法使用模擬邏輯，非真實軌道計算
+- **論文目標偏離**: 論文要求 20-30ms 換手延遲，但我們測得 0.1ms (明顯不合理)
+
+**根本原因分析**:
+```python
+# paper_synchronized_algorithm.py:486-496 問題代碼
+if hasattr(self, '_test_mode') and self._test_mode:
+    # 使用簡化模擬，導致 0.1ms 不合理結果
+    time_offset = time_t % 300  # 5分鐘週期
+    if time_offset < 150:
+        return source_sat  # 簡單時間判斷，無真實軌道計算
+    else:
+        return target_sat
+```
+
+**論文要求 vs 實際情況**:
+- 論文換手延遲目標: **20-30ms** (vs 傳統 250ms)
+- 二分搜尋精度要求: **<25ms** 執行時間
+- 我們測得: **0.1ms** (因使用模擬邏輯)
+- 真實 Starlink 計算應該需要: **數十毫秒到數百毫秒**
 
 **論文 Algorithm 1 核心邏輯** (需要對齊):
 ```python
@@ -107,32 +130,40 @@ flowchart TD
     O --> B
 ```
 
-**已完成實作**:
-- [x] **T1.2.1**: 論文標準化介面 (`paper_synchronized_algorithm.py`) ✅
-  ```python
-  # 完全符合論文 Algorithm 1 的標準介面
-  # 整合現有 enhanced_synchronized_algorithm.py 的進階功能
-  # 實作論文標準的週期性更新和二分搜尋演算法
-  ```
+**修正計畫 (基於 algorithm1.md 分析)**:
 
-- [x] **T1.2.2**: 論文標準資料結構 (AccessInfo) ✅
-  ```python
-  # 論文標準 AccessInfo 資料結構
-  @dataclass
-  class AccessInfo:
-      ue_id: str
-      satellite_id: str
-      next_satellite_id: Optional[str] = None
-      handover_time: Optional[float] = None
-      last_update: datetime = field(default_factory=datetime.utcnow)
-      access_quality: float = 1.0
-      prediction_confidence: float = 1.0
-  ```
+**T1.2.1 核心問題修正** (優先級：緊急):
+- [ ] **移除測試模式簡化邏輯**: 停用 `_test_mode` 並改用真實軌道計算
+- [ ] **整合真實 Starlink/Kuiper 衛星**: 使用完整星座數據，但限制 UE 數量為 1 個
+- [ ] **實作真實 `calculate_access_satellite`**: 連接 SimWorld TLE 服務進行軌道計算
+- [ ] **修正效能測量**: 確保測得的延遲符合論文 20-30ms 範圍
 
-- [x] **T1.2.3**: 整合橋接服務 (`algorithm_integration_bridge.py`) ✅
-  - 提供統一介面管理論文標準與進階演算法
-  - 支援多種整合模式 (PAPER_ONLY, ENHANCED_ONLY, HYBRID, FALLBACK)
-  - 保持 25ms 精度優勢並提供無縫切換
+**T1.2.2 數據源優化策略** (基於 algorithm1.md):
+```python
+# 策略 A: 縮小數據規模但保持演算法完整性
+def get_candidate_satellites(ue_position, max_satellites=50):
+    # 只考慮仰角 > 40° 的衛星，按距離排序取前 N 顆
+    # 從 4,408 顆 Starlink 縮減到 50-100 顆候選衛星
+
+# 策略 B: 限制測試規模
+test_ue_count = 1  # 從論文的 10,000 UE 縮減到 1 個 UE
+region_filter = "taiwan"  # 專注台灣上空，減少衛星計算範圍
+```
+
+**T1.2.3 計算優化 (保持論文邏輯)**:
+- [ ] **預計算衛星軌跡**: 批量計算未來 Δt 時間內的衛星位置
+- [ ] **空間索引優化**: 使用 KD-tree 快速找到附近衛星
+- [ ] **增量更新**: 利用軌道可預測性，只更新變化顯著的衛星
+
+**T1.2.4 分層測試策略**:
+1. **概念驗證**: 1 個 UE + 10 顆衛星 (驗證邏輯正確性)
+2. **效能測試**: 1 個 UE + 50 顆衛星 (測試合理規模性能)  
+3. **論文對標**: 1 個 UE + 完整 Starlink 子集 (確認 20-30ms 延遲)
+
+**已完成實作** (需要修正):
+- [x] **論文標準化介面**: `paper_synchronized_algorithm.py` (需移除測試模式)
+- [x] **論文標準資料結構**: AccessInfo (需修正參數)
+- [x] **整合橋接服務**: `algorithm_integration_bridge.py` (需修正方法名稱)
 
 ### 1.3 快速衛星預測演算法 ✅
 **目標**: 實作論文 Algorithm 2 的地理區塊最佳化
@@ -817,6 +848,21 @@ python utils/paper_report_generator.py --output results/
 **團隊配置建議**: 2-3 名工程師並行開發  
 **關鍵技術**: Docker、Python、TypeScript、Three.js、Open5GS、Skyfield、TensorFlow
 
+---
+
+## 📊 階段六：專案管理與驗證整合 (1 週)
+
+### 6.1 專案現況分析與技術債務清理
+**目標**: 整理專案現況，清理技術債務，確保代碼品質
+
+**當前狀態**: ⚠️ 發現關鍵問題需要修正
+
+**🚨 緊急問題**: Algorithm 1 測試結果異常
+- **問題**: 測得 0.1ms 換手延遲，嚴重偏離論文 20-30ms 目標
+- **根因**: `paper_synchronized_algorithm.py` 使用測試模式簡化邏輯
+- **影響**: 失去論文復現的真實性和價值
+- **修正**: 移除測試模式，整合真實 Starlink/Kuiper 軌道計算
+
 ## 🔍 關鍵發現：專案現況與論文需求分析
 
 **重要**: 經過詳細分析，專案已具備相當完整的基礎設施，但論文核心演算法需要標準化：
@@ -875,6 +921,9 @@ python utils/paper_report_generator.py --output results/
 **整體完成度**: ~70%，關鍵是 Algorithm 2 和效能測量框架
 
 這分析結果顯示工期預估從 8-10 週縮短至 **6-8 週** 是合理的，重點在於補強缺失的核心演算法。
+
+### 6.2 論文關鍵技術細節整合
+**目標**: 整合論文提供的完整技術實作細節
 
 ## 📚 論文關鍵技術細節整合
 
@@ -1033,6 +1082,9 @@ class LEOHandoverSystem:
             print("收到中斷指令，系統準備停止...")
 ```
 
+### 6.3 快速開始：論文復現指令
+**目標**: 提供完整的專案快速啟動指南
+
 ### ⚡ 快速開始：論文復現指令
 
 ```bash
@@ -1052,3 +1104,72 @@ cd tests && python performance/paper_reproduction_test.py --config paper_config.
 # 結果分析
 python utils/paper_report_generator.py --input results/ --output paper_report.pdf
 ```
+
+---
+
+## 🚨 緊急修正計畫：Algorithm 1 效能問題
+
+### 📊 問題診斷總結
+
+**發現問題**: 當前 Algorithm 1 測試結果為 0.1ms，嚴重偏離論文目標 20-30ms
+
+**根本原因**: 
+1. **測試模式簡化**: `paper_synchronized_algorithm.py:486-496` 使用時間模擬邏輯
+2. **缺乏真實計算**: 未整合 SimWorld TLE 服務的真實軌道計算
+3. **計算規模不當**: 論文支援 10,000 UE + 4,408 顆衛星過於龐大
+
+**論文要求對比**:
+- **論文目標**: 換手延遲 20-30ms (vs 傳統 250ms)
+- **二分搜尋要求**: <25ms 執行時間
+- **當前測得**: 0.1ms (明顯不合理)
+- **應有結果**: 數十毫秒級別
+
+### 🎯 修正策略 (基於 algorithm1.md)
+
+**優先級 1: 移除測試模式**
+```bash
+# 修正 paper_synchronized_algorithm.py
+# 移除第 486-496 行的簡化測試邏輯
+# 強制使用真實軌道計算
+```
+
+**優先級 2: 數據源優化**
+```python
+# 策略: 縮小規模但保持邏輯完整性
+UE_COUNT = 1  # 從 10,000 縮減到 1 個
+CANDIDATE_SATELLITES = 50  # 從 4,408 縮減到 50 個 (仰角 > 40°)
+REGION = "taiwan"  # 專注台灣上空
+```
+
+**優先級 3: 計算效能優化**
+- 預計算衛星軌跡 (批量計算未來 Δt 時間)
+- 空間索引優化 (KD-tree 快速搜尋)
+- 增量更新機制 (只更新變化顯著的衛星)
+
+**優先級 4: 分層驗證**
+1. **概念驗證**: 1 UE + 10 衛星
+2. **效能測試**: 1 UE + 50 衛星  
+3. **論文對標**: 1 UE + 完整 Starlink 子集
+
+### 📋 具體執行任務
+
+**T6.5.1 核心修正** (緊急):
+- [ ] 移除 `_test_mode` 簡化邏輯
+- [ ] 整合 SimWorld TLE 真實軌道計算
+- [ ] 實作真實的 `calculate_access_satellite` 方法
+
+**T6.5.2 數據源優化**:
+- [ ] 限制候選衛星數量 (50-100 顆)
+- [ ] 設定 UE 數量為 1 個
+- [ ] 專注台灣上空區域範圍
+
+**T6.5.3 效能驗證**:
+- [ ] 確認二分搜尋執行時間 >10ms
+- [ ] 驗證換手延遲在 20-30ms 範圍
+- [ ] 生成論文級別的效能報告
+
+**成功標準**: 
+- ✅ 二分搜尋執行時間: 10-50ms 
+- ✅ 換手延遲: 20-30ms
+- ✅ 測試結果符合論文預期
+- ✅ 保持演算法邏輯完整性
