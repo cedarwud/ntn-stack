@@ -143,6 +143,8 @@ class SimWorldTLEBridgeService:
         """
         if timestamp is None:
             timestamp = datetime.utcnow()
+        elif isinstance(timestamp, (int, float)):
+            timestamp = datetime.fromtimestamp(timestamp)
 
         self.logger.info(
             "批量獲取衛星位置",
@@ -171,7 +173,7 @@ class SimWorldTLEBridgeService:
                 positions[satellite_id] = {
                     "success": False,
                     "error": str(result),
-                    "timestamp": timestamp.isoformat(),
+                    "timestamp": timestamp.isoformat() if isinstance(timestamp, datetime) else datetime.fromtimestamp(timestamp).isoformat(),
                 }
             else:
                 positions[satellite_id] = result
@@ -592,3 +594,60 @@ class SimWorldTLEBridgeService:
             "orbit_cache_result": cache_result,
             "preload_time": datetime.utcnow().isoformat(),
         }
+
+    async def get_satellite_position(
+        self, 
+        satellite_id: str, 
+        timestamp: Optional[float] = None,
+        observer_location: Optional[Dict[str, float]] = None
+    ) -> Dict[str, Any]:
+        """
+        獲取單個衛星位置 (測試用方法)
+        
+        Args:
+            satellite_id: 衛星 ID
+            timestamp: 時間戳 (可選)
+            observer_location: 觀測者位置 (可選)
+            
+        Returns:
+            衛星位置資料
+        """
+        if timestamp is None:
+            timestamp = time.time()
+            
+        # 轉換為 datetime
+        dt_timestamp = datetime.fromtimestamp(timestamp) if isinstance(timestamp, (int, float)) else timestamp
+        
+        return await self._get_single_satellite_position(
+            satellite_id, dt_timestamp, observer_location
+        )
+
+    async def get_service_status(self) -> Dict[str, Any]:
+        """
+        獲取服務狀態
+        
+        Returns:
+            服務狀態資訊
+        """
+        try:
+            # 測試 SimWorld 連接
+            health_check = await self.get_tle_health_check()
+            
+            return {
+                "service_name": "SimWorldTLEBridgeService",
+                "status": "active",
+                "simworld_connection": health_check.get("success", False),
+                "cache_prefix": self.cache_prefix,
+                "orbit_cache_ttl": self.orbit_cache_ttl,
+                "position_cache_ttl": self.position_cache_ttl,
+                "prediction_precision_seconds": self.prediction_precision_seconds,
+                "max_prediction_horizon_hours": self.max_prediction_horizon_hours,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        except Exception as e:
+            return {
+                "service_name": "SimWorldTLEBridgeService", 
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
+            }
