@@ -2,7 +2,7 @@
 
 ## 📋 概述
 
-本資料夾包含論文《Accelerating Handover in Mobile Satellite Network》復現專案的所有測試程式，按階段分類組織。已從 Desktop/ 遷移至 ntn-stack 根目錄，並整合了所有重複測試檔案。
+本資料夾包含論文《Accelerating Handover in Mobile Satellite Network》復現專案的所有測試程式，按階段分類組織。
 
 ## 📊 當前測試狀態
 

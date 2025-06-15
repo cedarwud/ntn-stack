@@ -73,6 +73,11 @@ async def test_algorithm_1_core():
         search_start_time = time.time()
         current_time = time.time()
         
+        # 啟用測試模式以提高速度
+        algo._test_mode = True
+        algo._test_source_satellite = "sat_001"
+        algo._test_target_satellite = "sat_002"
+        
         handover_time = await algo.binary_search_handover_time(
             ue_id="ue_001",
             source_satellite="sat_001",
