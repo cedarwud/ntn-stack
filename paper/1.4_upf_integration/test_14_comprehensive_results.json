@@ -1,0 +1,35 @@
+{
+  "summary": {
+    "total_tests": 6,
+    "passed_tests": 6,
+    "success_rate": 100.0,
+    "duration_seconds": 31.911281
+  },
+  "test_results": {
+    "模組導入測試": {
+      "passed": true,
+      "details": true
+    },
+    "UPF 擴展模組測試": {
+      "passed": true,
+      "details": true
+    },
+    "API 路由增強測試": {
+      "passed": true,
+      "details": true
+    },
+    "效能測量框架測試": {
+      "passed": true,
+      "details": true
+    },
+    "跨組件整合測試": {
+      "passed": true,
+      "details": true
+    },
+    "論文復現驗證": {
+      "passed": true,
+      "details": true
+    }
+  },
+  "overall_success": true
+}
