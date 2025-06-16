@@ -39,9 +39,9 @@ class PaperReproductionTestRunner:
         self.test_results = {}
         self.start_time = None
         self.end_time = None
-        self.base_path = "/home/sat/paper"
+        self.base_path = "/home/sat/ntn-stack/paper"
 
-        # 測試階段定義
+        # 測試階段定義 (修正路徑)
         self.test_stages = {
             "1.1": {
                 "name": "衛星軌道預測模組整合",
