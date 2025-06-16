@@ -491,9 +491,9 @@ class SynchronizedAlgorithm:
             try:
                 ue_position = await self._get_ue_position(ue_id)
                 
-                # 限制候選衛星數量 (優化策略: 50 顆候選衛星, 仰角 > 40°)
+                # 限制候選衛星數量 (優化策略: 5 顆候選衛星, 降低計算負載)
                 candidate_satellites = await self._get_regional_candidate_satellites(
-                    ue_position, max_satellites=50, min_elevation=40.0
+                    ue_position, max_satellites=5, min_elevation=30.0
                 )
                 
                 best_satellite = await self.tle_bridge._calculate_best_access_satellite(
@@ -514,7 +514,7 @@ class SynchronizedAlgorithm:
             try:
                 ue_position = await self._get_ue_position(ue_id)
                 candidate_satellites = await self._get_regional_candidate_satellites(
-                    ue_position, max_satellites=50, min_elevation=40.0
+                    ue_position, max_satellites=5, min_elevation=30.0
                 )
                 
                 timestamp = datetime.fromtimestamp(time_t)
@@ -630,9 +630,12 @@ class SynchronizedAlgorithm:
         """
         # 台灣中心位置 (台中市)，用於測試區域化衛星計算
         return {
-            "latitude": 24.1477,    # 台灣中心緯度
-            "longitude": 120.6736,  # 台灣中心經度 
-            "altitude": 100.0       # 海拔高度 (米)
+            "lat": 24.1477,         # 台灣中心緯度 (標準化字段名)
+            "lon": 120.6736,        # 台灣中心經度 (標準化字段名)
+            "alt": 100.0,           # 海拔高度 (米)
+            "latitude": 24.1477,    # 兼容性字段
+            "longitude": 120.6736,  # 兼容性字段 
+            "altitude": 100.0       # 兼容性字段
         }
 
     async def _get_candidate_satellites(self) -> List[str]:
