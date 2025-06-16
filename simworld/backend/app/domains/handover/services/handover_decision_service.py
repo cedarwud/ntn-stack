@@ -326,20 +326,21 @@ class HandoverDecisionService:
         try:
             # 使用 FineGrainedSyncService 找到最佳衛星
             best_satellite = await self.fine_grained_service.calculate_best_satellite(
-                ue_position=(ue_position.latitude, ue_position.longitude, ue_position.altitude_m),
+                ue_position=(ue_position.latitude, ue_position.longitude, ue_position.altitude or 0.0),
                 timestamp=current_time.timestamp()
             )
             
             # 如果最佳衛星不是當前衛星，且品質顯著更好
+            signal_improvement = best_satellite.signal_strength - (current_coverage.signal_strength_estimate * 100 - 100)
             if (best_satellite.satellite_id != current_satellite_id and
-                best_satellite.signal_strength - current_coverage.signal_strength_estimate * 100 + 100 > self.quality_improvement_threshold):
+                signal_improvement > self.quality_improvement_threshold):
                 
                 trigger = HandoverTriggerCondition(
                     trigger_type=HandoverTrigger.BETTER_SATELLITE,
                     threshold_value=self.quality_improvement_threshold,
-                    current_value=best_satellite.signal_strength - (current_coverage.signal_strength_estimate * 100 - 100),
+                    current_value=signal_improvement,
                     priority=6,
-                    description=f"衛星 {best_satellite.satellite_id} 信號品質更佳 (+{trigger.current_value:.1f}dB)"
+                    description=f"衛星 {best_satellite.satellite_id} 信號品質更佳 (+{signal_improvement:.1f}dB)"
                 )
                 trigger.triggered = True
                 return trigger
@@ -351,31 +352,36 @@ class HandoverDecisionService:
     
     async def _check_load_balancing(self, satellite_id: str) -> Optional[HandoverTriggerCondition]:
         """檢查負載平衡需求"""
+        current_load = 0.5  # 預設負載
+        
         try:
             # 查詢 NetStack API 獲取衛星負載資訊
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.netstack_api_base_url}/api/satellite/{satellite_id}/load",
-                    timeout=5.0
+                    timeout=3.0
                 )
                 
                 if response.status_code == 200:
                     load_data = response.json()
                     current_load = load_data.get("load_factor", 0.5)
-                    
-                    if current_load > self.load_balance_threshold:
-                        trigger = HandoverTriggerCondition(
-                            trigger_type=HandoverTrigger.LOAD_BALANCING,
-                            threshold_value=self.load_balance_threshold,
-                            current_value=current_load,
-                            priority=4,
-                            description=f"衛星負載 {current_load:.2f} 超過閾值 {self.load_balance_threshold}"
-                        )
-                        trigger.triggered = True
-                        return trigger
                         
         except Exception as e:
-            self.logger.debug("負載平衡檢查失敗", error=str(e))
+            # API 不可用時使用模擬負載因子
+            current_load = 0.3 + (hash(satellite_id) % 60) / 100.0  # 0.3-0.9範圍
+            self.logger.debug("使用模擬負載因子", satellite_id=satellite_id, load=current_load)
+        
+        # 檢查是否超過負載閾值
+        if current_load > self.load_balance_threshold:
+            trigger = HandoverTriggerCondition(
+                trigger_type=HandoverTrigger.LOAD_BALANCING,
+                threshold_value=self.load_balance_threshold,
+                current_value=current_load,
+                priority=4,
+                description=f"衛星負載 {current_load:.2f} 超過閾值 {self.load_balance_threshold}"
+            )
+            trigger.triggered = True
+            return trigger
         
         return None
     
@@ -397,7 +403,7 @@ class HandoverDecisionService:
         try:
             # 使用 FineGrainedSyncService 獲取可見衛星
             visible_satellites = self.fine_grained_service._generate_mock_visible_satellites(
-                (ue_position.latitude, ue_position.longitude, ue_position.altitude_m),
+                (ue_position.latitude, ue_position.longitude, ue_position.altitude or 0.0),
                 current_time.timestamp()
             )
             
@@ -413,8 +419,9 @@ class HandoverDecisionService:
                     check_time=current_time
                 )
                 
-                # 只考慮有效覆蓋的衛星
-                if candidate_coverage.coverage_result not in [CoverageResult.COVERED, CoverageResult.MARGINAL]:
+                # 考慮所有可能的覆蓋狀態（除了 NOT_COVERED）
+                # 包括 BLOCKED 和 MARGINAL，因為這些仍可能是可行的切換目標
+                if candidate_coverage.coverage_result == CoverageResult.NOT_COVERED:
                     continue
                 
                 # 估算切換成本
@@ -484,21 +491,38 @@ class HandoverDecisionService:
         total_cost = 0.0
         
         try:
-            # 延遲成本
-            latency_cost = 20.0  # 基礎延遲成本
-            if any(t.trigger_type == HandoverTrigger.EMERGENCY_HANDOVER for t in triggers):
-                latency_cost *= 0.5  # 緊急切換降低延遲成本權重
+            # 基礎成本根據衛星對差異化
+            satellite_distance_factor = hash(f"{source_satellite_id}:{target_satellite_id}") % 100 / 100.0
             
-            # 信令成本
-            signaling_cost = 15.0  # 信令開銷
+            # 延遲成本 (10-30範圍)
+            latency_cost = 15.0 + (satellite_distance_factor * 15.0)
             
-            # 資源成本
-            resource_cost = 10.0  # 資源分配成本
+            # 根據觸發條件調整延遲成本
+            for trigger in triggers:
+                if trigger.trigger_type == HandoverTrigger.EMERGENCY_HANDOVER:
+                    latency_cost *= 0.6  # 緊急切換降低延遲成本權重
+                elif trigger.trigger_type == HandoverTrigger.PREDICTED_OUTAGE:
+                    latency_cost *= 0.8  # 預測性切換有準備時間
+                elif trigger.trigger_type == HandoverTrigger.LOAD_BALANCING:
+                    latency_cost *= 1.2  # 負載平衡切換增加成本
             
-            # 服務中斷成本
-            disruption_cost = 25.0  # 服務中斷成本
-            if any(t.trigger_type == HandoverTrigger.PREDICTED_OUTAGE for t in triggers):
-                disruption_cost *= 0.7  # 預測性切換降低中斷成本
+            # 信令成本 (8-20範圍)
+            signaling_cost = 10.0 + (satellite_distance_factor * 10.0)
+            
+            # 資源成本 (5-15範圍)
+            resource_cost = 8.0 + (satellite_distance_factor * 7.0)
+            
+            # 服務中斷成本 (15-35範圍)
+            disruption_cost = 20.0 + (satellite_distance_factor * 15.0)
+            
+            # 根據觸發條件調整中斷成本
+            for trigger in triggers:
+                if trigger.trigger_type == HandoverTrigger.PREDICTED_OUTAGE:
+                    disruption_cost *= 0.7  # 預測性切換降低中斷成本
+                elif trigger.trigger_type == HandoverTrigger.EMERGENCY_HANDOVER:
+                    disruption_cost *= 1.4  # 緊急切換增加中斷風險
+                elif trigger.trigger_type == HandoverTrigger.BETTER_SATELLITE:
+                    disruption_cost *= 0.9  # 主動切換略降低中斷成本
             
             # 計算加權總成本
             total_cost = (
@@ -724,7 +748,7 @@ class HandoverDecisionService:
                 return current_time + timedelta(seconds=5)
                 
         except Exception as e:
-            self.logger.warning("切換時機確定失敗", error=str(e))
+            self.logger.debug("切換時機確定異常，使用預設時機", error=str(e))
             return current_time + timedelta(seconds=10)  # 預設延遲
     
     def _calculate_success_probability(
