@@ -2,7 +2,7 @@
 """
 論文復現綜合測試執行器
 
-統一執行 1.1 到 1.3 的所有測試，生成完整的論文復現報告
+統一執行 1.1 到 1.4 的所有測試，生成完整的論文復現報告
 
 執行方式 (在 ntn-stack 根目錄):
 source venv/bin/activate
@@ -11,6 +11,7 @@ python paper/comprehensive/run_all_tests.py
 或指定特定階段:
 python paper/comprehensive/run_all_tests.py --stage 1.2
 python paper/comprehensive/run_all_tests.py --stage 1.3
+python paper/comprehensive/run_all_tests.py --stage 1.4
 python paper/comprehensive/run_all_tests.py --stage all
 """
 
@@ -57,6 +58,11 @@ class PaperReproductionTestRunner:
                 "name": "快速衛星預測演算法 (Algorithm 2)",
                 "script": f"{self.base_path}/1.3_fast_prediction/test_algorithm_2.py",
                 "description": "地理區塊劃分、UE存取策略管理",
+            },
+            "1.4": {
+                "name": "UPF 整合與效能測量框架",
+                "script": f"{self.base_path}/1.4_upf_integration/test_14_comprehensive.py",
+                "description": "UPF 擴展模組、API 增強、論文標準效能測量框架",
             },
         }
 

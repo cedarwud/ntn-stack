@@ -15,7 +15,7 @@
 import asyncio
 import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass, field
 from enum import Enum
@@ -95,7 +95,7 @@ class SynchronizedAlgorithm:
         self.is_running = False
         
         # 效能統計
-        self.stats = {
+        self.performance_metrics = {
             "total_periodic_updates": 0,
             "total_ue_updates": 0,
             "total_handovers_predicted": 0,
@@ -103,6 +103,10 @@ class SynchronizedAlgorithm:
             "binary_search_iterations": [],
             "last_update_duration_ms": 0.0
         }
+        
+        # 狀態追蹤
+        self.start_time = datetime.now(timezone.utc)
+        self.last_algorithm_run = None
         
         self.logger.info(
             "論文標準同步算法初始化完成",
@@ -181,7 +185,7 @@ class SynchronizedAlgorithm:
             
             return {
                 "success": True,
-                "final_stats": self.stats,
+                "final_stats": self.performance_metrics,
                 "stop_time": datetime.utcnow().isoformat()
             }
             
@@ -208,12 +212,14 @@ class SynchronizedAlgorithm:
                 if current_time > self.T + self.delta_t:
                     self.state = AlgorithmState.PERIODIC_UPDATE
                     await self.periodic_update(current_time)
+                    self.last_algorithm_run = datetime.now(timezone.utc)
                 
                 # Algorithm 1: 檢查 UE 位置/狀態變化
                 ue_changes = await self._detect_ue_changes()
                 for ue_id in ue_changes:
                     self.state = AlgorithmState.UE_UPDATE
                     await self.update_ue(ue_id)
+                    self.last_algorithm_run = datetime.now(timezone.utc)
                 
                 self.state = AlgorithmState.RUNNING
                 
@@ -283,14 +289,14 @@ class SynchronizedAlgorithm:
             self.T = t
             
             # 更新統計
-            self.stats["total_periodic_updates"] += 1
-            self.stats["total_handovers_predicted"] += handover_count
-            self.stats["last_update_duration_ms"] = (time.time() - start_time) * 1000
+            self.performance_metrics["total_periodic_updates"] += 1
+            self.performance_metrics["total_handovers_predicted"] += handover_count
+            self.performance_metrics["last_update_duration_ms"] = (time.time() - start_time) * 1000
             
             self.logger.info(
                 "週期性更新完成",
                 handovers_predicted=handover_count,
-                update_duration_ms=self.stats["last_update_duration_ms"],
+                update_duration_ms=self.performance_metrics["last_update_duration_ms"],
                 total_ue_count=len(At)
             )
             
@@ -351,7 +357,7 @@ class SynchronizedAlgorithm:
                 )
             
             # 更新統計
-            self.stats["total_ue_updates"] += 1
+            self.performance_metrics["total_ue_updates"] += 1
             
         except Exception as e:
             self.logger.error("UE 更新失敗", ue_id=ue_id, error=str(e))
@@ -415,7 +421,7 @@ class SynchronizedAlgorithm:
         handover_time = t_end
         
         # 記錄統計
-        self.stats["binary_search_iterations"].append(iterations)
+        self.performance_metrics["binary_search_iterations"].append(iterations)
         
         self.logger.info(
             "二分搜尋換手時間完成",
@@ -574,7 +580,7 @@ class SynchronizedAlgorithm:
             "last_update_time": datetime.fromtimestamp(self.T).isoformat(),
             "active_ue_count": len(self.R),
             "pending_handovers": len(self.Tp),
-            "performance_stats": self.stats,
+            "performance_stats": self.performance_metrics,
             "R_table_summary": {
                 ue_id: {
                     "satellite_id": info.satellite_id,
@@ -596,7 +602,7 @@ class SynchronizedAlgorithm:
         self.Tp.clear()
         
         # 重置統計
-        self.stats = {
+        self.performance_metrics = {
             "total_periodic_updates": 0,
             "total_ue_updates": 0,
             "total_handovers_predicted": 0,
@@ -816,3 +822,66 @@ class SynchronizedAlgorithm:
             )
             # 返回默認的衛星 ID 列表 (Starlink 編號)
             return [f"starlink_{i:04d}" for i in range(1, min(max_satellites + 1, 51))]
+
+    async def get_performance_metrics(self) -> Dict[str, Any]:
+        """
+        獲取演算法效能指標
+        
+        Returns:
+            效能指標字典
+        """
+        try:
+            # 計算平均預測準確率
+            accuracy_scores = [score for score in self.performance_metrics["binary_search_iterations"] if isinstance(score, (int, float))]
+            avg_accuracy = sum(accuracy_scores) / len(accuracy_scores) if accuracy_scores else 0.0
+            
+            # 計算平均二分搜尋迭代次數
+            iterations = [iter_count for iter_count in self.performance_metrics["binary_search_iterations"] if isinstance(iter_count, int)]
+            avg_iterations = sum(iterations) / len(iterations) if iterations else 0.0
+            
+            # 構建效能指標
+            metrics = {
+                "algorithm_performance": {
+                    "total_ue_updates": self.performance_metrics["total_ue_updates"],
+                    "total_periodic_updates": self.performance_metrics["total_periodic_updates"],
+                    "total_handovers_predicted": self.performance_metrics["total_handovers_predicted"],
+                    "average_prediction_accuracy": self.performance_metrics["average_prediction_accuracy"],
+                    "average_binary_search_iterations": avg_iterations,
+                    "last_update_duration_ms": self.performance_metrics["last_update_duration_ms"]
+                },
+                "algorithm_config": {
+                    "delta_t": self.delta_t,
+                    "binary_search_precision": self.binary_search_precision,
+                    "test_mode": getattr(self, '_test_mode', False),
+                    "target_accuracy": 0.95
+                },
+                "system_status": {
+                    "algorithm_running": self.is_running,
+                    "tle_bridge_available": self.tle_bridge is not None,
+                    "last_algorithm_run": self.last_algorithm_run.isoformat() if self.last_algorithm_run else None,
+                    "uptime_seconds": (datetime.now(timezone.utc) - self.start_time).total_seconds()
+                },
+                "resource_usage": {
+                    "candidate_satellites_count": len(await self._get_candidate_satellites()),
+                    "active_ue_count": len(await self._get_active_ue_list()),
+                    "memory_efficient_mode": True  # 因為限制為 1 個 UE
+                }
+            }
+            
+            self.logger.debug("效能指標查詢完成", metrics_keys=list(metrics.keys()))
+            return metrics
+            
+        except Exception as e:
+            self.logger.error(f"獲取效能指標失敗: {e}")
+            # 返回基本指標，確保所有屬性都存在
+            return {
+                "algorithm_performance": {
+                    "total_ue_updates": getattr(self, 'performance_metrics', {}).get('total_ue_updates', 0),
+                    "average_prediction_accuracy": 0.0,
+                    "error": f"指標收集失敗: {str(e)}"
+                },
+                "system_status": {
+                    "algorithm_running": getattr(self, 'is_running', False),
+                    "error_occurred": True
+                }
+            }

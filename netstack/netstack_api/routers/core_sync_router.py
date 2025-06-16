@@ -12,6 +12,7 @@ Core Network Synchronization API Router
 """
 
 import asyncio
+import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Query, Path
@@ -23,6 +24,21 @@ import structlog
 from ..services.core_network_sync_service import CoreNetworkSyncService, CoreSyncState, NetworkComponent
 from ..services.fine_grained_sync_service import FineGrainedSyncService, SyncState
 from ..services.event_bus_service import EventBusService
+from ..services.paper_synchronized_algorithm import SynchronizedAlgorithm, AccessInfo
+from ..services.fast_access_prediction_service import FastSatellitePrediction, AccessStrategy
+from ..services.handover_measurement_service import HandoverMeasurement, HandoverScheme, HandoverResult
+import sys
+import os
+
+# 添加 UPF 擴展模組路徑
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../docker/upf-extension'))
+
+try:
+    from python_upf_bridge import UPFSyncBridge, UEInfo, HandoverRequest
+    UPF_BRIDGE_AVAILABLE = True
+except ImportError:
+    UPF_BRIDGE_AVAILABLE = False
+    logger.warning("UPF 橋接模組不可用，部分功能將受限")
 
 logger = structlog.get_logger(__name__)
 
@@ -67,8 +83,44 @@ class EmergencyResyncRequest(BaseModel):
     force_restart: bool = Field(False, description="強制重啟服務")
 
 
-# Global service instance
+# 1.4 版本新增的請求/響應模型
+class SyncPredictRequest(BaseModel):
+    """同步預測請求"""
+    ue_ids: List[str] = Field(..., description="UE ID 列表")
+    prediction_horizon_seconds: float = Field(30.0, description="預測時間範圍(秒)")
+    algorithm: str = Field("algorithm_1", description="使用的演算法 (algorithm_1 或 algorithm_2)")
+
+
+class SyncHandoverRequest(BaseModel):
+    """同步切換請求"""
+    ue_id: str = Field(..., description="UE ID")
+    target_satellite_id: str = Field(..., description="目標衛星 ID")
+    predicted_time: Optional[float] = Field(None, description="預測切換時間戳")
+    force_handover: bool = Field(False, description="強制執行切換")
+
+
+class UPFIntegrationRequest(BaseModel):
+    """UPF 整合請求"""
+    ue_id: str = Field(..., description="UE ID")
+    current_satellite_id: Optional[str] = Field(None, description="當前衛星 ID")
+    access_strategy: str = Field("flexible", description="接入策略 (flexible 或 consistent)")
+    position: Optional[Dict[str, float]] = Field(None, description="UE 位置 {lat, lon, alt}")
+
+
+class SyncMetricsResponse(BaseModel):
+    """同步指標響應"""
+    algorithm_metrics: Dict[str, Any]
+    handover_statistics: Dict[str, Any]
+    upf_integration_status: Dict[str, Any]
+    performance_summary: Dict[str, Any]
+
+
+# Global service instances
 core_sync_service: Optional[CoreNetworkSyncService] = None
+paper_algorithm: Optional[SynchronizedAlgorithm] = None
+fast_prediction_service: Optional[FastSatellitePrediction] = None
+upf_bridge: Optional[UPFSyncBridge] = None
+handover_measurement: Optional[HandoverMeasurement] = None
 
 
 def get_core_sync_service() -> CoreNetworkSyncService:
@@ -86,6 +138,56 @@ def get_core_sync_service() -> CoreNetworkSyncService:
         )
     
     return core_sync_service
+
+
+def get_paper_algorithm() -> SynchronizedAlgorithm:
+    """獲取論文同步演算法實例"""
+    global paper_algorithm
+    if paper_algorithm is None:
+        paper_algorithm = SynchronizedAlgorithm(
+            delta_t=5.0,
+            binary_search_precision=0.01
+        )
+    return paper_algorithm
+
+
+def get_fast_prediction_service() -> FastSatellitePrediction:
+    """獲取快速衛星預測服務實例"""
+    global fast_prediction_service
+    if fast_prediction_service is None:
+        fast_prediction_service = FastSatellitePrediction(
+            earth_radius_km=6371.0,
+            block_size_degrees=10.0,
+            prediction_accuracy_target=0.95
+        )
+    return fast_prediction_service
+
+
+async def get_upf_bridge() -> Optional[UPFSyncBridge]:
+    """獲取 UPF 橋接服務實例"""
+    global upf_bridge
+    if upf_bridge is None and UPF_BRIDGE_AVAILABLE:
+        try:
+            upf_bridge = UPFSyncBridge()
+            # 嘗試啟動橋接服務
+            success = await upf_bridge.start()
+            if not success:
+                logger.warning("UPF 橋接服務啟動失敗")
+                upf_bridge = None
+        except Exception as e:
+            logger.error(f"初始化 UPF 橋接服務失敗: {e}")
+            upf_bridge = None
+    return upf_bridge
+
+
+def get_handover_measurement() -> HandoverMeasurement:
+    """獲取效能測量服務實例"""
+    global handover_measurement
+    if handover_measurement is None:
+        handover_measurement = HandoverMeasurement(
+            output_dir="./measurement_results"
+        )
+    return handover_measurement
 
 
 # 創建路由器
@@ -629,4 +731,639 @@ async def health_check(
                 "last_check": datetime.now().isoformat()
             },
             status_code=503
+        )
+
+
+# =============================================================================
+# 1.4 版本新增 API 端點
+# =============================================================================
+
+@router.post("/sync/predict",
+             summary="觸發同步預測",
+             description="使用論文演算法觸發同步預測更新")
+async def trigger_sync_prediction(
+    request: SyncPredictRequest,
+    algorithm_service: SynchronizedAlgorithm = Depends(get_paper_algorithm),
+    fast_service: FastSatellitePrediction = Depends(get_fast_prediction_service)
+):
+    """觸發同步預測"""
+    try:
+        start_time = time.time()
+        
+        if request.algorithm == "algorithm_1":
+            # 使用 Algorithm 1 (同步演算法)
+            predictions = {}
+            for ue_id in request.ue_ids:
+                # 執行 UE 更新
+                await algorithm_service.update_ue(ue_id)
+                
+                # 獲取預測結果
+                ue_status = await algorithm_service.get_ue_status(ue_id)
+                predictions[ue_id] = {
+                    "current_satellite": ue_status.get("current_satellite"),
+                    "predicted_satellite": ue_status.get("next_access_satellite"),
+                    "predicted_handover_time": ue_status.get("handover_time"),
+                    "algorithm_used": "algorithm_1"
+                }
+            
+            # 獲取演算法狀態
+            algorithm_status = await algorithm_service.get_algorithm_status()
+            
+            result = {
+                "success": True,
+                "algorithm": "algorithm_1",
+                "predictions": predictions,
+                "algorithm_status": algorithm_status,
+                "prediction_time_ms": (time.time() - start_time) * 1000,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        elif request.algorithm == "algorithm_2":
+            # 使用 Algorithm 2 (快速衛星預測)
+            # 準備衛星資料（模擬）
+            satellites = [
+                {"satellite_id": f"starlink_{i}", "lat": 0.0, "lon": 0.0, "alt": 550.0}
+                for i in range(1001, 1021)  # 使用 20 顆衛星進行測試
+            ]
+            
+            # 執行快速預測
+            future_time = time.time() + request.prediction_horizon_seconds
+            predictions = await fast_service.predict_access_satellites(
+                users=request.ue_ids,
+                satellites=satellites,
+                time_t=future_time
+            )
+            
+            # 獲取服務狀態
+            service_status = await fast_service.get_service_status()
+            
+            result = {
+                "success": True,
+                "algorithm": "algorithm_2",
+                "predictions": {
+                    ue_id: {
+                        "predicted_satellite": satellite_id,
+                        "prediction_time": future_time,
+                        "algorithm_used": "algorithm_2"
+                    }
+                    for ue_id, satellite_id in predictions.items()
+                },
+                "service_status": service_status,
+                "prediction_time_ms": (time.time() - start_time) * 1000,
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"不支援的演算法: {request.algorithm}. 支援的選項: algorithm_1, algorithm_2"
+            )
+        
+        logger.info(
+            "同步預測完成",
+            algorithm=request.algorithm,
+            ue_count=len(request.ue_ids),
+            prediction_time_ms=result["prediction_time_ms"]
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"同步預測失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"同步預測失敗: {str(e)}"
+        )
+
+
+@router.post("/sync/handover",
+             summary="手動觸發切換",
+             description="手動觸發 UE 衛星切換")
+async def trigger_sync_handover(
+    request: SyncHandoverRequest,
+    upf_bridge: UPFSyncBridge = Depends(get_upf_bridge)
+):
+    """手動觸發切換"""
+    try:
+        
+        if not upf_bridge:
+            # 如果 UPF 橋接不可用，使用模擬模式
+            logger.info(
+                "UPF 橋接不可用，使用模擬切換",
+                ue_id=request.ue_id,
+                target_satellite=request.target_satellite_id
+            )
+            
+            # 模擬切換延遲
+            await asyncio.sleep(0.025)  # 25ms 模擬延遲
+            
+            return {
+                "success": True,
+                "ue_id": request.ue_id,
+                "target_satellite_id": request.target_satellite_id,
+                "handover_type": "simulated",
+                "latency_ms": 25.0,
+                "force_handover": request.force_handover,
+                "predicted_time": request.predicted_time,
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        # 使用真實 UPF 橋接執行切換
+        handover_req = HandoverRequest(
+            ue_id=request.ue_id,
+            target_satellite_id=request.target_satellite_id,
+            predicted_time=request.predicted_time or time.time(),
+            reason="manual_trigger"
+        )
+        
+        start_time = time.time()
+        success = await upf_bridge.trigger_handover(handover_req)
+        latency_ms = (time.time() - start_time) * 1000
+        
+        if success:
+            logger.info(
+                "手動切換成功",
+                ue_id=request.ue_id,
+                target_satellite=request.target_satellite_id,
+                latency_ms=latency_ms
+            )
+            
+            return {
+                "success": True,
+                "ue_id": request.ue_id,
+                "target_satellite_id": request.target_satellite_id,
+                "handover_type": "upf_integrated",
+                "latency_ms": latency_ms,
+                "force_handover": request.force_handover,
+                "predicted_time": request.predicted_time,
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="UPF 切換執行失敗"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"觸發切換失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"觸發切換失敗: {str(e)}"
+        )
+
+
+@router.get("/sync/status",
+            summary="獲取演算法運行狀態",
+            description="獲取同步演算法的運行狀態")
+async def get_sync_status(
+    algorithm_service: SynchronizedAlgorithm = Depends(get_paper_algorithm),
+    fast_service: FastSatellitePrediction = Depends(get_fast_prediction_service),
+    upf_bridge: UPFSyncBridge = Depends(get_upf_bridge)
+):
+    """獲取同步演算法狀態"""
+    try:
+        
+        # 獲取 Algorithm 1 狀態
+        algorithm1_status = await algorithm_service.get_algorithm_status()
+        
+        # 獲取 Algorithm 2 狀態
+        algorithm2_status = await fast_service.get_service_status()
+        
+        # 獲取 UPF 橋接狀態
+        upf_status = None
+        if upf_bridge:
+            upf_status = await upf_bridge.get_algorithm_status()
+        
+        return {
+            "algorithm_1": {
+                "name": "Synchronized Algorithm",
+                "status": algorithm1_status,
+                "available": True
+            },
+            "algorithm_2": {
+                "name": "Fast Satellite Prediction",
+                "status": algorithm2_status,
+                "available": True
+            },
+            "upf_integration": {
+                "available": upf_bridge is not None,
+                "status": upf_status,
+                "bridge_loaded": UPF_BRIDGE_AVAILABLE
+            },
+            "overall_status": {
+                "algorithms_running": (
+                    algorithm1_status.get("algorithm_state") != "stopped" or
+                    algorithm2_status.get("accuracy_achieved", False)
+                ),
+                "upf_integrated": upf_bridge is not None,
+                "system_ready": True
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"獲取同步狀態失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"獲取同步狀態失敗: {str(e)}"
+        )
+
+
+@router.get("/sync/metrics",
+            response_model=SyncMetricsResponse,
+            summary="獲取效能指標",
+            description="獲取同步演算法和 UPF 整合的效能指標")
+async def get_sync_metrics(
+    algorithm_service: SynchronizedAlgorithm = Depends(get_paper_algorithm),
+    fast_service: FastSatellitePrediction = Depends(get_fast_prediction_service),
+    upf_bridge: UPFSyncBridge = Depends(get_upf_bridge)
+):
+    """獲取同步指標"""
+    try:
+        
+        # 獲取 Algorithm 1 指標
+        algorithm1_metrics = await algorithm_service.get_performance_metrics()
+        
+        # 獲取 Algorithm 2 指標
+        algorithm2_status = await fast_service.get_service_status()
+        algorithm2_metrics = algorithm2_status.get("performance_stats", {})
+        
+        # 獲取 UPF 指標
+        upf_metrics = {}
+        handover_stats = {}
+        if upf_bridge:
+            upf_status = await upf_bridge.get_algorithm_status()
+            upf_metrics = upf_status.get("service_status", {})
+            handover_stats = upf_status.get("handover_statistics", {})
+        
+        # 彙總效能指標
+        performance_summary = {
+            "algorithm_1_accuracy": algorithm1_metrics.get("prediction_accuracy", 0.0),
+            "algorithm_2_accuracy": algorithm2_status.get("current_accuracy", 0.0),
+            "total_handovers": handover_stats.get("total_handovers", 0),
+            "successful_handovers": handover_stats.get("successful_handovers", 0),
+            "average_latency_ms": handover_stats.get("average_latency_ms", 0.0),
+            "upf_integration_active": upf_bridge is not None
+        }
+        
+        return SyncMetricsResponse(
+            algorithm_metrics={
+                "algorithm_1": algorithm1_metrics,
+                "algorithm_2": algorithm2_metrics
+            },
+            handover_statistics=handover_stats,
+            upf_integration_status=upf_metrics,
+            performance_summary=performance_summary
+        )
+        
+    except Exception as e:
+        logger.error(f"獲取同步指標失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"獲取同步指標失敗: {str(e)}"
+        )
+
+
+@router.post("/upf/register-ue",
+             summary="註冊 UE 到 UPF",
+             description="將 UE 註冊到 UPF 同步演算法系統")
+async def register_ue_to_upf(
+    request: UPFIntegrationRequest,
+    upf_bridge: UPFSyncBridge = Depends(get_upf_bridge)
+):
+    """註冊 UE 到 UPF"""
+    try:
+        
+        if not upf_bridge:
+            raise HTTPException(
+                status_code=503,
+                detail="UPF 橋接服務不可用"
+            )
+        
+        # 創建 UE 資訊
+        access_strategy = AccessStrategy.FLEXIBLE if request.access_strategy == "flexible" else AccessStrategy.CONSISTENT
+        
+        ue_info = UEInfo(
+            ue_id=request.ue_id,
+            current_satellite_id=request.current_satellite_id,
+            access_strategy=access_strategy,
+            position=request.position or {"lat": 24.1477, "lon": 120.6736, "alt": 100.0}
+        )
+        
+        # 註冊 UE
+        success = await upf_bridge.register_ue(ue_info)
+        
+        if success:
+            logger.info(
+                "UE 註冊到 UPF 成功",
+                ue_id=request.ue_id,
+                access_strategy=request.access_strategy
+            )
+            
+            return {
+                "success": True,
+                "ue_id": request.ue_id,
+                "access_strategy": request.access_strategy,
+                "current_satellite_id": request.current_satellite_id,
+                "position": ue_info.position,
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="UE 註冊失敗"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"註冊 UE 到 UPF 失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"註冊 UE 失敗: {str(e)}"
+        )
+
+
+@router.get("/upf/ue/{ue_id}/status",
+            summary="獲取 UE 在 UPF 中的狀態",
+            description="獲取 UE 在 UPF 同步系統中的狀態")
+async def get_ue_upf_status(
+    ue_id: str = Path(..., description="UE ID"),
+    upf_bridge: UPFSyncBridge = Depends(get_upf_bridge)
+):
+    """獲取 UE UPF 狀態"""
+    try:
+        
+        if not upf_bridge:
+            raise HTTPException(
+                status_code=503,
+                detail="UPF 橋接服務不可用"
+            )
+        
+        # 獲取 UE 狀態
+        ue_status = await upf_bridge.get_ue_status(ue_id)
+        
+        if ue_status is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"找不到 UE {ue_id}"
+            )
+        
+        return {
+            "ue_id": ue_id,
+            "status": ue_status,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"獲取 UE UPF 狀態失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"獲取 UE 狀態失敗: {str(e)}"
+        )
+
+
+# =============================================================================
+# 論文效能測量 API 端點
+# =============================================================================
+
+@router.post("/measurement/record-handover",
+             summary="記錄切換事件",
+             description="記錄切換事件到效能測量系統")
+async def record_handover_event(
+    ue_id: str,
+    source_gnb: str,
+    target_gnb: str,
+    start_time: float,
+    end_time: float,
+    scheme: str,
+    result: str = "success",
+    measurement_service: HandoverMeasurement = Depends(get_handover_measurement)
+):
+    """記錄切換事件"""
+    try:
+        # 轉換方案類型
+        try:
+            handover_scheme = HandoverScheme(scheme.upper())
+        except ValueError:
+            valid_schemes = [s.value for s in HandoverScheme]
+            raise HTTPException(
+                status_code=400,
+                detail=f"無效的切換方案: {scheme}. 有效選項: {valid_schemes}"
+            )
+        
+        # 轉換結果類型
+        try:
+            handover_result = HandoverResult(result.lower())
+        except ValueError:
+            valid_results = [r.value for r in HandoverResult]
+            raise HTTPException(
+                status_code=400,
+                detail=f"無效的切換結果: {result}. 有效選項: {valid_results}"
+            )
+        
+        # 記錄事件
+        event_id = measurement_service.record_handover(
+            ue_id=ue_id,
+            source_gnb=source_gnb,
+            target_gnb=target_gnb,
+            start_time=start_time,
+            end_time=end_time,
+            handover_scheme=handover_scheme,
+            result=handover_result
+        )
+        
+        return {
+            "success": True,
+            "event_id": event_id,
+            "ue_id": ue_id,
+            "scheme": scheme,
+            "result": result,
+            "latency_ms": (end_time - start_time) * 1000,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"記錄切換事件失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"記錄切換事件失敗: {str(e)}"
+        )
+
+
+@router.get("/measurement/statistics",
+            summary="獲取效能統計",
+            description="獲取四種方案的效能統計分析")
+async def get_measurement_statistics(
+    measurement_service: HandoverMeasurement = Depends(get_handover_measurement)
+):
+    """獲取效能統計"""
+    try:
+        statistics = measurement_service.analyze_latency()
+        summary = measurement_service.get_summary_statistics()
+        
+        return {
+            "summary": summary,
+            "detailed_statistics": {
+                scheme.value: {
+                    "scheme": stats.scheme.value,
+                    "total_handovers": stats.total_handovers,
+                    "successful_handovers": stats.successful_handovers,
+                    "success_rate": stats.success_rate,
+                    "mean_latency_ms": stats.mean_latency_ms,
+                    "std_latency_ms": stats.std_latency_ms,
+                    "percentile_95_ms": stats.percentile_95_ms,
+                    "percentile_99_ms": stats.percentile_99_ms,
+                    "mean_prediction_accuracy": stats.mean_prediction_accuracy
+                }
+                for scheme, stats in statistics.items()
+                if stats.total_handovers > 0
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"獲取效能統計失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"獲取效能統計失敗: {str(e)}"
+        )
+
+
+@router.get("/measurement/comparison-report",
+            summary="生成對比報告",
+            description="生成四種方案的詳細對比報告")
+async def get_comparison_report(
+    measurement_service: HandoverMeasurement = Depends(get_handover_measurement)
+):
+    """生成對比報告"""
+    try:
+        report = measurement_service.generate_comparison_report()
+        return report
+        
+    except Exception as e:
+        logger.error(f"生成對比報告失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"生成對比報告失敗: {str(e)}"
+        )
+
+
+@router.post("/measurement/generate-cdf",
+             summary="生成 CDF 圖表",
+             description="生成切換延遲的累積分佈函數圖表")
+async def generate_cdf_plot(
+    measurement_service: HandoverMeasurement = Depends(get_handover_measurement)
+):
+    """生成 CDF 圖表"""
+    try:
+        plot_path = measurement_service.plot_latency_cdf()
+        
+        return {
+            "success": True,
+            "plot_path": plot_path,
+            "message": "CDF 圖表生成成功",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"生成 CDF 圖表失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"生成 CDF 圖表失敗: {str(e)}"
+        )
+
+
+@router.post("/measurement/export-data",
+             summary="匯出測量數據",
+             description="匯出效能測量數據")
+async def export_measurement_data(
+    format: str = "json",
+    measurement_service: HandoverMeasurement = Depends(get_handover_measurement)
+):
+    """匯出測量數據"""
+    try:
+        if format not in ["json", "csv"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"不支援的匯出格式: {format}. 支援的格式: json, csv"
+            )
+        
+        export_path = measurement_service.export_data(format)
+        
+        return {
+            "success": True,
+            "export_path": export_path,
+            "format": format,
+            "total_events": len(measurement_service.handover_events),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"匯出測量數據失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"匯出測量數據失敗: {str(e)}"
+        )
+
+
+@router.post("/measurement/run-automated-test",
+             summary="執行自動化對比測試",
+             description="執行四種方案的自動化對比測試")
+async def run_automated_comparison_test(
+    duration_seconds: int = 60,
+    ue_count: int = 3,
+    handover_interval_seconds: float = 5.0,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    measurement_service: HandoverMeasurement = Depends(get_handover_measurement)
+):
+    """執行自動化對比測試"""
+    try:
+        # 驗證參數
+        if duration_seconds < 10 or duration_seconds > 3600:
+            raise HTTPException(
+                status_code=400,
+                detail="測試持續時間必須在 10-3600 秒之間"
+            )
+        
+        if ue_count < 1 or ue_count > 20:
+            raise HTTPException(
+                status_code=400,
+                detail="UE 數量必須在 1-20 之間"
+            )
+        
+        if handover_interval_seconds < 1.0 or handover_interval_seconds > 60.0:
+            raise HTTPException(
+                status_code=400,
+                detail="切換間隔必須在 1.0-60.0 秒之間"
+            )
+        
+        # 執行測試（異步）
+        test_result = await measurement_service.run_automated_comparison_test(
+            duration_seconds=duration_seconds,
+            ue_count=ue_count,
+            handover_interval_seconds=handover_interval_seconds
+        )
+        
+        return {
+            "success": True,
+            "test_result": test_result,
+            "message": "自動化對比測試完成",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"執行自動化測試失敗: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"執行自動化測試失敗: {str(e)}"
         )

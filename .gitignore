@@ -56,6 +56,8 @@ reports/
 netstack/tests/test_results/
 *.log
 *.log.*
+measurement_results
+test_measurement_results/
 
 # IDE 和編輯器
 .vscode/
