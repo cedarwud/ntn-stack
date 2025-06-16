@@ -33,9 +33,13 @@ class SimWorldTLEBridgeService:
 
         # 快取配置
         self.orbit_cache_ttl = 300  # 軌道預測快取 5 分鐘
-        self.position_cache_ttl = 30  # 位置快取 30 秒
+        self.position_cache_ttl = 5  # 位置快取 5 秒 (優化：更短的快取)
         self.tle_cache_ttl = 3600  # TLE 資料快取 1 小時
         self.cache_prefix = "simworld_tle_bridge:"
+        
+        # 內存快取（用於二分搜尋優化）
+        self._memory_cache = {}
+        self._memory_cache_ttl = 10  # 10 秒內存快取
 
         # 預測配置
         self.prediction_precision_seconds = 0.01  # 二分搜尋精度：10ms
@@ -194,7 +198,15 @@ class SimWorldTLEBridgeService:
     ) -> Dict[str, Any]:
         """獲取單個衛星位置"""
         
-        # 檢查快取
+        # 檢查內存快取（更快）
+        memory_cache_key = f"position:{satellite_id}:{int(timestamp.timestamp())}"
+        if memory_cache_key in self._memory_cache:
+            cache_time, cached_data = self._memory_cache[memory_cache_key]
+            if time.time() - cache_time < self._memory_cache_ttl:
+                # self.logger.debug("使用內存快取", satellite_id=satellite_id)
+                return cached_data
+        
+        # 檢查 Redis 快取
         cache_key = f"{self.cache_prefix}position:{satellite_id}:{timestamp.isoformat()}"
         
         if self.redis_client:
@@ -202,17 +214,21 @@ class SimWorldTLEBridgeService:
             if cached_result:
                 cached_data = json.loads(cached_result)
                 # 確保快取的數據也經過標準化
-                return self._normalize_position_data(cached_data)
+                normalized_data = self._normalize_position_data(cached_data)
+                # 同時存入內存快取
+                self._memory_cache[memory_cache_key] = (time.time(), normalized_data)
+                return normalized_data
 
         try:
             # 首先嘗試將satellite_id映射到資料庫ID
             db_satellite_id = await self._resolve_satellite_id(satellite_id)
             
-            self.logger.debug(
-                "衛星ID映射",
-                input_id=satellite_id,
-                resolved_id=db_satellite_id
-            )
+            # 降低日誌級別，避免過多輸出
+            # self.logger.debug(
+            #     "衛星ID映射",
+            #     input_id=satellite_id,
+            #     resolved_id=db_satellite_id
+            # )
             
             timeout = aiohttp.ClientTimeout(total=5.0)  # 5秒超時
             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -220,11 +236,20 @@ class SimWorldTLEBridgeService:
                 
                 params = {"timestamp": timestamp.isoformat()}
                 if observer_location:
-                    params.update({
-                        "observer_lat": observer_location["lat"],
-                        "observer_lon": observer_location["lon"],
-                        "observer_alt": observer_location.get("alt", 0),
-                    })
+                    # 檢查 observer_location 是否包含必要字段
+                    if "lat" not in observer_location or "lon" not in observer_location:
+                        self.logger.warning(
+                            "observer_location 缺少必要字段",
+                            satellite_id=satellite_id,
+                            observer_location=observer_location
+                        )
+                        # 不使用 observer_location
+                    else:
+                        params.update({
+                            "observer_lat": observer_location["lat"],
+                            "observer_lon": observer_location["lon"],
+                            "observer_alt": observer_location.get("alt", 0),
+                        })
 
                 async with session.get(url, params=params) as response:
                     if response.status == 200:
@@ -234,17 +259,33 @@ class SimWorldTLEBridgeService:
                         # 修正數據格式問題：確保必要字段存在
                         position_data = self._normalize_position_data(position_data)
                         
-                        # 快取結果
+                        # 快取結果到 Redis
                         if self.redis_client:
                             await self.redis_client.setex(
                                 cache_key, self.position_cache_ttl, json.dumps(position_data)
                             )
                         
+                        # 同時存入內存快取
+                        self._memory_cache[memory_cache_key] = (time.time(), position_data)
+                        
                         return position_data
                     else:
-                        raise Exception(f"HTTP {response.status}")
+                        error_text = await response.text()
+                        self.logger.error(
+                            "API 錯誤響應",
+                            satellite_id=satellite_id,
+                            status=response.status,
+                            response_text=error_text
+                        )
+                        raise Exception(f"HTTP {response.status}: {error_text}")
 
         except Exception as e:
+            self.logger.error(
+                "獲取衛星位置失敗詳細錯誤",
+                satellite_id=satellite_id,
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             raise Exception(f"獲取衛星 {satellite_id} 位置失敗: {str(e)}")
 
     async def _resolve_satellite_id(self, satellite_id: str) -> str:
@@ -527,26 +568,70 @@ class SimWorldTLEBridgeService:
         Returns:
             最佳接入衛星 ID
         """
-        # 獲取所有候選衛星在指定時間的位置
-        satellite_positions = await self.get_batch_satellite_positions(
-            candidate_satellites, timestamp, ue_position
-        )
+        try:
+            # 獲取所有候選衛星在指定時間的位置
+            satellite_positions = await self.get_batch_satellite_positions(
+                candidate_satellites, timestamp, ue_position
+            )
 
-        best_satellite = None
-        best_score = -1
+            best_satellite = None
+            best_score = -1
+            valid_satellites = 0
 
-        for satellite_id, position_data in satellite_positions.items():
-            if not position_data.get("success"):
-                continue
+            for satellite_id, position_data in satellite_positions.items():
+                if not position_data.get("success"):
+                    # self.logger.debug(
+                    #     "衛星位置獲取失敗",
+                    #     satellite_id=satellite_id,
+                    #     error=position_data.get("error", "未知錯誤")
+                    # )
+                    continue
 
-            # 計算接入品質評分（基於仰角、距離等因素）
-            score = self._calculate_access_score(position_data, ue_position)
+                valid_satellites += 1
+                
+                # 檢查位置數據必要字段
+                if 'lat' not in position_data or 'lon' not in position_data:
+                    self.logger.warning(
+                        "衛星位置數據格式錯誤",
+                        satellite_id=satellite_id,
+                        available_fields=list(position_data.keys())
+                    )
+                    continue
+
+                # 計算接入品質評分（基於仰角、距離等因素）
+                score = self._calculate_access_score(position_data, ue_position)
+                
+                if score > best_score:
+                    best_score = score
+                    best_satellite = satellite_id
+
+            # 只在有問題時輸出日誌
+            if valid_satellites == 0:
+                self.logger.warning(
+                    "未找到有效衛星",
+                    ue_id=ue_id,
+                    total_candidates=len(candidate_satellites)
+                )
+
+            # 如果沒有找到有效衛星，返回第一個候選衛星作為備用
+            if best_satellite is None and candidate_satellites:
+                best_satellite = candidate_satellites[0]
+                self.logger.warning(
+                    "未找到有效衛星，使用第一個候選衛星",
+                    ue_id=ue_id,
+                    fallback_satellite=best_satellite
+                )
+
+            return best_satellite or "default_satellite"
             
-            if score > best_score:
-                best_score = score
-                best_satellite = satellite_id
-
-        return best_satellite
+        except Exception as e:
+            self.logger.error(
+                "計算最佳接入衛星失敗",
+                ue_id=ue_id,
+                error=str(e)
+            )
+            # 返回第一個候選衛星作為備用
+            return candidate_satellites[0] if candidate_satellites else "default_satellite"
 
     def _normalize_position_data(self, position_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -558,31 +643,77 @@ class SimWorldTLEBridgeService:
         Returns:
             標準化後的位置數據
         """
-        # 處理經緯度字段命名不一致
-        if 'latitude' in position_data and 'lat' not in position_data:
-            position_data['lat'] = position_data['latitude']
-        if 'longitude' in position_data and 'lon' not in position_data:
-            position_data['lon'] = position_data['longitude']
-        if 'altitude' in position_data and 'alt' not in position_data:
-            position_data['alt'] = position_data['altitude']
+        try:
+            # 創建新的字典避免修改原始數據
+            normalized_data = position_data.copy()
             
-        # 確保必要字段存在
-        if 'lat' not in position_data:
-            position_data['lat'] = 0.0
-        if 'lon' not in position_data:
-            position_data['lon'] = 0.0
-        if 'alt' not in position_data:
-            position_data['alt'] = 0.0
+            # 處理經緯度字段命名不一致
+            if 'latitude' in position_data and 'lat' not in position_data:
+                normalized_data['lat'] = position_data['latitude']
+            if 'longitude' in position_data and 'lon' not in position_data:
+                normalized_data['lon'] = position_data['longitude']
+            if 'altitude' in position_data and 'alt' not in position_data:
+                normalized_data['alt'] = position_data['altitude']
+                
+            # 確保必要字段存在
+            if 'lat' not in normalized_data:
+                if 'latitude' in position_data:
+                    normalized_data['lat'] = position_data['latitude']
+                else:
+                    normalized_data['lat'] = 0.0
+                    
+            if 'lon' not in normalized_data:
+                if 'longitude' in position_data:
+                    normalized_data['lon'] = position_data['longitude']
+                else:
+                    normalized_data['lon'] = 0.0
+                    
+            if 'alt' not in normalized_data:
+                if 'altitude' in position_data:
+                    normalized_data['alt'] = position_data['altitude']
+                else:
+                    normalized_data['alt'] = 0.0
+                
+            # 確保仰角和距離字段存在 (用於接入品質計算)
+            if 'elevation' not in normalized_data:
+                normalized_data['elevation'] = 0.0
+            if 'range_km' not in normalized_data:
+                normalized_data['range_km'] = 1000.0  # 預設距離
+            if 'visible' not in normalized_data:
+                normalized_data['visible'] = True  # 預設可見
+                
+            # 確保必要的數值字段是數字類型
+            for field in ['lat', 'lon', 'alt', 'elevation', 'range_km']:
+                if field in normalized_data:
+                    try:
+                        normalized_data[field] = float(normalized_data[field])
+                    except (ValueError, TypeError):
+                        self.logger.warning(
+                            f"無法轉換字段 {field} 為浮點數",
+                            field=field,
+                            value=normalized_data[field]
+                        )
+                        normalized_data[field] = 0.0
             
-        # 確保仰角和距離字段存在 (用於接入品質計算)
-        if 'elevation' not in position_data:
-            position_data['elevation'] = 0.0
-        if 'range_km' not in position_data:
-            position_data['range_km'] = 1000.0  # 預設距離
-        if 'visible' not in position_data:
-            position_data['visible'] = True  # 預設可見
+            return normalized_data
             
-        return position_data
+        except Exception as e:
+            self.logger.error(
+                "數據標準化失敗",
+                error=str(e),
+                original_data=position_data
+            )
+            # 返回最基本的結構
+            return {
+                'lat': 0.0,
+                'lon': 0.0,
+                'alt': 0.0,
+                'elevation': 0.0,
+                'range_km': 1000.0,
+                'visible': True,
+                'success': False,
+                'error': f"數據標準化失敗: {str(e)}"
+            }
 
     def _calculate_access_score(
         self, satellite_position: Dict[str, Any], ue_position: Dict[str, float]
@@ -597,21 +728,78 @@ class SimWorldTLEBridgeService:
         Returns:
             接入品質評分（0-100）
         """
-        if not satellite_position.get("visible", False):
+        try:
+            # 檢查必要字段是否存在
+            if 'lat' not in satellite_position or 'lon' not in satellite_position:
+                self.logger.warning(
+                    "衛星位置數據缺少必要字段",
+                    available_fields=list(satellite_position.keys())
+                )
+                return 0
+
+            if not satellite_position.get("visible", True):  # 預設為可見
+                return 0
+
+            elevation = satellite_position.get("elevation", 0)
+            range_km = satellite_position.get("range_km", 1000.0)  # 預設距離
+            
+            # 如果沒有 elevation 或 range_km，使用簡化的距離計算
+            if elevation == 0 and range_km == 1000.0:
+                # 簡化評分：基於緯度差距（越小越好）
+                sat_lat = satellite_position.get("lat", 0)
+                
+                # 檢查 ue_position 格式
+                if isinstance(ue_position, dict):
+                    ue_lat = ue_position.get("lat", ue_position.get("latitude", 0))
+                else:
+                    self.logger.warning(
+                        "ue_position 不是字典格式",
+                        ue_position=ue_position,
+                        type=type(ue_position)
+                    )
+                    ue_lat = 0
+                    
+                lat_diff = abs(sat_lat - ue_lat)
+                
+                # 緯度差越小，評分越高（最大差90度）
+                simple_score = max(0, (90 - lat_diff) / 90 * 100)
+                
+                # self.logger.debug(
+                #     "使用簡化評分",
+                #     sat_lat=sat_lat,
+                #     ue_lat=ue_lat,
+                #     lat_diff=lat_diff,
+                #     score=simple_score
+                # )
+                
+                return simple_score
+
+            # 仰角權重（仰角越高越好）
+            elevation_score = max(0, min(40, elevation)) / 40 * 60
+
+            # 距離權重（距離越近越好，但有衰減）
+            distance_score = max(0, (2000 - range_km) / 2000) * 40
+
+            total_score = elevation_score + distance_score
+
+            # self.logger.debug(
+            #     "詳細評分計算",
+            #     elevation=elevation,
+            #     range_km=range_km,
+            #     elevation_score=elevation_score,
+            #     distance_score=distance_score,
+            #     total_score=total_score
+            # )
+
+            return total_score
+            
+        except Exception as e:
+            self.logger.error(
+                "計算接入評分失敗",
+                error=str(e),
+                satellite_position=satellite_position
+            )
             return 0
-
-        elevation = satellite_position.get("elevation", 0)
-        range_km = satellite_position.get("range_km", float("inf"))
-
-        # 仰角權重（仰角越高越好）
-        elevation_score = max(0, min(40, elevation)) / 40 * 60
-
-        # 距離權重（距離越近越好，但有衰減）
-        distance_score = max(0, (2000 - range_km) / 2000) * 40
-
-        total_score = elevation_score + distance_score
-
-        return total_score
 
     def _get_orbit_cache_key(
         self,
