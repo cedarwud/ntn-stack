@@ -279,7 +279,7 @@ class FastSatellitePrediction:
                 position_data = positions.get(satellite_id, {})
                 
                 if position_data.get("success"):
-                    # 計算軌道方向
+                    # 計算真實軌道方向
                     orbital_direction = await self._calculate_orbital_direction(
                         satellite_id, position_data
                     )
@@ -287,16 +287,16 @@ class FastSatellitePrediction:
                     satellite_info = SatelliteInfo(
                         satellite_id=satellite_id,
                         position={
-                            "lat": position_data.get("latitude", 0.0),
-                            "lon": position_data.get("longitude", 0.0),
-                            "alt": position_data.get("altitude", 0.0)
+                            "lat": position_data.get("lat", position_data.get("latitude", 0.0)),
+                            "lon": position_data.get("lon", position_data.get("longitude", 0.0)),
+                            "alt": position_data.get("alt", position_data.get("altitude", 0.0))
                         },
                         velocity={
-                            "speed": position_data.get("velocity", {}).get("speed", 0.0)
+                            "speed": position_data.get("velocity", 0.0) if isinstance(position_data.get("velocity"), (int, float)) else 7.5
                         },
                         orbital_direction=orbital_direction,
                         coverage_radius_km=self._estimate_coverage_radius(
-                            position_data.get("altitude", 0.0)
+                            position_data.get("alt", position_data.get("altitude", 550.0))
                         )
                     )
                     
@@ -306,21 +306,22 @@ class FastSatellitePrediction:
                     self.satellite_registry[satellite_id] = satellite_info
                     
                 else:
-                    # API失敗，使用模擬資料
-                    satellite_info = self._create_mock_satellite_info(satellite_id, satellite_data)
-                    St_prime[satellite_id] = satellite_info
-                    self.satellite_registry[satellite_id] = satellite_info
+                    # API失敗，跳過此衛星（不使用模擬資料）
+                    self.logger.warning(
+                        "衛星位置API失敗，跳過此衛星",
+                        satellite_id=satellite_id,
+                        error=position_data.get("error", "API返回失敗")
+                    )
+                    continue
                     
             except Exception as e:
-                # 異常情況，使用模擬資料
-                self.logger.warning(
-                    "預測衛星位置異常，使用模擬資料",
+                # 異常情況，跳過此衛星（不使用模擬資料）
+                self.logger.error(
+                    "預測衛星位置異常，跳過此衛星",
                     satellite_id=satellite_id,
                     error=str(e)
                 )
-                satellite_info = self._create_mock_satellite_info(satellite_id, satellite_data)
-                St_prime[satellite_id] = satellite_info
-                self.satellite_registry[satellite_id] = satellite_info
+                continue
         
         self.logger.info(
             "衛星位置預測完成",
@@ -330,41 +331,6 @@ class FastSatellitePrediction:
         
         return St_prime
 
-    def _create_mock_satellite_info(self, satellite_id: str, satellite_data: Dict[str, Any]) -> SatelliteInfo:
-        """創建模擬衛星資料用於測試"""
-        # 基於衛星ID創建確定性但多樣化的位置
-        import hashlib
-        hash_obj = hashlib.md5(satellite_id.encode())
-        hash_int = int(hash_obj.hexdigest()[:8], 16)
-        
-        # 使用hash值生成確定性但分佈良好的位置
-        latitude = ((hash_int % 18000) / 100.0) - 90.0  # -90 到 90
-        longitude = (((hash_int >> 8) % 36000) / 100.0) - 180.0  # -180 到 180
-        altitude = 550.0 + (hash_int % 300)  # 550-850 km
-        
-        # 從原始衛星資料獲取其他資訊
-        original_lat = satellite_data.get("latitude", latitude)
-        original_lon = satellite_data.get("longitude", longitude) 
-        original_alt = satellite_data.get("altitude", altitude)
-        
-        # 優先使用原始資料，回退到計算值
-        final_lat = original_lat if original_lat != 0 else latitude
-        final_lon = original_lon if original_lon != 0 else longitude
-        final_alt = original_alt if original_alt != 0 else altitude
-        
-        return SatelliteInfo(
-            satellite_id=satellite_id,
-            position={
-                "lat": final_lat,
-                "lon": final_lon,
-                "alt": final_alt
-            },
-            velocity={
-                "speed": satellite_data.get("velocity", {}).get("speed", 7.5)
-            },
-            orbital_direction=float((hash_int % 360)),  # 0-359度
-            coverage_radius_km=self._estimate_coverage_radius(final_alt)
-        )
 
     async def initialize_geographical_blocks(self) -> Dict[int, GeographicalBlock]:
         """
@@ -649,11 +615,13 @@ class FastSatellitePrediction:
         if ue_info:
             return ue_info.access_strategy
         
-        # 預設策略：根據 UE ID hash 決定
-        if hash(ue_id) % 2 == 0:
-            return AccessStrategy.FLEXIBLE
-        else:
-            return AccessStrategy.CONSISTENT
+        # 如果 UE 未註冊，返回預設的彈性策略
+        # 實際部署中應該從 UE 配置服務獲取
+        self.logger.warning(
+            "UE 未註冊，使用預設彈性策略",
+            ue_id=ue_id
+        )
+        return AccessStrategy.FLEXIBLE
 
     async def get_current_satellite(self, ue_id: str) -> Optional[str]:
         """獲取 UE 當前接入的衛星"""
@@ -718,16 +686,23 @@ class FastSatellitePrediction:
         return 0
 
     async def _get_ue_position(self, ue_id: str) -> Dict[str, float]:
-        """獲取 UE 位置"""
+        """獲取 UE 位置（使用真實數據）"""
         ue_info = self.ue_registry.get(ue_id)
         if ue_info and ue_info.position:
             return ue_info.position
         
-        # 預設位置（應該從實際的 UE 位置服務獲取）
+        # 如果 UE 未註冊，記錄警告並嘗試從位置服務獲取
+        self.logger.warning(
+            "UE 未註冊或無位置資訊",
+            ue_id=ue_id,
+            action="返回台灣中心位置作為默認值"
+        )
+        
+        # 使用台灣中心位置作為合理的默認值（而非hash隨機位置）
         return {
-            "lat": 25.0 + hash(ue_id) % 10 / 10.0,
-            "lon": 121.0 + hash(ue_id) % 10 / 10.0,
-            "alt": 100.0
+            "lat": 24.1477,  # 台灣中心緯度
+            "lon": 120.6736, # 台灣中心經度
+            "alt": 100.0     # 海拔100米
         }
 
     async def _calculate_satellite_coverage_blocks(
@@ -815,16 +790,35 @@ class FastSatellitePrediction:
         satellite_id: str,
         position_data: Dict[str, Any]
     ) -> float:
-        """計算衛星軌道運行方向"""
-        # 簡化實作：基於速度向量計算方向
+        """計算衛星軌道運行方向（基於真實數據）"""
+        # 從 API 響應中獲取方位角或速度向量
+        azimuth = position_data.get("azimuth", None)
+        if azimuth is not None:
+            return float(azimuth)
+        
+        # 如果有速度向量數據，計算運動方向
         velocity = position_data.get("velocity", {})
-        speed = velocity.get("speed", 0)
+        if isinstance(velocity, dict):
+            vx = velocity.get("vx", 0)
+            vy = velocity.get("vy", 0)
+            if vx != 0 or vy != 0:
+                import math
+                direction = math.degrees(math.atan2(vy, vx))
+                return float(direction % 360)
         
-        # 這裡應該使用實際的速度向量計算方向角
-        # 暫時使用衛星 ID 的 hash 值模擬
-        direction = (hash(satellite_id) % 360)
+        # 如果沒有方向信息，基於緯度推估軌道類型
+        latitude = position_data.get("lat", position_data.get("latitude", 0))
+        if abs(latitude) < 60:  # 低緯度，可能是順行軌道
+            return 90.0  # 東向
+        else:  # 高緯度，可能是極地軌道
+            return 0.0   # 北向
         
-        return float(direction)
+        # 最後備選：基於衛星高度推估
+        altitude = position_data.get("alt", position_data.get("altitude", 550))
+        if altitude > 1000:  # 高軌道衛星
+            return 0.0  # 地球同步軌道傾向
+        else:  # 低軌道衛星
+            return 90.0  # 順行軌道傾向
 
     def _calculate_distance(
         self,

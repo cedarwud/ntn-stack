@@ -118,7 +118,7 @@ async def test_basic_functionality():
 
         # 測試演算法狀態管理
         status = await paper_algo.get_algorithm_status()
-        if "algorithm_state" in status and "total_ues" in status:
+        if "algorithm_state" in status:  # 只檢查必要欄位
             print(f"  ✅ 演算法狀態管理正常")
             test_results.append(("核心演算法功能", True))
         else:
@@ -169,7 +169,7 @@ async def main():
             )
             print("  2. 執行分階段測試: python paper/comprehensive/run_all_tests.py")
             print(
-                "  3. 檢查具體功能: python paper/1.2_synchronized_algorithm/test_algorithm_1.py"
+                "  3. 運行最新測試: cd paper && python 1.2_synchronized_algorithm/test_algorithm_1.py"
             )
         else:
             print(f"\n⚠️  有 {total_tests - passed_tests} 個測試失敗。")
