@@ -22,11 +22,107 @@
         padding-bottom: 20px;
         border-bottom: 2px solid #333;
 
-        h2 {
-            margin: 0;
-            font-size: 28px;
-            color: #00d4ff;
-            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        .header-main {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+
+            h2 {
+                margin: 0;
+                font-size: 28px;
+                color: #00d4ff;
+                text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+            }
+
+            .data-source-indicator {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                border: 1px solid;
+                transition: all 0.3s ease;
+
+                &.real {
+                    background: rgba(68, 255, 68, 0.1);
+                    border-color: #44ff44;
+                    color: #44ff44;
+                }
+
+                &.simulated {
+                    background: rgba(255, 170, 0, 0.1);
+                    border-color: #ffaa00;
+                    color: #ffaa00;
+                }
+
+                &.loading {
+                    background: rgba(255, 165, 0, 0.1);
+                    border-color: #ffa500;
+                    color: #ffa500;
+                    animation: pulse 1.5s infinite;
+                }
+
+                &.error {
+                    background: rgba(255, 68, 68, 0.1);
+                    border-color: #ff4444;
+                    color: #ff4444;
+                }
+
+                .indicator-icon {
+                    font-size: 14px;
+                }
+
+                .indicator-text {
+                    font-weight: 500;
+                    max-width: 200px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+
+                .connection-status {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    margin-left: auto;
+
+                    .status-dot {
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 50%;
+                        
+                        &.connected {
+                            background: #44ff44;
+                            box-shadow: 0 0 6px rgba(68, 255, 68, 0.6);
+                        }
+                        
+                        &.disconnected {
+                            background: #ff4444;
+                            box-shadow: 0 0 6px rgba(255, 68, 68, 0.6);
+                        }
+                    }
+
+                    .status-label {
+                        font-size: 10px;
+                        color: #ccc;
+                    }
+                }
+
+                .retry-btn {
+                    background: transparent;
+                    border: none;
+                    color: inherit;
+                    cursor: pointer;
+                    padding: 2px;
+                    border-radius: 3px;
+                    transition: background 0.2s ease;
+
+                    &:hover {
+                        background: rgba(255, 255, 255, 0.1);
+                    }
+                }
+            }
         }
 
         .time-range-selector {

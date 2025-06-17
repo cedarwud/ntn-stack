@@ -7,6 +7,8 @@ import EnhancedSidebar from './components/layout/EnhancedSidebar'
 import Navbar from './components/layout/Navbar'
 import SceneViewer from './components/scenes/FloorView'
 import ErrorBoundary from './components/ui/ErrorBoundary'
+import { DataSyncProvider } from './contexts/DataSyncContext'
+import GlobalDataSourceIndicator from './components/ui/GlobalDataSourceIndicator'
 import './styles/App.scss'
 import { Device } from './types/device'
 import { countActiveDevices } from './utils/deviceUtils'
@@ -388,14 +390,17 @@ function App({ activeView }: AppProps) {
     }
 
     return (
-        <ErrorBoundary>
-            <div className="app-container">
-                <Navbar
-                    onMenuClick={handleMenuClick}
-                    activeComponent={activeComponent}
-                    currentScene={currentScene}
-                />
-                <div className="content-wrapper">
+        <DataSyncProvider>
+            <ErrorBoundary>
+                <div className="app-container">
+                    <Navbar
+                        onMenuClick={handleMenuClick}
+                        activeComponent={activeComponent}
+                        currentScene={currentScene}
+                    />
+                    <div className="content-wrapper">
+                    {/* 全局數據源狀態指示器已移除 - 簡化 UI */}
+                    
                     <Layout
                         sidebar={
                             <ErrorBoundary fallback={<div>側邊欄發生錯誤</div>}>
@@ -505,9 +510,10 @@ function App({ activeView }: AppProps) {
                         }
                         activeComponent={activeComponent}
                     />
+                    </div>
                 </div>
-            </div>
-        </ErrorBoundary>
+            </ErrorBoundary>
+        </DataSyncProvider>
     )
 }
 

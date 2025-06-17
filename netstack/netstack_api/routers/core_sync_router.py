@@ -30,17 +30,77 @@ from ..services.handover_measurement_service import HandoverMeasurement, Handove
 import sys
 import os
 
-# 添加 UPF 擴展模組路徑
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../docker/upf-extension'))
-
-try:
-    from python_upf_bridge import UPFSyncBridge, UEInfo, HandoverRequest
-    UPF_BRIDGE_AVAILABLE = True
-except ImportError:
-    UPF_BRIDGE_AVAILABLE = False
-    logger.warning("UPF 橋接模組不可用，部分功能將受限")
-
+# 設置 logger 必須在其他導入之前
 logger = structlog.get_logger(__name__)
+
+# UPF 橋接模組導入 - 多路徑嘗試策略
+UPF_BRIDGE_AVAILABLE = False
+UPFSyncBridge = None
+UEInfo = None
+HandoverRequest = None
+
+# 嘗試多個可能的路徑
+upf_extension_paths = [
+    os.path.join(os.path.dirname(__file__), '../../docker/upf-extension'),
+    '/app/docker/upf-extension',
+    './docker/upf-extension',
+    os.path.abspath(os.path.join(os.path.dirname(__file__), '../../docker/upf-extension'))
+]
+
+for path in upf_extension_paths:
+    try:
+        if os.path.exists(path) and path not in sys.path:
+            sys.path.insert(0, path)
+        
+        from python_upf_bridge import UPFSyncBridge, UEInfo, HandoverRequest
+        UPF_BRIDGE_AVAILABLE = True
+        logger.info("UPF 橋接模組已成功載入", path=path)
+        break
+        
+    except ImportError as e:
+        logger.debug(f"嘗試從 {path} 載入 UPF 橋接模組失敗: {e}")
+        continue
+
+if not UPF_BRIDGE_AVAILABLE:
+    # 創建模擬類別作為回退
+    logger.warning("UPF 橋接模組不可用，使用模擬實現")
+    
+    class MockUPFSyncBridge:
+        def __init__(self, *args, **kwargs):
+            self.is_running = False
+        
+        async def start(self):
+            self.is_running = True
+            return True
+        
+        async def stop(self):
+            self.is_running = False
+        
+        async def get_algorithm_status(self):
+            return {
+                "service_status": {"running": False, "library_loaded": False},
+                "ue_management": {"registered_ue_count": 0, "active_handover_count": 0},
+                "handover_statistics": {"total_handovers": 0, "successful_handovers": 0},
+                "note": "UPF bridge unavailable - using mock implementation"
+            }
+    
+    class MockUEInfo:
+        def __init__(self, ue_id: str, **kwargs):
+            self.ue_id = ue_id
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+    
+    class MockHandoverRequest:
+        def __init__(self, ue_id: str, target_satellite_id: str, predicted_time: float, **kwargs):
+            self.ue_id = ue_id
+            self.target_satellite_id = target_satellite_id
+            self.predicted_time = predicted_time
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+    
+    UPFSyncBridge = MockUPFSyncBridge
+    UEInfo = MockUEInfo
+    HandoverRequest = MockHandoverRequest
 
 # Request/Response Models
 class CoreSyncStartRequest(BaseModel):
