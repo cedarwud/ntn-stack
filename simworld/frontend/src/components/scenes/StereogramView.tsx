@@ -69,6 +69,14 @@ interface SceneViewProps {
     // 衛星相關 props（動畫永遠開啟）
     satelliteEnabled?: boolean
     satelliteSpeedMultiplier?: number
+    // 🚀 演算法結果對接
+    algorithmResults?: {
+        currentSatelliteId?: string
+        predictedSatelliteId?: string
+        handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
+        binarySearchActive?: boolean
+        predictionConfidence?: number
+    }
 }
 
 export default function SceneView({
@@ -114,6 +122,7 @@ export default function SceneView({
     intelligentRecommendationEnabled = false,
     satelliteEnabled = false,
     satelliteSpeedMultiplier = 60,
+    algorithmResults,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [satellites, setSatellites] = useState<any[]>([])
@@ -291,6 +300,7 @@ export default function SceneView({
                         satellites={satellites}
                         satelliteEnabled={satelliteEnabled}
                         satelliteSpeedMultiplier={satelliteSpeedMultiplier}
+                        algorithmResults={algorithmResults}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}

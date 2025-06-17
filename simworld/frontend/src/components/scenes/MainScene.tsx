@@ -76,6 +76,14 @@ export interface MainSceneProps {
     satelliteSpeedMultiplier?: number
     currentConnection?: any
     predictedConnection?: any
+    // 🚀 演算法結果 - 用於對接視覺化
+    algorithmResults?: {
+        currentSatelliteId?: string
+        predictedSatelliteId?: string
+        handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
+        binarySearchActive?: boolean
+        predictionConfidence?: number
+    }
 }
 
 const UAV_SCALE = 10
@@ -115,6 +123,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     satellites = [],
     satelliteEnabled = false,
     satelliteSpeedMultiplier = 60,
+    algorithmResults,
 }) => {
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
@@ -369,6 +378,11 @@ const MainScene: React.FC<MainSceneProps> = ({
                 predictedConnection={predictedConnection}
                 showLabels={true}
                 speedMultiplier={satelliteSpeedMultiplier}
+                algorithmResults={algorithmResults}
+                onSatelliteClick={(satelliteId) => {
+                    console.log('🛰️ 點擊衛星:', satelliteId)
+                    // 可以在這裡處理衛星點擊事件
+                }}
             />
         </>
     )
