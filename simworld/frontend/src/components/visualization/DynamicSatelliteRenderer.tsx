@@ -149,7 +149,9 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
     useFrame(() => {
         if (!enabled) return
 
-        timeRef.current += speedMultiplier / 60
+        // 限制最大時間步長避免數值精度問題
+        const deltaTime = Math.min(speedMultiplier / 60, 5)
+        timeRef.current += deltaTime
 
         setOrbits((prevOrbits) => {
             const updatedOrbits = prevOrbits.map((orbit) => {
@@ -188,26 +190,35 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
 
                     // 檢查位置是否有變化
                     const lastPos = lastPositionsRef.current.get(orbit.id)
+                    // 根據動畫速度動態調整位置變化閾值，減少不必要的更新
+                    const threshold = Math.min(0.5 + (speedMultiplier * 0.1), 2.0)
                     if (
                         !lastPos ||
-                        Math.abs(lastPos[0] - orbit.currentPosition[0]) > 0.1 ||
-                        Math.abs(lastPos[1] - orbit.currentPosition[1]) > 0.1 ||
-                        Math.abs(lastPos[2] - orbit.currentPosition[2]) > 0.1
+                        Math.abs(lastPos[0] - orbit.currentPosition[0]) > threshold ||
+                        Math.abs(lastPos[1] - orbit.currentPosition[1]) > threshold ||
+                        Math.abs(lastPos[2] - orbit.currentPosition[2]) > threshold
                     ) {
                         hasChanges = true
                     }
                 }
             })
+            
+            // 🔍 調試信息：定期輸出可用衛星位置
+            if (positionMap.size > 0 && Math.random() < 0.1) { // 10% 機率輸出，避免太頻繁
+                console.log('🔍 DynamicSatelliteRenderer 可用衛星位置:', Array.from(positionMap.keys()).slice(0, 3), '總數:', positionMap.size)
+            }
 
             // 只在位置有顯著變化時才調用回調
             if (hasChanges) {
                 lastPositionsRef.current = positionMap
                 onSatellitePositions(positionMap)
+                console.log('📞 更新衛星位置回調:', positionMap.size, '個衛星')
             }
         }
 
-        // 每 100ms 更新一次位置回調，避免與 useFrame 60fps 衝突
-        const interval = setInterval(updatePositions, 100)
+        // 根據速度倍數動態調整更新間隔，高倍速時更頻繁更新
+        const updateInterval = Math.max(50, Math.min(200, 1000 / speedMultiplier))
+        const interval = setInterval(updatePositions, updateInterval)
 
         return () => clearInterval(interval)
     }, [onSatellitePositions, enabled])

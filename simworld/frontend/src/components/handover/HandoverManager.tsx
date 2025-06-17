@@ -106,24 +106,40 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
     // 🔗 模擬二點預測算法 - 與 DynamicSatelliteRenderer 的 ID 系統兼容
     const simulateTwoPointPrediction = useCallback(() => {
-        // 🚀 使用固定的模擬衛星 ID，與 DynamicSatelliteRenderer 匹配
+        // 🚀 使用固定的模擬衛星 ID，與 DynamicSatelliteRenderer 完全匹配
         const simulatedSatellites = Array.from({ length: 18 }, (_, i) => ({
             id: `sat_${i}`,
             name: `STARLINK-${1000 + i}`,
-            norad_id: `sat_${i}`,
+            norad_id: `sat_${i}`, // 使用與 DynamicSatelliteRenderer 相同的 ID 格式
             elevation_deg: 30 + Math.random() * 60,
             azimuth_deg: Math.random() * 360,
             distance_km: 500 + Math.random() * 500
         }))
+        
+        console.log('🔍 HandoverManager 模擬衛星數據:', simulatedSatellites.map(s => ({ id: s.id, name: s.name })))
 
         const now = Date.now()
         const futureTime = now + handoverState.deltaT * 1000
 
-        // 模擬選擇當前最佳衛星
-        const currentBest = simulatedSatellites[Math.floor(Math.random() * simulatedSatellites.length)]
-        const futureBest = Math.random() < 0.3 ? 
-            simulatedSatellites[Math.floor(Math.random() * simulatedSatellites.length)] : 
-            currentBest // 30% 機率換手
+        // 🎯 模擬選擇當前最佳衛星 - 優先選擇前幾個衛星以提高匹配機率
+        const currentBestIndex = Math.floor(Math.random() * Math.min(6, simulatedSatellites.length)) // 前6個衛星
+        const currentBest = simulatedSatellites[currentBestIndex]
+        
+        // 換手機率調整為 40%，並優先選擇相鄰的衛星
+        const shouldHandover = Math.random() < 0.4
+        let futureBest = currentBest
+        
+        if (shouldHandover) {
+            // 選擇相鄰的衛星作為換手目標
+            const neighborIndex = currentBestIndex < simulatedSatellites.length - 1 ? currentBestIndex + 1 : currentBestIndex - 1
+            futureBest = simulatedSatellites[neighborIndex] || currentBest
+        }
+        
+        console.log('🔄 換手決策:', {
+            currentBest: { id: currentBest.id, name: currentBest.name },
+            futureBest: { id: futureBest.id, name: futureBest.name },
+            needHandover: shouldHandover && futureBest.id !== currentBest.id
+        })
 
         setHandoverState((prev) => ({
             ...prev,
@@ -131,21 +147,35 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             predictedSatellite: futureBest?.norad_id || '',
             status: 'predicting',
         }))
+        
+        console.log('📊 更新換手狀態:', {
+            currentSatellite: currentBest?.norad_id,
+            predictedSatellite: futureBest?.norad_id,
+            status: 'predicting'
+        })
 
-        // 更新連接狀態
+        // 🔗 更新連接狀態
         if (currentBest) {
-            setCurrentConnection(
-                generateMockSatelliteConnection(currentBest, true)
-            )
+            const currentConn = generateMockSatelliteConnection(currentBest, true)
+            setCurrentConnection(currentConn)
+            console.log('🔗 設定當前連接:', {
+                satelliteId: currentConn.satelliteId,
+                satelliteName: currentConn.satelliteName
+            })
         }
+        
         if (futureBest && futureBest.norad_id !== currentBest?.norad_id) {
-            setPredictedConnection(
-                generateMockSatelliteConnection(futureBest, false)
-            )
+            const predictedConn = generateMockSatelliteConnection(futureBest, false)
+            setPredictedConnection(predictedConn)
+            console.log('🔮 設定預測連接:', {
+                satelliteId: predictedConn.satelliteId,
+                satelliteName: predictedConn.satelliteName
+            })
             // 模擬需要換手
             simulateBinarySearch(now, futureTime)
         } else {
             setPredictedConnection(null)
+            console.log('🚫 焦除預測連接：不需要換手')
             setHandoverState((prev) => ({
                 ...prev,
                 handoverTime: 0,
@@ -164,7 +194,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             iterations: [],
             accuracy: 0.95 + Math.random() * 0.04, // 95-99%
         })
-    }, [satellites, handoverState.deltaT, generateMockSatelliteConnection])
+    }, [handoverState.deltaT, generateMockSatelliteConnection]) // 移除 satellites 依賴，使用自己的模擬數據
 
     // 模擬 Binary Search Refinement
     const simulateBinarySearch = useCallback(
