@@ -33,11 +33,17 @@
 
   .algorithm-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 12px;
     margin-bottom: 24px;
     padding-bottom: 16px;
     border-bottom: 1px solid rgba(64, 224, 255, 0.2);
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
     h2 {
       margin: 0;
@@ -96,6 +102,52 @@
       &:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+      }
+    }
+
+    // 真實數據連接狀態指示器
+    .data-source-indicators {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+
+      .indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+
+        &.connected {
+          background: rgba(68, 255, 68, 0.1);
+          border: 1px solid rgba(68, 255, 68, 0.3);
+          color: #44ff44;
+        }
+
+        &.loading {
+          background: rgba(255, 165, 0, 0.1);
+          border: 1px solid rgba(255, 165, 0, 0.3);
+          color: #ffa500;
+          animation: pulse 1.5s infinite;
+        }
+
+        &.error {
+          background: rgba(255, 68, 68, 0.1);
+          border: 1px solid rgba(255, 68, 68, 0.3);
+          color: #ff4444;
+        }
+
+        .indicator-icon {
+          font-size: 10px;
+        }
+
+        .indicator-text {
+          font-family: 'Monaco', 'Menlo', monospace;
+          white-space: nowrap;
+        }
       }
     }
   }

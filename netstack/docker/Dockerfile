@@ -45,16 +45,20 @@ ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+# 修復 matplotlib 權限問題
+ENV MPLCONFIGDIR="/tmp/matplotlib"
 
 # 設定工作目錄
 WORKDIR /app
 
 # 複製應用程式源碼
 COPY netstack_api/ ./netstack_api/
+# 複製 UPF 擴展模組
+COPY docker/upf-extension/ ./docker/upf-extension/
 
-# 建立日誌目錄
-RUN mkdir -p /var/log/netstack && \
-    chown -R netstack:netstack /var/log/netstack
+# 建立日誌目錄和 matplotlib 緩存目錄
+RUN mkdir -p /var/log/netstack /tmp/matplotlib && \
+    chown -R netstack:netstack /var/log/netstack /tmp/matplotlib
 
 # 建立健康檢查腳本
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
@@ -106,10 +110,12 @@ RUN groupadd -r netstack && useradd -r -g netstack netstack
 
 # 複製應用程式源碼
 COPY netstack_api/ ./netstack_api/
+# 複製 UPF 擴展模組
+COPY docker/upf-extension/ ./docker/upf-extension/
 
-# 建立日誌和測試目錄
-RUN mkdir -p /var/log/netstack /app/test-reports && \
-    chown -R netstack:netstack /var/log/netstack /app/test-reports
+# 建立日誌、測試目錄和 matplotlib 緩存目錄
+RUN mkdir -p /var/log/netstack /app/test-reports /tmp/matplotlib && \
+    chown -R netstack:netstack /var/log/netstack /app/test-reports /tmp/matplotlib
 
 # 建立健康檢查腳本
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
@@ -118,6 +124,8 @@ RUN chmod +x /usr/local/bin/healthcheck.sh
 # 設定開發環境變數
 ENV ENVIRONMENT=development
 ENV LOG_LEVEL=DEBUG
+# 修復 matplotlib 權限問題
+ENV MPLCONFIGDIR="/tmp/matplotlib"
 
 # 切換回應用程式用戶
 USER netstack

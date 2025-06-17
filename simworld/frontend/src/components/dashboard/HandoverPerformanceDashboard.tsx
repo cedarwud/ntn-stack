@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import { netStackApi } from '../../services/netstack-api'
+import { useNetStackData, useDataSourceStatus } from '../../contexts/DataSyncContext'
 import './HandoverPerformanceDashboard.scss'
 
 interface HandoverPerformanceDashboardProps {
@@ -39,6 +41,10 @@ interface PredictionAccuracyData {
 }
 
 const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> = ({ enabled }) => {
+    // 使用數據同步上下文
+    const { isConnected: netstackConnected } = useNetStackData()
+    const { overall: connectionStatus, dataSource } = useDataSourceStatus()
+    
     const [metrics, setMetrics] = useState<HandoverMetrics>({
         totalHandovers: 0,
         successfulHandovers: 0,
@@ -55,14 +61,121 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
     const [recentEvents, setRecentEvents] = useState<HandoverEvent[]>([])
     const [accuracyHistory, setAccuracyHistory] = useState<PredictionAccuracyData[]>([])
     const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h')
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    
+    // 基於全局數據同步狀態決定是否使用真實數據
+    const useRealData = netstackConnected && dataSource !== 'simulated'
 
-    // 模擬數據更新
+    // 使用真實 NetStack API 獲取效能數據
     useEffect(() => {
         if (!enabled) return
 
-        const updateMetrics = () => {
+        const fetchRealMetrics = async () => {
+            if (!useRealData) return
+
+            setIsLoading(true)
+            setError(null)
+
+            try {
+                console.log('🔥 獲取真實 NetStack 效能指標...')
+
+                // 並行獲取多個 API 數據
+                const [coreSyncStatus, handoverMetrics, recentEvents] = await Promise.all([
+                    netStackApi.getCoreSync(),
+                    netStackApi.getHandoverLatencyMetrics().catch(() => []), // 如果失敗返回空數組
+                    netStackApi.getRecentSyncEvents().catch(() => [])        // 如果失敗返回空數組
+                ])
+
+                console.log('✅ NetStack 效能數據:', {
+                    coreSyncStatus,
+                    handoverMetrics: handoverMetrics.length,
+                    recentEvents: recentEvents.length
+                })
+
+                // 更新真實指標
+                const realMetrics: HandoverMetrics = {
+                    totalHandovers: coreSyncStatus.statistics.total_sync_operations || 0,
+                    successfulHandovers: coreSyncStatus.statistics.successful_syncs || 0,
+                    failedHandovers: coreSyncStatus.statistics.failed_syncs || 0,
+                    averageHandoverTime: coreSyncStatus.statistics.average_sync_time_ms || 0,
+                    predictionAccuracy: coreSyncStatus.ieee_infocom_2024_features.binary_search_refinement * 100 || 0,
+                    currentActiveHandovers: coreSyncStatus.service_info.active_tasks || 0,
+                    handoverSuccessRate: coreSyncStatus.statistics.total_sync_operations > 0 
+                        ? (coreSyncStatus.statistics.successful_syncs / coreSyncStatus.statistics.total_sync_operations) * 100 
+                        : 0,
+                    averagePredictionTime: coreSyncStatus.sync_performance.overall_accuracy_ms || 0,
+                    networkDowntime: coreSyncStatus.statistics.uptime_percentage 
+                        ? (100 - coreSyncStatus.statistics.uptime_percentage) * 60 * 60 * 1000 // 轉為 ms
+                        : 0,
+                    qosImpact: coreSyncStatus.sync_performance.overall_accuracy_ms > 50 
+                        ? Math.min(100, (coreSyncStatus.sync_performance.overall_accuracy_ms - 50) / 5)
+                        : 0
+                }
+
+                setMetrics(realMetrics)
+
+                // 轉換換手測量數據為事件格式
+                if (handoverMetrics.length > 0) {
+                    const events: HandoverEvent[] = handoverMetrics.slice(0, 20).map(metric => ({
+                        id: metric.measurement_id,
+                        timestamp: metric.timestamp,
+                        uavId: metric.ue_id,
+                        fromSatellite: metric.source_satellite,
+                        toSatellite: metric.target_satellite,
+                        duration: metric.latency_ms,
+                        status: metric.success_rate > 0.8 ? 'success' : 'failed',
+                        reason: `${metric.handover_type} handover`,
+                        predictionTime: metric.additional_metrics.signaling_overhead || 0,
+                        executionTime: metric.additional_metrics.interruption_time_ms || 0
+                    }))
+
+                    setRecentEvents(events)
+                }
+
+                // 更新準確率歷史（基於真實數據）
+                const newAccuracyData: PredictionAccuracyData = {
+                    timeWindow: new Date().toLocaleTimeString(),
+                    accuracy: realMetrics.predictionAccuracy,
+                    totalPredictions: realMetrics.totalHandovers,
+                    correctPredictions: realMetrics.successfulHandovers
+                }
+
+                setAccuracyHistory(prev => [newAccuracyData, ...prev.slice(0, 19)])
+
+            } catch (error) {
+                console.error('❌ 獲取 NetStack 效能指標失敗:', error)
+                setError(error instanceof Error ? error.message : 'Unknown error')
+                
+                // 注意：useRealData 現在由全局狀態控制，不需要手動設置
+                console.warn('⚠️ 回退到模擬數據模式')
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        // 立即獲取一次數據
+        fetchRealMetrics()
+
+        // 如果使用真實數據，每30秒更新一次
+        const interval = setInterval(() => {
+            if (useRealData) {
+                fetchRealMetrics()
+            }
+        }, 30000)
+
+        return () => clearInterval(interval)
+    }, [enabled, useRealData])
+
+    // 回退的模擬數據更新（當真實 API 不可用時）
+    useEffect(() => {
+        if (!enabled || useRealData) return
+
+        console.log('⚠️ 使用模擬數據更新效能指標')
+
+        const updateSimulatedMetrics = () => {
             const newEvent: HandoverEvent = {
-                id: `event_${Date.now()}`,
+                id: `sim_event_${Date.now()}`,
                 timestamp: Date.now(),
                 uavId: `UAV_${Math.floor(Math.random() * 10) + 1}`,
                 fromSatellite: `SAT_${Math.floor(Math.random() * 5) + 1}`,
@@ -110,11 +223,11 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
             }
         }
 
-        updateMetrics()
-        const interval = setInterval(updateMetrics, 3000 + Math.random() * 4000)
+        updateSimulatedMetrics()
+        const interval = setInterval(updateSimulatedMetrics, 3000 + Math.random() * 4000)
 
         return () => clearInterval(interval)
-    }, [enabled])
+    }, [enabled, useRealData])
 
     const getRandomReason = (): string => {
         const reasons = [
@@ -144,7 +257,27 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
     return (
         <div className="handover-performance-dashboard">
             <div className="dashboard-header">
-                <h2>🔄 衛星換手性能監控</h2>
+                <div className="header-main">
+                    <h2>🔄 衛星換手性能監控</h2>
+                    
+                    {/* 數據源狀態指示器 - 基於全局同步狀態 */}
+                    <div className={`data-source-indicator ${error ? 'error' : isLoading ? 'loading' : useRealData ? 'real' : 'simulated'}`}>
+                        <span className="indicator-icon">
+                            {error ? '❌' : isLoading ? '⏳' : useRealData ? '✅' : '⚠️'}
+                        </span>
+                        <span className="indicator-text">
+                            {error ? `NetStack Error: ${error.slice(0, 25)}...` :
+                             isLoading ? 'Syncing NetStack...' :
+                             useRealData ? `Real NetStack (${connectionStatus})` :
+                             'Simulated Data'}
+                        </span>
+                        <div className="connection-status">
+                            <span className={`status-dot ${netstackConnected ? 'connected' : 'disconnected'}`}></span>
+                            <span className="status-label">NetStack</span>
+                        </div>
+                    </div>
+                </div>
+                
                 <div className="time-range-selector">
                     {(['1h', '6h', '24h', '7d'] as const).map(range => (
                         <button
