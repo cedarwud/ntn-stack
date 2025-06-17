@@ -24,6 +24,16 @@ interface HandoverManagerProps {
     onCurrentConnectionChange?: (connection: SatelliteConnection | null) => void
     onPredictedConnectionChange?: (connection: SatelliteConnection | null) => void
     onTransitionChange?: (isTransitioning: boolean, progress: number) => void
+    // 🚀 演算法結果回調 - 用於對接視覺化
+    onAlgorithmResults?: (results: {
+        currentSatelliteId?: string
+        predictedSatelliteId?: string
+        handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
+        binarySearchActive?: boolean
+        predictionConfidence?: number
+    }) => void
+    // 🎮 衛星速度同步
+    speedMultiplier?: number
 }
 
 const HandoverManager: React.FC<HandoverManagerProps> = ({
@@ -36,6 +46,8 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     onCurrentConnectionChange,
     onPredictedConnectionChange,
     onTransitionChange,
+    onAlgorithmResults,
+    speedMultiplier = 60,
 }) => {
     // 換手狀態管理
     const [handoverState, setHandoverState] = useState<HandoverState>({
@@ -441,9 +453,15 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                                 satellites={satellites}
                                 selectedUEId={selectedUEId}
                                 isEnabled={isEnabled}
+                                speedMultiplier={speedMultiplier}
                                 onAlgorithmStep={(step) => {
-                                    console.log('算法步驟:', step)
+                                    console.log('🧮 算法步驟:', step)
                                     // 可以在這裡處理算法步驟事件
+                                }}
+                                onAlgorithmResults={(results) => {
+                                    console.log('🚀 演算法結果:', results)
+                                    // 向 App.tsx 傳遞演算法結果，用於更新 3D 視覺化
+                                    onAlgorithmResults?.(results)
                                 }}
                             />
                         </div>

@@ -18,15 +18,14 @@ const SatelliteControlPanel: React.FC<SatelliteControlPanelProps> = ({
     onSatelliteAnimationEnabledChange,
     onSatelliteSpeedChange,
 }) => {
-    // 預設速度選項
+    // 預設速度選項 - 調整為最大30倍
     const speedOptions = [
         { value: 1, label: '1x (真實速度)' },
+        { value: 5, label: '5x' },
         { value: 10, label: '10x' },
-        { value: 30, label: '30x' },
-        { value: 60, label: '60x (推薦)' },
-        { value: 120, label: '120x' },
-        { value: 300, label: '300x (快速)' },
-        { value: 600, label: '600x (極快)' }
+        { value: 15, label: '15x' },
+        { value: 20, label: '20x' },
+        { value: 30, label: '30x (最快)' }
     ]
 
     return (
@@ -96,9 +95,9 @@ const SatelliteControlPanel: React.FC<SatelliteControlPanelProps> = ({
                                 <input
                                     type="range"
                                     min="1"
-                                    max="600"
+                                    max="30"
                                     step="1"
-                                    value={satelliteSpeedMultiplier}
+                                    value={Math.min(satelliteSpeedMultiplier, 30)}
                                     onChange={(e) => onSatelliteSpeedChange(Number(e.target.value))}
                                     className="control-slider"
                                     disabled={!satelliteAnimationEnabled}

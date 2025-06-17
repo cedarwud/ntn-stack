@@ -62,11 +62,21 @@ interface SynchronizedAlgorithmVisualizationProps {
     selectedUEId?: number
     isEnabled: boolean
     onAlgorithmStep?: (step: AlgorithmStep) => void
+    // 🚀 新增：向視覺化組件傳遞演算法結果
+    onAlgorithmResults?: (results: {
+        currentSatelliteId?: string
+        predictedSatelliteId?: string
+        handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
+        binarySearchActive?: boolean
+        predictionConfidence?: number
+    }) => void
+    // 🎮 新增：前端速度控制同步
+    speedMultiplier?: number
 }
 
 const SynchronizedAlgorithmVisualization: React.FC<
     SynchronizedAlgorithmVisualizationProps
-> = ({ satellites, selectedUEId = 1, isEnabled, onAlgorithmStep }) => {
+> = ({ satellites, selectedUEId = 1, isEnabled, onAlgorithmStep, onAlgorithmResults, speedMultiplier = 60 }) => {
     const [algorithmSteps, setAlgorithmSteps] = useState<AlgorithmStep[]>([])
     const [currentStep, setCurrentStep] = useState<string>('')
     const [predictionResult, setPredictionResult] =
@@ -187,6 +197,15 @@ const SynchronizedAlgorithmVisualization: React.FC<
 
             // API 回應處理完成
             setPredictionResult(result)
+            
+            // 🚀 向視覺化組件廣播演算法結果
+            onAlgorithmResults?.({
+                currentSatelliteId: result.current_satellite.satellite_id,
+                predictedSatelliteId: result.future_satellite.satellite_id,
+                handoverStatus: result.handover_required ? 'handover_ready' : 'idle',
+                binarySearchActive: false,
+                predictionConfidence: result.prediction_confidence
+            })
 
             // 更新步驟狀態
             const completedStep = {
@@ -245,12 +264,30 @@ const SynchronizedAlgorithmVisualization: React.FC<
         }
 
         setAlgorithmSteps((prev) => [...prev, binaryStep])
+        
+        // 🔬 廣播 Binary Search 開始
+        onAlgorithmResults?.({
+            currentSatelliteId: predictionResult?.current_satellite.satellite_id,
+            predictedSatelliteId: predictionResult?.future_satellite.satellite_id,
+            handoverStatus: 'executing',
+            binarySearchActive: true,
+            predictionConfidence: predictionResult?.prediction_confidence
+        })
 
         // 逐步顯示迭代過程
         for (let i = 0; i < iterations.length; i++) {
             setBinarySearchIterations((prev) => [...prev, iterations[i]])
             await new Promise((resolve) => setTimeout(resolve, 750)) // 配合後端的延遲
         }
+        
+        // 🔬 廣播 Binary Search 完成
+        onAlgorithmResults?.({
+            currentSatelliteId: predictionResult?.current_satellite.satellite_id,
+            predictedSatelliteId: predictionResult?.future_satellite.satellite_id,
+            handoverStatus: 'handover_ready',
+            binarySearchActive: false,
+            predictionConfidence: predictionResult?.prediction_confidence
+        })
 
         // 完成 Binary Search
         const completedBinaryStep = {
@@ -336,19 +373,25 @@ const SynchronizedAlgorithmVisualization: React.FC<
             executeTwoPointPrediction()
         }, 1000) // 延遲 1 秒執行，避免組件初始化時的重複調用
 
-        // 定期執行（每 15 秒）- 增加間隔避免過度頻繁的API調用
+        // 🎮 根據前端速度動態調整演算法執行間隔
+        // 基礎間隔15秒，根據速度倍數調整：速度越快，執行越頻繁
+        const baseInterval = 15000 // 15秒基礎間隔
+        const dynamicInterval = Math.max(1000, baseInterval / (speedMultiplier / 60)) // 最少1秒間隔
+        
+        console.log(`🎮 演算法執行間隔: ${dynamicInterval}ms (速度: ${speedMultiplier}x)`)
+        
         const interval = setInterval(() => {
             if (!isRunning) {
                 // 只有在不運行時才執行新的預測
                 executeTwoPointPrediction()
             }
-        }, 15000)
+        }, dynamicInterval)
 
         return () => {
             clearTimeout(timeoutId)
             clearInterval(interval)
         }
-    }, [isEnabled]) // 移除 executeTwoPointPrediction 依賴，避免無限循環
+    }, [isEnabled, speedMultiplier]) // 🎮 添加 speedMultiplier 依賴，速度變化時重新設置間隔
 
     // 清除歷史記錄
     const clearHistory = useCallback(() => {
