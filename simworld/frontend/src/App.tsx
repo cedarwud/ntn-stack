@@ -50,8 +50,17 @@ function App({ activeView }: AppProps) {
     const [satelliteEnabled, setSatelliteEnabled] = useState<boolean>(true) // 預設開啟衛星顯示
     
     // 衛星動畫控制狀態（動畫永遠開啟，只保留速度和軌跡線控制）
-    const [satelliteSpeedMultiplier, setSatelliteSpeedMultiplier] = useState<number>(60) // 預設60倍速
+    const [satelliteSpeedMultiplier, setSatelliteSpeedMultiplier] = useState<number>(5) // 預設5倍速
     const [showOrbitTracks, setShowOrbitTracks] = useState<boolean>(true) // 預設顯示軌跡線
+    
+    // 🚀 演算法與視覺化對接狀態
+    const [algorithmResults, setAlgorithmResults] = useState<{
+        currentSatelliteId?: string
+        predictedSatelliteId?: string
+        handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
+        binarySearchActive?: boolean
+        predictionConfidence?: number
+    }>({})
 
     const [activeComponent, setActiveComponent] =
         useState<string>(initialComponent)
@@ -329,6 +338,8 @@ function App({ activeView }: AppProps) {
                         satelliteEnabled={satelliteEnabled}
                         satelliteSpeedMultiplier={satelliteSpeedMultiplier}
                         showOrbitTracks={showOrbitTracks}
+                        // 🚀 演算法結果對接
+                        algorithmResults={algorithmResults}
                     />
                 )
             default:
@@ -495,6 +506,8 @@ function App({ activeView }: AppProps) {
                                         setIsTransitioning(isTransitioning)
                                         setTransitionProgress(progress)
                                     }}
+                                    // 🚀 演算法結果回調 - 連接後端演算法與前端視覺化
+                                    onAlgorithmResults={setAlgorithmResults}
                                     // 衛星動畫控制 props（動畫永遠開啟）
                                     satelliteSpeedMultiplier={satelliteSpeedMultiplier}
                                     onSatelliteSpeedChange={setSatelliteSpeedMultiplier}

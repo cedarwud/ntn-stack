@@ -12,6 +12,15 @@ interface DynamicSatelliteRendererProps {
     predictedConnection?: any
     showLabels?: boolean
     speedMultiplier?: number
+    // 🚀 新增：演算法結果對接接口
+    algorithmResults?: {
+        currentSatelliteId?: string
+        predictedSatelliteId?: string
+        handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
+        binarySearchActive?: boolean
+        predictionConfidence?: number
+    }
+    onSatelliteClick?: (satelliteId: string) => void
 }
 
 interface SatelliteOrbit {
@@ -80,10 +89,20 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
     currentConnection,
     predictedConnection,
     showLabels = true,
-    speedMultiplier = 60
+    speedMultiplier = 60,
+    algorithmResults,
+    onSatelliteClick
 }) => {
     const [orbits, setOrbits] = useState<SatelliteOrbit[]>([])
     const timeRef = useRef(0)
+    
+    // 演算法狀態對接 - 用於顯示後端演算法結果
+    const [algorithmHighlights, setAlgorithmHighlights] = useState<{
+        currentSatellite?: string
+        predictedSatellite?: string
+        handoverPath?: string[]
+        algorithmStatus?: 'idle' | 'calculating' | 'handover_ready'
+    }>({})
 
     // 初始化衛星軌道
     useEffect(() => {
@@ -140,13 +159,68 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
     return (
         <group>
             {satellitesToRender.map((orbit, index) => {
-                const isCurrent = currentConnection?.satelliteId === orbit.id
-                const isPredicted = predictedConnection?.satelliteId === orbit.id
+                // 🔥 對接演算法結果 - 優先使用後端演算法狀態
+                // 支援多種 ID 匹配模式：完全匹配、名稱匹配、部分匹配
+                const isAlgorithmCurrent = algorithmResults?.currentSatelliteId === orbit.id || 
+                                         algorithmResults?.currentSatelliteId === orbit.name ||
+                                         (algorithmResults?.currentSatelliteId && orbit.name.includes(algorithmResults.currentSatelliteId))
+                const isAlgorithmPredicted = algorithmResults?.predictedSatelliteId === orbit.id ||
+                                           algorithmResults?.predictedSatelliteId === orbit.name ||
+                                           (algorithmResults?.predictedSatelliteId && orbit.name.includes(algorithmResults.predictedSatelliteId))
+                const isCurrent = isAlgorithmCurrent || currentConnection?.satelliteId === orbit.id
+                const isPredicted = isAlgorithmPredicted || predictedConnection?.satelliteId === orbit.id
                 
-                let statusColor = '#ffffff'
-                if (isCurrent) {
+                // 🐛 調試信息 - 只在有演算法結果時顯示
+                if (algorithmResults?.currentSatelliteId && index === 0) {
+                    console.log('🔍 演算法結果匹配檢查:', {
+                        algorithmCurrent: algorithmResults.currentSatelliteId,
+                        algorithmPredicted: algorithmResults.predictedSatelliteId,
+                        sampleOrbitId: orbit.id,
+                        sampleOrbitName: orbit.name,
+                        matchFound: isAlgorithmCurrent || isAlgorithmPredicted
+                    })
+                }
+                
+                // 🎨 根據演算法狀態決定顏色
+                let statusColor = '#ffffff' // 預設白色
+                let opacity = 0.8
+                let scale = 1
+                
+                // 🧪 測試模式：如果沒有真實演算法結果，使用假數據測試視覺效果
+                if (!algorithmResults?.currentSatelliteId) {
+                    // 強制前兩顆可見衛星展示不同狀態，便於測試
+                    if (index === 0) {
+                        statusColor = '#00ff00' // 綠色 - 模擬當前最佳
+                        opacity = 1.0
+                        scale = 1.5
+                    } else if (index === 1) {
+                        statusColor = '#ff6600' // 橙色 - 模擬預測目標
+                        opacity = 0.9
+                        scale = 1.3
+                    }
+                } else {
+                    // 真實演算法結果
+                    if (isAlgorithmCurrent) {
+                        statusColor = '#00ff00' // 綠色 - 當前最佳衛星
+                        opacity = 1.0
+                        scale = 1.5 // 稍微放大
+                    } else if (isAlgorithmPredicted) {
+                        statusColor = '#ff6600' // 橙色 - 預測目標衛星
+                        opacity = 0.9
+                        scale = 1.3
+                    } else if (algorithmResults?.handoverStatus === 'calculating') {
+                        statusColor = '#ffff00' // 黃色 - 計算中
+                        opacity = 0.6
+                    } else if (algorithmResults?.binarySearchActive && (isCurrent || isPredicted)) {
+                        statusColor = '#ff0080' // 粉紅色 - Binary Search 活躍
+                        opacity = 0.8
+                    }
+                }
+                
+                // 保留舊的連接狀態邏輯作為備用
+                if (isCurrent && statusColor === '#ffffff') {
                     statusColor = '#00ff00'
-                } else if (isPredicted) {
+                } else if (isPredicted && statusColor === '#ffffff') {
                     statusColor = '#ffaa00'
                 }
 
@@ -163,24 +237,44 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                             pivotOffset={[0, 0, 0]}
                         />
                         
-                        <mesh position={[
-                            orbit.currentPosition[0], 
-                            orbit.currentPosition[1] + 15, 
-                            orbit.currentPosition[2]
-                        ]}>
-                            <sphereGeometry args={[3, 8, 8]} />
+                        {/* 🎯 演算法狀態指示器 - 根據後端計算結果動態變化 */}
+                        <mesh 
+                            position={[
+                                orbit.currentPosition[0], 
+                                orbit.currentPosition[1] + 15, 
+                                orbit.currentPosition[2]
+                            ]}
+                            onClick={() => onSatelliteClick?.(orbit.id)}
+                        >
+                            <sphereGeometry args={[3 * scale, 8, 8]} />
                             <meshBasicMaterial
                                 color={statusColor}
                                 transparent
-                                opacity={0.8}
+                                opacity={opacity}
                             />
                         </mesh>
+                        
+                        {/* 🔬 Binary Search 活躍指示器 */}
+                        {algorithmResults?.binarySearchActive && (isAlgorithmCurrent || isAlgorithmPredicted) && (
+                            <mesh position={[
+                                orbit.currentPosition[0], 
+                                orbit.currentPosition[1] + 25, 
+                                orbit.currentPosition[2]
+                            ]}>
+                                <sphereGeometry args={[2, 6, 6]} />
+                                <meshBasicMaterial
+                                    color="#ff0080"
+                                    transparent
+                                    opacity={0.8}
+                                />
+                            </mesh>
+                        )}
 
                         {showLabels && (
                             <Text
                                 position={[
                                     orbit.currentPosition[0], 
-                                    orbit.currentPosition[1] + 25, 
+                                    orbit.currentPosition[1] + (algorithmResults?.binarySearchActive && (isAlgorithmCurrent || isAlgorithmPredicted) ? 35 : 25), 
                                     orbit.currentPosition[2]
                                 ]}
                                 fontSize={4}
@@ -188,7 +282,12 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                                 anchorX="center"
                                 anchorY="middle"
                             >
+                                {/* 🏷️ 顯示衛星名稱 + 演算法狀態 */}
                                 {orbit.name}
+                                {isAlgorithmCurrent && "\n[當前]"}
+                                {isAlgorithmPredicted && "\n[預測]"}
+                                {algorithmResults?.predictionConfidence && isAlgorithmPredicted && 
+                                    `\n${(algorithmResults.predictionConfidence * 100).toFixed(1)}%`}
                             </Text>
                         )}
                     </group>

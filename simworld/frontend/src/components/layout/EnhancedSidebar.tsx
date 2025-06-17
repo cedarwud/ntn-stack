@@ -102,6 +102,14 @@ interface SidebarProps {
     onCurrentConnectionChange?: (connection: any) => void
     onPredictedConnectionChange?: (connection: any) => void
     onTransitionChange?: (isTransitioning: boolean, progress: number) => void
+    // 🚀 演算法結果回調 - 用於對接視覺化
+    onAlgorithmResults?: (results: {
+        currentSatelliteId?: string
+        predictedSatelliteId?: string
+        handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
+        binarySearchActive?: boolean
+        predictionConfidence?: number
+    }) => void
 }
 
 // 核心功能開關配置 - 根據 paper.md 計畫書精簡
@@ -237,8 +245,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onCurrentConnectionChange,
     onPredictedConnectionChange,
     onTransitionChange,
+    onAlgorithmResults,
     // 衛星動畫控制 props（動畫永遠開啟）
-    satelliteSpeedMultiplier = 60,
+    satelliteSpeedMultiplier = 5,
     onSatelliteSpeedChange,
 }) => {
     // 現有狀態
@@ -691,16 +700,16 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                             <input
                                                 type="range"
                                                 min="1"
-                                                max="600"
+                                                max="10"
                                                 step="1"
-                                                value={satelliteSpeedMultiplier}
+                                                value={Math.min(satelliteSpeedMultiplier, 10)}
                                                 onChange={(e) => onSatelliteSpeedChange && onSatelliteSpeedChange(Number(e.target.value))}
                                                 className="speed-slider"
                                             />
                                             <div className="speed-labels">
                                                 <span>1x</span>
                                                 <span>真實時間比例</span>
-                                                <span>600x</span>
+                                                <span>10x</span>
                                             </div>
                                         </div>
 
@@ -708,7 +717,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                         <div className="control-item">
                                             <div className="control-label">快速設定:</div>
                                             <div className="speed-preset-buttons">
-                                                {[1, 10, 60, 120, 300].map(speed => (
+                                                {[1, 3, 5, 7, 10].map(speed => (
                                                     <button
                                                         key={speed}
                                                         className={`speed-preset-btn ${satelliteSpeedMultiplier === speed ? 'active' : ''}`}
@@ -745,10 +754,12 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                         selectedUEId={selectedReceiverIds[0]}
                                         isEnabled={true}
                                         mockMode={true}
+                                        speedMultiplier={satelliteSpeedMultiplier}
                                         onHandoverStateChange={onHandoverStateChange}
                                         onCurrentConnectionChange={onCurrentConnectionChange}
                                         onPredictedConnectionChange={onPredictedConnectionChange}
                                         onTransitionChange={onTransitionChange}
+                                        onAlgorithmResults={onAlgorithmResults}
                                     />
                                 )}
 
