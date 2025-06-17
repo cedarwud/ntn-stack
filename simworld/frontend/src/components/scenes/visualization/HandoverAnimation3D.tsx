@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Line } from '@react-three/drei'
+import * as THREE from 'three'
 
 interface HandoverAnimation3DProps {
     devices: any[]
@@ -16,6 +16,12 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     // 🔗 簡化狀態：只需要當前連接的衛星ID
     const [currentSatelliteId, setCurrentSatelliteId] = useState<string | null>(null)
     const lastHandoverTime = useRef<number>(Date.now())
+    
+    // 🔧 添加位置平滑處理
+    const smoothedPositionsRef = useRef<Map<string, [number, number, number]>>(new Map())
+    const targetPositionsRef = useRef<Map<string, [number, number, number]>>(new Map())
+    const lastUpdateTimeRef = useRef<number>(Date.now())
+    const geometryUpdateIntervalRef = useRef<number>(0)
     
     // 🔗 獲取UAV位置
     const getUAVPositions = (): Array<[number, number, number]> => {
@@ -47,13 +53,60 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         return otherSatellites[randomIndex]
     }
 
-    // 🔗 換手邏輯：5秒定期換手 + 衛星消失時立即換手
-    useFrame(() => {
+    // 🔧 位置平滑插值函數
+    const lerpPosition = (
+        current: [number, number, number],
+        target: [number, number, number],
+        factor: number
+    ): [number, number, number] => {
+        return [
+            current[0] + (target[0] - current[0]) * factor,
+            current[1] + (target[1] - current[1]) * factor,
+            current[2] + (target[2] - current[2]) * factor,
+        ]
+    }
+
+    // 🔗 換手邏輯：5秒定期換手 + 衛星消失時立即換手 + 位置平滑處理
+    useFrame((state, delta) => {
         if (!enabled) return
         
         const now = Date.now()
         const timeSinceLastHandover = now - lastHandoverTime.current
         const availableSatellites = getAvailableSatellites()
+        
+        // 🔧 更新位置平滑處理（降低更新頻率，減少幾何體重建）
+        geometryUpdateIntervalRef.current += delta * 1000
+        const shouldUpdateGeometry = geometryUpdateIntervalRef.current >= 50 // 50ms 間隔
+        
+        if (satellitePositions && shouldUpdateGeometry) {
+            geometryUpdateIntervalRef.current = 0
+            const smoothingFactor = 0.15 // 固定平滑因子，更穩定
+            
+            for (const [satId, targetPos] of satellitePositions.entries()) {
+                // 更新目標位置
+                targetPositionsRef.current.set(satId, targetPos)
+                
+                // 獲取當前平滑位置
+                const currentSmoothed = smoothedPositionsRef.current.get(satId)
+                
+                if (!currentSmoothed) {
+                    // 首次出現，直接設定為目標位置
+                    smoothedPositionsRef.current.set(satId, targetPos)
+                } else {
+                    // 平滑插值到目標位置
+                    const smoothedPos = lerpPosition(currentSmoothed, targetPos, smoothingFactor)
+                    smoothedPositionsRef.current.set(satId, smoothedPos)
+                }
+            }
+            
+            // 清理已消失的衛星
+            for (const satId of smoothedPositionsRef.current.keys()) {
+                if (!satellitePositions.has(satId)) {
+                    smoothedPositionsRef.current.delete(satId)
+                    targetPositionsRef.current.delete(satId)
+                }
+            }
+        }
         
         // 🚨 緊急換手：當前衛星從場景中消失時立即切換
         if (currentSatelliteId && !availableSatellites.includes(currentSatelliteId)) {
@@ -89,28 +142,40 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         }
     }, [enabled, satellitePositions])
 
-    // 🔗 渲染連線
+    // 🔗 渲染連線（使用平滑位置）
     const renderConnections = () => {
-        if (!enabled || !currentSatelliteId || !satellitePositions) return null
+        if (!enabled || !currentSatelliteId) return null
 
         const uavPositions = getUAVPositions()
-        const satellitePosition = satellitePositions.get(currentSatelliteId)
+        // 🔧 使用平滑處理後的位置，如果沒有則回退到原始位置
+        const smoothedPosition = smoothedPositionsRef.current.get(currentSatelliteId)
+        const satellitePosition = smoothedPosition || satellitePositions?.get(currentSatelliteId)
         
         if (!satellitePosition) {
             console.warn(`❌ 找不到衛星位置: ${currentSatelliteId}`)
             return null
         }
 
-        return uavPositions.map((uavPos, index) => (
-            <Line
-                key={`connection-${currentSatelliteId}-${index}`}
-                points={[satellitePosition, uavPos]}
-                color="#00ff00"
-                lineWidth={3}
-                transparent
-                opacity={0.8}
-            />
-        ))
+        return uavPositions.map((uavPos, index) => {
+            // 🔧 使用 TubeGeometry 替代 Line，解決抖動問題
+            const curve = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(...satellitePosition),
+                new THREE.Vector3(...uavPos)
+            ])
+            
+            return (
+                <mesh key={`connection-${currentSatelliteId}-${index}`}>
+                    <tubeGeometry 
+                        args={[curve, 20, 0.5, 8, false]} 
+                    />
+                    <meshBasicMaterial 
+                        color="#00ff00" 
+                        transparent 
+                        opacity={0.8}
+                    />
+                </mesh>
+            )
+        })
     }
 
     if (!enabled) return null
