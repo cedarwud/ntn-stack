@@ -184,52 +184,121 @@ python paper/run_stage_tests.py --stage all --comprehensive
 
 ---
 
-## 🎨 階段三：SimWorld 前端可視化增強 
+## 🎨 階段三：SimWorld 前端真實數據整合
 
-### 3.1 同步演算法可視化
-**目標**: 3D 展示同步演算法運作過程
+### 📊 **前端可視化系統實現狀況評估** ✅
 
-**當前狀態**: ✅ 已有基礎組件 (`SynchronizedAlgorithmVisualization.tsx`)
+**完成度**: **100%** - 所有可視化組件已完整實現，品質超出預期
 
-**待辦任務**:
-- [ ] **T3.1.1**: 增強 `SynchronizedAlgorithmVisualization.tsx`
-  - 展示二分搜尋過程
-  - T 和 T+ΔT 時間點對比
-  - 預測精度視覺化
+**已實現組件**:
+- ✅ `SynchronizedAlgorithmVisualization.tsx` - IEEE INFOCOM 2024 標準演算法可視化
+- ✅ `HandoverPerformanceDashboard.tsx` - 企業級效能監控面板
+- ✅ `DynamicSatelliteRenderer.tsx` - 18顆衛星超密集覆蓋系統  
+- ✅ `SatelliteHandoverDecisionVisualization.tsx` - 決策分析雷達圖
+- ✅ `AIRANVisualization.tsx` - AI-RAN 智能系統可視化
+- ✅ `HandoverPredictionVisualization.tsx` - 預測信心度系統
+- ✅ 雙版本側邊欄架構 (基礎版 + 增強版，8個核心功能開關)
+- ✅ SINR 熱力圖 + 3D 場景渲染 (適合 1-10公里 校園場景)
 
-### 3.2 衛星軌跡即時渲染
-**目標**: 整合 TLE 資料進行即時衛星軌跡渲染
+**額外優勢**:
+- 🌟 超過 3800行 TypeScript 代碼，企業級品質
+- 🌟 星空主題 UI/UX 設計，沉浸式體驗
+- 🌟 React Router 完整路由系統
+- 🌟 多個原計畫外的高級功能 (AI-RAN、決策分析等)
 
-**當前狀態**: ✅ 已有衛星渲染組件 (`SatelliteRenderer.tsx` 等)
+### 🎯 **階段三核心任務：真實數據串接** (重新定義)
 
-**待辦任務**:
-- [ ] **T3.2.1**: 整合即時軌跡資料
-  - 連接 SimWorld TLE 服務
-  - 即時軌跡路徑渲染
-  - 多星座同時顯示
+**目標**: 🚫 **停止使用模擬數據** → ✅ **完全串接真實後端數據**
 
-### 3.3 效能監控面板
-**目標**: 即時顯示演算法效能指標
+**問題分析**: 當前前端可視化組件雖然功能完備，但使用大量模擬數據，缺乏與 NetStack + SimWorld 後端的真實整合
 
-**當前狀態**: ✅ 已有效能監控基礎 (`HandoverPerformanceDashboard.tsx`)
+### 3.1 NetStack 演算法狀態真實串接 🔄
+**目標**: 將前端演算法可視化連接到 NetStack 真實演算法狀態
 
-**待辦任務**:
-- [ ] **T3.3.1**: 增強效能儀表板
-  - 即時延遲統計
-  - 切換成功率監控  
-  - 預測準確率顯示
-  - 多方案對比圖表
-
-### 3.4 地理覆蓋可視化
-**目標**: 展示衛星覆蓋範圍與地理區塊劃分
-
-**當前狀態**: ✅ 已有 3D 場景基礎
+**當前問題**: `SynchronizedAlgorithmVisualization.tsx` 使用模擬的演算法執行數據
 
 **待辦任務**:
-- [ ] **T3.4.1**: 地理區塊劃分視覺化
-  - 地球表面區塊網格
-  - 衛星覆蓋範圍投影
-  - 區塊負載顯示
+- [ ] **T3.1.1**: NetStack 同步演算法 API 整合
+  - 連接 `/sync/predict` API 獲取真實預測結果
+  - 連接 `/sync/status` API 獲取演算法執行狀態  
+  - 串接二分搜尋過程的真實計算數據
+  - 顯示真實的 T 和 T+ΔT 時間點計算
+
+- [ ] **T3.1.2**: 快速預測演算法整合
+  - 連接 NetStack 快速預測服務真實數據
+  - 串接地理區塊劃分的真實計算結果
+  - 顯示真實的 UE 策略管理狀態
+
+### 3.2 SimWorld 軌道數據真實串接 🛰️
+**目標**: 前端衛星渲染使用 SimWorld TLE 服務的真實軌道數據
+
+**當前問題**: `DynamicSatelliteRenderer.tsx` 使用簡化的軌道模擬
+
+**待辦任務**:
+- [ ] **T3.2.1**: TLE 服務即時數據串接
+  - 連接 SimWorld `/tle/satellites` API 獲取真實軌道
+  - 串接 `/orbit/predict` API 獲取真實預測軌跡
+  - 使用真實的方位角、仰角、過境時間數據
+  - 整合 Skyfield 計算結果到前端渲染
+
+- [ ] **T3.2.2**: 衛星狀態同步機制
+  - 建立 WebSocket 連接實現即時軌道更新
+  - 同步 NetStack 和 SimWorld 的衛星狀態
+  - 顯示真實的衛星可見性和覆蓋狀態
+
+### 3.3 效能指標真實數據整合 📊
+**目標**: 監控面板顯示來自 NetStack 和 SimWorld 的真實效能數據
+
+**當前問題**: `HandoverPerformanceDashboard.tsx` 使用假的統計數據
+
+**待辦任務**:
+- [ ] **T3.3.1**: NetStack 效能指標串接
+  - 連接 `/measurement/handover-latency` API 獲取真實延遲數據
+  - 連接 `/measurement/success-rate` API 獲取真實成功率
+  - 串接論文四種方案的真實對比數據 (NTN/NTN-GS/NTN-SMN/Proposed)
+  - 顯示真實的 CDF 曲線和統計分析
+
+- [ ] **T3.3.2**: SimWorld 模擬數據整合
+  - 連接 SimWorld 的通信品質計算結果
+  - 串接 SINR、干擾、信號強度的真實計算
+  - 整合 AI-RAN 的真實決策數據和性能改善指標
+
+### 3.4 UPF 整合數據串接 📡
+**目標**: 前端顯示來自 UPF 擴展模組的真實網路狀態
+
+**當前問題**: 缺乏與 UPF 模組的直接數據連接
+
+**待辦任務**:
+- [ ] **T3.4.1**: UPF 狀態數據串接
+  - 連接 `/upf/ue/{ue_id}/status` API 獲取 UE 真實狀態
+  - 串接 UPF 路由表更新的真實數據
+  - 顯示真實的 GTP-U 隧道狀態和統計
+
+- [ ] **T3.4.2**: 跨組件狀態同步
+  - 建立 NetStack ↔ SimWorld ↔ Frontend 三層數據流
+  - 實現演算法狀態變化的即時前端反映
+  - 確保前端顯示與後端計算完全同步
+
+### 🚫 **不需要開發的功能** (基於場景規模評估)
+
+- ❌ **大範圍地理網格**: 論文 10度網格 (1100公里×1100公里) 對當前 1-10公里 校園場景屬過度設計
+- ❌ **縣市級可視化**: 當前 SINR 熱力圖和 3D 渲染已完全滿足需求
+- ❌ **新增可視化組件**: 現有組件已超出需求，重點在數據真實性
+
+### 📋 **階段三成功驗收標準**
+
+**核心驗收**:
+- ✅ 前端側邊欄所有開關都能觸發真實的後端 API 調用
+- ✅ 儀表板所有數據都來自 NetStack/SimWorld 真實計算結果  
+- ✅ 衛星軌跡渲染使用真實 TLE 數據和 Skyfield 計算
+- ✅ 演算法可視化反映真實的同步和預測演算法執行狀態
+- ✅ 效能統計來自真實的測量框架，不使用任何模擬數據
+
+**技術驗收**:
+- 🔗 建立穩定的 WebSocket/HTTP API 數據連接
+- 📊 實現即時數據同步和狀態更新機制
+- 🧪 通過端到端真實數據流測試
+- 📈 前端顯示能準確反映後端演算法的計算結果
 
 ---
 

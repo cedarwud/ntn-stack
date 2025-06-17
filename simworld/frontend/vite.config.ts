@@ -19,11 +19,18 @@ export default defineConfig(({ mode }) => {
             port: 5173, // 保持與 server.port 一致
         },
         proxy: {
-                // 代理API請求到後端
+                // 代理API請求到 SimWorld 後端
             '/api': {
                     target: 'http://simworld_backend:8000',
                     changeOrigin: true,
                     secure: false,
+                },
+                // 代理 NetStack API 請求
+                '/netstack': {
+                    target: 'http://netstack-api:8080',
+                    changeOrigin: true,
+                    secure: false,
+                    rewrite: (path) => path.replace(/^\/netstack/, '')
                 },
                 // 代理 WebSocket 連接
                 '/socket.io': {

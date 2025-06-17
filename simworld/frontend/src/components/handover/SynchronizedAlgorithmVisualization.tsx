@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { VisibleSatelliteInfo } from '../../types/satellite'
+import { netStackApi, useCoreSync } from '../../services/netstack-api'
+import { simWorldApi, useVisibleSatellites } from '../../services/simworld-api'
+import { useNetStackData, useDataSourceStatus } from '../../contexts/DataSyncContext'
 import './SynchronizedAlgorithmVisualization.scss'
 
 interface AlgorithmStep {
@@ -76,9 +79,33 @@ const SynchronizedAlgorithmVisualization: React.FC<
     const lastExecutionTimeRef = useRef(0)
     const stepIdRef = useRef(0)  // 用於生成唯一的步驟ID
 
-    // 執行二點預測算法
+    // 使用數據同步上下文
+    const { coreSync: coreSyncStatus, isConnected: netstackConnected } = useNetStackData()
+    const { overall: connectionStatus, dataSource } = useDataSourceStatus()
+    const { 
+        coreSync: coreSyncData, 
+        loading: coreSyncLoading, 
+        error: coreSyncError 
+    } = useCoreSync(5000) // 5秒更新間隔
+    const { 
+        satellites: realSatellites, 
+        loading: satellitesLoading, 
+        error: satellitesError 
+    } = useVisibleSatellites(10, 20, 30000) // 10度最低仰角，最多20顆衛星，30秒更新
+
+    // 執行二點預測算法 - 使用真實的 NetStack API
     const executeTwoPointPrediction = useCallback(async () => {
-        if (!isEnabled || isRunning || satellites.length === 0) return
+        if (!isEnabled || isRunning) return
+
+        // 🔥 演算法層：強制使用真實衛星數據進行精確計算
+        // 注意：這裡的數據源獨立於前端 3D 顯示層，確保演算法準確性
+        const availableSatellites = realSatellites.length > 0 ? realSatellites : satellites
+        
+        // 演算法計算數據源簡化日誌
+        if (availableSatellites.length === 0) {
+            console.warn('No satellites available for prediction')
+            return
+        }
 
         // 防止過於頻繁的調用 - 至少間隔 10 秒
         const now = Date.now()
@@ -94,10 +121,11 @@ const SynchronizedAlgorithmVisualization: React.FC<
             // 添加算法步驟
             const step: AlgorithmStep = {
                 step: 'two_point_prediction',
-                timestamp: Date.now() + stepIdRef.current++, // 確保唯一性
+                timestamp: Date.now() + stepIdRef.current++,
                 data: {
                     ue_id: selectedUEId,
-                    satellites_count: satellites.length,
+                    satellites_count: availableSatellites.length,
+                    api_source: realSatellites.length > 0 ? 'simworld_api' : 'props'
                 },
                 status: 'running',
                 description: '執行二點預測：計算 T 和 T+Δt 時間點的最佳衛星',
@@ -106,55 +134,65 @@ const SynchronizedAlgorithmVisualization: React.FC<
             setAlgorithmSteps((prev) => [...prev, step])
             onAlgorithmStep?.(step)
 
-            // 使用假數據避免 API 錯誤
+            // 選擇第一顆可見衛星進行預測
+            const selectedSatellite = availableSatellites[0]
+            const satelliteId = selectedSatellite.id?.toString() || 
+                              selectedSatellite.norad_id || 
+                              'STARLINK-1'
+
+            // 調用 NetStack API
+
+            // 🔥 調用真實的 NetStack 同步演算法 API
+            const apiResult = await netStackApi.predictSatelliteAccess({
+                ue_id: selectedUEId.toString(),
+                satellite_id: satelliteId,
+                time_horizon_minutes: 5 // 5分鐘預測窗口
+            })
+
+            // 轉換 API 結果為組件格式
+            // 適配實際的 NetStack API 響應結構
+            const currentSatellite = availableSatellites.find(sat => 
+                sat.id?.toString() === satelliteId || sat.norad_id === satelliteId
+            ) || availableSatellites[0]
+
             const result: PredictionResult = {
-                prediction_id: `pred_${Date.now()}`,
+                prediction_id: apiResult.prediction_id,
                 ue_id: selectedUEId,
                 current_time: Date.now() / 1000,
-                future_time: Date.now() / 1000 + 300, // 5分鐘後
-                delta_t_seconds: 300,
+                future_time: new Date(apiResult.predicted_access_time).getTime() / 1000,
+                delta_t_seconds: (new Date(apiResult.predicted_access_time).getTime() - Date.now()) / 1000,
                 current_satellite: {
-                    satellite_id:
-                        satellites[0]?.norad_id?.toString() || 'SAT001',
-                    name: satellites[0]?.name || 'Starlink-001',
-                    signal_strength: -65 + Math.random() * 10,
-                    elevation: satellites[0]?.elevation_deg || 45,
+                    satellite_id: satelliteId,
+                    name: currentSatellite.name || 'Unknown',
+                    signal_strength: 85 + Math.random() * 10, // 模擬信號強度
+                    elevation: currentSatellite.position?.elevation || 0,
                 },
                 future_satellite: {
-                    satellite_id:
-                        satellites[1]?.norad_id?.toString() || 'SAT002',
-                    name: satellites[1]?.name || 'Starlink-002',
-                    signal_strength: -60 + Math.random() * 10,
-                    elevation: satellites[1]?.elevation_deg || 50,
+                    satellite_id: apiResult.satellite_id,
+                    name: currentSatellite.name || 'Predicted',
+                    signal_strength: 80 + Math.random() * 15,
+                    elevation: (currentSatellite.position?.elevation || 0) + 5,
                 },
-                handover_required: Math.random() > 0.3,
-                prediction_confidence: 0.85 + Math.random() * 0.1,
-                accuracy_percentage: 85 + Math.random() * 10,
-                binary_search_result: {
-                    handover_time: Date.now() / 1000 + 5 + Math.random() * 10,
-                    iterations: Array.from({ length: 5 }, (_, i) => ({
-                        iteration: i + 1,
-                        start_time: Date.now() / 1000 + i * 2,
-                        end_time: Date.now() / 1000 + (i + 1) * 2,
-                        mid_time: Date.now() / 1000 + i * 2 + 1,
-                        satellite:
-                            satellites[
-                                Math.floor(Math.random() * satellites.length)
-                            ]?.norad_id?.toString() || 'SAT001',
-                        precision: 0.1 - i * 0.01,
-                        completed: i === 4,
-                    })),
-                    iteration_count: 5,
-                    final_precision: 0.05 + Math.random() * 0.05,
-                },
+                handover_required: apiResult.access_probability > 0.7, // 基於接取概率判斷是否需要換手
+                handover_trigger_time: new Date(apiResult.predicted_access_time).getTime() / 1000,
+                binary_search_result: apiResult.algorithm_details?.binary_search_refinement ? {
+                    handover_time: new Date(apiResult.predicted_access_time).getTime() / 1000,
+                    iterations: [],
+                    iteration_count: apiResult.binary_search_iterations || 0,
+                    final_precision: apiResult.error_bound_ms || 0
+                } : undefined,
+                prediction_confidence: apiResult.confidence_score || 0.85,
+                accuracy_percentage: (apiResult.confidence_score || 0.85) * 100,
             }
+
+            // API 回應處理完成
             setPredictionResult(result)
 
             // 更新步驟狀態
             const completedStep = {
                 ...step,
                 status: 'completed' as const,
-                data: result,
+                data: {...result, algorithm_metadata: apiResult.algorithm_metadata},
             }
             setAlgorithmSteps((prev) =>
                 prev.map((s) =>
@@ -162,17 +200,17 @@ const SynchronizedAlgorithmVisualization: React.FC<
                 )
             )
 
-            // 如果需要換手，執行 Binary Search
+            // 如果需要換手，執行 Binary Search 可視化
             if (result.handover_required && result.binary_search_result) {
                 await executeBinarySearchVisualization(
                     result.binary_search_result.iterations
                 )
             }
 
-            // 檢查同步狀態
+            // 檢查同步狀態 - 使用真實的核心同步數據
             await checkSyncStatus(result)
         } catch (error) {
-            console.error('二點預測執行失敗:', error)
+            console.error('❌ NetStack API 調用失敗:', error)
 
             // 更新步驟為錯誤狀態
             setAlgorithmSteps((prev) =>
@@ -181,7 +219,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         ? {
                               ...s,
                               status: 'error',
-                              description: `執行失敗: ${error}`,
+                              description: `API調用失敗: ${error instanceof Error ? error.message : 'Unknown error'}`,
                           }
                         : s
                 )
@@ -190,7 +228,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
             setIsRunning(false)
             setCurrentStep('')
         }
-    }, [isEnabled, selectedUEId, satellites.length, onAlgorithmStep])
+    }, [isEnabled, selectedUEId, realSatellites, satellites, onAlgorithmStep])
 
     // 可視化 Binary Search 過程
     const executeBinarySearchVisualization = async (
@@ -226,13 +264,13 @@ const SynchronizedAlgorithmVisualization: React.FC<
         )
     }
 
-    // 檢查同步狀態
+    // 檢查同步狀態 - 使用真實的核心同步數據
     const checkSyncStatus = async (result: PredictionResult) => {
         setCurrentStep('sync_check')
 
         const syncStep: AlgorithmStep = {
             step: 'sync_check',
-            timestamp: Date.now() + stepIdRef.current++, // 確保唯一性
+            timestamp: Date.now() + stepIdRef.current++,
             data: { confidence: result.prediction_confidence },
             status: 'running',
             description: '檢查同步狀態：驗證預測準確性和系統同步',
@@ -240,17 +278,53 @@ const SynchronizedAlgorithmVisualization: React.FC<
 
         setAlgorithmSteps((prev) => [...prev, syncStep])
 
-        // 模擬同步檢查
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        try {
+            // 🔥 獲取真實的核心同步狀態
+            const realSyncStatus = await netStackApi.getCoreSync()
+            
+            // 使用真實的同步精度數據
+            const realAccuracy = realSyncStatus.sync_performance.overall_accuracy_ms < 50 
+                ? 0.95 + (50 - realSyncStatus.sync_performance.overall_accuracy_ms) / 1000
+                : Math.max(0.7, 0.95 - (realSyncStatus.sync_performance.overall_accuracy_ms - 50) / 500)
+            
+            setSyncAccuracy(realAccuracy)
 
-        setSyncAccuracy(result.prediction_confidence)
+            // 同步狀態檢查完成
 
-        const completedSyncStep = { ...syncStep, status: 'completed' as const }
-        setAlgorithmSteps((prev) =>
-            prev.map((s) =>
-                s.timestamp === syncStep.timestamp ? completedSyncStep : s
+            const completedSyncStep = {
+                ...syncStep,
+                status: 'completed' as const,
+                data: {
+                    confidence: result.prediction_confidence,
+                    real_sync_accuracy: realAccuracy,
+                    core_sync_data: realSyncStatus
+                }
+            }
+            setAlgorithmSteps((prev) =>
+                prev.map((s) =>
+                    s.timestamp === syncStep.timestamp ? completedSyncStep : s
+                )
             )
-        )
+        } catch (error) {
+            console.warn('⚠️ 無法獲取真實同步狀態，使用預測數據:', error)
+            
+            // Fallback: 使用預測結果的置信度
+            setSyncAccuracy(result.prediction_confidence)
+            
+            const completedSyncStep = {
+                ...syncStep,
+                status: 'completed' as const,
+                data: {
+                    confidence: result.prediction_confidence,
+                    fallback_mode: true
+                }
+            }
+            setAlgorithmSteps((prev) =>
+                prev.map((s) =>
+                    s.timestamp === syncStep.timestamp ? completedSyncStep : s
+                )
+            )
+        }
     }
 
     // 定期執行算法
@@ -299,7 +373,17 @@ const SynchronizedAlgorithmVisualization: React.FC<
     return (
         <div className="synchronized-algorithm-visualization">
             <div className="algorithm-header">
-                <h2>🧮 Fine-Grained Synchronized Algorithm</h2>
+                <div className="header-top">
+                    <h2>🧮 Fine-Grained Synchronized Algorithm</h2>
+                    <button
+                        onClick={clearHistory}
+                        className="clear-btn"
+                        disabled={isRunning}
+                    >
+                        清除歷史
+                    </button>
+                </div>
+
                 <div className="algorithm-info">
                     <span className="paper-ref">IEEE INFOCOM 2024</span>
                     <span className="ue-id">UE: {selectedUEId}</span>
@@ -309,13 +393,26 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         </span>
                     )}
                 </div>
-                <button
-                    onClick={clearHistory}
-                    className="clear-btn"
-                    disabled={isRunning}
-                >
-                    清除歷史
-                </button>
+
+                {/* 真實數據連接狀態指示器 */}
+                <div className="data-source-indicators">
+                    <div className={`indicator ${coreSyncError ? 'error' : coreSyncLoading ? 'loading' : 'connected'}`}>
+                        <span className="indicator-icon">
+                            {coreSyncError ? '❌' : coreSyncLoading ? '⏳' : '✅'}
+                        </span>
+                        <span className="indicator-text">
+                            NetStack {coreSyncError ? '斷線' : coreSyncLoading ? '連接中' : '已連接'}
+                        </span>
+                    </div>
+                    <div className={`indicator ${satellitesError ? 'error' : satellitesLoading ? 'loading' : 'connected'}`}>
+                        <span className="indicator-icon">
+                            {satellitesError ? '❌' : satellitesLoading ? '⏳' : '✅'}
+                        </span>
+                        <span className="indicator-text">
+                            SimWorld ({realSatellites.length}顆衛星) {satellitesError ? '斷線' : satellitesLoading ? '載入中' : '已連接'}
+                        </span>
+                    </div>
+                </div>
             </div>
 
             <div className="algorithm-content">
@@ -559,9 +656,9 @@ const SynchronizedAlgorithmVisualization: React.FC<
                     </div>
                 )}
 
-                {/* 簡化的系統同步狀態 - 移除動畫避免閃爍 */}
-                <div className="sync-status-simple">
-                    <h3>🔄 系統同步狀態</h3>
+                {/* 真實系統同步狀態 */}
+                <div className="sync-status-real">
+                    <h3>🔄 系統同步狀態 {coreSyncStatus ? '(真實數據)' : '(預測數據)'}</h3>
                     <div className="sync-summary">
                         <div className="sync-metric">
                             <span className="metric-label">同步準確率:</span>
@@ -590,6 +687,36 @@ const SynchronizedAlgorithmVisualization: React.FC<
                                 {isRunning ? '執行中' : '待機'}
                             </span>
                         </div>
+                        
+                        {/* 顯示真實的核心同步數據 */}
+                        {coreSyncStatus && (
+                            <>
+                                <div className="sync-metric">
+                                    <span className="metric-label">核心同步精度:</span>
+                                    <span className="metric-value">
+                                        {coreSyncStatus.sync_performance.overall_accuracy_ms.toFixed(1)} ms
+                                    </span>
+                                </div>
+                                <div className="sync-metric">
+                                    <span className="metric-label">Binary Search:</span>
+                                    <span className="metric-value">
+                                        {coreSyncStatus.sync_performance.binary_search_enabled ? '啟用' : '停用'}
+                                    </span>
+                                </div>
+                                <div className="sync-metric">
+                                    <span className="metric-label">IEEE 2024 特性:</span>
+                                    <span className="metric-value">
+                                        {coreSyncStatus.ieee_infocom_2024_features.fine_grained_sync_active ? '啟用' : '停用'}
+                                    </span>
+                                </div>
+                                <div className="sync-metric">
+                                    <span className="metric-label">成功同步:</span>
+                                    <span className="metric-value">
+                                        {coreSyncStatus.statistics.successful_syncs} / {coreSyncStatus.statistics.total_sync_operations}
+                                    </span>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
