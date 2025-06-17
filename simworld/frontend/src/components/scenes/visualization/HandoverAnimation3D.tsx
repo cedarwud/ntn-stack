@@ -47,18 +47,30 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         return otherSatellites[randomIndex]
     }
 
-    // 🔗 5秒換手邏輯
+    // 🔗 換手邏輯：5秒定期換手 + 衛星消失時立即換手
     useFrame(() => {
         if (!enabled) return
         
         const now = Date.now()
         const timeSinceLastHandover = now - lastHandoverTime.current
+        const availableSatellites = getAvailableSatellites()
         
-        // 每5秒換手一次
+        // 🚨 緊急換手：當前衛星從場景中消失時立即切換
+        if (currentSatelliteId && !availableSatellites.includes(currentSatelliteId)) {
+            const newSatellite = selectRandomSatellite()
+            if (newSatellite) {
+                console.log(`🚨 緊急換手（衛星消失）: ${currentSatelliteId} -> ${newSatellite}`)
+                setCurrentSatelliteId(newSatellite)
+                lastHandoverTime.current = now
+                return // 立即返回，避免重複處理
+            }
+        }
+        
+        // 🔄 定期換手：每5秒換手一次
         if (timeSinceLastHandover >= 5000) {
             const newSatellite = selectRandomSatellite()
             if (newSatellite && newSatellite !== currentSatelliteId) {
-                console.log(`🔄 換手: ${currentSatelliteId || '無'} -> ${newSatellite}`)
+                console.log(`🔄 定期換手: ${currentSatelliteId || '無'} -> ${newSatellite}`)
                 setCurrentSatelliteId(newSatellite)
                 lastHandoverTime.current = now
             }
