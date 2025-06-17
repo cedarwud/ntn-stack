@@ -747,8 +747,8 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                     </div>
                                 )}
 
-                                {/* 換手管理器 - 當換手機制類別開啟時顯示 */}
-                                {activeCategory === 'handover' && satelliteEnabled && (
+                                {/* 🚀 換手管理器 - 當衛星連接功能啟用時在背景運行，UI 僅在換手類別中顯示 */}
+                                {satelliteEnabled && satelliteUavConnectionEnabled && (
                                     <HandoverManager
                                         satellites={skyfieldSatellites}
                                         selectedUEId={selectedReceiverIds[0]}
@@ -760,6 +760,8 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                         onPredictedConnectionChange={onPredictedConnectionChange}
                                         onTransitionChange={onTransitionChange}
                                         onAlgorithmResults={onAlgorithmResults}
+                                        // 只在換手類別中顯示 UI，但邏輯始終運行
+                                        hideUI={activeCategory !== 'handover'}
                                     />
                                 )}
 

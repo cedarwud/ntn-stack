@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Text, Line, Sphere } from '@react-three/drei'
@@ -181,7 +181,7 @@ const SatelliteHandoverDecisionVisualization: React.FC<
         const interval = setInterval(generateDecisions, 10000)
 
         return () => clearInterval(interval)
-    }, [devices, enabled, satellites])
+    }, [enabled, devices.length, satellites.length])
 
     if (!enabled) return null
 

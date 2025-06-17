@@ -268,7 +268,7 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                         <span className="indicator-text">
                             {error ? `NetStack Error: ${error.slice(0, 25)}...` :
                              isLoading ? 'Syncing NetStack...' :
-                             useRealData ? `Real NetStack (${connectionStatus})` :
+                             useRealData ? 'NetStack Connected' :
                              'Simulated Data'}
                         </span>
                         <div className="connection-status">
