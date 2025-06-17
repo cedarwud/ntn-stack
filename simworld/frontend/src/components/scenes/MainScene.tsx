@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo } from 'react'
+import { useLayoutEffect, useMemo, useState, useCallback } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
@@ -134,6 +134,14 @@ const MainScene: React.FC<MainSceneProps> = ({
         backendSceneName,
         getSceneTextureName(sceneName)
     )
+
+    // 🔗 衛星位置狀態管理 - 用於 HandoverAnimation3D
+    const [satellitePositions, setSatellitePositions] = useState<Map<string, [number, number, number]>>(new Map())
+
+    // 衛星位置更新回調
+    const handleSatellitePositions = useCallback((positions: Map<string, [number, number, number]>) => {
+        setSatellitePositions(positions)
+    }, [])
 
     // 動態預加載模型以提高性能
     useMemo(() => {
@@ -356,6 +364,20 @@ const MainScene: React.FC<MainSceneProps> = ({
                 enabled={failoverMechanismEnabled} 
             />
             
+            {/* 🚀 新的換手連接線動畫系統 - 根據 handover.md 設計 */}
+            <HandoverAnimation3D
+                devices={devices}
+                enabled={satelliteUavConnectionEnabled && handover3DAnimationEnabled}
+                satellites={satellites}
+                satellitePositions={satellitePositions}
+                handoverState={handoverState}
+                currentConnection={currentConnection}
+                predictedConnection={predictedConnection}
+                isTransitioning={isTransitioning}
+                transitionProgress={transitionProgress}
+                onHandoverEvent={onHandoverEvent}
+            />
+            
             {/* 階段七可視化覆蓋層 */}
             <TestResultsVisualization 
                 devices={devices} 
@@ -383,6 +405,21 @@ const MainScene: React.FC<MainSceneProps> = ({
                     console.log('🛰️ 點擊衛星:', satelliteId)
                     // 可以在這裡處理衛星點擊事件
                 }}
+                onSatellitePositions={handleSatellitePositions}
+            />
+            
+            {/* 階段六換手視覺化 */}
+            <HandoverPredictionVisualization 
+                devices={devices} 
+                enabled={handoverPredictionEnabled}
+            />
+            <SatelliteHandoverDecisionVisualization 
+                devices={devices} 
+                enabled={handoverDecisionVisualizationEnabled}
+            />
+            <PredictionPath3D 
+                devices={devices} 
+                enabled={predictionPath3DEnabled}
             />
         </>
     )
