@@ -700,16 +700,16 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                             <input
                                                 type="range"
                                                 min="1"
-                                                max="10"
+                                                max="20"
                                                 step="1"
-                                                value={Math.min(satelliteSpeedMultiplier, 10)}
+                                                value={Math.min(satelliteSpeedMultiplier, 20)}
                                                 onChange={(e) => onSatelliteSpeedChange && onSatelliteSpeedChange(Number(e.target.value))}
                                                 className="speed-slider"
                                             />
                                             <div className="speed-labels">
                                                 <span>1x</span>
                                                 <span>真實時間比例</span>
-                                                <span>10x</span>
+                                                <span>20x</span>
                                             </div>
                                         </div>
 

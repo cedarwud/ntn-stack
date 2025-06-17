@@ -47,6 +47,9 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         progress: 0,
         startTime: 0,
     })
+    
+    // 添加位置緩存，防止連線中斷
+    const lastValidPositionsRef = useRef<Map<string, [number, number, number]>>(new Map())
 
     const [beamAnimations, setBeamAnimations] = useState<Map<string, number>>(
         new Map()
@@ -126,15 +129,23 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     // 🔗 獲取衛星位置 - 優先使用來自 DynamicSatelliteRenderer 的實時位置
     const getSatellitePosition = (
         satelliteId: string
-    ): [number, number, number] => {
+    ): [number, number, number] | null => {
         // 優先使用實時位置
         if (satellitePositions) {
             const realtimePos = satellitePositions.get(satelliteId)
-            if (realtimePos) return realtimePos
+            if (realtimePos) {
+                // 更新最後有效位置
+                lastValidPositionsRef.current.set(satelliteId, realtimePos)
+                console.log(`🎯 找到衛星位置: ${satelliteId} -> [${realtimePos.join(', ')}]`)
+                return realtimePos
+            }
 
             // 嘗試通過名稱匹配
             for (const [key, position] of satellitePositions.entries()) {
                 if (key.includes(satelliteId) || satelliteId.includes(key)) {
+                    // 更新最後有效位置
+                    lastValidPositionsRef.current.set(satelliteId, position)
+                    console.log(`🎯 通過名稱匹配找到衛星: ${satelliteId} -> ${key} -> [${position.join(', ')}]`)
                     return position
                 }
             }
@@ -144,11 +155,30 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         const satellite = satellites.find(
             (sat) => sat.id === satelliteId || sat.norad_id === satelliteId
         )
-        if (satellite && satellite.position) return satellite.position
+        if (satellite && satellite.position) {
+            // 更新最後有效位置
+            lastValidPositionsRef.current.set(satelliteId, satellite.position)
+            console.log(`🎯 從 satellites 數組找到衛星: ${satelliteId} -> [${satellite.position.join(', ')}]`)
+            return satellite.position
+        }
 
-        // 🔧 調試信息：如果找不到衛星，返回預設位置但不在控制台顯示警告
-        // 這是正常的，因為可能正在使用模擬數據或者衛星還未加載
-        return [0, 200, 0] // 預設位置
+        // 🔧 如果找不到，嘗試使用最後一次有效位置
+        const lastValidPos = lastValidPositionsRef.current.get(satelliteId)
+        if (lastValidPos) {
+            console.warn(`⚠️ 使用上次有效位置: ${satelliteId} -> [${lastValidPos.join(', ')}]`)
+            return lastValidPos
+        }
+
+        // 🚨 調試信息：找不到衛星位置時的詳細信息
+        console.warn(`❌ 找不到衛星位置: ${satelliteId}`);
+        console.log('🔍 可用的衛星位置:', {
+            satellitePositionsKeys: satellitePositions ? Array.from(satellitePositions.keys()) : [],
+            satellitesIds: satellites.map(s => s.id || s.norad_id),
+            satellitePositionsSize: satellitePositions?.size || 0
+        });
+        
+        // 🔧 返回 null 而不是預設位置，避免連線到空白位置
+        return null
     }
 
     // 獲取 UAV 位置
@@ -457,6 +487,13 @@ const ConnectionLinesAnimation: React.FC<{
                     const satPos = getSatellitePosition(
                         currentConnection.satelliteId
                     )
+                    
+                    // 🚨 如果找不到衛星位置，不顯示連線
+                    if (!satPos) {
+                        console.warn(`❌ 當前連接找不到衛星位置: ${currentConnection.satelliteId}`)
+                        return null
+                    }
+                    
                     const lineProps = getCurrentLineProps()
 
                     return (
@@ -478,6 +515,12 @@ const ConnectionLinesAnimation: React.FC<{
                     const satPos = getSatellitePosition(
                         predictedConnection.satelliteId
                     )
+                    
+                    // 🚨 如果找不到衛星位置，不顯示連線
+                    if (!satPos) {
+                        console.warn(`❌ 預測連接找不到衛星位置: ${predictedConnection.satelliteId}`)
+                        return null
+                    }
 
                     return (
                         <Line
@@ -491,14 +534,19 @@ const ConnectionLinesAnimation: React.FC<{
             })()}
 
             {/* 🎯 目標衛星準備指示器 */}
-            {predictedConnection && animationState?.phase === 'preparing' && (
-                <TargetSatelliteIndicator
-                    position={getSatellitePosition(
-                        predictedConnection.satelliteId
-                    )}
-                    animationRef={animationRef}
-                />
-            )}
+            {predictedConnection && animationState?.phase === 'preparing' && (() => {
+                const targetPos = getSatellitePosition(predictedConnection.satelliteId)
+                if (!targetPos) {
+                    console.warn(`❌ 目標衛星指示器找不到位置: ${predictedConnection.satelliteId}`)
+                    return null
+                }
+                return (
+                    <TargetSatelliteIndicator
+                        position={targetPos}
+                        animationRef={animationRef}
+                    />
+                )
+            })()}
         </>
     )
 }
@@ -520,40 +568,44 @@ const SatelliteBeamAnimation: React.FC<{
     return (
         <>
             {/* 當前衛星波束 */}
-            {currentConnection && (
-                <SatelliteBeam
-                    position={getSatellitePosition(
-                        currentConnection.satelliteId
-                    )}
-                    color="#40e0ff"
-                    intensity={
-                        animationState.phase === 'switching'
-                            ? 1 - animationState.progress
-                            : 1
-                    }
-                    rotation={animationRef.current.beamRotation}
-                />
-            )}
+            {currentConnection && (() => {
+                const currentPos = getSatellitePosition(currentConnection.satelliteId)
+                if (!currentPos) return null
+                return (
+                    <SatelliteBeam
+                        position={currentPos}
+                        color="#40e0ff"
+                        intensity={
+                            animationState.phase === 'switching'
+                                ? 1 - animationState.progress
+                                : 1
+                        }
+                        rotation={animationRef.current.beamRotation}
+                    />
+                )
+            })()}
 
             {/* 預測衛星波束 */}
-            {predictedConnection && animationState.phase !== 'idle' && (
-                <SatelliteBeam
-                    position={getSatellitePosition(
-                        predictedConnection.satelliteId
-                    )}
-                    color={
-                        animationState.phase === 'switching'
-                            ? '#44ff44'
-                            : '#ffaa00'
-                    }
-                    intensity={
-                        animationState.phase === 'switching'
-                            ? animationState.progress
-                            : 0.6
-                    }
-                    rotation={-animationRef.current.beamRotation}
-                />
-            )}
+            {predictedConnection && animationState.phase !== 'idle' && (() => {
+                const predictedPos = getSatellitePosition(predictedConnection.satelliteId)
+                if (!predictedPos) return null
+                return (
+                    <SatelliteBeam
+                        position={predictedPos}
+                        color={
+                            animationState.phase === 'switching'
+                                ? '#44ff44'
+                                : '#ffaa00'
+                        }
+                        intensity={
+                            animationState.phase === 'switching'
+                                ? animationState.progress
+                                : 0.6
+                        }
+                        rotation={-animationRef.current.beamRotation}
+                    />
+                )
+            })()}
         </>
     )
 }
@@ -620,6 +672,17 @@ const HandoverTrajectoryVisualization: React.FC<{
 
     const fromPos = getSatellitePosition(currentConnection.satelliteId)
     const toPos = getSatellitePosition(predictedConnection.satelliteId)
+    
+    // 🚨 如果找不到任一衛星位置，不顯示軌跡
+    if (!fromPos || !toPos) {
+        console.warn('❌ 換手軌跡無法顯示：衛星位置不完整', {
+            fromSat: currentConnection.satelliteId,
+            toSat: predictedConnection.satelliteId,
+            fromPos,
+            toPos
+        })
+        return null
+    }
 
     // 創建弧形軌跡
     const midPoint: [number, number, number] = [
