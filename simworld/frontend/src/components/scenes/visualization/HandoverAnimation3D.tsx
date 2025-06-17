@@ -234,12 +234,12 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
 
     // 🔗 渲染連接線（支援雙線和動畫效果）
     const renderConnections = () => {
-        if (!enabled || !handoverState.currentSatelliteId) return null
+        if (!enabled) return null
 
         const uavPositions = getUAVPositions()
         const connections = []
 
-        // 🟢 當前連接線
+        // 🟢 當前/舊連接線（在 completing 階段顯示舊連接）
         if (handoverState.currentSatelliteId) {
             const smoothedPos = smoothedPositionsRef.current.get(handoverState.currentSatelliteId)
             const satellitePos = smoothedPos || satellitePositions?.get(handoverState.currentSatelliteId)
@@ -267,9 +267,11 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
             }
         }
 
-        // 🔵 目標連接線（建立期和切換期）
+        // 🔵 目標連接線（在 establishing, switching, completing 階段顯示）
         if (handoverState.targetSatelliteId && 
-            (handoverState.phase === 'establishing' || handoverState.phase === 'switching')) {
+            (handoverState.phase === 'establishing' || 
+             handoverState.phase === 'switching' || 
+             handoverState.phase === 'completing')) {
             const smoothedPos = smoothedPositionsRef.current.get(handoverState.targetSatelliteId)
             const satellitePos = smoothedPos || satellitePositions?.get(handoverState.targetSatelliteId)
             
@@ -313,7 +315,9 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
             case 'switching':
                 return { color: '#808080', opacity: 0.4, radius: 0.3 } // 灰色虛線
             case 'completing':
-                return { color: '#808080', opacity: 0.2, radius: 0.2 } // 灰色淡出
+                // 在完成期逐漸淡出舊連接
+                const fadeOutOpacity = Math.max(0.1, 0.4 - (handoverState.progress * 0.3))
+                return { color: '#808080', opacity: fadeOutOpacity, radius: 0.3 } // 灰色逐漸淡出但保持可見
             default:
                 return { color: '#00ff00', opacity: 0.8, radius: 0.5 }
         }
@@ -328,6 +332,9 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 return { color: '#0080ff', opacity: establishOpacity, radius: 0.3 } // 藍色漸現
             case 'switching':
                 return { color: '#00ff00', opacity: 0.8, radius: 0.5 } // 綠色實線
+            case 'completing':
+                // 在完成期成為主要連接，保持穩定綠色
+                return { color: '#00ff00', opacity: 0.8, radius: 0.5 } // 綠色實線穩定
             default:
                 return { color: '#0080ff', opacity: 0.3, radius: 0.3 }
         }
