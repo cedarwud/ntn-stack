@@ -507,9 +507,9 @@ class EnhancedOrbitPredictionService:
                 lat_offset = 1.0 + candidate_hash * 0.5  # 1.0-5.5 度範圍
                 lon_offset = 1.0 + candidate_hash * 0.5
                 altitude_km = 600.0 + candidate_hash * 50  # 600-1050km 範圍
-            else:  # 其他衛星
-                lat_offset = (combined_hash % 60)
-                lon_offset = (combined_hash % 60)
+            else:  # 其他衛星 - 修正為合理範圍
+                lat_offset = 5.0 + (combined_hash % 20)  # 5-25度範圍，避免過遠
+                lon_offset = 5.0 + (combined_hash % 20)  # 5-25度範圍，避免過遠
                 altitude_km = 500.0 + (combined_hash % 400)
             
             position_data = {
