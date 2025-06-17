@@ -762,3 +762,144 @@ class HandoverMeasurement:
         )
         
         return test_result
+
+
+class HandoverMeasurementService:
+    """
+    HandoverMeasurement 服務包裝器
+    提供異步 API 介面
+    """
+    
+    def __init__(self):
+        self.measurement = HandoverMeasurement()
+    
+    async def record_handover_event(
+        self,
+        ue_id: str,
+        source_satellite: str,
+        target_satellite: str,
+        scheme: HandoverScheme,
+        latency_ms: float,
+        result: HandoverResult = HandoverResult.SUCCESS,
+        **kwargs
+    ) -> HandoverEvent:
+        """記錄切換事件（異步介面）"""
+        # 轉換時間戳
+        current_time = time.time()
+        start_time = current_time
+        end_time = current_time + (latency_ms / 1000.0)
+        
+        # 記錄事件
+        event_id = self.measurement.record_handover(
+            ue_id=ue_id,
+            source_gnb=source_satellite,
+            target_gnb=target_satellite,
+            start_time=start_time,
+            end_time=end_time,
+            handover_scheme=scheme,
+            result=result,
+            **kwargs
+        )
+        
+        # 返回事件對象
+        for event in self.measurement.handover_events:
+            if event.event_id == event_id:
+                return event
+        
+        # 如果找不到，創建一個基本事件對象
+        return HandoverEvent(
+            event_id=event_id,
+            ue_id=ue_id,
+            source_gnb=source_satellite,
+            target_gnb=target_satellite,
+            scheme=scheme,
+            start_time=start_time,
+            end_time=end_time,
+            latency_ms=latency_ms,
+            result=result
+        )
+    
+    async def get_recent_events(self, limit: int = 100) -> List[HandoverEvent]:
+        """獲取最近的事件"""
+        events = self.measurement.handover_events
+        return events[-limit:] if len(events) > limit else events
+    
+    async def generate_measurement_report(
+        self,
+        events: List[HandoverEvent],
+        output_dir: str,
+        generate_cdf: bool = True
+    ):
+        """生成測量報告"""
+        if generate_cdf:
+            # 生成 CDF 圖表
+            cdf_path = self.measurement.plot_latency_cdf(
+                save_path=f"{output_dir}/handover_latency_cdf.png"
+            )
+        
+        # 生成對比報告
+        report = self.measurement.generate_comparison_report()
+        
+        # 返回報告對象
+        @dataclass
+        class MeasurementReport:
+            total_events: int
+            scheme_statistics: Dict[HandoverScheme, SchemeStatistics]
+            comparison_report: Dict[str, Any]
+            
+        stats = self.measurement.analyze_latency()
+        return MeasurementReport(
+            total_events=len(events),
+            scheme_statistics=stats,
+            comparison_report=report
+        )
+    
+    async def export_to_json(self, events: List[HandoverEvent], output_path: str) -> bool:
+        """導出為 JSON"""
+        try:
+            # 創建目標目錄
+            import os
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            
+            # 匯出數據到指定路徑
+            export_data = {
+                "metadata": {
+                    "export_time": datetime.now(timezone.utc).isoformat(),
+                    "total_events": len(events),
+                    "measurement_framework_version": "1.4.0"
+                },
+                "events": [asdict(event) for event in events],
+                "statistics": {scheme.value: asdict(stats) for scheme, stats in self.measurement.analyze_latency().items()},
+                "comparison_report": self.measurement.generate_comparison_report()
+            }
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(export_data, f, indent=2, ensure_ascii=False, default=str)
+            
+            return True
+        except Exception as e:
+            print(f"JSON 匯出錯誤: {e}")
+            return False
+    
+    async def export_to_csv(self, events: List[HandoverEvent], output_path: str) -> bool:
+        """導出為 CSV"""
+        try:
+            # 創建目標目錄
+            import os
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            
+            # 轉換為 DataFrame
+            events_data = []
+            for event in events:
+                event_dict = asdict(event)
+                event_dict['scheme'] = event.scheme.value
+                event_dict['result'] = event.result.value
+                events_data.append(event_dict)
+            
+            df = pd.DataFrame(events_data)
+            df.to_csv(output_path, index=False, encoding='utf-8')
+            
+            return True
+        except Exception as e:
+            print(f"CSV 匯出錯誤: {e}")
+            return False
