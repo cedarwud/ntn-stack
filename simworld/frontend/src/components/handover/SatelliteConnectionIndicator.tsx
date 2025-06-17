@@ -108,19 +108,115 @@ const SatelliteConnectionIndicator: React.FC<SatelliteConnectionIndicatorProps> 
     );
   };
 
+  // 🚀 根據 handover.md 改進的換手階段顯示
+  const getHandoverStage = (progress: number) => {
+    const totalTime = 45 // 45秒總週期
+    const currentTime = progress * totalTime
+    
+    if (currentTime <= 30) {
+      return {
+        stage: 'stable',
+        stageProgress: currentTime / 30,
+        emoji: '📡',
+        text: '連接穩定',
+        description: '信號良好',
+        color: '#00ff88'
+      }
+    } else if (currentTime <= 35) {
+      return {
+        stage: 'preparing',
+        stageProgress: (currentTime - 30) / 5,
+        emoji: '🔄',
+        text: '準備換手',
+        description: `將在 ${Math.ceil(35 - currentTime)} 秒後開始換手程序`,
+        color: '#ffff00'
+      }
+    } else if (currentTime <= 38) {
+      return {
+        stage: 'establishing',
+        stageProgress: (currentTime - 35) / 3,
+        emoji: '🔗',
+        text: '建立新連接',
+        description: '正在與新衛星進行握手協議',
+        color: '#4080ff'
+      }
+    } else if (currentTime <= 40) {
+      return {
+        stage: 'switching',
+        stageProgress: (currentTime - 38) / 2,
+        emoji: '⚡',
+        text: '切換連接中',
+        description: '正在從舊衛星切換到新衛星',
+        color: '#ff6600'
+      }
+    } else {
+      return {
+        stage: 'completing',
+        stageProgress: (currentTime - 40) / 5,
+        emoji: '✅',
+        text: '換手完成',
+        description: '換手完成，連接已穩定',
+        color: '#00ff88'
+      }
+    }
+  }
+
   const renderTransitionAnimation = () => {
     if (!isTransitioning) return null;
 
+    const stage = getHandoverStage(transitionProgress)
+    
     return (
-      <div className="transition-animation">
-        <div className="transition-arrow">
-          <div className="arrow-body" style={{ width: `${transitionProgress * 100}%` }}></div>
-          <div className="arrow-head" style={{ left: `${transitionProgress * 100}%` }}>
-            ➤
-          </div>
+      <div className="handover-stage-display">
+        {/* 階段性文字說明 */}
+        <div className="stage-header">
+          <span className="stage-emoji">{stage.emoji}</span>
+          <span className="stage-text">{stage.text}</span>
+          <span className="stage-progress">{(stage.stageProgress * 100).toFixed(0)}%</span>
         </div>
-        <div className="transition-label">
-          換手進行中... {(transitionProgress * 100).toFixed(0)}%
+        
+        {/* 詳細描述 */}
+        <div className="stage-description">{stage.description}</div>
+        
+        {/* 雙連接線視覺指示器 */}
+        <div className="connection-lines-indicator">
+          {/* 舊連接線 */}
+          <div className="connection-line old-connection">
+            <div className="line-label">當前連接</div>
+            <div 
+              className={`line-visual ${stage.stage === 'preparing' ? 'flashing' : ''} ${stage.stage === 'establishing' || stage.stage === 'switching' ? 'dashed fading' : ''}`}
+              style={{ 
+                opacity: stage.stage === 'establishing' || stage.stage === 'switching' ? (1 - stage.stageProgress) * 0.8 : 1,
+                backgroundColor: stage.stage === 'preparing' ? '#ffff00' : stage.stage === 'establishing' || stage.stage === 'switching' ? '#808080' : '#00ff88'
+              }}
+            ></div>
+          </div>
+          
+          {/* 新連接線 (僅在建立階段後顯示) */}
+          {(stage.stage === 'establishing' || stage.stage === 'switching' || stage.stage === 'completing') && (
+            <div className="connection-line new-connection">
+              <div className="line-label">新連接</div>
+              <div 
+                className={`line-visual ${stage.stage === 'establishing' ? 'building' : ''}`}
+                style={{
+                  opacity: stage.stage === 'establishing' ? stage.stageProgress * 0.8 : 0.9,
+                  backgroundColor: stage.stage === 'completing' ? '#00ff88' : '#4080ff',
+                  borderStyle: stage.stage === 'establishing' ? 'dashed' : 'solid'
+                }}
+              ></div>
+            </div>
+          )}
+        </div>
+        
+        {/* 進度條 */}
+        <div className="stage-progress-bar">
+          <div 
+            className="progress-fill"
+            style={{ 
+              width: `${stage.stageProgress * 100}%`,
+              backgroundColor: stage.color
+            }}
+          ></div>
         </div>
       </div>
     );
@@ -132,7 +228,14 @@ const SatelliteConnectionIndicator: React.FC<SatelliteConnectionIndicatorProps> 
         <h3>🔗 衛星接入狀態</h3>
         <div className="connection-mode">
           {isTransitioning ? (
-            <span className="mode-transitioning">🔄 換手中</span>
+            (() => {
+              const stage = getHandoverStage(transitionProgress)
+              return (
+                <span className="mode-transitioning" style={{ color: stage.color }}>
+                  {stage.emoji} {stage.text}
+                </span>
+              )
+            })()
           ) : (
             <span className="mode-stable">✅ 穩定連接</span>
           )}

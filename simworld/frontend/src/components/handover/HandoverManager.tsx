@@ -19,6 +19,7 @@ interface HandoverManagerProps {
     isEnabled: boolean
     onHandoverEvent?: (event: HandoverEvent) => void
     mockMode?: boolean // 用於開發測試
+    hideUI?: boolean // 隱藏 UI 但保持邏輯運行
     // 3D 動畫狀態更新回調
     onHandoverStateChange?: (state: HandoverState) => void
     onCurrentConnectionChange?: (connection: SatelliteConnection | null) => void
@@ -42,6 +43,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     isEnabled,
     onHandoverEvent,
     mockMode = true, // 開發階段使用模擬數據
+    hideUI = false,
     onHandoverStateChange,
     onCurrentConnectionChange,
     onPredictedConnectionChange,
@@ -102,19 +104,26 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         []
     )
 
-    // 模擬二點預測算法
+    // 🔗 模擬二點預測算法 - 與 DynamicSatelliteRenderer 的 ID 系統兼容
     const simulateTwoPointPrediction = useCallback(() => {
-        if (!satellites.length) return
+        // 🚀 使用固定的模擬衛星 ID，與 DynamicSatelliteRenderer 匹配
+        const simulatedSatellites = Array.from({ length: 18 }, (_, i) => ({
+            id: `sat_${i}`,
+            name: `STARLINK-${1000 + i}`,
+            norad_id: `sat_${i}`,
+            elevation_deg: 30 + Math.random() * 60,
+            azimuth_deg: Math.random() * 360,
+            distance_km: 500 + Math.random() * 500
+        }))
 
         const now = Date.now()
         const futureTime = now + handoverState.deltaT * 1000
 
         // 模擬選擇當前最佳衛星
-        const sortedSatellites = [...satellites].sort(
-            (a, b) => b.elevation_deg - a.elevation_deg
-        )
-        const currentBest = sortedSatellites[0]
-        const futureBest = sortedSatellites[Math.random() < 0.7 ? 0 : 1] // 70% 機率保持相同
+        const currentBest = simulatedSatellites[Math.floor(Math.random() * simulatedSatellites.length)]
+        const futureBest = Math.random() < 0.3 ? 
+            simulatedSatellites[Math.floor(Math.random() * simulatedSatellites.length)] : 
+            currentBest // 30% 機率換手
 
         setHandoverState((prev) => ({
             ...prev,
@@ -357,6 +366,11 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                 </div>
             </div>
         )
+    }
+
+    // 🚀 如果 hideUI 為 true，則隱藏所有 UI 但保持邏輯運行
+    if (hideUI) {
+        return null
     }
 
     return (

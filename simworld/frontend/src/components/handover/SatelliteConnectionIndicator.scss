@@ -285,6 +285,122 @@
       }
     }
 
+    // 🚀 新增的換手階段顯示樣式 - 根據 handover.md 設計
+    .handover-stage-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 0;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+
+      .stage-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+        
+        .stage-emoji {
+          font-size: 18px;
+        }
+        
+        .stage-text {
+          font-size: 14px;
+          font-weight: bold;
+          color: #e0f6ff;
+        }
+        
+        .stage-progress {
+          font-size: 12px;
+          color: #b0d4e7;
+          background: rgba(255, 255, 255, 0.1);
+          padding: 2px 8px;
+          border-radius: 12px;
+        }
+      }
+
+      .stage-description {
+        font-size: 11px;
+        color: #b0d4e7;
+        text-align: center;
+        margin-bottom: 16px;
+      }
+
+      .connection-lines-indicator {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        margin-bottom: 12px;
+
+        .connection-line {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .line-label {
+            font-size: 10px;
+            color: #b0d4e7;
+            min-width: 60px;
+          }
+
+          .line-visual {
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            
+            &.flashing {
+              animation: lineFlash 1s infinite;
+            }
+            
+            &.dashed {
+              background-image: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 4px,
+                currentColor 4px,
+                currentColor 8px
+              );
+              background-color: transparent !important;
+            }
+            
+            &.fading {
+              animation: lineFade 2s ease-in-out infinite;
+            }
+            
+            &.building {
+              background-image: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 4px,
+                currentColor 4px,
+                currentColor 8px
+              );
+              background-color: transparent !important;
+              animation: lineBuilding 1s ease-in-out infinite;
+            }
+          }
+        }
+      }
+
+      .stage-progress-bar {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+
+        .progress-fill {
+          height: 100%;
+          border-radius: 3px;
+          transition: width 0.3s ease;
+          box-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
+        }
+      }
+    }
+
     .transition-animation {
       display: flex;
       flex-direction: column;
@@ -382,6 +498,37 @@
     }
     100% {
       transform: translateX(-50%) translateY(-3px);
+    }
+  }
+
+  // 🚀 新增的連接線動畫關鍵幀
+  @keyframes lineFlash {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes lineFade {
+    0% {
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 0.3;
+    }
+    100% {
+      opacity: 0.8;
+    }
+  }
+
+  @keyframes lineBuilding {
+    0% {
+      background-position: -100% 0;
+    }
+    100% {
+      background-position: 100% 0;
     }
   }
 }
