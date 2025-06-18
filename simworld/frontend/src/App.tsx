@@ -49,8 +49,8 @@ function App({ activeView }: AppProps) {
     >([])
     const [satelliteEnabled, setSatelliteEnabled] = useState<boolean>(true) // 預設開啟衛星顯示
     
-    // 衛星動畫控制狀態（動畫永遠開啟，只保留速度和軌跡線控制）
-    const [satelliteSpeedMultiplier, setSatelliteSpeedMultiplier] = useState<number>(5) // 預設5倍速
+    // 衛星動畫控制狀態（動畫永遠開啟，只保留軌跡線控制）
+    const [handoverStableDuration, setHandoverStableDuration] = useState<number>(5) // 預設5秒穩定期
     const [showOrbitTracks, setShowOrbitTracks] = useState<boolean>(true) // 預設顯示軌跡線
     
     // 🚀 演算法與視覺化對接狀態
@@ -336,7 +336,8 @@ function App({ activeView }: AppProps) {
                         intelligentRecommendationEnabled={intelligentRecommendationEnabled}
                         // 衛星功能狀態
                         satelliteEnabled={satelliteEnabled}
-                        satelliteSpeedMultiplier={satelliteSpeedMultiplier}
+                        satelliteSpeedMultiplier={1} // 固定為1x
+                        handoverStableDuration={handoverStableDuration}
                         showOrbitTracks={showOrbitTracks}
                         // 🚀 演算法結果對接
                         algorithmResults={algorithmResults}
@@ -392,7 +393,7 @@ function App({ activeView }: AppProps) {
         automatedReportGenerationEnabled,
         predictiveMaintenanceEnabled,
         intelligentRecommendationEnabled,
-        satelliteSpeedMultiplier,
+        handoverStableDuration,
         showOrbitTracks,
     ])
 
@@ -509,8 +510,8 @@ function App({ activeView }: AppProps) {
                                     // 🚀 演算法結果回調 - 連接後端演算法與前端視覺化
                                     onAlgorithmResults={setAlgorithmResults}
                                     // 衛星動畫控制 props（動畫永遠開啟）
-                                    satelliteSpeedMultiplier={satelliteSpeedMultiplier}
-                                    onSatelliteSpeedChange={setSatelliteSpeedMultiplier}
+                                    satelliteSpeedMultiplier={handoverStableDuration}
+                                    onSatelliteSpeedChange={setHandoverStableDuration}
                                     showOrbitTracks={showOrbitTracks}
                                     onShowOrbitTracksChange={setShowOrbitTracks}
                                 />

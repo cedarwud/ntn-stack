@@ -689,61 +689,45 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                 {/* 衛星動畫速度控制 - 當衛星啟用時顯示 */}
                                 {activeCategory === 'basic' && satelliteEnabled && (
                                     <div className="satellite-animation-controls">
-                                        <div className="control-section-title">🎭 衛星動畫控制</div>
+                                        <div className="control-section-title">🔄 換手控制</div>
                                         
-
-                                        {/* 速度控制滑塊 */}
+                                        {/* 換手穩定期時間控制 */}
                                         <div className="control-item">
                                             <div className="control-label">
-                                                動畫速度: {satelliteSpeedMultiplier}x
+                                                換手穩定期: {satelliteSpeedMultiplier}秒
                                             </div>
                                             <input
                                                 type="range"
-                                                min="1"
-                                                max="20"
-                                                step="1"
-                                                value={Math.min(satelliteSpeedMultiplier, 20)}
+                                                min="5"
+                                                max="30"
+                                                step="5"
+                                                value={Math.min(satelliteSpeedMultiplier, 30)}
                                                 onChange={(e) => onSatelliteSpeedChange && onSatelliteSpeedChange(Number(e.target.value))}
                                                 className="speed-slider"
                                             />
                                             <div className="speed-labels">
-                                                <span>1x</span>
-                                                <span>真實時間比例</span>
-                                                <span>20x</span>
+                                                <span>5秒</span>
+                                                <span>穩定期持續時間</span>
+                                                <span>30秒</span>
                                             </div>
                                         </div>
 
-                                        {/* 預設速度按鈕 */}
+                                        {/* 穩定期預設時間按鈕 */}
                                         <div className="control-item">
                                             <div className="control-label">快速設定:</div>
                                             <div className="speed-preset-buttons">
-                                                {[1, 3, 5, 7, 10].map(speed => (
+                                                {[5, 10, 15, 20, 30].map(duration => (
                                                     <button
-                                                        key={speed}
-                                                        className={`speed-preset-btn ${satelliteSpeedMultiplier === speed ? 'active' : ''}`}
-                                                        onClick={() => onSatelliteSpeedChange && onSatelliteSpeedChange(speed)}
+                                                        key={duration}
+                                                        className={`speed-preset-btn ${satelliteSpeedMultiplier === duration ? 'active' : ''}`}
+                                                        onClick={() => onSatelliteSpeedChange && onSatelliteSpeedChange(duration)}
                                                     >
-                                                        {speed}x
+                                                        {duration}秒
                                                     </button>
                                                 ))}
                                             </div>
                                         </div>
 
-                                        {/* 時間換算顯示 */}
-                                        <div className="control-item time-conversion">
-                                            <div className="conversion-info">
-                                                <span className="conversion-label">實際時間比例:</span>
-                                                <span className="conversion-value">
-                                                    1分鐘 = {(60 / satelliteSpeedMultiplier).toFixed(1)}秒
-                                                </span>
-                                            </div>
-                                            <div className="conversion-info">
-                                                <span className="conversion-label">軌道週期:</span>
-                                                <span className="conversion-value">
-                                                    {(109 * 60 / satelliteSpeedMultiplier).toFixed(0)}秒
-                                                </span>
-                                            </div>
-                                        </div>
                                     </div>
                                 )}
 
