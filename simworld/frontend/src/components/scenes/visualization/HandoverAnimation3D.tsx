@@ -192,6 +192,107 @@ const HandoverStatusPanel: React.FC<HandoverStatusPanelProps> = ({
                     </span>
                 </div>
             )}
+
+            {/* 🎯 換手原因資訊 */}
+            {statusInfo.handoverReason && (
+                <div
+                    style={{
+                        marginTop: '16px',
+                        padding: '12px',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        borderRadius: '8px',
+                        border: `1px solid ${
+                            statusInfo.handoverReason.urgency === 'emergency'
+                                ? '#ef4444'
+                                : statusInfo.handoverReason.urgency === 'high'
+                                ? '#f59e0b'
+                                : statusInfo.handoverReason.urgency === 'medium'
+                                ? '#3b82f6'
+                                : '#22c55e'
+                        }`,
+                    }}
+                >
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            marginBottom: '8px',
+                        }}
+                    >
+                        <span style={{ fontSize: '16px' }}>
+                            {statusInfo.handoverReason.icon}
+                        </span>
+                        <span
+                            style={{
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                color: '#e5e7eb',
+                            }}
+                        >
+                            換手原因: {statusInfo.handoverReason.reasonText}
+                        </span>
+                    </div>
+                    
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            marginBottom: '4px',
+                        }}
+                    >
+                        <span style={{ fontSize: '12px', color: '#cbd5e1' }}>
+                            當前值
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#cbd5e1' }}>
+                            目標值
+                        </span>
+                    </div>
+                    
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '8px',
+                        }}
+                    >
+                        <span
+                            style={{
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                color: statusInfo.handoverReason.urgency === 'emergency' 
+                                    ? '#ef4444' 
+                                    : '#fbbf24',
+                            }}
+                        >
+                            {statusInfo.handoverReason.currentValue.toFixed(1)}{statusInfo.handoverReason.unit}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                            →
+                        </span>
+                        <span
+                            style={{
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                color: '#22c55e',
+                            }}
+                        >
+                            {statusInfo.handoverReason.targetValue.toFixed(1)}{statusInfo.handoverReason.unit}
+                        </span>
+                    </div>
+                    
+                    <div
+                        style={{
+                            fontSize: '12px',
+                            color: '#22c55e',
+                            fontWeight: '500',
+                        }}
+                    >
+                        ✨ {statusInfo.handoverReason.improvement}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
@@ -254,16 +355,62 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         return Array.from(satellitePositions.keys())
     }
 
-    // 🔗 隨機選擇衛星（排除當前衛星）
-    const selectRandomSatellite = (excludeId?: string): string | null => {
+    // 📏 計算兩點之間的3D距離
+    const calculateDistance = (
+        pos1: [number, number, number],
+        pos2: [number, number, number]
+    ): number => {
+        const dx = pos1[0] - pos2[0]
+        const dy = pos1[1] - pos2[1]
+        const dz = pos1[2] - pos2[2]
+        return Math.sqrt(dx * dx + dy * dy + dz * dz)
+    }
+
+    // 🎯 智能選擇最近的衛星（排除當前衛星）
+    const selectNearestSatellite = (excludeId?: string): string | null => {
         const availableSatellites = getAvailableSatellites()
         if (availableSatellites.length === 0) return null
 
         const candidates = availableSatellites.filter((id) => id !== excludeId)
         if (candidates.length === 0) return availableSatellites[0]
 
-        const randomIndex = Math.floor(Math.random() * candidates.length)
-        return candidates[randomIndex]
+        const uavPositions = getUAVPositions()
+        if (uavPositions.length === 0) return candidates[0]
+
+        // 使用第一個UAV的位置來計算距離
+        const uavPos = uavPositions[0]
+        let nearestSatellite = candidates[0]
+        let minDistance = Infinity
+
+        console.log('🔍 計算衛星距離:')
+        candidates.forEach((satId) => {
+            const satPos = satellitePositions?.get(satId)
+            if (satPos) {
+                const distance = calculateDistance(uavPos, satPos)
+                console.log(`  ${getSatelliteName(satId)}: ${distance.toFixed(1)}km`)
+                
+                if (distance < minDistance) {
+                    minDistance = distance
+                    nearestSatellite = satId
+                }
+            }
+        })
+
+        console.log(`✅ 選擇最近衛星: ${getSatelliteName(nearestSatellite)} (距離: ${minDistance.toFixed(1)}km)`)
+        return nearestSatellite
+    }
+
+    // 🔗 獲取當前連接距離（用於顯示）
+    const getCurrentConnectionDistance = (): number | null => {
+        if (!handoverState.currentSatelliteId) return null
+        
+        const uavPositions = getUAVPositions()
+        if (uavPositions.length === 0) return null
+        
+        const satPos = satellitePositions?.get(handoverState.currentSatelliteId)
+        if (!satPos) return null
+        
+        return calculateDistance(uavPositions[0], satPos)
     }
 
     // 🏷️ 獲取衛星名稱（基於ID匹配DynamicSatelliteRenderer的命名規則）
@@ -356,10 +503,11 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
             handoverState.currentSatelliteId &&
             !availableSatellites.includes(handoverState.currentSatelliteId)
         ) {
-            const newSatellite = selectRandomSatellite(
+            const newSatellite = selectNearestSatellite(
                 handoverState.currentSatelliteId
             )
             if (newSatellite) {
+                console.log('🚨 緊急換手：當前衛星消失，切換到最近衛星')
                 setHandoverState({
                     phase: 'stable',
                     currentSatelliteId: newSatellite,
@@ -382,11 +530,16 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         if (progress >= 1.0) {
             switch (handoverState.phase) {
                 case 'stable':
-                    // 進入準備期，選擇目標衛星
-                    const targetSatellite = selectRandomSatellite(
+                    // 進入準備期，選擇最近的目標衛星
+                    const targetSatellite = selectNearestSatellite(
                         handoverState.currentSatelliteId
                     )
                     if (targetSatellite) {
+                        console.log('🔄 開始換手：選擇最近衛星作為目標')
+                        
+                        // 🎲 遞增換手原因計數器，下次換手使用不同原因
+                        handoverReasonCounterRef.current += 1
+                        
                         newState = {
                             phase: 'preparing',
                             currentSatelliteId:
@@ -431,6 +584,28 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                     break
 
                 case 'completing':
+                    // 計算換手前後的距離變化
+                    const oldDistance = getCurrentConnectionDistance()
+                    const newSatellite = handoverState.targetSatelliteId
+                    
+                    if (newSatellite && oldDistance) {
+                        const uavPos = getUAVPositions()[0]
+                        const newSatPos = satellitePositions?.get(newSatellite)
+                        if (uavPos && newSatPos) {
+                            const newDistance = calculateDistance(uavPos, newSatPos)
+                            const improvement = oldDistance - newDistance
+                            console.log(`🎯 換手完成: ${getSatelliteName(handoverState.currentSatelliteId)} -> ${getSatelliteName(newSatellite)}`)
+                            console.log(`📏 距離變化: ${oldDistance.toFixed(1)}km -> ${newDistance.toFixed(1)}km (${improvement > 0 ? '改善' : '增加'} ${Math.abs(improvement).toFixed(1)}km)`)
+                        }
+                    }
+                    
+                    // 清除所有模擬數據，下次換手重新生成
+                    simulatedDataRef.current = {
+                        load: null,
+                        elevation: null,
+                        signal: null
+                    }
+                    
                     newState = {
                         phase: 'stable',
                         currentSatelliteId: handoverState.targetSatelliteId,
@@ -454,11 +629,12 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         }
     })
 
-    // 🎯 初始化第一個連接
+    // 🎯 初始化第一個連接 - 選擇最近的衛星
     useEffect(() => {
         if (!handoverState.currentSatelliteId && enabled) {
-            const firstSatellite = selectRandomSatellite()
+            const firstSatellite = selectNearestSatellite()
             if (firstSatellite) {
+                console.log('🚀 初始化連接：選擇最近衛星')
                 setHandoverState((prev) => ({
                     ...prev,
                     currentSatelliteId: firstSatellite,
@@ -656,6 +832,132 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         )
     }
 
+    // 🎯 使用 useRef 來保存模擬數據，避免跳動
+    const simulatedDataRef = useRef<{
+        load: {currentLoad: number, targetLoad: number} | null,
+        elevation: {currentElevation: number, targetElevation: number} | null,
+        signal: {currentSignal: number, targetSignal: number} | null
+    }>({
+        load: null,
+        elevation: null,
+        signal: null
+    })
+    
+    // 🎲 換手原因輪換器 - 讓4種狀態都有機會發生
+    const handoverReasonCounterRef = useRef<number>(0)
+
+    // 🎯 獲取換手原因分析
+    const getHandoverReason = () => {
+        if (!handoverState.targetSatelliteId) return null
+
+        const uavPos = getUAVPositions()[0]
+        if (!uavPos) return null
+
+        const currentSatPos = satellitePositions?.get(handoverState.currentSatelliteId)
+        const targetSatPos = satellitePositions?.get(handoverState.targetSatelliteId)
+        
+        if (!currentSatPos || !targetSatPos) return null
+
+        const currentDistance = calculateDistance(uavPos, currentSatPos)
+        const targetDistance = calculateDistance(uavPos, targetSatPos)
+        
+        // 計算仰角 (簡化計算)
+        const currentElevation = Math.atan2(
+            currentSatPos[1] - uavPos[1], 
+            Math.sqrt(Math.pow(currentSatPos[0] - uavPos[0], 2) + Math.pow(currentSatPos[2] - uavPos[2], 2))
+        ) * 180 / Math.PI
+        
+        const targetElevation = Math.atan2(
+            targetSatPos[1] - uavPos[1], 
+            Math.sqrt(Math.pow(targetSatPos[0] - uavPos[0], 2) + Math.pow(targetSatPos[2] - uavPos[2], 2))
+        ) * 180 / Math.PI
+        
+        // 模擬信號強度 (基於距離的簡化模型)
+        const currentSignal = Math.max(-130, -50 - 20 * Math.log10(currentDistance / 100))
+        const targetSignal = Math.max(-130, -50 - 20 * Math.log10(targetDistance / 100))
+
+        // 🎲 輪換換手原因，讓4種狀態都有機會發生
+        const reasonType = handoverReasonCounterRef.current % 4
+        
+        switch (reasonType) {
+            case 0: // 📐 仰角過低
+                // 生成固定的仰角數據，避免跳動
+                if (!simulatedDataRef.current.elevation) {
+                    simulatedDataRef.current.elevation = {
+                        currentElevation: Math.max(5, currentElevation + (Math.random() - 0.7) * 20),
+                        targetElevation: Math.max(15, targetElevation + Math.random() * 15)
+                    }
+                }
+                
+                const elevationData = simulatedDataRef.current.elevation
+                return {
+                    primaryReason: 'elevation' as const,
+                    reasonText: '衛星仰角過低',
+                    currentValue: elevationData.currentElevation,
+                    targetValue: elevationData.targetElevation,
+                    improvement: `提升 ${(elevationData.targetElevation - elevationData.currentElevation).toFixed(1)}°`,
+                    urgency: elevationData.currentElevation < 10 ? 'emergency' as const : 'high' as const,
+                    icon: '📐',
+                    unit: '°'
+                }
+                
+            case 1: // 📶 信號強度不足
+                // 生成固定的信號數據，避免跳動
+                if (!simulatedDataRef.current.signal) {
+                    simulatedDataRef.current.signal = {
+                        currentSignal: currentSignal - Math.random() * 15, // 降低信號
+                        targetSignal: targetSignal + Math.random() * 10 // 改善信號
+                    }
+                }
+                
+                const signalData = simulatedDataRef.current.signal
+                return {
+                    primaryReason: 'signal' as const,
+                    reasonText: '信號強度不足',
+                    currentValue: signalData.currentSignal,
+                    targetValue: signalData.targetSignal,
+                    improvement: `改善 ${(signalData.targetSignal - signalData.currentSignal).toFixed(1)}dBm`,
+                    urgency: signalData.currentSignal < -120 ? 'high' as const : 'medium' as const,
+                    icon: '📶',
+                    unit: 'dBm'
+                }
+                
+            case 2: // 📏 距離優化  
+                return {
+                    primaryReason: 'distance' as const,
+                    reasonText: '距離優化',
+                    currentValue: currentDistance,
+                    targetValue: targetDistance,
+                    improvement: `縮短 ${Math.max(0, currentDistance - targetDistance).toFixed(1)}km`,
+                    urgency: 'medium' as const,
+                    icon: '📏',
+                    unit: 'km'
+                }
+                
+            case 3: // ⚖️ 負載平衡
+            default:
+                // 生成固定的負載數據，避免跳動
+                if (!simulatedDataRef.current.load) {
+                    simulatedDataRef.current.load = {
+                        currentLoad: 75 + Math.random() * 20, // 75-95%
+                        targetLoad: 30 + Math.random() * 20   // 30-50%
+                    }
+                }
+                
+                const loadData = simulatedDataRef.current.load
+                return {
+                    primaryReason: 'load' as const,
+                    reasonText: '負載平衡',
+                    currentValue: loadData.currentLoad,
+                    targetValue: loadData.targetLoad,
+                    improvement: `降低 ${(loadData.currentLoad - loadData.targetLoad).toFixed(1)}%`,
+                    urgency: 'low' as const,
+                    icon: '⚖️',
+                    unit: '%'
+                }
+        }
+    }
+
     // 📱 狀態資訊
     const getStatusInfo = () => {
         const countdown =
@@ -672,6 +974,8 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         )
         const targetSatName = getSatelliteName(handoverState.targetSatelliteId)
         const progress = Math.round(handoverState.progress * 100)
+        const currentDistance = getCurrentConnectionDistance()
+        const handoverReason = getHandoverReason()
 
         switch (handoverState.phase) {
             case 'stable':
@@ -682,11 +986,19 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                     progress: undefined,
                 }
             case 'preparing':
+                // 計算目標衛星距離
+                const targetDistance = handoverState.targetSatelliteId ? (() => {
+                    const uavPos = getUAVPositions()[0]
+                    const satPos = satellitePositions?.get(handoverState.targetSatelliteId)
+                    return uavPos && satPos ? calculateDistance(uavPos, satPos) : null
+                })() : null
+
                 return {
                     title: '準備換手',
-                    subtitle: `即將連接: ${targetSatName}`,
+                    subtitle: `即將連接: ${targetSatName}${targetDistance ? ` (${targetDistance.toFixed(1)}km)` : ''}`,
                     status: 'preparing' as const,
                     countdown: countdown,
+                    handoverReason: handoverReason,
                 }
             case 'establishing':
                 return {
@@ -694,6 +1006,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                     subtitle: `連接中: ${targetSatName}`,
                     status: 'establishing' as const,
                     progress: progress,
+                    handoverReason: handoverReason,
                 }
             case 'switching':
                 return {
@@ -701,6 +1014,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                     subtitle: `換手至: ${targetSatName}`,
                     status: 'switching' as const,
                     progress: progress,
+                    handoverReason: handoverReason,
                 }
             case 'completing':
                 return {
@@ -708,6 +1022,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                     subtitle: `已連接: ${targetSatName}`,
                     status: 'completing' as const,
                     progress: progress,
+                    handoverReason: handoverReason,
                 }
             default:
                 return {
