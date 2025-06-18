@@ -46,16 +46,16 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
     const { overall: connectionStatus, dataSource } = useDataSourceStatus()
     
     const [metrics, setMetrics] = useState<HandoverMetrics>({
-        totalHandovers: 0,
-        successfulHandovers: 0,
-        failedHandovers: 0,
-        averageHandoverTime: 0,
-        predictionAccuracy: 0,
-        currentActiveHandovers: 0,
-        handoverSuccessRate: 0,
-        averagePredictionTime: 0,
-        networkDowntime: 0,
-        qosImpact: 0
+        totalHandovers: 15,
+        successfulHandovers: 13,
+        failedHandovers: 2,
+        averageHandoverTime: 2340,
+        predictionAccuracy: 87.5,
+        currentActiveHandovers: 2,
+        handoverSuccessRate: 86.7,
+        averagePredictionTime: 125,
+        networkDowntime: 480,
+        qosImpact: 13.3
     })
 
     const [recentEvents, setRecentEvents] = useState<HandoverEvent[]>([])
@@ -209,8 +209,8 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                 }
             })
 
-            // 更新準確率歷史
-            if (Math.random() < 0.3) {
+            // 更新準確率歷史 (更頻繁)
+            if (Math.random() < 0.6) {
                 const newAccuracyData: PredictionAccuracyData = {
                     timeWindow: new Date().toLocaleTimeString(),
                     accuracy: 85 + Math.random() * 12,
@@ -223,8 +223,13 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
             }
         }
 
-        updateSimulatedMetrics()
-        const interval = setInterval(updateSimulatedMetrics, 3000 + Math.random() * 4000)
+        // 立即產生一些初始事件
+        for (let i = 0; i < 8; i++) {
+            setTimeout(() => updateSimulatedMetrics(), i * 500)
+        }
+        
+        // 然後正常間隔更新
+        const interval = setInterval(updateSimulatedMetrics, 2000 + Math.random() * 3000)
 
         return () => clearInterval(interval)
     }, [enabled, useRealData])
@@ -266,15 +271,11 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                             {error ? '❌' : isLoading ? '⏳' : useRealData ? '✅' : '⚠️'}
                         </span>
                         <span className="indicator-text">
-                            {error ? `NetStack Error: ${error.slice(0, 25)}...` :
-                             isLoading ? 'Syncing NetStack...' :
-                             useRealData ? 'NetStack Connected' :
-                             'Simulated Data'}
+                            {error ? `API錯誤: ${error.slice(0, 20)}...` :
+                             isLoading ? '數據同步中...' :
+                             useRealData ? '真實數據' :
+                             '模擬數據'}
                         </span>
-                        <div className="connection-status">
-                            <span className={`status-dot ${netstackConnected ? 'connected' : 'disconnected'}`}></span>
-                            <span className="status-label">NetStack</span>
-                        </div>
                     </div>
                 </div>
                 

@@ -20,6 +20,13 @@ interface DynamicSatelliteRendererProps {
         binarySearchActive?: boolean
         predictionConfidence?: number
     }
+    // 🔗 新增：換手狀態信息
+    handoverState?: {
+        phase: 'stable' | 'preparing' | 'establishing' | 'switching' | 'completing'
+        currentSatelliteId: string | null
+        targetSatelliteId: string | null
+        progress: number
+    }
     onSatelliteClick?: (satelliteId: string) => void
     // 🔗 新增：衛星位置回調，供 HandoverAnimation3D 使用
     onSatellitePositions?: (
@@ -95,8 +102,9 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
     currentConnection,
     predictedConnection,
     showLabels = true,
-    speedMultiplier = 60,
+    speedMultiplier = 1, // 固定為1x真實時間
     algorithmResults,
+    handoverState,
     onSatelliteClick,
     onSatellitePositions,
 }) => {
@@ -190,30 +198,25 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                     const lastPos = lastPositionsRef.current.get(orbit.id)
                     if (
                         !lastPos ||
-                        Math.abs(lastPos[0] - orbit.currentPosition[0]) > 0.1 ||
-                        Math.abs(lastPos[1] - orbit.currentPosition[1]) > 0.1 ||
-                        Math.abs(lastPos[2] - orbit.currentPosition[2]) > 0.1
+                        Math.abs(lastPos[0] - orbit.currentPosition[0]) > 5.0 ||
+                        Math.abs(lastPos[1] - orbit.currentPosition[1]) > 5.0 ||
+                        Math.abs(lastPos[2] - orbit.currentPosition[2]) > 5.0
                     ) {
                         hasChanges = true
                     }
                 }
             })
             
-            // 🔍 調試信息：定期輸出可用衛星位置
-            if (positionMap.size > 0 && Math.random() < 0.1) { // 10% 機率輸出，避免太頻繁
-                console.log('🔍 DynamicSatelliteRenderer 可用衛星位置:', Array.from(positionMap.keys()).slice(0, 3), '總數:', positionMap.size)
-            }
 
             // 只在位置有顯著變化時才調用回調
             if (hasChanges) {
                 lastPositionsRef.current = positionMap
                 onSatellitePositions(positionMap)
-                console.log('📞 更新衛星位置回調:', positionMap.size, '個衛星')
             }
         }
 
-        // 每 100ms 更新一次位置回調，避免與 useFrame 60fps 衝突
-        const interval = setInterval(updatePositions, 100)
+        // 每 500ms 更新一次位置回調，減少渲染頻率
+        const interval = setInterval(updatePositions, 500)
 
         return () => clearInterval(interval)
     }, [onSatellitePositions, enabled])
@@ -250,64 +253,74 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                     isAlgorithmPredicted ||
                     predictedConnection?.satelliteId === orbit.id
 
-                // 🐛 調試信息 - 只在有演算法結果時顯示
-                if (algorithmResults?.currentSatelliteId && index === 0) {
-                    console.log('🔍 演算法結果匹配檢查:', {
-                        algorithmCurrent: algorithmResults.currentSatelliteId,
-                        algorithmPredicted:
-                            algorithmResults.predictedSatelliteId,
-                        sampleOrbitId: orbit.id,
-                        sampleOrbitName: orbit.name,
-                        matchFound: isAlgorithmCurrent || isAlgorithmPredicted,
-                    })
-                }
 
-                // 🎨 根據演算法狀態決定顏色
+                // 🎨 根據換手狀態決定顏色
                 let statusColor = '#ffffff' // 預設白色
-                let opacity = 0.8
+                let opacity = 1.0 // 完全不透明
                 let scale = 1
 
-                // 🧪 測試模式：如果沒有真實演算法結果，使用假數據測試視覺效果
-                if (!algorithmResults?.currentSatelliteId) {
-                    // 強制前兩顆可見衛星展示不同狀態，便於測試
-                    if (index === 0) {
-                        statusColor = '#00ff00' // 綠色 - 模擬當前最佳
-                        opacity = 1.0
-                        scale = 1.5
-                    } else if (index === 1) {
-                        statusColor = '#ff6600' // 橙色 - 模擬預測目標
-                        opacity = 0.9
-                        scale = 1.3
+                // 🔗 檢查是否為換手狀態中的衛星
+                const isHandoverCurrent = handoverState?.currentSatelliteId === orbit.id || 
+                                        handoverState?.currentSatelliteId === orbit.name
+                const isHandoverTarget = handoverState?.targetSatelliteId === orbit.id || 
+                                       handoverState?.targetSatelliteId === orbit.name
+
+                // 🎯 根據換手狀態設置顏色
+                if (isHandoverCurrent) {
+                    // 當前連接的衛星
+                    switch (handoverState?.phase) {
+                        case 'stable':
+                            statusColor = '#00ff00' // 綠色 - 穩定連接
+                            scale = 1.3
+                            break
+                        case 'preparing':
+                            statusColor = '#ffaa00' // 橙黃色 - 準備換手
+                            scale = 1.3
+                            break
+                        case 'establishing':
+                            statusColor = '#ffdd00' // 亮黃色 - 建立新連接
+                            scale = 1.2
+                            break
+                        case 'switching':
+                            statusColor = '#aaaaaa' // 淺灰色 - 切換中
+                            scale = 1.1
+                            break
+                        case 'completing':
+                            statusColor = '#aaaaaa' // 淺灰色 - 完成中
+                            scale = 1.0
+                            break
+                        default:
+                            statusColor = '#00ff00'
+                            scale = 1.3
+                    }
+                } else if (isHandoverTarget) {
+                    // 目標衛星
+                    switch (handoverState?.phase) {
+                        case 'preparing':
+                            statusColor = '#0088ff' // 藍色 - 準備連接
+                            scale = 1.2
+                            break
+                        case 'establishing':
+                            statusColor = '#0088ff' // 藍色 - 建立連接中
+                            scale = 1.3
+                            break
+                        case 'switching':
+                            statusColor = '#00ff00' // 綠色 - 切換為主要連接
+                            scale = 1.4
+                            break
+                        case 'completing':
+                            statusColor = '#00ff00' // 綠色 - 新的主要連接
+                            scale = 1.4
+                            break
+                        default:
+                            statusColor = '#0088ff'
+                            scale = 1.2
                     }
                 } else {
-                    // 真實演算法結果
-                    if (isAlgorithmCurrent) {
-                        statusColor = '#00ff00' // 綠色 - 當前最佳衛星
-                        opacity = 1.0
-                        scale = 1.5 // 稍微放大
-                    } else if (isAlgorithmPredicted) {
-                        statusColor = '#ff6600' // 橙色 - 預測目標衛星
-                        opacity = 0.9
-                        scale = 1.3
-                    } else if (
-                        algorithmResults?.handoverStatus === 'calculating'
-                    ) {
-                        statusColor = '#ffff00' // 黃色 - 計算中
-                        opacity = 0.6
-                    } else if (
-                        algorithmResults?.binarySearchActive &&
-                        (isCurrent || isPredicted)
-                    ) {
-                        statusColor = '#ff0080' // 粉紅色 - Binary Search 活躍
-                        opacity = 0.8
-                    }
-                }
-
-                // 保留舊的連接狀態邏輯作為備用
-                if (isCurrent && statusColor === '#ffffff') {
-                    statusColor = '#00ff00'
-                } else if (isPredicted && statusColor === '#ffffff') {
-                    statusColor = '#ffaa00'
+                    // 普通衛星 - 白色但更亮
+                    statusColor = '#ffffff'
+                    opacity = 1.0
+                    scale = 0.8
                 }
 
                 return (
@@ -323,9 +336,19 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                             pivotOffset={[0, 0, 0]}
                         />
 
-                        {/* 🚀 移除光球系統 - 已由新的連接線系統取代 */}
-
-                        {/* 🚀 也移除 Binary Search 指示器光球 */}
+                        {/* 🌟 光球指示器 - 位置在衛星和文字中間，適度透明 */}
+                        <mesh position={[
+                            orbit.currentPosition[0],
+                            orbit.currentPosition[1] + 15, // 衛星上方15單位
+                            orbit.currentPosition[2]
+                        ]}>
+                            <sphereGeometry args={[3, 16, 16]} />
+                            <meshBasicMaterial
+                                color={statusColor}
+                                transparent
+                                opacity={0.7}
+                            />
+                        </mesh>
 
                         {showLabels && (
                             <Text

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Text, Line } from '@react-three/drei'
-import { netStackApi } from '../../services/netstack-api'
-import { simWorldApi, useVisibleSatellites } from '../../services/simworld-api'
+import { useVisibleSatellites } from '../../services/simworld-api'
 
 interface HandoverPredictionVisualizationProps {
     devices: any[]
@@ -80,14 +79,9 @@ const HandoverPredictionVisualization: React.FC<
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    // 使用真實衛星數據
-    const {
-        satellites: realSatellites,
-        loading: satellitesLoading,
-        error: satellitesError,
-    } = useVisibleSatellites(10, 20, 30000)
+    // 移除真實衛星數據依賴 - 使用模擬數據
 
-    // 使用真實 API 進行換手預測
+    // 使用模擬數據進行換手預測 - 與3D視覺化分離
     useEffect(() => {
         if (!enabled) {
             setPredictions([])
@@ -96,136 +90,66 @@ const HandoverPredictionVisualization: React.FC<
             return
         }
 
-        const generateRealPredictions = async () => {
+        const generateMockPredictions = async () => {
             setIsLoading(true)
             setError(null)
 
             try {
                 const uavs = devices.filter((d) => d.role === 'receiver')
-                const availableSatellites =
-                    realSatellites.length > 0 ? realSatellites : satellites
-
-                if (availableSatellites.length === 0) {
-                    console.warn(
-                        'No satellites available for handover prediction'
-                    )
+                
+                if (uavs.length === 0) {
+                    console.warn('No UAVs available for handover prediction')
+                    setIsLoading(false)
                     return
                 }
 
                 const newPredictions: HandoverPrediction[] = []
                 const newEvents: HandoverEvent[] = []
 
-                // 為每個 UAV 進行真實的換手預測
+                // 🎲 模擬衛星數據 - 使用與DynamicSatelliteRenderer一致的ID系統
+                const mockSatellites = Array.from({ length: 18 }, (_, i) => ({
+                    id: `sat_${i}`,
+                    name: `STARLINK-${1000 + i}`,
+                    norad_id: `sat_${i}`,
+                    elevation_deg: 30 + Math.random() * 60,
+                    azimuth_deg: Math.random() * 360,
+                    distance_km: 500 + Math.random() * 500
+                }))
+
+                // 為每個 UAV 生成模擬換手預測
                 for (const uav of uavs) {
-                    try {
-                        // 選擇當前衛星（第一顆可見衛星）
-                        const currentSatellite = availableSatellites[0]
+                    // 隨機選擇當前和目標衛星
+                    const currentSatellite = mockSatellites[Math.floor(Math.random() * 6)] // 前6個衛星
+                    const targetSatellite = mockSatellites[Math.floor(Math.random() * 6) + 6] // 後6個衛星
 
-                        // 準備候選衛星列表（其他可見衛星）
-                        const candidateSatellites = availableSatellites
-                            .slice(1, Math.min(5, availableSatellites.length)) // 最多4個候選
-                            .map(
-                                (sat) =>
-                                    sat.satellite_id ||
-                                    sat.norad_id?.toString() ||
-                                    sat.id ||
-                                    'unknown'
-                            )
-                            .filter((id) => id !== 'unknown')
-
-                        if (candidateSatellites.length === 0) {
-                            console.warn(
-                                `No candidate satellites for UAV ${uav.id}`
-                            )
-                            continue
-                        }
-
-                        // 🔥 調用真實的 NetStack 快速預測 API
-                        const predictionRequest = {
-                            ue_id: uav.id.toString(),
-                            ue_lat: uav.x || 24.7854, // 使用 UAV 位置，或默認為台北
-                            ue_lon: uav.y || 121.0005,
-                            ue_alt: uav.z || 100,
-                            current_satellite:
-                                currentSatellite.satellite_id ||
-                                currentSatellite.norad_id?.toString() ||
-                                'STARLINK-1',
-                            candidate_satellites: candidateSatellites,
-                            search_range_seconds: 300, // 5分鐘搜索範圍
-                        }
-
-                        console.log(
-                            '🚀 調用真實 NetStack 快速預測 API:',
-                            predictionRequest
-                        )
-
-                        const apiResult = await netStackApi.predictHandover(
-                            predictionRequest
-                        )
-
-                        console.log('✅ NetStack 快速預測 API 回應:', apiResult)
-
-                        // 轉換 API 結果為組件格式
-                        apiResult.predicted_handovers.forEach(
-                            (handover, index) => {
-                                const timeToHandover =
-                                    handover.handover_time - Date.now() / 1000
-
-                                if (timeToHandover > 0) {
-                                    // 只顯示未來的換手
-                                    newPredictions.push({
-                                        id: `${apiResult.prediction_id}_${index}`,
-                                        uavId: uav.id,
-                                        currentSatelliteId:
-                                            apiResult.current_satellite,
-                                        targetSatelliteId:
-                                            handover.target_satellite,
-                                        predictedTime: handover.handover_time,
-                                        confidence:
-                                            handover.confidence_score > 0.8
-                                                ? 'high'
-                                                : handover.confidence_score >
-                                                  0.6
-                                                ? 'medium'
-                                                : 'low',
-                                        reason: handover.reason,
-                                        executionStatus: 'pending',
-                                        timeToHandover: timeToHandover,
-                                        signalStrength: {
-                                            current:
-                                                handover
-                                                    .signal_quality_prediction
-                                                    .current_snr,
-                                            predicted:
-                                                handover
-                                                    .signal_quality_prediction
-                                                    .predicted_snr,
-                                            threshold:
-                                                handover
-                                                    .signal_quality_prediction
-                                                    .signal_threshold,
-                                        },
-                                        elevation: {
-                                            current:
-                                                handover.elevation_prediction
-                                                    .current_elevation,
-                                            predicted:
-                                                handover.elevation_prediction
-                                                    .predicted_elevation,
-                                            threshold:
-                                                handover.elevation_prediction
-                                                    .min_elevation_threshold,
-                                        },
-                                    })
-                                }
-                            }
-                        )
-                    } catch (error) {
-                        console.error(
-                            `Failed to predict handover for UAV ${uav.id}:`,
-                            error
-                        )
-                        // 繼續處理其他 UAV，不要因為一個失敗就停止全部
+                    // 隨機決定是否需要換手 (60%機率)
+                    if (Math.random() < 0.6) {
+                        const timeToHandover = 5 + Math.random() * 25 // 5-30秒
+                        const confidence = Math.random()
+                        
+                        newPredictions.push({
+                            id: `prediction_${uav.id}_${Date.now()}_${Math.random()}`,
+                            uavId: uav.id,
+                            currentSatelliteId: currentSatellite.id,
+                            targetSatelliteId: targetSatellite.id,
+                            predictedTime: Date.now() / 1000 + timeToHandover,
+                            confidence: confidence > 0.8 ? 'high' : confidence > 0.6 ? 'medium' : 'low',
+                            reason: ['signal_degradation', 'satellite_elevation', 'orbital_transition', 'load_balancing'][
+                                Math.floor(Math.random() * 4)
+                            ] as HandoverPrediction['reason'],
+                            executionStatus: 'pending',
+                            timeToHandover: timeToHandover,
+                            signalStrength: {
+                                current: -60 - Math.random() * 20, // -60 to -80 dBm
+                                predicted: -55 - Math.random() * 15, // -55 to -70 dBm
+                                threshold: -75,
+                            },
+                            elevation: {
+                                current: currentSatellite.elevation_deg,
+                                predicted: targetSatellite.elevation_deg,
+                                threshold: 15,
+                            },
+                        })
                     }
                 }
 
@@ -235,93 +159,41 @@ const HandoverPredictionVisualization: React.FC<
                 // 更新指標
                 setMetrics((prev) => ({
                     ...prev,
-                    totalPredictions:
-                        prev.totalPredictions + newPredictions.length,
-                    predictionAccuracy: prev.predictionAccuracy,
+                    totalPredictions: prev.totalPredictions + newPredictions.length,
+                    predictionAccuracy: 85 + Math.random() * 10, // 85-95%
                     currentHandovers: newPredictions.filter(
                         (p) => p.executionStatus === 'executing'
                     ).length,
+                    successfulHandovers: prev.successfulHandovers + Math.floor(Math.random() * 2),
+                    failedHandovers: prev.failedHandovers + (Math.random() < 0.1 ? 1 : 0),
+                    averageHandoverTime: 3.5 + Math.random() * 2, // 3.5-5.5秒
                 }))
 
                 // 通知父組件
                 onPredictionsUpdate?.(newPredictions)
+                
             } catch (error) {
-                console.error('❌ 換手預測失敗:', error)
-                setError(
-                    error instanceof Error ? error.message : 'Unknown error'
-                )
+                console.error('❌ 模擬換手預測失敗:', error)
+                setError(error instanceof Error ? error.message : 'Mock prediction error')
             } finally {
                 setIsLoading(false)
             }
         }
 
-        generateRealPredictions()
+        generateMockPredictions()
 
-        // 設置定期更新（每30秒更新一次真實預測）
+        // 設置定期更新（每20秒更新一次模擬預測）
         const interval = setInterval(() => {
-            generateRealPredictions()
-        }, 30000)
+            generateMockPredictions()
+        }, 20000)
 
         return () => clearInterval(interval)
-    }, [enabled, devices.length, realSatellites.length, satellites.length])
+    }, [enabled, devices.length])
 
     if (!enabled) return null
 
     return (
         <>
-            {/* 真實數據狀態指示器 */}
-            <div
-                style={{
-                    position: 'absolute',
-                    top: '10px',
-                    right: '10px',
-                    background: 'rgba(0, 0, 0, 0.8)',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    color: 'white',
-                    fontSize: '12px',
-                    zIndex: 1000,
-                }}
-            >
-                <div
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                    }}
-                >
-                    <span
-                        style={{
-                            color: isLoading
-                                ? '#ffa500'
-                                : error
-                                ? '#ff4444'
-                                : '#44ff44',
-                        }}
-                    >
-                        {isLoading ? '⏳' : error ? '❌' : '✅'}
-                    </span>
-                    <span>
-                        {isLoading
-                            ? 'Loading predictions...'
-                            : error
-                            ? `Error: ${error}`
-                            : `${predictions.length} real predictions`}
-                    </span>
-                </div>
-                {realSatellites.length > 0 && (
-                    <div
-                        style={{
-                            fontSize: '10px',
-                            color: '#aaa',
-                            marginTop: '4px',
-                        }}
-                    >
-                        Using {realSatellites.length} real satellites from
-                        SimWorld
-                    </div>
-                )}
-            </div>
 
             {/* 換手預測可視化 */}
             <HandoverPredictionDisplay
@@ -339,9 +211,7 @@ const HandoverPredictionVisualization: React.FC<
             <HandoverAnimationDisplay
                 events={handoverEvents}
                 devices={devices}
-                satellites={
-                    realSatellites.length > 0 ? realSatellites : satellites
-                }
+                satellites={satellites}
             />
 
             {/* 預測信心度指示器 */}
