@@ -783,9 +783,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                                 </div>
                                                 <input
                                                     type="range"
-                                                    min="5"
+                                                    min="1"
                                                     max="30"
-                                                    step="5"
+                                                    step="1"
                                                     value={
                                                         satelliteSpeedMultiplier
                                                     }
@@ -800,7 +800,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                                     className="speed-slider"
                                                 />
                                                 <div className="speed-labels">
-                                                    <span>5秒</span>
+                                                    <span>1秒</span>
                                                     <span>穩定期持續時間</span>
                                                     <span>30秒</span>
                                                 </div>
@@ -812,27 +812,27 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                                     快速設定:
                                                 </div>
                                                 <div className="speed-preset-buttons">
-                                                    {[5, 10, 15, 20, 30].map(
-                                                        (duration) => (
-                                                            <button
-                                                                key={duration}
-                                                                className={`speed-preset-btn ${
-                                                                    satelliteSpeedMultiplier ===
+                                                    {[
+                                                        1, 3, 5, 10, 15, 20, 30,
+                                                    ].map((duration) => (
+                                                        <button
+                                                            key={duration}
+                                                            className={`speed-preset-btn ${
+                                                                satelliteSpeedMultiplier ===
+                                                                duration
+                                                                    ? 'active'
+                                                                    : ''
+                                                            }`}
+                                                            onClick={() =>
+                                                                onSatelliteSpeedChange &&
+                                                                onSatelliteSpeedChange(
                                                                     duration
-                                                                        ? 'active'
-                                                                        : ''
-                                                                }`}
-                                                                onClick={() =>
-                                                                    onSatelliteSpeedChange &&
-                                                                    onSatelliteSpeedChange(
-                                                                        duration
-                                                                    )
-                                                                }
-                                                            >
-                                                                {duration}秒
-                                                            </button>
-                                                        )
-                                                    )}
+                                                                )
+                                                            }
+                                                        >
+                                                            {duration}秒
+                                                        </button>
+                                                    ))}
                                                 </div>
                                             </div>
                                         </div>
