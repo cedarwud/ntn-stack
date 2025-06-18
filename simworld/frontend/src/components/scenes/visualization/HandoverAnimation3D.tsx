@@ -944,17 +944,25 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     const onHandoverStateUpdateRef = useRef(onHandoverStateUpdate)
     onHandoverStateUpdateRef.current = onHandoverStateUpdate
 
+    // 使用穩定的引用避免無限循環
+    const stableStatusInfoRef = useRef(statusInfo)
+    const stableHandoverStateRef = useRef(handoverState)
+    
     useEffect(() => {
-        if (enabled && onStatusUpdateRef.current) {
+        const statusChanged = JSON.stringify(stableStatusInfoRef.current) !== JSON.stringify(statusInfo)
+        if (enabled && onStatusUpdateRef.current && statusChanged) {
+            stableStatusInfoRef.current = statusInfo
             onStatusUpdateRef.current(statusInfo)
         }
-    }, [statusInfo, enabled]) // 監聽statusInfo變化
+    }, [statusInfo, enabled])
 
     useEffect(() => {
-        if (enabled && onHandoverStateUpdateRef.current) {
+        const stateChanged = JSON.stringify(stableHandoverStateRef.current) !== JSON.stringify(handoverState)
+        if (enabled && onHandoverStateUpdateRef.current && stateChanged) {
+            stableHandoverStateRef.current = handoverState
             onHandoverStateUpdateRef.current(handoverState)
         }
-    }, [handoverState, enabled]) // 監聽handoverState變化
+    }, [handoverState, enabled])
 
     // 🔗 渲染連接線（支援雙線和動畫效果）
     const renderConnections = () => {

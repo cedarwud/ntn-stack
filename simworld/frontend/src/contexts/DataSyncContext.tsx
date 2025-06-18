@@ -3,7 +3,7 @@
  * 建立 NetStack ↔ SimWorld ↔ Frontend 三層數據流
  */
 
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react'
 import { netStackApi, CoreSyncStatus } from '../services/netstack-api'
 import { simWorldApi, SatellitePosition, useVisibleSatellites } from '../services/simworld-api'
 
@@ -324,19 +324,26 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [state.netstack.isConnected, state.simworld.isConnected, getDataSourceStatus])
 
-  // 監控同步狀態並記錄日誌
+  // 監控同步狀態並記錄日誌（減少日誌頻率）
+  const lastLogTimeRef = useRef(0)
   useEffect(() => {
-    if (state.sync.isActive) {
-      console.log('🔄 開始數據同步...')
-    } else {
-      const { overall } = getDataSourceStatus()
-      console.log(`✅ 數據同步完成 - 狀態: ${overall}, 一致性: ${state.sync.dataConsistency}`)
-      
-      if (state.sync.syncErrors.length > 0) {
-        console.warn('⚠️ 同步錯誤:', state.sync.syncErrors.slice(-3))
+    const now = Date.now()
+    const timeSinceLastLog = now - lastLogTimeRef.current
+    
+    // 只在有錯誤時或每10秒記錄一次
+    if (state.sync.syncErrors.length > 0 || timeSinceLastLog > 10000) {
+      if (state.sync.isActive) {
+        // 移除重複的同步開始日誌
+      } else {
+        const { overall } = getDataSourceStatus()
+        // 只在狀態變化或有錯誤時記錄
+        if (state.sync.syncErrors.length > 0) {
+          console.warn('⚠️ 同步錯誤:', state.sync.syncErrors.slice(-3))
+        }
+        lastLogTimeRef.current = now
       }
     }
-  }, [state.sync.isActive, state.sync.dataConsistency, getDataSourceStatus])
+  }, [state.sync.isActive, state.sync.dataConsistency, state.sync.syncErrors.length, getDataSourceStatus])
 
   return (
     <DataSyncContext.Provider value={{
