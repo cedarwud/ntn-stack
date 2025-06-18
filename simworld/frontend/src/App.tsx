@@ -51,6 +51,7 @@ function App({ activeView }: AppProps) {
     
     // 衛星動畫控制狀態（動畫永遠開啟，只保留軌跡線控制）
     const [handoverStableDuration, setHandoverStableDuration] = useState<number>(5) // 預設5秒穩定期
+    const [handoverMode, setHandoverMode] = useState<'demo' | 'real'>('demo') // 換手模式控制
     const [showOrbitTracks, setShowOrbitTracks] = useState<boolean>(true) // 預設顯示軌跡線
     
     // 🚀 演算法與視覺化對接狀態
@@ -338,7 +339,7 @@ function App({ activeView }: AppProps) {
                         satelliteEnabled={satelliteEnabled}
                         satelliteSpeedMultiplier={1} // 固定為1x
                         handoverStableDuration={handoverStableDuration}
-                        showOrbitTracks={showOrbitTracks}
+                        handoverMode={handoverMode}
                         // 🚀 演算法結果對接
                         algorithmResults={algorithmResults}
                     />
@@ -512,8 +513,8 @@ function App({ activeView }: AppProps) {
                                     // 衛星動畫控制 props（動畫永遠開啟）
                                     satelliteSpeedMultiplier={handoverStableDuration}
                                     onSatelliteSpeedChange={setHandoverStableDuration}
-                                    showOrbitTracks={showOrbitTracks}
-                                    onShowOrbitTracksChange={setShowOrbitTracks}
+                                    handoverMode={handoverMode}
+                                    onHandoverModeChange={setHandoverMode}
                                 />
                             </ErrorBoundary>
                         }

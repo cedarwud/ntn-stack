@@ -70,13 +70,13 @@ interface SidebarProps {
     onPredictionAccuracyDashboardChange?: (enabled: boolean) => void
     coreNetworkSyncEnabled?: boolean
     onCoreNetworkSyncChange?: (enabled: boolean) => void
-    
+
     // Stage 3 功能開關
     realtimePerformanceMonitorEnabled?: boolean
     onRealtimePerformanceMonitorChange?: (enabled: boolean) => void
     scenarioTestEnvironmentEnabled?: boolean
     onScenarioTestEnvironmentChange?: (enabled: boolean) => void
-    
+
     // 階段七功能開關
     e2ePerformanceMonitoringEnabled?: boolean
     onE2EPerformanceMonitoringChange?: (enabled: boolean) => void
@@ -86,17 +86,21 @@ interface SidebarProps {
     onPerformanceTrendAnalysisChange?: (enabled: boolean) => void
     automatedReportGenerationEnabled?: boolean
     onAutomatedReportGenerationChange?: (enabled: boolean) => void
-    
+
     // 階段八功能開關
     predictiveMaintenanceEnabled?: boolean
     onPredictiveMaintenanceChange?: (enabled: boolean) => void
     intelligentRecommendationEnabled?: boolean
     onIntelligentRecommendationChange?: (enabled: boolean) => void
-    
+
     // 衛星動畫控制（動畫永遠開啟）
     satelliteSpeedMultiplier?: number
     onSatelliteSpeedChange?: (speed: number) => void
-    
+
+    // 換手模式控制
+    handoverMode?: 'demo' | 'real'
+    onHandoverModeChange?: (mode: 'demo' | 'real') => void
+
     // 3D 動畫狀態更新回調
     onHandoverStateChange?: (state: any) => void
     onCurrentConnectionChange?: (connection: any) => void
@@ -116,7 +120,7 @@ interface SidebarProps {
 interface FeatureToggle {
     id: string
     label: string
-    category: 'basic' | 'handover' | 'quality'
+    category: 'uav' | 'satellite' | 'handover_mgr' | 'quality'
     enabled: boolean
     onToggle: (enabled: boolean) => void
     icon?: string
@@ -249,6 +253,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     // 衛星動畫控制 props（動畫永遠開啟）
     satelliteSpeedMultiplier = 5,
     onSatelliteSpeedChange,
+    // 換手模式控制 props
+    handoverMode = 'demo',
+    onHandoverModeChange,
 }) => {
     // 現有狀態
     const [orientationInputs, setOrientationInputs] = useState<{
@@ -262,7 +269,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 
     // 擴展的UI狀態
     const [showControlPanel, setShowControlPanel] = useState(true)
-    const [activeCategory, setActiveCategory] = useState<string>('handover') // 默認顯示換手機制
+    const [activeCategory, setActiveCategory] = useState<string>('uav') // 默認顯示UAV控制
     const [showTempDevices, setShowTempDevices] = useState(true)
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
     const [showDesiredDevices, setShowDesiredDevices] = useState(false)
@@ -273,9 +280,12 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     const [skyfieldSatellites, setSkyfieldSatellites] = useState<
         VisibleSatelliteInfo[]
     >([])
-    const [showSkyfieldSection, setShowSkyfieldSection] = useState<boolean>(false)
+    const [showSkyfieldSection, setShowSkyfieldSection] =
+        useState<boolean>(false)
     const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false)
-    const satelliteRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const satelliteRefreshIntervalRef = useRef<ReturnType<
+        typeof setInterval
+    > | null>(null)
 
     // 處理衛星星座顯示開關，連帶控制衛星-UAV 連接
     const handleSatelliteEnabledToggle = (enabled: boolean) => {
@@ -283,7 +293,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         if (onSatelliteEnabledChange) {
             onSatelliteEnabledChange(enabled)
         }
-        
+
         // 如果關閉衛星顯示，同時關閉衛星-UAV 連接
         if (!enabled && satelliteUavConnectionEnabled) {
             if (onSatelliteUavConnectionChange) {
@@ -291,7 +301,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             }
         }
     }
-    
+
     // 處理衛星-UAV 連接開關，連動開啟衛星顯示
     const handleSatelliteUavConnectionToggle = (enabled: boolean) => {
         if (enabled && !satelliteEnabled) {
@@ -308,73 +318,75 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 
     // 精簡的核心功能開關配置 - 根據 paper.md 優化為 8 個核心功能
     const featureToggles: FeatureToggle[] = [
-        // 基礎控制 (4個)
+        // UAV 控制 (4個)
         {
             id: 'auto',
             label: '自動飛行模式',
-            category: 'basic',
+            category: 'uav',
             enabled: auto,
             onToggle: onAutoChange,
             icon: '🤖',
-            description: 'UAV 自動飛行模式'
+            description: 'UAV 自動飛行模式',
         },
         {
             id: 'uavAnimation',
             label: 'UAV 飛行動畫',
-            category: 'basic',
+            category: 'uav',
             enabled: uavAnimation,
             onToggle: onUavAnimationChange,
             icon: '🎬',
-            description: 'UAV 飛行動畫效果'
+            description: 'UAV 飛行動畫效果',
         },
+
+        // 衛星控制 (4個)
         {
             id: 'satelliteEnabled',
             label: '衛星星座顯示',
-            category: 'basic',
+            category: 'satellite',
             enabled: satelliteEnabled,
             onToggle: handleSatelliteEnabledToggle,
             icon: '🛰️',
-            description: 'LEO 衛星星座顯示'
+            description: 'LEO 衛星星座顯示',
         },
         {
             id: 'satelliteUAVConnection',
             label: '衛星-UAV 連接',
-            category: 'basic',
+            category: 'satellite',
             enabled: satelliteUavConnectionEnabled && satelliteEnabled, // 只有衛星顯示開啟時才能啟用
             onToggle: handleSatelliteUavConnectionToggle,
             icon: '🔗',
-            description: '衛星與 UAV 連接狀態監控（需先開啟衛星顯示）'
+            description: '衛星與 UAV 連接狀態監控（需先開啟衛星顯示）',
         },
-        
-        // 換手核心功能 (3個)
+
+        // 換手管理 (3個)
         {
             id: 'handoverPrediction',
             label: '換手預測顯示',
-            category: 'handover',
+            category: 'handover_mgr',
             enabled: handoverPredictionEnabled,
             onToggle: onHandoverPredictionChange || (() => {}),
             icon: '🔮',
-            description: '衛星換手預測與時間軸分析'
+            description: '衛星換手預測與時間軸分析',
         },
         {
             id: 'handoverDecision',
             label: '換手決策可視化',
-            category: 'handover',
+            category: 'handover_mgr',
             enabled: handoverDecisionVisualizationEnabled,
             onToggle: onHandoverDecisionVisualizationChange || (() => {}),
             icon: '🎯',
-            description: '換手決策過程 3D 可視化（含預測路徑）'
+            description: '換手決策過程 3D 可視化（含預測路徑）',
         },
         {
             id: 'handoverPerformance',
             label: '換手性能監控',
-            category: 'handover',
+            category: 'handover_mgr',
             enabled: handoverPerformanceDashboardEnabled,
             onToggle: onHandoverPerformanceDashboardChange || (() => {}),
             icon: '📊',
-            description: '換手性能統計與分析（含預測精度）'
+            description: '換手性能統計與分析（含預測精度）',
         },
-        
+
         // 通信品質 (2個)
         {
             id: 'sinrHeatmap',
@@ -383,7 +395,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             enabled: sinrHeatmapEnabled,
             onToggle: onSinrHeatmapChange || (() => {}),
             icon: '🔥',
-            description: '地面 SINR 信號強度熱力圖'
+            description: '地面 SINR 信號強度熱力圖',
         },
         {
             id: 'interferenceVisualization',
@@ -392,37 +404,36 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             enabled: interferenceVisualizationEnabled,
             onToggle: onInterferenceVisualizationChange || (() => {}),
             icon: '📡',
-            description: '3D 干擾源範圍和影響可視化'
+            description: '3D 干擾源範圍和影響可視化',
         },
-        
-        
+
         // 手動控制面板會根據自動飛行狀態動態顯示
         // 隱藏的非核心功能：predictionAccuracyDashboard, predictionPath3D, coreNetworkSync 等 17 個功能
     ]
-    
+
     // 動態添加手動控制開關（當自動飛行關閉時）
     if (!auto) {
-        featureToggles.splice(3, 0, {
+        featureToggles.splice(2, 0, {
             id: 'manualControl',
             label: '手動控制面板',
-            category: 'basic',
+            category: 'uav',
             enabled: manualControlEnabled,
             onToggle: onManualControlEnabledChange || (() => {}),
             icon: '🕹️',
-            description: '顯示 UAV 手動控制面板'
+            description: '顯示 UAV 手動控制面板',
         })
     }
 
-    // 精簡的類別配置 - 只保留 3 個核心類別
+    // 精簡的類別配置 - 更新為 4 個分頁
     const categories = [
-        { id: 'basic', label: '基礎控制', icon: '⚙️' },
-        { id: 'handover', label: '換手機制', icon: '🔄' },
-        { id: 'quality', label: '通信品質', icon: '📶' }
+        { id: 'uav', label: 'UAV 控制', icon: '🚁' },
+        { id: 'satellite', label: '衛星控制', icon: '🛰️' },
+        { id: 'handover_mgr', label: '換手管理', icon: '🔄' },
+        { id: 'quality', label: '通信品質', icon: '📶' },
     ]
 
     // 靜態衛星數據管理：完全避免重新載入和重新渲染
     const satelliteDataInitialized = useRef(false)
-    
 
     useEffect(() => {
         // 只在首次啟用衛星時載入一次，之後完全依賴內在軌道運動
@@ -439,13 +450,15 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 
             // 如果已經初始化過，就不再重新載入
             if (satelliteDataInitialized.current) {
-                console.log('🛰️ 衛星數據已初始化，使用內在軌道運動，避免重新載入')
+                console.log(
+                    '🛰️ 衛星數據已初始化，使用內在軌道運動，避免重新載入'
+                )
                 return
             }
 
             console.log('🛰️ 首次初始化衛星數據...')
             setLoadingSatellites(true)
-            
+
             const satellites = await fetchVisibleSatellites(
                 SATELLITE_CONFIG.VISIBLE_COUNT,
                 SATELLITE_CONFIG.MIN_ELEVATION
@@ -453,7 +466,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 
             let sortedSatellites = [...satellites]
             sortedSatellites.sort((a, b) => b.elevation_deg - a.elevation_deg)
-            
+
             setSkyfieldSatellites(sortedSatellites)
 
             if (onSatelliteDataUpdate) {
@@ -498,15 +511,18 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 
             if (existingInput) {
                 newInputs[device.id] = {
-                    x: existingInput.x !== '0' && existingInput.x !== backendX
-                        ? existingInput.x
-                        : backendX,
-                    y: existingInput.y !== '0' && existingInput.y !== backendY
-                        ? existingInput.y
-                        : backendY,
-                    z: existingInput.z !== '0' && existingInput.z !== backendZ
-                        ? existingInput.z
-                        : backendZ,
+                    x:
+                        existingInput.x !== '0' && existingInput.x !== backendX
+                            ? existingInput.x
+                            : backendX,
+                    y:
+                        existingInput.y !== '0' && existingInput.y !== backendY
+                            ? existingInput.y
+                            : backendY,
+                    z:
+                        existingInput.z !== '0' && existingInput.z !== backendZ
+                            ? existingInput.z
+                            : backendZ,
                 }
             } else {
                 newInputs[device.id] = {
@@ -619,7 +635,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     // 渲染功能開關
     const renderFeatureToggles = () => {
         const currentToggles = featureToggles.filter(
-            toggle => toggle.category === activeCategory && !toggle.hidden
+            (toggle) => toggle.category === activeCategory && !toggle.hidden
         )
 
         return (
@@ -627,7 +643,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                 {currentToggles.map((toggle) => (
                     <div
                         key={toggle.id}
-                        className={`feature-toggle ${toggle.enabled ? 'enabled' : 'disabled'}`}
+                        className={`feature-toggle ${
+                            toggle.enabled ? 'enabled' : 'disabled'
+                        }`}
                         onClick={() => toggle.onToggle(!toggle.enabled)}
                         title={toggle.description}
                     >
@@ -635,7 +653,11 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                             <span className="toggle-icon">{toggle.icon}</span>
                             <span className="toggle-label">{toggle.label}</span>
                         </div>
-                        <div className={`toggle-switch ${toggle.enabled ? 'on' : 'off'}`}>
+                        <div
+                            className={`toggle-switch ${
+                                toggle.enabled ? 'on' : 'off'
+                            }`}
+                        >
                             <div className="toggle-slider"></div>
                         </div>
                     </div>
@@ -647,19 +669,25 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     return (
         <div className="enhanced-sidebar-container">
             <SidebarStarfield />
-            
+
             {activeComponent !== '2DRT' && (
                 <>
                     {/* 功能控制面板 */}
                     <div className="control-panel">
                         <div
                             className="control-panel-header"
-                            onClick={() => setShowControlPanel(!showControlPanel)}
+                            onClick={() =>
+                                setShowControlPanel(!showControlPanel)
+                            }
                         >
                             <span className="header-title">
                                 🎛️ LEO 衛星換手機制控制
                             </span>
-                            <span className={`header-arrow ${showControlPanel ? 'expanded' : ''}`}>
+                            <span
+                                className={`header-arrow ${
+                                    showControlPanel ? 'expanded' : ''
+                                }`}
+                            >
                                 ▼
                             </span>
                         </div>
@@ -672,13 +700,21 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                         <button
                                             key={category.id}
                                             className={`category-tab ${
-                                                activeCategory === category.id ? 'active' : ''
+                                                activeCategory === category.id
+                                                    ? 'active'
+                                                    : ''
                                             }`}
-                                            onClick={() => setActiveCategory(category.id)}
+                                            onClick={() =>
+                                                setActiveCategory(category.id)
+                                            }
                                             title={category.label}
                                         >
-                                            <span className="tab-icon">{category.icon}</span>
-                                            <span className="tab-label">{category.label}</span>
+                                            <span className="tab-icon">
+                                                {category.icon}
+                                            </span>
+                                            <span className="tab-label">
+                                                {category.label}
+                                            </span>
                                         </button>
                                     ))}
                                 </div>
@@ -687,97 +723,326 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                 {renderFeatureToggles()}
 
                                 {/* 衛星動畫速度控制 - 當衛星啟用時顯示 */}
-                                {activeCategory === 'basic' && satelliteEnabled && (
-                                    <div className="satellite-animation-controls">
-                                        <div className="control-section-title">🔄 換手控制</div>
-                                        
-                                        {/* 換手穩定期時間控制 */}
-                                        <div className="control-item">
-                                            <div className="control-label">
-                                                換手穩定期: {satelliteSpeedMultiplier}秒
+                                {activeCategory === 'satellite' &&
+                                    satelliteEnabled && (
+                                        <div className="satellite-animation-controls">
+                                            <div className="control-section-title">
+                                                🔄 換手控制
                                             </div>
-                                            <input
-                                                type="range"
-                                                min="5"
-                                                max="30"
-                                                step="5"
-                                                value={Math.min(satelliteSpeedMultiplier, 30)}
-                                                onChange={(e) => onSatelliteSpeedChange && onSatelliteSpeedChange(Number(e.target.value))}
-                                                className="speed-slider"
-                                            />
-                                            <div className="speed-labels">
-                                                <span>5秒</span>
-                                                <span>穩定期持續時間</span>
-                                                <span>30秒</span>
-                                            </div>
-                                        </div>
 
-                                        {/* 穩定期預設時間按鈕 */}
-                                        <div className="control-item">
-                                            <div className="control-label">快速設定:</div>
-                                            <div className="speed-preset-buttons">
-                                                {[5, 10, 15, 20, 30].map(duration => (
+                                            {/* 換手模式切換 */}
+                                            <div className="control-item">
+                                                <div className="handover-mode-switch">
                                                     <button
-                                                        key={duration}
-                                                        className={`speed-preset-btn ${satelliteSpeedMultiplier === duration ? 'active' : ''}`}
-                                                        onClick={() => onSatelliteSpeedChange && onSatelliteSpeedChange(duration)}
+                                                        className={`mode-btn ${
+                                                            handoverMode ===
+                                                            'demo'
+                                                                ? 'active'
+                                                                : ''
+                                                        }`}
+                                                        onClick={() =>
+                                                            onHandoverModeChange &&
+                                                            onHandoverModeChange(
+                                                                'demo'
+                                                            )
+                                                        }
                                                     >
-                                                        {duration}秒
+                                                        🎭 演示模式
                                                     </button>
-                                                ))}
+                                                    <button
+                                                        className={`mode-btn ${
+                                                            handoverMode ===
+                                                            'real'
+                                                                ? 'active'
+                                                                : ''
+                                                        }`}
+                                                        onClick={() =>
+                                                            onHandoverModeChange &&
+                                                            onHandoverModeChange(
+                                                                'real'
+                                                            )
+                                                        }
+                                                    >
+                                                        🔗 真實模式
+                                                    </button>
+                                                </div>
+                                                <div className="mode-description">
+                                                    {handoverMode === 'demo'
+                                                        ? '20秒演示週期，適合展示和理解'
+                                                        : '快速換手週期，對接後端真實數據'}
+                                                </div>
+                                            </div>
+
+                                            {/* 換手穩定期時間控制 - 根據模式調整範圍 */}
+                                            <div className="control-item">
+                                                <div className="control-label">
+                                                    換手穩定期:{' '}
+                                                    {satelliteSpeedMultiplier}秒
+                                                    {handoverMode === 'real' &&
+                                                        ' (真實模式)'}
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="5"
+                                                    max="30"
+                                                    step="5"
+                                                    value={
+                                                        satelliteSpeedMultiplier
+                                                    }
+                                                    onChange={(e) =>
+                                                        onSatelliteSpeedChange &&
+                                                        onSatelliteSpeedChange(
+                                                            Number(
+                                                                e.target.value
+                                                            )
+                                                        )
+                                                    }
+                                                    className="speed-slider"
+                                                />
+                                                <div className="speed-labels">
+                                                    <span>5秒</span>
+                                                    <span>穩定期持續時間</span>
+                                                    <span>30秒</span>
+                                                </div>
+                                            </div>
+
+                                            {/* 穩定期預設時間按鈕 - 根據模式調整選項 */}
+                                            <div className="control-item">
+                                                <div className="control-label">
+                                                    快速設定:
+                                                </div>
+                                                <div className="speed-preset-buttons">
+                                                    {[5, 10, 15, 20, 30].map(
+                                                        (duration) => (
+                                                            <button
+                                                                key={duration}
+                                                                className={`speed-preset-btn ${
+                                                                    satelliteSpeedMultiplier ===
+                                                                    duration
+                                                                        ? 'active'
+                                                                        : ''
+                                                                }`}
+                                                                onClick={() =>
+                                                                    onSatelliteSpeedChange &&
+                                                                    onSatelliteSpeedChange(
+                                                                        duration
+                                                                    )
+                                                                }
+                                                            >
+                                                                {duration}秒
+                                                            </button>
+                                                        )
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-
-                                    </div>
-                                )}
+                                    )}
 
                                 {/* 🚀 換手管理器 - 當衛星連接功能啟用時在背景運行，UI 僅在換手類別中顯示 */}
-                                {satelliteEnabled && satelliteUavConnectionEnabled && (
-                                    <HandoverManager
-                                        satellites={skyfieldSatellites}
-                                        selectedUEId={selectedReceiverIds[0]}
-                                        isEnabled={true}
-                                        mockMode={true}
-                                        speedMultiplier={satelliteSpeedMultiplier}
-                                        onHandoverStateChange={onHandoverStateChange}
-                                        onCurrentConnectionChange={onCurrentConnectionChange}
-                                        onPredictedConnectionChange={onPredictedConnectionChange}
-                                        onTransitionChange={onTransitionChange}
-                                        onAlgorithmResults={onAlgorithmResults}
-                                        // 只在換手類別中顯示 UI，但邏輯始終運行
-                                        hideUI={activeCategory !== 'handover'}
-                                    />
-                                )}
-
+                                {satelliteEnabled &&
+                                    satelliteUavConnectionEnabled && (
+                                        <HandoverManager
+                                            satellites={skyfieldSatellites}
+                                            selectedUEId={
+                                                selectedReceiverIds[0]
+                                            }
+                                            isEnabled={true}
+                                            mockMode={true}
+                                            speedMultiplier={
+                                                satelliteSpeedMultiplier
+                                            }
+                                            handoverMode={handoverMode}
+                                            onHandoverStateChange={
+                                                onHandoverStateChange
+                                            }
+                                            onCurrentConnectionChange={
+                                                onCurrentConnectionChange
+                                            }
+                                            onPredictedConnectionChange={
+                                                onPredictedConnectionChange
+                                            }
+                                            onTransitionChange={
+                                                onTransitionChange
+                                            }
+                                            onAlgorithmResults={
+                                                onAlgorithmResults
+                                            }
+                                            // 只在換手類別中顯示 UI，但邏輯始終運行
+                                            hideUI={
+                                                activeCategory !==
+                                                'handover_mgr'
+                                            }
+                                        />
+                                    )}
 
                                 {/* 手動控制面板 - 當自動飛行開啟時隱藏，且需要手動控制開關啟用 */}
                                 {!auto && manualControlEnabled && (
                                     <div className="manual-control-panel">
-                                        <div className="manual-control-title">🕹️ UAV 手動控制</div>
+                                        <div className="manual-control-title">
+                                            🕹️ UAV 手動控制
+                                        </div>
                                         <div className="manual-control-grid">
                                             {/* 第一排：↖ ↑ ↗ */}
                                             <div className="manual-row">
-                                                <button onMouseDown={() => handleManualDown('left-up')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>↖</button>
-                                                <button onMouseDown={() => handleManualDown('descend')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>↑</button>
-                                                <button onMouseDown={() => handleManualDown('right-up')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>↗</button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown(
+                                                            'left-up'
+                                                        )
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    ↖
+                                                </button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown(
+                                                            'descend'
+                                                        )
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    ↑
+                                                </button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown(
+                                                            'right-up'
+                                                        )
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    ↗
+                                                </button>
                                             </div>
                                             {/* 第二排：← ⟲ ⟳ → */}
                                             <div className="manual-row">
-                                                <button onMouseDown={() => handleManualDown('left')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>←</button>
-                                                <button onMouseDown={() => handleManualDown('rotate-left')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>⟲</button>
-                                                <button onMouseDown={() => handleManualDown('rotate-right')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>⟳</button>
-                                                <button onMouseDown={() => handleManualDown('right')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>→</button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown('left')
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    ←
+                                                </button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown(
+                                                            'rotate-left'
+                                                        )
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    ⟲
+                                                </button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown(
+                                                            'rotate-right'
+                                                        )
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    ⟳
+                                                </button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown(
+                                                            'right'
+                                                        )
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    →
+                                                </button>
                                             </div>
                                             {/* 第三排：↙ ↓ ↘ */}
                                             <div className="manual-row">
-                                                <button onMouseDown={() => handleManualDown('left-down')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>↙</button>
-                                                <button onMouseDown={() => handleManualDown('ascend')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>↓</button>
-                                                <button onMouseDown={() => handleManualDown('right-down')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>↘</button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown(
+                                                            'left-down'
+                                                        )
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    ↙
+                                                </button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown(
+                                                            'ascend'
+                                                        )
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    ↓
+                                                </button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown(
+                                                            'right-down'
+                                                        )
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    ↘
+                                                </button>
                                             </div>
                                             {/* 升降排 */}
                                             <div className="manual-row">
-                                                <button onMouseDown={() => handleManualDown('up')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>升</button>
-                                                <button onMouseDown={() => handleManualDown('down')} onMouseUp={handleManualUp} onMouseLeave={handleManualUp}>降</button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown('up')
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    升
+                                                </button>
+                                                <button
+                                                    onMouseDown={() =>
+                                                        handleManualDown('down')
+                                                    }
+                                                    onMouseUp={handleManualUp}
+                                                    onMouseLeave={
+                                                        handleManualUp
+                                                    }
+                                                >
+                                                    降
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -786,335 +1051,548 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                         )}
                     </div>
 
-                    {/* UAV 選擇徽章 - 優化版 */}
-                    <div className="uav-selection-container">
-                        <div 
-                            className={`uav-selection-header ${showUavSelection ? 'expanded' : ''}`}
-                            onClick={() => setShowUavSelection(!showUavSelection)}
-                        >
-                            <span className="selection-title">🚁 UAV 接收器選擇</span>
-                            <span className="selection-count">
-                                {selectedReceiverIds.length} / {devices.filter(d => d.role === 'receiver' && d.id !== null).length}
-                            </span>
-                            <span className={`header-arrow ${showUavSelection ? 'expanded' : ''}`}>
-                                ▼
-                            </span>
+                    {/* UAV 選擇徽章 - 優化版 - 只在UAV控制分頁顯示 */}
+                    {activeCategory === 'uav' && (
+                        <div className="uav-selection-container">
+                            <div
+                                className={`uav-selection-header ${
+                                    showUavSelection ? 'expanded' : ''
+                                }`}
+                                onClick={() =>
+                                    setShowUavSelection(!showUavSelection)
+                                }
+                            >
+                                <span className="selection-title">
+                                    🚁 UAV 接收器選擇
+                                </span>
+                                <span className="selection-count">
+                                    {selectedReceiverIds.length} /{' '}
+                                    {
+                                        devices.filter(
+                                            (d) =>
+                                                d.role === 'receiver' &&
+                                                d.id !== null
+                                        ).length
+                                    }
+                                </span>
+                                <span
+                                    className={`header-arrow ${
+                                        showUavSelection ? 'expanded' : ''
+                                    }`}
+                                >
+                                    ▼
+                                </span>
+                            </div>
+                            {showUavSelection && (
+                                <>
+                                    <div className="uav-badges-grid">
+                                        {devices
+                                            .filter(
+                                                (device) =>
+                                                    device.name &&
+                                                    device.role ===
+                                                        'receiver' &&
+                                                    device.id !== null
+                                            )
+                                            .map((device) => {
+                                                const isSelected =
+                                                    selectedReceiverIds.includes(
+                                                        device.id as number
+                                                    )
+                                                // 設備狀態數據
+                                                const connectionStatus =
+                                                    device.active
+                                                        ? 'connected'
+                                                        : 'disconnected'
+                                                // 基於設備ID生成穩定的模擬數據
+                                                const deviceIdNum =
+                                                    typeof device.id ===
+                                                    'number'
+                                                        ? device.id
+                                                        : 0
+                                                const signalStrength =
+                                                    (deviceIdNum % 4) + 1 // 1-4 bars，基於ID固定
+                                                const batteryLevel = Math.max(
+                                                    20,
+                                                    100 -
+                                                        ((deviceIdNum * 7) % 80)
+                                                ) // 20-100%，基於ID固定
+
+                                                return (
+                                                    <div
+                                                        key={device.id}
+                                                        className={`enhanced-uav-badge ${
+                                                            isSelected
+                                                                ? 'selected'
+                                                                : ''
+                                                        } ${connectionStatus}`}
+                                                        onClick={() =>
+                                                            handleBadgeClick(
+                                                                device.id as number
+                                                            )
+                                                        }
+                                                        title={`點擊${
+                                                            isSelected
+                                                                ? '取消選擇'
+                                                                : '選擇'
+                                                        } ${device.name}`}
+                                                    >
+                                                        <div className="badge-header">
+                                                            <span className="device-name">
+                                                                {device.name}
+                                                            </span>
+                                                            <div className="status-indicators">
+                                                                <span
+                                                                    className={`connection-dot ${connectionStatus}`}
+                                                                ></span>
+                                                                <span className="signal-bars">
+                                                                    {Array.from(
+                                                                        {
+                                                                            length: 4,
+                                                                        },
+                                                                        (
+                                                                            _,
+                                                                            i
+                                                                        ) => (
+                                                                            <span
+                                                                                key={
+                                                                                    i
+                                                                                }
+                                                                                className={`signal-bar ${
+                                                                                    i <
+                                                                                    signalStrength
+                                                                                        ? 'active'
+                                                                                        : ''
+                                                                                }`}
+                                                                            ></span>
+                                                                        )
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="badge-info">
+                                                            <div className="info-item">
+                                                                <span className="info-label">
+                                                                    位置:
+                                                                </span>
+                                                                <span className="info-value">
+                                                                    (
+                                                                    {device.position_x !==
+                                                                    undefined
+                                                                        ? device.position_x.toFixed(
+                                                                              1
+                                                                          )
+                                                                        : '0.0'}
+                                                                    ,{' '}
+                                                                    {device.position_y !==
+                                                                    undefined
+                                                                        ? device.position_y.toFixed(
+                                                                              1
+                                                                          )
+                                                                        : '0.0'}
+                                                                    ,{' '}
+                                                                    {device.position_z !==
+                                                                    undefined
+                                                                        ? device.position_z.toFixed(
+                                                                              1
+                                                                          )
+                                                                        : '0.0'}
+                                                                    )
+                                                                </span>
+                                                            </div>
+                                                            <div className="info-item">
+                                                                <span className="info-label">
+                                                                    功率:
+                                                                </span>
+                                                                <span className="info-value">
+                                                                    {device.power_dbm?.toFixed(
+                                                                        1
+                                                                    ) ??
+                                                                        'N/A'}{' '}
+                                                                    dBm
+                                                                </span>
+                                                            </div>
+                                                            <div className="info-item">
+                                                                <span className="info-label">
+                                                                    電量:
+                                                                </span>
+                                                                <span
+                                                                    className={`battery-level ${
+                                                                        batteryLevel >
+                                                                        60
+                                                                            ? 'high'
+                                                                            : batteryLevel >
+                                                                              30
+                                                                            ? 'medium'
+                                                                            : 'low'
+                                                                    }`}
+                                                                >
+                                                                    {
+                                                                        batteryLevel
+                                                                    }
+                                                                    %
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {isSelected && (
+                                                            <div className="selection-indicator">
+                                                                <span className="checkmark">
+                                                                    ✓
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                    </div>
+                                    {selectedReceiverIds.length > 0 && (
+                                        <div className="selection-actions">
+                                            <button
+                                                className="action-btn clear-selection"
+                                                onClick={() =>
+                                                    onSelectedReceiversChange &&
+                                                    onSelectedReceiversChange(
+                                                        []
+                                                    )
+                                                }
+                                            >
+                                                清除選擇
+                                            </button>
+                                            <button
+                                                className="action-btn select-all"
+                                                onClick={() => {
+                                                    const allIds = devices
+                                                        .filter(
+                                                            (d) =>
+                                                                d.role ===
+                                                                    'receiver' &&
+                                                                d.id !== null
+                                                        )
+                                                        .map(
+                                                            (d) =>
+                                                                d.id as number
+                                                        )
+                                                    onSelectedReceiversChange &&
+                                                        onSelectedReceiversChange(
+                                                            allIds
+                                                        )
+                                                }}
+                                            >
+                                                全部選擇
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
-                        {showUavSelection && (
+                    )}
+                </>
+            )}
+
+            {/* 設備操作按鈕 - 只在UAV控制分頁顯示 */}
+            {activeCategory === 'uav' && (
+                <>
+                    <div className="device-actions">
+                        <button
+                            onClick={onAddDevice}
+                            className="action-btn add-btn"
+                        >
+                            ➕ 添加設備
+                        </button>
+                        <div className="action-group">
+                            <button
+                                onClick={onApply}
+                                disabled={
+                                    loading ||
+                                    apiStatus !== 'connected' ||
+                                    !hasTempDevices ||
+                                    auto
+                                }
+                                className="action-btn apply-btn"
+                            >
+                                ✅ 套用
+                            </button>
+                            <button
+                                onClick={onCancel}
+                                disabled={loading}
+                                className="action-btn cancel-btn"
+                            >
+                                ❌ 取消
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 設備列表 */}
+                    <div className="devices-list">
+                        {/* 新增設備區塊 */}
+                        {tempDevices.length > 0 && (
                             <>
-                                <div className="uav-badges-grid">
-                                    {devices
-                                        .filter(
-                                            (device) =>
-                                                device.name &&
-                                                device.role === 'receiver' &&
-                                                device.id !== null
+                                <h3
+                                    className={`section-header ${
+                                        showTempDevices ? 'expanded' : ''
+                                    }`}
+                                    onClick={() =>
+                                        setShowTempDevices(!showTempDevices)
+                                    }
+                                >
+                                    <span className="header-icon">➕</span>
+                                    <span className="header-title">
+                                        新增設備
+                                    </span>
+                                    <span className="header-count">
+                                        ({tempDevices.length})
+                                    </span>
+                                </h3>
+                                {showTempDevices &&
+                                    tempDevices.map((device) => (
+                                        <DeviceItem
+                                            key={device.id}
+                                            device={device}
+                                            orientationInput={
+                                                orientationInputs[
+                                                    device.id
+                                                ] || {
+                                                    x: '0',
+                                                    y: '0',
+                                                    z: '0',
+                                                }
+                                            }
+                                            onDeviceChange={onDeviceChange}
+                                            onDeleteDevice={onDeleteDevice}
+                                            onOrientationInputChange={
+                                                handleDeviceOrientationInputChange
+                                            }
+                                            onDeviceRoleChange={
+                                                handleDeviceRoleChange
+                                            }
+                                        />
+                                    ))}
+                            </>
+                        )}
+
+                        {/* 衛星資料區塊 */}
+                        {satelliteEnabled && (
+                            <>
+                                <h3
+                                    className={`section-header ${
+                                        showSkyfieldSection ? 'expanded' : ''
+                                    }`}
+                                    onClick={() =>
+                                        setShowSkyfieldSection(
+                                            !showSkyfieldSection
                                         )
-                                        .map((device) => {
-                                            const isSelected = selectedReceiverIds.includes(
-                                                device.id as number
-                                            )
-                                            // 設備狀態數據
-                                            const connectionStatus = device.active ? 'connected' : 'disconnected'
-                                            // 基於設備ID生成穩定的模擬數據
-                                            const deviceIdNum = typeof device.id === 'number' ? device.id : 0
-                                            const signalStrength = (deviceIdNum % 4) + 1 // 1-4 bars，基於ID固定
-                                            const batteryLevel = Math.max(20, 100 - (deviceIdNum * 7) % 80) // 20-100%，基於ID固定
-                                            
-                                            return (
+                                    }
+                                >
+                                    <span className="header-icon">🛰️</span>
+                                    <span className="header-title">
+                                        衛星 gNB
+                                    </span>
+                                    <span className="header-count">
+                                        (
+                                        {loadingSatellites
+                                            ? '...'
+                                            : skyfieldSatellites.length}
+                                        )
+                                    </span>
+                                </h3>
+                                {showSkyfieldSection && (
+                                    <div className="satellite-list">
+                                        {loadingSatellites ? (
+                                            <div className="loading-text">
+                                                正在載入衛星資料...
+                                            </div>
+                                        ) : skyfieldSatellites.length > 0 ? (
+                                            skyfieldSatellites.map((sat) => (
                                                 <div
-                                                    key={device.id}
-                                                    className={`enhanced-uav-badge ${
-                                                        isSelected ? 'selected' : ''
-                                                    } ${connectionStatus}`}
-                                                    onClick={() =>
-                                                        handleBadgeClick(device.id as number)
-                                                    }
-                                                    title={`點擊${isSelected ? '取消選擇' : '選擇'} ${device.name}`}
+                                                    key={sat.norad_id}
+                                                    className="satellite-item"
                                                 >
-                                                    <div className="badge-header">
-                                                        <span className="device-name">{device.name}</span>
-                                                        <div className="status-indicators">
-                                                            <span className={`connection-dot ${connectionStatus}`}></span>
-                                                            <span className="signal-bars">
-                                                                {Array.from({ length: 4 }, (_, i) => (
-                                                                    <span
-                                                                        key={i}
-                                                                        className={`signal-bar ${
-                                                                            i < signalStrength ? 'active' : ''
-                                                                        }`}
-                                                                    ></span>
-                                                                ))}
-                                                            </span>
-                                                        </div>
+                                                    <div className="satellite-name">
+                                                        {sat.name} (NORAD:{' '}
+                                                        {sat.norad_id})
                                                     </div>
-                                                    <div className="badge-info">
-                                                        <div className="info-item">
-                                                            <span className="info-label">位置:</span>
-                                                            <span className="info-value">
-                                                                ({device.position_x !== undefined ? device.position_x.toFixed(1) : '0.0'}, {device.position_y !== undefined ? device.position_y.toFixed(1) : '0.0'}, {device.position_z !== undefined ? device.position_z.toFixed(1) : '0.0'})
-                                                            </span>
-                                                        </div>
-                                                        <div className="info-item">
-                                                            <span className="info-label">功率:</span>
-                                                            <span className="info-value">
-                                                                {device.power_dbm?.toFixed(1) ?? 'N/A'} dBm
-                                                            </span>
-                                                        </div>
-                                                        <div className="info-item">
-                                                            <span className="info-label">電量:</span>
-                                                            <span className={`battery-level ${
-                                                                batteryLevel > 60 ? 'high' : 
-                                                                batteryLevel > 30 ? 'medium' : 'low'
-                                                            }`}>
-                                                                {batteryLevel}%
-                                                            </span>
-                                                        </div>
+                                                    <div className="satellite-details">
+                                                        仰角:{' '}
+                                                        <span
+                                                            style={{
+                                                                color:
+                                                                    sat.elevation_deg >
+                                                                    45
+                                                                        ? '#ff3300'
+                                                                        : '#0088ff',
+                                                            }}
+                                                        >
+                                                            {sat.elevation_deg.toFixed(
+                                                                2
+                                                            )}
+                                                            °
+                                                        </span>
+                                                        {' | '}方位角:{' '}
+                                                        {sat.azimuth_deg.toFixed(
+                                                            2
+                                                        )}
+                                                        °{' | '}距離:{' '}
+                                                        {sat.distance_km.toFixed(
+                                                            2
+                                                        )}{' '}
+                                                        km
                                                     </div>
-                                                    {isSelected && (
-                                                        <div className="selection-indicator">
-                                                            <span className="checkmark">✓</span>
-                                                        </div>
-                                                    )}
                                                 </div>
-                                            )
-                                        })}
-                                </div>
-                                {selectedReceiverIds.length > 0 && (
-                                    <div className="selection-actions">
-                                        <button
-                                            className="action-btn clear-selection"
-                                            onClick={() => onSelectedReceiversChange && onSelectedReceiversChange([])}
-                                        >
-                                            清除選擇
-                                        </button>
-                                        <button
-                                            className="action-btn select-all"
-                                            onClick={() => {
-                                                const allIds = devices
-                                                    .filter(d => d.role === 'receiver' && d.id !== null)
-                                                    .map(d => d.id as number)
-                                                onSelectedReceiversChange && onSelectedReceiversChange(allIds)
-                                            }}
-                                        >
-                                            全部選擇
-                                        </button>
+                                            ))
+                                        ) : (
+                                            <div className="no-data-text">
+                                                無衛星資料可顯示。請調整最低仰角後重試。
+                                            </div>
+                                        )}
                                     </div>
                                 )}
+                            </>
+                        )}
+
+                        {/* 接收器 */}
+                        {receiverDevices.length > 0 && (
+                            <>
+                                <h3
+                                    className={`section-header ${
+                                        showReceiverDevices ? 'expanded' : ''
+                                    }`}
+                                    onClick={() =>
+                                        setShowReceiverDevices(
+                                            !showReceiverDevices
+                                        )
+                                    }
+                                >
+                                    <span className="header-icon">📱</span>
+                                    <span className="header-title">
+                                        接收器 Rx
+                                    </span>
+                                    <span className="header-count">
+                                        ({receiverDevices.length})
+                                    </span>
+                                </h3>
+                                {showReceiverDevices &&
+                                    receiverDevices.map((device) => (
+                                        <DeviceItem
+                                            key={device.id}
+                                            device={device}
+                                            orientationInput={
+                                                orientationInputs[
+                                                    device.id
+                                                ] || {
+                                                    x: '0',
+                                                    y: '0',
+                                                    z: '0',
+                                                }
+                                            }
+                                            onDeviceChange={onDeviceChange}
+                                            onDeleteDevice={onDeleteDevice}
+                                            onOrientationInputChange={
+                                                handleDeviceOrientationInputChange
+                                            }
+                                            onDeviceRoleChange={
+                                                handleDeviceRoleChange
+                                            }
+                                        />
+                                    ))}
+                            </>
+                        )}
+
+                        {/* 發射器 */}
+                        {desiredDevices.length > 0 && (
+                            <>
+                                <h3
+                                    className={`section-header ${
+                                        showDesiredDevices ? 'expanded' : ''
+                                    }`}
+                                    onClick={() =>
+                                        setShowDesiredDevices(
+                                            !showDesiredDevices
+                                        )
+                                    }
+                                >
+                                    <span className="header-icon">📡</span>
+                                    <span className="header-title">
+                                        發射器 Tx
+                                    </span>
+                                    <span className="header-count">
+                                        ({desiredDevices.length})
+                                    </span>
+                                </h3>
+                                {showDesiredDevices &&
+                                    desiredDevices.map((device) => (
+                                        <DeviceItem
+                                            key={device.id}
+                                            device={device}
+                                            orientationInput={
+                                                orientationInputs[
+                                                    device.id
+                                                ] || {
+                                                    x: '0',
+                                                    y: '0',
+                                                    z: '0',
+                                                }
+                                            }
+                                            onDeviceChange={onDeviceChange}
+                                            onDeleteDevice={onDeleteDevice}
+                                            onOrientationInputChange={
+                                                handleDeviceOrientationInputChange
+                                            }
+                                            onDeviceRoleChange={
+                                                handleDeviceRoleChange
+                                            }
+                                        />
+                                    ))}
+                            </>
+                        )}
+
+                        {/* 干擾源 */}
+                        {jammerDevices.length > 0 && (
+                            <>
+                                <h3
+                                    className={`section-header ${
+                                        showJammerDevices ? 'expanded' : ''
+                                    }`}
+                                    onClick={() =>
+                                        setShowJammerDevices(!showJammerDevices)
+                                    }
+                                >
+                                    <span className="header-icon">⚡</span>
+                                    <span className="header-title">
+                                        干擾源 Jam
+                                    </span>
+                                    <span className="header-count">
+                                        ({jammerDevices.length})
+                                    </span>
+                                </h3>
+                                {showJammerDevices &&
+                                    jammerDevices.map((device) => (
+                                        <DeviceItem
+                                            key={device.id}
+                                            device={device}
+                                            orientationInput={
+                                                orientationInputs[
+                                                    device.id
+                                                ] || {
+                                                    x: '0',
+                                                    y: '0',
+                                                    z: '0',
+                                                }
+                                            }
+                                            onDeviceChange={onDeviceChange}
+                                            onDeleteDevice={onDeleteDevice}
+                                            onOrientationInputChange={
+                                                handleDeviceOrientationInputChange
+                                            }
+                                            onDeviceRoleChange={
+                                                handleDeviceRoleChange
+                                            }
+                                        />
+                                    ))}
                             </>
                         )}
                     </div>
                 </>
             )}
-
-            {/* 設備操作按鈕 */}
-            <div className="device-actions">
-                <button onClick={onAddDevice} className="action-btn add-btn">
-                    ➕ 添加設備
-                </button>
-                <div className="action-group">
-                    <button
-                        onClick={onApply}
-                        disabled={
-                            loading ||
-                            apiStatus !== 'connected' ||
-                            !hasTempDevices ||
-                            auto
-                        }
-                        className="action-btn apply-btn"
-                    >
-                        ✅ 套用
-                    </button>
-                    <button
-                        onClick={onCancel}
-                        disabled={loading}
-                        className="action-btn cancel-btn"
-                    >
-                        ❌ 取消
-                    </button>
-                </div>
-            </div>
-
-            {/* 設備列表 */}
-            <div className="devices-list">
-                {/* 新增設備區塊 */}
-                {tempDevices.length > 0 && (
-                    <>
-                        <h3
-                            className={`section-header ${showTempDevices ? 'expanded' : ''}`}
-                            onClick={() => setShowTempDevices(!showTempDevices)}
-                        >
-                            <span className="header-icon">➕</span>
-                            <span className="header-title">新增設備</span>
-                            <span className="header-count">({tempDevices.length})</span>
-                        </h3>
-                        {showTempDevices &&
-                            tempDevices.map((device) => (
-                                <DeviceItem
-                                    key={device.id}
-                                    device={device}
-                                    orientationInput={
-                                        orientationInputs[device.id] || {
-                                            x: '0',
-                                            y: '0',
-                                            z: '0',
-                                        }
-                                    }
-                                    onDeviceChange={onDeviceChange}
-                                    onDeleteDevice={onDeleteDevice}
-                                    onOrientationInputChange={
-                                        handleDeviceOrientationInputChange
-                                    }
-                                    onDeviceRoleChange={handleDeviceRoleChange}
-                                />
-                            ))}
-                    </>
-                )}
-
-                {/* 衛星資料區塊 */}
-                {satelliteEnabled && (
-                    <>
-                        <h3
-                            className={`section-header ${showSkyfieldSection ? 'expanded' : ''}`}
-                            onClick={() => setShowSkyfieldSection(!showSkyfieldSection)}
-                        >
-                            <span className="header-icon">🛰️</span>
-                            <span className="header-title">衛星 gNB</span>
-                            <span className="header-count">
-                                ({loadingSatellites ? '...' : skyfieldSatellites.length})
-                            </span>
-                        </h3>
-                        {showSkyfieldSection && (
-                            <div className="satellite-list">
-                                {loadingSatellites ? (
-                                    <div className="loading-text">正在載入衛星資料...</div>
-                                ) : skyfieldSatellites.length > 0 ? (
-                                    skyfieldSatellites.map((sat) => (
-                                        <div key={sat.norad_id} className="satellite-item">
-                                            <div className="satellite-name">
-                                                {sat.name} (NORAD: {sat.norad_id})
-                                            </div>
-                                            <div className="satellite-details">
-                                                仰角: <span style={{ color: sat.elevation_deg > 45 ? '#ff3300' : '#0088ff' }}>
-                                                    {sat.elevation_deg.toFixed(2)}°
-                                                </span>
-                                                {' | '}方位角: {sat.azimuth_deg.toFixed(2)}°
-                                                {' | '}距離: {sat.distance_km.toFixed(2)} km
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="no-data-text">
-                                        無衛星資料可顯示。請調整最低仰角後重試。
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </>
-                )}
-
-                {/* 接收器 */}
-                {receiverDevices.length > 0 && (
-                    <>
-                        <h3
-                            className={`section-header ${showReceiverDevices ? 'expanded' : ''}`}
-                            onClick={() => setShowReceiverDevices(!showReceiverDevices)}
-                        >
-                            <span className="header-icon">📱</span>
-                            <span className="header-title">接收器 Rx</span>
-                            <span className="header-count">({receiverDevices.length})</span>
-                        </h3>
-                        {showReceiverDevices &&
-                            receiverDevices.map((device) => (
-                                <DeviceItem
-                                    key={device.id}
-                                    device={device}
-                                    orientationInput={
-                                        orientationInputs[device.id] || {
-                                            x: '0',
-                                            y: '0',
-                                            z: '0',
-                                        }
-                                    }
-                                    onDeviceChange={onDeviceChange}
-                                    onDeleteDevice={onDeleteDevice}
-                                    onOrientationInputChange={
-                                        handleDeviceOrientationInputChange
-                                    }
-                                    onDeviceRoleChange={handleDeviceRoleChange}
-                                />
-                            ))}
-                    </>
-                )}
-
-                {/* 發射器 */}
-                {desiredDevices.length > 0 && (
-                    <>
-                        <h3
-                            className={`section-header ${showDesiredDevices ? 'expanded' : ''}`}
-                            onClick={() => setShowDesiredDevices(!showDesiredDevices)}
-                        >
-                            <span className="header-icon">📡</span>
-                            <span className="header-title">發射器 Tx</span>
-                            <span className="header-count">({desiredDevices.length})</span>
-                        </h3>
-                        {showDesiredDevices &&
-                            desiredDevices.map((device) => (
-                                <DeviceItem
-                                    key={device.id}
-                                    device={device}
-                                    orientationInput={
-                                        orientationInputs[device.id] || {
-                                            x: '0',
-                                            y: '0',
-                                            z: '0',
-                                        }
-                                    }
-                                    onDeviceChange={onDeviceChange}
-                                    onDeleteDevice={onDeleteDevice}
-                                    onOrientationInputChange={
-                                        handleDeviceOrientationInputChange
-                                    }
-                                    onDeviceRoleChange={handleDeviceRoleChange}
-                                />
-                            ))}
-                    </>
-                )}
-
-                {/* 干擾源 */}
-                {jammerDevices.length > 0 && (
-                    <>
-                        <h3
-                            className={`section-header ${showJammerDevices ? 'expanded' : ''}`}
-                            onClick={() => setShowJammerDevices(!showJammerDevices)}
-                        >
-                            <span className="header-icon">⚡</span>
-                            <span className="header-title">干擾源 Jam</span>
-                            <span className="header-count">({jammerDevices.length})</span>
-                        </h3>
-                        {showJammerDevices &&
-                            jammerDevices.map((device) => (
-                                <DeviceItem
-                                    key={device.id}
-                                    device={device}
-                                    orientationInput={
-                                        orientationInputs[device.id] || {
-                                            x: '0',
-                                            y: '0',
-                                            z: '0',
-                                        }
-                                    }
-                                    onDeviceChange={onDeviceChange}
-                                    onDeleteDevice={onDeleteDevice}
-                                    onOrientationInputChange={
-                                        handleDeviceOrientationInputChange
-                                    }
-                                    onDeviceRoleChange={handleDeviceRoleChange}
-                                />
-                            ))}
-                    </>
-                )}
-            </div>
         </div>
     )
 }

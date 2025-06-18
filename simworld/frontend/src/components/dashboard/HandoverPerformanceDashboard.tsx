@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { netStackApi } from '../../services/netstack-api'
-import { useNetStackData, useDataSourceStatus } from '../../contexts/DataSyncContext'
+import {
+    useNetStackData,
+    useDataSourceStatus,
+} from '../../contexts/DataSyncContext'
 import './HandoverPerformanceDashboard.scss'
 
 interface HandoverPerformanceDashboardProps {
@@ -40,11 +43,13 @@ interface PredictionAccuracyData {
     correctPredictions: number
 }
 
-const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> = ({ enabled }) => {
+const HandoverPerformanceDashboard: React.FC<
+    HandoverPerformanceDashboardProps
+> = ({ enabled }) => {
     // 使用數據同步上下文
     const { isConnected: netstackConnected } = useNetStackData()
     const { overall: connectionStatus, dataSource } = useDataSourceStatus()
-    
+
     const [metrics, setMetrics] = useState<HandoverMetrics>({
         totalHandovers: 15,
         successfulHandovers: 13,
@@ -55,15 +60,17 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
         handoverSuccessRate: 86.7,
         averagePredictionTime: 125,
         networkDowntime: 480,
-        qosImpact: 13.3
+        qosImpact: 13.3,
     })
 
     const [recentEvents, setRecentEvents] = useState<HandoverEvent[]>([])
-    const [accuracyHistory, setAccuracyHistory] = useState<PredictionAccuracyData[]>([])
+    const [accuracyHistory, setAccuracyHistory] = useState<
+        PredictionAccuracyData[]
+    >([])
     const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h')
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    
+
     // 基於全局數據同步狀態決定是否使用真實數據
     const useRealData = netstackConnected && dataSource !== 'simulated'
 
@@ -81,54 +88,87 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                 console.log('🔥 獲取真實 NetStack 效能指標...')
 
                 // 並行獲取多個 API 數據
-                const [coreSyncStatus, handoverMetrics, recentEvents] = await Promise.all([
-                    netStackApi.getCoreSync(),
-                    netStackApi.getHandoverLatencyMetrics().catch(() => []), // 如果失敗返回空數組
-                    netStackApi.getRecentSyncEvents().catch(() => [])        // 如果失敗返回空數組
-                ])
+                const [coreSyncStatus, handoverMetrics, recentEvents] =
+                    await Promise.all([
+                        netStackApi.getCoreSync(),
+                        netStackApi.getHandoverLatencyMetrics().catch(() => []), // 如果失敗返回空數組
+                        netStackApi.getRecentSyncEvents().catch(() => []), // 如果失敗返回空數組
+                    ])
 
                 console.log('✅ NetStack 效能數據:', {
                     coreSyncStatus,
                     handoverMetrics: handoverMetrics.length,
-                    recentEvents: recentEvents.length
+                    recentEvents: recentEvents.length,
                 })
 
                 // 更新真實指標
                 const realMetrics: HandoverMetrics = {
-                    totalHandovers: coreSyncStatus.statistics.total_sync_operations || 0,
-                    successfulHandovers: coreSyncStatus.statistics.successful_syncs || 0,
-                    failedHandovers: coreSyncStatus.statistics.failed_syncs || 0,
-                    averageHandoverTime: coreSyncStatus.statistics.average_sync_time_ms || 0,
-                    predictionAccuracy: coreSyncStatus.ieee_infocom_2024_features.binary_search_refinement * 100 || 0,
-                    currentActiveHandovers: coreSyncStatus.service_info.active_tasks || 0,
-                    handoverSuccessRate: coreSyncStatus.statistics.total_sync_operations > 0 
-                        ? (coreSyncStatus.statistics.successful_syncs / coreSyncStatus.statistics.total_sync_operations) * 100 
+                    totalHandovers:
+                        coreSyncStatus.statistics.total_sync_operations || 0,
+                    successfulHandovers:
+                        coreSyncStatus.statistics.successful_syncs || 0,
+                    failedHandovers:
+                        coreSyncStatus.statistics.failed_syncs || 0,
+                    averageHandoverTime:
+                        coreSyncStatus.statistics.average_sync_time_ms || 0,
+                    predictionAccuracy:
+                        coreSyncStatus.ieee_infocom_2024_features
+                            .binary_search_refinement * 100 || 0,
+                    currentActiveHandovers:
+                        coreSyncStatus.service_info.active_tasks || 0,
+                    handoverSuccessRate:
+                        coreSyncStatus.statistics.total_sync_operations > 0
+                            ? (coreSyncStatus.statistics.successful_syncs /
+                                  coreSyncStatus.statistics
+                                      .total_sync_operations) *
+                              100
+                            : 0,
+                    averagePredictionTime:
+                        coreSyncStatus.sync_performance.overall_accuracy_ms ||
+                        0,
+                    networkDowntime: coreSyncStatus.statistics.uptime_percentage
+                        ? (100 - coreSyncStatus.statistics.uptime_percentage) *
+                          60 *
+                          60 *
+                          1000 // 轉為 ms
                         : 0,
-                    averagePredictionTime: coreSyncStatus.sync_performance.overall_accuracy_ms || 0,
-                    networkDowntime: coreSyncStatus.statistics.uptime_percentage 
-                        ? (100 - coreSyncStatus.statistics.uptime_percentage) * 60 * 60 * 1000 // 轉為 ms
-                        : 0,
-                    qosImpact: coreSyncStatus.sync_performance.overall_accuracy_ms > 50 
-                        ? Math.min(100, (coreSyncStatus.sync_performance.overall_accuracy_ms - 50) / 5)
-                        : 0
+                    qosImpact:
+                        coreSyncStatus.sync_performance.overall_accuracy_ms > 50
+                            ? Math.min(
+                                  100,
+                                  (coreSyncStatus.sync_performance
+                                      .overall_accuracy_ms -
+                                      50) /
+                                      5
+                              )
+                            : 0,
                 }
 
                 setMetrics(realMetrics)
 
                 // 轉換換手測量數據為事件格式
                 if (handoverMetrics.length > 0) {
-                    const events: HandoverEvent[] = handoverMetrics.slice(0, 20).map(metric => ({
-                        id: metric.measurement_id,
-                        timestamp: metric.timestamp,
-                        uavId: metric.ue_id,
-                        fromSatellite: metric.source_satellite,
-                        toSatellite: metric.target_satellite,
-                        duration: metric.latency_ms,
-                        status: metric.success_rate > 0.8 ? 'success' : 'failed',
-                        reason: `${metric.handover_type} handover`,
-                        predictionTime: metric.additional_metrics.signaling_overhead || 0,
-                        executionTime: metric.additional_metrics.interruption_time_ms || 0
-                    }))
+                    const events: HandoverEvent[] = handoverMetrics
+                        .slice(0, 20)
+                        .map((metric) => ({
+                            id: metric.measurement_id,
+                            timestamp: metric.timestamp,
+                            uavId: metric.ue_id,
+                            fromSatellite: metric.source_satellite,
+                            toSatellite: metric.target_satellite,
+                            duration: metric.latency_ms,
+                            status:
+                                metric.success_rate > 0.8
+                                    ? 'success'
+                                    : 'failed',
+                            reason: `${metric.handover_type} handover`,
+                            predictionTime:
+                                metric.additional_metrics.signaling_overhead ||
+                                0,
+                            executionTime:
+                                metric.additional_metrics
+                                    .interruption_time_ms || 0,
+                        }))
 
                     setRecentEvents(events)
                 }
@@ -138,15 +178,19 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                     timeWindow: new Date().toLocaleTimeString(),
                     accuracy: realMetrics.predictionAccuracy,
                     totalPredictions: realMetrics.totalHandovers,
-                    correctPredictions: realMetrics.successfulHandovers
+                    correctPredictions: realMetrics.successfulHandovers,
                 }
 
-                setAccuracyHistory(prev => [newAccuracyData, ...prev.slice(0, 19)])
-
+                setAccuracyHistory((prev) => [
+                    newAccuracyData,
+                    ...prev.slice(0, 19),
+                ])
             } catch (error) {
                 console.error('❌ 獲取 NetStack 效能指標失敗:', error)
-                setError(error instanceof Error ? error.message : 'Unknown error')
-                
+                setError(
+                    error instanceof Error ? error.message : 'Unknown error'
+                )
+
                 // 注意：useRealData 現在由全局狀態控制，不需要手動設置
                 console.warn('⚠️ 回退到模擬數據模式')
             } finally {
@@ -184,28 +228,44 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                 status: Math.random() > 0.15 ? 'success' : 'failed',
                 reason: getRandomReason(),
                 predictionTime: 50 + Math.random() * 200,
-                executionTime: 1000 + Math.random() * 2000
+                executionTime: 1000 + Math.random() * 2000,
             }
 
-            setRecentEvents(prev => [newEvent, ...prev.slice(0, 19)])
+            setRecentEvents((prev) => [newEvent, ...prev.slice(0, 19)])
 
-            setMetrics(prev => {
+            setMetrics((prev) => {
                 const totalHandovers = prev.totalHandovers + 1
-                const successfulHandovers = prev.successfulHandovers + (newEvent.status === 'success' ? 1 : 0)
-                const failedHandovers = prev.failedHandovers + (newEvent.status === 'failed' ? 1 : 0)
-                
+                const successfulHandovers =
+                    prev.successfulHandovers +
+                    (newEvent.status === 'success' ? 1 : 0)
+                const failedHandovers =
+                    prev.failedHandovers +
+                    (newEvent.status === 'failed' ? 1 : 0)
+
                 return {
                     ...prev,
                     totalHandovers,
                     successfulHandovers,
                     failedHandovers,
-                    averageHandoverTime: (prev.averageHandoverTime * (totalHandovers - 1) + newEvent.duration) / totalHandovers,
+                    averageHandoverTime:
+                        (prev.averageHandoverTime * (totalHandovers - 1) +
+                            newEvent.duration) /
+                        totalHandovers,
                     predictionAccuracy: 85 + Math.random() * 12,
                     currentActiveHandovers: Math.floor(Math.random() * 5),
-                    handoverSuccessRate: (successfulHandovers / totalHandovers) * 100,
-                    averagePredictionTime: (prev.averagePredictionTime * (totalHandovers - 1) + newEvent.predictionTime) / totalHandovers,
-                    networkDowntime: prev.networkDowntime + (newEvent.status === 'failed' ? newEvent.duration : 0),
-                    qosImpact: Math.max(0, 100 - (successfulHandovers / totalHandovers) * 100)
+                    handoverSuccessRate:
+                        (successfulHandovers / totalHandovers) * 100,
+                    averagePredictionTime:
+                        (prev.averagePredictionTime * (totalHandovers - 1) +
+                            newEvent.predictionTime) /
+                        totalHandovers,
+                    networkDowntime:
+                        prev.networkDowntime +
+                        (newEvent.status === 'failed' ? newEvent.duration : 0),
+                    qosImpact: Math.max(
+                        0,
+                        100 - (successfulHandovers / totalHandovers) * 100
+                    ),
                 }
             })
 
@@ -215,11 +275,18 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                     timeWindow: new Date().toLocaleTimeString(),
                     accuracy: 85 + Math.random() * 12,
                     totalPredictions: Math.floor(Math.random() * 20) + 10,
-                    correctPredictions: 0
+                    correctPredictions: 0,
                 }
-                newAccuracyData.correctPredictions = Math.floor(newAccuracyData.totalPredictions * newAccuracyData.accuracy / 100)
+                newAccuracyData.correctPredictions = Math.floor(
+                    (newAccuracyData.totalPredictions *
+                        newAccuracyData.accuracy) /
+                        100
+                )
 
-                setAccuracyHistory(prev => [newAccuracyData, ...prev.slice(0, 49)])
+                setAccuracyHistory((prev) => [
+                    newAccuracyData,
+                    ...prev.slice(0, 49),
+                ])
             }
         }
 
@@ -227,9 +294,12 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
         for (let i = 0; i < 8; i++) {
             setTimeout(() => updateSimulatedMetrics(), i * 500)
         }
-        
+
         // 然後正常間隔更新
-        const interval = setInterval(updateSimulatedMetrics, 2000 + Math.random() * 3000)
+        const interval = setInterval(
+            updateSimulatedMetrics,
+            2000 + Math.random() * 3000
+        )
 
         return () => clearInterval(interval)
     }, [enabled, useRealData])
@@ -237,21 +307,25 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
     const getRandomReason = (): string => {
         const reasons = [
             '信號品質下降',
-            '衛星仰角過低', 
+            '衛星仰角過低',
             '負載平衡',
             '軌道轉換',
             '干擾避免',
-            '維護需求'
+            '維護需求',
         ]
         return reasons[Math.floor(Math.random() * reasons.length)]
     }
 
     const getStatusColor = (status: string): string => {
         switch (status) {
-            case 'success': return '#52c41a'
-            case 'failed': return '#ff4d4f'
-            case 'in_progress': return '#1890ff'
-            default: return '#d9d9d9'
+            case 'success':
+                return '#52c41a'
+            case 'failed':
+                return '#ff4d4f'
+            case 'in_progress':
+                return '#1890ff'
+            default:
+                return '#d9d9d9'
         }
     }
 
@@ -264,26 +338,15 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
             <div className="dashboard-header">
                 <div className="header-main">
                     <h2>🔄 衛星換手性能監控</h2>
-                    
-                    {/* 數據源狀態指示器 - 基於全局同步狀態 */}
-                    <div className={`data-source-indicator ${error ? 'error' : isLoading ? 'loading' : useRealData ? 'real' : 'simulated'}`}>
-                        <span className="indicator-icon">
-                            {error ? '❌' : isLoading ? '⏳' : useRealData ? '✅' : '⚠️'}
-                        </span>
-                        <span className="indicator-text">
-                            {error ? `API錯誤: ${error.slice(0, 20)}...` :
-                             isLoading ? '數據同步中...' :
-                             useRealData ? '真實數據' :
-                             '模擬數據'}
-                        </span>
-                    </div>
                 </div>
-                
+
                 <div className="time-range-selector">
-                    {(['1h', '6h', '24h', '7d'] as const).map(range => (
+                    {(['1h', '6h', '24h', '7d'] as const).map((range) => (
                         <button
                             key={range}
-                            className={`time-range-btn ${timeRange === range ? 'active' : ''}`}
+                            className={`time-range-btn ${
+                                timeRange === range ? 'active' : ''
+                            }`}
                             onClick={() => setTimeRange(range)}
                         >
                             {range}
@@ -302,7 +365,9 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                     <div className="metric-value">{metrics.totalHandovers}</div>
                     <div className="metric-trend up">
                         <span className="trend-icon">↗</span>
-                        <span>+{Math.floor(Math.random() * 10) + 1}% vs 上小時</span>
+                        <span>
+                            +{Math.floor(Math.random() * 10) + 1}% vs 上小時
+                        </span>
                     </div>
                 </div>
 
@@ -311,7 +376,9 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                         <span className="metric-icon">✅</span>
                         <h3>成功率</h3>
                     </div>
-                    <div className="metric-value">{metrics.handoverSuccessRate.toFixed(1)}%</div>
+                    <div className="metric-value">
+                        {metrics.handoverSuccessRate.toFixed(1)}%
+                    </div>
                     <div className="metric-trend stable">
                         <span className="trend-icon">→</span>
                         <span>穩定</span>
@@ -323,7 +390,9 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                         <span className="metric-icon">⏱️</span>
                         <h3>平均時間</h3>
                     </div>
-                    <div className="metric-value">{(metrics.averageHandoverTime / 1000).toFixed(1)}s</div>
+                    <div className="metric-value">
+                        {(metrics.averageHandoverTime / 1000).toFixed(1)}s
+                    </div>
                     <div className="metric-trend down">
                         <span className="trend-icon">↘</span>
                         <span>-5% 性能提升</span>
@@ -335,7 +404,9 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                         <span className="metric-icon">🎯</span>
                         <h3>預測準確率</h3>
                     </div>
-                    <div className="metric-value">{metrics.predictionAccuracy.toFixed(1)}%</div>
+                    <div className="metric-value">
+                        {metrics.predictionAccuracy.toFixed(1)}%
+                    </div>
                     <div className="metric-trend up">
                         <span className="trend-icon">↗</span>
                         <span>+2.3% 準確率提升</span>
@@ -347,7 +418,9 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                         <span className="metric-icon">🔄</span>
                         <h3>進行中</h3>
                     </div>
-                    <div className="metric-value">{metrics.currentActiveHandovers}</div>
+                    <div className="metric-value">
+                        {metrics.currentActiveHandovers}
+                    </div>
                     <div className="metric-description">當前換手中</div>
                 </div>
 
@@ -356,7 +429,9 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                         <span className="metric-icon">❌</span>
                         <h3>失敗次數</h3>
                     </div>
-                    <div className="metric-value">{metrics.failedHandovers}</div>
+                    <div className="metric-value">
+                        {metrics.failedHandovers}
+                    </div>
                     <div className="metric-description">需要關注</div>
                 </div>
             </div>
@@ -374,14 +449,16 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                                     style={{
                                         left: `${i * 10}%`,
                                         bottom: `${80 + Math.random() * 15}%`,
-                                        backgroundColor: '#52c41a'
+                                        backgroundColor: '#52c41a',
                                     }}
                                 />
                             ))}
                         </div>
                         <div className="chart-info">
                             <span>目標: 95%</span>
-                            <span>當前: {metrics.handoverSuccessRate.toFixed(1)}%</span>
+                            <span>
+                                當前: {metrics.handoverSuccessRate.toFixed(1)}%
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -396,7 +473,9 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                                     className="histogram-bar"
                                     style={{
                                         height: `${30 + Math.random() * 60}%`,
-                                        backgroundColor: `hsl(${200 + i * 10}, 70%, 50%)`
+                                        backgroundColor: `hsl(${
+                                            200 + i * 10
+                                        }, 70%, 50%)`,
                                     }}
                                 />
                             ))}
@@ -432,22 +511,36 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                         {recentEvents.slice(0, 10).map((event) => (
                             <div key={event.id} className="event-row">
                                 <span className="event-time">
-                                    {new Date(event.timestamp).toLocaleTimeString()}
+                                    {new Date(
+                                        event.timestamp
+                                    ).toLocaleTimeString()}
                                 </span>
                                 <span className="event-uav">{event.uavId}</span>
-                                <span className="event-from">{event.fromSatellite}</span>
-                                <span className="event-to">{event.toSatellite}</span>
+                                <span className="event-from">
+                                    {event.fromSatellite}
+                                </span>
+                                <span className="event-to">
+                                    {event.toSatellite}
+                                </span>
                                 <span className="event-duration">
                                     {(event.duration / 1000).toFixed(1)}s
                                 </span>
                                 <span
                                     className="event-status"
-                                    style={{ color: getStatusColor(event.status) }}
+                                    style={{
+                                        color: getStatusColor(event.status),
+                                    }}
                                 >
-                                    {event.status === 'success' ? '✅' : event.status === 'failed' ? '❌' : '🔄'}
+                                    {event.status === 'success'
+                                        ? '✅'
+                                        : event.status === 'failed'
+                                        ? '❌'
+                                        : '🔄'}
                                     {event.status}
                                 </span>
-                                <span className="event-reason">{event.reason}</span>
+                                <span className="event-reason">
+                                    {event.reason}
+                                </span>
                             </div>
                         ))}
                     </div>
@@ -461,32 +554,44 @@ const HandoverPerformanceDashboard: React.FC<HandoverPerformanceDashboardProps> 
                     <div className="accuracy-summary">
                         <div className="accuracy-metric">
                             <span className="accuracy-label">整體準確率</span>
-                            <span className="accuracy-value">{metrics.predictionAccuracy.toFixed(1)}%</span>
+                            <span className="accuracy-value">
+                                {metrics.predictionAccuracy.toFixed(1)}%
+                            </span>
                         </div>
                         <div className="accuracy-metric">
                             <span className="accuracy-label">平均預測時間</span>
-                            <span className="accuracy-value">{metrics.averagePredictionTime.toFixed(0)}ms</span>
+                            <span className="accuracy-value">
+                                {metrics.averagePredictionTime.toFixed(0)}ms
+                            </span>
                         </div>
                         <div className="accuracy-metric">
                             <span className="accuracy-label">QoS 影響</span>
-                            <span className="accuracy-value">{metrics.qosImpact.toFixed(1)}%</span>
+                            <span className="accuracy-value">
+                                {metrics.qosImpact.toFixed(1)}%
+                            </span>
                         </div>
                     </div>
-                    
+
                     <div className="accuracy-history">
                         {accuracyHistory.slice(0, 5).map((data, index) => (
                             <div key={index} className="accuracy-item">
-                                <span className="accuracy-time">{data.timeWindow}</span>
+                                <span className="accuracy-time">
+                                    {data.timeWindow}
+                                </span>
                                 <div className="accuracy-bar">
                                     <div
                                         className="accuracy-fill"
                                         style={{
                                             width: `${data.accuracy}%`,
-                                            backgroundColor: `hsl(${data.accuracy * 1.2}, 70%, 50%)`
+                                            backgroundColor: `hsl(${
+                                                data.accuracy * 1.2
+                                            }, 70%, 50%)`,
                                         }}
                                     />
                                 </div>
-                                <span className="accuracy-percent">{data.accuracy.toFixed(0)}%</span>
+                                <span className="accuracy-percent">
+                                    {data.accuracy.toFixed(0)}%
+                                </span>
                             </div>
                         ))}
                     </div>

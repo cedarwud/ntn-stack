@@ -75,6 +75,7 @@ export interface MainSceneProps {
     satelliteEnabled?: boolean
     satelliteSpeedMultiplier?: number
     handoverStableDuration?: number
+    handoverMode?: 'demo' | 'real' // 換手模式控制
     currentConnection?: any
     predictedConnection?: any
     // 🚀 演算法結果 - 用於對接視覺化
@@ -127,6 +128,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     satelliteEnabled = false,
     satelliteSpeedMultiplier = 60,
     handoverStableDuration = 5,
+    handoverMode = 'demo',
     algorithmResults,
     onHandoverStatusUpdate,
 }) => {
@@ -383,6 +385,7 @@ const MainScene: React.FC<MainSceneProps> = ({
                 enabled={satelliteUavConnectionEnabled && handover3DAnimationEnabled}
                 satellitePositions={satellitePositions}
                 stableDuration={handoverStableDuration}
+                handoverMode={handoverMode}
                 onStatusUpdate={onHandoverStatusUpdate}
                 onHandoverStateUpdate={handleHandoverStateUpdate}
             />
