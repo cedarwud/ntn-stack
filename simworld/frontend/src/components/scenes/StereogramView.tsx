@@ -12,6 +12,7 @@ import E2EPerformanceMonitoringDashboard from '../dashboard/E2EPerformanceMonito
 import PredictiveMaintenanceViewer from '../viewers/PredictiveMaintenanceViewer'
 import IntelligentRecommendationSystem from '../viewers/IntelligentRecommendationSystem'
 import CoreNetworkSyncViewer from '../viewers/CoreNetworkSyncViewer'
+import { HandoverStatusPanel } from './visualization/HandoverAnimation3D'
 
 // 移除衛星圖例，因為已由側邊欄開關控制，不再需要額外說明
 
@@ -69,6 +70,7 @@ interface SceneViewProps {
     // 衛星相關 props（動畫永遠開啟）
     satelliteEnabled?: boolean
     satelliteSpeedMultiplier?: number
+    handoverStableDuration?: number
     // 🚀 演算法結果對接
     algorithmResults?: {
         currentSatelliteId?: string
@@ -122,10 +124,17 @@ export default function SceneView({
     intelligentRecommendationEnabled = false,
     satelliteEnabled = false,
     satelliteSpeedMultiplier = 60,
+    handoverStableDuration = 5,
     algorithmResults,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [satellites, setSatellites] = useState<any[]>([])
+    const [handoverStatusInfo, setHandoverStatusInfo] = useState<any>(null)
+    
+    // 換手狀態更新回調
+    const handleHandoverStatusUpdate = useCallback((statusInfo: any) => {
+        setHandoverStatusInfo(statusInfo)
+    }, [])
     
     // 測試用：載入衛星數據
     useEffect(() => {
@@ -227,6 +236,12 @@ export default function SceneView({
                 <IntelligentRecommendationSystem devices={devices} enabled={intelligentRecommendationEnabled} />
             )}
             
+            {/* 🎯 換手狀態面板 */}
+            <HandoverStatusPanel 
+                enabled={satelliteUavConnectionEnabled && handover3DAnimationEnabled}
+                statusInfo={handoverStatusInfo}
+            />
+            
             {/* 3D Canvas內容照舊，會蓋在星空上 */}
             <Canvas
                 ref={canvasRef}
@@ -300,7 +315,9 @@ export default function SceneView({
                         satellites={satellites}
                         satelliteEnabled={satelliteEnabled}
                         satelliteSpeedMultiplier={satelliteSpeedMultiplier}
+                        handoverStableDuration={handoverStableDuration}
                         algorithmResults={algorithmResults}
+                        onHandoverStatusUpdate={handleHandoverStatusUpdate}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}

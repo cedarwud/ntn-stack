@@ -116,7 +116,6 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             distance_km: 500 + Math.random() * 500
         }))
         
-        console.log('🔍 HandoverManager 模擬衛星數據:', simulatedSatellites.map(s => ({ id: s.id, name: s.name })))
 
         const now = Date.now()
         const futureTime = now + handoverState.deltaT * 1000
@@ -135,11 +134,6 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             futureBest = simulatedSatellites[neighborIndex] || currentBest
         }
         
-        console.log('🔄 換手決策:', {
-            currentBest: { id: currentBest.id, name: currentBest.name },
-            futureBest: { id: futureBest.id, name: futureBest.name },
-            needHandover: shouldHandover && futureBest.id !== currentBest.id
-        })
 
         setHandoverState((prev) => ({
             ...prev,
@@ -148,34 +142,20 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             status: 'predicting',
         }))
         
-        console.log('📊 更新換手狀態:', {
-            currentSatellite: currentBest?.norad_id,
-            predictedSatellite: futureBest?.norad_id,
-            status: 'predicting'
-        })
 
         // 🔗 更新連接狀態
         if (currentBest) {
             const currentConn = generateMockSatelliteConnection(currentBest, true)
             setCurrentConnection(currentConn)
-            console.log('🔗 設定當前連接:', {
-                satelliteId: currentConn.satelliteId,
-                satelliteName: currentConn.satelliteName
-            })
         }
         
         if (futureBest && futureBest.norad_id !== currentBest?.norad_id) {
             const predictedConn = generateMockSatelliteConnection(futureBest, false)
             setPredictedConnection(predictedConn)
-            console.log('🔮 設定預測連接:', {
-                satelliteId: predictedConn.satelliteId,
-                satelliteName: predictedConn.satelliteName
-            })
             // 模擬需要換手
             simulateBinarySearch(now, futureTime)
         } else {
             setPredictedConnection(null)
-            console.log('🚫 焦除預測連接：不需要換手')
             setHandoverState((prev) => ({
                 ...prev,
                 handoverTime: 0,
@@ -499,11 +479,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                                 isEnabled={isEnabled}
                                 speedMultiplier={speedMultiplier}
                                 onAlgorithmStep={(step) => {
-                                    console.log('🧮 算法步驟:', step)
                                     // 可以在這裡處理算法步驟事件
                                 }}
                                 onAlgorithmResults={(results) => {
-                                    console.log('🚀 演算法結果:', results)
                                     // 向 App.tsx 傳遞演算法結果，用於更新 3D 視覺化
                                     onAlgorithmResults?.(results)
                                 }}

@@ -26,7 +26,7 @@ import TestResultsVisualization from '../viewers/TestResultsVisualization'
 import PerformanceTrendAnalyzer from '../viewers/PerformanceTrendAnalyzer'
 import AutomatedReportGenerator from '../viewers/AutomatedReportGenerator'
 import HandoverAnomalyVisualization from './visualization/HandoverAnomalyVisualization'
-import HandoverAnimation3D from './visualization/HandoverAnimation3D'
+import HandoverAnimation3D, { HandoverStatusPanel } from './visualization/HandoverAnimation3D'
 import PredictionPath3D from './visualization/PredictionPath3D'
 import DynamicSatelliteRenderer from '../visualization/DynamicSatelliteRenderer'
 
@@ -74,6 +74,7 @@ export interface MainSceneProps {
     satellites?: any[]
     satelliteEnabled?: boolean
     satelliteSpeedMultiplier?: number
+    handoverStableDuration?: number
     currentConnection?: any
     predictedConnection?: any
     // 🚀 演算法結果 - 用於對接視覺化
@@ -84,6 +85,8 @@ export interface MainSceneProps {
         binarySearchActive?: boolean
         predictionConfidence?: number
     }
+    // 🎯 換手狀態回調
+    onHandoverStatusUpdate?: (statusInfo: any) => void
 }
 
 const UAV_SCALE = 10
@@ -123,7 +126,9 @@ const MainScene: React.FC<MainSceneProps> = ({
     satellites = [],
     satelliteEnabled = false,
     satelliteSpeedMultiplier = 60,
+    handoverStableDuration = 5,
     algorithmResults,
+    onHandoverStatusUpdate,
 }) => {
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
@@ -137,10 +142,18 @@ const MainScene: React.FC<MainSceneProps> = ({
 
     // 🔗 衛星位置狀態管理 - 用於 HandoverAnimation3D
     const [satellitePositions, setSatellitePositions] = useState<Map<string, [number, number, number]>>(new Map())
+    
+    // 🔗 換手狀態管理 - 用於同步給 DynamicSatelliteRenderer
+    const [internalHandoverState, setInternalHandoverState] = useState<any>(null)
 
     // 衛星位置更新回調
     const handleSatellitePositions = useCallback((positions: Map<string, [number, number, number]>) => {
         setSatellitePositions(positions)
+    }, [])
+    
+    // 換手狀態更新回調
+    const handleHandoverStateUpdate = useCallback((state: any) => {
+        setInternalHandoverState(state)
     }, [])
 
     // 動態預加載模型以提高性能
@@ -368,14 +381,10 @@ const MainScene: React.FC<MainSceneProps> = ({
             <HandoverAnimation3D
                 devices={devices}
                 enabled={satelliteUavConnectionEnabled && handover3DAnimationEnabled}
-                satellites={satellites}
                 satellitePositions={satellitePositions}
-                handoverState={handoverState}
-                currentConnection={currentConnection}
-                predictedConnection={predictedConnection}
-                isTransitioning={isTransitioning}
-                transitionProgress={transitionProgress}
-                onHandoverEvent={onHandoverEvent}
+                stableDuration={handoverStableDuration}
+                onStatusUpdate={onHandoverStatusUpdate}
+                onHandoverStateUpdate={handleHandoverStateUpdate}
             />
             
             {/* 階段七可視化覆蓋層 */}
@@ -401,6 +410,7 @@ const MainScene: React.FC<MainSceneProps> = ({
                 showLabels={true}
                 speedMultiplier={satelliteSpeedMultiplier}
                 algorithmResults={algorithmResults}
+                handoverState={internalHandoverState}
                 onSatelliteClick={(satelliteId) => {
                     console.log('🛰️ 點擊衛星:', satelliteId)
                     // 可以在這裡處理衛星點擊事件
