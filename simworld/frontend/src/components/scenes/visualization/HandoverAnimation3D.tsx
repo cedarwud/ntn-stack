@@ -8,6 +8,7 @@ interface HandoverAnimation3DProps {
     enabled: boolean
     satellitePositions?: Map<string, [number, number, number]>
     stableDuration?: number // 穩定期時間（秒）
+    handoverMode?: 'demo' | 'real' // 換手模式：演示模式 vs 真實模式
     onStatusUpdate?: (statusInfo: any) => void // 狀態更新回調
     onHandoverStateUpdate?: (state: any) => void // 換手狀態回調，供衛星光球使用
 }
@@ -233,7 +234,7 @@ const HandoverStatusPanel: React.FC<HandoverStatusPanelProps> = ({
                             換手原因: {statusInfo.handoverReason.reasonText}
                         </span>
                     </div>
-                    
+
                     <div
                         style={{
                             display: 'flex',
@@ -248,7 +249,7 @@ const HandoverStatusPanel: React.FC<HandoverStatusPanelProps> = ({
                             目標值
                         </span>
                     </div>
-                    
+
                     <div
                         style={{
                             display: 'flex',
@@ -261,12 +262,15 @@ const HandoverStatusPanel: React.FC<HandoverStatusPanelProps> = ({
                             style={{
                                 fontSize: '14px',
                                 fontWeight: '600',
-                                color: statusInfo.handoverReason.urgency === 'emergency' 
-                                    ? '#ef4444' 
-                                    : '#fbbf24',
+                                color:
+                                    statusInfo.handoverReason.urgency ===
+                                    'emergency'
+                                        ? '#ef4444'
+                                        : '#fbbf24',
                             }}
                         >
-                            {statusInfo.handoverReason.currentValue.toFixed(1)}{statusInfo.handoverReason.unit}
+                            {statusInfo.handoverReason.currentValue.toFixed(1)}
+                            {statusInfo.handoverReason.unit}
                         </span>
                         <span style={{ fontSize: '12px', color: '#6b7280' }}>
                             →
@@ -278,10 +282,11 @@ const HandoverStatusPanel: React.FC<HandoverStatusPanelProps> = ({
                                 color: '#22c55e',
                             }}
                         >
-                            {statusInfo.handoverReason.targetValue.toFixed(1)}{statusInfo.handoverReason.unit}
+                            {statusInfo.handoverReason.targetValue.toFixed(1)}
+                            {statusInfo.handoverReason.unit}
                         </span>
                     </div>
-                    
+
                     <div
                         style={{
                             fontSize: '12px',
@@ -319,6 +324,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     enabled,
     satellitePositions,
     stableDuration = 5, // 預設5秒穩定期
+    handoverMode = 'demo', // 預設演示模式
     onStatusUpdate,
     onHandoverStateUpdate,
 }) => {
@@ -337,6 +343,44 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         new Map()
     )
     const geometryUpdateIntervalRef = useRef<number>(0)
+
+    // 🔄 換手歷史記錄 - 防止頻繁互換
+    const handoverHistoryRef = useRef<{
+        recentHandovers: Array<{
+            from: string
+            to: string
+            timestamp: number
+        }>
+        cooldownPeriod: number // 冷卻期（毫秒）
+    }>({
+        recentHandovers: [],
+        cooldownPeriod: handoverMode === 'demo' ? 60000 : 30000, // 演示模式60秒，真實模式30秒
+    })
+
+    // 🔄 當換手模式改變時，更新冷卻期
+    useEffect(() => {
+        handoverHistoryRef.current.cooldownPeriod =
+            handoverMode === 'demo' ? 60000 : 30000
+        console.log(
+            `🔄 HandoverAnimation3D: 換手模式變更為: ${handoverMode}，冷卻期: ${
+                handoverHistoryRef.current.cooldownPeriod / 1000
+            }秒`
+        )
+    }, [handoverMode])
+
+    // 🎲 換手原因計數器
+    const handoverReasonCounterRef = useRef<number>(0)
+
+    // 🎯 模擬數據緩存
+    const simulatedDataRef = useRef<{
+        load: { currentLoad: number; targetLoad: number } | null
+        elevation: { currentElevation: number; targetElevation: number } | null
+        signal: { currentSignal: number; targetSignal: number } | null
+    }>({
+        load: null,
+        elevation: null,
+        signal: null,
+    })
 
     // 🔗 獲取UAV位置
     const getUAVPositions = (): Array<[number, number, number]> => {
@@ -366,13 +410,53 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         return Math.sqrt(dx * dx + dy * dy + dz * dz)
     }
 
-    // 🎯 智能選擇最近的衛星（排除當前衛星）
+    // 🎯 智能選擇最近的衛星（排除當前衛星，並考慮換手歷史）
     const selectNearestSatellite = (excludeId?: string): string | null => {
         const availableSatellites = getAvailableSatellites()
         if (availableSatellites.length === 0) return null
 
-        const candidates = availableSatellites.filter((id) => id !== excludeId)
-        if (candidates.length === 0) return availableSatellites[0]
+        let candidates = availableSatellites.filter((id) => id !== excludeId)
+        if (candidates.length === 0) return null
+
+        // 🚫 清理過期的換手記錄
+        const now = Date.now()
+        const history = handoverHistoryRef.current
+        history.recentHandovers = history.recentHandovers.filter(
+            (record) => now - record.timestamp < history.cooldownPeriod
+        )
+
+        // 🔄 如果有當前衛星，檢查換手歷史
+        if (excludeId) {
+            // 找出最近與當前衛星有換手記錄的衛星
+            const recentPartners = new Set<string>()
+
+            history.recentHandovers.forEach((record) => {
+                // 檢查雙向換手記錄
+                if (record.from === excludeId) {
+                    recentPartners.add(record.to)
+                } else if (record.to === excludeId) {
+                    recentPartners.add(record.from)
+                }
+            })
+
+            // 🎯 優先選擇沒有最近換手記錄的衛星
+            const preferredCandidates = candidates.filter(
+                (id) => !recentPartners.has(id)
+            )
+
+            if (preferredCandidates.length > 0) {
+                candidates = preferredCandidates
+                console.log(
+                    `🔄 避免頻繁互換，排除最近換手的衛星: ${Array.from(
+                        recentPartners
+                    )
+                        .map((id) => getSatelliteName(id))
+                        .join(', ')}`
+                )
+            } else {
+                console.log(`⚠️ 所有候選衛星都有最近換手記錄，使用全部候選者`)
+            }
+        }
 
         const uavPositions = getUAVPositions()
         if (uavPositions.length === 0) return candidates[0]
@@ -387,8 +471,10 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
             const satPos = satellitePositions?.get(satId)
             if (satPos) {
                 const distance = calculateDistance(uavPos, satPos)
-                console.log(`  ${getSatelliteName(satId)}: ${distance.toFixed(1)}km`)
-                
+                console.log(
+                    `  ${getSatelliteName(satId)}: ${distance.toFixed(1)}km`
+                )
+
                 if (distance < minDistance) {
                     minDistance = distance
                     nearestSatellite = satId
@@ -396,25 +482,59 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
             }
         })
 
-        console.log(`✅ 選擇最近衛星: ${getSatelliteName(nearestSatellite)} (距離: ${minDistance.toFixed(1)}km)`)
+        console.log(
+            `✅ 選擇最近衛星: ${getSatelliteName(
+                nearestSatellite
+            )} (距離: ${minDistance.toFixed(1)}km)`
+        )
         return nearestSatellite
+    }
+
+    // 📝 記錄換手事件
+    const recordHandover = (fromSatellite: string, toSatellite: string) => {
+        const now = Date.now()
+        handoverHistoryRef.current.recentHandovers.push({
+            from: fromSatellite,
+            to: toSatellite,
+            timestamp: now,
+        })
+
+        // 清理過期記錄（超過冷卻期的記錄）
+        handoverHistoryRef.current.recentHandovers =
+            handoverHistoryRef.current.recentHandovers.filter(
+                (record) =>
+                    now - record.timestamp <
+                    handoverHistoryRef.current.cooldownPeriod
+            )
+
+        console.log(
+            `📝 記錄換手: ${getSatelliteName(
+                fromSatellite
+            )} → ${getSatelliteName(toSatellite)}，` +
+                `歷史記錄數量: ${handoverHistoryRef.current.recentHandovers.length}，` +
+                `模式: ${handoverMode}，冷卻期: ${
+                    handoverHistoryRef.current.cooldownPeriod / 1000
+                }秒`
+        )
     }
 
     // 🔗 獲取當前連接距離（用於顯示）
     const getCurrentConnectionDistance = (): number | null => {
         if (!handoverState.currentSatelliteId) return null
-        
+
         const uavPositions = getUAVPositions()
         if (uavPositions.length === 0) return null
-        
+
         const satPos = satellitePositions?.get(handoverState.currentSatelliteId)
         if (!satPos) return null
-        
+
         return calculateDistance(uavPositions[0], satPos)
     }
 
     // 🏷️ 獲取衛星名稱（基於ID匹配DynamicSatelliteRenderer的命名規則）
-    const getSatelliteName = (satelliteId: string | null): string => {
+    const getSatelliteName = (
+        satelliteId: string | null | undefined
+    ): string => {
         if (!satelliteId) return '未知衛星'
 
         // 從 sat_0 格式轉換為 STARLINK-1000 格式
@@ -451,14 +571,25 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         ]
     }
 
-    // ⏰ 階段時間配置（穩定期可調整，其他階段固定）
-    const PHASE_DURATIONS = {
-        stable: stableDuration * 1000, // 可調整穩定期（毫秒）
-        preparing: 5000, // 準備期（倒數5秒）
-        establishing: 3000, // 建立期（3秒）
-        switching: 2000, // 換手期（2秒）
-        completing: 5000, // 完成期（5秒）
-    }
+    // ⏰ 階段時間配置 - 根據模式調整
+    const PHASE_DURATIONS =
+        handoverMode === 'demo'
+            ? {
+                  // 演示模式：20秒完美週期，適合展示
+                  stable: stableDuration * 1000, // 可調整穩定期（毫秒）
+                  preparing: 5000, // 準備期（倒數5秒）
+                  establishing: 3000, // 建立期（3秒）
+                  switching: 2000, // 換手期（2秒）
+                  completing: 5000, // 完成期（5秒）
+              }
+            : {
+                  // 真實模式：快速換手，符合5G標準
+                  stable: stableDuration * 1000, // 可調整穩定期（更長，30秒-5分鐘）
+                  preparing: 500, // 準備期（0.5秒）
+                  establishing: 300, // 建立期（0.3秒）
+                  switching: 200, // 換手期（0.2秒）
+                  completing: 1000, // 完成期（1秒）
+              }
 
     // 🔄 換手邏輯核心
     useFrame((state, delta) => {
@@ -532,14 +663,14 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 case 'stable':
                     // 進入準備期，選擇最近的目標衛星
                     const targetSatellite = selectNearestSatellite(
-                        handoverState.currentSatelliteId
+                        handoverState.currentSatelliteId || undefined
                     )
                     if (targetSatellite) {
                         console.log('🔄 開始換手：選擇最近衛星作為目標')
-                        
+
                         // 🎲 遞增換手原因計數器，下次換手使用不同原因
                         handoverReasonCounterRef.current += 1
-                        
+
                         newState = {
                             phase: 'preparing',
                             currentSatelliteId:
@@ -550,6 +681,9 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                             totalElapsed:
                                 handoverState.totalElapsed + phaseElapsed,
                         }
+                    } else {
+                        // 沒有其他衛星可用，保持當前狀態
+                        console.log('🔄 沒有其他衛星可用，保持當前連接')
                     }
                     break
 
@@ -587,25 +721,49 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                     // 計算換手前後的距離變化
                     const oldDistance = getCurrentConnectionDistance()
                     const newSatellite = handoverState.targetSatelliteId
-                    
+
                     if (newSatellite && oldDistance) {
                         const uavPos = getUAVPositions()[0]
                         const newSatPos = satellitePositions?.get(newSatellite)
                         if (uavPos && newSatPos) {
-                            const newDistance = calculateDistance(uavPos, newSatPos)
+                            const newDistance = calculateDistance(
+                                uavPos,
+                                newSatPos
+                            )
                             const improvement = oldDistance - newDistance
-                            console.log(`🎯 換手完成: ${getSatelliteName(handoverState.currentSatelliteId)} -> ${getSatelliteName(newSatellite)}`)
-                            console.log(`📏 距離變化: ${oldDistance.toFixed(1)}km -> ${newDistance.toFixed(1)}km (${improvement > 0 ? '改善' : '增加'} ${Math.abs(improvement).toFixed(1)}km)`)
+                            console.log(
+                                `🎯 換手完成: ${getSatelliteName(
+                                    handoverState.currentSatelliteId
+                                )} -> ${getSatelliteName(newSatellite)}`
+                            )
+                            console.log(
+                                `📏 距離變化: ${oldDistance.toFixed(
+                                    1
+                                )}km -> ${newDistance.toFixed(1)}km (${
+                                    improvement > 0 ? '改善' : '增加'
+                                } ${Math.abs(improvement).toFixed(1)}km)`
+                            )
                         }
                     }
-                    
+
+                    // 📝 記錄換手事件到歷史記錄
+                    if (
+                        handoverState.currentSatelliteId &&
+                        handoverState.targetSatelliteId
+                    ) {
+                        recordHandover(
+                            handoverState.currentSatelliteId,
+                            handoverState.targetSatelliteId
+                        )
+                    }
+
                     // 清除所有模擬數據，下次換手重新生成
                     simulatedDataRef.current = {
                         load: null,
                         elevation: null,
-                        signal: null
+                        signal: null,
                     }
-                    
+
                     newState = {
                         phase: 'stable',
                         currentSatelliteId: handoverState.targetSatelliteId,
@@ -644,12 +802,23 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         }
     }, [enabled, satellitePositions])
 
+    // 🔄 動態更新換手歷史冷卻期
+    useEffect(() => {
+        handoverHistoryRef.current.cooldownPeriod =
+            handoverMode === 'demo' ? 60000 : 30000
+        console.log(
+            `🔄 更新換手冷卻期: ${
+                handoverMode === 'demo' ? '60秒 (演示模式)' : '30秒 (真實模式)'
+            }`
+        )
+    }, [handoverMode])
+
     // 🔗 渲染連接線（支援雙線和動畫效果）
     const renderConnections = () => {
         if (!enabled) return null
 
         const uavPositions = getUAVPositions()
-        const connections = []
+        const connections: React.ReactElement[] = []
 
         // 🟢 當前/舊連接線（在 completing 階段顯示舊連接）
         if (handoverState.currentSatelliteId) {
@@ -832,20 +1001,6 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         )
     }
 
-    // 🎯 使用 useRef 來保存模擬數據，避免跳動
-    const simulatedDataRef = useRef<{
-        load: {currentLoad: number, targetLoad: number} | null,
-        elevation: {currentElevation: number, targetElevation: number} | null,
-        signal: {currentSignal: number, targetSignal: number} | null
-    }>({
-        load: null,
-        elevation: null,
-        signal: null
-    })
-    
-    // 🎲 換手原因輪換器 - 讓4種狀態都有機會發生
-    const handoverReasonCounterRef = useRef<number>(0)
-
     // 🎯 獲取換手原因分析
     const getHandoverReason = () => {
         if (!handoverState.targetSatelliteId) return null
@@ -853,107 +1008,151 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         const uavPos = getUAVPositions()[0]
         if (!uavPos) return null
 
-        const currentSatPos = satellitePositions?.get(handoverState.currentSatelliteId)
-        const targetSatPos = satellitePositions?.get(handoverState.targetSatelliteId)
-        
+        const currentSatPos = handoverState.currentSatelliteId
+            ? satellitePositions?.get(handoverState.currentSatelliteId)
+            : null
+        const targetSatPos = satellitePositions?.get(
+            handoverState.targetSatelliteId
+        )
+
         if (!currentSatPos || !targetSatPos) return null
 
         const currentDistance = calculateDistance(uavPos, currentSatPos)
         const targetDistance = calculateDistance(uavPos, targetSatPos)
-        
+
         // 計算仰角 (簡化計算)
-        const currentElevation = Math.atan2(
-            currentSatPos[1] - uavPos[1], 
-            Math.sqrt(Math.pow(currentSatPos[0] - uavPos[0], 2) + Math.pow(currentSatPos[2] - uavPos[2], 2))
-        ) * 180 / Math.PI
-        
-        const targetElevation = Math.atan2(
-            targetSatPos[1] - uavPos[1], 
-            Math.sqrt(Math.pow(targetSatPos[0] - uavPos[0], 2) + Math.pow(targetSatPos[2] - uavPos[2], 2))
-        ) * 180 / Math.PI
-        
+        const currentElevation =
+            (Math.atan2(
+                currentSatPos[1] - uavPos[1],
+                Math.sqrt(
+                    Math.pow(currentSatPos[0] - uavPos[0], 2) +
+                        Math.pow(currentSatPos[2] - uavPos[2], 2)
+                )
+            ) *
+                180) /
+            Math.PI
+
+        const targetElevation =
+            (Math.atan2(
+                targetSatPos[1] - uavPos[1],
+                Math.sqrt(
+                    Math.pow(targetSatPos[0] - uavPos[0], 2) +
+                        Math.pow(targetSatPos[2] - uavPos[2], 2)
+                )
+            ) *
+                180) /
+            Math.PI
+
         // 模擬信號強度 (基於距離的簡化模型)
-        const currentSignal = Math.max(-130, -50 - 20 * Math.log10(currentDistance / 100))
-        const targetSignal = Math.max(-130, -50 - 20 * Math.log10(targetDistance / 100))
+        const currentSignal = Math.max(
+            -130,
+            -50 - 20 * Math.log10(currentDistance / 100)
+        )
+        const targetSignal = Math.max(
+            -130,
+            -50 - 20 * Math.log10(targetDistance / 100)
+        )
 
         // 🎲 輪換換手原因，讓4種狀態都有機會發生
         const reasonType = handoverReasonCounterRef.current % 4
-        
+
         switch (reasonType) {
             case 0: // 📐 仰角過低
                 // 生成固定的仰角數據，避免跳動
                 if (!simulatedDataRef.current.elevation) {
                     simulatedDataRef.current.elevation = {
-                        currentElevation: Math.max(5, currentElevation + (Math.random() - 0.7) * 20),
-                        targetElevation: Math.max(15, targetElevation + Math.random() * 15)
+                        currentElevation: Math.max(
+                            5,
+                            currentElevation + (Math.random() - 0.7) * 20
+                        ),
+                        targetElevation: Math.max(
+                            15,
+                            targetElevation + Math.random() * 15
+                        ),
                     }
                 }
-                
+
                 const elevationData = simulatedDataRef.current.elevation
                 return {
                     primaryReason: 'elevation' as const,
                     reasonText: '衛星仰角過低',
                     currentValue: elevationData.currentElevation,
                     targetValue: elevationData.targetElevation,
-                    improvement: `提升 ${(elevationData.targetElevation - elevationData.currentElevation).toFixed(1)}°`,
-                    urgency: elevationData.currentElevation < 10 ? 'emergency' as const : 'high' as const,
+                    improvement: `提升 ${(
+                        elevationData.targetElevation -
+                        elevationData.currentElevation
+                    ).toFixed(1)}°`,
+                    urgency:
+                        elevationData.currentElevation < 10
+                            ? ('emergency' as const)
+                            : ('high' as const),
                     icon: '📐',
-                    unit: '°'
+                    unit: '°',
                 }
-                
+
             case 1: // 📶 信號強度不足
                 // 生成固定的信號數據，避免跳動
                 if (!simulatedDataRef.current.signal) {
                     simulatedDataRef.current.signal = {
                         currentSignal: currentSignal - Math.random() * 15, // 降低信號
-                        targetSignal: targetSignal + Math.random() * 10 // 改善信號
+                        targetSignal: targetSignal + Math.random() * 10, // 改善信號
                     }
                 }
-                
+
                 const signalData = simulatedDataRef.current.signal
                 return {
                     primaryReason: 'signal' as const,
                     reasonText: '信號強度不足',
                     currentValue: signalData.currentSignal,
                     targetValue: signalData.targetSignal,
-                    improvement: `改善 ${(signalData.targetSignal - signalData.currentSignal).toFixed(1)}dBm`,
-                    urgency: signalData.currentSignal < -120 ? 'high' as const : 'medium' as const,
+                    improvement: `改善 ${(
+                        signalData.targetSignal - signalData.currentSignal
+                    ).toFixed(1)}dBm`,
+                    urgency:
+                        signalData.currentSignal < -120
+                            ? ('high' as const)
+                            : ('medium' as const),
                     icon: '📶',
-                    unit: 'dBm'
+                    unit: 'dBm',
                 }
-                
-            case 2: // 📏 距離優化  
+
+            case 2: // 📏 距離優化
                 return {
                     primaryReason: 'distance' as const,
                     reasonText: '距離優化',
                     currentValue: currentDistance,
                     targetValue: targetDistance,
-                    improvement: `縮短 ${Math.max(0, currentDistance - targetDistance).toFixed(1)}km`,
+                    improvement: `縮短 ${Math.max(
+                        0,
+                        currentDistance - targetDistance
+                    ).toFixed(1)}km`,
                     urgency: 'medium' as const,
                     icon: '📏',
-                    unit: 'km'
+                    unit: 'km',
                 }
-                
+
             case 3: // ⚖️ 負載平衡
             default:
                 // 生成固定的負載數據，避免跳動
                 if (!simulatedDataRef.current.load) {
                     simulatedDataRef.current.load = {
                         currentLoad: 75 + Math.random() * 20, // 75-95%
-                        targetLoad: 30 + Math.random() * 20   // 30-50%
+                        targetLoad: 30 + Math.random() * 20, // 30-50%
                     }
                 }
-                
+
                 const loadData = simulatedDataRef.current.load
                 return {
                     primaryReason: 'load' as const,
                     reasonText: '負載平衡',
                     currentValue: loadData.currentLoad,
                     targetValue: loadData.targetLoad,
-                    improvement: `降低 ${(loadData.currentLoad - loadData.targetLoad).toFixed(1)}%`,
+                    improvement: `降低 ${(
+                        loadData.currentLoad - loadData.targetLoad
+                    ).toFixed(1)}%`,
                     urgency: 'low' as const,
                     icon: '⚖️',
-                    unit: '%'
+                    unit: '%',
                 }
         }
     }
@@ -987,15 +1186,25 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 }
             case 'preparing':
                 // 計算目標衛星距離
-                const targetDistance = handoverState.targetSatelliteId ? (() => {
-                    const uavPos = getUAVPositions()[0]
-                    const satPos = satellitePositions?.get(handoverState.targetSatelliteId)
-                    return uavPos && satPos ? calculateDistance(uavPos, satPos) : null
-                })() : null
+                const targetDistance = handoverState.targetSatelliteId
+                    ? (() => {
+                          const uavPos = getUAVPositions()[0]
+                          const satPos = satellitePositions?.get(
+                              handoverState.targetSatelliteId
+                          )
+                          return uavPos && satPos
+                              ? calculateDistance(uavPos, satPos)
+                              : null
+                      })()
+                    : null
 
                 return {
                     title: '準備換手',
-                    subtitle: `即將連接: ${targetSatName}${targetDistance ? ` (${targetDistance.toFixed(1)}km)` : ''}`,
+                    subtitle: `即將連接: ${targetSatName}${
+                        targetDistance
+                            ? ` (${targetDistance.toFixed(1)}km)`
+                            : ''
+                    }`,
                     status: 'preparing' as const,
                     countdown: countdown,
                     handoverReason: handoverReason,

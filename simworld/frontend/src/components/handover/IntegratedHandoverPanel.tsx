@@ -106,16 +106,26 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
             )
 
             // 模擬未來時間點的最佳衛星（可能不同）
+            // 確保不會選擇自己作為換手目標
+            const availableCandidates = satellites.filter(
+                (sat) =>
+                    sat.norad_id !== currentBest?.norad_id &&
+                    sat.elevation_deg > 20
+            )
+
+            // 只有在找到合適候選者時才進行換手
             const futureBest =
-                satellites.find(
-                    (sat) =>
-                        sat.norad_id !== currentBest?.norad_id &&
-                        sat.elevation_deg > 20
-                ) || currentBest
+                availableCandidates.length > 0
+                    ? availableCandidates.reduce((best, sat) =>
+                          !best || sat.elevation_deg > best.elevation_deg
+                              ? sat
+                              : best
+                      )
+                    : null
 
             if (currentBest) {
                 const newCurrentConnection: SatelliteConnection = {
-                    satelliteId: currentBest.norad_id,
+                    satelliteId: currentBest.norad_id.toString(),
                     satelliteName: currentBest.name,
                     isConnected: true,
                     isPredicted: false,
@@ -124,8 +134,6 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
                     elevation: currentBest.elevation_deg,
                     azimuth: currentBest.azimuth_deg,
                     distance: currentBest.distance_km,
-                    quality: { snr: 25, rssi: -65, bandwidth: 100 },
-                    performance: { latency: 50, throughput: 150, jitter: 5 },
                 }
 
                 setCurrentConnection(newCurrentConnection)
@@ -134,7 +142,7 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
 
             if (futureBest && futureBest.norad_id !== currentBest?.norad_id) {
                 const newPredictedConnection: SatelliteConnection = {
-                    satelliteId: futureBest.norad_id,
+                    satelliteId: futureBest.norad_id.toString(),
                     satelliteName: futureBest.name,
                     isConnected: false,
                     isPredicted: true,
@@ -142,8 +150,6 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
                     elevation: futureBest.elevation_deg,
                     azimuth: futureBest.azimuth_deg,
                     distance: futureBest.distance_km,
-                    quality: { snr: 25, rssi: -65, bandwidth: 100 },
-                    performance: { latency: 50, throughput: 150, jitter: 5 },
                 }
 
                 setPredictedConnection(newPredictedConnection)
@@ -152,8 +158,8 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
                 // 更新換手狀態
                 const newHandoverState = {
                     ...handoverState,
-                    currentSatellite: currentBest?.norad_id || '',
-                    predictedSatellite: futureBest.norad_id,
+                    currentSatellite: currentBest?.norad_id.toString() || '',
+                    predictedSatellite: futureBest.norad_id.toString(),
                     handoverTime: now + 5000,
                     status: 'predicting' as const,
                 }
@@ -205,7 +211,7 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
     // 手動換手處理
     const handleManualHandover = async (targetSatelliteId: string) => {
         const targetSatellite = satellites.find(
-            (s) => s.norad_id === targetSatelliteId
+            (s) => s.norad_id.toString() === targetSatelliteId
         )
         if (!targetSatellite || !currentConnection) return
 
@@ -237,8 +243,6 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
                     elevation: targetSatellite.elevation_deg,
                     azimuth: targetSatellite.azimuth_deg,
                     distance: targetSatellite.distance_km,
-                    quality: { snr: 25, rssi: -65, bandwidth: 100 },
-                    performance: { latency: 50, throughput: 150, jitter: 5 },
                 }
 
                 setCurrentConnection(newConnection)
@@ -389,7 +393,10 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
 
                 {activeTab === 'prediction' && (
                     <div className="prediction-tab">
-                        <TimePredictionTimeline data={timePredictionData} />
+                        <TimePredictionTimeline
+                            data={timePredictionData}
+                            isActive={handoverState.status === 'predicting'}
+                        />
 
                         <div className="prediction-metrics">
                             <h4>🎯 預測精度分析</h4>
