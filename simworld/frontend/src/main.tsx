@@ -119,10 +119,16 @@ createRoot(document.getElementById('root')!).render(
     <StrictMode>
         <BrowserRouter>
             <Routes>
-                {/* 首頁重定向到 /nycu/stereogram */}
+                {/* 首頁重定向到 /ntpu/stereogram */}
                 <Route
                     path="/"
-                    element={<Navigate to="/nycu/stereogram" replace />}
+                    element={<Navigate to="/ntpu/stereogram" replace />}
+                />
+
+                {/* /ntpu 重定向到 /ntpu/stereogram */}
+                <Route
+                    path="/ntpu"
+                    element={<Navigate to="/ntpu/stereogram" replace />}
                 />
 
                 {/* /nycu 重定向到 /nycu/stereogram */}
@@ -130,7 +136,6 @@ createRoot(document.getElementById('root')!).render(
                     path="/nycu"
                     element={<Navigate to="/nycu/stereogram" replace />}
                 />
-
 
                 {/* 場景路由 - stereogram */}
                 <Route
@@ -147,7 +152,7 @@ createRoot(document.getElementById('root')!).render(
                 {/* 404 重定向到預設場景 */}
                 <Route
                     path="*"
-                    element={<Navigate to="/nycu/stereogram" replace />}
+                    element={<Navigate to="/ntpu/stereogram" replace />}
                 />
             </Routes>
         </BrowserRouter>

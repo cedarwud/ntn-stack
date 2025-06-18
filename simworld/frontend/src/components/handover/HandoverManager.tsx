@@ -85,7 +85,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         cooldownPeriod: number // 冷卻期（毫秒）
     }>({
         recentHandovers: [],
-        cooldownPeriod: handoverMode === 'demo' ? 60000 : 30000, // 演示模式60秒，真實模式30秒
+        cooldownPeriod: handoverMode === 'demo' ? 90000 : 120000, // 演示模式90秒，真實模式120秒（統一加強防護）
     })
 
     // 衛星連接狀態
@@ -151,94 +151,122 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         ) // 前6個衛星
         const currentBest = simulatedSatellites[currentBestIndex]
 
-        // 換手機率調整為 40%，並優先選擇相鄰的衛星
-        const shouldHandover = Math.random() < 0.4
-        let futureBest = currentBest
+        // 🚫 核心修復：確保不會選擇自己作為換手目標
+        // 先過濾掉當前衛星，確保候選列表不包含自己
+        let availableTargets = simulatedSatellites.filter(
+            (sat, index) => index !== currentBestIndex
+        )
 
-        if (shouldHandover) {
-            // 🚫 清理過期的換手記錄
-            const history = handoverHistoryRef.current
-            history.recentHandovers = history.recentHandovers.filter(
-                (record) => now - record.timestamp < history.cooldownPeriod
-            )
+        // 🚫 如果沒有可用目標，直接返回不換手
+        if (availableTargets.length === 0) {
+            console.warn('⚠️ 沒有可用的換手目標衛星')
+            setHandoverState((prev) => ({
+                ...prev,
+                currentSatellite: currentBest?.norad_id.toString() || '',
+                predictedSatellite: '', // 清空預測衛星
+                handoverTime: 0,
+                status: 'idle',
+            }))
 
-            // 選擇不同的衛星作為換手目標，確保不會選到自己
-            let availableTargets = simulatedSatellites.filter(
-                (sat, index) => index !== currentBestIndex
-            )
-
-            // 🔄 如果有當前衛星，檢查換手歷史
-            if (currentBest && availableTargets.length > 0) {
-                const currentSatId = currentBest.norad_id.toString()
-
-                // 找出最近與當前衛星有換手記錄的衛星
-                const recentPartners = new Set<string>()
-
-                history.recentHandovers.forEach((record) => {
-                    // 檢查雙向換手記錄
-                    if (record.from === currentSatId) {
-                        recentPartners.add(record.to)
-                    } else if (record.to === currentSatId) {
-                        recentPartners.add(record.from)
-                    }
-                })
-
-                // 🎯 優先選擇沒有最近換手記錄的衛星
-                const preferredTargets = availableTargets.filter(
-                    (sat) => !recentPartners.has(sat.norad_id.toString())
+            if (currentBest) {
+                const currentConn = generateMockSatelliteConnection(
+                    currentBest,
+                    true
                 )
-
-                if (preferredTargets.length > 0) {
-                    availableTargets = preferredTargets
-                    console.log(
-                        `🔄 避免頻繁互換，排除最近換手的衛星: ${Array.from(
-                            recentPartners
-                        ).join(', ')}`
-                    )
-                } else {
-                    console.log(
-                        `⚠️ 所有候選衛星都有最近換手記錄，使用全部候選者`
-                    )
-                }
+                setCurrentConnection(currentConn)
             }
+            setPredictedConnection(null)
+            return
+        }
 
-            if (availableTargets.length > 0) {
-                // 優先選擇相鄰的衛星，如果沒有則隨機選擇
-                let targetIndex = -1
+        // 🚫 清理過期的換手記錄
+        const history = handoverHistoryRef.current
+        history.recentHandovers = history.recentHandovers.filter(
+            (record) => now - record.timestamp < history.cooldownPeriod
+        )
 
-                // 嘗試選擇相鄰衛星（在可用目標中）
-                const adjacentCandidates = []
-                if (currentBestIndex < simulatedSatellites.length - 1) {
-                    const nextSat = simulatedSatellites[currentBestIndex + 1]
-                    if (availableTargets.includes(nextSat)) {
-                        adjacentCandidates.push(nextSat)
-                    }
-                }
-                if (currentBestIndex > 0) {
-                    const prevSat = simulatedSatellites[currentBestIndex - 1]
-                    if (availableTargets.includes(prevSat)) {
-                        adjacentCandidates.push(prevSat)
-                    }
-                }
+        // 🔄 如果有當前衛星，檢查換手歷史
+        if (currentBest && availableTargets.length > 0) {
+            const currentSatId = currentBest.norad_id.toString()
 
-                if (adjacentCandidates.length > 0) {
-                    // 選擇相鄰衛星
-                    futureBest =
-                        adjacentCandidates[
-                            Math.floor(
-                                Math.random() * adjacentCandidates.length
-                            )
-                        ]
-                } else {
-                    // 隨機選擇一個可用目標
-                    const randomIndex = Math.floor(
-                        Math.random() * availableTargets.length
-                    )
-                    futureBest = availableTargets[randomIndex]
+            // 找出最近與當前衛星有換手記錄的衛星
+            const recentPartners = new Set<string>()
+
+            history.recentHandovers.forEach((record) => {
+                // 檢查雙向換手記錄
+                if (record.from === currentSatId) {
+                    recentPartners.add(record.to)
+                } else if (record.to === currentSatId) {
+                    recentPartners.add(record.from)
                 }
+            })
+
+            // 🎯 優先選擇沒有最近換手記錄的衛星
+            const preferredTargets = availableTargets.filter(
+                (sat) => !recentPartners.has(sat.norad_id.toString())
+            )
+
+            if (preferredTargets.length > 0) {
+                availableTargets = preferredTargets
             }
         }
 
+        // 🎯 智能選擇換手目標 - 基於多種策略
+        let futureBest: VisibleSatelliteInfo | null = null
+
+        if (availableTargets.length > 0) {
+            // 策略1：優先選擇相鄰的衛星（更符合軌道換手邏輯）
+            const adjacentCandidates = []
+            if (currentBestIndex < simulatedSatellites.length - 1) {
+                const nextSat = simulatedSatellites[currentBestIndex + 1]
+                if (availableTargets.includes(nextSat)) {
+                    adjacentCandidates.push(nextSat)
+                }
+            }
+            if (currentBestIndex > 0) {
+                const prevSat = simulatedSatellites[currentBestIndex - 1]
+                if (availableTargets.includes(prevSat)) {
+                    adjacentCandidates.push(prevSat)
+                }
+            }
+
+            if (adjacentCandidates.length > 0 && Math.random() < 0.6) {
+                // 60% 機率選擇相鄰衛星
+                futureBest =
+                    adjacentCandidates[
+                        Math.floor(Math.random() * adjacentCandidates.length)
+                    ]
+            } else {
+                // 策略2：選擇信號品質最佳的衛星
+                futureBest = availableTargets.reduce((best, sat) =>
+                    !best || sat.elevation_deg > best.elevation_deg ? sat : best
+                )
+            }
+        }
+
+        // 🚫 最終安全檢查：確保選擇的衛星不是當前衛星
+        if (!futureBest || futureBest.norad_id === currentBest?.norad_id) {
+            console.warn('⚠️ 無法找到合適的換手目標，保持當前連接')
+            setHandoverState((prev) => ({
+                ...prev,
+                currentSatellite: currentBest?.norad_id.toString() || '',
+                predictedSatellite: '', // 清空預測衛星
+                handoverTime: 0,
+                status: 'idle',
+            }))
+
+            if (currentBest) {
+                const currentConn = generateMockSatelliteConnection(
+                    currentBest,
+                    true
+                )
+                setCurrentConnection(currentConn)
+            }
+            setPredictedConnection(null)
+            return
+        }
+
+        // ✅ 成功選擇換手目標
         setHandoverState((prev) => ({
             ...prev,
             currentSatellite: currentBest?.norad_id.toString() || '',
@@ -255,34 +283,22 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             setCurrentConnection(currentConn)
         }
 
-        if (futureBest && futureBest.norad_id !== currentBest?.norad_id) {
-            const predictedConn = generateMockSatelliteConnection(
-                futureBest,
-                false
-            )
-            setPredictedConnection(predictedConn)
-            // 模擬需要換手
-            simulateBinarySearch(now, futureTime)
-        } else {
-            setPredictedConnection(null)
-            setHandoverState((prev) => ({
-                ...prev,
-                handoverTime: 0,
-                status: 'idle',
-            }))
-        }
+        // 🎯 由於我們已經確保futureBest不等於currentBest，這裡一定會執行換手邏輯
+        const predictedConn = generateMockSatelliteConnection(futureBest, false)
+        setPredictedConnection(predictedConn)
+        // 模擬需要換手
+        simulateBinarySearch(now, futureTime)
 
         // 更新時間預測數據
         setTimePredictionData({
             currentTime: now,
             futureTime,
-            handoverTime:
-                futureBest?.norad_id !== currentBest?.norad_id
-                    ? now + 5000 // 調整為 5 秒，在 10 秒區間的中點
-                    : undefined,
+            handoverTime: now + 5000, // 調整為 5 秒，在 10 秒區間的中點
             iterations: [],
             accuracy: 0.95 + Math.random() * 0.04, // 95-99%
         })
+
+        // 換手決策完成
     }, [handoverState.deltaT, generateMockSatelliteConnection]) // 移除 satellites 依賴，使用自己的模擬數據
 
     // 模擬 Binary Search Refinement
@@ -508,26 +524,20 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                         handoverHistoryRef.current.cooldownPeriod
                 )
 
-            console.log(
-                `📝 記錄換手: ${fromSatellite} → ${toSatellite}，` +
-                    `歷史記錄數量: ${handoverHistoryRef.current.recentHandovers.length}，` +
-                    `模式: ${handoverMode}，冷卻期: ${
-                        handoverHistoryRef.current.cooldownPeriod / 1000
-                    }秒`
-            )
+            // 換手記錄已更新
         },
         [handoverMode]
     )
 
-    // 🔄 當換手模式改變時，更新冷卻期
+    // 🔄 當換手模式改變時，更新冷卻期並清理歷史記錄
     useEffect(() => {
-        handoverHistoryRef.current.cooldownPeriod =
-            handoverMode === 'demo' ? 60000 : 30000
-        console.log(
-            `🔄 換手模式變更為: ${handoverMode}，冷卻期: ${
-                handoverHistoryRef.current.cooldownPeriod / 1000
-            }秒`
-        )
+        const newCooldown = handoverMode === 'demo' ? 90000 : 120000
+        if (handoverHistoryRef.current.cooldownPeriod !== newCooldown) {
+            handoverHistoryRef.current.cooldownPeriod = newCooldown
+            // 清空所有歷史記錄，避免模式切換時的衝突
+            handoverHistoryRef.current.recentHandovers = []
+            // 模式切換完成
+        }
     }, [handoverMode])
 
     if (!isEnabled) {
