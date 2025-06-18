@@ -71,6 +71,7 @@ interface SceneViewProps {
     satelliteEnabled?: boolean
     satelliteSpeedMultiplier?: number
     handoverStableDuration?: number
+    handoverMode?: 'demo' | 'real' // 換手模式控制
     // 🚀 演算法結果對接
     algorithmResults?: {
         currentSatelliteId?: string
@@ -125,6 +126,7 @@ export default function SceneView({
     satelliteEnabled = false,
     satelliteSpeedMultiplier = 60,
     handoverStableDuration = 5,
+    handoverMode = 'demo',
     algorithmResults,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -316,6 +318,7 @@ export default function SceneView({
                         satelliteEnabled={satelliteEnabled}
                         satelliteSpeedMultiplier={satelliteSpeedMultiplier}
                         handoverStableDuration={handoverStableDuration}
+                        handoverMode={handoverMode}
                         algorithmResults={algorithmResults}
                         onHandoverStatusUpdate={handleHandoverStatusUpdate}
                     />
