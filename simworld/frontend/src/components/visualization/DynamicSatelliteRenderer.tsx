@@ -186,9 +186,9 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
     const orbitsRef = useRef<SatelliteOrbit[]>([])
     orbitsRef.current = orbits
 
-    // 使用定時器來定期更新衛星位置，避免與 useFrame 衝突
+    // 🔄 位置更新邏輯 - 修復無限循環問題
     useEffect(() => {
-        if (!onSatellitePositions || !enabled) return
+        if (!enabled || !onSatellitePositions) return
 
         const updatePositions = () => {
             const positionMap = new Map<string, [number, number, number]>()
@@ -223,7 +223,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         const interval = setInterval(updatePositions, 250)
 
         return () => clearInterval(interval)
-    }, [onSatellitePositions, enabled])
+    }, [enabled]) // 移除onSatellitePositions依賴，避免無限循環
 
     const satellitesToRender = orbits.filter((orbit) => orbit.isVisible)
 
