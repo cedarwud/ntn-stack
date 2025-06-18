@@ -2,6 +2,14 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Ring, Text } from '@react-three/drei'
+import { 
+    realConnectionManager, 
+    RealConnectionInfo, 
+    RealHandoverStatus,
+    getConnectionLineColor,
+    getConnectionLineOpacity,
+    getConnectionLineRadius
+} from '../../../services/realConnectionService'
 
 interface HandoverAnimation3DProps {
     devices: any[]
@@ -11,6 +19,7 @@ interface HandoverAnimation3DProps {
     handoverMode?: 'demo' | 'real' // 換手模式：演示模式 vs 真實模式
     onStatusUpdate?: (statusInfo: any) => void // 狀態更新回調
     onHandoverStateUpdate?: (state: any) => void // 換手狀態回調，供衛星光球使用
+    useRealConnections?: boolean // 是否使用真實連接數據
 }
 
 // 🎯 狀態面板組件（在Canvas外部顯示）
@@ -327,11 +336,56 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     handoverMode = 'demo', // 預設演示模式
     onStatusUpdate,
     onHandoverStateUpdate,
+    useRealConnections = false, // 預設不使用真實連接數據
 }) => {
-    // 🔧 調試信息 - 完全移除console日誌
+    // 🔗 真實連接狀態管理
+    const [realConnectionInfo, setRealConnectionInfo] = useState<RealConnectionInfo | null>(null)
+    const [realHandoverStatus, setRealHandoverStatus] = useState<RealHandoverStatus | null>(null)
+    const realConnectionUpdateInterval = useRef<NodeJS.Timeout | null>(null)
+    
+    // 更新真實連接數據
     useEffect(() => {
-        // 移除所有調試日誌，減少噪音
-    }, [enabled, stableDuration])
+        if (!enabled || !useRealConnections) {
+            // 清理定時器
+            if (realConnectionUpdateInterval.current) {
+                clearInterval(realConnectionUpdateInterval.current)
+                realConnectionUpdateInterval.current = null
+            }
+            setRealConnectionInfo(null)
+            setRealHandoverStatus(null)
+            return
+        }
+        
+        const updateRealConnectionData = async () => {
+            try {
+                // 獲取真實連接狀態
+                const connectionStatus = realConnectionManager.getConnectionStatus('ue_001')
+                const handoverStatus = realConnectionManager.getHandoverStatus('ue_001')
+                
+                if (connectionStatus) {
+                    setRealConnectionInfo(connectionStatus)
+                }
+                
+                if (handoverStatus) {
+                    setRealHandoverStatus(handoverStatus)
+                }
+            } catch (error) {
+                console.error('Error updating real connection data:', error)
+            }
+        }
+        
+        // 立即更新一次
+        updateRealConnectionData()
+        
+        // 每2秒更新一次真實數據
+        realConnectionUpdateInterval.current = setInterval(updateRealConnectionData, 2000)
+        
+        return () => {
+            if (realConnectionUpdateInterval.current) {
+                clearInterval(realConnectionUpdateInterval.current)
+            }
+        }
+    }, [enabled, useRealConnections])
 
     // 🔗 換手狀態管理
     const [handoverState, setHandoverState] = useState<HandoverState>({
@@ -1063,8 +1117,32 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         return connections
     }
 
-    // 🎨 當前連接線屬性
+    // 🎨 當前連接線屬性 - 整合真實信號質量數據
     const getCurrentLineProperties = () => {
+        // 如果有真實連接求據，優先使用
+        if (useRealConnections && realConnectionInfo) {
+            const signalQuality = realConnectionInfo.signal_quality
+            const baseColor = getConnectionLineColor(signalQuality)
+            const baseOpacity = getConnectionLineOpacity(signalQuality)
+            const baseRadius = getConnectionLineRadius(signalQuality)
+            
+            // 根據連接狀態調整效果
+            switch (realConnectionInfo.status) {
+                case 'connected':
+                    return { color: baseColor, opacity: baseOpacity, radius: baseRadius }
+                case 'handover_preparing':
+                    const flicker = Math.sin(Date.now() * 0.012) * 0.3 + 0.7
+                    return { color: baseColor, opacity: baseOpacity * flicker, radius: baseRadius * 0.9 }
+                case 'handover_executing':
+                    return { color: baseColor, opacity: baseOpacity * 0.6, radius: baseRadius * 0.7 }
+                case 'disconnected':
+                    return { color: '#ff0000', opacity: 0.3, radius: 0.2 }
+                default:
+                    return { color: baseColor, opacity: baseOpacity, radius: baseRadius }
+            }
+        }
+        
+        // 預設模擬行為
         switch (handoverState.phase) {
             case 'stable':
                 return { color: '#00ff00', opacity: 0.9, radius: 0.6 }
@@ -1090,8 +1168,35 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         }
     }
 
-    // 🎨 目標連接線屬性
+    // 🎨 目標連接線屬性 - 整合真實換手狀態
     const getTargetLineProperties = () => {
+        // 如果有真實換手狀態，使用真實數據
+        if (useRealConnections && realHandoverStatus) {
+            const targetSignalQuality = realHandoverStatus.signal_quality_target || -70
+            const baseColor = getConnectionLineColor(targetSignalQuality)
+            const baseOpacity = getConnectionLineOpacity(targetSignalQuality)
+            const baseRadius = getConnectionLineRadius(targetSignalQuality)
+            
+            // 根據換手狀態調整效果
+            switch (realHandoverStatus.handover_status) {
+                case 'predicting':
+                case 'preparing':
+                    const establishOpacity = 0.3 + (realHandoverStatus.prediction_confidence || 0.5) * 0.5
+                    return {
+                        color: baseColor,
+                        opacity: establishOpacity,
+                        radius: baseRadius * 0.8,
+                    }
+                case 'executing':
+                    return { color: baseColor, opacity: baseOpacity * 0.9, radius: baseRadius }
+                case 'completed':
+                    return { color: baseColor, opacity: baseOpacity, radius: baseRadius }
+                default:
+                    return { color: baseColor, opacity: baseOpacity * 0.5, radius: baseRadius * 0.7 }
+            }
+        }
+        
+        // 預設模擬行為
         switch (handoverState.phase) {
             case 'establishing':
                 const establishOpacity = 0.4 + handoverState.progress * 0.5

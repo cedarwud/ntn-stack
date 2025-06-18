@@ -45,7 +45,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     selectedUEId,
     isEnabled,
     onHandoverEvent,
-    mockMode = true, // 開發階段使用模擬數據
+    mockMode = false, // 使用真實後端數據，true 時啟用模擬模式
     hideUI = false,
     handoverMode = 'demo',
     onHandoverStateChange,
@@ -454,7 +454,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
     // 初始化和定期更新
     useEffect(() => {
-        if (!isEnabled || !mockMode || controlMode !== 'auto') return
+        if (!isEnabled || controlMode !== 'auto') return
 
         // 初始化
         simulateTwoPointPrediction()
@@ -467,7 +467,6 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         return () => clearInterval(interval)
     }, [
         isEnabled,
-        mockMode,
         controlMode,
         simulateTwoPointPrediction,
         handoverState.deltaT,
@@ -676,11 +675,6 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                 </div>
             </div>
 
-            {/* {mockMode && (
-                <div className="mock-mode-indicator">
-                    ⚠️ 開發模式 - 使用模擬數據
-                </div>
-            )} */}
         </div>
     )
 }
