@@ -4,6 +4,12 @@ import { Text } from '@react-three/drei'
 import StaticModel from '../scenes/StaticModel'
 import { ApiRoutes } from '../../config/apiRoutes'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
+import { 
+    realSatelliteDataManager, 
+    RealSatelliteInfo, 
+    getSignalStrengthColor,
+    getSatelliteStatusDescription 
+} from '../../services/realSatelliteService'
 
 interface DynamicSatelliteRendererProps {
     satellites: any[]
@@ -49,6 +55,11 @@ interface SatelliteOrbit {
     isVisible: boolean
     nextAppearTime: number
     currentPosition: [number, number, number]
+    // 新增：真實衛星數據
+    realData?: RealSatelliteInfo
+    signalStrength?: number
+    elevation?: number
+    azimuth?: number
 }
 
 const SATELLITE_MODEL_URL = ApiRoutes.simulations.getModel('sat')
@@ -127,6 +138,38 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         algorithmStatus?: 'idle' | 'calculating' | 'handover_ready'
     }>({})
 
+    // 真實衛星數據狀態
+    const [realSatelliteMapping, setRealSatelliteMapping] = useState<Map<string, RealSatelliteInfo>>(new Map())
+    const [useRealData, setUseRealData] = useState(true) // 預設使用真實數據疊加
+    const [realDataStatus, setRealDataStatus] = useState<'loading' | 'success' | 'error' | 'stale'>('loading')
+
+    // 更新真實衛星數據
+    useEffect(() => {
+        if (!enabled || !useRealData) return
+
+        const updateRealData = () => {
+            const mapping = realSatelliteDataManager.getAllMappings()
+            const isDataFresh = realSatelliteDataManager.isDataFresh()
+            
+            setRealSatelliteMapping(mapping)
+            setRealDataStatus(
+                mapping.size > 0 
+                    ? (isDataFresh ? 'success' : 'stale')
+                    : 'error'
+            )
+            
+            console.log(`🛰️ 更新真實衛星數據映射: ${mapping.size} 顆衛星`)
+        }
+
+        // 立即更新一次
+        updateRealData()
+
+        // 定期檢查更新
+        const interval = setInterval(updateRealData, 5000) // 每5秒檢查一次
+
+        return () => clearInterval(interval)
+    }, [enabled, useRealData])
+
     // 初始化衛星軌道
     useEffect(() => {
         if (!enabled) {
@@ -140,10 +183,15 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
             (_, i) => {
                 const orbitGroup = Math.floor(i / 6) // 3 個軌道平面，每個6顆衛星
                 const satelliteInGroup = i % 6
+                const satelliteId = `sat_${i}`
+
+                // 嘗試獲取真實衛星數據
+                const realData = realSatelliteMapping.get(satelliteId)
+                const satelliteName = realData?.name || `STARLINK-${1000 + i}`
 
                 return {
-                    id: `sat_${i}`,
-                    name: `STARLINK-${1000 + i}`,
+                    id: satelliteId,
+                    name: satelliteName,
                     azimuthShift: orbitGroup * 60 + satelliteInGroup * 10, // 更分散的分佈
                     transitDuration: 90 + Math.random() * 60, // 1.5-2.5 分鐘過境時間
                     transitStartTime: i * 15 + Math.random() * 30, // 錯開開始時間，避免全部同時出現
@@ -151,12 +199,17 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                     isVisible: false,
                     nextAppearTime: 0,
                     currentPosition: [0, -200, 0],
+                    // 整合真實數據
+                    realData: realData,
+                    signalStrength: realData?.signal_quality.estimated_signal_strength,
+                    elevation: realData?.position.elevation,
+                    azimuth: realData?.position.azimuth,
                 }
             }
         )
 
         setOrbits(initialOrbits)
-    }, [enabled, satellites])
+    }, [enabled, satellites, realSatelliteMapping])
 
     // 更新軌道動畫
     useFrame(() => {
@@ -322,10 +375,19 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                             scale = 1.2
                     }
                 } else {
-                    // 普通衛星 - 白色但更亮
-                    statusColor = '#ffffff'
-                    opacity = 1.0
-                    scale = 0.8
+                    // 普通衛星 - 根據真實信號強度決定顏色
+                    if (orbit.realData && useRealData) {
+                        statusColor = getSignalStrengthColor(orbit.realData.signal_quality.estimated_signal_strength)
+                        // 基於信號強度調整透明度和大小
+                        const signalStrength = orbit.realData.signal_quality.estimated_signal_strength
+                        opacity = Math.max(0.6, Math.min(1.0, (signalStrength + 80) / 40)) // -80dBm到0dBm映射到0.6-1.0
+                        scale = Math.max(0.6, Math.min(1.0, (signalStrength + 80) / 50)) // 信號強度影響大小
+                    } else {
+                        // 沒有真實數據時使用預設樣式
+                        statusColor = '#ffffff'
+                        opacity = 0.8
+                        scale = 0.8
+                    }
                 }
 
                 return (
@@ -365,16 +427,16 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                                         (algorithmResults?.binarySearchActive &&
                                         (isAlgorithmCurrent ||
                                             isAlgorithmPredicted)
-                                            ? 35
-                                            : 25),
+                                            ? 45
+                                            : 35),
                                     orbit.currentPosition[2],
                                 ]}
-                                fontSize={4}
+                                fontSize={3.5}
                                 color={statusColor}
                                 anchorX="center"
                                 anchorY="middle"
                             >
-                                {/* 🏷️ 顯示衛星名稱 + 演算法狀態 */}
+                                {/* 🏷️ 顯示衛星名稱 + 演算法狀態 + 真實數據 */}
                                 {orbit.name}
                                 {isAlgorithmCurrent && '\n[當前]'}
                                 {isAlgorithmPredicted && '\n[預測]'}
@@ -384,11 +446,39 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                                         algorithmResults.predictionConfidence *
                                         100
                                     ).toFixed(1)}%`}
+                                {/* 真實數據資訊 */}
+                                {orbit.realData && useRealData && (
+                                    <>
+                                        {`\n仰角: ${orbit.realData.position.elevation.toFixed(1)}°`}
+                                        {`\n信號: ${orbit.realData.signal_quality.estimated_signal_strength.toFixed(1)}dBm`}
+                                        {realDataStatus === 'stale' && '\n[數據較舊]'}
+                                    </>
+                                )}
+                                {!orbit.realData && useRealData && realDataStatus === 'success' && '\n[模擬數據]'}
                             </Text>
                         )}
                     </group>
                 )
             })}
+            {/* 真實數據狀態指示器 */}
+            {useRealData && (
+                <Text
+                    position={[150, 180, 0]}
+                    fontSize={8}
+                    color={
+                        realDataStatus === 'success' ? '#00ff00' :
+                        realDataStatus === 'stale' ? '#ffaa00' :
+                        realDataStatus === 'loading' ? '#0088ff' : '#ff0000'
+                    }
+                    anchorX="right"
+                    anchorY="top"
+                >
+                    {`真實衛星數據: ${realSatelliteMapping.size}顆`}
+                    {realDataStatus === 'stale' && '\n[數據較舊]'}
+                    {realDataStatus === 'error' && '\n[數據錯誤]'}
+                    {realDataStatus === 'loading' && '\n[載入中]'}
+                </Text>
+            )}
         </group>
     )
 }

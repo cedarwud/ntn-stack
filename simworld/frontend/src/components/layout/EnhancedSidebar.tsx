@@ -806,7 +806,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                                 selectedReceiverIds[0]
                                             }
                                             isEnabled={true}
-                                            mockMode={true}
+                                            mockMode={false}
                                             speedMultiplier={
                                                 satelliteSpeedMultiplier
                                             }
