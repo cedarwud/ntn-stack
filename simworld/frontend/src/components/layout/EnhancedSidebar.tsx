@@ -269,7 +269,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 
     // 擴展的UI狀態
     const [showControlPanel, setShowControlPanel] = useState(true)
-    const [activeCategory, setActiveCategory] = useState<string>('uav') // 默認顯示UAV控制
+    const [activeCategory, setActiveCategory] = useState<string>('handover_mgr')
     const [showTempDevices, setShowTempDevices] = useState(true)
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
     const [showDesiredDevices, setShowDesiredDevices] = useState(false)
@@ -338,7 +338,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             description: 'UAV 飛行動畫效果',
         },
 
-        // 衛星控制 (4個)
+        // 衛星控制 (7個 - 包含移動過來的3個換手開關)
         {
             id: 'satelliteEnabled',
             label: '衛星星座顯示',
@@ -357,12 +357,10 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             icon: '🔗',
             description: '衛星與 UAV 連接狀態監控（需先開啟衛星顯示）',
         },
-
-        // 換手管理 (3個)
         {
             id: 'handoverPrediction',
             label: '換手預測顯示',
-            category: 'handover_mgr',
+            category: 'satellite',
             enabled: handoverPredictionEnabled,
             onToggle: onHandoverPredictionChange || (() => {}),
             icon: '🔮',
@@ -371,7 +369,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         {
             id: 'handoverDecision',
             label: '換手決策可視化',
-            category: 'handover_mgr',
+            category: 'satellite',
             enabled: handoverDecisionVisualizationEnabled,
             onToggle: onHandoverDecisionVisualizationChange || (() => {}),
             icon: '🎯',
@@ -380,7 +378,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         {
             id: 'handoverPerformance',
             label: '換手性能監控',
-            category: 'handover_mgr',
+            category: 'satellite',
             enabled: handoverPerformanceDashboardEnabled,
             onToggle: onHandoverPerformanceDashboardChange || (() => {}),
             icon: '📊',

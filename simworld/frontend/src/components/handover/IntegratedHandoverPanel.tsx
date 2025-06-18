@@ -105,24 +105,69 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
                 !best || sat.elevation_deg > best.elevation_deg ? sat : best
             )
 
-            // 模擬未來時間點的最佳衛星（可能不同）
-            // 確保不會選擇自己作為換手目標
+            // 🚫 核心修復：確保不會選擇自己作為換手目標
+            // 模擬未來時間點的最佳衛星（必須不同於當前衛星）
             const availableCandidates = satellites.filter(
                 (sat) =>
                     sat.norad_id !== currentBest?.norad_id &&
                     sat.elevation_deg > 20
             )
 
-            // 只有在找到合適候選者時才進行換手
-            const futureBest =
-                availableCandidates.length > 0
-                    ? availableCandidates.reduce((best, sat) =>
-                          !best || sat.elevation_deg > best.elevation_deg
-                              ? sat
-                              : best
-                      )
-                    : null
+            // 🚫 如果沒有合適候選者，直接返回不換手
+            if (availableCandidates.length === 0) {
+                console.warn(
+                    '⚠️ IntegratedHandoverPanel: 沒有可用的換手目標衛星'
+                )
 
+                // 只更新當前連接，不設置預測連接
+                if (currentBest) {
+                    const newCurrentConnection: SatelliteConnection = {
+                        satelliteId: currentBest.norad_id.toString(),
+                        satelliteName: currentBest.name,
+                        isConnected: true,
+                        isPredicted: false,
+                        signalStrength:
+                            -65 - (90 - currentBest.elevation_deg) * 0.5,
+                        elevation: currentBest.elevation_deg,
+                        azimuth: currentBest.azimuth_deg,
+                        distance: currentBest.distance_km,
+                    }
+
+                    setCurrentConnection(newCurrentConnection)
+                    onCurrentConnectionChange?.(newCurrentConnection)
+                }
+
+                // 清空預測連接和換手狀態
+                setPredictedConnection(null)
+                onPredictedConnectionChange?.(null)
+
+                const newHandoverState = {
+                    ...handoverState,
+                    currentSatellite: currentBest?.norad_id.toString() || '',
+                    predictedSatellite: '', // 清空預測衛星
+                    handoverTime: 0,
+                    status: 'idle' as const,
+                }
+
+                setHandoverState(newHandoverState)
+                onHandoverStateChange?.(newHandoverState)
+                return
+            }
+
+            // 🎯 從可用候選者中選擇最佳衛星
+            const futureBest = availableCandidates.reduce((best, sat) =>
+                !best || sat.elevation_deg > best.elevation_deg ? sat : best
+            )
+
+            // 🚫 最終安全檢查：確保選擇的衛星確實不是當前衛星
+            if (!futureBest || futureBest.norad_id === currentBest?.norad_id) {
+                console.error(
+                    '💥 IntegratedHandoverPanel: 檢測到潛在的自我換手，已阻止'
+                )
+                return
+            }
+
+            // ✅ 更新當前連接
             if (currentBest) {
                 const newCurrentConnection: SatelliteConnection = {
                     satelliteId: currentBest.norad_id.toString(),
@@ -140,54 +185,43 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
                 onCurrentConnectionChange?.(newCurrentConnection)
             }
 
-            if (futureBest && futureBest.norad_id !== currentBest?.norad_id) {
-                const newPredictedConnection: SatelliteConnection = {
-                    satelliteId: futureBest.norad_id.toString(),
-                    satelliteName: futureBest.name,
-                    isConnected: false,
-                    isPredicted: true,
-                    signalStrength: -65 - (90 - futureBest.elevation_deg) * 0.5,
-                    elevation: futureBest.elevation_deg,
-                    azimuth: futureBest.azimuth_deg,
-                    distance: futureBest.distance_km,
-                }
-
-                setPredictedConnection(newPredictedConnection)
-                onPredictedConnectionChange?.(newPredictedConnection)
-
-                // 更新換手狀態
-                const newHandoverState = {
-                    ...handoverState,
-                    currentSatellite: currentBest?.norad_id.toString() || '',
-                    predictedSatellite: futureBest.norad_id.toString(),
-                    handoverTime: now + 5000,
-                    status: 'predicting' as const,
-                }
-
-                setHandoverState(newHandoverState)
-                onHandoverStateChange?.(newHandoverState)
-
-                // 更新時間預測數據
-                setTimePredictionData({
-                    currentTime: now,
-                    futureTime,
-                    handoverTime: now + 5000,
-                    iterations: [],
-                    accuracy: 0.95 + Math.random() * 0.04,
-                })
-            } else {
-                setPredictedConnection(null)
-                onPredictedConnectionChange?.(null)
-
-                const newHandoverState = {
-                    ...handoverState,
-                    handoverTime: 0,
-                    status: 'idle' as const,
-                }
-
-                setHandoverState(newHandoverState)
-                onHandoverStateChange?.(newHandoverState)
+            // ✅ 設置預測連接（已確保不是當前衛星）
+            const newPredictedConnection: SatelliteConnection = {
+                satelliteId: futureBest.norad_id.toString(),
+                satelliteName: futureBest.name,
+                isConnected: false,
+                isPredicted: true,
+                signalStrength: -65 - (90 - futureBest.elevation_deg) * 0.5,
+                elevation: futureBest.elevation_deg,
+                azimuth: futureBest.azimuth_deg,
+                distance: futureBest.distance_km,
             }
+
+            setPredictedConnection(newPredictedConnection)
+            onPredictedConnectionChange?.(newPredictedConnection)
+
+            // 更新換手狀態
+            const newHandoverState = {
+                ...handoverState,
+                currentSatellite: currentBest?.norad_id.toString() || '',
+                predictedSatellite: futureBest.norad_id.toString(),
+                handoverTime: now + 5000,
+                status: 'predicting' as const,
+            }
+
+            setHandoverState(newHandoverState)
+            onHandoverStateChange?.(newHandoverState)
+
+            // 更新時間預測數據
+            setTimePredictionData({
+                currentTime: now,
+                futureTime,
+                handoverTime: now + 5000,
+                iterations: [],
+                accuracy: 0.95 + Math.random() * 0.04,
+            })
+
+            // 換手決策完成
 
             // 更新性能指標
             setMetrics((prev) => ({
