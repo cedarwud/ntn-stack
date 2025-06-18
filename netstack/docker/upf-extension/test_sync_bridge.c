@@ -31,7 +31,7 @@ int main() {
     
     result = sync_algorithm_trigger_handover("test_ue_001", "starlink_1002", time(NULL) + 5);
     if (result == SYNC_SUCCESS) {
-        printf("✅ 切換觸發成功\n");
+        printf("✅ 換手觸發成功\n");
     }
     
     sync_algorithm_status_t status;
@@ -40,7 +40,7 @@ int main() {
         printf("✅ 狀態查詢成功\n");
         printf("   - 演算法運行中: %s\n", status.algorithm_running ? "是" : "否");
         printf("   - 總 UE 數量: %u\n", status.total_ue_count);
-        printf("   - 總切換次數: %lu\n", status.total_handover_count);
+        printf("   - 總換手次數: %lu\n", status.total_handover_count);
     }
     
     sync_algorithm_cleanup();

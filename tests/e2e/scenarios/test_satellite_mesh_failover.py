@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 衛星失聯到 Mesh 備援測試場景
-實現 TODO.md 中的場景3：衛星失聯切換到 Mesh 場景
+實現 TODO.md 中的場景3：衛星失聯換手到 Mesh 場景
 驗證網路備援機制和恢復時間（2秒內重建連線）
 """
 
@@ -32,7 +32,7 @@ class SatelliteMeshFailoverTest:
 
         scenario_start = time.time()
         results = {
-            "scenario_name": "衛星失聯切換到 Mesh 場景",
+            "scenario_name": "衛星失聯換手到 Mesh 場景",
             "start_time": datetime.utcnow().isoformat(),
             "steps": [],
             "performance_metrics": {},

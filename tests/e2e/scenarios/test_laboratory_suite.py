@@ -433,7 +433,7 @@ class LaboratoryTestExecutor:
         return await tester.run_interference_tests()
 
     async def _test_failover(self) -> Tuple[bool, Dict]:
-        """故障切換測試"""
+        """故障換手測試"""
         from tests.laboratory_modules.failover_tests import FailoverTester
 
         tester = FailoverTester(self.config)

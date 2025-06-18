@@ -22,7 +22,12 @@ interface DynamicSatelliteRendererProps {
     }
     // 🔗 新增：換手狀態信息
     handoverState?: {
-        phase: 'stable' | 'preparing' | 'establishing' | 'switching' | 'completing'
+        phase:
+            | 'stable'
+            | 'preparing'
+            | 'establishing'
+            | 'switching'
+            | 'completing'
         currentSatelliteId: string | null
         targetSatelliteId: string | null
         progress: number
@@ -194,19 +199,18 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                     positionMap.set(orbit.id, orbit.currentPosition)
                     positionMap.set(orbit.name, orbit.currentPosition) // 同時支援名稱查找
 
-                    // 檢查位置是否有變化
+                    // 檢查位置是否有變化 - 降低閾值以實現更平滑的更新
                     const lastPos = lastPositionsRef.current.get(orbit.id)
                     if (
                         !lastPos ||
-                        Math.abs(lastPos[0] - orbit.currentPosition[0]) > 5.0 ||
-                        Math.abs(lastPos[1] - orbit.currentPosition[1]) > 5.0 ||
-                        Math.abs(lastPos[2] - orbit.currentPosition[2]) > 5.0
+                        Math.abs(lastPos[0] - orbit.currentPosition[0]) > 2.0 ||
+                        Math.abs(lastPos[1] - orbit.currentPosition[1]) > 2.0 ||
+                        Math.abs(lastPos[2] - orbit.currentPosition[2]) > 2.0
                     ) {
                         hasChanges = true
                     }
                 }
             })
-            
 
             // 只在位置有顯著變化時才調用回調
             if (hasChanges) {
@@ -215,8 +219,8 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
             }
         }
 
-        // 每 500ms 更新一次位置回調，減少渲染頻率
-        const interval = setInterval(updatePositions, 500)
+        // 每 250ms 更新一次位置回調，提高平滑度
+        const interval = setInterval(updatePositions, 250)
 
         return () => clearInterval(interval)
     }, [onSatellitePositions, enabled])
@@ -253,17 +257,18 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                     isAlgorithmPredicted ||
                     predictedConnection?.satelliteId === orbit.id
 
-
                 // 🎨 根據換手狀態決定顏色
                 let statusColor = '#ffffff' // 預設白色
                 let opacity = 1.0 // 完全不透明
                 let scale = 1
 
                 // 🔗 檢查是否為換手狀態中的衛星
-                const isHandoverCurrent = handoverState?.currentSatelliteId === orbit.id || 
-                                        handoverState?.currentSatelliteId === orbit.name
-                const isHandoverTarget = handoverState?.targetSatelliteId === orbit.id || 
-                                       handoverState?.targetSatelliteId === orbit.name
+                const isHandoverCurrent =
+                    handoverState?.currentSatelliteId === orbit.id ||
+                    handoverState?.currentSatelliteId === orbit.name
+                const isHandoverTarget =
+                    handoverState?.targetSatelliteId === orbit.id ||
+                    handoverState?.targetSatelliteId === orbit.name
 
                 // 🎯 根據換手狀態設置顏色
                 if (isHandoverCurrent) {
@@ -282,7 +287,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                             scale = 1.2
                             break
                         case 'switching':
-                            statusColor = '#aaaaaa' // 淺灰色 - 切換中
+                            statusColor = '#aaaaaa' // 淺灰色 - 換手中
                             scale = 1.1
                             break
                         case 'completing':
@@ -305,7 +310,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                             scale = 1.3
                             break
                         case 'switching':
-                            statusColor = '#00ff00' // 綠色 - 切換為主要連接
+                            statusColor = '#00ff00' // 綠色 - 換手為主要連接
                             scale = 1.4
                             break
                         case 'completing':
@@ -337,11 +342,13 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                         />
 
                         {/* 🌟 光球指示器 - 位置在衛星和文字中間，適度透明 */}
-                        <mesh position={[
-                            orbit.currentPosition[0],
-                            orbit.currentPosition[1] + 15, // 衛星上方15單位
-                            orbit.currentPosition[2]
-                        ]}>
+                        <mesh
+                            position={[
+                                orbit.currentPosition[0],
+                                orbit.currentPosition[1] + 15, // 衛星上方15單位
+                                orbit.currentPosition[2],
+                            ]}
+                        >
                             <sphereGeometry args={[3, 16, 16]} />
                             <meshBasicMaterial
                                 color={statusColor}

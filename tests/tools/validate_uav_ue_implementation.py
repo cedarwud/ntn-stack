@@ -338,13 +338,13 @@ class UAVUEImplementationValidator:
             return False
 
     async def _validate_dynamic_switching(self) -> bool:
-        """驗證動態切換機制"""
-        logger.info("   檢查動態切換機制...")
+        """驗證動態換手機制"""
+        logger.info("   檢查動態換手機制...")
 
-        # 檢查位置更新端點是否支持信號質量更新和切換
+        # 檢查位置更新端點是否支持信號質量更新和換手
         uav_id = self.detailed_results.get("created_uav_id")
         if not uav_id:
-            logger.error("   無 UAV ID，跳過動態切換檢查")
+            logger.error("   無 UAV ID，跳過動態換手檢查")
             return False
 
         position_update = {
@@ -371,14 +371,14 @@ class UAVUEImplementationValidator:
             )
 
             if response.status_code == 200:
-                logger.info("   ✅ 動態切換機制已實現（位置和信號質量更新正常）")
+                logger.info("   ✅ 動態換手機制已實現（位置和信號質量更新正常）")
                 return True
             else:
                 logger.error(f"   位置更新失敗: {response.status_code}")
                 return False
 
         except Exception as e:
-            logger.error(f"   動態切換機制驗證異常: {e}")
+            logger.error(f"   動態換手機制驗證異常: {e}")
             return False
 
     async def _validate_simworld_integration(self) -> bool:
@@ -483,7 +483,7 @@ class UAVUEImplementationValidator:
             "步驟3_位置UE轉換": self.validation_results["ue_config_conversion"],
             "步驟4_UERANSIM適配": self.validation_results["ueransim_ntn_adaptation"],
             "步驟5_信號質量監測": self.validation_results["signal_quality_monitoring"],
-            "步驟6_動態切換機制": self.validation_results["dynamic_switching"],
+            "步驟6_動態換手機制": self.validation_results["dynamic_switching"],
         }
 
         for step, result in todo_steps.items():
@@ -499,7 +499,7 @@ class UAVUEImplementationValidator:
             "UAV位置到UE配置轉換": self.validation_results["ue_config_conversion"],
             "UERANSIM衛星通信適配": self.validation_results["ueransim_ntn_adaptation"],
             "信號質量監測": self.validation_results["signal_quality_monitoring"],
-            "動態切換機制": self.validation_results["dynamic_switching"],
+            "動態換手機制": self.validation_results["dynamic_switching"],
             "SimWorld整合": self.validation_results["simworld_integration"],
             "完整演示系統": self.validation_results["complete_demo"],
         }

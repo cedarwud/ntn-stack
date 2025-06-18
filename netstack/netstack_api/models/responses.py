@@ -77,7 +77,7 @@ class UEStatsResponse(BaseModel):
 
     rtt_ms: Optional[float] = Field(None, description="往返延遲 (毫秒)", example=45.2)
 
-    slice_switches: int = Field(default=0, description="Slice 切換次數", example=2)
+    slice_switches: int = Field(default=0, description="Slice 換手次數", example=2)
 
     last_rtt_test: Optional[str] = Field(
         None, description="最後 RTT 測試時間 (ISO 8601 格式)"
@@ -85,22 +85,22 @@ class UEStatsResponse(BaseModel):
 
 
 class SliceSwitchResponse(BaseModel):
-    """Slice 切換回應"""
+    """Slice 換手回應"""
 
     imsi: str = Field(..., description="UE 的 IMSI 號碼", example="999700000000001")
 
-    previous_slice: SliceInfo = Field(..., description="切換前的 Slice")
+    previous_slice: SliceInfo = Field(..., description="換手前的 Slice")
 
-    new_slice: SliceInfo = Field(..., description="切換後的 Slice")
+    new_slice: SliceInfo = Field(..., description="換手後的 Slice")
 
     switch_time: str = Field(
         default_factory=lambda: datetime.now().isoformat(),
-        description="切換時間 (ISO 8601 格式)",
+        description="換手時間 (ISO 8601 格式)",
     )
 
-    success: bool = Field(..., description="切換是否成功", example=True)
+    success: bool = Field(..., description="換手是否成功", example=True)
 
-    message: str = Field(..., description="切換結果訊息", example="Slice 切換成功")
+    message: str = Field(..., description="換手結果訊息", example="Slice 換手成功")
 
 
 class ErrorResponse(BaseModel):

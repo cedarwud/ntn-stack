@@ -238,7 +238,7 @@ export class HandoverAPIService {
       })
       return response.data
     } catch (error) {
-      console.error('切換天氣調整錯誤:', error)
+      console.error('換手天氣調整錯誤:', error)
       throw error
     }
   }
@@ -364,7 +364,7 @@ export class HandoverAPIService {
       })
       return response.data
     } catch (error) {
-      console.error('切換準確率優化錯誤:', error)
+      console.error('換手準確率優化錯誤:', error)
       throw error
     }
   }

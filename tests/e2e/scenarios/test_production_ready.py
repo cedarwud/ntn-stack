@@ -197,7 +197,7 @@ class ProductionReadyTest:
             self.performance_metrics["failover_time_ms"] = actual_time
             self.performance_metrics["meets_performance_target"] = meets_requirement
 
-            # 驗證切換時間符合要求（< 2000ms）
+            # 驗證換手時間符合要求（< 2000ms）
             return meets_requirement and actual_time < 2000
 
         return False
@@ -247,7 +247,7 @@ class ProductionReadyTest:
         if health_time > 50:
             return False
 
-        # UAV切換時間應該 < 2000ms
+        # UAV換手時間應該 < 2000ms
         failover_time = self.performance_metrics.get("failover_time_ms", 0)
         if failover_time > 2000:
             return False

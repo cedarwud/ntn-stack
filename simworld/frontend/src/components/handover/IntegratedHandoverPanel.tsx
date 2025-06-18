@@ -308,7 +308,7 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
                 )}
             </div>
 
-            {/* 模式切換控制 */}
+            {/* 模式換手控制 */}
             <div className="mode-switcher">
                 <div className="switcher-header">
                     <span className="switcher-title">換手控制模式</span>

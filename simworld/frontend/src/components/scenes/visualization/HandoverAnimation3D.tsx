@@ -62,7 +62,7 @@ const HandoverStatusPanel: React.FC<HandoverStatusPanelProps> = ({
                             : statusInfo.status === 'establishing'
                             ? '#3b82f6' // 藍色=建立新連接
                             : statusInfo.status === 'switching'
-                            ? '#8b5cf6' // 紫色=正在切換
+                            ? '#8b5cf6' // 紫色=正在換手
                             : statusInfo.status === 'completing'
                             ? '#22c55e' // 綠色=換手完成
                             : '#6b7280' // 灰色=搜尋中
@@ -88,7 +88,7 @@ const HandoverStatusPanel: React.FC<HandoverStatusPanelProps> = ({
                         : statusInfo.status === 'establishing'
                         ? '建立連接'
                         : statusInfo.status === 'switching'
-                        ? '正在切換'
+                        ? '正在換手'
                         : statusInfo.status === 'completing'
                         ? '換手完成'
                         : '搜尋中'}
@@ -125,7 +125,7 @@ const HandoverStatusPanel: React.FC<HandoverStatusPanelProps> = ({
                             {statusInfo.status === 'establishing'
                                 ? '建立進度'
                                 : statusInfo.status === 'switching'
-                                ? '切換進度'
+                                ? '換手進度'
                                 : statusInfo.status === 'completing'
                                 ? '完成進度'
                                 : '執行進度'}
@@ -156,7 +156,7 @@ const HandoverStatusPanel: React.FC<HandoverStatusPanelProps> = ({
                                     statusInfo.status === 'establishing'
                                         ? '#3b82f6' // 藍色=建立中
                                         : statusInfo.status === 'switching'
-                                        ? '#8b5cf6' // 紫色=切換中
+                                        ? '#8b5cf6' // 紫色=換手中
                                         : statusInfo.status === 'completing'
                                         ? '#22c55e' // 綠色=完成中
                                         : '#6b7280',
@@ -309,7 +309,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         stable: stableDuration * 1000, // 可調整穩定期（毫秒）
         preparing: 5000, // 準備期（倒數5秒）
         establishing: 3000, // 建立期（3秒）
-        switching: 2000, // 切換期（2秒）
+        switching: 2000, // 換手期（2秒）
         completing: 5000, // 完成期（5秒）
     }
 
@@ -321,7 +321,35 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         const phaseElapsed = now - handoverState.phaseStartTime
         const availableSatellites = getAvailableSatellites()
 
-        // 移除位置平滑處理，直接使用實際衛星位置確保一致性
+        // 🔧 輕量級位置平滑處理 - 減少連接線跳動但保持與衛星位置基本一致
+        geometryUpdateIntervalRef.current += delta * 1000
+        if (geometryUpdateIntervalRef.current >= 50 && satellitePositions) {
+            geometryUpdateIntervalRef.current = 0
+            const smoothingFactor = 0.25 // 較高的平滑係數，減少延遲
+
+            for (const [satId, targetPos] of satellitePositions.entries()) {
+                const currentSmoothed = smoothedPositionsRef.current.get(satId)
+                if (!currentSmoothed) {
+                    // 新出現的衛星直接設置為目標位置
+                    smoothedPositionsRef.current.set(satId, targetPos)
+                } else {
+                    // 現有衛星進行輕量平滑
+                    const smoothedPos = lerpPosition(
+                        currentSmoothed,
+                        targetPos,
+                        smoothingFactor
+                    )
+                    smoothedPositionsRef.current.set(satId, smoothedPos)
+                }
+            }
+
+            // 清理消失的衛星
+            for (const satId of smoothedPositionsRef.current.keys()) {
+                if (!satellitePositions.has(satId)) {
+                    smoothedPositionsRef.current.delete(satId)
+                }
+            }
+        }
 
         // 🚨 緊急換手：當前衛星消失
         if (
@@ -449,8 +477,13 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
 
         // 🟢 當前/舊連接線（在 completing 階段顯示舊連接）
         if (handoverState.currentSatelliteId) {
-            // 直接使用實際衛星位置，不使用平滑插值，確保連接線端點與衛星位置一致
-            const satellitePos = satellitePositions?.get(handoverState.currentSatelliteId)
+            // 優先使用平滑位置以實現平滑移動，回退到實際位置
+            const smoothedPos = smoothedPositionsRef.current.get(
+                handoverState.currentSatelliteId
+            )
+            const satellitePos =
+                smoothedPos ||
+                satellitePositions?.get(handoverState.currentSatelliteId)
 
             if (satellitePos) {
                 const currentLineProps = getCurrentLineProperties()
@@ -492,8 +525,13 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 handoverState.phase === 'switching' ||
                 handoverState.phase === 'completing')
         ) {
-            // 直接使用實際衛星位置，確保連接線端點與衛星位置一致
-            const satellitePos = satellitePositions?.get(handoverState.targetSatelliteId)
+            // 優先使用平滑位置以實現平滑移動，回退到實際位置
+            const smoothedPos = smoothedPositionsRef.current.get(
+                handoverState.targetSatelliteId
+            )
+            const satellitePos =
+                smoothedPos ||
+                satellitePositions?.get(handoverState.targetSatelliteId)
 
             if (satellitePos) {
                 const targetLineProps = getTargetLineProperties()
@@ -589,7 +627,13 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         )
             return null
 
-        const satellitePos = satellitePositions?.get(handoverState.targetSatelliteId)
+        // 優先使用平滑位置以實現平滑移動，回退到實際位置
+        const smoothedPos = smoothedPositionsRef.current.get(
+            handoverState.targetSatelliteId
+        )
+        const satellitePos =
+            smoothedPos ||
+            satellitePositions?.get(handoverState.targetSatelliteId)
 
         if (!satellitePos) return null
 
@@ -653,8 +697,8 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 }
             case 'switching':
                 return {
-                    title: '切換連接',
-                    subtitle: `切換至: ${targetSatName}`,
+                    title: '換手連接',
+                    subtitle: `換手至: ${targetSatName}`,
                     status: 'switching' as const,
                     progress: progress,
                 }
@@ -681,7 +725,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
             const statusInfo = getStatusInfo()
             onStatusUpdate(statusInfo)
         }
-        
+
         // 🔗 換手狀態回調，供衛星光球使用
         if (onHandoverStateUpdate && enabled) {
             onHandoverStateUpdate(handoverState)

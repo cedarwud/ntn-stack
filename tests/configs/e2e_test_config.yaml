@@ -83,9 +83,9 @@ test_scenarios:
         endpoint: "/api/v1/connectivity/test"
         method: "POST"
 
-  # 3. 衛星失聯切換到 Mesh 場景
+  # 3. 衛星失聯換手到 Mesh 場景
   satellite_loss_mesh_failover:
-    name: "衛星失聯切換到 Mesh 場景"
+    name: "衛星失聯換手到 Mesh 場景"
     description: "驗證網路備援機制和恢復時間（2秒內重建連線）"
     priority: 1
     timeout_seconds: 120

@@ -30,6 +30,7 @@ tle_service = TLEService(satellite_repository=satellite_repository)
 # ===== LEO Satellite Handover 專用 API 端點 =====
 # 注意：這些路由必須放在更通用的 /{satellite_id} 路由之前
 
+
 @router.get("/visible", response_model=Dict[str, Any])
 async def find_visible_satellites(
     observer_lat: float = Query(..., description="觀測者緯度"),
@@ -37,25 +38,26 @@ async def find_visible_satellites(
     observer_alt: float = Query(0.0, description="觀測者高度 (km)"),
     min_elevation: float = Query(5.0, description="最小仰角，單位：度"),
     max_results: int = Query(50, description="最大結果數量"),
-    constellation: Optional[str] = Query(None, description="星座篩選 (oneweb, starlink, etc.)"),
+    constellation: Optional[str] = Query(
+        None, description="星座篩選 (oneweb, starlink, etc.)"
+    ),
 ):
     """發現當前可見的所有衛星 - Handover 候選衛星查找"""
     try:
         # 構建觀測者位置
         observer = GeoCoordinate(
-            latitude=observer_lat,
-            longitude=observer_lon,
-            altitude=observer_alt
+            latitude=observer_lat, longitude=observer_lon, altitude=observer_alt
         )
 
         # 獲取所有衛星
         all_satellites = await satellite_repository.get_satellites()
-        
+
         # 根據星座進行篩選
         if constellation:
             constellation_filter = constellation.upper()
             filtered_satellites = [
-                sat for sat in all_satellites 
+                sat
+                for sat in all_satellites
                 if constellation_filter in sat.name.upper()
             ]
         else:
@@ -63,13 +65,15 @@ async def find_visible_satellites(
 
         # 計算每個衛星的可見性
         visible_satellites = []
-        
-        for satellite in filtered_satellites[:max_results * 2]:  # 預處理更多衛星以確保有足夠的可見衛星
+
+        for satellite in filtered_satellites[
+            : max_results * 2
+        ]:  # 預處理更多衛星以確保有足夠的可見衛星
             try:
                 position = await orbit_service.get_current_position(
                     satellite_id=satellite.id, observer_location=observer
                 )
-                
+
                 # 檢查是否滿足最小仰角要求
                 if position.get("elevation", 0) >= min_elevation:
                     satellite_info = {
@@ -91,16 +95,20 @@ async def find_visible_satellites(
                             "elevation_deg": position["elevation"],
                             "range_km": position["range"],
                             # 簡單的信號質量評估 (基於仰角和距離)
-                            "estimated_signal_strength": min(100, position["elevation"] * 2),
-                            "path_loss_db": 20 * math.log10(max(1, position["range"])) + 92.45 + 20 * math.log10(2.15)  # 2.15 GHz
-                        }
+                            "estimated_signal_strength": min(
+                                100, position["elevation"] * 2
+                            ),
+                            "path_loss_db": 20 * math.log10(max(1, position["range"]))
+                            + 92.45
+                            + 20 * math.log10(2.15),  # 2.15 GHz
+                        },
                     }
                     visible_satellites.append(satellite_info)
 
                 # 如果已經找到足夠的可見衛星，停止搜索
                 if len(visible_satellites) >= max_results:
                     break
-                    
+
             except Exception as e:
                 logger.debug(f"計算衛星 {satellite.name} 可見性時出錯: {e}")
                 continue
@@ -113,18 +121,18 @@ async def find_visible_satellites(
             "observer": {
                 "latitude": observer_lat,
                 "longitude": observer_lon,
-                "altitude": observer_alt
+                "altitude": observer_alt,
             },
             "search_criteria": {
                 "min_elevation": min_elevation,
                 "constellation": constellation,
-                "max_results": max_results
+                "max_results": max_results,
             },
             "results": {
                 "total_visible": len(visible_satellites),
-                "satellites": visible_satellites[:max_results]
+                "satellites": visible_satellites[:max_results],
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:
@@ -147,71 +155,94 @@ async def find_handover_candidates(
     """為 Handover 查找候選衛星"""
     try:
         observer = GeoCoordinate(
-            latitude=observer_lat,
-            longitude=observer_lon,
-            altitude=observer_alt
+            latitude=observer_lat, longitude=observer_lon, altitude=observer_alt
         )
 
         # 獲取當前衛星狀態
         current_position = await orbit_service.get_current_position(
             satellite_id=current_satellite_id, observer_location=observer
         )
-        
+
         # 預測當前衛星未來位置
         future_time = datetime.utcnow() + timedelta(minutes=prediction_minutes)
-        current_satellite = await satellite_repository.get_satellite_by_id(current_satellite_id)
-        
+        current_satellite = await satellite_repository.get_satellite_by_id(
+            current_satellite_id
+        )
+
         # 查找所有可見的 OneWeb 衛星
         visible_response = await find_visible_satellites(
             observer_lat=observer_lat,
-            observer_lon=observer_lon, 
+            observer_lon=observer_lon,
             observer_alt=observer_alt,
             min_elevation=min_elevation,
             max_results=20,
-            constellation="oneweb"
+            constellation="oneweb",
         )
-        
+
         visible_satellites = visible_response["results"]["satellites"]
-        
+
         # 過濾掉當前衛星，並評估候選衛星
         handover_candidates = []
         for sat in visible_satellites:
             if sat["id"] != current_satellite_id:
-                # 計算切換優先級分數
+                # 計算換手優先級分數
                 elevation_score = sat["position"]["elevation"] / 90.0  # 仰角分數 (0-1)
-                signal_score = min(1.0, sat["signal_quality"]["estimated_signal_strength"] / 100.0)
-                range_score = max(0, 1.0 - (sat["position"]["range"] / 2000.0))  # 距離分數
-                
+                signal_score = min(
+                    1.0, sat["signal_quality"]["estimated_signal_strength"] / 100.0
+                )
+                range_score = max(
+                    0, 1.0 - (sat["position"]["range"] / 2000.0)
+                )  # 距離分數
+
                 # 綜合分數 (可以根據需要調整權重)
-                priority_score = (elevation_score * 0.5 + signal_score * 0.3 + range_score * 0.2) * 100
-                
+                priority_score = (
+                    elevation_score * 0.5 + signal_score * 0.3 + range_score * 0.2
+                ) * 100
+
                 candidate = {
                     **sat,
                     "handover_score": round(priority_score, 2),
                     "handover_feasible": sat["position"]["elevation"] > min_elevation,
-                    "estimated_service_time_minutes": max(5, 90 - (sat["position"]["elevation"] / 90.0) * 85)  # 粗略估計
+                    "estimated_service_time_minutes": max(
+                        5, 90 - (sat["position"]["elevation"] / 90.0) * 85
+                    ),  # 粗略估計
                 }
                 handover_candidates.append(candidate)
-        
+
         # 按 handover 分數排序
         handover_candidates.sort(key=lambda x: x["handover_score"], reverse=True)
-        
+
         return {
             "success": True,
             "current_satellite": {
                 "id": current_satellite_id,
-                "name": current_satellite.name if current_satellite else f"Satellite-{current_satellite_id}",
+                "name": (
+                    current_satellite.name
+                    if current_satellite
+                    else f"Satellite-{current_satellite_id}"
+                ),
                 "position": current_position,
-                "needs_handover": current_position["elevation"] < min_elevation * 1.5  # 預警閾值
+                "needs_handover": current_position["elevation"]
+                < min_elevation * 1.5,  # 預警閾值
             },
             "handover_candidates": handover_candidates[:10],  # 返回前10個候選
             "handover_recommendation": {
-                "recommended_satellite": handover_candidates[0] if handover_candidates else None,
-                "urgency": "high" if current_position["elevation"] < min_elevation else "medium" if current_position["elevation"] < min_elevation * 2 else "low"
+                "recommended_satellite": (
+                    handover_candidates[0] if handover_candidates else None
+                ),
+                "urgency": (
+                    "high"
+                    if current_position["elevation"] < min_elevation
+                    else (
+                        "medium"
+                        if current_position["elevation"] < min_elevation * 2
+                        else "low"
+                    )
+                ),
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
-        
+
     except Exception as e:
         logger.error(f"查找 handover 候選衛星時出錯: {e}", exc_info=True)
         raise HTTPException(
@@ -233,9 +264,7 @@ async def get_batch_satellite_positions(
         observer = None
         if observer_lat is not None and observer_lon is not None:
             observer = GeoCoordinate(
-                latitude=observer_lat,
-                longitude=observer_lon,
-                altitude=observer_alt
+                latitude=observer_lat, longitude=observer_lon, altitude=observer_alt
             )
 
         # 批量查詢衛星位置
@@ -251,11 +280,13 @@ async def get_batch_satellite_positions(
             except Exception as e:
                 logger.warning(f"獲取衛星 {satellite_id} 位置失敗: {e}")
                 # 添加錯誤記錄，但繼續處理其他衛星
-                positions.append({
-                    "satellite_id": satellite_id,
-                    "error": str(e),
-                    "timestamp": datetime.utcnow().isoformat()
-                })
+                positions.append(
+                    {
+                        "satellite_id": satellite_id,
+                        "error": str(e),
+                        "timestamp": datetime.utcnow().isoformat(),
+                    }
+                )
 
         return positions
     except Exception as e:
@@ -267,6 +298,7 @@ async def get_batch_satellite_positions(
 
 
 # ===== 基礎衛星 API 端點 =====
+
 
 @router.get("/", response_model=List[Dict[str, Any]])
 async def get_satellites(search: Optional[str] = Query(None, description="搜尋關鍵詞")):
@@ -352,11 +384,9 @@ async def get_satellite_current_position(
         observer = None
         if observer_lat is not None and observer_lon is not None:
             observer = GeoCoordinate(
-                latitude=observer_lat,
-                longitude=observer_lon, 
-                altitude=observer_alt
+                latitude=observer_lat, longitude=observer_lon, altitude=observer_alt
             )
-        
+
         position = await orbit_service.get_current_position(
             satellite_id=satellite_id, observer_location=observer
         )
@@ -387,12 +417,12 @@ async def propagate_satellite_orbit(
     try:
         # 解析時間字符串
         if start_time:
-            start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
         else:
             start_dt = datetime.utcnow()
-            
+
         if end_time:
-            end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
         else:
             end_dt = start_dt + timedelta(minutes=90)
 
@@ -430,17 +460,15 @@ async def calculate_satellite_passes(
     try:
         # 構建觀測者位置
         observer = GeoCoordinate(
-            latitude=observer_lat,
-            longitude=observer_lon,
-            altitude=observer_alt
+            latitude=observer_lat, longitude=observer_lon, altitude=observer_alt
         )
-        
+
         # 解析開始時間
         if start_time:
-            start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
         else:
             start_dt = datetime.utcnow()
-            
+
         # 計算結束時間
         end_dt = start_dt + timedelta(days=days)
 
@@ -491,7 +519,7 @@ async def calculate_ground_track(
     try:
         # 解析開始時間
         if start_time:
-            start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
         else:
             start_dt = datetime.utcnow()
 
@@ -531,18 +559,18 @@ async def calculate_visibility(
     try:
         # 構建觀測者位置
         observer = GeoCoordinate(
-            latitude=observer_lat,
-            longitude=observer_lon,
-            altitude=observer_alt
+            latitude=observer_lat, longitude=observer_lon, altitude=observer_alt
         )
-        
+
         # 解析時間戳
         timestamp_dt = None
         if timestamp:
-            timestamp_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            timestamp_dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
 
         result = await orbit_service.calculate_visibility(
-            satellite_id=satellite_id, observer_location=observer, timestamp=timestamp_dt
+            satellite_id=satellite_id,
+            observer_location=observer,
+            timestamp=timestamp_dt,
         )
 
         # 轉換 datetime 為 ISO 格式字符串

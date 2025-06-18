@@ -1,4 +1,4 @@
-# UE-Test - 動態 Slice 切換測試用 (預設 eMBB)
+# UE-Test - 動態 Slice 換手測試用 (預設 eMBB)
 supi: 'imsi-999700000000099'
 mcc: '999'
 mnc: '70'

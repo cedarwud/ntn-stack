@@ -99,7 +99,11 @@ class PaperReproductionCoreValidator:
                 print(f"   🎯 算法邏輯: 使用真實資料庫，不依賴模擬數據")
 
                 self.test_results.append(
-                    ("Algorithm1二分搜尋算法", algorithm_correct, "算法邏輯正確，使用真實數據")
+                    (
+                        "Algorithm1二分搜尋算法",
+                        algorithm_correct,
+                        "算法邏輯正確，使用真實數據",
+                    )
                 )
 
             except Exception as e:
@@ -196,7 +200,7 @@ class PaperReproductionCoreValidator:
                     "satellite_id": str(i + 1),  # 使用資料庫ID 1-8
                     "id": str(i + 1),
                     "constellation": "starlink",
-                    "name": f"STARLINK-{1000 + i}"
+                    "name": f"STARLINK-{1000 + i}",
                 }
                 for i in range(8)
             ]
@@ -250,10 +254,10 @@ class PaperReproductionCoreValidator:
             assert init_result["success"] == True
             print("   ✅ 論文模式橋接初始化成功")
 
-            # 2. 模式切換測試
+            # 2. 模式換手測試
             switch_result = await bridge.switch_mode(IntegrationMode.HYBRID)
             assert switch_result["success"] == True
-            print("   ✅ 模式切換正常")
+            print("   ✅ 模式換手正常")
 
             # 3. 狀態查詢測試
             status = await bridge.get_integration_status()
@@ -296,9 +300,7 @@ class PaperReproductionCoreValidator:
             print(f"   ✅ Algorithm 2 區塊初始化: {len(blocks)} 個區塊")
 
             if performance_good and block_init_performance:
-                self.test_results.append(
-                    ("功能完整性", True, "所有核心功能正常運作")
-                )
+                self.test_results.append(("功能完整性", True, "所有核心功能正常運作"))
             else:
                 self.test_results.append(("功能完整性", False, "部分功能異常"))
 

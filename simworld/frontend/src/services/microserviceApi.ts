@@ -357,7 +357,7 @@ export const getSLACompliance = async () => {
   }
 };
 
-// 執行條件切換測試
+// 執行條件換手測試
 export const triggerConditionalHandoverTest = async (ueId: string) => {
   try {
     const response = await retryRequest(() =>
@@ -365,7 +365,7 @@ export const triggerConditionalHandoverTest = async (ueId: string) => {
     );
     return response.data;
   } catch (error) {
-    console.warn('觸發條件切換測試失敗:', (error as Error).message);
+    console.warn('觸發條件換手測試失敗:', (error as Error).message);
     if (RETRY_CONFIG.enableMockData) {
       return {
         test_id: `test_${Date.now()}`,

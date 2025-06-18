@@ -20,7 +20,10 @@ import UAVMetricsChart from './charts/UAVMetricsChart'
 import NetworkTopologyChart from './charts/NetworkTopologyChart'
 import MicroserviceArchitectureDashboard from './MicroserviceArchitectureDashboard'
 import E2EPerformanceMonitoringDashboard from './E2EPerformanceMonitoringDashboard'
-import { getNTNStatus, performSystemHealthCheck } from '../../services/microserviceApi'
+import {
+    getNTNStatus,
+    performSystemHealthCheck,
+} from '../../services/microserviceApi'
 
 interface NTNStackDashboardProps {
     className?: string
@@ -81,7 +84,13 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
 }) => {
     // 狀態管理 - Phase 2 新增微服務和E2E監控標籤
     const [activeTab, setActiveTab] = useState<
-        'overview' | 'uav' | 'network' | 'ai' | 'performance' | 'microservices' | 'e2e'
+        | 'overview'
+        | 'uav'
+        | 'network'
+        | 'ai'
+        | 'performance'
+        | 'microservices'
+        | 'e2e'
     >('overview')
     const [isRealtime, setIsRealtime] = useState(true)
     const [refreshInterval] = useState(5000)
@@ -99,7 +108,7 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
     const [metricsHistory, setMetricsHistory] = useState<MetricData[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    
+
     // Phase 2 微服務狀態
     const [microserviceHealth, setMicroserviceHealth] = useState<any>(null)
     const [ntnInterfaceStatus, setNtnInterfaceStatus] = useState<any>(null)
@@ -181,13 +190,13 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
 
             // Phase 2: 並行載入傳統數據和微服務數據
             const [
-                healthRes, 
-                uavRes, 
-                aiRes, 
-                sionnaRes, 
+                healthRes,
+                uavRes,
+                aiRes,
+                sionnaRes,
                 metricsRes,
                 microserviceHealthData,
-                ntnStatusData
+                ntnStatusData,
             ] = await Promise.all([
                 fetch('/api/v1/system/health'),
                 fetch('/api/v1/uav/metrics'),
@@ -195,7 +204,7 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
                 fetch('/api/v1/sionna/metrics'),
                 fetch(`/api/v1/metrics/history?range=${timeRange}`),
                 performSystemHealthCheck(), // Phase 2 微服務健康檢查
-                getNTNStatus().catch(() => null) // Phase 2 NTN狀態
+                getNTNStatus().catch(() => null), // Phase 2 NTN狀態
             ])
 
             if (healthRes.ok) {
@@ -223,7 +232,10 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
             // Phase 2: 設置微服務數據
             if (microserviceHealthData) {
                 setMicroserviceHealth(microserviceHealthData)
-                console.log('📊 Phase 2 微服務健康數據已載入:', microserviceHealthData)
+                console.log(
+                    '📊 Phase 2 微服務健康數據已載入:',
+                    microserviceHealthData
+                )
             }
 
             if (ntnStatusData) {
@@ -265,9 +277,13 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
         const systemUptime = systemHealth?.uptime || 0
 
         // Phase 2: 新增微服務相關指標
-        const microserviceHealthy = microserviceHealth?.overall_health === 'healthy'
-        const ntnHandoverLatency = ntnInterfaceStatus?.conditional_handover?.average_handover_time_ms || 0
-        const ntnSlaCompliant = ntnInterfaceStatus?.conditional_handover?.sla_compliance || false
+        const microserviceHealthy =
+            microserviceHealth?.overall_health === 'healthy'
+        const ntnHandoverLatency =
+            ntnInterfaceStatus?.conditional_handover
+                ?.average_handover_time_ms || 0
+        const ntnSlaCompliant =
+            ntnInterfaceStatus?.conditional_handover?.sla_compliance || false
 
         return {
             connectedUAVs,
@@ -280,15 +296,24 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
                 (connectedUAVs / uavMetrics.length) * 100 || 0,
             aiDecisionAccuracy: airanMetrics?.decision_accuracy || 0,
             gpuUtilization: sionnaMetrics?.gpu_utilization?.[0] || 0,
-            
+
             // Phase 2 新增指標
             microserviceHealthy,
             ntnHandoverLatency: Math.round(ntnHandoverLatency * 10) / 10,
             ntnSlaCompliant,
-            activeUeContexts: ntnInterfaceStatus?.n2_interface?.active_ue_contexts || 0,
-            activeTunnels: ntnInterfaceStatus?.n3_interface?.active_tunnels || 0
+            activeUeContexts:
+                ntnInterfaceStatus?.n2_interface?.active_ue_contexts || 0,
+            activeTunnels:
+                ntnInterfaceStatus?.n3_interface?.active_tunnels || 0,
         }
-    }, [uavMetrics, systemHealth, airanMetrics, sionnaMetrics, microserviceHealth, ntnInterfaceStatus])
+    }, [
+        uavMetrics,
+        systemHealth,
+        airanMetrics,
+        sionnaMetrics,
+        microserviceHealth,
+        ntnInterfaceStatus,
+    ])
 
     // 標籤配置 - Phase 2 新增微服務和E2E監控標籤
     const tabs = [
@@ -440,8 +465,16 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
                 <Card title="微服務狀態" className="microservice-card">
                     <div className="microservice-status">
                         <Badge
-                            status={keyMetrics.microserviceHealthy ? 'success' : 'error'}
-                            text={keyMetrics.microserviceHealthy ? 'HEALTHY' : 'DEGRADED'}
+                            status={
+                                keyMetrics.microserviceHealthy
+                                    ? 'success'
+                                    : 'error'
+                            }
+                            text={
+                                keyMetrics.microserviceHealthy
+                                    ? 'HEALTHY'
+                                    : 'DEGRADED'
+                            }
                         />
                         <div className="microservice-detail">
                             Phase 2 架構運行中
@@ -449,18 +482,22 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
                     </div>
                 </Card>
 
-                <Card title="NTN 切換延遲" className="ntn-handover-card">
+                <Card title="NTN 換手延遲" className="ntn-handover-card">
                     <Statistic
-                        title="條件切換延遲"
+                        title="條件換手延遲"
                         value={keyMetrics.ntnHandoverLatency}
                         suffix="ms"
                         precision={1}
                         valueStyle={{
-                            color: keyMetrics.ntnSlaCompliant ? '#3f8600' : '#cf1322',
+                            color: keyMetrics.ntnSlaCompliant
+                                ? '#3f8600'
+                                : '#cf1322',
                         }}
                     />
                     <div className="sla-status">
-                        SLA: {keyMetrics.ntnSlaCompliant ? '✅ 符合' : '❌ 不符合'} (&lt;50ms)
+                        SLA:{' '}
+                        {keyMetrics.ntnSlaCompliant ? '✅ 符合' : '❌ 不符合'}{' '}
+                        (&lt;50ms)
                     </div>
                 </Card>
 
@@ -746,7 +783,9 @@ const NTNStackDashboard: React.FC<NTNStackDashboardProps> = ({
     // Phase 2: 渲染微服務架構標籤
     const renderMicroservicesTab = () => (
         <div className="microservices-container">
-            <MicroserviceArchitectureDashboard enabled={activeTab === 'microservices'} />
+            <MicroserviceArchitectureDashboard
+                enabled={activeTab === 'microservices'}
+            />
         </div>
     )
 

@@ -485,7 +485,7 @@ ntn_config:
     # 重傳參數
     max_retries: 5                        # 最大重傳次數
     retry_interval: 10                    # 重傳間隔(秒)
-    # 衛星切換支持
+    # 衛星換手支持
     satellite_handover:
       enabled: true
       prediction_window: 120              # 2分鐘預測窗口

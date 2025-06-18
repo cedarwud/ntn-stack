@@ -176,7 +176,7 @@ class InterferenceControlService:
             timeout_seconds=5,
         )
 
-        # 註冊頻率切換處理器
+        # 註冊頻率換手處理器
         self.event_bus.register_handler(
             InterferenceEventTypes.FREQUENCY_SWITCHED,
             self._handle_frequency_switched,
@@ -416,7 +416,7 @@ class InterferenceControlService:
                     causation_id=event.id,
                 )
 
-                # 如果建議頻率切換，直接執行
+                # 如果建議頻率換手，直接執行
                 if ai_decision.get(
                     "recommended_action"
                 ) == "frequency_hopping" and ai_decision.get("new_frequency_mhz"):
@@ -470,13 +470,13 @@ class InterferenceControlService:
         return None
 
     async def _handle_frequency_switched(self, event: Event):
-        """處理頻率切換事件"""
+        """處理頻率換手事件"""
         try:
             data = event.data
             scenario_id = data.get("scenario_id")
 
             self.logger.info(
-                "📻 頻率切換事件",
+                "📻 頻率換手事件",
                 scenario_id=scenario_id,
                 old_freq=data.get("old_frequency_mhz"),
                 new_freq=data.get("new_frequency_mhz"),
@@ -488,7 +488,7 @@ class InterferenceControlService:
                     "new_frequency_mhz"
                 )
 
-            # 應用頻率切換到 UERANSIM 配置
+            # 應用頻率換手到 UERANSIM 配置
             success = await self._apply_frequency_switch(
                 scenario_id, data.get("new_frequency_mhz")
             )
@@ -512,17 +512,17 @@ class InterferenceControlService:
             self.metrics["events_processed"] += 1
 
         except Exception as e:
-            self.logger.error("處理頻率切換事件失敗", error=str(e))
+            self.logger.error("處理頻率換手事件失敗", error=str(e))
 
     async def _apply_frequency_switch(
         self, scenario_id: str, new_frequency_mhz: float
     ) -> bool:
-        """應用頻率切換到 UERANSIM"""
+        """應用頻率換手到 UERANSIM"""
         try:
             # 這裡應該實現實際的 UERANSIM 配置更新
             # 暫時返回模擬結果
             self.logger.info(
-                "應用頻率切換", scenario_id=scenario_id, new_frequency=new_frequency_mhz
+                "應用頻率換手", scenario_id=scenario_id, new_frequency=new_frequency_mhz
             )
 
             # 模擬配置更新延遲
@@ -531,7 +531,7 @@ class InterferenceControlService:
             return True
 
         except Exception as e:
-            self.logger.error("應用頻率切換失敗", error=str(e))
+            self.logger.error("應用頻率換手失敗", error=str(e))
             return False
 
     async def _handle_jammer_created(self, event: Event):
