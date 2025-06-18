@@ -220,11 +220,11 @@ test_labels:
       - "baseline"                    # 基線測試
       - "high_mobility"              # 高移動性
       - "interference"               # 干擾測試
-      - "handover"                   # 切換測試
+      - "handover"                   # 換手測試
       - "load_test"                  # 負載測試
       - "stress_test"                # 壓力測試
-      - "failover"                   # 故障切換
-      - "beam_switching"             # 波束切換
+      - "failover"                   # 故障換手
+      - "beam_switching"             # 波束換手
       - "mesh_formation"             # Mesh 組網
     example: 'scenario="high_mobility"'
     

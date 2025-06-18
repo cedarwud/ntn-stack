@@ -57,7 +57,7 @@ class AIRANDecisionType(str, Enum):
     FREQUENCY_HOP = "frequency_hop"  # 頻率跳變
     BEAM_STEERING = "beam_steering"  # 波束控制
     POWER_CONTROL = "power_control"  # 功率控制
-    PROTOCOL_SWITCH = "protocol_switch"  # 協議切換
+    PROTOCOL_SWITCH = "protocol_switch"  # 協議換手
     EMERGENCY_SHUTDOWN = "emergency_shutdown"  # 緊急關閉
 
 

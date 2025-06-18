@@ -23,7 +23,9 @@ interface HandoverManagerProps {
     // 3D 動畫狀態更新回調
     onHandoverStateChange?: (state: HandoverState) => void
     onCurrentConnectionChange?: (connection: SatelliteConnection | null) => void
-    onPredictedConnectionChange?: (connection: SatelliteConnection | null) => void
+    onPredictedConnectionChange?: (
+        connection: SatelliteConnection | null
+    ) => void
     onTransitionChange?: (isTransitioning: boolean, progress: number) => void
     // 🚀 演算法結果回調 - 用於對接視覺化
     onAlgorithmResults?: (results: {
@@ -78,9 +80,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     const [isTransitioning, setIsTransitioning] = useState(false)
     const [transitionProgress, setTransitionProgress] = useState(0)
 
-    // 控制面板模式切換
+    // 控制面板模式換手
     const [controlMode, setControlMode] = useState<'auto' | 'manual'>('auto')
-    
+
     // 標籤頁狀態管理
     const [activeTab, setActiveTab] = useState<'status' | 'algorithm'>('status')
 
@@ -113,27 +115,30 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             norad_id: `sat_${i}`, // 使用與 DynamicSatelliteRenderer 相同的 ID 格式
             elevation_deg: 30 + Math.random() * 60,
             azimuth_deg: Math.random() * 360,
-            distance_km: 500 + Math.random() * 500
+            distance_km: 500 + Math.random() * 500,
         }))
-        
 
         const now = Date.now()
         const futureTime = now + handoverState.deltaT * 1000
 
         // 🎯 模擬選擇當前最佳衛星 - 優先選擇前幾個衛星以提高匹配機率
-        const currentBestIndex = Math.floor(Math.random() * Math.min(6, simulatedSatellites.length)) // 前6個衛星
+        const currentBestIndex = Math.floor(
+            Math.random() * Math.min(6, simulatedSatellites.length)
+        ) // 前6個衛星
         const currentBest = simulatedSatellites[currentBestIndex]
-        
+
         // 換手機率調整為 40%，並優先選擇相鄰的衛星
         const shouldHandover = Math.random() < 0.4
         let futureBest = currentBest
-        
+
         if (shouldHandover) {
             // 選擇相鄰的衛星作為換手目標
-            const neighborIndex = currentBestIndex < simulatedSatellites.length - 1 ? currentBestIndex + 1 : currentBestIndex - 1
+            const neighborIndex =
+                currentBestIndex < simulatedSatellites.length - 1
+                    ? currentBestIndex + 1
+                    : currentBestIndex - 1
             futureBest = simulatedSatellites[neighborIndex] || currentBest
         }
-        
 
         setHandoverState((prev) => ({
             ...prev,
@@ -141,16 +146,21 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             predictedSatellite: futureBest?.norad_id || '',
             status: 'predicting',
         }))
-        
 
         // 🔗 更新連接狀態
         if (currentBest) {
-            const currentConn = generateMockSatelliteConnection(currentBest, true)
+            const currentConn = generateMockSatelliteConnection(
+                currentBest,
+                true
+            )
             setCurrentConnection(currentConn)
         }
-        
+
         if (futureBest && futureBest.norad_id !== currentBest?.norad_id) {
-            const predictedConn = generateMockSatelliteConnection(futureBest, false)
+            const predictedConn = generateMockSatelliteConnection(
+                futureBest,
+                false
+            )
             setPredictedConnection(predictedConn)
             // 模擬需要換手
             simulateBinarySearch(now, futureTime)
@@ -332,7 +342,13 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         }, handoverState.deltaT * 1000)
 
         return () => clearInterval(interval)
-    }, [isEnabled, mockMode, controlMode, simulateTwoPointPrediction, handoverState.deltaT])
+    }, [
+        isEnabled,
+        mockMode,
+        controlMode,
+        simulateTwoPointPrediction,
+        handoverState.deltaT,
+    ])
 
     // 時間更新處理
     const handleTimeUpdate = useCallback((currentTime: number) => {
@@ -394,21 +410,25 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                 )}
             </div>
 
-            {/* 模式切換控制 - 移到最頂部作為全局控制 */}
+            {/* 模式換手控制 - 移到最頂部作為全局控制 */}
             <div className="mode-switcher">
                 <div className="switcher-header">
                     <span className="switcher-title">換手控制模式</span>
                 </div>
                 <div className="switcher-tabs">
                     <button
-                        className={`switcher-tab ${controlMode === 'auto' ? 'active' : ''}`}
+                        className={`switcher-tab ${
+                            controlMode === 'auto' ? 'active' : ''
+                        }`}
                         onClick={() => setControlMode('auto')}
                     >
                         <span className="tab-icon">🤖</span>
                         <span className="tab-label">自動預測</span>
                     </button>
                     <button
-                        className={`switcher-tab ${controlMode === 'manual' ? 'active' : ''}`}
+                        className={`switcher-tab ${
+                            controlMode === 'manual' ? 'active' : ''
+                        }`}
                         onClick={() => setControlMode('manual')}
                     >
                         <span className="tab-icon">🎮</span>
@@ -427,22 +447,30 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
                 {/* 標籤頁導航 */}
                 <div className="tab-navigation">
-                    <button 
-                        className={`tab-button ${activeTab === 'status' ? 'active' : ''}`}
+                    <button
+                        className={`tab-button ${
+                            activeTab === 'status' ? 'active' : ''
+                        }`}
                         onClick={() => setActiveTab('status')}
                     >
                         <span className="tab-icon">📡</span>
                         <span className="tab-label">
-                            {controlMode === 'auto' ? '衛星接入狀態' : '手動控制面板'}
+                            {controlMode === 'auto'
+                                ? '衛星接入狀態'
+                                : '手動控制面板'}
                         </span>
                     </button>
                     {controlMode === 'auto' && (
-                        <button 
-                            className={`tab-button ${activeTab === 'algorithm' ? 'active' : ''}`}
+                        <button
+                            className={`tab-button ${
+                                activeTab === 'algorithm' ? 'active' : ''
+                            }`}
                             onClick={() => setActiveTab('algorithm')}
                         >
                             <span className="tab-icon">🧮</span>
-                            <span className="tab-label">Fine-Grained Algorithm</span>
+                            <span className="tab-label">
+                                Fine-Grained Algorithm
+                            </span>
                         </button>
                     )}
                 </div>

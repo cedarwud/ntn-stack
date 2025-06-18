@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-故障切換測試模組
-測試系統的故障切換和恢復能力
+故障換手測試模組
+測試系統的故障換手和恢復能力
 
 測試範圍：
-- 衛星切換測試
-- 服務故障切換
+- 衛星換手測試
+- 服務故障換手
 - 網路中斷恢復
 - 數據完整性保護
 """
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class FailoverTester:
-    """故障切換測試器"""
+    """故障換手測試器"""
 
     def __init__(self, config: Dict):
         self.config = config
@@ -28,8 +28,8 @@ class FailoverTester:
         self.services = self.environment["services"]
 
     async def run_failover_tests(self) -> Tuple[bool, Dict]:
-        """執行故障切換測試"""
-        logger.info("🔄 開始執行故障切換測試")
+        """執行故障換手測試"""
+        logger.info("🔄 開始執行故障換手測試")
 
         test_scenarios = [
             ("service_availability", await self._test_service_availability()),
@@ -49,7 +49,7 @@ class FailoverTester:
         }
 
         overall_success = passed_tests == total_tests
-        logger.info(f"🔄 故障切換測試完成，成功率: {details['success_rate']:.1%}")
+        logger.info(f"🔄 故障換手測試完成，成功率: {details['success_rate']:.1%}")
 
         return overall_success, details
 
@@ -297,7 +297,7 @@ async def test_failover_data_consistency():
 
 @pytest.mark.asyncio
 async def test_failover_full_test_suite():
-    """執行完整故障切換測試套件"""
+    """執行完整故障換手測試套件"""
     config = {
         "environment": {
             "services": {
@@ -326,7 +326,7 @@ async def test_failover_full_test_suite():
 if __name__ == "__main__":
     # 允許直接運行
     async def main():
-        print("🔄 開始故障切換測試...")
+        print("🔄 開始故障換手測試...")
 
         config = {
             "environment": {
@@ -340,9 +340,9 @@ if __name__ == "__main__":
         tester = FailoverTester(config)
         success, details = await tester.run_failover_tests()
 
-        print(f"📊 故障切換測試結果: {'成功' if success else '部分失敗'}")
+        print(f"📊 故障換手測試結果: {'成功' if success else '部分失敗'}")
         print(f"📈 成功率: {details['success_rate']:.1%}")
-        print("🎉 故障切換測試完成！")
+        print("🎉 故障換手測試完成！")
 
     import asyncio
 

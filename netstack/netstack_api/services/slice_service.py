@@ -1,7 +1,7 @@
 """
 NetStack Slice Service - 5G 網路切片管理服務
 
-提供 eMBB 和 uRLLC 切片之間的動態切換功能，
+提供 eMBB 和 uRLLC 切片之間的動態換手功能，
 包括 UE 切片配置更新、效能監控和狀態管理。
 """
 
@@ -112,21 +112,21 @@ class SliceService:
         self, imsi: str, target_slice: SliceType, force: bool = False
     ) -> Dict:
         """
-        切換 UE 的網路切片
+        換手 UE 的網路切片
 
         Args:
             imsi: UE 的 IMSI
             target_slice: 目標切片類型
-            force: 是否強制切換（忽略當前狀態）
+            force: 是否強制換手（忽略當前狀態）
 
         Returns:
-            切換結果字典
+            換手結果字典
         """
         start_time = datetime.utcnow()
         current_slice = None  # 初始化變數避免作用域問題
 
         try:
-            self.logger.info("開始切片切換", imsi=imsi, target_slice=target_slice.value)
+            self.logger.info("開始切片換手", imsi=imsi, target_slice=target_slice.value)
 
             # 1. 驗證 UE 存在
             ue_info = await self._get_ue_info(imsi)
@@ -135,10 +135,10 @@ class SliceService:
 
             current_slice = ue_info.get("current_slice")
 
-            # 2. 檢查是否需要切換
+            # 2. 檢查是否需要換手
             if current_slice == target_slice.value and not force:
                 self.logger.info(
-                    "UE 已在目標切片，無需切換", imsi=imsi, current_slice=current_slice
+                    "UE 已在目標切片，無需換手", imsi=imsi, current_slice=current_slice
                 )
                 return {
                     "success": True,
@@ -149,7 +149,7 @@ class SliceService:
                     "switch_time": 0,
                 }
 
-            # 3. 執行切片切換
+            # 3. 執行切片換手
             with SLICE_SWITCH_DURATION.labels(slice_type=target_slice.value).time():
                 switch_result = await self._perform_slice_switch(
                     imsi, current_slice, target_slice
@@ -168,7 +168,7 @@ class SliceService:
             switch_time = (datetime.utcnow() - start_time).total_seconds()
 
             self.logger.info(
-                "切片切換成功",
+                "切片換手成功",
                 imsi=imsi,
                 from_slice=current_slice,
                 to_slice=target_slice.value,
@@ -177,7 +177,7 @@ class SliceService:
 
             return {
                 "success": True,
-                "message": "切片切換成功",
+                "message": "切片換手成功",
                 "imsi": imsi,
                 "previous_slice": current_slice,
                 "current_slice": target_slice.value,
@@ -194,12 +194,12 @@ class SliceService:
             ).inc()
 
             self.logger.error(
-                "切片切換失敗", imsi=imsi, target_slice=target_slice.value, error=str(e)
+                "切片換手失敗", imsi=imsi, target_slice=target_slice.value, error=str(e)
             )
 
             return {
                 "success": False,
-                "message": f"切片切換失敗: {str(e)}",
+                "message": f"切片換手失敗: {str(e)}",
                 "imsi": imsi,
                 "target_slice": target_slice.value,
                 "error": str(e),
@@ -257,7 +257,7 @@ class SliceService:
                 sd=ue_info.get("slice", {}).get("sd"),
             )
 
-            # 添加 current_slice 欄位以便切換邏輯使用
+            # 添加 current_slice 欄位以便換手邏輯使用
             ue_info["current_slice"] = ue_info.get("slice", {}).get("slice_type")
 
             return ue_info
@@ -325,7 +325,7 @@ class SliceService:
     async def _perform_slice_switch(
         self, imsi: str, current_slice: Optional[str], target_slice: SliceType
     ) -> Dict:
-        """執行實際的切片切換操作"""
+        """執行實際的切片換手操作"""
 
         target_config = SliceConfig.get_config(target_slice)
 
@@ -374,7 +374,7 @@ class SliceService:
         except Exception as e:
             self.logger.warning("清除 UE 資訊緩存失敗", imsi=imsi, error=str(e))
 
-        # 記錄切換歷史（如果 mongo_adapter 支持的話）
+        # 記錄換手歷史（如果 mongo_adapter 支持的話）
         try:
             switch_history = {
                 "timestamp": datetime.utcnow().isoformat(),
@@ -382,13 +382,13 @@ class SliceService:
                 "switch_result": switch_result,
             }
 
-            # 嘗試添加到切換歷史
+            # 嘗試添加到換手歷史
             await self.mongo_adapter.add_slice_switch_history(imsi, switch_history)
         except AttributeError:
             # 如果 mongo_adapter 沒有這個方法，就跳過
-            self.logger.debug("mongo_adapter 不支持切換歷史記錄")
+            self.logger.debug("mongo_adapter 不支持換手歷史記錄")
         except Exception as e:
-            self.logger.warning("記錄切換歷史失敗", imsi=imsi, error=str(e))
+            self.logger.warning("記錄換手歷史失敗", imsi=imsi, error=str(e))
 
         self.logger.info(
             "UE 切片資訊已更新", imsi=imsi, target_slice=target_slice.value
@@ -402,7 +402,7 @@ class SliceService:
             "subscribers", {"current_slice": slice_type.value}
         )
 
-        # 查詢最近24小時的切換次數
+        # 查詢最近24小時的換手次數
         yesterday = datetime.utcnow() - timedelta(hours=24)
         switch_count = await self.mongo_adapter.count_documents(
             "subscribers",

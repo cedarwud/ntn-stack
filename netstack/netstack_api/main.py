@@ -2,7 +2,7 @@
 NetStack API - Open5GS + UERANSIM 雙 Slice 管理 API
 
 基於 Hexagonal Architecture 的 FastAPI 應用程式，
-提供 5G 核心網 UE 管理和 Slice 切換功能。
+提供 5G 核心網 UE 管理和 Slice 換手功能。
 """
 
 import asyncio
@@ -86,7 +86,11 @@ from .services.uav_mesh_failover_service import (
 from .routers.unified_api_router import unified_router
 
 # 添加 AI 決策路由器導入
-from .routers.ai_decision_router import router as ai_decision_router, initialize_ai_services, shutdown_ai_services
+from .routers.ai_decision_router import (
+    router as ai_decision_router,
+    initialize_ai_services,
+    shutdown_ai_services,
+)
 
 # 添加核心同步路由器導入
 from .routers.core_sync_router import router as core_sync_router
@@ -566,20 +570,20 @@ async def list_ues():
 )
 async def switch_slice(request: SliceSwitchRequest):
     """
-    切換 UE 的 Network Slice
+    換手 UE 的 Network Slice
 
     Args:
-        request: Slice 切換請求，包含 IMSI 和目標 Slice
+        request: Slice 換手請求，包含 IMSI 和目標 Slice
 
     Returns:
-        切換結果和新的 Slice 資訊
+        換手結果和新的 Slice 資訊
     """
     try:
         slice_service = app.state.slice_service
 
-        # 記錄切換請求
+        # 記錄換手請求
         logger.info(
-            "收到 Slice 切換請求", imsi=request.imsi, target_slice=request.target_slice
+            "收到 Slice 換手請求", imsi=request.imsi, target_slice=request.target_slice
         )
 
         # 將字串轉換為 SliceType 枚舉
@@ -591,7 +595,7 @@ async def switch_slice(request: SliceSwitchRequest):
                 detail=f"不支援的 Slice 類型: {request.target_slice}",
             )
 
-        # 執行切換
+        # 執行換手
         result = await slice_service.switch_slice(
             imsi=request.imsi, target_slice=target_slice_enum
         )
@@ -599,7 +603,7 @@ async def switch_slice(request: SliceSwitchRequest):
         if not result.get("success", False):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result.get("message", "Slice 切換失敗"),
+                detail=result.get("message", "Slice 換手失敗"),
             )
 
         # 更新指標
@@ -610,7 +614,7 @@ async def switch_slice(request: SliceSwitchRequest):
         ).inc()
 
         logger.info(
-            "Slice 切換成功", imsi=request.imsi, target_slice=request.target_slice
+            "Slice 換手成功", imsi=request.imsi, target_slice=request.target_slice
         )
 
         # 構建回應
@@ -645,7 +649,7 @@ async def switch_slice(request: SliceSwitchRequest):
             },
             "switch_time": datetime.now().isoformat(),
             "success": True,
-            "message": result.get("message", "Slice 切換成功"),
+            "message": result.get("message", "Slice 換手成功"),
         }
 
         return CustomJSONResponse(content=response_data)
@@ -658,7 +662,7 @@ async def switch_slice(request: SliceSwitchRequest):
         raise
     except Exception as e:
         logger.error(
-            "Slice 切換失敗",
+            "Slice 換手失敗",
             imsi=request.imsi,
             target_slice=request.target_slice,
             error=str(e),
@@ -671,7 +675,7 @@ async def switch_slice(request: SliceSwitchRequest):
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"error": "Slice 切換失敗", "message": str(e)},
+            detail={"error": "Slice 換手失敗", "message": str(e)},
         )
 
 
@@ -710,7 +714,7 @@ async def generate_ueransim_config(request: UERANSIMConfigRequest):
     動態生成UERANSIM配置
 
     根據衛星和UAV位置信息，動態生成適合的UERANSIM配置文件。
-    支援多種場景：LEO衛星過境、UAV編隊飛行、衛星間切換等。
+    支援多種場景：LEO衛星過境、UAV編隊飛行、衛星間換手等。
 
     Args:
         request: UERANSIM配置生成請求
@@ -803,8 +807,8 @@ async def get_supported_scenarios():
         },
         {
             "type": ScenarioType.HANDOVER_BETWEEN_SATELLITES.value,
-            "name": "衛星間切換",
-            "description": "UAV在不同衛星間的切換場景",
+            "name": "衛星間換手",
+            "description": "UAV在不同衛星間的換手場景",
             "required_params": [
                 "source_satellite",
                 "target_satellite",
@@ -2729,7 +2733,7 @@ async def register_uav_for_failover_monitoring(uav_id: str):
                     "uav_id": uav_id,
                     "monitoring_capabilities": [
                         "連接質量監控",
-                        "自動故障切換",
+                        "自動故障換手",
                         "Mesh 網路備援",
                         "衛星連接恢復",
                     ],
@@ -2777,14 +2781,14 @@ async def unregister_uav_failover_monitoring(uav_id: str):
 @app.post("/api/v1/uav-mesh-failover/trigger/{uav_id}", tags=["UAV Mesh 備援"])
 async def trigger_manual_uav_failover(uav_id: str, target_mode: NetworkMode):
     """
-    手動觸發 UAV 網路切換
+    手動觸發 UAV 網路換手
 
     Args:
         uav_id: UAV ID
         target_mode: 目標網路模式
 
     Returns:
-        切換結果
+        換手結果
     """
     try:
         failover_service = app.state.uav_mesh_failover_service
@@ -2793,8 +2797,8 @@ async def trigger_manual_uav_failover(uav_id: str, target_mode: NetworkMode):
         return CustomJSONResponse(content=result)
 
     except Exception as e:
-        logger.error(f"手動觸發 UAV 網路切換失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"切換失敗: {str(e)}")
+        logger.error(f"手動觸發 UAV 網路換手失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"換手失敗: {str(e)}")
 
 
 @app.get("/api/v1/uav-mesh-failover/status/{uav_id}", tags=["UAV Mesh 備援"])
@@ -2825,7 +2829,7 @@ async def get_uav_failover_service_stats():
     獲取 UAV 備援服務統計
 
     Returns:
-        服務統計信息，包括監控數量、切換統計等
+        服務統計信息，包括監控數量、換手統計等
     """
     try:
         failover_service = app.state.uav_mesh_failover_service
@@ -2858,7 +2862,7 @@ async def uav_mesh_failover_quick_demo():
     """
     UAV Mesh 備援機制快速演示
 
-    創建示例 UAV，演示完整的失聯檢測和備援切換流程
+    創建示例 UAV，演示完整的失聯檢測和備援換手流程
 
     Returns:
         演示結果和性能指標
@@ -2921,7 +2925,7 @@ async def uav_mesh_failover_quick_demo():
             timestamp=datetime.now(),
         )
 
-        # 更新信號質量觸發切換
+        # 更新信號質量觸發換手
         await uav_ue_service.update_uav_position(
             uav.uav_id,
             UAVPositionUpdateRequest(
@@ -2929,10 +2933,10 @@ async def uav_mesh_failover_quick_demo():
             ),
         )
 
-        # 等待切換完成
+        # 等待換手完成
         await asyncio.sleep(3)
 
-        # 檢查切換結果
+        # 檢查換手結果
         failover_status = await failover_service.get_uav_network_status(uav.uav_id)
 
         # 手動觸發切回衛星
@@ -2964,7 +2968,7 @@ async def uav_mesh_failover_quick_demo():
             "demonstrated_capabilities": [
                 "實時連接質量監控",
                 "自動故障檢測",
-                "快速 Mesh 網路切換",
+                "快速 Mesh 網路換手",
                 "智能恢復機制",
                 "性能統計追蹤",
             ],
@@ -2991,6 +2995,7 @@ async def uav_mesh_failover_quick_demo():
 
 # ===== Stage 4: Sionna 無線通道與 AI-RAN 抗干擾整合 API 端點 =====
 
+
 @app.post("/api/sionna/channel-simulation", tags=["Sionna Integration"])
 async def sionna_channel_simulation(request: dict):
     """Sionna 無線通道模擬端點"""
@@ -2999,7 +3004,7 @@ async def sionna_channel_simulation(request: dict):
         result = await sionna_service.run_channel_simulation(
             ue_positions=request.get("ue_positions", []),
             gnb_positions=request.get("gnb_positions", []),
-            frequency_ghz=request.get("frequency_ghz", 2.1)
+            frequency_ghz=request.get("frequency_ghz", 2.1),
         )
         return {"success": True, "simulation_result": result}
     except Exception as e:
@@ -3013,7 +3018,7 @@ async def airan_quick_decision(request: dict):
         airan_service = app.state.ai_ran_service
         decision = await airan_service.make_quick_decision(
             interference_level=request.get("interference_level", 0.5),
-            context=request.get("context", {})
+            context=request.get("context", {}),
         )
         return {"success": True, "decision": decision}
     except Exception as e:
@@ -3039,7 +3044,7 @@ async def detect_interference(request: dict):
         detection_result = await interference_service.detect_interference(
             source_type=request.get("source_type", "unknown"),
             target_ue=request.get("target_ue", ""),
-            interference_level=request.get("interference_level", 0.0)
+            interference_level=request.get("interference_level", 0.0),
         )
         return {"success": True, "detection": detection_result}
     except Exception as e:
@@ -3054,8 +3059,8 @@ async def get_sinr_viewer_config():
         "config": {
             "visualization_type": "heatmap",
             "color_scale": "viridis",
-            "update_interval_ms": 1000
-        }
+            "update_interval_ms": 1000,
+        },
     }
 
 
@@ -3067,8 +3072,8 @@ async def get_interference_visualization_data():
         "data": {
             "interference_sources": [],
             "affected_areas": [],
-            "mitigation_status": "active"
-        }
+            "mitigation_status": "active",
+        },
     }
 
 
@@ -3080,8 +3085,8 @@ async def get_spectrum_visualization_data():
         "data": {
             "frequency_range": [2100, 2200],
             "power_spectral_density": [],
-            "occupied_bands": []
-        }
+            "occupied_bands": [],
+        },
     }
 
 

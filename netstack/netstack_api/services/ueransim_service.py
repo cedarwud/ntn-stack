@@ -271,7 +271,7 @@ class UERANSIMConfigService:
     async def _generate_handover_config(
         self, request: UERANSIMConfigRequest
     ) -> UERANSIMConfigResponse:
-        """生成衛星間切換場景配置"""
+        """生成衛星間換手場景配置"""
         source_sat = request.source_satellite
         target_sat = request.target_satellite
         uav = request.uav
@@ -318,11 +318,11 @@ class UERANSIMConfigService:
                     gnb_configs, ue_config, request.scenario
                 )
                 self.logger.info(
-                    "切換場景YAML配置生成成功",
+                    "換手場景YAML配置生成成功",
                     config_length=len(config_yaml) if config_yaml else 0,
                 )
             except Exception as e:
-                self.logger.error("切換場景YAML配置生成失敗", error=str(e))
+                self.logger.error("換手場景YAML配置生成失敗", error=str(e))
                 config_yaml = None
 
         return UERANSIMConfigResponse(
@@ -346,7 +346,7 @@ class UERANSIMConfigService:
                     "hysteresis": handover_params.hysteresis if handover_params else 3,
                 },
             ),
-            message="衛星切換配置生成成功",
+            message="衛星換手配置生成成功",
         )
 
     async def _generate_position_update_config(
@@ -464,7 +464,7 @@ class UERANSIMConfigService:
     def _generate_handover_yaml_config(
         self, gnb_configs: List[GNBConfig], ue_config: UEConfig, scenario: ScenarioType
     ) -> str:
-        """生成切換場景的YAML格式配置"""
+        """生成換手場景的YAML格式配置"""
         config_dict = {
             "scenario": scenario.value,
             "generation_time": datetime.utcnow().isoformat(),
@@ -652,7 +652,7 @@ class UERANSIMConfigService:
             {
                 "template_name": "satellite_handover",
                 "scenario_type": ScenarioType.HANDOVER_BETWEEN_SATELLITES.value,
-                "description": "衛星間切換場景",
+                "description": "衛星間換手場景",
                 "parameters": [
                     "source_satellite",
                     "target_satellite",

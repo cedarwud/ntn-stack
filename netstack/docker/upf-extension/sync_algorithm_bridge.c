@@ -67,7 +67,7 @@ sync_result_t sync_algorithm_trigger_handover(const char *ue_id,
     g_status.successful_handover_count++;
     g_status.last_update_time = time(NULL);
     pthread_mutex_unlock(&g_mutex);
-    printf("切換觸發成功: UE=%s, 目標衛星=%s, 時間=%.2f\n", 
+    printf("換手觸發成功: UE=%s, 目標衛星=%s, 時間=%.2f\n", 
            ue_id, target_satellite_id, predicted_time);
     return SYNC_SUCCESS;
 }

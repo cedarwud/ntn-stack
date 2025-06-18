@@ -2,7 +2,7 @@
  * UPF 同步演算法介面
  * 
  * 提供 Open5GS UPF 與論文同步演算法的整合介面
- * 支援快速衛星切換和路由表即時更新
+ * 支援快速衛星換手和路由表即時更新
  */
 
 #ifndef SYNC_ALGORITHM_INTERFACE_H
@@ -34,8 +34,8 @@ typedef struct {
     char current_satellite_id[64];     // 目前接入衛星
     char target_satellite_id[64];      // 目標衛星
     uint32_t ipv4_addr;               // UE IPv4 地址
-    double predicted_handover_time;    // 預測切換時間
-    bool handover_in_progress;         // 切換進行中標記
+    double predicted_handover_time;    // 預測換手時間
+    bool handover_in_progress;         // 換手進行中標記
     uint8_t access_strategy;           // 接入策略 (0=flexible, 1=consistent)
 } ue_context_t;
 
@@ -51,7 +51,7 @@ typedef struct {
     uint32_t connected_ue_count;       // 連接的 UE 數量
 } satellite_info_t;
 
-// 切換事件結構
+// 換手事件結構
 typedef struct {
     char ue_id[64];
     char source_satellite[64];
@@ -66,11 +66,11 @@ typedef struct {
 typedef struct {
     bool algorithm_running;            // 演算法是否運行中
     uint32_t total_ue_count;          // 總 UE 數量
-    uint32_t active_handover_count;    // 進行中的切換數量
+    uint32_t active_handover_count;    // 進行中的換手數量
     double last_update_time;           // 最後更新時間
-    uint64_t total_handover_count;     // 總切換次數
-    uint64_t successful_handover_count; // 成功切換次數
-    double average_handover_latency;   // 平均切換延遲 (ms)
+    uint64_t total_handover_count;     // 總換手次數
+    uint64_t successful_handover_count; // 成功換手次數
+    double average_handover_latency;   // 平均換手延遲 (ms)
 } sync_algorithm_status_t;
 
 /**
@@ -116,11 +116,11 @@ sync_result_t sync_algorithm_update_ue_position(const char *ue_id,
                                                double altitude);
 
 /**
- * 觸發 UE 切換
+ * 觸發 UE 換手
  * 
  * @param ue_id UE 識別碼
  * @param target_satellite_id 目標衛星識別碼
- * @param predicted_time 預測切換時間
+ * @param predicted_time 預測換手時間
  * @return sync_result_t 結果代碼
  */
 sync_result_t sync_algorithm_trigger_handover(const char *ue_id,
@@ -178,7 +178,7 @@ sync_result_t sync_algorithm_set_parameters(double delta_t,
                                            double binary_search_precision);
 
 /**
- * 獲取最近的切換事件
+ * 獲取最近的換手事件
  * 
  * @param events 輸出參數：事件陣列
  * @param max_events 最大事件數量

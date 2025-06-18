@@ -140,7 +140,7 @@ class EssentialFunctionalityTest:
             actual_time = performance.get("actual_failover_time_ms", 0)
             meets_requirement = performance.get("meets_requirement", False)
             print(
-                f"\n   ⏱️  切換時間: {actual_time:.1f}ms, 符合要求: {meets_requirement}",
+                f"\n   ⏱️  換手時間: {actual_time:.1f}ms, 符合要求: {meets_requirement}",
                 end="",
             )
 

@@ -334,7 +334,7 @@ class UAVUEService:
         if request.signal_quality:
             update_data["signal_quality"] = request.signal_quality.dict()
 
-            # 根據信號質量自動切換網路
+            # 根據信號質量自動換手網路
             await self._handle_signal_quality_change(uav_id, request.signal_quality)
 
             # 更新連接質量評估服務（如果可用）
@@ -683,28 +683,28 @@ logs:
     async def _handle_signal_quality_change(
         self, uav_id: str, signal_quality: UAVSignalQuality
     ):
-        """處理信號質量變化，實現自動切換"""
-        # 如果信號質量太差，觸發切換到地面網路
+        """處理信號質量變化，實現自動換手"""
+        # 如果信號質量太差，觸發換手到地面網路
         if (
             signal_quality.rsrp_dbm is not None and signal_quality.rsrp_dbm < -110.0
         ) or (signal_quality.sinr_db is not None and signal_quality.sinr_db < -5.0):
 
             logger.warning(
-                "UAV 信號質量不佳，考慮切換網路",
+                "UAV 信號質量不佳，考慮換手網路",
                 uav_id=uav_id,
                 rsrp=signal_quality.rsrp_dbm,
                 sinr=signal_quality.sinr_db,
             )
 
-            # 更新連接狀態為切換中
+            # 更新連接狀態為換手中
             await self.mongo_adapter.update_one(
                 "uav_status",
                 {"uav_id": uav_id},
                 {"$set": {"ue_connection_status": UEConnectionStatus.SWITCHING.value}},
             )
 
-            # 這裡可以實現具體的切換邏輯
-            # 例如調用 Slice Service 進行網路切換
+            # 這裡可以實現具體的換手邏輯
+            # 例如調用 Slice Service 進行網路換手
 
     async def _update_sionna_channel_model(self, uav_id: str, position: UAVPosition):
         """更新 Sionna 信道模型"""

@@ -2,7 +2,7 @@
 """
 UAV 失聯後的 Mesh 網路備援機制整合測試
 
-測試完整的 UAV 備援機制，包括失聯檢測、自動切換、
+測試完整的 UAV 備援機制，包括失聯檢測、自動換手、
 Mesh 配置生成、恢復機制等核心功能。
 """
 
@@ -27,7 +27,7 @@ class UAVMeshFailoverIntegrationTest:
         self.netstack_url = "http://localhost:8080"
         self.test_uavs: List[Dict[str, Any]] = []
         self.test_trajectories: List[Dict[str, Any]] = []
-        self.client = httpx.AsyncClient(timeout=60.0)  # 增加超時時間以適應切換測試
+        self.client = httpx.AsyncClient(timeout=60.0)  # 增加超時時間以適應換手測試
 
     async def run_all_tests(self) -> bool:
         """執行所有測試"""
@@ -43,11 +43,11 @@ class UAVMeshFailoverIntegrationTest:
                 ("備援監控註冊", self._test_failover_monitoring_registration),
                 ("連接質量監控", self._test_connection_quality_monitoring),
                 ("失聯檢測觸發", self._test_connection_loss_detection),
-                ("自動 Mesh 切換", self._test_automatic_mesh_failover),
-                ("手動網路切換", self._test_manual_network_switching),
+                ("自動 Mesh 換手", self._test_automatic_mesh_failover),
+                ("手動網路換手", self._test_manual_network_switching),
                 ("衛星連接恢復", self._test_satellite_recovery),
-                ("切換性能測試", self._test_failover_performance),
-                ("多 UAV 並發切換", self._test_concurrent_uav_failover),
+                ("換手性能測試", self._test_failover_performance),
+                ("多 UAV 並發換手", self._test_concurrent_uav_failover),
                 ("服務統計和監控", self._test_service_statistics),
                 ("故障恢復能力", self._test_fault_tolerance),
                 ("快速演示驗證", self._test_quick_demo_verification),
@@ -388,11 +388,11 @@ class UAVMeshFailoverIntegrationTest:
                 logger.error("更新 UAV 位置和信號質量失敗")
                 return False
 
-            # 等待失聯檢測和自動切換
+            # 等待失聯檢測和自動換手
             logger.info("等待失聯檢測觸發...")
             await asyncio.sleep(8)  # 等待足夠時間讓檢測觸發
 
-            # 檢查是否觸發了切換
+            # 檢查是否觸發了換手
             response = await self.client.get(
                 f"{self.netstack_url}/api/v1/uav-mesh-failover/status/{uav_id}"
             )
@@ -404,12 +404,12 @@ class UAVMeshFailoverIntegrationTest:
             status_data = response.json()
             current_mode = status_data.get("current_network_mode")
 
-            # 檢查是否已切換到 Mesh 模式或正在切換
+            # 檢查是否已換手到 Mesh 模式或正在換手
             if current_mode not in ["mesh_backup", "switching"]:
-                logger.warning(f"UAV {uav_id} 未觸發自動切換，當前模式: {current_mode}")
-                # 不直接返回 False，因為切換可能需要更多時間
+                logger.warning(f"UAV {uav_id} 未觸發自動換手，當前模式: {current_mode}")
+                # 不直接返回 False，因為換手可能需要更多時間
             else:
-                logger.info(f"✅ 成功檢測失聯並觸發切換，當前模式: {current_mode}")
+                logger.info(f"✅ 成功檢測失聯並觸發換手，當前模式: {current_mode}")
 
             return True
 
@@ -418,7 +418,7 @@ class UAVMeshFailoverIntegrationTest:
             return False
 
     async def _test_automatic_mesh_failover(self) -> bool:
-        """測試自動 Mesh 切換"""
+        """測試自動 Mesh 換手"""
         try:
             if not self.test_uavs:
                 logger.error("沒有可測試的 UAV")
@@ -439,7 +439,7 @@ class UAVMeshFailoverIntegrationTest:
             status_data = response.json()
             current_mode = status_data.get("current_network_mode")
 
-            # 如果還在衛星模式，手動觸發切換以確保測試
+            # 如果還在衛星模式，手動觸發換手以確保測試
             if current_mode == "satellite_ntn":
                 response = await self.client.post(
                     f"{self.netstack_url}/api/v1/uav-mesh-failover/trigger/{uav_id}",
@@ -447,68 +447,68 @@ class UAVMeshFailoverIntegrationTest:
                 )
 
                 if response.status_code != 200:
-                    logger.error("手動觸發 Mesh 切換失敗")
+                    logger.error("手動觸發 Mesh 換手失敗")
                     return False
 
                 trigger_result = response.json()
                 if not trigger_result.get("success"):
-                    logger.error("手動切換結果不成功")
+                    logger.error("手動換手結果不成功")
                     return False
 
-                logger.info("手動觸發 Mesh 切換成功")
+                logger.info("手動觸發 Mesh 換手成功")
 
-            # 等待切換完成
+            # 等待換手完成
             await asyncio.sleep(3)
 
-            # 驗證切換結果
+            # 驗證換手結果
             response = await self.client.get(
                 f"{self.netstack_url}/api/v1/uav-mesh-failover/status/{uav_id}"
             )
 
             if response.status_code != 200:
-                logger.error("獲取切換後 UAV 狀態失敗")
+                logger.error("獲取換手後 UAV 狀態失敗")
                 return False
 
             final_status = response.json()
             final_mode = final_status.get("current_network_mode")
 
             if final_mode != "mesh_backup":
-                logger.error(f"切換後模式不正確: {final_mode}")
+                logger.error(f"換手後模式不正確: {final_mode}")
                 return False
 
-            logger.info("✅ 自動 Mesh 切換成功")
+            logger.info("✅ 自動 Mesh 換手成功")
             return True
 
         except Exception as e:
-            logger.error(f"自動 Mesh 切換測試失敗: {e}")
+            logger.error(f"自動 Mesh 換手測試失敗: {e}")
             return False
 
     async def _test_manual_network_switching(self) -> bool:
-        """測試手動網路切換"""
+        """測試手動網路換手"""
         try:
             if len(self.test_uavs) < 2:
-                logger.error("需要至少 2 個 UAV 進行手動切換測試")
+                logger.error("需要至少 2 個 UAV 進行手動換手測試")
                 return False
 
             test_uav = self.test_uavs[1]  # 使用第二個 UAV
             uav_id = test_uav["uav_id"]
 
-            # 測試手動切換到 Mesh 模式
+            # 測試手動換手到 Mesh 模式
             response = await self.client.post(
                 f"{self.netstack_url}/api/v1/uav-mesh-failover/trigger/{uav_id}",
                 params={"target_mode": "mesh_backup"},
             )
 
             if response.status_code != 200:
-                logger.error("手動切換到 Mesh 失敗")
+                logger.error("手動換手到 Mesh 失敗")
                 return False
 
             mesh_result = response.json()
             if not mesh_result.get("success"):
-                logger.error("手動切換到 Mesh 結果不成功")
+                logger.error("手動換手到 Mesh 結果不成功")
                 return False
 
-            # 等待切換完成
+            # 等待換手完成
             await asyncio.sleep(2)
 
             # 測試手動切回衛星模式
@@ -518,19 +518,19 @@ class UAVMeshFailoverIntegrationTest:
             )
 
             if response.status_code != 200:
-                logger.error("手動切換到衛星失敗")
+                logger.error("手動換手到衛星失敗")
                 return False
 
             satellite_result = response.json()
             if not satellite_result.get("success"):
-                logger.error("手動切換到衛星結果不成功")
+                logger.error("手動換手到衛星結果不成功")
                 return False
 
-            logger.info("✅ 手動網路切換成功")
+            logger.info("✅ 手動網路換手成功")
             return True
 
         except Exception as e:
-            logger.error(f"手動網路切換測試失敗: {e}")
+            logger.error(f"手動網路換手測試失敗: {e}")
             return False
 
     async def _test_satellite_recovery(self) -> bool:
@@ -608,7 +608,7 @@ class UAVMeshFailoverIntegrationTest:
             return False
 
     async def _test_failover_performance(self) -> bool:
-        """測試切換性能"""
+        """測試換手性能"""
         try:
             if not self.test_uavs:
                 logger.error("沒有可測試的 UAV")
@@ -617,11 +617,11 @@ class UAVMeshFailoverIntegrationTest:
             test_uav = self.test_uavs[0]
             uav_id = test_uav["uav_id"]
 
-            # 執行多次切換並測量時間
+            # 執行多次換手並測量時間
             switch_times = []
 
-            for i in range(3):  # 測試 3 次切換
-                # 切換到 Mesh
+            for i in range(3):  # 測試 3 次換手
+                # 換手到 Mesh
                 start_time = time.time()
                 response = await self.client.post(
                     f"{self.netstack_url}/api/v1/uav-mesh-failover/trigger/{uav_id}",
@@ -629,7 +629,7 @@ class UAVMeshFailoverIntegrationTest:
                 )
 
                 if response.status_code != 200:
-                    logger.error(f"第 {i+1} 次切換到 Mesh 失敗")
+                    logger.error(f"第 {i+1} 次換手到 Mesh 失敗")
                     continue
 
                 mesh_duration = (time.time() - start_time) * 1000
@@ -637,7 +637,7 @@ class UAVMeshFailoverIntegrationTest:
 
                 await asyncio.sleep(1)
 
-                # 切換回衛星
+                # 換手回衛星
                 start_time = time.time()
                 response = await self.client.post(
                     f"{self.netstack_url}/api/v1/uav-mesh-failover/trigger/{uav_id}",
@@ -645,7 +645,7 @@ class UAVMeshFailoverIntegrationTest:
                 )
 
                 if response.status_code != 200:
-                    logger.error(f"第 {i+1} 次切換到衛星失敗")
+                    logger.error(f"第 {i+1} 次換手到衛星失敗")
                     continue
 
                 satellite_duration = (time.time() - start_time) * 1000
@@ -658,34 +658,34 @@ class UAVMeshFailoverIntegrationTest:
                 max_time = max(switch_times)
                 min_time = min(switch_times)
 
-                logger.info(f"切換性能統計:")
+                logger.info(f"換手性能統計:")
                 logger.info(f"  平均時間: {avg_time:.1f}ms")
                 logger.info(f"  最快時間: {min_time:.1f}ms")
                 logger.info(f"  最慢時間: {max_time:.1f}ms")
 
                 # 檢查是否符合 2 秒要求
                 if max_time > 2000:
-                    logger.warning(f"最慢切換時間 {max_time:.1f}ms 超過 2 秒要求")
+                    logger.warning(f"最慢換手時間 {max_time:.1f}ms 超過 2 秒要求")
                     return False
 
-                logger.info("✅ 切換性能測試通過")
+                logger.info("✅ 換手性能測試通過")
                 return True
             else:
-                logger.error("沒有成功的切換記錄")
+                logger.error("沒有成功的換手記錄")
                 return False
 
         except Exception as e:
-            logger.error(f"切換性能測試失敗: {e}")
+            logger.error(f"換手性能測試失敗: {e}")
             return False
 
     async def _test_concurrent_uav_failover(self) -> bool:
-        """測試多 UAV 並發切換"""
+        """測試多 UAV 並發換手"""
         try:
             if len(self.test_uavs) < 2:
                 logger.error("需要至少 2 個 UAV 進行並發測試")
                 return False
 
-            # 準備並發切換任務
+            # 準備並發換手任務
             tasks = []
             for uav in self.test_uavs:
                 uav_id = uav["uav_id"]
@@ -695,7 +695,7 @@ class UAVMeshFailoverIntegrationTest:
                 )
                 tasks.append(task)
 
-            # 執行並發切換
+            # 執行並發換手
             start_time = time.time()
             results = await asyncio.gather(*tasks, return_exceptions=True)
             total_duration = (time.time() - start_time) * 1000
@@ -714,21 +714,21 @@ class UAVMeshFailoverIntegrationTest:
 
             success_rate = (success_count / len(self.test_uavs)) * 100
 
-            logger.info(f"並發切換結果:")
+            logger.info(f"並發換手結果:")
             logger.info(
                 f"  成功率: {success_rate:.1f}% ({success_count}/{len(self.test_uavs)})"
             )
             logger.info(f"  總耗時: {total_duration:.1f}ms")
 
             if success_rate < 80:  # 允許 20% 的失敗率
-                logger.error(f"並發切換成功率過低: {success_rate:.1f}%")
+                logger.error(f"並發換手成功率過低: {success_rate:.1f}%")
                 return False
 
-            logger.info("✅ 多 UAV 並發切換測試通過")
+            logger.info("✅ 多 UAV 並發換手測試通過")
             return True
 
         except Exception as e:
-            logger.error(f"並發切換測試失敗: {e}")
+            logger.error(f"並發換手測試失敗: {e}")
             return False
 
     async def _test_service_statistics(self) -> bool:
@@ -759,16 +759,16 @@ class UAVMeshFailoverIntegrationTest:
 
             failover_stats = stats.get("failover_statistics", {})
             if failover_stats.get("total_failovers", 0) == 0:
-                logger.warning("沒有切換統計記錄")
+                logger.warning("沒有換手統計記錄")
 
             logger.info(f"服務統計:")
             logger.info(f"  監控 UAV 數量: {stats.get('monitored_uav_count')}")
-            logger.info(f"  總切換次數: {failover_stats.get('total_failovers', 0)}")
+            logger.info(f"  總換手次數: {failover_stats.get('total_failovers', 0)}")
             logger.info(
-                f"  成功切換次數: {failover_stats.get('successful_failovers', 0)}"
+                f"  成功換手次數: {failover_stats.get('successful_failovers', 0)}"
             )
             logger.info(
-                f"  平均切換時間: {failover_stats.get('average_failover_time_ms', 0):.1f}ms"
+                f"  平均換手時間: {failover_stats.get('average_failover_time_ms', 0):.1f}ms"
             )
 
             logger.info("✅ 服務統計功能正常")
@@ -835,7 +835,7 @@ class UAVMeshFailoverIntegrationTest:
             actual_time = performance_targets.get("actual_failover_time_ms", 0)
 
             logger.info(f"演示性能結果:")
-            logger.info(f"  實際切換時間: {actual_time:.1f}ms")
+            logger.info(f"  實際換手時間: {actual_time:.1f}ms")
             logger.info(f"  符合 2 秒要求: {meets_requirement}")
 
             logger.info("✅ 快速演示驗證通過")
@@ -855,7 +855,7 @@ class UAVMeshFailoverIntegrationTest:
             test_uav = self.test_uavs[0]
             uav_id = test_uav["uav_id"]
 
-            # 執行精確的切換時間測量
+            # 執行精確的換手時間測量
             recovery_times = []
 
             for i in range(5):  # 執行 5 次測試
@@ -866,7 +866,7 @@ class UAVMeshFailoverIntegrationTest:
                 )
                 await asyncio.sleep(0.5)
 
-                # 測量切換到 Mesh 的時間
+                # 測量換手到 Mesh 的時間
                 start_time = time.time()
                 response = await self.client.post(
                     f"{self.netstack_url}/api/v1/uav-mesh-failover/trigger/{uav_id}",

@@ -64,7 +64,7 @@ RUN mkdir -p /var/log/netstack /tmp/matplotlib && \
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
 RUN chmod +x /usr/local/bin/healthcheck.sh
 
-# 切換到非 root 用戶
+# 換手到非 root 用戶
 USER netstack
 
 # 暴露埠號
@@ -127,7 +127,7 @@ ENV LOG_LEVEL=DEBUG
 # 修復 matplotlib 權限問題
 ENV MPLCONFIGDIR="/tmp/matplotlib"
 
-# 切換回應用程式用戶
+# 換手回應用程式用戶
 USER netstack
 
 # 暴露埠號

@@ -120,13 +120,13 @@ theme:
       accent: cyan
       toggle:
         icon: material/brightness-7
-        name: 切換到深色模式
+        name: 換手到深色模式
     - scheme: slate
       primary: indigo
       accent: cyan
       toggle:
         icon: material/brightness-4
-        name: 切換到淺色模式
+        name: 換手到淺色模式
 
 nav:
   - 首頁: README.md

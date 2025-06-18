@@ -202,13 +202,13 @@ class UEService:
 
     async def get_ue_slice_history(self, imsi: str) -> List[Dict[str, Any]]:
         """
-        取得 UE Slice 切換歷史
+        取得 UE Slice 換手歷史
 
         Args:
             imsi: UE IMSI
 
         Returns:
-            Slice 切換歷史列表
+            Slice 換手歷史列表
         """
         try:
             history = await self.redis_adapter.get_slice_switch_history(imsi)
