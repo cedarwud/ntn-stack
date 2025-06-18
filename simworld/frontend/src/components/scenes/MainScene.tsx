@@ -20,8 +20,6 @@ import InterferenceAnalytics from './visualization/InterferenceAnalytics'
 import UAVSwarmCoordination from './visualization/UAVSwarmCoordination'
 import MeshNetworkTopology from './visualization/MeshNetworkTopology'
 import FailoverMechanism from './visualization/FailoverMechanism'
-import HandoverPredictionVisualization from '../viewers/HandoverPredictionVisualization'
-import SatelliteHandoverDecisionVisualization from '../viewers/SatelliteHandoverDecisionVisualization'
 import TestResultsVisualization from '../viewers/TestResultsVisualization'
 import PerformanceTrendAnalyzer from '../viewers/PerformanceTrendAnalyzer'
 import AutomatedReportGenerator from '../viewers/AutomatedReportGenerator'
@@ -55,8 +53,6 @@ export interface MainSceneProps {
     satelliteUavConnectionEnabled?: boolean
     failoverMechanismEnabled?: boolean
     // 階段六功能狀態
-    handoverPredictionEnabled?: boolean
-    handoverDecisionVisualizationEnabled?: boolean
     predictionPath3DEnabled?: boolean
     // 新增 3D 換手動畫相關 props
     handover3DAnimationEnabled?: boolean
@@ -111,8 +107,6 @@ const MainScene: React.FC<MainSceneProps> = ({
     meshNetworkTopologyEnabled = false,
     satelliteUavConnectionEnabled = false,
     failoverMechanismEnabled = false,
-    handoverPredictionEnabled = false,
-    handoverDecisionVisualizationEnabled = false,
     predictionPath3DEnabled = false,
     handover3DAnimationEnabled = false,
     handoverState,
@@ -422,14 +416,6 @@ const MainScene: React.FC<MainSceneProps> = ({
             />
             
             {/* 階段六換手視覺化 */}
-            <HandoverPredictionVisualization 
-                devices={devices} 
-                enabled={handoverPredictionEnabled}
-            />
-            <SatelliteHandoverDecisionVisualization 
-                devices={devices} 
-                enabled={handoverDecisionVisualizationEnabled}
-            />
             <PredictionPath3D 
                 devices={devices} 
                 enabled={predictionPath3DEnabled}
