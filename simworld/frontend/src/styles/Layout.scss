@@ -18,7 +18,7 @@
   transition: transform 0.3s ease; /* 只過渡 transform */
   background-color: var(--dark-bg);
   border-right: 1px solid var(--dark-border);
-  z-index: 1000; /* 低於切換按鈕，但在內容之上 */
+  z-index: 1000; /* 低於換手按鈕，但在內容之上 */
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -48,7 +48,7 @@
   }
 }
 
-/* 側邊欄切換按鈕 - 懸浮 */
+/* 側邊欄換手按鈕 - 懸浮 */
 .sidebar-toggle {
   position: fixed;
   top: 10px; /* 向下移動一點 */

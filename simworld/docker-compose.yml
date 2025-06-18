@@ -1,5 +1,5 @@
 # docker-compose.yml
-# GPU/CPU 模式切換指南:
+# GPU/CPU 模式換手指南:
 # 1. 使用 CPU 模式: 設定 CUDA_VISIBLE_DEVICES="-1" 且註釋掉 deploy 部分
 # 2. 使用 GPU 模式: 設定 CUDA_VISIBLE_DEVICES="" 或指定 GPU ID，並啟用 deploy 部分
 # 3. 可選渲染後端: PYOPENGL_PLATFORM=egl (默認) 或 PYOPENGL_PLATFORM=osmesa 或 PYOPENGL_PLATFORM=glfw

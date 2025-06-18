@@ -592,7 +592,7 @@ class ConnectionQualityService:
         # 通用建議
         if issues:
             recommendations.append("監控環境變化並及時調整參數")
-            recommendations.append("考慮切換到備用通信鏈路")
+            recommendations.append("考慮換手到備用通信鏈路")
 
         return recommendations
 

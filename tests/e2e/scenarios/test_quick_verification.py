@@ -157,7 +157,7 @@ def simulate_mesh_failover_test() -> Dict[str, Any]:
     steps = [
         ("建立主連接", 0.5, True),
         ("檢測連接中斷", 0.2, True),
-        ("切換到 Mesh 網路", 1.5, True),
+        ("換手到 Mesh 網路", 1.5, True),
         ("驗證備援連接", 0.3, True),
         ("測試數據傳輸", 0.5, True),
     ]

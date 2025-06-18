@@ -1,7 +1,7 @@
 """
 Mesh 橋接服務 (Enhanced for Stage 5)
 實現 Tier-1 Mesh 網路與 5G 核心網的橋接功能
-新增動態路由最佳化和智能切換決策算法
+新增動態路由最佳化和智能換手決策算法
 """
 
 import asyncio
@@ -858,49 +858,56 @@ class MeshBridgeService:
 
     # ===== Stage 5: 動態路由最佳化擴展 =====
 
-    async def optimize_dynamic_routing(self, optimization_params: Dict[str, Any]) -> Dict[str, Any]:
+    async def optimize_dynamic_routing(
+        self, optimization_params: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """動態路由最佳化"""
         try:
             # 分析當前網路狀態
             network_state = await self._analyze_network_state()
-            
+
             # 檢測瓶頸和擁塞
             bottlenecks = await self._detect_network_bottlenecks()
-            
+
             # 計算最佳路由
             optimized_routes = await self._calculate_optimized_routes(
                 network_state, bottlenecks, optimization_params
             )
-            
+
             # 應用路由優化
-            optimization_results = await self._apply_route_optimization(optimized_routes)
-            
+            optimization_results = await self._apply_route_optimization(
+                optimized_routes
+            )
+
             # 監控優化效果
             await self._monitor_optimization_effects(optimization_results)
-            
+
             return {
                 "success": True,
                 "optimization_id": f"opt_{uuid4().hex[:8]}",
                 "network_state": network_state,
                 "bottlenecks_detected": len(bottlenecks),
                 "routes_optimized": len(optimized_routes),
-                "improvement_metrics": optimization_results
+                "improvement_metrics": optimization_results,
             }
-            
+
         except Exception as e:
             logger.error(f"動態路由最佳化失敗: {e}")
             return {"success": False, "error": str(e)}
 
     async def _analyze_network_state(self) -> Dict[str, Any]:
         """分析網路狀態"""
-        active_nodes = sum(1 for node in self.mesh_nodes.values() 
-                          if node.status == MeshNodeStatus.ACTIVE)
-        
+        active_nodes = sum(
+            1
+            for node in self.mesh_nodes.values()
+            if node.status == MeshNodeStatus.ACTIVE
+        )
+
         total_links = 0
         total_bandwidth = 0.0
         total_latency = 0.0
         link_utilization = []
-        
+
         for node in self.mesh_nodes.values():
             if node.status == MeshNodeStatus.ACTIVE:
                 total_links += len(node.neighbors)
@@ -908,10 +915,10 @@ class MeshBridgeService:
                     total_bandwidth += neighbor.link_quality.bandwidth_mbps
                     total_latency += neighbor.link_quality.latency_ms
                     link_utilization.append(neighbor.link_quality.utilization)
-        
+
         avg_latency = total_latency / max(1, total_links)
         avg_utilization = sum(link_utilization) / max(1, len(link_utilization))
-        
+
         return {
             "active_nodes": active_nodes,
             "total_nodes": len(self.mesh_nodes),
@@ -920,133 +927,151 @@ class MeshBridgeService:
             "average_bandwidth_mbps": total_bandwidth / max(1, total_links),
             "average_utilization": avg_utilization,
             "network_connectivity": active_nodes / max(1, len(self.mesh_nodes)),
-            "topology_stability": await self._calculate_topology_stability()
+            "topology_stability": await self._calculate_topology_stability(),
         }
 
     async def _detect_network_bottlenecks(self) -> List[Dict[str, Any]]:
         """檢測網路瓶頸"""
         bottlenecks = []
-        
+
         # 檢測高負載節點
         for node_id, node in self.mesh_nodes.items():
             if node.status == MeshNodeStatus.ACTIVE:
-                cpu_utilization = getattr(node, 'cpu_utilization', 50.0)
-                memory_utilization = getattr(node, 'memory_utilization', 40.0)
-                
+                cpu_utilization = getattr(node, "cpu_utilization", 50.0)
+                memory_utilization = getattr(node, "memory_utilization", 40.0)
+
                 if cpu_utilization > 80.0 or memory_utilization > 85.0:
-                    bottlenecks.append({
-                        "type": "high_load_node",
-                        "node_id": node_id,
-                        "cpu_utilization": cpu_utilization,
-                        "memory_utilization": memory_utilization,
-                        "severity": "high" if cpu_utilization > 90.0 else "medium"
-                    })
-        
+                    bottlenecks.append(
+                        {
+                            "type": "high_load_node",
+                            "node_id": node_id,
+                            "cpu_utilization": cpu_utilization,
+                            "memory_utilization": memory_utilization,
+                            "severity": "high" if cpu_utilization > 90.0 else "medium",
+                        }
+                    )
+
         # 檢測擁塞連結
         for node in self.mesh_nodes.values():
             for neighbor in node.neighbors:
                 if neighbor.link_quality.utilization > 0.8:
-                    bottlenecks.append({
-                        "type": "congested_link",
-                        "source_node": node.node_id,
-                        "target_node": neighbor.node_id,
-                        "utilization": neighbor.link_quality.utilization,
-                        "bandwidth_mbps": neighbor.link_quality.bandwidth_mbps,
-                        "severity": "high" if neighbor.link_quality.utilization > 0.9 else "medium"
-                    })
-        
+                    bottlenecks.append(
+                        {
+                            "type": "congested_link",
+                            "source_node": node.node_id,
+                            "target_node": neighbor.node_id,
+                            "utilization": neighbor.link_quality.utilization,
+                            "bandwidth_mbps": neighbor.link_quality.bandwidth_mbps,
+                            "severity": (
+                                "high"
+                                if neighbor.link_quality.utilization > 0.9
+                                else "medium"
+                            ),
+                        }
+                    )
+
         # 檢測孤立節點
         for node_id, node in self.mesh_nodes.items():
             if node.status == MeshNodeStatus.ACTIVE and len(node.neighbors) < 2:
-                bottlenecks.append({
-                    "type": "isolated_node",
-                    "node_id": node_id,
-                    "neighbor_count": len(node.neighbors),
-                    "severity": "high" if len(node.neighbors) == 0 else "medium"
-                })
-        
+                bottlenecks.append(
+                    {
+                        "type": "isolated_node",
+                        "node_id": node_id,
+                        "neighbor_count": len(node.neighbors),
+                        "severity": "high" if len(node.neighbors) == 0 else "medium",
+                    }
+                )
+
         return bottlenecks
 
     async def _calculate_optimized_routes(
-        self, 
-        network_state: Dict[str, Any], 
-        bottlenecks: List[Dict[str, Any]], 
-        params: Dict[str, Any]
+        self,
+        network_state: Dict[str, Any],
+        bottlenecks: List[Dict[str, Any]],
+        params: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
         """計算最佳化路由"""
         optimized_routes = []
-        
+
         # 獲取所有活躍的源-目標節點對
-        active_nodes = [node_id for node_id, node in self.mesh_nodes.items() 
-                       if node.status == MeshNodeStatus.ACTIVE]
-        
+        active_nodes = [
+            node_id
+            for node_id, node in self.mesh_nodes.items()
+            if node.status == MeshNodeStatus.ACTIVE
+        ]
+
         optimization_algorithm = params.get("algorithm", "load_balanced")
-        
+
         for source in active_nodes:
             for destination in active_nodes:
                 if source != destination:
                     # 計算不同類型的最佳路由
                     if optimization_algorithm == "load_balanced":
-                        route = await self._find_load_balanced_route(source, destination, bottlenecks)
+                        route = await self._find_load_balanced_route(
+                            source, destination, bottlenecks
+                        )
                     elif optimization_algorithm == "low_latency":
                         route = await self._find_low_latency_route(source, destination)
                     elif optimization_algorithm == "high_bandwidth":
-                        route = await self._find_high_bandwidth_route(source, destination)
+                        route = await self._find_high_bandwidth_route(
+                            source, destination
+                        )
                     else:
-                        route = await self._find_adaptive_route(source, destination, network_state, bottlenecks)
-                    
+                        route = await self._find_adaptive_route(
+                            source, destination, network_state, bottlenecks
+                        )
+
                     if route:
                         optimized_routes.append(route)
-        
+
         return optimized_routes
 
     async def _find_load_balanced_route(
-        self, 
-        source: str, 
-        destination: str, 
-        bottlenecks: List[Dict[str, Any]]
+        self, source: str, destination: str, bottlenecks: List[Dict[str, Any]]
     ) -> Optional[Dict[str, Any]]:
         """尋找負載平衡路由"""
         # 獲取高負載節點列表
-        high_load_nodes = {b["node_id"] for b in bottlenecks if b["type"] == "high_load_node"}
-        
+        high_load_nodes = {
+            b["node_id"] for b in bottlenecks if b["type"] == "high_load_node"
+        }
+
         # 使用修改過的Dijkstra算法，避開高負載節點
-        distances = {node_id: float('inf') for node_id in self.mesh_nodes}
+        distances = {node_id: float("inf") for node_id in self.mesh_nodes}
         distances[source] = 0
         previous = {}
         unvisited = set(self.mesh_nodes.keys())
-        
+
         while unvisited:
             current = min(unvisited, key=lambda x: distances[x])
             if current == destination:
                 break
-                
+
             unvisited.remove(current)
-            
+
             current_node = self.mesh_nodes[current]
             for neighbor in current_node.neighbors:
                 neighbor_id = neighbor.node_id
                 if neighbor_id in unvisited:
                     # 計算權重：考慮負載和距離
                     base_weight = 1.0
-                    
+
                     # 高負載節點權重懲罰
                     if neighbor_id in high_load_nodes:
                         base_weight += 5.0
-                    
+
                     # 連結利用率懲罰
                     utilization_penalty = neighbor.link_quality.utilization * 3.0
                     weight = base_weight + utilization_penalty
-                    
+
                     alt_distance = distances[current] + weight
                     if alt_distance < distances[neighbor_id]:
                         distances[neighbor_id] = alt_distance
                         previous[neighbor_id] = current
-        
+
         # 重建路徑
         if destination not in previous and destination != source:
             return None
-            
+
         path = []
         current = destination
         while current in previous:
@@ -1054,7 +1079,7 @@ class MeshBridgeService:
             current = previous[current]
         path.append(source)
         path.reverse()
-        
+
         return {
             "route_id": f"route_{uuid4().hex[:8]}",
             "source": source,
@@ -1062,73 +1087,80 @@ class MeshBridgeService:
             "path": path,
             "algorithm": "load_balanced",
             "cost_metric": distances[destination],
-            "avoids_bottlenecks": len(set(path) & high_load_nodes) == 0
+            "avoids_bottlenecks": len(set(path) & high_load_nodes) == 0,
         }
 
     async def _find_adaptive_route(
-        self, 
-        source: str, 
-        destination: str, 
-        network_state: Dict[str, Any], 
-        bottlenecks: List[Dict[str, Any]]
+        self,
+        source: str,
+        destination: str,
+        network_state: Dict[str, Any],
+        bottlenecks: List[Dict[str, Any]],
     ) -> Optional[Dict[str, Any]]:
         """尋找自適應路由"""
         # 根據網路狀態動態選擇路由策略
-        
+
         network_load = network_state.get("average_utilization", 0.5)
         network_latency = network_state.get("average_latency_ms", 50.0)
-        
+
         if network_load > 0.8:
             # 高負載：優先負載平衡
-            return await self._find_load_balanced_route(source, destination, bottlenecks)
+            return await self._find_load_balanced_route(
+                source, destination, bottlenecks
+            )
         elif network_latency > 100.0:
             # 高延遲：優先低延遲路由
             return await self._find_low_latency_route(source, destination)
         else:
             # 正常狀態：綜合優化
-            return await self._find_balanced_optimal_route(source, destination, network_state)
+            return await self._find_balanced_optimal_route(
+                source, destination, network_state
+            )
 
     async def _find_balanced_optimal_route(
-        self, 
-        source: str, 
-        destination: str, 
-        network_state: Dict[str, Any]
+        self, source: str, destination: str, network_state: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
         """尋找平衡最佳路由"""
         # 多目標優化：延遲、頻寬、負載
-        
-        distances = {node_id: float('inf') for node_id in self.mesh_nodes}
+
+        distances = {node_id: float("inf") for node_id in self.mesh_nodes}
         distances[source] = 0
         previous = {}
         unvisited = set(self.mesh_nodes.keys())
-        
+
         while unvisited:
             current = min(unvisited, key=lambda x: distances[x])
             if current == destination:
                 break
-                
+
             unvisited.remove(current)
-            
+
             current_node = self.mesh_nodes[current]
             for neighbor in current_node.neighbors:
                 neighbor_id = neighbor.node_id
                 if neighbor_id in unvisited:
                     # 多因子權重計算
                     latency_weight = neighbor.link_quality.latency_ms / 100.0
-                    bandwidth_weight = 100.0 / max(1.0, neighbor.link_quality.bandwidth_mbps)
+                    bandwidth_weight = 100.0 / max(
+                        1.0, neighbor.link_quality.bandwidth_mbps
+                    )
                     utilization_weight = neighbor.link_quality.utilization * 2.0
-                    
-                    total_weight = latency_weight * 0.4 + bandwidth_weight * 0.3 + utilization_weight * 0.3
-                    
+
+                    total_weight = (
+                        latency_weight * 0.4
+                        + bandwidth_weight * 0.3
+                        + utilization_weight * 0.3
+                    )
+
                     alt_distance = distances[current] + total_weight
                     if alt_distance < distances[neighbor_id]:
                         distances[neighbor_id] = alt_distance
                         previous[neighbor_id] = current
-        
+
         # 重建路徑
         if destination not in previous and destination != source:
             return None
-            
+
         path = []
         current = destination
         while current in previous:
@@ -1136,7 +1168,7 @@ class MeshBridgeService:
             current = previous[current]
         path.append(source)
         path.reverse()
-        
+
         return {
             "route_id": f"route_{uuid4().hex[:8]}",
             "source": source,
@@ -1144,144 +1176,171 @@ class MeshBridgeService:
             "path": path,
             "algorithm": "balanced_optimal",
             "cost_metric": distances[destination],
-            "optimization_factors": ["latency", "bandwidth", "load"]
+            "optimization_factors": ["latency", "bandwidth", "load"],
         }
 
-    async def _apply_route_optimization(self, optimized_routes: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _apply_route_optimization(
+        self, optimized_routes: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """應用路由優化"""
         applied_routes = 0
         improved_paths = 0
         total_improvement = 0.0
-        
+
         for route in optimized_routes:
             try:
                 # 更新路由表
                 route_key = f"{route['source']}_{route['destination']}"
-                
+
                 # 記錄舊路由指標
-                old_metrics = await self._get_current_route_metrics(route['source'], route['destination'])
-                
+                old_metrics = await self._get_current_route_metrics(
+                    route["source"], route["destination"]
+                )
+
                 # 應用新路由
                 await self._update_route_in_topology(route)
-                
+
                 # 計算改善效果
-                new_metrics = await self._calculate_route_metrics(route['path'])
-                improvement = await self._calculate_route_improvement(old_metrics, new_metrics)
-                
+                new_metrics = await self._calculate_route_metrics(route["path"])
+                improvement = await self._calculate_route_improvement(
+                    old_metrics, new_metrics
+                )
+
                 if improvement > 0:
                     improved_paths += 1
                     total_improvement += improvement
-                
+
                 applied_routes += 1
-                
+
             except Exception as e:
                 logger.warning(f"應用路由 {route['route_id']} 失敗: {e}")
-        
+
         avg_improvement = total_improvement / max(1, improved_paths)
-        
+
         return {
             "total_routes": len(optimized_routes),
             "applied_routes": applied_routes,
             "improved_paths": improved_paths,
             "average_improvement_percent": avg_improvement,
-            "optimization_timestamp": datetime.now().isoformat()
+            "optimization_timestamp": datetime.now().isoformat(),
         }
 
     async def _calculate_topology_stability(self) -> float:
         """計算拓撲穩定性"""
         # 簡化的穩定性計算
-        active_ratio = sum(1 for node in self.mesh_nodes.values() 
-                          if node.status == MeshNodeStatus.ACTIVE) / max(1, len(self.mesh_nodes))
-        
+        active_ratio = sum(
+            1
+            for node in self.mesh_nodes.values()
+            if node.status == MeshNodeStatus.ACTIVE
+        ) / max(1, len(self.mesh_nodes))
+
         connectivity_score = 0.0
         if self.mesh_nodes:
-            total_connections = sum(len(node.neighbors) for node in self.mesh_nodes.values())
+            total_connections = sum(
+                len(node.neighbors) for node in self.mesh_nodes.values()
+            )
             max_possible = len(self.mesh_nodes) * (len(self.mesh_nodes) - 1)
             connectivity_score = total_connections / max(1, max_possible)
-        
-        stability = (active_ratio * 0.6 + connectivity_score * 0.4)
+
+        stability = active_ratio * 0.6 + connectivity_score * 0.4
         return min(1.0, stability)
 
-    async def implement_intelligent_switching(self, switching_params: Dict[str, Any]) -> Dict[str, Any]:
-        """實現智能切換決策"""
+    async def implement_intelligent_switching(
+        self, switching_params: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """實現智能換手決策"""
         try:
-            # 分析切換觸發條件
+            # 分析換手觸發條件
             switch_triggers = await self._analyze_switch_triggers(switching_params)
-            
-            # 評估切換候選
+
+            # 評估換手候選
             switch_candidates = await self._evaluate_switch_candidates(switch_triggers)
-            
-            # 執行智能切換決策
-            switch_decisions = await self._make_intelligent_switch_decisions(switch_candidates)
-            
-            # 執行切換操作
+
+            # 執行智能換手決策
+            switch_decisions = await self._make_intelligent_switch_decisions(
+                switch_candidates
+            )
+
+            # 執行換手操作
             switch_results = await self._execute_network_switches(switch_decisions)
-            
+
             return {
                 "success": True,
                 "switching_session_id": f"switch_{uuid4().hex[:8]}",
                 "triggers_detected": len(switch_triggers),
                 "candidates_evaluated": len(switch_candidates),
                 "switches_executed": len(switch_results),
-                "switching_summary": switch_results
+                "switching_summary": switch_results,
             }
-            
+
         except Exception as e:
-            logger.error(f"智能切換決策失敗: {e}")
+            logger.error(f"智能換手決策失敗: {e}")
             return {"success": False, "error": str(e)}
 
-    async def _analyze_switch_triggers(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """分析切換觸發條件"""
+    async def _analyze_switch_triggers(
+        self, params: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """分析換手觸發條件"""
         triggers = []
-        
+
         # 信號質量觸發
         signal_threshold = params.get("signal_threshold_dbm", -85.0)
-        
+
         # 負載觸發
         load_threshold = params.get("load_threshold", 0.8)
-        
+
         # 延遲觸發
         latency_threshold = params.get("latency_threshold_ms", 100.0)
-        
+
         for node_id, node in self.mesh_nodes.items():
             if node.status == MeshNodeStatus.ACTIVE:
                 # 檢查信號質量
-                avg_signal = sum(neighbor.link_quality.signal_strength 
-                               for neighbor in node.neighbors) / max(1, len(node.neighbors))
-                
+                avg_signal = sum(
+                    neighbor.link_quality.signal_strength for neighbor in node.neighbors
+                ) / max(1, len(node.neighbors))
+
                 if avg_signal < signal_threshold:
-                    triggers.append({
-                        "type": "poor_signal_quality",
-                        "node_id": node_id,
-                        "current_signal": avg_signal,
-                        "threshold": signal_threshold,
-                        "severity": "high" if avg_signal < signal_threshold - 10 else "medium"
-                    })
-                
+                    triggers.append(
+                        {
+                            "type": "poor_signal_quality",
+                            "node_id": node_id,
+                            "current_signal": avg_signal,
+                            "threshold": signal_threshold,
+                            "severity": (
+                                "high"
+                                if avg_signal < signal_threshold - 10
+                                else "medium"
+                            ),
+                        }
+                    )
+
                 # 檢查負載
-                avg_load = sum(neighbor.link_quality.utilization 
-                              for neighbor in node.neighbors) / max(1, len(node.neighbors))
-                
+                avg_load = sum(
+                    neighbor.link_quality.utilization for neighbor in node.neighbors
+                ) / max(1, len(node.neighbors))
+
                 if avg_load > load_threshold:
-                    triggers.append({
-                        "type": "high_load",
-                        "node_id": node_id,
-                        "current_load": avg_load,
-                        "threshold": load_threshold,
-                        "severity": "high" if avg_load > 0.9 else "medium"
-                    })
-        
+                    triggers.append(
+                        {
+                            "type": "high_load",
+                            "node_id": node_id,
+                            "current_load": avg_load,
+                            "threshold": load_threshold,
+                            "severity": "high" if avg_load > 0.9 else "medium",
+                        }
+                    )
+
         return triggers
 
     async def get_enhanced_bridge_performance(self) -> Dict[str, Any]:
         """獲取增強橋接性能指標"""
         base_performance = await self.get_bridge_performance()
-        
+
         # 添加新的階段五指標
         routing_efficiency = await self._calculate_routing_efficiency()
         switching_performance = await self._calculate_switching_performance()
         optimization_status = await self._get_optimization_status()
-        
+
         enhanced_metrics = {
             **base_performance,
             "stage5_enhancements": {
@@ -1289,10 +1348,10 @@ class MeshBridgeService:
                 "switching_performance": switching_performance,
                 "optimization_status": optimization_status,
                 "adaptive_algorithms_active": True,
-                "intelligent_switching_enabled": True
-            }
+                "intelligent_switching_enabled": True,
+            },
         }
-        
+
         return enhanced_metrics
 
     async def _calculate_routing_efficiency(self) -> Dict[str, float]:
@@ -1300,21 +1359,21 @@ class MeshBridgeService:
         total_routes = len(self.mesh_nodes) * (len(self.mesh_nodes) - 1)
         if total_routes == 0:
             return {"efficiency_score": 0.0, "optimal_paths_ratio": 0.0}
-        
+
         optimal_paths = 0
         total_hops = 0
-        
+
         # 簡化計算
         for node in self.mesh_nodes.values():
             if node.status == MeshNodeStatus.ACTIVE:
                 optimal_paths += len(node.neighbors)
                 total_hops += len(node.neighbors) * 1.5  # 假設平均1.5跳
-        
+
         efficiency_score = optimal_paths / max(1, total_routes) * 100
         avg_hops = total_hops / max(1, optimal_paths)
-        
+
         return {
             "efficiency_score": min(100.0, efficiency_score),
             "average_hops": avg_hops,
-            "optimal_paths_ratio": optimal_paths / max(1, total_routes)
+            "optimal_paths_ratio": optimal_paths / max(1, total_routes),
         }

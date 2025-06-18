@@ -64,7 +64,7 @@ describe('DataVisualizationDashboard', () => {
         expect(screen.getByTestId('network-topology-chart')).toBeInTheDocument()
     })
 
-    it('應該能夠切換到系統狀態標籤', () => {
+    it('應該能夠換手到系統狀態標籤', () => {
         render(<DataVisualizationDashboard />)
 
         const systemTab = screen.getByText('系統狀態')
@@ -80,7 +80,7 @@ describe('DataVisualizationDashboard', () => {
         ).not.toBeInTheDocument()
     })
 
-    it('應該能夠切換到UAV監控標籤', () => {
+    it('應該能夠換手到UAV監控標籤', () => {
         render(<DataVisualizationDashboard />)
 
         const uavTab = screen.getByText('UAV 監控')
@@ -96,7 +96,7 @@ describe('DataVisualizationDashboard', () => {
         ).not.toBeInTheDocument()
     })
 
-    it('應該能夠切換到網路拓撲標籤', () => {
+    it('應該能夠換手到網路拓撲標籤', () => {
         render(<DataVisualizationDashboard />)
 
         const networkTab = screen.getByText('網路拓撲')
@@ -112,7 +112,7 @@ describe('DataVisualizationDashboard', () => {
         expect(screen.getByTestId('network-topology-chart')).toBeInTheDocument()
     })
 
-    it('應該能夠切換實時更新選項', () => {
+    it('應該能夠換手實時更新選項', () => {
         render(<DataVisualizationDashboard />)
 
         const realtimeToggle = screen.getByRole('checkbox')

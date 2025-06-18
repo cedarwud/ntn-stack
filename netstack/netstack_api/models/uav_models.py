@@ -127,7 +127,7 @@ class UAVConnectionQualityMetrics(BaseModel):
         None, ge=0, le=100, description="連接正常時間百分比"
     )
     handover_success_rate: Optional[float] = Field(
-        None, ge=0, le=1, description="切換成功率"
+        None, ge=0, le=1, description="換手成功率"
     )
     reconnection_count: Optional[int] = Field(None, ge=0, description="重連次數")
     signal_stability_score: Optional[float] = Field(

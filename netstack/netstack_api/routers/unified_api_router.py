@@ -130,7 +130,7 @@ async def service_discovery():
                 APIEndpointInfo(
                     path="/api/v1/open5gs/ue/{ue_id}/slice-switch",
                     method="POST",
-                    description="UE 切片切換",
+                    description="UE 切片換手",
                     service="netstack",
                 ),
             ],

@@ -94,7 +94,7 @@ laboratory_test_config:
         - "beam_switching"
         
     failover_testing:
-      name: "故障切換測試"
+      name: "故障換手測試"
       duration_seconds: 240
       test_cases:
         - "satellite_handover"

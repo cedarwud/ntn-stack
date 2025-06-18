@@ -53,7 +53,7 @@ class NetworkParameters(BaseModel):
 
 
 class HandoverParameters(BaseModel):
-    """切換參數"""
+    """換手參數"""
 
     trigger_threshold: float = Field(-90, description="觸發閾值(dBm)")
     hysteresis: float = Field(3, description="遲滯(dB)")
@@ -74,7 +74,7 @@ class UERANSIMConfigRequest(BaseModel):
     uav: Optional[UAVPosition] = Field(None, description="無人機位置")
     uav_formation: Optional[List[UAVPosition]] = Field(None, description="無人機編隊")
     network_params: Optional[NetworkParameters] = Field(None, description="網路參數")
-    handover_params: Optional[HandoverParameters] = Field(None, description="切換參數")
+    handover_params: Optional[HandoverParameters] = Field(None, description="換手參數")
 
 
 class GNBConfig(BaseModel):

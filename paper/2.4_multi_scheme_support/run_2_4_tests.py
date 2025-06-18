@@ -29,8 +29,8 @@ def print_header():
     print("=" * 80)
     print("🚀 階段二 2.4 多方案測試支援測試執行器")
     print("=" * 80)
-    print("🎯 支援四種切換方案的完整測試框架")
-    print("📊 目標：方案初始化、差異化、切換、效能隔離驗證")
+    print("🎯 支援四種換手方案的完整測試框架")
+    print("📊 目標：方案初始化、差異化、換手、效能隔離驗證")
     print("-" * 80)
 
 
@@ -49,11 +49,11 @@ def print_test_info():
     print("     - 延遲差異化正確性檢查")
     print("     - 方案延遲範圍合理性測試")
     print()
-    print("  3. 方案切換功能測試")
-    print("     - 運行時方案切換測試")
-    print("     - 切換序列完整性驗證")
-    print("     - 切換延遲一致性檢查")
-    print("     - 切換效率測試")
+    print("  3. 方案換手功能測試")
+    print("     - 運行時方案換手測試")
+    print("     - 換手序列完整性驗證")
+    print("     - 換手延遲一致性檢查")
+    print("     - 換手效率測試")
     print()
     print("  4. 方案效能隔離測試")
     print("     - 並行執行完整性測試")
@@ -65,7 +65,7 @@ def print_test_info():
 
 def print_scheme_overview():
     """打印方案概覽"""
-    print("🎛️  支援的切換方案:")
+    print("🎛️  支援的換手方案:")
     print("   1. NTN Baseline  - 3GPP 標準 (~250ms)")
     print("   2. NTN-GS        - 地面站協助 (~153ms)")
     print("   3. NTN-SMN       - 衛星網路內 (~158.5ms)")
@@ -78,43 +78,49 @@ async def main():
     parser = argparse.ArgumentParser(description="階段二 2.4 多方案測試支援測試執行器")
     parser.add_argument("--verbose", "-v", action="store_true", help="詳細輸出")
     parser.add_argument("--quick", "-q", action="store_true", help="快速測試模式")
-    parser.add_argument("--scheme", "-s", choices=["ntn", "ntn-gs", "ntn-smn", "proposed", "all"], 
-                       default="all", help="測試特定方案")
-    
+    parser.add_argument(
+        "--scheme",
+        "-s",
+        choices=["ntn", "ntn-gs", "ntn-smn", "proposed", "all"],
+        default="all",
+        help="測試特定方案",
+    )
+
     args = parser.parse_args()
-    
+
     print_header()
     print_scheme_overview()
-    
+
     if not args.quick:
         print_test_info()
-    
+
     print("⏳ 正在啟動多方案測試支援測試...")
     print()
-    
+
     try:
         # 執行測試
         success = await run_multi_scheme_tests()
-        
+
         print("\n" + "=" * 80)
         if success:
             print("🎉 階段二 2.4 多方案測試支援測試完成！")
-            print("✨ 四種切換方案測試框架驗證成功")
+            print("✨ 四種換手方案測試框架驗證成功")
             print("📊 所有方案均支援完整的測試功能")
             return 0
         else:
             print("❌ 階段二 2.4 測試未完全通過")
             print("💡 請檢查測試日誌並修復失敗項目")
             return 1
-    
+
     except KeyboardInterrupt:
         print("\n⚠️  測試被用戶中斷")
         return 130
-    
+
     except Exception as e:
         print(f"\n💥 測試執行出現異常: {e}")
         if args.verbose:
             import traceback
+
             traceback.print_exc()
         return 1
 
