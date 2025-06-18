@@ -172,6 +172,9 @@ const HandoverPerformanceDashboard: React.FC<
 
                     setRecentEvents(events)
                 }
+                
+                // 整合真實連接數據來創建事件
+                updateRealConnectionData()
 
                 // 更新準確率歷史（基於真實數據）
                 const newAccuracyData: PredictionAccuracyData = {
@@ -338,6 +341,44 @@ const HandoverPerformanceDashboard: React.FC<
             <div className="dashboard-header">
                 <div className="header-main">
                     <h2>🔄 衛星換手性能監控</h2>
+                    {/* 📊 數據源狀態指示器 */}
+                    <div className="data-source-indicator" style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginLeft: '16px',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                    }}>
+                        <div style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: useRealData ? 'rgba(40, 167, 69, 0.9)' : 'rgba(255, 193, 7, 0.9)',
+                            color: useRealData ? '#fff' : '#000'
+                        }}>
+                            {useRealData ? '🐈 真實數據' : '⚠️ 模擬數據'}
+                        </div>
+                        {useRealData && realConnectionData.connections.size > 0 && (
+                            <div style={{
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                backgroundColor: 'rgba(23, 162, 184, 0.9)',
+                                color: '#fff'
+                            }}>
+                                {realConnectionData.connections.size} 連接
+                            </div>
+                        )}
+                        {isLoading && (
+                            <div style={{
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                backgroundColor: 'rgba(108, 117, 125, 0.9)',
+                                color: '#fff'
+                            }}>
+                                🔄 更新中
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="time-range-selector">
@@ -381,7 +422,7 @@ const HandoverPerformanceDashboard: React.FC<
                     </div>
                     <div className="metric-trend stable">
                         <span className="trend-icon">→</span>
-                        <span>穩定</span>
+                        <span>{useRealData ? '真實數據' : '穩定'}</span>
                     </div>
                 </div>
 
@@ -409,7 +450,7 @@ const HandoverPerformanceDashboard: React.FC<
                     </div>
                     <div className="metric-trend up">
                         <span className="trend-icon">↗</span>
-                        <span>+2.3% 準確率提升</span>
+                        <span>{useRealData ? 'IEEE INFOCOM 2024' : '+2.3% 準確率提升'}</span>
                     </div>
                 </div>
 
@@ -494,9 +535,53 @@ const HandoverPerformanceDashboard: React.FC<
                 </div>
             </div>
 
-            {/* 最近事件列表 */}
+            {/* 最近事件列表 - 整合真實數據 */}
             <div className="events-section">
                 <h3>📋 最近換手事件</h3>
+                
+                {/* 真實連接狀態概覽 */}
+                {useRealData && realConnectionData.connections.size > 0 && (
+                    <div className="real-connections-overview" style={{
+                        marginBottom: '16px',
+                        padding: '12px',
+                        backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(23, 162, 184, 0.3)'
+                    }}>
+                        <h4 style={{ margin: '0 0 8px 0', color: '#17a2b8' }}>🐈 當前真實連接狀態</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                            {Array.from(realConnectionData.connections.entries()).slice(0, 6).map(([ueId, conn]) => {
+                                const handover = realConnectionData.handovers.get(ueId)
+                                return (
+                                    <div key={ueId} style={{
+                                        padding: '8px',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                        borderRadius: '4px',
+                                        fontSize: '12px'
+                                    }}>
+                                        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{ueId}</div>
+                                        <div>衛星: {conn.current_satellite_id}</div>
+                                        <div>信號: {conn.signal_quality.toFixed(1)}dBm</div>
+                                        <div style={{ color: conn.status === 'connected' ? '#52c41a' : '#ff4d4f' }}>
+                                            {conn.status === 'connected' ? '✅ 已連接' : 
+                                             conn.status === 'handover_preparing' ? '🔄 準備換手' :
+                                             conn.status === 'handover_executing' ? '⚡ 換手中' : '❌ 未連接'}
+                                        </div>
+                                        {handover && handover.handover_status !== 'idle' && (
+                                            <div style={{ color: '#1890ff', fontSize: '11px', marginTop: '2px' }}>
+                                                換手: {handover.handover_status}
+                                                {handover.prediction_confidence && (
+                                                    <span> ({(handover.prediction_confidence * 100).toFixed(0)}%)</span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
+                
                 <div className="events-table">
                     <div className="events-header">
                         <span>時間</span>
@@ -598,28 +683,85 @@ const HandoverPerformanceDashboard: React.FC<
                 </div>
             </div>
 
-            {/* 性能建議 */}
+            {/* 錯誤和警告狀態 */}
+            {error && (
+                <div className="error-section" style={{
+                    padding: '16px',
+                    backgroundColor: 'rgba(245, 34, 45, 0.1)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(245, 34, 45, 0.3)',
+                    marginBottom: '24px'
+                }}>
+                    <h3 style={{ color: '#f5222d', margin: '0 0 8px 0' }}>⚠️ 數據獲取錯誤</h3>
+                    <p style={{ margin: '0', color: '#f5222d' }}>{error}</p>
+                    <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#666' }}>
+                        系統已自動切換至模擬數據模式，請檢查 NetStack 連接狀態。
+                    </p>
+                </div>
+            )}
+            
+            {/* 性能建議 - 基於真實數據的智能建議 */}
             <div className="recommendations-section">
                 <h3>💡 性能優化建議</h3>
                 <div className="recommendations-list">
-                    <div className="recommendation-item high">
-                        <span className="recommendation-priority">高</span>
-                        <span className="recommendation-text">
-                            檢測到換手失敗率略高，建議調整信號閾值參數
-                        </span>
-                    </div>
-                    <div className="recommendation-item medium">
-                        <span className="recommendation-priority">中</span>
-                        <span className="recommendation-text">
-                            預測算法可進一步優化，考慮增加環境因子權重
-                        </span>
-                    </div>
-                    <div className="recommendation-item low">
-                        <span className="recommendation-priority">低</span>
-                        <span className="recommendation-text">
-                            建議增加更多候選衛星以提高換手成功率
-                        </span>
-                    </div>
+                    {useRealData && metrics.handoverSuccessRate < 90 && (
+                        <div className="recommendation-item high">
+                            <span className="recommendation-priority">高</span>
+                            <span className="recommendation-text">
+                                換手成功率 {metrics.handoverSuccessRate.toFixed(1)}% 低於目標 90%，建議檢查信號閾值參數
+                            </span>
+                        </div>
+                    )}
+                    {useRealData && metrics.predictionAccuracy < 85 && (
+                        <div className="recommendation-item medium">
+                            <span className="recommendation-priority">中</span>
+                            <span className="recommendation-text">
+                                IEEE INFOCOM 2024 預測準確率 {metrics.predictionAccuracy.toFixed(1)}% 可進一步優化
+                            </span>
+                        </div>
+                    )}
+                    {useRealData && metrics.currentActiveHandovers > 3 && (
+                        <div className="recommendation-item medium">
+                            <span className="recommendation-priority">中</span>
+                            <span className="recommendation-text">
+                                當前有 {metrics.currentActiveHandovers} 個活躍換手，可能需要調整換手策略
+                            </span>
+                        </div>
+                    )}
+                    {realConnectionData.connections.size > 0 && (
+                        Array.from(realConnectionData.connections.values())
+                            .filter(conn => conn.signal_quality < -85)
+                            .length > 0 && (
+                            <div className="recommendation-item high">
+                                <span className="recommendation-priority">高</span>
+                                <span className="recommendation-text">
+                                    檢測到 {Array.from(realConnectionData.connections.values()).filter(conn => conn.signal_quality < -85).length} 個連接信號質量低於 -85dBm，建議立即換手
+                                </span>
+                            </div>
+                        )
+                    )}
+                    {!useRealData && (
+                        <>
+                            <div className="recommendation-item high">
+                                <span className="recommendation-priority">高</span>
+                                <span className="recommendation-text">
+                                    檢測到換手失敗率略高，建議調整信號閾值參數
+                                </span>
+                            </div>
+                            <div className="recommendation-item medium">
+                                <span className="recommendation-priority">中</span>
+                                <span className="recommendation-text">
+                                    預測算法可進一步優化，考慮增加環境因子權重
+                                </span>
+                            </div>
+                            <div className="recommendation-item low">
+                                <span className="recommendation-priority">低</span>
+                                <span className="recommendation-text">
+                                    建議增加更多候選衛星以提高換手成功率
+                                </span>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
