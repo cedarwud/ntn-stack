@@ -102,10 +102,7 @@ function App({ activeView }: AppProps) {
     const [failoverMechanismEnabled, setFailoverMechanismEnabled] = useState(false)
 
     // 階段六功能狀態 - 換手核心功能預設關閉，由新組件控制
-    const [handoverPredictionEnabled, setHandoverPredictionEnabled] = useState(false)
-    const [handoverDecisionVisualizationEnabled, setHandoverDecisionVisualizationEnabled] = useState(false)
     const [predictionPath3DEnabled, setPredictionPath3DEnabled] = useState(false)
-    const [handoverPerformanceDashboardEnabled, setHandoverPerformanceDashboardEnabled] = useState(false)
     const [predictionAccuracyDashboardEnabled, setPredictionAccuracyDashboardEnabled] = useState(false)
     const [coreNetworkSyncEnabled, setCoreNetworkSyncEnabled] = useState(false)
     
@@ -307,10 +304,7 @@ function App({ activeView }: AppProps) {
                         satelliteUavConnectionEnabled={satelliteUavConnectionEnabled}
                         failoverMechanismEnabled={failoverMechanismEnabled}
                         // 階段六功能狀態
-                        handoverPredictionEnabled={handoverPredictionEnabled}
-                        handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
                         predictionPath3DEnabled={predictionPath3DEnabled}
-                        handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
                         predictionAccuracyDashboardEnabled={predictionAccuracyDashboardEnabled}
                         coreNetworkSyncEnabled={coreNetworkSyncEnabled}
                         // Stage 3 功能
@@ -376,10 +370,7 @@ function App({ activeView }: AppProps) {
         meshNetworkTopologyEnabled,
         satelliteUavConnectionEnabled,
         failoverMechanismEnabled,
-        handoverPredictionEnabled,
-        handoverDecisionVisualizationEnabled,
         predictionPath3DEnabled,
-        handoverPerformanceDashboardEnabled,
         predictionAccuracyDashboardEnabled,
         coreNetworkSyncEnabled,
         handover3DAnimationEnabled,
@@ -469,14 +460,8 @@ function App({ activeView }: AppProps) {
                                     failoverMechanismEnabled={failoverMechanismEnabled}
                                     onFailoverMechanismChange={setFailoverMechanismEnabled}
                                     // 階段六功能狀態
-                                    handoverPredictionEnabled={handoverPredictionEnabled}
-                                    onHandoverPredictionChange={setHandoverPredictionEnabled}
-                                    handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
-                                    onHandoverDecisionVisualizationChange={setHandoverDecisionVisualizationEnabled}
                                     predictionPath3DEnabled={predictionPath3DEnabled}
                                     onPredictionPath3DChange={setPredictionPath3DEnabled}
-                                    handoverPerformanceDashboardEnabled={handoverPerformanceDashboardEnabled}
-                                    onHandoverPerformanceDashboardChange={setHandoverPerformanceDashboardEnabled}
                                     predictionAccuracyDashboardEnabled={predictionAccuracyDashboardEnabled}
                                     onPredictionAccuracyDashboardChange={setPredictionAccuracyDashboardEnabled}
                                     coreNetworkSyncEnabled={coreNetworkSyncEnabled}

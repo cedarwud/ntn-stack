@@ -57,15 +57,9 @@ interface SidebarProps {
     failoverMechanismEnabled?: boolean
     onFailoverMechanismChange?: (enabled: boolean) => void
 
-    // 階段六功能開關
-    handoverPredictionEnabled?: boolean
-    onHandoverPredictionChange?: (enabled: boolean) => void
-    handoverDecisionVisualizationEnabled?: boolean
-    onHandoverDecisionVisualizationChange?: (enabled: boolean) => void
+    // 階段六功能開關 - 已刪除換手相關功能
     predictionPath3DEnabled?: boolean
     onPredictionPath3DChange?: (enabled: boolean) => void
-    handoverPerformanceDashboardEnabled?: boolean
-    onHandoverPerformanceDashboardChange?: (enabled: boolean) => void
     predictionAccuracyDashboardEnabled?: boolean
     onPredictionAccuracyDashboardChange?: (enabled: boolean) => void
     coreNetworkSyncEnabled?: boolean
@@ -212,15 +206,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onSatelliteUavConnectionChange,
     failoverMechanismEnabled = false,
     onFailoverMechanismChange,
-    // 階段六功能 props
-    handoverPredictionEnabled = false,
-    onHandoverPredictionChange,
-    handoverDecisionVisualizationEnabled = false,
-    onHandoverDecisionVisualizationChange,
+    // 階段六功能 props - 已刪除換手相關功能
     predictionPath3DEnabled = false,
     onPredictionPath3DChange,
-    handoverPerformanceDashboardEnabled = false,
-    onHandoverPerformanceDashboardChange,
     predictionAccuracyDashboardEnabled = false,
     onPredictionAccuracyDashboardChange,
     coreNetworkSyncEnabled = false,
@@ -356,33 +344,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             onToggle: handleSatelliteUavConnectionToggle,
             icon: '🔗',
             description: '衛星與 UAV 連接狀態監控（需先開啟衛星顯示）',
-        },
-        {
-            id: 'handoverPrediction',
-            label: '換手預測顯示',
-            category: 'satellite',
-            enabled: handoverPredictionEnabled,
-            onToggle: onHandoverPredictionChange || (() => {}),
-            icon: '🔮',
-            description: '衛星換手預測與時間軸分析',
-        },
-        {
-            id: 'handoverDecision',
-            label: '換手決策可視化',
-            category: 'satellite',
-            enabled: handoverDecisionVisualizationEnabled,
-            onToggle: onHandoverDecisionVisualizationChange || (() => {}),
-            icon: '🎯',
-            description: '換手決策過程 3D 可視化（含預測路徑）',
-        },
-        {
-            id: 'handoverPerformance',
-            label: '換手性能監控',
-            category: 'satellite',
-            enabled: handoverPerformanceDashboardEnabled,
-            onToggle: onHandoverPerformanceDashboardChange || (() => {}),
-            icon: '📊',
-            description: '換手性能統計與分析（含預測精度）',
         },
 
         // 通信品質 (2個)

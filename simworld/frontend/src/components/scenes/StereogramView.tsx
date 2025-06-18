@@ -6,7 +6,6 @@ import Starfield from '../ui/Starfield'
 import MainScene from './MainScene'
 import { Device } from '../../types/device'
 import { SINRLegend } from './visualization/SINRHeatmap'
-import HandoverPerformanceDashboard from '../dashboard/HandoverPerformanceDashboard'
 import PredictionAccuracyDashboard from '../dashboard/PredictionAccuracyDashboard'
 import E2EPerformanceMonitoringDashboard from '../dashboard/E2EPerformanceMonitoringDashboard'
 import PredictiveMaintenanceViewer from '../viewers/PredictiveMaintenanceViewer'
@@ -42,10 +41,7 @@ interface SceneViewProps {
     satelliteUavConnectionEnabled?: boolean
     failoverMechanismEnabled?: boolean
     // 階段六功能狀態
-    handoverPredictionEnabled?: boolean
-    handoverDecisionVisualizationEnabled?: boolean
     predictionPath3DEnabled?: boolean
-    handoverPerformanceDashboardEnabled?: boolean
     predictionAccuracyDashboardEnabled?: boolean
     coreNetworkSyncEnabled?: boolean
     // Stage 3 功能
@@ -101,10 +97,7 @@ export default function SceneView({
     meshNetworkTopologyEnabled = false,
     satelliteUavConnectionEnabled = false,
     failoverMechanismEnabled = false,
-    handoverPredictionEnabled = false,
-    handoverDecisionVisualizationEnabled = false,
     predictionPath3DEnabled = false,
-    handoverPerformanceDashboardEnabled = false,
     predictionAccuracyDashboardEnabled = false,
     coreNetworkSyncEnabled = false,
     // Stage 3 功能
@@ -206,10 +199,6 @@ export default function SceneView({
             {/* 添加 SINR 圖例 - 只有在啟用時才顯示 */}
             {sinrHeatmapEnabled && <SINRLegend />}
             
-            {/* 添加換手性能儀表板 - 作為HTML覆蓋層 */}
-            {handoverPerformanceDashboardEnabled && (
-                <HandoverPerformanceDashboard enabled={handoverPerformanceDashboardEnabled} />
-            )}
             
             {/* 添加預測精度儀表板 - 作為HTML覆蓋層 */}
             {predictionAccuracyDashboardEnabled && (
@@ -301,8 +290,6 @@ export default function SceneView({
                         meshNetworkTopologyEnabled={meshNetworkTopologyEnabled}
                         satelliteUavConnectionEnabled={satelliteUavConnectionEnabled}
                         failoverMechanismEnabled={failoverMechanismEnabled}
-                        handoverPredictionEnabled={handoverPredictionEnabled}
-                        handoverDecisionVisualizationEnabled={handoverDecisionVisualizationEnabled}
                         predictionPath3DEnabled={predictionPath3DEnabled}
                         handover3DAnimationEnabled={handover3DAnimationEnabled}
                         handoverState={handoverState}
