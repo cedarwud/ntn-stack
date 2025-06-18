@@ -413,10 +413,24 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     // 🎯 智能選擇最近的衛星（排除當前衛星，並考慮換手歷史）
     const selectNearestSatellite = (excludeId?: string): string | null => {
         const availableSatellites = getAvailableSatellites()
-        if (availableSatellites.length === 0) return null
+        if (availableSatellites.length === 0) {
+            console.log('🔍 沒有可用衛星')
+            return null
+        }
+
+        console.log(
+            `🔍 選擇衛星，排除: ${getSatelliteName(excludeId)}，可用衛星: ${
+                availableSatellites.length
+            }個`
+        )
 
         let candidates = availableSatellites.filter((id) => id !== excludeId)
-        if (candidates.length === 0) return null
+        if (candidates.length === 0) {
+            console.log('🔍 排除當前衛星後沒有候選者')
+            return null
+        }
+
+        console.log(`🔍 候選衛星數量: ${candidates.length}個`)
 
         // 🚫 清理過期的換手記錄
         const now = Date.now()
@@ -487,6 +501,17 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 nearestSatellite
             )} (距離: ${minDistance.toFixed(1)}km)`
         )
+
+        // 🚫 最終安全檢查：確保不會返回被排除的衛星
+        if (nearestSatellite === excludeId) {
+            console.error(
+                `❌ 嚴重錯誤：selectNearestSatellite返回了被排除的衛星 ${getSatelliteName(
+                    excludeId
+                )}`
+            )
+            return null
+        }
+
         return nearestSatellite
     }
 
@@ -662,24 +687,44 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
             switch (handoverState.phase) {
                 case 'stable':
                     // 進入準備期，選擇最近的目標衛星
+                    const currentSatId = handoverState.currentSatelliteId
                     const targetSatellite = selectNearestSatellite(
-                        handoverState.currentSatelliteId || undefined
+                        currentSatId || undefined
                     )
+
                     if (targetSatellite) {
-                        console.log('🔄 開始換手：選擇最近衛星作為目標')
+                        // 🚫 安全檢查：確保目標衛星不是當前衛星
+                        if (targetSatellite === currentSatId) {
+                            console.error(
+                                `❌ 錯誤：選擇了自己作為目標衛星 ${getSatelliteName(
+                                    targetSatellite
+                                )}，跳過此次換手`
+                            )
+                            // 重置穩定期開始時間，延遲下次換手嘗試
+                            newState = {
+                                ...handoverState,
+                                phaseStartTime: now,
+                                progress: 0,
+                            }
+                        } else {
+                            console.log(
+                                `🔄 開始換手：${getSatelliteName(
+                                    currentSatId
+                                )} → ${getSatelliteName(targetSatellite)}`
+                            )
 
-                        // 🎲 遞增換手原因計數器，下次換手使用不同原因
-                        handoverReasonCounterRef.current += 1
+                            // 🎲 遞增換手原因計數器，下次換手使用不同原因
+                            handoverReasonCounterRef.current += 1
 
-                        newState = {
-                            phase: 'preparing',
-                            currentSatelliteId:
-                                handoverState.currentSatelliteId,
-                            targetSatelliteId: targetSatellite,
-                            progress: 0,
-                            phaseStartTime: now,
-                            totalElapsed:
-                                handoverState.totalElapsed + phaseElapsed,
+                            newState = {
+                                phase: 'preparing',
+                                currentSatelliteId: currentSatId,
+                                targetSatelliteId: targetSatellite,
+                                progress: 0,
+                                phaseStartTime: now,
+                                totalElapsed:
+                                    handoverState.totalElapsed + phaseElapsed,
+                            }
                         }
                     } else {
                         // 沒有其他衛星可用，保持當前狀態
