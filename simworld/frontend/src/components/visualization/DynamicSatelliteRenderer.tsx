@@ -4,11 +4,11 @@ import { Text } from '@react-three/drei'
 import StaticModel from '../scenes/StaticModel'
 import { ApiRoutes } from '../../config/apiRoutes'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
-import { 
-    realSatelliteDataManager, 
-    RealSatelliteInfo, 
+import {
+    realSatelliteDataManager,
+    RealSatelliteInfo,
     getSignalStrengthColor,
-    getSatelliteStatusDescription 
+    getSatelliteStatusDescription,
 } from '../../services/realSatelliteService'
 
 interface DynamicSatelliteRendererProps {
@@ -139,9 +139,13 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
     }>({})
 
     // 真實衛星數據狀態
-    const [realSatelliteMapping, setRealSatelliteMapping] = useState<Map<string, RealSatelliteInfo>>(new Map())
+    const [realSatelliteMapping, setRealSatelliteMapping] = useState<
+        Map<string, RealSatelliteInfo>
+    >(new Map())
     const [useRealData, setUseRealData] = useState(true) // 預設使用真實數據疊加
-    const [realDataStatus, setRealDataStatus] = useState<'loading' | 'success' | 'error' | 'stale'>('loading')
+    const [realDataStatus, setRealDataStatus] = useState<
+        'loading' | 'success' | 'error' | 'stale'
+    >('loading')
 
     // 更新真實衛星數據
     useEffect(() => {
@@ -150,15 +154,13 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         const updateRealData = () => {
             const mapping = realSatelliteDataManager.getAllMappings()
             const isDataFresh = realSatelliteDataManager.isDataFresh()
-            
+
             setRealSatelliteMapping(mapping)
             setRealDataStatus(
-                mapping.size > 0 
-                    ? (isDataFresh ? 'success' : 'stale')
-                    : 'error'
+                mapping.size > 0 ? (isDataFresh ? 'success' : 'stale') : 'error'
             )
-            
-            console.log(`🛰️ 更新真實衛星數據映射: ${mapping.size} 顆衛星`)
+
+            // 更新真實衛星數據映射 (無需記錄)
         }
 
         // 立即更新一次
@@ -201,7 +203,8 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                     currentPosition: [0, -200, 0],
                     // 整合真實數據
                     realData: realData,
-                    signalStrength: realData?.signal_quality.estimated_signal_strength,
+                    signalStrength:
+                        realData?.signal_quality.estimated_signal_strength,
                     elevation: realData?.position.elevation,
                     azimuth: realData?.position.azimuth,
                 }
@@ -323,71 +326,64 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                     handoverState?.targetSatelliteId === orbit.id ||
                     handoverState?.targetSatelliteId === orbit.name
 
-                // 🎯 根據換手狀態設置顏色
-                if (isHandoverCurrent) {
-                    // 當前連接的衛星
-                    switch (handoverState?.phase) {
-                        case 'stable':
-                            statusColor = '#00ff00' // 綠色 - 穩定連接
-                            scale = 1.3
-                            break
-                        case 'preparing':
-                            statusColor = '#ffaa00' // 橙黃色 - 準備換手
-                            scale = 1.3
-                            break
-                        case 'establishing':
-                            statusColor = '#ffdd00' // 亮黃色 - 建立新連接
-                            scale = 1.2
-                            break
-                        case 'switching':
-                            statusColor = '#aaaaaa' // 淺灰色 - 換手中
-                            scale = 1.1
-                            break
-                        case 'completing':
-                            statusColor = '#aaaaaa' // 淺灰色 - 完成中
-                            scale = 1.0
-                            break
-                        default:
-                            statusColor = '#00ff00'
-                            scale = 1.3
-                    }
-                } else if (isHandoverTarget) {
-                    // 目標衛星
-                    switch (handoverState?.phase) {
-                        case 'preparing':
-                            statusColor = '#0088ff' // 藍色 - 準備連接
-                            scale = 1.2
-                            break
-                        case 'establishing':
-                            statusColor = '#0088ff' // 藍色 - 建立連接中
-                            scale = 1.3
-                            break
-                        case 'switching':
-                            statusColor = '#00ff00' // 綠色 - 換手為主要連接
-                            scale = 1.4
-                            break
-                        case 'completing':
-                            statusColor = '#00ff00' // 綠色 - 新的主要連接
-                            scale = 1.4
-                            break
-                        default:
-                            statusColor = '#0088ff'
-                            scale = 1.2
+                // 🎯 只有在有明確換手狀態且匹配的衛星才變色，其他都保持白色
+                if (handoverState && (isHandoverCurrent || isHandoverTarget)) {
+                    if (isHandoverCurrent) {
+                        // 當前連接的衛星
+                        switch (handoverState.phase) {
+                            case 'stable':
+                                statusColor = '#00ff00' // 綠色 - 穩定連接
+                                scale = 1.3
+                                break
+                            case 'preparing':
+                                statusColor = '#ffaa00' // 橙黃色 - 準備換手
+                                scale = 1.3
+                                break
+                            case 'establishing':
+                                statusColor = '#ffdd00' // 亮黃色 - 建立新連接
+                                scale = 1.2
+                                break
+                            case 'switching':
+                                statusColor = '#aaaaaa' // 淺灰色 - 換手中
+                                scale = 1.1
+                                break
+                            case 'completing':
+                                statusColor = '#aaaaaa' // 淺灰色 - 完成中
+                                scale = 1.0
+                                break
+                            default:
+                                statusColor = '#00ff00'
+                                scale = 1.3
+                        }
+                    } else if (isHandoverTarget) {
+                        // 目標衛星
+                        switch (handoverState.phase) {
+                            case 'preparing':
+                                statusColor = '#0088ff' // 藍色 - 準備連接
+                                scale = 1.2
+                                break
+                            case 'establishing':
+                                statusColor = '#0088ff' // 藍色 - 建立連接中
+                                scale = 1.3
+                                break
+                            case 'switching':
+                                statusColor = '#00ff00' // 綠色 - 換手為主要連接
+                                scale = 1.4
+                                break
+                            case 'completing':
+                                statusColor = '#00ff00' // 綠色 - 新的主要連接
+                                scale = 1.4
+                                break
+                            default:
+                                statusColor = '#0088ff'
+                                scale = 1.2
+                        }
                     }
                 } else {
-                    // 普通衛星 - 根據真實信號強度決定顏色
-                    if (orbit.realData && useRealData) {
-                        statusColor = getSignalStrengthColor(orbit.realData.signal_quality.estimated_signal_strength)
-                        // 基於信號強度調整透明度和大小
-                        const signalStrength = orbit.realData.signal_quality.estimated_signal_strength
-                        opacity = Math.max(0.6, Math.min(1.0, (signalStrength + 80) / 40)) // -80dBm到0dBm映射到0.6-1.0
-                        scale = Math.max(0.6, Math.min(1.0, (signalStrength + 80) / 50)) // 信號強度影響大小
-                    } else {
-                        // 沒有真實數據時使用預設樣式
-                        statusColor = '#ffffff'
-                        opacity = 0.8
-                        scale = 0.8
-                    }
+                    // 普通衛星 - 保持白色
+                    statusColor = '#ffffff' // 預設白色
+                    opacity = 0.8
+                    scale = 0.8
                 }
 
                 return (
@@ -437,7 +433,9 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                                 anchorY="middle"
                             >
                                 {/* 🏷️ 顯示衛星名稱 + 演算法狀態 + 真實數據 */}
-                                {orbit.name}
+                                {orbit.name
+                                    .replace(' [DTC]', '')
+                                    .replace('[DTC]', '')}
                                 {isAlgorithmCurrent && '\n[當前]'}
                                 {isAlgorithmPredicted && '\n[預測]'}
                                 {algorithmResults?.predictionConfidence &&
@@ -449,36 +447,25 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                                 {/* 真實數據資訊 */}
                                 {orbit.realData && useRealData && (
                                     <>
-                                        {`\n仰角: ${orbit.realData.position.elevation.toFixed(1)}°`}
-                                        {`\n信號: ${orbit.realData.signal_quality.estimated_signal_strength.toFixed(1)}dBm`}
-                                        {realDataStatus === 'stale' && '\n[數據較舊]'}
+                                        {`\n仰角: ${orbit.realData.position.elevation.toFixed(
+                                            1
+                                        )}°`}
+                                        {`\n信號: ${orbit.realData.signal_quality.estimated_signal_strength.toFixed(
+                                            1
+                                        )}dBm`}
+                                        {realDataStatus === 'stale' &&
+                                            '\n[數據較舊]'}
                                     </>
                                 )}
-                                {!orbit.realData && useRealData && realDataStatus === 'success' && '\n[模擬數據]'}
+                                {!orbit.realData &&
+                                    useRealData &&
+                                    realDataStatus === 'success' &&
+                                    '\n[演示模擬]'}
                             </Text>
                         )}
                     </group>
                 )
             })}
-            {/* 真實數據狀態指示器 */}
-            {useRealData && (
-                <Text
-                    position={[150, 180, 0]}
-                    fontSize={8}
-                    color={
-                        realDataStatus === 'success' ? '#00ff00' :
-                        realDataStatus === 'stale' ? '#ffaa00' :
-                        realDataStatus === 'loading' ? '#0088ff' : '#ff0000'
-                    }
-                    anchorX="right"
-                    anchorY="top"
-                >
-                    {`真實衛星數據: ${realSatelliteMapping.size}顆`}
-                    {realDataStatus === 'stale' && '\n[數據較舊]'}
-                    {realDataStatus === 'error' && '\n[數據錯誤]'}
-                    {realDataStatus === 'loading' && '\n[載入中]'}
-                </Text>
-            )}
         </group>
     )
 }

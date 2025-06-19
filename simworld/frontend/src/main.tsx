@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/index.scss'
 import App from './App.tsx'
+import Stage3ComprehensiveTest from './test/stage3-comprehensive-test.tsx'
+import Stage3ExecutionTest from './test/stage3-execution-test.tsx'
 import axios from 'axios'
 
 // 導入性能監控器（自動啟動）
@@ -147,6 +149,18 @@ createRoot(document.getElementById('root')!).render(
                 <Route
                     path="/:scenes/floor-plan"
                     element={<App activeView="floor-plan" />}
+                />
+
+                {/* 階段三綜合測試路由 */}
+                <Route
+                    path="/test/stage3"
+                    element={<Stage3ComprehensiveTest />}
+                />
+                
+                {/* 階段三執行測試路由 */}
+                <Route
+                    path="/test/stage3/execution"
+                    element={<Stage3ExecutionTest />}
                 />
 
                 {/* 404 重定向到預設場景 */}

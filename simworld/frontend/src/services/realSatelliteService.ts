@@ -46,14 +46,28 @@ export interface RealSatelliteData {
  * 獲取可見衛星的真實數據
  */
 export async function fetchRealSatelliteData(
-    observerLat: number = 25.0,
-    observerLon: number = 121.0,
-    observerAlt: number = 100.0,
-    minElevation: number = 5.0,
-    maxResults: number = 50
+    observerLat: number = 0.0,      // 預設赤道位置，全球視野
+    observerLon: number = 0.0,      // 預設本初子午線
+    observerAlt: number = 0.0,      // 預設海平面
+    minElevation: number = -10.0,   // 預設-10度，包含地平線以下
+    maxResults: number = 100,       // 預設獲取100顆衛星
+    globalView: boolean = true      // 預設啟用全球視野
 ): Promise<RealSatelliteData | null> {
     try {
-        const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?observer_lat=${observerLat}&observer_lon=${observerLon}&observer_alt=${observerAlt}&min_elevation=${minElevation}&max_results=${maxResults}`
+        // 構建API URL，包含觀察者位置參數
+        const params = new URLSearchParams({
+            count: maxResults.toString(),
+            min_elevation_deg: minElevation.toString(),
+            observer_lat: observerLat.toString(),
+            observer_lon: observerLon.toString(),
+            observer_alt: observerAlt.toString(),
+            global_view: globalView.toString()
+        })
+        
+        const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?${params.toString()}`
+        
+        // 減少重複日誌 - 只在首次請求時記錄
+    // console.log(`🛰️ 請求衛星數據: 觀察者位置(${observerLat}, ${observerLon}, ${observerAlt}m), 全球視野: ${globalView}`)
         
         const response = await fetch(apiUrl)
         
@@ -62,14 +76,56 @@ export async function fetchRealSatelliteData(
             return null
         }
         
-        const data: RealSatelliteData = await response.json()
+        const apiData = await response.json()
         
-        if (!data.success) {
-            console.error('API returned unsuccessful response')
+        // 檢查 API 回傳的實際格式
+        if (!apiData.satellites || !Array.isArray(apiData.satellites)) {
+            console.error('API returned unexpected format:', apiData)
             return null
         }
         
-        console.log(`🛰️ 獲取 ${data.results.total_visible} 顆真實可見衛星`)
+        // 轉換 API 格式為前端期望的格式
+        const satellites: RealSatelliteInfo[] = apiData.satellites.map((sat: any) => ({
+            id: parseInt(sat.norad_id) || 0,
+            name: (sat.name || '').replace(' [DTC]', '').replace('[DTC]', ''), // 移除DTC標記
+            norad_id: sat.norad_id,
+            position: {
+                latitude: 0, // API 沒有提供，使用預設值
+                longitude: 0, // API 沒有提供，使用預設值
+                altitude: sat.orbit_altitude_km || 0,
+                elevation: sat.elevation_deg || 0,
+                azimuth: sat.azimuth_deg || 0,
+                range: sat.distance_km || 0,
+                velocity: sat.velocity_km_s || 0,
+                doppler_shift: 0 // API 沒有提供，使用預設值
+            },
+            signal_quality: {
+                elevation_deg: sat.elevation_deg || 0,
+                range_km: sat.distance_km || 0,
+                estimated_signal_strength: Math.min(100, (sat.elevation_deg || 0) * 2), // 基於仰角估算信號強度
+                path_loss_db: 20 * Math.log10(Math.max(1, sat.distance_km || 1)) + 92.45 + 20 * Math.log10(2.15) // 2.15 GHz
+            },
+            timestamp: new Date().toISOString()
+        }))
+        
+        const data: RealSatelliteData = {
+            success: true,
+            observer: {
+                latitude: observerLat,
+                longitude: observerLon,
+                altitude: observerAlt
+            },
+            results: {
+                total_visible: satellites.length,
+                satellites: satellites
+            },
+            timestamp: new Date().toISOString()
+        }
+        
+        // 減少重複日誌 - 只在數據量顯著變化時記錄
+        // console.log(`🛰️ 獲取 ${data.results.total_visible} 顆真實可見衛星 (全球視野: ${globalView})`)
+        // console.log(`📊 處理統計: 處理=${apiData.processed}, 可見=${apiData.visible}`)
+        
         return data
         
     } catch (error) {
@@ -148,23 +204,102 @@ export class RealSatelliteDataManager {
     private data: RealSatelliteData | null = null
     private mapping: Map<string, RealSatelliteInfo> = new Map()
     private lastUpdateTime: number = 0
-    private updateInterval: number = 30000 // 30秒更新一次
+    private updateInterval: number = 30000 // 恢復為30秒更新一次，減少日誌
+    private observerLat: number = 0.0
+    private observerLon: number = 0.0
+    private observerAlt: number = 0.0
+    private globalView: boolean = true
+    private lastLoggedSatelliteCount: number = 0
+    private lastLoggedGlobalView: boolean = false
     
-    constructor() {
+    constructor(
+        observerLat: number = 0.0,      // 預設赤道位置
+        observerLon: number = 0.0,      // 預設本初子午線  
+        observerAlt: number = 0.0,      // 預設海平面
+        globalView: boolean = true      // 預設啟用全球視野
+    ) {
+        this.observerLat = observerLat
+        this.observerLon = observerLon
+        this.observerAlt = observerAlt
+        this.globalView = globalView
+        // 立即更新一次數據
+        this.updateData().then(() => {
+            console.log('🚀 初始衛星數據已載入')
+        })
         this.startPeriodicUpdate()
     }
     
     async updateData(): Promise<boolean> {
-        const newData = await fetchRealSatelliteData()
+        const newData = await fetchRealSatelliteData(
+            this.observerLat,
+            this.observerLon,
+            this.observerAlt,
+            this.globalView ? -10.0 : 5.0,  // 全球視野使用-10度仰角
+            this.globalView ? 150 : 50,     // 全球視野獲取更多衛星
+            this.globalView
+        )
         
         if (newData) {
             this.data = newData
-            this.mapping = mapRealSatellitesToSimulated(newData.results.satellites)
+            this.mapping = mapRealSatellitesToSimulated(
+                newData.results.satellites,
+                this.globalView ? 30 : 18  // 全球視野映射更多衛星
+            )
             this.lastUpdateTime = Date.now()
+            
+            // 只有當衛星數量或全球視野狀態發生變化時才記錄日誌
+            const satelliteCountChanged = this.lastLoggedSatelliteCount !== newData.results.total_visible
+            const globalViewChanged = this.lastLoggedGlobalView !== this.globalView
+            
+            if (satelliteCountChanged || globalViewChanged) {
+                console.log(`🔄 衛星數據更新完成: ${newData.results.total_visible} 顆衛星 (全球視野: ${this.globalView})`)
+                this.lastLoggedSatelliteCount = newData.results.total_visible
+                this.lastLoggedGlobalView = this.globalView
+            }
+            
             return true
         }
         
         return false
+    }
+    
+    // 設置觀察者位置
+    setObserverPosition(lat: number, lon: number, alt: number = 100.0): void {
+        if (this.observerLat !== lat || this.observerLon !== lon || this.observerAlt !== alt) {
+            // 只在顯著位置變化時記錄日誌（避免微小變化產生大量日誌）
+            const significantChange = Math.abs(lat - this.observerLat) > 0.1 || Math.abs(lon - this.observerLon) > 0.1 || Math.abs(alt - this.observerAlt) > 10
+            if (significantChange) {
+                console.log(`📍 觀察者位置已更新: (${lat}, ${lon}, ${alt}m)`)
+            }
+            
+            this.observerLat = lat
+            this.observerLon = lon
+            this.observerAlt = alt
+            // 立即更新數據
+            this.updateData()
+        }
+    }
+    
+    // 切換全球視野模式
+    setGlobalView(enabled: boolean): void {
+        if (this.globalView !== enabled) {
+            this.globalView = enabled
+            console.log(`🌍 全球視野模式: ${enabled ? '開啟' : '關閉'}`)
+            // 立即更新數據
+            this.updateData()
+        }
+    }
+    
+    getObserverPosition(): { lat: number, lon: number, alt: number } {
+        return {
+            lat: this.observerLat,
+            lon: this.observerLon,
+            alt: this.observerAlt
+        }
+    }
+    
+    isGlobalViewEnabled(): boolean {
+        return this.globalView
     }
     
     getRealSatelliteInfo(simulatedId: string): RealSatelliteInfo | null {
@@ -200,5 +335,10 @@ export class RealSatelliteDataManager {
     }
 }
 
-// 單例實例
-export const realSatelliteDataManager = new RealSatelliteDataManager()
+// 全球衛星數據管理器實例 - 預設全球視野模式獲取所有Starlink和Kuiper衛星
+export const realSatelliteDataManager = new RealSatelliteDataManager(
+    0.0,     // 赤道位置
+    0.0,     // 本初子午線
+    0.0,     // 海平面
+    true     // 全球視野模式 - 獲取全球所有通信衛星
+)

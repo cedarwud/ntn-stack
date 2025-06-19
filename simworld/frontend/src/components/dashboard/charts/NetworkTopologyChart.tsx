@@ -207,7 +207,7 @@ const NetworkTopologyChart: React.FC<NetworkTopologyChartProps> = ({
             circle.setAttribute('cx', x.toString())
             circle.setAttribute('cy', y.toString())
             circle.setAttribute('r', '20')
-            circle.setAttribute('fill', getNodeColor(node.type, node.status))
+            circle.setAttribute('fill', getNodeColor(node.type))
             circle.setAttribute('stroke', '#fff')
             circle.setAttribute('stroke-width', '2')
             circle.style.cursor = 'pointer'
@@ -300,10 +300,7 @@ const NetworkTopologyChart: React.FC<NetworkTopologyChartProps> = ({
                             <span
                                 className="value"
                                 style={{
-                                    color: getNodeColor(
-                                        selectedNode.type,
-                                        selectedNode.status
-                                    ),
+                                    color: getNodeColor(selectedNode.type),
                                 }}
                             >
                                 {selectedNode.status}

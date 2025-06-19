@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { FC, RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/Navbar.scss'
@@ -6,6 +6,7 @@ import SINRViewer from '../viewers/SINRViewer'
 import CFRViewer from '../viewers/CFRViewer'
 import DelayDopplerViewer from '../viewers/DelayDopplerViewer'
 import TimeFrequencyViewer from '../viewers/TimeFrequencyViewer'
+import FourWayHandoverComparisonViewer from '../viewers/FourWayHandoverComparisonViewer'
 import ViewerModal from '../ui/ViewerModal'
 import { ViewerProps } from '../../types/viewer'
 import {
@@ -55,7 +56,9 @@ const Navbar: FC<NavbarProps> = ({
     const [showCFRModal, setShowCFRModal] = useState(false)
     const [showDelayDopplerModal, setShowDelayDopplerModal] = useState(false)
     const [showTimeFrequencyModal, setShowTimeFrequencyModal] = useState(false)
-    const [showTestModal, setShowTestModal] = useState(false)
+    const [showFourWayComparisonModal, setShowFourWayComparisonModal] =
+        useState(false)
+    // const [showTestModal, setShowTestModal] = useState(false) // 未使用，已註釋
     // States for last update times
     const [sinrModalLastUpdate, setSinrModalLastUpdate] = useState<string>('')
     const [cfrModalLastUpdate, setCfrModalLastUpdate] = useState<string>('')
@@ -63,11 +66,16 @@ const Navbar: FC<NavbarProps> = ({
         useState<string>('')
     const [timeFrequencyModalLastUpdate, setTimeFrequencyModalLastUpdate] =
         useState<string>('')
+    const [
+        fourWayComparisonModalLastUpdate,
+        setFourWayComparisonModalLastUpdate,
+    ] = useState<string>('')
     // Refs for refresh handlers
     const sinrRefreshHandlerRef = useRef<(() => void) | null>(null)
     const cfrRefreshHandlerRef = useRef<(() => void) | null>(null)
     const delayDopplerRefreshHandlerRef = useRef<(() => void) | null>(null)
     const timeFrequencyRefreshHandlerRef = useRef<(() => void) | null>(null)
+    const fourWayComparisonRefreshHandlerRef = useRef<(() => void) | null>(null)
     // States for loading status for header titles
     const [sinrIsLoadingForHeader, setSinrIsLoadingForHeader] =
         useState<boolean>(true)
@@ -78,6 +86,10 @@ const Navbar: FC<NavbarProps> = ({
     const [
         timeFrequencyIsLoadingForHeader,
         setTimeFrequencyIsLoadingForHeader,
+    ] = useState<boolean>(true)
+    const [
+        fourWayComparisonIsLoadingForHeader,
+        setFourWayComparisonIsLoadingForHeader,
     ] = useState<boolean>(true)
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen)
@@ -102,7 +114,6 @@ const Navbar: FC<NavbarProps> = ({
         navigate(`/${currentScene}/stereogram`)
         onMenuClick('3DRT')
     }
-
 
     const modalConfigs: ModalConfig[] = [
         {
@@ -177,6 +188,24 @@ const Navbar: FC<NavbarProps> = ({
             refreshHandlerRef: timeFrequencyRefreshHandlerRef,
             ViewerComponent: TimeFrequencyViewer,
         },
+        {
+            id: 'fourWayComparison',
+            menuText: '四種方案對比',
+            titleConfig: {
+                base: '四種換手方案性能對比',
+                loading: '正在獲取真實NetStack數據並生成對比結果...',
+                hoverRefresh: '重新獲取對比數據',
+            },
+            isOpen: showFourWayComparisonModal,
+            openModal: () => setShowFourWayComparisonModal(true),
+            closeModal: () => setShowFourWayComparisonModal(false),
+            lastUpdate: fourWayComparisonModalLastUpdate,
+            setLastUpdate: setFourWayComparisonModalLastUpdate,
+            isLoading: fourWayComparisonIsLoadingForHeader,
+            setIsLoading: setFourWayComparisonIsLoadingForHeader,
+            refreshHandlerRef: fourWayComparisonRefreshHandlerRef,
+            ViewerComponent: FourWayHandoverComparisonViewer,
+        },
     ]
 
     const [dropdownPosition, setDropdownPosition] = useState<{ left: number }>({
@@ -238,10 +267,12 @@ const Navbar: FC<NavbarProps> = ({
         }
     }
 
-
     // 檢查是否有任何圖表模態框打開
-    const hasActiveChart = modalConfigs.some((config) => 
-        ['sinr', 'cfr', 'delayDoppler', 'timeFrequency'].includes(config.id) && config.isOpen
+    const hasActiveChart = modalConfigs.some(
+        (config) =>
+            ['sinr', 'cfr', 'delayDoppler', 'timeFrequency'].includes(
+                config.id
+            ) && config.isOpen
     )
 
     return (
@@ -318,27 +349,34 @@ const Navbar: FC<NavbarProps> = ({
                                     isChartsDropdownOpen ? 'show' : ''
                                 }`}
                             >
-                                {modalConfigs.filter(config => 
-                                    ['sinr', 'cfr', 'delayDoppler', 'timeFrequency'].includes(config.id)
-                                ).map((config) => (
-                                    <div
-                                        key={config.id}
-                                        className={`charts-dropdown-item ${
-                                            config.isOpen ? 'active' : ''
-                                        }`}
-                                        onClick={(e) => {
-                                            e.preventDefault()
-                                            e.stopPropagation()
-                                            config.openModal()
-                                            setIsChartsDropdownOpen(false)
-                                            if (isMobile) {
-                                                setIsMenuOpen(false)
-                                            }
-                                        }}
-                                    >
-                                        {config.menuText}
-                                    </div>
-                                ))}
+                                {modalConfigs
+                                    .filter((config) =>
+                                        [
+                                            'sinr',
+                                            'cfr',
+                                            'delayDoppler',
+                                            'timeFrequency',
+                                        ].includes(config.id)
+                                    )
+                                    .map((config) => (
+                                        <div
+                                            key={config.id}
+                                            className={`charts-dropdown-item ${
+                                                config.isOpen ? 'active' : ''
+                                            }`}
+                                            onClick={(e) => {
+                                                e.preventDefault()
+                                                e.stopPropagation()
+                                                config.openModal()
+                                                setIsChartsDropdownOpen(false)
+                                                if (isMobile) {
+                                                    setIsMenuOpen(false)
+                                                }
+                                            }}
+                                        >
+                                            {config.menuText}
+                                        </div>
+                                    ))}
                             </div>
                         </li>
 
@@ -358,12 +396,28 @@ const Navbar: FC<NavbarProps> = ({
                         >
                             立體圖
                         </li>
+
+                        {/* 換手性能分析 */}
+                        <li
+                            className={`navbar-item ${
+                                showFourWayComparisonModal ? 'active' : ''
+                            }`}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                setShowFourWayComparisonModal(true)
+                                if (isMobile) {
+                                    setIsMenuOpen(false)
+                                }
+                            }}
+                        >
+                            🏆 四種方案對比
+                        </li>
                     </ul>
                 </div>
             </nav>
 
             {/* Render modals using ViewerModal component */}
-            {modalConfigs.map((config) => 
+            {modalConfigs.map((config) =>
                 config.isOpen ? (
                     <ViewerModal
                         key={config.id}
@@ -375,7 +429,9 @@ const Navbar: FC<NavbarProps> = ({
                         onRefresh={config.refreshHandlerRef.current}
                         viewerComponent={
                             <config.ViewerComponent
-                                onReportLastUpdateToNavbar={config.setLastUpdate}
+                                onReportLastUpdateToNavbar={
+                                    config.setLastUpdate
+                                }
                                 reportRefreshHandlerToNavbar={(
                                     handler: () => void
                                 ) => {

@@ -100,7 +100,7 @@ export default function SceneView({
     predictionPath3DEnabled = false,
     predictionAccuracyDashboardEnabled = false,
     coreNetworkSyncEnabled = false,
-    // Stage 3 功能
+    // Stage 3 功能  
     realtimePerformanceMonitorEnabled = false,
     scenarioTestEnvironmentEnabled = false,
     handover3DAnimationEnabled = false,
@@ -122,6 +122,10 @@ export default function SceneView({
     handoverMode = 'demo',
     algorithmResults,
 }: SceneViewProps) {
+    // Suppress unused variable warnings
+    void realtimePerformanceMonitorEnabled
+    void scenarioTestEnvironmentEnabled
+    
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [satellites, setSatellites] = useState<any[]>([])
     const [handoverStatusInfo, setHandoverStatusInfo] = useState<any>(null)
@@ -137,7 +141,7 @@ export default function SceneView({
             fetch('/api/v1/satellite-ops/visible_satellites?count=24&min_elevation_deg=5')
                 .then(res => res.json())
                 .then(data => {
-                    console.log('StereogramView: 載入衛星數據:', data.satellites?.length || 0)
+                    // StereogramView: 載入衛星數據
                     setSatellites(data.satellites || [])
                 })
                 .catch(err => console.error('StereogramView: 衛星數據載入失敗:', err))
@@ -224,7 +228,7 @@ export default function SceneView({
             
             
             {intelligentRecommendationEnabled && (
-                <IntelligentRecommendationSystem devices={devices} enabled={intelligentRecommendationEnabled} />
+                <IntelligentRecommendationSystem />
             )}
             
             {/* 🎯 換手狀態面板 */}

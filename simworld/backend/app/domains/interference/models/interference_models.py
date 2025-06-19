@@ -208,7 +208,7 @@ class InterferenceDetectionResult(BaseModel):
         default=None, description="疑似干擾類型"
     )
     confidence_score: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="置信度分數"
+        default=0.0, ge=0.0, le=1.0, description="信賴水準分數"
     )
 
     # 影響評估
@@ -293,7 +293,7 @@ class AIRANDecision(BaseModel):
 
     # 決策內容
     decision_type: AIRANDecisionType = Field(..., description="決策類型")
-    confidence_score: float = Field(..., ge=0.0, le=1.0, description="決策置信度")
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="決策信賴水準")
 
     # 具體行動參數
     target_frequencies_mhz: List[float] = Field(

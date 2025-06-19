@@ -226,9 +226,7 @@ class FineGrainedSyncService:
         try:
             # 步驟1: 二點預測方法
             time_t = datetime.now()
-            time_t_delta = time_t + timedelta(
-                minutes=self.prediction_time_delta_minutes
-            )
+            time_t_delta = time_t + timedelta(minutes=time_horizon_minutes)
 
             # 在時間點 T 的預測
             prediction_t = await self._predict_at_time_point(

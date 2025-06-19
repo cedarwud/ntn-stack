@@ -2,6 +2,7 @@
  * SimWorld API Client
  * 用於連接 SimWorld 後端的真實 TLE 和軌道數據
  */
+import { BaseApiClient } from './base-api'
 
 export interface SatellitePosition {
   id: number
@@ -123,52 +124,90 @@ export interface AIRANDecision {
   }
 }
 
-class SimWorldApiClient {
-  private baseUrl = ''  // 使用相對路徑，讓 Vite 代理處理
-  
+class SimWorldApiClient extends BaseApiClient {
   constructor() {
-    // 檢查環境變數是否有自定義的 SimWorld URL
+    let baseUrl = 'http://localhost:8000'  // 默認 SimWorld 後端地址
+    
+    // 在瀏覽器環境中一律使用代理路徑
     if (typeof window !== 'undefined') {
+      // 瀏覽器環境中一律使用 Vite 代理路徑
+      baseUrl = window.location.origin  // Vite 代理會處理 /api 路徑
+      
+      // 檢查環境變數是否有自定義的 SimWorld URL
       const envUrl = (window as any).__SIMWORLD_API_URL__
       if (envUrl) {
-        this.baseUrl = envUrl
+        baseUrl = envUrl
       }
     }
+    
+    super(baseUrl)
   }
 
   /**
    * 獲取可見衛星列表 - 真實 TLE 數據
    */
   async getVisibleSatellites(
-    minElevation: number = 10,
+    minElevation: number = -10,     // 全球視野預設-10度
     maxSatellites: number = 50,
-    observerLat: number = 24.7854,  // 預設為台北位置
-    observerLon: number = 121.0005
+    observerLat: number = 0.0,      // 全球視野預設赤道位置
+    observerLon: number = 0.0       // 全球視野預設本初子午線
   ): Promise<VisibleSatellitesResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/satellites/visible?min_elevation=${minElevation}&max_satellites=${maxSatellites}&observer_lat=${observerLat}&observer_lon=${observerLon}`
-    )
-    
-    if (!response.ok) {
-      throw new Error(`Failed to get visible satellites: ${response.statusText}`)
+    const params = {
+      count: Math.min(maxSatellites, 20),  // 限制最大請求數量以提高性能
+      min_elevation_deg: minElevation
     }
+    const endpoint = '/api/v1/satellite-ops/visible_satellites'
     
-    return response.json()
+    // 使用內建的快取機制（基於 BaseApiClient）
+    const response = await this.get<any>(endpoint, params)
+    
+    // 轉換響應格式以匹配原有接口
+    return {
+      success: true,
+      observer: {
+        latitude: observerLat,
+        longitude: observerLon,
+        altitude: 0.0
+      },
+      search_criteria: {
+        min_elevation: minElevation,
+        constellation: null,
+        max_results: Math.min(maxSatellites, 20)
+      },
+      results: {
+        total_visible: response.satellites?.length || 0,
+        satellites: response.satellites?.map((sat: any) => ({
+          id: parseInt(sat.norad_id) || 0,
+          name: sat.name,
+          norad_id: sat.norad_id,
+          position: {
+            latitude: 0, // 舊端點沒提供這些信息
+            longitude: 0,
+            altitude: sat.orbit_altitude_km || 0,
+            elevation: sat.elevation_deg,
+            azimuth: sat.azimuth_deg,
+            range: sat.distance_km,
+            velocity: sat.velocity_km_s || 0,
+            doppler_shift: 0
+          },
+          timestamp: new Date().toISOString(),
+          signal_quality: {
+            elevation_deg: sat.elevation_deg,
+            range_km: sat.distance_km,
+            estimated_signal_strength: Math.min(100, sat.elevation_deg * 2),
+            path_loss_db: 20 * Math.log10(Math.max(1, sat.distance_km)) + 92.45 + 20 * Math.log10(2.15)
+          }
+        })) || []
+      },
+      timestamp: new Date().toISOString()
+    } as VisibleSatellitesResponse
   }
 
   /**
    * 獲取特定衛星的即時位置
    */
   async getSatellitePosition(satelliteId: string): Promise<SatellitePosition> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/satellites/${satelliteId}/position`
-    )
-    
-    if (!response.ok) {
-      throw new Error(`Failed to get satellite position: ${response.statusText}`)
-    }
-    
-    return response.json()
+    return this.get<SatellitePosition>(`/api/v1/satellites/${satelliteId}/position`)
   }
 
   /**
@@ -347,11 +386,11 @@ export const simWorldApi = new SimWorldApiClient()
  * React Hook 用於獲取可見衛星
  */
 export const useVisibleSatellites = (
-  minElevation: number = 10,
+  minElevation: number = -10,     // 全球視野預設-10度
   maxSatellites: number = 50,
   refreshInterval: number = 30000,
-  observerLat: number = 24.7854,  // 預設為台北位置
-  observerLon: number = 121.0005
+  observerLat: number = 0.0,      // 全球視野預設赤道位置
+  observerLon: number = 0.0       // 全球視野預設本初子午線
 ) => {
   const [satellites, setSatellites] = React.useState<SatellitePosition[]>([])
   const [loading, setLoading] = React.useState(true)
