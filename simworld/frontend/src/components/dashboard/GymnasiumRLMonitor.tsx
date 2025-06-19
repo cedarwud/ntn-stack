@@ -53,7 +53,7 @@ const GymnasiumRLMonitor: React.FC = () => {
     >('gymnasium')
     const [isTraining, setIsTraining] = useState(false)
     const [autoRefresh, setAutoRefresh] = useState(true)
-    const intervalRef = useRef<number | null>(null)
+    const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
     // 獲取 RL 系統狀態
     const fetchRLStatus = useCallback(async () => {

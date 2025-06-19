@@ -150,7 +150,7 @@ const SatelliteControlPanel: React.FC<SatelliteControlPanelProps> = ({
                 </div>
             </div>
 
-            <style jsx>{`
+            <style>{`
                 .satellite-control-panel {
                     background: rgba(20, 25, 30, 0.95);
                     border: 1px solid rgba(64, 128, 255, 0.3);

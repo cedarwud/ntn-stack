@@ -45,7 +45,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     selectedUEId,
     isEnabled,
     onHandoverEvent,
-    mockMode = false, // 使用真實後端數據，true 時啟用模擬模式
+    // mockMode = false, // 使用真實後端數據，true 時啟用模擬模式
     hideUI = false,
     handoverMode = 'demo',
     onHandoverStateChange,
@@ -55,6 +55,15 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     onAlgorithmResults,
     speedMultiplier = 60,
 }) => {
+    // 調試輸出 - 檢查接收到的衛星數據
+    useEffect(() => {
+        console.log('🛰️ HandoverManager 接收到的衛星數據:', {
+            satellites: satellites,
+            count: satellites?.length || 0,
+            enabled: isEnabled,
+        })
+    }, [satellites, isEnabled])
+
     // 換手狀態管理
     const [handoverState, setHandoverState] = useState<HandoverState>({
         currentSatellite: '',
@@ -102,6 +111,10 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     // 標籤頁狀態管理
     const [activeTab, setActiveTab] = useState<'status' | 'algorithm'>('status')
 
+    // 可用衛星數據狀態 - 供 HandoverControlPanel 使用
+    const [availableSatellitesForControl, setAvailableSatellitesForControl] =
+        useState<VisibleSatelliteInfo[]>([])
+
     // 模擬數據生成器（開發用）
     const generateMockSatelliteConnection = useCallback(
         (
@@ -110,7 +123,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         ): SatelliteConnection => {
             return {
                 satelliteId: satellite.norad_id.toString(),
-                satelliteName: satellite.name,
+                satelliteName: satellite.name
+                    .replace(' [DTC]', '')
+                    .replace('[DTC]', ''),
                 elevation: satellite.elevation_deg,
                 azimuth: satellite.azimuth_deg,
                 distance: satellite.distance_km,
@@ -124,11 +139,22 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
     // 🔗 模擬二點預測算法 - 與 DynamicSatelliteRenderer 的 ID 系統兼容
     const simulateTwoPointPrediction = useCallback(() => {
-        // 🚀 使用固定的模擬衛星 ID，與 DynamicSatelliteRenderer 完全匹配
-        const simulatedSatellites: VisibleSatelliteInfo[] = Array.from(
-            { length: 18 },
-            (_, i) => ({
-                norad_id: 1000 + i, // 修復：使用數字類型
+        // 🚀 使用真實的衛星數據，如果沒有則回退到模擬數據
+        let availableSatellites: VisibleSatelliteInfo[] = []
+
+        if (satellites && satellites.length > 0) {
+            // 使用真實的衛星數據
+            availableSatellites = satellites.map((sat) => ({
+                ...sat,
+                norad_id:
+                    typeof sat.norad_id === 'string'
+                        ? parseInt(sat.norad_id)
+                        : sat.norad_id,
+            }))
+        } else {
+            // 回退到模擬數據
+            availableSatellites = Array.from({ length: 18 }, (_, i) => ({
+                norad_id: 1000 + i,
                 name: `STARLINK-${1000 + i}`,
                 elevation_deg: 30 + Math.random() * 60,
                 azimuth_deg: Math.random() * 360,
@@ -139,22 +165,25 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                 line2: `2 ${
                     1000 + i
                 }  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
-            })
-        )
+            }))
+        }
+
+        // 將處理後的衛星數據設置到狀態中，以便 HandoverControlPanel 使用
+        setAvailableSatellitesForControl(availableSatellites)
 
         const now = Date.now()
         const futureTime = now + handoverState.deltaT * 1000
 
         // 🎯 模擬選擇當前最佳衛星 - 優先選擇前幾個衛星以提高匹配機率
         const currentBestIndex = Math.floor(
-            Math.random() * Math.min(6, simulatedSatellites.length)
+            Math.random() * Math.min(6, availableSatellites.length)
         ) // 前6個衛星
-        const currentBest = simulatedSatellites[currentBestIndex]
+        const currentBest = availableSatellites[currentBestIndex]
 
         // 🚫 核心修復：確保不會選擇自己作為換手目標
         // 先過濾掉當前衛星，確保候選列表不包含自己
-        let availableTargets = simulatedSatellites.filter(
-            (sat, index) => index !== currentBestIndex
+        let availableTargets = availableSatellites.filter(
+            (_, index) => index !== currentBestIndex
         )
 
         // 🚫 如果沒有可用目標，直接返回不換手
@@ -217,14 +246,14 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         if (availableTargets.length > 0) {
             // 策略1：優先選擇相鄰的衛星（更符合軌道換手邏輯）
             const adjacentCandidates = []
-            if (currentBestIndex < simulatedSatellites.length - 1) {
-                const nextSat = simulatedSatellites[currentBestIndex + 1]
+            if (currentBestIndex < availableSatellites.length - 1) {
+                const nextSat = availableSatellites[currentBestIndex + 1]
                 if (availableTargets.includes(nextSat)) {
                     adjacentCandidates.push(nextSat)
                 }
             }
             if (currentBestIndex > 0) {
-                const prevSat = simulatedSatellites[currentBestIndex - 1]
+                const prevSat = availableSatellites[currentBestIndex - 1]
                 if (availableTargets.includes(prevSat)) {
                     adjacentCandidates.push(prevSat)
                 }
@@ -299,7 +328,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         })
 
         // 換手決策完成
-    }, [handoverState.deltaT, generateMockSatelliteConnection]) // 移除 satellites 依賴，使用自己的模擬數據
+    }, [handoverState.deltaT, generateMockSatelliteConnection, satellites])
 
     // 模擬 Binary Search Refinement
     const simulateBinarySearch = useCallback(
@@ -472,6 +501,20 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         handoverState.deltaT,
     ])
 
+    // 初始化衛星數據 - 無論模式如何都要載入
+    useEffect(() => {
+        if (satellites && satellites.length > 0) {
+            const processedSatellites = satellites.map((sat) => ({
+                ...sat,
+                norad_id:
+                    typeof sat.norad_id === 'string'
+                        ? parseInt(sat.norad_id)
+                        : sat.norad_id,
+            }))
+            setAvailableSatellitesForControl(processedSatellites)
+        }
+    }, [satellites])
+
     // 時間更新處理
     const handleTimeUpdate = useCallback((currentTime: number) => {
         setTimePredictionData((prev) => ({
@@ -624,9 +667,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                             onClick={() => setActiveTab('algorithm')}
                         >
                             <span className="tab-icon">🧮</span>
-                            <span className="tab-label">
-                                Fine-Grained Algorithm
-                            </span>
+                            <span className="tab-label">演算法監控</span>
                         </button>
                     )}
                 </div>
@@ -645,7 +686,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                             ) : (
                                 <HandoverControlPanel
                                     handoverState={handoverState}
-                                    availableSatellites={satellites}
+                                    availableSatellites={
+                                        availableSatellitesForControl
+                                    }
                                     currentConnection={currentConnection}
                                     onManualHandover={handleManualHandover}
                                     onCancelHandover={handleCancelHandover}
@@ -662,7 +705,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                                 selectedUEId={selectedUEId}
                                 isEnabled={isEnabled}
                                 speedMultiplier={speedMultiplier}
-                                onAlgorithmStep={(step) => {
+                                onAlgorithmStep={() => {
                                     // 可以在這裡處理算法步驟事件
                                 }}
                                 onAlgorithmResults={(results) => {
@@ -673,8 +716,26 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                         </div>
                     )}
                 </div>
-            </div>
 
+                {/* 🚀 演算法監控 - 始終在後台運行，不受標籤頁影響 */}
+                {controlMode === 'auto' && (
+                    <div style={{ display: 'none' }}>
+                        <SynchronizedAlgorithmVisualization
+                            satellites={satellites}
+                            selectedUEId={selectedUEId}
+                            isEnabled={isEnabled}
+                            speedMultiplier={speedMultiplier}
+                            onAlgorithmStep={() => {
+                                // 後台算法步驟處理
+                            }}
+                            onAlgorithmResults={(results) => {
+                                // 向 App.tsx 傳遞演算法結果，用於更新 3D 視覺化
+                                onAlgorithmResults?.(results)
+                            }}
+                        />
+                    </div>
+                )}
+            </div>
         </div>
     )
 }

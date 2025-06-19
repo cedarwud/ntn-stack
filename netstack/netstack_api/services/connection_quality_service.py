@@ -657,7 +657,7 @@ class ConnectionQualityService:
     async def _calculate_assessment_confidence(
         self, metrics_data: List[UAVConnectionQualityMetrics]
     ) -> float:
-        """計算評估置信度"""
+        """計算評估信賴水準"""
         if not metrics_data:
             return 0.0
 
@@ -678,7 +678,7 @@ class ConnectionQualityService:
             freshness_factor = statistics.mean(freshness_scores)
             confidence_factors.append(freshness_factor)
 
-        # 測量置信度因子（如果有的話）
+        # 測量信賴水準因子（如果有的話）
         measurement_confidences = [
             m.measurement_confidence
             for m in metrics_data
@@ -1030,7 +1030,7 @@ class ConnectionQualityService:
         quality_trend = await self._analyze_quality_trend(uav_id)
         predicted_issues = await self._predict_issues(uav_id, quality_metrics)
 
-        # 評估置信度
+        # 評估信賴水準
         confidence = await self._calculate_assessment_confidence(quality_metrics)
         data_completeness = len(quality_metrics) / max(10, 1)  # 假設理想樣本數為 10
 

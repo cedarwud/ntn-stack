@@ -183,12 +183,12 @@ const DataSyncContext = createContext<{
 export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(dataSyncReducer, initialState)
 
-  // 使用真實衛星數據 hook
+  // 使用真實衛星數據 hook - 減少更新頻率
   const { 
     satellites: realSatellites, 
     loading: satellitesLoading, 
     error: satellitesError 
-  } = useVisibleSatellites(0, 50, 10000) // 0度仰角，最多50顆，10秒更新
+  } = useVisibleSatellites(5, 15, 60000) // 5度仰角，最多15顆，60秒更新
 
   // 強制同步方法
   const forceSync = useCallback(async () => {
@@ -295,18 +295,15 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     if (!state.ui.realTimeUpdates) return
 
-    // 立即執行一次同步
-    forceSync()
-
-    // 每30秒自動同步
+    // 每120秒自動同步（減少頻率）
     const interval = setInterval(() => {
       if (state.ui.realTimeUpdates) {
         forceSync()
       }
-    }, 30000)
+    }, 120000)
 
     return () => clearInterval(interval)
-  }, [forceSync, state.ui.realTimeUpdates])
+  }, [state.ui.realTimeUpdates]) // 移除 forceSync 依賴避免無限重渲染
 
   // 自動更新 UI 數據源狀態
   useEffect(() => {

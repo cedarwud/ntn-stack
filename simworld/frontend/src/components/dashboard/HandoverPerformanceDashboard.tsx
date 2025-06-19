@@ -4,6 +4,11 @@ import {
     useNetStackData,
     useDataSourceStatus,
 } from '../../contexts/DataSyncContext'
+import {
+    realConnectionManager,
+    RealConnectionInfo,
+    RealHandoverStatus,
+} from '../../services/realConnectionService'
 import './HandoverPerformanceDashboard.scss'
 
 interface HandoverPerformanceDashboardProps {
@@ -48,7 +53,7 @@ const HandoverPerformanceDashboard: React.FC<
 > = ({ enabled }) => {
     // 使用數據同步上下文
     const { isConnected: netstackConnected } = useNetStackData()
-    const { overall: connectionStatus, dataSource } = useDataSourceStatus()
+    const { dataSource } = useDataSourceStatus()
 
     const [metrics, setMetrics] = useState<HandoverMetrics>({
         totalHandovers: 15,
@@ -70,6 +75,10 @@ const HandoverPerformanceDashboard: React.FC<
     const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h')
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [realConnectionData, setRealConnectionData] = useState<{
+        connections: Map<string, RealConnectionInfo>
+        handovers: Map<string, RealHandoverStatus>
+    }>({ connections: new Map(), handovers: new Map() })
 
     // 基於全局數據同步狀態決定是否使用真實數據
     const useRealData = netstackConnected && dataSource !== 'simulated'
@@ -173,8 +182,10 @@ const HandoverPerformanceDashboard: React.FC<
                     setRecentEvents(events)
                 }
                 
-                // 整合真實連接數據來創建事件
-                updateRealConnectionData()
+                // 更新真實連接數據狀態
+                const connections = realConnectionManager.getAllConnections();
+                const handovers = realConnectionManager.getAllHandovers();
+                setRealConnectionData({ connections, handovers });
 
                 // 更新準確率歷史（基於真實數據）
                 const newAccuracyData: PredictionAccuracyData = {

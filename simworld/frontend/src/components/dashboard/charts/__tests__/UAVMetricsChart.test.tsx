@@ -5,19 +5,20 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import UAVMetricsChart from '../UAVMetricsChart'
 import * as netstackApi from '../../../../services/netstackApi'
+import { UAVData } from '../../../../types/charts'
 
 // Mock NetStack API
 vi.mock('../../../../services/netstackApi', () => ({
     getUAVList: vi.fn(),
 }))
 
-const mockUAVData = {
+const mockUAVData: { uavs: UAVData[]; total: number } = {
     uavs: [
         {
             uav_id: 'uav-001',
             name: 'UAV-Alpha',
-            flight_status: 'flying',
-            ue_connection_status: 'connected',
+            flight_status: 'flying' as const,
+            ue_connection_status: 'connected' as const,
             current_position: {
                 latitude: 25.033,
                 longitude: 121.5654,

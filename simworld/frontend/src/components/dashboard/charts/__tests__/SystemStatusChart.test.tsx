@@ -35,7 +35,7 @@ const mockSystemStatus: SystemStatus = {
             status: 'error',
             version: '0.1.0',
             last_health_check: '2024-01-01T10:00:00Z',
-            metrics: null,
+            metrics: undefined,
             error: 'Connection failed',
         },
     },

@@ -189,7 +189,7 @@ class ConnectionQualityAssessment(BaseModel):
     assessment_timestamp: datetime = Field(
         default_factory=lambda: datetime.now(UTC), description="評估時間"
     )
-    confidence_level: float = Field(..., ge=0, le=1, description="評估置信度")
+    confidence_level: float = Field(..., ge=0, le=1, description="評估信賴水準")
     data_completeness: float = Field(..., ge=0, le=1, description="數據完整性")
 
 
@@ -277,7 +277,7 @@ class UAVSignalQuality(BaseModel):
         default_factory=lambda: datetime.now(UTC), description="測量時間戳"
     )
     measurement_confidence: Optional[float] = Field(
-        None, ge=0, le=1, description="測量置信度"
+        None, ge=0, le=1, description="測量信賴水準"
     )
 
 

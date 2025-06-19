@@ -591,8 +591,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 ? '讀取中...'
                                 : skyfieldSatellites.length}
                             ){' '}
-                            {minElevation > 0
-                                ? `[最低仰角: ${minElevation}°]`
+                            {SATELLITE_CONFIG.MIN_ELEVATION > 0
+                                ? `[最低仰角: ${SATELLITE_CONFIG.MIN_ELEVATION}°]`
                                 : ''}
                         </h3>
                         {showSkyfieldSection && (

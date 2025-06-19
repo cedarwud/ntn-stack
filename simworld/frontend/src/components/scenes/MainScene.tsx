@@ -23,8 +23,8 @@ import FailoverMechanism from './visualization/FailoverMechanism'
 import TestResultsVisualization from '../viewers/TestResultsVisualization'
 import PerformanceTrendAnalyzer from '../viewers/PerformanceTrendAnalyzer'
 import AutomatedReportGenerator from '../viewers/AutomatedReportGenerator'
-import HandoverAnomalyVisualization from './visualization/HandoverAnomalyVisualization'
-import HandoverAnimation3D, { HandoverStatusPanel } from './visualization/HandoverAnimation3D'
+// import HandoverAnomalyVisualization from './visualization/HandoverAnomalyVisualization' // 未使用，已註釋
+import HandoverAnimation3D from './visualization/HandoverAnimation3D'
 import PredictionPath3D from './visualization/PredictionPath3D'
 import DynamicSatelliteRenderer from '../visualization/DynamicSatelliteRenderer'
 
@@ -72,8 +72,6 @@ export interface MainSceneProps {
     satelliteSpeedMultiplier?: number
     handoverStableDuration?: number
     handoverMode?: 'demo' | 'real' // 換手模式控制
-    currentConnection?: any
-    predictedConnection?: any
     // 🚀 演算法結果 - 用於對接視覺化
     algorithmResults?: {
         currentSatelliteId?: string
@@ -126,6 +124,12 @@ const MainScene: React.FC<MainSceneProps> = ({
     algorithmResults,
     onHandoverStatusUpdate,
 }) => {
+    // 標記未使用但保留的props為已消費（避免TypeScript警告）
+    void handoverState
+    void isTransitioning
+    void transitionProgress
+    void onHandoverEvent
+
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
     const SCENE_URL = ApiRoutes.scenes.getSceneModel(backendSceneName)
@@ -417,7 +421,7 @@ const MainScene: React.FC<MainSceneProps> = ({
             
             {/* 階段六換手視覺化 */}
             <PredictionPath3D 
-                devices={devices} 
+                satellites={satellites} 
                 enabled={predictionPath3DEnabled}
             />
         </>
