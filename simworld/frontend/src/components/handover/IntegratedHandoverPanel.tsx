@@ -123,7 +123,9 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
                 if (currentBest) {
                     const newCurrentConnection: SatelliteConnection = {
                         satelliteId: currentBest.norad_id.toString(),
-                        satelliteName: currentBest.name,
+                        satelliteName: currentBest.name
+                            .replace(' [DTC]', '')
+                            .replace('[DTC]', ''),
                         isConnected: true,
                         isPredicted: false,
                         signalStrength:
@@ -171,7 +173,9 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
             if (currentBest) {
                 const newCurrentConnection: SatelliteConnection = {
                     satelliteId: currentBest.norad_id.toString(),
-                    satelliteName: currentBest.name,
+                    satelliteName: currentBest.name
+                        .replace(' [DTC]', '')
+                        .replace('[DTC]', ''),
                     isConnected: true,
                     isPredicted: false,
                     signalStrength:
@@ -188,7 +192,9 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
             // ✅ 設置預測連接（已確保不是當前衛星）
             const newPredictedConnection: SatelliteConnection = {
                 satelliteId: futureBest.norad_id.toString(),
-                satelliteName: futureBest.name,
+                satelliteName: futureBest.name
+                    .replace(' [DTC]', '')
+                    .replace('[DTC]', ''),
                 isConnected: false,
                 isPredicted: true,
                 signalStrength: -65 - (90 - futureBest.elevation_deg) * 0.5,
@@ -269,7 +275,9 @@ const IntegratedHandoverPanel: React.FC<IntegratedHandoverPanelProps> = ({
                 // 換手完成
                 const newConnection: SatelliteConnection = {
                     satelliteId: targetSatelliteId,
-                    satelliteName: targetSatellite.name,
+                    satelliteName: targetSatellite.name
+                        .replace(' [DTC]', '')
+                        .replace('[DTC]', ''),
                     isConnected: true,
                     isPredicted: false,
                     signalStrength:

@@ -129,21 +129,14 @@ const SynchronizedAlgorithmVisualization: React.FC<
             // 防止過於頻繁的調用 - 但允許手動強制執行
             const now = Date.now()
             if (!forceExecute && now - lastExecutionTimeRef.current < 10000) {
-                // 只在手動執行時顯示頻率限制訊息
-                if (forceExecute) {
-                    console.log(
-                        '⏱️ 執行頻率限制，跳過自動執行 (距離上次執行:',
-                        Math.round((now - lastExecutionTimeRef.current) / 1000),
-                        '秒)'
-                    )
-                }
+                // 靜默跳過，不顯示訊息
                 return
             }
             lastExecutionTimeRef.current = now
 
             // 只在手動執行時記錄詳細日誌
             if (forceExecute) {
-                console.log('🚀 開始執行演算法: 手動觸發')
+                console.log('🚀 手動執行演算法')
             }
 
             try {
@@ -213,7 +206,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                 // 只在手動執行時記錄時間計算詳情
                 if (forceExecute) {
                     console.log(
-                        `🕐 多重時間預測: 短期=${Math.round(shortTermDelta)}s, 中期=${Math.round(mediumTermDelta)}s, 長期=${Math.round(longTermDelta)}s, 選中=${deltaSeconds}s (索引:${selectedIndex}, 速度因子:${speedFactor.toFixed(2)})`
+                        `🕐 預測時間: ${Math.round(deltaSeconds)}s (${(deltaSeconds/60).toFixed(1)}分鐘)`
                     )
                 }
 
@@ -221,9 +214,9 @@ const SynchronizedAlgorithmVisualization: React.FC<
                 let apiResult
                 let usingFallback = false
                 try {
-                    // 只在手動執行時記錄API調用
+                    // API調用 (僅手動執行時記錄)
                     if (forceExecute) {
-                        console.log('📡 調用 NetStack API...')
+                        console.log('📡 調用 NetStack API')
                     }
                     const netStackResponse = await fetch(
                         `http://localhost:8080/api/v1/core-sync/prediction/satellite-access`,
@@ -690,7 +683,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
         }
     }
 
-    // 當speedMultiplier改變時，清除緩存的預測結果並立即重新執行
+    // 當speedMultiplier改變時，清除緩存的預測結果
     useEffect(() => {
         if (!isEnabled) return
         
@@ -699,13 +692,8 @@ const SynchronizedAlgorithmVisualization: React.FC<
         setBinarySearchIterations([])
         lastExecutionTimeRef.current = 0 // 重置頻率限制
         
-        // 立即執行新的預測
-        const timeoutId = setTimeout(() => {
-            executeTwoPointPrediction(true) // 強制執行
-        }, 100)
-        
-        return () => clearTimeout(timeoutId)
-    }, [speedMultiplier, executeTwoPointPrediction])
+        // 不立即執行，讓定期執行處理
+    }, [speedMultiplier])
 
     // 定期執行算法 - 修復依賴問題
     useEffect(() => {
@@ -737,7 +725,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
             clearTimeout(timeoutId)
             clearInterval(interval)
         }
-    }, [isEnabled, speedMultiplier, isRunning]) // 移除 executeTwoPointPrediction 依賴，避免無限循環
+    }, [isEnabled, speedMultiplier]) // 移除 isRunning 和 executeTwoPointPrediction 依賴，避免無限循環
 
     // 清除歷史記錄
     const clearHistory = useCallback(() => {

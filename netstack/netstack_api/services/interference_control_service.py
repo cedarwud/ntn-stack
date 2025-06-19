@@ -101,9 +101,10 @@ class InterferenceControlService:
         try:
             self.logger.info("�� 啟動事件驅動干擾控制服務...")
 
-            # 初始化事件總線
-            if not self.event_bus:
-                self.event_bus = await get_event_bus()
+            # 暫時禁用事件總線初始化
+            # if not self.event_bus:
+            #     self.event_bus = await get_event_bus()
+            self.event_bus = None
 
             # 註冊事件處理器
             await self._register_event_handlers()
@@ -151,6 +152,10 @@ class InterferenceControlService:
         """註冊事件處理器"""
         if not self.event_bus:
             return
+
+        # 暫時禁用事件處理器註冊以避免協程傳遞錯誤
+        self.logger.info("事件處理器註冊已暫時禁用（避免協程錯誤）")
+        return
 
         # 註冊干擾檢測事件處理器
         self.event_bus.register_handler(

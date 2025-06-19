@@ -215,9 +215,10 @@ async def lifespan(app: FastAPI):
     )
     open5gs_adapter = Open5GSAdapter(mongo_host=os.getenv("MONGO_HOST", "mongo"))
 
-    # 啟動事件總線
-    event_bus = await get_event_bus()
-    logger.info("✅ 事件總線已啟動")
+    # 暫時禁用事件總線以避免協程錯誤
+    # event_bus = await get_event_bus()
+    event_bus = None
+    logger.info("⚠️  事件總線已暫時禁用（避免協程錯誤）")
 
     # 初始化服務
     ue_service = UEService(mongo_adapter, redis_adapter)
@@ -343,9 +344,9 @@ async def lifespan(app: FastAPI):
         await app.state.interference_service.stop()
         logger.info("✅ 干擾控制服務已停止")
 
-    # 關閉事件總線
-    await shutdown_event_bus()
-    logger.info("✅ 事件總線已關閉")
+    # 關閉事件總線（已禁用）
+    # await shutdown_event_bus()
+    logger.info("✅ 事件總線已關閉（之前已禁用）")
 
     # 停止 Mesh 橋接服務
     if mesh_bridge_service:

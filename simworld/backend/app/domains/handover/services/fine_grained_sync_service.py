@@ -107,7 +107,7 @@ class FineGrainedSyncService:
                 current_satellite.satellite_id != future_satellite.satellite_id
             )
 
-            # 計算預測置信度
+            # 計算預測信賴水準
             confidence = self.calculate_prediction_confidence(
                 current_satellite, future_satellite
             )
@@ -496,11 +496,11 @@ class FineGrainedSyncService:
         self, current_sat: SatelliteCandidate, future_sat: SatelliteCandidate
     ) -> float:
         """
-        計算預測置信度
+        計算預測信賴水準
         基於衛星軌道穩定性和環境因子
         """
         try:
-            # 基礎置信度
+            # 基礎信賴水準
             base_confidence = 0.85
 
             # 仰角穩定性加成
@@ -520,7 +520,7 @@ class FineGrainedSyncService:
             return min(base_confidence, 0.99)
 
         except Exception as e:
-            logger.error(f"置信度計算失敗: {e}")
+            logger.error(f"信賴水準計算失敗: {e}")
             return 0.5
 
     async def binary_search_refinement(

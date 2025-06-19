@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { HandoverState, SatelliteConnection } from '../../types/handover'
 import { VisibleSatelliteInfo } from '../../types/satellite'
 import './HandoverControlPanel.scss'
@@ -20,12 +20,23 @@ const HandoverControlPanel: React.FC<HandoverControlPanelProps> = ({
     onCancelHandover,
     isEnabled,
 }) => {
+    // 調試輸出
+    useEffect(() => {
+        console.log('🎛️ HandoverControlPanel 狀態:', {
+            availableSatellites: availableSatellites,
+            satelliteCount: availableSatellites?.length || 0,
+            currentConnection: currentConnection,
+            isEnabled: isEnabled,
+            handoverState: handoverState,
+        })
+    }, [availableSatellites, currentConnection, isEnabled, handoverState])
+
     const [selectedSatelliteId, setSelectedSatelliteId] = useState<string>('')
     const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
     // 過濾可用衛星（排除當前連接的衛星）
     const handoverCandidates = availableSatellites.filter(
-        (sat) => sat.norad_id !== currentConnection?.satelliteId
+        (sat) => String(sat.norad_id) !== String(currentConnection?.satelliteId)
     )
 
     const handleSatelliteSelect = (satelliteId: string) => {
@@ -65,22 +76,30 @@ const HandoverControlPanel: React.FC<HandoverControlPanelProps> = ({
     }
 
     const renderSatelliteOption = (satellite: VisibleSatelliteInfo) => {
-        const isSelected = selectedSatelliteId === satellite.norad_id
+        const isSelected = selectedSatelliteId === String(satellite.norad_id)
         const signalQuality = Math.max(
             0,
             Math.min(100, satellite.elevation_deg * 2)
         ) // 簡化的信號品質計算
 
+        // 清理衛星名稱，移除 DTC 字樣
+        const cleanSatelliteName = satellite.name
+            .replace(' [DTC]', '')
+            .replace('[DTC]', '')
+            .trim()
+
         return (
             <div
                 key={satellite.norad_id}
                 className={`satellite-option ${isSelected ? 'selected' : ''}`}
-                onClick={() => handleSatelliteSelect(satellite.norad_id)}
-                title={`選擇 ${satellite.name} 作為換手目標`}
+                onClick={() =>
+                    handleSatelliteSelect(String(satellite.norad_id))
+                }
+                title={`選擇 ${cleanSatelliteName} 作為換手目標`}
             >
                 <div className="option-header">
                     <div className="satellite-icon">🛰️</div>
-                    <div className="satellite-name">{satellite.name}</div>
+                    <div className="satellite-name">{cleanSatelliteName}</div>
                     {isSelected && <div className="selected-indicator">✓</div>}
                 </div>
 
@@ -264,7 +283,9 @@ const HandoverControlPanel: React.FC<HandoverControlPanelProps> = ({
                             <p>換手到</p>
                             <div className="dialog-satellite to">
                                 {availableSatellites.find(
-                                    (s) => s.norad_id === selectedSatelliteId
+                                    (s) =>
+                                        String(s.norad_id) ===
+                                        selectedSatelliteId
                                 )?.name || '未知'}
                             </div>
                             <p>嗎？</p>

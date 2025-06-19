@@ -1,5 +1,6 @@
 import logging
 import math
+import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
@@ -63,12 +64,12 @@ async def find_visible_satellites(
         else:
             filtered_satellites = all_satellites
 
-        # 計算每個衛星的可見性
+        # 優化：限制處理的衛星數量，提前終止搜索
         visible_satellites = []
+        processed_count = 0
+        max_to_process = min(len(filtered_satellites), max_results * 2)  # 限制最大處理數量
 
-        for satellite in filtered_satellites[
-            : max_results * 2
-        ]:  # 預處理更多衛星以確保有足夠的可見衛星
+        for satellite in filtered_satellites[:max_to_process]:
             try:
                 position = await orbit_service.get_current_position(
                     satellite_id=satellite.id, observer_location=observer
@@ -105,8 +106,14 @@ async def find_visible_satellites(
                     }
                     visible_satellites.append(satellite_info)
 
+                processed_count += 1
+
                 # 如果已經找到足夠的可見衛星，停止搜索
                 if len(visible_satellites) >= max_results:
+                    break
+
+                # 每處理50個衛星檢查一下是否已經夠了
+                if processed_count % 50 == 0 and len(visible_satellites) >= max_results // 2:
                     break
 
             except Exception as e:

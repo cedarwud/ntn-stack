@@ -41,12 +41,10 @@ class AIRANNetwork(nn.Module):
             nn.BatchNorm1d(hidden_size),
             nn.ReLU(inplace=True),
             nn.Dropout(0.1),  # 降低 dropout 率
-            
             nn.Linear(hidden_size, hidden_size),
             nn.BatchNorm1d(hidden_size),
             nn.ReLU(inplace=True),
             nn.Dropout(0.1),
-            
             nn.Linear(hidden_size, hidden_size // 2),
             nn.BatchNorm1d(hidden_size // 2),
             nn.ReLU(inplace=True),
@@ -58,7 +56,7 @@ class AIRANNetwork(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(hidden_size // 4, output_size),
         )
-        
+
         self.value_stream = nn.Sequential(
             nn.Linear(hidden_size // 2, hidden_size // 4),
             nn.ReLU(inplace=True),
@@ -69,7 +67,7 @@ class AIRANNetwork(nn.Module):
         self.policy_attention = nn.MultiheadAttention(
             embed_dim=hidden_size // 2, num_heads=4, batch_first=True
         )
-        
+
         self.policy_network = nn.Sequential(
             nn.Linear(hidden_size // 2, hidden_size // 4),
             nn.ReLU(inplace=True),
@@ -82,7 +80,7 @@ class AIRANNetwork(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(hidden_size // 4, 1),
         )
-        
+
         # 權重初始化
         self._initialize_weights()
 
@@ -98,40 +96,43 @@ class AIRANNetwork(nn.Module):
         """前向傳播（優化版）"""
         batch_size = state.size(0)
         encoded_state = self.state_encoder(state)
-        
+
         # Dueling DQN: Q(s,a) = V(s) + (A(s,a) - mean(A(s,a)))
         value = self.value_stream(encoded_state)
         advantage = self.advantage_stream(encoded_state)
         q_values = value + (advantage - advantage.mean(dim=1, keepdim=True))
-        
+
         # 注意力增強策略
         # 將 encoded_state 擴展為sequence 維度以配合 MultiheadAttention
         state_seq = encoded_state.unsqueeze(1)  # [batch_size, 1, hidden_size//2]
         attended_state, _ = self.policy_attention(state_seq, state_seq, state_seq)
         attended_state = attended_state.squeeze(1)  # [batch_size, hidden_size//2]
-        
+
         policy_logits = self.policy_network(attended_state)
         policy = torch.softmax(policy_logits, dim=-1)
-        
+
         state_value = self.value_network(encoded_state)
-        
+
         return q_values, policy, state_value
 
     def get_action_with_confidence(self, state, epsilon=0.0):
-        """獲取動作和置信度"""
+        """獲取動作和信賴水準"""
         with torch.no_grad():
             q_values, policy, value = self.forward(state)
-            
-            # 計算置信度
+
+            # 計算信賴水準
             policy_entropy = -torch.sum(policy * torch.log(policy + 1e-8), dim=1)
-            confidence = 1.0 - (policy_entropy / torch.log(torch.tensor(policy.size(1), dtype=torch.float)))
-            
+            confidence = 1.0 - (
+                policy_entropy
+                / torch.log(torch.tensor(policy.size(1), dtype=torch.float))
+            )
+
             # 動作選擇
             if torch.rand(1).item() < epsilon:
                 action = torch.randint(0, policy.size(1), (state.size(0),))
             else:
                 action = torch.argmax(q_values, dim=1)
-                
+
             return action, confidence, q_values, policy, value
 
 
@@ -290,10 +291,14 @@ class AIRANAntiInterferenceService:
         """優化的 AI 抗干擾決策（支援快速模式）"""
         try:
             decision_start_time = time.time()
-            
+
             # 準備狀態特徵
-            state_features = self._extract_state_features(interference_data, network_state)
-            state_tensor = torch.FloatTensor(state_features).unsqueeze(0).to(self.device)
+            state_features = self._extract_state_features(
+                interference_data, network_state
+            )
+            state_tensor = (
+                torch.FloatTensor(state_features).unsqueeze(0).to(self.device)
+            )
 
             # AI 網路推理（優化版）
             with torch.no_grad():
@@ -306,13 +311,15 @@ class AIRANAntiInterferenceService:
                     policy_entropy = 0.0
                 else:
                     # 完整模式：使用所有網路進行精確決策
-                    action, confidence_tensor, q_values, policy, value = self.ai_network.get_action_with_confidence(
-                        state_tensor, self.epsilon if not fast_mode else 0.0
+                    action, confidence_tensor, q_values, policy, value = (
+                        self.ai_network.get_action_with_confidence(
+                            state_tensor, self.epsilon if not fast_mode else 0.0
+                        )
                     )
                     action = action.item()
                     confidence = confidence_tensor.item()
                     expected_value = value.item()
-                    
+
                     # 計算策略熵（作為不確定性指標）
                     policy_entropy = (-policy * torch.log(policy + 1e-8)).sum().item()
 
@@ -320,13 +327,17 @@ class AIRANAntiInterferenceService:
             strategy_names = list(self.interference_strategies.keys())
             selected_strategy = strategy_names[action % len(strategy_names)]
 
-            # 根據置信度調整策略參數
+            # 根據信賴水準調整策略參數
             enhanced_network_state = network_state.copy()
-            enhanced_network_state.update({
-                "ai_confidence": confidence,
-                "strategy_certainty": 1.0 - policy_entropy if not fast_mode else 1.0,
-                "decision_mode": "fast" if fast_mode else "comprehensive"
-            })
+            enhanced_network_state.update(
+                {
+                    "ai_confidence": confidence,
+                    "strategy_certainty": (
+                        1.0 - policy_entropy if not fast_mode else 1.0
+                    ),
+                    "decision_mode": "fast" if fast_mode else "comprehensive",
+                }
+            )
 
             # 執行選定的抗干擾策略
             mitigation_result = await self.interference_strategies[selected_strategy](
@@ -346,7 +357,9 @@ class AIRANAntiInterferenceService:
                 "policy_entropy": policy_entropy,
                 "decision_time_ms": decision_time_ms,
                 "fast_mode": fast_mode,
-                "interference_severity": self._assess_interference_severity(interference_data),
+                "interference_severity": self._assess_interference_severity(
+                    interference_data
+                ),
                 "network_quality": self._assess_network_quality(network_state),
             }
 
@@ -385,7 +398,9 @@ class AIRANAntiInterferenceService:
     def _assess_interference_severity(self, interference_data: Dict) -> str:
         """評估干擾嚴重程度"""
         try:
-            avg_level = interference_data.get("interference_analysis", {}).get("average_level_db", -120)
+            avg_level = interference_data.get("interference_analysis", {}).get(
+                "average_level_db", -120
+            )
             if avg_level > -70:
                 return "critical"
             elif avg_level > -85:

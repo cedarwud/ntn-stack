@@ -60,32 +60,32 @@ interface SidebarProps {
     // 階段六功能開關 - 已刪除換手相關功能
     predictionPath3DEnabled?: boolean
     onPredictionPath3DChange?: (enabled: boolean) => void
-    predictionAccuracyDashboardEnabled?: boolean
-    onPredictionAccuracyDashboardChange?: (enabled: boolean) => void
-    coreNetworkSyncEnabled?: boolean
-    onCoreNetworkSyncChange?: (enabled: boolean) => void
+    _predictionAccuracyDashboardEnabled?: boolean
+    _onPredictionAccuracyDashboardChange?: (enabled: boolean) => void
+    _coreNetworkSyncEnabled?: boolean
+    _onCoreNetworkSyncChange?: (enabled: boolean) => void
 
     // Stage 3 功能開關
-    realtimePerformanceMonitorEnabled?: boolean
-    onRealtimePerformanceMonitorChange?: (enabled: boolean) => void
-    scenarioTestEnvironmentEnabled?: boolean
-    onScenarioTestEnvironmentChange?: (enabled: boolean) => void
+    _realtimePerformanceMonitorEnabled?: boolean
+    _onRealtimePerformanceMonitorChange?: (enabled: boolean) => void
+    _scenarioTestEnvironmentEnabled?: boolean
+    _onScenarioTestEnvironmentChange?: (enabled: boolean) => void
 
     // 階段七功能開關
-    e2ePerformanceMonitoringEnabled?: boolean
-    onE2EPerformanceMonitoringChange?: (enabled: boolean) => void
-    testResultsVisualizationEnabled?: boolean
-    onTestResultsVisualizationChange?: (enabled: boolean) => void
-    performanceTrendAnalysisEnabled?: boolean
-    onPerformanceTrendAnalysisChange?: (enabled: boolean) => void
-    automatedReportGenerationEnabled?: boolean
-    onAutomatedReportGenerationChange?: (enabled: boolean) => void
+    _e2ePerformanceMonitoringEnabled?: boolean
+    _onE2EPerformanceMonitoringChange?: (enabled: boolean) => void
+    _testResultsVisualizationEnabled?: boolean
+    _onTestResultsVisualizationChange?: (enabled: boolean) => void
+    _performanceTrendAnalysisEnabled?: boolean
+    _onPerformanceTrendAnalysisChange?: (enabled: boolean) => void
+    _automatedReportGenerationEnabled?: boolean
+    _onAutomatedReportGenerationChange?: (enabled: boolean) => void
 
     // 階段八功能開關
-    predictiveMaintenanceEnabled?: boolean
-    onPredictiveMaintenanceChange?: (enabled: boolean) => void
-    intelligentRecommendationEnabled?: boolean
-    onIntelligentRecommendationChange?: (enabled: boolean) => void
+    _predictiveMaintenanceEnabled?: boolean
+    _onPredictiveMaintenanceChange?: (enabled: boolean) => void
+    _intelligentRecommendationEnabled?: boolean
+    _onIntelligentRecommendationChange?: (enabled: boolean) => void
 
     // 衛星動畫控制（動畫永遠開啟）
     satelliteSpeedMultiplier?: number
@@ -187,51 +187,33 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onInterferenceVisualizationChange,
     sinrHeatmapEnabled = false,
     onSinrHeatmapChange,
-    aiRanVisualizationEnabled = false,
-    onAiRanVisualizationChange,
     manualControlEnabled = false,
     onManualControlEnabledChange,
-    sionna3DVisualizationEnabled = false,
-    onSionna3DVisualizationChange,
-    realTimeMetricsEnabled = false,
-    onRealTimeMetricsChange,
-    interferenceAnalyticsEnabled = false,
-    onInterferenceAnalyticsChange,
-    // 階段五功能 props
-    uavSwarmCoordinationEnabled = false,
-    onUavSwarmCoordinationChange,
-    meshNetworkTopologyEnabled = false,
-    onMeshNetworkTopologyChange,
     satelliteUavConnectionEnabled = false,
     onSatelliteUavConnectionChange,
-    failoverMechanismEnabled = false,
-    onFailoverMechanismChange,
-    // 階段六功能 props - 已刪除換手相關功能
-    predictionPath3DEnabled = false,
-    onPredictionPath3DChange,
-    predictionAccuracyDashboardEnabled = false,
-    onPredictionAccuracyDashboardChange,
-    coreNetworkSyncEnabled = false,
-    onCoreNetworkSyncChange,
-    // Stage 3 功能 props
-    realtimePerformanceMonitorEnabled = false,
-    onRealtimePerformanceMonitorChange,
-    scenarioTestEnvironmentEnabled = false,
-    onScenarioTestEnvironmentChange,
-    // 階段七功能 props
-    e2ePerformanceMonitoringEnabled = false,
-    onE2EPerformanceMonitoringChange,
-    testResultsVisualizationEnabled = false,
-    onTestResultsVisualizationChange,
-    performanceTrendAnalysisEnabled = false,
-    onPerformanceTrendAnalysisChange,
-    automatedReportGenerationEnabled = false,
-    onAutomatedReportGenerationChange,
-    // 階段八功能 props
-    predictiveMaintenanceEnabled = false,
-    onPredictiveMaintenanceChange,
-    intelligentRecommendationEnabled = false,
-    onIntelligentRecommendationChange,
+    _predictionAccuracyDashboardEnabled = false,
+    _onPredictionAccuracyDashboardChange,
+    _coreNetworkSyncEnabled = false,
+    _onCoreNetworkSyncChange,
+    // Stage 3 功能 props (未使用但保留用於未來功能)
+    _realtimePerformanceMonitorEnabled = false,
+    _onRealtimePerformanceMonitorChange,
+    _scenarioTestEnvironmentEnabled = false,
+    _onScenarioTestEnvironmentChange,
+    // 階段七功能 props (未使用但保留用於未來功能)
+    _e2ePerformanceMonitoringEnabled = false,
+    _onE2EPerformanceMonitoringChange,
+    _testResultsVisualizationEnabled = false,
+    _onTestResultsVisualizationChange,
+    _performanceTrendAnalysisEnabled = false,
+    _onPerformanceTrendAnalysisChange,
+    _automatedReportGenerationEnabled = false,
+    _onAutomatedReportGenerationChange,
+    // 階段八功能 props (未使用但保留用於未來功能)
+    _predictiveMaintenanceEnabled = false,
+    _onPredictiveMaintenanceChange,
+    _intelligentRecommendationEnabled = false,
+    _onIntelligentRecommendationChange,
     // 3D 動畫狀態更新回調
     onHandoverStateChange,
     onCurrentConnectionChange,
@@ -245,6 +227,28 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     handoverMode = 'demo',
     onHandoverModeChange,
 }) => {
+    // 標記未使用但保留的props為已消費（避免TypeScript警告）
+    void _predictionAccuracyDashboardEnabled
+    void _onPredictionAccuracyDashboardChange
+    void _coreNetworkSyncEnabled
+    void _onCoreNetworkSyncChange
+    void _realtimePerformanceMonitorEnabled
+    void _onRealtimePerformanceMonitorChange
+    void _scenarioTestEnvironmentEnabled
+    void _onScenarioTestEnvironmentChange
+    void _e2ePerformanceMonitoringEnabled
+    void _onE2EPerformanceMonitoringChange
+    void _testResultsVisualizationEnabled
+    void _onTestResultsVisualizationChange
+    void _performanceTrendAnalysisEnabled
+    void _onPerformanceTrendAnalysisChange
+    void _automatedReportGenerationEnabled
+    void _onAutomatedReportGenerationChange
+    void _predictiveMaintenanceEnabled
+    void _onPredictiveMaintenanceChange
+    void _intelligentRecommendationEnabled
+    void _onIntelligentRecommendationChange
+
     // 現有狀態
     const [orientationInputs, setOrientationInputs] = useState<{
         [key: string]: { x: string; y: string; z: string }
@@ -434,7 +438,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 
             satelliteDataInitialized.current = true
             setLoadingSatellites(false)
-            console.log('🛰️ 衛星數據初始化完成，後續使用內在運動邏輯')
+            // 衛星數據初始化完成
         }
 
         // 清理任何現有的刷新間隔
@@ -797,42 +801,28 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                         </div>
                                     )}
 
-                                {/* 🚀 換手管理器 - 當衛星連接功能啟用時在背景運行，UI 僅在換手類別中顯示 */}
-                                {satelliteEnabled &&
-                                    satelliteUavConnectionEnabled && (
-                                        <HandoverManager
-                                            satellites={skyfieldSatellites}
-                                            selectedUEId={
-                                                selectedReceiverIds[0]
-                                            }
-                                            isEnabled={true}
-                                            mockMode={false}
-                                            speedMultiplier={
-                                                satelliteSpeedMultiplier
-                                            }
-                                            handoverMode={handoverMode}
-                                            onHandoverStateChange={
-                                                onHandoverStateChange
-                                            }
-                                            onCurrentConnectionChange={
-                                                onCurrentConnectionChange
-                                            }
-                                            onPredictedConnectionChange={
-                                                onPredictedConnectionChange
-                                            }
-                                            onTransitionChange={
-                                                onTransitionChange
-                                            }
-                                            onAlgorithmResults={
-                                                onAlgorithmResults
-                                            }
-                                            // 只在換手類別中顯示 UI，但邏輯始終運行
-                                            hideUI={
-                                                activeCategory !==
-                                                'handover_mgr'
-                                            }
-                                        />
-                                    )}
+                                {/* 🚀 換手管理器 - 始終顯示，不需要依賴其他開關 */}
+                                <HandoverManager
+                                    satellites={skyfieldSatellites}
+                                    selectedUEId={selectedReceiverIds[0]}
+                                    isEnabled={true}
+                                    mockMode={false}
+                                    speedMultiplier={satelliteSpeedMultiplier}
+                                    handoverMode={handoverMode}
+                                    onHandoverStateChange={
+                                        onHandoverStateChange
+                                    }
+                                    onCurrentConnectionChange={
+                                        onCurrentConnectionChange
+                                    }
+                                    onPredictedConnectionChange={
+                                        onPredictedConnectionChange
+                                    }
+                                    onTransitionChange={onTransitionChange}
+                                    onAlgorithmResults={onAlgorithmResults}
+                                    // 只在換手類別中顯示 UI，但邏輯始終運行
+                                    hideUI={activeCategory !== 'handover_mgr'}
+                                />
 
                                 {/* 手動控制面板 - 當自動飛行開啟時隱藏，且需要手動控制開關啟用 */}
                                 {!auto && manualControlEnabled && (

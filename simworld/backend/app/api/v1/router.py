@@ -23,9 +23,15 @@ from app.domains.interference.api.interference_api import router as interference
 
 # Import handover domain API router
 from app.domains.handover.api.handover_api import router as handover_router
-from app.domains.handover.api.fine_grained_sync_api import router as fine_grained_sync_router
-from app.domains.handover.api.constrained_access_api import router as constrained_access_router
-from app.domains.handover.api.weather_prediction_api import router as weather_prediction_router
+from app.domains.handover.api.fine_grained_sync_api import (
+    router as fine_grained_sync_router,
+)
+from app.domains.handover.api.constrained_access_api import (
+    router as constrained_access_router,
+)
+from app.domains.handover.api.weather_prediction_api import (
+    router as weather_prediction_router,
+)
 
 # Import satellite admin API router
 from app.api.v1.satellite_admin_api import router as satellite_admin_router
@@ -55,13 +61,14 @@ oneweb_sats = []
 globalstar_sats = []
 iridium_sats = []
 
+
 # 懶加載函數
 async def initialize_satellites():
     global ts, satellites, satellites_dict, starlink_sats, kuiper_sats, oneweb_sats, globalstar_sats, iridium_sats, SKYFIELD_LOADED, SATELLITE_COUNT
-    
+
     if SKYFIELD_LOADED:
         return  # 已經初始化過了
-        
+
     try:
         print("開始加載 Skyfield 時間尺度和衛星數據...")
         ts = load.timescale(builtin=True)
@@ -70,30 +77,36 @@ async def initialize_satellites():
         # 使用資料庫中的 Starlink + Kuiper 衛星數據
         print("從資料庫載入 Starlink + Kuiper 衛星數據...")
         from app.db.base import async_session_maker
-        from app.domains.satellite.adapters.sqlmodel_satellite_repository import SQLModelSatelliteRepository
+        from app.domains.satellite.adapters.sqlmodel_satellite_repository import (
+            SQLModelSatelliteRepository,
+        )
         import asyncio
         import json
-        
+
         async def load_satellites_from_db():
             async with async_session_maker() as session:
                 repo = SQLModelSatelliteRepository()
                 repo._session = session
                 db_satellites = await repo.get_satellites()
-                
+
                 skyfield_satellites = []
                 for sat in db_satellites:
                     if sat.tle_data:
                         try:
-                            tle_dict = json.loads(sat.tle_data) if isinstance(sat.tle_data, str) else sat.tle_data
-                            line1 = tle_dict['line1']
-                            line2 = tle_dict['line2']
+                            tle_dict = (
+                                json.loads(sat.tle_data)
+                                if isinstance(sat.tle_data, str)
+                                else sat.tle_data
+                            )
+                            line1 = tle_dict["line1"]
+                            line2 = tle_dict["line2"]
                             skyfield_sat = EarthSatellite(line1, line2, sat.name, ts)
                             skyfield_satellites.append(skyfield_sat)
                         except Exception as e:
                             print(f"載入衛星 {sat.name} 失敗: {e}")
-                
+
                 return skyfield_satellites
-        
+
         satellites = await load_satellites_from_db()
         print(f"從資料庫載入衛星成功，共 {len(satellites)} 顆衛星")
 
@@ -104,7 +117,9 @@ async def initialize_satellites():
         starlink_sats = [sat for sat in satellites if "STARLINK" in sat.name.upper()]
         kuiper_sats = [sat for sat in satellites if "KUIPER" in sat.name.upper()]
         oneweb_sats = [sat for sat in satellites if "ONEWEB" in sat.name.upper()]
-        globalstar_sats = [sat for sat in satellites if "GLOBALSTAR" in sat.name.upper()]
+        globalstar_sats = [
+            sat for sat in satellites if "GLOBALSTAR" in sat.name.upper()
+        ]
         iridium_sats = [sat for sat in satellites if "IRIDIUM" in sat.name.upper()]
         print(
             f"通信衛星統計: Starlink: {len(starlink_sats)}, Kuiper: {len(kuiper_sats)}, OneWeb: {len(oneweb_sats)}, Globalstar: {len(globalstar_sats)}, Iridium: {len(iridium_sats)}"
@@ -120,6 +135,7 @@ async def initialize_satellites():
         satellites_dict = {}
         SKYFIELD_LOADED = False
         SATELLITE_COUNT = 0
+
 
 api_router = APIRouter()
 
@@ -232,98 +248,108 @@ async def get_satellite_orbit(
 ):
     """獲取指定衛星的軌跡數據"""
     try:
-        
+
         # 由於目前使用模擬數據，生成基於軌道動力學的軌跡點
         import math
         from datetime import datetime, timedelta
-        
+
         start_time = datetime.utcnow()
         points = []
-        
+
         # 模擬OneWeb衛星軌道參數
         orbital_period = 109 * 60  # 109分鐘軌道週期
         altitude = 1200  # km
         inclination = 87.9  # 度
-        
+
         # 生成多個完整的衛星過境軌跡
         total_points = duration // step
         observer_lat, observer_lon = 24.786667, 120.996944
-        
+
         # 為不同衛星創建不同的過境軌跡
         satellite_hash = hash(satellite_id) % 10  # 基於衛星ID的種子
-        
+
         # 每個衛星有不同的過境路徑（在循環外定義）
         base_azimuth_start = 30 + (satellite_hash * 30) % 360  # 不同起始方位
         azimuth_span = 120 + (satellite_hash * 20) % 100  # 不同跨越角度
         max_elevation = 20 + (satellite_hash * 10) % 70  # 不同最大仰角
-        
+
         for i in range(total_points):
             current_time = start_time + timedelta(seconds=i * step)
-            
+
             # 每次過境約12分鐘，間隔約100分鐘（符合LEO軌道特性）
             total_cycle = 100 * 60  # 100分鐘完整週期
             transit_duration = 12 * 60  # 12分鐘可見時間
             gap_duration = total_cycle - transit_duration  # 間隔時間
-            
+
             # 計算在週期中的位置
             cycle_position = (i * step) % total_cycle
-            
+
             if cycle_position < transit_duration:
                 # 在過境階段 - 真實的升降軌跡
                 transit_progress = cycle_position / transit_duration
-                
-                azimuth_deg = (base_azimuth_start + azimuth_span * transit_progress) % 360
-                
+
+                azimuth_deg = (
+                    base_azimuth_start + azimuth_span * transit_progress
+                ) % 360
+
                 # 拋物線形仰角變化：從地平線升起，到最高點，再落下
                 elevation_deg = max_elevation * math.sin(transit_progress * math.pi)
                 elevation_deg = max(0, elevation_deg)
-                
+
             else:
                 # 在不可見階段（地平線以下）
-                elevation_deg = -10 - (cycle_position - transit_duration) / gap_duration * 30
-                azimuth_deg = (base_azimuth_start + azimuth_span + 
-                              (cycle_position - transit_duration) / gap_duration * 240) % 360
-            
+                elevation_deg = (
+                    -10 - (cycle_position - transit_duration) / gap_duration * 30
+                )
+                azimuth_deg = (
+                    base_azimuth_start
+                    + azimuth_span
+                    + (cycle_position - transit_duration) / gap_duration * 240
+                ) % 360
+
             # 計算地理位置（對所有點，包括不可見的）
             azimuth_rad = math.radians(azimuth_deg)
-            
+
             # 對於地平線以下的點，使用固定距離
             if elevation_deg <= 0:
                 distance_factor = 2000  # 地平線以下使用固定距離
             else:
                 distance_factor = 1200 / max(math.sin(math.radians(elevation_deg)), 0.1)
                 distance_factor = min(distance_factor, 2000)
-            
+
             angular_distance = distance_factor / 111.32
             latitude = observer_lat + angular_distance * math.cos(azimuth_rad) * 0.1
             longitude = observer_lon + angular_distance * math.sin(azimuth_rad) * 0.1
-            
+
             # 限制範圍
             latitude = max(-90, min(90, latitude))
             longitude = longitude % 360
             if longitude > 180:
                 longitude -= 360
-            
-            points.append({
-                "timestamp": current_time.isoformat(),
-                "latitude": latitude,
-                "longitude": longitude,
-                "altitude": altitude,
-                "elevation_deg": elevation_deg,
-                "azimuth_deg": azimuth_deg
-            })
-        
+
+            points.append(
+                {
+                    "timestamp": current_time.isoformat(),
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "altitude": altitude,
+                    "elevation_deg": elevation_deg,
+                    "azimuth_deg": azimuth_deg,
+                }
+            )
+
         return {
             "satellite_id": satellite_id,
             "satellite_name": f"Satellite-{satellite_id}",
             "start_time": start_time.isoformat(),
             "end_time": (start_time + timedelta(seconds=duration)).isoformat(),
-            "points": points
+            "points": points,
         }
-        
+
     except Exception as e:
         print(f"Failed to get satellite orbit: {e}")  # 使用print替代logger
         import traceback
+
         traceback.print_exc()
         return {"error": str(e), "points": []}
 
@@ -331,39 +357,47 @@ async def get_satellite_orbit(
 # 添加臨時的衛星可見性模擬端點
 @api_router.get("/satellite-ops/visible_satellites", tags=["Satellites"])
 async def get_visible_satellites(
-    count: int = Query(10, gt=0, le=100),
-    min_elevation_deg: float = Query(0, ge=0, le=90),
+    count: int = Query(100, gt=0, le=200, description="返回衛星數量，預設100顆"),
+    min_elevation_deg: float = Query(
+        -10.0, ge=-90, le=90, description="最小仰角，預設-10度(全球視野)"
+    ),
+    observer_lat: float = Query(0.0, ge=-90, le=90, description="觀察者緯度，預設赤道"),
+    observer_lon: float = Query(
+        0.0, ge=-180, le=180, description="觀察者經度，預設本初子午線"
+    ),
+    observer_alt: float = Query(0, ge=0, le=10000, description="觀察者高度(米)"),
+    global_view: bool = Query(
+        True, description="全球視野模式(預設啟用，獲取所有Starlink+Kuiper衛星)"
+    ),
 ):
-    """返回基於 24.786667, 120.996944 位置可見的真實衛星數據"""
+    """返回全球範圍的Starlink和Kuiper衛星數據，不受地理位置限制"""
     print(
-        f"API 調用: get_visible_satellites(count={count}, min_elevation_deg={min_elevation_deg})"
+        f"API 調用: get_visible_satellites(count={count}, min_elevation_deg={min_elevation_deg}, observer=({observer_lat}, {observer_lon}, {observer_alt}), global_view={global_view})"
     )
-    
+
     # 強制重新載入衛星數據
     global SKYFIELD_LOADED
     SKYFIELD_LOADED = False
     await initialize_satellites()
-    
-    print(f"Skyfield 狀態: 已加載={SKYFIELD_LOADED}, 衛星數量={SATELLITE_COUNT}")
 
-    # 使用台灣新竹附近的固定坐標作為觀測點
-    observer_lat = 24.786667
-    observer_lon = 120.996944
-    print(f"觀測點座標: ({observer_lat}, {observer_lon})")
+    print(f"Skyfield 狀態: 已加載={SKYFIELD_LOADED}, 衛星數量={SATELLITE_COUNT}")
 
     if not SKYFIELD_LOADED or ts is None or not satellites:
         # 不使用模擬數據，而是拋出錯誤確保只使用真實數據
         error_msg = f"無法載入真實衛星數據 - SKYFIELD_LOADED={SKYFIELD_LOADED}, satellites_count={len(satellites)}"
         print(f"❌ {error_msg}")
         from fastapi import HTTPException
+
         raise HTTPException(status_code=503, detail=error_msg)
 
     try:
         # 計算真實衛星數據
-        print("計算真實衛星數據...")
+        print(
+            f"計算真實衛星數據... 觀測點: ({observer_lat}, {observer_lon}, {observer_alt}m)"
+        )
 
         # 使用 wgs84 創建觀測點
-        observer = wgs84.latlon(observer_lat, observer_lon, elevation_m=0)
+        observer = wgs84.latlon(observer_lat, observer_lon, elevation_m=observer_alt)
 
         # 獲取當前時間
         now = ts.now()
@@ -373,7 +407,9 @@ async def get_visible_satellites(
         visible_satellites = []
 
         # 優先考慮通信衛星 (Starlink + Kuiper 優先)
-        priority_sats = starlink_sats + kuiper_sats + oneweb_sats + globalstar_sats + iridium_sats
+        priority_sats = (
+            starlink_sats + kuiper_sats + oneweb_sats + globalstar_sats + iridium_sats
+        )
         other_sats = [sat for sat in satellites if sat not in priority_sats]
         all_sats = priority_sats + other_sats
 
@@ -381,8 +417,18 @@ async def get_visible_satellites(
         processed_count = 0
         visible_count = 0
 
+        # 根據是否為全球視野模式調整處理邏輯
+        max_process = 2000 if global_view else 500  # 全球模式處理更多衛星
+        effective_min_elevation = (
+            -20.0 if global_view else min_elevation_deg
+        )  # 全球模式大幅降低仰角限制
+
+        print(
+            f"全球視野模式: {global_view}, 處理衛星數: {max_process}, 有效仰角限制: {effective_min_elevation}°"
+        )
+
         # 計算每個衛星的可見性
-        for sat in all_sats[:500]:  # 限制處理數量，避免超時
+        for sat in all_sats[:max_process]:
             processed_count += 1
             try:
                 # 計算方位角、仰角和距離
@@ -390,8 +436,22 @@ async def get_visible_satellites(
                 topocentric = difference.at(now)
                 alt, az, distance = topocentric.altaz()
 
+                # 全球視野模式：大幅降低仰角要求，優先獲取通信衛星
+                elevation_threshold = effective_min_elevation
+                if global_view:
+                    # 全球模式下，接受負仰角的衛星（地平線以下也包含）
+                    elevation_threshold = max(-30.0, min_elevation_deg - 10.0)
+
+                    # 對於通信衛星（Starlink, Kuiper等），進一步放寬限制
+                    sat_name_upper = sat.name.upper()
+                    if any(
+                        constellation in sat_name_upper
+                        for constellation in ["STARLINK", "KUIPER", "ONEWEB"]
+                    ):
+                        elevation_threshold = -45.0  # 通信衛星可以接受更低仰角
+
                 # 檢查衛星是否高於最低仰角
-                if alt.degrees >= min_elevation_deg:
+                if alt.degrees >= elevation_threshold:
                     visible_count += 1
                     # 計算軌道信息
                     geocentric = sat.at(now)
@@ -401,7 +461,9 @@ async def get_visible_satellites(
                     velocity = np.linalg.norm(geocentric.velocity.km_per_s)
 
                     # 估計可見時間（粗略計算）
-                    visible_for_sec = int(1000 * (alt.degrees / 90.0))  # 粗略估計
+                    visible_for_sec = int(
+                        1000 * (max(0, alt.degrees + 30) / 120.0)
+                    )  # 調整計算公式
 
                     # 創建衛星信息對象
                     satellite_info = VisibleSatelliteInfo(
@@ -427,7 +489,7 @@ async def get_visible_satellites(
                 continue
 
         print(
-            f"處理完成: 處理了 {processed_count} 顆衛星，找到 {visible_count} 顆可見衛星"
+            f"處理完成: 處理了 {processed_count} 顆衛星，找到 {visible_count} 顆可見衛星，返回 {len(visible_satellites)} 顆"
         )
 
         # 按仰角從高到低排序
@@ -441,6 +503,12 @@ async def get_visible_satellites(
             "status": "real",
             "processed": processed_count,
             "visible": visible_count,
+            "observer": {
+                "latitude": observer_lat,
+                "longitude": observer_lon,
+                "altitude": observer_alt,
+            },
+            "global_view": global_view,
         }
 
     except Exception as e:

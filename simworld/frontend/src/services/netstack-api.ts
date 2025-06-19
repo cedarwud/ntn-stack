@@ -2,6 +2,7 @@
  * NetStack API Client
  * 用於連接 NetStack 後端的真實 API 數據
  */
+import { BaseApiClient } from './base-api'
 
 export interface SatelliteAccessPredictionRequest {
   ue_id: string
@@ -189,28 +190,31 @@ export interface HandoverPredictionResponse {
   }
 }
 
-class NetStackApiClient {
-  private baseUrl = '/netstack'  // 使用代理路徑
-  
+class NetStackApiClient extends BaseApiClient {
   constructor() {
-    // 檢查環境變數是否有自定義的 NetStack URL
+    let baseUrl = 'http://localhost:8080'  // 默認 NetStack 後端地址
+    
+    // 在瀏覽器環境中一律使用代理路徑
     if (typeof window !== 'undefined') {
+      // 瀏覽器環境中一律使用 Vite 代理路徑
+      baseUrl = window.location.origin  // 使用當前域名，代理會處理 /netstack 路徑
+      
+      // 檢查環境變數是否有自定義的 NetStack URL
       const envUrl = (window as any).__NETSTACK_API_URL__
       if (envUrl) {
-        this.baseUrl = envUrl
+        baseUrl = envUrl
       }
     }
+    
+    super(baseUrl)
   }
 
   /**
    * 獲取核心同步狀態
    */
   async getCoreSync(): Promise<CoreSyncStatus> {
-    const response = await fetch(`${this.baseUrl}/api/v1/core-sync/status`)
-    if (!response.ok) {
-      throw new Error(`Failed to get core sync status: ${response.statusText}`)
-    }
-    return response.json()
+    const endpoint = '/netstack/api/v1/core-sync/status'
+    return this.get<CoreSyncStatus>(endpoint)
   }
 
   /**
@@ -219,22 +223,10 @@ class NetStackApiClient {
   async predictSatelliteAccess(
     request: SatelliteAccessPredictionRequest
   ): Promise<SatelliteAccessPredictionResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/core-sync/prediction/satellite-access`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-      }
+    return this.post<SatelliteAccessPredictionResponse>(
+      '/netstack/api/v1/core-sync/prediction/satellite-access',
+      request
     )
-    
-    if (!response.ok) {
-      throw new Error(`Failed to predict satellite access: ${response.statusText}`)
-    }
-    
-    return response.json()
   }
 
   /**
@@ -244,7 +236,7 @@ class NetStackApiClient {
     request: HandoverPredictionRequest
   ): Promise<HandoverPredictionResponse> {
     const response = await fetch(
-      `${this.baseUrl}/api/v1/satellite-tle/handover/predict`,
+      `${this.baseUrl}/netstack/api/v1/satellite-tle/handover/predict`,
       {
         method: 'POST',
         headers: {
@@ -266,7 +258,7 @@ class NetStackApiClient {
    */
   async startCoreSync(): Promise<void> {
     const response = await fetch(
-      `${this.baseUrl}/api/v1/core-sync/service/start`,
+      `${this.baseUrl}/netstack/api/v1/core-sync/service/start`,
       {
         method: 'POST',
       }
@@ -282,7 +274,7 @@ class NetStackApiClient {
    */
   async stopCoreSync(): Promise<void> {
     const response = await fetch(
-      `${this.baseUrl}/api/v1/core-sync/service/stop`,
+      `${this.baseUrl}/netstack/api/v1/core-sync/service/stop`,
       {
         method: 'POST',
       }
@@ -298,7 +290,7 @@ class NetStackApiClient {
    */
   async getHandoverLatencyMetrics(): Promise<HandoverMeasurementData[]> {
     const response = await fetch(
-      `${this.baseUrl}/api/v1/core-sync/metrics/performance`
+      `${this.baseUrl}/netstack/api/v1/core-sync/metrics/performance`
     )
     
     if (!response.ok) {
@@ -349,7 +341,7 @@ class NetStackApiClient {
    */
   async getRecentSyncEvents(): Promise<any[]> {
     const response = await fetch(
-      `${this.baseUrl}/api/v1/core-sync/events/recent`
+      `${this.baseUrl}/netstack/api/v1/core-sync/events/recent`
     )
     
     if (!response.ok) {
@@ -366,7 +358,7 @@ class NetStackApiClient {
    */
   async triggerEmergencyResync(): Promise<void> {
     const response = await fetch(
-      `${this.baseUrl}/api/v1/core-sync/emergency/resync`,
+      `${this.baseUrl}/netstack/api/v1/core-sync/emergency/resync`,
       {
         method: 'POST',
       }
@@ -381,13 +373,7 @@ class NetStackApiClient {
    * 獲取健康檢查狀態
    */
   async getHealthStatus(): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/api/v1/core-sync/health`)
-    
-    if (!response.ok) {
-      throw new Error(`Failed to get health status: ${response.statusText}`)
-    }
-    
-    return response.json()
+    return this.get<any>('/netstack/api/v1/core-sync/health')
   }
 }
 
@@ -418,8 +404,8 @@ export const useCoreSync = () => {
 
     fetchStatus()
     
-    // 每 5 秒更新一次狀態
-    const interval = setInterval(fetchStatus, 5000)
+    // 每 30 秒更新一次狀態（減少頻率）
+    const interval = setInterval(fetchStatus, 30000)
     
     return () => clearInterval(interval)
   }, [])
