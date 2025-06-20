@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { TimePredictionData } from '../../types/handover'
 import './TimePredictionTimeline.scss'
 
@@ -14,6 +14,20 @@ const TimePredictionTimeline: React.FC<TimePredictionTimelineProps> = ({
     onTimeUpdate,
 }) => {
     const [currentTime, setCurrentTime] = useState(Date.now())
+    
+    // 移除調試日誌，避免控制台被刷爆
+    // const prevIterationsCountRef = useRef(0)
+    // useEffect(() => {
+    //     const currentCount = data.iterations?.length || 0
+    //     if (currentCount !== prevIterationsCountRef.current) {
+    //         console.log(`🎯 TimePredictionTimeline Binary Search 更新:`, {
+    //             iterationsCount: currentCount,
+    //             currentTime: new Date(data.currentTime).toLocaleTimeString(),
+    //             futureTime: new Date(data.futureTime).toLocaleTimeString(),
+    //         })
+    //         prevIterationsCountRef.current = currentCount
+    //     }
+    // }, [data.iterations?.length, data.currentTime, data.futureTime])
 
     useEffect(() => {
         if (!isActive) return
@@ -48,6 +62,22 @@ const TimePredictionTimeline: React.FC<TimePredictionTimelineProps> = ({
         const handoverOffset = data.handoverTime - data.currentTime
         return Math.min(Math.max(handoverOffset / totalDuration, 0), 1) * 100
     }
+
+    // 根據時間軸進度計算迭代完成狀態
+    const getIterationStatus = (iterationNumber: number) => {
+        const progress = getTimelineProgress() / 100 // 0-1
+        const totalIterations = data.iterations.length
+        
+        // 每個迭代在時間軸的不同階段完成
+        const iterationThreshold = iterationNumber / totalIterations
+        
+        if (progress >= iterationThreshold) {
+            return '✅' // 已完成
+        } else {
+            return '⏳' // 進行中
+        }
+    }
+
 
     return (
         <div className="time-prediction-timeline">
@@ -113,9 +143,9 @@ const TimePredictionTimeline: React.FC<TimePredictionTimelineProps> = ({
             {/* Delta T 顯示 */}
             <div className="delta-info">
                 <div className="delta-item">
-                    <span className="delta-label">Δt 間隔:</span>
+                    <span className="delta-label">剩餘時間:</span>
                     <span className="delta-value">
-                        {((data.futureTime - data.currentTime) / 1000).toFixed(
+                        {Math.max(0, (data.futureTime - currentTime) / 1000).toFixed(
                             1
                         )}
                         s
@@ -135,49 +165,43 @@ const TimePredictionTimeline: React.FC<TimePredictionTimelineProps> = ({
                 )}
             </div>
 
-            {/* Binary Search 迭代過程 */}
-            {data.iterations.length > 0 && (
-                <div className="binary-search-iterations">
-                    <h4>🔍 Binary Search Refinement</h4>
-                    <div className="iterations-list">
-                        {data.iterations.map((iteration) => (
-                            <div
-                                key={iteration.iteration}
-                                className={`iteration-item ${
-                                    iteration.completed ? 'completed' : 'active'
-                                }`}
-                            >
-                                <div className="iteration-number">
-                                    #{iteration.iteration}
+            {/* Binary Search 迭代過程 - 總是顯示 */}
+            <div className="binary-search-iterations">
+                <h4>🔍 Binary Search Refinement</h4>
+                <div className="iterations-list">
+                    {data.iterations.length > 0 ? data.iterations.map((iteration) => (
+                        <div
+                            key={iteration.iteration}
+                            className={`iteration-item ${iteration.completed ? 'completed' : 'active'}`}
+                        >
+                            <div className="iteration-number">
+                                #{iteration.iteration}
+                            </div>
+                            <div className="iteration-details">
+                                <div className="iteration-range">
+                                    範圍: {(iteration.endTime - iteration.startTime).toFixed(3)}s
                                 </div>
-                                <div className="iteration-details">
-                                    <div className="iteration-range">
-                                        範圍:{' '}
-                                        {(
-                                            iteration.endTime -
-                                            iteration.startTime
-                                        ).toFixed(3)}
-                                        s
-                                    </div>
-                                    <div className="iteration-precision">
-                                        精度:{' '}
-                                        {(iteration.precision * 1000).toFixed(
-                                            1
-                                        )}
-                                        ms
-                                    </div>
-                                    <div className="iteration-satellite">
-                                        衛星: {iteration.satellite}
-                                    </div>
+                                <div className="iteration-precision">
+                                    精度: {(iteration.precision * 1000).toFixed(1)}ms
                                 </div>
-                                <div className="iteration-status">
-                                    {iteration.completed ? '✅' : '⏳'}
+                                <div className="iteration-satellite">
+                                    衛星: {iteration.satellite}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                            <div className="iteration-status">
+                                {getIterationStatus(iteration.iteration)}
+                            </div>
+                        </div>
+                    )) : (
+                        <div className="empty-iterations">
+                            <div className="empty-message">
+                                <span className="empty-icon">📊</span>
+                                <span>無需複雜搜尋：使用直接預測結果</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     )
 }

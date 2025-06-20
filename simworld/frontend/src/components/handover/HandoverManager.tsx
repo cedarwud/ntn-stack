@@ -3,6 +3,7 @@ import TimePredictionTimeline from './TimePredictionTimeline'
 import SatelliteConnectionIndicator from './SatelliteConnectionIndicator'
 import HandoverControlPanel from './HandoverControlPanel'
 import SynchronizedAlgorithmVisualization from './SynchronizedAlgorithmVisualization'
+import UnifiedHandoverStatus from './UnifiedHandoverStatus'
 import {
     HandoverState,
     SatelliteConnection,
@@ -71,14 +72,14 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         handoverTime: 0,
         status: 'idle',
         confidence: 0.95,
-        deltaT: 10, // 10秒間隔 - 平衡演示效果與真實感
+        deltaT: 5, // 5秒間隔 - 論文標準
     })
 
     // 🎯 時間預測數據
     const [timePredictionData, setTimePredictionData] =
         useState<TimePredictionData>({
             currentTime: Date.now(),
-            futureTime: Date.now() + 10000,
+            futureTime: Date.now() + 5000, // 5秒後
             handoverTime: undefined,
             iterations: [],
             accuracy: 0.95,
@@ -107,6 +108,11 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
     // 控制面板模式換手
     const [controlMode, setControlMode] = useState<'auto' | 'manual'>('auto')
+    
+    // 調試控制模式變化
+    useEffect(() => {
+        console.log('🎮 HandoverManager 控制模式:', controlMode, 'isEnabled:', isEnabled)
+    }, [controlMode, isEnabled])
 
     // 標籤頁狀態管理
     const [activeTab, setActiveTab] = useState<'status' | 'algorithm'>('status')
@@ -114,6 +120,11 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     // 可用衛星數據狀態 - 供 HandoverControlPanel 使用
     const [availableSatellitesForControl, setAvailableSatellitesForControl] =
         useState<VisibleSatelliteInfo[]>([])
+
+    // 🚀 演算法結果狀態 - 供統一狀態組件使用
+    const [algorithmPredictionResult, setAlgorithmPredictionResult] = useState<any>(null)
+    const [algorithmRunning, setAlgorithmRunning] = useState(false)
+    const [currentDeltaT, setCurrentDeltaT] = useState<number>(5) // 預設5秒 (論文標準)
 
     // 模擬數據生成器（開發用）
     const generateMockSatelliteConnection = useCallback(
@@ -172,7 +183,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         setAvailableSatellitesForControl(availableSatellites)
 
         const now = Date.now()
-        const futureTime = now + handoverState.deltaT * 1000
+        const futureTime = now + currentDeltaT * 1000
 
         // 🎯 模擬選擇當前最佳衛星 - 優先選擇前幾個衛星以提高匹配機率
         const currentBestIndex = Math.floor(
@@ -315,77 +326,103 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         // 🎯 由於我們已經確保futureBest不等於currentBest，這裡一定會執行換手邏輯
         const predictedConn = generateMockSatelliteConnection(futureBest, false)
         setPredictedConnection(predictedConn)
-        // 模擬需要換手
-        simulateBinarySearch(now, futureTime)
 
-        // 更新時間預測數據
-        setTimePredictionData({
+        // 更新時間預測數據 - 基於論文邏輯計算換手時間
+        const currentDeltaTValue = currentDeltaTRef.current
+        const deltaT = Math.max(3, currentDeltaTValue) * 1000 // 使用當前的 delta-t (秒轉換為毫秒)，最小3秒
+        
+        // console.log(`🚀 simulateTwoPointPrediction 被調用! currentDeltaT=${currentDeltaTValue}s, deltaT=${deltaT}ms`)
+        
+        // 🔧 計算新的換手時間 - 每次新時間軸都重新計算
+        const randomPosition = 0.3 + Math.random() * 0.4 // 30%-70% 範圍內隨機
+        const handoverOffset = deltaT * randomPosition
+        const handoverTime = now + handoverOffset
+        
+        // console.log(`🎯 新時間軸: T=${new Date(now).toLocaleTimeString()}, T+Δt=${new Date(now + deltaT).toLocaleTimeString()}, 換手=${new Date(handoverTime).toLocaleTimeString()}`)
+        
+        // 先生成 Binary Search 數據
+        const binarySearchData = generateBinarySearchData(now, now + deltaT)
+
+        const newTimePredictionData = {
             currentTime: now,
-            futureTime,
-            handoverTime: now + 5000, // 調整為 5 秒，在 10 秒區間的中點
-            iterations: [],
+            futureTime: now + deltaT,
+            handoverTime: handoverTime, // 在時間軸期間保持固定
+            iterations: binarySearchData.iterations, // 直接設置生成的 iterations
             accuracy: 0.95 + Math.random() * 0.04, // 95-99%
-        })
+        }
+        
+        // console.log(`📊 setTimePredictionData 被調用，iterations 數量:`, newTimePredictionData.iterations.length)
+        setTimePredictionData(newTimePredictionData)
+
+        // 同時更新 handoverState
+        setHandoverState((prev) => ({
+            ...prev,
+            handoverTime: binarySearchData.finalHandoverTime,
+            status: 'idle',
+        }))
 
         // 換手決策完成
-    }, [handoverState.deltaT, generateMockSatelliteConnection, satellites])
+    }, []) // 🔧 暫時移除所有依賴，專注於修復時間軸跳動問題
 
-    // 模擬 Binary Search Refinement
-    const simulateBinarySearch = useCallback(
-        (startTime: number, endTime: number) => {
-            const iterations: BinarySearchIteration[] = []
-            let currentStart = startTime
-            let currentEnd = endTime
-            let iterationCount = 0
-            const targetPrecision = 0.1 // 100ms
-
-            const performIteration = () => {
-                iterationCount++
-                const midTime = (currentStart + currentEnd) / 2
-                const precision = (currentEnd - currentStart) / 1000 // 轉換為秒
-
-                const iteration: BinarySearchIteration = {
-                    iteration: iterationCount,
-                    startTime: currentStart,
-                    endTime: currentEnd,
-                    midTime,
-                    satellite: `SAT-${Math.floor(Math.random() * 1000)}`,
-                    precision,
-                    completed: precision <= targetPrecision,
-                }
-
-                iterations.push(iteration)
-
-                if (precision > targetPrecision && iterationCount < 10) {
-                    // 模擬縮小搜索範圍
-                    if (Math.random() < 0.5) {
-                        currentEnd = midTime
-                    } else {
-                        currentStart = midTime
-                    }
-
-                    setTimeout(() => performIteration(), 750) // 0.75秒延遲平衡計算時間
-                } else {
-                    // 搜索完成
-                    const finalHandoverTime = midTime
-                    setHandoverState((prev) => ({
-                        ...prev,
-                        handoverTime: finalHandoverTime,
-                        status: 'idle',
-                    }))
-
-                    setTimePredictionData((prev) => ({
-                        ...prev,
-                        handoverTime: finalHandoverTime,
-                        iterations,
-                    }))
-                }
+    // 生成 Binary Search 數據 - 同步函數，避免狀態競態
+    const generateBinarySearchData = (startTime: number, endTime: number) => {
+        const iterations: BinarySearchIteration[] = []
+        const totalDuration = endTime - startTime
+        let currentStart = 0 // 使用相對時間
+        let currentEnd = totalDuration / 1000 // 轉換為秒
+        
+        // 動態調整精度目標，讓迭代次數有更大變化
+        const timeVariation = Math.floor(startTime / 12000) % 5 // 每 12 秒變化一次
+        const targetPrecision = [0.01, 0.05, 0.1, 0.2, 0.4][timeVariation] // 10ms, 50ms, 100ms, 200ms, 400ms 精度
+        // 預期迭代次數: 9次, 7次, 6次, 5次, 4次
+        
+        // 生成所有迭代步驟
+        let iterationCount = 0
+        let tempStart = currentStart
+        let tempEnd = currentEnd
+        
+        while (tempEnd - tempStart > targetPrecision && iterationCount < 10) {
+            iterationCount++
+            const midTime = (tempStart + tempEnd) / 2
+            const precision = tempEnd - tempStart
+            
+            // 基於時間戳生成動態衛星名稱，確保每次都不同
+            const timeHash = Math.floor(startTime / 10000) % 1000 // 10秒變化一次
+            const satelliteBase = 1000 + (timeHash + iterationCount) % 500
+            const satelliteName = `STARLINK-${satelliteBase.toString().padStart(4, '0')}`
+            
+            const iteration: BinarySearchIteration = {
+                iteration: iterationCount,
+                startTime: startTime + tempStart * 1000,
+                endTime: startTime + tempEnd * 1000,
+                midTime: startTime + midTime * 1000,
+                satellite: satelliteName,
+                precision,
+                completed: false, // 初始都設為未完成，將由 TimePredictionTimeline 動態更新
             }
+            
+            iterations.push(iteration)
+            
+            // 模擬二分搜尋縮小範圍 - 交替選擇前半段和後半段
+            if (iterationCount % 2 === 1) {
+                tempStart = midTime // 換手在後半段
+            } else {
+                tempEnd = midTime // 換手在前半段
+            }
+        }
+        
+        const finalHandoverTime = iterations.length > 0 
+            ? iterations[iterations.length - 1].midTime 
+            : startTime + totalDuration * 0.6
+            
+        // console.log(`🔄 Binary Search 更新: ${iterations.length} 次迭代, 目標精度: ${targetPrecision}s (${targetPrecision*1000}ms), 最終精度: ${(iterations[iterations.length-1]?.precision || 0).toFixed(3)}s`)
+        
+        return {
+            iterations,
+            finalHandoverTime
+        }
+    }
 
-            performIteration()
-        },
-        []
-    )
 
     // 手動換手處理
     const handleManualHandover = useCallback(
@@ -481,24 +518,47 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         setHandoverState((prev) => ({ ...prev, status: 'idle' }))
     }, [])
 
-    // 初始化和定期更新
+    // 使用 useRef 避免依賴循環和閉包問題
+    const simulateTwoPointPredictionRef = useRef(simulateTwoPointPrediction)
+    simulateTwoPointPredictionRef.current = simulateTwoPointPrediction
+    
+    const timePredictionDataRef = useRef(timePredictionData)
+    timePredictionDataRef.current = timePredictionData
+    
+    const currentDeltaTRef = useRef(currentDeltaT)
+    currentDeltaTRef.current = currentDeltaT
+
+    // 初始化和智能更新 - 只在時間軸完成後才重新開始
     useEffect(() => {
-        if (!isEnabled || controlMode !== 'auto') return
+        if (!isEnabled || controlMode !== 'auto') {
+            return
+        }
+
+        // console.log('🚀 HandoverManager: 初始化時間軸管理')
 
         // 初始化
-        simulateTwoPointPrediction()
+        simulateTwoPointPredictionRef.current()
 
-        // 定期更新預測（每 deltaT 秒）- 僅在自動模式下
+        // 智能檢查時間軸是否完成 - 每秒檢查一次
         const interval = setInterval(() => {
-            simulateTwoPointPrediction()
-        }, handoverState.deltaT * 1000)
+            const now = Date.now()
+            const futureTime = timePredictionDataRef.current.futureTime
+            const timelineFinished = now >= futureTime
+            const remaining = Math.max(0, (futureTime - now) / 1000)
+            
+            if (timelineFinished) {
+                // console.log('✅ 時間軸完成，開始新預測')
+                simulateTwoPointPredictionRef.current()
+            }
+        }, 1000) // 每秒檢查一次，而不是每 deltaT 秒強制重置
 
-        return () => clearInterval(interval)
+        return () => {
+            clearInterval(interval)
+        }
     }, [
         isEnabled,
         controlMode,
-        simulateTwoPointPrediction,
-        handoverState.deltaT,
+        // 完全移除 simulateTwoPointPrediction 依賴
     ])
 
     // 初始化衛星數據 - 無論模式如何都要載入
@@ -515,13 +575,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         }
     }, [satellites])
 
-    // 時間更新處理
-    const handleTimeUpdate = useCallback((currentTime: number) => {
-        setTimePredictionData((prev) => ({
-            ...prev,
-            currentTime,
-        }))
-    }, [])
+    // 移除了 handleTimeUpdate 函數，避免無限循環更新
 
     // 狀態同步到 3D 動畫
     useEffect(() => {
@@ -641,100 +695,81 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                 <TimePredictionTimeline
                     data={timePredictionData}
                     isActive={isEnabled}
-                    onTimeUpdate={handleTimeUpdate}
+                    onTimeUpdate={undefined} // 🔧 移除時間更新回調，避免無限循環
                 />
 
-                {/* 標籤頁導航 */}
-                <div className="tab-navigation">
-                    <button
-                        className={`tab-button ${
-                            activeTab === 'status' ? 'active' : ''
-                        }`}
-                        onClick={() => setActiveTab('status')}
-                    >
-                        <span className="tab-icon">📡</span>
-                        <span className="tab-label">
-                            {controlMode === 'auto'
-                                ? '衛星接入狀態'
-                                : '手動控制面板'}
-                        </span>
-                    </button>
-                    {controlMode === 'auto' && (
-                        <button
-                            className={`tab-button ${
-                                activeTab === 'algorithm' ? 'active' : ''
-                            }`}
-                            onClick={() => setActiveTab('algorithm')}
-                        >
-                            <span className="tab-icon">🧮</span>
-                            <span className="tab-label">演算法監控</span>
-                        </button>
+                {/* 統一的狀態顯示 */}
+                <div className="unified-content">
+                    {controlMode === 'auto' ? (
+                        <UnifiedHandoverStatus
+                            currentConnection={currentConnection}
+                            predictedConnection={predictedConnection}
+                            handoverState={handoverState}
+                            isTransitioning={isTransitioning}
+                            transitionProgress={transitionProgress}
+                            predictionResult={algorithmPredictionResult}
+                            algorithmRunning={algorithmRunning}
+                            deltaT={currentDeltaT}
+                        />
+                    ) : (
+                        <HandoverControlPanel
+                            handoverState={handoverState}
+                            availableSatellites={availableSatellitesForControl}
+                            currentConnection={currentConnection}
+                            onManualHandover={handleManualHandover}
+                            onCancelHandover={handleCancelHandover}
+                            isEnabled={isEnabled}
+                        />
                     )}
                 </div>
 
-                {/* 標籤頁內容 */}
-                <div className="tab-content">
-                    {activeTab === 'status' && (
-                        <div className="status-tab">
-                            {controlMode === 'auto' ? (
-                                <SatelliteConnectionIndicator
-                                    currentConnection={currentConnection}
-                                    predictedConnection={predictedConnection}
-                                    isTransitioning={isTransitioning}
-                                    transitionProgress={transitionProgress}
-                                />
-                            ) : (
-                                <HandoverControlPanel
-                                    handoverState={handoverState}
-                                    availableSatellites={
-                                        availableSatellitesForControl
-                                    }
-                                    currentConnection={currentConnection}
-                                    onManualHandover={handleManualHandover}
-                                    onCancelHandover={handleCancelHandover}
-                                    isEnabled={isEnabled}
-                                />
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === 'algorithm' && controlMode === 'auto' && (
-                        <div className="algorithm-tab">
+                {/* 詳細演算法監控 - 可摺疊 */}
+                {controlMode === 'auto' && (
+                    <details className="algorithm-details" open>
+                        <summary className="algorithm-summary">
+                            <span className="summary-icon">🧮</span>
+                            <span className="summary-text">詳細演算法監控</span>
+                            <span className="summary-indicator">▼</span>
+                        </summary>
+                        <div className="algorithm-content">
                             <SynchronizedAlgorithmVisualization
                                 satellites={satellites}
                                 selectedUEId={selectedUEId}
-                                isEnabled={isEnabled}
+                                isEnabled={isEnabled} // 🔧 重新啟用，使用 useRef 避免依賴循環
                                 speedMultiplier={speedMultiplier}
                                 onAlgorithmStep={() => {
-                                    // 可以在這裡處理算法步驟事件
+                                    // 處理算法步驟事件
                                 }}
                                 onAlgorithmResults={(results) => {
-                                    // 向 App.tsx 傳遞演算法結果，用於更新 3D 視覺化
+                                    // 更新統一狀態組件的資料
+                                    setAlgorithmRunning(results.handoverStatus === 'calculating' || results.handoverStatus === 'executing')
+                                    
+                                    // 如果有預測結果，更新狀態
+                                    if (results.predictionResult) {
+                                        setAlgorithmPredictionResult(results.predictionResult)
+                                        
+                                        // 🔧 只在必要時更新 currentDeltaT，避免干擾時間軸
+                                        const now = Date.now()
+                                        const timelineFinished = now >= timePredictionDataRef.current.futureTime
+                                        const newDeltaT = results.predictionResult.delta_t_seconds || 5
+                                        
+                                        // console.log(`🔄 SynchronizedAlgorithmVisualization 結果: newDeltaT=${newDeltaT}s, timelineFinished=${timelineFinished}, currentDeltaT=${currentDeltaT}s`)
+                                        
+                                        // 只在時間軸完成且 deltaT 真的改變時才更新
+                                        if (timelineFinished && Math.abs(newDeltaT - currentDeltaT) > 0.1) {
+                                            // console.log(`✅ 更新 currentDeltaT: ${currentDeltaT}s → ${newDeltaT}s`)
+                                            setCurrentDeltaT(newDeltaT)
+                                        }
+                                    }
+                                    
                                     onAlgorithmResults?.(results)
                                 }}
                             />
                         </div>
-                    )}
-                </div>
-
-                {/* 🚀 演算法監控 - 始終在後台運行，不受標籤頁影響 */}
-                {controlMode === 'auto' && (
-                    <div style={{ display: 'none' }}>
-                        <SynchronizedAlgorithmVisualization
-                            satellites={satellites}
-                            selectedUEId={selectedUEId}
-                            isEnabled={isEnabled}
-                            speedMultiplier={speedMultiplier}
-                            onAlgorithmStep={() => {
-                                // 後台算法步驟處理
-                            }}
-                            onAlgorithmResults={(results) => {
-                                // 向 App.tsx 傳遞演算法結果，用於更新 3D 視覺化
-                                onAlgorithmResults?.(results)
-                            }}
-                        />
-                    </div>
+                    </details>
                 )}
+
+                {/* 移除重複的後台組件 - 統一使用可見的組件 */}
             </div>
         </div>
     )
