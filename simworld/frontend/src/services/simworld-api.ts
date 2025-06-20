@@ -3,6 +3,7 @@
  * 用於連接 SimWorld 後端的真實 TLE 和軌道數據
  */
 import { BaseApiClient } from './base-api'
+import * as React from 'react'
 
 export interface SatellitePosition {
   id: number
@@ -128,10 +129,11 @@ class SimWorldApiClient extends BaseApiClient {
   constructor() {
     let baseUrl = 'http://localhost:8000'  // 默認 SimWorld 後端地址
     
-    // 在瀏覽器環境中一律使用代理路徑
+    // 在瀏覽器環境中使用相對路徑，讓 Vite 代理處理
     if (typeof window !== 'undefined') {
-      // 瀏覽器環境中一律使用 Vite 代理路徑
-      baseUrl = window.location.origin  // Vite 代理會處理 /api 路徑
+      // 使用空字符串作為 baseUrl，讓所有請求變成相對路徑
+      // 這樣 /api 路徑會被 Vite 代理到 simworld_backend:8000
+      baseUrl = ''
       
       // 檢查環境變數是否有自定義的 SimWorld URL
       const envUrl = (window as any).__SIMWORLD_API_URL__
@@ -139,6 +141,7 @@ class SimWorldApiClient extends BaseApiClient {
         baseUrl = envUrl
       }
     }
+    
     
     super(baseUrl)
   }
@@ -162,7 +165,7 @@ class SimWorldApiClient extends BaseApiClient {
     const response = await this.get<any>(endpoint, params)
     
     // 轉換響應格式以匹配原有接口
-    return {
+    const result = {
       success: true,
       observer: {
         latitude: observerLat,
@@ -201,6 +204,8 @@ class SimWorldApiClient extends BaseApiClient {
       },
       timestamp: new Date().toISOString()
     } as VisibleSatellitesResponse
+    
+    return result
   }
 
   /**
@@ -404,6 +409,7 @@ export const useVisibleSatellites = (
         setSatellites(data.results?.satellites || [])
         setError(null)
       } catch (err) {
+        console.error('useVisibleSatellites: Error fetching satellites:', err)
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setLoading(false)
@@ -420,8 +426,5 @@ export const useVisibleSatellites = (
 
   return { satellites, loading, error, refetch: () => simWorldApi.getVisibleSatellites(minElevation, maxSatellites, observerLat, observerLon) }
 }
-
-// 需要 React 導入
-import * as React from 'react'
 
 export default SimWorldApiClient

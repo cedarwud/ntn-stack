@@ -138,27 +138,33 @@ interface FeatureToggle {
 //     'meshNetworkTopology', 'failoverMechanism', 'aiRanVisualization'
 // ]
 
-// Helper function to fetch visible satellites
+// Helper function to fetch visible satellites using the simWorldApi client
 async function fetchVisibleSatellites(
     count: number,
     minElevation: number
 ): Promise<VisibleSatelliteInfo[]> {
-    const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?count=${count}&min_elevation_deg=${minElevation}`
     try {
-        const response = await fetch(apiUrl)
-        if (!response.ok) {
-            console.error(
-                `Error fetching satellites: ${response.status} ${response.statusText}`
-            )
-            return []
-        }
-        const data = await response.json()
-        return data.satellites || []
+        // Import simWorldApi
+        const { simWorldApi } = await import('../../services/simworld-api')
+        
+        const data = await simWorldApi.getVisibleSatellites(minElevation, count)
+        
+        const satellites: VisibleSatelliteInfo[] = data.results?.satellites?.map(
+            (sat: any) => ({
+                norad_id: sat.norad_id,
+                name: sat.name || 'Unknown',
+                elevation_deg: sat.position?.elevation || sat.signal_quality?.elevation_deg || 0,
+                azimuth_deg: sat.position?.azimuth || 0,
+                distance_km: sat.position?.range || sat.signal_quality?.range_km || 0,
+                line1: `1 ${sat.norad_id}U 20001001.00000000  .00000000  00000-0  00000-0 0  9999`,
+                line2: `2 ${sat.norad_id}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
+            })
+        ) || []
+
+        console.log(`🛰️ EnhancedSidebar: 成功載入 ${satellites.length} 顆衛星`)
+        return satellites
     } catch (error) {
-        console.error(
-            'Network error or JSON parsing error fetching satellites:',
-            error
-        )
+        console.error('❌ EnhancedSidebar: Error fetching satellites:', error)
         return []
     }
 }
