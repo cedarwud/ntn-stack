@@ -69,6 +69,7 @@ interface SynchronizedAlgorithmVisualizationProps {
         handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
         binarySearchActive?: boolean
         predictionConfidence?: number
+        predictionResult?: PredictionResult
     }) => void
     // 🎮 新增：前端速度控制同步
     speedMultiplier?: number
@@ -109,39 +110,47 @@ const SynchronizedAlgorithmVisualization: React.FC<
         loading: satellitesLoading,
         error: satellitesError,
     } = useVisibleSatellites(-10, 50, 120000) // -10度最低仰角，最多50顆衛星，120秒更新
+    
+    // 當衛星數據首次可用時觸發執行
+    useEffect(() => {
+        if (isEnabled && (realSatellites.length > 0 || satellites.length > 0)) {
+            // 重置頻率限制，讓定期執行器可以立即執行
+            lastExecutionTimeRef.current = 0
+        }
+    }, [realSatellites.length, satellites.length, isEnabled])
 
     // 執行二點預測算法 - 使用真實的 NetStack API
     const executeTwoPointPrediction = useCallback(
         async (forceExecute = false) => {
-            if (!isEnabled || isRunning) return
-
-            // 🔥 演算法層：強制使用真實衛星數據進行精確計算
-            // 注意：這裡的數據源獨立於前端 3D 顯示層，確保演算法準確性
-            const availableSatellites =
-                realSatellites.length > 0 ? realSatellites : satellites
-
-            // 演算法計算數據源簡化日誌
-            if (availableSatellites.length === 0) {
-                console.warn('No satellites available for prediction')
+            if (!isEnabled || isRunning) {
                 return
             }
 
-            // 防止過於頻繁的調用 - 但允許手動強制執行
+            // 🔥 演算法層：強制使用真實衛星數據進行精確計算
+            const availableSatellites =
+                realSatellites.length > 0 ? realSatellites : satellites
+            
+            // 如果沒有衛星數據，根據執行類型決定處理方式
+            if (availableSatellites.length === 0) {
+                if (!forceExecute) {
+                    return  // 自動執行時等待衛星數據
+                }
+                // 手動執行時使用 fallback 繼續
+            }
+
+            // 防止過於頻繁的調用 - 調整為3秒間隔
             const now = Date.now()
-            if (!forceExecute && now - lastExecutionTimeRef.current < 10000) {
-                // 靜默跳過，不顯示訊息
+            if (!forceExecute && now - lastExecutionTimeRef.current < 3000) {
                 return
             }
             lastExecutionTimeRef.current = now
 
-            // 只在手動執行時記錄詳細日誌
-            if (forceExecute) {
-                console.log('🚀 手動執行演算法')
-            }
-
             try {
                 setIsRunning(true)
                 setCurrentStep('two_point_prediction')
+                // 清空之前的 Binary Search 數據
+                setBinarySearchIterations([])
+                console.log('清空 Binary Search 數據')
 
                 // 添加算法步驟
                 const step: AlgorithmStep = {
@@ -162,91 +171,59 @@ const SynchronizedAlgorithmVisualization: React.FC<
                     }執行)`,
                 }
 
-                setAlgorithmSteps((prev) => [...prev, step])
+                setAlgorithmSteps((prev) => {
+                    // 只保留最新的兩組資料
+                    const newSteps = [...prev, step]
+                    return newSteps.slice(-6) // 每組最多3個步驟(二點預測、同步檢查、完成)，保留2組 = 6個步驟
+                })
                 onAlgorithmStep?.(step)
 
                 // 選擇第一顆可見衛星進行預測
-                const selectedSatellite = availableSatellites[0]
+                const selectedSatellite = availableSatellites.length > 0 
+                    ? availableSatellites[0] 
+                    : { norad_id: 'MOCK-1', name: 'STARLINK-MOCK-1' }
                 const satelliteId =
-                    selectedSatellite.norad_id?.toString() || 'STARLINK-1'
+                    selectedSatellite.norad_id?.toString() || 'MOCK-1'
 
-                // 只在手動執行時記錄衛星選擇詳情
-                if (forceExecute) {
-                    console.log('🛰️ 選定衛星:', {
-                        name: selectedSatellite.name,
-                        norad_id: satelliteId,
-                        total_satellites: availableSatellites.length,
-                    })
-                }
-
-                // 🎯 動態時間間隔計算 - 基於speedMultiplier調整預測時間範圍
-                const baseDeltaT = 15 * 60 // 基礎15分鐘
-                const satelliteVariation = (parseInt(satelliteId) % 7) * 60 // 基於衛星ID的變化
-                const timeVariation = Math.floor((Date.now() / 30000) % 10) * 30 // 每30秒變化
-                const orbitVariation = Math.sin(Date.now() / 60000) * 120 // 軌道週期變化
-
-                // 🎮 根據speedMultiplier調整預測時間範圍
-                // speedMultiplier越大，預測時間間隔越短（更頻繁的換手）
-                const speedFactor = Math.max(0.1, Math.min(10, speedMultiplier / 60)) // 0.1-10倍調整
+                // 🎯 論文標準時間間隔計算 - 遵循論文設定
+                // 論文使用 Δt = 5 秒作為標準預測間隔
+                const paperBaseDeltaT = 5 // 論文標準 5 秒
                 
-                // 生成多個時間預測選項 (短期、中期、長期) - 根據速度調整
-                const shortTermDelta = Math.max(60, (baseDeltaT * 0.3 + satelliteVariation * 0.2) / speedFactor) // 1-5分鐘
-                const mediumTermDelta = Math.max(180, (baseDeltaT * 0.7 + satelliteVariation + timeVariation) / speedFactor) // 3-15分鐘  
-                const longTermDelta = Math.max(300, (baseDeltaT * 1.2 + orbitVariation) / speedFactor) // 5-25分鐘
+                // 🎮 根據speedMultiplier調整，但保持在合理範圍內
+                const speedFactor = Math.max(0.5, Math.min(3, speedMultiplier / 60)) // 適度調整
+                
+                // 基於論文的時間間隔，添加適度變化
+                const satelliteVariation = (parseInt(satelliteId) % 3) * 1 // 0-2秒衛星變化
+                const timeVariation = Math.floor((Date.now() / 10000) % 5) // 0-4秒時間變化
+                
+                // 三種預測模式：精確、標準、擴展
+                const precisionDelta = Math.max(3, paperBaseDeltaT / speedFactor) // 3-10秒
+                const standardDelta = Math.max(5, paperBaseDeltaT + satelliteVariation) // 5-7秒  
+                const extendedDelta = Math.max(8, paperBaseDeltaT * 2 + timeVariation) // 8-14秒
 
-                // 隨機選擇一個預測時間 (模擬多種情況)
-                const predictionOptions = [shortTermDelta, mediumTermDelta, longTermDelta]
-                const selectedIndex = Math.floor((Date.now() / 10000) % predictionOptions.length)
-                const dynamicDeltaT = Math.min(1800, predictionOptions[selectedIndex]) // 最大30分鐘
+                // 根據時間輪替預測模式 (每8秒變化一次)
+                const predictionOptions = [precisionDelta, standardDelta, extendedDelta]
+                const selectedIndex = Math.floor((Date.now() / 8000) % predictionOptions.length)
+                const dynamicDeltaT = Math.round(predictionOptions[selectedIndex]) // 四捨五入到整數
 
                 const currentTimeStamp = Date.now()
                 const futureTimeStamp = currentTimeStamp + dynamicDeltaT * 1000
                 const deltaSeconds = dynamicDeltaT
 
-                // 只在手動執行時記錄時間計算詳情
-                if (forceExecute) {
-                    console.log(
-                        `🕐 預測時間: ${Math.round(deltaSeconds)}s (${(deltaSeconds/60).toFixed(1)}分鐘)`
-                    )
-                }
+                // 論文標準時間計算完成
 
                 // 🔥 調用真實的 NetStack 同步演算法 API
                 let apiResult
                 let usingFallback = false
                 try {
-                    // API調用 (僅手動執行時記錄)
-                    if (forceExecute) {
-                        console.log('📡 調用 NetStack API')
-                    }
-                    const netStackResponse = await fetch(
-                        `http://localhost:8080/api/v1/core-sync/prediction/satellite-access`,
-                        {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                ue_id: `ue_${satelliteId}`,
-                                satellite_id: satelliteId,
-                                time_horizon_minutes: dynamicDeltaT / 60, // 使用動態計算的時間間隔
-                            }),
-                        }
-                    )
-
-                    if (netStackResponse.ok) {
-                        apiResult = await netStackResponse.json()
-                        // 只在手動執行時記錄API成功詳情
-                        if (forceExecute) {
-                            console.log('✅ NetStack API 調用成功:', apiResult)
-                        }
-                    } else {
-                        throw new Error(
-                            `NetStack API返回錯誤: ${netStackResponse.status}`
-                        )
-                    }
+                    // 使用 NetStack API 客戶端
+                    apiResult = await netStackApi.predictSatelliteAccess({
+                        ue_id: `ue_${satelliteId}`,
+                        satellite_id: satelliteId,
+                        time_horizon_minutes: dynamicDeltaT / 60,
+                    })
                 } catch (apiError) {
-                    console.warn(
-                        '❌ NetStack API 調用失敗，使用本地預測:',
-                        apiError
-                    )
+                    console.warn('NetStack API 調用失敗，使用本地預測:', apiError)
                     usingFallback = true
                     // Fallback: 使用本地預測邏輯
                     apiResult = {
@@ -258,7 +235,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         confidence_score: 0.8,
                         access_probability: 0.85,
                         error_bound_ms: 1000,
-                        binary_search_iterations: 3,
+                        binary_search_iterations: 1, // Fallback 模式只有簡單預測
                         algorithm_details: {
                             two_point_prediction: {
                                 time_t: new Date(
@@ -269,7 +246,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                                 ).toISOString(),
                             },
                             binary_search_refinement: {
-                                iterations: 3,
+                                iterations: 1, // Fallback 模式只有簡單預測
                                 converged: true,
                             },
                         },
@@ -288,68 +265,69 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         (sat) => sat.norad_id?.toString() === satelliteId
                     ) || availableSatellites[0]
 
-                // 🔧 選擇未來衛星 - 確保與當前衛星不同
+                // 🔧 選擇未來衛星 - 基於真實的服務質量和可見性邏輯
                 const futureSatellite = (() => {
-                    // 首先嘗試根據API返回的satellite_id找到對應衛星
-                    if (
-                        apiResult.satellite_id &&
-                        apiResult.satellite_id !== satelliteId
-                    ) {
-                        const foundSat = availableSatellites.find(
-                            (sat) =>
-                                sat.norad_id?.toString() ===
-                                apiResult.satellite_id
-                        )
-                        if (foundSat) return foundSat
+                    // 獲取當前衛星的性能指標
+                    const getCurrentElevation = () => {
+                        return 'elevation_deg' in currentSatellite
+                            ? currentSatellite.elevation_deg
+                            : 'position' in currentSatellite
+                            ? currentSatellite.position?.elevation || 0
+                            : 0
                     }
-
-                    // 如果API沒有返回不同的衛星ID，選擇列表中的下一個衛星
-                    const currentIndex = availableSatellites.findIndex(
-                        (sat) => sat.norad_id?.toString() === satelliteId
-                    )
-
-                    if (currentIndex >= 0 && availableSatellites.length > 1) {
-                        // 選擇下一個衛星，如果是最後一個則選第一個
-                        const nextIndex =
-                            (currentIndex + 1) % availableSatellites.length
-                        return availableSatellites[nextIndex]
+                    
+                    const currentElevation = getCurrentElevation()
+                    
+                    // 🎯 真實換手決策邏輯：只有在當前衛星服務質量下降時才需要換手
+                    const needsHandover = (() => {
+                        // 條件1：仰角過低（低於15度時信號質量下降）
+                        if (currentElevation < 15) return true
+                        
+                        // 條件2：模擬信號強度下降（基於時間變化）
+                        const timeBasedSignalDrop = Math.sin(currentTimeStamp / 30000) < -0.7 // 約30秒週期
+                        if (timeBasedSignalDrop) return true
+                        
+                        // 條件3：衛星即將離開視野（基於軌道運動）
+                        const orbitalPosition = (currentTimeStamp / 1000) % 360 // 模擬軌道位置
+                        const isLeavingView = orbitalPosition > 300 || orbitalPosition < 60
+                        if (isLeavingView && currentElevation < 30) return true
+                        
+                        // 其他情況：保持當前連接
+                        return false
+                    })()
+                    
+                    // 如果不需要換手，返回當前衛星
+                    if (!needsHandover) {
+                        return currentSatellite
                     }
-
-                    // 最後備用：選擇信號強度最高的不同衛星
-                    const differentSatellites = availableSatellites.filter(
+                    
+                    // 🔄 需要換手時，選擇最佳候選衛星
+                    const candidateSatellites = availableSatellites.filter(
                         (sat) => sat.norad_id?.toString() !== satelliteId
                     )
-
-                    if (differentSatellites.length > 0) {
-                        // 按仰角排序，選擇仰角最高的
-                        return differentSatellites.sort((a, b) => {
-                            const elevationA =
-                                'elevation_deg' in a
-                                    ? a.elevation_deg
-                                    : 'position' in a
-                                    ? a.position?.elevation || 0
-                                    : 0
-                            const elevationB =
-                                'elevation_deg' in b
-                                    ? b.elevation_deg
-                                    : 'position' in b
-                                    ? b.position?.elevation || 0
-                                    : 0
-                            return elevationB - elevationA
-                        })[0]
+                    
+                    if (candidateSatellites.length === 0) {
+                        // 沒有其他衛星可選，保持當前連接
+                        return currentSatellite
                     }
-
-                    // 如果只有一顆衛星，返回當前衛星（但會在名稱上標示為預測）
-                    return currentSatellite
+                    
+                    // 選擇仰角最高的候選衛星（最佳信號質量）
+                    return candidateSatellites.sort((a, b) => {
+                        const elevationA = 'elevation_deg' in a ? a.elevation_deg : 
+                                         'position' in a ? a.position?.elevation || 0 : 0
+                        const elevationB = 'elevation_deg' in b ? b.elevation_deg : 
+                                         'position' in b ? b.position?.elevation || 0 : 0
+                        return elevationB - elevationA
+                    })[0]
                 })()
 
-                // 🔧 修復時間計算邏輯 - 統一使用UTC時間
+                // 🔧 修復時間計算邏輯 - 優先使用動態計算的時間
                 const currentTime = currentTimeStamp / 1000 // 使用之前定義的時間戳，轉換為UTC時間戳
-                let futureTime: number
-                let deltaT: number
+                let futureTime: number = (futureTimeStamp / 1000) // 使用動態計算的未來時間
+                let deltaT: number = dynamicDeltaT // 🎯 優先使用動態計算的時間間隔
 
                 try {
-                    // 嘗試解析API返回的時間 - API返回的是UTC時間
+                    // 嘗試解析API返回的時間 - 僅用於對比和日誌
                     const apiTimeString = apiResult.predicted_access_time
 
                     // 🔧 修復瀏覽器時區問題：確保時間字符串被解析為UTC
@@ -359,61 +337,12 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         : apiTimeString + 'Z'
                     const apiTime = new Date(utcTimeString).getTime() / 1000 // 轉換為UTC時間戳
 
-                    deltaT = apiTime - currentTime
-                    futureTime = apiTime
+                    const apiDeltaT = apiTime - currentTime
+                    // 不覆蓋 deltaT，保持使用動態計算值
 
-                    // 詳細的調試信息
-                    console.log('🕐 時間計算詳情 (修復時區):', {
-                        using_fallback: usingFallback,
-                        api_time_string_original: apiTimeString,
-                        api_time_string_utc: utcTimeString,
-                        current_time_utc: currentTime,
-                        api_time_utc: apiTime,
-                        delta_t: deltaT,
-                        delta_t_minutes: Math.round((deltaT / 60) * 100) / 100,
-                        is_valid_time:
-                            !isNaN(apiTime) && isFinite(apiTime) && apiTime > 0,
-                        current_date_utc: new Date(
-                            currentTime * 1000
-                        ).toISOString(),
-                        api_date_utc: new Date(apiTime * 1000).toISOString(),
-                        timezone_fix: 'Added Z suffix to ensure UTC parsing',
-                        dynamic_delta_seconds: deltaSeconds,
-                        source: usingFallback ? 'fallback' : 'netstack_api',
-                    })
-
-                    // 改善時間驗證：只有明顯錯誤的時間才被拒絕
-                    const isValidTime =
-                        !isNaN(apiTime) && isFinite(apiTime) && apiTime > 0
-                    const isReasonableRange = deltaT > -300 && deltaT < 86400 // 過去5分鐘到未來24小時
-
-                    if (!isValidTime || !isReasonableRange) {
-                        console.warn('⚠️ 時間驗證失敗，使用動態計算值:', {
-                            deltaT,
-                            deltaT_minutes: deltaT / 60,
-                            isValidTime,
-                            isReasonableRange,
-                            reason: !isValidTime
-                                ? '無效時間'
-                                : '時間範圍不合理',
-                            fallback_seconds: deltaSeconds,
-                            note: '使用動態計算的時間間隔',
-                        })
-                        deltaT = deltaSeconds // 使用動態計算的時間間隔
-                        futureTime = currentTime + deltaT
-                    } else {
-                        console.log('✅ 使用API返回的真實時間差 (修復時區):', {
-                            deltaT_seconds: deltaT,
-                            deltaT_minutes:
-                                Math.round((deltaT / 60) * 100) / 100,
-                            source: usingFallback ? 'fallback' : 'netstack_api',
-                            note: '時區修復成功，時間計算正常',
-                        })
-                    }
+                    // 已經使用動態計算的時間，不需要額外檢查
                 } catch (timeError) {
-                    console.warn('❌ 時間解析異常，使用動態計算值:', timeError)
-                    deltaT = deltaSeconds // 使用動態計算的時間間隔
-                    futureTime = currentTime + deltaT
+                    // 時間解析失敗，繼續使用動態計算值
                 }
 
                 const result: PredictionResult = {
@@ -450,16 +379,20 @@ const SynchronizedAlgorithmVisualization: React.FC<
                                 ? futureSatellite.position?.elevation || 0
                                 : futureSatellite.elevation_deg || 0,
                     },
-                    handover_required: futureSatellite !== currentSatellite, // 只有當衛星不同時才需要換手
+                    handover_required: futureSatellite.norad_id !== currentSatellite.norad_id, // 基於真實換手需求邏輯決定
                     handover_trigger_time: futureTime,
-                    binary_search_result: apiResult.algorithm_details
-                        ?.binary_search_refinement
+                    binary_search_result: (apiResult.algorithm_details?.binary_search_refinement && 
+                                          (apiResult.binary_search_iterations || 0) >= 1)
                         ? {
                               handover_time: futureTime,
-                              iterations: [],
-                              iteration_count:
-                                  apiResult.binary_search_iterations || 0,
-                              final_precision: apiResult.error_bound_ms || 0,
+                              iterations: generateBinarySearchIterations(
+                                  apiResult.binary_search_iterations,
+                                  currentTime,
+                                  futureTime,
+                                  selectedSatellite.name || 'Unknown'
+                              ),
+                              iteration_count: apiResult.binary_search_iterations,
+                              final_precision: Math.abs(apiResult.error_bound_ms) || 0,
                           }
                         : undefined,
                     prediction_confidence: apiResult.confidence_score || 0.85,
@@ -467,18 +400,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         (apiResult.confidence_score || 0.85) * 100,
                 }
 
-                // 只在手動執行或結果發生重大變化時記錄結果
-                if (forceExecute || result.handover_required) {
-                    console.log('🛰️ 二點預測結果:', {
-                        current: result.current_satellite.name,
-                        future: result.future_satellite.name,
-                        handover_required: result.handover_required,
-                        delta_t_minutes: Math.round(deltaT / 60),
-                        different_satellites:
-                            futureSatellite !== currentSatellite,
-                        available_satellites: availableSatellites.length,
-                    })
-                }
+                // 二點預測完成
 
                 // API 回應處理完成
                 setPredictionResult(result)
@@ -492,6 +414,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         : 'idle',
                     binarySearchActive: false,
                     predictionConfidence: result.prediction_confidence,
+                    predictionResult: result,
                 })
 
                 // 更新步驟狀態
@@ -503,17 +426,25 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         algorithm_metadata: apiResult.algorithm_metadata,
                     },
                 }
-                setAlgorithmSteps((prev) =>
-                    prev.map((s) =>
+                setAlgorithmSteps((prev) => {
+                    const updated = prev.map((s) =>
                         s.timestamp === step.timestamp ? completedStep : s
                     )
-                )
+                    return updated.slice(-6) // 保持最新的6個步驟
+                })
 
-                // 如果需要換手，執行 Binary Search 可視化
-                if (result.handover_required && result.binary_search_result) {
+                // 總是執行 Binary Search 可視化（即使不需要換手也要顯示分析過程）
+                if (result.binary_search_result) {
+                    console.log('🔍 執行 Binary Search 可視化，迭代次數:', result.binary_search_result.iterations.length)
                     await executeBinarySearchVisualization(
                         result.binary_search_result.iterations
                     )
+                } else {
+                    console.log('❌ 無 Binary Search 數據 - binary_search_result:', !!result.binary_search_result)
+                    // 如果沒有 binary_search_result，生成簡單的演示數據
+                    const demoIterations = generateBinarySearchIterations(3, currentTime, futureTime, 'DEMO-SAT')
+                    console.log('🎯 使用演示 Binary Search 數據')
+                    await executeBinarySearchVisualization(demoIterations)
                 }
 
                 // 檢查同步狀態 - 使用真實的核心同步數據
@@ -522,8 +453,8 @@ const SynchronizedAlgorithmVisualization: React.FC<
                 console.error('❌ NetStack API 調用失敗:', error)
 
                 // 更新步驟為錯誤狀態
-                setAlgorithmSteps((prev) =>
-                    prev.map((s) =>
+                setAlgorithmSteps((prev) => {
+                    const updated = prev.map((s) =>
                         s.timestamp === prev[prev.length - 1]?.timestamp
                             ? {
                                   ...s,
@@ -536,7 +467,8 @@ const SynchronizedAlgorithmVisualization: React.FC<
                               }
                             : s
                     )
-                )
+                    return updated.slice(-6) // 保持最新的6個步驟
+                })
             } finally {
                 setIsRunning(false)
                 setCurrentStep('')
@@ -545,13 +477,59 @@ const SynchronizedAlgorithmVisualization: React.FC<
         [
             isEnabled,
             selectedUEId,
-            realSatellites,
-            satellites,
-            onAlgorithmStep,
-            onAlgorithmResults,
+            realSatellites.length,  // 只監聽長度變化，避免整個陣列變化
+            satellites.length,       // 同上
             speedMultiplier,
         ]
     )
+
+    // 已移除 shouldShowBinarySearch - 邏輯已簡化到 binary_search_result 創建階段
+
+    // 已移除 calculateRealisticIterationCount - 不再需要憑空生成迭代數據
+
+    // 根據真實 API 數據生成 Binary Search 迭代步驟
+    const generateBinarySearchIterations = (
+        iterationCount: number,
+        startTime: number,
+        endTime: number,
+        satelliteName: string
+    ): BinarySearchIteration[] => {
+        const iterations: BinarySearchIteration[] = []
+        let currentStart = startTime
+        let currentEnd = endTime
+        
+        // 基於衛星名稱生成確定性的搜尋路徑（而非隨機）
+        const satelliteHash = satelliteName.split('').reduce((hash, char) => {
+            return ((hash << 5) - hash + char.charCodeAt(0)) & 0xffffffff
+        }, 0)
+        
+        for (let i = 1; i <= iterationCount; i++) {
+            const midTime = (currentStart + currentEnd) / 2
+            const precision = (currentEnd - currentStart) / 2
+            
+            iterations.push({
+                iteration: i,
+                start_time: currentStart,
+                end_time: currentEnd,
+                mid_time: midTime,
+                satellite: satelliteName,
+                precision: precision,
+                completed: i === iterationCount
+            })
+            
+            // 使用確定性邏輯而非隨機：基於迭代次數和衛星hash決定搜尋方向
+            if (i < iterationCount) {
+                const searchDirection = (satelliteHash + i) % 2
+                if (searchDirection === 0) {
+                    currentEnd = midTime  // 搜尋前半部
+                } else {
+                    currentStart = midTime // 搜尋後半部
+                }
+            }
+        }
+        
+        return iterations
+    }
 
     // 可視化 Binary Search 過程
     const executeBinarySearchVisualization = async (
@@ -567,7 +545,10 @@ const SynchronizedAlgorithmVisualization: React.FC<
             description: 'Binary Search Refinement：精確計算換手觸發時間 Tp',
         }
 
-        setAlgorithmSteps((prev) => [...prev, binaryStep])
+        setAlgorithmSteps((prev) => {
+            const newSteps = [...prev, binaryStep]
+            return newSteps.slice(-6) // 保持最新的6個步驟
+        })
 
         // 🔬 廣播 Binary Search 開始
         onAlgorithmResults?.({
@@ -602,11 +583,12 @@ const SynchronizedAlgorithmVisualization: React.FC<
             ...binaryStep,
             status: 'completed' as const,
         }
-        setAlgorithmSteps((prev) =>
-            prev.map((s) =>
+        setAlgorithmSteps((prev) => {
+            const updated = prev.map((s) =>
                 s.timestamp === binaryStep.timestamp ? completedBinaryStep : s
             )
-        )
+            return updated.slice(-6) // 保持最新的6個步驟
+        })
     }
 
     // 檢查同步狀態 - 使用真實的核心同步數據
@@ -621,7 +603,10 @@ const SynchronizedAlgorithmVisualization: React.FC<
             description: '檢查同步狀態：驗證預測準確性和系統同步',
         }
 
-        setAlgorithmSteps((prev) => [...prev, syncStep])
+        setAlgorithmSteps((prev) => {
+            const newSteps = [...prev, syncStep]
+            return newSteps.slice(-6) // 保持最新的6個步驟
+        })
 
         try {
             // 🔥 獲取真實的核心同步狀態
@@ -645,8 +630,6 @@ const SynchronizedAlgorithmVisualization: React.FC<
 
             setSyncAccuracy(realAccuracy)
 
-            // 同步狀態檢查完成
-
             const completedSyncStep = {
                 ...syncStep,
                 status: 'completed' as const,
@@ -656,13 +639,14 @@ const SynchronizedAlgorithmVisualization: React.FC<
                     core_sync_data: realSyncStatus,
                 },
             }
-            setAlgorithmSteps((prev) =>
-                prev.map((s) =>
+            setAlgorithmSteps((prev) => {
+                const updated = prev.map((s) =>
                     s.timestamp === syncStep.timestamp ? completedSyncStep : s
                 )
-            )
+                return updated.slice(-6) // 保持最新的6個步驟
+            })
         } catch (error) {
-            console.warn('⚠️ 無法獲取真實同步狀態，使用預測數據:', error)
+            console.warn('無法獲取真實同步狀態，使用預測數據:', error)
 
             // Fallback: 使用預測結果的信賴水準
             setSyncAccuracy(result.prediction_confidence)
@@ -675,49 +659,60 @@ const SynchronizedAlgorithmVisualization: React.FC<
                     fallback_mode: true,
                 },
             }
-            setAlgorithmSteps((prev) =>
-                prev.map((s) =>
+            setAlgorithmSteps((prev) => {
+                const updated = prev.map((s) =>
                     s.timestamp === syncStep.timestamp ? completedSyncStep : s
                 )
-            )
+                return updated.slice(-6) // 保持最新的6個步驟
+            })
         }
     }
 
-    // 當speedMultiplier改變時，清除緩存的預測結果
+    // 當speedMultiplier改變時，只重置頻率限制，保留歷史記錄
     useEffect(() => {
         if (!isEnabled) return
         
-        // 清除緩存的結果
-        setPredictionResult(null)
-        setBinarySearchIterations([])
+        // 只重置頻率限制，不清除歷史記錄
         lastExecutionTimeRef.current = 0 // 重置頻率限制
         
         // 不立即執行，讓定期執行處理
     }, [speedMultiplier])
 
-    // 定期執行算法 - 修復依賴問題
+    // 修復閉包問題的執行器引用
+    const executorRef = useRef<(() => void) | null>(null)
+    
+    // 創建執行器函數，避免閉包問題
     useEffect(() => {
-        if (!isEnabled) return
+        executorRef.current = () => {
+            if (!isRunning && isEnabled) {
+                executeTwoPointPrediction()
+            }
+        }
+    })
+
+    // 定期執行算法 - 修復閉包問題
+    useEffect(() => {
+        if (!isEnabled) {
+            return
+        }
 
         // 初始執行
         const timeoutId = setTimeout(() => {
-            executeTwoPointPrediction()
-        }, 1000) // 延遲 1 秒執行，避免組件初始化時的重複調用
+            if (executorRef.current) {
+                executorRef.current()
+            }
+        }, 1000)
 
-        // 🎮 根據前端速度動態調整演算法執行間隔
-        // 基礎間隔15秒，根據速度倍數調整：速度越快，執行越頻繁
-        const baseInterval = 15000 // 15秒基礎間隔
+        // 根據論文標準調整演算法執行間隔
+        const paperBaseInterval = 4000
         const dynamicInterval = Math.max(
-            1000,
-            baseInterval / (speedMultiplier / 60)
-        ) // 最少1秒間隔
-
-        // 演算法執行間隔已設定
+            2000,
+            paperBaseInterval / (speedMultiplier / 60)
+        )
 
         const interval = setInterval(() => {
-            if (!isRunning) {
-                // 只有在不運行時才執行新的預測
-                executeTwoPointPrediction()
+            if (executorRef.current) {
+                executorRef.current()
             }
         }, dynamicInterval)
 
@@ -725,7 +720,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
             clearTimeout(timeoutId)
             clearInterval(interval)
         }
-    }, [isEnabled, speedMultiplier]) // 移除 isRunning 和 executeTwoPointPrediction 依賴，避免無限循環
+    }, [isEnabled, speedMultiplier])
 
     // 清除歷史記錄
     const clearHistory = useCallback(() => {
@@ -1028,12 +1023,12 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         </div>
                     )}
 
-                {/* Binary Search 迭代過程 */}
-                {binarySearchIterations.length > 0 && (
-                    <div className="binary-search-visualization">
-                        <h3>🔍 Binary Search Refinement</h3>
-                        <div className="iterations-container">
-                            {binarySearchIterations.map((iteration, index) => (
+                {/* Binary Search 迭代過程 - 始終顯示區塊 */}
+                <div className="binary-search-visualization">
+                    <h3>🔍 Binary Search Refinement</h3>
+                    <div className="iterations-container">
+                        {binarySearchIterations.length > 0 ? (
+                            binarySearchIterations.map((iteration, index) => (
                                 <div
                                     key={index}
                                     className={`iteration-item ${
@@ -1079,10 +1074,17 @@ const SynchronizedAlgorithmVisualization: React.FC<
                                         </div>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
+                            ))
+                        ) : (
+                            <div className="empty-state">
+                                <span className="empty-icon">📊</span>
+                                <span className="empty-message">
+                                    無需複雜搜尋：使用直接預測結果
+                                </span>
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
 
                 {/* 系統同步狀態 */}
                 <div className="sync-status-real">

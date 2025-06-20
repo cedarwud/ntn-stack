@@ -27,7 +27,14 @@ export class BaseApiClient {
       const endAPICall = performanceOptimizer.startAPICall(endpoint)
       
       try {
-        const url = new URL(endpoint, this.baseUrl)
+        // Handle relative URLs for Vite proxy
+        let url: URL
+        if (this.baseUrl) {
+          url = new URL(endpoint, this.baseUrl)
+        } else {
+          // For relative paths, use current origin
+          url = new URL(endpoint, window.location.origin)
+        }
         
         if (params) {
           Object.entries(params).forEach(([key, value]) => {
@@ -89,7 +96,14 @@ export class BaseApiClient {
       const endAPICall = performanceOptimizer.startAPICall(endpoint)
       
       try {
-        const url = new URL(endpoint, this.baseUrl)
+        // Handle relative URLs for Vite proxy
+        let url: URL
+        if (this.baseUrl) {
+          url = new URL(endpoint, this.baseUrl)
+        } else {
+          // For relative paths, use current origin
+          url = new URL(endpoint, window.location.origin)
+        }
 
         const response = await fetch(url.toString(), {
           method: 'POST',
@@ -144,7 +158,14 @@ export class BaseApiClient {
       const endAPICall = performanceOptimizer.startAPICall(endpoint)
       
       try {
-        const url = new URL(endpoint, this.baseUrl)
+        // Handle relative URLs for Vite proxy
+        let url: URL
+        if (this.baseUrl) {
+          url = new URL(endpoint, this.baseUrl)
+        } else {
+          // For relative paths, use current origin
+          url = new URL(endpoint, window.location.origin)
+        }
 
         const response = await fetch(url.toString(), {
           method: 'PUT',
@@ -199,7 +220,14 @@ export class BaseApiClient {
       const endAPICall = performanceOptimizer.startAPICall(endpoint)
       
       try {
-        const url = new URL(endpoint, this.baseUrl)
+        // Handle relative URLs for Vite proxy
+        let url: URL
+        if (this.baseUrl) {
+          url = new URL(endpoint, this.baseUrl)
+        } else {
+          // For relative paths, use current origin
+          url = new URL(endpoint, window.location.origin)
+        }
 
         const response = await fetch(url.toString(), {
           method: 'DELETE',
