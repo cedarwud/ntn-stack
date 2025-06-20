@@ -46,7 +46,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     satellites,
     selectedUEId,
     isEnabled,
-    onHandoverEvent,
+    // onHandoverEvent,
     // mockMode = false, // 使用真實後端數據，true 時啟用模擬模式
     hideUI = false,
     handoverMode = 'demo',
@@ -88,7 +88,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         cooldownPeriod: number // 冷卻期（毫秒）
     }>({
         recentHandovers: [],
-        cooldownPeriod: getHandoverCooldownPeriod(handoverMode),
+        cooldownPeriod: getHandoverCooldownPeriod(handoverMode as 'demo' | 'real'),
     })
 
     // 衛星連接狀態
@@ -96,8 +96,8 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         useState<SatelliteConnection | null>(null)
     const [predictedConnection, setPredictedConnection] =
         useState<SatelliteConnection | null>(null)
-    const [isTransitioning, setIsTransitioning] = useState(false)
-    const [transitionProgress, setTransitionProgress] = useState(0)
+    const [isTransitioning] = useState(false)
+    const [transitionProgress] = useState(0)
 
     
 
@@ -127,7 +127,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
 
         const now = Date.now()
-        const futureTime = now + currentDeltaT * 1000
+        // const futureTime = now + currentDeltaT * 1000
 
         // 🎯 模擬選擇當前最佳衛星 - 優先選擇前幾個衛星以提高匹配機率
         const currentBestIndex = Math.floor(
@@ -295,7 +295,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             const now = Date.now()
             const futureTime = timePredictionDataRef.current.futureTime
             const timelineFinished = now >= futureTime
-            const remaining = Math.max(0, (futureTime - now) / 1000)
+            // const remaining = Math.max(0, (futureTime - now) / 1000)
             
             if (timelineFinished) {
                 // console.log('✅ 時間軸完成，開始新預測')
@@ -340,6 +340,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     }, [isTransitioning, transitionProgress, onTransitionChange])
 
     // 📝 記錄換手事件
+    /*
     const recordHandover = useCallback(
         (fromSatellite: string, toSatellite: string) => {
             const now = Date.now()
@@ -361,10 +362,11 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         },
         [handoverMode]
     )
+    */
 
     // 🔄 當換手模式改變時，更新冷卻期並清理歷史記錄
     useEffect(() => {
-        const newCooldown = getHandoverCooldownPeriod(handoverMode)
+        const newCooldown = getHandoverCooldownPeriod(handoverMode as 'demo' | 'real')
         if (handoverHistoryRef.current.cooldownPeriod !== newCooldown) {
             handoverHistoryRef.current.cooldownPeriod = newCooldown
             // 清空所有歷史記錄，避免模式切換時的衝突

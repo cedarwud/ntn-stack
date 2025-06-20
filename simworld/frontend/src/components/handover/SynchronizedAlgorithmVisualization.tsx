@@ -3,7 +3,7 @@ import { VisibleSatelliteInfo } from '../../types/satellite'
 import { netStackApi, useCoreSync } from '../../services/netstack-api'
 import { useVisibleSatellites } from '../../services/simworld-api'
 import { useNetStackData } from '../../contexts/DataSyncContext'
-import { HANDOVER_CONFIG } from './config/handoverConfig'
+// import { HANDOVER_CONFIG } from './config/handoverConfig'
 import { HandoverDecisionEngine } from './utils/handoverDecisionEngine'
 import './SynchronizedAlgorithmVisualization.scss'
 
@@ -100,7 +100,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
     const stepIdRef = useRef(0) // 用於生成唯一的步驟ID
 
     // 使用數據同步上下文
-    const { coreSync: coreSyncStatus } = useNetStackData()
+    const { coreSync: _coreSyncStatus } = useNetStackData()
     // const { overall: connectionStatus, dataSource } = useDataSourceStatus()
     const {
         status: _coreSyncData,
@@ -129,8 +129,8 @@ const SynchronizedAlgorithmVisualization: React.FC<
             }
 
             // 🔥 演算法層：強制使用真實衛星數據進行精確計算
-            const availableSatellites =
-                realSatellites.length > 0 ? realSatellites : satellites
+            // 確保類型兼容性，只使用 VisibleSatelliteInfo 類型的衛星數據
+            const availableSatellites: VisibleSatelliteInfo[] = satellites || []
             
             // 如果沒有衛星數據，根據執行類型決定處理方式
             if (availableSatellites.length === 0) {
@@ -209,13 +209,13 @@ const SynchronizedAlgorithmVisualization: React.FC<
 
                 const currentTimeStamp = Date.now()
                 const futureTimeStamp = currentTimeStamp + dynamicDeltaT * 1000
-                const deltaSeconds = dynamicDeltaT
+                // const deltaSeconds = dynamicDeltaT
 
                 // 論文標準時間計算完成
 
                 // 🔥 調用真實的 NetStack 同步演算法 API
                 let apiResult
-                let usingFallback = false
+                // let usingFallback = false
                 try {
                     // 使用 NetStack API 客戶端
                     apiResult = await netStackApi.predictSatelliteAccess({
@@ -225,7 +225,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                     })
                 } catch (apiError) {
                     console.warn('NetStack API 調用失敗，使用本地預測:', apiError)
-                    usingFallback = true
+                    // usingFallback = true
                     // Fallback: 使用本地預測邏輯
                     apiResult = {
                         prediction_id: `local_${currentTimeStamp}`,
@@ -266,6 +266,11 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         (sat) => sat.norad_id?.toString() === satelliteId
                     ) || availableSatellites[0]
 
+                if (!currentSatellite) {
+                    console.warn('❌ 無法找到有效的衛星數據')
+                    return
+                }
+
                 // 🔧 使用統一的換手決策引擎
                 const handoverDecision = HandoverDecisionEngine.shouldHandover(
                     currentSatellite,
@@ -284,16 +289,16 @@ const SynchronizedAlgorithmVisualization: React.FC<
 
                 try {
                     // 嘗試解析API返回的時間 - 僅用於對比和日誌
-                    const apiTimeString = apiResult.predicted_access_time
+                    // const apiTimeString = apiResult.predicted_access_time
 
                     // 🔧 修復瀏覽器時區問題：確保時間字符串被解析為UTC
                     // 如果時間字符串沒有時區標識，添加'Z'後綴表示UTC
-                    const utcTimeString = apiTimeString.endsWith('Z')
-                        ? apiTimeString
-                        : apiTimeString + 'Z'
-                    const apiTime = new Date(utcTimeString).getTime() / 1000 // 轉換為UTC時間戳
+                    // const utcTimeString = apiTimeString.endsWith('Z')
+                    //     ? apiTimeString
+                    //     : apiTimeString + 'Z'
+                    // const _apiTime = new Date(utcTimeString).getTime() / 1000 // 轉換為UTC時間戳
 
-                    const apiDeltaT = apiTime - currentTime
+                    // const _apiDeltaT = _apiTime - currentTime
                     // 不覆蓋 deltaT，保持使用動態計算值
 
                     // 已經使用動態計算的時間，不需要額外檢查
@@ -313,10 +318,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                             .replace(' [DTC]', '')
                             .replace('[DTC]', ''),
                         signal_strength: 85 + Math.random() * 10, // 模擬信號強度
-                        elevation:
-                            'position' in currentSatellite
-                                ? currentSatellite.position?.elevation || 0
-                                : currentSatellite.elevation_deg || 0,
+                        elevation: currentSatellite.elevation_deg || 0,
                     },
                     future_satellite: {
                         satellite_id:
@@ -330,10 +332,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                                 ? ' (預測)'
                                 : ''),
                         signal_strength: 80 + Math.random() * 15,
-                        elevation:
-                            'position' in futureSatellite
-                                ? futureSatellite.position?.elevation || 0
-                                : futureSatellite.elevation_deg || 0,
+                        elevation: futureSatellite.elevation_deg || 0,
                     },
                     handover_required: handoverDecision.needsHandover, // 基於統一換手決策引擎
                     handover_trigger_time: futureTime,
@@ -411,7 +410,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         s.timestamp === prev[prev.length - 1]?.timestamp
                             ? {
                                   ...s,
-                                  status: 'error',
+                                  status: 'error' as const,
                                   description: `API調用失敗: ${
                                       error instanceof Error
                                           ? error.message

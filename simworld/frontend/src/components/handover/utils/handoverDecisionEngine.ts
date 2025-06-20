@@ -121,9 +121,7 @@ export class HandoverDecisionEngine {
    * 計算衛星服務品質
    */
   static calculateSatelliteQuality(satellite: VisibleSatelliteInfo): SatelliteQuality {
-    const elevation = 'elevation_deg' in satellite 
-      ? satellite.elevation_deg 
-      : 'position' in satellite && satellite.position?.elevation || 0
+    const elevation = satellite.elevation_deg || 0
     
     // 基於仰角估算信號強度
     const signalStrength = this.estimateSignalStrength(elevation)
@@ -224,7 +222,7 @@ export class HandoverDecisionEngine {
    */
   private static selectBestCandidate(
     candidates: VisibleSatelliteInfo[],
-    currentQuality: SatelliteQuality
+    _currentQuality: SatelliteQuality
   ): VisibleSatelliteInfo {
     
     // 計算所有候選衛星的品質
@@ -257,7 +255,7 @@ export class HandoverDecisionEngine {
     candidateQualities: Array<{ satellite: VisibleSatelliteInfo; quality: SatelliteQuality }>
   ): number[] {
     // 簡化的相鄰性計算：基於 NORAD ID 的接近程度
-    return candidateQualities.map((item, index) => {
+    return candidateQualities.map((_, index) => {
       // 如果是前幾個候選衛星，給予額外分數
       if (index < 3) {
         return 5 * (3 - index) // 前3個分別給15, 10, 5分
@@ -283,8 +281,7 @@ export class HandoverDecisionEngine {
     return {
       id: satellite.norad_id.toString(),
       name: satellite.name.replace(' [DTC]', '').replace('[DTC]', ''),
-      elevation: 'elevation_deg' in satellite ? satellite.elevation_deg : 
-                'position' in satellite ? satellite.position?.elevation || 0 : 0,
+      elevation: satellite.elevation_deg || 0,
       quality: this.calculateSatelliteQuality(satellite)
     }
   }
