@@ -68,27 +68,21 @@ export const generateMockSatellites = (count: number = HANDOVER_CONFIG.API.FALLB
  * 獲取衛星仰角（統一處理不同的數據格式）
  */
 export const getSatelliteElevation = (satellite: VisibleSatelliteInfo): number => {
-  if ('elevation_deg' in satellite) return satellite.elevation_deg
-  if ('position' in satellite && satellite.position?.elevation) return satellite.position.elevation
-  return 0
+  return satellite.elevation_deg || 0
 }
 
 /**
  * 獲取衛星方位角
  */
 export const getSatelliteAzimuth = (satellite: VisibleSatelliteInfo): number => {
-  if ('azimuth_deg' in satellite) return satellite.azimuth_deg
-  if ('position' in satellite && satellite.position?.azimuth) return satellite.position.azimuth
-  return 0
+  return satellite.azimuth_deg || 0
 }
 
 /**
  * 獲取衛星距離
  */
 export const getSatelliteDistance = (satellite: VisibleSatelliteInfo): number => {
-  if ('distance_km' in satellite) return satellite.distance_km
-  if ('position' in satellite && satellite.position?.range) return satellite.position.range
-  return 0
+  return satellite.distance_km || 0
 }
 
 /**

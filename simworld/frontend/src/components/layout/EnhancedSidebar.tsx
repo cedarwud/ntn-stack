@@ -6,7 +6,7 @@ import SidebarStarfield from '../ui/SidebarStarfield'
 import DeviceItem from '../devices/DeviceItem'
 import { useReceiverSelection } from '../../hooks/useReceiverSelection'
 import { VisibleSatelliteInfo } from '../../types/satellite'
-import { ApiRoutes } from '../../config/apiRoutes'
+// import { ApiRoutes } from '../../config/apiRoutes'
 import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName'
 import HandoverManager from '../handover/HandoverManager'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
@@ -266,7 +266,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     })
 
     // 擴展的UI狀態
-    const [showControlPanel, setShowControlPanel] = useState(true)
     const [activeCategory, setActiveCategory] = useState<string>('handover_mgr')
     const [showTempDevices, setShowTempDevices] = useState(true)
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
@@ -643,26 +642,8 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                 <>
                     {/* 功能控制面板 */}
                     <div className="control-panel">
-                        <div
-                            className="control-panel-header"
-                            onClick={() =>
-                                setShowControlPanel(!showControlPanel)
-                            }
-                        >
-                            <span className="header-title">
-                                🎛️ LEO 衛星換手機制控制
-                            </span>
-                            <span
-                                className={`header-arrow ${
-                                    showControlPanel ? 'expanded' : ''
-                                }`}
-                            >
-                                ▼
-                            </span>
-                        </div>
-
-                        {showControlPanel && (
-                            <>
+                        {/* LEO 衛星換手機制控制 - 直接顯示四個分頁 */}
+                        <div className="leo-handover-control-section">
                                 {/* 類別選擇 */}
                                 <div className="category-tabs">
                                     {categories.map((category) => (
@@ -1002,8 +983,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                         </div>
                                     </div>
                                 )}
-                            </>
-                        )}
+                        </div>
                     </div>
 
                     {/* UAV 選擇徽章 - 優化版 - 只在UAV控制分頁顯示 */}

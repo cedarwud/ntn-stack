@@ -96,10 +96,14 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
             idle: { icon: '⏸️', text: '待機中', class: 'idle' },
             calculating: { icon: '🧮', text: '計算中', class: 'calculating' },
             handover_ready: { icon: '⚡', text: '準備換手', class: 'ready' },
-            executing: { icon: '🔄', text: '執行中', class: 'executing' }
+            executing: { icon: '🔄', text: '執行中', class: 'executing' },
+            predicting: { icon: '🔮', text: '預測中', class: 'predicting' },
+            handover: { icon: '🔄', text: '換手中', class: 'handover' },
+            failed: { icon: '❌', text: '失敗', class: 'failed' },
+            complete: { icon: '✅', text: '完成', class: 'complete' }
         }
 
-        const config = statusConfig[handoverState.status] || statusConfig.idle
+        const config = statusConfig[handoverState.status as keyof typeof statusConfig] || statusConfig.idle
 
         return (
             <div className={`handover-status ${config.class}`}>
