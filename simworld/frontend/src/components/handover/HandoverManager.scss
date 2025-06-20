@@ -49,6 +49,39 @@
     }
   }
 
+  .algorithm-header {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: rgba(64, 224, 255, 0.1);
+    border: 1px solid rgba(64, 224, 255, 0.3);
+    border-radius: 12px;
+    
+    .algorithm-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      
+      .title-icon {
+        font-size: 20px;
+      }
+      
+      .title-text {
+        font-size: 16px;
+        font-weight: 600;
+        color: #40e0ff;
+        text-shadow: 0 0 8px rgba(64, 224, 255, 0.4);
+      }
+    }
+    
+    .algorithm-subtitle {
+      font-size: 13px;
+      color: #b0d4e7;
+      margin-left: 30px;
+      opacity: 0.9;
+    }
+  }
+
   .manager-content {
     display: flex;
     flex-direction: column;
