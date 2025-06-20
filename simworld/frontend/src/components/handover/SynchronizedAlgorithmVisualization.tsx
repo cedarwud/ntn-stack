@@ -3,6 +3,8 @@ import { VisibleSatelliteInfo } from '../../types/satellite'
 import { netStackApi, useCoreSync } from '../../services/netstack-api'
 import { useVisibleSatellites } from '../../services/simworld-api'
 import { useNetStackData } from '../../contexts/DataSyncContext'
+import { HANDOVER_CONFIG } from './config/handoverConfig'
+import { HandoverDecisionEngine } from './utils/handoverDecisionEngine'
 import './SynchronizedAlgorithmVisualization.scss'
 
 interface AlgorithmStep {
@@ -150,7 +152,6 @@ const SynchronizedAlgorithmVisualization: React.FC<
                 setCurrentStep('two_point_prediction')
                 // 清空之前的 Binary Search 數據
                 setBinarySearchIterations([])
-                console.log('清空 Binary Search 數據')
 
                 // 添加算法步驟
                 const step: AlgorithmStep = {
@@ -265,61 +266,16 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         (sat) => sat.norad_id?.toString() === satelliteId
                     ) || availableSatellites[0]
 
-                // 🔧 選擇未來衛星 - 基於真實的服務質量和可見性邏輯
-                const futureSatellite = (() => {
-                    // 獲取當前衛星的性能指標
-                    const getCurrentElevation = () => {
-                        return 'elevation_deg' in currentSatellite
-                            ? currentSatellite.elevation_deg
-                            : 'position' in currentSatellite
-                            ? currentSatellite.position?.elevation || 0
-                            : 0
-                    }
-                    
-                    const currentElevation = getCurrentElevation()
-                    
-                    // 🎯 真實換手決策邏輯：只有在當前衛星服務質量下降時才需要換手
-                    const needsHandover = (() => {
-                        // 條件1：仰角過低（低於15度時信號質量下降）
-                        if (currentElevation < 15) return true
-                        
-                        // 條件2：模擬信號強度下降（基於時間變化）
-                        const timeBasedSignalDrop = Math.sin(currentTimeStamp / 30000) < -0.7 // 約30秒週期
-                        if (timeBasedSignalDrop) return true
-                        
-                        // 條件3：衛星即將離開視野（基於軌道運動）
-                        const orbitalPosition = (currentTimeStamp / 1000) % 360 // 模擬軌道位置
-                        const isLeavingView = orbitalPosition > 300 || orbitalPosition < 60
-                        if (isLeavingView && currentElevation < 30) return true
-                        
-                        // 其他情況：保持當前連接
-                        return false
-                    })()
-                    
-                    // 如果不需要換手，返回當前衛星
-                    if (!needsHandover) {
-                        return currentSatellite
-                    }
-                    
-                    // 🔄 需要換手時，選擇最佳候選衛星
-                    const candidateSatellites = availableSatellites.filter(
-                        (sat) => sat.norad_id?.toString() !== satelliteId
-                    )
-                    
-                    if (candidateSatellites.length === 0) {
-                        // 沒有其他衛星可選，保持當前連接
-                        return currentSatellite
-                    }
-                    
-                    // 選擇仰角最高的候選衛星（最佳信號質量）
-                    return candidateSatellites.sort((a, b) => {
-                        const elevationA = 'elevation_deg' in a ? a.elevation_deg : 
-                                         'position' in a ? a.position?.elevation || 0 : 0
-                        const elevationB = 'elevation_deg' in b ? b.elevation_deg : 
-                                         'position' in b ? b.position?.elevation || 0 : 0
-                        return elevationB - elevationA
-                    })[0]
-                })()
+                // 🔧 使用統一的換手決策引擎
+                const handoverDecision = HandoverDecisionEngine.shouldHandover(
+                    currentSatellite,
+                    availableSatellites,
+                    currentTimeStamp,
+                    [], // SynchronizedAlgorithmVisualization 不需要歷史記錄檢查
+                    0   // 無冷卻期限制
+                )
+                
+                const futureSatellite = handoverDecision.targetSatellite || currentSatellite
 
                 // 🔧 修復時間計算邏輯 - 優先使用動態計算的時間
                 const currentTime = currentTimeStamp / 1000 // 使用之前定義的時間戳，轉換為UTC時間戳
@@ -379,7 +335,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                                 ? futureSatellite.position?.elevation || 0
                                 : futureSatellite.elevation_deg || 0,
                     },
-                    handover_required: futureSatellite.norad_id !== currentSatellite.norad_id, // 基於真實換手需求邏輯決定
+                    handover_required: handoverDecision.needsHandover, // 基於統一換手決策引擎
                     handover_trigger_time: futureTime,
                     binary_search_result: (apiResult.algorithm_details?.binary_search_refinement && 
                                           (apiResult.binary_search_iterations || 0) >= 1)
@@ -435,15 +391,12 @@ const SynchronizedAlgorithmVisualization: React.FC<
 
                 // 總是執行 Binary Search 可視化（即使不需要換手也要顯示分析過程）
                 if (result.binary_search_result) {
-                    console.log('🔍 執行 Binary Search 可視化，迭代次數:', result.binary_search_result.iterations.length)
                     await executeBinarySearchVisualization(
                         result.binary_search_result.iterations
                     )
                 } else {
-                    console.log('❌ 無 Binary Search 數據 - binary_search_result:', !!result.binary_search_result)
                     // 如果沒有 binary_search_result，生成簡單的演示數據
                     const demoIterations = generateBinarySearchIterations(3, currentTime, futureTime, 'DEMO-SAT')
-                    console.log('🎯 使用演示 Binary Search 數據')
                     await executeBinarySearchVisualization(demoIterations)
                 }
 

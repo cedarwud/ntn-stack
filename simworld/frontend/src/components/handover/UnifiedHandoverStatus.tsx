@@ -1,5 +1,6 @@
 import React from 'react'
 import { SatelliteConnection, HandoverState } from '../../types/handover'
+import { getSignalQualityLevel, getSignalQualityPercentage } from './config/handoverConfig'
 import './UnifiedHandoverStatus.scss'
 
 interface UnifiedHandoverStatusProps {
@@ -74,23 +75,19 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
     }
 
     // 信號品質計算
-    const getQualityPercentage = (signalStrength: number) => {
-        // 假設 -60dBm 為優秀，-120dBm 為最低可用
-        return Math.max(0, Math.min(100, ((signalStrength + 120) / 60) * 100))
-    }
+    const getQualityPercentage = getSignalQualityPercentage
 
-    const getQualityClass = (signalStrength: number) => {
-        if (signalStrength >= -70) return 'excellent'
-        if (signalStrength >= -85) return 'good'
-        if (signalStrength >= -100) return 'fair'
-        return 'poor'
-    }
+    const getQualityClass = getSignalQualityLevel
 
     const getQualityText = (signalStrength: number) => {
-        if (signalStrength >= -70) return '優秀'
-        if (signalStrength >= -85) return '良好'
-        if (signalStrength >= -100) return '一般'
-        return '較弱'
+        const level = getSignalQualityLevel(signalStrength)
+        const textMap = {
+            excellent: '優秀',
+            good: '良好', 
+            fair: '一般',
+            poor: '較弱'
+        }
+        return textMap[level]
     }
 
     // 換手狀態指示器
