@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { TimePredictionData } from '../../types/handover'
+import { HANDOVER_CONFIG } from './config/handoverConfig'
 import './TimePredictionTimeline.scss'
 
 interface TimePredictionTimelineProps {
     data: TimePredictionData
     isActive: boolean
     onTimeUpdate?: (currentTime: number) => void
+    handoverRequired?: boolean // 新增：是否真的需要換手
 }
 
 const TimePredictionTimeline: React.FC<TimePredictionTimelineProps> = ({
     data,
     isActive,
     onTimeUpdate,
+    handoverRequired = true, // 預設為 true 保持向後兼容
 }) => {
     const [currentTime, setCurrentTime] = useState(Date.now())
     
@@ -36,7 +39,7 @@ const TimePredictionTimeline: React.FC<TimePredictionTimelineProps> = ({
             const now = Date.now()
             setCurrentTime(now)
             onTimeUpdate?.(now)
-        }, 100) // 100ms 更新間隔
+        }, HANDOVER_CONFIG.TIMING.UPDATE_INTERVAL_MS)
 
         return () => clearInterval(interval)
     }, [isActive, onTimeUpdate])
@@ -105,8 +108,8 @@ const TimePredictionTimeline: React.FC<TimePredictionTimelineProps> = ({
                         style={{ width: `${getTimelineProgress()}%` }}
                     ></div>
 
-                    {/* 換手觸發點 */}
-                    {data.handoverTime && (
+                    {/* 換手觸發點 - 只有在需要換手時才顯示 */}
+                    {data.handoverTime && handoverRequired && (
                         <div
                             className="handover-marker"
                             style={{ left: `${getHandoverProgress()}%` }}
@@ -151,7 +154,7 @@ const TimePredictionTimeline: React.FC<TimePredictionTimelineProps> = ({
                         s
                     </span>
                 </div>
-                {data.handoverTime && (
+                {data.handoverTime && handoverRequired && (
                     <div className="delta-item">
                         <span className="delta-label">距離換手:</span>
                         <span className="delta-value">
@@ -160,6 +163,14 @@ const TimePredictionTimeline: React.FC<TimePredictionTimelineProps> = ({
                                 (data.handoverTime - currentTime) / 1000
                             ).toFixed(1)}
                             s
+                        </span>
+                    </div>
+                )}
+                {!handoverRequired && (
+                    <div className="delta-item">
+                        <span className="delta-label">換手狀態:</span>
+                        <span className="delta-value no-handover">
+                            無需換手
                         </span>
                     </div>
                 )}
