@@ -665,4 +665,88 @@
     width: auto; 
     height: auto; 
     object-fit: contain; 
+}
+
+/* 圖表分析全屏彈窗樣式 */
+.chart-analysis-fullscreen-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.95);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  
+  .fullscreen-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    
+    h2 {
+      color: white;
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    
+    .close-fullscreen-btn {
+      background: transparent;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      font-size: 1.5rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.6);
+        transform: scale(1.1);
+      }
+    }
+  }
+  
+  .fullscreen-content {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    
+    // 覆蓋內嵌 TestReportModal 的樣式
+    .modal-backdrop {
+      position: static !important;
+      background: transparent !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
+    .performance-report-modal {
+      position: static !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      
+      .modal-header {
+        display: none !important; // 隱藏重複的標題
+      }
+      
+      .modal-content {
+        height: calc(100vh - 80px) !important; // 扣除外層 header 高度
+        overflow-y: auto;
+      }
+    }
+  }
 } 

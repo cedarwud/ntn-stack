@@ -8,6 +8,7 @@ import DelayDopplerViewer from '../viewers/DelayDopplerViewer'
 import TimeFrequencyViewer from '../viewers/TimeFrequencyViewer'
 import FourWayHandoverComparisonViewer from '../viewers/FourWayHandoverComparisonViewer'
 import ViewerModal from '../ui/ViewerModal'
+import ChartAnalysisDashboard from '../charts/ChartAnalysisDashboard'
 import { ViewerProps } from '../../types/viewer'
 import {
     SCENE_DISPLAY_NAMES,
@@ -50,6 +51,9 @@ const Navbar: FC<NavbarProps> = ({
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
     const [isChartsDropdownOpen, setIsChartsDropdownOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
+
+    // 新增 Chart Analysis Modal 狀態
+    const [showChartAnalysisModal, setShowChartAnalysisModal] = useState(false)
 
     // States for modal visibility
     const [showSINRModal, setShowSINRModal] = useState(false)
@@ -113,7 +117,6 @@ const Navbar: FC<NavbarProps> = ({
         navigate(`/${currentScene}/stereogram`)
         onMenuClick('3DRT')
     }
-
 
     const modalConfigs: ModalConfig[] = [
         {
@@ -396,8 +399,16 @@ const Navbar: FC<NavbarProps> = ({
                         >
                             立體圖
                         </li>
-                        
 
+                        {/* 新增圖表分析按鈕 */}
+                        <li
+                            className={`navbar-item ${
+                                showChartAnalysisModal ? 'active' : ''
+                            }`}
+                            onClick={() => setShowChartAnalysisModal(true)}
+                        >
+                            📈 圖表分析
+                        </li>
                     </ul>
                 </div>
             </nav>
@@ -431,7 +442,11 @@ const Navbar: FC<NavbarProps> = ({
                 ) : null
             )}
 
-
+            {/* 新增 Chart Analysis Dashboard - 100% 全屏彈窗 */}
+            <ChartAnalysisDashboard
+                isOpen={showChartAnalysisModal}
+                onClose={() => setShowChartAnalysisModal(false)}
+            />
         </>
     )
 }
