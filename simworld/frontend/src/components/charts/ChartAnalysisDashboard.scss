@@ -1,0 +1,807 @@
+/* Chart Analysis Dashboard 100% 全屏樣式 */
+.chart-analysis-dashboard-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #0c1427 0%, #1a1a2e 50%, #16213e 100%);
+  z-index: 10000;
+  overflow: hidden;
+  
+  .dashboard-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    
+    /* Header */
+    .dashboard-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      
+      .header-content {
+        h1 {
+          color: white;
+          margin: 0;
+          font-size: 1.8rem;
+          font-weight: bold;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        p {
+          color: rgba(255, 255, 255, 0.9);
+          margin: 0.2rem 0 0 0;
+          font-size: 0.9rem;
+          font-style: italic;
+        }
+      }
+      
+      .close-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        font-size: 1.5rem;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: bold;
+        
+        &:hover {
+          background: rgba(255, 99, 132, 0.8);
+          border-color: rgba(255, 99, 132, 1);
+          transform: scale(1.1);
+        }
+      }
+    }
+    
+    /* Navigation */
+    .dashboard-nav {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      
+      .nav-item {
+        background: linear-gradient(135deg, rgba(54, 162, 235, 0.3) 0%, rgba(75, 192, 192, 0.3) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 0.7rem 1.2rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        white-space: nowrap;
+        font-size: 0.85rem;
+        font-weight: 500;
+        
+        .nav-icon {
+          font-size: 1.1rem;
+        }
+        
+        &:hover {
+          background: linear-gradient(135deg, rgba(54, 162, 235, 0.6) 0%, rgba(75, 192, 192, 0.6) 100%);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 15px rgba(54, 162, 235, 0.4);
+        }
+        
+        &.active {
+          background: linear-gradient(135deg, #36a2eb 0%, #4bc0c0 100%);
+          box-shadow: 0 4px 15px rgba(54, 162, 235, 0.5);
+          border-color: rgba(255, 255, 255, 0.4);
+          transform: translateY(-1px);
+        }
+      }
+    }
+    
+    /* Content */
+    .dashboard-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+      
+      .chart-section {
+        h2 {
+          color: #40e0ff;
+          font-size: 1.6rem;
+          margin-bottom: 1rem;
+          text-shadow: 0 2px 4px rgba(64, 224, 255, 0.3);
+          border-bottom: 2px solid rgba(64, 224, 255, 0.3);
+          padding-bottom: 0.5rem;
+        }
+        
+        .section-description {
+          color: rgba(255, 255, 255, 0.8);
+          font-size: 1rem;
+          line-height: 1.6;
+          margin-bottom: 2rem;
+          background: rgba(255, 255, 255, 0.05);
+          padding: 1rem;
+          border-radius: 8px;
+          border-left: 4px solid #40e0ff;
+        }
+        
+        .chart-container {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 12px;
+          padding: 2rem;
+          margin-bottom: 2rem;
+          height: 500px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+          
+          &.small {
+            height: 350px;
+          }
+        }
+        
+        .qoe-subsection {
+          margin-bottom: 3rem;
+          
+          h3 {
+            color: #ffd700;
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+          }
+          
+          p {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+          }
+        }
+        
+        .insights {
+          background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+          border-radius: 12px;
+          padding: 1.5rem;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          
+          h4 {
+            color: #ffd700;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          }
+          
+          ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            
+            li {
+              color: rgba(255, 255, 255, 0.9);
+              margin-bottom: 0.8rem;
+              padding-left: 1.5rem;
+              position: relative;
+              line-height: 1.5;
+              
+              &:before {
+                content: "▶";
+                position: absolute;
+                left: 0;
+                color: #40e0ff;
+                font-size: 0.8rem;
+              }
+              
+              strong {
+                color: #ffd700;
+                font-weight: 600;
+              }
+            }
+          }
+        }
+        
+        .table-container {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 12px;
+          padding: 2rem;
+          margin-bottom: 2rem;
+          overflow-x: auto;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+          
+          .orbital-params-table {
+            width: 100%;
+            border-collapse: collapse;
+            
+            th {
+              background: linear-gradient(135deg, #36a2eb 0%, #4bc0c0 100%);
+              color: white;
+              padding: 1rem;
+              text-align: left;
+              font-weight: 600;
+              border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+              font-size: 0.95rem;
+            }
+            
+            td {
+              padding: 1rem;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+              color: rgba(255, 255, 255, 0.9);
+              font-size: 0.9rem;
+              
+              &.constellation-name {
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                
+                .constellation-icon {
+                  font-size: 1.2rem;
+                }
+              }
+            }
+            
+            tr {
+              transition: background-color 0.3s ease;
+              
+              &:hover {
+                background: rgba(255, 255, 255, 0.05);
+              }
+              
+              &.starlink td:first-child {
+                color: #ff6b6b;
+              }
+              
+              &.kuiper td:first-child {
+                color: #4ecdc4;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    /* Footer */
+    .dashboard-footer {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 1rem 2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      
+      p {
+        color: rgba(255, 255, 255, 0.7);
+        margin: 0;
+        font-size: 0.85rem;
+        text-align: center;
+        line-height: 1.4;
+      }
+    }
+  }
+  
+  /* 計算動畫覆蓋層 */
+  .calculating-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    
+    .calculating-spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(64, 224, 255, 0.3);
+      border-top: 4px solid #40e0ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1.5rem;
+    }
+    
+    h3 {
+      color: #40e0ff;
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 2px 4px rgba(64, 224, 255, 0.5);
+    }
+    
+    p {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 1rem;
+      text-align: center;
+    }
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .chart-analysis-dashboard-overlay {
+    .dashboard-container {
+      .dashboard-header {
+        padding: 1rem;
+        
+        .header-content h1 {
+          font-size: 1.4rem;
+        }
+        
+        .close-btn {
+          width: 40px;
+          height: 40px;
+          font-size: 1.3rem;
+        }
+      }
+      
+      .dashboard-nav {
+        padding: 0.5rem;
+        
+        .nav-item {
+          padding: 0.5rem 0.8rem;
+          font-size: 0.8rem;
+          
+          .nav-text {
+            display: none;
+          }
+        }
+      }
+      
+      .dashboard-content {
+        padding: 1rem;
+        
+        .chart-section {
+          .chart-container {
+            padding: 1rem;
+            height: 300px;
+            
+            &.small {
+              height: 250px;
+            }
+          }
+          
+          h2 {
+            font-size: 1.3rem;
+          }
+          
+          .section-description {
+            font-size: 0.9rem;
+            padding: 0.8rem;
+          }
+        }
+      }
+      
+      .dashboard-footer {
+        padding: 0.8rem 1rem;
+        
+        p {
+          font-size: 0.75rem;
+        }
+      }
+    }
+  }
+}
+
+/* 滾動條樣式 */
+.dashboard-content::-webkit-scrollbar,
+.dashboard-nav::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dashboard-content::-webkit-scrollbar-track,
+.dashboard-nav::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.dashboard-content::-webkit-scrollbar-thumb,
+.dashboard-nav::-webkit-scrollbar-thumb {
+  background: rgba(64, 224, 255, 0.5);
+  border-radius: 3px;
+}
+
+.dashboard-content::-webkit-scrollbar-thumb:hover,
+.dashboard-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(64, 224, 255, 0.8);
+}
+
+.chart-analysis-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 30, 48, 0.95));
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  
+  .chart-analysis-modal {
+    width: 95vw;
+    height: 95vh;
+    background: linear-gradient(145deg, #1a1a2e, #16213e);
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    
+    .modal-header {
+      padding: 20px 30px;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      
+      h2 {
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 600;
+      }
+      
+      .close-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          background: rgba(255, 255, 255, 0.3);
+          transform: scale(1.1);
+        }
+      }
+    }
+    
+    .calculating-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      
+      .calculating-content {
+        text-align: center;
+        color: white;
+        
+        .spinner {
+          width: 60px;
+          height: 60px;
+          border: 4px solid rgba(255, 255, 255, 0.3);
+          border-top: 4px solid #667eea;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 20px;
+        }
+        
+        h3 {
+          font-size: 1.5rem;
+          margin-bottom: 10px;
+        }
+        
+        p {
+          margin: 5px 0;
+          opacity: 0.8;
+        }
+      }
+    }
+    
+    .tabs-container {
+      background: #0f1419;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      
+      .tabs {
+        display: flex;
+        overflow-x: auto;
+        
+        button {
+          background: transparent;
+          border: none;
+          color: rgba(255, 255, 255, 0.7);
+          padding: 15px 25px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          border-bottom: 3px solid transparent;
+          white-space: nowrap;
+          
+          &:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+          }
+          
+          &.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+          }
+        }
+      }
+    }
+    
+    .modal-content {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background: linear-gradient(180deg, #1a1a2e, #16213e);
+      
+      &::-webkit-scrollbar {
+        width: 8px;
+      }
+      
+      &::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+      
+      &::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #667eea, #764ba2);
+        border-radius: 4px;
+      }
+    }
+    
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+      gap: 25px;
+      
+      .chart-container {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(5px);
+        
+        h3 {
+          color: white;
+          margin-bottom: 20px;
+          font-size: 1.3rem;
+          text-align: center;
+        }
+        
+        .chart-insight {
+          margin-top: 15px;
+          padding: 15px;
+          background: rgba(102, 126, 234, 0.1);
+          border-radius: 10px;
+          color: rgba(255, 255, 255, 0.9);
+          border-left: 4px solid #667eea;
+          font-size: 0.9rem;
+          line-height: 1.5;
+          
+          strong {
+            color: #667eea;
+          }
+        }
+
+        // 系統監控特殊樣式
+        &.system-metrics {
+          .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            
+            .metric-card {
+              background: rgba(255, 255, 255, 0.05);
+              padding: 15px;
+              border-radius: 10px;
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              
+              .metric-label {
+                display: block;
+                color: rgba(255, 255, 255, 0.7);
+                font-size: 0.9rem;
+                margin-bottom: 5px;
+              }
+              
+              .metric-value {
+                display: block;
+                color: #667eea;
+                font-size: 1.5rem;
+                font-weight: bold;
+                margin-bottom: 10px;
+              }
+              
+              .metric-bar {
+                width: 100%;
+                height: 6px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 3px;
+                overflow: hidden;
+                
+                .metric-fill {
+                  height: 100%;
+                  background: linear-gradient(90deg, #667eea, #764ba2);
+                  transition: width 0.5s ease;
+                  border-radius: 3px;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 軌道參數表格樣式
+    .orbit-params-table {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 15px;
+      padding: 25px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(5px);
+      
+      h3 {
+        color: white;
+        margin-bottom: 20px;
+        font-size: 1.3rem;
+        text-align: center;
+      }
+      
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 10px;
+        overflow: hidden;
+        
+        thead {
+          background: linear-gradient(90deg, #667eea, #764ba2);
+          
+          th {
+            padding: 15px 12px;
+            color: white;
+            font-weight: 600;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+          }
+        }
+        
+        tbody {
+          tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            
+            &:nth-child(even) {
+              background: rgba(255, 255, 255, 0.02);
+            }
+            
+            &:hover {
+              background: rgba(102, 126, 234, 0.1);
+            }
+            
+            td {
+              padding: 12px;
+              color: rgba(255, 255, 255, 0.9);
+              
+              &:first-child {
+                font-weight: 600;
+                color: #667eea;
+              }
+              
+              &:nth-child(2), &:nth-child(3) {
+                font-family: 'Courier New', monospace;
+                text-align: center;
+              }
+              
+              &:nth-child(4) {
+                text-align: center;
+                color: rgba(255, 255, 255, 0.7);
+              }
+              
+              &:last-child {
+                font-size: 0.9rem;
+                color: rgba(255, 255, 255, 0.8);
+              }
+            }
+          }
+        }
+      }
+      
+      .table-insight {
+        margin-top: 20px;
+        padding: 15px;
+        background: rgba(102, 126, 234, 0.1);
+        border-radius: 10px;
+        color: rgba(255, 255, 255, 0.9);
+        border-left: 4px solid #667eea;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        
+        strong {
+          color: #667eea;
+        }
+      }
+    }
+    
+    .modal-footer {
+      padding: 15px 30px;
+      background: #0f1419;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      
+      .data-source {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.85rem;
+        text-align: center;
+        
+        strong {
+          color: #667eea;
+        }
+      }
+    }
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .chart-analysis-modal {
+    width: 100vw !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    
+    .charts-grid {
+      grid-template-columns: 1fr !important;
+      
+      .chart-container {
+        min-width: auto !important;
+        
+        &.system-metrics .metrics-grid {
+          grid-template-columns: repeat(2, 1fr) !important;
+        }
+      }
+    }
+    
+    .orbit-params-table {
+      table {
+        font-size: 0.8rem;
+        
+        th, td {
+          padding: 8px 6px !important;
+        }
+      }
+    }
+    
+    .tabs {
+      flex-wrap: wrap !important;
+      
+      button {
+        flex: 1 !important;
+        min-width: 120px !important;
+        padding: 10px 15px !important;
+        font-size: 0.9rem !important;
+      }
+    }
+  }
+} 
