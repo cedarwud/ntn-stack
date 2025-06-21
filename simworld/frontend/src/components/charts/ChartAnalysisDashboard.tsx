@@ -33,6 +33,24 @@ ChartJS.register(
     RadialLinearScale
 )
 
+// Configure global Chart.js defaults for white text and larger fonts
+ChartJS.defaults.color = 'white'
+ChartJS.defaults.font.size = 14
+ChartJS.defaults.plugins.legend.labels.color = 'white'
+ChartJS.defaults.plugins.legend.labels.font = { size: 14 }
+ChartJS.defaults.plugins.title.color = 'white'
+ChartJS.defaults.plugins.title.font = { size: 16 }
+ChartJS.defaults.plugins.tooltip.titleColor = 'white'
+ChartJS.defaults.plugins.tooltip.bodyColor = 'white'
+ChartJS.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)'
+ChartJS.defaults.plugins.tooltip.titleFont = { size: 14 }
+ChartJS.defaults.plugins.tooltip.bodyFont = { size: 13 }
+ChartJS.defaults.scale.ticks.color = 'white'
+ChartJS.defaults.scale.ticks.font = { size: 12 }
+ChartJS.defaults.scale.title.color = 'white'
+ChartJS.defaults.scale.title.font = { size: 14 }
+ChartJS.defaults.scale.grid.color = 'rgba(255, 255, 255, 0.2)'
+
 interface ChartAnalysisDashboardProps {
     isOpen: boolean
     onClose: () => void
@@ -377,18 +395,41 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                 options={{
                                     responsive: true,
                                     plugins: {
-                                        legend: { position: 'top' as const },
+                                        legend: {
+                                            position: 'top' as const,
+                                            labels: {
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                        },
                                         title: {
                                             display: true,
                                             text: '四種換手方案延遲對比 (ms)',
+                                            color: 'white',
+                                            font: { size: 16 },
                                         },
                                     },
                                     scales: {
+                                        x: {
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                        },
                                         y: {
                                             beginAtZero: true,
                                             title: {
                                                 display: true,
                                                 text: '延遲 (ms)',
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.2)',
                                             },
                                         },
                                     },
@@ -410,10 +451,35 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                 options={{
                                     responsive: true,
                                     plugins: {
-                                        legend: { position: 'top' as const },
+                                        legend: {
+                                            position: 'top' as const,
+                                            labels: {
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                        },
                                         title: {
                                             display: true,
                                             text: 'Starlink vs Kuiper 技術指標綜合評估',
+                                            color: 'white',
+                                            font: { size: 16 },
+                                        },
+                                    },
+                                    scales: {
+                                        x: {
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                        },
+                                        y: {
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.2)',
+                                            },
                                         },
                                     },
                                 }}
@@ -443,7 +509,21 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                         mode: 'index' as const,
                                         intersect: false,
                                     },
+                                    plugins: {
+                                        legend: {
+                                            labels: {
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                        },
+                                    },
                                     scales: {
+                                        x: {
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                        },
                                         y: {
                                             type: 'linear' as const,
                                             display: true,
@@ -451,6 +531,15 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                             title: {
                                                 display: true,
                                                 text: 'Stalling Time (ms)',
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.2)',
                                             },
                                         },
                                         y1: {
@@ -461,6 +550,12 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                             title: {
                                                 display: true,
                                                 text: 'Ping RTT (ms)',
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
                                             },
                                         },
                                     },
@@ -481,18 +576,41 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                 options={{
                                     responsive: true,
                                     plugins: {
-                                        legend: { position: 'top' as const },
+                                        legend: {
+                                            position: 'top' as const,
+                                            labels: {
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                        },
                                         title: {
                                             display: true,
                                             text: 'Fast-prediction vs 標準算法性能對比',
+                                            color: 'white',
+                                            font: { size: 16 },
                                         },
                                     },
                                     scales: {
+                                        x: {
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                        },
                                         y: {
                                             type: 'logarithmic',
                                             title: {
                                                 display: true,
                                                 text: '計算時間 (秒, 對數軸)',
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.2)',
                                             },
                                         },
                                     },
@@ -595,10 +713,18 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                 options={{
                                     responsive: true,
                                     plugins: {
-                                        legend: { position: 'right' as const },
+                                        legend: {
+                                            position: 'right' as const,
+                                            labels: {
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                        },
                                         title: {
                                             display: true,
                                             text: '移動衛星網絡系統資源佔比分析',
+                                            color: 'white',
+                                            font: { size: 16 },
                                         },
                                     },
                                 }}
@@ -627,14 +753,31 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                         title: {
                                             display: true,
                                             text: '不同時間同步方案精度比較 (對數軸)',
+                                            color: 'white',
+                                            font: { size: 16 },
                                         },
                                     },
                                     scales: {
+                                        x: {
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                        },
                                         y: {
                                             type: 'logarithmic',
                                             title: {
                                                 display: true,
                                                 text: '同步精度 (μs)',
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.2)',
                                             },
                                         },
                                     },
@@ -655,17 +798,39 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                 options={{
                                     responsive: true,
                                     plugins: {
-                                        legend: { position: 'top' as const },
+                                        legend: {
+                                            position: 'top' as const,
+                                            labels: {
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                        },
                                         title: {
                                             display: true,
                                             text: 'Flexible vs Consistent 策略全方位對比',
+                                            color: 'white',
+                                            font: { size: 16 },
                                         },
                                     },
                                     scales: {
                                         r: {
                                             beginAtZero: true,
                                             max: 5,
-                                            ticks: { stepSize: 1 },
+                                            ticks: {
+                                                stepSize: 1,
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                            pointLabels: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.2)',
+                                            },
+                                            angleLines: {
+                                                color: 'rgba(255, 255, 255, 0.2)',
+                                            },
                                         },
                                     },
                                 }}
@@ -690,18 +855,41 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                 options={{
                                     responsive: true,
                                     plugins: {
-                                        legend: { position: 'top' as const },
+                                        legend: {
+                                            position: 'top' as const,
+                                            labels: {
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                        },
                                         title: {
                                             display: true,
                                             text: '不同移動速度下換手失敗率對比 (%)',
+                                            color: 'white',
+                                            font: { size: 16 },
                                         },
                                     },
                                     scales: {
+                                        x: {
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                        },
                                         y: {
                                             beginAtZero: true,
                                             title: {
                                                 display: true,
                                                 text: '失敗率 (%)',
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.2)',
                                             },
                                         },
                                     },
@@ -722,19 +910,42 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                 options={{
                                     responsive: true,
                                     plugins: {
-                                        legend: { position: 'top' as const },
+                                        legend: {
+                                            position: 'top' as const,
+                                            labels: {
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                        },
                                         title: {
                                             display: true,
                                             text: '雙星座各大洲覆蓋率統計',
+                                            color: 'white',
+                                            font: { size: 16 },
                                         },
                                     },
                                     scales: {
+                                        x: {
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                        },
                                         y: {
                                             beginAtZero: true,
                                             max: 100,
                                             title: {
                                                 display: true,
                                                 text: '覆蓋率 (%)',
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.2)',
                                             },
                                         },
                                     },
@@ -759,14 +970,31 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                         title: {
                                             display: true,
                                             text: '各協議層傳輸延遲貢獻',
+                                            color: 'white',
+                                            font: { size: 16 },
                                         },
                                     },
                                     scales: {
+                                        x: {
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                        },
                                         y: {
                                             beginAtZero: true,
                                             title: {
                                                 display: true,
                                                 text: '延遲 (ms)',
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                            ticks: {
+                                                color: 'white',
+                                                font: { size: 12 },
+                                            },
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.2)',
                                             },
                                         },
                                     },
@@ -787,10 +1015,18 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                 options={{
                                     responsive: true,
                                     plugins: {
-                                        legend: { position: 'right' as const },
+                                        legend: {
+                                            position: 'right' as const,
+                                            labels: {
+                                                color: 'white',
+                                                font: { size: 14 },
+                                            },
+                                        },
                                         title: {
                                             display: true,
                                             text: '異常事件類型分佈',
+                                            color: 'white',
+                                            font: { size: 16 },
                                         },
                                     },
                                 }}
@@ -925,9 +1161,7 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
         <div className="chart-analysis-overlay">
             <div className="chart-analysis-modal">
                 <div className="modal-header">
-                    <h2>
-                        📈 移動衛星網絡換手加速技術 - 深度圖表分析 Dashboard
-                    </h2>
+                    <h2>📈 移動衛星網絡換手加速技術 - 深度圖表分析儀表板</h2>
                     <button className="close-btn" onClick={onClose}>
                         ✕
                     </button>
