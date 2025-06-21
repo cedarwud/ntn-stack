@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IEEE INFOCOM 2024 論文復現測試 - 測試報告</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            margin: 2em;
+            line-height: 1.6;
+            color: #333;
+            background: #f8f9fa;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 2em;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2em;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 1em;
+        }
+        .title {
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 0.5em;
+        }
+        .subtitle {
+            color: #64748b;
+            font-size: 16px;
+        }
+        .section {
+            margin: 2em 0;
+            background: #f8f9fa;
+            padding: 1.5em;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        .section h2 {
+            color: #2c3e50;
+            border-bottom: 1px solid #bdc3c7;
+            padding-bottom: 0.5em;
+            margin-top: 0;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1em;
+            margin: 1em 0;
+        }
+        .metric-card {
+            background: white;
+            padding: 1em;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        .metric-label {
+            color: #64748b;
+            font-size: 14px;
+            margin-top: 0.5em;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.3em 0.8em;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .conclusion {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 1.5em;
+            margin: 2em 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 3em;
+            padding-top: 2em;
+            border-top: 1px solid #e5e7eb;
+            color: #64748b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">🧪 IEEE INFOCOM 2024 論文復現測試</div>
+            <div class="subtitle">階段四測試執行報告</div>
+            <div class="subtitle">生成時間: 2025-06-21 01:08:08</div>
+        </div>
+
+        <div class="section">
+            <h2>📊 執行摘要</h2>
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value">42/45</div>
+                    <div class="metric-label">測試通過</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">93.3%</div>
+                    <div class="metric-label">成功率</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">30.0s</div>
+                    <div class="metric-label">執行時間</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">
+                        <span class="status-badge status-success">完成</span>
+                    </div>
+                    <div class="metric-label">狀態</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔬 測試詳情</h2>
+            <ul>
+                <li><strong>測試框架:</strong> paper_reproduction</li>
+                <li><strong>測試類型:</strong> standard</li>
+                <li><strong>執行時間戳:</strong> 2025-06-21T00:53:11.584738</li>
+                <li><strong>總測試數:</strong> 45</li>
+                <li><strong>通過測試數:</strong> 42</li>
+                <li><strong>失敗測試數:</strong> 3</li>
+            </ul>
+        </div>
+
+        <div class="conclusion">
+            <h2>📝 測試結論</h2>
+            <p>
+                測試框架 <strong>IEEE INFOCOM 2024 論文復現測試</strong> 執行完成，
+                達到 <strong>93.3%</strong> 的成功率。
+                在 30.0 秒的執行時間內，
+                完成了 45 個測試項目，
+                其中 42 個測試通過。
+            </p>
+            <p>
+                測試結果表明系統功能運行正常，符合預期的性能指標。
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>🔬 此報告由 NTN Stack 階段四測試框架自動生成</p>
+            <p>🛰️ 測試環境: Docker 容器化 SimWorld + NetStack</p>
+            <p>📄 報告 ID: paper_reproduction_1750468088</p>
+        </div>
+    </div>
+</body>
+</html>

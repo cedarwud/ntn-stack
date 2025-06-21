@@ -12,6 +12,7 @@ import ToastNotification, { useToast } from './components/ui/ToastNotification'
 import { backgroundHealthMonitor } from './utils/background-health-monitor'
 import './styles/App.scss'
 import { Device } from './types/device'
+import TestReportModal from './components/testing/TestReportModal'
 import { countActiveDevices } from './utils/deviceUtils'
 import { useDevices } from './hooks/useDevices'
 import { VisibleSatelliteInfo } from './types/satellite'
@@ -130,8 +131,37 @@ function App({ activeView }: AppProps) {
     const [scenarioTestEnvironmentEnabled, setScenarioTestEnvironmentEnabled] =
         useState(false)
 
+
+    // 測試報告模態狀態
+    const [showTestReportModal, setShowTestReportModal] = useState(false)
+    const [testReportData, setTestReportData] = useState<{
+        frameworkId: string
+        frameworkName: string
+        testResults: any
+        allFrameworkResults: {[key: string]: any}
+        isUnifiedReport: boolean
+    } | null>(null)
+
     // Toast 通知系統
     const { showToast } = useToast()
+
+    const handleShowTestReport = useCallback((reportData: {
+        frameworkId: string
+        frameworkName: string
+        testResults: any
+        allFrameworkResults: {[key: string]: any}
+        isUnifiedReport: boolean
+    }) => {
+        setTestReportData(reportData)
+        setShowTestReportModal(true)
+    }, [])
+
+    const handleCloseTestReport = useCallback(() => {
+        setShowTestReportModal(false)
+        setTestReportData(null)
+    }, [])
+
+
 
     // 網頁載入時執行一次健康檢查
     useEffect(() => {
@@ -687,6 +717,7 @@ function App({ activeView }: AppProps) {
                                         }
                                         handoverMode={handoverMode}
                                         onHandoverModeChange={setHandoverMode}
+                                        onShowTestReport={handleShowTestReport}
                                     />
                                 </ErrorBoundary>
                             }
@@ -705,6 +736,19 @@ function App({ activeView }: AppProps) {
 
             {/* Toast 通知系統 */}
             <ToastNotification />
+            
+            {/* 測試報告模態 - 在右側顯示 */}
+            {testReportData && (
+                <TestReportModal
+                    isOpen={showTestReportModal}
+                    onClose={handleCloseTestReport}
+                    frameworkId={testReportData.frameworkId}
+                    frameworkName={testReportData.frameworkName}
+                    testResults={testReportData.testResults}
+                    allFrameworkResults={testReportData.allFrameworkResults}
+                    isUnifiedReport={testReportData.isUnifiedReport}
+                />
+            )}
         </DataSyncProvider>
     )
 }
