@@ -18,6 +18,13 @@ help: ## 顯示可用的命令
 	@echo ""
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(BLUE)%-20s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
+	@echo "$(YELLOW)🆕 核心同步服務管理：$(NC)"
+	@echo "  $(GREEN)start-core-sync$(NC)     啟動核心同步服務"
+	@echo "  $(GREEN)check-core-sync$(NC)     檢查核心同步服務狀態"
+	@echo "  $(GREEN)stop-core-sync$(NC)      停止核心同步服務"
+	@echo ""
+	@echo "$(CYAN)💡 核心同步服務現在會在 dev-up 和 dev-fresh 中自動啟動$(NC)"
+	@echo ""
 
 up: build ## 🚀 啟動 NetStack 核心網
 	@echo "$(GREEN)🚀 啟動 NetStack 核心網...$(NC)"
@@ -36,6 +43,8 @@ dev-up: ## 🛠️ 完整的開發環境設置 (保留數據)
 	@sleep 15
 	@echo "$(YELLOW)🚁 初始化 UAV 數據和網絡拓撲...$(NC)"
 	@$(MAKE) init-demo-data
+	@echo "$(YELLOW)⚡ 啟動核心同步服務...$(NC)"
+	@$(MAKE) start-core-sync
 	@echo "$(GREEN)✅ 開發環境設置完成，可開始測試$(NC)"
 
 dev-fresh: ## 🆕 全新環境設置 (清除所有數據)
@@ -47,6 +56,8 @@ dev-fresh: ## 🆕 全新環境設置 (清除所有數據)
 	@sleep 15
 	@echo "$(YELLOW)🚁 初始化 UAV 數據和網絡拓撲...$(NC)"
 	@$(MAKE) init-demo-data
+	@echo "$(YELLOW)⚡ 啟動核心同步服務...$(NC)"
+	@$(MAKE) start-core-sync
 	@echo "$(GREEN)✅ 全新環境設置完成，可開始測試$(NC)"
 
 down: ## 🧹 清理容器但保留數據庫資料
@@ -365,3 +376,23 @@ init-demo-data: ## 🚁 初始化演示數據 (UAV、軌跡、網絡拓撲)
 	@echo "  - Mesh 網絡拓撲"
 	@echo "  - UAV 備援機制演示"
 	@echo "$(CYAN)💡 您可以在 dashboard 中查看這些初始化的數據$(NC)"
+
+start-core-sync: ## ⚡ 啟動核心同步服務
+	@echo "$(GREEN)⚡ 啟動核心同步服務...$(NC)"
+	@echo "等待 API 服務就緒..."
+	@sleep 3
+	@-curl -s -X POST http://localhost:8080/api/v1/core-sync/service/start \
+		-H "Content-Type: application/json" \
+		-d '{"signaling_free_mode": true, "binary_search_enabled": true, "max_sync_error_ms": 10.0, "auto_resync_enabled": true, "debug_logging": false}' \
+		> /dev/null 2>&1 && echo "$(GREEN)✅ 核心同步服務啟動成功$(NC)" || echo "$(YELLOW)⚠️ 核心同步服務啟動失敗 (可能需要手動執行)$(NC)"
+	@echo "$(BLUE)📊 檢查同步服務狀態：$(NC)"
+	@sleep 2
+	@-curl -s http://localhost:8080/api/v1/core-sync/status 2>/dev/null | grep -q '"is_running": true' && echo "$(GREEN)✅ 核心同步服務運行中$(NC)" || echo "$(YELLOW)⏳ 核心同步服務仍在初始化$(NC)"
+
+check-core-sync: ## 📊 檢查核心同步服務狀態
+	@echo "$(BLUE)📊 核心同步服務狀態：$(NC)"
+	@curl -s http://localhost:8080/api/v1/core-sync/status 2>/dev/null || echo "$(RED)❌ 無法連接到核心同步服務$(NC)"
+
+stop-core-sync: ## 🛑 停止核心同步服務
+	@echo "$(YELLOW)🛑 停止核心同步服務...$(NC)"
+	@-curl -s -X POST http://localhost:8080/api/v1/core-sync/service/stop -H "Content-Type: application/json" > /dev/null 2>&1 && echo "$(GREEN)✅ 核心同步服務已停止$(NC)" || echo "$(YELLOW)⚠️ 核心同步服務停止失敗$(NC)"
