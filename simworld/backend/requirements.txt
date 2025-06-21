@@ -14,6 +14,7 @@ skyfield # 新增 skyfield 套件
 httpx # 用於非同步 HTTP 請求
 redis # 用於 Redis 客戶端
 aiohttp # 用於非同步 HTTP 客戶端
+psutil  # 系統和進程監控
 
 # --- 日誌和配置 ---
 structlog>=23.2.0  # 結構化日誌
