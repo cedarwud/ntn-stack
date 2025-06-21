@@ -58,7 +58,6 @@ const Navbar: FC<NavbarProps> = ({
     const [showTimeFrequencyModal, setShowTimeFrequencyModal] = useState(false)
     const [showFourWayComparisonModal, setShowFourWayComparisonModal] =
         useState(false)
-    // const [showTestModal, setShowTestModal] = useState(false) // 未使用，已註釋
     // States for last update times
     const [sinrModalLastUpdate, setSinrModalLastUpdate] = useState<string>('')
     const [cfrModalLastUpdate, setCfrModalLastUpdate] = useState<string>('')
@@ -114,6 +113,7 @@ const Navbar: FC<NavbarProps> = ({
         navigate(`/${currentScene}/stereogram`)
         onMenuClick('3DRT')
     }
+
 
     const modalConfigs: ModalConfig[] = [
         {
@@ -396,22 +396,8 @@ const Navbar: FC<NavbarProps> = ({
                         >
                             立體圖
                         </li>
+                        
 
-                        {/* 換手性能分析 */}
-                        <li
-                            className={`navbar-item ${
-                                showFourWayComparisonModal ? 'active' : ''
-                            }`}
-                            onClick={(e) => {
-                                e.preventDefault()
-                                setShowFourWayComparisonModal(true)
-                                if (isMobile) {
-                                    setIsMenuOpen(false)
-                                }
-                            }}
-                        >
-                            🏆 四種方案對比
-                        </li>
                     </ul>
                 </div>
             </nav>
@@ -444,6 +430,8 @@ const Navbar: FC<NavbarProps> = ({
                     />
                 ) : null
             )}
+
+
         </>
     )
 }

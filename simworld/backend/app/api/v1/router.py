@@ -29,6 +29,9 @@ from app.domains.handover.api.fine_grained_sync_api import (
 from app.domains.handover.api.constrained_access_api import (
     router as constrained_access_router,
 )
+
+# Import testing API router
+from app.api.v1.testing import router as testing_router
 from app.domains.handover.api.weather_prediction_api import (
     router as weather_prediction_router,
 )
@@ -170,6 +173,9 @@ api_router.include_router(weather_prediction_router)
 
 # Register satellite admin API router
 api_router.include_router(satellite_admin_router)
+
+# Register testing API router
+api_router.include_router(testing_router, prefix="/testing", tags=["Testing"])
 
 
 # 添加模型資源路由
