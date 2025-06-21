@@ -10,9 +10,17 @@ import {
     HandoverEvent,
 } from '../../types/handover'
 import { VisibleSatelliteInfo } from '../../types/satellite'
-import { HANDOVER_CONFIG, getHandoverCooldownPeriod, getBinarySearchPrecision } from './config/handoverConfig'
+import {
+    HANDOVER_CONFIG,
+    getHandoverCooldownPeriod,
+    getBinarySearchPrecision,
+} from './config/handoverConfig'
 import { HandoverDecisionEngine } from './utils/handoverDecisionEngine'
-import { generateMockSatelliteConnection, normalizeSatelliteArray, generateMockSatellites } from './utils/satelliteUtils'
+import {
+    generateMockSatelliteConnection,
+    normalizeSatelliteArray,
+    generateMockSatellites,
+} from './utils/satelliteUtils'
 import './HandoverManager.scss'
 
 interface HandoverManagerProps {
@@ -57,7 +65,6 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     onAlgorithmResults,
     speedMultiplier = 60,
 }) => {
-
     // 換手狀態管理
     const [handoverState, setHandoverState] = useState<HandoverState>({
         currentSatellite: '',
@@ -72,7 +79,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     const [timePredictionData, setTimePredictionData] =
         useState<TimePredictionData>({
             currentTime: Date.now(),
-            futureTime: Date.now() + HANDOVER_CONFIG.TIMING.DEFAULT_DELTA_T_SECONDS * 1000,
+            futureTime:
+                Date.now() +
+                HANDOVER_CONFIG.TIMING.DEFAULT_DELTA_T_SECONDS * 1000,
             handoverTime: undefined,
             iterations: [],
             accuracy: HANDOVER_CONFIG.ACCURACY.DEFAULT_CONFIDENCE,
@@ -88,7 +97,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         cooldownPeriod: number // 冷卻期（毫秒）
     }>({
         recentHandovers: [],
-        cooldownPeriod: getHandoverCooldownPeriod(handoverMode as 'demo' | 'real'),
+        cooldownPeriod: getHandoverCooldownPeriod(
+            handoverMode as 'demo' | 'real'
+        ),
     })
 
     // 衛星連接狀態
@@ -99,18 +110,19 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     const [isTransitioning] = useState(false)
     const [transitionProgress] = useState(0)
 
-    
-
-
-
     // 🚀 演算法結果狀態 - 供統一狀態組件使用
-    const [algorithmPredictionResult, setAlgorithmPredictionResult] = useState<any>(null)
+    const [algorithmPredictionResult, setAlgorithmPredictionResult] =
+        useState<any>(null)
     const [algorithmRunning, setAlgorithmRunning] = useState(false)
-    const [currentDeltaT, setCurrentDeltaT] = useState<number>(HANDOVER_CONFIG.TIMING.DEFAULT_DELTA_T_SECONDS)
-    const [realHandoverRequired, setRealHandoverRequired] = useState<boolean>(false) // 真實換手需求狀態
-    const [connectionDataSource, setConnectionDataSource] = useState<'simulation' | 'algorithm'>('simulation') // 連接數據來源
+    const [currentDeltaT, setCurrentDeltaT] = useState<number>(
+        HANDOVER_CONFIG.TIMING.DEFAULT_DELTA_T_SECONDS
+    )
+    const [realHandoverRequired, setRealHandoverRequired] =
+        useState<boolean>(false) // 真實換手需求狀態
+    const [connectionDataSource, setConnectionDataSource] = useState<
+        'simulation' | 'algorithm'
+    >('simulation') // 連接數據來源
     const algorithmDataTimeoutRef = useRef<NodeJS.Timeout | null>(null) // 演算法數據超時計時器
-
 
     // 🔗 模擬二點預測算法 - 與 DynamicSatelliteRenderer 的 ID 系統兼容
     const simulateTwoPointPrediction = useCallback(() => {
@@ -125,16 +137,18 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             availableSatellites = generateMockSatellites()
         }
 
-
         const now = Date.now()
         // const futureTime = now + currentDeltaT * 1000
 
         // 🎯 模擬選擇當前最佳衛星 - 優先選擇前幾個衛星以提高匹配機率
         const currentBestIndex = Math.floor(
-            Math.random() * Math.min(HANDOVER_CONFIG.SATELLITE_SELECTION.MAX_FRONT_SATELLITES, availableSatellites.length)
+            Math.random() *
+                Math.min(
+                    HANDOVER_CONFIG.SATELLITE_SELECTION.MAX_FRONT_SATELLITES,
+                    availableSatellites.length
+                )
         )
         const currentBest = availableSatellites[currentBestIndex]
-
 
         // 🎯 使用統一的換手決策引擎
         const decision = HandoverDecisionEngine.shouldHandover(
@@ -146,15 +160,20 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         )
 
         // 清理過期的換手記錄
-        handoverHistoryRef.current.recentHandovers = handoverHistoryRef.current.recentHandovers.filter(
-            (record) => now - record.timestamp < handoverHistoryRef.current.cooldownPeriod
-        )
+        handoverHistoryRef.current.recentHandovers =
+            handoverHistoryRef.current.recentHandovers.filter(
+                (record) =>
+                    now - record.timestamp <
+                    handoverHistoryRef.current.cooldownPeriod
+            )
 
         // 更新換手狀態
         setHandoverState((prev) => ({
             ...prev,
             currentSatellite: currentBest?.norad_id.toString() || '',
-            predictedSatellite: decision.needsHandover ? decision.targetSatellite?.norad_id.toString() || '' : '',
+            predictedSatellite: decision.needsHandover
+                ? decision.targetSatellite?.norad_id.toString() || ''
+                : '',
             status: decision.needsHandover ? 'predicting' : 'idle',
             confidence: decision.confidence,
         }))
@@ -162,12 +181,18 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         // 🔗 更新連接狀態 (只在沒有演算法數據時)
         if (connectionDataSource === 'simulation') {
             if (currentBest) {
-                const currentConn = generateMockSatelliteConnection(currentBest, true)
+                const currentConn = generateMockSatelliteConnection(
+                    currentBest,
+                    true
+                )
                 setCurrentConnection(currentConn)
             }
 
             if (decision.needsHandover && decision.targetSatellite) {
-                const predictedConn = generateMockSatelliteConnection(decision.targetSatellite, false)
+                const predictedConn = generateMockSatelliteConnection(
+                    decision.targetSatellite,
+                    false
+                )
                 setPredictedConnection(predictedConn)
             } else {
                 setPredictedConnection(null)
@@ -177,16 +202,16 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         // 更新時間預測數據 - 基於論文邏輯計算換手時間
         const currentDeltaTValue = currentDeltaTRef.current
         const deltaT = Math.max(3, currentDeltaTValue) * 1000 // 使用當前的 delta-t (秒轉換為毫秒)，最小3秒
-        
+
         // console.log(`🚀 simulateTwoPointPrediction 被調用! currentDeltaT=${currentDeltaTValue}s, deltaT=${deltaT}ms`)
-        
+
         // 🔧 計算新的換手時間 - 每次新時間軸都重新計算
         const randomPosition = 0.3 + Math.random() * 0.4 // 30%-70% 範圍內隨機
         const handoverOffset = deltaT * randomPosition
         const handoverTime = now + handoverOffset
-        
+
         // console.log(`🎯 新時間軸: T=${new Date(now).toLocaleTimeString()}, T+Δt=${new Date(now + deltaT).toLocaleTimeString()}, 換手=${new Date(handoverTime).toLocaleTimeString()}`)
-        
+
         // 先生成 Binary Search 數據
         const binarySearchData = generateBinarySearchData(now, now + deltaT)
 
@@ -197,7 +222,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             iterations: binarySearchData.iterations, // 直接設置生成的 iterations
             accuracy: 0.95 + Math.random() * 0.04, // 95-99%
         }
-        
+
         // console.log(`📊 setTimePredictionData 被調用，iterations 數量:`, newTimePredictionData.iterations.length)
         setTimePredictionData(newTimePredictionData)
 
@@ -217,24 +242,31 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         const totalDuration = endTime - startTime
         let currentStart = 0 // 使用相對時間
         let currentEnd = totalDuration / 1000 // 轉換為秒
-        
+
         // 動態調整精度目標，讓迭代次數有更大變化
         const targetPrecision = getBinarySearchPrecision(startTime)
         // 預期迭代次數: 9次, 7次, 6次, 5次, 4次
-        
+
         // 生成所有迭代步驟
         let iterationCount = 0
         let tempStart = currentStart
         let tempEnd = currentEnd
-        
-        while (tempEnd - tempStart > targetPrecision && iterationCount < HANDOVER_CONFIG.BINARY_SEARCH.MAX_ITERATIONS) {
+
+        while (
+            tempEnd - tempStart > targetPrecision &&
+            iterationCount < HANDOVER_CONFIG.BINARY_SEARCH.MAX_ITERATIONS
+        ) {
             iterationCount++
             const midTime = (tempStart + tempEnd) / 2
             const precision = tempEnd - tempStart
-            
+
             // 使用統一的衛星名稱生成器
-            const satelliteName = HandoverDecisionEngine.generateDynamicSatelliteName(startTime, iterationCount)
-            
+            const satelliteName =
+                HandoverDecisionEngine.generateDynamicSatelliteName(
+                    startTime,
+                    iterationCount
+                )
+
             const iteration: BinarySearchIteration = {
                 iteration: iterationCount,
                 startTime: startTime + tempStart * 1000,
@@ -244,9 +276,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                 precision,
                 completed: false, // 初始都設為未完成，將由 TimePredictionTimeline 動態更新
             }
-            
+
             iterations.push(iteration)
-            
+
             // 模擬二分搜尋縮小範圍 - 交替選擇前半段和後半段
             if (iterationCount % 2 === 1) {
                 tempStart = midTime // 換手在後半段
@@ -254,28 +286,27 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                 tempEnd = midTime // 換手在前半段
             }
         }
-        
-        const finalHandoverTime = iterations.length > 0 
-            ? iterations[iterations.length - 1].midTime 
-            : startTime + totalDuration * 0.6
-            
+
+        const finalHandoverTime =
+            iterations.length > 0
+                ? iterations[iterations.length - 1].midTime
+                : startTime + totalDuration * 0.6
+
         // console.log(`🔄 Binary Search 更新: ${iterations.length} 次迭代, 目標精度: ${targetPrecision}s (${targetPrecision*1000}ms), 最終精度: ${(iterations[iterations.length-1]?.precision || 0).toFixed(3)}s`)
-        
+
         return {
             iterations,
-            finalHandoverTime
+            finalHandoverTime,
         }
     }
-
-
 
     // 使用 useRef 避免依賴循環和閉包問題
     const simulateTwoPointPredictionRef = useRef(simulateTwoPointPrediction)
     simulateTwoPointPredictionRef.current = simulateTwoPointPrediction
-    
+
     const timePredictionDataRef = useRef(timePredictionData)
     timePredictionDataRef.current = timePredictionData
-    
+
     const currentDeltaTRef = useRef(currentDeltaT)
     currentDeltaTRef.current = currentDeltaT
 
@@ -296,7 +327,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             const futureTime = timePredictionDataRef.current.futureTime
             const timelineFinished = now >= futureTime
             // const remaining = Math.max(0, (futureTime - now) / 1000)
-            
+
             if (timelineFinished) {
                 // console.log('✅ 時間軸完成，開始新預測')
                 simulateTwoPointPredictionRef.current()
@@ -310,7 +341,6 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         isEnabled,
         // 完全移除 simulateTwoPointPrediction 依賴
     ])
-
 
     // 移除了 handleTimeUpdate 函數，避免無限循環更新
 
@@ -366,7 +396,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
     // 🔄 當換手模式改變時，更新冷卻期並清理歷史記錄
     useEffect(() => {
-        const newCooldown = getHandoverCooldownPeriod(handoverMode as 'demo' | 'real')
+        const newCooldown = getHandoverCooldownPeriod(
+            handoverMode as 'demo' | 'real'
+        )
         if (handoverHistoryRef.current.cooldownPeriod !== newCooldown) {
             handoverHistoryRef.current.cooldownPeriod = newCooldown
             // 清空所有歷史記錄，避免模式切換時的衝突
@@ -414,7 +446,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             <div className="algorithm-header">
                 <div className="algorithm-title">
                     <span className="title-icon">🤖</span>
-                    <span className="title-text">IEEE INFOCOM 2024 自動預測算法</span>
+                    <span className="title-text">
+                        IEEE INFOCOM 2024 自動預測算法
+                    </span>
                 </div>
                 <div className="algorithm-subtitle">
                     二點預測 + Binary Search 優化換手決策
@@ -451,91 +485,125 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                         <span className="summary-text">詳細演算法監控</span>
                         <span className="summary-indicator">▼</span>
                     </summary>
-                        <div className="algorithm-content">
-                            <SynchronizedAlgorithmVisualization
-                                satellites={satellites}
-                                selectedUEId={selectedUEId}
-                                isEnabled={isEnabled} // 🔧 重新啟用，使用 useRef 避免依賴循環
-                                speedMultiplier={speedMultiplier}
-                                onAlgorithmStep={() => {
-                                    // 處理算法步驟事件
-                                }}
-                                onAlgorithmResults={(results) => {
-                                    // 更新統一狀態組件的資料
-                                    setAlgorithmRunning(results.handoverStatus === 'calculating' || results.handoverStatus === 'executing')
-                                    
-                                    // 如果有預測結果，更新狀態
-                                    if (results.predictionResult) {
-                                        setAlgorithmPredictionResult(results.predictionResult)
-                                        
-                                        // 🎯 更新真實換手需求狀態
-                                        const handoverRequired = results.predictionResult.handover_required || false
-                                        setRealHandoverRequired(handoverRequired)
-                                        
-                                        // 🔄 更新連接狀態以同步顯示 (設置為演算法數據源)
-                                        setConnectionDataSource('algorithm')
-                                        
-                                        // 清除之前的超時計時器
-                                        if (algorithmDataTimeoutRef.current) {
-                                            clearTimeout(algorithmDataTimeoutRef.current)
-                                        }
-                                        
-                                        // 設置超時，30秒後回到模擬數據源
-                                        algorithmDataTimeoutRef.current = setTimeout(() => {
-                                            setConnectionDataSource('simulation')
-                                        }, 30000)
-                                        
-                                        if (results.predictionResult.current_satellite) {
-                                            const currentSat = results.predictionResult.current_satellite
-                                            setCurrentConnection({
-                                                satelliteId: currentSat.satellite_id,
-                                                satelliteName: currentSat.name,
-                                                elevation: currentSat.elevation,
-                                                azimuth: 0, // API 結果沒有提供，使用預設值
-                                                distance: 0, // API 結果沒有提供，使用預設值
-                                                signalStrength: currentSat.signal_strength,
-                                                isConnected: true,
-                                                isPredicted: false,
-                                            })
-                                        }
-                                        
-                                        // 如果需要換手且有預測的未來衛星，設置預測連接
-                                        if (handoverRequired && results.predictionResult.future_satellite) {
-                                            const futureSat = results.predictionResult.future_satellite
-                                            setPredictedConnection({
-                                                satelliteId: futureSat.satellite_id,
-                                                satelliteName: futureSat.name,
-                                                elevation: futureSat.elevation,
-                                                azimuth: 0, // API 結果沒有提供，使用預設值
-                                                distance: 0, // API 結果沒有提供，使用預設值
-                                                signalStrength: futureSat.signal_strength,
-                                                isConnected: false,
-                                                isPredicted: true,
-                                            })
-                                        } else {
-                                            // 如果不需要換手，清空預測連接
-                                            setPredictedConnection(null)
-                                        }
-                                        
-                                        // 🔧 只在必要時更新 currentDeltaT，避免干擾時間軸
-                                        const now = Date.now()
-                                        const timelineFinished = now >= timePredictionDataRef.current.futureTime
-                                        const newDeltaT = results.predictionResult.delta_t_seconds || 5
-                                        
-                                        // console.log(`🔄 SynchronizedAlgorithmVisualization 結果: newDeltaT=${newDeltaT}s, timelineFinished=${timelineFinished}, currentDeltaT=${currentDeltaT}s`)
-                                        
-                                        // 只在時間軸完成且 deltaT 真的改變時才更新
-                                        if (timelineFinished && Math.abs(newDeltaT - currentDeltaT) > 0.1) {
-                                            // console.log(`✅ 更新 currentDeltaT: ${currentDeltaT}s → ${newDeltaT}s`)
-                                            setCurrentDeltaT(newDeltaT)
-                                        }
+                    <div className="algorithm-content">
+                        <SynchronizedAlgorithmVisualization
+                            satellites={satellites}
+                            selectedUEId={selectedUEId}
+                            isEnabled={isEnabled} // 🔧 重新啟用，使用 useRef 避免依賴循環
+                            speedMultiplier={speedMultiplier}
+                            onAlgorithmStep={() => {
+                                // 處理算法步驟事件
+                            }}
+                            onAlgorithmResults={(results) => {
+                                // 更新統一狀態組件的資料
+                                setAlgorithmRunning(
+                                    results.handoverStatus === 'calculating' ||
+                                        results.handoverStatus === 'executing'
+                                )
+
+                                // 如果有預測結果，更新狀態
+                                if (results.predictionResult) {
+                                    setAlgorithmPredictionResult(
+                                        results.predictionResult
+                                    )
+
+                                    // 🎯 更新真實換手需求狀態
+                                    const handoverRequired =
+                                        results.predictionResult
+                                            .handover_required || false
+                                    setRealHandoverRequired(handoverRequired)
+
+                                    // 🔄 更新連接狀態以同步顯示 (設置為演算法數據源)
+                                    setConnectionDataSource('algorithm')
+
+                                    // 清除之前的超時計時器
+                                    if (algorithmDataTimeoutRef.current) {
+                                        clearTimeout(
+                                            algorithmDataTimeoutRef.current
+                                        )
                                     }
-                                    
-                                    onAlgorithmResults?.(results)
-                                }}
-                            />
-                        </div>
-                    </details>
+
+                                    // 設置超時，30秒後回到模擬數據源
+                                    algorithmDataTimeoutRef.current =
+                                        setTimeout(() => {
+                                            setConnectionDataSource(
+                                                'simulation'
+                                            )
+                                        }, 30000)
+
+                                    if (
+                                        results.predictionResult
+                                            .current_satellite
+                                    ) {
+                                        const currentSat =
+                                            results.predictionResult
+                                                .current_satellite
+                                        setCurrentConnection({
+                                            satelliteId:
+                                                currentSat.satellite_id,
+                                            satelliteName: currentSat.name,
+                                            elevation: currentSat.elevation,
+                                            azimuth: 0, // API 結果沒有提供，使用預設值
+                                            distance: 0, // API 結果沒有提供，使用預設值
+                                            signalStrength:
+                                                currentSat.signal_strength,
+                                            isConnected: true,
+                                            isPredicted: false,
+                                        })
+                                    }
+
+                                    // 如果需要換手且有預測的未來衛星，設置預測連接
+                                    if (
+                                        handoverRequired &&
+                                        results.predictionResult
+                                            .future_satellite
+                                    ) {
+                                        const futureSat =
+                                            results.predictionResult
+                                                .future_satellite
+                                        setPredictedConnection({
+                                            satelliteId: futureSat.satellite_id,
+                                            satelliteName: futureSat.name,
+                                            elevation: futureSat.elevation,
+                                            azimuth: 0, // API 結果沒有提供，使用預設值
+                                            distance: 0, // API 結果沒有提供，使用預設值
+                                            signalStrength:
+                                                futureSat.signal_strength,
+                                            isConnected: false,
+                                            isPredicted: true,
+                                        })
+                                    } else {
+                                        // 如果不需要換手，清空預測連接
+                                        setPredictedConnection(null)
+                                    }
+
+                                    // 🔧 只在必要時更新 currentDeltaT，避免干擾時間軸
+                                    const now = Date.now()
+                                    const timelineFinished =
+                                        now >=
+                                        timePredictionDataRef.current.futureTime
+                                    const newDeltaT =
+                                        results.predictionResult
+                                            .delta_t_seconds || 5
+
+                                    // console.log(`🔄 SynchronizedAlgorithmVisualization 結果: newDeltaT=${newDeltaT}s, timelineFinished=${timelineFinished}, currentDeltaT=${currentDeltaT}s`)
+
+                                    // 只在時間軸完成且 deltaT 真的改變時才更新
+                                    if (
+                                        timelineFinished &&
+                                        Math.abs(newDeltaT - currentDeltaT) >
+                                            0.1
+                                    ) {
+                                        // console.log(`✅ 更新 currentDeltaT: ${currentDeltaT}s → ${newDeltaT}s`)
+                                        setCurrentDeltaT(newDeltaT)
+                                    }
+                                }
+
+                                onAlgorithmResults?.(results)
+                            }}
+                        />
+                    </div>
+                </details>
 
                 {/* 移除重複的後台組件 - 統一使用可見的組件 */}
             </div>

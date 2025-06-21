@@ -10,6 +10,7 @@ import { VisibleSatelliteInfo } from '../../types/satellite'
 import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName'
 import HandoverManager from '../handover/HandoverManager'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
+import TestExecutionPanel from '../testing/TestExecutionPanel'
 
 interface SidebarProps {
     devices: Device[]
@@ -107,6 +108,15 @@ interface SidebarProps {
         handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
         binarySearchActive?: boolean
         predictionConfidence?: number
+    }) => void
+    
+    // 測試報告顯示回調
+    onShowTestReport?: (reportData: {
+        frameworkId: string
+        frameworkName: string
+        testResults: any
+        allFrameworkResults: {[key: string]: any}
+        isUnifiedReport: boolean
     }) => void
 }
 
@@ -226,6 +236,8 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onPredictedConnectionChange,
     onTransitionChange,
     onAlgorithmResults,
+    // 測試報告顯示回調
+    onShowTestReport,
     // 衛星動畫控制 props（動畫永遠開啟）
     satelliteSpeedMultiplier = 5,
     onSatelliteSpeedChange,
@@ -392,12 +404,13 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         })
     }
 
-    // 精簡的類別配置 - 更新為 4 個分頁
+    // 精簡的類別配置 - 更新為 5 個分頁
     const categories = [
         { id: 'uav', label: 'UAV 控制', icon: '🚁' },
         { id: 'satellite', label: '衛星控制', icon: '🛰️' },
         { id: 'handover_mgr', label: '換手管理', icon: '🔄' },
         { id: 'quality', label: '通信品質', icon: '📶' },
+        { id: 'testing', label: '測試驗證', icon: '🧪' },
     ]
 
     // 靜態衛星數據管理：完全避免重新載入和重新渲染
@@ -672,6 +685,14 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                 {/* 功能開關 */}
                                 {renderFeatureToggles()}
 
+                                {/* 測試執行面板 - 只在測試驗證分頁顯示 */}
+                                {activeCategory === 'testing' && (
+                                    <TestExecutionPanel
+                                        hideUI={false}
+                                        onShowTestReport={onShowTestReport}
+                                    />
+                                )}
+
                                 {/* 衛星動畫速度控制 - 當衛星啟用時顯示 */}
                                 {activeCategory === 'satellite' &&
                                     satelliteEnabled && (
@@ -810,6 +831,12 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                     // 只在換手類別中顯示 UI，但邏輯始終運行
                                     hideUI={activeCategory !== 'handover_mgr'}
                                 />
+
+                                {/* 🧪 測試執行面板 - 已移動到導航欄 */}
+                                {/* <TestExecutionPanel
+                                    hideUI={activeCategory !== 'testing'}
+                                    onShowTestReport={onShowTestReport}
+                                /> */}
 
                                 {/* 手動控制面板 - 當自動飛行開啟時隱藏，且需要手動控制開關啟用 */}
                                 {!auto && manualControlEnabled && (
