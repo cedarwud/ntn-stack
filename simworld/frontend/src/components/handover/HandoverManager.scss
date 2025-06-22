@@ -49,6 +49,105 @@
     }
   }
 
+  // 🎯 策略控制面板樣式
+  .strategy-control-panel {
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(255, 159, 67, 0.1));
+    border: 1px solid rgba(255, 159, 67, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    
+    .strategy-title {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+      
+      .strategy-icon {
+        margin-right: 8px;
+        font-size: 16px;
+      }
+      
+      span:last-child {
+        color: #ff9f43;
+        font-weight: 600;
+        font-size: 14px;
+      }
+    }
+    
+    .strategy-toggle {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+      
+      label {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.05);
+        flex: 1;
+        
+        &:hover {
+          border-color: #ff9f43;
+          background: rgba(255, 159, 67, 0.1);
+        }
+        
+        &.active {
+          border-color: #40e0ff;
+          background: linear-gradient(135deg, rgba(64, 224, 255, 0.2), rgba(0, 150, 255, 0.1));
+          box-shadow: 0 0 15px rgba(64, 224, 255, 0.3);
+        }
+        
+        input[type="radio"] {
+          margin-right: 8px;
+          accent-color: #40e0ff;
+        }
+        
+        .strategy-label {
+          display: flex;
+          flex-direction: column;
+          
+          small {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 2px;
+          }
+        }
+      }
+    }
+    
+    .strategy-status {
+      font-size: 12px;
+      color: #40e0ff;
+      opacity: 0.8;
+      text-align: center;
+      
+      &::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        background: #40e0ff;
+        border-radius: 50%;
+        margin-right: 6px;
+        animation: pulse 2s infinite;
+      }
+    }
+  }
+  
+  // 脈動動畫
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
+
   .algorithm-header {
     margin-bottom: 20px;
     padding: 16px;

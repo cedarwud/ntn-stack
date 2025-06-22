@@ -70,9 +70,13 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     handoverStrategy: propStrategy,
 }) => {
     // 🎯 使用全域策略狀態
-    const { currentStrategy } = useStrategy()
+    const {
+        currentStrategy,
+        switchStrategy: globalSwitchStrategy,
+        isLoading: strategyLoading,
+    } = useStrategy()
     const activeStrategy = propStrategy || currentStrategy
-    
+
     // 換手狀態管理
     const [handoverState, setHandoverState] = useState<HandoverState>({
         currentSatellite: '',
@@ -243,17 +247,17 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
         // 換手決策完成
     }, []) // 🔧 暫時移除所有依賴，專注於修復時間軸跳動問題
-    
+
     // 🎯 策略變更監聽器
     useEffect(() => {
         const handleStrategyChange = (event: CustomEvent) => {
             const { strategy } = event.detail
             console.log(`📵 HandoverManager 接收到策略變更: ${strategy}`)
-            
+
             // 根據策略調整換手參數
             if (strategy === 'consistent') {
                 // Consistent 策略：更頻繁的換手、更高精確度
-                setHandoverState(prev => ({
+                setHandoverState((prev) => ({
                     ...prev,
                     confidence: 0.97 + Math.random() * 0.02, // 97-99%
                     deltaT: 2, // 更短的時間間隔
@@ -261,7 +265,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                 console.log('🔥 已切換到 Consistent 策略：高精確度、短周期')
             } else {
                 // Flexible 策略：較少換手、節省資源
-                setHandoverState(prev => ({
+                setHandoverState((prev) => ({
                     ...prev,
                     confidence: 0.92 + Math.random() * 0.03, // 92-95%
                     deltaT: 5, // 更長的時間間隔
@@ -269,14 +273,22 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                 console.log('🔋 已切換到 Flexible 策略：中等精確度、長周期')
             }
         }
-        
-        window.addEventListener('strategyChanged', handleStrategyChange as EventListener)
-        
+
+        window.addEventListener(
+            'strategyChanged',
+            handleStrategyChange as EventListener
+        )
+
         // 初始化時也根據當前策略設定
-        handleStrategyChange({ detail: { strategy: activeStrategy } } as CustomEvent)
-        
+        handleStrategyChange({
+            detail: { strategy: activeStrategy },
+        } as CustomEvent)
+
         return () => {
-            window.removeEventListener('strategyChanged', handleStrategyChange as EventListener)
+            window.removeEventListener(
+                'strategyChanged',
+                handleStrategyChange as EventListener
+            )
         }
     }, [activeStrategy])
 
@@ -496,6 +508,72 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                 </div>
                 <div className="algorithm-subtitle">
                     二點預測 + Binary Search 優化換手決策
+                </div>
+            </div>
+
+            {/* 🎯 換手策略切換控制 */}
+            <div className="strategy-control-panel">
+                <div className="strategy-title">
+                    <span className="strategy-icon">🎯</span>
+                    <span>換手策略控制</span>
+                </div>
+                <div className="strategy-toggle">
+                    <label
+                        className={
+                            currentStrategy === 'flexible' ? 'active' : ''
+                        }
+                    >
+                        <input
+                            type="radio"
+                            name="handover-strategy"
+                            value="flexible"
+                            checked={currentStrategy === 'flexible'}
+                            onChange={async (e) => {
+                                await globalSwitchStrategy(
+                                    e.target.value as 'flexible' | 'consistent'
+                                )
+                            }}
+                            disabled={strategyLoading}
+                        />
+                        <span className="strategy-label">
+                            🔋 Flexible
+                            <small>節能模式、長周期(5s)</small>
+                        </span>
+                    </label>
+                    <label
+                        className={
+                            currentStrategy === 'consistent' ? 'active' : ''
+                        }
+                    >
+                        <input
+                            type="radio"
+                            name="handover-strategy"
+                            value="consistent"
+                            checked={currentStrategy === 'consistent'}
+                            onChange={async (e) => {
+                                await globalSwitchStrategy(
+                                    e.target.value as 'flexible' | 'consistent'
+                                )
+                            }}
+                            disabled={strategyLoading}
+                        />
+                        <span className="strategy-label">
+                            ⚡ Consistent
+                            <small>效能模式、短周期(2s)</small>
+                        </span>
+                    </label>
+                </div>
+                <div className="strategy-status">
+                    {strategyLoading ? (
+                        <>🔄 策略切換中...</>
+                    ) : (
+                        <>
+                            🟢 當前策略：
+                            {currentStrategy === 'flexible'
+                                ? 'Flexible (低資源使用)'
+                                : 'Consistent (高效能模式)'}
+                        </>
+                    )}
                 </div>
             </div>
 
