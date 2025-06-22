@@ -1,4 +1,158 @@
 /* Chart Analysis Dashboard 100% 全屏樣式 */
+
+/* 策略控制項樣式 */
+.strategy-controls {
+  margin-bottom: 2rem;
+  
+  .strategy-info {
+    text-align: center;
+    margin-bottom: 1rem;
+    
+    p {
+      color: #94a3b8;
+      font-size: 0.95rem;
+      margin: 0;
+      font-style: italic;
+    }
+  }
+  
+  .strategy-toggle {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    
+    label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      color: white;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.05);
+      min-width: 200px;
+      
+      &:hover {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.1);
+      }
+      
+      &.active {
+        border-color: #4ade80;
+        background: rgba(74, 222, 128, 0.15);
+        box-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
+      }
+      
+      input[type="radio"] {
+        width: 20px;
+        height: 20px;
+        accent-color: #667eea;
+      }
+      
+      small {
+        color: #94a3b8;
+        font-size: 0.85rem;
+        text-align: center;
+        margin-top: 0.3rem;
+        line-height: 1.3;
+      }
+    }
+  }
+}
+
+/* 策略比較樣式 */
+.strategy-comparison {
+  margin-top: 1rem;
+  
+  .strategy-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    
+    .metric-card {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      
+      h4 {
+        color: #667eea;
+        margin: 0 0 1rem 0;
+        font-size: 1.3rem;
+        text-align: center;
+      }
+      
+      .metric-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.8rem;
+        color: white;
+        
+        span:first-child {
+          opacity: 0.8;
+        }
+        
+        span:last-child {
+          font-weight: bold;
+          color: #4ade80;
+        }
+      }
+    }
+  }
+}
+
+/* 效能指標儀表板樣式 */
+.metrics-dashboard {
+  .metrics-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    
+    .metric-gauge {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      text-align: center;
+      
+      h4 {
+        color: white;
+        margin: 0 0 1rem 0;
+        font-size: 1.1rem;
+        opacity: 0.9;
+      }
+      
+      .gauge-container {
+        .gauge-value {
+          color: #4ade80;
+          font-size: 2rem;
+          font-weight: bold;
+          margin-bottom: 1rem;
+        }
+        
+        .gauge-bar {
+          width: 100%;
+          height: 8px;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 4px;
+          overflow: hidden;
+          
+          .gauge-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #667eea);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+          }
+        }
+      }
+    }
+  }
+}
 .chart-analysis-dashboard-overlay {
   position: fixed;
   top: 0;
