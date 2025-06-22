@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -84,31 +84,9 @@ const ChartAnalysisDashboard = ({
     isOpen,
     onClose,
 }: ChartAnalysisDashboardProps) => {
-    console.log('ChartAnalysisDashboard rendered, isOpen:', isOpen)
-
-    if (!isOpen) {
-        console.log('組件未打開，返回 null')
-        return null
-    }
-
-    console.log('開始渲染完整圖表分析界面...')
-    console.log('1. 初始化 useState hooks...')
-    
-    // 添加 undefined 檢測器
-    const originalStringify = JSON.stringify
-    ;(JSON as any).stringify = function(value: any, replacer?: any, space?: any) {
-        return originalStringify(value, function(key: string, val: any) {
-            if (val === undefined) {
-                console.warn('🚨 發現 undefined 值:', key, val)
-                console.trace('調用堆棧:')
-            }
-            return typeof replacer === 'function' ? replacer(key, val) : val
-        }, space)
-    }
-    
+    // 所有 hooks 必須在條件語句之前調用
     const [activeTab, setActiveTab] = useState('overview')
     const [isCalculating, setIsCalculating] = useState(false)
-    console.log('2. 基本 state 初始化完成')
     const [systemMetrics, setSystemMetrics] = useState({
         cpu: 0,
         memory: 0,
@@ -158,7 +136,6 @@ const ChartAnalysisDashboard = ({
         scenarioComparison: null,
         qoeMetrics: null,
     })
-    console.log('3. 所有 state 初始化完成')
 
     // Fetch real UAV data from SimWorld API
     const fetchRealUAVData = async () => {
@@ -179,7 +156,7 @@ const ChartAnalysisDashboard = ({
                         })
                     )
                     setUavData(uavList)
-                    console.log(`Fetched ${uavList.length} real UAV positions`)
+                    // Fetched real UAV positions
                 }
             }
         } catch (error) {
@@ -250,9 +227,7 @@ const ChartAnalysisDashboard = ({
                               }
                             : null,
                     })
-                    console.log(
-                        `Updated handover test data from system status: ${systemStatus.status}`
-                    )
+                    // Updated handover test data from system status
                 }
             }
         } catch (error) {
@@ -278,7 +253,7 @@ const ChartAnalysisDashboard = ({
                             Date.now() + 4 * 60 * 60 * 1000
                         ).toISOString(), // 4小時後
                     })
-                    console.log('TLE service is healthy')
+                    // TLE service is healthy
                     return true
                 }
             }
@@ -374,7 +349,7 @@ const ChartAnalysisDashboard = ({
         }
 
         setAutoTestResults(results)
-        console.log('自動測試結果:', results)
+        // Auto test results completed
         return results
     }
 
@@ -464,9 +439,7 @@ const ChartAnalysisDashboard = ({
                                 gain: 35,
                             },
                         })
-                        console.log(
-                            `Successfully updated satellite data - Starlink: ${starlinkSats.length}, Kuiper: ${kuiperSats.length}`
-                        )
+                        // Successfully updated satellite data
                     }
                 }
             }
@@ -556,41 +529,55 @@ const ChartAnalysisDashboard = ({
     useEffect(() => {
         if (!isOpen) return
 
+        let mounted = true
+        let interval: NodeJS.Timeout | undefined
+        let tleInterval: NodeJS.Timeout | undefined
+        let testTimeout: NodeJS.Timeout | undefined
+
+        // 設置加載狀態，但只設置一次
         setIsCalculating(true)
-        let interval: NodeJS.Timeout
-        let tleInterval: NodeJS.Timeout
-        let testTimeout: NodeJS.Timeout
 
         const timer = setTimeout(() => {
+            if (!mounted) return
+            
             setIsCalculating(false)
 
-            // Initial fetch
-            fetchRealSystemMetrics().catch(console.error)
-            fetchRealSatelliteData().catch(console.error)
-            fetchRealUAVData().catch(console.error)
-            fetchHandoverTestData().catch(console.error)
-            fetchCelestrakTLEData().catch(console.error)
+            // 只在組件掛載且打開時才執行 API 調用
+            if (mounted && isOpen) {
+                fetchRealSystemMetrics().catch(() => {})
+                fetchRealSatelliteData().catch(() => {})
+                fetchRealUAVData().catch(() => {})
+                fetchHandoverTestData().catch(() => {})
+                fetchCelestrakTLEData().catch(() => {})
 
-            // 運行初始自動測試
-            testTimeout = setTimeout(() => {
-                runAutomaticTests().catch(console.error)
-            }, 3000)
+                // 運行初始自動測試 (延遲執行)
+                testTimeout = setTimeout(() => {
+                    if (mounted && isOpen) {
+                        runAutomaticTests().catch(() => {})
+                    }
+                }, 5000)
 
-            // Setup interval for real-time updates
-            interval = setInterval(() => {
-                fetchRealSystemMetrics().catch(console.error)
-                fetchRealSatelliteData().catch(console.error)
-                fetchRealUAVData().catch(console.error)
-                fetchHandoverTestData().catch(console.error)
-            }, 8000)
+                // Setup interval for real-time updates (較長間隔)
+                interval = setInterval(() => {
+                    if (mounted && isOpen) {
+                        fetchRealSystemMetrics().catch(() => {})
+                        fetchRealSatelliteData().catch(() => {})
+                        fetchRealUAVData().catch(() => {})
+                        fetchHandoverTestData().catch(() => {})
+                    }
+                }, 15000) // 增加到 15 秒間隔
 
-            // Setup longer interval for TLE updates (every 2 hours)
-            tleInterval = setInterval(() => {
-                fetchCelestrakTLEData().catch(console.error)
-            }, 2 * 60 * 60 * 1000)
-        }, 2000)
+                // Setup longer interval for TLE updates (every 4 hours)
+                tleInterval = setInterval(() => {
+                    if (mounted && isOpen) {
+                        fetchCelestrakTLEData().catch(() => {})
+                    }
+                }, 4 * 60 * 60 * 1000) // 增加到 4 小時
+            }
+        }, 3000) // 增加初始延遲
 
         return () => {
+            mounted = false
             clearTimeout(timer)
             if (interval) clearInterval(interval)
             if (tleInterval) clearInterval(tleInterval)
@@ -598,10 +585,9 @@ const ChartAnalysisDashboard = ({
         }
     }, [isOpen])
 
-    if (!isOpen) return null
-
+    // 所有 hooks 必須在條件返回之前調用
     // IEEE INFOCOM 2024 圖表數據 - 使用真實測試數據（如果可用）
-    const handoverLatencyData = {
+    const handoverLatencyData = useMemo(() => ({
         labels: [
             '準備階段',
             'RRC 重配',
@@ -649,10 +635,10 @@ const ChartAnalysisDashboard = ({
                 borderWidth: 2,
             },
         ],
-    }
+    }), [handoverTestData])
 
     // 星座對比數據 - 使用真實衛星參數
-    const constellationComparisonData = {
+    const constellationComparisonData = useMemo(() => ({
         labels: [
             '平均延遲(ms)',
             '最大延遲(ms)',
@@ -697,7 +683,7 @@ const ChartAnalysisDashboard = ({
                 borderWidth: 2,
             },
         ],
-    }
+    }), [satelliteData])
 
     // QoE 時間序列數據 - 整合 UAV 真實位置數據
     const generateQoETimeSeriesData = () => {
@@ -863,17 +849,8 @@ const ChartAnalysisDashboard = ({
     }
 
     // 統計信賴區間功能已就緒
-    console.log('統計驗證功能:', calculateConfidenceInterval(100))
     
-    // 調試函數：安全顯示值，如果是 undefined 則顯示警告
-    const safeDisplay = (value: any, defaultValue: string, description: string) => {
-        if (value === undefined || value === null) {
-            console.error(`🚨 ${description} 是 undefined/null:`, value)
-            console.trace('調用堆棧:')
-            return `[ERROR: ${description} undefined]`
-        }
-        return value
-    }
+    // 調試函數已移除
 
     // 顯著性檢驗結果
     const statisticalSignificance = {
@@ -927,7 +904,7 @@ const ChartAnalysisDashboard = ({
             setSelectedDataPoint(selectedData)
             setShowDataInsight(true)
 
-            console.log('Chart clicked:', selectedData)
+            // Chart clicked event
         }
     }
 
@@ -950,7 +927,8 @@ const ChartAnalysisDashboard = ({
     // 互動式圖表配置
     const createInteractiveChartOptions = (
         title: string,
-        yAxisLabel: string = ''
+        yAxisLabel: string = '',
+        xAxisLabel: string = ''
     ) => ({
         responsive: true,
         interaction: {
@@ -1021,6 +999,8 @@ const ChartAnalysisDashboard = ({
                     }
                 },
                 title: {
+                    display: !!xAxisLabel,
+                    text: xAxisLabel,
                     color: 'white',
                     font: { size: 16, weight: 'bold' as 'bold' },
                 },
@@ -1238,17 +1218,12 @@ const ChartAnalysisDashboard = ({
         ],
     }
 
+    // 條件返回必須在所有 hooks 之後
+    if (!isOpen) return null
+
     const renderTabContent = () => {
-        // 調試：檢查所有可能顯示 undefined 的變數
-        console.log('🔍 DEBUG - 檢查變數狀態:')
-        console.log('statisticalSignificance:', statisticalSignificance)
-        console.log('satelliteData:', satelliteData)
-        console.log('performanceMetrics:', performanceMetrics)
-        console.log('autoTestResults:', autoTestResults)
-        
         switch (activeTab) {
             case 'overview':
-                console.log('📊 渲染 IEEE 核心圖表 - Overview Tab')
                 return (
                     <div className="charts-grid">
                         <div className="chart-container">
@@ -1257,11 +1232,11 @@ const ChartAnalysisDashboard = ({
                                 data={handoverLatencyData}
                                 options={createInteractiveChartOptions(
                                     '四種換手方案延遲對比 (ms)',
-                                    '延遲 (ms)'
+                                    '延遲 (ms)',
+                                    '換手階段'
                                 )}
                             />
                             <div className="chart-insight">
-                                {(() => { console.log('🔍 Chart 1 - 渲染 chart-insight 內容'); return null })()}
                                 <strong>核心突破：</strong>本論文提出的同步算法
                                 + Xn 加速換手方案， 實現了從標準 NTN 的 ~250ms
                                 到 ~21ms 的革命性延遲降低，減少 91.6%。 超越
@@ -1303,6 +1278,15 @@ const ChartAnalysisDashboard = ({
                                     },
                                     scales: {
                                         x: {
+                                            title: {
+                                                display: true,
+                                                text: '技術指標維度',
+                                                color: 'white',
+                                                font: {
+                                                    size: 16,
+                                                    weight: 'bold' as 'bold',
+                                                },
+                                            },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
@@ -1327,7 +1311,6 @@ const ChartAnalysisDashboard = ({
                                 }}
                             />
                             <div className="chart-insight">
-                                {(() => { console.log('🔍 Chart 2 - 渲染 chart-insight 內容, satelliteData:', satelliteData); return null })()}
                                 <strong>星座特性：</strong>Starlink (550km)
                                 憑藉較低軌道在延遲和覆蓋率方面領先， Kuiper (630km)
                                 則在換手頻率控制上表現更佳。兩者在 QoE
@@ -1348,6 +1331,12 @@ const ChartAnalysisDashboard = ({
                                         ...createInteractiveChartOptions('', '')
                                             .scales,
                                         x: {
+                                            title: {
+                                                display: true,
+                                                text: '應用場景',
+                                                color: 'white',
+                                                font: { size: 16, weight: 'bold' as 'bold' },
+                                            },
                                             ticks: {
                                                 color: 'white',
                                                 font: { size: 16, weight: 'bold' as 'bold' },
@@ -1359,7 +1348,6 @@ const ChartAnalysisDashboard = ({
                                 }}
                             />
                             <div className="chart-insight">
-                                {(() => { console.log('🔍 Chart 3 - 渲染 chart-insight 內容'); return null })()}
                                 <strong>場景分析：</strong>
                                 本方案在所有八種場景下均實現領先性能， 相較 NTN
                                 標準方案減少 90%+ 延遲。Flexible
@@ -2303,7 +2291,6 @@ const ChartAnalysisDashboard = ({
         }
     }
 
-    console.log('準備渲染 JSX...')
     return (
         <div
             className="chart-analysis-overlay"
