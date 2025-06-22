@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useStrategy, HandoverStrategy } from '../../contexts/StrategyContext'
 import TimePredictionTimeline from './TimePredictionTimeline'
 import SynchronizedAlgorithmVisualization from './SynchronizedAlgorithmVisualization'
 import UnifiedHandoverStatus from './UnifiedHandoverStatus'
@@ -48,6 +49,8 @@ interface HandoverManagerProps {
     }) => void
     // 🎮 衛星速度同步
     speedMultiplier?: number
+    // 🎯 換手策略
+    handoverStrategy?: HandoverStrategy
 }
 
 const HandoverManager: React.FC<HandoverManagerProps> = ({
@@ -64,7 +67,12 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     onTransitionChange,
     onAlgorithmResults,
     speedMultiplier = 60,
+    handoverStrategy: propStrategy,
 }) => {
+    // 🎯 使用全域策略狀態
+    const { currentStrategy } = useStrategy()
+    const activeStrategy = propStrategy || currentStrategy
+    
     // 換手狀態管理
     const [handoverState, setHandoverState] = useState<HandoverState>({
         currentSatellite: '',
@@ -235,6 +243,42 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
         // 換手決策完成
     }, []) // 🔧 暫時移除所有依賴，專注於修復時間軸跳動問題
+    
+    // 🎯 策略變更監聽器
+    useEffect(() => {
+        const handleStrategyChange = (event: CustomEvent) => {
+            const { strategy } = event.detail
+            console.log(`📵 HandoverManager 接收到策略變更: ${strategy}`)
+            
+            // 根據策略調整換手參數
+            if (strategy === 'consistent') {
+                // Consistent 策略：更頻繁的換手、更高精確度
+                setHandoverState(prev => ({
+                    ...prev,
+                    confidence: 0.97 + Math.random() * 0.02, // 97-99%
+                    deltaT: 2, // 更短的時間間隔
+                }))
+                console.log('🔥 已切換到 Consistent 策略：高精確度、短周期')
+            } else {
+                // Flexible 策略：較少換手、節省資源
+                setHandoverState(prev => ({
+                    ...prev,
+                    confidence: 0.92 + Math.random() * 0.03, // 92-95%
+                    deltaT: 5, // 更長的時間間隔
+                }))
+                console.log('🔋 已切換到 Flexible 策略：中等精確度、長周期')
+            }
+        }
+        
+        window.addEventListener('strategyChanged', handleStrategyChange as EventListener)
+        
+        // 初始化時也根據當前策略設定
+        handleStrategyChange({ detail: { strategy: activeStrategy } } as CustomEvent)
+        
+        return () => {
+            window.removeEventListener('strategyChanged', handleStrategyChange as EventListener)
+        }
+    }, [activeStrategy])
 
     // 生成 Binary Search 數據 - 同步函數，避免狀態競態
     const generateBinarySearchData = (startTime: number, endTime: number) => {
