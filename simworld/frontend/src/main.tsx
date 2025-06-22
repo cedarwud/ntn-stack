@@ -106,6 +106,7 @@ console.error = function (...args) {
         const harmlessErrors = [
             'ResizeObserver loop limit exceeded',
             'Non-Error promise rejection captured',
+            'Internal React error: Expected static flag was missing',
         ]
 
         if (harmlessErrors.some((pattern) => message.includes(pattern))) {
