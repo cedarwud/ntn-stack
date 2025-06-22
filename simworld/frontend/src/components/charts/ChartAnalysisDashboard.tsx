@@ -53,16 +53,16 @@ ChartJS.defaults.locale = 'en-US'
     ...((ChartJS.defaults as any).elements || {}),
     arc: {
         ...((ChartJS.defaults as any).elements?.arc || {}),
-        backgroundColor: 'rgba(255, 255, 255, 0.1)'
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
     bar: {
         ...((ChartJS.defaults as any).elements?.bar || {}),
-        backgroundColor: 'rgba(255, 255, 255, 0.1)'
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
     line: {
         ...((ChartJS.defaults as any).elements?.line || {}),
-        backgroundColor: 'rgba(255, 255, 255, 0.1)'
-    }
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    },
 }
 // Chart.js scale title configuration (type-safe)
 try {
@@ -390,9 +390,13 @@ const ChartAnalysisDashboard = ({
                                 : 630
 
                         // Update with real data where available, with safe math operations
-                        const safeStarlinkAlt = isNaN(avgStarlinkAlt) ? 550 : avgStarlinkAlt;
-                        const safeKuiperAlt = isNaN(avgKuiperAlt) ? 630 : avgKuiperAlt;
-                        
+                        const safeStarlinkAlt = isNaN(avgStarlinkAlt)
+                            ? 550
+                            : avgStarlinkAlt
+                        const safeKuiperAlt = isNaN(avgKuiperAlt)
+                            ? 630
+                            : avgKuiperAlt
+
                         setSatelliteData({
                             starlink: {
                                 altitude: Math.round(safeStarlinkAlt) || 550,
@@ -402,7 +406,8 @@ const ChartAnalysisDashboard = ({
                                         : 4408, // Scale up from sample
                                 inclination: 53.0, // From TLE data
                                 minElevation: 40,
-                                coverage: Math.round(safeStarlinkAlt * 1.8) || 990, // Calculate from altitude
+                                coverage:
+                                    Math.round(safeStarlinkAlt * 1.8) || 990, // Calculate from altitude
                                 period:
                                     Math.round(
                                         (safeStarlinkAlt / 550) * 95.5 * 10
@@ -411,9 +416,9 @@ const ChartAnalysisDashboard = ({
                                     Math.round(
                                         (safeStarlinkAlt / 299792.458) * 10
                                     ) / 10 || 2.7,
-                                doppler: Math.round(
-                                    47 * (550 / safeStarlinkAlt)
-                                ) || 47,
+                                doppler:
+                                    Math.round(47 * (550 / safeStarlinkAlt)) ||
+                                    47,
                                 power: 20,
                                 gain: 32,
                             },
@@ -425,7 +430,8 @@ const ChartAnalysisDashboard = ({
                                         : 3236, // Scale up from sample
                                 inclination: 51.9,
                                 minElevation: 35,
-                                coverage: Math.round(safeKuiperAlt * 1.9) || 1197,
+                                coverage:
+                                    Math.round(safeKuiperAlt * 1.9) || 1197,
                                 period:
                                     Math.round(
                                         (safeKuiperAlt / 630) * 98.6 * 10
@@ -434,7 +440,9 @@ const ChartAnalysisDashboard = ({
                                     Math.round(
                                         (safeKuiperAlt / 299792.458) * 10
                                     ) / 10 || 3.1,
-                                doppler: Math.round(41 * (630 / safeKuiperAlt)) || 41,
+                                doppler:
+                                    Math.round(41 * (630 / safeKuiperAlt)) ||
+                                    41,
                                 power: 23,
                                 gain: 35,
                             },
@@ -539,7 +547,7 @@ const ChartAnalysisDashboard = ({
 
         const timer = setTimeout(() => {
             if (!mounted) return
-            
+
             setIsCalculating(false)
 
             // 只在組件掛載且打開時才執行 API 調用
@@ -587,103 +595,117 @@ const ChartAnalysisDashboard = ({
 
     // 所有 hooks 必須在條件返回之前調用
     // IEEE INFOCOM 2024 圖表數據 - 使用真實測試數據（如果可用）
-    const handoverLatencyData = useMemo(() => ({
-        labels: [
-            '準備階段',
-            'RRC 重配',
-            '隨機存取',
-            'UE 上下文',
-            'Path Switch',
-        ],
-        datasets: [
-            {
-                label: 'NTN 標準 (~250ms)',
-                data: (handoverTestData.latencyBreakdown as any)
-                    ?.ntn_standard || [45, 89, 67, 124, 78],
-                backgroundColor: 'rgba(255, 99, 132, 0.8)',
-                borderColor: 'rgba(255, 99, 132, 1)',
-                borderWidth: 2,
-            },
-            {
-                label: 'NTN-GS (~153ms)',
-                data: (handoverTestData.latencyBreakdown as any)?.ntn_gs || [
-                    32, 56, 45, 67, 34,
-                ],
-                backgroundColor: 'rgba(54, 162, 235, 0.8)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 2,
-            },
-            {
-                label: 'NTN-SMN (~158ms)',
-                data: (handoverTestData.latencyBreakdown as any)?.ntn_smn || [
-                    28, 52, 48, 71, 39,
-                ],
-                backgroundColor: 'rgba(255, 206, 86, 0.8)',
-                borderColor: 'rgba(255, 206, 86, 1)',
-                borderWidth: 2,
-            },
-            {
-                label: `本方案 (${
-                    (handoverTestData.latencyBreakdown as any)
-                        ?.proposed_total || '~21'
-                }ms)`,
-                data: (handoverTestData.latencyBreakdown as any)?.proposed || [
-                    8, 12, 15, 18, 9,
-                ],
-                backgroundColor: 'rgba(75, 192, 192, 0.8)',
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 2,
-            },
-        ],
-    }), [handoverTestData])
+    const handoverLatencyData = useMemo(
+        () => ({
+            labels: [
+                '準備階段',
+                'RRC 重配',
+                '隨機存取',
+                'UE 上下文',
+                'Path Switch',
+            ],
+            datasets: [
+                {
+                    label: 'NTN 標準 (~250ms)',
+                    data: (handoverTestData.latencyBreakdown as any)
+                        ?.ntn_standard || [45, 89, 67, 124, 78],
+                    backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                },
+                {
+                    label: 'NTN-GS (~153ms)',
+                    data: (handoverTestData.latencyBreakdown as any)
+                        ?.ntn_gs || [32, 56, 45, 67, 34],
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                },
+                {
+                    label: 'NTN-SMN (~158ms)',
+                    data: (handoverTestData.latencyBreakdown as any)
+                        ?.ntn_smn || [28, 52, 48, 71, 39],
+                    backgroundColor: 'rgba(255, 206, 86, 0.8)',
+                    borderColor: 'rgba(255, 206, 86, 1)',
+                    borderWidth: 2,
+                },
+                {
+                    label: `本方案 (${
+                        (handoverTestData.latencyBreakdown as any)
+                            ?.proposed_total || '~21'
+                    }ms)`,
+                    data: (handoverTestData.latencyBreakdown as any)
+                        ?.proposed || [8, 12, 15, 18, 9],
+                    backgroundColor: 'rgba(75, 192, 192, 0.8)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2,
+                },
+            ],
+        }),
+        [handoverTestData]
+    )
 
     // 星座對比數據 - 使用真實衛星參數
-    const constellationComparisonData = useMemo(() => ({
-        labels: [
-            '平均延遲(ms)',
-            '最大延遲(ms)',
-            '換手頻率(/h)',
-            '成功率(%)',
-            'QoE指標',
-            '覆蓋率(%)',
-        ],
-        datasets: [
-            {
-                label: `Starlink (${satelliteData.starlink.altitude || 550}km)`,
-                data: [
-                    satelliteData.starlink.delay || 2.7,
-                    (satelliteData.starlink.delay || 2.7) * 2.1, // 最大延遲約為平均的2.1倍
-                    Math.round((600 / (satelliteData.starlink.period || 95.5)) * 10) / 10, // 基於軌道週期計算換手頻率
-                    99.8,
-                    4.5,
-                    Math.min(
-                        95.2,
-                        85 + (600 - (satelliteData.starlink.altitude || 550)) / 10
-                    ), // 基於高度調整覆蓋率
-                ],
-                backgroundColor: 'rgba(255, 206, 86, 0.8)',
-                borderColor: 'rgba(255, 206, 86, 1)',
-                borderWidth: 2,
-            },
-            {
-                label: `Kuiper (${satelliteData.kuiper.altitude || 630}km)`,
-                data: [
-                    satelliteData.kuiper.delay || 3.1,
-                    (satelliteData.kuiper.delay || 3.1) * 2.1,
-                    Math.round((600 / (satelliteData.kuiper.period || 98.6)) * 10) / 10,
-                    99.6,
-                    4.3,
-                    Math.min(
-                        92.8,
-                        82 + (650 - (satelliteData.kuiper.altitude || 630)) / 12
-                    ),
-                ],
-                backgroundColor: 'rgba(153, 102, 255, 0.8)',
-                borderColor: 'rgba(153, 102, 255, 1)',
-                borderWidth: 2,
-            },
-        ],
-    }), [satelliteData])
+    const constellationComparisonData = useMemo(
+        () => ({
+            labels: [
+                '平均延遲(ms)',
+                '最大延遲(ms)',
+                '換手頻率(/h)',
+                '成功率(%)',
+                'QoE指標',
+                '覆蓋率(%)',
+            ],
+            datasets: [
+                {
+                    label: `Starlink (${
+                        satelliteData.starlink.altitude || 550
+                    }km)`,
+                    data: [
+                        satelliteData.starlink.delay || 2.7,
+                        (satelliteData.starlink.delay || 2.7) * 2.1, // 最大延遲約為平均的2.1倍
+                        Math.round(
+                            (600 / (satelliteData.starlink.period || 95.5)) * 10
+                        ) / 10, // 基於軌道週期計算換手頻率
+                        99.8,
+                        4.5,
+                        Math.min(
+                            95.2,
+                            85 +
+                                (600 -
+                                    (satelliteData.starlink.altitude || 550)) /
+                                    10
+                        ), // 基於高度調整覆蓋率
+                    ],
+                    backgroundColor: 'rgba(255, 206, 86, 0.8)',
+                    borderColor: 'rgba(255, 206, 86, 1)',
+                    borderWidth: 2,
+                },
+                {
+                    label: `Kuiper (${satelliteData.kuiper.altitude || 630}km)`,
+                    data: [
+                        satelliteData.kuiper.delay || 3.1,
+                        (satelliteData.kuiper.delay || 3.1) * 2.1,
+                        Math.round(
+                            (600 / (satelliteData.kuiper.period || 98.6)) * 10
+                        ) / 10,
+                        99.6,
+                        4.3,
+                        Math.min(
+                            92.8,
+                            82 +
+                                (650 - (satelliteData.kuiper.altitude || 630)) /
+                                    12
+                        ),
+                    ],
+                    backgroundColor: 'rgba(153, 102, 255, 0.8)',
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 2,
+                },
+            ],
+        }),
+        [satelliteData]
+    )
 
     // QoE 時間序列數據 - 整合 UAV 真實位置數據
     const generateQoETimeSeriesData = () => {
@@ -765,16 +787,16 @@ const ChartAnalysisDashboard = ({
 
     // 六場景對比數據 (chart.md 要求)
     const generateSixScenarioData = () => {
-        // 基於真實衛星數據計算六種場景的換手延遲
+        // 基於真實衛星數據計算六種場景的換手延遲 (使用簡寫標籤)
         const scenarios = [
-            'Starlink Flexible 同向',
-            'Starlink Flexible 全方向',
-            'Starlink Consistent 同向',
-            'Starlink Consistent 全方向',
-            'Kuiper Flexible 同向',
-            'Kuiper Flexible 全方向',
-            'Kuiper Consistent 同向',
-            'Kuiper Consistent 全方向',
+            'SL-F-同',
+            'SL-F-全',
+            'SL-C-同',
+            'SL-C-全',
+            'KP-F-同',
+            'KP-F-全',
+            'KP-C-同',
+            'KP-C-全',
         ]
 
         const methods = ['NTN', 'NTN-GS', 'NTN-SMN', 'Proposed']
@@ -789,19 +811,19 @@ const ChartAnalysisDashboard = ({
                     let factor = 1.0
 
                     // Kuiper 比 Starlink 略高 (基於真實軌道高度)
-                    if (scenario.includes('Kuiper')) {
+                    if (scenario.includes('KP')) {
                         factor *=
                             (satelliteData.kuiper.altitude || 630) /
                             (satelliteData.starlink.altitude || 550)
                     }
 
                     // Consistent 比 Flexible 略低
-                    if (scenario.includes('Consistent')) {
+                    if (scenario.includes('C')) {
                         factor *= 0.95
                     }
 
                     // 全方向比同向略高
-                    if (scenario.includes('全方向')) {
+                    if (scenario.includes('全')) {
                         factor *= 1.08
                     }
 
@@ -849,7 +871,7 @@ const ChartAnalysisDashboard = ({
     }
 
     // 統計信賴區間功能已就緒
-    
+
     // 調試函數已移除
 
     // 顯著性檢驗結果
@@ -994,9 +1016,9 @@ const ChartAnalysisDashboard = ({
                 ticks: {
                     color: 'white',
                     font: { size: 14, weight: 'bold' as 'bold' },
-                    callback: function(value: any) {
-                        return String(value);
-                    }
+                    callback: function (value: any) {
+                        return String(value)
+                    },
                 },
                 title: {
                     display: !!xAxisLabel,
@@ -1016,9 +1038,9 @@ const ChartAnalysisDashboard = ({
                 ticks: {
                     color: 'white',
                     font: { size: 14, weight: 'bold' as 'bold' },
-                    callback: function(value: any) {
-                        return Number(value).toFixed(1);
-                    }
+                    callback: function (value: any) {
+                        return Number(value).toFixed(1)
+                    },
                 },
                 grid: {
                     color: 'rgba(255, 255, 255, 0.3)',
@@ -1245,7 +1267,8 @@ const ChartAnalysisDashboard = ({
                                 <br />
                                 <br />
                                 <strong>📊 統計驗證：</strong>
-                                改進效果 p &lt; 0.001 (***), 效應大小 Large (Cohen's d = 2.8), 信賴度 99.9%
+                                改進效果 p &lt; 0.001 (***), 效應大小 Large
+                                (Cohen's d = 2.8), 信賴度 99.9%
                             </div>
                         </div>
 
@@ -1312,8 +1335,8 @@ const ChartAnalysisDashboard = ({
                             />
                             <div className="chart-insight">
                                 <strong>星座特性：</strong>Starlink (550km)
-                                憑藉較低軌道在延遲和覆蓋率方面領先， Kuiper (630km)
-                                則在換手頻率控制上表現更佳。兩者在 QoE
+                                憑藉較低軌道在延遲和覆蓋率方面領先， Kuiper
+                                (630km) 則在換手頻率控制上表現更佳。兩者在 QoE
                                 指標上相近， 為不同應用場景提供最適選擇。
                             </div>
                         </div>
@@ -1335,11 +1358,17 @@ const ChartAnalysisDashboard = ({
                                                 display: true,
                                                 text: '應用場景',
                                                 color: 'white',
-                                                font: { size: 16, weight: 'bold' as 'bold' },
+                                                font: {
+                                                    size: 16,
+                                                    weight: 'bold' as 'bold',
+                                                },
                                             },
                                             ticks: {
                                                 color: 'white',
-                                                font: { size: 16, weight: 'bold' as 'bold' },
+                                                font: {
+                                                    size: 16,
+                                                    weight: 'bold' as 'bold',
+                                                },
                                                 maxRotation: 45,
                                                 minRotation: 45,
                                             },
@@ -1348,11 +1377,24 @@ const ChartAnalysisDashboard = ({
                                 }}
                             />
                             <div className="chart-insight">
-                                <strong>場景分析：</strong>
-                                本方案在所有八種場景下均實現領先性能， 相較 NTN
-                                標準方案減少 90%+ 延遲。Flexible
-                                策略在動態場景下較佳， Consistent
-                                策略在穩定環境下更適用。雙星座部署可提供互補的服務覆蓋。
+                                <span
+                                    style={{
+                                        marginLeft: '0.5rem',
+                                        fontSize: '1.1rem',
+                                    }}
+                                >
+                                    SL：Starlink、KP：Kuiper、F：Flexible、C：Consistent
+                                    <br />
+                                    同：同向、全：全方向
+                                </span>
+                                <br />
+                                <br />
+                                <strong>多場景對比：</strong>
+                                本方案在八種應用場景下均實現領先性能，相較 NTN
+                                標準方案減少 90% 以上延遲。Flexible
+                                策略在動態場景下表現較佳，Consistent
+                                策略在穩定環境下更適用。雙星座部署（Starlink +
+                                Kuiper）可提供互補的服務覆蓋，實現最佳化的網路效能和可靠性。
                             </div>
                         </div>
                     </div>
@@ -2208,7 +2250,9 @@ const ChartAnalysisDashboard = ({
                                 <strong>性能狀態：</strong>
                                 {(performanceMetrics?.errorCount || 0) === 0
                                     ? '系統運行正常'
-                                    : `偵測到 ${performanceMetrics?.errorCount || 0} 個錯誤`}
+                                    : `偵測到 ${
+                                          performanceMetrics?.errorCount || 0
+                                      } 個錯誤`}
                                 {performanceMetrics?.lastUpdate &&
                                     ` | 最後更新: ${new Date(
                                         performanceMetrics.lastUpdate ||
@@ -2271,12 +2315,16 @@ const ChartAnalysisDashboard = ({
                                 <strong>測試結果：</strong>
                                 {(autoTestResults?.length || 0) > 0
                                     ? `${
-                                        autoTestResults?.filter((r) => r?.passed)
-                                            ?.length || 0
-                                    }/${autoTestResults?.length || 0} 項測試通過
+                                          autoTestResults?.filter(
+                                              (r) => r?.passed
+                                          )?.length || 0
+                                      }/${
+                                          autoTestResults?.length || 0
+                                      } 項測試通過
                                     (成功率: ${Math.round(
-                                        ((autoTestResults?.filter((r) => r?.passed)
-                                            ?.length || 0) /
+                                        ((autoTestResults?.filter(
+                                            (r) => r?.passed
+                                        )?.length || 0) /
                                             (autoTestResults?.length || 1)) *
                                             100
                                     )}%)`
