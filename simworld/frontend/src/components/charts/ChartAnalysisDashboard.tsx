@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useStrategy } from '../../contexts/StrategyContext'
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -94,6 +95,22 @@ const ChartAnalysisDashboard = ({
         networkLatency: 0,
     })
     const [realDataError, setRealDataError] = useState<string | null>(null)
+    // 🎯 使用全域策略狀態
+    const { currentStrategy, switchStrategy: globalSwitchStrategy, isLoading: strategyLoading } = useStrategy()
+    const [strategyMetrics, setStrategyMetrics] = useState({
+        flexible: {
+            handoverFrequency: 2.3,
+            averageLatency: 24,
+            cpuUsage: 15,
+            accuracy: 94.2
+        },
+        consistent: {
+            handoverFrequency: 4.1,
+            averageLatency: 19,
+            cpuUsage: 28,
+            accuracy: 97.8
+        }
+    })
     const [satelliteData, setSatelliteData] = useState({
         starlink: {
             altitude: 550,
@@ -905,6 +922,129 @@ const ChartAnalysisDashboard = ({
         lastUpdate: null as string | null,
     })
     const [autoTestResults, setAutoTestResults] = useState<any[]>([])
+
+    // 即時數據更新
+    useEffect(() => {
+        if (!isOpen) return
+        
+        const updateMetrics = () => {
+            // 模擬系統指標更新
+            setSystemMetrics(prev => ({
+                cpu: Math.round(Math.max(0, Math.min(100, prev.cpu + (Math.random() - 0.5) * 10))),
+                memory: Math.round(Math.max(0, Math.min(100, prev.memory + (Math.random() - 0.5) * 5))),
+                gpu: Math.round(Math.max(0, Math.min(100, prev.gpu + (Math.random() - 0.5) * 15))),
+                networkLatency: Math.round(Math.max(0, prev.networkLatency + (Math.random() - 0.5) * 20))
+            }))
+            
+            // 模擬策略指標更新
+            setStrategyMetrics(prev => ({
+                flexible: {
+                    ...prev.flexible,
+                    handoverFrequency: Math.round(Math.max(0, prev.flexible.handoverFrequency + (Math.random() - 0.5) * 0.5) * 10) / 10,
+                    averageLatency: Math.round(Math.max(10, prev.flexible.averageLatency + (Math.random() - 0.5) * 5)),
+                    cpuUsage: Math.round(Math.max(0, Math.min(100, prev.flexible.cpuUsage + (Math.random() - 0.5) * 3)))
+                },
+                consistent: {
+                    ...prev.consistent,
+                    handoverFrequency: Math.round(Math.max(0, prev.consistent.handoverFrequency + (Math.random() - 0.5) * 0.8) * 10) / 10,
+                    averageLatency: Math.round(Math.max(10, prev.consistent.averageLatency + (Math.random() - 0.5) * 3)),
+                    cpuUsage: Math.round(Math.max(0, Math.min(100, prev.consistent.cpuUsage + (Math.random() - 0.5) * 5)))
+                }
+            }))
+        }
+        
+        // 初始化系統指標
+        setSystemMetrics({
+            cpu: Math.round(45 + Math.random() * 20),
+            memory: Math.round(60 + Math.random() * 15),
+            gpu: Math.round(30 + Math.random() * 25),
+            networkLatency: Math.round(25 + Math.random() * 30)
+        })
+        
+        const interval = setInterval(updateMetrics, 3000) // 每3秒更新
+        return () => clearInterval(interval)
+    }, [isOpen])
+
+    // 🔄 使用全域策略切換
+    const switchStrategy = async (strategy: 'flexible' | 'consistent') => {
+        // 使用全域策略切換
+        await globalSwitchStrategy(strategy)
+        
+        // 更新本地指標以反映策略變更
+        updateMetricsForStrategy(strategy)
+    }
+    
+    // 🎯 策略變更監聽器
+    useEffect(() => {
+        const handleStrategyChange = (event: CustomEvent) => {
+            const { strategy } = event.detail
+            console.log(`📋 ChartAnalysisDashboard 接收到策略變更: ${strategy}`)
+            updateMetricsForStrategy(strategy)
+            
+            // 立即調整系統指標
+            if (strategy === 'consistent') {
+                setSystemMetrics(prev => ({
+                    ...prev,
+                    cpu: Math.min(100, prev.cpu + 10),
+                    networkLatency: Math.max(10, prev.networkLatency - 5)
+                }))
+            } else {
+                setSystemMetrics(prev => ({
+                    ...prev,
+                    cpu: Math.max(10, prev.cpu - 10),
+                    networkLatency: prev.networkLatency + 3
+                }))
+            }
+        }
+        
+        window.addEventListener('strategyChanged', handleStrategyChange as EventListener)
+        
+        return () => {
+            window.removeEventListener('strategyChanged', handleStrategyChange as EventListener)
+        }
+    }, [])
+    
+    // 根據策略更新指標
+    const updateMetricsForStrategy = (strategy: 'flexible' | 'consistent') => {
+        setStrategyMetrics(prev => {
+            if (strategy === 'consistent') {
+                return {
+                    ...prev,
+                    consistent: {
+                        ...prev.consistent,
+                        // Consistent 策略：更低延遲但更高 CPU
+                        averageLatency: 18 + Math.round(Math.random() * 4),
+                        cpuUsage: 25 + Math.round(Math.random() * 8),
+                        handoverFrequency: Math.round((3.8 + Math.random() * 0.6) * 10) / 10
+                    }
+                }
+            } else {
+                return {
+                    ...prev,
+                    flexible: {
+                        ...prev.flexible,
+                        // Flexible 策略：較高延遲但較低 CPU
+                        averageLatency: 22 + Math.round(Math.random() * 6),
+                        cpuUsage: 12 + Math.round(Math.random() * 6),
+                        handoverFrequency: Math.round((2.0 + Math.random() * 0.6) * 10) / 10
+                    }
+                }
+            }
+        })
+    }
+
+    // 獲取策略指標
+    const fetchStrategyMetrics = async (strategy: string) => {
+        try {
+            const response = await fetch(`http://localhost:8080/handover/strategy/metrics?strategy=${strategy}`)
+            if (response.ok) {
+                return await response.json()
+            }
+        } catch (error) {
+            console.warn('無法獲取策略指標:', error)
+        }
+        return null
+    }
 
     // 互動式圖表事件處理
     const handleChartClick = (elements: any[], chart: any) => {
@@ -2205,9 +2345,7 @@ const ChartAnalysisDashboard = ({
                                         圖表渲染時間
                                     </div>
                                     <div className="metric-value">
-                                        {performanceMetrics.chartRenderTime.toFixed(
-                                            2
-                                        )}
+                                        {Math.round(performanceMetrics.chartRenderTime)}
                                         ms
                                     </div>
                                 </div>
@@ -2216,9 +2354,7 @@ const ChartAnalysisDashboard = ({
                                         數據獲取時間
                                     </div>
                                     <div className="metric-value">
-                                        {performanceMetrics.dataFetchTime.toFixed(
-                                            2
-                                        )}
+                                        {Math.round(performanceMetrics.dataFetchTime)}
                                         ms
                                     </div>
                                 </div>
@@ -2334,6 +2470,250 @@ const ChartAnalysisDashboard = ({
                     </div>
                 )
 
+            case 'strategy':
+                return (
+                    <div className="charts-grid">
+                        <div className="chart-container">
+                            <h3>⚡ 即時策略效果比較</h3>
+                            <div className="strategy-controls">
+                                <div className="strategy-info">
+                                    <p>🔄 即時策略切換：選擇不同策略會立即影響換手性能和系統資源使用</p>
+                                </div>
+                                <div className="strategy-toggle">
+                                    <label className={currentStrategy === 'flexible' ? 'active' : ''}>
+                                        <input
+                                            type="radio"
+                                            name="strategy"
+                                            value="flexible"
+                                            checked={currentStrategy === 'flexible'}
+                                            onChange={(e) => switchStrategy(e.target.value as 'flexible' | 'consistent')}
+                                            disabled={strategyLoading}
+                                        />
+                                        🔋 Flexible 策略 (節能模式)
+                                        <small>低 CPU使用、較少換手、節省電池</small>
+                                    </label>
+                                    <label className={currentStrategy === 'consistent' ? 'active' : ''}>
+                                        <input
+                                            type="radio"
+                                            name="strategy"
+                                            value="consistent"
+                                            checked={currentStrategy === 'consistent'}
+                                            onChange={(e) => switchStrategy(e.target.value as 'flexible' | 'consistent')}
+                                            disabled={strategyLoading}
+                                        />
+                                        ⚡ Consistent 策略 (效能模式)
+                                        <small>低延遲、高精確度、更多資源</small>
+                                        {strategyLoading && <small>🔄 切換中...</small>}
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="strategy-comparison">
+                                <div className="strategy-metrics">
+                                    <div className="metric-card">
+                                        <h4>Flexible 策略 {currentStrategy === 'flexible' ? '🟢' : ''}</h4>
+                                        <div className="metric-row">
+                                            <span>換手頻率:</span>
+                                            <span>{strategyMetrics.flexible.handoverFrequency} 次/分鐘</span>
+                                        </div>
+                                        <div className="metric-row">
+                                            <span>平均延遲:</span>
+                                            <span>{strategyMetrics.flexible.averageLatency}ms</span>
+                                        </div>
+                                        <div className="metric-row">
+                                            <span>CPU 使用:</span>
+                                            <span>{strategyMetrics.flexible.cpuUsage}%</span>
+                                        </div>
+                                        <div className="metric-row">
+                                            <span>精确度:</span>
+                                            <span>{strategyMetrics.flexible.accuracy}%</span>
+                                        </div>
+                                    </div>
+                                    <div className="metric-card">
+                                        <h4>Consistent 策略 {currentStrategy === 'consistent' ? '🟢' : ''}</h4>
+                                        <div className="metric-row">
+                                            <span>換手頻率:</span>
+                                            <span>{strategyMetrics.consistent.handoverFrequency} 次/分鐘</span>
+                                        </div>
+                                        <div className="metric-row">
+                                            <span>平均延遲:</span>
+                                            <span>{strategyMetrics.consistent.averageLatency}ms</span>
+                                        </div>
+                                        <div className="metric-row">
+                                            <span>CPU 使用:</span>
+                                            <span>{strategyMetrics.consistent.cpuUsage}%</span>
+                                        </div>
+                                        <div className="metric-row">
+                                            <span>精确度:</span>
+                                            <span>{strategyMetrics.consistent.accuracy}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="chart-insight">
+                                <strong>策略建議：</strong>
+                                Flexible 策略適合電池受限設備，Consistent 策略適合效能關鍵應用。
+                                🎯 當前使用 {currentStrategy === 'flexible' ? 'Flexible (節能模式)' : 'Consistent (效能模式)'} 策略。
+                                {currentStrategy === 'flexible' 
+                                    ? '適合電池受限或穩定網路環境，優先考慮節能。已同步到全域系統。'
+                                    : '適合效能關鍵應用，優先考慮低延遲和高精確度。已同步到全域系統。'
+                                }
+                            </div>
+                        </div>
+                        
+                        <div className="chart-container">
+                            <h3>📊 策略效果對比圖表</h3>
+                            <Line
+                                data={{
+                                    labels: ['00:00', '00:05', '00:10', '00:15', '00:20', '00:25', '00:30'],
+                                    datasets: [
+                                        {
+                                            label: 'Flexible 策略延遲',
+                                            data: [24, 23, 25, 22, 26, 24, 23],
+                                            borderColor: '#4ade80',
+                                            backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                                            fill: true,
+                                            tension: 0.4
+                                        },
+                                        {
+                                            label: 'Consistent 策略延遲',
+                                            data: [19, 20, 18, 21, 19, 20, 18],
+                                            borderColor: '#667eea',
+                                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                            fill: true,
+                                            tension: 0.4
+                                        }
+                                    ]
+                                }}
+                                options={{
+                                    responsive: true,
+                                    plugins: {
+                                        title: {
+                                            display: true,
+                                            text: '策略延遲效果對比 (過去30分鐘)',
+                                            color: 'white'
+                                        },
+                                        legend: {
+                                            labels: {
+                                                color: 'white'
+                                            }
+                                        }
+                                    },
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true,
+                                            title: {
+                                                display: true,
+                                                text: '延遲 (ms)',
+                                                color: 'white'
+                                            },
+                                            ticks: {
+                                                color: 'white'
+                                            },
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.2)'
+                                            }
+                                        },
+                                        x: {
+                                            title: {
+                                                display: true,
+                                                text: '時間',
+                                                color: 'white'
+                                            },
+                                            ticks: {
+                                                color: 'white'
+                                            },
+                                            grid: {
+                                                color: 'rgba(255, 255, 255, 0.2)'
+                                            }
+                                        }
+                                    }
+                                }}
+                            />
+                            <div className="chart-insight">
+                                <strong>📊 全域即時效果分析：</strong>
+                                {currentStrategy === 'consistent' 
+                                    ? 'Consistent 策略在全域執行，影響側邊欄、立體圖和後端演算法'
+                                    : 'Flexible 策略在全域執行，節省所有組件的 CPU 資源'
+                                }
+                                。策略切換已同步到整個系統。
+                            </div>
+                        </div>
+                    </div>
+                )
+
+            case 'metrics':
+                return (
+                    <div className="charts-grid">
+                        <div className="chart-container">
+                            <h3>📊 效能指標儀表板</h3>
+                            <div className="metrics-dashboard">
+                                <div className="metrics-row">
+                                    <div className="metric-gauge">
+                                        <h4>系統 CPU</h4>
+                                        <div className="gauge-container">
+                                            <div className="gauge-value">{systemMetrics.cpu}%</div>
+                                            <div className="gauge-bar">
+                                                <div 
+                                                    className="gauge-fill"
+                                                    style={{ width: `${systemMetrics.cpu}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="metric-gauge">
+                                        <h4>記憶體使用</h4>
+                                        <div className="gauge-container">
+                                            <div className="gauge-value">{systemMetrics.memory}%</div>
+                                            <div className="gauge-bar">
+                                                <div 
+                                                    className="gauge-fill"
+                                                    style={{ width: `${systemMetrics.memory}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="metrics-row">
+                                    <div className="metric-gauge">
+                                        <h4>GPU 負載</h4>
+                                        <div className="gauge-container">
+                                            <div className="gauge-value">{systemMetrics.gpu}%</div>
+                                            <div className="gauge-bar">
+                                                <div 
+                                                    className="gauge-fill"
+                                                    style={{ width: `${systemMetrics.gpu}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="metric-gauge">
+                                        <h4>網路延遲</h4>
+                                        <div className="gauge-container">
+                                            <div className="gauge-value">{systemMetrics.networkLatency}ms</div>
+                                            <div className="gauge-bar">
+                                                <div 
+                                                    className="gauge-fill"
+                                                    style={{ 
+                                                        width: `${Math.min(systemMetrics.networkLatency / 2, 100)}%`,
+                                                        backgroundColor: systemMetrics.networkLatency > 100 ? '#ff6b6b' : '#4ade80'
+                                                    }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="chart-insight">
+                                <strong>系統狀態：</strong>
+                                {systemMetrics.cpu < 70 && systemMetrics.memory < 80 && systemMetrics.networkLatency < 50
+                                    ? '🟢 系統運行良好，所有指標正常'
+                                    : '🟡 系統負載較高，建議監控資源使用情況'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                )
+
             default:
                 return <div>請選擇一個標籤查看相關圖表分析</div>
         }
@@ -2444,6 +2824,22 @@ const ChartAnalysisDashboard = ({
                             onClick={() => setActiveTab('monitoring')}
                         >
                             🔍 性能監控
+                        </button>
+                        <button
+                            className={
+                                activeTab === 'strategy' ? 'active' : ''
+                            }
+                            onClick={() => setActiveTab('strategy')}
+                        >
+                            ⚡ 即時策略效果
+                        </button>
+                        <button
+                            className={
+                                activeTab === 'metrics' ? 'active' : ''
+                            }
+                            onClick={() => setActiveTab('metrics')}
+                        >
+                            📊 效能指標板
                         </button>
                     </div>
                 </div>

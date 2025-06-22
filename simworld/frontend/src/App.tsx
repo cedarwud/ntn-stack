@@ -8,6 +8,7 @@ import Navbar from './components/layout/Navbar'
 import SceneViewer from './components/scenes/FloorView'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import { DataSyncProvider } from './contexts/DataSyncContext'
+import { StrategyProvider } from './contexts/StrategyContext'
 import ToastNotification, { useToast } from './components/ui/ToastNotification'
 import { backgroundHealthMonitor } from './utils/background-health-monitor'
 import './styles/App.scss'
@@ -486,8 +487,9 @@ function App({ activeView }: AppProps) {
     }
 
     return (
-        <DataSyncProvider>
-            <ErrorBoundary>
+        <StrategyProvider>
+            <DataSyncProvider>
+                <ErrorBoundary>
                 <div className="app-container">
                     <Navbar
                         onMenuClick={handleMenuClick}
@@ -706,12 +708,13 @@ function App({ activeView }: AppProps) {
                         />
                     </div>
                 </div>
-            </ErrorBoundary>
+                </ErrorBoundary>
 
-            {/* Toast 通知系統 */}
-            <ToastNotification />
-            
-        </DataSyncProvider>
+                {/* Toast 通知系統 */}
+                <ToastNotification />
+                
+            </DataSyncProvider>
+        </StrategyProvider>
     )
 }
 

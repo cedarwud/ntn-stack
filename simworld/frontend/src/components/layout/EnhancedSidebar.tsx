@@ -9,6 +9,7 @@ import { VisibleSatelliteInfo } from '../../types/satellite'
 // import { ApiRoutes } from '../../config/apiRoutes'
 import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName'
 import HandoverManager from '../handover/HandoverManager'
+import { useStrategy } from '../../contexts/StrategyContext'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
 
 interface SidebarProps {
@@ -234,6 +235,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     handoverMode = 'demo',
     onHandoverModeChange,
 }) => {
+    // 🎯 使用全域策略狀態
+    const { currentStrategy } = useStrategy()
+    
     // 標記未使用但保留的props為已消費（避免TypeScript警告）
     void _predictionAccuracyDashboardEnabled
     void _onPredictionAccuracyDashboardChange
@@ -798,6 +802,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                     mockMode={false}
                                     speedMultiplier={satelliteSpeedMultiplier}
                                     handoverMode={handoverMode}
+                                    handoverStrategy={currentStrategy}
                                     onHandoverStateChange={
                                         onHandoverStateChange
                                     }
