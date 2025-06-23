@@ -1,0 +1,126 @@
+{
+  "test_timestamp": "2025-06-23T06:03:27.232698",
+  "execution_time_seconds": 0.6097826957702637,
+  "api_tests": {
+    "sync_api": {
+      "success": true,
+      "data": {
+        "success": true,
+        "algorithm": "algorithm_1",
+        "predictions": {
+          "test-ue-001": {
+            "current_satellite": "63724U",
+            "predicted_satellite": "63724U",
+            "predicted_handover_time": null,
+            "algorithm_used": "algorithm_1"
+          }
+        },
+        "algorithm_status": {
+          "algorithm_state": "stopped",
+          "is_running": false,
+          "delta_t": 5.0,
+          "binary_search_precision": 0.01,
+          "last_update_time": "2025-06-23T06:03:19.808461",
+          "active_ue_count": 1,
+          "pending_handovers": 0,
+          "performance_stats": {
+            "total_periodic_updates": 0,
+            "total_ue_updates": 2,
+            "total_handovers_predicted": 0,
+            "average_prediction_accuracy": 0.0,
+            "binary_search_iterations": [],
+            "last_update_duration_ms": 0.0
+          },
+          "R_table_summary": {
+            "test-ue-001": {
+              "satellite_id": "63724U",
+              "next_satellite_id": "63724U",
+              "handover_time": null,
+              "last_update": "2025-06-23T06:03:26.629867"
+            }
+          },
+          "enhanced_algorithm_active": false
+        },
+        "prediction_time_ms": 4.420042037963867,
+        "timestamp": "2025-06-23T06:03:26.629928"
+      },
+      "api_response_time_ms": 7.495880126953125
+    },
+    "handover_api": {
+      "success": false,
+      "data": {
+        "error": "HTTP Error",
+        "message": "UPF 換手執行失敗",
+        "status_code": 500,
+        "timestamp": "2025-06-23T06:03:26.632269"
+      },
+      "api_response_time_ms": 1.9388198852539062
+    },
+    "measurement_api": {
+      "success": false,
+      "data": {
+        "error": "Internal Server Error",
+        "message": "系統內部錯誤",
+        "status_code": 500,
+        "timestamp": "2025-06-23T06:03:26.633198"
+      },
+      "api_response_time_ms": 3.105640411376953
+    },
+    "tle_api": {
+      "success": false,
+      "error": "HTTP 404: {\"detail\":\"Not Found\"}",
+      "api_response_time_ms": 1.0325908660888672
+    }
+  },
+  "handover_measurements": [
+    {
+      "ue_id": "test-ue-000",
+      "algorithm": "algorithm_1",
+      "latency_ms": 500.0,
+      "success": false,
+      "prediction_accuracy": 0.0
+    },
+    {
+      "ue_id": "test-ue-001",
+      "algorithm": "algorithm_1",
+      "latency_ms": 500.0,
+      "success": false,
+      "prediction_accuracy": 0.0
+    },
+    {
+      "ue_id": "test-ue-002",
+      "algorithm": "algorithm_1",
+      "latency_ms": 500.0,
+      "success": false,
+      "prediction_accuracy": 0.0
+    },
+    {
+      "ue_id": "test-ue-003",
+      "algorithm": "algorithm_1",
+      "latency_ms": 500.0,
+      "success": false,
+      "prediction_accuracy": 0.0
+    },
+    {
+      "ue_id": "test-ue-004",
+      "algorithm": "algorithm_1",
+      "latency_ms": 500.0,
+      "success": false,
+      "prediction_accuracy": 0.0
+    }
+  ],
+  "statistics": {
+    "total_tests": 5,
+    "successful_tests": 0,
+    "failed_tests": 5,
+    "success_rate": 0.0,
+    "average_latency_ms": 0,
+    "average_prediction_accuracy": 0
+  },
+  "api_integration_status": {
+    "sync_api_working": true,
+    "handover_api_working": false,
+    "measurement_api_working": false,
+    "tle_api_working": false
+  }
+}

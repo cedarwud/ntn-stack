@@ -24,7 +24,7 @@ class SimWorldTLEBridgeService:
 
     def __init__(
         self,
-        simworld_api_url: str = "http://localhost:8888",
+        simworld_api_url: str = "http://simworld_backend:8888",
         redis_client: Optional[redis.Redis] = None,
     ):
         self.logger = logger.bind(service="simworld_tle_bridge")
