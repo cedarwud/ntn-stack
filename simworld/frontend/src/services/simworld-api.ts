@@ -151,18 +151,21 @@ class SimWorldApiClient extends BaseApiClient {
    */
   async getVisibleSatellites(
     minElevation: number = -10,     // 全球視野預設-10度
-    maxSatellites: number = 50,
+    maxSatellites: number = 20,     // 🚀 降低預設值以提高性能
     observerLat: number = 0.0,      // 全球視野預設赤道位置
     observerLon: number = 0.0       // 全球視野預設本初子午線
   ): Promise<VisibleSatellitesResponse> {
     const params = {
-      count: Math.min(maxSatellites, 20),  // 限制最大請求數量以提高性能
+      count: Math.min(maxSatellites, 15),  // 🚀 進一步限制到15顆衛星
       min_elevation_deg: minElevation
     }
     const endpoint = '/api/v1/satellite-ops/visible_satellites'
     
-    // 使用內建的快取機制（基於 BaseApiClient）
-    const response = await this.get<any>(endpoint, params)
+    // 🚀 使用內建的快取機制並設置超時（基於 BaseApiClient）
+    const response = await this.get<any>(endpoint, params, {
+      timeout: 8000,  // 8秒超時
+      cacheTime: 60   // 60秒快取
+    })
     
     // 轉換響應格式以匹配原有接口
     const result = {

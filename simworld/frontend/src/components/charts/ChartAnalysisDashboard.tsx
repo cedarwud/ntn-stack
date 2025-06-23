@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useStrategy } from '../../contexts/StrategyContext'
 import { netStackApi } from '../../services/netstack-api'
+import { satelliteCache } from '../../utils/satellite-cache'
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -822,9 +823,15 @@ const ChartAnalysisDashboard = ({
                 name: '衛星數據 API 測試',
                 test: async () => {
                     try {
+                        // 🚀 優化：使用更少的衛星數量和超時設置
+                        const controller = new AbortController()
+                        const timeoutId = setTimeout(() => controller.abort(), 3000) // 3秒超時
+                        
                         const response = await fetch(
-                            '/api/v1/satellite-ops/visible_satellites?count=5'
+                            '/api/v1/satellite-ops/visible_satellites?count=3', // 減少到3顆衛星
+                            { signal: controller.signal }
                         )
+                        clearTimeout(timeoutId)
                         return response.ok
                     } catch {
                         return false
@@ -884,12 +891,31 @@ const ChartAnalysisDashboard = ({
         return results
     }
 
-    // Fetch real satellite data from SimWorld API
-    const fetchRealSatelliteData = async () => {
-        try {
-            const response = await fetch(
-                '/api/v1/satellite-ops/visible_satellites?count=50&global_view=true'
-            )
+    // Fetch real satellite data from SimWorld API (優化版本 + 快取)
+    const fetchRealSatelliteData = useCallback(async () => {
+        // 防重複調用保護
+        if (isUpdatingRef.current) return false
+        
+        return await satelliteCache.withCache(
+            'visible_satellites_15', // 快取鍵
+            async () => {
+                isUpdatingRef.current = true
+                
+                try {
+                    // 🚀 性能優化：減少請求數量並添加超時
+                    const controller = new AbortController()
+                    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5秒超時
+                    
+                    const response = await fetch(
+                        '/api/v1/satellite-ops/visible_satellites?count=15&global_view=true', // 減少到15顆衛星
+                        { 
+                            signal: controller.signal,
+                            headers: {
+                                'Cache-Control': 'max-age=30' // 30秒快取
+                            }
+                        }
+                    )
+                    clearTimeout(timeoutId)
             if (response.ok) {
                 const data = await response.json()
                 if (data.satellites && data.satellites.length > 0) {
@@ -981,14 +1007,24 @@ const ChartAnalysisDashboard = ({
                         // Successfully updated satellite data
                     }
                 }
+                return true
+            } else {
+                throw new Error(`API響應錯誤: ${response.status}`)
             }
         } catch (error) {
-            console.warn(
-                'Failed to fetch real satellite data, using default values:',
-                error
-            )
-        }
-    }
+            if (error.name === 'AbortError') {
+                console.warn('⏱️ 衛星數據請求超時，使用預設值')
+            } else {
+                console.warn('❌ 衛星數據獲取失敗，使用預設值:', error)
+            }
+            return false
+                } finally {
+                    isUpdatingRef.current = false
+                }
+            },
+            90000 // 90秒快取時間（因為衛星位置變化較慢）
+        )
+    }, []) // 空依賴數組確保函數穩定
 
     // 🎯 真實系統資源監控 - 直接使用NetStack性能API
     const fetchRealSystemMetrics = useCallback(async () => {
@@ -1592,7 +1628,14 @@ const ChartAnalysisDashboard = ({
                     fetchPerformanceRadarData(),
                     fetchProtocolStackDelayData(),
                     fetchExceptionHandlingData(),
-                    fetchCelestrakTLEData()
+                    fetchCelestrakTLEData(),
+                    // 🐌 衛星數據延遲初始化以避免阻塞其他數據
+                    new Promise(resolve => {
+                        setTimeout(async () => {
+                            await fetchRealSatelliteData()
+                            resolve(true)
+                        }, 2000) // 延遲2秒加載衛星數據
+                    })
                 ])
                 
                 // 獲取真實系統性能數據一次
@@ -2324,7 +2367,7 @@ const ChartAnalysisDashboard = ({
 
             case 'performance':
                 return (
-                    <div className="charts-grid">
+                    <div className="charts-grid three-column-grid">
                         {/* 🎯 QoE延遲指標圖表 (Stalling Time + RTT) */}
                         <div className="chart-container">
                             <h3>
@@ -3209,7 +3252,7 @@ const ChartAnalysisDashboard = ({
 
             case 'monitoring':
                 return (
-                    <div className="charts-grid monitoring-grid">
+                    <div className="charts-grid three-column-grid">
                         <div className="chart-container">
                             <h3>📈 性能監控儀表板</h3>
                             <div className="performance-metrics">
@@ -3338,6 +3381,65 @@ const ChartAnalysisDashboard = ({
                                             100
                                     )}%)`
                                     : '等待測試執行...'}
+                            </div>
+                        </div>
+
+                        <div className="chart-container">
+                            <h3>🌐 系統實時監控</h3>
+                            <div className="system-metrics-chart">
+                                <div className="metrics-grid">
+                                    <div className="metric-display">
+                                        <div className="metric-title">CPU 使用率</div>
+                                        <div className="metric-bar">
+                                            <div 
+                                                className="metric-fill cpu"
+                                                style={{ width: `${systemMetrics.cpu}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="metric-text">{systemMetrics.cpu}%</div>
+                                    </div>
+                                    <div className="metric-display">
+                                        <div className="metric-title">記憶體使用率</div>
+                                        <div className="metric-bar">
+                                            <div 
+                                                className="metric-fill memory"
+                                                style={{ width: `${systemMetrics.memory}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="metric-text">{systemMetrics.memory}%</div>
+                                    </div>
+                                    <div className="metric-display">
+                                        <div className="metric-title">GPU 使用率</div>
+                                        <div className="metric-bar">
+                                            <div 
+                                                className="metric-fill gpu"
+                                                style={{ width: `${systemMetrics.gpu}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="metric-text">{systemMetrics.gpu}%</div>
+                                    </div>
+                                    <div className="metric-display">
+                                        <div className="metric-title">網路延遲</div>
+                                        <div className="metric-bar">
+                                            <div 
+                                                className="metric-fill network"
+                                                style={{ width: `${Math.min(100, systemMetrics.networkLatency)}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="metric-text">{systemMetrics.networkLatency}ms</div>
+                                    </div>
+                                </div>
+                                {realDataError && (
+                                    <div className="data-source-warning">
+                                        ⚠️ {realDataError}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="chart-insight">
+                                <strong>即時監控：</strong>
+                                基於NetStack性能API的實時系統監控，
+                                {systemMetrics.cpu > 80 ? '⚠️ CPU使用率偏高' : '✅ 系統運行正常'}
+                                {systemMetrics.networkLatency > 50 && '，網路延遲需要關注'}
                             </div>
                         </div>
                     </div>

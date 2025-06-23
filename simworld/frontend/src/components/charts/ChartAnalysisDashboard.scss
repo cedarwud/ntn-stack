@@ -746,6 +746,34 @@
         }
       }
       
+      // 三列滿版佈局樣式 (與IEEE核心圖表一致)
+      &.three-column-grid {
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 20px;
+        
+        @media (max-width: 1400px) {
+          grid-template-columns: 1fr 1fr;
+          gap: 22px;
+        }
+        
+        @media (max-width: 900px) {
+          grid-template-columns: 1fr;
+          gap: 25px;
+        }
+        
+        .chart-container {
+          min-height: 500px;
+          
+          @media (max-width: 1400px) {
+            min-height: 550px;
+          }
+          
+          @media (max-width: 900px) {
+            min-height: 600px;
+          }
+        }
+      }
+      
       .chart-container {
         background: rgba(255, 255, 255, 0.05);
         border-radius: 15px;
@@ -756,6 +784,77 @@
         
         &.extra-large {
           min-height: 800px;
+        }
+        
+        // 系統實時監控樣式
+        .system-metrics-chart {
+          .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+          }
+          
+          .metric-display {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            
+            .metric-title {
+              color: white;
+              font-size: 14px;
+              font-weight: bold;
+              opacity: 0.9;
+            }
+            
+            .metric-bar {
+              background: rgba(255, 255, 255, 0.1);
+              border-radius: 8px;
+              height: 20px;
+              overflow: hidden;
+              position: relative;
+              
+              .metric-fill {
+                height: 100%;
+                border-radius: 8px;
+                transition: width 0.5s ease;
+                
+                &.cpu {
+                  background: linear-gradient(90deg, #4ade80, #22c55e);
+                }
+                
+                &.memory {
+                  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+                }
+                
+                &.gpu {
+                  background: linear-gradient(90deg, #f59e0b, #d97706);
+                }
+                
+                &.network {
+                  background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+                }
+              }
+            }
+            
+            .metric-text {
+              color: white;
+              font-size: 16px;
+              font-weight: bold;
+              text-align: center;
+            }
+          }
+          
+          .data-source-warning {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+            border-radius: 8px;
+            padding: 10px;
+            color: #ffc107;
+            font-size: 14px;
+            margin-top: 15px;
+            text-align: center;
+          }
         }
         
         h3 {
