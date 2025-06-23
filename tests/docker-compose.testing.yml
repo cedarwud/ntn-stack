@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  stage4-testing:
+    build:
+      context: ..
+      dockerfile: tests/Dockerfile.testing
+    container_name: ntn-stage4-testing
+    volumes:
+      - .:/tests/src
+      - ./results:/tests/results
+    environment:
+      - PYTHONPATH=/tests/src
+      - NETSTACK_URL=http://netstack-api:8080
+      - SIMWORLD_URL=http://simworld_backend:8888
+    networks:
+      - netstack-core  # 連接到NetStack網路
+      - sionna-net     # 連接到SimWorld網路
+    depends_on:
+      - netstack-api
+      - simworld_backend
+    command: >
+      bash -c "
+        echo '🚀 開始階段四測試環境初始化...'
+        cd /tests/src
+        python docker_test_runner.py
+      "
+
+networks:
+  netstack-core:
+    external: true
+  sionna-net:
+    external: true

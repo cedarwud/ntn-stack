@@ -34,6 +34,6 @@ register(
 # 註冊 LEO 衛星切換環境
 register(
     id='netstack/LEOSatelliteHandover-v0',
-    entry_point='netstack_api.envs.handover_env:LEOSatelliteHandoverEnv',
+    entry_point='netstack_api.envs.handover_env_fixed:LEOSatelliteHandoverEnv',
     max_episode_steps=1000,
 )

@@ -1,0 +1,87 @@
+{
+  "test_timestamp": "2025-06-23T05:45:19.533347",
+  "execution_time_seconds": 0.6095311641693115,
+  "api_tests": {
+    "sync_api": {
+      "success": false,
+      "error": "HTTP 500: {\"error\":\"HTTP Error\",\"message\":\"同步預測失敗: 'SynchronizedAlgorithm' object has no attribute 'get_ue_status'\",\"status_code\":500,\"timestamp\":\"2025-06-23T05:45:18.929414\"}",
+      "api_response_time_ms": 5.821943283081055
+    },
+    "handover_api": {
+      "success": false,
+      "data": {
+        "error": "HTTP Error",
+        "message": "UPF 換手執行失敗",
+        "status_code": 500,
+        "timestamp": "2025-06-23T05:45:18.930428"
+      },
+      "api_response_time_ms": 0.8039474487304688
+    },
+    "measurement_api": {
+      "success": false,
+      "data": {
+        "error": "Internal Server Error",
+        "message": "系統內部錯誤",
+        "status_code": 500,
+        "timestamp": "2025-06-23T05:45:18.931252"
+      },
+      "api_response_time_ms": 2.074003219604492
+    },
+    "tle_api": {
+      "success": false,
+      "error": "HTTP 404: {\"detail\":\"Not Found\"}",
+      "api_response_time_ms": 0.7822513580322266
+    }
+  },
+  "handover_measurements": [
+    {
+      "ue_id": "test-ue-000",
+      "algorithm": "algorithm_1",
+      "latency_ms": 500.0,
+      "success": false,
+      "prediction_accuracy": 0.0
+    },
+    {
+      "ue_id": "test-ue-001",
+      "algorithm": "algorithm_1",
+      "latency_ms": 500.0,
+      "success": false,
+      "prediction_accuracy": 0.0
+    },
+    {
+      "ue_id": "test-ue-002",
+      "algorithm": "algorithm_1",
+      "latency_ms": 500.0,
+      "success": false,
+      "prediction_accuracy": 0.0
+    },
+    {
+      "ue_id": "test-ue-003",
+      "algorithm": "algorithm_1",
+      "latency_ms": 500.0,
+      "success": false,
+      "prediction_accuracy": 0.0
+    },
+    {
+      "ue_id": "test-ue-004",
+      "algorithm": "algorithm_1",
+      "latency_ms": 500.0,
+      "success": false,
+      "prediction_accuracy": 0.0
+    }
+  ],
+  "statistics": {
+    "total_tests": 5,
+    "successful_tests": 0,
+    "failed_tests": 5,
+    "success_rate": 0.0,
+    "average_latency_ms": 0,
+    "average_prediction_accuracy": 0
+  },
+  "api_integration_status": {
+    "sync_api_working": false,
+    "handover_api_working": false,
+    "measurement_api_working": false,
+    "tle_api_working": false
+  }
+}
