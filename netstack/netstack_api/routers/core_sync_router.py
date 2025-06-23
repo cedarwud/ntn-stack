@@ -277,7 +277,7 @@ def get_handover_measurement() -> HandoverMeasurement:
     """獲取效能測量服務實例"""
     global handover_measurement
     if handover_measurement is None:
-        handover_measurement = HandoverMeasurement(output_dir="./measurement_results")
+        handover_measurement = HandoverMeasurement(output_dir="/tmp/measurement_results")
     return handover_measurement
 
 

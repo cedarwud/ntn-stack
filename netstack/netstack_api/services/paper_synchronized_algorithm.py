@@ -529,11 +529,16 @@ class SynchronizedAlgorithm:
                 )
 
                 timestamp = datetime.fromtimestamp(time_t)
-                best_satellite = (
-                    await self.enhanced_algorithm._calculate_best_access_satellite(
+                # Enhanced算法的best_access_satellite方法可能不存在，使用TLE橋接服務
+                try:
+                    best_satellite = await self.tle_bridge._calculate_best_access_satellite(
                         ue_id, ue_position, candidate_satellites, timestamp
                     )
-                )
+                except AttributeError:
+                    # 如果enhanced算法沒有這個方法，直接使用TLE橋接
+                    best_satellite = await self.tle_bridge._calculate_best_access_satellite(
+                        ue_id, ue_position, candidate_satellites, timestamp
+                    )
 
                 return best_satellite if best_satellite else "default_satellite"
             except Exception as e:

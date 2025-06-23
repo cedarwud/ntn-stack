@@ -141,7 +141,14 @@ class HandoverMeasurement:
         """
         self.logger = structlog.get_logger(__name__)
         self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 修復權限問題：使用 /tmp 目錄作為備用
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            self.logger.warning(f"無法創建目錄 {output_dir}，使用 /tmp/measurement_results")
+            self.output_dir = Path("/tmp/measurement_results")
+            self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # 換手事件存儲
         self.handover_events: List[HandoverEvent] = []
