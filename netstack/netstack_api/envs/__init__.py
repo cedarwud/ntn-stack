@@ -30,3 +30,10 @@ register(
     entry_point='netstack_api.envs.uav_env:UAVFormationEnv', 
     max_episode_steps=2000,
 )
+
+# 註冊 LEO 衛星切換環境
+register(
+    id='netstack/LEOSatelliteHandover-v0',
+    entry_point='netstack_api.envs.handover_env:LEOSatelliteHandoverEnv',
+    max_episode_steps=1000,
+)
