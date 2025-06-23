@@ -39,6 +39,9 @@ from app.domains.handover.api.weather_prediction_api import (
 # Import satellite admin API router
 from app.api.v1.satellite_admin_api import router as satellite_admin_router
 
+# Import system resource API router
+from app.domains.system.api.system_api import router as system_router
+
 # Import CQRS services
 from app.domains.satellite.services.cqrs_satellite_service import (
     CQRSSatelliteService,
@@ -176,6 +179,9 @@ api_router.include_router(satellite_admin_router)
 
 # Register testing API router
 api_router.include_router(testing_router, prefix="/testing", tags=["Testing"])
+
+# Register system resource API router
+api_router.include_router(system_router, prefix="/system", tags=["System"])
 
 
 # 添加模型資源路由
