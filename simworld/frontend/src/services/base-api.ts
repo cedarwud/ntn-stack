@@ -29,11 +29,13 @@ export class BaseApiClient {
       try {
         // Handle relative URLs for Vite proxy
         let url: URL
-        if (this.baseUrl) {
+        if (this.baseUrl.startsWith('http')) {
+          // Absolute URL
           url = new URL(endpoint, this.baseUrl)
         } else {
-          // For relative paths, use current origin
-          url = new URL(endpoint, window.location.origin)
+          // Relative URL (proxy path like /netstack)
+          const fullPath = this.baseUrl + endpoint
+          url = new URL(fullPath, window.location.origin)
         }
         
         if (params) {
@@ -98,11 +100,13 @@ export class BaseApiClient {
       try {
         // Handle relative URLs for Vite proxy
         let url: URL
-        if (this.baseUrl) {
+        if (this.baseUrl.startsWith('http')) {
+          // Absolute URL
           url = new URL(endpoint, this.baseUrl)
         } else {
-          // For relative paths, use current origin
-          url = new URL(endpoint, window.location.origin)
+          // Relative URL (proxy path like /netstack)
+          const fullPath = this.baseUrl + endpoint
+          url = new URL(fullPath, window.location.origin)
         }
 
         const response = await fetch(url.toString(), {
@@ -160,11 +164,13 @@ export class BaseApiClient {
       try {
         // Handle relative URLs for Vite proxy
         let url: URL
-        if (this.baseUrl) {
+        if (this.baseUrl.startsWith('http')) {
+          // Absolute URL
           url = new URL(endpoint, this.baseUrl)
         } else {
-          // For relative paths, use current origin
-          url = new URL(endpoint, window.location.origin)
+          // Relative URL (proxy path like /netstack)
+          const fullPath = this.baseUrl + endpoint
+          url = new URL(fullPath, window.location.origin)
         }
 
         const response = await fetch(url.toString(), {
@@ -222,11 +228,13 @@ export class BaseApiClient {
       try {
         // Handle relative URLs for Vite proxy
         let url: URL
-        if (this.baseUrl) {
+        if (this.baseUrl.startsWith('http')) {
+          // Absolute URL
           url = new URL(endpoint, this.baseUrl)
         } else {
-          // For relative paths, use current origin
-          url = new URL(endpoint, window.location.origin)
+          // Relative URL (proxy path like /netstack)
+          const fullPath = this.baseUrl + endpoint
+          url = new URL(fullPath, window.location.origin)
         }
 
         const response = await fetch(url.toString(), {

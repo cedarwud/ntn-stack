@@ -294,7 +294,10 @@ async def predict_handover_timing(
     try:
         # 構建 UE 位置
         ue_position = UAVPosition(
-            latitude=request.ue_lat, longitude=request.ue_lon, altitude=request.ue_alt
+            id=request.ue_id,
+            latitude=request.ue_lat, 
+            longitude=request.ue_lon, 
+            altitude=request.ue_alt
         )
 
         # 轉換衛星 ID 為整數
