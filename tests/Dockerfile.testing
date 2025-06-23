@@ -1,0 +1,43 @@
+# 階段四測試專用容器
+FROM python:3.11-slim
+
+# 設置工作目錄
+WORKDIR /tests
+
+# 安裝系統依賴（如果需要圖表生成）
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libegl1-mesa \
+    libosmesa6 \
+    libglfw3 \
+    xvfb \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 複製requirements文件
+COPY ../requirements.txt /tests/requirements.txt
+COPY ../simworld/backend/requirements.txt /tests/simworld_requirements.txt
+
+# 安裝Python依賴
+RUN pip install --no-cache-dir -r /tests/requirements.txt
+RUN pip install --no-cache-dir -r /tests/simworld_requirements.txt
+
+# 額外的測試專用依賴
+RUN pip install --no-cache-dir \
+    aiohttp \
+    httpx \
+    pytest \
+    pytest-asyncio \
+    pytest-html
+
+# 設置環境變數
+ENV PYTHONPATH=/tests
+ENV DISPLAY=:99
+
+# 創建虛擬顯示（如果需要圖表生成）
+RUN echo "#!/bin/bash\nXvfb :99 -screen 0 1024x768x24 &\nexec \"\$@\"" > /entrypoint.sh \
+    && chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["python", "--version"]

@@ -607,6 +607,78 @@ class SynchronizedAlgorithm:
             ),
         }
 
+    async def get_ue_status(self, ue_id: str) -> Dict[str, Any]:
+        """
+        獲取特定UE的狀態信息
+        
+        Args:
+            ue_id: UE標識符
+            
+        Returns:
+            UE狀態信息，包含當前衛星、下一個衛星、換手時間等
+        """
+        try:
+            # 檢查UE是否存在於R表中
+            if ue_id not in self.R:
+                # 如果UE不存在，嘗試初始化或返回空狀態
+                self.logger.warning(f"UE {ue_id} 不在R表中，嘗試初始化")
+                
+                # 執行UE更新，將其添加到R表
+                await self._ue_update(ue_id)
+                
+                # 如果仍然不在R表中，返回默認狀態
+                if ue_id not in self.R:
+                    return {
+                        "ue_id": ue_id,
+                        "current_satellite": None,
+                        "next_access_satellite": None,
+                        "handover_time": None,
+                        "last_update": datetime.utcnow().isoformat(),
+                        "access_quality": 0.0,
+                        "prediction_confidence": 0.0,
+                        "status": "not_initialized"
+                    }
+            
+            # 獲取UE的AccessInfo
+            access_info = self.R[ue_id]
+            
+            # 構建狀態響應
+            ue_status = {
+                "ue_id": ue_id,
+                "current_satellite": access_info.satellite_id,
+                "next_access_satellite": access_info.next_satellite_id,
+                "handover_time": access_info.handover_time,
+                "last_update": access_info.last_update.isoformat(),
+                "access_quality": access_info.access_quality,
+                "prediction_confidence": access_info.prediction_confidence,
+                "status": "active"
+            }
+            
+            # 如果有換手時間預測，添加額外信息
+            if ue_id in self.Tp:
+                predicted_handover_time = self.Tp[ue_id]
+                ue_status["predicted_handover_time"] = predicted_handover_time
+                ue_status["handover_countdown_seconds"] = max(0, predicted_handover_time - time.time())
+            
+            self.logger.debug(f"獲取UE狀態成功", ue_id=ue_id, satellite=access_info.satellite_id)
+            return ue_status
+            
+        except Exception as e:
+            self.logger.error(f"獲取UE {ue_id} 狀態失敗: {e}")
+            
+            # 返回錯誤狀態
+            return {
+                "ue_id": ue_id,
+                "current_satellite": None,
+                "next_access_satellite": None,
+                "handover_time": None,
+                "last_update": datetime.utcnow().isoformat(),
+                "access_quality": 0.0,
+                "prediction_confidence": 0.0,
+                "status": "error",
+                "error_message": str(e)
+            }
+
     # 輔助方法
 
     async def _initialize_algorithm_state(self):
@@ -962,7 +1034,7 @@ class SynchronizedAlgorithm:
             import aiohttp
             
             # 使用相同的 SimWorld API 端點
-            simworld_url = "http://localhost:8888"  # 或從配置獲取
+            simworld_url = "http://simworld_backend:8888"  # 容器內連接
             
             async with aiohttp.ClientSession() as session:
                 url = f"{simworld_url}/api/v1/satellites/"
