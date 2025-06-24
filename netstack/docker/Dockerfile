@@ -55,10 +55,12 @@ WORKDIR /app
 COPY netstack_api/ ./netstack_api/
 # 複製 UPF 擴展模組
 COPY docker/upf-extension/ ./docker/upf-extension/
+# 複製 RL 訓練腳本
+COPY scripts/ ./scripts/
 
-# 建立日誌目錄和 matplotlib 緩存目錄
-RUN mkdir -p /var/log/netstack /tmp/matplotlib && \
-    chown -R netstack:netstack /var/log/netstack /tmp/matplotlib
+# 建立日誌目錄、模型目錄、結果目錄和 matplotlib 緩存目錄
+RUN mkdir -p /var/log/netstack /app/models /app/results /tmp/matplotlib && \
+    chown -R netstack:netstack /var/log/netstack /app/models /app/results /tmp/matplotlib
 
 # 建立健康檢查腳本
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
@@ -112,10 +114,12 @@ RUN groupadd -r netstack && useradd -r -g netstack netstack
 COPY netstack_api/ ./netstack_api/
 # 複製 UPF 擴展模組
 COPY docker/upf-extension/ ./docker/upf-extension/
+# 複製 RL 訓練腳本
+COPY scripts/ ./scripts/
 
-# 建立日誌、測試目錄和 matplotlib 緩存目錄
-RUN mkdir -p /var/log/netstack /app/test-reports /tmp/matplotlib && \
-    chown -R netstack:netstack /var/log/netstack /app/test-reports /tmp/matplotlib
+# 建立日誌、測試目錄、模型目錄、結果目錄和 matplotlib 緩存目錄
+RUN mkdir -p /var/log/netstack /app/test-reports /app/models /app/results /tmp/matplotlib && \
+    chown -R netstack:netstack /var/log/netstack /app/test-reports /app/models /app/results /tmp/matplotlib
 
 # 建立健康檢查腳本
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh

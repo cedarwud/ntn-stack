@@ -37,3 +37,17 @@ register(
     entry_point='netstack_api.envs.handover_env_fixed:LEOSatelliteHandoverEnv',
     max_episode_steps=1000,
 )
+
+# 註冊優化版環境
+register(
+    id='netstack/LEOSatelliteHandover-v1',
+    entry_point='netstack_api.envs.optimized_handover_env_fixed:OptimizedLEOSatelliteHandoverEnv',
+    max_episode_steps=1000,
+)
+
+# 註冊極速版環境 (用於基準測試)
+register(
+    id='netstack/LEOSatelliteHandover-Ultra',
+    entry_point='netstack_api.envs.optimized_handover_env_fixed:UltraFastLEOEnv',
+    max_episode_steps=1000,
+)

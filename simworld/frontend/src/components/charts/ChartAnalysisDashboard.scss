@@ -734,8 +734,41 @@
     
     .charts-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
       gap: 25px;
+      
+      @media (min-width: 1800px) {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      
+      @media (min-width: 1200px) and (max-width: 1799px) {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      @media (max-width: 1199px) {
+        grid-template-columns: 1fr;
+      }
+      
+      // 軌道參數表專用全寬容器
+      &.parameters-table-container {
+        display: block;
+        width: 100%;
+        
+        .orbit-params-table {
+          width: 100%;
+        }
+      }
+      
+      // 2卡片專用併排樣式 (系統監控、算法策略、即時策略效果)
+      &.two-column-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        
+        @media (max-width: 1200px) {
+          grid-template-columns: 1fr;
+          gap: 25px;
+        }
+      }
       
       // 性能監控專用併排樣式
       &.monitoring-grid {

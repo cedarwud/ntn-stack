@@ -4,6 +4,7 @@ import os
 from starlette.responses import FileResponse
 from datetime import datetime, timedelta
 import random
+import time
 from typing import List, Optional
 from pydantic import BaseModel
 
@@ -383,14 +384,14 @@ async def get_visible_satellites(
     ),
 ):
     """返回全球範圍的Starlink和Kuiper衛星數據，不受地理位置限制"""
+    start_time = time.time()
     print(
         f"API 調用: get_visible_satellites(count={count}, min_elevation_deg={min_elevation_deg}, observer=({observer_lat}, {observer_lon}, {observer_alt}), global_view={global_view})"
     )
 
-    # 強制重新載入衛星數據
-    global SKYFIELD_LOADED
-    SKYFIELD_LOADED = False
-    await initialize_satellites()
+    # 優化：只在必要時重新載入衛星數據
+    if not SKYFIELD_LOADED:
+        await initialize_satellites()
 
     print(f"Skyfield 狀態: 已加載={SKYFIELD_LOADED}, 衛星數量={SATELLITE_COUNT}")
 
@@ -439,9 +440,12 @@ async def get_visible_satellites(
             f"全球視野模式: {global_view}, 處理衛星數: {max_process}, 有效仰角限制: {effective_min_elevation}°"
         )
 
-        # 計算每個衛星的可見性
-        for sat in all_sats[:max_process]:
-            processed_count += 1
+        # 並行計算每個衛星的可見性
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+        
+        def calculate_satellite_visibility(sat):
+            """計算單個衛星的可見性"""
             try:
                 # 計算方位角、仰角和距離
                 difference = sat - observer
@@ -464,7 +468,6 @@ async def get_visible_satellites(
 
                 # 檢查衛星是否高於最低仰角
                 if alt.degrees >= elevation_threshold:
-                    visible_count += 1
                     # 計算軌道信息
                     geocentric = sat.at(now)
                     subpoint = geocentric.subpoint()
@@ -490,15 +493,35 @@ async def get_visible_satellites(
                         magnitude=round(random.uniform(1, 5), 1),  # 星等是粗略估計
                     )
 
-                    visible_satellites.append(satellite_info)
-
-                    # 如果已經收集了足夠的衛星，停止
-                    if len(visible_satellites) >= count:
-                        print(f"已找到足夠的衛星: {len(visible_satellites)}")
-                        break
+                    return satellite_info
+                return None
             except Exception as e:
                 print(f"計算衛星 {sat.name} 位置時出錯: {e}")
-                continue
+                return None
+
+        # 使用線程池並行處理衛星計算
+        calc_start_time = time.time()
+        with ThreadPoolExecutor(max_workers=min(16, max_process)) as executor:
+            # 提交所有計算任務
+            futures = [
+                executor.submit(calculate_satellite_visibility, sat) 
+                for sat in all_sats[:max_process]
+            ]
+            
+            # 收集結果
+            for future in futures:
+                processed_count += 1
+                result = future.result()
+                if result is not None:
+                    visible_count += 1
+                    visible_satellites.append(result)
+                    
+                    # 如果已經收集了足夠的衛星，可以提前停止（但要等待正在運行的任務完成）
+                    if len(visible_satellites) >= count * 2:  # 收集更多以便排序選擇最佳的
+                        break
+        
+        calc_time = time.time() - calc_start_time
+        print(f"並行計算完成: 耗時 {calc_time:.2f}s, 並行效率提升: {max_process/calc_time:.1f} satellites/sec")
 
         print(
             f"處理完成: 處理了 {processed_count} 顆衛星，找到 {visible_count} 顆可見衛星，返回 {len(visible_satellites)} 顆"
@@ -509,6 +532,9 @@ async def get_visible_satellites(
 
         # 限制返回的衛星數量（保留這個邏輯，以防實際衛星數量超過請求數量）
         visible_satellites = visible_satellites[:count]
+
+        total_time = time.time() - start_time
+        print(f"🚀 API 性能: 總耗時 {total_time:.2f}s (計算: {calc_time:.2f}s, 其他: {total_time-calc_time:.2f}s)")
 
         return {
             "satellites": visible_satellites,
@@ -521,6 +547,12 @@ async def get_visible_satellites(
                 "altitude": observer_alt,
             },
             "global_view": global_view,
+            "performance": {
+                "total_time_ms": round(total_time * 1000),
+                "calculation_time_ms": round(calc_time * 1000),
+                "satellites_per_second": round(processed_count / calc_time, 1),
+                "optimization": "parallel_processing_enabled"
+            }
         }
 
     except Exception as e:

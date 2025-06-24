@@ -104,6 +104,9 @@ from .routers.scenario_test_router import router as scenario_test_router
 # 添加衛星 TLE 橋接路由器導入
 from .routers.satellite_tle_router import router as satellite_tle_router
 
+# 添加 RL 監控路由器導入
+from .routers.rl_monitoring_router import router as rl_monitoring_router
+
 # 添加圖表數據路由器導入 (已移除)
 
 # 添加事件驅動服務導入
@@ -419,6 +422,9 @@ app.include_router(scenario_test_router, tags=["場景測試驗證"])
 
 # 註冊衛星 TLE 橋接 API 路由器
 app.include_router(satellite_tle_router, tags=["衛星 TLE 橋接"])
+
+# 註冊 RL 監控 API 路由器
+app.include_router(rl_monitoring_router, tags=["RL 訓練監控"])
 
 # 註冊圖表數據 API 路由器 (臨時註釋掉)
 # app.include_router(chart_data_router, tags=["圖表數據"])

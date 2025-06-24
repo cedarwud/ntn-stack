@@ -89,7 +89,7 @@ const ChartAnalysisDashboard = ({
 }: ChartAnalysisDashboardProps) => {
     // 所有 hooks 必須在條件語句之前調用
     const [activeTab, setActiveTab] = useState('overview')
-    const [isCalculating, setIsCalculating] = useState(false)
+    const [isCalculating] = useState(false)
     const [systemMetrics, setSystemMetrics] = useState({
         cpu: 0,
         memory: 0,
@@ -375,16 +375,12 @@ const ChartAnalysisDashboard = ({
                         averageLatency: Math.round(24 + avgAccuracy * 2),
                         cpuUsage: Math.max(12, Math.round(15 - avgAvailability * 5)),
                         accuracy: Math.min(98, Math.round(94.2 + avgAvailability * 3)),
-                        successRate: Math.min(99, Math.round(96 + avgAvailability * 3)),
-                        signalingOverhead: Math.max(8, Math.round(12 - avgAvailability * 4))
                     },
                     consistent: {
                         handoverFrequency: Math.max(3.5, 4.1 - avgAccuracy * 0.06),
                         averageLatency: Math.round(19 + avgAccuracy * 1.5),
                         cpuUsage: Math.max(16, Math.round(22 - avgAvailability * 6)),
                         accuracy: Math.min(99, Math.round(96.8 + avgAvailability * 2)),
-                        successRate: Math.min(99.5, Math.round(98 + avgAvailability * 1.5)),
-                        signalingOverhead: Math.max(5, Math.round(9 - avgAvailability * 4))
                     }
                 })
                 
@@ -1012,7 +1008,7 @@ const ChartAnalysisDashboard = ({
                 throw new Error(`API響應錯誤: ${response.status}`)
             }
         } catch (error) {
-            if (error.name === 'AbortError') {
+            if (error instanceof Error && error.name === 'AbortError') {
                 console.warn('⏱️ 衛星數據請求超時，使用預設值')
             } else {
                 console.warn('❌ 衛星數據獲取失敗，使用預設值:', error)
@@ -1280,7 +1276,7 @@ const ChartAnalysisDashboard = ({
                         Math.round(
                             (600 / (satelliteData.starlink.period || 95.5)) * 10
                         ) / 10, // 基於軌道週期計算換手頻率
-                        strategyMetrics[currentStrategy]?.successRate || 97.2,
+                        strategyMetrics[currentStrategy]?.accuracy || 97.2,
                         Math.min(5, Math.max(3, (strategyMetrics[currentStrategy]?.accuracy || 95) / 20)), // QoE基於準確率
                         Math.min(
                             95.2,
@@ -1302,7 +1298,7 @@ const ChartAnalysisDashboard = ({
                         Math.round(
                             (600 / (satelliteData.kuiper.period || 98.6)) * 10
                         ) / 10,
-                        (strategyMetrics[currentStrategy]?.successRate || 97.2) - 0.6, // Kuiper略低
+                        (strategyMetrics[currentStrategy]?.accuracy || 97.2) - 0.6, // Kuiper略低
                         Math.min(5, Math.max(3, (strategyMetrics[currentStrategy]?.accuracy || 95) / 20)) - 0.2, // QoE略低
                         Math.min(
                             92.8,
@@ -1334,14 +1330,13 @@ const ChartAnalysisDashboard = ({
                 {
                     label: 'Stalling Time (ms)',
                     data: hasRealUAVData
-                        ? Array.from({ length: 60 }, (_, i) => {
+                        ? Array.from({ length: 60 }, () => {
                               // 基於真實策略延遲和UAV數據計算 stalling time
                               const avgSpeed = uavData.reduce((sum, uav) => sum + (uav.speed || 0), 0) / uavData.length
                               const speedFactor = Math.max(0.1, avgSpeed / 25) // 速度影響因子
                               
                               // 使用真實策略延遲數據 (而非數學函數)
                               const baseLatency = strategyMetrics[currentStrategy]?.averageLatency || 22
-                              const latencyFactor = baseLatency / 22 // 標準化到22ms
                               
                               // 基於真實延遲和速度計算 stalling time
                               const baseStalling = baseLatency * 1.5 // 延遲越高，stalling time越高
@@ -1351,7 +1346,7 @@ const ChartAnalysisDashboard = ({
                               return Math.max(5, baseStalling + speedImpact + timeVariance)
                           })
                         : (handoverTestData.qoeMetrics as any)?.stalling_time ||
-                          Array.from({ length: 60 }, (_, i) => {
+                          Array.from({ length: 60 }, () => {
                               // Fallback: 使用策略延遲數據而非純數學函數
                               const baseLatency = strategyMetrics[currentStrategy]?.averageLatency || 22
                               const timeVariance = (Math.random() - 0.5) * 12
@@ -1365,15 +1360,13 @@ const ChartAnalysisDashboard = ({
                 {
                     label: 'Ping RTT (ms)',
                     data: hasRealUAVData
-                        ? Array.from({ length: 60 }, (_, i) => {
+                        ? Array.from({ length: 60 }, () => {
                               // 基於 UAV 高度計算實際 RTT
                               const avgAltitude =
                                   uavData.reduce(
                                       (sum, uav) => sum + (uav.altitude || 100),
                                       0
                                   ) / uavData.length
-                              const altitudeFactor =
-                                  1 + (avgAltitude - 100) / 1000 // 高度影響因子
                               // 使用真實策略延遲數據計算RTT
                               const baseLatency = strategyMetrics[currentStrategy]?.averageLatency || 22
                               const rttBase = baseLatency * 0.8 // RTT通常低於handover延遲
@@ -1383,7 +1376,7 @@ const ChartAnalysisDashboard = ({
                               return Math.max(2, rttBase + altitudeImpact + timeVariance)
                           })
                         : (handoverTestData.qoeMetrics as any)?.ping_rtt ||
-                          Array.from({ length: 60 }, (_, i) => {
+                          Array.from({ length: 60 }, () => {
                               // Fallback: 使用策略延遲數據計算RTT
                               const baseLatency = strategyMetrics[currentStrategy]?.averageLatency || 22
                               const rttBase = baseLatency * 0.8
@@ -2367,7 +2360,7 @@ const ChartAnalysisDashboard = ({
 
             case 'performance':
                 return (
-                    <div className="charts-grid three-column-grid">
+                    <div className="charts-grid">
                         {/* 🎯 QoE延遲指標圖表 (Stalling Time + RTT) */}
                         <div className="chart-container">
                             <h3>
@@ -2623,7 +2616,7 @@ const ChartAnalysisDashboard = ({
 
             case 'system':
                 return (
-                    <div className="charts-grid">
+                    <div className="charts-grid two-column-grid">
                         <div className="chart-container system-metrics">
                             <h3>🖥️ LEO 衛星系統實時監控中心</h3>
                             <div className="metrics-grid">
@@ -2742,7 +2735,7 @@ const ChartAnalysisDashboard = ({
 
             case 'algorithms':
                 return (
-                    <div className="charts-grid">
+                    <div className="charts-grid two-column-grid">
                         <div className="chart-container">
                             <h3>⏱️ 時間同步精度技術對比</h3>
                             <Bar
@@ -3115,7 +3108,7 @@ const ChartAnalysisDashboard = ({
 
             case 'parameters':
                 return (
-                    <div className="charts-grid">
+                    <div className="parameters-table-container">
                         <div className="orbit-params-table">
                             <h3>
                                 🛰️ 表I: 衛星軌道參數詳細對比表 (Starlink vs
@@ -3252,7 +3245,7 @@ const ChartAnalysisDashboard = ({
 
             case 'monitoring':
                 return (
-                    <div className="charts-grid three-column-grid">
+                    <div className="charts-grid">
                         <div className="chart-container">
                             <h3>📈 性能監控儀表板</h3>
                             <div className="performance-metrics">
@@ -3447,7 +3440,7 @@ const ChartAnalysisDashboard = ({
 
             case 'strategy':
                 return (
-                    <div className="charts-grid">
+                    <div className="charts-grid two-column-grid">
                         <div className="chart-container">
                             <h3>⚡ 即時策略效果比較</h3>
                             <div className="strategy-controls">
@@ -3616,78 +3609,6 @@ const ChartAnalysisDashboard = ({
                     </div>
                 )
 
-            case 'metrics':
-                return (
-                    <div className="charts-grid">
-                        <div className="chart-container">
-                            <h3>📊 效能指標儀表板</h3>
-                            <div className="metrics-dashboard">
-                                <div className="metrics-row">
-                                    <div className="metric-gauge">
-                                        <h4>系統 CPU</h4>
-                                        <div className="gauge-container">
-                                            <div className="gauge-value">{systemMetrics.cpu}%</div>
-                                            <div className="gauge-bar">
-                                                <div 
-                                                    className="gauge-fill"
-                                                    style={{ width: `${systemMetrics.cpu}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="metric-gauge">
-                                        <h4>記憶體使用</h4>
-                                        <div className="gauge-container">
-                                            <div className="gauge-value">{systemMetrics.memory}%</div>
-                                            <div className="gauge-bar">
-                                                <div 
-                                                    className="gauge-fill"
-                                                    style={{ width: `${systemMetrics.memory}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="metrics-row">
-                                    <div className="metric-gauge">
-                                        <h4>GPU 負載</h4>
-                                        <div className="gauge-container">
-                                            <div className="gauge-value">{systemMetrics.gpu}%</div>
-                                            <div className="gauge-bar">
-                                                <div 
-                                                    className="gauge-fill"
-                                                    style={{ width: `${systemMetrics.gpu}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="metric-gauge">
-                                        <h4>網路延遲</h4>
-                                        <div className="gauge-container">
-                                            <div className="gauge-value">{systemMetrics.networkLatency}ms</div>
-                                            <div className="gauge-bar">
-                                                <div 
-                                                    className="gauge-fill"
-                                                    style={{ 
-                                                        width: `${Math.min(systemMetrics.networkLatency / 2, 100)}%`,
-                                                        backgroundColor: systemMetrics.networkLatency > 100 ? '#ff6b6b' : '#4ade80'
-                                                    }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="chart-insight">
-                                <strong>系統狀態：</strong>
-                                {systemMetrics.cpu < 70 && systemMetrics.memory < 80 && systemMetrics.networkLatency < 50
-                                    ? '🟢 系統運行良好，所有指標正常'
-                                    : '🟡 系統負載較高，建議監控資源使用情況'
-                                }
-                            </div>
-                        </div>
-                    </div>
-                )
 
             default:
                 return <div>請選擇一個標籤查看相關圖表分析</div>
@@ -3807,14 +3728,6 @@ const ChartAnalysisDashboard = ({
                             onClick={() => setActiveTab('strategy')}
                         >
                             ⚡ 即時策略效果
-                        </button>
-                        <button
-                            className={
-                                activeTab === 'metrics' ? 'active' : ''
-                            }
-                            onClick={() => setActiveTab('metrics')}
-                        >
-                            📊 效能指標板
                         </button>
                     </div>
                 </div>
