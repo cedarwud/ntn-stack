@@ -807,6 +807,25 @@
         }
       }
       
+      // 深度分析專用2列4欄佈局樣式 (2列x2欄 = 4個圖表)
+      &.four-in-two-rows-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 25px;
+        
+        @media (max-width: 1200px) {
+          grid-template-columns: 1fr;
+          gap: 25px;
+        }
+        
+        .chart-container {
+          min-height: 580px;
+          
+          @media (max-width: 1200px) {
+            min-height: 600px;
+          }
+        }
+      }
+      
       .chart-container {
         background: rgba(255, 255, 255, 0.05);
         border-radius: 15px;

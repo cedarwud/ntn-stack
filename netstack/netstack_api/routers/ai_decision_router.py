@@ -505,6 +505,86 @@ async def disable_auto_tuning(
         logger.error("停用自動調優失敗", error=str(e))
         raise HTTPException(status_code=500, detail=f"停用失敗: {str(e)}")
 
+@router.post("/switch-to-gymnasium", response_model=Dict)
+async def switch_to_gymnasium(
+    engine: AIDecisionEngine = Depends(get_ai_decision_engine)
+) -> Dict:
+    """
+    切換到 Gymnasium 引擎
+    
+    將 AI 決策引擎切換到基於 Gymnasium 的強化學習模式，
+    提供更高的預測準確性和適應性。
+    """
+    try:
+        # 檢查是否已經是 Gymnasium 引擎
+        current_status = await engine.get_service_status()
+        current_engine = current_status.get('engine_type', 'unknown')
+        
+        if current_engine == 'gymnasium':
+            return {
+                'success': True,
+                'message': '已經是 Gymnasium 引擎',
+                'engine_type': 'gymnasium',
+                'switched': False
+            }
+        
+        # 執行引擎切換邏輯
+        await engine.switch_to_gymnasium_engine()
+        
+        logger.info("成功切換到 Gymnasium 引擎")
+        
+        return {
+            'success': True,
+            'message': '成功切換到 Gymnasium 引擎',
+            'engine_type': 'gymnasium',
+            'switched': True,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error("切換到 Gymnasium 引擎失敗", error=str(e))
+        raise HTTPException(status_code=500, detail=f"引擎切換失敗: {str(e)}")
+
+@router.post("/switch-to-legacy", response_model=Dict)
+async def switch_to_legacy(
+    engine: AIDecisionEngine = Depends(get_ai_decision_engine)
+) -> Dict:
+    """
+    切換到 Legacy 引擎
+    
+    將 AI 決策引擎切換到傳統算法模式，
+    提供更穩定但較基礎的決策能力。
+    """
+    try:
+        # 檢查是否已經是 Legacy 引擎
+        current_status = await engine.get_service_status()
+        current_engine = current_status.get('engine_type', 'unknown')
+        
+        if current_engine == 'legacy':
+            return {
+                'success': True,
+                'message': '已經是 Legacy 引擎',
+                'engine_type': 'legacy',
+                'switched': False
+            }
+        
+        # 執行引擎切換邏輯
+        await engine.switch_to_legacy_engine()
+        
+        logger.info("成功切換到 Legacy 引擎")
+        
+        return {
+            'success': True,
+            'message': '成功切換到 Legacy 引擎',
+            'engine_type': 'legacy',
+            'switched': True,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error("切換到 Legacy 引擎失敗", error=str(e))
+        raise HTTPException(status_code=500, detail=f"引擎切換失敗: {str(e)}")
+
 @router.get("/decision-history", response_model=Dict)
 async def get_decision_history(
     limit: int = 50,
