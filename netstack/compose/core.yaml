@@ -13,6 +13,14 @@ services:
     hostname: mongo
     environment:
       MONGO_INITDB_DATABASE: open5gs
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.3'
+          memory: 512M
     volumes:
       - mongo_data:/data/db
       - mongo_config:/data/configdb
@@ -84,6 +92,14 @@ services:
     volumes:
       - ../config/amf.yaml:/opt/open5gs/etc/open5gs/amf.yaml
     command: open5gs-amfd
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.3'
+          memory: 256M
     depends_on:
       mongo:
         condition: service_healthy
@@ -204,6 +220,14 @@ services:
     volumes:
       - ../config/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml
     command: open5gs-smfd
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     depends_on:
       nrf:
         condition: service_healthy
@@ -280,6 +304,14 @@ services:
     cap_add:
       - all
     privileged: true
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
     ports:
       - "2152:2152/udp"
     depends_on:
@@ -324,6 +356,10 @@ services:
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
       - SIMWORLD_API_URL=http://simworld_backend:8000
+    volumes:
+      - netstack_models:/app/models
+      - netstack_results:/app/results
+      - netstack_scripts:/app/scripts
     ports:
       - "8080:8080"
     depends_on:
@@ -346,6 +382,14 @@ services:
     image: redis:7-alpine
     container_name: netstack-redis
     command: redis-server --appendonly yes
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
     volumes:
       - redis_data:/data
     networks:
@@ -387,4 +431,10 @@ volumes:
   prometheus_data:
     driver: local
   mongo_config:
+    driver: local
+  netstack_models:
+    driver: local
+  netstack_results:
+    driver: local
+  netstack_scripts:
     driver: local

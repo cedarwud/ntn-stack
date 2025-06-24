@@ -191,7 +191,7 @@ class UPFSyncBridge:
         search_paths = [
             self.library_path,  # 原始路徑
             "./libsync_algorithm.so",  # 當前目錄
-            "/home/sat/ntn-stack/netstack/docker/upf-extension/libsync_algorithm.so",  # 源碼目錄
+            "/app/docker/upf-extension/libsync_algorithm.so",  # 容器內路徑
             os.path.join(
                 os.path.dirname(__file__), "libsync_algorithm.so"
             ),  # 相對於此檔案
