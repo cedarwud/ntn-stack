@@ -11,7 +11,7 @@ import { generateDeviceName as utilGenerateDeviceName } from '../../utils/device
 import HandoverManager from '../handover/HandoverManager'
 import { useStrategy } from '../../contexts/StrategyContext'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
-import GymnasiumRLMonitor from '../dashboard/GymnasiumRLMonitor'
+// RL 監控已移動到 Chart Analysis Dashboard
 
 interface SidebarProps {
     devices: Device[]
@@ -116,7 +116,7 @@ interface SidebarProps {
 interface FeatureToggle {
     id: string
     label: string
-    category: 'rl_monitor' | 'uav' | 'satellite' | 'handover_mgr' | 'quality'
+    category: 'uav' | 'satellite' | 'handover_mgr' | 'quality'
     enabled: boolean
     onToggle: (enabled: boolean) => void
     icon?: string
@@ -274,7 +274,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     })
 
     // 擴展的UI狀態
-    const [activeCategory, setActiveCategory] = useState<string>('rl_monitor')
+    const [activeCategory, setActiveCategory] = useState<string>('uav')
     const [showTempDevices, setShowTempDevices] = useState(true)
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
     const [showDesiredDevices, setShowDesiredDevices] = useState(false)
@@ -400,9 +400,8 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         })
     }
 
-    // 精簡的類別配置 - 更新為 5 個分頁，添加 RL 監控
+    // 精簡的類別配置 - 4 個分頁 (RL 監控已移動到 Chart Analysis)
     const categories = [
-        { id: 'rl_monitor', label: 'RL 監控', icon: '🧠' },
         { id: 'uav', label: 'UAV 控制', icon: '🚁' },
         { id: 'satellite', label: '衛星控制', icon: '🛰️' },
         { id: 'handover_mgr', label: '換手管理', icon: '🔄' },
@@ -1192,12 +1191,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                 </>
             )}
 
-            {/* RL 監控面板 - 只在RL監控分頁顯示 */}
-            {activeCategory === 'rl_monitor' && (
-                <div className="rl-monitor-panel">
-                    <GymnasiumRLMonitor />
-                </div>
-            )}
+            {/* RL 監控已移動到 Chart Analysis Dashboard */}
 
             {/* 設備操作按鈕 - 只在UAV控制分頁顯示 */}
             {activeCategory === 'uav' && (
