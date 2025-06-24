@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import './GymnasiumRLMonitor.scss'
 
 interface RLEngineMetrics {
-    engine_type: 'gymnasium' | 'legacy' | 'null'
+    engine_type: 'dqn' | 'ppo' | 'null'
     algorithm: string
     environment: string
     model_status: 'training' | 'inference' | 'idle' | 'error'
@@ -33,8 +33,8 @@ interface ServiceInfo {
     avg_response_time: number
 }
 
-// 定義真實API端點的基礎URL - 瀏覽器從外部訪問
-const API_BASE = 'http://localhost:8080'
+// 定義真實API端點的基礎URL - 通過Vite代理訪問
+const API_BASE = '/netstack'
 
 const GymnasiumRLMonitor: React.FC = () => {
     const [rlMetrics, setRLMetrics] = useState<RLEngineMetrics | null>(null)
@@ -42,8 +42,8 @@ const GymnasiumRLMonitor: React.FC = () => {
         null
     )
     const [selectedEngine, setSelectedEngine] = useState<
-        'gymnasium' | 'legacy'
-    >('gymnasium')
+        'dqn' | 'ppo'
+    >('dqn')
     const [isTraining, setIsTraining] = useState(false)
     const [autoRefresh, setAutoRefresh] = useState(true)
     const [loading, setLoading] = useState(false)
@@ -85,9 +85,9 @@ const GymnasiumRLMonitor: React.FC = () => {
             const metrics: RLEngineMetrics = {
                 engine_type: selectedEngine,
                 algorithm:
-                    selectedEngine === 'gymnasium'
-                        ? aiStatusData?.current_algorithm || 'DQN'
-                        : 'Traditional',
+                    selectedEngine === 'dqn'
+                        ? 'Deep Q-Network'
+                        : 'Proximal Policy Optimization',
                 environment:
                     aiStatusData?.environment_name || 'HandoverEnvironment-v0',
                 model_status:
@@ -167,10 +167,10 @@ const GymnasiumRLMonitor: React.FC = () => {
     }, [selectedEngine, isTraining])
 
     // 切換 RL 引擎
-    const switchEngine = async (newEngine: 'gymnasium' | 'legacy') => {
+    const switchEngine = async (newEngine: 'dqn' | 'ppo') => {
         try {
             const endpoint =
-                newEngine === 'gymnasium'
+                newEngine === 'dqn'
                     ? `${API_BASE}/api/v1/ai-decision/switch-to-gymnasium`
                     : `${API_BASE}/api/v1/ai-decision/switch-to-legacy`
 
@@ -215,7 +215,7 @@ const GymnasiumRLMonitor: React.FC = () => {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             algorithm:
-                                selectedEngine === 'gymnasium' ? 'dqn' : 'ppo',
+                                selectedEngine === 'dqn' ? 'dqn' : 'ppo',
                             episodes: 1000,
                             learning_rate: 0.0003,
                             batch_size: 64,
@@ -278,9 +278,9 @@ const GymnasiumRLMonitor: React.FC = () => {
 
     const getEngineStatusIcon = (engineType: string) => {
         switch (engineType) {
-            case 'gymnasium':
+            case 'dqn':
                 return '🤖'
-            case 'legacy':
+            case 'ppo':
                 return '⚙️'
             case 'null':
                 return '❌'
@@ -292,7 +292,7 @@ const GymnasiumRLMonitor: React.FC = () => {
     return (
         <div className="gymnasium-rl-monitor">
             <div className="monitor-header">
-                <h2>🧠 Gymnasium RL 智能監控中心</h2>
+                <h2>🧠 強化學習 (RL) 智能監控中心</h2>
                 <div className="header-controls">
                     <label className="toggle-switch">
                         <input
@@ -321,19 +321,19 @@ const GymnasiumRLMonitor: React.FC = () => {
                     <div className="engine-selector">
                         <button
                             className={`engine-btn ${
-                                selectedEngine === 'gymnasium' ? 'active' : ''
+                                selectedEngine === 'dqn' ? 'active' : ''
                             }`}
-                            onClick={() => switchEngine('gymnasium')}
+                            onClick={() => switchEngine('dqn')}
                         >
-                            🤖 Gymnasium RL
+                            🤖 DQN Engine
                         </button>
                         <button
                             className={`engine-btn ${
-                                selectedEngine === 'legacy' ? 'active' : ''
+                                selectedEngine === 'ppo' ? 'active' : ''
                             }`}
-                            onClick={() => switchEngine('legacy')}
+                            onClick={() => switchEngine('ppo')}
                         >
-                            ⚙️ Legacy Engine
+                            ⚙️ PPO Engine
                         </button>
                     </div>
 
