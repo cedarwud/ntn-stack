@@ -1229,6 +1229,7 @@
         h2 {
             font-size: 2.2rem;
             color: #40e0ff;
+            margin-top: 0;
             margin-bottom: 1rem;
             text-shadow: 0 0 20px rgba(64, 224, 255, 0.5);
         }
@@ -1303,377 +1304,240 @@
     .rl-content-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto auto;
-        gap: 2rem;
-        height: calc(100% - 150px);
+        gap: 1.5rem;
+        width: 100%;
+        margin-top: 1rem;
+        align-items: start; // 確保子元素對齊
+        min-height: 600px; // 設定最小高度以避免空白
 
         .rl-real-component {
-            grid-column: 1 / -1;
-            
-            .gymnasium-rl-monitor {
-                background: transparent;
-                padding: 0;
-                
-                .monitor-header {
-                    display: none; // 隱藏重複的標題
-                }
-                
-                .monitor-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 2rem;
-                    
-                    .control-panel, .metrics-panel, .services-panel, .logs-panel {
-                        background: linear-gradient(145deg, #1e293b, #334155);
-                        border-radius: 12px;
-                        padding: 1.5rem;
-                        border: 1px solid rgba(64, 224, 255, 0.2);
-                    }
-                }
-            }
-        }
-
-        .rl-engines-section {
-            grid-column: 1 / -1;
-            
-            h3 {
-                color: #40e0ff;
-                font-size: 1.5rem;
-                margin-bottom: 1rem;
-                text-align: center;
-            }
-
-            .engines-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 2rem;
-
-                .engine-card {
-                    background: linear-gradient(145deg, #1e293b, #334155);
-                    border-radius: 12px;
-                    padding: 1.5rem;
-                    border: 2px solid transparent;
-                    transition: all 0.3s ease;
-
-                    &.dqn-engine {
-                        border-color: rgba(34, 197, 94, 0.5);
-                        &:hover {
-                            border-color: #22c55e;
-                            box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
-                        }
-                    }
-
-                    &.ppo-engine {
-                        border-color: rgba(251, 146, 60, 0.5);
-                        &:hover {
-                            border-color: #fb923c;
-                            box-shadow: 0 0 20px rgba(251, 146, 60, 0.3);
-                        }
-                    }
-
-                    .engine-header {
-                        display: flex;
-                        align-items: center;
-                        gap: 1rem;
-                        margin-bottom: 1rem;
-
-                        .engine-icon {
-                            font-size: 2rem;
-                        }
-
-                        .engine-name {
-                            font-size: 1.2rem;
-                            font-weight: bold;
-                            flex: 1;
-                        }
-
-                        .engine-status {
-                            padding: 0.3rem 0.8rem;
-                            border-radius: 15px;
-                            font-size: 0.8rem;
-                            font-weight: bold;
-
-                            &.running {
-                                background: rgba(34, 197, 94, 0.2);
-                                color: #22c55e;
-                                border: 1px solid #22c55e;
-                            }
-
-                            &.idle {
-                                background: rgba(156, 163, 175, 0.2);
-                                color: #9ca3af;
-                                border: 1px solid #9ca3af;
-                            }
-                        }
-                    }
-
-                    .engine-metrics {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 0.5rem;
-                        margin-bottom: 1rem;
-
-                        .metric {
-                            display: flex;
-                            justify-content: space-between;
-                            padding: 0.3rem 0;
-                            font-size: 0.9rem;
-
-                            span {
-                                font-weight: bold;
-                                color: #40e0ff;
-                            }
-                        }
-                    }
-
-                    .engine-controls {
-                        display: flex;
-                        gap: 0.5rem;
-
-                        button {
-                            flex: 1;
-                            padding: 0.6rem;
-                            border: none;
-                            border-radius: 6px;
-                            cursor: pointer;
-                            font-size: 0.9rem;
-                            transition: all 0.3s ease;
-
-                            &.btn-start {
-                                background: linear-gradient(135deg, #22c55e, #16a34a);
-                                color: white;
-                                &:hover {
-                                    background: linear-gradient(135deg, #16a34a, #15803d);
-                                    transform: translateY(-2px);
-                                }
-                            }
-
-                            &.btn-pause {
-                                background: linear-gradient(135deg, #f59e0b, #d97706);
-                                color: white;
-                                &:hover {
-                                    background: linear-gradient(135deg, #d97706, #b45309);
-                                    transform: translateY(-2px);
-                                }
-                            }
-
-                            &.btn-config {
-                                background: linear-gradient(135deg, #6366f1, #4f46e5);
-                                color: white;
-                                &:hover {
-                                    background: linear-gradient(135deg, #4f46e5, #4338ca);
-                                    transform: translateY(-2px);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            grid-column: 1;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 16px;
+            padding: 1rem;
+            overflow: hidden;
         }
 
         .rl-training-viz {
+            grid-column: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            height: 100%; // 填滿可用高度
+            min-height: 600px; // 確保最小高度
+
             h3 {
-                color: #40e0ff;
-                font-size: 1.3rem;
-                margin-bottom: 1rem;
+                color: #e2e8f0;
+                margin: 0 0 1rem 0;
+                font-size: 1.1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
             }
 
-            .training-charts {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 2rem;
+            .training-charts.enhanced {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
 
-                &.enhanced {
-                    gap: 2rem;
-                    margin-bottom: 2rem;
-                }
-            }
+                .training-engine-card {
+                    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+                    border: 1px solid rgba(100, 116, 139, 0.3);
+                    border-radius: 12px;
+                    padding: 1rem;
 
-            .training-engine-card {
-                background: linear-gradient(145deg, #1e293b, #334155);
-                border-radius: 16px;
-                padding: 1.5rem;
-                border: 2px solid transparent;
-                transition: all 0.3s ease;
-
-                &.dqn-card {
-                    border-color: rgba(34, 197, 94, 0.5);
-                    &:hover {
-                        border-color: #22c55e;
-                        box-shadow: 0 0 25px rgba(34, 197, 94, 0.3);
-                        transform: translateY(-3px);
-                    }
-                }
-
-                &.ppo-card {
-                    border-color: rgba(251, 146, 60, 0.5);
-                    &:hover {
-                        border-color: #fb923c;
-                        box-shadow: 0 0 25px rgba(251, 146, 60, 0.3);
-                        transform: translateY(-3px);
-                    }
-                }
-
-                .engine-header {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    margin-bottom: 1rem;
-
-                    .engine-icon {
-                        font-size: 1.5rem;
-                    }
-
-                    .engine-name {
-                        font-size: 1.1rem;
-                        font-weight: bold;
-                        color: #40e0ff;
-                        flex: 1;
-                        margin-left: 0.5rem;
-                    }
-
-                    .training-status {
-                        padding: 0.3rem 0.8rem;
-                        border-radius: 15px;
-                        font-size: 0.8rem;
-                        font-weight: bold;
-
-                        &.active {
-                            background: rgba(239, 68, 68, 0.2);
-                            color: #ef4444;
-                            border: 1px solid #ef4444;
-                            animation: statusPulse 2s ease-in-out infinite;
-                        }
-
-                        &.idle {
-                            background: rgba(156, 163, 175, 0.2);
-                            color: #9ca3af;
-                            border: 1px solid #9ca3af;
-                        }
-                    }
-                }
-
-                .training-progress {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    margin-bottom: 1rem;
-
-                    .progress-bar {
-                        flex: 1;
-                        height: 8px;
-                        background: rgba(255, 255, 255, 0.1);
-                        border-radius: 4px;
-                        overflow: hidden;
-
-                        .progress-fill {
-                            height: 100%;
-                            border-radius: 4px;
-                            transition: width 0.8s ease;
-
-                            &.dqn-fill {
-                                background: linear-gradient(90deg, #22c55e, #16a34a);
-                            }
-
-                            &.ppo-fill {
-                                background: linear-gradient(90deg, #fb923c, #f97316);
-                            }
-                        }
-                    }
-
-                    .progress-text {
-                        font-weight: bold;
-                        color: #40e0ff;
-                        min-width: 40px;
-                    }
-                }
-
-                .training-metrics {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 0.5rem;
-                    margin-bottom: 1rem;
-
-                    .metric {
+                    .engine-header {
                         display: flex;
                         justify-content: space-between;
-                        padding: 0.3rem 0;
+                        align-items: center;
+                        margin-bottom: 0.75rem;
 
-                        .label {
-                            color: #94a3b8;
-                            font-size: 0.9rem;
+                        .engine-name {
+                            font-weight: 600;
+                            color: #e2e8f0;
                         }
 
-                        .value {
-                            font-weight: bold;
-                            color: #40e0ff;
-                        }
-                    }
-                }
+                        .training-status {
+                            font-size: 0.8rem;
+                            padding: 0.2rem 0.6rem;
+                            border-radius: 12px;
+                            font-weight: 500;
 
-                .reward-chart {
-                    .chart-title {
-                        text-align: center;
-                        font-size: 0.9rem;
-                        color: #94a3b8;
-                        margin-bottom: 0.5rem;
-                    }
-
-                    .chart-area {
-                        height: 60px;
-                        position: relative;
-                        background: rgba(0, 0, 0, 0.3);
-                        border-radius: 8px;
-                        overflow: hidden;
-
-                        .trend-line {
-                            position: absolute;
-                            height: 3px;
-                            border-radius: 2px;
-                            top: 50%;
-                            left: 10%;
-                            width: 80%;
-                            transform: translateY(-50%);
-                            opacity: 0.7;
-
-                            &.dqn-trend {
-                                background: linear-gradient(90deg, #22c55e, #10b981);
-                                &.animated {
-                                    animation: trainProgress 3s ease-in-out infinite;
-                                }
+                            &.active {
+                                background: rgba(34, 197, 94, 0.2);
+                                color: #22c55e;
                             }
 
-                            &.ppo-trend {
-                                background: linear-gradient(90deg, #fb923c, #f97316);
-                                &.animated {
-                                    animation: trainProgress 3s ease-in-out infinite;
-                                }
+                            &.idle {
+                                background: rgba(100, 116, 139, 0.2);
+                                color: #64748b;
                             }
                         }
+                    }
 
-                        .data-flow {
-                            position: absolute;
-                            top: 50%;
-                            left: 10%;
-                            width: 80%;
+                    .training-progress {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        margin-bottom: 0.75rem;
+
+                        .progress-bar {
+                            flex: 1;
                             height: 6px;
-                            transform: translateY(-50%);
+                            background: rgba(255, 255, 255, 0.1);
+                            border-radius: 3px;
+                            overflow: hidden;
 
-                            &.flowing .data-dot {
-                                animation: dataFlow 2s linear infinite;
+                            .progress-fill {
+                                height: 100%;
+                                transition: width 0.3s ease;
+
+                                &.dqn-fill {
+                                    background: linear-gradient(90deg, #22c55e, #10b981);
+                                }
+
+                                &.ppo-fill {
+                                    background: linear-gradient(90deg, #fb923c, #f97316);
+                                }
+                            }
+                        }
+
+                        .progress-text {
+                            font-size: 0.8rem;
+                            color: #94a3b8;
+                            min-width: 35px;
+                        }
+                    }
+
+                    .training-metrics {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 0.5rem;
+                        margin-bottom: 0.75rem;
+
+                        .metric {
+                            display: flex;
+                            flex-direction: column;
+                            gap: 0.1rem;
+
+                            .label {
+                                font-size: 0.75rem;
+                                color: #94a3b8;
                             }
 
-                            .data-dot {
-                                position: absolute;
-                                width: 4px;
-                                height: 4px;
-                                background: #40e0ff;
-                                border-radius: 50%;
-                                top: 1px;
+                            .value {
+                                font-size: 0.9rem;
+                                font-weight: 600;
+                                color: #e2e8f0;
+                            }
+                        }
+                    }
 
-                                &:nth-child(1) { left: 20%; animation-delay: 0s; }
-                                &:nth-child(2) { left: 50%; animation-delay: 0.7s; }
-                                &:nth-child(3) { left: 80%; animation-delay: 1.4s; }
+                    .charts-mini-grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 0.5rem;
+
+                        .mini-chart {
+                            .chart-title {
+                                text-align: center;
+                                font-size: 0.8rem;
+                                color: #94a3b8;
+                                margin-bottom: 0.3rem;
+                            }
+
+                            .chart-area {
+                                height: 40px;
+                                position: relative;
+                                background: rgba(0, 0, 0, 0.3);
+                                border-radius: 6px;
+                                overflow: hidden;
+
+                                .trend-line {
+                                    position: absolute;
+                                    height: 2px;
+                                    border-radius: 1px;
+                                    opacity: 0.7;
+
+                                    &.reward-trend {
+                                        // 獎勵趨勢：上升曲線
+                                        top: 70%;
+                                        left: 5%;
+                                        width: 90%;
+                                        background: linear-gradient(90deg, #22c55e, #10b981);
+                                        clip-path: polygon(0% 100%, 20% 80%, 40% 60%, 60% 40%, 80% 20%, 100% 0%);
+
+                                        &.ppo-style {
+                                            background: linear-gradient(90deg, #fb923c, #f97316);
+                                            clip-path: polygon(0% 100%, 15% 90%, 35% 70%, 55% 45%, 75% 25%, 100% 10%);
+                                        }
+
+                                        &.animated.ascending {
+                                            animation: rewardIncrease 4s ease-in-out infinite;
+                                        }
+                                    }
+
+                                    &.loss-trend {
+                                        // 損失趨勢：下降曲線
+                                        top: 20%;
+                                        left: 5%;
+                                        width: 90%;
+                                        background: linear-gradient(90deg, #ef4444, #22c55e);
+                                        clip-path: polygon(0% 0%, 20% 10%, 40% 30%, 60% 50%, 80% 80%, 100% 100%);
+
+                                        &.ppo-style {
+                                            background: linear-gradient(90deg, #fb923c, #10b981);
+                                            clip-path: polygon(0% 0%, 25% 15%, 45% 40%, 65% 60%, 85% 85%, 100% 100%);
+                                        }
+
+                                        &.animated.descending {
+                                            animation: lossDecrease 4s ease-in-out infinite;
+                                        }
+                                    }
+                                }
+
+                                .convergence-point {
+                                    position: absolute;
+                                    width: 6px;
+                                    height: 6px;
+                                    background: #40e0ff;
+                                    border-radius: 50%;
+                                    top: 70%;
+                                    right: 10%;
+                                    opacity: 0;
+
+                                    &.active {
+                                        opacity: 1;
+                                        animation: convergePulse 2s ease-in-out infinite;
+                                    }
+                                }
+
+                                .data-flow {
+                                    position: absolute;
+                                    top: 50%;
+                                    left: 10%;
+                                    width: 80%;
+                                    height: 4px;
+                                    transform: translateY(-50%);
+
+                                    &.flowing .data-dot {
+                                        animation: dataFlow 2s linear infinite;
+                                    }
+
+                                    .data-dot {
+                                        position: absolute;
+                                        width: 3px;
+                                        height: 3px;
+                                        background: #40e0ff;
+                                        border-radius: 50%;
+                                        top: 0.5px;
+
+                                        &:nth-child(1) { left: 20%; animation-delay: 0s; }
+                                        &:nth-child(2) { left: 50%; animation-delay: 0.7s; }
+                                        &:nth-child(3) { left: 80%; animation-delay: 1.4s; }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1681,28 +1545,52 @@
             }
 
             .global-training-stats {
-                margin-top: 2rem;
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                border: 1px solid rgba(100, 116, 139, 0.3);
+                border-radius: 16px;
+                padding: 1.5rem;
+                margin-top: 1rem;
 
                 h4 {
-                    color: #40e0ff;
-                    font-size: 1.2rem;
+                    color: #e2e8f0;
                     margin-bottom: 1rem;
-                    text-align: center;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+
+                    .demo-badge {
+                        font-size: 0.7rem;
+                        padding: 0.2rem 0.6rem;
+                        border-radius: 12px;
+                        font-weight: 600;
+                        transition: all 0.3s ease;
+                        
+                        background: linear-gradient(135deg, #f59e0b, #d97706);
+                        color: white;
+                        box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+                        
+                        &.real-data {
+                            background: linear-gradient(135deg, #22c55e, #16a34a);
+                            color: white;
+                            box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
+                            animation: realDataPulse 2s ease-in-out infinite;
+                        }
+                    }
                 }
 
                 .stats-grid {
                     display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 1rem;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 0.75rem;
 
                     .stat-card {
                         background: linear-gradient(145deg, #1e293b, #334155);
                         border-radius: 12px;
-                        padding: 1rem;
+                        padding: 0.75rem;
                         border: 1px solid rgba(64, 224, 255, 0.2);
                         display: flex;
                         align-items: center;
-                        gap: 0.75rem;
+                        gap: 0.5rem;
                         transition: all 0.3s ease;
 
                         &:hover {
@@ -1712,148 +1600,49 @@
                         }
 
                         .stat-icon {
-                            font-size: 1.5rem;
+                            font-size: 1.2rem;
+                            flex-shrink: 0;
                         }
 
                         .stat-content {
                             display: flex;
                             flex-direction: column;
+                            min-width: 0;
 
                             .stat-label {
-                                font-size: 0.8rem;
+                                font-size: 0.75rem;
                                 color: #94a3b8;
-                                margin-bottom: 0.2rem;
+                                margin-bottom: 0.1rem;
                             }
 
                             .stat-value {
-                                font-size: 1rem;
+                                font-size: 0.9rem;
                                 font-weight: bold;
                                 color: #40e0ff;
                             }
                         }
                     }
                 }
-            }
 
-            .training-charts.old {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 1rem;
+                .data-source-info {
+                    margin-top: 1rem;
+                    padding: 0.8rem;
+                    background: rgba(59, 130, 246, 0.1);
+                    border: 1px solid rgba(59, 130, 246, 0.3);
+                    border-radius: 8px;
+                    
+                    p {
+                        margin: 0;
+                        color: #94a3b8;
+                        font-size: 0.85rem;
+                        line-height: 1.4;
+                        display: flex;
+                        align-items: flex-start;
+                        gap: 0.5rem;
 
-                .chart-container {
-                    background: linear-gradient(145deg, #1e293b, #334155);
-                    border-radius: 12px;
-                    padding: 1rem;
-                    border: 1px solid rgba(64, 224, 255, 0.2);
-
-                    .mock-chart {
-                        .chart-title {
-                            text-align: center;
-                            font-weight: bold;
-                            margin-bottom: 1rem;
-                            color: #40e0ff;
-                        }
-
-                        .chart-placeholder {
-                            height: 120px;
-                            position: relative;
-                            background: rgba(0, 0, 0, 0.3);
-                            border-radius: 8px;
-                            overflow: hidden;
-
-                            .trend-line {
-                                position: absolute;
-                                height: 3px;
-                                border-radius: 2px;
-                                opacity: 0.3;
-                                transition: opacity 0.3s ease;
-
-                                &.animated {
-                                    opacity: 1;
-                                    animation: growLine 2s ease-in-out infinite alternate;
-                                }
-
-                                &.dqn-line {
-                                    background: linear-gradient(90deg, #22c55e, #10b981);
-                                    top: 30%;
-                                    left: 10%;
-                                    width: 70%;
-                                    transform: rotate(-5deg);
-                                }
-
-                                &.ppo-line {
-                                    background: linear-gradient(90deg, #fb923c, #f97316);
-                                    top: 50%;
-                                    left: 15%;
-                                    width: 65%;
-                                    transform: rotate(-8deg);
-                                }
-                            }
-
-                            .convergence-line {
-                                position: absolute;
-                                height: 2px;
-                                background: linear-gradient(90deg, #ef4444, #22c55e);
-                                top: 60%;
-                                left: 5%;
-                                width: 80%;
-                                border-radius: 2px;
-                                opacity: 0.3;
-                                transition: opacity 0.3s ease;
-
-                                &.animated {
-                                    opacity: 1;
-                                    animation: converge 3s ease-in-out infinite;
-                                }
-                            }
-
-                            .current-point {
-                                position: absolute;
-                                width: 8px;
-                                height: 8px;
-                                background: #40e0ff;
-                                border-radius: 50%;
-                                top: 58%;
-                                right: 15%;
-                                opacity: 0.3;
-                                transition: opacity 0.3s ease;
-
-                                &.animated {
-                                    opacity: 1;
-                                    animation: pulse 1.5s ease-in-out infinite;
-                                }
-                            }
-
-                            .no-training-message {
-                                position: absolute;
-                                top: 50%;
-                                left: 50%;
-                                transform: translate(-50%, -50%);
-                                color: #94a3b8;
-                                font-size: 1rem;
-                                text-align: center;
-                                width: 100%;
-                            }
-
-                            .legend {
-                                position: absolute;
-                                bottom: 10px;
-                                left: 10px;
-                                display: flex;
-                                gap: 1rem;
-
-                                .legend-item {
-                                    font-size: 0.8rem;
-                                    
-                                    &.dqn {
-                                        color: #22c55e;
-                                    }
-                                    
-                                    &.ppo {
-                                        color: #fb923c;
-                                    }
-                                }
-                            }
+                        .icon {
+                            flex-shrink: 0;
+                            margin-top: 0.1rem;
                         }
                     }
                 }
@@ -1861,68 +1650,98 @@
         }
 
         .rl-performance-comparison {
+            grid-column: 1 / -1;
+            margin-top: 1rem;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 16px;
+            padding: 1.5rem;
+
+            // 縮小版本 - 與全局訓練統計同寬
+            &.compact {
+                margin: 1rem 0 0 0;
+                width: 95%;
+                max-width: none;
+            }
+
             h3 {
-                color: #40e0ff;
-                font-size: 1.3rem;
-                margin-bottom: 1rem;
+                color: #e2e8f0;
+                margin: 0 0 1rem 0;
+                font-size: 1.1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
             }
 
             .comparison-table {
-                background: linear-gradient(145deg, #1e293b, #334155);
-                border-radius: 12px;
-                padding: 1rem;
-                border: 1px solid rgba(64, 224, 255, 0.2);
+                overflow-x: auto;
+                border-radius: 8px;
+                background: rgba(0, 0, 0, 0.3);
 
                 table {
                     width: 100%;
                     border-collapse: collapse;
 
                     th, td {
-                        padding: 0.8rem;
-                        text-align: center;
-                        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                        padding: 0.75rem;
+                        text-align: left;
+                        border-bottom: 1px solid rgba(100, 116, 139, 0.2);
                     }
 
                     th {
                         background: rgba(64, 224, 255, 0.1);
                         color: #40e0ff;
-                        font-weight: bold;
+                        font-weight: 600;
+                        font-size: 0.9rem;
                     }
 
-                    .metric-value {
-                        font-weight: bold;
-                        
-                        &.good {
-                            color: #fbbf24;
-                        }
-                        
-                        &.better {
+                    td {
+                        color: #e2e8f0;
+                        font-size: 0.9rem;
+
+                        &.metric-value {
+                            font-weight: 600;
                             color: #22c55e;
                         }
-                        
-                        &.baseline {
-                            color: #94a3b8;
+
+                        &.metric-better {
+                            color: #22c55e;
+                            font-weight: 600;
+                        }
+
+                        &.metric-worse {
+                            color: #ef4444;
+                            font-weight: 600;
                         }
                     }
 
-                    .improvement {
-                        color: #22c55e;
-                        font-weight: bold;
+                    tr:hover {
+                        background: rgba(64, 224, 255, 0.05);
                     }
                 }
             }
         }
 
-        .rl-system-status {
+        .rl-system-monitoring {
+            grid-column: 1 / -1;
+            margin-top: 1rem;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 16px;
+            padding: 1.5rem;
+
             h3 {
-                color: #40e0ff;
-                font-size: 1.3rem;
-                margin-bottom: 1rem;
+                color: #e2e8f0;
+                margin: 0 0 1rem 0;
+                font-size: 1.1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
             }
 
-            .status-grid {
+            .monitoring-grid {
                 display: grid;
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
                 gap: 1rem;
 
                 .status-card {
@@ -1930,57 +1749,75 @@
                     border-radius: 12px;
                     padding: 1rem;
                     border: 1px solid rgba(64, 224, 255, 0.2);
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
+                    transition: all 0.3s ease;
+
+                    &:hover {
+                        border-color: #40e0ff;
+                        box-shadow: 0 0 15px rgba(64, 224, 255, 0.2);
+                        transform: translateY(-2px);
+                    }
 
                     .status-icon {
-                        font-size: 1.8rem;
+                        font-size: 2rem;
+                        margin-bottom: 0.5rem;
                     }
 
                     .status-info {
-                        flex: 1;
-
                         .status-label {
-                            font-size: 0.9rem;
+                            font-size: 0.8rem;
                             color: #94a3b8;
-                            margin-bottom: 0.3rem;
+                            margin-bottom: 0.25rem;
                         }
 
                         .status-value {
                             font-size: 1.1rem;
-                            font-weight: bold;
-                            color: #40e0ff;
+                            font-weight: 600;
+                            color: #e2e8f0;
                             margin-bottom: 0.5rem;
                         }
 
                         .status-bar {
-                            height: 4px;
+                            height: 6px;
                             background: rgba(255, 255, 255, 0.1);
-                            border-radius: 2px;
+                            border-radius: 3px;
                             overflow: hidden;
 
                             .status-fill {
                                 height: 100%;
-                                background: linear-gradient(90deg, #fb923c, #22c55e);
-                                border-radius: 2px;
                                 transition: width 0.3s ease;
 
                                 &.good {
-                                    background: linear-gradient(90deg, #22c55e, #16a34a);
+                                    background: linear-gradient(90deg, #22c55e, #10b981);
+                                }
+
+                                &.warning {
+                                    background: linear-gradient(90deg, #f59e0b, #d97706);
+                                }
+
+                                &.error {
+                                    background: linear-gradient(90deg, #ef4444, #dc2626);
                                 }
                             }
                         }
 
                         .status-indicator {
-                            width: 8px;
-                            height: 8px;
+                            width: 12px;
+                            height: 12px;
                             border-radius: 50%;
                             margin-top: 0.5rem;
 
                             &.active {
                                 background: #22c55e;
-                                animation: pulse 2s ease-in-out infinite;
+                                animation: pulse 2s infinite;
+                            }
+
+                            &.inactive {
+                                background: #64748b;
+                            }
+
+                            &.error {
+                                background: #ef4444;
+                                animation: pulse 2s infinite;
                             }
                         }
                     }
@@ -1990,57 +1827,121 @@
 
         .rl-training-logs {
             grid-column: 1 / -1;
-            
+            margin-top: 1rem;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 16px;
+            padding: 1.5rem;
+
             h3 {
-                color: #40e0ff;
-                font-size: 1.3rem;
-                margin-bottom: 1rem;
+                color: #e2e8f0;
+                margin: 0 0 1rem 0;
+                font-size: 1.1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
             }
 
             .logs-container {
-                background: linear-gradient(145deg, #1e293b, #334155);
-                border-radius: 12px;
+                max-height: 300px;
+                overflow-y: auto;
+                background: rgba(0, 0, 0, 0.5);
+                border-radius: 8px;
                 padding: 1rem;
                 border: 1px solid rgba(64, 224, 255, 0.2);
-                max-height: 200px;
-                overflow-y: auto;
 
                 .log-entry {
                     display: flex;
-                    gap: 1rem;
-                    padding: 0.5rem 0;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-                    font-family: 'Courier New', monospace;
-                    font-size: 0.9rem;
+                    gap: 0.5rem;
+                    margin-bottom: 0.5rem;
+                    padding: 0.5rem;
+                    border-radius: 6px;
+                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                    font-size: 0.85rem;
+                    animation: slideIn 0.3s ease-out;
 
-                    &:last-child {
-                        border-bottom: none;
+                    &.success {
+                        background: rgba(34, 197, 94, 0.1);
+                        border-left: 3px solid #22c55e;
+
+                        .log-time {
+                            color: #16a34a;
+                        }
+
+                        .log-message {
+                            color: #22c55e;
+                        }
+                    }
+
+                    &.info {
+                        background: rgba(59, 130, 246, 0.1);
+                        border-left: 3px solid #3b82f6;
+
+                        .log-time {
+                            color: #2563eb;
+                        }
+
+                        .log-message {
+                            color: #3b82f6;
+                        }
+                    }
+
+                    &.warning {
+                        background: rgba(245, 158, 11, 0.1);
+                        border-left: 3px solid #f59e0b;
+
+                        .log-time {
+                            color: #d97706;
+                        }
+
+                        .log-message {
+                            color: #f59e0b;
+                        }
+                    }
+
+                    &.error {
+                        background: rgba(239, 68, 68, 0.1);
+                        border-left: 3px solid #ef4444;
+
+                        .log-time {
+                            color: #dc2626;
+                        }
+
+                        .log-message {
+                            color: #ef4444;
+                        }
                     }
 
                     .log-time {
-                        color: #94a3b8;
+                        font-weight: 600;
                         min-width: 80px;
+                        flex-shrink: 0;
                     }
 
                     .log-message {
                         flex: 1;
-                        color: white; // 預設為白色
                     }
 
-                    &.success .log-message {
-                        color: #22c55e;
+                    &:last-child {
+                        margin-bottom: 0;
                     }
+                }
 
-                    &.info .log-message {
-                        color: #40e0ff;
-                    }
+                &::-webkit-scrollbar {
+                    width: 6px;
+                }
 
-                    &.warning .log-message {
-                        color: #fbbf24;
-                    }
+                &::-webkit-scrollbar-track {
+                    background: rgba(0, 0, 0, 0.1);
+                    border-radius: 3px;
+                }
 
-                    &.error .log-message {
-                        color: #ef4444;
+                &::-webkit-scrollbar-thumb {
+                    background: rgba(64, 224, 255, 0.6);
+                    border-radius: 3px;
+
+                    &:hover {
+                        background: rgba(64, 224, 255, 0.8);
                     }
                 }
             }
@@ -2121,6 +2022,204 @@
     }
 }
 
+/* 新的訓練指標動畫 */
+@keyframes rewardIncrease {
+    0% { 
+        opacity: 0.5;
+        transform: scaleY(0.3);
+    }
+    50% { 
+        opacity: 1;
+        transform: scaleY(1);
+    }
+    100% { 
+        opacity: 0.8;
+        transform: scaleY(0.9);
+    }
+}
+
+@keyframes lossDecrease {
+    0% { 
+        opacity: 0.8;
+        transform: scaleY(1) rotateX(0deg);
+    }
+    50% { 
+        opacity: 1;
+        transform: scaleY(0.7) rotateX(5deg);
+    }
+    100% { 
+        opacity: 0.6;
+        transform: scaleY(0.5) rotateX(0deg);
+    }
+}
+
+@keyframes realDataPulse {
+    0%, 100% {
+        box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.6);
+        transform: scale(1.02);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes convergePulse {
+    0% { 
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% { 
+        transform: scale(1.5);
+        opacity: 0.7;
+    }
+    100% { 
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* 系統狀態監控樣式 */
+.rl-system-status {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 1.5rem;
+    
+    h3 {
+        color: #fbbf24;
+        margin: 0 0 1.5rem 0;
+        font-size: 1.3rem;
+        text-align: center;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .status-card {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+        
+        &:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .status-icon {
+            font-size: 1.8rem;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        .status-info {
+            flex: 1;
+            
+            .status-label {
+                color: #94a3b8;
+                font-size: 0.9rem;
+                margin-bottom: 0.3rem;
+                display: block;
+            }
+            
+            .status-value {
+                color: white;
+                font-size: 1.1rem;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+                display: block;
+            }
+            
+            .status-bar {
+                width: 100%;
+                height: 6px;
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 3px;
+                overflow: hidden;
+                
+                .status-fill {
+                    height: 100%;
+                    border-radius: 3px;
+                    transition: all 0.3s ease;
+                    
+                    &.good {
+                        background: linear-gradient(90deg, #10b981, #34d399);
+                    }
+                }
+            }
+            
+            .status-indicator {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                margin-top: 0.3rem;
+                transition: all 0.3s ease;
+                
+                &.active {
+                    box-shadow: 0 0 10px rgba(74, 222, 128, 0.6);
+                    animation: pulse 2s infinite;
+                }
+                
+                &.idle {
+                    box-shadow: 0 0 5px rgba(108, 117, 125, 0.4);
+                }
+            }
+        }
+    }
+}
+
+/* 訓練狀態指示器同一列樣式 */
+.training-status-indicators.inline {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    
+    .status-indicator {
+        flex: 0 1 auto;
+        min-width: 150px;
+        text-align: center;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        
+        &.dqn.active {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: rgba(34, 197, 94, 0.4);
+        }
+        
+        &.ppo.active {
+            background: rgba(249, 115, 22, 0.2);
+            border-color: rgba(249, 115, 22, 0.4);
+        }
+    }
+}
+
 /* 響應式設計 - RL 監控 */
 @media (max-width: 1200px) {
     .rl-monitoring-fullwidth {
@@ -2136,7 +2235,7 @@
             }
             
             .rl-system-status .status-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             }
         }
     }
@@ -2192,3 +2291,216 @@
     }
   }
 } 
+
+// 動畫效果
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+// 算法性能比較樣式
+.algorithm-comparison .comparison-content .no-training-message {
+  text-align: center;
+  padding: 2rem;
+  color: #72767d;
+  background: #2f3136;
+  border-radius: 8px;
+  border: 2px dashed #4f545c;
+}
+
+.algorithm-comparison .status.training {
+  animation: pulse 2s infinite;
+}
+
+// 系統狀態監控卡片樣式
+.system-status-monitoring .system-card {
+  background: #2f3136;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #4f545c;
+  transition: all 0.2s;
+}
+
+/* 暗色系訓練控制按鈕樣式 */
+.rl-controls-section.large-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 1.5rem;
+    margin: 1rem 0 0;
+    justify-content: center;
+    align-items: center;
+    padding: 0 2rem;
+}
+
+.large-control-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    background: rgba(30, 35, 45, 0.95);
+    border: 1px solid rgba(100, 110, 130, 0.3);
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    min-width: 160px;
+    backdrop-filter: blur(10px);
+
+    &:hover {
+        background: rgba(45, 50, 60, 0.98);
+        border-color: rgba(120, 130, 150, 0.5);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    &:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-icon {
+        font-size: 1.3rem;
+        opacity: 0.9;
+    }
+
+    .btn-content {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.15rem;
+    }
+
+    .btn-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #f1f5f9;
+    }
+
+    .btn-subtitle {
+        font-size: 0.75rem;
+        opacity: 0.7;
+        font-weight: 400;
+        color: #94a3b8;
+    }
+
+    /* 暗色系按鈕個性化 */
+    &.dqn-btn {
+        &:hover {
+            border-color: rgba(34, 197, 94, 0.4);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+        }
+        
+        &.active, &:active {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.6);
+        }
+    }
+
+    &.ppo-btn {
+        &:hover {
+            border-color: rgba(249, 115, 22, 0.4);
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
+        }
+        
+        &.active, &:active {
+            background: rgba(249, 115, 22, 0.1);
+            border-color: rgba(249, 115, 22, 0.6);
+        }
+    }
+
+    &.both-btn {
+        &:hover {
+            border-color: rgba(147, 51, 234, 0.4);
+            box-shadow: 0 4px 12px rgba(147, 51, 234, 0.15);
+        }
+        
+        &.active, &:active {
+            background: rgba(147, 51, 234, 0.1);
+            border-color: rgba(147, 51, 234, 0.6);
+        }
+    }
+}
+
+/* 系統狀態監控完整排版樣式 */
+.rl-system-status {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin: 1rem 0;
+
+    h3 {
+        color: white;
+        margin: 0 0 1.5rem 0;
+        font-size: 1.3rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.2rem;
+    }
+
+    .status-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 1.2rem;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        transition: all 0.3s ease;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-icon {
+            font-size: 1.8rem;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .status-info {
+            flex: 1;
+
+            .status-label {
+                color: #94a3b8;
+                font-size: 0.9rem;
+                margin-bottom: 0.3rem;
+                display: block;
+            }
+
+            .status-value {
+                color: white;
+                font-size: 1.1rem;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+                display: block;
+            }
+
+            .status-bar {
+                width: 100%;
+                height: 6px;
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 3px;
+                overflow: hidden;
+
+                .status-fill {
+                    height: 100%;
+                    border-radius: 3px;
+                    transition: all 0.3s ease;
+                }
+            }
+        }
+    }
+}
