@@ -387,11 +387,10 @@ class AIRANAntiInterferenceService:
     async def _store_decision_record(self, decision_record: Dict):
         """異步存儲決策記錄"""
         try:
-            await self.redis_adapter.set(
-                f"ai_ran_decision:{datetime.utcnow().timestamp()}",
-                json.dumps(decision_record),
-                expire=3600,
-            )
+            key = f"ai_ran_decision:{datetime.utcnow().timestamp()}"
+            value = json.dumps(decision_record, default=str)
+            if self.redis_adapter.client:
+                await self.redis_adapter.client.setex(key, 3600, value)
         except Exception as e:
             self.logger.error(f"存儲決策記錄失敗: {e}")
 

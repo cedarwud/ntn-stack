@@ -11,6 +11,7 @@ import { generateDeviceName as utilGenerateDeviceName } from '../../utils/device
 import HandoverManager from '../handover/HandoverManager'
 import { useStrategy } from '../../contexts/StrategyContext'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
+import GymnasiumRLMonitor from '../dashboard/GymnasiumRLMonitor'
 
 interface SidebarProps {
     devices: Device[]
@@ -109,14 +110,13 @@ interface SidebarProps {
         binarySearchActive?: boolean
         predictionConfidence?: number
     }) => void
-    
 }
 
 // 核心功能開關配置 - 根據 paper.md 計畫書精簡
 interface FeatureToggle {
     id: string
     label: string
-    category: 'uav' | 'satellite' | 'handover_mgr' | 'quality'
+    category: 'rl_monitor' | 'uav' | 'satellite' | 'handover_mgr' | 'quality'
     enabled: boolean
     onToggle: (enabled: boolean) => void
     icon?: string
@@ -148,20 +148,23 @@ async function fetchVisibleSatellites(
     try {
         // Import simWorldApi
         const { simWorldApi } = await import('../../services/simworld-api')
-        
+
         const data = await simWorldApi.getVisibleSatellites(minElevation, count)
-        
-        const satellites: VisibleSatelliteInfo[] = data.results?.satellites?.map(
-            (sat: any) => ({
+
+        const satellites: VisibleSatelliteInfo[] =
+            data.results?.satellites?.map((sat: any) => ({
                 norad_id: sat.norad_id,
                 name: sat.name || 'Unknown',
-                elevation_deg: sat.position?.elevation || sat.signal_quality?.elevation_deg || 0,
+                elevation_deg:
+                    sat.position?.elevation ||
+                    sat.signal_quality?.elevation_deg ||
+                    0,
                 azimuth_deg: sat.position?.azimuth || 0,
-                distance_km: sat.position?.range || sat.signal_quality?.range_km || 0,
+                distance_km:
+                    sat.position?.range || sat.signal_quality?.range_km || 0,
                 line1: `1 ${sat.norad_id}U 20001001.00000000  .00000000  00000-0  00000-0 0  9999`,
                 line2: `2 ${sat.norad_id}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
-            })
-        ) || []
+            })) || []
 
         console.log(`🛰️ EnhancedSidebar: 成功載入 ${satellites.length} 顆衛星`)
         return satellites
@@ -237,7 +240,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 }) => {
     // 🎯 使用全域策略狀態
     const { currentStrategy } = useStrategy()
-    
+
     // 標記未使用但保留的props為已消費（避免TypeScript警告）
     void _predictionAccuracyDashboardEnabled
     void _onPredictionAccuracyDashboardChange
@@ -271,7 +274,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     })
 
     // 擴展的UI狀態
-    const [activeCategory, setActiveCategory] = useState<string>('handover_mgr')
+    const [activeCategory, setActiveCategory] = useState<string>('rl_monitor')
     const [showTempDevices, setShowTempDevices] = useState(true)
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
     const [showDesiredDevices, setShowDesiredDevices] = useState(false)
@@ -397,8 +400,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         })
     }
 
-    // 精簡的類別配置 - 更新為 4 個分頁
+    // 精簡的類別配置 - 更新為 5 個分頁，添加 RL 監控
     const categories = [
+        { id: 'rl_monitor', label: 'RL 監控', icon: '🧠' },
         { id: 'uav', label: 'UAV 控制', icon: '🚁' },
         { id: 'satellite', label: '衛星控制', icon: '🛰️' },
         { id: 'handover_mgr', label: '換手管理', icon: '🔄' },
@@ -649,128 +653,120 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                     <div className="control-panel">
                         {/* LEO 衛星換手機制控制 - 直接顯示四個分頁 */}
                         <div className="leo-handover-control-section">
-                                {/* 類別選擇 */}
-                                <div className="category-tabs">
-                                    {categories.map((category) => (
-                                        <button
-                                            key={category.id}
-                                            className={`category-tab ${
-                                                activeCategory === category.id
-                                                    ? 'active'
-                                                    : ''
-                                            }`}
-                                            onClick={() =>
-                                                setActiveCategory(category.id)
-                                            }
-                                            title={category.label}
-                                        >
-                                            <span className="tab-icon">
-                                                {category.icon}
-                                            </span>
-                                            <span className="tab-label">
-                                                {category.label}
-                                            </span>
-                                        </button>
-                                    ))}
-                                </div>
+                            {/* 類別選擇 */}
+                            <div className="category-tabs">
+                                {categories.map((category) => (
+                                    <button
+                                        key={category.id}
+                                        className={`category-tab ${
+                                            activeCategory === category.id
+                                                ? 'active'
+                                                : ''
+                                        }`}
+                                        onClick={() =>
+                                            setActiveCategory(category.id)
+                                        }
+                                        title={category.label}
+                                    >
+                                        <span className="tab-icon">
+                                            {category.icon}
+                                        </span>
+                                        <span className="tab-label">
+                                            {category.label}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
 
-                                {/* 功能開關 */}
-                                {renderFeatureToggles()}
+                            {/* 功能開關 */}
+                            {renderFeatureToggles()}
 
+                            {/* 衛星動畫速度控制 - 當衛星啟用時顯示 */}
+                            {activeCategory === 'satellite' &&
+                                satelliteEnabled && (
+                                    <div className="satellite-animation-controls">
+                                        <div className="control-section-title">
+                                            🔄 換手控制
+                                        </div>
 
-                                {/* 衛星動畫速度控制 - 當衛星啟用時顯示 */}
-                                {activeCategory === 'satellite' &&
-                                    satelliteEnabled && (
-                                        <div className="satellite-animation-controls">
-                                            <div className="control-section-title">
-                                                🔄 換手控制
-                                            </div>
-
-                                            {/* 換手模式切換 */}
-                                            <div className="control-item">
-                                                <div className="handover-mode-switch">
-                                                    <button
-                                                        className={`mode-btn ${
-                                                            handoverMode ===
+                                        {/* 換手模式切換 */}
+                                        <div className="control-item">
+                                            <div className="handover-mode-switch">
+                                                <button
+                                                    className={`mode-btn ${
+                                                        handoverMode === 'demo'
+                                                            ? 'active'
+                                                            : ''
+                                                    }`}
+                                                    onClick={() =>
+                                                        onHandoverModeChange &&
+                                                        onHandoverModeChange(
                                                             'demo'
-                                                                ? 'active'
-                                                                : ''
-                                                        }`}
-                                                        onClick={() =>
-                                                            onHandoverModeChange &&
-                                                            onHandoverModeChange(
-                                                                'demo'
-                                                            )
-                                                        }
-                                                    >
-                                                        🎭 演示模式
-                                                    </button>
-                                                    <button
-                                                        className={`mode-btn ${
-                                                            handoverMode ===
-                                                            'real'
-                                                                ? 'active'
-                                                                : ''
-                                                        }`}
-                                                        onClick={() =>
-                                                            onHandoverModeChange &&
-                                                            onHandoverModeChange(
-                                                                'real'
-                                                            )
-                                                        }
-                                                    >
-                                                        🔗 真實模式
-                                                    </button>
-                                                </div>
-                                                <div className="mode-description">
-                                                    {handoverMode === 'demo'
-                                                        ? '20秒演示週期，適合展示和理解'
-                                                        : '快速換手週期，對接後端真實數據'}
-                                                </div>
-                                            </div>
-
-                                            {/* 換手穩定期時間控制 - 根據模式調整範圍 */}
-                                            <div className="control-item">
-                                                <div className="control-label">
-                                                    換手穩定期:{' '}
-                                                    {satelliteSpeedMultiplier}秒
-                                                    {handoverMode === 'real' &&
-                                                        ' (真實模式)'}
-                                                </div>
-                                                <input
-                                                    type="range"
-                                                    min="1"
-                                                    max="30"
-                                                    step="1"
-                                                    value={
-                                                        satelliteSpeedMultiplier
-                                                    }
-                                                    onChange={(e) =>
-                                                        onSatelliteSpeedChange &&
-                                                        onSatelliteSpeedChange(
-                                                            Number(
-                                                                e.target.value
-                                                            )
                                                         )
                                                     }
-                                                    className="speed-slider"
-                                                />
-                                                <div className="speed-labels">
-                                                    <span>1秒</span>
-                                                    <span>穩定期持續時間</span>
-                                                    <span>30秒</span>
-                                                </div>
+                                                >
+                                                    🎭 演示模式
+                                                </button>
+                                                <button
+                                                    className={`mode-btn ${
+                                                        handoverMode === 'real'
+                                                            ? 'active'
+                                                            : ''
+                                                    }`}
+                                                    onClick={() =>
+                                                        onHandoverModeChange &&
+                                                        onHandoverModeChange(
+                                                            'real'
+                                                        )
+                                                    }
+                                                >
+                                                    🔗 真實模式
+                                                </button>
                                             </div>
+                                            <div className="mode-description">
+                                                {handoverMode === 'demo'
+                                                    ? '20秒演示週期，適合展示和理解'
+                                                    : '快速換手週期，對接後端真實數據'}
+                                            </div>
+                                        </div>
 
-                                            {/* 穩定期預設時間按鈕 - 根據模式調整選項 */}
-                                            <div className="control-item">
-                                                <div className="control-label">
-                                                    快速設定:
-                                                </div>
-                                                <div className="speed-preset-buttons">
-                                                    {[
-                                                        1, 3, 5, 10, 15, 20, 30,
-                                                    ].map((duration) => (
+                                        {/* 換手穩定期時間控制 - 根據模式調整範圍 */}
+                                        <div className="control-item">
+                                            <div className="control-label">
+                                                換手穩定期:{' '}
+                                                {satelliteSpeedMultiplier}秒
+                                                {handoverMode === 'real' &&
+                                                    ' (真實模式)'}
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="30"
+                                                step="1"
+                                                value={satelliteSpeedMultiplier}
+                                                onChange={(e) =>
+                                                    onSatelliteSpeedChange &&
+                                                    onSatelliteSpeedChange(
+                                                        Number(e.target.value)
+                                                    )
+                                                }
+                                                className="speed-slider"
+                                            />
+                                            <div className="speed-labels">
+                                                <span>1秒</span>
+                                                <span>穩定期持續時間</span>
+                                                <span>30秒</span>
+                                            </div>
+                                        </div>
+
+                                        {/* 穩定期預設時間按鈕 - 根據模式調整選項 */}
+                                        <div className="control-item">
+                                            <div className="control-label">
+                                                快速設定:
+                                            </div>
+                                            <div className="speed-preset-buttons">
+                                                {[1, 3, 5, 10, 15, 20, 30].map(
+                                                    (duration) => (
                                                         <button
                                                             key={duration}
                                                             className={`speed-preset-btn ${
@@ -788,209 +784,173 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                                         >
                                                             {duration}秒
                                                         </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                {/* 🚀 換手管理器 - 始終顯示，不需要依賴其他開關 */}
-                                <HandoverManager
-                                    satellites={skyfieldSatellites}
-                                    selectedUEId={selectedReceiverIds[0]}
-                                    isEnabled={true}
-                                    mockMode={false}
-                                    speedMultiplier={satelliteSpeedMultiplier}
-                                    handoverMode={handoverMode}
-                                    handoverStrategy={currentStrategy}
-                                    onHandoverStateChange={
-                                        onHandoverStateChange
-                                    }
-                                    onCurrentConnectionChange={
-                                        onCurrentConnectionChange
-                                    }
-                                    onPredictedConnectionChange={
-                                        onPredictedConnectionChange
-                                    }
-                                    onTransitionChange={onTransitionChange}
-                                    onAlgorithmResults={onAlgorithmResults}
-                                    // 只在換手類別中顯示 UI，但邏輯始終運行
-                                    hideUI={activeCategory !== 'handover_mgr'}
-                                />
-
-
-                                {/* 手動控制面板 - 當自動飛行開啟時隱藏，且需要手動控制開關啟用 */}
-                                {!auto && manualControlEnabled && (
-                                    <div className="manual-control-panel">
-                                        <div className="manual-control-title">
-                                            🕹️ UAV 手動控制
-                                        </div>
-                                        <div className="manual-control-grid">
-                                            {/* 第一排：↖ ↑ ↗ */}
-                                            <div className="manual-row">
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown(
-                                                            'left-up'
-                                                        )
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    ↖
-                                                </button>
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown(
-                                                            'descend'
-                                                        )
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    ↑
-                                                </button>
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown(
-                                                            'right-up'
-                                                        )
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    ↗
-                                                </button>
-                                            </div>
-                                            {/* 第二排：← ⟲ ⟳ → */}
-                                            <div className="manual-row">
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown('left')
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    ←
-                                                </button>
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown(
-                                                            'rotate-left'
-                                                        )
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    ⟲
-                                                </button>
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown(
-                                                            'rotate-right'
-                                                        )
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    ⟳
-                                                </button>
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown(
-                                                            'right'
-                                                        )
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    →
-                                                </button>
-                                            </div>
-                                            {/* 第三排：↙ ↓ ↘ */}
-                                            <div className="manual-row">
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown(
-                                                            'left-down'
-                                                        )
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    ↙
-                                                </button>
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown(
-                                                            'ascend'
-                                                        )
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    ↓
-                                                </button>
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown(
-                                                            'right-down'
-                                                        )
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    ↘
-                                                </button>
-                                            </div>
-                                            {/* 升降排 */}
-                                            <div className="manual-row">
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown('up')
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    升
-                                                </button>
-                                                <button
-                                                    onMouseDown={() =>
-                                                        handleManualDown('down')
-                                                    }
-                                                    onMouseUp={handleManualUp}
-                                                    onMouseLeave={
-                                                        handleManualUp
-                                                    }
-                                                >
-                                                    降
-                                                </button>
+                                                    )
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 )}
+
+                            {/* 🚀 換手管理器 - 始終顯示，不需要依賴其他開關 */}
+                            <HandoverManager
+                                satellites={skyfieldSatellites}
+                                selectedUEId={selectedReceiverIds[0]}
+                                isEnabled={true}
+                                mockMode={false}
+                                speedMultiplier={satelliteSpeedMultiplier}
+                                handoverMode={handoverMode}
+                                handoverStrategy={currentStrategy}
+                                onHandoverStateChange={onHandoverStateChange}
+                                onCurrentConnectionChange={
+                                    onCurrentConnectionChange
+                                }
+                                onPredictedConnectionChange={
+                                    onPredictedConnectionChange
+                                }
+                                onTransitionChange={onTransitionChange}
+                                onAlgorithmResults={onAlgorithmResults}
+                                // 只在換手類別中顯示 UI，但邏輯始終運行
+                                hideUI={activeCategory !== 'handover_mgr'}
+                            />
+
+                            {/* 手動控制面板 - 當自動飛行開啟時隱藏，且需要手動控制開關啟用 */}
+                            {!auto && manualControlEnabled && (
+                                <div className="manual-control-panel">
+                                    <div className="manual-control-title">
+                                        🕹️ UAV 手動控制
+                                    </div>
+                                    <div className="manual-control-grid">
+                                        {/* 第一排：↖ ↑ ↗ */}
+                                        <div className="manual-row">
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown('left-up')
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                ↖
+                                            </button>
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown('descend')
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                ↑
+                                            </button>
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown('right-up')
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                ↗
+                                            </button>
+                                        </div>
+                                        {/* 第二排：← ⟲ ⟳ → */}
+                                        <div className="manual-row">
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown('left')
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                ←
+                                            </button>
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown(
+                                                        'rotate-left'
+                                                    )
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                ⟲
+                                            </button>
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown(
+                                                        'rotate-right'
+                                                    )
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                ⟳
+                                            </button>
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown('right')
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                →
+                                            </button>
+                                        </div>
+                                        {/* 第三排：↙ ↓ ↘ */}
+                                        <div className="manual-row">
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown(
+                                                        'left-down'
+                                                    )
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                ↙
+                                            </button>
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown('ascend')
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                ↓
+                                            </button>
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown(
+                                                        'right-down'
+                                                    )
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                ↘
+                                            </button>
+                                        </div>
+                                        {/* 升降排 */}
+                                        <div className="manual-row">
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown('up')
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                升
+                                            </button>
+                                            <button
+                                                onMouseDown={() =>
+                                                    handleManualDown('down')
+                                                }
+                                                onMouseUp={handleManualUp}
+                                                onMouseLeave={handleManualUp}
+                                            >
+                                                降
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -1230,6 +1190,13 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                         </div>
                     )}
                 </>
+            )}
+
+            {/* RL 監控面板 - 只在RL監控分頁顯示 */}
+            {activeCategory === 'rl_monitor' && (
+                <div className="rl-monitor-panel">
+                    <GymnasiumRLMonitor />
+                </div>
             )}
 
             {/* 設備操作按鈕 - 只在UAV控制分頁顯示 */}

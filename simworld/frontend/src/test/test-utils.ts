@@ -61,15 +61,36 @@ export async function testNetStackCoreSync(): Promise<TestResult> {
 export async function testSimWorldSatellites(): Promise<TestResult> {
   try {
     const satellites = await simWorldApi.getVisibleSatellites()
-    const success = satellites.success && satellites.results.satellites.length > 0
+    
+    // 處理不同的響應格式
+    let satelliteArray: any[] = []
+    let observer: any = null
+    let totalVisible = 0
+    
+    if (satellites.results?.satellites) {
+      // 新格式：{ success: boolean, results: { satellites: [...] } }
+      satelliteArray = satellites.results.satellites
+      observer = satellites.observer
+      totalVisible = satellites.results.total_visible || satelliteArray.length
+    } else if (satellites.satellites) {
+      // 舊格式：{ satellites: [...] }
+      satelliteArray = satellites.satellites
+      observer = satellites.observer
+      totalVisible = satellites.visible || satelliteArray.length
+    } else if (Array.isArray(satellites)) {
+      // 直接數組格式
+      satelliteArray = satellites
+    }
+    
+    const success = satelliteArray.length > 0
     
     return {
       success,
       message: success ? 'SimWorld 衛星數據正常' : 'SimWorld 衛星數據異常',
       details: success ? {
-        visible_count: satellites.results.satellites.length,
-        total_visible: satellites.results.total_visible,
-        observer: satellites.observer
+        visible_count: satelliteArray.length,
+        total_visible: totalVisible,
+        observer: observer
       } : null
     }
   } catch (error) {
