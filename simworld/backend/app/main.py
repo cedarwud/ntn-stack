@@ -72,6 +72,11 @@ async def ping():
 app.include_router(api_router, prefix="/api/v1")  # Add a /api/v1 prefix
 logger.info("Included API router v1 at /api/v1.")
 
+# Include algorithm performance router
+from app.api.routes.algorithm_performance import router as algorithm_performance_router
+app.include_router(algorithm_performance_router)
+logger.info("Included algorithm performance router.")
+
 
 # --- Root Endpoint ---
 @app.get("/", tags=["Root"])

@@ -131,6 +131,8 @@ const FourWayHandoverComparisonDashboard: React.FC<FourWayHandoverComparisonDash
         handovers: handovers.size
       });
       
+      // 注意：算法 API 調用已移至 updateData 函數，這裡使用基於 NetStack 的數據計算
+
       // 基於真實數據生成四種方案的性能指標
       const baseLatency = coreSyncStatus.statistics.average_sync_time_ms || 120;
       const baseSuccessRate = coreSyncStatus.statistics.total_sync_operations > 0 
@@ -339,12 +341,28 @@ const FourWayHandoverComparisonDashboard: React.FC<FourWayHandoverComparisonDash
     const updateData = async () => {
       let result: FourWayComparisonResult | null = null;
       
-      if (useRealData) {
+      // 優先嘗試使用算法 API（不依賴 NetStack 連接狀態）
+      try {
+        const algorithmResponse = await fetch('/api/algorithm-performance/four-way-comparison');
+        if (algorithmResponse.ok) {
+          const algorithmData = await algorithmResponse.json();
+          console.log('🚀 直接使用算法 API 計算的數據:', algorithmData);
+          // 確保數據來源標記正確
+          algorithmData.data_source = 'actual_calculation';
+          result = algorithmData as FourWayComparisonResult;
+        }
+      } catch (error) {
+        console.warn('⚠️ 算法 API 不可用，嘗試其他數據源:', error);
+      }
+      
+      // 如果算法 API 失敗，再嘗試基於 NetStack 的真實數據
+      if (!result && useRealData) {
         result = await generateRealComparisonData();
       }
       
-      // 如果真實數據獲取失敗，使用模擬數據
+      // 最後的 fallback：使用模擬數據
       if (!result) {
+        console.warn('⚠️ 所有真實數據源都不可用，使用模擬數據');
         result = generateSimulatedComparisonData();
       }
       
@@ -498,7 +516,32 @@ const FourWayHandoverComparisonDashboard: React.FC<FourWayHandoverComparisonDash
       }}>
         <div className="header-info">
           <h2 style={{ color: '#eaf6ff', margin: '0 0 8px 0' }}>🏆 四種換手方案性能對比</h2>
-          <p style={{ color: '#aab8c5', margin: '0' }}>IEEE INFOCOM 2024 vs 傳統方案 vs 基準方案 A/B</p>
+          <p style={{ color: '#aab8c5', margin: '0 0 4px 0' }}>IEEE INFOCOM 2024 vs 傳統方案 vs 基準方案 A/B</p>
+          
+          {/* 數據來源指示器 */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px',
+            fontSize: '0.85em',
+            marginTop: '4px'
+          }}>
+            <span style={{ color: '#aab8c5' }}>數據來源:</span>
+            {latestResult && (
+              <span style={{
+                color: latestResult.data_source === 'actual_calculation' ? '#4ade80' : 
+                      latestResult.data_source === 'real' ? '#60a5fa' : '#fbbf24',
+                fontWeight: 'bold',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontSize: '0.9em'
+              }}>
+                {latestResult.data_source === 'actual_calculation' ? '🧮 實際算法計算' :
+                 latestResult.data_source === 'real' ? '📡 NetStack 真實數據' : '📊 模擬數據'}
+              </span>
+            )}
+          </div>
           
           {isLoading && (
             <div style={{
