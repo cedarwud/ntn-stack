@@ -40,9 +40,11 @@ from app.domains.satellite.interfaces.satellite_repository import (
 
 logger = structlog.get_logger(__name__)
 
-# 載入 Skyfield 時間尺度
+# 載入 Skyfield 時間尺度 (記憶體優化版本)
 try:
-    ts = load.timescale(builtin=True)
+    # 使用輕量級載入，不載入內建的大型時間資料庫
+    ts = load.timescale(builtin=False)
+    logger.info("Skyfield 時間尺度載入成功 (記憶體優化模式)")
 except Exception as e:
     logger.error(f"無法加載 Skyfield 時間尺度: {e}")
     ts = None

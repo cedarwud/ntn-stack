@@ -30,10 +30,17 @@ class DictToBoxActionWrapper(gym.ActionWrapper):
         self.original_action_space = env.action_space
         self.action_mapping = self._create_action_mapping()
         
-        # 創建新的 Box 動作空間
-        total_dim = sum(space.shape[0] if hasattr(space, 'shape') and space.shape else 1 
-                       for space in self.original_action_space.spaces.values())
+        # 計算正確的總維度
+        total_dim = 0
+        for key, space in self.original_action_space.spaces.items():
+            if isinstance(space, spaces.Discrete):
+                total_dim += 1  # Discrete 空間用 1 維表示
+            elif isinstance(space, spaces.Box):
+                total_dim += np.prod(space.shape)  # Box 空間用所有維度
+            else:
+                total_dim += 1  # 其他類型默認 1 維
         
+        # 創建新的 Box 動作空間
         self.action_space = spaces.Box(
             low=0.0,
             high=1.0,
@@ -42,6 +49,7 @@ class DictToBoxActionWrapper(gym.ActionWrapper):
         )
         
         logger.info(f"Wrapped action space: {self.original_action_space} -> {self.action_space}")
+        logger.info(f"Action mapping: {self.action_mapping}")
     
     def _create_action_mapping(self):
         """創建動作空間映射"""
@@ -59,17 +67,26 @@ class DictToBoxActionWrapper(gym.ActionWrapper):
                 }
                 current_idx += 1
             elif isinstance(space, spaces.Box):
-                dim = space.shape[0] if space.shape else 1
+                dim = np.prod(space.shape) if space.shape else 1
                 mapping[key] = {
                     'type': 'box',
                     'indices': list(range(current_idx, current_idx + dim)),
-                    'low': space.low,
-                    'high': space.high,
-                    'shape': space.shape
+                    'low': space.low.flatten() if hasattr(space.low, 'flatten') else space.low,
+                    'high': space.high.flatten() if hasattr(space.high, 'flatten') else space.high,
+                    'shape': space.shape,
+                    'original_shape': space.shape
                 }
                 current_idx += dim
             else:
-                raise ValueError(f"Unsupported action space type: {type(space)}")
+                # 為其他類型提供默認處理
+                mapping[key] = {
+                    'type': 'unknown',
+                    'indices': [current_idx],
+                    'low': 0,
+                    'high': 1
+                }
+                current_idx += 1
+                logger.warning(f"Unknown action space type for {key}: {type(space)}")
         
         return mapping
     
@@ -99,15 +116,29 @@ class DictToBoxActionWrapper(gym.ActionWrapper):
                 low = mapping['low']
                 high = mapping['high']
                 
+                # 處理標量和數組情況
                 if isinstance(low, np.ndarray) and isinstance(high, np.ndarray):
-                    scaled_values = low + raw_values * (high - low)
+                    if len(low) == len(raw_values):
+                        scaled_values = low + raw_values * (high - low)
+                    else:
+                        # 廣播處理
+                        scaled_values = low[0] + raw_values * (high[0] - low[0])
                 else:
                     scaled_values = low + raw_values * (high - low)
                 
-                if mapping['shape']:
-                    dict_action[key] = scaled_values.reshape(mapping['shape'])
+                # 重塑為原始形狀
+                if mapping['original_shape'] and len(mapping['original_shape']) > 0:
+                    try:
+                        dict_action[key] = scaled_values.reshape(mapping['original_shape']).astype(np.float32)
+                    except ValueError:
+                        # 如果重塑失敗，使用第一個值
+                        dict_action[key] = np.array([scaled_values[0]] * np.prod(mapping['original_shape'])).reshape(mapping['original_shape']).astype(np.float32)
                 else:
-                    dict_action[key] = scaled_values[0]
+                    dict_action[key] = scaled_values[0] if len(scaled_values) == 1 else scaled_values.astype(np.float32)
+                    
+            elif mapping['type'] == 'unknown':
+                # 未知類型的默認處理
+                dict_action[key] = action[indices[0]]
         
         return dict_action
 
@@ -156,6 +187,50 @@ def wrap_action_space(env):
     return env
 
 
+class ObservationNormalizationWrapper(gym.ObservationWrapper):
+    """
+    觀測空間正規化包裝器
+    
+    確保觀測向量維度一致並進行正規化
+    """
+    
+    def __init__(self, env, target_obs_dim=72):
+        super().__init__(env)
+        
+        self.target_obs_dim = target_obs_dim
+        self.original_obs_space = env.observation_space
+        
+        # 創建標準化的觀測空間
+        self.observation_space = spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(target_obs_dim,),
+            dtype=np.float32
+        )
+        
+        logger.info(f"Normalized observation space: {self.original_obs_space} -> {self.observation_space}")
+    
+    def observation(self, observation):
+        """正規化觀測"""
+        if not isinstance(observation, np.ndarray):
+            observation = np.array(observation, dtype=np.float32)
+        
+        # 如果觀測維度不匹配，進行調整
+        if observation.shape[0] != self.target_obs_dim:
+            if observation.shape[0] > self.target_obs_dim:
+                # 截斷多餘的維度
+                observation = observation[:self.target_obs_dim]
+            else:
+                # 填充不足的維度
+                padding = np.zeros(self.target_obs_dim - observation.shape[0], dtype=np.float32)
+                observation = np.concatenate([observation, padding])
+        
+        # 確保數值穩定性
+        observation = np.nan_to_num(observation, nan=0.0, posinf=1.0, neginf=-1.0)
+        
+        return observation.astype(np.float32)
+
+
 class CompatibleLEOHandoverEnv(gym.Wrapper):
     """
     LEO 切換環境兼容性包裝器
@@ -163,14 +238,18 @@ class CompatibleLEOHandoverEnv(gym.Wrapper):
     提供與所有 RL 算法兼容的統一接口
     """
     
-    def __init__(self, env, force_box_action=True):
+    def __init__(self, env, force_box_action=True, target_obs_dim=72):
         """
         初始化兼容性包裝器
         
         Args:
             env: 原始環境
             force_box_action: 是否強制使用 Box 動作空間
+            target_obs_dim: 目標觀測維度
         """
+        # 首先應用觀測空間正規化
+        env = ObservationNormalizationWrapper(env, target_obs_dim)
+        
         super().__init__(env)
         
         if force_box_action and isinstance(env.action_space, spaces.Dict):
@@ -182,6 +261,7 @@ class CompatibleLEOHandoverEnv(gym.Wrapper):
                 dtype=np.float32
             )
             self._use_dict_mapping = True
+            self._original_action_space = env.action_space
         else:
             self._use_dict_mapping = False
     
@@ -193,29 +273,61 @@ class CompatibleLEOHandoverEnv(gym.Wrapper):
         
         return self.env.step(action)
     
-    def _box_to_dict_action(self, box_action):
+    def _box_to_dict_action(self, action):
         """將 Box 動作轉換為 Dict 動作"""
-        if not isinstance(box_action, np.ndarray):
-            box_action = np.array(box_action, dtype=np.float32)
+        if not isinstance(action, np.ndarray):
+            action = np.array(action, dtype=np.float32)
         
         # 確保動作在 [0, 1] 範圍內
-        box_action = np.clip(box_action, 0.0, 1.0)
+        action = np.clip(action, 0.0, 1.0)
         
-        # 獲取最大衛星數量（處理嵌套包裝器）
-        max_satellites = self._get_max_satellites()
+        # 基於原始動作空間結構創建 Dict 動作
+        dict_action = {}
         
-        # 映射到原始動作空間
-        dict_action = {
-            "handover_decision": int(box_action[0] * 3),  # 0, 1, 2
-            "target_satellite": int(box_action[1] * max_satellites),
-            "timing": np.array([box_action[2] * 10.0], dtype=np.float32),  # 0-10 秒
-            "power_control": np.array([box_action[3]], dtype=np.float32),  # 0-1
-            "priority": np.array([box_action[4]], dtype=np.float32)  # 0-1
-        }
+        # 獲取原始動作空間的鍵
+        original_keys = list(self._original_action_space.spaces.keys())
         
-        # 確保值在有效範圍內
-        dict_action["handover_decision"] = np.clip(dict_action["handover_decision"], 0, 2)
-        dict_action["target_satellite"] = np.clip(dict_action["target_satellite"], 0, max_satellites - 1)
+        for i, key in enumerate(original_keys):
+            if i < len(action):
+                original_space = self._original_action_space.spaces[key]
+                
+                if isinstance(original_space, spaces.Discrete):
+                    # 離散動作：將 [0,1] 映射到 [0, n-1]
+                    discrete_value = int(action[i] * original_space.n)
+                    dict_action[key] = np.clip(discrete_value, 0, original_space.n - 1)
+                    
+                elif isinstance(original_space, spaces.Box):
+                    # 連續動作：將 [0,1] 映射到 [low, high]
+                    low = original_space.low
+                    high = original_space.high
+                    
+                    if original_space.shape == ():
+                        # 標量
+                        scaled_value = low + action[i] * (high - low)
+                        dict_action[key] = np.array([scaled_value], dtype=np.float32)
+                    else:
+                        # 數組 - 使用第一個值
+                        if hasattr(low, '__len__') and hasattr(high, '__len__'):
+                            scaled_value = low[0] + action[i] * (high[0] - low[0])
+                        else:
+                            scaled_value = low + action[i] * (high - low)
+                        
+                        dict_action[key] = np.full(original_space.shape, scaled_value, dtype=np.float32)
+                else:
+                    # 其他類型，直接使用原始值
+                    dict_action[key] = action[i]
+            else:
+                # 如果動作維度不足，使用默認值
+                original_space = self._original_action_space.spaces[key]
+                if isinstance(original_space, spaces.Discrete):
+                    dict_action[key] = 0
+                elif isinstance(original_space, spaces.Box):
+                    if original_space.shape == ():
+                        dict_action[key] = np.array([original_space.low], dtype=np.float32)
+                    else:
+                        dict_action[key] = np.full(original_space.shape, original_space.low, dtype=np.float32)
+                else:
+                    dict_action[key] = 0.0
         
         return dict_action
     
