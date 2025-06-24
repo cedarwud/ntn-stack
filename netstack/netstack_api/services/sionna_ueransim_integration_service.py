@@ -77,11 +77,15 @@ class SionnaUERANSIMIntegrationService:
             }
 
             # 儲存配置到 Redis
-            await self.redis_adapter.set(
-                f"sionna_integration:{scenario_id}",
-                json.dumps(integration_config),
-                expire=3600,
-            )
+            try:
+                if self.redis_adapter.client:
+                    await self.redis_adapter.client.setex(
+                        f"sionna_integration:{scenario_id}",
+                        3600,
+                        json.dumps(integration_config, default=str)
+                    )
+            except Exception as e:
+                self.logger.warning("Redis 儲存失敗", error=str(e))
 
             # 啟動背景任務
             task = asyncio.create_task(
@@ -295,11 +299,15 @@ class SionnaUERANSIMIntegrationService:
                 "global_params": params.get("global_params", {}),
             }
 
-            await self.redis_adapter.set(
-                f"sionna_ueransim_status:{scenario_id}",
-                json.dumps(integration_status),
-                expire=3600,
-            )
+            try:
+                if self.redis_adapter.client:
+                    await self.redis_adapter.client.setex(
+                        f"sionna_ueransim_status:{scenario_id}",
+                        3600,
+                        json.dumps(integration_status, default=str)
+                    )
+            except Exception as e:
+                self.logger.warning("Redis 狀態儲存失敗", error=str(e))
 
             self.logger.info(
                 "UERANSIM 配置更新完成",

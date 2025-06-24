@@ -131,13 +131,8 @@ function App({ activeView }: AppProps) {
     const [scenarioTestEnvironmentEnabled, setScenarioTestEnvironmentEnabled] =
         useState(false)
 
-
-
     // Toast 通知系統
     const { showToast } = useToast()
-
-
-
 
     // 網頁載入時執行一次健康檢查
     useEffect(() => {
@@ -490,229 +485,242 @@ function App({ activeView }: AppProps) {
         <StrategyProvider>
             <DataSyncProvider>
                 <ErrorBoundary>
-                <div className="app-container">
-                    <Navbar
-                        onMenuClick={handleMenuClick}
-                        activeComponent={activeComponent}
-                        currentScene={currentScene}
-                    />
-                    <div className="content-wrapper">
-                        {/* 全局數據源狀態指示器已移除 - 簡化 UI */}
-                        {/* Stage3QuickCheck 已移至後台運行，異常時將使用 Toast 通知 */}
-
-                        <Layout
-                            sidebar={
-                                <ErrorBoundary
-                                    fallback={<div>側邊欄發生錯誤</div>}
-                                >
-                                    <EnhancedSidebar
-                                        devices={sortedDevicesForSidebar}
-                                        onDeviceChange={handleDeviceChange}
-                                        onDeleteDevice={handleDeleteDevice}
-                                        onAddDevice={handleAddDevice}
-                                        onApply={handleApply}
-                                        onCancel={handleCancel}
-                                        loading={loading}
-                                        apiStatus={apiStatus}
-                                        hasTempDevices={hasTempDevices}
-                                        auto={auto}
-                                        onAutoChange={handleAutoChange}
-                                        onManualControl={handleManualControl}
-                                        activeComponent={activeComponent}
-                                        uavAnimation={uavAnimation}
-                                        onUavAnimationChange={setUavAnimation}
-                                        onSelectedReceiversChange={
-                                            handleSelectedReceiversChange
-                                        }
-                                        onSatelliteDataUpdate={
-                                            handleSatelliteDataUpdate
-                                        }
-                                        satelliteEnabled={satelliteEnabled}
-                                        onSatelliteEnabledChange={
-                                            setSatelliteEnabled
-                                        }
-                                        // 新增階段四功能開關
-                                        interferenceVisualizationEnabled={
-                                            interferenceVisualizationEnabled
-                                        }
-                                        onInterferenceVisualizationChange={
-                                            setInterferenceVisualizationEnabled
-                                        }
-                                        sinrHeatmapEnabled={sinrHeatmapEnabled}
-                                        onSinrHeatmapChange={
-                                            setSinrHeatmapEnabled
-                                        }
-                                        aiRanVisualizationEnabled={
-                                            aiRanVisualizationEnabled
-                                        }
-                                        onAiRanVisualizationChange={
-                                            setAiRanVisualizationEnabled
-                                        }
-                                        manualControlEnabled={
-                                            manualControlEnabled
-                                        }
-                                        onManualControlEnabledChange={
-                                            setManualControlEnabled
-                                        }
-                                        // 新增的擴展功能
-                                        sionna3DVisualizationEnabled={
-                                            sionna3DVisualizationEnabled
-                                        }
-                                        onSionna3DVisualizationChange={
-                                            setSionna3DVisualizationEnabled
-                                        }
-                                        realTimeMetricsEnabled={
-                                            realTimeMetricsEnabled
-                                        }
-                                        onRealTimeMetricsChange={
-                                            setRealTimeMetricsEnabled
-                                        }
-                                        interferenceAnalyticsEnabled={
-                                            interferenceAnalyticsEnabled
-                                        }
-                                        onInterferenceAnalyticsChange={
-                                            setInterferenceAnalyticsEnabled
-                                        }
-                                        // 階段五功能開關
-                                        uavSwarmCoordinationEnabled={
-                                            uavSwarmCoordinationEnabled
-                                        }
-                                        onUavSwarmCoordinationChange={
-                                            setUavSwarmCoordinationEnabled
-                                        }
-                                        meshNetworkTopologyEnabled={
-                                            meshNetworkTopologyEnabled
-                                        }
-                                        onMeshNetworkTopologyChange={
-                                            setMeshNetworkTopologyEnabled
-                                        }
-                                        satelliteUavConnectionEnabled={
-                                            satelliteUavConnectionEnabled
-                                        }
-                                        onSatelliteUavConnectionChange={
-                                            setSatelliteUavConnectionEnabled
-                                        }
-                                        failoverMechanismEnabled={
-                                            failoverMechanismEnabled
-                                        }
-                                        onFailoverMechanismChange={
-                                            setFailoverMechanismEnabled
-                                        }
-                                        // 階段六功能狀態
-                                        predictionPath3DEnabled={
-                                            predictionPath3DEnabled
-                                        }
-                                        onPredictionPath3DChange={
-                                            setPredictionPath3DEnabled
-                                        }
-                                        _predictionAccuracyDashboardEnabled={
-                                            predictionAccuracyDashboardEnabled
-                                        }
-                                        _onPredictionAccuracyDashboardChange={
-                                            setPredictionAccuracyDashboardEnabled
-                                        }
-                                        _coreNetworkSyncEnabled={
-                                            coreNetworkSyncEnabled
-                                        }
-                                        _onCoreNetworkSyncChange={
-                                            setCoreNetworkSyncEnabled
-                                        }
-                                        // Stage 3 功能
-                                        _realtimePerformanceMonitorEnabled={
-                                            realtimePerformanceMonitorEnabled
-                                        }
-                                        _onRealtimePerformanceMonitorChange={
-                                            setRealtimePerformanceMonitorEnabled
-                                        }
-                                        _scenarioTestEnvironmentEnabled={
-                                            scenarioTestEnvironmentEnabled
-                                        }
-                                        _onScenarioTestEnvironmentChange={
-                                            setScenarioTestEnvironmentEnabled
-                                        }
-                                        // 階段七功能狀態
-                                        _e2ePerformanceMonitoringEnabled={
-                                            e2ePerformanceMonitoringEnabled
-                                        }
-                                        _onE2EPerformanceMonitoringChange={
-                                            setE2EPerformanceMonitoringEnabled
-                                        }
-                                        _testResultsVisualizationEnabled={
-                                            testResultsVisualizationEnabled
-                                        }
-                                        _onTestResultsVisualizationChange={
-                                            setTestResultsVisualizationEnabled
-                                        }
-                                        _performanceTrendAnalysisEnabled={
-                                            performanceTrendAnalysisEnabled
-                                        }
-                                        _onPerformanceTrendAnalysisChange={
-                                            setPerformanceTrendAnalysisEnabled
-                                        }
-                                        _automatedReportGenerationEnabled={
-                                            automatedReportGenerationEnabled
-                                        }
-                                        _onAutomatedReportGenerationChange={
-                                            setAutomatedReportGenerationEnabled
-                                        }
-                                        // 階段八功能狀態
-                                        _predictiveMaintenanceEnabled={
-                                            predictiveMaintenanceEnabled
-                                        }
-                                        _onPredictiveMaintenanceChange={
-                                            setPredictiveMaintenanceEnabled
-                                        }
-                                        _intelligentRecommendationEnabled={
-                                            intelligentRecommendationEnabled
-                                        }
-                                        _onIntelligentRecommendationChange={
-                                            setIntelligentRecommendationEnabled
-                                        }
-                                        // 3D 動畫狀態更新回調
-                                        onHandoverStateChange={setHandoverState}
-                                        onCurrentConnectionChange={
-                                            setCurrentConnection
-                                        }
-                                        onPredictedConnectionChange={
-                                            setPredictedConnection
-                                        }
-                                        onTransitionChange={(
-                                            isTransitioning,
-                                            progress
-                                        ) => {
-                                            setIsTransitioning(isTransitioning)
-                                            setTransitionProgress(progress)
-                                        }}
-                                        // 🚀 演算法結果回調 - 連接後端演算法與前端視覺化
-                                        onAlgorithmResults={setAlgorithmResults}
-                                        // 衛星動畫控制 props（動畫永遠開啟）
-                                        satelliteSpeedMultiplier={
-                                            handoverStableDuration
-                                        }
-                                        onSatelliteSpeedChange={
-                                            setHandoverStableDuration
-                                        }
-                                        handoverMode={handoverMode}
-                                        onHandoverModeChange={setHandoverMode}
-                                    />
-                                </ErrorBoundary>
-                            }
-                            content={
-                                <ErrorBoundary
-                                    fallback={<div>主視圖發生錯誤</div>}
-                                >
-                                    {renderActiveComponent()}
-                                </ErrorBoundary>
-                            }
+                    <div className="app-container">
+                        <Navbar
+                            onMenuClick={handleMenuClick}
                             activeComponent={activeComponent}
+                            currentScene={currentScene}
                         />
+                        <div className="content-wrapper">
+                            {/* 全局數據源狀態指示器已移除 - 簡化 UI */}
+                            {/* Stage3QuickCheck 已移至後台運行，異常時將使用 Toast 通知 */}
+
+                            <Layout
+                                sidebar={
+                                    <ErrorBoundary
+                                        fallback={<div>側邊欄發生錯誤</div>}
+                                    >
+                                        <EnhancedSidebar
+                                            devices={sortedDevicesForSidebar}
+                                            onDeviceChange={handleDeviceChange}
+                                            onDeleteDevice={handleDeleteDevice}
+                                            onAddDevice={handleAddDevice}
+                                            onApply={handleApply}
+                                            onCancel={handleCancel}
+                                            loading={loading}
+                                            apiStatus={apiStatus}
+                                            hasTempDevices={hasTempDevices}
+                                            auto={auto}
+                                            onAutoChange={handleAutoChange}
+                                            onManualControl={
+                                                handleManualControl
+                                            }
+                                            activeComponent={activeComponent}
+                                            uavAnimation={uavAnimation}
+                                            onUavAnimationChange={
+                                                setUavAnimation
+                                            }
+                                            onSelectedReceiversChange={
+                                                handleSelectedReceiversChange
+                                            }
+                                            onSatelliteDataUpdate={
+                                                handleSatelliteDataUpdate
+                                            }
+                                            satelliteEnabled={satelliteEnabled}
+                                            onSatelliteEnabledChange={
+                                                setSatelliteEnabled
+                                            }
+                                            // 新增階段四功能開關
+                                            interferenceVisualizationEnabled={
+                                                interferenceVisualizationEnabled
+                                            }
+                                            onInterferenceVisualizationChange={
+                                                setInterferenceVisualizationEnabled
+                                            }
+                                            sinrHeatmapEnabled={
+                                                sinrHeatmapEnabled
+                                            }
+                                            onSinrHeatmapChange={
+                                                setSinrHeatmapEnabled
+                                            }
+                                            aiRanVisualizationEnabled={
+                                                aiRanVisualizationEnabled
+                                            }
+                                            onAiRanVisualizationChange={
+                                                setAiRanVisualizationEnabled
+                                            }
+                                            manualControlEnabled={
+                                                manualControlEnabled
+                                            }
+                                            onManualControlEnabledChange={
+                                                setManualControlEnabled
+                                            }
+                                            // 新增的擴展功能
+                                            sionna3DVisualizationEnabled={
+                                                sionna3DVisualizationEnabled
+                                            }
+                                            onSionna3DVisualizationChange={
+                                                setSionna3DVisualizationEnabled
+                                            }
+                                            realTimeMetricsEnabled={
+                                                realTimeMetricsEnabled
+                                            }
+                                            onRealTimeMetricsChange={
+                                                setRealTimeMetricsEnabled
+                                            }
+                                            interferenceAnalyticsEnabled={
+                                                interferenceAnalyticsEnabled
+                                            }
+                                            onInterferenceAnalyticsChange={
+                                                setInterferenceAnalyticsEnabled
+                                            }
+                                            // 階段五功能開關
+                                            uavSwarmCoordinationEnabled={
+                                                uavSwarmCoordinationEnabled
+                                            }
+                                            onUavSwarmCoordinationChange={
+                                                setUavSwarmCoordinationEnabled
+                                            }
+                                            meshNetworkTopologyEnabled={
+                                                meshNetworkTopologyEnabled
+                                            }
+                                            onMeshNetworkTopologyChange={
+                                                setMeshNetworkTopologyEnabled
+                                            }
+                                            satelliteUavConnectionEnabled={
+                                                satelliteUavConnectionEnabled
+                                            }
+                                            onSatelliteUavConnectionChange={
+                                                setSatelliteUavConnectionEnabled
+                                            }
+                                            failoverMechanismEnabled={
+                                                failoverMechanismEnabled
+                                            }
+                                            onFailoverMechanismChange={
+                                                setFailoverMechanismEnabled
+                                            }
+                                            // 階段六功能狀態
+                                            predictionPath3DEnabled={
+                                                predictionPath3DEnabled
+                                            }
+                                            onPredictionPath3DChange={
+                                                setPredictionPath3DEnabled
+                                            }
+                                            _predictionAccuracyDashboardEnabled={
+                                                predictionAccuracyDashboardEnabled
+                                            }
+                                            _onPredictionAccuracyDashboardChange={
+                                                setPredictionAccuracyDashboardEnabled
+                                            }
+                                            _coreNetworkSyncEnabled={
+                                                coreNetworkSyncEnabled
+                                            }
+                                            _onCoreNetworkSyncChange={
+                                                setCoreNetworkSyncEnabled
+                                            }
+                                            // Stage 3 功能
+                                            _realtimePerformanceMonitorEnabled={
+                                                realtimePerformanceMonitorEnabled
+                                            }
+                                            _onRealtimePerformanceMonitorChange={
+                                                setRealtimePerformanceMonitorEnabled
+                                            }
+                                            _scenarioTestEnvironmentEnabled={
+                                                scenarioTestEnvironmentEnabled
+                                            }
+                                            _onScenarioTestEnvironmentChange={
+                                                setScenarioTestEnvironmentEnabled
+                                            }
+                                            // 階段七功能狀態
+                                            _e2ePerformanceMonitoringEnabled={
+                                                e2ePerformanceMonitoringEnabled
+                                            }
+                                            _onE2EPerformanceMonitoringChange={
+                                                setE2EPerformanceMonitoringEnabled
+                                            }
+                                            _testResultsVisualizationEnabled={
+                                                testResultsVisualizationEnabled
+                                            }
+                                            _onTestResultsVisualizationChange={
+                                                setTestResultsVisualizationEnabled
+                                            }
+                                            _performanceTrendAnalysisEnabled={
+                                                performanceTrendAnalysisEnabled
+                                            }
+                                            _onPerformanceTrendAnalysisChange={
+                                                setPerformanceTrendAnalysisEnabled
+                                            }
+                                            _automatedReportGenerationEnabled={
+                                                automatedReportGenerationEnabled
+                                            }
+                                            _onAutomatedReportGenerationChange={
+                                                setAutomatedReportGenerationEnabled
+                                            }
+                                            // 階段八功能狀態
+                                            _predictiveMaintenanceEnabled={
+                                                predictiveMaintenanceEnabled
+                                            }
+                                            _onPredictiveMaintenanceChange={
+                                                setPredictiveMaintenanceEnabled
+                                            }
+                                            _intelligentRecommendationEnabled={
+                                                intelligentRecommendationEnabled
+                                            }
+                                            _onIntelligentRecommendationChange={
+                                                setIntelligentRecommendationEnabled
+                                            }
+                                            // 3D 動畫狀態更新回調
+                                            onHandoverStateChange={
+                                                setHandoverState
+                                            }
+                                            onCurrentConnectionChange={
+                                                setCurrentConnection
+                                            }
+                                            onPredictedConnectionChange={
+                                                setPredictedConnection
+                                            }
+                                            onTransitionChange={(
+                                                isTransitioning,
+                                                progress
+                                            ) => {
+                                                setIsTransitioning(
+                                                    isTransitioning
+                                                )
+                                                setTransitionProgress(progress)
+                                            }}
+                                            // 🚀 演算法結果回調 - 連接後端演算法與前端視覺化
+                                            onAlgorithmResults={
+                                                setAlgorithmResults
+                                            }
+                                            // 衛星動畫控制 props（動畫永遠開啟）
+                                            satelliteSpeedMultiplier={
+                                                handoverStableDuration
+                                            }
+                                            onSatelliteSpeedChange={
+                                                setHandoverStableDuration
+                                            }
+                                            handoverMode={handoverMode}
+                                            onHandoverModeChange={
+                                                setHandoverMode
+                                            }
+                                        />
+                                    </ErrorBoundary>
+                                }
+                                content={
+                                    <ErrorBoundary
+                                        fallback={<div>主視圖發生錯誤</div>}
+                                    >
+                                        {renderActiveComponent()}
+                                    </ErrorBoundary>
+                                }
+                                activeComponent={activeComponent}
+                            />
+                        </div>
                     </div>
-                </div>
                 </ErrorBoundary>
 
                 {/* Toast 通知系統 */}
                 <ToastNotification />
-                
             </DataSyncProvider>
         </StrategyProvider>
     )

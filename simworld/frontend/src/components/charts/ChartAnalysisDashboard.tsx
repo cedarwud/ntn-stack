@@ -100,25 +100,29 @@ const ChartAnalysisDashboard = ({
     const [coreSync, setCoreSync] = useState<any>(null)
     const isUpdatingRef = useRef(false)
     // 🎯 使用全域策略狀態
-    const { currentStrategy, switchStrategy: globalSwitchStrategy, isLoading: strategyLoading } = useStrategy()
+    const {
+        currentStrategy,
+        switchStrategy: globalSwitchStrategy,
+        isLoading: strategyLoading,
+    } = useStrategy()
     const [strategyMetrics, setStrategyMetrics] = useState({
         flexible: {
             handoverFrequency: 2.3,
             averageLatency: 24,
             cpuUsage: 15,
-            accuracy: 94.2
+            accuracy: 94.2,
         },
         consistent: {
             handoverFrequency: 4.1,
             averageLatency: 19,
             cpuUsage: 28,
-            accuracy: 97.8
-        }
+            accuracy: 97.8,
+        },
     })
     const [strategyHistoryData, setStrategyHistoryData] = useState({
         labels: ['00:00', '00:05', '00:10', '00:15', '00:20', '00:25', '00:30'],
         flexible: [24, 23, 25, 22, 26, 24, 23],
-        consistent: [19, 20, 18, 21, 19, 20, 18]
+        consistent: [19, 20, 18, 21, 19, 20, 18],
     })
     const [satelliteData, setSatelliteData] = useState({
         starlink: {
@@ -217,53 +221,63 @@ const ChartAnalysisDashboard = ({
         try {
             // 基於NetStack核心同步數據生成延遲分解數據
             if (coreSync) {
-                const syncAccuracy = coreSync.sync_performance?.overall_accuracy_ms || 10.0
-                const performanceFactor = Math.max(0.8, Math.min(1.2, syncAccuracy / 10.0))
-                
+                const syncAccuracy =
+                    coreSync.sync_performance?.overall_accuracy_ms || 10.0
+                const performanceFactor = Math.max(
+                    0.8,
+                    Math.min(1.2, syncAccuracy / 10.0)
+                )
+
                 const latencyBreakdown = {
                     ntn_standard: [
                         Math.round(45 * performanceFactor),
                         Math.round(89 * performanceFactor),
                         Math.round(67 * performanceFactor),
                         Math.round(124 * performanceFactor),
-                        Math.round(78 * performanceFactor)
+                        Math.round(78 * performanceFactor),
                     ],
                     ntn_gs: [
                         Math.round(32 * performanceFactor),
                         Math.round(56 * performanceFactor),
                         Math.round(45 * performanceFactor),
                         Math.round(67 * performanceFactor),
-                        Math.round(34 * performanceFactor)
+                        Math.round(34 * performanceFactor),
                     ],
                     ntn_smn: [
                         Math.round(28 * performanceFactor),
                         Math.round(52 * performanceFactor),
                         Math.round(48 * performanceFactor),
                         Math.round(71 * performanceFactor),
-                        Math.round(39 * performanceFactor)
+                        Math.round(39 * performanceFactor),
                     ],
                     proposed: [
                         Math.round(8 / performanceFactor),
                         Math.round(12 / performanceFactor),
                         Math.round(15 / performanceFactor),
                         Math.round(18 / performanceFactor),
-                        Math.round(9 / performanceFactor)
+                        Math.round(9 / performanceFactor),
                     ],
                     ntn_standard_total: Math.round(403 * performanceFactor),
                     ntn_gs_total: Math.round(234 * performanceFactor),
                     ntn_smn_total: Math.round(238 * performanceFactor),
-                    proposed_total: Math.round(62 / performanceFactor)
+                    proposed_total: Math.round(62 / performanceFactor),
                 }
-                
+
                 setHandoverTestData({
                     latencyBreakdown,
                     scenarioComparison: null,
                     qoeMetrics: null,
                 })
-                console.log('🎯 Updated handover test data based on NetStack sync performance', { syncAccuracy, performanceFactor })
+                console.log(
+                    '🎯 Updated handover test data based on NetStack sync performance',
+                    { syncAccuracy, performanceFactor }
+                )
             }
         } catch (error) {
-            console.warn('Failed to fetch real handover test data, using fallback:', error)
+            console.warn(
+                'Failed to fetch real handover test data, using fallback:',
+                error
+            )
             // Fallback to ensure the component still works
             setHandoverTestData({
                 latencyBreakdown: {
@@ -284,11 +298,24 @@ const ChartAnalysisDashboard = ({
             // 基於NetStack組件狀態生成六場景比較數據
             if (coreSync) {
                 const componentStates = coreSync.component_states || {}
-                const avgAvailability = Object.values(componentStates).reduce((sum: number, comp: any) => sum + (comp?.availability || 0.95), 0) / Math.max(1, Object.values(componentStates).length)
-                const performanceFactor = Math.max(0.7, Math.min(1.3, avgAvailability))
-                
+                const avgAvailability =
+                    Object.values(componentStates).reduce(
+                        (sum: number, comp: any) =>
+                            sum + (comp?.availability || 0.95),
+                        0
+                    ) / Math.max(1, Object.values(componentStates).length)
+                const performanceFactor = Math.max(
+                    0.7,
+                    Math.min(1.3, avgAvailability)
+                )
+
                 const scenarioData = {
-                    labels: ['Starlink Flexible', 'Starlink Consistent', 'Kuiper Flexible', 'Kuiper Consistent'],
+                    labels: [
+                        'Starlink Flexible',
+                        'Starlink Consistent',
+                        'Kuiper Flexible',
+                        'Kuiper Consistent',
+                    ],
                     datasets: [
                         {
                             label: 'NTN Standard (ms)',
@@ -296,7 +323,7 @@ const ChartAnalysisDashboard = ({
                                 Math.round(285 * (2.0 - performanceFactor)),
                                 Math.round(295 * (2.0 - performanceFactor)),
                                 Math.round(302 * (2.0 - performanceFactor)),
-                                Math.round(308 * (2.0 - performanceFactor))
+                                Math.round(308 * (2.0 - performanceFactor)),
                             ],
                             backgroundColor: 'rgba(255, 99, 132, 0.8)',
                         },
@@ -306,18 +333,24 @@ const ChartAnalysisDashboard = ({
                                 Math.round(58 * performanceFactor),
                                 Math.round(62 * performanceFactor),
                                 Math.round(65 * performanceFactor),
-                                Math.round(68 * performanceFactor)
+                                Math.round(68 * performanceFactor),
                             ],
                             backgroundColor: 'rgba(75, 192, 192, 0.8)',
                         },
                     ],
                 }
-                
+
                 setSixScenarioData(scenarioData)
-                console.log('🎯 Updated six scenario data based on NetStack availability', { avgAvailability, performanceFactor })
+                console.log(
+                    '🎯 Updated six scenario data based on NetStack availability',
+                    { avgAvailability, performanceFactor }
+                )
             }
         } catch (error) {
-            console.warn('Failed to fetch real six scenario data, using fallback:', error)
+            console.warn(
+                'Failed to fetch real six scenario data, using fallback:',
+                error
+            )
             // Fallback to ensure the component still works
             setSixScenarioData(null)
         }
@@ -364,59 +397,102 @@ const ChartAnalysisDashboard = ({
             if (coreSync) {
                 const syncPerf = coreSync.sync_performance || {}
                 const componentStates = coreSync.component_states || {}
-                
+
                 const avgAccuracy = syncPerf.overall_accuracy_ms || 10.0
-                const avgAvailability = Object.values(componentStates).reduce((sum: number, comp: any) => sum + (comp?.availability || 0.95), 0) / Math.max(1, Object.values(componentStates).length)
-                
+                const avgAvailability =
+                    Object.values(componentStates).reduce(
+                        (sum: number, comp: any) =>
+                            sum + (comp?.availability || 0.95),
+                        0
+                    ) / Math.max(1, Object.values(componentStates).length)
+
                 // 基於性能指標生成策略效果數據
                 setStrategyMetrics({
                     flexible: {
-                        handoverFrequency: Math.max(1.8, 2.3 - avgAccuracy * 0.05),
+                        handoverFrequency: Math.max(
+                            1.8,
+                            2.3 - avgAccuracy * 0.05
+                        ),
                         averageLatency: Math.round(24 + avgAccuracy * 2),
-                        cpuUsage: Math.max(12, Math.round(15 - avgAvailability * 5)),
-                        accuracy: Math.min(98, Math.round(94.2 + avgAvailability * 3)),
+                        cpuUsage: Math.max(
+                            12,
+                            Math.round(15 - avgAvailability * 5)
+                        ),
+                        accuracy: Math.min(
+                            98,
+                            Math.round(94.2 + avgAvailability * 3)
+                        ),
                     },
                     consistent: {
-                        handoverFrequency: Math.max(3.5, 4.1 - avgAccuracy * 0.06),
+                        handoverFrequency: Math.max(
+                            3.5,
+                            4.1 - avgAccuracy * 0.06
+                        ),
                         averageLatency: Math.round(19 + avgAccuracy * 1.5),
-                        cpuUsage: Math.max(16, Math.round(22 - avgAvailability * 6)),
-                        accuracy: Math.min(99, Math.round(96.8 + avgAvailability * 2)),
-                    }
+                        cpuUsage: Math.max(
+                            16,
+                            Math.round(22 - avgAvailability * 6)
+                        ),
+                        accuracy: Math.min(
+                            99,
+                            Math.round(96.8 + avgAvailability * 2)
+                        ),
+                    },
                 })
-                
+
                 // Update strategy history data with calculated latency values
-                setStrategyHistoryData(prevData => {
+                setStrategyHistoryData((prevData) => {
                     const newFlexibleLatency = Math.round(24 + avgAccuracy * 2)
-                    const newConsistentLatency = Math.round(19 + avgAccuracy * 1.5)
-                    
+                    const newConsistentLatency = Math.round(
+                        19 + avgAccuracy * 1.5
+                    )
+
                     // Add small variance to simulate realistic fluctuation (±2ms)
                     const flexibleVariance = (Math.random() - 0.5) * 4
                     const consistentVariance = (Math.random() - 0.5) * 4
-                    
+
                     // Shift historical data and add new values
-                    const newFlexible = [...prevData.flexible.slice(1), Math.round((newFlexibleLatency + flexibleVariance) * 10) / 10]
-                    const newConsistent = [...prevData.consistent.slice(1), Math.round((newConsistentLatency + consistentVariance) * 10) / 10]
-                    
+                    const newFlexible = [
+                        ...prevData.flexible.slice(1),
+                        Math.round(
+                            (newFlexibleLatency + flexibleVariance) * 10
+                        ) / 10,
+                    ]
+                    const newConsistent = [
+                        ...prevData.consistent.slice(1),
+                        Math.round(
+                            (newConsistentLatency + consistentVariance) * 10
+                        ) / 10,
+                    ]
+
                     // Update time labels (rolling 30-minute window)
                     const now = new Date()
                     const newLabels = prevData.labels.map((_, index) => {
-                        const time = new Date(now.getTime() - (6 - index) * 5 * 60 * 1000)
+                        const time = new Date(
+                            now.getTime() - (6 - index) * 5 * 60 * 1000
+                        )
                         return time.toTimeString().slice(0, 5)
                     })
-                    
+
                     return {
                         labels: newLabels,
                         flexible: newFlexible,
-                        consistent: newConsistent
+                        consistent: newConsistent,
                     }
                 })
-                
-                console.log('🎯 Updated strategy effect data based on NetStack metrics', { avgAccuracy, avgAvailability })
+
+                console.log(
+                    '🎯 Updated strategy effect data based on NetStack metrics',
+                    { avgAccuracy, avgAvailability }
+                )
             }
         } catch (error) {
-            console.warn('Failed to fetch strategy effect data, using fallback:', error)
+            console.warn(
+                'Failed to fetch strategy effect data, using fallback:',
+                error
+            )
         }
-        
+
         // Fallback to existing hardcoded values if API fails
         return false
     }
@@ -425,34 +501,46 @@ const ChartAnalysisDashboard = ({
     const fetchComplexityAnalysisData = async () => {
         try {
             // Call the new real complexity analysis API
-            const response = await fetch('/api/v1/handover/complexity-analysis', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ue_scales: [1000, 5000, 10000, 20000, 50000],
-                    algorithms: ["ntn_standard", "proposed"],
-                    measurement_iterations: 50
-                })
-            })
-            
+            const response = await fetch(
+                '/api/v1/handover/complexity-analysis',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ue_scales: [1000, 5000, 10000, 20000, 50000],
+                        algorithms: ['ntn_standard', 'proposed'],
+                        measurement_iterations: 50,
+                    }),
+                }
+            )
+
             if (response.ok) {
                 const data = await response.json()
                 if (data.chart_data && data.algorithms_data) {
                     // Store the real complexity data for the chart
                     window.realComplexityData = data.chart_data
-                    console.log('✅ Complexity analysis data loaded from real API:', {
-                        best_algorithm: data.performance_analysis?.best_algorithm,
-                        improvement: data.performance_analysis?.performance_improvement_percentage
-                    })
+                    console.log(
+                        '✅ Complexity analysis data loaded from real API:',
+                        {
+                            best_algorithm:
+                                data.performance_analysis?.best_algorithm,
+                            improvement:
+                                data.performance_analysis
+                                    ?.performance_improvement_percentage,
+                        }
+                    )
                     return true
                 }
             }
         } catch (error) {
-            console.warn('Failed to fetch complexity analysis data, using fallback:', error)
+            console.warn(
+                'Failed to fetch complexity analysis data, using fallback:',
+                error
+            )
         }
-        
+
         // Fallback to existing hardcoded values if API fails
         return false
     }
@@ -463,11 +551,25 @@ const ChartAnalysisDashboard = ({
             // 基於NetStack組件可用性生成換手失敗率數據
             if (coreSync) {
                 const componentStates = coreSync.component_states || {}
-                const avgAvailability = Object.values(componentStates).reduce((sum: number, comp: any) => sum + (comp?.availability || 0.95), 0) / Math.max(1, Object.values(componentStates).length)
-                const failureFactor = Math.max(0.1, (1.0 - avgAvailability) * 10)
-                
+                const avgAvailability =
+                    Object.values(componentStates).reduce(
+                        (sum: number, comp: any) =>
+                            sum + (comp?.availability || 0.95),
+                        0
+                    ) / Math.max(1, Object.values(componentStates).length)
+                const failureFactor = Math.max(
+                    0.1,
+                    (1.0 - avgAvailability) * 10
+                )
+
                 const handoverFailureData = {
-                    labels: ['靜止', '30 km/h', '60 km/h', '120 km/h', '200 km/h'],
+                    labels: [
+                        '靜止',
+                        '30 km/h',
+                        '60 km/h',
+                        '120 km/h',
+                        '200 km/h',
+                    ],
                     datasets: [
                         {
                             label: 'NTN 標準方案 (%)',
@@ -476,7 +578,7 @@ const ChartAnalysisDashboard = ({
                                 Math.round(4.8 * failureFactor * 10) / 10,
                                 Math.round(8.5 * failureFactor * 10) / 10,
                                 Math.round(15.2 * failureFactor * 10) / 10,
-                                Math.round(28.6 * failureFactor * 10) / 10
+                                Math.round(28.6 * failureFactor * 10) / 10,
                             ],
                             backgroundColor: 'rgba(255, 99, 132, 0.8)',
                         },
@@ -487,7 +589,7 @@ const ChartAnalysisDashboard = ({
                                 Math.round(0.8 * failureFactor * 5) / 10,
                                 Math.round(1.2 * failureFactor * 5) / 10,
                                 Math.round(2.1 * failureFactor * 5) / 10,
-                                Math.round(4.5 * failureFactor * 5) / 10
+                                Math.round(4.5 * failureFactor * 5) / 10,
                             ],
                             backgroundColor: 'rgba(75, 192, 192, 0.8)',
                         },
@@ -498,21 +600,27 @@ const ChartAnalysisDashboard = ({
                                 Math.round(1.1 * failureFactor * 6) / 10,
                                 Math.round(1.8 * failureFactor * 6) / 10,
                                 Math.round(2.8 * failureFactor * 6) / 10,
-                                Math.round(5.2 * failureFactor * 6) / 10
+                                Math.round(5.2 * failureFactor * 6) / 10,
                             ],
                             backgroundColor: 'rgba(153, 102, 255, 0.8)',
                         },
                     ],
                 }
-                
+
                 ;(window as any).realHandoverFailureData = handoverFailureData
-                console.log('🎯 Updated handover failure rate data based on NetStack availability', { avgAvailability, failureFactor })
+                console.log(
+                    '🎯 Updated handover failure rate data based on NetStack availability',
+                    { avgAvailability, failureFactor }
+                )
                 return true
             }
         } catch (error) {
-            console.warn('Failed to fetch handover failure rate data, using fallback:', error)
+            console.warn(
+                'Failed to fetch handover failure rate data, using fallback:',
+                error
+            )
         }
-        
+
         // Fallback to existing hardcoded values if API fails
         return false
     }
@@ -521,33 +629,52 @@ const ChartAnalysisDashboard = ({
     const fetchSystemResourceData = async () => {
         try {
             // Call the new real system resource allocation API
-            const response = await fetch('/api/v1/handover/system-resource-allocation', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    measurement_duration_minutes: 30,
-                    include_components: ["open5gs_core", "ueransim_gnb", "skyfield_calc", "mongodb", "sync_algorithm", "xn_coordination", "others"]
-                })
-            })
-            
+            const response = await fetch(
+                '/api/v1/handover/system-resource-allocation',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        measurement_duration_minutes: 30,
+                        include_components: [
+                            'open5gs_core',
+                            'ueransim_gnb',
+                            'skyfield_calc',
+                            'mongodb',
+                            'sync_algorithm',
+                            'xn_coordination',
+                            'others',
+                        ],
+                    }),
+                }
+            )
+
             if (response.ok) {
                 const data = await response.json()
                 if (data.chart_data && data.components_data) {
                     // Store the real resource data for the chart
                     window.realSystemResourceData = data.chart_data
-                    console.log('✅ System resource allocation data loaded from real API:', {
-                        system_health: data.bottleneck_analysis?.system_health,
-                        bottleneck_count: data.bottleneck_analysis?.bottleneck_count
-                    })
+                    console.log(
+                        '✅ System resource allocation data loaded from real API:',
+                        {
+                            system_health:
+                                data.bottleneck_analysis?.system_health,
+                            bottleneck_count:
+                                data.bottleneck_analysis?.bottleneck_count,
+                        }
+                    )
                     return true
                 }
             }
         } catch (error) {
-            console.warn('Failed to fetch system resource data, using fallback:', error)
+            console.warn(
+                'Failed to fetch system resource data, using fallback:',
+                error
+            )
         }
-        
+
         // Fallback to existing hardcoded values if API fails
         return false
     }
@@ -556,35 +683,53 @@ const ChartAnalysisDashboard = ({
     const fetchTimeSyncPrecisionData = async () => {
         try {
             // Call the new real time sync precision API
-            const response = await fetch('/api/v1/handover/time-sync-precision', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    include_protocols: ["ntp", "ptpv2", "gps", "ntp_gps", "ptpv2_gps"],
-                    measurement_duration_minutes: 60,
-                    satellite_count: null
-                })
-            })
-            
+            const response = await fetch(
+                '/api/v1/handover/time-sync-precision',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        include_protocols: [
+                            'ntp',
+                            'ptpv2',
+                            'gps',
+                            'ntp_gps',
+                            'ptpv2_gps',
+                        ],
+                        measurement_duration_minutes: 60,
+                        satellite_count: null,
+                    }),
+                }
+            )
+
             if (response.ok) {
                 const data = await response.json()
                 if (data.chart_data && data.protocols_data) {
                     // Store the real time sync data for the chart
                     window.realTimeSyncData = data.chart_data
-                    console.log('✅ Time sync precision data loaded from real API:', {
-                        best_protocol: data.precision_comparison?.best_protocol,
-                        best_precision: data.precision_comparison?.best_precision_us,
-                        satellite_count: data.calculation_metadata?.satellite_count
-                    })
+                    console.log(
+                        '✅ Time sync precision data loaded from real API:',
+                        {
+                            best_protocol:
+                                data.precision_comparison?.best_protocol,
+                            best_precision:
+                                data.precision_comparison?.best_precision_us,
+                            satellite_count:
+                                data.calculation_metadata?.satellite_count,
+                        }
+                    )
                     return true
                 }
             }
         } catch (error) {
-            console.warn('Failed to fetch time sync precision data, using fallback:', error)
+            console.warn(
+                'Failed to fetch time sync precision data, using fallback:',
+                error
+            )
         }
-        
+
         // Fallback to existing hardcoded values if API fails
         return false
     }
@@ -595,37 +740,49 @@ const ChartAnalysisDashboard = ({
             if (coreSync) {
                 const syncPerf = coreSync.sync_performance || {}
                 const componentStates = coreSync.component_states || {}
-                
+
                 // 計算性能指標
                 const avgAccuracy = syncPerf.overall_accuracy_ms || 10.0
-                const avgAvailability = Object.values(componentStates).reduce((sum: number, comp: any) => sum + (comp?.availability || 0.95), 0) / Math.max(1, Object.values(componentStates).length)
-                
+                const avgAvailability =
+                    Object.values(componentStates).reduce(
+                        (sum: number, comp: any) =>
+                            sum + (comp?.availability || 0.95),
+                        0
+                    ) / Math.max(1, Object.values(componentStates).length)
+
                 const performanceRadarData = {
-                    labels: ['換手延遲', '換手頻率', '能效比', '連接穩定性', 'QoS保證', '覆蓋連續性'],
+                    labels: [
+                        '換手延遲',
+                        '換手頻率',
+                        '能效比',
+                        '連接穩定性',
+                        'QoS保證',
+                        '覆蓋連續性',
+                    ],
                     datasets: [
                         {
                             label: 'Flexible Strategy',
                             data: [
-                                Math.min(100, 95 - avgAccuracy * 2),  // 越低延遲越好，分數越高
-                                85,  // 換手頻率適中
-                                Math.round(avgAvailability * 92),  // 基於可用性
+                                Math.min(100, 95 - avgAccuracy * 2), // 越低延遲越好，分數越高
+                                85, // 換手頻率適中
+                                Math.round(avgAvailability * 92), // 基於可用性
                                 Math.round(avgAvailability * 88),
                                 90,
-                                Math.round(avgAvailability * 94)
+                                Math.round(avgAvailability * 94),
                             ],
                             backgroundColor: 'rgba(75, 192, 192, 0.2)',
                             borderColor: 'rgba(75, 192, 192, 1)',
                             borderWidth: 2,
                         },
                         {
-                            label: 'Consistent Strategy', 
+                            label: 'Consistent Strategy',
                             data: [
                                 Math.min(100, 88 - avgAccuracy * 1.5),
-                                75,  // 較低換手頻率
+                                75, // 較低換手頻率
                                 Math.round(avgAvailability * 85),
-                                Math.round(avgAvailability * 95),  // 更穩定
-                                95,  // 更好的QoS保證
-                                Math.round(avgAvailability * 90)
+                                Math.round(avgAvailability * 95), // 更穩定
+                                95, // 更好的QoS保證
+                                Math.round(avgAvailability * 90),
                             ],
                             backgroundColor: 'rgba(153, 102, 255, 0.2)',
                             borderColor: 'rgba(153, 102, 255, 1)',
@@ -633,36 +790,50 @@ const ChartAnalysisDashboard = ({
                         },
                     ],
                 }
-                
+
                 ;(window as any).realPerformanceRadarData = performanceRadarData
-                console.log('🎯 Updated performance radar data based on NetStack metrics', { avgAccuracy, avgAvailability })
+                console.log(
+                    '🎯 Updated performance radar data based on NetStack metrics',
+                    { avgAccuracy, avgAvailability }
+                )
                 return true
             }
         } catch (error) {
             console.warn('Failed to generate performance radar data:', error)
         }
-        
+
         return false
     }
 
     const fetchProtocolStackDelayData = async () => {
         try {
-            const response = await fetch('/api/v1/handover/protocol-stack-delay', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    include_layers: ["phy", "mac", "rlc", "pdcp", "rrc", "nas", "gtp_u"],
-                    algorithm_type: "proposed",
-                    measurement_duration_minutes: 30
-                })
-            })
+            const response = await fetch(
+                '/api/v1/handover/protocol-stack-delay',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        include_layers: [
+                            'phy',
+                            'mac',
+                            'rlc',
+                            'pdcp',
+                            'rrc',
+                            'nas',
+                            'gtp_u',
+                        ],
+                        algorithm_type: 'proposed',
+                        measurement_duration_minutes: 30,
+                    }),
+                }
+            )
 
             if (response.ok) {
                 const data = await response.json()
                 console.log('Protocol stack delay API response:', data)
-                
+
                 if (data.chart_data) {
                     // 更新全域變數以供硬編碼fallback使用
                     ;(window as any).realProtocolStackData = data.chart_data
@@ -670,31 +841,44 @@ const ChartAnalysisDashboard = ({
                 }
             }
         } catch (error) {
-            console.warn('Failed to fetch protocol stack delay data, using fallback:', error)
+            console.warn(
+                'Failed to fetch protocol stack delay data, using fallback:',
+                error
+            )
         }
-        
+
         // Fallback to existing hardcoded values if API fails
         return false
     }
 
     const fetchExceptionHandlingData = async () => {
         try {
-            const response = await fetch('/api/v1/handover/exception-handling-statistics', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    analysis_duration_hours: 24,
-                    include_categories: ["prediction_error", "connection_timeout", "signaling_failure", "resource_shortage", "tle_expired", "others"],
-                    severity_filter: null
-                })
-            })
+            const response = await fetch(
+                '/api/v1/handover/exception-handling-statistics',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        analysis_duration_hours: 24,
+                        include_categories: [
+                            'prediction_error',
+                            'connection_timeout',
+                            'signaling_failure',
+                            'resource_shortage',
+                            'tle_expired',
+                            'others',
+                        ],
+                        severity_filter: null,
+                    }),
+                }
+            )
 
             if (response.ok) {
                 const data = await response.json()
                 console.log('Exception handling API response:', data)
-                
+
                 if (data.chart_data) {
                     // 更新全域變數以供硬編碼fallback使用
                     ;(window as any).realExceptionHandlingData = data.chart_data
@@ -702,9 +886,12 @@ const ChartAnalysisDashboard = ({
                 }
             }
         } catch (error) {
-            console.warn('Failed to fetch exception handling data, using fallback:', error)
+            console.warn(
+                'Failed to fetch exception handling data, using fallback:',
+                error
+            )
         }
-        
+
         // Fallback to existing hardcoded values if API fails
         return false
     }
@@ -719,15 +906,20 @@ const ChartAnalysisDashboard = ({
                 body: JSON.stringify({
                     measurement_duration_seconds: 60,
                     sample_interval_seconds: 1,
-                    include_metrics: ["stalling_time", "ping_rtt", "packet_loss", "throughput"],
-                    uav_filter: null
-                })
+                    include_metrics: [
+                        'stalling_time',
+                        'ping_rtt',
+                        'packet_loss',
+                        'throughput',
+                    ],
+                    uav_filter: null,
+                }),
             })
 
             if (response.ok) {
                 const data = await response.json()
                 console.log('QoE timeseries API response:', data)
-                
+
                 if (data.chart_data) {
                     // 更新全域變數以供硬編碼fallback使用
                     ;(window as any).realQoETimeSeriesData = data.chart_data
@@ -735,9 +927,12 @@ const ChartAnalysisDashboard = ({
                 }
             }
         } catch (error) {
-            console.warn('Failed to fetch QoE timeseries data, using fallback:', error)
+            console.warn(
+                'Failed to fetch QoE timeseries data, using fallback:',
+                error
+            )
         }
-        
+
         // Fallback to existing hardcoded values if API fails
         return false
     }
@@ -749,12 +944,23 @@ const ChartAnalysisDashboard = ({
                 const componentStates = coreSync.component_states || {}
                 const satelliteNet = componentStates.satellite_network || {}
                 const satelliteAvailability = satelliteNet.availability || 0.95
-                
+
                 // 基於衛星網路可用性調整覆蓋率
-                const coverageFactor = Math.max(0.8, Math.min(1.1, satelliteAvailability))
-                
+                const coverageFactor = Math.max(
+                    0.8,
+                    Math.min(1.1, satelliteAvailability)
+                )
+
                 const globalCoverageData = {
-                    labels: ['北美', '歐洲', '亞洲', '大洋洲', '南美', '非洲', '南極'],
+                    labels: [
+                        '北美',
+                        '歐洲',
+                        '亞洲',
+                        '大洋洲',
+                        '南美',
+                        '非洲',
+                        '南極',
+                    ],
                     datasets: [
                         {
                             label: 'Starlink 覆蓋率 (%)',
@@ -765,7 +971,7 @@ const ChartAnalysisDashboard = ({
                                 Math.round(87.3 * coverageFactor),
                                 Math.round(78.9 * coverageFactor),
                                 Math.round(65.4 * coverageFactor),
-                                Math.round(12.1 * coverageFactor)
+                                Math.round(12.1 * coverageFactor),
                             ],
                             backgroundColor: 'rgba(255, 206, 86, 0.8)',
                         },
@@ -778,21 +984,27 @@ const ChartAnalysisDashboard = ({
                                 Math.round(84.1 * coverageFactor),
                                 Math.round(75.6 * coverageFactor),
                                 Math.round(62.3 * coverageFactor),
-                                Math.round(8.7 * coverageFactor)
+                                Math.round(8.7 * coverageFactor),
                             ],
                             backgroundColor: 'rgba(153, 102, 255, 0.8)',
                         },
                     ],
                 }
-                
+
                 ;(window as any).realGlobalCoverageData = globalCoverageData
-                console.log('🎯 Updated global coverage data based on satellite network availability', { satelliteAvailability, coverageFactor })
+                console.log(
+                    '🎯 Updated global coverage data based on satellite network availability',
+                    { satelliteAvailability, coverageFactor }
+                )
                 return true
             }
         } catch (error) {
-            console.warn('Failed to fetch global coverage data, using fallback:', error)
+            console.warn(
+                'Failed to fetch global coverage data, using fallback:',
+                error
+            )
         }
-        
+
         // Fallback to existing hardcoded values if API fails
         return false
     }
@@ -821,8 +1033,11 @@ const ChartAnalysisDashboard = ({
                     try {
                         // 🚀 優化：使用更少的衛星數量和超時設置
                         const controller = new AbortController()
-                        const timeoutId = setTimeout(() => controller.abort(), 3000) // 3秒超時
-                        
+                        const timeoutId = setTimeout(
+                            () => controller.abort(),
+                            3000
+                        ) // 3秒超時
+
                         const response = await fetch(
                             '/api/v1/satellite-ops/visible_satellites?count=3', // 減少到3顆衛星
                             { signal: controller.signal }
@@ -891,129 +1106,150 @@ const ChartAnalysisDashboard = ({
     const fetchRealSatelliteData = useCallback(async () => {
         // 防重複調用保護
         if (isUpdatingRef.current) return false
-        
+
         return await satelliteCache.withCache(
             'visible_satellites_15', // 快取鍵
             async () => {
                 isUpdatingRef.current = true
-                
+
                 try {
                     // 🚀 性能優化：減少請求數量並添加超時
                     const controller = new AbortController()
                     const timeoutId = setTimeout(() => controller.abort(), 5000) // 5秒超時
-                    
+
                     const response = await fetch(
                         '/api/v1/satellite-ops/visible_satellites?count=15&global_view=true', // 減少到15顆衛星
-                        { 
+                        {
                             signal: controller.signal,
                             headers: {
-                                'Cache-Control': 'max-age=30' // 30秒快取
-                            }
+                                'Cache-Control': 'max-age=30', // 30秒快取
+                            },
                         }
                     )
                     clearTimeout(timeoutId)
-            if (response.ok) {
-                const data = await response.json()
-                if (data.satellites && data.satellites.length > 0) {
-                    // Analyze real satellite data to extract constellation statistics
-                    const starlinkSats = data.satellites.filter((sat: any) =>
-                        sat.name.toUpperCase().includes('STARLINK')
-                    )
-                    const kuiperSats = data.satellites.filter((sat: any) =>
-                        sat.name.toUpperCase().includes('KUIPER')
-                    )
+                    if (response.ok) {
+                        const data = await response.json()
+                        if (data.satellites && data.satellites.length > 0) {
+                            // Analyze real satellite data to extract constellation statistics
+                            const starlinkSats = data.satellites.filter(
+                                (sat: any) =>
+                                    sat.name.toUpperCase().includes('STARLINK')
+                            )
+                            const kuiperSats = data.satellites.filter(
+                                (sat: any) =>
+                                    sat.name.toUpperCase().includes('KUIPER')
+                            )
 
-                    if (starlinkSats.length > 0 || kuiperSats.length > 0) {
-                        // Calculate average orbital parameters from real data with null checks
-                        const avgStarlinkAlt =
-                            starlinkSats.length > 0
-                                ? starlinkSats.reduce(
-                                      (sum: number, sat: any) =>
-                                          sum + (sat.orbit_altitude_km || 550),
-                                      0
-                                  ) / starlinkSats.length
-                                : 550
-                        const avgKuiperAlt =
-                            kuiperSats.length > 0
-                                ? kuiperSats.reduce(
-                                      (sum: number, sat: any) =>
-                                          sum + (sat.orbit_altitude_km || 630),
-                                      0
-                                  ) / kuiperSats.length
-                                : 630
-
-                        // Update with real data where available, with safe math operations
-                        const safeStarlinkAlt = isNaN(avgStarlinkAlt)
-                            ? 550
-                            : avgStarlinkAlt
-                        const safeKuiperAlt = isNaN(avgKuiperAlt)
-                            ? 630
-                            : avgKuiperAlt
-
-                        setSatelliteData({
-                            starlink: {
-                                altitude: Math.round(safeStarlinkAlt) || 550,
-                                count:
+                            if (
+                                starlinkSats.length > 0 ||
+                                kuiperSats.length > 0
+                            ) {
+                                // Calculate average orbital parameters from real data with null checks
+                                const avgStarlinkAlt =
                                     starlinkSats.length > 0
-                                        ? starlinkSats.length * 88
-                                        : 4408, // Scale up from sample
-                                inclination: 53.0, // From TLE data
-                                minElevation: 40,
-                                coverage:
-                                    Math.round(safeStarlinkAlt * 1.8) || 990, // Calculate from altitude
-                                period:
-                                    Math.round(
-                                        (safeStarlinkAlt / 550) * 95.5 * 10
-                                    ) / 10 || 95.5,
-                                delay:
-                                    Math.round(
-                                        (safeStarlinkAlt / 299792.458) * 10
-                                    ) / 10 || 2.7,
-                                doppler:
-                                    Math.round(47 * (550 / safeStarlinkAlt)) ||
-                                    47,
-                                power: 20,
-                                gain: 32,
-                            },
-                            kuiper: {
-                                altitude: Math.round(safeKuiperAlt) || 630,
-                                count:
+                                        ? starlinkSats.reduce(
+                                              (sum: number, sat: any) =>
+                                                  sum +
+                                                  (sat.orbit_altitude_km ||
+                                                      550),
+                                              0
+                                          ) / starlinkSats.length
+                                        : 550
+                                const avgKuiperAlt =
                                     kuiperSats.length > 0
-                                        ? kuiperSats.length * 65
-                                        : 3236, // Scale up from sample
-                                inclination: 51.9,
-                                minElevation: 35,
-                                coverage:
-                                    Math.round(safeKuiperAlt * 1.9) || 1197,
-                                period:
-                                    Math.round(
-                                        (safeKuiperAlt / 630) * 98.6 * 10
-                                    ) / 10 || 98.6,
-                                delay:
-                                    Math.round(
-                                        (safeKuiperAlt / 299792.458) * 10
-                                    ) / 10 || 3.1,
-                                doppler:
-                                    Math.round(41 * (630 / safeKuiperAlt)) ||
-                                    41,
-                                power: 23,
-                                gain: 35,
-                            },
-                        })
-                        // Successfully updated satellite data
+                                        ? kuiperSats.reduce(
+                                              (sum: number, sat: any) =>
+                                                  sum +
+                                                  (sat.orbit_altitude_km ||
+                                                      630),
+                                              0
+                                          ) / kuiperSats.length
+                                        : 630
+
+                                // Update with real data where available, with safe math operations
+                                const safeStarlinkAlt = isNaN(avgStarlinkAlt)
+                                    ? 550
+                                    : avgStarlinkAlt
+                                const safeKuiperAlt = isNaN(avgKuiperAlt)
+                                    ? 630
+                                    : avgKuiperAlt
+
+                                setSatelliteData({
+                                    starlink: {
+                                        altitude:
+                                            Math.round(safeStarlinkAlt) || 550,
+                                        count:
+                                            starlinkSats.length > 0
+                                                ? starlinkSats.length * 88
+                                                : 4408, // Scale up from sample
+                                        inclination: 53.0, // From TLE data
+                                        minElevation: 40,
+                                        coverage:
+                                            Math.round(safeStarlinkAlt * 1.8) ||
+                                            990, // Calculate from altitude
+                                        period:
+                                            Math.round(
+                                                (safeStarlinkAlt / 550) *
+                                                    95.5 *
+                                                    10
+                                            ) / 10 || 95.5,
+                                        delay:
+                                            Math.round(
+                                                (safeStarlinkAlt / 299792.458) *
+                                                    10
+                                            ) / 10 || 2.7,
+                                        doppler:
+                                            Math.round(
+                                                47 * (550 / safeStarlinkAlt)
+                                            ) || 47,
+                                        power: 20,
+                                        gain: 32,
+                                    },
+                                    kuiper: {
+                                        altitude:
+                                            Math.round(safeKuiperAlt) || 630,
+                                        count:
+                                            kuiperSats.length > 0
+                                                ? kuiperSats.length * 65
+                                                : 3236, // Scale up from sample
+                                        inclination: 51.9,
+                                        minElevation: 35,
+                                        coverage:
+                                            Math.round(safeKuiperAlt * 1.9) ||
+                                            1197,
+                                        period:
+                                            Math.round(
+                                                (safeKuiperAlt / 630) *
+                                                    98.6 *
+                                                    10
+                                            ) / 10 || 98.6,
+                                        delay:
+                                            Math.round(
+                                                (safeKuiperAlt / 299792.458) *
+                                                    10
+                                            ) / 10 || 3.1,
+                                        doppler:
+                                            Math.round(
+                                                41 * (630 / safeKuiperAlt)
+                                            ) || 41,
+                                        power: 23,
+                                        gain: 35,
+                                    },
+                                })
+                                // Successfully updated satellite data
+                            }
+                        }
+                        return true
+                    } else {
+                        throw new Error(`API響應錯誤: ${response.status}`)
                     }
-                }
-                return true
-            } else {
-                throw new Error(`API響應錯誤: ${response.status}`)
-            }
-        } catch (error) {
-            if (error instanceof Error && error.name === 'AbortError') {
-                console.warn('⏱️ 衛星數據請求超時，使用預設值')
-            } else {
-                console.warn('❌ 衛星數據獲取失敗，使用預設值:', error)
-            }
-            return false
+                } catch (error) {
+                    if (error instanceof Error && error.name === 'AbortError') {
+                        console.warn('⏱️ 衛星數據請求超時，使用預設值')
+                    } else {
+                        console.warn('❌ 衛星數據獲取失敗，使用預設值:', error)
+                    }
+                    return false
                 } finally {
                     isUpdatingRef.current = false
                 }
@@ -1025,43 +1261,84 @@ const ChartAnalysisDashboard = ({
     // 🎯 真實系統資源監控 - 直接使用NetStack性能API
     const fetchRealSystemMetrics = useCallback(async () => {
         if (isUpdatingRef.current) return // 防止重複調用
-        
+
         try {
             isUpdatingRef.current = true
-            
+
             // 直接使用NetStack的性能監控API (這個API確實存在且正常工作)
-            const response = await fetch('/netstack/api/v1/core-sync/metrics/performance')
+            const response = await fetch(
+                '/netstack/api/v1/core-sync/metrics/performance'
+            )
             if (response.ok) {
                 const data = await response.json()
                 console.log('✅ 收到NetStack系統性能指標:', data)
 
                 const components = Object.values(data.all_components || {})
-                
+
                 if (components.length > 0) {
                     // 計算各項指標的平均值
-                    const avgLatency = components.reduce((sum: number, comp: any) => sum + (comp.latency_ms || 0), 0) / components.length
-                    const avgAvailability = components.reduce((sum: number, comp: any) => sum + (comp.availability || 0), 0) / components.length
-                    const avgThroughput = components.reduce((sum: number, comp: any) => sum + (comp.throughput_mbps || 0), 0) / components.length
-                    const avgErrorRate = components.reduce((sum: number, comp: any) => sum + (comp.error_rate || 0), 0) / components.length
+                    const avgLatency =
+                        components.reduce(
+                            (sum: number, comp: any) =>
+                                sum + (comp.latency_ms || 0),
+                            0
+                        ) / components.length
+                    const avgAvailability =
+                        components.reduce(
+                            (sum: number, comp: any) =>
+                                sum + (comp.availability || 0),
+                            0
+                        ) / components.length
+                    const avgThroughput =
+                        components.reduce(
+                            (sum: number, comp: any) =>
+                                sum + (comp.throughput_mbps || 0),
+                            0
+                        ) / components.length
+                    const avgErrorRate =
+                        components.reduce(
+                            (sum: number, comp: any) =>
+                                sum + (comp.error_rate || 0),
+                            0
+                        ) / components.length
 
                     // 將網路指標映射到系統指標 (更合理的映射邏輯)
                     const latestMetrics = {
-                        cpu: Math.round(Math.min(95, Math.max(5, (1 - avgAvailability) * 100 + avgErrorRate * 1000))), // 基於可用性和錯誤率
-                        memory: Math.round(Math.min(90, Math.max(20, avgThroughput * 0.8))), // 基於吞吐量
-                        gpu: Math.round(Math.min(80, Math.max(10, avgLatency * 15 + avgErrorRate * 500))), // 基於延遲和錯誤率
+                        cpu: Math.round(
+                            Math.min(
+                                95,
+                                Math.max(
+                                    5,
+                                    (1 - avgAvailability) * 100 +
+                                        avgErrorRate * 1000
+                                )
+                            )
+                        ), // 基於可用性和錯誤率
+                        memory: Math.round(
+                            Math.min(90, Math.max(20, avgThroughput * 0.8))
+                        ), // 基於吞吐量
+                        gpu: Math.round(
+                            Math.min(
+                                80,
+                                Math.max(
+                                    10,
+                                    avgLatency * 15 + avgErrorRate * 500
+                                )
+                            )
+                        ), // 基於延遲和錯誤率
                         networkLatency: Math.round(avgLatency * 1000), // 轉換為毫秒
                     }
 
                     setSystemMetrics(latestMetrics)
                     setRealDataError(null)
-                    
+
                     console.log('🎯 真實系統監控指標 (基於NetStack數據):', {
                         CPU: `${latestMetrics.cpu}%`,
-                        Memory: `${latestMetrics.memory}%`, 
+                        Memory: `${latestMetrics.memory}%`,
                         GPU: `${latestMetrics.gpu}%`,
                         NetworkLatency: `${latestMetrics.networkLatency}ms`,
                         DataSource: 'netstack_performance_api',
-                        ComponentCount: components.length
+                        ComponentCount: components.length,
                     })
                     return true
                 }
@@ -1071,19 +1348,19 @@ const ChartAnalysisDashboard = ({
         } catch (error) {
             console.warn('NetStack性能API無法連接，使用fallback模擬:', error)
             setRealDataError('NetStack API連接失敗')
-            
+
             // Fallback到合理的模擬值
             setSystemMetrics({
-                cpu: Math.round(Math.random() * 15 + 10),      // 10-25% 合理範圍
-                memory: Math.round(Math.random() * 20 + 30),   // 30-50% 合理範圍
-                gpu: Math.round(Math.random() * 10 + 5),       // 5-15% 合理範圍
-                networkLatency: Math.round(Math.random() * 5 + 8),  // 8-13ms
+                cpu: Math.round(Math.random() * 15 + 10), // 10-25% 合理範圍
+                memory: Math.round(Math.random() * 20 + 30), // 30-50% 合理範圍
+                gpu: Math.round(Math.random() * 10 + 5), // 5-15% 合理範圍
+                networkLatency: Math.round(Math.random() * 5 + 8), // 8-13ms
             })
             return false
         } finally {
             isUpdatingRef.current = false
         }
-    }, [])  // 空依賴數組確保函數穩定
+    }, []) // 空依賴數組確保函數穩定
 
     // 🔧 舊的 useEffect 已遷移到下方統一的自動更新機制中，避免重複和衝突
     /*
@@ -1171,12 +1448,12 @@ const ChartAnalysisDashboard = ({
 
         const fetchCoreSync = async () => {
             if (isUpdatingRef.current) return // 防止重複更新
-            
+
             try {
                 isUpdatingRef.current = true
                 const syncData = await netStackApi.getCoreSync()
                 setCoreSync(syncData)
-                
+
                 // 暫時禁用自動圖表更新以避免無限渲染
                 isUpdatingRef.current = false
             } catch (error) {
@@ -1187,7 +1464,7 @@ const ChartAnalysisDashboard = ({
         }
 
         fetchCoreSync()
-        
+
         // 暫時禁用定時器以避免無限渲染
         // const interval = setInterval(fetchCoreSync, 60000)
         // return () => clearInterval(interval)
@@ -1277,7 +1554,14 @@ const ChartAnalysisDashboard = ({
                             (600 / (satelliteData.starlink.period || 95.5)) * 10
                         ) / 10, // 基於軌道週期計算換手頻率
                         strategyMetrics[currentStrategy]?.accuracy || 97.2,
-                        Math.min(5, Math.max(3, (strategyMetrics[currentStrategy]?.accuracy || 95) / 20)), // QoE基於準確率
+                        Math.min(
+                            5,
+                            Math.max(
+                                3,
+                                (strategyMetrics[currentStrategy]?.accuracy ||
+                                    95) / 20
+                            )
+                        ), // QoE基於準確率
                         Math.min(
                             95.2,
                             85 +
@@ -1298,8 +1582,16 @@ const ChartAnalysisDashboard = ({
                         Math.round(
                             (600 / (satelliteData.kuiper.period || 98.6)) * 10
                         ) / 10,
-                        (strategyMetrics[currentStrategy]?.accuracy || 97.2) - 0.6, // Kuiper略低
-                        Math.min(5, Math.max(3, (strategyMetrics[currentStrategy]?.accuracy || 95) / 20)) - 0.2, // QoE略低
+                        (strategyMetrics[currentStrategy]?.accuracy || 97.2) -
+                            0.6, // Kuiper略低
+                        Math.min(
+                            5,
+                            Math.max(
+                                3,
+                                (strategyMetrics[currentStrategy]?.accuracy ||
+                                    95) / 20
+                            )
+                        ) - 0.2, // QoE略低
                         Math.min(
                             92.8,
                             82 +
@@ -1332,25 +1624,39 @@ const ChartAnalysisDashboard = ({
                     data: hasRealUAVData
                         ? Array.from({ length: 60 }, () => {
                               // 基於真實策略延遲和UAV數據計算 stalling time
-                              const avgSpeed = uavData.reduce((sum, uav) => sum + (uav.speed || 0), 0) / uavData.length
+                              const avgSpeed =
+                                  uavData.reduce(
+                                      (sum, uav) => sum + (uav.speed || 0),
+                                      0
+                                  ) / uavData.length
                               const speedFactor = Math.max(0.1, avgSpeed / 25) // 速度影響因子
-                              
+
                               // 使用真實策略延遲數據 (而非數學函數)
-                              const baseLatency = strategyMetrics[currentStrategy]?.averageLatency || 22
-                              
+                              const baseLatency =
+                                  strategyMetrics[currentStrategy]
+                                      ?.averageLatency || 22
+
                               // 基於真實延遲和速度計算 stalling time
                               const baseStalling = baseLatency * 1.5 // 延遲越高，stalling time越高
                               const speedImpact = speedFactor * 10 // 速度影響
                               const timeVariance = (Math.random() - 0.5) * 8 // ±4ms 變動
-                              
-                              return Math.max(5, baseStalling + speedImpact + timeVariance)
+
+                              return Math.max(
+                                  5,
+                                  baseStalling + speedImpact + timeVariance
+                              )
                           })
                         : (handoverTestData.qoeMetrics as any)?.stalling_time ||
                           Array.from({ length: 60 }, () => {
                               // Fallback: 使用策略延遲數據而非純數學函數
-                              const baseLatency = strategyMetrics[currentStrategy]?.averageLatency || 22
+                              const baseLatency =
+                                  strategyMetrics[currentStrategy]
+                                      ?.averageLatency || 22
                               const timeVariance = (Math.random() - 0.5) * 12
-                              return Math.max(5, baseLatency * 1.8 + timeVariance)
+                              return Math.max(
+                                  5,
+                                  baseLatency * 1.8 + timeVariance
+                              )
                           }),
                     borderColor: 'rgba(255, 99, 132, 1)',
                     backgroundColor: 'rgba(255, 99, 132, 0.2)',
@@ -1368,17 +1674,24 @@ const ChartAnalysisDashboard = ({
                                       0
                                   ) / uavData.length
                               // 使用真實策略延遲數據計算RTT
-                              const baseLatency = strategyMetrics[currentStrategy]?.averageLatency || 22
+                              const baseLatency =
+                                  strategyMetrics[currentStrategy]
+                                      ?.averageLatency || 22
                               const rttBase = baseLatency * 0.8 // RTT通常低於handover延遲
                               const altitudeImpact = (avgAltitude / 100) * 3 // 高度對RTT的影響
                               const timeVariance = (Math.random() - 0.5) * 6 // ±3ms 變動
-                              
-                              return Math.max(2, rttBase + altitudeImpact + timeVariance)
+
+                              return Math.max(
+                                  2,
+                                  rttBase + altitudeImpact + timeVariance
+                              )
                           })
                         : (handoverTestData.qoeMetrics as any)?.ping_rtt ||
                           Array.from({ length: 60 }, () => {
                               // Fallback: 使用策略延遲數據計算RTT
-                              const baseLatency = strategyMetrics[currentStrategy]?.averageLatency || 22
+                              const baseLatency =
+                                  strategyMetrics[currentStrategy]
+                                      ?.averageLatency || 22
                               const rttBase = baseLatency * 0.8
                               const timeVariance = (Math.random() - 0.5) * 8
                               return Math.max(2, rttBase + timeVariance)
@@ -1394,38 +1707,50 @@ const ChartAnalysisDashboard = ({
 
     // 🎯 拆分QoE圖表為兩個獨立圖表，避免4條線混亂
     const qoeTimeSeriesData = useMemo(() => {
-        if (typeof window !== 'undefined' && (window as any).realQoETimeSeriesData) {
+        if (
+            typeof window !== 'undefined' &&
+            (window as any).realQoETimeSeriesData
+        ) {
             return (window as any).realQoETimeSeriesData
         }
         // Fallback to generated data if API data not available
         return generateQoETimeSeriesData()
-    }, [typeof window !== 'undefined' ? (window as any).realQoETimeSeriesData : null, uavData, strategyMetrics, currentStrategy])
-    
+    }, [
+        typeof window !== 'undefined'
+            ? (window as any).realQoETimeSeriesData
+            : null,
+        uavData,
+        strategyMetrics,
+        currentStrategy,
+    ])
+
     // 🎯 QoE延遲類指標圖表 (Stalling Time + RTT)
     const qoeLatencyData = useMemo(() => {
         const fullData = qoeTimeSeriesData
         if (fullData && fullData.datasets) {
             return {
                 labels: fullData.labels,
-                datasets: fullData.datasets.filter((dataset: any) => 
-                    dataset.label.includes('Stalling Time') || 
-                    dataset.label.includes('Ping RTT')
-                )
+                datasets: fullData.datasets.filter(
+                    (dataset: any) =>
+                        dataset.label.includes('Stalling Time') ||
+                        dataset.label.includes('Ping RTT')
+                ),
             }
         }
         return fullData
     }, [qoeTimeSeriesData])
-    
-    // 🎯 QoE網路質量指標圖表 (Packet Loss + Throughput)  
+
+    // 🎯 QoE網路質量指標圖表 (Packet Loss + Throughput)
     const qoeNetworkData = useMemo(() => {
         const fullData = qoeTimeSeriesData
         if (fullData && fullData.datasets) {
             return {
                 labels: fullData.labels,
-                datasets: fullData.datasets.filter((dataset: any) => 
-                    dataset.label.includes('Packet Loss') || 
-                    dataset.label.includes('Throughput')
-                )
+                datasets: fullData.datasets.filter(
+                    (dataset: any) =>
+                        dataset.label.includes('Packet Loss') ||
+                        dataset.label.includes('Throughput')
+                ),
             }
         }
         return fullData
@@ -1562,47 +1887,72 @@ const ChartAnalysisDashboard = ({
     // 即時數據更新
     useEffect(() => {
         if (!isOpen) return
-        
+
         const updateMetrics = () => {
             // 🎯 只在真實系統監控API無法使用時才更新模擬指標
             // 真實的系統指標將通過 fetchRealSystemMetrics() 每5秒更新一次
             if (realDataError) {
                 // 🎯 更智能的系統指標更新 - GPU與CPU相關聯 (僅作為fallback)
-                setSystemMetrics(prev => {
-                    const newCpu = Math.round(Math.max(0, Math.min(100, prev.cpu + (Math.random() - 0.5) * 10)))
-                    const newMemory = Math.round(Math.max(0, Math.min(100, prev.memory + (Math.random() - 0.5) * 5)))
-                    
+                setSystemMetrics((prev) => {
+                    const newCpu = Math.round(
+                        Math.max(
+                            0,
+                            Math.min(100, prev.cpu + (Math.random() - 0.5) * 10)
+                        )
+                    )
+                    const newMemory = Math.round(
+                        Math.max(
+                            0,
+                            Math.min(
+                                100,
+                                prev.memory + (Math.random() - 0.5) * 5
+                            )
+                        )
+                    )
+
                     // GPU使用率與CPU相關：當CPU高時GPU也會相應增加
                     const cpuInfluence = (newCpu - prev.cpu) * 0.6 // CPU變化影響GPU
                     const gpuVariation = (Math.random() - 0.5) * 8 // 較小的隨機變動
-                    const newGpu = Math.round(Math.max(5, Math.min(95, prev.gpu + cpuInfluence + gpuVariation)))
-                    
+                    const newGpu = Math.round(
+                        Math.max(
+                            5,
+                            Math.min(95, prev.gpu + cpuInfluence + gpuVariation)
+                        )
+                    )
+
                     return {
                         cpu: newCpu,
                         memory: newMemory,
                         gpu: newGpu,
-                        networkLatency: Math.round(Math.max(0, prev.networkLatency + (Math.random() - 0.5) * 20))
+                        networkLatency: Math.round(
+                            Math.max(
+                                0,
+                                prev.networkLatency + (Math.random() - 0.5) * 20
+                            )
+                        ),
                     }
                 })
             }
-            
+
             // 🎯 使用真實 API 更新策略指標 (每15秒更新一次)
             // fetchStrategyEffectData() 會在單獨的 useEffect 中調用
         }
-        
+
         // 🎯 智能初始化系統指標 - 相關聯的指標
         const initialCpu = Math.round(45 + Math.random() * 20)
         const initialMemory = Math.round(60 + Math.random() * 15)
         // GPU初始值與CPU相關：基準18% + CPU影響
-        const initialGpu = Math.round(18 + (initialCpu - 45) * 0.3 + Math.random() * 12)
-        
+        const initialGpu = Math.round(
+            18 + (initialCpu - 45) * 0.3 + Math.random() * 12
+        )
+
         setSystemMetrics({
             cpu: initialCpu,
             memory: initialMemory,
             gpu: Math.min(75, Math.max(12, initialGpu)),
-            networkLatency: Math.round(25 + Math.random() * 30)
+            networkLatency: Math.round(25 + Math.random() * 30),
         })
-        
+
         // 🎯 延遲初始化API數據以避免無限渲染
         const initializeData = async () => {
             try {
@@ -1623,34 +1973,34 @@ const ChartAnalysisDashboard = ({
                     fetchExceptionHandlingData(),
                     fetchCelestrakTLEData(),
                     // 🐌 衛星數據延遲初始化以避免阻塞其他數據
-                    new Promise(resolve => {
+                    new Promise((resolve) => {
                         setTimeout(async () => {
                             await fetchRealSatelliteData()
                             resolve(true)
                         }, 2000) // 延遲2秒加載衛星數據
-                    })
+                    }),
                 ])
-                
+
                 // 獲取真實系統性能數據一次
                 await fetchRealSystemMetrics()
-                
+
                 console.log('✅ 所有圖表數據初始化完成')
             } catch (error) {
                 console.warn('⚠️ 部分圖表數據初始化失敗:', error)
             }
         }
-        
+
         // 延遲1秒執行初始化，確保組件穩定
         const initTimeout = setTimeout(initializeData, 1000)
-        
+
         // 🎯 運行自動測試 (延遲執行)
         const testTimeout = setTimeout(() => {
             runAutomaticTests().catch(() => {})
         }, 5000)
-        
+
         // 🎯 單一更新間隔 - 只更新基本指標，避免過度API調用
         const primaryInterval = setInterval(updateMetrics, 5000) // 每5秒更新基本指標
-        
+
         // 🎯 低頻率API數據更新 - 減少API調用頻率
         const apiUpdateInterval = setInterval(async () => {
             try {
@@ -1660,7 +2010,7 @@ const ChartAnalysisDashboard = ({
                 console.warn('實時數據更新失敗:', error)
             }
         }, 30000) // 每30秒更新一次實時數據
-        
+
         return () => {
             clearTimeout(initTimeout)
             clearTimeout(testTimeout)
@@ -1673,44 +2023,50 @@ const ChartAnalysisDashboard = ({
     const switchStrategy = async (strategy: 'flexible' | 'consistent') => {
         // 使用全域策略切換
         await globalSwitchStrategy(strategy)
-        
+
         // 更新本地指標以反映策略變更
         updateMetricsForStrategy(strategy)
     }
-    
+
     // 🎯 策略變更監聽器
     useEffect(() => {
         const handleStrategyChange = (event: CustomEvent) => {
             const { strategy } = event.detail
             console.log(`📋 ChartAnalysisDashboard 接收到策略變更: ${strategy}`)
             updateMetricsForStrategy(strategy)
-            
+
             // 立即調整系統指標
             if (strategy === 'consistent') {
-                setSystemMetrics(prev => ({
+                setSystemMetrics((prev) => ({
                     ...prev,
                     cpu: Math.min(100, prev.cpu + 10),
-                    networkLatency: Math.max(10, prev.networkLatency - 5)
+                    networkLatency: Math.max(10, prev.networkLatency - 5),
                 }))
             } else {
-                setSystemMetrics(prev => ({
+                setSystemMetrics((prev) => ({
                     ...prev,
                     cpu: Math.max(10, prev.cpu - 10),
-                    networkLatency: prev.networkLatency + 3
+                    networkLatency: prev.networkLatency + 3,
                 }))
             }
         }
-        
-        window.addEventListener('strategyChanged', handleStrategyChange as EventListener)
-        
+
+        window.addEventListener(
+            'strategyChanged',
+            handleStrategyChange as EventListener
+        )
+
         return () => {
-            window.removeEventListener('strategyChanged', handleStrategyChange as EventListener)
+            window.removeEventListener(
+                'strategyChanged',
+                handleStrategyChange as EventListener
+            )
         }
     }, [])
-    
+
     // 根據策略更新指標
     const updateMetricsForStrategy = (strategy: 'flexible' | 'consistent') => {
-        setStrategyMetrics(prev => {
+        setStrategyMetrics((prev) => {
             if (strategy === 'consistent') {
                 return {
                     ...prev,
@@ -1719,8 +2075,9 @@ const ChartAnalysisDashboard = ({
                         // Consistent 策略：更低延遲但更高 CPU
                         averageLatency: 18 + Math.round(Math.random() * 4),
                         cpuUsage: 25 + Math.round(Math.random() * 8),
-                        handoverFrequency: Math.round((3.8 + Math.random() * 0.6) * 10) / 10
-                    }
+                        handoverFrequency:
+                            Math.round((3.8 + Math.random() * 0.6) * 10) / 10,
+                    },
                 }
             } else {
                 return {
@@ -1730,8 +2087,9 @@ const ChartAnalysisDashboard = ({
                         // Flexible 策略：較高延遲但較低 CPU
                         averageLatency: 22 + Math.round(Math.random() * 6),
                         cpuUsage: 12 + Math.round(Math.random() * 6),
-                        handoverFrequency: Math.round((2.0 + Math.random() * 0.6) * 10) / 10
-                    }
+                        handoverFrequency:
+                            Math.round((2.0 + Math.random() * 0.6) * 10) / 10,
+                    },
                 }
             }
         })
@@ -1740,7 +2098,9 @@ const ChartAnalysisDashboard = ({
     // 獲取策略指標
     const fetchStrategyMetrics = async (strategy: string) => {
         try {
-            const response = await fetch(`http://localhost:8080/handover/strategy/metrics?strategy=${strategy}`)
+            const response = await fetch(
+                `http://localhost:8080/handover/strategy/metrics?strategy=${strategy}`
+            )
             if (response.ok) {
                 return await response.json()
             }
@@ -1896,10 +2256,17 @@ const ChartAnalysisDashboard = ({
     // 🎯 複雜度數據 - 基於真實NetStack同步性能生成
     const complexityData = useMemo(() => {
         // 基於真實NetStack同步性能生成複雜度數據
-        const syncAccuracy = coreSync?.sync_performance?.overall_accuracy_ms || 10.0
-        const performanceFactor = Math.min(2.0, Math.max(0.5, syncAccuracy / 10.0))
-        
-        console.log('🎯 Using real complexity data based on NetStack sync performance', { syncAccuracy, performanceFactor })
+        const syncAccuracy =
+            coreSync?.sync_performance?.overall_accuracy_ms || 10.0
+        const performanceFactor = Math.min(
+            2.0,
+            Math.max(0.5, syncAccuracy / 10.0)
+        )
+
+        console.log(
+            '🎯 Using real complexity data based on NetStack sync performance',
+            { syncAccuracy, performanceFactor }
+        )
         return {
             labels: ['1K UE', '5K UE', '10K UE', '20K UE', '50K UE'],
             datasets: [
@@ -1910,7 +2277,7 @@ const ChartAnalysisDashboard = ({
                         1.8 * performanceFactor,
                         7.2 * performanceFactor,
                         28.8 * performanceFactor,
-                        180.0 * performanceFactor
+                        180.0 * performanceFactor,
                     ],
                     backgroundColor: 'rgba(255, 99, 132, 0.8)',
                 },
@@ -1921,7 +2288,7 @@ const ChartAnalysisDashboard = ({
                         0.12 * (2.0 - performanceFactor + 0.5),
                         0.18 * (2.0 - performanceFactor + 0.5),
                         0.25 * (2.0 - performanceFactor + 0.5),
-                        0.42 * (2.0 - performanceFactor + 0.5)
+                        0.42 * (2.0 - performanceFactor + 0.5),
                     ],
                     backgroundColor: 'rgba(75, 192, 192, 0.8)',
                 },
@@ -1933,11 +2300,20 @@ const ChartAnalysisDashboard = ({
     const handoverFailureData = useMemo(() => {
         // 基於真實NetStack組件可用性生成換手失敗率數據
         const componentStates = coreSync?.component_states || {}
-        const availabilities = Object.values(componentStates).map((comp: any) => comp?.availability || 0.95)
-        const avgAvailability = availabilities.length > 0 ? availabilities.reduce((a, b) => a + b, 0) / availabilities.length : 0.95
+        const availabilities = Object.values(componentStates).map(
+            (comp: any) => comp?.availability || 0.95
+        )
+        const avgAvailability =
+            availabilities.length > 0
+                ? availabilities.reduce((a, b) => a + b, 0) /
+                  availabilities.length
+                : 0.95
         const failureFactor = Math.max(0.1, (1.0 - avgAvailability) * 10)
-        
-        console.log('🎯 Using real handover failure data based on component availability', { avgAvailability, failureFactor })
+
+        console.log(
+            '🎯 Using real handover failure data based on component availability',
+            { avgAvailability, failureFactor }
+        )
         return {
             labels: ['靜止', '30 km/h', '60 km/h', '120 km/h', '200 km/h'],
             datasets: [
@@ -1948,7 +2324,7 @@ const ChartAnalysisDashboard = ({
                         4.8 * failureFactor,
                         8.5 * failureFactor,
                         15.2 * failureFactor,
-                        28.6 * failureFactor
+                        28.6 * failureFactor,
                     ],
                     backgroundColor: 'rgba(255, 99, 132, 0.8)',
                 },
@@ -1959,7 +2335,7 @@ const ChartAnalysisDashboard = ({
                         0.8 * failureFactor * 0.5,
                         1.2 * failureFactor * 0.5,
                         2.1 * failureFactor * 0.5,
-                        4.5 * failureFactor * 0.5
+                        4.5 * failureFactor * 0.5,
                     ],
                     backgroundColor: 'rgba(75, 192, 192, 0.8)',
                 },
@@ -1977,35 +2353,47 @@ const ChartAnalysisDashboard = ({
         // 基於真實NetStack組件狀態生成資源分配數據
         const componentStates = coreSync?.component_states || {}
         const componentNames = Object.keys(componentStates)
-        
+
         // 計算各組件的資源使用比例
-        const totalAccuracy = Object.values(componentStates).reduce((sum: number, comp: any) => sum + (comp?.accuracy_ms || 1.0), 0)
-        
+        const totalAccuracy = Object.values(componentStates).reduce(
+            (sum: number, comp: any) => sum + (comp?.accuracy_ms || 1.0),
+            0
+        )
+
         const resourceData = []
         const componentMapping: { [key: string]: [string, number] } = {
-            'access_network': ['接入網路', 32],
-            'core_network': ['Open5GS Core', 28],
-            'satellite_network': ['衛星網路', 20],
-            'uav_network': ['無人機網路', 12],
-            'ground_station': ['地面站', 8]
+            access_network: ['接入網路', 32],
+            core_network: ['Open5GS Core', 28],
+            satellite_network: ['衛星網路', 20],
+            uav_network: ['無人機網路', 12],
+            ground_station: ['地面站', 8],
         }
-        
-        for (const [compKey, [label, baseUsage]] of Object.entries(componentMapping)) {
+
+        for (const [compKey, [label, baseUsage]] of Object.entries(
+            componentMapping
+        )) {
             if (componentStates[compKey]) {
                 const compData = componentStates[compKey]
                 // 根據準確度調整資源使用
-                const accuracyFactor = (compData?.accuracy_ms || 1.0) / Math.max(1.0, totalAccuracy / componentNames.length)
-                resourceData.push(Math.max(5, Math.round(baseUsage * accuracyFactor)))
+                const accuracyFactor =
+                    (compData?.accuracy_ms || 1.0) /
+                    Math.max(1.0, totalAccuracy / componentNames.length)
+                resourceData.push(
+                    Math.max(5, Math.round(baseUsage * accuracyFactor))
+                )
             } else {
                 resourceData.push(baseUsage)
             }
         }
-        
+
         // 添加其他固定組件
         resourceData.push(10) // 同步算法
-        resourceData.push(6)  // 其他
-        
-        console.log('🎯 Using real system resource data based on component accuracy', { componentStates, resourceData })
+        resourceData.push(6) // 其他
+
+        console.log(
+            '🎯 Using real system resource data based on component accuracy',
+            { componentStates, resourceData }
+        )
         return {
             labels: [
                 'Open5GS Core',
@@ -2045,13 +2433,20 @@ const ChartAnalysisDashboard = ({
     // 🎯 時間同步精度分析 - 基於真實NetStack同步精度生成
     const timeSyncData = useMemo(() => {
         // 基於真實NetStack同步性能生成時間同步數據
-        const overallAccuracy = coreSync?.sync_performance?.overall_accuracy_ms || 10.0
-        
+        const overallAccuracy =
+            coreSync?.sync_performance?.overall_accuracy_ms || 10.0
+
         // 轉換為微秒並根據實際性能調整
-        const basePrecisionUs = overallAccuracy * 1000  // ms to μs
-        const precisionFactor = Math.max(0.5, Math.min(2.0, basePrecisionUs / 10000))
-        
-        console.log('🎯 Using real time sync precision data based on NetStack accuracy', { overallAccuracy, basePrecisionUs, precisionFactor })
+        const basePrecisionUs = overallAccuracy * 1000 // ms to μs
+        const precisionFactor = Math.max(
+            0.5,
+            Math.min(2.0, basePrecisionUs / 10000)
+        )
+
+        console.log(
+            '🎯 Using real time sync precision data based on NetStack accuracy',
+            { overallAccuracy, basePrecisionUs, precisionFactor }
+        )
         return {
             labels: ['NTP', 'PTPv2', 'GPS 授時', 'NTP+GPS', 'PTPv2+GPS'],
             datasets: [
@@ -2062,7 +2457,7 @@ const ChartAnalysisDashboard = ({
                         100 * precisionFactor,
                         50 * precisionFactor,
                         200 * precisionFactor,
-                        Math.max(5.0, 10 * precisionFactor)  // 最佳情況
+                        Math.max(5.0, 10 * precisionFactor), // 最佳情況
                     ],
                     backgroundColor: [
                         'rgba(255, 99, 132, 0.8)',
@@ -2096,12 +2491,15 @@ const ChartAnalysisDashboard = ({
     // 新增：UE 接入策略對比 (使用真實API數據)
     const accessStrategyRadarData = useMemo(() => {
         // 嘗試從真實API獲取數據
-        const realData = typeof window !== 'undefined' ? (window as any).realPerformanceRadarData : null
-        
+        const realData =
+            typeof window !== 'undefined'
+                ? (window as any).realPerformanceRadarData
+                : null
+
         if (realData) {
             return realData
         }
-        
+
         // Fallback to hardcoded data if API fails
         return {
             labels: [
@@ -2135,14 +2533,21 @@ const ChartAnalysisDashboard = ({
                 },
             ],
         }
-    }, [typeof window !== 'undefined' ? (window as any).realPerformanceRadarData : null])
+    }, [
+        typeof window !== 'undefined'
+            ? (window as any).realPerformanceRadarData
+            : null,
+    ])
 
     // 新增：協議棧延遲分析 - 使用真實API數據
     const protocolStackData = useMemo(() => {
-        if (typeof window !== 'undefined' && (window as any).realProtocolStackData) {
+        if (
+            typeof window !== 'undefined' &&
+            (window as any).realProtocolStackData
+        ) {
             return (window as any).realProtocolStackData
         }
-        
+
         // Fallback to hardcoded data if API data not available
         return {
             labels: [
@@ -2164,14 +2569,21 @@ const ChartAnalysisDashboard = ({
                 },
             ],
         }
-    }, [typeof window !== 'undefined' ? (window as any).realProtocolStackData : null])
+    }, [
+        typeof window !== 'undefined'
+            ? (window as any).realProtocolStackData
+            : null,
+    ])
 
     // 新增：異常處理統計 - 使用真實API數據
     const exceptionHandlingData = useMemo(() => {
-        if (typeof window !== 'undefined' && (window as any).realExceptionHandlingData) {
+        if (
+            typeof window !== 'undefined' &&
+            (window as any).realExceptionHandlingData
+        ) {
             return (window as any).realExceptionHandlingData
         }
-        
+
         // Fallback to hardcoded data if API data not available
         return {
             labels: [
@@ -2196,7 +2608,11 @@ const ChartAnalysisDashboard = ({
                 },
             ],
         }
-    }, [typeof window !== 'undefined' ? (window as any).realExceptionHandlingData : null])
+    }, [
+        typeof window !== 'undefined'
+            ? (window as any).realExceptionHandlingData
+            : null,
+    ])
 
     // 條件返回必須在所有 hooks 之後
     if (!isOpen) return null
@@ -2865,7 +3281,7 @@ const ChartAnalysisDashboard = ({
 
             case 'analysis':
                 return (
-                    <div className="charts-grid">
+                    <div className="charts-grid four-in-two-rows-grid">
                         <div className="chart-container">
                             <h3>❌ 圖11: 移動場景異常換手率統計</h3>
                             <Bar
@@ -3254,7 +3670,9 @@ const ChartAnalysisDashboard = ({
                                         圖表渲染時間
                                     </div>
                                     <div className="metric-value">
-                                        {Math.round(performanceMetrics.chartRenderTime)}
+                                        {Math.round(
+                                            performanceMetrics.chartRenderTime
+                                        )}
                                         ms
                                     </div>
                                 </div>
@@ -3263,7 +3681,9 @@ const ChartAnalysisDashboard = ({
                                         數據獲取時間
                                     </div>
                                     <div className="metric-value">
-                                        {Math.round(performanceMetrics.dataFetchTime)}
+                                        {Math.round(
+                                            performanceMetrics.dataFetchTime
+                                        )}
                                         ms
                                     </div>
                                 </div>
@@ -3382,44 +3802,71 @@ const ChartAnalysisDashboard = ({
                             <div className="system-metrics-chart">
                                 <div className="metrics-grid">
                                     <div className="metric-display">
-                                        <div className="metric-title">CPU 使用率</div>
+                                        <div className="metric-title">
+                                            CPU 使用率
+                                        </div>
                                         <div className="metric-bar">
-                                            <div 
+                                            <div
                                                 className="metric-fill cpu"
-                                                style={{ width: `${systemMetrics.cpu}%` }}
+                                                style={{
+                                                    width: `${systemMetrics.cpu}%`,
+                                                }}
                                             ></div>
                                         </div>
-                                        <div className="metric-text">{systemMetrics.cpu}%</div>
+                                        <div className="metric-text">
+                                            {systemMetrics.cpu}%
+                                        </div>
                                     </div>
                                     <div className="metric-display">
-                                        <div className="metric-title">記憶體使用率</div>
+                                        <div className="metric-title">
+                                            記憶體使用率
+                                        </div>
                                         <div className="metric-bar">
-                                            <div 
+                                            <div
                                                 className="metric-fill memory"
-                                                style={{ width: `${systemMetrics.memory}%` }}
+                                                style={{
+                                                    width: `${systemMetrics.memory}%`,
+                                                }}
                                             ></div>
                                         </div>
-                                        <div className="metric-text">{systemMetrics.memory}%</div>
+                                        <div className="metric-text">
+                                            {systemMetrics.memory}%
+                                        </div>
                                     </div>
                                     <div className="metric-display">
-                                        <div className="metric-title">GPU 使用率</div>
+                                        <div className="metric-title">
+                                            GPU 使用率
+                                        </div>
                                         <div className="metric-bar">
-                                            <div 
+                                            <div
                                                 className="metric-fill gpu"
-                                                style={{ width: `${systemMetrics.gpu}%` }}
+                                                style={{
+                                                    width: `${systemMetrics.gpu}%`,
+                                                }}
                                             ></div>
                                         </div>
-                                        <div className="metric-text">{systemMetrics.gpu}%</div>
+                                        <div className="metric-text">
+                                            {systemMetrics.gpu}%
+                                        </div>
                                     </div>
                                     <div className="metric-display">
-                                        <div className="metric-title">網路延遲</div>
+                                        <div className="metric-title">
+                                            網路延遲
+                                        </div>
                                         <div className="metric-bar">
-                                            <div 
+                                            <div
                                                 className="metric-fill network"
-                                                style={{ width: `${Math.min(100, systemMetrics.networkLatency)}%` }}
+                                                style={{
+                                                    width: `${Math.min(
+                                                        100,
+                                                        systemMetrics.networkLatency
+                                                    )}%`,
+                                                }}
                                             ></div>
                                         </div>
-                                        <div className="metric-text">{systemMetrics.networkLatency}ms</div>
+                                        <div className="metric-text">
+                                            {systemMetrics.networkLatency}ms
+                                        </div>
                                     </div>
                                 </div>
                                 {realDataError && (
@@ -3431,8 +3878,11 @@ const ChartAnalysisDashboard = ({
                             <div className="chart-insight">
                                 <strong>即時監控：</strong>
                                 基於NetStack性能API的實時系統監控，
-                                {systemMetrics.cpu > 80 ? '⚠️ CPU使用率偏高' : '✅ 系統運行正常'}
-                                {systemMetrics.networkLatency > 50 && '，網路延遲需要關注'}
+                                {systemMetrics.cpu > 80
+                                    ? '⚠️ CPU使用率偏高'
+                                    : '✅ 系統運行正常'}
+                                {systemMetrics.networkLatency > 50 &&
+                                    '，網路延遲需要關注'}
                             </div>
                         </div>
                     </div>
@@ -3445,89 +3895,187 @@ const ChartAnalysisDashboard = ({
                             <h3>⚡ 即時策略效果比較</h3>
                             <div className="strategy-controls">
                                 <div className="strategy-info">
-                                    <p>🔄 即時策略切換：選擇不同策略會立即影響換手性能和系統資源使用</p>
+                                    <p>
+                                        🔄
+                                        即時策略切換：選擇不同策略會立即影響換手性能和系統資源使用
+                                    </p>
                                 </div>
                                 <div className="strategy-toggle">
-                                    <label className={currentStrategy === 'flexible' ? 'active' : ''}>
+                                    <label
+                                        className={
+                                            currentStrategy === 'flexible'
+                                                ? 'active'
+                                                : ''
+                                        }
+                                    >
                                         <input
                                             type="radio"
                                             name="strategy"
                                             value="flexible"
-                                            checked={currentStrategy === 'flexible'}
-                                            onChange={(e) => switchStrategy(e.target.value as 'flexible' | 'consistent')}
+                                            checked={
+                                                currentStrategy === 'flexible'
+                                            }
+                                            onChange={(e) =>
+                                                switchStrategy(
+                                                    e.target.value as
+                                                        | 'flexible'
+                                                        | 'consistent'
+                                                )
+                                            }
                                             disabled={strategyLoading}
                                         />
                                         🔋 Flexible 策略 (節能模式)
-                                        <small>低 CPU使用、較少換手、節省電池</small>
+                                        <small>
+                                            低 CPU使用、較少換手、節省電池
+                                        </small>
                                     </label>
-                                    <label className={currentStrategy === 'consistent' ? 'active' : ''}>
+                                    <label
+                                        className={
+                                            currentStrategy === 'consistent'
+                                                ? 'active'
+                                                : ''
+                                        }
+                                    >
                                         <input
                                             type="radio"
                                             name="strategy"
                                             value="consistent"
-                                            checked={currentStrategy === 'consistent'}
-                                            onChange={(e) => switchStrategy(e.target.value as 'flexible' | 'consistent')}
+                                            checked={
+                                                currentStrategy === 'consistent'
+                                            }
+                                            onChange={(e) =>
+                                                switchStrategy(
+                                                    e.target.value as
+                                                        | 'flexible'
+                                                        | 'consistent'
+                                                )
+                                            }
                                             disabled={strategyLoading}
                                         />
                                         ⚡ Consistent 策略 (效能模式)
-                                        <small>低延遲、高精確度、更多資源</small>
-                                        {strategyLoading && <small>🔄 切換中...</small>}
+                                        <small>
+                                            低延遲、高精確度、更多資源
+                                        </small>
+                                        {strategyLoading && (
+                                            <small>🔄 切換中...</small>
+                                        )}
                                     </label>
                                 </div>
                             </div>
                             <div className="strategy-comparison">
                                 <div className="strategy-metrics">
                                     <div className="metric-card">
-                                        <h4>Flexible 策略 {currentStrategy === 'flexible' ? '🟢' : ''}</h4>
+                                        <h4>
+                                            Flexible 策略{' '}
+                                            {currentStrategy === 'flexible'
+                                                ? '🟢'
+                                                : ''}
+                                        </h4>
                                         <div className="metric-row">
                                             <span>換手頻率:</span>
-                                            <span>{Math.round(strategyMetrics.flexible.handoverFrequency * 10) / 10} 次/分鐘</span>
+                                            <span>
+                                                {Math.round(
+                                                    strategyMetrics.flexible
+                                                        .handoverFrequency * 10
+                                                ) / 10}{' '}
+                                                次/分鐘
+                                            </span>
                                         </div>
                                         <div className="metric-row">
                                             <span>平均延遲:</span>
-                                            <span>{Math.round(strategyMetrics.flexible.averageLatency * 10) / 10}ms</span>
+                                            <span>
+                                                {Math.round(
+                                                    strategyMetrics.flexible
+                                                        .averageLatency * 10
+                                                ) / 10}
+                                                ms
+                                            </span>
                                         </div>
                                         <div className="metric-row">
                                             <span>CPU 使用:</span>
-                                            <span>{Math.round(strategyMetrics.flexible.cpuUsage * 10) / 10}%</span>
+                                            <span>
+                                                {Math.round(
+                                                    strategyMetrics.flexible
+                                                        .cpuUsage * 10
+                                                ) / 10}
+                                                %
+                                            </span>
                                         </div>
                                         <div className="metric-row">
                                             <span>精确度:</span>
-                                            <span>{Math.round(strategyMetrics.flexible.accuracy * 10) / 10}%</span>
+                                            <span>
+                                                {Math.round(
+                                                    strategyMetrics.flexible
+                                                        .accuracy * 10
+                                                ) / 10}
+                                                %
+                                            </span>
                                         </div>
                                     </div>
                                     <div className="metric-card">
-                                        <h4>Consistent 策略 {currentStrategy === 'consistent' ? '🟢' : ''}</h4>
+                                        <h4>
+                                            Consistent 策略{' '}
+                                            {currentStrategy === 'consistent'
+                                                ? '🟢'
+                                                : ''}
+                                        </h4>
                                         <div className="metric-row">
                                             <span>換手頻率:</span>
-                                            <span>{strategyMetrics.consistent.handoverFrequency} 次/分鐘</span>
+                                            <span>
+                                                {
+                                                    strategyMetrics.consistent
+                                                        .handoverFrequency
+                                                }{' '}
+                                                次/分鐘
+                                            </span>
                                         </div>
                                         <div className="metric-row">
                                             <span>平均延遲:</span>
-                                            <span>{strategyMetrics.consistent.averageLatency}ms</span>
+                                            <span>
+                                                {
+                                                    strategyMetrics.consistent
+                                                        .averageLatency
+                                                }
+                                                ms
+                                            </span>
                                         </div>
                                         <div className="metric-row">
                                             <span>CPU 使用:</span>
-                                            <span>{strategyMetrics.consistent.cpuUsage}%</span>
+                                            <span>
+                                                {
+                                                    strategyMetrics.consistent
+                                                        .cpuUsage
+                                                }
+                                                %
+                                            </span>
                                         </div>
                                         <div className="metric-row">
                                             <span>精确度:</span>
-                                            <span>{strategyMetrics.consistent.accuracy}%</span>
+                                            <span>
+                                                {
+                                                    strategyMetrics.consistent
+                                                        .accuracy
+                                                }
+                                                %
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div className="chart-insight">
                                 <strong>策略建議：</strong>
-                                Flexible 策略適合電池受限設備，Consistent 策略適合效能關鍵應用。
-                                🎯 當前使用 {currentStrategy === 'flexible' ? 'Flexible (節能模式)' : 'Consistent (效能模式)'} 策略。
-                                {currentStrategy === 'flexible' 
+                                Flexible 策略適合電池受限設備，Consistent
+                                策略適合效能關鍵應用。 🎯 當前使用{' '}
+                                {currentStrategy === 'flexible'
+                                    ? 'Flexible (節能模式)'
+                                    : 'Consistent (效能模式)'}{' '}
+                                策略。
+                                {currentStrategy === 'flexible'
                                     ? '適合電池受限或穩定網路環境，優先考慮節能。已同步到全域系統。'
-                                    : '適合效能關鍵應用，優先考慮低延遲和高精確度。已同步到全域系統。'
-                                }
+                                    : '適合效能關鍵應用，優先考慮低延遲和高精確度。已同步到全域系統。'}
                             </div>
                         </div>
-                        
+
                         <div className="chart-container">
                             <h3>📊 策略效果對比圖表</h3>
                             <Line
@@ -3538,19 +4086,21 @@ const ChartAnalysisDashboard = ({
                                             label: 'Flexible 策略延遲',
                                             data: strategyHistoryData.flexible,
                                             borderColor: '#4ade80',
-                                            backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                                            backgroundColor:
+                                                'rgba(74, 222, 128, 0.1)',
                                             fill: true,
-                                            tension: 0.4
+                                            tension: 0.4,
                                         },
                                         {
                                             label: 'Consistent 策略延遲',
                                             data: strategyHistoryData.consistent,
                                             borderColor: '#667eea',
-                                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                            backgroundColor:
+                                                'rgba(102, 126, 234, 0.1)',
                                             fill: true,
-                                            tension: 0.4
-                                        }
-                                    ]
+                                            tension: 0.4,
+                                        },
+                                    ],
                                 }}
                                 options={{
                                     responsive: true,
@@ -3558,13 +4108,13 @@ const ChartAnalysisDashboard = ({
                                         title: {
                                             display: true,
                                             text: '策略延遲效果對比 (過去30分鐘)',
-                                            color: 'white'
+                                            color: 'white',
                                         },
                                         legend: {
                                             labels: {
-                                                color: 'white'
-                                            }
-                                        }
+                                                color: 'white',
+                                            },
+                                        },
                                     },
                                     scales: {
                                         y: {
@@ -3572,43 +4122,41 @@ const ChartAnalysisDashboard = ({
                                             title: {
                                                 display: true,
                                                 text: '延遲 (ms)',
-                                                color: 'white'
+                                                color: 'white',
                                             },
                                             ticks: {
-                                                color: 'white'
+                                                color: 'white',
                                             },
                                             grid: {
-                                                color: 'rgba(255, 255, 255, 0.2)'
-                                            }
+                                                color: 'rgba(255, 255, 255, 0.2)',
+                                            },
                                         },
                                         x: {
                                             title: {
                                                 display: true,
                                                 text: '時間',
-                                                color: 'white'
+                                                color: 'white',
                                             },
                                             ticks: {
-                                                color: 'white'
+                                                color: 'white',
                                             },
                                             grid: {
-                                                color: 'rgba(255, 255, 255, 0.2)'
-                                            }
-                                        }
-                                    }
+                                                color: 'rgba(255, 255, 255, 0.2)',
+                                            },
+                                        },
+                                    },
                                 }}
                             />
                             <div className="chart-insight">
                                 <strong>📊 全域即時效果分析：</strong>
-                                {currentStrategy === 'consistent' 
+                                {currentStrategy === 'consistent'
                                     ? 'Consistent 策略在全域執行，影響側邊欄、立體圖和後端演算法'
-                                    : 'Flexible 策略在全域執行，節省所有組件的 CPU 資源'
-                                }
+                                    : 'Flexible 策略在全域執行，節省所有組件的 CPU 資源'}
                                 。策略切換已同步到整個系統。
                             </div>
                         </div>
                     </div>
                 )
-
 
             default:
                 return <div>請選擇一個標籤查看相關圖表分析</div>
@@ -3722,9 +4270,7 @@ const ChartAnalysisDashboard = ({
                             🔍 性能監控
                         </button>
                         <button
-                            className={
-                                activeTab === 'strategy' ? 'active' : ''
-                            }
+                            className={activeTab === 'strategy' ? 'active' : ''}
                             onClick={() => setActiveTab('strategy')}
                         >
                             ⚡ 即時策略效果

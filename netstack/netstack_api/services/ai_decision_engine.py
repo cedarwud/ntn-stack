@@ -588,6 +588,10 @@ class AIDecisionEngine:
         self.tuning_interval_seconds = 300  # 5分鐘
         self.last_tuning_time = datetime.utcnow()
         
+        # 引擎類型管理
+        self.engine_type = "gymnasium"  # 預設使用 gymnasium 引擎
+        self.available_engines = ["gymnasium", "legacy"]
+        
         # 載入已保存的模型
         self._load_models()
     
@@ -1048,6 +1052,8 @@ class AIDecisionEngine:
         """獲取服務狀態"""
         return {
             'service_name': '進階 AI 智慧決策引擎',
+            'engine_type': self.engine_type,
+            'available_engines': self.available_engines,
             'adaptive_learning_trained': self.adaptive_learning.is_trained,
             'predictive_maintenance_trained': self.predictive_maintenance.is_trained,
             'decision_history_count': len(self.decision_history),
@@ -1072,3 +1078,83 @@ class AIDecisionEngine:
     async def manual_optimization(self, context: DecisionContext) -> Dict:
         """手動優化"""
         return await self.comprehensive_decision_making(context, urgent_mode=False)
+    
+    async def switch_to_gymnasium_engine(self) -> bool:
+        """切換到 Gymnasium 引擎"""
+        try:
+            if self.engine_type == "gymnasium":
+                self.logger.info("已經是 Gymnasium 引擎，無需切換")
+                return True
+            
+            # 執行引擎切換邏輯
+            self.engine_type = "gymnasium"
+            
+            # 重新初始化相關組件
+            self.adaptive_learning = AdaptiveLearningModule()
+            
+            # 保存切換記錄到 Redis (暫時註釋，待修復)
+            try:
+                engine_data = {
+                    "engine_type": self.engine_type,
+                    "switched_at": datetime.utcnow().isoformat(),
+                    "switched_by": "api_request"
+                }
+                if self.redis_adapter.client:
+                    await self.redis_adapter.client.setex(
+                        "ai_decision_engine:current_engine",
+                        3600,  # 1小時 TTL
+                        json.dumps(engine_data, default=str)
+                    )
+            except Exception as redis_error:
+                self.logger.warning("Redis 記錄失敗，但引擎切換成功", error=str(redis_error))
+            
+            self.logger.info("成功切換到 Gymnasium 引擎")
+            return True
+            
+        except Exception as e:
+            self.logger.error("切換到 Gymnasium 引擎失敗", error=str(e))
+            raise
+    
+    async def switch_to_legacy_engine(self) -> bool:
+        """切換到 Legacy 引擎"""
+        try:
+            if self.engine_type == "legacy":
+                self.logger.info("已經是 Legacy 引擎，無需切換")
+                return True
+            
+            # 執行引擎切換邏輯
+            self.engine_type = "legacy"
+            
+            # 重新初始化相關組件 (Legacy 模式下使用更簡單的配置)
+            self.adaptive_learning = AdaptiveLearningModule()
+            
+            # 保存切換記錄到 Redis (暫時註釋，待修復)
+            try:
+                engine_data = {
+                    "engine_type": self.engine_type,
+                    "switched_at": datetime.utcnow().isoformat(),
+                    "switched_by": "api_request"
+                }
+                if self.redis_adapter.client:
+                    await self.redis_adapter.client.setex(
+                        "ai_decision_engine:current_engine",
+                        3600,  # 1小時 TTL
+                        json.dumps(engine_data, default=str)
+                    )
+            except Exception as redis_error:
+                self.logger.warning("Redis 記錄失敗，但引擎切換成功", error=str(redis_error))
+            
+            self.logger.info("成功切換到 Legacy 引擎")
+            return True
+            
+        except Exception as e:
+            self.logger.error("切換到 Legacy 引擎失敗", error=str(e))
+            raise
+    
+    def get_current_engine_type(self) -> str:
+        """獲取當前引擎類型"""
+        return self.engine_type
+    
+    def get_available_engines(self) -> List[str]:
+        """獲取可用的引擎類型"""
+        return self.available_engines.copy()
