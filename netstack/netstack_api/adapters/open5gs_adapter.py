@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Any
 
 import httpx
 import structlog
+from motor.motor_asyncio import AsyncIOMotorClient
 
 logger = structlog.get_logger(__name__)
 
@@ -17,14 +18,17 @@ logger = structlog.get_logger(__name__)
 class Open5GSAdapter:
     """Open5GS 核心網適配器"""
 
-    def __init__(self, mongo_host: str = "mongo"):
+    def __init__(self, mongo_host: str = "localhost", mongo_port: int = 27017):
         """
         初始化 Open5GS 適配器
 
         Args:
             mongo_host: MongoDB 主機名稱
+            mongo_port: MongoDB 端口
         """
         self.mongo_host = mongo_host
+        self.mongo_port = mongo_port
+        self.mongo_client = None
         self.services = {
             "amf": "http://netstack-amf:7777",
             "smf": "http://netstack-smf:7777",
@@ -32,6 +36,14 @@ class Open5GSAdapter:
             "nssf": "http://netstack-nssf:7777",
             "upf": "http://netstack-upf:8080",
         }
+
+    async def _get_mongo_client(self):
+        """獲取MongoDB客戶端"""
+        if self.mongo_client is None:
+            self.mongo_client = AsyncIOMotorClient(
+                f"mongodb://{self.mongo_host}:{self.mongo_port}"
+            )
+        return self.mongo_client
 
     async def health_check(self) -> Dict[str, Any]:
         """檢查 Open5GS 服務健康狀態"""
@@ -77,16 +89,50 @@ class Open5GSAdapter:
             return {"error": str(e)}
 
     async def get_smf_sessions(self) -> List[Dict[str, Any]]:
-        """取得 SMF 會話列表"""
+        """取得 SMF 會話列表 (從MongoDB讀取)"""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(
-                    f"{self.services['smf']}/nsmf-pdusession/v1/sessions"
+            client = await self._get_mongo_client()
+            db = client.open5gs
+
+            # 首先嘗試從sessions集合獲取活動會話
+            sessions = []
+            async for session in db.sessions.find().limit(10):
+                sessions.append(
+                    {
+                        "imsi": session.get("imsi", "unknown"),
+                        "session_id": str(session.get("_id", "")),
+                        "ue_location": {
+                            "latitude": 25.0 + (len(sessions) * 0.01),  # 簡單的位置模擬
+                            "longitude": 121.0 + (len(sessions) * 0.01),
+                        },
+                        "slice": session.get("slice", {}),
+                        "status": "active",
+                    }
                 )
-                if response.status_code == 200:
-                    return response.json()
-                else:
-                    return []
+
+            # 如果沒有活動會話，從subscribers創建模擬會話
+            if not sessions:
+                async for subscriber in db.subscribers.find().limit(5):
+                    sessions.append(
+                        {
+                            "imsi": subscriber.get("imsi", "unknown"),
+                            "session_id": str(subscriber.get("_id", "")),
+                            "ue_location": {
+                                "latitude": 25.0 + (len(sessions) * 0.01),
+                                "longitude": 121.0 + (len(sessions) * 0.01),
+                            },
+                            "slice": (
+                                subscriber.get("slice", [{}])[0]
+                                if subscriber.get("slice")
+                                else {}
+                            ),
+                            "status": "registered",
+                        }
+                    )
+
+            logger.info(f"從MongoDB獲取 {len(sessions)} 個會話")
+            return sessions
+
         except Exception as e:
             logger.error("取得 SMF 會話失敗", error=str(e))
             return []

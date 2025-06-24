@@ -13,6 +13,8 @@ services:
     hostname: mongo
     environment:
       MONGO_INITDB_DATABASE: open5gs
+    ports:
+      - "27017:27017"  # 添加端口映射以便外部訪問
     deploy:
       resources:
         limits:
