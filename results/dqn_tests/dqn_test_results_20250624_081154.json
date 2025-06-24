@@ -1,0 +1,18 @@
+{
+  "timestamp": "2025-06-24T08:11:54.185205",
+  "test_results": {
+    "discrete_environment": false,
+    "dqn_training": true,
+    "dqn_vs_baseline": true
+  },
+  "environment_info": {
+    "discrete_actions": 10,
+    "max_episode_steps": 200,
+    "python_version": "3.11.12 (main, Apr  9 2025, 08:55:55) [GCC 13.3.0]"
+  },
+  "summary": {
+    "total_tests": 3,
+    "passed_tests": 2,
+    "success_rate": 66.66666666666666
+  }
+}
