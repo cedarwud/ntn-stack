@@ -1211,6 +1211,937 @@
   }
 }
 
+/* RL 監控全版橫式佈局樣式 */
+.rl-monitoring-fullwidth {
+    width: 100%;
+    height: 100%;
+    padding: 2rem;
+    background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+    color: white;
+    overflow-y: auto;
+
+    .rl-monitor-header {
+        text-align: center;
+        margin-bottom: 2rem;
+        border-bottom: 2px solid rgba(64, 224, 255, 0.3);
+        padding-bottom: 1.5rem;
+
+        h2 {
+            font-size: 2.2rem;
+            color: #40e0ff;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 20px rgba(64, 224, 255, 0.5);
+        }
+
+        .rl-header-info {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+
+            .info-badge {
+                background: rgba(64, 224, 255, 0.2);
+                color: #40e0ff;
+                padding: 0.5rem 1rem;
+                border-radius: 20px;
+                font-size: 0.9rem;
+                border: 1px solid rgba(64, 224, 255, 0.3);
+            }
+        }
+
+        .rl-test-controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+
+            .test-btn {
+                padding: 0.6rem 1.2rem;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 0.9rem;
+                font-weight: bold;
+                transition: all 0.3s ease;
+
+                &.start {
+                    background: linear-gradient(135deg, #22c55e, #16a34a);
+                    color: white;
+                    
+                    &:hover {
+                        background: linear-gradient(135deg, #16a34a, #15803d);
+                        transform: translateY(-2px);
+                        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+                    }
+                }
+
+                &.stop {
+                    background: linear-gradient(135deg, #ef4444, #dc2626);
+                    color: white;
+                    
+                    &:hover {
+                        background: linear-gradient(135deg, #dc2626, #b91c1c);
+                        transform: translateY(-2px);
+                        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+                    }
+                }
+
+                &.both {
+                    background: linear-gradient(135deg, #6366f1, #4f46e5);
+                    color: white;
+                    
+                    &:hover {
+                        background: linear-gradient(135deg, #4f46e5, #4338ca);
+                        transform: translateY(-2px);
+                        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+                    }
+                }
+            }
+        }
+    }
+
+    .rl-content-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto;
+        gap: 2rem;
+        height: calc(100% - 150px);
+
+        .rl-real-component {
+            grid-column: 1 / -1;
+            
+            .gymnasium-rl-monitor {
+                background: transparent;
+                padding: 0;
+                
+                .monitor-header {
+                    display: none; // 隱藏重複的標題
+                }
+                
+                .monitor-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 2rem;
+                    
+                    .control-panel, .metrics-panel, .services-panel, .logs-panel {
+                        background: linear-gradient(145deg, #1e293b, #334155);
+                        border-radius: 12px;
+                        padding: 1.5rem;
+                        border: 1px solid rgba(64, 224, 255, 0.2);
+                    }
+                }
+            }
+        }
+
+        .rl-engines-section {
+            grid-column: 1 / -1;
+            
+            h3 {
+                color: #40e0ff;
+                font-size: 1.5rem;
+                margin-bottom: 1rem;
+                text-align: center;
+            }
+
+            .engines-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 2rem;
+
+                .engine-card {
+                    background: linear-gradient(145deg, #1e293b, #334155);
+                    border-radius: 12px;
+                    padding: 1.5rem;
+                    border: 2px solid transparent;
+                    transition: all 0.3s ease;
+
+                    &.dqn-engine {
+                        border-color: rgba(34, 197, 94, 0.5);
+                        &:hover {
+                            border-color: #22c55e;
+                            box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+                        }
+                    }
+
+                    &.ppo-engine {
+                        border-color: rgba(251, 146, 60, 0.5);
+                        &:hover {
+                            border-color: #fb923c;
+                            box-shadow: 0 0 20px rgba(251, 146, 60, 0.3);
+                        }
+                    }
+
+                    .engine-header {
+                        display: flex;
+                        align-items: center;
+                        gap: 1rem;
+                        margin-bottom: 1rem;
+
+                        .engine-icon {
+                            font-size: 2rem;
+                        }
+
+                        .engine-name {
+                            font-size: 1.2rem;
+                            font-weight: bold;
+                            flex: 1;
+                        }
+
+                        .engine-status {
+                            padding: 0.3rem 0.8rem;
+                            border-radius: 15px;
+                            font-size: 0.8rem;
+                            font-weight: bold;
+
+                            &.running {
+                                background: rgba(34, 197, 94, 0.2);
+                                color: #22c55e;
+                                border: 1px solid #22c55e;
+                            }
+
+                            &.idle {
+                                background: rgba(156, 163, 175, 0.2);
+                                color: #9ca3af;
+                                border: 1px solid #9ca3af;
+                            }
+                        }
+                    }
+
+                    .engine-metrics {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 0.5rem;
+                        margin-bottom: 1rem;
+
+                        .metric {
+                            display: flex;
+                            justify-content: space-between;
+                            padding: 0.3rem 0;
+                            font-size: 0.9rem;
+
+                            span {
+                                font-weight: bold;
+                                color: #40e0ff;
+                            }
+                        }
+                    }
+
+                    .engine-controls {
+                        display: flex;
+                        gap: 0.5rem;
+
+                        button {
+                            flex: 1;
+                            padding: 0.6rem;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 0.9rem;
+                            transition: all 0.3s ease;
+
+                            &.btn-start {
+                                background: linear-gradient(135deg, #22c55e, #16a34a);
+                                color: white;
+                                &:hover {
+                                    background: linear-gradient(135deg, #16a34a, #15803d);
+                                    transform: translateY(-2px);
+                                }
+                            }
+
+                            &.btn-pause {
+                                background: linear-gradient(135deg, #f59e0b, #d97706);
+                                color: white;
+                                &:hover {
+                                    background: linear-gradient(135deg, #d97706, #b45309);
+                                    transform: translateY(-2px);
+                                }
+                            }
+
+                            &.btn-config {
+                                background: linear-gradient(135deg, #6366f1, #4f46e5);
+                                color: white;
+                                &:hover {
+                                    background: linear-gradient(135deg, #4f46e5, #4338ca);
+                                    transform: translateY(-2px);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        .rl-training-viz {
+            h3 {
+                color: #40e0ff;
+                font-size: 1.3rem;
+                margin-bottom: 1rem;
+            }
+
+            .training-charts {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 2rem;
+
+                &.enhanced {
+                    gap: 2rem;
+                    margin-bottom: 2rem;
+                }
+            }
+
+            .training-engine-card {
+                background: linear-gradient(145deg, #1e293b, #334155);
+                border-radius: 16px;
+                padding: 1.5rem;
+                border: 2px solid transparent;
+                transition: all 0.3s ease;
+
+                &.dqn-card {
+                    border-color: rgba(34, 197, 94, 0.5);
+                    &:hover {
+                        border-color: #22c55e;
+                        box-shadow: 0 0 25px rgba(34, 197, 94, 0.3);
+                        transform: translateY(-3px);
+                    }
+                }
+
+                &.ppo-card {
+                    border-color: rgba(251, 146, 60, 0.5);
+                    &:hover {
+                        border-color: #fb923c;
+                        box-shadow: 0 0 25px rgba(251, 146, 60, 0.3);
+                        transform: translateY(-3px);
+                    }
+                }
+
+                .engine-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 1rem;
+
+                    .engine-icon {
+                        font-size: 1.5rem;
+                    }
+
+                    .engine-name {
+                        font-size: 1.1rem;
+                        font-weight: bold;
+                        color: #40e0ff;
+                        flex: 1;
+                        margin-left: 0.5rem;
+                    }
+
+                    .training-status {
+                        padding: 0.3rem 0.8rem;
+                        border-radius: 15px;
+                        font-size: 0.8rem;
+                        font-weight: bold;
+
+                        &.active {
+                            background: rgba(239, 68, 68, 0.2);
+                            color: #ef4444;
+                            border: 1px solid #ef4444;
+                            animation: statusPulse 2s ease-in-out infinite;
+                        }
+
+                        &.idle {
+                            background: rgba(156, 163, 175, 0.2);
+                            color: #9ca3af;
+                            border: 1px solid #9ca3af;
+                        }
+                    }
+                }
+
+                .training-progress {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    margin-bottom: 1rem;
+
+                    .progress-bar {
+                        flex: 1;
+                        height: 8px;
+                        background: rgba(255, 255, 255, 0.1);
+                        border-radius: 4px;
+                        overflow: hidden;
+
+                        .progress-fill {
+                            height: 100%;
+                            border-radius: 4px;
+                            transition: width 0.8s ease;
+
+                            &.dqn-fill {
+                                background: linear-gradient(90deg, #22c55e, #16a34a);
+                            }
+
+                            &.ppo-fill {
+                                background: linear-gradient(90deg, #fb923c, #f97316);
+                            }
+                        }
+                    }
+
+                    .progress-text {
+                        font-weight: bold;
+                        color: #40e0ff;
+                        min-width: 40px;
+                    }
+                }
+
+                .training-metrics {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 0.5rem;
+                    margin-bottom: 1rem;
+
+                    .metric {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 0.3rem 0;
+
+                        .label {
+                            color: #94a3b8;
+                            font-size: 0.9rem;
+                        }
+
+                        .value {
+                            font-weight: bold;
+                            color: #40e0ff;
+                        }
+                    }
+                }
+
+                .reward-chart {
+                    .chart-title {
+                        text-align: center;
+                        font-size: 0.9rem;
+                        color: #94a3b8;
+                        margin-bottom: 0.5rem;
+                    }
+
+                    .chart-area {
+                        height: 60px;
+                        position: relative;
+                        background: rgba(0, 0, 0, 0.3);
+                        border-radius: 8px;
+                        overflow: hidden;
+
+                        .trend-line {
+                            position: absolute;
+                            height: 3px;
+                            border-radius: 2px;
+                            top: 50%;
+                            left: 10%;
+                            width: 80%;
+                            transform: translateY(-50%);
+                            opacity: 0.7;
+
+                            &.dqn-trend {
+                                background: linear-gradient(90deg, #22c55e, #10b981);
+                                &.animated {
+                                    animation: trainProgress 3s ease-in-out infinite;
+                                }
+                            }
+
+                            &.ppo-trend {
+                                background: linear-gradient(90deg, #fb923c, #f97316);
+                                &.animated {
+                                    animation: trainProgress 3s ease-in-out infinite;
+                                }
+                            }
+                        }
+
+                        .data-flow {
+                            position: absolute;
+                            top: 50%;
+                            left: 10%;
+                            width: 80%;
+                            height: 6px;
+                            transform: translateY(-50%);
+
+                            &.flowing .data-dot {
+                                animation: dataFlow 2s linear infinite;
+                            }
+
+                            .data-dot {
+                                position: absolute;
+                                width: 4px;
+                                height: 4px;
+                                background: #40e0ff;
+                                border-radius: 50%;
+                                top: 1px;
+
+                                &:nth-child(1) { left: 20%; animation-delay: 0s; }
+                                &:nth-child(2) { left: 50%; animation-delay: 0.7s; }
+                                &:nth-child(3) { left: 80%; animation-delay: 1.4s; }
+                            }
+                        }
+                    }
+                }
+            }
+
+            .global-training-stats {
+                margin-top: 2rem;
+
+                h4 {
+                    color: #40e0ff;
+                    font-size: 1.2rem;
+                    margin-bottom: 1rem;
+                    text-align: center;
+                }
+
+                .stats-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 1rem;
+
+                    .stat-card {
+                        background: linear-gradient(145deg, #1e293b, #334155);
+                        border-radius: 12px;
+                        padding: 1rem;
+                        border: 1px solid rgba(64, 224, 255, 0.2);
+                        display: flex;
+                        align-items: center;
+                        gap: 0.75rem;
+                        transition: all 0.3s ease;
+
+                        &:hover {
+                            border-color: #40e0ff;
+                            box-shadow: 0 0 15px rgba(64, 224, 255, 0.2);
+                            transform: translateY(-2px);
+                        }
+
+                        .stat-icon {
+                            font-size: 1.5rem;
+                        }
+
+                        .stat-content {
+                            display: flex;
+                            flex-direction: column;
+
+                            .stat-label {
+                                font-size: 0.8rem;
+                                color: #94a3b8;
+                                margin-bottom: 0.2rem;
+                            }
+
+                            .stat-value {
+                                font-size: 1rem;
+                                font-weight: bold;
+                                color: #40e0ff;
+                            }
+                        }
+                    }
+                }
+            }
+
+            .training-charts.old {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+
+                .chart-container {
+                    background: linear-gradient(145deg, #1e293b, #334155);
+                    border-radius: 12px;
+                    padding: 1rem;
+                    border: 1px solid rgba(64, 224, 255, 0.2);
+
+                    .mock-chart {
+                        .chart-title {
+                            text-align: center;
+                            font-weight: bold;
+                            margin-bottom: 1rem;
+                            color: #40e0ff;
+                        }
+
+                        .chart-placeholder {
+                            height: 120px;
+                            position: relative;
+                            background: rgba(0, 0, 0, 0.3);
+                            border-radius: 8px;
+                            overflow: hidden;
+
+                            .trend-line {
+                                position: absolute;
+                                height: 3px;
+                                border-radius: 2px;
+                                opacity: 0.3;
+                                transition: opacity 0.3s ease;
+
+                                &.animated {
+                                    opacity: 1;
+                                    animation: growLine 2s ease-in-out infinite alternate;
+                                }
+
+                                &.dqn-line {
+                                    background: linear-gradient(90deg, #22c55e, #10b981);
+                                    top: 30%;
+                                    left: 10%;
+                                    width: 70%;
+                                    transform: rotate(-5deg);
+                                }
+
+                                &.ppo-line {
+                                    background: linear-gradient(90deg, #fb923c, #f97316);
+                                    top: 50%;
+                                    left: 15%;
+                                    width: 65%;
+                                    transform: rotate(-8deg);
+                                }
+                            }
+
+                            .convergence-line {
+                                position: absolute;
+                                height: 2px;
+                                background: linear-gradient(90deg, #ef4444, #22c55e);
+                                top: 60%;
+                                left: 5%;
+                                width: 80%;
+                                border-radius: 2px;
+                                opacity: 0.3;
+                                transition: opacity 0.3s ease;
+
+                                &.animated {
+                                    opacity: 1;
+                                    animation: converge 3s ease-in-out infinite;
+                                }
+                            }
+
+                            .current-point {
+                                position: absolute;
+                                width: 8px;
+                                height: 8px;
+                                background: #40e0ff;
+                                border-radius: 50%;
+                                top: 58%;
+                                right: 15%;
+                                opacity: 0.3;
+                                transition: opacity 0.3s ease;
+
+                                &.animated {
+                                    opacity: 1;
+                                    animation: pulse 1.5s ease-in-out infinite;
+                                }
+                            }
+
+                            .no-training-message {
+                                position: absolute;
+                                top: 50%;
+                                left: 50%;
+                                transform: translate(-50%, -50%);
+                                color: #94a3b8;
+                                font-size: 1rem;
+                                text-align: center;
+                                width: 100%;
+                            }
+
+                            .legend {
+                                position: absolute;
+                                bottom: 10px;
+                                left: 10px;
+                                display: flex;
+                                gap: 1rem;
+
+                                .legend-item {
+                                    font-size: 0.8rem;
+                                    
+                                    &.dqn {
+                                        color: #22c55e;
+                                    }
+                                    
+                                    &.ppo {
+                                        color: #fb923c;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        .rl-performance-comparison {
+            h3 {
+                color: #40e0ff;
+                font-size: 1.3rem;
+                margin-bottom: 1rem;
+            }
+
+            .comparison-table {
+                background: linear-gradient(145deg, #1e293b, #334155);
+                border-radius: 12px;
+                padding: 1rem;
+                border: 1px solid rgba(64, 224, 255, 0.2);
+
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+
+                    th, td {
+                        padding: 0.8rem;
+                        text-align: center;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                    }
+
+                    th {
+                        background: rgba(64, 224, 255, 0.1);
+                        color: #40e0ff;
+                        font-weight: bold;
+                    }
+
+                    .metric-value {
+                        font-weight: bold;
+                        
+                        &.good {
+                            color: #fbbf24;
+                        }
+                        
+                        &.better {
+                            color: #22c55e;
+                        }
+                        
+                        &.baseline {
+                            color: #94a3b8;
+                        }
+                    }
+
+                    .improvement {
+                        color: #22c55e;
+                        font-weight: bold;
+                    }
+                }
+            }
+        }
+
+        .rl-system-status {
+            h3 {
+                color: #40e0ff;
+                font-size: 1.3rem;
+                margin-bottom: 1rem;
+            }
+
+            .status-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+
+                .status-card {
+                    background: linear-gradient(145deg, #1e293b, #334155);
+                    border-radius: 12px;
+                    padding: 1rem;
+                    border: 1px solid rgba(64, 224, 255, 0.2);
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+
+                    .status-icon {
+                        font-size: 1.8rem;
+                    }
+
+                    .status-info {
+                        flex: 1;
+
+                        .status-label {
+                            font-size: 0.9rem;
+                            color: #94a3b8;
+                            margin-bottom: 0.3rem;
+                        }
+
+                        .status-value {
+                            font-size: 1.1rem;
+                            font-weight: bold;
+                            color: #40e0ff;
+                            margin-bottom: 0.5rem;
+                        }
+
+                        .status-bar {
+                            height: 4px;
+                            background: rgba(255, 255, 255, 0.1);
+                            border-radius: 2px;
+                            overflow: hidden;
+
+                            .status-fill {
+                                height: 100%;
+                                background: linear-gradient(90deg, #fb923c, #22c55e);
+                                border-radius: 2px;
+                                transition: width 0.3s ease;
+
+                                &.good {
+                                    background: linear-gradient(90deg, #22c55e, #16a34a);
+                                }
+                            }
+                        }
+
+                        .status-indicator {
+                            width: 8px;
+                            height: 8px;
+                            border-radius: 50%;
+                            margin-top: 0.5rem;
+
+                            &.active {
+                                background: #22c55e;
+                                animation: pulse 2s ease-in-out infinite;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        .rl-training-logs {
+            grid-column: 1 / -1;
+            
+            h3 {
+                color: #40e0ff;
+                font-size: 1.3rem;
+                margin-bottom: 1rem;
+            }
+
+            .logs-container {
+                background: linear-gradient(145deg, #1e293b, #334155);
+                border-radius: 12px;
+                padding: 1rem;
+                border: 1px solid rgba(64, 224, 255, 0.2);
+                max-height: 200px;
+                overflow-y: auto;
+
+                .log-entry {
+                    display: flex;
+                    gap: 1rem;
+                    padding: 0.5rem 0;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.9rem;
+
+                    &:last-child {
+                        border-bottom: none;
+                    }
+
+                    .log-time {
+                        color: #94a3b8;
+                        min-width: 80px;
+                    }
+
+                    .log-message {
+                        flex: 1;
+                        color: white; // 預設為白色
+                    }
+
+                    &.success .log-message {
+                        color: #22c55e;
+                    }
+
+                    &.info .log-message {
+                        color: #40e0ff;
+                    }
+
+                    &.warning .log-message {
+                        color: #fbbf24;
+                    }
+
+                    &.error .log-message {
+                        color: #ef4444;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* RL 監控動畫效果 */
+@keyframes growLine {
+    0% { width: 0%; }
+    100% { width: 100%; }
+}
+
+@keyframes converge {
+    0% { transform: scaleY(3); }
+    50% { transform: scaleY(1.5); }
+    100% { transform: scaleY(1); }
+}
+
+@keyframes pulse {
+    0% { 
+        opacity: 1; 
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.7; 
+        transform: scale(1.2);
+    }
+    100% { 
+        opacity: 1; 
+        transform: scale(1);
+    }
+}
+
+/* 新的訓練動畫效果 */
+@keyframes trainProgress {
+    0% { 
+        opacity: 0.5;
+        transform: translateY(-50%) scaleX(0.8);
+    }
+    50% { 
+        opacity: 1;
+        transform: translateY(-50%) scaleX(1);
+    }
+    100% { 
+        opacity: 0.5;
+        transform: translateY(-50%) scaleX(0.8);
+    }
+}
+
+@keyframes dataFlow {
+    0% { 
+        opacity: 0;
+        transform: translateX(-20px) scale(0.5);
+    }
+    50% { 
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+    100% { 
+        opacity: 0;
+        transform: translateX(20px) scale(0.5);
+    }
+}
+
+@keyframes statusPulse {
+    0% { 
+        border-color: #ef4444;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+    50% { 
+        border-color: #dc2626;
+        box-shadow: 0 0 0 5px rgba(239, 68, 68, 0);
+    }
+    100% { 
+        border-color: #ef4444;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+/* 響應式設計 - RL 監控 */
+@media (max-width: 1200px) {
+    .rl-monitoring-fullwidth {
+        .rl-content-grid {
+            grid-template-columns: 1fr;
+            
+            .rl-engines-section .engines-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .rl-training-viz .training-charts {
+                grid-template-columns: 1fr;
+            }
+            
+            .rl-system-status .status-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    }
+}
+
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
