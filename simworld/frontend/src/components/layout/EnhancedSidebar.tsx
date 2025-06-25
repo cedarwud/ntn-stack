@@ -1,16 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import '../../styles/Sidebar.scss'
-import { UAVManualDirection } from '../scenes/UAVFlight'
+import { UAVManualDirection } from '../domains/device/visualization/UAVFlight'
 import { Device } from '../../types/device'
-import SidebarStarfield from '../ui/SidebarStarfield'
-import DeviceItem from '../devices/DeviceItem'
+import SidebarStarfield from '../shared/ui/effects/SidebarStarfield'
+import DeviceItem from '../domains/device/management/DeviceItem'
 import { useReceiverSelection } from '../../hooks/useReceiverSelection'
 import { VisibleSatelliteInfo } from '../../types/satellite'
-// import { ApiRoutes } from '../../config/apiRoutes'
+// import { ApiRoutes } from '../../../../config/apiRoutes'
 import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName'
-import HandoverManager from '../handover/HandoverManager'
+import HandoverManager from '../domains/handover/execution/HandoverManager'
 import { useStrategy } from '../../contexts/StrategyContext'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
+import { useDemoMode } from '../../contexts/DemoModeContext'
 // RL 監控已移動到 Chart Analysis Dashboard
 
 interface SidebarProps {
@@ -241,6 +242,20 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     // 🎯 使用全域策略狀態
     const { currentStrategy } = useStrategy()
 
+    // 🎭 使用全域演示模式狀態
+    const {
+        isDemoMode,
+        dataSource,
+        setDemoMode,
+        setDataSource,
+        componentSettings,
+        switchAllToDemo,
+        switchAllToReal,
+        switchAllToHybrid,
+        getStatusText,
+        getStatusColor,
+    } = useDemoMode()
+
     // 標記未使用但保留的props為已消費（避免TypeScript警告）
     void _predictionAccuracyDashboardEnabled
     void _onPredictionAccuracyDashboardChange
@@ -321,8 +336,37 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         }
     }
 
-    // 精簡的核心功能開關配置 - 根據 paper.md 優化為 8 個核心功能
+    // 精簡的核心功能開關配置 - 根據 paper.md 優化為 8 個核心功能 + 演示模式控制
     const featureToggles: FeatureToggle[] = [
+        // 🎭 演示模式控制 (3個) - 全域數據源控制
+        {
+            id: 'demoMode',
+            label: '演示模式',
+            category: 'system',
+            enabled: isDemoMode,
+            onToggle: setDemoMode,
+            icon: '🎭',
+            description: `當前: ${getStatusText()}`,
+        },
+        {
+            id: 'realDataMode',
+            label: '真實數據模式',
+            category: 'system',
+            enabled: dataSource === 'real',
+            onToggle: () => switchAllToReal(),
+            icon: '📊',
+            description: '所有組件使用真實後端數據',
+        },
+        {
+            id: 'hybridDataMode',
+            label: '混合數據模式',
+            category: 'system',
+            enabled: dataSource === 'hybrid',
+            onToggle: () => switchAllToHybrid(),
+            icon: '🔀',
+            description: '模擬渲染 + 真實數據輔助',
+        },
+
         // UAV 控制 (4個)
         {
             id: 'auto',
@@ -400,8 +444,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         })
     }
 
-    // 精簡的類別配置 - 4 個分頁 (RL 監控已移動到 Chart Analysis)
+    // 精簡的類別配置 - 5 個分頁 (新增演示模式控制)
     const categories = [
+        { id: 'system', label: '系統模式', icon: '⚙️' },
         { id: 'uav', label: 'UAV 控制', icon: '🚁' },
         { id: 'satellite', label: '衛星控制', icon: '🛰️' },
         { id: 'handover_mgr', label: '換手管理', icon: '🔄' },
@@ -650,7 +695,48 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                 <>
                     {/* 功能控制面板 */}
                     <div className="control-panel">
-                        {/* LEO 衛星換手機制控制 - 直接顯示四個分頁 */}
+                        {/* 🎭 全域數據模式狀態指示器 */}
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '8px 12px',
+                                marginBottom: '8px',
+                                background: 'rgba(0, 0, 0, 0.3)',
+                                borderRadius: '4px',
+                                border: `1px solid ${getStatusColor()}`,
+                                fontSize: '12px',
+                                color: getStatusColor(),
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    backgroundColor: getStatusColor(),
+                                    marginRight: '6px',
+                                    animation:
+                                        dataSource === 'real'
+                                            ? 'pulse 2s infinite'
+                                            : 'none',
+                                }}
+                            />
+                            <span>{getStatusText()}</span>
+                            {dataSource === 'hybrid' && (
+                                <span
+                                    style={{
+                                        marginLeft: '4px',
+                                        fontSize: '10px',
+                                    }}
+                                >
+                                    (模擬渲染+真實數據)
+                                </span>
+                            )}
+                        </div>
+
+                        {/* LEO 衛星換手機制控制 - 直接顯示五個分頁 */}
                         <div className="leo-handover-control-section">
                             {/* 類別選擇 */}
                             <div className="category-tabs">

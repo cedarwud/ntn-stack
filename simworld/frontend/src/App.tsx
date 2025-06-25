@@ -1,15 +1,16 @@
 // src/App.tsx
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import SceneView from './components/scenes/StereogramView'
 import Layout from './components/layout/Layout'
 import EnhancedSidebar from './components/layout/EnhancedSidebar'
 import Navbar from './components/layout/Navbar'
 import SceneViewer from './components/scenes/FloorView'
-import ErrorBoundary from './components/ui/ErrorBoundary'
+import ErrorBoundary from './components/shared/ui/feedback/ErrorBoundary'
 import { DataSyncProvider } from './contexts/DataSyncContext'
 import { StrategyProvider } from './contexts/StrategyContext'
-import ToastNotification, { useToast } from './components/ui/ToastNotification'
+import { DemoModeProvider } from './contexts/DemoModeContext'
+import ToastNotification, { useToast } from './components/shared/ui/feedback/ToastNotification'
 import { backgroundHealthMonitor } from './utils/background-health-monitor'
 import './styles/App.scss'
 import { Device } from './types/device'
@@ -482,9 +483,10 @@ function App({ activeView }: AppProps) {
     }
 
     return (
-        <StrategyProvider>
-            <DataSyncProvider>
-                <ErrorBoundary>
+        <DemoModeProvider>
+            <StrategyProvider>
+                <DataSyncProvider>
+                    <ErrorBoundary>
                     <div className="app-container">
                         <Navbar
                             onMenuClick={handleMenuClick}
@@ -717,12 +719,12 @@ function App({ activeView }: AppProps) {
                             />
                         </div>
                     </div>
+                        {/* Toast 通知系統 */}
+                        <ToastNotification />
                 </ErrorBoundary>
-
-                {/* Toast 通知系統 */}
-                <ToastNotification />
-            </DataSyncProvider>
-        </StrategyProvider>
+                </DataSyncProvider>
+            </StrategyProvider>
+        </DemoModeProvider>
     )
 }
 

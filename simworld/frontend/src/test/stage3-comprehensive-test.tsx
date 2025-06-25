@@ -181,7 +181,7 @@ const Stage3ComprehensiveTest: React.FC = () => {
   const testSatelliteRendererIntegration = async () => {
     try {
       // 檢查 DynamicSatelliteRenderer 是否存在並可實例化
-      const rendererModule = await import('../components/visualization/DynamicSatelliteRenderer');
+      const rendererModule = await import('../components/domains/satellite/visualization/DynamicSatelliteRenderer');
       const hasRenderer = !!rendererModule.default;
       
       return {
@@ -273,7 +273,7 @@ const Stage3ComprehensiveTest: React.FC = () => {
   const testFourWayComparisonIntegration = async () => {
     try {
       // 檢查四種方案對比組件是否可正常載入
-      const comparisonModule = await import('../components/dashboard/FourWayHandoverComparisonDashboard');
+      const comparisonModule = await import('../components/domains/handover/analysis/FourWayHandoverComparisonDashboard');
       const hasComponent = !!comparisonModule.default;
       
       // 檢查模擬數據生成功能
@@ -324,7 +324,7 @@ const Stage3ComprehensiveTest: React.FC = () => {
   const testHandoverManagerMockMode = async () => {
     try {
       // 檢查 HandoverManager 的 mock 模式設定
-      await import('../components/handover/HandoverManager');
+      await import('../components/domains/handover/execution/HandoverManager');
       
       // 模擬檢查 mockMode 設定（實際需要查看源碼）
       const mockModeCheck = true; // 假設檢查通過

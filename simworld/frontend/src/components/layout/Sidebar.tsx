@@ -6,7 +6,7 @@ import SidebarStarfield from '../ui/SidebarStarfield' // Import the new componen
 import DeviceItem from '../devices/DeviceItem' // Import DeviceItem
 import { useReceiverSelection } from '../../hooks/useReceiverSelection' // Import the hook
 import { VisibleSatelliteInfo } from '../../types/satellite' // Import the new satellite type
-import { ApiRoutes } from '../../config/apiRoutes' // 引入API路由配置
+import { ApiRoutes } from '../../../../config/apiRoutes' // 引入API路由配置
 import { SATELLITE_CONFIG } from '../../config/satellite.config' // 引入衛星配置
 import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName' // 修正路徑
 
@@ -111,7 +111,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         typeof setInterval
     > | null>(null)
 
-
     // Effect to fetch satellites when count changes or on mount
     useEffect(() => {
         const loadSatellites = async () => {
@@ -169,10 +168,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 satelliteRefreshIntervalRef.current = null
             }
         }
-    }, [
-        onSatelliteDataUpdate,
-        satelliteEnabled,
-    ])
+    }, [onSatelliteDataUpdate, satelliteEnabled])
 
     // 移除衛星顯示數量變更處理函數
 
@@ -507,7 +503,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                 </>
             )}
-
 
             <div className="sidebar-actions-combined">
                 <button onClick={onAddDevice} className="add-device-btn">

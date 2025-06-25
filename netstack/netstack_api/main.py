@@ -329,10 +329,17 @@ async def lifespan(app: FastAPI):
     # 啟動 Sionna 整合服務
     await sionna_service.start()
 
-    # 初始化 AI 智慧決策服務
+    # 初始化 AI 智慧決策服務並附加到應用狀態
     try:
         await initialize_ai_services(redis_adapter)
-        logger.info("✅ AI 智慧決策服務已初始化")
+        
+        # 導入並附加 AI 服務到應用狀態
+        import netstack_api.routers.ai_decision_router as ai_router
+        app.state.ai_decision_engine = ai_router.ai_decision_engine
+        app.state.ai_ran_service = ai_router.ai_ran_service
+        app.state.automated_optimization_service = ai_router.automated_optimization_service
+        
+        logger.info("✅ AI 智慧決策服務已初始化並附加到應用狀態")
     except Exception as e:
         logger.error("AI 智慧決策服務初始化失敗", error=str(e))
         # 不阻塞應用啟動，但記錄錯誤
@@ -3027,13 +3034,17 @@ async def sionna_channel_simulation(request: dict):
 async def airan_quick_decision(request: dict):
     """AI-RAN 快速決策端點"""
     try:
-        airan_service = app.state.ai_ran_service
+        # 直接從路由器模組獲取服務，避免應用狀態問題
+        from .routers.ai_decision_router import get_ai_ran_service
+        airan_service = get_ai_ran_service()
+        
         decision = await airan_service.make_quick_decision(
             interference_level=request.get("interference_level", 0.5),
             context=request.get("context", {}),
         )
         return {"success": True, "decision": decision}
     except Exception as e:
+        logger.error("AI-RAN 快速決策失敗", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
