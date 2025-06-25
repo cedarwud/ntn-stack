@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.testing
+    volumes:
+      - .:/app/tests
+      - ../reports:/app/reports
+    environment:
+      - TEST_API_BASE_URL=http://simworld:8888
+      - TEST_NETSTACK_BASE_URL=http://netstack:8080
+      - TEST_DATABASE_URL=postgresql://test:test@postgres:5432/test_db
+      - TEST_REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app/tests
+    depends_on:
+      - simworld-mock
+      - netstack-mock
+      - postgres
+      - redis
+    networks:
+      - test-network
+
+  simworld-mock:
+    image: python:3.11-slim
+    command: |
+      sh -c "
+        pip install fastapi uvicorn
+        cat > /tmp/mock_server.py << 'EOF'
+        from fastapi import FastAPI
+        import uvicorn
+        
+        app = FastAPI()
+        
+        @app.get('/health')
+        def health():
+            return {'status': 'healthy', 'service': 'simworld-mock'}
+        
+        @app.get('/api/v1/satellite/')
+        def get_satellites():
+            return {'satellites': [{'name': 'TEST-SAT-001', 'norad_id': 12345}]}
+        
+        @app.get('/api/v1/tracking/uav/positions')
+        def get_uav_positions():
+            return {'uavs': []}
+        
+        @app.get('/api/v1/interference/analysis')
+        def get_interference():
+            return {'status': 'no_interference'}
+        
+        if __name__ == '__main__':
+            uvicorn.run(app, host='0.0.0.0', port=8888)
+        EOF
+        python /tmp/mock_server.py
+      "
+    ports:
+      - "8888:8888"
+    networks:
+      - test-network
+
+  netstack-mock:
+    image: python:3.11-slim
+    command: |
+      sh -c "
+        pip install fastapi uvicorn
+        cat > /tmp/mock_server.py << 'EOF'
+        from fastapi import FastAPI
+        import uvicorn
+        
+        app = FastAPI()
+        
+        @app.get('/health')
+        def health():
+            return {'status': 'healthy', 'service': 'netstack-mock'}
+        
+        @app.get('/api/v1/rl/status')
+        def get_rl_status():
+            return {
+                'status': 'running',
+                'system_resources': {
+                    'memory_usage_mb': 1024,
+                    'avg_response_time': 25
+                }
+            }
+        
+        @app.get('/api/v1/ai-decision/status')
+        def get_ai_status():
+            return {'status': 'ready', 'engine': 'mock'}
+        
+        @app.get('/api/v1/satellite-gnb/mapping')
+        def get_mapping():
+            return {'mappings': []}
+        
+        if __name__ == '__main__':
+            uvicorn.run(app, host='0.0.0.0', port=8080)
+        EOF
+        python /tmp/mock_server.py
+      "
+    ports:
+      - "8080:8080"
+    networks:
+      - test-network
+
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=test_db
+      - POSTGRES_USER=test
+      - POSTGRES_PASSWORD=test
+    ports:
+      - "5432:5432"
+    networks:
+      - test-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge
+
+volumes:
+  test-reports:
