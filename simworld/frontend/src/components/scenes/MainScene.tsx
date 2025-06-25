@@ -4,29 +4,31 @@ import { useThree } from '@react-three/fiber'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
 import { TextureLoader, RepeatWrapping, SRGBColorSpace } from 'three'
-import UAVFlight, { UAVManualDirection } from './UAVFlight'
+import UAVFlight, {
+    UAVManualDirection,
+} from '../domains/device/visualization/UAVFlight'
 import StaticModel from './StaticModel'
 import { ApiRoutes } from '../../config/apiRoutes'
 import {
     getBackendSceneName,
     getSceneTextureName,
 } from '../../utils/sceneUtils'
-import InterferenceOverlay from './visualization/InterferenceOverlay'
-import SINRHeatmap from './visualization/SINRHeatmap'
-import AIRANVisualization from './visualization/AIRANVisualization'
-import Sionna3DVisualization from './visualization/Sionna3DVisualization'
+import InterferenceOverlay from '../domains/interference/detection/InterferenceOverlay'
+import SINRHeatmap from '../domains/interference/detection/SINRHeatmap'
+import AIRANVisualization from '../domains/interference/mitigation/AIRANVisualization'
+import Sionna3DVisualization from '../domains/simulation/sionna/Sionna3DVisualization'
 import RealTimeMetrics from './visualization/RealTimeMetrics'
-import InterferenceAnalytics from './visualization/InterferenceAnalytics'
-import UAVSwarmCoordination from './visualization/UAVSwarmCoordination'
+import InterferenceAnalytics from '../domains/interference/analysis/InterferenceAnalytics'
+import UAVSwarmCoordination from '../domains/simulation/coordination/UAVSwarmCoordination'
 import MeshNetworkTopology from './visualization/MeshNetworkTopology'
-import FailoverMechanism from './visualization/FailoverMechanism'
-import TestResultsVisualization from '../viewers/TestResultsVisualization'
-import PerformanceTrendAnalyzer from '../viewers/PerformanceTrendAnalyzer'
-import AutomatedReportGenerator from '../viewers/AutomatedReportGenerator'
+import FailoverMechanism from '../domains/interference/mitigation/FailoverMechanism'
+import TestResultsVisualization from '../domains/analytics/testing/TestResultsVisualization'
+import PerformanceTrendAnalyzer from '../domains/analytics/performance/PerformanceTrendAnalyzer'
+import AutomatedReportGenerator from '../domains/analytics/ai/AutomatedReportGenerator'
 // import HandoverAnomalyVisualization from './visualization/HandoverAnomalyVisualization' // 未使用，已註釋
-import HandoverAnimation3D from './visualization/HandoverAnimation3D'
-import PredictionPath3D from './visualization/PredictionPath3D'
-import DynamicSatelliteRenderer from '../visualization/DynamicSatelliteRenderer'
+import HandoverAnimation3D from '../domains/handover/execution/HandoverAnimation3D'
+import PredictionPath3D from '../shared/visualization/PredictionPath3D'
+import DynamicSatelliteRenderer from '../domains/satellite/visualization/DynamicSatelliteRenderer'
 
 export interface MainSceneProps {
     devices: any[]
@@ -141,16 +143,22 @@ const MainScene: React.FC<MainSceneProps> = ({
     )
 
     // 🔗 衛星位置狀態管理 - 用於 HandoverAnimation3D
-    const [satellitePositions, setSatellitePositions] = useState<Map<string, [number, number, number]>>(new Map())
-    
+    const [satellitePositions, setSatellitePositions] = useState<
+        Map<string, [number, number, number]>
+    >(new Map())
+
     // 🔗 換手狀態管理 - 用於同步給 DynamicSatelliteRenderer
-    const [internalHandoverState, setInternalHandoverState] = useState<any>(null)
+    const [internalHandoverState, setInternalHandoverState] =
+        useState<any>(null)
 
     // 衛星位置更新回調
-    const handleSatellitePositions = useCallback((positions: Map<string, [number, number, number]>) => {
-        setSatellitePositions(positions)
-    }, [])
-    
+    const handleSatellitePositions = useCallback(
+        (positions: Map<string, [number, number, number]>) => {
+            setSatellitePositions(positions)
+        },
+        []
+    )
+
     // 換手狀態更新回調
     const handleHandoverStateUpdate = useCallback((state: any) => {
         setInternalHandoverState(state)
@@ -336,72 +344,71 @@ const MainScene: React.FC<MainSceneProps> = ({
         <>
             <primitive object={prepared} castShadow receiveShadow />
             {deviceMeshes}
-            
+
             {/* 階段四可視化覆蓋層 */}
-            <InterferenceOverlay 
-                devices={devices} 
-                enabled={interferenceVisualizationEnabled} 
+            <InterferenceOverlay
+                devices={devices}
+                enabled={interferenceVisualizationEnabled}
             />
-            <SINRHeatmap 
-                devices={devices} 
-                enabled={sinrHeatmapEnabled} 
+            <SINRHeatmap devices={devices} enabled={sinrHeatmapEnabled} />
+            <AIRANVisualization
+                devices={devices}
+                enabled={aiRanVisualizationEnabled}
             />
-            <AIRANVisualization 
-                devices={devices} 
-                enabled={aiRanVisualizationEnabled} 
+            <Sionna3DVisualization
+                devices={devices}
+                enabled={sionna3DVisualizationEnabled}
             />
-            <Sionna3DVisualization 
-                devices={devices} 
-                enabled={sionna3DVisualizationEnabled} 
+            <RealTimeMetrics
+                devices={devices}
+                enabled={realTimeMetricsEnabled}
             />
-            <RealTimeMetrics 
-                devices={devices} 
-                enabled={realTimeMetricsEnabled} 
+            <InterferenceAnalytics
+                devices={devices}
+                enabled={interferenceAnalyticsEnabled}
             />
-            <InterferenceAnalytics 
-                devices={devices} 
-                enabled={interferenceAnalyticsEnabled} 
-            />
-            
+
             {/* 階段五可視化覆蓋層 */}
-            <UAVSwarmCoordination 
-                devices={devices} 
-                enabled={uavSwarmCoordinationEnabled} 
+            <UAVSwarmCoordination
+                devices={devices}
+                enabled={uavSwarmCoordinationEnabled}
             />
-            <MeshNetworkTopology 
-                devices={devices} 
-                enabled={meshNetworkTopologyEnabled} 
+            <MeshNetworkTopology
+                devices={devices}
+                enabled={meshNetworkTopologyEnabled}
             />
-            <FailoverMechanism 
-                devices={devices} 
-                enabled={failoverMechanismEnabled} 
+            <FailoverMechanism
+                devices={devices}
+                enabled={failoverMechanismEnabled}
             />
-            
+
             {/* 🚀 新的換手連接線動畫系統 - 根據 handover.md 設計 */}
             <HandoverAnimation3D
                 devices={devices}
-                enabled={satelliteUavConnectionEnabled && handover3DAnimationEnabled}
+                enabled={
+                    satelliteUavConnectionEnabled && handover3DAnimationEnabled
+                }
                 satellitePositions={satellitePositions}
                 stableDuration={handoverStableDuration}
                 handoverMode={handoverMode}
                 onStatusUpdate={onHandoverStatusUpdate}
                 onHandoverStateUpdate={handleHandoverStateUpdate}
             />
-            
+
             {/* 階段七可視化覆蓋層 */}
-            <TestResultsVisualization 
-                devices={devices} 
+            <TestResultsVisualization
+                devices={devices}
                 enabled={testResultsVisualizationEnabled}
             />
-            <PerformanceTrendAnalyzer 
-                devices={devices} 
+            <PerformanceTrendAnalyzer
+                devices={devices}
                 enabled={performanceTrendAnalysisEnabled}
             />
-            <AutomatedReportGenerator 
-                devices={devices} 
+            <AutomatedReportGenerator
+                devices={devices}
                 enabled={automatedReportGenerationEnabled}
             />
-            
+
             {/* 衛星渲染器 - 動態軌跡模擬 */}
             <DynamicSatelliteRenderer
                 satellites={satellites}
@@ -418,10 +425,10 @@ const MainScene: React.FC<MainSceneProps> = ({
                 }}
                 onSatellitePositions={handleSatellitePositions}
             />
-            
+
             {/* 階段六換手視覺化 */}
-            <PredictionPath3D 
-                satellites={satellites} 
+            <PredictionPath3D
+                satellites={satellites}
                 enabled={predictionPath3DEnabled}
             />
         </>

@@ -1,11 +1,11 @@
 // src/components/SceneViewer.tsx
 import React, { useCallback } from 'react'
-import CoordinateDisplay from '../ui/CoordinateDisplay'
+import CoordinateDisplay from '../domains/coordinates/CoordinateDisplay'
 import { Device } from '../../types/device'
 import '../../styles/Sidebar.scss'
-import Starfield from '../ui/Starfield'
-import DeviceOverlaySVG from './DeviceOverlaySVG'
-import DevicePopover from '../devices/DevicePopover'
+import Starfield from '../shared/ui/effects/Starfield'
+import DeviceOverlaySVG from '../domains/device/visualization/DeviceOverlaySVG'
+import DevicePopover from '../domains/device/management/DevicePopover'
 import { useSceneImageManager } from '../../hooks/useSceneImageManager'
 import {
     useDevicePopoverManager,
