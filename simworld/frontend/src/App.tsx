@@ -9,7 +9,6 @@ import SceneViewer from './components/scenes/FloorView'
 import ErrorBoundary from './components/shared/ui/feedback/ErrorBoundary'
 import { DataSyncProvider } from './contexts/DataSyncContext'
 import { StrategyProvider } from './contexts/StrategyContext'
-import { DemoModeProvider } from './contexts/DemoModeContext'
 import ToastNotification, { useToast } from './components/shared/ui/feedback/ToastNotification'
 import { backgroundHealthMonitor } from './utils/background-health-monitor'
 import './styles/App.scss'
@@ -483,9 +482,8 @@ function App({ activeView }: AppProps) {
     }
 
     return (
-        <DemoModeProvider>
-            <StrategyProvider>
-                <DataSyncProvider>
+        <StrategyProvider>
+            <DataSyncProvider>
                     <ErrorBoundary>
                     <div className="app-container">
                         <Navbar
@@ -723,8 +721,7 @@ function App({ activeView }: AppProps) {
                         <ToastNotification />
                 </ErrorBoundary>
                 </DataSyncProvider>
-            </StrategyProvider>
-        </DemoModeProvider>
+        </StrategyProvider>
     )
 }
 

@@ -6,7 +6,7 @@ import SINRViewer from '../domains/interference/detection/SINRViewer'
 import CFRViewer from '../domains/simulation/wireless/CFRViewer'
 import DelayDopplerViewer from '../domains/simulation/wireless/DelayDopplerViewer'
 import TimeFrequencyViewer from '../domains/simulation/wireless/TimeFrequencyViewer'
-import FourWayHandoverComparisonViewer from '../domains/handover/analysis/FourWayHandoverComparisonDashboard'
+import FourWayHandoverComparisonDashboard from '../domains/handover/analysis/FourWayHandoverComparisonDashboard'
 import ViewerModal from '../shared/ui/layout/ViewerModal'
 import ChartAnalysisDashboard from '../views/dashboards/ChartAnalysisDashboard/ChartAnalysisDashboard'
 import { ViewerProps } from '../../../../types/viewer'
@@ -207,7 +207,7 @@ const Navbar: FC<NavbarProps> = ({
             isLoading: fourWayComparisonIsLoadingForHeader,
             setIsLoading: setFourWayComparisonIsLoadingForHeader,
             refreshHandlerRef: fourWayComparisonRefreshHandlerRef,
-            ViewerComponent: FourWayHandoverComparisonViewer,
+            ViewerComponent: FourWayHandoverComparisonDashboard,
         },
     ]
 
