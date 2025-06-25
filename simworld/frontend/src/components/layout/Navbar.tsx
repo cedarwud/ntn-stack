@@ -193,11 +193,11 @@ const Navbar: FC<NavbarProps> = ({
         },
         {
             id: 'fourWayComparison',
-            menuText: '四種方案對比',
+            menuText: '四種方案詳細對比',
             titleConfig: {
-                base: '四種換手方案性能對比',
-                loading: '正在獲取真實NetStack數據並生成對比結果...',
-                hoverRefresh: '重新獲取對比數據',
+                base: '四種換手方案詳細性能對比',
+                loading: '正在獲取真實NetStack數據並生成詳細對比結果...',
+                hoverRefresh: '重新獲取詳細對比數據',
             },
             isOpen: showFourWayComparisonModal,
             openModal: () => setShowFourWayComparisonModal(true),
@@ -359,6 +359,7 @@ const Navbar: FC<NavbarProps> = ({
                                             'cfr',
                                             'delayDoppler',
                                             'timeFrequency',
+                                            'fourWayComparison',
                                         ].includes(config.id)
                                     )
                                     .map((config) => (

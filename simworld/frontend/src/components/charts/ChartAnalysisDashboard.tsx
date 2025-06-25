@@ -4977,11 +4977,8 @@ const ChartAnalysisDashboard = ({
                                             </div>
                                             <div className="stat-trend">
                                                 {isDqnTraining || isPpoTraining
-                                                    ? '+'
-                                                    : ''}
-                                                {isDqnTraining || isPpoTraining
-                                                    ? '1-3/min'
-                                                    : '0/min'}
+                                                    ? '訓練中...'
+                                                    : '待機中'}
                                             </div>
                                         </div>
 
@@ -5029,8 +5026,8 @@ const ChartAnalysisDashboard = ({
                                                     0 ||
                                                     trainingMetrics.ppo
                                                         .episodes > 0)
-                                                    ? '+2.3%'
-                                                    : '±0%'}
+                                                    ? '學習中'
+                                                    : '無變化'}
                                             </div>
                                         </div>
 
@@ -5070,14 +5067,9 @@ const ChartAnalysisDashboard = ({
                                                 })()}
                                             </div>
                                             <div className="stat-trend">
-                                                {(isDqnTraining ||
-                                                    isPpoTraining) &&
-                                                (trainingMetrics.dqn.episodes >
-                                                    0 ||
-                                                    trainingMetrics.ppo
-                                                        .episodes > 0)
-                                                    ? '+15.2'
-                                                    : '+0.0'}
+                                                {isDqnTraining || isPpoTraining
+                                                    ? '累積中'
+                                                    : '無累積'}
                                             </div>
                                         </div>
 
