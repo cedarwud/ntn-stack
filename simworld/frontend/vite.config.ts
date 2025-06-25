@@ -14,10 +14,7 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0', // 👈 必填，表示聽所有網卡
             port: parseInt(env.VITE_PORT) || 5173, // 使用 5173 端口
         strictPort: false, // 設為 false 以允許自動尋找可用端口
-        hmr: {
-            host: 'localhost',
-            port: 5173, // 保持與 server.port 一致
-        },
+        hmr: false, // 在 Docker 環境中禁用 HMR 避免 WebSocket 問題
         origin: 'http://localhost:5173',
         proxy: {
                 // 代理API請求到 SimWorld 後端

@@ -252,7 +252,7 @@ export class RealSatelliteDataManager {
             const globalViewChanged = this.lastLoggedGlobalView !== this.globalView
             
             if (satelliteCountChanged || globalViewChanged) {
-                console.log(`🔄 衛星數據更新完成: ${newData.results.total_visible} 顆衛星 (全球視野: ${this.globalView})`)
+                // console.log(`🔄 衛星數據更新完成: ${newData.results.total_visible} 顆衛星 (全球視野: ${this.globalView})`) // 減少重複日誌
                 this.lastLoggedSatelliteCount = newData.results.total_visible
                 this.lastLoggedGlobalView = this.globalView
             }

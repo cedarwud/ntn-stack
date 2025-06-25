@@ -60,7 +60,7 @@ export async function testNetStackCoreSync(): Promise<TestResult> {
  */
 export async function testSimWorldSatellites(): Promise<TestResult> {
   try {
-    const satellites = await simWorldApi.getVisibleSatellites()
+    const satellites = await simWorldApi.getVisibleSatellites(-90, 150, 0, 0)
     
     // 處理不同的響應格式
     let satelliteArray: any[] = []
