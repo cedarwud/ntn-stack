@@ -6,7 +6,6 @@ import SINRViewer from '../domains/interference/detection/SINRViewer'
 import CFRViewer from '../domains/simulation/wireless/CFRViewer'
 import DelayDopplerViewer from '../domains/simulation/wireless/DelayDopplerViewer'
 import TimeFrequencyViewer from '../domains/simulation/wireless/TimeFrequencyViewer'
-import FourWayHandoverComparisonDashboard from '../domains/handover/analysis/FourWayHandoverComparisonDashboard'
 import ViewerModal from '../shared/ui/layout/ViewerModal'
 import ChartAnalysisDashboard from '../views/dashboards/ChartAnalysisDashboard/ChartAnalysisDashboard'
 import { ViewerProps } from '../../../../types/viewer'
@@ -60,8 +59,6 @@ const Navbar: FC<NavbarProps> = ({
     const [showCFRModal, setShowCFRModal] = useState(false)
     const [showDelayDopplerModal, setShowDelayDopplerModal] = useState(false)
     const [showTimeFrequencyModal, setShowTimeFrequencyModal] = useState(false)
-    const [showFourWayComparisonModal, setShowFourWayComparisonModal] =
-        useState(false)
     // States for last update times
     const [sinrModalLastUpdate, setSinrModalLastUpdate] = useState<string>('')
     const [cfrModalLastUpdate, setCfrModalLastUpdate] = useState<string>('')
@@ -69,16 +66,11 @@ const Navbar: FC<NavbarProps> = ({
         useState<string>('')
     const [timeFrequencyModalLastUpdate, setTimeFrequencyModalLastUpdate] =
         useState<string>('')
-    const [
-        fourWayComparisonModalLastUpdate,
-        setFourWayComparisonModalLastUpdate,
-    ] = useState<string>('')
     // Refs for refresh handlers
     const sinrRefreshHandlerRef = useRef<(() => void) | null>(null)
     const cfrRefreshHandlerRef = useRef<(() => void) | null>(null)
     const delayDopplerRefreshHandlerRef = useRef<(() => void) | null>(null)
     const timeFrequencyRefreshHandlerRef = useRef<(() => void) | null>(null)
-    const fourWayComparisonRefreshHandlerRef = useRef<(() => void) | null>(null)
     // States for loading status for header titles
     const [sinrIsLoadingForHeader, setSinrIsLoadingForHeader] =
         useState<boolean>(true)
@@ -89,10 +81,6 @@ const Navbar: FC<NavbarProps> = ({
     const [
         timeFrequencyIsLoadingForHeader,
         setTimeFrequencyIsLoadingForHeader,
-    ] = useState<boolean>(true)
-    const [
-        fourWayComparisonIsLoadingForHeader,
-        setFourWayComparisonIsLoadingForHeader,
     ] = useState<boolean>(true)
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen)
@@ -190,24 +178,6 @@ const Navbar: FC<NavbarProps> = ({
             setIsLoading: setTimeFrequencyIsLoadingForHeader,
             refreshHandlerRef: timeFrequencyRefreshHandlerRef,
             ViewerComponent: TimeFrequencyViewer,
-        },
-        {
-            id: 'fourWayComparison',
-            menuText: '四種方案詳細對比',
-            titleConfig: {
-                base: '四種換手方案詳細性能對比',
-                loading: '正在獲取真實NetStack數據並生成詳細對比結果...',
-                hoverRefresh: '重新獲取詳細對比數據',
-            },
-            isOpen: showFourWayComparisonModal,
-            openModal: () => setShowFourWayComparisonModal(true),
-            closeModal: () => setShowFourWayComparisonModal(false),
-            lastUpdate: fourWayComparisonModalLastUpdate,
-            setLastUpdate: setFourWayComparisonModalLastUpdate,
-            isLoading: fourWayComparisonIsLoadingForHeader,
-            setIsLoading: setFourWayComparisonIsLoadingForHeader,
-            refreshHandlerRef: fourWayComparisonRefreshHandlerRef,
-            ViewerComponent: FourWayHandoverComparisonDashboard,
         },
     ]
 
@@ -359,7 +329,6 @@ const Navbar: FC<NavbarProps> = ({
                                             'cfr',
                                             'delayDoppler',
                                             'timeFrequency',
-                                            'fourWayComparison',
                                         ].includes(config.id)
                                     )
                                     .map((config) => (
