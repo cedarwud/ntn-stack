@@ -10,7 +10,11 @@ import {
 import './HandoverComparisonDashboard.scss';
 
 interface FourWayHandoverComparisonDashboardProps {
-  enabled: boolean;
+  enabled?: boolean;
+  onReportLastUpdateToNavbar?: (time: string) => void;
+  reportRefreshHandlerToNavbar?: (handler: () => void) => void;
+  reportIsLoadingToNavbar?: (loading: boolean) => void;
+  currentScene?: string;
 }
 
 interface HandoverMetrics {
@@ -56,7 +60,11 @@ interface FourWayComparisonResult {
 }
 
 const FourWayHandoverComparisonDashboard: React.FC<FourWayHandoverComparisonDashboardProps> = ({
-  enabled
+  enabled = true,
+  onReportLastUpdateToNavbar,
+  reportRefreshHandlerToNavbar,
+  reportIsLoadingToNavbar,
+  currentScene
 }) => {
   // 數據同步上下文
   const { isConnected: netstackConnected } = useNetStackData();
@@ -335,11 +343,19 @@ const FourWayHandoverComparisonDashboard: React.FC<FourWayHandoverComparisonDash
   
   
   // 定期更新數據
+  // 註冊刷新處理函數到 navbar
   useEffect(() => {
-    if (!enabled) return;
-    
-    const updateData = async () => {
-      let result: FourWayComparisonResult | null = null;
+    if (reportRefreshHandlerToNavbar) {
+      reportRefreshHandlerToNavbar(() => {
+        // 手動刷新邏輯
+        updateData();
+      });
+    }
+  }, [reportRefreshHandlerToNavbar]);
+
+  const updateData = useCallback(async () => {
+    reportIsLoadingToNavbar?.(true);
+    let result: FourWayComparisonResult | null = null;
       
       // 優先嘗試使用算法 API（不依賴 NetStack 連接狀態）
       try {
@@ -369,16 +385,23 @@ const FourWayHandoverComparisonDashboard: React.FC<FourWayHandoverComparisonDash
       if (result) {
         setComparisonResults(prev => [result!, ...prev.slice(0, 9)]);
       }
-    };
+      
+      // 報告更新時間到 navbar
+      onReportLastUpdateToNavbar?.(new Date().toISOString());
+      reportIsLoadingToNavbar?.(false);
+    }, [generateRealComparisonData, generateSimulatedComparisonData, useRealData, reportIsLoadingToNavbar, onReportLastUpdateToNavbar]);
     
-    // 立即獲取一次
-    updateData();
-    
-    // 每30秒更新一次
-    const interval = setInterval(updateData, 30000);
-    
-    return () => clearInterval(interval);
-  }, [enabled, useRealData, generateRealComparisonData, generateSimulatedComparisonData]);
+    useEffect(() => {
+      if (!enabled) return;
+      
+      // 立即獲取一次
+      updateData();
+      
+      // 每30秒更新一次
+      const interval = setInterval(updateData, 30000);
+      
+      return () => clearInterval(interval);
+    }, [enabled, updateData]);
   
   // 獲取指標單位
   const getMetricUnit = (metric: string) => {
@@ -499,6 +522,22 @@ const FourWayHandoverComparisonDashboard: React.FC<FourWayHandoverComparisonDash
 
   const latestResult = comparisonResults.length > 0 ? comparisonResults[0] : createDefaultData();
 
+  // 安全檢查：確保有基本數據結構
+  if (!latestResult || !latestResult.traditional_metrics) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '400px',
+        color: '#aab8c5',
+        fontSize: '16px'
+      }}>
+        <div>正在加載四種方案對比數據...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="handover-comparison-dashboard" style={{
       background: 'radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)',
@@ -583,10 +622,15 @@ const FourWayHandoverComparisonDashboard: React.FC<FourWayHandoverComparisonDash
         marginBottom: '24px'
       }}>
         {methods.map(method => {
-          const metrics = latestResult[`${method.id}_metrics` as keyof FourWayComparisonResult] as HandoverMetrics;
+          const metrics = latestResult?.[`${method.id}_metrics` as keyof FourWayComparisonResult] as HandoverMetrics;
           const improvement = method.id !== 'traditional' 
-            ? latestResult.improvement_vs_traditional[method.id as keyof typeof latestResult.improvement_vs_traditional]
+            ? latestResult?.improvement_vs_traditional?.[method.id as keyof typeof latestResult.improvement_vs_traditional]
             : null;
+          
+          // 安全檢查：如果 metrics 不存在，跳過渲染
+          if (!metrics) {
+            return null;
+          }
           
           return (
             <div 
@@ -661,19 +705,19 @@ const FourWayHandoverComparisonDashboard: React.FC<FourWayHandoverComparisonDash
                   }}>
                     <div>
                       <div style={{ color: '#aab8c5' }}>延遲</div>
-                      <div style={{ fontWeight: 'bold', color: '#eaf6ff' }}>{metrics.latency.toFixed(1)}ms</div>
+                      <div style={{ fontWeight: 'bold', color: '#eaf6ff' }}>{(metrics.latency ?? 0).toFixed(1)}ms</div>
                     </div>
                     <div>
                       <div style={{ color: '#aab8c5' }}>成功率</div>
-                      <div style={{ fontWeight: 'bold', color: '#eaf6ff' }}>{metrics.success_rate.toFixed(1)}%</div>
+                      <div style={{ fontWeight: 'bold', color: '#eaf6ff' }}>{(metrics.success_rate ?? 0).toFixed(1)}%</div>
                     </div>
                     <div>
                       <div style={{ color: '#aab8c5' }}>吞吐量</div>
-                      <div style={{ fontWeight: 'bold', color: '#eaf6ff' }}>{metrics.throughput.toFixed(0)}Mbps</div>
+                      <div style={{ fontWeight: 'bold', color: '#eaf6ff' }}>{(metrics.throughput ?? 0).toFixed(0)}Mbps</div>
                     </div>
                     <div>
                       <div style={{ color: '#aab8c5' }}>預測精度</div>
-                      <div style={{ fontWeight: 'bold', color: '#eaf6ff' }}>{metrics.prediction_accuracy.toFixed(1)}%</div>
+                      <div style={{ fontWeight: 'bold', color: '#eaf6ff' }}>{(metrics.prediction_accuracy ?? 0).toFixed(1)}%</div>
                     </div>
                   </div>
                   
@@ -713,11 +757,16 @@ const FourWayHandoverComparisonDashboard: React.FC<FourWayHandoverComparisonDash
           gap: '16px'
         }}>
           {['latency', 'success_rate', 'throughput', 'prediction_accuracy', 'packet_loss', 'power_consumption'].map(metric => {
-                const selectedMetrics = latestResult[`${selectedMethod}_metrics` as keyof FourWayComparisonResult] as HandoverMetrics;
-                const selectedValue = selectedMetrics[metric as keyof HandoverMetrics] as number;
+                const selectedMetrics = latestResult?.[`${selectedMethod}_metrics` as keyof FourWayComparisonResult] as HandoverMetrics;
+                const selectedValue = selectedMetrics?.[metric as keyof HandoverMetrics] as number;
+                
+                // 安全檢查：如果數據不存在，跳過
+                if (!selectedMetrics || selectedValue === undefined) {
+                  return null;
+                }
                 
                 const improvement = selectedMethod !== 'traditional' 
-                  ? latestResult.improvement_vs_traditional[selectedMethod as keyof typeof latestResult.improvement_vs_traditional]?.[metric] || 0
+                  ? latestResult?.improvement_vs_traditional?.[selectedMethod as keyof typeof latestResult.improvement_vs_traditional]?.[metric] || 0
                   : 0;
                 
                 return (
@@ -742,7 +791,7 @@ const FourWayHandoverComparisonDashboard: React.FC<FourWayHandoverComparisonDash
                       color: methods.find(m => m.id === selectedMethod)?.color,
                       marginBottom: '4px'
                     }}>
-                      {selectedValue.toFixed(1)}{getMetricUnit(metric)}
+                      {(selectedValue ?? 0).toFixed(1)}{getMetricUnit(metric)}
                     </div>
                     
                     {selectedMethod !== 'traditional' && (

@@ -439,7 +439,7 @@ const ChartAnalysisDashboard = ({
     // Fetch real UAV data from SimWorld API
     const fetchRealUAVData = async () => {
         try {
-            const response = await fetch('/api/v1/uav/positions')
+            const response = await fetch('/api/v1/tracking/uav/positions')
             if (response.ok) {
                 const data = await response.json()
                 if (data.success && data.positions) {
@@ -1539,7 +1539,7 @@ const ChartAnalysisDashboard = ({
             )
             if (response.ok) {
                 const data = await response.json()
-                console.log('✅ 收到NetStack系統性能指標:', data)
+                // console.log('✅ 收到NetStack系統性能指標:', data) // 減少重複日誌
 
                 const components = Object.values(data.all_components || {})
 
@@ -1600,14 +1600,14 @@ const ChartAnalysisDashboard = ({
                     setSystemMetrics(latestMetrics)
                     setRealDataError(null)
 
-                    console.log('🎯 真實系統監控指標 (基於NetStack數據):', {
-                        CPU: `${latestMetrics.cpu}%`,
-                        Memory: `${latestMetrics.memory}%`,
-                        GPU: `${latestMetrics.gpu}%`,
-                        NetworkLatency: `${latestMetrics.networkLatency}ms`,
-                        DataSource: 'netstack_performance_api',
-                        ComponentCount: components.length,
-                    })
+                    // console.log('🎯 真實系統監控指標 (基於NetStack數據):', {
+                    //     CPU: `${latestMetrics.cpu}%`,
+                    //     Memory: `${latestMetrics.memory}%`,
+                    //     GPU: `${latestMetrics.gpu}%`,
+                    //     NetworkLatency: `${latestMetrics.networkLatency}ms`,
+                    //     DataSource: 'netstack_performance_api',
+                    //     ComponentCount: components.length,
+                    // }) // 減少重複日誌
                     return true
                 }
             } else {

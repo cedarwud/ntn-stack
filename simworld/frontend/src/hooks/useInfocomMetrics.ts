@@ -74,11 +74,11 @@ export const useInfocomMetrics = (enabled: boolean = true) => {
                 setMetrics(calculatedMetrics);
                 setDataSource('calculated');
                 
-                console.log('🚀 INFOCOM 2024 實際算法指標已更新:', {
-                    source: data.data_source,
-                    originalLatency: data.latency_ms,
-                    calculatedMetrics
-                });
+                // console.log('🚀 INFOCOM 2024 實際算法指標已更新:', {
+                //     source: data.data_source,
+                //     originalLatency: data.latency_ms,
+                //     calculatedMetrics
+                // }); // 減少重複日誌
 
             } catch (err) {
                 console.warn('⚠️ INFOCOM 2024 算法指標獲取失敗，使用預設值:', err);
