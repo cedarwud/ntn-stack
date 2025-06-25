@@ -1,4 +1,4 @@
-import { ApiRoutes } from '../../config/apiRoutes'
+import { ApiRoutes } from '../../../../config/apiRoutes'
 
 // === 衛星渲染和轉換設定 ===
 export const GLB_SCENE_SIZE = 1200 // 模型場景大小
