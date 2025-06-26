@@ -21,6 +21,17 @@ NETSTACK_DIR := netstack
 SIMWORLD_DIR := simworld
 COMPOSE_PROJECT_NAME := ntn-stack
 
+# 環境變數配置
+# 嘗試從 .env 文件載入環境變數
+ifneq (,$(wildcard .env))
+    include .env
+    export $(shell sed 's/=.*//' .env)
+endif
+
+# 如果 .env 不存在或未設定，使用預設值
+EXTERNAL_IP ?= 127.0.0.1
+export EXTERNAL_IP
+
 # Docker Compose 文件
 NETSTACK_COMPOSE := $(NETSTACK_DIR)/compose/core.yaml
 SIMWORLD_COMPOSE := $(SIMWORLD_DIR)/docker-compose.yml
@@ -54,6 +65,10 @@ help: ## 顯示幫助信息
 fresh-up: clean-i build-n up ## 重新啟動所有服務
 
 up: all-start ## 啟動所有服務
+
+dev: ## 開發環境啟動 (使用 127.0.0.1)
+	@echo "$(CYAN)🚀 啟動開發環境 (EXTERNAL_IP=127.0.0.1)...$(RESET)"
+	@$(MAKE) all-start EXTERNAL_IP=127.0.0.1
 
 dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 	@echo "$(CYAN)🛠️ 設置開發環境 (用戶註冊 + 演示數據)...$(RESET)"

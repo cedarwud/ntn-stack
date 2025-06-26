@@ -52,6 +52,8 @@ services:
 
             # 其他通用設定
             PYTHONUNBUFFERED: '1'
+            # 外部 IP 地址設定 (用於 CORS)
+            EXTERNAL_IP: ${EXTERNAL_IP:-127.0.0.1}
             # 資料庫連接 URL
             DATABASE_URL: postgresql+asyncpg://sat:123@postgis:5432/ntn_stack
             # Redis 連接 URL (連接到 NetStack 的 Redis)
