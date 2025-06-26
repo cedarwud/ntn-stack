@@ -1,8 +1,7 @@
-import { useRef, useEffect, useState, useMemo } from 'react'
+import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-// @ts-ignore
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { ApiRoutes } from '../../../../config/apiRoutes'
 
@@ -26,6 +25,23 @@ export type UAVManualDirection =
     | 'rotate-right'
     | null
 
+interface FlightModeParams {
+    cruise: FlightParams
+    hover: FlightParams
+    agile: FlightParams
+    explore: FlightParams
+}
+
+interface FlightParams {
+    pathCurvature: number
+    speedFactor: number
+    turbulenceEffect: number
+    heightVariation: number
+    smoothingFactor: number
+}
+
+type FlightMode = 'cruise' | 'hover' | 'agile' | 'explore'
+
 export interface UAVFlightProps {
     position: [number, number, number]
     scale: [number, number, number]
@@ -46,11 +62,13 @@ export default function UAVFlight({
     uavAnimation,
 }: UAVFlightProps) {
     const group = useRef<THREE.Group>(null)
-    const cloneRef = useRef<THREE.Object3D>(null)
     const lightRef = useRef<THREE.PointLight>(null)
 
     // 使用標準加載方式
-    const { scene, animations } = useGLTF(UAV_MODEL_URL) as any
+    const { scene, animations } = useGLTF(UAV_MODEL_URL) as {
+        scene: THREE.Group
+        animations: THREE.AnimationClip[]
+    }
 
     // 用 useMemo 確保每個 UAV 都有獨立骨架
     const clonedScene = useMemo(() => SkeletonUtils.clone(scene), [scene])
@@ -73,22 +91,26 @@ export default function UAVFlight({
         initialPosition.current.set(...position)
     }, [position])
 
-    const [targetPosition, setTargetPosition] = useState<THREE.Vector3>(
-        new THREE.Vector3(...position)
+    const [, setTargetPosition] = useState<THREE.Vector3>(
+        new THREE.Vector3(0, 10, 0)
     )
-    const moveSpeed = useRef(0.5)
-    const lastDirection = useRef(new THREE.Vector3(0, 0, 0))
-    const turbulence = useRef({ x: 0, y: 0, z: 0 })
-    const velocity = useRef(new THREE.Vector3(0, 0, 0))
-    const acceleration = useRef(0.5)
-    const deceleration = useRef(0.3)
-    const maxSpeed = useRef(1.5)
 
-    const flightModes = ['cruise', 'hover', 'agile', 'explore'] as const
-    type FlightMode = (typeof flightModes)[number]
+    // 飛行模式相關狀態
     const [flightMode, setFlightMode] = useState<FlightMode>('cruise')
-    const flightModeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const flightModeParams = useRef({
+    const flightModes = useMemo<FlightMode[]>(
+        () => ['cruise', 'hover', 'agile', 'explore'],
+        []
+    )
+    const turbulence = useRef({ x: 0, y: 0, z: 0 })
+    const maxSpeed = useRef(1.0)
+    const acceleration = useRef(0.5)
+    const flightModeTimer = useRef<NodeJS.Timeout | null>(null)
+    const velocity = useRef(new THREE.Vector3(0, 0, 0))
+    const lastDirection = useRef(new THREE.Vector3(0, 0, 0))
+    const deceleration = useRef(0.3)
+
+    // Initialize flight parameters
+    const flightModeParams = useRef<FlightModeParams>({
         cruise: {
             pathCurvature: 0.2,
             speedFactor: 1.0,
@@ -151,7 +173,7 @@ export default function UAVFlight({
             clearInterval(interval)
             if (flightModeTimer.current) clearTimeout(flightModeTimer.current)
         }
-    }, [flightMode])
+    }, [flightMode, flightModes])
 
     const generateBezierPath = (
         start: THREE.Vector3,
@@ -217,7 +239,6 @@ export default function UAVFlight({
         return path
     }
     const generateNewTarget = () => {
-        const modeParams = flightModeParams.current[flightMode]
         let distance
         let heightRange
         switch (flightMode) {
@@ -256,7 +277,8 @@ export default function UAVFlight({
     ) => {
         return current.distanceTo(target) < threshold
     }
-    const generatePath = () => {
+
+    const generatePath = useCallback(() => {
         const start = currentPosition
         const end = generateNewTarget()
         const distance = start.distanceTo(end)
@@ -266,11 +288,12 @@ export default function UAVFlight({
         currentWaypoint.current = 0
         setTargetPosition(end)
         return newWaypoints
-    }
+    }, [currentPosition])
+
     useEffect(() => {
         // 設置警告攔截器以忽略動畫綁定錯誤
         const originalWarning = console.warn
-        console.warn = function (...args: any[]) {
+        console.warn = function (...args: unknown[]) {
             const message = args[0]
             if (
                 message &&
@@ -337,7 +360,7 @@ export default function UAVFlight({
         return () => {
             console.warn = originalWarning
         }
-    }, [actions, clonedScene, uavAnimation])
+    }, [actions, clonedScene, uavAnimation, generatePath])
 
     // 確保使用標準材質
     const ensureStandardMaterial = (material: THREE.Material) => {
@@ -350,12 +373,15 @@ export default function UAVFlight({
             // 複製基本屬性
             if (
                 'color' in material &&
-                (material as any).color instanceof THREE.Color
+                (material as { color: THREE.Color }).color instanceof
+                    THREE.Color
             ) {
-                stdMaterial.color.copy((material as any).color)
+                stdMaterial.color.copy(
+                    (material as { color: THREE.Color }).color
+                )
             }
             if ('map' in material) {
-                stdMaterial.map = (material as any).map
+                stdMaterial.map = (material as { map: THREE.Texture }).map
             }
 
             return stdMaterial
@@ -516,7 +542,7 @@ export default function UAVFlight({
             Math.min(maxSpeed.current, distanceToTarget / 10) *
             modeParams.speedFactor
         const currentSpeed = velocity.current.length()
-        let accelerationFactor =
+        const accelerationFactor =
             Math.min(1, distanceToTarget / 50) *
             (currentSpeed < targetSpeed
                 ? acceleration.current
@@ -617,13 +643,7 @@ export default function UAVFlight({
                 }
             }
         }
-    }, [
-        manualDirection,
-        auto,
-        onManualMoveDone,
-        onPositionUpdate,
-        throttleInterval,
-    ])
+    }, [manualDirection, auto, onManualMoveDone, onPositionUpdate])
     useEffect(() => {
         console.log('UAV 模型載入成功:', clonedScene)
         console.log('光源已添加到組件中')

@@ -3,8 +3,8 @@
  * 統一衛星數據格式化、轉換和驗證邏輯
  */
 
-import { VisibleSatelliteInfo } from '../../../types/satellite'
-import { SatelliteConnection } from '../../../types/handover'
+import { VisibleSatelliteInfo } from '../../../../types/satellite'
+import { SatelliteConnection } from '../../../../types/handover'
 import { HANDOVER_CONFIG } from '../config/handoverConfig'
 
 /**

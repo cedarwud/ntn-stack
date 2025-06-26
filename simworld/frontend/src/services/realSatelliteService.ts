@@ -184,7 +184,7 @@ export function getSatelliteStatusDescription(satellite: RealSatelliteInfo): str
     const elevation = satellite.position.elevation
     const signalStrength = satellite.signal_quality.estimated_signal_strength
     
-    let status = []
+    const status = []
     
     if (elevation > 60) status.push('高仰角')
     else if (elevation > 30) status.push('中仰角')

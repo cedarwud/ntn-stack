@@ -7,8 +7,6 @@ import { SATELLITE_CONFIG } from '../../../../config/satellite.config'
 import {
     realSatelliteDataManager,
     RealSatelliteInfo,
-    getSignalStrengthColor,
-    getSatelliteStatusDescription,
 } from '../../../../services/realSatelliteService'
 
 interface DynamicSatelliteRendererProps {

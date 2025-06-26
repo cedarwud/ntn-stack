@@ -12,6 +12,30 @@ interface MicroserviceArchitectureDashboardProps {
     enabled: boolean
 }
 
+interface AlgorithmStatus {
+    algorithm_status?: {
+        is_running: boolean
+        sync_accuracy_ms?: number
+        prediction_accuracy?: number
+    }
+    predictions?: {
+        accuracy?: number
+        latency?: number
+        throughput?: number
+        total_predictions?: number
+        successful_predictions?: number
+        accuracy_trend?: string
+    }
+}
+
+interface SystemAlert {
+    id: string
+    severity: string
+    component: string
+    timestamp: string
+    message: string
+}
+
 interface ServiceStatus {
     name: string
     status: 'healthy' | 'degraded' | 'unhealthy'
@@ -67,8 +91,9 @@ const MicroserviceArchitectureDashboard: React.FC<
 
     const [services, setServices] = useState<ServiceStatus[]>([])
     const [ntnMetrics, setNTNMetrics] = useState<NTNMetrics | null>(null)
-    const [algorithmStatus, setAlgorithmStatus] = useState<any>(null)
-    const [systemAlerts, setSystemAlerts] = useState<any[]>([])
+    const [algorithmStatus, setAlgorithmStatus] =
+        useState<AlgorithmStatus | null>(null)
+    const [systemAlerts, setSystemAlerts] = useState<SystemAlert[]>([])
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
 
     useEffect(() => {
@@ -101,7 +126,12 @@ const MicroserviceArchitectureDashboard: React.FC<
                 // 更新服務狀態
                 if (servicesData.services) {
                     const enrichedServices = servicesData.services.map(
-                        (service: any) => ({
+                        (service: {
+                            name: string
+                            status: string
+                            instances?: number
+                            healthy_instances?: number
+                        }) => ({
                             name: service.name,
                             status: service.status,
                             instances: service.instances || 1,

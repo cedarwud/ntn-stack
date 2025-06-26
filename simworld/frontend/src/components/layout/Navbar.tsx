@@ -8,7 +8,7 @@ import DelayDopplerViewer from '../domains/simulation/wireless/DelayDopplerViewe
 import TimeFrequencyViewer from '../domains/simulation/wireless/TimeFrequencyViewer'
 import ViewerModal from '../shared/ui/layout/ViewerModal'
 import ChartAnalysisDashboard from '../views/dashboards/ChartAnalysisDashboard/ChartAnalysisDashboard'
-import { ViewerProps } from '../../../../types/viewer'
+import { ViewerProps } from '../../types/viewer'
 import {
     SCENE_DISPLAY_NAMES,
     getSceneDisplayName,

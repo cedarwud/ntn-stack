@@ -330,7 +330,7 @@ export class HandoverAPIService {
     predicted_satellite: string
     actual_satellite: string
     prediction_timestamp: number
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   }) {
     try {
       const response = await api.post('/handover/fine-grained-sync/accuracy/record', data)
