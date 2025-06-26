@@ -106,7 +106,13 @@ class ObservabilityDeployer:
             self.config_path / "configs/prometheus_best_practices.yaml"
         )
         with open(best_practices_file, "r", encoding="utf-8") as f:
-            best_practices = yaml.safe_load(f)
+            config_content = f.read()
+        
+        # 替換環境變數
+        external_ip = os.getenv("EXTERNAL_IP", "127.0.0.1")
+        config_content = config_content.replace("${EXTERNAL_IP}", external_ip)
+        
+        best_practices = yaml.safe_load(config_content)
 
         # 生成實際的 prometheus.yml
         prometheus_config = {
