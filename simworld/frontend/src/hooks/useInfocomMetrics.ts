@@ -24,6 +24,7 @@ interface InfocomMetricsResponse {
         ue_context: number;
         path_switch: number;
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     confidence_intervals: any;
     data_source: string;
 }
@@ -36,6 +37,8 @@ const DEFAULT_METRICS: InfocomMetrics = {
 };
 
 export const useInfocomMetrics = (enabled: boolean = true) => {
+     
+     
     const [metrics, setMetrics] = useState<InfocomMetrics>(DEFAULT_METRICS);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

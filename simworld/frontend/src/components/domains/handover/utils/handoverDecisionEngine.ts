@@ -222,6 +222,7 @@ export class HandoverDecisionEngine {
    */
   private static selectBestCandidate(
     candidates: VisibleSatelliteInfo[],
+     
     _currentQuality: SatelliteQuality
   ): VisibleSatelliteInfo {
     

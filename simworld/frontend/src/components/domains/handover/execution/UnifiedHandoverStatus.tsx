@@ -99,10 +99,16 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
     }
 
     // 信號品質計算
+         
+         
     const getQualityPercentage = getSignalQualityPercentage
 
+         
+         
     const getQualityClass = getSignalQualityLevel
 
+         
+         
     const getQualityText = (signalStrength: number) => {
         const level = getSignalQualityLevel(signalStrength)
         const textMap = {
@@ -115,6 +121,8 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
     }
 
     // 換手狀態指示器
+         
+         
     const getHandoverStatusDisplay = () => {
         const statusConfig = {
             idle: { icon: '⏸️', text: '待機中', class: 'idle' },
@@ -222,15 +230,21 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
                             className="confidence-fill"
                             style={{
                                 width: `${
-                                    ((predictionResult as any)
-                                        ?.prediction_confidence || 0.95) * 100
+                                    ((
+                                        predictionResult as {
+                                            prediction_confidence?: number
+                                        }
+                                    )?.prediction_confidence || 0.95) * 100
                                 }%`,
                             }}
                         ></div>
                         <span className="confidence-text">
                             {(
-                                ((predictionResult as any)
-                                    ?.prediction_confidence || 0.95) * 100
+                                ((
+                                    predictionResult as {
+                                        prediction_confidence?: number
+                                    }
+                                )?.prediction_confidence || 0.95) * 100
                             ).toFixed(1)}
                             %
                         </span>
@@ -244,12 +258,17 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
                     <span className="decision-label">換手決策:</span>
                     <span
                         className={`decision-value ${
-                            (predictionResult as any)?.handover_required
+                            (
+                                predictionResult as {
+                                    handover_required?: boolean
+                                }
+                            )?.handover_required
                                 ? 'required'
                                 : 'not-required'
                         }`}
                     >
-                        {(predictionResult as any)?.handover_required
+                        {(predictionResult as { handover_required?: boolean })
+                            ?.handover_required
                             ? '需要換手'
                             : '無需換手'}
                     </span>

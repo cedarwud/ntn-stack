@@ -82,6 +82,7 @@ class BackgroundHealthMonitor {
       issues.push('NetStack 核心服務異常')
     }
     
+     
     if (!results.simworld_satellites?.success) {
       issues.push('SimWorld 衛星數據異常')
     }
@@ -115,6 +116,7 @@ class BackgroundHealthMonitor {
     // 簡單比較主要系統狀態
     return (
       this.lastResults.netstack_core_sync?.success !== current.netstack_core_sync?.success ||
+       
       this.lastResults.simworld_satellites?.success !== current.simworld_satellites?.success ||
       this.lastResults.real_connections?.success !== current.real_connections?.success
     )

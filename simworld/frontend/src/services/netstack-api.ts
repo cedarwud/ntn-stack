@@ -146,6 +146,7 @@ export interface HandoverPredictionRequest {
   ue_lon: number
   ue_alt?: number
   current_satellite: string
+   
   candidate_satellites: string[]
   search_range_seconds?: number
 }
@@ -339,7 +340,7 @@ class NetStackApiClient extends BaseApiClient {
   /**
    * 獲取最近的同步事件
    */
-  async getRecentSyncEvents(): Promise<any[]> {
+  async getRecentSyncEvents(): Promise<unknown[]> {
     const response = await fetch(
       `${this.baseUrl}/api/v1/core-sync/events/recent`
     )
@@ -372,8 +373,8 @@ class NetStackApiClient extends BaseApiClient {
   /**
    * 獲取健康檢查狀態
    */
-  async getHealthStatus(): Promise<any> {
-    return this.get<any>('/api/v1/core-sync/health')
+  async getHealthStatus(): Promise<unknown> {
+    return this.get<unknown>('/api/v1/core-sync/health')
   }
 }
 

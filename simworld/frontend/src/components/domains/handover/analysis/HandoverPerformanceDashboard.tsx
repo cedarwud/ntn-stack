@@ -55,6 +55,8 @@ const HandoverPerformanceDashboard: React.FC<
     const { isConnected: netstackConnected } = useNetStackData()
     const { dataSource } = useDataSourceStatus()
 
+     
+     
     const [metrics, setMetrics] = useState<HandoverMetrics>({
         totalHandovers: 15,
         successfulHandovers: 13,
@@ -318,6 +320,8 @@ const HandoverPerformanceDashboard: React.FC<
         return () => clearInterval(interval)
     }, [enabled, useRealData])
 
+         
+         
     const getRandomReason = (): string => {
         const reasons = [
             '信號品質下降',
@@ -330,6 +334,8 @@ const HandoverPerformanceDashboard: React.FC<
         return reasons[Math.floor(Math.random() * reasons.length)]
     }
 
+         
+         
     const getStatusColor = (status: string): string => {
         switch (status) {
             case 'success':

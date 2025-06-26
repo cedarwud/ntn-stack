@@ -1,7 +1,7 @@
 # NTN Stack 統一管理 Makefile
 # 提供一鍵管理 netstack 和 simworld 專案的功能
 
-.PHONY: help install start stop clean test logs status deploy down restart build
+.PHONY: help install start stop clean test logs status deploy down restart build automated-start verify-network fix-network
 
 # 預設目標
 .DEFAULT_GOAL := help
@@ -360,9 +360,30 @@ test: ## 🧪 執行測試（重定向到 tests/Makefile）
 	@echo "$(YELLOW)或直接執行：$(RESET)"
 	@cd tests && $(MAKE) test-smoke
 
+# ===== 自動化網路依賴管理 (Sprint 2) =====
+
+automated-start: ## 🚀 智能自動化啟動所有服務 (Sprint 2 - 啟動成功率 >95%)
+	@echo "$(CYAN)🚀 開始智能自動化啟動流程...$(RESET)"
+	@echo "$(YELLOW)⚡ 使用 Sprint 2 自動化網路依賴管理系統$(RESET)"
+	@bash scripts/automated_network_dependency_manager.sh
+	@echo "$(GREEN)✅ 自動化啟動完成！$(RESET)"
+
+verify-network: ## 🔍 驗證網路連通性和依賴關係
+	@echo "$(CYAN)🔍 驗證網路連通性...$(RESET)"
+	@bash scripts/automated_network_dependency_manager.sh --verify-only
+
+fix-network: ## 🔧 自動修復網路連接問題
+	@echo "$(CYAN)🔧 自動修復網路問題...$(RESET)"
+	@bash scripts/automated_network_dependency_manager.sh --fix-only
+
+network-status: ## 📊 生成詳細的網路狀態報告
+	@echo "$(CYAN)📊 生成網路狀態報告...$(RESET)"
+	@bash scripts/automated_network_dependency_manager.sh --status-only
+
 .PHONY: all help start stop restart build clean status logs test \
         all-start all-stop all-restart all-build all-clean \
         netstack-start netstack-stop netstack-restart netstack-build netstack-clean netstack-status netstack-logs \
         simworld-start simworld-stop simworld-restart simworld-build simworld-clean simworld-status simworld-logs \
         health-check metrics api-docs ps top exec-netstack exec-simworld version prune backup deploy \
-        dev-setup dev-start dev-logs install netstack-install simworld-install verify-network-connection fix-network-connection 
+        dev-setup dev-start dev-logs install netstack-install simworld-install verify-network-connection fix-network-connection \
+        automated-start verify-network fix-network network-status 

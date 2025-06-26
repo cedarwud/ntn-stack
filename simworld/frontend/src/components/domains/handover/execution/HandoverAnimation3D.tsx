@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Ring } from '@react-three/drei'
@@ -485,7 +485,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     })
 
     // 🔗 獲取UAV位置
-    const getUAVPositions = (): Array<[number, number, number]> => {
+    const getUAVPositions = useCallback((): Array<[number, number, number]> => {
         return devices
             .filter((d) => d.role === 'receiver')
             .map((uav) => [
@@ -493,10 +493,10 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 uav.position_z || 0,
                 uav.position_y || 0,
             ])
-    }
+    }, [devices])
 
     // 🔗 獲取可用衛星列表 - 修復：支援內建模擬衛星
-    const getAvailableSatellites = (): string[] => {
+    const getAvailableSatellites = useCallback((): string[] => {
         // 🔧 修復：如果 satellitePositions 為空（DynamicSatelliteRenderer 未啟用），
         // 使用內建的模擬衛星列表
         if (!satellitePositions || satellitePositions.size === 0) {
@@ -504,25 +504,26 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         }
 
         return Array.from(satellitePositions.keys())
-    }
+    }, [satellitePositions])
 
     // 🔗 獲取衛星位置 - 支援內建模擬和外部位置
-    const getSatellitePosition = (
-        satelliteId: string
-    ): [number, number, number] => {
-        // 優先使用外部位置數據
-        if (satellitePositions && satellitePositions.has(satelliteId)) {
-            return satellitePositions.get(satelliteId)!
-        }
+    const getSatellitePosition = useCallback(
+        (satelliteId: string): [number, number, number] => {
+            // 優先使用外部位置數據
+            if (satellitePositions && satellitePositions.has(satelliteId)) {
+                return satellitePositions.get(satelliteId)!
+            }
 
-        // 回退到內建模擬位置
-        const satIndex = parseInt(satelliteId.replace('sat_', '')) || 0
-        const angle = (satIndex * 20 * Math.PI) / 180 // 每20度一顆衛星
-        const radius = 600
-        const height = 150 + Math.sin(angle * 2) * 100 // 高度變化
+            // 回退到內建模擬位置
+            const satIndex = parseInt(satelliteId.replace('sat_', '')) || 0
+            const angle = (satIndex * 20 * Math.PI) / 180 // 每20度一顆衛星
+            const radius = 600
+            const height = 150 + Math.sin(angle * 2) * 100 // 高度變化
 
-        return [radius * Math.cos(angle), height, radius * Math.sin(angle)]
-    }
+            return [radius * Math.cos(angle), height, radius * Math.sin(angle)]
+        },
+        [satellitePositions]
+    )
 
     // 📏 計算兩點之間的3D距離
     const calculateDistance = (
@@ -536,125 +537,131 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     }
 
     // 🎯 選擇衛星（智能多樣化選擇 - 擴大換手範圍）
-    const selectNearestSatellite = (excludeId?: string): string | null => {
-        const uavPositions = getUAVPositions()
-        const availableSatellites = getAvailableSatellites()
+    const selectNearestSatellite = useCallback(
+        (excludeId?: string): string | null => {
+            const uavPositions = getUAVPositions()
+            const availableSatellites = getAvailableSatellites()
 
-        if (uavPositions.length === 0 || availableSatellites.length === 0) {
-            return null
-        }
-
-        const uavPos = uavPositions[0]
-
-        // 🚫 第一層防護：排除當前衛星
-        let candidates = availableSatellites.filter(
-            (satId) => satId !== excludeId
-        )
-
-        // 🚫 第二層防護：排除冷卻期內的衛星（加強互換防護）
-        const now = Date.now()
-        const history = handoverHistoryRef.current
-
-        // 清理過期記錄
-        history.recentHandovers = history.recentHandovers.filter(
-            (record) => now - record.timestamp < history.cooldownPeriod
-        )
-
-        candidates = candidates.filter((satId) => {
-            // 檢查是否與當前衛星有任何換手記錄（雙向檢查）
-            const hasRecentHandover = history.recentHandovers.some(
-                (record) =>
-                    (record.from === excludeId && record.to === satId) ||
-                    (record.from === satId && record.to === excludeId)
-            )
-            return !hasRecentHandover
-        })
-
-        // 🚫 第三層防護：排除最近完成換手的衛星（縮短禁止時間，增加多樣性）
-        if (history.lastCompletedSatellite && history.lastCompletedTime) {
-            const timeSinceLastCompleted = now - history.lastCompletedTime
-            // 縮短禁止時間到冷卻期的0.8倍，增加可選衛星
-            if (timeSinceLastCompleted < history.cooldownPeriod * 0.8) {
-                candidates = candidates.filter(
-                    (satId) => satId !== history.lastCompletedSatellite
-                )
+            if (uavPositions.length === 0 || availableSatellites.length === 0) {
+                return null
             }
-        }
 
-        // 🚫 第四層防護：如果候選太少，降低要求
-        if (candidates.length < 1) {
-            return null // 至少需要1個候選
-        }
+            const uavPos = uavPositions[0]
 
-        // 📊 計算所有候選衛星的距離和選擇權重
-        const candidateInfo = candidates
-            .map((satId) => {
-                const satPos = getSatellitePosition(satId)
-                if (!satPos) return null
+            // 🚫 第一層防護：排除當前衛星
+            let candidates = availableSatellites.filter(
+                (satId) => satId !== excludeId
+            )
 
-                const distance = calculateDistance(uavPos, satPos)
-                return { satId, distance, satPos }
+            // 🚫 第二層防護：排除冷卻期內的衛星（加強互換防護）
+            const now = Date.now()
+            const history = handoverHistoryRef.current
+
+            // 清理過期記錄
+            history.recentHandovers = history.recentHandovers.filter(
+                (record) => now - record.timestamp < history.cooldownPeriod
+            )
+
+            candidates = candidates.filter((satId) => {
+                // 檢查是否與當前衛星有任何換手記錄（雙向檢查）
+                const hasRecentHandover = history.recentHandovers.some(
+                    (record) =>
+                        (record.from === excludeId && record.to === satId) ||
+                        (record.from === satId && record.to === excludeId)
+                )
+                return !hasRecentHandover
             })
-            .filter((info) => info !== null)
 
-        if (candidateInfo.length === 0) return null
+            // 🚫 第三層防護：排除最近完成換手的衛星（縮短禁止時間，增加多樣性）
+            if (history.lastCompletedSatellite && history.lastCompletedTime) {
+                const timeSinceLastCompleted = now - history.lastCompletedTime
+                // 縮短禁止時間到冷卻期的0.8倍，增加可選衛星
+                if (timeSinceLastCompleted < history.cooldownPeriod * 0.8) {
+                    candidates = candidates.filter(
+                        (satId) => satId !== history.lastCompletedSatellite
+                    )
+                }
+            }
 
-        // 🎯 智能選擇策略：多樣化選擇，避免總是選同樣的衛星
-        let selectedSatellite: string | null = null
+            // 🚫 第四層防護：如果候選太少，降低要求
+            if (candidates.length < 1) {
+                return null // 至少需要1個候選
+            }
 
-        // 按距離排序
-        candidateInfo.sort((a, b) => a.distance - b.distance)
+            // 📊 計算所有候選衛星的距離和選擇權重
+            const candidateInfo = candidates
+                .map((satId) => {
+                    const satPos = getSatellitePosition(satId)
+                    if (!satPos) return null
 
-        // 🎲 多樣化選擇策略
-        const strategy = Math.random()
+                    const distance = calculateDistance(uavPos, satPos)
+                    return { satId, distance, satPos }
+                })
+                .filter((info) => info !== null)
 
-        if (strategy < 0.4) {
-            // 40%機率選擇最近的衛星
-            selectedSatellite = candidateInfo[0].satId
-        } else if (strategy < 0.7) {
-            // 30%機率從前50%的衛星中隨機選擇
-            const topHalf = candidateInfo.slice(
-                0,
-                Math.max(1, Math.ceil(candidateInfo.length / 2))
-            )
-            const randomIndex = Math.floor(Math.random() * topHalf.length)
-            selectedSatellite = topHalf[randomIndex].satId
-        } else if (strategy < 0.9) {
-            // 20%機率從所有候選中隨機選擇（增加多樣性）
-            const randomIndex = Math.floor(Math.random() * candidateInfo.length)
-            selectedSatellite = candidateInfo[randomIndex].satId
-        } else {
-            // 10%機率選擇最遠的衛星（最大多樣性）
-            selectedSatellite = candidateInfo[candidateInfo.length - 1].satId
-        }
+            if (candidateInfo.length === 0) return null
 
-        // 🚫 第五層防護：最終安全檢查
-        if (selectedSatellite === excludeId) {
-            // 如果意外選到自己，選擇其他候選
-            const alternatives = candidateInfo.filter(
-                (info) => info.satId !== excludeId
-            )
-            selectedSatellite =
-                alternatives.length > 0 ? alternatives[0].satId : null
-        }
+            // 🎯 智能選擇策略：多樣化選擇，避免總是選同樣的衛星
+            let selectedSatellite: string | null = null
 
-        // 🚫 第六層防護：再次檢查是否是最近完成的衛星
-        if (
-            selectedSatellite === history.lastCompletedSatellite &&
-            candidateInfo.length > 1
-        ) {
-            // 如果選到最近完成的衛星且有其他選擇，選擇其他的
-            const alternatives = candidateInfo.filter(
-                (info) => info.satId !== history.lastCompletedSatellite
-            )
-            selectedSatellite =
-                alternatives.length > 0
-                    ? alternatives[0].satId
-                    : selectedSatellite
-        }
+            // 按距離排序
+            candidateInfo.sort((a, b) => a.distance - b.distance)
 
-        return selectedSatellite
-    }
+            // 🎲 多樣化選擇策略
+            const strategy = Math.random()
+
+            if (strategy < 0.4) {
+                // 40%機率選擇最近的衛星
+                selectedSatellite = candidateInfo[0].satId
+            } else if (strategy < 0.7) {
+                // 30%機率從前50%的衛星中隨機選擇
+                const topHalf = candidateInfo.slice(
+                    0,
+                    Math.max(1, Math.ceil(candidateInfo.length / 2))
+                )
+                const randomIndex = Math.floor(Math.random() * topHalf.length)
+                selectedSatellite = topHalf[randomIndex].satId
+            } else if (strategy < 0.9) {
+                // 20%機率從所有候選中隨機選擇（增加多樣性）
+                const randomIndex = Math.floor(
+                    Math.random() * candidateInfo.length
+                )
+                selectedSatellite = candidateInfo[randomIndex].satId
+            } else {
+                // 10%機率選擇最遠的衛星（最大多樣性）
+                selectedSatellite =
+                    candidateInfo[candidateInfo.length - 1].satId
+            }
+
+            // 🚫 第五層防護：最終安全檢查
+            if (selectedSatellite === excludeId) {
+                // 如果意外選到自己，選擇其他候選
+                const alternatives = candidateInfo.filter(
+                    (info) => info.satId !== excludeId
+                )
+                selectedSatellite =
+                    alternatives.length > 0 ? alternatives[0].satId : null
+            }
+
+            // 🚫 第六層防護：再次檢查是否是最近完成的衛星
+            if (
+                selectedSatellite === history.lastCompletedSatellite &&
+                candidateInfo.length > 1
+            ) {
+                // 如果選到最近完成的衛星且有其他選擇，選擇其他的
+                const alternatives = candidateInfo.filter(
+                    (info) => info.satId !== history.lastCompletedSatellite
+                )
+                selectedSatellite =
+                    alternatives.length > 0
+                        ? alternatives[0].satId
+                        : selectedSatellite
+            }
+
+            return selectedSatellite
+        },
+        [getAvailableSatellites, getSatellitePosition, getUAVPositions]
+    )
 
     // 📝 記錄換手事件（加強防護檢查）
     const recordHandover = (fromSatellite: string, toSatellite: string) => {
@@ -693,6 +700,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     // }
 
     // 🏷️ 獲取衛星名稱（基於ID匹配DynamicSatelliteRenderer的命名規則）
+
     const getSatelliteName = (
         satelliteId: string | null | undefined
     ): string => {
@@ -1171,6 +1179,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     }
 
     // 🎨 當前連接線屬性 - 整合真實信號質量數據
+
     const getCurrentLineProperties = () => {
         // 如果有真實連接求據，優先使用
         if (useRealConnections && realConnectionInfo) {
@@ -1247,6 +1256,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     }
 
     // 🎨 目標連接線屬性 - 整合真實換手狀態
+
     const getTargetLineProperties = () => {
         // 如果有真實換手狀態，使用真實數據
         if (useRealConnections && realHandoverStatus) {

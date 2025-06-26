@@ -7,6 +7,7 @@ export interface DiagnosticResult {
   service: string
   status: 'healthy' | 'warning' | 'error'
   message: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   details?: any
   fixSuggestions?: string[]
 }
@@ -84,7 +85,7 @@ class HealthDiagnosticsService {
           message: 'NetStack API 運行正常',
           details: {
             version: data.version,
-            services: Object.keys(data.services || {}).length
+            services: Object.keys(data.services || Record<string, never>).length
           }
         }
       } else {
@@ -252,7 +253,7 @@ class HealthDiagnosticsService {
         }
       }
       
-    } catch (error) {
+    } catch (_error) {
       return {
         service: '數據庫連接',
         status: 'error',

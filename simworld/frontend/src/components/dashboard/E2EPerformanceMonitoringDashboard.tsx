@@ -67,6 +67,8 @@ interface SystemAlert {
 const E2EPerformanceMonitoringDashboard: React.FC<
     E2EPerformanceMonitoringDashboardProps
 > = ({ enabled }) => {
+     
+     
     const [metrics, setMetrics] = useState<E2EMetrics>({
         systemLatency: 0,
         apiResponseTime: 0,
@@ -236,6 +238,8 @@ const E2EPerformanceMonitoringDashboard: React.FC<
         return () => clearInterval(interval)
     }, [enabled])
 
+         
+         
     const getRandomTestName = (): string => {
         const tests = [
             'UAV 衛星連接測試',
@@ -250,6 +254,8 @@ const E2EPerformanceMonitoringDashboard: React.FC<
         return tests[Math.floor(Math.random() * tests.length)]
     }
 
+         
+         
     const getRandomCategory = ():
         | 'unit'
         | 'integration'
@@ -264,6 +270,8 @@ const E2EPerformanceMonitoringDashboard: React.FC<
         return categories[Math.floor(Math.random() * categories.length)]
     }
 
+         
+         
     const getRandomDetails = (): string => {
         const details = [
             '所有測試案例通過',
@@ -276,6 +284,8 @@ const E2EPerformanceMonitoringDashboard: React.FC<
         return details[Math.floor(Math.random() * details.length)]
     }
 
+         
+         
     const getRandomSeverity = (): 'critical' | 'warning' | 'info' => {
         const weights = [0.1, 0.3, 0.6] // 危機告警較少
         const rand = Math.random()
@@ -284,6 +294,8 @@ const E2EPerformanceMonitoringDashboard: React.FC<
         return 'info'
     }
 
+         
+         
     const getRandomAlertMessage = (): string => {
         const messages = [
             'CPU 使用率超過 85%',
@@ -298,6 +310,8 @@ const E2EPerformanceMonitoringDashboard: React.FC<
         return messages[Math.floor(Math.random() * messages.length)]
     }
 
+         
+         
     const getRandomComponent = (): string => {
         const components = [
             'NetStack API',
@@ -311,6 +325,8 @@ const E2EPerformanceMonitoringDashboard: React.FC<
         return components[Math.floor(Math.random() * components.length)]
     }
 
+         
+         
     const getMetricStatus = (
         value: number,
         type: string
@@ -336,7 +352,10 @@ const E2EPerformanceMonitoringDashboard: React.FC<
         }
     }
 
-    const getSeverityColor = (severity: string): string => {
+     
+         
+         
+    const _getSeverityColor = (severity: string): string => {
         switch (severity) {
             case 'critical':
                 return '#ff4757'
@@ -349,6 +368,8 @@ const E2EPerformanceMonitoringDashboard: React.FC<
         }
     }
 
+         
+         
     const getStatusColor = (status: string): string => {
         switch (status) {
             case 'pass':

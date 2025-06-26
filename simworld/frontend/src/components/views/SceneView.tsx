@@ -9,6 +9,7 @@ interface SceneViewProps {
     manualDirection?: string | null
     children?: React.ReactNode
     className?: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any // 允許其他任意 props
 }
 
@@ -19,7 +20,7 @@ const SceneView: React.FC<SceneViewProps> = ({
     manualDirection,
     children,
     className = '',
-    ...otherProps
+    ..._otherProps
 }) => {
     return (
         <div className={`scene-view ${className}`}>

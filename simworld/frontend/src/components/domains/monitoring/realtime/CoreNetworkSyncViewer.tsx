@@ -3,7 +3,7 @@ import './CoreNetworkSyncViewer.scss'
 
 interface CoreNetworkSyncViewerProps {
     enabled: boolean
-    devices: any[]
+    devices: unknown[]
 }
 
 interface CoreSyncMetrics {
@@ -49,8 +49,10 @@ interface IEEEFeatures {
 
 const CoreNetworkSyncViewer: React.FC<CoreNetworkSyncViewerProps> = ({
     enabled,
-    devices,
+    devices, // Currently not used but may be needed for future features
 }) => {
+    // TODO: Use devices for enhanced visualization
+    console.log('Devices available for sync visualization:', devices.length)
     const [metrics, setMetrics] = useState<CoreSyncMetrics>({
         totalSyncOperations: 0,
         successfulSyncs: 0,
@@ -78,6 +80,7 @@ const CoreNetworkSyncViewer: React.FC<CoreNetworkSyncViewerProps> = ({
     const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h')
 
     // 生成隨機組件名稱
+
     const getRandomComponent = () => {
         const components = [
             'Access Network',
@@ -90,6 +93,7 @@ const CoreNetworkSyncViewer: React.FC<CoreNetworkSyncViewerProps> = ({
     }
 
     // 生成隨機事件類型
+
     const getRandomEventType = () => {
         const types = [
             'Fine-Grained Sync',
@@ -232,6 +236,7 @@ const CoreNetworkSyncViewer: React.FC<CoreNetworkSyncViewerProps> = ({
     }
 
     // 獲取狀態顏色
+
     const getStateColor = (state: string) => {
         switch (state) {
             case 'synchronized':

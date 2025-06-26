@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Text } from '@react-three/drei'
 
 interface RealTimeMetricsProps {
-    devices: any[]
+    devices: unknown[]
     enabled: boolean
 }
 
@@ -25,6 +25,8 @@ interface DeviceMetrics {
     position: [number, number, number]
 }
 
+ 
+ 
 const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ devices, enabled }) => {
     const [deviceMetrics, setDeviceMetrics] = useState<DeviceMetrics[]>([])
     const [networkMetrics, setNetworkMetrics] = useState<MetricData | null>(null)
@@ -38,6 +40,8 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ devices, enabled }) =
         }
 
         const updateMetrics = () => {
+             
+             
             const activeDevices = devices.filter(d => d.role !== 'jammer')
             
             const newDeviceMetrics: DeviceMetrics[] = activeDevices.map(device => {
@@ -45,6 +49,8 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ devices, enabled }) =
                 const baseMetrics = generateBaseMetrics(device.role)
                 
                 // 考慮干擾影響
+                 
+                 
                 const jammerDevices = devices.filter(d => d.role === 'jammer')
                 const interferenceImpact = calculateInterferenceImpact(device, jammerDevices)
                 
@@ -144,7 +150,7 @@ const generateBaseMetrics = (role: string): MetricData => {
 }
 
 // 計算干擾影響
-const calculateInterferenceImpact = (device: any, jammers: any[]) => {
+const calculateInterferenceImpact = (device: Event, jammers: unknown[]) => {
     let totalInterference = 0
     let signalDegradation = 0
     let throughputLoss = 0
@@ -203,10 +209,16 @@ const calculateNetworkMetrics = (deviceMetrics: DeviceMetrics[]): MetricData => 
     }
 }
 
+         
+         
 const DeviceMetricDisplay: React.FC<{ deviceMetric: DeviceMetrics }> = ({ deviceMetric }) => {
+     
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { metrics, position, deviceName, role } = deviceMetric
     
     // 根據性能指標決定顏色
+         
+         
     const getMetricColor = (value: number, type: string) => {
         switch (type) {
             case 'throughput':
@@ -282,6 +294,10 @@ const DeviceMetricDisplay: React.FC<{ deviceMetric: DeviceMetrics }> = ({ device
     )
 }
 
+         
+         
+ 
+ 
 const NetworkMetricDisplay: React.FC<{ metrics: MetricData }> = ({ metrics }) => {
     return (
         <group position={[0, 80, 100]}>

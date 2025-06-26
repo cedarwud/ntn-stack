@@ -10,9 +10,11 @@ import {
 } from '../../../../services/realSatelliteService'
 
 interface DynamicSatelliteRendererProps {
-    satellites: any[]
+    satellites: unknown[]
     enabled: boolean
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     currentConnection?: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     predictedConnection?: any
     showLabels?: boolean
     speedMultiplier?: number
@@ -66,7 +68,7 @@ const SATELLITE_MODEL_URL = ApiRoutes.simulations.getModel('sat')
 const calculateOrbitPosition = (
     currentTime: number,
     orbit: SatelliteOrbit,
-    speedMultiplier: number
+    _speedMultiplier: number // Reserved for future use
 ): { position: [number, number, number]; isVisible: boolean } => {
     // 計算總軌道週期 (過境時間 + 不可見時間)
     const totalOrbitPeriod = orbit.transitDuration + 120 // 2分鐘不可見間隔
@@ -116,10 +118,10 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
     currentConnection,
     predictedConnection,
     showLabels = true,
-    speedMultiplier = 1, // 固定為1x真實時間
+    // speedMultiplier is currently fixed to 1x real time and not configurable
     algorithmResults,
     handoverState,
-    onSatelliteClick,
+    // onSatelliteClick is reserved for future satellite interaction features
     onSatellitePositions,
 }) => {
     const [orbits, setOrbits] = useState<SatelliteOrbit[]>([])
@@ -128,7 +130,12 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         new Map()
     )
 
+    // 🔄 使用 useRef 保存回調函數，避免依賴變化
+    const onSatellitePositionsRef = useRef(onSatellitePositions)
+    onSatellitePositionsRef.current = onSatellitePositions
+
     // 演算法狀態對接 - 用於顯示後端演算法結果
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [algorithmHighlights, setAlgorithmHighlights] = useState<{
         currentSatellite?: string
         predictedSatellite?: string
@@ -140,7 +147,8 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
     const [realSatelliteMapping, setRealSatelliteMapping] = useState<
         Map<string, RealSatelliteInfo>
     >(new Map())
-    const [useRealData, setUseRealData] = useState(true) // 預設使用真實數據疊加
+
+    const [useRealData, __setUseRealData] = useState(true) // 預設使用真實數據疊加
     const [realDataStatus, setRealDataStatus] = useState<
         'loading' | 'success' | 'error' | 'stale'
     >('loading')
@@ -216,24 +224,35 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
     useFrame(() => {
         if (!enabled) return
 
-        timeRef.current += speedMultiplier / 60
+        timeRef.current += 1 / 60 // Fixed to 1x real time
 
-        setOrbits((prevOrbits) => {
-            const updatedOrbits = prevOrbits.map((orbit) => {
-                const state = calculateOrbitPosition(
-                    timeRef.current,
-                    orbit,
-                    speedMultiplier
-                )
-                return {
-                    ...orbit,
-                    currentPosition: state.position,
-                    isVisible: state.isVisible,
-                }
-            })
+        // 使用 ref 直接更新位置，避免觸發 React re-render
+        const hasChanges = orbitsRef.current.some((orbit) => {
+            const state = calculateOrbitPosition(
+                timeRef.current,
+                orbit,
+                1 // Fixed to 1x real time
+            )
 
-            return updatedOrbits
+            // 檢查位置是否有顯著變化
+            const positionChanged =
+                Math.abs(orbit.currentPosition[0] - state.position[0]) > 1.0 ||
+                Math.abs(orbit.currentPosition[1] - state.position[1]) > 1.0 ||
+                Math.abs(orbit.currentPosition[2] - state.position[2]) > 1.0 ||
+                orbit.isVisible !== state.isVisible
+
+            if (positionChanged) {
+                orbit.currentPosition = state.position
+                orbit.isVisible = state.isVisible
+                return true
+            }
+            return false
         })
+
+        // 只有在有顯著變化時才觸發 React 更新
+        if (hasChanges) {
+            setOrbits([...orbitsRef.current])
+        }
     })
 
     // 🔗 使用 useRef 來避免在 useEffect 中依賴不斷變化的 orbits
@@ -242,9 +261,12 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
 
     // 🔄 位置更新邏輯 - 修復無限循環問題
     useEffect(() => {
-        if (!enabled || !onSatellitePositions) return
+        if (!enabled) return
 
         const updatePositions = () => {
+            // 使用 ref 檢查回調函數是否存在
+            if (!onSatellitePositionsRef.current) return
+
             const positionMap = new Map<string, [number, number, number]>()
             let hasChanges = false
 
@@ -267,9 +289,9 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
             })
 
             // 只在位置有顯著變化時才調用回調
-            if (hasChanges) {
+            if (hasChanges && onSatellitePositionsRef.current) {
                 lastPositionsRef.current = positionMap
-                onSatellitePositions(positionMap)
+                onSatellitePositionsRef.current(positionMap)
             }
         }
 
@@ -277,7 +299,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         const interval = setInterval(updatePositions, 250)
 
         return () => clearInterval(interval)
-    }, [enabled]) // 移除onSatellitePositions依賴，避免無限循環
+    }, [enabled]) // 只依賴 enabled
 
     const satellitesToRender = orbits.filter((orbit) => orbit.isVisible)
 
@@ -287,7 +309,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
 
     return (
         <group>
-            {satellitesToRender.map((orbit, index) => {
+            {satellitesToRender.map((orbit) => {
                 // 🔥 對接演算法結果 - 優先使用後端演算法狀態
                 // 支援多種 ID 匹配模式：完全匹配、名稱匹配、部分匹配
                 const isAlgorithmCurrent =
@@ -304,16 +326,18 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                         orbit.name.includes(
                             algorithmResults.predictedSatelliteId
                         ))
-                const isCurrent =
+
+                const _isCurrent =
                     isAlgorithmCurrent ||
                     currentConnection?.satelliteId === orbit.id
-                const isPredicted =
+
+                const _isPredicted =
                     isAlgorithmPredicted ||
                     predictedConnection?.satelliteId === orbit.id
 
                 // 🎨 根據換手狀態決定顏色
                 let statusColor = '#ffffff' // 預設白色
-                let opacity = 1.0 // 完全不透明
+                const opacity = 1.0 // 完全不透明
                 let scale = 1
 
                 // 🔗 檢查是否為換手狀態中的衛星
@@ -380,8 +404,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                 } else {
                     // 普通衛星 - 保持白色
                     statusColor = '#ffffff' // 預設白色
-                    opacity = 0.8
-                    scale = 0.8
+                    // opacity and scale are set but could be used for future customization
                 }
 
                 return (
@@ -390,9 +413,9 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                             url={SATELLITE_MODEL_URL}
                             position={orbit.currentPosition}
                             scale={[
-                                SATELLITE_CONFIG.SAT_SCALE,
-                                SATELLITE_CONFIG.SAT_SCALE,
-                                SATELLITE_CONFIG.SAT_SCALE,
+                                SATELLITE_CONFIG.SAT_SCALE * (scale || 1),
+                                SATELLITE_CONFIG.SAT_SCALE * (scale || 1),
+                                SATELLITE_CONFIG.SAT_SCALE * (scale || 1),
                             ]}
                             pivotOffset={[0, 0, 0]}
                         />
@@ -409,7 +432,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                             <meshBasicMaterial
                                 color={statusColor}
                                 transparent
-                                opacity={0.7}
+                                opacity={opacity || 0.7}
                             />
                         </mesh>
 

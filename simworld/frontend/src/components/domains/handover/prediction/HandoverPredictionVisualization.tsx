@@ -80,11 +80,21 @@ interface HandoverMetrics {
     currentHandovers: number
 }
 
+         
+         
 const HandoverPredictionVisualization: React.FC<
     HandoverPredictionVisualizationProps
-> = ({ devices, enabled, satellites = [], onPredictionsUpdate }) => {
+> = ({
+    devices,
+    enabled,
+     
+    satellites: _satellites = [],
+    onPredictionsUpdate,
+}) => {
     const [predictions, setPredictions] = useState<HandoverPrediction[]>([])
     const [handoverEvents, setHandoverEvents] = useState<HandoverEvent[]>([])
+     
+     
     const [metrics, setMetrics] = useState<HandoverMetrics>({
         totalPredictions: 0,
         successfulHandovers: 0,
@@ -112,6 +122,8 @@ const HandoverPredictionVisualization: React.FC<
             //setError(null)
 
             try {
+                 
+                 
                 const uavs = devices.filter((d) => d.role === 'receiver')
 
                 if (uavs.length === 0) {
@@ -208,11 +220,11 @@ const HandoverPredictionVisualization: React.FC<
                 onPredictionsUpdate?.(newPredictions)
             } catch (error) {
                 console.error('❌ 模擬換手預測失敗:', error)
-                //setError(
-                    error instanceof Error
-                        ? error.message
-                        : 'Mock prediction error'
-                )
+                // setError(
+                //     error instanceof Error
+                //         ? error.message
+                //         : 'Mock prediction error'
+                // )
             } finally {
                 //setIsLoading(false)
             }
@@ -239,23 +251,16 @@ const HandoverPredictionVisualization: React.FC<
             />
 
             {/* 換手時間軸 */}
-            <HandoverTimelineVisualization
-                predictions={predictions}
-                devices={devices}
-            />
+            <HandoverTimelineVisualization predictions={predictions} />
 
             {/* 3D 換手動畫 */}
             <HandoverAnimationDisplay
                 events={handoverEvents}
                 devices={devices}
-                satellites={satellites}
             />
 
             {/* 預測信心度指示器 */}
-            <PredictionConfidenceIndicator
-                predictions={predictions}
-                devices={devices}
-            />
+            <PredictionConfidenceIndicator predictions={predictions} />
 
             {/* 換手統計面板 */}
             <HandoverMetricsPanel metrics={metrics} />
@@ -281,10 +286,14 @@ const HandoverPredictionVisualization: React.FC<
 // }
 
 // 換手預測顯示組件
+         
+         
 const HandoverPredictionDisplay: React.FC<{
     predictions: HandoverPrediction[]
     devices: Device[]
 }> = ({ predictions, devices }) => {
+         
+         
     const getConfidenceColor = (confidence: string) => {
         switch (confidence) {
             case 'high':
@@ -298,6 +307,8 @@ const HandoverPredictionDisplay: React.FC<{
         }
     }
 
+         
+         
     const getReasonIcon = (reason: string) => {
         switch (reason) {
             case 'signal_degradation':
@@ -316,6 +327,8 @@ const HandoverPredictionDisplay: React.FC<{
     return (
         <>
             {predictions.map((prediction) => {
+                 
+                 
                 const uav = devices.find((d) => d.id === prediction.uavId)
                 if (!uav) return null
 
@@ -376,10 +389,11 @@ const HandoverPredictionDisplay: React.FC<{
 }
 
 // 換手時間軸可視化組件
+         
+         
 const HandoverTimelineVisualization: React.FC<{
     predictions: HandoverPrediction[]
-    devices: Device[]
-}> = ({ predictions, devices }) => {
+}> = ({ predictions }) => {
     const timelineRef = useRef<THREE.Group>(null)
 
     useFrame(() => {
@@ -439,16 +453,19 @@ const HandoverTimelineVisualization: React.FC<{
 }
 
 // 3D 換手動畫顯示組件
+         
+         
 const HandoverAnimationDisplay: React.FC<{
     events: HandoverEvent[]
     devices: Device[]
-    satellites: Satellite[]
-}> = ({ events, devices, satellites }) => {
+}> = ({ events, devices }) => {
     return (
         <>
             {events
                 .filter((e) => e.status === 'in_progress')
                 .map((event) => {
+                     
+                     
                     const uav = devices.find((d) => d.id === event.uavId)
                     if (!uav) return null
 
@@ -500,8 +517,7 @@ const HandoverAnimationDisplay: React.FC<{
 // 預測信心度指示器組件
 const PredictionConfidenceIndicator: React.FC<{
     predictions: HandoverPrediction[]
-    devices: Device[]
-}> = ({ predictions, devices }) => {
+}> = ({ predictions }) => {
     const highConfidence = predictions.filter(
         (p) => p.confidence === 'high'
     ).length
@@ -568,6 +584,8 @@ const PredictionConfidenceIndicator: React.FC<{
 }
 
 // 換手統計面板組件
+ 
+ 
 const HandoverMetricsPanel: React.FC<{ metrics: HandoverMetrics }> = ({
     metrics,
 }) => {
@@ -637,6 +655,8 @@ const HandoverMetricsPanel: React.FC<{ metrics: HandoverMetrics }> = ({
 }
 
 // 候選衛星顯示組件
+         
+         
 const CandidateSatelliteDisplay: React.FC<{
     predictions: HandoverPrediction[]
     devices: Device[]
@@ -644,6 +664,8 @@ const CandidateSatelliteDisplay: React.FC<{
     return (
         <>
             {predictions.map((prediction) => {
+                 
+                 
                 const uav = devices.find((d) => d.id === prediction.uavId)
                 if (!uav) return null
 

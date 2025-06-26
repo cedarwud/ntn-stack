@@ -51,11 +51,15 @@ interface TestMetrics {
     successRate: number
 }
 
+         
+         
 const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({
     enabled,
 }) => {
     const [testSuites, setTestSuites] = useState<TestSuite[]>([])
     const [testCases, setTestCases] = useState<TestCase[]>([])
+     
+     
     const [metrics, setMetrics] = useState<TestMetrics>({
         totalSuites: 0,
         passingSuites: 0,
@@ -195,6 +199,8 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({
             })
         }
 
+         
+         
         const getRandomError = (): string => {
             const errors = [
                 'AssertionError: Expected 200, got 404',
@@ -215,6 +221,8 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({
 
     if (!enabled) return null
 
+         
+         
     const getStatusColor = (status: string): string => {
         switch (status) {
             case 'pass':
@@ -230,6 +238,8 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({
         }
     }
 
+         
+         
     const getCategoryColor = (category: string): string => {
         switch (category) {
             case 'unit':

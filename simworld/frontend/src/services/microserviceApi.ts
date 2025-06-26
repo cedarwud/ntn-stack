@@ -118,7 +118,7 @@ const retryRequest = async <T>(
 };
 
 // 判斷錯誤是否可重試
-const isRetryableError = (error: any): boolean => {
+const isRetryableError = (error: unknown): boolean => {
   if (!error.response) {
     return true; // 網路錯誤
   }
@@ -428,7 +428,7 @@ export const performSystemHealthCheck = async () => {
     console.error('系統健康檢查失敗:', error);
     return {
       overall_health: 'degraded',
-      components: {},
+      components: Record<string, never>,
       error: (error as Error).message,
       timestamp: new Date().toISOString()
     };

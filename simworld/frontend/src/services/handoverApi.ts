@@ -72,6 +72,7 @@ export interface WeatherPredictionResponse {
     stability_forecast: string
     estimated_signal_variation_db: number
     risk_of_severe_weather: number
+     
     recommended_backup_satellites: number
   }
   weather_impact_analysis: {
@@ -346,6 +347,8 @@ export class HandoverAPIService {
    */
   static async getAccuracyMetrics(): Promise<AccuracyMetrics> {
     try {
+       
+       
       const response = await api.get('/handover/fine-grained-sync/accuracy/metrics')
       return response.data
     } catch (error) {

@@ -9,6 +9,7 @@ import { realConnectionManager } from '../services/realConnectionService'
 export interface TestResult {
   success: boolean
   message: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   details?: any
   error?: string
 }
@@ -19,6 +20,7 @@ export interface TestResult {
 export interface SystemTestResults {
   netstack_core_sync: TestResult
   netstack_core?: TestResult
+   
   simworld_satellites: TestResult
   real_connections: TestResult
   api_integration?: TestResult
@@ -63,7 +65,8 @@ export async function testSimWorldSatellites(): Promise<TestResult> {
     const satellites = await simWorldApi.getVisibleSatellites(-90, 150, 0, 0)
     
     // 處理不同的響應格式
-    let satelliteArray: any[] = []
+    let satelliteArray: unknown[] = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let observer: any = null
     let totalVisible = 0
     
@@ -169,7 +172,12 @@ export async function testIEEEAlgorithm(): Promise<TestResult> {
  */
 export async function testHandoverPerformance(): Promise<TestResult> {
   try {
-    const metrics = await netStackApi.getHandoverLatencyMetrics()
+     
+     
+     
+    const _metrics = await netStackApi.getHandoverLatencyMetrics()
+     
+     
     const success = Array.isArray(metrics) && metrics.length > 0
     
     return {
@@ -199,6 +207,7 @@ export async function runSystemTests(
   
   const results: SystemTestResults = {
     netstack_core_sync: await testNetStackCoreSync(),
+     
     simworld_satellites: await testSimWorldSatellites(),
     real_connections: await testRealConnections(),
     ieee_algorithm: await testIEEEAlgorithm(),
@@ -219,6 +228,7 @@ export async function runSystemTests(
   // 計算通過的測試數量
   const testResults = [
     results.netstack_core_sync,
+     
     results.simworld_satellites,
     results.real_connections,
     results.ieee_algorithm,
@@ -239,6 +249,7 @@ export async function runSystemTests(
 export function displayTestSummary(results: SystemTestResults): void {
   console.log('\n📊 測試結果摘要:')
   console.log(`NetStack 核心同步: ${results.netstack_core_sync.success ? '✅' : '❌'} ${results.netstack_core_sync.message}`)
+   
   console.log(`SimWorld 衛星: ${results.simworld_satellites.success ? '✅' : '❌'} ${results.simworld_satellites.message}`)
   console.log(`真實連接管理: ${results.real_connections.success ? '✅' : '❌'} ${results.real_connections.message}`)
   console.log(`IEEE 演算法: ${results.ieee_algorithm.success ? '✅' : '❌'} ${results.ieee_algorithm.message}`)

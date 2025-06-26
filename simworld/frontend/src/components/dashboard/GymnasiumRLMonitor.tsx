@@ -65,7 +65,9 @@ const GymnasiumRLMonitor: React.FC = () => {
             }
 
             // 4. 合成RL指標數據
-            const metrics: RLEngineMetrics = {
+             
+             
+            const _metrics: RLEngineMetrics = {
                 engine_type: selectedEngine,
                 algorithm:
                     selectedEngine === 'dqn'
@@ -96,7 +98,7 @@ const GymnasiumRLMonitor: React.FC = () => {
                     rlStatusData.system_resources?.gpu_utilization || 0,
             }
 
-            setRLMetrics(metrics)
+            setRLMetrics(_metrics)
         } catch (error) {
             console.error('Failed to fetch RL status:', error)
             setError(error instanceof Error ? error.message : '獲取RL狀態失敗')

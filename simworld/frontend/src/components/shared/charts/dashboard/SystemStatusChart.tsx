@@ -48,6 +48,8 @@ const SystemStatusChart: React.FC<SystemStatusChartProps> = ({
     }, [refreshInterval, loadSystemStatus])
 
     // 獲取狀態顏色
+         
+         
     const getStatusColor = (status: string): string => {
         switch (status.toLowerCase()) {
             case 'healthy':
@@ -62,6 +64,8 @@ const SystemStatusChart: React.FC<SystemStatusChartProps> = ({
     }
 
     // 獲取健康狀態圖標
+         
+         
     const getHealthIcon = (healthy: boolean): string => {
         return healthy ? '✅' : '❌'
     }

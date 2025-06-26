@@ -24,7 +24,11 @@ const Stage3QuickCheck: React.FC = () => {
     runQuickCheck();
   }, []);
 
+         
+         
   const getStatusColor = (success: boolean) => success ? '#10B981' : '#EF4444';
+         
+         
   const getStatusIcon = (success: boolean) => success ? '✅' : '❌';
 
   return (
@@ -105,13 +109,16 @@ const Stage3QuickCheck: React.FC = () => {
               borderRadius: '6px'
             }}>
               <span style={{ fontSize: '20px' }}>
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 {getStatusIcon(results.simworld_satellites.success)}
               </span>
               <span style={{ flex: 1 }}>SimWorld 衛星數據</span>
               <span style={{ 
+                 
                 color: getStatusColor(results.simworld_satellites.success),
                 fontWeight: 'bold'
               }}>
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 {results.simworld_satellites.success ? '正常' : '異常'}
               </span>
             </div>

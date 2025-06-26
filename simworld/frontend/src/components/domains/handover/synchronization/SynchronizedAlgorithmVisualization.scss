@@ -45,6 +45,44 @@
       align-items: center;
     }
 
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+
+      .execute-btn {
+        background: rgba(68, 255, 68, 0.1);
+        border: 1px solid rgba(68, 255, 68, 0.3);
+        color: #44ff44;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.3s ease;
+
+        &:hover:not(:disabled) {
+          background: rgba(68, 255, 68, 0.2);
+          border-color: rgba(68, 255, 68, 0.5);
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        &.warning {
+          background: rgba(255, 165, 0, 0.1);
+          border: 1px solid rgba(255, 165, 0, 0.3);
+          color: #ffa500;
+
+          &:hover:not(:disabled) {
+            background: rgba(255, 165, 0, 0.2);
+            border-color: rgba(255, 165, 0, 0.5);
+          }
+        }
+      }
+    }
+
     h2 {
       margin: 0;
       color: #40e0ff;

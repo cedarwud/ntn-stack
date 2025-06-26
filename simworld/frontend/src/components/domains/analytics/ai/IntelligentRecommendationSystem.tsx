@@ -281,11 +281,11 @@ const IntelligentRecommendationSystem: React.FC<
 
     // 推薦分類統計
     const categoryStatsData = {
-        labels: Object.keys(analysis?.recommendations_by_category || {}),
+        labels: Object.keys(analysis?.recommendations_by_category || Record<string, never>),
         datasets: [
             {
                 data: Object.values(
-                    analysis?.recommendations_by_category || {}
+                    analysis?.recommendations_by_category || Record<string, never>
                 ),
                 backgroundColor: [
                     'rgba(155, 89, 182, 0.8)',
@@ -1229,12 +1229,12 @@ function generateRecommendationAnalysis(
     const priorityCounts = recommendations.reduce((acc, rec) => {
         acc[rec.priority] = (acc[rec.priority] || 0) + 1
         return acc
-    }, {} as Record<string, number>)
+    }, Record<string, never> as Record<string, number>)
 
     const categoryCounts = recommendations.reduce((acc, rec) => {
         acc[rec.category] = (acc[rec.category] || 0) + 1
         return acc
-    }, {} as Record<string, number>)
+    }, Record<string, never> as Record<string, number>)
 
     const avgImprovement =
         recommendations.reduce(

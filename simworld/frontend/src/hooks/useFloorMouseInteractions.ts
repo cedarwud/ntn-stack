@@ -65,6 +65,8 @@ export const useFloorMouseInteractions = ({
 
                 let foundHoveredDeviceId: number | null = null;
                 if (sceneCoords && imageRef.current) { // Check imageRef.current again for safety
+                     
+                     
                     for (const device of devices) {
                         const deviceImgCoords = sceneToImageCoords(device.position_x, device.position_y);
                         if (deviceImgCoords) {
@@ -112,6 +114,8 @@ export const useFloorMouseInteractions = ({
 
                 if (sceneCoords) {
                     let clickedExistingDevice: Device | undefined = undefined;
+                     
+                     
                     for (const device of devices) {
                         const deviceImgCoords = sceneToImageCoords(device.position_x, device.position_y);
                         if (deviceImgCoords) {

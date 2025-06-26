@@ -23,18 +23,18 @@ interface FetchState<T> {
 
 // 全局請求緩存
 const requestCache = new Map<string, {
-  data: any
+  data: unknown
   timestamp: number
-  promise?: Promise<any>
+  promise?: Promise<unknown>
 }>()
 
 // 全局請求去重
-const pendingRequests = new Map<string, Promise<any>>()
+const pendingRequests = new Map<string, Promise<unknown>>()
 
 export function useOptimizedFetch<T>(
   fetcher: () => Promise<T>,
-  deps: any[] = [],
-  options: FetchOptions = {}
+  deps: unknown[] = [],
+  options: FetchOptions = Record<string, never>
 ) {
   const {
     cacheTime = 30000, // 30秒默認緩存
@@ -62,6 +62,8 @@ export function useOptimizedFetch<T>(
   }, [fetcher])
 
   // 生成緩存鍵
+         
+         
   const getCacheKey = useCallback(() => {
     return `${fetcherRef.current.toString()}_${JSON.stringify(deps)}`
   }, [deps])
@@ -182,7 +184,7 @@ export function useOptimizedFetch<T>(
   // 初始請求和依賴變化時重新請求
   useEffect(() => {
     fetchData()
-  }, [fetchData, ...deps])
+  }, [fetchData, deps])
 
   // 設置自動刷新
   useEffect(() => {
@@ -222,7 +224,7 @@ export function useOptimizedFetch<T>(
  */
 export function useFetch<T>(
   url: string,
-  options: RequestInit & { enabled?: boolean; refreshInterval?: number } = {}
+  options: RequestInit & { enabled?: boolean; refreshInterval?: number } = Record<string, never>
 ) {
   const { enabled = true, refreshInterval, ...fetchOptions } = options
 
@@ -245,7 +247,7 @@ export function useFetch<T>(
  */
 export function useBatchFetch<T>(
   requests: Array<() => Promise<T>>,
-  options: FetchOptions = {}
+  options: FetchOptions = Record<string, never>
 ) {
   const [state, setState] = useState<{
     data: (T | null)[]

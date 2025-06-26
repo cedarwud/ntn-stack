@@ -8,10 +8,10 @@ export interface ApiResponse<T> {
   error?: {
     code: string;
     message: string;
-    details?: Record<string, any>;
+    details?: Record<string, unknown>;
     timestamp: string;
   };
-  meta?: Record<string, any>;
+  meta?: Record<string, unknown>;
   timestamp: string;
 }
 
@@ -111,7 +111,7 @@ export class SatelliteApiError extends Error {
   constructor(
     public code: ErrorCode,
     message: string,
-    public details?: Record<string, any>
+    public details?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'SatelliteApiError';
@@ -120,26 +120,34 @@ export class SatelliteApiError extends Error {
 
 // API響應驗證工具
 export class ApiResponseValidator {
-  static validateSatelliteInfo(data: any): data is StandardSatelliteInfo {
+  static validateSatelliteInfo(data: unknown): data is StandardSatelliteInfo {
+    if (typeof data !== 'object' || data === null) return false;
+    
+    const obj = data as Record<string, unknown>;
+    const position = obj.position as Record<string, unknown>;
+    const orbitalParams = obj.orbital_parameters as Record<string, unknown>;
+    
     return (
-      typeof data.id === 'number' &&
-      typeof data.name === 'string' &&
-      typeof data.norad_id === 'number' &&
-      data.position &&
-      typeof data.position.latitude === 'number' &&
-      typeof data.position.longitude === 'number' &&
-      typeof data.position.altitude === 'number' &&
-      data.orbital_parameters &&
-      typeof data.orbital_parameters.period_minutes === 'number'
+      typeof obj.id === 'number' &&
+      typeof obj.name === 'string' &&
+      typeof obj.norad_id === 'number' &&
+      position &&
+      typeof position.latitude === 'number' &&
+      typeof position.longitude === 'number' &&
+      typeof position.altitude === 'number' &&
+      orbitalParams &&
+      typeof orbitalParams.period_minutes === 'number'
     );
   }
 
-  static validateApiResponse<T>(response: any): response is ApiResponse<T> {
+  static validateApiResponse<T>(response: unknown): response is ApiResponse<T> {
+    if (typeof response !== 'object' || response === null) return false;
+    
+    const obj = response as Record<string, unknown>;
     return (
-      response &&
-      typeof response.status === 'string' &&
-      ['success', 'error', 'warning'].includes(response.status) &&
-      typeof response.timestamp === 'string'
+      typeof obj.status === 'string' &&
+      ['success', 'error', 'warning'].includes(obj.status) &&
+      typeof obj.timestamp === 'string'
     );
   }
 

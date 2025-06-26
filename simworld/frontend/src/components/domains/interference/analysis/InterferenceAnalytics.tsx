@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import { Text, Line } from '@react-three/drei'
 
 interface InterferenceAnalyticsProps {
-    devices: any[]
+    devices: unknown[]
     enabled: boolean
 }
 
@@ -30,9 +30,15 @@ interface AnalyticsResult {
     recommendations: string[]
 }
 
-const InterferenceAnalytics: React.FC<InterferenceAnalyticsProps> = ({ devices, enabled }) => {
-    const [interferencePatterns, setInterferencePatterns] = useState<InterferencePattern[]>([])
-    const [analyticsResult, setAnalyticsResult] = useState<AnalyticsResult | null>(null)
+const InterferenceAnalytics: React.FC<InterferenceAnalyticsProps> = ({
+    devices,
+    enabled,
+}) => {
+    const [interferencePatterns, setInterferencePatterns] = useState<
+        InterferencePattern[]
+    >([])
+    const [analyticsResult, setAnalyticsResult] =
+        useState<AnalyticsResult | null>(null)
     const [scanProgress, setScanProgress] = useState(0)
     const [isScanning, setIsScanning] = useState(false)
 
@@ -51,10 +57,12 @@ const InterferenceAnalytics: React.FC<InterferenceAnalyticsProps> = ({ devices, 
             // 模擬分析過程
             for (let i = 0; i <= 100; i += 20) {
                 setScanProgress(i)
-                await new Promise(resolve => setTimeout(resolve, 300))
+                await new Promise((resolve) => setTimeout(resolve, 300))
             }
 
             // 分析干擾模式
+             
+             
             const patterns = analyzeInterferencePatterns(devices)
             setInterferencePatterns(patterns)
 
@@ -77,7 +85,7 @@ const InterferenceAnalytics: React.FC<InterferenceAnalyticsProps> = ({ devices, 
         <>
             {/* 掃描進度顯示 */}
             {isScanning && <ScanProgressDisplay progress={scanProgress} />}
-            
+
             {/* 干擾模式可視化 */}
             {interferencePatterns.map((pattern) => (
                 <InterferencePatternVisualization
@@ -86,29 +94,42 @@ const InterferenceAnalytics: React.FC<InterferenceAnalyticsProps> = ({ devices, 
                     devices={devices}
                 />
             ))}
-            
+
             {/* 分析結果顯示 */}
-            {analyticsResult && <AnalyticsResultDisplay result={analyticsResult} />}
-            
+            {analyticsResult && (
+                <AnalyticsResultDisplay result={analyticsResult} />
+            )}
+
             {/* 干擾路徑線條 */}
-            <InterferencePathLines patterns={interferencePatterns} devices={devices} />
+            <InterferencePathLines
+                patterns={interferencePatterns}
+                devices={devices}
+            />
         </>
     )
 }
 
 // 分析干擾模式
-const analyzeInterferencePatterns = (devices: any[]): InterferencePattern[] => {
+ 
+ 
+const analyzeInterferencePatterns = (devices: unknown[]): InterferencePattern[] => {
     const patterns: InterferencePattern[] = []
-    const jammers = devices.filter(d => d.role === 'jammer')
-    const receivers = devices.filter(d => d.role === 'receiver')
-    const transmitters = devices.filter(d => d.role === 'desired')
+     
+     
+    const jammers = devices.filter((d) => d.role === 'jammer')
+     
+     
+    const receivers = devices.filter((d) => d.role === 'receiver')
+     
+     
+    const transmitters = devices.filter((d) => d.role === 'desired')
 
     jammers.forEach((jammer, index) => {
         // 分析故意干擾模式
-        const affectedRx = receivers.filter(rx => {
+        const affectedRx = receivers.filter((rx) => {
             const distance = Math.sqrt(
                 Math.pow((rx.position_x || 0) - (jammer.position_x || 0), 2) +
-                Math.pow((rx.position_y || 0) - (jammer.position_y || 0), 2)
+                    Math.pow((rx.position_y || 0) - (jammer.position_y || 0), 2)
             )
             return distance < 80
         })
@@ -119,21 +140,27 @@ const analyzeInterferencePatterns = (devices: any[]): InterferencePattern[] => {
                 id: `intentional_${jammer.id}_${index}`,
                 type: 'intentional',
                 sourceId: jammer.id,
-                affectedDevices: affectedRx.map(rx => rx.id),
+                affectedDevices: affectedRx.map((rx) => rx.id),
                 severity,
                 frequency: 2400 + Math.random() * 200, // MHz
                 power: 20 + Math.random() * 10, // dBm
                 duration: Math.random() * 3600, // seconds
-                predictedImpact: calculatePredictedImpact(affectedRx.length, severity),
-                mitigation: generateMitigationStrategies(severity, 'intentional')
+                predictedImpact: calculatePredictedImpact(
+                    affectedRx.length,
+                    severity
+                ),
+                mitigation: generateMitigationStrategies(
+                    severity,
+                    'intentional'
+                ),
             })
         }
 
         // 分析同頻干擾
-        transmitters.forEach(tx => {
+        transmitters.forEach((tx) => {
             const txToJammerDistance = Math.sqrt(
                 Math.pow((tx.position_x || 0) - (jammer.position_x || 0), 2) +
-                Math.pow((tx.position_y || 0) - (jammer.position_y || 0), 2)
+                    Math.pow((tx.position_y || 0) - (jammer.position_y || 0), 2)
             )
 
             if (txToJammerDistance < 120) {
@@ -147,18 +174,21 @@ const analyzeInterferencePatterns = (devices: any[]): InterferencePattern[] => {
                     power: 15,
                     duration: Math.random() * 1800,
                     predictedImpact: txToJammerDistance < 60 ? 80 : 50,
-                    mitigation: generateMitigationStrategies('high', 'co_channel')
+                    mitigation: generateMitigationStrategies(
+                        'high',
+                        'co_channel'
+                    ),
                 })
             }
         })
     })
 
     // 分析多徑干擾
-    receivers.forEach(rx => {
-        const nearbyTx = transmitters.filter(tx => {
+    receivers.forEach((rx) => {
+        const nearbyTx = transmitters.filter((tx) => {
             const distance = Math.sqrt(
                 Math.pow((rx.position_x || 0) - (tx.position_x || 0), 2) +
-                Math.pow((rx.position_y || 0) - (tx.position_y || 0), 2)
+                    Math.pow((rx.position_y || 0) - (tx.position_y || 0), 2)
             )
             return distance > 30 && distance < 100
         })
@@ -174,7 +204,7 @@ const analyzeInterferencePatterns = (devices: any[]): InterferencePattern[] => {
                 power: -10,
                 duration: 300,
                 predictedImpact: 30,
-                mitigation: generateMitigationStrategies('medium', 'multipath')
+                mitigation: generateMitigationStrategies('medium', 'multipath'),
             })
         }
     })
@@ -182,46 +212,69 @@ const analyzeInterferencePatterns = (devices: any[]): InterferencePattern[] => {
     return patterns
 }
 
-const getSeverityLevel = (affectedCount: number, distance: number): 'low' | 'medium' | 'high' | 'critical' => {
+         
+         
+const getSeverityLevel = (
+    affectedCount: number,
+    distance: number
+): 'low' | 'medium' | 'high' | 'critical' => {
     if (affectedCount >= 3 || distance < 30) return 'critical'
     if (affectedCount >= 2 || distance < 50) return 'high'
     if (affectedCount >= 1 || distance < 70) return 'medium'
     return 'low'
 }
 
-const calculatePredictedImpact = (affectedCount: number, severity: string): number => {
+const calculatePredictedImpact = (
+    affectedCount: number,
+    severity: string
+): number => {
     const baseImpact = affectedCount * 20
     const severityMultiplier = {
-        'low': 0.5,
-        'medium': 1.0,
-        'high': 1.5,
-        'critical': 2.0
+        low: 0.5,
+        medium: 1.0,
+        high: 1.5,
+        critical: 2.0,
     }
-    return Math.min(baseImpact * (severityMultiplier[severity as keyof typeof severityMultiplier] || 1), 100)
+    return Math.min(
+        baseImpact *
+            (severityMultiplier[severity as keyof typeof severityMultiplier] ||
+                1),
+        100
+    )
 }
 
-const generateMitigationStrategies = (severity: string, type: string): string[] => {
+const generateMitigationStrategies = (
+    severity: string,
+    type: string
+): string[] => {
     const strategies: { [key: string]: string[] } = {
-        'intentional': ['頻率跳躍', '功率控制', '波束成形', '加密通訊'],
-        'co_channel': ['頻率分配', '空間分隔', '時分多址', '載波聚合'],
-        'multipath': ['等化器', '分集接收', 'OFDM調變', '通道編碼'],
-        'unintentional': ['濾波器', '屏蔽', '協調機制', '檢測算法']
+        intentional: ['頻率跳躍', '功率控制', '波束成形', '加密通訊'],
+        co_channel: ['頻率分配', '空間分隔', '時分多址', '載波聚合'],
+        multipath: ['等化器', '分集接收', 'OFDM調變', '通道編碼'],
+        unintentional: ['濾波器', '屏蔽', '協調機制', '檢測算法'],
     }
-    
+
     const severityStrategies: { [key: string]: string[] } = {
-        'low': ['監控', '記錄'],
-        'medium': ['自動優化', '告警'],
-        'high': ['立即緩解', '重新路由'],
-        'critical': ['緊急處理', '系統隔離']
+        low: ['監控', '記錄'],
+        medium: ['自動優化', '告警'],
+        high: ['立即緩解', '重新路由'],
+        critical: ['緊急處理', '系統隔離'],
     }
-    
-    return [...(strategies[type] || []), ...(severityStrategies[severity] || [])]
+
+    return [
+        ...(strategies[type] || []),
+        ...(severityStrategies[severity] || []),
+    ]
 }
 
-const generateAnalyticsResult = (patterns: InterferencePattern[]): AnalyticsResult => {
-    const criticalCount = patterns.filter(p => p.severity === 'critical').length
+const generateAnalyticsResult = (
+    patterns: InterferencePattern[]
+): AnalyticsResult => {
+    const criticalCount = patterns.filter(
+        (p) => p.severity === 'critical'
+    ).length
     const totalImpact = patterns.reduce((sum, p) => sum + p.predictedImpact, 0)
-    
+
     return {
         timestamp: new Date().toISOString(),
         totalPatterns: patterns.length,
@@ -231,11 +284,13 @@ const generateAnalyticsResult = (patterns: InterferencePattern[]): AnalyticsResu
         recommendations: [
             criticalCount > 0 ? '立即處理關鍵干擾源' : '系統運行正常',
             patterns.length > 5 ? '建議頻率重新規劃' : '頻率使用合理',
-            totalImpact > 200 ? '啟動緊急干擾緩解' : '監控持續進行'
-        ]
+            totalImpact > 200 ? '啟動緊急干擾緩解' : '監控持續進行',
+        ],
     }
 }
 
+         
+         
 const ScanProgressDisplay: React.FC<{ progress: number }> = ({ progress }) => {
     return (
         <group position={[0, 60, 0]}>
@@ -248,7 +303,7 @@ const ScanProgressDisplay: React.FC<{ progress: number }> = ({ progress }) => {
             >
                 🔍 干擾分析掃描中...
             </Text>
-            
+
             <Text
                 position={[0, 5, 0]}
                 fontSize={4}
@@ -258,13 +313,13 @@ const ScanProgressDisplay: React.FC<{ progress: number }> = ({ progress }) => {
             >
                 進度: {progress}%
             </Text>
-            
+
             {/* 進度條 */}
             <mesh position={[0, 0, 0]}>
                 <boxGeometry args={[60, 3, 1]} />
                 <meshBasicMaterial color="#333333" />
             </mesh>
-            
+
             <mesh position={[-30 + (progress * 60) / 200, 0, 0.1]}>
                 <boxGeometry args={[(progress * 60) / 100, 3, 1]} />
                 <meshBasicMaterial color="#00ff88" />
@@ -273,45 +328,69 @@ const ScanProgressDisplay: React.FC<{ progress: number }> = ({ progress }) => {
     )
 }
 
-const InterferencePatternVisualization: React.FC<{ 
+         
+         
+const InterferencePatternVisualization: React.FC<{
     pattern: InterferencePattern
-    devices: any[]
+    devices: unknown[]
 }> = ({ pattern, devices }) => {
     const meshRef = React.useRef<THREE.Group>(null)
-    
-    const sourceDevice = devices.find(d => d.id === pattern.sourceId)
-    if (!sourceDevice) return null
-
-    const getSeverityColor = (severity: string) => {
-        switch (severity) {
-            case 'low': return '#ffff00'
-            case 'medium': return '#ff8800'
-            case 'high': return '#ff4400'
-            case 'critical': return '#ff0000'
-            default: return '#ffffff'
-        }
-    }
-
-    const getTypeIcon = (type: string) => {
-        switch (type) {
-            case 'intentional': return '🎯'
-            case 'unintentional': return '📻'
-            case 'multipath': return '🔀'
-            case 'co_channel': return '📡'
-            default: return '⚡'
-        }
-    }
 
     useFrame((state) => {
         if (meshRef.current) {
             const time = state.clock.getElapsedTime()
-            const intensity = pattern.severity === 'critical' ? 2 : pattern.severity === 'high' ? 1.5 : 1
+            const intensity =
+                pattern.severity === 'critical'
+                    ? 2
+                    : pattern.severity === 'high'
+                    ? 1.5
+                    : 1
             meshRef.current.rotation.y = time * intensity
-            
+
             const scale = 1 + Math.sin(time * intensity * 2) * 0.2
             meshRef.current.scale.setScalar(scale)
         }
     })
+
+     
+     
+    const sourceDevice = devices.find((d) => d.id === pattern.sourceId)
+    if (!sourceDevice) return null
+
+     
+         
+         
+    const _getSeverityColor = (severity: string) => {
+        switch (severity) {
+            case 'low':
+                return '#ffff00'
+            case 'medium':
+                return '#ff8800'
+            case 'high':
+                return '#ff4400'
+            case 'critical':
+                return '#ff0000'
+            default:
+                return '#ffffff'
+        }
+    }
+
+         
+         
+    const getTypeIcon = (type: string) => {
+        switch (type) {
+            case 'intentional':
+                return '🎯'
+            case 'unintentional':
+                return '📻'
+            case 'multipath':
+                return '🔀'
+            case 'co_channel':
+                return '📡'
+            default:
+                return '⚡'
+        }
+    }
 
     return (
         <group
@@ -319,7 +398,7 @@ const InterferencePatternVisualization: React.FC<{
             position={[
                 sourceDevice.position_x || 0,
                 (sourceDevice.position_z || 0) + 40,
-                sourceDevice.position_y || 0
+                sourceDevice.position_y || 0,
             ]}
         >
             {/* 干擾模式指示器 */}
@@ -333,7 +412,7 @@ const InterferencePatternVisualization: React.FC<{
                     emissiveIntensity={0.3}
                 />
             </mesh>
-            
+
             {/* 干擾類型標籤 */}
             <Text
                 position={[0, 20, 0]}
@@ -344,7 +423,7 @@ const InterferencePatternVisualization: React.FC<{
             >
                 {getTypeIcon(pattern.type)} {pattern.type.toUpperCase()}
             </Text>
-            
+
             <Text
                 position={[0, 15, 0]}
                 fontSize={3}
@@ -354,7 +433,7 @@ const InterferencePatternVisualization: React.FC<{
             >
                 嚴重度: {pattern.severity.toUpperCase()}
             </Text>
-            
+
             <Text
                 position={[0, 10, 0]}
                 fontSize={2.5}
@@ -370,28 +449,46 @@ const InterferencePatternVisualization: React.FC<{
 
 const InterferencePathLines: React.FC<{
     patterns: InterferencePattern[]
-    devices: any[]
+    devices: unknown[]
 }> = ({ patterns, devices }) => {
     return (
         <>
             {patterns.map((pattern) => {
-                const sourceDevice = devices.find(d => d.id === pattern.sourceId)
+                 
+                 
+                const sourceDevice = devices.find(
+                    (d) => d.id === pattern.sourceId
+                )
                 if (!sourceDevice) return null
 
                 return pattern.affectedDevices.map((deviceId) => {
-                    const targetDevice = devices.find(d => d.id === deviceId)
+                     
+                     
+                    const targetDevice = devices.find((d) => d.id === deviceId)
                     if (!targetDevice) return null
 
                     const points = [
-                        [sourceDevice.position_x || 0, (sourceDevice.position_z || 0) + 10, sourceDevice.position_y || 0],
-                        [targetDevice.position_x || 0, (targetDevice.position_z || 0) + 10, targetDevice.position_y || 0]
+                        [
+                            sourceDevice.position_x || 0,
+                            (sourceDevice.position_z || 0) + 10,
+                            sourceDevice.position_y || 0,
+                        ],
+                        [
+                            targetDevice.position_x || 0,
+                            (targetDevice.position_z || 0) + 10,
+                            targetDevice.position_y || 0,
+                        ],
                     ]
 
                     return (
                         <Line
                             key={`${pattern.id}_${deviceId}`}
                             points={points}
-                            color={pattern.severity === 'critical' ? '#ff0000' : '#ff8800'}
+                            color={
+                                pattern.severity === 'critical'
+                                    ? '#ff0000'
+                                    : '#ff8800'
+                            }
                             lineWidth={pattern.severity === 'critical' ? 3 : 2}
                             dashed={pattern.type === 'multipath'}
                         />
@@ -402,7 +499,11 @@ const InterferencePathLines: React.FC<{
     )
 }
 
-const AnalyticsResultDisplay: React.FC<{ result: AnalyticsResult }> = ({ result }) => {
+         
+         
+const AnalyticsResultDisplay: React.FC<{ result: AnalyticsResult }> = ({
+    result,
+}) => {
     return (
         <group position={[80, 60, 80]}>
             <Text
@@ -414,7 +515,7 @@ const AnalyticsResultDisplay: React.FC<{ result: AnalyticsResult }> = ({ result 
             >
                 🔍 干擾分析結果
             </Text>
-            
+
             <Text
                 position={[0, 14, 0]}
                 fontSize={3}
@@ -424,7 +525,7 @@ const AnalyticsResultDisplay: React.FC<{ result: AnalyticsResult }> = ({ result 
             >
                 檢測到 {result.totalPatterns} 個干擾模式
             </Text>
-            
+
             <Text
                 position={[0, 10, 0]}
                 fontSize={3}
@@ -434,7 +535,7 @@ const AnalyticsResultDisplay: React.FC<{ result: AnalyticsResult }> = ({ result 
             >
                 關鍵威脅: {result.criticalCount} 個
             </Text>
-            
+
             <Text
                 position={[0, 6, 0]}
                 fontSize={3}
@@ -444,7 +545,7 @@ const AnalyticsResultDisplay: React.FC<{ result: AnalyticsResult }> = ({ result 
             >
                 系統效率: {result.systemEfficiency.toFixed(1)}%
             </Text>
-            
+
             <Text
                 position={[0, 2, 0]}
                 fontSize={3}
@@ -454,7 +555,7 @@ const AnalyticsResultDisplay: React.FC<{ result: AnalyticsResult }> = ({ result 
             >
                 預測中斷: {result.predictedOutages} 次
             </Text>
-            
+
             {/* 建議 */}
             {result.recommendations.map((rec, index) => (
                 <Text

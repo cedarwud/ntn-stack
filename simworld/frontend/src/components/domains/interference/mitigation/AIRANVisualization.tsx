@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 
 interface AIRANVisualizationProps {
-    devices: any[]
+    devices: unknown[]
     enabled: boolean
 }
 
@@ -16,7 +16,12 @@ interface AIDecision {
     improvement: number
 }
 
-const AIRANVisualization: React.FC<AIRANVisualizationProps> = ({ devices, enabled }) => {
+         
+         
+const AIRANVisualization: React.FC<AIRANVisualizationProps> = ({
+    devices,
+    enabled,
+}) => {
     const [decisions, setDecisions] = useState<AIDecision[]>([])
 
     // 模擬 AI 決策生成
@@ -28,39 +33,61 @@ const AIRANVisualization: React.FC<AIRANVisualizationProps> = ({ devices, enable
 
         const interval = setInterval(() => {
             // 為有問題的設備生成 AI 決策
-            const receiverDevices = devices.filter(d => d.role === 'receiver')
-            const jammerDevices = devices.filter(d => d.role === 'jammer')
-            
+             
+             
+            const receiverDevices = devices.filter((d) => d.role === 'receiver')
+             
+             
+            const jammerDevices = devices.filter((d) => d.role === 'jammer')
+
             const newDecisions: AIDecision[] = []
-            
+
             receiverDevices.forEach((receiver, index) => {
                 // 檢查 Rx 是否靠近 Jammer 干擾源
-                const nearJammer = jammerDevices.some(jammer => {
+                const nearJammer = jammerDevices.some((jammer) => {
                     const distance = Math.sqrt(
-                        Math.pow((receiver.position_x || 0) - (jammer.position_x || 0), 2) +
-                        Math.pow((receiver.position_y || 0) - (jammer.position_y || 0), 2)
+                        Math.pow(
+                            (receiver.position_x || 0) -
+                                (jammer.position_x || 0),
+                            2
+                        ) +
+                            Math.pow(
+                                (receiver.position_y || 0) -
+                                    (jammer.position_y || 0),
+                                2
+                            )
                     )
                     return distance < 80 // 干擾影響範圍
                 })
 
                 if (nearJammer) {
-                    const decisionTypes = ['interference_mitigation', 'beam_optimization', 'power_control']
-                    const randomType = decisionTypes[Math.floor(Math.random() * decisionTypes.length)]
-                    
+                    const decisionTypes = [
+                        'interference_mitigation',
+                        'beam_optimization',
+                        'power_control',
+                    ]
+                    const randomType =
+                        decisionTypes[
+                            Math.floor(Math.random() * decisionTypes.length)
+                        ]
+
                     newDecisions.push({
                         id: `decision_${receiver.id || index}`,
-                        type: randomType as any,
+                        type: randomType as
+                            | 'beam_optimization'
+                            | 'power_control'
+                            | 'interference_mitigation',
                         position: [
-                            receiver.position_x || 0, 
-                            (receiver.position_z || 0) + 25, 
-                            receiver.position_y || 0
+                            receiver.position_x || 0,
+                            (receiver.position_z || 0) + 25,
+                            receiver.position_y || 0,
                         ],
                         status: 'analyzing',
-                        improvement: Math.random() * 15 + 5 // 5-20dB 改善
+                        improvement: Math.random() * 15 + 5, // 5-20dB 改善
                     })
                 }
             })
-            
+
             setDecisions(newDecisions)
         }, 3000)
 
@@ -72,14 +99,16 @@ const AIRANVisualization: React.FC<AIRANVisualizationProps> = ({ devices, enable
         if (decisions.length === 0) return
 
         const statusUpdateInterval = setInterval(() => {
-            setDecisions(prev => prev.map(decision => {
-                if (decision.status === 'analyzing') {
-                    return { ...decision, status: 'executing' }
-                } else if (decision.status === 'executing') {
-                    return { ...decision, status: 'completed' }
-                }
-                return decision
-            }))
+            setDecisions((prev) =>
+                prev.map((decision) => {
+                    if (decision.status === 'analyzing') {
+                        return { ...decision, status: 'executing' }
+                    } else if (decision.status === 'executing') {
+                        return { ...decision, status: 'completed' }
+                    }
+                    return decision
+                })
+            )
         }, 2000)
 
         return () => clearInterval(statusUpdateInterval)
@@ -95,7 +124,10 @@ const AIRANVisualization: React.FC<AIRANVisualizationProps> = ({ devices, enable
                     decision={decision}
                 />
             ))}
-            <AISystemStatus enabled={enabled} totalDecisions={decisions.length} />
+            <AISystemStatus
+                enabled={enabled}
+                totalDecisions={decisions.length}
+            />
         </>
     )
 }
@@ -104,13 +136,17 @@ interface AIDecisionVisualizationProps {
     decision: AIDecision
 }
 
-const AIDecisionVisualization: React.FC<AIDecisionVisualizationProps> = ({ decision }) => {
+         
+         
+const AIDecisionVisualization: React.FC<AIDecisionVisualizationProps> = ({
+    decision,
+}) => {
     const meshRef = React.useRef<THREE.Group>(null)
 
     useFrame((state) => {
         if (meshRef.current) {
             const time = state.clock.getElapsedTime()
-            
+
             if (decision.status === 'analyzing') {
                 // 分析階段：旋轉動畫
                 meshRef.current.rotation.y = time * 2
@@ -122,21 +158,33 @@ const AIDecisionVisualization: React.FC<AIDecisionVisualizationProps> = ({ decis
         }
     })
 
+         
+         
     const getDecisionColor = () => {
         switch (decision.type) {
-            case 'beam_optimization': return '#00ff88'
-            case 'power_control': return '#4488ff'
-            case 'interference_mitigation': return '#ff8844'
-            default: return '#ffffff'
+            case 'beam_optimization':
+                return '#00ff88'
+            case 'power_control':
+                return '#4488ff'
+            case 'interference_mitigation':
+                return '#ff8844'
+            default:
+                return '#ffffff'
         }
     }
 
+         
+         
     const getStatusColor = () => {
         switch (decision.status) {
-            case 'analyzing': return '#ffff00'
-            case 'executing': return '#ff8800'
-            case 'completed': return '#00ff00'
-            default: return '#ffffff'
+            case 'analyzing':
+                return '#ffff00'
+            case 'executing':
+                return '#ff8800'
+            case 'completed':
+                return '#00ff00'
+            default:
+                return '#ffffff'
         }
     }
 
@@ -153,7 +201,7 @@ const AIDecisionVisualization: React.FC<AIDecisionVisualizationProps> = ({ decis
                     emissiveIntensity={0.2}
                 />
             </mesh>
-            
+
             {/* 狀態環 */}
             <mesh position={[0, 8, 0]}>
                 <torusGeometry args={[12, 2, 8, 16]} />
@@ -163,7 +211,7 @@ const AIDecisionVisualization: React.FC<AIDecisionVisualizationProps> = ({ decis
                     emissiveIntensity={0.5}
                 />
             </mesh>
-            
+
             {/* 決策標籤 */}
             <Text
                 position={[0, 20, 0]}
@@ -174,7 +222,7 @@ const AIDecisionVisualization: React.FC<AIDecisionVisualizationProps> = ({ decis
             >
                 {decision.type.replace('_', ' ').toUpperCase()}
             </Text>
-            
+
             <Text
                 position={[0, 15, 0]}
                 fontSize={3}
@@ -184,7 +232,7 @@ const AIDecisionVisualization: React.FC<AIDecisionVisualizationProps> = ({ decis
             >
                 {decision.status.toUpperCase()}
             </Text>
-            
+
             {decision.status === 'completed' && (
                 <Text
                     position={[0, 10, 0]}
@@ -205,23 +253,27 @@ interface AISystemStatusProps {
     totalDecisions: number
 }
 
-const AISystemStatus: React.FC<AISystemStatusProps> = ({ enabled, totalDecisions }) => {
+const AISystemStatus: React.FC<AISystemStatusProps> = ({
+    enabled,
+    totalDecisions,
+}) => {
     const [stats, setStats] = useState({
         decisionsPerMinute: 0,
         successRate: 95,
         energySavings: 12,
-        spectralEfficiency: 8
+        spectralEfficiency: 8,
     })
 
     useEffect(() => {
         if (!enabled) return
 
         const interval = setInterval(() => {
-            setStats(prev => ({
-                decisionsPerMinute: Math.floor(Math.random() * 5) + totalDecisions,
+            setStats(() => ({
+                decisionsPerMinute:
+                    Math.floor(Math.random() * 5) + totalDecisions,
                 successRate: 90 + Math.random() * 10,
                 energySavings: 10 + Math.random() * 5,
-                spectralEfficiency: 5 + Math.random() * 8
+                spectralEfficiency: 5 + Math.random() * 8,
             }))
         }, 5000)
 
@@ -241,7 +293,7 @@ const AISystemStatus: React.FC<AISystemStatusProps> = ({ enabled, totalDecisions
             >
                 AI-RAN 系統狀態
             </Text>
-            
+
             <Text
                 position={[0, 10, 0]}
                 fontSize={3}
@@ -251,7 +303,7 @@ const AISystemStatus: React.FC<AISystemStatusProps> = ({ enabled, totalDecisions
             >
                 決策/分鐘: {stats.decisionsPerMinute}
             </Text>
-            
+
             <Text
                 position={[0, 5, 0]}
                 fontSize={3}
@@ -261,7 +313,7 @@ const AISystemStatus: React.FC<AISystemStatusProps> = ({ enabled, totalDecisions
             >
                 成功率: {stats.successRate.toFixed(1)}%
             </Text>
-            
+
             <Text
                 position={[0, 0, 0]}
                 fontSize={3}
@@ -271,7 +323,7 @@ const AISystemStatus: React.FC<AISystemStatusProps> = ({ enabled, totalDecisions
             >
                 能耗節省: {stats.energySavings.toFixed(1)}%
             </Text>
-            
+
             <Text
                 position={[0, -5, 0]}
                 fontSize={3}

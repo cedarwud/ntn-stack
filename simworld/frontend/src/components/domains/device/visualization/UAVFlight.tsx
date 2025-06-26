@@ -175,70 +175,89 @@ export default function UAVFlight({
         }
     }, [flightMode, flightModes])
 
-    const generateBezierPath = (
-        start: THREE.Vector3,
-        end: THREE.Vector3,
-        points: number = 10
-    ) => {
-        const path: THREE.Vector3[] = []
-        const direction = new THREE.Vector3().subVectors(end, start).normalize()
-        const up = new THREE.Vector3(0, 1, 0)
-        const perpendicular = new THREE.Vector3()
-            .crossVectors(direction, up)
-            .normalize()
-        if (perpendicular.lengthSq() < 0.001) {
-            perpendicular
-                .crossVectors(direction, new THREE.Vector3(1, 0, 0))
+    const generateBezierPath = useCallback(
+        (start: THREE.Vector3, end: THREE.Vector3, points: number = 10) => {
+            const path: THREE.Vector3[] = []
+            const direction = new THREE.Vector3()
+                .subVectors(end, start)
                 .normalize()
-        }
-        const distance = start.distanceTo(end)
-        const curveOffset = distance * pathCurvature.current
-        const offset1 = perpendicular
-            .clone()
-            .multiplyScalar(curveOffset * (Math.random() > 0.5 ? 1 : -1))
-        const offset2 = perpendicular
-            .clone()
-            .multiplyScalar(curveOffset * (Math.random() > 0.5 ? 1 : -1))
-        const heightVariation =
-            flightModeParams.current[flightMode].heightVariation
-        const control1 = start
-            .clone()
-            .add(direction.clone().multiplyScalar(distance / 3))
-            .add(offset1)
-            .add(
-                new THREE.Vector3(0, (Math.random() - 0.3) * heightVariation, 0)
-            )
-        const control2 = start
-            .clone()
-            .add(direction.clone().multiplyScalar((distance * 2) / 3))
-            .add(offset2)
-            .add(
-                new THREE.Vector3(0, (Math.random() - 0.3) * heightVariation, 0)
-            )
-        for (let i = 0; i < points; i++) {
-            const t = i / (points - 1)
-            const b0 = Math.pow(1 - t, 3)
-            const b1 = 3 * Math.pow(1 - t, 2) * t
-            const b2 = 3 * (1 - t) * Math.pow(t, 2)
-            const b3 = Math.pow(t, 3)
-            const point = new THREE.Vector3(
-                b0 * start.x + b1 * control1.x + b2 * control2.x + b3 * end.x,
-                b0 * start.y + b1 * control1.y + b2 * control2.y + b3 * end.y,
-                b0 * start.z + b1 * control1.z + b2 * control2.z + b3 * end.z
-            )
-            if (i > 0 && i < points - 1) {
-                const smallNoise = new THREE.Vector3(
-                    (Math.random() - 0.5) * 2,
-                    (Math.random() - 0.5) * 1,
-                    (Math.random() - 0.5) * 2
-                )
-                point.add(smallNoise)
+            const up = new THREE.Vector3(0, 1, 0)
+            const perpendicular = new THREE.Vector3()
+                .crossVectors(direction, up)
+                .normalize()
+            if (perpendicular.lengthSq() < 0.001) {
+                perpendicular
+                    .crossVectors(direction, new THREE.Vector3(1, 0, 0))
+                    .normalize()
             }
-            path.push(point)
-        }
-        return path
-    }
-    const generateNewTarget = () => {
+            const distance = start.distanceTo(end)
+            const curveOffset = distance * pathCurvature.current
+            const offset1 = perpendicular
+                .clone()
+                .multiplyScalar(curveOffset * (Math.random() > 0.5 ? 1 : -1))
+            const offset2 = perpendicular
+                .clone()
+                .multiplyScalar(curveOffset * (Math.random() > 0.5 ? 1 : -1))
+            const heightVariation =
+                flightModeParams.current[flightMode].heightVariation
+            const control1 = start
+                .clone()
+                .add(direction.clone().multiplyScalar(distance / 3))
+                .add(offset1)
+                .add(
+                    new THREE.Vector3(
+                        0,
+                        (Math.random() - 0.3) * heightVariation,
+                        0
+                    )
+                )
+            const control2 = start
+                .clone()
+                .add(direction.clone().multiplyScalar((distance * 2) / 3))
+                .add(offset2)
+                .add(
+                    new THREE.Vector3(
+                        0,
+                        (Math.random() - 0.3) * heightVariation,
+                        0
+                    )
+                )
+            for (let i = 0; i < points; i++) {
+                const t = i / (points - 1)
+                const b0 = Math.pow(1 - t, 3)
+                const b1 = 3 * Math.pow(1 - t, 2) * t
+                const b2 = 3 * (1 - t) * Math.pow(t, 2)
+                const b3 = Math.pow(t, 3)
+                const point = new THREE.Vector3(
+                    b0 * start.x +
+                        b1 * control1.x +
+                        b2 * control2.x +
+                        b3 * end.x,
+                    b0 * start.y +
+                        b1 * control1.y +
+                        b2 * control2.y +
+                        b3 * end.y,
+                    b0 * start.z +
+                        b1 * control1.z +
+                        b2 * control2.z +
+                        b3 * end.z
+                )
+                if (i > 0 && i < points - 1) {
+                    const smallNoise = new THREE.Vector3(
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 1,
+                        (Math.random() - 0.5) * 2
+                    )
+                    point.add(smallNoise)
+                }
+                path.push(point)
+            }
+            return path
+        },
+        [flightMode]
+    )
+
+    const generateNewTarget = useCallback(() => {
         let distance
         let heightRange
         switch (flightMode) {
@@ -269,7 +288,8 @@ export default function UAVFlight({
         const newY =
             heightRange[0] + Math.random() * (heightRange[1] - heightRange[0])
         return new THREE.Vector3(newX, newY, newZ)
-    }
+    }, [flightMode])
+
     const hasReachedTarget = (
         current: THREE.Vector3,
         target: THREE.Vector3,
@@ -288,7 +308,7 @@ export default function UAVFlight({
         currentWaypoint.current = 0
         setTargetPosition(end)
         return newWaypoints
-    }, [currentPosition])
+    }, [currentPosition, generateBezierPath, generateNewTarget])
 
     useEffect(() => {
         // 設置警告攔截器以忽略動畫綁定錯誤
@@ -643,7 +663,8 @@ export default function UAVFlight({
                 }
             }
         }
-    }, [manualDirection, auto, onManualMoveDone, onPositionUpdate])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [manualDirection, auto, onManualMoveDone]) // onPositionUpdate 故意移除，避免重複渲染
     useEffect(() => {
         console.log('UAV 模型載入成功:', clonedScene)
         console.log('光源已添加到組件中')

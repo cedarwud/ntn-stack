@@ -108,7 +108,10 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({
             setPerformanceData(dataPoints)
 
             // 生成趨勢分析
-            const metrics = [
+             
+             
+             
+            const _metrics = [
                 'systemLatency',
                 'throughput',
                 'cpuUsage',
@@ -116,6 +119,8 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({
                 'errorRate',
                 'responseTime',
             ]
+             
+             
             const trends: TrendAnalysis[] = metrics.map((metric) => {
                 const recentValues = dataPoints
                     .slice(-10)
@@ -212,6 +217,8 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({
             setAlerts(newAlerts)
         }
 
+         
+         
         const getMetricDisplayName = (metric: string): string => {
             const names: { [key: string]: string } = {
                 systemLatency: '系統延遲',
@@ -224,6 +231,8 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({
             return names[metric] || metric
         }
 
+         
+         
         const getRecommendation = (metric: string, trend: string): string => {
             const recommendations: {
                 [key: string]: { [key: string]: string }
@@ -255,6 +264,8 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({
 
     if (!enabled) return null
 
+         
+         
     const getTrendColor = (trend: string): string => {
         switch (trend) {
             case 'improving':
@@ -268,7 +279,10 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({
         }
     }
 
-    const getSeverityColor = (severity: string): string => {
+     
+         
+         
+    const _getSeverityColor = (severity: string): string => {
         switch (severity) {
             case 'critical':
                 return '#ff4757'

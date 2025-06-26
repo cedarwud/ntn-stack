@@ -105,6 +105,8 @@ export const StrategyProvider = ({ children }: StrategyProviderProps) => {
     )
 }
 
+// 添加 useStrategy hook
+// eslint-disable-next-line react-refresh/only-export-components
 export const useStrategy = () => {
     const context = useContext(StrategyContext)
     if (context === undefined) {
@@ -112,3 +114,5 @@ export const useStrategy = () => {
     }
     return context
 }
+
+export default StrategyContext

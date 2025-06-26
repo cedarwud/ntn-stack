@@ -14,7 +14,7 @@ interface SidebarProps {
     devices: Device[]
     loading: boolean
     apiStatus: 'disconnected' | 'connected' | 'error'
-    onDeviceChange: (id: number, field: keyof Device, value: any) => void
+    onDeviceChange: (id: number, field: keyof Device, value: Event) => void
     onDeleteDevice: (id: number) => void
     onAddDevice: () => void
     onApply: () => void
@@ -81,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     // 為每個設備的方向值創建本地狀態
     const [orientationInputs, setOrientationInputs] = useState<{
         [key: string]: { x: string; y: string; z: string }
-    }>({})
+    }>(Record<string, never>)
 
     // 新增：持續發送控制指令的 interval id
     const manualIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -176,7 +176,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     useEffect(() => {
         const newInputs: {
             [key: string]: { x: string; y: string; z: string }
-        } = {}
+        } = Record<string, never>
         devices.forEach((device) => {
             // 檢查 orientationInputs[device.id] 是否存在，如果不存在或其值與 device object 中的值不同，則進行初始化
             const existingInput = orientationInputs[device.id]
@@ -216,6 +216,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             }
         })
         setOrientationInputs(newInputs)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [devices]) // 依賴 devices prop
 
     // 處理方向輸入的變化 (重命名並調整)
@@ -290,17 +291,21 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
 
     // 分組設備
+
     const tempDevices = devices.filter(
         (device) => device.id == null || device.id < 0
     )
+
     const receiverDevices = devices.filter(
         (device) =>
             device.id != null && device.id >= 0 && device.role === 'receiver'
     )
+
     const desiredDevices = devices.filter(
         (device) =>
             device.id != null && device.id >= 0 && device.role === 'desired'
     )
+
     const jammerDevices = devices.filter(
         (device) =>
             device.id != null && device.id >= 0 && device.role === 'jammer'

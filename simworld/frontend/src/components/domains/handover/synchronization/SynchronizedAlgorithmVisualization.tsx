@@ -13,7 +13,7 @@ interface AlgorithmStep {
         | 'sync_check'
         | 'handover_trigger'
     timestamp: number
-    data: any
+    data: unknown
     status: 'running' | 'completed' | 'error'
     description: string
 }
@@ -99,6 +99,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
     const stepIdRef = useRef(0) // 用於生成唯一的步驟ID
 
     // 使用數據同步上下文
+
     const { coreSync: _coreSyncStatus } = useNetStackData()
     // const { overall: connectionStatus, dataSource } = useDataSourceStatus()
     const {
@@ -127,9 +128,32 @@ const SynchronizedAlgorithmVisualization: React.FC<
                 return
             }
 
-            // 🔥 演算法層：強制使用真實衛星數據進行精確計算
-            // 確保類型兼容性，只使用 VisibleSatelliteInfo 類型的衛星數據
-            const availableSatellites: VisibleSatelliteInfo[] = satellites || []
+            // 🔥 優先使用直接獲取的真實衛星數據
+            let availableSatellites: VisibleSatelliteInfo[] = []
+
+            // 首先嘗試使用傳入的衛星數據
+            if (satellites && satellites.length > 0) {
+                availableSatellites = satellites
+            }
+            // 然後嘗試使用 hook 獲取的真實衛星數據
+            else if (realSatellites && realSatellites.length > 0) {
+                // 轉換 SatellitePosition 到 VisibleSatelliteInfo
+                availableSatellites = realSatellites.map((sat) => ({
+                    norad_id: parseInt(sat.norad_id),
+                    name: sat.name || 'Unknown',
+                    elevation_deg:
+                        sat.position?.elevation ||
+                        sat.signal_quality?.elevation_deg ||
+                        0,
+                    azimuth_deg: sat.position?.azimuth || 0,
+                    distance_km:
+                        sat.position?.range ||
+                        sat.signal_quality?.range_km ||
+                        0,
+                    line1: `1 ${sat.norad_id}U 20001001.00000000  .00000000  00000-0  00000-0 0  9999`,
+                    line2: `2 ${sat.norad_id}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
+                }))
+            }
 
             // 如果沒有衛星數據，根據執行類型決定處理方式
             if (availableSatellites.length === 0) {
@@ -152,6 +176,14 @@ const SynchronizedAlgorithmVisualization: React.FC<
                 // 清空之前的 Binary Search 數據
                 setBinarySearchIterations([])
 
+                // 判斷數據源類型
+                const dataSource =
+                    satellites && satellites.length > 0
+                        ? 'props'
+                        : realSatellites && realSatellites.length > 0
+                        ? 'simworld_api'
+                        : 'fallback'
+
                 // 添加算法步驟
                 const step: AlgorithmStep = {
                     step: 'two_point_prediction',
@@ -159,16 +191,15 @@ const SynchronizedAlgorithmVisualization: React.FC<
                     data: {
                         ue_id: selectedUEId,
                         satellites_count: availableSatellites.length,
-                        api_source:
-                            realSatellites.length > 0
-                                ? 'simworld_api'
-                                : 'props',
+                        api_source: dataSource,
                         execution_type: forceExecute ? 'manual' : 'automatic',
                     },
                     status: 'running',
                     description: `執行二點預測：計算 T 和 T+Δt 時間點的最佳衛星 (${
                         forceExecute ? '手動' : '自動'
-                    }執行)`,
+                    }執行，數據源：${
+                        dataSource === 'fallback' ? '模擬' : '真實'
+                    })`,
                 }
 
                 setAlgorithmSteps((prev) => {
@@ -237,11 +268,17 @@ const SynchronizedAlgorithmVisualization: React.FC<
                 let apiResult
                 // let usingFallback = false
                 try {
+                    // 確保時間參數有效
+                    const timeHorizonMinutes = Math.max(
+                        0.05,
+                        dynamicDeltaT / 60
+                    ) // 至少3秒
+
                     // 使用 NetStack API 客戶端
                     apiResult = await netStackApi.predictSatelliteAccess({
                         ue_id: `ue_${satelliteId}`,
                         satellite_id: satelliteId,
-                        time_horizon_minutes: dynamicDeltaT / 60,
+                        time_horizon_minutes: timeHorizonMinutes,
                     })
                 } catch (apiError) {
                     console.warn(
@@ -250,10 +287,18 @@ const SynchronizedAlgorithmVisualization: React.FC<
                     )
                     // usingFallback = true
                     // Fallback: 使用本地預測邏輯
+                    // 確保時間戳有效
+                    const safeCurrentTime =
+                        currentTimeStamp > 0 ? currentTimeStamp : Date.now()
+                    const safeFutureTime =
+                        futureTimeStamp > safeCurrentTime
+                            ? futureTimeStamp
+                            : safeCurrentTime + dynamicDeltaT * 1000
+
                     apiResult = {
-                        prediction_id: `local_${currentTimeStamp}`,
+                        prediction_id: `local_${safeCurrentTime}`,
                         predicted_access_time: new Date(
-                            futureTimeStamp
+                            safeFutureTime
                         ).toISOString(),
                         satellite_id: satelliteId,
                         confidence_score: 0.8,
@@ -262,11 +307,9 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         binary_search_iterations: 1, // Fallback 模式只有簡單預測
                         algorithm_details: {
                             two_point_prediction: {
-                                time_t: new Date(
-                                    currentTimeStamp
-                                ).toISOString(),
+                                time_t: new Date(safeCurrentTime).toISOString(),
                                 time_t_delta: new Date(
-                                    futureTimeStamp
+                                    safeFutureTime
                                 ).toISOString(),
                             },
                             binary_search_refinement: {
@@ -284,14 +327,33 @@ const SynchronizedAlgorithmVisualization: React.FC<
 
                 // 轉換 API 結果為組件格式
                 // 適配實際的 NetStack API 響應結構
-                const currentSatellite =
+                let currentSatellite =
                     availableSatellites.find(
                         (sat) => sat.norad_id?.toString() === satelliteId
                     ) || availableSatellites[0]
 
+                // 如果沒有衛星數據，創建模擬數據
                 if (!currentSatellite) {
-                    console.warn('❌ 無法找到有效的衛星數據')
-                    return
+                    const hasRealData = realSatellites.length > 0
+                    console.warn(
+                        `❌ 無法找到有效的衛星數據 (可用數據源: props=${satellites.length}, simworld=${realSatellites.length})`
+                    )
+                    currentSatellite = {
+                        norad_id: 12345,
+                        name: 'MOCK-SATELLITE-1',
+                        elevation_deg: 45,
+                        azimuth_deg: 180,
+                        distance_km: 1000,
+                        line1: '1 MOCK-1U 20001001.00000000  .00000000  00000-0  00000-0 0  9999',
+                        line2: '2 MOCK-1  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000',
+                    }
+                    console.log(
+                        `🔧 使用模擬衛星數據繼續執行 ${
+                            hasRealData
+                                ? '(SimWorld API 有數據但轉換失敗)'
+                                : '(無真實數據)'
+                        }`
+                    )
                 }
 
                 // 🔧 使用統一的換手決策引擎
@@ -323,7 +385,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                     // const _apiDeltaT = _apiTime - currentTime
                     // 不覆蓋 deltaT，保持使用動態計算值
                     // 已經使用動態計算的時間，不需要額外檢查
-                } catch (timeError) {
+                } catch {
                     // 時間解析失敗，繼續使用動態計算值
                 }
 
@@ -455,6 +517,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                 setCurrentStep('')
             }
         },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [
             isEnabled,
             selectedUEId,
@@ -657,7 +720,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
         lastExecutionTimeRef.current = 0 // 重置頻率限制
 
         // 不立即執行，讓定期執行處理
-    }, [speedMultiplier])
+    }, [speedMultiplier, isEnabled])
 
     // 修復閉包問題的執行器引用
     const executorRef = useRef<(() => void) | null>(null)
@@ -731,10 +794,31 @@ const SynchronizedAlgorithmVisualization: React.FC<
                     <div className="header-actions">
                         <button
                             onClick={() => executeTwoPointPrediction(true)}
-                            className="execute-btn"
+                            className={`execute-btn ${
+                                satellites.length === 0 &&
+                                realSatellites.length === 0 &&
+                                !isRunning
+                                    ? 'warning'
+                                    : ''
+                            }`}
                             disabled={isRunning}
+                            title={
+                                satellites.length === 0 &&
+                                realSatellites.length === 0
+                                    ? '沒有衛星數據，將使用模擬數據執行'
+                                    : satellites.length > 0
+                                    ? '執行同步演算法預測（使用UI傳遞的衛星數據）'
+                                    : '執行同步演算法預測（使用SimWorld API直接獲取的衛星數據）'
+                            }
                         >
-                            {isRunning ? '執行中...' : '立即執行'}
+                            {isRunning
+                                ? '執行中...'
+                                : satellites.length === 0 &&
+                                  realSatellites.length === 0
+                                ? '立即執行 (模擬)'
+                                : satellites.length > 0
+                                ? '立即執行'
+                                : '立即執行 (真實數據)'}
                         </button>
                         <button
                             onClick={clearHistory}

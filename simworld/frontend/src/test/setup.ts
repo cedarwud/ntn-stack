@@ -2,13 +2,15 @@ import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
 // Make vi globally available
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ;(globalThis as any).vi = vi
 
 // Mock ResizeObserver
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ;(globalThis as any).ResizeObserver = class ResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
 }
 
 // Mock matchMedia
@@ -27,20 +29,22 @@ Object.defineProperty(window, 'matchMedia', {
 })
 
 // Mock IntersectionObserver
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ;(globalThis as any).IntersectionObserver = class IntersectionObserver {
   constructor() {}
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
 }
 
 // Mock WebSocket
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ;(globalThis as any).WebSocket = class WebSocket {
   constructor() {}
-  send() {}
-  close() {}
-  addEventListener() {}
-  removeEventListener() {}
+  send(): void {}
+  close(): void {}
+  addEventListener(): void {}
+  removeEventListener(): void {}
 }
 
 // Mock Canvas for Chart.js
@@ -86,5 +90,7 @@ if (typeof HTMLCanvasElement !== 'undefined') {
 }
 
 // Mock requestAnimationFrame
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ;(globalThis as any).requestAnimationFrame = vi.fn(cb => setTimeout(cb, 0))
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ;(globalThis as any).cancelAnimationFrame = vi.fn() 

@@ -80,6 +80,8 @@ const NetworkTopologyChart: React.FC<NetworkTopologyChartProps> = ({
     }, [refreshInterval, loadNetworkData])
 
     // 獲取節點顏色
+         
+         
     const getNodeColor = (type: string): string => {
         const baseColors = {
             gateway: '#8b5cf6',
@@ -95,6 +97,8 @@ const NetworkTopologyChart: React.FC<NetworkTopologyChartProps> = ({
     }
 
     // 獲取連接顏色
+         
+         
     const getLinkColor = (type: string, status: string): string => {
         const baseColors = {
             mesh: '#06b6d4',
@@ -102,7 +106,8 @@ const NetworkTopologyChart: React.FC<NetworkTopologyChartProps> = ({
             unknown: '#6b7280',
         }
 
-        const opacity =
+         
+        const _opacity =
             status === 'active' ? '1' : status === 'degraded' ? '0.6' : '0.3'
         const baseColor =
             baseColors[type as keyof typeof baseColors] || baseColors.unknown

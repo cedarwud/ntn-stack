@@ -30,6 +30,7 @@ class PerformanceMonitor {
             this.performanceObserver.observe({ entryTypes: ['longtask'] })
 
             // 監控記憶體使用（如果可用）
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if ('memory' in performance && (performance as any).memory) {
                 this.monitorMemory()
             }
@@ -103,6 +104,7 @@ class PerformanceMonitor {
     private monitorMemory(): void {
         const checkMemory = () => {
             if ('memory' in performance) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const memory = (performance as any).memory
                 const usedMB = Math.round(memory.usedJSHeapSize / 1024 / 1024)
                 const totalMB = Math.round(memory.totalJSHeapSize / 1024 / 1024)
@@ -216,6 +218,7 @@ class PerformanceMonitor {
     }
 
     // 輔助函數：獲取性能指標
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getPerformanceMetrics(): any {
         if (typeof window === 'undefined' || !window.performance) {
             return null
@@ -230,8 +233,11 @@ class PerformanceMonitor {
             
             // 記憶體使用（如果可用）
             memory: 'memory' in performance ? {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 used: Math.round(((performance as any).memory.usedJSHeapSize) / 1024 / 1024),
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 total: Math.round(((performance as any).memory.totalJSHeapSize) / 1024 / 1024),
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 limit: Math.round(((performance as any).memory.jsHeapSizeLimit) / 1024 / 1024)
             } : null,
             
@@ -246,7 +252,10 @@ class PerformanceMonitor {
 
     // 新增：手動報告性能總結
     reportPerformanceSummary(): void {
-        const metrics = this.getPerformanceMetrics()
+         
+         
+         
+        const _metrics = this.getPerformanceMetrics()
         if (metrics) {
             console.group('📊 性能監控總結')
             console.log('環境類型:', metrics.environment)

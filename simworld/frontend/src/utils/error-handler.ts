@@ -9,7 +9,7 @@ export interface ErrorDetails {
   timestamp: string
   component?: string
   action?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface RetryConfig {
@@ -66,7 +66,7 @@ export class ErrorHandler {
     context?: {
       component?: string
       action?: string
-      metadata?: Record<string, any>
+      metadata?: Record<string, unknown>
       severity?: ErrorSeverity
       category?: ErrorCategory
     }
@@ -197,13 +197,13 @@ export class ErrorHandler {
       const category = error.metadata?.category || ErrorCategory.UNKNOWN
       acc[category] = (acc[category] || 0) + 1
       return acc
-    }, {} as Record<string, number>)
+    }, Record<string, never> as Record<string, number>)
 
     const severities = this.errorLog.reduce((acc, error) => {
       const severity = error.metadata?.severity || ErrorSeverity.MEDIUM
       acc[severity] = (acc[severity] || 0) + 1
       return acc
-    }, {} as Record<string, number>)
+    }, Record<string, never> as Record<string, number>)
 
     return {
       total: this.errorLog.length,
@@ -219,7 +219,7 @@ export class ErrorHandler {
  */
 export async function withRetry<T>(
   operation: () => Promise<T>,
-  config: Partial<RetryConfig> = {}
+  config: Partial<RetryConfig> = Record<string, never>
 ): Promise<T> {
   const {
     maxAttempts = 3,
@@ -366,11 +366,13 @@ export class NetworkErrorHandler {
 export interface ErrorBoundaryState {
   hasError: boolean
   error?: Error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   errorInfo?: any
 }
 
 export function createErrorBoundaryProps() {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: Error, errorInfo: any) => {
       globalErrorHandler.handleError(error, {
         component: 'ErrorBoundary',

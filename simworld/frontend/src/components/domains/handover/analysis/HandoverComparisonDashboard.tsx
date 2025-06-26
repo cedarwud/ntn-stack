@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import './HandoverComparisonDashboard.scss'
 
 interface HandoverComparisonDashboardProps {
@@ -58,48 +58,51 @@ const HandoverComparisonDashboard: React.FC<
     const [selectedMetric, setSelectedMetric] = useState<string>('latency')
 
     // 測試場景定義
-    const testScenarios: TestScenario[] = [
-        {
-            id: 'urban_mobility',
-            name: '城市移動場景',
-            description: '高密度建築物，頻繁遮蔽',
-            mobility_pattern: 'urban_random_walk',
-            satellite_count: 12,
-            ue_count: 8,
-            duration: 300,
-            status: 'pending',
-        },
-        {
-            id: 'highway_mobility',
-            name: '高速公路場景',
-            description: '高速線性移動',
-            mobility_pattern: 'linear_high_speed',
-            satellite_count: 8,
-            ue_count: 4,
-            duration: 180,
-            status: 'pending',
-        },
-        {
-            id: 'rural_coverage',
-            name: '偏遠地區場景',
-            description: '低衛星密度覆蓋',
-            mobility_pattern: 'stationary_sparse',
-            satellite_count: 4,
-            ue_count: 2,
-            duration: 240,
-            status: 'pending',
-        },
-        {
-            id: 'emergency_response',
-            name: '緊急救援場景',
-            description: 'UAV密集作業環境',
-            mobility_pattern: 'swarm_coordination',
-            satellite_count: 16,
-            ue_count: 12,
-            duration: 360,
-            status: 'pending',
-        },
-    ]
+    const testScenarios: TestScenario[] = useMemo(
+        () => [
+            {
+                id: 'urban_mobility',
+                name: '城市移動場景',
+                description: '高密度建築物，頻繁遮蔽',
+                mobility_pattern: 'urban_random_walk',
+                satellite_count: 12,
+                ue_count: 8,
+                duration: 300,
+                status: 'pending',
+            },
+            {
+                id: 'highway_mobility',
+                name: '高速公路場景',
+                description: '高速線性移動',
+                mobility_pattern: 'linear_high_speed',
+                satellite_count: 8,
+                ue_count: 4,
+                duration: 180,
+                status: 'pending',
+            },
+            {
+                id: 'rural_coverage',
+                name: '偏遠地區場景',
+                description: '低衛星密度覆蓋',
+                mobility_pattern: 'stationary_sparse',
+                satellite_count: 4,
+                ue_count: 2,
+                duration: 240,
+                status: 'pending',
+            },
+            {
+                id: 'emergency_response',
+                name: '緊急救援場景',
+                description: 'UAV密集作業環境',
+                mobility_pattern: 'swarm_coordination',
+                satellite_count: 16,
+                ue_count: 12,
+                duration: 360,
+                status: 'pending',
+            },
+        ],
+        []
+    )
 
     // 生成模擬對比數據
     const generateComparisonData = (scenario: string): ComparisonResult => {
@@ -225,11 +228,15 @@ const HandoverComparisonDashboard: React.FC<
     }
 
     // 獲取最新對比結果
+         
+         
     const getLatestResult = (): ComparisonResult | null => {
         return comparisonResults.length > 0 ? comparisonResults[0] : null
     }
 
     // 獲取指標單位
+         
+         
     const getMetricUnit = (metric: string) => {
         const units = {
             latency: 'ms',
@@ -247,6 +254,8 @@ const HandoverComparisonDashboard: React.FC<
     }
 
     // 獲取指標中文名稱
+         
+         
     const getMetricDisplayName = (metric: string) => {
         const names = {
             latency: '換手延遲',

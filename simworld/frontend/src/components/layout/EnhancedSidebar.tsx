@@ -528,7 +528,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         if (hasChanges) {
             setOrientationInputs(newInputs)
         }
-    }, [devices]) // 移除 orientationInputs 依賴，避免無限循環
+    }, [devices, orientationInputs]) // 移除 orientationInputs 依賴，避免無限循環
 
     // 處理衛星顯示數量變更
 
@@ -602,17 +602,21 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     }
 
     // 設備分組
+
     const tempDevices = devices.filter(
         (device) => device.id == null || device.id < 0
     )
+
     const receiverDevices = devices.filter(
         (device) =>
             device.id != null && device.id >= 0 && device.role === 'receiver'
     )
+
     const desiredDevices = devices.filter(
         (device) =>
             device.id != null && device.id >= 0 && device.role === 'desired'
     )
+
     const jammerDevices = devices.filter(
         (device) =>
             device.id != null && device.id >= 0 && device.role === 'jammer'

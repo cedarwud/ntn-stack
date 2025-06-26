@@ -177,6 +177,8 @@ const MicroserviceArchitectureDashboard: React.FC<
         return () => clearInterval(interval)
     }, [enabled])
 
+         
+         
     const getServiceStatusColor = (status: string): string => {
         switch (status) {
             case 'healthy':
@@ -190,6 +192,8 @@ const MicroserviceArchitectureDashboard: React.FC<
         }
     }
 
+         
+         
     const getCircuitBreakerColor = (state: string): string => {
         switch (state) {
             case 'closed':

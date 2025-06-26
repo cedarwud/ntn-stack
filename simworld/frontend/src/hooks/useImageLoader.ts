@@ -34,7 +34,7 @@ export function useImageLoader(rtEndpoint: string, fallbackPath: string): UseIma
             const endpointWithCacheBuster = `${rtEndpoint}?t=${new Date().getTime()}`
             let timeoutId: number | null = null
             try {
-                timeoutId = window.setTimeout(() => {}, 15000)
+                timeoutId = window.setTimeout(() => Record<string, never>, 15000)
                 const response = await fetch(endpointWithCacheBuster, {
                     signal,
                     cache: 'no-cache',

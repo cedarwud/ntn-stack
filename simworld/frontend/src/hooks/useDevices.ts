@@ -64,11 +64,12 @@ export const useDevices = () => {
         } finally {
             setLoading(false)
         }
-    }, [convertBackendToFrontend])
+    }, []) // 保持空依賴，因為這個函數確實不依賴任何外部變量
 
+    // 修復：使用 useEffect 只在 mount 時執行一次，避免依賴 fetchDevices
     useEffect(() => {
         fetchDevices()
-    }, [fetchDevices])
+    }, [fetchDevices]) // 包含 fetchDevices 依賴
 
     const applyDeviceChanges = async () => {
         if (apiStatus !== 'connected') {
@@ -81,6 +82,8 @@ export const useDevices = () => {
 
         try {
             const newDevices = tempDevices.filter((device) => device.id < 0)
+             
+             
             const devicesToUpdate = tempDevices.filter((tempDevice) => {
                 if (tempDevice.id <= 0) return false
                 const originalDevice = originalDevices.find(
@@ -115,6 +118,8 @@ export const useDevices = () => {
                 await apiCreateDevice(payload)
             }
 
+             
+             
             for (const device of devicesToUpdate) {
                 const payload: DeviceUpdate = {
                     name: device.name,
@@ -193,6 +198,8 @@ export const useDevices = () => {
 
     const addNewDevice = () => {
         const tempId = -Math.floor(Math.random() * 1000000) - 1;
+         
+         
         const getPrefix = (role: string = 'receiver'): string => {
             switch (role) {
                 case 'desired': return 'tx';
@@ -238,6 +245,8 @@ export const useDevices = () => {
                         const newRole = value as string;
 
                         if (isDefaultNamingFormat || deviceToUpdate.id < 0) {
+         
+         
                             const getPrefix = (role: string): string => {
                                 switch (role) {
                                     case 'desired': return 'tx';
@@ -253,7 +262,7 @@ export const useDevices = () => {
                                 if (d.id === id) return; // 跳過正在編輯的設備自身
                                 if (d.role === newRole && d.name.startsWith(newPrefix)) { // 確保是同類型且是預設前綴開頭
                                     // 修改正則表達式以匹配 tx1, rx2 等，而不是 tx-1, rx-2
-                                    const match = d.name.match(new RegExp(`^${newPrefix}(\d+)$`));
+                                    const match = d.name.match(new RegExp(`^${newPrefix}(\\d+)$`));
                                     if (match) {
                                         const num = parseInt(match[1], 10);
                                         if (!isNaN(num) && num > maxNum) maxNum = num;

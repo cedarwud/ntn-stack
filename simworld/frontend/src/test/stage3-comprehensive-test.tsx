@@ -8,6 +8,7 @@ interface TestResult {
     name: string
     status: 'pending' | 'running' | 'passed' | 'failed'
     message: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     details?: any
     timestamp?: number
 }
@@ -17,10 +18,10 @@ interface TestSuite {
 }
 
 const Stage3ComprehensiveTest: React.FC = () => {
-    const [testSuite, setTestSuite] = useState<TestSuite>({})
+    const [testSuite, setTestSuite] = useState<TestSuite>(Record<string, never>)
     const [overallProgress, setOverallProgress] = useState(0)
     const [isRunning, setIsRunning] = useState(false)
-    const [completedTests, setCompletedTests] = useState(0)
+    const [_completedTests, setCompletedTests] = useState(0)
     const [totalTests, setTotalTests] = useState(0)
 
     // 更新測試結果
@@ -120,6 +121,7 @@ const Stage3ComprehensiveTest: React.FC = () => {
         testFunction: () => Promise<{
             success: boolean
             message: string
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             details?: any
         }>
     ) => {
@@ -548,6 +550,7 @@ const Stage3ComprehensiveTest: React.FC = () => {
     }
 
     // 獲取測試結果統計
+
     const getTestStats = () => {
         const tests = Object.values(testSuite)
         const passed = tests.filter((t) => t.status === 'passed').length

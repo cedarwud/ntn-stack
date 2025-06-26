@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { VisibleSatelliteInfo } from './types/satellite'
 import { Device } from './types/device'
@@ -56,7 +56,6 @@ const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
     const [handoverStableDuration, setHandoverStableDuration] =
         useState<number>(5) // 預設5秒穩定期
     const [handoverMode, setHandoverMode] = useState<'demo' | 'real'>('demo') // 換手模式控制
-    
 
     // 🚀 演算法與視覺化對接狀態
     const [algorithmResults, setAlgorithmResults] = useState<{
@@ -135,10 +134,16 @@ const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
     // Toast 通知系統
     const { showToast } = useToast()
 
+    // 使用 useRef 來穩定 showToast 函數引用，避免 useEffect 依賴問題
+    const showToastRef = useRef(showToast)
+    showToastRef.current = showToast
+
     // 網頁載入時執行一次健康檢查
     useEffect(() => {
         // 設置 toast 通知函數
-        backgroundHealthMonitor.setToastFunction(showToast)
+        backgroundHealthMonitor.setToastFunction((message, type) => {
+            showToastRef.current(message, type)
+        })
 
         // 延遲3秒後執行檢查，讓其他組件先載入完成
         const timer = setTimeout(() => {
@@ -151,7 +156,7 @@ const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
         return () => {
             clearTimeout(timer)
         }
-    }, [showToast])
+    }, []) // 移除 showToast 依賴
 
     // 3D 換手動畫狀態
     const [handover3DAnimationEnabled] = useState(true) // 預設啟用
@@ -331,6 +336,8 @@ const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
     )
 
     const renderActiveComponent = useCallback(() => {
+        const states = featureStatesRef.current
+
         switch (activeComponent) {
             case '2DRT':
                 return (
@@ -346,85 +353,93 @@ const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
                         devices={tempDevices}
                         auto={auto}
                         manualDirection={manualDirection}
-                        onManualControl={handleManualControl}
-                        onUAVPositionUpdate={handleUAVPositionUpdate}
+                        onManualControl={states.handleManualControl}
+                        onUAVPositionUpdate={states.handleUAVPositionUpdate}
                         uavAnimation={uavAnimation}
                         selectedReceiverIds={selectedReceiverIds}
                         satellites={satelliteEnabled ? skyfieldSatellites : []}
                         sceneName={currentScene}
                         // 階段四功能狀態
                         interferenceVisualizationEnabled={
-                            interferenceVisualizationEnabled
+                            states.interferenceVisualizationEnabled
                         }
-                        sinrHeatmapEnabled={sinrHeatmapEnabled}
-                        aiRanVisualizationEnabled={aiRanVisualizationEnabled}
+                        sinrHeatmapEnabled={states.sinrHeatmapEnabled}
+                        aiRanVisualizationEnabled={
+                            states.aiRanVisualizationEnabled
+                        }
                         sionna3DVisualizationEnabled={
-                            sionna3DVisualizationEnabled
+                            states.sionna3DVisualizationEnabled
                         }
-                        realTimeMetricsEnabled={realTimeMetricsEnabled}
+                        realTimeMetricsEnabled={states.realTimeMetricsEnabled}
                         interferenceAnalyticsEnabled={
-                            interferenceAnalyticsEnabled
+                            states.interferenceAnalyticsEnabled
                         }
                         // 階段五功能狀態
                         uavSwarmCoordinationEnabled={
-                            uavSwarmCoordinationEnabled
+                            states.uavSwarmCoordinationEnabled
                         }
-                        meshNetworkTopologyEnabled={meshNetworkTopologyEnabled}
+                        meshNetworkTopologyEnabled={
+                            states.meshNetworkTopologyEnabled
+                        }
                         satelliteUavConnectionEnabled={
-                            satelliteUavConnectionEnabled
+                            states.satelliteUavConnectionEnabled
                         }
-                        failoverMechanismEnabled={failoverMechanismEnabled}
+                        failoverMechanismEnabled={
+                            states.failoverMechanismEnabled
+                        }
                         // 階段六功能狀態
-                        predictionPath3DEnabled={predictionPath3DEnabled}
+                        predictionPath3DEnabled={states.predictionPath3DEnabled}
                         predictionAccuracyDashboardEnabled={
-                            predictionAccuracyDashboardEnabled
+                            states.predictionAccuracyDashboardEnabled
                         }
-                        coreNetworkSyncEnabled={coreNetworkSyncEnabled}
+                        coreNetworkSyncEnabled={states.coreNetworkSyncEnabled}
                         // Stage 3 功能
                         realtimePerformanceMonitorEnabled={
-                            realtimePerformanceMonitorEnabled
+                            states.realtimePerformanceMonitorEnabled
                         }
                         scenarioTestEnvironmentEnabled={
-                            scenarioTestEnvironmentEnabled
+                            states.scenarioTestEnvironmentEnabled
                         }
                         // 3D 換手動畫
-                        handover3DAnimationEnabled={handover3DAnimationEnabled}
-                        handoverState={handoverState}
-                        currentConnection={currentConnection}
-                        predictedConnection={predictedConnection}
-                        isTransitioning={isTransitioning}
-                        transitionProgress={transitionProgress}
+                        handover3DAnimationEnabled={
+                            states.handover3DAnimationEnabled
+                        }
+                        handoverState={states.handoverState}
+                        currentConnection={states.currentConnection}
+                        predictedConnection={states.predictedConnection}
+                        isTransitioning={states.isTransitioning}
+                        transitionProgress={states.transitionProgress}
                         onHandoverEvent={(event: Record<string, unknown>) => {
                             console.log('換手事件:', event)
                             // 可以在這裡處理換手事件
                         }}
                         // 階段七功能狀態
                         e2ePerformanceMonitoringEnabled={
-                            e2ePerformanceMonitoringEnabled
+                            states.e2ePerformanceMonitoringEnabled
                         }
                         testResultsVisualizationEnabled={
-                            testResultsVisualizationEnabled
+                            states.testResultsVisualizationEnabled
                         }
                         performanceTrendAnalysisEnabled={
-                            performanceTrendAnalysisEnabled
+                            states.performanceTrendAnalysisEnabled
                         }
                         automatedReportGenerationEnabled={
-                            automatedReportGenerationEnabled
+                            states.automatedReportGenerationEnabled
                         }
                         // 階段八功能狀態
                         predictiveMaintenanceEnabled={
-                            predictiveMaintenanceEnabled
+                            states.predictiveMaintenanceEnabled
                         }
                         intelligentRecommendationEnabled={
-                            intelligentRecommendationEnabled
+                            states.intelligentRecommendationEnabled
                         }
                         // 衛星功能狀態
                         satelliteEnabled={satelliteEnabled}
                         satelliteSpeedMultiplier={1} // 固定為1x
-                        handoverStableDuration={handoverStableDuration}
-                        handoverMode={handoverMode}
+                        handoverStableDuration={states.handoverStableDuration}
+                        handoverMode={states.handoverMode}
                         // 🚀 演算法結果對接
-                        algorithmResults={algorithmResults}
+                        algorithmResults={states.algorithmResults}
                     />
                 )
             default:
@@ -441,18 +456,17 @@ const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
         tempDevices,
         auto,
         manualDirection,
-        handleManualControl,
-        handleUAVPositionUpdate,
         uavAnimation,
         selectedReceiverIds,
         refreshDeviceData,
         skyfieldSatellites,
         satelliteEnabled,
-        algorithmResults,
-        handoverMode,
-        realtimePerformanceMonitorEnabled,
-        scenarioTestEnvironmentEnabled,
         currentScene,
+        // 移除大部分功能狀態依賴，使用 ref 或狀態提升來避免重複渲染
+    ])
+
+    // 使用 useRef 來保存功能狀態，避免 renderActiveComponent 重複創建
+    const featureStatesRef = useRef({
         interferenceVisualizationEnabled,
         sinrHeatmapEnabled,
         aiRanVisualizationEnabled,
@@ -467,11 +481,8 @@ const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
         predictionAccuracyDashboardEnabled,
         coreNetworkSyncEnabled,
         handover3DAnimationEnabled,
-        handoverState,
-        currentConnection,
-        predictedConnection,
-        isTransitioning,
-        transitionProgress,
+        realtimePerformanceMonitorEnabled,
+        scenarioTestEnvironmentEnabled,
         e2ePerformanceMonitoringEnabled,
         testResultsVisualizationEnabled,
         performanceTrendAnalysisEnabled,
@@ -479,7 +490,52 @@ const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
         predictiveMaintenanceEnabled,
         intelligentRecommendationEnabled,
         handoverStableDuration,
-    ])
+        handoverMode,
+        algorithmResults,
+        handoverState,
+        currentConnection,
+        predictedConnection,
+        isTransitioning,
+        transitionProgress,
+        handleManualControl,
+        handleUAVPositionUpdate,
+    })
+
+    // 更新 ref 值
+    featureStatesRef.current = {
+        interferenceVisualizationEnabled,
+        sinrHeatmapEnabled,
+        aiRanVisualizationEnabled,
+        sionna3DVisualizationEnabled,
+        realTimeMetricsEnabled,
+        interferenceAnalyticsEnabled,
+        uavSwarmCoordinationEnabled,
+        meshNetworkTopologyEnabled,
+        satelliteUavConnectionEnabled,
+        failoverMechanismEnabled,
+        predictionPath3DEnabled,
+        predictionAccuracyDashboardEnabled,
+        coreNetworkSyncEnabled,
+        handover3DAnimationEnabled,
+        realtimePerformanceMonitorEnabled,
+        scenarioTestEnvironmentEnabled,
+        e2ePerformanceMonitoringEnabled,
+        testResultsVisualizationEnabled,
+        performanceTrendAnalysisEnabled,
+        automatedReportGenerationEnabled,
+        predictiveMaintenanceEnabled,
+        intelligentRecommendationEnabled,
+        handoverStableDuration,
+        handoverMode,
+        algorithmResults,
+        handoverState,
+        currentConnection,
+        predictedConnection,
+        isTransitioning,
+        transitionProgress,
+        handleManualControl,
+        handleUAVPositionUpdate,
+    }
 
     if (loading) {
         return <div className="loading">載入中...</div>

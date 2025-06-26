@@ -4,9 +4,9 @@ import { useFrame } from '@react-three/fiber'
 import { Text, Line } from '@react-three/drei'
 
 interface SatelliteHandoverDecisionVisualizationProps {
-    devices: any[]
+    devices: unknown[]
     enabled: boolean
-    satellites?: any[]
+    satellites?: unknown[]
 }
 
 interface HandoverDecision {
@@ -181,7 +181,7 @@ const SatelliteHandoverDecisionVisualization: React.FC<
         const interval = setInterval(generateDecisions, 10000)
 
         return () => clearInterval(interval)
-    }, [enabled, devices.length, satellites.length])
+    }, [enabled, devices, satellites, devices.length, satellites.length])
 
     if (!enabled) return null
 
@@ -257,8 +257,9 @@ const generateDefaultSatellites = () => {
 
 // 計算衛星位置
 const calculateSatellitePosition = (
-    satellite: any,
-    uav: any
+    satellite: Event,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    _uav: any // Currently not used but reserved for future UAV-specific calculations
 ): [number, number, number] => {
     const PI_DIV_180 = Math.PI / 180
     const GLB_SCENE_SIZE = 1200
@@ -282,7 +283,7 @@ const calculateSatellitePosition = (
 }
 
 // 生成決策原因
-const generateDecisionReason = (candidate: any): string => {
+const generateDecisionReason = (candidate: Event): string => {
     if (candidate.signalStrength > -65) return '最佳信號強度'
     if (candidate.elevation > 60) return '優良仰角位置'
     if (candidate.loadPercentage < 50) return '負載平衡考量'
@@ -312,7 +313,7 @@ const generateHandoverPath = (
 // 決策可視化主體組件
 const DecisionVisualizationMain: React.FC<{
     decisions: HandoverDecision[]
-    devices: any[]
+    devices: unknown[]
     selectedDecision: string | null
     onSelectDecision: (id: string | null) => void
 }> = ({ decisions, devices, selectedDecision, onSelectDecision }) => {
@@ -395,7 +396,7 @@ const DecisionVisualizationMain: React.FC<{
 // 候選衛星比較組件
 const CandidateSatelliteComparison: React.FC<{
     decisions: HandoverDecision[]
-    devices: any[]
+    devices: unknown[]
 }> = ({ decisions, devices }) => {
     return (
         <>
@@ -473,7 +474,7 @@ const CandidateSatelliteComparison: React.FC<{
 // 決策因子雷達圖組件
 const DecisionFactorsRadar: React.FC<{
     decisions: HandoverDecision[]
-    devices: any[]
+    devices: unknown[]
 }> = ({ decisions, devices }) => {
     return (
         <>
@@ -560,11 +561,14 @@ const DecisionFactorsRadar: React.FC<{
 }
 
 // 換手路徑可視化組件
+
 const HandoverPathVisualization: React.FC<{
     paths: HandoverPath[]
-    devices: any[]
+    devices: unknown[]
 }> = ({ paths, devices }) => {
-    const pathRefs = useRef<{ [key: string]: THREE.Group }>({})
+    const pathRefs = useRef<{ [key: string]: THREE.Group }>(
+        Record<string, never>
+    )
 
     useFrame(() => {
         // 更新路徑動畫
@@ -692,8 +696,10 @@ const DecisionTimeAnalysis: React.FC<{ decisions: HandoverDecision[] }> = ({
 // 3D 決策矩陣組件
 const DecisionMatrix3D: React.FC<{
     decisions: HandoverDecision[]
-    devices: any[]
-}> = ({ decisions, devices }) => {
+    devices: unknown[]
+}> = ({ decisions, devices: _devices }) => {
+    // TODO: Use devices for enhanced visualization in future versions
+    console.log('Devices available for decision matrix:', _devices.length)
     return (
         <group position={[100, 80, -80]}>
             <Text

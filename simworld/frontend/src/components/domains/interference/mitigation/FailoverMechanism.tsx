@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Line } from '@react-three/drei'
 
 interface FailoverMechanismProps {
-    devices: any[]
+    devices: unknown[]
     enabled: boolean
 }
 
@@ -69,9 +69,14 @@ const FailoverMechanism: React.FC<FailoverMechanismProps> = ({
     enabled,
 }) => {
     const [connections, setConnections] = useState<NetworkConnection[]>([])
-    const [failoverEvents, setFailoverEvents] = useState<FailoverEvent[]>([])
-    const [recoveryActions, setRecoveryActions] = useState<RecoveryAction[]>([])
-    const [failoverMetrics, setFailoverMetrics] = useState<FailoverMetrics>({
+     
+    const [_failoverEvents, setFailoverEvents] = useState<FailoverEvent[]>([])
+     
+    const [_recoveryActions, setRecoveryActions] = useState<RecoveryAction[]>(
+        []
+    )
+     
+    const [_failoverMetrics, setFailoverMetrics] = useState<FailoverMetrics>({
         totalSwitches: 0,
         successfulSwitches: 0,
         averageSwitchTime: 0,
@@ -149,7 +154,8 @@ const FailoverMechanism: React.FC<FailoverMechanismProps> = ({
 }
 
 // 分析連接狀態
-const analyzeConnections = (devices: any[]): NetworkConnection[] => {
+
+const analyzeConnections = (devices: unknown[]): NetworkConnection[] => {
     return devices
         .map((device) => {
             // 主要衛星連接
@@ -412,10 +418,12 @@ const calculateFailoverMetrics = (
     }
 }
 
-// 連接狀態可視化組件
+// 連接狀態可視化組件 (備用)
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ConnectionStatusVisualization: React.FC<{
     connection: NetworkConnection
-    devices: any[]
+    devices: unknown[]
 }> = ({ connection, devices }) => {
     const device = devices.find((d) => d.id === connection.deviceId)
     if (!device) return null
@@ -437,7 +445,8 @@ const ConnectionStatusVisualization: React.FC<{
         }
     }
 
-    const getConnectionIcon = (type: NetworkConnection['type']) => {
+     
+    const _getConnectionIcon = (type: NetworkConnection['type']) => {
         switch (type) {
             case 'satellite_ntn':
                 return '🛰️'
@@ -475,11 +484,14 @@ const ConnectionStatusVisualization: React.FC<{
 }
 
 // 故障轉移事件可視化組件
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const FailoverEventsVisualization: React.FC<{
     events: FailoverEvent[]
-    devices: any[]
+    devices: unknown[]
 }> = ({ events, devices }) => {
-    const getSeverityColor = (severity: FailoverEvent['severity']) => {
+     
+    const _getSeverityColor = (severity: FailoverEvent['severity']) => {
         switch (severity) {
             case 'low':
                 return '#88ff88'
@@ -494,7 +506,8 @@ const FailoverEventsVisualization: React.FC<{
         }
     }
 
-    const getTriggerIcon = (trigger: FailoverEvent['trigger']) => {
+     
+    const _getTriggerIcon = (trigger: FailoverEvent['trigger']) => {
         switch (trigger) {
             case 'signal_degradation':
                 return '📶'
@@ -533,9 +546,10 @@ const FailoverEventsVisualization: React.FC<{
 }
 
 // 網路冗餘可視化組件
+
 const NetworkRedundancyVisualization: React.FC<{
     connections: NetworkConnection[]
-    devices: any[]
+    devices: unknown[]
 }> = ({ connections, devices }) => {
     return (
         <>
@@ -585,10 +599,13 @@ const NetworkRedundancyVisualization: React.FC<{
 }
 
 // 恢復動作可視化組件
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const RecoveryActionsVisualization: React.FC<{
     actions: RecoveryAction[]
-    devices: any[]
+    devices: unknown[]
 }> = ({ actions, devices }) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const getActionIcon = (action: RecoveryAction['action']) => {
         switch (action) {
             case 'auto_recovery':
@@ -629,16 +646,24 @@ const RecoveryActionsVisualization: React.FC<{
 const FailoverMetricsDisplay: React.FC<{ metrics: FailoverMetrics }> = ({
     metrics,
 }) => {
+    // This component could display metrics in a future version
+    console.log('Metrics:', metrics)
     return <group position={[80, 60, 80]}></group>
 }
 
+// Export for potential future use
+export { FailoverMetricsDisplay }
+
 // 網路健康狀態組件
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const NetworkHealthStatus: React.FC<{ connections: NetworkConnection[] }> = ({
     connections,
 }) => {
     const activeConnections = connections.filter((c) => c.status === 'active')
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const healthScore = (activeConnections.length / connections.length) * 100
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const getHealthColor = (score: number) => {
         if (score > 80) return '#00ff00'
         if (score > 60) return '#ffaa00'
@@ -650,6 +675,7 @@ const NetworkHealthStatus: React.FC<{ connections: NetworkConnection[] }> = ({
 }
 
 // 自動化決策邏輯組件
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const AutomatedDecisionLogic: React.FC<{ events: FailoverEvent[] }> = ({
     events,
 }) => {

@@ -32,7 +32,7 @@ export const useDevicePopoverManager = ({
     refreshDeviceData,
     sceneToImageCoords,
     convertBackendToNewDevice,
-    imageNaturalSize,
+    imageNaturalSize: _imageNaturalSize,
     imageRef,
 }: UseDevicePopoverManagerProps) => {
     const [showPopover, setShowPopover] = useState<boolean>(false);
@@ -64,8 +64,7 @@ export const useDevicePopoverManager = ({
     // For Popover's orientation inputs specifically
     const [orientationInputs, setOrientationInputs] = useState<{
         [key: string]: { x: string; y: string; z: string };
-    }>({});
-
+    }>(Record<string, never>);
 
     const handlePopoverOpen = useCallback(
         (
@@ -134,10 +133,10 @@ export const useDevicePopoverManager = ({
         setIsEditing(false);
         // Optionally reset popoverDevice to defaults if not editing
         // setPopoverDevice({ name: '', ... initial values ... });
-        setOrientationInputs({}); // Clear orientation inputs
+        setOrientationInputs(Record<string, never>); // Clear orientation inputs
     }, []);
 
-    const handlePopoverInputChange = useCallback((field: string, value: any) => {
+    const handlePopoverInputChange = useCallback((field: string, value: Event) => {
         setPopoverDevice((prev) => ({ ...prev, [field]: value }));
     }, []);
 
@@ -177,7 +176,6 @@ export const useDevicePopoverManager = ({
         }));
     }, [devices]);
 
-
     const handleApplyPopover = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         // Basic validation (example)
@@ -186,6 +184,8 @@ export const useDevicePopoverManager = ({
             return;
         }
         // Check for duplicate names, excluding the current device if editing
+         
+         
         const duplicateNameExists = devices.some(
             (d) => d.name === popoverDevice.name && d.id !== editingDeviceId
         );

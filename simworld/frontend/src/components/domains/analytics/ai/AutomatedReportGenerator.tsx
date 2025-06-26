@@ -59,6 +59,8 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({
 }) => {
     const [reports, setReports] = useState<GeneratedReport[]>([])
     const [, setActiveGenerations] = useState<string[]>([])
+     
+     
     const [metrics, setMetrics] = useState<ReportMetrics>({
         totalReports: 0,
         completedReports: 0,
@@ -314,6 +316,8 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({
 
     if (!enabled) return null
 
+         
+         
     const getStatusColor = (status: string): string => {
         switch (status) {
             case 'completed':
@@ -329,6 +333,8 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({
         }
     }
 
+         
+         
     const getPriorityColor = (priority: string): string => {
         switch (priority) {
             case 'high':
@@ -342,6 +348,8 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({
         }
     }
 
+         
+         
     const getTypeIcon = (type: string): string => {
         switch (type) {
             case 'daily':

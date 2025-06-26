@@ -291,7 +291,7 @@ export class BaseApiClient {
         status: response.status || 'ok',
         timestamp: new Date().toISOString()
       }
-    } catch (error) {
+    } catch (_error) {
       return {
         status: 'error',
         timestamp: new Date().toISOString()

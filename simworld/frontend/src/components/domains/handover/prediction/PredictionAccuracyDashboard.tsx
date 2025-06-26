@@ -51,7 +51,7 @@ const PredictionAccuracyDashboard: React.FC<
 
         const rollingAccuracy = baseAccuracy + (Math.random() - 0.5) * 0.02
 
-        const metrics = {
+        const _metrics = {
             current_accuracy: baseAccuracy,
             rolling_accuracy: Math.max(0.85, Math.min(0.99, rollingAccuracy)),
             accuracy_trend:
@@ -76,11 +76,11 @@ const PredictionAccuracyDashboard: React.FC<
 
         console.log(
             '生成模擬數據:',
-            metrics,
+            _metrics,
             '目標達成:',
-            metrics.target_achievement
+            _metrics.target_achievement
         )
-        return metrics
+        return _metrics
     }, [])
 
     // 移除未使用的 fetchAccuracyMetrics 函數
@@ -136,7 +136,7 @@ const PredictionAccuracyDashboard: React.FC<
             // 嘗試調用 API（如果存在）
             try {
                 await HandoverAPIService.toggleAccuracyOptimization(newState)
-            } catch (apiErr) {
+            } catch {
                 console.warn('準確率優化 API 暫未實現，使用本地狀態')
             }
         } catch (err) {
@@ -180,7 +180,7 @@ const PredictionAccuracyDashboard: React.FC<
         // 設置初始建議
         const initialRecs = generateMockRecommendations()
         setRecommendations(initialRecs)
-    }, [isEnabled]) // 只依賴 isEnabled
+    }, [isEnabled, generateMockMetrics, generateMockRecommendations]) // 只依賴 isEnabled
 
     // 定期更新數據 - 獨立的 useEffect
     useEffect(() => {
@@ -220,7 +220,13 @@ const PredictionAccuracyDashboard: React.FC<
             console.log('清理定期更新定時器')
             clearInterval(interval)
         }
-    }, [isEnabled, accuracyMetrics, refreshInterval])
+    }, [
+        isEnabled,
+        accuracyMetrics,
+        refreshInterval,
+        generateMockMetrics,
+        generateMockRecommendations,
+    ])
 
     // 格式化百分比
     const formatPercentage = (value: number | undefined | null): string => {
@@ -231,6 +237,7 @@ const PredictionAccuracyDashboard: React.FC<
     }
 
     // 獲取準確率等級
+
     const getAccuracyLevel = (
         accuracy: number | undefined | null
     ): { level: string; color: string } => {
@@ -244,6 +251,7 @@ const PredictionAccuracyDashboard: React.FC<
     }
 
     // 獲取趨勢圖表數據
+
     const getTrendChartPath = (): string => {
         if (accuracyTrend.length < 2) return ''
 

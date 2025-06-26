@@ -11,6 +11,7 @@ export enum DeviceRole {
 
 // 獲取所有設備
 export const getDevices = async (role?: string): Promise<Device[]> => {
+   
   let url = `${ApiRoutes.devices.getAll}?limit=100`;
   
   if (role) {
@@ -29,6 +30,8 @@ export const getDevices = async (role?: string): Promise<Device[]> => {
 // 根據ID獲取單個設備
 export const getDeviceById = async (deviceId: number): Promise<Device> => {
   try {
+     
+     
     const response = await api.get<Device>(ApiRoutes.devices.getById(deviceId.toString()));
     return response.data;
   } catch (error) {
@@ -40,6 +43,8 @@ export const getDeviceById = async (deviceId: number): Promise<Device> => {
 // 創建新設備
 export const createDevice = async (deviceData: DeviceCreate): Promise<Device> => {
   try {
+     
+     
     const response = await api.post<Device>(ApiRoutes.devices.create, deviceData);
     return response.data;
   } catch (error) {
@@ -51,6 +56,8 @@ export const createDevice = async (deviceData: DeviceCreate): Promise<Device> =>
 // 更新現有設備
 export const updateDevice = async (deviceId: number, deviceData: DeviceUpdate): Promise<Device> => {
   try {
+     
+     
     const response = await api.put<Device>(ApiRoutes.devices.update(deviceId.toString()), deviceData);
     return response.data;
   } catch (error) {

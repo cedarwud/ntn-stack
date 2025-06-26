@@ -31,7 +31,7 @@ import PredictionPath3D from '../shared/visualization/PredictionPath3D'
 import DynamicSatelliteRenderer from '../domains/satellite/visualization/DynamicSatelliteRenderer'
 
 export interface MainSceneProps {
-    devices: any[]
+    devices: unknown[]
     auto: boolean
     manualControl?: (direction: UAVManualDirection) => void
     manualDirection?: UAVManualDirection
@@ -58,18 +58,21 @@ export interface MainSceneProps {
     predictionPath3DEnabled?: boolean
     // 新增 3D 換手動畫相關 props
     handover3DAnimationEnabled?: boolean
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     handoverState?: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     currentConnection?: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     predictedConnection?: any
     isTransitioning?: boolean
     transitionProgress?: number
-    onHandoverEvent?: (event: any) => void
+    onHandoverEvent?: (event: Event) => void
     // 階段七功能狀態
     testResultsVisualizationEnabled?: boolean
     performanceTrendAnalysisEnabled?: boolean
     automatedReportGenerationEnabled?: boolean
     // 衛星相關 props（動畫永遠開啟）
-    satellites?: any[]
+    satellites?: unknown[]
     satelliteEnabled?: boolean
     satelliteSpeedMultiplier?: number
     handoverStableDuration?: number
@@ -83,7 +86,12 @@ export interface MainSceneProps {
         predictionConfidence?: number
     }
     // 🎯 換手狀態回調
-    onHandoverStatusUpdate?: (statusInfo: any) => void
+    onHandoverStatusUpdate?: (statusInfo: unknown) => void
+    // 🎯 SINR 圖例數據回調
+    onSinrLegendData?: (data: {
+        realMetrics: unknown | null
+        dataMode: 'simulation' | 'real' | 'hybrid'
+    }) => void
 }
 
 const UAV_SCALE = 10
@@ -125,6 +133,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     handoverMode = 'demo',
     algorithmResults,
     onHandoverStatusUpdate,
+    onSinrLegendData,
 }) => {
     // 標記未使用但保留的props為已消費（避免TypeScript警告）
     void handoverState
@@ -149,7 +158,7 @@ const MainScene: React.FC<MainSceneProps> = ({
 
     // 🔗 換手狀態管理 - 用於同步給 DynamicSatelliteRenderer
     const [internalHandoverState, setInternalHandoverState] =
-        useState<any>(null)
+        useState<unknown>(null)
 
     // 衛星位置更新回調
     const handleSatellitePositions = useCallback(
@@ -160,7 +169,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     )
 
     // 換手狀態更新回調
-    const handleHandoverStateUpdate = useCallback((state: any) => {
+    const handleHandoverStateUpdate = useCallback((state: Event) => {
         setInternalHandoverState(state)
     }, [])
 
@@ -172,6 +181,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     }, [SCENE_URL, BS_MODEL_URL, JAMMER_MODEL_URL])
 
     // 加載主場景模型，使用 useMemo 避免重複加載
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { scene: mainScene } = useGLTF(SCENE_URL) as any
     const { controls } = useThree()
 
@@ -206,7 +216,9 @@ const MainScene: React.FC<MainSceneProps> = ({
                         m.material.forEach((mat) => {
                             if (mat instanceof THREE.MeshBasicMaterial) {
                                 const newMat = new THREE.MeshStandardMaterial({
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                     color: (mat as any).color,
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                     map: (mat as any).map,
                                 })
                                 mat = newMat
@@ -255,7 +267,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     }, [mainScene, SATELLITE_TEXTURE_URL])
 
     const deviceMeshes = useMemo(() => {
-        return devices.map((device: any) => {
+        return devices.map((device: Event) => {
             const isSelected =
                 device.role === 'receiver' &&
                 device.id !== null &&
@@ -350,7 +362,11 @@ const MainScene: React.FC<MainSceneProps> = ({
                 devices={devices}
                 enabled={interferenceVisualizationEnabled}
             />
-            <SINRHeatmap devices={devices} enabled={sinrHeatmapEnabled} />
+            <SINRHeatmap
+                devices={devices}
+                enabled={sinrHeatmapEnabled}
+                onLegendData={onSinrLegendData}
+            />
             <AIRANVisualization
                 devices={devices}
                 enabled={aiRanVisualizationEnabled}

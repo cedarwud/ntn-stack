@@ -53,12 +53,16 @@ const TimePredictionTimeline: React.FC<TimePredictionTimelineProps> = ({
         })
     }
 
+         
+         
     const getTimelineProgress = () => {
         const totalDuration = data.futureTime - data.currentTime
         const elapsed = currentTime - data.currentTime
         return Math.min(Math.max(elapsed / totalDuration, 0), 1) * 100
     }
 
+         
+         
     const getHandoverProgress = () => {
         if (!data.handoverTime) return null
         const totalDuration = data.futureTime - data.currentTime
@@ -67,6 +71,8 @@ const TimePredictionTimeline: React.FC<TimePredictionTimelineProps> = ({
     }
 
     // 根據時間軸進度計算迭代完成狀態
+         
+         
     const getIterationStatus = (iterationNumber: number) => {
         const progress = getTimelineProgress() / 100 // 0-1
         const totalIterations = data.iterations.length

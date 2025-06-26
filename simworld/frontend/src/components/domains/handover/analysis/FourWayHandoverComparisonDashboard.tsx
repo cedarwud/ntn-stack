@@ -236,7 +236,10 @@ const FourWayHandoverComparisonDashboard: React.FC<
                     baseline: HandoverMetrics,
                     improved: HandoverMetrics
                 ) => {
-                    const improvement: Record<string, number> = {}
+                    const improvement: Record<string, number> = Record<
+                        string,
+                        never
+                    >
                     Object.keys(baseline).forEach((key) => {
                         if (
                             key !== 'method_id' &&
@@ -439,7 +442,8 @@ const FourWayHandoverComparisonDashboard: React.FC<
                 updateData()
             })
         }
-    }, [reportRefreshHandlerToNavbar])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reportRefreshHandlerToNavbar]) // updateData 定義在後面，避免宣告順序問題
 
     const updateData = useCallback(async () => {
         reportIsLoadingToNavbar?.(true)
@@ -500,6 +504,7 @@ const FourWayHandoverComparisonDashboard: React.FC<
     }, [enabled, updateData])
 
     // 獲取指標單位
+
     const getMetricUnit = (metric: string) => {
         const units: Record<string, string> = {
             latency: 'ms',
@@ -517,6 +522,7 @@ const FourWayHandoverComparisonDashboard: React.FC<
     }
 
     // 獲取指標中文名稱
+
     const getMetricDisplayName = (metric: string) => {
         const names: Record<string, string> = {
             latency: '換手延遲',
@@ -766,7 +772,7 @@ const FourWayHandoverComparisonDashboard: React.FC<
                 }}
             >
                 {methods.map((method) => {
-                    const metrics = latestResult?.[
+                    const _metrics = latestResult?.[
                         `${method.id}_metrics` as keyof FourWayComparisonResult
                     ] as HandoverMetrics
                     const improvement =

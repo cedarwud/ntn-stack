@@ -18,7 +18,9 @@ import { HandoverStatusPanel } from '../domains/handover/execution/HandoverAnima
 interface SceneViewProps {
     devices: Device[]
     auto: boolean
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     manualDirection?: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onManualControl?: (direction: any) => void
     onUAVPositionUpdate?: (
         position: [number, number, number],
@@ -26,7 +28,7 @@ interface SceneViewProps {
     ) => void
     uavAnimation: boolean
     selectedReceiverIds?: number[]
-    satellites?: any[]
+    satellites?: unknown[]
     sceneName: string // 新增場景名稱參數
     // 階段四功能狀態
     interferenceVisualizationEnabled?: boolean
@@ -49,12 +51,15 @@ interface SceneViewProps {
     scenarioTestEnvironmentEnabled?: boolean
     // 3D 換手動畫相關
     handover3DAnimationEnabled?: boolean
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     handoverState?: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     currentConnection?: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     predictedConnection?: any
     isTransitioning?: boolean
     transitionProgress?: number
-    onHandoverEvent?: (event: any) => void
+    onHandoverEvent?: (event: Event) => void
     // 階段七功能狀態
     e2ePerformanceMonitoringEnabled?: boolean
     testResultsVisualizationEnabled?: boolean
@@ -100,7 +105,7 @@ export default function SceneView({
     predictionPath3DEnabled = false,
     predictionAccuracyDashboardEnabled = false,
     coreNetworkSyncEnabled = false,
-    // Stage 3 功能  
+    // Stage 3 功能
     realtimePerformanceMonitorEnabled = false,
     scenarioTestEnvironmentEnabled = false,
     handover3DAnimationEnabled = false,
@@ -125,26 +130,50 @@ export default function SceneView({
     // Suppress unused variable warnings
     void realtimePerformanceMonitorEnabled
     void scenarioTestEnvironmentEnabled
-    
+
     const canvasRef = useRef<HTMLCanvasElement>(null)
-    const [satellites, setSatellites] = useState<any[]>([])
-    const [handoverStatusInfo, setHandoverStatusInfo] = useState<any>(null)
-    
+    const [satellites, setSatellites] = useState<unknown[]>([])
+    const [handoverStatusInfo, setHandoverStatusInfo] = useState<unknown>(null)
+
+    // 🎯 SINR 圖例數據狀態管理
+    const [sinrLegendData, setSinrLegendData] = useState<{
+        realMetrics: unknown | null
+        dataMode: 'simulation' | 'real' | 'hybrid'
+    }>({
+        realMetrics: null,
+        dataMode: 'simulation',
+    })
+
     // 換手狀態更新回調
-    const handleHandoverStatusUpdate = useCallback((statusInfo: any) => {
+    const handleHandoverStatusUpdate = useCallback((statusInfo: unknown) => {
         setHandoverStatusInfo(statusInfo)
     }, [])
-    
+
+    // 🎯 SINR 圖例數據更新回調
+    const handleSinrLegendData = useCallback(
+        (data: {
+            realMetrics: unknown | null
+            dataMode: 'simulation' | 'real' | 'hybrid'
+        }) => {
+            setSinrLegendData(data)
+        },
+        []
+    )
+
     // 測試用：載入衛星數據
     useEffect(() => {
         if (satelliteEnabled) {
-            fetch('/api/v1/satellite-ops/visible_satellites?count=24&min_elevation_deg=5')
-                .then(res => res.json())
-                .then(data => {
+            fetch(
+                '/api/v1/satellite-ops/visible_satellites?count=24&min_elevation_deg=5'
+            )
+                .then((res) => res.json())
+                .then((data) => {
                     // StereogramView: 載入衛星數據
                     setSatellites(data.satellites || [])
                 })
-                .catch(err => console.error('StereogramView: 衛星數據載入失敗:', err))
+                .catch((err) =>
+                    console.error('StereogramView: 衛星數據載入失敗:', err)
+                )
         } else {
             setSatellites([])
         }
@@ -181,7 +210,7 @@ export default function SceneView({
                 )
             }
         }
-    }, [handleWebGLContextLost, handleWebGLContextRestored])
+    }, [handleWebGLContextLost, handleWebGLContextRestored]) // 移除函數依賴，因為函數內容不變
 
     return (
         <div
@@ -199,44 +228,58 @@ export default function SceneView({
             <Starfield starCount={180} />
 
             {/* 衛星圖例已移除，由側邊欄開關控制 */}
-            
+
             {/* 添加 SINR 圖例 - 只有在啟用時才顯示 */}
-            {sinrHeatmapEnabled && <SINRLegend />}
-            
-            
+            {sinrHeatmapEnabled && (
+                <SINRLegend
+                    realMetrics={sinrLegendData.realMetrics}
+                    dataMode={sinrLegendData.dataMode}
+                />
+            )}
+
             {/* 添加預測精度儀表板 - 作為HTML覆蓋層 */}
             {predictionAccuracyDashboardEnabled && (
-                <PredictionAccuracyDashboard isEnabled={predictionAccuracyDashboardEnabled} />
+                <PredictionAccuracyDashboard
+                    isEnabled={predictionAccuracyDashboardEnabled}
+                />
             )}
-            
+
             {/* 添加核心網路同步監控 - 作為HTML覆蓋層 */}
             {coreNetworkSyncEnabled && (
-                <CoreNetworkSyncViewer enabled={coreNetworkSyncEnabled} devices={devices} />
+                <CoreNetworkSyncViewer
+                    enabled={coreNetworkSyncEnabled}
+                    devices={devices}
+                />
             )}
-            
-            
+
             {/* 添加階段七HTML覆蓋層組件 */}
             {e2ePerformanceMonitoringEnabled && (
-                <E2EPerformanceMonitoringDashboard enabled={e2ePerformanceMonitoringEnabled} />
+                <E2EPerformanceMonitoringDashboard
+                    enabled={e2ePerformanceMonitoringEnabled}
+                />
             )}
-            
+
             {/* 添加階段八HTML覆蓋層組件 */}
-            
+
             {predictiveMaintenanceEnabled && (
-                <PredictiveMaintenanceViewer devices={devices} enabled={predictiveMaintenanceEnabled} />
+                <PredictiveMaintenanceViewer
+                    devices={devices}
+                    enabled={predictiveMaintenanceEnabled}
+                />
             )}
-            
-            
+
             {intelligentRecommendationEnabled && (
                 <IntelligentRecommendationSystem />
             )}
-            
+
             {/* 🎯 換手狀態面板 */}
-            <HandoverStatusPanel 
-                enabled={satelliteUavConnectionEnabled && handover3DAnimationEnabled}
+            <HandoverStatusPanel
+                enabled={
+                    satelliteUavConnectionEnabled && handover3DAnimationEnabled
+                }
                 statusInfo={handoverStatusInfo}
             />
-            
+
             {/* 3D Canvas內容照舊，會蓋在星空上 */}
             <Canvas
                 ref={canvasRef}
@@ -284,15 +327,25 @@ export default function SceneView({
                         uavAnimation={uavAnimation}
                         selectedReceiverIds={selectedReceiverIds}
                         sceneName={sceneName}
-                        interferenceVisualizationEnabled={interferenceVisualizationEnabled}
+                        interferenceVisualizationEnabled={
+                            interferenceVisualizationEnabled
+                        }
                         sinrHeatmapEnabled={sinrHeatmapEnabled}
                         aiRanVisualizationEnabled={aiRanVisualizationEnabled}
-                        sionna3DVisualizationEnabled={sionna3DVisualizationEnabled}
+                        sionna3DVisualizationEnabled={
+                            sionna3DVisualizationEnabled
+                        }
                         realTimeMetricsEnabled={realTimeMetricsEnabled}
-                        interferenceAnalyticsEnabled={interferenceAnalyticsEnabled}
-                        uavSwarmCoordinationEnabled={uavSwarmCoordinationEnabled}
+                        interferenceAnalyticsEnabled={
+                            interferenceAnalyticsEnabled
+                        }
+                        uavSwarmCoordinationEnabled={
+                            uavSwarmCoordinationEnabled
+                        }
                         meshNetworkTopologyEnabled={meshNetworkTopologyEnabled}
-                        satelliteUavConnectionEnabled={satelliteUavConnectionEnabled}
+                        satelliteUavConnectionEnabled={
+                            satelliteUavConnectionEnabled
+                        }
                         failoverMechanismEnabled={failoverMechanismEnabled}
                         predictionPath3DEnabled={predictionPath3DEnabled}
                         handover3DAnimationEnabled={handover3DAnimationEnabled}
@@ -302,9 +355,15 @@ export default function SceneView({
                         isTransitioning={isTransitioning}
                         transitionProgress={transitionProgress}
                         onHandoverEvent={onHandoverEvent}
-                        testResultsVisualizationEnabled={testResultsVisualizationEnabled}
-                        performanceTrendAnalysisEnabled={performanceTrendAnalysisEnabled}
-                        automatedReportGenerationEnabled={automatedReportGenerationEnabled}
+                        testResultsVisualizationEnabled={
+                            testResultsVisualizationEnabled
+                        }
+                        performanceTrendAnalysisEnabled={
+                            performanceTrendAnalysisEnabled
+                        }
+                        automatedReportGenerationEnabled={
+                            automatedReportGenerationEnabled
+                        }
                         satellites={satellites}
                         satelliteEnabled={satelliteEnabled}
                         satelliteSpeedMultiplier={satelliteSpeedMultiplier}
@@ -312,6 +371,7 @@ export default function SceneView({
                         handoverMode={handoverMode}
                         algorithmResults={algorithmResults}
                         onHandoverStatusUpdate={handleHandoverStatusUpdate}
+                        onSinrLegendData={handleSinrLegendData}
                     />
                     <ContactShadows
                         position={[0, 0.1, 0]}

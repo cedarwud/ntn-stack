@@ -334,6 +334,7 @@ const PredictiveMaintenanceViewer: React.FC<
     }, [enabled, generateDeviceHealthData])
 
     // 準備圖表數據
+     
     const healthScoreChartData = {
         labels: deviceHealthData.map((d) => d.device_name),
         datasets: [
@@ -402,6 +403,8 @@ const PredictiveMaintenanceViewer: React.FC<
         ],
     }
 
+         
+         
     const getHealthStatus = (
         score: number
     ): { text: string; color: string } => {
@@ -410,6 +413,8 @@ const PredictiveMaintenanceViewer: React.FC<
         return { text: '警告', color: '#F44336' }
     }
 
+         
+         
     const getPriorityColor = (priority: string): string => {
         switch (priority) {
             case 'critical':

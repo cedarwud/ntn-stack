@@ -10,7 +10,7 @@ interface CachedData<T> {
 }
 
 class SatelliteCacheManager {
-  private cache: Map<string, CachedData<any>> = new Map()
+  private cache: Map<string, CachedData<unknown>> = new Map()
   private readonly DEFAULT_CACHE_TIME = 60 * 1000 // 60秒
 
   /**

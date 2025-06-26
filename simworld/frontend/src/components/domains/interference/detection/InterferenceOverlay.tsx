@@ -2,18 +2,24 @@ import React, { useMemo } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
+import { Device } from '../../../../types/device'
 
 interface InterferenceOverlayProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
 }
 
-const InterferenceOverlay: React.FC<InterferenceOverlayProps> = ({ devices, enabled }) => {
-    // 篩選出干擾源設備
-    const jammerDevices = useMemo(() => 
-        devices.filter(device => device.role === 'jammer'), 
-        [devices]
-    )
+const InterferenceOverlay: React.FC<InterferenceOverlayProps> = React.memo(({
+    devices,
+    enabled,
+}) => {
+    // 篩選出干擾源設備 - 使用更穩定的依賴
+    const jammerDevices = useMemo(() => {
+        if (!devices || !Array.isArray(devices)) {
+            return []
+        }
+        return devices.filter((device) => device && device.role === 'jammer')
+    }, [devices])
 
     if (!enabled || jammerDevices.length === 0) {
         return null
@@ -24,7 +30,11 @@ const InterferenceOverlay: React.FC<InterferenceOverlayProps> = ({ devices, enab
             {jammerDevices.map((jammer, index) => (
                 <InterferenceZone
                     key={jammer.id || index}
-                    position={[jammer.position_x || 0, (jammer.position_z || 0) + 20, jammer.position_y || 0]}
+                    position={[
+                        jammer.position_x || 0,
+                        (jammer.position_z || 0) + 20,
+                        jammer.position_y || 0,
+                    ]}
                     radius={60} // 干擾範圍半徑
                     intensity={0.8}
                     jammerId={jammer.id}
@@ -33,7 +43,7 @@ const InterferenceOverlay: React.FC<InterferenceOverlayProps> = ({ devices, enab
             ))}
         </>
     )
-}
+})
 
 interface InterferenceZoneProps {
     position: [number, number, number]
@@ -43,18 +53,28 @@ interface InterferenceZoneProps {
     jammerName?: string
 }
 
-const InterferenceZone: React.FC<InterferenceZoneProps> = ({ position, radius, intensity, jammerId, jammerName }) => {
+const InterferenceZone: React.FC<InterferenceZoneProps> = React.memo(({
+    position,
+    radius,
+    intensity,
+     
+    jammerId: _jammerId,
+    jammerName,
+}) => {
     const meshRef = React.useRef<THREE.Mesh>(null)
 
-    // 動畫效果：脈動
+    // 動畫效果：脈動 - 優化性能
     useFrame((state) => {
         if (meshRef.current) {
             const time = state.clock.getElapsedTime()
             const scale = 1 + Math.sin(time * 2) * 0.1
             meshRef.current.scale.setScalar(scale)
-            
-            // 旋轉效果
-            meshRef.current.rotation.y = time * 0.5
+
+            // 旋轉效果 - 減少更新頻率
+            const rotation = time * 0.5
+            if (Math.abs(meshRef.current.rotation.y - rotation) > 0.05) {
+                meshRef.current.rotation.y = rotation
+            }
         }
     })
 
@@ -70,7 +90,7 @@ const InterferenceZone: React.FC<InterferenceZoneProps> = ({ position, radius, i
                     side={THREE.DoubleSide}
                 />
             </mesh>
-            
+
             {/* 中圈 - 中強度干擾區 */}
             <mesh>
                 <sphereGeometry args={[radius * 0.6, 24, 24]} />
@@ -81,7 +101,7 @@ const InterferenceZone: React.FC<InterferenceZoneProps> = ({ position, radius, i
                     side={THREE.DoubleSide}
                 />
             </mesh>
-            
+
             {/* 外圈 - 低強度干擾區 */}
             <mesh>
                 <sphereGeometry args={[radius, 32, 32]} />
@@ -92,10 +112,10 @@ const InterferenceZone: React.FC<InterferenceZoneProps> = ({ position, radius, i
                     side={THREE.DoubleSide}
                 />
             </mesh>
-            
+
             {/* 干擾波紋效果 */}
             <RippleEffect position={[0, 0, 0]} radius={radius} />
-            
+
             {/* 干擾源標籤 */}
             {jammerName && (
                 <Text
@@ -108,7 +128,7 @@ const InterferenceZone: React.FC<InterferenceZoneProps> = ({ position, radius, i
                     🚫 {jammerName}
                 </Text>
             )}
-            
+
             <Text
                 position={[0, radius + 8, 0]}
                 fontSize={4}
@@ -120,14 +140,14 @@ const InterferenceZone: React.FC<InterferenceZoneProps> = ({ position, radius, i
             </Text>
         </group>
     )
-}
+})
 
 interface RippleEffectProps {
     position: [number, number, number]
     radius: number
 }
 
-const RippleEffect: React.FC<RippleEffectProps> = ({ position, radius }) => {
+const RippleEffect: React.FC<RippleEffectProps> = React.memo(({ position, radius }) => {
     const ringsRef = React.useRef<THREE.Group>(null)
 
     useFrame((state) => {
@@ -138,11 +158,16 @@ const RippleEffect: React.FC<RippleEffectProps> = ({ position, radius }) => {
                 const delay = index * 0.5
                 const phase = (time + delay) % 3
                 const scale = (phase / 3) * radius
-                const opacity = Math.max(0, 1 - phase / 3)
-                
+                 
+                const _opacity = Math.max(0, 1 - phase / 3)
+
                 mesh.scale.setScalar(scale)
+                // 避免每幀都修改材質，只在有實際變化時修改
                 if (mesh.material instanceof THREE.MeshBasicMaterial) {
-                    mesh.material.opacity = opacity * 0.3
+                    const newOpacity = _opacity * 0.3
+                    if (Math.abs(mesh.material.opacity - newOpacity) > 0.01) {
+                        mesh.material.opacity = newOpacity
+                    }
                 }
             })
         }
@@ -163,6 +188,6 @@ const RippleEffect: React.FC<RippleEffectProps> = ({ position, radius }) => {
             ))}
         </group>
     )
-}
+})
 
 export default InterferenceOverlay

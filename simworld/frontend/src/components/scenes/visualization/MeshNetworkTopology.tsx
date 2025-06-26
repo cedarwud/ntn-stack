@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import { Line } from '@react-three/drei'
 
 interface MeshNetworkTopologyProps {
-    devices: any[]
+    devices: unknown[]
     enabled: boolean
 }
 
@@ -46,17 +46,20 @@ interface RoutingPath {
     load: number
 }
 
-const MeshNetworkTopology: React.FC<MeshNetworkTopologyProps> = ({ devices, enabled }) => {
+const MeshNetworkTopology: React.FC<MeshNetworkTopologyProps> = ({
+    devices,
+    enabled,
+}) => {
     const [networkNodes, setNetworkNodes] = useState<NetworkNode[]>([])
     const [networkLinks, setNetworkLinks] = useState<NetworkLink[]>([])
     const [routingPaths, setRoutingPaths] = useState<RoutingPath[]>([])
-    const [topologyMetrics, setTopologyMetrics] = useState({
+    const [_topologyMetrics, setTopologyMetrics] = useState({
         totalNodes: 0,
         activeLinks: 0,
         networkReliability: 0,
         averageLatency: 0,
         routingEfficiency: 0,
-        redundancyLevel: 0
+        redundancyLevel: 0,
     })
 
     // 分析網路拓撲
@@ -72,13 +75,14 @@ const MeshNetworkTopology: React.FC<MeshNetworkTopologyProps> = ({ devices, enab
             const nodes = createNetworkNodes(devices)
             const links = generateNetworkLinks(nodes)
             const paths = calculateRoutingPaths(nodes, links)
-            
+
             setNetworkNodes(nodes)
             setNetworkLinks(links)
             setRoutingPaths(paths)
 
             // 計算拓撲指標
-            const metrics = calculateTopologyMetrics(nodes, links, paths)
+
+            const _metrics = calculateTopologyMetrics(nodes, links, paths)
             setTopologyMetrics(metrics)
         }
 
@@ -94,25 +98,39 @@ const MeshNetworkTopology: React.FC<MeshNetworkTopologyProps> = ({ devices, enab
         <>
             {/* 移除所有文字顯示，只保留幾何形狀和連接線 */}
             <SimpleNetworkNodesVisualization nodes={networkNodes} />
-            <NetworkLinksVisualization links={networkLinks} nodes={networkNodes} />
-            <RoutingPathVisualization paths={routingPaths} nodes={networkNodes} />
+            <NetworkLinksVisualization
+                links={networkLinks}
+                nodes={networkNodes}
+            />
+            <RoutingPathVisualization
+                paths={routingPaths}
+                nodes={networkNodes}
+            />
             <NetworkCoverageVisualization nodes={networkNodes} />
         </>
     )
 }
 
 // 簡化的網路節點可視化組件 - 移除所有文字
-const SimpleNetworkNodesVisualization: React.FC<{ nodes: NetworkNode[] }> = ({ nodes }) => {
+
+const SimpleNetworkNodesVisualization: React.FC<{ nodes: NetworkNode[] }> = ({
+    nodes,
+}) => {
     const getNodeColor = (type: string, status: string) => {
         if (status === 'failed') return '#ff0000'
         if (status === 'degraded') return '#ffaa00'
-        
+
         switch (type) {
-            case 'satellite_gw': return '#00aaff'
-            case 'uav_relay': return '#00ff88'
-            case 'ground_station': return '#ffaa00'
-            case 'mesh_node': return '#ff6b35'
-            default: return '#ffffff'
+            case 'satellite_gw':
+                return '#00aaff'
+            case 'uav_relay':
+                return '#00ff88'
+            case 'ground_station':
+                return '#ffaa00'
+            case 'mesh_node':
+                return '#ff6b35'
+            default:
+                return '#ffffff'
         }
     }
 
@@ -137,7 +155,8 @@ const SimpleNetworkNodesVisualization: React.FC<{ nodes: NetworkNode[] }> = ({ n
 }
 
 // 創建網路節點
-const createNetworkNodes = (devices: any[]): NetworkNode[] => {
+
+const createNetworkNodes = (devices: unknown[]): NetworkNode[] => {
     const nodes: NetworkNode[] = []
 
     devices.forEach((device) => {
@@ -164,7 +183,7 @@ const createNetworkNodes = (devices: any[]): NetworkNode[] => {
             position: [
                 device.position_x || 0,
                 (device.position_z || 0) + 20,
-                device.position_y || 0
+                device.position_y || 0,
             ],
             status: device.enabled ? 'active' : 'inactive',
             connections: [],
@@ -173,9 +192,9 @@ const createNetworkNodes = (devices: any[]): NetworkNode[] => {
                 latency: generateRandomMetric(10, 100),
                 packetLoss: generateRandomMetric(0, 5),
                 signalStrength: generateRandomMetric(-70, -30),
-                hopCount: generateRandomMetric(1, 4)
+                hopCount: generateRandomMetric(1, 4),
             },
-            role
+            role,
         }
 
         nodes.push(node)
@@ -192,17 +211,20 @@ const generateNetworkLinks = (nodes: NetworkNode[]): NetworkLink[] => {
         for (let j = i + 1; j < nodes.length; j++) {
             const nodeA = nodes[i]
             const nodeB = nodes[j]
-            
+
             const distance = Math.sqrt(
                 Math.pow(nodeA.position[0] - nodeB.position[0], 2) +
-                Math.pow(nodeA.position[2] - nodeB.position[2], 2)
+                    Math.pow(nodeA.position[2] - nodeB.position[2], 2)
             )
 
             // 根據距離決定是否建立連接
             if (distance < 100) {
                 const linkType = determineLinkType(nodeA, nodeB, distance)
-                const quality = Math.max(0, 100 - distance * 0.8 + Math.random() * 20)
-                
+                const quality = Math.max(
+                    0,
+                    100 - distance * 0.8 + Math.random() * 20
+                )
+
                 const link: NetworkLink = {
                     id: `link_${nodeA.id}_${nodeB.id}`,
                     source: nodeA.id,
@@ -211,12 +233,17 @@ const generateNetworkLinks = (nodes: NetworkNode[]): NetworkLink[] => {
                     quality,
                     bandwidth: generateRandomMetric(10, 100),
                     latency: Math.max(1, distance * 0.1 + Math.random() * 10),
-                    status: quality > 70 ? 'active' : quality > 40 ? 'degraded' : 'failed',
-                    protocol: selectProtocol(linkType, nodeA, nodeB)
+                    status:
+                        quality > 70
+                            ? 'active'
+                            : quality > 40
+                            ? 'degraded'
+                            : 'failed',
+                    protocol: selectProtocol(linkType, nodeA, nodeB),
                 }
 
                 links.push(link)
-                
+
                 // 更新節點連接
                 nodeA.connections.push(nodeB.id.toString())
                 nodeB.connections.push(nodeA.id.toString())
@@ -228,7 +255,11 @@ const generateNetworkLinks = (nodes: NetworkNode[]): NetworkLink[] => {
 }
 
 // 確定連接類型
-const determineLinkType = (nodeA: NetworkNode, nodeB: NetworkNode, distance: number): NetworkLink['type'] => {
+const determineLinkType = (
+    nodeA: NetworkNode,
+    nodeB: NetworkNode,
+    distance: number
+): NetworkLink['type'] => {
     if (nodeA.type === 'satellite_gw' || nodeB.type === 'satellite_gw') {
         return 'satellite'
     }
@@ -242,7 +273,11 @@ const determineLinkType = (nodeA: NetworkNode, nodeB: NetworkNode, distance: num
 }
 
 // 選擇協議
-const selectProtocol = (linkType: NetworkLink['type'], nodeA: NetworkNode, nodeB: NetworkNode): NetworkLink['protocol'] => {
+const selectProtocol = (
+    linkType: NetworkLink['type'],
+    _nodeA: NetworkNode,
+    _nodeB: NetworkNode
+): NetworkLink['protocol'] => {
     switch (linkType) {
         case 'satellite':
             return '5G_NR'
@@ -258,13 +293,16 @@ const selectProtocol = (linkType: NetworkLink['type'], nodeA: NetworkNode, nodeB
 }
 
 // 計算路由路徑
-const calculateRoutingPaths = (nodes: NetworkNode[], links: NetworkLink[]): RoutingPath[] => {
+const calculateRoutingPaths = (
+    nodes: NetworkNode[],
+    links: NetworkLink[]
+): RoutingPath[] => {
     const paths: RoutingPath[] = []
-    const activeLinks = links.filter(l => l.status === 'active')
+    const activeLinks = links.filter((l) => l.status === 'active')
 
     // 找到所有源和目標節點對
-    const primaryNodes = nodes.filter(n => n.role === 'primary')
-    const relayNodes = nodes.filter(n => n.role === 'relay')
+    const primaryNodes = nodes.filter((n) => n.role === 'primary')
+    const relayNodes = nodes.filter((n) => n.role === 'relay')
 
     primaryNodes.forEach((source) => {
         relayNodes.forEach((target) => {
@@ -279,11 +317,16 @@ const calculateRoutingPaths = (nodes: NetworkNode[], links: NetworkLink[]): Rout
 }
 
 // 最短路徑算法 (簡化版 Dijkstra)
-const findShortestPath = (sourceId: string | number, targetId: string | number, links: NetworkLink[]): RoutingPath | null => {
+const findShortestPath = (
+    sourceId: string | number,
+    targetId: string | number,
+    links: NetworkLink[]
+): RoutingPath | null => {
     // 簡化實現 - 實際應用中會使用完整的 Dijkstra 算法
-    const directLink = links.find(l => 
-        (l.source === sourceId && l.target === targetId) ||
-        (l.source === targetId && l.target === sourceId)
+    const directLink = links.find(
+        (l) =>
+            (l.source === sourceId && l.target === targetId) ||
+            (l.source === targetId && l.target === sourceId)
     )
 
     if (directLink) {
@@ -294,7 +337,7 @@ const findShortestPath = (sourceId: string | number, targetId: string | number, 
             hops: [sourceId, targetId],
             totalLatency: directLink.latency,
             reliability: directLink.quality / 100,
-            load: generateRandomMetric(20, 80)
+            load: generateRandomMetric(20, 80),
         }
     }
 
@@ -302,11 +345,17 @@ const findShortestPath = (sourceId: string | number, targetId: string | number, 
 }
 
 // 計算拓撲指標
-const calculateTopologyMetrics = (nodes: NetworkNode[], links: NetworkLink[], paths: RoutingPath[]) => {
-    const activeNodes = nodes.filter(n => n.status === 'active').length
-    const activeLinks = links.filter(l => l.status === 'active').length
-    const avgQuality = links.reduce((sum, l) => sum + l.quality, 0) / (links.length || 1)
-    const avgLatency = links.reduce((sum, l) => sum + l.latency, 0) / (links.length || 1)
+const calculateTopologyMetrics = (
+    nodes: NetworkNode[],
+    links: NetworkLink[],
+    paths: RoutingPath[]
+) => {
+    const activeNodes = nodes.filter((n) => n.status === 'active').length
+    const activeLinks = links.filter((l) => l.status === 'active').length
+    const avgQuality =
+        links.reduce((sum, l) => sum + l.quality, 0) / (links.length || 1)
+    const avgLatency =
+        links.reduce((sum, l) => sum + l.latency, 0) / (links.length || 1)
 
     return {
         totalNodes: nodes.length,
@@ -314,7 +363,7 @@ const calculateTopologyMetrics = (nodes: NetworkNode[], links: NetworkLink[], pa
         networkReliability: avgQuality,
         averageLatency: avgLatency,
         routingEfficiency: Math.min(100, paths.length * 10),
-        redundancyLevel: Math.min(100, (activeLinks / activeNodes) * 50)
+        redundancyLevel: Math.min(100, (activeLinks / activeNodes) * 50),
     }
 }
 
@@ -324,38 +373,60 @@ const generateRandomMetric = (min: number, max: number): number => {
 }
 
 // 網路節點可視化組件
-const NetworkNodeVisualization: React.FC<{ node: NetworkNode }> = ({ node }) => {
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const NetworkNodeVisualization: React.FC<{ node: NetworkNode }> = ({
+    node,
+}) => {
     const meshRef = useRef<THREE.Group>(null)
 
-    const getNodeColor = (type: NetworkNode['type'], status: NetworkNode['status']) => {
+    const getNodeColor = (
+        type: NetworkNode['type'],
+        status: NetworkNode['status']
+    ) => {
         if (status !== 'active') return '#666666'
-        
+
         switch (type) {
-            case 'satellite_gw': return '#00ff00'
-            case 'mesh_node': return '#0088ff'
-            case 'uav_relay': return '#ff8800'
-            case 'ground_station': return '#8800ff'
-            default: return '#ffffff'
+            case 'satellite_gw':
+                return '#00ff00'
+            case 'mesh_node':
+                return '#0088ff'
+            case 'uav_relay':
+                return '#ff8800'
+            case 'ground_station':
+                return '#8800ff'
+            default:
+                return '#ffffff'
         }
     }
 
     const getNodeIcon = (type: NetworkNode['type']) => {
         switch (type) {
-            case 'satellite_gw': return '🛰️'
-            case 'mesh_node': return '📡'
-            case 'uav_relay': return '🚁'
-            case 'ground_station': return '🏢'
-            default: return '📶'
+            case 'satellite_gw':
+                return '🛰️'
+            case 'mesh_node':
+                return '📡'
+            case 'uav_relay':
+                return '🚁'
+            case 'ground_station':
+                return '🏢'
+            default:
+                return '📶'
         }
     }
 
     const getStatusIcon = (status: NetworkNode['status']) => {
         switch (status) {
-            case 'active': return '🟢'
-            case 'inactive': return '⚫'
-            case 'degraded': return '🟡'
-            case 'offline': return '🔴'
-            default: return '⚪'
+            case 'active':
+                return '🟢'
+            case 'inactive':
+                return '⚫'
+            case 'degraded':
+                return '🟡'
+            case 'offline':
+                return '🔴'
+            default:
+                return '⚪'
         }
     }
 
@@ -380,7 +451,7 @@ const NetworkNodeVisualization: React.FC<{ node: NetworkNode }> = ({ node }) => 
                     emissiveIntensity={0.3}
                 />
             </mesh>
-            
+
             {/* 節點類型標籤 */}
             <Text
                 position={[0, 20, 0]}
@@ -389,9 +460,10 @@ const NetworkNodeVisualization: React.FC<{ node: NetworkNode }> = ({ node }) => 
                 anchorX="center"
                 anchorY="middle"
             >
-                {getNodeIcon(node.type)} {node.type.replace('_', ' ').toUpperCase()}
+                {getNodeIcon(node.type)}{' '}
+                {node.type.replace('_', ' ').toUpperCase()}
             </Text>
-            
+
             {/* 狀態指示器 */}
             <Text
                 position={[0, 14, 0]}
@@ -402,7 +474,7 @@ const NetworkNodeVisualization: React.FC<{ node: NetworkNode }> = ({ node }) => 
             >
                 {getStatusIcon(node.status)} {node.status.toUpperCase()}
             </Text>
-            
+
             {/* 節點指標 */}
             <Text
                 position={[0, 8, 0]}
@@ -413,7 +485,7 @@ const NetworkNodeVisualization: React.FC<{ node: NetworkNode }> = ({ node }) => 
             >
                 BW: {node.metrics.bandwidth.toFixed(0)} Mbps
             </Text>
-            
+
             <Text
                 position={[0, 4, 0]}
                 fontSize={3}
@@ -428,20 +500,29 @@ const NetworkNodeVisualization: React.FC<{ node: NetworkNode }> = ({ node }) => 
 }
 
 // 網路連接線可視化組件
+
 const NetworkLinksVisualization: React.FC<{
     links: NetworkLink[]
     nodes: NetworkNode[]
 }> = ({ links, nodes }) => {
-    const getLinkColor = (type: NetworkLink['type'], status: NetworkLink['status']) => {
+    const getLinkColor = (
+        type: NetworkLink['type'],
+        status: NetworkLink['status']
+    ) => {
         if (status === 'failed') return '#ff0000'
         if (status === 'degraded') return '#ffaa00'
-        
+
         switch (type) {
-            case 'satellite': return '#00ff88'
-            case 'mesh': return '#0088ff'
-            case 'backup': return '#ff8800'
-            case 'direct': return '#88ff00'
-            default: return '#ffffff'
+            case 'satellite':
+                return '#00ff88'
+            case 'mesh':
+                return '#0088ff'
+            case 'backup':
+                return '#ff8800'
+            case 'direct':
+                return '#88ff00'
+            default:
+                return '#ffffff'
         }
     }
 
@@ -452,9 +533,9 @@ const NetworkLinksVisualization: React.FC<{
     return (
         <>
             {links.map((link) => {
-                const sourceNode = nodes.find(n => n.id === link.source)
-                const targetNode = nodes.find(n => n.id === link.target)
-                
+                const sourceNode = nodes.find((n) => n.id === link.source)
+                const targetNode = nodes.find((n) => n.id === link.target)
+
                 if (!sourceNode || !targetNode) return null
 
                 const points = [sourceNode.position, targetNode.position]
@@ -476,6 +557,7 @@ const NetworkLinksVisualization: React.FC<{
 }
 
 // 路由路徑可視化組件
+
 const RoutingPathVisualization: React.FC<{
     paths: RoutingPath[]
     nodes: NetworkNode[]
@@ -483,13 +565,15 @@ const RoutingPathVisualization: React.FC<{
     return (
         <>
             {paths.slice(0, 3).map((path, index) => {
-                const pathNodes = path.hops.map(hopId => nodes.find(n => n.id === hopId)).filter(Boolean)
+                const pathNodes = path.hops
+                    .map((hopId) => nodes.find((n) => n.id === hopId))
+                    .filter(Boolean)
                 if (pathNodes.length < 2) return null
 
-                const points = pathNodes.map(node => [
+                const points = pathNodes.map((node) => [
                     node!.position[0],
                     node!.position[1] + 5 + index * 2,
-                    node!.position[2]
+                    node!.position[2],
                 ])
 
                 return (
@@ -509,7 +593,11 @@ const RoutingPathVisualization: React.FC<{
 }
 
 // 拓撲狀態顯示組件
-const TopologyStatusDisplay: React.FC<{ metrics: any }> = ({ metrics }) => {
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const TopologyStatusDisplay: React.FC<{ metrics: Record<string, unknown> }> = ({
+    metrics,
+}) => {
     return (
         <group position={[80, 60, 80]}>
             <Text
@@ -521,7 +609,7 @@ const TopologyStatusDisplay: React.FC<{ metrics: any }> = ({ metrics }) => {
             >
                 🕸️ 網狀網路拓撲狀態
             </Text>
-            
+
             <Text
                 position={[0, 18, 0]}
                 fontSize={4}
@@ -531,7 +619,7 @@ const TopologyStatusDisplay: React.FC<{ metrics: any }> = ({ metrics }) => {
             >
                 總節點數: {metrics.totalNodes}
             </Text>
-            
+
             <Text
                 position={[0, 13, 0]}
                 fontSize={4}
@@ -541,7 +629,7 @@ const TopologyStatusDisplay: React.FC<{ metrics: any }> = ({ metrics }) => {
             >
                 活躍連接: {metrics.activeLinks}
             </Text>
-            
+
             <Text
                 position={[0, 8, 0]}
                 fontSize={3.5}
@@ -551,7 +639,7 @@ const TopologyStatusDisplay: React.FC<{ metrics: any }> = ({ metrics }) => {
             >
                 網路可靠性: {metrics.networkReliability.toFixed(1)}%
             </Text>
-            
+
             <Text
                 position={[0, 3, 0]}
                 fontSize={3.5}
@@ -561,7 +649,7 @@ const TopologyStatusDisplay: React.FC<{ metrics: any }> = ({ metrics }) => {
             >
                 平均延遲: {metrics.averageLatency.toFixed(1)} ms
             </Text>
-            
+
             <Text
                 position={[0, -2, 0]}
                 fontSize={3.5}
@@ -571,7 +659,7 @@ const TopologyStatusDisplay: React.FC<{ metrics: any }> = ({ metrics }) => {
             >
                 路由效率: {metrics.routingEfficiency.toFixed(1)}%
             </Text>
-            
+
             <Text
                 position={[0, -7, 0]}
                 fontSize={3.5}
@@ -586,14 +674,21 @@ const TopologyStatusDisplay: React.FC<{ metrics: any }> = ({ metrics }) => {
 }
 
 // 網路覆蓋範圍可視化組件
-const NetworkCoverageVisualization: React.FC<{ nodes: NetworkNode[] }> = ({ nodes }) => {
+
+const NetworkCoverageVisualization: React.FC<{ nodes: NetworkNode[] }> = ({
+    nodes,
+}) => {
     return (
         <>
             {nodes.map((node) => {
                 if (node.status !== 'active') return null
 
-                const coverageRadius = node.type === 'satellite_gw' ? 80 : 
-                                    node.type === 'uav_relay' ? 50 : 30
+                const coverageRadius =
+                    node.type === 'satellite_gw'
+                        ? 80
+                        : node.type === 'uav_relay'
+                        ? 50
+                        : 30
 
                 return (
                     <mesh
@@ -614,7 +709,9 @@ const NetworkCoverageVisualization: React.FC<{ nodes: NetworkNode[] }> = ({ node
 }
 
 // 動態路由表組件
-const DynamicRoutingTable: React.FC<{ paths: RoutingPath[] }> = ({ paths }) => {
+const _DynamicRoutingTable: React.FC<{ paths: RoutingPath[] }> = ({
+    paths,
+}) => {
     return (
         <group position={[-80, 60, -80]}>
             <Text
@@ -626,7 +723,7 @@ const DynamicRoutingTable: React.FC<{ paths: RoutingPath[] }> = ({ paths }) => {
             >
                 📋 動態路由表
             </Text>
-            
+
             {paths.slice(0, 5).map((path, index) => (
                 <group key={path.id} position={[0, 12 - index * 6, 0]}>
                     <Text
@@ -638,7 +735,7 @@ const DynamicRoutingTable: React.FC<{ paths: RoutingPath[] }> = ({ paths }) => {
                     >
                         {path.source} → {path.destination}
                     </Text>
-                    
+
                     <Text
                         position={[0, -1, 0]}
                         fontSize={2}
@@ -646,7 +743,8 @@ const DynamicRoutingTable: React.FC<{ paths: RoutingPath[] }> = ({ paths }) => {
                         anchorX="center"
                         anchorY="middle"
                     >
-                        跳數: {path.hops.length - 1} | 延遲: {path.totalLatency.toFixed(1)}ms
+                        跳數: {path.hops.length - 1} | 延遲:{' '}
+                        {path.totalLatency.toFixed(1)}ms
                     </Text>
                 </group>
             ))}
@@ -655,15 +753,24 @@ const DynamicRoutingTable: React.FC<{ paths: RoutingPath[] }> = ({ paths }) => {
 }
 
 // 獲取節點顏色 (重用函數)
-const getNodeColor = (type: NetworkNode['type'], status: NetworkNode['status']) => {
+
+const getNodeColor = (
+    type: NetworkNode['type'],
+    status: NetworkNode['status']
+) => {
     if (status !== 'active') return '#666666'
-    
+
     switch (type) {
-        case 'satellite_gw': return '#00ff00'
-        case 'mesh_node': return '#0088ff'
-        case 'uav_relay': return '#ff8800'
-        case 'ground_station': return '#8800ff'
-        default: return '#ffffff'
+        case 'satellite_gw':
+            return '#00ff00'
+        case 'mesh_node':
+            return '#0088ff'
+        case 'uav_relay':
+            return '#ff8800'
+        case 'ground_station':
+            return '#8800ff'
+        default:
+            return '#ffffff'
     }
 }
 

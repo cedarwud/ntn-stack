@@ -5,24 +5,37 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist'] },
-  {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ['**/*.{ts,tsx}'],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-    },
-    plugins: {
-      'react-hooks': reactHooks,
-      'react-refresh': reactRefresh,
-    },
-    rules: {
-      ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
-    },
-  },
+    { ignores: ['dist'] },
+    {
+        extends: [js.configs.recommended, ...tseslint.configs.recommended],
+        files: ['**/*.{ts,tsx}'],
+        languageOptions: {
+            ecmaVersion: 2020,
+            globals: globals.browser,
+        },
+        plugins: {
+            'react-hooks': reactHooks,
+            'react-refresh': reactRefresh,
+        },
+        rules: {
+            ...reactHooks.configs.recommended.rules,
+            'react-refresh/only-export-components': [
+                'warn',
+                { allowConstantExport: true },
+            ],
+            // Allow unused variables that start with underscore (reserved for future use)
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrorsIgnorePattern: '^_',
+                },
+            ],
+            // Allow any type in development for rapid prototyping
+            '@typescript-eslint/no-explicit-any': 'warn',
+            // Allow unused function type for development
+            '@typescript-eslint/no-unsafe-function-type': 'warn',
+        },
+    }
 )

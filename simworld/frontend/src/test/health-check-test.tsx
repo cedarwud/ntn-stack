@@ -1,6 +1,28 @@
 /**
  * 健康檢查測試組件
- * 用於手動驗證系統健康狀態
+ interface SatelliteTestResults {
+    direct_api: {
+        success: boolean
+        satellite_count: number
+        error?: string
+    }
+    service_layer: {
+        success: boolean
+        satellite_count: number
+        error?: string
+    }
+}
+
+const SystemHealthCheckTest: React.FC = () => {
+    const [isTestingBasic, setIsTestingBasic] = useState(false)
+    const [isTestingAdvanced, setIsTestingAdvanced] = useState(false)
+    const [isTestingSatellite, setIsTestingSatellite] = useState(false)
+    const [basicResults, setBasicResults] = useState<SystemTestResults | null>(
+        null
+    )
+    const [advancedResults, setAdvancedResults] =
+        useState<SystemDiagnostics | null>(null)
+    const [satelliteResults, setSatelliteResults] = useState<SatelliteTestResults | null>(null)健康狀態
  */
 import React, { useState } from 'react'
 import {
@@ -15,6 +37,20 @@ import {
 import { fetchRealSatelliteData } from '../services/realSatelliteService'
 import { ApiRoutes } from '../config/apiRoutes'
 
+interface SatelliteTestResults {
+    direct_api: {
+        success: boolean
+        satellite_count: number
+        error?: string
+    }
+    service_layer: {
+        success: boolean
+        satellite_count: number
+        error?: string
+    }
+    timestamp?: string
+}
+
 export const HealthCheckTest: React.FC = () => {
     const [isTestingBasic, setIsTestingBasic] = useState(false)
     const [isTestingAdvanced, setIsTestingAdvanced] = useState(false)
@@ -24,7 +60,8 @@ export const HealthCheckTest: React.FC = () => {
     )
     const [advancedResults, setAdvancedResults] =
         useState<SystemDiagnostics | null>(null)
-    const [satelliteResults, setSatelliteResults] = useState<any>(null)
+    const [satelliteResults, setSatelliteResults] =
+        useState<SatelliteTestResults | null>(null)
 
     const runBasicTest = async () => {
         setIsTestingBasic(true)
@@ -234,7 +271,8 @@ export const HealthCheckTest: React.FC = () => {
                                 : '❌'}
                         </li>
                         <li>
-                            SimWorld 衛星:{' '}
+                            SimWorld 衛星: // eslint-disable-next-line
+                            @typescript-eslint/no-unused-vars
                             {basicResults.simworld_satellites.success
                                 ? '✅'
                                 : '❌'}

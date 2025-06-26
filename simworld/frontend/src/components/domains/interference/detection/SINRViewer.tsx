@@ -61,11 +61,14 @@ const SINRViewer: React.FC<ViewerProps> = ({
                     `API 請求失敗: ${response.status} ${response.statusText}`
                 )
             }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error('載入 SINR Map 失敗:', err)
             handleLoadError(err)
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
+        API_PATH,
         currentScene,
         sinrVmin,
         sinrVmax,
@@ -73,9 +76,10 @@ const SINRViewer: React.FC<ViewerProps> = ({
         samplesPerTx,
         updateTimestamp,
         retryCount,
-    ])
+    ]) // handleLoadError 定義在後面，避免宣告順序問題
 
     const handleLoadError = useCallback(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (err: any) => {
             if (err.message && err.message.includes('404')) {
                 setError('圖像文件未找到: 後端可能正在生成圖像，請稍後重試')

@@ -136,13 +136,13 @@ class SimWorldApiClient extends BaseApiClient {
       baseUrl = ''
       
       // 檢查環境變數是否有自定義的 SimWorld URL
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const envUrl = (window as any).__SIMWORLD_API_URL__
       if (envUrl) {
         baseUrl = envUrl
       }
     }
-    
-    
+
     super(baseUrl)
   }
 
@@ -159,10 +159,11 @@ class SimWorldApiClient extends BaseApiClient {
       count: Math.min(maxSatellites, 15),  // 🚀 進一步限制到15顆衛星
       min_elevation_deg: minElevation
     }
+     
     const endpoint = '/api/v1/satellite-ops/visible_satellites'
     
     // 🚀 使用內建的快取機制並設置超時（基於 BaseApiClient）
-    const response = await this.get<any>(endpoint, params)
+    const response = await this.get<unknown>(endpoint, params)
     
     // 轉換響應格式以匹配原有接口
     const result = {

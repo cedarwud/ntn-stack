@@ -15,6 +15,7 @@ const StaticModel: React.FC<StaticModelProps> = ({
     scale,
     pivotOffset = [0, 0, 0],
 }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { scene } = useGLTF(url) as any
     const clonedScene = useMemo(() => {
         const clone = scene.clone(true)

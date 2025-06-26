@@ -12,6 +12,8 @@ interface CoordinateDisplayProps {
 }
 
 // 使用 React.memo 優化，只有 props 變化時才重新渲染
+         
+         
 const CoordinateDisplay: React.FC<CoordinateDisplayProps> = React.memo(
     ({ position }) => {
         if (!position) {

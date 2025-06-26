@@ -122,7 +122,7 @@ class PerformanceOptimizer {
           `${componentName}-render-start`,
           `${componentName}-render-end`
         )
-      } catch (error) {
+      } catch (_error) {
         // 忽略測量錯誤
       }
     }
@@ -237,6 +237,7 @@ export const performanceOptimizer = new PerformanceOptimizer()
 
 // 在開發環境中暴露到 window 對象
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).performanceOptimizer = performanceOptimizer
 }
 
@@ -273,7 +274,7 @@ export function withPerformanceMonitoring<T extends object>(
  */
 export class BatchAPIOptimizer {
   private batchRequests = new Map<string, {
-    requests: Array<{ params: any; resolve: Function; reject: Function }>
+    requests: Array<{ params: Record<string, unknown>; resolve: (value: unknown) => void; reject: (reason?: unknown) => void }>
     timeout: NodeJS.Timeout
   }>()
 
@@ -282,7 +283,7 @@ export class BatchAPIOptimizer {
    */
   batchRequest<T>(
     endpoint: string,
-    params: any,
+    params: Record<string, unknown>,
     batchTime = 100
   ): Promise<T> {
     return new Promise((resolve, reject) => {
