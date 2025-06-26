@@ -52,17 +52,20 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 logger.info(f"Mounted static directory '{STATIC_DIR}' at '/static'.")
 
 # --- CORS Middleware ---
+# Get external IP from environment variable, default to localhost for safety
+EXTERNAL_IP = os.getenv("EXTERNAL_IP", "127.0.0.1")
+
 # Allow cross-origin requests from specific domains, including production environment IP addresses
 origins = [
     "http://localhost",
     "http://localhost:5173",  # Local development environment
     "http://127.0.0.1:5173",
-    "http://120.126.151.101",
-    "http://120.126.151.101:5173",  # Production environment IP address
-    "http://120.126.151.101:3000",
-    "http://120.126.151.101:8080",
-    "https://120.126.151.101",
-    "https://120.126.151.101:5173",
+    f"http://{EXTERNAL_IP}",
+    f"http://{EXTERNAL_IP}:5173",  # External environment IP address
+    f"http://{EXTERNAL_IP}:3000",
+    f"http://{EXTERNAL_IP}:8080",
+    f"https://{EXTERNAL_IP}",
+    f"https://{EXTERNAL_IP}:5173",
     # NetStack integration endpoints
     "http://172.20.0.40",     # NetStack API container
     "http://172.20.0.40:8080",

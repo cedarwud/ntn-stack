@@ -42,12 +42,15 @@ logger.info(f"Mounted static directory '{STATIC_DIR}' at '/static'.")
 
 # --- CORS Middleware ---
 # 允許特定域名的跨域請求，包括生產環境中的IP地址
+# 從環境變數獲取外部 IP，預設為本地環境 IP (安全考量)
+EXTERNAL_IP = os.getenv("EXTERNAL_IP", "127.0.0.1")
+
 origins = [
     "http://localhost",
     "http://localhost:5173",  # 本地開發環境
     "http://127.0.0.1:5173",
-    "http://120.126.151.101",
-    "http://120.126.151.101:5173",  # 生產環境 IP 地址
+    f"http://{EXTERNAL_IP}",
+    f"http://{EXTERNAL_IP}:5173",  # 外部環境 IP 地址
     # 添加任何其他需要的域名
 ]
 
