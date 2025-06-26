@@ -127,7 +127,7 @@ export interface AIRANDecision {
 
 class SimWorldApiClient extends BaseApiClient {
   constructor() {
-    let baseUrl = 'http://localhost:8000'  // 默認 SimWorld 後端地址
+    let baseUrl = 'http://localhost:8888'  // 修正端口：對應 Docker 映射端口
     
     // 在瀏覽器環境中使用相對路徑，讓 Vite 代理處理
     if (typeof window !== 'undefined') {
@@ -162,10 +162,7 @@ class SimWorldApiClient extends BaseApiClient {
     const endpoint = '/api/v1/satellite-ops/visible_satellites'
     
     // 🚀 使用內建的快取機制並設置超時（基於 BaseApiClient）
-    const response = await this.get<any>(endpoint, params, {
-      timeout: 8000,  // 8秒超時
-      cacheTime: 60   // 60秒快取
-    })
+    const response = await this.get<any>(endpoint, params)
     
     // 轉換響應格式以匹配原有接口
     const result = {
@@ -182,7 +179,20 @@ class SimWorldApiClient extends BaseApiClient {
       },
       results: {
         total_visible: response.satellites?.length || 0,
-        satellites: response.satellites?.map((sat: any) => ({
+        satellites: response.satellites?.map((sat: { 
+          norad_id?: string; 
+          name?: string; 
+          orbit_altitude_km?: number; 
+          elevation_deg?: number; 
+          azimuth_deg?: number; 
+          range_km?: number; 
+          distance_km?: number;
+          velocity?: number; 
+          velocity_km_s?: number;
+          doppler_shift?: number; 
+          estimated_signal_strength?: number; 
+          path_loss_db?: number; 
+        }) => ({
           id: parseInt(sat.norad_id) || 0,
           name: sat.name,
           norad_id: sat.norad_id,

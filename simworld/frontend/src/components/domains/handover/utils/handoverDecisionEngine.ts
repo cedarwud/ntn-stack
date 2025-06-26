@@ -3,7 +3,7 @@
  * 用於消除組件間的邏輯重複和矛盾
  */
 
-import { VisibleSatelliteInfo } from '../../../types/satellite'
+import { VisibleSatelliteInfo } from '../../../../types/satellite'
 import { HANDOVER_CONFIG } from '../config/handoverConfig'
 
 export interface HandoverDecision {
@@ -191,7 +191,7 @@ export class HandoverDecisionEngine {
   ): VisibleSatelliteInfo[] {
     
     // 排除當前衛星
-    let candidates = availableSatellites.filter(
+    const candidates = availableSatellites.filter(
       sat => sat.norad_id !== currentSatellite.norad_id
     )
     

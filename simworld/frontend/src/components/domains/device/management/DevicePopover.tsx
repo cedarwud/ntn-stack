@@ -1,3 +1,5 @@
+import { Device } from '../../../../types/device'
+
 export interface DevicePopoverProps {
     show: boolean
     position: {
@@ -8,9 +10,9 @@ export interface DevicePopoverProps {
         sceneX?: number
         sceneY?: number
     } | null
-    device: any
+    device: Device
     isEditing: boolean
-    onChange: (field: string, value: any) => void
+    onChange: (field: string, value: string | number | boolean) => void
     onOrientationInput: (axis: 'x' | 'y' | 'z', value: string) => void
     orientationInputs: { [key: string]: { x: string; y: string; z: string } }
     onApply: (e: React.FormEvent) => void

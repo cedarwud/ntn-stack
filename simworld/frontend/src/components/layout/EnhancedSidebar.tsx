@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import '../../styles/Sidebar.scss'
 import { UAVManualDirection } from '../domains/device/visualization/UAVFlight'
 import { Device } from '../../types/device'
@@ -6,18 +6,24 @@ import SidebarStarfield from '../shared/ui/effects/SidebarStarfield'
 import DeviceItem from '../domains/device/management/DeviceItem'
 import { useReceiverSelection } from '../../hooks/useReceiverSelection'
 import { VisibleSatelliteInfo } from '../../types/satellite'
+import { HandoverState, SatelliteConnection } from '../../types/handover'
+import { SatellitePosition } from '../../services/simworld-api'
 // import { ApiRoutes } from '../../../../config/apiRoutes'
 import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName'
-import HandoverManager from '../domains/handover/execution/HandoverManager'
 import { useStrategy } from '../../contexts/StrategyContext'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
+import { simWorldApi } from '../../services/simworld-api'
+// 使用懶加載的 HandoverManager 來優化 bundle size
+const HandoverManager = React.lazy(
+    () => import('../domains/handover/execution/HandoverManager')
+)
 // RL 監控已移動到 Chart Analysis Dashboard
 
 interface SidebarProps {
     devices: Device[]
     loading: boolean
     apiStatus: 'disconnected' | 'connected' | 'error'
-    onDeviceChange: (id: number, field: keyof Device, value: any) => void
+    onDeviceChange: (id: number, field: keyof Device, value: unknown) => void
     onDeleteDevice: (id: number) => void
     onAddDevice: () => void
     onApply: () => void
@@ -98,9 +104,9 @@ interface SidebarProps {
     onHandoverModeChange?: (mode: 'demo' | 'real') => void
 
     // 3D 動畫狀態更新回調
-    onHandoverStateChange?: (state: any) => void
-    onCurrentConnectionChange?: (connection: any) => void
-    onPredictedConnectionChange?: (connection: any) => void
+    onHandoverStateChange?: (state: HandoverState) => void
+    onCurrentConnectionChange?: (connection: SatelliteConnection) => void
+    onPredictedConnectionChange?: (connection: SatelliteConnection) => void
     onTransitionChange?: (isTransitioning: boolean, progress: number) => void
     // 🚀 演算法結果回調 - 用於對接視覺化
     onAlgorithmResults?: (results: {
@@ -146,14 +152,11 @@ async function fetchVisibleSatellites(
     minElevation: number
 ): Promise<VisibleSatelliteInfo[]> {
     try {
-        // Import simWorldApi
-        const { simWorldApi } = await import('../../services/simworld-api')
-
         const data = await simWorldApi.getVisibleSatellites(minElevation, count)
 
         const satellites: VisibleSatelliteInfo[] =
-            data.results?.satellites?.map((sat: any) => ({
-                norad_id: sat.norad_id,
+            data.results?.satellites?.map((sat: SatellitePosition) => ({
+                norad_id: parseInt(sat.norad_id),
                 name: sat.name || 'Unknown',
                 elevation_deg:
                     sat.position?.elevation ||
@@ -240,7 +243,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 }) => {
     // 🎯 使用全域策略狀態
     const { currentStrategy } = useStrategy()
-
 
     // 標記未使用但保留的props為已消費（避免TypeScript警告）
     void _predictionAccuracyDashboardEnabled
@@ -441,7 +443,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                 SATELLITE_CONFIG.MIN_ELEVATION
             )
 
-            let sortedSatellites = [...satellites]
+            const sortedSatellites = [...satellites]
             sortedSatellites.sort((a, b) => b.elevation_deg - a.elevation_deg)
 
             setSkyfieldSatellites(sortedSatellites)
@@ -472,14 +474,17 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         }
     }, [
         satelliteEnabled, // 只依賴啟用狀態
+        onSatelliteDataUpdate,
         // 移除其他依賴，避免重新載入
     ])
 
-    // 設備方向輸入處理
+    // 設備方向輸入處理 - 修復無限循環問題
     useEffect(() => {
         const newInputs: {
             [key: string]: { x: string; y: string; z: string }
         } = {}
+        let hasChanges = false
+
         devices.forEach((device) => {
             const existingInput = orientationInputs[device.id]
             const backendX = device.orientation_x?.toString() || '0'
@@ -487,7 +492,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
             const backendZ = device.orientation_z?.toString() || '0'
 
             if (existingInput) {
-                newInputs[device.id] = {
+                const newInput = {
                     x:
                         existingInput.x !== '0' && existingInput.x !== backendX
                             ? existingInput.x
@@ -501,16 +506,29 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                             ? existingInput.z
                             : backendZ,
                 }
+                newInputs[device.id] = newInput
+
+                // 檢查是否有實際變化
+                if (
+                    JSON.stringify(existingInput) !== JSON.stringify(newInput)
+                ) {
+                    hasChanges = true
+                }
             } else {
                 newInputs[device.id] = {
                     x: backendX,
                     y: backendY,
                     z: backendZ,
                 }
+                hasChanges = true
             }
         })
-        setOrientationInputs(newInputs)
-    }, [devices])
+
+        // 只有在有實際變化時才更新狀態
+        if (hasChanges) {
+            setOrientationInputs(newInputs)
+        }
+    }, [devices]) // 移除 orientationInputs 依賴，避免無限循環
 
     // 處理衛星顯示數量變更
 
@@ -651,7 +669,6 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                 <>
                     {/* 功能控制面板 */}
                     <div className="control-panel">
-
                         {/* LEO 衛星換手機制控制 - 直接顯示五個分頁 */}
                         <div className="leo-handover-control-section">
                             {/* 類別選擇 */}
@@ -793,26 +810,36 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                 )}
 
                             {/* 🚀 換手管理器 - 始終顯示，不需要依賴其他開關 */}
-                            <HandoverManager
-                                satellites={skyfieldSatellites}
-                                selectedUEId={selectedReceiverIds[0]}
-                                isEnabled={true}
-                                mockMode={false}
-                                speedMultiplier={satelliteSpeedMultiplier}
-                                handoverMode={handoverMode}
-                                handoverStrategy={currentStrategy}
-                                onHandoverStateChange={onHandoverStateChange}
-                                onCurrentConnectionChange={
-                                    onCurrentConnectionChange
+                            <React.Suspense
+                                fallback={
+                                    <div className="handover-loading">
+                                        🔄 載入換手管理器...
+                                    </div>
                                 }
-                                onPredictedConnectionChange={
-                                    onPredictedConnectionChange
-                                }
-                                onTransitionChange={onTransitionChange}
-                                onAlgorithmResults={onAlgorithmResults}
-                                // 只在換手類別中顯示 UI，但邏輯始終運行
-                                hideUI={activeCategory !== 'handover_mgr'}
-                            />
+                            >
+                                <HandoverManager
+                                    satellites={skyfieldSatellites}
+                                    selectedUEId={selectedReceiverIds[0]}
+                                    isEnabled={true}
+                                    mockMode={false}
+                                    speedMultiplier={satelliteSpeedMultiplier}
+                                    handoverMode={handoverMode}
+                                    handoverStrategy={currentStrategy}
+                                    onHandoverStateChange={
+                                        onHandoverStateChange
+                                    }
+                                    onCurrentConnectionChange={
+                                        onCurrentConnectionChange
+                                    }
+                                    onPredictedConnectionChange={
+                                        onPredictedConnectionChange
+                                    }
+                                    onTransitionChange={onTransitionChange}
+                                    onAlgorithmResults={onAlgorithmResults}
+                                    // 只在換手類別中顯示 UI，但邏輯始終運行
+                                    hideUI={activeCategory !== 'handover_mgr'}
+                                />
+                            </React.Suspense>
 
                             {/* 手動控制面板 - 當自動飛行開啟時隱藏，且需要手動控制開關啟用 */}
                             {!auto && manualControlEnabled && (
@@ -1176,10 +1203,13 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                                             (d) =>
                                                                 d.id as number
                                                         )
-                                                    onSelectedReceiversChange &&
+                                                    if (
+                                                        onSelectedReceiversChange
+                                                    ) {
                                                         onSelectedReceiversChange(
                                                             allIds
                                                         )
+                                                    }
                                                 }}
                                             >
                                                 全部選擇

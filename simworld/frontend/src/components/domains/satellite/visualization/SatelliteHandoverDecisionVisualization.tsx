@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { useFrame, useThree } from '@react-three/fiber'
-import { Text, Line, Sphere } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
+import { Text, Line } from '@react-three/drei'
 
 interface SatelliteHandoverDecisionVisualizationProps {
     devices: any[]

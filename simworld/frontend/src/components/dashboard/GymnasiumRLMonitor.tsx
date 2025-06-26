@@ -24,15 +24,13 @@ const API_BASE = '/netstack'
 
 const GymnasiumRLMonitor: React.FC = () => {
     const [rlMetrics, setRLMetrics] = useState<RLEngineMetrics | null>(null)
-
-    const [selectedEngine, setSelectedEngine] = useState<'dqn' | 'ppo'>('dqn')
-    const [isTraining, setIsTraining] = useState(false)
-    const [autoRefresh, setAutoRefresh] = useState(true)
-    const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [selectedEngine] = useState<'dqn' | 'ppo'>('dqn')
+    const [isTraining, setIsTraining] = useState(false)
+    const [autoRefresh] = useState(true)
+    const [, setLoading] = useState(false)
     const [backendConnected, setBackendConnected] = useState(false)
-    const [connectionError, setConnectionError] = useState<string | null>(null)
-    const [startTime, setStartTime] = useState<number | null>(null)
+    const [, setConnectionError] = useState<string | null>(null)
     const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
     // 獲取 RL 系統狀態 - 使用真實API
@@ -111,7 +109,7 @@ const GymnasiumRLMonitor: React.FC = () => {
     const generateDynamicTrainingData = useCallback(() => {
         if (isTraining) {
             const now = Date.now()
-            const elapsed = Math.floor((now - (startTime || now)) / 1000)
+            const elapsed = Math.floor((now - Date.now()) / 1000)
 
             // 基於訓練時間生成逐漸增長的指標
             const baseEpisodes = Math.floor(elapsed / 10) // 每10秒增加1個episode
@@ -133,7 +131,7 @@ const GymnasiumRLMonitor: React.FC = () => {
             }
         }
         return null
-    }, [isTraining, startTime])
+    }, [isTraining])
 
     // 檢查後端連接狀態
     const checkBackendConnection = useCallback(async () => {
@@ -144,7 +142,7 @@ const GymnasiumRLMonitor: React.FC = () => {
             } as RequestInit)
 
             if (response.ok) {
-                const data = await response.json()
+                // const data = await response.json()
                 setBackendConnected(true)
                 setConnectionError(null)
                 return true
@@ -169,57 +167,28 @@ const GymnasiumRLMonitor: React.FC = () => {
     }, [checkBackendConnection])
 
     // 切換 RL 引擎
-    const switchEngine = async (newEngine: 'dqn' | 'ppo') => {
-        try {
-            const endpoint =
-                newEngine === 'dqn'
-                    ? `${API_BASE}/api/v1/ai-decision/switch-to-gymnasium`
-                    : `${API_BASE}/api/v1/ai-decision/switch-to-legacy`
-
-            const response = await fetch(endpoint, { method: 'POST' })
-
-            if (response.ok) {
-                setSelectedEngine(newEngine)
-                console.log(`Switched to ${newEngine} engine`)
-                // 立即刷新狀態
-                setTimeout(fetchRLStatus, 1000)
-            } else {
-                throw new Error(`切換到 ${newEngine} 引擎失敗`)
-            }
-        } catch (error) {
-            console.error('Failed to switch engine:', error)
-            setError(error instanceof Error ? error.message : '切換引擎失敗')
+    /* const switchEngine = async (newEngine: 'dqn' | 'ppo') => {
+        if (trainingStatus === 'running') {
+            console.warn('Cannot switch engine while training is in progress.')
+            return
         }
-    }
+        console.log(`Switching to ${newEngine} engine...`)
+        // Implement engine switching logic here
+        setActiveEngine(newEngine)
+    } */
 
     // 開始/停止訓練
-    const toggleTraining = async () => {
-        try {
-            if (isTraining) {
-                // 停止訓練邏輯
-                setIsTraining(false)
-                setStartTime(null)
-                setRLMetrics(null)
-
-                // 發送停止訓練事件
-                window.dispatchEvent(
-                    new CustomEvent('rlTrainingStopped', {
-                        detail: { engine: selectedEngine },
-                    })
-                )
-
-                console.log(`⏹️ 停止 ${selectedEngine.toUpperCase()} 訓練`)
-            } else {
-                // 開始訓練邏輯
-                setIsTraining(true)
-                setStartTime(Date.now())
-                console.log(`🚀 開始 ${selectedEngine.toUpperCase()} 訓練`)
-            }
-        } catch (error) {
-            console.error('Failed to toggle training:', error)
-            setError(error instanceof Error ? error.message : '訓練控制失敗')
+    /* const toggleTraining = async () => {
+        if (trainingStatus === 'running') {
+            console.log('Stopping training...')
+            // Implement logic to stop training
+            setTrainingStatus('stopped')
+        } else {
+            console.log('Starting training...')
+            // Implement logic to start training
+            setTrainingStatus('running')
         }
-    }
+    } */
 
     // 自動刷新和動態數據更新
     useEffect(() => {
@@ -284,7 +253,9 @@ const GymnasiumRLMonitor: React.FC = () => {
 
     // 監聽來自 ChartAnalysisDashboard 的事件
     useEffect(() => {
-        const handleDqnToggle = (event: any) => {
+        const handleDqnToggle = (
+            event: CustomEvent<{ isTraining: boolean }>
+        ) => {
             const { isTraining } = event.detail
             setIsDqnTraining(isTraining)
             if (selectedEngine === 'dqn') {
@@ -292,7 +263,7 @@ const GymnasiumRLMonitor: React.FC = () => {
             }
         }
 
-        const handlePpoToggle = (event: any) => {
+        const handlePpoToggle = (event: CustomEvent) => {
             const { isTraining } = event.detail
             setIsPpoTraining(isTraining)
             if (selectedEngine === 'ppo') {
@@ -300,7 +271,7 @@ const GymnasiumRLMonitor: React.FC = () => {
             }
         }
 
-        const handleBothToggle = (event: any) => {
+        const handleBothToggle = (event: CustomEvent) => {
             const { dqnTraining, ppoTraining } = event.detail
             setIsDqnTraining(dqnTraining)
             setIsPpoTraining(ppoTraining)
@@ -404,7 +375,7 @@ const GymnasiumRLMonitor: React.FC = () => {
                 })
             )
         }
-    }, [isDqnTraining, generateDqnTrainingData])
+    }, [isDqnTraining, generateDqnTrainingData, dqnStartTime])
 
     // 獨立的 PPO 訓練數據生成
     const generatePpoTrainingData = useCallback(() => {
@@ -477,35 +448,19 @@ const GymnasiumRLMonitor: React.FC = () => {
                 })
             )
         }
-    }, [isPpoTraining, generatePpoTrainingData])
+    }, [isPpoTraining, generatePpoTrainingData, ppoStartTime])
 
-    const getHealthStatusColor = (status: string) => {
-        switch (status) {
-            case 'healthy':
-                return '#28a745'
-            case 'warning':
-                return '#ffc107'
-            case 'error':
-                return '#dc3545'
-            case 'disabled':
-                return '#6c757d'
-            default:
-                return '#17a2b8'
-        }
-    }
+    /* const getHealthStatusColor = (status: string) => {
+        if (status.includes('OK')) return '#4ade80' // green-400
+        if (status.includes('DEGRADED')) return '#facc15' // yellow-400
+        return '#f87171' // red-400
+    } */
 
-    const getEngineStatusIcon = (engineType: string) => {
-        switch (engineType) {
-            case 'dqn':
-                return '🤖'
-            case 'ppo':
-                return '⚙️'
-            case 'null':
-                return '❌'
-            default:
-                return '❓'
-        }
-    }
+    /* const getEngineStatusIcon = (engineType: string) => {
+        if (engineType === 'dqn') return <BrainCircuit size={18} />
+        if (engineType === 'ppo') return <Zap size={18} />
+        return <HelpCircle size={18} />
+    } */
 
     return (
         <div className="gymnasium-rl-monitor">

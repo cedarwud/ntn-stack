@@ -80,12 +80,40 @@ export default defineConfig(({ mode }) => {
         build: {
             outDir: 'dist',
             sourcemap: true,
+            chunkSizeWarningLimit: 1000, // 增加警告閾值到 1MB
             rollupOptions: {
                 output: {
-                    manualChunks: {
-                        vendor: ['react', 'react-dom'],
-                        charts: ['chart.js', 'echarts', 'react-chartjs-2', 'echarts-for-react'],
-                        visualization: ['d3', '@react-three/fiber', '@react-three/drei']
+                    manualChunks(id) {
+                        // 核心依賴
+                        if (id.includes('node_modules')) {
+                            if (id.includes('react') || id.includes('react-dom')) {
+                                return 'vendor'
+                            }
+                            if (id.includes('react-router')) {
+                                return 'router-vendor'
+                            }
+                            if (id.includes('chart') || id.includes('echarts') || id.includes('d3')) {
+                                return 'charts'
+                            }
+                            if (id.includes('@react-three') || id.includes('three')) {
+                                return 'visualization'
+                            }
+                            if (id.includes('axios') || id.includes('socket.io')) {
+                                return 'network'
+                            }
+                            return 'vendor-misc'
+                        }
+                        
+                        // 應用程式模組分割
+                        if (id.includes('/handover/')) {
+                            return 'handover-system'
+                        }
+                        if (id.includes('/services/')) {
+                            return 'api-services'
+                        }
+                        if (id.includes('/device/')) {
+                            return 'device-management'
+                        }
                     }
                 }
             }

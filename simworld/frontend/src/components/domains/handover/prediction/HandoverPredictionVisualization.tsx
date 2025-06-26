@@ -1,13 +1,30 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
-import { Text, Line } from '@react-three/drei'
-import { useVisibleSatellites } from '../../services/simworld-api'
+import { Text } from '@react-three/drei'
+
+interface Device {
+    id: string | number
+    position_x?: number
+    position_y?: number
+    position_z?: number
+    x?: number
+    y?: number
+    z?: number
+    role?: string
+}
+
+interface Satellite {
+    id: string | number
+    name?: string
+    position?: { x: number; y: number; z: number }
+    [key: string]: unknown
+}
 
 interface HandoverPredictionVisualizationProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
-    satellites?: any[]
+    satellites?: Satellite[]
     onPredictionsUpdate?: (predictions: HandoverPrediction[]) => void
 }
 
@@ -76,8 +93,8 @@ const HandoverPredictionVisualization: React.FC<
         predictionAccuracy: 0,
         currentHandovers: 0,
     })
-    const [isLoading, setIsLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    // const [isLoading, setIsLoading] = useState(false)
+    // const [error, setError] = useState<string | null>(null)
 
     // 移除真實衛星數據依賴 - 使用模擬數據
 
@@ -86,20 +103,20 @@ const HandoverPredictionVisualization: React.FC<
         if (!enabled) {
             setPredictions([])
             setHandoverEvents([])
-            setError(null)
+            //setError(null)
             return
         }
 
         const generateMockPredictions = async () => {
-            setIsLoading(true)
-            setError(null)
+            //setIsLoading(true)
+            //setError(null)
 
             try {
                 const uavs = devices.filter((d) => d.role === 'receiver')
-                
+
                 if (uavs.length === 0) {
                     console.warn('No UAVs available for handover prediction')
-                    setIsLoading(false)
+                    //setIsLoading(false)
                     return
                 }
 
@@ -113,28 +130,42 @@ const HandoverPredictionVisualization: React.FC<
                     norad_id: `sat_${i}`,
                     elevation_deg: 30 + Math.random() * 60,
                     azimuth_deg: Math.random() * 360,
-                    distance_km: 500 + Math.random() * 500
+                    distance_km: 500 + Math.random() * 500,
                 }))
 
                 // 為每個 UAV 生成模擬換手預測
                 for (const uav of uavs) {
                     // 隨機選擇當前和目標衛星
-                    const currentSatellite = mockSatellites[Math.floor(Math.random() * 6)] // 前6個衛星
-                    const targetSatellite = mockSatellites[Math.floor(Math.random() * 6) + 6] // 後6個衛星
+                    const currentSatellite =
+                        mockSatellites[Math.floor(Math.random() * 6)] // 前6個衛星
+                    const targetSatellite =
+                        mockSatellites[Math.floor(Math.random() * 6) + 6] // 後6個衛星
 
                     // 隨機決定是否需要換手 (60%機率)
                     if (Math.random() < 0.6) {
                         const timeToHandover = 5 + Math.random() * 25 // 5-30秒
                         const confidence = Math.random()
-                        
+
                         newPredictions.push({
-                            id: `prediction_${uav.id}_${Date.now()}_${Math.random()}`,
+                            id: `prediction_${
+                                uav.id
+                            }_${Date.now()}_${Math.random()}`,
                             uavId: uav.id,
                             currentSatelliteId: currentSatellite.id,
                             targetSatelliteId: targetSatellite.id,
                             predictedTime: Date.now() / 1000 + timeToHandover,
-                            confidence: confidence > 0.8 ? 'high' : confidence > 0.6 ? 'medium' : 'low',
-                            reason: ['signal_degradation', 'satellite_elevation', 'orbital_transition', 'load_balancing'][
+                            confidence:
+                                confidence > 0.8
+                                    ? 'high'
+                                    : confidence > 0.6
+                                    ? 'medium'
+                                    : 'low',
+                            reason: [
+                                'signal_degradation',
+                                'satellite_elevation',
+                                'orbital_transition',
+                                'load_balancing',
+                            ][
                                 Math.floor(Math.random() * 4)
                             ] as HandoverPrediction['reason'],
                             executionStatus: 'pending',
@@ -159,24 +190,31 @@ const HandoverPredictionVisualization: React.FC<
                 // 更新指標
                 setMetrics((prev) => ({
                     ...prev,
-                    totalPredictions: prev.totalPredictions + newPredictions.length,
+                    totalPredictions:
+                        prev.totalPredictions + newPredictions.length,
                     predictionAccuracy: 85 + Math.random() * 10, // 85-95%
                     currentHandovers: newPredictions.filter(
                         (p) => p.executionStatus === 'executing'
                     ).length,
-                    successfulHandovers: prev.successfulHandovers + Math.floor(Math.random() * 2),
-                    failedHandovers: prev.failedHandovers + (Math.random() < 0.1 ? 1 : 0),
+                    successfulHandovers:
+                        prev.successfulHandovers +
+                        Math.floor(Math.random() * 2),
+                    failedHandovers:
+                        prev.failedHandovers + (Math.random() < 0.1 ? 1 : 0),
                     averageHandoverTime: 3.5 + Math.random() * 2, // 3.5-5.5秒
                 }))
 
                 // 通知父組件
                 onPredictionsUpdate?.(newPredictions)
-                
             } catch (error) {
                 console.error('❌ 模擬換手預測失敗:', error)
-                setError(error instanceof Error ? error.message : 'Mock prediction error')
+                //setError(
+                    error instanceof Error
+                        ? error.message
+                        : 'Mock prediction error'
+                )
             } finally {
-                setIsLoading(false)
+                //setIsLoading(false)
             }
         }
 
@@ -188,13 +226,12 @@ const HandoverPredictionVisualization: React.FC<
         }, 20000)
 
         return () => clearInterval(interval)
-    }, [enabled, devices.length])
+    }, [enabled, devices, onPredictionsUpdate])
 
     if (!enabled) return null
 
     return (
         <>
-
             {/* 換手預測可視化 */}
             <HandoverPredictionDisplay
                 predictions={predictions}
@@ -232,21 +269,21 @@ const HandoverPredictionVisualization: React.FC<
     )
 }
 
-// 決定換手原因
-const determineHandoverReason = (
-    signal: number,
-    elevation: number
-): HandoverPrediction['reason'] => {
-    if (signal < -80) return 'signal_degradation'
-    if (elevation < 15) return 'satellite_elevation'
-    if (Math.random() < 0.3) return 'load_balancing'
-    return 'orbital_transition'
-}
+// 決定換手原因（暫時不使用）
+// const determineHandoverReason = (
+//     signal: number,
+//     elevation: number
+// ): HandoverPrediction['reason'] => {
+//     if (signal < -80) return 'signal_degradation'
+//     if (elevation < 15) return 'satellite_elevation'
+//     if (Math.random() < 0.3) return 'load_balancing'
+//     return 'orbital_transition'
+// }
 
 // 換手預測顯示組件
 const HandoverPredictionDisplay: React.FC<{
     predictions: HandoverPrediction[]
-    devices: any[]
+    devices: Device[]
 }> = ({ predictions, devices }) => {
     const getConfidenceColor = (confidence: string) => {
         switch (confidence) {
@@ -341,7 +378,7 @@ const HandoverPredictionDisplay: React.FC<{
 // 換手時間軸可視化組件
 const HandoverTimelineVisualization: React.FC<{
     predictions: HandoverPrediction[]
-    devices: any[]
+    devices: Device[]
 }> = ({ predictions, devices }) => {
     const timelineRef = useRef<THREE.Group>(null)
 
@@ -404,8 +441,8 @@ const HandoverTimelineVisualization: React.FC<{
 // 3D 換手動畫顯示組件
 const HandoverAnimationDisplay: React.FC<{
     events: HandoverEvent[]
-    devices: any[]
-    satellites: any[]
+    devices: Device[]
+    satellites: Satellite[]
 }> = ({ events, devices, satellites }) => {
     return (
         <>
@@ -463,7 +500,7 @@ const HandoverAnimationDisplay: React.FC<{
 // 預測信心度指示器組件
 const PredictionConfidenceIndicator: React.FC<{
     predictions: HandoverPrediction[]
-    devices: any[]
+    devices: Device[]
 }> = ({ predictions, devices }) => {
     const highConfidence = predictions.filter(
         (p) => p.confidence === 'high'
@@ -602,7 +639,7 @@ const HandoverMetricsPanel: React.FC<{ metrics: HandoverMetrics }> = ({
 // 候選衛星顯示組件
 const CandidateSatelliteDisplay: React.FC<{
     predictions: HandoverPrediction[]
-    devices: any[]
+    devices: Device[]
 }> = ({ predictions, devices }) => {
     return (
         <>

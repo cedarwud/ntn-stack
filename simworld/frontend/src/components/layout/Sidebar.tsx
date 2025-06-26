@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import '../../styles/Sidebar.scss'
-import { UAVManualDirection } from '../scenes/UAVFlight' // Assuming UAVFlight exports this
+import { UAVManualDirection } from '../domains/device/visualization/UAVFlight' // Assuming UAVFlight exports this
 import { Device } from '../../types/device'
 import SidebarStarfield from '../ui/SidebarStarfield' // Import the new component
 import DeviceItem from '../devices/DeviceItem' // Import DeviceItem
 import { useReceiverSelection } from '../../hooks/useReceiverSelection' // Import the hook
 import { VisibleSatelliteInfo } from '../../types/satellite' // Import the new satellite type
-import { ApiRoutes } from '../../../../config/apiRoutes' // 引入API路由配置
+import { ApiRoutes } from '../../config/apiRoutes' // 引入API路由配置
 import { SATELLITE_CONFIG } from '../../config/satellite.config' // 引入衛星配置
 import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName' // 修正路徑
 
@@ -128,7 +128,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             const satellites = await fetchVisibleSatellites()
 
             // 默認按仰角從高到低排序
-            let sortedSatellites = [...satellites]
+            const sortedSatellites = [...satellites]
             sortedSatellites.sort((a, b) => b.elevation_deg - a.elevation_deg)
 
             setSkyfieldSatellites(sortedSatellites)

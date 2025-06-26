@@ -18,6 +18,7 @@ export function useSceneImageManager(sceneName?: string) {
     } | null>(null);
 
     const imageRefToAttach = useRef<HTMLImageElement>(null);
+    const isActiveRef = useRef<boolean>(true);
 
     const fetchImage = useCallback(
         async (signal: AbortSignal) => {
@@ -26,9 +27,11 @@ export function useSceneImageManager(sceneName?: string) {
                 ? ApiRoutes.scenes.getSceneTexture(getBackendSceneName(sceneName), getSceneTextureName(sceneName))
                 : ApiRoutes.simulations.getSceneImage;
             
-            setIsLoading(true);
-            setError(null);
-            setUsingFallback(false);
+            if (isActiveRef.current) {
+                setIsLoading(true);
+                setError(null);
+                setUsingFallback(false);
+            }
 
             if (prevImageUrlRef.current) {
                 URL.revokeObjectURL(prevImageUrlRef.current);
@@ -65,11 +68,13 @@ export function useSceneImageManager(sceneName?: string) {
                     if (imageBlob.size === 0) {
                         throw new Error('Received empty image blob.');
                     }
-                    const newImageUrl = URL.createObjectURL(imageBlob);
-                    setImageUrl(newImageUrl);
-                    prevImageUrlRef.current = newImageUrl;
-                    setRetryCount(0);
-                    setManualRetryMode(false);
+                    if (isActiveRef.current) {
+                        const newImageUrl = URL.createObjectURL(imageBlob);
+                        setImageUrl(newImageUrl);
+                        prevImageUrlRef.current = newImageUrl;
+                        setRetryCount(0);
+                        setManualRetryMode(false);
+                    }
                 } catch (blobError) {
                     throw new Error(
                         `處理圖像時出錯: ${blobError instanceof Error ? blobError.message : String(blobError)}`
@@ -82,11 +87,24 @@ export function useSceneImageManager(sceneName?: string) {
                     // 組件卸載導致的請求中止是正常行為，使用 debug 級別日誌
                     console.debug('圖像請求已中止（組件卸載）:', error.message || '組件已卸載');
                 } else {
-                    console.error('Error fetching image:', error);
+                    // 檢查是否是組件卸載錯誤 - 更全面的檢測
+                    const errorString = String(error);
+                    const isUnmountError = 
+                        (error.message && error.message.includes('Component unmounted')) ||
+                        (error.name && error.name.includes('unmount')) ||
+                        errorString.includes('Component unmounted') ||
+                        errorString.includes('unmount') ||
+                        !isActiveRef.current; // 如果組件已經不活躍，就認為是卸載錯誤
+                    
+                    // 只有當組件仍然活躍且不是卸載錯誤時才記錄錯誤
+                    if (isActiveRef.current && !isUnmountError) {
+                        console.error('Error fetching image:', error);
+                    }
+                    // 對於卸載錯誤，完全靜默處理，不記錄任何日誌
                     
                     if (timeoutId !== null) window.clearTimeout(timeoutId);
 
-                    if (!signal.aborted) {
+                    if (!signal.aborted && isActiveRef.current && !isUnmountError) {
                         setError('Error loading image: ' + error.message);
                         setRetryCount((prev) => {
                             const newCount = prev + 1;
@@ -104,7 +122,9 @@ export function useSceneImageManager(sceneName?: string) {
                 }
             } finally {
                 if (timeoutId !== null) window.clearTimeout(timeoutId);
-                setIsLoading(false);
+                if (isActiveRef.current) {
+                    setIsLoading(false);
+                }
             }
         },
         [sceneName]
@@ -132,24 +152,34 @@ export function useSceneImageManager(sceneName?: string) {
 
     // Load initial image
     useEffect(() => {
-        let isActive = true;
+        isActiveRef.current = true;
         const abortController = new AbortController();
         
         const loadImage = async () => {
-            if (!isActive) return;
+            if (!isActiveRef.current) return;
             try {
                 await fetchImage(abortController.signal);
             } catch (error) {
-                if (isActive && !abortController.signal.aborted) {
+                // 檢查是否是組件卸載錯誤 - 更全面的檢測
+                const errorString = String(error);
+                const isUnmountError = 
+                    (error.message && error.message.includes('Component unmounted')) ||
+                    (error.name && error.name.includes('unmount')) ||
+                    errorString.includes('Component unmounted') ||
+                    errorString.includes('unmount') ||
+                    !isActiveRef.current; // 如果組件已經不活躍，就認為是卸載錯誤
+                
+                if (isActiveRef.current && !abortController.signal.aborted && !isUnmountError) {
                     console.error('Failed to fetch image:', error);
                 }
+                // 對於卸載錯誤，完全靜默處理，不記錄任何日誌
             }
         };
         
         loadImage();
         
         return () => {
-            isActive = false;
+            isActiveRef.current = false;
             // In React 18, we can pass a reason to abort
             try {
                 abortController.abort('Component unmounted');

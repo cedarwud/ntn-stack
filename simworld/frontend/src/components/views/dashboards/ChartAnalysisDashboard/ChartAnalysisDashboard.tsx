@@ -44,7 +44,7 @@ ChartJS.defaults.font.size = 16
 ChartJS.defaults.plugins.legend.labels.color = 'white'
 ChartJS.defaults.plugins.legend.labels.font = { size: 16 }
 ChartJS.defaults.plugins.title.color = 'white'
-ChartJS.defaults.plugins.title.font = { size: 20, weight: 'bold' as 'bold' }
+ChartJS.defaults.plugins.title.font = { size: 20, weight: 'bold' as const }
 ChartJS.defaults.plugins.tooltip.titleColor = 'white'
 ChartJS.defaults.plugins.tooltip.bodyColor = 'white'
 ChartJS.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.9)'
@@ -73,7 +73,7 @@ ChartJS.defaults.locale = 'en-US'
 try {
     ;(ChartJS.defaults.scale as any).title = {
         color: 'white',
-        font: { size: 16, weight: 'bold' as 'bold' },
+        font: { size: 16, weight: 'bold' as const },
     }
 } catch (e) {
     console.warn('Could not set scale title defaults:', e)
@@ -93,18 +93,31 @@ const ChartAnalysisDashboard = ({
     const [activeTab, setActiveTab] = useState('overview')
     const [isCalculating] = useState(false)
     const [systemMetrics, setSystemMetrics] = useState({
-        cpu: 25,        // 合理的初始 CPU 使用率
-        memory: 35,     // 合理的初始記憶體使用率
-        gpu: 15,        // 合理的初始 GPU 使用率
-        networkLatency: 45,  // 合理的初始網路延遲(ms)
+        cpu: 25, // 合理的初始 CPU 使用率
+        memory: 35, // 合理的初始記憶體使用率
+        gpu: 15, // 合理的初始 GPU 使用率
+        networkLatency: 45, // 合理的初始網路延遲(ms)
     })
     const [realDataError, setRealDataError] = useState<string | null>(null)
-    const [coreSync, setCoreSync] = useState<any>(null)
-    
+    const [coreSync, setCoreSync] = useState<{
+        component_states?: Record<
+            string,
+            {
+                availability?: number
+                latency_ms?: number
+                throughput_mbps?: number
+                error_rate?: number
+                accuracy_ms?: number
+            }
+        >
+        sync_performance?: {
+            overall_accuracy_ms?: number
+        }
+    } | null>(null)
+
     // 獲取實際的 INFOCOM 2024 算法指標
     const infocomMetrics = useInfocomMetrics(isOpen)
     // RL 監控相關狀態
-    const [rlData, setRlData] = useState<any>(null)
     const [isDqnTraining, setIsDqnTraining] = useState(false) // DQN 初始為待機
     const [isPpoTraining, setIsPpoTraining] = useState(false) // PPO 初始為待機
     const [trainingMetrics, setTrainingMetrics] = useState({
@@ -161,10 +174,12 @@ const ChartAnalysisDashboard = ({
                             45 -
                             (metrics.training_progress / 100) * 20 +
                             (Math.random() - 0.5) * 5,
-                        successRate: Math.min(100,
+                        successRate: Math.min(
+                            100,
                             82 +
-                            (metrics.training_progress / 100) * 12 +
-                            (Math.random() - 0.5) * 1.5),
+                                (metrics.training_progress / 100) * 12 +
+                                (Math.random() - 0.5) * 1.5
+                        ),
                         signalDropTime:
                             18 -
                             (metrics.training_progress / 100) * 8 +
@@ -229,10 +244,12 @@ const ChartAnalysisDashboard = ({
                             40 -
                             (metrics.training_progress / 100) * 22 +
                             (Math.random() - 0.5) * 4,
-                        successRate: Math.min(100,
+                        successRate: Math.min(
+                            100,
                             84 +
-                            (metrics.training_progress / 100) * 10 +
-                            (Math.random() - 0.5) * 1.2),
+                                (metrics.training_progress / 100) * 10 +
+                                (Math.random() - 0.5) * 1.2
+                        ),
                         signalDropTime:
                             16 -
                             (metrics.training_progress / 100) * 9 +
@@ -1351,7 +1368,8 @@ const ChartAnalysisDashboard = ({
                 results.push({
                     name: test.name,
                     passed,
-                    duration: duration < 0.1 ? 0.1 : Math.round(duration * 100) / 100, // 至少顯示0.1ms
+                    duration:
+                        duration < 0.1 ? 0.1 : Math.round(duration * 100) / 100, // 至少顯示0.1ms
                     timestamp: new Date().toISOString(),
                 })
             } catch (error) {
@@ -1740,26 +1758,28 @@ const ChartAnalysisDashboard = ({
 
     // 所有 hooks 必須在條件返回之前調用
     // IEEE INFOCOM 2024 圖表數據 - 使用實際算法計算的數據
-    const [algorithmLatencyData, setAlgorithmLatencyData] = useState<any>(null);
-    
+    const [algorithmLatencyData, setAlgorithmLatencyData] = useState<any>(null)
+
     useEffect(() => {
         // 獲取實際算法計算的延遲分解數據
         const fetchAlgorithmLatencyData = async () => {
             try {
-                const response = await fetch('/api/algorithm-performance/latency-breakdown-comparison');
+                const response = await fetch(
+                    '/api/algorithm-performance/latency-breakdown-comparison'
+                )
                 if (response.ok) {
-                    const data = await response.json();
-                    setAlgorithmLatencyData(data);
+                    const data = await response.json()
+                    setAlgorithmLatencyData(data)
                 }
             } catch (error) {
-                console.warn('無法獲取算法計算的延遲數據，使用預設值:', error);
+                console.warn('無法獲取算法計算的延遲數據，使用預設值:', error)
             }
-        };
-        
-        if (isOpen) {
-            fetchAlgorithmLatencyData();
         }
-    }, [isOpen]);
+
+        if (isOpen) {
+            fetchAlgorithmLatencyData()
+        }
+    }, [isOpen])
 
     const handoverLatencyData = useMemo(
         () => ({
@@ -1773,54 +1793,64 @@ const ChartAnalysisDashboard = ({
             datasets: [
                 {
                     label: `NTN 標準 (${
-                        algorithmLatencyData?.ntn_standard_total || 
-                        (handoverTestData.latencyBreakdown as any)?.ntn_standard_total || 
+                        algorithmLatencyData?.ntn_standard_total ||
+                        (handoverTestData.latencyBreakdown as any)
+                            ?.ntn_standard_total ||
                         '~250'
                     }ms)`,
-                    data: algorithmLatencyData?.ntn_standard || 
-                          (handoverTestData.latencyBreakdown as any)?.ntn_standard || 
-                          [45, 89, 67, 124, 78],
+                    data: algorithmLatencyData?.ntn_standard ||
+                        (handoverTestData.latencyBreakdown as any)
+                            ?.ntn_standard || [45, 89, 67, 124, 78],
                     backgroundColor: 'rgba(255, 99, 132, 0.8)',
                     borderColor: 'rgba(255, 99, 132, 1)',
                     borderWidth: 2,
                 },
                 {
                     label: `NTN-GS (${
-                        algorithmLatencyData?.ntn_gs_total || 
-                        (handoverTestData.latencyBreakdown as any)?.ntn_gs_total || 
+                        algorithmLatencyData?.ntn_gs_total ||
+                        (handoverTestData.latencyBreakdown as any)
+                            ?.ntn_gs_total ||
                         '~153'
                     }ms)`,
-                    data: algorithmLatencyData?.ntn_gs || 
-                          (handoverTestData.latencyBreakdown as any)?.ntn_gs || 
-                          [32, 56, 45, 67, 34],
+                    data: algorithmLatencyData?.ntn_gs ||
+                        (handoverTestData.latencyBreakdown as any)?.ntn_gs || [
+                            32, 56, 45, 67, 34,
+                        ],
                     backgroundColor: 'rgba(54, 162, 235, 0.8)',
                     borderColor: 'rgba(54, 162, 235, 1)',
                     borderWidth: 2,
                 },
                 {
                     label: `NTN-SMN (${
-                        algorithmLatencyData?.ntn_smn_total || 
-                        (handoverTestData.latencyBreakdown as any)?.ntn_smn_total || 
+                        algorithmLatencyData?.ntn_smn_total ||
+                        (handoverTestData.latencyBreakdown as any)
+                            ?.ntn_smn_total ||
                         '~158'
                     }ms)`,
-                    data: algorithmLatencyData?.ntn_smn || 
-                          (handoverTestData.latencyBreakdown as any)?.ntn_smn || 
-                          [28, 52, 48, 71, 39],
+                    data: algorithmLatencyData?.ntn_smn ||
+                        (handoverTestData.latencyBreakdown as any)?.ntn_smn || [
+                            28, 52, 48, 71, 39,
+                        ],
                     backgroundColor: 'rgba(255, 206, 86, 0.8)',
                     borderColor: 'rgba(255, 206, 86, 1)',
                     borderWidth: 2,
                 },
                 {
                     label: `本方案 (${
-                        algorithmLatencyData?.proposed_total || 
-                        (handoverTestData.latencyBreakdown as any)?.proposed_total || 
+                        algorithmLatencyData?.proposed_total ||
+                        (handoverTestData.latencyBreakdown as any)
+                            ?.proposed_total ||
                         '~21'
                     }ms)`,
-                    data: algorithmLatencyData?.proposed || 
-                          (handoverTestData.latencyBreakdown as any)?.proposed || 
-                          [8, 12, 15, 18, 9],
-                    backgroundColor: algorithmLatencyData ? 'rgba(46, 204, 113, 0.8)' : 'rgba(75, 192, 192, 0.8)',
-                    borderColor: algorithmLatencyData ? 'rgba(39, 174, 96, 1)' : 'rgba(75, 192, 192, 1)',
+                    data: algorithmLatencyData?.proposed ||
+                        (handoverTestData.latencyBreakdown as any)
+                            ?.proposed || [8, 12, 15, 18, 9],
+                    backgroundColor: algorithmLatencyData
+                        ? 'rgba(46, 204, 113, 0.8)'
+                        : 'rgba(75, 192, 192, 0.8)',
+                    borderColor: algorithmLatencyData
+                        ? 'rgba(39, 174, 96, 1)'
+                        : 'rgba(75, 192, 192, 1)',
                     borderWidth: 2,
                 },
             ],
@@ -2470,7 +2500,7 @@ const ChartAnalysisDashboard = ({
                 position: 'top' as const,
                 labels: {
                     color: 'white',
-                    font: { size: 16, weight: 'bold' as 'bold' },
+                    font: { size: 16, weight: 'bold' as const },
                     padding: 20,
                 },
                 onHover: (_event: any) => {
@@ -2484,7 +2514,7 @@ const ChartAnalysisDashboard = ({
                 display: true,
                 text: title,
                 color: 'white',
-                font: { size: 20, weight: 'bold' as 'bold' },
+                font: { size: 20, weight: 'bold' as const },
                 padding: 25,
             },
             tooltip: {
@@ -2496,7 +2526,7 @@ const ChartAnalysisDashboard = ({
                 borderWidth: 1,
                 cornerRadius: 8,
                 displayColors: true,
-                titleFont: { size: 16, weight: 'bold' as 'bold' },
+                titleFont: { size: 16, weight: 'bold' as const },
                 bodyFont: { size: 15 },
                 callbacks: {
                     afterBody: (tooltipItems: any[]) => {
@@ -2516,7 +2546,7 @@ const ChartAnalysisDashboard = ({
             x: {
                 ticks: {
                     color: 'white',
-                    font: { size: 14, weight: 'bold' as 'bold' },
+                    font: { size: 14, weight: 'bold' as const },
                     callback: function (value: any) {
                         return String(value)
                     },
@@ -2525,7 +2555,7 @@ const ChartAnalysisDashboard = ({
                     display: !!xAxisLabel,
                     text: xAxisLabel,
                     color: 'white',
-                    font: { size: 16, weight: 'bold' as 'bold' },
+                    font: { size: 16, weight: 'bold' as const },
                 },
             },
             y: {
@@ -2534,11 +2564,11 @@ const ChartAnalysisDashboard = ({
                     display: !!yAxisLabel,
                     text: yAxisLabel,
                     color: 'white',
-                    font: { size: 16, weight: 'bold' as 'bold' },
+                    font: { size: 16, weight: 'bold' as const },
                 },
                 ticks: {
                     color: 'white',
-                    font: { size: 14, weight: 'bold' as 'bold' },
+                    font: { size: 14, weight: 'bold' as const },
                     callback: function (value: any) {
                         return Math.round(Number(value) * 10) / 10
                     },
@@ -2956,7 +2986,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -2966,7 +2996,7 @@ const ChartAnalysisDashboard = ({
                                             color: 'white',
                                             font: {
                                                 size: 20,
-                                                weight: 'bold' as 'bold',
+                                                weight: 'bold' as const,
                                             },
                                         },
                                     },
@@ -2978,14 +3008,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -2994,7 +3024,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             grid: {
@@ -3031,14 +3061,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                                 maxRotation: 45,
                                                 minRotation: 45,
@@ -3093,7 +3123,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3104,7 +3134,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3118,14 +3148,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             grid: {
@@ -3143,14 +3173,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3184,7 +3214,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3195,7 +3225,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3209,14 +3239,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             grid: {
@@ -3234,14 +3264,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3268,7 +3298,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3278,7 +3308,7 @@ const ChartAnalysisDashboard = ({
                                             color: 'white',
                                             font: {
                                                 size: 20,
-                                                weight: 'bold' as 'bold',
+                                                weight: 'bold' as const,
                                             },
                                         },
                                     },
@@ -3288,7 +3318,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3300,14 +3330,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             grid: {
@@ -3420,7 +3450,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3430,7 +3460,7 @@ const ChartAnalysisDashboard = ({
                                             color: 'white',
                                             font: {
                                                 size: 20,
-                                                weight: 'bold' as 'bold',
+                                                weight: 'bold' as const,
                                             },
                                         },
                                     },
@@ -3463,7 +3493,7 @@ const ChartAnalysisDashboard = ({
                                             color: 'white',
                                             font: {
                                                 size: 20,
-                                                weight: 'bold' as 'bold',
+                                                weight: 'bold' as const,
                                             },
                                         },
                                     },
@@ -3473,7 +3503,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3485,14 +3515,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             grid: {
@@ -3523,7 +3553,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3533,7 +3563,7 @@ const ChartAnalysisDashboard = ({
                                             color: 'white',
                                             font: {
                                                 size: 20,
-                                                weight: 'bold' as 'bold',
+                                                weight: 'bold' as const,
                                             },
                                         },
                                     },
@@ -3546,14 +3576,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             pointLabels: {
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             grid: {
@@ -3592,7 +3622,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3602,7 +3632,7 @@ const ChartAnalysisDashboard = ({
                                             color: 'white',
                                             font: {
                                                 size: 20,
-                                                weight: 'bold' as 'bold',
+                                                weight: 'bold' as const,
                                             },
                                         },
                                     },
@@ -3612,7 +3642,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3624,14 +3654,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             grid: {
@@ -3662,7 +3692,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3672,7 +3702,7 @@ const ChartAnalysisDashboard = ({
                                             color: 'white',
                                             font: {
                                                 size: 20,
-                                                weight: 'bold' as 'bold',
+                                                weight: 'bold' as const,
                                             },
                                         },
                                     },
@@ -3682,7 +3712,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3695,14 +3725,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             grid: {
@@ -3734,7 +3764,7 @@ const ChartAnalysisDashboard = ({
                                             color: 'white',
                                             font: {
                                                 size: 20,
-                                                weight: 'bold' as 'bold',
+                                                weight: 'bold' as const,
                                             },
                                         },
                                     },
@@ -3744,7 +3774,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3756,14 +3786,14 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             ticks: {
                                                 color: 'white',
                                                 font: {
                                                     size: 14,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                             grid: {
@@ -3794,7 +3824,7 @@ const ChartAnalysisDashboard = ({
                                                 color: 'white',
                                                 font: {
                                                     size: 16,
-                                                    weight: 'bold' as 'bold',
+                                                    weight: 'bold' as const,
                                                 },
                                             },
                                         },
@@ -3804,7 +3834,7 @@ const ChartAnalysisDashboard = ({
                                             color: 'white',
                                             font: {
                                                 size: 20,
-                                                weight: 'bold' as 'bold',
+                                                weight: 'bold' as const,
                                             },
                                         },
                                     },
@@ -4947,13 +4977,16 @@ const ChartAnalysisDashboard = ({
                                 {/* 全局訓練統計 */}
                                 <div className="global-training-stats">
                                     <h3>📈 全局訓練統計</h3>
-                                    <div style={{ 
-                                        fontSize: '0.85em', 
-                                        color: '#aab8c5', 
-                                        marginBottom: '12px',
-                                        textAlign: 'center'
-                                    }}>
-                                        💡 即時訓練指標：累計回合數、平均成功率(限100%)、總獎勵值
+                                    <div
+                                        style={{
+                                            fontSize: '0.85em',
+                                            color: '#aab8c5',
+                                            marginBottom: '12px',
+                                            textAlign: 'center',
+                                        }}
+                                    >
+                                        💡
+                                        即時訓練指標：累計回合數、平均成功率(限100%)、總獎勵值
                                     </div>
                                     <div className="stats-grid">
                                         <div className="stat-card cumulative">
@@ -4961,7 +4994,10 @@ const ChartAnalysisDashboard = ({
                                                 <span className="stat-icon">
                                                     🔢
                                                 </span>
-                                                <span className="stat-title" title="DQN + PPO 算法的總訓練回合數">
+                                                <span
+                                                    className="stat-title"
+                                                    title="DQN + PPO 算法的總訓練回合數"
+                                                >
                                                     累計回合
                                                 </span>
                                             </div>
@@ -4987,7 +5023,10 @@ const ChartAnalysisDashboard = ({
                                                 <span className="stat-icon">
                                                     ✅
                                                 </span>
-                                                <span className="stat-title" title="算法平均成功率，已限制最大值為100%">
+                                                <span
+                                                    className="stat-title"
+                                                    title="算法平均成功率，已限制最大值為100%"
+                                                >
                                                     成功率
                                                 </span>
                                             </div>
@@ -4998,23 +5037,24 @@ const ChartAnalysisDashboard = ({
                                                     0 ||
                                                     trainingMetrics.ppo
                                                         .episodes > 0)
-                                                    ? Math.min(100, 
-                                                        ((isDqnTraining
-                                                            ? trainingMetrics
-                                                                  .dqn
-                                                                  .successRate
-                                                            : 0) +
-                                                            (isPpoTraining
-                                                                ? trainingMetrics
-                                                                      .ppo
-                                                                      .successRate
-                                                                : 0)) /
-                                                        ((isDqnTraining
-                                                            ? 1
-                                                            : 0) +
-                                                            (isPpoTraining
-                                                                ? 1
-                                                                : 0))
+                                                    ? Math.min(
+                                                          100,
+                                                          ((isDqnTraining
+                                                              ? trainingMetrics
+                                                                    .dqn
+                                                                    .successRate
+                                                              : 0) +
+                                                              (isPpoTraining
+                                                                  ? trainingMetrics
+                                                                        .ppo
+                                                                        .successRate
+                                                                  : 0)) /
+                                                              ((isDqnTraining
+                                                                  ? 1
+                                                                  : 0) +
+                                                                  (isPpoTraining
+                                                                      ? 1
+                                                                      : 0))
                                                       ).toFixed(1)
                                                     : '0.0'}
                                                 %
@@ -5036,33 +5076,53 @@ const ChartAnalysisDashboard = ({
                                                 <span className="stat-icon">
                                                     💰
                                                 </span>
-                                                <span className="stat-title" title="累積總獎勵 = 平均獎勵 × 回合數，支援 K/M 單位">
+                                                <span
+                                                    className="stat-title"
+                                                    title="累積總獎勵 = 平均獎勵 × 回合數，支援 K/M 單位"
+                                                >
                                                     總獎勵
                                                 </span>
                                             </div>
                                             <div className="stat-value">
                                                 {(() => {
-                                                    const totalReward = (
+                                                    const totalReward =
                                                         (isDqnTraining
-                                                            ? trainingMetrics.dqn
+                                                            ? trainingMetrics
+                                                                  .dqn
                                                                   .avgReward *
-                                                              trainingMetrics.dqn
-                                                                  .episodes
+                                                              trainingMetrics
+                                                                  .dqn.episodes
                                                             : 0) +
                                                         (isPpoTraining
-                                                            ? trainingMetrics.ppo
+                                                            ? trainingMetrics
+                                                                  .ppo
                                                                   .avgReward *
-                                                              trainingMetrics.ppo
-                                                                  .episodes
+                                                              trainingMetrics
+                                                                  .ppo.episodes
                                                             : 0)
-                                                    );
                                                     // 格式化大數值顯示
-                                                    if (totalReward >= 1000000) {
-                                                        return (totalReward / 1000000).toFixed(1) + 'M';
-                                                    } else if (totalReward >= 1000) {
-                                                        return (totalReward / 1000).toFixed(1) + 'K';
+                                                    if (
+                                                        totalReward >= 1000000
+                                                    ) {
+                                                        return (
+                                                            (
+                                                                totalReward /
+                                                                1000000
+                                                            ).toFixed(1) + 'M'
+                                                        )
+                                                    } else if (
+                                                        totalReward >= 1000
+                                                    ) {
+                                                        return (
+                                                            (
+                                                                totalReward /
+                                                                1000
+                                                            ).toFixed(1) + 'K'
+                                                        )
                                                     } else {
-                                                        return totalReward.toFixed(1);
+                                                        return totalReward.toFixed(
+                                                            1
+                                                        )
                                                     }
                                                 })()}
                                             </div>
@@ -5133,7 +5193,9 @@ const ChartAnalysisDashboard = ({
                                                                 : '--'}
                                                         </td>
                                                         <td className="metric-value baseline">
-                                                            {infocomMetrics.handoverLatency.toFixed(1)}
+                                                            {infocomMetrics.handoverLatency.toFixed(
+                                                                1
+                                                            )}
                                                         </td>
                                                         <td className="improvement">
                                                             {(isDqnTraining &&
@@ -5147,32 +5209,57 @@ const ChartAnalysisDashboard = ({
                                                                     .episodes >
                                                                     0)
                                                                 ? (() => {
-                                                                      const improvement = Math.round(
-                                                                          ((infocomMetrics.handoverLatency -
-                                                                              Math.min(
-                                                                                  isDqnTraining
-                                                                                      ? trainingMetrics
-                                                                                            .dqn
-                                                                                            .handoverDelay
-                                                                                      : 999,
-                                                                                  isPpoTraining
-                                                                                      ? trainingMetrics
-                                                                                            .ppo
-                                                                                            .handoverDelay
-                                                                                      : 999
-                                                                              )) /
-                                                                              infocomMetrics.handoverLatency) *
-                                                                              100
-                                                                      );
-                                                                      const color = improvement >= 10 ? '#4ade80' : 
-                                                                                   improvement >= 0 ? '#fbbf24' : '#ef4444';
-                                                                      const icon = improvement >= 10 ? '⬆️' :
-                                                                                  improvement >= 0 ? '➡️' : '⬇️';
+                                                                      const improvement =
+                                                                          Math.round(
+                                                                              ((infocomMetrics.handoverLatency -
+                                                                                  Math.min(
+                                                                                      isDqnTraining
+                                                                                          ? trainingMetrics
+                                                                                                .dqn
+                                                                                                .handoverDelay
+                                                                                          : 999,
+                                                                                      isPpoTraining
+                                                                                          ? trainingMetrics
+                                                                                                .ppo
+                                                                                                .handoverDelay
+                                                                                          : 999
+                                                                                  )) /
+                                                                                  infocomMetrics.handoverLatency) *
+                                                                                  100
+                                                                          )
+                                                                      const color =
+                                                                          improvement >=
+                                                                          10
+                                                                              ? '#4ade80'
+                                                                              : improvement >=
+                                                                                0
+                                                                              ? '#fbbf24'
+                                                                              : '#ef4444'
+                                                                      const icon =
+                                                                          improvement >=
+                                                                          10
+                                                                              ? '⬆️'
+                                                                              : improvement >=
+                                                                                0
+                                                                              ? '➡️'
+                                                                              : '⬇️'
                                                                       return (
-                                                                          <span style={{ color, fontWeight: 'bold' }}>
-                                                                              {icon} {improvement}%
+                                                                          <span
+                                                                              style={{
+                                                                                  color,
+                                                                                  fontWeight:
+                                                                                      'bold',
+                                                                              }}
+                                                                          >
+                                                                              {
+                                                                                  icon
+                                                                              }{' '}
+                                                                              {
+                                                                                  improvement
+                                                                              }
+                                                                              %
                                                                           </span>
-                                                                      );
+                                                                      )
                                                                   })()
                                                                 : '待計算'}
                                                         </td>
@@ -5198,7 +5285,9 @@ const ChartAnalysisDashboard = ({
                                                                 : '--'}
                                                         </td>
                                                         <td className="metric-value baseline">
-                                                            {infocomMetrics.successRate.toFixed(1)}
+                                                            {infocomMetrics.successRate.toFixed(
+                                                                1
+                                                            )}
                                                         </td>
                                                         <td className="improvement">
                                                             {(isDqnTraining &&
@@ -5212,32 +5301,61 @@ const ChartAnalysisDashboard = ({
                                                                     .episodes >
                                                                     0)
                                                                 ? (() => {
-                                                                      const improvement = Math.round(
-                                                                          ((Math.max(
-                                                                              isDqnTraining
-                                                                                  ? trainingMetrics
-                                                                                        .dqn
-                                                                                        .successRate
-                                                                                  : 0,
-                                                                              isPpoTraining
-                                                                                  ? trainingMetrics
-                                                                                        .ppo
-                                                                                        .successRate
-                                                                                  : 0
-                                                                          ) -
-                                                                              infocomMetrics.successRate) /
-                                                                              infocomMetrics.successRate) *
-                                                                              100
-                                                                      );
-                                                                      const color = improvement >= 2 ? '#4ade80' : 
-                                                                                   improvement >= 0 ? '#fbbf24' : '#ef4444';
-                                                                      const icon = improvement >= 2 ? '⬆️' :
-                                                                                  improvement >= 0 ? '➡️' : '⬇️';
+                                                                      const improvement =
+                                                                          Math.round(
+                                                                              ((Math.max(
+                                                                                  isDqnTraining
+                                                                                      ? trainingMetrics
+                                                                                            .dqn
+                                                                                            .successRate
+                                                                                      : 0,
+                                                                                  isPpoTraining
+                                                                                      ? trainingMetrics
+                                                                                            .ppo
+                                                                                            .successRate
+                                                                                      : 0
+                                                                              ) -
+                                                                                  infocomMetrics.successRate) /
+                                                                                  infocomMetrics.successRate) *
+                                                                                  100
+                                                                          )
+                                                                      const color =
+                                                                          improvement >=
+                                                                          2
+                                                                              ? '#4ade80'
+                                                                              : improvement >=
+                                                                                0
+                                                                              ? '#fbbf24'
+                                                                              : '#ef4444'
+                                                                      const icon =
+                                                                          improvement >=
+                                                                          2
+                                                                              ? '⬆️'
+                                                                              : improvement >=
+                                                                                0
+                                                                              ? '➡️'
+                                                                              : '⬇️'
                                                                       return (
-                                                                          <span style={{ color, fontWeight: 'bold' }}>
-                                                                              {icon} {improvement >= 0 ? '+' : ''}{improvement}%
+                                                                          <span
+                                                                              style={{
+                                                                                  color,
+                                                                                  fontWeight:
+                                                                                      'bold',
+                                                                              }}
+                                                                          >
+                                                                              {
+                                                                                  icon
+                                                                              }{' '}
+                                                                              {improvement >=
+                                                                              0
+                                                                                  ? '+'
+                                                                                  : ''}
+                                                                              {
+                                                                                  improvement
+                                                                              }
+                                                                              %
                                                                           </span>
-                                                                      );
+                                                                      )
                                                                   })()
                                                                 : '待計算'}
                                                         </td>
@@ -5265,7 +5383,9 @@ const ChartAnalysisDashboard = ({
                                                                 : '--'}
                                                         </td>
                                                         <td className="metric-value baseline">
-                                                            {infocomMetrics.signalInterruption.toFixed(1)}
+                                                            {infocomMetrics.signalInterruption.toFixed(
+                                                                1
+                                                            )}
                                                         </td>
                                                         <td className="improvement">
                                                             {(isDqnTraining &&
@@ -5279,32 +5399,57 @@ const ChartAnalysisDashboard = ({
                                                                     .episodes >
                                                                     0)
                                                                 ? (() => {
-                                                                      const improvement = Math.round(
-                                                                          ((infocomMetrics.signalInterruption -
-                                                                              Math.min(
-                                                                                  isDqnTraining
-                                                                                      ? trainingMetrics
-                                                                                            .dqn
-                                                                                            .signalDropTime
-                                                                                      : 999,
-                                                                                  isPpoTraining
-                                                                                      ? trainingMetrics
-                                                                                            .ppo
-                                                                                            .signalDropTime
-                                                                                      : 999
-                                                                              )) /
-                                                                              infocomMetrics.signalInterruption) *
-                                                                              100
-                                                                      );
-                                                                      const color = improvement >= 15 ? '#4ade80' : 
-                                                                                   improvement >= 0 ? '#fbbf24' : '#ef4444';
-                                                                      const icon = improvement >= 15 ? '⬆️' :
-                                                                                  improvement >= 0 ? '➡️' : '⬇️';
+                                                                      const improvement =
+                                                                          Math.round(
+                                                                              ((infocomMetrics.signalInterruption -
+                                                                                  Math.min(
+                                                                                      isDqnTraining
+                                                                                          ? trainingMetrics
+                                                                                                .dqn
+                                                                                                .signalDropTime
+                                                                                          : 999,
+                                                                                      isPpoTraining
+                                                                                          ? trainingMetrics
+                                                                                                .ppo
+                                                                                                .signalDropTime
+                                                                                          : 999
+                                                                                  )) /
+                                                                                  infocomMetrics.signalInterruption) *
+                                                                                  100
+                                                                          )
+                                                                      const color =
+                                                                          improvement >=
+                                                                          15
+                                                                              ? '#4ade80'
+                                                                              : improvement >=
+                                                                                0
+                                                                              ? '#fbbf24'
+                                                                              : '#ef4444'
+                                                                      const icon =
+                                                                          improvement >=
+                                                                          15
+                                                                              ? '⬆️'
+                                                                              : improvement >=
+                                                                                0
+                                                                              ? '➡️'
+                                                                              : '⬇️'
                                                                       return (
-                                                                          <span style={{ color, fontWeight: 'bold' }}>
-                                                                              {icon} {improvement}%
+                                                                          <span
+                                                                              style={{
+                                                                                  color,
+                                                                                  fontWeight:
+                                                                                      'bold',
+                                                                              }}
+                                                                          >
+                                                                              {
+                                                                                  icon
+                                                                              }{' '}
+                                                                              {
+                                                                                  improvement
+                                                                              }
+                                                                              %
                                                                           </span>
-                                                                      );
+                                                                      )
                                                                   })()
                                                                 : '待計算'}
                                                         </td>
@@ -5330,7 +5475,9 @@ const ChartAnalysisDashboard = ({
                                                                 : '--'}
                                                         </td>
                                                         <td className="metric-value baseline">
-                                                            {infocomMetrics.energyEfficiency.toFixed(2)}
+                                                            {infocomMetrics.energyEfficiency.toFixed(
+                                                                2
+                                                            )}
                                                         </td>
                                                         <td className="improvement">
                                                             {(isDqnTraining &&
@@ -5344,32 +5491,61 @@ const ChartAnalysisDashboard = ({
                                                                     .episodes >
                                                                     0)
                                                                 ? (() => {
-                                                                      const improvement = Math.round(
-                                                                          ((Math.max(
-                                                                              isDqnTraining
-                                                                                  ? trainingMetrics
-                                                                                        .dqn
-                                                                                        .energyEfficiency
-                                                                                  : 0,
-                                                                              isPpoTraining
-                                                                                  ? trainingMetrics
-                                                                                        .ppo
-                                                                                        .energyEfficiency
-                                                                                  : 0
-                                                                          ) -
-                                                                              infocomMetrics.energyEfficiency) /
-                                                                              infocomMetrics.energyEfficiency) *
-                                                                              100
-                                                                      );
-                                                                      const color = improvement >= 5 ? '#4ade80' : 
-                                                                                   improvement >= 0 ? '#fbbf24' : '#ef4444';
-                                                                      const icon = improvement >= 5 ? '⬆️' :
-                                                                                  improvement >= 0 ? '➡️' : '⬇️';
+                                                                      const improvement =
+                                                                          Math.round(
+                                                                              ((Math.max(
+                                                                                  isDqnTraining
+                                                                                      ? trainingMetrics
+                                                                                            .dqn
+                                                                                            .energyEfficiency
+                                                                                      : 0,
+                                                                                  isPpoTraining
+                                                                                      ? trainingMetrics
+                                                                                            .ppo
+                                                                                            .energyEfficiency
+                                                                                      : 0
+                                                                              ) -
+                                                                                  infocomMetrics.energyEfficiency) /
+                                                                                  infocomMetrics.energyEfficiency) *
+                                                                                  100
+                                                                          )
+                                                                      const color =
+                                                                          improvement >=
+                                                                          5
+                                                                              ? '#4ade80'
+                                                                              : improvement >=
+                                                                                0
+                                                                              ? '#fbbf24'
+                                                                              : '#ef4444'
+                                                                      const icon =
+                                                                          improvement >=
+                                                                          5
+                                                                              ? '⬆️'
+                                                                              : improvement >=
+                                                                                0
+                                                                              ? '➡️'
+                                                                              : '⬇️'
                                                                       return (
-                                                                          <span style={{ color, fontWeight: 'bold' }}>
-                                                                              {icon} {improvement >= 0 ? '+' : ''}{improvement}%
+                                                                          <span
+                                                                              style={{
+                                                                                  color,
+                                                                                  fontWeight:
+                                                                                      'bold',
+                                                                              }}
+                                                                          >
+                                                                              {
+                                                                                  icon
+                                                                              }{' '}
+                                                                              {improvement >=
+                                                                              0
+                                                                                  ? '+'
+                                                                                  : ''}
+                                                                              {
+                                                                                  improvement
+                                                                              }
+                                                                              %
                                                                           </span>
-                                                                      );
+                                                                      )
                                                                   })()
                                                                 : '待計算'}
                                                         </td>
@@ -5536,15 +5712,23 @@ const ChartAnalysisDashboard = ({
                         衛星參數 | 5G NTN 3GPP 標準
                         <br />
                         <strong>INFOCOM 2024 指標：</strong>
-                        <span style={{
-                            color: infocomMetrics.dataSource === 'calculated' ? '#4ade80' : '#fbbf24',
-                            fontWeight: 'bold',
-                            marginLeft: '8px'
-                        }}>
-                            {infocomMetrics.dataSource === 'calculated' ? 
-                                '🧮 實際算法計算' : '📊 預設基準值'}
-                            {infocomMetrics.dataSource === 'calculated' && 
-                                ` (延遲:${infocomMetrics.handoverLatency.toFixed(1)}ms)`}
+                        <span
+                            style={{
+                                color:
+                                    infocomMetrics.dataSource === 'calculated'
+                                        ? '#4ade80'
+                                        : '#fbbf24',
+                                fontWeight: 'bold',
+                                marginLeft: '8px',
+                            }}
+                        >
+                            {infocomMetrics.dataSource === 'calculated'
+                                ? '🧮 實際算法計算'
+                                : '📊 預設基準值'}
+                            {infocomMetrics.dataSource === 'calculated' &&
+                                ` (延遲:${infocomMetrics.handoverLatency.toFixed(
+                                    1
+                                )}ms)`}
                         </span>
                         {realDataError && (
                             <span style={{ color: '#ff6b6b' }}>

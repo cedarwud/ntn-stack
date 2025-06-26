@@ -107,6 +107,8 @@ console.error = function (...args) {
             'ResizeObserver loop limit exceeded',
             'Non-Error promise rejection captured',
             'Internal React error: Expected static flag was missing',
+            'Component unmounted',
+            'Error fetching image: Component unmounted',
         ]
 
         if (harmlessErrors.some((pattern) => message.includes(pattern))) {

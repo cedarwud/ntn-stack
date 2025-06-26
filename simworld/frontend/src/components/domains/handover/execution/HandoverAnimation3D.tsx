@@ -1,31 +1,62 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Ring, Text } from '@react-three/drei'
-import { 
-    realConnectionManager, 
-    RealConnectionInfo, 
+import { Ring } from '@react-three/drei'
+import {
+    realConnectionManager,
+    RealConnectionInfo,
     RealHandoverStatus,
     getConnectionLineColor,
     getConnectionLineOpacity,
-    getConnectionLineRadius
+    getConnectionLineRadius,
 } from '../../../../services/realConnectionService'
+import { Device } from '../../../../types/device'
+import { VisibleSatelliteInfo } from '../../../../types/satellite'
 
 interface HandoverAnimation3DProps {
-    devices: any[]
+    satellites: VisibleSatelliteInfo[]
+    devices: Device[]
     enabled: boolean
     satellitePositions?: Map<string, [number, number, number]>
     stableDuration?: number // 穩定期時間（秒）
     handoverMode?: 'demo' | 'real' // 換手模式：演示模式 vs 真實模式
-    onStatusUpdate?: (statusInfo: any) => void // 狀態更新回調
-    onHandoverStateUpdate?: (state: any) => void // 換手狀態回調，供衛星光球使用
+    onStatusUpdate?: (statusInfo: {
+        currentSatellite?: string
+        targetSatellite?: string
+        phase?: string
+        progress?: number
+    }) => void // 狀態更新回調
+    onHandoverStateUpdate?: (state: {
+        isHandover?: boolean
+        progress?: number
+        phase?: string
+    }) => void // 換手狀態回調，供衛星光球使用
     useRealConnections?: boolean // 是否使用真實連接數據
 }
 
 // 🎯 狀態面板組件（在Canvas外部顯示）
 interface HandoverStatusPanelProps {
     enabled: boolean
-    statusInfo: any
+    statusInfo: {
+        phase?: string
+        progress?: number
+        satellite_id?: number
+        signal_strength?: number
+        message?: string
+        status?: string
+        title?: string
+        subtitle?: string
+        countdown?: number
+        handoverReason?: {
+            urgency: string
+            icon: string
+            reasonText: string
+            currentValue: number
+            targetValue: number
+            unit: string
+            improvement: string
+        }
+    } | null
 }
 
 const HandoverStatusPanel: React.FC<HandoverStatusPanelProps> = ({
@@ -339,10 +370,12 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     useRealConnections = false, // 預設不使用真實連接數據
 }) => {
     // 🔗 真實連接狀態管理
-    const [realConnectionInfo, setRealConnectionInfo] = useState<RealConnectionInfo | null>(null)
-    const [realHandoverStatus, setRealHandoverStatus] = useState<RealHandoverStatus | null>(null)
+    const [realConnectionInfo, setRealConnectionInfo] =
+        useState<RealConnectionInfo | null>(null)
+    const [realHandoverStatus, setRealHandoverStatus] =
+        useState<RealHandoverStatus | null>(null)
     const realConnectionUpdateInterval = useRef<NodeJS.Timeout | null>(null)
-    
+
     // 更新真實連接數據
     useEffect(() => {
         if (!enabled || !useRealConnections) {
@@ -355,17 +388,19 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
             setRealHandoverStatus(null)
             return
         }
-        
+
         const updateRealConnectionData = async () => {
             try {
                 // 獲取真實連接狀態
-                const connectionStatus = realConnectionManager.getConnectionStatus('ue_001')
-                const handoverStatus = realConnectionManager.getHandoverStatus('ue_001')
-                
+                const connectionStatus =
+                    realConnectionManager.getConnectionStatus('ue_001')
+                const handoverStatus =
+                    realConnectionManager.getHandoverStatus('ue_001')
+
                 if (connectionStatus) {
                     setRealConnectionInfo(connectionStatus)
                 }
-                
+
                 if (handoverStatus) {
                     setRealHandoverStatus(handoverStatus)
                 }
@@ -373,13 +408,16 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 console.error('Error updating real connection data:', error)
             }
         }
-        
+
         // 立即更新一次
         updateRealConnectionData()
-        
+
         // 每2秒更新一次真實數據
-        realConnectionUpdateInterval.current = setInterval(updateRealConnectionData, 2000)
-        
+        realConnectionUpdateInterval.current = setInterval(
+            updateRealConnectionData,
+            2000
+        )
+
         return () => {
             if (realConnectionUpdateInterval.current) {
                 clearInterval(realConnectionUpdateInterval.current)
@@ -642,17 +680,17 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     }
 
     // 🔗 獲取當前連接距離（用於顯示）
-    const getCurrentConnectionDistance = (): number | null => {
-        if (!handoverState.currentSatelliteId) return null
+    // const getCurrentConnectionDistance = (): number | null => {
+    //     if (!handoverState.currentSatelliteId) return null
 
-        const uavPositions = getUAVPositions()
-        if (uavPositions.length === 0) return null
+    //     const uavPositions = getUAVPositions()
+    //     if (uavPositions.length === 0) return null
 
-        const satPos = getSatellitePosition(handoverState.currentSatelliteId)
-        if (!satPos) return null
+    //     const satPos = getSatellitePosition(handoverState.currentSatelliteId)
+    //     if (!satPos) return null
 
-        return calculateDistance(uavPositions[0], satPos)
-    }
+    //     return calculateDistance(uavPositions[0], satPos)
+    // }
 
     // 🏷️ 獲取衛星名稱（基於ID匹配DynamicSatelliteRenderer的命名規則）
     const getSatelliteName = (
@@ -782,7 +820,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
 
         if (progress >= 1.0) {
             switch (handoverState.phase) {
-                case 'stable':
+                case 'stable': {
                     // 穩定期結束，嘗試開始換手
                     const currentSatId = handoverState.currentSatelliteId
 
@@ -820,8 +858,9 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                         }
                     }
                     break
+                }
 
-                case 'preparing':
+                case 'preparing': {
                     newState = {
                         ...handoverState,
                         phase: 'establishing',
@@ -830,8 +869,9 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                         totalElapsed: handoverState.totalElapsed + phaseElapsed,
                     }
                     break
+                }
 
-                case 'establishing':
+                case 'establishing': {
                     newState = {
                         ...handoverState,
                         phase: 'switching',
@@ -840,8 +880,9 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                         totalElapsed: handoverState.totalElapsed + phaseElapsed,
                     }
                     break
+                }
 
-                case 'switching':
+                case 'switching': {
                     newState = {
                         ...handoverState,
                         phase: 'completing',
@@ -850,10 +891,11 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                         totalElapsed: handoverState.totalElapsed + phaseElapsed,
                     }
                     break
+                }
 
-                case 'completing':
+                case 'completing': {
                     // 換手完成，切換到新衛星
-                    const newSatellite = handoverState.targetSatelliteId
+                    // const newSatellite = handoverState.targetSatelliteId
 
                     // 📝 記錄換手事件到歷史記錄
                     if (
@@ -888,6 +930,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                         totalElapsed: 0, // 重置週期
                     }
                     break
+                }
             }
             setHandoverState(newState)
         } else {
@@ -914,7 +957,12 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 }))
             }
         }
-    }, [enabled, satellitePositions])
+    }, [
+        enabled,
+        satellitePositions,
+        handoverState.currentSatelliteId,
+        selectNearestSatellite,
+    ])
 
     // 🔄 動態更新換手歷史冷卻期
     useEffect(() => {
@@ -989,6 +1037,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         handoverState.targetSatelliteId,
         handoverState.progress,
         handoverState.phaseStartTime,
+        PHASE_DURATIONS.preparing,
     ])
 
     // 狀態更新回調 - 修復無限循環
@@ -1001,9 +1050,11 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     // 使用穩定的引用避免無限循環
     const stableStatusInfoRef = useRef(statusInfo)
     const stableHandoverStateRef = useRef(handoverState)
-    
+
     useEffect(() => {
-        const statusChanged = JSON.stringify(stableStatusInfoRef.current) !== JSON.stringify(statusInfo)
+        const statusChanged =
+            JSON.stringify(stableStatusInfoRef.current) !==
+            JSON.stringify(statusInfo)
         if (enabled && onStatusUpdateRef.current && statusChanged) {
             stableStatusInfoRef.current = statusInfo
             onStatusUpdateRef.current(statusInfo)
@@ -1011,7 +1062,9 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     }, [statusInfo, enabled])
 
     useEffect(() => {
-        const stateChanged = JSON.stringify(stableHandoverStateRef.current) !== JSON.stringify(handoverState)
+        const stateChanged =
+            JSON.stringify(stableHandoverStateRef.current) !==
+            JSON.stringify(handoverState)
         if (enabled && onHandoverStateUpdateRef.current && stateChanged) {
             stableHandoverStateRef.current = handoverState
             onHandoverStateUpdateRef.current(handoverState)
@@ -1125,35 +1178,59 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
             const baseColor = getConnectionLineColor(signalQuality)
             const baseOpacity = getConnectionLineOpacity(signalQuality)
             const baseRadius = getConnectionLineRadius(signalQuality)
-            
+
             // 根據連接狀態調整效果
             switch (realConnectionInfo.status) {
-                case 'connected':
-                    return { color: baseColor, opacity: baseOpacity, radius: baseRadius }
-                case 'handover_preparing':
+                case 'connected': {
+                    return {
+                        color: baseColor,
+                        opacity: baseOpacity,
+                        radius: baseRadius,
+                    }
+                }
+                case 'handover_preparing': {
                     const flicker = Math.sin(Date.now() * 0.012) * 0.3 + 0.7
-                    return { color: baseColor, opacity: baseOpacity * flicker, radius: baseRadius * 0.9 }
-                case 'handover_executing':
-                    return { color: baseColor, opacity: baseOpacity * 0.6, radius: baseRadius * 0.7 }
-                case 'disconnected':
+                    return {
+                        color: baseColor,
+                        opacity: baseOpacity * flicker,
+                        radius: baseRadius * 0.9,
+                    }
+                }
+                case 'handover_executing': {
+                    return {
+                        color: baseColor,
+                        opacity: baseOpacity * 0.6,
+                        radius: baseRadius * 0.7,
+                    }
+                }
+                case 'disconnected': {
                     return { color: '#ff0000', opacity: 0.3, radius: 0.2 }
+                }
                 default:
-                    return { color: baseColor, opacity: baseOpacity, radius: baseRadius }
+                    return {
+                        color: baseColor,
+                        opacity: baseOpacity,
+                        radius: baseRadius,
+                    }
             }
         }
-        
+
         // 預設模擬行為
         switch (handoverState.phase) {
-            case 'stable':
+            case 'stable': {
                 return { color: '#00ff00', opacity: 0.9, radius: 0.6 }
-            case 'preparing':
+            }
+            case 'preparing': {
                 const flicker = Math.sin(Date.now() * 0.012) * 0.4 + 0.8
                 return { color: '#ffaa00', opacity: flicker, radius: 0.5 }
-            case 'establishing':
+            }
+            case 'establishing': {
                 return { color: '#ffdd00', opacity: 0.8, radius: 0.4 }
-            case 'switching':
+            }
+            case 'switching': {
                 return { color: '#aaaaaa', opacity: 0.6, radius: 0.4 }
-            case 'completing':
+            }
+            case 'completing': {
                 const fadeOutOpacity = Math.max(
                     0.2,
                     0.6 - handoverState.progress * 0.4
@@ -1163,6 +1240,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                     opacity: fadeOutOpacity,
                     radius: 0.3,
                 }
+            }
             default:
                 return { color: '#00ff00', opacity: 0.9, radius: 0.6 }
         }
@@ -1172,39 +1250,56 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     const getTargetLineProperties = () => {
         // 如果有真實換手狀態，使用真實數據
         if (useRealConnections && realHandoverStatus) {
-            const targetSignalQuality = realHandoverStatus.signal_quality_target || -70
+            const targetSignalQuality =
+                realHandoverStatus.signal_quality_target || -70
             const baseColor = getConnectionLineColor(targetSignalQuality)
             const baseOpacity = getConnectionLineOpacity(targetSignalQuality)
             const baseRadius = getConnectionLineRadius(targetSignalQuality)
-            
+
             // 根據換手狀態調整效果
             switch (realHandoverStatus.handover_status) {
                 case 'predicting':
-                case 'preparing':
-                    const establishOpacity = 0.3 + (realHandoverStatus.prediction_confidence || 0.5) * 0.5
+                case 'preparing': {
+                    const establishOpacity =
+                        0.3 +
+                        (realHandoverStatus.prediction_confidence || 0.5) * 0.5
                     return {
                         color: baseColor,
                         opacity: establishOpacity,
                         radius: baseRadius * 0.8,
                     }
+                }
                 case 'executing':
-                    return { color: baseColor, opacity: baseOpacity * 0.9, radius: baseRadius }
+                    return {
+                        color: baseColor,
+                        opacity: baseOpacity * 0.9,
+                        radius: baseRadius,
+                    }
                 case 'completed':
-                    return { color: baseColor, opacity: baseOpacity, radius: baseRadius }
+                    return {
+                        color: baseColor,
+                        opacity: baseOpacity,
+                        radius: baseRadius,
+                    }
                 default:
-                    return { color: baseColor, opacity: baseOpacity * 0.5, radius: baseRadius * 0.7 }
+                    return {
+                        color: baseColor,
+                        opacity: baseOpacity * 0.5,
+                        radius: baseRadius * 0.7,
+                    }
             }
         }
-        
+
         // 預設模擬行為
         switch (handoverState.phase) {
-            case 'establishing':
+            case 'establishing': {
                 const establishOpacity = 0.4 + handoverState.progress * 0.5
                 return {
                     color: '#0088ff',
                     opacity: establishOpacity,
                     radius: 0.4,
                 }
+            }
             case 'switching':
                 return { color: '#00ff00', opacity: 0.9, radius: 0.6 }
             case 'completing':

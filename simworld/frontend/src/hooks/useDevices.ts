@@ -36,9 +36,9 @@ export const useDevices = () => {
 
             // 注意：原 App.tsx 中 setSelectedReceiverIds 的邏輯已移除，
             // App.tsx 將在拿到 tempDevices 後自行處理 selectedReceiverIds
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('獲取設備失敗 (來自 useDevices Hook):', err)
-            const errorMessage = err.message || '未知錯誤'
+            const errorMessage = err instanceof Error ? err.message : '未知錯誤'
             setError(`獲取設備數據時發生錯誤: ${errorMessage}`)
             setApiStatus('error')
 
@@ -135,14 +135,21 @@ export const useDevices = () => {
             await fetchDevices()
             setHasTempDevices(false)
             return true
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('useDevices: 保存設備更新失敗:', err)
-            const errorMessage = err.response?.data?.detail || err.message || '未知錯誤'
+            const errorMessage = err instanceof Error ? err.message : '未知錯誤'
             let detailedError = errorMessage
-            if (Array.isArray(err.response?.data?.detail)) {
-                detailedError = err.response.data.detail
-                    .map((item: any) => item.msg || JSON.stringify(item))
-                    .join('; ')
+            if (err && typeof err === 'object' && 'response' in err) {
+                const response = (err as { response?: { data?: { detail?: unknown } } }).response
+                if (Array.isArray(response?.data?.detail)) {
+                    detailedError = response.data.detail
+                        .map((item: { msg?: string } | string) => 
+                            typeof item === 'object' ? item.msg || JSON.stringify(item) : String(item)
+                        )
+                        .join('; ')
+                } else if (response?.data?.detail) {
+                    detailedError = String(response.data.detail)
+                }
             }
             setError(`保存設備更新時發生錯誤: ${detailedError}`)
             return false
@@ -165,10 +172,18 @@ export const useDevices = () => {
             console.log(`useDevices: 設備 ID: ${id} 刪除成功`)
             await fetchDevices()
             return true
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(`useDevices: 刪除設備ID ${id} 失敗:`, err)
+            const errorMessage = err instanceof Error ? err.message : '未知錯誤'
+            let detailedError = errorMessage
+            if (err && typeof err === 'object' && 'response' in err) {
+                const response = (err as { response?: { data?: { detail?: unknown } } }).response
+                if (response?.data?.detail) {
+                    detailedError = String(response.data.detail)
+                }
+            }
             setError(
-                `刪除設備 ID: ${id} 失敗: ${ err.response?.data?.detail || err.message || '未知錯誤' }`
+                `刪除設備 ID: ${id} 失敗: ${detailedError}`
             )
             return false
         } finally {
@@ -210,7 +225,7 @@ export const useDevices = () => {
     const updateDeviceField = (
         id: number,
         field: keyof Device, // 在 Hook 內部，我們可以堅持使用 keyof Device
-        value: any
+        value: string | number | boolean
     ) => {
         setTempDevices((prev) => {
             const newDevices = prev.map((device) => {

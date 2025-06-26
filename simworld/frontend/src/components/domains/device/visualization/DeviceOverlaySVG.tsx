@@ -1,5 +1,18 @@
+interface Device {
+    id: number
+    name: string
+    x: number
+    y: number
+    z?: number
+    position_x: number
+    position_y: number
+    type: string
+    status: string
+    role?: string
+}
+
 export interface DeviceOverlaySVGProps {
-    devices: any[]
+    devices: Device[]
     imageRef: React.RefObject<HTMLImageElement | null>
     imageNaturalSize: { width: number; height: number } | null
     sceneToImageCoords: (

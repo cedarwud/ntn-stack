@@ -3,7 +3,7 @@
  * 用於驗證換手邏輯是否正確，確保不會出現自我換手問題
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 
 interface HandoverTestResult {
     testName: string

@@ -1,6 +1,9 @@
 import React from 'react'
 import { SatelliteConnection, HandoverState } from '../../../../types/handover'
-import { getSignalQualityLevel, getSignalQualityPercentage } from '../config/handoverConfig'
+import {
+    getSignalQualityLevel,
+    getSignalQualityPercentage,
+} from '../config/handoverConfig'
 import './UnifiedHandoverStatus.scss'
 
 interface UnifiedHandoverStatusProps {
@@ -9,7 +12,7 @@ interface UnifiedHandoverStatusProps {
     handoverState: HandoverState
     isTransitioning: boolean
     transitionProgress: number
-    predictionResult?: any
+    predictionResult?: unknown
     algorithmRunning?: boolean
     deltaT?: number
 }
@@ -22,10 +25,13 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
     transitionProgress,
     predictionResult,
     algorithmRunning = false,
-    deltaT
+    deltaT,
 }) => {
     // 統一的衛星資訊顯示格式
-    const formatSatelliteInfo = (connection: SatelliteConnection | null, type: 'current' | 'predicted') => {
+    const formatSatelliteInfo = (
+        connection: SatelliteConnection | null,
+        type: 'current' | 'predicted'
+    ) => {
         if (!connection) {
             return (
                 <div className="satellite-card no-connection">
@@ -43,32 +49,50 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
                 <div className="satellite-header">
                     <span className="satellite-icon">🛰️</span>
                     <div className="satellite-identity">
-                        <span className="satellite-name">{connection.satelliteName}</span>
-                        <span className="satellite-id">ID: {connection.satelliteId}</span>
+                        <span className="satellite-name">
+                            {connection.satelliteName}
+                        </span>
+                        <span className="satellite-id">
+                            ID: {connection.satelliteId}
+                        </span>
                     </div>
                 </div>
                 <div className="satellite-metrics">
                     <div className="metric">
                         <span className="label">仰角</span>
-                        <span className="value">{connection.elevation?.toFixed(1) || 'N/A'}°</span>
+                        <span className="value">
+                            {connection.elevation?.toFixed(1) || 'N/A'}°
+                        </span>
                     </div>
                     <div className="metric">
                         <span className="label">信號強度</span>
-                        <span className="value">{connection.signalStrength?.toFixed(1) || 'N/A'} dBm</span>
+                        <span className="value">
+                            {connection.signalStrength?.toFixed(1) || 'N/A'} dBm
+                        </span>
                     </div>
                     <div className="metric">
                         <span className="label">距離</span>
-                        <span className="value">{connection.distance?.toFixed(0) || 'N/A'} km</span>
+                        <span className="value">
+                            {connection.distance?.toFixed(0) || 'N/A'} km
+                        </span>
                     </div>
                 </div>
                 <div className="connection-quality">
                     <div className="quality-bar">
-                        <div 
-                            className={`quality-fill ${getQualityClass(connection.signalStrength || 0)}`}
-                            style={{ width: `${getQualityPercentage(connection.signalStrength || 0)}%` }}
+                        <div
+                            className={`quality-fill ${getQualityClass(
+                                connection.signalStrength || 0
+                            )}`}
+                            style={{
+                                width: `${getQualityPercentage(
+                                    connection.signalStrength || 0
+                                )}%`,
+                            }}
                         ></div>
                     </div>
-                    <span className="quality-text">{getQualityText(connection.signalStrength || 0)}</span>
+                    <span className="quality-text">
+                        {getQualityText(connection.signalStrength || 0)}
+                    </span>
                 </div>
             </div>
         )
@@ -83,9 +107,9 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
         const level = getSignalQualityLevel(signalStrength)
         const textMap = {
             excellent: '優秀',
-            good: '良好', 
+            good: '良好',
             fair: '一般',
-            poor: '較弱'
+            poor: '較弱',
         }
         return textMap[level]
     }
@@ -100,16 +124,20 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
             predicting: { icon: '🔮', text: '預測中', class: 'predicting' },
             handover: { icon: '🔄', text: '換手中', class: 'handover' },
             failed: { icon: '❌', text: '失敗', class: 'failed' },
-            complete: { icon: '✅', text: '完成', class: 'complete' }
+            complete: { icon: '✅', text: '完成', class: 'complete' },
         }
 
-        const config = statusConfig[handoverState.status as keyof typeof statusConfig] || statusConfig.idle
+        const config =
+            statusConfig[handoverState.status as keyof typeof statusConfig] ||
+            statusConfig.idle
 
         return (
             <div className={`handover-status ${config.class}`}>
                 <span className="status-icon">{config.icon}</span>
                 <span className="status-text">{config.text}</span>
-                {algorithmRunning && <span className="algorithm-indicator">🤖</span>}
+                {algorithmRunning && (
+                    <span className="algorithm-indicator">🤖</span>
+                )}
             </div>
         )
     }
@@ -128,7 +156,9 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
                 <div className="connection-section current">
                     <div className="section-header">
                         <span className="section-title">當前時間 T</span>
-                        <span className="section-subtitle">{new Date().toLocaleTimeString()}</span>
+                        <span className="section-subtitle">
+                            {new Date().toLocaleTimeString()}
+                        </span>
                     </div>
                     {formatSatelliteInfo(currentConnection, 'current')}
                 </div>
@@ -139,22 +169,28 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
                         <span className="arrow">➤</span>
                         {deltaT && (
                             <div className="delta-time">
-                                <div className="delta-value">Δt = {Math.round(deltaT)}s</div>
-                                <div className="delta-minutes">({(deltaT / 60).toFixed(1)}分鐘)</div>
+                                <div className="delta-value">
+                                    Δt = {Math.round(deltaT)}s
+                                </div>
+                                <div className="delta-minutes">
+                                    ({(deltaT / 60).toFixed(1)}分鐘)
+                                </div>
                             </div>
                         )}
                     </div>
-                    
+
                     {/* 進度條 */}
                     {isTransitioning && (
                         <div className="transition-progress">
                             <div className="progress-bar">
-                                <div 
+                                <div
                                     className="progress-fill"
                                     style={{ width: `${transitionProgress}%` }}
                                 ></div>
                             </div>
-                            <span className="progress-text">{transitionProgress.toFixed(1)}%</span>
+                            <span className="progress-text">
+                                {transitionProgress.toFixed(1)}%
+                            </span>
                         </div>
                     )}
                 </div>
@@ -164,7 +200,11 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
                     <div className="section-header">
                         <span className="section-title">預測時間 T+Δt</span>
                         <span className="section-subtitle">
-                            {deltaT ? new Date(Date.now() + deltaT * 1000).toLocaleTimeString() : 'N/A'}
+                            {deltaT
+                                ? new Date(
+                                      Date.now() + deltaT * 1000
+                                  ).toLocaleTimeString()
+                                : 'N/A'}
                         </span>
                     </div>
                     {formatSatelliteInfo(predictedConnection, 'predicted')}
@@ -178,12 +218,21 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
                         <span>預測準確度</span>
                     </div>
                     <div className="confidence-meter">
-                        <div 
+                        <div
                             className="confidence-fill"
-                            style={{ width: `${(predictionResult.prediction_confidence || 0.95) * 100}%` }}
+                            style={{
+                                width: `${
+                                    ((predictionResult as any)
+                                        ?.prediction_confidence || 0.95) * 100
+                                }%`,
+                            }}
                         ></div>
                         <span className="confidence-text">
-                            {((predictionResult.prediction_confidence || 0.95) * 100).toFixed(1)}%
+                            {(
+                                ((predictionResult as any)
+                                    ?.prediction_confidence || 0.95) * 100
+                            ).toFixed(1)}
+                            %
                         </span>
                     </div>
                 </div>
@@ -193,8 +242,16 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
             {predictionResult && (
                 <div className="handover-decision">
                     <span className="decision-label">換手決策:</span>
-                    <span className={`decision-value ${predictionResult.handover_required ? 'required' : 'not-required'}`}>
-                        {predictionResult.handover_required ? '需要換手' : '無需換手'}
+                    <span
+                        className={`decision-value ${
+                            (predictionResult as any)?.handover_required
+                                ? 'required'
+                                : 'not-required'
+                        }`}
+                    >
+                        {(predictionResult as any)?.handover_required
+                            ? '需要換手'
+                            : '無需換手'}
                     </span>
                 </div>
             )}
