@@ -49,7 +49,9 @@ export function useImageLoader(rtEndpoint: string, fallbackPath: string): UseIma
                     try {
                         const errorJson = await response.json()
                         errorDetail = errorJson.detail || errorDetail
-                    } catch {}
+                    } catch {
+                        // 如果解析 JSON 失敗，使用默認錯誤
+                    }
                     throw new Error(errorDetail)
                 }
                 try {
@@ -96,7 +98,7 @@ export function useImageLoader(rtEndpoint: string, fallbackPath: string): UseIma
                         } else {
                             throw new Error(`備用圖像請求失敗: ${fallbackResponse.status}`)
                         }
-                    } catch (fallbackError) {
+                    } catch {
                         setImageUrl(fallbackPath)
                         setUsingFallback(true)
                         setError(

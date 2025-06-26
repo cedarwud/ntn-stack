@@ -3,8 +3,8 @@
  * 顯示各系統組件的健康狀態和指標
  */
 import { useState, useEffect, useCallback } from 'react'
-import { getSystemStatus } from '../../../services/netstackApi'
-import { SystemStatus } from '../../../types/charts'
+import { getSystemStatus } from '../../../../services/netstackApi'
+import { SystemStatus } from '../../../../types/charts'
 
 interface SystemStatusChartProps {
     className?: string

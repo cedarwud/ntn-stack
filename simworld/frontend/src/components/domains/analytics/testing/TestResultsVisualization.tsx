@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react'
-import * as THREE from 'three'
 import { Text } from '@react-three/drei'
 
+interface Device {
+    id: string
+    name: string
+    type: string
+    status: string
+}
+
 interface TestResultsVisualizationProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
 }
 
@@ -45,7 +51,9 @@ interface TestMetrics {
     successRate: number
 }
 
-const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ devices, enabled }) => {
+const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({
+    enabled,
+}) => {
     const [testSuites, setTestSuites] = useState<TestSuite[]>([])
     const [testCases, setTestCases] = useState<TestCase[]>([])
     const [metrics, setMetrics] = useState<TestMetrics>({
@@ -57,7 +65,7 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
         failingTests: 0,
         overallCoverage: 0,
         averageDuration: 0,
-        successRate: 0
+        successRate: 0,
     })
 
     // 模擬測試數據
@@ -79,17 +87,32 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
                 '端到端性能測試',
                 '負載壓力測試',
                 '安全性測試',
-                'UI 組件測試'
+                'UI 組件測試',
             ]
 
-            const categories: ('unit' | 'integration' | 'e2e' | 'performance')[] = [
-                'unit', 'unit', 'integration', 'unit', 'integration', 
-                'integration', 'e2e', 'performance', 'integration', 'unit'
+            const categories: (
+                | 'unit'
+                | 'integration'
+                | 'e2e'
+                | 'performance'
+            )[] = [
+                'unit',
+                'unit',
+                'integration',
+                'unit',
+                'integration',
+                'integration',
+                'e2e',
+                'performance',
+                'integration',
+                'unit',
             ]
 
             const newSuites: TestSuite[] = suiteNames.map((name, index) => {
                 const testCount = 5 + Math.floor(Math.random() * 20)
-                const passCount = Math.floor(testCount * (0.7 + Math.random() * 0.3))
+                const passCount = Math.floor(
+                    testCount * (0.7 + Math.random() * 0.3)
+                )
                 const failCount = testCount - passCount
                 const status = failCount > 0 ? 'fail' : 'pass'
 
@@ -98,19 +121,22 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
                     name,
                     category: categories[index],
                     status: Math.random() < 0.05 ? 'running' : status,
-                    progress: Math.random() < 0.95 ? 100 : Math.floor(Math.random() * 100),
+                    progress:
+                        Math.random() < 0.95
+                            ? 100
+                            : Math.floor(Math.random() * 100),
                     testCount,
                     passCount,
                     failCount,
                     duration: 1000 + Math.random() * 5000,
                     lastRun: Date.now() - Math.floor(Math.random() * 3600000),
                     coverage: 60 + Math.random() * 40,
-                    criticalPath: Math.random() < 0.3
+                    criticalPath: Math.random() < 0.3,
                 }
             })
 
             const newCases: TestCase[] = []
-            newSuites.forEach(suite => {
+            newSuites.forEach((suite) => {
                 for (let i = 0; i < Math.min(suite.testCount, 5); i++) {
                     newCases.push({
                         id: `case_${suite.id}_${i}`,
@@ -118,9 +144,11 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
                         name: `測試案例 ${i + 1}`,
                         status: i < suite.passCount ? 'pass' : 'fail',
                         duration: 100 + Math.random() * 500,
-                        errorMessage: i >= suite.passCount ? getRandomError() : undefined,
+                        errorMessage:
+                            i >= suite.passCount ? getRandomError() : undefined,
                         assertions: 1 + Math.floor(Math.random() * 10),
-                        timestamp: Date.now() - Math.floor(Math.random() * 1800000)
+                        timestamp:
+                            Date.now() - Math.floor(Math.random() * 1800000),
                     })
                 }
             })
@@ -130,13 +158,28 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
 
             // 計算指標
             const totalSuites = newSuites.length
-            const passingSuites = newSuites.filter(s => s.status === 'pass').length
-            const failingSuites = newSuites.filter(s => s.status === 'fail').length
-            const totalTests = newSuites.reduce((sum, s) => sum + s.testCount, 0)
-            const passingTests = newSuites.reduce((sum, s) => sum + s.passCount, 0)
-            const failingTests = newSuites.reduce((sum, s) => sum + s.failCount, 0)
-            const overallCoverage = newSuites.reduce((sum, s) => sum + s.coverage, 0) / totalSuites
-            const averageDuration = newSuites.reduce((sum, s) => sum + s.duration, 0) / totalSuites
+            const passingSuites = newSuites.filter(
+                (s) => s.status === 'pass'
+            ).length
+            const failingSuites = newSuites.filter(
+                (s) => s.status === 'fail'
+            ).length
+            const totalTests = newSuites.reduce(
+                (sum, s) => sum + s.testCount,
+                0
+            )
+            const passingTests = newSuites.reduce(
+                (sum, s) => sum + s.passCount,
+                0
+            )
+            const failingTests = newSuites.reduce(
+                (sum, s) => sum + s.failCount,
+                0
+            )
+            const overallCoverage =
+                newSuites.reduce((sum, s) => sum + s.coverage, 0) / totalSuites
+            const averageDuration =
+                newSuites.reduce((sum, s) => sum + s.duration, 0) / totalSuites
             const successRate = (passingTests / totalTests) * 100
 
             setMetrics({
@@ -148,7 +191,7 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
                 failingTests,
                 overallCoverage,
                 averageDuration,
-                successRate
+                successRate,
             })
         }
 
@@ -159,7 +202,7 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
                 'ValidationError: Invalid input parameters',
                 'ConnectionError: Unable to connect to database',
                 'TypeError: Cannot read property of undefined',
-                'NetworkError: API endpoint not responding'
+                'NetworkError: API endpoint not responding',
             ]
             return errors[Math.floor(Math.random() * errors.length)]
         }
@@ -174,21 +217,31 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
 
     const getStatusColor = (status: string): string => {
         switch (status) {
-            case 'pass': return '#2ed573'
-            case 'fail': return '#ff4757'
-            case 'running': return '#3742fa'
-            case 'pending': return '#ffa502'
-            default: return '#747d8c'
+            case 'pass':
+                return '#2ed573'
+            case 'fail':
+                return '#ff4757'
+            case 'running':
+                return '#3742fa'
+            case 'pending':
+                return '#ffa502'
+            default:
+                return '#747d8c'
         }
     }
 
     const getCategoryColor = (category: string): string => {
         switch (category) {
-            case 'unit': return '#3742fa'
-            case 'integration': return '#ffa502'
-            case 'e2e': return '#2ed573'
-            case 'performance': return '#ff4757'
-            default: return '#747d8c'
+            case 'unit':
+                return '#3742fa'
+            case 'integration':
+                return '#ffa502'
+            case 'e2e':
+                return '#2ed573'
+            case 'performance':
+                return '#ff4757'
+            default:
+                return '#747d8c'
         }
     }
 
@@ -340,8 +393,21 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
                                         <boxGeometry args={[8, 0.5, 0.5]} />
                                         <meshStandardMaterial color="#333333" />
                                     </mesh>
-                                    <mesh position={[(-8 + (8 * suite.progress / 100)) / 2, 0, 0.1]}>
-                                        <boxGeometry args={[8 * suite.progress / 100, 0.5, 0.5]} />
+                                    <mesh
+                                        position={[
+                                            (-8 + (8 * suite.progress) / 100) /
+                                                2,
+                                            0,
+                                            0.1,
+                                        ]}
+                                    >
+                                        <boxGeometry
+                                            args={[
+                                                (8 * suite.progress) / 100,
+                                                0.5,
+                                                0.5,
+                                            ]}
+                                        />
                                         <meshStandardMaterial
                                             color="#3742fa"
                                             emissive="#3742fa"
@@ -376,45 +442,67 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
                     📈 類別統計
                 </Text>
 
-                {['unit', 'integration', 'e2e', 'performance'].map((category, index) => {
-                    const suitesOfCategory = testSuites.filter(s => s.category === category)
-                    const totalTests = suitesOfCategory.reduce((sum, s) => sum + s.testCount, 0)
-                    const passingTests = suitesOfCategory.reduce((sum, s) => sum + s.passCount, 0)
-                    const successRate = totalTests > 0 ? (passingTests / totalTests) * 100 : 0
+                {['unit', 'integration', 'e2e', 'performance'].map(
+                    (category, index) => {
+                        const suitesOfCategory = testSuites.filter(
+                            (s) => s.category === category
+                        )
+                        const totalTests = suitesOfCategory.reduce(
+                            (sum, s) => sum + s.testCount,
+                            0
+                        )
+                        const passingTests = suitesOfCategory.reduce(
+                            (sum, s) => sum + s.passCount,
+                            0
+                        )
+                        const successRate =
+                            totalTests > 0
+                                ? (passingTests / totalTests) * 100
+                                : 0
 
-                    return (
-                        <group key={category} position={[0, 22 - index * 6, 0]}>
-                            <mesh position={[-15, 0, 0]}>
-                                <boxGeometry args={[2, 2, 2]} />
-                                <meshStandardMaterial
-                                    color={getCategoryColor(category)}
-                                    emissive={getCategoryColor(category)}
-                                    emissiveIntensity={0.3}
-                                />
-                            </mesh>
-
-                            <Text
-                                position={[-8, 0, 0]}
-                                fontSize={3}
-                                color="#ffffff"
-                                anchorX="left"
-                                anchorY="middle"
+                        return (
+                            <group
+                                key={category}
+                                position={[0, 22 - index * 6, 0]}
                             >
-                                {category}
-                            </Text>
+                                <mesh position={[-15, 0, 0]}>
+                                    <boxGeometry args={[2, 2, 2]} />
+                                    <meshStandardMaterial
+                                        color={getCategoryColor(category)}
+                                        emissive={getCategoryColor(category)}
+                                        emissiveIntensity={0.3}
+                                    />
+                                </mesh>
 
-                            <Text
-                                position={[15, 0, 0]}
-                                fontSize={3}
-                                color={successRate >= 90 ? '#2ed573' : successRate >= 70 ? '#ffa502' : '#ff4757'}
-                                anchorX="right"
-                                anchorY="middle"
-                            >
-                                {successRate.toFixed(0)}%
-                            </Text>
-                        </group>
-                    )
-                })}
+                                <Text
+                                    position={[-8, 0, 0]}
+                                    fontSize={3}
+                                    color="#ffffff"
+                                    anchorX="left"
+                                    anchorY="middle"
+                                >
+                                    {category}
+                                </Text>
+
+                                <Text
+                                    position={[15, 0, 0]}
+                                    fontSize={3}
+                                    color={
+                                        successRate >= 90
+                                            ? '#2ed573'
+                                            : successRate >= 70
+                                            ? '#ffa502'
+                                            : '#ff4757'
+                                    }
+                                    anchorX="right"
+                                    anchorY="middle"
+                                >
+                                    {successRate.toFixed(0)}%
+                                </Text>
+                            </group>
+                        )
+                    }
+                )}
             </group>
 
             {/* 最近失敗的測試 */}
@@ -430,12 +518,17 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
                 </Text>
 
                 {testCases
-                    .filter(tc => tc.status === 'fail')
+                    .filter((tc) => tc.status === 'fail')
                     .slice(0, 5)
                     .map((testCase, index) => {
-                        const suite = testSuites.find(s => s.id === testCase.suiteId)
+                        const suite = testSuites.find(
+                            (s) => s.id === testCase.suiteId
+                        )
                         return (
-                            <group key={testCase.id} position={[0, 12 - index * 4, 0]}>
+                            <group
+                                key={testCase.id}
+                                position={[0, 12 - index * 4, 0]}
+                            >
                                 <Text
                                     position={[-30, 0, 0]}
                                     fontSize={2.5}
@@ -470,8 +563,7 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
                                 </Text>
                             </group>
                         )
-                    })
-                }
+                    })}
             </group>
 
             {/* 測試執行時間趨勢 */}
@@ -489,12 +581,27 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
                 {testSuites.slice(0, 8).map((suite, index) => {
                     const barHeight = (suite.duration / 6000) * 15 // 正規化到15單位高度
                     return (
-                        <group key={`time_${suite.id}`} position={[index * 4 - 14, 0, 0]}>
+                        <group
+                            key={`time_${suite.id}`}
+                            position={[index * 4 - 14, 0, 0]}
+                        >
                             <mesh position={[0, barHeight / 2, 0]}>
                                 <boxGeometry args={[2, barHeight, 2]} />
                                 <meshStandardMaterial
-                                    color={barHeight > 10 ? '#ff4757' : barHeight > 7 ? '#ffa502' : '#2ed573'}
-                                    emissive={barHeight > 10 ? '#ff4757' : barHeight > 7 ? '#ffa502' : '#2ed573'}
+                                    color={
+                                        barHeight > 10
+                                            ? '#ff4757'
+                                            : barHeight > 7
+                                            ? '#ffa502'
+                                            : '#2ed573'
+                                    }
+                                    emissive={
+                                        barHeight > 10
+                                            ? '#ff4757'
+                                            : barHeight > 7
+                                            ? '#ffa502'
+                                            : '#2ed573'
+                                    }
                                     emissiveIntensity={0.2}
                                 />
                             </mesh>
@@ -534,12 +641,29 @@ const TestResultsVisualization: React.FC<TestResultsVisualizationProps> = ({ dev
                     const coverageHeight = (suite.coverage / 100) * 8
 
                     return (
-                        <group key={`coverage_${suite.id}`} position={[x, 0, z]}>
+                        <group
+                            key={`coverage_${suite.id}`}
+                            position={[x, 0, z]}
+                        >
                             <mesh position={[0, coverageHeight / 2, 0]}>
-                                <cylinderGeometry args={[1, 1, coverageHeight, 8]} />
+                                <cylinderGeometry
+                                    args={[1, 1, coverageHeight, 8]}
+                                />
                                 <meshStandardMaterial
-                                    color={suite.coverage >= 90 ? '#2ed573' : suite.coverage >= 70 ? '#ffa502' : '#ff4757'}
-                                    emissive={suite.coverage >= 90 ? '#2ed573' : suite.coverage >= 70 ? '#ffa502' : '#ff4757'}
+                                    color={
+                                        suite.coverage >= 90
+                                            ? '#2ed573'
+                                            : suite.coverage >= 70
+                                            ? '#ffa502'
+                                            : '#ff4757'
+                                    }
+                                    emissive={
+                                        suite.coverage >= 90
+                                            ? '#2ed573'
+                                            : suite.coverage >= 70
+                                            ? '#ffa502'
+                                            : '#ff4757'
+                                    }
                                     emissiveIntensity={0.2}
                                 />
                             </mesh>

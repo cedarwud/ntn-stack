@@ -262,7 +262,7 @@ export const getSatellitePasses = async (
   endTime?: string,
   minElevation?: number
 ): Promise<SatellitePass[]> => {
-  let url = ApiRoutes.satellites.getPasses(id);
+  const url = ApiRoutes.satellites.getPasses(id);
   const params: Record<string, string> = {};
   
   if (startTime) params.start_time = startTime;
@@ -285,7 +285,7 @@ export const getSatelliteOrbit = async (
   endTime?: string,
   pointCount?: number
 ): Promise<OrbitPoint[]> => {
-  let url = ApiRoutes.satellites.getOrbit(id);
+  const url = ApiRoutes.satellites.getOrbit(id);
   const params: Record<string, string> = {};
   
   if (startTime) params.start_time = startTime;

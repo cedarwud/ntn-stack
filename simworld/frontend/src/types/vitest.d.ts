@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import type { MockInstance } from 'vitest'
 
 declare global {

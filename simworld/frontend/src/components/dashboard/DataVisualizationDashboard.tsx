@@ -3,9 +3,9 @@
  * 整合系統狀態、UAV 指標、網路拓撲等圖表
  */
 import { useState, useMemo } from 'react'
-import SystemStatusChart from './charts/SystemStatusChart'
-import UAVMetricsChart from './charts/UAVMetricsChart'
-import NetworkTopologyChart from './charts/NetworkTopologyChart'
+import SystemStatusChart from '../shared/charts/dashboard/SystemStatusChart'
+import UAVMetricsChart from '../shared/charts/dashboard/UAVMetricsChart'
+import NetworkTopologyChart from '../shared/charts/base/NetworkTopologyChart'
 import useWebSocket from '../../hooks/useWebSocket'
 import { WebSocketEvent } from '../../types/charts'
 

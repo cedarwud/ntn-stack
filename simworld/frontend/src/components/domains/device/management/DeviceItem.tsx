@@ -1,9 +1,13 @@
-import { Device } from '../../../types/device'
+import { Device } from '../../../../types/device'
 
 interface DeviceItemProps {
     device: Device
     orientationInput: { x: string; y: string; z: string }
-    onDeviceChange: (id: number, field: keyof Device, value: any) => void
+    onDeviceChange: (
+        id: number,
+        field: keyof Device,
+        value: string | number | boolean
+    ) => void
     onDeleteDevice: (id: number) => void
     onOrientationInputChange: (
         deviceId: number,

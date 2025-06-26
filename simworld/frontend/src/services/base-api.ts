@@ -5,7 +5,7 @@
 import { performanceOptimizer } from '../utils/performance-optimizer'
 import { withRetry, NetworkErrorHandler, globalErrorHandler, ErrorCategory } from '../utils/error-handler'
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -22,7 +22,7 @@ export class BaseApiClient {
   /**
    * 統一的 GET 請求方法 - 包含重試和錯誤處理
    */
-  protected async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+  protected async get<T>(endpoint: string, params?: Record<string, string | number | boolean>): Promise<T> {
     return withRetry(async () => {
       const endAPICall = performanceOptimizer.startAPICall(endpoint)
       
@@ -93,7 +93,7 @@ export class BaseApiClient {
   /**
    * 統一的 POST 請求方法 - 包含重試和錯誤處理
    */
-  protected async post<T>(endpoint: string, data?: any): Promise<T> {
+  protected async post<T>(endpoint: string, data?: Record<string, unknown> | FormData | string): Promise<T> {
     return withRetry(async () => {
       const endAPICall = performanceOptimizer.startAPICall(endpoint)
       
@@ -157,7 +157,7 @@ export class BaseApiClient {
   /**
    * 統一的 PUT 請求方法 - 包含重試和錯誤處理
    */
-  protected async put<T>(endpoint: string, data?: any): Promise<T> {
+  protected async put<T>(endpoint: string, data?: Record<string, unknown> | FormData | string): Promise<T> {
     return withRetry(async () => {
       const endAPICall = performanceOptimizer.startAPICall(endpoint)
       
@@ -340,7 +340,7 @@ export class BaseApiClient {
   /**
    * 緩存機制 - 統一的響應緩存
    */
-  private cache = new Map<string, { data: any; timestamp: number }>()
+  private cache = new Map<string, { data: unknown; timestamp: number }>()
   
   protected async getCached<T>(
     key: string,
@@ -351,7 +351,7 @@ export class BaseApiClient {
     const now = Date.now()
     
     if (cached && (now - cached.timestamp) < ttlMs) {
-      return cached.data
+      return cached.data as T
     }
     
     const data = await fetcher()

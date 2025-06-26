@@ -1,27 +1,28 @@
 // src/App.tsx
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
+import { VisibleSatelliteInfo } from './types/satellite'
+import { Device } from './types/device'
+import { useDevices } from './hooks/useDevices'
+import { useToast } from './hooks/useToast'
+import SceneViewer from './components/scenes/FloorView'
 import SceneView from './components/scenes/StereogramView'
 import Layout from './components/layout/Layout'
-import EnhancedSidebar from './components/layout/EnhancedSidebar'
-import Navbar from './components/layout/Navbar'
-import SceneViewer from './components/scenes/FloorView'
 import ErrorBoundary from './components/shared/ui/feedback/ErrorBoundary'
+import Navbar from './components/layout/Navbar'
+import EnhancedSidebar from './components/layout/EnhancedSidebar'
+import ToastNotification from './components/shared/ui/feedback/ToastNotification'
+import { backgroundHealthMonitor } from './services/healthMonitor'
+import { countActiveDevices } from './utils/deviceUtils'
 import { DataSyncProvider } from './contexts/DataSyncContext'
 import { StrategyProvider } from './contexts/StrategyContext'
-import ToastNotification, { useToast } from './components/shared/ui/feedback/ToastNotification'
-import { backgroundHealthMonitor } from './utils/background-health-monitor'
 import './styles/App.scss'
-import { Device } from './types/device'
-import { countActiveDevices } from './utils/deviceUtils'
-import { useDevices } from './hooks/useDevices'
-import { VisibleSatelliteInfo } from './types/satellite'
 
 interface AppProps {
-    activeView: 'stereogram' | 'floor-plan'
+    activeView?: string
 }
 
-function App({ activeView }: AppProps) {
+const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
     const { scenes } = useParams<{ scenes: string }>()
 
     // 確保有預設場景
@@ -55,7 +56,7 @@ function App({ activeView }: AppProps) {
     const [handoverStableDuration, setHandoverStableDuration] =
         useState<number>(5) // 預設5秒穩定期
     const [handoverMode, setHandoverMode] = useState<'demo' | 'real'>('demo') // 換手模式控制
-    const [showOrbitTracks] = useState<boolean>(true) // 預設顯示軌跡線
+    
 
     // 🚀 演算法與視覺化對接狀態
     const [algorithmResults, setAlgorithmResults] = useState<{
@@ -257,7 +258,7 @@ function App({ activeView }: AppProps) {
     const handleDeviceChange = (
         id: number,
         field: string | number | symbol,
-        value: any
+        value: unknown
     ) => {
         updateDeviceField(id, field as keyof Device, value)
     }
@@ -393,7 +394,7 @@ function App({ activeView }: AppProps) {
                         predictedConnection={predictedConnection}
                         isTransitioning={isTransitioning}
                         transitionProgress={transitionProgress}
-                        onHandoverEvent={(event) => {
+                        onHandoverEvent={(event: Record<string, unknown>) => {
                             console.log('換手事件:', event)
                             // 可以在這裡處理換手事件
                         }}
@@ -447,6 +448,10 @@ function App({ activeView }: AppProps) {
         refreshDeviceData,
         skyfieldSatellites,
         satelliteEnabled,
+        algorithmResults,
+        handoverMode,
+        realtimePerformanceMonitorEnabled,
+        scenarioTestEnvironmentEnabled,
         currentScene,
         interferenceVisualizationEnabled,
         sinrHeatmapEnabled,
@@ -474,7 +479,6 @@ function App({ activeView }: AppProps) {
         predictiveMaintenanceEnabled,
         intelligentRecommendationEnabled,
         handoverStableDuration,
-        showOrbitTracks,
     ])
 
     if (loading) {
@@ -484,7 +488,7 @@ function App({ activeView }: AppProps) {
     return (
         <StrategyProvider>
             <DataSyncProvider>
-                    <ErrorBoundary>
+                <ErrorBoundary>
                     <div className="app-container">
                         <Navbar
                             onMenuClick={handleMenuClick}
@@ -717,10 +721,10 @@ function App({ activeView }: AppProps) {
                             />
                         </div>
                     </div>
-                        {/* Toast 通知系統 */}
-                        <ToastNotification />
+                    {/* Toast 通知系統 */}
+                    <ToastNotification />
                 </ErrorBoundary>
-                </DataSyncProvider>
+            </DataSyncProvider>
         </StrategyProvider>
     )
 }

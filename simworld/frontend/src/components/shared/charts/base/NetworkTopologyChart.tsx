@@ -3,7 +3,7 @@
  * 使用 D3.js 顯示網路節點和連接關係
  */
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { getMeshTopology, getMeshNodes } from '../../../services/netstackApi'
+import { getMeshTopology, getMeshNodes } from '../../../../services/netstackApi'
 
 interface NetworkTopologyChartProps {
     className?: string

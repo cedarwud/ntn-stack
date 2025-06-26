@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import * as THREE from 'three'
 import { Text, Line } from '@react-three/drei'
+import { Device } from '../../../../types/device'
 
 interface PerformanceTrendAnalyzerProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
 }
 
@@ -38,12 +38,16 @@ interface PerformanceAlert {
     description: string
 }
 
-const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ devices, enabled }) => {
-    const [performanceData, setPerformanceData] = useState<PerformanceDataPoint[]>([])
+const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({
+    enabled,
+}) => {
+    const [performanceData, setPerformanceData] = useState<
+        PerformanceDataPoint[]
+    >([])
     const [trendAnalysis, setTrendAnalysis] = useState<TrendAnalysis[]>([])
     const [alerts, setAlerts] = useState<PerformanceAlert[]>([])
-    const [selectedMetric, setSelectedMetric] = useState<string>('systemLatency')
-    const [timeWindow, setTimeWindow] = useState<'1h' | '6h' | '24h' | '7d'>('1h')
+    const [selectedMetric] = useState<string>('systemLatency')
+    const [timeWindow] = useState<'1h' | '6h' | '24h' | '7d'>('1h')
 
     // 模擬性能數據生成
     useEffect(() => {
@@ -60,36 +64,79 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
 
             // 生成歷史數據點（最近1小時，每分鐘一個點）
             for (let i = 60; i >= 0; i--) {
-                const timestamp = now - (i * 60 * 1000)
+                const timestamp = now - i * 60 * 1000
                 const baseLatency = 25 + Math.sin(i / 10) * 5
                 const baseThroughput = 1000 + Math.cos(i / 8) * 200
-                
+
                 dataPoints.push({
                     timestamp,
-                    systemLatency: Math.max(10, baseLatency + Math.random() * 10 - 5),
-                    throughput: Math.max(500, baseThroughput + Math.random() * 100 - 50),
-                    cpuUsage: Math.max(20, 45 + Math.sin(i / 15) * 15 + Math.random() * 10 - 5),
-                    memoryUsage: Math.max(30, 60 + Math.cos(i / 12) * 10 + Math.random() * 8 - 4),
-                    errorRate: Math.max(0, 1 + Math.sin(i / 20) * 0.5 + Math.random() * 0.5 - 0.25),
-                    responseTime: Math.max(50, 80 + Math.sin(i / 8) * 20 + Math.random() * 15 - 7.5),
-                    activeConnections: Math.max(50, 200 + Math.cos(i / 10) * 50 + Math.random() * 20 - 10),
-                    networkBandwidth: Math.max(100, 500 + Math.sin(i / 7) * 100 + Math.random() * 50 - 25)
+                    systemLatency: Math.max(
+                        10,
+                        baseLatency + Math.random() * 10 - 5
+                    ),
+                    throughput: Math.max(
+                        500,
+                        baseThroughput + Math.random() * 100 - 50
+                    ),
+                    cpuUsage: Math.max(
+                        20,
+                        45 + Math.sin(i / 15) * 15 + Math.random() * 10 - 5
+                    ),
+                    memoryUsage: Math.max(
+                        30,
+                        60 + Math.cos(i / 12) * 10 + Math.random() * 8 - 4
+                    ),
+                    errorRate: Math.max(
+                        0,
+                        1 + Math.sin(i / 20) * 0.5 + Math.random() * 0.5 - 0.25
+                    ),
+                    responseTime: Math.max(
+                        50,
+                        80 + Math.sin(i / 8) * 20 + Math.random() * 15 - 7.5
+                    ),
+                    activeConnections: Math.max(
+                        50,
+                        200 + Math.cos(i / 10) * 50 + Math.random() * 20 - 10
+                    ),
+                    networkBandwidth: Math.max(
+                        100,
+                        500 + Math.sin(i / 7) * 100 + Math.random() * 50 - 25
+                    ),
                 })
             }
 
             setPerformanceData(dataPoints)
 
             // 生成趨勢分析
-            const metrics = ['systemLatency', 'throughput', 'cpuUsage', 'memoryUsage', 'errorRate', 'responseTime']
-            const trends: TrendAnalysis[] = metrics.map(metric => {
-                const recentValues = dataPoints.slice(-10).map(d => d[metric as keyof PerformanceDataPoint] as number)
-                const olderValues = dataPoints.slice(-20, -10).map(d => d[metric as keyof PerformanceDataPoint] as number)
-                
-                const recentAvg = recentValues.reduce((sum, val) => sum + val, 0) / recentValues.length
-                const olderAvg = olderValues.reduce((sum, val) => sum + val, 0) / olderValues.length
-                
+            const metrics = [
+                'systemLatency',
+                'throughput',
+                'cpuUsage',
+                'memoryUsage',
+                'errorRate',
+                'responseTime',
+            ]
+            const trends: TrendAnalysis[] = metrics.map((metric) => {
+                const recentValues = dataPoints
+                    .slice(-10)
+                    .map(
+                        (d) => d[metric as keyof PerformanceDataPoint] as number
+                    )
+                const olderValues = dataPoints
+                    .slice(-20, -10)
+                    .map(
+                        (d) => d[metric as keyof PerformanceDataPoint] as number
+                    )
+
+                const recentAvg =
+                    recentValues.reduce((sum, val) => sum + val, 0) /
+                    recentValues.length
+                const olderAvg =
+                    olderValues.reduce((sum, val) => sum + val, 0) /
+                    olderValues.length
+
                 const changePercent = ((recentAvg - olderAvg) / olderAvg) * 100
-                
+
                 let trend: 'improving' | 'stable' | 'degrading'
                 if (Math.abs(changePercent) < 2) {
                     trend = 'stable'
@@ -100,7 +147,10 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                 }
 
                 const prediction = recentAvg + (recentAvg - olderAvg) * 2 // 簡單線性預測
-                const confidence = Math.max(60, 90 - Math.abs(changePercent) * 2)
+                const confidence = Math.max(
+                    60,
+                    90 - Math.abs(changePercent) * 2
+                )
 
                 return {
                     metric: getMetricDisplayName(metric),
@@ -108,7 +158,11 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                     changePercent,
                     prediction,
                     confidence,
-                    recommendation: getRecommendation(metric, trend, changePercent)
+                    recommendation: getRecommendation(
+                        metric,
+                        trend,
+                        changePercent
+                    ),
                 }
             })
 
@@ -122,11 +176,12 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                 newAlerts.push({
                     id: 'latency_alert',
                     metric: '系統延遲',
-                    severity: latestData.systemLatency > 60 ? 'critical' : 'warning',
+                    severity:
+                        latestData.systemLatency > 60 ? 'critical' : 'warning',
                     threshold: 40,
                     currentValue: latestData.systemLatency,
                     timestamp: latestData.timestamp,
-                    description: '系統延遲超過預期閾值，可能影響用戶體驗'
+                    description: '系統延遲超過預期閾值，可能影響用戶體驗',
                 })
             }
 
@@ -138,7 +193,7 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                     threshold: 80,
                     currentValue: latestData.cpuUsage,
                     timestamp: latestData.timestamp,
-                    description: 'CPU 使用率過高，建議檢查系統負載'
+                    description: 'CPU 使用率過高，建議檢查系統負載',
                 })
             }
 
@@ -150,7 +205,7 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                     threshold: 2,
                     currentValue: latestData.errorRate,
                     timestamp: latestData.timestamp,
-                    description: '錯誤率異常升高，需要立即檢查'
+                    description: '錯誤率異常升高，需要立即檢查',
                 })
             }
 
@@ -164,28 +219,30 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                 cpuUsage: 'CPU 使用率',
                 memoryUsage: '記憶體使用率',
                 errorRate: '錯誤率',
-                responseTime: 'API 響應時間'
+                responseTime: 'API 響應時間',
             }
             return names[metric] || metric
         }
 
-        const getRecommendation = (metric: string, trend: string, changePercent: number): string => {
-            const recommendations: { [key: string]: { [key: string]: string } } = {
+        const getRecommendation = (metric: string, trend: string): string => {
+            const recommendations: {
+                [key: string]: { [key: string]: string }
+            } = {
                 systemLatency: {
                     improving: '延遲持續改善，保持當前最佳化策略',
                     stable: '延遲穩定，監控是否有突發狀況',
-                    degrading: '延遲惡化，建議檢查網路和資料庫連接'
+                    degrading: '延遲惡化，建議檢查網路和資料庫連接',
                 },
                 throughput: {
                     improving: '吞吐量提升，系統性能表現良好',
                     stable: '吞吐量穩定，維持當前配置',
-                    degrading: '吞吐量下降，檢查系統瓶頸和資源分配'
+                    degrading: '吞吐量下降，檢查系統瓶頸和資源分配',
                 },
                 cpuUsage: {
                     improving: 'CPU 使用率下降，資源利用更有效率',
                     stable: 'CPU 使用率穩定，監控是否有突增',
-                    degrading: 'CPU 使用率上升，考慮擴展計算資源'
-                }
+                    degrading: 'CPU 使用率上升，考慮擴展計算資源',
+                },
             }
             return recommendations[metric]?.[trend] || '持續監控該指標變化'
         }
@@ -200,40 +257,62 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
 
     const getTrendColor = (trend: string): string => {
         switch (trend) {
-            case 'improving': return '#2ed573'
-            case 'stable': return '#3742fa'
-            case 'degrading': return '#ff4757'
-            default: return '#747d8c'
+            case 'improving':
+                return '#2ed573'
+            case 'stable':
+                return '#3742fa'
+            case 'degrading':
+                return '#ff4757'
+            default:
+                return '#747d8c'
         }
     }
 
     const getSeverityColor = (severity: string): string => {
         switch (severity) {
-            case 'critical': return '#ff4757'
-            case 'warning': return '#ffa502'
-            case 'info': return '#3742fa'
-            default: return '#2ed573'
+            case 'critical':
+                return '#ff4757'
+            case 'warning':
+                return '#ffa502'
+            case 'info':
+                return '#3742fa'
+            default:
+                return '#2ed573'
         }
     }
 
-    const normalizeDataForVisualization = (data: number[], min: number, max: number): number[] => {
+    const normalizeDataForVisualization = (
+        data: number[],
+        min: number,
+        max: number
+    ): number[] => {
         const dataMin = Math.min(...data)
         const dataMax = Math.max(...data)
         const range = dataMax - dataMin || 1
-        return data.map(value => min + ((value - dataMin) / range) * (max - min))
+        return data.map(
+            (value) => min + ((value - dataMin) / range) * (max - min)
+        )
     }
 
     // 準備圖表數據
     const chartData = performanceData.slice(-20) // 最近20個數據點
-    const selectedMetricData = chartData.map(d => d[selectedMetric as keyof PerformanceDataPoint] as number)
-    const normalizedData = normalizeDataForVisualization(selectedMetricData, -10, 10)
+    const selectedMetricData = chartData.map(
+        (d) => d[selectedMetric as keyof PerformanceDataPoint] as number
+    )
+    const normalizedData = normalizeDataForVisualization(
+        selectedMetricData,
+        -10,
+        10
+    )
 
     // 生成趨勢線點
-    const trendLinePoints: [number, number, number][] = normalizedData.map((value, index) => [
-        index * 4 - 38, // X軸：從-38到38
-        value,          // Y軸：正規化後的值
-        0               // Z軸：固定為0
-    ])
+    const trendLinePoints: [number, number, number][] = normalizedData.map(
+        (value, index) => [
+            index * 4 - 38, // X軸：從-38到38
+            value, // Y軸：正規化後的值
+            0, // Z軸：固定為0
+        ]
+    )
 
     return (
         <>
@@ -289,11 +368,19 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                     anchorX="center"
                     anchorY="middle"
                 >
-                    📊 {selectedMetric === 'systemLatency' ? '系統延遲' : 
-                         selectedMetric === 'throughput' ? '系統吞吐量' :
-                         selectedMetric === 'cpuUsage' ? 'CPU 使用率' :
-                         selectedMetric === 'memoryUsage' ? '記憶體使用率' :
-                         selectedMetric === 'errorRate' ? '錯誤率' : 'API 響應時間'} 趨勢
+                    📊{' '}
+                    {selectedMetric === 'systemLatency'
+                        ? '系統延遲'
+                        : selectedMetric === 'throughput'
+                        ? '系統吞吐量'
+                        : selectedMetric === 'cpuUsage'
+                        ? 'CPU 使用率'
+                        : selectedMetric === 'memoryUsage'
+                        ? '記憶體使用率'
+                        : selectedMetric === 'errorRate'
+                        ? '錯誤率'
+                        : 'API 響應時間'}{' '}
+                    趨勢
                 </Text>
 
                 {/* 趨勢線 */}
@@ -319,14 +406,20 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
 
                 {/* X軸 */}
                 <Line
-                    points={[[-40, -15, 0], [40, -15, 0]]}
+                    points={[
+                        [-40, -15, 0],
+                        [40, -15, 0],
+                    ]}
                     color="#666666"
                     lineWidth={1}
                 />
 
                 {/* Y軸 */}
                 <Line
-                    points={[[-40, -15, 0], [-40, 15, 0]]}
+                    points={[
+                        [-40, -15, 0],
+                        [-40, 15, 0],
+                    ]}
                     color="#666666"
                     lineWidth={1}
                 />
@@ -367,7 +460,10 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                 </Text>
 
                 {trendAnalysis.slice(0, 6).map((analysis, index) => (
-                    <group key={analysis.metric} position={[0, 18 - index * 6, 0]}>
+                    <group
+                        key={analysis.metric}
+                        position={[0, 18 - index * 6, 0]}
+                    >
                         <Text
                             position={[-15, 2, 0]}
                             fontSize={2.5}
@@ -394,7 +490,8 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                             anchorX="right"
                             anchorY="middle"
                         >
-                            {analysis.changePercent > 0 ? '+' : ''}{analysis.changePercent.toFixed(1)}%
+                            {analysis.changePercent > 0 ? '+' : ''}
+                            {analysis.changePercent.toFixed(1)}%
                         </Text>
 
                         <Text
@@ -471,7 +568,8 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                                 anchorX="right"
                                 anchorY="middle"
                             >
-                                {alert.currentValue.toFixed(1)} / {alert.threshold}
+                                {alert.currentValue.toFixed(1)} /{' '}
+                                {alert.threshold}
                             </Text>
 
                             <Text
@@ -501,7 +599,10 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                 </Text>
 
                 {trendAnalysis.slice(0, 4).map((analysis, index) => (
-                    <group key={`prediction_${analysis.metric}`} position={[0, 12 - index * 6, 0]}>
+                    <group
+                        key={`prediction_${analysis.metric}`}
+                        position={[0, 12 - index * 6, 0]}
+                    >
                         <Text
                             position={[-20, 1, 0]}
                             fontSize={2.5}
@@ -548,7 +649,7 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                 </Text>
 
                 {trendAnalysis
-                    .filter(analysis => analysis.trend === 'degrading')
+                    .filter((analysis) => analysis.trend === 'degrading')
                     .slice(0, 3)
                     .map((analysis, index) => (
                         <Text
@@ -562,10 +663,11 @@ const PerformanceTrendAnalyzer: React.FC<PerformanceTrendAnalyzerProps> = ({ dev
                         >
                             {analysis.metric}: {analysis.recommendation}
                         </Text>
-                    ))
-                }
+                    ))}
 
-                {trendAnalysis.filter(analysis => analysis.trend === 'degrading').length === 0 && (
+                {trendAnalysis.filter(
+                    (analysis) => analysis.trend === 'degrading'
+                ).length === 0 && (
                     <Text
                         position={[0, 8, 0]}
                         fontSize={3}

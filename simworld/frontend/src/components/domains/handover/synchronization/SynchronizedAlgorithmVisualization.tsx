@@ -3,7 +3,6 @@ import { VisibleSatelliteInfo } from '../../../../types/satellite'
 import { netStackApi, useCoreSync } from '../../../../services/netstack-api'
 import { useVisibleSatellites } from '../../../../services/simworld-api'
 import { useNetStackData } from '../../../../contexts/DataSyncContext'
-// import { HANDOVER_CONFIG } from './config/handoverConfig'
 import { HandoverDecisionEngine } from '../utils/handoverDecisionEngine'
 import './SynchronizedAlgorithmVisualization.scss'
 
@@ -309,8 +308,8 @@ const SynchronizedAlgorithmVisualization: React.FC<
 
                 // 🔧 修復時間計算邏輯 - 優先使用動態計算的時間
                 const currentTime = currentTimeStamp / 1000 // 使用之前定義的時間戳，轉換為UTC時間戳
-                let futureTime: number = futureTimeStamp / 1000 // 使用動態計算的未來時間
-                let deltaT: number = dynamicDeltaT // 🎯 優先使用動態計算的時間間隔
+                const futureTime: number = futureTimeStamp / 1000 // 使用動態計算的未來時間
+                const deltaT: number = dynamicDeltaT // 🎯 優先使用動態計算的時間間隔
 
                 try {
                     // 嘗試解析API返回的時間 - 僅用於對比和日誌

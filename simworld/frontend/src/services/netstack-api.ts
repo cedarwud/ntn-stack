@@ -197,7 +197,7 @@ class NetStackApiClient extends BaseApiClient {
     // 在瀏覽器環境中使用Vite代理路徑
     if (typeof window !== 'undefined') {
       // 檢查環境變數是否有自定義的 NetStack URL
-      const envUrl = (window as any).__NETSTACK_API_URL__
+      const envUrl = (window as { __NETSTACK_API_URL__?: string }).__NETSTACK_API_URL__
       if (envUrl) {
         baseUrl = envUrl
       } else {

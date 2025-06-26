@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import * as THREE from 'three'
 import { Text } from '@react-three/drei'
 
 interface AutomatedReportGeneratorProps {
-    devices: any[]
+    devices: Record<string, unknown>[]
     enabled: boolean
 }
 
@@ -12,7 +11,7 @@ interface ReportSection {
     title: string
     status: 'complete' | 'generating' | 'pending' | 'error'
     progress: number
-    data: any
+    data: Record<string, unknown>
     lastGenerated: number
     timeToGenerate: number
 }
@@ -40,17 +39,34 @@ interface ReportMetrics {
     automationRate: number
 }
 
-const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ devices, enabled }) => {
-    const [reports, setReports] = useState<SystemReport[]>([])
+interface GeneratedReport {
+    id: string
+    title: string
+    type: 'daily' | 'weekly' | 'monthly' | 'incident' | 'performance'
+    status: 'completed' | 'generating' | 'scheduled' | 'failed'
+    scheduledTime: number
+    completedTime?: number
+    sections: ReportSection[]
+    priority: 'high' | 'medium' | 'low'
+    recipients: string[]
+    fileSize: number
+    summary: string
+    timestamp: number
+}
+
+const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({
+    enabled,
+}) => {
+    const [reports, setReports] = useState<GeneratedReport[]>([])
+    const [, setActiveGenerations] = useState<string[]>([])
     const [metrics, setMetrics] = useState<ReportMetrics>({
         totalReports: 0,
         completedReports: 0,
         failedReports: 0,
         avgGenerationTime: 0,
         totalFileSize: 0,
-        automationRate: 0
+        automationRate: 0,
     })
-    const [activeGenerations, setActiveGenerations] = useState<string[]>([])
 
     // 模擬報告生成系統
     useEffect(() => {
@@ -67,95 +83,153 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
                     type: 'daily' as const,
                     priority: 'high' as const,
                     sections: [
-                        '系統概覽', '性能指標', 'API 響應時間', '錯誤分析', 
-                        '資源使用率', 'UAV 連接狀態', '衛星追蹤精度'
-                    ]
+                        '系統概覽',
+                        '性能指標',
+                        'API 響應時間',
+                        '錯誤分析',
+                        '資源使用率',
+                        'UAV 連接狀態',
+                        '衛星追蹤精度',
+                    ],
                 },
                 {
                     title: '週度測試執行報告',
                     type: 'weekly' as const,
                     priority: 'medium' as const,
                     sections: [
-                        '測試覆蓋率', '通過率統計', '性能回歸測試', 
-                        '整合測試結果', '安全性測試', 'E2E 測試摘要'
-                    ]
+                        '測試覆蓋率',
+                        '通過率統計',
+                        '性能回歸測試',
+                        '整合測試結果',
+                        '安全性測試',
+                        'E2E 測試摘要',
+                    ],
                 },
                 {
                     title: '月度架構健康報告',
                     type: 'monthly' as const,
                     priority: 'medium' as const,
                     sections: [
-                        '系統穩定性', '容量規劃', '技術債務分析', 
-                        '性能趨勢', '最佳化建議', '升級計畫'
-                    ]
+                        '系統穩定性',
+                        '容量規劃',
+                        '技術債務分析',
+                        '性能趨勢',
+                        '最佳化建議',
+                        '升級計畫',
+                    ],
                 },
                 {
                     title: '事件分析報告',
                     type: 'incident' as const,
                     priority: 'high' as const,
                     sections: [
-                        '事件時間軸', '根本原因分析', '影響評估', 
-                        '恢復行動', '預防措施', '經驗教訓'
-                    ]
+                        '事件時間軸',
+                        '根本原因分析',
+                        '影響評估',
+                        '恢復行動',
+                        '預防措施',
+                        '經驗教訓',
+                    ],
                 },
                 {
                     title: '性能最佳化報告',
                     type: 'performance' as const,
                     priority: 'low' as const,
                     sections: [
-                        '瓶頸分析', '最佳化機會', '成本效益分析', 
-                        '實施建議', 'ROI 預測', '風險評估'
-                    ]
-                }
+                        '瓶頸分析',
+                        '最佳化機會',
+                        '成本效益分析',
+                        '實施建議',
+                        'ROI 預測',
+                        '風險評估',
+                    ],
+                },
             ]
 
-            const newReports: SystemReport[] = reportTypes.map((reportType, index) => {
-                const sections: ReportSection[] = reportType.sections.map((sectionTitle, sIndex) => ({
-                    id: `section_${index}_${sIndex}`,
-                    title: sectionTitle,
-                    status: Math.random() > 0.8 ? 'generating' : Math.random() > 0.1 ? 'complete' : 'error',
-                    progress: Math.random() > 0.8 ? Math.floor(Math.random() * 100) : 100,
-                    data: generateSectionData(sectionTitle),
-                    lastGenerated: Date.now() - Math.floor(Math.random() * 86400000),
-                    timeToGenerate: 30 + Math.random() * 120
-                }))
+            const newReports: SystemReport[] = reportTypes.map(
+                (reportType, index) => {
+                    const sections: ReportSection[] = reportType.sections.map(
+                        (sectionTitle, sIndex) => ({
+                            id: `section_${index}_${sIndex}`,
+                            title: sectionTitle,
+                            status:
+                                Math.random() > 0.8
+                                    ? 'generating'
+                                    : Math.random() > 0.1
+                                    ? 'complete'
+                                    : 'error',
+                            progress:
+                                Math.random() > 0.8
+                                    ? Math.floor(Math.random() * 100)
+                                    : 100,
+                            data: generateSectionData(sectionTitle),
+                            lastGenerated:
+                                Date.now() -
+                                Math.floor(Math.random() * 86400000),
+                            timeToGenerate: 30 + Math.random() * 120,
+                        })
+                    )
 
-                const allComplete = sections.every(s => s.status === 'complete')
-                const hasError = sections.some(s => s.status === 'error')
-                const isGenerating = sections.some(s => s.status === 'generating')
+                    const allComplete = sections.every(
+                        (s) => s.status === 'complete'
+                    )
+                    const hasError = sections.some((s) => s.status === 'error')
+                    const isGenerating = sections.some(
+                        (s) => s.status === 'generating'
+                    )
 
-                let status: 'completed' | 'generating' | 'scheduled' | 'failed'
-                if (hasError) status = 'failed'
-                else if (isGenerating) status = 'generating'
-                else if (allComplete) status = 'completed'
-                else status = 'scheduled'
+                    let status:
+                        | 'completed'
+                        | 'generating'
+                        | 'scheduled'
+                        | 'failed'
+                    if (hasError) status = 'failed'
+                    else if (isGenerating) status = 'generating'
+                    else if (allComplete) status = 'completed'
+                    else status = 'scheduled'
 
-                return {
-                    id: `report_${index}`,
-                    title: reportType.title,
-                    type: reportType.type,
-                    status,
-                    scheduledTime: Date.now() + Math.floor(Math.random() * 3600000),
-                    completedTime: allComplete ? Date.now() - Math.floor(Math.random() * 1800000) : undefined,
-                    sections,
-                    priority: reportType.priority,
-                    recipients: generateRecipients(),
-                    fileSize: 0.5 + Math.random() * 2, // MB
-                    summary: generateReportSummary(reportType.title)
+                    return {
+                        id: `report_${index}`,
+                        title: reportType.title,
+                        type: reportType.type,
+                        status,
+                        scheduledTime:
+                            Date.now() + Math.floor(Math.random() * 3600000),
+                        completedTime: allComplete
+                            ? Date.now() - Math.floor(Math.random() * 1800000)
+                            : undefined,
+                        sections,
+                        priority: reportType.priority,
+                        recipients: generateRecipients(),
+                        fileSize: 0.5 + Math.random() * 2, // MB
+                        summary: generateReportSummary(reportType.title),
+                        timestamp:
+                            Date.now() - Math.floor(Math.random() * 86400000), // 過去24小時內
+                    }
                 }
-            })
+            )
 
-            setReports(newReports)
+            setReports(newReports as GeneratedReport[])
 
             // 計算指標
             const totalReports = newReports.length
-            const completedReports = newReports.filter(r => r.status === 'completed').length
-            const failedReports = newReports.filter(r => r.status === 'failed').length
-            const avgGenerationTime = newReports
-                .filter(r => r.completedTime)
-                .reduce((sum, r) => sum + (r.completedTime! - r.scheduledTime), 0) / 
-                (completedReports || 1)
-            const totalFileSize = newReports.reduce((sum, r) => sum + r.fileSize, 0)
+            const completedReports = newReports.filter(
+                (r) => r.status === 'completed'
+            ).length
+            const failedReports = newReports.filter(
+                (r) => r.status === 'failed'
+            ).length
+            const avgGenerationTime =
+                newReports
+                    .filter((r) => r.completedTime)
+                    .reduce(
+                        (sum, r) => sum + (r.completedTime! - r.scheduledTime),
+                        0
+                    ) / (completedReports || 1)
+            const totalFileSize = newReports.reduce(
+                (sum, r) => sum + r.fileSize,
+                0
+            )
             const automationRate = (completedReports / totalReports) * 100
 
             setMetrics({
@@ -164,44 +238,47 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
                 failedReports,
                 avgGenerationTime: avgGenerationTime / 1000, // 轉為秒
                 totalFileSize,
-                automationRate
+                automationRate,
             })
 
             // 更新正在生成的報告
-            setActiveGenerations(newReports
-                .filter(r => r.status === 'generating')
-                .map(r => r.id)
+            setActiveGenerations(
+                newReports
+                    .filter((r) => r.status === 'generating')
+                    .map((r) => r.id)
             )
         }
 
-        const generateSectionData = (sectionTitle: string): any => {
+        const generateSectionData = (
+            sectionTitle: string
+        ): Record<string, unknown> => {
             switch (sectionTitle) {
                 case '系統概覽':
                     return {
                         uptime: '99.95%',
                         services: 25,
                         errors: 3,
-                        warnings: 12
+                        warnings: 12,
                     }
                 case '性能指標':
                     return {
                         avgLatency: '28ms',
                         throughput: '1,250 req/s',
                         cpuUsage: '65%',
-                        memoryUsage: '58%'
+                        memoryUsage: '58%',
                     }
                 case '測試覆蓋率':
                     return {
                         unitTests: '94%',
                         integrationTests: '87%',
                         e2eTests: '92%',
-                        overallCoverage: '91%'
+                        overallCoverage: '91%',
                     }
                 default:
                     return {
                         status: 'complete',
                         dataPoints: Math.floor(Math.random() * 1000),
-                        insights: Math.floor(Math.random() * 20)
+                        insights: Math.floor(Math.random() * 20),
                     }
             }
         }
@@ -209,21 +286,22 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
         const generateRecipients = (): string[] => {
             const recipients = [
                 'dev-team@company.com',
-                'ops-team@company.com', 
+                'ops-team@company.com',
                 'qa-team@company.com',
                 'management@company.com',
-                'architects@company.com'
+                'architects@company.com',
             ]
             return recipients.slice(0, 1 + Math.floor(Math.random() * 4))
         }
 
         const generateReportSummary = (title: string): string => {
             const summaries: { [key: string]: string } = {
-                '每日系統性能報告': '系統運行穩定，性能指標正常，無重大問題發現',
-                '週度測試執行報告': '測試覆蓋率達標，通過率良好，發現2個非關鍵性問題',
-                '月度架構健康報告': '架構健康狀況良好，建議進行部分組件升級',
-                '事件分析報告': '事件已解決，實施預防措施，系統穩定性提升',
-                '性能最佳化報告': '識別3個最佳化機會，預期性能提升15-20%'
+                每日系統性能報告: '系統運行穩定，性能指標正常，無重大問題發現',
+                週度測試執行報告:
+                    '測試覆蓋率達標，通過率良好，發現2個非關鍵性問題',
+                月度架構健康報告: '架構健康狀況良好，建議進行部分組件升級',
+                事件分析報告: '事件已解決，實施預防措施，系統穩定性提升',
+                性能最佳化報告: '識別3個最佳化機會，預期性能提升15-20%',
             }
             return summaries[title] || '報告生成完成，數據分析正常'
         }
@@ -238,31 +316,46 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
 
     const getStatusColor = (status: string): string => {
         switch (status) {
-            case 'completed': return '#2ed573'
-            case 'generating': return '#3742fa'
-            case 'scheduled': return '#ffa502'
-            case 'failed': return '#ff4757'
-            default: return '#747d8c'
+            case 'completed':
+                return '#2ed573'
+            case 'generating':
+                return '#3742fa'
+            case 'scheduled':
+                return '#ffa502'
+            case 'failed':
+                return '#ff4757'
+            default:
+                return '#747d8c'
         }
     }
 
     const getPriorityColor = (priority: string): string => {
         switch (priority) {
-            case 'high': return '#ff4757'
-            case 'medium': return '#ffa502'
-            case 'low': return '#2ed573'
-            default: return '#747d8c'
+            case 'high':
+                return '#ff4757'
+            case 'medium':
+                return '#ffa502'
+            case 'low':
+                return '#2ed573'
+            default:
+                return '#747d8c'
         }
     }
 
     const getTypeIcon = (type: string): string => {
         switch (type) {
-            case 'daily': return '📅'
-            case 'weekly': return '📊'
-            case 'monthly': return '📈'
-            case 'incident': return '🚨'
-            case 'performance': return '⚡'
-            default: return '📄'
+            case 'daily':
+                return '📅'
+            case 'weekly':
+                return '📊'
+            case 'monthly':
+                return '📈'
+            case 'incident':
+                return '🚨'
+            case 'performance':
+                return '⚡'
+            default:
+                return '📄'
         }
     }
 
@@ -412,8 +505,22 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
                                         <boxGeometry args={[8, 1, 1]} />
                                         <meshStandardMaterial color="#333333" />
                                     </mesh>
-                                    <mesh position={[(-8 + (8 * getReportProgress(report))) / 2, 0, 0.1]}>
-                                        <boxGeometry args={[8 * getReportProgress(report), 1, 1]} />
+                                    <mesh
+                                        position={[
+                                            (-8 +
+                                                8 * getReportProgress(report)) /
+                                                2,
+                                            0,
+                                            0.1,
+                                        ]}
+                                    >
+                                        <boxGeometry
+                                            args={[
+                                                8 * getReportProgress(report),
+                                                1,
+                                                1,
+                                            ]}
+                                        />
                                         <meshStandardMaterial
                                             color="#3742fa"
                                             emissive="#3742fa"
@@ -427,7 +534,10 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
                                         anchorX="center"
                                         anchorY="middle"
                                     >
-                                        {(getReportProgress(report) * 100).toFixed(0)}%
+                                        {(
+                                            getReportProgress(report) * 100
+                                        ).toFixed(0)}
+                                        %
                                     </Text>
                                 </group>
                             )}
@@ -449,10 +559,13 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
                 </Text>
 
                 {reports
-                    .filter(r => r.status === 'generating')
+                    .filter((r) => r.status === 'generating')
                     .slice(0, 3)
                     .map((report, reportIndex) => (
-                        <group key={`details_${report.id}`} position={[0, 15 - reportIndex * 20, 0]}>
+                        <group
+                            key={`details_${report.id}`}
+                            position={[0, 15 - reportIndex * 20, 0]}
+                        >
                             <Text
                                 position={[0, 5, 0]}
                                 fontSize={3}
@@ -463,46 +576,58 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
                                 {report.title}
                             </Text>
 
-                            {report.sections.slice(0, 4).map((section, sectionIndex) => (
-                                <group key={section.id} position={[0, 0 - sectionIndex * 4, 0]}>
-                                    <mesh position={[-15, 0, 0]}>
-                                        <sphereGeometry args={[0.8, 8, 8]} />
-                                        <meshStandardMaterial
-                                            color={getStatusColor(section.status)}
-                                            emissive={getStatusColor(section.status)}
-                                            emissiveIntensity={0.4}
-                                        />
-                                    </mesh>
-
-                                    <Text
-                                        position={[-10, 0, 0]}
-                                        fontSize={2}
-                                        color="#ffffff"
-                                        anchorX="left"
-                                        anchorY="middle"
+                            {report.sections
+                                .slice(0, 4)
+                                .map((section, sectionIndex) => (
+                                    <group
+                                        key={section.id}
+                                        position={[0, 0 - sectionIndex * 4, 0]}
                                     >
-                                        {section.title}
-                                    </Text>
+                                        <mesh position={[-15, 0, 0]}>
+                                            <sphereGeometry
+                                                args={[0.8, 8, 8]}
+                                            />
+                                            <meshStandardMaterial
+                                                color={getStatusColor(
+                                                    section.status
+                                                )}
+                                                emissive={getStatusColor(
+                                                    section.status
+                                                )}
+                                                emissiveIntensity={0.4}
+                                            />
+                                        </mesh>
 
-                                    <Text
-                                        position={[15, 0, 0]}
-                                        fontSize={1.8}
-                                        color={getStatusColor(section.status)}
-                                        anchorX="right"
-                                        anchorY="middle"
-                                    >
-                                        {section.status === 'generating' 
-                                            ? `${section.progress}%` 
-                                            : section.status
-                                        }
-                                    </Text>
-                                </group>
-                            ))}
+                                        <Text
+                                            position={[-10, 0, 0]}
+                                            fontSize={2}
+                                            color="#ffffff"
+                                            anchorX="left"
+                                            anchorY="middle"
+                                        >
+                                            {section.title}
+                                        </Text>
+
+                                        <Text
+                                            position={[15, 0, 0]}
+                                            fontSize={1.8}
+                                            color={getStatusColor(
+                                                section.status
+                                            )}
+                                            anchorX="right"
+                                            anchorY="middle"
+                                        >
+                                            {section.status === 'generating'
+                                                ? `${section.progress}%`
+                                                : section.status}
+                                        </Text>
+                                    </group>
+                                ))}
                         </group>
-                    ))
-                }
+                    ))}
 
-                {reports.filter(r => r.status === 'generating').length === 0 && (
+                {reports.filter((r) => r.status === 'generating').length ===
+                    0 && (
                     <Text
                         position={[0, 10, 0]}
                         fontSize={4}
@@ -527,44 +652,73 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
                     📈 報告類型統計
                 </Text>
 
-                {['daily', 'weekly', 'monthly', 'incident', 'performance'].map((type, index) => {
-                    const reportsOfType = reports.filter(r => r.type === type)
-                    const completedOfType = reportsOfType.filter(r => r.status === 'completed').length
-                    const completionRate = reportsOfType.length > 0 ? (completedOfType / reportsOfType.length) * 100 : 0
+                {['daily', 'weekly', 'monthly', 'incident', 'performance'].map(
+                    (type, index) => {
+                        const reportsOfType = reports.filter(
+                            (r) => r.type === type
+                        )
+                        const completedOfType = reportsOfType.filter(
+                            (r) => r.status === 'completed'
+                        ).length
+                        const completionRate =
+                            reportsOfType.length > 0
+                                ? (completedOfType / reportsOfType.length) * 100
+                                : 0
 
-                    return (
-                        <group key={type} position={[0, 12 - index * 6, 0]}>
-                            <Text
-                                position={[-15, 0, 0]}
-                                fontSize={2.5}
-                                color="#ffffff"
-                                anchorX="left"
-                                anchorY="middle"
-                            >
-                                {getTypeIcon(type)} {type}
-                            </Text>
+                        return (
+                            <group key={type} position={[0, 12 - index * 6, 0]}>
+                                <Text
+                                    position={[-15, 0, 0]}
+                                    fontSize={2.5}
+                                    color="#ffffff"
+                                    anchorX="left"
+                                    anchorY="middle"
+                                >
+                                    {getTypeIcon(type)} {type}
+                                </Text>
 
-                            <mesh position={[0, 0, 0]}>
-                                <boxGeometry args={[completionRate / 5, 2, 2]} />
-                                <meshStandardMaterial
-                                    color={completionRate >= 80 ? '#2ed573' : completionRate >= 60 ? '#ffa502' : '#ff4757'}
-                                    emissive={completionRate >= 80 ? '#2ed573' : completionRate >= 60 ? '#ffa502' : '#ff4757'}
-                                    emissiveIntensity={0.2}
-                                />
-                            </mesh>
+                                <mesh position={[0, 0, 0]}>
+                                    <boxGeometry
+                                        args={[completionRate / 5, 2, 2]}
+                                    />
+                                    <meshStandardMaterial
+                                        color={
+                                            completionRate >= 80
+                                                ? '#2ed573'
+                                                : completionRate >= 60
+                                                ? '#ffa502'
+                                                : '#ff4757'
+                                        }
+                                        emissive={
+                                            completionRate >= 80
+                                                ? '#2ed573'
+                                                : completionRate >= 60
+                                                ? '#ffa502'
+                                                : '#ff4757'
+                                        }
+                                        emissiveIntensity={0.2}
+                                    />
+                                </mesh>
 
-                            <Text
-                                position={[15, 0, 0]}
-                                fontSize={2.5}
-                                color={completionRate >= 80 ? '#2ed573' : completionRate >= 60 ? '#ffa502' : '#ff4757'}
-                                anchorX="right"
-                                anchorY="middle"
-                            >
-                                {completionRate.toFixed(0)}%
-                            </Text>
-                        </group>
-                    )
-                })}
+                                <Text
+                                    position={[15, 0, 0]}
+                                    fontSize={2.5}
+                                    color={
+                                        completionRate >= 80
+                                            ? '#2ed573'
+                                            : completionRate >= 60
+                                            ? '#ffa502'
+                                            : '#ff4757'
+                                    }
+                                    anchorX="right"
+                                    anchorY="middle"
+                                >
+                                    {completionRate.toFixed(0)}%
+                                </Text>
+                            </group>
+                        )
+                    }
+                )}
             </group>
 
             {/* 最近完成的報告 */}
@@ -580,11 +734,17 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
                 </Text>
 
                 {reports
-                    .filter(r => r.status === 'completed')
-                    .sort((a, b) => (b.completedTime || 0) - (a.completedTime || 0))
+                    .filter((r) => r.status === 'completed')
+                    .sort(
+                        (a, b) =>
+                            (b.completedTime || 0) - (a.completedTime || 0)
+                    )
                     .slice(0, 5)
                     .map((report, index) => (
-                        <group key={`completed_${report.id}`} position={[0, 12 - index * 4, 0]}>
+                        <group
+                            key={`completed_${report.id}`}
+                            position={[0, 12 - index * 4, 0]}
+                        >
                             <Text
                                 position={[-20, 1, 0]}
                                 fontSize={2.5}
@@ -613,14 +773,14 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
                                 anchorX="right"
                                 anchorY="middle"
                             >
-                                {report.completedTime ? 
-                                    new Date(report.completedTime).toLocaleString() : 
-                                    '未知時間'
-                                }
+                                {report.completedTime
+                                    ? new Date(
+                                          report.completedTime
+                                      ).toLocaleString()
+                                    : '未知時間'}
                             </Text>
                         </group>
-                    ))
-                }
+                    ))}
             </group>
 
             {/* 效能指標總結 */}
@@ -652,7 +812,12 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
                     anchorX="center"
                     anchorY="middle"
                 >
-                    成功率: {((metrics.completedReports / metrics.totalReports) * 100).toFixed(1)}%
+                    成功率:{' '}
+                    {(
+                        (metrics.completedReports / metrics.totalReports) *
+                        100
+                    ).toFixed(1)}
+                    %
                 </Text>
 
                 <Text
@@ -682,10 +847,12 @@ const AutomatedReportGenerator: React.FC<AutomatedReportGeneratorProps> = ({ dev
     // 輔助函數：計算報告總進度
     function getReportProgress(report: SystemReport): number {
         const totalSections = report.sections.length
-        const completedWeight = report.sections.filter(s => s.status === 'complete').length
+        const completedWeight = report.sections.filter(
+            (s) => s.status === 'complete'
+        ).length
         const generatingWeight = report.sections
-            .filter(s => s.status === 'generating')
-            .reduce((sum, s) => sum + (s.progress / 100), 0)
+            .filter((s) => s.status === 'generating')
+            .reduce((sum, s) => sum + s.progress / 100, 0)
 
         return (completedWeight + generatingWeight) / totalSections
     }

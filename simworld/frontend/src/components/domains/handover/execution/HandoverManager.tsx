@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { useStrategy, HandoverStrategy } from '../../../../contexts/StrategyContext'
+import {
+    useStrategy,
+    HandoverStrategy,
+} from '../../../../contexts/StrategyContext'
 import TimePredictionTimeline from '../prediction/TimePredictionTimeline'
 import SynchronizedAlgorithmVisualization from '../synchronization/SynchronizedAlgorithmVisualization'
 import UnifiedHandoverStatus from './UnifiedHandoverStatus'
@@ -9,8 +12,8 @@ import {
     TimePredictionData,
     BinarySearchIteration,
     HandoverEvent,
-} from '../../types/handover'
-import { VisibleSatelliteInfo } from '../../types/satellite'
+} from '../../../../types/handover'
+import { VisibleSatelliteInfo } from '../../../../types/satellite'
 import {
     HANDOVER_CONFIG,
     getHandoverCooldownPeriod,
@@ -124,7 +127,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
     // 🚀 演算法結果狀態 - 供統一狀態組件使用
     const [algorithmPredictionResult, setAlgorithmPredictionResult] =
-        useState<any>(null)
+        useState<unknown>(null)
     const [algorithmRunning, setAlgorithmRunning] = useState(false)
     const [currentDeltaT, setCurrentDeltaT] = useState<number>(
         HANDOVER_CONFIG.TIMING.DEFAULT_DELTA_T_SECONDS
@@ -246,7 +249,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         }))
 
         // 換手決策完成
-    }, []) // 🔧 暫時移除所有依賴，專注於修復時間軸跳動問題
+    }, [connectionDataSource, satellites]) // 加回必要的依賴
 
     // 🎯 策略變更監聽器
     useEffect(() => {
@@ -296,8 +299,8 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     const generateBinarySearchData = (startTime: number, endTime: number) => {
         const iterations: BinarySearchIteration[] = []
         const totalDuration = endTime - startTime
-        let currentStart = 0 // 使用相對時間
-        let currentEnd = totalDuration / 1000 // 轉換為秒
+        const currentStart = 0 // 使用相對時間
+        const currentEnd = totalDuration / 1000 // 轉換為秒
 
         // 動態調整精度目標，讓迭代次數有更大變化
         const targetPrecision = getBinarySearchPrecision(startTime)

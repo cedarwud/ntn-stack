@@ -1,10 +1,9 @@
 // Global React types for the project
-import type { FC, ReactNode, MutableRefObject, MouseEvent, ChangeEvent, FormEvent, SyntheticEvent, CSSProperties, RefObject } from 'react'
+import type { FC, MutableRefObject, MouseEvent, ChangeEvent, FormEvent, SyntheticEvent, CSSProperties, RefObject } from 'react'
 
 // Re-export commonly used React types globally
 declare global {
-  type ReactFC<T = {}> = FC<T>
-  type ReactNode = ReactNode
+  type ReactFC<T = object> = FC<T>
   type ReactRef<T> = MutableRefObject<T>
   type ReactRefObject<T> = RefObject<T>
   type ReactMouseEvent<T = Element> = MouseEvent<T>
