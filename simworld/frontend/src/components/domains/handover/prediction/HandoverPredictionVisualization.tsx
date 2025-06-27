@@ -443,7 +443,7 @@ const HandoverAnimationDisplay: React.FC<{
     events: HandoverEvent[]
     devices: Device[]
     satellites: Satellite[]
-}> = ({ events, devices, satellites }) => {
+}> = ({ events, devices }) => {
     return (
         <>
             {events
