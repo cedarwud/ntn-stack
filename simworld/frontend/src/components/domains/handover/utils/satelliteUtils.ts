@@ -10,22 +10,22 @@ import { HANDOVER_CONFIG } from '../config/handoverConfig'
 /**
  * 標準化衛星數據格式
  */
-export const normalizeSatelliteData = (satellite: any): VisibleSatelliteInfo => {
+export const normalizeSatelliteData = (satellite: Record<string, unknown>): VisibleSatelliteInfo => {
   return {
     ...satellite,
     norad_id: typeof satellite.norad_id === 'string' 
       ? parseInt(satellite.norad_id) 
       : satellite.norad_id,
-    name: satellite.name
-      .replace(' [DTC]', '')
-      .replace('[DTC]', ''),
-  }
+    name: (satellite.name as string)
+      ?.replace(' [DTC]', '')
+      ?.replace('[DTC]', '') || '',
+  } as VisibleSatelliteInfo
 }
 
 /**
  * 批量標準化衛星數據
  */
-export const normalizeSatelliteArray = (satellites: any[]): VisibleSatelliteInfo[] => {
+export const normalizeSatelliteArray = (satellites: Record<string, unknown>[]): VisibleSatelliteInfo[] => {
   return satellites.map(normalizeSatelliteData)
 }
 
@@ -88,19 +88,19 @@ export const getSatelliteDistance = (satellite: VisibleSatelliteInfo): number =>
 /**
  * 驗證衛星數據完整性
  */
-export const validateSatelliteData = (satellite: any): boolean => {
+export const validateSatelliteData = (satellite: Record<string, unknown>): boolean => {
   return !!(
     satellite &&
     satellite.norad_id &&
     satellite.name &&
-    (satellite.elevation_deg !== undefined || satellite.position?.elevation !== undefined)
+    (satellite.elevation_deg !== undefined || (satellite.position as Record<string, unknown>)?.elevation !== undefined)
   )
 }
 
 /**
  * 過濾有效的衛星數據
  */
-export const filterValidSatellites = (satellites: any[]): VisibleSatelliteInfo[] => {
+export const filterValidSatellites = (satellites: Record<string, unknown>[]): VisibleSatelliteInfo[] => {
   return satellites
     .filter(validateSatelliteData)
     .map(normalizeSatelliteData)

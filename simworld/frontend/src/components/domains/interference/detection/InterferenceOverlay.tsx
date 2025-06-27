@@ -3,11 +3,22 @@ import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 
+interface Device {
+    id: string | number;
+    role?: string;
+    name?: string;
+    position_x?: number;
+    position_y?: number;
+    position_z?: number;
+    [key: string]: unknown;
+}
+
 interface InterferenceOverlayProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
 }
 
+const InterferenceOverlay: React.FC<InterferenceOverlayProps> = ({ devices, enabled }) => {
 const InterferenceOverlay: React.FC<InterferenceOverlayProps> = ({ devices, enabled }) => {
     // 篩選出干擾源設備
     const jammerDevices = useMemo(() => 

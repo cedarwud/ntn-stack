@@ -3,8 +3,17 @@ import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Text, Line } from '@react-three/drei'
 
+interface Device {
+    id: string | number;
+    position_x?: number;
+    position_y?: number;
+    position_z?: number;
+    type?: 'transmitter' | 'receiver' | 'jammer';
+    [key: string]: unknown;
+}
+
 interface InterferenceAnalyticsProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
 }
 
@@ -12,7 +21,7 @@ interface InterferencePattern {
     id: string
     type: 'intentional' | 'unintentional' | 'multipath' | 'co_channel'
     sourceId: string | number
-    affectedDevices: string[]
+    affectedDevices: (string | number)[]
     severity: 'low' | 'medium' | 'high' | 'critical'
     frequency: number
     power: number
@@ -97,7 +106,7 @@ const InterferenceAnalytics: React.FC<InterferenceAnalyticsProps> = ({ devices, 
 }
 
 // 分析干擾模式
-const analyzeInterferencePatterns = (devices: any[]): InterferencePattern[] => {
+const analyzeInterferencePatterns = (devices: Device[]): InterferencePattern[] => {
     const patterns: InterferencePattern[] = []
     const jammers = devices.filter(d => d.role === 'jammer')
     const receivers = devices.filter(d => d.role === 'receiver')

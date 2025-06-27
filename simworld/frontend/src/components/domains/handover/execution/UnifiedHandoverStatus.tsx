@@ -222,14 +222,14 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
                             className="confidence-fill"
                             style={{
                                 width: `${
-                                    ((predictionResult as any)
+                                    ((predictionResult as { prediction_confidence?: number })
                                         ?.prediction_confidence || 0.95) * 100
                                 }%`,
                             }}
                         ></div>
                         <span className="confidence-text">
                             {(
-                                ((predictionResult as any)
+                                ((predictionResult as { prediction_confidence?: number })
                                     ?.prediction_confidence || 0.95) * 100
                             ).toFixed(1)}
                             %
@@ -244,12 +244,12 @@ const UnifiedHandoverStatus: React.FC<UnifiedHandoverStatusProps> = ({
                     <span className="decision-label">換手決策:</span>
                     <span
                         className={`decision-value ${
-                            (predictionResult as any)?.handover_required
+                            (predictionResult as { handover_required?: boolean })?.handover_required
                                 ? 'required'
                                 : 'not-required'
                         }`}
                     >
-                        {(predictionResult as any)?.handover_required
+                        {(predictionResult as { handover_required?: boolean })?.handover_required
                             ? '需要換手'
                             : '無需換手'}
                     </span>
