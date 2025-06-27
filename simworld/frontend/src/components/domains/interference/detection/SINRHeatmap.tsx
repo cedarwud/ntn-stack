@@ -1,8 +1,17 @@
 import React, { useMemo, useEffect, useState } from 'react'
 import * as THREE from 'three'
 
+interface Device {
+    id: string | number;
+    position_x?: number;
+    position_y?: number;
+    position_z?: number;
+    type?: string;
+    [key: string]: unknown;
+}
+
 interface SINRHeatmapProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
     useRealData?: boolean // 新增：使用真實數據模式開關
 }
@@ -21,7 +30,6 @@ const SINRHeatmap: React.FC<SINRHeatmapProps> = ({
     enabled,
     useRealData = true,
 }) => {
-    const [heatmapData, setHeatmapData] = useState<number[][]>([])
     const [realInterferenceMetrics, setRealInterferenceMetrics] =
         useState<InterferenceMetrics | null>(null)
     const [realSINRTexture, setRealSINRTexture] =

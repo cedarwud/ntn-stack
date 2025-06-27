@@ -208,13 +208,13 @@ const HandoverPredictionVisualization: React.FC<
                 onPredictionsUpdate?.(newPredictions)
             } catch (error) {
                 console.error('❌ 模擬換手預測失敗:', error)
-                //setError(
-                    error instanceof Error
-                        ? error.message
-                        : 'Mock prediction error'
-                )
+                // setError(
+                //     error instanceof Error
+                //         ? error.message
+                //         : 'Mock prediction error'
+                // )
             } finally {
-                //setIsLoading(false)
+                // setIsLoading(false)
             }
         }
 
@@ -379,7 +379,7 @@ const HandoverPredictionDisplay: React.FC<{
 const HandoverTimelineVisualization: React.FC<{
     predictions: HandoverPrediction[]
     devices: Device[]
-}> = ({ predictions, devices }) => {
+}> = ({ predictions }) => {
     const timelineRef = useRef<THREE.Group>(null)
 
     useFrame(() => {
