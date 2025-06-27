@@ -19,7 +19,6 @@ interface InterferenceOverlayProps {
 }
 
 const InterferenceOverlay: React.FC<InterferenceOverlayProps> = ({ devices, enabled }) => {
-const InterferenceOverlay: React.FC<InterferenceOverlayProps> = ({ devices, enabled }) => {
     // 篩選出干擾源設備
     const jammerDevices = useMemo(() => 
         devices.filter(device => device.role === 'jammer'), 
