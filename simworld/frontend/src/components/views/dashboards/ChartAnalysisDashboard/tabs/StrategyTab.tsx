@@ -1,25 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState } from 'react'
+import React, { useState, memo } from 'react'
 import { Bar, Line, Radar } from 'react-chartjs-2'
 import { createInteractiveChartOptions } from '../utils/chartConfig'
 
 interface StrategyTabProps {
-    strategyEffectData: any
-    handoverLatencyData: any
+    _strategyEffectData: any
+    _handoverLatencyData: any
     onChartClick: (event: any, elements: any[], chart: any) => void
 }
 
 const StrategyTab: React.FC<StrategyTabProps> = ({
-    strategyEffectData,
-    handoverLatencyData,
+    _strategyEffectData,
+    _handoverLatencyData,
     onChartClick,
 }) => {
     // 策略比較狀態
-    const [selectedStrategies, setSelectedStrategies] = useState([
+    const [_selectedStrategies, _setSelectedStrategies] = useState([
         '傳統方案',
         '改進方案',
     ])
-    const [comparisonMetric, setComparisonMetric] = useState('latency')
+    const [_comparisonMetric, _setComparisonMetric] = useState('latency')
 
     // 策略效果即時分析數據
     const strategyPerformanceData = {
@@ -375,4 +375,10 @@ const StrategyTab: React.FC<StrategyTabProps> = ({
     )
 }
 
-export default StrategyTab
+export default memo(StrategyTab, (prevProps, nextProps) => {
+    return (
+        prevProps._strategyEffectData === nextProps._strategyEffectData &&
+        prevProps._handoverLatencyData === nextProps._handoverLatencyData &&
+        prevProps.onChartClick === nextProps.onChartClick
+    )
+})

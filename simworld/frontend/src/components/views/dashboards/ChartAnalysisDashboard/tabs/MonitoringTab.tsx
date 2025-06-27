@@ -4,12 +4,12 @@ import { Line, Doughnut, Bar } from 'react-chartjs-2'
 import { createInteractiveChartOptions } from '../utils/chartConfig'
 
 interface MonitoringTabProps {
-    systemMetrics: any
+    _systemMetrics: any
     onChartClick: (event: any, elements: any[], chart: any) => void
 }
 
 const MonitoringTab: React.FC<MonitoringTabProps> = ({
-    systemMetrics,
+    _systemMetrics,
     onChartClick,
 }) => {
     // 即時監控狀態

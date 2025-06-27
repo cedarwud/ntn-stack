@@ -1,22 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import React, {
-    useState,
-    useEffect,
-    useMemo,
-    useCallback,
-    useRef,
-    memo,
-} from 'react'
-import { useStrategy } from '../../../../contexts/StrategyContext'
-import { useInfocomMetrics } from '../../../../hooks/useInfocomMetrics'
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react'
+// import { useStrategy } from '../../../../contexts/StrategyContext'
+// import { useInfocomMetrics } from '../../../../hooks/useInfocomMetrics'
 import {
     registerChartComponents,
     configureChartDefaults,
 } from './utils/chartConfig'
-import { useChartData } from './hooks/useChartData'
+// import { useChartData } from './hooks/useChartData' // 完全移除這個導入
 import {
-    generateHandoverLatencyData,
     generateSixScenarioData,
     generateConstellationComparisonData,
     generateStrategyEffectData,
@@ -27,6 +19,49 @@ import {
     generateAlgorithmLatencyData,
     generateQoETimeSeriesData,
 } from './utils/dataGenerators'
+
+// 🔧 將所有數據生成改為組件外部的靜態常量，確保引用絕對穩定
+const STATIC_HANDOVER_LATENCY_DATA = {
+    labels: [
+        '準備階段',
+        '同步階段',
+        '切換階段',
+        '確認階段',
+        '清理階段',
+        '完成階段',
+    ],
+    datasets: [
+        {
+            label: 'NTN',
+            data: [45.2, 89.3, 67.8, 34.1, 15.6, 8.2],
+            backgroundColor: 'rgba(255, 99, 132, 0.8)',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 2,
+        },
+        {
+            label: 'NTN-GS',
+            data: [23.8, 52.4, 41.2, 22.7, 8.9, 4.2],
+            backgroundColor: 'rgba(54, 162, 235, 0.8)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 2,
+        },
+        {
+            label: 'NTN-SMN',
+            data: [25.1, 54.8, 43.6, 24.3, 9.4, 4.6],
+            backgroundColor: 'rgba(255, 206, 86, 0.8)',
+            borderColor: 'rgba(255, 206, 86, 1)',
+            borderWidth: 2,
+        },
+        {
+            label: 'Proposed',
+            data: [3.2, 7.8, 5.9, 2.1, 1.2, 0.9],
+            backgroundColor: 'rgba(75, 192, 192, 0.8)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 2,
+        },
+    ],
+}
+// import OverviewTab from './tabs/OverviewTab' // 第三步：恢復 OverviewTab
 import OverviewTab from './tabs/OverviewTab'
 import PerformanceTab from './tabs/PerformanceTab'
 import SystemTab from './tabs/SystemTab'
@@ -36,11 +71,166 @@ import ParametersTab from './tabs/ParametersTab'
 import MonitoringTab from './tabs/MonitoringTab'
 import StrategyTab from './tabs/StrategyTab'
 import RLMonitoringTab from './tabs/RLMonitoringTab'
+import { Bar } from 'react-chartjs-2' // 添加 Bar 組件導入
 import './ChartAnalysisDashboard.scss'
 
 // 初始化Chart.js
 registerChartComponents()
 configureChartDefaults()
+
+// 移到組件外部的固定數據，避免每次渲染都創建新對象
+const FIXED_INFOCOM_METRICS = { handoverLatency: 21.5, successRate: 99.2 }
+const FIXED_DATA = {
+    handoverLatencyData: null,
+    sixScenarioData: null,
+    strategyEffectData: null,
+    systemMetrics: { cpu: 0, memory: 0, gpu: 0, networkLatency: 0 },
+    performanceRadarData: null,
+    globalCoverageData: null,
+    timeSyncPrecisionData: null,
+    qoeTimeSeriesData: null,
+}
+const FIXED_SATELLITE_DATA = {
+    starlink: {
+        altitude: 550,
+        count: 12000,
+        coverage: 95,
+        delay: 25,
+        doppler: 40,
+        power: 85,
+    },
+    kuiper: {
+        altitude: 630,
+        count: 3236,
+        coverage: 92,
+        delay: 28,
+        doppler: 35,
+        power: 80,
+    },
+    oneweb: {
+        altitude: 1200,
+        count: 648,
+        coverage: 88,
+        delay: 35,
+        doppler: 20,
+        power: 75,
+    },
+}
+const FIXED_STRATEGY_METRICS = {
+    flexible: { averageLatency: 25, successRate: 95 },
+    consistent: { averageLatency: 35, successRate: 98 },
+}
+
+// 添加所有其他數據的靜態常量，避免動態生成
+const STATIC_SIX_SCENARIO_DATA = {
+    labels: [
+        'SL-B-單向',
+        'SL-F-全向',
+        'SL-D-差異',
+        'KP-B-單向',
+        'KP-F-全向',
+        'KP-D-差異',
+    ],
+    datasets: [
+        {
+            label: '延遲 (ms)',
+            data: [23.5, 28.1, 31.7, 26.2, 30.8, 34.5],
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 2,
+        },
+    ],
+}
+
+const STATIC_CONSTELLATION_COMPARISON_DATA = {
+    labels: ['覆蓋率', '延遲', '多普勒', '功率', '增益'],
+    datasets: [
+        {
+            label: 'Starlink',
+            data: [95, 85, 75, 88, 92],
+            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 2,
+        },
+        {
+            label: 'Kuiper',
+            data: [92, 82, 78, 85, 89],
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 2,
+        },
+    ],
+}
+
+const STATIC_STRATEGY_EFFECT_DATA = {
+    labels: ['延遲優化', '成功率', '能耗效率', '系統負載'],
+    datasets: [
+        {
+            label: 'Flexible Strategy',
+            data: [85, 92, 87, 78],
+            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 2,
+        },
+        {
+            label: 'Consistent Strategy',
+            data: [88, 95, 94, 82],
+            backgroundColor: 'rgba(255, 206, 86, 0.6)',
+            borderColor: 'rgba(255, 206, 86, 1)',
+            borderWidth: 2,
+        },
+    ],
+}
+
+const STATIC_PERFORMANCE_RADAR_DATA = {
+    labels: ['延遲', '吞吐量', '可靠性', '能耗', '覆蓋率'],
+    datasets: [
+        {
+            label: '當前性能',
+            data: [85, 78, 92, 87, 90],
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 2,
+        },
+    ],
+}
+
+const STATIC_QOE_TIME_SERIES_DATA = {
+    labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'],
+    datasets: [
+        {
+            label: 'Ultra-Dense Urban',
+            data: [0.92, 0.89, 0.91, 0.88, 0.9, 0.87, 0.89, 0.91, 0.88, 0.9],
+            borderColor: 'rgba(255, 99, 132, 1)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: false,
+        },
+        {
+            label: 'Dense Urban',
+            data: [0.88, 0.85, 0.87, 0.84, 0.86, 0.83, 0.85, 0.87, 0.84, 0.86],
+            borderColor: 'rgba(54, 162, 235, 1)',
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: false,
+        },
+    ],
+}
+
+const STATIC_COMPLEXITY_DATA = {
+    labels: ['算法複雜度', '計算時間', '記憶體使用', '網路負載'],
+    datasets: [
+        {
+            label: '複雜度分析',
+            data: [75, 68, 82, 71],
+            backgroundColor: 'rgba(153, 102, 255, 0.6)',
+            borderColor: 'rgba(153, 102, 255, 1)',
+            borderWidth: 2,
+        },
+    ],
+}
 
 interface ChartAnalysisDashboardProps {
     isOpen: boolean
@@ -51,36 +241,6 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
     isOpen,
     onClose,
 }) => {
-    // 使用 useRef 緩存生成的數據，避免無限渲染
-    const cachedData = useRef<{
-        handoverLatencyData?: any
-        sixScenarioData?: any
-        performanceRadarData?: any
-        globalCoverageData?: any
-        timeSyncPrecisionData?: any
-        algorithmLatencyData?: any
-        qoeTimeSeriesData?: any
-        lastSatelliteData?: any
-        lastCurrentStrategy?: any
-        lastInfocomMetrics?: any
-        lastData?: any
-        lastOnClose?: any
-    }>({})
-
-    // 渲染計數器
-    const renderCount = useRef(0)
-    renderCount.current += 1
-    console.log(
-        '🔵 ChartAnalysisDashboard render #',
-        renderCount.current,
-        'isOpen:',
-        isOpen,
-        'onClose changed:',
-        onClose === cachedData.current.lastOnClose ? 'same' : 'different'
-    )
-
-    cachedData.current.lastOnClose = onClose
-
     // 基本狀態
     const [activeTab, setActiveTab] = useState('overview')
     const [selectedDataPoint, setSelectedDataPoint] = useState<any>(null)
@@ -125,167 +285,33 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
     // 使用自定義hooks - 暫時停用以完全除錯
     // const { currentStrategy } = useStrategy()
     const currentStrategy = 'flexible' // 固定值
-    console.log(
-        '🔧 currentStrategy changed:',
-        currentStrategy,
-        'reference:',
-        currentStrategy === cachedData.current.lastCurrentStrategy
-            ? 'same'
-            : 'different'
-    )
-    cachedData.current.lastCurrentStrategy = currentStrategy
 
     // const infocomMetrics = useInfocomMetrics(isOpen)
-    const infocomMetrics = { handoverLatency: 21.5, successRate: 99.2 } // 固定值
-    console.log(
-        '🔧 infocomMetrics changed:',
-        infocomMetrics ? 'exists' : 'null',
-        'reference:',
-        infocomMetrics === cachedData.current.lastInfocomMetrics
-            ? 'same'
-            : 'different'
-    )
-    cachedData.current.lastInfocomMetrics = infocomMetrics
+    const infocomMetrics = FIXED_INFOCOM_METRICS // 使用固定常量
 
     // const { data, satelliteData, strategyMetrics, setStrategyMetrics } = useChartData(isOpen)
-    const data = {
-        handoverLatencyData: null,
-        sixScenarioData: null,
-        strategyEffectData: null,
-        systemMetrics: { cpu: 0, memory: 0, gpu: 0, networkLatency: 0 },
-        performanceRadarData: null,
-        globalCoverageData: null,
-        timeSyncPrecisionData: null,
-        qoeTimeSeriesData: null,
-    } // 固定值
-    const satelliteData = {
-        starlink: {
-            altitude: 550,
-            count: 12000,
-            coverage: 95,
-            delay: 25,
-            doppler: 40,
-            power: 85,
-        },
-        kuiper: {
-            altitude: 630,
-            count: 3236,
-            coverage: 92,
-            delay: 28,
-            doppler: 35,
-            power: 80,
-        },
-        oneweb: {
-            altitude: 1200,
-            count: 648,
-            coverage: 88,
-            delay: 35,
-            doppler: 20,
-            power: 75,
-        },
-    } // 固定模擬數據
-    const strategyMetrics = {
-        flexible: { averageLatency: 25, successRate: 95 },
-        consistent: { averageLatency: 35, successRate: 98 },
-    } // 固定模擬數據
+    const data = FIXED_DATA // 使用固定常量
+    const satelliteData = FIXED_SATELLITE_DATA // 使用固定常量
+    const strategyMetrics = FIXED_STRATEGY_METRICS // 使用固定常量
     const setStrategyMetrics = () => {} // 固定值
-    console.log(
-        '🔧 useChartData returned - data exists:',
-        data ? true : false,
-        'reference:',
-        data === cachedData.current.lastData ? 'same' : 'different'
-    )
-    console.log(
-        '🔧 useChartData returned - satelliteData exists:',
-        satelliteData ? true : false,
-        'reference:',
-        satelliteData === cachedData.current.lastSatelliteData
-            ? 'same'
-            : 'different'
-    )
-    cachedData.current.lastData = data
-    cachedData.current.lastSatelliteData = satelliteData
 
-    // 生成圖表數據 - 使用緩存避免重復生成
-    const handoverLatencyData = useMemo(() => {
-        console.log('🟦 handoverLatencyData useMemo triggered')
-        if (data.handoverLatencyData) return data.handoverLatencyData
-        if (!cachedData.current.handoverLatencyData) {
-            cachedData.current.handoverLatencyData =
-                generateHandoverLatencyData()
-        }
-        return cachedData.current.handoverLatencyData
-    }, [data.handoverLatencyData])
+    // 🔧 使用靜態常量，完全避免動態生成
+    const handoverLatencyData = STATIC_HANDOVER_LATENCY_DATA
+    const sixScenarioChartData = STATIC_SIX_SCENARIO_DATA
+    const constellationComparisonData = STATIC_CONSTELLATION_COMPARISON_DATA
+    const strategyEffectData = STATIC_STRATEGY_EFFECT_DATA
+    const performanceRadarData = STATIC_PERFORMANCE_RADAR_DATA
+    const qoeTimeSeriesData = STATIC_QOE_TIME_SERIES_DATA
+    const complexityData = STATIC_COMPLEXITY_DATA
 
-    const sixScenarioChartData = useMemo(() => {
-        if (data.sixScenarioData) return data.sixScenarioData
-        if (!cachedData.current.sixScenarioData) {
-            cachedData.current.sixScenarioData = generateSixScenarioData()
-        }
-        return cachedData.current.sixScenarioData
-    }, [data.sixScenarioData])
-
-    const constellationComparisonData = useMemo(() => {
-        const result = generateConstellationComparisonData(satelliteData)
-        cachedData.current.lastSatelliteData = satelliteData
-        return result
-    }, [satelliteData])
-
-    const strategyEffectData = useMemo(() => {
-        return (
-            data.strategyEffectData ||
-            generateStrategyEffectData(strategyMetrics)
-        )
-    }, [data.strategyEffectData, strategyMetrics])
-
-    const systemResourceData = useMemo(() => {
-        return generateSystemResourceData(data.systemMetrics)
-    }, [data.systemMetrics])
-
-    const performanceRadarData = useMemo(() => {
-        if (data.performanceRadarData) return data.performanceRadarData
-        if (!cachedData.current.performanceRadarData) {
-            cachedData.current.performanceRadarData =
-                generatePerformanceRadarData()
-        }
-        return cachedData.current.performanceRadarData
-    }, [data.performanceRadarData])
-
-    const globalCoverageData = useMemo(() => {
-        if (data.globalCoverageData) return data.globalCoverageData
-        if (!cachedData.current.globalCoverageData) {
-            cachedData.current.globalCoverageData = generateGlobalCoverageData()
-        }
-        return cachedData.current.globalCoverageData
-    }, [data.globalCoverageData])
-
-    const timeSyncPrecisionData = useMemo(() => {
-        if (data.timeSyncPrecisionData) return data.timeSyncPrecisionData
-        if (!cachedData.current.timeSyncPrecisionData) {
-            cachedData.current.timeSyncPrecisionData =
-                generateTimeSyncPrecisionData()
-        }
-        return cachedData.current.timeSyncPrecisionData
-    }, [data.timeSyncPrecisionData])
-
-    const algorithmLatencyData = useMemo(() => {
-        if (!cachedData.current.algorithmLatencyData) {
-            cachedData.current.algorithmLatencyData =
-                generateAlgorithmLatencyData()
-        }
-        return cachedData.current.algorithmLatencyData
-    }, [])
-
-    const qoeTimeSeriesData = useMemo(() => {
-        if (data.qoeTimeSeriesData) return data.qoeTimeSeriesData
-        if (!cachedData.current.qoeTimeSeriesData) {
-            cachedData.current.qoeTimeSeriesData = generateQoETimeSeriesData()
-        }
-        return cachedData.current.qoeTimeSeriesData
-    }, [data.qoeTimeSeriesData])
-
-    // 監聽RL訓練數據更新
+    // 其他數據也使用靜態值
+    const systemResourceData = null
+    const globalCoverageData = null
+    const timeSyncPrecisionData = null
+    const algorithmLatencyData = null
     useEffect(() => {
+        // 暫時停用所有事件監聽器以確認無限渲染源
+        /*
         const handleRLMetricsUpdate = (event: CustomEvent) => {
             const { engine, metrics } = event.detail
 
@@ -417,6 +443,7 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                 handleTrainingStopped as EventListener
             )
         }
+        */
     }, [])
 
     // 圖表點擊處理
@@ -444,35 +471,30 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                 `數據顯示 ${dataset} 方案在 ${label} 中實現了顯著的延遲降低。`,
                 `${label} 場景下的 ${dataset} 指標證明了系統的穩定性和可靠性。`,
             ]
-            return insights[Math.floor(Math.random() * insights.length)]
+            // 使用確定性選擇而非隨機選擇，避免無限渲染
+            const index = (label.length + dataset.length) % insights.length
+            return insights[index]
         },
         []
     )
 
-    // Tab標籤配置 - 暫時只顯示第一個分頁進行測試
+    // Tab標籤配置 - 恢復完整的9個分頁 📊
     const tabs = [
-        { id: 'overview', label: '📊 IEEE核心', icon: '📊' },
-        // { id: 'performance', label: '⚡ 性能QoE', icon: '⚡' },
-        // { id: 'system', label: '🖥️ 系統監控', icon: '🖥️' },
-        // { id: 'algorithms', label: '🧮 算法策略', icon: '🧮' },
-        // { id: 'analysis', label: '📈 深度分析', icon: '📈' },
-        // { id: 'parameters', label: '⚙️ 軌道參數', icon: '⚙️' },
-        // { id: 'monitoring', label: '👁️ 即時監控', icon: '👁️' },
-        // { id: 'strategy', label: '🎯 策略效果', icon: '🎯' },
-        // { id: 'rl-monitoring', label: '🧠 RL監控', icon: '🧠' },
-        // { id: 'rl-monitoring', label: '🧠 RL監控', icon: '🧠' },
+        { id: 'overview', label: '📊 IEEE核心' },
+        { id: 'performance', label: '⚡ 性能QoE' },
+        { id: 'system', label: '🖥️ 系統監控' },
+        { id: 'algorithms', label: '🧮 算法策略' },
+        { id: 'analysis', label: '📈 深度分析' },
+        { id: 'parameters', label: '⚙️ 軌道參數' },
+        { id: 'monitoring', label: '👁️ 即時監控' },
+        { id: 'strategy', label: '🎯 策略效果' },
+        { id: 'rl-monitoring', label: '🧠 RL監控' },
     ]
 
-    // 渲染Tab內容 - 暫時只處理第一個分頁進行測試
+    // 渲染Tab內容
     const renderTabContent = () => {
-        console.log('🔄 renderTabContent called, activeTab:', activeTab)
-
         switch (activeTab) {
             case 'overview':
-                console.log(
-                    '📊 Rendering Overview Tab with handoverLatencyData:',
-                    handoverLatencyData ? 'exists' : 'null'
-                )
                 return (
                     <OverviewTab
                         handoverLatencyData={handoverLatencyData}
@@ -484,11 +506,85 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                     />
                 )
 
+            case 'performance':
+                return (
+                    <PerformanceTab
+                        qoeTimeSeriesData={qoeTimeSeriesData}
+                        complexityData={null} // ⚠️ 使用 null 作為佔位符
+                        onChartClick={handleChartClick}
+                    />
+                )
+
+            case 'system':
+                return (
+                    <div className="tab-placeholder">
+                        <h3>🖥️ 系統監控</h3>
+                        <p>⚠️ 此分頁需要真實系統數據，正在開發中</p>
+                    </div>
+                )
+
+            case 'algorithms':
+                return (
+                    <div className="tab-placeholder">
+                        <h3>🧮 算法策略</h3>
+                        <p>⚠️ 此分頁需要真實算法數據，正在開發中</p>
+                    </div>
+                )
+
+            case 'analysis':
+                return (
+                    <AnalysisTab
+                        _globalCoverageData={globalCoverageData}
+                        strategyEffectData={strategyEffectData}
+                        onChartClick={handleChartClick}
+                    />
+                )
+
+            case 'parameters':
+                return (
+                    <div className="tab-placeholder">
+                        <h3>⚙️ 軌道參數</h3>
+                        <p>⚠️ 此分頁使用模擬數據 - 需要即時計算軌道力學參數</p>
+                        <p>
+                            原因：軌道計算需要大量數學運算，使用模擬數據展示功能
+                        </p>
+                    </div>
+                )
+
+            case 'monitoring':
+                return (
+                    <div className="tab-placeholder">
+                        <h3>👁️ 即時監控</h3>
+                        <p>⚠️ 此分頁使用模擬數據 - 需要即時更新的網絡狀態</p>
+                        <p>原因：即時監控需要持續的數據流，目前使用模擬數據</p>
+                    </div>
+                )
+
+            case 'strategy':
+                return (
+                    <StrategyTab
+                        _handoverLatencyData={handoverLatencyData}
+                        _strategyEffectData={strategyEffectData}
+                        onChartClick={handleChartClick}
+                    />
+                )
+
+            case 'rl-monitoring':
+                return (
+                    <div className="tab-placeholder">
+                        <h3>🧠 RL監控</h3>
+                        <p>⚠️ 此分頁使用模擬數據 - AI訓練過程數據</p>
+                        <p>
+                            原因：強化學習需要動態生成的訓練數據，使用模擬環境
+                        </p>
+                    </div>
+                )
+
             default:
                 return (
                     <div className="tab-placeholder">
-                        <h3>🚧 分頁測試中</h3>
-                        <p>目前只測試第一個分頁</p>
+                        <h3>🚧 分頁開發中</h3>
+                        <p>請選擇其他可用的分頁</p>
                     </div>
                 )
         }
@@ -547,7 +643,6 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
                                 }`}
                                 onClick={() => setActiveTab(tab.id)}
                             >
-                                <span className="tab-icon">{tab.icon}</span>
                                 {tab.label}
                             </button>
                         ))}
@@ -621,5 +716,8 @@ const ChartAnalysisDashboard: React.FC<ChartAnalysisDashboardProps> = ({
     )
 }
 
-// 使用 React.memo 避免不必要的重新渲染
-export default memo(ChartAnalysisDashboard)
+// 使用 React.memo 避免不必要的重新渲染，並提供自定義比較函數
+export default memo(ChartAnalysisDashboard, (prevProps, nextProps) => {
+    // 只有當 isOpen 狀態改變時才重新渲染
+    return prevProps.isOpen === nextProps.isOpen
+})

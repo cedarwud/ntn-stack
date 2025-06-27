@@ -1,7 +1,7 @@
 # docker-compose.yml
 # GPU/CPU 模式換手指南:
 # 1. 使用 CPU 模式: 設定 CUDA_VISIBLE_DEVICES="-1" 且註釋掉 deploy 部分
-# 2. 使用 GPU 模式: 設定 CUDA_VISIBLE_DEVICES="" 或指定 GPU ID，並啟用 deploy 部分
+# 2. 使用 GPU 模式: 設定 CUDA_VISIBLE_DEVICES="" 或指定 GPS ID，並啟用 deploy 部分
 # 3. 可選渲染後端: PYOPENGL_PLATFORM=egl (默認) 或 PYOPENGL_PLATFORM=osmesa 或 PYOPENGL_PLATFORM=glfw
 
 services:
@@ -31,7 +31,7 @@ services:
         build:
             context: ./backend
             dockerfile: Dockerfile
-        container_name: simworld_backend # 給容器一個明確的名稱
+        container_name: simworld-backend  # 修改為 NetStack 預期的名稱
         ports:
             - '8888:8000'
         volumes:
@@ -57,7 +57,7 @@ services:
             # 資料庫連接 URL
             DATABASE_URL: postgresql+asyncpg://sat:123@postgis:5432/ntn_stack
             # Redis 連接 URL (連接到 NetStack 的 Redis)
-            REDIS_URL: redis://netstack-redis:6379/0
+            REDIS_URL: redis://redis:6379/0
 
         # === GPU 支持 (使用 GPU 模式時取消註釋) ===
         # deploy:

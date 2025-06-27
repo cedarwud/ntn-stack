@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React from 'react'
-import { Bar, Line, Scatter } from 'react-chartjs-2'
+import React, { memo } from 'react'
+import { Bar, Line } from 'react-chartjs-2'
 import { createInteractiveChartOptions } from '../utils/chartConfig'
 
 interface AnalysisTabProps {
-    globalCoverageData: any
+    _globalCoverageData: any
     strategyEffectData: any
     onChartClick: (event: any, elements: any[], chart: any) => void
 }
 
 const AnalysisTab: React.FC<AnalysisTabProps> = ({
-    globalCoverageData,
+    _globalCoverageData,
     strategyEffectData,
     onChartClick,
 }) => {
@@ -215,4 +215,10 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({
     )
 }
 
-export default AnalysisTab
+export default memo(AnalysisTab, (prevProps, nextProps) => {
+    return (
+        prevProps._globalCoverageData === nextProps._globalCoverageData &&
+        prevProps.strategyEffectData === nextProps.strategyEffectData &&
+        prevProps.onChartClick === nextProps.onChartClick
+    )
+})

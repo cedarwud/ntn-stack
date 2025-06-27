@@ -1,189 +1,165 @@
 # Claude Code 項目環境說明
 
-## 🐳 完整 Docker 多容器架構
+## ⚠️ 核心重點
 
-**重要**: 這是一個完全容器化的微服務架構專案，包含兩個主要子系統，共運行約 20+ 個容器
+**🐳 這是完全 Docker 容器化專案 - 絕對不要執行 npm run dev 或 npm start 等本地指令**
 
-### 架構概覽
-```
-NTN Stack
-├── NetStack (5G 核心網)     - 約 15+ 容器
-└── SimWorld (3D 仿真引擎)   - 3 個容器
-```
+所有服務都在容器內運行，使用 Docker Compose 管理，共約 20+ 個容器。
+
+---
 
 ## 🏗️ 系統架構
 
-### 1. NetStack (5G 核心網系統)
-**位置**: `/netstack/`  
-**管理**: `netstack/Makefile`  
-**網路**: `compose_netstack-core` (172.20.0.0/16)
+```
+NTN Stack
+├── NetStack (5G 核心網)     - 15+ 容器
+└── SimWorld (3D 仿真引擎)   - 3 個容器
+```
 
-**核心容器**:
-- `netstack-mongo` (172.20.0.10) - MongoDB 資料庫
-- `netstack-nrf` (172.20.0.23) - Network Repository Function
-- `netstack-amf` (172.20.0.20) - Access and Mobility Management
-- `netstack-smf` (172.20.0.27) - Session Management Function
-- `netstack-upf` (172.20.0.30) - User Plane Function
-- `netstack-api` (172.20.0.40) - NetStack API 服務
-- `netstack-redis` (172.20.0.50) - Redis 快取
-- `netstack-prometheus` (172.20.0.60) - 監控系統
-- 其他 5G 核心網組件 (ausf, bsf, nssf, pcf, udm, udr)
+### 核心容器
+- **netstack-api** (172.20.0.40) - NetStack API 服務
+- **simworld_backend** - FastAPI 後端 (Python 3.11, TensorFlow 2.19.0)
+- **simworld_frontend** - React 前端 (Node.js, TypeScript)
+- **netstack-mongo/redis** - 資料庫服務
 
-### 2. SimWorld (3D 仿真引擎)
-**位置**: `/simworld/`  
-**管理**: `simworld/docker-compose.yml`  
-**網路**: `sionna-net` + 跨網路連接到 `netstack-core`
+---
 
-**核心容器**:
-- `simworld_backend` - FastAPI 後端 (Python 3.11, TensorFlow 2.19.0, Sionna 1.1.0)
-- `simworld_frontend` - React 前端 (Node.js, TypeScript)
-- `simworld_postgis` - PostgreSQL + PostGIS 資料庫
+## 🚀 標準操作指令
 
-## 🚀 啟動順序 (重要!)
-
-**必須按順序啟動**，因為有網路依賴關係：
-
+### 基本管理
 ```bash
 # 根目錄統一管理
-make up          # 啟動所有服務 (自動處理順序)
+make up          # 啟動所有服務
 make down        # 停止所有服務
-make status      # 檢查所有容器狀態
+make status      # 檢查容器狀態
 make logs        # 查看所有日誌
 
-# 或分別管理
-make netstack-start    # 先啟動 NetStack (創建網路)
-make simworld-start    # 再啟動 SimWorld (連接網路)
+# 分別管理
+make netstack-start    # 啟動 NetStack
+make simworld-start    # 啟動 SimWorld
 ```
 
-## 🌐 跨容器網路連接
-
-SimWorld 的 backend 容器會自動連接到 NetStack 的網路，實現服務間通信：
-
-```yaml
-# simworld backend 同時連接兩個網路
-networks:
-  sionna-net:           # SimWorld 內部網路
-  netstack-core:        # NetStack 外部網路
-    aliases:
-      - simworld-backend
-      - backend
-```
-
-## 🔧 開發環境指令
-
-### Python 相關 (在 simworld_backend 容器內)
+### 開發工作流程
 ```bash
-# 檢查套件版本
-docker exec simworld_backend pip freeze | grep <package>
-
-# 執行 Python 代碼
-docker exec simworld_backend python -c "<code>"
-
-# 測試 AI-RAN 服務
-docker exec simworld_backend python -c "
-from app.domains.interference.services.ai_ran_service import AIRANService
-service = AIRANService()
-print(f'AI available: {service.ai_available}')
-"
-
-# 進入容器 shell
-docker exec -it simworld_backend bash
-```
-
-### 檢查網路連接
-```bash
-# 驗證跨服務連接
-make verify-network-connection
-
-# 手動修復網路問題
-make fix-network-connection
-```
-
-### 容器狀態檢查
-```bash
-# 查看所有容器
-docker ps
-
-# 查看特定系統容器
-docker ps | grep netstack
-docker ps | grep simworld
-
-# 查看容器日誌
-docker logs simworld_backend
-docker logs netstack-api
-```
-
-## 📦 套件版本 (容器內實際環境)
-
-### SimWorld Backend Container
-- **Python**: 3.11
-- **TensorFlow**: 2.19.0 ✅ (完全可用)
-- **Sionna**: 1.1.0 ✅ (最新版)
-- **FastAPI**: 最新版
-- **typing-extensions**: 4.14.0
-- **Keras**: 3.10.0
-
-### NetStack API Container  
-- **Python**: 3.11
-- **MongoDB**: 6.0
-- **Redis**: 7-alpine
-- **Open5GS**: 2.7.5
-
-## 🚫 重要注意事項
-
-1. **永遠在容器內檢查套件和版本** - 主機環境不代表容器內環境
-2. **啟動順序很重要** - NetStack 必須先啟動創建網路
-3. **跨服務通信** - SimWorld ↔ NetStack 需要網路橋接
-4. **AI 功能完全可用** - 容器內 TensorFlow 完全正常，無需 fallback
-5. **數據持久化** - 使用 Docker volumes 儲存資料庫數據
-
-## 🎯 常用開發工作流程
-
-```bash
-# 1. 啟動完整環境
+# 1. 啟動環境
 make up
 
 # 2. 檢查狀態
 make status
 
-# 3. 開發時查看日誌
-make logs
+# 3. 查看日誌
+docker logs simworld_backend
+docker logs netstack-api
 
-# 4. 測試功能
-docker exec simworld_backend python -c "your_test_code"
+# 4. 在容器內執行命令
+docker exec simworld_backend python -c "your_code"
+docker exec -it simworld_backend bash
 
-# 5. 重啟特定服務
-make simworld-restart
+# 5. 重建服務
 make netstack-restart
+make simworld-restart
+```
 
-# 6. 清理重建
-make clean
-make build
+---
+
+## 📍 服務訪問地址
+
+- **NetStack API**: http://localhost:8080
+- **SimWorld Backend**: http://localhost:8888  
+- **SimWorld Frontend**: http://localhost:5173
+- **API 文檔**: http://localhost:8080/docs
+
+---
+
+## 🚨 故障排除
+
+### 快速診斷
+```bash
+# 檢查容器狀態
+docker ps | grep "netstack\|simworld"
+
+# 檢查健康狀況
+curl -f http://localhost:8080/health
+curl -f http://localhost:8888/health
+
+# 查看錯誤日誌
+docker logs netstack-api 2>&1 | tail -20
+docker logs simworld_backend 2>&1 | tail -20
+```
+
+### 常見修復方法
+```bash
+# 1. 快速重啟
+make down && make up
+
+# 2. 完全重建
+make clean && make build && make up
+
+# 3. 單個服務重建
+docker restart netstack-api
+docker restart simworld_backend
+
+# 4. 緊急重置
+make down
+docker system prune -f
 make up
 ```
 
-## 🔗 服務訪問地址
+---
 
-- **NetStack API**: http://localhost:8080
-- **NetStack Docs**: http://localhost:8080/docs  
-- **SimWorld Backend**: http://localhost:8888
-- **SimWorld Frontend**: http://localhost:5173
-- **Open5GS WebUI**: http://localhost:9999
-- **Prometheus**: http://localhost:9090
+## 🔧 重要注意事項
 
-## 📁 項目結構
+### ✅ 正確做法
+- 使用 `make` 指令管理服務
+- 在容器內執行 Python/Node.js 代碼
+- 使用 Docker logs 查看日誌
+- 通過 localhost 端口訪問服務
+
+### ❌ 絕對禁止
+- **npm run dev / npm start** - 本地環境指令
+- **pip install** - 容器外安裝套件
+- **直接修改容器內文件** - 重啟會丟失
+- **繞過 Docker 執行程式**
+
+### 🔍 檢查方式
+```bash
+# 檢查套件版本 (容器內)
+docker exec simworld_backend pip freeze | grep tensorflow
+docker exec simworld_backend node --version
+
+# 測試服務功能
+docker exec simworld_backend python -c "import tensorflow as tf; print(tf.__version__)"
+```
+
+---
+
+## 📁 重要文件路徑
+
 ```
 /ntn-stack/
-├── Makefile                    # 統一管理入口
-├── netstack/                   # 5G 核心網系統
+├── Makefile                    # 統一管理入口  
+├── netstack/
 │   ├── Makefile               # NetStack 管理
-│   ├── compose/core.yaml      # 核心網服務定義
-│   └── netstack_api/          # NetStack API 代碼
-├── simworld/                   # 3D 仿真引擎
-│   ├── docker-compose.yml     # SimWorld 服務定義
-│   ├── backend/               # FastAPI 後端
-│   └── frontend/              # React 前端
-└── tests/                      # 統一測試系統
+│   ├── compose/core.yaml      # 容器配置
+│   └── netstack_api/          # API 代碼
+├── simworld/
+│   ├── docker-compose.yml     # SimWorld 配置
+│   ├── backend/               # 後端代碼
+│   └── frontend/              # 前端代碼
+└── scripts/                    # 診斷腳本
 ```
 
-最後更新: 2024年12月6日
+---
+
+## 🎯 問題定位流程
+
+1. **檢查容器狀態**: `docker ps`
+2. **測試 API 健康**: `curl localhost:8080/health`
+3. **查看錯誤日誌**: `docker logs <container>`
+4. **重啟服務**: `make <service>-restart`
+5. **完全重建**: `make clean && make up`
+
+---
+
+**最後更新**: 2025年6月27日  
+**重點**: 🐳 完全容器化 - 不使用本地 npm/pip 指令

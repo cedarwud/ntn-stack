@@ -1,10 +1,31 @@
 import React from 'react'
 import { Line, Radar } from 'react-chartjs-2'
+import { ChartEvent, ActiveElement } from 'chart.js'
+
+interface ChartData {
+    labels: string[]
+    datasets: Array<{
+        label: string
+        data: number[]
+        borderColor?: string
+        backgroundColor?: string
+        fill?: boolean
+        tension?: number
+        pointBackgroundColor?: string[]
+        pointBorderColor?: string[]
+        pointHoverBackgroundColor?: string[]
+        pointHoverBorderColor?: string[]
+    }>
+}
 
 interface AlgorithmsTabProps {
-    timeSyncPrecisionData: any
-    performanceRadarData: any
-    onChartClick?: (event: any, elements: any[], chart: any) => void
+    timeSyncPrecisionData: ChartData
+    performanceRadarData: ChartData
+    onChartClick?: (
+        event: ChartEvent,
+        elements: ActiveElement[],
+        chart: Chart
+    ) => void
 }
 
 const AlgorithmsTab: React.FC<AlgorithmsTabProps> = ({
@@ -27,7 +48,7 @@ const AlgorithmsTab: React.FC<AlgorithmsTabProps> = ({
                                     color: 'white',
                                     font: {
                                         size: 14,
-                                        weight: 'bold' as 'bold',
+                                        weight: 'bold' as const,
                                     },
                                 },
                             },
@@ -37,7 +58,7 @@ const AlgorithmsTab: React.FC<AlgorithmsTabProps> = ({
                                 color: 'white',
                                 font: {
                                     size: 18,
-                                    weight: 'bold' as 'bold',
+                                    weight: 'bold' as const,
                                 },
                             },
                         },
@@ -49,14 +70,14 @@ const AlgorithmsTab: React.FC<AlgorithmsTabProps> = ({
                                     color: 'white',
                                     font: {
                                         size: 14,
-                                        weight: 'bold' as 'bold',
+                                        weight: 'bold' as const,
                                     },
                                 },
                                 ticks: {
                                     color: 'white',
                                     font: {
                                         size: 12,
-                                        weight: 'bold' as 'bold',
+                                        weight: 'bold' as const,
                                     },
                                 },
                                 grid: {
@@ -71,16 +92,18 @@ const AlgorithmsTab: React.FC<AlgorithmsTabProps> = ({
                                     color: 'white',
                                     font: {
                                         size: 14,
-                                        weight: 'bold' as 'bold',
+                                        weight: 'bold' as const,
                                     },
                                 },
                                 ticks: {
                                     color: 'white',
                                     font: {
                                         size: 12,
-                                        weight: 'bold' as 'bold',
+                                        weight: 'bold' as const,
                                     },
-                                    callback: function (value: any) {
+                                    callback: function (
+                                        value: string | number
+                                    ) {
                                         return (
                                             Math.round(Number(value) * 10) / 10
                                         )
@@ -116,7 +139,7 @@ const AlgorithmsTab: React.FC<AlgorithmsTabProps> = ({
                                     color: 'white',
                                     font: {
                                         size: 14,
-                                        weight: 'bold' as 'bold',
+                                        weight: 'bold' as const,
                                     },
                                 },
                             },
@@ -126,7 +149,7 @@ const AlgorithmsTab: React.FC<AlgorithmsTabProps> = ({
                                 color: 'white',
                                 font: {
                                     size: 18,
-                                    weight: 'bold' as 'bold',
+                                    weight: 'bold' as const,
                                 },
                             },
                         },
@@ -143,7 +166,7 @@ const AlgorithmsTab: React.FC<AlgorithmsTabProps> = ({
                                     color: 'white',
                                     font: {
                                         size: 12,
-                                        weight: 'bold' as 'bold',
+                                        weight: 'bold' as const,
                                     },
                                 },
                                 ticks: {

@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react'
 import { Line, Radar, Scatter } from 'react-chartjs-2'
-import { createInteractiveChartOptions } from '../utils/chartConfig'
+// import { createInteractiveChartOptions } from '../utils/chartConfig'
 
 interface ParametersTabProps {
-    globalCoverageData: any
+    _globalCoverageData: any
     onChartClick: (event: any, elements: any[], chart: any) => void
 }
 
 const ParametersTab: React.FC<ParametersTabProps> = ({
-    globalCoverageData,
+    _globalCoverageData,
     onChartClick,
 }) => {
     // 軌道參數配置狀態

@@ -103,15 +103,6 @@ export const useInfocomMetrics = (enabled: boolean = true) => {
 
     const returnValue = useMemo(
         () => {
-            console.log('🔍 useInfocomMetrics useMemo triggered - dependencies:', {
-                handoverLatency: metrics.handoverLatency,
-                successRate: metrics.successRate,
-                signalInterruption: metrics.signalInterruption,
-                energyEfficiency: metrics.energyEfficiency,
-                isLoading,
-                error,
-                dataSource
-            })
             return {
                 metrics,
                 isLoading,
@@ -125,10 +116,7 @@ export const useInfocomMetrics = (enabled: boolean = true) => {
             }
         },
         [
-            metrics.handoverLatency,
-            metrics.successRate, 
-            metrics.signalInterruption,
-            metrics.energyEfficiency,
+            metrics,
             isLoading,
             error,
             dataSource

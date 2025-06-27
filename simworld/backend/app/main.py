@@ -77,6 +77,7 @@ logger.info("Included API router v1 at /api/v1.")
 
 # Include algorithm performance router
 from app.api.routes.algorithm_performance import router as algorithm_performance_router
+
 app.include_router(algorithm_performance_router)
 logger.info("Included algorithm performance router.")
 
@@ -87,6 +88,31 @@ async def read_root():
     """Provides a basic welcome message."""
     logger.info("--- Root endpoint '/' requested ---")
     return {"message": "Welcome to the Sionna RT Simulation API"}
+
+
+# --- Health Check Endpoint ---
+@app.get("/health", tags=["Health"])
+async def health_check():
+    """Health check endpoint"""
+    try:
+        # Check if database connection is available
+        db_status = "healthy" if database.is_connected else "unhealthy"
+
+        return {
+            "status": "healthy",
+            "timestamp": "2025-06-27T03:00:00Z",
+            "service": "simworld-backend",
+            "database": db_status,
+            "version": "1.0.0",
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": "2025-06-27T03:00:00Z",
+            "service": "simworld-backend",
+        }
 
 
 # --- Uvicorn Entry Point (for direct run, if needed) ---

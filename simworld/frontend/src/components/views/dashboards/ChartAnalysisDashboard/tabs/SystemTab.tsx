@@ -1,10 +1,32 @@
 import React from 'react'
-import { Doughnut, Bar } from 'react-chartjs-2'
+import { Doughnut } from 'react-chartjs-2'
+import { ChartEvent, ActiveElement, Chart } from 'chart.js'
+
+interface SystemMetrics {
+    cpu: number
+    memory: number
+    gpu: number
+    networkLatency: number
+}
+
+interface ChartData {
+    labels: string[]
+    datasets: Array<{
+        label?: string
+        data: number[]
+        backgroundColor?: string[]
+        borderColor?: string[]
+    }>
+}
 
 interface SystemTabProps {
-    systemMetrics: any
-    systemArchitectureData: any
-    onChartClick?: (event: any, elements: any[], chart: any) => void
+    systemMetrics: SystemMetrics
+    systemArchitectureData: ChartData
+    onChartClick?: (
+        event: ChartEvent,
+        elements: ActiveElement[],
+        chart: Chart
+    ) => void
 }
 
 const SystemTab: React.FC<SystemTabProps> = ({
@@ -103,7 +125,7 @@ const SystemTab: React.FC<SystemTabProps> = ({
                                     color: 'white',
                                     font: {
                                         size: 14,
-                                        weight: 'bold' as 'bold',
+                                        weight: 'bold' as const,
                                     },
                                     padding: 20,
                                 },
@@ -114,7 +136,7 @@ const SystemTab: React.FC<SystemTabProps> = ({
                                 color: 'white',
                                 font: {
                                     size: 18,
-                                    weight: 'bold' as 'bold',
+                                    weight: 'bold' as const,
                                 },
                             },
                         },

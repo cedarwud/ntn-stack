@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
         proxy: {
                 // 代理API請求到 SimWorld 後端
             '/api': {
-                    target: 'http://simworld_backend:8000',
+                    target: 'http://simworld-backend:8000',
                     changeOrigin: true,
                     secure: false,
                 },
@@ -32,19 +32,19 @@ export default defineConfig(({ mode }) => {
                 },
                 // 代理 WebSocket 連接
                 '/socket.io': {
-                    target: 'http://simworld_backend:8000',
+                    target: 'http://simworld-backend:8000',
                     changeOrigin: true,
                     ws: true,
             },
             // 增加對靜態文件的代理
             '/rendered_images': {
-                target: 'http://simworld_backend:8000',
+                target: 'http://simworld-backend:8000',
                 changeOrigin: true,
                 secure: false,
             },
             // 其他靜態資源路徑
             '/static': {
-                target: 'http://simworld_backend:8000',
+                target: 'http://simworld-backend:8000',
                 changeOrigin: true,
                 secure: false,
             }

@@ -38,6 +38,20 @@ except ImportError:
     class FineGrainedSyncService:
         def __init__(self):
             self.state = "running"
+        
+        async def predict_satellite_access(self, request_data):
+            """模擬衛星接入預測"""
+            return {
+                "success": True,
+                "prediction": {
+                    "predicted_access_time": datetime.now().isoformat(),
+                    "satellite_id": request_data.get("satellite_id", "SAT-001"),
+                    "access_duration": 300,
+                    "signal_quality": 0.85,
+                    "confidence": 0.9
+                },
+                "algorithm": "fine_grained_sync"
+            }
 
 try:
     from ..services.event_bus_service import EventBusService

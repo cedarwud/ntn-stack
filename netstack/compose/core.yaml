@@ -357,15 +357,25 @@ services:
       - REDIS_URL=redis://redis:6379
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
-      - SIMWORLD_API_URL=http://simworld_backend:8000
-      - REDIS_TIMEOUT=10
+      - SIMWORLD_API_URL=http://simworld-backend:8000
+      - REDIS_TIMEOUT=15
       - MONGODB_TIMEOUT=30
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
     volumes:
       - netstack_models:/app/models
       - netstack_results:/app/results
       - netstack_scripts:/app/scripts
     ports:
       - "8080:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
     depends_on:
       mongo:
         condition: service_healthy
