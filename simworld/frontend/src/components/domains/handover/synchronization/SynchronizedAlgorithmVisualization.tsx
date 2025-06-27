@@ -13,7 +13,7 @@ interface AlgorithmStep {
         | 'sync_check'
         | 'handover_trigger'
     timestamp: number
-    data: any
+    data: Record<string, unknown>
     status: 'running' | 'completed' | 'error'
     description: string
 }
@@ -99,10 +99,10 @@ const SynchronizedAlgorithmVisualization: React.FC<
     const stepIdRef = useRef(0) // 用於生成唯一的步驟ID
 
     // 使用數據同步上下文
-    const { coreSync: _coreSyncStatus } = useNetStackData()
+    const { coreSync } = useNetStackData()
     // const { overall: connectionStatus, dataSource } = useDataSourceStatus()
     const {
-        status: _coreSyncData,
+        status,
         loading: coreSyncLoading,
         error: coreSyncError,
     } = useCoreSync() // 5秒更新間隔
@@ -323,8 +323,9 @@ const SynchronizedAlgorithmVisualization: React.FC<
                     // const _apiDeltaT = _apiTime - currentTime
                     // 不覆蓋 deltaT，保持使用動態計算值
                     // 已經使用動態計算的時間，不需要額外檢查
-                } catch (timeError) {
+                } catch (error) {
                     // 時間解析失敗，繼續使用動態計算值
+                    console.error('Time parsing error:', error)
                 }
 
                 const result: PredictionResult = {

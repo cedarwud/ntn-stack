@@ -1,8 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Line } from '@react-three/drei'
 
+interface Device {
+    id: string | number;
+    [key: string]: unknown;
+}
+
 interface FailoverMechanismProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
 }
 

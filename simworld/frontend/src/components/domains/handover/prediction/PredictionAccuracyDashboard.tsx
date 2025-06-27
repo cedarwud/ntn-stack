@@ -136,7 +136,7 @@ const PredictionAccuracyDashboard: React.FC<
             // 嘗試調用 API（如果存在）
             try {
                 await HandoverAPIService.toggleAccuracyOptimization(newState)
-            } catch (apiErr) {
+            } catch (error) {
                 console.warn('準確率優化 API 暫未實現，使用本地狀態')
             }
         } catch (err) {
@@ -180,7 +180,7 @@ const PredictionAccuracyDashboard: React.FC<
         // 設置初始建議
         const initialRecs = generateMockRecommendations()
         setRecommendations(initialRecs)
-    }, [isEnabled]) // 只依賴 isEnabled
+    }, [isEnabled, generateMockMetrics, generateMockRecommendations]) // Add missing dependencies
 
     // 定期更新數據 - 獨立的 useEffect
     useEffect(() => {
@@ -220,7 +220,7 @@ const PredictionAccuracyDashboard: React.FC<
             console.log('清理定期更新定時器')
             clearInterval(interval)
         }
-    }, [isEnabled, accuracyMetrics, refreshInterval])
+    }, [isEnabled, accuracyMetrics, refreshInterval, generateMockMetrics, generateMockRecommendations])
 
     // 格式化百分比
     const formatPercentage = (value: number | undefined | null): string => {
