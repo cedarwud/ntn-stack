@@ -240,7 +240,7 @@ configure_simworld_bridge() {
     log_info "配置SimWorld網路橋接..."
     
     # 檢查SimWorld backend是否可以連接到NetStack網路
-    local simworld_container="simworld_backend"
+    local simworld_container="simworld-backend"
     
     if docker ps --format "table {{.Names}}" | grep -q "$simworld_container"; then
         log_info "SimWorld backend容器已運行，配置網路橋接..."
@@ -364,7 +364,7 @@ test_full_connectivity() {
     
     # 測試3: SimWorld內部連通性
     log_info "測試3: SimWorld內部連通性"
-    if docker exec simworld_backend ping -c 1 simworld_postgis &> /dev/null; then
+    if docker exec simworld-backend ping -c 1 simworld_postgis &> /dev/null; then
         log_success "✓ SimWorld Backend -> PostGIS 連通"
         tests_passed=$((tests_passed + 1))
     else
@@ -373,7 +373,7 @@ test_full_connectivity() {
     
     # 測試4: 跨服務連通性
     log_info "測試4: 跨服務連通性"
-    if docker exec simworld_backend ping -c 1 netstack-api &> /dev/null; then
+    if docker exec simworld-backend ping -c 1 netstack-api &> /dev/null; then
         log_success "✓ SimWorld -> NetStack 跨網路連通"
         tests_passed=$((tests_passed + 1))
     else
@@ -431,7 +431,7 @@ fix_network_issues() {
             docker network connect netstack-core "$container" 2>/dev/null || true
         elif [[ $container == *"simworld"* ]]; then
             docker network connect sionna-net "$container" 2>/dev/null || true
-            if [[ $container == "simworld_backend" ]]; then
+            if [[ $container == "simworld-backend" ]]; then
                 docker network connect netstack-core "$container" 2>/dev/null || true
             fi
         fi

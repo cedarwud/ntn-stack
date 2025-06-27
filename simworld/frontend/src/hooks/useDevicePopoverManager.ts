@@ -64,7 +64,7 @@ export const useDevicePopoverManager = ({
     // For Popover's orientation inputs specifically
     const [orientationInputs, setOrientationInputs] = useState<{
         [key: string]: { x: string; y: string; z: string };
-    }>(Record<string, never>);
+    }>({});
 
     const handlePopoverOpen = useCallback(
         (
@@ -133,7 +133,7 @@ export const useDevicePopoverManager = ({
         setIsEditing(false);
         // Optionally reset popoverDevice to defaults if not editing
         // setPopoverDevice({ name: '', ... initial values ... });
-        setOrientationInputs(Record<string, never>); // Clear orientation inputs
+        setOrientationInputs({}); // Clear orientation inputs
     }, []);
 
     const handlePopoverInputChange = useCallback((field: string, value: Event) => {
