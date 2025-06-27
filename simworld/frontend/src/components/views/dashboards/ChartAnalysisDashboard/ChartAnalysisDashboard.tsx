@@ -5638,7 +5638,7 @@ const ChartAnalysisDashboard = ({
                             className={activeTab === 'overview' ? 'active' : ''}
                             onClick={() => setActiveTab('overview')}
                         >
-                            📊 IEEE 核心圖表
+                            📊 核心圖表
                         </button>
                         <button
                             className={
@@ -5646,13 +5646,13 @@ const ChartAnalysisDashboard = ({
                             }
                             onClick={() => setActiveTab('performance')}
                         >
-                            ⚡ 性能與 QoE
+                            ⚡ 性能監控
                         </button>
                         <button
                             className={activeTab === 'system' ? 'active' : ''}
                             onClick={() => setActiveTab('system')}
                         >
-                            🖥️ 系統架構監控
+                            🖥️ 系統架構
                         </button>
                         <button
                             className={
@@ -5660,21 +5660,21 @@ const ChartAnalysisDashboard = ({
                             }
                             onClick={() => setActiveTab('algorithms')}
                         >
-                            🔬 算法與策略
+                            🔬 算法分析
+                        </button>
+                        <button
+                            className={
+                                activeTab === 'rl-monitoring' ? 'active' : ''
+                            }
+                            onClick={() => setActiveTab('rl-monitoring')}
+                        >
+                            🧠 RL 監控
                         </button>
                         <button
                             className={activeTab === 'analysis' ? 'active' : ''}
                             onClick={() => setActiveTab('analysis')}
                         >
                             📈 深度分析
-                        </button>
-                        <button
-                            className={
-                                activeTab === 'parameters' ? 'active' : ''
-                            }
-                            onClick={() => setActiveTab('parameters')}
-                        >
-                            📋 軌道參數表
                         </button>
                         <button
                             className={
@@ -5692,11 +5692,11 @@ const ChartAnalysisDashboard = ({
                         </button>
                         <button
                             className={
-                                activeTab === 'rl-monitoring' ? 'active' : ''
+                                activeTab === 'parameters' ? 'active' : ''
                             }
-                            onClick={() => setActiveTab('rl-monitoring')}
+                            onClick={() => setActiveTab('parameters')}
                         >
-                            🧠 RL 監控
+                            📋 軌道參數
                         </button>
                     </div>
                 </div>
