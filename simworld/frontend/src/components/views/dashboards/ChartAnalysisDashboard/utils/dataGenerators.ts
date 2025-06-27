@@ -14,15 +14,27 @@ export const generateQoETimeSeriesData = () => {
 
     const timePoints = Array.from({ length: 10 }, (_, i) => `T${i + 1}`)
 
-    const datasets = scenarios.map((scenario, index) => ({
-        label: scenario,
-        data: timePoints.map(() => Math.random() * 0.5 + 0.7 + index * 0.03),
-        borderColor: COLOR_PALETTE.extended[index % COLOR_PALETTE.extended.length],
-        backgroundColor: COLOR_PALETTE.extended[index % COLOR_PALETTE.extended.length].replace('0.8', '0.2'),
-        borderWidth: 3,
-        tension: 0.4,
-        fill: false,
-    }))
+    const datasets = scenarios.map((scenario, index) => {
+        // 使用固定種子避免Math.random()導致無限渲染
+        const fixedValues = [
+            [0.92, 0.89, 0.91, 0.88, 0.90, 0.87, 0.89, 0.91, 0.88, 0.90],
+            [0.88, 0.85, 0.87, 0.84, 0.86, 0.83, 0.85, 0.87, 0.84, 0.86],
+            [0.85, 0.82, 0.84, 0.81, 0.83, 0.80, 0.82, 0.84, 0.81, 0.83],
+            [0.82, 0.79, 0.81, 0.78, 0.80, 0.77, 0.79, 0.81, 0.78, 0.80],
+            [0.78, 0.75, 0.77, 0.74, 0.76, 0.73, 0.75, 0.77, 0.74, 0.76],
+            [0.75, 0.72, 0.74, 0.71, 0.73, 0.70, 0.72, 0.74, 0.71, 0.73],
+        ]
+        
+        return {
+            label: scenario,
+            data: fixedValues[index] || fixedValues[0],
+            borderColor: COLOR_PALETTE.extended[index % COLOR_PALETTE.extended.length],
+            backgroundColor: COLOR_PALETTE.extended[index % COLOR_PALETTE.extended.length].replace('0.8', '0.2'),
+            borderWidth: 3,
+            tension: 0.4,
+            fill: false,
+        }
+    })
 
     return {
         labels: timePoints,
@@ -182,7 +194,7 @@ export const generateStrategyEffectData = (strategyMetrics: any) => {
                 data: timeLabels.map((_, i) => 
                     strategyMetrics.flexible.averageLatency + 
                     Math.sin(i * 0.2) * 3 + 
-                    (Math.random() - 0.5) * 2
+                    Math.sin(i * 0.7) * 1.2  // 使用固定的正弦波代替隨機數
                 ),
                 borderColor: 'rgba(255, 206, 86, 1)',
                 backgroundColor: 'rgba(255, 206, 86, 0.2)',
@@ -195,7 +207,7 @@ export const generateStrategyEffectData = (strategyMetrics: any) => {
                 data: timeLabels.map((_, i) => 
                     strategyMetrics.consistent.averageLatency + 
                     Math.sin(i * 0.15) * 2 + 
-                    (Math.random() - 0.5) * 1.5
+                    Math.cos(i * 0.5) * 0.8  // 使用固定的餘弦波代替隨機數
                 ),
                 borderColor: 'rgba(75, 192, 192, 1)',
                 backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -352,4 +364,4 @@ export const generateAlgorithmLatencyData = () => {
             },
         ],
     }
-} 
+}

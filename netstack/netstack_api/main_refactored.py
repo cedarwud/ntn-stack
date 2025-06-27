@@ -61,7 +61,11 @@ from .routers.ai_decision_router import (
     shutdown_ai_services,
 )
 from .routers.core_sync_router import router as core_sync_router
-from .routers.intelligent_fallback_router import router as intelligent_fallback_router
+from .routers.intelligent_fallback_router import (
+    router as intelligent_fallback_router,
+    initialize_fallback_service,
+    shutdown_fallback_service
+)
 
 # 導入新的重構路由器
 from .app.api.health import router as health_router
@@ -105,7 +109,10 @@ async def lifespan(app: FastAPI):
         app.state.connection_service = ConnectionQualityService(mongo_adapter)
         
         # 初始化 AI 服務
-        await initialize_ai_services()
+        await initialize_ai_services(redis_adapter)
+        
+        # 初始化回退服務
+        await initialize_fallback_service()
         
         logger.info("✅ NetStack API 啟動完成")
         
@@ -119,6 +126,7 @@ async def lifespan(app: FastAPI):
         logger.info("🔧 NetStack API 正在關閉...")
         
         await shutdown_ai_services()
+        await shutdown_fallback_service()
         
         if mongo_adapter:
             await mongo_adapter.disconnect()

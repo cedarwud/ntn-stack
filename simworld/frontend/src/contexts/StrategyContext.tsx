@@ -3,6 +3,7 @@ import {
     useContext,
     useState,
     useCallback,
+    useMemo,
     ReactNode,
 } from 'react'
 
@@ -91,15 +92,18 @@ export const StrategyProvider = ({ children }: StrategyProviderProps) => {
         [currentStrategy]
     )
 
+    const contextValue = useMemo(
+        () => ({
+            currentStrategy,
+            switchStrategy,
+            isLoading,
+            lastChanged,
+        }),
+        [currentStrategy, switchStrategy, isLoading, lastChanged]
+    )
+
     return (
-        <StrategyContext.Provider
-            value={{
-                currentStrategy,
-                switchStrategy,
-                isLoading,
-                lastChanged,
-            }}
-        >
+        <StrategyContext.Provider value={contextValue}>
             {children}
         </StrategyContext.Provider>
     )

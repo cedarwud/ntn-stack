@@ -30,7 +30,8 @@ from pathlib import Path
 import structlog
 from fastapi import Request
 from contextlib import asynccontextmanager
-import aioredis
+# Redis handling through adapter pattern
+aioredis = None  # Will be replaced by RedisAdapter
 import json
 import pickle
 import joblib
@@ -270,11 +271,16 @@ class UnifiedPerformanceOptimizer:
                 self.logger.info("✅ 使用現有 Redis 適配器")
                 return self.redis_adapter
             else:
-                # Try to connect to Redis directly
-                redis = aioredis.from_url("redis://172.20.0.60:6379", decode_responses=True)
-                await redis.ping()
-                self.logger.info("✅ Redis 緩存連接成功")
-                return redis
+                # Use built-in Redis client
+                try:
+                    import redis.asyncio as redis_async
+                    redis = redis_async.Redis.from_url("redis://redis:6379", decode_responses=True)
+                    await redis.ping()
+                    self.logger.info("✅ Redis 緩存連接成功")
+                    return redis
+                except Exception as redis_error:
+                    self.logger.warning(f"⚠️ Redis 不可用，使用內存緩存: {redis_error}")
+                    return {}
         except Exception as e:
             self.logger.warning(f"⚠️ Redis 不可用，使用內存緩存: {e}")
             return {}  # Use dict as simple cache

@@ -238,24 +238,36 @@ export const useChartData = (isOpen: boolean) => {
                                 sat.name.toUpperCase().includes('KUIPER')
                             )
 
-                            // 更新衛星數據
-                            setSatelliteData(prev => ({
-                                ...prev,
-                                starlink: {
-                                    ...prev.starlink,
-                                    altitude: starlinkSats.length > 0 
-                                        ? Math.round(starlinkSats.reduce((sum: number, sat: any) => 
-                                            sum + (sat.orbit_altitude_km || 550), 0) / starlinkSats.length)
-                                        : 550,
-                                },
-                                kuiper: {
-                                    ...prev.kuiper,
-                                    altitude: kuiperSats.length > 0
-                                        ? Math.round(kuiperSats.reduce((sum: number, sat: any) => 
-                                            sum + (sat.orbit_altitude_km || 630), 0) / kuiperSats.length)
-                                        : 630,
+                            // 計算新的高度值
+                            const newStarlinkAltitude = starlinkSats.length > 0 
+                                ? Math.round(starlinkSats.reduce((sum: number, sat: any) => 
+                                    sum + (sat.orbit_altitude_km || 550), 0) / starlinkSats.length)
+                                : 550
+                            
+                            const newKuiperAltitude = kuiperSats.length > 0
+                                ? Math.round(kuiperSats.reduce((sum: number, sat: any) => 
+                                    sum + (sat.orbit_altitude_km || 630), 0) / kuiperSats.length)
+                                : 630
+
+                            // 只在高度值真正變化時才更新 state
+                            setSatelliteData(prev => {
+                                if (prev.starlink.altitude === newStarlinkAltitude && 
+                                    prev.kuiper.altitude === newKuiperAltitude) {
+                                    return prev // 返回相同引用，避免觸發重新渲染
                                 }
-                            }))
+                                
+                                return {
+                                    ...prev,
+                                    starlink: {
+                                        ...prev.starlink,
+                                        altitude: newStarlinkAltitude,
+                                    },
+                                    kuiper: {
+                                        ...prev.kuiper,
+                                        altitude: newKuiperAltitude,
+                                    }
+                                }
+                            })
                         }
                         return true
                     }
@@ -328,12 +340,13 @@ export const useChartData = (isOpen: boolean) => {
                     fetchRealUAVData(),
                     fetchCoreSync(),
                     fetchRealSystemMetrics(),
-                    new Promise(resolve => {
-                        setTimeout(async () => {
-                            await fetchRealSatelliteData()
-                            resolve(true)
-                        }, 2000)
-                    }),
+                    // 暫時停用衛星數據獲取以除錯無限渲染
+                    // new Promise(resolve => {
+                    //     setTimeout(async () => {
+                    //         await fetchRealSatelliteData()
+                    //         resolve(true)
+                    //     }, 2000)
+                    // }),
                 ])
 
                 console.log('✅ 數據初始化完成')
@@ -347,17 +360,17 @@ export const useChartData = (isOpen: boolean) => {
             runAutomaticTests().catch(() => {})
         }, 5000)
 
-        // 定期更新系統指標
-        const metricsInterval = setInterval(() => {
-            fetchRealSystemMetrics()
-        }, 30000)
+        // 定期更新系統指標 - 暫時停用以除錯
+        // const metricsInterval = setInterval(() => {
+        //     fetchRealSystemMetrics()
+        // }, 30000)
 
         return () => {
             clearTimeout(initTimeout)
             clearTimeout(testTimeout)
-            clearInterval(metricsInterval)
+            // clearInterval(metricsInterval)
         }
-    }, [isOpen])
+    }, [isOpen]) // 移除所有fetch函數依賴，只保留isOpen
 
     return {
         data,

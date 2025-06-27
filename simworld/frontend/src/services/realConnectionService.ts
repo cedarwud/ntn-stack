@@ -190,7 +190,8 @@ export class RealConnectionManager {
     private isRunning: boolean = false
     
     constructor() {
-        this.startPeriodicUpdate()
+        // 暫時停用定期更新以除錯無限渲染
+        // this.startPeriodicUpdate()
     }
     
     async updateConnectionStatus(ue_id: string): Promise<void> {

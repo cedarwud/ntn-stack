@@ -39,7 +39,9 @@ from .services.slice_service import SliceService, SliceType
 from .services.health_service import HealthService
 from .services.ueransim_service import UERANSIMConfigService
 from .services.satellite_gnb_mapping_service import SatelliteGnbMappingService
-from .services.sionna_integration_service import SionnaIntegrationService
+from .services.unified_sionna_integration import (
+    UnifiedSionnaIntegration as SionnaIntegrationService,
+)
 from .services.interference_control_service import InterferenceControlService
 from .services.connection_quality_service import ConnectionQualityService
 from .services.mesh_bridge_service import MeshBridgeService
@@ -103,7 +105,12 @@ from .routers.ai_decision_router import (
     shutdown_ai_services,
 )
 from .routers.core_sync_router import router as core_sync_router
-from .routers.intelligent_fallback_router import router as intelligent_fallback_router
+from .routers.intelligent_fallback_router import (
+    router as intelligent_fallback_router,
+    initialize_fallback_service,
+    shutdown_fallback_service
+)
+
 # 導入可用的路由器（註釋掉可能有問題的路由器）
 try:
     from .routers.performance_router import router as performance_router
@@ -146,13 +153,13 @@ open5gs_adapter = None
 REQUEST_COUNT = Counter(
     "netstack_requests_total",
     "Total number of requests",
-    ["method", "endpoint", "status"]
+    ["method", "endpoint", "status"],
 )
 
 REQUEST_DURATION = Histogram(
     "netstack_request_duration_seconds",
     "Request duration in seconds",
-    ["method", "endpoint"]
+    ["method", "endpoint"],
 )
 
 
@@ -163,66 +170,74 @@ async def lifespan(app: FastAPI):
     處理啟動和關閉時的資源初始化和清理
     """
     global mongo_adapter, redis_adapter, open5gs_adapter
-    
+
     logger.info("🚀 NetStack API 正在啟動...")
-    
+
     try:
         # 初始化適配器
         mongo_url = os.getenv("DATABASE_URL", "mongodb://mongo:27017/open5gs")
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
         mongo_host = os.getenv("MONGO_HOST", "mongo")
-        
+
         mongo_adapter = MongoAdapter(mongo_url)
         redis_adapter = RedisAdapter(redis_url)
         open5gs_adapter = Open5GSAdapter(mongo_host=mongo_host, mongo_port=27017)
-        
+
         await mongo_adapter.connect()
         await redis_adapter.connect()
         # Open5GSAdapter 沒有 connect 方法，跳過
-        
+
         # 初始化服務並注入到 app.state (按依賴順序)
         app.state.ue_service = UEService(mongo_adapter, open5gs_adapter)
-        app.state.slice_service = SliceService(mongo_adapter, open5gs_adapter, redis_adapter)
+        app.state.slice_service = SliceService(
+            mongo_adapter, open5gs_adapter, redis_adapter
+        )
         app.state.health_service = HealthService(mongo_adapter, redis_adapter)
         app.state.ueransim_service = UERANSIMConfigService()
         app.state.satellite_service = SatelliteGnbMappingService(mongo_adapter)
         app.state.sionna_service = SionnaIntegrationService()
         app.state.interference_service = InterferenceControlService()
-        
+
         # 首先初始化基礎服務
         app.state.connection_service = ConnectionQualityService(mongo_adapter)
-        app.state.mesh_service = MeshBridgeService(mongo_adapter, redis_adapter, open5gs_adapter)
-        
+        app.state.mesh_service = MeshBridgeService(
+            mongo_adapter, redis_adapter, open5gs_adapter
+        )
+
         # 然後初始化依賴於其他服務的服務
         app.state.uav_failover_service = UAVMeshFailoverService(
-            mongo_adapter, 
+            mongo_adapter,
             redis_adapter,
             app.state.connection_service,
-            app.state.mesh_service
+            app.state.mesh_service,
         )
-        
+
         # 初始化 AI 服務
         await initialize_ai_services(redis_adapter)
         
+        # 初始化回退服務
+        await initialize_fallback_service()
+
         logger.info("✅ NetStack API 啟動完成")
-        
+
         yield  # 應用程式運行期間
-        
+
     except Exception as e:
         logger.error("💥 NetStack API 啟動失敗", error=str(e))
         raise
     finally:
         # 清理資源
         logger.info("🔧 NetStack API 正在關閉...")
-        
+
         await shutdown_ai_services()
-        
+        await shutdown_fallback_service()
+
         if mongo_adapter:
             await mongo_adapter.disconnect()
         if redis_adapter:
             await redis_adapter.disconnect()
         # Open5GSAdapter 沒有 disconnect 方法，跳過
-            
+
         logger.info("✅ NetStack API 已關閉")
 
 
@@ -252,21 +267,21 @@ app.add_middleware(
 async def log_and_metrics_middleware(request: Request, call_next):
     """記錄請求日誌和收集 Prometheus 指標"""
     start_time = datetime.utcnow()
-    
+
     # 記錄請求開始
     logger.info(
         "HTTP請求開始",
         method=request.method,
         url=str(request.url),
-        client_ip=request.client.host if request.client else None
+        client_ip=request.client.host if request.client else None,
     )
-    
+
     try:
         response = await call_next(request)
-        
+
         # 計算處理時間
         duration = (datetime.utcnow() - start_time).total_seconds()
-        
+
         # 記錄 Prometheus 指標
         method = request.method
         endpoint = request.url.path
@@ -274,18 +289,18 @@ async def log_and_metrics_middleware(request: Request, call_next):
             method=method, endpoint=endpoint, status=response.status_code
         ).inc()
         REQUEST_DURATION.labels(method=method, endpoint=endpoint).observe(duration)
-        
+
         # 記錄請求完成
         logger.info(
             "HTTP請求完成",
             method=method,
             url=endpoint,
             status_code=response.status_code,
-            duration=duration
+            duration=duration,
         )
-        
+
         return response
-        
+
     except Exception as e:
         duration = (datetime.utcnow() - start_time).total_seconds()
         logger.error(
@@ -293,14 +308,14 @@ async def log_and_metrics_middleware(request: Request, call_next):
             method=request.method,
             url=str(request.url),
             error=str(e),
-            duration=duration
+            duration=duration,
         )
-        
+
         # 記錄錯誤指標
         REQUEST_COUNT.labels(
             method=request.method, endpoint=request.url.path, status=500
         ).inc()
-        
+
         raise
 
 
@@ -353,14 +368,14 @@ async def root():
         "timestamp": datetime.utcnow().isoformat(),
         "endpoints": {
             "docs": "/docs",
-            "redoc": "/redoc", 
+            "redoc": "/redoc",
             "health": "/health",
             "metrics": "/metrics",
-            "openapi": "/openapi.json"
+            "openapi": "/openapi.json",
         },
         "features": [
             "UE 管理",
-            "Slice 管理", 
+            "Slice 管理",
             "衛星 gNodeB 映射",
             "OneWeb 衛星整合",
             "Sionna 整合",
@@ -368,8 +383,8 @@ async def root():
             "Mesh 網路橋接",
             "UAV 管理",
             "干擾控制",
-            "UERANSIM 配置"
-        ]
+            "UERANSIM 配置",
+        ],
     }
 
 
@@ -383,8 +398,8 @@ async def not_found_handler(request: Request, exc):
             "error": "Not Found",
             "message": f"路徑 {request.url.path} 不存在",
             "timestamp": datetime.utcnow().isoformat(),
-            "available_docs": "/docs"
-        }
+            "available_docs": "/docs",
+        },
     )
 
 
@@ -395,10 +410,10 @@ async def internal_server_error_handler(request: Request, exc):
     return JSONResponse(
         status_code=500,
         content={
-            "error": "Internal Server Error", 
+            "error": "Internal Server Error",
             "message": "服務器內部錯誤",
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     )
 
 
@@ -410,19 +425,13 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content={
             "error": f"HTTP {exc.status_code}",
             "message": exc.detail,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     )
 
 
 # ===== 啟動設定 =====
 if __name__ == "__main__":
     import uvicorn
-    
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8080,
-        reload=True,
-        log_level="info"
-    )
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True, log_level="info")

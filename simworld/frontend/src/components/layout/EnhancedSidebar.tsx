@@ -277,7 +277,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     })
 
     // 擴展的UI狀態
-    const [activeCategory, setActiveCategory] = useState<string>('uav')
+    const [activeCategory, setActiveCategory] = useState<string>('handover_mgr')
     const [showTempDevices, setShowTempDevices] = useState(true)
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
     const [showDesiredDevices, setShowDesiredDevices] = useState(false)

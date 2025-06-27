@@ -31,11 +31,17 @@ class RedisAdapter:
     async def connect(self) -> None:
         """建立 Redis 連接"""
         try:
+            # Get timeout from environment or use default
+            import os
+            timeout = int(os.getenv("REDIS_TIMEOUT", "10"))
+            
             self.client = redis.from_url(
                 self.connection_string,
                 decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5,
+                socket_connect_timeout=timeout,
+                socket_timeout=timeout,
+                retry_on_timeout=True,
+                health_check_interval=30,
             )
 
             # 測試連接

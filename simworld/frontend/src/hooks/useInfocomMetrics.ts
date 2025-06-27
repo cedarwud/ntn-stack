@@ -3,7 +3,7 @@
  * 用於獲取實際的 INFOCOM 2024 算法性能指標
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 interface InfocomMetrics {
     handoverLatency: number;      // 換手延遲 (ms)
@@ -95,21 +95,45 @@ export const useInfocomMetrics = (enabled: boolean = true) => {
 
         fetchMetrics();
 
-        // 定期更新 (每30秒)
-        const interval = setInterval(fetchMetrics, 30000);
-        return () => clearInterval(interval);
+        // 定期更新 (每30秒) - 暫時停用以除錯無限渲染
+        // const interval = setInterval(fetchMetrics, 30000);
+        // return () => clearInterval(interval);
 
     }, [enabled]);
 
-    return {
-        metrics,
-        isLoading,
-        error,
-        dataSource,
-        // 提供個別指標的便捷訪問
-        handoverLatency: metrics.handoverLatency,
-        successRate: metrics.successRate,
-        signalInterruption: metrics.signalInterruption,
-        energyEfficiency: metrics.energyEfficiency
-    };
+    const returnValue = useMemo(
+        () => {
+            console.log('🔍 useInfocomMetrics useMemo triggered - dependencies:', {
+                handoverLatency: metrics.handoverLatency,
+                successRate: metrics.successRate,
+                signalInterruption: metrics.signalInterruption,
+                energyEfficiency: metrics.energyEfficiency,
+                isLoading,
+                error,
+                dataSource
+            })
+            return {
+                metrics,
+                isLoading,
+                error,
+                dataSource,
+                // 提供個別指標的便捷訪問
+                handoverLatency: metrics.handoverLatency,
+                successRate: metrics.successRate,
+                signalInterruption: metrics.signalInterruption,
+                energyEfficiency: metrics.energyEfficiency
+            }
+        },
+        [
+            metrics.handoverLatency,
+            metrics.successRate, 
+            metrics.signalInterruption,
+            metrics.energyEfficiency,
+            isLoading,
+            error,
+            dataSource
+        ]
+    )
+
+    return returnValue;
 };

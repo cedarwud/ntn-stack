@@ -28,7 +28,7 @@ from ..models.unified_models import (
 )
 
 # Import other routers
-from .core_sync_router import router as core_sync_router
+# from .core_sync_router import router as core_sync_router  # 暫時註釋，引用多個已刪除的服務模組
 
 logger = logging.getLogger(__name__)
 

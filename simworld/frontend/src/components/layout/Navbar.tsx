@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import type { FC, RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/Navbar.scss'
@@ -53,6 +53,11 @@ const Navbar: FC<NavbarProps> = ({
 
     // 新增 Chart Analysis Modal 狀態
     const [showChartAnalysisModal, setShowChartAnalysisModal] = useState(false)
+
+    // 穩定 onClose 函數引用
+    const handleCloseChartAnalysis = useCallback(() => {
+        setShowChartAnalysisModal(false)
+    }, [])
 
     // States for modal visibility
     const [showSINRModal, setShowSINRModal] = useState(false)
@@ -415,7 +420,7 @@ const Navbar: FC<NavbarProps> = ({
             {/* 新增 Chart Analysis Dashboard - 100% 全屏彈窗 */}
             <ChartAnalysisDashboard
                 isOpen={showChartAnalysisModal}
-                onClose={() => setShowChartAnalysisModal(false)}
+                onClose={handleCloseChartAnalysis}
             />
         </>
     )

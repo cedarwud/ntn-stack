@@ -358,6 +358,8 @@ services:
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
       - SIMWORLD_API_URL=http://simworld_backend:8000
+      - REDIS_TIMEOUT=10
+      - MONGODB_TIMEOUT=30
     volumes:
       - netstack_models:/app/models
       - netstack_results:/app/results
@@ -365,19 +367,26 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - mongo
-      - redis
-      - amf
-      - smf
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nrf:
+        condition: service_healthy
+      amf:
+        condition: service_healthy
+      smf:
+        condition: service_healthy
     networks:
       netstack-core:
         ipv4_address: 172.20.0.40
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   # Redis 快取
   redis:
