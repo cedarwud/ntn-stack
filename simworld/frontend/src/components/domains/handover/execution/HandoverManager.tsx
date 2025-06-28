@@ -20,7 +20,6 @@ import {
 import { HandoverDecisionEngine } from '../utils/handoverDecisionEngine'
 import {
     generateMockSatelliteConnection,
-    normalizeSatelliteArray,
     generateMockSatellites,
 } from '../utils/satelliteUtils'
 import './HandoverManager.scss'
@@ -70,22 +69,53 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     speedMultiplier = 60,
     handoverStrategy: propStrategy,
 }) => {
-    // 🎯 使用全域策略狀態
-    const {
-        currentStrategy,
-        switchStrategy: globalSwitchStrategy,
-        isLoading: strategyLoading,
-    } = useStrategy()
+    // 🎯 使用全域策略狀態 - 添加錯誤邊界
+    let currentStrategy: HandoverStrategy = 'flexible'
+    let globalSwitchStrategy: (
+        strategy: HandoverStrategy
+    ) => Promise<void> = async () => {}
+    let strategyLoading = false
+
+    try {
+        const strategyContext = useStrategy()
+        currentStrategy = strategyContext.currentStrategy
+        globalSwitchStrategy = strategyContext.switchStrategy
+        strategyLoading = strategyContext.isLoading
+    } catch (error) {
+        console.warn(
+            '⚠️ HandoverManager: 無法獲取策略上下文，使用預設值:',
+            error
+        )
+    }
+
     const activeStrategy = propStrategy || currentStrategy
 
-    // 換手狀態管理
-    const [handoverState, setHandoverState] = useState<HandoverState>({
-        currentSatellite: '',
-        predictedSatellite: '',
-        handoverTime: 0,
-        status: 'idle',
-        confidence: HANDOVER_CONFIG.ACCURACY.DEFAULT_CONFIDENCE,
-        deltaT: HANDOVER_CONFIG.TIMING.DEFAULT_DELTA_T_SECONDS,
+    // 換手狀態管理 - 添加安全初始化
+    const [handoverState, setHandoverState] = useState<HandoverState>(() => {
+        try {
+            return {
+                currentSatellite: '',
+                predictedSatellite: '',
+                handoverTime: 0,
+                status: 'idle',
+                confidence:
+                    HANDOVER_CONFIG?.ACCURACY?.DEFAULT_CONFIDENCE || 0.95,
+                deltaT: HANDOVER_CONFIG?.TIMING?.DEFAULT_DELTA_T_SECONDS || 5,
+            }
+        } catch (error) {
+            console.error(
+                '⚠️ HandoverManager: 配置初始化失敗，使用後備值:',
+                error
+            )
+            return {
+                currentSatellite: '',
+                predictedSatellite: '',
+                handoverTime: 0,
+                status: 'idle',
+                confidence: 0.95,
+                deltaT: 5,
+            }
+        }
     })
 
     // 🎯 時間預測數據
@@ -100,7 +130,7 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
             accuracy: HANDOVER_CONFIG.ACCURACY.DEFAULT_CONFIDENCE,
         })
 
-    // 🔄 換手歷史記錄 - 防止頻繁互換
+    // 🔄 換手歷史記錄 - 防止頻繁互換 - 添加安全初始化
     const handoverHistoryRef = useRef<{
         recentHandovers: Array<{
             from: string
@@ -110,9 +140,19 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         cooldownPeriod: number // 冷卻期（毫秒）
     }>({
         recentHandovers: [],
-        cooldownPeriod: getHandoverCooldownPeriod(
-            handoverMode as 'demo' | 'real'
-        ),
+        cooldownPeriod: (() => {
+            try {
+                return getHandoverCooldownPeriod(
+                    handoverMode as 'demo' | 'real'
+                )
+            } catch (error) {
+                console.warn(
+                    '⚠️ HandoverManager: 冷卻期配置失敗，使用預設值:',
+                    error
+                )
+                return 90000 // 90秒預設值
+            }
+        })(),
     })
 
     // 衛星連接狀態
@@ -143,8 +183,8 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         let availableSatellites: VisibleSatelliteInfo[] = []
 
         if (satellites && satellites.length > 0) {
-            // 使用真實的衛星數據
-            availableSatellites = normalizeSatelliteArray(satellites)
+            // 使用真實的衛星數據 (已經是 VisibleSatelliteInfo[] 類型)
+            availableSatellites = satellites
         } else {
             // 回退到模擬數據
             availableSatellites = generateMockSatellites()

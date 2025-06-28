@@ -35,7 +35,7 @@ const DelayDopplerViewer: React.FC<ViewerProps> = ({
         imageUrlRef.current = imageUrl
     }, [imageUrl])
 
-    const loadDopplerImage = useCallback(async () => {
+    const loadDopplerImageInternal = useCallback(async () => {
         setIsLoading(true)
         setError(null)
 
@@ -67,26 +67,15 @@ const DelayDopplerViewer: React.FC<ViewerProps> = ({
             }
         } catch (err: unknown) {
             console.error('載入延遲多普勒圖失敗:', err)
-            handleLoadError(err)
-        }
-    }, [
-        API_PATH,
-        currentScene,
-        updateTimestamp,
-        maxDelayNs,
-        maxDopplerHz,
-        resolutionLevel,
-        enablePhaseInfo,
-        handleLoadError,
-    ])
-
-    // 錯誤處理函數
-    const handleLoadError = useCallback(
-        (err: unknown) => {
+            
+            // 內聯錯誤處理邏輯，避免循環依賴
             if (err instanceof Error && err.message.includes('404')) {
                 setError('圖像文件未找到: 後端可能正在生成圖像，請稍後重試')
             } else {
-                setError('無法載入延遲多普勒圖: ' + (err instanceof Error ? err.message : String(err)))
+                setError(
+                    '無法載入延遲多普勒圖: ' +
+                        (err instanceof Error ? err.message : String(err))
+                )
             }
 
             setIsLoading(false)
@@ -96,12 +85,27 @@ const DelayDopplerViewer: React.FC<ViewerProps> = ({
 
             if (newRetryCount < maxRetries) {
                 setTimeout(() => {
-                    loadDopplerImage()
+                    // 重新調用此函數
+                    loadDopplerImageInternal()
                 }, 2000)
             }
-        },
-        [retryCount, maxRetries, loadDopplerImage]
-    )
+        }
+    }, [
+        API_PATH,
+        currentScene,
+        updateTimestamp,
+        maxDelayNs,
+        maxDopplerHz,
+        resolutionLevel,
+        enablePhaseInfo,
+        retryCount,
+        maxRetries,
+    ])
+
+    // 公開的加載函數
+    const loadDopplerImage = useCallback(() => {
+        loadDopplerImageInternal()
+    }, [loadDopplerImageInternal])
 
     useEffect(() => {
         reportRefreshHandlerToNavbar(loadDopplerImage)
