@@ -5,8 +5,8 @@
 
 export const SATELLITE_CONFIG = {
   // === 基本顯示參數 ===
-  VISIBLE_COUNT: 12,                // 可見衛星數量 (接近真實場景，提供豐富選擇)
-  MIN_ELEVATION: 5,                 // 最低仰角（度，包含地平線）
+  VISIBLE_COUNT: 50,                // 🌍 大幅增加可見衛星數量以獲得全球範圍數據
+  MIN_ELEVATION: 0,                 // 🌍 使用標準仰角（地平線以上）以包含全球範圍衛星
   
   // === 移動模擬參數 ===
   REAL_TIME_MULTIPLIER: 1,          // 實時速度倍數（1 = 真實速度）
@@ -40,10 +40,10 @@ export const SATELLITE_CONFIG = {
   
   // === 邊界設定 ===  
   VISIBILITY_BOUNDARY: {
-    MIN_ELEVATION_DEG: 5,           // 衛星出現的最低仰角（度）
+    MIN_ELEVATION_DEG: 0,           // 🌍 標準仰角（地平線以上）以支持全球視野
     MAX_ELEVATION_DEG: 90,          // 衛星消失的最高仰角（度）
     AZIMUTH_RANGE_DEG: 360,         // 方位角範圍（度）
-    MAX_DISTANCE_KM: 2000,          // 最大可見距離（公里）
+    MAX_DISTANCE_KM: 3000,          // 🌍 增加最大可見距離以包含更多衛星
   },
   
 } as const;

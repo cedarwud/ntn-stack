@@ -13,6 +13,8 @@ import { generateDeviceName as utilGenerateDeviceName } from '../../utils/device
 import { useStrategy } from '../../hooks/useStrategy'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
 import { simWorldApi } from '../../services/simworld-api'
+import { SatelliteDebugger } from '../../utils/satelliteDebugger'
+import '../../utils/globalSatelliteTest.js' // 載入全球視野測試腳本
 // 使用懶加載的 HandoverManager 來優化 bundle size
 const HandoverManager = React.lazy(
     () => import('../domains/handover/execution/HandoverManager')
@@ -152,27 +154,120 @@ async function fetchVisibleSatellites(
     minElevation: number
 ): Promise<VisibleSatelliteInfo[]> {
     try {
-        const data = await simWorldApi.getVisibleSatellites(minElevation, count)
+        console.log(
+            `🛰️ EnhancedSidebar: 開始獲取衛星數據 - count: ${count}, minElevation: ${minElevation}`
+        )
 
-        const satellites: VisibleSatelliteInfo[] =
-            data.results?.satellites?.map((sat: SatellitePosition) => ({
-                norad_id: parseInt(sat.norad_id),
-                name: sat.name || 'Unknown',
-                elevation_deg:
-                    sat.position?.elevation ||
-                    sat.signal_quality?.elevation_deg ||
-                    0,
-                azimuth_deg: sat.position?.azimuth || 0,
-                distance_km:
-                    sat.position?.range || sat.signal_quality?.range_km || 0,
-                line1: `1 ${sat.norad_id}U 20001001.00000000  .00000000  00000-0  00000-0 0  9999`,
-                line2: `2 ${sat.norad_id}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
-            })) || []
+        // 🔍 快速健康檢查，減少詳細調試輸出
+        const isHealthy = await SatelliteDebugger.quickHealthCheck()
+        if (!isHealthy) {
+            console.warn(`⚠️ EnhancedSidebar: 衛星API健康檢查失敗，將嘗試繼續`)
+        }
+
+        // 使用正常API獲取數據（調試器已經測試過，這裡獲取實際數據）
+        // 🌍 使用全球視野參數，大幅增加數量和標準仰角
+        const data = await simWorldApi.getVisibleSatellites(
+            0, // 🌍 使用0度標準仰角（地平線以上）以獲得全球範圍衛星
+            Math.max(count, 50) // 🌍 請求更多衛星，至少50顆
+        )
+
+        console.log(
+            `🛰️ EnhancedSidebar: API 響應數據結構正常，獲得 ${
+                data?.results?.satellites?.length || 0
+            } 顆衛星`
+        )
+
+        // 詳細檢查 API 響應格式
+        if (!data) {
+            console.warn(`🛰️ EnhancedSidebar: API 未返回數據`)
+            return []
+        }
+
+        if (!data.results) {
+            console.warn(`🛰️ EnhancedSidebar: API 響應缺少 results 字段`)
+            return []
+        }
+
+        if (!data.results.satellites) {
+            console.warn(
+                `🛰️ EnhancedSidebar: API 響應 results 中缺少 satellites 字段`
+            )
+            return []
+        }
+
+        if (!Array.isArray(data.results.satellites)) {
+            console.warn(
+                `🛰️ EnhancedSidebar: satellites 不是數組，類型: ${typeof data
+                    .results.satellites}`
+            )
+            return []
+        }
+
+        if (data.results.satellites.length === 0) {
+            console.warn(`🛰️ EnhancedSidebar: API 返回空的衛星數組`)
+            return []
+        }
+
+        const satellites: VisibleSatelliteInfo[] = data.results.satellites.map(
+            (sat: SatellitePosition, _index: number) => {
+                return {
+                    norad_id: parseInt(sat.norad_id),
+                    name: sat.name || 'Unknown',
+                    elevation_deg:
+                        sat.position?.elevation ||
+                        sat.signal_quality?.elevation_deg ||
+                        0,
+                    azimuth_deg: sat.position?.azimuth || 0,
+                    distance_km:
+                        sat.position?.range ||
+                        sat.signal_quality?.range_km ||
+                        0,
+                    line1: `1 ${sat.norad_id}U 20001001.00000000  .00000000  00000-0  00000-0 0  9999`,
+                    line2: `2 ${sat.norad_id}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
+                }
+            }
+        )
 
         console.log(`🛰️ EnhancedSidebar: 成功載入 ${satellites.length} 顆衛星`)
+
+        if (satellites.length < 1) {
+            console.warn(
+                `⚠️ EnhancedSidebar: 沒有可用衛星 (${satellites.length} 顆)`
+            )
+            console.warn(`⚠️ 可能原因: 後端TLE數據缺失或API配置問題`)
+        } else if (satellites.length === 1) {
+            console.warn(
+                `⚠️ EnhancedSidebar: 衛星數量極少 (${satellites.length} 顆)`
+            )
+            console.warn(
+                `⚠️ 可能原因: 當前時間點可見衛星較少，或後端數據不完整`
+            )
+        }
+
+        // 不再使用模擬數據補充，直接返回真實數據
         return satellites
     } catch (error) {
         console.error('❌ EnhancedSidebar: Error fetching satellites:', error)
+        console.error('❌ 錯誤詳細信息:', {
+            errorName: error?.name,
+            errorMessage: error?.message,
+            errorStack: error?.stack,
+        })
+
+        // 嘗試執行健康檢查以進一步診斷問題
+        try {
+            const isHealthy = await SatelliteDebugger.quickHealthCheck()
+            console.error(`❌ API健康檢查結果: ${isHealthy ? '正常' : '異常'}`)
+            if (!isHealthy) {
+                console.error(
+                    `❌ 建議檢查: 後端服務狀態、網路連接、API路由配置`
+                )
+            }
+        } catch (healthError) {
+            console.error(`❌ 健康檢查也失敗:`, healthError)
+        }
+
+        // 不再使用模擬數據，返回空數組以便調試
         return []
     }
 }
@@ -560,12 +655,12 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                     const orientationKey = `orientation_${axis}` as keyof Device
                     onDeviceChange(deviceId, orientationKey, calculatedValue)
                 }
-            }
-        } else {
-            const numValue = parseFloat(value)
-            if (!isNaN(numValue)) {
-                const orientationKey = `orientation_${axis}` as keyof Device
-                onDeviceChange(deviceId, orientationKey, numValue)
+            } else {
+                const numValue = parseFloat(value)
+                if (!isNaN(numValue)) {
+                    const orientationKey = `orientation_${axis}` as keyof Device
+                    onDeviceChange(deviceId, orientationKey, numValue)
+                }
             }
         }
     }
