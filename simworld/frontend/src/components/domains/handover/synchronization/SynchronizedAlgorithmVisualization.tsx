@@ -107,8 +107,8 @@ const SynchronizedAlgorithmVisualization: React.FC<
         error: coreSyncError,
     } = useCoreSync() // 5秒更新間隔
     // Mark unused variables to avoid lint errors
-    void _coreSync;
-    void _status;
+    void _coreSync
+    void _status
     const {
         satellites: realSatellites,
         loading: satellitesLoading,
@@ -418,9 +418,57 @@ const SynchronizedAlgorithmVisualization: React.FC<
 
                 // 總是執行 Binary Search 可視化（即使不需要換手也要顯示分析過程）
                 if (result.binary_search_result) {
-                    await executeBinarySearchVisualization(
-                        result.binary_search_result.iterations
-                    )
+                    // 直接調用函數避免依賴問題
+                    const binarySearchVisualization = async (iterations: BinarySearchIteration[]) => {
+                        setCurrentStep('binary_search')
+                        
+                        const binaryStep: AlgorithmStep = {
+                            step: 'binary_search',
+                            timestamp: Date.now() + stepIdRef.current++,
+                            data: { iterations_count: iterations.length },
+                            status: 'running',
+                            description: 'Binary Search Refinement：精確計算換手觸發時間 Tp',
+                        }
+
+                        setAlgorithmSteps((prev) => {
+                            const newSteps = [...prev, binaryStep]
+                            return newSteps.slice(-6)
+                        })
+
+                        onAlgorithmResults?.({
+                            currentSatelliteId: predictionResult?.current_satellite.satellite_id,
+                            predictedSatelliteId: predictionResult?.future_satellite.satellite_id,
+                            handoverStatus: 'executing',
+                            binarySearchActive: true,
+                            predictionConfidence: predictionResult?.prediction_confidence,
+                        })
+
+                        for (let i = 0; i < iterations.length; i++) {
+                            setBinarySearchIterations((prev) => [...prev, iterations[i]])
+                            await new Promise((resolve) => setTimeout(resolve, 750))
+                        }
+
+                        onAlgorithmResults?.({
+                            currentSatelliteId: predictionResult?.current_satellite.satellite_id,
+                            predictedSatelliteId: predictionResult?.future_satellite.satellite_id,
+                            handoverStatus: 'handover_ready',
+                            binarySearchActive: false,
+                            predictionConfidence: predictionResult?.prediction_confidence,
+                        })
+
+                        const completedBinaryStep = {
+                            ...binaryStep,
+                            status: 'completed' as const,
+                        }
+                        setAlgorithmSteps((prev) => {
+                            const updated = prev.map((s) =>
+                                s.timestamp === binaryStep.timestamp ? completedBinaryStep : s
+                            )
+                            return updated.slice(-6)
+                        })
+                    }
+                    
+                    await binarySearchVisualization(result.binary_search_result.iterations)
                 } else {
                     // 如果沒有 binary_search_result，生成簡單的演示數據
                     const demoIterations = generateBinarySearchIterations(
@@ -429,7 +477,41 @@ const SynchronizedAlgorithmVisualization: React.FC<
                         futureTime,
                         'DEMO-SAT'
                     )
-                    await executeBinarySearchVisualization(demoIterations)
+                    // 同樣使用本地定義的函數
+                    const binarySearchVisualization = async (iterations: BinarySearchIteration[]) => {
+                        setCurrentStep('binary_search')
+                        
+                        const binaryStep: AlgorithmStep = {
+                            step: 'binary_search',
+                            timestamp: Date.now() + stepIdRef.current++,
+                            data: { iterations_count: iterations.length },
+                            status: 'running',
+                            description: 'Binary Search Refinement：精確計算換手觸發時間 Tp',
+                        }
+
+                        setAlgorithmSteps((prev) => {
+                            const newSteps = [...prev, binaryStep]
+                            return newSteps.slice(-6)
+                        })
+
+                        for (let i = 0; i < iterations.length; i++) {
+                            setBinarySearchIterations((prev) => [...prev, iterations[i]])
+                            await new Promise((resolve) => setTimeout(resolve, 750))
+                        }
+
+                        const completedBinaryStep = {
+                            ...binaryStep,
+                            status: 'completed' as const,
+                        }
+                        setAlgorithmSteps((prev) => {
+                            const updated = prev.map((s) =>
+                                s.timestamp === binaryStep.timestamp ? completedBinaryStep : s
+                            )
+                            return updated.slice(-6)
+                        })
+                    }
+                    
+                    await binarySearchVisualization(demoIterations)
                 }
 
                 // 檢查同步狀態 - 使用真實的核心同步數據
@@ -468,7 +550,9 @@ const SynchronizedAlgorithmVisualization: React.FC<
             speedMultiplier,
             onAlgorithmStep,
             onAlgorithmResults,
-            executeBinarySearchVisualization,
+            predictionResult?.current_satellite.satellite_id,
+            predictionResult?.future_satellite.satellite_id,
+            predictionResult?.prediction_confidence,
         ]
     )
 
@@ -521,64 +605,73 @@ const SynchronizedAlgorithmVisualization: React.FC<
     }
 
     // 可視化 Binary Search 過程
-    const executeBinarySearchVisualization = useCallback(async (
-        iterations: BinarySearchIteration[]
-    ) => {
-        setCurrentStep('binary_search')
+    const _executeBinarySearchVisualization = useCallback(
+        async (iterations: BinarySearchIteration[]) => {
+            setCurrentStep('binary_search')
 
-        const binaryStep: AlgorithmStep = {
-            step: 'binary_search',
-            timestamp: Date.now() + stepIdRef.current++, // 確保唯一性
-            data: { iterations_count: iterations.length },
-            status: 'running',
-            description: 'Binary Search Refinement：精確計算換手觸發時間 Tp',
-        }
+            const binaryStep: AlgorithmStep = {
+                step: 'binary_search',
+                timestamp: Date.now() + stepIdRef.current++, // 確保唯一性
+                data: { iterations_count: iterations.length },
+                status: 'running',
+                description:
+                    'Binary Search Refinement：精確計算換手觸發時間 Tp',
+            }
 
-        setAlgorithmSteps((prev) => {
-            const newSteps = [...prev, binaryStep]
-            return newSteps.slice(-6) // 保持最新的6個步驟
-        })
+            setAlgorithmSteps((prev) => {
+                const newSteps = [...prev, binaryStep]
+                return newSteps.slice(-6) // 保持最新的6個步驟
+            })
 
-        // 🔬 廣播 Binary Search 開始
-        onAlgorithmResults?.({
-            currentSatelliteId:
-                predictionResult?.current_satellite.satellite_id,
-            predictedSatelliteId:
-                predictionResult?.future_satellite.satellite_id,
-            handoverStatus: 'executing',
-            binarySearchActive: true,
-            predictionConfidence: predictionResult?.prediction_confidence,
-        })
+            // 🔬 廣播 Binary Search 開始
+            onAlgorithmResults?.({
+                currentSatelliteId:
+                    predictionResult?.current_satellite.satellite_id,
+                predictedSatelliteId:
+                    predictionResult?.future_satellite.satellite_id,
+                handoverStatus: 'executing',
+                binarySearchActive: true,
+                predictionConfidence: predictionResult?.prediction_confidence,
+            })
 
-        // 逐步顯示迭代過程
-        for (let i = 0; i < iterations.length; i++) {
-            setBinarySearchIterations((prev) => [...prev, iterations[i]])
-            await new Promise((resolve) => setTimeout(resolve, 750)) // 配合後端的延遲
-        }
+            // 逐步顯示迭代過程
+            for (let i = 0; i < iterations.length; i++) {
+                setBinarySearchIterations((prev) => [...prev, iterations[i]])
+                await new Promise((resolve) => setTimeout(resolve, 750)) // 配合後端的延遲
+            }
 
-        // 🔬 廣播 Binary Search 完成
-        onAlgorithmResults?.({
-            currentSatelliteId:
-                predictionResult?.current_satellite.satellite_id,
-            predictedSatelliteId:
-                predictionResult?.future_satellite.satellite_id,
-            handoverStatus: 'handover_ready',
-            binarySearchActive: false,
-            predictionConfidence: predictionResult?.prediction_confidence,
-        })
+            // 🔬 廣播 Binary Search 完成
+            onAlgorithmResults?.({
+                currentSatelliteId:
+                    predictionResult?.current_satellite.satellite_id,
+                predictedSatelliteId:
+                    predictionResult?.future_satellite.satellite_id,
+                handoverStatus: 'handover_ready',
+                binarySearchActive: false,
+                predictionConfidence: predictionResult?.prediction_confidence,
+            })
 
-        // 完成 Binary Search
-        const completedBinaryStep = {
-            ...binaryStep,
-            status: 'completed' as const,
-        }
-        setAlgorithmSteps((prev) => {
-            const updated = prev.map((s) =>
-                s.timestamp === binaryStep.timestamp ? completedBinaryStep : s
-            )
-            return updated.slice(-6) // 保持最新的6個步驟
-        })
-    }, [onAlgorithmResults, predictionResult])
+            // 完成 Binary Search
+            const completedBinaryStep = {
+                ...binaryStep,
+                status: 'completed' as const,
+            }
+            setAlgorithmSteps((prev) => {
+                const updated = prev.map((s) =>
+                    s.timestamp === binaryStep.timestamp
+                        ? completedBinaryStep
+                        : s
+                )
+                return updated.slice(-6) // 保持最新的6個步驟
+            })
+        },
+        [
+            onAlgorithmResults,
+            predictionResult?.current_satellite.satellite_id,
+            predictionResult?.future_satellite.satellite_id,
+            predictionResult?.prediction_confidence,
+        ]
+    )
 
     // 檢查同步狀態 - 使用真實的核心同步數據
     const checkSyncStatus = async (result: PredictionResult) => {
