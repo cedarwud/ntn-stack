@@ -53,7 +53,7 @@ interface InterferenceZoneProps {
     jammerName?: string
 }
 
-const InterferenceZone: React.FC<InterferenceZoneProps> = ({ position, radius, intensity, jammerId, jammerName }) => {
+const InterferenceZone: React.FC<InterferenceZoneProps> = ({ position, radius, intensity, jammerName }) => {
     const meshRef = React.useRef<THREE.Mesh>(null)
 
     // 動畫效果：脈動

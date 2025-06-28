@@ -64,7 +64,7 @@ export const useDevices = () => {
         } finally {
             setLoading(false)
         }
-    }, [convertBackendToFrontend])
+    }, [])
 
     useEffect(() => {
         fetchDevices()
@@ -253,7 +253,7 @@ export const useDevices = () => {
                                 if (d.id === id) return; // 跳過正在編輯的設備自身
                                 if (d.role === newRole && d.name.startsWith(newPrefix)) { // 確保是同類型且是預設前綴開頭
                                     // 修改正則表達式以匹配 tx1, rx2 等，而不是 tx-1, rx-2
-                                    const match = d.name.match(new RegExp(`^${newPrefix}(\d+)$`));
+                                    const match = d.name.match(new RegExp(`^${newPrefix}(\\d+)$`));
                                     if (match) {
                                         const num = parseInt(match[1], 10);
                                         if (!isNaN(num) && num > maxNum) maxNum = num;

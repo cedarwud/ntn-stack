@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import {
-    useStrategy,
-    HandoverStrategy,
-} from '../../../../contexts/StrategyContext'
+import { useStrategy } from '../../../../hooks/useStrategy'
+import { HandoverStrategy } from '../../../../contexts/StrategyContext'
 import TimePredictionTimeline from '../prediction/TimePredictionTimeline'
 import SynchronizedAlgorithmVisualization from '../synchronization/SynchronizedAlgorithmVisualization'
 import UnifiedHandoverStatus from './UnifiedHandoverStatus'

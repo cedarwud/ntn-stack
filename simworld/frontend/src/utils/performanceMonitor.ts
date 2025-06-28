@@ -1,4 +1,15 @@
 // 性能監控工具
+
+// Performance memory interface extension
+interface PerformanceMemory {
+  usedJSHeapSize: number
+  totalJSHeapSize: number
+  jsHeapSizeLimit: number
+}
+
+interface PerformanceWithMemory extends Performance {
+  memory: PerformanceMemory
+}
 class PerformanceMonitor {
     private static instance: PerformanceMonitor
     private performanceObserver: PerformanceObserver | null = null
@@ -30,7 +41,7 @@ class PerformanceMonitor {
             this.performanceObserver.observe({ entryTypes: ['longtask'] })
 
             // 監控記憶體使用（如果可用）
-            if ('memory' in performance && (performance as any).memory) {
+            if ('memory' in performance && (performance as PerformanceWithMemory).memory) {
                 this.monitorMemory()
             }
 
@@ -103,7 +114,7 @@ class PerformanceMonitor {
     private monitorMemory(): void {
         const checkMemory = () => {
             if ('memory' in performance) {
-                const memory = (performance as any).memory
+                const memory = (performance as PerformanceWithMemory).memory
                 const usedMB = Math.round(memory.usedJSHeapSize / 1024 / 1024)
                 const totalMB = Math.round(memory.totalJSHeapSize / 1024 / 1024)
                 const limitMB = Math.round(memory.jsHeapSizeLimit / 1024 / 1024)
@@ -216,23 +227,23 @@ class PerformanceMonitor {
     }
 
     // 輔助函數：獲取性能指標
-    getPerformanceMetrics(): any {
+    getPerformanceMetrics(): Record<string, unknown> | null {
         if (typeof window === 'undefined' || !window.performance) {
             return null
         }
 
-        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
+        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
         
         return {
             // 頁面載入時間
-            domContentLoaded: navigation?.domContentLoadedEventEnd - navigation?.domContentLoadedEventStart,
-            pageLoad: navigation?.loadEventEnd - navigation?.loadEventStart,
+            domContentLoaded: navigation ? navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart : 0,
+            pageLoad: navigation ? navigation.loadEventEnd - navigation.loadEventStart : 0,
             
             // 記憶體使用（如果可用）
             memory: 'memory' in performance ? {
-                used: Math.round(((performance as any).memory.usedJSHeapSize) / 1024 / 1024),
-                total: Math.round(((performance as any).memory.totalJSHeapSize) / 1024 / 1024),
-                limit: Math.round(((performance as any).memory.jsHeapSizeLimit) / 1024 / 1024)
+                used: Math.round(((performance as PerformanceWithMemory).memory.usedJSHeapSize) / 1024 / 1024),
+                total: Math.round(((performance as PerformanceWithMemory).memory.totalJSHeapSize) / 1024 / 1024),
+                limit: Math.round(((performance as PerformanceWithMemory).memory.jsHeapSizeLimit) / 1024 / 1024)
             } : null,
             
             // WebGL 支援
@@ -251,7 +262,7 @@ class PerformanceMonitor {
             console.group('📊 性能監控總結')
             console.log('環境類型:', metrics.environment)
             console.log('長任務總數:', metrics.longTaskCount)
-            if (metrics.memory) {
+            if (metrics.memory && typeof metrics.memory === 'object' && 'used' in metrics.memory && 'limit' in metrics.memory) {
                 console.log('記憶體使用:', `${metrics.memory.used}MB / ${metrics.memory.limit}MB`)
             }
             console.log('WebGL 支援:', metrics.webglSupported ? '✅' : '❌')

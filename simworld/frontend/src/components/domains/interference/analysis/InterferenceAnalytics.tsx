@@ -284,12 +284,11 @@ const ScanProgressDisplay: React.FC<{ progress: number }> = ({ progress }) => {
 
 const InterferencePatternVisualization: React.FC<{ 
     pattern: InterferencePattern
-    devices: any[]
+    devices: Device[]
 }> = ({ pattern, devices }) => {
     const meshRef = React.useRef<THREE.Group>(null)
     
     const sourceDevice = devices.find(d => d.id === pattern.sourceId)
-    if (!sourceDevice) return null
 
     const getSeverityColor = (severity: string) => {
         switch (severity) {
@@ -312,7 +311,7 @@ const InterferencePatternVisualization: React.FC<{
     }
 
     useFrame((state) => {
-        if (meshRef.current) {
+        if (meshRef.current && sourceDevice) {
             const time = state.clock.getElapsedTime()
             const intensity = pattern.severity === 'critical' ? 2 : pattern.severity === 'high' ? 1.5 : 1
             meshRef.current.rotation.y = time * intensity
@@ -321,6 +320,8 @@ const InterferencePatternVisualization: React.FC<{
             meshRef.current.scale.setScalar(scale)
         }
     })
+
+    if (!sourceDevice) return null
 
     return (
         <group
@@ -379,7 +380,7 @@ const InterferencePatternVisualization: React.FC<{
 
 const InterferencePathLines: React.FC<{
     patterns: InterferencePattern[]
-    devices: any[]
+    devices: Device[]
 }> = ({ patterns, devices }) => {
     return (
         <>

@@ -65,27 +65,28 @@ const DelayDopplerViewer: React.FC<ViewerProps> = ({
                     `API 請求失敗: ${response.status} ${response.statusText}`
                 )
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('載入延遲多普勒圖失敗:', err)
             handleLoadError(err)
         }
     }, [
+        API_PATH,
         currentScene,
         updateTimestamp,
-        retryCount,
         maxDelayNs,
         maxDopplerHz,
         resolutionLevel,
         enablePhaseInfo,
+        handleLoadError,
     ])
 
     // 錯誤處理函數
     const handleLoadError = useCallback(
-        (err: any) => {
-            if (err.message && err.message.includes('404')) {
+        (err: unknown) => {
+            if (err instanceof Error && err.message.includes('404')) {
                 setError('圖像文件未找到: 後端可能正在生成圖像，請稍後重試')
             } else {
-                setError('無法載入延遲多普勒圖: ' + err.message)
+                setError('無法載入延遲多普勒圖: ' + (err instanceof Error ? err.message : String(err)))
             }
 
             setIsLoading(false)

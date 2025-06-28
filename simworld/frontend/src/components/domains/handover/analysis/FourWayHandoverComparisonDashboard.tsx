@@ -439,7 +439,7 @@ const FourWayHandoverComparisonDashboard: React.FC<
                 updateData()
             })
         }
-    }, [reportRefreshHandlerToNavbar])
+    }, [reportRefreshHandlerToNavbar, updateData])
 
     const updateData = useCallback(async () => {
         reportIsLoadingToNavbar?.(true)

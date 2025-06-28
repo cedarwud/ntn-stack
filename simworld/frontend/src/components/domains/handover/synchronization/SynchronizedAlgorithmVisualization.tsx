@@ -99,13 +99,16 @@ const SynchronizedAlgorithmVisualization: React.FC<
     const stepIdRef = useRef(0) // 用於生成唯一的步驟ID
 
     // 使用數據同步上下文
-    const { coreSync } = useNetStackData()
+    const { coreSync: _coreSync } = useNetStackData()
     // const { overall: connectionStatus, dataSource } = useDataSourceStatus()
     const {
-        status,
+        status: _status,
         loading: coreSyncLoading,
         error: coreSyncError,
     } = useCoreSync() // 5秒更新間隔
+    // Mark unused variables to avoid lint errors
+    void _coreSync;
+    void _status;
     const {
         satellites: realSatellites,
         loading: satellitesLoading,
@@ -458,10 +461,14 @@ const SynchronizedAlgorithmVisualization: React.FC<
         },
         [
             isEnabled,
+            isRunning,
             selectedUEId,
-            realSatellites.length, // 只監聽長度變化，避免整個陣列變化
-            satellites.length, // 同上
+            satellites, // 使用完整的 satellites 依賴
+            realSatellites.length,
             speedMultiplier,
+            onAlgorithmStep,
+            onAlgorithmResults,
+            executeBinarySearchVisualization,
         ]
     )
 
@@ -514,7 +521,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
     }
 
     // 可視化 Binary Search 過程
-    const executeBinarySearchVisualization = async (
+    const executeBinarySearchVisualization = useCallback(async (
         iterations: BinarySearchIteration[]
     ) => {
         setCurrentStep('binary_search')
@@ -571,7 +578,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
             )
             return updated.slice(-6) // 保持最新的6個步驟
         })
-    }
+    }, [onAlgorithmResults, predictionResult])
 
     // 檢查同步狀態 - 使用真實的核心同步數據
     const checkSyncStatus = async (result: PredictionResult) => {
@@ -658,7 +665,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
         lastExecutionTimeRef.current = 0 // 重置頻率限制
 
         // 不立即執行，讓定期執行處理
-    }, [speedMultiplier])
+    }, [speedMultiplier, isEnabled])
 
     // 修復閉包問題的執行器引用
     const executorRef = useRef<(() => void) | null>(null)
@@ -670,7 +677,7 @@ const SynchronizedAlgorithmVisualization: React.FC<
                 executeTwoPointPrediction()
             }
         }
-    })
+    }, [executeTwoPointPrediction, isRunning, isEnabled])
 
     // 定期執行算法 - 修復閉包問題
     useEffect(() => {

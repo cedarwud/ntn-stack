@@ -14,7 +14,7 @@ interface SceneViewerProps {
 const SceneViewer: React.FC<SceneViewerProps> = ({
     scene = 'default',
     devices = [],
-    refreshDeviceData,
+    refreshDeviceData: _refreshDeviceData,
     sceneName,
     onSceneChange,
     children,

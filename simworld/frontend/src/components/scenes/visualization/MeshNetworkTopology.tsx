@@ -1,10 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react'
-import * as THREE from 'three'
-import { useFrame } from '@react-three/fiber'
+import React, { useState, useEffect } from 'react'
+// import * as THREE from 'three'
+// import { useFrame } from '@react-three/fiber'
 import { Line } from '@react-three/drei'
 
+interface Device {
+    id: string | number;
+    role?: string;
+    position_x?: number;
+    position_y?: number;
+    position_z?: number;
+    enabled?: boolean;
+    [key: string]: unknown;
+}
+
 interface MeshNetworkTopologyProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
 }
 
@@ -50,7 +60,7 @@ const MeshNetworkTopology: React.FC<MeshNetworkTopologyProps> = ({ devices, enab
     const [networkNodes, setNetworkNodes] = useState<NetworkNode[]>([])
     const [networkLinks, setNetworkLinks] = useState<NetworkLink[]>([])
     const [routingPaths, setRoutingPaths] = useState<RoutingPath[]>([])
-    const [topologyMetrics, setTopologyMetrics] = useState({
+    const [_topologyMetrics, _setTopologyMetrics] = useState({
         totalNodes: 0,
         activeLinks: 0,
         networkReliability: 0,
@@ -137,7 +147,7 @@ const SimpleNetworkNodesVisualization: React.FC<{ nodes: NetworkNode[] }> = ({ n
 }
 
 // 創建網路節點
-const createNetworkNodes = (devices: any[]): NetworkNode[] => {
+const createNetworkNodes = (devices: Device[]): NetworkNode[] => {
     const nodes: NetworkNode[] = []
 
     devices.forEach((device) => {
@@ -242,7 +252,7 @@ const determineLinkType = (nodeA: NetworkNode, nodeB: NetworkNode, distance: num
 }
 
 // 選擇協議
-const selectProtocol = (linkType: NetworkLink['type'], nodeA: NetworkNode, nodeB: NetworkNode): NetworkLink['protocol'] => {
+const selectProtocol = (linkType: NetworkLink['type'], _nodeA: NetworkNode, _nodeB: NetworkNode): NetworkLink['protocol'] => {
     switch (linkType) {
         case 'satellite':
             return '5G_NR'
@@ -324,8 +334,9 @@ const generateRandomMetric = (min: number, max: number): number => {
 }
 
 // 網路節點可視化組件
-const NetworkNodeVisualization: React.FC<{ node: NetworkNode }> = ({ node }) => {
-    const meshRef = useRef<THREE.Group>(null)
+const _NetworkNodeVisualization: React.FC<{ node: NetworkNode }> = ({ node: _node }) => {
+    return null
+    // const meshRef = useRef<THREE.Group>(null)
 
     const getNodeColor = (type: NetworkNode['type'], status: NetworkNode['status']) => {
         if (status !== 'active') return '#666666'
@@ -359,13 +370,13 @@ const NetworkNodeVisualization: React.FC<{ node: NetworkNode }> = ({ node }) => 
         }
     }
 
-    useFrame((state) => {
-        if (meshRef.current && node.status === 'active') {
-            const time = state.clock.getElapsedTime()
-            const pulse = 1 + Math.sin(time * 3) * 0.2
-            meshRef.current.scale.setScalar(pulse)
-        }
-    })
+    // useFrame((state) => {
+    //     if (meshRef.current && node.status === 'active') {
+    //         const time = state.clock.getElapsedTime()
+    //         const pulse = 1 + Math.sin(time * 3) * 0.2
+    //         meshRef.current.scale.setScalar(pulse)
+    //     }
+    // })
 
     return (
         <group ref={meshRef} position={node.position}>
@@ -509,7 +520,16 @@ const RoutingPathVisualization: React.FC<{
 }
 
 // 拓撲狀態顯示組件
-const TopologyStatusDisplay: React.FC<{ metrics: any }> = ({ metrics }) => {
+interface TopologyMetrics {
+    totalNodes: number;
+    activeLinks: number;
+    networkReliability: number;
+    averageLatency: number;
+    routingEfficiency: number;
+    redundancyLevel: number;
+}
+
+const _TopologyStatusDisplay: React.FC<{ metrics: TopologyMetrics }> = ({ metrics }) => {
     return (
         <group position={[80, 60, 80]}>
             <Text
@@ -614,7 +634,7 @@ const NetworkCoverageVisualization: React.FC<{ nodes: NetworkNode[] }> = ({ node
 }
 
 // 動態路由表組件
-const DynamicRoutingTable: React.FC<{ paths: RoutingPath[] }> = ({ paths }) => {
+const _DynamicRoutingTable: React.FC<{ paths: RoutingPath[] }> = ({ paths }) => {
     return (
         <group position={[-80, 60, -80]}>
             <Text

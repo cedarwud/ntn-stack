@@ -82,7 +82,7 @@ const CFRViewer: React.FC<ViewerProps> = ({
                     }, 2000) // 2秒後重試
                 }
             })
-    }, [updateTimestamp, retryCount, currentScene])
+    }, [API_PATH, updateTimestamp, retryCount, currentScene])
 
     useEffect(() => {
         reportRefreshHandlerToNavbar(loadCFRImage)

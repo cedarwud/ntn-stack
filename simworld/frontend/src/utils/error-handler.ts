@@ -9,7 +9,7 @@ export interface ErrorDetails {
   timestamp: string
   component?: string
   action?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface RetryConfig {
@@ -66,7 +66,7 @@ export class ErrorHandler {
     context?: {
       component?: string
       action?: string
-      metadata?: Record<string, any>
+      metadata?: Record<string, unknown>
       severity?: ErrorSeverity
       category?: ErrorCategory
     }
@@ -194,13 +194,13 @@ export class ErrorHandler {
    */
   getErrorStats() {
     const categories = this.errorLog.reduce((acc, error) => {
-      const category = error.metadata?.category || ErrorCategory.UNKNOWN
+      const category = (error.metadata?.category as string) || ErrorCategory.UNKNOWN
       acc[category] = (acc[category] || 0) + 1
       return acc
     }, {} as Record<string, number>)
 
     const severities = this.errorLog.reduce((acc, error) => {
-      const severity = error.metadata?.severity || ErrorSeverity.MEDIUM
+      const severity = (error.metadata?.severity as string) || ErrorSeverity.MEDIUM
       acc[severity] = (acc[severity] || 0) + 1
       return acc
     }, {} as Record<string, number>)
@@ -366,12 +366,12 @@ export class NetworkErrorHandler {
 export interface ErrorBoundaryState {
   hasError: boolean
   error?: Error
-  errorInfo?: any
+  errorInfo?: React.ErrorInfo
 }
 
 export function createErrorBoundaryProps() {
   return {
-    onError: (error: Error, errorInfo: any) => {
+    onError: (error: Error, errorInfo: React.ErrorInfo) => {
       globalErrorHandler.handleError(error, {
         component: 'ErrorBoundary',
         action: 'componentDidCatch',

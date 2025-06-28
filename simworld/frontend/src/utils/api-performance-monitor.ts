@@ -52,7 +52,7 @@ class APIPerformanceMonitor {
   /**
    * 提供調優建議
    */
-  private provideTuningAdvice(endpoint: string, duration: number) {
+  private provideTuningAdvice(endpoint: string, _duration: number) {  
     if (endpoint.includes('visible_satellites')) {
       console.log(`💡 建議: 
         1. 減少請求的衛星數量 (當前可能過多)

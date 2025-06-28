@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react'
 import { Text } from '@react-three/drei'
 
+interface Device {
+    id: string | number;
+    role?: string;
+    position_x?: number;
+    position_y?: number;
+    position_z?: number;
+    name?: string;
+    [key: string]: unknown;
+}
+
 interface RealTimeMetricsProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
 }
 
@@ -144,7 +154,7 @@ const generateBaseMetrics = (role: string): MetricData => {
 }
 
 // 計算干擾影響
-const calculateInterferenceImpact = (device: any, jammers: any[]) => {
+const calculateInterferenceImpact = (device: Device, jammers: Device[]) => {
     let totalInterference = 0
     let signalDegradation = 0
     let throughputLoss = 0
@@ -204,7 +214,7 @@ const calculateNetworkMetrics = (deviceMetrics: DeviceMetrics[]): MetricData => 
 }
 
 const DeviceMetricDisplay: React.FC<{ deviceMetric: DeviceMetrics }> = ({ deviceMetric }) => {
-    const { metrics, position, deviceName, role } = deviceMetric
+    const { metrics, position, deviceName, role: _role } = deviceMetric
     
     // 根據性能指標決定顏色
     const getMetricColor = (value: number, type: string) => {

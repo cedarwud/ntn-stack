@@ -3,7 +3,7 @@
  * 負責與 NetStack 後端 (port 8080) 交互，獲取網路狀態、UAV 數據等
  */
 import axios, { AxiosError } from 'axios';
-import { UAVData, SystemStatus, NetworkTopology } from '../types/charts';
+import { UAVData, SystemStatus } from '../types/charts';
 
 // 創建 NetStack API 實例
 const netstackApi = axios.create({
@@ -39,13 +39,18 @@ const retryRequest = async <T>(
 };
 
 // 判斷錯誤是否可重試
-const isRetryableError = (error: any): boolean => {
-  if (!error.response) {
+const isRetryableError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') {
+    return true; // 網路錯誤或未知錯誤
+  }
+  
+  const errorWithResponse = error as { response?: { status: number } };
+  if (!errorWithResponse.response) {
     // 網路錯誤，可重試
     return true;
   }
   
-  const status = error.response.status;
+  const status = errorWithResponse.response.status;
   // 只有 502, 503, 504 錯誤才重試
   return status === 502 || status === 503 || status === 504;
 };
@@ -247,7 +252,7 @@ export const getUAVDetails = async (uavId: string): Promise<UAVData> => {
 /**
  * 獲取 UAV 軌跡數據
  */
-export const getUAVTrajectory = async (uavId?: string): Promise<any> => {
+export const getUAVTrajectory = async (uavId?: string): Promise<Record<string, unknown>> => {
   try {
     const url = uavId ? `/api/v1/uav/trajectory/${uavId}` : '/api/v1/uav/trajectory';
     const response = await retryRequest(() => netstackApi.get(url));
@@ -269,7 +274,7 @@ export const getUAVTrajectory = async (uavId?: string): Promise<any> => {
 /**
  * 獲取干擾數據
  */
-export const getInterferenceStatus = async (): Promise<any> => {
+export const getInterferenceStatus = async (): Promise<Record<string, unknown>> => {
   try {
     const response = await retryRequest(() => 
       netstackApi.get('/api/v1/interference/status')
@@ -293,7 +298,7 @@ export const getInterferenceStatus = async (): Promise<any> => {
 /**
  * 獲取 Mesh 網路拓撲
  */
-export const getMeshTopology = async (): Promise<any> => {
+export const getMeshTopology = async (): Promise<Record<string, unknown>> => {
   try {
     const response = await retryRequest(() =>
       netstackApi.get('/api/v1/mesh/topology')
@@ -327,7 +332,7 @@ export const getMeshTopology = async (): Promise<any> => {
 /**
  * 獲取 Mesh 節點列表
  */
-export const getMeshNodes = async (): Promise<any> => {
+export const getMeshNodes = async (): Promise<Record<string, unknown>> => {
   try {
     const response = await retryRequest(() =>
       netstackApi.get('/api/v1/mesh/nodes')
@@ -354,7 +359,7 @@ export const getMeshNodes = async (): Promise<any> => {
 /**
  * 獲取 OneWeb 星座狀態
  */
-export const getOneWebStatus = async (): Promise<any> => {
+export const getOneWebStatus = async (): Promise<Record<string, unknown>> => {
   try {
     const response = await netstackApi.get('/api/v1/oneweb/constellation/status');
     return response.data;
@@ -367,7 +372,7 @@ export const getOneWebStatus = async (): Promise<any> => {
 /**
  * 獲取 Sionna 狀態
  */
-export const getSionnaStatus = async (): Promise<any> => {
+export const getSionnaStatus = async (): Promise<Record<string, unknown>> => {
   try {
     const response = await netstackApi.get('/api/v1/sionna/status');
     return response.data;
@@ -380,7 +385,7 @@ export const getSionnaStatus = async (): Promise<any> => {
 /**
  * 執行系統發現
  */
-export const runSystemDiscovery = async (): Promise<any> => {
+export const runSystemDiscovery = async (): Promise<Record<string, unknown>> => {
   try {
     const response = await netstackApi.get('/api/v1/system/discovery');
     return response.data;
@@ -393,7 +398,7 @@ export const runSystemDiscovery = async (): Promise<any> => {
 /**
  * 獲取 UAV-Mesh Failover 統計
  */
-export const getUAVMeshStats = async (): Promise<any> => {
+export const getUAVMeshStats = async (): Promise<Record<string, unknown>> => {
   try {
     const response = await netstackApi.get('/api/v1/uav-mesh-failover/stats');
     return response.data;

@@ -232,7 +232,6 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
     // 使用真實衛星數據 hook - 減少更新頻率
     const {
         satellites: realSatellites,
-        loading: satellitesLoading,
         error: satellitesError,
     } = useVisibleSatellites(5, 15, 60000) // 5度仰角，最多15顆，60秒更新
 
@@ -365,7 +364,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
         }, 120000)
 
         return () => clearInterval(interval)
-    }, [state.ui.realTimeUpdates]) // 移除 forceSync 依賴避免無限重渲染
+    }, [forceSync, state.sync.syncErrors, state.ui.realTimeUpdates])
 
     // 自動更新 UI 數據源狀態 - 修復無限循環問題
     useEffect(() => {
@@ -399,7 +398,6 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
             if (state.sync.isActive) {
                 // 移除重複的同步開始日誌
             } else {
-                const { overall } = getDataSourceStatus()
                 // 只在狀態變化或有錯誤時記錄
                 if (state.sync.syncErrors.length > 0) {
                     console.warn(
@@ -413,6 +411,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
     }, [
         state.sync.isActive,
         state.sync.dataConsistency,
+        state.sync.syncErrors,
         state.sync.syncErrors.length,
         getDataSourceStatus,
     ])
@@ -433,6 +432,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
 }
 
 // 自定義 Hook
+// eslint-disable-next-line react-refresh/only-export-components
 export const useDataSync = () => {
     const context = useContext(DataSyncContext)
     if (!context) {
@@ -442,6 +442,7 @@ export const useDataSync = () => {
 }
 
 // 專用 Hooks
+// eslint-disable-next-line react-refresh/only-export-components
 export const useNetStackData = () => {
     const { state } = useDataSync()
     return {
@@ -452,6 +453,7 @@ export const useNetStackData = () => {
     }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useSimWorldData = () => {
     const { state } = useDataSync()
     return {
@@ -462,6 +464,7 @@ export const useSimWorldData = () => {
     }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useSyncStatus = () => {
     const { state, forceSync, isDataConsistent } = useDataSync()
     return {
@@ -474,6 +477,7 @@ export const useSyncStatus = () => {
     }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useDataSourceStatus = () => {
     const { state, getDataSourceStatus } = useDataSync()
     return {

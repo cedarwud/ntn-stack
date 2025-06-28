@@ -136,7 +136,7 @@ class SimWorldApiClient extends BaseApiClient {
       baseUrl = ''
       
       // 檢查環境變數是否有自定義的 SimWorld URL
-      const envUrl = (window as any).__SIMWORLD_API_URL__
+      const envUrl = (window as unknown as { __SIMWORLD_API_URL__?: string }).__SIMWORLD_API_URL__
       if (envUrl) {
         baseUrl = envUrl
       }
@@ -162,7 +162,20 @@ class SimWorldApiClient extends BaseApiClient {
     const endpoint = '/api/v1/satellite-ops/visible_satellites'
     
     // 🚀 使用內建的快取機制並設置超時（基於 BaseApiClient）
-    const response = await this.get<any>(endpoint, params)
+    const response = await this.get<{ satellites?: Array<{ 
+      norad_id?: string; 
+      name?: string; 
+      orbit_altitude_km?: number; 
+      elevation_deg?: number; 
+      azimuth_deg?: number; 
+      range_km?: number; 
+      distance_km?: number;
+      velocity?: number; 
+      velocity_km_s?: number;
+      doppler_shift?: number; 
+      estimated_signal_strength?: number; 
+      path_loss_db?: number; 
+    }> }>(endpoint, params)
     
     // 轉換響應格式以匹配原有接口
     const result = {

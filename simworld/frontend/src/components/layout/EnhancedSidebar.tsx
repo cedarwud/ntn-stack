@@ -10,7 +10,7 @@ import { HandoverState, SatelliteConnection } from '../../types/handover'
 import { SatellitePosition } from '../../services/simworld-api'
 // import { ApiRoutes } from '../../../../config/apiRoutes'
 import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName'
-import { useStrategy } from '../../contexts/StrategyContext'
+import { useStrategy } from '../../hooks/useStrategy'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
 import { simWorldApi } from '../../services/simworld-api'
 // 使用懶加載的 HandoverManager 來優化 bundle size
@@ -528,7 +528,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
         if (hasChanges) {
             setOrientationInputs(newInputs)
         }
-    }, [devices]) // 移除 orientationInputs 依賴，避免無限循環
+    }, [devices, orientationInputs])
 
     // 處理衛星顯示數量變更
 
