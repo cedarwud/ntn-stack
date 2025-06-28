@@ -127,8 +127,8 @@ export interface TimeSeriesData {
 export interface ChartConfig {
   type: 'line' | 'bar' | 'pie' | 'scatter' | 'radar' | 'heatmap';
   title: string;
-  data: any;
-  options?: any;
+  data: Record<string, unknown>;
+  options?: Record<string, unknown>;
   realtime?: boolean;
   refreshInterval?: number;
 }
@@ -138,7 +138,7 @@ export interface WebSocketEvent {
   type: 'uav_update' | 'system_status' | 'performance_metrics' | 'topology_change' | 
         'sionna_channel_metrics' | 'interference_updates' | 'ai_ran_decisions' |
         'doppler_analysis' | 'mobility_updates' | 'channel_state_information';
-  data: any;
+  data: Record<string, unknown>;
   timestamp: string;
 }
 
@@ -147,7 +147,7 @@ export interface ChartComponentProps {
   config: ChartConfig;
   className?: string;
   height?: number;
-  onDataUpdate?: (data: any) => void;
+  onDataUpdate?: (data: Record<string, unknown>) => void;
   onError?: (error: Error) => void;
 }
 
@@ -163,7 +163,7 @@ export interface DashboardConfig {
 // 數據更新事件類型
 export interface DataUpdateEvent {
   type: string;
-  data: any;
+  data: Record<string, unknown>;
   timestamp: string;
   source: 'api' | 'websocket' | 'cache';
 } 

@@ -136,7 +136,7 @@ const PredictionAccuracyDashboard: React.FC<
             // 嘗試調用 API（如果存在）
             try {
                 await HandoverAPIService.toggleAccuracyOptimization(newState)
-            } catch (error) {
+            } catch {
                 console.warn('準確率優化 API 暫未實現，使用本地狀態')
             }
         } catch (err) {

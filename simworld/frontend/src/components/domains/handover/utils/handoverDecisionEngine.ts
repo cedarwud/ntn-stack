@@ -222,7 +222,7 @@ export class HandoverDecisionEngine {
    */
   private static selectBestCandidate(
     candidates: VisibleSatelliteInfo[],
-    currentQuality: SatelliteQuality
+    _currentQuality: SatelliteQuality  
   ): VisibleSatelliteInfo {
     
     // 計算所有候選衛星的品質

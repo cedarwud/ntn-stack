@@ -8,10 +8,10 @@ export interface ApiResponse<T> {
   error?: {
     code: string;
     message: string;
-    details?: Record<string, any>;
+    details?: Record<string, unknown>;
     timestamp: string;
   };
-  meta?: Record<string, any>;
+  meta?: Record<string, unknown>;
   timestamp: string;
 }
 
@@ -111,7 +111,7 @@ export class SatelliteApiError extends Error {
   constructor(
     public code: ErrorCode,
     message: string,
-    public details?: Record<string, any>
+    public details?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'SatelliteApiError';
@@ -120,7 +120,7 @@ export class SatelliteApiError extends Error {
 
 // API響應驗證工具
 export class ApiResponseValidator {
-  static validateSatelliteInfo(data: any): data is StandardSatelliteInfo {
+  static validateSatelliteInfo(data: unknown): data is StandardSatelliteInfo {
     return (
       typeof data.id === 'number' &&
       typeof data.name === 'string' &&
@@ -134,12 +134,15 @@ export class ApiResponseValidator {
     );
   }
 
-  static validateApiResponse<T>(response: any): response is ApiResponse<T> {
+  static validateApiResponse<T>(response: unknown): response is ApiResponse<T> {
     return (
       response &&
-      typeof response.status === 'string' &&
-      ['success', 'error', 'warning'].includes(response.status) &&
-      typeof response.timestamp === 'string'
+      typeof response === 'object' &&
+      'status' in response &&
+      typeof (response as { status: unknown }).status === 'string' &&
+      ['success', 'error', 'warning'].includes((response as { status: string }).status) &&
+      'timestamp' in response &&
+      typeof (response as { timestamp: unknown }).timestamp === 'string'
     );
   }
 
@@ -155,8 +158,8 @@ export class ApiResponseValidator {
 // 統一的API請求處理器
 // This function is currently unused but kept for future API standardization
 /* async function handleApiRequest<T>(
-  request: () => Promise<any>,
-  validator?: (data: any) => data is T
+  request: () => Promise<unknown>,
+  validator?: (data: unknown) => data is T
 ): Promise<T> {
   try {
     const response = await request();
@@ -199,7 +202,7 @@ export class ApiResponseValidator {
     }
     
     // 處理網絡錯誤和其他錯誤
-    const axiosError = error as any;
+    const axiosError = error as { response?: { status: number; data?: { message?: string } }; message?: string };
     if (axiosError.response) {
       const status = axiosError.response.status;
       const message = axiosError.response.data?.message || axiosError.message;

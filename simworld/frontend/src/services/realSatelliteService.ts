@@ -3,7 +3,6 @@
  * 為立體圖提供真實衛星數據疊加功能
  */
 import { ApiRoutes } from '../config/apiRoutes'
-import { SATELLITE_CONFIG } from '../config/satellite.config'
 
 export interface RealSatelliteInfo {
     id: number
@@ -85,7 +84,15 @@ export async function fetchRealSatelliteData(
         }
         
         // 轉換 API 格式為前端期望的格式
-        const satellites: RealSatelliteInfo[] = apiData.satellites.map((sat: any) => ({
+        const satellites: RealSatelliteInfo[] = apiData.satellites.map((sat: {
+            norad_id?: string;
+            name?: string;
+            orbit_altitude_km?: number;
+            elevation_deg?: number;
+            azimuth_deg?: number;
+            distance_km?: number;
+            velocity_km_s?: number;
+        }) => ({
             id: parseInt(sat.norad_id) || 0,
             name: (sat.name || '').replace(' [DTC]', '').replace('[DTC]', ''), // 移除DTC標記
             norad_id: sat.norad_id,

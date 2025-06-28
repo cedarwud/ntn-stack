@@ -3,8 +3,17 @@ import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 
+interface Device {
+    id: string | number;
+    role?: string;
+    position_x?: number;
+    position_y?: number;
+    position_z?: number;
+    [key: string]: unknown;
+}
+
 interface Sionna3DVisualizationProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
 }
 
@@ -18,7 +27,7 @@ interface WaveField {
 
 const Sionna3DVisualization: React.FC<Sionna3DVisualizationProps> = ({ devices, enabled }) => {
     const [waveFields, setWaveFields] = useState<WaveField[]>([])
-    const [channelResponse, setChannelResponse] = useState<any>(null)
+    const [channelResponse, setChannelResponse] = useState<unknown>(null)
 
     // 生成基於 Sionna 的 3D 電磁波場
     useEffect(() => {
@@ -112,10 +121,10 @@ const Sionna3DVisualization: React.FC<Sionna3DVisualizationProps> = ({ devices, 
     )
 }
 
-interface Sionna3DWaveFieldProps extends WaveField {}
+type Sionna3DWaveFieldProps = WaveField
 
 const Sionna3DWaveField: React.FC<Sionna3DWaveFieldProps> = ({ 
-    position, wavelength, amplitude, frequency, phase 
+    position, wavelength: _wavelength, amplitude, frequency, phase 
 }) => {
     const meshRef = React.useRef<THREE.Group>(null)
 
@@ -181,7 +190,16 @@ const Sionna3DWaveField: React.FC<Sionna3DWaveFieldProps> = ({
     )
 }
 
-const ChannelResponseDisplay: React.FC<{ channelResponse: any[] | null }> = ({ channelResponse }) => {
+interface ChannelResponse {
+    txId: string | number;
+    rxId: string | number;
+    pathLoss: number;
+    fading: number;
+    shadow: number;
+    snr: number;
+}
+
+const ChannelResponseDisplay: React.FC<{ channelResponse: ChannelResponse[] | null }> = ({ channelResponse }) => {
     if (!channelResponse || channelResponse.length === 0) return null
 
     return (

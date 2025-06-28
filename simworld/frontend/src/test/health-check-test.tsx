@@ -15,6 +15,22 @@ import {
 import { fetchRealSatelliteData } from '../services/realSatelliteService'
 import { ApiRoutes } from '../config/apiRoutes'
 
+interface SatelliteTestResults {
+    direct_api: {
+        success: boolean
+        satellite_count: number
+        data?: unknown
+        error?: string
+    }
+    service_layer: {
+        success: boolean
+        satellite_count: number
+        data?: unknown
+        error?: string
+    }
+    timestamp: string
+}
+
 export const HealthCheckTest: React.FC = () => {
     const [isTestingBasic, setIsTestingBasic] = useState(false)
     const [isTestingAdvanced, setIsTestingAdvanced] = useState(false)
@@ -24,7 +40,7 @@ export const HealthCheckTest: React.FC = () => {
     )
     const [advancedResults, setAdvancedResults] =
         useState<SystemDiagnostics | null>(null)
-    const [satelliteResults, setSatelliteResults] = useState<any>(null)
+    const [satelliteResults, setSatelliteResults] = useState<SatelliteTestResults | null>(null)
 
     const runBasicTest = async () => {
         setIsTestingBasic(true)

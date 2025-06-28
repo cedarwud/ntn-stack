@@ -118,12 +118,17 @@ const retryRequest = async <T>(
 };
 
 // 判斷錯誤是否可重試
-const isRetryableError = (error: any): boolean => {
-  if (!error.response) {
+const isRetryableError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') {
+    return true; // 網路錯誤或未知錯誤
+  }
+  
+  const errorWithResponse = error as { response?: { status: number } };
+  if (!errorWithResponse.response) {
     return true; // 網路錯誤
   }
   
-  const status = error.response.status;
+  const status = errorWithResponse.response.status;
   return status === 502 || status === 503 || status === 504 || status === 408;
 };
 

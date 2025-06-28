@@ -70,6 +70,43 @@ const UAVMetricsChart: React.FC<UAVMetricsChartProps> = ({
         }
     }, [refreshInterval, loadUAVData])
 
+    // 加載群組指標數據（模擬）
+    useEffect(() => {
+        if (showGroupMetrics || viewMode !== 'individual') {
+            // 模擬群組數據
+            const mockGroupMetrics: SwarmGroupMetrics[] = [
+                {
+                    group_id: 'group_001',
+                    name: 'Alpha Squadron',
+                    average_signal: -72.5,
+                    average_battery: 85.3,
+                    formation_compliance: 0.92,
+                    coordination_quality: 0.89,
+                    member_count: 3,
+                },
+                {
+                    group_id: 'group_002',
+                    name: 'Beta Formation',
+                    average_signal: -78.2,
+                    average_battery: 67.8,
+                    formation_compliance: 0.85,
+                    coordination_quality: 0.76,
+                    member_count: 4,
+                },
+                {
+                    group_id: 'group_003',
+                    name: 'Gamma Wing',
+                    average_signal: -69.1,
+                    average_battery: 92.4,
+                    formation_compliance: 0.96,
+                    coordination_quality: 0.94,
+                    member_count: 2,
+                },
+            ]
+            setGroupMetrics(mockGroupMetrics)
+        }
+    }, [showGroupMetrics, viewMode])
+
     // 獲取連接狀態顏色
     const getConnectionStatusColor = (status: string): string => {
         switch (status) {
@@ -767,43 +804,6 @@ const UAVMetricsChart: React.FC<UAVMetricsChartProps> = ({
             </div>
         </div>
     )
-
-    // 加載群組指標數據（模擬）
-    useEffect(() => {
-        if (showGroupMetrics || viewMode !== 'individual') {
-            // 模擬群組數據
-            const mockGroupMetrics: SwarmGroupMetrics[] = [
-                {
-                    group_id: 'group_001',
-                    name: 'Alpha Squadron',
-                    average_signal: -72.5,
-                    average_battery: 85.3,
-                    formation_compliance: 0.92,
-                    coordination_quality: 0.89,
-                    member_count: 3,
-                },
-                {
-                    group_id: 'group_002',
-                    name: 'Beta Formation',
-                    average_signal: -78.2,
-                    average_battery: 67.8,
-                    formation_compliance: 0.85,
-                    coordination_quality: 0.76,
-                    member_count: 4,
-                },
-                {
-                    group_id: 'group_003',
-                    name: 'Gamma Wing',
-                    average_signal: -69.1,
-                    average_battery: 92.4,
-                    formation_compliance: 0.96,
-                    coordination_quality: 0.94,
-                    member_count: 2,
-                },
-            ]
-            setGroupMetrics(mockGroupMetrics)
-        }
-    }, [showGroupMetrics, viewMode])
 }
 
 export default UAVMetricsChart

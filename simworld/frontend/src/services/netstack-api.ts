@@ -197,7 +197,7 @@ class NetStackApiClient extends BaseApiClient {
     // 在瀏覽器環境中使用Vite代理路徑
     if (typeof window !== 'undefined') {
       // 檢查環境變數是否有自定義的 NetStack URL
-      const envUrl = (window as { __NETSTACK_API_URL__?: string }).__NETSTACK_API_URL__
+      const envUrl = (window as unknown as { __NETSTACK_API_URL__?: string }).__NETSTACK_API_URL__
       if (envUrl) {
         baseUrl = envUrl
       } else {
@@ -339,7 +339,7 @@ class NetStackApiClient extends BaseApiClient {
   /**
    * 獲取最近的同步事件
    */
-  async getRecentSyncEvents(): Promise<any[]> {
+  async getRecentSyncEvents(): Promise<Array<Record<string, unknown>>> {
     const response = await fetch(
       `${this.baseUrl}/api/v1/core-sync/events/recent`
     )
@@ -372,8 +372,8 @@ class NetStackApiClient extends BaseApiClient {
   /**
    * 獲取健康檢查狀態
    */
-  async getHealthStatus(): Promise<any> {
-    return this.get<any>('/api/v1/core-sync/health')
+  async getHealthStatus(): Promise<Record<string, unknown>> {
+    return this.get<Record<string, unknown>>('/api/v1/core-sync/health')
   }
 }
 

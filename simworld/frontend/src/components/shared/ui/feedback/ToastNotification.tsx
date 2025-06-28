@@ -65,9 +65,11 @@ class ToastManager {
   }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const toastManager = new ToastManager()
 
 // React Hook
+// eslint-disable-next-line react-refresh/only-export-components
 export const useToast = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
 

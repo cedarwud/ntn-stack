@@ -24,7 +24,7 @@ interface InfocomMetricsResponse {
         ue_context: number;
         path_switch: number;
     };
-    confidence_intervals: any;
+    confidence_intervals: Record<string, unknown>;
     data_source: string;
 }
 

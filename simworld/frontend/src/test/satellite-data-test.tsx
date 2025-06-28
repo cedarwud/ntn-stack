@@ -88,7 +88,7 @@ export const SatelliteDataTest: React.FC = () => {
                 <div>
                     <h4>可見衛星列表:</h4>
                     <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                        {satellites.map((sat, index) => {
+                        {satellites.map((sat) => {
                             const cleanName = sat.name
                                 .replace(' [DTC]', '')
                                 .replace('[DTC]', '')

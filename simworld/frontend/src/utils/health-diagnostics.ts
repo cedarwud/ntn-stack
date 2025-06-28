@@ -7,7 +7,7 @@ export interface DiagnosticResult {
   service: string
   status: 'healthy' | 'warning' | 'error'
   message: string
-  details?: any
+  details?: Record<string, unknown>
   fixSuggestions?: string[]
 }
 
@@ -252,7 +252,7 @@ class HealthDiagnosticsService {
         }
       }
       
-    } catch (error) {
+    } catch {
       return {
         service: '數據庫連接',
         status: 'error',

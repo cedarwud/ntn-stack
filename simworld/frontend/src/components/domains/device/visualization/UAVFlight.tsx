@@ -278,17 +278,20 @@ export default function UAVFlight({
         return current.distanceTo(target) < threshold
     }
 
+    const generateBezierPathCallback = useCallback(generateBezierPath, [flightMode])
+    const generateNewTargetCallback = useCallback(generateNewTarget, [flightMode])
+
     const generatePath = useCallback(() => {
         const start = currentPosition
-        const end = generateNewTarget()
+        const end = generateNewTargetCallback()
         const distance = start.distanceTo(end)
         const points = Math.max(8, Math.min(20, Math.floor(distance / 15)))
-        const newWaypoints = generateBezierPath(start, end, points)
+        const newWaypoints = generateBezierPathCallback(start, end, points)
         setWaypoints(newWaypoints)
         currentWaypoint.current = 0
         setTargetPosition(end)
         return newWaypoints
-    }, [currentPosition])
+    }, [currentPosition, generateBezierPathCallback, generateNewTargetCallback])
 
     useEffect(() => {
         // 設置警告攔截器以忽略動畫綁定錯誤

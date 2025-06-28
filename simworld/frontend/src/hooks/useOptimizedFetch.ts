@@ -23,17 +23,17 @@ interface FetchState<T> {
 
 // 全局請求緩存
 const requestCache = new Map<string, {
-  data: any
+  data: unknown
   timestamp: number
-  promise?: Promise<any>
+  promise?: Promise<unknown>
 }>()
 
 // 全局請求去重
-const pendingRequests = new Map<string, Promise<any>>()
+const pendingRequests = new Map<string, Promise<unknown>>()
 
 export function useOptimizedFetch<T>(
   fetcher: () => Promise<T>,
-  deps: any[] = [],
+  deps: unknown[] = [],
   options: FetchOptions = {}
 ) {
   const {
@@ -182,6 +182,7 @@ export function useOptimizedFetch<T>(
   // 初始請求和依賴變化時重新請求
   useEffect(() => {
     fetchData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchData, ...deps])
 
   // 設置自動刷新

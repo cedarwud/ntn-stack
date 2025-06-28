@@ -2,10 +2,10 @@ import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
 // Make vi globally available
-;(globalThis as any).vi = vi
+;(globalThis as typeof globalThis & { vi: typeof vi }).vi = vi
 
 // Mock ResizeObserver
-;(globalThis as any).ResizeObserver = class ResizeObserver {
+;(globalThis as typeof globalThis & { ResizeObserver: typeof ResizeObserver }).ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
@@ -27,7 +27,7 @@ Object.defineProperty(window, 'matchMedia', {
 })
 
 // Mock IntersectionObserver
-;(globalThis as any).IntersectionObserver = class IntersectionObserver {
+;(globalThis as typeof globalThis & { IntersectionObserver: typeof IntersectionObserver }).IntersectionObserver = class IntersectionObserver {
   constructor() {}
   observe() {}
   unobserve() {}
@@ -35,7 +35,7 @@ Object.defineProperty(window, 'matchMedia', {
 }
 
 // Mock WebSocket
-;(globalThis as any).WebSocket = class WebSocket {
+;(globalThis as typeof globalThis & { WebSocket: typeof WebSocket }).WebSocket = class WebSocket {
   constructor() {}
   send() {}
   close() {}
@@ -86,5 +86,5 @@ if (typeof HTMLCanvasElement !== 'undefined') {
 }
 
 // Mock requestAnimationFrame
-;(globalThis as any).requestAnimationFrame = vi.fn(cb => setTimeout(cb, 0))
-;(globalThis as any).cancelAnimationFrame = vi.fn() 
+;(globalThis as typeof globalThis & { requestAnimationFrame: typeof requestAnimationFrame }).requestAnimationFrame = vi.fn(cb => setTimeout(cb, 0))
+;(globalThis as typeof globalThis & { cancelAnimationFrame: typeof cancelAnimationFrame }).cancelAnimationFrame = vi.fn() 

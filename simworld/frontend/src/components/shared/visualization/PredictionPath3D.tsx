@@ -1,12 +1,29 @@
-import React, { useRef, useMemo, useEffect, useState } from 'react'
+import React, { useRef, useMemo, useEffect, useState, useCallback } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Line, Text, Sphere, Ring, Cylinder, Cone } from '@react-three/drei'
 import * as THREE from 'three'
 
+interface Satellite {
+  norad_id?: string;
+  id?: string;
+  azimuth_deg?: number;
+  distance_km?: number;
+  elevation_deg?: number;
+  position?: { x?: number; y?: number; z?: number };
+  [key: string]: unknown;
+}
+
+interface UAV {
+  position_x?: number;
+  position_y?: number;
+  position_z?: number;
+  [key: string]: unknown;
+}
+
 interface PredictionPath3DProps {
   enabled: boolean
-  satellites: any[]
-  selectedUAV?: any
+  satellites: Satellite[]
+  selectedUAV?: UAV
   predictionTimeHorizon?: number // 預測時間範圍（秒）
 }
 
@@ -50,7 +67,7 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
   predictionTimeHorizon = 300 // 預設5分鐘
 }) => {
   const groupRef = useRef<THREE.Group>(null)
-  const { scene } = useThree()
+  const { scene: _scene } = useThree()
   
   // 狀態管理
   const [satellitePredictions, setSatellitePredictions] = useState<SatellitePrediction[]>([])
@@ -59,7 +76,7 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
   const [animationTime, setAnimationTime] = useState(0)
 
   // 生成衛星預測軌道
-  const generateSatellitePrediction = (satellite: any): SatellitePrediction => {
+  const generateSatellitePrediction = useCallback((satellite: Satellite): SatellitePrediction => {
     const currentPos: [number, number, number] = [
       satellite.position?.x || Math.cos(satellite.azimuth_deg * Math.PI / 180) * satellite.distance_km / 10,
       satellite.position?.z || satellite.distance_km / 10,
@@ -75,7 +92,7 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
       const t = i * timeStep
       // 模擬衛星軌道運動（簡化的圓形軌道）
       const angle = t * 0.001 // 軌道角速度
-      const radius = satellite.distance_km / 10
+      const _radius = satellite.distance_km / 10
       
       const position: [number, number, number] = [
         currentPos[0] * Math.cos(angle) - currentPos[2] * Math.sin(angle),
@@ -106,10 +123,10 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
         maxElevation: satellite.elevation_deg
       }
     }
-  }
+  }, [predictionTimeHorizon])
 
   // 生成UAV預測路徑
-  const generateUAVPrediction = (uav: any): UAVPrediction => {
+  const generateUAVPrediction = useCallback((uav: UAV): UAVPrediction => {
     const currentPos: [number, number, number] = [
       uav.position_x || 0,
       uav.position_z || 10,
@@ -152,10 +169,10 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
       predictedPath,
       plannedRoute
     }
-  }
+  }, [predictionTimeHorizon])
 
   // 生成換手點預測
-  const generateHandoverPoints = (
+  const generateHandoverPoints = useCallback((
     satPredictions: SatellitePrediction[],
     uavPred: UAVPrediction
   ): HandoverPoint[] => {
@@ -195,16 +212,16 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
     }
     
     return points
-  }
+  }, [calculateDistance])
 
   // 距離計算輔助函數
-  const calculateDistance = (pos1: [number, number, number], pos2: [number, number, number]): number => {
+  const calculateDistance = useCallback((pos1: [number, number, number], pos2: [number, number, number]): number => {
     return Math.sqrt(
       (pos1[0] - pos2[0])**2 + 
       (pos1[1] - pos2[1])**2 + 
       (pos1[2] - pos2[2])**2
     )
-  }
+  }, [])
 
   // 更新預測數據
   useEffect(() => {
@@ -225,7 +242,7 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
       const handoverPts = generateHandoverPoints(satPredictions, uavPred)
       setHandoverPoints(handoverPts)
     }
-  }, [enabled, satellites, selectedUAV, predictionTimeHorizon])
+  }, [enabled, satellites, selectedUAV, predictionTimeHorizon, generateSatellitePrediction, generateUAVPrediction, generateHandoverPoints])
 
   // 動畫更新
   useFrame((state) => {

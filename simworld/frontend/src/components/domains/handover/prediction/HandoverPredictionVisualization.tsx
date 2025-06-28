@@ -501,7 +501,7 @@ const HandoverAnimationDisplay: React.FC<{
 const PredictionConfidenceIndicator: React.FC<{
     predictions: HandoverPrediction[]
     devices: Device[]
-}> = ({ predictions, devices }) => {
+}> = ({ predictions }) => {
     const highConfidence = predictions.filter(
         (p) => p.confidence === 'high'
     ).length

@@ -18,15 +18,15 @@ import { HandoverStatusPanel } from '../domains/handover/execution/HandoverAnima
 interface SceneViewProps {
     devices: Device[]
     auto: boolean
-    manualDirection?: any
-    onManualControl?: (direction: any) => void
+    manualDirection?: unknown
+    onManualControl?: (direction: unknown) => void
     onUAVPositionUpdate?: (
         position: [number, number, number],
         deviceId?: number
     ) => void
     uavAnimation: boolean
     selectedReceiverIds?: number[]
-    satellites?: any[]
+    satellites?: Record<string, unknown>[]
     sceneName: string // 新增場景名稱參數
     // 階段四功能狀態
     interferenceVisualizationEnabled?: boolean
@@ -49,12 +49,12 @@ interface SceneViewProps {
     scenarioTestEnvironmentEnabled?: boolean
     // 3D 換手動畫相關
     handover3DAnimationEnabled?: boolean
-    handoverState?: any
-    currentConnection?: any
-    predictedConnection?: any
+    handoverState?: unknown
+    currentConnection?: unknown
+    predictedConnection?: unknown
     isTransitioning?: boolean
     transitionProgress?: number
-    onHandoverEvent?: (event: any) => void
+    onHandoverEvent?: (event: unknown) => void
     // 階段七功能狀態
     e2ePerformanceMonitoringEnabled?: boolean
     testResultsVisualizationEnabled?: boolean
@@ -127,11 +127,11 @@ export default function SceneView({
     void scenarioTestEnvironmentEnabled
     
     const canvasRef = useRef<HTMLCanvasElement>(null)
-    const [satellites, setSatellites] = useState<any[]>([])
-    const [handoverStatusInfo, setHandoverStatusInfo] = useState<any>(null)
+    const [satellites, setSatellites] = useState<Record<string, unknown>[]>([])
+    const [handoverStatusInfo, setHandoverStatusInfo] = useState<unknown>(null)
     
     // 換手狀態更新回調
-    const handleHandoverStatusUpdate = useCallback((statusInfo: any) => {
+    const handleHandoverStatusUpdate = useCallback((statusInfo: unknown) => {
         setHandoverStatusInfo(statusInfo)
     }, [])
     

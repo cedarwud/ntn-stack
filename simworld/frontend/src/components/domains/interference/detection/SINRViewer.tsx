@@ -32,6 +32,32 @@ const SINRViewer: React.FC<ViewerProps> = ({
         imageUrlRef.current = imageUrl
     }, [imageUrl])
 
+    const loadSINRMapImageRef = useRef<() => void>()
+
+    const handleLoadError = useCallback(
+        (err: Error | unknown) => {
+            if (err instanceof Error && err.message && err.message.includes('404')) {
+                setError('圖像文件未找到: 後端可能正在生成圖像，請稍後重試')
+            } else if (err instanceof Error) {
+                setError('無法載入 SINR Map: ' + err.message)
+            } else {
+                setError('無法載入 SINR Map: 未知錯誤')
+            }
+
+            setIsLoading(false)
+
+            const newRetryCount = retryCount + 1
+            setRetryCount(newRetryCount)
+
+            if (newRetryCount < maxRetries) {
+                setTimeout(() => {
+                    loadSINRMapImageRef.current?.()
+                }, 2000)
+            }
+        },
+        [retryCount, maxRetries]
+    )
+
     const loadSINRMapImage = useCallback(async () => {
         setIsLoading(true)
         setError(null)
@@ -61,9 +87,9 @@ const SINRViewer: React.FC<ViewerProps> = ({
                     `API 請求失敗: ${response.status} ${response.statusText}`
                 )
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('載入 SINR Map 失敗:', err)
-            handleLoadError(err)
+            handleLoadError(err as Error)
         }
     }, [
         currentScene,
@@ -72,30 +98,13 @@ const SINRViewer: React.FC<ViewerProps> = ({
         cellSize,
         samplesPerTx,
         updateTimestamp,
-        retryCount,
+        API_PATH,
+        handleLoadError,
     ])
 
-    const handleLoadError = useCallback(
-        (err: any) => {
-            if (err.message && err.message.includes('404')) {
-                setError('圖像文件未找到: 後端可能正在生成圖像，請稍後重試')
-            } else {
-                setError('無法載入 SINR Map: ' + err.message)
-            }
-
-            setIsLoading(false)
-
-            const newRetryCount = retryCount + 1
-            setRetryCount(newRetryCount)
-
-            if (newRetryCount < maxRetries) {
-                setTimeout(() => {
-                    loadSINRMapImage()
-                }, 2000)
-            }
-        },
-        [retryCount, maxRetries, loadSINRMapImage]
-    )
+    useEffect(() => {
+        loadSINRMapImageRef.current = loadSINRMapImage
+    }, [loadSINRMapImage])
 
     useEffect(() => {
         reportRefreshHandlerToNavbar(loadSINRMapImage)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import './HandoverComparisonDashboard.scss'
 
 interface HandoverComparisonDashboardProps {
@@ -57,8 +57,8 @@ const HandoverComparisonDashboard: React.FC<
     const [testProgress, setTestProgress] = useState(0)
     const [selectedMetric, setSelectedMetric] = useState<string>('latency')
 
-    // 測試場景定義
-    const testScenarios: TestScenario[] = [
+    // 測試場景定義 - 使用 useMemo 優化
+    const testScenarios = useMemo<TestScenario[]>(() => [
         {
             id: 'urban_mobility',
             name: '城市移動場景',
@@ -99,7 +99,7 @@ const HandoverComparisonDashboard: React.FC<
             duration: 360,
             status: 'pending',
         },
-    ]
+    ], [])
 
     // 生成模擬對比數據
     const generateComparisonData = (scenario: string): ComparisonResult => {

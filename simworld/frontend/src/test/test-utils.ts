@@ -9,7 +9,7 @@ import { realConnectionManager } from '../services/realConnectionService'
 export interface TestResult {
   success: boolean
   message: string
-  details?: any
+  details?: Record<string, unknown>
   error?: string
 }
 
@@ -63,8 +63,8 @@ export async function testSimWorldSatellites(): Promise<TestResult> {
     const satellites = await simWorldApi.getVisibleSatellites(-90, 150, 0, 0)
     
     // 處理不同的響應格式
-    let satelliteArray: any[] = []
-    let observer: any = null
+    let satelliteArray: unknown[] = []
+    let observer: unknown = null
     let totalVisible = 0
     
     if (satellites.results?.satellites) {

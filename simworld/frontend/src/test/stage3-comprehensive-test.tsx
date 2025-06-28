@@ -8,7 +8,7 @@ interface TestResult {
     name: string
     status: 'pending' | 'running' | 'passed' | 'failed'
     message: string
-    details?: any
+    details?: Record<string, unknown>
     timestamp?: number
 }
 
@@ -20,7 +20,7 @@ const Stage3ComprehensiveTest: React.FC = () => {
     const [testSuite, setTestSuite] = useState<TestSuite>({})
     const [overallProgress, setOverallProgress] = useState(0)
     const [isRunning, setIsRunning] = useState(false)
-    const [completedTests, setCompletedTests] = useState(0)
+    const [, setCompletedTests] = useState(0)
     const [totalTests, setTotalTests] = useState(0)
 
     // 更新測試結果
@@ -120,7 +120,7 @@ const Stage3ComprehensiveTest: React.FC = () => {
         testFunction: () => Promise<{
             success: boolean
             message: string
-            details?: any
+            details?: Record<string, unknown>
         }>
     ) => {
         updateTestResult(testName, { status: 'running', message: '執行中...' })

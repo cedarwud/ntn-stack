@@ -29,7 +29,7 @@ class BackgroundHealthMonitor {
       if (!isHealthy && this.toastFunction) {
         this.toastFunction('系統健康檢查發現問題', 'warning')
       }
-    } catch (error) {
+    } catch {
       if (this.toastFunction) {
         this.toastFunction('健康檢查失敗', 'error')
       }
