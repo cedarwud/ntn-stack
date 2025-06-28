@@ -20,7 +20,7 @@ interface UseWebSocketReturn {
   isConnected: boolean;
   reconnectCount: number;
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'failed';
-  sendMessage: (data: any) => void;
+  sendMessage: (data: unknown) => void;
   disconnect: () => void;
   connect: () => void;
   resetReconnection: () => void;
@@ -28,7 +28,7 @@ interface UseWebSocketReturn {
 
 export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketReturn => {
   const {
-    url = '/api/ws',
+    url: _url = '/api/ws',  
     reconnectInterval = 5000,
     maxReconnectAttempts = 3,
     enableReconnect = true,
@@ -171,7 +171,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
     setReconnectCount(0);
   }, [clearReconnectTimeout]);
 
-  const sendMessage = useCallback((data: any) => {
+  const sendMessage = useCallback((data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       try {
         const message = JSON.stringify(data);
@@ -202,7 +202,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
     return () => {
       disconnect();
     };
-  }, [enableReconnect]); // 移除 connect 和 disconnect 依賴，避免無限循環
+  }, [connect, disconnect, enableReconnect]);
 
   // 瀏覽器可見性變化時的處理
   useEffect(() => {

@@ -3,7 +3,7 @@ import './CoreNetworkSyncViewer.scss'
 
 interface CoreNetworkSyncViewerProps {
     enabled: boolean
-    devices: any[]
+    devices: Record<string, unknown>[]
 }
 
 interface CoreSyncMetrics {
@@ -49,7 +49,7 @@ interface IEEEFeatures {
 
 const CoreNetworkSyncViewer: React.FC<CoreNetworkSyncViewerProps> = ({
     enabled,
-    devices,
+    devices: _devices,
 }) => {
     const [metrics, setMetrics] = useState<CoreSyncMetrics>({
         totalSyncOperations: 0,

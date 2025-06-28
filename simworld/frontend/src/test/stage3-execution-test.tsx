@@ -1,23 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { netStackApi } from '../services/netstack-api';
 import { simWorldApi } from '../services/simworld-api';
 import { realConnectionManager } from '../services/realConnectionService';
 import { realSatelliteDataManager } from '../services/realSatelliteService';
 
+interface TestResult {
+  success: boolean;
+  data?: Record<string, unknown>;
+  error?: string | null;
+}
+
+interface SatelliteData {
+  name: string;
+  position?: {
+    elevation?: number;
+  };
+}
+
+interface SatelliteMapping {
+  id: string;
+  name: string;
+  position: {
+    latitude: number;
+    longitude: number;
+    altitude: number;
+  };
+}
+
 const Stage3ExecutionTest: React.FC = () => {
-  const [testResults, setTestResults] = useState<{ [key: string]: any }>({});
+  const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [currentTest, setCurrentTest] = useState<string>('');
   const [isRunning, setIsRunning] = useState(false);
   const [overallScore, setOverallScore] = useState<number>(0);
   const [completedTests, setCompletedTests] = useState<number>(0);
   const [totalTests] = useState<number>(12); // 12 comprehensive tests
 
-  const runComprehensiveTest = async () => {
+  const runComprehensiveTest = useCallback(async () => {
     setIsRunning(true);
     setTestResults({});
     setCompletedTests(0);
     
-    const results: { [key: string]: any } = {};
+    const results: Record<string, TestResult> = {};
     let passed = 0;
 
     console.log('🚀 開始階段三全面功能測試...');
@@ -55,7 +78,7 @@ const Stage3ExecutionTest: React.FC = () => {
         data: success ? {
           count: satellites.results.satellites.length,
           first_satellite: satellites.results.satellites[0]?.name || 'N/A',
-          locations: satellites.results.satellites.slice(0, 3).map((s: any) => ({ name: s.name, elevation: s.position?.elevation }))
+          locations: satellites.results.satellites.slice(0, 3).map((s: SatelliteData) => ({ name: s.name, elevation: s.position?.elevation }))
         } : null,
         error: success ? null : '無可見衛星或API錯誤'
       };
@@ -104,7 +127,7 @@ const Stage3ExecutionTest: React.FC = () => {
         success,
         data: success ? {
           count: mappings.size,
-          sample_satellites: Array.from(mappings.values()).slice(0, 3).map((s: any) => ({
+          sample_satellites: Array.from(mappings.values()).slice(0, 3).map((s: SatelliteMapping) => ({
             id: s.id,
             name: s.name,
             position: [s.position.latitude.toFixed(2), s.position.longitude.toFixed(2), s.position.altitude.toFixed(2)]
@@ -334,11 +357,11 @@ const Stage3ExecutionTest: React.FC = () => {
     console.log('📊 詳細測試結果:', results);
 
     return { score, passed, total: totalTests, results };
-  };
+  }, [totalTests]);
 
   useEffect(() => {
     runComprehensiveTest();
-  }, []);
+  }, [runComprehensiveTest]);
 
   const getTestStatusIcon = (testKey: string) => {
     const result = testResults[testKey];

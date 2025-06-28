@@ -10,7 +10,7 @@ export function useSceneImageManager(sceneName?: string) {
     const [error, setError] = useState<string | null>(null);
     const prevImageUrlRef = useRef<string | null>(null);
     const [usingFallback, setUsingFallback] = useState<boolean>(false);
-    const [retryCount, setRetryCount] = useState<number>(0);
+    const [, setRetryCount] = useState<number>(0);
     const [manualRetryMode, setManualRetryMode] = useState<boolean>(false);
     const [imageNaturalSize, setImageNaturalSize] = useState<{
         width: number;
@@ -59,7 +59,7 @@ export function useSceneImageManager(sceneName?: string) {
                     try {
                         const errorJson = await response.json();
                         errorDetail = errorJson.detail || errorDetail;
-                    } catch (jsonError) { /* Keep original HTTP error */ }
+                    } catch { /* Keep original HTTP error */ }
                     throw new Error(errorDetail);
                 }
 
@@ -80,7 +80,7 @@ export function useSceneImageManager(sceneName?: string) {
                         `處理圖像時出錯: ${blobError instanceof Error ? blobError.message : String(blobError)}`
                     );
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 // 只有當 signal 沒有被 abort 時才需要處理錯誤
                 // 如果是 AbortError 且是因為組件卸載，這是正常的行為
                 if (error.name === 'AbortError') {
@@ -105,7 +105,7 @@ export function useSceneImageManager(sceneName?: string) {
                     if (timeoutId !== null) window.clearTimeout(timeoutId);
 
                     if (!signal.aborted && isActiveRef.current && !isUnmountError) {
-                        setError('Error loading image: ' + error.message);
+                        setError('Error loading image: ' + (error instanceof Error ? error.message : String(error)));
                         setRetryCount((prev) => {
                             const newCount = prev + 1;
                             // If we've tried several times, use fallback
@@ -183,7 +183,7 @@ export function useSceneImageManager(sceneName?: string) {
             // In React 18, we can pass a reason to abort
             try {
                 abortController.abort('Component unmounted');
-            } catch (e) {
+            } catch {
                 // Fallback for browsers that don't support abort with reason
                 abortController.abort();
             }

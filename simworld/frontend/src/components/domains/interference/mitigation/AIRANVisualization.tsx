@@ -3,8 +3,17 @@ import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 
+interface Device {
+    id: string | number;
+    role?: string;
+    position_x?: number;
+    position_y?: number;
+    position_z?: number;
+    [key: string]: unknown;
+}
+
 interface AIRANVisualizationProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
 }
 
@@ -49,7 +58,7 @@ const AIRANVisualization: React.FC<AIRANVisualizationProps> = ({ devices, enable
                     
                     newDecisions.push({
                         id: `decision_${receiver.id || index}`,
-                        type: randomType as any,
+                        type: randomType as AIDecision['type'],
                         position: [
                             receiver.position_x || 0, 
                             (receiver.position_z || 0) + 25, 
@@ -217,7 +226,7 @@ const AISystemStatus: React.FC<AISystemStatusProps> = ({ enabled, totalDecisions
         if (!enabled) return
 
         const interval = setInterval(() => {
-            setStats(prev => ({
+            setStats(() => ({
                 decisionsPerMinute: Math.floor(Math.random() * 5) + totalDecisions,
                 successRate: 90 + Math.random() * 10,
                 energySavings: 10 + Math.random() * 5,

@@ -14,7 +14,7 @@ interface SidebarProps {
     devices: Device[]
     loading: boolean
     apiStatus: 'disconnected' | 'connected' | 'error'
-    onDeviceChange: (id: number, field: keyof Device, value: any) => void
+    onDeviceChange: (id: number, field: keyof Device, value: unknown) => void
     onDeleteDevice: (id: number) => void
     onAddDevice: () => void
     onApply: () => void
@@ -216,7 +216,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             }
         })
         setOrientationInputs(newInputs)
-    }, [devices]) // 依賴 devices prop
+    }, [devices, orientationInputs])
 
     // 處理方向輸入的變化 (重命名並調整)
     const handleDeviceOrientationInputChange = (

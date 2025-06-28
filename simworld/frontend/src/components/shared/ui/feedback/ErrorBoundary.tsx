@@ -8,7 +8,7 @@ import { globalErrorHandler, ErrorSeverity, ErrorCategory, getUserFriendlyMessag
 interface Props {
   children: ReactNode
   fallback?: ReactNode
-  onError?: (error: Error, errorInfo: any) => void
+  onError?: (error: Error, errorInfo: unknown) => void
   level?: 'page' | 'section' | 'component'
 }
 
@@ -32,7 +32,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: unknown) {
     // 記錄錯誤到全局錯誤處理器
     globalErrorHandler.handleError(error, {
       component: 'ErrorBoundary',
@@ -188,6 +188,7 @@ export class ErrorBoundary extends Component<Props, State> {
 /**
  * HOC: 為組件添加錯誤邊界
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   errorBoundaryProps?: Omit<Props, 'children'>
@@ -206,6 +207,7 @@ export function withErrorBoundary<P extends object>(
 /**
  * Hook: 在函數組件中手動觸發錯誤邊界
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useErrorBoundary() {
   const [error, setError] = React.useState<Error | null>(null)
 

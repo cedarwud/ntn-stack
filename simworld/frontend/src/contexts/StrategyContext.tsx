@@ -1,6 +1,5 @@
 import {
     createContext,
-    useContext,
     useState,
     useCallback,
     ReactNode,
@@ -18,6 +17,8 @@ interface StrategyContextType {
 const StrategyContext = createContext<StrategyContextType | undefined>(
     undefined
 )
+
+export { StrategyContext }
 
 interface StrategyProviderProps {
     children: ReactNode
@@ -103,12 +104,4 @@ export const StrategyProvider = ({ children }: StrategyProviderProps) => {
             {children}
         </StrategyContext.Provider>
     )
-}
-
-export const useStrategy = () => {
-    const context = useContext(StrategyContext)
-    if (context === undefined) {
-        throw new Error('useStrategy must be used within a StrategyProvider')
-    }
-    return context
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Ring } from '@react-three/drei'
@@ -485,7 +485,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     })
 
     // 🔗 獲取UAV位置
-    const getUAVPositions = (): Array<[number, number, number]> => {
+    const getUAVPositions = useCallback((): Array<[number, number, number]> => {
         return devices
             .filter((d) => d.role === 'receiver')
             .map((uav) => [
@@ -493,10 +493,10 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 uav.position_z || 0,
                 uav.position_y || 0,
             ])
-    }
+    }, [devices])
 
     // 🔗 獲取可用衛星列表 - 修復：支援內建模擬衛星
-    const getAvailableSatellites = (): string[] => {
+    const getAvailableSatellites = useCallback((): string[] => {
         // 🔧 修復：如果 satellitePositions 為空（DynamicSatelliteRenderer 未啟用），
         // 使用內建的模擬衛星列表
         if (!satellitePositions || satellitePositions.size === 0) {
@@ -504,10 +504,10 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         }
 
         return Array.from(satellitePositions.keys())
-    }
+    }, [satellitePositions])
 
     // 🔗 獲取衛星位置 - 支援內建模擬和外部位置
-    const getSatellitePosition = (
+    const getSatellitePosition = useCallback((
         satelliteId: string
     ): [number, number, number] => {
         // 優先使用外部位置數據
@@ -522,7 +522,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         const height = 150 + Math.sin(angle * 2) * 100 // 高度變化
 
         return [radius * Math.cos(angle), height, radius * Math.sin(angle)]
-    }
+    }, [satellitePositions])
 
     // 📏 計算兩點之間的3D距離
     const calculateDistance = (
@@ -536,7 +536,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     }
 
     // 🎯 選擇衛星（智能多樣化選擇 - 擴大換手範圍）
-    const selectNearestSatellite = (excludeId?: string): string | null => {
+    const selectNearestSatellite = useCallback((excludeId?: string): string | null => {
         const uavPositions = getUAVPositions()
         const availableSatellites = getAvailableSatellites()
 
@@ -654,7 +654,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         }
 
         return selectedSatellite
-    }
+    }, [getUAVPositions, getAvailableSatellites, getSatellitePosition])
 
     // 📝 記錄換手事件（加強防護檢查）
     const recordHandover = (fromSatellite: string, toSatellite: string) => {

@@ -23,7 +23,6 @@ interface UseDevicePopoverManagerProps {
     refreshDeviceData: () => void;
     sceneToImageCoords: (sceneX: number, sceneY: number) => { x: number; y: number } | null;
     convertBackendToNewDevice: (backendDevice: Device) => NewDevice;
-    imageNaturalSize: { width: number; height: number } | null; // Needed for positioning
     imageRef?: RefObject<HTMLImageElement | null>; // Added for calculating icon click position
 }
 
@@ -32,7 +31,6 @@ export const useDevicePopoverManager = ({
     refreshDeviceData,
     sceneToImageCoords,
     convertBackendToNewDevice,
-    imageNaturalSize,
     imageRef,
 }: UseDevicePopoverManagerProps) => {
     const [showPopover, setShowPopover] = useState<boolean>(false);
@@ -137,7 +135,7 @@ export const useDevicePopoverManager = ({
         setOrientationInputs({}); // Clear orientation inputs
     }, []);
 
-    const handlePopoverInputChange = useCallback((field: string, value: any) => {
+    const handlePopoverInputChange = useCallback((field: string, value: string | number | boolean) => {
         setPopoverDevice((prev) => ({ ...prev, [field]: value }));
     }, []);
 

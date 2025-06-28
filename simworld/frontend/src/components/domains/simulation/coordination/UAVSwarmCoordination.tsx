@@ -3,8 +3,17 @@ import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Line } from '@react-three/drei'
 
+interface Device {
+    id: string | number;
+    role?: string;
+    position_x?: number;
+    position_y?: number;
+    position_z?: number;
+    [key: string]: unknown;
+}
+
 interface UAVSwarmCoordinationProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
 }
 
@@ -98,7 +107,7 @@ const UAVSwarmCoordination: React.FC<UAVSwarmCoordinationProps> = ({ devices, en
 }
 
 // 創建群集編隊
-const createSwarmFormations = (receivers: any[]): SwarmFormation[] => {
+const createSwarmFormations = (receivers: Device[]): SwarmFormation[] => {
     const formations: SwarmFormation[] = []
     
     if (receivers.length >= 3) {
@@ -139,7 +148,7 @@ const createSwarmFormations = (receivers: any[]): SwarmFormation[] => {
 }
 
 // V字形編隊位置計算
-const calculateVFormationPositions = (uavs: any[]): { [key: string]: [number, number, number] } => {
+const calculateVFormationPositions = (uavs: Device[]): { [key: string]: [number, number, number] } => {
     const positions: { [key: string]: [number, number, number] } = {}
     const leadPosition = uavs[0] ? [uavs[0].position_x || 0, uavs[0].position_z || 0, uavs[0].position_y || 0] : [0, 0, 0]
     
@@ -163,7 +172,7 @@ const calculateVFormationPositions = (uavs: any[]): { [key: string]: [number, nu
 }
 
 // 圓形編隊位置計算
-const calculateCircleFormationPositions = (uavs: any[]): { [key: string]: [number, number, number] } => {
+const calculateCircleFormationPositions = (uavs: Device[]): { [key: string]: [number, number, number] } => {
     const positions: { [key: string]: [number, number, number] } = {}
     const centerX = uavs.reduce((sum, uav) => sum + (uav.position_x || 0), 0) / uavs.length
     const centerY = uavs.reduce((sum, uav) => sum + (uav.position_y || 0), 0) / uavs.length
@@ -205,7 +214,7 @@ const generateCoordinationTasks = (formations: SwarmFormation[]): CoordinationTa
 }
 
 // 計算群集指標
-const calculateSwarmMetrics = (formations: SwarmFormation[], allUAVs: any[]) => {
+const calculateSwarmMetrics = (formations: SwarmFormation[], allUAVs: Device[]) => {
     const totalUAVs = allUAVs.length
     const activeSwarms = formations.length
     const avgQuality = formations.reduce((sum, f) => sum + f.quality, 0) / (formations.length || 1)
@@ -222,7 +231,7 @@ const calculateSwarmMetrics = (formations: SwarmFormation[], allUAVs: any[]) => 
 // 群集編隊可視化組件
 const SwarmFormationVisualization: React.FC<{
     formation: SwarmFormation
-    devices: any[]
+    devices: Device[]
 }> = ({ formation, devices }) => {
     const meshRef = useRef<THREE.Group>(null)
     
@@ -237,7 +246,7 @@ const SwarmFormationVisualization: React.FC<{
         }
     }
 
-    const getFormationIcon = (type: string) => {
+    const _getFormationIcon = (type: string) => {
         switch (type) {
             case 'line': return '➡️'
             case 'v_shape': return '✈️'
@@ -294,7 +303,7 @@ const SwarmFormationVisualization: React.FC<{
 // 群集連接線組件
 const SwarmConnectionLines: React.FC<{
     formations: SwarmFormation[]
-    devices: any[]
+    devices: Device[]
 }> = ({ formations, devices }) => {
     return (
         <>
@@ -327,10 +336,18 @@ const SwarmConnectionLines: React.FC<{
 }
 
 // 群集狀態顯示組件
+interface SwarmMetrics {
+    totalUAVs: number;
+    activeSwarms: number;
+    formationCompliance: number;
+    communicationQuality: number;
+    coordinationEfficiency: number;
+}
+
 const SwarmStatusDisplay: React.FC<{
     formations: SwarmFormation[]
-    metrics: any
-}> = ({ formations, metrics }) => {
+    metrics: SwarmMetrics
+}> = ({ formations: _formations, metrics: _metrics }) => {
     // 移除所有文字顯示，返回 null
     return null
 }
@@ -338,8 +355,8 @@ const SwarmStatusDisplay: React.FC<{
 // 協調任務顯示組件
 const CoordinationTaskDisplay: React.FC<{
     tasks: CoordinationTask[]
-}> = ({ tasks }) => {
-    const getTaskIcon = (type: string) => {
+}> = ({ tasks: _tasks }) => {
+    const _getTaskIcon = (type: string) => {
         switch (type) {
             case 'area_coverage': return '🗺️'
             case 'formation_flight': return '✈️'
@@ -350,7 +367,7 @@ const CoordinationTaskDisplay: React.FC<{
         }
     }
 
-    const getPriorityColor = (priority: string) => {
+    const _getPriorityColor = (priority: string) => {
         switch (priority) {
             case 'low': return '#88ff88'
             case 'medium': return '#ffaa00'
@@ -367,7 +384,7 @@ const CoordinationTaskDisplay: React.FC<{
 // 編隊軌跡預測組件
 const FormationTrajectoryPrediction: React.FC<{
     formations: SwarmFormation[]
-    devices: any[]
+    devices: Device[]
 }> = ({ formations, devices }) => {
     return (
         <>

@@ -6,7 +6,7 @@
 /**
  * 懶加載組件
  */
-export function lazyLoadComponent<T extends React.ComponentType<any>>(
+export function lazyLoadComponent<T extends React.ComponentType<Record<string, unknown>>>(
   importFunc: () => Promise<{ default: T }>,
   fallback?: React.ComponentType
 ) {
@@ -31,7 +31,7 @@ export async function lazyLoadUtility<T>(importFunc: () => Promise<{ default: T 
 /**
  * 預加載模塊
  */
-export function preloadModule(importFunc: () => Promise<any>) {
+export function preloadModule(importFunc: () => Promise<unknown>) {
   // 在空閒時間預加載
   if ('requestIdleCallback' in window) {
     requestIdleCallback(() => {
@@ -79,7 +79,7 @@ export const resourceOptimizer = {
         }
 
         return () => observer.disconnect()
-      }, [src, threshold])
+      }, [])
 
       return React.createElement('img', {
         ...props,

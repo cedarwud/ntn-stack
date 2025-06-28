@@ -15,7 +15,7 @@ const StaticModel: React.FC<StaticModelProps> = ({
     scale,
     pivotOffset = [0, 0, 0],
 }) => {
-    const { scene } = useGLTF(url) as any
+    const { scene } = useGLTF(url) as { scene: THREE.Object3D }
     const clonedScene = useMemo(() => {
         const clone = scene.clone(true)
         clone.traverse((node: THREE.Object3D) => {

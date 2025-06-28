@@ -3,10 +3,28 @@ import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Text, Line } from '@react-three/drei'
 
+interface Device {
+    id: string | number;
+    role?: string;
+    position_x?: number;
+    position_y?: number;
+    position_z?: number;
+    [key: string]: unknown;
+}
+
+interface Satellite {
+    id?: string;
+    norad_id?: string;
+    name?: string;
+    elevation_deg?: number;
+    azimuth_deg?: number;
+    [key: string]: unknown;
+}
+
 interface SatelliteHandoverDecisionVisualizationProps {
-    devices: any[]
+    devices: Device[]
     enabled: boolean
-    satellites?: any[]
+    satellites?: Satellite[]
 }
 
 interface HandoverDecision {
@@ -181,7 +199,7 @@ const SatelliteHandoverDecisionVisualization: React.FC<
         const interval = setInterval(generateDecisions, 10000)
 
         return () => clearInterval(interval)
-    }, [enabled, devices.length, satellites.length])
+    }, [enabled, devices, satellites])
 
     if (!enabled) return null
 
@@ -257,8 +275,8 @@ const generateDefaultSatellites = () => {
 
 // 計算衛星位置
 const calculateSatellitePosition = (
-    satellite: any,
-    uav: any
+    satellite: Satellite,
+    _uav: Device
 ): [number, number, number] => {
     const PI_DIV_180 = Math.PI / 180
     const GLB_SCENE_SIZE = 1200
@@ -282,7 +300,7 @@ const calculateSatellitePosition = (
 }
 
 // 生成決策原因
-const generateDecisionReason = (candidate: any): string => {
+const generateDecisionReason = (candidate: { signalStrength: number; elevation: number; loadPercentage: number; [key: string]: unknown; }): string => {
     if (candidate.signalStrength > -65) return '最佳信號強度'
     if (candidate.elevation > 60) return '優良仰角位置'
     if (candidate.loadPercentage < 50) return '負載平衡考量'
@@ -312,7 +330,7 @@ const generateHandoverPath = (
 // 決策可視化主體組件
 const DecisionVisualizationMain: React.FC<{
     decisions: HandoverDecision[]
-    devices: any[]
+    devices: Device[]
     selectedDecision: string | null
     onSelectDecision: (id: string | null) => void
 }> = ({ decisions, devices, selectedDecision, onSelectDecision }) => {
@@ -395,7 +413,7 @@ const DecisionVisualizationMain: React.FC<{
 // 候選衛星比較組件
 const CandidateSatelliteComparison: React.FC<{
     decisions: HandoverDecision[]
-    devices: any[]
+    devices: Device[]
 }> = ({ decisions, devices }) => {
     return (
         <>
@@ -473,7 +491,7 @@ const CandidateSatelliteComparison: React.FC<{
 // 決策因子雷達圖組件
 const DecisionFactorsRadar: React.FC<{
     decisions: HandoverDecision[]
-    devices: any[]
+    devices: Device[]
 }> = ({ decisions, devices }) => {
     return (
         <>
@@ -562,7 +580,7 @@ const DecisionFactorsRadar: React.FC<{
 // 換手路徑可視化組件
 const HandoverPathVisualization: React.FC<{
     paths: HandoverPath[]
-    devices: any[]
+    devices: Device[]
 }> = ({ paths, devices }) => {
     const pathRefs = useRef<{ [key: string]: THREE.Group }>({})
 
@@ -692,8 +710,8 @@ const DecisionTimeAnalysis: React.FC<{ decisions: HandoverDecision[] }> = ({
 // 3D 決策矩陣組件
 const DecisionMatrix3D: React.FC<{
     decisions: HandoverDecision[]
-    devices: any[]
-}> = ({ decisions, devices }) => {
+    devices: Device[]
+}> = ({ decisions, devices: _devices }) => {
     return (
         <group position={[100, 80, -80]}>
             <Text
