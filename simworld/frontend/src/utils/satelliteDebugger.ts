@@ -3,11 +3,30 @@
  * 用於分析為什麼衛星數據少於預期數量的問題
  */
 
+// 定義衛星數據接口
+interface SatelliteData {
+  name?: string
+  norad_id?: string
+  elevation_deg?: number
+  azimuth_deg?: number
+  distance_km?: number
+  orbit_altitude_km?: number
+  [key: string]: unknown
+}
+
+// 定義 API 響應數據接口
+interface ApiResponseData {
+  satellites?: SatelliteData[]
+  success?: boolean
+  message?: string
+  [key: string]: unknown
+}
+
 interface SatelliteDebugInfo {
   apiUrl: string
-  params: Record<string, any>
+  params: Record<string, string | number | boolean>
   responseStatus: number
-  responseData: any
+  responseData: ApiResponseData
   satelliteCount: number
   analysisResult: {
     issue: string
@@ -31,7 +50,10 @@ export class SatelliteDebugger {
       // 🌍 不指定觀測點，讓後端返回全球範圍的衛星
     }
     
-    const queryString = new URLSearchParams(params as any).toString()
+    const stringParams = Object.fromEntries(
+      Object.entries(params).map(([key, value]) => [key, String(value)])
+    )
+    const queryString = new URLSearchParams(stringParams).toString()
     const apiUrl = `/api/v1/satellite-ops/visible_satellites?${queryString}`
     
     debugInfo.apiUrl = apiUrl
@@ -105,7 +127,7 @@ export class SatelliteDebugger {
       
       if (responseData.satellites && responseData.satellites.length > 0) {
         console.log(`🔍 前5顆衛星詳細信息:`)
-        responseData.satellites.slice(0, 5).forEach((sat: any, index: number) => {
+        responseData.satellites.slice(0, 5).forEach((sat: SatelliteData, index: number) => {
           console.log(`  ${index + 1}. ${sat.name} (ID: ${sat.norad_id})`)
           console.log(`     - 仰角: ${sat.elevation_deg}°`)
           console.log(`     - 方位角: ${sat.azimuth_deg}°`)
@@ -114,7 +136,7 @@ export class SatelliteDebugger {
         })
         
         // 🌍 分析衛星分布以確認是否為全球視野
-        const elevations = responseData.satellites.map((sat: any) => sat.elevation_deg || 0)
+        const elevations = responseData.satellites.map((sat: SatelliteData) => sat.elevation_deg || 0)
         const avgElevation = elevations.reduce((sum: number, el: number) => sum + el, 0) / elevations.length
         const minElevation = Math.min(...elevations)
         const maxElevation = Math.max(...elevations)
@@ -288,6 +310,7 @@ ${JSON.stringify(debugInfo.responseData, null, 2)}
 
 // 導出給控制台使用的全局函數
 if (typeof window !== 'undefined') {
-  (window as any).debugSatelliteAPI = SatelliteDebugger.debugSatelliteAPI.bind(SatelliteDebugger)
-  (window as any).satelliteHealthCheck = SatelliteDebugger.quickHealthCheck.bind(SatelliteDebugger)
+  // 將調試函數暴露到全域，方便在瀏覽器控制台使用
+  (window as unknown as Record<string, unknown>).debugSatelliteAPI = SatelliteDebugger.debugSatelliteAPI.bind(SatelliteDebugger);
+  (window as unknown as Record<string, unknown>).satelliteHealthCheck = SatelliteDebugger.quickHealthCheck.bind(SatelliteDebugger)
 }
