@@ -192,7 +192,7 @@ class SimWorldApiClient extends BaseApiClient {
         processed?: number;
         visible?: number;
         status?: string;
-        performance?: any;
+        performance?: Record<string, unknown>;
       }>(endpoint, params)
       
       console.log(`🛰️ SimWorldApi: API 原始響應:`, response)
@@ -273,7 +273,7 @@ class SimWorldApiClient extends BaseApiClient {
             doppler_shift?: number; 
             estimated_signal_strength?: number; 
             path_loss_db?: number; 
-          }, index: number) => {
+          }, _index: number) => {
             return {
               id: parseInt(sat.norad_id) || 0,
               name: sat.name,
