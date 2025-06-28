@@ -1,24 +1,24 @@
 // ChartAnalysisDashboard Module Exports
 
-// Main component (to be refactored)
+// Main component
 export { default as ChartAnalysisDashboard } from './ChartAnalysisDashboard';
 
-// Tab components (to be extracted)
-// export { OverviewTab } from './components/OverviewTab';
-// export { UEAnalysisTab } from './components/UEAnalysisTab';
-// export { SatellitesAnalysisTab } from './components/SatellitesAnalysisTab';
-// export { MonitoringTab } from './components/MonitoringTab';
-// export { StrategyTab } from './components/StrategyTab';
-// export { RLMonitoringTab } from './components/RLMonitoringTab';
+// Refactored component (可選擇性使用)
+export { default as ChartAnalysisDashboardRefactored } from './ChartAnalysisDashboard.refactored';
 
-// Hooks (to be extracted)
-// export { useChartAnalysis } from './hooks/useChartAnalysis';
-// export { useDataFetching } from './hooks/useDataFetching';
-// export { useTabState } from './hooks/useTabState';
+// Tab components
+export { default as OverviewTabContent } from './components/OverviewTabContent';
+export { default as AlgorithmTabContent } from './components/AlgorithmTabContent';
+export { default as PerformanceTabContent } from './components/PerformanceTabContent';
 
-// Types (to be extracted)
-// export type * from './types/ChartAnalysisTypes';
+// Services
+export { ChartDataService } from './services/chartDataService';
 
-// Utils (to be extracted)
-// export * from './utils/dataProcessing';
-// export * from './utils/chartHelpers';
+// Hooks
+export { useChartAnalysisData } from './hooks/useChartAnalysisData';
+
+// Configuration
+export { initializeChartSystem, commonChartOptions, chartColors } from './config/chartConfig';
+
+// Types
+export type * from './types/index';
