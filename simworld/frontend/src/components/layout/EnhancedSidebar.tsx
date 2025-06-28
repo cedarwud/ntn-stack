@@ -148,14 +148,14 @@ interface FeatureToggle {
 //     'meshNetworkTopology', 'failoverMechanism', 'aiRanVisualization'
 // ]
 
-// Helper function to fetch visible satellites using the simWorldApi client
+// Helper function to fetch visible satellites from multiple constellations using the simWorldApi client
 async function fetchVisibleSatellites(
     count: number,
     minElevation: number
 ): Promise<VisibleSatelliteInfo[]> {
     try {
         console.log(
-            `🛰️ EnhancedSidebar: 開始獲取衛星數據 - count: ${count}, minElevation: ${minElevation}`
+            `🛰️ EnhancedSidebar: 開始獲取多星座衛星數據 - count: ${count}, minElevation: ${minElevation}`
         )
 
         // 🔍 快速健康檢查，減少詳細調試輸出
@@ -164,10 +164,71 @@ async function fetchVisibleSatellites(
             console.warn(`⚠️ EnhancedSidebar: 衛星API健康檢查失敗，將嘗試繼續`)
         }
 
-        // 使用正常API獲取數據（調試器已經測試過，這裡獲取實際數據）
-        // 🌍 使用全球視野參數，大幅增加數量和標準仰角
+        const allSatellites: VisibleSatelliteInfo[] = []
+        const constellations = ['starlink', 'oneweb', 'kuiper'] // 支援的星座列表（根據後端數據庫實際擁有的星座）
+        
+        // 並行獲取多個星座的衛星數據 (使用後端 API 直接調用)
+        const fetchPromises = constellations.map(async (constellation) => {
+            try {
+                // 直接使用後端 API，因為 simWorldApi 暫不支援星座過濾
+                const apiUrl = `/api/v1/satellite-ops/visible_satellites?count=${Math.floor(Math.max(count, 50) / constellations.length)}&min_elevation_deg=${Math.max(minElevation, 0)}&constellation=${constellation}`
+                
+                const response = await fetch(apiUrl)
+                if (!response.ok) {
+                    console.warn(`⚠️ EnhancedSidebar: 獲取 ${constellation} 衛星失敗: ${response.status}`)
+                    return []
+                }
+                
+                const data = await response.json()
+                
+                if (data?.results?.satellites) {
+                    // 標記衛星所屬星座
+                    const satellites = data.results.satellites.map((sat: Record<string, unknown>) => {
+                        const noradId = String(sat.norad_id || sat.id || '0')
+                        const position = sat.position as Record<string, unknown> || {}
+                        const signalQuality = sat.signal_quality as Record<string, unknown> || {}
+                        
+                        return {
+                            norad_id: parseInt(noradId),
+                            name: String(sat.name || 'Unknown'),
+                            elevation_deg: Number(position.elevation || signalQuality.elevation_deg || 0),
+                            azimuth_deg: Number(position.azimuth || 0),
+                            distance_km: Number(position.range || signalQuality.range_km || 0),
+                            line1: `1 ${noradId}U 20001001.00000000  .00000000  00000-0  00000-0 0  9999`,
+                            line2: `2 ${noradId}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
+                            constellation: constellation.toUpperCase() // 添加星座標記
+                        }
+                    })
+                    
+                    console.log(`🛰️ EnhancedSidebar: 獲取到 ${satellites.length} 顆 ${constellation.toUpperCase()} 衛星`)
+                    return satellites
+                }
+                return []
+            } catch (error) {
+                console.warn(`⚠️ EnhancedSidebar: 獲取 ${constellation} 衛星失敗:`, error)
+                return []
+            }
+        })
+        
+        // 等待所有星座數據獲取完成
+        const constellationResults = await Promise.all(fetchPromises)
+        
+        // 合併所有星座的衛星數據
+        constellationResults.forEach(satellites => {
+            allSatellites.push(...satellites)
+        })
+
+        console.log(`🌍 EnhancedSidebar: 總共獲取到 ${allSatellites.length} 顆可見衛星`)
+
+        // 如果獲取到多星座數據，直接返回
+        if (allSatellites.length > 0) {
+            return allSatellites
+        }
+
+        // 如果沒有獲取到多星座數據，嘗試使用原始 API（向後兼容）
+        console.log(`🛰️ EnhancedSidebar: 多星座獲取失敗，回退到原始API`)
         const data = await simWorldApi.getVisibleSatellites(
-            0, // 🌍 使用0度標準仰角（地平線以上）以獲得全球範圍衛星
+            Math.max(minElevation, 0), // 🌍 使用標準仰角（地平線以上）
             Math.max(count, 50) // 🌍 請求更多衛星，至少50顆
         )
 

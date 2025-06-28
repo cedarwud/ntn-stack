@@ -161,6 +161,7 @@ async def get_visible_satellites(
     observer_lon: float = Query(default=0.0, description="觀察者經度"),
     observer_alt: float = Query(default=0.0, description="觀察者高度 (公尺)"),
     global_view: bool = Query(default=True, description="全球視野模式"),
+    constellation: Optional[str] = Query(default=None, description="星座過濾 (starlink, kuiper, oneweb, etc.)"),
 ):
     """
     獲取可見衛星列表
@@ -183,10 +184,30 @@ async def get_visible_satellites(
                 wgs84.latlon(observer_lat, observer_lon, observer_alt)
             ]
 
+        # Filter satellites by constellation if specified
+        filtered_satellites = satellites
+        if constellation:
+            constellation_lower = constellation.lower()
+            if constellation_lower == "starlink":
+                filtered_satellites = starlink_sats
+            elif constellation_lower == "kuiper":
+                filtered_satellites = kuiper_sats
+            elif constellation_lower == "oneweb":
+                filtered_satellites = oneweb_sats
+            elif constellation_lower == "globalstar":
+                filtered_satellites = globalstar_sats
+            elif constellation_lower == "iridium":
+                filtered_satellites = iridium_sats
+            else:
+                # If constellation not recognized, filter by name
+                filtered_satellites = [sat for sat in satellites if constellation_lower in sat.name.lower()]
+
         visible_satellites = []
 
         for observer in observer_locations:
-            for satellite in satellites[:count]:  # Limit satellites to process
+            # Use filtered satellites and limit processing
+            satellites_to_process = filtered_satellites[:min(len(filtered_satellites), count * 3)]  # Process more to ensure we get enough visible ones
+            for satellite in satellites_to_process:
                 try:
                     # Calculate satellite position relative to observer
                     difference = satellite - observer
@@ -235,8 +256,9 @@ async def get_visible_satellites(
 
         return {
             "satellites": result_satellites[:count],
-            "processed": len(satellites),
+            "processed": len(filtered_satellites),
             "visible": len(result_satellites),
+            "constellation_filter": constellation,
             "observer": {
                 "latitude": observer_lat,
                 "longitude": observer_lon,
