@@ -9,4 +9,5 @@ export interface VisibleSatelliteInfo {
     ecef_x_km?: number | null;
     ecef_y_km?: number | null;
     ecef_z_km?: number | null;
+    constellation?: string; // 星座名稱 (STARLINK, ONEWEB, KUIPER 等)
 } 

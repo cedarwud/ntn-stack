@@ -32,27 +32,55 @@ interface SidebarProps {
     onSatelliteEnabledChange?: (enabled: boolean) => void // 衛星開關回調
 }
 
-// Helper function to fetch visible satellites using fixed config
+// Helper function to fetch visible satellites from multiple constellations
 async function fetchVisibleSatellites(): Promise<VisibleSatelliteInfo[]> {
-    // 使用固定配置參數
-    const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?count=${SATELLITE_CONFIG.VISIBLE_COUNT}&min_elevation_deg=${SATELLITE_CONFIG.MIN_ELEVATION}`
+    const allSatellites: VisibleSatelliteInfo[] = []
+    
+    // 支援的星座列表（根據後端數據庫實際擁有的星座）
+    const constellations = ['starlink', 'oneweb', 'kuiper'] // 資料庫中有 Starlink (15628顆)、OneWeb (20顆) 和 Kuiper (54顆) 數據
+    
     try {
-        const response = await fetch(apiUrl)
-        if (!response.ok) {
-            console.error(
-                `Error fetching satellites: ${response.status} ${response.statusText}`
-            )
-            const errorBody = await response.text()
-            console.error('Error body:', errorBody)
-            return []
-        }
-        const data = await response.json()
-        return data.satellites || [] // Assuming the API returns { satellites: [...] }
+        // 並行獲取多個星座的衛星數據
+        const fetchPromises = constellations.map(async (constellation) => {
+            const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?count=${Math.floor(SATELLITE_CONFIG.VISIBLE_COUNT / constellations.length)}&min_elevation_deg=${SATELLITE_CONFIG.MIN_ELEVATION}&constellation=${constellation}`
+            
+            try {
+                const response = await fetch(apiUrl)
+                if (!response.ok) {
+                    console.warn(
+                        `Warning fetching ${constellation} satellites: ${response.status} ${response.statusText}`
+                    )
+                    return []
+                }
+                const data = await response.json()
+                const satellites = data.satellites || []
+                
+                // 標記衛星所屬星座
+                satellites.forEach((sat: VisibleSatelliteInfo) => {
+                    sat.constellation = constellation.toUpperCase()
+                })
+                
+                console.log(`🛰️ 獲取到 ${satellites.length} 顆 ${constellation.toUpperCase()} 衛星`)
+                return satellites
+            } catch (error) {
+                console.warn(`Error fetching ${constellation} satellites:`, error)
+                return []
+            }
+        })
+        
+        // 等待所有星座數據獲取完成
+        const constellationResults = await Promise.all(fetchPromises)
+        
+        // 合併所有星座的衛星數據
+        constellationResults.forEach(satellites => {
+            allSatellites.push(...satellites)
+        })
+        
+        console.log(`🌍 總共獲取到 ${allSatellites.length} 顆可見衛星`)
+        return allSatellites
+        
     } catch (error) {
-        console.error(
-            'Network error or JSON parsing error fetching satellites:',
-            error
-        )
+        console.error('Network error fetching satellites:', error)
         return []
     }
 }
@@ -581,14 +609,27 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 setShowSkyfieldSection(!showSkyfieldSection)
                             }
                         >
-                            衛星 gNB (
-                            {loadingSatellites
-                                ? '讀取中...'
-                                : skyfieldSatellites.length}
-                            ){' '}
-                            {SATELLITE_CONFIG.MIN_ELEVATION > 0
-                                ? `[最低仰角: ${SATELLITE_CONFIG.MIN_ELEVATION}°]`
-                                : ''}
+                            衛星 gNB ({loadingSatellites ? '讀取中...' : skyfieldSatellites.length})
+                            {!loadingSatellites && skyfieldSatellites.length > 0 && (
+                                <div style={{ fontSize: '0.7em', color: '#888', marginTop: '2px' }}>
+                                    {(() => {
+                                        const constellationCounts = skyfieldSatellites.reduce((acc, sat) => {
+                                            const constellation = sat.constellation || 'UNKNOWN'
+                                            acc[constellation] = (acc[constellation] || 0) + 1
+                                            return acc
+                                        }, {} as Record<string, number>)
+                                        
+                                        return Object.entries(constellationCounts)
+                                            .map(([constellation, count]) => `${constellation}: ${count}`)
+                                            .join(' | ')
+                                    })()}
+                                </div>
+                            )}
+                            {SATELLITE_CONFIG.MIN_ELEVATION > 0 && (
+                                <div style={{ fontSize: '0.7em', color: '#666', marginTop: '2px' }}>
+                                    最低仰角: {SATELLITE_CONFIG.MIN_ELEVATION}°
+                                </div>
+                            )}
                         </h3>
                         {showSkyfieldSection && (
                             <div className="satellite-list">
@@ -597,38 +638,58 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         正在載入衛星資料...
                                     </p>
                                 ) : skyfieldSatellites.length > 0 ? (
-                                    skyfieldSatellites.map((sat) => (
-                                        <div
-                                            key={sat.norad_id}
-                                            className="satellite-item"
-                                        >
-                                            <div className="satellite-name">
-                                                {sat.name} (NORAD:{' '}
-                                                {sat.norad_id})
+                                    skyfieldSatellites.map((sat) => {
+                                        // 根據星座決定顏色
+                                        const getConstellationColor = (constellation?: string) => {
+                                            switch (constellation?.toUpperCase()) {
+                                                case 'STARLINK': return '#ff6b35' // 橙色
+                                                case 'ONEWEB': return '#4dabf7' // 藍色
+                                                case 'KUIPER': return '#51cf66' // 綠色
+                                                default: return '#868e96' // 灰色
+                                            }
+                                        }
+                                        
+                                        const constellationColor = getConstellationColor(sat.constellation)
+                                        
+                                        return (
+                                            <div
+                                                key={sat.norad_id}
+                                                className="satellite-item"
+                                                style={{ 
+                                                    borderLeft: `3px solid ${constellationColor}`,
+                                                    paddingLeft: '8px'
+                                                }}
+                                            >
+                                                <div className="satellite-name">
+                                                    <span 
+                                                        style={{ 
+                                                            color: constellationColor,
+                                                            fontWeight: 'bold',
+                                                            fontSize: '0.8em'
+                                                        }}
+                                                    >
+                                                        [{sat.constellation || 'UNKNOWN'}]
+                                                    </span>{' '}
+                                                    {sat.name} (NORAD: {sat.norad_id})
+                                                </div>
+                                                <div className="satellite-details">
+                                                    仰角:{' '}
+                                                    <span
+                                                        style={{
+                                                            color:
+                                                                sat.elevation_deg > 45
+                                                                    ? '#ff3300'
+                                                                    : '#0088ff',
+                                                        }}
+                                                    >
+                                                        {sat.elevation_deg.toFixed(2)}°
+                                                    </span>{' '}
+                                                    | 方位角: {sat.azimuth_deg.toFixed(2)}° |
+                                                    距離: {sat.distance_km.toFixed(2)} km
+                                                </div>
                                             </div>
-                                            <div className="satellite-details">
-                                                仰角:{' '}
-                                                <span
-                                                    style={{
-                                                        color:
-                                                            sat.elevation_deg >
-                                                            45
-                                                                ? '#ff3300'
-                                                                : '#0088ff',
-                                                    }}
-                                                >
-                                                    {sat.elevation_deg.toFixed(
-                                                        2
-                                                    )}
-                                                    °
-                                                </span>{' '}
-                                                | 方位角:{' '}
-                                                {sat.azimuth_deg.toFixed(2)}° |
-                                                距離:{' '}
-                                                {sat.distance_km.toFixed(2)} km
-                                            </div>
-                                        </div>
-                                    ))
+                                        )
+                                    })
                                 ) : (
                                     <p className="no-data-text">
                                         無衛星資料可顯示。請調整最低仰角後重試。
