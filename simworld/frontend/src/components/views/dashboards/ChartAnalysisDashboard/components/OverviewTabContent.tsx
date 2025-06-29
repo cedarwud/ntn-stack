@@ -4,181 +4,173 @@
  */
 
 import React from 'react'
-import { BaseBarChart } from '../../../../charts/base/BaseBarChart'
-import { BaseDoughnutChart } from '../../../../charts/base/BasePieChart'
-import { useChartDataManager } from '../../../../../hooks/useChartData'
+import { Bar } from 'react-chartjs-2'
 
-const OverviewTabContent: React.FC = () => {
-  const {
-    handoverLatency,
-    performanceComparison,
-    systemArchitecture,
-    sixScenarioLatency,
-    computationalComplexity
-  } = useChartDataManager()
+interface OverviewTabContentProps {
+  handoverLatencyData: any
+  constellationComparisonData: any
+  sixScenarioChartData: any
+  createInteractiveChartOptions: (title: string, yLabel: string, xLabel?: string) => any
+}
 
+const OverviewTabContent: React.FC<OverviewTabContentProps> = ({
+  handoverLatencyData,
+  constellationComparisonData,
+  sixScenarioChartData,
+  createInteractiveChartOptions
+}) => {
   return (
-    <div className="overview-tab-content">
-      {/* 第一行：Handover 延遲分解分析 */}
-      <div className="chart-row">
-        <div className="chart-container">
-          <BaseBarChart
-            title="📊 圖3: Handover 延遲分解分析"
-            subtitle="Fine-Grained Sync vs Traditional - 各階段延遲對比"
-            data={handoverLatency.chartData}
-            options={{
-              stacked: false,
-              showValues: true,
-              showLegend: true,
-              maintainAspectRatio: false
-            }}
-            height={350}
-          />
+    <div className="charts-grid">
+      {/* Handover 延遲分解分析 */}
+      <div className="chart-container">
+        <h3>📊 圖3: Handover 延遲分解分析</h3>
+        <Bar
+          data={handoverLatencyData}
+          options={createInteractiveChartOptions(
+            '四種換手方案延遲對比 (ms)',
+            '延遲 (ms)',
+            '換手階段'
+          )}
+        />
+        <div className="chart-insight">
+          <strong>核心突破：</strong>本論文提出的同步算法
+          + Xn 加速換手方案， 實現了從標準 NTN 的 ~250ms
+          到 ~21ms 的革命性延遲降低，減少 91.6%。 超越
+          NTN-GS (153ms) 和 NTN-SMN (158ms)
+          方案，真正實現近零延遲換手。
+          <br />
+          <br />
+          <strong>📊 統計驗證：</strong>
+          改進效果 p &lt; 0.001 (***), 效應大小 Large
+          (Cohen's d = 2.8), 信賴度 99.9%
         </div>
       </div>
 
-      {/* 第二行：雙星座性能對比 */}
-      <div className="chart-row">
-        <div className="chart-container">
-          <BaseBarChart
-            title="🚀 圖4: 雙星座六維性能全景對比"
-            subtitle="Starlink vs OneWeb - 多維度性能評估"
-            data={performanceComparison.chartData}
-            options={{
-              stacked: false,
-              showValues: true,
-              showLegend: true,
-              maintainAspectRatio: false,
-              plugins: {
-                tooltip: {
-                  callbacks: {
-                    afterLabel: (context) => {
-                      const metricUnits = {
-                        '延遲 (ms)': 'ms',
-                        '吞吐量 (Mbps)': 'Mbps',
-                        '成功率 (%)': '%',
-                        '能耗 (W)': 'W',
-                        'CPU 使用率 (%)': '%',
-                        '記憶體使用率 (%)': '%'
-                      }
-                      const label = context.label as keyof typeof metricUnits
-                      return `單位: ${metricUnits[label] || ''}`
-                    }
-                  }
-                }
-              }
-            }}
-            height={350}
-          />
-        </div>
-      </div>
-
-      {/* 第三行：六場景換手延遲分析 */}
-      <div className="chart-row">
-        <div className="chart-container">
-          <BaseBarChart
-            title="🌍 圖5: 六場景換手延遲全面對比分析"
-            subtitle="不同環境下的算法性能表現"
-            data={sixScenarioLatency.chartData}
-            options={{
-              stacked: false,
-              showValues: true,
-              showLegend: true,
-              maintainAspectRatio: false,
-              plugins: {
-                tooltip: {
-                  callbacks: {
-                    afterLabel: () => '延遲越低性能越好'
-                  }
-                }
-              }
-            }}
-            height={350}
-          />
-        </div>
-      </div>
-
-      {/* 第四行：兩個並排的圖表 */}
-      <div className="chart-row chart-row-split">
-        {/* 計算複雜度可擴展性驗證 */}
-        <div className="chart-container chart-half">
-          <BaseBarChart
-            title="⚡ 圖6: 計算複雜度可擴展性驗證"
-            subtitle="算法擴展性能測試"
-            data={computationalComplexity.chartData}
-            options={{
-              stacked: false,
-              showValues: false,
-              showLegend: true,
-              maintainAspectRatio: false,
-              scales: {
-                y: {
-                  type: 'logarithmic',
-                  title: {
-                    display: true,
-                    text: '計算時間 (ms, 對數尺度)'
-                  }
-                }
+      {/* 雙星座性能對比 */}
+      <div className="chart-container">
+        <h3>🛰️ 圖8: 雙星座六維性能全景對比</h3>
+        <Bar
+          data={constellationComparisonData}
+          options={{
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'top' as const,
+                labels: {
+                  color: 'white',
+                  font: {
+                    size: 16,
+                    weight: 'bold' as const,
+                  },
+                },
               },
-              plugins: {
-                tooltip: {
-                  callbacks: {
-                    afterLabel: () => 'O(n) vs O(n²) 複雜度對比'
-                  }
-                }
-              }
-            }}
-            height={350}
-          />
-        </div>
-
-        {/* 系統架構組件資源分配 */}
-        <div className="chart-container chart-half">
-          <BaseDoughnutChart
-            title="🏗️ 圖7: 系統架構組件資源分配"
-            subtitle="各模組 CPU 資源佔用分析"
-            data={systemArchitecture.chartData}
-            options={{
-              cutout: '60%',
-              showPercentages: true,
-              showLegend: true,
-              legendPosition: 'right',
-              maintainAspectRatio: false,
-              plugins: {
-                tooltip: {
-                  callbacks: {
-                    afterLabel: (context) => `資源佔用: ${context.parsed}%`
-                  }
-                }
-              }
-            }}
-            height={350}
-          />
+              title: {
+                display: true,
+                text: 'Starlink vs Kuiper 技術指標綜合評估',
+                color: 'white',
+                font: {
+                  size: 20,
+                  weight: 'bold' as const,
+                },
+              },
+            },
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: '技術指標維度',
+                  color: 'white',
+                  font: {
+                    size: 16,
+                    weight: 'bold' as const,
+                  },
+                },
+                ticks: {
+                  color: 'white',
+                  font: {
+                    size: 14,
+                    weight: 'bold' as const,
+                  },
+                },
+              },
+              y: {
+                ticks: {
+                  color: 'white',
+                  font: {
+                    size: 14,
+                    weight: 'bold' as const,
+                  },
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.2)',
+                },
+              },
+            },
+          }}
+        />
+        <div className="chart-insight">
+          <strong>星座特性：</strong>Starlink (550km)
+          憑藉較低軌道在延遲和覆蓋率方面領先， Kuiper
+          (630km) 則在換手頻率控制上表現更佳。兩者在 QoE
+          指標上相近， 為不同應用場景提供最適選擇。
         </div>
       </div>
 
-      {/* 性能指標總結卡片 */}
-      <div className="metrics-summary-row">
-        <div className="metrics-card">
-          <h4>🎯 核心性能指標</h4>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <span className="metric-label">平均延遲降低</span>
-              <span className="metric-value success">-68.2%</span>
-            </div>
-            <div className="metric-item">
-              <span className="metric-label">計算效率提升</span>
-              <span className="metric-value success">+127.5%</span>
-            </div>
-            <div className="metric-item">
-              <span className="metric-label">系統穩定性</span>
-              <span className="metric-value success">99.7%</span>
-            </div>
-            <div className="metric-item">
-              <span className="metric-label">資源利用率</span>
-              <span className="metric-value info">78.4%</span>
-            </div>
-          </div>
+      {/* 六場景換手延遲分析 */}
+      <div className="chart-container extra-large">
+        <h3>🎆 圖8(a)-(f): 六場景換手延遲全面對比分析</h3>
+        <Bar
+          data={sixScenarioChartData}
+          options={{
+            ...createInteractiveChartOptions(
+              '四種方案在八種場景下的換手延遲對比',
+              '延遲 (ms)'
+            ),
+            scales: {
+              ...createInteractiveChartOptions('', '')
+                .scales,
+              x: {
+                title: {
+                  display: true,
+                  text: '應用場景',
+                  color: 'white',
+                  font: {
+                    size: 16,
+                    weight: 'bold' as const,
+                  },
+                },
+                ticks: {
+                  color: 'white',
+                  font: {
+                    size: 16,
+                    weight: 'bold' as const,
+                  },
+                  maxRotation: 45,
+                  minRotation: 45,
+                },
+              },
+            },
+          }}
+        />
+        <div className="chart-insight">
+          <span
+            style={{
+              marginLeft: '0.5rem',
+              fontSize: '1.1rem',
+            }}
+          >
+            SL：Starlink、KP：Kuiper、F：Flexible、C：Consistent
+            <br />
+            同：同向、全：全方向
+          </span>
+          <br />
+          <br />
+          <strong>多場景對比：</strong>
+          本方案在八種應用場景下均實現領先性能，相較 NTN
+          標準方案減少 90% 以上延遲。Flexible
+          策略在動態場景下表現較佳，Consistent
+          策略在穩定環境下更適用。雙星座部署（Starlink +
+          Kuiper）可提供互補的服務覆蓋，實現最佳化的網路效能和可靠性。
         </div>
       </div>
     </div>
