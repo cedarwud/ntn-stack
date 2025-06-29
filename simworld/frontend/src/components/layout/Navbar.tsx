@@ -7,6 +7,7 @@ import CFRViewer from '../domains/simulation/wireless/CFRViewer'
 import DelayDopplerViewer from '../domains/simulation/wireless/DelayDopplerViewer'
 import TimeFrequencyViewer from '../domains/simulation/wireless/TimeFrequencyViewer'
 import ViewerModal from '../shared/ui/layout/ViewerModal'
+import FullChartAnalysisDashboard from './FullChartAnalysisDashboard'
 import ChartAnalysisDashboard from '../views/dashboards/ChartAnalysisDashboard/ChartAnalysisDashboard'
 import { ViewerProps } from '../../types/viewer'
 import {
@@ -53,6 +54,7 @@ const Navbar: FC<NavbarProps> = ({
 
     // 新增 Chart Analysis Modal 狀態
     const [showChartAnalysisModal, setShowChartAnalysisModal] = useState(false)
+    const [showOriginalChartModal, setShowOriginalChartModal] = useState(false)
 
     // States for modal visibility
     const [showSINRModal, setShowSINRModal] = useState(false)
@@ -379,6 +381,16 @@ const Navbar: FC<NavbarProps> = ({
                         >
                             📈 圖表分析
                         </li>
+
+                        {/* 新增原始圖表分析按鈕 */}
+                        <li
+                            className={`navbar-item ${
+                                showOriginalChartModal ? 'active' : ''
+                            }`}
+                            onClick={() => setShowOriginalChartModal(true)}
+                        >
+                            📊 完整圖表
+                        </li>
                     </ul>
                 </div>
             </nav>
@@ -412,10 +424,16 @@ const Navbar: FC<NavbarProps> = ({
                 ) : null
             )}
 
-            {/* 新增 Chart Analysis Dashboard - 100% 全屏彈窗 */}
-            <ChartAnalysisDashboard
+            {/* 完整圖表分析儀表板 - 包含所有 8 個標籤分頁 */}
+            <FullChartAnalysisDashboard
                 isOpen={showChartAnalysisModal}
                 onClose={() => setShowChartAnalysisModal(false)}
+            />
+
+            {/* 原始圖表分析儀表板 - 包含所有 9 個原始標籤分頁 */}
+            <ChartAnalysisDashboard
+                isOpen={showOriginalChartModal}
+                onClose={() => setShowOriginalChartModal(false)}
             />
         </>
     )
