@@ -4,9 +4,8 @@
  */
 
 import React from 'react'
-import { BaseLineChart } from '../../../../charts/base/BaseLineChart'
-import { BaseBarChart } from '../../../../charts/base/BaseBarChart'
-import { useChartDataManager } from '../../../../../hooks/useChartData'
+import { Line, Bar } from 'react-chartjs-2'
+import { useChartDataManager } from '../hooks/useChartData'
 
 const PerformanceTabContent: React.FC = () => {
   const {
@@ -15,104 +14,164 @@ const PerformanceTabContent: React.FC = () => {
   } = useChartDataManager()
 
   return (
-    <div className="performance-tab-content">
+    <div className="charts-grid">
       {/* QoE 延遲監控 - 雙 Y 軸線圖 */}
-      <div className="chart-row">
-        <div className="chart-container">
-          <BaseLineChart
-            title="📈 圖9A: QoE 延遲監控 - Stalling Time & RTT 分析"
-            subtitle="即時服務品質體驗監控"
-            data={qoeLatency.chartData}
-            options={{
-              showPoints: true,
-              fill: true,
-              tension: 0.4,
-              showLegend: true,
-              maintainAspectRatio: false,
-              scales: {
-                y: {
-                  type: 'linear',
-                  display: true,
-                  position: 'left',
-                  title: {
-                    display: true,
-                    text: 'Stalling Time (ms)'
-                  },
-                  grid: {
-                    color: 'rgba(255, 255, 255, 0.1)'
-                  }
+      <div className="chart-container">
+        <h3>圖9A: QoE 延遲監控 - Stalling Time & RTT 分析</h3>
+        <Line
+          data={qoeLatency.chartData}
+          options={{
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: 'index' as const,
+              intersect: false,
+            },
+            plugins: {
+              legend: {
+                position: 'top' as const,
+                labels: {
+                  color: 'white',
+                  font: { size: 14, weight: 'bold' as const },
                 },
-                y1: {
-                  type: 'linear',
-                  display: true,
-                  position: 'right',
-                  title: {
-                    display: true,
-                    text: 'RTT (ms)'
-                  },
-                  grid: {
-                    drawOnChartArea: false,
-                    color: 'rgba(255, 255, 255, 0.1)'
-                  }
-                }
               },
-              plugins: {
-                tooltip: {
-                  mode: 'index',
-                  intersect: false,
-                  callbacks: {
-                    afterLabel: (context) => {
-                      return context.datasetIndex === 0 
-                        ? '影響: 用戶體驗' 
-                        : '影響: 響應速度'
-                    }
+              title: {
+                display: true,
+                text: '即時服務品質體驗監控',
+                color: 'white',
+                font: { size: 16, weight: 'bold' as const },
+              },
+              tooltip: {
+                mode: 'index' as const,
+                intersect: false,
+                callbacks: {
+                  afterLabel: (context: any) => {
+                    return context.datasetIndex === 0 
+                      ? '影響: 用戶體驗' 
+                      : '影響: 響應速度'
                   }
                 }
               }
-            }}
-            height={400}
-          />
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: 'white',
+                  font: { size: 12 },
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)',
+                },
+              },
+              y: {
+                type: 'linear' as const,
+                display: true,
+                position: 'left' as const,
+                title: {
+                  display: true,
+                  text: 'Stalling Time (ms)',
+                  color: 'white',
+                  font: { size: 14, weight: 'bold' as const },
+                },
+                ticks: {
+                  color: 'white',
+                  font: { size: 12 },
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.2)',
+                }
+              },
+              y1: {
+                type: 'linear' as const,
+                display: true,
+                position: 'right' as const,
+                title: {
+                  display: true,
+                  text: 'RTT (ms)',
+                  color: 'white',
+                  font: { size: 14, weight: 'bold' as const },
+                },
+                ticks: {
+                  color: 'white',
+                  font: { size: 12 },
+                },
+                grid: {
+                  drawOnChartArea: false,
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              }
+            }
+          }}
+        />
+        <div className="chart-insight">
+          <strong>QoE監控：</strong>Stalling Time 從15ms降至3ms（降低80%），
+          RTT 從25ms降至9ms（降低64%）。用戶體驗顯著提升，響應速度大幅改善。
         </div>
       </div>
 
       {/* 時間同步精度技術對比 */}
-      <div className="chart-row">
-        <div className="chart-container">
-          <BaseBarChart
-            title="⏱️ 圖10: 時間同步精度技術對比"
-            subtitle="不同同步技術的精度表現評估"
-            data={timeSyncAccuracy.chartData}
-            options={{
-              stacked: false,
-              showValues: true,
-              showLegend: false,
-              maintainAspectRatio: false,
-              scales: {
-                y: {
-                  type: 'logarithmic',
-                  title: {
-                    display: true,
-                    text: '同步精度 (μs, 對數尺度)'
-                  }
-                }
+      <div className="chart-container">
+        <h3>圖10: 時間同步精度技術對比</h3>
+        <Bar
+          data={timeSyncAccuracy.chartData}
+          options={{
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false,
               },
-              plugins: {
-                tooltip: {
-                  callbacks: {
-                    afterLabel: (context) => {
-                      const precision = parseFloat(context.parsed.y.toFixed(1))
-                      if (precision < 1) return '精度等級: 極高'
-                      if (precision < 10) return '精度等級: 高'
-                      if (precision < 100) return '精度等級: 中等'
-                      if (precision < 1000) return '精度等級: 一般'
-                      return '精度等級: 低'
-                    }
+              title: {
+                display: true,
+                text: '不同同步技術的精度表現評估',
+                color: 'white',
+                font: { size: 16, weight: 'bold' as const },
+              },
+              tooltip: {
+                callbacks: {
+                  afterLabel: (context: any) => {
+                    const precision = parseFloat(context.parsed.y.toFixed(1))
+                    if (precision < 1) return '精度等級: 極高'
+                    if (precision < 10) return '精度等級: 高'
+                    if (precision < 100) return '精度等級: 中等'
+                    if (precision < 1000) return '精度等級: 一般'
+                    return '精度等級: 低'
                   }
                 }
               }
-            }}
-            height={350}
-          />
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: 'white',
+                  font: { size: 12 },
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)',
+                },
+              },
+              y: {
+                type: 'logarithmic' as const,
+                title: {
+                  display: true,
+                  text: '同步精度 (μs, 對數尺度)',
+                  color: 'white',
+                  font: { size: 14, weight: 'bold' as const },
+                },
+                ticks: {
+                  color: 'white',
+                  font: { size: 12 },
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.2)',
+                },
+              },
+            },
+          }}
+        />
+        <div className="chart-insight">
+          <strong>精度評估：</strong>各技術同步精度差異顯著，Fine-Grained Sync(0.3μs)達到極高等級，
+          GPS-based(2.1μs)為高等級，傳統方法(45.2μs)僅為基礎等級。
         </div>
       </div>
 
