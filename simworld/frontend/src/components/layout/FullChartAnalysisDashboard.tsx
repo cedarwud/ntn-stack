@@ -7,7 +7,7 @@ import React, { useState } from 'react'
 import OverviewTabContent from '../views/dashboards/ChartAnalysisDashboard/components/OverviewTabContent'
 import AnalysisTabContent from '../views/dashboards/ChartAnalysisDashboard/components/AnalysisTabContent'
 import AlgorithmTabContent from '../views/dashboards/ChartAnalysisDashboard/components/AlgorithmTabContent'
-import PerformanceTabContent from '../views/dashboards/ChartAnalysisDashboard/components/PerformanceTabContent'
+import EnhancedPerformanceTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedPerformanceTabContent'
 import MonitoringTabContent from '../views/dashboards/ChartAnalysisDashboard/components/MonitoringTabContent'
 import StrategyTabContent from '../views/dashboards/ChartAnalysisDashboard/components/StrategyTabContent'
 import ParametersTabContent from '../views/dashboards/ChartAnalysisDashboard/components/ParametersTabContent'
@@ -232,7 +232,7 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
           />
         )
       case 'performance':
-        return <PerformanceTabContent />
+        return <EnhancedPerformanceTabContent />
       case 'system':
         return <SystemTabContent />
       case 'algorithms':
