@@ -1,9 +1,13 @@
 .gymnasium-rl-monitor {
   padding: 20px;
   background: rgba(0, 15, 30, 0.98);
-  min-height: 100vh;
+  min-height: auto;
+  height: 100%;
+  width: 100%;
   font-family: 'Monaco', 'Menlo', monospace;
   color: #e0f6ff;
+  box-sizing: border-box;
+  overflow: hidden;
 
   .monitor-header {
     display: flex;

@@ -1,15 +1,7 @@
 // ChartAnalysisDashboard Module Exports
 
-// Main component
-export { default as ChartAnalysisDashboard } from './ChartAnalysisDashboard';
-
-// Refactored component (可選擇性使用)
-export { default as ChartAnalysisDashboardRefactored } from './ChartAnalysisDashboard.refactored';
-
-// Tab components
+// Tab components (only the ones still used by FullChartAnalysisDashboard)
 export { default as OverviewTabContent } from './components/OverviewTabContent';
-export { default as AlgorithmTabContent } from './components/AlgorithmTabContent';
-export { default as PerformanceTabContent } from './components/PerformanceTabContent';
 
 // Services
 export { ChartDataService } from './services/chartDataService';

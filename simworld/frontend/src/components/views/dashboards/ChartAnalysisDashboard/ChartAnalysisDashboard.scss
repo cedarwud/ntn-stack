@@ -1213,7 +1213,7 @@
 
 /* RL 監控全版橫式佈局樣式 */
 .rl-monitoring-fullwidth {
-    width: 100%;
+    width: 95%;
     height: 100%;
     padding: 2rem;
     background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
@@ -1307,8 +1307,10 @@
         gap: 1.5rem;
         width: 100%;
         margin-top: 1rem;
-        align-items: start; // 確保子元素對齊
-        min-height: 600px; // 設定最小高度以避免空白
+        align-items: start;
+        min-height: 600px;
+        box-sizing: border-box;
+        overflow-x: hidden;
 
         .rl-real-component {
             grid-column: 1;
@@ -1317,6 +1319,47 @@
             border-radius: 16px;
             padding: 1rem;
             overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
+            min-width: 0;
+            
+            // 修復嵌入的 GymnasiumRLMonitor 寬度問題
+            .gymnasium-rl-monitor {
+                width: 100%;
+                max-width: 100%;
+                min-height: auto;
+                padding: 0.5rem;
+                overflow-x: hidden;
+                
+                .monitor-header {
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                    
+                    .header-controls {
+                        flex-wrap: wrap;
+                        gap: 0.5rem;
+                    }
+                }
+                
+                .metrics-container,
+                .engine-cards,
+                .stats-grid {
+                    width: 100%;
+                    overflow-x: auto;
+                }
+                
+                // 強制表格和寬內容適應
+                table, .wide-content {
+                    max-width: 100%;
+                    overflow-x: auto;
+                    white-space: nowrap;
+                    
+                    th, td {
+                        padding: 0.25rem;
+                        font-size: 0.8rem;
+                    }
+                }
+            }
         }
 
         .rl-training-viz {
@@ -1324,8 +1367,11 @@
             display: flex;
             flex-direction: column;
             gap: 1rem;
-            height: 100%; // 填滿可用高度
-            min-height: 600px; // 確保最小高度
+            height: 100%;
+            min-height: 600px;
+            width: 100%;
+            box-sizing: border-box;
+            min-width: 0;
 
             h3 {
                 color: #e2e8f0;
@@ -1580,8 +1626,10 @@
 
                 .stats-grid {
                     display: grid;
-                    grid-template-columns: repeat(2, 1fr);
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
                     gap: 0.75rem;
+                    width: 100%;
+                    box-sizing: border-box;
 
                     .stat-card {
                         background: linear-gradient(145deg, #1e293b, #334155);
@@ -1592,6 +1640,9 @@
                         align-items: center;
                         gap: 0.5rem;
                         transition: all 0.3s ease;
+                        min-width: 0;
+                        overflow: hidden;
+                        box-sizing: border-box;
 
                         &:hover {
                             border-color: #40e0ff;
@@ -1681,11 +1732,36 @@
                 table {
                     width: 100%;
                     border-collapse: collapse;
+                    min-width: 0;
+                    table-layout: fixed;
 
                     th, td {
-                        padding: 0.75rem;
+                        padding: 0.5rem;
                         text-align: left;
                         border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                        
+                        &:first-child {
+                            width: 25%;
+                            min-width: 80px;
+                        }
+                        
+                        &:nth-child(2), &:nth-child(3) {
+                            width: 18%;
+                            min-width: 60px;
+                        }
+                        
+                        &:nth-child(4) {
+                            width: 18%;
+                            min-width: 70px;
+                        }
+                        
+                        &:last-child {
+                            width: 21%;
+                            min-width: 80px;
+                        }
                     }
 
                     th {
@@ -2223,19 +2299,59 @@
 /* 響應式設計 - RL 監控 */
 @media (max-width: 1200px) {
     .rl-monitoring-fullwidth {
+        padding: 1rem;
+        overflow-x: hidden;
+        
+        .rl-controls-section.large-buttons {
+            flex-direction: column;
+            gap: 1rem;
+            padding: 0 0.5rem;
+            
+            .large-control-btn {
+                width: 100%;
+                max-width: 300px;
+                min-width: auto;
+            }
+        }
+        
         .rl-content-grid {
             grid-template-columns: 1fr;
+            gap: 1rem;
             
             .rl-engines-section .engines-grid {
                 grid-template-columns: 1fr;
             }
             
-            .rl-training-viz .training-charts {
-                grid-template-columns: 1fr;
+            .rl-training-viz {
+                .training-charts {
+                    grid-template-columns: 1fr;
+                }
+                
+                .global-training-stats .stats-grid {
+                    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                    gap: 0.5rem;
+                }
+                
+                .rl-performance-comparison {
+                    overflow-x: auto;
+                    
+                    table {
+                        min-width: 500px;
+                        
+                        th, td {
+                            padding: 0.4rem;
+                            font-size: 0.8rem;
+                            
+                            &:first-child {
+                                min-width: 100px;
+                            }
+                        }
+                    }
+                }
             }
             
             .rl-system-status .status-grid {
-                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             }
         }
     }
@@ -2252,42 +2368,106 @@
     width: 100vw !important;
     height: 100vh !important;
     border-radius: 0 !important;
+  }
+  
+  .rl-monitoring-fullwidth {
+    padding: 0.5rem;
+    overflow-x: hidden !important;
     
-    .charts-grid {
-      grid-template-columns: 1fr !important;
+    .rl-controls-section.large-buttons {
+      padding: 0;
       
-      &.monitoring-grid {
-        grid-template-columns: 1fr !important;
-      }
-      
-      .chart-container {
+      .large-control-btn {
         min-width: auto !important;
-        
-        &.system-metrics .metrics-grid {
-          grid-template-columns: repeat(2, 1fr) !important;
-        }
+        max-width: 100% !important;
+        font-size: 0.8rem;
+        padding: 0.75rem 1rem;
       }
     }
     
-    .orbit-params-table {
-      table {
-        font-size: 1rem;
+    .rl-content-grid {
+      .rl-real-component {
+        padding: 0.5rem;
         
-        th, td {
-          padding: 8px 6px !important;
+        .gymnasium-rl-monitor {
+          padding: 0.25rem;
+          
+          .monitor-header {
+            flex-direction: column;
+            align-items: stretch;
+            
+            h2 {
+              font-size: 1.2rem !important;
+              text-align: center;
+            }
+            
+            .header-controls {
+              justify-content: center;
+            }
+          }
         }
       }
-    }
-    
-    .tabs {
-      flex-wrap: wrap !important;
       
-      button {
-        flex: 1 !important;
-        min-width: 120px !important;
-        padding: 10px 15px !important;
-        font-size: 1.1rem !important;
+      .rl-training-viz {
+        .global-training-stats .stats-grid {
+          grid-template-columns: 1fr !important;
+          gap: 0.5rem;
+        }
+        
+        .rl-performance-comparison {
+          margin: 0.5rem 0;
+          padding: 0.75rem;
+          
+          table {
+            font-size: 0.7rem !important;
+            
+            th, td {
+              padding: 0.3rem !important;
+              
+              &:first-child {
+                min-width: 80px !important;
+              }
+            }
+          }
+        }
       }
+    }
+  }
+  
+  .charts-grid {
+    grid-template-columns: 1fr !important;
+    
+    &.monitoring-grid {
+      grid-template-columns: 1fr !important;
+    }
+    
+    .chart-container {
+      min-width: auto !important;
+      
+      &.system-metrics .metrics-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+    }
+  }
+  
+  .orbit-params-table {
+    table {
+      font-size: 1rem;
+      
+      th, td {
+        padding: 8px 6px !important;
+      }
+    }
+  }
+  
+  .tabs {
+    flex-wrap: wrap !important;
+    
+    button {
+      flex: 1 !important;
+      min-width: 120px !important;
+      padding: 10px 15px !important;
+      font-size: 1.1rem !important;
     }
   }
 } 
@@ -2329,7 +2509,11 @@
     margin: 1rem 0 0;
     justify-content: center;
     align-items: center;
-    padding: 0 2rem;
+    padding: 0 1rem;
+    flex-wrap: wrap;
+    overflow-x: auto;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .large-control-btn {
@@ -2346,7 +2530,9 @@
     cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    min-width: 160px;
+    min-width: 140px;
+    max-width: 200px;
+    flex: 0 1 auto;
     backdrop-filter: blur(10px);
 
     &:hover {

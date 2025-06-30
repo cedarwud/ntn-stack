@@ -8,7 +8,6 @@ import DelayDopplerViewer from '../domains/simulation/wireless/DelayDopplerViewe
 import TimeFrequencyViewer from '../domains/simulation/wireless/TimeFrequencyViewer'
 import ViewerModal from '../shared/ui/layout/ViewerModal'
 import FullChartAnalysisDashboard from './FullChartAnalysisDashboard'
-import ChartAnalysisDashboard from '../views/dashboards/ChartAnalysisDashboard/ChartAnalysisDashboard'
 import { ViewerProps } from '../../types/viewer'
 import {
     SCENE_DISPLAY_NAMES,
@@ -54,7 +53,6 @@ const Navbar: FC<NavbarProps> = ({
 
     // 新增 Chart Analysis Modal 狀態
     const [showChartAnalysisModal, setShowChartAnalysisModal] = useState(false)
-    const [showOriginalChartModal, setShowOriginalChartModal] = useState(false)
 
     // States for modal visibility
     const [showSINRModal, setShowSINRModal] = useState(false)
@@ -372,7 +370,7 @@ const Navbar: FC<NavbarProps> = ({
                             立體圖
                         </li>
 
-                        {/* 新增圖表分析按鈕 */}
+                        {/* 圖表分析按鈕 */}
                         <li
                             className={`navbar-item ${
                                 showChartAnalysisModal ? 'active' : ''
@@ -380,16 +378,6 @@ const Navbar: FC<NavbarProps> = ({
                             onClick={() => setShowChartAnalysisModal(true)}
                         >
                             📈 圖表分析
-                        </li>
-
-                        {/* 新增原始圖表分析按鈕 */}
-                        <li
-                            className={`navbar-item ${
-                                showOriginalChartModal ? 'active' : ''
-                            }`}
-                            onClick={() => setShowOriginalChartModal(true)}
-                        >
-                            📊 完整圖表
                         </li>
                     </ul>
                 </div>
@@ -424,16 +412,10 @@ const Navbar: FC<NavbarProps> = ({
                 ) : null
             )}
 
-            {/* 完整圖表分析儀表板 - 包含所有 8 個標籤分頁 */}
+            {/* 圖表分析儀表板 */}
             <FullChartAnalysisDashboard
                 isOpen={showChartAnalysisModal}
                 onClose={() => setShowChartAnalysisModal(false)}
-            />
-
-            {/* 原始圖表分析儀表板 - 包含所有 9 個原始標籤分頁 */}
-            <ChartAnalysisDashboard
-                isOpen={showOriginalChartModal}
-                onClose={() => setShowOriginalChartModal(false)}
             />
         </>
     )

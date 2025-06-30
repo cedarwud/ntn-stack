@@ -7,7 +7,6 @@ import MainScene from './MainScene'
 import { Device } from '../../types/device'
 import { SINRLegend } from '../domains/interference/detection/SINRHeatmap'
 import PredictionAccuracyDashboard from '../domains/handover/prediction/PredictionAccuracyDashboard'
-import E2EPerformanceMonitoringDashboard from '../dashboard/E2EPerformanceMonitoringDashboard'
 import PredictiveMaintenanceViewer from '../domains/analytics/performance/PredictiveMaintenanceViewer'
 import IntelligentRecommendationSystem from '../domains/analytics/ai/IntelligentRecommendationSystem'
 import CoreNetworkSyncViewer from '../domains/monitoring/realtime/CoreNetworkSyncViewer'
@@ -56,7 +55,6 @@ interface SceneViewProps {
     transitionProgress?: number
     onHandoverEvent?: (event: unknown) => void
     // 階段七功能狀態
-    e2ePerformanceMonitoringEnabled?: boolean
     testResultsVisualizationEnabled?: boolean
     performanceTrendAnalysisEnabled?: boolean
     automatedReportGenerationEnabled?: boolean
@@ -110,7 +108,6 @@ export default function SceneView({
     isTransitioning = false,
     transitionProgress = 0,
     onHandoverEvent,
-    e2ePerformanceMonitoringEnabled = false,
     testResultsVisualizationEnabled = false,
     performanceTrendAnalysisEnabled = false,
     automatedReportGenerationEnabled = false,
@@ -215,10 +212,7 @@ export default function SceneView({
             )}
             
             
-            {/* 添加階段七HTML覆蓋層組件 */}
-            {e2ePerformanceMonitoringEnabled && (
-                <E2EPerformanceMonitoringDashboard enabled={e2ePerformanceMonitoringEnabled} />
-            )}
+            {/* 階段七組件已移除 */}
             
             {/* 添加階段八HTML覆蓋層組件 */}
             
