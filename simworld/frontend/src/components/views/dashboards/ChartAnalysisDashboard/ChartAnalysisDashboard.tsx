@@ -24,7 +24,7 @@ import {
 import { Bar, Line, Pie, Doughnut, Radar } from 'react-chartjs-2'
 import GymnasiumRLMonitor from '../../../dashboard/GymnasiumRLMonitor'
 import OverviewTabContent from './components/OverviewTabContent'
-import EnhancedDeepAnalysisTabContent from './components/EnhancedDeepAnalysisTabContent'
+import IntegratedAnalysisTabContent from './components/IntegratedAnalysisTabContent'
 import './ChartAnalysisDashboard.scss'
 
 // Register Chart.js components
@@ -3870,7 +3870,7 @@ const ChartAnalysisDashboard = ({
                 )
 
             case 'analysis':
-                return <EnhancedDeepAnalysisTabContent />
+                return <IntegratedAnalysisTabContent />
             case 'monitoring':
                 return (
                     <div className="charts-grid">
