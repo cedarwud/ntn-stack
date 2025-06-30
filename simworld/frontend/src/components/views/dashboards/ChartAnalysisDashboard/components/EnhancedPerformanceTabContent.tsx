@@ -359,7 +359,7 @@ const EnhancedPerformanceTabContent: React.FC = () => {
       </div>
 
       {/* 性能監控樣式 */}
-      <style jsx>{`
+      <style>{`
         .enhanced-performance-content {
           width: 100%;
         }

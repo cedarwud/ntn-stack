@@ -19,7 +19,7 @@ const FeatureToggleSection: React.FC<FeatureToggleSectionProps> = ({
   features,
   categories,
   activeCategory,
-  onCategoryChange,
+  onCategoryChange: _onCategoryChange,
   searchQuery = '',
   onSearchChange,
 }) => {

@@ -358,7 +358,7 @@ const EnhancedSystemTabContent: React.FC = () => {
       </div>
 
       {/* 系統架構樣式 */}
-      <style jsx>{`
+      <style>{`
         .enhanced-system-content {
           width: 100%;
         }
