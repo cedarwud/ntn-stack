@@ -10,7 +10,6 @@ import IntegratedAnalysisTabContent from '../views/dashboards/ChartAnalysisDashb
 import EnhancedAlgorithmTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedAlgorithmTabContent'
 import EnhancedPerformanceTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedPerformanceTabContent'
 import MonitoringTabContent from '../views/dashboards/ChartAnalysisDashboard/components/MonitoringTabContent'
-import StrategyTabContent from '../views/dashboards/ChartAnalysisDashboard/components/StrategyTabContent'
 import ParametersTabContent from '../views/dashboards/ChartAnalysisDashboard/components/ParametersTabContent'
 import EnhancedSystemTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedSystemTabContent'
 import GymnasiumRLMonitor from '../dashboard/GymnasiumRLMonitor'
