@@ -349,56 +349,56 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {algorithmPerformance.algorithms.map((algorithm, index) => (
+              {(algorithmPerformance.algorithms || []).map((algorithm, index) => (
                 <tr key={algorithm} className={`algorithm-row ${
-                  algorithm.includes('Fine-Grained') ? 'fine-grained' :
-                  algorithm.includes('Binary') ? 'binary-search' : 'traditional'
+                  (algorithm || '').includes('Fine-Grained') ? 'fine-grained' :
+                  (algorithm || '').includes('Binary') ? 'binary-search' : 'traditional'
                 }`}>
                   <td>
                     <span className="algorithm-name">{algorithm}</span>
                     <span className={`algorithm-badge ${
-                      algorithmPerformance.overallScores[index] >= 9 ? 'recommended' :
-                      algorithmPerformance.overallScores[index] >= 7 ? 'moderate' : 'low'
+                      ((algorithmPerformance.overallScores || [])[index] || 0) >= 9 ? 'recommended' :
+                      ((algorithmPerformance.overallScores || [])[index] || 0) >= 7 ? 'moderate' : 'low'
                     }`}>
-                      {algorithmPerformance.overallScores[index] >= 9 ? '推薦' :
-                       algorithmPerformance.overallScores[index] >= 7 ? '適中' : '基礎'}
+                      {((algorithmPerformance.overallScores || [])[index] || 0) >= 9 ? '推薦' :
+                       ((algorithmPerformance.overallScores || [])[index] || 0) >= 7 ? '適中' : '基礎'}
                     </span>
                   </td>
                   <td className={`metric-cell ${
-                    (algorithmPerformance.latencies[index] || 0) < 10 ? 'success' :
-                    (algorithmPerformance.latencies[index] || 0) < 20 ? 'info' : 'warning'
+                    ((algorithmPerformance.latencies || [])[index] || 0) < 10 ? 'success' :
+                    ((algorithmPerformance.latencies || [])[index] || 0) < 20 ? 'info' : 'warning'
                   }`}>
-                    {(algorithmPerformance.latencies[index] || 0).toFixed(1)}ms
+                    {((algorithmPerformance.latencies || [])[index] || 0).toFixed(1)}ms
                   </td>
                   <td className={`metric-cell ${
-                    (algorithmPerformance.complexities[index] || '').includes('log') ? 'success' :
-                    (algorithmPerformance.complexities[index] || '').includes('n') && !(algorithmPerformance.complexities[index] || '').includes('²') ? 'info' : 'warning'
+                    ((algorithmPerformance.complexities || [])[index] || '').includes('log') ? 'success' :
+                    ((algorithmPerformance.complexities || [])[index] || '').includes('n') && !((algorithmPerformance.complexities || [])[index] || '').includes('²') ? 'info' : 'warning'
                   }`}>
-                    {algorithmPerformance.complexities[index] || 'O(n)'}
+                    {(algorithmPerformance.complexities || [])[index] || 'O(n)'}
                   </td>
                   <td className={`metric-cell ${
-                    (algorithmPerformance.memoryUsages[index] || 0) < 200 ? 'success' :
-                    (algorithmPerformance.memoryUsages[index] || 0) < 300 ? 'info' : 'warning'
+                    ((algorithmPerformance.memoryUsages || [])[index] || 0) < 200 ? 'success' :
+                    ((algorithmPerformance.memoryUsages || [])[index] || 0) < 300 ? 'info' : 'warning'
                   }`}>
-                    {algorithmPerformance.memoryUsages[index] || 0}MB
+                    {(algorithmPerformance.memoryUsages || [])[index] || 0}MB
                   </td>
                   <td className={`metric-cell ${
-                    (algorithmPerformance.energyEfficiencies[index] || 0) > 90 ? 'success' :
-                    (algorithmPerformance.energyEfficiencies[index] || 0) > 80 ? 'info' : 'warning'
+                    ((algorithmPerformance.energyEfficiencies || [])[index] || 0) > 90 ? 'success' :
+                    ((algorithmPerformance.energyEfficiencies || [])[index] || 0) > 80 ? 'info' : 'warning'
                   }`}>
-                    {(algorithmPerformance.energyEfficiencies[index] || 0).toFixed(1)}%
+                    {((algorithmPerformance.energyEfficiencies || [])[index] || 0).toFixed(1)}%
                   </td>
                   <td className={`metric-cell ${
-                    (algorithmPerformance.reliabilities[index] || 0) > 95 ? 'success' :
-                    (algorithmPerformance.reliabilities[index] || 0) > 90 ? 'info' : 'warning'
+                    ((algorithmPerformance.reliabilities || [])[index] || 0) > 95 ? 'success' :
+                    ((algorithmPerformance.reliabilities || [])[index] || 0) > 90 ? 'info' : 'warning'
                   }`}>
-                    {(algorithmPerformance.reliabilities[index] || 0).toFixed(1)}%
+                    {((algorithmPerformance.reliabilities || [])[index] || 0).toFixed(1)}%
                   </td>
                   <td className={`metric-cell ${
-                    (algorithmPerformance.overallScores[index] || 0) >= 9 ? 'success' :
-                    (algorithmPerformance.overallScores[index] || 0) >= 7 ? 'info' : 'warning'
+                    ((algorithmPerformance.overallScores || [])[index] || 0) >= 9 ? 'success' :
+                    ((algorithmPerformance.overallScores || [])[index] || 0) >= 7 ? 'info' : 'warning'
                   }`}>
-                    {(algorithmPerformance.overallScores[index] || 0).toFixed(1)}/10
+                    {((algorithmPerformance.overallScores || [])[index] || 0).toFixed(1)}/10
                   </td>
                 </tr>
               ))}
@@ -411,32 +411,32 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
       <div className="complexity-analysis-section">
         <h4>⚡ 複雜度可擴展性分析</h4>
         <div className="complexity-grid">
-          {complexityAnalysis.algorithms.map((algorithm, index) => (
+          {(complexityAnalysis.algorithms || []).map((algorithm, index) => (
             <div key={algorithm} className="complexity-card">
               <div className="complexity-header">
-                <h5>{algorithm}</h5>
+                <h5>{algorithm || 'Unknown Algorithm'}</h5>
                 <span className="complexity-badge">
-                  {complexityAnalysis.computationalComplexities[index]}
+                  {(complexityAnalysis.computationalComplexities || [])[index] || 'O(n)'}
                 </span>
               </div>
               <div className="complexity-metrics">
                 <div className="complexity-metric">
                   <div className="metric-label">執行時間</div>
                   <div className="metric-value">
-                    {(complexityAnalysis.executionTimes[index] || 0).toFixed(1)}ms
+                    {((complexityAnalysis.executionTimes || [])[index] || 0).toFixed(1)}ms
                   </div>
                 </div>
                 <div className="complexity-metric">
                   <div className="metric-label">記憶體占用</div>
                   <div className="metric-value">
-                    {complexityAnalysis.memoryComplexities[index] || 0}MB
+                    {(complexityAnalysis.memoryComplexities || [])[index] || 0}MB
                   </div>
                 </div>
                 <div className="complexity-metric">
                   <div className="metric-label">可擴展性</div>
                   <div className="metric-value">
-                    {algorithm.includes('Fine-Grained') ? '優秀' :
-                     algorithm.includes('Binary') ? '良好' : '一般'}
+                    {(algorithm || '').includes('Fine-Grained') ? '優秀' :
+                     (algorithm || '').includes('Binary') ? '良好' : '一般'}
                   </div>
                 </div>
               </div>
@@ -445,9 +445,9 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
                   <div 
                     className="progress-fill"
                     style={{
-                      width: `${Math.max(20, 100 - ((complexityAnalysis.executionTimes[index] || 0) / 30 * 100))}%`,
-                      backgroundColor: algorithm.includes('Fine-Grained') ? '#22c55e' :
-                                     algorithm.includes('Binary') ? '#3b82f6' : '#f59e0b'
+                      width: `${Math.max(20, 100 - (((complexityAnalysis.executionTimes || [])[index] || 0) / 30 * 100))}%`,
+                      backgroundColor: (algorithm || '').includes('Fine-Grained') ? '#22c55e' :
+                                     (algorithm || '').includes('Binary') ? '#3b82f6' : '#f59e0b'
                     }}
                   ></div>
                 </div>
