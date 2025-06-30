@@ -6,7 +6,6 @@
 import React from 'react'
 import { Bar } from 'react-chartjs-2'
 import { useRealChartData } from '../hooks/useRealChartData'
-import { MultiDataStatusIndicator } from './DataStatusIndicator'
 
 interface ChartOptions {
     responsive: boolean
@@ -31,10 +30,6 @@ const OverviewTabContent: React.FC<OverviewTabContentProps> = ({
         handoverLatencyData,
         constellationComparisonData,
         sixScenarioChartData,
-        dataStatus,
-        errors,
-        lastUpdate,
-        refresh,
     } = useRealChartData(true)
     return (
         <div className="charts-grid">

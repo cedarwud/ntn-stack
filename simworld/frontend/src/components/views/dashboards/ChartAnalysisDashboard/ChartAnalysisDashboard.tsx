@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useStrategy } from '../../../../hooks/useStrategy'
 import { netStackApi } from '../../../../services/netstack-api'
 import { satelliteCache } from '../../../../utils/satellite-cache'
@@ -183,7 +183,9 @@ const ChartAnalysisDashboard = ({
 
     // 獲取實際的 INFOCOM 2024 算法指標
     const infocomMetrics = useInfocomMetrics(isOpen)
-    // RL 監控相關狀態
+    // RL監控相關狀態已移至RLMonitoringTabContent組件中管理
+
+    // RL監控相關狀態
     const [isDqnTraining, setIsDqnTraining] = useState(false) // DQN 初始為待機
     const [isPpoTraining, setIsPpoTraining] = useState(false) // PPO 初始為待機
     const [trainingMetrics, setTrainingMetrics] = useState({
@@ -206,9 +208,6 @@ const ChartAnalysisDashboard = ({
             energyEfficiency: 0,
         },
     })
-    const isUpdatingRef = useRef(false)
-
-    // 禁用模擬數據生成，改為只接收來自GymnasiumRLMonitor的真實數據
 
     // 獎勵趨勢和策略損失圖表數據
     const [rewardTrendData, setRewardTrendData] = useState({
@@ -4749,7 +4748,7 @@ const ChartAnalysisDashboard = ({
                 )
 
             case 'rl-monitoring':
-                // 從 GymnasiumRLMonitor 組件獲取真實數據
+                // 完整圖表的原始內嵌RL監控實現
                 return (
                     <div className="rl-monitoring-fullwidth">
                         <div className="rl-monitor-header">
@@ -4788,6 +4787,7 @@ const ChartAnalysisDashboard = ({
                                         </div>
                                     </div>
                                 </button>
+                                
                                 <button
                                     className="large-control-btn ppo-btn"
                                     onClick={() => {
@@ -4820,13 +4820,12 @@ const ChartAnalysisDashboard = ({
                                         </div>
                                     </div>
                                 </button>
+                                
                                 <button
                                     className="large-control-btn both-btn"
                                     onClick={() => {
-                                        const newDqnState =
-                                            !isDqnTraining || !isPpoTraining
-                                        const newPpoState =
-                                            !isDqnTraining || !isPpoTraining
+                                        const newDqnState = !isDqnTraining || !isPpoTraining
+                                        const newPpoState = !isDqnTraining || !isPpoTraining
                                         setIsDqnTraining(newDqnState)
                                         setIsPpoTraining(newPpoState)
                                         // 觸發自定義事件
@@ -4835,11 +4834,9 @@ const ChartAnalysisDashboard = ({
                                                 'bothTrainingToggle',
                                                 {
                                                     detail: {
-                                                        dqnTraining:
-                                                            newDqnState,
-                                                        ppoTraining:
-                                                            newPpoState,
-                                                    },
+                                                        dqnTraining: newDqnState,
+                                                        ppoTraining: newPpoState
+                                                    }
                                                 }
                                             )
                                         )
@@ -5817,17 +5814,15 @@ const ChartAnalysisDashboard = ({
                                             </table>
                                         </div>
                                     ) : (
-                                        <div className="no-training-data">
-                                            <div className="placeholder-icon">
-                                                📊
-                                            </div>
-                                            <p className="placeholder-text">
-                                                還沒有訓練數據
-                                            </p>
-                                            <p className="placeholder-subtitle">
-                                                請先開始 DQN 或 PPO
-                                                訓練以獲得性能比較數據
-                                            </p>
+                                        <div
+                                            style={{
+                                                padding: '20px',
+                                                textAlign: 'center',
+                                                color: '#aab8c5',
+                                                fontSize: '0.9rem',
+                                            }}
+                                        >
+                                            🤖 請啟動 DQN 或 PPO 引擎以查看性能比較
                                         </div>
                                     )}
                                 </div>
