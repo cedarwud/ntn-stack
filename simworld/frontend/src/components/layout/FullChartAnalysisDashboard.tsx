@@ -11,7 +11,7 @@ import EnhancedPerformanceTabContent from '../views/dashboards/ChartAnalysisDash
 import MonitoringTabContent from '../views/dashboards/ChartAnalysisDashboard/components/MonitoringTabContent'
 import StrategyTabContent from '../views/dashboards/ChartAnalysisDashboard/components/StrategyTabContent'
 import ParametersTabContent from '../views/dashboards/ChartAnalysisDashboard/components/ParametersTabContent'
-import SystemTabContent from '../views/dashboards/ChartAnalysisDashboard/components/SystemTabContent'
+import EnhancedSystemTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedSystemTabContent'
 import RLMonitoringTabContent from '../views/dashboards/ChartAnalysisDashboard/components/RLMonitoringTabContent'
 import '../views/dashboards/ChartAnalysisDashboard/ChartAnalysisDashboard.scss'
 
@@ -234,7 +234,7 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
       case 'performance':
         return <EnhancedPerformanceTabContent />
       case 'system':
-        return <SystemTabContent />
+        return <EnhancedSystemTabContent />
       case 'algorithms':
         return <AlgorithmTabContent />
       case 'rl-monitoring':

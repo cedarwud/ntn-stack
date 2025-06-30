@@ -517,7 +517,14 @@ const EnhancedPerformanceTabContent: React.FC = () => {
 
         .alerts-container {
           display: grid;
+          grid-template-columns: 1fr 1fr;
           gap: 15px;
+        }
+
+        @media (max-width: 768px) {
+          .alerts-container {
+            grid-template-columns: 1fr;
+          }
         }
 
         .alert-item {
