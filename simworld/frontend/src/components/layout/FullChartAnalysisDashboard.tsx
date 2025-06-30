@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react'
 import { Line } from 'react-chartjs-2'
 import OverviewTabContent from '../views/dashboards/ChartAnalysisDashboard/components/OverviewTabContent'
-import EnhancedDeepAnalysisTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedDeepAnalysisTabContent'
+import IntegratedAnalysisTabContent from '../views/dashboards/ChartAnalysisDashboard/components/IntegratedAnalysisTabContent'
 import EnhancedAlgorithmTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedAlgorithmTabContent'
 import EnhancedPerformanceTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedPerformanceTabContent'
 import MonitoringTabContent from '../views/dashboards/ChartAnalysisDashboard/components/MonitoringTabContent'
@@ -830,11 +830,11 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
           </div>
         )
       case 'analysis':
-        return <EnhancedDeepAnalysisTabContent />
+        return <IntegratedAnalysisTabContent />
       case 'monitoring':
         return <MonitoringTabContent />
       case 'strategy':
-        return <StrategyTabContent />
+        return <IntegratedAnalysisTabContent />
       case 'parameters':
         return <ParametersTabContent />
       default:
@@ -949,12 +949,22 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
               min-width: 0 !important;
             }
             
-            /* 第三个图表（六场景）跨两列显示 */
+            /* 第三个图表占第1列第2行 */
             .full-chart-analysis-dashboard .charts-grid .chart-container:nth-child(3) {
-              grid-column: 1 / -1 !important;
+              grid-column: 1 !important;
               grid-row: 2 !important;
               width: 100% !important;
               max-width: none !important;
+              min-width: 0 !important;
+            }
+            
+            /* 第四个图表占第2列第2行 */
+            .full-chart-analysis-dashboard .charts-grid .chart-container:nth-child(4) {
+              grid-column: 2 !important;
+              grid-row: 2 !important;
+              width: 100% !important;
+              max-width: none !important;
+              min-width: 0 !important;
             }
             
             /* 响应式：小屏幕时改为单列布局 */
