@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react'
 import { Line } from 'react-chartjs-2'
 import OverviewTabContent from '../views/dashboards/ChartAnalysisDashboard/components/OverviewTabContent'
-import AnalysisTabContent from '../views/dashboards/ChartAnalysisDashboard/components/AnalysisTabContent'
+import EnhancedDeepAnalysisTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedDeepAnalysisTabContent'
 import EnhancedAlgorithmTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedAlgorithmTabContent'
 import EnhancedPerformanceTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedPerformanceTabContent'
 import MonitoringTabContent from '../views/dashboards/ChartAnalysisDashboard/components/MonitoringTabContent'
@@ -830,7 +830,7 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
           </div>
         )
       case 'analysis':
-        return <AnalysisTabContent />
+        return <EnhancedDeepAnalysisTabContent />
       case 'monitoring':
         return <MonitoringTabContent />
       case 'strategy':
