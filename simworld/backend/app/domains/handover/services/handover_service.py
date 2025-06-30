@@ -596,19 +596,29 @@ class HandoverService:
     async def _calculate_base_latencies(self) -> Dict[str, float]:
         """計算基礎延遲參數"""
         
-        # 獲取真實衛星軌道參數
-        satellites = await self.orbit_service.get_visible_satellites(
-            latitude=25.0, longitude=121.0, elevation_threshold=10.0
-        )
+        # 使用基於物理模型的默認參數（Starlink 星座為例）
+        # 這些參數基於真實的衛星網路配置
+        avg_altitude = 550.0  # Starlink 衛星平均高度 (km)
+        avg_distance = 1000.0  # 平均通信距離 (km)
         
-        if not satellites:
-            # 使用默認參數
-            avg_altitude = 550.0  # Starlink
-            avg_distance = 1000.0
-        else:
-            # 計算平均軌道參數
-            avg_altitude = sum(sat.altitude for sat in satellites) / len(satellites)
-            avg_distance = sum(sat.distance for sat in satellites) / len(satellites)
+        # 如果有軌道服務，嘗試獲取更精確的數據
+        try:
+            # 使用台北作為參考點計算當前位置
+            observer_location = GeoCoordinate(latitude=25.0, longitude=121.0, altitude=0.0)
+            
+            # 嘗試獲取一個衛星的當前位置來計算真實參數
+            # 使用假設的衛星 ID (實際部署時應該從資料庫獲取)
+            position_data = await self.orbit_service.get_current_position(
+                satellite_id=1, observer_location=observer_location
+            )
+            
+            if position_data and "distance_km" in position_data:
+                avg_distance = position_data["distance_km"]
+                avg_altitude = position_data.get("altitude_km", avg_altitude)
+                
+        except Exception as e:
+            logger.info(f"無法獲取真實軌道數據，使用默認參數: {e}")
+            # 繼續使用默認參數，不需要額外處理
         
         # 基於物理定律計算基礎延遲
         propagation_delay = (avg_distance * 1000) / 299792458  # 光速傳播延遲

@@ -107,7 +107,13 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
       
       // 嘗試從專用QoE API獲取數據
       try {
-        const response = await fetch('/api/v1/handover/qoe-timeseries')
+        const response = await fetch('/api/v1/handover/qoe-timeseries', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({})
+        })
         if (response.ok) {
           const data = await response.json()
           setQoeMetrics({
@@ -203,7 +209,13 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
       
       // 嘗試從專用複雜度API獲取數據
       try {
-        const response = await fetch('/api/v1/handover/complexity-analysis')
+        const response = await fetch('/api/v1/handover/complexity-analysis', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({})
+        })
         if (response.ok) {
           const data = await response.json()
           setComplexityMetrics({

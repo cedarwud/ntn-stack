@@ -62,3 +62,23 @@ docker exec simworld_backend python -c "<code>"  # 執行代碼
 ### Lint 規則優先級
 - **Error (必修)**：型別錯誤、未使用變數、Hook 依賴
 - **Warning (選修)**：組件導出、代碼風格、效能優化
+
+## 🚨 錯誤處理原則 (極其重要)
+**遇到 API 錯誤或任何錯誤時的處理優先順序：**
+1. **優先使用 console.log 列印詳細錯誤信息** - 不要減少錯誤日誌的噪音
+2. **回退使用模擬數據** - 確保應用程式繼續運行
+3. **保持原始演算法複雜度** - 不要為了錯誤處理而簡化演算法
+4. **維持真實數據處理邏輯** - 即使使用模擬數據也要保持完整的處理流程
+
+**範例處理模式：**
+```javascript
+try {
+  const realData = await fetchRealData();
+  return processComplexAlgorithm(realData);
+} catch (error) {
+  console.log('API 錯誤詳細信息:', error);
+  console.log('回退至模擬數據模式');
+  const mockData = generateMockData();
+  return processComplexAlgorithm(mockData); // 保持相同演算法
+}
+```
