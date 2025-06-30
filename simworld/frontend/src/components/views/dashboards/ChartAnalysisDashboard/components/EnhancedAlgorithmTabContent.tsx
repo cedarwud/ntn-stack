@@ -365,40 +365,40 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
                     </span>
                   </td>
                   <td className={`metric-cell ${
-                    algorithmPerformance.latencies[index] < 10 ? 'success' :
-                    algorithmPerformance.latencies[index] < 20 ? 'info' : 'warning'
+                    (algorithmPerformance.latencies[index] || 0) < 10 ? 'success' :
+                    (algorithmPerformance.latencies[index] || 0) < 20 ? 'info' : 'warning'
                   }`}>
-                    {algorithmPerformance.latencies[index].toFixed(1)}ms
+                    {(algorithmPerformance.latencies[index] || 0).toFixed(1)}ms
                   </td>
                   <td className={`metric-cell ${
-                    algorithmPerformance.complexities[index].includes('log') ? 'success' :
-                    algorithmPerformance.complexities[index].includes('n') && !algorithmPerformance.complexities[index].includes('²') ? 'info' : 'warning'
+                    (algorithmPerformance.complexities[index] || '').includes('log') ? 'success' :
+                    (algorithmPerformance.complexities[index] || '').includes('n') && !(algorithmPerformance.complexities[index] || '').includes('²') ? 'info' : 'warning'
                   }`}>
-                    {algorithmPerformance.complexities[index]}
+                    {algorithmPerformance.complexities[index] || 'O(n)'}
                   </td>
                   <td className={`metric-cell ${
-                    algorithmPerformance.memoryUsages[index] < 200 ? 'success' :
-                    algorithmPerformance.memoryUsages[index] < 300 ? 'info' : 'warning'
+                    (algorithmPerformance.memoryUsages[index] || 0) < 200 ? 'success' :
+                    (algorithmPerformance.memoryUsages[index] || 0) < 300 ? 'info' : 'warning'
                   }`}>
-                    {algorithmPerformance.memoryUsages[index]}MB
+                    {algorithmPerformance.memoryUsages[index] || 0}MB
                   </td>
                   <td className={`metric-cell ${
-                    algorithmPerformance.energyEfficiencies[index] > 90 ? 'success' :
-                    algorithmPerformance.energyEfficiencies[index] > 80 ? 'info' : 'warning'
+                    (algorithmPerformance.energyEfficiencies[index] || 0) > 90 ? 'success' :
+                    (algorithmPerformance.energyEfficiencies[index] || 0) > 80 ? 'info' : 'warning'
                   }`}>
-                    {algorithmPerformance.energyEfficiencies[index].toFixed(1)}%
+                    {(algorithmPerformance.energyEfficiencies[index] || 0).toFixed(1)}%
                   </td>
                   <td className={`metric-cell ${
-                    algorithmPerformance.reliabilities[index] > 95 ? 'success' :
-                    algorithmPerformance.reliabilities[index] > 90 ? 'info' : 'warning'
+                    (algorithmPerformance.reliabilities[index] || 0) > 95 ? 'success' :
+                    (algorithmPerformance.reliabilities[index] || 0) > 90 ? 'info' : 'warning'
                   }`}>
-                    {algorithmPerformance.reliabilities[index].toFixed(1)}%
+                    {(algorithmPerformance.reliabilities[index] || 0).toFixed(1)}%
                   </td>
                   <td className={`metric-cell ${
-                    algorithmPerformance.overallScores[index] >= 9 ? 'success' :
-                    algorithmPerformance.overallScores[index] >= 7 ? 'info' : 'warning'
+                    (algorithmPerformance.overallScores[index] || 0) >= 9 ? 'success' :
+                    (algorithmPerformance.overallScores[index] || 0) >= 7 ? 'info' : 'warning'
                   }`}>
-                    {algorithmPerformance.overallScores[index].toFixed(1)}/10
+                    {(algorithmPerformance.overallScores[index] || 0).toFixed(1)}/10
                   </td>
                 </tr>
               ))}
@@ -423,13 +423,13 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
                 <div className="complexity-metric">
                   <div className="metric-label">執行時間</div>
                   <div className="metric-value">
-                    {complexityAnalysis.executionTimes[index].toFixed(1)}ms
+                    {(complexityAnalysis.executionTimes[index] || 0).toFixed(1)}ms
                   </div>
                 </div>
                 <div className="complexity-metric">
                   <div className="metric-label">記憶體占用</div>
                   <div className="metric-value">
-                    {complexityAnalysis.memoryComplexities[index]}MB
+                    {complexityAnalysis.memoryComplexities[index] || 0}MB
                   </div>
                 </div>
                 <div className="complexity-metric">
@@ -445,7 +445,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
                   <div 
                     className="progress-fill"
                     style={{
-                      width: `${Math.max(20, 100 - (complexityAnalysis.executionTimes[index] / 30 * 100))}%`,
+                      width: `${Math.max(20, 100 - ((complexityAnalysis.executionTimes[index] || 0) / 30 * 100))}%`,
                       backgroundColor: algorithm.includes('Fine-Grained') ? '#22c55e' :
                                      algorithm.includes('Binary') ? '#3b82f6' : '#f59e0b'
                     }}
@@ -555,7 +555,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
       </div>
 
       {/* 算法分析樣式 */}
-      <style jsx>{`
+      <style>{`
         .enhanced-algorithm-content {
           width: 100%;
         }

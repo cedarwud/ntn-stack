@@ -42,7 +42,7 @@ const EnhancedSidebarRefactored: React.FC<EnhancedSidebarProps> = (props) => {
     satelliteEnabled,
     onSatelliteEnabledChange,
     manualControlEnabled,
-    onManualControlEnabledChange,
+    onManualControlEnabledChange: _onManualControlEnabledChange,
   } = props
 
   // 本地狀態
@@ -74,7 +74,7 @@ const EnhancedSidebarRefactored: React.FC<EnhancedSidebarProps> = (props) => {
   }
 
   // 處理衛星-UAV 連接切換
-  const handleSatelliteUavConnectionToggle = (enabled: boolean) => {
+  const _handleSatelliteUavConnectionToggle = (enabled: boolean) => {
     if (props.onSatelliteUavConnectionChange) {
       props.onSatelliteUavConnectionChange(enabled)
     }

@@ -194,15 +194,15 @@ class NetStackApiClient extends BaseApiClient {
   constructor() {
     let baseUrl = 'http://localhost:8080'  // 默認 NetStack 後端地址
     
-    // 在瀏覽器環境中使用Vite代理路徑
+    // 在瀏覽器環境中使用外部IP地址
     if (typeof window !== 'undefined') {
       // 檢查環境變數是否有自定義的 NetStack URL
       const envUrl = (window as unknown as { __NETSTACK_API_URL__?: string }).__NETSTACK_API_URL__
       if (envUrl) {
         baseUrl = envUrl
       } else {
-        // 使用Vite代理路徑 /netstack
-        baseUrl = '/netstack'
+        // 直接使用外部 IP 地址，避免代理問題
+        baseUrl = 'http://120.126.151.101:8080'
       }
     }
     
