@@ -1,0 +1,403 @@
+/**
+ * 整合分析儀表板樣式
+ */
+
+.integrated-analysis-dashboard {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f172a 100%);
+  color: white;
+  min-height: 100vh;
+  padding: 20px;
+  font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
+
+  // 載入狀態
+  &.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    .loading-spinner {
+      text-align: center;
+      
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-top: 3px solid #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+      
+      p {
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.8);
+      }
+    }
+  }
+
+  // 錯誤狀態
+  &.error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    .error-message {
+      text-align: center;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 12px;
+      padding: 40px;
+      max-width: 500px;
+      
+      h3 {
+        color: #f87171;
+        margin-bottom: 16px;
+        font-size: 24px;
+      }
+      
+      p {
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 24px;
+        line-height: 1.6;
+      }
+      
+      .retry-button {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        }
+      }
+    }
+  }
+
+  // 儀表板標題
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 0 10px;
+    
+    h2 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin: 0;
+    }
+    
+    .data-status {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      
+      .status-indicator {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+        
+        &.real {
+          background: rgba(34, 197, 94, 0.2);
+          border: 1px solid rgba(34, 197, 94, 0.4);
+          color: #4ade80;
+        }
+        
+        &.calculated {
+          background: rgba(251, 191, 36, 0.2);
+          border: 1px solid rgba(251, 191, 36, 0.4);
+          color: #fbbf24;
+        }
+        
+        &.fallback {
+          background: rgba(249, 115, 22, 0.2);
+          border: 1px solid rgba(249, 115, 22, 0.4);
+          color: #fb923c;
+        }
+        
+        &.loading {
+          background: rgba(59, 130, 246, 0.2);
+          border: 1px solid rgba(59, 130, 246, 0.4);
+          color: #60a5fa;
+        }
+      }
+      
+      .refresh-button {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 14px;
+        
+        &:hover {
+          background: rgba(255, 255, 255, 0.2);
+          border-color: rgba(255, 255, 255, 0.3);
+        }
+      }
+    }
+  }
+
+  // 分析標籤頁
+  .analysis-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 30px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px;
+    border-radius: 12px;
+    
+    button {
+      flex: 1;
+      padding: 12px 20px;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.7);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 15px;
+      font-weight: 500;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.9);
+      }
+      
+      &.active {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      }
+    }
+  }
+
+  // 分析內容區域
+  .analysis-content {
+    .analysis-section {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 30px;
+      backdrop-filter: blur(10px);
+      
+      h3 {
+        font-size: 22px;
+        font-weight: 600;
+        margin-bottom: 25px;
+        color: #e2e8f0;
+      }
+      
+      .chart-container {
+        height: 400px;
+        margin-bottom: 25px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        padding: 20px;
+        position: relative;
+        
+        // Chart.js 容器樣式優化
+        canvas {
+          border-radius: 8px;
+        }
+      }
+      
+      .insights-panel {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 20px;
+        border-left: 4px solid #3b82f6;
+        
+        h4 {
+          font-size: 18px;
+          margin-bottom: 16px;
+          color: #93c5fd;
+          font-weight: 600;
+        }
+        
+        ul {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          
+          li {
+            padding: 8px 0;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+            font-size: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            
+            &:last-child {
+              border-bottom: none;
+            }
+            
+            strong {
+              color: #3b82f6;
+              font-weight: 700;
+            }
+            
+            &::before {
+              content: '▸';
+              color: #3b82f6;
+              margin-right: 8px;
+              font-weight: bold;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 儀表板頁腳
+  .dashboard-footer {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 25px;
+    margin-top: 30px;
+    
+    .data-sources {
+      margin-bottom: 20px;
+      
+      h4 {
+        font-size: 16px;
+        margin-bottom: 12px;
+        color: #cbd5e1;
+      }
+      
+      .source-list {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        
+        span {
+          padding: 6px 12px;
+          border-radius: 16px;
+          font-size: 13px;
+          font-weight: 500;
+          
+          &.real {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+          }
+          
+          &.fallback {
+            background: rgba(156, 163, 175, 0.2);
+            color: #9ca3af;
+            border: 1px solid rgba(156, 163, 175, 0.3);
+          }
+        }
+      }
+    }
+    
+    .analysis-summary {
+      p {
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.6;
+        margin: 0;
+        font-size: 15px;
+        
+        strong {
+          color: #3b82f6;
+        }
+      }
+    }
+  }
+
+  // 響應式設計
+  @media (max-width: 1024px) {
+    padding: 15px;
+    
+    .dashboard-header {
+      flex-direction: column;
+      gap: 16px;
+      align-items: stretch;
+      
+      .data-status {
+        justify-content: center;
+      }
+    }
+    
+    .analysis-tabs {
+      flex-direction: column;
+      
+      button {
+        text-align: center;
+      }
+    }
+    
+    .analysis-content .analysis-section {
+      padding: 20px;
+      
+      .chart-container {
+        height: 300px;
+        padding: 15px;
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-header h2 {
+      font-size: 24px;
+      text-align: center;
+    }
+    
+    .analysis-content .analysis-section {
+      .chart-container {
+        height: 250px;
+        padding: 10px;
+      }
+      
+      .insights-panel ul li {
+        font-size: 14px;
+      }
+    }
+    
+    .dashboard-footer {
+      .data-sources .source-list {
+        justify-content: center;
+      }
+    }
+  }
+}
+
+// 動畫定義
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// 圖表容器內的 Chart.js 樣式覆寫
+.integrated-analysis-dashboard .chart-container {
+  // 確保圖表在暗色主題下的可見性
+  .chartjs-tooltip {
+    background: rgba(0, 0, 0, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  }
+  
+  // 圖例樣式
+  .chartjs-legend {
+    color: white !important;
+  }
+  
+  // 座標軸標籤
+  .chartjs-scale-label {
+    color: white !important;
+  }
+}
