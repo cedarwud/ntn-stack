@@ -3,7 +3,7 @@
  * 包含所有 8 個標籤分頁的完整功能
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Line } from 'react-chartjs-2'
 import OverviewTabContent from '../views/dashboards/ChartAnalysisDashboard/components/OverviewTabContent'
 import IntegratedAnalysisTabContent from '../views/dashboards/ChartAnalysisDashboard/components/IntegratedAnalysisTabContent'
@@ -12,7 +12,10 @@ import EnhancedPerformanceTabContent from '../views/dashboards/ChartAnalysisDash
 import MonitoringTabContent from '../views/dashboards/ChartAnalysisDashboard/components/MonitoringTabContent'
 import ParametersTabContent from '../views/dashboards/ChartAnalysisDashboard/components/ParametersTabContent'
 import EnhancedSystemTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedSystemTabContent'
+import StrategyTabContent from '../views/dashboards/ChartAnalysisDashboard/components/StrategyTabContent'
 import GymnasiumRLMonitor from '../dashboard/GymnasiumRLMonitor'
+import { createInteractiveChartOptions } from '../../config/dashboardChartOptions'
+import { useRLMonitoring } from '../views/dashboards/ChartAnalysisDashboard/hooks/useRLMonitoring'
 import '../views/dashboards/ChartAnalysisDashboard/ChartAnalysisDashboard.scss'
 
 interface FullChartAnalysisDashboardProps {
@@ -22,182 +25,9 @@ interface FullChartAnalysisDashboardProps {
 
 type TabName = 'overview' | 'performance' | 'system' | 'algorithms' | 'rl-monitoring' | 'analysis' | 'monitoring' | 'strategy' | 'parameters'
 
-// 模擬數據和圖表選項（保留以備不時之需）
-const _createMockData = () => {
-  // Handover 延遲分析數據
-  const handoverLatencyData = {
-    labels: ['信號檢測', '決策計算', '連接建立', '數據傳輸', '確認完成'],
-    datasets: [
-      {
-        label: 'NTN 標準',
-        data: [45, 78, 89, 23, 15],
-        backgroundColor: 'rgba(255, 99, 132, 0.7)',
-        borderColor: 'rgba(255, 99, 132, 1)',
-        borderWidth: 2,
-      },
-      {
-        label: 'NTN-GS',
-        data: [32, 54, 45, 15, 7],
-        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-        borderColor: 'rgba(54, 162, 235, 1)',
-        borderWidth: 2,
-      },
-      {
-        label: 'NTN-SMN',
-        data: [35, 58, 48, 12, 5],
-        backgroundColor: 'rgba(255, 206, 86, 0.7)',
-        borderColor: 'rgba(255, 206, 86, 1)',
-        borderWidth: 2,
-      },
-      {
-        label: '本論文方案',
-        data: [8, 7, 4, 1.5, 0.5],
-        backgroundColor: 'rgba(75, 192, 192, 0.7)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        borderWidth: 2,
-      },
-    ],
-  }
+// 模擬數據已移動到 utils/mockDataGenerator.ts
 
-  // 雙星座對比數據
-  const constellationComparisonData = {
-    labels: ['延遲', '覆蓋率', '換手頻率', 'QoE', '能耗', '可靠性'],
-    datasets: [
-      {
-        label: 'Starlink',
-        data: [85, 92, 75, 88, 82, 90],
-        backgroundColor: 'rgba(75, 192, 192, 0.7)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        borderWidth: 2,
-      },
-      {
-        label: 'Kuiper',
-        data: [78, 85, 88, 86, 85, 87],
-        backgroundColor: 'rgba(153, 102, 255, 0.7)',
-        borderColor: 'rgba(153, 102, 255, 1)',
-        borderWidth: 2,
-      },
-    ],
-  }
-
-  // 六場景數據
-  const sixScenarioChartData = {
-    labels: [
-      'SL-F-同向',
-      'SL-F-全向',
-      'SL-C-同向',
-      'SL-C-全向',
-      'KP-F-同向',
-      'KP-F-全向',
-      'KP-C-同向',
-      'KP-C-全向',
-    ],
-    datasets: [
-      {
-        label: 'NTN 標準',
-        data: [245, 255, 238, 252, 248, 258, 242, 250],
-        backgroundColor: 'rgba(255, 99, 132, 0.7)',
-        borderColor: 'rgba(255, 99, 132, 1)',
-        borderWidth: 2,
-      },
-      {
-        label: 'NTN-GS',
-        data: [148, 158, 145, 155, 152, 162, 146, 156],
-        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-        borderColor: 'rgba(54, 162, 235, 1)',
-        borderWidth: 2,
-      },
-      {
-        label: 'NTN-SMN',
-        data: [152, 165, 148, 162, 155, 168, 150, 160],
-        backgroundColor: 'rgba(255, 206, 86, 0.7)',
-        borderColor: 'rgba(255, 206, 86, 1)',
-        borderWidth: 2,
-      },
-      {
-        label: '本論文方案',
-        data: [18, 24, 16, 22, 20, 26, 17, 23],
-        backgroundColor: 'rgba(75, 192, 192, 0.7)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        borderWidth: 2,
-      },
-    ],
-  }
-
-  return {
-    handoverLatencyData,
-    constellationComparisonData,
-    sixScenarioChartData,
-  }
-}
-
-// 創建圖表選項
-const createInteractiveChartOptions = (title: string, yLabel: string, xLabel?: string) => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'top' as const,
-      labels: {
-        color: 'white',
-        font: {
-          size: 14,
-          weight: 'bold' as const,
-        },
-      },
-    },
-    title: {
-      display: true,
-      text: title,
-      color: 'white',
-      font: {
-        size: 18,
-        weight: 'bold' as const,
-      },
-    },
-  },
-  scales: {
-    x: {
-      title: {
-        display: !!xLabel,
-        text: xLabel || '',
-        color: 'white',
-        font: {
-          size: 14,
-          weight: 'bold' as const,
-        },
-      },
-      ticks: {
-        color: 'white',
-        font: {
-          size: 12,
-          weight: 'bold' as const,
-        },
-      },
-    },
-    y: {
-      title: {
-        display: true,
-        text: yLabel,
-        color: 'white',
-        font: {
-          size: 14,
-          weight: 'bold' as const,
-        },
-      },
-      ticks: {
-        color: 'white',
-        font: {
-          size: 12,
-          weight: 'bold' as const,
-        },
-      },
-      grid: {
-        color: 'rgba(255, 255, 255, 0.2)',
-      },
-    },
-  },
-})
+// 圖表選項已移動到 config/dashboardChartOptions.ts
 
 const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
   isOpen,
@@ -205,145 +35,25 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<TabName>('overview')
 
-  // RL監控相關狀態 - 與完整圖表一致
-  const [isDqnTraining, setIsDqnTraining] = useState(false)
-  const [isPpoTraining, setIsPpoTraining] = useState(false)
-  const [trainingMetrics, setTrainingMetrics] = useState({
-    dqn: {
-      episodes: 0,
-      avgReward: 0,
-      progress: 0,
-      handoverDelay: 0,
-      successRate: 0,
-      signalDropTime: 0,
-      energyEfficiency: 0,
-    },
-    ppo: {
-      episodes: 0,
-      avgReward: 0,
-      progress: 0,
-      handoverDelay: 0,
-      successRate: 0,
-      signalDropTime: 0,
-      energyEfficiency: 0,
-    },
-  })
+  // RL監控相關狀態和邏輯 - 使用專用Hook
+  const {
+    isDqnTraining,
+    isPpoTraining,
+    trainingMetrics,
+    rewardTrendData,
+    policyLossData,
+    toggleDqnTraining,
+    togglePpoTraining,
+    toggleBothTraining
+  } = useRLMonitoring()
 
-  const [rewardTrendData, setRewardTrendData] = useState({
-    dqnData: [] as number[],
-    ppoData: [] as number[],
-    labels: [] as string[],
-  })
-
-  const [policyLossData, setPolicyLossData] = useState({
-    dqnLoss: [] as number[],
-    ppoLoss: [] as number[],
-    labels: [] as string[],
-  })
-
-  // 監聽來自GymnasiumRLMonitor的真實數據 - 與完整圖表一致
-  useEffect(() => {
-    const handleRLMetricsUpdate = (event: CustomEvent) => {
-      const { engine, metrics } = event.detail
-      // 處理邏輯與完整圖表完全相同
-      setTrainingMetrics((prev) => {
-        const newMetrics = { ...prev }
-        if (engine === 'dqn') {
-          newMetrics.dqn = {
-            episodes: metrics.episodes_completed || 0,
-            avgReward: metrics.average_reward || 0,
-            progress: metrics.training_progress || 0,
-            handoverDelay: 45 - (metrics.training_progress / 100) * 20 + (Math.random() - 0.5) * 5,
-            successRate: Math.min(100, 82 + (metrics.training_progress / 100) * 12 + (Math.random() - 0.5) * 1.5),
-            signalDropTime: 18 - (metrics.training_progress / 100) * 8 + (Math.random() - 0.5) * 2,
-            energyEfficiency: 0.75 + (metrics.training_progress / 100) * 0.2 + (Math.random() - 0.5) * 0.05,
-          }
-
-          // 更新DQN獎勵趨勢數據
-          setRewardTrendData((prevData) => {
-            const newDataPoints = [...prevData.dqnData, metrics.average_reward].slice(-20)
-            return {
-              ...prevData,
-              dqnData: newDataPoints,
-              labels: Array.from({ length: Math.max(newDataPoints.length, prevData.ppoData.length) }, (_, i) => `${i + 1}`),
-            }
-          })
-
-          // 更新DQN損失數據
-          setPolicyLossData((prevData) => {
-            const newLossPoints = [...prevData.dqnLoss, Math.random() * 0.5 + 0.1].slice(-20)
-            return {
-              ...prevData,
-              dqnLoss: newLossPoints,
-              labels: Array.from({ length: Math.max(newLossPoints.length, prevData.ppoLoss.length) }, (_, i) => `${i + 1}`),
-            }
-          })
-        } else if (engine === 'ppo') {
-          newMetrics.ppo = {
-            episodes: metrics.episodes_completed || 0,
-            avgReward: metrics.average_reward || 0,
-            progress: metrics.training_progress || 0,
-            handoverDelay: 40 - (metrics.training_progress / 100) * 22 + (Math.random() - 0.5) * 4,
-            successRate: Math.min(100, 84 + (metrics.training_progress / 100) * 10 + (Math.random() - 0.5) * 1.2),
-            signalDropTime: 16 - (metrics.training_progress / 100) * 9 + (Math.random() - 0.5) * 1.5,
-            energyEfficiency: 0.8 + (metrics.training_progress / 100) * 0.18 + (Math.random() - 0.5) * 0.04,
-          }
-
-          // 更新PPO獎勵趨勢數據
-          setRewardTrendData((prevData) => {
-            const newDataPoints = [...prevData.ppoData, metrics.average_reward].slice(-20)
-            return {
-              ...prevData,
-              ppoData: newDataPoints,
-              labels: Array.from({ length: Math.max(prevData.dqnData.length, newDataPoints.length) }, (_, i) => `${i + 1}`),
-            }
-          })
-
-          // 更新PPO損失數據
-          setPolicyLossData((prevData) => {
-            const newLossPoints = [...prevData.ppoLoss, Math.random() * 0.3 + 0.05].slice(-20)
-            return {
-              ...prevData,
-              ppoLoss: newLossPoints,
-              labels: Array.from({ length: Math.max(prevData.dqnLoss.length, newLossPoints.length) }, (_, i) => `${i + 1}`),
-            }
-          })
-        }
-        return newMetrics
-      })
-    }
-
-    const handleTrainingStopped = (event: CustomEvent) => {
-      const { engine } = event.detail
-      setTrainingMetrics((prev) => {
-        const newMetrics = { ...prev }
-        if (engine === 'dqn') {
-          newMetrics.dqn = {
-            episodes: 0, avgReward: 0, progress: 0,
-            handoverDelay: 0, successRate: 0, signalDropTime: 0, energyEfficiency: 0,
-          }
-        } else if (engine === 'ppo') {
-          newMetrics.ppo = {
-            episodes: 0, avgReward: 0, progress: 0,
-            handoverDelay: 0, successRate: 0, signalDropTime: 0, energyEfficiency: 0,
-          }
-        }
-        return newMetrics
-      })
-    }
-
-    window.addEventListener('rlMetricsUpdate', handleRLMetricsUpdate as EventListener)
-    window.addEventListener('rlTrainingStopped', handleTrainingStopped as EventListener)
-
-    return () => {
-      window.removeEventListener('rlMetricsUpdate', handleRLMetricsUpdate as EventListener)
-      window.removeEventListener('rlTrainingStopped', handleTrainingStopped as EventListener)
-    }
-  }, [])
+  // RL監控邏輯已移動到 useRLMonitoring Hook
 
   if (!isOpen) return null
 
-  // const mockData = createMockData() // 已改用真實API數據，保留以備不時之需
+  // 模擬數據已移動到 utils/mockDataGenerator.ts
+  // 如需使用請: import { createMockData } from '../../utils/mockDataGenerator'
+  // 然後: const mockData = createMockData()
 
   // 標籤配置 - 按照原始檔案的順序和名稱
   const tabs = [
@@ -383,14 +93,7 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
               <div className="rl-controls-section large-buttons">
                 <button
                   className="large-control-btn dqn-btn"
-                  onClick={() => {
-                    setIsDqnTraining(!isDqnTraining)
-                    window.dispatchEvent(
-                      new CustomEvent('dqnTrainingToggle', {
-                        detail: { isTraining: !isDqnTraining }
-                      })
-                    )
-                  }}
+                  onClick={toggleDqnTraining}
                 >
                   <div className="btn-icon">🤖</div>
                   <div className="btn-content">
@@ -405,14 +108,7 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
                 
                 <button
                   className="large-control-btn ppo-btn"
-                  onClick={() => {
-                    setIsPpoTraining(!isPpoTraining)
-                    window.dispatchEvent(
-                      new CustomEvent('ppoTrainingToggle', {
-                        detail: { isTraining: !isPpoTraining }
-                      })
-                    )
-                  }}
+                  onClick={togglePpoTraining}
                 >
                   <div className="btn-icon">⚙️</div>
                   <div className="btn-content">
@@ -427,17 +123,7 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
                 
                 <button
                   className="large-control-btn both-btn"
-                  onClick={() => {
-                    const newDqnState = !isDqnTraining || !isPpoTraining
-                    const newPpoState = !isDqnTraining || !isPpoTraining
-                    setIsDqnTraining(newDqnState)
-                    setIsPpoTraining(newPpoState)
-                    window.dispatchEvent(
-                      new CustomEvent('bothTrainingToggle', {
-                        detail: { dqnTraining: newDqnState, ppoTraining: newPpoState }
-                      })
-                    )
-                  }}
+                  onClick={toggleBothTraining}
                 >
                   <div className="btn-icon">🚀</div>
                   <div className="btn-content">
@@ -833,7 +519,7 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
       case 'monitoring':
         return <MonitoringTabContent />
       case 'strategy':
-        return <IntegratedAnalysisTabContent />
+        return <StrategyTabContent />
       case 'parameters':
         return <ParametersTabContent />
       default:
