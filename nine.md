@@ -77,22 +77,64 @@
 
 **成果**: 已刪除 **13個未使用檔案**，減少約 **800+行** 無用程式碼
 
-### 階段二：拆分超大檔案 🔄 **[進行中]**
-- [ ] **拆分 FullChartAnalysisDashboard.tsx (1,147行)**
-  - [ ] 抽取RL監控邏輯 → `hooks/useRLMonitoring.ts`
-  - [ ] 移動模擬數據 → `utils/mockDataGenerator.ts`
-  - [ ] 移動圖表配置 → `config/dashboardChartOptions.ts`
-  - [ ] 拆分主要組件邏輯 → `components/DashboardCore.tsx`
-- [ ] **拆分 IntegratedAnalysisTabContent.tsx (1,035行)**
-  - [ ] 抽取API調用邏輯 → 專用Hook
-  - [ ] 拆分為多個子組件
-  - [ ] 分離數據處理邏輯
-- [ ] **重構 useAlgorithmAnalysisData.ts (746行)**
-  - [ ] 拆分為 `useTimeSyncData.ts`
-  - [ ] 拆分為 `useAccessStrategyData.ts` 
-  - [ ] 拆分為 `useAlgorithmPerformanceData.ts`
+### 階段二：拆分超大檔案 🔄 **[重新規劃]** 
+**重構原則**: 漸進式安全重構，避免無限渲染  
+**現狀**: 已進行反向整合，檔案變更大而非變小
 
-**目標**: 將超大檔案拆分為合理大小(< 300行)
+#### 2A. 預備工作 ✅ **[已完成]**
+- [x] **創建備份檔案** `.backup` 檔案已存在 (946行)
+- [ ] **建立測試腳本** 驗證功能完整性
+- [ ] **記錄當前狀態** 所有圖表顯示正常
+
+#### 2B. 重新評估 FullChartAnalysisDashboard.tsx (1,147行)
+**實際變化**: 從946行增加到1,147行 (+201行)  
+**原因**: 整合了 `RLMonitoringTabContent.tsx` 的內容
+
+**新策略**: 需要決定是否繼續拆分或保持當前整合狀態
+
+- [ ] **評估選項A**: 繼續拆分策略
+  - [ ] 抽取靜態配置 → `utils/mockDataGenerator.ts`
+  - [ ] 抽取RL監控邏輯 → `hooks/useRLMonitoring.ts`
+  - [ ] 移動圖表配置 → `config/dashboardChartOptions.ts`
+
+- [ ] **評估選項B**: 保持整合但優化結構
+  - [ ] 重構內部邏輯結構
+  - [ ] 提升程式碼品質
+  - [ ] 優化效能和可讀性
+
+#### 2C. 拆分 IntegratedAnalysisTabContent.tsx (1,035行)
+**策略**: 先分離API邏輯，避免影響數據流
+
+- [ ] **步驟2C-1**: 抽取API調用邏輯
+  - [ ] 創建 `hooks/useIntegratedAnalysisAPI.ts`
+  - [ ] 移動所有API調用到專用Hook
+  - [ ] **測試**: 數據載入正常
+
+- [ ] **步驟2C-2**: 拆分UI組件
+  - [ ] 創建 `components/IntegratedAnalysis/ChartSection.tsx`
+  - [ ] 創建 `components/IntegratedAnalysis/DataSection.tsx`
+  - [ ] **測試**: 圖表渲染正常
+
+#### 2D. 重構 useAlgorithmAnalysisData.ts (746行)
+**策略**: 最後處理，風險最高的數據Hook
+
+- [ ] **步驟2D-1**: 分析依賴關係
+  - [ ] 識別哪些組件使用此Hook
+  - [ ] 分析數據流向和依賴
+
+- [ ] **步驟2D-2**: 漸進式拆分
+  - [ ] 拆分為 `useTimeSyncData.ts` (時間同步相關)
+  - [ ] 拆分為 `useAccessStrategyData.ts` (接入策略相關)
+  - [ ] 拆分為 `useAlgorithmPerformanceData.ts` (效能相關)
+  - [ ] **測試**: 每個拆分後立即測試
+
+#### 2E. 整合測試與驗證
+- [ ] **功能測試**: 所有圖表顯示正常
+- [ ] **效能測試**: 無無限渲染問題
+- [ ] **建置測試**: `npm run build` 成功
+- [ ] **Lint檢查**: `npm run lint` 通過
+
+**目標**: 將超大檔案拆分為合理大小(< 300行)，確保功能穩定
 
 ### 階段三：修復關注點分離 ⏳ **[待執行]**
 - [ ] **移除組件中的直接API調用**
@@ -184,7 +226,17 @@
   - **最終成果**: 專案整潔度大幅提升，build size 優化
 
 ### 🔄 當前階段
-- **階段二**: 拆分超大檔案 (0% 完成)
+- **階段二**: 拆分超大檔案 (15% 完成)
+  - **已完成的重構活動**:
+    - ✅ 建立備份檔案 `FullChartAnalysisDashboard.tsx.backup` (946行)
+    - ✅ **反向整合**: 將 `RLMonitoringTabContent.tsx` 整合回主檔案 (1,147行)
+    - ✅ 從外部引入改為內部實現 RL 監控邏輯 (+201行)
+  - **檔案狀況**:
+    - FullChartAnalysisDashboard.tsx: 1,147行 (已開始重構但增加)
+    - IntegratedAnalysisTabContent.tsx: 1,035行 (未變更)  
+    - useAlgorithmAnalysisData.ts: 746行 (未變更)
+  - **重構策略**: 需要調整計劃，實際進行的是整合而非拆分
+  - **狀態**: 需要重新評估並決定下一步策略
 
 ### ⏳ 下一階段
 - **階段三**: 修復關注點分離
@@ -215,11 +267,17 @@
 - **功能回歸**: 每階段完成後進行完整測試
 - **效能影響**: 持續監控bundle大小和載入時間
 - **開發中斷**: 採用漸進式重構，保持功能可用
+- **無限渲染**: 拆分Hook和組件時特別注意依賴循環
 
 ### 緩解措施
 - 分支保護：每階段在獨立分支進行
 - 自動化測試：確保重構不破壞現有功能
 - 文檔同步：及時更新相關文檔
+- **階段二特殊安全措施**:
+  - 每個步驟完成後立即測試
+  - 先處理靜態配置，後處理動態邏輯
+  - 保留原始文件直到確認新版本穩定
+  - 遇到渲染問題立即回滾
 
 ---
 
