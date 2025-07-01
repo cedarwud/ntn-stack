@@ -1,11 +1,30 @@
 /**
  * Chart.js 全域配置模組
- * 
- * 從 ChartAnalysisDashboard 中抽離的 Chart.js 配置
- * 提供統一的圖表組件註冊和全域預設值設定
+ * 統一的圖表組件註冊和全域預設值設定
+ * 整合了原有功能並添加了常用配置選項
  */
+
 import {
-    Chart as ChartJS,
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  LogarithmicScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  Filler,
+  RadialLinearScale,
+} from 'chart.js'
+
+/**
+ * 註冊所有需要的 Chart.js 組件
+ */
+export function registerChartComponents(): void {
+  ChartJS.register(
     CategoryScale,
     LinearScale,
     LogarithmicScale,
@@ -17,92 +36,191 @@ import {
     Legend,
     ArcElement,
     Filler,
-    RadialLinearScale,
-} from 'chart.js'
-
-/**
- * 註冊所有需要的 Chart.js 組件
- */
-export const registerChartComponents = (): void => {
-    ChartJS.register(
-        CategoryScale,
-        LinearScale,
-        LogarithmicScale,
-        BarElement,
-        LineElement,
-        PointElement,
-        Title,
-        Tooltip,
-        Legend,
-        ArcElement,
-        Filler,
-        RadialLinearScale
-    )
+    RadialLinearScale
+  )
 }
 
 /**
- * 設定 Chart.js 全域預設值
- * 主要針對深色主題優化
+ * 設置 Chart.js 全域默認配置
  */
-export const setChartDefaults = (): void => {
-    // 基本顏色和字體設定
-    ChartJS.defaults.color = 'white'
-    ChartJS.defaults.font.size = 16
-    ChartJS.defaults.locale = 'en-US'
+export function setupGlobalChartDefaults(): void {
+  // 基本配置
+  ChartJS.defaults.color = 'white'
+  ChartJS.defaults.font.size = 16
+  ChartJS.defaults.locale = 'en-US'
 
-    // 圖例設定
-    ChartJS.defaults.plugins.legend.labels.color = 'white'
-    ChartJS.defaults.plugins.legend.labels.font = { size: 16 }
+  // 圖例配置
+  ChartJS.defaults.plugins.legend.labels.color = 'white'
+  ChartJS.defaults.plugins.legend.labels.font = { size: 16 }
 
-    // 標題設定
-    ChartJS.defaults.plugins.title.color = 'white'
-    ChartJS.defaults.plugins.title.font = { size: 20, weight: 'bold' as const }
+  // 標題配置
+  ChartJS.defaults.plugins.title.color = 'white'
+  ChartJS.defaults.plugins.title.font = { size: 20, weight: 'bold' as const }
 
-    // Tooltip 設定
-    ChartJS.defaults.plugins.tooltip.titleColor = 'white'
-    ChartJS.defaults.plugins.tooltip.bodyColor = 'white'
-    ChartJS.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.9)'
-    ChartJS.defaults.plugins.tooltip.titleFont = { size: 16 }
-    ChartJS.defaults.plugins.tooltip.bodyFont = { size: 15 }
+  // 提示框配置
+  ChartJS.defaults.plugins.tooltip.titleColor = 'white'
+  ChartJS.defaults.plugins.tooltip.bodyColor = 'white'
+  ChartJS.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.9)'
+  ChartJS.defaults.plugins.tooltip.titleFont = { size: 16 }
+  ChartJS.defaults.plugins.tooltip.bodyFont = { size: 15 }
 
-    // 軸標籤設定
-    ChartJS.defaults.scale.ticks.color = 'white'
-    ChartJS.defaults.scale.ticks.font = { size: 14 }
-    ChartJS.defaults.scale.grid.color = 'rgba(255, 255, 255, 0.2)'
+  // 刻度配置
+  ChartJS.defaults.scale.ticks.color = 'white'
+  ChartJS.defaults.scale.ticks.font = { size: 14 }
+  ChartJS.defaults.scale.grid.color = 'rgba(255, 255, 255, 0.2)'
 
-    // 元素預設樣式
-    ;(ChartJS.defaults as Record<string, unknown>).elements = {
-        ...((ChartJS.defaults as Record<string, unknown>).elements || {}),
-        arc: {
-            ...((ChartJS.defaults as Record<string, unknown>).elements as Record<string, unknown>)?.arc || {},
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        },
-        bar: {
-            ...((ChartJS.defaults as Record<string, unknown>).elements as Record<string, unknown>)?.bar || {},
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        },
-        line: {
-            ...((ChartJS.defaults as Record<string, unknown>).elements as Record<string, unknown>)?.line || {},
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        },
+  // 元素默認配置
+  if (ChartJS.defaults.elements) {
+    if (ChartJS.defaults.elements.arc) {
+      ChartJS.defaults.elements.arc.backgroundColor = 'rgba(255, 255, 255, 0.1)'
     }
-
-    // 軸標題設定（需要安全處理）
-    try {
-        ;(ChartJS.defaults.scale as Record<string, unknown>).title = {
-            color: 'white',
-            font: { size: 16, weight: 'bold' as const },
-        }
-    } catch (e) {
-        console.warn('Could not set scale title defaults:', e)
+    if (ChartJS.defaults.elements.bar) {
+      ChartJS.defaults.elements.bar.backgroundColor = 'rgba(255, 255, 255, 0.1)'
     }
+    if (ChartJS.defaults.elements.line) {
+      ChartJS.defaults.elements.line.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+    }
+  }
+
+  // 刻度標題配置（類型安全）
+  try {
+    if (ChartJS.defaults.scale && 'title' in ChartJS.defaults.scale) {
+      ;(ChartJS.defaults.scale as Record<string, unknown>).title = {
+        color: 'white',
+        font: { size: 16, weight: 'bold' as const },
+      }
+    }
+  } catch (e) {
+    console.warn('Could not set scale title defaults:', e)
+  }
 }
 
 /**
- * 初始化 Chart.js 配置
- * 應在應用程式啟動時調用一次
+ * 常用圖表配置選項
  */
-export const initializeChartJS = (): void => {
-    registerChartComponents()
-    setChartDefaults()
+export const commonChartOptions = {
+  /**
+   * 柱狀圖基本配置
+   */
+  barChart: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      title: {
+        display: true,
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+      },
+    },
+  },
+
+  /**
+   * 線圖基本配置
+   */
+  lineChart: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      title: {
+        display: true,
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+      },
+    },
+  },
+
+  /**
+   * 圓餅圖基本配置
+   */
+  pieChart: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right' as const,
+      },
+      title: {
+        display: true,
+      },
+    },
+  },
+
+  /**
+   * 雷達圖基本配置
+   */
+  radarChart: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      title: {
+        display: true,
+      },
+    },
+    scales: {
+      r: {
+        beginAtZero: true,
+      },
+    },
+  },
 }
+
+/**
+ * 色彩主題配置
+ */
+export const chartColors = {
+  primary: [
+    'rgba(54, 162, 235, 0.8)',
+    'rgba(255, 99, 132, 0.8)',
+    'rgba(255, 205, 86, 0.8)',
+    'rgba(75, 192, 192, 0.8)',
+    'rgba(153, 102, 255, 0.8)',
+    'rgba(255, 159, 64, 0.8)',
+  ],
+  background: [
+    'rgba(54, 162, 235, 0.2)',
+    'rgba(255, 99, 132, 0.2)',
+    'rgba(255, 205, 86, 0.2)',
+    'rgba(75, 192, 192, 0.2)',
+    'rgba(153, 102, 255, 0.2)',
+    'rgba(255, 159, 64, 0.2)',
+  ],
+  border: [
+    'rgba(54, 162, 235, 1)',
+    'rgba(255, 99, 132, 1)',
+    'rgba(255, 205, 86, 1)',
+    'rgba(75, 192, 192, 1)',
+    'rgba(153, 102, 255, 1)',
+    'rgba(255, 159, 64, 1)',
+  ],
+  success: 'rgba(40, 167, 69, 0.8)',
+  warning: 'rgba(255, 193, 7, 0.8)',
+  danger: 'rgba(220, 53, 69, 0.8)',
+  info: 'rgba(23, 162, 184, 0.8)',
+}
+
+/**
+ * 初始化圖表系統
+ */
+export function initializeChartSystem(): void {
+  registerChartComponents()
+  setupGlobalChartDefaults()
+}
+
+// 向後兼容性的舊函數名稱
+export const setChartDefaults = setupGlobalChartDefaults
+export const initializeChartJS = initializeChartSystem

@@ -246,7 +246,7 @@ const Stage3ExecutionTest: React.FC = () => {
     // Test 9: Four-Way Handover Comparison
     setCurrentTest('四種方案換手對比');
     try {
-      // Test if FourWayHandoverComparisonDashboard can generate comparison data
+      // Test if FullChartAnalysisDashboard can generate comparison data
       const coreSync = await netStackApi.getCoreSync();
       const success = !!(coreSync && coreSync.statistics && coreSync.ieee_infocom_2024_features);
       results.four_way_comparison = {

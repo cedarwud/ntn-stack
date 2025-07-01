@@ -128,8 +128,8 @@ export const codeSpittingConfig = {
    */
   routes: {
     // 主要頁面
-    dashboard: () => import('../components/dashboard/FourWayHandoverComparisonDashboard'),
-    handoverPerformance: () => import('../components/dashboard/HandoverPerformanceDashboard'),
+    dashboard: () => import('../components/layout/FullChartAnalysisDashboard'),
+    handoverPerformance: () => import('../components/layout/FullChartAnalysisDashboard'),
     
     // 可視化組件
     fourWayComparison: () => import('../components/viewers/FourWayHandoverComparisonViewer'),

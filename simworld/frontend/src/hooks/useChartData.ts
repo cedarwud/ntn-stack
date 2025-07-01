@@ -278,7 +278,7 @@ export const useTimeSyncAccuracyData = () => {
   return { chartData }
 }
 
-// 統一數據管理 Hook
+// 統一數據管理 Hook - 整合版本
 export const useChartDataManager = () => {
   const handoverLatency = useHandoverLatencyData()
   const performanceComparison = usePerformanceComparisonData()
@@ -298,5 +298,18 @@ export const useChartDataManager = () => {
     sixScenarioLatency,
     computationalComplexity,
     timeSyncAccuracy
+  }
+}
+
+// Dashboard 專用簡化版本（向後兼容）
+export const useChartDataManagerSimple = () => {
+  const accessStrategyRadar = useAccessStrategyRadarData()
+  const timeSyncAccuracy = useTimeSyncAccuracyData()
+  const qoeLatency = useQoELatencyData()
+
+  return {
+    accessStrategyRadar,
+    timeSyncAccuracy,
+    qoeLatency,
   }
 }

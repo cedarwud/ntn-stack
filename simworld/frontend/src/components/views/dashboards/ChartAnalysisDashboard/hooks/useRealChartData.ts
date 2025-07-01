@@ -5,8 +5,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ChartData } from 'chart.js'
-import { netStackApi } from '../../../../../services/netstack-api'
-import { satelliteCache } from '../../../../../utils/satellite-cache'
+import { unifiedDataService } from '../../../../../services/unified-data-service'
 
 // 數據來源狀態類型
 export type DataSourceStatus = 'real' | 'calculated' | 'fallback' | 'loading' | 'error'
@@ -68,96 +67,37 @@ export const useRealChartData = (isEnabled: boolean = true) => {
     status: 'loading'
   })
 
-  // API數據獲取函數
+  // API數據獲取函數 - 使用統一數據服務
   const fetchCoreSync = useCallback(async () => {
     if (!isEnabled) return
 
-    try {
-      setCoreSync(prev => ({ ...prev, status: 'loading' }))
-      const syncData = await netStackApi.getCoreSync()
-      
-      setCoreSync({
-        data: syncData,
-        status: 'real',
-        lastUpdate: new Date().toISOString()
-      })
-      
-      console.log('✅ Core sync data fetched successfully')
-      return syncData
-    } catch (error) {
-      console.warn('❌ Failed to fetch core sync data:', error)
-      setCoreSync({
-        data: null,
-        status: 'error',
-        error: 'NetStack Core Sync API 連接失敗',
-        lastUpdate: new Date().toISOString()
-      })
-      return null
-    }
+    setCoreSync(prev => ({ ...prev, status: 'loading' }))
+    
+    const result = await unifiedDataService.getCoreSync()
+    setCoreSync({
+      data: result.data,
+      status: result.status,
+      error: result.error,
+      lastUpdate: result.lastUpdate
+    })
+    
+    return result.data
   }, [isEnabled])
 
   const fetchSatelliteData = useCallback(async () => {
     if (!isEnabled) return
 
-    try {
-      setSatelliteData(prev => ({ ...prev, status: 'loading' }))
-      
-      // 使用衛星快取服務（添加安全檢查）
-      let positions = null
-      if (typeof satelliteCache.getSatellitePositions === 'function') {
-        positions = await satelliteCache.getSatellitePositions()
-      } else {
-        console.warn('satelliteCache.getSatellitePositions method not available, using mock data')
-        // 使用模擬數據
-        positions = {
-          starlink: { delay: 2.7, period: 95.5, altitude: 550 },
-          kuiper: { delay: 3.2, period: 98.2, altitude: 630 }
-        }
-      }
-      
-      if (positions && positions.starlink && positions.kuiper) {
-        const satelliteInfo = {
-          starlink: {
-            delay: positions.starlink.delay || 2.7,
-            period: positions.starlink.period || 95.5,
-            altitude: positions.starlink.altitude || 550
-          },
-          kuiper: {
-            delay: positions.kuiper.delay || 3.2,
-            period: positions.kuiper.period || 98.2,
-            altitude: positions.kuiper.altitude || 630
-          }
-        }
-
-        setSatelliteData({
-          data: satelliteInfo,
-          status: 'real',
-          lastUpdate: new Date().toISOString()
-        })
-        
-        console.log('✅ Satellite data fetched successfully')
-        return satelliteInfo
-      } else {
-        throw new Error('Incomplete satellite data')
-      }
-    } catch (error) {
-      console.warn('❌ Failed to fetch satellite data:', error)
-      
-      // 回退到預設衛星參數
-      const fallbackData = {
-        starlink: { delay: 2.7, period: 95.5, altitude: 550 },
-        kuiper: { delay: 3.2, period: 98.2, altitude: 630 }
-      }
-      
-      setSatelliteData({
-        data: fallbackData,
-        status: 'fallback',
-        error: '衛星數據 API 無法連接，使用預設參數',
-        lastUpdate: new Date().toISOString()
-      })
-      
-      return fallbackData
-    }
+    setSatelliteData(prev => ({ ...prev, status: 'loading' }))
+    
+    const result = await unifiedDataService.getSatelliteData()
+    setSatelliteData({
+      data: result.data,
+      status: result.status,
+      error: result.error,
+      lastUpdate: result.lastUpdate
+    })
+    
+    return result.data
   }, [isEnabled])
 
   const fetchAlgorithmLatencyData = useCallback(async () => {
