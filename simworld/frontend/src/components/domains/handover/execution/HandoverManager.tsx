@@ -65,8 +65,8 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     onCurrentConnectionChange,
     onPredictedConnectionChange,
     onTransitionChange,
-    onAlgorithmResults,
-    speedMultiplier = 60,
+    onAlgorithmResults: _onAlgorithmResults,
+    speedMultiplier: _speedMultiplier = 60,
     handoverStrategy: propStrategy,
 }) => {
     // 🎯 使用全域策略狀態 - 添加錯誤邊界
@@ -164,15 +164,15 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     const [transitionProgress] = useState(0)
 
     // 🚀 演算法結果狀態 - 供統一狀態組件使用
-    const [algorithmPredictionResult, setAlgorithmPredictionResult] =
+    const [algorithmPredictionResult, _setAlgorithmPredictionResult] =
         useState<unknown>(null)
-    const [algorithmRunning, setAlgorithmRunning] = useState(false)
-    const [currentDeltaT, setCurrentDeltaT] = useState<number>(
+    const [algorithmRunning, _setAlgorithmRunning] = useState(false)
+    const [currentDeltaT, _setCurrentDeltaT] = useState<number>(
         HANDOVER_CONFIG.TIMING.DEFAULT_DELTA_T_SECONDS
     )
-    const [realHandoverRequired, setRealHandoverRequired] =
+    const [realHandoverRequired, _setRealHandoverRequired] =
         useState<boolean>(false) // 真實換手需求狀態
-    const [connectionDataSource, setConnectionDataSource] = useState<
+    const [connectionDataSource, _setConnectionDataSource] = useState<
         'simulation' | 'algorithm'
     >('simulation') // 連接數據來源
     const algorithmDataTimeoutRef = useRef<NodeJS.Timeout | null>(null) // 演算法數據超時計時器
@@ -506,8 +506,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
     // 組件卸載時清理計時器
     useEffect(() => {
         return () => {
-            if (algorithmDataTimeoutRef.current) {
-                clearTimeout(algorithmDataTimeoutRef.current)
+            const timeoutId = algorithmDataTimeoutRef.current
+            if (timeoutId) {
+                clearTimeout(timeoutId)
             }
         }
     }, [])
