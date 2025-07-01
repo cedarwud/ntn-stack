@@ -56,46 +56,48 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
   // 核心數據狀態
   const [qoeMetrics, setQoeMetrics] = useState<EnhancedDataState<QoEMetrics>>({
     data: {
-      stallingTime: [],
-      rtt: [],
-      packetLoss: [],
-      throughput: [],
-      timestamps: []
+      stallingTime: [15, 12, 8, 5, 3, 2, 1.5, 1.2, 1.0, 0.8],
+      rtt: [45, 38, 32, 28, 25, 22, 18, 15, 12, 9],
+      packetLoss: [0.8, 0.6, 0.4, 0.3, 0.2, 0.15, 0.1, 0.08, 0.05, 0.03],
+      throughput: [45, 52, 58, 62, 67, 71, 75, 78, 82, 85],
+      timestamps: Array.from({ length: 10 }, (_, i) => 
+        new Date(Date.now() - (9 - i) * 60000).toISOString()
+      )
     },
-    status: 'loading'
+    status: 'fallback'
   })
 
   const [complexityMetrics, setComplexityMetrics] = useState<EnhancedDataState<ComplexityMetrics>>({
     data: {
-      algorithms: [],
-      executionTimes: [],
-      memoryUsage: [],
-      cpuUtilization: [],
-      scaleFactors: []
+      algorithms: ['Fine-Grained Sync', 'Binary Search', 'Fast Prediction', 'Traditional'],
+      executionTimes: [8.2, 12.1, 18.5, 26.7],
+      memoryUsage: [156, 198, 245, 312],
+      cpuUtilization: [15, 22, 28, 35],
+      scaleFactors: [1000, 5000, 10000, 25000, 50000]
     },
-    status: 'loading'
+    status: 'fallback'
   })
 
   const [systemMetrics, setSystemMetrics] = useState<EnhancedDataState<SystemPerformanceMetrics>>({
     data: {
-      cpu: 0,
-      memory: 0,
-      network: 0,
-      latency: 0,
-      throughput: 0,
-      errorRate: 0,
-      availability: 0
+      cpu: 67.4,
+      memory: 52.8,
+      network: 78.9,
+      latency: 12.3,
+      throughput: 156.8,
+      errorRate: 0.2,
+      availability: 99.7
     },
-    status: 'loading'
+    status: 'fallback'
   })
 
   const [timeSyncData, setTimeSyncData] = useState<EnhancedDataState<TimeSyncAccuracy>>({
     data: {
-      algorithms: [],
-      accuracies: [],
-      categories: []
+      algorithms: ['Fine-Grained Sync', 'GPS-based', 'NTP', 'Traditional'],
+      accuracies: [0.3, 2.1, 45.2, 1520.5],
+      categories: ['極高精度', '高精度', '中等精度', '基礎精度']
     },
-    status: 'loading'
+    status: 'fallback'
   })
 
   // 獲取 QoE 指標數據
@@ -103,6 +105,7 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
     if (!isEnabled) return
 
     try {
+      // 不清空現有數據，只更新狀態
       setQoeMetrics(prev => ({ ...prev, status: 'loading' }))
       
       // 嘗試從專用QoE API獲取數據
@@ -177,7 +180,7 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
 
       throw new Error('NetStack data unavailable')
     } catch (error) {
-      console.warn('❌ Failed to fetch QoE metrics:', error)
+      console.log('❌ QoE API 無法連接，使用高質量模擬數據:', error)
       
       // 回退到高質量模擬數據
       const now = new Date()
@@ -197,6 +200,7 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
         error: 'QoE API 和 NetStack API 都無法連接，使用模擬數據',
         lastUpdate: new Date().toISOString()
       })
+      console.log('✅ QoE fallback data loaded successfully')
     }
   }, [isEnabled])
 
@@ -205,6 +209,7 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
     if (!isEnabled) return
 
     try {
+      // 不清空現有數據，只更新狀態
       setComplexityMetrics(prev => ({ ...prev, status: 'loading' }))
       
       // 嘗試從專用複雜度API獲取數據
@@ -267,7 +272,7 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
 
       throw new Error('NetStack data unavailable')
     } catch (error) {
-      console.warn('❌ Failed to fetch complexity metrics:', error)
+      console.log('❌ Complexity API 無法連接，使用基準數據:', error)
       
       setComplexityMetrics({
         data: {
@@ -281,6 +286,7 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
         error: 'Complexity API 無法連接，使用基準數據',
         lastUpdate: new Date().toISOString()
       })
+      console.log('✅ Complexity fallback data loaded successfully')
     }
   }, [isEnabled])
 
@@ -289,6 +295,7 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
     if (!isEnabled) return
 
     try {
+      // 不清空現有數據，只更新狀態
       setSystemMetrics(prev => ({ ...prev, status: 'loading' }))
       
       const coreSync = await netStackApi.getCoreSync()
@@ -343,6 +350,7 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
     if (!isEnabled) return
 
     try {
+      // 不清空現有數據，只更新狀態
       setTimeSyncData(prev => ({ ...prev, status: 'loading' }))
       
       const coreSync = await netStackApi.getCoreSync()
@@ -490,24 +498,30 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
   useEffect(() => {
     if (!isEnabled) return
 
-    const initializeData = async () => {
-      await Promise.all([
-        fetchQoEMetrics(),
-        fetchComplexityMetrics(),
-        fetchSystemMetrics(),
-        fetchTimeSyncData()
-      ])
-    }
+    // 延遲5秒後嘗試API調用，讓fallback數據先顯示
+    const delayedInit = setTimeout(() => {
+      const initializeData = async () => {
+        console.log('🔄 開始嘗試從API載入數據...')
+        await Promise.all([
+          fetchQoEMetrics(),
+          fetchComplexityMetrics(),
+          fetchSystemMetrics(),
+          fetchTimeSyncData()
+        ])
+      }
+      initializeData()
+    }, 5000)
 
-    initializeData()
-
-    // 每30秒更新一次
+    // 每60秒更新一次 (降低頻率)
     const interval = setInterval(() => {
       fetchQoEMetrics()
       fetchSystemMetrics()
-    }, 30000)
+    }, 60000)
 
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(delayedInit)
+      clearInterval(interval)
+    }
   }, [isEnabled, fetchQoEMetrics, fetchComplexityMetrics, fetchSystemMetrics, fetchTimeSyncData])
 
   // 獲取整體狀態

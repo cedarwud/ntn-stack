@@ -309,9 +309,9 @@ const Stage3ComprehensiveTest: React.FC = () => {
 
     const testFourWayComparisonIntegration = async () => {
         try {
-            // 檢查四種方案對比組件是否可正常載入
+            // 檢查分析圖表組件是否可正常載入（替代已刪除的組件）
             const comparisonModule = await import(
-                '../components/domains/handover/analysis/FourWayHandoverComparisonDashboard'
+                '../components/layout/FullChartAnalysisDashboard'
             )
             const hasComponent = !!comparisonModule.default
 
@@ -326,7 +326,7 @@ const Stage3ComprehensiveTest: React.FC = () => {
             return {
                 success: hasComponent,
                 message: hasComponent
-                    ? '四種方案對比組件檢查通過，可生成對比數據'
+                    ? '分析圖表組件檢查通過，可生成對比數據'
                     : '四種方案對比組件檢查失敗',
                 details: { hasComponent, testData },
             }

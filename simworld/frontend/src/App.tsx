@@ -613,7 +613,7 @@ const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
                                             _predictionAccuracyDashboardEnabled={
                                                 predictionAccuracyDashboardEnabled
                                             }
-                                            _onPredictionAccuracyDashboardChange={
+                                            _onChartAnalysisDashboardChange={
                                                 setPredictionAccuracyDashboardEnabled
                                             }
                                             _coreNetworkSyncEnabled={

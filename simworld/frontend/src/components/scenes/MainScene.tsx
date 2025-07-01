@@ -15,8 +15,8 @@ import {
 } from '../../utils/sceneUtils'
 import InterferenceOverlay from '../domains/interference/detection/InterferenceOverlay'
 import SINRHeatmap from '../domains/interference/detection/SINRHeatmap'
-import AIRANVisualization from '../domains/interference/mitigation/AIRANVisualization'
-import Sionna3DVisualization from '../domains/simulation/sionna/Sionna3DVisualization'
+// import AIRANVisualization from '../domains/interference/mitigation/AIRANVisualization' // 已移除未使用的組件
+// import Sionna3DVisualization from '../domains/simulation/sionna/Sionna3DVisualization' // 已移除未使用的組件
 import RealTimeMetrics from './visualization/RealTimeMetrics'
 import InterferenceAnalytics from '../domains/interference/analysis/InterferenceAnalytics'
 import UAVSwarmCoordination from '../domains/simulation/coordination/UAVSwarmCoordination'
@@ -368,14 +368,24 @@ const MainScene: React.FC<MainSceneProps> = ({
                 enabled={interferenceVisualizationEnabled}
             />
             <SINRHeatmap devices={devices} enabled={sinrHeatmapEnabled} />
-            <AIRANVisualization
+            {/* <AIRANVisualization
                 devices={devices}
                 enabled={aiRanVisualizationEnabled}
-            />
-            <Sionna3DVisualization
+            /> */}
+            {aiRanVisualizationEnabled && (
+                <div className="ai-ran-placeholder">
+                    <p>AI-RAN 可視化組件已移除，功能已整合至統一分析圖表</p>
+                </div>
+            )}
+            {/* <Sionna3DVisualization
                 devices={devices}
                 enabled={sionna3DVisualizationEnabled}
-            />
+            /> */}
+            {sionna3DVisualizationEnabled && (
+                <div className="sionna-placeholder">
+                    <p>Sionna 3D 可視化組件已移除，功能已整合至統一分析圖表</p>
+                </div>
+            )}
             <RealTimeMetrics
                 devices={devices}
                 enabled={realTimeMetricsEnabled}

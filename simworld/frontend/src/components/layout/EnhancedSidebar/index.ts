@@ -4,7 +4,6 @@
 
 // 主組件
 export { default as EnhancedSidebar } from '../EnhancedSidebar'
-export { default as EnhancedSidebarRefactored } from './EnhancedSidebar.refactored'
 
 // 子組件
 export { default as FeatureToggleSection } from './components/FeatureToggleSection'
