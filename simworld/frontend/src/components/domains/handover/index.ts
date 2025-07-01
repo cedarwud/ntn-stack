@@ -6,17 +6,11 @@ export { default as UnifiedHandoverStatus } from './execution/UnifiedHandoverSta
 export { default as HandoverAnimation3D } from './execution/HandoverAnimation3D';
 
 // Prediction
-export { default as HandoverPredictionVisualization } from './prediction/HandoverPredictionVisualization';
 export { default as TimePredictionTimeline } from './prediction/TimePredictionTimeline';
-export { default as PredictionAccuracyDashboard } from './prediction/PredictionAccuracyDashboard';
 
-// Analysis
-export { default as HandoverComparisonDashboard } from './analysis/HandoverComparisonDashboard';
-export { default as HandoverPerformanceDashboard } from './analysis/HandoverPerformanceDashboard';
-export { default as FourWayHandoverComparisonDashboard } from './analysis/FourWayHandoverComparisonDashboard';
+// Analysis - 已移除未使用的Dashboard組件，改用統一的FullChartAnalysisDashboard
 
-// Synchronization
-export { default as SynchronizedAlgorithmVisualization } from './synchronization/SynchronizedAlgorithmVisualization';
+// Synchronization - 已移除未使用的Visualization組件
 
 // Config and Utils
 export * from './config/handoverConfig';

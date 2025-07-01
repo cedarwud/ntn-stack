@@ -10,7 +10,7 @@ export { ChartDataService } from './services/chartDataService';
 export { useChartAnalysisData } from './hooks/useChartAnalysisData';
 
 // Configuration
-export { initializeChartSystem, commonChartOptions, chartColors } from './config/chartConfig';
+export { initializeChartSystem, commonChartOptions, chartColors } from '../../../../config/chartConfig';
 
 // Types
 export type * from './types/index';

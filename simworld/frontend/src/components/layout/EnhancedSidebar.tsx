@@ -71,7 +71,7 @@ interface SidebarProps {
     predictionPath3DEnabled?: boolean
     onPredictionPath3DChange?: (enabled: boolean) => void
     _predictionAccuracyDashboardEnabled?: boolean
-    _onPredictionAccuracyDashboardChange?: (enabled: boolean) => void
+    _onChartAnalysisDashboardChange?: (enabled: boolean) => void
     _coreNetworkSyncEnabled?: boolean
     _onCoreNetworkSyncChange?: (enabled: boolean) => void
 
@@ -362,7 +362,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     satelliteUavConnectionEnabled = false,
     onSatelliteUavConnectionChange,
     _predictionAccuracyDashboardEnabled = false,
-    _onPredictionAccuracyDashboardChange,
+    _onChartAnalysisDashboardChange,
     _coreNetworkSyncEnabled = false,
     _onCoreNetworkSyncChange,
     // Stage 3 功能 props (未使用但保留用於未來功能)
@@ -402,7 +402,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 
     // 標記未使用但保留的props為已消費（避免TypeScript警告）
     void _predictionAccuracyDashboardEnabled
-    void _onPredictionAccuracyDashboardChange
+    void _onChartAnalysisDashboardChange
     void _coreNetworkSyncEnabled
     void _onCoreNetworkSyncChange
     void _realtimePerformanceMonitorEnabled

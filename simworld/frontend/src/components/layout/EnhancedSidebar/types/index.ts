@@ -62,7 +62,7 @@ export interface EnhancedSidebarProps {
   predictionPath3DEnabled?: boolean
   onPredictionPath3DChange?: (enabled: boolean) => void
   _predictionAccuracyDashboardEnabled?: boolean
-  _onPredictionAccuracyDashboardChange?: (enabled: boolean) => void
+  _onChartAnalysisDashboardChange?: (enabled: boolean) => void
   _coreNetworkSyncEnabled?: boolean
   _onCoreNetworkSyncChange?: (enabled: boolean) => void
 

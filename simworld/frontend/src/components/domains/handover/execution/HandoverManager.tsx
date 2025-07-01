@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useStrategy } from '../../../../hooks/useStrategy'
 import { HandoverStrategy } from '../../../../contexts/StrategyContext'
 import TimePredictionTimeline from '../prediction/TimePredictionTimeline'
-import SynchronizedAlgorithmVisualization from '../synchronization/SynchronizedAlgorithmVisualization'
+// import SynchronizedAlgorithmVisualization from '../synchronization/SynchronizedAlgorithmVisualization' // 已移除未使用的組件
 import UnifiedHandoverStatus from './UnifiedHandoverStatus'
 import {
     HandoverState,
@@ -649,14 +649,18 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                         <span className="summary-indicator">▼</span>
                     </summary>
                     <div className="algorithm-content">
-                        <SynchronizedAlgorithmVisualization
+                        {/* <SynchronizedAlgorithmVisualization
                             satellites={satellites}
                             selectedUEId={selectedUEId}
                             isEnabled={isEnabled} // 🔧 重新啟用，使用 useRef 避免依賴循環
                             speedMultiplier={speedMultiplier}
                             onAlgorithmStep={() => {
                                 // 處理算法步驟事件
-                            }}
+                            }} */}
+                        <div className="algorithm-placeholder">
+                            <p>同步算法可視化組件已移除，改用統一的分析圖表系統</p>
+                        </div>
+                        {/* 原本的 onAlgorithmResults 回調處理已移除
                             onAlgorithmResults={(results) => {
                                 // 更新統一狀態組件的資料
                                 setAlgorithmRunning(
@@ -763,8 +767,8 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
                                 }
 
                                 onAlgorithmResults?.(results)
-                            }}
-                        />
+                            }} */}
+                        {/* 原組件已移除 */}
                     </div>
                 </details>
 

@@ -6,7 +6,7 @@ import Starfield from '../shared/ui/effects/Starfield'
 import MainScene from './MainScene'
 import { Device } from '../../types/device'
 import { SINRLegend } from '../domains/interference/detection/SINRHeatmap'
-import PredictionAccuracyDashboard from '../domains/handover/prediction/PredictionAccuracyDashboard'
+import FullChartAnalysisDashboard from '../layout/FullChartAnalysisDashboard'
 import PredictiveMaintenanceViewer from '../domains/analytics/performance/PredictiveMaintenanceViewer'
 import IntelligentRecommendationSystem from '../domains/analytics/ai/IntelligentRecommendationSystem'
 import CoreNetworkSyncViewer from '../domains/monitoring/realtime/CoreNetworkSyncViewer'
@@ -203,7 +203,7 @@ export default function SceneView({
             
             {/* 添加預測精度儀表板 - 作為HTML覆蓋層 */}
             {predictionAccuracyDashboardEnabled && (
-                <PredictionAccuracyDashboard isEnabled={predictionAccuracyDashboardEnabled} />
+                <FullChartAnalysisDashboard isOpen={predictionAccuracyDashboardEnabled} onClose={() => {}} />
             )}
             
             {/* 添加核心網路同步監控 - 作為HTML覆蓋層 */}
