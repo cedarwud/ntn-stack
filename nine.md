@@ -308,8 +308,77 @@
 - ✅ 時間同步精度技術對比圖表維持正常顯示
 - ✅ Build成功，無語法錯誤
 
+### ✅ RL監控重構後錯誤修復 (2025-07-01)
+**問題描述**: 階段二重構後，RL監控頁面出現 `Cannot read properties of undefined (reading 'length')` 錯誤
+
+**根本原因分析**:
+1. **數據結構不匹配**: `policyLossData` 初始化缺少 `dqnLoss` 和 `ppoLoss` 屬性
+2. **初始化函數不完整**: `createInitialRLData()` 只提供基本結構，未涵蓋所有需要的屬性
+3. **重構時遺漏**: 抽取RL邏輯時未充分考慮數據結構的完整性
+
+**修復方案**:
+- ✅ 建立專用的 `createInitialPolicyLossData()` 函數
+- ✅ 更新Hook使用正確的初始化函數
+- ✅ 確保所有數據屬性都有正確的初始值
+
+**修復文件**:
+- `src/utils/mockDataGenerator.ts` - 新增 `createInitialPolicyLossData()`
+- `src/components/views/dashboards/ChartAnalysisDashboard/hooks/useRLMonitoring.ts` - 更新初始化邏輯
+
+**修復結果**:
+- ✅ RL監控頁面錯誤消除
+- ✅ 數據結構完整性確保
+- ✅ Build成功，無語法錯誤
+- ✅ 重構邏輯驗證正確
+
+### ✅ RL監控DQN/PPO引擎無反應問題修復 (2025-07-01)
+**問題描述**: 重構後DQN Engine和PPO Engine按鈕開始訓練後沒有反應，訓練數據不更新
+
+**根本原因分析**:
+1. **事件參數不匹配**: Hook期望 `{ algorithm: 'dqn', ... }` 但 `GymnasiumRLMonitor` 發送 `{ engine: 'dqn', ... }`
+2. **數據字段映射錯誤**: Hook使用 `metrics.episode` 但實際數據為 `metrics.episodes_completed`
+3. **事件監聽遺漏**: 缺少 `rlTrainingStopped` 事件的處理
+
+**修復方案**:
+- ✅ 更正事件參數從 `algorithm` 改為 `engine`
+- ✅ 更新數據字段映射 (`episodes_completed`, `training_progress` 等)
+- ✅ 新增 `rlTrainingStopped` 事件監聽
+- ✅ 保持原有的訓練指標計算邏輯
+
+**修復文件**:
+- `src/components/views/dashboards/ChartAnalysisDashboard/hooks/useRLMonitoring.ts` - 修復事件處理邏輯
+
+**修復結果**:
+- ✅ DQN/PPO訓練按鈕功能恢復
+- ✅ 訓練數據即時更新顯示
+- ✅ 獎勵趨勢圖表正常工作
+- ✅ 策略損失圖表正常工作
+- ✅ Build成功，Console有正確的調試信息
+
+### ✅ 分頁內容映射錯誤修復 (2025-07-01)
+**問題描述**: "深度分析"和"即時策略效果"兩個分頁顯示相同內容
+
+**根本原因分析**:
+1. **映射錯誤**: 兩個分頁都映射到 `IntegratedAnalysisTabContent` 組件
+2. **缺少Import**: 專用的 `StrategyTabContent` 組件存在但未被import
+3. **Switch語句錯誤**: `case 'strategy'` 使用了錯誤的組件
+
+**修復方案**:
+- ✅ 添加 `StrategyTabContent` 組件的import
+- ✅ 修正 `case 'strategy'` 映射到正確的組件
+- ✅ 保持 `case 'analysis'` 映射到 `IntegratedAnalysisTabContent`
+
+**修復文件**:
+- `src/components/layout/FullChartAnalysisDashboard.tsx` - 添加import和修正case映射
+
+**修復結果**:
+- ✅ "深度分析"分頁：顯示綜合分析內容
+- ✅ "即時策略效果"分頁：顯示策略性能六維對比分析、多場景驗證結果、長期性能趨勢
+- ✅ 兩個分頁內容完全不同且各有特色
+- ✅ Build成功，無import錯誤
+
 ---
 
-*最後更新時間: 2025-01-01 (階段一完成 + 緊急修復完成)*
+*最後更新時間: 2025-07-01 (階段二部分完成 + RL監控錯誤修復)*
 *負責人: Claude Code Assistant*
 *預計完成時間: 1-2週*
