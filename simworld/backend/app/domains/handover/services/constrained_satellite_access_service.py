@@ -91,7 +91,7 @@ class ConstrainedSatelliteAccessService:
         return [
             SatelliteConstraint(
                 constraint_type=SatelliteConstraintType.ELEVATION_MIN,
-                threshold_value=10.0,  # 最小仰角 10 度
+                threshold_value=-5.0,  # 最小仰角 -5 度 (全球視野模式)
                 weight=0.9,
                 is_hard_constraint=True,
                 description="最小仰角約束，確保良好的信號接收",
