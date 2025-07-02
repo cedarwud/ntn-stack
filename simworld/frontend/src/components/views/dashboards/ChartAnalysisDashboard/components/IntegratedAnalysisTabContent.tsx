@@ -135,7 +135,7 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
   }, [processedSignalData])
 
   // 使用Service處理策略對比數據
-  const processedStrategyData = useMemo(() => {
+  const _processedStrategyData = useMemo(() => {
     return ChartDataProcessingService.processStrategyComparison(strategyMetrics, sixScenarioChartData.data)
   }, [strategyMetrics, sixScenarioChartData])
 

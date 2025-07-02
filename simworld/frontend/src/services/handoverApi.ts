@@ -4,6 +4,7 @@
  */
 
 import api from './api'
+import { ErrorHandlingService } from './ErrorHandlingService'
 
 // API 請求/響應類型定義
 export interface SatelliteSelectionRequest {
@@ -138,8 +139,12 @@ export class HandoverAPIService {
       const response = await api.post('/handover/constrained-access/select-satellite', request)
       return response.data
     } catch (error) {
-      console.error('衛星選擇 API 錯誤:', error)
-      throw error
+      return ErrorHandlingService.handleApiError(error, {
+        component: 'HandoverApi',
+        operation: '衛星選擇',
+        endpoint: '/handover/constrained-access/select-satellite',
+        method: 'POST'
+      }, { shouldThrow: true }) as SatelliteSelectionResponse
     }
   }
 
