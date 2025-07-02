@@ -379,6 +379,14 @@ const Navbar: FC<NavbarProps> = ({
                         >
                             📈 圖表分析
                         </li>
+
+                        {/* 3GPP 測量事件按鈕 */}
+                        <li
+                            className="navbar-item"
+                            onClick={() => navigate('/measurement-events')}
+                        >
+                            📡 換手事件
+                        </li>
                     </ul>
                 </div>
             </nav>
