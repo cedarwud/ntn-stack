@@ -5,7 +5,6 @@ import './styles/index.scss'
 import App from './App.tsx'
 import Stage3ComprehensiveTest from './test/stage3-comprehensive-test.tsx'
 import Stage3ExecutionTest from './test/stage3-execution-test.tsx'
-import MeasurementEventsPage from './pages/MeasurementEventsPage.tsx'
 import axios from 'axios'
 
 // 導入性能監控器（自動啟動）
@@ -167,11 +166,6 @@ createRoot(document.getElementById('root')!).render(
                     element={<Stage3ExecutionTest />}
                 />
 
-                {/* 3GPP TS 38.331 測量事件圖表 */}
-                <Route
-                    path="/measurement-events"
-                    element={<MeasurementEventsPage />}
-                />
 
                 {/* 404 重定向到預設場景 */}
                 <Route

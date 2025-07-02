@@ -6,8 +6,10 @@ import SINRViewer from '../domains/interference/detection/SINRViewer'
 import CFRViewer from '../domains/simulation/wireless/CFRViewer'
 import DelayDopplerViewer from '../domains/simulation/wireless/DelayDopplerViewer'
 import TimeFrequencyViewer from '../domains/simulation/wireless/TimeFrequencyViewer'
+import EventA4Viewer from '../domains/measurement/charts/EventA4Viewer'
 import ViewerModal from '../shared/ui/layout/ViewerModal'
 import FullChartAnalysisDashboard from './FullChartAnalysisDashboard'
+import MeasurementEventsModal from './MeasurementEventsModal'
 import { ViewerProps } from '../../types/viewer'
 import {
     SCENE_DISPLAY_NAMES,
@@ -53,12 +55,16 @@ const Navbar: FC<NavbarProps> = ({
 
     // 新增 Chart Analysis Modal 狀態
     const [showChartAnalysisModal, setShowChartAnalysisModal] = useState(false)
+    
+    // 新增 Measurement Events Modal 狀態
+    const [showMeasurementEventsModal, setShowMeasurementEventsModal] = useState(false)
 
     // States for modal visibility
     const [showSINRModal, setShowSINRModal] = useState(false)
     const [showCFRModal, setShowCFRModal] = useState(false)
     const [showDelayDopplerModal, setShowDelayDopplerModal] = useState(false)
     const [showTimeFrequencyModal, setShowTimeFrequencyModal] = useState(false)
+    const [showEventA4Modal, setShowEventA4Modal] = useState(false)
     // States for last update times
     const [sinrModalLastUpdate, setSinrModalLastUpdate] = useState<string>('')
     const [cfrModalLastUpdate, setCfrModalLastUpdate] = useState<string>('')
@@ -66,11 +72,13 @@ const Navbar: FC<NavbarProps> = ({
         useState<string>('')
     const [timeFrequencyModalLastUpdate, setTimeFrequencyModalLastUpdate] =
         useState<string>('')
+    const [eventA4ModalLastUpdate, setEventA4ModalLastUpdate] = useState<string>('')
     // Refs for refresh handlers
     const sinrRefreshHandlerRef = useRef<(() => void) | null>(null)
     const cfrRefreshHandlerRef = useRef<(() => void) | null>(null)
     const delayDopplerRefreshHandlerRef = useRef<(() => void) | null>(null)
     const timeFrequencyRefreshHandlerRef = useRef<(() => void) | null>(null)
+    const eventA4RefreshHandlerRef = useRef<(() => void) | null>(null)
     // States for loading status for header titles
     const [sinrIsLoadingForHeader, setSinrIsLoadingForHeader] =
         useState<boolean>(true)
@@ -82,6 +90,8 @@ const Navbar: FC<NavbarProps> = ({
         timeFrequencyIsLoadingForHeader,
         setTimeFrequencyIsLoadingForHeader,
     ] = useState<boolean>(true)
+    const [eventA4IsLoadingForHeader, setEventA4IsLoadingForHeader] =
+        useState<boolean>(true)
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen)
     }
@@ -179,6 +189,24 @@ const Navbar: FC<NavbarProps> = ({
             refreshHandlerRef: timeFrequencyRefreshHandlerRef,
             ViewerComponent: TimeFrequencyViewer,
         },
+        {
+            id: 'eventA4',
+            menuText: '📡 Event A4',
+            titleConfig: {
+                base: '3GPP Event A4 - Neighbour becomes better than threshold',
+                loading: '正在載入 Event A4 RSRP 測量數據...',
+                hoverRefresh: '重新載入 RSRP 數據',
+            },
+            isOpen: showEventA4Modal,
+            openModal: () => setShowEventA4Modal(true),
+            closeModal: () => setShowEventA4Modal(false),
+            lastUpdate: eventA4ModalLastUpdate,
+            setLastUpdate: setEventA4ModalLastUpdate,
+            isLoading: eventA4IsLoadingForHeader,
+            setIsLoading: setEventA4IsLoadingForHeader,
+            refreshHandlerRef: eventA4RefreshHandlerRef,
+            ViewerComponent: EventA4Viewer,
+        },
     ]
 
     const [dropdownPosition, setDropdownPosition] = useState<{ left: number }>({
@@ -243,7 +271,7 @@ const Navbar: FC<NavbarProps> = ({
     // 檢查是否有任何圖表模態框打開
     const hasActiveChart = modalConfigs.some(
         (config) =>
-            ['sinr', 'cfr', 'delayDoppler', 'timeFrequency'].includes(
+            ['sinr', 'cfr', 'delayDoppler', 'timeFrequency', 'eventA4'].includes(
                 config.id
             ) && config.isOpen
     )
@@ -329,6 +357,7 @@ const Navbar: FC<NavbarProps> = ({
                                             'cfr',
                                             'delayDoppler',
                                             'timeFrequency',
+                                            'eventA4',
                                         ].includes(config.id)
                                     )
                                     .map((config) => (
@@ -382,11 +411,14 @@ const Navbar: FC<NavbarProps> = ({
 
                         {/* 3GPP 測量事件按鈕 */}
                         <li
-                            className="navbar-item"
-                            onClick={() => navigate('/measurement-events')}
+                            className={`navbar-item ${
+                                showMeasurementEventsModal ? 'active' : ''
+                            }`}
+                            onClick={() => setShowMeasurementEventsModal(true)}
                         >
                             📡 換手事件
                         </li>
+
                     </ul>
                 </div>
             </nav>
@@ -424,6 +456,12 @@ const Navbar: FC<NavbarProps> = ({
             <FullChartAnalysisDashboard
                 isOpen={showChartAnalysisModal}
                 onClose={() => setShowChartAnalysisModal(false)}
+            />
+
+            {/* 測量事件模態框 */}
+            <MeasurementEventsModal
+                isOpen={showMeasurementEventsModal}
+                onClose={() => setShowMeasurementEventsModal(false)}
             />
         </>
     )

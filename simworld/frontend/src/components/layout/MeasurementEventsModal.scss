@@ -1,0 +1,78 @@
+/**
+ * Measurement Events Modal Styles
+ * 測量事件模態框樣式，包含 Tab 選擇器和圖表顯示
+ */
+
+.measurement-events-viewer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: white;
+  overflow: hidden;
+  
+  .event-chart-container {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    
+    .coming-soon-placeholder {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      text-align: center;
+      padding: 40px;
+      
+      h3 {
+        font-size: 24px;
+        color: #e74c3c;
+        margin-bottom: 16px;
+      }
+      
+      p {
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 20px;
+      }
+      
+      .formula-preview {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 16px;
+        border-radius: 8px;
+        border-left: 3px solid #e74c3c;
+        
+        p {
+          margin: 0;
+          font-family: monospace;
+          font-size: 14px;
+          
+          strong {
+            color: #e74c3c;
+          }
+        }
+      }
+    }
+  }
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .measurement-events-viewer {    
+    .event-chart-container {
+      .coming-soon-placeholder {
+        padding: 20px;
+        
+        h3 {
+          font-size: 20px;
+        }
+        
+        p {
+          font-size: 14px;
+        }
+      }
+    }
+  }
+}
