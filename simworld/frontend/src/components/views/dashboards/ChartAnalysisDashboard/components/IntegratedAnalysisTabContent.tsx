@@ -8,35 +8,22 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Bar, Line, Radar } from 'react-chartjs-2'
 import { useRealChartData } from '../hooks/useRealChartData'
 import { useStrategy } from '../../../../../hooks/useStrategy'
-import { netStackApi } from '../../../../../services/netstack-api'
+import { useSignalAnalysisData } from '../hooks/useSignalAnalysisData'
+import { ChartDataProcessingService } from '../../../../../services/ChartDataProcessingService'
 
-interface SignalAnalysisMetrics {
-  sinrQuality: number[]
-  cfrMagnitude: number[]
-  delaySpread: number[]
-  dopplerShift: number[]
-}
-
-interface StrategyEffectMetrics {
-  handoverLatency: number[]
-  successRate: number[]
-  energyEfficiency: number[]
-  systemLoad: number[]
-}
-
-interface RealTimeSignalData {
-  timeLabels: string[]
-  signalStrength: number[]
-  interferenceLevel: number[]
-  channelQuality: number[]
-}
+// 移除重複的interface定義，改用Hook中的類型
 
 export const IntegratedAnalysisTabContent: React.FC = () => {
-  const [signalMetrics, setSignalMetrics] = useState<SignalAnalysisMetrics | null>(null)
-  const [strategyMetrics, setStrategyMetrics] = useState<StrategyEffectMetrics | null>(null)
-  const [realTimeSignal, setRealTimeSignal] = useState<RealTimeSignalData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [lastUpdate, setLastUpdate] = useState<string>('')
+  // 使用專用Hook處理信號分析數據，移除直接API調用
+  const {
+    signalMetrics,
+    strategyMetrics,
+    realTimeSignal,
+    loading,
+    lastUpdate,
+    refreshData: _refreshData,
+    fetchStrategyEffectData
+  } = useSignalAnalysisData() as ReturnType<typeof useSignalAnalysisData> & { fetchStrategyEffectData: (data?: unknown) => void }
   
   // 策略歷史數據（仿照完整圖表）
   const [strategyHistoryData, setStrategyHistoryData] = useState({
@@ -85,213 +72,58 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
     }
   }
 
-  // 獲取真實信號分析數據（模擬navbar中的信號分析功能）
-  const fetchRealSignalAnalysisData = useCallback(async () => {
-    try {
-      const coreSync = await netStackApi.getCoreSync()
+  // 移除舊的API調用函數，改用Hook提供的數據
 
-      if (coreSync && coreSync.component_states) {
-        const components = Object.values(coreSync.component_states)
-        
-        // 基於真實NetStack數據計算信號分析指標
-        const avgLatency = components.reduce((sum, comp: Record<string, unknown>) => 
-          sum + ((comp?.latency_ms as number) || 25), 0) / components.length
-        const avgThroughput = components.reduce((sum, comp: Record<string, unknown>) => 
-          sum + ((comp?.throughput_mbps as number) || 100), 0) / components.length
-        const avgErrorRate = components.reduce((sum, comp: Record<string, unknown>) => 
-          sum + ((comp?.error_rate as number) || 0.01), 0) / components.length
+  // 使用Hook提供的fetchStrategyEffectData函數計算策略效果
 
-        // SINR品質（信號與干擾雜訊比）
-        const sinrQuality = Array.from({length: 8}, (_, i) => {
-          const baseQuality = Math.max(15, 35 - avgLatency * 0.5)
-          const variation = Math.sin((i / 8) * 2 * Math.PI) * 3
-          return Math.round((baseQuality + variation) * 10) / 10
-        })
-
-        // CFR幅度（通道頻率響應）
-        const cfrMagnitude = Array.from({length: 8}, (_, i) => {
-          const baseMagnitude = Math.min(0.95, 0.8 + (avgThroughput / 150))
-          const variation = Math.cos((i / 8) * 2 * Math.PI) * 0.1
-          return Math.round((baseMagnitude + variation) * 100) / 100
-        })
-
-        // 延遲擴散
-        const delaySpread = Array.from({length: 8}, () => {
-          const baseSpread = Math.max(0.5, avgLatency * 0.03)
-          const variation = (Math.random() - 0.5) * 0.2
-          return Math.round((baseSpread + variation) * 100) / 100
-        })
-
-        // 多普勒偏移
-        const dopplerShift = Array.from({length: 8}, (_, i) => {
-          const baseShift = Math.max(5, 15 - (avgThroughput / 10))
-          const variation = Math.sin((i / 8) * 3 * Math.PI) * 2
-          return Math.round(baseShift + variation)
-        })
-
-        setSignalMetrics({
-          sinrQuality,
-          cfrMagnitude,
-          delaySpread,
-          dopplerShift
-        })
-
-        // 即時信號數據（24小時）
-        const realTimeData: RealTimeSignalData = {
-          timeLabels: Array.from({length: 24}, (_, i) => `${i}:00`),
-          signalStrength: Array.from({length: 24}, (_, i) => {
-            const baseStrength = 85 + (avgThroughput / 10)
-            const timeVariation = Math.sin((i / 24) * 2 * Math.PI) * 8
-            const randomNoise = (Math.random() - 0.5) * 3
-            return Math.max(70, Math.round(baseStrength + timeVariation + randomNoise))
-          }),
-          interferenceLevel: Array.from({length: 24}, (_, i) => {
-            const baseInterference = Math.max(5, avgErrorRate * 1000)
-            const timeVariation = Math.cos((i / 24) * 2 * Math.PI) * 3
-            const randomNoise = (Math.random() - 0.5) * 2
-            return Math.max(2, Math.round(baseInterference + timeVariation + randomNoise))
-          }),
-          channelQuality: Array.from({length: 24}, (_, i) => {
-            const baseQuality = Math.min(98, 90 + (avgThroughput / 20))
-            const timeVariation = Math.sin((i / 24) * 4 * Math.PI) * 4
-            const randomNoise = (Math.random() - 0.5) * 2
-            return Math.max(80, Math.round(baseQuality + timeVariation + randomNoise))
-          })
-        }
-
-        setRealTimeSignal(realTimeData)
-        console.log('✅ Signal analysis data updated from NetStack')
-      }
-
-    } catch (error) {
-      console.warn('Failed to fetch signal analysis data:', error)
-    }
-  }, [])
-
-  // 獲取策略效果數據（基於真實API）
-  const fetchStrategyEffectData = useCallback(async () => {
-    try {
-      // 基於真實handover數據計算策略效果
-
-      // 從useRealChartData獲取的真實數據中提取策略效果
-      if (handoverLatencyData?.data?.datasets) {
-        const datasets = handoverLatencyData.data.datasets
-        
-        // 計算各算法的策略效果指標
-        const ntnStandard = datasets[0]?.data || [45, 89, 67, 124, 78]
-        const ntnGs = datasets[1]?.data || [32, 56, 45, 67, 34]
-        const ntnSmn = datasets[2]?.data || [28, 52, 48, 71, 39]
-        const proposed = datasets[3]?.data || [8, 12, 15, 18, 9]
-
-        // 策略效果指標計算
-        const handoverLatency = [
-          ntnStandard.reduce((a, b) => a + b, 0) / ntnStandard.length,
-          ntnGs.reduce((a, b) => a + b, 0) / ntnGs.length,
-          ntnSmn.reduce((a, b) => a + b, 0) / ntnSmn.length,
-          proposed.reduce((a, b) => a + b, 0) / proposed.length
-        ]
-
-        // 成功率（基於延遲反比計算）
-        const successRate = handoverLatency.map(latency => 
-          Math.min(99.8, Math.max(90, 100 - (latency - 10) * 0.1))
-        )
-
-        // 能效比（延遲越低能效越高）
-        const energyEfficiency = handoverLatency.map(latency => 
-          Math.min(95, Math.max(60, 100 - (latency - 8) * 0.8))
-        )
-
-        // 系統負載（延遲越低負載越小）
-        const systemLoad = handoverLatency.map(latency => 
-          Math.min(90, Math.max(20, latency * 1.2))
-        )
-
-        setStrategyMetrics({
-          handoverLatency,
-          successRate,
-          energyEfficiency,
-          systemLoad
-        })
-      }
-
-      setLastUpdate(new Date().toLocaleString())
-    } catch (error) {
-      console.warn('Failed to fetch strategy effect data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [handoverLatencyData])
-
-  // 生成策略歷史數據（仿照完整圖表）
+  // 使用Service生成策略歷史數據
   const generateStrategyHistoryData = useCallback(() => {
-    const labels = []
-    const flexibleData = []
-    const consistentData = []
-    
-    // 生成過去30分鐘的數據點
-    for (let i = 29; i >= 0; i--) {
-      const time = new Date()
-      time.setMinutes(time.getMinutes() - i)
-      labels.push(time.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }))
-      
-      // 基於真實策略指標生成歷史趨勢
-      const flexibleBase = liveStrategyMetrics ? liveStrategyMetrics.flexible.averageLatency : 28.5
-      const consistentBase = liveStrategyMetrics ? liveStrategyMetrics.consistent.averageLatency : 18.2
-      
-      // 添加隨機變化模擬歷史波動
-      const flexibleVariation = (Math.random() - 0.5) * 4
-      const consistentVariation = (Math.random() - 0.5) * 3
-      
-      flexibleData.push(Math.max(20, flexibleBase + flexibleVariation))
-      consistentData.push(Math.max(15, consistentBase + consistentVariation))
-    }
-    
-    setStrategyHistoryData({
-      labels,
-      flexible: flexibleData,
-      consistent: consistentData
-    })
+    const historyData = ChartDataProcessingService.generateStrategyHistoryData(liveStrategyMetrics)
+    setStrategyHistoryData(historyData)
   }, [liveStrategyMetrics])
 
-  // 初始化和定期更新
+  // 處理策略效果數據計算（當handover數據更新時）
   useEffect(() => {
-    const initializeData = async () => {
-      await Promise.all([
-        fetchRealSignalAnalysisData(),
-        fetchStrategyEffectData()
-      ])
-      generateStrategyHistoryData()
+    if (handoverLatencyData) {
+      fetchStrategyEffectData(handoverLatencyData)
     }
+  }, [handoverLatencyData, fetchStrategyEffectData])
 
-    initializeData()
-
-    // 每60秒更新一次信號數據
-    const signalInterval = setInterval(fetchRealSignalAnalysisData, 60000)
+  // 定期更新策略歷史數據
+  useEffect(() => {
+    // 初始化策略歷史數據
+    generateStrategyHistoryData()
+    
     // 每5秒更新一次策略歷史數據
     const historyInterval = setInterval(generateStrategyHistoryData, 5000)
     
     return () => {
-      clearInterval(signalInterval)
       clearInterval(historyInterval)
     }
-  }, [fetchRealSignalAnalysisData, fetchStrategyEffectData, generateStrategyHistoryData])
+  }, [generateStrategyHistoryData])
+
+  // 使用Service處理信號分析數據
+  const processedSignalData = useMemo(() => {
+    return ChartDataProcessingService.processSignalAnalysis(signalMetrics, realTimeSignal)
+  }, [signalMetrics, realTimeSignal])
 
   // 信號分析雷達圖數據
   const signalAnalysisRadarData = useMemo(() => {
-    if (!signalMetrics) return null
+    if (!processedSignalData) return null
 
+    const { radarData } = processedSignalData
     return {
       labels: ['SINR品質', 'CFR響應', '延遲擴散', '多普勒偏移', '通道穩定性', '信號純度'],
       datasets: [
         {
           label: '當前信號狀態',
           data: [
-            Math.round(signalMetrics.sinrQuality.reduce((a, b) => a + b, 0) / signalMetrics.sinrQuality.length),
-            Math.round(signalMetrics.cfrMagnitude.reduce((a, b) => a + b, 0) / signalMetrics.cfrMagnitude.length * 100),
-            Math.max(0, 100 - signalMetrics.delaySpread.reduce((a, b) => a + b, 0) / signalMetrics.delaySpread.length * 20),
-            Math.max(0, 100 - signalMetrics.dopplerShift.reduce((a, b) => a + b, 0) / signalMetrics.dopplerShift.length * 3),
-            Math.round(90 + (Math.random() - 0.5) * 10), // 通道穩定性
-            Math.round(85 + (Math.random() - 0.5) * 15)  // 信號純度
+            radarData.sinrQuality,
+            radarData.cfrResponse,
+            radarData.delaySpread,
+            radarData.dopplerShift,
+            radarData.channelStability,
+            radarData.signalPurity
           ],
           backgroundColor: 'rgba(34, 197, 94, 0.2)',
           borderColor: 'rgba(34, 197, 94, 1)',
@@ -300,7 +132,12 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
         }
       ]
     }
-  }, [signalMetrics])
+  }, [processedSignalData])
+
+  // 使用Service處理策略對比數據
+  const processedStrategyData = useMemo(() => {
+    return ChartDataProcessingService.processStrategyComparison(strategyMetrics, sixScenarioChartData.data)
+  }, [strategyMetrics, sixScenarioChartData])
 
   // 策略效果對比數據
   const strategyComparisonData = useMemo(() => {
@@ -760,10 +597,7 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
             }
           }} />
           <div className="chart-insight">
-            <strong>信號分析：</strong>基於NetStack實測數據，整合navbar中SINR映射、CFR響應、
-            Delay-Doppler分析結果。當前信號強度{realTimeSignal ? Math.round(realTimeSignal.signalStrength.reduce((a,b) => a+b, 0)/24) : 'N/A'}dBm，
-            干擾水平{realTimeSignal ? Math.round(realTimeSignal.interferenceLevel.reduce((a,b) => a+b, 0)/24) : 'N/A'}dB，
-            通道品質{realTimeSignal ? Math.round(realTimeSignal.channelQuality.reduce((a,b) => a+b, 0)/24) : 'N/A'}%。
+            <strong>信號分析：</strong>{processedSignalData?.insights.signalSummary || '數據載入中...'}
           </div>
         </div>
       )}
@@ -774,10 +608,9 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
           <h3>🎯 多維度信號品質分析雷達圖</h3>
           <Radar data={signalAnalysisRadarData} options={radarOptions} />
           <div className="chart-insight">
-            <strong>信號綜合評估：</strong>整合Time-Frequency分析、
-            延遲擴散測量、多普勒偏移檢測等navbar信號分析功能。
-            SINR品質達到{signalMetrics ? Math.round(signalMetrics.sinrQuality.reduce((a,b) => a+b, 0)/8) : 'N/A'}dB，
-            CFR響應{signalMetrics ? Math.round(signalMetrics.cfrMagnitude.reduce((a,b) => a+b, 0)/8*100) : 'N/A'}%。
+            <strong>信號綜合評估：</strong>整合Time-Frequency分析、延遲擴散測量、多普勒偏移檢測等navbar信號分析功能。
+            SINR品質達到{processedSignalData?.radarData.sinrQuality || 'N/A'}dB，
+            CFR響應{processedSignalData?.radarData.cfrResponse || 'N/A'}%。
           </div>
         </div>
       )}
