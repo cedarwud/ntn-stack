@@ -6,6 +6,7 @@
 
 import { netStackApi } from '../../../../../services/netstack-api'
 import { satelliteCache } from '../../../../../utils/satellite-cache'
+import { ErrorHandlingService } from '../../../../../services/ErrorHandlingService'
 
 // ==================== 接口定義 ====================
 
@@ -471,32 +472,76 @@ export class UnifiedChartApiService {
    * 獲取換手測試數據 - 修復：端點不存在，使用模擬數據
    */
   static async getHandoverTestData(): Promise<Record<string, unknown>> {
-    console.error('🚨 API 錯誤 - handover/test-data 端點不存在，使用模擬數據')
-    return this.getMockDataForEndpoint('test-data')
+    return ErrorHandlingService.handleApiError(
+      new Error('端點不存在'),
+      {
+        component: 'UnifiedChartApiService',
+        operation: '獲取換手測試數據',
+        endpoint: '/api/v1/handover/test-data',
+        severity: 'medium'
+      },
+      ErrorHandlingService.PATTERNS.ENDPOINT_NOT_EXISTS(
+        'handover/test-data',
+        this.getMockDataForEndpoint('test-data')
+      )
+    ) as Record<string, unknown>
   }
 
   /**
    * 獲取六種場景比較數據 - 修復：端點不存在，使用模擬數據
    */
   static async getSixScenarioData(): Promise<Record<string, unknown>> {
-    console.error('🚨 API 錯誤 - handover/six-scenario-comparison 端點不存在，使用模擬數據')
-    return this.getMockDataForEndpoint('six-scenario')
+    return ErrorHandlingService.handleApiError(
+      new Error('端點不存在'),
+      {
+        component: 'UnifiedChartApiService',
+        operation: '獲取六種場景比較數據',
+        endpoint: '/api/v1/handover/six-scenario-comparison',
+        severity: 'medium'
+      },
+      ErrorHandlingService.PATTERNS.ENDPOINT_NOT_EXISTS(
+        'handover/six-scenario-comparison',
+        this.getMockDataForEndpoint('six-scenario')
+      )
+    ) as Record<string, unknown>
   }
 
   /**
    * 獲取策略效果數據 - 修復：端點不存在，使用模擬數據
    */
   static async getStrategyEffectData(): Promise<Record<string, unknown>> {
-    console.error('🚨 API 錯誤 - handover/strategy-effect-comparison 端點不存在，使用模擬數據')
-    return this.getMockDataForEndpoint('strategy-effect')
+    return ErrorHandlingService.handleApiError(
+      new Error('端點不存在'),
+      {
+        component: 'UnifiedChartApiService',
+        operation: '獲取策略效果數據',
+        endpoint: '/api/v1/handover/strategy-effect-comparison',
+        severity: 'medium'
+      },
+      ErrorHandlingService.PATTERNS.ENDPOINT_NOT_EXISTS(
+        'handover/strategy-effect-comparison',
+        this.getMockDataForEndpoint('strategy-effect')
+      )
+    ) as Record<string, unknown>
   }
 
   /**
    * 獲取換手失敗率數據 - 修復：端點不存在，使用模擬數據
    */
   static async getHandoverFailureRateData(): Promise<Record<string, unknown>> {
-    console.error('🚨 API 錯誤 - handover/failure-rate-analysis 端點不存在，使用模擬數據')
-    return this.getMockDataForEndpoint('failure-rate')
+    return ErrorHandlingService.handleApiError(
+      new Error('端點不存在'),
+      {
+        component: 'UnifiedChartApiService',
+        operation: '獲取換手失敗率數據',
+        endpoint: '/api/v1/handover/failure-rate-analysis',
+        severity: 'medium'
+      },
+      ErrorHandlingService.PATTERNS.ENDPOINT_NOT_EXISTS(
+        'handover/failure-rate-analysis',
+        this.getMockDataForEndpoint('failure-rate')
+      )
+    ) as Record<string, unknown>
   }
 
   /**
@@ -505,9 +550,20 @@ export class UnifiedChartApiService {
   static async getSystemResourceData(): Promise<Record<string, unknown>> {
     try {
       return await this.callNetStackApi('/api/v1/core-sync/status')
-    } catch (_error) {
-      console.error('🚨 API 錯誤 - 使用模擬系統資源數據')
-      return this.getMockDataForEndpoint('system-resource')
+    } catch (error) {
+      return ErrorHandlingService.handleApiError(
+        error,
+        {
+          component: 'UnifiedChartApiService',
+          operation: '獲取系統資源數據',
+          endpoint: '/api/v1/core-sync/status',
+          severity: 'medium'
+        },
+        ErrorHandlingService.PATTERNS.DATA_LOAD_FAILED(
+          'SystemResourceData',
+          this.getMockDataForEndpoint('system-resource')
+        )
+      ) as Record<string, unknown>
     }
   }
 
@@ -517,9 +573,20 @@ export class UnifiedChartApiService {
   static async getPerformanceRadarData(): Promise<Record<string, unknown>> {
     try {
       return await this.callNetStackApi('/api/v1/core-sync/metrics/performance')
-    } catch (_error) {
-      console.error('🚨 API 錯誤 - 使用模擬性能雷達數據')
-      return this.getMockDataForEndpoint('performance-radar')
+    } catch (error) {
+      return ErrorHandlingService.handleApiError(
+        error,
+        {
+          component: 'UnifiedChartApiService',
+          operation: '獲取性能雷達數據',
+          endpoint: '/api/v1/core-sync/metrics/performance',
+          severity: 'medium'
+        },
+        ErrorHandlingService.PATTERNS.DATA_LOAD_FAILED(
+          'PerformanceRadarData',
+          this.getMockDataForEndpoint('performance-radar')
+        )
+      ) as Record<string, unknown>
     }
   }
 
@@ -542,16 +609,38 @@ export class UnifiedChartApiService {
    * 獲取異常處理數據 - 修復：端點不存在，使用模擬數據
    */
   static async getExceptionHandlingData(): Promise<Record<string, unknown>> {
-    console.error('🚨 API 錯誤 - handover/exception-handling-statistics 端點不存在，使用模擬數據')
-    return this.getMockDataForEndpoint('exception-handling')
+    return ErrorHandlingService.handleApiError(
+      new Error('端點不存在'),
+      {
+        component: 'UnifiedChartApiService',
+        operation: '獲取異常處理數據',
+        endpoint: '/api/v1/handover/exception-handling-statistics',
+        severity: 'medium'
+      },
+      ErrorHandlingService.PATTERNS.ENDPOINT_NOT_EXISTS(
+        'handover/exception-handling-statistics',
+        this.getMockDataForEndpoint('exception-handling')
+      )
+    ) as Record<string, unknown>
   }
 
   /**
    * 獲取全球覆蓋範圍數據 - 修復：端點不存在，使用模擬數據
    */
   static async getGlobalCoverageData(): Promise<Record<string, unknown>> {
-    console.error('🚨 API 錯誤 - handover/global-coverage 端點不存在，使用模擬數據')
-    return this.getMockDataForEndpoint('global-coverage')
+    return ErrorHandlingService.handleApiError(
+      new Error('端點不存在'),
+      {
+        component: 'UnifiedChartApiService',
+        operation: '獲取全球覆蓋範圍數據',
+        endpoint: '/api/v1/handover/global-coverage',
+        severity: 'medium'
+      },
+      ErrorHandlingService.PATTERNS.ENDPOINT_NOT_EXISTS(
+        'handover/global-coverage',
+        this.getMockDataForEndpoint('global-coverage')
+      )
+    ) as Record<string, unknown>
   }
 
   // ==================== 批量數據獲取 ====================

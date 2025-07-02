@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ChartData } from 'chart.js'
 import UnifiedChartApiService from '../services/unifiedChartApiService'
 import { DataSourceStatus } from './useRealChartData'
+import { ErrorHandlingService } from '../../../../../services/ErrorHandlingService'
 
 // ==================== 接口定義 ====================
 
@@ -159,7 +160,10 @@ export const useSystemArchitectureData = (isEnabled: boolean = true) => {
         }))
       }
     } catch (error) {
-      console.warn('⚠️ 系統資源數據獲取失敗，保持預設數據:', error)
+      ErrorHandlingService.handleHookError(error, {
+        component: 'useSystemArchitectureData',
+        operation: '獲取系統資源數據',
+      })
       setSystemResources(prev => ({
         ...prev,
         status: 'fallback',
@@ -218,7 +222,10 @@ export const useSystemArchitectureData = (isEnabled: boolean = true) => {
         }))
       }
     } catch (error) {
-      console.warn('⚠️ 健康狀態數據獲取失敗，保持預設數據:', error)
+      ErrorHandlingService.handleHookError(error, {
+        component: 'useSystemArchitectureData',
+        operation: '獲取健康狀態數據',
+      })
       setHealthStatus(prev => ({
         ...prev,
         status: 'fallback',
@@ -280,7 +287,10 @@ export const useSystemArchitectureData = (isEnabled: boolean = true) => {
         }))
       }
     } catch (error) {
-      console.warn('⚠️ 系統統計數據獲取失敗，保持預設數據:', error)
+      ErrorHandlingService.handleHookError(error, {
+        component: 'useSystemArchitectureData',
+        operation: '獲取系統統計數據',
+      })
       setSystemStats(prev => ({
         ...prev,
         status: 'fallback',
