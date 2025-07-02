@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ChartData } from 'chart.js'
-import { unifiedDataService } from '../../../../../services/unified-data-service'
+import { UnifiedChartApiService } from '../services/unifiedChartApiService'
 
 // 數據來源狀態類型
 export type DataSourceStatus = 'real' | 'calculated' | 'fallback' | 'loading' | 'error'
@@ -67,21 +67,30 @@ export const useRealChartData = (isEnabled: boolean = true) => {
     status: 'loading'
   })
 
-  // API數據獲取函數 - 使用統一數據服務
+  // API數據獲取函數 - 使用統一API服務
   const fetchCoreSync = useCallback(async () => {
     if (!isEnabled) return
 
     setCoreSync(prev => ({ ...prev, status: 'loading' }))
     
-    const result = await unifiedDataService.getCoreSync()
-    setCoreSync({
-      data: result.data,
-      status: result.status,
-      error: result.error,
-      lastUpdate: result.lastUpdate
-    })
-    
-    return result.data
+    try {
+      const data = await UnifiedChartApiService.getCoreSync()
+      setCoreSync({
+        data,
+        status: 'real',
+        lastUpdate: new Date().toISOString()
+      })
+      return data
+    } catch (error) {
+      console.error('Failed to fetch core sync data:', error)
+      setCoreSync({
+        data: null,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        lastUpdate: new Date().toISOString()
+      })
+      return null
+    }
   }, [isEnabled])
 
   const fetchSatelliteData = useCallback(async () => {
@@ -89,15 +98,24 @@ export const useRealChartData = (isEnabled: boolean = true) => {
 
     setSatelliteData(prev => ({ ...prev, status: 'loading' }))
     
-    const result = await unifiedDataService.getSatelliteData()
-    setSatelliteData({
-      data: result.data,
-      status: result.status,
-      error: result.error,
-      lastUpdate: result.lastUpdate
-    })
-    
-    return result.data
+    try {
+      const data = await UnifiedChartApiService.getSatelliteData()
+      setSatelliteData({
+        data,
+        status: 'real',
+        lastUpdate: new Date().toISOString()
+      })
+      return data
+    } catch (error) {
+      console.error('Failed to fetch satellite data:', error)
+      setSatelliteData({
+        data: {},
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        lastUpdate: new Date().toISOString()
+      })
+      return {}
+    }
   }, [isEnabled])
 
   const fetchAlgorithmLatencyData = useCallback(async () => {
@@ -106,19 +124,14 @@ export const useRealChartData = (isEnabled: boolean = true) => {
     try {
       setAlgorithmLatencyData(prev => ({ ...prev, status: 'loading' }))
       
-      const response = await fetch('/api/v1/handover/algorithm-latency')
-      if (response.ok) {
-        const data = await response.json()
-        setAlgorithmLatencyData({
-          data,
-          status: 'real',
-          lastUpdate: new Date().toISOString()
-        })
-        console.log('✅ Algorithm latency data fetched successfully')
-        return data
-      } else {
-        throw new Error(`API responded with status: ${response.status}`)
-      }
+      const data = await UnifiedChartApiService.getAlgorithmLatencyData()
+      setAlgorithmLatencyData({
+        data,
+        status: 'real',
+        lastUpdate: new Date().toISOString()
+      })
+      console.log('✅ Algorithm latency data fetched successfully')
+      return data
     } catch (error) {
       console.warn('❌ Failed to fetch algorithm latency data:', error)
       // 使用模擬數據作為fallback
@@ -158,7 +171,7 @@ export const useRealChartData = (isEnabled: boolean = true) => {
       
       setAlgorithmLatencyData({
         data: mockData,
-        status: 'mock',
+        status: 'fallback',
         error: '使用模擬數據（API不可用）',
         lastUpdate: new Date().toISOString()
       })

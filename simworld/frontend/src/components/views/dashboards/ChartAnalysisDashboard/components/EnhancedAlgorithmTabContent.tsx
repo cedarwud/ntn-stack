@@ -51,28 +51,34 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
     status: accessStrategyRadarChart.status
   })
 
-  // 確保數據安全性 - 驗證並修復數據有效性
+  // 確保數據安全性 - 修復：調整驗證邏輯匹配實際數據結構
   const safeRadarData = React.useMemo(() => {
     const data = accessStrategyRadarChart.data
     
-    // 詳細檢查數據有效性
-    const isDataValid = data.labels && data.labels.length === 6 &&
-                       data.datasets && data.datasets.length === 3 &&
+    // 修復：根據實際數據結構進行驗證
+    // 實際數據: 5個算法 (labels), 2個數據集 (延遲和吞吐量)
+    const expectedLabelsCount = data.labels?.length || 5
+    const expectedDatasetsCount = 2 // 延遲和吞吐量
+    
+    const isDataValid = data.labels && data.labels.length >= 3 && // 至少3個算法
+                       data.datasets && data.datasets.length === expectedDatasetsCount &&
                        data.datasets.every(dataset => 
                          dataset.data && 
-                         dataset.data.length === 6 &&
+                         dataset.data.length === expectedLabelsCount &&
                          dataset.data.every(value => 
                            typeof value === 'number' && 
                            !isNaN(value) && 
-                           value >= 0 && 
-                           value <= 10
+                           value >= 0
                          )
                        )
     
     if (!isDataValid) {
       console.warn('雷達圖數據無效，使用fallback數據。原始數據:', {
         labels: data.labels,
+        labelsLength: data.labels?.length,
+        expectedLabelsCount,
         datasetsLength: data.datasets?.length,
+        expectedDatasetsCount,
         datasets: data.datasets?.map(d => ({
           label: d.label,
           data: d.data,
@@ -81,43 +87,41 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
       })
       
       return {
-        labels: ['延遲性能', '能耗效率', '精度穩定', '計算複雜度', '可靠性', '擴展性'],
+        // 修復：使用與實際數據匹配的 fallback 結構 (5個算法, 2個指標)
+        labels: ['NTN-Standard', 'NTN-GS', 'NTN-SMN', 'Proposed', 'Enhanced-Proposed'],
         datasets: [
           {
-            label: 'Fine-Grained Sync',
-            data: [9.2, 8.8, 9.5, 7.2, 9.7, 8.9],
-            borderColor: 'rgba(34, 197, 94, 1)',
-            backgroundColor: 'rgba(34, 197, 94, 0.2)',
-            pointBackgroundColor: 'rgba(34, 197, 94, 1)',
+            label: '延遲 (ms)',
+            data: [45, 32, 28, 8, 6],
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            pointBackgroundColor: 'rgb(255, 99, 132)',
             pointBorderColor: '#fff',
             pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: 'rgba(34, 197, 94, 1)',
+            pointHoverBorderColor: 'rgb(255, 99, 132)'
           },
           {
-            label: 'Binary Search',
-            data: [7.8, 7.2, 7.5, 8.1, 8.4, 7.4],
-            borderColor: 'rgba(59, 130, 246, 1)',
-            backgroundColor: 'rgba(59, 130, 246, 0.2)',
-            pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+            label: '吞吐量 (Mbps)',
+            data: [850, 920, 1050, 1200, 1350],
+            borderColor: 'rgb(54, 162, 235)',
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            pointBackgroundColor: 'rgb(54, 162, 235)',
             pointBorderColor: '#fff',
             pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: 'rgba(59, 130, 246, 1)',
-          },
-          {
-            label: 'Traditional',
-            data: [5.1, 4.8, 5.5, 6.2, 6.8, 5.9],
-            borderColor: 'rgba(239, 68, 68, 1)',
-            backgroundColor: 'rgba(239, 68, 68, 0.2)',
-            pointBackgroundColor: 'rgba(239, 68, 68, 1)',
-            pointBorderColor: '#fff',
-            pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: 'rgba(239, 68, 68, 1)',
+            pointHoverBorderColor: 'rgb(54, 162, 235)'
           }
         ]
       }
     }
     
-    // 數據有效，但是確保所有數值都在合理範圍內
+    // 數據有效，使用真實API數據
+    console.log('✅ 雷達圖數據驗證通過，使用真實API數據:', {
+      labelsCount: data.labels?.length,
+      datasetsCount: data.datasets?.length,
+      status: accessStrategyRadarChart.status
+    })
+    
+    // 確保所有數值都在合理範圍內
     const sanitizedData = {
       ...data,
       datasets: data.datasets.map(dataset => ({
@@ -132,7 +136,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
     
     console.log('雷達圖數據驗證通過，使用計算數據:', sanitizedData)
     return sanitizedData
-  }, [accessStrategyRadarChart.data])
+  }, [accessStrategyRadarChart.data, accessStrategyRadarChart.status])
 
   // 確保時間同步數據安全性
   const _safeTimeSyncData = React.useMemo(() => {
