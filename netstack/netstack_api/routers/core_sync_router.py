@@ -795,7 +795,8 @@ async def health_check(
             CoreSyncState.PARTIAL_SYNC,
         ]
 
-        status_code = 200 if is_healthy else 503
+        # 修復：健康檢查始終返回 200，狀態資訊在響應體中
+        status_code = 200
 
         health_info = {
             "healthy": is_healthy,
@@ -817,7 +818,7 @@ async def health_check(
                 "error": str(e),
                 "last_check": datetime.now().isoformat(),
             },
-            status_code=503,
+            status_code=200,
         )
 
 

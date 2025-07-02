@@ -4,7 +4,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { ChartDataService, SatellitePosition, SatelliteData } from '../services/chartDataService'
+import { SatellitePosition, SatelliteData } from '../services/chartDataService'
+import { UnifiedChartApiService } from '../services/unifiedChartApiService'
 
 interface ChartAnalysisState {
   // UAV 和衛星數據
@@ -71,7 +72,7 @@ export function useChartAnalysisData(isActive: boolean = true) {
   // 獲取 UAV 數據
   const fetchUAVData = useCallback(async () => {
     try {
-      const data = await ChartDataService.fetchRealUAVData()
+      const data = await UnifiedChartApiService.getUAVPositions()
       updateData({ uavData: data })
       if (data.length === 0) {
         setError('No UAV data available')
@@ -88,7 +89,7 @@ export function useChartAnalysisData(isActive: boolean = true) {
   const fetchSatelliteData = useCallback(async () => {
     try {
       updateData({ tleDataStatus: 'loading' })
-      const data = await ChartDataService.fetchCelestrakTLEData()
+      const data = await UnifiedChartApiService.getCelestrakTLEData()
       updateData({ 
         satelliteData: data,
         tleDataStatus: data.length > 0 ? 'loaded' : 'error'
@@ -103,7 +104,7 @@ export function useChartAnalysisData(isActive: boolean = true) {
   // 獲取換手測試數據
   const fetchHandoverData = useCallback(async () => {
     try {
-      const data = await ChartDataService.fetchHandoverTestData()
+      const data = await UnifiedChartApiService.getHandoverTestData()
       updateData({ handoverTestData: data })
     } catch (error) {
       console.error('Error fetching handover data:', error)
@@ -114,7 +115,7 @@ export function useChartAnalysisData(isActive: boolean = true) {
   // 獲取六場景數據
   const fetchSixScenarioData = useCallback(async () => {
     try {
-      const data = await ChartDataService.fetchSixScenarioData()
+      const data = await UnifiedChartApiService.getSixScenarioData()
       updateData({ sixScenarioData: data })
     } catch (error) {
       console.error('Error fetching six scenario data:', error)
@@ -125,7 +126,7 @@ export function useChartAnalysisData(isActive: boolean = true) {
   // 獲取策略效果數據
   const fetchStrategyData = useCallback(async () => {
     try {
-      const data = await ChartDataService.fetchStrategyEffectData()
+      const data = await UnifiedChartApiService.getStrategyEffectData()
       updateData({ strategyMetrics: data })
     } catch (error) {
       console.error('Error fetching strategy data:', error)
@@ -149,15 +150,15 @@ export function useChartAnalysisData(isActive: boolean = true) {
         qoeData,
         coverageData,
       ] = await Promise.allSettled([
-        ChartDataService.fetchComplexityAnalysisData(),
-        ChartDataService.fetchHandoverFailureRateData(),
-        ChartDataService.fetchSystemResourceData(),
-        ChartDataService.fetchTimeSyncPrecisionData(),
-        ChartDataService.fetchPerformanceRadarData(),
-        ChartDataService.fetchProtocolStackDelayData(),
-        ChartDataService.fetchExceptionHandlingData(),
-        ChartDataService.fetchQoETimeSeriesData(),
-        ChartDataService.fetchGlobalCoverageData(),
+        UnifiedChartApiService.getComplexityAnalysis(),
+        UnifiedChartApiService.getHandoverFailureRate(),
+        UnifiedChartApiService.getSystemResourceUsage(),
+        UnifiedChartApiService.getTimeSyncPrecision(),
+        UnifiedChartApiService.getPerformanceRadar(),
+        UnifiedChartApiService.getProtocolStackDelay(),
+        UnifiedChartApiService.getExceptionHandling(),
+        UnifiedChartApiService.getQoETimeSeries(),
+        UnifiedChartApiService.getGlobalCoverage(),
       ])
 
       updateData({

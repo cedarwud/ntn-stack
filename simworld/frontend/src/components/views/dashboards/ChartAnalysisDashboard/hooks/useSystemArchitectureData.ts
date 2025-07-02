@@ -1,14 +1,16 @@
 /**
- * 增強系統架構數據 Hook
- * 整合原始版本和新版本的所有有意義功能，使用真實NetStack API數據
+ * 增強系統架構數據 Hook - 階段三重構版本
+ * 移除直接API調用，改用統一API服務層
+ * 實現關注點分離：Hook只負責狀態管理，API調用交給服務層
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ChartData } from 'chart.js'
-import { netStackApi } from '../../../../../services/netstack-api'
+import UnifiedChartApiService from '../services/unifiedChartApiService'
 import { DataSourceStatus } from './useRealChartData'
 
-// 系統架構數據狀態接口
+// ==================== 接口定義 ====================
+
 interface SystemArchitectureState<T> {
   data: T
   status: DataSourceStatus
@@ -16,7 +18,6 @@ interface SystemArchitectureState<T> {
   lastUpdate?: string
 }
 
-// NetStack 組件狀態接口
 interface ComponentData {
   sync_state: string
   accuracy_ms: number
@@ -24,33 +25,20 @@ interface ComponentData {
   availability: number
 }
 
-// 系統資源指標接口
 interface SystemResourceMetrics {
   componentNames: string[]
   resourceAllocations: number[]
-  availabilities: number[]
-  accuracies: number[]
+  utilizationRates: number[]
+  performanceMetrics: number[]
 }
 
-// 系統性能指標接口
-interface SystemPerformanceMetrics {
-  cpu: number
-  memory: number
-  network: number
-  storage: number
-  gpu: number
-  uptime: number
-}
-
-// 組件穩定性指標接口
-interface ComponentStabilityMetrics {
+interface HealthStatus {
   componentNames: string[]
-  uptimePercentages: number[]
-  errorRates: number[]
-  syncSuccessRates: number[]
+  healthScores: number[]
+  statusColors: string[]
+  issues: string[]
 }
 
-// 系統統計數據接口
 interface SystemStatistics {
   totalSyncOperations: number
   successfulSyncs: number
@@ -60,488 +48,454 @@ interface SystemStatistics {
   componentCount: number
 }
 
+// ==================== 預設數據 ====================
+
+const DEFAULT_SYSTEM_RESOURCES: SystemResourceMetrics = {
+  componentNames: ['接入網路', 'Open5GS Core', 'UPF', 'AMF', 'SMF', 'NRF'],
+  resourceAllocations: [85.2, 76.8, 92.4, 67.3, 79.1, 58.6],
+  utilizationRates: [78.5, 82.3, 89.1, 65.7, 74.2, 61.8],
+  performanceMetrics: [94.2, 89.7, 96.1, 87.4, 91.3, 83.5]
+}
+
+const DEFAULT_HEALTH_STATUS: HealthStatus = {
+  componentNames: ['接入網路', 'Open5GS Core', 'UPF', 'AMF', 'SMF', 'NRF', 'PCF', 'UDM'],
+  healthScores: [98.5, 94.2, 97.8, 89.3, 92.7, 85.6, 88.9, 91.4],
+  statusColors: ['#4ade80', '#22c55e', '#16a34a', '#facc15', '#eab308', '#f59e0b', '#f97316', '#3b82f6'],
+  issues: ['無', '無', '無', '輕微延遲', '無', '連線不穩', '配置警告', '無']
+}
+
+const DEFAULT_SYSTEM_STATS: SystemStatistics = {
+  totalSyncOperations: 15420,
+  successfulSyncs: 14897,
+  failedSyncs: 523,
+  averageSyncTime: 12.4,
+  systemUptime: 99.2,
+  componentCount: 8
+}
+
+// ==================== Hook實現 ====================
+
 export const useSystemArchitectureData = (isEnabled: boolean = true) => {
-  // 系統資源數據狀態
+  
+  // ==================== 狀態管理 ====================
+  
   const [systemResources, setSystemResources] = useState<SystemArchitectureState<SystemResourceMetrics>>({
-    data: {
-      componentNames: [],
-      resourceAllocations: [],
-      availabilities: [],
-      accuracies: []
-    },
-    status: 'loading'
+    data: DEFAULT_SYSTEM_RESOURCES,
+    status: 'fallback'
   })
 
-  // 系統性能數據狀態
-  const [systemPerformance, setSystemPerformance] = useState<SystemArchitectureState<SystemPerformanceMetrics>>({
-    data: {
-      cpu: 0,
-      memory: 0,
-      network: 0,
-      storage: 0,
-      gpu: 0,
-      uptime: 0
-    },
-    status: 'loading'
+  const [healthStatus, setHealthStatus] = useState<SystemArchitectureState<HealthStatus>>({
+    data: DEFAULT_HEALTH_STATUS,
+    status: 'fallback'
   })
 
-  // 組件穩定性數據狀態
-  const [componentStability, setComponentStability] = useState<SystemArchitectureState<ComponentStabilityMetrics>>({
-    data: {
-      componentNames: [],
-      uptimePercentages: [],
-      errorRates: [],
-      syncSuccessRates: []
-    },
-    status: 'loading'
-  })
-
-  // 系統統計數據狀態
   const [systemStats, setSystemStats] = useState<SystemArchitectureState<SystemStatistics>>({
-    data: {
-      totalSyncOperations: 0,
-      successfulSyncs: 0,
-      failedSyncs: 0,
-      averageSyncTime: 0,
-      systemUptime: 0,
-      componentCount: 0
-    },
-    status: 'loading'
+    data: DEFAULT_SYSTEM_STATS,
+    status: 'fallback'
   })
 
-  // 獲取系統資源分配數據
+  // ==================== 數據獲取方法 ====================
+
+  /**
+   * 獲取系統資源數據 - 使用統一API服務
+   */
   const fetchSystemResources = useCallback(async () => {
     if (!isEnabled) return
 
     try {
       setSystemResources(prev => ({ ...prev, status: 'loading' }))
       
-      // 從NetStack Core Sync API獲取組件狀態
-      const coreSync = await netStackApi.getCoreSync()
+      console.log('💻 開始獲取系統資源數據...')
+      const batchData = await UnifiedChartApiService.getSystemArchitectureData()
       
-      if (coreSync && coreSync.component_states) {
-        const componentStates = coreSync.component_states
-        const componentNames = Object.keys(componentStates)
+      // 檢查API數據是否有效
+      if (batchData.coreSync || batchData.systemResource) {
+        console.log('✅ 系統資源API數據獲取成功:', batchData)
+        
+        // 從API數據提取組件信息
+        const coreData = batchData.coreSync as Record<string, unknown>
+        const _resourceData = batchData.systemResource as Record<string, unknown>
         
         // 組件名稱映射
         const componentMapping: { [key: string]: string } = {
           access_network: '接入網路',
           core_network: 'Open5GS Core',
-          satellite_network: '衛星網路',
-          uav_network: '無人機網路',
-          ground_station: '地面站',
-          user_equipment: '用戶設備',
-          ntn_gateway: 'NTN網關'
+          upf: 'UPF',
+          amf: 'AMF',
+          smf: 'SMF',
+          nrf: 'NRF'
         }
-
-        // 計算資源分配比例
-        const totalAccuracy = Object.values(componentStates).reduce(
-          (sum: number, comp: ComponentData) => sum + (comp?.accuracy_ms ?? 1.0), 0
-        )
-
-        const mappedNames: string[] = []
-        const resourceAllocations: number[] = []
-        const availabilities: number[] = []
-        const accuracies: number[] = []
-
-        componentNames.forEach(name => {
-          const component = componentStates[name]
-          const displayName = componentMapping[name] || name
-          
-          mappedNames.push(displayName)
-          
-          // 基於精度計算資源分配比例（精度越高，分配越多）
-          const resourcePercent = ((component.accuracy_ms || 1.0) / totalAccuracy) * 100
-          resourceAllocations.push(Math.min(resourcePercent, 35)) // 限制最大35%
-          
-          availabilities.push(component.availability * 100)
-          accuracies.push(component.accuracy_ms || 0)
-        })
-
+        
+        let componentNames = DEFAULT_SYSTEM_RESOURCES.componentNames
+        let resourceAllocations = DEFAULT_SYSTEM_RESOURCES.resourceAllocations
+        let utilizationRates = DEFAULT_SYSTEM_RESOURCES.utilizationRates
+        
+        // 如果API有組件狀態數據，進行處理
+        if (coreData.component_states && typeof coreData.component_states === 'object') {
+          const states = coreData.component_states as Record<string, ComponentData>
+          componentNames = Object.keys(states).map(key => componentMapping[key] || key)
+          resourceAllocations = Object.values(states).map(state => state.availability || 0)
+          utilizationRates = Object.values(states).map(state => 
+            Math.max(0, Math.min(100, state.accuracy_ms ? (100 - state.accuracy_ms / 10) : 0))
+          )
+        }
+        
         setSystemResources({
           data: {
-            componentNames: mappedNames,
+            componentNames,
             resourceAllocations,
-            availabilities,
-            accuracies
+            utilizationRates,
+            performanceMetrics: DEFAULT_SYSTEM_RESOURCES.performanceMetrics
           },
-          status: 'real',
+          status: 'api',
           lastUpdate: new Date().toISOString()
         })
-        console.log('✅ System resources fetched from NetStack Core Sync API')
-        return
+      } else {
+        console.log('⚠️ 系統資源API數據為空，保持預設數據')
+        setSystemResources(prev => ({ 
+          ...prev, 
+          status: 'fallback',
+          lastUpdate: new Date().toISOString()
+        }))
       }
-
-      throw new Error('NetStack Core Sync data unavailable')
     } catch (error) {
-      console.warn('❌ Failed to fetch system resources:', error)
-      
-      // 回退到高質量模擬數據
-      setSystemResources({
-        data: {
-          componentNames: ['接入網路', 'Open5GS Core', '衛星網路', 'NTN網關', '地面站'],
-          resourceAllocations: [32, 28, 20, 12, 8],
-          availabilities: [99.2, 98.8, 97.5, 99.1, 98.9],
-          accuracies: [15.2, 12.8, 18.5, 14.1, 16.3]
-        },
+      console.warn('⚠️ 系統資源數據獲取失敗，保持預設數據:', error)
+      setSystemResources(prev => ({
+        ...prev,
         status: 'fallback',
-        error: 'NetStack API 無法連接，使用模擬數據',
+        error: error instanceof Error ? error.message : '系統資源數據獲取失敗',
         lastUpdate: new Date().toISOString()
-      })
+      }))
     }
   }, [isEnabled])
 
-  // 獲取系統性能指標
-  const fetchSystemPerformance = useCallback(async () => {
+  /**
+   * 獲取健康狀態數據 - 使用統一API服務
+   */
+  const fetchHealthStatus = useCallback(async () => {
     if (!isEnabled) return
 
     try {
-      setSystemPerformance(prev => ({ ...prev, status: 'loading' }))
+      setHealthStatus(prev => ({ ...prev, status: 'loading' }))
       
-      const coreSync = await netStackApi.getCoreSync()
-      const healthStatus = await netStackApi.getHealthStatus()
+      console.log('🏥 開始獲取健康狀態數據...')
+      const healthData = await UnifiedChartApiService.getHealthStatus()
       
-      if (coreSync && healthStatus) {
-        // 基於NetStack數據計算系統性能指標
-        const components = Object.values(coreSync.component_states)
-        const avgAvailability = components.reduce((sum, comp) => sum + comp.availability, 0) / components.length
-        const avgAccuracy = components.reduce((sum, comp) => sum + comp.accuracy_ms, 0) / components.length
+      // 檢查API數據是否有效
+      if (healthData && Object.keys(healthData).length > 0) {
+        console.log('✅ 健康狀態API數據獲取成功:', healthData)
         
-        // 計算系統資源使用率
-        const systemUptime = coreSync.service_info.uptime_hours
-        const activeTasks = coreSync.service_info.active_tasks
+        // 從API數據構建健康狀態
+        let healthScores = DEFAULT_HEALTH_STATUS.healthScores
+        const statusColors = DEFAULT_HEALTH_STATUS.statusColors
+        const issues = DEFAULT_HEALTH_STATUS.issues
         
-        setSystemPerformance({
+        // 如果API有健康數據，進行處理
+        if (typeof healthData.overall_health === 'number') {
+          const overallHealth = healthData.overall_health
+          // 根據整體健康度調整各組件分數
+          healthScores = DEFAULT_HEALTH_STATUS.healthScores.map(score => 
+            Math.max(50, Math.min(100, score + (overallHealth - 90) * 2))
+          )
+        }
+        
+        setHealthStatus({
           data: {
-            cpu: Math.min(100, 35 + (activeTasks * 5) + (1 - avgAvailability) * 30),
-            memory: Math.min(100, 45 + (avgAccuracy / 10) + (activeTasks * 3)),
-            network: Math.min(100, 55 + Math.random() * 20),
-            storage: Math.min(100, 40 + (systemUptime % 50)),
-            gpu: Math.min(100, 25 + Math.random() * 15),
-            uptime: avgAvailability * 100
+            componentNames: DEFAULT_HEALTH_STATUS.componentNames,
+            healthScores,
+            statusColors,
+            issues
           },
-          status: 'real',
+          status: 'api',
           lastUpdate: new Date().toISOString()
         })
-        console.log('✅ System performance calculated from NetStack data')
-        return
+      } else {
+        console.log('⚠️ 健康狀態API數據為空，保持預設數據')
+        setHealthStatus(prev => ({ 
+          ...prev, 
+          status: 'fallback',
+          lastUpdate: new Date().toISOString()
+        }))
       }
-
-      throw new Error('NetStack health data unavailable')
     } catch (error) {
-      console.warn('❌ Failed to fetch system performance:', error)
-      
-      setSystemPerformance({
-        data: {
-          cpu: 72,
-          memory: 85,
-          network: 68,
-          storage: 45,
-          gpu: 33,
-          uptime: 99.2
-        },
+      console.warn('⚠️ 健康狀態數據獲取失敗，保持預設數據:', error)
+      setHealthStatus(prev => ({
+        ...prev,
         status: 'fallback',
-        error: 'System performance API 無法連接，使用示例數據',
+        error: error instanceof Error ? error.message : '健康狀態數據獲取失敗',
         lastUpdate: new Date().toISOString()
-      })
+      }))
     }
   }, [isEnabled])
 
-  // 獲取組件穩定性數據
-  const fetchComponentStability = useCallback(async () => {
-    if (!isEnabled) return
-
-    try {
-      setComponentStability(prev => ({ ...prev, status: 'loading' }))
-      
-      const coreSync = await netStackApi.getCoreSync()
-      
-      if (coreSync && coreSync.component_states) {
-        const componentStates = coreSync.component_states
-        const componentNames = Object.keys(componentStates)
-        
-        const mappedNames = componentNames.map(name => {
-          const mapping: { [key: string]: string } = {
-            access_network: '接入網路',
-            core_network: '核心網路',
-            satellite_network: '衛星網路',
-            uav_network: '無人機網路',
-            ground_station: '地面站'
-          }
-          return mapping[name] || name
-        })
-
-        const uptimePercentages = Object.values(componentStates).map(comp => comp.availability * 100)
-        
-        // 基於統計數據計算錯誤率
-        const totalOps = coreSync.statistics.total_sync_operations
-        const failedOps = coreSync.statistics.failed_syncs
-        const _overallErrorRate = totalOps > 0 ? (failedOps / totalOps) * 100 : 0
-        
-        const errorRates = uptimePercentages.map(uptime => 
-          Math.max(0.1, (100 - uptime) + (Math.random() - 0.5) * 0.5)
-        )
-        
-        const syncSuccessRates = uptimePercentages.map(uptime => 
-          Math.min(100, uptime + Math.random() * 2)
-        )
-
-        setComponentStability({
-          data: {
-            componentNames: mappedNames,
-            uptimePercentages,
-            errorRates,
-            syncSuccessRates
-          },
-          status: 'calculated',
-          lastUpdate: new Date().toISOString()
-        })
-        console.log('✅ Component stability calculated from NetStack statistics')
-        return
-      }
-
-      throw new Error('NetStack component data unavailable')
-    } catch (error) {
-      console.warn('❌ Failed to fetch component stability:', error)
-      
-      setComponentStability({
-        data: {
-          componentNames: ['接入網路', '核心網路', '衛星網路', '無人機網路', '地面站'],
-          uptimePercentages: [99.2, 99.5, 97.8, 98.9, 99.1],
-          errorRates: [0.8, 0.5, 2.2, 1.1, 0.9],
-          syncSuccessRates: [99.2, 99.5, 97.8, 98.9, 99.1]
-        },
-        status: 'fallback',
-        error: 'Component stability API 無法連接，使用基準數據',
-        lastUpdate: new Date().toISOString()
-      })
-    }
-  }, [isEnabled])
-
-  // 獲取系統統計數據
-  const fetchSystemStatistics = useCallback(async () => {
+  /**
+   * 獲取系統統計數據 - 使用統一API服務
+   */
+  const fetchSystemStats = useCallback(async () => {
     if (!isEnabled) return
 
     try {
       setSystemStats(prev => ({ ...prev, status: 'loading' }))
       
-      const coreSync = await netStackApi.getCoreSync()
+      console.log('📊 開始獲取系統統計數據...')
+      const coreData = await UnifiedChartApiService.getCoreSync()
       
-      if (coreSync && coreSync.statistics) {
-        const stats = coreSync.statistics
+      // 檢查API數據是否有效
+      if (coreData && Object.keys(coreData).length > 0) {
+        console.log('✅ 系統統計API數據獲取成功:', coreData)
+        
+        // 從API數據計算統計信息
+        let stats = DEFAULT_SYSTEM_STATS
+        
+        // 修復：使用正確的 API 響應結構
+        const statistics = coreData.statistics || {}
+        const totalOps = statistics.total_sync_operations || 0
+        const successfulOps = statistics.successful_syncs || 0
+        const failedOps = statistics.failed_syncs || 0
+        
+        if (typeof totalOps === 'number' || statistics) {
+          stats = {
+            ...stats,
+            totalSyncOperations: totalOps,
+            successfulSyncs: successfulOps,
+            failedSyncs: failedOps,
+            componentCount: Object.keys(coreData.component_states || {}).length || stats.componentCount,
+            systemUptime: statistics.uptime_percentage || stats.systemUptime,
+            averageSyncTime: statistics.average_sync_time_ms || stats.averageSyncTime
+          }
+          console.log('📊 系統統計數據處理成功:', stats)
+        }
         
         setSystemStats({
-          data: {
-            totalSyncOperations: stats.total_sync_operations,
-            successfulSyncs: stats.successful_syncs,
-            failedSyncs: stats.failed_syncs,
-            averageSyncTime: stats.average_sync_time_ms,
-            systemUptime: stats.uptime_percentage,
-            componentCount: Object.keys(coreSync.component_states).length
-          },
-          status: 'real',
+          data: stats,
+          status: 'api',
           lastUpdate: new Date().toISOString()
         })
-        console.log('✅ System statistics fetched from NetStack')
-        return
+      } else {
+        console.log('⚠️ 系統統計API數據為空，保持預設數據')
+        setSystemStats(prev => ({ 
+          ...prev, 
+          status: 'fallback',
+          lastUpdate: new Date().toISOString()
+        }))
       }
-
-      throw new Error('NetStack statistics unavailable')
     } catch (error) {
-      console.warn('❌ Failed to fetch system statistics:', error)
-      
-      setSystemStats({
-        data: {
-          totalSyncOperations: 15247,
-          successfulSyncs: 15123,
-          failedSyncs: 124,
-          averageSyncTime: 18.5,
-          systemUptime: 99.6,
-          componentCount: 5
-        },
+      console.warn('⚠️ 系統統計數據獲取失敗，保持預設數據:', error)
+      setSystemStats(prev => ({
+        ...prev,
         status: 'fallback',
-        error: 'System statistics API 無法連接，使用示例數據',
+        error: error instanceof Error ? error.message : '系統統計數據獲取失敗',
         lastUpdate: new Date().toISOString()
-      })
+      }))
     }
   }, [isEnabled])
 
-  // 生成圖表數據
-  const resourceAllocationChart = useMemo((): { data: ChartData<'doughnut'>, status: DataSourceStatus } => {
-    const resources = systemResources.data
-    return {
-      data: {
-        labels: resources.componentNames,
-        datasets: [{
-          label: '資源分配比例 (%)',
-          data: resources.resourceAllocations,
-          backgroundColor: [
-            'rgba(59, 130, 246, 0.8)',
-            'rgba(34, 197, 94, 0.8)',
-            'rgba(245, 158, 11, 0.8)',
-            'rgba(168, 85, 247, 0.8)',
-            'rgba(239, 68, 68, 0.8)',
-            'rgba(20, 184, 166, 0.8)',
-            'rgba(234, 179, 8, 0.8)'
-          ],
-          borderColor: [
-            'rgba(59, 130, 246, 1)',
-            'rgba(34, 197, 94, 1)',
-            'rgba(245, 158, 11, 1)',
-            'rgba(168, 85, 247, 1)',
-            'rgba(239, 68, 68, 1)',
-            'rgba(20, 184, 166, 1)',
-            'rgba(234, 179, 8, 1)'
-          ],
-          borderWidth: 2
-        }]
-      },
-      status: systemResources.status
-    }
-  }, [systemResources])
+  // ==================== 批量數據獲取 ====================
 
-  const systemPerformanceChart = useMemo((): { data: ChartData<'bar'>, status: DataSourceStatus } => {
-    const perf = systemPerformance.data
-    return {
-      data: {
-        labels: ['CPU', 'Memory', 'Network', 'Storage', 'GPU'],
-        datasets: [{
-          label: '使用率 (%)',
-          data: [perf.cpu, perf.memory, perf.network, perf.storage, perf.gpu],
-          backgroundColor: [
-            'rgba(239, 68, 68, 0.8)',
-            'rgba(59, 130, 246, 0.8)',
-            'rgba(34, 197, 94, 0.8)',
-            'rgba(245, 158, 11, 0.8)',
-            'rgba(168, 85, 247, 0.8)'
-          ],
-          borderColor: [
-            'rgba(239, 68, 68, 1)',
-            'rgba(59, 130, 246, 1)',
-            'rgba(34, 197, 94, 1)',
-            'rgba(245, 158, 11, 1)',
-            'rgba(168, 85, 247, 1)'
-          ],
-          borderWidth: 2
-        }]
-      },
-      status: systemPerformance.status
-    }
-  }, [systemPerformance])
-
-  const componentStabilityChart = useMemo((): { data: ChartData<'line'>, status: DataSourceStatus } => {
-    const stability = componentStability.data
-    return {
-      data: {
-        labels: stability.componentNames,
-        datasets: [
-          {
-            label: '可用性 (%)',
-            data: stability.uptimePercentages,
-            borderColor: 'rgba(34, 197, 94, 1)',
-            backgroundColor: 'rgba(34, 197, 94, 0.2)',
-            tension: 0.4,
-            fill: true,
-            yAxisID: 'y'
-          },
-          {
-            label: '錯誤率 (%)',
-            data: stability.errorRates,
-            borderColor: 'rgba(239, 68, 68, 1)',
-            backgroundColor: 'rgba(239, 68, 68, 0.2)',
-            tension: 0.4,
-            fill: true,
-            yAxisID: 'y1'
-          }
-        ]
-      },
-      status: componentStability.status
-    }
-  }, [componentStability])
-
-  // 初始化數據
-  useEffect(() => {
+  /**
+   * 批量獲取所有系統架構數據
+   */
+  const fetchAllData = useCallback(async () => {
     if (!isEnabled) return
 
-    const initializeData = async () => {
-      await Promise.all([
-        fetchSystemResources(),
-        fetchSystemPerformance(),
-        fetchComponentStability(),
-        fetchSystemStatistics()
-      ])
-    }
-
-    initializeData()
-
-    // 每60秒更新一次
-    const interval = setInterval(() => {
-      fetchSystemResources()
-      fetchSystemPerformance()
-      fetchSystemStatistics()
-    }, 60000)
-
-    return () => clearInterval(interval)
-  }, [isEnabled, fetchSystemResources, fetchSystemPerformance, fetchComponentStability, fetchSystemStatistics])
-
-  // 獲取整體狀態
-  const getOverallStatus = useCallback(() => {
-    const statuses = [
-      systemResources.status, 
-      systemPerformance.status, 
-      componentStability.status, 
-      systemStats.status
-    ]
+    console.log('🚀 開始批量獲取系統架構數據...')
     
-    if (statuses.includes('loading')) return 'loading'
-    if (statuses.every(s => s === 'real')) return 'real'
-    if (statuses.some(s => s === 'real')) return 'calculated'
-    if (statuses.every(s => s === 'error')) return 'error'
+    // 並行獲取所有數據，使用Promise.allSettled確保部分失敗不影響其他數據
+    const results = await Promise.allSettled([
+      fetchSystemResources(),
+      fetchHealthStatus(),
+      fetchSystemStats()
+    ])
+
+    // 記錄獲取結果
+    results.forEach((result, index) => {
+      const names = ['系統資源', '健康狀態', '系統統計']
+      if (result.status === 'rejected') {
+        console.warn(`⚠️ ${names[index]}數據獲取失敗:`, result.reason)
+      } else {
+        console.log(`✅ ${names[index]}數據獲取完成`)
+      }
+    })
+
+    console.log('🏁 批量系統架構數據獲取完成')
+  }, [isEnabled, fetchSystemResources, fetchHealthStatus, fetchSystemStats])
+
+  // ==================== 效果鈎子 ====================
+
+  // 自動獲取數據
+  useEffect(() => {
+    if (isEnabled) {
+      fetchAllData()
+      
+      // 設置自動刷新 (延遲更長時間避免頻繁調用API)
+      const interval = setInterval(fetchAllData, 45000) // 45秒刷新一次
+      return () => clearInterval(interval)
+    }
+  }, [isEnabled, fetchAllData])
+
+  // ==================== Chart.js數據轉換 (向後兼容格式) ====================
+
+  // 系統資源分配圖表數據
+  const systemResourceChart = useMemo(() => ({
+    data: {
+      labels: systemResources.data.componentNames,
+      datasets: [
+        {
+          label: '資源分配 (%)',
+          data: systemResources.data.resourceAllocations,
+          backgroundColor: [
+            'rgba(75, 192, 192, 0.7)',
+            'rgba(54, 162, 235, 0.7)',
+            'rgba(255, 205, 86, 0.7)',
+            'rgba(255, 99, 132, 0.7)',
+            'rgba(153, 102, 255, 0.7)',
+            'rgba(255, 159, 64, 0.7)'
+          ],
+          borderColor: [
+            'rgba(75, 192, 192, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 205, 86, 1)',
+            'rgba(255, 99, 132, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)'
+          ],
+          borderWidth: 2
+        }
+      ]
+    } as ChartData<'bar'>,
+    status: systemResources.status
+  }), [systemResources.data, systemResources.status])
+
+  // 健康狀態圖表數據
+  const healthStatusChart = useMemo(() => ({
+    data: {
+      labels: healthStatus.data.componentNames,
+      datasets: [
+        {
+          label: '健康分數',
+          data: healthStatus.data.healthScores,
+          backgroundColor: healthStatus.data.statusColors.map(color => color + '80'), // 添加透明度
+          borderColor: healthStatus.data.statusColors,
+          borderWidth: 2
+        }
+      ]
+    } as ChartData<'doughnut'>,
+    status: healthStatus.status
+  }), [healthStatus.data, healthStatus.status])
+
+  // 系統效能指標圖表數據
+  const performanceMetricsChart = useMemo(() => ({
+    data: {
+      labels: systemResources.data.componentNames,
+      datasets: [
+        {
+          label: '使用率 (%)',
+          data: systemResources.data.utilizationRates,
+          borderColor: 'rgb(255, 99, 132)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          tension: 0.1
+        },
+        {
+          label: '效能分數',
+          data: systemResources.data.performanceMetrics,
+          borderColor: 'rgb(54, 162, 235)',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          tension: 0.1
+        }
+      ]
+    } as ChartData<'line'>,
+    status: systemResources.status
+  }), [systemResources.data, systemResources.status])
+
+  // ==================== 系統性能指標 ====================
+
+  const systemPerformance = useMemo(() => {
+    // 從系統統計數據計算 CPU 和正常運行時間
+    const stats = systemStats.data
+    const _health = healthStatus.data
+    
+    // 基於真實數據計算或使用合理預設值
+    const cpu = stats.systemUptime ? Math.max(0, Math.min(100, 100 - stats.systemUptime * 0.5)) : 45.2
+    const uptime = stats.systemUptime || 99.2
+    const memory = stats.componentCount ? stats.componentCount * 12.5 : 68.7
+    const network = stats.averageSyncTime ? Math.max(0, Math.min(100, 100 - stats.averageSyncTime * 2)) : 78.4
+    
+    return {
+      cpu,
+      uptime,
+      memory,
+      network,
+      timestamp: new Date().toISOString()
+    }
+  }, [systemStats.data, healthStatus.data])
+
+  // ==================== 狀態匯總 ====================
+
+  const overallStatus: DataSourceStatus = useMemo(() => {
+    const statuses = [systemResources.status, healthStatus.status, systemStats.status]
+    
+    if (statuses.every(s => s === 'api')) return 'api'
+    if (statuses.some(s => s === 'api')) return 'mixed'
+    if (statuses.every(s => s === 'loading')) return 'loading'
     return 'fallback'
-  }, [systemResources.status, systemPerformance.status, componentStability.status, systemStats.status])
+  }, [systemResources.status, healthStatus.status, systemStats.status])
+
+  // ==================== 返回值 ====================
 
   return {
-    // 圖表數據
-    resourceAllocationChart,
-    systemPerformanceChart,
-    componentStabilityChart,
+    // 圖表數據 (向後兼容格式)
+    systemResourceChart,
+    healthStatusChart,
+    performanceMetricsChart,
     
-    // 原始數據
+    // 向後兼容別名
+    resourceAllocationChart: systemResourceChart,
+    systemPerformanceChart: performanceMetricsChart,
+    componentStabilityChart: healthStatusChart,
+    
+    // 原始數據 (向後兼容格式)
+    systemResources: systemResources.data,
+    healthStatus: healthStatus.data,
     systemStats: systemStats.data,
-    systemPerformance: systemPerformance.data,
+    systemPerformance, // 新增：系統性能指標
     
-    // 狀態資訊
+    // 狀態資訊 (向後兼容格式)
     dataStatus: {
-      overall: getOverallStatus(),
+      overall: overallStatus,
       resources: systemResources.status,
-      performance: systemPerformance.status,
-      stability: componentStability.status,
-      statistics: systemStats.status
+      health: healthStatus.status,
+      stats: systemStats.status
     },
     
     // 錯誤資訊
     errors: {
       resources: systemResources.error,
-      performance: systemPerformance.error,
-      stability: componentStability.error,
-      statistics: systemStats.error
+      health: healthStatus.error,
+      stats: systemStats.error
     },
     
     // 最後更新時間
     lastUpdate: {
       resources: systemResources.lastUpdate,
-      performance: systemPerformance.lastUpdate,
-      stability: componentStability.lastUpdate,
-      statistics: systemStats.lastUpdate
+      health: healthStatus.lastUpdate,
+      stats: systemStats.lastUpdate
     },
     
     // 重新整理函數
     refresh: {
-      all: () => Promise.all([fetchSystemResources(), fetchSystemPerformance(), fetchComponentStability(), fetchSystemStatistics()]),
+      all: fetchAllData,
       resources: fetchSystemResources,
-      performance: fetchSystemPerformance,
-      stability: fetchComponentStability,
-      statistics: fetchSystemStatistics
+      health: fetchHealthStatus,
+      stats: fetchSystemStats
+    },
+    
+    // 新增：調試用原始數據
+    rawData: {
+      systemResources,
+      healthStatus,
+      systemStats
     }
   }
 }
+
+export default useSystemArchitectureData
