@@ -150,15 +150,15 @@ class SimWorldApiClient extends BaseApiClient {
    * 獲取可見衛星列表 - 真實 TLE 數據（全球視野，無地域限制）
    */
   async getVisibleSatellites(
-    minElevation: number = 0,       // 🌍 全球視野使用標準仰角（地平線以上）
-    maxSatellites: number = 50,     // 🚀 大幅增加衛星數量
+    minElevation: number = -10,     // 🌍 全球視野使用更寬鬆的仰角（地平線以下）
+    maxSatellites: number = 100,    // 🚀 大幅增加衛星數量
     observerLat: number = 0.0,      // 保留參數但在全球模式下忽略
     observerLon: number = 0.0       // 保留參數但在全球模式下忽略
   ): Promise<VisibleSatellitesResponse> {
-    // 🌍 為了獲得真正的全球視野，我們使用標準仰角限制和多個虛擬觀測點
+    // 🌍 為了獲得真正的全球視野，我們使用寬鬆的仰角限制和多個虛擬觀測點
     const params = {
-      count: Math.min(maxSatellites, 100),  // 🚀 大幅提高到100顆衛星
-      min_elevation_deg: 0,  // 🌍 使用0度標準仰角（地平線以上）
+      count: Math.min(maxSatellites, 150),  // 🚀 大幅提高到150顆衛星
+      min_elevation_deg: -10,  // 🌍 使用-10度寬鬆仰角（包含地平線以下）
       global_view: 'true',  // 強制全球視野
       // 🌍 不傳遞觀測點座標，讓後端使用全球模式
       // observer_lat: observerLat,  // 註釋掉以啟用真正的全球模式
@@ -481,7 +481,7 @@ export const simWorldApi = new SimWorldApiClient()
  */
 export const useVisibleSatellites = (
   minElevation: number = -10,     // 全球視野預設-10度
-  maxSatellites: number = 50,
+  maxSatellites: number = 100,    // 增加預設衛星數量
   refreshInterval: number = 30000,
   observerLat: number = 0.0,      // 全球視野預設赤道位置
   observerLon: number = 0.0       // 全球視野預設本初子午線
