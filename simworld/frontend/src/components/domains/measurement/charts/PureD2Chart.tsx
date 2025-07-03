@@ -137,10 +137,19 @@ function generateDistanceData() {
     return { distance1Points, distance2Points }
 }
 
+// 生成當前時間游標數據
+const generateCurrentTimeCursor = (currentTime: number) => {
+    return [
+        { x: currentTime, y: 0 },      // 底部
+        { x: currentTime, y: 600000 }  // 頂部 (D2 的 Y 軸範圍為距離，最大600km)
+    ]
+}
+
 interface PureD2ChartProps {
     thresh1?: number // 距離門檻1（米）
     thresh2?: number // 距離門檻2（米）
     hysteresis?: number // 遲滯參數（米）
+    currentTime?: number // Current time in seconds
     showThresholdLines?: boolean
     isDarkTheme?: boolean
     onThemeToggle?: () => void
@@ -150,11 +159,13 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
     thresh1 = 550000,
     thresh2 = 6000,
     hysteresis = 20,
+    currentTime = 0,
     showThresholdLines = true,
     isDarkTheme = true,
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const chartRef = useRef<Chart | null>(null)
+    const isInitialized = useRef(false)
 
     // 使用 useMemo 穩定主題配色方案 - 與 A4/D1 一致
     const colors = useMemo(
@@ -164,6 +175,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 distance2Line: '#FD7E14', // 橙色：距離2（固定參考位置）
                 thresh1Line: '#DC3545', // 紅色：門檻1
                 thresh2Line: '#007BFF', // 藍色：門檻2
+                currentTimeLine: '#ff6b35', // 動畫游標線顏色
                 title: 'white',
                 text: 'white',
                 grid: 'rgba(255, 255, 255, 0.1)',
@@ -174,6 +186,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 distance2Line: '#FD6C00',
                 thresh1Line: '#DC3545',
                 thresh2Line: '#0D6EFD',
+                currentTimeLine: '#ff6b35', // 動畫游標線顏色
                 title: 'black',
                 text: '#333333',
                 grid: 'rgba(0, 0, 0, 0.1)',
@@ -506,6 +519,47 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
             }
         }
     }, [chartConfig])
+
+    // 更新游標 - 不重新創建圖表
+    useEffect(() => {
+        if (!chartRef.current) return
+        const chart = chartRef.current
+
+        // 處理游標數據集
+        const expectedCursorIndex = 2 // 在兩個距離數據集之後
+        
+        if (currentTime > 0) {
+            const cursorData = generateCurrentTimeCursor(currentTime)
+            if (chart.data.datasets[expectedCursorIndex]) {
+                // 更新現有游標數據
+                chart.data.datasets[expectedCursorIndex].data = cursorData
+                chart.data.datasets[expectedCursorIndex].label = `Current Time: ${currentTime.toFixed(1)}s`
+            } else {
+                // 添加新的游標數據集
+                chart.data.datasets.push({
+                    label: `Current Time: ${currentTime.toFixed(1)}s`,
+                    data: cursorData,
+                    borderColor: currentTheme.currentTimeLine,
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    tension: 0,
+                    borderDash: [5, 5],
+                    yAxisID: 'y-left',
+                } as any)
+            }
+        } else {
+            // 移除游標數據集
+            if (chart.data.datasets[expectedCursorIndex] && chart.data.datasets[expectedCursorIndex].label?.includes('Current Time')) {
+                chart.data.datasets.splice(expectedCursorIndex, 1)
+            }
+        }
+
+        // 更新圖表 - 使用 'none' 避免動畫
+        chart.update('none')
+    }, [currentTime, currentTheme])
 
     return (
         <div

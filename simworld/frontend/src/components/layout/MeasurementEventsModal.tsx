@@ -9,6 +9,9 @@ import EventA4Viewer from '../domains/measurement/charts/EventA4Viewer'
 import EventD1Viewer from '../domains/measurement/charts/EventD1Viewer'
 import EventD2Viewer from '../domains/measurement/charts/EventD2Viewer'
 import EventT1Viewer from '../domains/measurement/charts/EventT1Viewer'
+import { EventSelector } from '../domains/measurement/components/EventSelector'
+import { EVENT_CONFIGS } from '../domains/measurement/config/eventConfig'
+import type { EventType } from '../domains/measurement/types'
 import './MeasurementEventsModal.scss'
 
 interface MeasurementEventsModalProps {
@@ -16,47 +19,7 @@ interface MeasurementEventsModalProps {
     onClose: () => void
 }
 
-type EventType = 'A4' | 'D1' | 'D2' | 'T1'
-
-interface EventConfig {
-    id: EventType
-    name: string
-    description: string
-    status: 'available' | 'coming-soon'
-    ViewerComponent?: React.FC<any>
-}
-
-// 穩定的事件配置 - 移到組件外部避免重新創建
-const eventConfigs: EventConfig[] = [
-    {
-        id: 'A4',
-        name: 'Event A4',
-        description: 'Neighbour becomes better than threshold',
-        status: 'available',
-        ViewerComponent: EventA4Viewer,
-    },
-    {
-        id: 'D1',
-        name: 'Event D1',
-        description: 'Distance between UE and reference locations',
-        status: 'available',
-        ViewerComponent: EventD1Viewer,
-    },
-    {
-        id: 'D2',
-        name: 'Event D2',
-        description: 'Distance between UE and moving reference locations',
-        status: 'available',
-        ViewerComponent: EventD2Viewer,
-    },
-    {
-        id: 'T1',
-        name: 'CondEvent T1',
-        description: 'Time measured at UE within duration from threshold',
-        status: 'available',
-        ViewerComponent: EventT1Viewer,
-    },
-]
+// 使用統一的事件配置管理
 
 const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> =
     React.memo(({ isOpen, onClose }) => {
@@ -68,16 +31,14 @@ const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> =
         }, [isDarkTheme])
 
         const handleEventChange = useCallback((eventType: EventType) => {
-            const eventConfig = eventConfigs.find(
-                (config) => config.id === eventType
-            )
+            const eventConfig = EVENT_CONFIGS[eventType]
             if (eventConfig?.status === 'available') {
                 setSelectedEvent(eventType)
             }
         }, [])
 
         const selectedEventConfig = useMemo(
-            () => eventConfigs.find((config) => config.id === selectedEvent),
+            () => EVENT_CONFIGS[selectedEvent],
             [selectedEvent]
         )
 
@@ -183,39 +144,19 @@ const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> =
                         }}
                     >
                         <div style={{ flex: 1 }}></div>
-                        {/* 事件選擇器作為標題 */}
+                        {/* 新的 EventSelector 組件 */}
                         <div
                             className="event-selector-title"
                             style={{ flex: 1, textAlign: 'center' }}
                         >
-                            <div className="event-buttons-title">
-                                {eventConfigs.map((config) => (
-                                    <button
-                                        key={config.id}
-                                        className={`event-btn-title ${
-                                            selectedEvent === config.id
-                                                ? 'active'
-                                                : ''
-                                        } ${
-                                            config.status === 'coming-soon'
-                                                ? 'disabled'
-                                                : ''
-                                        }`}
-                                        onClick={() =>
-                                            handleEventChange(config.id)
-                                        }
-                                        disabled={
-                                            config.status === 'coming-soon'
-                                        }
-                                        title={config.description}
-                                    >
-                                        {config.name}
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="event-description">
-                                {selectedEventConfig?.description}
-                            </div>
+                            <EventSelector
+                                selectedEvent={selectedEvent}
+                                onEventChange={handleEventChange}
+                                mode="compact"
+                                showDescription={true}
+                                showCategories={false}
+                                showStatus={false}
+                            />
                         </div>
                         <div
                             style={{
