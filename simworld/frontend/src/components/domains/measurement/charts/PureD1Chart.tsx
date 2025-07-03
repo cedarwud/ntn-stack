@@ -1,5 +1,5 @@
 /**
- * Pure D1 Chart Component  
+ * Pure D1 Chart Component
  * 基於 3GPP TS 38.331 Section 5.5.4.15 實現
  * Event D1: 距離雙門檻事件
  * 進入條件: Ml1 – Hys > Thresh1 AND Ml2 + Hys < Thresh2
@@ -10,59 +10,61 @@ import React, { useEffect, useRef, useMemo } from 'react'
 import { Chart } from 'chart.js/auto'
 
 // 模擬距離數據：UE 到兩個參考位置的距離隨時間變化
+// 調整數據以正確展示 Event D1 觸發邏輯：
+// - 在 30-70s 時間段，距離1 > Thresh1 (400m) AND 距離2 < Thresh2 (250m)
 // 距離1: UE 到 referenceLocation1 的距離 (公尺)
 const distance1Points = [
-    { x: 0, y: 800 },
-    { x: 5, y: 750 },
-    { x: 10, y: 700 },
-    { x: 15, y: 650 },
-    { x: 20, y: 600 },
-    { x: 25, y: 550 },
-    { x: 30, y: 500 },
-    { x: 35, y: 450 },
-    { x: 40, y: 400 },
-    { x: 45, y: 350 },
-    { x: 50, y: 320 },
-    { x: 55, y: 300 },
-    { x: 60, y: 290 },
-    { x: 65, y: 300 },
-    { x: 70, y: 320 },
-    { x: 75, y: 350 },
-    { x: 80, y: 400 },
-    { x: 85, y: 450 },
-    { x: 90, y: 500 },
-    { x: 95, y: 550 },
+    { x: 0, y: 200 },    // 開始時距離較近，不觸發
+    { x: 5, y: 250 },
+    { x: 10, y: 300 },
+    { x: 15, y: 350 },
+    { x: 20, y: 380 },
+    { x: 25, y: 400 },   // 接近門檻
+    { x: 30, y: 450 },   // 超過 Thresh1 (400m) - 觸發區間開始
+    { x: 35, y: 500 },   // 遠離 referenceLocation1
+    { x: 40, y: 520 },
+    { x: 45, y: 530 },   // 最遠點
+    { x: 50, y: 520 },
+    { x: 55, y: 500 },
+    { x: 60, y: 480 },
+    { x: 65, y: 450 },
+    { x: 70, y: 420 },   // 仍超過 Thresh1
+    { x: 75, y: 380 },   // 觸發區間結束 - 低於 Thresh1
+    { x: 80, y: 350 },
+    { x: 85, y: 320 },
+    { x: 90, y: 280 },
+    { x: 95, y: 250 },   // 回到較近距離
 ]
 
-// 距離2: UE 到 referenceLocation2 的距離 (公尺)  
+// 距離2: UE 到 referenceLocation2 的距離 (公尺) 
 const distance2Points = [
-    { x: 0, y: 100 },
-    { x: 5, y: 120 },
-    { x: 10, y: 140 },
-    { x: 15, y: 160 },
-    { x: 20, y: 180 },
-    { x: 25, y: 200 },
-    { x: 30, y: 220 },
-    { x: 35, y: 240 },
-    { x: 40, y: 260 },
-    { x: 45, y: 280 },
-    { x: 50, y: 300 },
-    { x: 55, y: 320 },
-    { x: 60, y: 300 },
-    { x: 65, y: 280 },
-    { x: 70, y: 260 },
-    { x: 75, y: 240 },
-    { x: 80, y: 220 },
-    { x: 85, y: 200 },
-    { x: 90, y: 180 },
-    { x: 95, y: 160 },
+    { x: 0, y: 400 },    // 開始時距離較遠，不觸發
+    { x: 5, y: 380 },
+    { x: 10, y: 350 },
+    { x: 15, y: 320 },
+    { x: 20, y: 290 },
+    { x: 25, y: 270 },   // 接近門檻
+    { x: 30, y: 240 },   // 低於 Thresh2 (250m) - 觸發區間開始
+    { x: 35, y: 200 },   // 接近 referenceLocation2
+    { x: 40, y: 180 },
+    { x: 45, y: 160 },   // 最近點
+    { x: 50, y: 170 },
+    { x: 55, y: 190 },
+    { x: 60, y: 210 },
+    { x: 65, y: 220 },
+    { x: 70, y: 240 },   // 仍低於 Thresh2
+    { x: 75, y: 260 },   // 觸發區間結束 - 超過 Thresh2
+    { x: 80, y: 290 },
+    { x: 85, y: 320 },
+    { x: 90, y: 350 },
+    { x: 95, y: 380 },   // 回到較遠距離
 ]
 
 interface PureD1ChartProps {
     width?: number
     height?: number
     thresh1?: number // distanceThreshFromReference1 (meters)
-    thresh2?: number // distanceThreshFromReference2 (meters) 
+    thresh2?: number // distanceThreshFromReference2 (meters)
     hysteresis?: number // hysteresisLocation (meters)
     showThresholdLines?: boolean
     isDarkTheme?: boolean
@@ -89,7 +91,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
             () => ({
                 dark: {
                     distance1Line: '#28A745', // 綠色：距離1
-                    distance2Line: '#FD7E14', // 橙色：距離2  
+                    distance2Line: '#FD7E14', // 橙色：距離2
                     thresh1Line: '#DC3545', // 紅色：門檻1
                     thresh2Line: '#007BFF', // 藍色：門檻2
                     hysteresisLine: 'rgba(108, 117, 125, 0.6)', // 灰色：遲滯線
@@ -154,14 +156,14 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
 
             // 如果需要顯示門檻線，添加門檻線數據集
             if (showThresholdLines) {
-                const timePoints = distance1Points.map(point => point.x)
-                
+                const timePoints = distance1Points.map((point) => point.x)
+
                 // Thresh1 門檻線數據
                 const thresh1Data = timePoints.map((time) => ({
                     x: time,
                     y: thresh1,
                 }))
-                
+
                 // Thresh2 門檻線數據
                 const thresh2Data = timePoints.map((time) => ({
                     x: time,
@@ -273,18 +275,18 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                                 labels: {
                                     color: 'white', // 預設顏色
                                     font: { size: 12 },
-                                    filter: function(legendItem, chartData) {
+                                    filter: function (legendItem, chartData) {
                                         // 隱藏遲滯線圖例，避免過於複雜
-                                        const label = legendItem.text || '';
-                                        return !label.includes('Hys');
-                                    }
+                                        const label = legendItem.text || ''
+                                        return !label.includes('Hys')
+                                    },
                                 },
                             },
-                            title: { 
+                            title: {
                                 display: true,
-                                text: 'Event D1: 距離雙門檻事件',
+                                // text: 'Event D1: 距離雙門檻事件',
                                 color: 'white',
-                                font: { size: 16 }
+                                font: { size: 16 },
                             },
                         },
                         scales: {
@@ -346,35 +348,119 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
 
             // 處理 showThresholdLines 變化和參數更新
             if (showThresholdLines) {
-                const timePoints = distance1Points.map(point => point.x)
-                
+                const timePoints = distance1Points.map((point) => point.x)
+
                 // 重新計算門檻線數據
-                const thresh1Data = timePoints.map((time) => ({ x: time, y: thresh1 }))
-                const thresh2Data = timePoints.map((time) => ({ x: time, y: thresh2 }))
-                const thresh1HysUpperData = timePoints.map((time) => ({ x: time, y: thresh1 + hysteresis }))
-                const thresh1HysLowerData = timePoints.map((time) => ({ x: time, y: thresh1 - hysteresis }))
-                const thresh2HysUpperData = timePoints.map((time) => ({ x: time, y: thresh2 + hysteresis }))
-                const thresh2HysLowerData = timePoints.map((time) => ({ x: time, y: thresh2 - hysteresis }))
+                const thresh1Data = timePoints.map((time) => ({
+                    x: time,
+                    y: thresh1,
+                }))
+                const thresh2Data = timePoints.map((time) => ({
+                    x: time,
+                    y: thresh2,
+                }))
+                const thresh1HysUpperData = timePoints.map((time) => ({
+                    x: time,
+                    y: thresh1 + hysteresis,
+                }))
+                const thresh1HysLowerData = timePoints.map((time) => ({
+                    x: time,
+                    y: thresh1 - hysteresis,
+                }))
+                const thresh2HysUpperData = timePoints.map((time) => ({
+                    x: time,
+                    y: thresh2 + hysteresis,
+                }))
+                const thresh2HysLowerData = timePoints.map((time) => ({
+                    x: time,
+                    y: thresh2 - hysteresis,
+                }))
 
                 // 確保有足夠的數據集
                 if (chart.data.datasets.length === 2) {
                     // 添加門檻線數據集
                     chart.data.datasets.push(
-                        { label: 'Thresh1 (Ref1 Threshold)', data: thresh1Data, borderColor: currentTheme.thresh1Line, backgroundColor: 'transparent', borderDash: [10, 5], borderWidth: 2, fill: false, tension: 0, pointRadius: 0 } as any,
-                        { label: 'Thresh2 (Ref2 Threshold)', data: thresh2Data, borderColor: currentTheme.thresh2Line, backgroundColor: 'transparent', borderDash: [10, 5], borderWidth: 2, fill: false, tension: 0, pointRadius: 0 } as any,
-                        { label: 'Thresh1 + Hys', data: thresh1HysUpperData, borderColor: currentTheme.hysteresisLine, backgroundColor: 'transparent', borderDash: [5, 3], borderWidth: 1, fill: false, tension: 0, pointRadius: 0 } as any,
-                        { label: 'Thresh1 - Hys', data: thresh1HysLowerData, borderColor: currentTheme.hysteresisLine, backgroundColor: 'transparent', borderDash: [5, 3], borderWidth: 1, fill: false, tension: 0, pointRadius: 0 } as any,
-                        { label: 'Thresh2 + Hys', data: thresh2HysUpperData, borderColor: currentTheme.hysteresisLine, backgroundColor: 'transparent', borderDash: [5, 3], borderWidth: 1, fill: false, tension: 0, pointRadius: 0 } as any,
-                        { label: 'Thresh2 - Hys', data: thresh2HysLowerData, borderColor: currentTheme.hysteresisLine, backgroundColor: 'transparent', borderDash: [5, 3], borderWidth: 1, fill: false, tension: 0, pointRadius: 0 } as any
+                        {
+                            label: 'Thresh1 (Ref1 Threshold)',
+                            data: thresh1Data,
+                            borderColor: currentTheme.thresh1Line,
+                            backgroundColor: 'transparent',
+                            borderDash: [10, 5],
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0,
+                            pointRadius: 0,
+                        } as any,
+                        {
+                            label: 'Thresh2 (Ref2 Threshold)',
+                            data: thresh2Data,
+                            borderColor: currentTheme.thresh2Line,
+                            backgroundColor: 'transparent',
+                            borderDash: [10, 5],
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0,
+                            pointRadius: 0,
+                        } as any,
+                        {
+                            label: 'Thresh1 + Hys',
+                            data: thresh1HysUpperData,
+                            borderColor: currentTheme.hysteresisLine,
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 3],
+                            borderWidth: 1,
+                            fill: false,
+                            tension: 0,
+                            pointRadius: 0,
+                        } as any,
+                        {
+                            label: 'Thresh1 - Hys',
+                            data: thresh1HysLowerData,
+                            borderColor: currentTheme.hysteresisLine,
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 3],
+                            borderWidth: 1,
+                            fill: false,
+                            tension: 0,
+                            pointRadius: 0,
+                        } as any,
+                        {
+                            label: 'Thresh2 + Hys',
+                            data: thresh2HysUpperData,
+                            borderColor: currentTheme.hysteresisLine,
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 3],
+                            borderWidth: 1,
+                            fill: false,
+                            tension: 0,
+                            pointRadius: 0,
+                        } as any,
+                        {
+                            label: 'Thresh2 - Hys',
+                            data: thresh2HysLowerData,
+                            borderColor: currentTheme.hysteresisLine,
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 3],
+                            borderWidth: 1,
+                            fill: false,
+                            tension: 0,
+                            pointRadius: 0,
+                        } as any
                     )
                 } else {
                     // 更新現有門檻線數據
-                    if (chart.data.datasets[2]) chart.data.datasets[2].data = thresh1Data
-                    if (chart.data.datasets[3]) chart.data.datasets[3].data = thresh2Data
-                    if (chart.data.datasets[4]) chart.data.datasets[4].data = thresh1HysUpperData
-                    if (chart.data.datasets[5]) chart.data.datasets[5].data = thresh1HysLowerData
-                    if (chart.data.datasets[6]) chart.data.datasets[6].data = thresh2HysUpperData
-                    if (chart.data.datasets[7]) chart.data.datasets[7].data = thresh2HysLowerData
+                    if (chart.data.datasets[2])
+                        chart.data.datasets[2].data = thresh1Data
+                    if (chart.data.datasets[3])
+                        chart.data.datasets[3].data = thresh2Data
+                    if (chart.data.datasets[4])
+                        chart.data.datasets[4].data = thresh1HysUpperData
+                    if (chart.data.datasets[5])
+                        chart.data.datasets[5].data = thresh1HysLowerData
+                    if (chart.data.datasets[6])
+                        chart.data.datasets[6].data = thresh2HysUpperData
+                    if (chart.data.datasets[7])
+                        chart.data.datasets[7].data = thresh2HysLowerData
                 }
             } else {
                 // 隱藏門檻線，只保留距離曲線
@@ -386,12 +472,18 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
             // 更新顏色主題
             chart.data.datasets[0].borderColor = currentTheme.distance1Line
             chart.data.datasets[1].borderColor = currentTheme.distance2Line
-            if (chart.data.datasets[2]) chart.data.datasets[2].borderColor = currentTheme.thresh1Line
-            if (chart.data.datasets[3]) chart.data.datasets[3].borderColor = currentTheme.thresh2Line
-            if (chart.data.datasets[4]) chart.data.datasets[4].borderColor = currentTheme.hysteresisLine
-            if (chart.data.datasets[5]) chart.data.datasets[5].borderColor = currentTheme.hysteresisLine
-            if (chart.data.datasets[6]) chart.data.datasets[6].borderColor = currentTheme.hysteresisLine
-            if (chart.data.datasets[7]) chart.data.datasets[7].borderColor = currentTheme.hysteresisLine
+            if (chart.data.datasets[2])
+                chart.data.datasets[2].borderColor = currentTheme.thresh1Line
+            if (chart.data.datasets[3])
+                chart.data.datasets[3].borderColor = currentTheme.thresh2Line
+            if (chart.data.datasets[4])
+                chart.data.datasets[4].borderColor = currentTheme.hysteresisLine
+            if (chart.data.datasets[5])
+                chart.data.datasets[5].borderColor = currentTheme.hysteresisLine
+            if (chart.data.datasets[6])
+                chart.data.datasets[6].borderColor = currentTheme.hysteresisLine
+            if (chart.data.datasets[7])
+                chart.data.datasets[7].borderColor = currentTheme.hysteresisLine
 
             // 更新圖表選項的顏色
             if (chart.options.plugins?.legend?.labels) {
