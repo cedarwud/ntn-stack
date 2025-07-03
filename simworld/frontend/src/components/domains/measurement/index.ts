@@ -7,9 +7,13 @@ export { default as EventA4Chart } from './charts/EventA4Chart';
 export { default as EventD1Chart } from './charts/EventD1Chart';
 export { default as EventD1Viewer } from './charts/EventD1Viewer';
 export { default as PureD1Chart } from './charts/PureD1Chart';
+export { default as EventD2Chart } from './charts/EventD2Chart';
+export { default as EventD2Viewer } from './charts/EventD2Viewer';
+export { default as PureD2Chart } from './charts/PureD2Chart';
+export { default as EventT1Chart } from './charts/EventT1Chart';
+export { default as EventT1Viewer } from './charts/EventT1Viewer';
+export { default as PureT1Chart } from './charts/PureT1Chart';
 export * from './types';
 
 // Future exports for other event types
-// export { default as EventD2Chart } from './charts/EventD2Chart';
-// export { default as EventT1Chart } from './charts/EventT1Chart';
 // export { default as MeasurementEventDashboard } from './dashboard/MeasurementEventDashboard';

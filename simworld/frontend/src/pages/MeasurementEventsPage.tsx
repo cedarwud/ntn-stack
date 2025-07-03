@@ -62,9 +62,19 @@ export const MeasurementEventsPage: React.FC = () => {
     }
 
     // 根據當前選擇的事件類型獲取參數和處理函數
-    const currentParams = selectedEvent === 'A4' ? a4Params : d1Params
+    const currentParams =
+        selectedEvent === 'A4'
+            ? a4Params
+            : selectedEvent === 'D1'
+            ? d1Params
+            : a4Params
+
     const currentParamHandler =
-        selectedEvent === 'A4' ? handleA4ParamChange : handleD1ParamChange
+        selectedEvent === 'A4'
+            ? handleA4ParamChange
+            : selectedEvent === 'D1'
+            ? handleD1ParamChange
+            : handleA4ParamChange
 
     // 移除舊的狀態變數和處理函數
 
@@ -72,7 +82,7 @@ export const MeasurementEventsPage: React.FC = () => {
         <div className="event-type-selector">
             <h3>3GPP TS 38.331 Measurement Events</h3>
             <div className="event-buttons">
-                {(['A4', 'D1', 'D2', 'T1'] as EventType[]).map((eventType) => (
+                {(['A4', 'D1', 'T1'] as EventType[]).map((eventType) => (
                     <button
                         key={eventType}
                         className={`event-btn ${
