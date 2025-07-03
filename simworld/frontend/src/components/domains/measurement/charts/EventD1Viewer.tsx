@@ -70,6 +70,24 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
             }))
         }, [])
 
+        // 動畫進度更新
+        React.useEffect(() => {
+            if (!animationState.isPlaying) return
+
+            const interval = setInterval(() => {
+                setAnimationState(prev => {
+                    const newTime = prev.currentTime + 0.1 * prev.speed // 0.1 second steps
+                    const maxTime = 120 // 120 seconds max for D1
+                    if (newTime >= maxTime) {
+                        return { ...prev, isPlaying: false, currentTime: 0 }
+                    }
+                    return { ...prev, currentTime: newTime }
+                })
+            }, 100) // Update every 100ms (0.1 second)
+
+            return () => clearInterval(interval)
+        }, [animationState.isPlaying, animationState.speed])
+
         // 穩定的閾值線切換回調
         const toggleThresholdLines = useCallback(() => {
             setShowThresholdLines((prev) => !prev)
@@ -155,6 +173,33 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                                     >
                                         📏 門檻線
                                     </button>
+                                </div>
+                                
+                                {/* 時間遊標控制 */}
+                                <div className="control-group">
+                                    <div className="control-item">
+                                        <label className="control-label">
+                                            當前時間 (動畫時間)
+                                            <span className="control-unit">秒</span>
+                                        </label>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="120"
+                                            step="0.1"
+                                            value={animationState.currentTime}
+                                            onChange={(e) =>
+                                                setAnimationState(prev => ({
+                                                    ...prev,
+                                                    currentTime: Number(e.target.value)
+                                                }))
+                                            }
+                                            className="control-slider"
+                                        />
+                                        <span className="control-value">
+                                            {animationState.currentTime.toFixed(1)}s
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -483,6 +528,7 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                             thresh1={params.Thresh1}
                             thresh2={params.Thresh2}
                             hysteresis={params.Hys}
+                            currentTime={animationState.currentTime}
                             showThresholdLines={showThresholdLines}
                             isDarkTheme={isDarkTheme}
                             onThemeToggle={onThemeToggle}

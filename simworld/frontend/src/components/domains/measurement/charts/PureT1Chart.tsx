@@ -63,7 +63,7 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
         currentTime = 2000, // 2 seconds default
         showThresholdLines = true,
         isDarkTheme = true,
-        onThemeToggle,
+        _onThemeToggle,
     }) => {
         const canvasRef = useRef<HTMLCanvasElement>(null)
         const chartRef = useRef<Chart | null>(null)
@@ -267,8 +267,8 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                         ticks: {
                             color: currentColors.text,
                             stepSize: 2,
-                            callback: function (value: any) {
-                                return `${value}s (${value * 1000}ms)`
+                            callback: function (value: number | string) {
+                                return `${value}s (${Number(value) * 1000}ms)`
                             },
                         },
                         min: 0,
@@ -291,9 +291,9 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                         ticks: {
                             color: currentColors.text,
                             stepSize: 1,
-                            callback: function (value: any) {
-                                if (value === 0) return '0 (未激活)'
-                                if (value === 1) return '1 (激活)'
+                            callback: function (value: number | string) {
+                                if (Number(value) === 0) return '0 (未激活)'
+                                if (Number(value) === 1) return '1 (激活)'
                                 return value
                             },
                         },
