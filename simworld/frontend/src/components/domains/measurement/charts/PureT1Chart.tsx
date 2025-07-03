@@ -140,6 +140,19 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                         tension: 0,
                         borderDash: [5, 5],
                     },
+                    {
+                        label: `Event Status Node`,
+                        data: chartData.statusNodeData,
+                        borderColor: currentTime > threshold && currentTime <= threshold + duration ? '#28A745' : '#6C757D',
+                        backgroundColor: currentTime > threshold && currentTime <= threshold + duration ? '#28A745' : '#6C757D',
+                        borderWidth: 3,
+                        fill: false,
+                        pointRadius: currentTime > threshold && currentTime <= threshold + duration ? 12 : 8,
+                        pointHoverRadius: 16,
+                        pointStyle: 'rectRot',
+                        showLine: false,
+                        tension: 0,
+                    },
                 ],
             },
             options: {
@@ -321,6 +334,15 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                     // 更新現有圖表
                     chartRef.current.data = chartConfig.data
                     chartRef.current.options = chartConfig.options
+                    
+                    // 確保annotation插件正確初始化
+                    if (!chartRef.current.options.plugins) {
+                        chartRef.current.options.plugins = {}
+                    }
+                    if (!chartRef.current.options.plugins.annotation) {
+                        chartRef.current.options.plugins.annotation = { annotations: {} }
+                    }
+                    
                     chartRef.current.update('none')
                 } else {
                     // 創建新圖表
