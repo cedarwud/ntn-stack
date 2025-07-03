@@ -53,7 +53,7 @@
 ## 技術實現細節
 
 ### CSS 類別優先級
-- Event D2 使用 `.event-d2-viewer` 類別
+- Event D2 使用 `.event-a4-viewer` 類別
 - 通過 CSS 特異性確保 D2 專用樣式覆蓋通用樣式
 - 使用 `!important` 標記關鍵樣式屬性
 
