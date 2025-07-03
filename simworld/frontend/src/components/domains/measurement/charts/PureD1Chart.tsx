@@ -106,7 +106,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                     thresh1Line: '#DC3545',
                     thresh2Line: '#0D6EFD',
                     hysteresisLine: 'rgba(108, 117, 125, 0.8)',
-                    title: '#D32F2F',
+                    title: 'black',
                     text: '#333333',
                     grid: 'rgba(0, 0, 0, 0.1)',
                     background: 'white',
