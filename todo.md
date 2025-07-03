@@ -28,15 +28,23 @@ simworld/frontend/src/
 ├── components/domains/measurement/
 │   ├── charts/
 │   │   ├── PureA4Chart.tsx          # 核心圖表組件（已優化）
-│   │   └── EventA4Chart.tsx         # Event A4 主要圖表組件
+│   │   ├── EventA4Chart.tsx         # Event A4 主要圖表組件
+│   │   ├── EventA4Viewer.tsx        # A4 專用查看器
+│   │   ├── PureD1Chart.tsx          # D1 核心圖表組件
+│   │   ├── EventD1Chart.tsx         # Event D1 主要圖表組件  
+│   │   ├── EventD1Viewer.tsx        # D1 專用查看器
+│   │   ├── PureD2Chart.tsx          # D2 核心圖表組件
+│   │   ├── EventD2Chart.tsx         # Event D2 主要圖表組件
+│   │   ├── EventD2Viewer.tsx        # D2 專用查看器
+│   │   └── EventD2Tests.ts          # D2 功能測試腳本
 │   ├── viewers/
 │   │   ├── MeasurementEventsViewer.tsx  # 事件查看器
 │   │   └── EventA4Viewer.tsx            # A4 專用查看器
 │   ├── modals/
-│   │   └── MeasurementEventsModal.tsx   # 事件模態框
+│   │   └── MeasurementEventsModal.tsx   # 事件模態框（支援 A4/D1/D2）
 │   ├── types/index.ts               # TypeScript 類型定義
 │   └── index.ts                     # 領域匯出
-├── pages/MeasurementEventsPage.tsx  # 儀表板頁面
+├── pages/MeasurementEventsPage.tsx  # 儀表板頁面（支援 A4/D1 ✅，D2 已移除從此路由）
 ├── utils/csvDataParser.ts           # 數據處理工具
 └── public/Line-Plot.csv             # RSRP 曲線數據
 ```
@@ -56,64 +64,66 @@ simworld/frontend/src/
 
 ## 📋 待完成項目
 
-### Phase 1: Event D1 實作（距離雙門檻事件）📅 預計2週
+### Phase 1: Event D1 實作（距離雙門檻事件）✅ 已完成
 > 基於 3GPP TS 38.331 Section 5.5.4.15 規範
 
-#### D1-1: 基礎圖表結構 (3天)
-- [ ] 創建 `EventD1Chart.tsx` 組件
-- [ ] 設計雙距離曲線圖表（X軸：時間，Y軸：距離(m)）
-- [ ] 創建模擬距離數據集
-  - [ ] 距離1：UE 到 referenceLocation1 的距離隨時間變化
-  - [ ] 距離2：UE 到 referenceLocation2 的距離隨時間變化
-- [ ] 使用不同顏色區分（綠色：距離1，橙色：距離2）
-- [ ] 設置 Y軸單位為公尺(m)，範圍涵蓋所有門檻值
+#### D1-1: 基礎圖表結構 ✅
+- [x] 創建 `EventD1Chart.tsx` 組件
+- [x] 設計雙距離曲線圖表（X軸：時間，Y軸：距離(m)）
+- [x] 創建模擬距離數據集
+  - [x] 距離1：UE 到 referenceLocation1 的距離隨時間變化
+  - [x] 距離2：UE 到 referenceLocation2 的距離隨時間變化
+- [x] 使用不同顏色區分（綠色：距離1，橙色：距離2）
+- [x] 設置 Y軸單位為公尺(m)，範圍涵蓋所有門檻值
 
-#### D1-2: 雙門檻線與條件邏輯 (3天)
-- [ ] 實現雙門檻線繪製
-  - [ ] Thresh1 水平線（距離1的門檻）
-  - [ ] Thresh2 水平線（距離2的門檻）
-- [ ] 實現 3GPP D1 事件邏輯
-  - [ ] 進入條件：`Ml1 – Hys > Thresh1` AND `Ml2 + Hys < Thresh2`
-  - [ ] 離開條件：`Ml1 + Hys < Thresh1` OR `Ml2 – Hys > Thresh2`
-- [ ] 添加 hysteresisLocation 參數支援
-- [ ] 實現雙條件同時滿足的視覺指示器
+#### D1-2: 雙門檻線與條件邏輯 ✅
+- [x] 實現雙門檻線繪製
+  - [x] Thresh1 水平線（距離1的門檻）
+  - [x] Thresh2 水平線（距離2的門檻）
+- [x] 實現 3GPP D1 事件邏輯
+  - [x] 進入條件：`Ml1 – Hys > Thresh1` AND `Ml2 + Hys < Thresh2`
+  - [x] 離開條件：`Ml1 + Hys < Thresh1` OR `Ml2 – Hys > Thresh2`
+- [x] 添加 hysteresisLocation 參數支援
+- [x] 實現雙條件同時滿足的視覺指示器
 
-#### D1-3: 互動功能與註解 (2天)
-- [ ] 移植 A4 的動畫控制系統
-- [ ] 添加 D1 專用註解標示
-  - [ ] 「D1-1 & D1-2 Enter」：雙條件觸發點
-  - [ ] 「D1-3 or D1-4 Leave」：任一離開條件
-  - [ ] 距離門檻標籤與箭頭
-- [ ] 實現參數控制面板（distanceThreshFromReference1/2）
-- [ ] 添加 TimeToTrigger 持續時間要求
+#### D1-3: 互動功能與註解 ✅
+- [x] 移植 A4 的動畫控制系統
+- [x] 添加 D1 專用註解標示
+  - [x] 「D1-1 & D1-2 Enter」：雙條件觸發點
+  - [x] 「D1-3 or D1-4 Leave」：任一離開條件
+  - [x] 距離門檻標籤與箭頭
+- [x] 實現參數控制面板（distanceThreshFromReference1/2）
+- [x] 添加 TimeToTrigger 持續時間要求
 
-#### D1-4: 系統整合 (2天)
-- [ ] 創建 `EventD1Viewer.tsx` 查看器
-- [ ] 更新 `MeasurementEventsViewer.tsx` 支援 D1 事件
-- [ ] 添加 D1 事件類型定義
-- [ ] 測試所有 D1 功能並驗證 3GPP 規範合規性
+#### D1-4: 系統整合 ✅
+- [x] 創建 `EventD1Viewer.tsx` 查看器
+- [x] 更新 `MeasurementEventsViewer.tsx` 支援 D1 事件
+- [x] 添加 D1 事件類型定義
+- [x] 測試所有 D1 功能並驗證 3GPP 規範合規性
 
-### Phase 2: Event D2 實作（移動參考位置事件）📅 預計1.5週
-> 基於 3GPP TS 38.331 Section 5.5.4.15a 規範
-
-#### D2-1: 移動參考位置邏輯 (3天)
-- [ ] 基於 D1 程式碼創建 `EventD2Chart.tsx`
-- [ ] 實現移動參考位置概念
-  - [ ] 服務小區移動參考位置（基於 movingReferenceLocation + 衛星星曆）
-  - [ ] 固定參考位置（基於 MeasObjectNR 的 referenceLocation）
-- [ ] 創建考慮移動參考點的距離數據集
-- [ ] 實現 D2 事件邏輯（與 D1 相同但參考點不同）
-
-#### D2-2: 衛星軌道模擬 (2天)
-- [ ] 添加移動參考位置的視覺化提示
-- [ ] 實現基於時間的參考位置移動模擬
-- [ ] 添加衛星星曆數據考量的註解說明
-- [ ] 整合 D2 查看器與系統
-
-#### D2-3: 測試與優化 (2天)
-- [ ] 驗證 D2 與 D1 的邏輯差異
-- [ ] 性能優化（參考 A4 的優化經驗）
-- [ ] 完整測試移動參考位置功能
+### Event D2 實作（移動參考位置事件）✅ 已完成 - 僅支援 Modal 方式
+- [x] 創建 `EventD2Chart.tsx` 組件
+- [x] 設計移動參考位置圖表（X軸：時間，Y軸：距離(m)）
+- [x] 實現衛星軌道模擬
+  - [x] 距離1：UE 到 movingReferenceLocation 的距離隨時間變化
+  - [x] 距離2：UE 到 referenceLocation 的距離隨時間變化
+- [x] 使用不同顏色區分（綠色：移動參考位置距離，橙色：固定參考位置距離）
+- [x] 實現雙門檻線繪製與條件邏輯
+  - [x] Thresh1 水平線（移動參考位置的門檻）
+  - [x] Thresh2 水平線（固定參考位置的門檻）
+- [x] 實現 3GPP D2 事件邏輯
+  - [x] 進入條件：`Ml1 – Hys > Thresh1` AND `Ml2 + Hys < Thresh2`
+  - [x] 離開條件：`Ml1 + Hys < Thresh1` OR `Ml2 – Hys > Thresh2`
+- [x] 添加 hysteresisLocation 參數支援
+- [x] 實現增強的衛星軌道模擬
+  - [x] 3D 距離計算（考慮衛星高度）
+  - [x] LEO 衛星軌道特性（550km 高度，7.5km/s 速度）
+  - [x] 地球自轉影響模擬
+- [x] 創建 `EventD2Viewer.tsx` 查看器
+- [x] 更新 `MeasurementEventsModal.tsx` 支援 D2 事件
+- [x] 添加 D2 事件類型定義和匯出
+- [x] 創建測試腳本驗證 D2 功能
+- [x] **從路由頁面完全移除 D2，確保只能通過 navbar > 換手事件 Modal 開啟**
 
 ### Phase 3: Event T1 實作（時間窗口條件事件）📅 預計1週
 > 基於 3GPP TS 38.331 Section 5.5.4.16 規範
@@ -201,10 +211,10 @@ simworld/frontend/src/
 ## 📈 開發里程碑
 
 - **第1週**: 完成 Event A4 註解系統 ✅
-- **第2-3週**: 完成 Event D1 實作
-- **第4-5週**: 完成 Event D2 實作  
-- **第6週**: 完成 Event T1 實作
+- **第2-3週**: 完成 Event D1 實作 ✅
+- **第4-5週**: 完成 Event D2 實作 ✅
+- **第6週**: 完成 Event T1 實作 🔄
 - **第7週**: 完成多事件導航系統
 - **第8週**: 整體優化與測試
 
-Event A4 圖表已成功實現並經過性能優化，可以開始下一階段的 D1、D2、T1 事件開發！
+Event A4、D1、D2 圖表已成功實現並經過性能優化，現在可以開始下一階段的 T1 事件開發！

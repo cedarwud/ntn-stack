@@ -91,7 +91,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     rsrpLine: '#007bff',
                     thresholdLine: '#E74C3C',
                     hysteresisLine: 'rgba(231, 76, 60, 0.6)',
-                    title: '#E74C3C',
+                    title: 'white',
                     text: 'white',
                     grid: 'rgba(255, 255, 255, 0.1)',
                     background: 'transparent',
@@ -201,7 +201,16 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                                     font: { size: 12 },
                                 },
                             },
-                            title: { display: false },
+                            title: {
+                                display: true,
+                                text: 'Event A4: 鄰近基站優於門檻事件 (3GPP TS 38.331)',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold',
+                                },
+                                color: 'white',
+                                padding: 20,
+                            },
                         },
                         scales: {
                             x: {
