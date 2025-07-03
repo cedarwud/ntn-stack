@@ -164,7 +164,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 distance2Line: '#FD7E14', // 橙色：距離2（固定參考位置）
                 thresh1Line: '#DC3545', // 紅色：門檻1
                 thresh2Line: '#007BFF', // 藍色：門檻2
-                title: '#E74C3C',
+                title: 'white',
                 text: 'white',
                 grid: 'rgba(255, 255, 255, 0.1)',
                 background: 'transparent',
@@ -174,7 +174,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 distance2Line: '#FD6C00',
                 thresh1Line: '#DC3545',
                 thresh2Line: '#0D6EFD',
-                title: '#D32F2F',
+                title: 'black',
                 text: '#333333',
                 grid: 'rgba(0, 0, 0, 0.1)',
                 background: 'white',

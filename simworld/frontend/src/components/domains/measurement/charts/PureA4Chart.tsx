@@ -100,7 +100,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     rsrpLine: '#0066CC',
                     thresholdLine: '#D32F2F',
                     hysteresisLine: '#D32F2F',
-                    title: '#D32F2F',
+                    title: 'black',
                     text: '#333333',
                     grid: 'rgba(0, 0, 0, 0.1)',
                     background: 'white',
@@ -120,12 +120,12 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
             const ctx = canvasRef.current.getContext('2d')
             if (!ctx) return
 
-            // 準備初始數據集 - 使用默認顏色，後續通過更新來設置正確顏色
+            // 準備初始數據集 - 使用正確的主題顏色
             const datasets: any[] = [
                 {
                     label: 'Neighbor Cell RSRP',
                     data: dataPoints,
-                    borderColor: '#007bff', // 默認顏色
+                    borderColor: currentTheme.rsrpLine,
                     backgroundColor: 'transparent',
                     fill: false,
                     tension: 0.3,
@@ -152,7 +152,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     {
                         label: 'a4-Threshold',
                         data: thresholdData,
-                        borderColor: '#E74C3C', // 默認顏色
+                        borderColor: currentTheme.thresholdLine,
                         backgroundColor: 'transparent',
                         borderDash: [10, 5],
                         borderWidth: 2,
@@ -163,7 +163,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     {
                         label: 'Threshold + Hys',
                         data: upperThresholdData,
-                        borderColor: 'rgba(231, 76, 60, 0.6)', // 默認顏色
+                        borderColor: currentTheme.hysteresisLine,
                         backgroundColor: 'transparent',
                         borderDash: [5, 3],
                         borderWidth: 3,
@@ -174,7 +174,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     {
                         label: 'Threshold - Hys',
                         data: lowerThresholdData,
-                        borderColor: 'rgba(231, 76, 60, 0.6)', // 默認顏色
+                        borderColor: currentTheme.hysteresisLine,
                         backgroundColor: 'transparent',
                         borderDash: [5, 3],
                         borderWidth: 3,
@@ -197,7 +197,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                                 display: showThresholdLines,
                                 position: 'bottom',
                                 labels: {
-                                    color: 'white', // 默認顏色
+                                    color: currentTheme.text,
                                     font: { size: 12 },
                                 },
                             },
@@ -208,7 +208,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                                     size: 16,
                                     weight: 'bold',
                                 },
-                                color: 'white',
+                                color: currentTheme.title,
                                 padding: 20,
                             },
                         },
@@ -218,11 +218,11 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                                 title: {
                                     display: true,
                                     text: 'Time (s)',
-                                    color: 'white', // 默認顏色
+                                    color: currentTheme.text,
                                     font: { size: 14 },
                                 },
-                                ticks: { color: 'white' }, // 默認顏色
-                                grid: { color: 'rgba(255, 255, 255, 0.1)' }, // 默認顏色
+                                ticks: { color: currentTheme.text },
+                                grid: { color: currentTheme.grid },
                                 min: 0,
                                 max: 95,
                             },
@@ -230,11 +230,11 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                                 title: {
                                     display: true,
                                     text: 'RSRP (dBm)',
-                                    color: 'white', // 默認顏色
+                                    color: currentTheme.text,
                                     font: { size: 14 },
                                 },
-                                ticks: { color: 'white' }, // 默認顏色
-                                grid: { color: 'rgba(255, 255, 255, 0.1)' }, // 默認顏色
+                                ticks: { color: currentTheme.text },
+                                grid: { color: currentTheme.grid },
                                 min: -100,
                                 max: -50,
                                 reverse: true,
@@ -256,7 +256,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     isInitialized.current = false
                 }
             }
-        }, []) // 只在掛載時執行，不依賴任何變量
+        }, [currentTheme]) // 響應主題變化重新初始化
 
         // 更新參數和主題 - 不重新創建圖表
         useEffect(() => {
@@ -350,6 +350,9 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
             }
 
             // 更新圖表選項的顏色
+            if (chart.options.plugins?.title) {
+                chart.options.plugins.title.color = currentTheme.title
+            }
             if (chart.options.plugins?.legend?.labels) {
                 chart.options.plugins.legend.labels.color = currentTheme.text
             }
