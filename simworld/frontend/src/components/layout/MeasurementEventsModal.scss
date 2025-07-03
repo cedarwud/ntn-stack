@@ -3,6 +3,60 @@
  * 測量事件模態框樣式，包含 Tab 選擇器和圖表顯示
  */
 
+// 標題區域的事件選擇器樣式
+.event-selector-title {
+  .event-buttons-title {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 8px;
+
+    .event-btn-title {
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+
+      &:hover:not(.disabled) {
+        background: rgba(231, 76, 60, 0.3);
+        border-color: rgba(231, 76, 60, 0.5);
+        transform: translateY(-1px);
+      }
+
+      &.active {
+        background: linear-gradient(45deg, #e74c3c, #c0392b);
+        border-color: #e74c3c;
+        box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
+      }
+
+      &.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        
+        &:hover {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.3);
+          transform: none;
+        }
+      }
+    }
+  }
+
+  .event-description {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    font-weight: 400;
+    margin: 0;
+  }
+}
+
 .measurement-events-viewer {
   width: 100%;
   min-height: 100%;
@@ -59,6 +113,24 @@
 
 // 響應式設計
 @media (max-width: 768px) {
+  .event-selector-title {
+    .event-buttons-title {
+      flex-wrap: wrap;
+      gap: 6px;
+
+      .event-btn-title {
+        padding: 6px 12px;
+        font-size: 13px;
+        flex: 1;
+        min-width: 80px;
+      }
+    }
+
+    .event-description {
+      font-size: 11px;
+    }
+  }
+
   .measurement-events-viewer {    
     .event-chart-container {
       .coming-soon-placeholder {
