@@ -194,7 +194,7 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
                                     backgroundColor: 'rgba(34, 197, 94, 0.1)',
                                     borderWidth: 2,
                                     fill: true,
-                                    tension: 0.4,
+                                    tension: 0.3,
                                   },
                                 ],
                               }}
@@ -225,7 +225,7 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
                                     backgroundColor: 'rgba(239, 68, 68, 0.1)',
                                     borderWidth: 2,
                                     fill: true,
-                                    tension: 0.4,
+                                    tension: 0.3,
                                   },
                                 ],
                               }}
@@ -290,7 +290,7 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
                                     backgroundColor: 'rgba(249, 115, 22, 0.1)',
                                     borderWidth: 2,
                                     fill: true,
-                                    tension: 0.4,
+                                    tension: 0.3,
                                   },
                                 ],
                               }}
@@ -321,7 +321,7 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
                                     backgroundColor: 'rgba(139, 92, 246, 0.1)',
                                     borderWidth: 2,
                                     fill: true,
-                                    tension: 0.4,
+                                    tension: 0.3,
                                   },
                                 ],
                               }}

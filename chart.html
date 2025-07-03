@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Pure-A4 Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #fff; }
+        #pureA4Chart { max-width: 800px; margin: 40px auto; }
+    </style>
+</head>
+<body>
+    <canvas id="pureA4Chart" width="800" height="400"></canvas>
+    <script>
+        // 將 Line-Plot.csv 轉換成 JS 陣列
+        const dataPoints = [
+            {x:1.48, y:-51.66},
+            {x:3.65, y:-51.93},
+            {x:5.82, y:-52.45},
+            {x:7.99, y:-53.18},
+            {x:10.17, y:-54.13},
+            {x:12.34, y:-55.38},
+            {x:14.51, y:-56.90},
+            {x:16.68, y:-58.82},
+            {x:18.66, y:-61.08},
+            {x:20.24, y:-63.51},
+            {x:21.32, y:-66.04},
+            {x:22.02, y:-68.77},
+            {x:22.21, y:-71.47},
+            {x:22.81, y:-74.17},
+            {x:23.79, y:-76.41},
+            {x:25.40, y:-78.89},
+            {x:27.35, y:-81.11},
+            {x:29.72, y:-83.25},
+            {x:31.40, y:-84.45},
+            {x:35.25, y:-86.75},
+            {x:37.42, y:-87.36},
+            {x:39.59, y:-87.94},
+            {x:41.76, y:-88.32},
+            {x:43.94, y:-88.58},
+            {x:46.11, y:-88.42},
+            {x:48.28, y:-88.26},
+            {x:50.45, y:-88.02},
+            {x:52.63, y:-87.73},
+            {x:54.80, y:-87.32},
+            {x:56.97, y:-86.84},
+            {x:58.65, y:-86.46},
+            {x:61.51, y:-85.47},
+            {x:63.69, y:-84.75},
+            {x:65.86, y:-83.84},
+            {x:67.83, y:-82.90},
+            {x:70.20, y:-81.45},
+            {x:72.37, y:-79.85},
+            {x:74.38, y:-77.70},
+            {x:75.53, y:-75.79},
+            {x:76.13, y:-71.29},
+            {x:77.31, y:-68.42},
+            {x:78.99, y:-65.89},
+            {x:81.06, y:-63.81},
+            {x:83.24, y:-62.15},
+            {x:85.41, y:-60.98},
+            {x:87.58, y:-60.17},
+            {x:89.75, y:-59.67},
+            {x:91.23, y:-59.54}
+        ];
+
+        const ctx = document.getElementById('pureA4Chart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'RSRP (dBm)',
+                    data: dataPoints,
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0,123,255,0.1)',
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: false,
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: 'Pure-A4 RSRP Curve'
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        title: { display: true, text: 'Time' },
+                        min: 0,
+                        max: 95
+                    },
+                    y: {
+                        title: { display: true, text: 'RSRP (dBm)' },
+                        min: -100,
+                        max: -50,
+                        reverse: true // dBm數值越大越靠上
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

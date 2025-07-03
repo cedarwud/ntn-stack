@@ -357,14 +357,14 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
           data: qoeMetrics.data.stallingTime,
           borderColor: 'rgb(255, 99, 132)',
           backgroundColor: 'rgba(255, 99, 132, 0.2)',
-          tension: 0.1
+          tension: 0.3
         },
         {
           label: 'RTT (ms)',
           data: qoeMetrics.data.rtt,
           borderColor: 'rgb(54, 162, 235)',
           backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          tension: 0.1,
+          tension: 0.3,
           yAxisID: 'y1'
         }
       ]
@@ -382,14 +382,14 @@ export const useEnhancedPerformanceData = (isEnabled: boolean = true) => {
           data: qoeMetrics.data.packetLoss,
           borderColor: 'rgb(255, 205, 86)',
           backgroundColor: 'rgba(255, 205, 86, 0.2)',
-          tension: 0.1
+          tension: 0.3
         },
         {
           label: 'Throughput (Mbps)',
           data: qoeMetrics.data.throughput,
           borderColor: 'rgb(75, 192, 192)',
           backgroundColor: 'rgba(75, 192, 192, 0.2)',
-          tension: 0.1,
+          tension: 0.3,
           yAxisID: 'y1'
         }
       ]
