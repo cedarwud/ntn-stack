@@ -184,7 +184,7 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
           borderColor: 'rgba(34, 197, 94, 1)',
           backgroundColor: 'rgba(34, 197, 94, 0.1)',
           yAxisID: 'y',
-          tension: 0.4,
+          tension: 0.3,
         },
         {
           label: '干擾水平 (dB)',
@@ -192,7 +192,7 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
           borderColor: 'rgba(239, 68, 68, 1)',
           backgroundColor: 'rgba(239, 68, 68, 0.1)',
           yAxisID: 'y',
-          tension: 0.4,
+          tension: 0.3,
         },
         {
           label: '通道品質 (%)',
@@ -200,7 +200,7 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
           borderColor: 'rgba(59, 130, 246, 1)',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
           yAxisID: 'y1',
-          tension: 0.4,
+          tension: 0.3,
         }
       ]
     }
@@ -477,7 +477,7 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
                 borderColor: '#4ade80',
                 backgroundColor: 'rgba(74, 222, 128, 0.1)',
                 fill: true,
-                tension: 0.4,
+                tension: 0.3,
               },
               {
                 label: 'Consistent 策略延遲',
@@ -485,7 +485,7 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
                 borderColor: '#667eea',
                 backgroundColor: 'rgba(102, 126, 234, 0.1)',
                 fill: true,
-                tension: 0.4,
+                tension: 0.3,
               },
             ],
           }}
@@ -703,7 +703,7 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
                 }),
                 borderColor: 'rgba(34, 197, 94, 1)',
                 backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                tension: 0.4,
+                tension: 0.3,
                 yAxisID: 'y'
               },
               {
@@ -716,7 +716,7 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
                 }),
                 borderColor: 'rgba(239, 68, 68, 1)',
                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                tension: 0.4,
+                tension: 0.3,
                 yAxisID: 'y'
               },
               {
@@ -728,7 +728,7 @@ export const IntegratedAnalysisTabContent: React.FC = () => {
                 }),
                 borderColor: 'rgba(59, 130, 246, 1)',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                tension: 0.4,
+                tension: 0.3,
                 yAxisID: 'y1'
               }
             ]

@@ -188,6 +188,25 @@
           color: #e74c3c;
         }
       }
+
+      // Checkbox 特殊樣式 - 水平排列
+      &.checkbox-group {
+        label {
+          flex-direction: row;
+          align-items: center;
+          gap: 10px;
+
+          input[type="checkbox"] {
+            margin: 0;
+          }
+
+          span {
+            margin: 0;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+          }
+        }
+      }
     }
 
     .control-buttons, .animation-buttons {

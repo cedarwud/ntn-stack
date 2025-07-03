@@ -16,16 +16,18 @@ export interface ParsedCSVData {
 
 /**
  * Parse CSV content and convert to Chart.js compatible format
+ * 對照 chart.html，進行數據抽樣以獲得更平滑的曲線
  */
 export function parseCSVData(csvContent: string): ParsedCSVData {
   const lines = csvContent.trim().split('\n');
-  const points: DataPoint[] = [];
+  const allPoints: DataPoint[] = [];
   
   let minTime = Infinity;
   let maxTime = -Infinity;
   let minRsrp = Infinity;
   let maxRsrp = -Infinity;
 
+  // 先解析所有數據點
   for (const line of lines) {
     if (!line.trim()) continue;
     
@@ -34,7 +36,7 @@ export function parseCSVData(csvContent: string): ParsedCSVData {
     const rsrp = parseFloat(rsrpStr.trim());
     
     if (!isNaN(time) && !isNaN(rsrp)) {
-      points.push({ x: time, y: rsrp });
+      allPoints.push({ x: time, y: rsrp });
       
       // Update ranges
       minTime = Math.min(minTime, time);
@@ -42,6 +44,21 @@ export function parseCSVData(csvContent: string): ParsedCSVData {
       minRsrp = Math.min(minRsrp, rsrp);
       maxRsrp = Math.max(maxRsrp, rsrp);
     }
+  }
+
+  // 對照 chart.html 的 64 個數據點，進行抽樣
+  // 目標：從 376 個點抽樣到約 64 個點
+  const targetPoints = 64;
+  const samplingInterval = Math.max(1, Math.floor(allPoints.length / targetPoints));
+  const points: DataPoint[] = [];
+  
+  for (let i = 0; i < allPoints.length; i += samplingInterval) {
+    points.push(allPoints[i]);
+  }
+  
+  // 確保包含最後一個點
+  if (allPoints.length > 0 && points[points.length - 1] !== allPoints[allPoints.length - 1]) {
+    points.push(allPoints[allPoints.length - 1]);
   }
 
   return {

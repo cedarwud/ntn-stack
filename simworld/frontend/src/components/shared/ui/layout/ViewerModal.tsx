@@ -14,6 +14,8 @@ export interface ViewerModalProps {
     onRefresh: (() => void) | null
     viewerComponent: React.ReactNode
     className?: string
+    isDarkTheme?: boolean
+    onThemeToggle?: () => void
 }
 
 const ViewerModal: React.FC<ViewerModalProps> = ({
@@ -25,6 +27,8 @@ const ViewerModal: React.FC<ViewerModalProps> = ({
     onRefresh,
     viewerComponent,
     className = '',
+    isDarkTheme = true,
+    onThemeToggle,
 }) => {
     const [isTitleHovered, setIsTitleHovered] = useState<boolean>(false)
 
@@ -51,7 +55,16 @@ const ViewerModal: React.FC<ViewerModalProps> = ({
                 className={`constellation-modal ${className}`}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="modal-header">
+                <div
+                    className="modal-header"
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '15px 20px',
+                    }}
+                >
+                    <div style={{ flex: 1 }}></div>
                     <div
                         className={`modal-title-refreshable ${
                             isLoading ? 'loading' : ''
@@ -60,17 +73,96 @@ const ViewerModal: React.FC<ViewerModalProps> = ({
                         onMouseEnter={() => setIsTitleHovered(true)}
                         onMouseLeave={() => setIsTitleHovered(false)}
                         title={isLoading ? '正在生成...' : '點擊以重新生成圖表'}
+                        style={{
+                            flex: 1,
+                            textAlign: 'center',
+                        }}
                     >
                         <span>{titleText}</span>
                     </div>
-                    {lastUpdateTimestamp && (
-                        <span className="last-update-header">
-                            最後更新: {lastUpdateTimestamp}
-                        </span>
-                    )}
-                    <button className="close-button" onClick={onClose}>
-                        ×
-                    </button>
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            flex: 1,
+                            justifyContent: 'flex-end',
+                        }}
+                    >
+                        {lastUpdateTimestamp && (
+                            <span
+                                style={{
+                                    fontSize: '0.8rem',
+                                    color: '#cccccc',
+                                    whiteSpace: 'nowrap',
+                                    opacity: 0.7,
+                                }}
+                            >
+                                最後更新: {lastUpdateTimestamp}
+                            </span>
+                        )}
+                        {onThemeToggle && (
+                            <div
+                                onClick={onThemeToggle}
+                                style={{
+                                    width: '40px',
+                                    height: '20px',
+                                    backgroundColor: '#444',
+                                    borderRadius: '10px',
+                                    position: 'relative',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '2px',
+                                    transition: 'background-color 0.3s ease',
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        width: '16px',
+                                        height: '16px',
+                                        backgroundColor: '#666',
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '10px',
+                                        transition: 'transform 0.3s ease',
+                                        transform: isDarkTheme
+                                            ? 'translateX(0)'
+                                            : 'translateX(18px)',
+                                    }}
+                                >
+                                    {isDarkTheme ? '🌙' : '☀️'}
+                                </div>
+                            </div>
+                        )}
+                        <button
+                            onClick={onClose}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'white',
+                                fontSize: '1.5rem',
+                                cursor: 'pointer',
+                                padding: '0 5px',
+                                lineHeight: 1,
+                                opacity: 0.7,
+                                transition: 'opacity 0.3s',
+                                marginLeft: '15px',
+                            }}
+                            onMouseEnter={(e) =>
+                                ((e.target as HTMLButtonElement).style.opacity =
+                                    '1')
+                            }
+                            onMouseLeave={(e) =>
+                                ((e.target as HTMLButtonElement).style.opacity =
+                                    '0.7')
+                            }
+                        >
+                            ×
+                        </button>
+                    </div>
                 </div>
                 <div className="modal-content">{viewerComponent}</div>
             </div>

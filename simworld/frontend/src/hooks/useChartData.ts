@@ -108,7 +108,8 @@ export const useQoELatencyData = () => {
         data: stallingTimeData,
         borderColor: 'rgba(76, 175, 80, 1)',
         backgroundColor: 'rgba(76, 175, 80, 0.1)',
-        tension: 0.4,
+        tension: 0.3,
+        pointRadius: 0,
         fill: true,
         yAxisID: 'y'
       }, {
@@ -116,7 +117,8 @@ export const useQoELatencyData = () => {
         data: rttData,
         borderColor: 'rgba(33, 150, 243, 1)',
         backgroundColor: 'rgba(33, 150, 243, 0.1)',
-        tension: 0.4,
+        tension: 0.3,
+        pointRadius: 0,
         fill: true,
         yAxisID: 'y1'
       }]
