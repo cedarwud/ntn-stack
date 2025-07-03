@@ -77,7 +77,7 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
             const interval = setInterval(() => {
                 setAnimationState(prev => {
                     const newTime = prev.currentTime + 0.1 * prev.speed // 0.1 second steps
-                    const maxTime = 120 // 120 seconds max for D1
+                    const maxTime = 100 // 100 seconds max for D1 (matching chart X-axis)
                     if (newTime >= maxTime) {
                         return { ...prev, isPlaying: false, currentTime: 0 }
                     }
@@ -185,7 +185,7 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                                         <input
                                             type="range"
                                             min="0"
-                                            max="120"
+                                            max="100"
                                             step="0.1"
                                             value={animationState.currentTime}
                                             onChange={(e) =>

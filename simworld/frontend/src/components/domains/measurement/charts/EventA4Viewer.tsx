@@ -87,7 +87,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
             const interval = setInterval(() => {
                 setAnimationState(prev => {
                     const newTime = prev.currentTime + 0.1 * prev.speed // 0.1 second steps
-                    const maxTime = 30 // 30 seconds max for A4
+                    const maxTime = 95 // 95 seconds max for A4 (matching chart X-axis)
                     if (newTime >= maxTime) {
                         return { ...prev, isPlaying: false, currentTime: 0 }
                     }
@@ -248,7 +248,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                                 <input
                                     type="range"
                                     min="0"
-                                    max="30"
+                                    max="95"
                                     step="0.1"
                                     value={animationState.currentTime}
                                     onChange={(e) =>

@@ -145,6 +145,60 @@ const generateCurrentTimeCursor = (currentTime: number) => {
     ]
 }
 
+// 計算當前時間點的距離值（線性插值）
+const getCurrentDistanceFromPoints = (currentTime: number, distancePoints: Array<{x: number, y: number}>) => {
+    if (currentTime <= distancePoints[0].x) return distancePoints[0].y
+    if (currentTime >= distancePoints[distancePoints.length - 1].x) return distancePoints[distancePoints.length - 1].y
+    
+    for (let i = 0; i < distancePoints.length - 1; i++) {
+        if (currentTime >= distancePoints[i].x && currentTime <= distancePoints[i + 1].x) {
+            const t = (currentTime - distancePoints[i].x) / (distancePoints[i + 1].x - distancePoints[i].x)
+            return distancePoints[i].y + t * (distancePoints[i + 1].y - distancePoints[i].y)
+        }
+    }
+    return distancePoints[0].y
+}
+
+// 生成衛星距離追蹤節點（左Y軸）
+const generateSatelliteNode = (currentTime: number, distance: number) => {
+    return [{ x: currentTime, y: distance }]
+}
+
+// 生成地面距離追蹤節點（右Y軸）
+const generateGroundNode = (currentTime: number, distance: number) => {
+    return [{ x: currentTime, y: distance }]
+}
+
+// 生成衛星軌道路徑效果
+const generateSatelliteTrail = (currentTime: number, distance1Points: Array<{x: number, y: number}>, trailLength: number = 10) => {
+    const trail = []
+    const startTime = Math.max(0, currentTime - trailLength)
+    
+    for (let t = startTime; t <= currentTime; t += 0.5) {
+        const distance = getCurrentDistanceFromPoints(t, distance1Points)
+        trail.push({ x: t, y: distance })
+    }
+    
+    return trail
+}
+
+// 檢查Event D2事件觸發狀態
+const checkD2EventTrigger = (satDistance: number, groundDistance: number, thresh1: number, thresh2: number, hysteresis: number) => {
+    // Event D2 進入條件: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2
+    // Ml1: 衛星距離, Ml2: 地面距離
+    const condition1 = (satDistance - hysteresis) > thresh1
+    const condition2 = (groundDistance + hysteresis) < thresh2
+    const isTriggered = condition1 && condition2
+    
+    return {
+        isTriggered,
+        condition1,
+        condition2,
+        condition1Status: condition1 ? 'satisfied' : 'not_satisfied',
+        condition2Status: condition2 ? 'satisfied' : 'not_satisfied'
+    }
+}
+
 interface PureD2ChartProps {
     thresh1?: number // 距離門檻1（米）
     thresh2?: number // 距離門檻2（米）
@@ -520,22 +574,30 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
         }
     }, [chartConfig])
 
-    // 更新游標 - 不重新創建圖表
+    // 更新游標和動態節點 - 不重新創建圖表
     useEffect(() => {
         if (!chartRef.current) return
         const chart = chartRef.current
 
-        // 處理游標數據集
-        const expectedCursorIndex = 2 // 在兩個距離數據集之後
+        // 處理游標和動態節點數據集
+        const expectedCursorIndex = 2
+        const expectedSatNodeIndex = 3
+        const expectedGroundNodeIndex = 4
+        const expectedTrailIndex = 5
+        const expectedEventNodeIndex = 6
         
         if (currentTime > 0) {
             const cursorData = generateCurrentTimeCursor(currentTime)
+            const currentSatDistance = getCurrentDistanceFromPoints(currentTime, distance1Points)
+            const currentGroundDistance = getCurrentDistanceFromPoints(currentTime, distance2Points)
+            const eventStatus = checkD2EventTrigger(currentSatDistance, currentGroundDistance, thresh1, thresh2, hysteresis)
+            const satelliteTrail = generateSatelliteTrail(currentTime, distance1Points)
+            
+            // 更新游標
             if (chart.data.datasets[expectedCursorIndex]) {
-                // 更新現有游標數據
                 chart.data.datasets[expectedCursorIndex].data = cursorData
                 chart.data.datasets[expectedCursorIndex].label = `Current Time: ${currentTime.toFixed(1)}s`
             } else {
-                // 添加新的游標數據集
                 chart.data.datasets.push({
                     label: `Current Time: ${currentTime.toFixed(1)}s`,
                     data: cursorData,
@@ -548,18 +610,128 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                     tension: 0,
                     borderDash: [5, 5],
                     yAxisID: 'y-left',
-                } as any)
+                } as Record<string, unknown>)
+            }
+            
+            // 更新衛星節點（左Y軸）
+            const satNodeData = generateSatelliteNode(currentTime, currentSatDistance)
+            const satNodeColor = eventStatus.condition1 ? '#28A745' : '#FFC107'
+            const satNodeSize = eventStatus.condition1 ? 14 : 10
+            
+            if (chart.data.datasets[expectedSatNodeIndex]) {
+                chart.data.datasets[expectedSatNodeIndex].data = satNodeData
+                chart.data.datasets[expectedSatNodeIndex].label = `Satellite (${(currentSatDistance/1000).toFixed(0)}km)`
+                chart.data.datasets[expectedSatNodeIndex].borderColor = satNodeColor
+                chart.data.datasets[expectedSatNodeIndex].backgroundColor = satNodeColor
+                chart.data.datasets[expectedSatNodeIndex].pointRadius = satNodeSize
+            } else {
+                chart.data.datasets.push({
+                    label: `Satellite (${(currentSatDistance/1000).toFixed(0)}km)`,
+                    data: satNodeData,
+                    borderColor: satNodeColor,
+                    backgroundColor: satNodeColor,
+                    borderWidth: 3,
+                    fill: false,
+                    pointRadius: satNodeSize,
+                    pointHoverRadius: satNodeSize + 4,
+                    pointStyle: 'circle',
+                    showLine: false,
+                    yAxisID: 'y-left',
+                    tension: 0,
+                } as Record<string, unknown>)
+            }
+            
+            // 更新地面節點（右Y軸）
+            const groundNodeData = generateGroundNode(currentTime, currentGroundDistance)
+            const groundNodeColor = eventStatus.condition2 ? '#007BFF' : '#DC3545'
+            const groundNodeSize = eventStatus.condition2 ? 14 : 10
+            
+            if (chart.data.datasets[expectedGroundNodeIndex]) {
+                chart.data.datasets[expectedGroundNodeIndex].data = groundNodeData
+                chart.data.datasets[expectedGroundNodeIndex].label = `Ground (${(currentGroundDistance/1000).toFixed(1)}km)`
+                chart.data.datasets[expectedGroundNodeIndex].borderColor = groundNodeColor
+                chart.data.datasets[expectedGroundNodeIndex].backgroundColor = groundNodeColor
+                chart.data.datasets[expectedGroundNodeIndex].pointRadius = groundNodeSize
+            } else {
+                chart.data.datasets.push({
+                    label: `Ground (${(currentGroundDistance/1000).toFixed(1)}km)`,
+                    data: groundNodeData,
+                    borderColor: groundNodeColor,
+                    backgroundColor: groundNodeColor,
+                    borderWidth: 3,
+                    fill: false,
+                    pointRadius: groundNodeSize,
+                    pointHoverRadius: groundNodeSize + 4,
+                    pointStyle: 'rect',
+                    showLine: false,
+                    yAxisID: 'y-right',
+                    tension: 0,
+                } as Record<string, unknown>)
+            }
+            
+            // 更新衛星軌道路徑（動態追蹤效果）
+            if (chart.data.datasets[expectedTrailIndex]) {
+                chart.data.datasets[expectedTrailIndex].data = satelliteTrail
+            } else {
+                chart.data.datasets.push({
+                    label: 'Satellite Orbit Trail',
+                    data: satelliteTrail,
+                    borderColor: 'rgba(40, 167, 69, 0.5)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 2,
+                    pointHoverRadius: 0,
+                    tension: 0.3,
+                    yAxisID: 'y-left',
+                    borderDash: [3, 3],
+                } as Record<string, unknown>)
+            }
+            
+            // 更新Event D2狀態節點
+            if (eventStatus.isTriggered) {
+                const eventNodeData = [{ x: currentTime, y: currentSatDistance }]
+                if (chart.data.datasets[expectedEventNodeIndex]) {
+                    chart.data.datasets[expectedEventNodeIndex].data = eventNodeData
+                } else {
+                    chart.data.datasets.push({
+                        label: 'Event D2 TRIGGERED!',
+                        data: eventNodeData,
+                        borderColor: '#FF6B35',
+                        backgroundColor: '#FF6B35',
+                        borderWidth: 4,
+                        fill: false,
+                        pointRadius: 20,
+                        pointHoverRadius: 24,
+                        pointStyle: 'star',
+                        showLine: false,
+                        yAxisID: 'y-left',
+                        tension: 0,
+                    } as Record<string, unknown>)
+                }
+            } else {
+                // 移除Event節點
+                if (chart.data.datasets[expectedEventNodeIndex] && chart.data.datasets[expectedEventNodeIndex].label?.includes('TRIGGERED')) {
+                    chart.data.datasets.splice(expectedEventNodeIndex, 1)
+                }
             }
         } else {
-            // 移除游標數據集
-            if (chart.data.datasets[expectedCursorIndex] && chart.data.datasets[expectedCursorIndex].label?.includes('Current Time')) {
-                chart.data.datasets.splice(expectedCursorIndex, 1)
+            // 移除所有動態節點
+            while (chart.data.datasets.length > expectedCursorIndex) {
+                chart.data.datasets.pop()
             }
         }
 
         // 更新圖表 - 使用 'none' 避免動畫
-        chart.update('none')
-    }, [currentTime, currentTheme])
+        try {
+            chart.update('none')
+        } catch (error) {
+            console.error('❌ [PureD2Chart] 圖表更新失敗:', error)
+            // 嘗試重新初始化圖表
+            chart.destroy()
+            chartRef.current = null
+        }
+    }, [currentTime, currentTheme, distance1Points, distance2Points, thresh1, thresh2, hysteresis])
 
     return (
         <div
