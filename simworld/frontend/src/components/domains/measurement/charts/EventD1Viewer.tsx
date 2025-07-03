@@ -8,6 +8,7 @@ import React, { useState, useMemo, useCallback } from 'react'
 import PureD1Chart from './PureD1Chart'
 import type { EventD1Params } from '../types'
 import './EventA4Viewer.scss' // 重用 A4 的樣式
+import './NarrationPanel.scss' // 動畫解說面板樣式
 
 interface EventD1ViewerProps {
     isDarkTheme?: boolean
@@ -42,6 +43,11 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
             currentTime: 0,
             speed: 1,
         })
+        
+        // 動畫解說系統狀態
+        const [showNarration, setShowNarration] = useState(true)
+        const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
+        const [isNarrationExpanded, setIsNarrationExpanded] = useState(false)
 
         // 穩定的參數更新回調
         const updateParam = useCallback(
@@ -132,6 +138,95 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                 triggerTimeRange: '30-70秒',
             }
         }, [params, animationState.currentTime])
+        
+        // 動畫解說內容生成 - 基於雙重距離測量和位置變化
+        const narrationContent = useMemo(() => {
+            const currentTime = animationState.currentTime
+            
+            // 模擬 UE 位置
+            const uePosition = { lat: 25.048, lon: 121.528 }
+            
+            // 模擬距離值（實際應用中會基於真實地理計算）
+            let simulatedDistance1, simulatedDistance2
+            
+            // 在特定時間段模擬事件觸發條件
+            if (currentTime >= 30 && currentTime <= 70) {
+                // 觸發區間：距離1 > Thresh1, 距離2 < Thresh2
+                simulatedDistance1 = 480 // meters - 超過 Thresh1 (400m)
+                simulatedDistance2 = 200 // meters - 低於 Thresh2 (250m)
+            } else if (currentTime < 30) {
+                // 觸發前：距離1 < Thresh1, 距離2 > Thresh2
+                simulatedDistance1 = 350 // meters - 低於 Thresh1
+                simulatedDistance2 = 350 // meters - 高於 Thresh2
+            } else {
+                // 觸發後：距離1 < Thresh1, 距離2 > Thresh2
+                simulatedDistance1 = 320 // meters - 低於 Thresh1
+                simulatedDistance2 = 300 // meters - 高於 Thresh2
+            }
+            
+            // 判斷當前階段
+            let phase = 'monitoring'
+            let phaseTitle = ''
+            let description = ''
+            let technicalNote = ''
+            let nextAction = ''
+            
+            const condition1 = simulatedDistance1 - params.Hys > params.Thresh1
+            const condition2 = simulatedDistance2 + params.Hys < params.Thresh2
+            const eventTriggered = condition1 && condition2
+            
+            if (eventTriggered) {
+                phase = 'triggered'
+                phaseTitle = '📍 Event D1 已觸發 - 雙重距離條件滿足'
+                description = `UE 與參考位置1的距離 (${simulatedDistance1}m) 超過門檻1，同時與參考位置2的距離 (${simulatedDistance2}m) 低於門檻2。系統正在處理位置相關的測量事件。`
+                technicalNote = `3GPP 條件: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2\\n參考位置1: ${simulatedDistance1} - ${params.Hys} = ${simulatedDistance1-params.Hys} > ${params.Thresh1} m\\n參考位置2: ${simulatedDistance2} + ${params.Hys} = ${simulatedDistance2+params.Hys} < ${params.Thresh2} m`
+                nextAction = '觸發位置確認程序，啟動位置服務調整'
+            } else if (condition1 && !condition2) {
+                phase = 'partial'
+                phaseTitle = '⚠️ 部分條件滿足 - 等待參考位置2'
+                description = `UE 與參考位置1的距離條件已滿足 (${simulatedDistance1}m > ${params.Thresh1}m)，但與參考位置2的距離 (${simulatedDistance2}m) 仍高於門檻。`
+                technicalNote = `條件1: ✅ Ml1 - Hys = ${simulatedDistance1-params.Hys} > ${params.Thresh1}\\n條件2: ❌ Ml2 + Hys = ${simulatedDistance2+params.Hys} < ${params.Thresh2}`
+                nextAction = '繼續監控UE與參考位置2的距離變化'
+            } else if (!condition1 && condition2) {
+                phase = 'partial'
+                phaseTitle = '⚠️ 部分條件滿足 - 等待參考位置1'
+                description = `UE 與參考位置2的距離條件已滿足 (${simulatedDistance2}m < ${params.Thresh2}m)，但與參考位置1的距離 (${simulatedDistance1}m) 仍低於門檻。`
+                technicalNote = `條件1: ❌ Ml1 - Hys = ${simulatedDistance1-params.Hys} > ${params.Thresh1}\\n條件2: ✅ Ml2 + Hys = ${simulatedDistance2+params.Hys} < ${params.Thresh2}`
+                nextAction = '等待UE遠離參考位置1，監控距離變化'
+            } else {
+                phaseTitle = '🔍 正常監控階段'
+                description = `雙重距離條件均未滿足。UE 與參考位置1 (${simulatedDistance1}m) 和參考位置2 (${simulatedDistance2}m) 的距離均在正常範圍內。`
+                technicalNote = `參考位置1距離: ${simulatedDistance1}m, 參考位置2距離: ${simulatedDistance2}m`
+                nextAction = '繼續監控UE位置變化和距離計算'
+            }
+            
+            // 根據時間添加位置情境解說
+            let scenarioContext = ''
+            if (currentTime < 25) {
+                scenarioContext = '🚀 場景：UE 正在移動，距離狀態初始化'
+            } else if (currentTime < 40) {
+                scenarioContext = '🌍 場景：UE 進入特定區域，開始觸發距離事件'
+            } else if (currentTime < 75) {
+                scenarioContext = '📍 場景：UE 在目標區域內，雙重距離條件正在監控'
+            } else {
+                scenarioContext = '🏠 場景：UE 離開目標區域，距離事件結束'
+            }
+            
+            return {
+                phase,
+                phaseTitle,
+                description,
+                technicalNote,
+                nextAction,
+                scenarioContext,
+                distance1: simulatedDistance1.toString(),
+                distance2: simulatedDistance2.toString(),
+                timeProgress: `${currentTime.toFixed(1)}s / 100s`,
+                reference1: '參考位置1 (台北101)',
+                reference2: '參考位置2 (中正紀念堂)',
+                uePosition: `${uePosition.lat.toFixed(4)}, ${uePosition.lon.toFixed(4)}`
+            }
+        }, [animationState.currentTime, params.Thresh1, params.Thresh2, params.Hys])
 
         return (
             <div className="event-d1-viewer">
@@ -172,6 +267,30 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                                         onClick={toggleThresholdLines}
                                     >
                                         📏 門檻線
+                                    </button>
+                                </div>
+                                
+                                {/* 解說系統控制 */}
+                                <div className="control-group control-group--buttons">
+                                    <button
+                                        className={`control-btn ${
+                                            showNarration
+                                                ? 'control-btn--active'
+                                                : ''
+                                        }`}
+                                        onClick={() => setShowNarration(!showNarration)}
+                                    >
+                                        💬 動畫解說
+                                    </button>
+                                    <button
+                                        className={`control-btn ${
+                                            showTechnicalDetails
+                                                ? 'control-btn--active'
+                                                : ''
+                                        }`}
+                                        onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+                                    >
+                                        🔍 技術細節
                                     </button>
                                 </div>
                                 
@@ -524,15 +643,80 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
 
                     {/* 圖表區域 */}
                     <div className="event-viewer__chart-container">
-                        <PureD1Chart
-                            thresh1={params.Thresh1}
-                            thresh2={params.Thresh2}
-                            hysteresis={params.Hys}
-                            currentTime={animationState.currentTime}
-                            showThresholdLines={showThresholdLines}
-                            isDarkTheme={isDarkTheme}
-                            onThemeToggle={onThemeToggle}
-                        />
+                        <div className="chart-area">
+                            {/* 動畫解說面板 */}
+                            {showNarration && (
+                                <div className={`narration-panel ${isNarrationExpanded ? 'expanded' : 'compact'}`}>
+                                    <div className="narration-header">
+                                        <h3 className="narration-title">{narrationContent.phaseTitle}</h3>
+                                        <div className="narration-controls">
+                                            <div className="narration-time">🕰 {narrationContent.timeProgress}</div>
+                                            <button
+                                                className="narration-toggle"
+                                                onClick={() => setIsNarrationExpanded(!isNarrationExpanded)}
+                                                title={isNarrationExpanded ? "收起詳細說明" : "展開詳細說明"}
+                                            >
+                                                {isNarrationExpanded ? '▲' : '▼'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    {isNarrationExpanded && (
+                                        <div className="narration-content">
+                                            <div className="narration-scenario">
+                                                {narrationContent.scenarioContext}
+                                            </div>
+                                            
+                                            <div className="narration-description">
+                                                {narrationContent.description}
+                                            </div>
+                                            
+                                            {showTechnicalDetails && (
+                                                <div className="narration-technical">
+                                                    <h4>🔧 技術細節：</h4>
+                                                    <div className="technical-formula">
+                                                        {narrationContent.technicalNote.split('\\n').map((line, index) => (
+                                                            <div key={index}>{line}</div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            <div className="narration-next">
+                                                <strong>下一步：</strong> {narrationContent.nextAction}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="narration-metrics">
+                                        <div className="metric">
+                                            <span className="metric-label">距離1：</span>
+                                            <span className="metric-value">{narrationContent.distance1} m</span>
+                                        </div>
+                                        <div className="metric">
+                                            <span className="metric-label">距離2：</span>
+                                            <span className="metric-value">{narrationContent.distance2} m</span>
+                                        </div>
+                                        <div className="metric">
+                                            <span className="metric-label">UE位置：</span>
+                                            <span className="metric-value">{narrationContent.uePosition}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <div className="chart-container">
+                                <PureD1Chart
+                                    thresh1={params.Thresh1}
+                                    thresh2={params.Thresh2}
+                                    hysteresis={params.Hys}
+                                    currentTime={animationState.currentTime}
+                                    showThresholdLines={showThresholdLines}
+                                    isDarkTheme={isDarkTheme}
+                                    onThemeToggle={onThemeToggle}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
