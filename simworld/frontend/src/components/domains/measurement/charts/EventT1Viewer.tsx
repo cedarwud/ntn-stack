@@ -375,50 +375,62 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                     <div className="event-viewer__controls">
                         {controlPanelComponent}
                     </div>
-
-                    {/* 主圖表區域 */}
+                    
+                    {/* 圖表區域 - 只保留標題和圖表 */}
                     <div className="event-viewer__chart-container">
-                        {/* T1 條件說明 */}
-                        <div className="condition-info">
-                            <div className="condition-card">
-                                <h4 className="condition-title">
-                                    3GPP T1 Event Conditions
-                                </h4>
-                                <div className="condition-details">
-                                    <div className="condition-item enter">
-                                        <span className="condition-label">
-                                            Enter:
-                                        </span>
-                                        <span className="condition-formula">
-                                            Mt &gt; t1-Threshold (持續 Duration
-                                            時間)
-                                        </span>
-                                    </div>
-                                    <div className="condition-item leave">
-                                        <span className="condition-label">
-                                            Leave:
-                                        </span>
-                                        <span className="condition-formula">
-                                            Mt &gt; t1-Threshold + Duration
-                                            (時間超出範圍)
-                                        </span>
-                                    </div>
-                                    <div className="condition-item current">
-                                        <span className="condition-label">
-                                            Current:
-                                        </span>
-                                        <span className="condition-values">
-                                            Threshold = {params.Thresh1}ms,
-                                            Duration = {params.Duration}ms
-                                        </span>
-                                    </div>
-                                </div>
+                        <div className="chart-area">
+                            <div className="chart-container">
+                                <PureT1Chart {...chartProps} />
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        {/* 圖表容器 */}
-                        <div className="chart-container">
-                            <PureT1Chart {...chartProps} />
+                {/* 3GPP 規範說明 - 移到底部 */}
+                <div className="event-viewer__specification">
+                    <h3 className="spec-title">📖 3GPP TS 38.331 規範</h3>
+                    <div className="spec-content">
+                        <div className="spec-section">
+                            <h4>條件事件 T1 (CondEvent T1)：</h4>
+                            <ul>
+                                <li>
+                                    <strong>進入條件：</strong> Mt &gt; t1-Threshold (持續 Duration 時間)
+                                </li>
+                                <li>
+                                    <strong>離開條件：</strong> Mt &gt; t1-Threshold + Duration (時間超出範圍)
+                                </li>
+                            </ul>
+                        </div>
+                        <div className="spec-section">
+                            <h4>參數說明：</h4>
+                            <ul>
+                                <li>
+                                    <strong>Mt：</strong>UE 測得的時間測量值（毫秒）
+                                </li>
+                                <li>
+                                    <strong>t1-Threshold：</strong>設定的時間門檻值（毫秒）
+                                </li>
+                                <li>
+                                    <strong>Duration：</strong>事件持續時間長度（毫秒）
+                                </li>
+                            </ul>
+                        </div>
+                        <div className="spec-section">
+                            <h4>應用場景：</h4>
+                            <ul>
+                                <li>
+                                    <strong>條件切換：</strong>
+                                    基於時間窗口的條件事件觸發
+                                </li>
+                                <li>
+                                    <strong>時間同步：</strong>
+                                    確保網路同步和時序控制
+                                </li>
+                                <li>
+                                    <strong>資源管理：</strong>
+                                    基於時間條件的資源分配
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>

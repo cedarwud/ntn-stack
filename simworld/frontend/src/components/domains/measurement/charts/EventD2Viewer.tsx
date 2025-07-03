@@ -9,7 +9,7 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import PureD2Chart from './PureD2Chart'
 import type { EventD2Params } from '../types'
-import './EventA4Viewer.scss' // 重用 A4 的樣式，確保一致性
+import './EventA4Viewer.scss' // 完全重用 A4 的樣式，確保左側控制面板風格一致
 
 interface EventD2ViewerProps {
     isDarkTheme?: boolean
@@ -224,12 +224,13 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                             className="control-slider"
                                         />
                                         <span className="control-value">
-                                            {(params.Thresh1 / 1000).toFixed(1)}km
+                                            {(params.Thresh1 / 1000).toFixed(1)}
+                                            km
                                         </span>
                                     </div>
                                     <div className="control-item">
                                         <label className="control-label">
-                                            distanceThreshFromReference2  
+                                            distanceThreshFromReference2
                                             (referenceLocation)
                                             <span className="control-unit">
                                                 公尺 (固定參考位置)
@@ -250,7 +251,8 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                             className="control-slider"
                                         />
                                         <span className="control-value">
-                                            {(params.Thresh2 / 1000).toFixed(1)}km
+                                            {(params.Thresh2 / 1000).toFixed(1)}
+                                            km
                                         </span>
                                     </div>
                                     <div className="control-item">
@@ -457,7 +459,11 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                             距離1 (Ml1):
                                         </span>
                                         <span className="status-value">
-                                            {(eventStatus.currentDistance1 / 1000).toFixed(1)}km
+                                            {(
+                                                eventStatus.currentDistance1 /
+                                                1000
+                                            ).toFixed(1)}
+                                            km
                                         </span>
                                     </div>
                                     <div className="status-item">
@@ -465,7 +471,11 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                             距離2 (Ml2):
                                         </span>
                                         <span className="status-value">
-                                            {(eventStatus.currentDistance2 / 1000).toFixed(1)}km
+                                            {(
+                                                eventStatus.currentDistance2 /
+                                                1000
+                                            ).toFixed(1)}
+                                            km
                                         </span>
                                     </div>
                                     <div className="status-item">
@@ -499,18 +509,30 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                             </span>
                                         </label>
                                         <div className="location-coords">
-                                            {params.movingReferenceLocation.lat.toFixed(4)}, {params.movingReferenceLocation.lon.toFixed(4)}
+                                            {params.movingReferenceLocation.lat.toFixed(
+                                                4
+                                            )}
+                                            ,{' '}
+                                            {params.movingReferenceLocation.lon.toFixed(
+                                                4
+                                            )}
                                         </div>
                                     </div>
                                     <div className="control-item">
                                         <label className="control-label">
-                                            referenceLocation  
+                                            referenceLocation
                                             <span className="control-unit">
                                                 (固定參考位置)
                                             </span>
                                         </label>
                                         <div className="location-coords">
-                                            {params.referenceLocation.lat.toFixed(4)}, {params.referenceLocation.lon.toFixed(4)}
+                                            {params.referenceLocation.lat.toFixed(
+                                                4
+                                            )}
+                                            ,{' '}
+                                            {params.referenceLocation.lon.toFixed(
+                                                4
+                                            )}
                                         </div>
                                     </div>
                                     <div className="control-item">
@@ -520,7 +542,10 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                                 (SIB19廣播)
                                             </span>
                                         </label>
-                                        <select className="control-select" disabled>
+                                        <select
+                                            className="control-select"
+                                            disabled
+                                        >
                                             <option>LEO-550km-Circular</option>
                                         </select>
                                     </div>

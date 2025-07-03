@@ -78,7 +78,7 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                     thresholdLine: '#FFD93D', // 黃色：t1-Threshold
                     durationLine: '#6BCF7F', // 淺綠：Duration 標示
                     windowArea: 'rgba(40, 167, 69, 0.2)', // 半透明綠：激活窗口
-                    title: '#FFD93D',
+                    title: 'white',
                     text: 'white',
                     grid: 'rgba(255, 255, 255, 0.1)',
                     background: 'transparent',
@@ -89,7 +89,7 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                     thresholdLine: '#FF9800', // 橙色
                     durationLine: '#4CAF50', // 綠色
                     windowArea: 'rgba(25, 135, 84, 0.15)', // 半透明綠
-                    title: '#FF9800',
+                    title: 'black',
                     text: '#333333',
                     grid: 'rgba(0, 0, 0, 0.1)',
                     background: 'white',
@@ -152,7 +152,7 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                 plugins: {
                     title: {
                         display: true,
-                        text: '3GPP TS 38.331 CondEvent T1: Time Window Condition',
+                        text: '條件事件 T1 (CondEvent T1) - 時間窗口條件',
                         color: currentColors.title,
                         font: { size: 16, weight: 'bold' as const },
                         padding: 20,
