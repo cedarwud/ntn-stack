@@ -54,11 +54,9 @@ const eventConfigs: EventConfig[] = [
 
 // 創建一個包含事件選擇器的 Viewer 組件
 const MeasurementEventsViewer: React.FC<ViewerProps> = React.memo((viewerProps) => {
-  console.log('📊 MeasurementEventsViewer render')
   const [selectedEvent, setSelectedEvent] = useState<EventType>('A4')
 
   const handleEventChange = useCallback((eventType: EventType) => {
-    console.log('🔄 Event changed to:', eventType)
     const eventConfig = eventConfigs.find(config => config.id === eventType)
     if (eventConfig?.status === 'available') {
       setSelectedEvent(eventType)
@@ -70,10 +68,8 @@ const MeasurementEventsViewer: React.FC<ViewerProps> = React.memo((viewerProps) 
     [selectedEvent]
   )
 
-  // 穩定的 ViewerComponent 渲染，避免重新創建
-  const CurrentViewer = useMemo(() => {
-    return selectedEventConfig?.ViewerComponent || null
-  }, [selectedEventConfig?.ViewerComponent])
+  // 穩定的 ViewerComponent 渲染
+  const CurrentViewer = selectedEventConfig?.ViewerComponent
 
   return (
     <div className="measurement-events-viewer">
@@ -136,6 +132,7 @@ const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> = ({
       lastUpdateTimestamp=""
       isLoading={false}
       viewerComponent={viewerComponent}
+      className="measurement-events-modal"
     />
   )
 }

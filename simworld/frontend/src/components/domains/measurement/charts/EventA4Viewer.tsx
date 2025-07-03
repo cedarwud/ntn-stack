@@ -28,7 +28,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(({
   selectedEvent = 'A4',
   onEventChange
 }) => {
-  console.log('🎯 EventA4Viewer render')
+  // console.log('🎯 EventA4Viewer render') // 移除除錯日誌
   
   // 參數狀態管理 - 使用 event-a4 分支的滑桿設計
   const [threshold, setThreshold] = useState(-70)
@@ -49,7 +49,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(({
   
   const chartRef = useRef<ChartJS<'line'>>(null)
 
-  // 載入真實的 RSRP 數據
+  // 載入真實的 RSRP 數據 - 穩定化依賴
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -72,7 +72,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(({
     
     // 註冊刷新處理器
     reportRefreshHandlerToNavbar?.(loadData)
-  }, [onReportLastUpdateToNavbar, reportRefreshHandlerToNavbar, reportIsLoadingToNavbar])
+  }, [])
 
   // 計算觸發和取消條件的時間點
   const { _triggerTime, _cancelTime } = useMemo(() => {
@@ -97,14 +97,13 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(({
     return { _triggerTime: triggerTime, _cancelTime: cancelTime }
   }, [rsrpData, threshold, hysteresis])
 
-  // Chart.js 數據配置
+  // Chart.js 數據配置 - 穩定化數據結構
   const chartData = useMemo(() => {
-    console.log('🔄 chartData recalculating', { rsrpDataLength: rsrpData.length, threshold, hysteresis })
     const baseDatasets = [
       {
         label: 'Neighbor Cell RSRP',
         data: rsrpData,
-        borderColor: '#2E86AB', // 保持 event-a4 分支的藍色
+        borderColor: '#2E86AB',
         backgroundColor: 'transparent',
         borderWidth: 3,
         fill: false,
@@ -464,30 +463,18 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(({
             <Line ref={chartRef} data={chartData} options={chartOptions} />
           </div>
           
-          {/* 參數顯示區域 - 採用 event-a4 分支設計 */}
-          <div className="chart-parameters">
-            <div className="parameter-row">
-              <span>triggerType = event</span>
-              <span>eventID = eventA4</span>
-            </div>
-            <div className="parameter-row">
-              <span>a4-Threshold: {threshold} dBm</span>
-              <span>Hysteresis: {hysteresis} dB</span>
-              <span>TimeToTrigger: {timeToTrigger} ms</span>
-            </div>
-            <div className="parameter-row">
-              <span>reportInterval: {reportInterval} ms</span>
-              <span>reportAmount: {reportAmount}</span>
-              <span>reportOnLeave: {reportOnLeave ? 'true' : 'false'}</span>
-            </div>
-          </div>
-          
-          {/* 數學公式顯示 */}
+          {/* 數學公式顯示 - 2列左右併排 */}
           <div className="formula-display">
-            <h4>Inequality A4-1 (Entering condition)</h4>
-            <p>Mn + Ofn + Ocn - Hys &gt; Thresh</p>
-            <h4>Inequality A4-2 (Leaving condition)</h4>
-            <p>Mn + Ofn + Ocn + Hys &lt; Thresh</p>
+            <div className="formula-row">
+              <div className="formula-item">
+                <h4>Inequality A4-1 (Entering condition)</h4>
+                <p>Mn + Ofn + Ocn - Hys &gt; Thresh</p>
+              </div>
+              <div className="formula-item">
+                <h4>Inequality A4-2 (Leaving condition)</h4>
+                <p>Mn + Ofn + Ocn + Hys &lt; Thresh</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
