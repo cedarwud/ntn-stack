@@ -68,6 +68,39 @@ const generateCurrentTimeCursor = (currentTime: number) => {
     ]
 }
 
+// 計算當前時間點的RSRP值（線性插值）
+const getCurrentRSRP = (currentTime: number): number => {
+    if (currentTime <= dataPoints[0].x) return dataPoints[0].y
+    if (currentTime >= dataPoints[dataPoints.length - 1].x) return dataPoints[dataPoints.length - 1].y
+    
+    // 找到當前時間點前後的數據點
+    for (let i = 0; i < dataPoints.length - 1; i++) {
+        if (currentTime >= dataPoints[i].x && currentTime <= dataPoints[i + 1].x) {
+            // 線性插值
+            const t = (currentTime - dataPoints[i].x) / (dataPoints[i + 1].x - dataPoints[i].x)
+            return dataPoints[i].y + t * (dataPoints[i + 1].y - dataPoints[i].y)
+        }
+    }
+    return dataPoints[0].y
+}
+
+// 生成信號強度追蹤節點
+const generateSignalNode = (currentTime: number, rsrp: number) => {
+    return [{ x: currentTime, y: rsrp }]
+}
+
+// 檢查事件觸發狀態
+const checkEventTrigger = (rsrp: number, threshold: number, hysteresis: number) => {
+    const enterThreshold = threshold + hysteresis // 進入門檻
+    const exitThreshold = threshold - hysteresis  // 離開門檻
+    
+    return {
+        isAboveEnterThreshold: rsrp > enterThreshold,
+        isBelowExitThreshold: rsrp < exitThreshold,
+        isInHysteresisZone: rsrp >= exitThreshold && rsrp <= enterThreshold
+    }
+}
+
 interface PureA4ChartProps {
     width?: number
     height?: number
@@ -88,7 +121,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
         currentTime = 0,
         showThresholdLines = true,
         isDarkTheme = true,
-        onThemeToggle,
+        _onThemeToggle,
     }) => {
         const canvasRef = useRef<HTMLCanvasElement>(null)
         const chartRef = useRef<Chart | null>(null)
@@ -212,6 +245,44 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     tension: 0,
                     borderDash: [5, 5],
                 })
+                
+                // 添加信號強度追蹤節點
+                const currentRSRP = getCurrentRSRP(currentTime)
+                const signalNode = generateSignalNode(currentTime, currentRSRP)
+                const eventStatus = checkEventTrigger(currentRSRP, threshold, hysteresis)
+                
+                // 根據事件狀態決定節點顏色和大小
+                let nodeColor = '#FFD93D' // 預設黃色
+                let nodeSize = 8
+                let nodeLabel = 'Signal Tracking'
+                
+                if (eventStatus.isAboveEnterThreshold) {
+                    nodeColor = '#28A745' // 綠色：事件激活
+                    nodeSize = 12
+                    nodeLabel = 'Event A4 ACTIVE'
+                } else if (eventStatus.isBelowExitThreshold) {
+                    nodeColor = '#DC3545' // 紅色：信號過弱
+                    nodeSize = 8
+                    nodeLabel = 'Signal Too Weak'
+                } else if (eventStatus.isInHysteresisZone) {
+                    nodeColor = '#FFC107' // 橙色：遲滯區間
+                    nodeSize = 10
+                    nodeLabel = 'Hysteresis Zone'
+                }
+                
+                datasets.push({
+                    label: `${nodeLabel} (RSRP: ${currentRSRP.toFixed(1)} dBm)`,
+                    data: signalNode,
+                    borderColor: nodeColor,
+                    backgroundColor: nodeColor,
+                    borderWidth: 3,
+                    fill: false,
+                    pointRadius: nodeSize,
+                    pointHoverRadius: nodeSize + 4,
+                    pointStyle: 'circle',
+                    showLine: false, // 只顯示點，不顯示線
+                    tension: 0,
+                })
             }
 
             try {
@@ -323,7 +394,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as any,
+                        } as Record<string, unknown>,
                         {
                             label: 'Threshold + Hys',
                             data: upperThresholdData,
@@ -334,7 +405,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as any,
+                        } as Record<string, unknown>,
                         {
                             label: 'Threshold - Hys',
                             data: lowerThresholdData,
@@ -345,7 +416,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as any
+                        } as Record<string, unknown>
                     )
                 } else {
                     // 更新現有閾值線數據
@@ -368,14 +439,38 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
 
             // 處理游標數據集
             const expectedCursorIndex = showThresholdLines ? 4 : 1
+            const expectedNodeIndex = expectedCursorIndex + 1
+            
             if (currentTime > 0) {
                 const cursorData = generateCurrentTimeCursor(currentTime)
+                const currentRSRP = getCurrentRSRP(currentTime)
+                const signalNode = generateSignalNode(currentTime, currentRSRP)
+                const eventStatus = checkEventTrigger(currentRSRP, threshold, hysteresis)
+                
+                // 根據事件狀態決定節點顏色和大小
+                let nodeColor = '#FFD93D' // 預設黃色
+                let nodeSize = 8
+                let nodeLabel = 'Signal Tracking'
+                
+                if (eventStatus.isAboveEnterThreshold) {
+                    nodeColor = '#28A745' // 綠色：事件激活
+                    nodeSize = 12
+                    nodeLabel = 'Event A4 ACTIVE'
+                } else if (eventStatus.isBelowExitThreshold) {
+                    nodeColor = '#DC3545' // 紅色：信號過弱
+                    nodeSize = 8
+                    nodeLabel = 'Signal Too Weak'
+                } else if (eventStatus.isInHysteresisZone) {
+                    nodeColor = '#FFC107' // 橙色：遲滯區間
+                    nodeSize = 10
+                    nodeLabel = 'Hysteresis Zone'
+                }
+                
+                // 更新游標數據集
                 if (chart.data.datasets[expectedCursorIndex]) {
-                    // 更新現有游標數據
                     chart.data.datasets[expectedCursorIndex].data = cursorData
                     chart.data.datasets[expectedCursorIndex].label = `Current Time: ${currentTime.toFixed(1)}s`
                 } else {
-                    // 添加新的游標數據集
                     chart.data.datasets.push({
                         label: `Current Time: ${currentTime.toFixed(1)}s`,
                         data: cursorData,
@@ -387,10 +482,37 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                         pointHoverRadius: 0,
                         tension: 0,
                         borderDash: [5, 5],
-                    } as any)
+                    } as Record<string, unknown>)
+                }
+                
+                // 更新信號節點數據集
+                if (chart.data.datasets[expectedNodeIndex]) {
+                    chart.data.datasets[expectedNodeIndex].data = signalNode
+                    chart.data.datasets[expectedNodeIndex].label = `${nodeLabel} (RSRP: ${currentRSRP.toFixed(1)} dBm)`
+                    chart.data.datasets[expectedNodeIndex].borderColor = nodeColor
+                    chart.data.datasets[expectedNodeIndex].backgroundColor = nodeColor
+                    chart.data.datasets[expectedNodeIndex].pointRadius = nodeSize
+                    chart.data.datasets[expectedNodeIndex].pointHoverRadius = nodeSize + 4
+                } else {
+                    chart.data.datasets.push({
+                        label: `${nodeLabel} (RSRP: ${currentRSRP.toFixed(1)} dBm)`,
+                        data: signalNode,
+                        borderColor: nodeColor,
+                        backgroundColor: nodeColor,
+                        borderWidth: 3,
+                        fill: false,
+                        pointRadius: nodeSize,
+                        pointHoverRadius: nodeSize + 4,
+                        pointStyle: 'circle',
+                        showLine: false,
+                        tension: 0,
+                    } as Record<string, unknown>)
                 }
             } else {
-                // 移除游標數據集
+                // 移除游標和節點數據集
+                if (chart.data.datasets[expectedNodeIndex] && chart.data.datasets[expectedNodeIndex].label?.includes('RSRP:')) {
+                    chart.data.datasets.splice(expectedNodeIndex, 1)
+                }
                 if (chart.data.datasets[expectedCursorIndex] && chart.data.datasets[expectedCursorIndex].label?.includes('Current Time')) {
                     chart.data.datasets.splice(expectedCursorIndex, 1)
                 }
@@ -411,38 +533,60 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
             if (chart.data.datasets[expectedCursorIndex] && chart.data.datasets[expectedCursorIndex].label?.includes('Current Time')) {
                 chart.data.datasets[expectedCursorIndex].borderColor = currentTheme.currentTimeLine
             }
+            // 信號節點的顏色根據狀態動態決定，無需在此更新
 
-            // 更新圖表選項的顏色
-            if (chart.options.plugins?.title) {
-                chart.options.plugins.title.color = currentTheme.title
-            }
-            if (chart.options.plugins?.legend?.labels) {
-                chart.options.plugins.legend.labels.color = currentTheme.text
-            }
-            if (chart.options.plugins?.legend) {
-                chart.options.plugins.legend.display = showThresholdLines
-            }
-            if ((chart.options.scales?.x as any)?.title) {
-                ;(chart.options.scales.x as any).title.color = currentTheme.text
-            }
-            if ((chart.options.scales?.x as any)?.ticks) {
-                ;(chart.options.scales.x as any).ticks.color = currentTheme.text
-            }
-            if ((chart.options.scales?.x as any)?.grid) {
-                ;(chart.options.scales.x as any).grid.color = currentTheme.grid
-            }
-            if ((chart.options.scales?.y as any)?.title) {
-                ;(chart.options.scales.y as any).title.color = currentTheme.text
-            }
-            if ((chart.options.scales?.y as any)?.ticks) {
-                ;(chart.options.scales.y as any).ticks.color = currentTheme.text
-            }
-            if ((chart.options.scales?.y as any)?.grid) {
-                ;(chart.options.scales.y as any).grid.color = currentTheme.grid
+            // 更新圖表選項的顏色 - 安全訪問
+            try {
+                if (chart.options?.plugins?.title) {
+                    chart.options.plugins.title.color = currentTheme.title
+                }
+                if (chart.options?.plugins?.legend?.labels) {
+                    chart.options.plugins.legend.labels.color = currentTheme.text
+                }
+                if (chart.options?.plugins?.legend) {
+                    chart.options.plugins.legend.display = showThresholdLines
+                }
+                
+                // 確保 scales 存在
+                if (!chart.options.scales) {
+                    chart.options.scales = {}
+                }
+                
+                const xScale = chart.options.scales.x as Record<string, any>
+                if (xScale?.title) {
+                    xScale.title.color = currentTheme.text
+                }
+                if (xScale?.ticks) {
+                    xScale.ticks.color = currentTheme.text
+                }
+                if (xScale?.grid) {
+                    xScale.grid.color = currentTheme.grid
+                }
+                
+                const yScale = chart.options.scales.y as Record<string, any>
+                if (yScale?.title) {
+                    yScale.title.color = currentTheme.text
+                }
+                if (yScale?.ticks) {
+                    yScale.ticks.color = currentTheme.text
+                }
+                if (yScale?.grid) {
+                    yScale.grid.color = currentTheme.grid
+                }
+            } catch (error) {
+                console.warn('⚠️ [PureA4Chart] 更新圖表選項時發生錯誤:', error)
             }
 
             // 更新圖表 - 使用 'none' 避免動畫
-            chart.update('none')
+            try {
+                chart.update('none')
+            } catch (error) {
+                console.error('❌ [PureA4Chart] 圖表更新失敗:', error)
+                // 嘗試重新初始化圖表
+                chart.destroy()
+                chartRef.current = null
+                isInitialized.current = false
+            }
         }, [threshold, hysteresis, currentTheme, showThresholdLines, currentTime])
 
         return (
