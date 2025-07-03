@@ -7,6 +7,8 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import EventA4Viewer from '../domains/measurement/charts/EventA4Viewer'
 import EventD1Viewer from '../domains/measurement/charts/EventD1Viewer'
+import EventD2Viewer from '../domains/measurement/charts/EventD2Viewer'
+import EventT1Viewer from '../domains/measurement/charts/EventT1Viewer'
 import './MeasurementEventsModal.scss'
 
 interface MeasurementEventsModalProps {
@@ -44,13 +46,15 @@ const eventConfigs: EventConfig[] = [
         id: 'D2',
         name: 'Event D2',
         description: 'Distance between UE and moving reference locations',
-        status: 'coming-soon',
+        status: 'available',
+        ViewerComponent: EventD2Viewer,
     },
     {
         id: 'T1',
         name: 'CondEvent T1',
         description: 'Time measured at UE within duration from threshold',
-        status: 'coming-soon',
+        status: 'available',
+        ViewerComponent: EventT1Viewer,
     },
 ]
 

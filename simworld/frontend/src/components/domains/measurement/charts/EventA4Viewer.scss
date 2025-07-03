@@ -3,10 +3,11 @@
  * 統一與 D1 的樣式結構，確保參數在左、圖表在右、規範說明在下
  */
 
-// Event Viewer 通用樣式 (D1 和 A4 共用)
+// Event Viewer 通用樣式 (D1、D2 和 A4 共用)
 .event-viewer,
 .event-a4-viewer,
-.event-d1-viewer {
+.event-d1-viewer,
+.event-d2-viewer {
   width: 100%;
   min-height: 100%;
   display: flex;

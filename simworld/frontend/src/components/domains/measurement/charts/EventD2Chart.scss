@@ -1,0 +1,317 @@
+/**
+ * Event D2 Chart Styles
+ * 移動參考位置距離事件圖表樣式
+ * 基於 EventD1Chart.scss 修改以支援衛星軌道特性
+ */
+
+.event-d2-chart {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  overflow: hidden;
+  
+  &__container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  }
+  
+  &__header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    
+    .title {
+      margin: 0 0 4px 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .subtitle {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-secondary);
+      opacity: 0.8;
+    }
+  }
+  
+  &__controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+    
+    .control-btn {
+      padding: 6px 12px;
+      background: rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background: rgba(0, 0, 0, 0.2);
+        border-color: var(--accent-color);
+      }
+      
+      &--active {
+        background: var(--accent-color);
+        color: white;
+        border-color: var(--accent-color);
+      }
+    }
+  }
+}
+
+/* 衛星軌道指示器 */
+.satellite-orbit {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: white;
+  z-index: 10;
+  
+  .orbit-info {
+    margin-bottom: 4px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+    
+    .label {
+      font-weight: 500;
+      margin-right: 8px;
+    }
+    
+    .value {
+      color: #17a2b8;
+      
+      &--moving {
+        color: #28a745;
+        animation: pulse 2s infinite;
+      }
+      
+      &--fixed {
+        color: #fd7e14;
+      }
+    }
+  }
+}
+
+/* 距離曲線圖例（D2 專用） */
+.distance-legend {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: white;
+  z-index: 10;
+  
+  .legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+    
+    .color-dot {
+      width: 12px;
+      height: 3px;
+      margin-right: 8px;
+      border-radius: 1px;
+      
+      &--distance1 {
+        background: #28a745;
+        animation: moveIndicator 3s infinite;
+      }
+      
+      &--distance2 {
+        background: #fd7e14;
+      }
+      
+      &--thresh1 {
+        background: #dc3545;
+        border: 1px dashed #dc3545;
+        height: 1px;
+      }
+      
+      &--thresh2 {
+        background: #007bff;
+        border: 1px dashed #007bff;
+        height: 1px;
+      }
+    }
+  }
+}
+
+/* 動畫效果 */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes moveIndicator {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .event-d2-chart {
+    &__controls {
+      position: static;
+      padding: 8px;
+      justify-content: center;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .satellite-orbit,
+    .distance-legend {
+      position: static;
+      margin: 8px;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+  }
+}
+
+/* 暗色主題 */
+[data-theme='dark'] {
+  .event-d2-chart {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --border-color: #404040;
+    --accent-color: #28a745;
+  }
+}
+
+/* 亮色主題 */
+[data-theme='light'] {
+  .event-d2-chart {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --text-primary: #333333;
+    --text-secondary: #6c757d;
+    --border-color: #dee2e6;
+    --accent-color: #28a745;
+  }
+}
+
+/* D2 Viewer 特定樣式（衛星軌道主題 - 藍綠色） */
+.event-d2-viewer {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #1a2e2e 0%, #163e3e 50%, #0f4660 100%);
+  color: white;
+
+  .event-viewer__content {
+    display: flex !important;
+    flex-direction: row !important;
+    padding: 20px;
+    gap: 20px;
+    flex: 1;
+  }
+
+  .event-viewer__controls {
+    flex: 0 0 350px !important;
+    height: 700px !important;
+    max-height: 700px !important;
+    order: 1 !important;
+    overflow-y: auto;
+
+    .control-section__title {
+      color: #17a2b8 !important; // 衛星軌道主題色
+    }
+
+    .control-btn--active {
+      background: linear-gradient(45deg, #17a2b8, #138496) !important;
+    }
+
+    .status-badge--triggered {
+      background: linear-gradient(45deg, #17a2b8, #138496) !important;
+    }
+
+    .status-value--active {
+      color: #17a2b8 !important;
+      background: rgba(23, 162, 184, 0.1) !important;
+      border: 1px solid rgba(23, 162, 184, 0.3) !important;
+    }
+  }
+
+  .event-viewer__chart-container {
+    flex: 1 !important;
+    order: 2 !important;
+    min-height: 500px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .event-viewer__specification {
+    margin: 20px;
+    padding: 25px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+
+    .spec-title {
+      color: #17a2b8;
+      border-bottom: 2px solid rgba(23, 162, 184, 0.3);
+    }
+  }
+
+  // 衛星軌道信息樣式
+  .location-info {
+    .location-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+      margin-bottom: 8px;
+
+      .location-label {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .location-coords {
+        font-family: monospace;
+        font-size: 12px;
+        color: #17a2b8;
+        background: rgba(23, 162, 184, 0.1);
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(23, 162, 184, 0.3);
+      }
+    }
+  }
+}

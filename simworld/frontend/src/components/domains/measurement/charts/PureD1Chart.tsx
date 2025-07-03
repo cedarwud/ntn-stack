@@ -14,50 +14,50 @@ import { Chart } from 'chart.js/auto'
 // - 在 30-70s 時間段，距離1 > Thresh1 (400m) AND 距離2 < Thresh2 (250m)
 // 距離1: UE 到 referenceLocation1 的距離 (公尺)
 const distance1Points = [
-    { x: 0, y: 200 },    // 開始時距離較近，不觸發
+    { x: 0, y: 200 }, // 開始時距離較近，不觸發
     { x: 5, y: 250 },
     { x: 10, y: 300 },
     { x: 15, y: 350 },
     { x: 20, y: 380 },
-    { x: 25, y: 400 },   // 接近門檻
-    { x: 30, y: 450 },   // 超過 Thresh1 (400m) - 觸發區間開始
-    { x: 35, y: 500 },   // 遠離 referenceLocation1
+    { x: 25, y: 400 }, // 接近門檻
+    { x: 30, y: 450 }, // 超過 Thresh1 (400m) - 觸發區間開始
+    { x: 35, y: 500 }, // 遠離 referenceLocation1
     { x: 40, y: 520 },
-    { x: 45, y: 530 },   // 最遠點
+    { x: 45, y: 530 }, // 最遠點
     { x: 50, y: 520 },
     { x: 55, y: 500 },
     { x: 60, y: 480 },
     { x: 65, y: 450 },
-    { x: 70, y: 420 },   // 仍超過 Thresh1
-    { x: 75, y: 380 },   // 觸發區間結束 - 低於 Thresh1
+    { x: 70, y: 420 }, // 仍超過 Thresh1
+    { x: 75, y: 380 }, // 觸發區間結束 - 低於 Thresh1
     { x: 80, y: 350 },
     { x: 85, y: 320 },
     { x: 90, y: 280 },
-    { x: 95, y: 250 },   // 回到較近距離
+    { x: 95, y: 250 }, // 回到較近距離
 ]
 
-// 距離2: UE 到 referenceLocation2 的距離 (公尺) 
+// 距離2: UE 到 referenceLocation2 的距離 (公尺)
 const distance2Points = [
-    { x: 0, y: 400 },    // 開始時距離較遠，不觸發
+    { x: 0, y: 400 }, // 開始時距離較遠，不觸發
     { x: 5, y: 380 },
     { x: 10, y: 350 },
     { x: 15, y: 320 },
     { x: 20, y: 290 },
-    { x: 25, y: 270 },   // 接近門檻
-    { x: 30, y: 240 },   // 低於 Thresh2 (250m) - 觸發區間開始
-    { x: 35, y: 200 },   // 接近 referenceLocation2
+    { x: 25, y: 270 }, // 接近門檻
+    { x: 30, y: 240 }, // 低於 Thresh2 (250m) - 觸發區間開始
+    { x: 35, y: 200 }, // 接近 referenceLocation2
     { x: 40, y: 180 },
-    { x: 45, y: 160 },   // 最近點
+    { x: 45, y: 160 }, // 最近點
     { x: 50, y: 170 },
     { x: 55, y: 190 },
     { x: 60, y: 210 },
     { x: 65, y: 220 },
-    { x: 70, y: 240 },   // 仍低於 Thresh2
-    { x: 75, y: 260 },   // 觸發區間結束 - 超過 Thresh2
+    { x: 70, y: 240 }, // 仍低於 Thresh2
+    { x: 75, y: 260 }, // 觸發區間結束 - 超過 Thresh2
     { x: 80, y: 290 },
     { x: 85, y: 320 },
     { x: 90, y: 350 },
-    { x: 95, y: 380 },   // 回到較遠距離
+    { x: 95, y: 380 }, // 回到較遠距離
 ]
 
 interface PureD1ChartProps {
@@ -95,7 +95,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                     thresh1Line: '#DC3545', // 紅色：門檻1
                     thresh2Line: '#007BFF', // 藍色：門檻2
                     hysteresisLine: 'rgba(108, 117, 125, 0.6)', // 灰色：遲滯線
-                    title: '#E74C3C',
+                    title: 'white',
                     text: 'white',
                     grid: 'rgba(255, 255, 255, 0.1)',
                     background: 'transparent',
@@ -284,9 +284,13 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                             },
                             title: {
                                 display: true,
-                                // text: 'Event D1: 距離雙門檻事件',
+                                text: 'Event D1: 距離雙門檻事件 (3GPP TS 38.331)',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold',
+                                },
                                 color: 'white',
-                                font: { size: 16 },
+                                padding: 20,
                             },
                         },
                         scales: {
