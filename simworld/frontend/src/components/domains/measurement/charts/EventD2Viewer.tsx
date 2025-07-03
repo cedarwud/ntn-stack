@@ -10,6 +10,7 @@ import React, { useState, useMemo, useCallback } from 'react'
 import PureD2Chart from './PureD2Chart'
 import type { EventD2Params } from '../types'
 import './EventA4Viewer.scss' // 完全重用 A4 的樣式，確保左側控制面板風格一致
+import './NarrationPanel.scss' // 動畫解說面板樣式
 
 interface EventD2ViewerProps {
     isDarkTheme?: boolean
@@ -49,6 +50,11 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             currentTime: 0,
             speed: 1,
         })
+        
+        // 動畫解說系統狀態
+        const [showNarration, setShowNarration] = useState(true)
+        const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
+        const [isNarrationExpanded, setIsNarrationExpanded] = useState(false)
 
         // 穩定的參數更新回調
         const updateParam = useCallback(
@@ -119,6 +125,93 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             },
             [params.movingReferenceLocation]
         )
+        
+        // 動畫解說內容生成 - 基於衛星軌道和距離變化
+        const narrationContent = useMemo(() => {
+            const currentTime = animationState.currentTime
+            const satellitePosition = calculateSatellitePosition(currentTime)
+            
+            // 模擬 UE 位置
+            const uePosition = { lat: 25.048, lon: 121.528 }
+            
+            // 模擬距離值（實際應用中會基於真實地理計算）
+            let simulatedDistance1, simulatedDistance2
+            
+            // 在特定時間段模擬事件觸發條件
+            if (currentTime >= 20 && currentTime <= 80) {
+                // 觸發區間：距離1 > Thresh1, 距離2 < Thresh2
+                simulatedDistance1 = 552000 // meters - 超過 Thresh1 (550km)
+                simulatedDistance2 = 5500 // meters - 低於 Thresh2 (6km)
+            } else if (currentTime < 20) {
+                // 觸發前：距離1 < Thresh1, 距離2 > Thresh2
+                simulatedDistance1 = 548000 // meters - 低於 Thresh1
+                simulatedDistance2 = 6500 // meters - 高於 Thresh2
+            } else {
+                // 觸發後：條件不滿足
+                simulatedDistance1 = 547000 // meters - 低於 Thresh1
+                simulatedDistance2 = 6800 // meters - 高於 Thresh2
+            }
+            
+            // 判斷當前階段
+            let phase = 'monitoring'
+            let phaseTitle = ''
+            let description = ''
+            let technicalNote = ''
+            let nextAction = ''
+            
+            const condition1 = simulatedDistance1 - params.Hys > params.Thresh1
+            const condition2 = simulatedDistance2 + params.Hys < params.Thresh2
+            const eventTriggered = condition1 && condition2
+            
+            if (eventTriggered) {
+                phase = 'triggered'
+                phaseTitle = '🛰️ Event D2 已觸發 - 雙重距離條件滿足'
+                description = `衛星距離 (${(simulatedDistance1/1000).toFixed(1)} km) 超過門檻1，同時固定參考點距離 (${(simulatedDistance2/1000).toFixed(1)} km) 低於門檻2。系統正在處理基於位置的服務調度。`
+                technicalNote = `3GPP 條件: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2\\n衛星距離: ${(simulatedDistance1/1000).toFixed(1)} - ${params.Hys/1000} = ${((simulatedDistance1-params.Hys)/1000).toFixed(1)} > ${(params.Thresh1/1000).toFixed(1)} km\\n固定距離: ${(simulatedDistance2/1000).toFixed(1)} + ${params.Hys/1000} = ${((simulatedDistance2+params.Hys)/1000).toFixed(1)} < ${(params.Thresh2/1000).toFixed(1)} km`
+                nextAction = '觸發位置感知服務，啟動衛星資源調度'
+            } else if (condition1 && !condition2) {
+                phase = 'partial'
+                phaseTitle = '⚠️ 部分條件滿足 - 等待固定參考點'
+                description = `衛星距離條件已滿足 (${(simulatedDistance1/1000).toFixed(1)} km > ${(params.Thresh1/1000).toFixed(1)} km)，但固定參考點距離 (${(simulatedDistance2/1000).toFixed(1)} km) 仍高於門檻。`
+                technicalNote = `條件1: ✅ Ml1 - Hys = ${((simulatedDistance1-params.Hys)/1000).toFixed(1)} > ${(params.Thresh1/1000).toFixed(1)}\\n條件2: ❌ Ml2 + Hys = ${((simulatedDistance2+params.Hys)/1000).toFixed(1)} < ${(params.Thresh2/1000).toFixed(1)}`
+                nextAction = '繼續監控固定參考點距離變化'
+            } else if (!condition1 && condition2) {
+                phase = 'partial'
+                phaseTitle = '⚠️ 部分條件滿足 - 等待衛星距離'
+                description = `固定參考點距離條件已滿足 (${(simulatedDistance2/1000).toFixed(1)} km < ${(params.Thresh2/1000).toFixed(1)} km)，但衛星距離 (${(simulatedDistance1/1000).toFixed(1)} km) 仍低於門檻。`
+                technicalNote = `條件1: ❌ Ml1 - Hys = ${((simulatedDistance1-params.Hys)/1000).toFixed(1)} > ${(params.Thresh1/1000).toFixed(1)}\\n條件2: ✅ Ml2 + Hys = ${((simulatedDistance2+params.Hys)/1000).toFixed(1)} < ${(params.Thresh2/1000).toFixed(1)}`
+                nextAction = '等待衛星軌道運動，監控距離變化'
+            } else {
+                phaseTitle = '🔍 正常監控階段'
+                description = `雙重距離條件均未滿足。衛星距離 (${(simulatedDistance1/1000).toFixed(1)} km) 和固定參考點距離 (${(simulatedDistance2/1000).toFixed(1)} km) 均在正常範圍內。`
+                technicalNote = `衛星距離: ${(simulatedDistance1/1000).toFixed(1)} km, 固定距離: ${(simulatedDistance2/1000).toFixed(1)} km`
+                nextAction = '繼續監控衛星軌道運動和UE位置變化'
+            }
+            
+            // 根據時間添加軌道情境解說
+            let scenarioContext = ''
+            if (currentTime < 30) {
+                scenarioContext = '🚀 場景：LEO衛星進入服務範圍，距離快速變化'
+            } else if (currentTime < 70) {
+                scenarioContext = '🌍 場景：衛星接近最佳服務位置，雙重條件檢查'
+            } else {
+                scenarioContext = '🏠 場景：衛星離開服務範圍，距離逐漸增加'
+            }
+            
+            return {
+                phase,
+                phaseTitle,
+                description,
+                technicalNote,
+                nextAction,
+                scenarioContext,
+                satelliteDistance: (simulatedDistance1/1000).toFixed(1),
+                fixedDistance: (simulatedDistance2/1000).toFixed(1),
+                timeProgress: `${currentTime.toFixed(1)}s / 95s`,
+                satelliteLat: satellitePosition.lat.toFixed(4),
+                satelliteLon: satellitePosition.lon.toFixed(4)
+            }
+        }, [animationState.currentTime, params.Thresh1, params.Thresh2, params.Hys, calculateSatellitePosition])
 
         // 計算 Event D2 條件狀態 - 基於 3GPP TS 38.331 規範
         const eventStatus = useMemo(() => {
@@ -209,6 +302,30 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                         onClick={toggleThresholdLines}
                                     >
                                         📏 門檻線
+                                    </button>
+                                </div>
+                                
+                                {/* 解說系統控制 */}
+                                <div className="control-group control-group--buttons">
+                                    <button
+                                        className={`control-btn ${
+                                            showNarration
+                                                ? 'control-btn--active'
+                                                : ''
+                                        }`}
+                                        onClick={() => setShowNarration(!showNarration)}
+                                    >
+                                        💬 動畫解說
+                                    </button>
+                                    <button
+                                        className={`control-btn ${
+                                            showTechnicalDetails
+                                                ? 'control-btn--active'
+                                                : ''
+                                        }`}
+                                        onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+                                    >
+                                        🔍 技術細節
                                     </button>
                                 </div>
                                 
@@ -711,15 +828,80 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
                     {/* 圖表區域 */}
                     <div className="event-viewer__chart-container">
-                        <PureD2Chart
-                            thresh1={params.Thresh1}
-                            thresh2={params.Thresh2}
-                            hysteresis={params.Hys}
-                            currentTime={animationState.currentTime}
-                            showThresholdLines={showThresholdLines}
-                            isDarkTheme={isDarkTheme}
-                            onThemeToggle={onThemeToggle}
-                        />
+                        <div className="chart-area">
+                            {/* 動畫解說面板 */}
+                            {showNarration && (
+                                <div className={`narration-panel ${isNarrationExpanded ? 'expanded' : 'compact'}`}>
+                                    <div className="narration-header">
+                                        <h3 className="narration-title">{narrationContent.phaseTitle}</h3>
+                                        <div className="narration-controls">
+                                            <div className="narration-time">🕰 {narrationContent.timeProgress}</div>
+                                            <button
+                                                className="narration-toggle"
+                                                onClick={() => setIsNarrationExpanded(!isNarrationExpanded)}
+                                                title={isNarrationExpanded ? "收起詳細說明" : "展開詳細說明"}
+                                            >
+                                                {isNarrationExpanded ? '▲' : '▼'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    {isNarrationExpanded && (
+                                        <div className="narration-content">
+                                            <div className="narration-scenario">
+                                                {narrationContent.scenarioContext}
+                                            </div>
+                                            
+                                            <div className="narration-description">
+                                                {narrationContent.description}
+                                            </div>
+                                            
+                                            {showTechnicalDetails && (
+                                                <div className="narration-technical">
+                                                    <h4>🔧 技術細節：</h4>
+                                                    <div className="technical-formula">
+                                                        {narrationContent.technicalNote.split('\\n').map((line, index) => (
+                                                            <div key={index}>{line}</div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            <div className="narration-next">
+                                                <strong>下一步：</strong> {narrationContent.nextAction}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="narration-metrics">
+                                        <div className="metric">
+                                            <span className="metric-label">衛星距離：</span>
+                                            <span className="metric-value">{narrationContent.satelliteDistance} km</span>
+                                        </div>
+                                        <div className="metric">
+                                            <span className="metric-label">固定距離：</span>
+                                            <span className="metric-value">{narrationContent.fixedDistance} km</span>
+                                        </div>
+                                        <div className="metric">
+                                            <span className="metric-label">衛星位置：</span>
+                                            <span className="metric-value">{narrationContent.satelliteLat}, {narrationContent.satelliteLon}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <div className="chart-container">
+                                <PureD2Chart
+                                    thresh1={params.Thresh1}
+                                    thresh2={params.Thresh2}
+                                    hysteresis={params.Hys}
+                                    currentTime={animationState.currentTime}
+                                    showThresholdLines={showThresholdLines}
+                                    isDarkTheme={isDarkTheme}
+                                    onThemeToggle={onThemeToggle}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
 

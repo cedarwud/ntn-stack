@@ -10,6 +10,7 @@ import { loadCSVData } from '../../../../utils/csvDataParser'
 import { ViewerProps } from '../../../../types/viewer'
 import PureA4Chart from './PureA4Chart'
 import './EventA4Viewer.scss'
+import './NarrationPanel.scss'
 
 // 擴展 ViewerProps 以支援事件選擇
 interface EventA4ViewerProps extends ViewerProps {
@@ -48,6 +49,11 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
             currentTime: 0,
             speed: 1,
         })
+        
+        // 動畫解說系統狀態
+        const [showNarration, setShowNarration] = useState(true)
+        const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
+        const [isNarrationExpanded, setIsNarrationExpanded] = useState(false)
 
         // 主題狀態 - 使用外部傳入的主題或預設值
         const [isDarkTheme, setIsDarkTheme] = useState(
@@ -177,15 +183,82 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
         const toggleThresholdLines = useCallback(() => {
             setShowThresholdLines((prev) => !prev)
         }, [])
+        
+        // 獲取當前時間點的 RSRP 值（模擬實際變化）
+        const getCurrentRSRP = useCallback((currentTime: number): number => {
+            // 模擬實際的 RSRP 變化情境
+            const baseRSRP = -65
+            const variation = 15 * Math.sin((currentTime / 95) * 4 * Math.PI)
+            return baseRSRP + variation
+        }, [])
+        
+        // 動畫解說內容生成 - 基於時間和信號狀態
+        const narrationContent = useMemo(() => {
+            const currentTime = animationState.currentTime
+            const currentRSRP = getCurrentRSRP(currentTime)
+            const effectiveRSRP = currentRSRP + offsetFreq + offsetCell
+            const enterThreshold = a4Threshold + hysteresis
+            const exitThreshold = a4Threshold - hysteresis
+            
+            // 判斷當前階段
+            let phase = 'monitoring'
+            let phaseTitle = ''
+            let description = ''
+            let technicalNote = ''
+            let nextAction = ''
+            
+            if (effectiveRSRP > enterThreshold) {
+                phase = 'triggered'
+                phaseTitle = '🚀 Event A4 已觸發 - 換手準備階段'
+                description = `鄰近基站信號強度 (${effectiveRSRP.toFixed(1)} dBm) 已超過進入門檻 (${enterThreshold.toFixed(1)} dBm)，系統正在準備將 UE 換手到這個更強的基站。`
+                technicalNote = `3GPP 條件: Mn + Ofn + Ocn - Hys > Thresh\\n${currentRSRP.toFixed(1)} + ${offsetFreq} + ${offsetCell} - ${hysteresis} = ${(effectiveRSRP - hysteresis).toFixed(1)} > ${a4Threshold}`
+                nextAction = '系統將發送測量報告，啟動換手程序'
+            } else if (effectiveRSRP < exitThreshold) {
+                phase = 'exiting'
+                phaseTitle = '🔄 Event A4 離開 - 換手取消'
+                description = `鄰近基站信號強度 (${effectiveRSRP.toFixed(1)} dBm) 低於離開門檻 (${exitThreshold.toFixed(1)} dBm)，取消換手處理。`
+                technicalNote = `3GPP 條件: Mn + Ofn + Ocn + Hys < Thresh\\n${currentRSRP.toFixed(1)} + ${offsetFreq} + ${offsetCell} + ${hysteresis} = ${(effectiveRSRP + hysteresis).toFixed(1)} < ${a4Threshold}`
+                nextAction = '維持目前連線，繼續監控信號品質'
+            } else {
+                phaseTitle = '🔍 正常監控階段'
+                if (effectiveRSRP > a4Threshold) {
+                    description = `鄰近基站信號 (${effectiveRSRP.toFixed(1)} dBm) 在遲滯區間內，系統正在觀察信號變化趨勢。`
+                    nextAction = '繼續監控，等待信號穩定超過進入門檻'
+                } else {
+                    description = `鄰近基站信號 (${effectiveRSRP.toFixed(1)} dBm) 低於門檻 (${a4Threshold} dBm)，目前連線仍為最佳選擇。`
+                    nextAction = '繼續正常服務，監控鄰近基站信號'
+                }
+                technicalNote = `目前 RSRP: ${currentRSRP.toFixed(1)} dBm, 有效 RSRP: ${effectiveRSRP.toFixed(1)} dBm`
+            }
+            
+            // 根據時間添加情境解說
+            let scenarioContext = ''
+            if (currentTime < 20) {
+                scenarioContext = '🚀 場景：UE 正在離開目前基站的服務範圍'
+            } else if (currentTime < 50) {
+                scenarioContext = '🌍 場景：UE 進入鄰近基站的覆蓋範圍'
+            } else {
+                scenarioContext = '🏠 場景：UE 遠離鄰近基站，信號逐漸衰減'
+            }
+            
+            return {
+                phase,
+                phaseTitle,
+                description,
+                technicalNote,
+                nextAction,
+                scenarioContext,
+                currentRSRP: currentRSRP.toFixed(1),
+                effectiveRSRP: effectiveRSRP.toFixed(1),
+                timeProgress: `${currentTime.toFixed(1)}s / 95s`
+            }
+        }, [animationState.currentTime, a4Threshold, hysteresis, offsetFreq, offsetCell, getCurrentRSRP])
 
         // 計算 Event A4 條件狀態 - 基於 3GPP TS 38.331 規範
         const eventStatus = useMemo(() => {
-            // 模擬鄰近基站的 RSRP 測量值（實際應從圖表數據獲取）
-            const simulatedRSRP = -75 // dBm (Mn)
-            // A4-1 進入條件: Mn + Ofn + Ocn - Hys > Thresh
-            const effectiveRSRP = simulatedRSRP + offsetFreq + offsetCell
+            const currentRSRP = getCurrentRSRP(animationState.currentTime)
+            const effectiveRSRP = currentRSRP + offsetFreq + offsetCell
             const condition1 = effectiveRSRP - hysteresis > a4Threshold
-            // A4-2 離開條件: Mn + Ofn + Ocn + Hys < Thresh  
             const condition2 = effectiveRSRP + hysteresis < a4Threshold
 
             return {
@@ -193,10 +266,10 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                 condition2, // A4-2 離開條件
                 eventTriggered: condition1,
                 description: condition1 ? '事件已觸發' : '等待條件滿足',
-                currentRSRP: simulatedRSRP,
+                currentRSRP: currentRSRP,
                 effectiveRSRP: effectiveRSRP,
             }
-        }, [a4Threshold, hysteresis, offsetFreq, offsetCell, animationState.currentTime])
+        }, [a4Threshold, hysteresis, offsetFreq, offsetCell, animationState.currentTime, getCurrentRSRP])
 
         // 參數控制面板渲染 - 使用 useMemo 穩定化，採用 D1 的分類設計
         const controlPanelComponent = useMemo(
@@ -235,6 +308,30 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                                 onClick={toggleThresholdLines}
                             >
                                 📏 門檻線
+                            </button>
+                        </div>
+                        
+                        {/* 解說系統控制 */}
+                        <div className="control-group control-group--buttons">
+                            <button
+                                className={`control-btn ${
+                                    showNarration
+                                        ? 'control-btn--active'
+                                        : ''
+                                }`}
+                                onClick={() => setShowNarration(!showNarration)}
+                            >
+                                💬 動畫解說
+                            </button>
+                            <button
+                                className={`control-btn ${
+                                    showTechnicalDetails
+                                        ? 'control-btn--active'
+                                        : ''
+                                }`}
+                                onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+                            >
+                                🔍 技術細節
                             </button>
                         </div>
                         
@@ -549,6 +646,10 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                 toggleAnimation,
                 resetAnimation,
                 toggleThresholdLines,
+                showNarration,
+                setShowNarration,
+                showTechnicalDetails,
+                setShowTechnicalDetails,
             ]
         )
 
@@ -556,6 +657,63 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
         const chartAreaComponent = useMemo(
             () => (
                 <div className="chart-area">
+                    {/* 動畫解說面板 */}
+                    {showNarration && (
+                        <div className={`narration-panel ${isNarrationExpanded ? 'expanded' : 'compact'}`}>
+                            <div className="narration-header">
+                                <h3 className="narration-title">{narrationContent.phaseTitle}</h3>
+                                <div className="narration-controls">
+                                    <div className="narration-time">🕰 {narrationContent.timeProgress}</div>
+                                    <button
+                                        className="narration-toggle"
+                                        onClick={() => setIsNarrationExpanded(!isNarrationExpanded)}
+                                        title={isNarrationExpanded ? "收起詳細說明" : "展開詳細說明"}
+                                    >
+                                        {isNarrationExpanded ? '▲' : '▼'}
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {isNarrationExpanded && (
+                                <div className="narration-content">
+                                    <div className="narration-scenario">
+                                        {narrationContent.scenarioContext}
+                                    </div>
+                                    
+                                    <div className="narration-description">
+                                        {narrationContent.description}
+                                    </div>
+                                    
+                                    {showTechnicalDetails && (
+                                        <div className="narration-technical">
+                                            <h4>🔧 技術細節：</h4>
+                                            <div className="technical-formula">
+                                                {narrationContent.technicalNote.split('\\n').map((line, index) => (
+                                                    <div key={index}>{line}</div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="narration-next">
+                                        <strong>下一步：</strong> {narrationContent.nextAction}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <div className="narration-metrics">
+                                <div className="metric">
+                                    <span className="metric-label">原始 RSRP：</span>
+                                    <span className="metric-value">{narrationContent.currentRSRP} dBm</span>
+                                </div>
+                                <div className="metric">
+                                    <span className="metric-label">有效 RSRP：</span>
+                                    <span className="metric-value">{narrationContent.effectiveRSRP} dBm</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
                     <div className="chart-container">
                         <PureA4Chart
                             threshold={a4Threshold}
@@ -567,7 +725,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                     </div>
                 </div>
             ),
-            [a4Threshold, hysteresis, animationState.currentTime, showThresholdLines, isDarkTheme]
+            [a4Threshold, hysteresis, animationState.currentTime, showThresholdLines, isDarkTheme, showNarration, narrationContent, showTechnicalDetails, isNarrationExpanded]
         )
 
         // 載入中組件 - 使用 useMemo 穩定化

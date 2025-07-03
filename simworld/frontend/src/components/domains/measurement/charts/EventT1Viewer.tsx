@@ -8,6 +8,7 @@ import React, { useState, useMemo, useCallback } from 'react'
 import PureT1Chart from './PureT1Chart'
 import type { EventT1Params } from '../types'
 import './EventA4Viewer.scss' // 重用 A4 的樣式
+import './NarrationPanel.scss' // 動畫解說面板樣式
 
 interface EventT1ViewerProps {
     isDarkTheme?: boolean
@@ -33,6 +34,11 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
             currentTime: 0,
             speed: 1,
         })
+        
+        // 動畫解說系統狀態
+        const [showNarration, setShowNarration] = useState(true)
+        const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
+        const [isNarrationExpanded, setIsNarrationExpanded] = useState(false)
 
         // 穩定的參數更新回調
         const updateParam = useCallback(
@@ -110,6 +116,67 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                 timeInCondition: Math.max(0, currentMt - params.Thresh1),
             }
         }, [params.Thresh1, params.Duration, animationState.currentTime])
+        
+        // 動畫解說內容生成 - 基於時間窗口和持續時間
+        const narrationContent = useMemo(() => {
+            const currentTime = animationState.currentTime
+            const threshold = params.Thresh1
+            const duration = params.Duration
+            const endTime = threshold + duration
+            
+            // 判斷當前階段
+            let phase = 'waiting'
+            let phaseTitle = ''
+            let description = ''
+            let technicalNote = ''
+            let nextAction = ''
+            
+            if (currentTime < threshold) {
+                phase = 'waiting'
+                phaseTitle = '⏳ 等待階段 - 時間尚未達到門檻'
+                description = `當前時間 (${currentTime.toFixed(0)}ms) 仍低於時間門檻 (${threshold}ms)。系統正在等待時間窗口達到觸發時間。`
+                technicalNote = `3GPP 條件: Mt > t1-Threshold\\n當前 Mt: ${currentTime.toFixed(0)}ms < 門檻: ${threshold}ms`
+                nextAction = `還需等待 ${(threshold - currentTime).toFixed(0)}ms 才會進入事件窗口`
+            } else if (currentTime >= threshold && currentTime <= endTime) {
+                phase = 'triggered'
+                phaseTitle = '✅ Event T1 已觸發 - 時間窗口內'
+                description = `當前時間 (${currentTime.toFixed(0)}ms) 在事件窗口內 [${threshold}ms - ${endTime}ms]。T1 事件正在活躍中，系統正在執行時間相關的操作。`
+                technicalNote = `3GPP 條件: t1-Threshold < Mt < t1-Threshold + Duration\\n${threshold}ms < ${currentTime.toFixed(0)}ms < ${endTime}ms\\n已持續: ${(currentTime - threshold).toFixed(0)}ms / ${duration}ms`
+                nextAction = `事件將在 ${(endTime - currentTime).toFixed(0)}ms 後結束`
+            } else {
+                phase = 'completed'
+                phaseTitle = '✓ Event T1 已結束 - 超出時間窗口'
+                description = `當前時間 (${currentTime.toFixed(0)}ms) 已超過事件窗口結束點 (${endTime}ms)。T1 事件已完成，系統返回正常狀態。`
+                technicalNote = `3GPP 條件: Mt > t1-Threshold + Duration\\n${currentTime.toFixed(0)}ms > ${endTime}ms\\n已超過: ${(currentTime - endTime).toFixed(0)}ms`
+                nextAction = '監控新的時間窗口和條件變化'
+            }
+            
+            // 根據時間添加情境解說
+            let scenarioContext = ''
+            if (currentTime < 5000) {
+                scenarioContext = '🚀 場景：系統啟動，時間計數器初始化'
+            } else if (currentTime < 15000) {
+                scenarioContext = '🕒 場景：接近時間門檻，準備事件觸發'
+            } else {
+                scenarioContext = '🏁 場景：進入時間窗口，時間相關事件處理'
+            }
+            
+            return {
+                phase,
+                phaseTitle,
+                description,
+                technicalNote,
+                nextAction,
+                scenarioContext,
+                currentTime: currentTime.toFixed(0),
+                threshold: threshold.toString(),
+                duration: duration.toString(),
+                timeProgress: `${currentTime.toFixed(0)}ms / 25000ms`,
+                remainingTime: phase === 'triggered' ? `${(endTime - currentTime).toFixed(0)}ms` : 'N/A',
+                progressPercent: phase === 'triggered' ? 
+                    `${(((currentTime - threshold) / duration) * 100).toFixed(1)}%` : '0%'
+            }
+        }, [animationState.currentTime, params.Thresh1, params.Duration])
 
         // 穩定的圖表 props
         const chartProps = useMemo(
@@ -166,6 +233,30 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                                 onClick={toggleThresholdLines}
                             >
                                 📏 門檻線
+                            </button>
+                        </div>
+                        
+                        {/* 解說系統控制 */}
+                        <div className="control-group control-group--buttons">
+                            <button
+                                className={`control-btn ${
+                                    showNarration
+                                        ? 'control-btn--active'
+                                        : ''
+                                }`}
+                                onClick={() => setShowNarration(!showNarration)}
+                            >
+                                💬 動畫解說
+                            </button>
+                            <button
+                                className={`control-btn ${
+                                    showTechnicalDetails
+                                        ? 'control-btn--active'
+                                        : ''
+                                }`}
+                                onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+                            >
+                                🔍 技術細節
                             </button>
                         </div>
                     </div>
@@ -425,9 +516,76 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                         {controlPanelComponent}
                     </div>
                     
-                    {/* 圖表區域 - 只保留標題和圖表 */}
+                    {/* 圖表區域 */}
                     <div className="event-viewer__chart-container">
                         <div className="chart-area">
+                            {/* 動畫解說面板 */}
+                            {showNarration && (
+                                <div className={`narration-panel ${isNarrationExpanded ? 'expanded' : 'compact'}`}>
+                                    <div className="narration-header">
+                                        <h3 className="narration-title">{narrationContent.phaseTitle}</h3>
+                                        <div className="narration-controls">
+                                            <div className="narration-time">🕰 {narrationContent.timeProgress}</div>
+                                            <button
+                                                className="narration-toggle"
+                                                onClick={() => setIsNarrationExpanded(!isNarrationExpanded)}
+                                                title={isNarrationExpanded ? "收起詳細說明" : "展開詳細說明"}
+                                            >
+                                                {isNarrationExpanded ? '▲' : '▼'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    {isNarrationExpanded && (
+                                        <div className="narration-content">
+                                            <div className="narration-scenario">
+                                                {narrationContent.scenarioContext}
+                                            </div>
+                                            
+                                            <div className="narration-description">
+                                                {narrationContent.description}
+                                            </div>
+                                            
+                                            {showTechnicalDetails && (
+                                                <div className="narration-technical">
+                                                    <h4>🔧 技術細節：</h4>
+                                                    <div className="technical-formula">
+                                                        {narrationContent.technicalNote.split('\\n').map((line, index) => (
+                                                            <div key={index}>{line}</div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            <div className="narration-next">
+                                                <strong>下一步：</strong> {narrationContent.nextAction}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="narration-metrics">
+                                        <div className="metric">
+                                            <span className="metric-label">當前時間：</span>
+                                            <span className="metric-value">{narrationContent.currentTime} ms</span>
+                                        </div>
+                                        <div className="metric">
+                                            <span className="metric-label">時間門檻：</span>
+                                            <span className="metric-value">{narrationContent.threshold} ms</span>
+                                        </div>
+                                        <div className="metric">
+                                            <span className="metric-label">持續時間：</span>
+                                            <span className="metric-value">{narrationContent.duration} ms</span>
+                                        </div>
+                                        {narrationContent.phase === 'triggered' && (
+                                            <div className="metric">
+                                                <span className="metric-label">進度：</span>
+                                                <span className="metric-value">{narrationContent.progressPercent}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            
                             <div className="chart-container">
                                 <PureT1Chart {...chartProps} />
                             </div>
