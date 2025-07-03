@@ -23,7 +23,7 @@ export const EventT1Chart: React.FC<EventT1ChartProps> = React.memo(
         isDarkTheme = true,
         onThemeToggle,
         initialParams = {},
-        showControls = true,
+        _showControls = true,
         width = 800,
         height = 600,
     }) => {
@@ -38,10 +38,10 @@ export const EventT1Chart: React.FC<EventT1ChartProps> = React.memo(
             reportOnLeave: initialParams.reportOnLeave ?? true,
         }));
 
-        const [showThresholdLines, setShowThresholdLines] = useState(true);
+        const [showThresholdLines] = useState(true);
 
-        // 穩定的參數更新回調
-        const updateParam = useCallback(
+        // 穩定的參數更新回調 (保留供未來使用)
+        const _updateParam = useCallback(
             (key: keyof EventT1Params, value: unknown) => {
                 setParams((prev) => ({
                     ...prev,

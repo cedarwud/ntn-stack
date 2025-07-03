@@ -60,11 +60,20 @@ const dataPoints = [
     { x: 91.23, y: -59.54 },
 ]
 
+// 生成當前時間游標數據
+const generateCurrentTimeCursor = (currentTime: number) => {
+    return [
+        { x: currentTime, y: -95 }, // 底部
+        { x: currentTime, y: -40 }  // 頂部
+    ]
+}
+
 interface PureA4ChartProps {
     width?: number
     height?: number
     threshold?: number
     hysteresis?: number
+    currentTime?: number // Current time in seconds
     showThresholdLines?: boolean
     isDarkTheme?: boolean
     onThemeToggle?: () => void
@@ -76,6 +85,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
         height: _height = 400,
         threshold = -70,
         hysteresis = 3,
+        currentTime = 0,
         showThresholdLines = true,
         isDarkTheme = true,
         onThemeToggle,
@@ -91,6 +101,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     rsrpLine: '#007bff',
                     thresholdLine: '#E74C3C',
                     hysteresisLine: 'rgba(231, 76, 60, 0.6)',
+                    currentTimeLine: '#ff6b35', // 動畫游標線顏色
                     title: 'white',
                     text: 'white',
                     grid: 'rgba(255, 255, 255, 0.1)',
@@ -100,6 +111,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     rsrpLine: '#0066CC',
                     thresholdLine: '#D32F2F',
                     hysteresisLine: '#D32F2F',
+                    currentTimeLine: '#ff6b35', // 動畫游標線顏色
                     title: 'black',
                     text: '#333333',
                     grid: 'rgba(0, 0, 0, 0.1)',
@@ -183,6 +195,23 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                         pointRadius: 0,
                     }
                 )
+            }
+
+            // 添加當前時間游標
+            if (currentTime > 0) {
+                const cursorData = generateCurrentTimeCursor(currentTime)
+                datasets.push({
+                    label: `Current Time: ${currentTime.toFixed(1)}s`,
+                    data: cursorData,
+                    borderColor: currentTheme.currentTimeLine,
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    tension: 0,
+                    borderDash: [5, 5],
+                })
             }
 
             try {
@@ -337,6 +366,36 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 }
             }
 
+            // 處理游標數據集
+            const expectedCursorIndex = showThresholdLines ? 4 : 1
+            if (currentTime > 0) {
+                const cursorData = generateCurrentTimeCursor(currentTime)
+                if (chart.data.datasets[expectedCursorIndex]) {
+                    // 更新現有游標數據
+                    chart.data.datasets[expectedCursorIndex].data = cursorData
+                    chart.data.datasets[expectedCursorIndex].label = `Current Time: ${currentTime.toFixed(1)}s`
+                } else {
+                    // 添加新的游標數據集
+                    chart.data.datasets.push({
+                        label: `Current Time: ${currentTime.toFixed(1)}s`,
+                        data: cursorData,
+                        borderColor: currentTheme.currentTimeLine,
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        fill: false,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        tension: 0,
+                        borderDash: [5, 5],
+                    } as any)
+                }
+            } else {
+                // 移除游標數據集
+                if (chart.data.datasets[expectedCursorIndex] && chart.data.datasets[expectedCursorIndex].label?.includes('Current Time')) {
+                    chart.data.datasets.splice(expectedCursorIndex, 1)
+                }
+            }
+
             // 更新顏色主題
             chart.data.datasets[0].borderColor = currentTheme.rsrpLine
             if (chart.data.datasets[1]) {
@@ -347,6 +406,10 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
             }
             if (chart.data.datasets[3]) {
                 chart.data.datasets[3].borderColor = currentTheme.hysteresisLine
+            }
+            // 更新游標顏色
+            if (chart.data.datasets[expectedCursorIndex] && chart.data.datasets[expectedCursorIndex].label?.includes('Current Time')) {
+                chart.data.datasets[expectedCursorIndex].borderColor = currentTheme.currentTimeLine
             }
 
             // 更新圖表選項的顏色
@@ -380,7 +443,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
 
             // 更新圖表 - 使用 'none' 避免動畫
             chart.update('none')
-        }, [threshold, hysteresis, currentTheme, showThresholdLines])
+        }, [threshold, hysteresis, currentTheme, showThresholdLines, currentTime])
 
         return (
             <div

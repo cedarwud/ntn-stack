@@ -60,12 +60,21 @@ const distance2Points = [
     { x: 95, y: 380 }, // 回到較遠距離
 ]
 
+// 生成當前時間游標數據
+const generateCurrentTimeCursor = (currentTime: number) => {
+    return [
+        { x: currentTime, y: 100 }, // 底部
+        { x: currentTime, y: 600 }  // 頂部 (D1 的 Y 軸範圍為距離)
+    ]
+}
+
 interface PureD1ChartProps {
     width?: number
     height?: number
     thresh1?: number // distanceThreshFromReference1 (meters)
     thresh2?: number // distanceThreshFromReference2 (meters)
     hysteresis?: number // hysteresisLocation (meters)
+    currentTime?: number // Current time in seconds
     showThresholdLines?: boolean
     isDarkTheme?: boolean
     onThemeToggle?: () => void
@@ -78,6 +87,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
         thresh1 = 400, // Thresh1: 400m
         thresh2 = 250, // Thresh2: 250m
         hysteresis = 20, // 20m hysteresis
+        currentTime = 0,
         showThresholdLines = true,
         isDarkTheme = true,
         onThemeToggle,
@@ -95,6 +105,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                     thresh1Line: '#DC3545', // 紅色：門檻1
                     thresh2Line: '#007BFF', // 藍色：門檻2
                     hysteresisLine: 'rgba(108, 117, 125, 0.6)', // 灰色：遲滯線
+                    currentTimeLine: '#ff6b35', // 動畫游標線顏色
                     title: 'white',
                     text: 'white',
                     grid: 'rgba(255, 255, 255, 0.1)',
@@ -106,6 +117,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                     thresh1Line: '#DC3545',
                     thresh2Line: '#0D6EFD',
                     hysteresisLine: 'rgba(108, 117, 125, 0.8)',
+                    currentTimeLine: '#ff6b35', // 動畫游標線顏色
                     title: 'black',
                     text: '#333333',
                     grid: 'rgba(0, 0, 0, 0.1)',
@@ -258,6 +270,23 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                         pointRadius: 0,
                     }
                 )
+            }
+
+            // 添加當前時間游標
+            if (currentTime > 0) {
+                const cursorData = generateCurrentTimeCursor(currentTime)
+                datasets.push({
+                    label: `Current Time: ${currentTime.toFixed(1)}s`,
+                    data: cursorData,
+                    borderColor: currentTheme.currentTimeLine,
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    tension: 0,
+                    borderDash: [5, 5],
+                })
             }
 
             try {
@@ -473,6 +502,36 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 }
             }
 
+            // 處理游標數據集
+            const expectedCursorIndex = showThresholdLines ? 8 : 2
+            if (currentTime > 0) {
+                const cursorData = generateCurrentTimeCursor(currentTime)
+                if (chart.data.datasets[expectedCursorIndex]) {
+                    // 更新現有游標數據
+                    chart.data.datasets[expectedCursorIndex].data = cursorData
+                    chart.data.datasets[expectedCursorIndex].label = `Current Time: ${currentTime.toFixed(1)}s`
+                } else {
+                    // 添加新的游標數據集
+                    chart.data.datasets.push({
+                        label: `Current Time: ${currentTime.toFixed(1)}s`,
+                        data: cursorData,
+                        borderColor: currentTheme.currentTimeLine,
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        fill: false,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        tension: 0,
+                        borderDash: [5, 5],
+                    } as any)
+                }
+            } else {
+                // 移除游標數據集
+                if (chart.data.datasets[expectedCursorIndex] && chart.data.datasets[expectedCursorIndex].label?.includes('Current Time')) {
+                    chart.data.datasets.splice(expectedCursorIndex, 1)
+                }
+            }
+
             // 更新顏色主題
             chart.data.datasets[0].borderColor = currentTheme.distance1Line
             chart.data.datasets[1].borderColor = currentTheme.distance2Line
@@ -488,6 +547,10 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 chart.data.datasets[6].borderColor = currentTheme.hysteresisLine
             if (chart.data.datasets[7])
                 chart.data.datasets[7].borderColor = currentTheme.hysteresisLine
+            // 更新游標顏色
+            if (chart.data.datasets[expectedCursorIndex] && chart.data.datasets[expectedCursorIndex].label?.includes('Current Time')) {
+                chart.data.datasets[expectedCursorIndex].borderColor = currentTheme.currentTimeLine
+            }
 
             // 更新圖表選項的顏色
             if (chart.options.plugins?.legend?.labels) {
@@ -521,7 +584,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
             // 更新圖表 - 使用 'none' 避免動畫
             chart.update('none')
             console.log('✅ [PureD1Chart] 圖表更新完成')
-        }, [thresh1, thresh2, hysteresis, currentTheme, showThresholdLines])
+        }, [thresh1, thresh2, hysteresis, currentTheme, showThresholdLines, currentTime])
 
         return (
             <div
