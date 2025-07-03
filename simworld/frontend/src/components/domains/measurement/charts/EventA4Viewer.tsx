@@ -64,6 +64,40 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
         // 圖表和數據狀態
         const [loading, setLoading] = useState(true)
 
+        // 動畫控制功能
+        const toggleAnimation = useCallback(() => {
+            setAnimationState(prev => ({
+                ...prev,
+                isPlaying: !prev.isPlaying
+            }))
+        }, [])
+
+        const resetAnimation = useCallback(() => {
+            setAnimationState(prev => ({
+                ...prev,
+                isPlaying: false,
+                currentTime: 0
+            }))
+        }, [])
+
+        // 動畫進度更新
+        useEffect(() => {
+            if (!animationState.isPlaying) return
+
+            const interval = setInterval(() => {
+                setAnimationState(prev => {
+                    const newTime = prev.currentTime + 0.1 * prev.speed // 0.1 second steps
+                    const maxTime = 30 // 30 seconds max for A4
+                    if (newTime >= maxTime) {
+                        return { ...prev, isPlaying: false, currentTime: 0 }
+                    }
+                    return { ...prev, currentTime: newTime }
+                })
+            }, 100) // Update every 100ms
+
+            return () => clearInterval(interval)
+        }, [animationState.isPlaying, animationState.speed])
+
         // 穩定的數據載入函數
         const loadData = useCallback(async () => {
             try {
@@ -138,21 +172,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
             )
         }, [onEventChange, selectedEvent])
 
-        // 動畫控制回調
-        const toggleAnimation = useCallback(() => {
-            setAnimationState((prev) => ({
-                ...prev,
-                isPlaying: !prev.isPlaying,
-            }))
-        }, [])
-
-        const resetAnimation = useCallback(() => {
-            setAnimationState((prev) => ({
-                ...prev,
-                isPlaying: false,
-                currentTime: 0,
-            }))
-        }, [])
+        // 動畫控制回調已在上面定義
 
         const toggleThresholdLines = useCallback(() => {
             setShowThresholdLines((prev) => !prev)
@@ -216,6 +236,33 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                             >
                                 📏 門檻線
                             </button>
+                        </div>
+                        
+                        {/* 時間遊標控制 */}
+                        <div className="control-group">
+                            <div className="control-item">
+                                <label className="control-label">
+                                    當前時間 (動畫時間)
+                                    <span className="control-unit">秒</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="30"
+                                    step="0.1"
+                                    value={animationState.currentTime}
+                                    onChange={(e) =>
+                                        setAnimationState(prev => ({
+                                            ...prev,
+                                            currentTime: Number(e.target.value)
+                                        }))
+                                    }
+                                    className="control-slider"
+                                />
+                                <span className="control-value">
+                                    {animationState.currentTime.toFixed(1)}s
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -513,13 +560,14 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                         <PureA4Chart
                             threshold={a4Threshold}
                             hysteresis={hysteresis}
+                            currentTime={animationState.currentTime}
                             showThresholdLines={showThresholdLines}
                             isDarkTheme={isDarkTheme}
                         />
                     </div>
                 </div>
             ),
-            [a4Threshold, hysteresis, showThresholdLines, isDarkTheme]
+            [a4Threshold, hysteresis, animationState.currentTime, showThresholdLines, isDarkTheme]
         )
 
         // 載入中組件 - 使用 useMemo 穩定化

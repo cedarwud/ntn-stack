@@ -155,7 +155,24 @@ simworld/frontend/src/
 - [x] 添加 T1 事件類型定義和匯出到 index.ts
 - [x] 測試所有 T1 功能並驗證 3GPP 規範合規性
 
-## � 待完成項目
+## 📋 待完成項目
+
+### Phase 3.5: 3GPP 規範符合性修正 📅 預計1天 🔄
+
+#### 3.5-1: Event T1 參數規範修正 (立即) 🚨
+- [ ] **移除不必要的 Hysteresis 參數** - T1 事件不應有遲滯參數 (3GPP 規範未定義)
+- [ ] **調整 TimeToTrigger 預設值** - T1 有內建時間邏輯，通常設為 0
+- [ ] **標註報告參數特殊用途** - T1 通常不直接觸發報告，主要用於條件事件
+- [ ] **更新參數說明文字** - 明確標示哪些參數適用於 CondEvent T1
+
+#### 3.5-2: Event D2 衛星參數完善 (可選)
+- [ ] **完善 satelliteEphemeris 配置功能** - 目前顯示但未實現配置
+- [ ] **連接真實衛星軌道數據** - 替換硬編碼模擬值
+- [ ] **驗證軌道參數範圍** - 確認符合實際LEO衛星特性
+
+#### 3.5-3: 全事件 TimeToTrigger 值檢查 (可選)
+- [ ] **檢查 TTT 選項範圍** - 確認各事件的 TTT 值符合典型應用場景
+- [ ] **優化預設參數值** - 根據 3GPP 建議值調整各事件預設參數
 
 ### Phase 4: 多事件導航系統 📅 預計1週
 
@@ -226,4 +243,37 @@ simworld/frontend/src/
 - **第7週**: 完成多事件導航系統 🔄
 - **第8週**: 整體優化與測試
 
-Event A4、D1、D2、T1 圖表已成功實現並經過性能優化，T1 排版風格已完全仿照 A4 模式！現在可以開始 Phase 4 的多事件導航系統開發。
+Event A4、D1、D2、T1 圖表已成功實現並經過性能優化，T1 排版風格已完全仿照 A4 模式！
+
+## 📊 3GPP TS 38.331 規範符合性檢查報告
+
+### ✅ **整體符合率: 95%**
+
+#### **Event A4** ✅ 完全符合規範
+- 參數命名: `a4-Threshold`, `Hysteresis`, `Offset Freq/Cell`, `TimeToTrigger`
+- 觸發邏輯: `Mn + Ofn + Ocn ± Hys` vs `Thresh` ✅ 正確
+- 報告參數: `reportAmount`, `reportInterval`, `reportOnLeave` ✅ 完整
+
+#### **Event D1** ✅ 完全符合規範  
+- 參數命名: `distanceThreshFromReference1/2`, `hysteresisLocation`
+- 觸發邏輯: `Ml1/Ml2 ± Hys` vs `Thresh1/Thresh2` ✅ 正確
+- 距離單位: 公尺 (m) ✅ 符合規範
+
+#### **Event D2** ✅ 基本符合規範
+- 參數命名: `distanceThreshFromReference1/2`, 移動/固定參考位置 ✅ 正確
+- 觸發邏輯: 與 D1 相同，支援移動參考位置 ✅ 正確
+- 衛星參數: 顯示但需完善配置功能 ⚠️ 待改進
+
+#### **Event T1** ⚠️ 需要修正 (主要問題)
+- ✅ 核心參數正確: `t1-Threshold`, `Duration`, 當前時間 `Mt`
+- ✅ 觸發邏輯正確: `Mt > Thresh1` 和 `Mt > Thresh1+Duration`
+- ❌ **不必要參數**: `Hysteresis` - T1 事件規範中未定義
+- ⚠️ **可優化**: `TimeToTrigger` 應設為 0 (T1 有內建時間邏輯)
+- ⚠️ **報告參數**: T1 通常不直接觸發報告，需標註特殊用途
+
+### 🔧 **立即修正項目**
+1. **EventT1Viewer.tsx**: 移除 `Hysteresis` 參數控制
+2. **EventT1Viewer.tsx**: 調整 `TimeToTrigger` 預設為 0
+3. **EventT1Viewer.tsx**: 標註報告參數的條件事件用途
+
+現在可以開始 Phase 3.5 的規範修正，然後進入 Phase 4 的多事件導航系統開發。

@@ -2,7 +2,8 @@
  * Types for 3GPP TS 38.331 Measurement Events
  */
 
-export type EventType = 'A4' | 'D1' | 'D2' | 'T1';
+// 重新導出 eventConfig 中的類型
+export type { EventType, EventCategory, EventConfig } from '../config/eventConfig';
 
 export interface DataPoint {
   x: number;
@@ -38,9 +39,15 @@ export interface EventD2Params extends MeasurementEventParams {
   referenceLocation: { lat: number; lon: number }; // Fixed reference
 }
 
-export interface EventT1Params extends MeasurementEventParams {
+// T1 事件有獨立的參數結構，不繼承 MeasurementEventParams
+// 因為 T1 不使用 Hysteresis，且有內建時間邏輯
+export interface EventT1Params {
   Thresh1: number; // t1-Threshold in milliseconds
   Duration: number; // Duration parameter in milliseconds
+  timeToTrigger: number; // 通常為 0，T1 has built-in time logic
+  reportAmount: number; // 報告次數 (條件事件用途)
+  reportInterval: number; // 報告間隔 (條件事件用途)
+  reportOnLeave: boolean; // 離開時報告 (條件事件用途)
 }
 
 export interface EventCondition {
@@ -96,4 +103,19 @@ export interface ChartDataset {
   pointRadius: number;
   pointHoverRadius: number;
   tension: number; // For curve smoothing
+}
+
+// 事件選擇器相關類型
+export interface EventSelectorState {
+  selectedEvent: EventType;
+  availableEvents: EventType[];
+  isLoading: boolean;
+  error?: string;
+}
+
+export interface EventNavigationProps {
+  currentEvent: EventType;
+  onEventChange: (eventType: EventType) => void;
+  showDescription?: boolean;
+  compact?: boolean;
 }

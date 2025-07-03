@@ -17,15 +17,14 @@ interface EventT1ViewerProps {
 
 export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
     ({ isDarkTheme = true, onThemeToggle, initialParams = {} }) => {
-        // Event T1 參數狀態 - 基於 3GPP TS 38.331 規範
+        // Event T1 參數狀態 - 基於 3GPP TS 38.331 規範 (CondEvent T1)
         const [params, setParams] = useState<EventT1Params>(() => ({
             Thresh1: initialParams.Thresh1 ?? 5000, // t1-Threshold in milliseconds
             Duration: initialParams.Duration ?? 10000, // Duration parameter in milliseconds
-            Hys: initialParams.Hys ?? 0, // Not applicable for T1
-            timeToTrigger: initialParams.timeToTrigger ?? 0, // T1 has built-in time logic
-            reportAmount: initialParams.reportAmount ?? 1,
-            reportInterval: initialParams.reportInterval ?? 1000, // ms
-            reportOnLeave: initialParams.reportOnLeave ?? true,
+            timeToTrigger: initialParams.timeToTrigger ?? 0, // 通常為 0，T1 has built-in time logic
+            reportAmount: initialParams.reportAmount ?? 1, // 條件事件用途
+            reportInterval: initialParams.reportInterval ?? 1000, // 條件事件用途 (ms)
+            reportOnLeave: initialParams.reportOnLeave ?? true, // 條件事件用途
         }))
 
         const [showThresholdLines, setShowThresholdLines] = useState(true)
@@ -62,40 +61,53 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
             }))
         }, [])
 
+        // 動畫進度更新
+        React.useEffect(() => {
+            if (!animationState.isPlaying) return
+
+            const interval = setInterval(() => {
+                setAnimationState(prev => {
+                    const newTime = prev.currentTime + 100 * prev.speed
+                    if (newTime >= 25000) { // 25 seconds max
+                        return { ...prev, isPlaying: false, currentTime: 0 }
+                    }
+                    return { ...prev, currentTime: newTime }
+                })
+            }, 100)
+
+            return () => clearInterval(interval)
+        }, [animationState.isPlaying, animationState.speed])
+
         const toggleThresholdLines = useCallback(() => {
             setShowThresholdLines((prev) => !prev)
         }, [])
 
         // 計算 Event T1 條件狀態 - 基於 3GPP TS 38.331 規範
         const eventStatus = useMemo(() => {
-            // 模擬時間測量值 Mt（實際應從圖表數據獲取）
-            const simulatedMt = 6500 // milliseconds
-            const timeInCondition = Math.max(
-                0,
-                animationState.currentTime * 1000
-            ) // Convert to ms
+            // 使用動畫當前時間作為 Mt
+            const currentMt = animationState.currentTime
 
-            // T1 進入條件: Mt > t1-Threshold (持續 Duration 時間)
-            const condition1 = simulatedMt > params.Thresh1
-            const conditionMet =
-                condition1 && timeInCondition >= params.Duration
-
-            // T1 離開條件: Mt > t1-Threshold + Duration (時間超出範圍)
-            const leaveCondition =
-                simulatedMt > params.Thresh1 + params.Duration * 0.1
+            // T1 進入條件: Mt > t1-Threshold
+            const condition1 = currentMt > params.Thresh1
+            // T1 離開條件: Mt > t1-Threshold + Duration
+            const leaveCondition = currentMt > params.Thresh1 + params.Duration
+            // T1 事件激活: Mt 在 [Thresh1, Thresh1+Duration] 區間內
+            const eventTriggered = condition1 && !leaveCondition
 
             return {
                 condition1, // 基本條件
-                conditionMet, // 完整觸發條件
+                conditionMet: eventTriggered, // 完整觸發條件
                 leaveCondition, // 離開條件
-                eventTriggered: conditionMet,
-                description: conditionMet
+                eventTriggered,
+                description: eventTriggered
                     ? 'T1 事件已觸發'
+                    : condition1 && leaveCondition
+                    ? '事件已結束'
                     : condition1
                     ? '等待持續時間滿足'
                     : '等待條件滿足',
-                currentMt: simulatedMt,
-                timeInCondition: timeInCondition,
+                currentMt: currentMt,
+                timeInCondition: Math.max(0, currentMt - params.Thresh1),
             }
         }, [params.Thresh1, params.Duration, animationState.currentTime])
 
@@ -104,6 +116,7 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
             () => ({
                 threshold: params.Thresh1,
                 duration: params.Duration,
+                currentTime: animationState.currentTime,
                 showThresholdLines,
                 isDarkTheme,
                 onThemeToggle,
@@ -111,6 +124,7 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
             [
                 params.Thresh1,
                 params.Duration,
+                animationState.currentTime,
                 showThresholdLines,
                 isDarkTheme,
                 onThemeToggle,
@@ -188,6 +202,30 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
 
                             <div className="control-item">
                                 <label className="control-label">
+                                    當前時間 Mt (動畫時間)
+                                    <span className="control-unit">毫秒</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="25000"
+                                    step="100"
+                                    value={animationState.currentTime}
+                                    onChange={(e) =>
+                                        setAnimationState(prev => ({
+                                            ...prev,
+                                            currentTime: Number(e.target.value)
+                                        }))
+                                    }
+                                    className="control-slider"
+                                />
+                                <span className="control-value">
+                                    {animationState.currentTime}ms
+                                </span>
+                            </div>
+
+                            <div className="control-item">
+                                <label className="control-label">
                                     Duration (持續時間)
                                     <span className="control-unit">毫秒</span>
                                 </label>
@@ -212,9 +250,20 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                         </div>
                     </div>
 
-                    {/* 報告參數 */}
+                    {/* 報告參數 - CondEvent T1 特殊用途 */}
                     <div className="control-section">
-                        <h3 className="control-section__title">📊 報告參數</h3>
+                        <h3 className="control-section__title">📊 報告參數 (條件事件用途)</h3>
+                        <div className="condition-note" style={{
+                            fontSize: '12px',
+                            color: '#ffa500',
+                            marginBottom: '10px',
+                            padding: '8px',
+                            backgroundColor: 'rgba(255, 165, 0, 0.1)',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(255, 165, 0, 0.3)'
+                        }}>
+                            ⚠️ 注意：CondEvent T1 通常不直接觸發測量報告，主要用於條件切換判斷
+                        </div>
                         <div className="control-group control-group--reporting">
                             <div className="control-item control-item--horizontal">
                                 <span className="control-label">
