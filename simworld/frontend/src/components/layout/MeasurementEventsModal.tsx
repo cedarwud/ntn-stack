@@ -4,10 +4,9 @@
  * 優化版本：避免不必要的重新渲染
  */
 
-import React, { useState, useCallback, useMemo, useRef } from 'react'
-import ViewerModal from '../shared/ui/layout/ViewerModal'
+import React, { useState, useCallback, useMemo } from 'react'
 import EventA4Viewer from '../domains/measurement/charts/EventA4Viewer'
-import { ViewerProps } from '../../types/viewer'
+import EventD1Viewer from '../domains/measurement/charts/EventD1Viewer'
 import './MeasurementEventsModal.scss'
 
 interface MeasurementEventsModalProps {
@@ -38,7 +37,8 @@ const eventConfigs: EventConfig[] = [
         id: 'D1',
         name: 'Event D1',
         description: 'Distance between UE and reference locations',
-        status: 'coming-soon',
+        status: 'available',
+        ViewerComponent: EventD1Viewer,
     },
     {
         id: 'D2',
@@ -54,14 +54,14 @@ const eventConfigs: EventConfig[] = [
     },
 ]
 
-// 創建一個包含事件選擇器的 Viewer 組件
-interface MeasurementEventsViewerProps extends ViewerProps {
-    isDarkTheme?: boolean
-}
-
-const MeasurementEventsViewer: React.FC<MeasurementEventsViewerProps> =
-    React.memo((viewerProps) => {
+const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> =
+    React.memo(({ isOpen, onClose }) => {
+        const [isDarkTheme, setIsDarkTheme] = useState(true)
         const [selectedEvent, setSelectedEvent] = useState<EventType>('A4')
+
+        const toggleTheme = useCallback(() => {
+            setIsDarkTheme(!isDarkTheme)
+        }, [isDarkTheme])
 
         const handleEventChange = useCallback((eventType: EventType) => {
             const eventConfig = eventConfigs.find(
@@ -77,53 +77,53 @@ const MeasurementEventsViewer: React.FC<MeasurementEventsViewerProps> =
             [selectedEvent]
         )
 
-        // 穩定的 ViewerComponent 渲染
-        const CurrentViewer = selectedEventConfig?.ViewerComponent
+        // 穩定的模態框標題配置 - 用事件選擇器替代標題
+        const modalTitleConfig = useMemo(
+            () => ({
+                base: '', // 空標題，我們將用自定義的事件選擇器
+                loading: '正在載入測量事件數據...',
+                hoverRefresh: '',
+            }),
+            []
+        )
 
-        // 使用 useRef 來穩定回調函數
-        const stableOnReportLastUpdate = useRef(
-            viewerProps.onReportLastUpdateToNavbar || (() => {})
-        )
-        const stableReportRefreshHandler = useRef(
-            viewerProps.reportRefreshHandlerToNavbar || (() => {})
-        )
-        const stableReportIsLoading = useRef(
-            viewerProps.reportIsLoadingToNavbar || (() => {})
-        )
+        // 穩定的回調函數，避免每次渲染都重新創建
+        const stableOnReportLastUpdate = useCallback(() => {}, [])
+        const stableReportRefreshHandler = useCallback(() => {}, [])
+        const stableReportIsLoading = useCallback(() => {}, [])
+
+        // 空的刷新函數
+        const handleRefresh = useCallback(() => {
+            // 測量事件模態框目前不需要刷新功能
+        }, [])
+
+        // 當前事件的 Viewer 組件
+        const CurrentViewer = selectedEventConfig?.ViewerComponent
 
         // 準備穩定的傳遞給 CurrentViewer 的 props
         const currentViewerProps = useMemo(
             () => ({
-                onReportLastUpdateToNavbar: stableOnReportLastUpdate.current,
-                reportRefreshHandlerToNavbar:
-                    stableReportRefreshHandler.current,
-                reportIsLoadingToNavbar: stableReportIsLoading.current,
-                currentScene: viewerProps.currentScene || 'default',
-                selectedEvent: selectedEvent,
-                onEventChange: handleEventChange,
-                isDarkTheme: viewerProps.isDarkTheme,
+                onReportLastUpdateToNavbar: stableOnReportLastUpdate,
+                reportRefreshHandlerToNavbar: stableReportRefreshHandler,
+                reportIsLoadingToNavbar: stableReportIsLoading,
+                currentScene: 'default',
+                isDarkTheme: isDarkTheme,
             }),
             [
-                viewerProps.currentScene,
-                selectedEvent,
-                handleEventChange,
-                viewerProps.isDarkTheme, // 只保留真正會變化的
+                stableOnReportLastUpdate,
+                stableReportRefreshHandler,
+                stableReportIsLoading,
+                isDarkTheme,
             ]
         )
 
-        // 即將推出的占位符組件 - 使用 useMemo 穩定化
+        // 即將推出的占位符組件
         const comingSoonPlaceholder = useMemo(
             () => (
                 <div className="coming-soon-placeholder">
                     <h3>{selectedEventConfig?.name}</h3>
                     <p>此事件類型即將推出</p>
                     <div className="formula-preview">
-                        {selectedEvent === 'D1' && (
-                            <p>
-                                <strong>距離條件:</strong> Ml1 &gt; Thresh1 AND
-                                Ml2 &lt; Thresh2
-                            </p>
-                        )}
                         {selectedEvent === 'D2' && (
                             <p>
                                 <strong>移動參考:</strong>{' '}
@@ -142,14 +142,14 @@ const MeasurementEventsViewer: React.FC<MeasurementEventsViewerProps> =
             [selectedEvent, selectedEventConfig?.name]
         )
 
-        return (
+        // 直接渲染圖表組件
+        const viewerComponent = (
             <div className="measurement-events-viewer">
-                {/* 圖表顯示區域 */}
                 <div className="event-chart-container">
                     {CurrentViewer ? (
                         <CurrentViewer
                             {...currentViewerProps}
-                            key={`viewer-${selectedEvent}`} // 添加穩定的 key
+                            key={`viewer-${selectedEvent}`}
                         />
                     ) : (
                         comingSoonPlaceholder
@@ -157,63 +157,139 @@ const MeasurementEventsViewer: React.FC<MeasurementEventsViewerProps> =
                 </div>
             </div>
         )
-    })
 
-MeasurementEventsViewer.displayName = 'MeasurementEventsViewer'
-
-const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> =
-    React.memo(({ isOpen, onClose }) => {
-        const [isDarkTheme, setIsDarkTheme] = useState(true)
-
-        const toggleTheme = useCallback(() => {
-            setIsDarkTheme(!isDarkTheme)
-        }, [isDarkTheme])
-
-        // 穩定的模態框標題配置
-        const modalTitleConfig = useMemo(
-            () => ({
-                base: '3GPP TS 38.331 測量事件',
-                loading: '正在載入測量事件數據...',
-                hoverRefresh: '重新載入測量事件',
-            }),
-            []
-        )
-
-        // 穩定的回調函數，避免每次渲染都重新創建
-        const stableOnReportLastUpdate = useCallback(() => {}, [])
-        const stableReportRefreshHandler = useCallback(() => {}, [])
-        const stableReportIsLoading = useCallback(() => {}, [])
-
-        // 空的刷新函數
-        const handleRefresh = useCallback(() => {
-            // 測量事件模態框目前不需要刷新功能
-        }, [])
-
-        // 直接渲染組件，使用穩定的 key 和回調函數
-        const viewerComponent = (
-            <MeasurementEventsViewer
-                key="measurement-events-viewer-stable" // 穩定的 key
-                onReportLastUpdateToNavbar={stableOnReportLastUpdate}
-                reportRefreshHandlerToNavbar={stableReportRefreshHandler}
-                reportIsLoadingToNavbar={stableReportIsLoading}
-                currentScene="default"
-                isDarkTheme={isDarkTheme}
-            />
-        )
+        // 如果 modal 未打開，不渲染任何內容
+        if (!isOpen) {
+            return null
+        }
 
         return (
-            <ViewerModal
-                isOpen={isOpen}
-                onClose={onClose}
-                modalTitleConfig={modalTitleConfig}
-                lastUpdateTimestamp=""
-                isLoading={false}
-                onRefresh={handleRefresh}
-                viewerComponent={viewerComponent}
-                className="measurement-events-modal"
-                isDarkTheme={isDarkTheme}
-                onThemeToggle={toggleTheme}
-            />
+            <div className="modal-backdrop" onClick={onClose}>
+                <div
+                    className={`constellation-modal measurement-events-modal`}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div
+                        className="modal-header"
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '15px 20px',
+                        }}
+                    >
+                        <div style={{ flex: 1 }}></div>
+                        {/* 事件選擇器作為標題 */}
+                        <div
+                            className="event-selector-title"
+                            style={{ flex: 1, textAlign: 'center' }}
+                        >
+                            <div className="event-buttons-title">
+                                {eventConfigs.map((config) => (
+                                    <button
+                                        key={config.id}
+                                        className={`event-btn-title ${
+                                            selectedEvent === config.id
+                                                ? 'active'
+                                                : ''
+                                        } ${
+                                            config.status === 'coming-soon'
+                                                ? 'disabled'
+                                                : ''
+                                        }`}
+                                        onClick={() =>
+                                            handleEventChange(config.id)
+                                        }
+                                        disabled={
+                                            config.status === 'coming-soon'
+                                        }
+                                        title={config.description}
+                                    >
+                                        {config.name}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="event-description">
+                                {selectedEventConfig?.description}
+                            </div>
+                        </div>
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                flex: 1,
+                                justifyContent: 'flex-end',
+                            }}
+                        >
+                            {/* 主題切換按鈕 */}
+                            <div
+                                onClick={toggleTheme}
+                                style={{
+                                    width: '40px',
+                                    height: '20px',
+                                    backgroundColor: '#444',
+                                    borderRadius: '10px',
+                                    position: 'relative',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '2px',
+                                    transition: 'background-color 0.3s ease',
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        width: '16px',
+                                        height: '16px',
+                                        backgroundColor: '#666',
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '10px',
+                                        transition: 'transform 0.3s ease',
+                                        transform: isDarkTheme
+                                            ? 'translateX(0)'
+                                            : 'translateX(18px)',
+                                    }}
+                                >
+                                    {isDarkTheme ? '🌙' : '☀️'}
+                                </div>
+                            </div>
+                            {/* 關閉按鈕 */}
+                            <button
+                                onClick={onClose}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'white',
+                                    fontSize: '1.5rem',
+                                    cursor: 'pointer',
+                                    padding: '0 5px',
+                                    lineHeight: 1,
+                                    opacity: 0.7,
+                                    transition: 'opacity 0.3s',
+                                    marginLeft: '15px',
+                                }}
+                                onMouseEnter={(e) =>
+                                    ((
+                                        e.target as HTMLButtonElement
+                                    ).style.opacity = '1')
+                                }
+                                onMouseLeave={(e) =>
+                                    ((
+                                        e.target as HTMLButtonElement
+                                    ).style.opacity = '0.7')
+                                }
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                    <div className="modal-content">{viewerComponent}</div>
+                </div>
+            </div>
         )
     })
 

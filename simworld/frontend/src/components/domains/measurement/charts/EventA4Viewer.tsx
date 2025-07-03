@@ -39,6 +39,14 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
         const [reportAmount, setReportAmount] = useState(8)
         const [reportOnLeave, setReportOnLeave] = useState(true)
 
+        // 動畫和顯示控制狀態
+        const [showThresholdLines, setShowThresholdLines] = useState(true)
+        const [animationState, setAnimationState] = useState({
+            isPlaying: false,
+            currentTime: 0,
+            speed: 1,
+        })
+
         // 主題狀態 - 使用外部傳入的主題或預設值
         const [isDarkTheme, setIsDarkTheme] = useState(
             externalIsDarkTheme ?? true
@@ -107,12 +115,16 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                                 key={eventType}
                                 className={`event-btn-compact ${
                                     selectedEvent === eventType ? 'active' : ''
-                                } ${eventType !== 'A4' ? 'disabled' : ''}`}
+                                } ${
+                                    !['A4', 'D1'].includes(eventType)
+                                        ? 'disabled'
+                                        : ''
+                                }`}
                                 onClick={() =>
-                                    eventType === 'A4' &&
+                                    ['A4', 'D1'].includes(eventType) &&
                                     onEventChange(eventType)
                                 }
-                                disabled={eventType !== 'A4'}
+                                disabled={!['A4', 'D1'].includes(eventType)}
                             >
                                 {eventType}
                             </button>
@@ -122,113 +134,298 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
             )
         }, [onEventChange, selectedEvent])
 
-        // 參數控制面板渲染 - 使用 useMemo 穩定化
+        // 動畫控制回調
+        const toggleAnimation = useCallback(() => {
+            setAnimationState((prev) => ({
+                ...prev,
+                isPlaying: !prev.isPlaying,
+            }))
+        }, [])
+
+        const resetAnimation = useCallback(() => {
+            setAnimationState((prev) => ({
+                ...prev,
+                isPlaying: false,
+                currentTime: 0,
+            }))
+        }, [])
+
+        const toggleThresholdLines = useCallback(() => {
+            setShowThresholdLines((prev) => !prev)
+        }, [])
+
+        // 計算 Event A4 條件狀態
+        const eventStatus = useMemo(() => {
+            // 模擬鄰近基站的 RSRP 測量值（實際應從圖表數據獲取）
+            const simulatedRSRP = -75 // dBm
+            const condition1 = simulatedRSRP - hysteresis > threshold
+            const condition2 = simulatedRSRP + hysteresis < threshold
+
+            return {
+                condition1, // 進入條件
+                condition2, // 離開條件
+                eventTriggered: condition1,
+                description: condition1 ? '事件已觸發' : '等待條件滿足',
+                currentRSRP: simulatedRSRP,
+            }
+        }, [threshold, hysteresis, animationState.currentTime])
+
+        // 參數控制面板渲染 - 使用 useMemo 穩定化，採用 D1 的分類設計
         const controlPanelComponent = useMemo(
             () => (
                 <div className="control-panel">
                     {eventSelectorComponent}
 
-                    <h3>參數調整</h3>
-
-                    <div className="control-group">
-                        <label>
-                            a4-Threshold (dBm):
-                            <input
-                                type="range"
-                                min="-100"
-                                max="-40"
-                                value={threshold}
-                                onChange={(e) =>
-                                    setThreshold(parseInt(e.target.value))
-                                }
-                            />
-                            <span>{threshold} dBm</span>
-                        </label>
+                    {/* 動畫控制 */}
+                    <div className="control-section">
+                        <h3 className="control-section__title">🎬 動畫控制</h3>
+                        <div className="control-group control-group--buttons">
+                            <button
+                                className={`control-btn ${
+                                    animationState.isPlaying
+                                        ? 'control-btn--pause'
+                                        : 'control-btn--play'
+                                }`}
+                                onClick={toggleAnimation}
+                            >
+                                {animationState.isPlaying
+                                    ? '⏸️ 暫停'
+                                    : '▶️ 播放'}
+                            </button>
+                            <button
+                                className="control-btn control-btn--reset"
+                                onClick={resetAnimation}
+                            >
+                                🔄 重置
+                            </button>
+                            <button
+                                className={`control-btn ${
+                                    showThresholdLines
+                                        ? 'control-btn--active'
+                                        : ''
+                                }`}
+                                onClick={toggleThresholdLines}
+                            >
+                                📏 門檻線
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="control-group">
-                        <label>
-                            Hysteresis (dB):
-                            <input
-                                type="range"
-                                min="0"
-                                max="10"
-                                value={hysteresis}
-                                onChange={(e) =>
-                                    setHysteresis(parseInt(e.target.value))
-                                }
-                            />
-                            <span>{hysteresis} dB</span>
-                        </label>
+                    {/* 事件參數 */}
+                    <div className="control-section">
+                        <h3 className="control-section__title">🎯 事件參數</h3>
+                        <div className="control-group">
+                            <div className="control-item">
+                                <label className="control-label">
+                                    A4-Threshold (門檻值)
+                                    <span className="control-unit">dBm</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min="-100"
+                                    max="-40"
+                                    value={threshold}
+                                    onChange={(e) =>
+                                        setThreshold(parseInt(e.target.value))
+                                    }
+                                    className="control-slider"
+                                />
+                                <span className="control-value">
+                                    {threshold} dBm
+                                </span>
+                            </div>
+
+                            <div className="control-item">
+                                <label className="control-label">
+                                    Hysteresis (遲滯)
+                                    <span className="control-unit">dB</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="10"
+                                    value={hysteresis}
+                                    onChange={(e) =>
+                                        setHysteresis(parseInt(e.target.value))
+                                    }
+                                    className="control-slider"
+                                />
+                                <span className="control-value">
+                                    {hysteresis} dB
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="control-group">
-                        <label>
-                            TimeToTrigger (ms):
-                            <input
-                                type="range"
-                                min="0"
-                                max="1000"
-                                step="40"
-                                value={timeToTrigger}
-                                onChange={(e) =>
-                                    setTimeToTrigger(parseInt(e.target.value))
-                                }
-                            />
-                            <span>{timeToTrigger} ms</span>
-                        </label>
+                    {/* 時間參數 */}
+                    <div className="control-section">
+                        <h3 className="control-section__title">⏱️ 時間參數</h3>
+                        <div className="control-group">
+                            <div className="control-item">
+                                <label className="control-label">
+                                    TimeToTrigger
+                                    <span className="control-unit">毫秒</span>
+                                </label>
+                                <select
+                                    value={timeToTrigger}
+                                    onChange={(e) =>
+                                        setTimeToTrigger(
+                                            parseInt(e.target.value)
+                                        )
+                                    }
+                                    className="control-select"
+                                >
+                                    <option value={0}>0 ms</option>
+                                    <option value={40}>40 ms</option>
+                                    <option value={64}>64 ms</option>
+                                    <option value={80}>80 ms</option>
+                                    <option value={100}>100 ms</option>
+                                    <option value={128}>128 ms</option>
+                                    <option value={160}>160 ms</option>
+                                    <option value={256}>256 ms</option>
+                                    <option value={320}>320 ms</option>
+                                    <option value={480}>480 ms</option>
+                                    <option value={512}>512 ms</option>
+                                    <option value={640}>640 ms</option>
+                                    <option value={1000}>1000 ms</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="control-group">
-                        <label>
-                            Report Interval (ms):
-                            <input
-                                type="range"
-                                min="200"
-                                max="5000"
-                                step="200"
-                                value={reportInterval}
-                                onChange={(e) =>
-                                    setReportInterval(parseInt(e.target.value))
-                                }
-                            />
-                            <span>{reportInterval} ms</span>
-                        </label>
+                    {/* 報告參數 */}
+                    <div className="control-section">
+                        <h3 className="control-section__title">📊 報告參數</h3>
+                        <div className="control-group">
+                            <div className="control-item">
+                                <label className="control-label">
+                                    Report Interval
+                                    <span className="control-unit">毫秒</span>
+                                </label>
+                                <select
+                                    value={reportInterval}
+                                    onChange={(e) =>
+                                        setReportInterval(
+                                            parseInt(e.target.value)
+                                        )
+                                    }
+                                    className="control-select"
+                                >
+                                    <option value={200}>200 ms</option>
+                                    <option value={240}>240 ms</option>
+                                    <option value={480}>480 ms</option>
+                                    <option value={640}>640 ms</option>
+                                    <option value={1000}>1000 ms</option>
+                                    <option value={1024}>1024 ms</option>
+                                    <option value={2048}>2048 ms</option>
+                                    <option value={5000}>5000 ms</option>
+                                </select>
+                            </div>
+
+                            <div className="control-item">
+                                <label className="control-label">
+                                    Report Amount
+                                    <span className="control-unit">次數</span>
+                                </label>
+                                <select
+                                    value={reportAmount}
+                                    onChange={(e) =>
+                                        setReportAmount(
+                                            parseInt(e.target.value)
+                                        )
+                                    }
+                                    className="control-select"
+                                >
+                                    <option value={1}>1</option>
+                                    <option value={2}>2</option>
+                                    <option value={4}>4</option>
+                                    <option value={8}>8</option>
+                                    <option value={16}>16</option>
+                                    <option value={20}>20</option>
+                                    <option value={-1}>無限制</option>
+                                </select>
+                            </div>
+
+                            <div className="control-item">
+                                <label className="control-checkbox">
+                                    <input
+                                        type="checkbox"
+                                        checked={reportOnLeave}
+                                        onChange={(e) =>
+                                            setReportOnLeave(e.target.checked)
+                                        }
+                                    />
+                                    Report On Leave (離開時報告)
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="control-group">
-                        <label>
-                            Report Amount:
-                            <input
-                                type="range"
-                                min="1"
-                                max="20"
-                                value={reportAmount}
-                                onChange={(e) =>
-                                    setReportAmount(parseInt(e.target.value))
-                                }
-                            />
-                            <span>{reportAmount}</span>
-                        </label>
+                    {/* 事件狀態 */}
+                    <div className="control-section">
+                        <h3 className="control-section__title">📡 事件狀態</h3>
+                        <div className="event-status">
+                            <div className="status-item">
+                                <span className="status-label">
+                                    進入條件 A4-1:
+                                </span>
+                                <span
+                                    className={`status-value ${
+                                        eventStatus.condition1
+                                            ? 'status-value--active'
+                                            : ''
+                                    }`}
+                                >
+                                    Mn + Ofn + Ocn - Hys &gt; Thresh
+                                </span>
+                            </div>
+                            <div className="status-item">
+                                <span className="status-label">
+                                    離開條件 A4-2:
+                                </span>
+                                <span
+                                    className={`status-value ${
+                                        eventStatus.condition2
+                                            ? 'status-value--active'
+                                            : ''
+                                    }`}
+                                >
+                                    Mn + Ofn + Ocn + Hys &lt; Thresh
+                                </span>
+                            </div>
+                            <div className="status-item">
+                                <span className="status-label">事件狀態:</span>
+                                <span
+                                    className={`status-badge ${
+                                        eventStatus.eventTriggered
+                                            ? 'status-badge--triggered'
+                                            : 'status-badge--waiting'
+                                    }`}
+                                >
+                                    {eventStatus.eventTriggered
+                                        ? '✅ 已觸發'
+                                        : '⏳ 等待中'}
+                                </span>
+                            </div>
+                            <div className="status-item">
+                                <span className="status-label">當前 RSRP:</span>
+                                <span className="status-value">
+                                    {eventStatus.currentRSRP} dBm
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="control-group checkbox-group">
-                        <label>
-                            <input
-                                type="checkbox"
-                                checked={reportOnLeave}
-                                onChange={(e) =>
-                                    setReportOnLeave(e.target.checked)
-                                }
-                            />
-                            <span>Report on Leave</span>
-                        </label>
-                    </div>
-
-                    <div className="control-buttons">
-                        <button className="reset-button" onClick={handleReset}>
-                            重置參數
-                        </button>
+                    {/* 重置按鈕 */}
+                    <div className="control-section">
+                        <div className="control-group control-group--buttons">
+                            <button
+                                className="control-btn control-btn--reset"
+                                onClick={handleReset}
+                            >
+                                🔄 重置所有參數
+                            </button>
+                        </div>
                     </div>
                 </div>
             ),
@@ -240,7 +437,13 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                 reportInterval,
                 reportAmount,
                 reportOnLeave,
+                showThresholdLines,
+                animationState,
+                eventStatus,
                 handleReset,
+                toggleAnimation,
+                resetAnimation,
+                toggleThresholdLines,
             ]
         )
 
@@ -252,27 +455,13 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                         <PureA4Chart
                             threshold={threshold}
                             hysteresis={hysteresis}
-                            showThresholdLines={true}
+                            showThresholdLines={showThresholdLines}
                             isDarkTheme={isDarkTheme}
                         />
                     </div>
-
-                    {/* 數學公式顯示 - 2列左右併排 */}
-                    <div className="formula-display">
-                        <div className="formula-row">
-                            <div className="formula-item">
-                                <h4>Inequality A4-1 (Entering condition)</h4>
-                                <p>Mn + Ofn + Ocn - Hys &gt; Thresh</p>
-                            </div>
-                            <div className="formula-item">
-                                <h4>Inequality A4-2 (Leaving condition)</h4>
-                                <p>Mn + Ofn + Ocn + Hys &lt; Thresh</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             ),
-            [threshold, hysteresis, isDarkTheme]
+            [threshold, hysteresis, showThresholdLines, isDarkTheme]
         )
 
         // 載入中組件 - 使用 useMemo 穩定化
@@ -294,9 +483,73 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
 
         return (
             <div className="event-a4-viewer">
-                <div className="viewer-content">
-                    {controlPanelComponent}
-                    {chartAreaComponent}
+                <div className="event-viewer__content">
+                    <div className="event-viewer__controls">
+                        {controlPanelComponent}
+                    </div>
+                    <div className="event-viewer__chart-container">
+                        {chartAreaComponent}
+                    </div>
+                </div>
+
+                {/* 3GPP 規範說明 */}
+                <div className="event-viewer__specification">
+                    <h3 className="spec-title">📖 3GPP TS 38.331 規範</h3>
+                    <div className="spec-content">
+                        <div className="spec-section">
+                            <h4>Event A4 條件：</h4>
+                            <ul>
+                                <li>
+                                    <strong>進入條件：</strong> Mn + Ofn + Ocn -
+                                    Hys &gt; Thresh
+                                </li>
+                                <li>
+                                    <strong>離開條件：</strong> Mn + Ofn + Ocn +
+                                    Hys &lt; Thresh
+                                </li>
+                            </ul>
+                        </div>
+                        <div className="spec-section">
+                            <h4>參數說明：</h4>
+                            <ul>
+                                <li>
+                                    <strong>Mn：</strong>鄰近基站的 RSRP
+                                    測量值（dBm）
+                                </li>
+                                <li>
+                                    <strong>Ofn：</strong>鄰近基站的頻率偏移量
+                                </li>
+                                <li>
+                                    <strong>Ocn：</strong>鄰近基站的載波偏移量
+                                </li>
+                                <li>
+                                    <strong>Thresh：</strong>設定的 RSRP
+                                    門檻值（a4-Threshold）
+                                </li>
+                                <li>
+                                    <strong>Hys：</strong>hysteresis
+                                    遲滯參數，避免頻繁切換
+                                </li>
+                            </ul>
+                        </div>
+                        <div className="spec-section">
+                            <h4>應用場景：</h4>
+                            <ul>
+                                <li>
+                                    <strong>換手準備：</strong>
+                                    當鄰近基站信號強度超過門檻時觸發
+                                </li>
+                                <li>
+                                    <strong>負載平衡：</strong>
+                                    協助網路進行負載分散
+                                </li>
+                                <li>
+                                    <strong>覆蓋優化：</strong>確保 UE
+                                    連接到最佳的基站
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         )
