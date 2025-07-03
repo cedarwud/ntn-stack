@@ -31,12 +31,14 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
     }) => {
         // console.log('🎯 EventA4Viewer render') // 移除除錯日誌
 
-        // 參數狀態管理 - 使用 event-a4 分支的滑桿設計
-        const [threshold, setThreshold] = useState(-70)
-        const [hysteresis, setHysteresis] = useState(3)
-        const [timeToTrigger, setTimeToTrigger] = useState(160)
-        const [reportInterval, setReportInterval] = useState(1000)
-        const [reportAmount, setReportAmount] = useState(8)
+        // Event A4 參數狀態管理 - 基於 3GPP TS 38.331 規範
+        const [a4Threshold, setA4Threshold] = useState(-70) // dBm, 鄰近基站 RSRP 門檻
+        const [hysteresis, setHysteresis] = useState(3) // dB, 信號遲滯參數
+        const [offsetFreq, setOffsetFreq] = useState(0) // dB, 頻率偏移 Ofn
+        const [offsetCell, setOffsetCell] = useState(0) // dB, 小區偏移 Ocn
+        const [timeToTrigger, setTimeToTrigger] = useState(160) // ms
+        const [reportInterval, setReportInterval] = useState(1000) // ms
+        const [reportAmount, setReportAmount] = useState(8) // 次數
         const [reportOnLeave, setReportOnLeave] = useState(true)
 
         // 動畫和顯示控制狀態
@@ -89,8 +91,10 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
 
         // 參數重置函數 - 使用 useCallback 穩定化
         const handleReset = useCallback(() => {
-            setThreshold(-70)
+            setA4Threshold(-70)
             setHysteresis(3)
+            setOffsetFreq(0)
+            setOffsetCell(0)
             setTimeToTrigger(160)
             setReportInterval(1000)
             setReportAmount(8)
@@ -98,7 +102,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
         }, [])
 
         // 主題切換函數 - 使用 useCallback 穩定化
-        const toggleTheme = useCallback(() => {
+        const _toggleTheme = useCallback(() => {
             setIsDarkTheme(!isDarkTheme)
         }, [isDarkTheme])
 
@@ -154,21 +158,25 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
             setShowThresholdLines((prev) => !prev)
         }, [])
 
-        // 計算 Event A4 條件狀態
+        // 計算 Event A4 條件狀態 - 基於 3GPP TS 38.331 規範
         const eventStatus = useMemo(() => {
             // 模擬鄰近基站的 RSRP 測量值（實際應從圖表數據獲取）
-            const simulatedRSRP = -75 // dBm
-            const condition1 = simulatedRSRP - hysteresis > threshold
-            const condition2 = simulatedRSRP + hysteresis < threshold
+            const simulatedRSRP = -75 // dBm (Mn)
+            // A4-1 進入條件: Mn + Ofn + Ocn - Hys > Thresh
+            const effectiveRSRP = simulatedRSRP + offsetFreq + offsetCell
+            const condition1 = effectiveRSRP - hysteresis > a4Threshold
+            // A4-2 離開條件: Mn + Ofn + Ocn + Hys < Thresh  
+            const condition2 = effectiveRSRP + hysteresis < a4Threshold
 
             return {
-                condition1, // 進入條件
-                condition2, // 離開條件
+                condition1, // A4-1 進入條件
+                condition2, // A4-2 離開條件
                 eventTriggered: condition1,
                 description: condition1 ? '事件已觸發' : '等待條件滿足',
                 currentRSRP: simulatedRSRP,
+                effectiveRSRP: effectiveRSRP,
             }
-        }, [threshold, hysteresis, animationState.currentTime])
+        }, [a4Threshold, hysteresis, offsetFreq, offsetCell, animationState.currentTime])
 
         // 參數控制面板渲染 - 使用 useMemo 穩定化，採用 D1 的分類設計
         const controlPanelComponent = useMemo(
@@ -211,33 +219,33 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                         </div>
                     </div>
 
-                    {/* 事件參數 */}
+                    {/* Event A4 信號參數 */}
                     <div className="control-section">
-                        <h3 className="control-section__title">🎯 事件參數</h3>
+                        <h3 className="control-section__title">🎯 A4 信號參數</h3>
                         <div className="control-group">
                             <div className="control-item">
                                 <label className="control-label">
-                                    A4-Threshold (門檻值)
+                                    a4-Threshold (RSRP門檻)
                                     <span className="control-unit">dBm</span>
                                 </label>
                                 <input
                                     type="range"
                                     min="-100"
                                     max="-40"
-                                    value={threshold}
+                                    value={a4Threshold}
                                     onChange={(e) =>
-                                        setThreshold(parseInt(e.target.value))
+                                        setA4Threshold(parseInt(e.target.value))
                                     }
                                     className="control-slider"
                                 />
                                 <span className="control-value">
-                                    {threshold} dBm
+                                    {a4Threshold} dBm
                                 </span>
                             </div>
 
                             <div className="control-item">
                                 <label className="control-label">
-                                    Hysteresis (遲滯)
+                                    Hysteresis (信號遲滯)
                                     <span className="control-unit">dB</span>
                                 </label>
                                 <input
@@ -254,6 +262,46 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                                     {hysteresis} dB
                                 </span>
                             </div>
+
+                            <div className="control-item">
+                                <label className="control-label">
+                                    Offset Freq (Ofn 頻率偏移)
+                                    <span className="control-unit">dB</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min="-10"
+                                    max="10"
+                                    value={offsetFreq}
+                                    onChange={(e) =>
+                                        setOffsetFreq(parseInt(e.target.value))
+                                    }
+                                    className="control-slider"
+                                />
+                                <span className="control-value">
+                                    {offsetFreq} dB
+                                </span>
+                            </div>
+
+                            <div className="control-item">
+                                <label className="control-label">
+                                    Offset Cell (Ocn 小區偏移)
+                                    <span className="control-unit">dB</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min="-10"
+                                    max="10"
+                                    value={offsetCell}
+                                    onChange={(e) =>
+                                        setOffsetCell(parseInt(e.target.value))
+                                    }
+                                    className="control-slider"
+                                />
+                                <span className="control-value">
+                                    {offsetCell} dB
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -261,11 +309,10 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                     <div className="control-section">
                         <h3 className="control-section__title">⏱️ 時間參數</h3>
                         <div className="control-group">
-                            <div className="control-item">
-                                <label className="control-label">
+                            <div className="control-item control-item--horizontal">
+                                <span className="control-label">
                                     TimeToTrigger
-                                    <span className="control-unit">毫秒</span>
-                                </label>
+                                </span>
                                 <select
                                     value={timeToTrigger}
                                     onChange={(e) =>
@@ -275,20 +322,21 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                                     }
                                     className="control-select"
                                 >
-                                    <option value={0}>0 ms</option>
-                                    <option value={40}>40 ms</option>
-                                    <option value={64}>64 ms</option>
-                                    <option value={80}>80 ms</option>
-                                    <option value={100}>100 ms</option>
-                                    <option value={128}>128 ms</option>
-                                    <option value={160}>160 ms</option>
-                                    <option value={256}>256 ms</option>
-                                    <option value={320}>320 ms</option>
-                                    <option value={480}>480 ms</option>
-                                    <option value={512}>512 ms</option>
-                                    <option value={640}>640 ms</option>
-                                    <option value={1000}>1000 ms</option>
+                                    <option value={0}>0</option>
+                                    <option value={40}>40</option>
+                                    <option value={64}>64</option>
+                                    <option value={80}>80</option>
+                                    <option value={100}>100</option>
+                                    <option value={128}>128</option>
+                                    <option value={160}>160</option>
+                                    <option value={256}>256</option>
+                                    <option value={320}>320</option>
+                                    <option value={480}>480</option>
+                                    <option value={512}>512</option>
+                                    <option value={640}>640</option>
+                                    <option value={1000}>1000</option>
                                 </select>
+                                <span className="control-unit">毫秒</span>
                             </div>
                         </div>
                     </div>
@@ -297,11 +345,10 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                     <div className="control-section">
                         <h3 className="control-section__title">📊 報告參數</h3>
                         <div className="control-group">
-                            <div className="control-item">
-                                <label className="control-label">
+                            <div className="control-item control-item--horizontal">
+                                <span className="control-label">
                                     Report Interval
-                                    <span className="control-unit">毫秒</span>
-                                </label>
+                                </span>
                                 <select
                                     value={reportInterval}
                                     onChange={(e) =>
@@ -311,22 +358,22 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                                     }
                                     className="control-select"
                                 >
-                                    <option value={200}>200 ms</option>
-                                    <option value={240}>240 ms</option>
-                                    <option value={480}>480 ms</option>
-                                    <option value={640}>640 ms</option>
-                                    <option value={1000}>1000 ms</option>
-                                    <option value={1024}>1024 ms</option>
-                                    <option value={2048}>2048 ms</option>
-                                    <option value={5000}>5000 ms</option>
+                                    <option value={200}>200</option>
+                                    <option value={240}>240</option>
+                                    <option value={480}>480</option>
+                                    <option value={640}>640</option>
+                                    <option value={1000}>1000</option>
+                                    <option value={1024}>1024</option>
+                                    <option value={2048}>2048</option>
+                                    <option value={5000}>5000</option>
                                 </select>
+                                <span className="control-unit">毫秒</span>
                             </div>
 
-                            <div className="control-item">
-                                <label className="control-label">
+                            <div className="control-item control-item--horizontal">
+                                <span className="control-label">
                                     Report Amount
-                                    <span className="control-unit">次數</span>
-                                </label>
+                                </span>
                                 <select
                                     value={reportAmount}
                                     onChange={(e) =>
@@ -344,9 +391,13 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                                     <option value={20}>20</option>
                                     <option value={-1}>無限制</option>
                                 </select>
+                                <span className="control-unit">次數</span>
                             </div>
 
-                            <div className="control-item">
+                            <div className="control-item control-item--horizontal">
+                                <span className="control-label">
+                                    Report On Leave
+                                </span>
                                 <label className="control-checkbox">
                                     <input
                                         type="checkbox"
@@ -355,15 +406,14 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                                             setReportOnLeave(e.target.checked)
                                         }
                                     />
-                                    Report On Leave (離開時報告)
                                 </label>
                             </div>
                         </div>
                     </div>
 
-                    {/* 事件狀態 */}
+                    {/* Event A4 狀態 */}
                     <div className="control-section">
-                        <h3 className="control-section__title">📡 事件狀態</h3>
+                        <h3 className="control-section__title">📡 A4 事件狀態</h3>
                         <div className="event-status">
                             <div className="status-item">
                                 <span className="status-label">
@@ -376,7 +426,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                                             : ''
                                     }`}
                                 >
-                                    Mn + Ofn + Ocn - Hys &gt; Thresh
+                                    Mn + Ofn + Ocn - Hys &gt; a4-Thresh
                                 </span>
                             </div>
                             <div className="status-item">
@@ -390,7 +440,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                                             : ''
                                     }`}
                                 >
-                                    Mn + Ofn + Ocn + Hys &lt; Thresh
+                                    Mn + Ofn + Ocn + Hys &lt; a4-Thresh
                                 </span>
                             </div>
                             <div className="status-item">
@@ -408,9 +458,15 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                                 </span>
                             </div>
                             <div className="status-item">
-                                <span className="status-label">當前 RSRP:</span>
+                                <span className="status-label">原始 RSRP (Mn):</span>
                                 <span className="status-value">
                                     {eventStatus.currentRSRP} dBm
+                                </span>
+                            </div>
+                            <div className="status-item">
+                                <span className="status-label">有效 RSRP:</span>
+                                <span className="status-value">
+                                    {eventStatus.effectiveRSRP} dBm
                                 </span>
                             </div>
                         </div>
@@ -431,8 +487,10 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
             ),
             [
                 eventSelectorComponent,
-                threshold,
+                a4Threshold,
                 hysteresis,
+                offsetFreq,
+                offsetCell,
                 timeToTrigger,
                 reportInterval,
                 reportAmount,
@@ -453,7 +511,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                 <div className="chart-area">
                     <div className="chart-container">
                         <PureA4Chart
-                            threshold={threshold}
+                            threshold={a4Threshold}
                             hysteresis={hysteresis}
                             showThresholdLines={showThresholdLines}
                             isDarkTheme={isDarkTheme}
@@ -461,7 +519,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                     </div>
                 </div>
             ),
-            [threshold, hysteresis, showThresholdLines, isDarkTheme]
+            [a4Threshold, hysteresis, showThresholdLines, isDarkTheme]
         )
 
         // 載入中組件 - 使用 useMemo 穩定化
