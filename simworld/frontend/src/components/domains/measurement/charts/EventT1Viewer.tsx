@@ -377,75 +377,7 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                     </div>
 
                     {/* 主圖表區域 */}
-                    <div className="event-viewer__chart">
-                        {/* 事件狀態顯示 */}
-                        <div className="event-status">
-                            <div className="event-status__header">
-                                <h3 className="event-status__title">
-                                    📡 3GPP TS 38.331 Event T1 狀態
-                                </h3>
-                                <div
-                                    className={`event-status__indicator ${
-                                        eventStatus.eventTriggered
-                                            ? 'event-status__indicator--triggered'
-                                            : eventStatus.condition1
-                                            ? 'event-status__indicator--pending'
-                                            : 'event-status__indicator--waiting'
-                                    }`}
-                                >
-                                    {eventStatus.description}
-                                </div>
-                            </div>
-                            <div className="event-status__details">
-                                <div className="status-item">
-                                    <span className="status-label">
-                                        當前時間測量值:
-                                    </span>
-                                    <span className="status-value">
-                                        {eventStatus.currentMt}ms
-                                    </span>
-                                </div>
-                                <div className="status-item">
-                                    <span className="status-label">
-                                        條件持續時間:
-                                    </span>
-                                    <span className="status-value">
-                                        {eventStatus.timeInCondition}ms
-                                    </span>
-                                </div>
-                                <div className="status-item">
-                                    <span className="status-label">
-                                        進入條件:
-                                    </span>
-                                    <span
-                                        className={`status-value ${
-                                            eventStatus.condition1
-                                                ? 'status-value--success'
-                                                : 'status-value--pending'
-                                        }`}
-                                    >
-                                        Mt &gt; {params.Thresh1}ms (
-                                        {eventStatus.condition1 ? '✓' : '✗'})
-                                    </span>
-                                </div>
-                                <div className="status-item">
-                                    <span className="status-label">
-                                        持續時間要求:
-                                    </span>
-                                    <span
-                                        className={`status-value ${
-                                            eventStatus.conditionMet
-                                                ? 'status-value--success'
-                                                : 'status-value--pending'
-                                        }`}
-                                    >
-                                        持續 &gt; {params.Duration}ms (
-                                        {eventStatus.conditionMet ? '✓' : '✗'})
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
+                    <div className="event-viewer__chart-container">
                         {/* T1 條件說明 */}
                         <div className="condition-info">
                             <div className="condition-card">

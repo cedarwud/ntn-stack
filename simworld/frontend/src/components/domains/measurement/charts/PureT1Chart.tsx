@@ -12,68 +12,35 @@ import annotationPlugin from 'chartjs-plugin-annotation'
 // 註冊 annotation 插件
 Chart.register(annotationPlugin)
 
-// T1 事件模擬數據 - 時間窗口狀態變化
-const generateT1TimeData = (threshold: number, duration: number) => {
-    const dataPoints = []
-    const totalTime = 120000 // 120 seconds
-    const step = 1000 // 1 second steps
+// CondEvent T1 正確的狀態數據生成
+// 基於 3GPP TS 38.331: Mt > Thresh1 (進入), Mt > Thresh1 + Duration (離開)
+const generateT1StateData = (threshold: number, duration: number) => {
+    const statePoints = []
+    const totalTime = 25000 // 25 seconds for clear visualization
+    const step = 100 // 100ms steps
     
-    for (let t = 0; t <= totalTime; t += step) {
-        // 模擬時間測量值 Mt (毫秒)
-        let mt = 0
+    for (let mt = 0; mt <= totalTime; mt += step) {
+        let state = 0 // Default: not triggered
         
-        // 創建幾個時間窗口模式
-        if (t >= 20000 && t <= 35000) {
-            // 第一個時間窗口：20-35秒，測量值超過閾值
-            mt = threshold + 500 + Math.sin((t - 20000) / 2000) * 200
-        } else if (t >= 50000 && t <= 80000) {
-            // 第二個時間窗口：50-80秒，測量值接近閾值
-            mt = threshold + Math.cos((t - 50000) / 3000) * 400
-        } else if (t >= 90000 && t <= 110000) {
-            // 第三個時間窗口：90-110秒，測量值遠超閾值
-            mt = threshold + 800 + Math.random() * 200
-        } else {
-            // 基準時間測量值，低於閾值
-            mt = threshold * 0.3 + Math.random() * threshold * 0.2
+        // CondEvent T1 邏輯：
+        // 進入條件 T1-1: Mt > Thresh1
+        // 離開條件 T1-2: Mt > Thresh1 + Duration
+        if (mt > threshold && mt <= threshold + duration) {
+            state = 1 // Event is active/triggered
         }
         
-        dataPoints.push({ x: t / 1000, y: mt }) // Convert to seconds for display
+        statePoints.push({ x: mt / 1000, y: state }) // Convert to seconds
     }
     
-    return dataPoints
+    return statePoints
 }
 
-// T1 條件狀態數據生成
-const generateT1ConditionData = (timeData: any[], threshold: number, duration: number) => {
-    const conditionData = []
-    let conditionState = 0 // 0 = not triggered, 1 = triggered
-    let triggerStartTime = 0
-    
-    for (const point of timeData) {
-        const currentTime = point.x * 1000 // Convert back to ms
-        const mt = point.y
-        
-        if (mt > threshold) {
-            if (conditionState === 0) {
-                // Start of potential trigger
-                triggerStartTime = currentTime
-                conditionState = 0.5 // Pending state
-            } else if (conditionState === 0.5) {
-                // Check if duration requirement is met
-                if (currentTime - triggerStartTime >= duration) {
-                    conditionState = 1 // Fully triggered
-                }
-            }
-        } else {
-            // Below threshold - reset condition
-            conditionState = 0
-            triggerStartTime = 0
-        }
-        
-        conditionData.push({ x: point.x, y: conditionState })
-    }
-    
-    return conditionData
+// 生成當前時間游標數據
+const generateCurrentTimeCursor = (currentTime: number) => {
+    return [
+        { x: currentTime / 1000, y: 0 },
+        { x: currentTime / 1000, y: 1 }
+    ]
 }
 
 interface PureT1ChartProps {
@@ -81,6 +48,7 @@ interface PureT1ChartProps {
     height?: number
     threshold?: number // t1-Threshold in milliseconds
     duration?: number // Duration parameter in milliseconds
+    currentTime?: number // Current time Mt in milliseconds
     showThresholdLines?: boolean
     isDarkTheme?: boolean
     onThemeToggle?: () => void
@@ -92,6 +60,7 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
         height: _height = 400,
         threshold = 5000, // 5 seconds default
         duration = 10000, // 10 seconds default
+        currentTime = 2000, // 2 seconds default
         showThresholdLines = true,
         isDarkTheme = true,
         onThemeToggle,
@@ -100,24 +69,26 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
         const chartRef = useRef<Chart | null>(null)
         const isInitialized = useRef(false)
 
-        // 使用 useMemo 穩定主題配色方案
+        // T1 事件專用配色方案
         const colors = useMemo(
             () => ({
                 dark: {
-                    timeLine: '#00D4AA', // Teal for time measurement
-                    conditionLine: '#FF6B6B', // Red for condition state
-                    thresholdLine: '#FFD93D', // Yellow for threshold
-                    durationLine: '#6BCF7F', // Green for duration
+                    stateLine: '#28A745', // 綠色：T1 狀態曲線
+                    currentTimeLine: '#FF6B6B', // 紅色：當前時間游標
+                    thresholdLine: '#FFD93D', // 黃色：t1-Threshold
+                    durationLine: '#6BCF7F', // 淺綠：Duration 標示
+                    windowArea: 'rgba(40, 167, 69, 0.2)', // 半透明綠：激活窗口
                     title: '#FFD93D',
                     text: 'white',
                     grid: 'rgba(255, 255, 255, 0.1)',
                     background: 'transparent',
                 },
                 light: {
-                    timeLine: '#009688', // Dark teal
-                    conditionLine: '#F44336', // Dark red
-                    thresholdLine: '#FF9800', // Orange
-                    durationLine: '#4CAF50', // Green
+                    stateLine: '#198754', // 深綠
+                    currentTimeLine: '#DC3545', // 深紅
+                    thresholdLine: '#FF9800', // 橙色
+                    durationLine: '#4CAF50', // 綠色
+                    windowArea: 'rgba(25, 135, 84, 0.15)', // 半透明綠
                     title: '#FF9800',
                     text: '#333333',
                     grid: 'rgba(0, 0, 0, 0.1)',
@@ -129,46 +100,45 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
 
         const currentColors = isDarkTheme ? colors.dark : colors.light
 
-        // 穩定的數據生成
+        // CondEvent T1 數據生成
         const chartData = useMemo(() => {
-            const timeData = generateT1TimeData(threshold, duration)
-            const conditionData = generateT1ConditionData(timeData, threshold, duration)
+            const stateData = generateT1StateData(threshold, duration)
+            const cursorData = generateCurrentTimeCursor(currentTime)
             
             return {
-                timeData,
-                conditionData,
+                stateData,
+                cursorData,
             }
-        }, [threshold, duration])
+        }, [threshold, duration, currentTime])
 
-        // 穩定的圖表配置
+        // T1 狀態圖表配置 - 矩形脈衝設計
         const chartConfig = useMemo(() => ({
             type: 'line' as const,
             data: {
                 datasets: [
                     {
-                        label: 'Time Measurement (Mt)',
-                        data: chartData.timeData,
-                        borderColor: currentColors.timeLine,
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        fill: false,
+                        label: 'T1 Event State (0=Inactive, 1=Active)',
+                        data: chartData.stateData,
+                        borderColor: currentColors.stateLine,
+                        backgroundColor: currentColors.windowArea,
+                        borderWidth: 4,
+                        fill: 'origin',
                         pointRadius: 0,
-                        pointHoverRadius: 4,
-                        tension: 0.3,
-                        yAxisID: 'y',
+                        pointHoverRadius: 6,
+                        tension: 0, // 直角矩形脈衝
+                        stepped: 'before', // 階梯式曲線
                     },
                     {
-                        label: 'T1 Condition State',
-                        data: chartData.conditionData,
-                        borderColor: currentColors.conditionLine,
-                        backgroundColor: currentColors.conditionLine + '20',
+                        label: `Current Time (Mt): ${currentTime}ms`,
+                        data: chartData.cursorData,
+                        borderColor: currentColors.currentTimeLine,
+                        backgroundColor: 'transparent',
                         borderWidth: 3,
-                        fill: true,
+                        fill: false,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 0,
                         tension: 0,
-                        yAxisID: 'y1',
-                        stepped: true,
+                        borderDash: [5, 5],
                     },
                 ],
             },
@@ -182,50 +152,98 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                 plugins: {
                     title: {
                         display: true,
-                        text: '3GPP TS 38.331 Event T1: Time Window Condition',
+                        text: '3GPP TS 38.331 CondEvent T1: Time Window Condition',
                         color: currentColors.title,
                         font: { size: 16, weight: 'bold' as const },
+                        padding: 20,
                     },
                     legend: {
                         display: true,
                         position: 'top' as const,
-                        labels: { color: currentColors.text },
+                        labels: { 
+                            color: currentColors.text,
+                            usePointStyle: true,
+                            padding: 15,
+                        },
+                    },
+                    tooltip: {
+                        mode: 'index' as const,
+                        intersect: false,
+                        callbacks: {
+                            title: (context) => `時間 Mt: ${(context[0].parsed.x * 1000).toFixed(0)}ms`,
+                            label: (context) => {
+                                if (context.datasetIndex === 0) {
+                                    const state = context.parsed.y
+                                    const stateText = state === 1 ? '激活 (Active)' : '未激活 (Inactive)'
+                                    return `T1 狀態: ${stateText}`
+                                }
+                                return context.dataset.label || ''
+                            },
+                            afterBody: () => {
+                                const mt = currentTime
+                                const isActive = mt > threshold && mt <= threshold + duration
+                                return [
+                                    `進入條件 T1-1: Mt > ${threshold}ms`,
+                                    `離開條件 T1-2: Mt > ${threshold + duration}ms`,
+                                    `當前狀態: ${isActive ? '事件激活中' : '事件未激活'}`
+                                ]
+                            }
+                        }
                     },
                     annotation: {
                         annotations: showThresholdLines
                             ? {
+                                  // Thresh1 垂直線
                                   thresholdLine: {
                                       type: 'line' as const,
-                                      yMin: threshold,
-                                      yMax: threshold,
-                                      yScaleID: 'y',
+                                      xMin: threshold / 1000,
+                                      xMax: threshold / 1000,
                                       borderColor: currentColors.thresholdLine,
-                                      borderWidth: 2,
+                                      borderWidth: 3,
                                       borderDash: [8, 4],
                                       label: {
-                                          display: true,
-                                          content: `t1-Threshold: ${threshold}ms`,
-                                          position: 'end' as const,
+                                          content: `進入 (Mt>${threshold}ms)`,
+                                          enabled: true,
+                                          position: 'start' as const,
                                           backgroundColor: currentColors.thresholdLine,
                                           color: isDarkTheme ? '#000' : '#fff',
-                                          font: { size: 11 },
+                                          font: { size: 11, weight: 'bold' },
                                       },
                                   },
-                                  durationLine: {
+                                  // Thresh1 + Duration 垂直線
+                                  endLine: {
                                       type: 'line' as const,
-                                      yMin: threshold + duration * 0.1,
-                                      yMax: threshold + duration * 0.1,
-                                      yScaleID: 'y',
+                                      xMin: (threshold + duration) / 1000,
+                                      xMax: (threshold + duration) / 1000,
                                       borderColor: currentColors.durationLine,
-                                      borderWidth: 1,
-                                      borderDash: [4, 2],
+                                      borderWidth: 3,
+                                      borderDash: [8, 4],
                                       label: {
-                                          display: true,
-                                          content: `Duration: ${duration}ms`,
-                                          position: 'start' as const,
+                                          content: `離開 (Mt>${threshold + duration}ms)`,
+                                          enabled: true,
+                                          position: 'end' as const,
                                           backgroundColor: currentColors.durationLine,
                                           color: isDarkTheme ? '#000' : '#fff',
-                                          font: { size: 10 },
+                                          font: { size: 11, weight: 'bold' },
+                                      },
+                                  },
+                                  // 激活時間窗口
+                                  activeWindow: {
+                                      type: 'box' as const,
+                                      xMin: threshold / 1000,
+                                      xMax: (threshold + duration) / 1000,
+                                      yMin: 0,
+                                      yMax: 1,
+                                      backgroundColor: currentColors.windowArea,
+                                      borderColor: currentColors.stateLine,
+                                      borderWidth: 2,
+                                      label: {
+                                          content: `T1 激活窗口\n持續時間: ${duration}ms`,
+                                          enabled: true,
+                                          position: 'center' as const,
+                                          backgroundColor: currentColors.stateLine,
+                                          color: 'white',
+                                          font: { size: 12, weight: 'bold' },
                                       },
                                   },
                               }
@@ -238,9 +256,9 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                         position: 'bottom' as const,
                         title: {
                             display: true,
-                            text: 'Time (seconds)',
+                            text: '時間 Mt (秒)',
                             color: currentColors.text,
-                            font: { size: 14 },
+                            font: { size: 14, weight: 'bold' as const },
                         },
                         grid: {
                             color: currentColors.grid,
@@ -248,12 +266,13 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                         },
                         ticks: {
                             color: currentColors.text,
+                            stepSize: 2,
                             callback: function (value: any) {
-                                return value + 's'
+                                return `${value}s (${value * 1000}ms)`
                             },
                         },
                         min: 0,
-                        max: 120,
+                        max: 25,
                     },
                     y: {
                         type: 'linear' as const,
@@ -261,9 +280,9 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                         position: 'left' as const,
                         title: {
                             display: true,
-                            text: 'Time Measurement (Mt) [ms]',
-                            color: currentColors.text,
-                            font: { size: 14 },
+                            text: 'CondEvent T1 狀態',
+                            color: currentColors.stateLine,
+                            font: { size: 14, weight: 'bold' as const },
                         },
                         grid: {
                             color: currentColors.grid,
@@ -271,38 +290,15 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                         },
                         ticks: {
                             color: currentColors.text,
+                            stepSize: 1,
                             callback: function (value: any) {
-                                return value + 'ms'
-                            },
-                        },
-                        min: 0,
-                        max: Math.max(threshold * 2, 15000),
-                    },
-                    y1: {
-                        type: 'linear' as const,
-                        display: true,
-                        position: 'right' as const,
-                        title: {
-                            display: true,
-                            text: 'T1 State (0=Not Triggered, 1=Triggered)',
-                            color: currentColors.text,
-                            font: { size: 12 },
-                        },
-                        grid: {
-                            drawOnChartArea: false,
-                        },
-                        ticks: {
-                            color: currentColors.text,
-                            stepSize: 0.5,
-                            callback: function (value: any) {
-                                if (value === 0) return 'Not Triggered'
-                                if (value === 0.5) return 'Pending'
-                                if (value === 1) return 'Triggered'
+                                if (value === 0) return '0 (未激活)'
+                                if (value === 1) return '1 (激活)'
                                 return value
                             },
                         },
-                        min: 0,
-                        max: 1,
+                        min: -0.1,
+                        max: 1.2,
                     },
                 },
                 interaction: {
@@ -310,7 +306,7 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                     mode: 'index' as const,
                 },
             },
-        }), [chartData, threshold, duration, showThresholdLines, currentColors, isDarkTheme])
+        }), [chartData, threshold, duration, currentTime, showThresholdLines, currentColors, isDarkTheme])
 
         // 初始化和更新圖表
         useEffect(() => {
