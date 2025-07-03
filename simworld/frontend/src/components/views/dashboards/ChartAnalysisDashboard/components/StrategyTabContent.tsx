@@ -65,7 +65,7 @@ const StrategyTabContent: React.FC = () => {
         data: [28, 25, 23, 21, 20, 19, 18, 17],
         borderColor: 'rgba(255, 99, 132, 1)',
         backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        tension: 0.4,
+        tension: 0.3,
         yAxisID: 'y',
       },
       {
@@ -73,7 +73,7 @@ const StrategyTabContent: React.FC = () => {
         data: [95.2, 96.8, 97.5, 98.1, 98.6, 99.0, 99.2, 99.4],
         borderColor: 'rgba(54, 162, 235, 1)',
         backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        tension: 0.4,
+        tension: 0.3,
         yAxisID: 'y1',
       },
     ],

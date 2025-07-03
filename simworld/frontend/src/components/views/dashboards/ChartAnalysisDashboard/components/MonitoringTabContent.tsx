@@ -16,14 +16,14 @@ const MonitoringTabContent: React.FC = () => {
         data: [550, 552, 548, 551, 549, 553, 550],
         borderColor: 'rgba(54, 162, 235, 1)',
         backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        tension: 0.4,
+        tension: 0.3,
       },
       {
         label: 'Kuiper-892',
         data: [630, 628, 632, 629, 631, 627, 630],
         borderColor: 'rgba(255, 99, 132, 1)',
         backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        tension: 0.4,
+        tension: 0.3,
       },
     ],
   }

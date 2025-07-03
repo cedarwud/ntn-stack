@@ -161,12 +161,12 @@ export const chartColors = {
 }
 
 /**
- * 通用圖表樣式配置
+ * 通用圖表樣式配置 - 完全對照 chart.html
  */
 export const commonChartConfig = {
   borderWidth: 2,
-  pointRadius: 4,
+  pointRadius: 0,
   pointHoverRadius: 6,
-  tension: 0.3,
+  tension: 0.3, // 完全對照 chart.html
   fill: false,
 }

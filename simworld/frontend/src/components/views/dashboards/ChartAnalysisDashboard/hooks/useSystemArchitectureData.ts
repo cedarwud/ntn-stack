@@ -403,14 +403,14 @@ export const useSystemArchitectureData = (isEnabled: boolean = true) => {
           data: systemResources.data.utilizationRates,
           borderColor: 'rgb(255, 99, 132)',
           backgroundColor: 'rgba(255, 99, 132, 0.2)',
-          tension: 0.1
+          tension: 0.3
         },
         {
           label: '效能分數',
           data: systemResources.data.performanceMetrics,
           borderColor: 'rgb(54, 162, 235)',
           backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          tension: 0.1
+          tension: 0.3
         }
       ]
     } as ChartData<'line'>,

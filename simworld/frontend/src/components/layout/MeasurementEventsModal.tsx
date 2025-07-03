@@ -53,7 +53,11 @@ const eventConfigs: EventConfig[] = [
 ]
 
 // 創建一個包含事件選擇器的 Viewer 組件
-const MeasurementEventsViewer: React.FC<ViewerProps> = React.memo((viewerProps) => {
+interface MeasurementEventsViewerProps extends ViewerProps {
+  isDarkTheme?: boolean
+}
+
+const MeasurementEventsViewer: React.FC<MeasurementEventsViewerProps> = React.memo((viewerProps) => {
   const [selectedEvent, setSelectedEvent] = useState<EventType>('A4')
 
   const handleEventChange = useCallback((eventType: EventType) => {
@@ -80,6 +84,7 @@ const MeasurementEventsViewer: React.FC<ViewerProps> = React.memo((viewerProps) 
             {...viewerProps} 
             selectedEvent={selectedEvent}
             onEventChange={handleEventChange}
+            isDarkTheme={viewerProps.isDarkTheme}
           />
         ) : (
           <div className="coming-soon-placeholder">
@@ -107,6 +112,11 @@ const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const [isDarkTheme, setIsDarkTheme] = useState(true)
+
+  const toggleTheme = () => {
+    setIsDarkTheme(!isDarkTheme)
+  }
   const modalTitleConfig = useMemo(() => ({
     base: '3GPP TS 38.331 測量事件',
     loading: '正在載入測量事件數據...',
@@ -121,8 +131,8 @@ const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> = ({
   }), [])
 
   const viewerComponent = useMemo(() => (
-    <MeasurementEventsViewer {...stableViewerProps} />
-  ), [stableViewerProps])
+    <MeasurementEventsViewer {...stableViewerProps} isDarkTheme={isDarkTheme} />
+  ), [stableViewerProps, isDarkTheme])
 
   return (
     <ViewerModal
@@ -133,6 +143,8 @@ const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> = ({
       isLoading={false}
       viewerComponent={viewerComponent}
       className="measurement-events-modal"
+      isDarkTheme={isDarkTheme}
+      onThemeToggle={toggleTheme}
     />
   )
 }
