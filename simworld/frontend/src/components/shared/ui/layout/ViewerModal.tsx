@@ -13,6 +13,7 @@ export interface ViewerModalProps {
     isLoading: boolean
     onRefresh: (() => void) | null
     viewerComponent: React.ReactNode
+    className?: string
 }
 
 const ViewerModal: React.FC<ViewerModalProps> = ({
@@ -23,6 +24,7 @@ const ViewerModal: React.FC<ViewerModalProps> = ({
     isLoading,
     onRefresh,
     viewerComponent,
+    className = '',
 }) => {
     const [isTitleHovered, setIsTitleHovered] = useState<boolean>(false)
 
@@ -46,7 +48,7 @@ const ViewerModal: React.FC<ViewerModalProps> = ({
     return (
         <div className="modal-backdrop" onClick={onClose}>
             <div
-                className="constellation-modal" // Consider making this class name more generic if needed
+                className={`constellation-modal ${className}`}
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="modal-header">
