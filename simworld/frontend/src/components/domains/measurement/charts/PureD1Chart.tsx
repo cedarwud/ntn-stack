@@ -169,7 +169,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
 
         const currentTheme = useMemo(
             () => (isDarkTheme ? colors.dark : colors.light),
-            [isDarkTheme] // 移除 colors 依賴，因為 colors 已經是穩定的
+            [isDarkTheme, colors.dark, colors.light]
         )
 
         // 初始化圖表 - 只執行一次
@@ -180,7 +180,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
 
 
             // 準備初始數據集
-            const datasets: any[] = [
+            const datasets: Record<string, unknown>[] = [
                 {
                     label: 'Distance 1 (UE ↔ Ref1)',
                     data: distance1Points,
@@ -419,7 +419,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                                 labels: {
                                     color: 'white', // 預設顏色
                                     font: { size: 12 },
-                                    filter: function (legendItem, chartData) {
+                                    filter: function (legendItem, _chartData) {
                                         // 隱藏遲滯線圖例，避免過於複雜
                                         const label = legendItem.text || ''
                                         return !label.includes('Hys')
@@ -723,7 +723,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                         pointHoverRadius: 0,
                         tension: 0,
                         borderDash: [5, 5],
-                    } as any)
+                    } as Record<string, unknown>)
                 } else {
                     // 更新游標
                     chart.data.datasets[expectedCursorIndex].data = cursorData
@@ -746,7 +746,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                         pointStyle: 'triangle',
                         showLine: false,
                         tension: 0,
-                    } as any)
+                    } as Record<string, unknown>)
                 } else {
                     chart.data.datasets[expectedNode1Index].data = generateDistanceNode(currentTime, currentDistance1)
                 }
@@ -767,7 +767,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                         pointStyle: 'rect',
                         showLine: false,
                         tension: 0,
-                    } as any)
+                    } as Record<string, unknown>)
                 } else {
                     chart.data.datasets[expectedNode2Index].data = generateDistanceNode(currentTime, currentDistance2)
                 }
@@ -788,7 +788,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                             pointStyle: 'star',
                             showLine: false,
                             tension: 0,
-                        } as any)
+                        } as Record<string, unknown>)
                     } else {
                         chart.data.datasets[expectedEventNodeIndex].data = eventNodeData
                     }

@@ -5,10 +5,12 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react'
-import EventA4Viewer from '../domains/measurement/charts/EventA4Viewer'
-import EventD1Viewer from '../domains/measurement/charts/EventD1Viewer'
-import EventD2Viewer from '../domains/measurement/charts/EventD2Viewer'
-import EventT1Viewer from '../domains/measurement/charts/EventT1Viewer'
+// 暫時隱藏未使用的導入以避免 lint 錯誤
+// TODO: 當這些組件被實際使用時移除下劃線
+// import EventA4Viewer from '../domains/measurement/charts/EventA4Viewer'
+// import EventD1Viewer from '../domains/measurement/charts/EventD1Viewer'
+// import EventD2Viewer from '../domains/measurement/charts/EventD2Viewer'  
+// import EventT1Viewer from '../domains/measurement/charts/EventT1Viewer'
 import { EventSelector } from '../domains/measurement/components/EventSelector'
 import { EVENT_CONFIGS } from '../domains/measurement/config/eventConfig'
 import type { EventType } from '../domains/measurement/types'
@@ -43,7 +45,7 @@ const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> =
         )
 
         // 穩定的模態框標題配置 - 用事件選擇器替代標題
-        const modalTitleConfig = useMemo(
+        const _modalTitleConfig = useMemo(
             () => ({
                 base: '', // 空標題，我們將用自定義的事件選擇器
                 loading: '正在載入測量事件數據...',
@@ -58,7 +60,7 @@ const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> =
         const stableReportIsLoading = useCallback(() => {}, [])
 
         // 空的刷新函數
-        const handleRefresh = useCallback(() => {
+        const _handleRefresh = useCallback(() => {
             // 測量事件模態框目前不需要刷新功能
         }, [])
 

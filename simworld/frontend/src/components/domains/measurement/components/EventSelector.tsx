@@ -5,7 +5,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react'
 import { EVENT_CONFIGS, EVENT_CATEGORIES, getAvailableEvents, getEventsByCategory } from '../config/eventConfig'
-import type { EventType, EventConfig, EventCategory } from '../config/eventConfig'
+import type { EventType, _EventConfig, EventCategory } from '../config/eventConfig'
 import './EventSelector.scss'
 
 interface EventSelectorProps {

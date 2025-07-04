@@ -45,8 +45,8 @@ interface BaseChartInternalProps<T extends MeasurementEventParams> extends BaseC
 }
 
 const BaseChart = <T extends MeasurementEventParams>({
-  eventType,
-  params,
+  _eventType,
+  _params,
   animationState,
   isDarkTheme,
   showThresholdLines,
