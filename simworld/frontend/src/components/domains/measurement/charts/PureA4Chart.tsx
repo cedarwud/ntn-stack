@@ -599,7 +599,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     chart.options.scales = {}
                 }
 
-                const xScale = chart.options.scales.x as Record<string, any>
+                const xScale = chart.options.scales.x as Record<string, unknown>
                 if (xScale?.title) {
                     xScale.title.color = currentTheme.text
                 }
@@ -610,7 +610,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     xScale.grid.color = currentTheme.grid
                 }
 
-                const yScale = chart.options.scales.y as Record<string, any>
+                const yScale = chart.options.scales.y as Record<string, unknown>
                 if (yScale?.title) {
                     yScale.title.color = currentTheme.text
                 }
