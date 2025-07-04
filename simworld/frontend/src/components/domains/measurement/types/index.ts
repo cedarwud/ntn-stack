@@ -42,10 +42,11 @@ export interface EventD2Params extends MeasurementEventParams {
 // T1 事件：測量時間超過門檻事件
 // 基於 3GPP TS 38.331 Section 5.5.4.16 - Event T1
 export interface EventT1Params {
-  t1Threshold: number; // t1-Threshold in seconds - 測量時間門檻
+  t1Threshold: number; // t1-Threshold in seconds - 測量時間門檻 (3GPP Thresh1)
+  duration: number; // Duration in seconds - 時間窗口持續時間 (3GPP Duration)
   timeToTrigger: number; // TTT in seconds (通常為 0 因為 T1 有內建時間邏輯)
-  reportAmount: number; // 報告次數
-  reportInterval: number; // 報告間隔 (秒)
+  reportAmount: number; // 報告次數 (條件事件用途)
+  reportInterval: number; // 報告間隔 (秒) (條件事件用途)
   reportOnLeave: boolean; // 離開時報告 (條件事件用途)
 }
 
