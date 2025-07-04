@@ -6,7 +6,7 @@
  * 樣式完全參考 A4/D1 的設計模式
  */
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import PureD2Chart from './PureD2Chart'
 import type { EventD2Params } from '../types'
 import './EventA4Viewer.scss' // 完全重用 A4 的樣式，確保左側控制面板風格一致
@@ -55,6 +55,127 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         const [showNarration, setShowNarration] = useState(true)
         const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
         const [isNarrationExpanded, setIsNarrationExpanded] = useState(false)
+
+        // 動畫解說面板的位置和透明度狀態 (從 A4 引入)
+        const [narrationPosition, setNarrationPosition] = useState(() => {
+            const viewportWidth = window.innerWidth
+            const viewportHeight = window.innerHeight
+            const panelWidth = 420
+            const margin = 135
+            const x = Math.max(20, viewportWidth - panelWidth - margin)
+            const y = Math.max(20, viewportHeight * 0.01 + 70)
+            return { x, y }
+        })
+        const [narrationOpacity, setNarrationOpacity] = useState(0.95)
+        const [isNarrationMinimized, setIsNarrationMinimized] = useState(false)
+        const [isDragging, setIsDragging] = useState(false)
+
+        // 使用 ref 直接操作 DOM (從 A4 引入)
+        const narrationPanelRef = useRef<HTMLDivElement>(null)
+        const dragState = useRef({
+            isDragging: false,
+            offsetX: 0,
+            offsetY: 0,
+            currentX: 20,
+            currentY: 20,
+        })
+        const animationFrameId = useRef<number | null>(null)
+        const latestMouseEvent = useRef({ x: 0, y: 0 })
+
+        // 初始化拖拽狀態的位置 (從 A4 引入)
+        useEffect(() => {
+            dragState.current.currentX = narrationPosition.x
+            dragState.current.currentY = narrationPosition.y
+        }, [narrationPosition.x, narrationPosition.y])
+
+        // 核心拖拽更新函數 (從 A4 引入)
+        const updatePosition = useCallback(() => {
+            if (!dragState.current.isDragging) {
+                animationFrameId.current = null
+                return
+            }
+
+            const { x, y } = latestMouseEvent.current
+            const newX = x - dragState.current.offsetX
+            const newY = y - dragState.current.offsetY
+
+            const panelWidth = narrationPanelRef.current?.offsetWidth || 420
+            const panelHeight = narrationPanelRef.current?.offsetHeight || 400
+            const maxX = Math.max(0, window.innerWidth - panelWidth)
+            const maxY = Math.max(0, window.innerHeight - panelHeight)
+
+            const finalX = Math.max(0, Math.min(newX, maxX))
+            const finalY = Math.max(0, Math.min(newY, maxY))
+
+            if (narrationPanelRef.current) {
+                narrationPanelRef.current.style.transform = `translate(${finalX}px, ${finalY}px)`
+            }
+
+            dragState.current.currentX = finalX
+            dragState.current.currentY = finalY
+
+            animationFrameId.current = null
+        }, [])
+
+        const handleMouseMove = useCallback(
+            (e: MouseEvent) => {
+                e.preventDefault()
+                latestMouseEvent.current = { x: e.clientX, y: e.clientY }
+
+                if (animationFrameId.current === null) {
+                    animationFrameId.current =
+                        requestAnimationFrame(updatePosition)
+                }
+            },
+            [updatePosition]
+        )
+
+        const handleMouseUp = useCallback(() => {
+            dragState.current.isDragging = false
+            setIsDragging(false)
+
+            document.removeEventListener('mousemove', handleMouseMove)
+            document.removeEventListener('mouseup', handleMouseUp)
+
+            if (animationFrameId.current) {
+                cancelAnimationFrame(animationFrameId.current)
+                animationFrameId.current = null
+            }
+
+            setNarrationPosition({
+                x: dragState.current.currentX,
+                y: dragState.current.currentY,
+            })
+        }, [handleMouseMove])
+
+        // 拖拽處理函數 (從 A4 引入)
+        const handleMouseDown = useCallback(
+            (e: React.MouseEvent) => {
+                if (
+                    e.target instanceof HTMLElement &&
+                    (e.target.closest('.narration-controls') ||
+                        e.target.closest('.opacity-control') ||
+                        e.target.closest('button') ||
+                        e.target.closest('input'))
+                ) {
+                    return
+                }
+
+                e.preventDefault()
+                e.stopPropagation()
+
+                dragState.current.isDragging = true
+                dragState.current.offsetX =
+                    e.clientX - dragState.current.currentX
+                dragState.current.offsetY =
+                    e.clientY - dragState.current.currentY
+                setIsDragging(true)
+
+                document.addEventListener('mousemove', handleMouseMove)
+                document.addEventListener('mouseup', handleMouseUp)
+            },
+            [handleMouseMove, handleMouseUp]
+        )
 
         // 穩定的參數更新回調
         const updateParam = useCallback(
@@ -137,7 +258,8 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             // 計算軌道參數
             const orbitalVelocity = 7.5 // km/s for LEO at 550km
             const _orbitalPeriod = 5570 // seconds for real LEO orbit
-            const groundTrackSpeed = orbitalVelocity * Math.cos(Math.PI / 180 * 53) // 軌道傾角53度
+            const groundTrackSpeed =
+                orbitalVelocity * Math.cos((Math.PI / 180) * 53) // 軌道傾角53度
 
             // 模擬距離值（實際應用中會基於真實地理計算）
             let simulatedDistance1, simulatedDistance2
@@ -173,8 +295,12 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             if (eventTriggered) {
                 phase = 'triggered'
                 phaseTitle = '🛰️ Event D2 已觸發 - LEO 星座切換決策啟動'
-                description = `衛星距離 (${(simulatedDistance1 / 1000).toFixed(1)} km) 超過門檻1，同時固定參考點距離 (${(simulatedDistance2 / 1000).toFixed(1)} km) 低於門檻2。LEO 星座系統正在執行智能切換決策。`
-                
+                description = `衛星距離 (${(simulatedDistance1 / 1000).toFixed(
+                    1
+                )} km) 超過門檻1，同時固定參考點距離 (${(
+                    simulatedDistance2 / 1000
+                ).toFixed(1)} km) 低於門檻2。LEO 星座系統正在執行智能切換決策。`
+
                 // LEO 星座切換策略說明
                 constellationStrategy = '🌌 LEO 星座切換策略：多衛星協調切換'
                 handoverScenario = `實際星座切換場景：當前服務衛星即將離開最佳服務區域，系統啟動：
@@ -184,13 +310,38 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 • 🔄 無縫切換執行：使用 make-before-break 策略確保服務連續性
 • 🛡️ 負載平衡：考慮目標衛星的用戶負載和資源可用性
 • 📡 波束管理：協調衛星波束指向和功率分配優化`
-                
-                technicalNote = `3GPP 條件: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2\\n衛星距離: ${(simulatedDistance1 / 1000).toFixed(1)} - ${params.Hys / 1000} = ${((simulatedDistance1 - params.Hys) / 1000).toFixed(1)} > ${(params.Thresh1 / 1000).toFixed(1)} km\\n固定距離: ${(simulatedDistance2 / 1000).toFixed(1)} + ${params.Hys / 1000} = ${((simulatedDistance2 + params.Hys) / 1000).toFixed(1)} < ${(params.Thresh2 / 1000).toFixed(1)} km\\n\\nLEO 星座參數：\\n• 軌道高度：${satellitePosition.altitude / 1000} km\\n• 軌道速度：${orbitalVelocity} km/s\\n• 地面軌跡速度：${groundTrackSpeed.toFixed(1)} km/s\\n• 可見時間窗口：8-12 分鐘\\n• 切換決策時延：${params.timeToTrigger} ms`
+
+                technicalNote = `3GPP 條件: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2\\n衛星距離: ${(
+                    simulatedDistance1 / 1000
+                ).toFixed(1)} - ${params.Hys / 1000} = ${(
+                    (simulatedDistance1 - params.Hys) /
+                    1000
+                ).toFixed(1)} > ${(params.Thresh1 / 1000).toFixed(
+                    1
+                )} km\\n固定距離: ${(simulatedDistance2 / 1000).toFixed(1)} + ${
+                    params.Hys / 1000
+                } = ${((simulatedDistance2 + params.Hys) / 1000).toFixed(
+                    1
+                )} < ${(params.Thresh2 / 1000).toFixed(
+                    1
+                )} km\\n\\nLEO 星座參數：\\n• 軌道高度：${
+                    satellitePosition.altitude / 1000
+                } km\\n• 軌道速度：${orbitalVelocity} km/s\\n• 地面軌跡速度：${groundTrackSpeed.toFixed(
+                    1
+                )} km/s\\n• 可見時間窗口：8-12 分鐘\\n• 切換決策時延：${
+                    params.timeToTrigger
+                } ms`
                 nextAction = '執行多衛星協調切換，確保服務連續性和最佳QoS'
             } else if (condition1 && !condition2) {
                 phase = 'partial'
                 phaseTitle = '⚠️ 星座監控中 - 準備切換候選衛星'
-                description = `衛星距離條件已滿足 (${(simulatedDistance1 / 1000).toFixed(1)} km > ${(params.Thresh1 / 1000).toFixed(1)} km)，但固定參考點距離 (${(simulatedDistance2 / 1000).toFixed(1)} km) 仍高於門檻。`
+                description = `衛星距離條件已滿足 (${(
+                    simulatedDistance1 / 1000
+                ).toFixed(1)} km > ${(params.Thresh1 / 1000).toFixed(
+                    1
+                )} km)，但固定參考點距離 (${(simulatedDistance2 / 1000).toFixed(
+                    1
+                )} km) 仍高於門檻。`
                 constellationStrategy = '👁️ 星座狀態：候選衛星識別階段'
                 handoverScenario = `準備階段切換策略：當前衛星開始遠離最佳位置，系統準備：
 • 🔭 軌道預測：計算未來5-10分鐘內所有可見衛星的軌跡
@@ -198,12 +349,28 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 • 🎯 最佳時機計算：確定最佳切換時間點以最小化服務中斷
 • 📋 資源預留：在候選衛星上預留必要的網路資源
 • 🔧 設備準備：調整天線指向和功率設定準備新連接`
-                technicalNote = `條件1: ✅ Ml1 - Hys = ${((simulatedDistance1 - params.Hys) / 1000).toFixed(1)} > ${(params.Thresh1 / 1000).toFixed(1)}\\n條件2: ❌ Ml2 + Hys = ${((simulatedDistance2 + params.Hys) / 1000).toFixed(1)} ≮ ${(params.Thresh2 / 1000).toFixed(1)}\\n\\n候選衛星評估：\\n• 仰角門檻：> 15度\\n• 預期服務時間：> 8分鐘\\n• 負載容量：< 80%\\n• 切換延遲：< 50ms`
+                technicalNote = `條件1: ✅ Ml1 - Hys = ${(
+                    (simulatedDistance1 - params.Hys) /
+                    1000
+                ).toFixed(1)} > ${(params.Thresh1 / 1000).toFixed(
+                    1
+                )}\\n條件2: ❌ Ml2 + Hys = ${(
+                    (simulatedDistance2 + params.Hys) /
+                    1000
+                ).toFixed(1)} ≮ ${(params.Thresh2 / 1000).toFixed(
+                    1
+                )}\\n\\n候選衛星評估：\\n• 仰角門檻：> 15度\\n• 預期服務時間：> 8分鐘\\n• 負載容量：< 80%\\n• 切換延遲：< 50ms`
                 nextAction = '繼續監控並準備候選衛星資源，等待最佳切換時機'
             } else if (!condition1 && condition2) {
                 phase = 'partial'
                 phaseTitle = '⚠️ 星座監控中 - 當前衛星服務中'
-                description = `固定參考點距離條件已滿足 (${(simulatedDistance2 / 1000).toFixed(1)} km < ${(params.Thresh2 / 1000).toFixed(1)} km)，但衛星距離 (${(simulatedDistance1 / 1000).toFixed(1)} km) 仍在最佳服務範圍內。`
+                description = `固定參考點距離條件已滿足 (${(
+                    simulatedDistance2 / 1000
+                ).toFixed(1)} km < ${(params.Thresh2 / 1000).toFixed(
+                    1
+                )} km)，但衛星距離 (${(simulatedDistance1 / 1000).toFixed(
+                    1
+                )} km) 仍在最佳服務範圍內。`
                 constellationStrategy = '⭐ 星座狀態：最佳服務階段'
                 handoverScenario = `服務維持階段策略：當前衛星在最佳位置，系統執行：
 • 🎯 服務優化：動態調整波束形成和功率分配
@@ -211,11 +378,27 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 • 🔮 軌道追蹤：實時追蹤衛星位置和預測未來軌跡
 • 🚀 預備切換：提前識別下一個服務窗口的候選衛星
 • 🔄 負載均衡：在多個可見衛星間動態分配用戶負載`
-                technicalNote = `條件1: ❌ Ml1 - Hys = ${((simulatedDistance1 - params.Hys) / 1000).toFixed(1)} ≯ ${(params.Thresh1 / 1000).toFixed(1)}\\n條件2: ✅ Ml2 + Hys = ${((simulatedDistance2 + params.Hys) / 1000).toFixed(1)} < ${(params.Thresh2 / 1000).toFixed(1)}\\n\\n最佳服務參數：\\n• 當前仰角：45-70度\\n• 傳播延遲：< 5ms\\n• 都卜勒頻移補償：±3 kHz\\n• 預期服務剩餘時間：${(70 - currentTime).toFixed(0)}秒`
+                technicalNote = `條件1: ❌ Ml1 - Hys = ${(
+                    (simulatedDistance1 - params.Hys) /
+                    1000
+                ).toFixed(1)} ≯ ${(params.Thresh1 / 1000).toFixed(
+                    1
+                )}\\n條件2: ✅ Ml2 + Hys = ${(
+                    (simulatedDistance2 + params.Hys) /
+                    1000
+                ).toFixed(1)} < ${(params.Thresh2 / 1000).toFixed(
+                    1
+                )}\\n\\n最佳服務參數：\\n• 當前仰角：45-70度\\n• 傳播延遲：< 5ms\\n• 都卜勒頻移補償：±3 kHz\\n• 預期服務剩餘時間：${(
+                    70 - currentTime
+                ).toFixed(0)}秒`
                 nextAction = '維持最佳服務品質，準備未來切換規劃'
             } else {
                 phaseTitle = '🔍 LEO 星座正常監控階段'
-                description = `雙重距離條件均未滿足。衛星距離 (${(simulatedDistance1 / 1000).toFixed(1)} km) 和固定參考點距離 (${(simulatedDistance2 / 1000).toFixed(1)} km) 均在正常範圍內。`
+                description = `雙重距離條件均未滿足。衛星距離 (${(
+                    simulatedDistance1 / 1000
+                ).toFixed(1)} km) 和固定參考點距離 (${(
+                    simulatedDistance2 / 1000
+                ).toFixed(1)} km) 均在正常範圍內。`
                 constellationStrategy = '🌐 星座狀態：連續覆蓋保障'
                 handoverScenario = `標準監控模式：多衛星星座提供連續覆蓋，系統執行：
 • 🛰️ 星座追蹤：實時追蹤所有可見LEO衛星的位置和狀態
@@ -224,7 +407,13 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 • 🔄 自動切換：基於預設規則執行自動衛星切換
 • 📊 性能分析：收集並分析星座覆蓋性能和用戶體驗數據
 • 🛡️ 容錯機制：監控衛星健康狀態，準備故障切換方案`
-                technicalNote = `衛星距離: ${(simulatedDistance1 / 1000).toFixed(1)} km, 固定距離: ${(simulatedDistance2 / 1000).toFixed(1)} km\\n\\nLEO 星座監控重點：\\n• 多衛星可見性分析\\n• 信號品質趨勢預測\\n• 軌道機動影響評估\\n• 星座完整性驗證\\n• 切換演算法性能優化\\n• 用戶移動性適應`
+                technicalNote = `衛星距離: ${(
+                    simulatedDistance1 / 1000
+                ).toFixed(1)} km, 固定距離: ${(
+                    simulatedDistance2 / 1000
+                ).toFixed(
+                    1
+                )} km\\n\\nLEO 星座監控重點：\\n• 多衛星可見性分析\\n• 信號品質趨勢預測\\n• 軌道機動影響評估\\n• 星座完整性驗證\\n• 切換演算法性能優化\\n• 用戶移動性適應`
                 nextAction = '持續星座監控，優化切換演算法和服務品質'
             }
 
@@ -232,7 +421,8 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             let scenarioContext = ''
             let orbitalScenario = ''
             if (currentTime < 30) {
-                scenarioContext = '🚀 場景：LEO衛星從地平線升起，開始進入服務範圍'
+                scenarioContext =
+                    '🚀 場景：LEO衛星從地平線升起，開始進入服務範圍'
                 orbitalScenario = `軌道動力學：衛星以 ${orbitalVelocity} km/s 的速度快速接近，仰角從5度快速增加到30度`
             } else if (currentTime < 70) {
                 scenarioContext = '🌍 場景：衛星接近天頂，處於最佳服務位置'
@@ -898,133 +1088,6 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                     {/* 圖表區域 */}
                     <div className="event-viewer__chart-container">
                         <div className="chart-area">
-                            {/* 動畫解說面板 */}
-                            {showNarration && (
-                                <div
-                                    className={`narration-panel ${
-                                        isNarrationExpanded
-                                            ? 'expanded'
-                                            : 'compact'
-                                    }`}
-                                >
-                                    <div className="narration-header">
-                                        <h3 className="narration-title">
-                                            {narrationContent.phaseTitle}
-                                        </h3>
-                                        <div className="narration-controls">
-                                            <div className="narration-time">
-                                                🕰{' '}
-                                                {narrationContent.timeProgress}
-                                            </div>
-                                            <button
-                                                className="narration-toggle"
-                                                onClick={() =>
-                                                    setIsNarrationExpanded(
-                                                        !isNarrationExpanded
-                                                    )
-                                                }
-                                                title={
-                                                    isNarrationExpanded
-                                                        ? '收起詳細說明'
-                                                        : '展開詳細說明'
-                                                }
-                                            >
-                                                {isNarrationExpanded
-                                                    ? '▲'
-                                                    : '▼'}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {isNarrationExpanded && (
-                                        <div className="narration-content">
-                                            <div className="narration-scenario">
-                                                {narrationContent.scenarioContext}
-                                                <div className="mobility-scenario">
-                                                    {narrationContent.orbitalScenario}
-                                                </div>
-                                            </div>
-
-                                            <div className="constellation-strategy-stage">
-                                                <h4>{narrationContent.constellationStrategy}</h4>
-                                                <div className="constellation-handover">
-                                                    {narrationContent.handoverScenario.split('\\n').map((line, index) => (
-                                                        <div key={index} className="handover-line">
-                                                            {line}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            <div className="narration-description">
-                                                {narrationContent.description}
-                                            </div>
-
-                                            {showTechnicalDetails && (
-                                                <div className="narration-technical">
-                                                    <h4>🔧 技術細節：</h4>
-                                                    <div className="technical-formula">
-                                                        {narrationContent.technicalNote
-                                                            .split('\\n')
-                                                            .map(
-                                                                (
-                                                                    line,
-                                                                    index
-                                                                ) => (
-                                                                    <div
-                                                                        key={
-                                                                            index
-                                                                        }
-                                                                    >
-                                                                        {line}
-                                                                    </div>
-                                                                )
-                                                            )}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <div className="narration-next">
-                                                <strong>下一步：</strong>{' '}
-                                                {narrationContent.nextAction}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="narration-metrics">
-                                        <div className="metric">
-                                            <span className="metric-label">
-                                                衛星距離：
-                                            </span>
-                                            <span className="metric-value">
-                                                {
-                                                    narrationContent.satelliteDistance
-                                                }{' '}
-                                                km
-                                            </span>
-                                        </div>
-                                        <div className="metric">
-                                            <span className="metric-label">
-                                                固定距離：
-                                            </span>
-                                            <span className="metric-value">
-                                                {narrationContent.fixedDistance}{' '}
-                                                km
-                                            </span>
-                                        </div>
-                                        <div className="metric">
-                                            <span className="metric-label">
-                                                衛星位置：
-                                            </span>
-                                            <span className="metric-value">
-                                                {narrationContent.satelliteLat},{' '}
-                                                {narrationContent.satelliteLon}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
                             <div className="chart-container">
                                 <PureD2Chart
                                     thresh1={params.Thresh1}
@@ -1040,6 +1103,207 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                     </div>
                 </div>
 
+                {/* 浮動動畫解說面板 - 移到最頂層，完全脫離其他容器 */}
+                {showNarration && (
+                    <div
+                        ref={narrationPanelRef}
+                        className={`narration-panel floating ${
+                            isNarrationExpanded ? 'expanded' : 'compact'
+                        } ${isNarrationMinimized ? 'minimized' : ''}`}
+                        style={{
+                            position: 'fixed',
+                            left: 0,
+                            top: 0,
+                            transform: `translate(${narrationPosition.x}px, ${narrationPosition.y}px)`,
+                            opacity: narrationOpacity,
+                            zIndex: 9999,
+                            cursor: isDragging ? 'grabbing' : 'grab',
+                        }}
+                        onMouseDown={handleMouseDown}
+                    >
+                        <div className="narration-header">
+                            <h3 className="narration-title">
+                                {narrationContent.phaseTitle}
+                            </h3>
+                            <div className="narration-controls">
+                                <div className="narration-time">
+                                    🕰 {narrationContent.timeProgress}
+                                </div>
+
+                                {/* 透明度控制 */}
+                                <div className="opacity-control">
+                                    <input
+                                        type="range"
+                                        min="0.3"
+                                        max="1"
+                                        step="0.1"
+                                        value={narrationOpacity}
+                                        onChange={(e) =>
+                                            setNarrationOpacity(
+                                                parseFloat(e.target.value)
+                                            )
+                                        }
+                                        className="opacity-slider"
+                                        title="調整透明度"
+                                    />
+                                </div>
+
+                                {/* 技術細節按鈕 */}
+                                <button
+                                    className={`narration-technical-toggle ${
+                                        showTechnicalDetails ? 'active' : ''
+                                    }`}
+                                    onClick={() =>
+                                        setShowTechnicalDetails(
+                                            !showTechnicalDetails
+                                        )
+                                    }
+                                    title={
+                                        showTechnicalDetails
+                                            ? '隱藏技術細節'
+                                            : '顯示技術細節'
+                                    }
+                                >
+                                    🔧
+                                </button>
+
+                                {/* 最小化按鈕 */}
+                                <button
+                                    className="narration-minimize"
+                                    onClick={() =>
+                                        setIsNarrationMinimized(
+                                            !isNarrationMinimized
+                                        )
+                                    }
+                                    title={
+                                        isNarrationMinimized
+                                            ? '展開面板'
+                                            : '最小化面板'
+                                    }
+                                >
+                                    {isNarrationMinimized ? '□' : '－'}
+                                </button>
+
+                                {/* 展開/收起按鈕 */}
+                                <button
+                                    className="narration-toggle"
+                                    onClick={() =>
+                                        setIsNarrationExpanded(
+                                            !isNarrationExpanded
+                                        )
+                                    }
+                                    title={
+                                        isNarrationExpanded
+                                            ? '收起詳細說明'
+                                            : '展開詳細說明'
+                                    }
+                                >
+                                    {isNarrationExpanded ? '▲' : '▼'}
+                                </button>
+
+                                {/* 關閉按鈕 */}
+                                <button
+                                    className="narration-close"
+                                    onClick={() => setShowNarration(false)}
+                                    title="關閉解說面板"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+
+                        {!isNarrationMinimized && (
+                            <>
+                                {isNarrationExpanded && (
+                                    <div className="narration-content">
+                                        <div className="narration-scenario">
+                                            {narrationContent.scenarioContext}
+                                            <div className="mobility-scenario">
+                                                {
+                                                    narrationContent.orbitalScenario
+                                                }
+                                            </div>
+                                        </div>
+
+                                        <div className="constellation-strategy-stage">
+                                            <h4>
+                                                {
+                                                    narrationContent.constellationStrategy
+                                                }
+                                            </h4>
+                                            <div className="constellation-handover">
+                                                {narrationContent.handoverScenario
+                                                    .split('\\n')
+                                                    .map((line, index) => (
+                                                        <div
+                                                            key={index}
+                                                            className="handover-line"
+                                                        >
+                                                            {line}
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="narration-description">
+                                            {narrationContent.description}
+                                        </div>
+
+                                        {showTechnicalDetails && (
+                                            <div className="narration-technical">
+                                                <h4>🔧 技術細節：</h4>
+                                                <div className="technical-formula">
+                                                    {narrationContent.technicalNote
+                                                        .split('\\n')
+                                                        .map((line, index) => (
+                                                            <div key={index}>
+                                                                {line}
+                                                            </div>
+                                                        ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="narration-next">
+                                            <strong>下一步：</strong>{' '}
+                                            {narrationContent.nextAction}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="narration-metrics">
+                                    <div className="metric">
+                                        <span className="metric-label">
+                                            衛星距離：
+                                        </span>
+                                        <span className="metric-value">
+                                            {narrationContent.satelliteDistance}{' '}
+                                            km
+                                        </span>
+                                    </div>
+                                    <div className="metric">
+                                        <span className="metric-label">
+                                            固定距離：
+                                        </span>
+                                        <span className="metric-value">
+                                            {narrationContent.fixedDistance} km
+                                        </span>
+                                    </div>
+                                    <div className="metric">
+                                        <span className="metric-label">
+                                            衛星位置：
+                                        </span>
+                                        <span className="metric-value">
+                                            {narrationContent.satelliteLat},{' '}
+                                            {narrationContent.satelliteLon}
+                                        </span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
                 {/* 3GPP 規範說明 */}
                 <div className="event-viewer__specification">
                     <h3 className="spec-title">📖 3GPP TS 38.331 規範</h3>
@@ -1048,16 +1312,32 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                             <h4>Event D2 條件：</h4>
                             <ul>
                                 <li>
-                                    <strong>進入條件：</strong> 
-                                    <br/>條件1: Ml1 - Hys &gt; Thresh1 (移動參考位置距離)
-                                    <br/>條件2: Ml2 + Hys &lt; Thresh2 (固定參考位置距離)
-                                    <br/><em>同時滿足: 條件1 <strong>且</strong> 條件2</em>
+                                    <strong>進入條件：</strong>
+                                    <br />
+                                    條件1: Ml1 - Hys &gt; Thresh1
+                                    (移動參考位置距離)
+                                    <br />
+                                    條件2: Ml2 + Hys &lt; Thresh2
+                                    (固定參考位置距離)
+                                    <br />
+                                    <em>
+                                        同時滿足: 條件1 <strong>且</strong>{' '}
+                                        條件2
+                                    </em>
                                 </li>
                                 <li>
-                                    <strong>離開條件：</strong> 
-                                    <br/>條件1: Ml1 + Hys &lt; Thresh1 (接近移動參考位置)
-                                    <br/>條件2: Ml2 - Hys &gt; Thresh2 (遠離固定參考位置)
-                                    <br/><em>任一滿足: 條件1 <strong>或</strong> 條件2</em>
+                                    <strong>離開條件：</strong>
+                                    <br />
+                                    條件1: Ml1 + Hys &lt; Thresh1
+                                    (接近移動參考位置)
+                                    <br />
+                                    條件2: Ml2 - Hys &gt; Thresh2
+                                    (遠離固定參考位置)
+                                    <br />
+                                    <em>
+                                        任一滿足: 條件1 <strong>或</strong>{' '}
+                                        條件2
+                                    </em>
                                 </li>
                                 <li>
                                     <strong>TimeToTrigger：</strong>
@@ -1069,32 +1349,52 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                             <h4>參數說明：</h4>
                             <ul>
                                 <li>
-                                    <strong>Ml1：</strong>UE 與移動參考位置（衛星）的距離（公尺）
-                                    <br/><em>動態變化，反映 LEO 衛星軌道運動</em>
+                                    <strong>Ml1：</strong>UE
+                                    與移動參考位置（衛星）的距離（公尺）
+                                    <br />
+                                    <em>動態變化，反映 LEO 衛星軌道運動</em>
                                 </li>
                                 <li>
-                                    <strong>Ml2：</strong>UE 與固定參考位置的距離（公尺）
-                                    <br/><em>相對穩定，基於地面固定參考點</em>
+                                    <strong>Ml2：</strong>UE
+                                    與固定參考位置的距離（公尺）
+                                    <br />
+                                    <em>相對穩定，基於地面固定參考點</em>
                                 </li>
                                 <li>
-                                    <strong>Thresh1：</strong>移動參考位置距離門檻值（公尺）
-                                    <br/><em>distanceThreshFromReference1，通常設置較大值（如 550km）</em>
+                                    <strong>Thresh1：</strong>
+                                    移動參考位置距離門檻值（公尺）
+                                    <br />
+                                    <em>
+                                        distanceThreshFromReference1，通常設置較大值（如
+                                        550km）
+                                    </em>
                                 </li>
                                 <li>
-                                    <strong>Thresh2：</strong>固定參考位置距離門檻值（公尺）
-                                    <br/><em>distanceThreshFromReference2，通常設置較小值（如 6km）</em>
+                                    <strong>Thresh2：</strong>
+                                    固定參考位置距離門檻值（公尺）
+                                    <br />
+                                    <em>
+                                        distanceThreshFromReference2，通常設置較小值（如
+                                        6km）
+                                    </em>
                                 </li>
                                 <li>
-                                    <strong>Hys：</strong>hysteresisLocation 遲滯參數（公尺）
-                                    <br/><em>防止事件頻繁觸發，提供穩定性緩衝</em>
+                                    <strong>Hys：</strong>hysteresisLocation
+                                    遲滯參數（公尺）
+                                    <br />
+                                    <em>防止事件頻繁觸發，提供穩定性緩衝</em>
                                 </li>
                                 <li>
-                                    <strong>movingReferenceLocation：</strong>移動參考位置坐標（衛星初始位置）
-                                    <br/><em>配合衛星軌道預測模型進行動態更新</em>
+                                    <strong>movingReferenceLocation：</strong>
+                                    移動參考位置坐標（衛星初始位置）
+                                    <br />
+                                    <em>配合衛星軌道預測模型進行動態更新</em>
                                 </li>
                                 <li>
-                                    <strong>referenceLocation：</strong>固定參考位置坐標（地面參考點）
-                                    <br/><em>提供穩定的地理基準，通常為重要地標</em>
+                                    <strong>referenceLocation：</strong>
+                                    固定參考位置坐標（地面參考點）
+                                    <br />
+                                    <em>提供穩定的地理基準，通常為重要地標</em>
                                 </li>
                             </ul>
                         </div>

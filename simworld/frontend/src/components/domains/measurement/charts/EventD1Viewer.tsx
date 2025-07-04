@@ -54,9 +54,9 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
             const viewportWidth = window.innerWidth
             const viewportHeight = window.innerHeight
             const panelWidth = 420
-            const margin = 140
+            const margin = 135
             const x = Math.max(20, viewportWidth - panelWidth - margin)
-            const y = Math.max(20, viewportHeight * 0.01 + 80)
+            const y = Math.max(20, viewportHeight * 0.01 + 70)
             return { x, y }
         })
         const [narrationOpacity, setNarrationOpacity] = useState(0.95)
