@@ -271,7 +271,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 let nodeLabel = 'Signal Tracking'
 
                 if (eventStatus.isAboveEnterThreshold) {
-                    nodeColor = '#28A745' // 綠色：事件激活
+                    nodeColor = '#28A745' // 綠色：事件啟用
                     nodeSize = 12
                     nodeLabel = 'Event A4 ACTIVE'
                 } else if (eventStatus.isBelowExitThreshold) {
@@ -471,7 +471,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 let nodeLabel = 'Signal Tracking'
 
                 if (eventStatus.isAboveEnterThreshold) {
-                    nodeColor = '#28A745' // 綠色：事件激活
+                    nodeColor = '#28A745' // 綠色：事件啟用
                     nodeSize = 12
                     nodeLabel = 'Event A4 ACTIVE'
                 } else if (eventStatus.isBelowExitThreshold) {
