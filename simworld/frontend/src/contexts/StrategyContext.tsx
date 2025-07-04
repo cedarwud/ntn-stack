@@ -4,6 +4,7 @@ import {
     useCallback,
     ReactNode,
 } from 'react'
+import { netstackFetch } from '../config/api-config'
 
 export type HandoverStrategy = 'flexible' | 'consistent'
 
@@ -44,14 +45,11 @@ export const StrategyProvider = ({ children }: StrategyProviderProps) => {
                         ? 'fast_handover'
                         : 'ai_optimized_handover'
 
-                // 調用 NetStack API 進行策略切換 (使用 Vite 代理)
-                const response = await fetch(
-                    '/netstack/handover/strategy/switch',
+                // 調用 NetStack API 進行策略切換 (使用統一配置)
+                const response = await netstackFetch(
+                    '/api/v1/handover/strategy/switch',
                     {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
                         body: JSON.stringify({
                             strategy: backendStrategy,
                             parameters: {},

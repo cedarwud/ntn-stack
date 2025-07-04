@@ -17,7 +17,7 @@ export const useReceiverSelection = ({
     }, [devices]);
 
     const [selectedReceiverIds, setSelectedReceiverIds] = useState<number[]>(
-        getInitialReceiverIds
+        getInitialReceiverIds()
     );
 
     useEffect(() => {
@@ -41,7 +41,12 @@ export const useReceiverSelection = ({
             const newSelected = prevSelected.filter((id) =>
                 currentReceiverDeviceIds.includes(id)
             );
-            // 不再自動全選，允許 newSelected 為空
+            
+            // 如果沒有選中任何接收器且有可用接收器，自動選中第一個
+            if (newSelected.length === 0 && currentReceiverDeviceIds.length > 0) {
+                return [currentReceiverDeviceIds[0]];
+            }
+            
             return newSelected;
         });
     }, [devices]); // Removed onSelectedReceiversChange from dependencies to avoid potential loop with parent
