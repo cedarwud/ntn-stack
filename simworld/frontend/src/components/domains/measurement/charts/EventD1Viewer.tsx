@@ -4,7 +4,7 @@
  * 包含參數控制和 3GPP TS 38.331 規範實現
  */
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import PureD1Chart from './PureD1Chart'
 import type { EventD1Params } from '../types'
 import './EventA4Viewer.scss' // 重用 A4 的樣式
@@ -48,6 +48,127 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
         const [showNarration, setShowNarration] = useState(true)
         const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
         const [isNarrationExpanded, setIsNarrationExpanded] = useState(false)
+
+        // 動畫解說面板的位置和透明度狀態 (從 A4 引入)
+        const [narrationPosition, setNarrationPosition] = useState(() => {
+            const viewportWidth = window.innerWidth
+            const viewportHeight = window.innerHeight
+            const panelWidth = 420
+            const margin = 140
+            const x = Math.max(20, viewportWidth - panelWidth - margin)
+            const y = Math.max(20, viewportHeight * 0.01 + 80)
+            return { x, y }
+        })
+        const [narrationOpacity, setNarrationOpacity] = useState(0.95)
+        const [isNarrationMinimized, setIsNarrationMinimized] = useState(false)
+        const [isDragging, setIsDragging] = useState(false)
+
+        // 使用 ref 直接操作 DOM (從 A4 引入)
+        const narrationPanelRef = useRef<HTMLDivElement>(null)
+        const dragState = useRef({
+            isDragging: false,
+            offsetX: 0,
+            offsetY: 0,
+            currentX: 20,
+            currentY: 20,
+        })
+        const animationFrameId = useRef<number | null>(null)
+        const latestMouseEvent = useRef({ x: 0, y: 0 })
+
+        // 初始化拖拽狀態的位置 (從 A4 引入)
+        useEffect(() => {
+            dragState.current.currentX = narrationPosition.x
+            dragState.current.currentY = narrationPosition.y
+        }, [narrationPosition.x, narrationPosition.y])
+
+        // 核心拖拽更新函數 (從 A4 引入)
+        const updatePosition = useCallback(() => {
+            if (!dragState.current.isDragging) {
+                animationFrameId.current = null
+                return
+            }
+
+            const { x, y } = latestMouseEvent.current
+            const newX = x - dragState.current.offsetX
+            const newY = y - dragState.current.offsetY
+
+            const panelWidth = narrationPanelRef.current?.offsetWidth || 420
+            const panelHeight = narrationPanelRef.current?.offsetHeight || 400
+            const maxX = Math.max(0, window.innerWidth - panelWidth)
+            const maxY = Math.max(0, window.innerHeight - panelHeight)
+
+            const finalX = Math.max(0, Math.min(newX, maxX))
+            const finalY = Math.max(0, Math.min(newY, maxY))
+
+            if (narrationPanelRef.current) {
+                narrationPanelRef.current.style.transform = `translate(${finalX}px, ${finalY}px)`
+            }
+
+            dragState.current.currentX = finalX
+            dragState.current.currentY = finalY
+
+            animationFrameId.current = null
+        }, [])
+
+        const handleMouseMove = useCallback(
+            (e: MouseEvent) => {
+                e.preventDefault()
+                latestMouseEvent.current = { x: e.clientX, y: e.clientY }
+
+                if (animationFrameId.current === null) {
+                    animationFrameId.current =
+                        requestAnimationFrame(updatePosition)
+                }
+            },
+            [updatePosition]
+        )
+
+        const handleMouseUp = useCallback(() => {
+            dragState.current.isDragging = false
+            setIsDragging(false)
+
+            document.removeEventListener('mousemove', handleMouseMove)
+            document.removeEventListener('mouseup', handleMouseUp)
+
+            if (animationFrameId.current) {
+                cancelAnimationFrame(animationFrameId.current)
+                animationFrameId.current = null
+            }
+
+            setNarrationPosition({
+                x: dragState.current.currentX,
+                y: dragState.current.currentY,
+            })
+        }, [handleMouseMove])
+
+        // 拖拽處理函數 (從 A4 引入)
+        const handleMouseDown = useCallback(
+            (e: React.MouseEvent) => {
+                if (
+                    e.target instanceof HTMLElement &&
+                    (e.target.closest('.narration-controls') ||
+                        e.target.closest('.opacity-control') ||
+                        e.target.closest('button') ||
+                        e.target.closest('input'))
+                ) {
+                    return
+                }
+
+                e.preventDefault()
+                e.stopPropagation()
+
+                dragState.current.isDragging = true
+                dragState.current.offsetX =
+                    e.clientX - dragState.current.currentX
+                dragState.current.offsetY =
+                    e.clientY - dragState.current.currentY
+                setIsDragging(true)
+
+                document.addEventListener('mousemove', handleMouseMove)
+                document.addEventListener('mouseup', handleMouseUp)
+            },
+            [handleMouseMove, handleMouseUp]
+        )
 
         // 穩定的參數更新回調
         const updateParam = useCallback(
@@ -183,7 +304,7 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                 phase = 'triggered'
                 phaseTitle = '📍 Event D1 已觸發 - 位置服務啟動'
                 description = `UE 與參考位置1的距離 (${simulatedDistance1}m) 超過門檻1，同時與參考位置2的距離 (${simulatedDistance2}m) 低於門檻2。雙重距離條件同時滿足，觸發位置感知服務。`
-                
+
                 // 實際位置服務用例
                 locationService = '🎯 位置服務應用：地理圍欄觸發'
                 practicalUseCase = `實際用例：用戶進入台北101商圈範圍 (遠離台北101但接近中正紀念堂)，系統自動啟動：
@@ -192,8 +313,18 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
 • 💰 位置差異化計費：啟動商圈內的特殊資費方案
 • 🔔 區域廣播：推送該區域的重要公告或緊急資訊
 • 📊 用戶行為分析：記錄區域停留時間和偏好分析`
-                
-                technicalNote = `3GPP 條件: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2\\n參考位置1: ${simulatedDistance1} - ${params.Hys} = ${simulatedDistance1 - params.Hys} > ${params.Thresh1} m\\n參考位置2: ${simulatedDistance2} + ${params.Hys} = ${simulatedDistance2 + params.Hys} < ${params.Thresh2} m\\n\\n位置服務啟動參數：\\n• 觸發延遲：${params.timeToTrigger}ms\\n• 報告間隔：${params.reportInterval}ms\\n• 報告次數：${params.reportAmount === -1 ? '無限制' : params.reportAmount}次`
+
+                technicalNote = `3GPP 條件: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2\\n參考位置1: ${simulatedDistance1} - ${
+                    params.Hys
+                } = ${simulatedDistance1 - params.Hys} > ${
+                    params.Thresh1
+                } m\\n參考位置2: ${simulatedDistance2} + ${params.Hys} = ${
+                    simulatedDistance2 + params.Hys
+                } < ${params.Thresh2} m\\n\\n位置服務啟動參數：\\n• 觸發延遲：${
+                    params.timeToTrigger
+                }ms\\n• 報告間隔：${params.reportInterval}ms\\n• 報告次數：${
+                    params.reportAmount === -1 ? '無限制' : params.reportAmount
+                }次`
                 nextAction = '執行位置感知服務，開始提供差異化服務內容'
             } else if (condition1 && !condition2) {
                 phase = 'partial'
@@ -205,7 +336,11 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
 • 🔄 網路優化：調整網路配置準備提供更好的服務品質
 • 📍 軌跡預測：基於移動模式預測用戶可能的目的地
 • ⚡ 快取準備：預載入可能需要的地圖資料和服務資訊`
-                technicalNote = `條件1: ✅ Ml1 - Hys = ${simulatedDistance1 - params.Hys} > ${params.Thresh1}\\n條件2: ❌ Ml2 + Hys = ${simulatedDistance2 + params.Hys} ≮ ${params.Thresh2}\\n\\n等待進入條件：UE需要更接近參考位置2`
+                technicalNote = `條件1: ✅ Ml1 - Hys = ${
+                    simulatedDistance1 - params.Hys
+                } > ${params.Thresh1}\\n條件2: ❌ Ml2 + Hys = ${
+                    simulatedDistance2 + params.Hys
+                } ≮ ${params.Thresh2}\\n\\n等待進入條件：UE需要更接近參考位置2`
                 nextAction = '繼續監控UE與參考位置2的距離變化，準備位置服務'
             } else if (!condition1 && condition2) {
                 phase = 'partial'
@@ -217,7 +352,11 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
 • 💾 狀態保存：保存當前服務狀態和用戶偏好設定
 • 🎯 精準定位：提高位置測量精度確保平滑的服務轉換
 • 📋 服務清單更新：準備新區域的可用服務列表`
-                technicalNote = `條件1: ❌ Ml1 - Hys = ${simulatedDistance1 - params.Hys} ≯ ${params.Thresh1}\\n條件2: ✅ Ml2 + Hys = ${simulatedDistance2 + params.Hys} < ${params.Thresh2}\\n\\n等待離開條件：UE需要更遠離參考位置1`
+                technicalNote = `條件1: ❌ Ml1 - Hys = ${
+                    simulatedDistance1 - params.Hys
+                } ≯ ${params.Thresh1}\\n條件2: ✅ Ml2 + Hys = ${
+                    simulatedDistance2 + params.Hys
+                } < ${params.Thresh2}\\n\\n等待離開條件：UE需要更遠離參考位置1`
                 nextAction = '等待UE遠離參考位置1，監控距離變化以完成條件'
             } else {
                 phaseTitle = '🔍 位置正常監控階段'
@@ -237,17 +376,24 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
             let scenarioContext = ''
             let mobilityScenario = ''
             if (currentTime < 25) {
-                scenarioContext = '🚀 場景：UE 在台北101商圈外圍，準備進入監控區域'
-                mobilityScenario = '典型移動情境：用戶從信義區外圍步行或搭乘交通工具前往台北101'
+                scenarioContext =
+                    '🚀 場景：UE 在台北101商圈外圍，準備進入監控區域'
+                mobilityScenario =
+                    '典型移動情境：用戶從信義區外圍步行或搭乘交通工具前往台北101'
             } else if (currentTime < 40) {
-                scenarioContext = '🌍 場景：UE 開始遠離台北101，朝向中正紀念堂方向移動'
-                mobilityScenario = '典型移動情境：用戶從信義區商圈前往中正區，可能是觀光行程或商務活動'
+                scenarioContext =
+                    '🌍 場景：UE 開始遠離台北101，朝向中正紀念堂方向移動'
+                mobilityScenario =
+                    '典型移動情境：用戶從信義區商圈前往中正區，可能是觀光行程或商務活動'
             } else if (currentTime < 75) {
                 scenarioContext = '📍 場景：UE 在雙重距離條件的理想觸發區域內'
-                mobilityScenario = '典型移動情境：用戶在台北車站周邊活動，距離兩個地標都在最佳範圍內'
+                mobilityScenario =
+                    '典型移動情境：用戶在台北車站周邊活動，距離兩個地標都在最佳範圍內'
             } else {
-                scenarioContext = '🏠 場景：UE 離開特殊服務區域，回到一般監控狀態'
-                mobilityScenario = '典型移動情境：用戶完成區域內活動，前往其他地區或返回住所'
+                scenarioContext =
+                    '🏠 場景：UE 離開特殊服務區域，回到一般監控狀態'
+                mobilityScenario =
+                    '典型移動情境：用戶完成區域內活動，前往其他地區或返回住所'
             }
 
             return {
@@ -265,7 +411,9 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                 timeProgress: `${currentTime.toFixed(1)}s / 100s`,
                 reference1: '參考位置1 (台北101)',
                 reference2: '參考位置2 (中正紀念堂)',
-                uePosition: `${uePosition.lat.toFixed(4)}, ${uePosition.lon.toFixed(4)}`,
+                uePosition: `${uePosition.lat.toFixed(
+                    4
+                )}, ${uePosition.lon.toFixed(4)}`,
             }
         }, [
             animationState.currentTime,
@@ -714,128 +862,6 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                     {/* 圖表區域 */}
                     <div className="event-viewer__chart-container">
                         <div className="chart-area">
-                            {/* 動畫解說面板 */}
-                            {showNarration && (
-                                <div
-                                    className={`narration-panel ${
-                                        isNarrationExpanded
-                                            ? 'expanded'
-                                            : 'compact'
-                                    }`}
-                                >
-                                    <div className="narration-header">
-                                        <h3 className="narration-title">
-                                            {narrationContent.phaseTitle}
-                                        </h3>
-                                        <div className="narration-controls">
-                                            <div className="narration-time">
-                                                🕰{' '}
-                                                {narrationContent.timeProgress}
-                                            </div>
-                                            <button
-                                                className="narration-toggle"
-                                                onClick={() =>
-                                                    setIsNarrationExpanded(
-                                                        !isNarrationExpanded
-                                                    )
-                                                }
-                                                title={
-                                                    isNarrationExpanded
-                                                        ? '收起詳細說明'
-                                                        : '展開詳細說明'
-                                                }
-                                            >
-                                                {isNarrationExpanded
-                                                    ? '▲'
-                                                    : '▼'}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {isNarrationExpanded && (
-                                        <div className="narration-content">
-                                            <div className="narration-scenario">
-                                                {narrationContent.scenarioContext}
-                                                <div className="mobility-scenario">
-                                                    {narrationContent.mobilityScenario}
-                                                </div>
-                                            </div>
-
-                                            <div className="location-service-stage">
-                                                <h4>{narrationContent.locationService}</h4>
-                                                <div className="location-use-case">
-                                                    {narrationContent.practicalUseCase.split('\\n').map((line, index) => (
-                                                        <div key={index} className="use-case-line">
-                                                            {line}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            <div className="narration-description">
-                                                {narrationContent.description}
-                                            </div>
-
-                                            {showTechnicalDetails && (
-                                                <div className="narration-technical">
-                                                    <h4>🔧 技術細節：</h4>
-                                                    <div className="technical-formula">
-                                                        {narrationContent.technicalNote
-                                                            .split('\\n')
-                                                            .map(
-                                                                (
-                                                                    line,
-                                                                    index
-                                                                ) => (
-                                                                    <div
-                                                                        key={
-                                                                            index
-                                                                        }
-                                                                    >
-                                                                        {line}
-                                                                    </div>
-                                                                )
-                                                            )}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <div className="narration-next">
-                                                <strong>下一步：</strong>{' '}
-                                                {narrationContent.nextAction}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="narration-metrics">
-                                        <div className="metric">
-                                            <span className="metric-label">
-                                                距離1：
-                                            </span>
-                                            <span className="metric-value">
-                                                {narrationContent.distance1} m
-                                            </span>
-                                        </div>
-                                        <div className="metric">
-                                            <span className="metric-label">
-                                                距離2：
-                                            </span>
-                                            <span className="metric-value">
-                                                {narrationContent.distance2} m
-                                            </span>
-                                        </div>
-                                        <div className="metric">
-                                            <span className="metric-label">
-                                                UE位置：
-                                            </span>
-                                            <span className="metric-value">
-                                                {narrationContent.uePosition}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
                             <div className="chart-container">
                                 <PureD1Chart
                                     thresh1={params.Thresh1}
@@ -851,6 +877,191 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                     </div>
                 </div>
 
+                {/* 浮動動畫解說面板 - 結構更新為 A4 版本 */}
+                {showNarration && (
+                    <div
+                        ref={narrationPanelRef}
+                        className={`narration-panel floating ${
+                            isNarrationExpanded ? 'expanded' : 'compact'
+                        } ${isNarrationMinimized ? 'minimized' : ''}`}
+                        style={{
+                            position: 'fixed',
+                            left: 0,
+                            top: 0,
+                            transform: `translate(${narrationPosition.x}px, ${narrationPosition.y}px)`,
+                            opacity: narrationOpacity,
+                            zIndex: 9999,
+                            cursor: isDragging ? 'grabbing' : 'grab',
+                        }}
+                        onMouseDown={handleMouseDown}
+                    >
+                        <div className="narration-header">
+                            <h3 className="narration-title">
+                                {narrationContent.phaseTitle}
+                            </h3>
+                            <div className="narration-controls">
+                                <div className="narration-time">
+                                    🕰 {narrationContent.timeProgress}
+                                </div>
+                                <div className="opacity-control">
+                                    <input
+                                        type="range"
+                                        min="0.3"
+                                        max="1"
+                                        step="0.1"
+                                        value={narrationOpacity}
+                                        onChange={(e) =>
+                                            setNarrationOpacity(
+                                                parseFloat(e.target.value)
+                                            )
+                                        }
+                                        className="opacity-slider"
+                                        title="調整透明度"
+                                    />
+                                </div>
+                                <button
+                                    className={`narration-technical-toggle ${
+                                        showTechnicalDetails ? 'active' : ''
+                                    }`}
+                                    onClick={() =>
+                                        setShowTechnicalDetails(
+                                            !showTechnicalDetails
+                                        )
+                                    }
+                                    title={
+                                        showTechnicalDetails
+                                            ? '隱藏技術細節'
+                                            : '顯示技術細節'
+                                    }
+                                >
+                                    🔧
+                                </button>
+                                <button
+                                    className="narration-minimize"
+                                    onClick={() =>
+                                        setIsNarrationMinimized(
+                                            !isNarrationMinimized
+                                        )
+                                    }
+                                    title={
+                                        isNarrationMinimized
+                                            ? '展開面板'
+                                            : '最小化面板'
+                                    }
+                                >
+                                    {isNarrationMinimized ? '□' : '－'}
+                                </button>
+                                <button
+                                    className="narration-toggle"
+                                    onClick={() =>
+                                        setIsNarrationExpanded(
+                                            !isNarrationExpanded
+                                        )
+                                    }
+                                    title={
+                                        isNarrationExpanded
+                                            ? '收起詳細說明'
+                                            : '展開詳細說明'
+                                    }
+                                >
+                                    {isNarrationExpanded ? '▲' : '▼'}
+                                </button>
+                                <button
+                                    className="narration-close"
+                                    onClick={() => setShowNarration(false)}
+                                    title="關閉解說面板"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+
+                        {!isNarrationMinimized && (
+                            <>
+                                {isNarrationExpanded && (
+                                    <div className="narration-content">
+                                        <div className="narration-scenario">
+                                            {narrationContent.scenarioContext}
+                                            <div className="mobility-scenario">
+                                                {
+                                                    narrationContent.mobilityScenario
+                                                }
+                                            </div>
+                                        </div>
+                                        <div className="location-service-stage">
+                                            <h4>
+                                                {
+                                                    narrationContent.locationService
+                                                }
+                                            </h4>
+                                            <div className="location-use-case">
+                                                {narrationContent.practicalUseCase
+                                                    .split('\\n')
+                                                    .map((line, index) => (
+                                                        <div
+                                                            key={index}
+                                                            className="use-case-line"
+                                                        >
+                                                            {line}
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                        <div className="narration-description">
+                                            {narrationContent.description}
+                                        </div>
+                                        {showTechnicalDetails && (
+                                            <div className="narration-technical">
+                                                <h4>🔧 技術細節：</h4>
+                                                <div className="technical-formula">
+                                                    {narrationContent.technicalNote
+                                                        .split('\\n')
+                                                        .map((line, index) => (
+                                                            <div key={index}>
+                                                                {line}
+                                                            </div>
+                                                        ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="narration-next">
+                                            <strong>下一步：</strong>{' '}
+                                            {narrationContent.nextAction}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="narration-metrics">
+                                    <div className="metric">
+                                        <span className="metric-label">
+                                            距離1：
+                                        </span>
+                                        <span className="metric-value">
+                                            {narrationContent.distance1} m
+                                        </span>
+                                    </div>
+                                    <div className="metric">
+                                        <span className="metric-label">
+                                            距離2：
+                                        </span>
+                                        <span className="metric-value">
+                                            {narrationContent.distance2} m
+                                        </span>
+                                    </div>
+                                    <div className="metric">
+                                        <span className="metric-label">
+                                            UE位置：
+                                        </span>
+                                        <span className="metric-value">
+                                            {narrationContent.uePosition}
+                                        </span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
                 {/* 3GPP 規範說明 */}
                 <div className="event-viewer__specification">
                     <h3 className="spec-title">📖 3GPP TS 38.331 規範</h3>
@@ -859,16 +1070,32 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                             <h4>Event D1 條件：</h4>
                             <ul>
                                 <li>
-                                    <strong>進入條件：</strong> 
-                                    <br/>條件1: Ml1 - Hys &gt; Thresh1 (參考位置1距離)
-                                    <br/>條件2: Ml2 + Hys &lt; Thresh2 (參考位置2距離)
-                                    <br/><em>同時滿足: 條件1 <strong>且</strong> 條件2</em>
+                                    <strong>進入條件：</strong>
+                                    <br />
+                                    條件1: Ml1 - Hys &gt; Thresh1
+                                    (參考位置1距離)
+                                    <br />
+                                    條件2: Ml2 + Hys &lt; Thresh2
+                                    (參考位置2距離)
+                                    <br />
+                                    <em>
+                                        同時滿足: 條件1 <strong>且</strong>{' '}
+                                        條件2
+                                    </em>
                                 </li>
                                 <li>
-                                    <strong>離開條件：</strong> 
-                                    <br/>條件1: Ml1 + Hys &lt; Thresh1 (遠離參考位置1)
-                                    <br/>條件2: Ml2 - Hys &gt; Thresh2 (接近參考位置2)
-                                    <br/><em>任一滿足: 條件1 <strong>或</strong> 條件2</em>
+                                    <strong>離開條件：</strong>
+                                    <br />
+                                    條件1: Ml1 + Hys &lt; Thresh1
+                                    (遠離參考位置1)
+                                    <br />
+                                    條件2: Ml2 - Hys &gt; Thresh2
+                                    (接近參考位置2)
+                                    <br />
+                                    <em>
+                                        任一滿足: 條件1 <strong>或</strong>{' '}
+                                        條件2
+                                    </em>
                                 </li>
                             </ul>
                         </div>
