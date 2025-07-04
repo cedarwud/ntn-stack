@@ -21,7 +21,7 @@ import annotationPlugin from 'chartjs-plugin-annotation'
 Chart.register(...registerables, annotationPlugin)
 
 // 增強的衛星軌道模擬 - 更接近真實的 LEO 衛星特性
-function calculateAdvancedSatellitePosition(timeSeconds: number): {
+function _calculateAdvancedSatellitePosition(timeSeconds: number): {
     lat: number
     lon: number
     altitude: number
@@ -76,7 +76,7 @@ function calculateDistance(
 }
 
 // 計算考慮高度的 3D 距離
-function calculate3DDistance(
+function _calculate3DDistance(
     lat1: number,
     lon1: number,
     alt1: number,
@@ -97,7 +97,7 @@ function calculate3DDistance(
 }
 
 // UE 移動軌跡（固定）
-const ueTrajectory = [
+const _ueTrajectory = [
     { time: 0, lat: 25.04, lon: 121.52 },
     { time: 10, lat: 25.042, lon: 121.522 },
     { time: 20, lat: 25.044, lon: 121.524 },
@@ -111,7 +111,7 @@ const ueTrajectory = [
 ]
 
 // 固定參考位置（中正紀念堂）
-const fixedReferenceLocation = { lat: 25.0173, lon: 121.4695 }
+const _fixedReferenceLocation = { lat: 25.0173, lon: 121.4695 }
 
 // 生成距離數據點
 function generateDistanceData() {
@@ -219,7 +219,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const chartRef = useRef<Chart | null>(null)
-    const isInitialized = useRef(false)
+    const _isInitialized = useRef(false)
 
     // 使用 useMemo 穩定主題配色方案 - 與 A4/D1 一致
     const colors = useMemo(

@@ -176,7 +176,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
             if (!ctx) return
 
             // 準備初始數據集 - 使用正確的主題顏色
-            const datasets: any[] = [
+            const datasets: Record<string, unknown>[] = [
                 {
                     label: 'Neighbor Cell RSRP',
                     data: dataPoints,

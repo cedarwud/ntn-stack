@@ -28,7 +28,7 @@ export const T1ComplianceTest: React.FC = () => {
                 <ul>
                     <li><strong>參數結構</strong>: 只包含 Thresh1, Duration, timeToTrigger, 報告參數</li>
                     <li><strong>不應包含</strong>: Hysteresis (Hys) 參數</li>
-                    <li><strong>時間邏輯</strong>: Mt > Thresh1 (進入) 和 Mt > Thresh1+Duration (離開)</li>
+                    <li><strong>時間邏輯</strong>: Mt {'>'} Thresh1 (進入) 和 Mt {'>'} Thresh1+Duration (離開)</li>
                     <li><strong>特殊說明</strong>: 報告參數標註為條件事件用途</li>
                     <li><strong>符合率</strong>: 目標 100% 3GPP TS 38.331 規範符合</li>
                 </ul>

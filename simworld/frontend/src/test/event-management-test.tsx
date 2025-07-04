@@ -17,7 +17,7 @@ export const EventManagementTest: React.FC = () => {
         setSelectedEvent(eventType)
     }, [])
     
-    const handleParamsChange = useCallback((eventType: EventType, params: any) => {
+    const handleParamsChange = useCallback((eventType: EventType, params: Record<string, unknown>) => {
         console.log('Parameters changed for', eventType, ':', params)
     }, [])
     

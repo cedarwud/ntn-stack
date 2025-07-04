@@ -62,14 +62,14 @@ export const MeasurementEventsPage: React.FC = () => {
     }
 
     // 根據當前選擇的事件類型獲取參數和處理函數
-    const currentParams =
+    const _currentParams =
         selectedEvent === 'A4'
             ? a4Params
             : selectedEvent === 'D1'
             ? d1Params
             : a4Params
 
-    const currentParamHandler =
+    const _currentParamHandler =
         selectedEvent === 'A4'
             ? handleA4ParamChange
             : selectedEvent === 'D1'
