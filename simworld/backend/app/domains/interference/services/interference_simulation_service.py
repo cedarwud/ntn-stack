@@ -786,7 +786,7 @@ class InterferenceSimulationService:
             "activated_at": datetime.utcnow(),
             "status": "active",
         }
-        self.logger.info(f"干擾源 {jammer_id} 已激活")
+        self.logger.info(f"干擾源 {jammer_id} 已啟用")
 
     async def remove_active_jammer(self, jammer_id: str):
         """移除活躍干擾源"""

@@ -215,19 +215,19 @@ async def get_active_jammers():
 
 @router.post("/jammers/{jammer_id}/activate")
 async def activate_jammer(jammer_id: str, jammer_config: Dict[str, Any]):
-    """激活干擾源"""
+    """啟用干擾源"""
     try:
         await interference_service.add_active_jammer(jammer_id, jammer_config)
 
         return {
             "success": True,
-            "message": f"干擾源 {jammer_id} 已激活",
+            "message": f"干擾源 {jammer_id} 已啟用",
             "jammer_id": jammer_id,
         }
 
     except Exception as e:
-        logger.error(f"激活干擾源失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"激活失敗: {str(e)}")
+        logger.error(f"啟用干擾源失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"啟用失敗: {str(e)}")
 
 
 @router.delete("/jammers/{jammer_id}")
