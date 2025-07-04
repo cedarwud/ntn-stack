@@ -5,9 +5,9 @@
 import axios, { AxiosError } from 'axios';
 import { UAVData, SystemStatus } from '../types/charts';
 
-// 創建 NetStack API 實例
+// 創建 NetStack API 實例 - 使用 Vite 代理路徑
 const netstackApi = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: '/netstack',  // 使用 Vite 代理路徑
   timeout: 10000, // 10秒超時
   headers: {
     'Content-Type': 'application/json',
