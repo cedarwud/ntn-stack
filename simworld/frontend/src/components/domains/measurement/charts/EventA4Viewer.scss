@@ -18,8 +18,6 @@
     flex-direction: row !important; // 強制水平排列
     min-height: 740px; // 確保內容區域有足夠高度容納固定高度的子元素
     height: auto;
-    gap: 20px;
-    padding: 20px;
     max-width: 100%;
     width: 100%;
   }
@@ -72,58 +70,83 @@
   }
 
   .event-viewer__specification {
-    background: rgba(30, 41, 59, 0.7) !important;
-    border-radius: 12px !important;
-    padding: 24px !important;
-    margin: 20px !important;
-    backdrop-filter: blur(10px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    background: linear-gradient(135deg, rgba(44, 62, 80, 0.95), rgba(52, 73, 94, 0.95)) !important;
+    border-radius: 16px !important;
+    padding: 32px !important;
+    margin: 24px !important;
+    backdrop-filter: blur(16px) !important;
+    border: 2px solid rgba(52, 152, 219, 0.6) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
     
     .spec-title {
-      margin: 0 0 20px 0 !important;
-      font-size: 20px !important;
-      font-weight: 700 !important;
-      color: #3498db !important;
+      margin: 0 0 24px 0 !important;
+      font-size: 24px !important;
+      font-weight: 800 !important;
+      color: #ffffff !important;
       text-align: center !important;
-      border-bottom: 2px solid rgba(52, 152, 219, 0.3) !important;
-      padding-bottom: 12px !important;
+      border-bottom: 3px solid rgba(52, 152, 219, 0.8) !important;
+      padding-bottom: 16px !important;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+      filter: drop-shadow(0 0 12px rgba(52, 152, 219, 0.5)) !important;
     }
     
     .spec-content {
       display: flex !important;
       flex-direction: column !important;
-      gap: 20px !important;
+      gap: 24px !important;
       
       .spec-section {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border-radius: 8px !important;
-        padding: 16px !important;
-        border-left: 4px solid #3498db !important;
+        background: linear-gradient(135deg, rgba(41, 128, 185, 0.1), rgba(52, 152, 219, 0.1)) !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        border-left: 5px solid #3498db !important;
+        border: 2px solid rgba(52, 152, 219, 0.3) !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+        transition: all 0.3s ease !important;
+        
+        &:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 8px 24px rgba(52, 152, 219, 0.3) !important;
+          border-color: rgba(52, 152, 219, 0.6) !important;
+        }
         
         h4 {
-          margin: 0 0 12px 0 !important;
-          font-size: 16px !important;
-          font-weight: 600 !important;
-          color: #ecf0f1 !important;
+          margin: 0 0 16px 0 !important;
+          font-size: 18px !important;
+          font-weight: 700 !important;
+          color: #ffffff !important;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+          border-bottom: 1px solid rgba(52, 152, 219, 0.4) !important;
+          padding-bottom: 8px !important;
         }
         
         ul {
           margin: 0 !important;
-          padding-left: 20px !important;
+          padding-left: 24px !important;
           
           li {
-            margin-bottom: 10px !important;
-            font-size: 15px !important;
-            line-height: 1.6 !important;
-            color: #bdc3c7 !important;
+            margin-bottom: 12px !important;
+            font-size: 16px !important;
+            line-height: 1.7 !important;
+            color: #ecf0f1 !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
             
             strong {
               color: #3498db !important;
-              font-weight: 600 !important;
+              font-weight: 700 !important;
+              text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
             }
             
             &:last-child {
               margin-bottom: 0 !important;
+            }
+            
+            &:before {
+              content: "▸" !important;
+              color: #3498db !important;
+              font-weight: bold !important;
+              margin-right: 8px !important;
+              margin-left: -20px !important;
             }
           }
         }
@@ -132,7 +155,7 @@
   }
 }
 
-// Event A4 Viewer 特定樣式
+// Event A4 Viewer 特定樣式 - 重新設計版本
 .event-a4-viewer {
   width: 100%;
   min-height: 100%;
@@ -147,107 +170,127 @@
 
     .loading-content {
       text-align: center;
+      background: linear-gradient(135deg, rgba(44, 62, 80, 0.8), rgba(52, 73, 94, 0.8));
+      border-radius: 16px;
+      padding: 32px;
+      backdrop-filter: blur(16px);
+      border: 2px solid rgba(52, 152, 219, 0.6);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
       
       .loading-spinner {
-        width: 50px;
-        height: 50px;
-        border: 4px solid rgba(231, 76, 60, 0.3);
-        border-top: 4px solid #e74c3c;
+        width: 60px;
+        height: 60px;
+        border: 4px solid rgba(52, 152, 219, 0.3);
+        border-top: 4px solid #3498db;
         border-radius: 50%;
         animation: spin 1s linear infinite;
-        margin: 0 auto 20px;
+        margin: 0 auto 24px;
+        filter: drop-shadow(0 0 12px rgba(52, 152, 219, 0.5));
       }
 
       p {
-        font-size: 16px;
-        color: rgba(255, 255, 255, 0.8);
+        font-size: 18px;
+        color: #ffffff;
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
       }
     }
   }
 
-  // A4 特定的控制面板樣式
+  // A4 特定的控制面板樣式 - 重新設計版本
   .control-panel {
-    background: rgba(30, 41, 59, 0.7);
-    border-radius: 12px;
-    padding: 20px;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: linear-gradient(135deg, rgba(44, 62, 80, 0.95), rgba(52, 73, 94, 0.95));
+    border-radius: 16px;
+    padding: 24px;
+    backdrop-filter: blur(16px);
+    border: 2px solid rgba(52, 152, 219, 0.6);
     overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 
     h3 {
-      margin: 0 0 20px 0;
-      font-size: 18px;
-      font-weight: 600;
-      color: #e74c3c;
+      margin: 0 0 24px 0;
+      font-size: 20px;
+      font-weight: 800;
+      color: #ffffff;
       text-align: center;
-      border-bottom: 2px solid rgba(231, 76, 60, 0.3);
-      padding-bottom: 10px;
+      border-bottom: 3px solid rgba(52, 152, 219, 0.8);
+      padding-bottom: 12px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      filter: drop-shadow(0 0 8px rgba(52, 152, 219, 0.5));
     }
 
     h4 {
-      margin: 20px 0 15px 0;
-      font-size: 16px;
-      font-weight: 600;
+      margin: 24px 0 16px 0;
+      font-size: 17px;
+      font-weight: 700;
       color: #ffffff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      border-bottom: 1px solid rgba(52, 152, 219, 0.3);
+      padding-bottom: 6px;
     }
 
     .control-group {
-      margin-bottom: 20px;
+      margin-bottom: 24px;
 
       label {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        color: rgba(255, 255, 255, 0.9);
+        gap: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 
         input[type="range"] {
           width: 100%;
-          height: 6px;
-          border-radius: 3px;
-          background: rgba(255, 255, 255, 0.2);
+          height: 8px;
+          border-radius: 4px;
+          background: linear-gradient(90deg, rgba(52, 152, 219, 0.3), rgba(52, 152, 219, 0.1));
           outline: none;
           -webkit-appearance: none;
           appearance: none;
+          border: 1px solid rgba(52, 152, 219, 0.4);
 
           &::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 18px;
-            height: 18px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
-            background: #e74c3c;
+            background: linear-gradient(45deg, #3498db, #2980b9);
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
             transition: all 0.2s ease;
+            border: 2px solid rgba(255, 255, 255, 0.3);
 
             &:hover {
-              background: #c0392b;
-              transform: scale(1.1);
+              background: linear-gradient(45deg, #2980b9, #1f618d);
+              transform: scale(1.15);
+              box-shadow: 0 4px 12px rgba(52, 152, 219, 0.5);
             }
           }
 
           &::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
-            background: #e74c3c;
+            background: linear-gradient(45deg, #3498db, #2980b9);
             cursor: pointer;
-            border: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
             transition: all 0.2s ease;
 
             &:hover {
-              background: #c0392b;
-              transform: scale(1.1);
+              background: linear-gradient(45deg, #2980b9, #1f618d);
+              transform: scale(1.15);
+              box-shadow: 0 4px 12px rgba(52, 152, 219, 0.5);
             }
           }
         }
 
         input[type="checkbox"] {
-          width: 16px;
-          height: 16px;
+          width: 18px;
+          height: 18px;
           accent-color: #e74c3c;
           cursor: pointer;
         }
@@ -280,96 +323,117 @@
 
     .control-buttons, .animation-buttons {
       display: flex;
-      gap: 10px;
-      margin-top: 15px;
+      gap: 12px;
+      margin-top: 20px;
 
       button {
         flex: 1;
-        padding: 10px;
+        padding: 12px 16px;
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.3s ease;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        border: 2px solid transparent;
 
         &.reset-button, &.btn {
-          background: linear-gradient(45deg, #e74c3c, #c0392b);
+          background: linear-gradient(45deg, #3498db, #2980b9);
           color: white;
+          border-color: rgba(52, 152, 219, 0.6);
 
           &:hover:not(:disabled) {
-            background: linear-gradient(45deg, #c0392b, #a93226);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+            background: linear-gradient(45deg, #2980b9, #1f618d);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(52, 152, 219, 0.4);
+            border-color: rgba(52, 152, 219, 0.8);
           }
 
           &:disabled {
             background: rgba(255, 255, 255, 0.1);
             color: rgba(255, 255, 255, 0.5);
             cursor: not-allowed;
+            border-color: rgba(255, 255, 255, 0.1);
           }
         }
 
         &.btn-secondary {
-          background: linear-gradient(45deg, #34495e, #2c3e50);
+          background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+          border-color: rgba(149, 165, 166, 0.6);
           
           &:hover:not(:disabled) {
-            background: linear-gradient(45deg, #2c3e50, #1a252f);
+            background: linear-gradient(45deg, #7f8c8d, #5d6d7e);
+            border-color: rgba(149, 165, 166, 0.8);
           }
         }
       }
     }
   }
 
-  // A4 圖表區域樣式
+  // A4 圖表區域樣式 - 重新設計版本
   .chart-area {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
 
     .chart-container {
       flex: 1;
-      background: rgba(30, 41, 59, 0.7);
-      border-radius: 12px;
-      padding: 20px;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      min-height: 400px;
+      position: relative; // 重要：為浮動面板提供定位參考
+      background: linear-gradient(135deg, rgba(44, 62, 80, 0.95), rgba(52, 73, 94, 0.95));
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(16px);
+      border: 2px solid rgba(52, 152, 219, 0.6);
+      min-height: 450px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+      // 移除 overflow: hidden，讓浮動面板可以超出容器
+      
+      &:hover {
+        box-shadow: 0 12px 48px rgba(52, 152, 219, 0.2);
+        border-color: rgba(52, 152, 219, 0.8);
+      }
     }
 
     .formula-display {
-      background: rgba(231, 76, 60, 0.1);
-      border-radius: 12px;
-      padding: 15px;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(231, 76, 60, 0.2);
+      background: linear-gradient(135deg, rgba(46, 204, 113, 0.15), rgba(39, 174, 96, 0.15));
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(16px);
+      border: 2px solid rgba(46, 204, 113, 0.4);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 
       .formula-row {
         display: flex;
-        gap: 20px;
+        gap: 24px;
         
         .formula-item {
           flex: 1;
           
           h4 {
-            margin: 0 0 8px 0;
-            font-size: 14px;
-            font-weight: 600;
-            color: #e74c3c;
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
             text-align: center;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
           }
 
           p {
             margin: 0;
-            font-family: monospace;
-            font-size: 13px;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 8px 12px;
-            border-radius: 6px;
-            border-left: 3px solid #e74c3c;
-            color: rgba(255, 255, 255, 0.9);
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border-left: 4px solid #2ecc71;
+            color: #2ecc71;
             text-align: center;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(46, 204, 113, 0.3);
           }
         }
       }

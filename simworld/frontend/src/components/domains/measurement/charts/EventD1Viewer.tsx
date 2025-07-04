@@ -141,7 +141,7 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
             }
         }, [params, animationState.currentTime])
 
-        // 動畫解說內容生成 - 基於雙重距離測量和位置變化
+        // 動畫解說內容生成 - 基於雙重距離測量和位置服務實際用例
         const narrationContent = useMemo(() => {
             const currentTime = animationState.currentTime
 
@@ -166,12 +166,14 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                 simulatedDistance2 = 300 // meters - 高於 Thresh2
             }
 
-            // 判斷當前階段
+            // 判斷當前階段和位置服務應用
             let phase = 'monitoring'
             let phaseTitle = ''
             let description = ''
             let technicalNote = ''
             let nextAction = ''
+            let locationService = ''
+            let practicalUseCase = ''
 
             const condition1 = simulatedDistance1 - params.Hys > params.Thresh1
             const condition2 = simulatedDistance2 + params.Hys < params.Thresh2
@@ -179,54 +181,73 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
 
             if (eventTriggered) {
                 phase = 'triggered'
-                phaseTitle = '📍 Event D1 已觸發 - 雙重距離條件滿足'
-                description = `UE 與參考位置1的距離 (${simulatedDistance1}m) 超過門檻1，同時與參考位置2的距離 (${simulatedDistance2}m) 低於門檻2。系統正在處理位置相關的測量事件。`
-                technicalNote = `3GPP 條件: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2\\n參考位置1: ${simulatedDistance1} - ${
-                    params.Hys
-                } = ${simulatedDistance1 - params.Hys} > ${
-                    params.Thresh1
-                } m\\n參考位置2: ${simulatedDistance2} + ${params.Hys} = ${
-                    simulatedDistance2 + params.Hys
-                } < ${params.Thresh2} m`
-                nextAction = '觸發位置確認程序，啟動位置服務調整'
+                phaseTitle = '📍 Event D1 已觸發 - 位置服務啟動'
+                description = `UE 與參考位置1的距離 (${simulatedDistance1}m) 超過門檻1，同時與參考位置2的距離 (${simulatedDistance2}m) 低於門檻2。雙重距離條件同時滿足，觸發位置感知服務。`
+                
+                // 實際位置服務用例
+                locationService = '🎯 位置服務應用：地理圍欄觸發'
+                practicalUseCase = `實際用例：用戶進入台北101商圈範圍 (遠離台北101但接近中正紀念堂)，系統自動啟動：
+• 🛍️ 商圈推薦服務：推送附近商店優惠資訊
+• 🚇 交通導航優化：提供最佳大眾運輸路線
+• 💰 位置差異化計費：啟動商圈內的特殊資費方案
+• 🔔 區域廣播：推送該區域的重要公告或緊急資訊
+• 📊 用戶行為分析：記錄區域停留時間和偏好分析`
+                
+                technicalNote = `3GPP 條件: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2\\n參考位置1: ${simulatedDistance1} - ${params.Hys} = ${simulatedDistance1 - params.Hys} > ${params.Thresh1} m\\n參考位置2: ${simulatedDistance2} + ${params.Hys} = ${simulatedDistance2 + params.Hys} < ${params.Thresh2} m\\n\\n位置服務啟動參數：\\n• 觸發延遲：${params.timeToTrigger}ms\\n• 報告間隔：${params.reportInterval}ms\\n• 報告次數：${params.reportAmount === -1 ? '無限制' : params.reportAmount}次`
+                nextAction = '執行位置感知服務，開始提供差異化服務內容'
             } else if (condition1 && !condition2) {
                 phase = 'partial'
-                phaseTitle = '⚠️ 部分條件滿足 - 等待參考位置2'
+                phaseTitle = '⚠️ 位置監控中 - 等待進入服務區域'
                 description = `UE 與參考位置1的距離條件已滿足 (${simulatedDistance1}m > ${params.Thresh1}m)，但與參考位置2的距離 (${simulatedDistance2}m) 仍高於門檻。`
-                technicalNote = `條件1: ✅ Ml1 - Hys = ${
-                    simulatedDistance1 - params.Hys
-                } > ${params.Thresh1}\\n條件2: ❌ Ml2 + Hys = ${
-                    simulatedDistance2 + params.Hys
-                } < ${params.Thresh2}`
-                nextAction = '繼續監控UE與參考位置2的距離變化'
+                locationService = '👀 位置服務狀態：準備階段'
+                practicalUseCase = `準備階段用例：用戶正離開台北101，但尚未到達中正紀念堂商圈
+• 📱 預載入服務：開始預載入目標區域的服務內容
+• 🔄 網路優化：調整網路配置準備提供更好的服務品質
+• 📍 軌跡預測：基於移動模式預測用戶可能的目的地
+• ⚡ 快取準備：預載入可能需要的地圖資料和服務資訊`
+                technicalNote = `條件1: ✅ Ml1 - Hys = ${simulatedDistance1 - params.Hys} > ${params.Thresh1}\\n條件2: ❌ Ml2 + Hys = ${simulatedDistance2 + params.Hys} ≮ ${params.Thresh2}\\n\\n等待進入條件：UE需要更接近參考位置2`
+                nextAction = '繼續監控UE與參考位置2的距離變化，準備位置服務'
             } else if (!condition1 && condition2) {
                 phase = 'partial'
-                phaseTitle = '⚠️ 部分條件滿足 - 等待參考位置1'
+                phaseTitle = '⚠️ 位置監控中 - 等待離開原始區域'
                 description = `UE 與參考位置2的距離條件已滿足 (${simulatedDistance2}m < ${params.Thresh2}m)，但與參考位置1的距離 (${simulatedDistance1}m) 仍低於門檻。`
-                technicalNote = `條件1: ❌ Ml1 - Hys = ${
-                    simulatedDistance1 - params.Hys
-                } > ${params.Thresh1}\\n條件2: ✅ Ml2 + Hys = ${
-                    simulatedDistance2 + params.Hys
-                } < ${params.Thresh2}`
-                nextAction = '等待UE遠離參考位置1，監控距離變化'
+                locationService = '🔄 位置服務狀態：過渡階段'
+                practicalUseCase = `過渡階段用例：用戶已接近中正紀念堂，但尚未完全離開台北101商圈
+• 🔀 服務切換準備：準備從原始區域服務切換到新區域
+• 💾 狀態保存：保存當前服務狀態和用戶偏好設定
+• 🎯 精準定位：提高位置測量精度確保平滑的服務轉換
+• 📋 服務清單更新：準備新區域的可用服務列表`
+                technicalNote = `條件1: ❌ Ml1 - Hys = ${simulatedDistance1 - params.Hys} ≯ ${params.Thresh1}\\n條件2: ✅ Ml2 + Hys = ${simulatedDistance2 + params.Hys} < ${params.Thresh2}\\n\\n等待離開條件：UE需要更遠離參考位置1`
+                nextAction = '等待UE遠離參考位置1，監控距離變化以完成條件'
             } else {
-                phaseTitle = '🔍 正常監控階段'
+                phaseTitle = '🔍 位置正常監控階段'
                 description = `雙重距離條件均未滿足。UE 與參考位置1 (${simulatedDistance1}m) 和參考位置2 (${simulatedDistance2}m) 的距離均在正常範圍內。`
-                technicalNote = `參考位置1距離: ${simulatedDistance1}m, 參考位置2距離: ${simulatedDistance2}m`
-                nextAction = '繼續監控UE位置變化和距離計算'
+                locationService = '🏠 位置服務狀態：標準服務模式'
+                practicalUseCase = `標準服務模式用例：用戶在一般區域，提供基本位置服務
+• 📍 基礎定位：提供標準精度的位置服務
+• 🌐 通用服務：提供通用的網路服務和應用支援
+• 🔋 省電模式：降低位置測量頻率以節省電池
+• 📊 背景監控：持續監控位置變化，準備未來的服務觸發
+• 🛡️ 隱私保護：在非特殊區域時加強位置隱私保護`
+                technicalNote = `參考位置1距離: ${simulatedDistance1}m\\n參考位置2距離: ${simulatedDistance2}m\\n\\n監控重點：\\n• 距離變化趨勢分析\\n• 用戶移動模式學習\\n• 位置預測準確性提升\\n• 網路資源優化`
+                nextAction = '繼續監控UE位置變化和距離計算，準備位置服務觸發'
             }
 
-            // 根據時間添加位置情境解說
+            // 根據時間添加詳細的位置情境解說
             let scenarioContext = ''
+            let mobilityScenario = ''
             if (currentTime < 25) {
-                scenarioContext = '🚀 場景：UE 正在移動，距離狀態初始化'
+                scenarioContext = '🚀 場景：UE 在台北101商圈外圍，準備進入監控區域'
+                mobilityScenario = '典型移動情境：用戶從信義區外圍步行或搭乘交通工具前往台北101'
             } else if (currentTime < 40) {
-                scenarioContext = '🌍 場景：UE 進入特定區域，開始觸發距離事件'
+                scenarioContext = '🌍 場景：UE 開始遠離台北101，朝向中正紀念堂方向移動'
+                mobilityScenario = '典型移動情境：用戶從信義區商圈前往中正區，可能是觀光行程或商務活動'
             } else if (currentTime < 75) {
-                scenarioContext =
-                    '📍 場景：UE 在目標區域內，雙重距離條件正在監控'
+                scenarioContext = '📍 場景：UE 在雙重距離條件的理想觸發區域內'
+                mobilityScenario = '典型移動情境：用戶在台北車站周邊活動，距離兩個地標都在最佳範圍內'
             } else {
-                scenarioContext = '🏠 場景：UE 離開目標區域，距離事件結束'
+                scenarioContext = '🏠 場景：UE 離開特殊服務區域，回到一般監控狀態'
+                mobilityScenario = '典型移動情境：用戶完成區域內活動，前往其他地區或返回住所'
             }
 
             return {
@@ -236,20 +257,24 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                 technicalNote,
                 nextAction,
                 scenarioContext,
+                mobilityScenario,
+                locationService,
+                practicalUseCase,
                 distance1: simulatedDistance1.toString(),
                 distance2: simulatedDistance2.toString(),
                 timeProgress: `${currentTime.toFixed(1)}s / 100s`,
                 reference1: '參考位置1 (台北101)',
                 reference2: '參考位置2 (中正紀念堂)',
-                uePosition: `${uePosition.lat.toFixed(
-                    4
-                )}, ${uePosition.lon.toFixed(4)}`,
+                uePosition: `${uePosition.lat.toFixed(4)}, ${uePosition.lon.toFixed(4)}`,
             }
         }, [
             animationState.currentTime,
             params.Thresh1,
             params.Thresh2,
             params.Hys,
+            params.timeToTrigger,
+            params.reportInterval,
+            params.reportAmount,
         ])
 
         return (
@@ -572,7 +597,7 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                                 <div className="event-status">
                                     <div className="status-item">
                                         <span className="status-label">
-                                            進入條件 D1-1:
+                                            進入條件 D1-1 (參考位置1):
                                         </span>
                                         <span
                                             className={`status-value ${
@@ -586,7 +611,7 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                                     </div>
                                     <div className="status-item">
                                         <span className="status-label">
-                                            進入條件 D1-2:
+                                            進入條件 D1-2 (參考位置2):
                                         </span>
                                         <span
                                             className={`status-value ${
@@ -730,9 +755,21 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                                     {isNarrationExpanded && (
                                         <div className="narration-content">
                                             <div className="narration-scenario">
-                                                {
-                                                    narrationContent.scenarioContext
-                                                }
+                                                {narrationContent.scenarioContext}
+                                                <div className="mobility-scenario">
+                                                    {narrationContent.mobilityScenario}
+                                                </div>
+                                            </div>
+
+                                            <div className="location-service-stage">
+                                                <h4>{narrationContent.locationService}</h4>
+                                                <div className="location-use-case">
+                                                    {narrationContent.practicalUseCase.split('\\n').map((line, index) => (
+                                                        <div key={index} className="use-case-line">
+                                                            {line}
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
 
                                             <div className="narration-description">
@@ -822,14 +859,16 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
                             <h4>Event D1 條件：</h4>
                             <ul>
                                 <li>
-                                    <strong>進入條件：</strong> Ml1 - Hys &gt;
-                                    Thresh1 <strong>且</strong> Ml2 + Hys &lt;
-                                    Thresh2
+                                    <strong>進入條件：</strong> 
+                                    <br/>條件1: Ml1 - Hys &gt; Thresh1 (參考位置1距離)
+                                    <br/>條件2: Ml2 + Hys &lt; Thresh2 (參考位置2距離)
+                                    <br/><em>同時滿足: 條件1 <strong>且</strong> 條件2</em>
                                 </li>
                                 <li>
-                                    <strong>離開條件：</strong> Ml1 + Hys &lt;
-                                    Thresh1 <strong>或</strong> Ml2 - Hys &gt;
-                                    Thresh2
+                                    <strong>離開條件：</strong> 
+                                    <br/>條件1: Ml1 + Hys &lt; Thresh1 (遠離參考位置1)
+                                    <br/>條件2: Ml2 - Hys &gt; Thresh2 (接近參考位置2)
+                                    <br/><em>任一滿足: 條件1 <strong>或</strong> 條件2</em>
                                 </li>
                             </ul>
                         </div>
