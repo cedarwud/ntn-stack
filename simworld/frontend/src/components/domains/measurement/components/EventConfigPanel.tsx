@@ -142,7 +142,7 @@ export const EventConfigPanel: React.FC<EventConfigPanelProps> = React.memo(({
                     <h4 className="param-section-title">🎯 主要參數</h4>
                     {primaryParams.map(paramName => {
                         const key = paramName.includes('-') ? paramName.replace(/[-\s]/g, '') : paramName
-                        const value = (currentParams as any)[key] || (currentParams as any)[paramName]
+                        const value = (currentParams as Record<string, unknown>)[key] || (currentParams as Record<string, unknown>)[paramName]
                         const unit = units[paramName] || ''
                         
                         return (
@@ -166,7 +166,7 @@ export const EventConfigPanel: React.FC<EventConfigPanelProps> = React.memo(({
                     <h4 className="param-section-title">⚙️ 次要參數</h4>
                     {secondaryParams.map(paramName => {
                         const key = paramName.includes('-') ? paramName.replace(/[-\s]/g, '') : paramName
-                        const value = (currentParams as any)[key] || (currentParams as any)[paramName]
+                        const value = (currentParams as Record<string, unknown>)[key] || (currentParams as Record<string, unknown>)[paramName]
                         const unit = units[paramName] || ''
                         
                         if (paramName === 'TimeToTrigger') {

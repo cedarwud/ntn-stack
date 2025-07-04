@@ -14,7 +14,6 @@ import { useStrategy } from '../../hooks/useStrategy'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
 import { simWorldApi } from '../../services/simworld-api'
 import { SatelliteDebugger } from '../../utils/satelliteDebugger'
-import '../../utils/globalSatelliteTest.js' // 載入全球視野測試腳本
 // 使用懶加載的 HandoverManager 來優化 bundle size
 const HandoverManager = React.lazy(
     () => import('../domains/handover/execution/HandoverManager')
