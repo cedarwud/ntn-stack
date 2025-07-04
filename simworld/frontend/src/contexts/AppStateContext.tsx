@@ -4,7 +4,7 @@
  * 將不同領域的狀態分組管理
  */
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react'
 import { VisibleSatelliteInfo } from '../types/satellite'
 
 // ==================== 狀態類型定義 ====================
@@ -266,7 +266,7 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
 
   // ==================== Context值 ====================
 
-  const contextValue: AppStateContextType = {
+  const contextValue: AppStateContextType = useMemo(() => ({
     // 狀態
     uiState,
     satelliteState,
@@ -296,7 +296,28 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
     
     // 功能開關更新函數
     updateFeatureState,
-  }
+  }), [
+    uiState,
+    satelliteState,
+    handoverState,
+    featureState,
+    setActiveComponent,
+    setAuto,
+    setManualDirection,
+    setUavAnimation,
+    setSelectedReceiverIds,
+    setSkyfieldSatellites,
+    setSatelliteEnabled,
+    setHandoverStableDuration,
+    setHandoverMode,
+    setAlgorithmResults,
+    setHandoverStateInternal,
+    setCurrentConnection,
+    setPredictedConnection,
+    setIsTransitioning,
+    setTransitionProgress,
+    updateFeatureState,
+  ])
 
   return (
     <AppStateContext.Provider value={contextValue}>
