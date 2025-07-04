@@ -70,7 +70,7 @@ const generateT1TimeData = (params: EventT1Params): DataPoint[] => {
   
   for (let t = 0; t <= duration; t += 1) {
     // 模擬測量時間的累積
-    const measurementTime = Math.min(t, params.t1Threshold + 10)
+    const measurementTime = Math.min(t, params.t1Threshold + params.duration + 10)
     points.push({ x: t, y: measurementTime })
   }
   
@@ -234,6 +234,7 @@ const createD2ChartConfig = (params: EventD2Params, isDarkTheme: boolean) => {
 // 創建 T1 事件圖表配置
 const createT1ChartConfig = (params: EventT1Params, isDarkTheme: boolean) => {
   const thresholdColor = isDarkTheme ? '#ef4444' : '#dc2626'
+  const durationColor = isDarkTheme ? '#f59e0b' : '#d97706'
 
   const annotations: ChartAnnotation[] = [
     {
@@ -241,22 +242,31 @@ const createT1ChartConfig = (params: EventT1Params, isDarkTheme: boolean) => {
       type: 'line',
       value: params.t1Threshold,
       position: { y: params.t1Threshold },
-      label: `時間門檻 (${params.t1Threshold} 秒)`,
+      label: `t1-Threshold: ${params.t1Threshold}s (進入條件: Mt > Thresh1)`,
       color: thresholdColor,
       borderDash: [10, 5]
+    },
+    {
+      id: 't1-threshold-duration',
+      type: 'line',
+      value: params.t1Threshold + params.duration,
+      position: { y: params.t1Threshold + params.duration },
+      label: `Thresh1+Duration: ${params.t1Threshold + params.duration}s (離開條件: Mt > Thresh1+Duration)`,
+      color: durationColor,
+      borderDash: [5, 10]
     }
   ]
 
   return {
-    title: `Event T1 - 測量時間監控`,
+    title: `CondEvent T1 - 時間窗口條件事件 (3GPP TS 38.331)`,
     xAxisLabel: '實際時間',
-    yAxisLabel: '測量時間',
+    yAxisLabel: '測量時間 Mt',
     xAxisUnit: '秒',
-    yAxisUnit: '秒',
-    yAxisRange: { min: 0, max: Math.max(params.t1Threshold + 20, 60) },
+    yAxisUnit: '秒', 
+    yAxisRange: { min: 0, max: Math.max(params.t1Threshold + params.duration + 20, 60) },
     datasets: [
       {
-        label: '累積測量時間',
+        label: '累積測量時間 Mt (條件事件用)',
         data: generateT1TimeData(params),
         color: isDarkTheme ? '#8b5cf6' : '#7c3aed',
         type: 'line' as const,
