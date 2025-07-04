@@ -1,0 +1,300 @@
+/**
+ * AnimationController 樣式
+ * 統一的動畫控制介面樣式，支持明暗主題
+ */
+
+.animation-controller {
+  background: var(--panel-bg, #ffffff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  user-select: none;
+
+  // 暗色主題
+  &.dark-theme {
+    --panel-bg: #2d3748;
+    --border-color: #4a5568;
+    --text-color: #e2e8f0;
+    --button-bg: #4a5568;
+    --button-hover-bg: #718096;
+    --slider-bg: #4a5568;
+    --slider-thumb: #63b3ed;
+    --progress-bg: #63b3ed;
+  }
+
+  // 亮色主題
+  &.light-theme {
+    --panel-bg: #ffffff;
+    --border-color: #e0e0e0;
+    --text-color: #2d3748;
+    --button-bg: #f7fafc;
+    --button-hover-bg: #edf2f7;
+    --slider-bg: #e2e8f0;
+    --slider-thumb: #3182ce;
+    --progress-bg: #3182ce;
+  }
+
+  color: var(--text-color, #2d3748);
+
+  &__main {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+
+  &__buttons {
+    display: flex;
+    gap: 8px;
+  }
+
+  &__time {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color);
+
+    .time-current {
+      color: var(--progress-bg, #3182ce);
+      font-weight: 600;
+    }
+
+    .time-separator {
+      color: var(--text-color);
+      opacity: 0.6;
+    }
+
+    .time-total {
+      opacity: 0.8;
+    }
+  }
+
+  &__speed {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .speed-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-color);
+    }
+
+    .speed-select {
+      background: var(--button-bg, #f7fafc);
+      border: 1px solid var(--border-color, #e0e0e0);
+      border-radius: 4px;
+      padding: 4px 8px;
+      color: var(--text-color);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: var(--button-hover-bg, #edf2f7);
+      }
+
+      &:focus {
+        outline: none;
+        border-color: var(--progress-bg, #3182ce);
+        box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2);
+      }
+    }
+  }
+
+  &__timeline {
+    .timeline-container {
+      position: relative;
+      width: 100%;
+      height: 6px;
+      margin-bottom: 8px;
+    }
+
+    .timeline-slider {
+      width: 100%;
+      height: 6px;
+      background: var(--slider-bg, #e2e8f0);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      -webkit-appearance: none;
+      appearance: none;
+
+      &::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        background: var(--slider-thumb, #3182ce);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+
+        &:hover {
+          transform: scale(1.1);
+          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+        }
+      }
+
+      &::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        background: var(--slider-thumb, #3182ce);
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+
+        &:hover {
+          transform: scale(1.1);
+          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+        }
+      }
+    }
+
+    .timeline-progress {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 6px;
+      background: var(--progress-bg, #3182ce);
+      border-radius: 3px;
+      pointer-events: none;
+      transition: width 0.1s ease;
+    }
+  }
+
+  &__shortcuts {
+    text-align: center;
+    opacity: 0.7;
+
+    small {
+      font-size: 11px;
+      color: var(--text-color);
+    }
+  }
+}
+
+// 動畫按鈕樣式
+.animation-btn {
+  background: var(--button-bg, #f7fafc);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+
+  &:hover {
+    background: var(--button-hover-bg, #edf2f7);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--progress-bg, #3182ce);
+    box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2);
+  }
+
+  &--play {
+    &.playing {
+      background: rgba(236, 201, 75, 0.1);
+      border-color: #ecc94b;
+      color: #d69e2e;
+    }
+  }
+
+  &--reset {
+    &:hover {
+      background: rgba(245, 101, 101, 0.1);
+      border-color: #f56565;
+      color: #e53e3e;
+    }
+  }
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .animation-controller {
+    padding: 12px;
+
+    &__main {
+      flex-direction: column;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    &__buttons {
+      justify-content: center;
+    }
+
+    &__time,
+    &__speed {
+      justify-content: center;
+    }
+
+    .animation-btn {
+      width: 40px;
+      height: 40px;
+      font-size: 18px;
+    }
+  }
+}
+
+// 緊湊模式
+.animation-controller.compact {
+  padding: 8px;
+
+  &__main {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  &__buttons {
+    gap: 4px;
+  }
+
+  .animation-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  &__time {
+    font-size: 12px;
+  }
+
+  &__speed {
+    .speed-label {
+      font-size: 12px;
+    }
+
+    .speed-select {
+      font-size: 11px;
+      padding: 2px 6px;
+    }
+  }
+
+  &__shortcuts {
+    small {
+      font-size: 10px;
+    }
+  }
+}
