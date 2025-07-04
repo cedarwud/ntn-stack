@@ -10,14 +10,12 @@ import type { EventT1Params, UseEventLogicResult } from '../types'
 import { useAnimationControl } from './useAnimationControl'
 
 const DEFAULT_T1_PARAMS: EventT1Params = {
-  t1Threshold: 30, // Time threshold in seconds
-  timeToTrigger: 640, // TTT in milliseconds
-  reportInterval: 2000, // Report interval in milliseconds
-  reportAmount: 2, // Number of reports
-  reportOnLeave: false, // Report when leaving condition
-  maxReportCells: 8, // Maximum number of cells to report
-  includeStrongestCells: true, // Include strongest cells only
-  hysteresis: 2 // Time hysteresis in seconds
+  t1Threshold: 30, // t1-Threshold in seconds (3GPP Thresh1)
+  duration: 20, // Duration in seconds (3GPP Duration) - 時間窗口持續時間
+  timeToTrigger: 0, // TTT 通常為 0 (T1 有內建時間邏輯)
+  reportInterval: 2000, // Report interval in milliseconds  
+  reportAmount: 2, // Number of reports (用於條件事件 CondEvent)
+  reportOnLeave: false, // Report when leaving condition (用於條件事件)
 }
 
 interface EventT1Status {
@@ -93,42 +91,45 @@ export const useEventT1Logic = (): UseEventLogicResult<EventT1Params> & {
     } else if (currentTime <= 60) {
       return 27 + (currentTime - 30) * 0.3 // 慢速累積
     } else {
-      return Math.min(params.t1Threshold + 5, 27 + 9 + (currentTime - 60) * 0.1)
+      return Math.min(params.t1Threshold + params.duration + 5, 27 + 9 + (currentTime - 60) * 0.1)
     }
-  }, [params.t1Threshold])
+  }, [params.t1Threshold, params.duration])
 
   // 計算 T1 事件狀態
   const eventStatus = useMemo((): EventT1Status => {
     const currentTime = animationControl.currentTime
     const measurementTime = getCurrentMeasurementTime(currentTime)
     
-    // T1 條件: 測量時間超過門檻
-    const condition1 = measurementTime >= params.t1Threshold
+    // 3GPP T1 條件邏輯:
+    // 進入條件 (T1-1): Mt > Thresh1
+    const enteringCondition = measurementTime > params.t1Threshold
+    // 離開條件 (T1-2): Mt > Thresh1 + Duration
+    const leavingCondition = measurementTime > (params.t1Threshold + params.duration)
     
     // 確定測量階段
     let measurementPhase: 'starting' | 'measuring' | 'completed' | 'timeout'
     if (currentTime < 5) {
       measurementPhase = 'starting'
-    } else if (measurementTime < params.t1Threshold) {
+    } else if (!enteringCondition) {
       measurementPhase = 'measuring'
-    } else if (measurementTime >= params.t1Threshold && measurementTime < params.t1Threshold + 10) {
-      measurementPhase = 'completed'
+    } else if (enteringCondition && !leavingCondition) {
+      measurementPhase = 'completed' // T1 事件活躍期間
     } else {
-      measurementPhase = 'timeout'
+      measurementPhase = 'timeout' // 超過 Thresh1 + Duration
     }
     
     // 計算報告次數（基於觸發後的時間）
-    const reportCount = condition1 ? Math.min(
+    const reportCount = enteringCondition ? Math.min(
       Math.floor((measurementTime - params.t1Threshold) / (params.reportInterval / 1000)) + 1,
       params.reportAmount
     ) : 0
 
-    const eventTriggered = condition1
+    const eventTriggered = enteringCondition && !leavingCondition
     const timeRemaining = Math.max(0, params.t1Threshold - measurementTime)
     const isActive = measurementPhase === 'measuring' || measurementPhase === 'completed'
 
     return {
-      condition1,
+      condition1: enteringCondition,
       eventTriggered,
       currentMeasurementTime: measurementTime,
       timeRemaining,
@@ -164,12 +165,14 @@ export const useEventT1Logic = (): UseEventLogicResult<EventT1Params> & {
       `
       technicalDetails = `
         <div class="technical-details">
-          <h4>⚙️ T1 配置：</h4>
-          <p>時間門檻：${params.t1Threshold} 秒</p>
-          <p>觸發時間：${params.timeToTrigger} 毫秒</p>
-          <p>報告間隔：${params.reportInterval} 毫秒</p>
-          <p>報告次數：${params.reportAmount} 次</p>
-          <p>遲滯時間：${params.hysteresis} 秒</p>
+          <h4>⚙️ T1 配置 (3GPP TS 38.331)：</h4>
+          <p>Thresh1 (t1-Threshold)：${params.t1Threshold} 秒</p>
+          <p>Duration：${params.duration} 秒</p>
+          <p>進入條件：Mt > ${params.t1Threshold}s</p>
+          <p>離開條件：Mt > ${params.t1Threshold + params.duration}s</p>
+          <p>觸發時間：${params.timeToTrigger} 毫秒 (T1 內建時間邏輯)</p>
+          <p>報告間隔：${params.reportInterval} 毫秒 (條件事件用途)</p>
+          <p>報告次數：${params.reportAmount} 次 (條件事件用途)</p>
         </div>
       `
     } else if (status.measurementPhase === 'measuring') {
