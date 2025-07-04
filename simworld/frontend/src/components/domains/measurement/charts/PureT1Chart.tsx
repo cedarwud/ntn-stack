@@ -16,8 +16,8 @@ Chart.register(annotationPlugin)
 // 基於 3GPP TS 38.331: Mt > Thresh1 (進入), Mt > Thresh1 + Duration (離開)
 const generateT1StateData = (threshold: number, duration: number) => {
     const statePoints = []
-    const totalTime = 25000 // 25 seconds for clear visualization
-    const step = 100 // 100ms steps
+    const totalTime = 25 // 25 seconds for clear visualization
+    const step = 0.1 // 0.1s steps
     
     for (let mt = 0; mt <= totalTime; mt += step) {
         let state = 0 // Default: not triggered
@@ -29,7 +29,7 @@ const generateT1StateData = (threshold: number, duration: number) => {
             state = 1 // Event is active/triggered
         }
         
-        statePoints.push({ x: mt / 1000, y: state }) // Convert to seconds
+        statePoints.push({ x: mt, y: state }) // Direct use of seconds
     }
     
     return statePoints
@@ -38,17 +38,17 @@ const generateT1StateData = (threshold: number, duration: number) => {
 // 生成當前時間游標數據
 const generateCurrentTimeCursor = (currentTime: number) => {
     return [
-        { x: currentTime / 1000, y: 0 },
-        { x: currentTime / 1000, y: 1 }
+        { x: currentTime, y: 0 },
+        { x: currentTime, y: 1 }
     ]
 }
 
 interface PureT1ChartProps {
     width?: number
     height?: number
-    threshold?: number // t1-Threshold in milliseconds
-    duration?: number // Duration parameter in milliseconds
-    currentTime?: number // Current time Mt in milliseconds
+    threshold?: number // t1-Threshold in seconds
+    duration?: number // Duration parameter in seconds
+    currentTime?: number // Current time Mt in seconds
     showThresholdLines?: boolean
     isDarkTheme?: boolean
     onThemeToggle?: () => void
@@ -58,12 +58,12 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
     ({
         width: _width = 800,
         height: _height = 400,
-        threshold = 5000, // 5 seconds default
-        duration = 10000, // 10 seconds default
-        currentTime = 2000, // 2 seconds default
+        threshold = 5, // 5 seconds default
+        duration = 10, // 10 seconds default
+        currentTime = 2, // 2 seconds default
         showThresholdLines = true,
         isDarkTheme = true,
-        _onThemeToggle,
+        onThemeToggle: _onThemeToggle,
     }) => {
         const canvasRef = useRef<HTMLCanvasElement>(null)
         const chartRef = useRef<Chart | null>(null)
@@ -105,9 +105,17 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
             const stateData = generateT1StateData(threshold, duration)
             const cursorData = generateCurrentTimeCursor(currentTime)
             
+            // 狀態節點數據 - 顯示當前時間點的狀態
+            const isActive = currentTime > threshold && currentTime <= threshold + duration
+            const statusNodeData = [{
+                x: currentTime,
+                y: isActive ? 1 : 0
+            }]
+            
             return {
                 stateData,
                 cursorData,
+                statusNodeData,
             }
         }, [threshold, duration, currentTime])
 
@@ -129,7 +137,7 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                         stepped: 'before', // 階梯式曲線
                     },
                     {
-                        label: `Current Time (Mt): ${currentTime}ms`,
+                        label: `Current Time (Mt): ${currentTime.toFixed(1)}s`,
                         data: chartData.cursorData,
                         borderColor: currentColors.currentTimeLine,
                         backgroundColor: 'transparent',
@@ -158,6 +166,14 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 20,
+                        bottom: 20,
+                        left: 10,
+                        right: 10
+                    }
+                },
                 animation: {
                     duration: 750,
                     easing: 'easeInOutQuart' as const,
@@ -183,7 +199,7 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                         mode: 'index' as const,
                         intersect: false,
                         callbacks: {
-                            title: (context) => `時間 Mt: ${(context[0].parsed.x * 1000).toFixed(0)}ms`,
+                            title: (context) => `時間 Mt: ${context[0].parsed.x.toFixed(1)}s`,
                             label: (context) => {
                                 if (context.datasetIndex === 0) {
                                     const state = context.parsed.y
@@ -196,8 +212,8 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                                 const mt = currentTime
                                 const isActive = mt > threshold && mt <= threshold + duration
                                 return [
-                                    `進入條件 T1-1: Mt > ${threshold}ms`,
-                                    `離開條件 T1-2: Mt > ${threshold + duration}ms`,
+                                    `進入條件 T1-1: Mt > ${threshold}s`,
+                                    `離開條件 T1-2: Mt > ${threshold + duration}s`,
                                     `當前狀態: ${isActive ? '事件激活中' : '事件未激活'}`
                                 ]
                             }
@@ -209,13 +225,13 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                                   // Thresh1 垂直線
                                   thresholdLine: {
                                       type: 'line' as const,
-                                      xMin: threshold / 1000,
-                                      xMax: threshold / 1000,
+                                      xMin: threshold,
+                                      xMax: threshold,
                                       borderColor: currentColors.thresholdLine,
                                       borderWidth: 3,
                                       borderDash: [8, 4],
                                       label: {
-                                          content: `進入 (Mt>${threshold}ms)`,
+                                          content: `進入 (Mt>${threshold}s)`,
                                           enabled: true,
                                           position: 'start' as const,
                                           backgroundColor: currentColors.thresholdLine,
@@ -226,13 +242,13 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                                   // Thresh1 + Duration 垂直線
                                   endLine: {
                                       type: 'line' as const,
-                                      xMin: (threshold + duration) / 1000,
-                                      xMax: (threshold + duration) / 1000,
+                                      xMin: threshold + duration,
+                                      xMax: threshold + duration,
                                       borderColor: currentColors.durationLine,
                                       borderWidth: 3,
                                       borderDash: [8, 4],
                                       label: {
-                                          content: `離開 (Mt>${threshold + duration}ms)`,
+                                          content: `離開 (Mt>${threshold + duration}s)`,
                                           enabled: true,
                                           position: 'end' as const,
                                           backgroundColor: currentColors.durationLine,
@@ -243,15 +259,15 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                                   // 激活時間窗口
                                   activeWindow: {
                                       type: 'box' as const,
-                                      xMin: threshold / 1000,
-                                      xMax: (threshold + duration) / 1000,
+                                      xMin: threshold,
+                                      xMax: threshold + duration,
                                       yMin: 0,
                                       yMax: 1,
                                       backgroundColor: currentColors.windowArea,
                                       borderColor: currentColors.stateLine,
                                       borderWidth: 2,
                                       label: {
-                                          content: `T1 激活窗口\n持續時間: ${duration}ms`,
+                                          content: `T1 激活窗口\n持續時間: ${duration}s`,
                                           enabled: true,
                                           position: 'center' as const,
                                           backgroundColor: currentColors.stateLine,
@@ -281,7 +297,7 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                             color: currentColors.text,
                             stepSize: 2,
                             callback: function (value: number | string) {
-                                return `${value}s (${Number(value) * 1000}ms)`
+                                return `${value}s`
                             },
                         },
                         min: 0,
@@ -303,15 +319,18 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                         },
                         ticks: {
                             color: currentColors.text,
-                            stepSize: 1,
+                            stepSize: 0.5,
                             callback: function (value: number | string) {
                                 if (Number(value) === 0) return '0 (未激活)'
                                 if (Number(value) === 1) return '1 (激活)'
+                                if (Number(value) === 0.5) return '0.5'
+                                if (Number(value) === -0.3) return ''
+                                if (Number(value) === 1.5) return ''
                                 return value
                             },
                         },
-                        min: -0.1,
-                        max: 1.2,
+                        min: -0.3,
+                        max: 1.5,
                     },
                 },
                 interaction: {
