@@ -361,7 +361,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
             const viewportWidth = window.innerWidth
             const viewportHeight = window.innerHeight
             const panelWidth = 420 // 解說面板約 420px 寬（增加更多安全邊距）
-            const margin = 140 // 增加邊距到 40px
+            const margin = 135 // 增加邊距到 40px
 
             // 保守計算：確保不會超出螢幕邊界
             const x = Math.max(
@@ -370,7 +370,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
             )
             const y = Math.max(
                 20, // 最小上邊距
-                viewportHeight * 0.01 + 80 // 距離頂部更小的間距
+                viewportHeight * 0.01 + 70 // 距離頂部更小的間距
             )
 
             return { x, y }

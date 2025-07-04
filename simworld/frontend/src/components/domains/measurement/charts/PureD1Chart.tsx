@@ -815,7 +815,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                     width: '100%',
                     height: '100%',
                     minHeight: '400px',
-                    maxHeight: '80vh',
+                    maxHeight: '70vh',
                     position: 'relative',
                     backgroundColor: currentTheme.background,
                     borderRadius: '8px',

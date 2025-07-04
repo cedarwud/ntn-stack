@@ -17,7 +17,7 @@ export const T1ChartTest: React.FC = () => {
                 <h3>測試重點：</h3>
                 <ul>
                     <li>✓ 矩形脈衝狀態曲線 (0/1 狀態)</li>
-                    <li>✓ 時間窗口條件 (Mt > Thresh1 和 Mt > Thresh1+Duration)</li>
+                    <li>✓ 時間窗口條件 (Mt &gt; Thresh1 和 Mt &gt; Thresh1+Duration)</li>
                     <li>✓ 垂直參考線 (進入/離開時間點)</li>
                     <li>✓ 動畫控制和當前時間游標</li>
                     <li>✓ 3GPP TS 38.331 規範合規性</li>
@@ -27,12 +27,10 @@ export const T1ChartTest: React.FC = () => {
             <EventT1Viewer 
                 isDarkTheme={true}
                 initialParams={{
-                    Thresh1: 5000,    // 5 秒門檻
-                    Duration: 10000,  // 10 秒持續時間  
-                    Hys: 0,
+                    t1Threshold: 5,    // 5 秒門檻
                     timeToTrigger: 0,
                     reportAmount: 1,
-                    reportInterval: 1000,
+                    reportInterval: 1,
                     reportOnLeave: true
                 }}
             />
@@ -45,6 +43,10 @@ export const T1ChartTest: React.FC = () => {
                     <li><strong>時間窗口：</strong> 5-15 秒區間應有半透明綠色背景</li>
                     <li><strong>動畫控制：</strong> 紅色虛線游標應可控制當前時間 Mt</li>
                     <li><strong>狀態邏輯：</strong> 當 Mt 在 [5000, 15000] 範圍內時事件激活</li>
+                    <li><strong>🆕 浮動視窗：</strong> 動畫解說面板應為可拖動的浮動視窗，與 A4 事件相同</li>
+                    <li><strong>🆕 拖拽功能：</strong> 可以拖動解說面板到螢幕任意位置</li>
+                    <li><strong>🆕 透明度控制：</strong> 可以調整面板透明度 (0.3-1.0)</li>
+                    <li><strong>🆕 面板控制：</strong> 包含最小化、展開/收起、技術細節切換、關閉等按鈕</li>
                 </ol>
             </div>
         </div>

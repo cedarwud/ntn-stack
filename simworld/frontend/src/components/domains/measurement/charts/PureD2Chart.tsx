@@ -739,7 +739,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 width: '100%',
                 height: '100%',
                 minHeight: '400px',
-                maxHeight: '80vh',
+                maxHeight: '70vh',
                 position: 'relative',
                 backgroundColor: currentTheme.background,
                 borderRadius: '8px',
