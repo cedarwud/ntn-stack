@@ -18,14 +18,13 @@ interface EventT1ViewerProps {
 
 export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
     ({ isDarkTheme = true, onThemeToggle, initialParams = {} }) => {
-        // Event T1 參數狀態 - 基於 3GPP TS 38.331 規範 (CondEvent T1)
+        // Event T1 參數狀態 - 基於 3GPP TS 38.331 Section 5.5.4.16 規範
         const [params, setParams] = useState<EventT1Params>(() => ({
-            Thresh1: initialParams.Thresh1 ?? 5000, // t1-Threshold in milliseconds
-            Duration: initialParams.Duration ?? 10000, // Duration parameter in milliseconds
+            t1Threshold: initialParams.t1Threshold ?? 5000, // t1-Threshold in milliseconds - 測量時間門檻
             timeToTrigger: initialParams.timeToTrigger ?? 0, // 通常為 0，T1 has built-in time logic
-            reportAmount: initialParams.reportAmount ?? 1, // 條件事件用途
-            reportInterval: initialParams.reportInterval ?? 1000, // 條件事件用途 (ms)
-            reportOnLeave: initialParams.reportOnLeave ?? true, // 條件事件用途
+            reportAmount: initialParams.reportAmount ?? 1, // 報告次數
+            reportInterval: initialParams.reportInterval ?? 1000, // 報告間隔 (ms)
+            reportOnLeave: initialParams.reportOnLeave ?? true, // 離開時報告
         }))
 
         const [showThresholdLines, setShowThresholdLines] = useState(true)
@@ -88,77 +87,91 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
             setShowThresholdLines((prev) => !prev)
         }, [])
 
-        // 計算 Event T1 條件狀態 - 基於 3GPP TS 38.331 規範
+        // 計算 Event T1 條件狀態 - 基於 3GPP TS 38.331 Section 5.5.4.16 規範
         const eventStatus = useMemo(() => {
-            // 使用動畫當前時間作為 Mt
-            const currentMt = animationState.currentTime
+            // 模擬測量時間 Mt (可以是實際的測量持續時間)
+            // 在此演示中，我們模擬測量過程的時間累積
+            const currentMt = animationState.currentTime * 100 // 將動畫時間轉換為測量時間(ms)
 
-            // T1 進入條件: Mt > t1-Threshold
-            const condition1 = currentMt > params.Thresh1
-            // T1 離開條件: Mt > t1-Threshold + Duration
-            const leaveCondition = currentMt > params.Thresh1 + params.Duration
-            // T1 事件激活: Mt 在 [Thresh1, Thresh1+Duration] 區間內
-            const eventTriggered = condition1 && !leaveCondition
+            // T1 進入條件: Mt > t1-Threshold  
+            const enterCondition = currentMt > params.t1Threshold
+            // T1 離開條件: Mt ≤ t1-Threshold (當測量時間重置或降低時)
+            const leaveCondition = currentMt <= params.t1Threshold
+            // T1 事件觸發狀態
+            const eventTriggered = enterCondition
 
             return {
-                condition1, // 基本條件
-                conditionMet: eventTriggered, // 完整觸發條件
-                leaveCondition, // 離開條件
+                enterCondition, // T1 進入條件
+                leaveCondition, // T1 離開條件
                 eventTriggered,
                 description: eventTriggered
-                    ? 'T1 事件已觸發'
-                    : condition1 && leaveCondition
-                    ? '事件已結束'
-                    : condition1
-                    ? '等待持續時間滿足'
-                    : '等待條件滿足',
+                    ? 'T1 事件已觸發 - 測量時間超過門檻'
+                    : '等待測量時間達到門檻',
                 currentMt: currentMt,
-                timeInCondition: Math.max(0, currentMt - params.Thresh1),
+                exceedTime: Math.max(0, currentMt - params.t1Threshold),
             }
-        }, [params.Thresh1, params.Duration, animationState.currentTime])
+        }, [params.t1Threshold, animationState.currentTime])
         
-        // 動畫解說內容生成 - 基於時間窗口和持續時間
+        // 動畫解說內容生成 - 基於測量時間和時間門檻，包含時間同步重要性教學
         const narrationContent = useMemo(() => {
             const currentTime = animationState.currentTime
-            const threshold = params.Thresh1
-            const duration = params.Duration
-            const endTime = threshold + duration
+            const currentMt = currentTime * 100 // 測量時間(ms)
+            const threshold = params.t1Threshold
             
             // 判斷當前階段
-            let phase = 'waiting'
+            let phase = 'measuring'
             let phaseTitle = ''
             let description = ''
             let technicalNote = ''
             let nextAction = ''
+            let timeSyncImportance = ''
+            let practicalUseCase = ''
             
-            if (currentTime < threshold) {
-                phase = 'waiting'
-                phaseTitle = '⏳ 等待階段 - 時間尚未達到門檻'
-                description = `當前時間 (${currentTime.toFixed(0)}ms) 仍低於時間門檻 (${threshold}ms)。系統正在等待時間窗口達到觸發時間。`
-                technicalNote = `3GPP 條件: Mt > t1-Threshold\\n當前 Mt: ${currentTime.toFixed(0)}ms < 門檻: ${threshold}ms`
-                nextAction = `還需等待 ${(threshold - currentTime).toFixed(0)}ms 才會進入事件窗口`
-            } else if (currentTime >= threshold && currentTime <= endTime) {
-                phase = 'triggered'
-                phaseTitle = '✅ Event T1 已觸發 - 時間窗口內'
-                description = `當前時間 (${currentTime.toFixed(0)}ms) 在事件窗口內 [${threshold}ms - ${endTime}ms]。T1 事件正在活躍中，系統正在執行時間相關的操作。`
-                technicalNote = `3GPP 條件: t1-Threshold < Mt < t1-Threshold + Duration\\n${threshold}ms < ${currentTime.toFixed(0)}ms < ${endTime}ms\\n已持續: ${(currentTime - threshold).toFixed(0)}ms / ${duration}ms`
-                nextAction = `事件將在 ${(endTime - currentTime).toFixed(0)}ms 後結束`
+            if (currentMt <= threshold) {
+                phase = 'measuring'
+                phaseTitle = '📏 測量進行中 - 等待時間條件滿足'
+                description = `測量時間 Mt (${currentMt.toFixed(0)}ms) 尚未超過時間門檻 (${threshold}ms)。系統正在累積測量時間，等待達到觸發條件。`
+                
+                timeSyncImportance = '⏰ 時間同步重要性：測量階段'
+                practicalUseCase = `測量階段時間同步應用：
+• 🎯 精確測量：確保測量時間的準確性和一致性
+• 📡 多點協調：多個測量點的時間戳同步
+• 🔄 週期性測量：定時測量任務的精確調度
+• 📊 數據關聯：將測量結果與正確的時間窗口關聯
+• 🛡️ 防止時間漂移：補償時鐘漂移對測量精度的影響`
+                
+                technicalNote = `3GPP 條件: Mt > t1-Threshold\\n當前 Mt: ${currentMt.toFixed(0)}ms ≤ 門檻: ${threshold}ms\\n\\n時間同步參數：\\n• 測量精度要求：±1ms\\n• 時鐘同步間隔：${params.reportInterval}ms\\n• 累積誤差容忍：<0.1%\\n• 時間校正頻率：每${params.reportAmount}次測量`
+                nextAction = `繼續累積測量時間，還需 ${(threshold - currentMt).toFixed(0)}ms 達到門檻`
             } else {
-                phase = 'completed'
-                phaseTitle = '✓ Event T1 已結束 - 超出時間窗口'
-                description = `當前時間 (${currentTime.toFixed(0)}ms) 已超過事件窗口結束點 (${endTime}ms)。T1 事件已完成，系統返回正常狀態。`
-                technicalNote = `3GPP 條件: Mt > t1-Threshold + Duration\\n${currentTime.toFixed(0)}ms > ${endTime}ms\\n已超過: ${(currentTime - endTime).toFixed(0)}ms`
-                nextAction = '監控新的時間窗口和條件變化'
+                phase = 'triggered'
+                phaseTitle = '✅ Event T1 已觸發 - 時間同步事件啟動'
+                description = `測量時間 Mt (${currentMt.toFixed(0)}ms) 已超過時間門檻 (${threshold}ms)。T1 事件觸發，系統啟動時間同步相關的網路優化和服務調整。`
+                
+                timeSyncImportance = '🌐 時間同步重要性：網路服務優化'
+                practicalUseCase = `時間同步服務優化應用：
+• 🔄 網路同步：觸發網路時間協議(NTP)校正
+• 📡 基站協調：同步多個基站的時間基準
+• 🎯 精確定位：提高GPS/GNSS時間輔助精度
+• 🚀 服務優化：調整時間敏感型服務的QoS
+• 📊 性能監控：啟動高精度的網路性能測量
+• 🛰️ 衛星同步：LEO衛星時間基準校正和軌道預測`
+                
+                technicalNote = `3GPP 條件: Mt > t1-Threshold\\n當前 Mt: ${currentMt.toFixed(0)}ms > 門檻: ${threshold}ms\\n超過時間: ${(currentMt - threshold).toFixed(0)}ms\\n\\n時間同步優化：\\n• 同步精度提升：從±10ms提升到±1ms\\n• 網路延遲補償：動態調整傳播延遲\\n• 時鐘漂移校正：每秒校正${((currentMt - threshold)/1000).toFixed(2)}ppm\\n• 服務優先級：提升時間敏感服務優先級`
+                nextAction = '執行時間同步優化，提升網路服務品質和測量精度'
             }
             
-            // 根據時間添加情境解說
+            // 根據時間添加詳細的時間同步情境解說
             let scenarioContext = ''
-            if (currentTime < 5000) {
-                scenarioContext = '🚀 場景：系統啟動，時間計數器初始化'
-            } else if (currentTime < 15000) {
-                scenarioContext = '🕒 場景：接近時間門檻，準備事件觸發'
+            let mobilityScenario = ''
+            if (currentTime < 25) {
+                scenarioContext = '🚀 場景：網路啟動，建立基礎時間同步'
+                mobilityScenario = '典型應用：5G基站初始化，建立與核心網的時間同步連接'
+            } else if (currentTime < 75) {
+                scenarioContext = '📡 場景：高精度時間同步需求觸發'
+                mobilityScenario = '典型應用：高速移動場景下的換手時間協調，衛星通訊的時間校正'
             } else {
-                scenarioContext = '🏁 場景：進入時間窗口，時間相關事件處理'
+                scenarioContext = '🎯 場景：持續時間同步服務優化'
+                mobilityScenario = '典型應用：工業IoT精密控制，金融交易時間戳認證'
             }
             
             return {
@@ -168,29 +181,29 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                 technicalNote,
                 nextAction,
                 scenarioContext,
-                currentTime: currentTime.toFixed(0),
+                mobilityScenario,
+                timeSyncImportance,
+                practicalUseCase,
+                currentTime: currentTime.toFixed(1),
+                currentMt: currentMt.toFixed(0),
                 threshold: threshold.toString(),
-                duration: duration.toString(),
-                timeProgress: `${currentTime.toFixed(0)}ms / 25000ms`,
-                remainingTime: phase === 'triggered' ? `${(endTime - currentTime).toFixed(0)}ms` : 'N/A',
-                progressPercent: phase === 'triggered' ? 
-                    `${(((currentTime - threshold) / duration) * 100).toFixed(1)}%` : '0%'
+                timeProgress: `${currentTime.toFixed(1)}s / 100s`,
+                exceedTime: Math.max(0, currentMt - threshold).toFixed(0),
+                measurementAccuracy: `±${(1 + currentTime/100).toFixed(1)}ms`,
             }
-        }, [animationState.currentTime, params.Thresh1, params.Duration])
+        }, [animationState.currentTime, params.t1Threshold, params.reportInterval, params.reportAmount])
 
         // 穩定的圖表 props
         const chartProps = useMemo(
             () => ({
-                threshold: params.Thresh1,
-                duration: params.Duration,
+                threshold: params.t1Threshold,
                 currentTime: animationState.currentTime,
                 showThresholdLines,
                 isDarkTheme,
                 onThemeToggle,
             }),
             [
-                params.Thresh1,
-                params.Duration,
+                params.t1Threshold,
                 animationState.currentTime,
                 showThresholdLines,
                 isDarkTheme,
@@ -269,7 +282,7 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                         <div className="control-group">
                             <div className="control-item">
                                 <label className="control-label">
-                                    t1-Threshold (時間閾值)
+                                    t1-Threshold (測量時間門檻)
                                     <span className="control-unit">毫秒</span>
                                 </label>
                                 <input
@@ -277,30 +290,30 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                                     min="1000"
                                     max="20000"
                                     step="500"
-                                    value={params.Thresh1}
+                                    value={params.t1Threshold}
                                     onChange={(e) =>
                                         updateParam(
-                                            'Thresh1',
+                                            't1Threshold',
                                             Number(e.target.value)
                                         )
                                     }
                                     className="control-slider"
                                 />
                                 <span className="control-value">
-                                    {params.Thresh1}ms
+                                    {params.t1Threshold}ms
                                 </span>
                             </div>
 
                             <div className="control-item">
                                 <label className="control-label">
-                                    當前時間 Mt (動畫時間)
+                                    當前測量時間 Mt
                                     <span className="control-unit">毫秒</span>
                                 </label>
                                 <input
                                     type="range"
                                     min="0"
-                                    max="25000"
-                                    step="100"
+                                    max="100"
+                                    step="1"
                                     value={animationState.currentTime}
                                     onChange={(e) =>
                                         setAnimationState(prev => ({
@@ -311,31 +324,7 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                                     className="control-slider"
                                 />
                                 <span className="control-value">
-                                    {animationState.currentTime}ms
-                                </span>
-                            </div>
-
-                            <div className="control-item">
-                                <label className="control-label">
-                                    Duration (持續時間)
-                                    <span className="control-unit">毫秒</span>
-                                </label>
-                                <input
-                                    type="range"
-                                    min="2000"
-                                    max="30000"
-                                    step="1000"
-                                    value={params.Duration}
-                                    onChange={(e) =>
-                                        updateParam(
-                                            'Duration',
-                                            Number(e.target.value)
-                                        )
-                                    }
-                                    className="control-slider"
-                                />
-                                <span className="control-value">
-                                    {params.Duration}ms
+                                    {(animationState.currentTime * 100).toFixed(0)}ms
                                 </span>
                             </div>
                         </div>
@@ -435,21 +424,21 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                         <div className="event-status">
                             <div className="status-item">
                                 <span className="status-label">
-                                    進入條件 T1-1:
+                                    進入條件 T1:
                                 </span>
                                 <span
                                     className={`status-value ${
-                                        eventStatus.condition1
+                                        eventStatus.enterCondition
                                             ? 'status-value--active'
                                             : ''
                                     }`}
                                 >
-                                    Mt &gt; t1-Threshold (持續 Duration 時間)
+                                    Mt &gt; t1-Threshold
                                 </span>
                             </div>
                             <div className="status-item">
                                 <span className="status-label">
-                                    離開條件 T1-2:
+                                    離開條件 T1:
                                 </span>
                                 <span
                                     className={`status-value ${
@@ -458,8 +447,7 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                                             : ''
                                     }`}
                                 >
-                                    Mt &gt; t1-Threshold + Duration
-                                    (時間超出範圍)
+                                    Mt ≤ t1-Threshold
                                 </span>
                             </div>
                             <div className="status-item">
@@ -468,8 +456,6 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                                     className={`status-badge ${
                                         eventStatus.eventTriggered
                                             ? 'status-badge--triggered'
-                                            : eventStatus.condition1
-                                            ? 'status-badge--pending'
                                             : 'status-badge--waiting'
                                     }`}
                                 >
@@ -478,18 +464,18 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                             </div>
                             <div className="status-item">
                                 <span className="status-label">
-                                    當前時間測量值:
+                                    當前測量時間 Mt:
                                 </span>
                                 <span className="status-value">
-                                    {eventStatus.currentMt}ms
+                                    {eventStatus.currentMt.toFixed(0)}ms
                                 </span>
                             </div>
                             <div className="status-item">
                                 <span className="status-label">
-                                    條件持續時間:
+                                    超過門檻時間:
                                 </span>
                                 <span className="status-value">
-                                    {eventStatus.timeInCondition}ms
+                                    {eventStatus.exceedTime.toFixed(0)}ms
                                 </span>
                             </div>
                         </div>
@@ -500,6 +486,8 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                 params,
                 animationState,
                 showThresholdLines,
+                showNarration,
+                showTechnicalDetails,
                 toggleAnimation,
                 resetAnimation,
                 toggleThresholdLines,
@@ -540,6 +528,20 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                                         <div className="narration-content">
                                             <div className="narration-scenario">
                                                 {narrationContent.scenarioContext}
+                                                <div className="mobility-scenario">
+                                                    {narrationContent.mobilityScenario}
+                                                </div>
+                                            </div>
+
+                                            <div className="time-sync-stage">
+                                                <h4>{narrationContent.timeSyncImportance}</h4>
+                                                <div className="time-sync-use-case">
+                                                    {narrationContent.practicalUseCase.split('\\n').map((line, index) => (
+                                                        <div key={index} className="use-case-line">
+                                                            {line}
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                             
                                             <div className="narration-description">
@@ -573,8 +575,8 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                                             <span className="metric-value">{narrationContent.threshold} ms</span>
                                         </div>
                                         <div className="metric">
-                                            <span className="metric-label">持續時間：</span>
-                                            <span className="metric-value">{narrationContent.duration} ms</span>
+                                            <span className="metric-label">測量時間：</span>
+                                            <span className="metric-value">{narrationContent.currentMt} ms</span>
                                         </div>
                                         {narrationContent.phase === 'triggered' && (
                                             <div className="metric">
@@ -601,10 +603,10 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                             <h4>條件事件 T1 (CondEvent T1)：</h4>
                             <ul>
                                 <li>
-                                    <strong>進入條件：</strong> Mt &gt; t1-Threshold (持續 Duration 時間)
+                                    <strong>進入條件：</strong> Mt &gt; t1-Threshold
                                 </li>
                                 <li>
-                                    <strong>離開條件：</strong> Mt &gt; t1-Threshold + Duration (時間超出範圍)
+                                    <strong>離開條件：</strong> Mt ≤ t1-Threshold
                                 </li>
                             </ul>
                         </div>
@@ -617,25 +619,22 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                                 <li>
                                     <strong>t1-Threshold：</strong>設定的時間門檻值（毫秒）
                                 </li>
-                                <li>
-                                    <strong>Duration：</strong>事件持續時間長度（毫秒）
-                                </li>
                             </ul>
                         </div>
                         <div className="spec-section">
                             <h4>應用場景：</h4>
                             <ul>
                                 <li>
-                                    <strong>條件切換：</strong>
-                                    基於時間窗口的條件事件觸發
-                                </li>
-                                <li>
                                     <strong>時間同步：</strong>
                                     確保網路同步和時序控制
                                 </li>
                                 <li>
-                                    <strong>資源管理：</strong>
-                                    基於時間條件的資源分配
+                                    <strong>測量時間觸發：</strong>
+                                    基於測量時間門檻的事件觸發
+                                </li>
+                                <li>
+                                    <strong>網路優化：</strong>
+                                    基於時間測量的網路服務調整
                                 </li>
                             </ul>
                         </div>

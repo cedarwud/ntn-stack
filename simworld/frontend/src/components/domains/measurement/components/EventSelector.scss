@@ -12,7 +12,8 @@
       display: flex;
       gap: 8px;
       justify-content: center;
-      flex-wrap: wrap;
+      flex-wrap: nowrap; // 強制不換行
+      min-width: 300px; // 確保有足夠寬度
     }
     
     .event-btn {
@@ -28,6 +29,8 @@
       transition: all 0.3s ease;
       font-size: 14px;
       font-weight: 500;
+      white-space: nowrap; // 確保按鈕文字不換行
+      flex-shrink: 0; // 防止按鈕被壓縮
       
       &:hover:not(.disabled) {
         color: white;

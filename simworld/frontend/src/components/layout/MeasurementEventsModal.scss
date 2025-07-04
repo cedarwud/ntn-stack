@@ -5,11 +5,14 @@
 
 // 標題區域的事件選擇器樣式
 .event-selector-title {
+  min-width: 800px; // 增加最小寬度確保按鈕和文字都有足夠空間
+  
   .event-buttons-title {
     display: flex;
     gap: 8px;
     justify-content: center;
     margin-bottom: 8px;
+    flex-wrap: nowrap; // 強制不換行
 
     .event-btn-title {
       padding: 8px 16px;
@@ -22,6 +25,7 @@
       cursor: pointer;
       transition: all 0.2s ease;
       white-space: nowrap;
+      flex-shrink: 0; // 防止按鈕被壓縮
 
       &:hover:not(.disabled) {
         background: rgba(231, 76, 60, 0.3);
@@ -54,6 +58,24 @@
     text-align: center;
     font-weight: 400;
     margin: 0;
+  }
+  
+  // 內聯說明文字樣式 - 顯示在按鈕右邊
+  .event-description-inline {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 400;
+    width: 350px; // 固定寬度而不是min/max
+    text-align: left;
+    line-height: 1.4;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border-left: 3px solid rgba(231, 76, 60, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0; // 防止被壓縮
   }
 }
 
@@ -129,6 +151,20 @@
     .event-description {
       font-size: 11px;
     }
+    
+    // 小螢幕下將內聯說明文字移到下方
+    .event-description-inline {
+      max-width: 100%;
+      margin-top: 8px;
+      font-size: 12px;
+      text-align: center;
+    }
+  }
+
+  // 小螢幕下改為垂直佈局
+  .modal-header .event-selector-title {
+    flex-direction: column !important;
+    gap: 10px !important;
   }
 
   .measurement-events-viewer {    
