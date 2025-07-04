@@ -18,20 +18,20 @@ const generateT1StateData = (threshold: number, duration: number) => {
     const statePoints = []
     const totalTime = 25 // 25 seconds for clear visualization
     const step = 0.1 // 0.1s steps
-    
+
     for (let mt = 0; mt <= totalTime; mt += step) {
         let state = 0 // Default: not triggered
-        
+
         // CondEvent T1 邏輯：
         // 進入條件 T1-1: Mt > Thresh1
         // 離開條件 T1-2: Mt > Thresh1 + Duration
         if (mt > threshold && mt <= threshold + duration) {
             state = 1 // Event is active/triggered
         }
-        
+
         statePoints.push({ x: mt, y: state }) // Direct use of seconds
     }
-    
+
     return statePoints
 }
 
@@ -39,7 +39,7 @@ const generateT1StateData = (threshold: number, duration: number) => {
 const generateCurrentTimeCursor = (currentTime: number) => {
     return [
         { x: currentTime, y: 0 },
-        { x: currentTime, y: 1 }
+        { x: currentTime, y: 1 },
     ]
 }
 
@@ -77,7 +77,7 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                     currentTimeLine: '#FF6B6B', // 紅色：當前時間游標
                     thresholdLine: '#FFD93D', // 黃色：t1-Threshold
                     durationLine: '#6BCF7F', // 淺綠：Duration 標示
-                    windowArea: 'rgba(40, 167, 69, 0.2)', // 半透明綠：激活窗口
+                    windowArea: 'rgba(40, 167, 69, 0.2)', // 半透明綠：啟用窗口
                     title: 'white',
                     text: 'white',
                     grid: 'rgba(255, 255, 255, 0.1)',
@@ -104,14 +104,17 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
         const chartData = useMemo(() => {
             const stateData = generateT1StateData(threshold, duration)
             const cursorData = generateCurrentTimeCursor(currentTime)
-            
+
             // 狀態節點數據 - 顯示當前時間點的狀態
-            const isActive = currentTime > threshold && currentTime <= threshold + duration
-            const statusNodeData = [{
-                x: currentTime,
-                y: isActive ? 1 : 0
-            }]
-            
+            const isActive =
+                currentTime > threshold && currentTime <= threshold + duration
+            const statusNodeData = [
+                {
+                    x: currentTime,
+                    y: isActive ? 1 : 0,
+                },
+            ]
+
             return {
                 stateData,
                 cursorData,
@@ -120,225 +123,285 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
         }, [threshold, duration, currentTime])
 
         // T1 狀態圖表配置 - 矩形脈衝設計
-        const chartConfig = useMemo(() => ({
-            type: 'line' as const,
-            data: {
-                datasets: [
-                    {
-                        label: 'T1 Event State (0=Inactive, 1=Active)',
-                        data: chartData.stateData,
-                        borderColor: currentColors.stateLine,
-                        backgroundColor: currentColors.windowArea,
-                        borderWidth: 4,
-                        fill: 'origin',
-                        pointRadius: 0,
-                        pointHoverRadius: 6,
-                        tension: 0, // 直角矩形脈衝
-                        stepped: 'before', // 階梯式曲線
-                    },
-                    {
-                        label: `Current Time (Mt): ${currentTime.toFixed(1)}s`,
-                        data: chartData.cursorData,
-                        borderColor: currentColors.currentTimeLine,
-                        backgroundColor: 'transparent',
-                        borderWidth: 3,
-                        fill: false,
-                        pointRadius: 0,
-                        pointHoverRadius: 0,
-                        tension: 0,
-                        borderDash: [5, 5],
-                    },
-                    {
-                        label: `Event Status Node`,
-                        data: chartData.statusNodeData,
-                        borderColor: currentTime > threshold && currentTime <= threshold + duration ? '#28A745' : '#6C757D',
-                        backgroundColor: currentTime > threshold && currentTime <= threshold + duration ? '#28A745' : '#6C757D',
-                        borderWidth: 3,
-                        fill: false,
-                        pointRadius: currentTime > threshold && currentTime <= threshold + duration ? 12 : 8,
-                        pointHoverRadius: 16,
-                        pointStyle: 'rectRot',
-                        showLine: false,
-                        tension: 0,
-                    },
-                ],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: {
-                    padding: {
-                        top: 20,
-                        bottom: 20,
-                        left: 10,
-                        right: 10
-                    }
+        const chartConfig = useMemo(
+            () => ({
+                type: 'line' as const,
+                data: {
+                    datasets: [
+                        {
+                            label: 'T1 Event State (0=Inactive, 1=Active)',
+                            data: chartData.stateData,
+                            borderColor: currentColors.stateLine,
+                            backgroundColor: currentColors.windowArea,
+                            borderWidth: 4,
+                            fill: 'origin',
+                            pointRadius: 0,
+                            pointHoverRadius: 6,
+                            tension: 0, // 直角矩形脈衝
+                            stepped: 'before', // 階梯式曲線
+                        },
+                        {
+                            label: `Current Time (Mt): ${currentTime.toFixed(
+                                1
+                            )}s`,
+                            data: chartData.cursorData,
+                            borderColor: currentColors.currentTimeLine,
+                            backgroundColor: 'transparent',
+                            borderWidth: 3,
+                            fill: false,
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            tension: 0,
+                            borderDash: [5, 5],
+                        },
+                        {
+                            label: `Event Status Node`,
+                            data: chartData.statusNodeData,
+                            borderColor:
+                                currentTime > threshold &&
+                                currentTime <= threshold + duration
+                                    ? '#28A745'
+                                    : '#6C757D',
+                            backgroundColor:
+                                currentTime > threshold &&
+                                currentTime <= threshold + duration
+                                    ? '#28A745'
+                                    : '#6C757D',
+                            borderWidth: 3,
+                            fill: false,
+                            pointRadius:
+                                currentTime > threshold &&
+                                currentTime <= threshold + duration
+                                    ? 12
+                                    : 8,
+                            pointHoverRadius: 16,
+                            pointStyle: 'rectRot',
+                            showLine: false,
+                            tension: 0,
+                        },
+                    ],
                 },
-                animation: {
-                    duration: 750,
-                    easing: 'easeInOutQuart' as const,
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: '條件事件 T1 (CondEvent T1) - 時間窗口條件',
-                        color: currentColors.title,
-                        font: { size: 16, weight: 'bold' as const },
-                        padding: 20,
-                    },
-                    legend: {
-                        display: true,
-                        position: 'top' as const,
-                        labels: { 
-                            color: currentColors.text,
-                            usePointStyle: true,
-                            padding: 15,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 20,
+                            bottom: 20,
+                            left: 10,
+                            right: 10,
                         },
                     },
-                    tooltip: {
-                        mode: 'index' as const,
+                    animation: {
+                        duration: 750,
+                        easing: 'easeInOutQuart' as const,
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '條件事件 T1 (CondEvent T1) - 時間窗口條件',
+                            color: currentColors.title,
+                            font: { size: 16, weight: 'bold' as const },
+                            padding: 20,
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top' as const,
+                            labels: {
+                                color: currentColors.text,
+                                usePointStyle: true,
+                                padding: 15,
+                            },
+                        },
+                        tooltip: {
+                            mode: 'index' as const,
+                            intersect: false,
+                            callbacks: {
+                                title: (context) =>
+                                    `時間 Mt: ${context[0].parsed.x.toFixed(
+                                        1
+                                    )}s`,
+                                label: (context) => {
+                                    if (context.datasetIndex === 0) {
+                                        const state = context.parsed.y
+                                        const stateText =
+                                            state === 1
+                                                ? '啟用 (Active)'
+                                                : '未啟用 (Inactive)'
+                                        return `T1 狀態: ${stateText}`
+                                    }
+                                    return context.dataset.label || ''
+                                },
+                                afterBody: () => {
+                                    const mt = currentTime
+                                    const isActive =
+                                        mt > threshold &&
+                                        mt <= threshold + duration
+                                    return [
+                                        `進入條件 T1-1: Mt > ${threshold}s`,
+                                        `離開條件 T1-2: Mt > ${
+                                            threshold + duration
+                                        }s`,
+                                        `當前狀態: ${
+                                            isActive
+                                                ? '事件啟用中'
+                                                : '事件未啟用'
+                                        }`,
+                                    ]
+                                },
+                            },
+                        },
+                        annotation: {
+                            annotations: showThresholdLines
+                                ? {
+                                      // Thresh1 垂直線
+                                      thresholdLine: {
+                                          type: 'line' as const,
+                                          xMin: threshold,
+                                          xMax: threshold,
+                                          borderColor:
+                                              currentColors.thresholdLine,
+                                          borderWidth: 3,
+                                          borderDash: [8, 4],
+                                          label: {
+                                              content: `進入 (Mt>${threshold}s)`,
+                                              enabled: true,
+                                              position: 'start' as const,
+                                              backgroundColor:
+                                                  currentColors.thresholdLine,
+                                              color: isDarkTheme
+                                                  ? '#000'
+                                                  : '#fff',
+                                              font: {
+                                                  size: 11,
+                                                  weight: 'bold',
+                                              },
+                                          },
+                                      },
+                                      // Thresh1 + Duration 垂直線
+                                      endLine: {
+                                          type: 'line' as const,
+                                          xMin: threshold + duration,
+                                          xMax: threshold + duration,
+                                          borderColor:
+                                              currentColors.durationLine,
+                                          borderWidth: 3,
+                                          borderDash: [8, 4],
+                                          label: {
+                                              content: `離開 (Mt>${
+                                                  threshold + duration
+                                              }s)`,
+                                              enabled: true,
+                                              position: 'end' as const,
+                                              backgroundColor:
+                                                  currentColors.durationLine,
+                                              color: isDarkTheme
+                                                  ? '#000'
+                                                  : '#fff',
+                                              font: {
+                                                  size: 11,
+                                                  weight: 'bold',
+                                              },
+                                          },
+                                      },
+                                      // 啟用時間窗口
+                                      activeWindow: {
+                                          type: 'box' as const,
+                                          xMin: threshold,
+                                          xMax: threshold + duration,
+                                          yMin: 0,
+                                          yMax: 1,
+                                          backgroundColor:
+                                              currentColors.windowArea,
+                                          borderColor: currentColors.stateLine,
+                                          borderWidth: 2,
+                                          label: {
+                                              content: `T1 啟用窗口\n持續時間: ${duration}s`,
+                                              enabled: true,
+                                              position: 'center' as const,
+                                              backgroundColor:
+                                                  currentColors.stateLine,
+                                              color: 'white',
+                                              font: {
+                                                  size: 12,
+                                                  weight: 'bold',
+                                              },
+                                          },
+                                      },
+                                  }
+                                : {},
+                        },
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear' as const,
+                            position: 'bottom' as const,
+                            title: {
+                                display: true,
+                                text: '時間 Mt (秒)',
+                                color: currentColors.text,
+                                font: { size: 14, weight: 'bold' as const },
+                            },
+                            grid: {
+                                color: currentColors.grid,
+                                lineWidth: 1,
+                            },
+                            ticks: {
+                                color: currentColors.text,
+                                stepSize: 2,
+                                callback: function (value: number | string) {
+                                    return `${value}s`
+                                },
+                            },
+                            min: 0,
+                            max: 25,
+                        },
+                        y: {
+                            type: 'linear' as const,
+                            display: true,
+                            position: 'left' as const,
+                            title: {
+                                display: true,
+                                text: 'CondEvent T1 狀態',
+                                color: currentColors.stateLine,
+                                font: { size: 14, weight: 'bold' as const },
+                            },
+                            grid: {
+                                color: currentColors.grid,
+                                lineWidth: 1,
+                            },
+                            ticks: {
+                                color: currentColors.text,
+                                stepSize: 0.5,
+                                callback: function (value: number | string) {
+                                    if (Number(value) === 0) return '0 (未啟用)'
+                                    if (Number(value) === 1) return '1 (啟用)'
+                                    if (Number(value) === 0.5) return '0.5'
+                                    if (Number(value) === -0.3) return ''
+                                    if (Number(value) === 1.5) return ''
+                                    return value
+                                },
+                            },
+                            min: -0.3,
+                            max: 1.5,
+                        },
+                    },
+                    interaction: {
                         intersect: false,
-                        callbacks: {
-                            title: (context) => `時間 Mt: ${context[0].parsed.x.toFixed(1)}s`,
-                            label: (context) => {
-                                if (context.datasetIndex === 0) {
-                                    const state = context.parsed.y
-                                    const stateText = state === 1 ? '激活 (Active)' : '未激活 (Inactive)'
-                                    return `T1 狀態: ${stateText}`
-                                }
-                                return context.dataset.label || ''
-                            },
-                            afterBody: () => {
-                                const mt = currentTime
-                                const isActive = mt > threshold && mt <= threshold + duration
-                                return [
-                                    `進入條件 T1-1: Mt > ${threshold}s`,
-                                    `離開條件 T1-2: Mt > ${threshold + duration}s`,
-                                    `當前狀態: ${isActive ? '事件激活中' : '事件未激活'}`
-                                ]
-                            }
-                        }
-                    },
-                    annotation: {
-                        annotations: showThresholdLines
-                            ? {
-                                  // Thresh1 垂直線
-                                  thresholdLine: {
-                                      type: 'line' as const,
-                                      xMin: threshold,
-                                      xMax: threshold,
-                                      borderColor: currentColors.thresholdLine,
-                                      borderWidth: 3,
-                                      borderDash: [8, 4],
-                                      label: {
-                                          content: `進入 (Mt>${threshold}s)`,
-                                          enabled: true,
-                                          position: 'start' as const,
-                                          backgroundColor: currentColors.thresholdLine,
-                                          color: isDarkTheme ? '#000' : '#fff',
-                                          font: { size: 11, weight: 'bold' },
-                                      },
-                                  },
-                                  // Thresh1 + Duration 垂直線
-                                  endLine: {
-                                      type: 'line' as const,
-                                      xMin: threshold + duration,
-                                      xMax: threshold + duration,
-                                      borderColor: currentColors.durationLine,
-                                      borderWidth: 3,
-                                      borderDash: [8, 4],
-                                      label: {
-                                          content: `離開 (Mt>${threshold + duration}s)`,
-                                          enabled: true,
-                                          position: 'end' as const,
-                                          backgroundColor: currentColors.durationLine,
-                                          color: isDarkTheme ? '#000' : '#fff',
-                                          font: { size: 11, weight: 'bold' },
-                                      },
-                                  },
-                                  // 激活時間窗口
-                                  activeWindow: {
-                                      type: 'box' as const,
-                                      xMin: threshold,
-                                      xMax: threshold + duration,
-                                      yMin: 0,
-                                      yMax: 1,
-                                      backgroundColor: currentColors.windowArea,
-                                      borderColor: currentColors.stateLine,
-                                      borderWidth: 2,
-                                      label: {
-                                          content: `T1 激活窗口\n持續時間: ${duration}s`,
-                                          enabled: true,
-                                          position: 'center' as const,
-                                          backgroundColor: currentColors.stateLine,
-                                          color: 'white',
-                                          font: { size: 12, weight: 'bold' },
-                                      },
-                                  },
-                              }
-                            : {},
+                        mode: 'index' as const,
                     },
                 },
-                scales: {
-                    x: {
-                        type: 'linear' as const,
-                        position: 'bottom' as const,
-                        title: {
-                            display: true,
-                            text: '時間 Mt (秒)',
-                            color: currentColors.text,
-                            font: { size: 14, weight: 'bold' as const },
-                        },
-                        grid: {
-                            color: currentColors.grid,
-                            lineWidth: 1,
-                        },
-                        ticks: {
-                            color: currentColors.text,
-                            stepSize: 2,
-                            callback: function (value: number | string) {
-                                return `${value}s`
-                            },
-                        },
-                        min: 0,
-                        max: 25,
-                    },
-                    y: {
-                        type: 'linear' as const,
-                        display: true,
-                        position: 'left' as const,
-                        title: {
-                            display: true,
-                            text: 'CondEvent T1 狀態',
-                            color: currentColors.stateLine,
-                            font: { size: 14, weight: 'bold' as const },
-                        },
-                        grid: {
-                            color: currentColors.grid,
-                            lineWidth: 1,
-                        },
-                        ticks: {
-                            color: currentColors.text,
-                            stepSize: 0.5,
-                            callback: function (value: number | string) {
-                                if (Number(value) === 0) return '0 (未激活)'
-                                if (Number(value) === 1) return '1 (激活)'
-                                if (Number(value) === 0.5) return '0.5'
-                                if (Number(value) === -0.3) return ''
-                                if (Number(value) === 1.5) return ''
-                                return value
-                            },
-                        },
-                        min: -0.3,
-                        max: 1.5,
-                    },
-                },
-                interaction: {
-                    intersect: false,
-                    mode: 'index' as const,
-                },
-            },
-        }), [chartData, threshold, duration, currentTime, showThresholdLines, currentColors, isDarkTheme])
+            }),
+            [
+                chartData,
+                threshold,
+                duration,
+                currentTime,
+                showThresholdLines,
+                currentColors,
+                isDarkTheme,
+            ]
+        )
 
         // 初始化和更新圖表
         useEffect(() => {
@@ -353,15 +416,17 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
                     // 更新現有圖表
                     chartRef.current.data = chartConfig.data
                     chartRef.current.options = chartConfig.options
-                    
+
                     // 確保annotation插件正確初始化
                     if (!chartRef.current.options.plugins) {
                         chartRef.current.options.plugins = {}
                     }
                     if (!chartRef.current.options.plugins.annotation) {
-                        chartRef.current.options.plugins.annotation = { annotations: {} }
+                        chartRef.current.options.plugins.annotation = {
+                            annotations: {},
+                        }
                     }
-                    
+
                     chartRef.current.update('none')
                 } else {
                     // 創建新圖表
@@ -389,7 +454,10 @@ export const PureT1Chart: React.FC<PureT1ChartProps> = React.memo(
         }, [])
 
         return (
-            <div className="pure-chart-container" style={{ position: 'relative' }}>
+            <div
+                className="pure-chart-container"
+                style={{ position: 'relative' }}
+            >
                 <canvas
                     ref={canvasRef}
                     width={_width}
