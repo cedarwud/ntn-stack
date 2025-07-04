@@ -64,20 +64,26 @@ const dataPoints = [
 const generateCurrentTimeCursor = (currentTime: number) => {
     return [
         { x: currentTime, y: -95 }, // 底部
-        { x: currentTime, y: -40 }  // 頂部
+        { x: currentTime, y: -40 }, // 頂部
     ]
 }
 
 // 計算當前時間點的RSRP值（線性插值）
 const getCurrentRSRP = (currentTime: number): number => {
     if (currentTime <= dataPoints[0].x) return dataPoints[0].y
-    if (currentTime >= dataPoints[dataPoints.length - 1].x) return dataPoints[dataPoints.length - 1].y
-    
+    if (currentTime >= dataPoints[dataPoints.length - 1].x)
+        return dataPoints[dataPoints.length - 1].y
+
     // 找到當前時間點前後的數據點
     for (let i = 0; i < dataPoints.length - 1; i++) {
-        if (currentTime >= dataPoints[i].x && currentTime <= dataPoints[i + 1].x) {
+        if (
+            currentTime >= dataPoints[i].x &&
+            currentTime <= dataPoints[i + 1].x
+        ) {
             // 線性插值
-            const t = (currentTime - dataPoints[i].x) / (dataPoints[i + 1].x - dataPoints[i].x)
+            const t =
+                (currentTime - dataPoints[i].x) /
+                (dataPoints[i + 1].x - dataPoints[i].x)
             return dataPoints[i].y + t * (dataPoints[i + 1].y - dataPoints[i].y)
         }
     }
@@ -90,14 +96,18 @@ const generateSignalNode = (currentTime: number, rsrp: number) => {
 }
 
 // 檢查事件觸發狀態
-const checkEventTrigger = (rsrp: number, threshold: number, hysteresis: number) => {
+const checkEventTrigger = (
+    rsrp: number,
+    threshold: number,
+    hysteresis: number
+) => {
     const enterThreshold = threshold + hysteresis // 進入門檻
-    const exitThreshold = threshold - hysteresis  // 離開門檻
-    
+    const exitThreshold = threshold - hysteresis // 離開門檻
+
     return {
         isAboveEnterThreshold: rsrp > enterThreshold,
         isBelowExitThreshold: rsrp < exitThreshold,
-        isInHysteresisZone: rsrp >= exitThreshold && rsrp <= enterThreshold
+        isInHysteresisZone: rsrp >= exitThreshold && rsrp <= enterThreshold,
     }
 }
 
@@ -245,17 +255,21 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     tension: 0,
                     borderDash: [5, 5],
                 })
-                
+
                 // 添加信號強度追蹤節點
                 const currentRSRP = getCurrentRSRP(currentTime)
                 const signalNode = generateSignalNode(currentTime, currentRSRP)
-                const eventStatus = checkEventTrigger(currentRSRP, threshold, hysteresis)
-                
+                const eventStatus = checkEventTrigger(
+                    currentRSRP,
+                    threshold,
+                    hysteresis
+                )
+
                 // 根據事件狀態決定節點顏色和大小
                 let nodeColor = '#FFD93D' // 預設黃色
                 let nodeSize = 8
                 let nodeLabel = 'Signal Tracking'
-                
+
                 if (eventStatus.isAboveEnterThreshold) {
                     nodeColor = '#28A745' // 綠色：事件激活
                     nodeSize = 12
@@ -269,7 +283,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     nodeSize = 10
                     nodeLabel = 'Hysteresis Zone'
                 }
-                
+
                 datasets.push({
                     label: `${nodeLabel} (RSRP: ${currentRSRP.toFixed(1)} dBm)`,
                     data: signalNode,
@@ -440,18 +454,22 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
             // 處理游標數據集
             const expectedCursorIndex = showThresholdLines ? 4 : 1
             const expectedNodeIndex = expectedCursorIndex + 1
-            
+
             if (currentTime > 0) {
                 const cursorData = generateCurrentTimeCursor(currentTime)
                 const currentRSRP = getCurrentRSRP(currentTime)
                 const signalNode = generateSignalNode(currentTime, currentRSRP)
-                const eventStatus = checkEventTrigger(currentRSRP, threshold, hysteresis)
-                
+                const eventStatus = checkEventTrigger(
+                    currentRSRP,
+                    threshold,
+                    hysteresis
+                )
+
                 // 根據事件狀態決定節點顏色和大小
                 let nodeColor = '#FFD93D' // 預設黃色
                 let nodeSize = 8
                 let nodeLabel = 'Signal Tracking'
-                
+
                 if (eventStatus.isAboveEnterThreshold) {
                     nodeColor = '#28A745' // 綠色：事件激活
                     nodeSize = 12
@@ -465,11 +483,13 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     nodeSize = 10
                     nodeLabel = 'Hysteresis Zone'
                 }
-                
+
                 // 更新游標數據集
                 if (chart.data.datasets[expectedCursorIndex]) {
                     chart.data.datasets[expectedCursorIndex].data = cursorData
-                    chart.data.datasets[expectedCursorIndex].label = `Current Time: ${currentTime.toFixed(1)}s`
+                    chart.data.datasets[
+                        expectedCursorIndex
+                    ].label = `Current Time: ${currentTime.toFixed(1)}s`
                 } else {
                     chart.data.datasets.push({
                         label: `Current Time: ${currentTime.toFixed(1)}s`,
@@ -484,18 +504,28 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                         borderDash: [5, 5],
                     } as Record<string, unknown>)
                 }
-                
+
                 // 更新信號節點數據集
                 if (chart.data.datasets[expectedNodeIndex]) {
                     chart.data.datasets[expectedNodeIndex].data = signalNode
-                    chart.data.datasets[expectedNodeIndex].label = `${nodeLabel} (RSRP: ${currentRSRP.toFixed(1)} dBm)`
-                    chart.data.datasets[expectedNodeIndex].borderColor = nodeColor
-                    chart.data.datasets[expectedNodeIndex].backgroundColor = nodeColor
-                    chart.data.datasets[expectedNodeIndex].pointRadius = nodeSize
-                    chart.data.datasets[expectedNodeIndex].pointHoverRadius = nodeSize + 4
+                    chart.data.datasets[
+                        expectedNodeIndex
+                    ].label = `${nodeLabel} (RSRP: ${currentRSRP.toFixed(
+                        1
+                    )} dBm)`
+                    chart.data.datasets[expectedNodeIndex].borderColor =
+                        nodeColor
+                    chart.data.datasets[expectedNodeIndex].backgroundColor =
+                        nodeColor
+                    chart.data.datasets[expectedNodeIndex].pointRadius =
+                        nodeSize
+                    chart.data.datasets[expectedNodeIndex].pointHoverRadius =
+                        nodeSize + 4
                 } else {
                     chart.data.datasets.push({
-                        label: `${nodeLabel} (RSRP: ${currentRSRP.toFixed(1)} dBm)`,
+                        label: `${nodeLabel} (RSRP: ${currentRSRP.toFixed(
+                            1
+                        )} dBm)`,
                         data: signalNode,
                         borderColor: nodeColor,
                         backgroundColor: nodeColor,
@@ -510,10 +540,20 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 }
             } else {
                 // 移除游標和節點數據集
-                if (chart.data.datasets[expectedNodeIndex] && chart.data.datasets[expectedNodeIndex].label?.includes('RSRP:')) {
+                if (
+                    chart.data.datasets[expectedNodeIndex] &&
+                    chart.data.datasets[expectedNodeIndex].label?.includes(
+                        'RSRP:'
+                    )
+                ) {
                     chart.data.datasets.splice(expectedNodeIndex, 1)
                 }
-                if (chart.data.datasets[expectedCursorIndex] && chart.data.datasets[expectedCursorIndex].label?.includes('Current Time')) {
+                if (
+                    chart.data.datasets[expectedCursorIndex] &&
+                    chart.data.datasets[expectedCursorIndex].label?.includes(
+                        'Current Time'
+                    )
+                ) {
                     chart.data.datasets.splice(expectedCursorIndex, 1)
                 }
             }
@@ -530,8 +570,14 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 chart.data.datasets[3].borderColor = currentTheme.hysteresisLine
             }
             // 更新游標顏色
-            if (chart.data.datasets[expectedCursorIndex] && chart.data.datasets[expectedCursorIndex].label?.includes('Current Time')) {
-                chart.data.datasets[expectedCursorIndex].borderColor = currentTheme.currentTimeLine
+            if (
+                chart.data.datasets[expectedCursorIndex] &&
+                chart.data.datasets[expectedCursorIndex].label?.includes(
+                    'Current Time'
+                )
+            ) {
+                chart.data.datasets[expectedCursorIndex].borderColor =
+                    currentTheme.currentTimeLine
             }
             // 信號節點的顏色根據狀態動態決定，無需在此更新
 
@@ -541,17 +587,18 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     chart.options.plugins.title.color = currentTheme.title
                 }
                 if (chart.options?.plugins?.legend?.labels) {
-                    chart.options.plugins.legend.labels.color = currentTheme.text
+                    chart.options.plugins.legend.labels.color =
+                        currentTheme.text
                 }
                 if (chart.options?.plugins?.legend) {
                     chart.options.plugins.legend.display = showThresholdLines
                 }
-                
+
                 // 確保 scales 存在
                 if (!chart.options.scales) {
                     chart.options.scales = {}
                 }
-                
+
                 const xScale = chart.options.scales.x as Record<string, any>
                 if (xScale?.title) {
                     xScale.title.color = currentTheme.text
@@ -562,7 +609,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 if (xScale?.grid) {
                     xScale.grid.color = currentTheme.grid
                 }
-                
+
                 const yScale = chart.options.scales.y as Record<string, any>
                 if (yScale?.title) {
                     yScale.title.color = currentTheme.text
@@ -587,7 +634,13 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 chartRef.current = null
                 isInitialized.current = false
             }
-        }, [threshold, hysteresis, currentTheme, showThresholdLines, currentTime])
+        }, [
+            threshold,
+            hysteresis,
+            currentTheme,
+            showThresholdLines,
+            currentTime,
+        ])
 
         return (
             <div
@@ -595,7 +648,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     width: '100%',
                     height: '100%',
                     minHeight: '300px',
-                    maxHeight: '80vh',
+                    maxHeight: '70vh',
                     position: 'relative',
                     backgroundColor: currentTheme.background,
                     borderRadius: '8px',
