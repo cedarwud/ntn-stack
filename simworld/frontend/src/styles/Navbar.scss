@@ -406,6 +406,7 @@
 /* 測量事件彈窗專用樣式 - 95vh固定高度加捲軸 */
 .constellation-modal.measurement-events-modal {
   width: 95vw;
+  min-width: 1400px; /* 進一步增加最小寬度以容納所有元素 */
   height: 95vh;
   max-width: none;
   max-height: 95vh;

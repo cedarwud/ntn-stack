@@ -147,16 +147,26 @@ const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> =
                         {/* 新的 EventSelector 組件 */}
                         <div
                             className="event-selector-title"
-                            style={{ flex: 1, textAlign: 'center' }}
+                            style={{
+                                flex: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minWidth: '800px',
+                                flexWrap: 'nowrap',
+                            }}
                         >
                             <EventSelector
                                 selectedEvent={selectedEvent}
                                 onEventChange={handleEventChange}
                                 mode="compact"
-                                showDescription={true}
+                                showDescription={false}
                                 showCategories={false}
                                 showStatus={false}
                             />
+                            <div className="event-description-inline">
+                                {EVENT_CONFIGS[selectedEvent].description}
+                            </div>
                         </div>
                         <div
                             style={{
