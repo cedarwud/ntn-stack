@@ -25,10 +25,19 @@ export default defineConfig(({ mode }) => {
                 },
                 // 代理 NetStack API 請求
                 '/netstack': {
-                    target: 'http://netstack-api:8080',
+                    target: env.VITE_NETSTACK_PROXY_TARGET || 'http://netstack-api:8080',
                     changeOrigin: true,
                     secure: false,
-                    rewrite: (path) => path.replace(/^\/netstack/, '')
+                    rewrite: (path) => path.replace(/^\/netstack/, ''),
+                    configure: (proxy) => {
+                        proxy.on('error', (err) => {
+                            console.log('🚨 NetStack 代理錯誤:', err)
+                            console.log('🔧 代理目標:', env.VITE_NETSTACK_PROXY_TARGET || 'http://netstack-api:8080')
+                        })
+                        proxy.on('proxyReq', (proxyReq, req) => {
+                            console.log('🔄 NetStack 代理請求:', req.method, req.url)
+                        })
+                    }
                 },
                 // 代理 WebSocket 連接
                 '/socket.io': {

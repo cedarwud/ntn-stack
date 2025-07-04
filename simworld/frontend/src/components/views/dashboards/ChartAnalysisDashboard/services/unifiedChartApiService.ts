@@ -142,15 +142,24 @@ export class UnifiedChartApiService {
   }
 
   /**
-   * 統一的直接fetch調用方法 (使用完整NetStack URL)
+   * 統一的直接fetch調用方法 (使用 Vite 代理路徑)
    */
   private static async callDirectFetch(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<Record<string, unknown>> {
-    // 構建完整的NetStack API URL
-    const baseUrl = 'http://120.126.151.101:8080'
-    const fullUrl = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`
+    // 使用 Vite 代理路徑而不是硬編碼 IP
+    let fullUrl: string
+    if (endpoint.startsWith('http')) {
+      // 外部 URL (如 Celestrak API)
+      fullUrl = endpoint
+    } else if (endpoint.startsWith('/api/v1/handover/') || endpoint.startsWith('/api/v1/core-sync/')) {
+      // NetStack API 端點 - 使用 /netstack 代理
+      fullUrl = `/netstack${endpoint}`
+    } else {
+      // 其他端點 - 假設是 SimWorld API
+      fullUrl = endpoint
+    }
     
     try {
       console.log(`🌐 直接API調用: ${fullUrl}`)
@@ -183,13 +192,12 @@ export class UnifiedChartApiService {
   // ==================== 基礎數據獲取方法 ====================
 
   /**
-   * 獲取核心同步數據 - 修復：使用直接 fetch 確保數據獲取
+   * 獲取核心同步數據 - 修復：使用 Vite 代理路徑
    */
   static async getCoreSync(): Promise<Record<string, unknown>> {
     try {
-      console.log('📡 獲取核心同步數據 - 使用直接 fetch')
-      const baseUrl = 'http://120.126.151.101:8080'
-      const response = await fetch(`${baseUrl}/api/v1/core-sync/status`, {
+      console.log('📡 獲取核心同步數據 - 使用 Vite 代理')
+      const response = await fetch('/netstack/api/v1/core-sync/status', {
         timeout: 10000
       })
       
@@ -213,13 +221,12 @@ export class UnifiedChartApiService {
   }
 
   /**
-   * 獲取健康狀態 - 修復：正確處理 503 健康檢查響應
+   * 獲取健康狀態 - 修復：使用 Vite 代理路徑處理 503 健康檢查響應
    */
   static async getHealthStatus(): Promise<Record<string, unknown>> {
     try {
-      // 修復：直接使用 fetch 處理 503 健康檢查響應
-      const baseUrl = 'http://120.126.151.101:8080'
-      const response = await fetch(`${baseUrl}/api/v1/core-sync/health`, {
+      // 修復：使用 Vite 代理路徑處理 503 健康檢查響應
+      const response = await fetch('/netstack/api/v1/core-sync/health', {
         timeout: 10000
       })
       
@@ -348,13 +355,12 @@ export class UnifiedChartApiService {
   // ==================== 算法分析相關API ====================
 
   /**
-   * 獲取時間同步精度數據 - 修復：正確處理核心同步健康狀態響應
+   * 獲取時間同步精度數據 - 修復：使用 Vite 代理路徑處理核心同步健康狀態響應
    */
   static async getTimeSyncPrecision(): Promise<Record<string, unknown>> {
     try {
-      // 修復：直接使用 fetch 處理 503 健康檢查響應
-      const baseUrl = 'http://120.126.151.101:8080'
-      const response = await fetch(`${baseUrl}/api/v1/core-sync/health`, {
+      // 修復：使用 Vite 代理路徑處理 503 健康檢查響應
+      const response = await fetch('/netstack/api/v1/core-sync/health', {
         timeout: 10000
       })
       

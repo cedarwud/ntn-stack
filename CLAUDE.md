@@ -172,3 +172,78 @@ try {
 - ✅ "發現缺失端點，立即創建："
 - ✅ "NetStack 需要補充端點，開始實現："
 - ✅ "後端缺少功能，馬上開發："
+
+## 🌐 網路配置指導原則
+
+### 核心配置管理
+**使用統一的 API 配置系統** - 所有 API 調用必須通過 `src/config/api-config.ts`
+
+```typescript
+// ✅ 正確的 API 調用方式
+import { netstackFetch, simworldFetch } from '../config/api-config'
+
+// NetStack API 調用
+const response = await netstackFetch('/api/v1/handover/strategy/switch', {
+  method: 'POST',
+  body: JSON.stringify(data)
+})
+
+// SimWorld API 調用  
+const data = await simworldFetch('/api/devices')
+```
+
+### Docker 網路配置規範
+
+#### 🔧 服務間通信規範
+1. **服務名標準**: 使用 `servicename-component` 格式
+   - NetStack API: `netstack-api:8080`
+   - SimWorld Backend: `simworld_backend:8000`
+
+2. **網路連接**: 使用共享網路 `compose_netstack-core`
+   ```yaml
+   networks:
+     - sionna-net
+     - netstack-core
+   ```
+
+3. **端口映射**: 內部端口保持一致，外部端口可變
+   ```yaml
+   ports:
+     - "8080:8080"  # NetStack API
+     - "8888:8000"  # SimWorld Backend  
+   ```
+
+#### 🌍 環境配置管理
+1. **開發環境** (`.env`): 使用 `localhost` 直接連接
+2. **Docker 環境** (`.env.docker`): 使用代理路徑 `/netstack`, `/api`
+3. **生產環境**: 使用環境變數覆蓋
+
+#### 📋 Vite 代理配置
+```typescript
+// vite.config.ts
+proxy: {
+  '/netstack': {
+    target: env.VITE_NETSTACK_PROXY_TARGET || 'http://netstack-api:8080',
+    changeOrigin: true,
+    rewrite: (path) => path.replace(/^\/netstack/, ''),
+  }
+}
+```
+
+### 🚨 禁止的配置方式
+❌ **硬編碼 IP 地址**: `http://120.126.151.101:8080`
+❌ **混合使用直連和代理**: 在同一環境中使用不同的調用方式
+❌ **忽略環境變數**: 直接在代碼中寫死 URL
+
+### 🔍 故障排查流程
+1. **檢查環境配置**: `console.log(currentApiConfig)`
+2. **驗證網路連通性**: `docker network inspect compose_netstack-core`
+3. **查看服務狀態**: `make status`
+4. **檢查代理日誌**: 瀏覽器開發者工具 Network 面板
+
+### ✅ 配置驗證清單
+- [ ] 環境變數正確設置 (`.env`, `.env.docker`)
+- [ ] Vite 代理配置使用環境變數
+- [ ] API 調用使用統一配置系統
+- [ ] Docker Compose 網路配置正確
+- [ ] 服務健康檢查通過
