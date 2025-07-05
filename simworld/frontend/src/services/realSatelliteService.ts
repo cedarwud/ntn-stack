@@ -218,6 +218,7 @@ export class RealSatelliteDataManager {
     private globalView: boolean = true
     private lastLoggedSatelliteCount: number = 0
     private lastLoggedGlobalView: boolean = false
+    private intervalId: NodeJS.Timeout | null = null
     
     constructor(
         observerLat: number = 0.0,      // 預設赤道位置
@@ -329,13 +330,18 @@ export class RealSatelliteDataManager {
         // 立即更新一次
         this.updateData()
         
-        // 設置定期更新
-        setInterval(() => {
+        // 設置定期更新，保存 interval ID 用於清理
+        this.intervalId = setInterval(() => {
             this.updateData()
         }, this.updateInterval)
     }
     
     destroy(): void {
+        // 清理定時器
+        if (this.intervalId) {
+            clearInterval(this.intervalId)
+            this.intervalId = null
+        }
         // 清理資源
         this.data = null
         this.mapping.clear()

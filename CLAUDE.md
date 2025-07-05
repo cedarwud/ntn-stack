@@ -213,6 +213,16 @@ const data = await simworldFetch('/api/devices')
      - "8888:8000"  # SimWorld Backend  
    ```
 
+4. **前端容器環境變數** (⚠️ 關鍵配置): 
+   ```yaml
+   frontend:
+     environment:
+       VITE_ENV_MODE: docker
+       VITE_NETSTACK_URL: /netstack
+       VITE_SIMWORLD_URL: /api
+       VITE_NETSTACK_PROXY_TARGET: http://netstack-api:8080
+   ```
+
 #### 🌍 環境配置管理
 1. **開發環境** (`.env`): 使用 `localhost` 直接連接
 2. **Docker 環境** (`.env.docker`): 使用代理路徑 `/netstack`, `/api`
@@ -243,7 +253,70 @@ proxy: {
 
 ### ✅ 配置驗證清單
 - [ ] 環境變數正確設置 (`.env`, `.env.docker`)
+- [ ] **Docker Compose 前端環境變數已配置** (⚠️ 經常遺漏)
 - [ ] Vite 代理配置使用環境變數
 - [ ] API 調用使用統一配置系統
 - [ ] Docker Compose 網路配置正確
 - [ ] 服務健康檢查通過
+
+### 🔧 常見遺漏問題
+1. **前端容器環境變數未設置** - 導致仍使用開發環境配置直連 localhost
+2. **VITE_ENV_MODE 未設為 docker** - 環境檢測失敗
+3. **代理目標配置錯誤** - vite.config.ts 中的 target 設置不當
+4. **服務未使用統一 API 配置** - 繞過 api-config.ts 系統
+5. **硬編碼 IP 地址** - 在代碼中直接寫死 IP 而非使用環境變數
+
+## 🛡️ 統一配置系統
+
+### 核心原則
+**所有 API 調用必須通過統一配置系統** - 禁止硬編碼 URL 或繞過 api-config.ts
+
+### ✅ 正確的服務實現方式
+```typescript
+// ✅ 正確 - 使用統一 API 配置
+import { netstackFetch, simworldFetch } from '../config/api-config'
+
+class ApiClient {
+  private async fetchWithConfig(endpoint: string, options: RequestInit = {}) {
+    return netstackFetch(endpoint, options) // 或 simworldFetch
+  }
+  
+  async getData() {
+    const response = await this.fetchWithConfig('/api/endpoint')
+    if (!response.ok) throw new Error(`API error: ${response.statusText}`)
+    return response.json()
+  }
+}
+```
+
+### ❌ 禁止的實現方式
+```typescript
+// ❌ 錯誤 - 硬編碼 URL
+const response = await fetch('http://localhost:8080/api/endpoint')
+
+// ❌ 錯誤 - 硬編碼 IP 地址
+const response = await fetch('http://172.20.0.40:8080/api/endpoint')
+
+// ❌ 錯誤 - 繞過統一配置
+let baseUrl = '/netstack'
+if (typeof window === 'undefined') {
+  baseUrl = 'http://localhost:8080'
+}
+```
+
+### 🔍 配置驗證系統
+應用啟動時會自動運行配置驗證：
+```typescript
+import { validateFullConfiguration, logConfigurationStatus } from './config/validation'
+
+// 在 main.tsx 中自動驗證
+const configValidation = validateFullConfiguration()
+logConfigurationStatus(configValidation)
+```
+
+### 📋 配置檢查清單
+- [ ] 所有 API 調用使用 netstackFetch/simworldFetch
+- [ ] 無硬編碼 IP 地址或 URL
+- [ ] Docker 環境變數正確設置
+- [ ] 代理配置使用服務名而非 IP
+- [ ] 應用啟動時配置驗證通過

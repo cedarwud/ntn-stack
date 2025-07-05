@@ -324,7 +324,7 @@ export const useAlgorithmAnalysisData = (isEnabled: boolean = true) => {
     })
 
     console.log('🏁 批量算法數據獲取完成')
-  }, [isEnabled, fetchTimeSyncData, fetchAlgorithmPerformance, fetchComplexityComparison, fetchOptimizationData])
+  }, [isEnabled]) // 移除函數依賴，避免循環依賴
 
   // ==================== 效果鈎子 ====================
 
@@ -337,7 +337,7 @@ export const useAlgorithmAnalysisData = (isEnabled: boolean = true) => {
       const interval = setInterval(fetchAllData, 60000) // 60秒刷新一次
       return () => clearInterval(interval)
     }
-  }, [isEnabled, fetchAllData])
+  }, [isEnabled]) // 移除fetchAllData依賴，避免循環依賴
 
   // ==================== Chart.js數據轉換 (向後兼容格式) ====================
 

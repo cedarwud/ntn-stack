@@ -2,7 +2,7 @@
  * NetStack API Client
  * 用於連接 NetStack 後端的真實 API 數據
  */
-import { BaseApiClient } from './base-api'
+import { netstackFetch } from '../config/api-config'
 
 export interface SatelliteAccessPredictionRequest {
   ue_id: string
@@ -190,25 +190,21 @@ export interface HandoverPredictionResponse {
   }
 }
 
-class NetStackApiClient extends BaseApiClient {
-  constructor() {
-    // 在瀏覽器環境中使用 Vite 代理路徑
-    let baseUrl = '/netstack'  // 使用 Vite 代理路徑
-    
-    // 在 Node.js 環境中（如測試）使用完整 URL
-    if (typeof window === 'undefined') {
-      baseUrl = 'http://localhost:8080'
-    }
-    
-    super(baseUrl)
+class NetStackApiClient {
+  // 使用統一的 API 配置系統，不再繼承 BaseApiClient
+  private async fetchWithConfig(endpoint: string, options: RequestInit = {}) {
+    return netstackFetch(endpoint, options)
   }
 
   /**
    * 獲取核心同步狀態
    */
   async getCoreSync(): Promise<CoreSyncStatus> {
-    const endpoint = '/api/v1/core-sync/status'
-    return this.get<CoreSyncStatus>(endpoint)
+    const response = await this.fetchWithConfig('/api/v1/core-sync/status')
+    if (!response.ok) {
+      throw new Error(`Failed to get core sync status: ${response.statusText}`)
+    }
+    return response.json()
   }
 
   /**
@@ -217,10 +213,14 @@ class NetStackApiClient extends BaseApiClient {
   async predictSatelliteAccess(
     request: SatelliteAccessPredictionRequest
   ): Promise<SatelliteAccessPredictionResponse> {
-    return this.post<SatelliteAccessPredictionResponse>(
-      '/api/v1/core-sync/prediction/satellite-access',
-      request
-    )
+    const response = await this.fetchWithConfig('/api/v1/core-sync/prediction/satellite-access', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+    if (!response.ok) {
+      throw new Error(`Failed to predict satellite access: ${response.statusText}`)
+    }
+    return response.json()
   }
 
   /**
@@ -229,16 +229,10 @@ class NetStackApiClient extends BaseApiClient {
   async predictHandover(
     request: HandoverPredictionRequest
   ): Promise<HandoverPredictionResponse> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/satellite-tle/handover/predict`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-      }
-    )
+    const response = await this.fetchWithConfig('/api/v1/satellite-tle/handover/predict', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
     
     if (!response.ok) {
       throw new Error(`Failed to predict handover: ${response.statusText}`)
@@ -251,12 +245,9 @@ class NetStackApiClient extends BaseApiClient {
    * 啟動核心同步服務
    */
   async startCoreSync(): Promise<void> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/core-sync/service/start`,
-      {
-        method: 'POST',
-      }
-    )
+    const response = await this.fetchWithConfig('/api/v1/core-sync/service/start', {
+      method: 'POST'
+    })
     
     if (!response.ok) {
       throw new Error(`Failed to start core sync: ${response.statusText}`)
@@ -267,12 +258,9 @@ class NetStackApiClient extends BaseApiClient {
    * 停止核心同步服務
    */
   async stopCoreSync(): Promise<void> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/core-sync/service/stop`,
-      {
-        method: 'POST',
-      }
-    )
+    const response = await this.fetchWithConfig('/api/v1/core-sync/service/stop', {
+      method: 'POST'
+    })
     
     if (!response.ok) {
       throw new Error(`Failed to stop core sync: ${response.statusText}`)
@@ -283,9 +271,7 @@ class NetStackApiClient extends BaseApiClient {
    * 獲取效能指標 - 換手延遲數據
    */
   async getHandoverLatencyMetrics(): Promise<HandoverMeasurementData[]> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/core-sync/metrics/performance`
-    )
+    const response = await this.fetchWithConfig('/api/v1/core-sync/metrics/performance')
     
     if (!response.ok) {
       throw new Error(`Failed to get handover metrics: ${response.statusText}`)
@@ -334,9 +320,7 @@ class NetStackApiClient extends BaseApiClient {
    * 獲取最近的同步事件
    */
   async getRecentSyncEvents(): Promise<Array<Record<string, unknown>>> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/core-sync/events/recent`
-    )
+    const response = await this.fetchWithConfig('/api/v1/core-sync/events/recent')
     
     if (!response.ok) {
       throw new Error(`Failed to get recent sync events: ${response.statusText}`)
@@ -351,12 +335,9 @@ class NetStackApiClient extends BaseApiClient {
    * 觸發緊急重新同步
    */
   async triggerEmergencyResync(): Promise<void> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/core-sync/emergency/resync`,
-      {
-        method: 'POST',
-      }
-    )
+    const response = await this.fetchWithConfig('/api/v1/core-sync/emergency/resync', {
+      method: 'POST'
+    })
     
     if (!response.ok) {
       throw new Error(`Failed to trigger emergency resync: ${response.statusText}`)
@@ -367,7 +348,11 @@ class NetStackApiClient extends BaseApiClient {
    * 獲取健康檢查狀態
    */
   async getHealthStatus(): Promise<Record<string, unknown>> {
-    return this.get<Record<string, unknown>>('/api/v1/core-sync/health')
+    const response = await this.fetchWithConfig('/api/v1/core-sync/health')
+    if (!response.ok) {
+      throw new Error(`Failed to get health status: ${response.statusText}`)
+    }
+    return response.json()
   }
 }
 

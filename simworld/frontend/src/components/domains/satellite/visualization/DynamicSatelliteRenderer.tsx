@@ -153,22 +153,25 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
             const mapping = realSatelliteDataManager.getAllMappings()
             const isDataFresh = realSatelliteDataManager.isDataFresh()
 
-            setRealSatelliteMapping(mapping)
-            setRealDataStatus(
-                mapping.size > 0 ? (isDataFresh ? 'success' : 'stale') : 'error'
-            )
+            // 使用 ref 避免在每次渲染時觸發狀態更新
+            const prevMappingSize = realSatelliteMapping.size
+            const newStatus = mapping.size > 0 ? (isDataFresh ? 'success' : 'stale') : 'error'
 
-            // 更新真實衛星數據映射 (無需記錄)
+            // 只在數據實際變化時才更新狀態
+            if (mapping.size !== prevMappingSize || realDataStatus !== newStatus) {
+                setRealSatelliteMapping(mapping)
+                setRealDataStatus(newStatus)
+            }
         }
 
         // 立即更新一次
         updateRealData()
 
-        // 定期檢查更新
-        const interval = setInterval(updateRealData, 5000) // 每5秒檢查一次
+        // 定期檢查更新 - 降低頻率避免過度渲染
+        const interval = setInterval(updateRealData, 10000) // 每10秒檢查一次
 
         return () => clearInterval(interval)
-    }, [enabled, useRealData])
+    }, [enabled, useRealData, realSatelliteMapping.size, realDataStatus])
 
     // 初始化衛星軌道
     useEffect(() => {
