@@ -370,7 +370,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     isInitialized.current = false
                 }
             }
-        }, [currentTheme]) // 響應主題變化重新初始化
+        }, [currentTheme, currentTime, hysteresis, showThresholdLines, threshold]) // 響應主題變化重新初始化
 
         // 更新參數和主題 - 不重新創建圖表
         useEffect(() => {
