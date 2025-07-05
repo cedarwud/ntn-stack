@@ -434,6 +434,13 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         phaseStartTime: Date.now(),
         totalElapsed: 0,
     })
+    
+    // 🔧 避免無限渲染的狀態更新跟蹤
+    const lastHandoverUpdateRef = useRef({
+        progress: 0,
+        phase: 'stable' as const,
+        lastUpdateTime: Date.now()
+    })
 
     // 🔧 位置平滑處理
     const smoothedPositionsRef = useRef<Map<string, [number, number, number]>>(
@@ -799,14 +806,20 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 handoverState.currentSatelliteId
             )
             if (newSatellite) {
-                setHandoverState({
-                    phase: 'stable',
+                const emergencyState = {
+                    phase: 'stable' as const,
                     currentSatelliteId: newSatellite,
                     targetSatelliteId: null,
                     progress: 0,
                     phaseStartTime: now,
                     totalElapsed: 0,
-                })
+                }
+                lastHandoverUpdateRef.current = {
+                    progress: 0,
+                    phase: 'stable',
+                    lastUpdateTime: now
+                }
+                setHandoverState(emergencyState)
                 return
             }
         }
@@ -932,14 +945,27 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                     break
                 }
             }
+            // 階段變化時立即更新
+            lastHandoverUpdateRef.current = {
+                progress: newState.progress,
+                phase: newState.phase,
+                lastUpdateTime: now
+            }
             setHandoverState(newState)
         } else {
             // 只在進度有顯著變化時更新 (避免無限渲染)
             const progressDiff = Math.abs(
-                newState.progress - handoverState.progress
+                newState.progress - lastHandoverUpdateRef.current.progress
             )
-            if (progressDiff >= 0.01) {
-                // 只有進度變化 >= 1% 才更新
+            const timeSinceLastUpdate = now - lastHandoverUpdateRef.current.lastUpdateTime
+            
+            // 只有進度變化 >= 5% 或 超過 100ms 才更新
+            if (progressDiff >= 0.05 || timeSinceLastUpdate >= 100) {
+                lastHandoverUpdateRef.current = {
+                    progress: newState.progress,
+                    phase: newState.phase,
+                    lastUpdateTime: now
+                }
                 setHandoverState(newState)
             }
         }

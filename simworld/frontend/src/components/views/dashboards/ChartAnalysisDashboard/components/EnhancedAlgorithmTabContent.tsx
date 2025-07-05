@@ -45,11 +45,15 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
     dataStatus
   } = useAlgorithmAnalysisData(true)
 
-  // 調試信息
-  console.log('EnhancedAlgorithmTabContent 雷達圖數據:', {
-    radarData: accessStrategyRadarChart.data,
-    status: accessStrategyRadarChart.status
-  })
+  // 調試信息 - 只在開發環境且數據變化時記錄
+  React.useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log('EnhancedAlgorithmTabContent 雷達圖數據:', {
+        radarData: accessStrategyRadarChart.data,
+        status: accessStrategyRadarChart.status
+      })
+    }
+  }, [accessStrategyRadarChart.status]) // 只依賴status，避免data對象引用變化
 
   // 確保數據安全性 - 修復：調整驗證邏輯匹配實際數據結構
   const safeRadarData = React.useMemo(() => {
@@ -115,11 +119,13 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
     }
     
     // 數據有效，使用真實API數據
-    console.log('✅ 雷達圖數據驗證通過，使用真實API數據:', {
-      labelsCount: data.labels?.length,
-      datasetsCount: data.datasets?.length,
-      status: accessStrategyRadarChart.status
-    })
+    if (import.meta.env.DEV) {
+      console.log('✅ 雷達圖數據驗證通過，使用真實API數據:', {
+        labelsCount: data.labels?.length,
+        datasetsCount: data.datasets?.length,
+        status: accessStrategyRadarChart.status
+      })
+    }
     
     // 確保所有數值都在合理範圍內
     const sanitizedData = {
@@ -134,9 +140,16 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
       }))
     }
     
-    console.log('雷達圖數據驗證通過，使用計算數據:', sanitizedData)
+    if (import.meta.env.DEV) {
+      console.log('雷達圖數據驗證通過，使用計算數據:', sanitizedData)
+    }
     return sanitizedData
-  }, [accessStrategyRadarChart.data, accessStrategyRadarChart.status])
+  }, [
+    accessStrategyRadarChart.status,
+    // 使用數據的哈希值或關鍵屬性避免對象引用問題
+    JSON.stringify(accessStrategyRadarChart.data?.labels),
+    JSON.stringify(accessStrategyRadarChart.data?.datasets?.map(d => d.label))
+  ])
 
   // 確保時間同步數據安全性
   const _safeTimeSyncData = React.useMemo(() => {
@@ -173,7 +186,11 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
     }
     
     return data
-  }, [timeSyncPrecisionChart.data])
+  }, [
+    timeSyncPrecisionChart.status,
+    JSON.stringify(timeSyncPrecisionChart.data?.labels),
+    timeSyncPrecisionChart.data?.datasets?.length
+  ])
 
   // 雷達圖選項
   const radarOptions = {

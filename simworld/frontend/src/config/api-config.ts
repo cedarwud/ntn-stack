@@ -40,6 +40,9 @@ const detectEnvironment = (): 'development' | 'docker' | 'production' => {
   return 'production'
 }
 
+// 防止重複日誌的標誌
+let configLogged = false
+
 /**
  * 獲取環境特定的 API 配置
  */
@@ -86,9 +89,10 @@ export const getApiConfig = (): ApiConfig => {
   
   const config = configs[environment]
   
-  // 開發環境下輸出配置信息
-  if (import.meta.env.DEV) {
+  // 開發環境下輸出配置信息（只記錄一次）
+  if (import.meta.env.DEV && !configLogged) {
     console.log(`🔧 API 配置模式: ${environment}`, config)
+    configLogged = true
   }
   
   return config

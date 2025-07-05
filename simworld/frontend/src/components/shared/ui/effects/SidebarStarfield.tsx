@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 // 星空星點動畫元件
 const STAR_COUNT = 60
@@ -27,27 +27,35 @@ function createStars(): Star[] {
 }
 const SidebarStarfield: React.FC = () => {
     const [starAnim, setStarAnim] = useState<Star[]>(() => createStars())
+    const frameRef = useRef(0)
+    const mountedRef = useRef(true)
+
+    const updateStars = useCallback(() => {
+        if (!mountedRef.current) return
+        
+        frameRef.current++
+        setStarAnim((prev) =>
+            prev.map((star) => {
+                const t = frameRef.current / 30
+                const flicker = Math.sin(t * star.speed + star.phase) * 0.5
+                let opacity = star.baseOpacity + flicker
+                opacity = Math.max(0.15, Math.min(1, opacity))
+                return { ...star, animOpacity: opacity }
+            })
+        )
+    }, [])
+
     useEffect(() => {
-        let mounted = true
-        let frame = 0
-        const interval = setInterval(() => {
-            if (!mounted) return
-            setStarAnim((prev) =>
-                prev.map((star) => {
-                    const t = frame / 30
-                    const flicker = Math.sin(t * star.speed + star.phase) * 0.5
-                    let opacity = star.baseOpacity + flicker
-                    opacity = Math.max(0.15, Math.min(1, opacity))
-                    return { ...star, animOpacity: opacity }
-                })
-            )
-            frame++
-        }, 60)
+        mountedRef.current = true
+        
+        // 恢復動畫，降低更新頻率到 100ms
+        const interval = setInterval(updateStars, 100)
+        
         return () => {
-            mounted = false
+            mountedRef.current = false
             clearInterval(interval)
         }
-    }, [])
+    }, [updateStars])
     return (
         <div className="sidebar-starfield-container">
             {starAnim.map((star, i) => (

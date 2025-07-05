@@ -99,6 +99,18 @@ services:
         volumes:
             - ./frontend:/app
             - node_modules:/app/node_modules
+        environment:
+            # Docker 環境標識
+            VITE_ENV_MODE: docker
+            # API 配置 - 在 Docker 中使用代理路徑
+            VITE_NETSTACK_URL: /netstack
+            VITE_SIMWORLD_URL: /api
+            # Vite 代理目標配置
+            VITE_NETSTACK_PROXY_TARGET: http://netstack-api:8080
+            VITE_SIMWORLD_PROXY_TARGET: http://simworld_backend:8000
+            # 開發配置
+            VITE_PORT: 5173
+            VITE_DEBUG: true
         networks:
             - sionna-net
             - netstack-core  # 連接到 NetStack 網路（暫時註釋）

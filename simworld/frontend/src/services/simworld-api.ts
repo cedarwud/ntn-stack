@@ -2,7 +2,7 @@
  * SimWorld API Client
  * 用於連接 SimWorld 後端的真實 TLE 和軌道數據
  */
-import { BaseApiClient } from './base-api'
+import { simworldFetch } from '../config/api-config'
 import * as React from 'react'
 
 export interface SatellitePosition {
@@ -125,25 +125,10 @@ export interface AIRANDecision {
   }
 }
 
-class SimWorldApiClient extends BaseApiClient {
-  constructor() {
-    let baseUrl = 'http://localhost:8888'  // 修正端口：對應 Docker 映射端口
-    
-    // 在瀏覽器環境中使用相對路徑，讓 Vite 代理處理
-    if (typeof window !== 'undefined') {
-      // 使用空字符串作為 baseUrl，讓所有請求變成相對路徑
-      // 這樣 /api 路徑會被 Vite 代理到 simworld_backend:8000
-      baseUrl = ''
-      
-      // 檢查環境變數是否有自定義的 SimWorld URL
-      const envUrl = (window as unknown as { __SIMWORLD_API_URL__?: string }).__SIMWORLD_API_URL__
-      if (envUrl) {
-        baseUrl = envUrl
-      }
-    }
-    
-    
-    super(baseUrl)
+class SimWorldApiClient {
+  // 使用統一的 API 配置系統，不再繼承 BaseApiClient
+  private async fetchWithConfig(endpoint: string, options: RequestInit = {}) {
+    return simworldFetch(endpoint, options)
   }
 
   /**
@@ -164,14 +149,18 @@ class SimWorldApiClient extends BaseApiClient {
       // observer_lat: observerLat,  // 註釋掉以啟用真正的全球模式
       // observer_lon: observerLon,  // 註釋掉以啟用真正的全球模式
     }
-    const endpoint = '/api/v1/satellite-ops/visible_satellites'
+    const endpoint = '/v1/satellite-ops/visible_satellites'
     
     console.log(`🛰️ SimWorldApi: 調用全球視野模式 ${endpoint}，參數:`, params)
     console.log(`🌍 SimWorldApi: 請求全球範圍衛星，不限制地域觀測點`)
     
     try {
-      // 🚀 使用內建的快取機制並設置超時（基於 BaseApiClient）
-      const response = await this.get<{ 
+      // 🚀 使用統一的 API 配置系統
+      const response = await this.fetchWithConfig(endpoint)
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.statusText}`)
+      }
+      const data = await response.json() as { 
         success?: boolean;
         satellites?: Array<{ 
           norad_id?: string; 
@@ -193,50 +182,50 @@ class SimWorldApiClient extends BaseApiClient {
         visible?: number;
         status?: string;
         performance?: Record<string, unknown>;
-      }>(endpoint, params)
+      }
       
-      console.log(`🛰️ SimWorldApi: API 原始響應:`, response)
-      console.log(`🌍 SimWorldApi: 全球視野模式接收到 ${response.satellites?.length || 0} 顆衛星`)
+      console.log(`🛰️ SimWorldApi: API 原始響應:`, data)
+      console.log(`🌍 SimWorldApi: 全球視野模式接收到 ${data.satellites?.length || 0} 顆衛星`)
       
       // 詳細分析 API 響應
       console.log(`🛰️ SimWorldApi: 響應分析:`, {
-        hasResponse: !!response,
-        responseKeys: response ? Object.keys(response) : [],
-        hasSatellites: !!response.satellites,
-        satellitesLength: response.satellites?.length,
-        satellitesType: typeof response.satellites,
-        isArray: Array.isArray(response.satellites),
-        status: response.status,
-        processed: response.processed,
-        visible: response.visible,
-        error: response.error,
-        message: response.message
+        hasResponse: !!data,
+        responseKeys: data ? Object.keys(data) : [],
+        hasSatellites: !!data.satellites,
+        satellitesLength: data.satellites?.length,
+        satellitesType: typeof data.satellites,
+        isArray: Array.isArray(data.satellites),
+        status: data.status,
+        processed: data.processed,
+        visible: data.visible,
+        error: data.error,
+        message: data.message
       })
       
       // 🌍 只在衛星數量非常少時警告（0-1顆才異常）
-      if (response.satellites && response.satellites.length < 2) {
-        console.warn(`🌍 SimWorldApi: 衛星數量偏少 (${response.satellites.length} 顆)`)
+      if (data.satellites && data.satellites.length < 2) {
+        console.warn(`🌍 SimWorldApi: 衛星數量偏少 (${data.satellites.length} 顆)`)
         console.warn(`🌍 建議: 檢查後端TLE數據或API配置`)
       }
       
       // 檢查 API 是否返回錯誤
-      if (response.error) {
-        console.error(`🛰️ SimWorldApi: API 返回錯誤: ${response.error}`)
-        throw new Error(`API Error: ${response.error}`)
+      if (data.error) {
+        console.error(`🛰️ SimWorldApi: API 返回錯誤: ${data.error}`)
+        throw new Error(`API Error: ${data.error}`)
       }
       
-      if (!response.satellites || response.satellites.length === 0) {
+      if (!data.satellites || data.satellites.length === 0) {
         console.warn(`🛰️ SimWorldApi: API 未返回衛星數據或返回空數組`)
         console.warn(`🛰️ SimWorldApi: 響應結構檢查:`, {
-          hasSatellites: 'satellites' in response,
-          satellitesType: typeof response.satellites,
-          satellitesLength: response.satellites?.length,
-          responseKeys: Object.keys(response)
+          hasSatellites: 'satellites' in data,
+          satellitesType: typeof data.satellites,
+          satellitesLength: data.satellites?.length,
+          responseKeys: Object.keys(data)
         })
         
         // 如果後端處理了衛星但沒有找到可見的，記錄詳細信息
-        if (response.processed !== undefined && response.visible !== undefined && response.visible === 0) {
-          console.warn(`🛰️ SimWorldApi: 後端處理了 ${response.processed} 顆衛星，但沒有可見衛星`)
+        if (data.processed !== undefined && data.visible !== undefined && data.visible === 0) {
+          console.warn(`🛰️ SimWorldApi: 後端處理了 ${data.processed} 顆衛星，但沒有可見衛星`)
           console.warn(`🌍 全球視野模式下仍無可見衛星，可能原因:`)
           console.warn(`   1. 後端仍在使用地域限制邏輯`)
           console.warn(`   2. TLE數據庫衛星數量不足`)
@@ -259,8 +248,8 @@ class SimWorldApiClient extends BaseApiClient {
           max_results: Math.min(maxSatellites, 20)
         },
         results: {
-          total_visible: response.satellites?.length || 0,
-          satellites: response.satellites?.map((sat: { 
+          total_visible: data.satellites?.length || 0,
+          satellites: data.satellites?.map((sat: { 
             norad_id?: string; 
             name?: string; 
             orbit_altitude_km?: number; 
@@ -319,7 +308,11 @@ class SimWorldApiClient extends BaseApiClient {
    * 獲取特定衛星的即時位置
    */
   async getSatellitePosition(satelliteId: string): Promise<SatellitePosition> {
-    return this.get<SatellitePosition>(`/api/v1/satellites/${satelliteId}/position`)
+    const response = await this.fetchWithConfig(`/v1/satellites/${satelliteId}/position`)
+    if (!response.ok) {
+      throw new Error(`Failed to get satellite position: ${response.statusText}`)
+    }
+    return response.json()
   }
 
   /**
@@ -330,8 +323,8 @@ class SimWorldApiClient extends BaseApiClient {
     durationHours: number = 2,
     stepMinutes: number = 5
   ): Promise<SatelliteTrajectory> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/satellites/${satelliteId}/trajectory-cqrs?duration_hours=${durationHours}&step_minutes=${stepMinutes}`
+    const response = await this.fetchWithConfig(
+      `/v1/satellites/${satelliteId}/trajectory-cqrs?duration_hours=${durationHours}&step_minutes=${stepMinutes}`
     )
     if (!response.ok) {
       throw new Error(`Failed to get satellite trajectory: ${response.statusText}`)
@@ -350,8 +343,8 @@ class SimWorldApiClient extends BaseApiClient {
       params.append('ue_lat', ueLocation.lat.toString())
       params.append('ue_lon', ueLocation.lon.toString())
     }
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/satellites/handover/candidates?current_satellite=${currentSatelliteId}&${params}`
+    const response = await this.fetchWithConfig(
+      `/v1/satellites/handover/candidates?current_satellite=${currentSatelliteId}&${params}`
     )
     if (!response.ok) {
       throw new Error(`Failed to get handover candidates: ${response.statusText}`)
@@ -364,8 +357,8 @@ class SimWorldApiClient extends BaseApiClient {
   async getBatchSatellitePositions(
     satelliteIds: string[]
   ): Promise<SatellitePosition[]> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/satellites/batch-positions`,
+    const response = await this.fetchWithConfig(
+      `/v1/satellites/batch-positions`,
       {
         method: 'POST',
         headers: {
@@ -383,8 +376,8 @@ class SimWorldApiClient extends BaseApiClient {
    * 更新所有衛星的 TLE 數據
    */
   async updateAllTLEs(): Promise<{ updated_count: number; status: string }> {
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/satellites/update-all-tles`,
+    const response = await this.fetchWithConfig(
+      `/v1/satellites/update-all-tles`,
       {
         method: 'POST',
       }
@@ -399,8 +392,8 @@ class SimWorldApiClient extends BaseApiClient {
    */
   async getAIRANDecisions(limit: number = 10): Promise<AIRANDecision[]> {
     // 注意：這個端點可能需要根據實際 API 調整
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/ai-ran/decisions?limit=${limit}`
+    const response = await this.fetchWithConfig(
+      `/v1/ai-ran/decisions?limit=${limit}`
     )
     if (!response.ok) {
       // 如果端點不存在，返回模擬數據以保持兼容性
@@ -428,8 +421,8 @@ class SimWorldApiClient extends BaseApiClient {
       params.append('ue_lat', ueLocation.lat.toString())
       params.append('ue_lon', ueLocation.lon.toString())
     }
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/wireless/satellite-ntn-simulation?${params}`
+    const response = await this.fetchWithConfig(
+      `/v1/wireless/satellite-ntn-simulation?${params}`
     )
     if (!response.ok) {
       throw new Error(`Failed to get communication quality: ${response.statusText}`)

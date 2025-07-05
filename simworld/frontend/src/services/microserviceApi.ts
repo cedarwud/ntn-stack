@@ -5,8 +5,15 @@
 import axios, { AxiosError } from 'axios';
 // import { UAVData, SystemStatus, NetworkTopology } from '../types/charts';
 
-// 微服務網關配置 - 使用 Vite 環境變量
-const MICROSERVICE_GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || 'http://localhost:8080';
+// 微服務網關配置 - 使用統一配置系統
+import { getApiConfig } from '../config/api-config'
+
+const getMicroserviceGatewayUrl = () => {
+  const config = getApiConfig()
+  return import.meta.env.VITE_GATEWAY_URL || config.netstack.baseUrl
+}
+
+const MICROSERVICE_GATEWAY_URL = getMicroserviceGatewayUrl()
 
 // 創建微服務API實例
 const microserviceApi = axios.create({

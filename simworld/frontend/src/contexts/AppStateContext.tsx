@@ -4,7 +4,7 @@
  * 將不同領域的狀態分組管理
  */
 
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
 import { VisibleSatelliteInfo } from '../types/satellite'
 
 // ==================== 狀態類型定義 ====================
@@ -266,58 +266,38 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
 
   // ==================== Context值 ====================
 
-  const contextValue: AppStateContextType = useMemo(() => ({
-    // 狀態
-    uiState,
-    satelliteState,
-    handoverState,
-    featureState,
-    
-    // UI狀態更新函數
-    setActiveComponent,
-    setAuto,
-    setManualDirection,
-    setUavAnimation,
-    setSelectedReceiverIds,
-    
-    // 衛星狀態更新函數
-    setSkyfieldSatellites,
-    setSatelliteEnabled,
-    
-    // 換手狀態更新函數
-    setHandoverStableDuration,
-    setHandoverMode,
-    setAlgorithmResults,
-    setHandoverState: setHandoverStateInternal,
-    setCurrentConnection,
-    setPredictedConnection,
-    setIsTransitioning,
-    setTransitionProgress,
-    
-    // 功能開關更新函數
-    updateFeatureState,
-  }), [
-    uiState,
-    satelliteState,
-    handoverState,
-    featureState,
-    setActiveComponent,
-    setAuto,
-    setManualDirection,
-    setUavAnimation,
-    setSelectedReceiverIds,
-    setSkyfieldSatellites,
-    setSatelliteEnabled,
-    setHandoverStableDuration,
-    setHandoverMode,
-    setAlgorithmResults,
-    setHandoverStateInternal,
-    setCurrentConnection,
-    setPredictedConnection,
-    setIsTransitioning,
-    setTransitionProgress,
-    updateFeatureState,
-  ])
+  // 移除 useMemo 避免依賴問題，使用 useCallback 的函數已經足夠穩定
+  const contextValue: AppStateContextType = {
+        // 狀態
+        uiState,
+        satelliteState,
+        handoverState,
+        featureState,
+        
+        // UI狀態更新函數
+        setActiveComponent,
+        setAuto,
+        setManualDirection,
+        setUavAnimation,
+        setSelectedReceiverIds,
+        
+        // 衛星狀態更新函數
+        setSkyfieldSatellites,
+        setSatelliteEnabled,
+        
+        // 換手狀態更新函數
+        setHandoverStableDuration,
+        setHandoverMode,
+        setAlgorithmResults,
+        setHandoverState: setHandoverStateInternal,
+        setCurrentConnection,
+        setPredictedConnection,
+        setIsTransitioning,
+        setTransitionProgress,
+        
+        // 功能開關更新函數
+        updateFeatureState,
+    }
 
   return (
     <AppStateContext.Provider value={contextValue}>

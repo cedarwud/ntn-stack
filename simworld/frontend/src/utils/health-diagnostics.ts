@@ -3,6 +3,8 @@
  * 提供詳細的診斷信息和修復建議
  */
 
+import { netstackFetch, simworldFetch } from '../config/api-config'
+
 export interface DiagnosticResult {
   service: string
   status: 'healthy' | 'warning' | 'error'
@@ -56,7 +58,7 @@ class HealthDiagnosticsService {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000)
       
-      const response = await fetch('http://localhost:8080/health', {
+      const response = await netstackFetch('/health', {
         method: 'GET',
         signal: controller.signal
       })
@@ -123,7 +125,7 @@ class HealthDiagnosticsService {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000)
       
-      const response = await fetch('http://localhost:8888/', {
+      const response = await simworldFetch('/', {
         method: 'GET',
         signal: controller.signal
       })
@@ -210,7 +212,7 @@ class HealthDiagnosticsService {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000)
       
-      const response = await fetch('http://localhost:8080/health', {
+      const response = await netstackFetch('/health', {
         method: 'GET',
         signal: controller.signal
       })
@@ -273,7 +275,7 @@ class HealthDiagnosticsService {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000)
       
-      const response = await fetch('http://localhost:8080/api/v1/core-sync/status', {
+      const response = await netstackFetch('/api/v1/core-sync/status', {
         method: 'GET',
         signal: controller.signal
       })

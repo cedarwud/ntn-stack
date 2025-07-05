@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+// StrictMode 已被暫時禁用 - 如需重新啟用請取消註釋 StrictMode 相關代碼
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/index.scss'
@@ -7,6 +7,9 @@ import axios from 'axios'
 
 // 導入性能監控器（自動啟動）
 import './utils/performanceMonitor'
+
+// 導入配置驗證系統
+import { validateFullConfiguration, logConfigurationStatus } from './config/validation'
 
 // 設定 axios 默認配置，忽略設置 baseURL
 // 讓所有請求都使用相對路徑，由 Vite 代理處理
@@ -118,8 +121,18 @@ console.error = function (...args) {
     originalError.apply(console, args)
 }
 
+// 🔧 應用啟動時進行配置驗證
+const configValidation = validateFullConfiguration()
+logConfigurationStatus(configValidation)
+
+// 如果有嚴重配置錯誤，顯示警告但不阻止應用啟動
+if (!configValidation.isValid) {
+    console.warn('⚠️ 配置驗證失敗，某些功能可能無法正常工作')
+}
+
 createRoot(document.getElementById('root')!).render(
-    <StrictMode>
+    // 臨時禁用 StrictMode 以減少開發環境的重複渲染檢測
+    // <StrictMode>
         <BrowserRouter>
             <Routes>
                 {/* 首頁重定向到 /ntpu/stereogram */}
@@ -161,5 +174,5 @@ createRoot(document.getElementById('root')!).render(
                 />
             </Routes>
         </BrowserRouter>
-    </StrictMode>
+    // </StrictMode>
 )
