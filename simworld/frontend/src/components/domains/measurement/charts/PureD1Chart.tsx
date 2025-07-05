@@ -480,7 +480,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                     isInitialized.current = false
                     }
             }
-        }, []) // 只在掛載時執行
+        }, [currentTheme.currentTimeLine, currentTime, hysteresis, showThresholdLines, thresh1, thresh2]) // 響應參數變化重新初始化
 
         // 更新參數和主題 - 不重新創建圖表
         useEffect(() => {
@@ -682,7 +682,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 chartRef.current = null
                 isInitialized.current = false
             }
-        }, [thresh1, thresh2, hysteresis, isDarkTheme, showThresholdLines]) // 移除 currentTime，避免動畫時頻繁觸發
+        }, [thresh1, thresh2, hysteresis, isDarkTheme, showThresholdLines, currentTheme.distance1Line, currentTheme.distance2Line, currentTheme.grid, currentTheme.hysteresisLine, currentTheme.text, currentTheme.thresh1Line, currentTheme.thresh2Line, currentTheme.title]) // 添加主題依賴
 
         // 單獨處理 currentTime 變化 - 只更新動畫相關元素，避免重複計算
         useEffect(() => {
@@ -809,7 +809,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 console.warn('⚠️ [PureD1Chart] 動畫更新時發生錯誤:', error)
                 // 如果更新失敗，不影響主要功能
             }
-        }, [currentTime, showThresholdLines, currentTheme]) // 添加必要依賴
+        }, [currentTime, showThresholdLines, currentTheme, hysteresis, thresh1, thresh2]) // 添加必要依賴
 
         return (
             <div

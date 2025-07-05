@@ -4,7 +4,7 @@
  * 將不同領域的狀態分組管理
  */
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import React, { createContext, useState, useCallback, useMemo, ReactNode } from 'react'
 import { VisibleSatelliteInfo } from '../types/satellite'
 
 // ==================== 狀態類型定義 ====================
@@ -80,7 +80,7 @@ interface FeatureState {
 
 // ==================== Context介面定義 ====================
 
-interface AppStateContextType {
+export interface AppStateContextType {
   // 狀態
   uiState: UIState
   satelliteState: SatelliteState
@@ -114,7 +114,7 @@ interface AppStateContextType {
 
 // ==================== Context創建 ====================
 
-const AppStateContext = createContext<AppStateContextType | undefined>(undefined)
+export const AppStateContext = createContext<AppStateContextType | undefined>(undefined)
 
 // ==================== Provider組件 ====================
 
@@ -266,8 +266,8 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
 
   // ==================== Context值 ====================
 
-  // 移除 useMemo 避免依賴問題，使用 useCallback 的函數已經足夠穩定
-  const contextValue: AppStateContextType = {
+  // 使用 useMemo 來穩定 contextValue 避免不必要的重新渲染
+  const contextValue: AppStateContextType = useMemo(() => ({
         // 狀態
         uiState,
         satelliteState,
@@ -297,7 +297,28 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
         
         // 功能開關更新函數
         updateFeatureState,
-    }
+    }), [
+        uiState,
+        satelliteState, 
+        handoverState,
+        featureState,
+        setActiveComponent,
+        setAuto,
+        setManualDirection,
+        setUavAnimation,
+        setSelectedReceiverIds,
+        setSkyfieldSatellites,
+        setSatelliteEnabled,
+        setHandoverStableDuration,
+        setHandoverMode,
+        setAlgorithmResults,
+        setHandoverStateInternal,
+        setCurrentConnection,
+        setPredictedConnection,
+        setIsTransitioning,
+        setTransitionProgress,
+        updateFeatureState
+    ])
 
   return (
     <AppStateContext.Provider value={contextValue}>
@@ -308,66 +329,14 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
 
 // ==================== Hook ====================
 
-export const useAppState = (): AppStateContextType => {
-  const context = useContext(AppStateContext)
-  if (context === undefined) {
-    throw new Error('useAppState must be used within an AppStateProvider')
-  }
-  return context
-}
+// useAppState hook moved to ./appStateHooks.ts
 
 // ==================== 專門化Hooks ====================
 
-export const useUIState = () => {
-  const { uiState, setActiveComponent, setAuto, setManualDirection, setUavAnimation, setSelectedReceiverIds } = useAppState()
-  return {
-    ...uiState,
-    setActiveComponent,
-    setAuto,
-    setManualDirection,
-    setUavAnimation,
-    setSelectedReceiverIds,
-  }
-}
+// useUIState hook moved to ./appStateHooks.ts
 
-export const useSatelliteState = () => {
-  const { satelliteState, setSkyfieldSatellites, setSatelliteEnabled } = useAppState()
-  return {
-    ...satelliteState,
-    setSkyfieldSatellites,
-    setSatelliteEnabled,
-  }
-}
+// useSatelliteState hook moved to ./appStateHooks.ts
 
-export const useHandoverState = () => {
-  const { 
-    handoverState, 
-    setHandoverStableDuration, 
-    setHandoverMode, 
-    setAlgorithmResults,
-    setHandoverState,
-    setCurrentConnection,
-    setPredictedConnection,
-    setIsTransitioning,
-    setTransitionProgress 
-  } = useAppState()
-  return {
-    ...handoverState,
-    setHandoverStableDuration,
-    setHandoverMode,
-    setAlgorithmResults,
-    setHandoverState,
-    setCurrentConnection,
-    setPredictedConnection,
-    setIsTransitioning,
-    setTransitionProgress,
-  }
-}
+// useHandoverState hook moved to ./appStateHooks.ts
 
-export const useFeatureState = () => {
-  const { featureState, updateFeatureState } = useAppState()
-  return {
-    ...featureState,
-    updateFeatureState,
-  }
-}
+// useFeatureState hook moved to ./appStateHooks.ts
