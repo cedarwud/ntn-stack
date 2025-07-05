@@ -364,7 +364,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
         }, 120000)
 
         return () => clearInterval(interval)
-    }, [forceSync, state.sync.syncErrors, state.ui.realTimeUpdates])
+    }, [forceSync, state.ui.realTimeUpdates]) // 移除 state.sync.syncErrors 避免頻繁重啟
 
     // 自動更新 UI 數據源狀態 - 修復無限循環問題
     useEffect(() => {
@@ -384,8 +384,8 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
     }, [
         state.netstack.isConnected,
         state.simworld.isConnected,
-        state.ui.dataSource,
-    ]) // 移除 getDataSourceStatus 依賴
+        // 移除 state.ui.dataSource 避免循環依賴
+    ])
 
     // 監控同步狀態並記錄日誌（減少日誌頻率）
     const lastLogTimeRef = useRef(0)

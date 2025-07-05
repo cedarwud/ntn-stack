@@ -106,41 +106,5 @@ logger.info(
 )
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """應用生命週期管理 - CQRS 版本"""
-
-    # 啟動應用
-    logger.info("🚀 SimWorld Backend 啟動中...")
-
-    # 初始化資料庫
-    await database.connect()
-    logger.info("✅ 資料庫連線建立")
-
-    # 初始化現有服務
-    orbit_service = OrbitService()
-
-    # 初始化新的 CQRS 衛星服務
-    cqrs_satellite_service = CQRSSatelliteService(orbit_service)
-    await cqrs_satellite_service.start()
-    logger.info("✅ CQRS 衛星服務已啟動")
-
-    # 將服務存儲到 app state
-    app.state.orbit_service = orbit_service
-    app.state.cqrs_satellite_service = cqrs_satellite_service
-
-    logger.info("✅ SimWorld Backend 啟動完成")
-
-    yield
-
-    # 應用關閉
-    logger.info("🛑 SimWorld Backend 關閉中...")
-
-    # 停止 CQRS 衛星服務
-    if hasattr(app.state, "cqrs_satellite_service"):
-        await app.state.cqrs_satellite_service.stop()
-        logger.info("✅ CQRS 衛星服務已停止")
-
-    # 關閉資料庫連線
-    await database.disconnect()
-    logger.info("✅ 資料庫連線已關閉")
+# Dead code removed - this lifespan function was never executed
+# as lifespan is imported from app.db.lifespan on line 9

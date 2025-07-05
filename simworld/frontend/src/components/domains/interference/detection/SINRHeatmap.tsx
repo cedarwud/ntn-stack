@@ -44,9 +44,9 @@ const SINRHeatmap: React.FC<SINRHeatmapProps> = ({
 
         const fetchInterferenceMetrics = async () => {
             try {
-                const response = await fetch(
-                    'http://localhost:8888/api/v1/interference/metrics'
-                )
+                // 使用統一配置系統
+                const { simworldFetch } = await import('../../../../config/api-config')
+                const response = await simworldFetch('/v1/interference/metrics')
                 if (response.ok) {
                     const data = await response.json()
                     if (data.success) {
@@ -72,9 +72,9 @@ const SINRHeatmap: React.FC<SINRHeatmapProps> = ({
 
         const fetchRealSINRMap = async () => {
             try {
-                const response = await fetch(
-                    'http://localhost:8888/api/v1/simulations/sinr-map'
-                )
+                // 使用統一配置系統
+                const { simworldFetch } = await import('../../../../config/api-config')
+                const response = await simworldFetch('/v1/simulations/sinr-map')
                 if (response.ok) {
                     const blob = await response.blob()
                     const imageUrl = URL.createObjectURL(blob)

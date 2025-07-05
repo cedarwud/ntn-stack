@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 export interface Star {
     left: number
@@ -39,27 +39,41 @@ const Starfield: React.FC<StarfieldProps> = ({
     const [starAnim, setStarAnim] = useState<Star[]>(() =>
         createStars(starCount)
     )
+    
+    const frameRef = useRef(0)
+    const mountedRef = useRef(true)
+
+    const updateStars = useCallback(() => {
+        if (!mountedRef.current) return
+        
+        frameRef.current++
+        setStarAnim((prev) =>
+            prev.map((star) => {
+                const t = frameRef.current / 30
+                const flicker = Math.sin(t * star.speed + star.phase) * 0.5
+                let opacity = star.baseOpacity + flicker
+                opacity = Math.max(0.15, Math.min(1, opacity))
+                return { ...star, animOpacity: opacity }
+            })
+        )
+    }, [])
+
     useEffect(() => {
-        let mounted = true
-        let frame = 0
-        const interval = setInterval(() => {
-            if (!mounted) return
-            setStarAnim((prev) =>
-                prev.map((star) => {
-                    const t = frame / 30
-                    const flicker = Math.sin(t * star.speed + star.phase) * 0.5
-                    let opacity = star.baseOpacity + flicker
-                    opacity = Math.max(0.15, Math.min(1, opacity))
-                    return { ...star, animOpacity: opacity }
-                })
-            )
-            frame++
-        }, 60)
+        mountedRef.current = true
+        
+        // 重新啟用動畫，降低更新頻率到 120ms
+        const interval = setInterval(updateStars, 120)
+        
         return () => {
-            mounted = false
+            mountedRef.current = false
             clearInterval(interval)
         }
-    }, [])
+    }, [updateStars])
+    
+    // 處理 starCount 變化
+    useEffect(() => {
+        setStarAnim(createStars(starCount))
+    }, [starCount])
     return (
         <div
             style={{

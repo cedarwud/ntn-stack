@@ -188,6 +188,7 @@ export class RealConnectionManager {
     private handoverStatus: Map<string, RealHandoverStatus> = new Map()
     private updateInterval: number = 2000 // 2秒更新一次
     private isRunning: boolean = false
+    private intervalId: NodeJS.Timeout | null = null
     
     constructor() {
         this.startPeriodicUpdate()
@@ -240,15 +241,21 @@ export class RealConnectionManager {
                     console.error(`Error updating connection status for ${ueId}:`, error)
                 }
             }
-            
-            setTimeout(updateLoop, this.updateInterval)
         }
         
+        // 使用 setInterval 替代遞歸 setTimeout 避免堆積調用
+        this.intervalId = setInterval(updateLoop, this.updateInterval)
+        
+        // 立即執行一次
         updateLoop()
     }
     
     stop(): void {
         this.isRunning = false
+        if (this.intervalId) {
+            clearInterval(this.intervalId)
+            this.intervalId = null
+        }
         this.connectionStatus.clear()
         this.handoverStatus.clear()
     }
