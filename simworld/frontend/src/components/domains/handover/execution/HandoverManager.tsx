@@ -504,8 +504,9 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
 
     // 組件卸載時清理計時器
     useEffect(() => {
+        const timeoutRef = algorithmDataTimeoutRef
         return () => {
-            const timeoutId = algorithmDataTimeoutRef.current
+            const timeoutId = timeoutRef.current
             if (timeoutId) {
                 clearTimeout(timeoutId)
             }
