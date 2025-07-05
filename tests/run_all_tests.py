@@ -9,9 +9,10 @@ python run_all_tests.py [options]
 
 選項:
 --quick                快速模式（跳過耗時測試）
---type=TYPE           測試類型: unit,integration,performance,e2e,paper,gymnasium,all
+--type=TYPE           測試類型: unit,integration,performance,e2e,paper,gymnasium,frontend,all
 --stage=STAGE         論文測試階段: 1,2,all
 --env=ENV             Gymnasium環境: satellite,handover,all
+--frontend-type=TYPE  前端測試類型: components,api,e2e,console,all
 --verbose             詳細輸出
 --report              生成報告
 """
@@ -106,6 +107,121 @@ class UnifiedTestRunner:
             args.append("--quick")
         return self.run_test_module("gymnasium_tests", args)
     
+    def run_frontend_tests(self, frontend_type: str = "all", quick_mode: bool = False):
+        """執行前端測試"""
+        logger.info(f"🎯 執行前端測試 (類型: {frontend_type})...")
+        
+        try:
+            start_time = time.time()
+            
+            # 前端項目路徑
+            frontend_path = Path("/home/sat/ntn-stack/simworld/frontend")
+            if not frontend_path.exists():
+                logger.error("❌ 前端項目路徑不存在")
+                return False
+            
+            # 檢查是否有 npm/yarn
+            package_manager = None
+            if (frontend_path / "package.json").exists():
+                # 檢查 npm
+                try:
+                    subprocess.run(["npm", "--version"], capture_output=True, check=True)
+                    package_manager = "npm"
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    logger.warning("npm 不可用，嘗試使用 yarn")
+                    try:
+                        subprocess.run(["yarn", "--version"], capture_output=True, check=True)
+                        package_manager = "yarn"
+                    except (subprocess.CalledProcessError, FileNotFoundError):
+                        logger.error("❌ npm 和 yarn 都不可用")
+                        return False
+            
+            if not package_manager:
+                logger.error("❌ 找不到 package.json 或包管理器")
+                return False
+            
+            # 構建測試命令
+            test_cmd = [package_manager, "run", "test"]
+            
+            # 根據測試類型添加參數
+            if frontend_type != "all":
+                # Vitest 支援按文件名過濾
+                if frontend_type == "components":
+                    test_cmd.extend(["--", "components.test.tsx"])
+                elif frontend_type == "api":
+                    test_cmd.extend(["--", "api.test.ts"])
+                elif frontend_type == "e2e":
+                    test_cmd.extend(["--", "e2e.test.tsx"])
+                elif frontend_type == "console":
+                    test_cmd.extend(["--", "console-errors.test.ts"])
+            
+            # 添加測試環境變數
+            env = os.environ.copy()
+            env['NODE_ENV'] = 'test'
+            env['VITEST_ENV'] = 'test'
+            
+            # 執行前端測試
+            logger.info(f"執行命令: {' '.join(test_cmd)}")
+            result = subprocess.run(
+                test_cmd, 
+                cwd=frontend_path,
+                capture_output=True, 
+                text=True,
+                env=env,
+                timeout=300  # 5分鐘超時
+            )
+            
+            duration = time.time() - start_time
+            
+            # 記錄結果
+            success = result.returncode == 0
+            self.test_results["frontend_tests"] = {
+                'success': success,
+                'duration': duration,
+                'stdout': result.stdout,
+                'stderr': result.stderr,
+                'test_type': frontend_type
+            }
+            
+            if success:
+                logger.info(f"✅ 前端測試完成 ({duration:.2f}s)")
+                self.passed_tests += 1
+            else:
+                logger.error(f"❌ 前端測試失敗 ({duration:.2f}s)")
+                if result.stderr:
+                    logger.error(f"錯誤詳情: {result.stderr}")
+                if result.stdout:
+                    logger.info(f"測試輸出: {result.stdout}")
+                self.failed_tests += 1
+            
+            self.total_tests += 1
+            return success
+            
+        except subprocess.TimeoutExpired:
+            logger.error("❌ 前端測試超時")
+            self.test_results["frontend_tests"] = {
+                'success': False,
+                'duration': 300,
+                'stdout': '',
+                'stderr': 'Test timeout after 5 minutes',
+                'test_type': frontend_type
+            }
+            self.failed_tests += 1
+            self.total_tests += 1
+            return False
+        except Exception as e:
+            logger.error(f"❌ 執行前端測試時發生異常: {e}")
+            self.test_results["frontend_tests"] = {
+                'success': False,
+                'duration': 0,
+                'stdout': '',
+                'stderr': str(e),
+                'test_type': frontend_type
+            }
+            self.failed_tests += 1
+            self.total_tests += 1
+            return False
+    
     def generate_report(self) -> str:
         """生成測試報告"""
         end_time = datetime.now()
@@ -140,10 +256,11 @@ class UnifiedTestRunner:
 def main():
     parser = argparse.ArgumentParser(description='NTN-Stack 統一測試執行器')
     parser.add_argument('--quick', action='store_true', help='快速模式')
-    parser.add_argument('--type', choices=['unit', 'integration', 'performance', 'e2e', 'paper', 'gymnasium', 'all'], 
+    parser.add_argument('--type', choices=['unit', 'integration', 'performance', 'e2e', 'paper', 'gymnasium', 'frontend', 'all'], 
                        default='all', help='測試類型')
     parser.add_argument('--stage', choices=['1', '2', 'all'], default='all', help='論文測試階段')
     parser.add_argument('--env', choices=['satellite', 'handover', 'all'], default='all', help='Gymnasium環境')
+    parser.add_argument('--frontend-type', choices=['components', 'api', 'e2e', 'console', 'all'], default='all', help='前端測試類型')
     parser.add_argument('--verbose', action='store_true', help='詳細輸出')
     parser.add_argument('--report', action='store_true', help='生成報告')
     
@@ -172,6 +289,9 @@ def main():
     
     if args.type in ['all', 'gymnasium']:
         runner.run_gymnasium_tests(args.env, args.quick)
+    
+    if args.type in ['all', 'frontend']:
+        runner.run_frontend_tests(getattr(args, 'frontend_type', 'all'), args.quick)
     
     # 生成並顯示報告
     report = runner.generate_report()
