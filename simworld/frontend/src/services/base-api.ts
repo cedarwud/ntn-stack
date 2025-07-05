@@ -28,25 +28,37 @@ export class BaseApiClient {
       
       try {
         // Handle relative URLs for Vite proxy
-        let url: URL
+        let finalUrl: string
         if (this.baseUrl.startsWith('http')) {
           // Absolute URL
-          url = new URL(endpoint, this.baseUrl)
+          const url = new URL(endpoint, this.baseUrl)
+          if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+              if (value !== undefined && value !== null) {
+                url.searchParams.append(key, String(value))
+              }
+            })
+          }
+          finalUrl = url.toString()
         } else {
-          // Relative URL (proxy path like /netstack)
-          const fullPath = this.baseUrl + endpoint
-          url = new URL(fullPath, window.location.origin)
-        }
-        
-        if (params) {
-          Object.entries(params).forEach(([key, value]) => {
-            if (value !== undefined && value !== null) {
-              url.searchParams.append(key, String(value))
+          // Relative URL (proxy path like /netstack) - use relative path directly
+          let urlWithParams = this.baseUrl + endpoint
+          if (params) {
+            const searchParams = new URLSearchParams()
+            Object.entries(params).forEach(([key, value]) => {
+              if (value !== undefined && value !== null) {
+                searchParams.append(key, String(value))
+              }
+            })
+            const paramString = searchParams.toString()
+            if (paramString) {
+              urlWithParams += '?' + paramString
             }
-          })
+          }
+          finalUrl = urlWithParams
         }
 
-        const response = await fetch(url.toString(), {
+        const response = await fetch(finalUrl, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -99,17 +111,16 @@ export class BaseApiClient {
       
       try {
         // Handle relative URLs for Vite proxy
-        let url: URL
+        let finalUrl: string
         if (this.baseUrl.startsWith('http')) {
           // Absolute URL
-          url = new URL(endpoint, this.baseUrl)
+          finalUrl = new URL(endpoint, this.baseUrl).toString()
         } else {
-          // Relative URL (proxy path like /netstack)
-          const fullPath = this.baseUrl + endpoint
-          url = new URL(fullPath, window.location.origin)
+          // Relative URL (proxy path like /netstack) - use relative path directly
+          finalUrl = this.baseUrl + endpoint
         }
 
-        const response = await fetch(url.toString(), {
+        const response = await fetch(finalUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -163,17 +174,16 @@ export class BaseApiClient {
       
       try {
         // Handle relative URLs for Vite proxy
-        let url: URL
+        let finalUrl: string
         if (this.baseUrl.startsWith('http')) {
           // Absolute URL
-          url = new URL(endpoint, this.baseUrl)
+          finalUrl = new URL(endpoint, this.baseUrl).toString()
         } else {
-          // Relative URL (proxy path like /netstack)
-          const fullPath = this.baseUrl + endpoint
-          url = new URL(fullPath, window.location.origin)
+          // Relative URL (proxy path like /netstack) - use relative path directly
+          finalUrl = this.baseUrl + endpoint
         }
 
-        const response = await fetch(url.toString(), {
+        const response = await fetch(finalUrl, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -227,17 +237,16 @@ export class BaseApiClient {
       
       try {
         // Handle relative URLs for Vite proxy
-        let url: URL
+        let finalUrl: string
         if (this.baseUrl.startsWith('http')) {
           // Absolute URL
-          url = new URL(endpoint, this.baseUrl)
+          finalUrl = new URL(endpoint, this.baseUrl).toString()
         } else {
-          // Relative URL (proxy path like /netstack)
-          const fullPath = this.baseUrl + endpoint
-          url = new URL(fullPath, window.location.origin)
+          // Relative URL (proxy path like /netstack) - use relative path directly
+          finalUrl = this.baseUrl + endpoint
         }
 
-        const response = await fetch(url.toString(), {
+        const response = await fetch(finalUrl, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',

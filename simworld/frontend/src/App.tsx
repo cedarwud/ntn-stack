@@ -88,7 +88,7 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
         if (newAuto && featureState.manualControlEnabled) {
             featureState.updateFeatureState({ manualControlEnabled: false })
         }
-    }, [uiState.setAuto, featureState.manualControlEnabled, featureState.updateFeatureState, featureState, uiState])
+    }, [uiState.setAuto, featureState.manualControlEnabled, featureState.updateFeatureState])
 
     const handleManualControl = useCallback((direction: string | null) => {
         // 檢查是否有選中的接收器
@@ -97,7 +97,7 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
             return
         }
         uiState.setManualDirection(direction)
-    }, [uiState.selectedReceiverIds, uiState.setManualDirection, uiState])
+    }, [uiState.selectedReceiverIds, uiState.setManualDirection])
 
     const handleUAVPositionUpdate = useCallback((pos: [number, number, number], deviceId?: number) => {
         // 檢查設備ID是否在選中的接收器列表中
@@ -114,7 +114,7 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
             return
         }
         uiState.setManualDirection(direction)
-    }, [uiState.selectedReceiverIds, uiState.setManualDirection, uiState])
+    }, [uiState.selectedReceiverIds, uiState.setManualDirection])
 
     const handleHandoverEvent = useCallback((event: Record<string, unknown>) => {
         console.log('換手事件:', event)
@@ -123,7 +123,7 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
     const handleTransitionChange = useCallback((isTransitioning: boolean, progress: number) => {
         handoverState.setIsTransitioning(isTransitioning)
         handoverState.setTransitionProgress(progress)
-    }, [handoverState.setIsTransitioning, handoverState.setTransitionProgress, handoverState])
+    }, [handoverState.setIsTransitioning, handoverState.setTransitionProgress])
 
     // 渲染活躍組件
     const renderActiveComponent = () => {

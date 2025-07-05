@@ -7,6 +7,7 @@
 import { netStackApi } from '../../../../../services/netstack-api'
 import { satelliteCache } from '../../../../../utils/satellite-cache'
 import { ErrorHandlingService } from '../../../../../services/ErrorHandlingService'
+import { netstackFetch, simworldFetch } from '../../../../../config/api-config'
 
 // ==================== 接口定義 ====================
 
@@ -82,8 +83,21 @@ export class UnifiedChartApiService {
   private static async callNetStackApi(endpoint: string): Promise<Record<string, unknown>> {
     try {
       console.log(`📡 調用NetStack API: ${endpoint}`)
-      const response = await netStackApi.get(endpoint)
-      return response.data || {}
+      
+      // 根據端點調用對應的方法
+      if (endpoint.includes('/core-sync/status')) {
+        const response = await netStackApi.getCoreSync()
+        return response ?? {}
+      } else if (endpoint.includes('/core-sync/metrics/performance')) {
+        const response = await netStackApi.getHandoverLatencyMetrics()
+        return response ? { metrics: response } : {}
+      } else if (endpoint.includes('/health')) {
+        const response = await netStackApi.getHealthStatus()
+        return response ?? {}
+      } else {
+        // 對於其他端點，拋出錯誤以觸發回退邏輯
+        throw new Error(`Unsupported endpoint: ${endpoint}`)
+      }
     } catch (error) {
       console.warn(`⚠️ NetStack API調用失敗 ${endpoint}:`, error)
       
@@ -163,10 +177,28 @@ export class UnifiedChartApiService {
     
     try {
       console.log(`🌐 直接API調用: ${fullUrl}`)
-      const response = await fetch(fullUrl, {
-        timeout: 10000, // 10秒超時
-        ...options
-      })
+      // 使用統一 API 配置系統
+      let response: Response
+      
+      if (endpoint.startsWith('http')) {
+        // 外部 URL (如 Celestrak API) - 使用原生 fetch
+        response = await fetch(fullUrl, {
+          timeout: 10000, // 10秒超時
+          ...options
+        })
+      } else if (endpoint.startsWith('/api/v1/handover/') || endpoint.startsWith('/api/v1/core-sync/')) {
+        // NetStack API 端點 - 使用統一配置
+        response = await netstackFetch(endpoint, {
+          timeout: 10000,
+          ...options
+        })
+      } else {
+        // SimWorld API 端點 - 使用統一配置
+        response = await simworldFetch(endpoint, {
+          timeout: 10000,
+          ...options
+        })
+      }
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -197,7 +229,7 @@ export class UnifiedChartApiService {
   static async getCoreSync(): Promise<Record<string, unknown>> {
     try {
       console.log('📡 獲取核心同步數據 - 使用 Vite 代理')
-      const response = await fetch('/netstack/api/v1/core-sync/status', {
+      const response = await netstackFetch('/api/v1/core-sync/status', {
         timeout: 10000
       })
       
@@ -226,7 +258,7 @@ export class UnifiedChartApiService {
   static async getHealthStatus(): Promise<Record<string, unknown>> {
     try {
       // 修復：使用 Vite 代理路徑處理 503 健康檢查響應
-      const response = await fetch('/netstack/api/v1/core-sync/health', {
+      const response = await netstackFetch('/api/v1/core-sync/health', {
         timeout: 10000
       })
       
@@ -360,7 +392,7 @@ export class UnifiedChartApiService {
   static async getTimeSyncPrecision(): Promise<Record<string, unknown>> {
     try {
       // 修復：使用 Vite 代理路徑處理 503 健康檢查響應
-      const response = await fetch('/netstack/api/v1/core-sync/health', {
+      const response = await netstackFetch('/api/v1/core-sync/health', {
         timeout: 10000
       })
       
@@ -433,7 +465,8 @@ export class UnifiedChartApiService {
    */
   static async getUAVPositions(): Promise<SatellitePosition[]> {
     try {
-      const data = await this.callDirectFetch('http://localhost:8888/api/v1/uav/positions')
+      const response = await simworldFetch('/v1/uav/positions')
+      const data = await response.json()
       return Array.isArray(data) ? data as SatellitePosition[] : []
     } catch (error) {
       console.warn('UAV位置數據獲取失敗:', error)
@@ -733,22 +766,38 @@ export class UnifiedChartApiService {
     console.log('🔍 UnifiedChartApiService: 獲取演算法延遲數據')
     
     try {
-      // 修復：使用新創建的真實 handover API 端點
-      const data = await this.callDirectFetch('/api/v1/handover/algorithm-latency')
-      console.log('✅ 演算法延遲數據獲取成功 - 使用真實 handover API')
+      // 修復：使用 netstackFetch 直接調用 NetStack API
+      const response = await netstackFetch('/api/v1/handover/algorithm-latency')
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      const data = await response.json()
+      console.log('✅ 演算法延遲數據獲取成功 - 使用 NetStack API')
       console.log('🔍 API 響應數據格式:', data)
       
-      // 修復：處理新的 handover API 響應格式
+      // 修復：處理真實 API 響應格式，添加詳細調試信息
+      console.log('🔍 檢查 API 響應數據類型:', {
+        hasData: !!data,
+        dataType: typeof data,
+        isArray: Array.isArray(data),
+        dataKeys: data ? Object.keys(data) : []
+      })
+      
       if (data && typeof data === 'object' && !Array.isArray(data)) {
         const algorithmData = data as {
           latency_measurements?: Record<string, number[]>
           algorithms?: string[]
+          [key: string]: unknown
         }
         
-        console.log('🔍 處理 handover API 算法延遲數據')
+        console.log('🔍 檢查 latency_measurements 字段:', {
+          hasLatencyMeasurements: !!algorithmData.latency_measurements,
+          latencyMeasurementsType: typeof algorithmData.latency_measurements,
+          latencyMeasurementsKeys: algorithmData.latency_measurements ? Object.keys(algorithmData.latency_measurements) : []
+        })
         
         // 從真實 API 響應提取延遲數據
-        if (algorithmData.latency_measurements) {
+        if (algorithmData.latency_measurements && typeof algorithmData.latency_measurements === 'object') {
           const measurements = algorithmData.latency_measurements
           
           // 直接使用 API 提供的數據結構
@@ -760,16 +809,21 @@ export class UnifiedChartApiService {
             enhanced_proposed: measurements.enhanced_proposed || []
           }
           
-          console.log('✅ 從真實 handover API 成功獲取算法延遲數據:', {
+          console.log('✅ 從真實 NetStack API 成功獲取算法延遲數據:', {
             algorithms: algorithmData.algorithms,
             data_points: Object.keys(grouped).map(key => ({
               algorithm: key,
               count: grouped[key].length
-            }))
+            })),
+            totalDataPoints: Object.values(grouped).reduce((sum, arr) => sum + arr.length, 0)
           })
           
           return grouped
+        } else {
+          console.warn('⚠️ latency_measurements 字段缺失或格式錯誤')
         }
+      } else {
+        console.warn('⚠️ API 響應數據格式不正確:', { data })
       }
       
       // 如果數據為空或格式完全不符預期，使用預設值

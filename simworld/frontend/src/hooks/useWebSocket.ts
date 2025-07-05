@@ -81,9 +81,17 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
     try {
       setConnectionStatus('connecting');
       
-      // 構建 WebSocket URL - 使用模擬 URL，因為實際沒有 WebSocket 服務
-      // 在生產環境中，這裡應該是真實的 WebSocket 服務 URL
-      const wsUrl = `ws://localhost:8080/ws`; // 假設 NetStack 提供 WebSocket
+      // 構建 WebSocket URL - 使用統一配置系統
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const host = window.location.host
+      let wsUrl: string
+      
+      // 根據環境配置 WebSocket URL
+      if (import.meta.env.VITE_ENV_MODE === 'docker') {
+        wsUrl = `${protocol}//${host}/netstack/ws`
+      } else {
+        wsUrl = import.meta.env.VITE_NETSTACK_WS_URL || `${protocol}//localhost:8080/ws`
+      }
       
       console.log(`正在連接 WebSocket (嘗試 ${reconnectCount + 1}/${maxReconnectAttempts}):`, wsUrl);
       
