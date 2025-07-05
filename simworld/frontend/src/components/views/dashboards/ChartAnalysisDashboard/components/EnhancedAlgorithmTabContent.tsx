@@ -53,7 +53,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
         status: accessStrategyRadarChart.status
       })
     }
-  }, [accessStrategyRadarChart.status]) // 只依賴status，避免data對象引用變化
+  }, [accessStrategyRadarChart.status, accessStrategyRadarChart.data]) // 包含data依賴
 
   // 確保數據安全性 - 修復：調整驗證邏輯匹配實際數據結構
   const safeRadarData = React.useMemo(() => {
@@ -144,12 +144,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
       console.log('雷達圖數據驗證通過，使用計算數據:', sanitizedData)
     }
     return sanitizedData
-  }, [
-    accessStrategyRadarChart.status,
-    // 使用數據的哈希值或關鍵屬性避免對象引用問題
-    JSON.stringify(accessStrategyRadarChart.data?.labels),
-    JSON.stringify(accessStrategyRadarChart.data?.datasets?.map(d => d.label))
-  ])
+  }, [accessStrategyRadarChart.status, accessStrategyRadarChart.data])
 
   // 確保時間同步數據安全性
   const _safeTimeSyncData = React.useMemo(() => {
@@ -186,11 +181,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
     }
     
     return data
-  }, [
-    timeSyncPrecisionChart.status,
-    JSON.stringify(timeSyncPrecisionChart.data?.labels),
-    timeSyncPrecisionChart.data?.datasets?.length
-  ])
+  }, [timeSyncPrecisionChart.data])
 
   // 雷達圖選項
   const radarOptions = {

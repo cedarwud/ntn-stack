@@ -249,7 +249,6 @@ const BaseChart = <T extends MeasurementEventParams>({
     config,
     animationState.currentTime,
     isDarkTheme,
-    showThresholdLines,
     themeColors,
     generateAnimationCursor,
     generateThresholdLines,

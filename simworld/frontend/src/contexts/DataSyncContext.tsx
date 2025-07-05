@@ -384,7 +384,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
     }, [
         state.netstack.isConnected,
         state.simworld.isConnected,
-        // 移除 state.ui.dataSource 避免循環依賴
+        state.ui.dataSource,
     ])
 
     // 監控同步狀態並記錄日誌（減少日誌頻率）

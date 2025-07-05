@@ -16,7 +16,8 @@ import { backgroundHealthMonitor } from './services/healthMonitor'
 import { countActiveDevices } from './utils/deviceUtils'
 import { DataSyncProvider } from './contexts/DataSyncContext'
 import { StrategyProvider } from './contexts/StrategyContext'
-import { AppStateProvider, useUIState, useSatelliteState, useHandoverState, useFeatureState } from './contexts/AppStateContext'
+import { AppStateProvider } from './contexts/AppStateContext'
+import { useUIState, useSatelliteState, useHandoverState, useFeatureState } from './contexts/appStateHooks'
 import './styles/App.scss'
 
 interface AppProps {
@@ -88,7 +89,7 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
         if (newAuto && featureState.manualControlEnabled) {
             featureState.updateFeatureState({ manualControlEnabled: false })
         }
-    }, [uiState.setAuto, featureState.manualControlEnabled, featureState.updateFeatureState])
+    }, [uiState, featureState])
 
     const handleManualControl = useCallback((direction: string | null) => {
         // 檢查是否有選中的接收器
@@ -97,7 +98,7 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
             return
         }
         uiState.setManualDirection(direction)
-    }, [uiState.selectedReceiverIds, uiState.setManualDirection])
+    }, [uiState])
 
     const handleUAVPositionUpdate = useCallback((pos: [number, number, number], deviceId?: number) => {
         // 檢查設備ID是否在選中的接收器列表中
@@ -114,7 +115,7 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
             return
         }
         uiState.setManualDirection(direction)
-    }, [uiState.selectedReceiverIds, uiState.setManualDirection])
+    }, [uiState])
 
     const handleHandoverEvent = useCallback((event: Record<string, unknown>) => {
         console.log('換手事件:', event)
@@ -123,6 +124,7 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
     const handleTransitionChange = useCallback((isTransitioning: boolean, progress: number) => {
         handoverState.setIsTransitioning(isTransitioning)
         handoverState.setTransitionProgress(progress)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [handoverState.setIsTransitioning, handoverState.setTransitionProgress])
 
     // 渲染活躍組件

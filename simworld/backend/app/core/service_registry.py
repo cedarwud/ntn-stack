@@ -11,8 +11,8 @@ from typing import Any, Optional
 
 from .lifecycle_manager import register_service, register_shutdown_hook, ServicePriority
 from .config import configure_gpu_cpu, configure_matplotlib
-from ..db.database import DatabaseManager, database_manager
-from ..services.satellite_scheduler import initialize_satellite_scheduler, shutdown_satellite_scheduler
+from ..db.database import DatabaseManager, database
+from ..services.satellite_scheduler import initialize_scheduler, shutdown_scheduler
 from ..db.redis_client import initialize_redis_client, close_redis_connection
 from ..domains.satellite.services.cqrs_satellite_service import CQRSSatelliteService
 
@@ -57,9 +57,9 @@ def setup_environment():
 async def initialize_database():
     """Initialize database connection and create tables"""
     try:
-        await database_manager.connect()
+        await database.connect()
         logger.info("Database initialized successfully")
-        return database_manager
+        return database
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
         raise
@@ -68,7 +68,7 @@ async def initialize_database():
 async def shutdown_database():
     """Shutdown database connection"""
     try:
-        await database_manager.disconnect()
+        await database.disconnect()
         logger.info("Database connection closed")
     except Exception as e:
         logger.error(f"Database shutdown failed: {e}")
@@ -110,7 +110,13 @@ async def shutdown_redis():
 async def initialize_satellite_scheduler_service():
     """Initialize satellite data scheduler"""
     try:
-        await initialize_satellite_scheduler()
+        # Get redis client from redis service
+        from ..db.redis_client import get_redis_client
+        redis_client = get_redis_client()
+        if redis_client is None:
+            raise RuntimeError("Redis client not available for satellite scheduler")
+        
+        await initialize_scheduler(redis_client)
         logger.info("Satellite scheduler initialized")
     except Exception as e:
         logger.error(f"Satellite scheduler initialization failed: {e}")
@@ -120,7 +126,7 @@ async def initialize_satellite_scheduler_service():
 async def shutdown_satellite_scheduler_service():
     """Shutdown satellite scheduler"""
     try:
-        await shutdown_satellite_scheduler()
+        await shutdown_scheduler()
         logger.info("Satellite scheduler stopped")
     except Exception as e:
         logger.error(f"Satellite scheduler shutdown failed: {e}")
