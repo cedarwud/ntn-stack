@@ -6,11 +6,31 @@
 - **`sionna_service.py` (1726行)**: 完整功能的巨型服務，包含所有 Sionna 模擬功能
 - **`sionna_service_refactored.py` (281行)**: 未完成的重構版本，依賴不存在的子服務模組
 
+### ✅ **實際使用中的功能 (不能刪除)**
+1. **前端 Navbar 信號分析**: 四個圖表組件被實際使用
+   - `SINRViewer.tsx` → SINR MAP 彈窗
+   - `CFRViewer.tsx` → Constellation & CFR 彈窗
+   - `DelayDopplerViewer.tsx` → Delay–Doppler 彈窗
+   - `TimeFrequencyViewer.tsx` → Time-Frequency 彈窗
+
+2. **完整的前後端串接鏈路**:
+   ```
+   Navbar 按鈕 → Viewer 組件 → simulationApi.ts → API 端點 → sionna_service.py
+   ```
+
+3. **跨領域服務依賴**:
+   - `SionnaChannelSimulationService` (wireless 領域)
+   - `interference_simulation_service.py` (interference 領域)
+
+### ❌ **可以安全刪除的部分**
+- `sionna_service_refactored.py` - 未完成的重構文件
+- 空的 sionna 相關目錄
+
 ### 核心問題
-1. **重構未完成**: `sionna_service_refactored.py` 導入不存在的模組
-2. **功能重複**: 兩個版本共存造成維護困惑
-3. **代碼巨大**: 1726行的單一服務違反單一職責原則
-4. **難以測試**: 功能耦合過於緊密
+1. **代碼巨大**: 1726行的單一服務違反單一職責原則
+2. **難以測試**: 功能耦合過於緊密
+3. **維護困難**: 所有功能混在一個文件中
+4. **擴展性差**: 新增功能需要修改巨型文件
 
 ## 🏗️ 重構策略
 
@@ -171,24 +191,66 @@ class RenderingService:
 
 ## 🚨 風險管控
 
-### 高風險項目
+### 🔴 **高風險項目 (會影響用戶功能)**
+1. **Navbar 信號分析功能**: 四個圖表彈窗的正常顯示
+   - SINR MAP, CFR, Delay-Doppler, Time-Frequency
+   - 必須確保 API 接口完全兼容
+   
+2. **跨領域服務依賴**: 
+   - wireless 領域的 `SionnaChannelSimulationService`
+   - interference 領域的干擾檢測功能
+   
+3. **API 回應格式**: 確保重構後圖片生成和回傳格式一致
+
+### 🟡 **中風險項目**
 1. **GPU設置依賴**: 確保GPU設置在所有服務中正確共享
 2. **檔案路徑處理**: 確保相對/絕對路徑在不同服務間一致
 3. **記憶體管理**: pyrender和matplotlib的資源釋放
 
 ### 緩解策略
-1. **漸進式重構**: 保持原始服務可用，新服務並行開發
-2. **對比測試**: 每個階段都與原始版本比較輸出
-3. **回滾計劃**: 如有問題可快速回退到原始版本
+1. **保持 API 接口不變**: 所有公開方法簽名必須完全一致
+2. **功能對等測試**: 每個功能都要與原版本對比測試
+3. **用戶功能驗證**: 重點測試 navbar 四個圖表的完整流程
+4. **版本切換機制**: 提供快速回滾到原始服務的能力
+5. **漸進式重構**: 保持原始服務可用，新服務並行開發
+
+## 🧪 **重構驗證計劃**
+
+### 🎯 **必須通過的功能測試**
+```bash
+# 1. Navbar 功能完整性測試
+- 點擊「信號分析」→ SINR MAP 彈窗正常顯示
+- 點擊「信號分析」→ Constellation & CFR 彈窗正常顯示  
+- 點擊「信號分析」→ Delay–Doppler 彈窗正常顯示
+- 點擊「信號分析」→ Time-Frequency 彈窗正常顯示
+
+# 2. API 接口測試
+curl http://localhost:8888/api/v1/simulations/cfr-plot
+curl http://localhost:8888/api/v1/simulations/sinr-map
+curl http://localhost:8888/api/v1/simulations/doppler-plots
+curl http://localhost:8888/api/v1/simulations/channel-response
+
+# 3. 跨領域服務測試
+- wireless 領域功能正常
+- interference 領域功能正常
+```
+
+### 📊 **對比測試要求**
+- 生成的圖片與原版本像素級一致（允許5%誤差）
+- API 回應時間差異 < 10%
+- 記憶體使用量差異 < 15%
 
 ## 📚 清理計劃
 
-### 重構完成後清理
+### 立即可清理（低風險）
 ```bash
 # 刪除未完成的重構檔案
 rm simworld/backend/app/domains/simulation/services/sionna_service_refactored.py
+```
 
-# 保留原始檔案作為參考 (可選)
+### 重構完成後清理
+```bash
+# 保留原始檔案作為參考 (建議保留一段時間)
 mv sionna_service.py sionna_service_legacy.py
 
 # 將新版本設為主要版本
@@ -198,5 +260,13 @@ mv sionna_service_v2.py sionna_service.py
 ---
 
 **目標**: 將1726行的巨型服務重構為高度模組化、可維護、可測試的架構  
-**原則**: 功能完全對等，性能不降低，可維護性大幅提升  
+**原則**: 功能完全對等，用戶體驗無影響，性能不降低，可維護性大幅提升  
+**重點**: 確保 Navbar 信號分析四個圖表功能完全正常  
 **時程**: 4週完成，每週一個重要里程碑
+
+## ⚠️ **重要提醒**
+
+**這不是簡單的代碼清理，而是有實際用戶功能依賴的重構！**
+- Navbar 的信號分析功能被實際使用
+- 任何破壞性改動都會直接影響用戶體驗
+- 必須保持 100% 功能對等性

@@ -44,6 +44,36 @@ docker exec -it simworld_backend bash    # 進入後端容器
 docker exec simworld_backend python -c "<code>"  # 執行代碼
 ```
 
+## ⚠️ Docker Compose 重要提醒
+**使用現代化的 `docker compose` 指令，不要使用已棄用的 `docker-compose`**
+
+✅ **正確使用方式**：
+```bash
+# 啟動服務
+docker compose up -d
+
+# 停止服務  
+docker compose down
+
+# 查看日誌
+docker compose logs
+
+# 重新建構
+docker compose build
+```
+
+❌ **已棄用的舊方式**：
+```bash
+# 不要使用這些指令
+docker-compose up -d     # 已棄用
+docker-compose down      # 已棄用
+docker-compose logs     # 已棄用
+```
+
+**說明**：
+- `docker-compose` (使用連字符) 是舊版獨立工具，已被棄用
+- `docker compose` (使用空格) 是 Docker CLI 的內建子命令，是現在的標準
+
 ## 🌐 服務地址
 - NetStack API: http://localhost:8080
 - SimWorld Backend: http://localhost:8888  
