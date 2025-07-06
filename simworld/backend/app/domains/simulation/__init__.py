@@ -16,3 +16,8 @@ from app.domains.simulation.services.sionna_service import (
     SionnaSimulationService,
     sionna_service,
 )
+# Legacy service removed after successful refactoring
+# from app.domains.simulation.services.sionna_service_legacy import (
+#     SionnaSimulationService as SionnaSimulationServiceLegacy,
+#     sionna_service as sionna_service_legacy,
+# )

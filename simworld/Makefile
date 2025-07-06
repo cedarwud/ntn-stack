@@ -1,11 +1,10 @@
 .PHONY: up down down-v clean build
 
-up: build
+up:
 	docker compose up -d
 
 down:
 	docker compose down
-	docker network prune -f
 
 down-v:
 	docker compose down -v
