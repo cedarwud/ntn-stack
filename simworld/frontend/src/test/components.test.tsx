@@ -8,14 +8,13 @@
  * - 錯誤處理測試
  */
 
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import React from 'react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { 
-  consoleErrorCollector, 
   expectNoConsoleErrors, 
-  waitForDOMUpdate,
-  delay 
+  waitForDOMUpdate
 } from './setup'
 
 // =============================================================================
@@ -75,7 +74,7 @@ vi.mock('chart.js', () => ({
 /**
  * 模擬組件 props
  */
-const createMockProps = (overrides: Record<string, any> = {}) => ({
+const _createMockProps = (overrides: Record<string, unknown> = {}) => ({
   data: [],
   loading: false,
   error: null,
@@ -472,11 +471,28 @@ describe('🎮 交互功能測試', () => {
 describe('🛡️ 錯誤處理測試', () => {
   
   it('應該正確處理組件渲染錯誤', () => {
-    const ErrorBoundaryWrapper = ({ children }: { children: React.ReactNode }) => {
-      try {
-        return <>{children}</>
-      } catch (error) {
-        return <div data-testid="error-fallback">渲染錯誤: {String(error)}</div>
+    class ErrorBoundary extends React.Component<
+      { children: React.ReactNode },
+      { hasError: boolean; error?: Error }
+    > {
+      constructor(props: { children: React.ReactNode }) {
+        super(props)
+        this.state = { hasError: false }
+      }
+
+      static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error }
+      }
+
+      componentDidCatch(_error: Error, _errorInfo: React.ErrorInfo) {
+        // 靜默處理錯誤，不輸出到 console
+      }
+
+      render() {
+        if (this.state.hasError) {
+          return <div data-testid="error-fallback">錯誤已被邊界捕獲</div>
+        }
+        return this.props.children
       }
     }
     
@@ -484,16 +500,22 @@ describe('🛡️ 錯誤處理測試', () => {
       throw new Error('測試錯誤')
     }
     
-    // 暫時允許 console 錯誤
-    consoleErrorCollector.clearErrors()
+    // 暫時抑制 console.error 輸出
+    const originalError = console.error
+    console.error = vi.fn()
     
-    renderWithProviders(
-      <ErrorBoundaryWrapper>
-        <ProblematicComponent />
-      </ErrorBoundaryWrapper>
-    )
-    
-    // 這個測試預期會有 console 錯誤，所以不檢查
+    try {
+      renderWithProviders(
+        <ErrorBoundary>
+          <ProblematicComponent />
+        </ErrorBoundary>
+      )
+      
+      // 驗證錯誤被正確處理
+      expect(screen.getByTestId('error-fallback')).toBeInTheDocument()
+    } finally {
+      console.error = originalError
+    }
   })
 
   it('應該正確處理載入狀態', () => {

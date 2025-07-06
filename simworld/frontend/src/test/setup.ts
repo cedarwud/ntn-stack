@@ -116,7 +116,7 @@ class ConsoleErrorCollector {
 
   private setupInterceptors() {
     // 攔截 console.error
-    console.error = (...args: any[]) => {
+    console.error = (...args: unknown[]) => {
       const message = args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' ')
@@ -133,7 +133,7 @@ class ConsoleErrorCollector {
     }
 
     // 攔截 console.warn
-    console.warn = (...args: any[]) => {
+    console.warn = (...args: unknown[]) => {
       const message = args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' ')
@@ -162,6 +162,10 @@ class ConsoleErrorCollector {
 
   hasWarnings(): boolean {
     return this.errors.some(e => e.type === 'warn')
+  }
+
+  addError(error: ConsoleError): void {
+    this.errors.push(error)
   }
 
   restore(): void {
@@ -246,7 +250,7 @@ export const mockSimworldResponses = {
 
 // 設定 Mock fetch 行為
 export function setupApiMocks() {
-  (global.fetch as any).mockImplementation((url: string, options?: RequestInit) => {
+  (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string, _options?: RequestInit) => {
     const urlObj = new URL(url, 'http://localhost')
     const path = urlObj.pathname
     
@@ -338,10 +342,15 @@ beforeEach(() => {
 
 // 每個測試後的清理
 afterEach(() => {
-  // 檢查是否有未處理的 console 錯誤（除非測試明確允許）
-  const errors = consoleErrorCollector.getErrors('error')
-  if (errors.length > 0) {
-    console.warn(`測試結束時發現 ${errors.length} 個 console 錯誤：`, errors)
+  // 對於 console-errors.test.tsx 測試，不報告錯誤（因為那些是故意的測試錯誤）
+  const testName = expect.getState().currentTestName || ''
+  const isConsoleErrorTest = testName.includes('Console 錯誤檢測測試') || testName.includes('console 錯誤') || testName.includes('console 警告')
+  
+  if (!isConsoleErrorTest) {
+    const errors = consoleErrorCollector.getErrors('error')
+    if (errors.length > 0) {
+      console.warn(`測試結束時發現 ${errors.length} 個 console 錯誤：`, errors)
+    }
   }
 })
 
