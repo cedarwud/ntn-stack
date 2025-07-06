@@ -9,9 +9,8 @@
  * - 網路配置驗證測試
  */
 
-import { describe, it, expect, beforeEach, vi, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { 
-  setupApiMocks, 
   mockNetstackResponses, 
   mockSimworldResponses,
   consoleErrorCollector,
@@ -49,7 +48,7 @@ vi.mock('../config/api-config', () => mockApiConfig)
 /**
  * 驗證 API 回應格式
  */
-const validateApiResponse = (response: any, expectedFields: string[]) => {
+const validateApiResponse = (response: Record<string, unknown>, expectedFields: string[]) => {
   expect(response).toBeDefined()
   expect(typeof response).toBe('object')
   
@@ -64,7 +63,7 @@ const validateApiResponse = (response: any, expectedFields: string[]) => {
 const testApiEndpoint = async (
   fetchFn: typeof mockApiConfig.netstackFetch,
   endpoint: string,
-  expectedResponse: any,
+  expectedResponse: Record<string, unknown>,
   options: RequestInit = {}
 ) => {
   fetchFn.mockResolvedValueOnce({
@@ -156,7 +155,7 @@ describe('🌐 NetStack API 整合測試', () => {
         mockNetstackResponses['/api/v1/satellites']
       )
       
-      satelliteData.satellites.forEach((satellite: any) => {
+      satelliteData.satellites.forEach((satellite: Record<string, unknown>) => {
         // 驗證 ID 格式
         expect(typeof satellite.id).toBe('string')
         expect(satellite.id).toMatch(/^sat_\d+$/)
@@ -213,7 +212,7 @@ describe('🌐 NetStack API 整合測試', () => {
       expect(Array.isArray(deviceData.devices)).toBe(true)
       
       if (deviceData.devices.length > 0) {
-        deviceData.devices.forEach((device: any) => {
+        deviceData.devices.forEach((device: Record<string, unknown>) => {
           expect(device).toHaveProperty('id')
           expect(device).toHaveProperty('type')
           expect(device).toHaveProperty('connected_satellite')
@@ -427,7 +426,7 @@ describe('⚡ API 效能測試', () => {
 
   it('API 請求應該在合理時間內完成', async () => {
     // 模擬快速回應
-    mockApiConfig.netstackFetch.mockImplementation(async (endpoint) => {
+    mockApiConfig.netstackFetch.mockImplementation(async (_endpoint) => {
       await delay(50) // 模擬 50ms 延遲
       return {
         ok: true,
