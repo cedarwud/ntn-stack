@@ -1,6 +1,7 @@
 """
-場景管理模組
-包含場景健康度檢查、檔案管理等功能
+Scene Management Services
+
+This module provides services for managing 3D scenes used in Sionna simulations.
 """
 
 from .scene_management_service import SceneManagementService
