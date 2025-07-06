@@ -349,7 +349,9 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                 threshold: threshold.toString(),
                 timeProgress: `${currentTime.toFixed(1)}s / 25s`,
                 exceedTime: Math.max(0, currentMt - threshold).toFixed(1),
-                measurementAccuracy: `±${(0.1 + currentTime / 1000).toFixed(2)}s`,
+                measurementAccuracy: `±${(0.1 + currentTime / 1000).toFixed(
+                    2
+                )}s`,
             }
         }, [
             animationState.currentTime,
@@ -449,30 +451,6 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                         <div className="control-group">
                             <div className="control-item">
                                 <label className="control-label">
-                                    t1-Threshold (測量時間門檻)
-                                    <span className="control-unit">秒</span>
-                                </label>
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="20"
-                                    step="0.5"
-                                    value={params.t1Threshold}
-                                    onChange={(e) =>
-                                        updateParam(
-                                            't1Threshold',
-                                            Number(e.target.value)
-                                        )
-                                    }
-                                    className="control-slider"
-                                />
-                                <span className="control-value">
-                                    {params.t1Threshold}s
-                                </span>
-                            </div>
-
-                            <div className="control-item">
-                                <label className="control-label">
                                     當前測量時間 Mt
                                     <span className="control-unit">秒</span>
                                 </label>
@@ -492,6 +470,30 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                                 />
                                 <span className="control-value">
                                     {animationState.currentTime.toFixed(1)}s
+                                </span>
+                            </div>
+
+                            <div className="control-item">
+                                <label className="control-label">
+                                    t1-Threshold (測量時間門檻)
+                                    <span className="control-unit">秒</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="20"
+                                    step="0.5"
+                                    value={params.t1Threshold}
+                                    onChange={(e) =>
+                                        updateParam(
+                                            't1Threshold',
+                                            Number(e.target.value)
+                                        )
+                                    }
+                                    className="control-slider"
+                                />
+                                <span className="control-value">
+                                    {params.t1Threshold}s
                                 </span>
                             </div>
                         </div>
@@ -680,7 +682,7 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                     {/* 圖表區域 */}
                     <div className="event-viewer__chart-container">
                         <div className="chart-area">
-                            <div 
+                            <div
                                 className="chart-container"
                                 style={{
                                     minHeight: '500px',
@@ -688,7 +690,7 @@ export const EventT1Viewer: React.FC<EventT1ViewerProps> = React.memo(
                                     display: 'flex',
                                     flexDirection: 'column',
                                     justifyContent: 'center',
-                                    padding: '20px 0'
+                                    padding: '20px 0',
                                 }}
                             >
                                 <PureT1Chart {...chartProps} />

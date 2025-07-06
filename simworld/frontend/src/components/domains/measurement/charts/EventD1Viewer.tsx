@@ -201,19 +201,58 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
         React.useEffect(() => {
             if (!animationState.isPlaying) return
 
+            /*
+            console.log(
+                '🎬 [EventD1Viewer] 啟動動畫循環，當前速度:',
+                animationState.speed
+            )
+            */
+
             const interval = setInterval(() => {
                 setAnimationState((prev) => {
                     const newTime = prev.currentTime + 0.1 * prev.speed // 0.1 second steps
                     const maxTime = 100 // 100 seconds max for D1 (matching chart X-axis)
                     if (newTime >= maxTime) {
+                        // console.log('🏁 [EventD1Viewer] 動畫到達終點，重置')
                         return { ...prev, isPlaying: false, currentTime: 0 }
                     }
+                    /*
+                    if (Math.floor(newTime * 10) % 10 === 0) {
+                        console.log(
+                            '⏰ [EventD1Viewer] 動畫時間更新:',
+                            newTime.toFixed(1) + 's'
+                        )
+                    }
+                    */
                     return { ...prev, currentTime: newTime }
                 })
             }, 100) // Update every 100ms (0.1 second)
 
-            return () => clearInterval(interval)
+            return () => {
+                // console.log('🛑 [EventD1Viewer] 清理動畫循環')
+                clearInterval(interval)
+            }
         }, [animationState.isPlaying, animationState.speed])
+
+        // 記錄 PureD1Chart 的 props 變化
+        React.useEffect(() => {
+            /*
+            console.log('📊 [EventD1Viewer] PureD1Chart props 更新:', {
+                currentTime: animationState.currentTime,
+                thresh1: params.Thresh1,
+                thresh2: params.Thresh2,
+                hysteresis: params.Hys,
+                isDarkTheme,
+                timestamp: Date.now(),
+            })
+            */
+        }, [
+            animationState.currentTime,
+            params.Thresh1,
+            params.Thresh2,
+            params.Hys,
+            isDarkTheme,
+        ])
 
         // 穩定的閾值線切換回調
         const toggleThresholdLines = useCallback(() => {
