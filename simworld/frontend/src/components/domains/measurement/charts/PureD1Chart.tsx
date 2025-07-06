@@ -64,19 +64,31 @@ const distance2Points = [
 const generateCurrentTimeCursor = (currentTime: number) => {
     return [
         { x: currentTime, y: 100 }, // 底部
-        { x: currentTime, y: 600 }  // 頂部 (D1 的 Y 軸範圍為距離)
+        { x: currentTime, y: 600 }, // 頂部 (D1 的 Y 軸範圍為距離)
     ]
 }
 
 // 計算當前時間點的距離值（線性插值）
-const getCurrentDistance = (currentTime: number, distancePoints: Array<{x: number, y: number}>) => {
+const getCurrentDistance = (
+    currentTime: number,
+    distancePoints: Array<{ x: number; y: number }>
+) => {
     if (currentTime <= distancePoints[0].x) return distancePoints[0].y
-    if (currentTime >= distancePoints[distancePoints.length - 1].x) return distancePoints[distancePoints.length - 1].y
-    
+    if (currentTime >= distancePoints[distancePoints.length - 1].x)
+        return distancePoints[distancePoints.length - 1].y
+
     for (let i = 0; i < distancePoints.length - 1; i++) {
-        if (currentTime >= distancePoints[i].x && currentTime <= distancePoints[i + 1].x) {
-            const t = (currentTime - distancePoints[i].x) / (distancePoints[i + 1].x - distancePoints[i].x)
-            return distancePoints[i].y + t * (distancePoints[i + 1].y - distancePoints[i].y)
+        if (
+            currentTime >= distancePoints[i].x &&
+            currentTime <= distancePoints[i + 1].x
+        ) {
+            const t =
+                (currentTime - distancePoints[i].x) /
+                (distancePoints[i + 1].x - distancePoints[i].x)
+            return (
+                distancePoints[i].y +
+                t * (distancePoints[i + 1].y - distancePoints[i].y)
+            )
         }
     }
     return distancePoints[0].y
@@ -93,18 +105,24 @@ const generateEventNode = (currentTime: number, distance: number) => {
 }
 
 // 檢查Event D1事件觸發狀態
-const checkD1EventTrigger = (distance1: number, distance2: number, thresh1: number, thresh2: number, hysteresis: number) => {
+const checkD1EventTrigger = (
+    distance1: number,
+    distance2: number,
+    thresh1: number,
+    thresh2: number,
+    hysteresis: number
+) => {
     // Event D1 進入條件: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2
-    const condition1 = (distance1 - hysteresis) > thresh1
-    const condition2 = (distance2 + hysteresis) < thresh2
+    const condition1 = distance1 - hysteresis > thresh1
+    const condition2 = distance2 + hysteresis < thresh2
     const isTriggered = condition1 && condition2
-    
+
     return {
         isTriggered,
         condition1,
         condition2,
         condition1Status: condition1 ? 'satisfied' : 'not_satisfied',
-        condition2Status: condition2 ? 'satisfied' : 'not_satisfied'
+        condition2Status: condition2 ? 'satisfied' : 'not_satisfied',
     }
 }
 
@@ -172,15 +190,16 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
             [isDarkTheme, colors.dark, colors.light]
         )
 
-        // 初始化圖表 - 只執行一次
+        // 初始化圖表 - 只執行一次，不包含 currentTime
         useEffect(() => {
             if (!canvasRef.current || isInitialized.current) return
             const ctx = canvasRef.current.getContext('2d')
             if (!ctx) return
 
+            console.log('🎯 [PureD1Chart] 初始化圖表')
 
-            // 準備初始數據集
-            const datasets: Record<string, unknown>[] = [
+            // 準備基礎數據集 - 不包含動畫相關的數據
+            const datasets = [
                 {
                     label: 'Distance 1 (UE ↔ Ref1)',
                     data: distance1Points,
@@ -311,100 +330,6 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 )
             }
 
-            // 添加當前時間游標
-            if (currentTime > 0) {
-                const cursorData = generateCurrentTimeCursor(currentTime)
-                datasets.push({
-                    label: `Current Time: ${currentTime.toFixed(1)}s`,
-                    data: cursorData,
-                    borderColor: currentTheme.currentTimeLine,
-                    backgroundColor: 'transparent',
-                    borderWidth: 3,
-                    fill: false,
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    tension: 0,
-                    borderDash: [5, 5],
-                })
-                
-                // 添加距離追蹤節點
-                const currentDistance1 = getCurrentDistance(currentTime, distance1Points)
-                const currentDistance2 = getCurrentDistance(currentTime, distance2Points)
-                const eventStatus = checkD1EventTrigger(currentDistance1, currentDistance2, thresh1, thresh2, hysteresis)
-                
-                // 節點1（距離到Ref1）
-                const node1Data = generateDistanceNode(currentTime, currentDistance1)
-                let node1Color = '#28A745' // 預設綠色
-                let node1Size = 10
-                
-                if (eventStatus.condition1) {
-                    node1Color = '#28A745' // 綠色：條件滿足
-                    node1Size = 12
-                } else {
-                    node1Color = '#FFC107' // 橙色：條件不滿足
-                    node1Size = 8
-                }
-                
-                datasets.push({
-                    label: `Distance 1 Node (${currentDistance1.toFixed(0)}m)`,
-                    data: node1Data,
-                    borderColor: node1Color,
-                    backgroundColor: node1Color,
-                    borderWidth: 3,
-                    fill: false,
-                    pointRadius: node1Size,
-                    pointHoverRadius: node1Size + 4,
-                    pointStyle: 'triangle',
-                    showLine: false,
-                    tension: 0,
-                })
-                
-                // 節點2（距離到Ref2）
-                const node2Data = generateDistanceNode(currentTime, currentDistance2)
-                let node2Color = '#FD7E14' // 預設橙色
-                let node2Size = 10
-                
-                if (eventStatus.condition2) {
-                    node2Color = '#007BFF' // 藍色：條件滿足
-                    node2Size = 12
-                } else {
-                    node2Color = '#DC3545' // 紅色：條件不滿足
-                    node2Size = 8
-                }
-                
-                datasets.push({
-                    label: `Distance 2 Node (${currentDistance2.toFixed(0)}m)`,
-                    data: node2Data,
-                    borderColor: node2Color,
-                    backgroundColor: node2Color,
-                    borderWidth: 3,
-                    fill: false,
-                    pointRadius: node2Size,
-                    pointHoverRadius: node2Size + 4,
-                    pointStyle: 'rect',
-                    showLine: false,
-                    tension: 0,
-                })
-                
-                // Event D1 狀態節點（中間位置）
-                if (eventStatus.isTriggered) {
-                    const eventNodeData = [{ x: currentTime, y: (currentDistance1 + currentDistance2) / 2 }]
-                    datasets.push({
-                        label: 'Event D1 TRIGGERED',
-                        data: eventNodeData,
-                        borderColor: '#FF6B35',
-                        backgroundColor: '#FF6B35',
-                        borderWidth: 4,
-                        fill: false,
-                        pointRadius: 16,
-                        pointHoverRadius: 20,
-                        pointStyle: 'star',
-                        showLine: false,
-                        tension: 0,
-                    })
-                }
-            }
-
             try {
                 chartRef.current = new Chart(ctx, {
                     type: 'line',
@@ -468,6 +393,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 })
 
                 isInitialized.current = true
+                console.log('✅ [PureD1Chart] 圖表創建成功')
             } catch (error) {
                 console.error('❌ [PureD1Chart] 圖表創建失敗:', error)
             }
@@ -478,9 +404,215 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                     chartRef.current.destroy()
                     chartRef.current = null
                     isInitialized.current = false
-                    }
+                }
             }
-        }, [currentTheme.currentTimeLine, currentTime, hysteresis, showThresholdLines, thresh1, thresh2]) // 響應參數變化重新初始化
+        }, [
+            currentTheme.currentTimeLine,
+            hysteresis,
+            showThresholdLines,
+            thresh1,
+            thresh2,
+        ]) // 移除 currentTime 依賴
+
+        // 單獨的動畫更新 useEffect - 只更新動畫相關的數據集
+        useEffect(() => {
+            if (!chartRef.current || !isInitialized.current) {
+                return
+            }
+            const chart = chartRef.current
+
+            // console.log('🎬 [PureD1Chart] 更新動畫時間:', currentTime)
+
+            // 處理動畫游標和節點
+            const expectedCursorIndex = showThresholdLines ? 8 : 2 // 基礎數據集 + 門檻線
+
+            if (currentTime > 0) {
+                const cursorData = generateCurrentTimeCursor(currentTime)
+                const currentDistance1 = getCurrentDistance(
+                    currentTime,
+                    distance1Points
+                )
+                const currentDistance2 = getCurrentDistance(
+                    currentTime,
+                    distance2Points
+                )
+                const eventStatus = checkD1EventTrigger(
+                    currentDistance1,
+                    currentDistance2,
+                    thresh1,
+                    thresh2,
+                    hysteresis
+                )
+
+                // 更新或添加游標數據集
+                if (chart.data.datasets[expectedCursorIndex]) {
+                    const dataset = chart.data.datasets[
+                        expectedCursorIndex
+                    ] as any
+                    dataset.data = cursorData
+                    dataset.label = `Current Time: ${currentTime.toFixed(1)}s`
+                } else {
+                    chart.data.datasets.push({
+                        label: `Current Time: ${currentTime.toFixed(1)}s`,
+                        data: cursorData,
+                        borderColor: currentTheme.currentTimeLine,
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        fill: false,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        tension: 0,
+                        borderDash: [5, 5],
+                    } as any)
+                }
+
+                // 節點1（距離到Ref1）
+                const node1Data = generateDistanceNode(
+                    currentTime,
+                    currentDistance1
+                )
+                let node1Color = '#28A745' // 預設綠色
+                let node1Size = 10
+
+                if (eventStatus.condition1) {
+                    node1Color = '#28A745' // 綠色：條件滿足
+                    node1Size = 12
+                } else {
+                    node1Color = '#FFC107' // 橙色：條件不滿足
+                    node1Size = 8
+                }
+
+                // 更新或添加節點1數據集
+                const node1Index = expectedCursorIndex + 1
+                if (chart.data.datasets[node1Index]) {
+                    const dataset = chart.data.datasets[node1Index] as any
+                    dataset.data = node1Data
+                    dataset.label = `Distance 1 Node (${currentDistance1.toFixed(
+                        0
+                    )}m)`
+                    dataset.borderColor = node1Color
+                    dataset.backgroundColor = node1Color
+                    dataset.pointRadius = node1Size
+                    dataset.pointHoverRadius = node1Size + 4
+                } else {
+                    chart.data.datasets.push({
+                        label: `Distance 1 Node (${currentDistance1.toFixed(
+                            0
+                        )}m)`,
+                        data: node1Data,
+                        borderColor: node1Color,
+                        backgroundColor: node1Color,
+                        borderWidth: 3,
+                        fill: false,
+                        pointRadius: node1Size,
+                        pointHoverRadius: node1Size + 4,
+                        pointStyle: 'triangle',
+                        showLine: false,
+                        tension: 0,
+                    } as any)
+                }
+
+                // 節點2（距離到Ref2）
+                const node2Data = generateDistanceNode(
+                    currentTime,
+                    currentDistance2
+                )
+                let node2Color = '#FD7E14' // 預設橙色
+                let node2Size = 10
+
+                if (eventStatus.condition2) {
+                    node2Color = '#007BFF' // 藍色：條件滿足
+                    node2Size = 12
+                } else {
+                    node2Color = '#DC3545' // 紅色：條件不滿足
+                    node2Size = 8
+                }
+
+                // 更新或添加節點2數據集
+                const node2Index = expectedCursorIndex + 2
+                if (chart.data.datasets[node2Index]) {
+                    const dataset = chart.data.datasets[node2Index] as any
+                    dataset.data = node2Data
+                    dataset.label = `Distance 2 Node (${currentDistance2.toFixed(
+                        0
+                    )}m)`
+                    dataset.borderColor = node2Color
+                    dataset.backgroundColor = node2Color
+                    dataset.pointRadius = node2Size
+                    dataset.pointHoverRadius = node2Size + 4
+                } else {
+                    chart.data.datasets.push({
+                        label: `Distance 2 Node (${currentDistance2.toFixed(
+                            0
+                        )}m)`,
+                        data: node2Data,
+                        borderColor: node2Color,
+                        backgroundColor: node2Color,
+                        borderWidth: 3,
+                        fill: false,
+                        pointRadius: node2Size,
+                        pointHoverRadius: node2Size + 4,
+                        pointStyle: 'rect',
+                        showLine: false,
+                        tension: 0,
+                    } as any)
+                }
+
+                // Event D1 狀態節點（中間位置）
+                const eventIndex = expectedCursorIndex + 3
+                if (eventStatus.isTriggered) {
+                    const eventNodeData = [
+                        {
+                            x: currentTime,
+                            y: (currentDistance1 + currentDistance2) / 2,
+                        },
+                    ]
+                    if (chart.data.datasets[eventIndex]) {
+                        const dataset = chart.data.datasets[eventIndex] as any
+                        dataset.data = eventNodeData
+                    } else {
+                        chart.data.datasets.push({
+                            label: 'Event D1 TRIGGERED',
+                            data: eventNodeData,
+                            borderColor: '#FF6B35',
+                            backgroundColor: '#FF6B35',
+                            borderWidth: 4,
+                            fill: false,
+                            pointRadius: 16,
+                            pointHoverRadius: 20,
+                            pointStyle: 'star',
+                            showLine: false,
+                            tension: 0,
+                        } as any)
+                    }
+                } else {
+                    // 移除事件節點如果它存在
+                    if (
+                        chart.data.datasets[eventIndex] &&
+                        chart.data.datasets[eventIndex].label?.includes(
+                            'TRIGGERED'
+                        )
+                    ) {
+                        chart.data.datasets.splice(eventIndex, 1)
+                    }
+                }
+            } else {
+                // 移除動畫相關的數據集
+                while (chart.data.datasets.length > expectedCursorIndex) {
+                    chart.data.datasets.pop()
+                }
+            }
+
+            // 更新圖表但不重新創建
+            chart.update('none') // 使用 'none' 模式避免動畫
+        }, [
+            currentTime,
+            currentTheme.currentTimeLine,
+            hysteresis,
+            showThresholdLines,
+            thresh1,
+            thresh2,
+        ])
 
         // 更新參數和主題 - 不重新創建圖表
         useEffect(() => {
@@ -489,6 +621,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
             }
             const chart = chartRef.current
 
+            console.log('🎨 [PureD1Chart] 更新主題和參數')
 
             // 處理 showThresholdLines 變化和參數更新
             if (showThresholdLines) {
@@ -632,7 +765,8 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
             // 更新圖表選項的顏色 - 安全訪問
             try {
                 if (chart.options?.plugins?.legend?.labels) {
-                    chart.options.plugins.legend.labels.color = currentTheme.text
+                    chart.options.plugins.legend.labels.color =
+                        currentTheme.text
                 }
                 if (chart.options?.plugins?.legend) {
                     chart.options.plugins.legend.display = showThresholdLines
@@ -640,12 +774,12 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 if (chart.options?.plugins?.title) {
                     chart.options.plugins.title.color = currentTheme.title
                 }
-                
+
                 // 確保 scales 存在
                 if (!chart.options.scales) {
                     chart.options.scales = {}
                 }
-                
+
                 const xScale = chart.options.scales.x as Record<string, unknown>
                 if (xScale?.title) {
                     xScale.title.color = currentTheme.text
@@ -656,7 +790,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 if (xScale?.grid) {
                     xScale.grid.color = currentTheme.grid
                 }
-                
+
                 const yScale = chart.options.scales.y as Record<string, unknown>
                 if (yScale?.title) {
                     yScale.title.color = currentTheme.text
@@ -674,7 +808,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
             // 更新圖表 - 使用 'none' 避免動畫
             try {
                 chart.update('none')
-                } catch (error) {
+            } catch (error) {
                 console.error('❌ [PureD1Chart] 圖表更新失敗:', error)
                 // 嘗試重新初始化圖表
                 console.log('🔄 [PureD1Chart] 嘗試重新初始化圖表')
@@ -682,134 +816,21 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 chartRef.current = null
                 isInitialized.current = false
             }
-        }, [thresh1, thresh2, hysteresis, isDarkTheme, showThresholdLines, currentTheme.distance1Line, currentTheme.distance2Line, currentTheme.grid, currentTheme.hysteresisLine, currentTheme.text, currentTheme.thresh1Line, currentTheme.thresh2Line, currentTheme.title]) // 添加主題依賴
-
-        // 單獨處理 currentTime 變化 - 只更新動畫相關元素，避免重複計算
-        useEffect(() => {
-            if (!chartRef.current || !isInitialized.current || currentTime === 0) {
-                return
-            }
-            
-            const chart = chartRef.current
-            
-            try {
-                // 確保圖表實例存在且已初始化
-                if (!chart.data || !chart.data.datasets) {
-                    console.warn('⚠️ [PureD1Chart] 圖表數據未初始化，跳過動畫更新')
-                    return
-                }
-                
-                // 只更新動畫相關的數據集（游標和節點）
-                const expectedCursorIndex = showThresholdLines ? 8 : 2
-                const expectedNode1Index = expectedCursorIndex + 1
-                const expectedNode2Index = expectedCursorIndex + 2
-                const expectedEventNodeIndex = expectedCursorIndex + 3
-                
-                const cursorData = generateCurrentTimeCursor(currentTime)
-                const currentDistance1 = getCurrentDistance(currentTime, distance1Points)
-                const currentDistance2 = getCurrentDistance(currentTime, distance2Points)
-                const eventStatus = checkD1EventTrigger(currentDistance1, currentDistance2, thresh1, thresh2, hysteresis)
-                
-                // 添加游標數據集（如果不存在）
-                if (!chart.data.datasets[expectedCursorIndex]) {
-                    chart.data.datasets.push({
-                        label: `Current Time: ${currentTime.toFixed(1)}s`,
-                        data: cursorData,
-                        borderColor: currentTheme.currentTimeLine,
-                        backgroundColor: 'transparent',
-                        borderWidth: 3,
-                        fill: false,
-                        pointRadius: 0,
-                        pointHoverRadius: 0,
-                        tension: 0,
-                        borderDash: [5, 5],
-                    } as Record<string, unknown>)
-                } else {
-                    // 更新游標
-                    chart.data.datasets[expectedCursorIndex].data = cursorData
-                    chart.data.datasets[expectedCursorIndex].label = `Current Time: ${currentTime.toFixed(1)}s`
-                }
-                
-                // 添加/更新節點1
-                if (!chart.data.datasets[expectedNode1Index]) {
-                    const node1Color = eventStatus.condition1 ? '#28A745' : '#FFC107'
-                    const node1Size = eventStatus.condition1 ? 12 : 8
-                    chart.data.datasets.push({
-                        label: `Distance 1 Node (${currentDistance1.toFixed(0)}m)`,
-                        data: generateDistanceNode(currentTime, currentDistance1),
-                        borderColor: node1Color,
-                        backgroundColor: node1Color,
-                        borderWidth: 3,
-                        fill: false,
-                        pointRadius: node1Size,
-                        pointHoverRadius: node1Size + 4,
-                        pointStyle: 'triangle',
-                        showLine: false,
-                        tension: 0,
-                    } as Record<string, unknown>)
-                } else {
-                    chart.data.datasets[expectedNode1Index].data = generateDistanceNode(currentTime, currentDistance1)
-                }
-                
-                // 添加/更新節點2
-                if (!chart.data.datasets[expectedNode2Index]) {
-                    const node2Color = eventStatus.condition2 ? '#007BFF' : '#DC3545'
-                    const node2Size = eventStatus.condition2 ? 12 : 8
-                    chart.data.datasets.push({
-                        label: `Distance 2 Node (${currentDistance2.toFixed(0)}m)`,
-                        data: generateDistanceNode(currentTime, currentDistance2),
-                        borderColor: node2Color,
-                        backgroundColor: node2Color,
-                        borderWidth: 3,
-                        fill: false,
-                        pointRadius: node2Size,
-                        pointHoverRadius: node2Size + 4,
-                        pointStyle: 'rect',
-                        showLine: false,
-                        tension: 0,
-                    } as Record<string, unknown>)
-                } else {
-                    chart.data.datasets[expectedNode2Index].data = generateDistanceNode(currentTime, currentDistance2)
-                }
-                
-                // 添加/更新事件節點
-                if (eventStatus.isTriggered) {
-                    const eventNodeData = generateEventNode(currentTime, Math.min(currentDistance1, currentDistance2))
-                    if (!chart.data.datasets[expectedEventNodeIndex]) {
-                        chart.data.datasets.push({
-                            label: 'Event D1 TRIGGERED',
-                            data: eventNodeData,
-                            borderColor: '#FF6B35',
-                            backgroundColor: '#FF6B35',
-                            borderWidth: 4,
-                            fill: false,
-                            pointRadius: 16,
-                            pointHoverRadius: 20,
-                            pointStyle: 'star',
-                            showLine: false,
-                            tension: 0,
-                        } as Record<string, unknown>)
-                    } else {
-                        chart.data.datasets[expectedEventNodeIndex].data = eventNodeData
-                    }
-                } else {
-                    // 如果事件未觸發，清空事件節點數據
-                    if (chart.data.datasets[expectedEventNodeIndex]) {
-                        chart.data.datasets[expectedEventNodeIndex].data = []
-                    }
-                }
-                
-                // 安全的圖表更新
-                if (chart.update && typeof chart.update === 'function') {
-                    chart.update('none')
-                } else {
-                    console.warn('⚠️ [PureD1Chart] chart.update 方法不可用')
-                }
-            } catch (error) {
-                console.warn('⚠️ [PureD1Chart] 動畫更新時發生錯誤:', error)
-                // 如果更新失敗，不影響主要功能
-            }
-        }, [currentTime, showThresholdLines, currentTheme, hysteresis, thresh1, thresh2]) // 添加必要依賴
+        }, [
+            thresh1,
+            thresh2,
+            hysteresis,
+            isDarkTheme,
+            showThresholdLines,
+            currentTheme.distance1Line,
+            currentTheme.distance2Line,
+            currentTheme.grid,
+            currentTheme.hysteresisLine,
+            currentTheme.text,
+            currentTheme.thresh1Line,
+            currentTheme.thresh2Line,
+            currentTheme.title,
+        ]) // 添加主題依賴
 
         return (
             <div
