@@ -39,12 +39,21 @@ class SceneManagementService:
                 logger.warning(f"場景 {scene_name} 的 XML 文件不存在: {xml_path}")
                 return False
 
-            # 檢查 2: XML 格式問題 - NTPU 和 Nanliao 有已知的 shape id 問題
-            if scene_name in ["NTPU", "Nanliao"]:
-                logger.warning(
-                    f"⚠️  注意：{scene_name} 場景的 XML 文件格式不相容於 Sionna"
-                    f"（shape 元素缺少 id 屬性），自動回退到 NYCU 場景。"
-                )
+            # 檢查 2: XML 格式問題 - NTPU 和 Nanliao 有已知問題
+            problematic_scenes = ["NTPU", "Nanliao", "NTPU_v2"]
+            
+            if scene_name in problematic_scenes:
+                if scene_name in ["NTPU", "NTPU_v2"]:
+                    logger.warning(
+                        f"⚠️  注意：{scene_name} 場景的 XML 文件不相容於 Sionna "
+                        f"（HolderMaterial 配置錯誤：只允許一個嵌套radio material），"
+                        f"自動回退到 NYCU 場景。"
+                    )
+                else:  # Nanliao
+                    logger.warning(
+                        f"⚠️  注意：{scene_name} 場景的 XML 文件格式不相容於 Sionna "
+                        f"（shape 元素缺少 id 屬性），自動回退到 NYCU 場景。"
+                    )
                 return False
 
             # 檢查 3: 幾何數據完整性 - 檢查 PLY 文件大小
@@ -97,8 +106,12 @@ class SceneManagementService:
             # 先嘗試獲取指定場景的路徑
             xml_path = get_scene_xml_path(scene_name)
 
+            # 從路徑中提取實際的場景目錄名稱進行健康檢查
+            import os
+            actual_scene_name = os.path.basename(os.path.dirname(xml_path))
+            
             # 檢查場景健康度
-            if self.check_scene_health(scene_name, xml_path):
+            if self.check_scene_health(actual_scene_name, xml_path):
                 logger.info(f"✅ 使用場景: {scene_name}, 路徑: {xml_path}")
                 return xml_path
             else:
@@ -108,7 +121,8 @@ class SceneManagementService:
                 fallback_xml_path = get_scene_xml_path(fallback_scene)
 
                 # 再次檢查回退場景的健康度
-                if self.check_scene_health(fallback_scene, fallback_xml_path):
+                fallback_actual_scene_name = os.path.basename(os.path.dirname(fallback_xml_path))
+                if self.check_scene_health(fallback_actual_scene_name, fallback_xml_path):
                     logger.info(f"✅ 使用回退場景: {fallback_scene}, 路徑: {fallback_xml_path}")
                     return fallback_xml_path
                 else:
