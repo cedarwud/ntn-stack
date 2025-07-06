@@ -1,6 +1,11 @@
 """
-通信模擬服務
-負責 Sionna 通信模擬、CFR/SINR/Doppler 計算等功能
+Communication Simulation Service
+
+This service handles Sionna-based communication simulations including:
+- CFR (Channel Frequency Response) generation
+- SINR (Signal-to-Interference-plus-Noise Ratio) mapping
+- Delay-Doppler analysis
+- Channel response visualization
 """
 
 import logging
@@ -10,9 +15,8 @@ import numpy as np
 import tensorflow as tf
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
 
-# Sionna 相關導入
+# Sionna imports
 from sionna.rt import (
     load_scene,
     Transmitter as SionnaTransmitter,
@@ -23,35 +27,62 @@ from sionna.rt import (
     RadioMapSolver,
 )
 
-# 模型和配置導入
+# Device domain imports
 from app.domains.device.models.device_model import Device, DeviceRole
 from app.domains.device.services.device_service import DeviceService
 from app.domains.device.adapters.sqlmodel_device_repository import SQLModelDeviceRepository
+
+# Config imports
+from app.core.config import (
+    CFR_PLOT_IMAGE_PATH,
+    DOPPLER_IMAGE_PATH,
+    CHANNEL_RESPONSE_IMAGE_PATH,
+    SINR_MAP_IMAGE_PATH,
+)
+
+# Scene management import
+from ..scene.scene_management_service import SceneManagementService
 
 logger = logging.getLogger(__name__)
 
 
 class CommunicationSimulationService:
     """
-    通信模擬服務
-    提供基於 Sionna 的通信系統模擬功能
+    Communication Simulation Service
+    
+    Provides Sionna-based communication system simulation capabilities
     """
 
-    def __init__(self):
+    def __init__(self, scene_service: Optional[SceneManagementService] = None):
+        """
+        Initialize the communication simulation service
+        
+        Args:
+            scene_service: Scene management service instance
+        """
+        self.scene_service = scene_service or SceneManagementService()
         self._setup_gpu()
 
-    def _setup_gpu(self) -> None:
-        """設置 GPU 環境"""
-        try:
-            gpus = tf.config.experimental.list_physical_devices('GPU')
-            if gpus:
-                for gpu in gpus:
-                    tf.config.experimental.set_memory_growth(gpu, True)
-                logger.info(f"✅ GPU 設置完成，可用 GPU: {len(gpus)}")
-            else:
-                logger.info("⚠️  未檢測到 GPU，使用 CPU 進行計算")
-        except Exception as e:
-            logger.warning(f"⚠️  GPU 設置失敗，將使用 CPU: {e}")
+    def _setup_gpu(self) -> bool:
+        """
+        Set up GPU environment with memory growth enabled
+        
+        Returns:
+            True if GPU is available, False if using CPU
+        """
+        os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+        gpus = tf.config.list_physical_devices("GPU")
+
+        if gpus:
+            try:
+                tf.config.experimental.set_memory_growth(gpus[0], True)
+                logger.info("GPU 記憶體成長已啟用")
+            except Exception as e:
+                logger.warning(f"無法啟用GPU記憶體增長: {e}")
+        else:
+            logger.info("未找到 GPU，使用 CPU")
+
+        return gpus is not None
 
     async def generate_cfr_plot(
         self, 
