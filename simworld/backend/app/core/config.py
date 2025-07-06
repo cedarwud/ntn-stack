@@ -65,11 +65,24 @@ def get_scene_model_path(scene_name: str, model_name: str = None) -> Path:
     return get_scene_dir(scene_name) / f"{model_name}.glb"
 
 
-def get_scene_xml_path(scene_name: str, xml_name: str = None) -> Path:
+def get_scene_xml_path(scene_name: str, xml_name: str = None) -> str:
     """獲取場景XML路徑，若未指定XML名稱則使用場景名稱作為XML名稱"""
+    # 場景名稱標準化: 小寫輸入映射到大寫目錄名
+    scene_mapping = {
+        "nycu": "NYCU",
+        "lotus": "Lotus", 
+        "nanliao": "Nanliao",
+        "ntpu": "NTPU_v2"
+    }
+    
+    # 獲取實際的目錄名稱
+    actual_scene_name = scene_mapping.get(scene_name.lower(), scene_name)
+    
     if xml_name is None:
-        xml_name = scene_name
-    return get_scene_dir(scene_name) / f"{xml_name}.xml"
+        xml_name = actual_scene_name
+    
+    xml_path = get_scene_dir(actual_scene_name) / f"{xml_name}.xml"
+    return str(xml_path)  # 返回字符串而非Path對象
 
 
 # 舊版 OUTPUT_DIR，保持定義以兼容可能還在使用的地方，但指向新位置

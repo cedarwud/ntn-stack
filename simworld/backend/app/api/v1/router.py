@@ -38,7 +38,6 @@ from app.api.routes.uav import router as uav_router
 from app.api.routes.integration import router as integration_router
 
 # Import existing specialized routers
-from app.api.v1.testing import testing_router_refactored as testing_router
 from app.api.v1.satellite_admin_api import router as satellite_admin_router
 
 # Create main API router
@@ -87,7 +86,6 @@ api_router.include_router(
 )
 
 # Register specialized routers
-api_router.include_router(testing_router, prefix="/testing", tags=["Testing"])
 api_router.include_router(
     satellite_admin_router, prefix="/admin", tags=["Administration"]
 )
