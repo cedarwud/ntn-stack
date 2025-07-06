@@ -131,7 +131,6 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
         currentTime = 0,
         showThresholdLines = true,
         isDarkTheme = true,
-        _onThemeToggle,
     }) => {
         const canvasRef = useRef<HTMLCanvasElement>(null)
         const chartRef = useRef<Chart | null>(null)
@@ -169,14 +168,16 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
             [isDarkTheme, colors]
         )
 
-        // 初始化圖表 - 只執行一次
+        // 初始化圖表 - 只執行一次，不包含 currentTime
         useEffect(() => {
             if (!canvasRef.current || isInitialized.current) return
             const ctx = canvasRef.current.getContext('2d')
             if (!ctx) return
 
-            // 準備初始數據集 - 使用正確的主題顏色
-            const datasets: Record<string, unknown>[] = [
+            console.log('🎯 [PureA4Chart] 初始化圖表')
+
+            // 準備基礎數據集 - 不包含動畫相關的數據
+            const datasets = [
                 {
                     label: 'Neighbor Cell RSRP',
                     data: dataPoints,
@@ -240,65 +241,6 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 )
             }
 
-            // 添加當前時間游標
-            if (currentTime > 0) {
-                const cursorData = generateCurrentTimeCursor(currentTime)
-                datasets.push({
-                    label: `Current Time: ${currentTime.toFixed(1)}s`,
-                    data: cursorData,
-                    borderColor: currentTheme.currentTimeLine,
-                    backgroundColor: 'transparent',
-                    borderWidth: 3,
-                    fill: false,
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    tension: 0,
-                    borderDash: [5, 5],
-                })
-
-                // 添加信號強度追蹤節點
-                const currentRSRP = getCurrentRSRP(currentTime)
-                const signalNode = generateSignalNode(currentTime, currentRSRP)
-                const eventStatus = checkEventTrigger(
-                    currentRSRP,
-                    threshold,
-                    hysteresis
-                )
-
-                // 根據事件狀態決定節點顏色和大小
-                let nodeColor = '#FFD93D' // 預設黃色
-                let nodeSize = 8
-                let nodeLabel = 'Signal Tracking'
-
-                if (eventStatus.isAboveEnterThreshold) {
-                    nodeColor = '#28A745' // 綠色：事件啟用
-                    nodeSize = 12
-                    nodeLabel = 'Event A4 ACTIVE'
-                } else if (eventStatus.isBelowExitThreshold) {
-                    nodeColor = '#DC3545' // 紅色：信號過弱
-                    nodeSize = 8
-                    nodeLabel = 'Signal Too Weak'
-                } else if (eventStatus.isInHysteresisZone) {
-                    nodeColor = '#FFC107' // 橙色：遲滯區間
-                    nodeSize = 10
-                    nodeLabel = 'Hysteresis Zone'
-                }
-
-                datasets.push({
-                    label: `${nodeLabel} (RSRP: ${currentRSRP.toFixed(1)} dBm)`,
-                    data: signalNode,
-                    borderColor: nodeColor,
-                    backgroundColor: nodeColor,
-                    borderWidth: 3,
-                    fill: false,
-                    pointRadius: nodeSize,
-                    pointHoverRadius: nodeSize + 4,
-                    pointStyle: 'circle',
-                    showLine: false, // 只顯示點，不顯示線
-                    tension: 0,
-                })
-            }
-
             try {
                 chartRef.current = new Chart(ctx, {
                     type: 'line',
@@ -358,6 +300,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 })
 
                 isInitialized.current = true
+                console.log('✅ [PureA4Chart] 圖表創建成功')
             } catch (error) {
                 console.error('❌ [PureA4Chart] 圖表創建失敗:', error)
             }
@@ -370,88 +313,18 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     isInitialized.current = false
                 }
             }
-        }, [currentTheme, currentTime, hysteresis, showThresholdLines, threshold]) // 響應主題變化重新初始化
+        }, [currentTheme, hysteresis, showThresholdLines, threshold]) // 移除 currentTime 依賴
 
-        // 更新參數和主題 - 不重新創建圖表
+        // 單獨的動畫更新 useEffect - 只更新動畫相關的數據集
         useEffect(() => {
             if (!chartRef.current || !isInitialized.current) {
                 return
             }
             const chart = chartRef.current
 
-            // 處理 showThresholdLines 變化
-            if (showThresholdLines) {
-                // 確保有閾值線數據集
-                const thresholdData = dataPoints.map((point) => ({
-                    x: point.x,
-                    y: threshold,
-                }))
-                const upperThresholdData = dataPoints.map((point) => ({
-                    x: point.x,
-                    y: threshold + hysteresis,
-                }))
-                const lowerThresholdData = dataPoints.map((point) => ({
-                    x: point.x,
-                    y: threshold - hysteresis,
-                }))
+            // console.log('🎬 [PureA4Chart] 更新動畫時間:', currentTime)
 
-                // 如果沒有閾值線數據集，添加它們
-                if (chart.data.datasets.length === 1) {
-                    chart.data.datasets.push(
-                        {
-                            label: 'a4-Threshold',
-                            data: thresholdData,
-                            borderColor: currentTheme.thresholdLine,
-                            backgroundColor: 'transparent',
-                            borderDash: [10, 5],
-                            borderWidth: 2,
-                            fill: false,
-                            tension: 0,
-                            pointRadius: 0,
-                        } as Record<string, unknown>,
-                        {
-                            label: 'Threshold + Hys',
-                            data: upperThresholdData,
-                            borderColor: currentTheme.hysteresisLine,
-                            backgroundColor: 'transparent',
-                            borderDash: [5, 3],
-                            borderWidth: 3,
-                            fill: false,
-                            tension: 0,
-                            pointRadius: 0,
-                        } as Record<string, unknown>,
-                        {
-                            label: 'Threshold - Hys',
-                            data: lowerThresholdData,
-                            borderColor: currentTheme.hysteresisLine,
-                            backgroundColor: 'transparent',
-                            borderDash: [5, 3],
-                            borderWidth: 3,
-                            fill: false,
-                            tension: 0,
-                            pointRadius: 0,
-                        } as Record<string, unknown>
-                    )
-                } else {
-                    // 更新現有閾值線數據
-                    if (chart.data.datasets[1]) {
-                        chart.data.datasets[1].data = thresholdData
-                    }
-                    if (chart.data.datasets[2]) {
-                        chart.data.datasets[2].data = upperThresholdData
-                    }
-                    if (chart.data.datasets[3]) {
-                        chart.data.datasets[3].data = lowerThresholdData
-                    }
-                }
-            } else {
-                // 隱藏閾值線，但保留數據集結構
-                if (chart.data.datasets.length > 1) {
-                    chart.data.datasets = [chart.data.datasets[0]]
-                }
-            }
-
-            // 處理游標數據集
+            // 處理動畫游標和節點
             const expectedCursorIndex = showThresholdLines ? 4 : 1
             const expectedNodeIndex = expectedCursorIndex + 1
 
@@ -484,12 +357,13 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     nodeLabel = 'Hysteresis Zone'
                 }
 
-                // 更新游標數據集
+                // 更新或添加游標數據集
                 if (chart.data.datasets[expectedCursorIndex]) {
-                    chart.data.datasets[expectedCursorIndex].data = cursorData
-                    chart.data.datasets[
+                    const dataset = chart.data.datasets[
                         expectedCursorIndex
-                    ].label = `Current Time: ${currentTime.toFixed(1)}s`
+                    ] as any
+                    dataset.data = cursorData
+                    dataset.label = `Current Time: ${currentTime.toFixed(1)}s`
                 } else {
                     chart.data.datasets.push({
                         label: `Current Time: ${currentTime.toFixed(1)}s`,
@@ -502,25 +376,22 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                         pointHoverRadius: 0,
                         tension: 0,
                         borderDash: [5, 5],
-                    } as Record<string, unknown>)
+                    } as any)
                 }
 
-                // 更新信號節點數據集
+                // 更新或添加節點數據集
                 if (chart.data.datasets[expectedNodeIndex]) {
-                    chart.data.datasets[expectedNodeIndex].data = signalNode
-                    chart.data.datasets[
+                    const dataset = chart.data.datasets[
                         expectedNodeIndex
-                    ].label = `${nodeLabel} (RSRP: ${currentRSRP.toFixed(
+                    ] as any
+                    dataset.data = signalNode
+                    dataset.label = `${nodeLabel} (RSRP: ${currentRSRP.toFixed(
                         1
                     )} dBm)`
-                    chart.data.datasets[expectedNodeIndex].borderColor =
-                        nodeColor
-                    chart.data.datasets[expectedNodeIndex].backgroundColor =
-                        nodeColor
-                    chart.data.datasets[expectedNodeIndex].pointRadius =
-                        nodeSize
-                    chart.data.datasets[expectedNodeIndex].pointHoverRadius =
-                        nodeSize + 4
+                    dataset.borderColor = nodeColor
+                    dataset.backgroundColor = nodeColor
+                    dataset.pointRadius = nodeSize
+                    dataset.pointHoverRadius = nodeSize + 4
                 } else {
                     chart.data.datasets.push({
                         label: `${nodeLabel} (RSRP: ${currentRSRP.toFixed(
@@ -536,50 +407,143 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                         pointStyle: 'circle',
                         showLine: false,
                         tension: 0,
-                    } as Record<string, unknown>)
+                    } as any)
                 }
             } else {
-                // 移除游標和節點數據集
-                if (
-                    chart.data.datasets[expectedNodeIndex] &&
-                    chart.data.datasets[expectedNodeIndex].label?.includes(
-                        'RSRP:'
-                    )
-                ) {
-                    chart.data.datasets.splice(expectedNodeIndex, 1)
+                // 移除動畫相關的數據集
+                while (chart.data.datasets.length > expectedCursorIndex) {
+                    chart.data.datasets.pop()
                 }
-                if (
-                    chart.data.datasets[expectedCursorIndex] &&
-                    chart.data.datasets[expectedCursorIndex].label?.includes(
-                        'Current Time'
+            }
+
+            // 更新圖表但不重新創建
+            chart.update('none') // 使用 'none' 模式避免動畫
+        }, [
+            currentTime,
+            currentTheme.currentTimeLine,
+            hysteresis,
+            showThresholdLines,
+            threshold,
+        ])
+
+        // 更新參數和主題 - 不重新創建圖表
+        useEffect(() => {
+            if (!chartRef.current || !isInitialized.current) {
+                return
+            }
+            const chart = chartRef.current
+
+            console.log('🎨 [PureA4Chart] 更新主題和參數')
+
+            // 計算預期的數據集索引
+            const expectedCursorIndex = showThresholdLines ? 4 : 1
+
+            // 處理 showThresholdLines 變化
+            if (showThresholdLines) {
+                // 確保有閾值線數據集
+                const thresholdData = dataPoints.map((point) => ({
+                    x: point.x,
+                    y: threshold,
+                }))
+                const upperThresholdData = dataPoints.map((point) => ({
+                    x: point.x,
+                    y: threshold + hysteresis,
+                }))
+                const lowerThresholdData = dataPoints.map((point) => ({
+                    x: point.x,
+                    y: threshold - hysteresis,
+                }))
+
+                // 如果沒有閾值線數據集，添加它們
+                if (chart.data.datasets.length === 1) {
+                    chart.data.datasets.push(
+                        {
+                            label: 'a4-Threshold',
+                            data: thresholdData,
+                            borderColor: currentTheme.thresholdLine,
+                            backgroundColor: 'transparent',
+                            borderDash: [10, 5],
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0,
+                            pointRadius: 0,
+                        } as any,
+                        {
+                            label: 'Threshold + Hys',
+                            data: upperThresholdData,
+                            borderColor: currentTheme.hysteresisLine,
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 3],
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0,
+                            pointRadius: 0,
+                        } as any,
+                        {
+                            label: 'Threshold - Hys',
+                            data: lowerThresholdData,
+                            borderColor: currentTheme.hysteresisLine,
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 3],
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0,
+                            pointRadius: 0,
+                        } as any
                     )
-                ) {
-                    chart.data.datasets.splice(expectedCursorIndex, 1)
+                } else {
+                    // 更新現有閾值線數據
+                    if (chart.data.datasets[1]) {
+                        const dataset = chart.data.datasets[1] as any
+                        dataset.data = thresholdData
+                    }
+                    if (chart.data.datasets[2]) {
+                        const dataset = chart.data.datasets[2] as any
+                        dataset.data = upperThresholdData
+                    }
+                    if (chart.data.datasets[3]) {
+                        const dataset = chart.data.datasets[3] as any
+                        dataset.data = lowerThresholdData
+                    }
+                }
+            } else {
+                // 隱藏閾值線，但保留數據集結構
+                if (chart.data.datasets.length > 1) {
+                    chart.data.datasets = [chart.data.datasets[0]]
                 }
             }
 
             // 更新顏色主題
-            chart.data.datasets[0].borderColor = currentTheme.rsrpLine
+            const mainDataset = chart.data.datasets[0] as any
+            if (mainDataset) {
+                mainDataset.borderColor = currentTheme.rsrpLine
+            }
+
             if (chart.data.datasets[1]) {
-                chart.data.datasets[1].borderColor = currentTheme.thresholdLine
+                const dataset = chart.data.datasets[1] as any
+                dataset.borderColor = currentTheme.thresholdLine
             }
             if (chart.data.datasets[2]) {
-                chart.data.datasets[2].borderColor = currentTheme.hysteresisLine
+                const dataset = chart.data.datasets[2] as any
+                dataset.borderColor = currentTheme.hysteresisLine
             }
             if (chart.data.datasets[3]) {
-                chart.data.datasets[3].borderColor = currentTheme.hysteresisLine
+                const dataset = chart.data.datasets[3] as any
+                dataset.borderColor = currentTheme.hysteresisLine
             }
-            // 更新游標顏色
+
+            // 更新游標顏色（如果存在）
             if (
                 chart.data.datasets[expectedCursorIndex] &&
                 chart.data.datasets[expectedCursorIndex].label?.includes(
                     'Current Time'
                 )
             ) {
-                chart.data.datasets[expectedCursorIndex].borderColor =
-                    currentTheme.currentTimeLine
+                const cursorDataset = chart.data.datasets[
+                    expectedCursorIndex
+                ] as any
+                cursorDataset.borderColor = currentTheme.currentTimeLine
             }
-            // 信號節點的顏色根據狀態動態決定，無需在此更新
 
             // 更新圖表選項的顏色 - 安全訪問
             try {
@@ -599,7 +563,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     chart.options.scales = {}
                 }
 
-                const xScale = chart.options.scales.x as Record<string, unknown>
+                const xScale = chart.options.scales.x as any
                 if (xScale?.title) {
                     xScale.title.color = currentTheme.text
                 }
@@ -610,7 +574,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     xScale.grid.color = currentTheme.grid
                 }
 
-                const yScale = chart.options.scales.y as Record<string, unknown>
+                const yScale = chart.options.scales.y as any
                 if (yScale?.title) {
                     yScale.title.color = currentTheme.text
                 }
@@ -634,13 +598,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 chartRef.current = null
                 isInitialized.current = false
             }
-        }, [
-            threshold,
-            hysteresis,
-            currentTheme,
-            showThresholdLines,
-            currentTime,
-        ])
+        }, [threshold, hysteresis, currentTheme, showThresholdLines])
 
         return (
             <div
