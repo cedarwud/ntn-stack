@@ -9,13 +9,13 @@
  * - 錯誤恢復流程
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import React from 'react'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { 
   consoleErrorCollector, 
   expectNoConsoleErrors, 
-  expectNoConsoleWarnings,
   setupApiMocks,
   delay,
   waitForDOMUpdate

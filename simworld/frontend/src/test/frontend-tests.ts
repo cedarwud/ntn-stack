@@ -205,6 +205,7 @@ describe('🎯 前端測試套件總覽', () => {
       
       try {
         // 檢查測試檔案是否存在
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const testFiles = [
           './components.test.tsx',
           './api.test.ts',
@@ -278,13 +279,14 @@ describe('🎯 前端測試套件總覽', () => {
       const startTime = Date.now()
       
       try {
+        const React = await import('react')
         const { render, screen } = await import('@testing-library/react')
         
         const TestComponent = () => (
-          <div data-testid="test-component">前端測試組件</div>
+          React.createElement('div', { 'data-testid': 'test-component' }, '前端測試組件')
         )
         
-        render(<TestComponent />)
+        render(React.createElement(TestComponent))
         expect(screen.getByTestId('test-component')).toBeInTheDocument()
         
         frontendTestRunner.addResult({
@@ -316,18 +318,18 @@ describe('🎯 前端測試套件總覽', () => {
         
         const InteractiveComponent = () => {
           const [clicked, setClicked] = React.useState(false)
-          return (
-            <button 
-              data-testid="test-button"
-              onClick={() => setClicked(true)}
-            >
-              {clicked ? '已點擊' : '未點擊'}
-            </button>
+          return React.createElement(
+            'button',
+            {
+              'data-testid': 'test-button',
+              onClick: () => setClicked(true)
+            },
+            clicked ? '已點擊' : '未點擊'
           )
         }
         
         const user = userEvent.setup()
-        render(<InteractiveComponent />)
+        render(React.createElement(InteractiveComponent))
         
         const button = screen.getByTestId('test-button')
         expect(button).toHaveTextContent('未點擊')

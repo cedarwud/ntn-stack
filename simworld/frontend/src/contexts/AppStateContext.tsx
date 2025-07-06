@@ -114,6 +114,7 @@ export interface AppStateContextType {
 
 // ==================== Context創建 ====================
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const AppStateContext = createContext<AppStateContextType | undefined>(undefined)
 
 // ==================== Provider組件 ====================

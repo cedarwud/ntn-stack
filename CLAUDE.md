@@ -54,6 +54,62 @@ docker exec simworld_backend python -c "<code>"  # 執行代碼
 2. **建置檢查可用 npm** - `npm run build/lint/test` 等指令可以執行
 3. **Python 開發在容器內** - 使用 `docker exec simworld_backend` 執行代碼
 
+## 📄 文件編碼規範
+
+### 🚨 中文文件編碼問題解決
+**問題**: 創建包含中文的文件時出現亂碼，顯示為 `��` 或二進制字符
+
+**原因**: Claude Code 在某些環境下可能使用非UTF-8編碼創建文件
+
+**解決方案**:
+1. **創建中文文件前先檢查**:
+   ```bash
+   # 檢查系統編碼環境
+   echo $LANG
+   locale charmap
+   
+   # 檢查已創建文件編碼
+   file filename.md
+   hexdump -C filename.md | head -3
+   ```
+
+2. **強制使用UTF-8編碼**:
+   ```bash
+   # 方法1: 使用 echo 創建文件 (推薦)
+   echo "# 中文標題" > filename.md
+   
+   # 方法2: 轉換現有亂碼文件
+   iconv -f latin1 -t utf-8 filename.md > filename_fixed.md
+   
+   # 方法3: 使用 vim 修復
+   vim filename.md
+   :set fileencoding=utf-8
+   :wq
+   ```
+
+3. **驗證修復結果**:
+   ```bash
+   # 檢查文件編碼正確
+   file filename.md  # 應顯示 "UTF-8 Unicode text"
+   
+   # 檢查內容正常顯示
+   head -5 filename.md  # 中文應正常顯示
+   ```
+
+### 📋 文件創建最佳實踐
+1. **純英文文件** - 直接使用 Write 工具創建
+2. **包含中文文件** - 先用 bash echo 創建空文件，再用 Edit 工具編輯
+3. **大型中文文件** - 分段創建，每段檢查編碼正確性
+4. **重要文檔** - 創建後立即用 Read 工具驗證內容正確
+
+### 🔧 緊急修復流程
+發現文件亂碼時的立即處理步驟：
+1. **停止編輯** - 不要繼續往亂碼文件寫入內容
+2. **備份原文件** - `cp filename.md filename.md.backup`
+3. **檢查編碼** - `file filename.md` 確認問題
+4. **重新創建** - 使用正確的UTF-8編碼重新創建文件
+5. **驗證修復** - `head filename.md` 確認中文正常顯示
+
 ## ⚡ 代碼品質規範
 
 ### 開發流程
@@ -321,10 +377,72 @@ logConfigurationStatus(configValidation)
 - [ ] 代理配置使用服務名而非 IP
 - [ ] 應用啟動時配置驗證通過
 
+## 🚨 重構後強制重啟檢查
+
+### 🔥 重啟檢查的重要性
+**重構不只是改代碼，更重要的是確保改完後系統能正常啟動運行！**
+
+在進行任何測試前，必須先確保系統能夠正常重啟，這是重構成功的最基本要求。
+
+### 🚀 強制重啟檢查流程
+
+**每次重構後必須執行的重啟檢查步驟：**
+
+```bash
+# 1. 完全重啟所有服務
+make down && make up
+
+# 2. 檢查服務狀態 (等待 30-60 秒讓服務完全啟動)
+make status
+
+# 3. 檢查 NetStack API 日誌 (確認沒有錯誤)
+docker logs netstack-api 2>&1 | tail -20
+
+# 4. 健康檢查 API 可用性
+curl -s http://localhost:8080/health | jq
+
+# 5. 檢查是否有持續的錯誤重啟
+docker logs netstack-api 2>&1 | grep -i error | tail -5
+```
+
+### 🚨 常見重啟失敗原因及修復
+1. **模組導入錯誤** → 檢查 import 路徑和依賴
+2. **參數不匹配錯誤** → 檢查函數調用參數名稱 (如 CORS 配置)
+3. **循環導入錯誤** → 重構模組結構避免循環依賴
+4. **配置錯誤** → 檢查環境變數和配置文件
+5. **端口衝突** → 確保端口未被佔用
+
+### 🛑 錯誤日誌範例與修復
+**常見錯誤類型：**
+```bash
+# TypeError: 參數不匹配
+TypeError: MiddlewareManager.setup_cors() got an unexpected keyword argument 'allow_origins'
+→ 修復：檢查方法參數名稱，統一 config 和 method 的參數命名
+
+# ImportError: 模組導入失敗  
+ImportError: cannot import name 'SomeClass' from 'some.module'
+→ 修復：檢查模組路徑，確認類別存在
+
+# AttributeError: 屬性不存在
+AttributeError: 'NoneType' object has no attribute 'method_name'
+→ 修復：檢查物件初始化，確保不為 None
+```
+
+### ✅ 重啟成功的指標
+重啟檢查通過的標準：
+- [ ] `make status` 顯示所有服務 "Up" 且 "healthy"
+- [ ] `docker logs netstack-api` 無 error/exception 訊息
+- [ ] `curl http://localhost:8080/health` 回傳 200 狀態碼
+- [ ] API 能正常回應請求，無持續錯誤
+
+**只有重啟檢查通過後，才能進行後續的自動化測試驗證！**
+
+---
+
 ## 🧪 重構後自動驗證系統
 
 ### 🎯 核心理念
-**每次重構完成後，必須執行自動化測試來驗證所有功能正常**，完全取代手動點擊前端功能和檢查 console 的繁瑣流程。
+**在確認系統能正常重啟後，必須執行自動化測試來驗證所有功能正常**，完全取代手動點擊前端功能和檢查 console 的繁瑣流程。
 
 ### 🚀 一鍵重構驗證 (推薦)
 
@@ -416,11 +534,14 @@ node test-runner.js console
 ### ✅ 正確的重構流程
 1. **規劃重構** → 明確重構目標和範圍
 2. **實施重構** → 修改代碼、更新架構
-3. **自動驗證** → `./verify-refactor.sh`
-4. **查看報告** → 檢查詳細測試結果
-5. **修復問題** → 立即處理所有失敗和錯誤
-6. **重新驗證** → 再次執行測試確認修復
-7. **完成重構** → 所有測試通過，提交代碼
+3. **🚨 重啟檢查** → `make down && make up` 確保服務能正常啟動
+4. **檢查日誌** → `docker logs netstack-api` 確保無啟動錯誤
+5. **健康檢查** → `curl http://localhost:8080/health` 驗證 API 可用
+6. **自動驗證** → `./verify-refactor.sh`
+7. **查看報告** → 檢查詳細測試結果
+8. **修復問題** → 立即處理所有失敗和錯誤
+9. **重新驗證** → 再次執行測試確認修復
+10. **完成重構** → 所有測試通過，提交代碼
 
 ### 🎊 測試報告範例
 執行驗證後會看到詳細報告：

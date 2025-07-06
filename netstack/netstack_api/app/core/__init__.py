@@ -1,1 +1,1 @@
-"""核心模組"""
+# Core management modules for NetStack API
