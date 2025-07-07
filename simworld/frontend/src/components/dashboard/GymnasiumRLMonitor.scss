@@ -215,11 +215,12 @@
 
     .metrics-panels {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 1rem;
 
       .dqn-metrics-panel,
-      .ppo-metrics-panel {
+      .ppo-metrics-panel,
+      .sac-metrics-panel {
         background: rgba(0, 0, 0, 0.3);
         border-radius: 12px;
         padding: 1.5rem;
@@ -228,11 +229,12 @@
         h3 {
           margin-top: 0;
           color: #40e0ff;
-          font-size: 1.1rem;
+          font-size: 1.4rem; /* 從 1.1rem 增加到 1.4rem */
           margin-bottom: 1rem;
           display: flex;
           align-items: center;
           gap: 0.5rem;
+          font-weight: 600; /* 增加字體粗細 */
         }
 
         .metrics-grid {
@@ -301,17 +303,31 @@
       h3 {
         margin-top: 0;
         color: #40e0ff;
-        font-size: 1.1rem;
+        font-size: 1.4rem; /* 從 1.1rem 增加到 1.4rem */
         margin-bottom: 1rem;
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        font-weight: 600; /* 增加字體粗細 */
       }
 
       .metrics-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(6, 1fr);
         gap: 0.75rem;
+        
+        /* 響應式設計 - 小螢幕調整 */
+        @media (max-width: 1200px) {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        
+        @media (max-width: 768px) {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        
+        @media (max-width: 480px) {
+          grid-template-columns: 1fr;
+        }
 
         .metric-item {
           display: flex;
@@ -718,12 +734,13 @@
     h3 {
       margin-top: 0;
       color: #40e0ff;
-      font-size: 18px;
+      font-size: 22px; /* 從 18px 增加到 22px */
       margin-bottom: 20px;
       display: flex;
       align-items: center;
       gap: 8px;
       text-shadow: 0 0 8px rgba(64, 224, 255, 0.4);
+      font-weight: 600; /* 增加字體粗細 */
     }
 
     .logs-container {
@@ -776,6 +793,12 @@
           background: rgba(249, 115, 22, 0.15);
           border-left: 4px solid #f97316;
           color: #f97316;
+        }
+
+        &.sac {
+          background: rgba(245, 158, 11, 0.15);
+          border-left: 4px solid #f59e0b;
+          color: #f59e0b;
         }
 
         &.training {

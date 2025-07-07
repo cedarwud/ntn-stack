@@ -39,10 +39,23 @@ make down    # 停止所有服務
 make status  # 檢查狀態
 make logs    # 查看日誌
 
+# 🔄 **效率重啟指令** (重要!)
+make simworld-restart   # 只重啟 SimWorld (修改 SimWorld 代碼後使用)
+make netstack-restart   # 只重啟 NetStack (修改 NetStack 代碼後使用)
+
 # 容器內開發
 docker exec -it simworld_backend bash    # 進入後端容器
 docker exec simworld_backend python -c "<code>"  # 執行代碼
 ```
+
+## ⚡ 重啟效率原則
+**🎯 只重啟修改的服務，避免不必要的等待時間**
+
+- **修改 SimWorld 代碼** → 使用 `make simworld-restart`（約30秒）
+- **修改 NetStack 代碼** → 使用 `make netstack-restart`（約1-2分鐘）  
+- **修改 Docker 配置/網路** → 使用 `make up/down`（約3-5分鐘）
+
+❌ **避免不必要的全系統重啟** - 不要每次代碼修改都執行 `make down && make up`
 
 ## ⚠️ Docker Compose 重要提醒
 **使用現代化的 `docker compose` 指令，不要使用已棄用的 `docker-compose`**

@@ -10,6 +10,7 @@ import TimeFrequencyViewer from '../domains/simulation/wireless/TimeFrequencyVie
 import ViewerModal from '../shared/ui/layout/ViewerModal'
 import FullChartAnalysisDashboard from './FullChartAnalysisDashboard'
 import MeasurementEventsModal from './MeasurementEventsModal'
+import RLMonitoringModal from './RLMonitoringModal'
 import { ViewerProps } from '../../types/viewer'
 import {
     SCENE_DISPLAY_NAMES,
@@ -59,6 +60,9 @@ const Navbar: FC<NavbarProps> = ({
     // 新增 Measurement Events Modal 狀態
     const [showMeasurementEventsModal, setShowMeasurementEventsModal] =
         useState(false)
+
+    // 新增 RL 監控 Modal 狀態
+    const [showRLMonitoringModal, setShowRLMonitoringModal] = useState(false)
 
     // States for modal visibility
     const [showSINRModal, setShowSINRModal] = useState(false)
@@ -380,6 +384,16 @@ const Navbar: FC<NavbarProps> = ({
                             立體圖
                         </li>
 
+                        {/* RL 監控按鈕 - 獨立功能 */}
+                        <li
+                            className={`navbar-item ${
+                                showRLMonitoringModal ? 'active' : ''
+                            }`}
+                            onClick={() => setShowRLMonitoringModal(true)}
+                        >
+                            🧠 RL 監控
+                        </li>
+
                         {/* 圖表分析按鈕 */}
                         <li
                             className={`navbar-item ${
@@ -442,6 +456,12 @@ const Navbar: FC<NavbarProps> = ({
             <MeasurementEventsModal
                 isOpen={showMeasurementEventsModal}
                 onClose={() => setShowMeasurementEventsModal(false)}
+            />
+
+            {/* RL 監控模態框 */}
+            <RLMonitoringModal
+                isOpen={showRLMonitoringModal}
+                onClose={() => setShowRLMonitoringModal(false)}
             />
         </>
     )

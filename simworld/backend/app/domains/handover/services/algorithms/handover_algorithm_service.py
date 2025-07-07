@@ -13,6 +13,9 @@ from app.domains.handover.models.handover_models import (
     HandoverPredictionRecord,
     HandoverPredictionRequest,
     HandoverPredictionResponse,
+    ManualHandoverTriggerRequest,
+    ManualHandoverResponse,
+    HandoverStatusResponse,
     BinarySearchIteration,
     HandoverStatus,
     HandoverTriggerType,
@@ -279,3 +282,42 @@ class HandoverAlgorithmService:
         except Exception as e:
             logger.error(f"計算預測信賴水準失敗: {str(e)}")
             return 0.5  # 默認中等信賴度
+
+    async def trigger_manual_handover(
+        self, request: ManualHandoverTriggerRequest
+    ) -> ManualHandoverResponse:
+        """
+        觸發手動換手
+        """
+        from app.domains.handover.models.handover_models import ManualHandoverResponse
+        import uuid
+        
+        logger.info(f"觸發手動換手: UE {request.ue_id}")
+        
+        # 這裡應該實現手動換手的具體邏輯
+        # 暫時返回成功響應
+        return ManualHandoverResponse(
+            handover_id=f"manual_{request.ue_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
+            ue_id=request.ue_id,
+            status="triggered",
+            message="手動換手已觸發",
+            triggered_at=datetime.utcnow()
+        )
+
+    async def get_handover_status(self, handover_id: str) -> HandoverStatusResponse:
+        """
+        獲取換手狀態
+        """
+        from app.domains.handover.models.handover_models import HandoverStatusResponse
+        
+        logger.info(f"查詢換手狀態: {handover_id}")
+        
+        # 這裡應該查詢實際的換手狀態
+        # 暫時返回模擬狀態
+        return HandoverStatusResponse(
+            handover_id=handover_id,
+            status="completed",
+            message="換手已完成",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
