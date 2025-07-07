@@ -11,143 +11,55 @@ import PredictiveMaintenanceViewer from '../domains/analytics/performance/Predic
 import IntelligentRecommendationSystem from '../domains/analytics/ai/IntelligentRecommendationSystem'
 import CoreNetworkSyncViewer from '../domains/monitoring/realtime/CoreNetworkSyncViewer'
 import { HandoverStatusPanel } from '../domains/handover/execution/HandoverAnimation3D'
-
-// 移除衛星圖例，因為已由側邊欄開關控制，不再需要額外說明
+import { FeatureState, HandoverState, SatelliteState, UIState } from '../../contexts/appStateHooks'
 
 interface SceneViewProps {
     devices: Device[]
-    auto: boolean
-    manualDirection?: unknown
-    onManualControl?: (direction: unknown) => void
+    uiState: UIState
+    featureState: FeatureState
+    handoverState: HandoverState
+    satelliteState: SatelliteState
+    sceneName: string
     onUAVPositionUpdate?: (
         position: [number, number, number],
         deviceId?: number
     ) => void
-    uavAnimation: boolean
-    selectedReceiverIds?: number[]
-    satellites?: Record<string, unknown>[]
-    sceneName: string // 新增場景名稱參數
-    // 階段四功能狀態
-    interferenceVisualizationEnabled?: boolean
-    sinrHeatmapEnabled?: boolean
-    aiRanVisualizationEnabled?: boolean
-    sionna3DVisualizationEnabled?: boolean
-    realTimeMetricsEnabled?: boolean
-    interferenceAnalyticsEnabled?: boolean
-    // 階段五功能狀態
-    uavSwarmCoordinationEnabled?: boolean
-    meshNetworkTopologyEnabled?: boolean
-    satelliteUavConnectionEnabled?: boolean
-    failoverMechanismEnabled?: boolean
-    // 階段六功能狀態
-    predictionPath3DEnabled?: boolean
-    predictionAccuracyDashboardEnabled?: boolean
-    coreNetworkSyncEnabled?: boolean
-    // Stage 3 功能
-    realtimePerformanceMonitorEnabled?: boolean
-    scenarioTestEnvironmentEnabled?: boolean
-    // 3D 換手動畫相關
-    handover3DAnimationEnabled?: boolean
-    handoverState?: unknown
-    currentConnection?: unknown
-    predictedConnection?: unknown
-    isTransitioning?: boolean
-    transitionProgress?: number
+    onManualControl?: (direction: unknown) => void
     onHandoverEvent?: (event: unknown) => void
-    // 階段七功能狀態
-    testResultsVisualizationEnabled?: boolean
-    performanceTrendAnalysisEnabled?: boolean
-    automatedReportGenerationEnabled?: boolean
-    // 階段八功能狀態
-    predictiveMaintenanceEnabled?: boolean
-    intelligentRecommendationEnabled?: boolean
-    // 衛星相關 props（動畫永遠開啟）
-    satelliteEnabled?: boolean
-    satelliteSpeedMultiplier?: number
-    handoverStableDuration?: number
-    handoverMode?: 'demo' | 'real' // 換手模式控制
-    // 🚀 演算法結果對接
-    algorithmResults?: {
-        currentSatelliteId?: string
-        predictedSatelliteId?: string
-        handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
-        binarySearchActive?: boolean
-        predictionConfidence?: number
-    }
 }
 
 export default function SceneView({
     devices = [],
-    auto,
-    manualDirection,
-    onManualControl,
-    onUAVPositionUpdate,
-    uavAnimation,
-    selectedReceiverIds = [],
-    sceneName,
-    interferenceVisualizationEnabled = false,
-    sinrHeatmapEnabled = false,
-    aiRanVisualizationEnabled = false,
-    sionna3DVisualizationEnabled = false,
-    realTimeMetricsEnabled = false,
-    interferenceAnalyticsEnabled = false,
-    uavSwarmCoordinationEnabled = false,
-    meshNetworkTopologyEnabled = false,
-    satelliteUavConnectionEnabled = false,
-    failoverMechanismEnabled = false,
-    predictionPath3DEnabled = false,
-    predictionAccuracyDashboardEnabled = false,
-    coreNetworkSyncEnabled = false,
-    // Stage 3 功能  
-    realtimePerformanceMonitorEnabled = false,
-    scenarioTestEnvironmentEnabled = false,
-    handover3DAnimationEnabled = false,
+    uiState,
+    featureState,
     handoverState,
-    currentConnection,
-    predictedConnection,
-    isTransitioning = false,
-    transitionProgress = 0,
+    satelliteState,
+    sceneName,
+    onUAVPositionUpdate,
+    onManualControl,
     onHandoverEvent,
-    testResultsVisualizationEnabled = false,
-    performanceTrendAnalysisEnabled = false,
-    automatedReportGenerationEnabled = false,
-    predictiveMaintenanceEnabled = false,
-    intelligentRecommendationEnabled = false,
-    satelliteEnabled = false,
-    satelliteSpeedMultiplier = 60,
-    handoverStableDuration = 5,
-    handoverMode = 'demo',
-    algorithmResults,
 }: SceneViewProps) {
-    // Suppress unused variable warnings
-    void realtimePerformanceMonitorEnabled
-    void scenarioTestEnvironmentEnabled
-    
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [satellites, setSatellites] = useState<Record<string, unknown>[]>([])
     const [handoverStatusInfo, setHandoverStatusInfo] = useState<unknown>(null)
-    
-    // 換手狀態更新回調
+
     const handleHandoverStatusUpdate = useCallback((statusInfo: unknown) => {
         setHandoverStatusInfo(statusInfo)
     }, [])
-    
-    // 測試用：載入衛星數據
+
     useEffect(() => {
-        if (satelliteEnabled) {
+        if (satelliteState.satelliteEnabled) {
             fetch('/api/v1/satellite-ops/visible_satellites?count=24&min_elevation_deg=5')
                 .then(res => res.json())
                 .then(data => {
-                    // StereogramView: 載入衛星數據
                     setSatellites(data.satellites || [])
                 })
                 .catch(err => console.error('StereogramView: 衛星數據載入失敗:', err))
         } else {
             setSatellites([])
         }
-    }, [satelliteEnabled])
+    }, [satelliteState.satelliteEnabled])
 
-    // WebGL 上下文恢復處理
     const handleWebGLContextLost = useCallback((event: Event) => {
         console.warn('WebGL 上下文丟失，嘗試恢復...')
         event.preventDefault()
@@ -157,7 +69,6 @@ export default function SceneView({
         console.log('WebGL 上下文已恢復')
     }, [])
 
-    // 添加 WebGL 上下文事件監聽器
     useEffect(() => {
         const canvas = canvasRef.current
         if (canvas) {
@@ -192,46 +103,31 @@ export default function SceneView({
                 overflow: 'hidden',
             }}
         >
-            {/* 星空星點層（在最底層，不影響互動） */}
             <Starfield starCount={180} />
 
-            {/* 衛星圖例已移除，由側邊欄開關控制 */}
+            {featureState.sinrHeatmapEnabled && <SINRLegend />}
             
-            {/* 添加 SINR 圖例 - 只有在啟用時才顯示 */}
-            {sinrHeatmapEnabled && <SINRLegend />}
-            
-            
-            {/* 添加預測精度儀表板 - 作為HTML覆蓋層 */}
-            {predictionAccuracyDashboardEnabled && (
-                <FullChartAnalysisDashboard isOpen={predictionAccuracyDashboardEnabled} onClose={() => {}} />
+            {featureState.predictionAccuracyDashboardEnabled && (
+                <FullChartAnalysisDashboard isOpen={featureState.predictionAccuracyDashboardEnabled} onClose={() => {}} />
             )}
             
-            {/* 添加核心網路同步監控 - 作為HTML覆蓋層 */}
-            {coreNetworkSyncEnabled && (
-                <CoreNetworkSyncViewer enabled={coreNetworkSyncEnabled} devices={devices} />
+            {featureState.coreNetworkSyncEnabled && (
+                <CoreNetworkSyncViewer enabled={featureState.coreNetworkSyncEnabled} devices={devices} />
             )}
             
-            
-            {/* 階段七組件已移除 */}
-            
-            {/* 添加階段八HTML覆蓋層組件 */}
-            
-            {predictiveMaintenanceEnabled && (
-                <PredictiveMaintenanceViewer devices={devices} enabled={predictiveMaintenanceEnabled} />
+            {featureState.predictiveMaintenanceEnabled && (
+                <PredictiveMaintenanceViewer devices={devices} enabled={featureState.predictiveMaintenanceEnabled} />
             )}
             
-            
-            {intelligentRecommendationEnabled && (
+            {featureState.intelligentRecommendationEnabled && (
                 <IntelligentRecommendationSystem />
             )}
             
-            {/* 🎯 換手狀態面板 */}
             <HandoverStatusPanel 
-                enabled={satelliteUavConnectionEnabled && handover3DAnimationEnabled}
+                enabled={featureState.satelliteUavConnectionEnabled && handoverState.handover3DAnimationEnabled}
                 statusInfo={handoverStatusInfo}
             />
             
-            {/* 3D Canvas內容照舊，會蓋在星空上 */}
             <Canvas
                 ref={canvasRef}
                 shadows
@@ -246,7 +142,6 @@ export default function SceneView({
                     failIfMajorPerformanceCaveat: false,
                 }}
                 onCreated={({ gl }) => {
-                    // 配置渲染器的上下文恢復選項
                     gl.debug.checkShaderErrors = true
                     console.log('WebGL 渲染器已創建')
                 }}
@@ -271,40 +166,40 @@ export default function SceneView({
                 <Suspense fallback={null}>
                     <MainScene
                         devices={devices}
-                        auto={auto}
-                        manualDirection={manualDirection}
+                        auto={uiState.auto}
+                        manualDirection={uiState.manualDirection}
                         manualControl={onManualControl}
                         onUAVPositionUpdate={onUAVPositionUpdate}
-                        uavAnimation={uavAnimation}
-                        selectedReceiverIds={selectedReceiverIds}
+                        uavAnimation={uiState.uavAnimation}
+                        selectedReceiverIds={uiState.selectedReceiverIds}
                         sceneName={sceneName}
-                        interferenceVisualizationEnabled={interferenceVisualizationEnabled}
-                        sinrHeatmapEnabled={sinrHeatmapEnabled}
-                        aiRanVisualizationEnabled={aiRanVisualizationEnabled}
-                        sionna3DVisualizationEnabled={sionna3DVisualizationEnabled}
-                        realTimeMetricsEnabled={realTimeMetricsEnabled}
-                        interferenceAnalyticsEnabled={interferenceAnalyticsEnabled}
-                        uavSwarmCoordinationEnabled={uavSwarmCoordinationEnabled}
-                        meshNetworkTopologyEnabled={meshNetworkTopologyEnabled}
-                        satelliteUavConnectionEnabled={satelliteUavConnectionEnabled}
-                        failoverMechanismEnabled={failoverMechanismEnabled}
-                        predictionPath3DEnabled={predictionPath3DEnabled}
-                        handover3DAnimationEnabled={handover3DAnimationEnabled}
-                        handoverState={handoverState}
-                        currentConnection={currentConnection}
-                        predictedConnection={predictedConnection}
-                        isTransitioning={isTransitioning}
-                        transitionProgress={transitionProgress}
+                        interferenceVisualizationEnabled={featureState.interferenceVisualizationEnabled}
+                        sinrHeatmapEnabled={featureState.sinrHeatmapEnabled}
+                        aiRanVisualizationEnabled={featureState.aiRanVisualizationEnabled}
+                        sionna3DVisualizationEnabled={featureState.sionna3DVisualizationEnabled}
+                        realTimeMetricsEnabled={featureState.realTimeMetricsEnabled}
+                        interferenceAnalyticsEnabled={featureState.interferenceAnalyticsEnabled}
+                        uavSwarmCoordinationEnabled={featureState.uavSwarmCoordinationEnabled}
+                        meshNetworkTopologyEnabled={featureState.meshNetworkTopologyEnabled}
+                        satelliteUavConnectionEnabled={featureState.satelliteUavConnectionEnabled}
+                        failoverMechanismEnabled={featureState.failoverMechanismEnabled}
+                        predictionPath3DEnabled={featureState.predictionPath3DEnabled}
+                        handover3DAnimationEnabled={handoverState.handover3DAnimationEnabled}
+                        handoverState={handoverState.handoverState}
+                        currentConnection={handoverState.currentConnection}
+                        predictedConnection={handoverState.predictedConnection}
+                        isTransitioning={handoverState.isTransitioning}
+                        transitionProgress={handoverState.transitionProgress}
                         onHandoverEvent={onHandoverEvent}
-                        testResultsVisualizationEnabled={testResultsVisualizationEnabled}
-                        performanceTrendAnalysisEnabled={performanceTrendAnalysisEnabled}
-                        automatedReportGenerationEnabled={automatedReportGenerationEnabled}
+                        testResultsVisualizationEnabled={featureState.testResultsVisualizationEnabled}
+                        performanceTrendAnalysisEnabled={featureState.performanceTrendAnalysisEnabled}
+                        automatedReportGenerationEnabled={featureState.automatedReportGenerationEnabled}
                         satellites={satellites}
-                        satelliteEnabled={satelliteEnabled}
-                        satelliteSpeedMultiplier={satelliteSpeedMultiplier}
-                        handoverStableDuration={handoverStableDuration}
-                        handoverMode={handoverMode}
-                        algorithmResults={algorithmResults}
+                        satelliteEnabled={satelliteState.satelliteEnabled}
+                        satelliteSpeedMultiplier={satelliteState.satelliteSpeedMultiplier}
+                        handoverStableDuration={handoverState.handoverStableDuration}
+                        handoverMode={handoverState.handoverMode}
+                        algorithmResults={handoverState.algorithmResults}
                         onHandoverStatusUpdate={handleHandoverStatusUpdate}
                     />
                     <ContactShadows
@@ -320,11 +215,3 @@ export default function SceneView({
         </div>
     )
 }
-
-// 添加CSS樣式
-const styleSheet = document.createElement('style')
-styleSheet.type = 'text/css'
-styleSheet.innerHTML = `
-/* 衛星圖例 CSS 已移除，不再需要 */
-`
-document.head.appendChild(styleSheet)

@@ -17,7 +17,10 @@ from .interfaces import (
     RLHandoverAlgorithm,
     HandoverContext,
     HandoverDecision,
-    AlgorithmInfo
+    AlgorithmInfo,
+    GeoCoordinate,
+    SignalMetrics,
+    SatelliteInfo
 )
 
 from .registry import AlgorithmRegistry
@@ -75,6 +78,9 @@ __all__ = [
     "HandoverContext",
     "HandoverDecision",
     "AlgorithmInfo",
+    "GeoCoordinate",
+    "SignalMetrics",
+    "SatelliteInfo",
     "AlgorithmRegistry",
     "HandoverOrchestrator",
     "EnvironmentManager"

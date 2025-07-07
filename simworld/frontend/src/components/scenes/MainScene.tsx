@@ -29,6 +29,7 @@ import AutomatedReportGenerator from '../domains/analytics/ai/AutomatedReportGen
 import HandoverAnimation3D from '../domains/handover/execution/HandoverAnimation3D'
 import PredictionPath3D from '../shared/visualization/PredictionPath3D'
 import DynamicSatelliteRenderer from '../domains/satellite/visualization/DynamicSatelliteRenderer'
+import { SATELLITE_CONFIG } from '../../config/satellite.config'
 
 interface Device {
     id: string | number | null;
@@ -136,9 +137,9 @@ const MainScene: React.FC<MainSceneProps> = ({
     automatedReportGenerationEnabled = false,
     satellites = [],
     satelliteEnabled = false,
-    satelliteSpeedMultiplier = 60,
+    satelliteSpeedMultiplier, // 動態設定，不使用固定預設值
     handoverStableDuration = 5,
-    handoverMode = 'demo',
+    handoverMode = 'real',
     algorithmResults,
     onHandoverStatusUpdate,
 }) => {
@@ -147,6 +148,12 @@ const MainScene: React.FC<MainSceneProps> = ({
     void isTransitioning
     void transitionProgress
     void onHandoverEvent
+
+    // 動態計算衛星速度倍數：根據模式和參數決定
+    const actualSatelliteSpeedMultiplier = satelliteSpeedMultiplier ?? 
+        (handoverMode === 'demo' 
+            ? SATELLITE_CONFIG.HANDOVER_DEMO_MULTIPLIER 
+            : SATELLITE_CONFIG.REAL_TIME_MULTIPLIER)
 
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
@@ -443,7 +450,7 @@ const MainScene: React.FC<MainSceneProps> = ({
                 currentConnection={currentConnection}
                 predictedConnection={predictedConnection}
                 showLabels={true}
-                speedMultiplier={satelliteSpeedMultiplier}
+                speedMultiplier={actualSatelliteSpeedMultiplier}
                 algorithmResults={algorithmResults}
                 handoverState={internalHandoverState}
                 onSatelliteClick={(satelliteId) => {
