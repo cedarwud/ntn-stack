@@ -51,13 +51,30 @@ export const useRLMonitoring = () => {
         // 更新獎勵趨勢數據
         setRewardTrendData(prevData => {
           if (typeof metrics.average_reward === 'number') {
-            const newDataPoints = [...prevData.dqnData, metrics.average_reward].slice(-20)
-            const newLabels = [...prevData.labels, `E${metrics.episodes_completed || prevData.labels.length + 1}`].slice(-20)
+            const currentTime = new Date()
+            const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
+              hour12: false, 
+              minute: '2-digit', 
+              second: '2-digit' 
+            })
+            
+            // 保持數據持續增長，橫軸隨時間前進
+            const newDataPoints = [...prevData.dqnData, metrics.average_reward]
+            const newLabels = [...prevData.labels, timeLabel]
+            
+            // 如果數據點太多，限制在最多100個點以保持性能
+            const maxPoints = 100
+            const finalDataPoints = newDataPoints.length > maxPoints 
+              ? newDataPoints.slice(-maxPoints) 
+              : newDataPoints
+            const finalLabels = newLabels.length > maxPoints 
+              ? newLabels.slice(-maxPoints) 
+              : newLabels
             
             return {
               ...prevData,
-              dqnData: newDataPoints,
-              labels: newLabels
+              dqnData: finalDataPoints,
+              labels: finalLabels
             }
           }
           return prevData
@@ -65,14 +82,30 @@ export const useRLMonitoring = () => {
 
         // 更新策略損失數據 (使用模擬值，因為GymnasiumRLMonitor沒有提供policy_loss)
         setPolicyLossData(prevData => {
+          const currentTime = new Date()
+          const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
+            hour12: false, 
+            minute: '2-digit', 
+            second: '2-digit' 
+          })
           const mockLoss = Math.random() * 0.5 + 0.1 // 模擬損失值
-          const newLossPoints = [...(prevData.dqnLoss || []), mockLoss].slice(-20)
-          const newLabels = [...prevData.labels, `E${metrics.episodes_completed || prevData.labels.length + 1}`].slice(-20)
+          
+          const newLossPoints = [...(prevData.dqnLoss || []), mockLoss]
+          const newLabels = [...prevData.labels, timeLabel]
+          
+          // 如果數據點太多，限制在最多100個點以保持性能
+          const maxPoints = 100
+          const finalLossPoints = newLossPoints.length > maxPoints 
+            ? newLossPoints.slice(-maxPoints) 
+            : newLossPoints
+          const finalLabels = newLabels.length > maxPoints 
+            ? newLabels.slice(-maxPoints) 
+            : newLabels
           
           return {
             ...prevData,
-            dqnLoss: newLossPoints,
-            labels: newLabels
+            dqnLoss: finalLossPoints,
+            labels: finalLabels
           }
         })
       } else if (engine === 'ppo') {
@@ -92,13 +125,30 @@ export const useRLMonitoring = () => {
         // 更新獎勵趨勢數據
         setRewardTrendData(prevData => {
           if (typeof metrics.average_reward === 'number') {
-            const newDataPoints = [...prevData.ppoData, metrics.average_reward].slice(-20)
-            const newLabels = [...prevData.labels, `E${metrics.episodes_completed || prevData.labels.length + 1}`].slice(-20)
+            const currentTime = new Date()
+            const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
+              hour12: false, 
+              minute: '2-digit', 
+              second: '2-digit' 
+            })
+            
+            // 保持數據持續增長，橫軸隨時間前進
+            const newDataPoints = [...prevData.ppoData, metrics.average_reward]
+            const newLabels = [...prevData.labels, timeLabel]
+            
+            // 如果數據點太多，限制在最多100個點以保持性能
+            const maxPoints = 100
+            const finalDataPoints = newDataPoints.length > maxPoints 
+              ? newDataPoints.slice(-maxPoints) 
+              : newDataPoints
+            const finalLabels = newLabels.length > maxPoints 
+              ? newLabels.slice(-maxPoints) 
+              : newLabels
             
             return {
               ...prevData,
-              ppoData: newDataPoints,
-              labels: newLabels
+              ppoData: finalDataPoints,
+              labels: finalLabels
             }
           }
           return prevData
@@ -106,14 +156,30 @@ export const useRLMonitoring = () => {
 
         // 更新策略損失數據 (使用模擬值，因為GymnasiumRLMonitor沒有提供policy_loss)
         setPolicyLossData(prevData => {
+          const currentTime = new Date()
+          const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
+            hour12: false, 
+            minute: '2-digit', 
+            second: '2-digit' 
+          })
           const mockLoss = Math.random() * 0.3 + 0.05 // PPO通常損失較小
-          const newLossPoints = [...(prevData.ppoLoss || []), mockLoss].slice(-20)
-          const newLabels = [...prevData.labels, `E${metrics.episodes_completed || prevData.labels.length + 1}`].slice(-20)
+          
+          const newLossPoints = [...(prevData.ppoLoss || []), mockLoss]
+          const newLabels = [...prevData.labels, timeLabel]
+          
+          // 如果數據點太多，限制在最多100個點以保持性能
+          const maxPoints = 100
+          const finalLossPoints = newLossPoints.length > maxPoints 
+            ? newLossPoints.slice(-maxPoints) 
+            : newLossPoints
+          const finalLabels = newLabels.length > maxPoints 
+            ? newLabels.slice(-maxPoints) 
+            : newLabels
           
           return {
             ...prevData,
-            ppoLoss: newLossPoints,
-            labels: newLabels
+            ppoLoss: finalLossPoints,
+            labels: finalLabels
           }
         })
       } else if (engine === 'sac') {
@@ -132,15 +198,31 @@ export const useRLMonitoring = () => {
 
         // 更新獎勵趨勢數據 - SAC
         setRewardTrendData(prevData => {
-          const newDataPoint = metrics.average_reward || (Math.random() * 200 - 100)
-          const newDataPoints = [...(prevData.sacData || []), newDataPoint].slice(-20)
-          const newLabels = [...prevData.labels, `E${metrics.episodes_completed || prevData.labels.length + 1}`].slice(-20)
-          
-          if (newDataPoints.length > (prevData.sacData || []).length) {
+          if (typeof metrics.average_reward === 'number') {
+            const currentTime = new Date()
+            const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
+              hour12: false, 
+              minute: '2-digit', 
+              second: '2-digit' 
+            })
+            
+            // 保持數據持續增長，橫軸隨時間前進
+            const newDataPoints = [...(prevData.sacData || []), metrics.average_reward]
+            const newLabels = [...prevData.labels, timeLabel]
+            
+            // 如果數據點太多，限制在最多100個點以保持性能
+            const maxPoints = 100
+            const finalDataPoints = newDataPoints.length > maxPoints 
+              ? newDataPoints.slice(-maxPoints) 
+              : newDataPoints
+            const finalLabels = newLabels.length > maxPoints 
+              ? newLabels.slice(-maxPoints) 
+              : newLabels
+            
             return {
               ...prevData,
-              sacData: newDataPoints,
-              labels: newLabels
+              sacData: finalDataPoints,
+              labels: finalLabels
             }
           }
           return prevData
@@ -148,14 +230,30 @@ export const useRLMonitoring = () => {
 
         // 更新策略損失數據 - SAC
         setPolicyLossData(prevData => {
+          const currentTime = new Date()
+          const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
+            hour12: false, 
+            minute: '2-digit', 
+            second: '2-digit' 
+          })
           const mockLoss = Math.random() * 0.4 + 0.08 // SAC損失值
-          const newLossPoints = [...(prevData.sacLoss || []), mockLoss].slice(-20)
-          const newLabels = [...prevData.labels, `E${metrics.episodes_completed || prevData.labels.length + 1}`].slice(-20)
+          
+          const newLossPoints = [...(prevData.sacLoss || []), mockLoss]
+          const newLabels = [...prevData.labels, timeLabel]
+          
+          // 如果數據點太多，限制在最多100個點以保持性能
+          const maxPoints = 100
+          const finalLossPoints = newLossPoints.length > maxPoints 
+            ? newLossPoints.slice(-maxPoints) 
+            : newLossPoints
+          const finalLabels = newLabels.length > maxPoints 
+            ? newLabels.slice(-maxPoints) 
+            : newLabels
           
           return {
             ...prevData,
-            sacLoss: newLossPoints,
-            labels: newLabels
+            sacLoss: finalLossPoints,
+            labels: finalLabels
           }
         })
       }
