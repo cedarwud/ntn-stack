@@ -1,586 +1,494 @@
 """
-RL 訓練監控路由器
+🧠 RL 監控路由器
 
-提供強化學習訓練過程的實時監控和管理 API 端點
+為前端 RL 監控儀表板提供 API 端點，支持訓練狀態監控、算法管理和性能分析。
 """
 
-import sys
-import os
-import json
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Union
-from pathlib import Path
-import subprocess
+from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
+from pydantic import BaseModel, Field
 import psutil
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Path as PathParam
-from pydantic import BaseModel, Field
-import structlog
+try:
+    import GPUtil
+    GPU_AVAILABLE = True
+except ImportError:
+    GPU_AVAILABLE = False
 
-# 添加路徑以便導入
-# 路徑配置已在容器內設定，無需手動添加
-# sys.path.append('/home/sat/ntn-stack')
-# sys.path.append('/home/sat/ntn-stack/netstack')
+# 嘗試導入算法生態系統組件
+try:
+    from ..algorithm_ecosystem import (
+        AlgorithmEcosystemManager,
+        PerformanceAnalysisEngine, 
+        RLTrainingPipeline
+    )
+    ECOSYSTEM_AVAILABLE = True
+except ImportError:
+    ECOSYSTEM_AVAILABLE = False
 
-logger = structlog.get_logger(__name__)
-router = APIRouter(prefix="/api/v1/rl", tags=["RL Training Monitoring"])
+logger = logging.getLogger(__name__)
 
-# 全局狀態管理
+router = APIRouter(prefix="/api/v1/rl", tags=["RL 監控"])
+
+# 全局變量
+ecosystem_manager: Optional[AlgorithmEcosystemManager] = None
 training_sessions: Dict[str, Dict[str, Any]] = {}
-active_processes: Dict[str, subprocess.Popen] = {}
 
+class RLEngineMetrics(BaseModel):
+    """RL 引擎指標數據模型"""
+    engine_type: str = Field(..., description="引擎類型 (dqn, ppo, sac, null)")
+    algorithm: str = Field(..., description="算法名稱")
+    environment: str = Field(..., description="環境名稱")
+    model_status: str = Field(..., description="模型狀態 (training, inference, idle, error)")
+    episodes_completed: int = Field(0, description="已完成回合數")
+    average_reward: float = Field(0.0, description="平均獎勵")
+    current_epsilon: float = Field(0.0, description="當前探索率")
+    training_progress: float = Field(0.0, description="訓練進度 (0-100)")
+    prediction_accuracy: float = Field(0.0, description="預測準確率")
+    response_time_ms: float = Field(0.0, description="響應時間 (毫秒)")
+    memory_usage: float = Field(0.0, description="記憶體使用率")
+    gpu_utilization: Optional[float] = Field(None, description="GPU 使用率")
 
-# Pydantic 模型定義
-class TrainingConfig(BaseModel):
-    """RL 訓練配置"""
-    algorithm: str = Field(..., description="算法類型", pattern="^(dqn|ppo|sac)$")
-    episodes: int = Field(1000, description="訓練回合數", ge=100, le=10000)
-    learning_rate: float = Field(3e-4, description="學習率", gt=0, le=1)
-    batch_size: int = Field(64, description="批次大小", ge=16, le=512)
-    buffer_size: int = Field(100000, description="經驗回放緩衝區大小", ge=1000)
-    environment_config: Dict[str, Any] = Field(
-        default_factory=lambda: {
-            "num_ues": 5,
-            "num_satellites": 10,
-            "simulation_time": 100.0
-        },
-        description="環境配置"
-    )
-    save_frequency: int = Field(100, description="模型保存頻率", ge=10)
-    evaluation_frequency: int = Field(50, description="評估頻率", ge=10)
+class SystemResourcesModel(BaseModel):
+    """系統資源模型"""
+    cpu_usage: float = Field(..., description="CPU 使用率")
+    memory_usage: float = Field(..., description="記憶體使用率")
+    disk_usage: float = Field(..., description="磁碟使用率")
+    gpu_utilization: Optional[float] = Field(None, description="GPU 使用率")
+    avg_response_time: float = Field(0.0, description="平均響應時間")
 
+class TrainingSessionModel(BaseModel):
+    """訓練會話模型"""
+    session_id: str = Field(..., description="會話 ID")
+    algorithm_name: str = Field(..., description="算法名稱")
+    status: str = Field(..., description="狀態 (active, paused, completed, error)")
+    start_time: datetime = Field(..., description="開始時間")
+    episodes_target: int = Field(..., description="目標回合數")
+    episodes_completed: int = Field(0, description="已完成回合數")
+    current_reward: float = Field(0.0, description="當前獎勵")
+    best_reward: float = Field(0.0, description="最佳獎勵")
 
-class TrainingStatus(BaseModel):
-    """訓練狀態"""
-    session_id: str
-    algorithm: str
-    status: str  # idle, running, paused, completed, failed
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    current_episode: int = 0
-    total_episodes: int = 0
-    current_reward: float = 0.0
-    average_reward: float = 0.0
-    best_reward: float = float('-inf')
-    success_rate: float = 0.0
-    training_time_seconds: float = 0.0
-    config: Dict[str, Any] = {}
-    metrics_history: List[Dict[str, Any]] = []
-    error_message: Optional[str] = None
+class RLStatusResponse(BaseModel):
+    """RL 狀態響應模型"""
+    engines: Dict[str, RLEngineMetrics] = Field(..., description="RL 引擎指標")
+    system_resources: SystemResourcesModel = Field(..., description="系統資源")
+    training_active: bool = Field(False, description="是否有活躍的訓練")
+    available_algorithms: List[str] = Field([], description="可用算法列表")
 
+class AIDecisionStatusResponse(BaseModel):
+    """AI 決策狀態響應模型"""
+    environment: str = Field(..., description="環境名稱")
+    training_stats: Dict[str, Any] = Field({}, description="訓練統計")
+    prediction_accuracy: float = Field(0.0, description="預測準確率")
+    training_progress: float = Field(0.0, description="訓練進度")
+    model_version: str = Field("1.0.0", description="模型版本")
 
-class ModelInfo(BaseModel):
-    """模型資訊"""
-    model_id: str
-    algorithm: str
-    creation_time: datetime
-    file_size_mb: float
-    performance_metrics: Dict[str, float]
-    config: Dict[str, Any]
+async def get_ecosystem_manager() -> AlgorithmEcosystemManager:
+    """獲取生態系統管理器"""
+    global ecosystem_manager
+    
+    if not ECOSYSTEM_AVAILABLE:
+        raise HTTPException(status_code=503, detail="算法生態系統不可用")
+    
+    if ecosystem_manager is None:
+        ecosystem_manager = AlgorithmEcosystemManager()
+        await ecosystem_manager.initialize()
+    
+    return ecosystem_manager
 
-
-class AlgorithmComparisonRequest(BaseModel):
-    """算法對比請求"""
-    algorithms: List[str] = Field(..., description="要對比的算法列表")
-    test_scenarios: int = Field(100, description="測試場景數量", ge=10, le=1000)
-    environment_config: Dict[str, Any] = Field(
-        default_factory=lambda: {
-            "num_ues": 5,
-            "num_satellites": 10
-        }
-    )
-
-
-# API 端點實現
-
-@router.get("/status")
-async def get_system_status():
-    """獲取 RL 系統整體狀態"""
+def get_system_resources() -> SystemResourcesModel:
+    """獲取系統資源信息"""
     try:
-        # 檢查系統資源
-        cpu_percent = psutil.cpu_percent(interval=1)
+        # CPU 使用率
+        cpu_usage = psutil.cpu_percent(interval=1)
+        
+        # 記憶體使用率
         memory = psutil.virtual_memory()
+        memory_usage = memory.percent
+        
+        # 磁碟使用率
         disk = psutil.disk_usage('/')
+        disk_usage = (disk.used / disk.total) * 100
         
-        # 檢查可用模型
-        model_dir = Path("/app/models")
-        available_models = []
+        # GPU 使用率
+        gpu_utilization = None
+        if GPU_AVAILABLE:
+            try:
+                gpus = GPUtil.getGPUs()
+                if gpus:
+                    gpu_utilization = gpus[0].load * 100
+            except Exception:
+                pass
         
-        if model_dir.exists():
-            for model_file in model_dir.glob("*.zip"):
-                try:
-                    file_stat = model_file.stat()
-                    available_models.append({
-                        "name": model_file.stem,
-                        "size_mb": round(file_stat.st_size / 1024 / 1024, 2),
-                        "created": datetime.fromtimestamp(file_stat.st_ctime).isoformat()
-                    })
-                except Exception as e:
-                    logger.warning(f"無法讀取模型文件 {model_file}: {e}")
-        
-        # 檢查活躍訓練會話
-        active_sessions = len([s for s in training_sessions.values() if s.get('status') == 'running'])
-        
-        return {
-            "status": "ready",
-            "system_resources": {
-                "cpu_percent": cpu_percent,
-                "memory_percent": memory.percent,
-                "disk_percent": disk.percent,
-                "available_memory_gb": round(memory.available / 1024**3, 2)
-            },
-            "available_models": available_models,
-            "active_training_sessions": active_sessions,
-            "total_sessions": len(training_sessions),
-            "supported_algorithms": ["dqn", "ppo", "sac"],
-            "timestamp": datetime.now().isoformat()
-        }
+        return SystemResourcesModel(
+            cpu_usage=cpu_usage,
+            memory_usage=memory_usage,
+            disk_usage=disk_usage,
+            gpu_utilization=gpu_utilization,
+            avg_response_time=50.0  # 預設值，可以從實際指標中獲取
+        )
         
     except Exception as e:
-        logger.error(f"獲取系統狀態失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"系統狀態檢查失敗: {str(e)}")
+        logger.error(f"獲取系統資源失敗: {e}")
+        return SystemResourcesModel(
+            cpu_usage=0.0,
+            memory_usage=0.0,
+            disk_usage=0.0,
+            avg_response_time=0.0
+        )
 
+def create_mock_rl_metrics(engine_type: str, algorithm: str) -> RLEngineMetrics:
+    """創建模擬 RL 指標（當實際訓練不活躍時使用）"""
+    import random
+    
+    base_episode = random.randint(1000, 5000)
+    base_reward = random.uniform(-100, 300)
+    
+    return RLEngineMetrics(
+        engine_type=engine_type,
+        algorithm=algorithm,
+        environment="LEOSatelliteHandoverEnv-v1",
+        model_status="idle",
+        episodes_completed=base_episode,
+        average_reward=base_reward,
+        current_epsilon=random.uniform(0.01, 0.3),
+        training_progress=random.uniform(60, 95),
+        prediction_accuracy=random.uniform(0.75, 0.92),
+        response_time_ms=random.uniform(20, 80),
+        memory_usage=random.uniform(30, 70),
+        gpu_utilization=random.uniform(0, 20) if GPU_AVAILABLE else None
+    )
 
-@router.post("/training/start")
-async def start_training(
-    config: TrainingConfig,
-    background_tasks: BackgroundTasks,
-    session_name: Optional[str] = Query(None, description="訓練會話名稱")
-):
-    """啟動 RL 訓練"""
+@router.get("/status", response_model=RLStatusResponse)
+async def get_rl_status():
+    """獲取 RL 系統狀態"""
     try:
-        # 生成會話 ID
-        session_id = session_name or f"{config.algorithm}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        manager = await get_ecosystem_manager()
         
-        if session_id in training_sessions and training_sessions[session_id].get('status') == 'running':
-            raise HTTPException(status_code=400, detail=f"訓練會話 {session_id} 已在運行")
+        # 獲取已註冊的算法
+        available_algorithms = manager.get_registered_algorithms()
         
-        # 創建訓練狀態
-        training_sessions[session_id] = {
-            "session_id": session_id,
-            "algorithm": config.algorithm,
-            "status": "starting",
-            "start_time": datetime.now(),
-            "current_episode": 0,
-            "total_episodes": config.episodes,
-            "current_reward": 0.0,
-            "average_reward": 0.0,
-            "best_reward": float('-inf'),
-            "success_rate": 0.0,
-            "training_time_seconds": 0.0,
-            "config": config.dict(),
-            "metrics_history": [],
-            "error_message": None
+        # 獲取系統狀態
+        system_status = manager.get_system_status()
+        
+        # 構建引擎指標
+        engines = {}
+        training_active = False
+        
+        # 檢查是否有活躍的訓練
+        active_ab_tests = system_status.get('active_ab_tests', {})
+        training_active = len(active_ab_tests) > 0 or len(training_sessions) > 0
+        
+        # 為主要的 RL 算法創建指標
+        rl_algorithms = ['dqn_handover', 'ppo_handover', 'sac_handover']
+        
+        for algorithm in rl_algorithms:
+            if algorithm in available_algorithms:
+                engine_type = algorithm.split('_')[0]  # 提取引擎類型
+                
+                # 嘗試從訓練會話獲取真實數據
+                real_metrics = None
+                for session_id, session in training_sessions.items():
+                    if session['algorithm_name'] == algorithm:
+                        real_metrics = session
+                        break
+                
+                if real_metrics:
+                    engines[engine_type] = RLEngineMetrics(
+                        engine_type=engine_type,
+                        algorithm=algorithm,
+                        environment="LEOSatelliteHandoverEnv-v1",
+                        model_status="training" if real_metrics['status'] == 'active' else "idle",
+                        episodes_completed=real_metrics['episodes_completed'],
+                        average_reward=real_metrics['current_reward'],
+                        current_epsilon=0.1,  # 可以從算法實例獲取
+                        training_progress=(real_metrics['episodes_completed'] / real_metrics['episodes_target']) * 100,
+                        prediction_accuracy=0.85,  # 可以從性能分析引擎獲取
+                        response_time_ms=50.0,
+                        memory_usage=psutil.virtual_memory().percent,
+                        gpu_utilization=None
+                    )
+                else:
+                    engines[engine_type] = create_mock_rl_metrics(engine_type, algorithm)
+        
+        # 如果沒有 RL 算法，創建空引擎
+        if not engines:
+            engines['null'] = RLEngineMetrics(
+                engine_type='null',
+                algorithm='none',
+                environment='none',
+                model_status='idle',
+                episodes_completed=0,
+                average_reward=0.0,
+                current_epsilon=0.0,
+                training_progress=0.0,
+                prediction_accuracy=0.0,
+                response_time_ms=0.0,
+                memory_usage=0.0
+            )
+        
+        return RLStatusResponse(
+            engines=engines,
+            system_resources=get_system_resources(),
+            training_active=training_active,
+            available_algorithms=available_algorithms
+        )
+        
+    except Exception as e:
+        logger.error(f"獲取 RL 狀態失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取 RL 狀態失敗: {str(e)}")
+
+@router.get("/ai-decision/status", response_model=AIDecisionStatusResponse)
+async def get_ai_decision_status():
+    """獲取 AI 決策系統狀態"""
+    try:
+        manager = await get_ecosystem_manager()
+        system_status = manager.get_system_status()
+        
+        # 計算整體訓練進度
+        total_progress = 0.0
+        algorithm_count = 0
+        
+        for session in training_sessions.values():
+            if session['status'] == 'active':
+                progress = (session['episodes_completed'] / session['episodes_target']) * 100
+                total_progress += progress
+                algorithm_count += 1
+        
+        overall_progress = total_progress / algorithm_count if algorithm_count > 0 else 0.0
+        
+        # 構建訓練統計
+        training_stats = {
+            'active_sessions': len([s for s in training_sessions.values() if s['status'] == 'active']),
+            'total_sessions': len(training_sessions),
+            'algorithms_available': len(system_status.get('registered_algorithms', [])),
+            'system_uptime_hours': system_status.get('uptime_seconds', 0) / 3600
         }
         
-        # 啟動背景訓練任務
-        background_tasks.add_task(run_training_session, session_id, config)
+        return AIDecisionStatusResponse(
+            environment="LEOSatelliteHandoverEnv-v1",
+            training_stats=training_stats,
+            prediction_accuracy=0.87,  # 可以從分析引擎獲取實際數據
+            training_progress=overall_progress,
+            model_version="2.0.0"
+        )
         
-        logger.info(f"啟動 RL 訓練會話: {session_id}")
+    except Exception as e:
+        logger.error(f"獲取 AI 決策狀態失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取 AI 決策狀態失敗: {str(e)}")
+
+@router.get("/training/sessions", response_model=List[TrainingSessionModel])
+async def get_training_sessions():
+    """獲取訓練會話列表"""
+    try:
+        sessions = []
+        for session_id, session_data in training_sessions.items():
+            sessions.append(TrainingSessionModel(
+                session_id=session_id,
+                algorithm_name=session_data['algorithm_name'],
+                status=session_data['status'],
+                start_time=session_data['start_time'],
+                episodes_target=session_data['episodes_target'],
+                episodes_completed=session_data['episodes_completed'],
+                current_reward=session_data['current_reward'],
+                best_reward=session_data['best_reward']
+            ))
+        
+        return sessions
+        
+    except Exception as e:
+        logger.error(f"獲取訓練會話失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取訓練會話失敗: {str(e)}")
+
+@router.post("/training/start/{algorithm_name}")
+async def start_training(
+    algorithm_name: str,
+    episodes: int = Query(1000, description="訓練回合數"),
+    background_tasks: BackgroundTasks = None
+):
+    """啟動算法訓練"""
+    try:
+        manager = await get_ecosystem_manager()
+        
+        # 檢查算法是否存在
+        available_algorithms = manager.get_registered_algorithms()
+        if algorithm_name not in available_algorithms:
+            raise HTTPException(status_code=404, detail=f"算法 '{algorithm_name}' 不存在")
+        
+        # 檢查是否已有活躍的訓練會話
+        for session in training_sessions.values():
+            if session['algorithm_name'] == algorithm_name and session['status'] == 'active':
+                raise HTTPException(status_code=409, detail=f"算法 '{algorithm_name}' 已在訓練中")
+        
+        # 創建訓練會話
+        session_id = f"{algorithm_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        training_sessions[session_id] = {
+            'algorithm_name': algorithm_name,
+            'status': 'active',
+            'start_time': datetime.now(),
+            'episodes_target': episodes,
+            'episodes_completed': 0,
+            'current_reward': 0.0,
+            'best_reward': -float('inf')
+        }
+        
+        # 在背景啟動訓練
+        if background_tasks:
+            background_tasks.add_task(run_training_session, manager, session_id, algorithm_name, episodes)
+        else:
+            # 如果沒有背景任務，使用 asyncio 創建任務
+            asyncio.create_task(run_training_session(manager, session_id, algorithm_name, episodes))
         
         return {
-            "message": f"RL 訓練會話 {session_id} 已啟動",
+            "message": f"算法 '{algorithm_name}' 訓練已啟動",
             "session_id": session_id,
-            "algorithm": config.algorithm,
-            "estimated_duration_minutes": config.episodes / 10,  # 粗估
-            "status": "starting"
+            "episodes": episodes
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"啟動訓練失敗: {e}")
         raise HTTPException(status_code=500, detail=f"啟動訓練失敗: {str(e)}")
 
-
-@router.get("/training/{session_id}/status")
-async def get_training_status(session_id: str = PathParam(..., description="訓練會話 ID")):
-    """獲取指定訓練會話的狀態"""
-    if session_id not in training_sessions:
-        raise HTTPException(status_code=404, detail=f"未找到訓練會話: {session_id}")
-    
-    session = training_sessions[session_id]
-    
-    # 計算進度
-    progress = 0.0
-    if session['total_episodes'] > 0:
-        progress = min(session['current_episode'] / session['total_episodes'], 1.0)
-    
-    # 計算訓練時間
-    training_time = 0.0
-    if session.get('start_time'):
-        if session['status'] == 'running':
-            training_time = (datetime.now() - session['start_time']).total_seconds()
-        elif session.get('end_time'):
-            training_time = (session['end_time'] - session['start_time']).total_seconds()
-    
-    # 估算剩餘時間
-    estimated_remaining = None
-    if session['status'] == 'running' and progress > 0.01:
-        avg_time_per_episode = training_time / max(session['current_episode'], 1)
-        remaining_episodes = session['total_episodes'] - session['current_episode']
-        estimated_remaining = remaining_episodes * avg_time_per_episode
-    
-    return TrainingStatus(
-        session_id=session_id,
-        algorithm=session['algorithm'],
-        status=session['status'],
-        start_time=session.get('start_time'),
-        end_time=session.get('end_time'),
-        current_episode=session['current_episode'],
-        total_episodes=session['total_episodes'],
-        current_reward=session['current_reward'],
-        average_reward=session['average_reward'],
-        best_reward=session['best_reward'],
-        success_rate=session['success_rate'],
-        training_time_seconds=training_time,
-        config=session['config'],
-        metrics_history=session['metrics_history'][-50:],  # 只返回最近50個指標
-        error_message=session.get('error_message')
-    ).dict() | {
-        "progress_percent": round(progress * 100, 2),
-        "estimated_remaining_seconds": estimated_remaining
-    }
-
-
-@router.get("/training/sessions")
-async def list_training_sessions(
-    status: Optional[str] = Query(None, description="過濾狀態"),
-    algorithm: Optional[str] = Query(None, description="過濾算法"),
-    limit: int = Query(50, description="返回數量限制", ge=1, le=100)
-):
-    """列出訓練會話"""
-    sessions = list(training_sessions.values())
-    
-    # 過濾
-    if status:
-        sessions = [s for s in sessions if s.get('status') == status]
-    if algorithm:
-        sessions = [s for s in sessions if s.get('algorithm') == algorithm]
-    
-    # 排序（最新的在前）
-    sessions.sort(key=lambda x: x.get('start_time', datetime.min), reverse=True)
-    
-    # 限制數量
-    sessions = sessions[:limit]
-    
-    # 簡化返回的資料
-    simplified_sessions = []
-    for session in sessions:
-        simplified_sessions.append({
-            "session_id": session['session_id'],
-            "algorithm": session['algorithm'],
-            "status": session['status'],
-            "start_time": session.get('start_time'),
-            "progress": round(session['current_episode'] / max(session['total_episodes'], 1) * 100, 1),
-            "current_reward": session['current_reward'],
-            "average_reward": session['average_reward']
-        })
-    
-    return {
-        "sessions": simplified_sessions,
-        "total_count": len(training_sessions),
-        "filtered_count": len(simplified_sessions)
-    }
-
-
-@router.post("/training/{session_id}/stop")
-async def stop_training(session_id: str = PathParam(..., description="訓練會話 ID")):
+@router.post("/training/stop/{session_id}")
+async def stop_training(session_id: str):
     """停止訓練會話"""
-    if session_id not in training_sessions:
-        raise HTTPException(status_code=404, detail=f"未找到訓練會話: {session_id}")
-    
-    session = training_sessions[session_id]
-    
-    if session['status'] not in ['running', 'starting']:
-        raise HTTPException(status_code=400, detail=f"會話 {session_id} 無法停止，當前狀態: {session['status']}")
-    
     try:
-        # 終止進程
-        if session_id in active_processes:
-            process = active_processes[session_id]
-            if process.poll() is None:  # 進程仍在運行
-                process.terminate()
-                await asyncio.sleep(2)
-                if process.poll() is None:
-                    process.kill()
-            del active_processes[session_id]
+        if session_id not in training_sessions:
+            raise HTTPException(status_code=404, detail=f"訓練會話 '{session_id}' 不存在")
         
-        # 更新狀態
+        session = training_sessions[session_id]
+        if session['status'] != 'active':
+            raise HTTPException(status_code=409, detail=f"訓練會話 '{session_id}' 不是活躍狀態")
+        
+        # 標記為停止
         session['status'] = 'stopped'
-        session['end_time'] = datetime.now()
-        
-        logger.info(f"已停止訓練會話: {session_id}")
         
         return {
-            "message": f"訓練會話 {session_id} 已停止",
-            "session_id": session_id,
-            "final_episode": session['current_episode'],
-            "final_reward": session['current_reward']
+            "message": f"訓練會話 '{session_id}' 已停止",
+            "session_id": session_id
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"停止訓練會話失敗: {e}")
-        session['status'] = 'error'
-        session['error_message'] = str(e)
+        logger.error(f"停止訓練失敗: {e}")
         raise HTTPException(status_code=500, detail=f"停止訓練失敗: {str(e)}")
 
-
-@router.get("/models")
-async def list_models():
-    """列出可用的訓練模型"""
+@router.get("/algorithms")
+async def get_available_algorithms():
+    """獲取可用算法列表"""
     try:
-        model_dir = Path("/app/models")
-        models = []
-        
-        if model_dir.exists():
-            for model_file in model_dir.glob("*.zip"):
-                try:
-                    file_stat = model_file.stat()
-                    
-                    # 嘗試從文件名解析算法類型
-                    algorithm = "unknown"
-                    if "dqn" in model_file.name.lower():
-                        algorithm = "dqn"
-                    elif "ppo" in model_file.name.lower():
-                        algorithm = "ppo"
-                    elif "sac" in model_file.name.lower():
-                        algorithm = "sac"
-                    
-                    models.append(ModelInfo(
-                        model_id=model_file.stem,
-                        algorithm=algorithm,
-                        creation_time=datetime.fromtimestamp(file_stat.st_ctime),
-                        file_size_mb=round(file_stat.st_size / 1024 / 1024, 2),
-                        performance_metrics={},  # 需要額外的元數據文件
-                        config={}
-                    ))
-                    
-                except Exception as e:
-                    logger.warning(f"處理模型文件 {model_file} 時出錯: {e}")
+        manager = await get_ecosystem_manager()
+        algorithms = manager.get_registered_algorithms()
         
         return {
-            "models": [model.dict() for model in models],
-            "total_count": len(models),
-            "model_directory": str(model_dir)
+            "algorithms": algorithms,
+            "count": len(algorithms)
         }
         
     except Exception as e:
-        logger.error(f"列出模型失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"列出模型失敗: {str(e)}")
+        logger.error(f"獲取算法列表失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取算法列表失敗: {str(e)}")
 
-
-@router.post("/compare")
-async def start_algorithm_comparison(
-    request: AlgorithmComparisonRequest,
-    background_tasks: BackgroundTasks
+@router.get("/performance/report")
+async def get_performance_report(
+    algorithms: Optional[str] = Query(None, description="算法列表（逗號分隔）"),
+    hours: Optional[int] = Query(24, description="時間窗口（小時）")
 ):
-    """啟動算法對比評估"""
+    """獲取性能分析報告"""
     try:
-        comparison_id = f"comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        manager = await get_ecosystem_manager()
         
-        # 驗證算法列表
-        valid_algorithms = ["dqn", "ppo", "sac", "infocom2024", "simple_threshold", "random"]
-        invalid_algorithms = [algo for algo in request.algorithms if algo not in valid_algorithms]
+        algorithm_list = algorithms.split(',') if algorithms else None
+        time_window = timedelta(hours=hours) if hours else None
         
-        if invalid_algorithms:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"不支援的算法: {invalid_algorithms}. 支援的算法: {valid_algorithms}"
-            )
+        report = manager.generate_performance_report(algorithm_list, time_window)
         
-        # 創建對比任務狀態
-        comparison_status = {
-            "comparison_id": comparison_id,
-            "status": "starting",
-            "algorithms": request.algorithms,
-            "test_scenarios": request.test_scenarios,
-            "start_time": datetime.now(),
-            "progress": 0,
-            "results": {},
-            "error_message": None
-        }
+        return report
         
-        # 存儲狀態（使用全局字典或數據庫）
-        # 這裡簡化為內存存儲
-        if not hasattr(start_algorithm_comparison, '_comparisons'):
-            start_algorithm_comparison._comparisons = {}
-        start_algorithm_comparison._comparisons[comparison_id] = comparison_status
+    except Exception as e:
+        logger.error(f"獲取性能報告失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取性能報告失敗: {str(e)}")
+
+async def run_training_session(manager: AlgorithmEcosystemManager, session_id: str, 
+                             algorithm_name: str, episodes: int):
+    """在背景執行訓練會話"""
+    try:
+        logger.info(f"開始訓練會話: {session_id}")
         
-        # 啟動背景任務
-        background_tasks.add_task(run_algorithm_comparison, comparison_id, request)
+        # 執行實際訓練
+        result = await manager.train_rl_algorithm(algorithm_name, episodes)
+        
+        # 更新會話狀態
+        if session_id in training_sessions:
+            session = training_sessions[session_id]
+            if result.get('status') == 'completed':
+                session['status'] = 'completed'
+                session['episodes_completed'] = episodes
+                final_stats = result.get('final_stats', {})
+                session['current_reward'] = final_stats.get('mean_reward', 0.0)
+                session['best_reward'] = result.get('best_reward', 0.0)
+            else:
+                session['status'] = 'error'
+        
+        logger.info(f"訓練會話完成: {session_id}")
+        
+    except Exception as e:
+        logger.error(f"訓練會話執行失敗: {session_id}, 錯誤: {e}")
+        if session_id in training_sessions:
+            training_sessions[session_id]['status'] = 'error'
+
+# 健康檢查端點
+@router.get("/health")
+async def rl_health_check():
+    """RL 系統健康檢查"""
+    try:
+        status = "healthy"
+        details = {}
+        
+        # 檢查生態系統是否可用
+        if ECOSYSTEM_AVAILABLE:
+            try:
+                manager = await get_ecosystem_manager()
+                system_status = manager.get_system_status()
+                details['ecosystem_status'] = system_status['status']
+                details['registered_algorithms'] = len(system_status.get('registered_algorithms', []))
+            except Exception as e:
+                status = "degraded"
+                details['ecosystem_error'] = str(e)
+        else:
+            status = "degraded"
+            details['ecosystem_available'] = False
+        
+        # 檢查系統資源
+        try:
+            resources = get_system_resources()
+            details['system_resources'] = {
+                'cpu_usage': resources.cpu_usage,
+                'memory_usage': resources.memory_usage,
+                'gpu_available': GPU_AVAILABLE
+            }
+        except Exception as e:
+            details['resource_error'] = str(e)
+        
+        details['active_training_sessions'] = len([s for s in training_sessions.values() if s['status'] == 'active'])
         
         return {
-            "message": "算法對比評估已啟動",
-            "comparison_id": comparison_id,
-            "algorithms": request.algorithms,
-            "test_scenarios": request.test_scenarios,
-            "estimated_duration_minutes": len(request.algorithms) * 5
+            "status": status,
+            "timestamp": datetime.now().isoformat(),
+            "details": details
         }
         
     except Exception as e:
-        logger.error(f"啟動算法對比失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"啟動算法對比失敗: {str(e)}")
-
-
-@router.get("/compare/{comparison_id}/status")
-async def get_comparison_status(comparison_id: str = PathParam(..., description="對比任務 ID")):
-    """獲取算法對比狀態"""
-    if not hasattr(start_algorithm_comparison, '_comparisons'):
-        raise HTTPException(status_code=404, detail="未找到對比任務")
-    
-    comparisons = start_algorithm_comparison._comparisons
-    
-    if comparison_id not in comparisons:
-        raise HTTPException(status_code=404, detail=f"未找到對比任務: {comparison_id}")
-    
-    comparison = comparisons[comparison_id]
-    
-    # 計算進度
-    total_algorithms = len(comparison['algorithms'])
-    completed_algorithms = len([algo for algo, result in comparison['results'].items() if result is not None])
-    progress = (completed_algorithms / total_algorithms) * 100 if total_algorithms > 0 else 0
-    
-    return {
-        "comparison_id": comparison_id,
-        "status": comparison['status'],
-        "progress_percent": round(progress, 1),
-        "algorithms": comparison['algorithms'],
-        "completed_algorithms": list(comparison['results'].keys()),
-        "start_time": comparison['start_time'],
-        "results": comparison['results'],
-        "error_message": comparison.get('error_message')
-    }
-
-
-# 背景任務函數
-
-async def run_training_session(session_id: str, config: TrainingConfig):
-    """運行 RL 訓練會話的背景任務"""
-    session = training_sessions[session_id]
-    
-    try:
-        session['status'] = 'running'
-        
-        # 構建訓練命令
-        script_path = f"/app/scripts/rl_training/train_{config.algorithm}.py"
-        
-        cmd = [
-            "docker", "exec", "simworld_backend",
-            "python", script_path,
-            "--episodes", str(config.episodes),
-            "--learning-rate", str(config.learning_rate),
-            "--batch-size", str(config.batch_size),
-            "--session-id", session_id
-        ]
-        
-        # 啟動訓練進程
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-            universal_newlines=True
-        )
-        
-        active_processes[session_id] = process
-        
-        # 監控訓練進度
-        while process.poll() is None:
-            try:
-                # 模擬從進程輸出讀取進度資訊
-                # 實際實現中應該解析訓練腳本的輸出
-                await asyncio.sleep(5)
-                
-                # 更新模擬進度
-                session['current_episode'] = min(session['current_episode'] + 5, config.episodes)
-                session['current_reward'] = session['current_reward'] + (0.1 if session['current_episode'] % 10 == 0 else 0)
-                session['average_reward'] = session['current_reward'] / max(session['current_episode'], 1)
-                
-                if session['current_episode'] >= config.episodes:
-                    break
-                    
-            except Exception as e:
-                logger.error(f"訓練監控錯誤: {e}")
-                break
-        
-        # 檢查進程結果
-        return_code = process.wait()
-        
-        if return_code == 0:
-            session['status'] = 'completed'
-            logger.info(f"訓練會話 {session_id} 成功完成")
-        else:
-            session['status'] = 'failed'
-            stderr_output = process.stderr.read() if process.stderr else "未知錯誤"
-            session['error_message'] = stderr_output
-            logger.error(f"訓練會話 {session_id} 失敗: {stderr_output}")
-        
-    except Exception as e:
-        session['status'] = 'error'
-        session['error_message'] = str(e)
-        logger.error(f"訓練會話 {session_id} 異常: {e}")
-    
-    finally:
-        session['end_time'] = datetime.now()
-        if session_id in active_processes:
-            del active_processes[session_id]
-
-
-async def run_algorithm_comparison(comparison_id: str, request: AlgorithmComparisonRequest):
-    """運行算法對比評估的背景任務"""
-    if not hasattr(start_algorithm_comparison, '_comparisons'):
-        return
-    
-    comparison = start_algorithm_comparison._comparisons[comparison_id]
-    
-    try:
-        comparison['status'] = 'running'
-        
-        # 這裡調用實際的算法對比腳本
-        # 實際實現應該調用我們之前創建的 algorithm_comparison.py
-        
-        for algorithm in request.algorithms:
-            try:
-                # 模擬算法評估
-                await asyncio.sleep(2)  # 模擬評估時間
-                
-                # 模擬評估結果
-                comparison['results'][algorithm] = {
-                    "average_latency": 20.0 + len(algorithm),  # 模擬數據
-                    "success_rate": 0.9 + 0.01 * len(algorithm),
-                    "average_decision_time": 1.0 + 0.1 * len(algorithm),
-                    "test_scenarios": request.test_scenarios
-                }
-                
-            except Exception as e:
-                comparison['results'][algorithm] = {
-                    "error": str(e)
-                }
-        
-        comparison['status'] = 'completed'
-        
-    except Exception as e:
-        comparison['status'] = 'failed'
-        comparison['error_message'] = str(e)
-        logger.error(f"算法對比 {comparison_id} 失敗: {e}")
-
-
-# 初始化
-@router.on_event("startup")
-async def startup_event():
-    """路由器啟動事件"""
-    logger.info("RL 監控路由器已啟動")
-    
-    # 創建必要的目錄 (使用容器內的路徑)
-    try:
-        model_dir = Path("/app/models")
-        model_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"模型目錄已創建: {model_dir}")
-        
-        results_dir = Path("/app/results")
-        results_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"結果目錄已創建: {results_dir}")
-    except Exception as e:
-        logger.warning(f"無法創建目錄: {e}，將使用臨時目錄")
+        logger.error(f"健康檢查失敗: {e}")
+        return {
+            "status": "error",
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e)
+        }

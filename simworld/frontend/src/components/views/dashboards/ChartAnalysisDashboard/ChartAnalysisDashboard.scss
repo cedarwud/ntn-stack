@@ -1,5 +1,160 @@
 /* Chart Analysis Dashboard 100% 全屏樣式 */
 
+/* RL 監控獨立模態框覆蓋層 */
+.modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.85) !important;
+  z-index: 9998 !important; /* 降低 z-index 避免覆蓋內容 */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  backdrop-filter: blur(8px) !important;
+  overflow: hidden !important; /* 防止雙捲軸 */
+}
+
+/* RL 監控獨立模態框樣式 */
+.rl-monitoring-standalone {
+  max-width: 95vw !important;
+  max-height: 95vh !important;
+  width: 95vw !important;
+  height: 95vh !important;
+  position: relative !important;
+  z-index: 9999 !important; /* 確保模態框在覆蓋層上方但不過高 */
+  margin: 0 !important;
+  
+  /* 小螢幕適配 */
+  @media (max-height: 700px) {
+    max-height: 98vh !important;
+    height: 98vh !important;
+  }
+  
+  @media (max-height: 600px) {
+    max-height: 100vh !important;
+    height: 100vh !important;
+  }
+  
+  .modal-header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-bottom: 2px solid rgba(34, 197, 94, 0.3);
+    padding: 1.5rem 2rem;
+    position: relative;
+    z-index: 10000; /* 調整標題欄層級 */
+    
+    .modal-title-section {
+      .modal-title {
+        color: #22c55e;
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0 0 0.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      
+      .modal-subtitle {
+        color: #94a3b8;
+        font-size: 1rem;
+        margin: 0;
+        font-style: italic;
+      }
+    }
+    
+    .modal-close-btn {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #ef4444;
+      font-size: 1.5rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.5);
+        transform: scale(1.1);
+      }
+    }
+  }
+  
+  .modal-body {
+    padding: 0;
+    height: calc(100% - 120px);
+    overflow: hidden; /* 隱藏 modal-body 的滾動，讓 rl-monitoring-fullwidth 處理滾動 */
+    position: relative;
+    z-index: 10000; /* 確保內容在覆蓋層之上但不過高 */
+    display: flex; /* 恢復 flex 布局 */
+    flex-direction: column;
+    
+    /* 小螢幕高度調整 */
+    @media (max-height: 700px) {
+      height: calc(100% - 100px);
+    }
+    
+    @media (max-height: 600px) {
+      height: calc(100% - 80px);
+    }
+    
+    .rl-monitoring-fullwidth {
+      flex: 1; /* 在 flex 容器中占據所有可用空間 */
+      height: 100%; /* 限制在父容器高度內 */
+      padding: 2rem 2rem 3rem 2rem; /* 增加底部 padding 避免內容被截掉 */
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      overflow-y: auto; /* 允許垂直滾動 */
+      overflow-x: hidden; /* 防止水平滾動 */
+      position: relative; /* 改回相對定位，不超出父容器 */
+      z-index: 10003; /* 確保最高層級 */
+      box-sizing: border-box; /* 確保 padding 包含在高度內 */
+      
+      /* 確保滾動區域有足夠的底部空間 */
+      &::after {
+        content: '';
+        display: block;
+        height: 2rem; /* 額外的底部空間 */
+        width: 100%;
+      }
+      
+      /* 小螢幕內容調整 */
+      @media (max-height: 700px) {
+        padding: 1.5rem 1.5rem 2.5rem 1.5rem; /* 保持額外的底部空間 */
+      }
+      
+      @media (max-height: 600px) {
+        padding: 1rem 1rem 2rem 1rem; /* 保持額外的底部空間 */
+      }
+      
+      .rl-monitor-header {
+        margin-bottom: 2rem;
+        
+        @media (max-height: 700px) {
+          margin-bottom: 1.5rem;
+        }
+        
+        @media (max-height: 600px) {
+          margin-bottom: 1rem;
+        }
+      }
+      
+      .rl-monitor-panels {
+        margin-bottom: 2rem;
+        
+        @media (max-height: 700px) {
+          margin-bottom: 1.5rem;
+        }
+        
+        @media (max-height: 600px) {
+          margin-bottom: 1rem;
+        }
+      }
+    }
+  }
+}
+
 /* 策略控制項樣式 */
 .strategy-controls {
   margin-bottom: 2rem;
@@ -1213,7 +1368,7 @@
 
 /* RL 監控全版橫式佈局樣式 */
 .rl-monitoring-fullwidth {
-    width: 95%;
+    width: 100%;
     height: 100%;
     padding: 2rem;
     background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
@@ -2685,6 +2840,594 @@
                     height: 100%;
                     border-radius: 3px;
                     transition: all 0.3s ease;
+                }
+            }
+        }
+    }
+}
+
+/* RL 監控面板樣式 - 補充缺失的樣式 */
+.rl-monitor-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.rl-algorithm-panel {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border: 1px solid rgba(100, 116, 139, 0.3);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    
+    &:hover {
+        border-color: rgba(100, 116, 139, 0.5);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
+    }
+    
+    &.dqn-panel {
+        border-left: 4px solid #22c55e;
+        
+        &:hover {
+            border-left-color: #16a34a;
+            box-shadow: 0 6px 16px rgba(34, 197, 94, 0.15);
+        }
+    }
+    
+    &.ppo-panel {
+        border-left: 4px solid #3b82f6;
+        
+        &:hover {
+            border-left-color: #2563eb;
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.15);
+        }
+    }
+    
+    &.sac-panel {
+        border-left: 4px solid #f59e0b;
+        
+        &:hover {
+            border-left-color: #d97706;
+            box-shadow: 0 6px 16px rgba(245, 158, 11, 0.15);
+        }
+    }
+    
+    .panel-header {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        
+        .algorithm-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            
+            .algorithm-name {
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: #e2e8f0;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            
+            .training-status {
+                font-size: 0.8rem;
+                padding: 0.25rem 0.75rem;
+                border-radius: 12px;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 0.25rem;
+                
+                &.active {
+                    background: rgba(34, 197, 94, 0.2);
+                    color: #22c55e;
+                    border: 1px solid rgba(34, 197, 94, 0.3);
+                }
+                
+                &.idle {
+                    background: rgba(100, 116, 139, 0.2);
+                    color: #64748b;
+                    border: 1px solid rgba(100, 116, 139, 0.3);
+                }
+            }
+        }
+        
+        .training-progress {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            
+            .progress-bar {
+                flex: 1;
+                height: 8px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+                overflow: hidden;
+                
+                .progress-fill {
+                    height: 100%;
+                    border-radius: 4px;
+                    transition: width 0.3s ease;
+                    
+                    &.dqn-fill {
+                        background: linear-gradient(90deg, #22c55e, #16a34a);
+                        box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+                    }
+                    
+                    &.ppo-fill {
+                        background: linear-gradient(90deg, #3b82f6, #2563eb);
+                        box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+                    }
+                    
+                    &.sac-fill {
+                        background: linear-gradient(90deg, #f59e0b, #d97706);
+                        box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+                    }
+                }
+            }
+            
+            .progress-text {
+                font-size: 0.85rem;
+                color: #94a3b8;
+                min-width: 40px;
+                text-align: right;
+                font-weight: 500;
+            }
+        }
+        
+        .training-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            
+            .metric {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+                padding: 0.75rem;
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                
+                .label {
+                    font-size: 0.75rem;
+                    color: #94a3b8;
+                    font-weight: 500;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+                
+                .value {
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    color: #e2e8f0;
+                }
+            }
+        }
+        
+        .charts-mini-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            
+            .mini-chart {
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 8px;
+                padding: 1rem;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                
+                .chart-title {
+                    text-align: center;
+                    font-size: 0.85rem;
+                    color: #94a3b8;
+                    margin-bottom: 0.5rem;
+                    font-weight: 500;
+                }
+                
+                .chart-area {
+                    height: 120px;
+                    position: relative;
+                    
+                    .no-data {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100%;
+                        color: #64748b;
+                        font-size: 0.8rem;
+                        font-style: italic;
+                    }
+                    
+                    canvas {
+                        border-radius: 4px;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* RL 監控組件容器樣式 */
+.rl-monitor-component {
+    margin-top: 2rem;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border: 1px solid rgba(100, 116, 139, 0.3);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    
+    .gymnasium-rl-monitor {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        
+        .monitor-header {
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            
+            .header-controls {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+        }
+        
+        .metrics-container,
+        .engine-cards,
+        .stats-grid {
+            width: 100%;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            font-size: 0.85rem;
+            
+            th, td {
+                padding: 0.5rem;
+                text-align: left;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                
+                &:first-child {
+                    padding-left: 0;
+                }
+                
+                &:last-child {
+                    padding-right: 0;
+                }
+            }
+            
+            th {
+                color: #94a3b8;
+                font-weight: 500;
+                text-transform: uppercase;
+                font-size: 0.75rem;
+                letter-spacing: 0.5px;
+            }
+            
+            td {
+                color: #e2e8f0;
+            }
+        }
+    }
+}
+
+/* 響應式設計 */
+@media (max-width: 1024px) {
+    .rl-algorithm-panel {
+        padding: 1rem;
+        
+        .panel-header {
+            .training-metrics {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+        }
+    }
+}
+
+@media (max-width: 768px) {
+    .rl-monitor-panels {
+        gap: 1rem;
+    }
+    
+    .rl-algorithm-panel {
+        padding: 0.75rem;
+        
+        .panel-header {
+            .algorithm-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .training-progress {
+                flex-direction: column;
+                gap: 0.5rem;
+                
+                .progress-bar {
+                    width: 100%;
+                }
+            }
+        }
+    }
+    
+    .rl-monitor-component {
+        padding: 1rem;
+    }
+}
+
+/* RL 監控面板完整樣式 */
+.rl-monitor-panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+
+    .rl-algorithm-panel {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        padding: 1.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--panel-color, #3b82f6), transparent);
+        }
+
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .panel-header {
+            .algorithm-info {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1rem;
+
+                .algorithm-name {
+                    font-size: 1.2rem;
+                    font-weight: 600;
+                    color: var(--panel-color, #3b82f6);
+                }
+
+                .training-status {
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 12px;
+                    font-size: 0.9rem;
+                    font-weight: 500;
+
+                    &.active {
+                        background: rgba(34, 197, 94, 0.2);
+                        color: #22c55e;
+                        border: 1px solid rgba(34, 197, 94, 0.3);
+                    }
+
+                    &.idle {
+                        background: rgba(156, 163, 175, 0.2);
+                        color: #9ca3af;
+                        border: 1px solid rgba(156, 163, 175, 0.3);
+                    }
+                }
+            }
+
+            .training-progress {
+                margin-bottom: 1rem;
+
+                .progress-bar {
+                    width: 100%;
+                    height: 8px;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 4px;
+                    overflow: hidden;
+                    position: relative;
+
+                    .progress-fill {
+                        height: 100%;
+                        background: linear-gradient(90deg, var(--panel-color, #3b82f6), var(--panel-light, #60a5fa));
+                        border-radius: 4px;
+                        transition: width 0.3s ease;
+                        position: relative;
+
+                        &::after {
+                            content: '';
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+                            animation: shimmer 1.5s infinite;
+                        }
+                    }
+
+                    &.dqn-fill { --panel-color: #22c55e; --panel-light: #4ade80; }
+                    &.ppo-fill { --panel-color: #3b82f6; --panel-light: #60a5fa; }
+                    &.sac-fill { --panel-color: #f59e0b; --panel-light: #fbbf24; }
+                }
+
+                .progress-text {
+                    margin-left: 0.5rem;
+                    font-size: 0.9rem;
+                    color: var(--panel-color, #3b82f6);
+                    font-weight: 600;
+                }
+            }
+
+            .training-metrics {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+                margin-bottom: 1rem;
+
+                .metric {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.25rem;
+
+                    .label {
+                        font-size: 0.8rem;
+                        color: rgba(255, 255, 255, 0.7);
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    }
+
+                    .value {
+                        font-size: 1.1rem;
+                        font-weight: 600;
+                        color: var(--panel-color, #3b82f6);
+                    }
+                }
+            }
+
+            .charts-mini-grid {
+                .mini-chart {
+                    .chart-title {
+                        font-size: 0.9rem;
+                        color: rgba(255, 255, 255, 0.9);
+                        margin-bottom: 0.75rem;
+                        text-align: center;
+                        font-weight: 500;
+                    }
+
+                    .chart-area {
+                        height: 150px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+
+                        .no-data {
+                            color: rgba(255, 255, 255, 0.5);
+                            font-style: italic;
+                            font-size: 0.9rem;
+                        }
+                    }
+                }
+            }
+        }
+
+        /* 算法特定顏色主題 */
+        &.dqn-panel {
+            --panel-color: #22c55e;
+            --panel-light: #4ade80;
+            --panel-dark: #16a34a;
+        }
+
+        &.ppo-panel {
+            --panel-color: #3b82f6;
+            --panel-light: #60a5fa;
+            --panel-dark: #2563eb;
+        }
+
+        &.sac-panel {
+            --panel-color: #f59e0b;
+            --panel-light: #fbbf24;
+            --panel-dark: #d97706;
+        }
+    }
+}
+
+/* RL 監控組件容器 */
+.rl-monitor-component {
+    margin-top: 2rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* SAC 按鈕樣式 - 補充缺失的樣式 */
+.large-control-btn.sac-btn {
+    &:hover {
+        border-color: rgba(245, 158, 11, 0.4);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+    }
+    
+    &.active, &:active {
+        background: rgba(245, 158, 11, 0.1);
+        border-color: rgba(245, 158, 11, 0.6);
+    }
+}
+
+/* 全部控制按鈕樣式 */
+.large-control-btn.all-btn {
+    &:hover {
+        border-color: rgba(99, 102, 241, 0.4);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    }
+    
+    &.active, &:active {
+        background: rgba(99, 102, 241, 0.1);
+        border-color: rgba(99, 102, 241, 0.6);
+    }
+}
+
+/* 動畫效果 */
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* 響應式設計 - RL 監控面板 */
+@media (max-width: 1024px) {
+    .rl-monitor-panels {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+
+        .rl-algorithm-panel {
+            padding: 1rem;
+
+            .panel-header {
+                .training-metrics {
+                    grid-template-columns: 1fr;
+                    gap: 0.5rem;
+                }
+
+                .charts-mini-grid .mini-chart .chart-area {
+                    height: 120px;
+                }
+            }
+        }
+    }
+}
+
+@media (max-width: 768px) {
+    .rl-monitor-panels {
+        gap: 0.75rem;
+
+        .rl-algorithm-panel {
+            padding: 0.75rem;
+
+            .panel-header {
+                .algorithm-info {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 0.5rem;
+                }
+
+                .charts-mini-grid .mini-chart .chart-area {
+                    height: 100px;
                 }
             }
         }

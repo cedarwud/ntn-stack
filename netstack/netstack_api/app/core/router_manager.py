@@ -91,18 +91,32 @@ class RouterManager:
         # 定義可選路由器列表
         optional_routers = [
             {
-                "import_path": "...routers.performance_router",
+                "import_path": "...routers.algorithm_ecosystem_router",
                 "router_name": "router",
-                "alias": "performance_router",
-                "tag": "性能監控",
-                "description": "系統性能監控和指標收集"
+                "alias": "algorithm_ecosystem_router",
+                "tag": "算法生態系統",
+                "description": "多算法協調和換手決策生態系統"
             },
             {
                 "import_path": "...routers.rl_monitoring_router", 
                 "router_name": "router",
                 "alias": "rl_monitoring_router",
-                "tag": "RL 訓練監控",
-                "description": "強化學習訓練過程監控"
+                "tag": "RL 監控",
+                "description": "強化學習訓練狀態監控和算法管理"
+            },
+            {
+                "import_path": "...routers.ai_decision_status_router", 
+                "router_name": "router",
+                "alias": "ai_decision_status_router",
+                "tag": "AI 決策狀態",
+                "description": "AI 決策系統狀態和性能監控"
+            },
+            {
+                "import_path": "...routers.performance_router",
+                "router_name": "router",
+                "alias": "performance_router",
+                "tag": "性能監控",
+                "description": "系統性能監控和指標收集"
             },
             {
                 "import_path": "...routers.satellite_tle_router",

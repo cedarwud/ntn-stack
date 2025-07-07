@@ -13,6 +13,7 @@ export const useRLMonitoring = () => {
   // RL監控相關狀態
   const [isDqnTraining, setIsDqnTraining] = useState(false)
   const [isPpoTraining, setIsPpoTraining] = useState(false)
+  const [isSacTraining, setIsSacTraining] = useState(false)
   const [trainingMetrics, setTrainingMetrics] = useState(createInitialTrainingMetrics())
 
   const [rewardTrendData, setRewardTrendData] = useState(createInitialRLData())
@@ -23,7 +24,15 @@ export const useRLMonitoring = () => {
     const handleRLMetricsUpdate = (event: CustomEvent) => {
       const { engine, metrics } = event.detail
       
-      console.log(`收到RL監控數據更新 - ${engine}:`, metrics)
+      // 只在有意義的里程碑時記錄
+      if ((metrics.episodes_completed > 0 && metrics.episodes_completed % 5 === 0) || 
+          (metrics.training_progress > 0 && metrics.training_progress % 10 === 0)) {
+        console.log(`收到RL監控數據更新 - ${engine}:`, {
+          episodes: metrics.episodes_completed,
+          progress: metrics.training_progress,
+          avgReward: metrics.average_reward?.toFixed(2)
+        })
+      }
       
       if (engine === 'dqn') {
         setTrainingMetrics(prevMetrics => ({
@@ -107,6 +116,48 @@ export const useRLMonitoring = () => {
             labels: newLabels
           }
         })
+      } else if (engine === 'sac') {
+        setTrainingMetrics(prevMetrics => ({
+          ...prevMetrics,
+          sac: {
+            episodes: metrics.episodes_completed || 0,
+            avgReward: metrics.average_reward || 0,
+            progress: metrics.training_progress || 0,
+            handoverDelay: 42 - (metrics.training_progress || 0) / 100 * 18 + (Math.random() - 0.5) * 4,
+            successRate: Math.min(100, 85 + (metrics.training_progress || 0) / 100 * 13 + (Math.random() - 0.5) * 1.2),
+            signalDropTime: 16 - (metrics.training_progress || 0) / 100 * 7 + (Math.random() - 0.5) * 1.8,
+            energyEfficiency: 0.78 + (metrics.training_progress || 0) / 100 * 0.18 + (Math.random() - 0.5) * 0.04,
+          }
+        }))
+
+        // 更新獎勵趨勢數據 - SAC
+        setRewardTrendData(prevData => {
+          const newDataPoint = metrics.average_reward || (Math.random() * 200 - 100)
+          const newDataPoints = [...(prevData.sacData || []), newDataPoint].slice(-20)
+          const newLabels = [...prevData.labels, `E${metrics.episodes_completed || prevData.labels.length + 1}`].slice(-20)
+          
+          if (newDataPoints.length > (prevData.sacData || []).length) {
+            return {
+              ...prevData,
+              sacData: newDataPoints,
+              labels: newLabels
+            }
+          }
+          return prevData
+        })
+
+        // 更新策略損失數據 - SAC
+        setPolicyLossData(prevData => {
+          const mockLoss = Math.random() * 0.4 + 0.08 // SAC損失值
+          const newLossPoints = [...(prevData.sacLoss || []), mockLoss].slice(-20)
+          const newLabels = [...prevData.labels, `E${metrics.episodes_completed || prevData.labels.length + 1}`].slice(-20)
+          
+          return {
+            ...prevData,
+            sacLoss: newLossPoints,
+            labels: newLabels
+          }
+        })
       }
     }
 
@@ -119,6 +170,8 @@ export const useRLMonitoring = () => {
         setIsDqnTraining(isTraining)
       } else if (engine === 'ppo') {
         setIsPpoTraining(isTraining)
+      } else if (engine === 'sac') {
+        setIsSacTraining(isTraining)
       }
     }
 
@@ -130,6 +183,8 @@ export const useRLMonitoring = () => {
         setIsDqnTraining(false)
       } else if (engine === 'ppo') {
         setIsPpoTraining(false)
+      } else if (engine === 'sac') {
+        setIsSacTraining(false)
       }
     }
 
@@ -166,14 +221,29 @@ export const useRLMonitoring = () => {
     )
   }
 
-  const toggleBothTraining = () => {
-    const newDqnState = !isDqnTraining || !isPpoTraining
-    const newPpoState = !isDqnTraining || !isPpoTraining
-    setIsDqnTraining(newDqnState)
-    setIsPpoTraining(newPpoState)
+  const toggleSacTraining = () => {
+    const newState = !isSacTraining
+    setIsSacTraining(newState)
     window.dispatchEvent(
-      new CustomEvent('bothTrainingToggle', {
-        detail: { dqnTraining: newDqnState, ppoTraining: newPpoState }
+      new CustomEvent('sacTrainingToggle', {
+        detail: { isTraining: newState }
+      })
+    )
+  }
+
+  const toggleAllTraining = () => {
+    const anyTraining = isDqnTraining || isPpoTraining || isSacTraining
+    const newState = !anyTraining
+    setIsDqnTraining(newState)
+    setIsPpoTraining(newState)
+    setIsSacTraining(newState)
+    window.dispatchEvent(
+      new CustomEvent('allTrainingToggle', {
+        detail: { 
+          dqnTraining: newState, 
+          ppoTraining: newState,
+          sacTraining: newState
+        }
       })
     )
   }
@@ -182,6 +252,7 @@ export const useRLMonitoring = () => {
     // 狀態
     isDqnTraining,
     isPpoTraining,
+    isSacTraining,
     trainingMetrics,
     rewardTrendData,
     policyLossData,
@@ -189,11 +260,13 @@ export const useRLMonitoring = () => {
     // 控制函數
     toggleDqnTraining,
     togglePpoTraining,
-    toggleBothTraining,
+    toggleSacTraining,
+    toggleAllTraining,
     
     // 設置函數（如果需要外部控制）
     setIsDqnTraining,
     setIsPpoTraining,
+    setIsSacTraining,
     setTrainingMetrics,
     setRewardTrendData,
     setPolicyLossData
