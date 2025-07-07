@@ -147,7 +147,7 @@ const DeviceItem: React.FC<DeviceItemProps> = ({
                                 <td>
                                     <input
                                         type="text"
-                                        value={orientationInput.x}
+                                        value={orientationInput?.x || '0'}
                                         onChange={(e) =>
                                             onOrientationInputChange(
                                                 device.id,
@@ -160,7 +160,7 @@ const DeviceItem: React.FC<DeviceItemProps> = ({
                                 <td>
                                     <input
                                         type="text"
-                                        value={orientationInput.y}
+                                        value={orientationInput?.y || '0'}
                                         onChange={(e) =>
                                             onOrientationInputChange(
                                                 device.id,
@@ -173,7 +173,7 @@ const DeviceItem: React.FC<DeviceItemProps> = ({
                                 <td>
                                     <input
                                         type="text"
-                                        value={orientationInput.z}
+                                        value={orientationInput?.z || '0'}
                                         onChange={(e) =>
                                             onOrientationInputChange(
                                                 device.id,

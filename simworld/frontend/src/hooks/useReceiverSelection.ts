@@ -11,6 +11,10 @@ export const useReceiverSelection = ({
     onSelectedReceiversChange,
 }: UseReceiverSelectionProps) => {
     const getInitialReceiverIds = useCallback(() => {
+        // 防止 devices 為 undefined 的錯誤
+        if (!devices || !Array.isArray(devices)) {
+            return [];
+        }
         return devices
             .filter((device) => device.role === 'receiver' && device.id !== null)
             .map((device) => device.id as number);
@@ -32,6 +36,9 @@ export const useReceiverSelection = ({
     useEffect(() => {
         // This effect ensures selectedReceiverIds stays in sync with the available devices
         // 並允許全部不選
+        if (!devices || !Array.isArray(devices)) {
+            return;
+        }
         const currentReceiverDeviceIds = devices
             .filter((d) => d.role === 'receiver' && d.id !== null)
             .map((d) => d.id as number);
