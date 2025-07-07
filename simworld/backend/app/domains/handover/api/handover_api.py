@@ -50,7 +50,7 @@ from app.domains.handover.models.handover_models import (
     ConstellationCoverage,
     LatitudeBandCoverage,
 )
-from app.domains.handover.services.handover_service import HandoverService
+from app.domains.handover.services.handover_service_orchestrator import HandoverServiceOrchestrator
 from app.domains.handover.services.fine_grained_sync_service import FineGrainedSyncService
 from app.domains.satellite.services.orbit_service import OrbitService
 from app.domains.satellite.adapters.sqlmodel_satellite_repository import SQLModelSatelliteRepository
@@ -59,10 +59,10 @@ from app.domains.coordinates.models.coordinate_model import GeoCoordinate
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# 創建服務依賴
+# 創建服務依賴 - 使用模組化的協調器
 satellite_repository = SQLModelSatelliteRepository()
 orbit_service = OrbitService(satellite_repository=satellite_repository)
-handover_service = HandoverService(orbit_service=orbit_service)
+handover_service = HandoverServiceOrchestrator(orbit_service=orbit_service)
 
 
 @router.post("/prediction", response_model=HandoverPredictionResponse)
