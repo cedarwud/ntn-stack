@@ -1,573 +1,833 @@
 /**
  * 增強算法分析標籤頁內容組件
  * 整合原始版本和新版本的所有有意義功能，使用真實NetStack API數據
+ * 階段六重構：替換舊的 useAlgorithmAnalysisData Hook
  */
 
 import React from 'react'
 import { Radar, Bar } from 'react-chartjs-2'
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  LogarithmicScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  RadialLinearScale,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    LogarithmicScale,
+    BarElement,
+    LineElement,
+    PointElement,
+    RadialLinearScale,
+    Title,
+    Tooltip,
+    Legend,
+    Filler,
 } from 'chart.js'
-import { useAlgorithmAnalysisData } from '../hooks/useAlgorithmAnalysisData'
+
+// 導入新的專門化Hooks
+import { useTimeSyncData } from '../hooks/useTimeSyncData'
+import { useAlgorithmPerformanceData } from '../hooks/useAlgorithmPerformanceData'
+import { useComplexityComparisonData } from '../hooks/useComplexityComparisonData'
+import { useOptimizationData } from '../hooks/useOptimizationData' // 雖然可能不直接渲染，但保持完整性
 
 // 註冊 Chart.js 組件
 ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  LogarithmicScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  RadialLinearScale,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
+    CategoryScale,
+    LinearScale,
+    LogarithmicScale,
+    BarElement,
+    LineElement,
+    PointElement,
+    RadialLinearScale,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
 )
 
 const EnhancedAlgorithmTabContent: React.FC = () => {
-  const {
-    timeSyncPrecisionChart,
-    accessStrategyRadarChart,
-    algorithmPerformance,
-    complexityAnalysis,
-    dataStatus
-  } = useAlgorithmAnalysisData(true)
+    // 調用新的專門化Hooks
+    const { timeSyncData: timeSyncState, fetchTimeSyncData } =
+        useTimeSyncData(true)
+    const { algorithmPerformance: algoPerfState, fetchAlgorithmPerformance } =
+        useAlgorithmPerformanceData(true)
+    const { complexityComparison: complexityState, fetchComplexityComparison } =
+        useComplexityComparisonData(true)
+    const { optimizationData: optimizationState, fetchOptimizationData } =
+        useOptimizationData(true)
 
-  // 調試信息 - 只在開發環境且數據變化時記錄
-  React.useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log('EnhancedAlgorithmTabContent 雷達圖數據:', {
-        radarData: accessStrategyRadarChart.data,
-        status: accessStrategyRadarChart.status
-      })
-    }
-  }, [accessStrategyRadarChart.status, accessStrategyRadarChart.data]) // 包含data依賴
+    // 從 state 對象中解構出 data 和 status
+    const { data: timeSyncData, status: timeSyncStatus } = timeSyncState
+    const { data: algorithmPerformanceData, status: algoPerfStatus } =
+        algoPerfState
+    const { data: complexityData, status: complexityStatus } = complexityState
+    const { data: optimizationData, status: optimizationStatus } =
+        optimizationState
 
-  // 確保數據安全性 - 修復：調整驗證邏輯匹配實際數據結構
-  const safeRadarData = React.useMemo(() => {
-    const data = accessStrategyRadarChart.data
-    
-    // 修復：根據實際數據結構進行驗證
-    // 實際數據: 5個算法 (labels), 2個數據集 (延遲和吞吐量)
-    const expectedLabelsCount = data.labels?.length || 5
-    const expectedDatasetsCount = 2 // 延遲和吞吐量
-    
-    const isDataValid = data.labels && data.labels.length >= 3 && // 至少3個算法
-                       data.datasets && data.datasets.length === expectedDatasetsCount &&
-                       data.datasets.every(dataset => 
-                         dataset.data && 
-                         dataset.data.length === expectedLabelsCount &&
-                         dataset.data.every(value => 
-                           typeof value === 'number' && 
-                           !isNaN(value) && 
-                           value >= 0
-                         )
-                       )
-    
-    if (!isDataValid) {
-      console.warn('雷達圖數據無效，使用fallback數據。原始數據:', {
-        labels: data.labels,
-        labelsLength: data.labels?.length,
-        expectedLabelsCount,
-        datasetsLength: data.datasets?.length,
-        expectedDatasetsCount,
-        datasets: data.datasets?.map(d => ({
-          label: d.label,
-          data: d.data,
-          dataLength: d.data?.length
-        }))
-      })
-      
-      return {
-        // 修復：使用與實際數據匹配的 fallback 結構 (5個算法, 2個指標)
-        labels: ['NTN-Standard', 'NTN-GS', 'NTN-SMN', 'Proposed', 'Enhanced-Proposed'],
-        datasets: [
-          {
-            label: '延遲 (ms)',
-            data: [45, 32, 28, 8, 6],
-            borderColor: 'rgb(255, 99, 132)',
-            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-            pointBackgroundColor: 'rgb(255, 99, 132)',
-            pointBorderColor: '#fff',
-            pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: 'rgb(255, 99, 132)'
-          },
-          {
-            label: '吞吐量 (Mbps)',
-            data: [850, 920, 1050, 1200, 1350],
-            borderColor: 'rgb(54, 162, 235)',
-            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-            pointBackgroundColor: 'rgb(54, 162, 235)',
-            pointBorderColor: '#fff',
-            pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: 'rgb(54, 162, 235)'
-          }
-        ]
-      }
-    }
-    
-    // 數據有效，使用真實API數據
-    if (import.meta.env.DEV) {
-      console.log('✅ 雷達圖數據驗證通過，使用真實API數據:', {
-        labelsCount: data.labels?.length,
-        datasetsCount: data.datasets?.length,
-        status: accessStrategyRadarChart.status
-      })
-    }
-    
-    // 確保所有數值都在合理範圍內
-    const sanitizedData = {
-      ...data,
-      datasets: data.datasets.map(dataset => ({
-        ...dataset,
-        data: dataset.data.map((value: number) => {
-          // 確保數值在 0-10 範圍內且不是 NaN
-          const sanitized = Math.max(0, Math.min(10, Number(value) || 0))
-          return Number(sanitized.toFixed(1))
-        })
-      }))
-    }
-    
-    if (import.meta.env.DEV) {
-      console.log('雷達圖數據驗證通過，使用計算數據:', sanitizedData)
-    }
-    return sanitizedData
-  }, [accessStrategyRadarChart.status, accessStrategyRadarChart.data])
+    // 在組件掛載時獲取數據
+    React.useEffect(() => {
+        fetchTimeSyncData()
+        fetchAlgorithmPerformance()
+        fetchComplexityComparison()
+        fetchOptimizationData()
+    }, [
+        fetchTimeSyncData,
+        fetchAlgorithmPerformance,
+        fetchComplexityComparison,
+        fetchOptimizationData,
+    ])
 
-  // 確保時間同步數據安全性
-  const _safeTimeSyncData = React.useMemo(() => {
-    const data = timeSyncPrecisionChart.data
-    
-    // 檢查數據是否有效
-    if (!data.labels || data.labels.length === 0 || 
-        !data.datasets || data.datasets.length === 0 ||
-        data.datasets.some(dataset => !dataset.data || dataset.data.length === 0)) {
-      
-      console.warn('時間同步圖數據無效，使用fallback數據')
-      return {
-        labels: ['Fine-Grained Sync', 'NTP+GPS', 'PTPv2', 'GPS授時', 'NTP Standard'],
-        datasets: [{
-          label: '同步精度 (μs)',
-          data: [0.3, 2.1, 8.5, 15.2, 45.8],
-          backgroundColor: [
-            'rgba(34, 197, 94, 0.8)',   // Fine-Grained - 綠色
-            'rgba(59, 130, 246, 0.8)',  // NTP+GPS - 藍色
-            'rgba(245, 158, 11, 0.8)',  // PTPv2 - 橙色
-            'rgba(168, 85, 247, 0.8)',  // GPS授時 - 紫色
-            'rgba(239, 68, 68, 0.8)'    // NTP - 紅色
-          ],
-          borderColor: [
-            'rgba(34, 197, 94, 1)',
-            'rgba(59, 130, 246, 1)',
-            'rgba(245, 158, 11, 1)',
-            'rgba(168, 85, 247, 1)',
-            'rgba(239, 68, 68, 1)'
-          ],
-          borderWidth: 2
-        }]
-      }
-    }
-    
-    return data
-  }, [timeSyncPrecisionChart.data])
-
-  // 雷達圖選項
-  const radarOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-        labels: {
-          color: 'white',
-          font: { size: 14, weight: 'bold' as const },
-        },
-      },
-      title: {
-        display: true,
-        text: 'NetStack 算法六維性能比較分析',
-        color: 'white',
-        font: { size: 16, weight: 'bold' as const },
-      },
-      tooltip: {
-        callbacks: {
-          afterLabel: (context: { parsed: { r: number } }) => {
-            const score = parseFloat(context.parsed.r.toFixed(1))
-            if (score >= 9.0) return '評級: 優秀'
-            if (score >= 8.0) return '評級: 良好'
-            if (score >= 7.0) return '評級: 一般'
-            return '評級: 需改進'
-          }
+    // 這裡需要根據新的數據結構重新構建圖表數據
+    // 例如，`accessStrategyRadarChart` 之前是從舊Hook來的，現在需要用新數據構建
+    const accessStrategyRadarChartData = React.useMemo(() => {
+        // 示例：這個雷達圖可能來源於算法性能數據
+        const perfData = algorithmPerformanceData
+        return {
+            labels: perfData.algorithms,
+            datasets: [
+                {
+                    label: '延遲 (ms)',
+                    data: perfData.latencies.map((d) => 10 - d), // 示例轉換
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                },
+                {
+                    label: '吞吐量 (Mbps)',
+                    data: perfData.throughputs.map((d) => d / 20), // 示例轉換
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                },
+            ],
         }
-      }
-    },
-    scales: {
-      r: {
-        beginAtZero: true,
-        min: 0,
-        max: 10,
-        ticks: {
-          stepSize: 2,
-          color: 'white',
-          font: { size: 12 },
-          callback: (value: number) => `${value}/10`
-        },
-        grid: {
-          color: 'rgba(255, 255, 255, 0.2)',
-        },
-        angleLines: {
-          color: 'rgba(255, 255, 255, 0.2)',
-        },
-        pointLabels: {
-          color: 'white',
-          font: { size: 12, weight: 'bold' as const },
+    }, [algorithmPerformanceData])
+
+    // 時間同步圖的數據適配
+    const timeSyncPrecisionChartData = React.useMemo(() => {
+        return {
+            labels: timeSyncData.algorithms,
+            datasets: [
+                {
+                    label: '同步精度 (μs)',
+                    data: timeSyncData.precisionValues,
+                    backgroundColor: [
+                        'rgba(34, 197, 94, 0.8)',
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(168, 85, 247, 0.8)',
+                        'rgba(239, 68, 68, 0.8)',
+                    ],
+                    borderWidth: 2,
+                },
+            ],
         }
-      }
+    }, [timeSyncData])
+
+    // 其他圖表數據也需要類似的適配...
+    // ...
+
+    // 調試信息 - 只在開發環境且數據變化時記錄
+    React.useEffect(() => {
+        if (import.meta.env.DEV) {
+            console.log('EnhancedAlgorithmTabContent 雷達圖數據:', {
+                radarData: accessStrategyRadarChartData,
+                status: algoPerfStatus,
+            })
+        }
+    }, [algoPerfStatus, accessStrategyRadarChartData]) // 包含data依賴
+
+    // 確保數據安全性 - 修復：調整驗證邏輯匹配實際數據結構
+    const safeRadarData = React.useMemo(() => {
+        const data = accessStrategyRadarChartData
+
+        // 修復：根據實際數據結構進行驗證
+        // 實際數據: 5個算法 (labels), 2個數據集 (延遲和吞吐量)
+        const expectedLabelsCount = data.labels?.length || 5
+        const expectedDatasetsCount = 2 // 延遲和吞吐量
+
+        const isDataValid =
+            data.labels &&
+            data.labels.length >= 3 && // 至少3個算法
+            data.datasets &&
+            data.datasets.length === expectedDatasetsCount &&
+            data.datasets.every(
+                (dataset) =>
+                    dataset.data &&
+                    dataset.data.length === expectedLabelsCount &&
+                    dataset.data.every(
+                        (value) =>
+                            typeof value === 'number' &&
+                            !isNaN(value) &&
+                            value >= 0
+                    )
+            )
+
+        if (!isDataValid) {
+            console.warn('雷達圖數據無效，使用fallback數據。原始數據:', {
+                labels: data.labels,
+                labelsLength: data.labels?.length,
+                expectedLabelsCount,
+                datasetsLength: data.datasets?.length,
+                expectedDatasetsCount,
+                datasets: data.datasets?.map((d) => ({
+                    label: d.label,
+                    data: d.data,
+                    dataLength: d.data?.length,
+                })),
+            })
+
+            return {
+                // 修復：使用與實際數據匹配的 fallback 結構 (5個算法, 2個指標)
+                labels: [
+                    'NTN-Standard',
+                    'NTN-GS',
+                    'NTN-SMN',
+                    'Proposed',
+                    'Enhanced-Proposed',
+                ],
+                datasets: [
+                    {
+                        label: '延遲 (ms)',
+                        data: [45, 32, 28, 8, 6],
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        pointBackgroundColor: 'rgb(255, 99, 132)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(255, 99, 132)',
+                    },
+                    {
+                        label: '吞吐量 (Mbps)',
+                        data: [850, 920, 1050, 1200, 1350],
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        pointBackgroundColor: 'rgb(54, 162, 235)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(54, 162, 235)',
+                    },
+                ],
+            }
+        }
+
+        // 數據有效，使用真實API數據
+        if (import.meta.env.DEV) {
+            console.log('✅ 雷達圖數據驗證通過，使用真實API數據:', {
+                labelsCount: data.labels?.length,
+                datasetsCount: data.datasets?.length,
+                status: algoPerfStatus,
+            })
+        }
+
+        // 確保所有數值都在合理範圍內
+        const sanitizedData = {
+            ...data,
+            datasets: data.datasets.map((dataset) => ({
+                ...dataset,
+                data: dataset.data.map((value: number) => {
+                    // 確保數值在 0-10 範圍內且不是 NaN
+                    const sanitized = Math.max(
+                        0,
+                        Math.min(10, Number(value) || 0)
+                    )
+                    return Number(sanitized.toFixed(1))
+                }),
+            })),
+        }
+
+        if (import.meta.env.DEV) {
+            console.log('雷達圖數據驗證通過，使用計算數據:', sanitizedData)
+        }
+        return sanitizedData
+    }, [algoPerfStatus, accessStrategyRadarChartData])
+
+    // 確保時間同步數據安全性
+    const _safeTimeSyncData = React.useMemo(() => {
+        const data = timeSyncPrecisionChartData
+
+        // 檢查數據是否有效
+        if (
+            !data.labels ||
+            data.labels.length === 0 ||
+            !data.datasets ||
+            data.datasets.length === 0 ||
+            data.datasets.some(
+                (dataset) => !dataset.data || dataset.data.length === 0
+            )
+        ) {
+            console.warn('時間同步圖數據無效，使用fallback數據')
+            return {
+                labels: [
+                    'Fine-Grained Sync',
+                    'NTP+GPS',
+                    'PTPv2',
+                    'GPS授時',
+                    'NTP Standard',
+                ],
+                datasets: [
+                    {
+                        label: '同步精度 (μs)',
+                        data: [0.3, 2.1, 8.5, 15.2, 45.8],
+                        backgroundColor: [
+                            'rgba(34, 197, 94, 0.8)', // Fine-Grained - 綠色
+                            'rgba(59, 130, 246, 0.8)', // NTP+GPS - 藍色
+                            'rgba(245, 158, 11, 0.8)', // PTPv2 - 橙色
+                            'rgba(168, 85, 247, 0.8)', // GPS授時 - 紫色
+                            'rgba(239, 68, 68, 0.8)', // NTP - 紅色
+                        ],
+                        borderColor: [
+                            'rgba(34, 197, 94, 1)',
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(245, 158, 11, 1)',
+                            'rgba(168, 85, 247, 1)',
+                            'rgba(239, 68, 68, 1)',
+                        ],
+                        borderWidth: 2,
+                    },
+                ],
+            }
+        }
+
+        return data
+    }, [timeSyncPrecisionChartData])
+
+    // 雷達圖選項
+    const radarOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top' as const,
+                labels: {
+                    color: 'white',
+                    font: { size: 14, weight: 'bold' as const },
+                },
+            },
+            title: {
+                display: true,
+                text: 'NetStack 算法六維性能比較分析',
+                color: 'white',
+                font: { size: 16, weight: 'bold' as const },
+            },
+            tooltip: {
+                callbacks: {
+                    afterLabel: (context: { parsed: { r: number } }) => {
+                        const score = parseFloat(context.parsed.r.toFixed(1))
+                        if (score >= 9.0) return '評級: 優秀'
+                        if (score >= 8.0) return '評級: 良好'
+                        if (score >= 7.0) return '評級: 一般'
+                        return '評級: 需改進'
+                    },
+                },
+            },
+        },
+        scales: {
+            r: {
+                beginAtZero: true,
+                min: 0,
+                max: 10,
+                ticks: {
+                    stepSize: 2,
+                    color: 'white',
+                    font: { size: 12 },
+                    callback: (value: number) => `${value}/10`,
+                },
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.2)',
+                },
+                angleLines: {
+                    color: 'rgba(255, 255, 255, 0.2)',
+                },
+                pointLabels: {
+                    color: 'white',
+                    font: { size: 12, weight: 'bold' as const },
+                },
+            },
+        },
     }
-  }
 
-  // 橫向柱狀圖選項
-  const horizontalBarOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y' as const,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      title: {
-        display: true,
-        text: 'NetStack 時間同步技術精度對比',
-        color: 'white',
-        font: { size: 16, weight: 'bold' as const },
-      },
-      tooltip: {
-        callbacks: {
-          afterLabel: (context: { parsed: { x: number } }) => {
-            const precision = parseFloat(context.parsed.x.toFixed(1))
-            if (precision < 1) return '等級: 極高精度 (量子級)'
-            if (precision < 5) return '等級: 高精度 (GPS級)'
-            if (precision < 20) return '等級: 中等精度'
-            if (precision < 50) return '等級: 標準精度'
-            return '等級: 基礎精度'
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        type: 'logarithmic' as const,
-        title: {
-          display: true,
-          text: '同步精度 (μs, 對數尺度)',
-          color: 'white',
-          font: { size: 14, weight: 'bold' as const },
+    // 橫向柱狀圖選項
+    const horizontalBarOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y' as const,
+        plugins: {
+            legend: {
+                display: false,
+            },
+            title: {
+                display: true,
+                text: 'NetStack 時間同步技術精度對比',
+                color: 'white',
+                font: { size: 16, weight: 'bold' as const },
+            },
+            tooltip: {
+                callbacks: {
+                    afterLabel: (context: { parsed: { x: number } }) => {
+                        const precision = parseFloat(
+                            context.parsed.x.toFixed(1)
+                        )
+                        if (precision < 1) return '等級: 極高精度 (量子級)'
+                        if (precision < 5) return '等級: 高精度 (GPS級)'
+                        if (precision < 20) return '等級: 中等精度'
+                        if (precision < 50) return '等級: 標準精度'
+                        return '等級: 基礎精度'
+                    },
+                },
+            },
         },
-        ticks: {
-          color: 'white',
-          font: { size: 12 },
+        scales: {
+            x: {
+                type: 'logarithmic' as const,
+                title: {
+                    display: true,
+                    text: '同步精度 (μs, 對數尺度)',
+                    color: 'white',
+                    font: { size: 14, weight: 'bold' as const },
+                },
+                ticks: {
+                    color: 'white',
+                    font: { size: 12 },
+                },
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.2)',
+                },
+            },
+            y: {
+                ticks: {
+                    color: 'white',
+                    font: { size: 12 },
+                },
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.1)',
+                },
+            },
         },
-        grid: {
-          color: 'rgba(255, 255, 255, 0.2)',
-        },
-      },
-      y: {
-        ticks: {
-          color: 'white',
-          font: { size: 12 },
-        },
-        grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
-        },
-      },
-    },
-  }
+    }
 
-  return (
-    <div className="enhanced-algorithm-content">
-      {/* 核心算法比較 */}
-      <div className="algorithm-charts-grid">
-        {/* UE 接入策略六維效能雷達圖 */}
-        <div className="chart-container">
-          <h3>圖13A: UE 接入策略六維效能雷達</h3>
-          <Radar
-            data={safeRadarData}
-            options={radarOptions}
-          />
-          <div className="chart-insight">
-            <strong>雷達分析：</strong>
-            {accessStrategyRadarChart.status === 'calculated' ? '基於NetStack handover metrics計算，' : '使用基準數據，'}
-            Fine-Grained Sync 在延遲性能、精度穩定、可靠性方面表現卓越，
-            顯著優於Binary Search和Traditional方法。整體性能提升35%以上。
-          </div>
-        </div>
-
-        {/* 時間同步精度技術對比 */}
-        <div className="chart-container">
-          <h3>圖13B: 時間同步精度技術對比</h3>
-          <Bar
-            data={timeSyncPrecisionChart.data}
-            options={horizontalBarOptions}
-          />
-          <div className="chart-insight">
-            <strong>精度對比：</strong>
-            {timeSyncPrecisionChart.status === 'calculated' ? '基於NetStack Core Sync實際性能動態調整，' : '使用高精度基準數據，'}
-            Fine-Grained Sync實現極高精度水準，比傳統NTP方法提升150倍，
-            達到量子級同步標準。
-          </div>
-        </div>
-      </div>
-
-      {/* NetStack 算法性能對比分析表格 */}
-      <div className="algorithm-performance-section">
-        <h4>📊 NetStack 算法性能對比分析</h4>
-        <div className="performance-overview">
-          <div className="data-source-indicator">
-            <span className="indicator-dot" style={{
-              backgroundColor: dataStatus.performance === 'real' ? '#22c55e' : 
-                              dataStatus.performance === 'calculated' ? '#3b82f6' : '#f59e0b'
-            }}></span>
-            <span className="indicator-text">
-              {dataStatus.performance === 'real' && '使用NetStack複雜度分析API即時數據'}
-              {dataStatus.performance === 'calculated' && '基於NetStack handover metrics計算'}
-              {dataStatus.performance === 'fallback' && '使用高質量基準數據'}
-            </span>
-          </div>
-        </div>
-
-        <div className="comparison-table">
-          <table>
-            <thead>
-              <tr>
-                <th>算法類型</th>
-                <th>平均延遲</th>
-                <th>計算複雜度</th>
-                <th>記憶體使用</th>
-                <th>能耗效率</th>
-                <th>可靠性</th>
-                <th>整體評分</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(algorithmPerformance.algorithms || []).map((algorithm, index) => (
-                <tr key={algorithm} className={`algorithm-row ${
-                  (algorithm || '').includes('Fine-Grained') ? 'fine-grained' :
-                  (algorithm || '').includes('Binary') ? 'binary-search' : 'traditional'
-                }`}>
-                  <td>
-                    <span className="algorithm-name">{algorithm}</span>
-                    <span className={`algorithm-badge ${
-                      ((algorithmPerformance.overallScores || [])[index] || 0) >= 9 ? 'recommended' :
-                      ((algorithmPerformance.overallScores || [])[index] || 0) >= 7 ? 'moderate' : 'low'
-                    }`}>
-                      {((algorithmPerformance.overallScores || [])[index] || 0) >= 9 ? '推薦' :
-                       ((algorithmPerformance.overallScores || [])[index] || 0) >= 7 ? '適中' : '基礎'}
-                    </span>
-                  </td>
-                  <td className={`metric-cell ${
-                    ((algorithmPerformance.latencies || [])[index] || 0) < 10 ? 'success' :
-                    ((algorithmPerformance.latencies || [])[index] || 0) < 20 ? 'info' : 'warning'
-                  }`}>
-                    {((algorithmPerformance.latencies || [])[index] || 0).toFixed(1)}ms
-                  </td>
-                  <td className={`metric-cell ${
-                    ((algorithmPerformance.complexities || [])[index] || '').includes('log') ? 'success' :
-                    ((algorithmPerformance.complexities || [])[index] || '').includes('n') && !((algorithmPerformance.complexities || [])[index] || '').includes('²') ? 'info' : 'warning'
-                  }`}>
-                    {(algorithmPerformance.complexities || [])[index] || 'O(n)'}
-                  </td>
-                  <td className={`metric-cell ${
-                    ((algorithmPerformance.memoryUsages || [])[index] || 0) < 200 ? 'success' :
-                    ((algorithmPerformance.memoryUsages || [])[index] || 0) < 300 ? 'info' : 'warning'
-                  }`}>
-                    {(algorithmPerformance.memoryUsages || [])[index] || 0}MB
-                  </td>
-                  <td className={`metric-cell ${
-                    ((algorithmPerformance.energyEfficiencies || [])[index] || 0) > 90 ? 'success' :
-                    ((algorithmPerformance.energyEfficiencies || [])[index] || 0) > 80 ? 'info' : 'warning'
-                  }`}>
-                    {((algorithmPerformance.energyEfficiencies || [])[index] || 0).toFixed(1)}%
-                  </td>
-                  <td className={`metric-cell ${
-                    ((algorithmPerformance.reliabilities || [])[index] || 0) > 95 ? 'success' :
-                    ((algorithmPerformance.reliabilities || [])[index] || 0) > 90 ? 'info' : 'warning'
-                  }`}>
-                    {((algorithmPerformance.reliabilities || [])[index] || 0).toFixed(1)}%
-                  </td>
-                  <td className={`metric-cell ${
-                    ((algorithmPerformance.overallScores || [])[index] || 0) >= 9 ? 'success' :
-                    ((algorithmPerformance.overallScores || [])[index] || 0) >= 7 ? 'info' : 'warning'
-                  }`}>
-                    {((algorithmPerformance.overallScores || [])[index] || 0).toFixed(1)}/10
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* 複雜度可擴展性分析 */}
-      <div className="complexity-analysis-section">
-        <h4>⚡ 複雜度可擴展性分析</h4>
-        <div className="complexity-grid">
-          {(complexityAnalysis.algorithms || []).map((algorithm, index) => (
-            <div key={algorithm} className="complexity-card">
-              <div className="complexity-header">
-                <h5>{algorithm || 'Unknown Algorithm'}</h5>
-                <span className="complexity-badge">
-                  {(complexityAnalysis.computationalComplexities || [])[index] || 'O(n)'}
-                </span>
-              </div>
-              <div className="complexity-metrics">
-                <div className="complexity-metric">
-                  <div className="metric-label">執行時間</div>
-                  <div className="metric-value">
-                    {((complexityAnalysis.executionTimes || [])[index] || 0).toFixed(1)}ms
-                  </div>
+    return (
+        <div className="enhanced-algorithm-content">
+            {/* 核心算法比較 */}
+            <div className="algorithm-charts-grid">
+                {/* UE 接入策略六維效能雷達圖 */}
+                <div className="chart-container">
+                    <h3>圖13A: UE 接入策略六維效能雷達</h3>
+                    <Radar data={safeRadarData} options={radarOptions} />
+                    <div className="chart-insight">
+                        <strong>雷達分析：</strong>
+                        {algoPerfStatus === 'calculated'
+                            ? '基於NetStack handover metrics計算，'
+                            : '使用基準數據，'}
+                        Fine-Grained Sync
+                        在延遲性能、精度穩定、可靠性方面表現卓越，
+                        顯著優於Binary
+                        Search和Traditional方法。整體性能提升35%以上。
+                    </div>
                 </div>
-                <div className="complexity-metric">
-                  <div className="metric-label">記憶體占用</div>
-                  <div className="metric-value">
-                    {(complexityAnalysis.memoryComplexities || [])[index] || 0}MB
-                  </div>
+
+                {/* 時間同步精度技術對比 */}
+                <div className="chart-container">
+                    <h3>圖13B: 時間同步精度技術對比</h3>
+                    <Bar
+                        data={timeSyncPrecisionChartData}
+                        options={horizontalBarOptions}
+                    />
+                    <div className="chart-insight">
+                        <strong>精度對比：</strong>
+                        {timeSyncStatus === 'calculated'
+                            ? '基於NetStack Core Sync實際性能動態調整，'
+                            : '使用高精度基準數據，'}
+                        Fine-Grained
+                        Sync實現極高精度水準，比傳統NTP方法提升150倍，
+                        達到量子級同步標準。
+                    </div>
                 </div>
-                <div className="complexity-metric">
-                  <div className="metric-label">可擴展性</div>
-                  <div className="metric-value">
-                    {(algorithm || '').includes('Fine-Grained') ? '優秀' :
-                     (algorithm || '').includes('Binary') ? '良好' : '一般'}
-                  </div>
-                </div>
-              </div>
-              <div className="complexity-progress">
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill"
-                    style={{
-                      width: `${Math.max(20, 100 - (((complexityAnalysis.executionTimes || [])[index] || 0) / 30 * 100))}%`,
-                      backgroundColor: (algorithm || '').includes('Fine-Grained') ? '#22c55e' :
-                                     (algorithm || '').includes('Binary') ? '#3b82f6' : '#f59e0b'
-                    }}
-                  ></div>
-                </div>
-                <div className="progress-label">性能評級</div>
-              </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* 算法特性詳細說明 */}
-      <div className="algorithm-features">
-        <h4>🔬 算法技術特性分析</h4>
-        <div className="feature-cards">
-          <div className="feature-card">
-            <div className="feature-header">
-              <h5>🚀 Fine-Grained Synchronized Algorithm</h5>
-              <span className="feature-badge best">NetStack 首選</span>
-            </div>
-            <div className="feature-content">
-              <div className="feature-highlights">
-                <div className="highlight-item">
-                  <span className="highlight-icon">⚡</span>
-                  <span>延遲降低 68.2%</span>
+            {/* NetStack 算法性能對比分析表格 */}
+            <div className="algorithm-performance-section">
+                <h4>📊 NetStack 算法性能對比分析</h4>
+                <div className="performance-overview">
+                    <div className="data-source-indicator">
+                        <span
+                            className="indicator-dot"
+                            style={{
+                                backgroundColor:
+                                    algoPerfStatus === 'real'
+                                        ? '#22c55e'
+                                        : algoPerfStatus === 'calculated'
+                                        ? '#3b82f6'
+                                        : '#f59e0b',
+                            }}
+                        ></span>
+                        <span className="indicator-text">
+                            {algoPerfStatus === 'real' &&
+                                '使用NetStack複雜度分析API即時數據'}
+                            {algoPerfStatus === 'calculated' &&
+                                '基於NetStack handover metrics計算'}
+                            {algoPerfStatus === 'fallback' &&
+                                '使用高質量基準數據'}
+                        </span>
+                    </div>
                 </div>
-                <div className="highlight-item">
-                  <span className="highlight-icon">🧠</span>
-                  <span>智能預測機制</span>
-                </div>
-                <div className="highlight-item">
-                  <span className="highlight-icon">🔄</span>
-                  <span>動態負載均衡</span>
-                </div>
-                <div className="highlight-item">
-                  <span className="highlight-icon">📡</span>
-                  <span>衛星軌道預測</span>
-                </div>
-              </div>
-              <div className="feature-description">
-                基於IEEE INFOCOM 2024論文實現，採用精細化時間同步機制，
-                結合NetStack衛星軌道預測和信號品質評估，實現最優的換手決策。
-                在大規模NTN部署中表現優異。
-              </div>
-              <div className="api-integration">
-                <strong>NetStack整合：</strong>
-                {dataStatus.performance === 'calculated' ? '使用handover metrics即時調優' : '使用基準配置'}
-              </div>
-            </div>
-          </div>
 
-          <div className="feature-card">
-            <div className="feature-header">
-              <h5>🔍 Binary Search Refinement</h5>
-              <span className="feature-badge good">平衡選擇</span>
-            </div>
-            <div className="feature-content">
-              <div className="feature-highlights">
-                <div className="highlight-item">
-                  <span className="highlight-icon">📊</span>
-                  <span>搜索效率優化</span>
-                </div>
-                <div className="highlight-item">
-                  <span className="highlight-icon">⚖️</span>
-                  <span>平衡性能成本</span>
-                </div>
-                <div className="highlight-item">
-                  <span className="highlight-icon">🎯</span>
-                  <span>精確定位目標</span>
-                </div>
-              </div>
-              <div className="feature-description">
-                使用二分搜索算法優化候選衛星選擇過程，
-                在計算效率和精度之間取得良好平衡。適合中等規模部署。
-              </div>
-            </div>
-          </div>
+                <div className="comparison-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>算法類型</th>
+                                <th>平均延遲</th>
+                                <th>計算複雜度</th>
+                                <th>記憶體使用</th>
+                                <th>能耗效率</th>
+                                <th>可靠性</th>
+                                <th>整體評分</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {(algorithmPerformanceData.algorithms || []).map(
+                                (algorithm, index) => {
+                                    const complexityAlgo =
+                                        complexityData.algorithms[index] ||
+                                        algorithm
+                                    const timeComplexity =
+                                        complexityData.timeComplexities[
+                                            index
+                                        ] || 'N/A'
+                                    const memoryUsage =
+                                        complexityData.spaceComplexities[
+                                            index
+                                        ] || 'N/A'
+                                    const accuracy =
+                                        algorithmPerformanceData.accuracies[
+                                            index
+                                        ] || 0
+                                    const latency =
+                                        algorithmPerformanceData.latencies[
+                                            index
+                                        ] || 0
 
-          <div className="feature-card">
-            <div className="feature-header">
-              <h5>📈 Traditional Method</h5>
-              <span className="feature-badge basic">基礎方案</span>
-            </div>
-            <div className="feature-content">
-              <div className="feature-highlights">
-                <div className="highlight-item">
-                  <span className="highlight-icon">🔧</span>
-                  <span>實現簡單</span>
-                </div>
-                <div className="highlight-item">
-                  <span className="highlight-icon">📊</span>
-                  <span>基礎功能</span>
-                </div>
-                <div className="highlight-item">
-                  <span className="highlight-icon">⚠️</span>
-                  <span>效能限制</span>
-                </div>
-              </div>
-              <div className="feature-description">
-                傳統的換手算法，實現簡單但效能受限，
-                主要用作性能基準對比和基礎部署場景。
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+                                    // 派生出 overallScore
+                                    const overallScore = (
+                                        accuracy / 10 +
+                                        (10 - latency) / 2
+                                    ).toFixed(1)
 
-      {/* 算法分析樣式 */}
-      <style>{`
+                                    return (
+                                        <tr
+                                            key={algorithm}
+                                            className={`algorithm-row ${
+                                                (algorithm || '').includes(
+                                                    'Fine-Grained'
+                                                )
+                                                    ? 'fine-grained'
+                                                    : (
+                                                          algorithm || ''
+                                                      ).includes('Proposed')
+                                                    ? 'proposed'
+                                                    : ''
+                                            }`}
+                                        >
+                                            <td>
+                                                <span className="algorithm-name">
+                                                    {algorithm}
+                                                </span>
+                                                <span
+                                                    className={`algorithm-badge ${
+                                                        (parseFloat(
+                                                            overallScore
+                                                        ) || 0) >= 9
+                                                            ? 'recommended'
+                                                            : (parseFloat(
+                                                                  overallScore
+                                                              ) || 0) >= 7
+                                                            ? 'moderate'
+                                                            : 'low'
+                                                    }`}
+                                                >
+                                                    {parseFloat(overallScore) >=
+                                                    9
+                                                        ? '推薦'
+                                                        : parseFloat(
+                                                              overallScore
+                                                          ) >= 7
+                                                        ? '適中'
+                                                        : '基礎'}
+                                                </span>
+                                            </td>
+                                            <td
+                                                className={`metric-cell ${
+                                                    (latency || 0) < 10
+                                                        ? 'success'
+                                                        : (latency || 0) < 20
+                                                        ? 'info'
+                                                        : 'warning'
+                                                }`}
+                                            >
+                                                {(latency || 0).toFixed(1)}ms
+                                            </td>
+                                            <td
+                                                className={`metric-cell ${
+                                                    (
+                                                        timeComplexity || ''
+                                                    ).includes('log') ||
+                                                    (
+                                                        timeComplexity || ''
+                                                    ).includes('1')
+                                                        ? 'success'
+                                                        : (
+                                                              timeComplexity ||
+                                                              ''
+                                                          ).includes('n') &&
+                                                          !(
+                                                              timeComplexity ||
+                                                              ''
+                                                          ).includes('²')
+                                                        ? 'info'
+                                                        : 'warning'
+                                                }`}
+                                            >
+                                                {timeComplexity}
+                                            </td>
+                                            <td
+                                                className={`metric-cell ${
+                                                    (parseFloat(memoryUsage) ||
+                                                        0) < 200
+                                                        ? 'success' // Assuming memoryUsage is like 'O(n)'
+                                                        : (parseFloat(
+                                                              memoryUsage
+                                                          ) || 0) < 300
+                                                        ? 'info'
+                                                        : 'warning'
+                                                }`}
+                                            >
+                                                {memoryUsage}{' '}
+                                                {/* This will show O(n) etc. */}
+                                            </td>
+                                            <td
+                                                className={`metric-cell ${
+                                                    (accuracy || 0) > 95
+                                                        ? 'success'
+                                                        : (accuracy || 0) > 90
+                                                        ? 'info'
+                                                        : 'warning'
+                                                }`}
+                                            >
+                                                {(accuracy || 0).toFixed(1)}%
+                                            </td>
+                                            {/* Reliability was removed, can be replaced with another metric if needed */}
+                                            <td className={`metric-cell`}>
+                                                N/A
+                                            </td>
+                                            <td
+                                                className={`metric-cell ${
+                                                    (parseFloat(overallScore) ||
+                                                        0) >= 9
+                                                        ? 'success'
+                                                        : (parseFloat(
+                                                              overallScore
+                                                          ) || 0) >= 7
+                                                        ? 'info'
+                                                        : 'warning'
+                                                }`}
+                                            >
+                                                {overallScore}/10
+                                            </td>
+                                        </tr>
+                                    )
+                                }
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* 複雜度可擴展性分析 */}
+            <div className="complexity-analysis-section">
+                <h4>⚡ 複雜度可擴展性分析</h4>
+                <div className="complexity-grid">
+                    {(complexityData.algorithms || []).map(
+                        (algorithm, index) => (
+                            <div key={algorithm} className="complexity-card">
+                                <div className="complexity-header">
+                                    <h5>{algorithm || 'Unknown Algorithm'}</h5>
+                                    <span className="complexity-badge">
+                                        {(complexityData.timeComplexities ||
+                                            [])[index] || 'O(n)'}
+                                    </span>
+                                </div>
+                                <div className="complexity-body">
+                                    <div className="complexity-metric">
+                                        <div className="metric-label">
+                                            執行時間
+                                        </div>
+                                        <div className="metric-value">
+                                            {(
+                                                (complexityData.realTimePerformance ||
+                                                    [])[index] || 0
+                                            ).toFixed(1)}
+                                            ms
+                                        </div>
+                                    </div>
+                                    <div className="complexity-metric">
+                                        <div className="metric-label">
+                                            記憶體占用
+                                        </div>
+                                        <div className="metric-value">
+                                            {(complexityData.spaceComplexities ||
+                                                [])[index] || 'O(n)'}
+                                        </div>
+                                    </div>
+                                    <div className="complexity-metric">
+                                        <div className="metric-label">
+                                            擴展因子
+                                        </div>
+                                        <div className="metric-value">
+                                            {(
+                                                (complexityData.scalabilityFactors ||
+                                                    [])[index] || 0
+                                            ).toFixed(1)}
+                                            x
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="complexity-progress">
+                                    <div
+                                        className="progress-fill"
+                                        style={{
+                                            width: `${Math.max(
+                                                20,
+                                                100 -
+                                                    (((complexityData.realTimePerformance ||
+                                                        [])[index] || 0) /
+                                                        30) *
+                                                        100
+                                            )}%`,
+                                            backgroundColor: (
+                                                algorithm || ''
+                                            ).includes('適應')
+                                                ? '#22c55e'
+                                                : (algorithm || '').includes(
+                                                      '優化'
+                                                  )
+                                                ? '#3b82f6'
+                                                : '#f59e0b',
+                                        }}
+                                    ></div>
+                                </div>
+                                <div className="api-integration">
+                                    <strong>NetStack整合：</strong>
+                                    {complexityStatus === 'real'
+                                        ? '使用scalability metrics即時調優'
+                                        : '使用基準配置'}
+                                </div>
+                            </div>
+                        )
+                    )}
+                </div>
+            </div>
+
+            {/* 算法特性詳細說明 */}
+            <div className="algorithm-features">
+                <h4>🔬 算法技術特性分析</h4>
+                <div className="feature-cards">
+                    <div className="feature-card">
+                        <div className="feature-header">
+                            <h5>🚀 Fine-Grained Synchronized Algorithm</h5>
+                            <span className="feature-badge best">
+                                NetStack 首選
+                            </span>
+                        </div>
+                        <div className="feature-content">
+                            <div className="feature-highlights">
+                                <div className="highlight-item">
+                                    <span className="highlight-icon">⚡</span>
+                                    <span>延遲降低 68.2%</span>
+                                </div>
+                                <div className="highlight-item">
+                                    <span className="highlight-icon">🧠</span>
+                                    <span>智能預測機制</span>
+                                </div>
+                                <div className="highlight-item">
+                                    <span className="highlight-icon">🔄</span>
+                                    <span>動態負載均衡</span>
+                                </div>
+                                <div className="highlight-item">
+                                    <span className="highlight-icon">📡</span>
+                                    <span>衛星軌道預測</span>
+                                </div>
+                            </div>
+                            <div className="feature-description">
+                                基於IEEE INFOCOM
+                                2024論文實現，採用精細化時間同步機制，
+                                結合NetStack衛星軌道預測和信號品質評估，實現最優的換手決策。
+                                在大規模NTN部署中表現優異。
+                            </div>
+                            <div className="api-integration">
+                                <strong>NetStack整合：</strong>
+                                {algoPerfStatus === 'calculated'
+                                    ? '使用handover metrics即時調優'
+                                    : '使用基準配置'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="feature-card">
+                        <div className="feature-header">
+                            <h5>🔍 Binary Search Refinement</h5>
+                            <span className="feature-badge good">平衡選擇</span>
+                        </div>
+                        <div className="feature-content">
+                            <div className="feature-highlights">
+                                <div className="highlight-item">
+                                    <span className="highlight-icon">📊</span>
+                                    <span>搜索效率優化</span>
+                                </div>
+                                <div className="highlight-item">
+                                    <span className="highlight-icon">⚖️</span>
+                                    <span>平衡性能成本</span>
+                                </div>
+                                <div className="highlight-item">
+                                    <span className="highlight-icon">🎯</span>
+                                    <span>精確定位目標</span>
+                                </div>
+                            </div>
+                            <div className="feature-description">
+                                使用二分搜索算法優化候選衛星選擇過程，
+                                在計算效率和精度之間取得良好平衡。適合中等規模部署。
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="feature-card">
+                        <div className="feature-header">
+                            <h5>📈 Traditional Method</h5>
+                            <span className="feature-badge basic">
+                                基礎方案
+                            </span>
+                        </div>
+                        <div className="feature-content">
+                            <div className="feature-highlights">
+                                <div className="highlight-item">
+                                    <span className="highlight-icon">🔧</span>
+                                    <span>實現簡單</span>
+                                </div>
+                                <div className="highlight-item">
+                                    <span className="highlight-icon">📊</span>
+                                    <span>基礎功能</span>
+                                </div>
+                                <div className="highlight-item">
+                                    <span className="highlight-icon">⚠️</span>
+                                    <span>效能限制</span>
+                                </div>
+                            </div>
+                            <div className="feature-description">
+                                傳統的換手算法，實現簡單但效能受限，
+                                主要用作性能基準對比和基礎部署場景。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 算法分析樣式 */}
+            <style>{`
         .enhanced-algorithm-content {
           width: 100%;
         }
@@ -792,7 +1052,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
           font-weight: bold;
         }
 
-        .complexity-metrics {
+        .complexity-body {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 15px;
@@ -944,7 +1204,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
             grid-template-columns: 1fr;
           }
           
-          .complexity-metrics {
+          .complexity-body {
             grid-template-columns: 1fr;
           }
           
@@ -953,8 +1213,8 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
           }
         }
       `}</style>
-    </div>
-  )
+        </div>
+    )
 }
 
 export default EnhancedAlgorithmTabContent
