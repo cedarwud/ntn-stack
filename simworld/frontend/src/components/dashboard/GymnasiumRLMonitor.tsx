@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import './GymnasiumRLMonitor.scss'
 
 interface RLEngineMetrics {
-    engine_type: 'dqn' | 'ppo' | 'null'
+    engine_type: 'dqn' | 'ppo' | 'sac' | 'null'
     algorithm: string
     environment: string
     model_status: 'training' | 'inference' | 'idle' | 'error'
@@ -25,7 +25,7 @@ const API_BASE = '/netstack'
 const GymnasiumRLMonitor: React.FC = () => {
     const [rlMetrics, setRLMetrics] = useState<RLEngineMetrics | null>(null)
     const [error, setError] = useState<string | null>(null)
-    const [selectedEngine] = useState<'dqn' | 'ppo'>('dqn')
+    const [selectedEngine] = useState<'dqn' | 'ppo' | 'sac'>('dqn')
     const [isTraining, setIsTraining] = useState(false)
     const [autoRefresh] = useState(true)
     const [, setLoading] = useState(false)
@@ -70,11 +70,13 @@ const GymnasiumRLMonitor: React.FC = () => {
                 algorithm:
                     selectedEngine === 'dqn'
                         ? 'Deep Q-Network'
-                        : 'Proximal Policy Optimization',
+                        : selectedEngine === 'ppo'
+                        ? 'Proximal Policy Optimization'
+                        : 'Soft Actor-Critic',
                 environment:
                     aiStatusData?.environment_name || 'HandoverEnvironment-v0',
                 model_status:
-                    sessionsData.sessions.length > 0
+                    (sessionsData?.sessions?.length || 0) > 0
                         ? isTraining
                             ? 'training'
                             : 'inference'
@@ -205,7 +207,9 @@ const GymnasiumRLMonitor: React.FC = () => {
                         algorithm:
                             selectedEngine === 'dqn'
                                 ? 'Deep Q-Network'
-                                : 'Proximal Policy Optimization',
+                                : selectedEngine === 'ppo'
+                                ? 'Proximal Policy Optimization'
+                                : 'Soft Actor-Critic',
                         environment: 'gymnasium',
                         model_status: 'training' as const,
                         ...dynamicData,
@@ -245,11 +249,13 @@ const GymnasiumRLMonitor: React.FC = () => {
         fetchRLStatus,
     ])
 
-    // 新增雙引擎訓練狀態
+    // 新增三引擎訓練狀態
     const [isDqnTraining, setIsDqnTraining] = useState(false)
     const [isPpoTraining, setIsPpoTraining] = useState(false)
+    const [isSacTraining, setIsSacTraining] = useState(false)
     const [dqnMetrics, setDqnMetrics] = useState<RLEngineMetrics | null>(null)
     const [ppoMetrics, setPpoMetrics] = useState<RLEngineMetrics | null>(null)
+    const [sacMetrics, setSacMetrics] = useState<RLEngineMetrics | null>(null)
 
     // 監聽來自 ChartAnalysisDashboard 的事件
     useEffect(() => {
@@ -271,17 +277,27 @@ const GymnasiumRLMonitor: React.FC = () => {
             }
         }
 
-        const handleBothToggle = (event: CustomEvent) => {
-            const { dqnTraining, ppoTraining } = event.detail
+        const handleSacToggle = (event: CustomEvent) => {
+            const { isTraining } = event.detail
+            setIsSacTraining(isTraining)
+            if (selectedEngine === 'sac') {
+                setIsTraining(isTraining)
+            }
+        }
+
+        const handleAllToggle = (event: CustomEvent) => {
+            const { dqnTraining, ppoTraining, sacTraining } = event.detail
             setIsDqnTraining(dqnTraining)
             setIsPpoTraining(ppoTraining)
+            setIsSacTraining(sacTraining)
             // 如果當前選中的引擎正在訓練，則設定訓練狀態
             if (
                 (selectedEngine === 'dqn' && dqnTraining) ||
-                (selectedEngine === 'ppo' && ppoTraining)
+                (selectedEngine === 'ppo' && ppoTraining) ||
+                (selectedEngine === 'sac' && sacTraining)
             ) {
                 setIsTraining(true)
-            } else if (!dqnTraining && !ppoTraining) {
+            } else if (!dqnTraining && !ppoTraining && !sacTraining) {
                 setIsTraining(false)
             }
         }
@@ -289,19 +305,22 @@ const GymnasiumRLMonitor: React.FC = () => {
         // 添加事件監聽器
         window.addEventListener('dqnTrainingToggle', handleDqnToggle)
         window.addEventListener('ppoTrainingToggle', handlePpoToggle)
-        window.addEventListener('bothTrainingToggle', handleBothToggle)
+        window.addEventListener('sacTrainingToggle', handleSacToggle)
+        window.addEventListener('allTrainingToggle', handleAllToggle)
 
         // 清理函數
         return () => {
             window.removeEventListener('dqnTrainingToggle', handleDqnToggle)
             window.removeEventListener('ppoTrainingToggle', handlePpoToggle)
-            window.removeEventListener('bothTrainingToggle', handleBothToggle)
+            window.removeEventListener('sacTrainingToggle', handleSacToggle)
+            window.removeEventListener('allTrainingToggle', handleAllToggle)
         }
     }, [selectedEngine])
 
     // 獨立的訓練開始時間追蹤
     const [dqnStartTime, setDqnStartTime] = useState<number | null>(null)
     const [ppoStartTime, setPpoStartTime] = useState<number | null>(null)
+    const [sacStartTime, setSacStartTime] = useState<number | null>(null)
 
     // 獨立的 DQN 訓練數據生成
     const generateDqnTrainingData = useCallback(() => {
@@ -363,7 +382,7 @@ const GymnasiumRLMonitor: React.FC = () => {
                 }
             }
             updateDqnData()
-            const dqnInterval = setInterval(updateDqnData, 3000)
+            const dqnInterval = setInterval(updateDqnData, 5000)
             return () => clearInterval(dqnInterval)
         } else {
             setDqnMetrics(null)
@@ -406,6 +425,35 @@ const GymnasiumRLMonitor: React.FC = () => {
         return null
     }, [isPpoTraining, ppoStartTime])
 
+    // 獨立的 SAC 訓練數據生成
+    const generateSacTrainingData = useCallback(() => {
+        if (isSacTraining && sacStartTime) {
+            const now = Date.now()
+            const elapsed = Math.floor((now - sacStartTime) / 1000)
+
+            // SAC: 每10秒增加1-3個episode (更快學習)
+            const baseEpisodes =
+                Math.floor(elapsed / 10) + Math.floor(Math.random() * 3)
+            const baseReward = Math.max(
+                -5,
+                Math.sin(elapsed / 70) * 40 + elapsed * 0.08
+            )
+            const baseProgress = Math.min(100, (elapsed / 1200) * 100) // 20分鐘達到100%
+
+            return {
+                episodes_completed: baseEpisodes,
+                average_reward: baseReward + (Math.random() - 0.5) * 2.5,
+                current_epsilon: Math.max(0.005, 0.8 - elapsed / 1200), // SAC 使用較低的探索率
+                training_progress: baseProgress,
+                prediction_accuracy: 0.7 + (baseProgress / 100) * 0.28,
+                response_time_ms: 15 + Math.random() * 20,
+                memory_usage: 600 + (baseProgress / 100) * 1400,
+                gpu_utilization: 55 + Math.random() * 30,
+            }
+        }
+        return null
+    }, [isSacTraining, sacStartTime])
+
     useEffect(() => {
         if (isPpoTraining) {
             if (!ppoStartTime) {
@@ -436,7 +484,7 @@ const GymnasiumRLMonitor: React.FC = () => {
                 }
             }
             updatePpoData()
-            const ppoInterval = setInterval(updatePpoData, 3000)
+            const ppoInterval = setInterval(updatePpoData, 5000)
             return () => clearInterval(ppoInterval)
         } else {
             setPpoMetrics(null)
@@ -449,6 +497,51 @@ const GymnasiumRLMonitor: React.FC = () => {
             )
         }
     }, [isPpoTraining, generatePpoTrainingData, ppoStartTime])
+
+    // 獨立的 SAC 數據更新邏輯
+    useEffect(() => {
+        if (isSacTraining) {
+            if (!sacStartTime) {
+                setSacStartTime(Date.now())
+            }
+
+            const updateSacData = () => {
+                const dynamicData = generateSacTrainingData()
+                if (dynamicData) {
+                    const sacMetrics: RLEngineMetrics = {
+                        engine_type: 'sac',
+                        algorithm: 'Soft Actor-Critic',
+                        environment: 'gymnasium',
+                        model_status: 'training' as const,
+                        ...dynamicData,
+                    }
+                    setSacMetrics(sacMetrics)
+
+                    // 發送SAC數據到 RL 監控面板
+                    window.dispatchEvent(
+                        new CustomEvent('rlMetricsUpdate', {
+                            detail: {
+                                engine: 'sac',
+                                metrics: sacMetrics,
+                            },
+                        })
+                    )
+                }
+            }
+            updateSacData()
+            const sacInterval = setInterval(updateSacData, 4000) // SAC 更新較快
+            return () => clearInterval(sacInterval)
+        } else {
+            setSacMetrics(null)
+            setSacStartTime(null)
+            // 發送SAC停止訓練事件
+            window.dispatchEvent(
+                new CustomEvent('rlTrainingStopped', {
+                    detail: { engine: 'sac' },
+                })
+            )
+        }
+    }, [isSacTraining, generateSacTrainingData, sacStartTime])
 
     /* const getHealthStatusColor = (status: string) => {
         if (status.includes('OK')) return '#4ade80' // green-400
@@ -624,6 +717,79 @@ const GymnasiumRLMonitor: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
+                    <div className="sac-metrics-panel">
+                        <h3>🎯 SAC 引擎指標</h3>
+                        <div className="metrics-grid">
+                            <div className="metric-item">
+                                <span className="metric-label">算法:</span>
+                                <span className="metric-value">
+                                    Soft Actor-Critic
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">模型狀態:</span>
+                                <span
+                                    className={`metric-value status-${
+                                        isSacTraining ? 'training' : 'idle'
+                                    }`}
+                                >
+                                    {isSacTraining ? 'training' : 'idle'}
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">
+                                    已完成回合:
+                                </span>
+                                <span className="metric-value">
+                                    {isSacTraining && sacMetrics
+                                        ? sacMetrics.episodes_completed
+                                        : 0}
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">平均獎勵:</span>
+                                <span className="metric-value">
+                                    {isSacTraining && sacMetrics
+                                        ? sacMetrics.average_reward.toFixed(2)
+                                        : '0.00'}
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">
+                                    探索率 (ε):
+                                </span>
+                                <span className="metric-value">
+                                    {isSacTraining && sacMetrics
+                                        ? sacMetrics.current_epsilon.toFixed(3)
+                                        : '0.800'}
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">訓練進度:</span>
+                                <span className="metric-value">
+                                    {isSacTraining && sacMetrics
+                                        ? sacMetrics.training_progress.toFixed(
+                                              1
+                                          )
+                                        : '0.0'}
+                                    %
+                                </span>
+                                <div className="progress-bar">
+                                    <div
+                                        className="progress-fill sac-fill"
+                                        style={{
+                                            width: `${
+                                                isSacTraining && sacMetrics
+                                                    ? sacMetrics.training_progress
+                                                    : 0
+                                            }%`,
+                                        }}
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* 通用系統指標 */}
@@ -651,12 +817,18 @@ const GymnasiumRLMonitor: React.FC = () => {
                                         ppoMetrics?.prediction_accuracy
                                             ? ppoMetrics.prediction_accuracy
                                             : 0
+                                    const sacAcc =
+                                        isSacTraining &&
+                                        sacMetrics?.prediction_accuracy
+                                            ? sacMetrics.prediction_accuracy
+                                            : 0
                                     const count =
                                         (isDqnTraining ? 1 : 0) +
-                                        (isPpoTraining ? 1 : 0)
+                                        (isPpoTraining ? 1 : 0) +
+                                        (isSacTraining ? 1 : 0)
                                     return count > 0
                                         ? (
-                                              ((dqnAcc + ppoAcc) / count) *
+                                              ((dqnAcc + ppoAcc + sacAcc) / count) *
                                               100
                                           ).toFixed(1)
                                         : '0.0'
@@ -678,11 +850,17 @@ const GymnasiumRLMonitor: React.FC = () => {
                                         ppoMetrics?.response_time_ms
                                             ? ppoMetrics.response_time_ms
                                             : 0
+                                    const sacResp =
+                                        isSacTraining &&
+                                        sacMetrics?.response_time_ms
+                                            ? sacMetrics.response_time_ms
+                                            : 0
                                     const count =
                                         (isDqnTraining ? 1 : 0) +
-                                        (isPpoTraining ? 1 : 0)
+                                        (isPpoTraining ? 1 : 0) +
+                                        (isSacTraining ? 1 : 0)
                                     return count > 0
-                                        ? ((dqnResp + ppoResp) / count).toFixed(
+                                        ? ((dqnResp + ppoResp + sacResp) / count).toFixed(
                                               1
                                           )
                                         : '0.0'
@@ -748,13 +926,27 @@ const GymnasiumRLMonitor: React.FC = () => {
                         <div className="metric-item">
                             <span className="metric-label">訓練狀態:</span>
                             <span className="metric-value">
-                                {isDqnTraining && isPpoTraining
-                                    ? '🔴 雙引擎訓練中'
-                                    : isDqnTraining
-                                    ? '🟢 DQN 訓練中'
-                                    : isPpoTraining
-                                    ? '🟠 PPO 訓練中'
-                                    : '⚪ 待機'}
+                                {(() => {
+                                    const activeEngines = [];
+                                    if (isDqnTraining) activeEngines.push('DQN');
+                                    if (isPpoTraining) activeEngines.push('PPO');
+                                    if (isSacTraining) activeEngines.push('SAC');
+                                    
+                                    if (activeEngines.length === 0) return '⚪ 待機';
+                                    if (activeEngines.length === 1) {
+                                        const engine = activeEngines[0];
+                                        if (engine === 'DQN') return '🟢 DQN 訓練中';
+                                        if (engine === 'PPO') return '🔵 PPO 訓練中';
+                                        if (engine === 'SAC') return '🟡 SAC 訓練中';
+                                    }
+                                    if (activeEngines.length === 2) {
+                                        return `🔴 雙引擎訓練中 (${activeEngines.join(' + ')})`;
+                                    }
+                                    if (activeEngines.length === 3) {
+                                        return '🔥 三引擎並行訓練中';
+                                    }
+                                    return `🔴 ${activeEngines.length}引擎訓練中`;
+                                })()}
                             </span>
                         </div>
                     </div>
@@ -789,7 +981,19 @@ const GymnasiumRLMonitor: React.FC = () => {
                                     )}`}
                             </div>
                         )}
-                        {!isDqnTraining && !isPpoTraining && (
+                        {isSacTraining && (
+                            <div className="log-entry sac">
+                                🎯 [{new Date().toLocaleTimeString()}] SAC
+                                引擎訓練進行中
+                                {sacMetrics &&
+                                    ` - 回合: ${
+                                        sacMetrics.episodes_completed
+                                    }, 獎勵: ${sacMetrics.average_reward.toFixed(
+                                        2
+                                    )}`}
+                            </div>
+                        )}
+                        {!isDqnTraining && !isPpoTraining && !isSacTraining && (
                             <div className="log-entry idle">
                                 ⏸️ [{new Date().toLocaleTimeString()}]
                                 所有訓練引擎處於待機狀態
@@ -827,6 +1031,13 @@ const GymnasiumRLMonitor: React.FC = () => {
                                 🎯 [{new Date().toLocaleTimeString()}] PPO
                                 訓練進度:{' '}
                                 {ppoMetrics!.training_progress.toFixed(1)}% 完成
+                            </div>
+                        )}
+                        {(sacMetrics?.episodes_completed || 0) > 0 && (
+                            <div className="log-entry training">
+                                🎯 [{new Date().toLocaleTimeString()}] SAC
+                                訓練進度:{' '}
+                                {sacMetrics!.training_progress.toFixed(1)}% 完成
                             </div>
                         )}
                     </div>
