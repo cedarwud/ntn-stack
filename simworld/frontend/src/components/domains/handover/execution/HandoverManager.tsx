@@ -445,25 +445,33 @@ const HandoverManager: React.FC<HandoverManagerProps> = ({
         if (onHandoverStateChange) {
             onHandoverStateChange(handoverState)
         }
-    }, [handoverState, onHandoverStateChange])
+    // onHandoverStateChange intentionally omitted to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [handoverState])
 
     useEffect(() => {
         if (onCurrentConnectionChange) {
             onCurrentConnectionChange(currentConnection)
         }
-    }, [currentConnection, onCurrentConnectionChange])
+    // onCurrentConnectionChange intentionally omitted to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentConnection])
 
     useEffect(() => {
         if (onPredictedConnectionChange) {
             onPredictedConnectionChange(predictedConnection)
         }
-    }, [predictedConnection, onPredictedConnectionChange])
+    // onPredictedConnectionChange intentionally omitted to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [predictedConnection])
 
     useEffect(() => {
         if (onTransitionChange) {
             onTransitionChange(isTransitioning, transitionProgress)
         }
-    }, [isTransitioning, transitionProgress, onTransitionChange])
+    // onTransitionChange intentionally omitted to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isTransitioning, transitionProgress])
 
     // 📝 記錄換手事件
     /*

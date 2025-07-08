@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react'
+import { Line } from 'react-chartjs-2'
 import OverviewTabContent from '../views/dashboards/ChartAnalysisDashboard/components/OverviewTabContent'
 import IntegratedAnalysisTabContent from '../views/dashboards/ChartAnalysisDashboard/components/IntegratedAnalysisTabContent'
 import EnhancedAlgorithmTabContent from '../views/dashboards/ChartAnalysisDashboard/components/EnhancedAlgorithmTabContent'

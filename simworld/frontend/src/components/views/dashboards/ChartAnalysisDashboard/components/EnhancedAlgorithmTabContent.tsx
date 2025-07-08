@@ -1,7 +1,6 @@
 /**
  * 增強算法分析標籤頁內容組件
  * 整合原始版本和新版本的所有有意義功能，使用真實NetStack API數據
- * 階段六重構：替換舊的 useAlgorithmAnalysisData Hook
  */
 
 import React from 'react'
@@ -20,12 +19,7 @@ import {
     Legend,
     Filler,
 } from 'chart.js'
-
-// 導入新的專門化Hooks
-import { useTimeSyncData } from '../hooks/useTimeSyncData'
-import { useAlgorithmPerformanceData } from '../hooks/useAlgorithmPerformanceData'
-import { useComplexityComparisonData } from '../hooks/useComplexityComparisonData'
-import { useOptimizationData } from '../hooks/useOptimizationData' // 雖然可能不直接渲染，但保持完整性
+import { useAlgorithmAnalysisData } from '../hooks/useAlgorithmAnalysisData'
 
 // 註冊 Chart.js 組件
 ChartJS.register(
@@ -43,98 +37,27 @@ ChartJS.register(
 )
 
 const EnhancedAlgorithmTabContent: React.FC = () => {
-    // 調用新的專門化Hooks
-    const { timeSyncData: timeSyncState, fetchTimeSyncData } =
-        useTimeSyncData(true)
-    const { algorithmPerformance: algoPerfState, fetchAlgorithmPerformance } =
-        useAlgorithmPerformanceData(true)
-    const { complexityComparison: complexityState, fetchComplexityComparison } =
-        useComplexityComparisonData(true)
-    const { optimizationData: optimizationState, fetchOptimizationData } =
-        useOptimizationData(true)
-
-    // 從 state 對象中解構出 data 和 status
-    const { data: timeSyncData, status: timeSyncStatus } = timeSyncState
-    const { data: algorithmPerformanceData, status: algoPerfStatus } =
-        algoPerfState
-    const { data: complexityData, status: complexityStatus } = complexityState
-    const { data: optimizationData, status: optimizationStatus } =
-        optimizationState
-
-    // 在組件掛載時獲取數據
-    React.useEffect(() => {
-        fetchTimeSyncData()
-        fetchAlgorithmPerformance()
-        fetchComplexityComparison()
-        fetchOptimizationData()
-    }, [
-        fetchTimeSyncData,
-        fetchAlgorithmPerformance,
-        fetchComplexityComparison,
-        fetchOptimizationData,
-    ])
-
-    // 這裡需要根據新的數據結構重新構建圖表數據
-    // 例如，`accessStrategyRadarChart` 之前是從舊Hook來的，現在需要用新數據構建
-    const accessStrategyRadarChartData = React.useMemo(() => {
-        // 示例：這個雷達圖可能來源於算法性能數據
-        const perfData = algorithmPerformanceData
-        return {
-            labels: perfData.algorithms,
-            datasets: [
-                {
-                    label: '延遲 (ms)',
-                    data: perfData.latencies.map((d) => 10 - d), // 示例轉換
-                    borderColor: 'rgb(255, 99, 132)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                },
-                {
-                    label: '吞吐量 (Mbps)',
-                    data: perfData.throughputs.map((d) => d / 20), // 示例轉換
-                    borderColor: 'rgb(54, 162, 235)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                },
-            ],
-        }
-    }, [algorithmPerformanceData])
-
-    // 時間同步圖的數據適配
-    const timeSyncPrecisionChartData = React.useMemo(() => {
-        return {
-            labels: timeSyncData.algorithms,
-            datasets: [
-                {
-                    label: '同步精度 (μs)',
-                    data: timeSyncData.precisionValues,
-                    backgroundColor: [
-                        'rgba(34, 197, 94, 0.8)',
-                        'rgba(59, 130, 246, 0.8)',
-                        'rgba(245, 158, 11, 0.8)',
-                        'rgba(168, 85, 247, 0.8)',
-                        'rgba(239, 68, 68, 0.8)',
-                    ],
-                    borderWidth: 2,
-                },
-            ],
-        }
-    }, [timeSyncData])
-
-    // 其他圖表數據也需要類似的適配...
-    // ...
+    const {
+        timeSyncPrecisionChart,
+        accessStrategyRadarChart,
+        algorithmPerformance,
+        complexityAnalysis,
+        dataStatus,
+    } = useAlgorithmAnalysisData(true)
 
     // 調試信息 - 只在開發環境且數據變化時記錄
     React.useEffect(() => {
         if (import.meta.env.DEV) {
             console.log('EnhancedAlgorithmTabContent 雷達圖數據:', {
-                radarData: accessStrategyRadarChartData,
-                status: algoPerfStatus,
+                radarData: accessStrategyRadarChart.data,
+                status: accessStrategyRadarChart.status,
             })
         }
-    }, [algoPerfStatus, accessStrategyRadarChartData]) // 包含data依賴
+    }, [accessStrategyRadarChart.status, accessStrategyRadarChart.data]) // 包含data依賴
 
     // 確保數據安全性 - 修復：調整驗證邏輯匹配實際數據結構
     const safeRadarData = React.useMemo(() => {
-        const data = accessStrategyRadarChartData
+        const data = accessStrategyRadarChart.data
 
         // 修復：根據實際數據結構進行驗證
         // 實際數據: 5個算法 (labels), 2個數據集 (延遲和吞吐量)
@@ -211,7 +134,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
             console.log('✅ 雷達圖數據驗證通過，使用真實API數據:', {
                 labelsCount: data.labels?.length,
                 datasetsCount: data.datasets?.length,
-                status: algoPerfStatus,
+                status: accessStrategyRadarChart.status,
             })
         }
 
@@ -235,11 +158,11 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
             console.log('雷達圖數據驗證通過，使用計算數據:', sanitizedData)
         }
         return sanitizedData
-    }, [algoPerfStatus, accessStrategyRadarChartData])
+    }, [accessStrategyRadarChart.status, accessStrategyRadarChart.data])
 
     // 確保時間同步數據安全性
     const _safeTimeSyncData = React.useMemo(() => {
-        const data = timeSyncPrecisionChartData
+        const data = timeSyncPrecisionChart.data
 
         // 檢查數據是否有效
         if (
@@ -285,7 +208,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
         }
 
         return data
-    }, [timeSyncPrecisionChartData])
+    }, [timeSyncPrecisionChart.data])
 
     // 雷達圖選項
     const radarOptions = {
@@ -411,7 +334,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
                     <Radar data={safeRadarData} options={radarOptions} />
                     <div className="chart-insight">
                         <strong>雷達分析：</strong>
-                        {algoPerfStatus === 'calculated'
+                        {accessStrategyRadarChart.status === 'calculated'
                             ? '基於NetStack handover metrics計算，'
                             : '使用基準數據，'}
                         Fine-Grained Sync
@@ -425,12 +348,12 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
                 <div className="chart-container">
                     <h3>圖13B: 時間同步精度技術對比</h3>
                     <Bar
-                        data={timeSyncPrecisionChartData}
+                        data={timeSyncPrecisionChart.data}
                         options={horizontalBarOptions}
                     />
                     <div className="chart-insight">
                         <strong>精度對比：</strong>
-                        {timeSyncStatus === 'calculated'
+                        {timeSyncPrecisionChart.status === 'calculated'
                             ? '基於NetStack Core Sync實際性能動態調整，'
                             : '使用高精度基準數據，'}
                         Fine-Grained
@@ -449,19 +372,20 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
                             className="indicator-dot"
                             style={{
                                 backgroundColor:
-                                    algoPerfStatus === 'real'
+                                    dataStatus.performance === 'real'
                                         ? '#22c55e'
-                                        : algoPerfStatus === 'calculated'
+                                        : dataStatus.performance ===
+                                          'calculated'
                                         ? '#3b82f6'
                                         : '#f59e0b',
                             }}
                         ></span>
                         <span className="indicator-text">
-                            {algoPerfStatus === 'real' &&
+                            {dataStatus.performance === 'real' &&
                                 '使用NetStack複雜度分析API即時數據'}
-                            {algoPerfStatus === 'calculated' &&
+                            {dataStatus.performance === 'calculated' &&
                                 '基於NetStack handover metrics計算'}
-                            {algoPerfStatus === 'fallback' &&
+                            {dataStatus.performance === 'fallback' &&
                                 '使用高質量基準數據'}
                         </span>
                     </div>
@@ -481,157 +405,154 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {(algorithmPerformanceData.algorithms || []).map(
-                                (algorithm, index) => {
-                                    const complexityAlgo =
-                                        complexityData.algorithms[index] ||
-                                        algorithm
-                                    const timeComplexity =
-                                        complexityData.timeComplexities[
-                                            index
-                                        ] || 'N/A'
-                                    const memoryUsage =
-                                        complexityData.spaceComplexities[
-                                            index
-                                        ] || 'N/A'
-                                    const accuracy =
-                                        algorithmPerformanceData.accuracies[
-                                            index
-                                        ] || 0
-                                    const latency =
-                                        algorithmPerformanceData.latencies[
-                                            index
-                                        ] || 0
-
-                                    // 派生出 overallScore
-                                    const overallScore = (
-                                        accuracy / 10 +
-                                        (10 - latency) / 2
-                                    ).toFixed(1)
-
-                                    return (
-                                        <tr
-                                            key={algorithm}
-                                            className={`algorithm-row ${
-                                                (algorithm || '').includes(
-                                                    'Fine-Grained'
-                                                )
-                                                    ? 'fine-grained'
-                                                    : (
-                                                          algorithm || ''
-                                                      ).includes('Proposed')
-                                                    ? 'proposed'
-                                                    : ''
+                            {(algorithmPerformance.algorithms || []).map(
+                                (algorithm, index) => (
+                                    <tr
+                                        key={algorithm}
+                                        className={`algorithm-row ${
+                                            (algorithm || '').includes(
+                                                'Fine-Grained'
+                                            )
+                                                ? 'fine-grained'
+                                                : (algorithm || '').includes(
+                                                      'Binary'
+                                                  )
+                                                ? 'binary-search'
+                                                : 'traditional'
+                                        }`}
+                                    >
+                                        <td>
+                                            <span className="algorithm-name">
+                                                {algorithm}
+                                            </span>
+                                            <span
+                                                className={`algorithm-badge ${
+                                                    ((algorithmPerformance.overallScores ||
+                                                        [])[index] || 0) >= 9
+                                                        ? 'recommended'
+                                                        : ((algorithmPerformance.overallScores ||
+                                                              [])[index] ||
+                                                              0) >= 7
+                                                        ? 'moderate'
+                                                        : 'low'
+                                                }`}
+                                            >
+                                                {((algorithmPerformance.overallScores ||
+                                                    [])[index] || 0) >= 9
+                                                    ? '推薦'
+                                                    : ((algorithmPerformance.overallScores ||
+                                                          [])[index] || 0) >= 7
+                                                    ? '適中'
+                                                    : '基礎'}
+                                            </span>
+                                        </td>
+                                        <td
+                                            className={`metric-cell ${
+                                                ((algorithmPerformance.latencies ||
+                                                    [])[index] || 0) < 10
+                                                    ? 'success'
+                                                    : ((algorithmPerformance.latencies ||
+                                                          [])[index] || 0) < 20
+                                                    ? 'info'
+                                                    : 'warning'
                                             }`}
                                         >
-                                            <td>
-                                                <span className="algorithm-name">
-                                                    {algorithm}
-                                                </span>
-                                                <span
-                                                    className={`algorithm-badge ${
-                                                        (parseFloat(
-                                                            overallScore
-                                                        ) || 0) >= 9
-                                                            ? 'recommended'
-                                                            : (parseFloat(
-                                                                  overallScore
-                                                              ) || 0) >= 7
-                                                            ? 'moderate'
-                                                            : 'low'
-                                                    }`}
-                                                >
-                                                    {parseFloat(overallScore) >=
-                                                    9
-                                                        ? '推薦'
-                                                        : parseFloat(
-                                                              overallScore
-                                                          ) >= 7
-                                                        ? '適中'
-                                                        : '基礎'}
-                                                </span>
-                                            </td>
-                                            <td
-                                                className={`metric-cell ${
-                                                    (latency || 0) < 10
-                                                        ? 'success'
-                                                        : (latency || 0) < 20
-                                                        ? 'info'
-                                                        : 'warning'
-                                                }`}
-                                            >
-                                                {(latency || 0).toFixed(1)}ms
-                                            </td>
-                                            <td
-                                                className={`metric-cell ${
-                                                    (
-                                                        timeComplexity || ''
-                                                    ).includes('log') ||
-                                                    (
-                                                        timeComplexity || ''
-                                                    ).includes('1')
-                                                        ? 'success'
-                                                        : (
-                                                              timeComplexity ||
-                                                              ''
-                                                          ).includes('n') &&
-                                                          !(
-                                                              timeComplexity ||
-                                                              ''
-                                                          ).includes('²')
-                                                        ? 'info'
-                                                        : 'warning'
-                                                }`}
-                                            >
-                                                {timeComplexity}
-                                            </td>
-                                            <td
-                                                className={`metric-cell ${
-                                                    (parseFloat(memoryUsage) ||
-                                                        0) < 200
-                                                        ? 'success' // Assuming memoryUsage is like 'O(n)'
-                                                        : (parseFloat(
-                                                              memoryUsage
-                                                          ) || 0) < 300
-                                                        ? 'info'
-                                                        : 'warning'
-                                                }`}
-                                            >
-                                                {memoryUsage}{' '}
-                                                {/* This will show O(n) etc. */}
-                                            </td>
-                                            <td
-                                                className={`metric-cell ${
-                                                    (accuracy || 0) > 95
-                                                        ? 'success'
-                                                        : (accuracy || 0) > 90
-                                                        ? 'info'
-                                                        : 'warning'
-                                                }`}
-                                            >
-                                                {(accuracy || 0).toFixed(1)}%
-                                            </td>
-                                            {/* Reliability was removed, can be replaced with another metric if needed */}
-                                            <td className={`metric-cell`}>
-                                                N/A
-                                            </td>
-                                            <td
-                                                className={`metric-cell ${
-                                                    (parseFloat(overallScore) ||
-                                                        0) >= 9
-                                                        ? 'success'
-                                                        : (parseFloat(
-                                                              overallScore
-                                                          ) || 0) >= 7
-                                                        ? 'info'
-                                                        : 'warning'
-                                                }`}
-                                            >
-                                                {overallScore}/10
-                                            </td>
-                                        </tr>
-                                    )
-                                }
+                                            {(
+                                                (algorithmPerformance.latencies ||
+                                                    [])[index] || 0
+                                            ).toFixed(1)}
+                                            ms
+                                        </td>
+                                        <td
+                                            className={`metric-cell ${
+                                                (
+                                                    (algorithmPerformance.complexities ||
+                                                        [])[index] || ''
+                                                ).includes('log')
+                                                    ? 'success'
+                                                    : (
+                                                          (algorithmPerformance.complexities ||
+                                                              [])[index] || ''
+                                                      ).includes('n') &&
+                                                      !(
+                                                          (algorithmPerformance.complexities ||
+                                                              [])[index] || ''
+                                                      ).includes('²')
+                                                    ? 'info'
+                                                    : 'warning'
+                                            }`}
+                                        >
+                                            {(algorithmPerformance.complexities ||
+                                                [])[index] || 'O(n)'}
+                                        </td>
+                                        <td
+                                            className={`metric-cell ${
+                                                ((algorithmPerformance.memoryUsages ||
+                                                    [])[index] || 0) < 200
+                                                    ? 'success'
+                                                    : ((algorithmPerformance.memoryUsages ||
+                                                          [])[index] || 0) < 300
+                                                    ? 'info'
+                                                    : 'warning'
+                                            }`}
+                                        >
+                                            {(algorithmPerformance.memoryUsages ||
+                                                [])[index] || 0}
+                                            MB
+                                        </td>
+                                        <td
+                                            className={`metric-cell ${
+                                                ((algorithmPerformance.energyEfficiencies ||
+                                                    [])[index] || 0) > 90
+                                                    ? 'success'
+                                                    : ((algorithmPerformance.energyEfficiencies ||
+                                                          [])[index] || 0) > 80
+                                                    ? 'info'
+                                                    : 'warning'
+                                            }`}
+                                        >
+                                            {(
+                                                (algorithmPerformance.energyEfficiencies ||
+                                                    [])[index] || 0
+                                            ).toFixed(1)}
+                                            %
+                                        </td>
+                                        <td
+                                            className={`metric-cell ${
+                                                ((algorithmPerformance.reliabilities ||
+                                                    [])[index] || 0) > 95
+                                                    ? 'success'
+                                                    : ((algorithmPerformance.reliabilities ||
+                                                          [])[index] || 0) > 90
+                                                    ? 'info'
+                                                    : 'warning'
+                                            }`}
+                                        >
+                                            {(
+                                                (algorithmPerformance.reliabilities ||
+                                                    [])[index] || 0
+                                            ).toFixed(1)}
+                                            %
+                                        </td>
+                                        <td
+                                            className={`metric-cell ${
+                                                ((algorithmPerformance.overallScores ||
+                                                    [])[index] || 0) >= 9
+                                                    ? 'success'
+                                                    : ((algorithmPerformance.overallScores ||
+                                                          [])[index] || 0) >= 7
+                                                    ? 'info'
+                                                    : 'warning'
+                                            }`}
+                                        >
+                                            {(
+                                                (algorithmPerformance.overallScores ||
+                                                    [])[index] || 0
+                                            ).toFixed(1)}
+                                            /10
+                                        </td>
+                                    </tr>
+                                )
                             )}
                         </tbody>
                     </table>
@@ -642,24 +563,24 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
             <div className="complexity-analysis-section">
                 <h4>⚡ 複雜度可擴展性分析</h4>
                 <div className="complexity-grid">
-                    {(complexityData.algorithms || []).map(
+                    {(complexityAnalysis.algorithms || []).map(
                         (algorithm, index) => (
                             <div key={algorithm} className="complexity-card">
                                 <div className="complexity-header">
                                     <h5>{algorithm || 'Unknown Algorithm'}</h5>
                                     <span className="complexity-badge">
-                                        {(complexityData.timeComplexities ||
+                                        {(complexityAnalysis.computationalComplexities ||
                                             [])[index] || 'O(n)'}
                                     </span>
                                 </div>
-                                <div className="complexity-body">
+                                <div className="complexity-metrics">
                                     <div className="complexity-metric">
                                         <div className="metric-label">
                                             執行時間
                                         </div>
                                         <div className="metric-value">
                                             {(
-                                                (complexityData.realTimePerformance ||
+                                                (complexityAnalysis.executionTimes ||
                                                     [])[index] || 0
                                             ).toFixed(1)}
                                             ms
@@ -670,52 +591,56 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
                                             記憶體占用
                                         </div>
                                         <div className="metric-value">
-                                            {(complexityData.spaceComplexities ||
-                                                [])[index] || 'O(n)'}
+                                            {(complexityAnalysis.memoryComplexities ||
+                                                [])[index] || 0}
+                                            MB
                                         </div>
                                     </div>
                                     <div className="complexity-metric">
                                         <div className="metric-label">
-                                            擴展因子
+                                            可擴展性
                                         </div>
                                         <div className="metric-value">
-                                            {(
-                                                (complexityData.scalabilityFactors ||
-                                                    [])[index] || 0
-                                            ).toFixed(1)}
-                                            x
+                                            {(algorithm || '').includes(
+                                                'Fine-Grained'
+                                            )
+                                                ? '優秀'
+                                                : (algorithm || '').includes(
+                                                      'Binary'
+                                                  )
+                                                ? '良好'
+                                                : '一般'}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="complexity-progress">
-                                    <div
-                                        className="progress-fill"
-                                        style={{
-                                            width: `${Math.max(
-                                                20,
-                                                100 -
-                                                    (((complexityData.realTimePerformance ||
-                                                        [])[index] || 0) /
-                                                        30) *
-                                                        100
-                                            )}%`,
-                                            backgroundColor: (
-                                                algorithm || ''
-                                            ).includes('適應')
-                                                ? '#22c55e'
-                                                : (algorithm || '').includes(
-                                                      '優化'
-                                                  )
-                                                ? '#3b82f6'
-                                                : '#f59e0b',
-                                        }}
-                                    ></div>
-                                </div>
-                                <div className="api-integration">
-                                    <strong>NetStack整合：</strong>
-                                    {complexityStatus === 'real'
-                                        ? '使用scalability metrics即時調優'
-                                        : '使用基準配置'}
+                                    <div className="progress-bar">
+                                        <div
+                                            className="progress-fill"
+                                            style={{
+                                                width: `${Math.max(
+                                                    20,
+                                                    100 -
+                                                        (((complexityAnalysis.executionTimes ||
+                                                            [])[index] || 0) /
+                                                            30) *
+                                                            100
+                                                )}%`,
+                                                backgroundColor: (
+                                                    algorithm || ''
+                                                ).includes('Fine-Grained')
+                                                    ? '#22c55e'
+                                                    : (
+                                                          algorithm || ''
+                                                      ).includes('Binary')
+                                                    ? '#3b82f6'
+                                                    : '#f59e0b',
+                                            }}
+                                        ></div>
+                                    </div>
+                                    <div className="progress-label">
+                                        性能評級
+                                    </div>
                                 </div>
                             </div>
                         )
@@ -761,7 +686,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
                             </div>
                             <div className="api-integration">
                                 <strong>NetStack整合：</strong>
-                                {algoPerfStatus === 'calculated'
+                                {dataStatus.performance === 'calculated'
                                     ? '使用handover metrics即時調優'
                                     : '使用基準配置'}
                             </div>
@@ -1052,7 +977,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
           font-weight: bold;
         }
 
-        .complexity-body {
+        .complexity-metrics {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 15px;
@@ -1204,7 +1129,7 @@ const EnhancedAlgorithmTabContent: React.FC = () => {
             grid-template-columns: 1fr;
           }
           
-          .complexity-body {
+          .complexity-metrics {
             grid-template-columns: 1fr;
           }
           

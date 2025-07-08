@@ -10,8 +10,12 @@ export const SATELLITE_CONFIG = {
   
   // === 移動模擬參數 ===
   REAL_TIME_MULTIPLIER: 1,          // 實時速度倍數（1 = 真實速度）
-  HANDOVER_DEMO_MULTIPLIER: 60,     // 換手演示速度倍數（60倍加速，便於演示）
-  ANIMATION_SPEED: 60,              // 動畫速度倍數（可調整）
+  HANDOVER_DEMO_MULTIPLIER: 1,     // 換手演示速度倍數（1倍真實速度，便於演示）
+  ANIMATION_SPEED: 10,              // 動畫速度倍數（可調整）
+  
+  // === 分離的速度控制 ===
+  SATELLITE_MOVEMENT_SPEED: 2,      // 衛星3D移動速度倍數（獨立控制）
+  HANDOVER_TIMING_SPEED: 2,        // 換手時機和演示速度倍數（獨立控制）
   INTERPOLATION_SMOOTHNESS: 10,     // 插值平滑度（每秒幀數）
   
   // === 軌跡更新參數 ===

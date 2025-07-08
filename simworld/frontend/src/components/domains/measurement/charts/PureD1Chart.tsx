@@ -7,10 +7,7 @@
  */
 
 import React, { useEffect, useRef, useMemo } from 'react'
-import { Chart, ChartDataset, CartesianScaleOptions } from 'chart.js/auto'
-
-// Define a specific type for our line chart dataset
-type LineChartDataset = ChartDataset<'line', { x: number; y: number }[]>
+import { Chart } from 'chart.js/auto'
 
 // 模擬距離數據：UE 到兩個參考位置的距離隨時間變化
 // 調整數據以正確展示 Event D1 觸發邏輯：
@@ -102,6 +99,11 @@ const generateDistanceNode = (currentTime: number, distance: number) => {
     return [{ x: currentTime, y: distance }]
 }
 
+// 生成事件觸發節點
+const generateEventNode = (currentTime: number, distance: number) => {
+    return [{ x: currentTime, y: distance }]
+}
+
 // 檢查Event D1事件觸發狀態
 const checkD1EventTrigger = (
     distance1: number,
@@ -146,7 +148,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
         currentTime = 0,
         showThresholdLines = true,
         isDarkTheme = true,
-        onThemeToggle: _onThemeToggle,
+        _onThemeToggle,
     }) => {
         const canvasRef = useRef<HTMLCanvasElement>(null)
         const chartRef = useRef<Chart | null>(null)
@@ -197,7 +199,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
             console.log('🎯 [PureD1Chart] 初始化圖表')
 
             // 準備基礎數據集 - 不包含動畫相關的數據
-            const datasets: LineChartDataset[] = [
+            const datasets = [
                 {
                     label: 'Distance 1 (UE ↔ Ref1)',
                     data: distance1Points,
@@ -331,9 +333,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
             try {
                 chartRef.current = new Chart(ctx, {
                     type: 'line',
-                    data: {
-                        datasets: datasets,
-                    },
+                    data: { datasets },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
@@ -448,7 +448,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 if (chart.data.datasets[expectedCursorIndex]) {
                     const dataset = chart.data.datasets[
                         expectedCursorIndex
-                    ] as LineChartDataset
+                    ] as any
                     dataset.data = cursorData
                     dataset.label = `Current Time: ${currentTime.toFixed(1)}s`
                 } else {
@@ -463,7 +463,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                         pointHoverRadius: 0,
                         tension: 0,
                         borderDash: [5, 5],
-                    } as LineChartDataset)
+                    } as any)
                 }
 
                 // 節點1（距離到Ref1）
@@ -485,9 +485,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 // 更新或添加節點1數據集
                 const node1Index = expectedCursorIndex + 1
                 if (chart.data.datasets[node1Index]) {
-                    const dataset = chart.data.datasets[
-                        node1Index
-                    ] as LineChartDataset
+                    const dataset = chart.data.datasets[node1Index] as any
                     dataset.data = node1Data
                     dataset.label = `Distance 1 Node (${currentDistance1.toFixed(
                         0
@@ -511,7 +509,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                         pointStyle: 'triangle',
                         showLine: false,
                         tension: 0,
-                    } as LineChartDataset)
+                    } as any)
                 }
 
                 // 節點2（距離到Ref2）
@@ -533,9 +531,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                 // 更新或添加節點2數據集
                 const node2Index = expectedCursorIndex + 2
                 if (chart.data.datasets[node2Index]) {
-                    const dataset = chart.data.datasets[
-                        node2Index
-                    ] as LineChartDataset
+                    const dataset = chart.data.datasets[node2Index] as any
                     dataset.data = node2Data
                     dataset.label = `Distance 2 Node (${currentDistance2.toFixed(
                         0
@@ -559,7 +555,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                         pointStyle: 'rect',
                         showLine: false,
                         tension: 0,
-                    } as LineChartDataset)
+                    } as any)
                 }
 
                 // Event D1 狀態節點（中間位置）
@@ -572,9 +568,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                         },
                     ]
                     if (chart.data.datasets[eventIndex]) {
-                        const dataset = chart.data.datasets[
-                            eventIndex
-                        ] as LineChartDataset
+                        const dataset = chart.data.datasets[eventIndex] as any
                         dataset.data = eventNodeData
                     } else {
                         chart.data.datasets.push({
@@ -589,7 +583,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                             pointStyle: 'star',
                             showLine: false,
                             tension: 0,
-                        } as LineChartDataset)
+                        } as any)
                     }
                 } else {
                     // 移除事件節點如果它存在
@@ -673,7 +667,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as LineChartDataset,
+                        } as Record<string, unknown>,
                         {
                             label: 'Thresh2 (Ref2 Threshold)',
                             data: thresh2Data,
@@ -684,7 +678,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as LineChartDataset,
+                        } as Record<string, unknown>,
                         {
                             label: 'Thresh1 + Hys',
                             data: thresh1HysUpperData,
@@ -695,7 +689,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as LineChartDataset,
+                        } as Record<string, unknown>,
                         {
                             label: 'Thresh1 - Hys',
                             data: thresh1HysLowerData,
@@ -706,7 +700,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as LineChartDataset,
+                        } as Record<string, unknown>,
                         {
                             label: 'Thresh2 + Hys',
                             data: thresh2HysUpperData,
@@ -717,7 +711,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as LineChartDataset,
+                        } as Record<string, unknown>,
                         {
                             label: 'Thresh2 - Hys',
                             data: thresh2HysLowerData,
@@ -728,7 +722,7 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as LineChartDataset
+                        } as Record<string, unknown>
                     )
                 } else {
                     // 更新現有門檻線數據
@@ -753,43 +747,62 @@ export const PureD1Chart: React.FC<PureD1ChartProps> = React.memo(
             }
 
             // 更新顏色主題
-            const d1Dataset = chart.data.datasets[0] as LineChartDataset
-            d1Dataset.borderColor = currentTheme.distance1Line
-            const d2Dataset = chart.data.datasets[1] as LineChartDataset
-            d2Dataset.borderColor = currentTheme.distance2Line
+            chart.data.datasets[0].borderColor = currentTheme.distance1Line
+            chart.data.datasets[1].borderColor = currentTheme.distance2Line
+            if (chart.data.datasets[2])
+                chart.data.datasets[2].borderColor = currentTheme.thresh1Line
+            if (chart.data.datasets[3])
+                chart.data.datasets[3].borderColor = currentTheme.thresh2Line
+            if (chart.data.datasets[4])
+                chart.data.datasets[4].borderColor = currentTheme.hysteresisLine
+            if (chart.data.datasets[5])
+                chart.data.datasets[5].borderColor = currentTheme.hysteresisLine
+            if (chart.data.datasets[6])
+                chart.data.datasets[6].borderColor = currentTheme.hysteresisLine
+            if (chart.data.datasets[7])
+                chart.data.datasets[7].borderColor = currentTheme.hysteresisLine
 
-            if (showThresholdLines && chart.data.datasets.length > 2) {
-                const t1Dataset = chart.data.datasets[2] as LineChartDataset
-                t1Dataset.borderColor = currentTheme.thresh1Line
-                const t2Dataset = chart.data.datasets[3] as LineChartDataset
-                t2Dataset.borderColor = currentTheme.thresh2Line
-                const t1HysDataset = chart.data.datasets[4] as LineChartDataset
-                t1HysDataset.borderColor = currentTheme.hysteresisLine
-                const t2HysDataset = chart.data.datasets[5] as LineChartDataset
-                t2HysDataset.borderColor = currentTheme.hysteresisLine
-            }
+            // 更新圖表選項的顏色 - 安全訪問
+            try {
+                if (chart.options?.plugins?.legend?.labels) {
+                    chart.options.plugins.legend.labels.color =
+                        currentTheme.text
+                }
+                if (chart.options?.plugins?.legend) {
+                    chart.options.plugins.legend.display = showThresholdLines
+                }
+                if (chart.options?.plugins?.title) {
+                    chart.options.plugins.title.color = currentTheme.title
+                }
 
-            if (chart.options?.plugins?.title) {
-                chart.options.plugins.title.color = currentTheme.title
-            }
-            if (chart.options?.plugins?.legend?.labels) {
-                chart.options.plugins.legend.labels.color = currentTheme.text
-            }
+                // 確保 scales 存在
+                if (!chart.options.scales) {
+                    chart.options.scales = {}
+                }
 
-            const xScale = chart.options.scales?.x as CartesianScaleOptions
-            if (xScale?.title) {
-                xScale.title.color = currentTheme.text
-            }
-            if (xScale?.ticks) {
-                xScale.ticks.color = currentTheme.text
-            }
-            if (xScale?.grid) {
-                xScale.grid.color = currentTheme.grid
-            }
+                const xScale = chart.options.scales.x as Record<string, unknown>
+                if (xScale?.title) {
+                    xScale.title.color = currentTheme.text
+                }
+                if (xScale?.ticks) {
+                    xScale.ticks.color = currentTheme.text
+                }
+                if (xScale?.grid) {
+                    xScale.grid.color = currentTheme.grid
+                }
 
-            const yScale = chart.options.scales?.y as CartesianScaleOptions
-            if (yScale?.title) {
-                yScale.title.color = currentTheme.text
+                const yScale = chart.options.scales.y as Record<string, unknown>
+                if (yScale?.title) {
+                    yScale.title.color = currentTheme.text
+                }
+                if (yScale?.ticks) {
+                    yScale.ticks.color = currentTheme.text
+                }
+                if (yScale?.grid) {
+                    yScale.grid.color = currentTheme.grid
+                }
+            } catch (error) {
+                console.warn('⚠️ [PureD1Chart] 更新圖表選項時發生錯誤:', error)
             }
 
             // 更新圖表 - 使用 'none' 避免動畫

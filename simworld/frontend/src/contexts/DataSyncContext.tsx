@@ -357,11 +357,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!state.ui.realTimeUpdates) return
 
         // 每120秒自動同步（減少頻率）
-        const interval = setInterval(() => {
-            if (state.ui.realTimeUpdates) {
-                forceSync()
-            }
-        }, 120000)
+        const interval = setInterval(forceSync, 120000)
 
         return () => clearInterval(interval)
     }, [forceSync, state.ui.realTimeUpdates]) // 移除 state.sync.syncErrors 避免頻繁重啟
@@ -411,9 +407,8 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
     }, [
         state.sync.isActive,
         state.sync.dataConsistency,
-        state.sync.syncErrors,
         state.sync.syncErrors.length,
-        getDataSourceStatus,
+        state.sync.syncErrors,
     ])
 
     return (
