@@ -43,8 +43,14 @@
     padding: 1.5rem 2rem;
     position: relative;
     z-index: 10000; /* 調整標題欄層級 */
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
     
     .modal-title-section {
+      flex: 1;
+      
       .modal-title {
         color: #22c55e;
         font-size: 1.8rem;
@@ -73,6 +79,7 @@
       border-radius: 50%;
       cursor: pointer;
       transition: all 0.3s ease;
+      flex-shrink: 0;
       
       &:hover {
         background: rgba(239, 68, 68, 0.2);

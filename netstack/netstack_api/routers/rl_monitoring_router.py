@@ -28,13 +28,17 @@ try:
     ECOSYSTEM_AVAILABLE = True
 except ImportError:
     ECOSYSTEM_AVAILABLE = False
+    # 定義類型別名避免運行時錯誤
+    AlgorithmEcosystemManager = None
+    PerformanceAnalysisEngine = None
+    RLTrainingPipeline = None
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/rl", tags=["RL 監控"])
 
 # 全局變量
-ecosystem_manager: Optional[AlgorithmEcosystemManager] = None
+ecosystem_manager: Optional[Any] = None
 training_sessions: Dict[str, Dict[str, Any]] = {}
 
 class RLEngineMetrics(BaseModel):
@@ -86,7 +90,7 @@ class AIDecisionStatusResponse(BaseModel):
     training_progress: float = Field(0.0, description="訓練進度")
     model_version: str = Field("1.0.0", description="模型版本")
 
-async def get_ecosystem_manager() -> AlgorithmEcosystemManager:
+async def get_ecosystem_manager() -> Any:
     """獲取生態系統管理器"""
     global ecosystem_manager
     
@@ -94,8 +98,11 @@ async def get_ecosystem_manager() -> AlgorithmEcosystemManager:
         raise HTTPException(status_code=503, detail="算法生態系統不可用")
     
     if ecosystem_manager is None:
-        ecosystem_manager = AlgorithmEcosystemManager()
-        await ecosystem_manager.initialize()
+        if AlgorithmEcosystemManager is not None:
+            ecosystem_manager = AlgorithmEcosystemManager()
+            await ecosystem_manager.initialize()
+        else:
+            raise HTTPException(status_code=503, detail="AlgorithmEcosystemManager 類型不可用")
     
     return ecosystem_manager
 
@@ -416,7 +423,7 @@ async def get_performance_report(
         logger.error(f"獲取性能報告失敗: {e}")
         raise HTTPException(status_code=500, detail=f"獲取性能報告失敗: {str(e)}")
 
-async def run_training_session(manager: AlgorithmEcosystemManager, session_id: str, 
+async def run_training_session(manager: Any, session_id: str, 
                              algorithm_name: str, episodes: int):
     """在背景執行訓練會話"""
     try:
