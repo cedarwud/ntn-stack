@@ -384,6 +384,8 @@ services:
     image: redis:7-alpine
     container_name: netstack-redis
     command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"  # 映射到主機，以便本地開發
     deploy:
       resources:
         limits:

@@ -10,10 +10,25 @@ NetStack API - Phase 2C 終極簡化版本
 - 完整的監控和健康檢查
 """
 
+import os
+import sys
+
+# 將專案根目錄添加到系統路徑
+# 這確保了無論從哪裡運行，所有模組都能被正確找到
+# 特別是對於 uvicorn 和 pytest 這種從專案根目錄啟動的工具
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
+from dotenv import load_dotenv
+
+# 在所有其他導入之前加載 .env 文件
+load_dotenv()
+
 import structlog
 from contextlib import asynccontextmanager
 from datetime import datetime
 from fastapi import FastAPI
+from typing import Dict, Any
+from fastapi.routing import APIRoute
 
 # 管理器和配置導入
 from .app.core.config_manager import config
@@ -37,20 +52,20 @@ managers = {}
 async def lifespan(app: FastAPI):
     """應用程式生命週期管理 - 世界級簡潔實現"""
     global managers
-    
+
     logger.info("🚀 NetStack API 啟動中 (終極版本)...")
-    
+
     try:
         # 一鍵初始化所有管理器
         await _initialize_all_managers(app)
-        
+
         # 健康檢查
         await _startup_health_check()
-        
+
         logger.info("🎉 NetStack API 啟動完成 - 世界級 LEO 衛星系統已就緒")
-        
+
         yield  # 系統運行期間
-        
+
     except Exception as e:
         logger.error("💥 啟動失敗", error=str(e), exc_info=True)
         raise
@@ -64,12 +79,12 @@ async def _initialize_all_managers(app: FastAPI) -> None:
     # 適配器 → 服務 → AI → 完成
     managers["adapter"] = AdapterManager()
     adapters = await managers["adapter"].initialize()
-    
+
     managers["service"] = ServiceManager(*adapters)
     await managers["service"].initialize_services(app)
-    
+
     await initialize_ai_services(adapters[1])  # Redis adapter
-    
+
     logger.info("✅ 所有管理器初始化完成")
 
 
@@ -83,7 +98,7 @@ async def _startup_health_check() -> None:
 async def _graceful_shutdown() -> None:
     """優雅關閉系統"""
     logger.info("🔧 系統正在關閉...")
-    
+
     try:
         await shutdown_ai_services()
         if managers.get("adapter"):
@@ -127,6 +142,7 @@ router_manager.register_optional_routers()
 exception_manager = ExceptionManager(app)
 exception_manager.setup_handlers()
 
+
 # ===== 系統端點 =====
 @app.get("/", summary="衛星系統總覽")
 async def root():
@@ -138,44 +154,48 @@ async def root():
         "architecture": "極簡化管理器模式",
         "timestamp": datetime.utcnow().isoformat(),
         "status": "🛰️ 衛星系統運行中",
-        
         "satellite_features": [
-            "🛰️ LEO 衛星星座管理", "📡 切換決策演算法", "🤖 AI 智慧決策",
-            "🌐 5G NTN 網路", "⚡ 毫秒級延遲優化", "🔄 動態負載平衡"
+            "🛰️ LEO 衛星星座管理",
+            "📡 切換決策演算法",
+            "🤖 AI 智慧決策",
+            "🌐 5G NTN 網路",
+            "⚡ 毫秒級延遲優化",
+            "🔄 動態負載平衡",
         ],
-        
         "system_endpoints": {
-            "docs": "/docs", "health": "/health", "metrics": "/metrics",
-            "status": "/system/status", "config": "/system/config"
+            "docs": "/docs",
+            "health": "/health",
+            "metrics": "/metrics",
+            "status": "/system/status",
+            "config": "/system/config",
         },
-        
         "performance": {
             "main_file_lines": "~150 行",
             "startup_time": "< 5 秒",
             "memory_usage": "優化",
-            "architecture_score": "世界級"
-        }
+            "architecture_score": "世界級",
+        },
     }
 
 
 @app.get("/system/status", summary="系統狀態")
 async def system_status():
     """完整系統狀態監控"""
-    status = {
+    status: Dict[str, Any] = {
         "timestamp": datetime.utcnow().isoformat(),
         "version": "2.0.0-final",
-        "architecture": "極簡化管理器模式"
+        "architecture": "極簡化管理器模式",
     }
-    
+
     # 快速狀態檢查
     if managers.get("adapter"):
         status["adapters"] = await managers["adapter"].health_check()
     if managers.get("service"):
         status["services"] = managers["service"].get_service_status(app)
-    
+
     status["routers"] = router_manager.get_router_status()
     status["middleware"] = middleware_manager.get_middleware_status()
-    
+
     return status
 
 
@@ -190,8 +210,8 @@ async def system_config():
             "debug_mode": config.get("app.debug"),
             "security_headers": config.get("security.security_headers"),
             "cors_enabled": True,
-            "metrics_enabled": True
-        }
+            "metrics_enabled": True,
+        },
     }
 
 
@@ -203,45 +223,49 @@ async def health_check():
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
             "version": "2.0.0-final",
-            "uptime": "系統運行中"
+            "uptime": "系統運行中",
         }
-        
+
         # 基礎檢查
         if managers.get("adapter"):
             adapter_health = await managers["adapter"].health_check()
             health_data["adapters"] = adapter_health["overall_health"]
-        
+
         if managers.get("service"):
             service_count = managers["service"].get_service_status(app)
-            health_data["services"] = f"{service_count['initialized_services']}/{service_count['total_services']}"
-        
-        health_data["routers"] = router_manager.validate_router_health()["overall_status"]
-        
+            health_data["services"] = (
+                f"{service_count['initialized_services']}/{service_count['total_services']}"
+            )
+
+        health_data["routers"] = router_manager.validate_router_health()[
+            "overall_status"
+        ]
+
         return health_data
-        
+
     except Exception as e:
         logger.error("健康檢查失敗", error=str(e))
         return {
             "status": "unhealthy",
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
 
 # ===== 啟動配置 =====
 if __name__ == "__main__":
     import uvicorn
-    
+
     server_config = config.get_server_config()
-    
+
     logger.info("🚀 啟動世界級 LEO 衛星核心網系統...")
     logger.info("📡 架構: 極簡化管理器模式")
     logger.info(f"🌍 環境: {config.get('app.environment')}")
-    
+
     uvicorn.run(
         "main:app",
         host=server_config["host"],
         port=server_config["port"],
         reload=server_config["reload"] and not config.is_production(),
-        log_level=server_config["log_level"]
+        log_level=server_config["log_level"],
     )
