@@ -24,15 +24,15 @@ export const useRLMonitoring = () => {
     const handleRLMetricsUpdate = (event: CustomEvent) => {
       const { engine, metrics } = event.detail
       
-      // 只在有意義的里程碑時記錄
-      if ((metrics.episodes_completed > 0 && metrics.episodes_completed % 5 === 0) || 
-          (metrics.training_progress > 0 && metrics.training_progress % 10 === 0)) {
-        console.log(`收到RL監控數據更新 - ${engine}:`, {
-          episodes: metrics.episodes_completed,
-          progress: metrics.training_progress,
-          avgReward: metrics.average_reward?.toFixed(2)
-        })
-      }
+      // 只在有意義的里程碑時記錄 - 已根據用戶要求移除
+      // if ((metrics.episodes_completed > 0 && metrics.episodes_completed % 5 === 0) || 
+      //     (metrics.training_progress > 0 && metrics.training_progress % 10 === 0)) {
+      //   console.log(`收到RL監控數據更新 - ${engine}:`, {
+      //     episodes: metrics.episodes_completed,
+      //     progress: metrics.training_progress,
+      //     avgReward: metrics.average_reward?.toFixed(2)
+      //   })
+      // }
       
       if (engine === 'dqn') {
         setTrainingMetrics(prevMetrics => ({
