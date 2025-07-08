@@ -16,6 +16,8 @@ try:
     ECOSYSTEM_AVAILABLE = True
 except ImportError:
     ECOSYSTEM_AVAILABLE = False
+    # 定義類型別名避免運行時錯誤
+    AlgorithmEcosystemManager = None
 
 # 嘗試導入 RL 監控路由器的訓練會話數據
 try:
@@ -38,7 +40,7 @@ class AIDecisionStatusResponse(BaseModel):
     training_progress: float = Field(0.0, description="訓練進度")
     model_version: str = Field("2.0.0", description="模型版本")
 
-async def get_ecosystem_manager() -> AlgorithmEcosystemManager:
+async def get_ecosystem_manager() -> Any:
     """獲取生態系統管理器"""
     global ecosystem_manager
     
@@ -46,8 +48,11 @@ async def get_ecosystem_manager() -> AlgorithmEcosystemManager:
         raise HTTPException(status_code=503, detail="算法生態系統不可用")
     
     if ecosystem_manager is None:
-        ecosystem_manager = AlgorithmEcosystemManager()
-        await ecosystem_manager.initialize()
+        if AlgorithmEcosystemManager is not None:
+            ecosystem_manager = AlgorithmEcosystemManager()
+            await ecosystem_manager.initialize()
+        else:
+            raise HTTPException(status_code=503, detail="AlgorithmEcosystemManager 類型不可用")
     
     return ecosystem_manager
 
