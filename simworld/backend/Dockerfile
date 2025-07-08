@@ -43,8 +43,14 @@ RUN apt update && apt install -y --no-install-recommends \
 # 5. 複製依賴文件並安裝 Python 依賴
 # 先複製 requirements.txt 可以利用 Docker 的層緩存
 COPY requirements.txt .
+
+# 升級 pip 並配置超時設定
 RUN pip install --no-cache-dir --upgrade pip && \
-	pip install --no-cache-dir -r requirements.txt
+    pip config set global.timeout 600 && \
+    pip config set global.retries 5
+
+# 安裝 Python 依賴，使用更長的超時時間
+RUN pip install --no-cache-dir --default-timeout=600 -r requirements.txt
 
 # 6. 複製應用程式碼到工作目錄
 COPY . .
