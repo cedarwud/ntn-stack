@@ -229,11 +229,9 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
     const [state, dispatch] = useReducer(dataSyncReducer, initialState)
 
-    // 使用真實衛星數據 hook - 減少更新頻率
-    const {
-        satellites: realSatellites,
-        error: satellitesError,
-    } = useVisibleSatellites(5, 15, 60000) // 5度仰角，最多15顆，60秒更新
+    // 使用真實衛星數據 hook - 移除自動更新
+    const { satellites: realSatellites, error: satellitesError } =
+        useVisibleSatellites(5, 15) // 5度仰角，最多15顆
 
     // 強制同步方法
     const forceSync = useCallback(async () => {

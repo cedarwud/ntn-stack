@@ -151,8 +151,8 @@ class SimWorldApiClient {
     }
     const endpoint = '/v1/satellite-ops/visible_satellites'
     
-    console.log(`🛰️ SimWorldApi: 調用全球視野模式 ${endpoint}，參數:`, params)
-    console.log(`🌍 SimWorldApi: 請求全球範圍衛星，不限制地域觀測點`)
+    // console.log(`🛰️ SimWorldApi: 調用全球視野模式 ${endpoint}，參數:`, params)
+    // console.log(`🌍 SimWorldApi: 請求全球範圍衛星，不限制地域觀測點`)
     
     try {
       // 🚀 使用統一的 API 配置系統
@@ -184,23 +184,23 @@ class SimWorldApiClient {
         performance?: Record<string, unknown>;
       }
       
-      console.log(`🛰️ SimWorldApi: API 原始響應:`, data)
-      console.log(`🌍 SimWorldApi: 全球視野模式接收到 ${data.satellites?.length || 0} 顆衛星`)
+      // console.log(`🛰️ SimWorldApi: API 原始響應:`, data)
+      // console.log(`🌍 SimWorldApi: 全球視野模式接收到 ${data.satellites?.length || 0} 顆衛星`)
       
       // 詳細分析 API 響應
-      console.log(`🛰️ SimWorldApi: 響應分析:`, {
-        hasResponse: !!data,
-        responseKeys: data ? Object.keys(data) : [],
-        hasSatellites: !!data.satellites,
-        satellitesLength: data.satellites?.length,
-        satellitesType: typeof data.satellites,
-        isArray: Array.isArray(data.satellites),
-        status: data.status,
-        processed: data.processed,
-        visible: data.visible,
-        error: data.error,
-        message: data.message
-      })
+      // console.log(`🛰️ SimWorldApi: 響應分析:`, {
+      //   hasResponse: !!data,
+      //   responseKeys: data ? Object.keys(data) : [],
+      //   hasSatellites: !!data.satellites,
+      //   satellitesLength: data.satellites?.length,
+      //   satellitesType: typeof data.satellites,
+      //   isArray: Array.isArray(data.satellites),
+      //   status: data.status,
+      //   processed: data.processed,
+      //   visible: data.visible,
+      //   error: data.error,
+      //   message: data.message
+      // })
       
       // 🌍 只在衛星數量非常少時警告（0-1顆才異常）
       if (data.satellites && data.satellites.length < 2) {
@@ -290,7 +290,7 @@ class SimWorldApiClient {
         timestamp: new Date().toISOString()
       } as VisibleSatellitesResponse
       
-      console.log(`🛰️ SimWorldApi: 最終結果:`, result)
+      // console.log(`🛰️ SimWorldApi: 最終結果:`, result)
       return result
     } catch (error) {
       console.error(`🛰️ SimWorldApi: 獲取衛星數據時發生錯誤:`, error)
@@ -475,7 +475,6 @@ export const simWorldApi = new SimWorldApiClient()
 export const useVisibleSatellites = (
   minElevation: number = -10,     // 全球視野預設-10度
   maxSatellites: number = 100,    // 增加預設衛星數量
-  refreshInterval: number = 30000,
   observerLat: number = 0.0,      // 全球視野預設赤道位置
   observerLon: number = 0.0       // 全球視野預設本初子午線
 ) => {
@@ -499,10 +498,10 @@ export const useVisibleSatellites = (
     }
 
     fetchSatellites()
-    // 定期更新衛星位置
-    const interval = setInterval(fetchSatellites, refreshInterval)
-    return () => clearInterval(interval)
-  }, [minElevation, maxSatellites, refreshInterval, observerLat, observerLon])
+    // 定期更新衛星位置 - 已根據用戶要求移除
+    // const interval = setInterval(fetchSatellites, refreshInterval)
+    // return () => clearInterval(interval)
+  }, [minElevation, maxSatellites, observerLat, observerLon])
 
   return { satellites, loading, error, refetch: () => simWorldApi.getVisibleSatellites(minElevation, maxSatellites, observerLat, observerLon) }
 }
