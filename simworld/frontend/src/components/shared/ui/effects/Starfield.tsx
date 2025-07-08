@@ -39,37 +39,35 @@ const Starfield: React.FC<StarfieldProps> = ({
     const [starAnim, setStarAnim] = useState<Star[]>(() =>
         createStars(starCount)
     )
-    
+
     const frameRef = useRef(0)
     const mountedRef = useRef(true)
 
-    const updateStars = useCallback(() => {
-        if (!mountedRef.current) return
-        
-        frameRef.current++
-        setStarAnim((prev) =>
-            prev.map((star) => {
-                const t = frameRef.current / 30
-                const flicker = Math.sin(t * star.speed + star.phase) * 0.5
-                let opacity = star.baseOpacity + flicker
-                opacity = Math.max(0.15, Math.min(1, opacity))
-                return { ...star, animOpacity: opacity }
-            })
-        )
-    }, [])
-
     useEffect(() => {
         mountedRef.current = true
-        
+
+        const updateStars = () => {
+            frameRef.current++
+            setStarAnim((prev) =>
+                prev.map((star) => {
+                    const t = frameRef.current / 30
+                    const flicker = Math.sin(t * star.speed + star.phase) * 0.5
+                    let opacity = star.baseOpacity + flicker
+                    opacity = Math.max(0.15, Math.min(1, opacity))
+                    return { ...star, animOpacity: opacity }
+                })
+            )
+        }
+
         // 重新啟用動畫，降低更新頻率到 120ms
         const interval = setInterval(updateStars, 120)
-        
+
         return () => {
             mountedRef.current = false
             clearInterval(interval)
         }
-    }, [updateStars])
-    
+    }, [])
+
     // 處理 starCount 變化
     useEffect(() => {
         setStarAnim(createStars(starCount))

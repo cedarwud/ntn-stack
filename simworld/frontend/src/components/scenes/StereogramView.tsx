@@ -11,7 +11,12 @@ import PredictiveMaintenanceViewer from '../domains/analytics/performance/Predic
 import IntelligentRecommendationSystem from '../domains/analytics/ai/IntelligentRecommendationSystem'
 import CoreNetworkSyncViewer from '../domains/monitoring/realtime/CoreNetworkSyncViewer'
 import { HandoverStatusPanel } from '../domains/handover/execution/HandoverAnimation3D'
-import { FeatureState, HandoverState, SatelliteState, UIState } from '../../contexts/appStateHooks'
+import {
+    FeatureState,
+    HandoverState,
+    SatelliteState,
+    UIState,
+} from '../../contexts/appStateHooks'
 
 interface SceneViewProps {
     devices: Device[]
@@ -49,12 +54,16 @@ export default function SceneView({
 
     useEffect(() => {
         if (satelliteState.satelliteEnabled) {
-            fetch('/api/v1/satellite-ops/visible_satellites?count=24&min_elevation_deg=5')
-                .then(res => res.json())
-                .then(data => {
+            fetch(
+                '/api/v1/satellite-ops/visible_satellites?count=24&min_elevation_deg=5'
+            )
+                .then((res) => res.json())
+                .then((data) => {
                     setSatellites(data.satellites || [])
                 })
-                .catch(err => console.error('StereogramView: 衛星數據載入失敗:', err))
+                .catch((err) =>
+                    console.error('StereogramView: 衛星數據載入失敗:', err)
+                )
         } else {
             setSatellites([])
         }
@@ -106,28 +115,40 @@ export default function SceneView({
             <Starfield starCount={180} />
 
             {featureState.sinrHeatmapEnabled && <SINRLegend />}
-            
+
             {featureState.predictionAccuracyDashboardEnabled && (
-                <FullChartAnalysisDashboard isOpen={featureState.predictionAccuracyDashboardEnabled} onClose={() => {}} />
+                <FullChartAnalysisDashboard
+                    isOpen={featureState.predictionAccuracyDashboardEnabled}
+                    onClose={() => {}}
+                />
             )}
-            
+
             {featureState.coreNetworkSyncEnabled && (
-                <CoreNetworkSyncViewer enabled={featureState.coreNetworkSyncEnabled} devices={devices} />
+                <CoreNetworkSyncViewer
+                    enabled={featureState.coreNetworkSyncEnabled}
+                    devices={devices}
+                />
             )}
-            
+
             {featureState.predictiveMaintenanceEnabled && (
-                <PredictiveMaintenanceViewer devices={devices} enabled={featureState.predictiveMaintenanceEnabled} />
+                <PredictiveMaintenanceViewer
+                    devices={devices}
+                    enabled={featureState.predictiveMaintenanceEnabled}
+                />
             )}
-            
+
             {featureState.intelligentRecommendationEnabled && (
                 <IntelligentRecommendationSystem />
             )}
-            
-            <HandoverStatusPanel 
-                enabled={featureState.satelliteUavConnectionEnabled && handoverState.handover3DAnimationEnabled}
+
+            <HandoverStatusPanel
+                enabled={
+                    featureState.satelliteUavConnectionEnabled &&
+                    handoverState.handover3DAnimationEnabled
+                }
                 statusInfo={handoverStatusInfo}
             />
-            
+
             <Canvas
                 ref={canvasRef}
                 shadows
@@ -173,32 +194,70 @@ export default function SceneView({
                         uavAnimation={uiState.uavAnimation}
                         selectedReceiverIds={uiState.selectedReceiverIds}
                         sceneName={sceneName}
-                        interferenceVisualizationEnabled={featureState.interferenceVisualizationEnabled}
+                        interferenceVisualizationEnabled={
+                            featureState.interferenceVisualizationEnabled
+                        }
                         sinrHeatmapEnabled={featureState.sinrHeatmapEnabled}
-                        aiRanVisualizationEnabled={featureState.aiRanVisualizationEnabled}
-                        sionna3DVisualizationEnabled={featureState.sionna3DVisualizationEnabled}
-                        realTimeMetricsEnabled={featureState.realTimeMetricsEnabled}
-                        interferenceAnalyticsEnabled={featureState.interferenceAnalyticsEnabled}
-                        uavSwarmCoordinationEnabled={featureState.uavSwarmCoordinationEnabled}
-                        meshNetworkTopologyEnabled={featureState.meshNetworkTopologyEnabled}
-                        satelliteUavConnectionEnabled={featureState.satelliteUavConnectionEnabled}
-                        failoverMechanismEnabled={featureState.failoverMechanismEnabled}
-                        predictionPath3DEnabled={featureState.predictionPath3DEnabled}
-                        handover3DAnimationEnabled={handoverState.handover3DAnimationEnabled}
+                        aiRanVisualizationEnabled={
+                            featureState.aiRanVisualizationEnabled
+                        }
+                        sionna3DVisualizationEnabled={
+                            featureState.sionna3DVisualizationEnabled
+                        }
+                        realTimeMetricsEnabled={
+                            featureState.realTimeMetricsEnabled
+                        }
+                        interferenceAnalyticsEnabled={
+                            featureState.interferenceAnalyticsEnabled
+                        }
+                        uavSwarmCoordinationEnabled={
+                            featureState.uavSwarmCoordinationEnabled
+                        }
+                        meshNetworkTopologyEnabled={
+                            featureState.meshNetworkTopologyEnabled
+                        }
+                        satelliteUavConnectionEnabled={
+                            featureState.satelliteUavConnectionEnabled
+                        }
+                        failoverMechanismEnabled={
+                            featureState.failoverMechanismEnabled
+                        }
+                        predictionPath3DEnabled={
+                            featureState.predictionPath3DEnabled
+                        }
+                        handover3DAnimationEnabled={
+                            handoverState.handover3DAnimationEnabled
+                        }
                         handoverState={handoverState.handoverState}
                         currentConnection={handoverState.currentConnection}
                         predictedConnection={handoverState.predictedConnection}
                         isTransitioning={handoverState.isTransitioning}
                         transitionProgress={handoverState.transitionProgress}
                         onHandoverEvent={onHandoverEvent}
-                        testResultsVisualizationEnabled={featureState.testResultsVisualizationEnabled}
-                        performanceTrendAnalysisEnabled={featureState.performanceTrendAnalysisEnabled}
-                        automatedReportGenerationEnabled={featureState.automatedReportGenerationEnabled}
+                        testResultsVisualizationEnabled={
+                            featureState.testResultsVisualizationEnabled
+                        }
+                        performanceTrendAnalysisEnabled={
+                            featureState.performanceTrendAnalysisEnabled
+                        }
+                        automatedReportGenerationEnabled={
+                            featureState.automatedReportGenerationEnabled
+                        }
                         satellites={satellites}
                         satelliteEnabled={satelliteState.satelliteEnabled}
-                        satelliteSpeedMultiplier={satelliteState.satelliteSpeedMultiplier}
-                        handoverStableDuration={handoverState.handoverStableDuration}
+                        satelliteSpeedMultiplier={
+                            handoverState.handoverStableDuration
+                        }
+                        handoverStableDuration={
+                            handoverState.handoverStableDuration
+                        }
                         handoverMode={handoverState.handoverMode}
+                        satelliteMovementSpeed={
+                            handoverState.satelliteMovementSpeed
+                        }
+                        handoverTimingSpeed={
+                            handoverState.handoverTimingSpeed
+                        }
                         algorithmResults={handoverState.algorithmResults}
                         onHandoverStatusUpdate={handleHandoverStatusUpdate}
                     />

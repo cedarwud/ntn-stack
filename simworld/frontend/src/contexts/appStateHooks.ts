@@ -52,7 +52,9 @@ export const useHandoverState = () => {
     setCurrentConnection,
     setPredictedConnection,
     setIsTransitioning,
-    setTransitionProgress 
+    setTransitionProgress,
+    setSatelliteMovementSpeed,
+    setHandoverTimingSpeed
   } = useAppState()
   
   // 直接返回對象，讓 React 處理優化
@@ -65,7 +67,9 @@ export const useHandoverState = () => {
     setCurrentConnection,
     setPredictedConnection,
     setIsTransitioning,
-    setTransitionProgress
+    setTransitionProgress,
+    setSatelliteMovementSpeed,
+    setHandoverTimingSpeed
   }
 }
 
