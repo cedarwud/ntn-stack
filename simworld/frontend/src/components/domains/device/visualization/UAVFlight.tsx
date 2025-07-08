@@ -278,8 +278,12 @@ export default function UAVFlight({
         return current.distanceTo(target) < threshold
     }
 
-    const generateBezierPathCallback = useCallback(generateBezierPath, [flightMode])
-    const generateNewTargetCallback = useCallback(generateNewTarget, [flightMode])
+    const generateBezierPathCallback = useCallback(generateBezierPath, [
+        flightMode,
+    ])
+    const generateNewTargetCallback = useCallback(generateNewTarget, [
+        flightMode,
+    ])
 
     const generatePath = useCallback(() => {
         const start = currentPosition

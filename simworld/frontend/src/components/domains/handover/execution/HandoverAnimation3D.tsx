@@ -20,6 +20,7 @@ interface HandoverAnimation3DProps {
     satellitePositions?: Map<string, [number, number, number]>
     stableDuration?: number // 穩定期時間（秒）
     handoverMode?: 'demo' | 'real' // 換手模式：演示模式 vs 真實模式
+    speedMultiplier?: number // 換手時機速度倍數
     onStatusUpdate?: (statusInfo: {
         currentSatellite?: string
         targetSatellite?: string
@@ -365,6 +366,7 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
     satellitePositions,
     stableDuration = 5, // 預設5秒穩定期
     handoverMode = 'demo', // 預設演示模式
+    speedMultiplier = 1, // 預設1倍換手時機速度
     onStatusUpdate,
     onHandoverStateUpdate,
     useRealConnections = false, // 預設不使用真實連接數據
@@ -739,24 +741,24 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         ]
     }
 
-    // ⏰ 階段時間配置 - 根據模式調整
+    // ⏰ 階段時間配置 - 根據模式和速度倍數調整
     const PHASE_DURATIONS =
         handoverMode === 'demo'
             ? {
-                  // 演示模式：20秒完美週期，適合展示
-                  stable: stableDuration * 1000, // 可調整穩定期（毫秒）
-                  preparing: 5000, // 準備期（倒數5秒）
-                  establishing: 3000, // 建立期（3秒）
-                  switching: 2000, // 換手期（2秒）
-                  completing: 5000, // 完成期（5秒）
+                  // 演示模式：根據速度倍數調整週期，適合展示
+                  stable: (stableDuration * 1000) / speedMultiplier, // 可調整穩定期（毫秒）
+                  preparing: 5000 / speedMultiplier, // 準備期（倒數5秒）
+                  establishing: 3000 / speedMultiplier, // 建立期（3秒）
+                  switching: 2000 / speedMultiplier, // 換手期（2秒）
+                  completing: 5000 / speedMultiplier, // 完成期（5秒）
               }
             : {
-                  // 真實模式：快速換手，符合5G標準
-                  stable: stableDuration * 1000, // 可調整穩定期（更長，30秒-5分鐘）
-                  preparing: 500, // 準備期（0.5秒）
-                  establishing: 300, // 建立期（0.3秒）
-                  switching: 200, // 換手期（0.2秒）
-                  completing: 1000, // 完成期（1秒）
+                  // 真實模式：快速換手，根據速度倍數調整
+                  stable: (stableDuration * 1000) / speedMultiplier, // 可調整穩定期
+                  preparing: 500 / speedMultiplier, // 準備期（0.5秒）
+                  establishing: 300 / speedMultiplier, // 建立期（0.3秒）
+                  switching: 200 / speedMultiplier, // 換手期（0.2秒）
+                  completing: 1000 / speedMultiplier, // 完成期（1秒）
               }
 
     // 🔄 換手邏輯核心
@@ -983,11 +985,12 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
                 }))
             }
         }
+    // selectNearestSatellite intentionally omitted to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         enabled,
         satellitePositions,
         handoverState.currentSatelliteId,
-        selectNearestSatellite,
     ])
 
     // 🔄 動態更新換手歷史冷卻期

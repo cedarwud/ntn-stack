@@ -32,19 +32,19 @@ import DynamicSatelliteRenderer from '../domains/satellite/visualization/Dynamic
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
 
 interface Device {
-    id: string | number | null;
-    role?: string;
-    position_x?: number;
-    position_y?: number;
-    position_z?: number;
-    [key: string]: unknown;
+    id: string | number | null
+    role?: string
+    position_x?: number
+    position_y?: number
+    position_z?: number
+    [key: string]: unknown
 }
 
 interface Satellite {
-    id?: string;
-    norad_id?: string;
-    name?: string;
-    [key: string]: unknown;
+    id?: string
+    norad_id?: string
+    name?: string
+    [key: string]: unknown
 }
 
 export interface MainSceneProps {
@@ -91,6 +91,9 @@ export interface MainSceneProps {
     satelliteSpeedMultiplier?: number
     handoverStableDuration?: number
     handoverMode?: 'demo' | 'real' // 換手模式控制
+    // 分離的速度控制
+    satelliteMovementSpeed?: number
+    handoverTimingSpeed?: number
     // 🚀 演算法結果 - 用於對接視覺化
     algorithmResults?: {
         currentSatelliteId?: string
@@ -140,6 +143,9 @@ const MainScene: React.FC<MainSceneProps> = ({
     satelliteSpeedMultiplier, // 動態設定，不使用固定預設值
     handoverStableDuration = 5,
     handoverMode = 'real',
+    // 分離的速度控制
+    satelliteMovementSpeed,
+    handoverTimingSpeed,
     algorithmResults,
     onHandoverStatusUpdate,
 }) => {
@@ -149,10 +155,15 @@ const MainScene: React.FC<MainSceneProps> = ({
     void transitionProgress
     void onHandoverEvent
 
-    // 動態計算衛星速度倍數：根據模式和參數決定
-    const actualSatelliteSpeedMultiplier = satelliteSpeedMultiplier ?? 
-        (handoverMode === 'demo' 
-            ? SATELLITE_CONFIG.HANDOVER_DEMO_MULTIPLIER 
+    // 動態計算衛星速度倍數：分離衛星移動和換手演示速度
+    const actualSatelliteMovementSpeed =
+        satelliteMovementSpeed ??
+        SATELLITE_CONFIG.SATELLITE_MOVEMENT_SPEED
+    
+    const actualHandoverTimingSpeed =
+        handoverTimingSpeed ??
+        (handoverMode === 'demo'
+            ? SATELLITE_CONFIG.HANDOVER_TIMING_SPEED
             : SATELLITE_CONFIG.REAL_TIME_MULTIPLIER)
 
     // 根據場景名稱動態生成 URL
@@ -419,12 +430,11 @@ const MainScene: React.FC<MainSceneProps> = ({
             {/* 🚀 新的換手連接線動畫系統 - 根據 handover.md 設計 */}
             <HandoverAnimation3D
                 devices={devices}
-                enabled={
-                    satelliteUavConnectionEnabled && handover3DAnimationEnabled
-                }
+                enabled={satelliteUavConnectionEnabled}
                 satellitePositions={satellitePositions}
                 stableDuration={handoverStableDuration}
                 handoverMode={handoverMode}
+                speedMultiplier={actualHandoverTimingSpeed}
                 onStatusUpdate={onHandoverStatusUpdate}
                 onHandoverStateUpdate={handleHandoverStateUpdate}
             />
@@ -450,7 +460,7 @@ const MainScene: React.FC<MainSceneProps> = ({
                 currentConnection={currentConnection}
                 predictedConnection={predictedConnection}
                 showLabels={true}
-                speedMultiplier={actualSatelliteSpeedMultiplier}
+                speedMultiplier={actualSatelliteMovementSpeed}
                 algorithmResults={algorithmResults}
                 handoverState={internalHandoverState}
                 onSatelliteClick={(satelliteId) => {

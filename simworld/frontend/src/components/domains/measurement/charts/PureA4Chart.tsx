@@ -6,10 +6,7 @@
  */
 
 import React, { useEffect, useRef, useMemo } from 'react'
-import { Chart, ChartDataset, CartesianScaleOptions } from 'chart.js/auto'
-
-// Define a specific type for our line chart dataset
-type LineChartDataset = ChartDataset<'line', { x: number; y: number }[]>
+import { Chart } from 'chart.js/auto'
 
 // 完全對照 chart.html 的數據點
 const dataPoints = [
@@ -180,7 +177,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
             console.log('🎯 [PureA4Chart] 初始化圖表')
 
             // 準備基礎數據集 - 不包含動畫相關的數據
-            const datasets: LineChartDataset[] = [
+            const datasets = [
                 {
                     label: 'Neighbor Cell RSRP',
                     data: dataPoints,
@@ -364,7 +361,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 if (chart.data.datasets[expectedCursorIndex]) {
                     const dataset = chart.data.datasets[
                         expectedCursorIndex
-                    ] as LineChartDataset
+                    ] as any
                     dataset.data = cursorData
                     dataset.label = `Current Time: ${currentTime.toFixed(1)}s`
                 } else {
@@ -379,14 +376,14 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                         pointHoverRadius: 0,
                         tension: 0,
                         borderDash: [5, 5],
-                    } as LineChartDataset)
+                    } as any)
                 }
 
                 // 更新或添加節點數據集
                 if (chart.data.datasets[expectedNodeIndex]) {
                     const dataset = chart.data.datasets[
                         expectedNodeIndex
-                    ] as LineChartDataset
+                    ] as any
                     dataset.data = signalNode
                     dataset.label = `${nodeLabel} (RSRP: ${currentRSRP.toFixed(
                         1
@@ -410,7 +407,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                         pointStyle: 'circle',
                         showLine: false,
                         tension: 0,
-                    } as LineChartDataset)
+                    } as any)
                 }
             } else {
                 // 移除動畫相關的數據集
@@ -470,7 +467,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as LineChartDataset,
+                        } as any,
                         {
                             label: 'Threshold + Hys',
                             data: upperThresholdData,
@@ -481,7 +478,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as LineChartDataset,
+                        } as any,
                         {
                             label: 'Threshold - Hys',
                             data: lowerThresholdData,
@@ -492,23 +489,20 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                             fill: false,
                             tension: 0,
                             pointRadius: 0,
-                        } as LineChartDataset
+                        } as any
                     )
                 } else {
                     // 更新現有閾值線數據
                     if (chart.data.datasets[1]) {
-                        const dataset = chart.data
-                            .datasets[1] as LineChartDataset
+                        const dataset = chart.data.datasets[1] as any
                         dataset.data = thresholdData
                     }
                     if (chart.data.datasets[2]) {
-                        const dataset = chart.data
-                            .datasets[2] as LineChartDataset
+                        const dataset = chart.data.datasets[2] as any
                         dataset.data = upperThresholdData
                     }
                     if (chart.data.datasets[3]) {
-                        const dataset = chart.data
-                            .datasets[3] as LineChartDataset
+                        const dataset = chart.data.datasets[3] as any
                         dataset.data = lowerThresholdData
                     }
                 }
@@ -520,21 +514,21 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
             }
 
             // 更新顏色主題
-            const mainDataset = chart.data.datasets[0] as LineChartDataset
+            const mainDataset = chart.data.datasets[0] as any
             if (mainDataset) {
                 mainDataset.borderColor = currentTheme.rsrpLine
             }
 
             if (chart.data.datasets[1]) {
-                const dataset = chart.data.datasets[1] as LineChartDataset
+                const dataset = chart.data.datasets[1] as any
                 dataset.borderColor = currentTheme.thresholdLine
             }
             if (chart.data.datasets[2]) {
-                const dataset = chart.data.datasets[2] as LineChartDataset
+                const dataset = chart.data.datasets[2] as any
                 dataset.borderColor = currentTheme.hysteresisLine
             }
             if (chart.data.datasets[3]) {
-                const dataset = chart.data.datasets[3] as LineChartDataset
+                const dataset = chart.data.datasets[3] as any
                 dataset.borderColor = currentTheme.hysteresisLine
             }
 
@@ -547,7 +541,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
             ) {
                 const cursorDataset = chart.data.datasets[
                     expectedCursorIndex
-                ] as LineChartDataset
+                ] as any
                 cursorDataset.borderColor = currentTheme.currentTimeLine
             }
 
@@ -556,10 +550,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                 if (chart.options?.plugins?.title) {
                     chart.options.plugins.title.color = currentTheme.title
                 }
-                if (
-                    chart.options.plugins?.legend?.labels &&
-                    currentTheme.text
-                ) {
+                if (chart.options?.plugins?.legend?.labels) {
                     chart.options.plugins.legend.labels.color =
                         currentTheme.text
                 }
@@ -572,7 +563,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     chart.options.scales = {}
                 }
 
-                const xScale = chart.options.scales.x as CartesianScaleOptions
+                const xScale = chart.options.scales.x as any
                 if (xScale?.title) {
                     xScale.title.color = currentTheme.text
                 }
@@ -583,7 +574,7 @@ export const PureA4Chart: React.FC<PureA4ChartProps> = React.memo(
                     xScale.grid.color = currentTheme.grid
                 }
 
-                const yScale = chart.options.scales.y as CartesianScaleOptions
+                const yScale = chart.options.scales.y as any
                 if (yScale?.title) {
                     yScale.title.color = currentTheme.text
                 }

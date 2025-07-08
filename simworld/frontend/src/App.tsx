@@ -40,6 +40,14 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
         tempDevices,
         updateDevicePositionFromUAV,
         fetchDevices: refreshDeviceData,
+        loading,
+        apiStatus,
+        updateDeviceField,
+        deleteDeviceById,
+        addNewDevice,
+        applyDeviceChanges,
+        cancelDeviceChanges,
+        hasTempDevices,
     } = useDeviceContext()
 
     // Toast通知系統
@@ -137,10 +145,120 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
                 </ErrorBoundary>
                 <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
                     <Layout
+                        activeComponent={uiState.activeComponent}
                         sidebar={
                             <ErrorBoundary fallback={<div>側邊欄發生錯誤</div>}>
                                 <EnhancedSidebar
+                                    devices={tempDevices}
+                                    loading={loading}
+                                    apiStatus={apiStatus}
+                                    onDeviceChange={updateDeviceField}
+                                    onDeleteDevice={deleteDeviceById}
+                                    onAddDevice={addNewDevice}
+                                    onApply={applyDeviceChanges}
+                                    onCancel={cancelDeviceChanges}
+                                    hasTempDevices={hasTempDevices}
+                                    auto={uiState.auto}
+                                    onAutoChange={uiState.setAuto}
+                                    onManualControl={uiState.setManualDirection}
                                     activeComponent={uiState.activeComponent}
+                                    uavAnimation={uiState.uavAnimation}
+                                    onUavAnimationChange={
+                                        uiState.setUavAnimation
+                                    }
+                                    onSelectedReceiversChange={
+                                        uiState.setSelectedReceiverIds
+                                    }
+                                    onSatelliteDataUpdate={
+                                        satelliteState.setSkyfieldSatellites
+                                    }
+                                    satelliteEnabled={
+                                        satelliteState.satelliteEnabled
+                                    }
+                                    onSatelliteEnabledChange={
+                                        satelliteState.setSatelliteEnabled
+                                    }
+                                    interferenceVisualizationEnabled={
+                                        featureState.interferenceVisualizationEnabled
+                                    }
+                                    onInterferenceVisualizationChange={(
+                                        enabled
+                                    ) =>
+                                        featureState.updateFeatureState({
+                                            interferenceVisualizationEnabled:
+                                                enabled,
+                                        })
+                                    }
+                                    sinrHeatmapEnabled={
+                                        featureState.sinrHeatmapEnabled
+                                    }
+                                    onSinrHeatmapChange={(enabled) =>
+                                        featureState.updateFeatureState({
+                                            sinrHeatmapEnabled: enabled,
+                                        })
+                                    }
+                                    manualControlEnabled={
+                                        featureState.manualControlEnabled
+                                    }
+                                    onManualControlEnabledChange={(enabled) =>
+                                        featureState.updateFeatureState({
+                                            manualControlEnabled: enabled,
+                                        })
+                                    }
+                                    satelliteUavConnectionEnabled={
+                                        featureState.satelliteUavConnectionEnabled
+                                    }
+                                    onSatelliteUavConnectionChange={(enabled) =>
+                                        featureState.updateFeatureState({
+                                            satelliteUavConnectionEnabled:
+                                                enabled,
+                                        })
+                                    }
+                                    handoverMode={handoverState.handoverMode}
+                                    onHandoverModeChange={
+                                        handoverState.setHandoverMode
+                                    }
+                                    satelliteSpeedMultiplier={
+                                        handoverState.handoverStableDuration
+                                    }
+                                    onSatelliteSpeedChange={
+                                        handoverState.setHandoverStableDuration
+                                    }
+                                    onHandoverStateChange={
+                                        handoverState.setHandoverState
+                                    }
+                                    onCurrentConnectionChange={
+                                        handoverState.setCurrentConnection
+                                    }
+                                    onPredictedConnectionChange={
+                                        handoverState.setPredictedConnection
+                                    }
+                                    onTransitionChange={(
+                                        isTransitioning,
+                                        progress
+                                    ) => {
+                                        handoverState.setIsTransitioning(
+                                            isTransitioning
+                                        )
+                                        handoverState.setTransitionProgress(
+                                            progress
+                                        )
+                                    }}
+                                    onAlgorithmResults={
+                                        handoverState.setAlgorithmResults
+                                    }
+                                    satelliteMovementSpeed={
+                                        handoverState.satelliteMovementSpeed
+                                    }
+                                    onSatelliteMovementSpeedChange={
+                                        handoverState.setSatelliteMovementSpeed
+                                    }
+                                    handoverTimingSpeed={
+                                        handoverState.handoverTimingSpeed
+                                    }
+                                    onHandoverTimingSpeedChange={
+                                        handoverState.setHandoverTimingSpeed
+                                    }
                                 />
                             </ErrorBoundary>
                         }
@@ -154,7 +272,7 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
     )
 }
 
-const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
+const App: React.FC<AppProps> = ({ activeView: _activeView = 'stereogram' }) => {
     const { sceneName } = useParams<{ sceneName: string }>()
     const currentScene = sceneName || 'default_scene'
 
