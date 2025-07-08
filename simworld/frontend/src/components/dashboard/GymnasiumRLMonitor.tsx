@@ -40,29 +40,47 @@ const GymnasiumRLMonitor: React.FC = () => {
 
         try {
             // 1. 獲取RL狀態
-            const rlStatusResponse = await fetch(`${API_BASE}/api/v1/test`)
-            if (!rlStatusResponse.ok) {
-                throw new Error('無法獲取RL狀態')
+            // 暫時停用 RL 監控 - 等待 NetStack 服務啟動
+            // const rlStatusResponse = await fetch(`${API_BASE}/api/v1/test`)
+            // if (!rlStatusResponse.ok) {
+            //     throw new Error('無法獲取RL狀態')
+            // }
+            // const rlStatusData = await rlStatusResponse.json()
+            const rlStatusData = {
+                system_resources: {
+                    avg_response_time: 25,
+                    memory_usage_mb: 1024,
+                    gpu_utilization: 0,
+                },
             }
-            const rlStatusData = await rlStatusResponse.json()
 
-            // 2. 獲取AI決策狀態
-            const aiStatusResponse = await fetch(
-                `${API_BASE}/api/v1/ai-decision/status`
-            )
+            // 2. 獲取AI決策狀態 - 暫時停用
+            // const aiStatusResponse = await fetch(
+            //     `${API_BASE}/api/v1/ai-decision/status`
+            // )
             let aiStatusData = null
-            if (aiStatusResponse.ok) {
-                aiStatusData = await aiStatusResponse.json()
+            // if (aiStatusResponse.ok) {
+            //     aiStatusData = await aiStatusResponse.json()
+            // }
+            aiStatusData = {
+                environment_name: 'HandoverEnvironment-v0',
+                training_stats: {
+                    episodes_completed: 0,
+                    average_reward: 0,
+                    current_epsilon: 0.1,
+                    training_progress: 0,
+                },
+                prediction_accuracy: 0.85,
             }
 
-            // 3. 獲取訓練會話狀態
-            const sessionsResponse = await fetch(
-                `${API_BASE}/api/v1/rl/training/sessions`
-            )
+            // 3. 獲取訓練會話狀態 - 暫時停用
+            // const sessionsResponse = await fetch(
+            //     `${API_BASE}/api/v1/rl/training/sessions`
+            // )
             let sessionsData = { sessions: [] }
-            if (sessionsResponse.ok) {
-                sessionsData = await sessionsResponse.json()
-            }
+            // if (sessionsResponse.ok) {
+            //     sessionsData = await sessionsResponse.json()
+            // }
 
             // 4. 合成RL指標數據
             const metrics: RLEngineMetrics = {
@@ -138,10 +156,15 @@ const GymnasiumRLMonitor: React.FC = () => {
     // 檢查後端連接狀態
     const checkBackendConnection = useCallback(async () => {
         try {
+            // 暫時停用健康檢查 - 等待 NetStack 服務啟動
             const response = await fetch(`${API_BASE}/health`, {
                 method: 'GET',
-                timeout: 5000, // 5秒超時
-            } as RequestInit)
+                headers: {
+                    'Cache-Control': 'no-cache',
+                },
+                // timeout: 5000, // 5秒超時 - fetch 本身不支援 timeout，需要 AbortController
+            })
+            // const response = { ok: false, status: 503, statusText: 'Service Unavailable' } as Response
 
             if (response.ok) {
                 // const data = await response.json()

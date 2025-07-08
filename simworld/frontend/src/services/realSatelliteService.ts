@@ -232,7 +232,7 @@ export class RealSatelliteDataManager {
         this.globalView = globalView
         // 立即更新一次數據
         this.updateData().then(() => {
-            console.log('🚀 初始衛星數據已載入')
+            // console.log('🚀 初始衛星數據已載入')
         })
         this.startPeriodicUpdate()
     }
@@ -249,19 +249,17 @@ export class RealSatelliteDataManager {
         
         if (newData) {
             this.data = newData
-            this.mapping = mapRealSatellitesToSimulated(
-                newData.results.satellites,
-                this.globalView ? 30 : 18  // 全球視野映射更多衛星
-            )
+            this.mapping = mapRealSatellitesToSimulated(newData.results.satellites)
             this.lastUpdateTime = Date.now()
-            
-            // 只有當衛星數量或全球視野狀態發生變化時才記錄日誌
-            const satelliteCountChanged = this.lastLoggedSatelliteCount !== newData.results.total_visible
-            const globalViewChanged = this.lastLoggedGlobalView !== this.globalView
-            
-            if (satelliteCountChanged || globalViewChanged) {
-                // console.log(`🔄 衛星數據更新完成: ${newData.results.total_visible} 顆衛星 (全球視野: ${this.globalView})`) // 減少重複日誌
-                this.lastLoggedSatelliteCount = newData.results.total_visible
+
+            // 減少日誌：只在衛星數量或模式變化時記錄
+            const currentCount = newData.results.total_visible
+            if (
+                currentCount !== this.lastLoggedSatelliteCount || 
+                this.globalView !== this.lastLoggedGlobalView
+            ) {
+                // console.log(`🛰️ 真實衛星數據更新: ${currentCount} 顆可見衛星 (全球視野: ${this.globalView})`)
+                this.lastLoggedSatelliteCount = currentCount
                 this.lastLoggedGlobalView = this.globalView
             }
             
