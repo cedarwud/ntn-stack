@@ -30,9 +30,9 @@ class RouterManager:
         """註冊核心路由器"""
         logger.info("🚀 開始註冊核心路由器...")
         try:
-            from netstack.netstack_api.app.api.health import router as health_router
-            from netstack.netstack_api.app.api.v1.ue import router as ue_router
-            from netstack.netstack_api.app.api.v1.handover import (
+            from ..api.health import router as health_router
+            from ..api.v1.ue import router as ue_router
+            from ..api.v1.handover import (
                 router as handover_router,
             )
 
@@ -48,16 +48,16 @@ class RouterManager:
             raise
 
         try:
-            from netstack.netstack_api.routers.core_sync_router import (
+            from ...routers.core_sync_router import (
                 router as core_sync_router,
             )
-            from netstack.netstack_api.routers.intelligent_fallback_router import (
+            from ...routers.intelligent_fallback_router import (
                 router as intelligent_fallback_router,
             )
-            from netstack.netstack_api.routers.rl_monitoring_router import (
+            from ...routers.rl_monitoring_router import (
                 router as rl_monitoring_router,
             )
-            from netstack.netstack_api.routers.test_router import router as test_router
+            from ...routers.test_router import router as test_router
 
             self.app.include_router(core_sync_router, tags=["核心同步機制"])
             self._track_router("core_sync_router", "核心同步機制", True)
@@ -79,7 +79,7 @@ class RouterManager:
 
         # --- 放棄動態載入，改用靜態導入 ---
         try:
-            from netstack.netstack_api.routers.orchestrator_router import (
+            from ...routers.orchestrator_router import (
                 router as orchestrator_router,
             )
 
@@ -108,11 +108,11 @@ class RouterManager:
             #     "tag": "AI Decision Orchestrator (V2)",
             # },
             {
-                "import_path": "netstack.netstack_api.routers.ai_decision_status_router",
+                "import_path": "netstack_api.routers.ai_decision_status_router",
                 "tag": "AI 決策狀態",
             },
             {
-                "import_path": "netstack.netstack_api.routers.performance_router",
+                "import_path": "netstack_api.routers.performance_router",
                 "tag": "性能監控",
             },
         ]
