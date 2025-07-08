@@ -40,7 +40,7 @@ const GymnasiumRLMonitor: React.FC = () => {
 
         try {
             // 1. 獲取RL狀態
-            const rlStatusResponse = await fetch(`${API_BASE}/api/v1/rl/status`)
+            const rlStatusResponse = await fetch(`${API_BASE}/api/v1/test`)
             if (!rlStatusResponse.ok) {
                 throw new Error('無法獲取RL狀態')
             }
@@ -828,7 +828,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                                         (isSacTraining ? 1 : 0)
                                     return count > 0
                                         ? (
-                                              ((dqnAcc + ppoAcc + sacAcc) / count) *
+                                              ((dqnAcc + ppoAcc + sacAcc) /
+                                                  count) *
                                               100
                                           ).toFixed(1)
                                         : '0.0'
@@ -860,9 +861,10 @@ const GymnasiumRLMonitor: React.FC = () => {
                                         (isPpoTraining ? 1 : 0) +
                                         (isSacTraining ? 1 : 0)
                                     return count > 0
-                                        ? ((dqnResp + ppoResp + sacResp) / count).toFixed(
-                                              1
-                                          )
+                                        ? (
+                                              (dqnResp + ppoResp + sacResp) /
+                                              count
+                                          ).toFixed(1)
                                         : '0.0'
                                 })()}
                                 ms
@@ -927,25 +929,31 @@ const GymnasiumRLMonitor: React.FC = () => {
                             <span className="metric-label">訓練狀態:</span>
                             <span className="metric-value">
                                 {(() => {
-                                    const activeEngines = [];
-                                    if (isDqnTraining) activeEngines.push('DQN');
-                                    if (isPpoTraining) activeEngines.push('PPO');
-                                    if (isSacTraining) activeEngines.push('SAC');
-                                    
-                                    if (activeEngines.length === 0) return '⚪ 待機';
+                                    const activeEngines = []
+                                    if (isDqnTraining) activeEngines.push('DQN')
+                                    if (isPpoTraining) activeEngines.push('PPO')
+                                    if (isSacTraining) activeEngines.push('SAC')
+
+                                    if (activeEngines.length === 0)
+                                        return '⚪ 待機'
                                     if (activeEngines.length === 1) {
-                                        const engine = activeEngines[0];
-                                        if (engine === 'DQN') return '🟢 DQN 訓練中';
-                                        if (engine === 'PPO') return '🔵 PPO 訓練中';
-                                        if (engine === 'SAC') return '🟡 SAC 訓練中';
+                                        const engine = activeEngines[0]
+                                        if (engine === 'DQN')
+                                            return '🟢 DQN 訓練中'
+                                        if (engine === 'PPO')
+                                            return '🔵 PPO 訓練中'
+                                        if (engine === 'SAC')
+                                            return '🟡 SAC 訓練中'
                                     }
                                     if (activeEngines.length === 2) {
-                                        return `🔴 雙引擎訓練中 (${activeEngines.join(' + ')})`;
+                                        return `🔴 雙引擎訓練中 (${activeEngines.join(
+                                            ' + '
+                                        )})`
                                     }
                                     if (activeEngines.length === 3) {
-                                        return '🔥 三引擎並行訓練中';
+                                        return '🔥 三引擎並行訓練中'
                                     }
-                                    return `🔴 ${activeEngines.length}引擎訓練中`;
+                                    return `🔴 ${activeEngines.length}引擎訓練中`
                                 })()}
                             </span>
                         </div>
