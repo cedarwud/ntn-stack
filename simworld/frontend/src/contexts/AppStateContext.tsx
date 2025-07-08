@@ -12,6 +12,7 @@ import React, {
     ReactNode,
 } from 'react'
 import { VisibleSatelliteInfo } from '../types/satellite'
+import { SATELLITE_CONFIG } from '../config/satellite.config'
 
 // ==================== 狀態類型定義 ====================
 
@@ -43,6 +44,8 @@ interface HandoverState {
     predictedConnection: unknown
     isTransitioning: boolean
     transitionProgress: number
+    satelliteMovementSpeed: number
+    handoverTimingSpeed: number
 }
 
 interface FeatureState {
@@ -113,6 +116,8 @@ export interface AppStateContextType {
     setPredictedConnection: (connection: unknown) => void
     setIsTransitioning: (transitioning: boolean) => void
     setTransitionProgress: (progress: number) => void
+    setSatelliteMovementSpeed: (speed: number) => void
+    setHandoverTimingSpeed: (speed: number) => void
 
     // 功能開關更新函數
     updateFeatureState: (updates: Partial<FeatureState>) => void
@@ -161,6 +166,8 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
         predictedConnection: null,
         isTransitioning: false,
         transitionProgress: 0,
+        satelliteMovementSpeed: SATELLITE_CONFIG.SATELLITE_MOVEMENT_SPEED,
+        handoverTimingSpeed: SATELLITE_CONFIG.HANDOVER_TIMING_SPEED,
     })
 
     // 功能狀態
@@ -286,6 +293,14 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
         setHandoverState((prev) => ({ ...prev, transitionProgress: progress }))
     }, [])
 
+    const setSatelliteMovementSpeed = useCallback((speed: number) => {
+        setHandoverState((prev) => ({ ...prev, satelliteMovementSpeed: speed }))
+    }, [])
+
+    const setHandoverTimingSpeed = useCallback((speed: number) => {
+        setHandoverState((prev) => ({ ...prev, handoverTimingSpeed: speed }))
+    }, [])
+
     // 功能狀態批量更新
     const updateFeatureState = useCallback((updates: Partial<FeatureState>) => {
         setFeatureState((prev) => ({ ...prev, ...updates }))
@@ -322,6 +337,8 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
             setPredictedConnection,
             setIsTransitioning,
             setTransitionProgress,
+            setSatelliteMovementSpeed,
+            setHandoverTimingSpeed,
 
             // 功能開關更新函數
             updateFeatureState,
@@ -346,6 +363,8 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
             setPredictedConnection,
             setIsTransitioning,
             setTransitionProgress,
+            setSatelliteMovementSpeed,
+            setHandoverTimingSpeed,
             updateFeatureState,
         ]
     )

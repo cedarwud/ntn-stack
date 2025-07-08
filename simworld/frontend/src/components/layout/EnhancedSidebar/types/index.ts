@@ -66,6 +66,21 @@ export interface EnhancedSidebarProps {
   _coreNetworkSyncEnabled?: boolean
   _onCoreNetworkSyncChange?: (enabled: boolean) => void
 
+  // 換手控制參數
+  handoverMode?: 'demo' | 'real'
+  onHandoverModeChange?: (mode: 'demo' | 'real') => void
+  satelliteSpeedMultiplier?: number
+  onSatelliteSpeedChange?: (speed: number) => void
+  onHandoverStateChange?: (state: unknown) => void
+  onCurrentConnectionChange?: (connection: unknown) => void
+  onPredictedConnectionChange?: (connection: unknown) => void
+  onTransitionChange?: (isTransitioning: boolean, progress: number) => void
+  onAlgorithmResults?: (results: unknown) => void
+  satelliteMovementSpeed?: number
+  onSatelliteMovementSpeedChange?: (speed: number) => void
+  handoverTimingSpeed?: number
+  onHandoverTimingSpeedChange?: (speed: number) => void
+
   // Stage 3 功能開關
   _realtimePerformanceMonitorEnabled?: boolean
   _onRealtimePerformanceMonitorChange?: (enabled: boolean) => void
