@@ -33,9 +33,7 @@ class A4EventHandler(EventHandler):
             event_data=event_data,
             timestamp=event_data.get("timestamp", time.time()),
             confidence=0.85,
-            trigger_conditions={
-                "description": "Neighbour cell becomes better than threshold"
-            },
+            trigger_conditions={"description": "Neighbour cell becomes better than threshold"},
             ue_id=event_data.get("ue_id", "unknown_ue"),
             source_cell=event_data.get("source_cell", "unknown_source"),
             target_cells=event_data.get("target_cells", []),
