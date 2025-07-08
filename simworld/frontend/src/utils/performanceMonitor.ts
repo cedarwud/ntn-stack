@@ -132,7 +132,7 @@ class PerformanceMonitor {
         }
 
         // 每 60 秒檢查一次記憶體（降低頻率）
-        this.memoryCheckInterval = window.setInterval(checkMemory, 60000)
+        // this.memoryCheckInterval = window.setInterval(checkMemory, 60000)
     }
 
     private handleError = (event: ErrorEvent): void => {
@@ -255,23 +255,24 @@ class PerformanceMonitor {
         }
     }
 
-    // 新增：手動報告性能總結
+    // 定期報告性能摘要（降低頻率）
     reportPerformanceSummary(): void {
-        const metrics = this.getPerformanceMetrics()
-        if (metrics) {
-            console.group('📊 性能監控總結')
-            console.log('環境類型:', metrics.environment)
-            console.log('長任務總數:', metrics.longTaskCount)
-            if (metrics.memory && typeof metrics.memory === 'object' && 'used' in metrics.memory && 'limit' in metrics.memory) {
-                console.log('記憶體使用:', `${metrics.memory.used}MB / ${metrics.memory.limit}MB`)
+        // setInterval(() => {
+            if (this.isMonitoring) {
+                // console.log('📊 性能監控總結')
+                // console.log(`環境類型: ${this.isIn3DEnvironment() ? '3D渲染環境' : '一般應用'}`)
+                // console.log(`長任務總數: ${this.longTaskCount}`)
+                // if ('memory' in performance) {
+                //     const memory = (performance as PerformanceWithMemory).memory
+                //     console.log(`記憶體使用: ${Math.round(memory.usedJSHeapSize / 1024 / 1024)}MB / ${Math.round(memory.jsHeapSizeLimit / 1024 / 1024)}MB`)
+                // }
+                // console.log(`WebGL 支援: ${this.checkWebGLContext() ? '✅' : '❌'}`)
             }
-            console.log('WebGL 支援:', metrics.webglSupported ? '✅' : '❌')
-            console.groupEnd()
-        }
+        // }, 30000) // 每 30 秒報告一次
     }
 }
 
-export default PerformanceMonitor
+export default PerformanceMonitor.getInstance()
 
 // 自動啟動監控（僅在開發環境）
 if (import.meta.env.DEV) {
