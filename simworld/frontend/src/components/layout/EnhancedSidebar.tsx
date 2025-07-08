@@ -983,7 +983,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                         <div className="control-item">
                                             <div className="control-label">
                                                 換手時機速度:{' '}
-                                                {handoverTimingSpeed}倍
+                                                {handoverTimingSpeed}秒
                                                 {handoverMode === 'demo' &&
                                                     ' (演示模式)'}
                                             </div>
@@ -1005,9 +1005,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                                 className="speed-slider"
                                             />
                                             <div className="speed-labels">
-                                                <span>1倍</span>
+                                                <span>1秒</span>
                                                 <span>換手演示速度</span>
-                                                <span>10倍</span>
+                                                <span>10秒</span>
                                             </div>
                                         </div>
 
@@ -1022,7 +1022,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                             <input
                                                 type="range"
                                                 min="1"
-                                                max="30"
+                                                max="10"
                                                 step="1"
                                                 value={satelliteSpeedMultiplier}
                                                 onChange={(e) =>
@@ -1036,7 +1036,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                             <div className="speed-labels">
                                                 <span>1秒</span>
                                                 <span>穩定期持續時間</span>
-                                                <span>30秒</span>
+                                                <span>10秒</span>
                                             </div>
                                         </div>
 
@@ -1076,25 +1076,27 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                                 換手時機快速設定:
                                             </div>
                                             <div className="speed-preset-buttons">
-                                                {[1, 5, 10].map((speed) => (
-                                                    <button
-                                                        key={speed}
-                                                        className={`speed-preset-btn ${
-                                                            handoverTimingSpeed ===
-                                                            speed
-                                                                ? 'active'
-                                                                : ''
-                                                        }`}
-                                                        onClick={() =>
-                                                            onHandoverTimingSpeedChange &&
-                                                            onHandoverTimingSpeedChange(
+                                                {[1, 2, 3, 5, 8, 10].map(
+                                                    (speed) => (
+                                                        <button
+                                                            key={speed}
+                                                            className={`speed-preset-btn ${
+                                                                handoverTimingSpeed ===
                                                                 speed
-                                                            )
-                                                        }
-                                                    >
-                                                        {speed}倍
-                                                    </button>
-                                                ))}
+                                                                    ? 'active'
+                                                                    : ''
+                                                            }`}
+                                                            onClick={() =>
+                                                                onHandoverTimingSpeedChange &&
+                                                                onHandoverTimingSpeedChange(
+                                                                    speed
+                                                                )
+                                                            }
+                                                        >
+                                                            {speed}秒
+                                                        </button>
+                                                    )
+                                                )}
                                             </div>
                                         </div>
 
@@ -1104,7 +1106,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                                 穩定期快速設定:
                                             </div>
                                             <div className="speed-preset-buttons">
-                                                {[1, 3, 5, 10].map(
+                                                {[1, 2, 3, 5, 8, 10].map(
                                                     (duration) => (
                                                         <button
                                                             key={duration}
