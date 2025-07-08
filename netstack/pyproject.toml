@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+testpaths = ["netstack_api/services/ai_decision_integration/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = ["-v", "--tb=short"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "asyncio: marks tests as asyncio (coroutine)",
+]

@@ -46,9 +46,7 @@ class EventProcessor(EventProcessorInterface):
         else:
             self.handlers = handlers
 
-    def process_event(
-        self, event_type: str, event_data: Dict[str, Any]
-    ) -> ProcessedEvent:
+    def process_event(self, event_type: str, event_data: Dict[str, Any]) -> ProcessedEvent:
         """
         Processes a 3GPP event by validating and dispatching it.
         """
@@ -62,9 +60,7 @@ class EventProcessor(EventProcessorInterface):
 
         handler = self.handlers.get(event_type)
         if not handler:
-            raise UnsupportedEventError(
-                f"No handler registered for event type: {event_type}"
-            )
+            raise UnsupportedEventError(f"No handler registered for event type: {event_type}")
 
         return handler.handle(event_data)
 
@@ -85,16 +81,12 @@ class EventProcessor(EventProcessorInterface):
         # This could be loaded from a configuration file.
         conditions = {
             "A4": {"description": "Neighbour cell becomes better than threshold"},
-            "D1": {
-                "description": "Serving worse than thresh1, neighbour better than thresh2"
-            },
+            "D1": {"description": "Serving worse than thresh1, neighbour better than thresh2"},
             "D2": {"description": "Serving cell becomes worse than threshold"},
             "T1": {"description": "RRC re-establishment"},
         }
         return conditions.get(event_type, {})
 
-    def extract_measurement_values(
-        self, event_data: Dict[str, Any]
-    ) -> Dict[str, float]:
+    def extract_measurement_values(self, event_data: Dict[str, Any]) -> Dict[str, float]:
         """Extracts measurement values from event data."""
         return event_data.get("measurement_values", {})
