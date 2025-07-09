@@ -27,7 +27,7 @@ api.interceptors.request.use((config) => {
   config.baseURL = '';
   
   // 輸出請求 URL 信息，方便調試
-  console.log(`API Request to: ${config.url}`);
+  // console.log(`API Request to: ${config.url}`);
   
   return config;
 });

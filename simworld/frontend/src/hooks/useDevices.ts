@@ -22,9 +22,9 @@ export const useDevices = () => {
         try {
             setLoading(true)
             setApiStatus('disconnected')
-            console.log('嘗試從API獲取設備數據 (來自 useDevices Hook)...')
+            // console.log('嘗試從API獲取設備數據 (來自 useDevices Hook)...')
             const backendDevices = await apiGetDevices()
-            console.log('成功獲取設備數據 (來自 useDevices Hook):', backendDevices)
+            // console.log('成功獲取設備數據 (來自 useDevices Hook):', backendDevices)
 
             const frontendDevices = backendDevices.map(convertBackendToFrontend)
 
@@ -93,7 +93,7 @@ export const useDevices = () => {
             })
 
             if (newDevices.length === 0 && devicesToUpdate.length === 0) {
-                console.log('useDevices: 沒有檢測到需要保存的更改。')
+                // console.log('useDevices: 沒有檢測到需要保存的更改。')
                 setLoading(false)
                 setHasTempDevices(false)
                 return true
@@ -131,7 +131,7 @@ export const useDevices = () => {
                 await apiUpdateDevice(device.id, payload)
             }
 
-            console.log('useDevices: 所有更新完成，正在重新獲取設備列表...')
+            // console.log('useDevices: 所有更新完成，正在重新獲取設備列表...')
             await fetchDevices()
             setHasTempDevices(false)
             return true
@@ -167,9 +167,9 @@ export const useDevices = () => {
         setLoading(true)
         setError(null)
         try {
-            console.log(`useDevices: 調用 API 刪除設備 ID: ${id}`)
+            // console.log(`useDevices: 調用 API 刪除設備 ID: ${id}`)
             await apiDeleteDevice(id)
-            console.log(`useDevices: 設備 ID: ${id} 刪除成功`)
+            // console.log(`useDevices: 設備 ID: ${id} 刪除成功`)
             await fetchDevices()
             return true
         } catch (err: unknown) {

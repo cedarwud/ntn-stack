@@ -6,6 +6,7 @@
 import { ConfigManager } from '../config/ConfigManager'
 import { initializeChartPlugins } from './charts'
 import { ChartLoader } from './charts/ChartLoader'
+import { ChartRegistry } from './charts/ChartRegistry'
 
 // 插件系統狀態
 interface PluginSystemStatus {
@@ -29,12 +30,12 @@ class PluginSystemManager {
      */
     async initialize(): Promise<void> {
         if (this.status.isInitialized) {
-            console.log('⏭️ [PluginSystem] 插件系統已初始化，跳過')
+            // console.log('⏭️ [PluginSystem] 插件系統已初始化，跳過')
             return
         }
 
         const startTime = Date.now()
-        console.log('🚀 [PluginSystem] 開始初始化插件系統')
+        // console.log('🚀 [PluginSystem] 開始初始化插件系統')
 
         try {
             // 1. 載入配置
@@ -49,7 +50,7 @@ class PluginSystemManager {
             this.status.isInitialized = true
             this.status.initTime = Date.now() - startTime
 
-            console.log(`✅ [PluginSystem] 插件系統初始化完成 (${this.status.initTime}ms)`)
+            // console.log(`✅ [PluginSystem] 插件系統初始化完成 (${this.status.initTime}ms)`)
             this.logSystemStatus()
 
         } catch (error) {
@@ -64,7 +65,7 @@ class PluginSystemManager {
      * 初始化配置
      */
     private async initializeConfig(): Promise<void> {
-        console.log('⚙️ [PluginSystem] 載入配置...')
+        // console.log('⚙️ [PluginSystem] 載入配置...')
         
         // 從環境變量載入配置
         ConfigManager.loadFromEnvironment()
@@ -75,7 +76,7 @@ class PluginSystemManager {
             throw new Error(`配置驗證失敗: ${validation.errors.join(', ')}`)
         }
 
-        console.log('✅ [PluginSystem] 配置載入完成')
+        // console.log('✅ [PluginSystem] 配置載入完成')
     }
 
     /**
@@ -92,10 +93,10 @@ class PluginSystemManager {
         try {
             initializeChartPlugins()
             
-            const stats = ChartLoader.getStats()
+            const stats = ChartRegistry.getStats()
             this.status.chartPluginsLoaded = stats.total
             
-            console.log('✅ [PluginSystem] 圖表插件初始化完成')
+            // console.log('✅ [PluginSystem] 圖表插件初始化完成')
         } catch (error) {
             const errorMessage = `圖表插件初始化失敗: ${error}`
             this.status.errors.push(errorMessage)
@@ -110,15 +111,15 @@ class PluginSystemManager {
         const pluginsToPreload = ConfigManager.get<string[]>('chart.plugins') || []
         
         if (pluginsToPreload.length === 0) {
-            console.log('⏭️ [PluginSystem] 沒有需要預載入的插件')
+            // console.log('⏭️ [PluginSystem] 沒有需要預載入的插件')
             return
         }
 
-        console.log(`🔄 [PluginSystem] 預載入插件: ${pluginsToPreload.join(', ')}`)
+        // console.log(`🔄 [PluginSystem] 預載入插件: ${pluginsToPreload.join(', ')}`)
         
         try {
             await ChartLoader.preloadPlugins(pluginsToPreload)
-            console.log('✅ [PluginSystem] 插件預載入完成')
+            // console.log('✅ [PluginSystem] 插件預載入完成')
         } catch (error) {
             const errorMessage = `插件預載入失敗: ${error}`
             this.status.errors.push(errorMessage)
@@ -189,7 +190,7 @@ class PluginSystemManager {
      * 清理插件系統
      */
     cleanup(): void {
-        console.log('🧹 [PluginSystem] 清理插件系統...')
+        // console.log('🧹 [PluginSystem] 清理插件系統...')
         
         ChartLoader.clearResults()
         
@@ -200,7 +201,7 @@ class PluginSystemManager {
             initTime: 0
         }
         
-        console.log('✅ [PluginSystem] 插件系統清理完成')
+        // console.log('✅ [PluginSystem] 插件系統清理完成')
     }
 }
 

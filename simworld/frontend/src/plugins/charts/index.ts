@@ -16,7 +16,7 @@ const CHART_PLUGINS = [
 
 // 初始化插件系統
 export const initializeChartPlugins = (): void => {
-    console.log('🚀 [ChartPlugins] 開始初始化圖表插件系統')
+    // console.log('🚀 [ChartPlugins] 開始初始化圖表插件系統')
     
     try {
         // 註冊所有插件
@@ -26,7 +26,7 @@ export const initializeChartPlugins = (): void => {
         
         // 輸出統計信息
         const stats = ChartRegistry.getStats()
-        console.log('📊 [ChartPlugins] 插件系統初始化完成:', stats)
+        // console.log('📊 [ChartPlugins] 插件系統初始化完成:', stats)
         
     } catch (error) {
         console.error('❌ [ChartPlugins] 插件系統初始化失敗:', error)

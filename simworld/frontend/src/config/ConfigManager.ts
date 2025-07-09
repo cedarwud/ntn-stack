@@ -124,7 +124,7 @@ class ConfigurationManager {
 
     constructor(initialConfig: Partial<AppConfig> = {}) {
         this.config = this.mergeConfig(DEFAULT_CONFIG, initialConfig)
-        console.log('⚙️ [ConfigManager] 配置管理器已初始化')
+        // console.log('⚙️ [ConfigManager] 配置管理器已初始化')
         this.logConfigSummary()
     }
 
@@ -202,14 +202,14 @@ class ConfigurationManager {
         // 通知監聽器
         this.notifyListeners(path, value, oldValue)
 
-        console.log(`🔄 [ConfigManager] 配置已更新: ${path} =`, value)
+        // console.log(`🔄 [ConfigManager] 配置已更新: ${path} =`, value)
     }
 
     /**
      * 批量更新配置
      */
     update(updates: Record<string, any>): void {
-        console.log('🔄 [ConfigManager] 批量更新配置:', updates)
+        // console.log('🔄 [ConfigManager] 批量更新配置:', updates)
         
         for (const [path, value] of Object.entries(updates)) {
             this.set(path, value)
@@ -231,7 +231,7 @@ class ConfigurationManager {
         this.config = { ...DEFAULT_CONFIG }
         this.cache.clear()
         
-        console.log('🔄 [ConfigManager] 配置已重置到默認值')
+        // console.log('🔄 [ConfigManager] 配置已重置到默認值')
         this.notifyListeners('*', this.config, oldConfig)
     }
 
@@ -330,7 +330,7 @@ class ConfigurationManager {
         this.config = this.mergeConfig(this.config, envConfig)
         this.cache.clear()
         
-        console.log('🔄 [ConfigManager] 已從環境變量載入配置')
+        // console.log('🔄 [ConfigManager] 已從環境變量載入配置')
     }
 
     /**
@@ -390,7 +390,7 @@ class ConfigurationManager {
             this.config = this.mergeConfig(DEFAULT_CONFIG, importedConfig)
             this.cache.clear()
             
-            console.log('📥 [ConfigManager] 已從JSON導入配置')
+            // console.log('📥 [ConfigManager] 已從JSON導入配置')
             this.notifyListeners('*', this.config, null)
         } catch (error) {
             console.error('❌ [ConfigManager] JSON配置導入失敗:', error)
