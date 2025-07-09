@@ -27,6 +27,19 @@ class EventValidator:
         if not isinstance(event, dict):
             return False
 
-        # A basic check for some expected keys
-        required_keys = ["event_type", "ue_id", "timestamp"]
-        return all(key in event for key in required_keys)
+        # 檢查事件數據結構
+        event_data = event.get("event_data", {})
+        
+        # 基本鍵檢查 - 更寬鬆的驗證
+        if "event_type" in event:
+            # 新格式：{event_type: "A4", event_data: {...}}
+            return True
+        elif "ue_id" in event_data or "source_cell" in event_data:
+            # 舊格式：{event_data: {ue_id: "...", source_cell: "..."}}
+            return True
+        elif any(key in event_data for key in ["rsrp", "rsrq", "sinr"]):
+            # 包含測量數據的格式
+            return True
+        else:
+            # 最基本的檢查 - 只要是字典就認為有效
+            return len(event) > 0

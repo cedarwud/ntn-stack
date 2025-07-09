@@ -19,6 +19,7 @@ from .handlers.a4_handler import A4EventHandler
 from .handlers.d1_handler import D1EventHandler
 from .handlers.d2_handler import D2EventHandler
 from .handlers.t1_handler import T1EventHandler
+from .handlers.comprehensive_decision_handler import ComprehensiveDecisionHandler
 
 
 class EventProcessor(EventProcessorInterface):
@@ -42,6 +43,7 @@ class EventProcessor(EventProcessorInterface):
                 "D1": D1EventHandler(),
                 "D2": D2EventHandler(),
                 "T1": T1EventHandler(),
+                "comprehensive_decision": ComprehensiveDecisionHandler(),
             }
         else:
             self.handlers = handlers

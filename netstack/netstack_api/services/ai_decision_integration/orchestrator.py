@@ -242,12 +242,12 @@ class DecisionOrchestrator:
             satellite_pool = await self.state_manager.get_satellite_pool()
 
             # 篩選候選衛星
-            candidates = self.candidate_selector.select_candidates(
+            candidates = await self.candidate_selector.select_candidates(
                 processed_event, satellite_pool
             )
 
             # 評分候選衛星
-            scored_candidates = self.candidate_selector.score_candidates(candidates)
+            scored_candidates = await self.candidate_selector.score_candidates(candidates)
 
             # 更新上下文
             context["scored_candidates"] = scored_candidates
@@ -550,6 +550,7 @@ class DecisionOrchestrator:
     def get_service_status(self) -> Dict[str, Any]:
         """獲取協調器和其組件的當前狀態"""
         return {
+            "status": "healthy" if self.is_running else "stopped",
             "is_running": self.is_running,
             "active_decisions": len(self.active_decisions),
             "metrics": self.metrics.get_summary(),
