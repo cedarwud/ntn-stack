@@ -395,37 +395,79 @@ def create_default_container(use_mocks: bool = False) -> DIContainer:
         ]
         container.register_instance(CandidateSelectorInterface, mock_candidate_selector)
 
-        # 模擬決策引擎
-        mock_decision_engine = Mock(spec=RLIntegrationInterface)
-        mock_decision_engine.make_decision.return_value = Decision(
-            selected_satellite="SAT_001",
-            confidence=0.88,
-            reasoning={"algorithm": "DQN", "score": 0.85},
-            alternative_options=["SAT_002"],
-            execution_plan={"handover_type": "A4"},
-            visualization_data={"animation_duration": 3000},
-            algorithm_used="DQN",
-            decision_time=15.5,
-            context={},
-            expected_performance={"latency": 20.0},
-        )
-        container.register_instance(RLIntegrationInterface, mock_decision_engine)
+        # 註冊真實的決策執行組件
+        try:
+            from ..decision_execution.rl_integration import RLDecisionEngine
+            from ..decision_execution.executor import DecisionExecutor
+            from ..decision_execution.monitor import DecisionMonitor
+            
+            # 創建真實的決策執行組件
+            rl_engine = RLDecisionEngine()
+            executor = DecisionExecutor() 
+            monitor = DecisionMonitor()
+            
+            container.register_instance(RLIntegrationInterface, rl_engine)
+            container.register_instance(DecisionExecutorInterface, executor)
+            container.register_instance(DecisionMonitor, monitor)
+            
+            logger.info("決策執行組件註冊完成")
+        except ImportError as e:
+            logger.warning("決策執行組件導入失敗，使用模擬組件", error=str(e))
+            
+            # 回退到模擬組件
+            mock_decision_engine = Mock(spec=RLIntegrationInterface)
+            mock_decision_engine.make_decision.return_value = Decision(
+                selected_satellite="SAT_001",
+                confidence=0.88,
+                reasoning={"algorithm": "DQN", "score": 0.85},
+                alternative_options=["SAT_002"],
+                execution_plan={"handover_type": "A4"},
+                visualization_data={"animation_duration": 3000},
+                algorithm_used="DQN",
+                decision_time=15.5,
+                context={},
+                expected_performance={"latency": 20.0},
+            )
+            container.register_instance(RLIntegrationInterface, mock_decision_engine)
 
-        # 模擬執行器
-        mock_executor = Mock(spec=DecisionExecutorInterface)
-        mock_executor.execute_decision.return_value = ExecutionResult(
-            success=True,
-            execution_time=25.0,
-            performance_metrics={"latency": 20.0, "throughput": 100.0},
-            status=ExecutionStatus.SUCCESS,
-        )
-        container.register_instance(DecisionExecutorInterface, mock_executor)
+            # 模擬執行器
+            mock_executor = Mock(spec=DecisionExecutorInterface)
+            mock_executor.execute_decision.return_value = ExecutionResult(
+                success=True,
+                execution_time=25.0,
+                performance_metrics={"latency": 20.0, "throughput": 100.0},
+                status=ExecutionStatus.SUCCESS,
+            )
+            container.register_instance(DecisionExecutorInterface, mock_executor)
 
         # 模擬視覺化協調器
         mock_visualization = AsyncMock(spec=VisualizationCoordinatorInterface)
         container.register_instance(
             VisualizationCoordinatorInterface, mock_visualization
         )
+
+        # 註冊新的視覺化整合組件
+        try:
+            from ..visualization_integration.realtime_event_streamer import RealtimeEventStreamer
+            from ..visualization_integration.handover_3d_coordinator import Handover3DCoordinator  
+            from ..visualization_integration.rl_monitor_bridge import RLMonitorBridge
+            from ..visualization_integration.animation_sync_manager import AnimationSyncManager
+            
+            # 創建真實的視覺化組件
+            event_streamer = RealtimeEventStreamer()
+            coordinator = Handover3DCoordinator(event_streamer)
+            rl_bridge = RLMonitorBridge(event_streamer)
+            sync_manager = AnimationSyncManager()
+            
+            # 替換模擬的視覺化協調器
+            container.register_instance(VisualizationCoordinatorInterface, coordinator)
+            container.register_instance(RealtimeEventStreamer, event_streamer)
+            container.register_instance(RLMonitorBridge, rl_bridge)
+            container.register_instance(AnimationSyncManager, sync_manager)
+            
+            logger.info("視覺化整合組件註冊完成")
+        except ImportError as e:
+            logger.warning("視覺化整合組件導入失敗，使用模擬組件", error=str(e))
 
         # 模擬狀態管理器
         mock_state_manager = AsyncMock(spec=StateManager)

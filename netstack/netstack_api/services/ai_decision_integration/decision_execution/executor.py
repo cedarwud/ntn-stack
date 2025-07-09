@@ -48,7 +48,7 @@ class DecisionExecutor(DecisionExecutorInterface):
             config: 配置參數
         """
         self.config = config or {}
-        self.logger = logger.bind(component="decision_executor")
+        self.logger = logger
 
         # 執行歷史和狀態管理
         self.execution_history = deque(maxlen=1000)
@@ -159,7 +159,7 @@ class DecisionExecutor(DecisionExecutorInterface):
 
             self._record_execution_history(result)
             self.logger.error(
-                "決策執行超時", execution_id=context.execution_id, error=str(e)
+                "決策執行超時 [%s]: %s", context.execution_id, str(e)
             )
             return result
 
@@ -179,7 +179,7 @@ class DecisionExecutor(DecisionExecutorInterface):
 
             self._record_execution_history(result)
             self.logger.error(
-                "決策執行失敗", execution_id=context.execution_id, error=str(e)
+                "決策執行失敗 [%s]: %s", context.execution_id, str(e)
             )
             return result
 
@@ -198,15 +198,15 @@ class DecisionExecutor(DecisionExecutorInterface):
             bool: 是否成功回滾
         """
         if not self.rollback_enabled:
-            self.logger.warning("回滾功能已禁用", execution_id=execution_id)
+            self.logger.warning("回滾功能已禁用 [%s]", execution_id)
             return False
 
         try:
-            self.logger.info("開始回滾決策", execution_id=execution_id)
+            self.logger.info("開始回滾決策 [%s]", execution_id)
 
             # 檢查回滾數據
             if execution_id not in self.rollback_data:
-                self.logger.error("未找到回滾數據", execution_id=execution_id)
+                self.logger.error("未找到回滾數據 [%s]", execution_id)
                 return False
 
             rollback_info = self.rollback_data[execution_id]
@@ -217,14 +217,14 @@ class DecisionExecutor(DecisionExecutorInterface):
             if success:
                 # 清理回滾數據
                 del self.rollback_data[execution_id]
-                self.logger.info("決策回滾成功", execution_id=execution_id)
+                self.logger.info("決策回滾成功 [%s]", execution_id)
             else:
-                self.logger.error("決策回滾失敗", execution_id=execution_id)
+                self.logger.error("決策回滾失敗 [%s]", execution_id)
 
             return success
 
         except Exception as e:
-            self.logger.error("回滾操作異常", execution_id=execution_id, error=str(e))
+            self.logger.error("回滾操作異常 [%s]: %s", execution_id, str(e))
             return False
 
     def monitor_execution(self, execution_id: str) -> Dict[str, Any]:
@@ -297,7 +297,7 @@ class DecisionExecutor(DecisionExecutorInterface):
             bool: 是否成功取消
         """
         if execution_id not in self.active_executions:
-            self.logger.warning("執行不存在或已完成", execution_id=execution_id)
+            self.logger.warning("執行不存在或已完成 [%s]", execution_id)
             return False
 
         try:
@@ -309,11 +309,11 @@ class DecisionExecutor(DecisionExecutorInterface):
             if "cancel_function" in execution_info:
                 execution_info["cancel_function"]()
 
-            self.logger.info("執行已取消", execution_id=execution_id)
+            self.logger.info("執行已取消 [%s]", execution_id)
             return True
 
         except Exception as e:
-            self.logger.error("取消執行失敗", execution_id=execution_id, error=str(e))
+            self.logger.error("取消執行失敗 [%s]: %s", execution_id, str(e))
             return False
 
     def validate_decision(self, decision: Decision) -> bool:
@@ -357,7 +357,7 @@ class DecisionExecutor(DecisionExecutorInterface):
             return True
 
         except Exception as e:
-            self.logger.error("決策驗證異常", error=str(e))
+            self.logger.error("決策驗證異常: %s", str(e))
             return False
 
     def estimate_execution_time(self, decision: Decision) -> float:
@@ -607,7 +607,7 @@ class DecisionExecutor(DecisionExecutorInterface):
             time.sleep(0.5)  # 500ms回滾時間
             return True
         except Exception as e:
-            self.logger.error("回滾執行失敗", error=str(e))
+            self.logger.error("回滾執行失敗: %s", str(e))
             return False
 
     def _cleanup_execution(self, execution_id: str):
