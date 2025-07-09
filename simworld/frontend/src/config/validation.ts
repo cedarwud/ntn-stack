@@ -173,11 +173,7 @@ const generateRecommendations = (result: ConfigValidationResult): string[] => {
  * 在控制台輸出配置驗證結果
  */
 export const logConfigurationStatus = (result: ConfigValidationResult): void => {
-  console.group('🔧 配置驗證結果')
-  
-  if (result.isValid) {
-    console.log('✅ 配置驗證通過')
-  } else {
+  if (!result.isValid) {
     console.error('❌ 配置驗證失敗')
   }
 
@@ -205,8 +201,6 @@ export const logConfigurationStatus = (result: ConfigValidationResult): void => 
   console.log('環境模式:', config.mode)
   console.log('NetStack URL:', config.netstack.baseUrl)
   console.log('SimWorld URL:', config.simworld.baseUrl)
-  console.groupEnd()
-
   console.groupEnd()
 }
 

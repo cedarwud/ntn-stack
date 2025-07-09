@@ -300,13 +300,10 @@ class NetStackApiClient {
             handover_type: 'NTN' as const,
             latency_ms: component.latency_ms || (200 + Math.random() * 800),
             success_rate: Math.max(0.8, 1 - component.error_rate),
-            geographic_block_id: `BLOCK_${index + 1}`,
-            algorithm_type: 'proposed' as const,
             additional_metrics: {
               signaling_overhead: component.jitter_ms || (50 + Math.random() * 100),
               interruption_time_ms: Math.floor(component.latency_ms * 0.8) || 150,
-              prediction_accuracy: Math.max(0.85, component.availability),
-              throughput_impact: Math.max(0, 1 - component.packet_loss_rate),
+              qos_impact_score: Math.max(0, 1 - component.packet_loss_rate),
             }
           })
         }
@@ -351,6 +348,28 @@ class NetStackApiClient {
     const response = await this.fetchWithConfig('/api/v1/core-sync/health')
     if (!response.ok) {
       throw new Error(`Failed to get health status: ${response.statusText}`)
+    }
+    return response.json()
+  }
+
+  /**
+   * 獲取 AI 決策引擎的整合狀態
+   */
+  async getAIDecisionEngineStatus(): Promise<any> {
+    const response = await this.fetchWithConfig('/api/v2/decision/status')
+    if (!response.ok) {
+      throw new Error(`Failed to get AI decision engine status: ${response.statusText}`)
+    }
+    return response.json()
+  }
+
+  /**
+   * 獲取 AI 決策引擎的健康狀態
+   */
+  async getAIDecisionEngineHealth(): Promise<any> {
+    const response = await this.fetchWithConfig('/api/v2/decision/health')
+    if (!response.ok) {
+      throw new Error(`Failed to get AI decision engine health: ${response.statusText}`)
     }
     return response.json()
   }

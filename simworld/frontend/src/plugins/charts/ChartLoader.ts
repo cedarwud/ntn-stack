@@ -31,7 +31,7 @@ class ChartLoaderManager {
     private loadResults: Map<string, LoadResult> = new Map()
     
     constructor() {
-        console.log('🔄 [ChartLoader] 圖表載入器已初始化')
+        // console.log('🔄 [ChartLoader] 圖表載入器已初始化')
     }
 
     /**
@@ -63,12 +63,12 @@ class ChartLoaderManager {
         onProgress?.(result)
 
         try {
-            console.log(`🔄 [ChartLoader] 開始載入插件: ${pluginId}`)
+            // console.log(`🔄 [ChartLoader] 開始載入插件: ${pluginId}`)
 
             // 檢查是否已經註冊
             const existingPlugin = ChartRegistry.getPlugin(pluginId)
             if (existingPlugin) {
-                console.log(`⏭️ [ChartLoader] 插件已註冊: ${pluginId}`)
+                // console.log(`⏭️ [ChartLoader] 插件已註冊: ${pluginId}`)
                 
                 result.status = LoadStatus.LOADED
                 result.plugin = existingPlugin
@@ -110,7 +110,7 @@ class ChartLoaderManager {
             result.plugin = plugin
             result.loadTime = Date.now() - startTime
 
-            console.log(`✅ [ChartLoader] 插件載入成功: ${pluginId} (${result.loadTime}ms)`)
+            // console.log(`✅ [ChartLoader] 插件載入成功: ${pluginId} (${result.loadTime}ms)`)
 
         } catch (error) {
             console.error(`❌ [ChartLoader] 插件載入失敗: ${pluginId}`, error)
@@ -134,13 +134,13 @@ class ChartLoaderManager {
         pluginIds: string[],
         onProgress?: LoadProgressCallback
     ): Promise<LoadResult[]> {
-        console.log(`🔄 [ChartLoader] 開始批量載入插件: ${pluginIds.length} 個`)
+        // console.log(`🔄 [ChartLoader] 開始批量載入插件: ${pluginIds.length} 個`)
 
         const loadPromises = pluginIds.map(id => this.loadPlugin(id, onProgress))
         const results = await Promise.all(loadPromises)
 
         const successful = results.filter(r => r.status === LoadStatus.LOADED).length
-        console.log(`✅ [ChartLoader] 批量載入完成: ${successful}/${pluginIds.length} 成功`)
+        // console.log(`✅ [ChartLoader] 批量載入完成: ${successful}/${pluginIds.length} 成功`)
 
         return results
     }
@@ -149,7 +149,7 @@ class ChartLoaderManager {
      * 預載入指定插件
      */
     async preloadPlugins(pluginIds: string[]): Promise<void> {
-        console.log(`🚀 [ChartLoader] 開始預載入插件: ${pluginIds.join(', ')}`)
+        // console.log(`🚀 [ChartLoader] 開始預載入插件: ${pluginIds.join(', ')}`)
         
         const results = await this.loadPlugins(pluginIds)
         const failed = results.filter(r => r.status === LoadStatus.ERROR)
@@ -163,7 +163,7 @@ class ChartLoaderManager {
      * 熱重載插件
      */
     async reloadPlugin(pluginId: string): Promise<LoadResult> {
-        console.log(`🔥 [ChartLoader] 熱重載插件: ${pluginId}`)
+        // console.log(`🔥 [ChartLoader] 熱重載插件: ${pluginId}`)
         
         // 先移除現有插件
         ChartRegistry.unregister(pluginId)
@@ -192,7 +192,7 @@ class ChartLoaderManager {
      */
     clearResults(): void {
         this.loadResults.clear()
-        console.log('🧹 [ChartLoader] 已清除所有載入結果')
+        // console.log('🧹 [ChartLoader] 已清除所有載入結果')
     }
 
     /**

@@ -175,8 +175,18 @@ class DecisionOrchestrator:
 
             # 記錄性能指標
             execution_time = time.time() - start_time
-            self.metrics.record_decision_latency(execution_time)
-            self.metrics.record_decision_success(result.success)
+            labels = {
+                "decision_id": decision_id,
+                "event_type": event_data.get("event_type"),
+            }
+            self.metrics.record_decision_latency(execution_time, labels=labels)
+            self.metrics.record_decision_success(
+                result.success, algorithm=result.algorithm
+            )
+
+            # 如果成功，記錄詳細的換手指標
+            if result.success and result.metrics:
+                self.metrics.record_handover_details(result.metrics, labels=labels)
 
             # 通知換手完成
             await self._notify_handover_complete(result, decision_id)
@@ -247,7 +257,9 @@ class DecisionOrchestrator:
             )
 
             # 評分候選衛星
-            scored_candidates = await self.candidate_selector.score_candidates(candidates)
+            scored_candidates = await self.candidate_selector.score_candidates(
+                candidates
+            )
 
             # 更新上下文
             context["scored_candidates"] = scored_candidates
@@ -548,19 +560,31 @@ class DecisionOrchestrator:
         )
 
     def get_service_status(self) -> Dict[str, Any]:
-        """獲取協調器和其組件的當前狀態"""
+        """
+        獲取AI決策協調器的當前狀態。
+        """
+        summary = self.metrics.get_summary()
+        active_algorithm = (
+            self.decision_engine.get_active_algorithm()
+            if hasattr(self.decision_engine, "get_active_algorithm")
+            else "default"
+        )
+
+        # 從決策引擎獲取更詳細的算法狀態
+        algorithm_details = {}
+        if hasattr(self.decision_engine, "get_algorithm_details"):
+            algorithm_details = self.decision_engine.get_algorithm_details()
+
         return {
-            "status": "healthy" if self.is_running else "stopped",
-            "is_running": self.is_running,
+            "status": "running" if self.is_running else "idle",
             "active_decisions": len(self.active_decisions),
-            "metrics": self.metrics.get_summary(),
-            "pipeline_stats": self.pipeline.get_pipeline_stats(),
-            "components": {
-                "event_processor": "healthy",
-                "candidate_selector": "healthy",
-                "decision_engine": "healthy",
-                "executor": "healthy",
-                "visualization_coordinator": "healthy",
+            "active_algorithm": active_algorithm,
+            "pipeline_stages": [stage.name for stage in self.pipeline.stages],
+            "metrics_summary": summary,
+            # 將詳細指標直接嵌套在回傳中，方便前端獲取
+            "algorithm_details": {
+                **algorithm_details,
+                **(summary.get("detailed_handover_metrics", {})),
             },
         }
 
@@ -640,3 +664,53 @@ class DecisionOrchestrator:
         """清理決策狀態"""
         if decision_id in self.active_decisions:
             del self.active_decisions[decision_id]
+
+    async def start_training(self, algorithm: str) -> Dict[str, Any]:
+        """啟動指定算法的訓練"""
+        logger.info("Orchestrator: Starting training", algorithm=algorithm)
+        
+        try:
+            # 調用決策引擎的訓練方法
+            if hasattr(self.decision_engine, "start_training"):
+                return await self.decision_engine.start_training(algorithm)
+            else:
+                # 如果決策引擎沒有訓練方法，返回模擬響應
+                return {
+                    "status": "success", 
+                    "message": f"Training started for {algorithm} (fallback mode)",
+                    "algorithm": algorithm,
+                    "training_active": True
+                }
+        except Exception as e:
+            logger.error(f"Failed to start training: {e}")
+            # 失敗時返回錯誤信息
+            return {
+                "status": "error",
+                "message": f"Failed to start training: {str(e)}",
+                "algorithm": algorithm,
+                "training_active": False
+            }
+
+    async def stop_training(self) -> Dict[str, Any]:
+        """停止當前的訓練"""
+        logger.info("Orchestrator: Stopping training")
+        
+        try:
+            # 調用決策引擎的停止訓練方法
+            if hasattr(self.decision_engine, "stop_training"):
+                return await self.decision_engine.stop_training()
+            else:
+                # 如果決策引擎沒有停止訓練方法，返回模擬響應
+                return {
+                    "status": "success", 
+                    "message": "Training stopped (fallback mode)",
+                    "training_active": False
+                }
+        except Exception as e:
+            logger.error(f"Failed to stop training: {e}")
+            # 失敗時返回錯誤信息
+            return {
+                "status": "error",
+                "message": f"Failed to stop training: {str(e)}",
+                "training_active": False
+            }

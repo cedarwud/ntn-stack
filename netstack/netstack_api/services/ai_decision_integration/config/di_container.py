@@ -10,6 +10,7 @@ import inspect
 import structlog
 from unittest.mock import Mock, AsyncMock
 import time
+import asyncio
 
 # 延遲導入以避免循環依賴
 from ..interfaces import (
@@ -37,14 +38,15 @@ class DIContainer:
     管理組件的註冊、解析和生命週期。
     """
 
-    def __init__(self):
+    def __init__(self, use_mocks: bool = False):
         """初始化容器"""
-        self.registry: Dict[Type, Any] = {}
-        self.singletons: Dict[Type, Any] = {}
-        self.factories: Dict[Type, Callable] = {}
-        self.transients: Dict[Type, Callable] = {}
+        self.registry: Dict[Type, Dict[str, Any]] = {}
+        self.instances: Dict[Type, Any] = {}
+        self.use_mocks = use_mocks
 
-        logger.info("DI container initialized")
+        logger.info(
+            "DIContainer initialized", use_mocks=self.use_mocks, container_id=id(self)
+        )
 
     def register_singleton(
         self,
@@ -64,17 +66,21 @@ class DIContainer:
             DIContainer: 自身，支持鏈式調用
         """
         if instance is not None:
-            self.singletons[interface] = instance
+            self.instances[interface] = instance
         elif implementation is not None:
-            self.registry[interface] = (implementation, "singleton")
+            self.registry[interface] = {
+                "type": "singleton",
+                "implementation": implementation,
+            }
         else:
-            self.registry[interface] = (interface, "singleton")
+            self.registry[interface] = {
+                "type": "singleton",
+                "implementation": interface,
+            }
 
         logger.debug(
             "Singleton registered",
             interface=interface.__name__,
-            implementation=implementation.__name__ if implementation else "self",
-            instance_provided=instance is not None,
         )
 
         return self
@@ -93,12 +99,14 @@ class DIContainer:
             DIContainer: 自身，支持鏈式調用
         """
         implementation = implementation or interface
-        self.registry[interface] = (implementation, "transient")
+        self.registry[interface] = {
+            "type": "transient",
+            "implementation": implementation,
+        }
 
         logger.debug(
             "Transient registered",
             interface=interface.__name__,
-            implementation=implementation.__name__,
         )
 
         return self
@@ -116,11 +124,9 @@ class DIContainer:
         Returns:
             DIContainer: 自身，支持鏈式調用
         """
-        self.factories[interface] = factory
+        self.registry[interface] = {"type": "factory", "factory": factory}
 
-        logger.debug(
-            "Factory registered", interface=interface.__name__, factory=factory.__name__
-        )
+        logger.debug("Factory registered", interface=interface.__name__)
 
         return self
 
@@ -135,12 +141,11 @@ class DIContainer:
         Returns:
             DIContainer: 自身，支持鏈式調用
         """
-        self.singletons[interface] = instance
+        self.instances[interface] = instance
 
         logger.debug(
             "Instance registered",
             interface=interface.__name__,
-            instance_type=type(instance).__name__,
         )
 
         return self
@@ -159,21 +164,45 @@ class DIContainer:
             DIContainerError: 服務未註冊或創建失敗
         """
         try:
-            # 1. 檢查已創建的單例
-            if interface in self.singletons:
-                return self.singletons[interface]
+            if self.use_mocks:
+                # 如果使用模擬，返回一個 AsyncMock 實例
+                logger.debug(
+                    "Providing mock for interface", interface=interface.__name__
+                )
+                if interface not in self.instances:
+                    mock_instance = AsyncMock(spec=interface)  # 使用 AsyncMock
+
+                    # 為關鍵的模擬組件添加默認的異步健康檢查方法
+                    if hasattr(interface, "health_check"):
+
+                        async def mock_health_check():
+                            return True
+
+                        mock_instance.health_check = mock_health_check
+
+                    self.instances[interface] = mock_instance
+                return self.instances[interface]
+
+            if interface in self.instances:
+                return self.instances[interface]
 
             # 2. 檢查工廠函數
-            if interface in self.factories:
-                return self.factories[interface]()
+            if (
+                interface in self.registry
+                and self.registry[interface]["type"] == "factory"
+            ):
+                return self.registry[interface]["factory"]()
 
             # 3. 檢查註冊的服務
             if interface in self.registry:
-                implementation, lifecycle = self.registry[interface]
+                implementation, lifecycle = (
+                    self.registry[interface]["implementation"],
+                    self.registry[interface]["type"],
+                )
                 instance = self._create_instance(implementation)
 
                 if lifecycle == "singleton":
-                    self.singletons[interface] = instance
+                    self.instances[interface] = instance
 
                 return instance
 
@@ -252,18 +281,12 @@ class DIContainer:
         Returns:
             bool: 是否已註冊
         """
-        return (
-            interface in self.registry
-            or interface in self.singletons
-            or interface in self.factories
-        )
+        return interface in self.registry or interface in self.instances
 
     def clear(self):
         """清空容器"""
         self.registry.clear()
-        self.singletons.clear()
-        self.factories.clear()
-        self.transients.clear()
+        self.instances.clear()
 
         logger.info("DI container cleared")
 
@@ -281,15 +304,18 @@ class DIContainer:
             services[interface.__name__] = f"{implementation.__name__} ({lifecycle})"
 
         # 單例實例
-        for interface, instance in self.singletons.items():
+        for interface, instance in self.instances.items():
             if interface not in services:  # 避免重複
                 services[interface.__name__] = (
                     f"{type(instance).__name__} (singleton instance)"
                 )
 
         # 工廠函數
-        for interface, factory in self.factories.items():
-            services[interface.__name__] = f"{factory.__name__} (factory)"
+        for interface, factory in self.registry.items():
+            if factory["type"] == "factory":
+                services[interface.__name__] = (
+                    f"{factory['factory'].__name__} (factory)"
+                )
 
         return services
 
@@ -339,203 +365,60 @@ class DIContainerError(Exception):
 
 def create_default_container(use_mocks: bool = False) -> DIContainer:
     """
-    創建一個預配置的 DI 容器。
-
-    Args:
-        use_mocks: 如果為 True，則註冊所有接口的模擬實現，主要用於測試。
-
-    Returns:
-        DIContainer: 配置好的容器。
+    創建一個帶有默認生產實現的DI容器。
+    如果 use_mocks 為 True，則提供模擬實現。
     """
-    container = DIContainer()
+    container = DIContainer(use_mocks=use_mocks)
+
+    # 總是註冊狀態管理器
+    from ..utils.state_manager import StateManager
+
+    container.register_singleton(StateManager)
 
     if use_mocks:
-        # --- 註冊所有接口的模擬實現 ---
-        logger.info("Creating DI container with MOCKED implementations")
+        logger.info("Using MOCK implementations for DI container")
 
-        # 模擬事件處理器
-        mock_event_processor = Mock(spec=EventProcessorInterface)
-        mock_event_processor.process_event.return_value = ProcessedEvent(
-            event_type="A4",
-            event_data={"test": "data"},
-            timestamp=time.time(),
-            confidence=0.9,
-            trigger_conditions={},
-            ue_id="UE_001",
-            source_cell="CELL_001",
-            target_cells=["CELL_002", "CELL_003"],
-            measurement_values={"rsrp": -80.0},
-        )
-        container.register_instance(EventProcessorInterface, mock_event_processor)
-
-        # 模擬候選篩選器
-        mock_candidate_selector = AsyncMock(spec=CandidateSelectorInterface)
-        test_candidate = Candidate(
-            satellite_id="SAT_001",
-            elevation=45.0,
-            signal_strength=-75.0,
-            load_factor=0.5,
-            distance=1000.0,
-            azimuth=180.0,
-            doppler_shift=1000.0,
-            position={"x": 0, "y": 0, "z": 1000},
-            velocity={"vx": 5, "vy": 0, "vz": 0},
-            visibility_time=600.0,
-        )
-        mock_candidate_selector.select_candidates.return_value = [test_candidate]
-        mock_candidate_selector.score_candidates.return_value = [
-            ScoredCandidate(
-                candidate=test_candidate,
-                score=0.85,
-                confidence=0.9,
-                ranking=1,
-                sub_scores={"elevation": 0.8, "signal": 0.9},
-                reasoning={"primary": "high_signal_strength"},
-            )
+        # 顯式註冊所有接口的 AsyncMock 實例
+        interfaces_to_mock = [
+            EventProcessorInterface,
+            CandidateSelectorInterface,
+            RLIntegrationInterface,
+            DecisionExecutorInterface,
+            VisualizationCoordinatorInterface,
         ]
-        container.register_instance(CandidateSelectorInterface, mock_candidate_selector)
+        for iface in interfaces_to_mock:
+            mock_instance = AsyncMock(spec=iface)
 
-        # 註冊真實的決策執行組件
-        try:
-            from ..decision_execution.rl_integration import RLDecisionEngine
-            from ..decision_execution.executor import DecisionExecutor
-            from ..decision_execution.monitor import DecisionMonitor
-            
-            # 創建真實的決策執行組件
-            rl_engine = RLDecisionEngine()
-            executor = DecisionExecutor() 
-            monitor = DecisionMonitor()
-            
-            container.register_instance(RLIntegrationInterface, rl_engine)
-            container.register_instance(DecisionExecutorInterface, executor)
-            container.register_instance(DecisionMonitor, monitor)
-            
-            logger.info("決策執行組件註冊完成")
-        except ImportError as e:
-            logger.warning("決策執行組件導入失敗，使用模擬組件", error=str(e))
-            
-            # 回退到模擬組件
-            mock_decision_engine = Mock(spec=RLIntegrationInterface)
-            mock_decision_engine.make_decision.return_value = Decision(
-                selected_satellite="SAT_001",
-                confidence=0.88,
-                reasoning={"algorithm": "DQN", "score": 0.85},
-                alternative_options=["SAT_002"],
-                execution_plan={"handover_type": "A4"},
-                visualization_data={"animation_duration": 3000},
-                algorithm_used="DQN",
-                decision_time=15.5,
-                context={},
-                expected_performance={"latency": 20.0},
-            )
-            container.register_instance(RLIntegrationInterface, mock_decision_engine)
+            # 為 mock 添加一個總返回 True 的 health_check
+            async def mock_health_check():
+                return True
 
-            # 模擬執行器
-            mock_executor = Mock(spec=DecisionExecutorInterface)
-            mock_executor.execute_decision.return_value = ExecutionResult(
-                success=True,
-                execution_time=25.0,
-                performance_metrics={"latency": 20.0, "throughput": 100.0},
-                status=ExecutionStatus.SUCCESS,
-            )
-            container.register_instance(DecisionExecutorInterface, mock_executor)
+            mock_instance.health_check = mock_health_check
 
-        # 模擬視覺化協調器
-        mock_visualization = AsyncMock(spec=VisualizationCoordinatorInterface)
-        container.register_instance(
-            VisualizationCoordinatorInterface, mock_visualization
-        )
-
-        # 註冊新的視覺化整合組件
-        try:
-            from ..visualization_integration.realtime_event_streamer import RealtimeEventStreamer
-            from ..visualization_integration.handover_3d_coordinator import Handover3DCoordinator  
-            from ..visualization_integration.rl_monitor_bridge import RLMonitorBridge
-            from ..visualization_integration.animation_sync_manager import AnimationSyncManager
-            
-            # 創建真實的視覺化組件
-            event_streamer = RealtimeEventStreamer()
-            coordinator = Handover3DCoordinator(event_streamer)
-            rl_bridge = RLMonitorBridge(event_streamer)
-            sync_manager = AnimationSyncManager()
-            
-            # 替換模擬的視覺化協調器
-            container.register_instance(VisualizationCoordinatorInterface, coordinator)
-            container.register_instance(RealtimeEventStreamer, event_streamer)
-            container.register_instance(RLMonitorBridge, rl_bridge)
-            container.register_instance(AnimationSyncManager, sync_manager)
-            
-            logger.info("視覺化整合組件註冊完成")
-        except ImportError as e:
-            logger.warning("視覺化整合組件導入失敗，使用模擬組件", error=str(e))
-
-        # 模擬狀態管理器
-        from ..utils.state_manager import StateManager
-        mock_state_manager = AsyncMock(spec=StateManager)
-        container.register_instance(StateManager, mock_state_manager)
+            container.register_instance(iface, mock_instance)
 
     else:
-        # --- 註冊真實的組件 ---
-        logger.info("Creating DI container with REAL implementations")
-        
-        try:
-            # 註冊事件處理器
-            from ..event_processing.processor import EventProcessor
-            container.register_singleton(EventProcessorInterface, EventProcessor)
-            logger.debug("EventProcessor registered")
-            
-            # 註冊候選篩選器
-            from ..candidate_selection.selector import CandidateSelector
-            container.register_singleton(CandidateSelectorInterface, CandidateSelector)
-            logger.debug("CandidateSelector registered")
-            
-            # 註冊RL決策引擎
-            from ..decision_execution.rl_integration import RLDecisionEngine
-            container.register_singleton(RLIntegrationInterface, RLDecisionEngine)
-            logger.debug("RLDecisionEngine registered")
-            
-            # 註冊決策執行器
-            from ..decision_execution.executor import DecisionExecutor
-            container.register_singleton(DecisionExecutorInterface, DecisionExecutor)
-            logger.debug("DecisionExecutor registered")
-            
-            # 註冊決策監控器
-            from ..decision_execution.monitor import DecisionMonitor
-            container.register_singleton(DecisionMonitor, DecisionMonitor)
-            logger.debug("DecisionMonitor registered")
-            
-            # 註冊視覺化協調器
-            try:
-                from ..visualization_integration.handover_3d_coordinator import Handover3DCoordinator
-                from ..visualization_integration.realtime_event_streamer import RealtimeEventStreamer
-                
-                event_streamer = RealtimeEventStreamer()
-                coordinator = Handover3DCoordinator(event_streamer)
-                
-                container.register_instance(VisualizationCoordinatorInterface, coordinator)
-                container.register_instance(RealtimeEventStreamer, event_streamer)
-                logger.debug("Real visualization components registered")
-            except ImportError as e:
-                logger.warning("視覺化組件導入失敗，使用模擬組件", error=str(e))
-                mock_visualization = AsyncMock(spec=VisualizationCoordinatorInterface)
-                container.register_instance(VisualizationCoordinatorInterface, mock_visualization)
-            
-            # 註冊狀態管理器
-            from ..utils.state_manager import StateManager
-            container.register_singleton(StateManager, StateManager)
-            logger.debug("StateManager registered")
-            
-            logger.info("Real implementations registered successfully")
-            
-        except ImportError as e:
-            logger.error("Failed to register real implementations", error=str(e))
-            # 回退到模擬模式
-            logger.warning("Falling back to mock implementations")
-            return create_default_container(use_mocks=True)
+        logger.info("Using REAL implementations for DI container")
+        # 生產模式下的真實實現
+        from ..event_processing.processor import EventProcessor
+        from ..candidate_selection.selector import CandidateSelector
+        from ..decision_execution.rl_integration import RLDecisionEngine
+        from ..decision_execution.executor import DecisionExecutor
+        from ..visualization_integration.handover_3d_coordinator import (
+            Handover3DCoordinator,
+        )
 
-    logger.info(
-        "Default DI container created",
-        mock_mode=use_mocks,
-        registered_services=len(container.get_registered_services()),
-    )
+        container.register_singleton(EventProcessorInterface, EventProcessor)
+        container.register_singleton(CandidateSelectorInterface, CandidateSelector)
+        container.register_singleton(RLIntegrationInterface, RLDecisionEngine)
+        container.register_singleton(DecisionExecutorInterface, DecisionExecutor)
+
+        # Handover3DCoordinator 需要一個 event_streamer 實例。
+        # 在真實應用中，這個實例也應該由容器管理。這裡暫時用一個 Mock。
+        container.register_factory(
+            VisualizationCoordinatorInterface,
+            lambda: Handover3DCoordinator(event_streamer=Mock()),
+        )
+
+    logger.info("Default DI container created", use_mocks=use_mocks)
     return container
