@@ -259,6 +259,12 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
                                     onHandoverTimingSpeedChange={
                                         handoverState.setHandoverTimingSpeed
                                     }
+                                    handoverStableDuration={
+                                        handoverState.handoverStableDuration
+                                    }
+                                    onHandoverStableDurationChange={
+                                        handoverState.setHandoverStableDuration
+                                    }
                                 />
                             </ErrorBoundary>
                         }
