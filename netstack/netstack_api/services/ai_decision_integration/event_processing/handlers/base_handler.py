@@ -5,7 +5,7 @@ Base Handler for event processing.
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Any
-from netstack.netstack_api.services.ai_decision_integration.interfaces.event_processor import (
+from ...interfaces.event_processor import (
     ProcessedEvent,
 )
 
