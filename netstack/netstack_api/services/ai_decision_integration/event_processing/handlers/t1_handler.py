@@ -6,7 +6,7 @@ T1 Event Handler.
 import time
 from typing import Dict, Any
 from .base_handler import EventHandler
-from netstack.netstack_api.services.ai_decision_integration.interfaces.event_processor import (
+from ...interfaces.event_processor import (
     ProcessedEvent,
 )
 
