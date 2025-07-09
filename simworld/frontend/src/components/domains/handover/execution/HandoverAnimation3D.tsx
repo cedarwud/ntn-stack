@@ -746,19 +746,19 @@ const HandoverAnimation3D: React.FC<HandoverAnimation3DProps> = ({
         handoverMode === 'demo'
             ? {
                   // 演示模式：根據速度倍數調整週期，適合展示
-                  stable: (stableDuration * 1000) / speedMultiplier, // 可調整穩定期（毫秒）
-                  preparing: 5000 / speedMultiplier, // 準備期（倒數5秒）
-                  establishing: 3000 / speedMultiplier, // 建立期（3秒）
-                  switching: 2000 / speedMultiplier, // 換手期（2秒）
-                  completing: 5000 / speedMultiplier, // 完成期（5秒）
+                  stable: stableDuration * 1000, // 穩定期不受換手時機速度影響
+                  preparing: (5000 * speedMultiplier) / 15, // 準備期：按比例分配到設定秒數
+                  establishing: (3000 * speedMultiplier) / 15, // 建立期：按比例分配到設定秒數
+                  switching: (2000 * speedMultiplier) / 15, // 換手期：按比例分配到設定秒數
+                  completing: (5000 * speedMultiplier) / 15, // 完成期：按比例分配到設定秒數
               }
             : {
                   // 真實模式：快速換手，根據速度倍數調整
-                  stable: (stableDuration * 1000) / speedMultiplier, // 可調整穩定期
-                  preparing: 500 / speedMultiplier, // 準備期（0.5秒）
-                  establishing: 300 / speedMultiplier, // 建立期（0.3秒）
-                  switching: 200 / speedMultiplier, // 換手期（0.2秒）
-                  completing: 1000 / speedMultiplier, // 完成期（1秒）
+                  stable: stableDuration * 1000, // 穩定期不受換手時機速度影響
+                  preparing: (500 * speedMultiplier) / 2, // 準備期：按比例分配到設定秒數
+                  establishing: (300 * speedMultiplier) / 2, // 建立期：按比例分配到設定秒數
+                  switching: (200 * speedMultiplier) / 2, // 換手期：按比例分配到設定秒數
+                  completing: (1000 * speedMultiplier) / 2, // 完成期：按比例分配到設定秒數
               }
 
     // 🔄 換手邏輯核心

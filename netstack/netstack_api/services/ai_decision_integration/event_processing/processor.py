@@ -5,7 +5,7 @@ Main Event Processor for the AI Decision Engine.
 """
 from typing import Dict, Any, List, Optional
 
-from netstack.netstack_api.services.ai_decision_integration.interfaces.event_processor import (
+from ..interfaces.event_processor import (
     EventProcessorInterface,
     ProcessedEvent,
 )

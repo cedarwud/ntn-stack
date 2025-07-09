@@ -7,9 +7,15 @@
 
 import time
 import asyncio
-import numpy as np
-import torch
 import logging
+try:
+    import numpy as np
+    import torch
+    PYTORCH_AVAILABLE = True
+except ImportError:
+    PYTORCH_AVAILABLE = False
+    np = None
+    torch = None
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from collections import deque, defaultdict
@@ -21,8 +27,16 @@ from ..interfaces.decision_engine import (
     RLAction,
 )
 from ..interfaces.candidate_selector import ScoredCandidate
-from ...rl.manager import UnifiedAIService
-from ...algorithm_ecosystem.registry import AlgorithmRegistry
+
+# 嘗試導入 RL 服務，如果失敗則使用模擬
+try:
+    from ...rl.manager import UnifiedAIService
+    from ...algorithm_ecosystem.registry import AlgorithmRegistry
+    RL_SERVICES_AVAILABLE = True
+except ImportError:
+    RL_SERVICES_AVAILABLE = False
+    UnifiedAIService = None
+    AlgorithmRegistry = None
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +59,20 @@ class RLDecisionEngine(RLIntegrationInterface):
             config: 配置參數
         """
         self.config = config or {}
-        self.logger = logger.bind(component="rl_decision_engine")
+        self.logger = logger
 
         # 算法管理
         self.available_algorithms = ["DQN", "PPO", "SAC"]
         self.current_algorithm = self.config.get("default_algorithm", "DQN")
-        self.algorithm_registry = AlgorithmRegistry()
-
+        
         # RL服務管理
-        self.rl_service = UnifiedAIService("handover_decision")
+        if RL_SERVICES_AVAILABLE:
+            self.algorithm_registry = AlgorithmRegistry()
+            self.rl_service = UnifiedAIService("handover_decision")
+        else:
+            self.algorithm_registry = None
+            self.rl_service = None
+            self.logger.warning("RL 服務不可用，將使用模擬模式")
 
         # 性能統計
         self.decision_count = 0
@@ -143,7 +162,7 @@ class RLDecisionEngine(RLIntegrationInterface):
             return decision
 
         except Exception as e:
-            self.logger.error("RL決策失敗", error=str(e), decision_id=decision_id)
+            self.logger.error("RL決策失敗 [%s]: %s", decision_id, str(e))
             return self._create_fallback_decision(candidates, context, str(e))
 
     def prepare_rl_state(
@@ -203,12 +222,21 @@ class RLDecisionEngine(RLIntegrationInterface):
         historical_performance = self._get_recent_performance_metrics()
 
         # 構建時間特徵
-        time_features = {
-            "hour_sin": np.sin(2 * np.pi * datetime.now().hour / 24),
-            "hour_cos": np.cos(2 * np.pi * datetime.now().hour / 24),
-            "day_of_week": datetime.now().weekday() / 6.0,
-            "is_weekend": float(datetime.now().weekday() >= 5),
-        }
+        if PYTORCH_AVAILABLE:
+            time_features = {
+                "hour_sin": np.sin(2 * np.pi * datetime.now().hour / 24),
+                "hour_cos": np.cos(2 * np.pi * datetime.now().hour / 24),
+                "day_of_week": datetime.now().weekday() / 6.0,
+                "is_weekend": float(datetime.now().weekday() >= 5),
+            }
+        else:
+            import math
+            time_features = {
+                "hour_sin": math.sin(2 * math.pi * datetime.now().hour / 24),
+                "hour_cos": math.cos(2 * math.pi * datetime.now().hour / 24),
+                "day_of_week": datetime.now().weekday() / 6.0,
+                "is_weekend": float(datetime.now().weekday() >= 5),
+            }
 
         rl_state = RLState(
             satellite_states=satellite_states,
@@ -234,32 +262,37 @@ class RLDecisionEngine(RLIntegrationInterface):
             RLAction: RL動作
         """
         try:
-            # 轉換狀態為RL服務可識別的格式
-            input_data = self._convert_state_to_input(state)
+            # 如果 RL 服務可用，調用真實服務
+            if self.rl_service is not None:
+                # 轉換狀態為RL服務可識別的格式
+                input_data = self._convert_state_to_input(state)
 
-            # 調用RL服務
-            rl_result = asyncio.run(self.rl_service.make_decision(input_data))
+                # 調用RL服務
+                rl_result = asyncio.run(self.rl_service.make_decision(input_data))
 
-            if rl_result["status"] == "success":
-                action_data = rl_result["action"]
+                if rl_result["status"] == "success":
+                    action_data = rl_result["action"]
 
-                rl_action = RLAction(
-                    action_type=action_data.get("action_type", "select_satellite"),
-                    target_satellite=action_data.get("target_satellite", ""),
-                    parameters=action_data.get("parameters", {}),
-                    confidence=action_data.get("confidence", 0.5),
-                )
+                    rl_action = RLAction(
+                        action_type=action_data.get("action_type", "select_satellite"),
+                        target_satellite=action_data.get("target_satellite", ""),
+                        parameters=action_data.get("parameters", {}),
+                        confidence=action_data.get("confidence", 0.5),
+                    )
 
-                # 記錄動作歷史
-                self.action_history.append(rl_action)
+                    # 記錄動作歷史
+                    self.action_history.append(rl_action)
 
-                return rl_action
+                    return rl_action
+                else:
+                    self.logger.warning("RL服務決策失敗", result=rl_result)
+                    return self._create_fallback_action(state)
             else:
-                self.logger.warning("RL服務決策失敗", result=rl_result)
-                return self._create_fallback_action(state)
+                # 使用模擬決策
+                return self._create_mock_action(state)
 
         except Exception as e:
-            self.logger.error("RL推理執行失敗", error=str(e))
+            self.logger.error("RL推理執行失敗: %s", str(e))
             return self._create_fallback_action(state)
 
     def update_policy(self, feedback: Dict[str, Any]) -> None:
@@ -295,7 +328,7 @@ class RLDecisionEngine(RLIntegrationInterface):
             )
 
         except Exception as e:
-            self.logger.error("RL策略更新失敗", error=str(e))
+            self.logger.error("RL策略更新失敗: %s", str(e))
 
     def get_confidence_score(self, decision: Decision) -> float:
         """
@@ -575,6 +608,32 @@ class RLDecisionEngine(RLIntegrationInterface):
             confidence=0.3,
         )
 
+    def _create_mock_action(self, state: RLState) -> RLAction:
+        """創建模擬動作"""
+        # 選擇評分最高的候選衛星
+        target_satellite = "SAT_001"  # 預設衛星
+        confidence = 0.75  # 模擬置信度
+        
+        if state.satellite_states:
+            # 找到評分最高的衛星
+            best_satellite = max(
+                state.satellite_states, key=lambda s: s.get("score", 0.0)
+            )
+            # 簡化處理，實際應該從狀態中獲取正確的衛星ID
+            target_satellite = f"MOCK_SAT_{hash(str(best_satellite)) % 1000:03d}"
+            confidence = min(0.95, best_satellite.get("score", 0.5) + 0.1)
+
+        return RLAction(
+            action_type="mock_selection",
+            target_satellite=target_satellite,
+            parameters={
+                "mock_mode": True,
+                "expected_latency_reduction": 12.0,
+                "expected_throughput_increase": 8.0,
+            },
+            confidence=confidence,
+        )
+
     def _convert_state_to_input(self, state: RLState) -> Dict[str, Any]:
         """轉換RL狀態為服務輸入格式"""
         return {
@@ -618,7 +677,11 @@ class RLDecisionEngine(RLIntegrationInterface):
             0.5 * success_reward + 0.3 * performance_reward + 0.2 * satisfaction_reward
         )
 
-        return np.clip(total_reward, -1.0, 1.0)
+        # 如果 numpy 可用，使用 np.clip，否則使用 Python 內置的 min/max
+        if PYTORCH_AVAILABLE:
+            return np.clip(total_reward, -1.0, 1.0)
+        else:
+            return max(-1.0, min(1.0, total_reward))
 
     def _update_algorithm_feedback(
         self, algorithm: str, reward: float, execution_result: Dict
