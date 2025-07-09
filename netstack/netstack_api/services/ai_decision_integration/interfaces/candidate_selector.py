@@ -52,7 +52,7 @@ class CandidateSelectorInterface(ABC):
     """候選篩選器抽象接口"""
     
     @abstractmethod
-    def select_candidates(self, processed_event: ProcessedEvent, 
+    async def select_candidates(self, processed_event: ProcessedEvent, 
                          satellite_pool: List[Dict]) -> List[Candidate]:
         """
         從衛星池中選擇候選衛星
@@ -67,7 +67,7 @@ class CandidateSelectorInterface(ABC):
         pass
     
     @abstractmethod
-    def score_candidates(self, candidates: List[Candidate], 
+    async def score_candidates(self, candidates: List[Candidate], 
                         context: Dict[str, Any] = None) -> List[ScoredCandidate]:
         """
         對候選衛星進行評分
@@ -107,7 +107,7 @@ class CandidateSelectorInterface(ABC):
         pass
     
     @abstractmethod
-    def apply_strategy(self, strategy_name: str, 
+    async def apply_strategy(self, strategy_name: str, 
                       candidates: List[Candidate],
                       parameters: Dict[str, Any] = None) -> List[Candidate]:
         """

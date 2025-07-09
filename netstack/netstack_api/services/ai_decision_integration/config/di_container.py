@@ -369,7 +369,7 @@ def create_default_container(use_mocks: bool = False) -> DIContainer:
         container.register_instance(EventProcessorInterface, mock_event_processor)
 
         # 模擬候選篩選器
-        mock_candidate_selector = Mock(spec=CandidateSelectorInterface)
+        mock_candidate_selector = AsyncMock(spec=CandidateSelectorInterface)
         test_candidate = Candidate(
             satellite_id="SAT_001",
             elevation=45.0,
@@ -470,16 +470,68 @@ def create_default_container(use_mocks: bool = False) -> DIContainer:
             logger.warning("視覺化整合組件導入失敗，使用模擬組件", error=str(e))
 
         # 模擬狀態管理器
+        from ..utils.state_manager import StateManager
         mock_state_manager = AsyncMock(spec=StateManager)
         container.register_instance(StateManager, mock_state_manager)
 
     else:
-        # --- 註冊真實的組件 (待實現) ---
-        logger.info("Creating DI container with REAL implementations (placeholders)")
-        # container.register_singleton(EventProcessorInterface, ConcreteEventProcessor)
-        # container.register_singleton(StateManager, RedisStateManager)
-        # ... 其他真實組件
-        pass
+        # --- 註冊真實的組件 ---
+        logger.info("Creating DI container with REAL implementations")
+        
+        try:
+            # 註冊事件處理器
+            from ..event_processing.processor import EventProcessor
+            container.register_singleton(EventProcessorInterface, EventProcessor)
+            logger.debug("EventProcessor registered")
+            
+            # 註冊候選篩選器
+            from ..candidate_selection.selector import CandidateSelector
+            container.register_singleton(CandidateSelectorInterface, CandidateSelector)
+            logger.debug("CandidateSelector registered")
+            
+            # 註冊RL決策引擎
+            from ..decision_execution.rl_integration import RLDecisionEngine
+            container.register_singleton(RLIntegrationInterface, RLDecisionEngine)
+            logger.debug("RLDecisionEngine registered")
+            
+            # 註冊決策執行器
+            from ..decision_execution.executor import DecisionExecutor
+            container.register_singleton(DecisionExecutorInterface, DecisionExecutor)
+            logger.debug("DecisionExecutor registered")
+            
+            # 註冊決策監控器
+            from ..decision_execution.monitor import DecisionMonitor
+            container.register_singleton(DecisionMonitor, DecisionMonitor)
+            logger.debug("DecisionMonitor registered")
+            
+            # 註冊視覺化協調器
+            try:
+                from ..visualization_integration.handover_3d_coordinator import Handover3DCoordinator
+                from ..visualization_integration.realtime_event_streamer import RealtimeEventStreamer
+                
+                event_streamer = RealtimeEventStreamer()
+                coordinator = Handover3DCoordinator(event_streamer)
+                
+                container.register_instance(VisualizationCoordinatorInterface, coordinator)
+                container.register_instance(RealtimeEventStreamer, event_streamer)
+                logger.debug("Real visualization components registered")
+            except ImportError as e:
+                logger.warning("視覺化組件導入失敗，使用模擬組件", error=str(e))
+                mock_visualization = AsyncMock(spec=VisualizationCoordinatorInterface)
+                container.register_instance(VisualizationCoordinatorInterface, mock_visualization)
+            
+            # 註冊狀態管理器
+            from ..utils.state_manager import StateManager
+            container.register_singleton(StateManager, StateManager)
+            logger.debug("StateManager registered")
+            
+            logger.info("Real implementations registered successfully")
+            
+        except ImportError as e:
+            logger.error("Failed to register real implementations", error=str(e))
+            # 回退到模擬模式
+            logger.warning("Falling back to mock implementations")
+            return create_default_container(use_mocks=True)
 
     logger.info(
         "Default DI container created",
