@@ -163,10 +163,6 @@ async function fetchVisibleSatellites(
     minElevation: number
 ): Promise<VisibleSatelliteInfo[]> {
     try {
-        console.log(
-            `🛰️ EnhancedSidebar: 開始獲取多星座衛星數據 - count: ${count}, minElevation: ${minElevation}`
-        )
-
         // 🔍 快速健康檢查，減少詳細調試輸出
         const isHealthy = await SatelliteDebugger.quickHealthCheck()
         if (!isHealthy) {
@@ -233,11 +229,6 @@ async function fetchVisibleSatellites(
                         }
                     )
 
-                    console.log(
-                        `🛰️ EnhancedSidebar: 獲取到 ${
-                            satellites.length
-                        } 顆 ${constellation.toUpperCase()} 衛星`
-                    )
                     return satellites
                 }
                 return []
@@ -258,12 +249,11 @@ async function fetchVisibleSatellites(
             allSatellites.push(...satellites)
         })
 
-        console.log(
-            `🌍 EnhancedSidebar: 總共獲取到 ${allSatellites.length} 顆可見衛星`
-        )
-
         // 如果獲取到多星座數據，直接返回
         if (allSatellites.length > 0) {
+            console.log(
+                `�� EnhancedSidebar: 總共獲取到 ${allSatellites.length} 顆可見衛星`
+            )
             return allSatellites
         }
 
@@ -272,12 +262,6 @@ async function fetchVisibleSatellites(
         const data = await simWorldApi.getVisibleSatellites(
             Math.max(minElevation, 0), // 🌍 使用標準仰角（地平線以上）
             Math.max(count, 50) // 🌍 請求更多衛星，至少50顆
-        )
-
-        console.log(
-            `🛰️ EnhancedSidebar: API 響應數據結構正常，獲得 ${
-                data?.results?.satellites?.length || 0
-            } 顆衛星`
         )
 
         // 詳細檢查 API 響應格式
@@ -330,8 +314,6 @@ async function fetchVisibleSatellites(
                 }
             }
         )
-
-        console.log(`🛰️ EnhancedSidebar: 成功載入 ${satellites.length} 顆衛星`)
 
         if (satellites.length < 1) {
             console.warn(
@@ -434,7 +416,7 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
     onAlgorithmResults,
     // 衛星動畫控制 props（動畫永遠開啟）
     satelliteSpeedMultiplier = 5,
-    _onSatelliteSpeedChange,
+    onSatelliteSpeedChange,
 
     // 新增：衛星移動速度和換手演示速度控制
     satelliteMovementSpeed = SATELLITE_CONFIG.SATELLITE_MOVEMENT_SPEED,
@@ -638,13 +620,13 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
 
             // 如果已經初始化過，就不再重新載入
             if (satelliteDataInitialized.current) {
-                console.log(
-                    '🛰️ 衛星數據已初始化，使用內在軌道運動，避免重新載入'
-                )
+                // console.log(
+                //     '🛰️ 衛星數據已初始化，使用內在軌道運動，避免重新載入'
+                // )
                 return
             }
 
-            console.log('🛰️ 首次初始化衛星數據...')
+            // console.log('🛰️ 首次初始化衛星數據...')
             setLoadingSatellites(true)
 
             const satellites = await fetchVisibleSatellites(
@@ -1008,7 +990,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                                     onChange={(e) =>
                                                         onHandoverTimingSpeedChange &&
                                                         onHandoverTimingSpeedChange(
-                                                            Number(e.target.value)
+                                                            Number(
+                                                                e.target.value
+                                                            )
                                                         )
                                                     }
                                                     className="speed-slider"
@@ -1035,11 +1019,15 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                                     min="1"
                                                     max="10"
                                                     step="1"
-                                                    value={handoverStableDuration}
+                                                    value={
+                                                        handoverStableDuration
+                                                    }
                                                     onChange={(e) =>
                                                         onHandoverStableDurationChange &&
                                                         onHandoverStableDurationChange(
-                                                            Number(e.target.value)
+                                                            Number(
+                                                                e.target.value
+                                                            )
                                                         )
                                                     }
                                                     className="speed-slider"

@@ -9,7 +9,10 @@ import axios from 'axios'
 import './utils/performanceMonitor'
 
 // 導入配置驗證系統
-import { validateFullConfiguration, logConfigurationStatus } from './config/validation'
+import {
+    validateFullConfiguration,
+    logConfigurationStatus,
+} from './config/validation'
 
 // 導入插件系統
 import { initializePluginSystem } from './plugins'
@@ -134,55 +137,55 @@ if (!configValidation.isValid) {
 }
 
 // 🚀 初始化插件系統
-initializePluginSystem().then(() => {
-    console.log('✅ 插件系統初始化完成')
-}).catch(error => {
-    console.error('❌ 插件系統初始化失敗:', error)
-})
+initializePluginSystem()
+    .then(() => {
+        // console.log('✅ 插件系統初始化完成')
+    })
+    .catch((error) => {
+        console.error('❌ 插件系統初始化失敗:', error)
+    })
 
 createRoot(document.getElementById('root')!).render(
     // 臨時禁用 StrictMode 以減少開發環境的重複渲染檢測
     // <StrictMode>
-        <BrowserRouter>
-            <Routes>
-                {/* 首頁重定向到 /ntpu/stereogram */}
-                <Route
-                    path="/"
-                    element={<Navigate to="/ntpu/stereogram" replace />}
-                />
+    <BrowserRouter>
+        <Routes>
+            {/* 首頁重定向到 /ntpu/stereogram */}
+            <Route
+                path="/"
+                element={<Navigate to="/ntpu/stereogram" replace />}
+            />
 
-                {/* /ntpu 重定向到 /ntpu/stereogram */}
-                <Route
-                    path="/ntpu"
-                    element={<Navigate to="/ntpu/stereogram" replace />}
-                />
+            {/* /ntpu 重定向到 /ntpu/stereogram */}
+            <Route
+                path="/ntpu"
+                element={<Navigate to="/ntpu/stereogram" replace />}
+            />
 
-                {/* /nycu 重定向到 /nycu/stereogram */}
-                <Route
-                    path="/nycu"
-                    element={<Navigate to="/nycu/stereogram" replace />}
-                />
+            {/* /nycu 重定向到 /nycu/stereogram */}
+            <Route
+                path="/nycu"
+                element={<Navigate to="/nycu/stereogram" replace />}
+            />
 
-                {/* 場景路由 - stereogram */}
-                <Route
-                    path="/:scenes/stereogram"
-                    element={<App activeView="stereogram" />}
-                />
+            {/* 場景路由 - stereogram */}
+            <Route
+                path="/:scenes/stereogram"
+                element={<App activeView="stereogram" />}
+            />
 
-                {/* 場景路由 - floor-plan */}
-                <Route
-                    path="/:scenes/floor-plan"
-                    element={<App activeView="floor-plan" />}
-                />
+            {/* 場景路由 - floor-plan */}
+            <Route
+                path="/:scenes/floor-plan"
+                element={<App activeView="floor-plan" />}
+            />
 
-
-
-                {/* 404 重定向到預設場景 */}
-                <Route
-                    path="*"
-                    element={<Navigate to="/ntpu/stereogram" replace />}
-                />
-            </Routes>
-        </BrowserRouter>
+            {/* 404 重定向到預設場景 */}
+            <Route
+                path="*"
+                element={<Navigate to="/ntpu/stereogram" replace />}
+            />
+        </Routes>
+    </BrowserRouter>
     // </StrictMode>
 )

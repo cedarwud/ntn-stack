@@ -62,7 +62,7 @@ help: ## 顯示幫助信息
 
 # ===== 服務啟動 =====
 
-fresh-up: clean-i build-n up ## 重新啟動所有服務
+fresh-up: clean-i build-n dev ## 重新啟動所有服務
 
 up: all-start ## 啟動所有服務
 

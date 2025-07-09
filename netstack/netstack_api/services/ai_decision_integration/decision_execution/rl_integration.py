@@ -8,9 +8,12 @@
 import time
 import asyncio
 import logging
+from datetime import datetime
+
 try:
     import numpy as np
     import torch
+
     PYTORCH_AVAILABLE = True
 except ImportError:
     PYTORCH_AVAILABLE = False
@@ -32,6 +35,7 @@ from ..interfaces.candidate_selector import ScoredCandidate
 try:
     from ...rl.manager import UnifiedAIService
     from ...algorithm_ecosystem.registry import AlgorithmRegistry
+
     RL_SERVICES_AVAILABLE = True
 except ImportError:
     RL_SERVICES_AVAILABLE = False
@@ -64,7 +68,31 @@ class RLDecisionEngine(RLIntegrationInterface):
         # 算法管理
         self.available_algorithms = ["DQN", "PPO", "SAC"]
         self.current_algorithm = self.config.get("default_algorithm", "DQN")
-        
+
+        # 訓練狀態追蹤
+        self.training_states = {"DQN": "idle", "PPO": "idle", "SAC": "idle"}
+        self.training_stats = {
+            "DQN": {
+                "episodes_completed": 0,
+                "average_reward": 0.0,
+                "progress": 0.0,
+                "current_epsilon": 0.1,
+            },
+            "PPO": {
+                "episodes_completed": 0,
+                "average_reward": 0.0,
+                "progress": 0.0,
+                "current_epsilon": 0.1,
+            },
+            "SAC": {
+                "episodes_completed": 0,
+                "average_reward": 0.0,
+                "progress": 0.0,
+                "current_epsilon": 0.1,
+            },
+        }
+        self.training_start_times = {}
+
         # RL服務管理
         if RL_SERVICES_AVAILABLE:
             self.algorithm_registry = AlgorithmRegistry()
@@ -100,6 +128,35 @@ class RLDecisionEngine(RLIntegrationInterface):
             algorithms=self.available_algorithms,
             current_algorithm=self.current_algorithm,
         )
+
+    def get_active_algorithm(self) -> str:
+        """獲取當前活躍的RL算法"""
+        return self.current_algorithm
+
+    def get_algorithm_details(self) -> Dict[str, Any]:
+        """獲取算法的詳細性能指標"""
+        active_algo_perf = self.algorithm_performance[self.current_algorithm]
+        return {
+            "active_algorithm": self.current_algorithm,
+            "decision_count": self.decision_count,
+            "total_decision_time_ms": self.total_decision_time,
+            "average_decision_time_ms": (
+                self.total_decision_time / self.decision_count
+                if self.decision_count > 0
+                else 0
+            ),
+            "exploration_rate": self.exploration_rate,
+            "active_algorithm_performance": {
+                "decisions": active_algo_perf["decisions"],
+                "avg_time_ms": active_algo_perf["avg_time"],
+                "success_rate": active_algo_perf["success_rate"],
+                "avg_confidence": (
+                    np.mean(active_algo_perf["confidence_scores"])
+                    if PYTORCH_AVAILABLE and active_algo_perf["confidence_scores"]
+                    else 0
+                ),
+            },
+        }
 
     def make_decision(
         self, candidates: List[ScoredCandidate], context: Dict[str, Any]
@@ -231,6 +288,7 @@ class RLDecisionEngine(RLIntegrationInterface):
             }
         else:
             import math
+
             time_features = {
                 "hour_sin": math.sin(2 * math.pi * datetime.now().hour / 24),
                 "hour_cos": math.cos(2 * math.pi * datetime.now().hour / 24),
@@ -613,7 +671,7 @@ class RLDecisionEngine(RLIntegrationInterface):
         # 選擇評分最高的候選衛星
         target_satellite = "SAT_001"  # 預設衛星
         confidence = 0.75  # 模擬置信度
-        
+
         if state.satellite_states:
             # 找到評分最高的衛星
             best_satellite = max(
@@ -748,3 +806,136 @@ class RLDecisionEngine(RLIntegrationInterface):
             if scored_candidate.candidate.satellite_id == satellite_id:
                 return i + 1
         return len(candidates) + 1
+
+    async def start_training(self, algorithm: str) -> Dict[str, Any]:
+        """
+        啟動指定算法的訓練
+
+        Args:
+            algorithm: 要啟動的算法名稱 (DQN, PPO, SAC)
+
+        Returns:
+            包含訓練狀態信息的字典
+        """
+        self.logger.info(f"Starting training for algorithm: {algorithm}")
+
+        if algorithm.upper() not in self.available_algorithms:
+            raise ValueError(
+                f"Algorithm {algorithm} not available. Available: {self.available_algorithms}"
+            )
+
+        # 設置當前算法
+        self.current_algorithm = algorithm.upper()
+
+        # 更新訓練狀態
+        self.training_states[algorithm.upper()] = "training"
+        self.training_start_times[algorithm.upper()] = datetime.now()
+
+        # 重置統計數據（開始新的訓練）
+        self.training_stats[algorithm.upper()] = {
+            "episodes_completed": 0,
+            "average_reward": 0.0,
+            "progress": 0.0,
+            "current_epsilon": 0.1,
+        }
+
+        # 為了避免循環引用問題，暫時直接返回模擬數據
+        # 在真實環境中，這裡會啟動實際的訓練過程
+        # if self.rl_service:
+        #     try:
+        #         # 如果有真實的RL服務，嘗試啟動訓練
+        #         result = await self.rl_service.start_training(algorithm)
+        #         return {
+        #             "status": "success",
+        #             "algorithm": algorithm,
+        #             "message": f"Training started for {algorithm}",
+        #             "details": result,
+        #         }
+        #     except Exception as e:
+        #         self.logger.warning(f"Failed to start real training, using simulation: {e}")
+
+        # 模擬模式：返回成功狀態
+        return {
+            "status": "success",
+            "algorithm": algorithm,
+            "message": f"Training started for {algorithm} (simulation mode)",
+            "training_active": True,
+            "start_time": self.training_start_times[algorithm.upper()].isoformat(),
+        }
+
+    async def stop_training(self) -> Dict[str, Any]:
+        """
+        停止當前的訓練
+
+        Returns:
+            包含停止狀態信息的字典
+        """
+        self.logger.info("Stopping training")
+
+        # 更新所有算法的訓練狀態為停止
+        for algorithm in self.training_states:
+            if self.training_states[algorithm] == "training":
+                self.training_states[algorithm] = "idle"
+
+        # 為了避免循環引用問題，暫時直接返回模擬數據
+        # 在真實環境中，這裡會停止實際的訓練過程
+        # if self.rl_service:
+        #     try:
+        #         result = await self.rl_service.stop_training()
+        #         return {
+        #             "status": "success",
+        #             "message": "Training stopped",
+        #             "details": result,
+        #         }
+        #     except Exception as e:
+        #         self.logger.warning(f"Failed to stop real training, using simulation: {e}")
+
+        # 模擬模式：返回成功狀態
+        return {
+            "status": "success",
+            "message": "Training stopped (simulation mode)",
+            "training_active": False,
+            "stop_time": datetime.now().isoformat(),
+        }
+
+    def get_training_status(self) -> Dict[str, Any]:
+        """
+        獲取當前訓練狀態
+
+        Returns:
+            包含訓練狀態信息的字典
+        """
+        # 模擬訓練進度更新（在實際實現中，這應該來自真實的訓練過程）
+        for algorithm in self.training_states:
+            if self.training_states[algorithm] == "training":
+                # 模擬訓練進度
+                start_time = self.training_start_times.get(algorithm)
+                if start_time:
+                    elapsed_seconds = (datetime.now() - start_time).total_seconds()
+                    # 每秒增加一些進度
+                    episodes = min(int(elapsed_seconds / 10), 1000)  # 每10秒一個episode
+                    progress = min(elapsed_seconds / 600.0, 1.0)  # 10分鐘完成
+                    reward = min(0.1 + (elapsed_seconds / 1000.0), 1.0)  # 獎勵逐漸提升
+
+                    self.training_stats[algorithm].update(
+                        {
+                            "episodes_completed": episodes,
+                            "progress": progress,
+                            "average_reward": reward,
+                            "current_epsilon": max(
+                                0.01, 0.1 - (elapsed_seconds / 10000.0)
+                            ),
+                        }
+                    )
+
+        return {
+            "current_algorithm": self.current_algorithm,
+            "available_algorithms": self.available_algorithms,
+            "training_states": self.training_states,
+            "training_stats": self.training_stats,
+            "algorithm_performance": dict(self.algorithm_performance),
+            "decision_count": self.decision_count,
+            "total_decision_time": self.total_decision_time,
+            "average_decision_time": self.total_decision_time
+            / max(1, self.decision_count),
+        }

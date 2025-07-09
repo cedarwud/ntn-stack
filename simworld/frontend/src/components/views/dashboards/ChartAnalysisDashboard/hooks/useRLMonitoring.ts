@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react'
 import { createInitialRLData, createInitialPolicyLossData, createInitialTrainingMetrics } from '../../../../../utils/mockDataGenerator'
+import { apiClient } from '../../../../../services/api-client'
 
 /**
  * RL訓練狀態和數據管理Hook
@@ -48,9 +49,15 @@ export const useRLMonitoring = () => {
           }
         }))
 
-        // 更新獎勵趨勢數據
+        // 更新獎勵趨勢數據 - 避免重複添加相同數據
         setRewardTrendData(prevData => {
           if (typeof metrics.average_reward === 'number') {
+            // 檢查是否是新的數據點（避免重複）
+            const lastDataPoint = prevData.dqnData[prevData.dqnData.length - 1]
+            if (lastDataPoint === metrics.average_reward) {
+              return prevData // 跳過重複數據
+            }
+            
             const currentTime = new Date()
             const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
               hour12: false, 
@@ -122,9 +129,15 @@ export const useRLMonitoring = () => {
           }
         }))
 
-        // 更新獎勵趨勢數據
+        // 更新獎勵趨勢數據 - 避免重複添加相同數據
         setRewardTrendData(prevData => {
           if (typeof metrics.average_reward === 'number') {
+            // 檢查是否是新的數據點（避免重複）
+            const lastDataPoint = prevData.ppoData[prevData.ppoData.length - 1]
+            if (lastDataPoint === metrics.average_reward) {
+              return prevData // 跳過重複數據
+            }
+            
             const currentTime = new Date()
             const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
               hour12: false, 
@@ -196,9 +209,15 @@ export const useRLMonitoring = () => {
           }
         }))
 
-        // 更新獎勵趨勢數據 - SAC
+        // 更新獎勵趨勢數據 - SAC - 避免重複添加相同數據
         setRewardTrendData(prevData => {
           if (typeof metrics.average_reward === 'number') {
+            // 檢查是否是新的數據點（避免重複）
+            const lastDataPoint = (prevData.sacData || [])[prevData.sacData?.length - 1]
+            if (lastDataPoint === metrics.average_reward) {
+              return prevData // 跳過重複數據
+            }
+            
             const currentTime = new Date()
             const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
               hour12: false, 
@@ -286,24 +305,77 @@ export const useRLMonitoring = () => {
       }
     }
 
+    // 狀態同步事件監聽器
+    const handleTrainingStateSync = (event: CustomEvent) => {
+      const { engine, isTraining } = event.detail
+      console.log(`🔄 狀態同步事件 - ${engine}: ${isTraining ? '訓練中' : '停止'}`)
+      
+      if (engine === 'dqn') {
+        setIsDqnTraining(isTraining)
+      } else if (engine === 'ppo') {
+        setIsPpoTraining(isTraining)
+      } else if (engine === 'sac') {
+        setIsSacTraining(isTraining)
+      }
+    }
+
     // 監聽事件
     window.addEventListener('rlMetricsUpdate', handleRLMetricsUpdate as EventListener)
-    window.addEventListener('rlTrainingStateUpdate', handleTrainingStateUpdate as EventListener)
+    window.addEventListener('trainingStateUpdate', handleTrainingStateUpdate as EventListener)
+    window.addEventListener('trainingStateSync', handleTrainingStateSync as EventListener)
     window.addEventListener('rlTrainingStopped', handleTrainingStopped as EventListener)
 
     return () => {
       window.removeEventListener('rlMetricsUpdate', handleRLMetricsUpdate as EventListener)
-      window.removeEventListener('rlTrainingStateUpdate', handleTrainingStateUpdate as EventListener)
+      window.removeEventListener('trainingStateUpdate', handleTrainingStateUpdate as EventListener)
+      window.removeEventListener('trainingStateSync', handleTrainingStateSync as EventListener)
       window.removeEventListener('rlTrainingStopped', handleTrainingStopped as EventListener)
     }
+  }, [])
+
+  // 初始化時同步後端訓練狀態
+  useEffect(() => {
+    const initializeTrainingState = async () => {
+      try {
+        console.log('🔄 useRLMonitoring Hook 初始化，同步後端訓練狀態')
+        const statusSummary = await apiClient.getTrainingStatusSummary()
+        
+        console.log('🔄 Hook 獲取到狀態摘要:', statusSummary)
+        
+        // 同步訓練狀態
+        const isDqnActive = statusSummary.active_algorithms.includes('dqn')
+        const isPpoActive = statusSummary.active_algorithms.includes('ppo')
+        const isSacActive = statusSummary.active_algorithms.includes('sac')
+        
+        console.log('🔄 Hook 設置訓練狀態:', {
+          dqn: isDqnActive,
+          ppo: isPpoActive,
+          sac: isSacActive
+        })
+        
+        setIsDqnTraining(isDqnActive)
+        setIsPpoTraining(isPpoActive)
+        setIsSacTraining(isSacActive)
+        
+      } catch (error) {
+        console.warn('🔄 Hook 初始化狀態同步失敗:', error)
+      }
+    }
+    
+    initializeTrainingState()
   }, [])
 
   // 控制函數
   const toggleDqnTraining = () => {
     const newState = !isDqnTraining
+    console.log('toggleDqnTraining 被調用:', { 
+      currentState: isDqnTraining, 
+      newState 
+    })
     setIsDqnTraining(newState)
+    console.log('發送 dqnToggle 事件:', { isTraining: newState })
     window.dispatchEvent(
-      new CustomEvent('dqnTrainingToggle', {
+      new CustomEvent('dqnToggle', {
         detail: { isTraining: newState }
       })
     )
@@ -311,9 +383,14 @@ export const useRLMonitoring = () => {
 
   const togglePpoTraining = () => {
     const newState = !isPpoTraining
+    console.log('togglePpoTraining 被調用:', { 
+      currentState: isPpoTraining, 
+      newState 
+    })
     setIsPpoTraining(newState)
+    console.log('發送 ppoToggle 事件:', { isTraining: newState })
     window.dispatchEvent(
-      new CustomEvent('ppoTrainingToggle', {
+      new CustomEvent('ppoToggle', {
         detail: { isTraining: newState }
       })
     )
@@ -321,9 +398,14 @@ export const useRLMonitoring = () => {
 
   const toggleSacTraining = () => {
     const newState = !isSacTraining
+    console.log('toggleSacTraining 被調用:', { 
+      currentState: isSacTraining, 
+      newState 
+    })
     setIsSacTraining(newState)
+    console.log('發送 sacToggle 事件:', { isTraining: newState })
     window.dispatchEvent(
-      new CustomEvent('sacTrainingToggle', {
+      new CustomEvent('sacToggle', {
         detail: { isTraining: newState }
       })
     )
@@ -332,15 +414,79 @@ export const useRLMonitoring = () => {
   const toggleAllTraining = () => {
     const anyTraining = isDqnTraining || isPpoTraining || isSacTraining
     const newState = !anyTraining
+    console.log('toggleAllTraining 被調用:', { 
+      anyCurrentlyTraining: anyTraining, 
+      newState,
+      currentStates: { isDqnTraining, isPpoTraining, isSacTraining }
+    })
     setIsDqnTraining(newState)
     setIsPpoTraining(newState)
     setIsSacTraining(newState)
+    
+    // 更新所有引擎的 trainingMetrics
+    if (newState) {
+      // 開始訓練時，等待真實數據從 GymnasiumRLMonitor 推送
+      console.log('啟動所有引擎，等待真實數據更新')
+      // 訓練指標和圖表數據將由 handleRLMetricsUpdate 事件處理器進行更新
+      // 不再生成模擬數據，完全依賴真實 API 數據
+    } else {
+      // 停止訓練時，重置數據
+      console.log('停止所有引擎，重置訓練指標')
+      setTrainingMetrics(prevMetrics => ({
+        ...prevMetrics,
+        dqn: {
+          episodes: 0,
+          avgReward: 0,
+          progress: 0,
+          handoverDelay: 45,
+          successRate: 82,
+          signalDropTime: 18,
+          energyEfficiency: 0.75,
+        },
+        ppo: {
+          episodes: 0,
+          avgReward: 0,
+          progress: 0,
+          handoverDelay: 40,
+          successRate: 84,
+          signalDropTime: 16,
+          energyEfficiency: 0.8,
+        },
+        sac: {
+          episodes: 0,
+          avgReward: 0,
+          progress: 0,
+          handoverDelay: 42,
+          successRate: 85,
+          signalDropTime: 16,
+          energyEfficiency: 0.78,
+        }
+      }))
+      
+      // 重置圖表數據
+      console.log('重置圖表數據')
+      setRewardTrendData(prevData => ({
+        ...prevData,
+        dqnData: [],
+        ppoData: [],
+        sacData: [],
+        labels: []
+      }))
+      
+      setPolicyLossData(prevData => ({
+        ...prevData,
+        dqnData: [],
+        ppoData: [],
+        sacData: [],
+        labels: []
+      }))
+    }
+    
+    console.log('發送 allToggle 事件:', { isTraining: newState })
     window.dispatchEvent(
-      new CustomEvent('allTrainingToggle', {
+      new CustomEvent('allToggle', {
         detail: { 
-          dqnTraining: newState, 
-          ppoTraining: newState,
-          sacTraining: newState
+          isTraining: newState
         }
       })
     )

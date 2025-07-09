@@ -91,7 +91,7 @@ export const getApiConfig = (): ApiConfig => {
   
   // 開發環境下輸出配置信息（只記錄一次）
   if (import.meta.env.DEV && !configLogged) {
-    console.log(`🔧 API 配置模式: ${environment}`, config)
+    // console.log(`🔧 API 配置模式: ${environment}`, config)
     configLogged = true
   }
   
