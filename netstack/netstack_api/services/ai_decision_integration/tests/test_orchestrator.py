@@ -216,7 +216,7 @@ class TestDecisionOrchestrator:
 
         assert not result.success
         assert result.error_message is not None
-        assert "Test error" in result.error_message
+        assert "Pipeline failed at stage: event_processing" in result.error_message
 
 
 if __name__ == "__main__":

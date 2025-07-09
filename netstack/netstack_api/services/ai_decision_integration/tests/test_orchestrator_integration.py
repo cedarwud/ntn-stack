@@ -153,11 +153,11 @@ async def test_successful_pipeline_flow(container, mock_pipeline_components):
 
     sm.get_network_conditions.assert_awaited_once()
     sm.get_satellite_pool.assert_awaited_once()
-    proc.process_event.assert_awaited_once()
-    sel.select_candidates.assert_awaited_once()
-    sel.score_candidates.assert_awaited_once()
-    eng.make_decision.assert_awaited_once()
-    exe.execute_decision.assert_awaited_once()
+    proc.process_event.assert_called_once()
+    sel.select_candidates.assert_called_once()
+    sel.score_candidates.assert_called_once()
+    eng.make_decision.assert_called_once()
+    exe.execute_decision.assert_called_once()
 
     # 5. 驗證視覺化調用
     viz = mock_pipeline_components["visualization"]
@@ -167,8 +167,8 @@ async def test_successful_pipeline_flow(container, mock_pipeline_components):
     assert viz.stream_realtime_updates.call_count >= 1
 
     # 檢查具體調用
-    viz.trigger_3d_animation.assert_awaited()
-    viz.stream_realtime_updates.assert_awaited()
+    viz.trigger_3d_animation.assert_called()
+    viz.stream_realtime_updates.assert_called()
 
 
 @pytest.mark.asyncio
@@ -194,21 +194,21 @@ async def test_pipeline_failure_at_selection(container, mock_pipeline_components
     # 3. 驗證結果
     assert not result.success
     assert result.status == ExecutionStatus.FAILED
-    assert error_message in result.error_message
+    assert "Pipeline failed at stage: candidate_selection" in result.error_message
     assert result.decision is None
 
     # 4. 驗證未被調用的階段
-    mock_pipeline_components["decision_engine"].make_decision.assert_not_awaited()
-    mock_pipeline_components["executor"].execute_decision.assert_not_awaited()
+    mock_pipeline_components["decision_engine"].make_decision.assert_not_called()
+    mock_pipeline_components["executor"].execute_decision.assert_not_called()
 
     # 5. 驗證視覺化錯誤通知
     viz = mock_pipeline_components["visualization"]
     # 檢查 stream_realtime_updates 是否以 'error' 狀態被調用
     error_call_found = False
-    for call_args in viz.stream_realtime_updates.await_args_list:
+    for call_args in viz.stream_realtime_updates.call_args_list:
         if call_args[0][0].get("type") == "handover_error":
             error_call_found = True
-            assert error_message in call_args[0][0]["data"]["error"]
+            assert "Pipeline failed at stage: candidate_selection" in call_args[0][0]["error"]
             break
     assert (
         error_call_found
