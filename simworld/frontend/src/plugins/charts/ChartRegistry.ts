@@ -24,7 +24,7 @@ class ChartRegistryManager {
     private loadedPlugins: Set<string> = new Set()
     
     constructor() {
-        console.log('🔧 [ChartRegistry] 初始化圖表插件註冊系統')
+        // console.log('🔧 [ChartRegistry] 初始化圖表插件註冊系統')
     }
 
     /**
@@ -44,7 +44,7 @@ class ChartRegistryManager {
         }
 
         this.plugins.set(plugin.id, plugin)
-        console.log(`✅ [ChartRegistry] 已註冊插件: ${plugin.name} (${plugin.id})`)
+        // console.log(`✅ [ChartRegistry] 已註冊插件: ${plugin.name} (${plugin.id})`)
     }
 
     /**
@@ -93,7 +93,7 @@ class ChartRegistryManager {
         
         try {
             const config = plugin.configFactory(mergedProps)
-            console.log(`🎯 [ChartRegistry] 已創建圖表配置: ${plugin.name}`)
+            // console.log(`🎯 [ChartRegistry] 已創建圖表配置: ${plugin.name}`)
             return config
         } catch (error) {
             console.error(`❌ [ChartRegistry] 創建圖表配置失敗: ${plugin.name}`, error)
@@ -106,7 +106,7 @@ class ChartRegistryManager {
      */
     async loadPlugin(pluginId: string): Promise<void> {
         if (this.loadedPlugins.has(pluginId)) {
-            console.log(`⏭️ [ChartRegistry] 插件 ${pluginId} 已載入，跳過`)
+            // console.log(`⏭️ [ChartRegistry] 插件 ${pluginId} 已載入，跳過`)
             return
         }
 
@@ -121,7 +121,7 @@ class ChartRegistryManager {
 
             this.register(plugin)
             this.loadedPlugins.add(pluginId)
-            console.log(`🔄 [ChartRegistry] 動態載入插件: ${pluginId}`)
+            // console.log(`🔄 [ChartRegistry] 動態載入插件: ${pluginId}`)
         } catch (error) {
             console.error(`❌ [ChartRegistry] 載入插件失敗: ${pluginId}`, error)
             throw error
@@ -134,7 +134,7 @@ class ChartRegistryManager {
     async loadPlugins(pluginIds: string[]): Promise<void> {
         const loadPromises = pluginIds.map(id => this.loadPlugin(id))
         await Promise.all(loadPromises)
-        console.log(`✅ [ChartRegistry] 批量載入完成: ${pluginIds.length} 個插件`)
+        // console.log(`✅ [ChartRegistry] 批量載入完成: ${pluginIds.length} 個插件`)
     }
 
     /**
@@ -147,7 +147,7 @@ class ChartRegistryManager {
         }
 
         plugin.isEnabled = enabled
-        console.log(`🔄 [ChartRegistry] 插件 ${pluginId} ${enabled ? '已啟用' : '已禁用'}`)
+        // console.log(`🔄 [ChartRegistry] 插件 ${pluginId} ${enabled ? '已啟用' : '已禁用'}`)
     }
 
     /**
@@ -157,7 +157,7 @@ class ChartRegistryManager {
         const removed = this.plugins.delete(pluginId)
         if (removed) {
             this.loadedPlugins.delete(pluginId)
-            console.log(`🗑️ [ChartRegistry] 已移除插件: ${pluginId}`)
+            // console.log(`🗑️ [ChartRegistry] 已移除插件: ${pluginId}`)
         }
         return removed
     }
@@ -168,7 +168,7 @@ class ChartRegistryManager {
     clear(): void {
         this.plugins.clear()
         this.loadedPlugins.clear()
-        console.log('🧹 [ChartRegistry] 已清空所有插件')
+        // console.log('🧹 [ChartRegistry] 已清空所有插件')
     }
 
     /**

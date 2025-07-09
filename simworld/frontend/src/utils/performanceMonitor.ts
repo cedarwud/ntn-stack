@@ -50,7 +50,7 @@ class PerformanceMonitor {
             window.addEventListener('unhandledrejection', this.handleUnhandledRejection)
 
             this.isMonitoring = true
-            console.log('性能監控已啟動（智能模式）')
+            // console.log('性能監控已啟動（智能模式）')
         } catch (error) {
             console.warn('無法啟動性能監控:', error)
         }
