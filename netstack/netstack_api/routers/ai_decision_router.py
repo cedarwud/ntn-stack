@@ -5,7 +5,7 @@ AI 智慧決策 API 路由
 提供綜合 AI 決策、自動調優和預測性維護的 API 接口
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
@@ -96,6 +96,7 @@ def get_ai_ran_service() -> AIRANAntiInterferenceService:
 @router.post("/comprehensive-decision", response_model=Dict)
 async def make_comprehensive_decision(
     request: AIDecisionRequest,
+    fastapi_request: Request,
     engine: AIDecisionEngine = Depends(get_ai_decision_engine)
 ) -> Dict:
     """
@@ -103,8 +104,40 @@ async def make_comprehensive_decision(
     
     基於當前系統狀態、網路條件和優化目標，
     使用多種 AI 技術生成最佳的系統調整決策。
+    
+    **階段6更新**: 支援API代理和漸進式遷移
     """
     try:
+        # 檢查是否啟用代理
+        from ..services.ai_decision_integration.migration import get_api_proxy
+        
+        # 嘗試使用代理
+        try:
+            proxy = get_api_proxy()
+            request_data = request.dict()
+            
+            # 使用代理處理請求
+            result = await proxy.proxy_comprehensive_decision(request_data, fastapi_request)
+            
+            # 如果代理成功，返回結果
+            if result.get("success"):
+                logger.info(
+                    "綜合智慧決策完成 (通過代理)",
+                    decision_id=result.get('decision_id'),
+                    confidence=result.get('confidence_score'),
+                    urgent_mode=request.urgent_mode,
+                    api_version=result.get('api_version', 'proxy')
+                )
+                return result
+            else:
+                # 代理失敗，繼續使用舊系統
+                logger.warning("代理失敗，使用舊系統", error=result.get("error"))
+                
+        except Exception as proxy_error:
+            # 代理異常，繼續使用舊系統
+            logger.warning("代理異常，使用舊系統", error=str(proxy_error))
+        
+        # 原始舊系統邏輯
         # 轉換請求數據為內部格式
         context = DecisionContext(
             system_metrics=SystemMetrics(
@@ -141,7 +174,7 @@ async def make_comprehensive_decision(
         
         if result['success']:
             logger.info(
-                "綜合智慧決策完成",
+                "綜合智慧決策完成 (舊系統)",
                 decision_id=result['decision_id'],
                 confidence=result['confidence_score'],
                 urgent_mode=request.urgent_mode
