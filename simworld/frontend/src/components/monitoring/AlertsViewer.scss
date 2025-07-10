@@ -1,0 +1,377 @@
+/**
+ * AlertsViewer 組件樣式
+ * 階段8：系統告警展示樣式
+ */
+
+.alerts-viewer {
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 16px;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+  /* 告警標頭 */
+  .alerts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    gap: 16px;
+    flex-wrap: wrap;
+
+    .alerts-title {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #ffffff;
+      }
+
+      .status-indicator {
+        display: flex;
+        gap: 12px;
+        font-size: 12px;
+
+        .connection-status {
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-weight: 500;
+
+          &.online {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+          }
+
+          &.offline {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+          }
+        }
+
+        .last-update {
+          color: #888;
+        }
+      }
+    }
+
+    /* 告警統計 */
+    .alerts-stats {
+      display: flex;
+      gap: 12px;
+
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 6px;
+        min-width: 60px;
+        background: rgba(255, 255, 255, 0.05);
+
+        .stat-value {
+          font-size: 18px;
+          font-weight: bold;
+        }
+
+        .stat-label {
+          font-size: 10px;
+          opacity: 0.8;
+          margin-top: 2px;
+        }
+
+        &.total {
+          background: rgba(33, 150, 243, 0.2);
+          color: #2196f3;
+        }
+
+        &.active {
+          background: rgba(255, 193, 7, 0.2);
+          color: #ffc107;
+        }
+
+        &.critical {
+          background: rgba(244, 67, 54, 0.2);
+          color: #f44336;
+        }
+
+        &.warning {
+          background: rgba(255, 152, 0, 0.2);
+          color: #ff9800;
+        }
+      }
+    }
+
+    /* 刷新按鈕 */
+    .refresh-btn {
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid #4caf50;
+      color: #4caf50;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: rgba(76, 175, 80, 0.3);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  /* 告警內容 */
+  .alerts-content {
+    /* 載入狀態 */
+    .loading-state,
+    .error-state,
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      text-align: center;
+      color: #888;
+
+      .loading-spinner,
+      .error-icon,
+      .empty-icon {
+        font-size: 32px;
+        margin-bottom: 12px;
+      }
+
+      .error-message,
+      .empty-message {
+        h4, strong {
+          color: #ffffff;
+          margin-bottom: 8px;
+        }
+
+        p {
+          margin: 0;
+          font-size: 14px;
+        }
+      }
+    }
+
+    .error-state {
+      .error-icon {
+        color: #f44336;
+      }
+    }
+
+    .empty-state {
+      .empty-icon {
+        color: #4caf50;
+      }
+    }
+
+    /* 告警列表 */
+    .alerts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+
+      .alert-item {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        padding: 16px;
+        border-left: 4px solid transparent;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        /* 告警嚴重程度樣式 */
+        &.critical {
+          border-left-color: #f44336;
+          background: rgba(244, 67, 54, 0.08);
+        }
+
+        &.warning {
+          border-left-color: #ff9800;
+          background: rgba(255, 152, 0, 0.08);
+        }
+
+        &.info {
+          border-left-color: #2196f3;
+          background: rgba(33, 150, 243, 0.08);
+        }
+
+        &.suppressed {
+          border-left-color: #666;
+          background: rgba(102, 102, 102, 0.08);
+          opacity: 0.7;
+        }
+
+        /* 告警標題 */
+        .alert-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+
+          .alert-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            .alert-icon {
+              font-size: 16px;
+            }
+
+            .alert-name {
+              font-weight: 600;
+              color: #ffffff;
+            }
+
+            .alert-severity {
+              background: rgba(255, 255, 255, 0.1);
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-size: 10px;
+              text-transform: uppercase;
+              font-weight: 500;
+            }
+          }
+
+          .alert-status {
+            .status-badge {
+              padding: 4px 8px;
+              border-radius: 4px;
+              font-size: 10px;
+              text-transform: uppercase;
+              font-weight: 500;
+
+              &.active {
+                background: rgba(244, 67, 54, 0.2);
+                color: #f44336;
+              }
+
+              &.suppressed {
+                background: rgba(102, 102, 102, 0.2);
+                color: #666;
+              }
+
+              &.unprocessed {
+                background: rgba(255, 193, 7, 0.2);
+                color: #ffc107;
+              }
+            }
+          }
+        }
+
+        /* 告警詳細資訊 */
+        .alert-details {
+          margin-bottom: 12px;
+
+          .alert-summary,
+          .alert-description,
+          .alert-action {
+            margin-bottom: 8px;
+            font-size: 14px;
+            line-height: 1.4;
+
+            strong {
+              color: #ffffff;
+              margin-right: 4px;
+            }
+          }
+
+          .alert-action {
+            background: rgba(255, 193, 7, 0.1);
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #ffc107;
+          }
+        }
+
+        /* 告警元數據 */
+        .alert-metadata {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          gap: 16px;
+          flex-wrap: wrap;
+
+          .alert-labels {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+
+            .label-tag {
+              background: rgba(255, 255, 255, 0.1);
+              padding: 2px 6px;
+              border-radius: 3px;
+              font-size: 10px;
+              color: #ccc;
+            }
+          }
+
+          .alert-timing {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            font-size: 11px;
+            color: #888;
+
+            .start-time {
+              margin-bottom: 2px;
+            }
+
+            .end-time {
+              color: #4caf50;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /* 響應式設計 */
+  @media (max-width: 768px) {
+    .alerts-header {
+      flex-direction: column;
+      align-items: stretch;
+
+      .alerts-stats {
+        justify-content: space-around;
+      }
+
+      .refresh-btn {
+        align-self: flex-end;
+      }
+    }
+
+    .alert-metadata {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 8px;
+
+      .alert-timing {
+        align-items: flex-start !important;
+      }
+    }
+  }
+}
+
+/* 在模態框中的特殊樣式 */
+.modal-content .alerts-viewer {
+  background: transparent;
+  padding: 0;
+
+  .alerts-header {
+    .alerts-title h3 {
+      font-size: 16px;
+    }
+  }
+}

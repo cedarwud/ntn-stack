@@ -1,0 +1,225 @@
+# 系統資源告警規則
+# 階段8：基礎設施和系統資源監控
+
+groups:
+  - name: system_resources
+    interval: 30s
+    rules:
+      # 🚨 CPU使用率過高
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system-resources
+        annotations:
+          summary: "CPU使用率過高"
+          description: "實例 {{ $labels.instance }} CPU使用率達到 {{ printf "%.1f%%" $value }}"
+
+      # 🔥 CPU使用率極高
+      - alert: CriticalCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: system-resources
+        annotations:
+          summary: "CPU使用率極高"
+          description: "實例 {{ $labels.instance }} CPU使用率達到 {{ printf "%.1f%%" $value }}，系統響應可能受影響"
+
+      # 🚨 記憶體使用率過高
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: system-resources
+        annotations:
+          summary: "記憶體使用率過高"
+          description: "實例 {{ $labels.instance }} 記憶體使用率達到 {{ printf "%.1f%%" $value }}"
+
+      # 🔥 記憶體使用率極高
+      - alert: CriticalMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: system-resources
+        annotations:
+          summary: "記憶體使用率極高"
+          description: "實例 {{ $labels.instance }} 記憶體使用率達到 {{ printf "%.1f%%" $value }}，可能導致系統不穩定"
+
+      # 🚨 磁碟空間不足
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: storage
+        annotations:
+          summary: "磁碟空間不足"
+          description: "實例 {{ $labels.instance }} 磁碟 {{ $labels.mountpoint }} 使用率達到 {{ printf "%.1f%%" $value }}"
+
+      # 🔥 磁碟空間嚴重不足
+      - alert: DiskSpaceCritical
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: storage
+        annotations:
+          summary: "磁碟空間嚴重不足"
+          description: "實例 {{ $labels.instance }} 磁碟 {{ $labels.mountpoint }} 使用率達到 {{ printf "%.1f%%" $value }}，需要立即清理"
+
+  - name: container_resources
+    interval: 30s
+    rules:
+      # 🚨 容器記憶體使用率過高
+      - alert: ContainerHighMemoryUsage
+        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""}) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: containers
+        annotations:
+          summary: "容器記憶體使用率過高"
+          description: "容器 {{ $labels.name }} 記憶體使用率達到 {{ printf "%.1f%%" $value }}"
+
+      # 🚨 容器CPU使用率過高
+      - alert: ContainerHighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{name!=""}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: containers
+        annotations:
+          summary: "容器CPU使用率過高"
+          description: "容器 {{ $labels.name }} CPU使用率達到 {{ printf "%.1f%%" $value }}"
+
+      # 🔥 容器重啟過於頻繁
+      - alert: ContainerRestartingFrequently
+        expr: rate(container_restarts_total{name!=""}[1h]) > 0.1  # 1小時內重啟超過0.1次
+        for: 15m
+        labels:
+          severity: critical
+          component: containers
+        annotations:
+          summary: "容器重啟頻繁"
+          description: "容器 {{ $labels.name }} 最近1小時重啟 {{ $value }} 次，可能存在問題"
+
+  - name: network_monitoring
+    interval: 60s
+    rules:
+      # 🟡 網路流量異常
+      - alert: HighNetworkTraffic
+        expr: rate(node_network_receive_bytes_total[5m]) > 100 * 1024 * 1024  # 100MB/s
+        for: 10m
+        labels:
+          severity: info
+          component: network
+        annotations:
+          summary: "網路接收流量過高"
+          description: "實例 {{ $labels.instance }} 介面 {{ $labels.device }} 接收流量達到 {{ printf "%.2f" $value }}/s"
+
+      # 🚨 網路錯誤率過高
+      - alert: HighNetworkErrors
+        expr: rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: network
+        annotations:
+          summary: "網路錯誤率過高"
+          description: "實例 {{ $labels.instance }} 介面 {{ $labels.device }} 網路錯誤率達到 {{ $value }} 錯誤/秒"
+
+  - name: database_monitoring
+    interval: 30s
+    rules:
+      # 🚨 Redis連接數過高
+      - alert: RedisHighConnections
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+          component: connections
+        annotations:
+          summary: "Redis連接數過高"
+          description: "Redis實例 {{ $labels.instance }} 連接數達到 {{ $value }}，超過100個連接"
+
+      # 🚨 Redis記憶體使用率過高
+      - alert: RedisHighMemoryUsage
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+          component: memory
+        annotations:
+          summary: "Redis記憶體使用率過高"
+          description: "Redis實例 {{ $labels.instance }} 記憶體使用率達到 {{ printf "%.1f%%" $value }}"
+
+      # 🚨 PostgreSQL連接數過高
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_database_numbackends > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+          component: connections
+        annotations:
+          summary: "PostgreSQL連接數過高"
+          description: "PostgreSQL數據庫 {{ $labels.datname }} 連接數達到 {{ $value }}"
+
+      # 🚨 PostgreSQL慢查詢過多
+      - alert: PostgreSQLSlowQueries
+        expr: rate(pg_stat_database_slow_queries[5m]) > 5
+        for: 3m
+        labels:
+          severity: warning
+          service: postgresql
+          component: performance
+        annotations:
+          summary: "PostgreSQL慢查詢過多"
+          description: "PostgreSQL數據庫 {{ $labels.datname }} 慢查詢率達到 {{ $value }} 次/秒"
+
+  - name: service_health
+    interval: 30s
+    rules:
+      # 🔥 服務完全不可用
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: service-health
+        annotations:
+          summary: "服務不可用"
+          description: "服務 {{ $labels.job }} 實例 {{ $labels.instance }} 不可用"
+          action_required: "立即檢查服務狀態"
+
+      # 🚨 HTTP錯誤率過高
+      - alert: HighHTTPErrorRate
+        expr: |
+          (
+            rate(http_requests_total{status=~"4..|5.."}[5m]) /
+            rate(http_requests_total[5m])
+          ) * 100 > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: http-errors
+        annotations:
+          summary: "HTTP錯誤率過高"
+          description: "服務 {{ $labels.service }} HTTP錯誤率達到 {{ printf "%.1f%%" $value }}"
+
+      # 🟡 HTTP響應時間過長
+      - alert: HighHTTPLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 10m
+        labels:
+          severity: info
+          component: http-latency
+        annotations:
+          summary: "HTTP響應時間過長"
+          description: "服務 {{ $labels.service }} 95%位響應時間達到 {{ printf "%.2fs" $value }}"

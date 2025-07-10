@@ -11,6 +11,7 @@ import ViewerModal from '../shared/ui/layout/ViewerModal'
 import FullChartAnalysisDashboard from './FullChartAnalysisDashboard'
 import MeasurementEventsModal from './MeasurementEventsModal'
 import RLMonitoringModal from './RLMonitoringModal'
+import OperationsDashboardModal from './OperationsDashboardModal' // 導入新的儀表板組件
 import { ViewerProps } from '../../types/viewer'
 import {
     SCENE_DISPLAY_NAMES,
@@ -63,6 +64,10 @@ const Navbar: FC<NavbarProps> = ({
 
     // 新增 RL 監控 Modal 狀態
     const [showRLMonitoringModal, setShowRLMonitoringModal] = useState(false)
+
+    // 新增 Operations Dashboard Modal 狀態
+    const [showOperationsDashboardModal, setShowOperationsDashboardModal] =
+        useState(false)
 
     // States for modal visibility
     const [showSINRModal, setShowSINRModal] = useState(false)
@@ -413,6 +418,18 @@ const Navbar: FC<NavbarProps> = ({
                         >
                             📡 換手事件
                         </li>
+
+                        {/* 營運儀表板按鈕 */}
+                        <li
+                            className={`navbar-item ${
+                                showOperationsDashboardModal ? 'active' : ''
+                            }`}
+                            onClick={() =>
+                                setShowOperationsDashboardModal(true)
+                            }
+                        >
+                            ⚙️ 營運儀表板
+                        </li>
                     </ul>
                 </div>
             </nav>
@@ -462,6 +479,12 @@ const Navbar: FC<NavbarProps> = ({
             <RLMonitoringModal
                 isOpen={showRLMonitoringModal}
                 onClose={() => setShowRLMonitoringModal(false)}
+            />
+
+            {/* 營運儀表板模態框 */}
+            <OperationsDashboardModal
+                isOpen={showOperationsDashboardModal}
+                onClose={() => setShowOperationsDashboardModal(false)}
             />
         </>
     )

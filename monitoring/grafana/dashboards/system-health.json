@@ -1,0 +1,642 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "system-health",
+    "title": "💊 系統健康監控儀表板",
+    "description": "NTN Stack 系統健康狀態總覽 - 服務可用性、資源監控、告警管理",
+    "tags": ["ntn-stack", "system-health", "infrastructure", "monitoring", "stage-8"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["10s", "30s", "1m", "5m", "15m", "30m"]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "🟢 系統整體健康分數",
+        "type": "gauge",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 70},
+                {"color": "green", "value": 90}
+              ]
+            }
+          }
+        },
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "targets": [
+          {
+            "expr": "avg(system_health_score)",
+            "legendFormat": "整體健康分數",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "⚡ 服務可用性狀態",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 0.95},
+                {"color": "green", "value": 0.99}
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "center",
+          "orientation": "vertical"
+        },
+        "targets": [
+          {
+            "expr": "service_availability_percent / 100",
+            "legendFormat": "{{service}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "🚨 活躍告警數量",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "count(ALERTS{alertstate=\"firing\"})",
+            "legendFormat": "活躍告警",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "🔴 嚴重告警數量",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "red", "value": 1}
+              ]
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "count(ALERTS{alertstate=\"firing\", severity=\"critical\"})",
+            "legendFormat": "嚴重告警",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "🖥️ CPU 使用率",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "pointSize": 2,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "system_cpu_usage_percent",
+            "legendFormat": "{{component}} CPU",
+            "refId": "A"
+          },
+          {
+            "expr": "avg(system_cpu_usage_percent)",
+            "legendFormat": "平均 CPU 使用率",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "🧠 內存使用率",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "pointSize": 2,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "system_memory_usage_percent",
+            "legendFormat": "{{component}} 內存",
+            "refId": "A"
+          },
+          {
+            "expr": "avg(system_memory_usage_percent)",
+            "legendFormat": "平均內存使用率",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "🚀 GPU 使用率",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "pointSize": 2,
+              "fillOpacity": 15
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "system_gpu_utilization_percent",
+            "legendFormat": "GPU {{gpu_id}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "🌐 網路流量",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "bps",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "pointSize": 2,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "rate(network_receive_bytes_total[5m]) * 8",
+            "legendFormat": "{{interface}} 接收",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(network_transmit_bytes_total[5m]) * 8",
+            "legendFormat": "{{interface}} 發送",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "💾 磁碟使用率",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 70},
+                {"color": "red", "value": 90}
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "使用率"},
+              "properties": [
+                {"id": "unit", "value": "percent"},
+                {"id": "custom.displayMode", "value": "gradient-gauge"}
+              ]
+            }
+          ]
+        },
+        "options": {
+          "showHeader": true,
+          "sortBy": [{"desc": true, "displayName": "使用率"}]
+        },
+        "targets": [
+          {
+            "expr": "disk_usage_percent",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "renameByName": {
+                "mountpoint": "掛載點",
+                "device": "設備",
+                "Value": "使用率"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "🔗 數據庫連接狀態",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 24},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 10},
+                {"color": "green", "value": 20}
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "center"
+        },
+        "targets": [
+          {
+            "expr": "database_connections_active",
+            "legendFormat": "{{database}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "📨 消息隊列狀態",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 24},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 1000}
+              ]
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "queue_size_current",
+            "legendFormat": "{{queue_name}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "🌐 WebSocket 連接數",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 24},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 50},
+                {"color": "red", "value": 100}
+              ]
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "websocket_connections_active",
+            "legendFormat": "{{endpoint}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "📊 API 響應時間",
+        "type": "timeseries",
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 24},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "s",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "pointSize": 2,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])",
+            "legendFormat": "{{endpoint}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "📈 服務健康歷史趨勢",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 30},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "pointSize": 2,
+              "fillOpacity": 15
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "system_health_score",
+            "legendFormat": "{{component}}",
+            "refId": "A"
+          },
+          {
+            "expr": "avg_over_time(system_health_score[1h])",
+            "legendFormat": "{{component}} 1小時平均",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "🚨 告警分析",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 30},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 2}
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "嚴重程度"},
+              "properties": [
+                {"id": "custom.displayMode", "value": "color-background"},
+                {"id": "mappings", "value": [
+                  {"type": "value", "options": {"warning": {"text": "警告", "color": "yellow"}}},
+                  {"type": "value", "options": {"critical": {"text": "嚴重", "color": "red"}}},
+                  {"type": "value", "options": {"info": {"text": "資訊", "color": "blue"}}}
+                ]}
+              ]
+            }
+          ]
+        },
+        "options": {
+          "showHeader": true,
+          "sortBy": [{"desc": true, "displayName": "開始時間"}]
+        },
+        "targets": [
+          {
+            "expr": "ALERTS{alertstate=\"firing\"}",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true, "__name__": true},
+              "renameByName": {
+                "alertname": "告警名稱",
+                "severity": "嚴重程度",
+                "service": "服務",
+                "component": "組件",
+                "summary": "摘要"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 16,
+        "title": "🔄 服務重啟歷史",
+        "type": "logs",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 38},
+        "targets": [
+          {
+            "expr": "{job=\"systemd\"} |= \"started\" or \"stopped\" or \"restarted\"",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "showCommonLabels": true,
+          "wrapLogMessage": false,
+          "prettifyLogMessage": false,
+          "enableLogDetails": true,
+          "dedupStrategy": "none",
+          "sortOrder": "Descending"
+        }
+      },
+      {
+        "id": 17,
+        "title": "⚡ 系統性能指標",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 38},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 70},
+                {"color": "red", "value": 90}
+              ]
+            }
+          }
+        },
+        "options": {
+          "showHeader": true
+        },
+        "targets": [
+          {
+            "expr": "up",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true, "__name__": true},
+              "renameByName": {
+                "instance": "實例",
+                "job": "服務",
+                "Value": "狀態"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "service",
+          "type": "query",
+          "query": "label_values(up, job)",
+          "refresh": 1,
+          "includeAll": true,
+          "allValue": ".*",
+          "current": {
+            "text": "All",
+            "value": "$__all"
+          }
+        },
+        {
+          "name": "component",
+          "type": "query",
+          "query": "label_values(system_health_score, component)",
+          "refresh": 1,
+          "includeAll": true,
+          "allValue": ".*"
+        },
+        {
+          "name": "severity",
+          "type": "custom",
+          "options": ["info", "warning", "critical", "emergency"],
+          "current": {
+            "text": "All",
+            "value": "$__all"
+          },
+          "includeAll": true
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "部署事件",
+          "datasource": "Prometheus",
+          "expr": "deployment_event",
+          "iconColor": "green",
+          "textField": "version"
+        },
+        {
+          "name": "系統重啟",
+          "datasource": "Prometheus",
+          "expr": "system_restart_event",
+          "iconColor": "orange",
+          "textField": "reason"
+        },
+        {
+          "name": "告警發生",
+          "datasource": "Prometheus",
+          "expr": "alert_firing_event",
+          "iconColor": "red",
+          "textField": "alertname"
+        }
+      ]
+    }
+  },
+  "overwrite": true
+} 
