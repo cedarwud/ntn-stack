@@ -1,0 +1,425 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "rl-training-monitor",
+    "title": "🧠 RL訓練監控儀表板",
+    "description": "強化學習訓練系統監控 - DQN/PPO/SAC三算法並行監控",
+    "tags": ["ntn-stack", "rl-training", "machine-learning", "stage-8"],
+    "timezone": "browser",
+    "refresh": "5s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "🎯 訓練進度總覽",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 25},
+                {"color": "green", "value": 75}
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "center",
+          "orientation": "vertical"
+        },
+        "targets": [
+          {
+            "expr": "rl_training_progress_percent",
+            "legendFormat": "{{algorithm}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "🏆 訓練成功率",
+        "type": "gauge",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 0.7},
+                {"color": "green", "value": 0.9}
+              ]
+            }
+          }
+        },
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "targets": [
+          {
+            "expr": "rl_training_success_rate",
+            "legendFormat": "{{algorithm}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "⚡ 活躍訓練會話",
+        "type": "stat",
+        "gridPos": {"h": 3, "w": 4, "x": 16, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "green", "value": 2}
+              ]
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "count(rl_training_progress_percent > 0)",
+            "legendFormat": "活躍會話",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "🔄 算法切換頻率",
+        "type": "stat",
+        "gridPos": {"h": 3, "w": 4, "x": 20, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "unit": "cps",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 0.1},
+                {"color": "red", "value": 0.2}
+              ]
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "rate(algorithm_switch_total[5m])",
+            "legendFormat": "切換/秒",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "📈 獎勵值趨勢",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "pointSize": 3,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "targets": [
+          {
+            "expr": "rl_training_reward",
+            "legendFormat": "{{algorithm}} 獎勵",
+            "refId": "A"
+          },
+          {
+            "expr": "avg_over_time(rl_training_reward[10m])",
+            "legendFormat": "{{algorithm}} 10分平均",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "📉 策略損失函數",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "pointSize": 2,
+              "fillOpacity": 5
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "rl_policy_loss",
+            "legendFormat": "{{algorithm}} 策略損失",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "🏃 訓練速度指標",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 50},
+                {"color": "green", "value": 100}
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "算法"},
+              "properties": [{"id": "custom.width", "value": 120}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "訓練進度"},
+              "properties": [
+                {"id": "unit", "value": "percent"},
+                {"id": "custom.displayMode", "value": "gradient-gauge"}
+              ]
+            }
+          ]
+        },
+        "options": {
+          "showHeader": true,
+          "sortBy": [{"desc": true, "displayName": "訓練進度"}]
+        },
+        "targets": [
+          {
+            "expr": "rl_training_progress_percent",
+            "format": "table",
+            "instant": true,
+            "legendFormat": "",
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "indexByName": {},
+              "renameByName": {
+                "algorithm": "算法",
+                "environment": "環境",
+                "Value": "訓練進度"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "🎮 環境互動統計",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short",
+            "custom": {
+              "drawStyle": "bars",
+              "barAlignment": 0,
+              "fillOpacity": 80
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "rate(rl_episodes_total[5m]) * 60",
+            "legendFormat": "{{algorithm}} 每分鐘回合數",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(rl_actions_total[5m]) * 60",
+            "legendFormat": "{{algorithm}} 每分鐘動作數",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "🧮 模型複雜度監控",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 22},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "bytes",
+            "custom": {
+              "displayMode": "basic"
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "model_parameters_total",
+            "legendFormat": "{{algorithm}} 參數量",
+            "refId": "A"
+          },
+          {
+            "expr": "model_memory_usage_bytes",
+            "legendFormat": "{{algorithm}} 內存佔用",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "⏱️ 訓練時間分析",
+        "type": "heatmap",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 22},
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "training_step_duration_seconds_bucket",
+            "legendFormat": "{{algorithm}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "🎯 收斂性檢測",
+        "type": "state-timeline",
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 22},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "mappings": [
+              {"options": {"0": {"text": "發散", "color": "red"}}, "type": "value"},
+              {"options": {"1": {"text": "訓練中", "color": "yellow"}}, "type": "value"},
+              {"options": {"2": {"text": "收斂", "color": "green"}}, "type": "value"}
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "green", "value": 2}
+              ]
+            }
+          }
+        },
+        "options": {
+          "mergeValues": true,
+          "showValue": "auto",
+          "alignValue": "left"
+        },
+        "targets": [
+          {
+            "expr": "training_convergence_status",
+            "legendFormat": "{{algorithm}}",
+            "refId": "A"
+          }
+        ]
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "algorithm",
+          "type": "query",
+          "query": "label_values(rl_training_progress_percent, algorithm)",
+          "refresh": 1,
+          "includeAll": true,
+          "allValue": ".*",
+          "current": {
+            "text": "All",
+            "value": "$__all"
+          }
+        },
+        {
+          "name": "environment",
+          "type": "query",
+          "query": "label_values(rl_training_progress_percent{algorithm=~\"$algorithm\"}, environment)",
+          "refresh": 1,
+          "includeAll": true,
+          "allValue": ".*"
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "訓練開始",
+          "datasource": "Prometheus",
+          "expr": "training_session_start",
+          "iconColor": "green",
+          "textField": "algorithm"
+        },
+        {
+          "name": "模型切換",
+          "datasource": "Prometheus", 
+          "expr": "algorithm_switch_event",
+          "iconColor": "blue",
+          "textField": "from_algorithm"
+        }
+      ]
+    }
+  },
+  "overwrite": true
+} 
