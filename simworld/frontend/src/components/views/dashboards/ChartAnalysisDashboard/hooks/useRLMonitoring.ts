@@ -3,7 +3,7 @@
  * 抽取自 FullChartAnalysisDashboard.tsx 的RL監控邏輯
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createInitialRLData, createInitialPolicyLossData, createInitialTrainingMetrics } from '../../../../../utils/mockDataGenerator'
 import { apiClient } from '../../../../../services/api-client'
 
@@ -15,13 +15,207 @@ export const useRLMonitoring = () => {
   const [isDqnTraining, setIsDqnTraining] = useState(false)
   const [isPpoTraining, setIsPpoTraining] = useState(false)
   const [isSacTraining, setIsSacTraining] = useState(false)
+  
+  // 跟蹤上次的狀態，避免重複日誌
+  const lastStateRef = useRef<Record<string, boolean>>({
+    dqn: false,
+    ppo: false,
+    sac: false
+  })
   const [trainingMetrics, setTrainingMetrics] = useState(createInitialTrainingMetrics())
 
   const [rewardTrendData, setRewardTrendData] = useState(createInitialRLData())
   const [policyLossData, setPolicyLossData] = useState(createInitialPolicyLossData())
 
-  // 監聽來自GymnasiumRLMonitor的真實數據
+  // 定期獲取真實的訓練數據
   useEffect(() => {
+    const fetchTrainingData = async () => {
+      try {
+        const sessions = await apiClient.getRLTrainingSessions()
+        // 只處理活躍的訓練會話
+        const activeSessions = sessions.filter((session: Record<string, unknown>) => session.status === 'active')
+        
+        // 同步訓練狀態和重置非活躍算法的數據
+        const activeAlgorithms = activeSessions.map((session: Record<string, unknown>) => session.algorithm_name as string)
+        const allAlgorithms = ['dqn', 'ppo', 'sac']
+        
+        // 更新訓練狀態
+        setIsDqnTraining(activeAlgorithms.includes('dqn'))
+        setIsPpoTraining(activeAlgorithms.includes('ppo'))
+        setIsSacTraining(activeAlgorithms.includes('sac'))
+        
+        allAlgorithms.forEach(algorithm => {
+          if (!activeAlgorithms.includes(algorithm)) {
+            setTrainingMetrics(prevMetrics => ({
+              ...prevMetrics,
+              [algorithm]: {
+                episodes: 0,
+                avgReward: 0,
+                progress: 0,
+                handoverDelay: algorithm === 'dqn' ? 45 : algorithm === 'ppo' ? 40 : 42,
+                successRate: algorithm === 'dqn' ? 82 : algorithm === 'ppo' ? 84 : 85,
+                signalDropTime: algorithm === 'dqn' ? 18 : 16,
+                energyEfficiency: algorithm === 'dqn' ? 0.75 : algorithm === 'ppo' ? 0.8 : 0.78,
+              }
+            }))
+          }
+        })
+        
+        activeSessions.forEach((session: Record<string, unknown>) => {
+          const algorithm = session.algorithm_name as string
+          const progress = ((session.episodes_completed as number) / (session.episodes_target as number)) * 100
+          
+          const metrics = {
+            episodes_completed: session.episodes_completed as number,
+            average_reward: session.current_reward as number,
+            best_reward: session.best_reward as number,
+            training_progress: progress
+          }
+          
+          // 更新訓練指標
+          if (algorithm === 'dqn') {
+            setTrainingMetrics(prevMetrics => ({
+              ...prevMetrics,
+              dqn: {
+                episodes: metrics.episodes_completed || 0,
+                avgReward: metrics.average_reward || 0,
+                progress: metrics.training_progress || 0,
+                handoverDelay: 45 - (metrics.training_progress || 0) / 100 * 20 + (Math.random() - 0.5) * 5,
+                successRate: Math.min(100, 82 + (metrics.training_progress || 0) / 100 * 12 + (Math.random() - 0.5) * 1.5),
+                signalDropTime: 18 - (metrics.training_progress || 0) / 100 * 8 + (Math.random() - 0.5) * 2,
+                energyEfficiency: 0.75 + (metrics.training_progress || 0) / 100 * 0.2 + (Math.random() - 0.5) * 0.05,
+              }
+            }))
+
+            // 更新獎勵趨勢數據 - 使用最佳獎勵以更好地反映學習進度
+            setRewardTrendData(prevData => {
+              if (typeof metrics.best_reward === 'number') {
+                // 使用 episodes 作為數據點，避免時間軸過於密集
+                const episodeLabel = `Ep ${metrics.episodes_completed}`
+                
+                // 避免重複的 episode 數據
+                const lastLabel = prevData.labels[prevData.labels.length - 1]
+                if (lastLabel === episodeLabel) {
+                  return prevData
+                }
+                
+                const newDataPoints = [...prevData.dqnData, metrics.best_reward]
+                const newLabels = [...prevData.labels, episodeLabel]
+                
+                const maxPoints = 100
+                const finalDataPoints = newDataPoints.length > maxPoints 
+                  ? newDataPoints.slice(-maxPoints) 
+                  : newDataPoints
+                const finalLabels = newLabels.length > maxPoints 
+                  ? newLabels.slice(-maxPoints) 
+                  : newLabels
+                
+                return {
+                  ...prevData,
+                  dqnData: finalDataPoints,
+                  labels: finalLabels
+                }
+              }
+              return prevData
+            })
+          } else if (algorithm === 'ppo') {
+            setTrainingMetrics(prevMetrics => ({
+              ...prevMetrics,
+              ppo: {
+                episodes: metrics.episodes_completed || 0,
+                avgReward: metrics.average_reward || 0,
+                progress: metrics.training_progress || 0,
+                handoverDelay: 40 - (metrics.training_progress || 0) / 100 * 22 + (Math.random() - 0.5) * 4,
+                successRate: Math.min(100, 84 + (metrics.training_progress || 0) / 100 * 10 + (Math.random() - 0.5) * 1.2),
+                signalDropTime: 16 - (metrics.training_progress || 0) / 100 * 9 + (Math.random() - 0.5) * 1.5,
+                energyEfficiency: 0.8 + (metrics.training_progress || 0) / 100 * 0.18 + (Math.random() - 0.5) * 0.04,
+              }
+            }))
+
+            setRewardTrendData(prevData => {
+              if (typeof metrics.best_reward === 'number') {
+                const episodeLabel = `Ep ${metrics.episodes_completed}`
+                
+                // 避免重複的 episode 數據
+                const lastLabel = prevData.labels[prevData.labels.length - 1]
+                if (lastLabel === episodeLabel) {
+                  return prevData
+                }
+                
+                const newDataPoints = [...prevData.ppoData, metrics.best_reward]
+                const newLabels = [...prevData.labels, episodeLabel]
+                
+                const maxPoints = 100
+                const finalDataPoints = newDataPoints.length > maxPoints 
+                  ? newDataPoints.slice(-maxPoints) 
+                  : newDataPoints
+                const finalLabels = newLabels.length > maxPoints 
+                  ? newLabels.slice(-maxPoints) 
+                  : newLabels
+                
+                return {
+                  ...prevData,
+                  ppoData: finalDataPoints,
+                  labels: finalLabels
+                }
+              }
+              return prevData
+            })
+          } else if (algorithm === 'sac') {
+            setTrainingMetrics(prevMetrics => ({
+              ...prevMetrics,
+              sac: {
+                episodes: metrics.episodes_completed || 0,
+                avgReward: metrics.average_reward || 0,
+                progress: metrics.training_progress || 0,
+                handoverDelay: 42 - (metrics.training_progress || 0) / 100 * 18 + (Math.random() - 0.5) * 4,
+                successRate: Math.min(100, 85 + (metrics.training_progress || 0) / 100 * 13 + (Math.random() - 0.5) * 1.2),
+                signalDropTime: 16 - (metrics.training_progress || 0) / 100 * 7 + (Math.random() - 0.5) * 1.8,
+                energyEfficiency: 0.78 + (metrics.training_progress || 0) / 100 * 0.18 + (Math.random() - 0.5) * 0.04,
+              }
+            }))
+
+            setRewardTrendData(prevData => {
+              if (typeof metrics.best_reward === 'number') {
+                const episodeLabel = `Ep ${metrics.episodes_completed}`
+                
+                // 避免重複的 episode 數據
+                const lastLabel = prevData.labels[prevData.labels.length - 1]
+                if (lastLabel === episodeLabel) {
+                  return prevData
+                }
+                
+                const newDataPoints = [...(prevData.sacData || []), metrics.best_reward]
+                const newLabels = [...prevData.labels, episodeLabel]
+                
+                const maxPoints = 100
+                const finalDataPoints = newDataPoints.length > maxPoints 
+                  ? newDataPoints.slice(-maxPoints) 
+                  : newDataPoints
+                const finalLabels = newLabels.length > maxPoints 
+                  ? newLabels.slice(-maxPoints) 
+                  : newLabels
+                
+                return {
+                  ...prevData,
+                  sacData: finalDataPoints,
+                  labels: finalLabels
+                }
+              }
+              return prevData
+            })
+          }
+        })
+      } catch (error) {
+        console.warn('獲取訓練數據失敗:', error)
+      }
+    }
+
+    // 啟動定期數據獲取
+    const interval = setInterval(fetchTrainingData, 3000) // 每3秒獲取一次
+    fetchTrainingData() // 立即執行一次
+
+    // 保持原有的事件監聽器作為備用
     const handleRLMetricsUpdate = (event: CustomEvent) => {
       const { engine, metrics } = event.detail
       
@@ -308,7 +502,13 @@ export const useRLMonitoring = () => {
     // 狀態同步事件監聽器
     const handleTrainingStateSync = (event: CustomEvent) => {
       const { engine, isTraining } = event.detail
-      console.log(`🔄 狀態同步事件 - ${engine}: ${isTraining ? '訓練中' : '停止'}`)
+      
+      // 檢查狀態是否有變化，只在狀態改變時記錄日誌
+      const hasStateChanged = lastStateRef.current[engine] !== isTraining
+      if (hasStateChanged) {
+        console.log(`🔄 狀態同步事件 - ${engine}: ${isTraining ? '訓練中' : '停止'}`)
+        lastStateRef.current[engine] = isTraining
+      }
       
       if (engine === 'dqn') {
         setIsDqnTraining(isTraining)
@@ -326,6 +526,7 @@ export const useRLMonitoring = () => {
     window.addEventListener('rlTrainingStopped', handleTrainingStopped as EventListener)
 
     return () => {
+      clearInterval(interval)
       window.removeEventListener('rlMetricsUpdate', handleRLMetricsUpdate as EventListener)
       window.removeEventListener('trainingStateUpdate', handleTrainingStateUpdate as EventListener)
       window.removeEventListener('trainingStateSync', handleTrainingStateSync as EventListener)

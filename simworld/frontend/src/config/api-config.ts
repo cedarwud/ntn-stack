@@ -19,22 +19,26 @@ interface ApiConfig {
  * 檢測當前運行環境
  */
 const detectEnvironment = (): 'development' | 'docker' | 'production' => {
-  // 檢查是否在 Docker 容器中
+  // 強制檢查是否在 Docker 容器中
   if (import.meta.env.VITE_ENV_MODE === 'docker') {
     return 'docker'
   }
   
-  // 檢查是否為開發環境
-  if (import.meta.env.DEV) {
-    return 'development'
-  }
-  
-  // 檢查主機名判斷環境
+  // 檢查主機名 - 如果是通過 localhost:5173 訪問但有 VITE_ENV_MODE，則使用 docker
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'development'
+    const port = window.location.port
+    if ((hostname === 'localhost' || hostname === '127.0.0.1') && port === '5173') {
+      // 如果有設置 VITE_NETSTACK_URL 為代理路徑，則為 docker 環境
+      if (import.meta.env.VITE_NETSTACK_URL?.startsWith('/')) {
+        return 'docker'
+      }
     }
+  }
+  
+  // 檢查是否為開發環境
+  if (import.meta.env.DEV && !import.meta.env.VITE_ENV_MODE) {
+    return 'development'
   }
   
   return 'production'

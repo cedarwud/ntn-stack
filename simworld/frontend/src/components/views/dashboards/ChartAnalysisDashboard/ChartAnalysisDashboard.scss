@@ -3440,3 +3440,331 @@
         }
     }
 }
+
+/* 增強分析面板樣式 */
+.enhanced-analysis-section {
+    margin-top: 2rem;
+    padding: 2rem;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6));
+    border-radius: 16px;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+
+    .analysis-header {
+        text-align: center;
+        margin-bottom: 2rem;
+
+        h3 {
+            font-size: 1.8rem;
+            color: #22c55e;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .analysis-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1rem;
+        }
+    }
+
+    .analysis-panels-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+
+        .analysis-panel {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.7));
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(34, 197, 94, 0.15);
+            transition: all 0.3s ease;
+
+            &:hover {
+                transform: translateY(-2px);
+                border-color: rgba(34, 197, 94, 0.3);
+                box-shadow: 0 8px 25px rgba(34, 197, 94, 0.1);
+            }
+
+            .panel-title {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                margin-bottom: 1.5rem;
+                color: #22c55e;
+                font-weight: 600;
+                font-size: 1.1rem;
+
+                .panel-icon {
+                    font-size: 1.2rem;
+                }
+            }
+        }
+
+        /* 訓練性能分析面板 */
+        .performance-panel {
+            .performance-metrics {
+                display: grid;
+                gap: 1rem;
+
+                .performance-metric {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 0.75rem;
+                    background: rgba(34, 197, 94, 0.05);
+                    border-radius: 8px;
+                    border-left: 3px solid #22c55e;
+
+                    .metric-name {
+                        color: rgba(255, 255, 255, 0.8);
+                        font-size: 0.9rem;
+                    }
+
+                    .metric-value {
+                        color: #22c55e;
+                        font-weight: 600;
+                        font-size: 1rem;
+                    }
+                }
+            }
+        }
+
+        /* 系統資源監控面板 */
+        .resource-panel {
+            .resource-metrics {
+                display: grid;
+                gap: 1rem;
+
+                .resource-item {
+                    .resource-label {
+                        color: rgba(255, 255, 255, 0.8);
+                        font-size: 0.9rem;
+                        margin-bottom: 0.5rem;
+                    }
+
+                    .resource-bar {
+                        height: 8px;
+                        background: rgba(255, 255, 255, 0.1);
+                        border-radius: 4px;
+                        overflow: hidden;
+                        margin-bottom: 0.25rem;
+
+                        .resource-fill {
+                            height: 100%;
+                            background: linear-gradient(90deg, #22c55e, #16a34a);
+                            transition: width 0.5s ease;
+                        }
+                    }
+
+                    .resource-value {
+                        color: #22c55e;
+                        font-weight: 600;
+                        font-size: 0.9rem;
+                        text-align: right;
+                    }
+                }
+            }
+        }
+
+        /* 算法對比分析面板 */
+        .comparison-panel {
+            .comparison-table {
+                .comparison-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr 1fr 1fr;
+                    gap: 0.5rem;
+                    padding: 0.5rem 0;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+                    &.header-row {
+                        font-weight: 600;
+                        color: #22c55e;
+                        border-bottom: 2px solid rgba(34, 197, 94, 0.3);
+                        margin-bottom: 0.5rem;
+                    }
+
+                    .comparison-cell {
+                        color: rgba(255, 255, 255, 0.9);
+                        font-size: 0.9rem;
+                        text-align: center;
+                    }
+                }
+            }
+        }
+
+        /* 實時洞察面板 */
+        .insights-panel {
+            .insights-content {
+                display: grid;
+                gap: 1rem;
+
+                .insight-item {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 0.75rem;
+                    padding: 0.75rem;
+                    background: rgba(34, 197, 94, 0.05);
+                    border-radius: 8px;
+                    border: 1px solid rgba(34, 197, 94, 0.1);
+
+                    .insight-icon {
+                        font-size: 1.1rem;
+                        flex-shrink: 0;
+                    }
+
+                    .insight-text {
+                        color: rgba(255, 255, 255, 0.85);
+                        font-size: 0.9rem;
+                        line-height: 1.4;
+                    }
+                }
+            }
+        }
+    }
+
+    /* 響應式設計 */
+    @media (max-width: 1024px) {
+        .analysis-panels-grid {
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        padding: 1rem;
+
+        .analysis-header h3 {
+            font-size: 1.5rem;
+        }
+
+        .analysis-panels-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+
+            .analysis-panel {
+                padding: 1rem;
+            }
+        }
+    }
+
+    // 深度分析中的日誌面板
+    .logs-panel {
+        .logs-container {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+
+            .log-entry {
+                padding: 6px 10px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                font-size: 11px;
+                font-family: 'Monaco', 'Menlo', monospace;
+                display: flex;
+                gap: 6px;
+                align-items: center;
+
+                &:last-child {
+                    border-bottom: none;
+                }
+
+                .log-timestamp {
+                    color: #94a3b8;
+                    font-weight: 500;
+                    min-width: 55px;
+                    font-size: 10px;
+                }
+
+                .log-algorithm {
+                    font-weight: 600;
+                    min-width: 45px;
+                    font-size: 10px;
+                }
+
+                .log-message {
+                    flex: 1;
+                    font-size: 11px;
+                }
+
+                &.success {
+                    background: rgba(34, 197, 94, 0.08);
+                    border-left: 2px solid #22c55e;
+                    
+                    .log-algorithm {
+                        color: #22c55e;
+                    }
+                    
+                    .log-message {
+                        color: #4ade80;
+                    }
+                }
+
+                &.error {
+                    background: rgba(239, 68, 68, 0.08);
+                    border-left: 2px solid #ef4444;
+                    
+                    .log-algorithm {
+                        color: #ef4444;
+                    }
+                    
+                    .log-message {
+                        color: #f87171;
+                    }
+                }
+
+                &.warning {
+                    background: rgba(245, 158, 11, 0.08);
+                    border-left: 2px solid #f59e0b;
+                    
+                    .log-algorithm {
+                        color: #f59e0b;
+                    }
+                    
+                    .log-message {
+                        color: #fbbf24;
+                    }
+                }
+
+                &.info {
+                    background: rgba(59, 130, 246, 0.08);
+                    border-left: 2px solid #3b82f6;
+                    
+                    .log-algorithm {
+                        color: #3b82f6;
+                    }
+                    
+                    .log-message {
+                        color: #60a5fa;
+                    }
+                }
+            }
+
+            .no-logs {
+                padding: 15px;
+                text-align: center;
+                color: #666;
+                font-style: italic;
+                font-size: 12px;
+            }
+
+            // 滾動條樣式
+            &::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            &::-webkit-scrollbar-track {
+                background: rgba(0, 0, 0, 0.1);
+                border-radius: 2px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                background: rgba(64, 224, 255, 0.6);
+                border-radius: 2px;
+
+                &:hover {
+                    background: rgba(64, 224, 255, 0.8);
+                }
+            }
+        }
+    }
+}
