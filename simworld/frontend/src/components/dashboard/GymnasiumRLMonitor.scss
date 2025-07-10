@@ -938,3 +938,172 @@
     box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
   }
 }
+
+// 新增多算法顯示樣式
+.system-overview {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(64, 224, 255, 0.2);
+
+  .overview-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 16px;
+
+    .metric-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+
+      .metric-label {
+        font-size: 12px;
+        color: #94a3b8;
+        font-weight: 500;
+      }
+
+      .metric-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: #e0f6ff;
+      }
+    }
+  }
+}
+
+.algorithms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.algorithm-panel {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.3s ease;
+
+  &.active {
+    border-color: #4caf50;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+  }
+
+  .algorithm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+
+    h4 {
+      margin: 0;
+      color: #e0f6ff;
+      font-size: 16px;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+
+      &.active {
+        background-color: rgba(76, 175, 80, 0.2);
+        color: #4caf50;
+      }
+
+      &.idle {
+        background-color: rgba(158, 158, 158, 0.2);
+        color: #9e9e9e;
+      }
+    }
+  }
+
+  .algorithm-metrics {
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+
+      .metric-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        .metric-label {
+          font-size: 12px;
+          color: #94a3b8;
+          font-weight: 500;
+        }
+
+        .metric-value {
+          font-size: 14px;
+          font-weight: 600;
+          color: #e0f6ff;
+        }
+      }
+    }
+
+    .progress-section {
+      .progress-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 6px;
+        font-size: 12px;
+        color: #a0a0a0;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 6px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+
+        .progress-fill {
+          height: 100%;
+          transition: width 0.3s ease;
+
+          &.dqn-progress {
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+          }
+
+          &.ppo-progress {
+            background: linear-gradient(90deg, #2196f3, #64b5f6);
+          }
+
+          &.sac-progress {
+            background: linear-gradient(90deg, #ff9800, #ffb74d);
+          }
+        }
+      }
+    }
+  }
+
+  .no-data {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-style: italic;
+  }
+
+  // 算法特定顏色
+  &.dqn-panel.active {
+    border-color: #4caf50;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+  }
+
+  &.ppo-panel.active {
+    border-color: #2196f3;
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.3);
+  }
+
+  &.sac-panel.active {
+    border-color: #ff9800;
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+  }
+}
+
