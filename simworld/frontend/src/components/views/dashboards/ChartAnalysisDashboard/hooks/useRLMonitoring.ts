@@ -3,7 +3,7 @@
  * 抽取自 FullChartAnalysisDashboard.tsx 的RL監控邏輯
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createInitialRLData, createInitialPolicyLossData, createInitialTrainingMetrics } from '../../../../../utils/mockDataGenerator'
 import { apiClient } from '../../../../../services/api-client'
 
@@ -27,7 +27,7 @@ export const useRLMonitoring = () => {
   const [rewardTrendData, setRewardTrendData] = useState(createInitialRLData())
   const [policyLossData, setPolicyLossData] = useState(createInitialPolicyLossData())
 
-  // 定期獲取真實的訓練數據
+  // 統一的數據獲取 - 移除重複的事件監聽機制
   useEffect(() => {
     const fetchTrainingData = async () => {
       try {
@@ -87,33 +87,35 @@ export const useRLMonitoring = () => {
               }
             }))
 
-            // 更新獎勵趨勢數據 - 使用最佳獎勵以更好地反映學習進度
+            // 更新獎勵趨勢數據 - DQN專用邏輯
             setRewardTrendData(prevData => {
-              if (typeof metrics.best_reward === 'number') {
-                // 使用 episodes 作為數據點，避免時間軸過於密集
-                const episodeLabel = `Ep ${metrics.episodes_completed}`
+              if (typeof metrics.average_reward === 'number') {
+                // 檢查DQN專用的重複檢查
+                const dqnData = prevData.dqnData || []
+                const dqnLabels = prevData.dqnLabels || []
                 
-                // 避免重複的 episode 數據
-                const lastLabel = prevData.labels[prevData.labels.length - 1]
-                if (lastLabel === episodeLabel) {
-                  return prevData
+                // 避免重複的 episode 數據 - 檢查DQN專用標籤
+                const lastDqnLabel = dqnLabels[dqnLabels.length - 1]
+                const expectedLabel = `Ep ${metrics.episodes_completed}`
+                if (lastDqnLabel === expectedLabel) {
+                  return prevData // 跳過重複數據
                 }
                 
-                const newDataPoints = [...prevData.dqnData, metrics.best_reward]
-                const newLabels = [...prevData.labels, episodeLabel]
+                const newDataPoints = [...dqnData, metrics.average_reward || 0]
+                const newDqnLabels = [...dqnLabels, expectedLabel]
                 
                 const maxPoints = 100
                 const finalDataPoints = newDataPoints.length > maxPoints 
                   ? newDataPoints.slice(-maxPoints) 
                   : newDataPoints
-                const finalLabels = newLabels.length > maxPoints 
-                  ? newLabels.slice(-maxPoints) 
-                  : newLabels
+                const finalDqnLabels = newDqnLabels.length > maxPoints 
+                  ? newDqnLabels.slice(-maxPoints) 
+                  : newDqnLabels
                 
                 return {
                   ...prevData,
                   dqnData: finalDataPoints,
-                  labels: finalLabels
+                  dqnLabels: finalDqnLabels
                 }
               }
               return prevData
@@ -133,30 +135,33 @@ export const useRLMonitoring = () => {
             }))
 
             setRewardTrendData(prevData => {
-              if (typeof metrics.best_reward === 'number') {
-                const episodeLabel = `Ep ${metrics.episodes_completed}`
+              if (typeof metrics.average_reward === 'number') {
+                // 檢查PPO專用的重複檢查
+                const ppoData = prevData.ppoData || []
+                const ppoLabels = prevData.ppoLabels || []
                 
-                // 避免重複的 episode 數據
-                const lastLabel = prevData.labels[prevData.labels.length - 1]
-                if (lastLabel === episodeLabel) {
-                  return prevData
+                // 避免重複的 episode 數據 - 檢查PPO專用標籤
+                const lastPpoLabel = ppoLabels[ppoLabels.length - 1]
+                const expectedLabel = `Ep ${metrics.episodes_completed}`
+                if (lastPpoLabel === expectedLabel) {
+                  return prevData // 跳過重複數據
                 }
                 
-                const newDataPoints = [...prevData.ppoData, metrics.best_reward]
-                const newLabels = [...prevData.labels, episodeLabel]
+                const newDataPoints = [...ppoData, metrics.average_reward || 0]
+                const newPpoLabels = [...ppoLabels, expectedLabel]
                 
                 const maxPoints = 100
                 const finalDataPoints = newDataPoints.length > maxPoints 
                   ? newDataPoints.slice(-maxPoints) 
                   : newDataPoints
-                const finalLabels = newLabels.length > maxPoints 
-                  ? newLabels.slice(-maxPoints) 
-                  : newLabels
+                const finalPpoLabels = newPpoLabels.length > maxPoints 
+                  ? newPpoLabels.slice(-maxPoints) 
+                  : newPpoLabels
                 
                 return {
                   ...prevData,
                   ppoData: finalDataPoints,
-                  labels: finalLabels
+                  ppoLabels: finalPpoLabels
                 }
               }
               return prevData
@@ -176,30 +181,33 @@ export const useRLMonitoring = () => {
             }))
 
             setRewardTrendData(prevData => {
-              if (typeof metrics.best_reward === 'number') {
-                const episodeLabel = `Ep ${metrics.episodes_completed}`
+              if (typeof metrics.average_reward === 'number') {
+                // 檢查SAC專用的重複檢查
+                const sacData = prevData.sacData || []
+                const sacLabels = prevData.sacLabels || []
                 
-                // 避免重複的 episode 數據
-                const lastLabel = prevData.labels[prevData.labels.length - 1]
-                if (lastLabel === episodeLabel) {
-                  return prevData
+                // 避免重複的 episode 數據 - 檢查SAC專用標籤
+                const lastSacLabel = sacLabels[sacLabels.length - 1]
+                const expectedLabel = `Ep ${metrics.episodes_completed}`
+                if (lastSacLabel === expectedLabel) {
+                  return prevData // 跳過重複數據
                 }
                 
-                const newDataPoints = [...(prevData.sacData || []), metrics.best_reward]
-                const newLabels = [...prevData.labels, episodeLabel]
+                const newDataPoints = [...sacData, metrics.average_reward || 0]
+                const newSacLabels = [...sacLabels, expectedLabel]
                 
                 const maxPoints = 100
                 const finalDataPoints = newDataPoints.length > maxPoints 
                   ? newDataPoints.slice(-maxPoints) 
                   : newDataPoints
-                const finalLabels = newLabels.length > maxPoints 
-                  ? newLabels.slice(-maxPoints) 
-                  : newLabels
+                const finalSacLabels = newSacLabels.length > maxPoints 
+                  ? newSacLabels.slice(-maxPoints) 
+                  : newSacLabels
                 
                 return {
                   ...prevData,
                   sacData: finalDataPoints,
-                  labels: finalLabels
+                  sacLabels: finalSacLabels
                 }
               }
               return prevData
@@ -211,360 +219,41 @@ export const useRLMonitoring = () => {
       }
     }
 
-    // 啟動定期數據獲取
-    const interval = setInterval(fetchTrainingData, 3000) // 每3秒獲取一次
+    // 啟動定期數據獲取 - 簡化為單一數據源
+    const interval = setInterval(fetchTrainingData, 2000) // 提升到每2秒獲取一次，確保實時性
     fetchTrainingData() // 立即執行一次
-
-    // 保持原有的事件監聽器作為備用
-    const handleRLMetricsUpdate = (event: CustomEvent) => {
-      const { engine, metrics } = event.detail
-      
-      // 只在有意義的里程碑時記錄 - 已根據用戶要求移除
-      // if ((metrics.episodes_completed > 0 && metrics.episodes_completed % 5 === 0) || 
-      //     (metrics.training_progress > 0 && metrics.training_progress % 10 === 0)) {
-      //   console.log(`收到RL監控數據更新 - ${engine}:`, {
-      //     episodes: metrics.episodes_completed,
-      //     progress: metrics.training_progress,
-      //     avgReward: metrics.average_reward?.toFixed(2)
-      //   })
-      // }
-      
-      if (engine === 'dqn') {
-        setTrainingMetrics(prevMetrics => ({
-          ...prevMetrics,
-          dqn: {
-            episodes: metrics.episodes_completed || 0,
-            avgReward: metrics.average_reward || 0,
-            progress: metrics.training_progress || 0,
-            handoverDelay: 45 - (metrics.training_progress || 0) / 100 * 20 + (Math.random() - 0.5) * 5,
-            successRate: Math.min(100, 82 + (metrics.training_progress || 0) / 100 * 12 + (Math.random() - 0.5) * 1.5),
-            signalDropTime: 18 - (metrics.training_progress || 0) / 100 * 8 + (Math.random() - 0.5) * 2,
-            energyEfficiency: 0.75 + (metrics.training_progress || 0) / 100 * 0.2 + (Math.random() - 0.5) * 0.05,
-          }
-        }))
-
-        // 更新獎勵趨勢數據 - 避免重複添加相同數據
-        setRewardTrendData(prevData => {
-          if (typeof metrics.average_reward === 'number') {
-            // 檢查是否是新的數據點（避免重複）
-            const lastDataPoint = prevData.dqnData[prevData.dqnData.length - 1]
-            if (lastDataPoint === metrics.average_reward) {
-              return prevData // 跳過重複數據
-            }
-            
-            const currentTime = new Date()
-            const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
-              hour12: false, 
-              minute: '2-digit', 
-              second: '2-digit' 
-            })
-            
-            // 保持數據持續增長，橫軸隨時間前進
-            const newDataPoints = [...prevData.dqnData, metrics.average_reward]
-            const newLabels = [...prevData.labels, timeLabel]
-            
-            // 如果數據點太多，限制在最多100個點以保持性能
-            const maxPoints = 100
-            const finalDataPoints = newDataPoints.length > maxPoints 
-              ? newDataPoints.slice(-maxPoints) 
-              : newDataPoints
-            const finalLabels = newLabels.length > maxPoints 
-              ? newLabels.slice(-maxPoints) 
-              : newLabels
-            
-            return {
-              ...prevData,
-              dqnData: finalDataPoints,
-              labels: finalLabels
-            }
-          }
-          return prevData
-        })
-
-        // 更新策略損失數據 (使用模擬值，因為GymnasiumRLMonitor沒有提供policy_loss)
-        setPolicyLossData(prevData => {
-          const currentTime = new Date()
-          const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
-            hour12: false, 
-            minute: '2-digit', 
-            second: '2-digit' 
-          })
-          const mockLoss = Math.random() * 0.5 + 0.1 // 模擬損失值
-          
-          const newLossPoints = [...(prevData.dqnLoss || []), mockLoss]
-          const newLabels = [...prevData.labels, timeLabel]
-          
-          // 如果數據點太多，限制在最多100個點以保持性能
-          const maxPoints = 100
-          const finalLossPoints = newLossPoints.length > maxPoints 
-            ? newLossPoints.slice(-maxPoints) 
-            : newLossPoints
-          const finalLabels = newLabels.length > maxPoints 
-            ? newLabels.slice(-maxPoints) 
-            : newLabels
-          
-          return {
-            ...prevData,
-            dqnLoss: finalLossPoints,
-            labels: finalLabels
-          }
-        })
-      } else if (engine === 'ppo') {
-        setTrainingMetrics(prevMetrics => ({
-          ...prevMetrics,
-          ppo: {
-            episodes: metrics.episodes_completed || 0,
-            avgReward: metrics.average_reward || 0,
-            progress: metrics.training_progress || 0,
-            handoverDelay: 40 - (metrics.training_progress || 0) / 100 * 22 + (Math.random() - 0.5) * 4,
-            successRate: Math.min(100, 84 + (metrics.training_progress || 0) / 100 * 10 + (Math.random() - 0.5) * 1.2),
-            signalDropTime: 16 - (metrics.training_progress || 0) / 100 * 9 + (Math.random() - 0.5) * 1.5,
-            energyEfficiency: 0.8 + (metrics.training_progress || 0) / 100 * 0.18 + (Math.random() - 0.5) * 0.04,
-          }
-        }))
-
-        // 更新獎勵趨勢數據 - 避免重複添加相同數據
-        setRewardTrendData(prevData => {
-          if (typeof metrics.average_reward === 'number') {
-            // 檢查是否是新的數據點（避免重複）
-            const lastDataPoint = prevData.ppoData[prevData.ppoData.length - 1]
-            if (lastDataPoint === metrics.average_reward) {
-              return prevData // 跳過重複數據
-            }
-            
-            const currentTime = new Date()
-            const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
-              hour12: false, 
-              minute: '2-digit', 
-              second: '2-digit' 
-            })
-            
-            // 保持數據持續增長，橫軸隨時間前進
-            const newDataPoints = [...prevData.ppoData, metrics.average_reward]
-            const newLabels = [...prevData.labels, timeLabel]
-            
-            // 如果數據點太多，限制在最多100個點以保持性能
-            const maxPoints = 100
-            const finalDataPoints = newDataPoints.length > maxPoints 
-              ? newDataPoints.slice(-maxPoints) 
-              : newDataPoints
-            const finalLabels = newLabels.length > maxPoints 
-              ? newLabels.slice(-maxPoints) 
-              : newLabels
-            
-            return {
-              ...prevData,
-              ppoData: finalDataPoints,
-              labels: finalLabels
-            }
-          }
-          return prevData
-        })
-
-        // 更新策略損失數據 (使用模擬值，因為GymnasiumRLMonitor沒有提供policy_loss)
-        setPolicyLossData(prevData => {
-          const currentTime = new Date()
-          const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
-            hour12: false, 
-            minute: '2-digit', 
-            second: '2-digit' 
-          })
-          const mockLoss = Math.random() * 0.3 + 0.05 // PPO通常損失較小
-          
-          const newLossPoints = [...(prevData.ppoLoss || []), mockLoss]
-          const newLabels = [...prevData.labels, timeLabel]
-          
-          // 如果數據點太多，限制在最多100個點以保持性能
-          const maxPoints = 100
-          const finalLossPoints = newLossPoints.length > maxPoints 
-            ? newLossPoints.slice(-maxPoints) 
-            : newLossPoints
-          const finalLabels = newLabels.length > maxPoints 
-            ? newLabels.slice(-maxPoints) 
-            : newLabels
-          
-          return {
-            ...prevData,
-            ppoLoss: finalLossPoints,
-            labels: finalLabels
-          }
-        })
-      } else if (engine === 'sac') {
-        setTrainingMetrics(prevMetrics => ({
-          ...prevMetrics,
-          sac: {
-            episodes: metrics.episodes_completed || 0,
-            avgReward: metrics.average_reward || 0,
-            progress: metrics.training_progress || 0,
-            handoverDelay: 42 - (metrics.training_progress || 0) / 100 * 18 + (Math.random() - 0.5) * 4,
-            successRate: Math.min(100, 85 + (metrics.training_progress || 0) / 100 * 13 + (Math.random() - 0.5) * 1.2),
-            signalDropTime: 16 - (metrics.training_progress || 0) / 100 * 7 + (Math.random() - 0.5) * 1.8,
-            energyEfficiency: 0.78 + (metrics.training_progress || 0) / 100 * 0.18 + (Math.random() - 0.5) * 0.04,
-          }
-        }))
-
-        // 更新獎勵趨勢數據 - SAC - 避免重複添加相同數據
-        setRewardTrendData(prevData => {
-          if (typeof metrics.average_reward === 'number') {
-            // 檢查是否是新的數據點（避免重複）
-            const lastDataPoint = (prevData.sacData || [])[prevData.sacData?.length - 1]
-            if (lastDataPoint === metrics.average_reward) {
-              return prevData // 跳過重複數據
-            }
-            
-            const currentTime = new Date()
-            const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
-              hour12: false, 
-              minute: '2-digit', 
-              second: '2-digit' 
-            })
-            
-            // 保持數據持續增長，橫軸隨時間前進
-            const newDataPoints = [...(prevData.sacData || []), metrics.average_reward]
-            const newLabels = [...prevData.labels, timeLabel]
-            
-            // 如果數據點太多，限制在最多100個點以保持性能
-            const maxPoints = 100
-            const finalDataPoints = newDataPoints.length > maxPoints 
-              ? newDataPoints.slice(-maxPoints) 
-              : newDataPoints
-            const finalLabels = newLabels.length > maxPoints 
-              ? newLabels.slice(-maxPoints) 
-              : newLabels
-            
-            return {
-              ...prevData,
-              sacData: finalDataPoints,
-              labels: finalLabels
-            }
-          }
-          return prevData
-        })
-
-        // 更新策略損失數據 - SAC
-        setPolicyLossData(prevData => {
-          const currentTime = new Date()
-          const timeLabel = currentTime.toLocaleTimeString('zh-TW', { 
-            hour12: false, 
-            minute: '2-digit', 
-            second: '2-digit' 
-          })
-          const mockLoss = Math.random() * 0.4 + 0.08 // SAC損失值
-          
-          const newLossPoints = [...(prevData.sacLoss || []), mockLoss]
-          const newLabels = [...prevData.labels, timeLabel]
-          
-          // 如果數據點太多，限制在最多100個點以保持性能
-          const maxPoints = 100
-          const finalLossPoints = newLossPoints.length > maxPoints 
-            ? newLossPoints.slice(-maxPoints) 
-            : newLossPoints
-          const finalLabels = newLabels.length > maxPoints 
-            ? newLabels.slice(-maxPoints) 
-            : newLabels
-          
-          return {
-            ...prevData,
-            sacLoss: finalLossPoints,
-            labels: finalLabels
-          }
-        })
-      }
-    }
-
-    const handleTrainingStateUpdate = (event: CustomEvent) => {
-      const { engine, isTraining } = event.detail
-      
-      console.log(`訓練狀態更新 - ${engine}: ${isTraining ? '開始' : '停止'}`)
-      
-      if (engine === 'dqn') {
-        setIsDqnTraining(isTraining)
-      } else if (engine === 'ppo') {
-        setIsPpoTraining(isTraining)
-      } else if (engine === 'sac') {
-        setIsSacTraining(isTraining)
-      }
-    }
-
-    const handleTrainingStopped = (event: CustomEvent) => {
-      const { engine } = event.detail
-      console.log(`收到訓練停止事件 - ${engine}`)
-      
-      if (engine === 'dqn') {
-        setIsDqnTraining(false)
-      } else if (engine === 'ppo') {
-        setIsPpoTraining(false)
-      } else if (engine === 'sac') {
-        setIsSacTraining(false)
-      }
-    }
-
-    // 狀態同步事件監聽器
-    const handleTrainingStateSync = (event: CustomEvent) => {
-      const { engine, isTraining } = event.detail
-      
-      // 檢查狀態是否有變化，只在狀態改變時記錄日誌
-      const hasStateChanged = lastStateRef.current[engine] !== isTraining
-      if (hasStateChanged) {
-        console.log(`🔄 狀態同步事件 - ${engine}: ${isTraining ? '訓練中' : '停止'}`)
-        lastStateRef.current[engine] = isTraining
-      }
-      
-      if (engine === 'dqn') {
-        setIsDqnTraining(isTraining)
-      } else if (engine === 'ppo') {
-        setIsPpoTraining(isTraining)
-      } else if (engine === 'sac') {
-        setIsSacTraining(isTraining)
-      }
-    }
-
-    // 監聽事件
-    window.addEventListener('rlMetricsUpdate', handleRLMetricsUpdate as EventListener)
-    window.addEventListener('trainingStateUpdate', handleTrainingStateUpdate as EventListener)
-    window.addEventListener('trainingStateSync', handleTrainingStateSync as EventListener)
-    window.addEventListener('rlTrainingStopped', handleTrainingStopped as EventListener)
 
     return () => {
       clearInterval(interval)
-      window.removeEventListener('rlMetricsUpdate', handleRLMetricsUpdate as EventListener)
-      window.removeEventListener('trainingStateUpdate', handleTrainingStateUpdate as EventListener)
-      window.removeEventListener('trainingStateSync', handleTrainingStateSync as EventListener)
-      window.removeEventListener('rlTrainingStopped', handleTrainingStopped as EventListener)
     }
   }, [])
 
-  // 初始化時同步後端訓練狀態
+  // 初始化時同步後端訓練狀態 - 簡化版本
   useEffect(() => {
     const initializeTrainingState = async () => {
       try {
-        console.log('🔄 useRLMonitoring Hook 初始化，同步後端訓練狀態')
+        console.log('🔄 初始化 RL 監控狀態')
         const statusSummary = await apiClient.getTrainingStatusSummary()
-        
-        console.log('🔄 Hook 獲取到狀態摘要:', statusSummary)
         
         // 同步訓練狀態
         const isDqnActive = statusSummary.active_algorithms.includes('dqn')
         const isPpoActive = statusSummary.active_algorithms.includes('ppo')
         const isSacActive = statusSummary.active_algorithms.includes('sac')
         
-        console.log('🔄 Hook 設置訓練狀態:', {
-          dqn: isDqnActive,
-          ppo: isPpoActive,
-          sac: isSacActive
-        })
-        
         setIsDqnTraining(isDqnActive)
         setIsPpoTraining(isPpoActive)
         setIsSacTraining(isSacActive)
         
       } catch (error) {
-        console.warn('🔄 Hook 初始化狀態同步失敗:', error)
+        console.warn('🔄 初始化狀態同步失敗:', error)
       }
     }
     
     initializeTrainingState()
   }, [])
+
+  // 所有事件處理邏輯已被 fetchTrainingData 的 API 輪詢替代
+  // 移除了複雜的事件監聽器以避免數據衝突和同步問題
 
   // 控制函數
   const toggleDqnTraining = () => {
@@ -612,7 +301,7 @@ export const useRLMonitoring = () => {
     )
   }
 
-  const toggleAllTraining = () => {
+  const toggleAllTraining = useCallback(() => {
     const anyTraining = isDqnTraining || isPpoTraining || isSacTraining
     const newState = !anyTraining
     console.log('toggleAllTraining 被調用:', { 
@@ -623,6 +312,20 @@ export const useRLMonitoring = () => {
     setIsDqnTraining(newState)
     setIsPpoTraining(newState)
     setIsSacTraining(newState)
+    
+    // 如果是開始訓練，統一初始化所有圖表
+    if (newState) {
+      console.log('🎯 統一初始化所有算法圖表從 Ep 0 開始')
+      setRewardTrendData(prevData => ({
+        ...prevData,
+        dqnData: [0], // 起始獎勵點
+        dqnLabels: ['Ep 0'],
+        ppoData: [0], // 起始獎勵點
+        ppoLabels: ['Ep 0'],
+        sacData: [0], // 起始獎勵點
+        sacLabels: ['Ep 0'],
+      }))
+    }
     
     // 更新所有引擎的 trainingMetrics
     if (newState) {
@@ -669,8 +372,11 @@ export const useRLMonitoring = () => {
       setRewardTrendData(prevData => ({
         ...prevData,
         dqnData: [],
+        dqnLabels: [],
         ppoData: [],
+        ppoLabels: [],
         sacData: [],
+        sacLabels: [],
         labels: []
       }))
       
@@ -691,7 +397,7 @@ export const useRLMonitoring = () => {
         }
       })
     )
-  }
+  }, [isDqnTraining, isPpoTraining, isSacTraining]) // 添加依賴避免閉包問題
 
   return {
     // 狀態
