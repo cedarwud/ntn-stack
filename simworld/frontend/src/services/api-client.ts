@@ -96,6 +96,20 @@ class NetStackApiClient {
     stopTrainingSession(sessionId: string) {
         return this.post<any>(`/api/v1/rl/training/stop/${sessionId}`, {})
     }
+
+    /**
+     * 獲取系統資源監控數據
+     */
+    getSystemResources() {
+        return this.get<any>('/api/v2/decision/status')
+    }
+
+    /**
+     * 獲取訓練性能指標
+     */
+    getTrainingPerformanceMetrics() {
+        return this.get<any>('/api/v1/rl/training/performance-metrics')
+    }
 }
 
 export const apiClient = new NetStackApiClient() 
