@@ -273,10 +273,10 @@ const GymnasiumRLMonitor: React.FC = () => {
                 setTimeout(() => {
                     syncFrontendState()
                 }, 100)
-                // 每30秒重新同步一次狀態，確保前端狀態與後端一致
+                // 每60秒重新同步一次狀態，減少頻率避免循環
                 const syncInterval = setInterval(() => {
                     syncFrontendState()
-                }, 30000) // 從 5 秒改為 30 秒
+                }, 60000) // 改為 60 秒，減少同步頻率
                 
                 // 清理定時器
                 return () => {
@@ -564,18 +564,39 @@ const GymnasiumRLMonitor: React.FC = () => {
             })
 
             if (isTraining) {
-                // 啟動所有引擎訓練
+                // 啟動所有引擎訓練 - 順序啟動避免API衝突
                 const engines = ['dqn', 'ppo', 'sac'] as const
-                engines.forEach((engine) => {
-                    console.log(`啟動 ${engine.toUpperCase()} 訓練`)
-                    apiClient
-                        .controlTraining('start', engine)
-                        .then((response) => {
-                            console.log(`${engine.toUpperCase()} training start successful:`, response)
-                        })
-                        .catch((error) => {
-                            console.error(`Failed to start ${engine.toUpperCase()} training:`, error)
-                        })
+                console.log('🚀 開始批量啟動所有算法...')
+                
+                // 使用async/await確保嚴格的序列化執行
+                const startAllEngines = async () => {
+                    let successCount = 0
+                    let failCount = 0
+                    
+                    for (let i = 0; i < engines.length; i++) {
+                        const engine = engines[i]
+                        try {
+                            console.log(`🔄 [${i + 1}/${engines.length}] 正在啟動 ${engine.toUpperCase()} 訓練...`)
+                            const response = await apiClient.controlTraining('start', engine)
+                            console.log(`✅ [${i + 1}/${engines.length}] ${engine.toUpperCase()} 啟動成功:`, response)
+                            successCount++
+                        } catch (error) {
+                            console.error(`❌ [${i + 1}/${engines.length}] ${engine.toUpperCase()} 啟動失敗:`, error)
+                            failCount++
+                            // 繼續啟動其他算法，不讓單個失敗影響整體
+                        }
+                        
+                        // 每個算法啟動後延遲，避免後端壓力
+                        if (i < engines.length - 1) { // 最後一個不需要延遲
+                            console.log(`⏳ 等待 300ms 後啟動下一個算法...`)
+                            await new Promise(resolve => setTimeout(resolve, 300))
+                        }
+                    }
+                    console.log(`🎉 批量啟動完成！成功: ${successCount}, 失敗: ${failCount}`)
+                }
+                
+                startAllEngines().catch(error => {
+                    console.error('批量啟動過程中發生錯誤:', error)
                 })
             } else {
                 // 停止所有引擎訓練 - 使用 stopAllTraining API
@@ -590,13 +611,16 @@ const GymnasiumRLMonitor: React.FC = () => {
                     })
             }
 
-            // 立即獲取真實的 API 數據
+            // 延遲獲取 API 數據，避免與狀態同步衝突
             setTimeout(() => {
                 if (backendConnected) {
                     fetchRLStatusRef.current?.()
-                    syncFrontendStateRef.current?.()
+                    // 在所有 API 調用完成後再同步狀態
+                    setTimeout(() => {
+                        syncFrontendStateRef.current?.()
+                    }, 2000) // 給足夠時間讓所有訓練 API 調用完成
                 }
-            }, 100)
+            }, 500) // 增加延遲避免立即衝突
         }
 
         console.log('註冊事件監聽器')

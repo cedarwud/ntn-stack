@@ -138,6 +138,9 @@ export const createRLChartOptions = (title: string, yLabel: string = '獎勵值'
       grid: {
         color: 'rgba(255, 255, 255, 0.1)',
       },
+      beginAtZero: false,
+      suggestedMin: -10,
+      suggestedMax: 10,
     },
   },
 })

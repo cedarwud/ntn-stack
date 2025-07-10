@@ -64,6 +64,7 @@ def get_real_system_resources() -> Dict[str, Any]:
         # 記憶體使用率
         memory = psutil.virtual_memory()
         memory_usage_mb = memory.used // (1024 * 1024)  # 轉換為 MB
+        memory_usage_percent = memory.percent  # 百分比
         
         # GPU 使用率
         gpu_utilization = 0
@@ -79,6 +80,7 @@ def get_real_system_resources() -> Dict[str, Any]:
         return {
             "cpu_usage_percent": round(cpu_usage, 1),
             "memory_usage_mb": int(memory_usage_mb),
+            "memory_usage_percent": round(memory_usage_percent, 1),  # 新增記憶體百分比
             "gpu_utilization_percent": round(gpu_utilization, 1)
         }
     except Exception as e:
@@ -87,6 +89,7 @@ def get_real_system_resources() -> Dict[str, Any]:
         return {
             "cpu_usage_percent": 0,
             "memory_usage_mb": 1024,
+            "memory_usage_percent": 0,  # 新增記憶體百分比預設值
             "gpu_utilization_percent": 0
         }
 
