@@ -278,8 +278,10 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
     )
 }
 
-const App: React.FC<AppProps> = ({ activeView: _activeView = 'stereogram' }) => {
-    const { sceneName } = useParams<{ sceneName: string }>()
+const App: React.FC<AppProps> = ({
+    activeView: _activeView = 'stereogram',
+}) => {
+    const { scenes: sceneName } = useParams<{ scenes: string }>()
     const currentScene = sceneName || 'default_scene'
 
     return (

@@ -45,8 +45,57 @@ training_sessions: Dict[str, Dict[str, Any]] = {}
 async def clear_all_training_sessions():
     """清除所有訓練會話（用於重置）"""
     global training_sessions
+    count = len(training_sessions)
     training_sessions.clear()
-    return {"message": "All training sessions cleared", "count": 0}
+    return {"message": "所有訓練會話已清除", "count": count}
+
+@router.post("/training/clear/{status}")
+async def clear_sessions_by_status(status: str):
+    """根據狀態清除訓練會話"""
+    global training_sessions
+    valid_statuses = ['completed', 'stopped', 'error']
+    
+    if status not in valid_statuses:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"無效的狀態: {status}。有效狀態: {', '.join(valid_statuses)}"
+        )
+    
+    sessions_to_remove = []
+    for session_id, session in training_sessions.items():
+        if session['status'] == status:
+            sessions_to_remove.append(session_id)
+    
+    for session_id in sessions_to_remove:
+        del training_sessions[session_id]
+    
+    return {
+        "message": f"已清除 {len(sessions_to_remove)} 個狀態為 '{status}' 的會話",
+        "count": len(sessions_to_remove),
+        "status": status
+    }
+
+@router.delete("/training/session/{session_id}")
+async def delete_training_session(session_id: str):
+    """刪除特定的訓練會話"""
+    global training_sessions
+    
+    if session_id not in training_sessions:
+        raise HTTPException(status_code=404, detail=f"訓練會話 '{session_id}' 不存在")
+    
+    session_status = training_sessions[session_id]['status']
+    if session_status == 'active':
+        raise HTTPException(
+            status_code=409, 
+            detail=f"無法刪除活躍的訓練會話。請先停止訓練會話 '{session_id}'"
+        )
+    
+    del training_sessions[session_id]
+    return {
+        "message": f"訓練會話 '{session_id}' 已刪除",
+        "session_id": session_id,
+        "previous_status": session_status
+    }
 
 # 清理舊的訓練會話
 def cleanup_old_sessions():
@@ -55,24 +104,27 @@ def cleanup_old_sessions():
     current_time = datetime.now()
     sessions_to_remove = []
     
-    logger.info(f"開始清理會話檢查，當前時間: {current_time}")
+    logger.debug(f"開始清理會話檢查，當前時間: {current_time}")
     
     for session_id, session in training_sessions.items():
         time_diff = current_time - session['start_time']
-        logger.info(f"檢查會話 {session_id}: 狀態={session['status']}, 運行時間={time_diff.total_seconds():.1f}秒")
+        logger.debug(f"檢查會話 {session_id}: 狀態={session['status']}, 運行時間={time_diff.total_seconds():.1f}秒")
         
-        # 清理條件：
-        # 1. 已完成的會話且超過 30 秒
-        # 2. 活躍會話但超過 10 分鐘（可能是孤兒會話）
-        # 3. 錯誤狀態的會話且超過 30 秒
-        if session['status'] in ['completed', 'stopped', 'error']:
-            if time_diff.total_seconds() > 30:  # 30 秒
+        # 新的清理策略：
+        # 1. 已完成的會話保留 24 小時（讓用戶查看結果）
+        # 2. 手動停止的會話保留 1 小時
+        # 3. 錯誤狀態的會話保留 30 分鐘（方便除錯）
+        # 4. 活躍會話不自動清理（只能手動停止或訓練完成）
+        if session['status'] == 'completed':
+            if time_diff.total_seconds() > 86400:  # 24 小時
                 sessions_to_remove.append(session_id)
-        elif session['status'] == 'active':
-            # 活躍會話超過 2 分鐘視為孤兒會話（前端可能已斷開）
-            if time_diff.total_seconds() > 120:  # 2 分鐘
-                logger.warning(f"清理孤兒訓練會話: {session_id} (運行時間: {time_diff.total_seconds():.1f}秒)")
+        elif session['status'] == 'stopped':
+            if time_diff.total_seconds() > 3600:  # 1 小時
                 sessions_to_remove.append(session_id)
+        elif session['status'] == 'error':
+            if time_diff.total_seconds() > 1800:  # 30 分鐘
+                sessions_to_remove.append(session_id)
+        # 活躍會話永不自動清理 - 只能透過手動停止或自然完成
     
     for session_id in sessions_to_remove:
         if session_id in training_sessions:
