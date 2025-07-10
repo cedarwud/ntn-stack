@@ -1,0 +1,43 @@
+apiVersion: 1
+
+datasources:
+  # Prometheus 主數據源
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    uid: prometheus-main
+    isDefault: true
+    editable: true
+    version: 1
+    jsonData:
+      httpMethod: POST
+      keepCookies: []
+      timeInterval: "5s"
+      queryTimeout: "60s"
+      defaultRegion: "default"
+      customQueryParameters: ""
+      manageAlerts: true
+      alertmanagerUid: "alertmanager"
+    secureJsonData: {}
+
+  # AlertManager 數據源
+  - name: AlertManager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
+    uid: alertmanager
+    editable: true
+    version: 1
+    jsonData:
+      implementation: "prometheus"
+      handleGrafanaManagedAlerts: false
+    secureJsonData: {}
+
+  # TestData DB (用於測試和Demo)
+  - name: TestData DB
+    type: testdata
+    uid: testdata
+    access: proxy
+    editable: true
+    version: 1 

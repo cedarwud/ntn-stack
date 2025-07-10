@@ -1,0 +1,288 @@
+# AI決策引擎告警規則
+# 階段8：系統監控與營運整合
+# 根據1.ai.md第8階段要求實現
+
+groups:
+  - name: ai_decision_engine_alerts
+    rules:
+      # =============================================================================
+      # 1. 決策延遲告警 - 關鍵性能指標
+      # =============================================================================
+      
+      # 決策延遲嚴重告警 (>20ms)
+      - alert: AIDecisionLatencyCritical
+        expr: histogram_quantile(0.95, rate(ai_decision_latency_seconds_bucket[5m])) > 0.020
+        for: 30s
+        labels:
+          severity: critical
+          component: ai-decision-engine
+          team: ai-team-critical
+        annotations:
+          summary: "AI決策延遲嚴重超標"
+          description: "AI決策引擎95%百分位延遲為 {{ $value | humanizeDuration }}，超過20ms臨界值，可能影響即時決策"
+          dashboard: "http://grafana:3000/d/ntn-ai-overview"
+          runbook: "https://wiki.company.com/ntn-stack/runbooks/ai-decision-latency"
+
+      # 決策延遲緊急告警 (>50ms)
+      - alert: AIDecisionLatencyEmergency
+        expr: histogram_quantile(0.95, rate(ai_decision_latency_seconds_bucket[5m])) > 0.050
+        for: 10s
+        labels:
+          severity: emergency
+          component: ai-decision-engine
+          team: ai-team-emergency
+        annotations:
+          summary: "AI決策延遲緊急狀況"
+          description: "AI決策引擎95%百分位延遲為 {{ $value | humanizeDuration }}，超過50ms緊急閾值，系統可能異常"
+
+      # =============================================================================
+      # 2. 決策成功率告警
+      # =============================================================================
+
+      # 決策成功率低於95%
+      - alert: AIDecisionSuccessRateWarning
+        expr: (rate(ntn_decisions_success_total[5m]) / rate(ntn_decisions_total[5m])) < 0.95
+        for: 2m
+        labels:
+          severity: warning
+          component: ai-decision-engine
+          team: ai-team
+        annotations:
+          summary: "AI決策成功率下降"
+          description: "AI決策成功率為 {{ $value | humanizePercentage }}，低於95%警告閾值"
+
+      # 決策成功率低於90% - 嚴重
+      - alert: AIDecisionSuccessRateCritical
+        expr: (rate(ntn_decisions_success_total[5m]) / rate(ntn_decisions_total[5m])) < 0.90
+        for: 1m
+        labels:
+          severity: critical
+          component: ai-decision-engine
+          team: ai-team-critical
+        annotations:
+          summary: "AI決策成功率嚴重下降"
+          description: "AI決策成功率為 {{ $value | humanizePercentage }}，低於90%嚴重閾值，需要立即處理"
+
+      # =============================================================================
+      # 3. 系統吞吐量告警
+      # =============================================================================
+
+      # 決策吞吐量過低
+      - alert: AIDecisionThroughputLow
+        expr: rate(ntn_decisions_total[1m]) < 500
+        for: 3m
+        labels:
+          severity: warning
+          component: ai-decision-engine
+          team: ai-team
+        annotations:
+          summary: "AI決策吞吐量過低"
+          description: "決策吞吐量為 {{ $value }} decisions/sec，低於500的最小閾值"
+
+      # =============================================================================
+      # 4. RL訓練相關告警
+      # =============================================================================
+
+      # RL訓練成功率過低
+      - alert: RLTrainingSuccessRateLow
+        expr: rl_training_success_rate < 0.80
+        for: 5m
+        labels:
+          severity: warning
+          component: rl-training
+          team: ml-team
+        annotations:
+          summary: "RL訓練成功率過低"
+          description: "RL算法 {{ $labels.algorithm }} 訓練成功率為 {{ $value | humanizePercentage }}，低於80%"
+
+      # RL訓練停滯檢測
+      - alert: RLTrainingStalled
+        expr: increase(rl_training_progress_percent[10m]) == 0 and rl_training_state == 1
+        for: 10m
+        labels:
+          severity: warning
+          component: rl-training
+          team: ml-team
+        annotations:
+          summary: "RL訓練停滯"
+          description: "RL算法 {{ $labels.algorithm }} 訓練進度在過去10分鐘內沒有變化，可能已停滯"
+
+      # =============================================================================
+      # 5. 衛星切換性能告警
+      # =============================================================================
+
+      # 衛星切換成功率過低
+      - alert: HandoverSuccessRateLow
+        expr: handover_success_rate < 0.95
+        for: 2m
+        labels:
+          severity: warning
+          component: handover-system
+          team: ai-team
+        annotations:
+          summary: "衛星切換成功率過低"
+          description: "衛星切換成功率為 {{ $value | humanizePercentage }}，低於95%期望值"
+
+      # 衛星切換延遲過高
+      - alert: HandoverDelayHigh
+        expr: histogram_quantile(0.95, rate(handover_delay_milliseconds_bucket[5m])) > 100
+        for: 1m
+        labels:
+          severity: warning
+          component: handover-system
+          team: ai-team
+        annotations:
+          summary: "衛星切換延遲過高"
+          description: "95%的衛星切換延遲為 {{ $value }}ms，超過100ms閾值"
+
+      # =============================================================================
+      # 6. 系統資源告警
+      # =============================================================================
+
+      # CPU使用率過高
+      - alert: SystemCPUHigh
+        expr: system_cpu_usage_percent > 85
+        for: 2m
+        labels:
+          severity: warning
+          component: system-resources
+          team: infrastructure-team
+        annotations:
+          summary: "系統CPU使用率過高"
+          description: "組件 {{ $labels.component }} 的CPU使用率為 {{ $value }}%，超過85%警告閾值"
+
+      # 內存使用率過高
+      - alert: SystemMemoryHigh
+        expr: system_memory_usage_percent > 90
+        for: 2m
+        labels:
+          severity: critical
+          component: system-resources
+          team: infrastructure-team
+        annotations:
+          summary: "系統內存使用率過高"
+          description: "組件 {{ $labels.component }} 的內存使用率為 {{ $value }}%，超過90%嚴重閾值"
+
+      # GPU使用率異常
+      - alert: GPUUtilizationAbnormal
+        expr: system_gpu_utilization_percent > 95 or system_gpu_utilization_percent < 10
+        for: 3m
+        labels:
+          severity: warning
+          component: gpu-resources
+          team: ml-team
+        annotations:
+          summary: "GPU使用率異常"
+          description: "GPU {{ $labels.gpu_id }} 使用率為 {{ $value }}%，可能存在異常情況"
+
+      # =============================================================================
+      # 7. API性能告警
+      # =============================================================================
+
+      # API響應時間過慢
+      - alert: APIResponseTimeSlow
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{endpoint=~"/api/v1/ai_decision_integration/.*"}[5m])) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+          component: api-gateway
+          team: backend-team
+        annotations:
+          summary: "AI決策API響應時間過慢"
+          description: "端點 {{ $labels.endpoint }} 的95%響應時間為 {{ $value | humanizeDuration }}，超過500ms"
+
+      # =============================================================================
+      # 8. 系統健康告警
+      # =============================================================================
+
+      # 系統健康分數過低
+      - alert: SystemHealthScoreLow
+        expr: system_health_score < 70
+        for: 1m
+        labels:
+          severity: warning
+          component: system-health
+          team: ai-team
+        annotations:
+          summary: "系統健康分數過低"
+          description: "組件 {{ $labels.component }} 的健康分數為 {{ $value }}，低於70分警告閾值"
+
+      # 服務不可用
+      - alert: ServiceUnavailable
+        expr: service_availability_percent < 99
+        for: 30s
+        labels:
+          severity: critical
+          component: service-availability
+          team: infrastructure-team
+        annotations:
+          summary: "服務可用性告警"
+          description: "服務 {{ $labels.service }} 可用性為 {{ $value }}%，低於99%"
+
+      # =============================================================================
+      # 9. 可視化性能告警
+      # =============================================================================
+
+      # WebSocket連接異常
+      - alert: WebSocketConnectionsAbnormal
+        expr: websocket_connections_active < 1 or websocket_connections_active > 1000
+        for: 2m
+        labels:
+          severity: warning
+          component: websocket
+          team: frontend-team
+        annotations:
+          summary: "WebSocket連接數異常"
+          description: "WebSocket連接數為 {{ $value }}，可能存在連接異常"
+
+      # 可視化同步延遲過高
+      - alert: VisualizationSyncLatencyHigh
+        expr: histogram_quantile(0.95, rate(visualization_sync_latency_seconds_bucket[5m])) > 2.0
+        for: 3m
+        labels:
+          severity: warning
+          component: visualization
+          team: frontend-team
+        annotations:
+          summary: "可視化同步延遲過高"
+          description: "95%的可視化同步延遲為 {{ $value | humanizeDuration }}，超過2秒閾值"
+
+      # 動畫幀率過低
+      - alert: AnimationFPSLow
+        expr: animation_fps < 30
+        for: 1m
+        labels:
+          severity: warning
+          component: animation
+          team: frontend-team
+        annotations:
+          summary: "動畫幀率過低"
+          description: "動畫類型 {{ $labels.animation_type }} 的幀率為 {{ $value }} FPS，低於30 FPS閾值"
+
+      # =============================================================================
+      # 10. 業務指標告警
+      # =============================================================================
+
+      # 信號中斷時間過長
+      - alert: SignalDropTimeHigh
+        expr: histogram_quantile(0.95, rate(signal_drop_time_milliseconds_bucket[5m])) > 50
+        for: 1m
+        labels:
+          severity: warning
+          component: signal-quality
+          team: network-team
+        annotations:
+          summary: "信號中斷時間過長"
+          description: "95%的信號中斷時間為 {{ $value }}ms，超過50ms閾值"
+
+      # 能效比過低
+      - alert: EnergyEfficiencyLow
+        expr: energy_efficiency_ratio < 0.7
+        for: 5m
+        labels:
+          severity: warning
+          component: energy-optimization
+          team: optimization-team
+        annotations:
+          summary: "系統能效比過低"
+          description: "算法 {{ $labels.algorithm }} 的能效比為 {{ $value }}，低於0.7閾值" 
