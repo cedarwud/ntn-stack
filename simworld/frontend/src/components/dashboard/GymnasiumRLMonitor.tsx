@@ -6,28 +6,26 @@ import { RLEngineMetrics } from '../../types/rl_types'
 // Note: Removed unused interfaces EnvironmentState and DecisionHistory
 // They can be re-added when needed for future features
 
-// 定義真實API端點的基礎URL - 通過Vite代理訪問
-const API_BASE = '/netstack'
-
 /**
  * 將後端返回的數據適配到前端的 RLEngineMetrics 介面
  * @param data 從 API 獲取的原始數據
  * @returns 適配後的 RLEngineMetrics 對象
  */
-const transformDataToMetrics = (data: any): RLEngineMetrics => {
+const _transformDataToMetrics = (data: unknown): RLEngineMetrics => {
+    const dataObj = data as Record<string, unknown>
     return {
-        engine_type: data.active_algorithm || 'null',
-        algorithm: data.algorithm_details?.name || 'Unknown',
-        environment: data.environment?.name || 'Unknown',
-        model_status: data.status || 'idle',
-        episodes_completed: data.training_stats?.episodes_completed || 0,
-        average_reward: data.training_stats?.average_reward || 0,
-        current_epsilon: data.training_stats?.current_epsilon || 0,
-        training_progress: data.training_stats?.progress || 0,
-        prediction_accuracy: data.performance_metrics?.prediction_accuracy || 0,
-        response_time_ms: data.performance_metrics?.avg_response_time_ms || 0,
-        memory_usage: data.system_resources?.memory_usage_mb || 0,
-        gpu_utilization: data.system_resources?.gpu_utilization_percent || 0,
+        engine_type: (dataObj.active_algorithm as string) || 'null',
+        algorithm: ((dataObj.algorithm_details as Record<string, unknown>)?.name as string) || 'Unknown',
+        environment: ((dataObj.environment as Record<string, unknown>)?.name as string) || 'Unknown',
+        model_status: (dataObj.status as string) || 'idle',
+        episodes_completed: ((dataObj.training_stats as Record<string, unknown>)?.episodes_completed as number) || 0,
+        average_reward: ((dataObj.training_stats as Record<string, unknown>)?.average_reward as number) || 0,
+        current_epsilon: ((dataObj.training_stats as Record<string, unknown>)?.current_epsilon as number) || 0,
+        training_progress: ((dataObj.training_stats as Record<string, unknown>)?.progress as number) || 0,
+        prediction_accuracy: ((dataObj.performance_metrics as Record<string, unknown>)?.prediction_accuracy as number) || 0,
+        response_time_ms: ((dataObj.performance_metrics as Record<string, unknown>)?.avg_response_time_ms as number) || 0,
+        memory_usage: ((dataObj.system_resources as Record<string, unknown>)?.memory_usage_mb as number) || 0,
+        gpu_utilization: ((dataObj.system_resources as Record<string, unknown>)?.gpu_utilization_percent as number) || 0,
     }
 }
 
@@ -37,9 +35,10 @@ const transformDataToMetrics = (data: any): RLEngineMetrics => {
  * @param decisionStatus 決策引擎狀態
  * @returns 適配後的 RLEngineMetrics 對象
  */
-const transformTrainingSessionsToMetrics = (sessions: any[], decisionStatus: any): RLEngineMetrics => {
+const transformTrainingSessionsToMetrics = (sessions: unknown[], decisionStatus: unknown): RLEngineMetrics => {
     // 找到最近的活躍訓練會話
-    const activeSession = sessions.find(s => s.status === 'active') || sessions[0]
+    const sessionArray = sessions as Array<Record<string, unknown>>
+    const activeSession = sessionArray.find(s => s.status === 'active') || sessionArray[0]
     
     if (!activeSession) {
         // 沒有訓練會話，使用預設值
@@ -60,37 +59,48 @@ const transformTrainingSessionsToMetrics = (sessions: any[], decisionStatus: any
     }
 
     // 計算訓練進度
-    const progress = (activeSession.episodes_completed / activeSession.episodes_target) * 100
+    const progress = ((activeSession.episodes_completed as number) / (activeSession.episodes_target as number)) * 100
+    const decisionStatusObj = decisionStatus as Record<string, unknown>
 
     return {
         engine_type: activeSession.algorithm_name as 'dqn' | 'ppo' | 'sac' | 'null',
-        algorithm: `${activeSession.algorithm_name.toUpperCase()} Training`,
+        algorithm: `${(activeSession.algorithm_name as string).toUpperCase()} Training`,
         environment: 'HandoverEnvironment-v0',
         model_status: activeSession.status === 'active' ? 'training' : 
                      activeSession.status === 'completed' ? 'inference' : 'idle',
-        episodes_completed: activeSession.episodes_completed,
-        average_reward: activeSession.current_reward,
+        episodes_completed: activeSession.episodes_completed as number,
+        average_reward: activeSession.current_reward as number,
         current_epsilon: Math.max(0.1, 1.0 - progress / 100), // 模擬epsilon衰減
         training_progress: progress,
-        prediction_accuracy: decisionStatus.performance_metrics?.prediction_accuracy || 0.85,
-        response_time_ms: decisionStatus.performance_metrics?.avg_response_time_ms || 25,
-        memory_usage: decisionStatus.system_resources?.memory_usage_mb || 1024,
-        gpu_utilization: decisionStatus.system_resources?.gpu_utilization_percent || 0,
+        prediction_accuracy: ((decisionStatusObj.performance_metrics as Record<string, unknown>)?.prediction_accuracy as number) || 0.85,
+        response_time_ms: ((decisionStatusObj.performance_metrics as Record<string, unknown>)?.avg_response_time_ms as number) || 25,
+        memory_usage: ((decisionStatusObj.system_resources as Record<string, unknown>)?.memory_usage_mb as number) || 1024,
+        gpu_utilization: ((decisionStatusObj.system_resources as Record<string, unknown>)?.gpu_utilization_percent as number) || 0,
     }
 }
 
 const GymnasiumRLMonitor: React.FC = () => {
     const [rlMetrics, setRLMetrics] = useState<RLEngineMetrics | null>(null)
     const [error, setError] = useState<string | null>(null)
-    const [selectedEngine, setSelectedEngine] = useState<'dqn' | 'ppo' | 'sac'>(
-        'dqn'
-    )
-    const [isTraining, setIsTraining] = useState(false)
+    const [allEngineMetrics, setAllEngineMetrics] = useState<{
+        dqn: RLEngineMetrics | null,
+        ppo: RLEngineMetrics | null,
+        sac: RLEngineMetrics | null
+    }>({
+        dqn: null,
+        ppo: null,
+        sac: null
+    })
+    const [_isTraining, _setIsTraining] = useState(false)
     const [autoRefresh] = useState(true)
     const [isLoading, setLoading] = useState(false)
     const [backendConnected, setBackendConnected] = useState(false)
     const [connectionError, setConnectionError] = useState<string | null>(null)
     const intervalRef = useRef<NodeJS.Timeout | null>(null)
+    const fetchRLStatusRef = useRef<() => Promise<void>>()
+    const syncFrontendStateRef = useRef<() => Promise<void>>()
+    const lastSyncStateRef = useRef<string>('')  // 跟蹤上次同步的狀態
+
 
     // 獲取 RL 系統狀態 - 使用真實的訓練會話數據
     const fetchRLStatus = useCallback(async () => {
@@ -112,34 +122,54 @@ const GymnasiumRLMonitor: React.FC = () => {
 
             setRLMetrics(metrics)
 
-            // 為每個算法發送事件到 useRLMonitoring hook 以更新圖表數據
-            trainingSessions.forEach(session => {
-                if (session.status === 'active') {
-                    const progress = (session.episodes_completed / session.episodes_target) * 100
+            // 為每個算法更新指標並發送事件到 useRLMonitoring hook
+            setAllEngineMetrics(prevMetrics => {
+                const newAllEngineMetrics = { ...prevMetrics }
+                
+                const sessionArray = trainingSessions as Array<Record<string, unknown>>
+                sessionArray.forEach(session => {
+                    const progress = ((session.episodes_completed as number) / (session.episodes_target as number)) * 100
                     const sessionMetrics = {
                         engine_type: session.algorithm_name,
-                        algorithm: `${session.algorithm_name.toUpperCase()} Training`,
+                        algorithm: `${(session.algorithm_name as string).toUpperCase()} Training`,
                         environment: 'HandoverEnvironment-v0',
-                        model_status: 'training',
-                        episodes_completed: session.episodes_completed,
-                        average_reward: session.current_reward,
+                        model_status: session.status === 'active' ? 'training' : 
+                                     session.status === 'completed' ? 'inference' : 'idle',
+                        episodes_completed: session.episodes_completed as number,
+                        average_reward: session.current_reward as number,
                         current_epsilon: Math.max(0.1, 1.0 - progress / 100),
                         training_progress: progress,
-                        prediction_accuracy: decisionStatus.performance_metrics?.prediction_accuracy || 0.85,
-                        response_time_ms: decisionStatus.performance_metrics?.avg_response_time_ms || 25,
-                        memory_usage: decisionStatus.system_resources?.memory_usage_mb || 1024,
-                        gpu_utilization: decisionStatus.system_resources?.gpu_utilization_percent || 0,
+                        prediction_accuracy: ((decisionStatus as Record<string, unknown>).performance_metrics as Record<string, unknown>)?.prediction_accuracy as number || 0.85,
+                        response_time_ms: ((decisionStatus as Record<string, unknown>).performance_metrics as Record<string, unknown>)?.avg_response_time_ms as number || 25,
+                        memory_usage: ((decisionStatus as Record<string, unknown>).system_resources as Record<string, unknown>)?.memory_usage_mb as number || 1024,
+                        gpu_utilization: ((decisionStatus as Record<string, unknown>).system_resources as Record<string, unknown>)?.gpu_utilization_percent as number || 0,
                     }
                     
-                    window.dispatchEvent(
-                        new CustomEvent('rlMetricsUpdate', {
-                            detail: {
-                                engine: session.algorithm_name,
-                                metrics: sessionMetrics,
-                            },
-                        })
-                    )
-                }
+                    // 更新對應算法的指標
+                    if (session.algorithm_name === 'dqn') {
+                        newAllEngineMetrics.dqn = sessionMetrics
+                    } else if (session.algorithm_name === 'ppo') {
+                        newAllEngineMetrics.ppo = sessionMetrics
+                    } else if (session.algorithm_name === 'sac') {
+                        newAllEngineMetrics.sac = sessionMetrics
+                    }
+                    
+                    // 發送事件到 useRLMonitoring hook - 延遲執行避免渲染衝突
+                    if (session.status === 'active') {
+                        setTimeout(() => {
+                            window.dispatchEvent(
+                                new CustomEvent('rlMetricsUpdate', {
+                                    detail: {
+                                        engine: session.algorithm_name,
+                                        metrics: sessionMetrics,
+                                    },
+                                })
+                            )
+                        }, 0)
+                    }
+                })
+                
+                return newAllEngineMetrics
             })
         } catch (error) {
             console.error('Failed to fetch RL status:', error)
@@ -153,7 +183,7 @@ const GymnasiumRLMonitor: React.FC = () => {
         } finally {
             setLoading(false)
         }
-    }, [backendConnected]) // 移除 isTraining 依賴
+    }, [backendConnected]) // 移除 allEngineMetrics 依賴避免無限循環
 
     // 檢查後端連接狀態 - 使用統一的 API Client
     const checkBackendConnection = useCallback(async () => {
@@ -188,30 +218,49 @@ const GymnasiumRLMonitor: React.FC = () => {
             // 獲取訓練狀態摘要
             const statusSummary = await apiClient.getTrainingStatusSummary()
             
-            console.log('🔄 獲取到狀態摘要:', statusSummary)
+            // 檢查狀態是否有變化
+            const currentStateKey = statusSummary.active_algorithms.sort().join(',')
+            const hasStateChanged = lastSyncStateRef.current !== currentStateKey
+            
+            if (hasStateChanged) {
+                console.log('🔄 狀態變化檢測到，獲取到狀態摘要:', statusSummary)
+                lastSyncStateRef.current = currentStateKey
+            }
 
             // 發送狀態同步事件到 useRLMonitoring hook
-            ['dqn', 'ppo', 'sac'].forEach(algorithm => {
+            ;['dqn', 'ppo', 'sac'].forEach(algorithm => {
                 const isActive = statusSummary.active_algorithms.includes(algorithm)
                 
-                console.log(`🔄 同步 ${algorithm} 狀態: ${isActive ? '訓練中' : '停止'}`)
+                if (hasStateChanged) {
+                    console.log(`🔄 同步 ${algorithm} 狀態: ${isActive ? '訓練中' : '停止'}`)
+                }
                 
-                window.dispatchEvent(
-                    new CustomEvent('trainingStateSync', {
-                        detail: {
-                            engine: algorithm,
-                            isTraining: isActive,
-                        },
-                    })
-                )
+                setTimeout(() => {
+                    window.dispatchEvent(
+                        new CustomEvent('trainingStateSync', {
+                            detail: {
+                                engine: algorithm,
+                                isTraining: isActive,
+                            },
+                        })
+                    )
+                }, 0)
             })
 
-            console.log(`🔄 狀態同步完成 - 活躍算法: [${statusSummary.active_algorithms.join(', ')}]`)
+            if (hasStateChanged) {
+                console.log(`🔄 狀態同步完成 - 活躍算法: [${statusSummary.active_algorithms.join(', ')}]`)
+            }
             
         } catch (error) {
             console.warn('狀態同步失敗:', error)
         }
     }, [backendConnected])
+
+    // 更新 ref 引用 - 在 useEffect 中處理
+    useEffect(() => {
+        fetchRLStatusRef.current = fetchRLStatus
+        syncFrontendStateRef.current = syncFrontendState
+    }, [fetchRLStatus, syncFrontendState])
 
     // 初始化時檢查連接並同步狀態
     useEffect(() => {
@@ -224,10 +273,10 @@ const GymnasiumRLMonitor: React.FC = () => {
                 setTimeout(() => {
                     syncFrontendState()
                 }, 100)
-                // 每5秒重新同步一次狀態，確保前端狀態與後端一致
+                // 每30秒重新同步一次狀態，確保前端狀態與後端一致
                 const syncInterval = setInterval(() => {
                     syncFrontendState()
-                }, 5000)
+                }, 30000) // 從 5 秒改為 30 秒
                 
                 // 清理定時器
                 return () => {
@@ -261,18 +310,19 @@ const GymnasiumRLMonitor: React.FC = () => {
         ) => {
             const isTraining = event.detail.isTraining
             console.log('收到 DQN 切換事件:', { isTraining })
-            setIsTraining(isTraining)
-            setSelectedEngine('dqn')
+            _setIsTraining(isTraining)
 
             // 發送訓練狀態變更事件到 useRLMonitoring hook
-            window.dispatchEvent(
-                new CustomEvent('trainingStateUpdate', {
-                    detail: {
-                        engine: 'dqn',
-                        isTraining: isTraining,
-                    },
-                })
-            )
+            setTimeout(() => {
+                window.dispatchEvent(
+                    new CustomEvent('trainingStateUpdate', {
+                        detail: {
+                            engine: 'dqn',
+                            isTraining: isTraining,
+                        },
+                    })
+                )
+            }, 0)
 
             console.log(
                 `Sending training command: ${
@@ -288,8 +338,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.log('DQN Training start successful:', response)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -297,8 +347,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.error('Failed to start DQN training:', error)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -306,9 +356,9 @@ const GymnasiumRLMonitor: React.FC = () => {
                 // 停止訓練 - 先獲取會話然後停止
                 apiClient.getRLTrainingSessions()
                     .then((sessions) => {
-                        const dqnSession = sessions.find(s => s.algorithm_name === 'dqn' && s.status === 'active')
+                        const dqnSession = (sessions as Array<Record<string, unknown>>).find(s => s.algorithm_name === 'dqn' && s.status === 'active')
                         if (dqnSession) {
-                            return apiClient.stopTrainingSession(dqnSession.session_id)
+                            return apiClient.stopTrainingSession(dqnSession.session_id as string)
                         } else {
                             console.warn('沒有找到活躍的 DQN 訓練會話')
                             return Promise.resolve()
@@ -318,8 +368,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.log('DQN Training stop successful:', response)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -327,8 +377,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.error('Failed to stop DQN training:', error)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -339,18 +389,19 @@ const GymnasiumRLMonitor: React.FC = () => {
             const isTraining = (event.detail as { isTraining: boolean })
                 .isTraining
             console.log('收到 PPO 切換事件:', { isTraining })
-            setIsTraining(isTraining)
-            setSelectedEngine('ppo')
+            _setIsTraining(isTraining)
 
             // 發送訓練狀態變更事件到 useRLMonitoring hook
-            window.dispatchEvent(
-                new CustomEvent('trainingStateUpdate', {
-                    detail: {
-                        engine: 'ppo',
-                        isTraining: isTraining,
-                    },
-                })
-            )
+            setTimeout(() => {
+                window.dispatchEvent(
+                    new CustomEvent('trainingStateUpdate', {
+                        detail: {
+                            engine: 'ppo',
+                            isTraining: isTraining,
+                        },
+                    })
+                )
+            }, 0)
 
             console.log(
                 `Sending training command: ${
@@ -366,8 +417,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.log('PPO Training start successful:', response)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -375,8 +426,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.error('Failed to start PPO training:', error)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -384,9 +435,9 @@ const GymnasiumRLMonitor: React.FC = () => {
                 // 停止訓練 - 先獲取會話然後停止
                 apiClient.getRLTrainingSessions()
                     .then((sessions) => {
-                        const ppoSession = sessions.find(s => s.algorithm_name === 'ppo' && s.status === 'active')
+                        const ppoSession = (sessions as Array<Record<string, unknown>>).find(s => s.algorithm_name === 'ppo' && s.status === 'active')
                         if (ppoSession) {
-                            return apiClient.stopTrainingSession(ppoSession.session_id)
+                            return apiClient.stopTrainingSession(ppoSession.session_id as string)
                         } else {
                             console.warn('沒有找到活躍的 PPO 訓練會話')
                             return Promise.resolve()
@@ -396,8 +447,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.log('PPO Training stop successful:', response)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -405,8 +456,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.error('Failed to stop PPO training:', error)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -416,18 +467,19 @@ const GymnasiumRLMonitor: React.FC = () => {
             const isTraining = (event.detail as { isTraining: boolean })
                 .isTraining
             console.log('收到 SAC 切換事件:', { isTraining })
-            setIsTraining(isTraining)
-            setSelectedEngine('sac')
+            _setIsTraining(isTraining)
 
             // 發送訓練狀態變更事件到 useRLMonitoring hook
-            window.dispatchEvent(
-                new CustomEvent('trainingStateUpdate', {
-                    detail: {
-                        engine: 'sac',
-                        isTraining: isTraining,
-                    },
-                })
-            )
+            setTimeout(() => {
+                window.dispatchEvent(
+                    new CustomEvent('trainingStateUpdate', {
+                        detail: {
+                            engine: 'sac',
+                            isTraining: isTraining,
+                        },
+                    })
+                )
+            }, 0)
 
             console.log(
                 `Sending training command: ${
@@ -443,8 +495,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.log('SAC Training start successful:', response)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -452,8 +504,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.error('Failed to start SAC training:', error)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -461,9 +513,9 @@ const GymnasiumRLMonitor: React.FC = () => {
                 // 停止訓練 - 先獲取會話然後停止
                 apiClient.getRLTrainingSessions()
                     .then((sessions) => {
-                        const sacSession = sessions.find(s => s.algorithm_name === 'sac' && s.status === 'active')
+                        const sacSession = (sessions as Array<Record<string, unknown>>).find(s => s.algorithm_name === 'sac' && s.status === 'active')
                         if (sacSession) {
-                            return apiClient.stopTrainingSession(sacSession.session_id)
+                            return apiClient.stopTrainingSession(sacSession.session_id as string)
                         } else {
                             console.warn('沒有找到活躍的 SAC 訓練會話')
                             return Promise.resolve()
@@ -473,8 +525,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.log('SAC Training stop successful:', response)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -482,8 +534,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                         console.error('Failed to stop SAC training:', error)
                         setTimeout(() => {
                             if (backendConnected) {
-                                fetchRLStatus()
-                                syncFrontendState()
+                                fetchRLStatusRef.current?.()
+                                syncFrontendStateRef.current?.()
                             }
                         }, 100)
                     })
@@ -494,19 +546,21 @@ const GymnasiumRLMonitor: React.FC = () => {
             const isTraining = (event.detail as { isTraining: boolean })
                 .isTraining
             console.log('收到 ALL 切換事件:', { isTraining })
-            setIsTraining(isTraining)
+            _setIsTraining(isTraining)
 
             // 發送訓練狀態變更事件到 useRLMonitoring hook（所有引擎）
             const allEngines = ['dqn', 'ppo', 'sac'] as const
             allEngines.forEach((engine) => {
-                window.dispatchEvent(
-                    new CustomEvent('trainingStateUpdate', {
-                        detail: {
-                            engine: engine,
-                            isTraining: isTraining,
-                        },
-                    })
-                )
+                setTimeout(() => {
+                    window.dispatchEvent(
+                        new CustomEvent('trainingStateUpdate', {
+                            detail: {
+                                engine: engine,
+                                isTraining: isTraining,
+                            },
+                        })
+                    )
+                }, 0)
             })
 
             if (isTraining) {
@@ -539,8 +593,8 @@ const GymnasiumRLMonitor: React.FC = () => {
             // 立即獲取真實的 API 數據
             setTimeout(() => {
                 if (backendConnected) {
-                    fetchRLStatus()
-                    syncFrontendState()
+                    fetchRLStatusRef.current?.()
+                    syncFrontendStateRef.current?.()
                 }
             }, 100)
         }
@@ -570,7 +624,69 @@ const GymnasiumRLMonitor: React.FC = () => {
                 handleAllToggle as EventListener
             )
         }
-    }, [fetchRLStatus]) // 保留依賴，但將通過 useCallback 穩定化
+    }, [backendConnected]) // 簡化依賴項避免無限重新註冊
+
+    // 渲染單個算法的監控面板
+    const renderAlgorithmPanel = (algorithm: 'dqn' | 'ppo' | 'sac', metrics: RLEngineMetrics | null) => {
+        const algorithmName = algorithm.toUpperCase()
+        const isActive = metrics?.model_status === 'training'
+        
+        return (
+            <div key={algorithm} className={`algorithm-panel ${algorithm}-panel ${isActive ? 'active' : ''}`}>
+                <div className="algorithm-header">
+                    <h4>{algorithmName} Engine</h4>
+                    <div className={`status-badge ${isActive ? 'active' : 'idle'}`}>
+                        {isActive ? '🔴 訓練中' : '⚪ 待機'}
+                    </div>
+                </div>
+                
+                {metrics ? (
+                    <div className="algorithm-metrics">
+                        <div className="metrics-row">
+                            <div className="metric-item">
+                                <span className="metric-label">平均獎勵</span>
+                                <span className="metric-value">
+                                    {metrics.average_reward.toFixed(2)}
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">Episodes</span>
+                                <span className="metric-value">
+                                    {metrics.episodes_completed}
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">訓練狀態</span>
+                                <span className="metric-value">
+                                    {metrics.model_status === 'training' ? '🔴 進行中' : 
+                                     metrics.model_status === 'inference' ? '🟡 推理' : '⚪ 待機'}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div className="progress-section">
+                            <div className="progress-label">
+                                <span>訓練進度</span>
+                                <span>{metrics.training_progress.toFixed(1)}%</span>
+                            </div>
+                            <div className="progress-bar">
+                                <div
+                                    className={`progress-fill ${algorithm}-progress`}
+                                    style={{
+                                        width: `${metrics.training_progress}%`,
+                                    }}
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="no-data">
+                        <span>無訓練數據</span>
+                    </div>
+                )}
+            </div>
+        )
+    }
 
     return (
         <div className="gymnasium-rl-monitor">
@@ -586,8 +702,8 @@ const GymnasiumRLMonitor: React.FC = () => {
                             : `連接失敗: ${connectionError || error || 'N/A'}`
                     }
                 ></div>
-                {/* 連接狀態指示器 */}
             </div>
+            
             {error && <div className="error-message">{error}</div>}
             {!backendConnected && !error && (
                 <div className="loading-message">正在連接到後端服務...</div>
@@ -595,69 +711,34 @@ const GymnasiumRLMonitor: React.FC = () => {
             {backendConnected && isLoading && !rlMetrics && (
                 <div className="loading-message">正在加載RL引擎數據...</div>
             )}
-            {backendConnected && rlMetrics && (
+            
+            {backendConnected && (
                 <div className="monitor-content">
-                    <div className="metrics-grid">
-                        <div className="metric-item">
-                            <span className="metric-label">引擎</span>
-                            <span className="metric-value">
-                                {rlMetrics.algorithm}
-                            </span>
+                    {/* 系統概覽 - 只顯示有意義的真實指標 */}
+                    {rlMetrics && (
+                        <div className="system-overview">
+                            <div className="overview-metrics">
+                                <div className="metric-item">
+                                    <span className="metric-label">記憶體</span>
+                                    <span className="metric-value">
+                                        {rlMetrics.memory_usage.toFixed(0)} MB
+                                    </span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">GPU 使用率</span>
+                                    <span className="metric-value">
+                                        {rlMetrics.gpu_utilization.toFixed(0)}%
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="metric-item">
-                            <span className="metric-label">狀態</span>
-                            <span
-                                className={`metric-value status-${rlMetrics.model_status}`}
-                            >
-                                {rlMetrics.model_status}
-                            </span>
-                        </div>
-                        <div className="metric-item">
-                            <span className="metric-label">平均獎勵</span>
-                            <span className="metric-value">
-                                {rlMetrics.average_reward.toFixed(2)}
-                            </span>
-                        </div>
-                        <div className="metric-item">
-                            <span className="metric-label">準確率</span>
-                            <span className="metric-value">
-                                {(rlMetrics.prediction_accuracy * 100).toFixed(
-                                    1
-                                )}
-                                %
-                            </span>
-                        </div>
-                        <div className="metric-item">
-                            <span className="metric-label">響應時間</span>
-                            <span className="metric-value">
-                                {rlMetrics.response_time_ms.toFixed(0)} ms
-                            </span>
-                        </div>
-                        <div className="metric-item">
-                            <span className="metric-label">記憶體</span>
-                            <span className="metric-value">
-                                {rlMetrics.memory_usage.toFixed(0)} MB
-                            </span>
-                        </div>
-                    </div>
-                    <div className="progress-bar-container">
-                        <div className="progress-bar-label">
-                            <span>
-                                訓練進度 ({rlMetrics.episodes_completed}{' '}
-                                episodes)
-                            </span>
-                            <span>
-                                {rlMetrics.training_progress.toFixed(1)}%
-                            </span>
-                        </div>
-                        <div className="progress-bar">
-                            <div
-                                className="progress-bar-fill"
-                                style={{
-                                    width: `${rlMetrics.training_progress}%`,
-                                }}
-                            ></div>
-                        </div>
+                    )}
+                    
+                    {/* 三個算法的監控面板 */}
+                    <div className="algorithms-grid">
+                        {renderAlgorithmPanel('dqn', allEngineMetrics.dqn)}
+                        {renderAlgorithmPanel('ppo', allEngineMetrics.ppo)}
+                        {renderAlgorithmPanel('sac', allEngineMetrics.sac)}
                     </div>
                 </div>
             )}

@@ -13,6 +13,13 @@ import structlog
 from unittest.mock import Mock, AsyncMock
 import time
 from pydantic import BaseModel
+import psutil
+
+try:
+    import GPUtil
+    GPU_AVAILABLE = True
+except ImportError:
+    GPU_AVAILABLE = False
 
 from ..services.ai_decision_integration.orchestrator import DecisionOrchestrator
 from ..services.ai_decision_integration.config.di_container import (
@@ -46,6 +53,42 @@ router = APIRouter(
 logger = structlog.get_logger(__name__)
 
 # --- 依賴注入設置 ---
+
+
+def get_real_system_resources() -> Dict[str, Any]:
+    """獲取真實的系統資源監控數據"""
+    try:
+        # CPU 使用率
+        cpu_usage = psutil.cpu_percent(interval=0.1)  # 使用短間隔避免阻塞
+        
+        # 記憶體使用率
+        memory = psutil.virtual_memory()
+        memory_usage_mb = memory.used // (1024 * 1024)  # 轉換為 MB
+        
+        # GPU 使用率
+        gpu_utilization = 0
+        if GPU_AVAILABLE:
+            try:
+                gpus = GPUtil.getGPUs()
+                if gpus:
+                    gpu_utilization = gpus[0].load * 100
+            except Exception:
+                gpu_utilization = 0
+        
+        
+        return {
+            "cpu_usage_percent": round(cpu_usage, 1),
+            "memory_usage_mb": int(memory_usage_mb),
+            "gpu_utilization_percent": round(gpu_utilization, 1)
+        }
+    except Exception as e:
+        logger.warning(f"Failed to get real system resources: {e}")
+        # 返回預設值
+        return {
+            "cpu_usage_percent": 0,
+            "memory_usage_mb": 1024,
+            "gpu_utilization_percent": 0
+        }
 
 
 def get_orchestrator():
@@ -209,10 +252,7 @@ async def get_orchestrator_status(
                 "prediction_accuracy": 0.85,
                 "avg_response_time_ms": 25.5,
             },
-            "system_resources": {
-                "memory_usage_mb": 1024,
-                "gpu_utilization_percent": 15 if training_state == "training" else 0,
-            },
+            "system_resources": get_real_system_resources(),
             "all_algorithms_status": training_status.get("training_states", {}),
             "all_training_stats": training_status.get("training_stats", {}),
         }
@@ -246,7 +286,7 @@ async def get_orchestrator_status(
                 "prediction_accuracy": 0.85,
                 "avg_response_time_ms": 25.5,
             },
-            "system_resources": {"memory_usage_mb": 1024, "gpu_utilization_percent": 0},
+            "system_resources": get_real_system_resources(),
         }
 
 
