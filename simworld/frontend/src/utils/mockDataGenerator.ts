@@ -36,15 +36,18 @@ export const createInitialTrainingMetrics = () => ({
 
 // RL 獎勵趨勢數據初始化
 export const createInitialRLData = () => ({
-    labels: Array.from({ length: 20 }, (_, i) => `${i + 1}`),
+    labels: [], // 統一的顯示標籤
     dqnData: [],
+    dqnLabels: [], // DQN專用標籤
     ppoData: [],
+    ppoLabels: [], // PPO專用標籤
     sacData: [],
+    sacLabels: [], // SAC專用標籤
 })
 
 // Policy Loss 數據初始化
 export const createInitialPolicyLossData = () => ({
-    labels: Array.from({ length: 20 }, (_, i) => `${i + 1}`),
+    labels: [], // 初始化為空陣列，讓真實訓練數據決定標籤格式
     dqnData: [],
     ppoData: [],
     sacData: [],

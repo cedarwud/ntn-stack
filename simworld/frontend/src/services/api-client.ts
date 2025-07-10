@@ -65,15 +65,18 @@ class NetStackApiClient {
     }
 
     /**
-     * 控制 AI 決策引擎的訓練過程。
+     * 控制 RL 算法的訓練過程。
      * @param action 'start' 或 'stop'
-     * @param algorithm 如果 action 是 'start'，則需要指定算法
+     * @param algorithm 算法名稱 (dqn, ppo, sac)
      */
-    controlTraining(action: 'start' | 'stop', algorithm?: string) {
-        return this.post<any>('/api/v2/decision/training-simple', {
-            action,
-            algorithm,
-        })
+    controlTraining(action: 'start' | 'stop', algorithm: string) {
+        if (action === 'start') {
+            // 使用正確的 RL 訓練啟動端點
+            return this.post<any>(`/api/v1/rl/training/start/${algorithm}`, {})
+        } else {
+            // 停止訓練：根據算法名稱停止
+            return this.post<any>(`/api/v1/rl/training/stop-by-algorithm/${algorithm}`, {})
+        }
     }
 
     /**

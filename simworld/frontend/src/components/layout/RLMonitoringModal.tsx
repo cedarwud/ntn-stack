@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Line } from 'react-chartjs-2'
 import GymnasiumRLMonitor from '../dashboard/GymnasiumRLMonitor'
-import { createInteractiveChartOptions } from '../../config/dashboardChartOptions'
+import { createRLChartOptions } from '../../config/dashboardChartOptions'
 import { useRLMonitoring } from '../views/dashboards/ChartAnalysisDashboard/hooks/useRLMonitoring'
 import { apiClient } from '../../services/api-client'
 import '../views/dashboards/ChartAnalysisDashboard/ChartAnalysisDashboard.scss'
@@ -36,7 +36,7 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
     // 系統資源和性能指標狀態
     const [systemResources, setSystemResources] = useState({
         cpu_usage_percent: 0,
-        memory_usage_mb: 0,
+        memory_usage_percent: 0,  // 改為百分比
         gpu_utilization_percent: 0
     })
     
@@ -85,7 +85,7 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
                 
                 setSystemResources({
                     cpu_usage_percent: data.system_resources?.cpu_usage_percent ?? -1, // -1 表示API未提供
-                    memory_usage_mb: data.system_resources?.memory_usage_mb ?? -1, // 使用真實值或-1
+                    memory_usage_percent: data.system_resources?.memory_usage_percent ?? -1, // 改為百分比
                     gpu_utilization_percent: data.system_resources?.gpu_utilization_percent ?? -1 // 使用真實值或-1
                 })
             } catch (error) {
@@ -93,7 +93,7 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
                 const activeTraining = isDqnTraining || isPpoTraining || isSacTraining
                 setSystemResources({
                     cpu_usage_percent: activeTraining ? 45 : 20,
-                    memory_usage_mb: activeTraining ? 1800 : 1024,
+                    memory_usage_percent: activeTraining ? 72 : 45,  // 改為百分比模擬值
                     gpu_utilization_percent: activeTraining ? 25 : 0
                 })
             }
@@ -365,19 +365,14 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
                                     <div className="charts-mini-grid">
                                         <div className="mini-chart">
                                             <div className="chart-title">
-                                                獎勵趨勢
+                                                平均獎勵趨勢
                                             </div>
                                             <div className="chart-area">
                                                 {rewardTrendData.dqnData
                                                     .length > 0 ? (
                                                     <Line
                                                         data={{
-                                                            labels: rewardTrendData.labels.slice(
-                                                                0,
-                                                                rewardTrendData
-                                                                    .dqnData
-                                                                    .length
-                                                            ),
+                                                            labels: rewardTrendData.dqnLabels || [],
                                                             datasets: [
                                                                 {
                                                                     label: 'DQN獎勵',
@@ -393,10 +388,9 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
                                                                 },
                                                             ],
                                                         }}
-                                                        options={createInteractiveChartOptions(
-                                                            'DQN 獎勵趨勢',
-                                                            'Episode',
-                                                            'Reward'
+                                                        options={createRLChartOptions(
+                                                            'DQN 平均獎勵趨勢',
+                                                            '平均獎勵值'
                                                         )}
                                                     />
                                                 ) : (
@@ -471,19 +465,14 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
                                     <div className="charts-mini-grid">
                                         <div className="mini-chart">
                                             <div className="chart-title">
-                                                獎勵趨勢
+                                                平均獎勵趨勢
                                             </div>
                                             <div className="chart-area">
                                                 {rewardTrendData.ppoData
                                                     .length > 0 ? (
                                                     <Line
                                                         data={{
-                                                            labels: rewardTrendData.labels.slice(
-                                                                0,
-                                                                rewardTrendData
-                                                                    .ppoData
-                                                                    .length
-                                                            ),
+                                                            labels: rewardTrendData.ppoLabels || [],
                                                             datasets: [
                                                                 {
                                                                     label: 'PPO獎勵',
@@ -499,10 +488,9 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
                                                                 },
                                                             ],
                                                         }}
-                                                        options={createInteractiveChartOptions(
-                                                            'PPO 獎勵趨勢',
-                                                            'Episode',
-                                                            'Reward'
+                                                        options={createRLChartOptions(
+                                                            'PPO 平均獎勵趨勢',
+                                                            '平均獎勵值'
                                                         )}
                                                     />
                                                 ) : (
@@ -577,19 +565,14 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
                                     <div className="charts-mini-grid">
                                         <div className="mini-chart">
                                             <div className="chart-title">
-                                                獎勵趨勢
+                                                平均獎勵趨勢
                                             </div>
                                             <div className="chart-area">
                                                 {rewardTrendData.sacData
                                                     .length > 0 ? (
                                                     <Line
                                                         data={{
-                                                            labels: rewardTrendData.labels.slice(
-                                                                0,
-                                                                rewardTrendData
-                                                                    .sacData
-                                                                    .length
-                                                            ),
+                                                            labels: rewardTrendData.sacLabels || [],
                                                             datasets: [
                                                                 {
                                                                     label: 'SAC獎勵',
@@ -605,10 +588,9 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
                                                                 },
                                                             ],
                                                         }}
-                                                        options={createInteractiveChartOptions(
-                                                            'SAC 獎勵趨勢',
-                                                            'Episode',
-                                                            'Reward'
+                                                        options={createRLChartOptions(
+                                                            'SAC 平均獎勵趨勢',
+                                                            '平均獎勵值'
                                                         )}
                                                     />
                                                 ) : (
@@ -697,11 +679,11 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
                                         <div className="resource-item">
                                             <div className="resource-label">記憶體使用</div>
                                             <div className="resource-bar">
-                                                <div className="resource-fill" style={{width: `${Math.min(100, systemResources.memory_usage_mb / 20)}%`}}></div>
+                                                <div className="resource-fill" style={{width: `${systemResources.memory_usage_percent}%`}}></div>
                                             </div>
                                             <div className="resource-value">
-                                                {systemResources.memory_usage_mb >= 0 ? 
-                                                    `${systemResources.memory_usage_mb.toFixed(0)} MB ✅` : 
+                                                {systemResources.memory_usage_percent >= 0 ? 
+                                                    `${systemResources.memory_usage_percent.toFixed(1)}% ✅` : 
                                                     '無數據 ⚠️'
                                                 }
                                             </div>
