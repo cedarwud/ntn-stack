@@ -9,6 +9,7 @@ import GymnasiumRLMonitor from '../dashboard/GymnasiumRLMonitor'
 import { createRLChartOptions } from '../../config/dashboardChartOptions'
 import { useRLMonitoring } from '../views/dashboards/ChartAnalysisDashboard/hooks/useRLMonitoring'
 import { apiClient } from '../../services/api-client'
+import prometheusApiService from '../../services/prometheusApi'
 import '../views/dashboards/ChartAnalysisDashboard/ChartAnalysisDashboard.scss'
 
 interface RLMonitoringModalProps {
@@ -45,6 +46,24 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
         learning_efficiency: 0,
         model_stability: 0
     })
+
+    // Prometheus 監控數據狀態
+    const [prometheusData, setPrometheusData] = useState({
+        rlMetrics: {
+            convergence: 0,
+            loss: 0,
+            gpuUtilization: 0,
+            episodes: 0
+        },
+        systemMetrics: {
+            cpuUsage: 0,
+            memoryUsage: 0,
+            diskUsage: 0,
+            networkRx: 0
+        },
+        isPrometheusAvailable: false,
+        lastUpdate: null as Date | null
+    })
     
     // 訓練日誌狀態
     const [trainingLogs, setTrainingLogs] = useState<Array<{
@@ -76,6 +95,85 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
             return newLogs.slice(0, 30)
         })
     }, [])
+
+    // 獲取 Prometheus 監控數據
+    const fetchPrometheusData = useCallback(async () => {
+        try {
+            // 檢查 Prometheus 健康狀態
+            const isHealthy = await prometheusApiService.checkHealth()
+            if (!isHealthy) {
+                setPrometheusData(prev => ({ ...prev, isPrometheusAvailable: false }))
+                return
+            }
+
+            // 並行獲取 RL 和系統監控數據
+            const [rlMetrics, systemMetrics] = await Promise.all([
+                prometheusApiService.getRLTrainingMetrics(),
+                prometheusApiService.getSystemHealthMetrics()
+            ])
+
+            // 解析 RL 監控數據
+            const rlData = {
+                convergence: rlMetrics.convergence.data.result[0]?.value?.[1] 
+                    ? parseFloat(rlMetrics.convergence.data.result[0].value[1]) 
+                    : 0,
+                loss: rlMetrics.loss.data.result[0]?.value?.[1] 
+                    ? parseFloat(rlMetrics.loss.data.result[0].value[1]) 
+                    : 0,
+                gpuUtilization: rlMetrics.gpuUtilization.data.result[0]?.value?.[1] 
+                    ? parseFloat(rlMetrics.gpuUtilization.data.result[0].value[1]) 
+                    : 0,
+                episodes: rlMetrics.episodes.data.result[0]?.value?.[1] 
+                    ? parseFloat(rlMetrics.episodes.data.result[0].value[1]) 
+                    : 0
+            }
+
+            // 解析系統監控數據
+            const systemData = {
+                cpuUsage: systemMetrics.cpuUsage.data.result[0]?.value?.[1] 
+                    ? parseFloat(systemMetrics.cpuUsage.data.result[0].value[1]) 
+                    : 0,
+                memoryUsage: systemMetrics.memoryUsage.data.result[0]?.value?.[1] 
+                    ? parseFloat(systemMetrics.memoryUsage.data.result[0].value[1]) 
+                    : 0,
+                diskUsage: systemMetrics.diskUsage.data.result[0]?.value?.[1] 
+                    ? parseFloat(systemMetrics.diskUsage.data.result[0].value[1]) 
+                    : 0,
+                networkRx: systemMetrics.networkRx.data.result[0]?.value?.[1] 
+                    ? parseFloat(systemMetrics.networkRx.data.result[0].value[1]) 
+                    : 0
+            }
+
+            setPrometheusData({
+                rlMetrics: rlData,
+                systemMetrics: systemData,
+                isPrometheusAvailable: true,
+                lastUpdate: new Date()
+            })
+
+            // 更新現有的系統資源狀態 (整合 Prometheus 數據)
+            setSystemResources(prev => ({
+                cpu_usage_percent: systemData.cpuUsage > 0 ? systemData.cpuUsage : prev.cpu_usage_percent,
+                memory_usage_percent: systemData.memoryUsage > 0 ? systemData.memoryUsage : prev.memory_usage_percent,
+                gpu_utilization_percent: rlData.gpuUtilization > 0 ? rlData.gpuUtilization : prev.gpu_utilization_percent
+            }))
+
+            // 根據 Prometheus 數據生成訓練日誌
+            if (rlData.loss > 1.0) {
+                addLog('RL-TRAINING', `訓練損失偏高: ${rlData.loss.toFixed(3)}`, 'warning')
+            }
+            if (rlData.gpuUtilization < 50 && rlData.gpuUtilization > 0) {
+                addLog('RL-TRAINING', `GPU利用率偏低: ${rlData.gpuUtilization.toFixed(1)}%`, 'info')
+            }
+            if (systemData.cpuUsage > 80) {
+                addLog('SYSTEM', `CPU使用率過高: ${systemData.cpuUsage.toFixed(1)}%`, 'warning')
+            }
+
+        } catch (error) {
+            console.warn('Prometheus 數據獲取失敗，使用模擬數據:', error)
+            setPrometheusData(prev => ({ ...prev, isPrometheusAvailable: false }))
+        }
+    }, [addLog])
     
     // 獲取真實的系統資源數據
     useEffect(() => {
@@ -146,6 +244,19 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
             return () => clearInterval(interval)
         }
     }, [isOpen, isDqnTraining, isPpoTraining, isSacTraining])
+
+    // Prometheus 數據定時更新
+    useEffect(() => {
+        if (!isOpen) return
+
+        // 立即獲取一次數據
+        fetchPrometheusData()
+
+        // 設置定時更新 (每2秒，比其他監控更頻繁)
+        const prometheusInterval = setInterval(fetchPrometheusData, 2000)
+
+        return () => clearInterval(prometheusInterval)
+    }, [isOpen, fetchPrometheusData])
     
     // 監聽訓練事件並記錄日誌
     useEffect(() => {
@@ -211,6 +322,17 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
                         <p className="modal-subtitle">
                             實時監控 DQN、PPO、SAC 演算法訓練狀態與性能指標
                         </p>
+                        <div className="monitoring-status">
+                            <span className={`status-indicator ${prometheusData.isPrometheusAvailable ? 'online' : 'offline'}`}>
+                                {prometheusData.isPrometheusAvailable ? '🟢' : '🔴'} 
+                                階段8監控: {prometheusData.isPrometheusAvailable ? 'Prometheus 在線' : '使用模擬數據'}
+                            </span>
+                            {prometheusData.lastUpdate && (
+                                <span className="last-update">
+                                    最後更新: {prometheusData.lastUpdate.toLocaleTimeString('zh-TW')}
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <button 
                         className="modal-close-btn"

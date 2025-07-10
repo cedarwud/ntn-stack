@@ -113,6 +113,27 @@ class NetStackApiClient {
     getTrainingPerformanceMetrics() {
         return this.get<any>('/api/v1/rl/training/performance-metrics')
     }
+
+    /**
+     * 獲取AI推薦數據
+     */
+    getAIRecommendations() {
+        return this.get<any>('/api/v2/decision/recommendations')
+    }
+
+    /**
+     * 獲取AI分析上下文
+     */
+    getAIAnalysisContext() {
+        return this.get<any>('/api/v2/decision/analysis-context')
+    }
+
+    /**
+     * 獲取AI分析結果
+     */
+    getAIAnalysis() {
+        return this.get<any>('/api/v2/decision/analysis')
+    }
 }
 
 export const apiClient = new NetStackApiClient() 

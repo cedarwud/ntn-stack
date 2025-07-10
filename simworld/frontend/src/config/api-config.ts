@@ -12,6 +12,12 @@ interface ApiConfig {
     baseUrl: string
     timeout: number
   }
+  monitoring: {
+    prometheus: string
+    grafana: string
+    alertmanager: string
+    timeout: number
+  }
   mode: 'development' | 'docker' | 'production'
 }
 
@@ -63,6 +69,12 @@ export const getApiConfig = (): ApiConfig => {
         baseUrl: import.meta.env.VITE_SIMWORLD_URL || 'http://localhost:8000',
         timeout: 10000
       },
+      monitoring: {
+        prometheus: import.meta.env.VITE_PROMETHEUS_URL || 'http://localhost:9090',
+        grafana: import.meta.env.VITE_GRAFANA_URL || 'http://localhost:3000',
+        alertmanager: import.meta.env.VITE_ALERTMANAGER_URL || 'http://localhost:9093',
+        timeout: 10000
+      },
       mode: 'development' as const
     },
     
@@ -75,6 +87,12 @@ export const getApiConfig = (): ApiConfig => {
         baseUrl: '/api', // 使用 Vite 代理
         timeout: 15000
       },
+      monitoring: {
+        prometheus: '/monitoring/prometheus',
+        grafana: '/monitoring/grafana',
+        alertmanager: '/monitoring/alertmanager',
+        timeout: 15000
+      },
       mode: 'docker' as const
     },
     
@@ -85,6 +103,12 @@ export const getApiConfig = (): ApiConfig => {
       },
       simworld: {
         baseUrl: import.meta.env.VITE_SIMWORLD_URL || '/api',
+        timeout: 20000
+      },
+      monitoring: {
+        prometheus: import.meta.env.VITE_PROMETHEUS_URL || '/monitoring/prometheus',
+        grafana: import.meta.env.VITE_GRAFANA_URL || '/monitoring/grafana',
+        alertmanager: import.meta.env.VITE_ALERTMANAGER_URL || '/monitoring/alertmanager',
         timeout: 20000
       },
       mode: 'production' as const
@@ -198,6 +222,62 @@ export const createConfiguredFetch = (service: 'netstack' | 'simworld') => {
 // 預設的服務特定 fetch 函數
 export const netstackFetch = createConfiguredFetch('netstack')
 export const simworldFetch = createConfiguredFetch('simworld')
+
+/**
+ * 獲取監控服務 URL
+ */
+export const getMonitoringUrl = (service: 'prometheus' | 'grafana' | 'alertmanager'): string => {
+  const config = getApiConfig()
+  return config.monitoring[service]
+}
+
+/**
+ * 創建監控服務專用的 fetch 函數
+ */
+export const createMonitoringFetch = (service: 'prometheus' | 'grafana' | 'alertmanager') => {
+  const config = getApiConfig()
+  const baseUrl = config.monitoring[service]
+  const timeout = config.monitoring.timeout
+
+  return async (endpoint: string, options: RequestInit = {}) => {
+    const url = endpoint.startsWith('/') ? `${baseUrl}${endpoint}` : `${baseUrl}/${endpoint}`
+    
+    const defaultOptions: RequestInit = {
+      timeout,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    }
+    
+    const mergedOptions = { ...defaultOptions, ...options }
+    
+    try {
+      const response = await fetch(url, mergedOptions)
+      
+      if (!response.ok) {
+        console.error(`監控服務 ${service.toUpperCase()} 錯誤:`, {
+          url,
+          status: response.status,
+          statusText: response.statusText
+        })
+      }
+      
+      return response
+    } catch (error) {
+      console.error(`監控服務 ${service.toUpperCase()} 請求失敗:`, {
+        url,
+        error: error instanceof Error ? error.message : error
+      })
+      throw error
+    }
+  }
+}
+
+// 監控服務專用 fetch 函數
+export const prometheusFetch = createMonitoringFetch('prometheus')
+export const grafanaFetch = createMonitoringFetch('grafana')
+export const alertmanagerFetch = createMonitoringFetch('alertmanager')
 
 // 導出當前配置供調試使用
 export const currentApiConfig = getApiConfig()
