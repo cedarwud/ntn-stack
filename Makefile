@@ -88,7 +88,7 @@ dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 	@cd ${NETSTACK_DIR} && $(MAKE) init-demo-data
 	@echo "$(GREEN)✅ 開發環境設置完成$(RESET)"
 
-all-start: ## 啟動所有核心服務 (NetStack, SimWorld, Monitoring)
+all-start: ## 啟動所有核心服務 (NetStack, SimWorld)
 	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
 	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (創建網路)...$(RESET)"
 	@$(MAKE) netstack-start
@@ -98,8 +98,6 @@ all-start: ## 啟動所有核心服務 (NetStack, SimWorld, Monitoring)
 	@$(MAKE) simworld-start
 	@echo "$(YELLOW)⏳ 等待 SimWorld 啟動完成...$(RESET)"
 	@sleep 10
-	@echo "$(YELLOW)⚡ 第三步：啟動監控系統...$(RESET)"
-	@$(MAKE) monitoring-start
 	@sleep 5
 	@echo "$(YELLOW)🔗 驗證容器間網路連接...$(RESET)"
 	@$(MAKE) verify-network-connection
@@ -135,7 +133,6 @@ down: all-stop ## 停止所有服務
 
 all-stop: ## 停止 NetStack、SimWorld 和監控系統
 	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務...$(RESET)"
-	@$(MAKE) monitoring-stop
 	@$(MAKE) simworld-stop
 	@$(MAKE) netstack-stop
 	@echo "$(GREEN)✅ 所有服務已停止$(RESET)"
@@ -159,7 +156,6 @@ down-v: all-stop-v ## 停止所有服務
 
 all-stop-v: ## 停止 NetStack、SimWorld 和監控系統 (清除卷)
 	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務 (清除卷)...$(RESET)"
-	@$(MAKE) monitoring-stop-v
 	@$(MAKE) simworld-stop-v
 	@$(MAKE) netstack-stop-v
 	@echo "$(GREEN)✅ 所有服務已停止$(RESET)"
@@ -189,7 +185,7 @@ restart-monitoring: ## [獨立] 重啟階段8的監控服務
 	@sleep 5
 	@echo "$(GREEN)✅ 監控系統已重啟。$(RESET)"
 
-all-restart: ## 重啟所有核心服務 (NetStack, SimWorld, Monitoring)
+all-restart: ## 重啟所有核心服務 (NetStack, SimWorld)
 	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務...$(RESET)"
 	@$(MAKE) all-stop
 	@sleep 5
@@ -271,7 +267,6 @@ all-clean: ## 清理 NetStack、SimWorld 和監控系統資源
 	@echo "$(CYAN)🧹 清理所有 NTN Stack 資源...$(RESET)"
 	@$(MAKE) netstack-clean
 	@$(MAKE) simworld-clean
-	@$(MAKE) monitoring-clean
 	@$(MAKE) clean-reports
 	@echo "$(GREEN)✅ 所有資源清理完成$(RESET)"
 
@@ -310,7 +305,6 @@ all-clean-i: ## 清理 NetStack、SimWorld 和監控系統資源
 	@echo "$(CYAN)🧹 清理所有 NTN Stack 資源...$(RESET)"
 	@$(MAKE) netstack-clean-i
 	@$(MAKE) simworld-clean-i
-	@$(MAKE) monitoring-clean-i
 	@$(MAKE) clean-reports
 	@docker image prune -f
 	@docker network prune -f
@@ -346,15 +340,9 @@ status: ## 檢查所有服務狀態
 	@echo "$(YELLOW)SimWorld 服務狀態:$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose ps || echo "$(RED)❌ SimWorld 服務未運行$(RESET)"
 	@echo ""
-	@echo "$(YELLOW)監控系統狀態 (階段8):$(RESET)"
-	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml ps || echo "$(RED)❌ 監控系統未運行$(RESET)"
-	@echo ""
 	@echo "$(YELLOW)服務健康檢查:$(RESET)"
 	@curl -s $(NETSTACK_URL)/health > /dev/null && echo "$(GREEN)✅ NetStack 健康檢查通過$(RESET)" || echo "$(RED)❌ NetStack 健康檢查失敗$(RESET)"
 	@curl -s $(SIMWORLD_URL)/ > /dev/null && echo "$(GREEN)✅ SimWorld 健康檢查通過$(RESET)" || echo "$(RED)❌ SimWorld 健康檢查失敗$(RESET)"
-	@curl -s $(PROMETHEUS_URL)/ > /dev/null && echo "$(GREEN)✅ Prometheus 健康檢查通過$(RESET)" || echo "$(RED)❌ Prometheus 健康檢查失敗$(RESET)"
-	@curl -s $(GRAFANA_URL)/api/health > /dev/null && echo "$(GREEN)✅ Grafana 健康檢查通過$(RESET)" || echo "$(RED)❌ Grafana 健康檢查失敗$(RESET)"
-	@curl -s $(ALERTMANAGER_URL)/ > /dev/null && echo "$(GREEN)✅ AlertManager 健康檢查通過$(RESET)" || echo "$(RED)❌ AlertManager 健康檢查失敗$(RESET)"
 
 verify-network-connection: ## 🔗 驗證容器間網路連接
 	@echo "$(CYAN)🔗 驗證容器間網路連接...$(RESET)"
@@ -397,15 +385,13 @@ monitoring-logs: ## 查看監控系統日誌
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f
 
-all-logs: ## 查看所有服務日誌 (NetStack, SimWorld, Monitoring)
+all-logs: ## 查看所有服務日誌 (NetStack, SimWorld)
 	@echo "$(CYAN)📋 查看所有 NTN Stack 服務日誌...$(RESET)"
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@trap 'echo "結束日誌查看"; exit 0' INT; \
 	(\
 		cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml logs -f & netstack_pid=$$!; \
 		cd $(SIMWORLD_DIR) && docker compose logs -f & simworld_pid=$$!; \
-		cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f & monitoring_pid=$$!; \
-		wait $$netstack_pid $$simworld_pid $$monitoring_pid \
 	)
 
 netstack-logs: ## 查看 NetStack 日誌
