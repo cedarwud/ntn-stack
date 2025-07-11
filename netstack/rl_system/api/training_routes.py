@@ -65,10 +65,24 @@ async def get_training_status(algorithm: str):
     """
     獲取指定演算法的訓練狀態。
     """
-    if algorithm not in training_instances:
+    # 支持的演算法列表
+    supported_algorithms = ["dqn", "ppo", "sac"]
+    
+    if algorithm not in supported_algorithms:
         raise HTTPException(
-            status_code=404, detail=f"找不到演算法 '{algorithm}' 的訓練實例。"
+            status_code=400, detail=f"不支援的演算法 '{algorithm}'。支援的演算法: {supported_algorithms}"
         )
+    
+    # 如果沒有訓練實例，返回未訓練狀態
+    if algorithm not in training_instances:
+        return {
+            "algorithm": algorithm,
+            "status": "not_running",
+            "message": f"演算法 '{algorithm}' 目前沒有在訓練中",
+            "is_training": False,
+            "training_progress": None,
+            "metrics": None
+        }
 
     trainer = training_instances[algorithm]
     return trainer.get_status()
