@@ -88,8 +88,8 @@ dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 	@cd ${NETSTACK_DIR} && $(MAKE) init-demo-data
 	@echo "$(GREEN)✅ 開發環境設置完成$(RESET)"
 
-all-start: ## 啟動 NetStack 和 SimWorld 核心服務
-	@echo "$(CYAN)🚀 啟動 NTN Stack 核心服務...$(RESET)"
+all-start: ## 啟動所有核心服務 (NetStack, SimWorld, Monitoring)
+	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
 	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (創建網路)...$(RESET)"
 	@$(MAKE) netstack-start
 	@echo "$(YELLOW)⏳ 等待 NetStack 網路就緒...$(RESET)"
@@ -98,17 +98,21 @@ all-start: ## 啟動 NetStack 和 SimWorld 核心服務
 	@$(MAKE) simworld-start
 	@echo "$(YELLOW)⏳ 等待 SimWorld 啟動完成...$(RESET)"
 	@sleep 10
+	@echo "$(YELLOW)⚡ 第三步：啟動監控系統...$(RESET)"
+	@$(MAKE) monitoring-start
+	@sleep 5
 	@echo "$(YELLOW)🔗 驗證容器間網路連接...$(RESET)"
 	@$(MAKE) verify-network-connection
 	@$(MAKE) status
-	@echo "$(GREEN)✅ 核心服務啟動完成$(RESET)"
+	@echo "$(GREEN)✅ 所有服務啟動完成$(RESET)"
 	@echo ""
 	@echo "$(CYAN)🌐 服務訪問地址:$(RESET)"
 	@echo "  NetStack API:  $(NETSTACK_URL)"
 	@echo "  NetStack Docs: $(NETSTACK_URL)/docs"
 	@echo "  SimWorld:      $(SIMWORLD_URL)"
-	@echo ""
-	@echo "$(YELLOW)💡 如需監控，請執行: $(GREEN)make start-monitoring$(RESET)"
+	@echo "  Prometheus:    $(PROMETHEUS_URL)"
+	@echo "  Grafana:       $(GRAFANA_URL)"
+	@echo "  AlertManager:  $(ALERTMANAGER_URL)"
 
 netstack-start: ## 啟動 NetStack 服務
 	@echo "$(BLUE)🚀 啟動 NetStack 服務...$(RESET)"
@@ -185,8 +189,8 @@ restart-monitoring: ## [獨立] 重啟階段8的監控服務
 	@sleep 5
 	@echo "$(GREEN)✅ 監控系統已重啟。$(RESET)"
 
-all-restart: ## 重啟 NetStack 和 SimWorld 核心服務
-	@echo "$(CYAN)🔄 重啟 NTN Stack 核心服務...$(RESET)"
+all-restart: ## 重啟所有核心服務 (NetStack, SimWorld, Monitoring)
+	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務...$(RESET)"
 	@$(MAKE) all-stop
 	@sleep 5
 	@$(MAKE) all-start
@@ -393,14 +397,15 @@ monitoring-logs: ## 查看監控系統日誌
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f
 
-all-logs: ## 查看 NetStack 和 SimWorld 日誌
+all-logs: ## 查看所有服務日誌 (NetStack, SimWorld, Monitoring)
 	@echo "$(CYAN)📋 查看所有 NTN Stack 服務日誌...$(RESET)"
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@trap 'echo "結束日誌查看"; exit 0' INT; \
 	(\
 		cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml logs -f & netstack_pid=$$!; \
 		cd $(SIMWORLD_DIR) && docker compose logs -f & simworld_pid=$$!; \
-		wait $$netstack_pid $$simworld_pid \
+		cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f & monitoring_pid=$$!; \
+		wait $$netstack_pid $$simworld_pid $$monitoring_pid \
 	)
 
 netstack-logs: ## 查看 NetStack 日誌

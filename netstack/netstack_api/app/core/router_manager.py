@@ -35,6 +35,9 @@ class RouterManager:
             from ..api.v1.handover import (
                 router as handover_router,
             )
+            from rl_system.api.training_routes import (
+                router as new_rl_training_router,
+            )
 
             self.app.include_router(health_router, tags=["健康檢查"])
             self._track_router("health_router", "健康檢查", True)
@@ -42,6 +45,12 @@ class RouterManager:
             self._track_router("ue_router", "UE 管理", True)
             self.app.include_router(handover_router, tags=["切換管理"])
             self._track_router("handover_router", "切換管理", True)
+            self.app.include_router(
+                new_rl_training_router,
+                prefix="/api/v1/rl/training",
+                tags=["RL 訓練 (新)"],
+            )
+            self._track_router("new_rl_training_router", "RL 訓練 (新)", True)
             logger.info("✅ 新模組化路由器註冊完成")
         except Exception as e:
             logger.exception("💥 新核心路由器註冊失敗")
@@ -57,9 +66,10 @@ class RouterManager:
             from ...routers.rl_monitoring_router import (
                 router as rl_monitoring_router,
             )
-            from ...routers.rl_training_router import (
-                router as rl_training_router,
-            )
+
+            # from ...routers.rl_training_router import (
+            #     router as rl_training_router,
+            # )
             from ...routers.test_router import router as test_router
 
             self.app.include_router(core_sync_router, tags=["核心同步機制"])
@@ -68,8 +78,8 @@ class RouterManager:
             self._track_router("intelligent_fallback_router", "智能回退機制", True)
             self.app.include_router(rl_monitoring_router, tags=["RL 監控"])
             self._track_router("rl_monitoring_router", "RL 監控", True)
-            self.app.include_router(rl_training_router, tags=["RL 訓練"])
-            self._track_router("rl_training_router", "RL 訓練", True)
+            # self.app.include_router(rl_training_router, tags=["RL 訓練"])
+            # self._track_router("rl_training_router", "RL 訓練", True)
             self.app.include_router(test_router, tags=["測試"])
             self._track_router("test_router", "測試", True)
             logger.info("✅ 舊核心路由器註冊完成")
@@ -182,6 +192,7 @@ class RouterManager:
             "health_router",
             "ue_router",
             "handover_router",
+            "new_rl_training_router",
             "core_sync_router",
             "intelligent_fallback_router",
         ]
