@@ -7,6 +7,20 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createInitialRLData, createInitialPolicyLossData, createInitialTrainingMetrics } from '../../../../../utils/mockDataGenerator'
 import { apiClient } from '../../../../../services/api-client'
 
+// 定義訓練配置的類型
+interface TrainingConfig {
+  episodes: number;
+  batch_size?: number;
+  learning_rate?: number;
+}
+
+// 定義後端狀態 API 的回傳類型
+interface StatusResponse {
+  algorithm: string;
+  status: 'running' | 'completed' | 'not_found' | { status: 'completed', result: any };
+}
+
+
 /**
  * RL訓練狀態和數據管理Hook
  */
@@ -27,291 +41,128 @@ export const useRLMonitoring = () => {
   const [rewardTrendData, setRewardTrendData] = useState(createInitialRLData())
   const [policyLossData, setPolicyLossData] = useState(createInitialPolicyLossData())
 
+  // 後端 API 函數
+  const startTraining = async (algorithm: string, config: TrainingConfig) => {
+    try {
+      // 注意：後端路由是 /api/v1/rl/training/start/{algorithm_name}
+      const response = await apiClient.post(`/api/v1/rl/training/start/${algorithm}`, config);
+      console.log(`Successfully started training for ${algorithm}`, response);
+      // 可以在這裡觸發一個日誌或通知
+    } catch (error) {
+      console.error(`Failed to start training for ${algorithm}:`, error);
+      // 可以在這裡顯示一個錯誤通知
+      throw error; // 向上拋出錯誤，讓調用者可以處理
+    }
+  };
+
+  const stopTraining = async (algorithm: string) => {
+    // 停止訓練的邏輯尚未在後端實現，暫時保留
+    console.warn(`Stop training functionality for ${algorithm} is not yet implemented on the backend.`);
+    // try {
+    //   await apiClient.post(`/api/v1/rl/training/stop/${algorithm}`);
+    // } catch (error) {
+    //   console.error(`Failed to stop training for ${algorithm}:`, error);
+    // }
+  };
+
+
   // 統一的數據獲取 - 移除重複的事件監聽機制
   useEffect(() => {
     const fetchTrainingData = async () => {
       try {
-        const sessions = await apiClient.getRLTrainingSessions()
-        // 只處理活躍的訓練會話
-        const activeSessions = sessions.filter((session: Record<string, unknown>) => session.status === 'active')
-        
-        // 同步訓練狀態和重置非活躍算法的數據
-        const activeAlgorithms = activeSessions.map((session: Record<string, unknown>) => session.algorithm_name as string)
+        // apiClient.getRLTrainingSessions() 邏輯需要與新的後端 /status API 對應
         const allAlgorithms = ['dqn', 'ppo', 'sac']
+        const statusPromises = allAlgorithms.map(algo => 
+          apiClient.get<StatusResponse>(`/api/v1/rl/training/status/${algo}`) // 指定返回類型
+            .then(res => ({ algorithm: algo, data: res }))
+            .catch(() => ({ algorithm: algo, data: { status: 'not_found' }} as { algorithm: string, data: StatusResponse })) // 確保錯誤情況下的類型匹配
+        );
+        
+        const results = await Promise.all(statusPromises);
+
+        const activeAlgorithms = new Set<string>();
+        results.forEach(result => {
+          // 現在 result.data 是強型別的
+          if (result.data && result.data.status === 'running') {
+            activeAlgorithms.add(result.algorithm);
+          }
+        });
         
         // 更新訓練狀態
-        setIsDqnTraining(activeAlgorithms.includes('dqn'))
-        setIsPpoTraining(activeAlgorithms.includes('ppo'))
-        setIsSacTraining(activeAlgorithms.includes('sac'))
+        setIsDqnTraining(activeAlgorithms.has('dqn'))
+        setIsPpoTraining(activeAlgorithms.has('ppo'))
+        setIsSacTraining(activeAlgorithms.has('sac'))
         
-        allAlgorithms.forEach(algorithm => {
-          if (!activeAlgorithms.includes(algorithm)) {
-            setTrainingMetrics(prevMetrics => ({
-              ...prevMetrics,
-              [algorithm]: {
-                episodes: 0,
-                avgReward: 0,
-                progress: 0,
-                handoverDelay: algorithm === 'dqn' ? 45 : algorithm === 'ppo' ? 40 : 42,
-                successRate: algorithm === 'dqn' ? 82 : algorithm === 'ppo' ? 84 : 85,
-                signalDropTime: algorithm === 'dqn' ? 18 : 16,
-                energyEfficiency: algorithm === 'dqn' ? 0.75 : algorithm === 'ppo' ? 0.8 : 0.78,
-              }
-            }))
-          }
-        })
+        // 此處可以添加更新訓練指標和圖表的邏輯，
+        // 但需要後端 /status API 提供更豐富的數據
         
-        activeSessions.forEach((session: Record<string, unknown>) => {
-          const algorithm = session.algorithm_name as string
-          const progress = ((session.episodes_completed as number) / (session.episodes_target as number)) * 100
-          
-          const metrics = {
-            episodes_completed: session.episodes_completed as number,
-            average_reward: session.current_reward as number,
-            best_reward: session.best_reward as number,
-            training_progress: progress
-          }
-          
-          // 更新訓練指標
-          if (algorithm === 'dqn') {
-            setTrainingMetrics(prevMetrics => ({
-              ...prevMetrics,
-              dqn: {
-                episodes: metrics.episodes_completed || 0,
-                avgReward: metrics.average_reward || 0,
-                progress: metrics.training_progress || 0,
-                handoverDelay: 45 - (metrics.training_progress || 0) / 100 * 20 + (Math.random() - 0.5) * 5,
-                successRate: Math.min(100, 82 + (metrics.training_progress || 0) / 100 * 12 + (Math.random() - 0.5) * 1.5),
-                signalDropTime: 18 - (metrics.training_progress || 0) / 100 * 8 + (Math.random() - 0.5) * 2,
-                energyEfficiency: 0.75 + (metrics.training_progress || 0) / 100 * 0.2 + (Math.random() - 0.5) * 0.05,
-              }
-            }))
-
-            // 更新獎勵趨勢數據 - DQN專用邏輯
-            setRewardTrendData(prevData => {
-              if (typeof metrics.average_reward === 'number') {
-                // 檢查DQN專用的重複檢查
-                const dqnData = prevData.dqnData || []
-                const dqnLabels = prevData.dqnLabels || []
-                
-                // 避免重複的 episode 數據 - 檢查DQN專用標籤
-                const lastDqnLabel = dqnLabels[dqnLabels.length - 1]
-                const expectedLabel = `Ep ${metrics.episodes_completed}`
-                if (lastDqnLabel === expectedLabel) {
-                  return prevData // 跳過重複數據
-                }
-                
-                const newDataPoints = [...dqnData, metrics.average_reward || 0]
-                const newDqnLabels = [...dqnLabels, expectedLabel]
-                
-                const maxPoints = 100
-                const finalDataPoints = newDataPoints.length > maxPoints 
-                  ? newDataPoints.slice(-maxPoints) 
-                  : newDataPoints
-                const finalDqnLabels = newDqnLabels.length > maxPoints 
-                  ? newDqnLabels.slice(-maxPoints) 
-                  : newDqnLabels
-                
-                return {
-                  ...prevData,
-                  dqnData: finalDataPoints,
-                  dqnLabels: finalDqnLabels
-                }
-              }
-              return prevData
-            })
-          } else if (algorithm === 'ppo') {
-            setTrainingMetrics(prevMetrics => ({
-              ...prevMetrics,
-              ppo: {
-                episodes: metrics.episodes_completed || 0,
-                avgReward: metrics.average_reward || 0,
-                progress: metrics.training_progress || 0,
-                handoverDelay: 40 - (metrics.training_progress || 0) / 100 * 22 + (Math.random() - 0.5) * 4,
-                successRate: Math.min(100, 84 + (metrics.training_progress || 0) / 100 * 10 + (Math.random() - 0.5) * 1.2),
-                signalDropTime: 16 - (metrics.training_progress || 0) / 100 * 9 + (Math.random() - 0.5) * 1.5,
-                energyEfficiency: 0.8 + (metrics.training_progress || 0) / 100 * 0.18 + (Math.random() - 0.5) * 0.04,
-              }
-            }))
-
-            setRewardTrendData(prevData => {
-              if (typeof metrics.average_reward === 'number') {
-                // 檢查PPO專用的重複檢查
-                const ppoData = prevData.ppoData || []
-                const ppoLabels = prevData.ppoLabels || []
-                
-                // 避免重複的 episode 數據 - 檢查PPO專用標籤
-                const lastPpoLabel = ppoLabels[ppoLabels.length - 1]
-                const expectedLabel = `Ep ${metrics.episodes_completed}`
-                if (lastPpoLabel === expectedLabel) {
-                  return prevData // 跳過重複數據
-                }
-                
-                const newDataPoints = [...ppoData, metrics.average_reward || 0]
-                const newPpoLabels = [...ppoLabels, expectedLabel]
-                
-                const maxPoints = 100
-                const finalDataPoints = newDataPoints.length > maxPoints 
-                  ? newDataPoints.slice(-maxPoints) 
-                  : newDataPoints
-                const finalPpoLabels = newPpoLabels.length > maxPoints 
-                  ? newPpoLabels.slice(-maxPoints) 
-                  : newPpoLabels
-                
-                return {
-                  ...prevData,
-                  ppoData: finalDataPoints,
-                  ppoLabels: finalPpoLabels
-                }
-              }
-              return prevData
-            })
-          } else if (algorithm === 'sac') {
-            setTrainingMetrics(prevMetrics => ({
-              ...prevMetrics,
-              sac: {
-                episodes: metrics.episodes_completed || 0,
-                avgReward: metrics.average_reward || 0,
-                progress: metrics.training_progress || 0,
-                handoverDelay: 42 - (metrics.training_progress || 0) / 100 * 18 + (Math.random() - 0.5) * 4,
-                successRate: Math.min(100, 85 + (metrics.training_progress || 0) / 100 * 13 + (Math.random() - 0.5) * 1.2),
-                signalDropTime: 16 - (metrics.training_progress || 0) / 100 * 7 + (Math.random() - 0.5) * 1.8,
-                energyEfficiency: 0.78 + (metrics.training_progress || 0) / 100 * 0.18 + (Math.random() - 0.5) * 0.04,
-              }
-            }))
-
-            setRewardTrendData(prevData => {
-              if (typeof metrics.average_reward === 'number') {
-                // 檢查SAC專用的重複檢查
-                const sacData = prevData.sacData || []
-                const sacLabels = prevData.sacLabels || []
-                
-                // 避免重複的 episode 數據 - 檢查SAC專用標籤
-                const lastSacLabel = sacLabels[sacLabels.length - 1]
-                const expectedLabel = `Ep ${metrics.episodes_completed}`
-                if (lastSacLabel === expectedLabel) {
-                  return prevData // 跳過重複數據
-                }
-                
-                const newDataPoints = [...sacData, metrics.average_reward || 0]
-                const newSacLabels = [...sacLabels, expectedLabel]
-                
-                const maxPoints = 100
-                const finalDataPoints = newDataPoints.length > maxPoints 
-                  ? newDataPoints.slice(-maxPoints) 
-                  : newDataPoints
-                const finalSacLabels = newSacLabels.length > maxPoints 
-                  ? newSacLabels.slice(-maxPoints) 
-                  : newSacLabels
-                
-                return {
-                  ...prevData,
-                  sacData: finalDataPoints,
-                  sacLabels: finalSacLabels
-                }
-              }
-              return prevData
-            })
-          }
-        })
       } catch (error) {
         console.warn('獲取訓練數據失敗:', error)
       }
     }
 
-    // 啟動定期數據獲取 - 簡化為單一數據源
-    const interval = setInterval(fetchTrainingData, 2000) // 提升到每2秒獲取一次，確保實時性
-    fetchTrainingData() // 立即執行一次
+    // 啟動定期數據獲取
+    const interval = setInterval(fetchTrainingData, 2000);
+    fetchTrainingData(); // 立即執行一次
 
     return () => {
       clearInterval(interval)
     }
   }, [])
 
-  // 初始化時同步後端訓練狀態 - 簡化版本
-  useEffect(() => {
-    const initializeTrainingState = async () => {
-      try {
-        console.log('🔄 初始化 RL 監控狀態')
-        const statusSummary = await apiClient.getTrainingStatusSummary()
-        
-        // 同步訓練狀態
-        const isDqnActive = statusSummary.active_algorithms.includes('dqn')
-        const isPpoActive = statusSummary.active_algorithms.includes('ppo')
-        const isSacActive = statusSummary.active_algorithms.includes('sac')
-        
-        setIsDqnTraining(isDqnActive)
-        setIsPpoTraining(isPpoActive)
-        setIsSacTraining(isSacActive)
-        
-      } catch (error) {
-        console.warn('🔄 初始化狀態同步失敗:', error)
-      }
-    }
-    
-    initializeTrainingState()
-  }, [])
-
-  // 所有事件處理邏輯已被 fetchTrainingData 的 API 輪詢替代
-  // 移除了複雜的事件監聽器以避免數據衝突和同步問題
 
   // 控制函數
   const toggleDqnTraining = () => {
-    const newState = !isDqnTraining
-    console.log('toggleDqnTraining 被調用:', { 
-      currentState: isDqnTraining, 
-      newState 
-    })
-    setIsDqnTraining(newState)
-    console.log('發送 dqnToggle 事件:', { isTraining: newState })
-    window.dispatchEvent(
-      new CustomEvent('dqnToggle', {
-        detail: { isTraining: newState }
-      })
-    )
+    if (!isDqnTraining) {
+      console.log('Calling startTraining for dqn');
+      startTraining('dqn', { episodes: 100, batch_size: 32, learning_rate: 0.001 });
+    } else {
+      console.log('Calling stopTraining for dqn');
+      stopTraining('dqn');
+    }
+    // 手動切換狀態以立即更新UI，後續由API輪詢來同步真實狀態
+    setIsDqnTraining(!isDqnTraining);
   }
 
   const togglePpoTraining = () => {
-    const newState = !isPpoTraining
-    console.log('togglePpoTraining 被調用:', { 
-      currentState: isPpoTraining, 
-      newState 
-    })
-    setIsPpoTraining(newState)
-    console.log('發送 ppoToggle 事件:', { isTraining: newState })
-    window.dispatchEvent(
-      new CustomEvent('ppoToggle', {
-        detail: { isTraining: newState }
-      })
-    )
+    if (!isPpoTraining) {
+      console.log('Calling startTraining for ppo');
+      startTraining('ppo', { episodes: 100, batch_size: 32, learning_rate: 0.001 });
+    } else {
+      console.log('Calling stopTraining for ppo');
+      stopTraining('ppo');
+    }
+    setIsPpoTraining(!isPpoTraining);
   }
 
   const toggleSacTraining = () => {
-    const newState = !isSacTraining
-    console.log('toggleSacTraining 被調用:', { 
-      currentState: isSacTraining, 
-      newState 
-    })
-    setIsSacTraining(newState)
-    console.log('發送 sacToggle 事件:', { isTraining: newState })
-    window.dispatchEvent(
-      new CustomEvent('sacToggle', {
-        detail: { isTraining: newState }
-      })
-    )
+    if (!isSacTraining) {
+      console.log('Calling startTraining for sac');
+      startTraining('sac', { episodes: 100, batch_size: 32, learning_rate: 0.001 });
+    } else {
+      console.log('Calling stopTraining for sac');
+      stopTraining('sac');
+    }
+    setIsSacTraining(!isSacTraining);
   }
 
   const toggleAllTraining = useCallback(() => {
     const anyTraining = isDqnTraining || isPpoTraining || isSacTraining
-    const newState = !anyTraining
-    console.log('toggleAllTraining 被調用:', { 
-      anyCurrentlyTraining: anyTraining, 
-      newState,
-      currentStates: { isDqnTraining, isPpoTraining, isSacTraining }
-    })
-    setIsDqnTraining(newState)
-    setIsPpoTraining(newState)
-    setIsSacTraining(newState)
+    const newState = !anyTraining;
+    
+    const algorithmsToToggle = ['dqn', 'ppo', 'sac'];
+    algorithmsToToggle.forEach(algo => {
+      const isTraining = algo === 'dqn' ? isDqnTraining : algo === 'ppo' ? isPpoTraining : isSacTraining;
+      if (newState && !isTraining) {
+        startTraining(algo, { episodes: 100 });
+      } else if (!newState && isTraining) {
+        stopTraining(algo);
+      }
+    });
+
+    setIsDqnTraining(newState);
+    setIsPpoTraining(newState);
+    setIsSacTraining(newState);
     
     // 如果是開始訓練，統一初始化所有圖表
     if (newState) {
@@ -389,14 +240,15 @@ export const useRLMonitoring = () => {
       }))
     }
     
-    console.log('發送 allToggle 事件:', { isTraining: newState })
-    window.dispatchEvent(
-      new CustomEvent('allToggle', {
-        detail: { 
-          isTraining: newState
-        }
-      })
-    )
+    // 移除舊的前端事件派發
+    // console.log('發送 allToggle 事件:', { isTraining: newState })
+    // window.dispatchEvent(
+    //   new CustomEvent('allToggle', {
+    //     detail: { 
+    //       isTraining: newState
+    //     }
+    //   })
+    // )
   }, [isDqnTraining, isPpoTraining, isSacTraining]) // 添加依賴避免閉包問題
 
   return {
