@@ -1,5 +1,20 @@
 # 🤖 LEO衛星換手決策RL系統架構
 
+## 🎓 **學術研究定位**
+
+### 🔬 **論文支援目標**
+本系統專為 **LEO satellite handover** 學術研究設計，支援：
+- **新演算法實驗**：DQN/PPO/SAC及未來algorithm的快速實驗
+- **Baseline比較**：與現有論文的量化比較分析
+- **論文數據生成**：自動化的統計分析和圖表生成
+- **實驗可重現性**：完整的參數記錄和環境控制
+
+### 📊 **研究級數據需求**
+- **大量時間序列數據**：支援數萬episode的訓練記錄
+- **複雜統計分析**：PostgreSQL強大的SQL分析能力
+- **實驗版本控制**：嚴格的模型和參數管理
+- **國際標準相容**：符合IEEE/3GPP研究標準
+
 ## 🎯 設計原則
 
 ### SOLID原則完整實現
@@ -311,61 +326,144 @@ class ConfigDrivenAlgorithmManager:
         return list(self.algorithms.keys())
 ```
 
-## 🗄️ 數據庫設計
+## 🗄️ **研究級資料庫設計**
 
-### 核心訓練數據表
+### 🎓 **學術研究優化設計**
 ```sql
--- 訓練會話主表
-CREATE TABLE rl_training_sessions (
+-- 實驗會話主表（支援論文實驗管理）
+CREATE TABLE rl_experiment_sessions (
     id BIGSERIAL PRIMARY KEY,
+    experiment_name VARCHAR(100) NOT NULL,
     algorithm_type VARCHAR(20) NOT NULL,
-    session_name VARCHAR(100),
+    scenario_type VARCHAR(50), -- urban, suburban, low_latency
+    paper_reference VARCHAR(200), -- 關聯的baseline論文
+    researcher_id VARCHAR(50),
     start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     end_time TIMESTAMP,
     total_episodes INTEGER DEFAULT 0,
     session_status VARCHAR(20) DEFAULT 'running',
     config_hash VARCHAR(64),
-    metadata JSONB,
-    INDEX idx_algorithm_type (algorithm_type),
-    INDEX idx_session_status (session_status)
+    hyperparameters JSONB, -- 完整的超參數記錄
+    environment_config JSONB, -- 環境配置（可重現性）
+    research_notes TEXT, -- 研究筆記
+    INDEX idx_algorithm_scenario (algorithm_type, scenario_type),
+    INDEX idx_paper_reference (paper_reference),
+    INDEX idx_researcher (researcher_id)
 );
 
--- 訓練回合數據
+-- 詳細訓練回合數據（支援深度分析）
 CREATE TABLE rl_training_episodes (
     id BIGSERIAL PRIMARY KEY,
-    session_id BIGINT REFERENCES rl_training_sessions(id) ON DELETE CASCADE,
+    session_id BIGINT REFERENCES rl_experiment_sessions(id) ON DELETE CASCADE,
     episode_number INTEGER NOT NULL,
     total_reward FLOAT,
     success_rate FLOAT,
-    episode_metadata JSONB,
+    handover_latency_ms FLOAT,
+    throughput_mbps FLOAT,
+    packet_loss_rate FLOAT,
+    convergence_indicator FLOAT, -- 收斂性指標
+    exploration_rate FLOAT, -- 探索率
+    episode_metadata JSONB, -- 詳細狀態-動作記錄
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(session_id, episode_number),
-    INDEX idx_episode_performance (total_reward, success_rate)
+    INDEX idx_episode_performance (total_reward, success_rate),
+    INDEX idx_convergence (convergence_indicator)
 );
 
--- 算法性能統計
-CREATE TABLE rl_algorithm_performance (
+-- Baseline比較數據表
+CREATE TABLE rl_baseline_comparisons (
+    id BIGSERIAL PRIMARY KEY,
+    experiment_session_id BIGINT REFERENCES rl_experiment_sessions(id),
+    baseline_paper_title VARCHAR(200),
+    baseline_algorithm VARCHAR(50),
+    comparison_metric VARCHAR(50), -- success_rate, latency, throughput
+    our_result FLOAT,
+    baseline_result FLOAT,
+    improvement_percentage FLOAT,
+    statistical_significance FLOAT, -- p-value
+    test_conditions JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_baseline_comparison (baseline_algorithm, comparison_metric)
+);
+
+-- 算法性能時間序列（支援趨勢分析）
+CREATE TABLE rl_performance_timeseries (
     id BIGSERIAL PRIMARY KEY,
     algorithm_type VARCHAR(20),
-    evaluation_date DATE,
-    average_success_rate FLOAT,
+    measurement_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    success_rate FLOAT,
     average_reward FLOAT,
-    average_response_time_ms FLOAT,
+    response_time_ms FLOAT,
     stability_score FLOAT,
-    UNIQUE(algorithm_type, evaluation_date)
+    training_progress_percent FLOAT,
+    resource_utilization JSONB, -- CPU, Memory, GPU使用率
+    INDEX idx_timeseries (algorithm_type, measurement_timestamp),
+    INDEX idx_performance_trend (success_rate, average_reward)
 );
 
--- 模型版本管理
+-- 研究級模型版本管理
 CREATE TABLE rl_model_versions (
     id BIGSERIAL PRIMARY KEY,
     algorithm_type VARCHAR(20),
     version_number VARCHAR(20),
     model_file_path VARCHAR(500),
-    training_session_id BIGINT REFERENCES rl_training_sessions(id),
+    training_session_id BIGINT REFERENCES rl_experiment_sessions(id),
     validation_score FLOAT,
+    test_score FLOAT, -- 獨立測試集分數
     deployment_status VARCHAR(20) DEFAULT 'created',
+    paper_published BOOLEAN DEFAULT FALSE,
+    benchmark_results JSONB, -- 標準benchmark結果
+    model_size_mb FLOAT,
+    inference_time_ms FLOAT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_model_version (algorithm_type, version_number)
+    INDEX idx_model_version (algorithm_type, version_number),
+    INDEX idx_model_performance (validation_score, test_score)
 );
+
+-- 論文數據匯出記錄
+CREATE TABLE rl_paper_exports (
+    id BIGSERIAL PRIMARY KEY,
+    export_name VARCHAR(100),
+    experiment_session_ids INTEGER[],
+    export_type VARCHAR(50), -- figures, tables, raw_data
+    export_format VARCHAR(20), -- csv, json, latex
+    file_path VARCHAR(500),
+    export_config JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_export_type (export_type, created_at)
+);
+```
+
+### 📊 **研究分析視圖**
+```sql
+-- 算法比較分析視圖
+CREATE VIEW algorithm_comparison_analysis AS
+SELECT 
+    algorithm_type,
+    scenario_type,
+    COUNT(*) as experiment_count,
+    AVG(total_episodes) as avg_episodes,
+    AVG((SELECT AVG(total_reward) FROM rl_training_episodes e WHERE e.session_id = s.id)) as avg_reward,
+    AVG((SELECT AVG(success_rate) FROM rl_training_episodes e WHERE e.session_id = s.id)) as avg_success_rate,
+    AVG((SELECT AVG(handover_latency_ms) FROM rl_training_episodes e WHERE e.session_id = s.id)) as avg_latency,
+    STDDEV((SELECT AVG(total_reward) FROM rl_training_episodes e WHERE e.session_id = s.id)) as reward_std
+FROM rl_experiment_sessions s
+WHERE session_status = 'completed'
+GROUP BY algorithm_type, scenario_type;
+
+-- 收斂性分析視圖
+CREATE VIEW convergence_analysis AS
+SELECT 
+    s.algorithm_type,
+    s.scenario_type,
+    e.session_id,
+    MIN(episode_number) as convergence_episode,
+    AVG(total_reward) as converged_reward,
+    COUNT(*) as stable_episodes
+FROM rl_experiment_sessions s
+JOIN rl_training_episodes e ON s.id = e.session_id
+WHERE e.convergence_indicator > 0.95
+GROUP BY s.algorithm_type, s.scenario_type, e.session_id;
 ```
 
 ## 🎮 前端架構設計
@@ -1029,64 +1127,233 @@ class SACAlgorithm(IRLAlgorithm):
 
 ---
 
-### Phase 6: 性能監控 (1週)
-**目標**: 實現完整的性能監控和指標展示
+### Phase 6-7: 增強監控與視覺化支援 (2週)
+**目標**: 建立完整的研究級監控系統，支援 @todo.md 3D視覺化需求
 
-#### 6.1 性能監控服務
+#### 6.1 研究級性能監控服務
 ```python
-# /netstack/backend/rl_system/services/performance_monitor.py
-class PerformanceMonitor(IPerformanceMonitor):
+# /netstack/backend/rl_system/services/research_monitor.py
+class ResearchPerformanceMonitor(IPerformanceMonitor):
+    def __init__(self, db_connection, websocket_streamer):
+        self.db = db_connection
+        self.websocket_streamer = websocket_streamer
+        self.metrics_cache = {}
+    
+    async def record_metrics(self, algorithm: str, metrics: Dict[str, Any]) -> None:
+        """記錄研究級性能指標"""
+        # 擴展的指標記錄
+        enhanced_metrics = {
+            **metrics,
+            'convergence_indicator': self._calculate_convergence(metrics),
+            'statistical_significance': self._calculate_significance(metrics),
+            'research_quality_score': self._calculate_research_quality(metrics)
+        }
+        
+        await self.db.insert_performance_timeseries(algorithm, enhanced_metrics)
+        
+        # 即時推送到前端（支援todo.md 3D視覺化）
+        await self.websocket_streamer.broadcast_event({
+            'type': 'rl_training_update',
+            'algorithm': algorithm,
+            'metrics': enhanced_metrics,
+            'timestamp': time.time()
+        })
+    
+    async def get_research_summary(self, algorithm: str) -> Dict[str, Any]:
+        """獲取研究級性能摘要"""
+        return await self.db.get_research_performance_summary(algorithm)
+    
+    async def get_baseline_comparison(self, algorithm: str, baseline_paper: str) -> Dict[str, Any]:
+        """獲取與baseline論文的比較結果"""
+        return await self.db.get_baseline_comparison_results(algorithm, baseline_paper)
+    
+    async def export_paper_data(self, experiment_ids: List[int], format: str = 'latex') -> str:
+        """匯出論文數據"""
+        data = await self.db.get_experiment_data_for_paper(experiment_ids)
+        
+        if format == 'latex':
+            return self._generate_latex_tables(data)
+        elif format == 'csv':
+            return self._generate_csv_export(data)
+        else:
+            return self._generate_json_export(data)
+```
+
+#### 6.2 WebSocket即時推送系統（整合@1.ai.md技術）
+```python
+# /netstack/backend/rl_system/services/realtime_streamer.py
+import asyncio
+import websockets
+import json
+from typing import Set, Dict, Any
+
+class RLRealtimeStreamer:
+    """支援@todo.md 3D視覺化的即時推送系統"""
+    
+    def __init__(self):
+        self.websocket_connections: Set[websockets.WebSocketServerProtocol] = set()
+        self.rl_state_cache = {}
+        
+    async def register_connection(self, websocket: websockets.WebSocketServerProtocol):
+        """註冊前端WebSocket連接"""
+        self.websocket_connections.add(websocket)
+        
+        # 發送當前RL狀態
+        await websocket.send(json.dumps({
+            'type': 'rl_state_sync',
+            'data': self.rl_state_cache,
+            'timestamp': time.time()
+        }))
+        
+        try:
+            await websocket.wait_closed()
+        finally:
+            self.websocket_connections.remove(websocket)
+    
+    async def broadcast_training_update(self, algorithm: str, metrics: Dict[str, Any]):
+        """廣播訓練更新（支援3D決策視覺化）"""
+        if not self.websocket_connections:
+            return
+            
+        # 準備3D視覺化數據
+        visualization_data = {
+            'type': 'rl_training_update',
+            'algorithm': algorithm,
+            'metrics': metrics,
+            'visualization': {
+                'confidence_level': metrics.get('confidence', 0.0),
+                'decision_quality': metrics.get('success_rate', 0.0),
+                'training_progress': metrics.get('progress_percent', 0.0),
+                'convergence_status': metrics.get('convergence_indicator', 0.0)
+            },
+            'timestamp': time.time()
+        }
+        
+        message = json.dumps(visualization_data)
+        disconnected = set()
+        
+        for websocket in self.websocket_connections:
+            try:
+                await websocket.send(message)
+            except websockets.exceptions.ConnectionClosed:
+                disconnected.add(websocket)
+        
+        # 清理斷開的連接
+        self.websocket_connections -= disconnected
+        
+        # 更新狀態快取
+        self.rl_state_cache[algorithm] = visualization_data
+    
+    async def broadcast_decision_analysis(self, decision_data: Dict[str, Any]):
+        """廣播決策分析數據（支援@todo.md候選衛星視覺化）"""
+        await self.broadcast_event({
+            'type': 'decision_analysis_update',
+            'decision_data': decision_data,
+            'candidates_scoring': decision_data.get('candidates', []),
+            'selected_satellite': decision_data.get('selected', None),
+            'reasoning': decision_data.get('reasoning', {}),
+            'timestamp': time.time()
+        })
+```
+
+#### 6.3 論文數據生成工具
+```python
+# /netstack/backend/rl_system/services/paper_generator.py
+class PaperDataGenerator:
+    """論文數據自動生成工具"""
+    
     def __init__(self, db_connection):
         self.db = db_connection
     
-    async def record_metrics(self, algorithm: str, metrics: Dict[str, Any]) -> None:
-        """記錄性能指標"""
-        await self.db.insert_performance_metrics(algorithm, metrics)
+    async def generate_algorithm_comparison_table(self, algorithms: List[str], 
+                                                scenarios: List[str]) -> str:
+        """生成算法比較表格（LaTeX格式）"""
+        data = await self.db.get_algorithm_comparison_data(algorithms, scenarios)
+        
+        latex_table = """
+\\begin{table}[h]
+\\centering
+\\caption{LEO Satellite Handover Algorithm Performance Comparison}
+\\begin{tabular}{|l|c|c|c|c|}
+\\hline
+Algorithm & Success Rate (\\%) & Latency (ms) & Throughput (Mbps) & Convergence Episodes \\\\
+\\hline
+"""
+        
+        for row in data:
+            latex_table += f"{row['algorithm']} & {row['success_rate']:.2f} & {row['latency']:.1f} & {row['throughput']:.1f} & {row['convergence']} \\\\\n"
+        
+        latex_table += """\\hline
+\\end{tabular}
+\\end{table}
+"""
+        return latex_table
     
-    async def get_performance_summary(self, algorithm: str) -> Dict[str, Any]:
-        """獲取性能摘要"""
-        return await self.db.get_algorithm_performance_summary(algorithm)
-    
-    async def get_real_time_metrics(self, algorithm: str) -> Dict[str, Any]:
-        """獲取實時指標"""
-        return await self.db.get_latest_training_metrics(algorithm)
+    async def generate_convergence_analysis_figure(self, algorithm: str) -> Dict[str, Any]:
+        """生成收斂性分析圖數據"""
+        convergence_data = await self.db.get_convergence_analysis_data(algorithm)
+        
+        return {
+            'figure_type': 'convergence_plot',
+            'x_data': [d['episode'] for d in convergence_data],
+            'y_data': [d['reward'] for d in convergence_data],
+            'algorithm': algorithm,
+            'matplotlib_code': self._generate_matplotlib_code(convergence_data),
+            'tikz_code': self._generate_tikz_code(convergence_data)
+        }
 ```
 
-#### 6.2 前端性能圖表
-```tsx
-// /simworld/frontend/src/components/rl/TrainingProgressChart.tsx
-import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { useRLMetrics } from './hooks/useRLMetrics';
+#### 6.4 @todo.md 數據接口
+```python
+# /netstack/backend/rl_system/api/visualization_routes.py
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-const TrainingProgressChart: React.FC<{ algorithm: string }> = ({ algorithm }) => {
-  const { metrics, loading } = useRLMetrics(algorithm);
-  
-  if (loading) return <div>載入中...</div>;
-  
-  return (
-    <div className="training-progress-chart">
-      <h4>{algorithm} 訓練進度</h4>
-      <LineChart width={600} height={300} data={metrics}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="episode" />
-        <YAxis />
-        <Tooltip />
-        <Legend />
-        <Line type="monotone" dataKey="reward" stroke="#8884d8" name="獎勵" />
-        <Line type="monotone" dataKey="success_rate" stroke="#82ca9d" name="成功率" />
-        <Line type="monotone" dataKey="loss" stroke="#ffc658" name="損失" />
-      </LineChart>
-    </div>
-  );
-};
+router = APIRouter(prefix="/api/v1/rl", tags=["RL視覺化支援"])
+
+@router.websocket("/ws/training-events")
+async def websocket_training_events(websocket: WebSocket):
+    """WebSocket連接用於@todo.md 3D視覺化"""
+    await websocket.accept()
+    
+    streamer = get_realtime_streamer()
+    await streamer.register_connection(websocket)
+
+@router.get("/algorithms/{algorithm}/decision-analysis")
+async def get_decision_analysis(algorithm: str):
+    """獲取決策分析數據（支援候選衛星評分視覺化）"""
+    monitor = get_research_monitor()
+    analysis = await monitor.get_latest_decision_analysis(algorithm)
+    
+    return {
+        'algorithm': algorithm,
+        'candidates': analysis.get('candidates', []),
+        'scoring_details': analysis.get('scoring', {}),
+        'confidence_levels': analysis.get('confidence', {}),
+        'reasoning_path': analysis.get('reasoning', [])
+    }
+
+@router.get("/status/visualization")
+async def get_visualization_status():
+    """獲取RL系統狀態（支援@todo.md統一控制面板）"""
+    return {
+        'algorithms': {
+            'dqn': await get_algorithm_status('DQN'),
+            'ppo': await get_algorithm_status('PPO'),
+            'sac': await get_algorithm_status('SAC')
+        },
+        'overall_health': await get_overall_system_health(),
+        'active_experiments': await get_active_experiments_count(),
+        'last_updated': time.time()
+    }
 ```
 
-**Phase 6 驗收標準：**
-- [ ] 性能指標能夠實時收集和存儲
-- [ ] 前端圖表正確顯示訓練進度
-- [ ] 能夠比較不同算法的性能
-- [ ] 歷史數據查詢功能正常
+**Phase 6-7 驗收標準：**
+- [ ] PostgreSQL資料庫完全就緒並支援複雜查詢
+- [ ] WebSocket即時推送系統正常工作
+- [ ] 研究級性能監控數據收集完整
+- [ ] @todo.md所需的所有數據接口就緒
+- [ ] 論文數據匯出功能正常運作
+- [ ] 算法比較和baseline分析功能完整
 
 ---
 
@@ -1175,6 +1442,122 @@ class NewAlgorithm(IRLAlgorithm):
 
 ---
 
-**🎯 目標：建立世界級的LEO衛星RL決策系統，實現完全透明化的AI決策過程**
+## 🔬 **未來研究平台發展路線圖**
 
-**遵循原則：簡化問題，而非複雜化解決方案**
+### Phase 8: 實驗自動化管理 (todo.md 完成後 2週)
+**目標**: 建立完整的學術研究實驗管理平台
+
+#### 8.1 自動化實驗調度
+```python
+# /netstack/backend/rl_system/services/experiment_scheduler.py
+class ExperimentScheduler:
+    """學術研究實驗自動化調度器"""
+    
+    async def schedule_baseline_comparison(self, our_algorithm: str, baseline_papers: List[str]):
+        """自動安排與baseline論文的比較實驗"""
+        
+    async def schedule_hyperparameter_sweep(self, algorithm: str, param_grid: Dict):
+        """自動化超參數搜索實驗"""
+        
+    async def schedule_ablation_study(self, algorithm: str, components: List[str]):
+        """自動安排ablation study實驗"""
+```
+
+#### 8.2 實驗可重現性管理
+- 完整的環境快照和版本控制
+- 隨機種子管理和確定性保證
+- 實驗參數和結果的完整追溯
+
+#### 8.3 統計顯著性自動驗證
+- 自動化 t-test 和 ANOVA 分析
+- 多重比較修正 (Bonferroni, FDR)
+- 置信區間計算和可視化
+
+**Phase 8 驗收標準：**
+- [ ] 實驗可以完全自動化調度和執行
+- [ ] 統計分析結果符合學術標準
+- [ ] 實驗結果100%可重現
+
+---
+
+### Phase 9: 論文數據生成平台 (第3-4週)
+**目標**: 一鍵生成論文所需的所有數據、圖表和表格
+
+#### 9.1 論文圖表自動生成
+```python
+class PaperFigureGenerator:
+    async def generate_performance_comparison_figure(self):
+        """生成性能比較圖（IEEE格式）"""
+        
+    async def generate_convergence_analysis_figure(self):
+        """生成收斂性分析圖（支援LaTeX/TikZ）"""
+        
+    async def generate_statistical_significance_heatmap(self):
+        """生成統計顯著性熱力圖"""
+```
+
+#### 9.2 自動化論文寫作支援
+- 自動生成方法論描述
+- 實驗結果統計摘要生成
+- 標準學術格式圖表匯出
+
+#### 9.3 期刊投稿準備工具
+- IEEE/Elsevier/SpringerNature格式適配
+- 圖表品質檢查和優化
+- 補充材料自動整理
+
+**Phase 9 驗收標準：**
+- [ ] 所有論文圖表可一鍵生成
+- [ ] 數據格式符合頂級期刊要求
+- [ ] 統計分析結果經過同行評議驗證
+
+---
+
+## 🎯 **完整開發時間線**
+
+### 📅 **協調時間表**
+
+| 階段 | 內容 | 時間 | 狀態 | 依賴 |
+|-----|------|------|------|------|
+| **RL Phase 1-2** | PostgreSQL + 基礎架構 | Week 1-4 | 🚧 進行中 | 無 |
+| **RL Phase 3-5** | 算法實現 + 前端整合 | Week 5-7 | ⏳ 待開始 | Phase 1-2 |
+| **RL Phase 6-7** | 研究級監控 + API | Week 8-9 | ⏳ 待開始 | Phase 3-5 |
+| **Todo Phase 1-2** | 統一控制中心 | Week 3-4 | ⏳ 待開始 | RL Phase 1-2 |
+| **Todo Phase 3-4** | 3D視覺化整合 | Week 5-12 | ⏳ 待開始 | RL Phase 6-7 |
+| **Research Phase 8** | 實驗自動化 | Week 13-14 | 📋 計劃中 | Todo 完成 |
+| **Research Phase 9** | 論文平台 | Week 15-16 | 📋 計劃中 | Phase 8 |
+
+### 🔄 **關鍵整合點**
+- **Week 4**: RL基礎API就緒 → Todo開始使用真實數據
+- **Week 9**: RL監控完整 → Todo 3D視覺化獲得完整數據支援
+- **Week 12**: Todo完成 → 開始學術研究專用功能開發
+
+### ⚠️ **風險控制**
+- **並行開發風險**: Todo前期使用mock data，避免依賴阻塞
+- **API介面風險**: 提前定義清晰的數據格式規範
+- **PostgreSQL遷移風險**: 保持MongoDB備份，特性開關快速切換
+
+---
+
+## 🏆 **學術研究成果預期**
+
+### 📊 **短期成果 (3個月)**
+- **穩固實驗基礎**: PostgreSQL + 研究級監控
+- **創新視覺化**: 世界首創的3D LEO衛星決策流程展示
+- **技術準備**: 完整的baseline比較和實驗自動化
+
+### 🔬 **中期成果 (6個月)**
+- **論文發表**: 基於平台的LEO satellite handover演算法論文
+- **標竿建立**: 成為LEO衛星通訊研究的參考平台
+- **數據集貢獻**: 標準化的LEO handover實驗數據集
+
+### 🌍 **長期影響 (1年)**
+- **國際合作**: 與其他研究機構的平台共享和協作
+- **標準制定**: 參與3GPP NTN標準制定和驗證
+- **技術轉移**: 向工業界轉移研究成果
+
+---
+
+**🎯 目標：建立世界級的LEO衛星研究平台，支援高品質學術論文發表**
+
+**遵循原則：學術嚴謹性與技術創新性並重，建立可持續的研究生態系統**
