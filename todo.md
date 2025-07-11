@@ -75,6 +75,7 @@
   - **整合RealtimeEventStreamer**: WebSocket事件推送系統
   - 實現組件間即時同步機制
   - **研究數據同步**: 實驗會話、性能指標的即時更新
+  - **簡化監控數據整合**: 避免與PostgreSQL重複，只收集即時指標
   - **預估時間**: 3天
 
 #### 1.2 決策流程狀態指示器
@@ -84,6 +85,7 @@
   - 添加每階段的詳細資訊展示
   - **整合HandoverCoordinator**: 換手決策與3D場景的精確協調
   - **研究級追蹤**: 算法推理步驟、信心值變化的詳細記錄
+  - **整合簡化監控**: 背景API形式的監控數據支援，無需跳轉到其他端口
   - **預估時間**: 3天
 
 - [ ] **任務1.2.2**: 3GPP事件觸發視覺指示
@@ -192,7 +194,7 @@
   - **Research Metrics**: 收斂速度、穩定性、魯棒性分析
   - **預估時間**: 4天
 
-### 🔧 階段4：性能優化與完善 (週9-10)
+### 🔧 階段4：性能優化與監控系統整合 (週9-10)
 
 #### 4.1 渲染性能優化 (研究級標準)
 - [ ] **任務4.1.1**: Three.js性能優化
@@ -213,8 +215,19 @@
   - **數據密集優化**: 處理大量實驗數據時的界面響應優化
   - **預估時間**: 4天
 
-#### 4.2 完整功能驗證 (學術標準)
-- [ ] **任務4.2.1**: 決策歷史回放功能 (研究工具)
+#### 4.2 現有API監控數據整合 (零開發成本)
+- [ ] **任務4.2.0**: 現有API監控端點統一整合
+  - **現有API已充分**: 直接利用當前15+監控API端點
+  - **RL監控API**: `/api/v1/rl/status`, `/api/v1/rl/training/status-summary`
+  - **性能API**: `/api/v1/performance/metrics/real-time`, `/api/algorithm-performance/four-way-comparison`
+  - **健康檢查API**: `/system/health`, `/api/v1/performance/health`
+  - **WebSocket實時推送**: `/ws/rl-monitor`, `/ws/handover-events`, `/ws/realtime`
+  - **前端統一聚合**: 建立統一Hook調用現有API，無需額外開發
+  - **數據展示**: 在統一控制中心內嵌入監控面板組件
+  - **預估時間**: 1天（僅需前端整合）
+
+#### 4.3 完整功能驗證 (學術標準)
+- [ ] **任務4.3.1**: 決策歷史回放功能 (研究工具)
   - 實現歷史決策的完整時間軸瀏覽
   - 添加決策過程的逐步回放和比較分析
   - 建立決策品質評估和學習機制
@@ -223,7 +236,7 @@
   - **Experiment Comparison**: 不同實驗配置的並行比較工具
   - **預估時間**: 4天
 
-- [ ] **任務4.2.2**: 整合測試與最終優化 (論文就緒)
+- [ ] **任務4.3.2**: 整合測試與最終優化 (論文就緒)
   - 完整的決策流程端到端測試
   - 用戶體驗測試和介面細節優化
   - 性能基準測試(確保>30fps)和穩定性驗證
@@ -262,15 +275,16 @@
 | 階段1 | 統一決策控制中心 | 2.5週 | 2.5週 | **+0.5週** 視覺化協調系統整合、學術研究面板 |
 | 階段2 | 候選衛星評分視覺化 | 3.5週 | 6週 | **+1.5週** Explainable AI、Baseline比較、統計分析 |
 | 階段3 | 決策流程動畫整合 | 4週 | 10週 | **+2週** AnimationSyncManager、研究級精度、What-if分析 |
-| 階段4 | 性能優化與完善 | 3週 | 13週 | **+1.5週** 學術展示優化、論文數據驗證、完整文檔 |
+| 階段4 | 性能優化與監控整合 | 3週 | 13週 | **+1.5週** 學術展示優化、監控系統整合、論文數據驗證 |
 
 **總計：約13週 (3.25個月)**
 
 ### ⚠️ **時程增加說明**
 相較於原本10週計劃，增加3週時間用於：
 - **視覺化協調系統整合**: VisualizationCoordinator、RealtimeEventStreamer、HandoverCoordinator (+1週)
-- **學術研究級功能**: Algorithm Explainability、Baseline Comparison、Statistical Analysis (+1.5週)  
+- **學術研究級功能**: Algorithm Explainability、Baseline Comparison、Statistical Analysis (+1週)  
 - **PostgreSQL研究數據**: 實驗追蹤、歷史分析、論文級數據生成 (+0.5週)
+- **監控系統簡化整合**: 企業級監控歸檔、簡化版背景API整合 (+0.5週)
 
 ### 🎓 **學術研究價值提升**
 相較於原始視覺化計劃，研究級增強包括：
@@ -278,6 +292,8 @@
 - **Algorithm Transparency**: RL決策過程的完全可解釋性
 - **Academic Standards**: 符合IEEE/3GPP研究標準的實現
 - **Paper Support**: 直接支援論文撰寫的圖表和數據
+- **Simplified Monitoring**: 避免過度工程化，專注學術研究需求的監控系統
+- **Unified Interface**: 所有功能整合在主前端，無需跳轉到不同端口頁面
 
 ### ✅ **現實可行性**
 - 基於現有95%技術基礎，風險可控
@@ -390,9 +406,54 @@ PostgreSQL研究數據層 (@rl.md)
 ### 📋 **開發階段協調**
 - **Phase 1-2 (@rl.md)**: PostgreSQL實施、研究級監控建立
 - **Phase 1-4 (@todo.md)**: 視覺化協調系統整合開發
-- **Phase 6-7 (@rl.md)**: 研究級監控與視覺化系統完整整合
-- **未來擴展**: 企業級監控(@1.ai.md Stage 8)保留至研究完成後
+- **Phase 6-7 (@rl.md)**: 研究級監控與企業監控簡化整合
+- **Phase 4.2 (@todo.md)**: 監控系統背景API整合到統一控制中心
+- **未來擴展**: 企業級監控(@monitoring/)歸檔保存，研究完成後可快速恢復
+
+### 🎯 **現有API監控策略** (完美解決方案)
+
+#### **現有API能力評估** 
+- **✅ RL訓練監控**: 95%完整度 - 15+API端點已實現
+- **✅ 決策性能指標**: 90%完整度 - 延遲、成功率、比較分析
+- **✅ WebSocket實時推送**: 90%完整度 - 5+實時數據流
+- **✅ 系統健康檢查**: 95%完整度 - 完整健康監控
+- **✅ 算法比較分析**: 85%完整度 - IEEE標準比較
+
+#### **零開發成本方案**
+```typescript
+// 統一監控Hook（利用現有API）
+interface ExistingAPIMonitoringData {
+  rl_training: {
+    status: string;               // 來自 /api/v1/rl/status
+    progress: number;             // 來自 /api/v1/rl/training/status-summary
+    performance: object;          // 來自 /api/v1/rl/performance/report
+  };
+  real_time_metrics: {
+    latency: number;              // 來自 /api/v1/performance/metrics/real-time
+    success_rate: number;         // 來自 /api/v1/orchestrator/metrics
+    algorithms: object;           // 來自 /api/algorithm-performance/four-way-comparison
+  };
+  system_health: {
+    overall: object;              // 來自 /system/health
+    performance: object;          // 來自 /api/v1/performance/health
+  };
+  websocket_streams: string[];    // 5+現有WebSocket端點
+}
+
+// 直接使用現有API，無需額外開發
+const useExistingAPIMonitoring = (): ExistingAPIMonitoringData => {
+  // 並行調用現有API端點，零額外成本
+  // 支援所有@todo.md所需的監控數據
+};
+```
+
+#### **💯 优势清單**
+- **✅ 無額外開發**: 現有API已提供所有所需數據
+- **✅ 無維護負擔**: 不需維護複雜的企業監控系統
+- **✅ 性能優化**: 避免重複數據收集和資源消耗
+- **✅ 簡單易用**: 直接調用灣熟的API端點
+- **✅ 研究專注**: 專注於學術研究，無過度工程化
 
 ---
 
-*🎯 **成功建立學術研究級LEO衛星RL決策透明化視覺系統，完整整合@rl.md研究數據平台與@1.ai.md視覺化協調技術，直接支援論文撰寫和學術展示需求***
+*🎯 **成功建立學術研究級LEO衛星RL決策透明化視覺系統，完整整合@rl.md研究數據平台、@1.ai.md視覺化協調技術，並利用現有20+API端點實現零成本監控整合，實現統一前端界面，直接支援論文撰寫和學術展示需求***

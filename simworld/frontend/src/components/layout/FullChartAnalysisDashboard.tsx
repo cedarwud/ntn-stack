@@ -41,15 +41,12 @@ const FullChartAnalysisDashboard: React.FC<FullChartAnalysisDashboardProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState<TabName>('overview')
 
-    // RL監控已移至獨立的 navbar 按鈕和專用模態框
-
     if (!isOpen) return null
 
     // 模擬數據已移動到 utils/mockDataGenerator.ts
     // 如需使用請: import { createMockData } from '../../utils/mockDataGenerator'
     // 然後: const mockData = createMockData()
 
-    // 標籤配置 - RL 監控已移至獨立 navbar 按鈕
     const tabs = [
         { key: 'overview', label: '核心圖表', icon: '📊' },
         { key: 'performance', label: '性能監控', icon: '⚡' },
