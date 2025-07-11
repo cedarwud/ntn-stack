@@ -1127,8 +1127,8 @@ class SACAlgorithm(IRLAlgorithm):
 
 ---
 
-### Phase 6-7: 增強監控與視覺化支援 (2週)
-**目標**: 建立完整的研究級監控系統，支援 @todo.md 3D視覺化需求
+### Phase 6-7: 研究級監控與企業監控簡化整合 (2週)
+**目標**: 建立完整的研究級監控系統，支援 @todo.md 3D視覺化需求，並整合簡化版企業監控
 
 #### 6.1 研究級性能監控服務
 ```python
@@ -1303,7 +1303,65 @@ Algorithm & Success Rate (\\%) & Latency (ms) & Throughput (Mbps) & Convergence 
         }
 ```
 
-#### 6.4 @todo.md 數據接口
+#### 6.4 利用現有API的監控數據聚合
+```python
+# /netstack/backend/rl_system/services/monitoring_aggregator.py
+class ExistingAPIMonitoringAggregator:
+    """利用現有API的監控數據聚合器 - 零額外開發成本"""
+    
+    def __init__(self, netstack_client, simworld_client, postgres_connection):
+        self.netstack = netstack_client  # 調用現有 NetStack API
+        self.simworld = simworld_client  # 調用現有 SimWorld API
+        self.db = postgres_connection    # PostgreSQL研究數據
+    
+    async def get_unified_monitoring_data(self) -> Dict[str, Any]:
+        """統一聚合現有API的監控數據（支援@todo.md統一控制中心）"""
+        
+        # 並行調用現有API端點
+        rl_status = await self.netstack.get('/api/v1/rl/status')
+        performance_metrics = await self.simworld.get('/api/v1/performance/metrics/real-time')
+        system_health = await self.netstack.get('/system/health')
+        algorithm_comparison = await self.simworld.get('/api/algorithm-performance/four-way-comparison')
+        
+        # 結合PostgreSQL歷史數據
+        historical_trends = await self.db.get_performance_trends_last_24h()
+        
+        return {
+            'real_time_metrics': {
+                'rl_training_progress': rl_status.get('training_progress', 0),
+                'decision_latency': performance_metrics.get('latency_ms', 0),
+                'success_rate': performance_metrics.get('success_rate', 0),
+                'system_health_score': system_health.get('overall_health', 0)
+            },
+            'algorithm_performance': algorithm_comparison,
+            'historical_trends': historical_trends,
+            'websocket_streams': {
+                'rl_monitor': '/ws/rl-monitor',
+                'handover_events': '/ws/handover-events',
+                'realtime_decisions': '/ws/realtime'
+            }
+        }
+    
+    async def export_research_report(self, format: str = 'json') -> str:
+        """匯出研究報告（基於現有API數據）"""
+        data = await self.get_unified_monitoring_data()
+        
+        if format == 'latex':
+            return self._generate_latex_from_existing_data(data)
+        return json.dumps(data, indent=2)
+    
+    def get_websocket_endpoints(self) -> List[str]:
+        """獲取現有WebSocket端點列表"""
+        return [
+            '/ws/rl-monitor',           # RL監控數據推送  
+            '/ws/handover-events',      # 即時切換事件
+            '/ws/realtime',             # 實時決策流程
+            '/ws/satellite-position',   # 衛星位置更新
+            '/ws/network-status'        # 網路狀態推送
+        ]
+```
+
+#### 6.5 @todo.md 數據接口
 ```python
 # /netstack/backend/rl_system/api/visualization_routes.py
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -1347,13 +1405,73 @@ async def get_visualization_status():
     }
 ```
 
+#### 6.6 現有API監控端點整合 (零開發成本)
+```bash
+# 🎯 現有API已完全足夠！無需額外開發
+
+# 現有RL監控API端點（已完整實現）
+curl http://localhost:8080/api/v1/rl/status
+curl http://localhost:8080/api/v1/rl/training/status-summary  
+curl http://localhost:8080/api/v1/rl/performance/report
+
+# 現有決策性能API端點（已完整實現）
+curl http://localhost:8080/api/v1/orchestrator/metrics
+curl http://localhost:8888/api/v1/performance/metrics/real-time
+curl http://localhost:8888/api/algorithm-performance/four-way-comparison
+
+# 現有系統健康API端點（已完整實現）
+curl http://localhost:8080/system/health
+curl http://localhost:8080/system/status
+curl http://localhost:8888/api/v1/performance/health
+
+# 現有WebSocket實時推送（已完整實現）
+# ws://localhost:8080/ws/rl-monitor
+# ws://localhost:8080/ws/handover-events  
+# ws://localhost:8080/ws/realtime
+```
+
+```typescript
+// 前端統一監控Hook（利用現有API）
+const useExistingAPIMonitoring = () => {
+  const [monitoringData, setMonitoringData] = useState({});
+  
+  useEffect(() => {
+    const fetchMonitoringData = async () => {
+      // 並行調用現有API端點
+      const [rlStatus, performance, health, algorithms] = await Promise.all([
+        netstackFetch('/api/v1/rl/status'),
+        simworldFetch('/api/v1/performance/metrics/real-time'),
+        netstackFetch('/system/health'),
+        simworldFetch('/api/algorithm-performance/four-way-comparison')
+      ]);
+      
+      setMonitoringData({
+        rl_training: rlStatus,
+        performance: performance,
+        system_health: health,
+        algorithms: algorithms
+      });
+    };
+    
+    fetchMonitoringData();
+    const interval = setInterval(fetchMonitoringData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return monitoringData;
+};
+```
+
 **Phase 6-7 驗收標準：**
 - [ ] PostgreSQL資料庫完全就緒並支援複雜查詢
-- [ ] WebSocket即時推送系統正常工作
-- [ ] 研究級性能監控數據收集完整
-- [ ] @todo.md所需的所有數據接口就緒
+- [ ] WebSocket即時推送系統正常工作（現有端點已完整）
+- [ ] 研究級性能監控數據收集完整（現有API已充分提供）
+- [ ] @todo.md所需的所有數據接口就緒（現有API已滿足需求）
 - [ ] 論文數據匯出功能正常運作
 - [ ] 算法比較和baseline分析功能完整
+- [ ] **現有API監控端點調用正常**
+- [ ] **前端統一聚合現有API監控數據**
+- [ ] **無需額外監控系統開發，直接利用現有15+API端點**
 
 ---
 

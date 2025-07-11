@@ -1,5 +1,4 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from app.core.config import DATABASE_URL
 from app.db.base_class import Base  # noqa
 
@@ -12,7 +11,7 @@ engine = create_async_engine(DATABASE_URL, echo=False, future=True)
 
 # Async session maker
 # expire_on_commit=False 可讓你在 commit 後仍能存取 session 中的物件
-async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
 # SQLModel Base Class (如果需要自訂 Base，可以在這裡或 models.py 定義)
 # from sqlmodel import SQLModel

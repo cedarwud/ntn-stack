@@ -7,7 +7,7 @@ from sqlmodel import (
     SQLModel,
     select as sqlmodel_select,
 )  # SQLModel used for Device model
-from sqlalchemy.sql.functions import count
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select as sqlalchemy_select  # For SQLAlchemy models
 
@@ -114,14 +114,20 @@ async def seed_initial_device_data(session: AsyncSession):
     """Inserts initial device data if minimum roles (TX, RX, JAM) are not met."""
     logger.info("Checking if initial data seeding is needed for Devices...")
 
-    query_desired = sqlmodel_select(count(Device.id)).where(
-        Device.active == True, Device.role == DeviceRole.DESIRED
+    query_desired = (
+        sqlmodel_select(func.count(Device.id))
+        .where(Device.active == True)
+        .where(Device.role == DeviceRole.DESIRED)
     )
-    query_receiver = sqlmodel_select(count(Device.id)).where(
-        Device.active == True, Device.role == DeviceRole.RECEIVER
+    query_receiver = (
+        sqlmodel_select(func.count(Device.id))
+        .where(Device.active == True)
+        .where(Device.role == DeviceRole.RECEIVER)
     )
-    query_jammer = sqlmodel_select(count(Device.id)).where(
-        Device.active == True, Device.role == DeviceRole.JAMMER
+    query_jammer = (
+        sqlmodel_select(func.count(Device.id))
+        .where(Device.active == True)
+        .where(Device.role == DeviceRole.JAMMER)
     )
 
     result_desired = await session.execute(query_desired)

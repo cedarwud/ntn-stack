@@ -1,0 +1,299 @@
+# 🧠 NetStack RL 系統預設配置
+# LEO 衛星換手決策強化學習系統
+# 基於世界級研究標準設計
+
+# ===== 系統配置 =====
+system:
+  environment: "development"  # development, testing, production
+  log_level: "INFO"           # DEBUG, INFO, WARNING, ERROR
+  
+  # 資料庫配置
+  database_url: "postgresql://postgres:netstack2024@localhost:5432/rl_system"
+  redis_url: "redis://localhost:6379/0"
+  
+  # 存儲配置
+  model_storage_path: "./rl_models"
+  data_export_path: "./exports"
+  backup_path: "./backups"
+  
+  # 服務配置
+  enable_monitoring: true
+  enable_web_ui: true
+  enable_realtime_streaming: true
+  api_rate_limit: 1000
+  max_concurrent_training: 3
+  
+  # 研究配置
+  paper_export_enabled: true
+  baseline_comparison_enabled: true
+  statistical_analysis_enabled: true
+
+# ===== 強化學習算法配置 =====
+handover_algorithms:
+  reinforcement_learning:
+    # DQN - Deep Q-Network
+    dqn:
+      algorithm_type: "DQN"
+      enabled: true
+      scenarios: ["urban", "suburban", "low_latency"]
+      
+      hyperparameters:
+        learning_rate: 0.001
+        batch_size: 32
+        gamma: 0.99
+        epsilon: 1.0
+        epsilon_min: 0.01
+        epsilon_decay: 0.995
+        target_update_freq: 100
+        memory_size: 10000
+        hidden_layers: [64, 64]
+        state_dim: 10
+        action_dim: 5
+      
+      training:
+        max_episodes: 1000
+        max_steps_per_episode: 500
+        convergence_threshold: 0.8
+        early_stopping: true
+        checkpoint_interval: 100
+      
+      deployment:
+        auto_deploy: false
+        validation_required: true
+        performance_threshold: 0.75
+        
+    # PPO - Proximal Policy Optimization  
+    ppo:
+      algorithm_type: "PPO"
+      enabled: true
+      scenarios: ["urban", "low_latency", "high_mobility"]
+      
+      hyperparameters:
+        learning_rate: 0.0003
+        batch_size: 64
+        gamma: 0.99
+        clip_epsilon: 0.2
+        value_coef: 0.5
+        entropy_coef: 0.01
+        gae_lambda: 0.95
+        hidden_layers: [128, 64]
+        
+      training:
+        max_episodes: 1500
+        max_steps_per_episode: 1000
+        update_frequency: 2048
+        
+    # SAC - Soft Actor-Critic
+    sac:
+      algorithm_type: "SAC"
+      enabled: false  # 預設禁用，可按需啟用
+      scenarios: ["suburban", "high_mobility", "dense_network"]
+      
+      hyperparameters:
+        learning_rate: 0.0001
+        batch_size: 128
+        gamma: 0.99
+        tau: 0.005
+        alpha: 0.2
+        target_update_interval: 1
+        
+      training:
+        max_episodes: 2000
+        max_steps_per_episode: 1000
+
+# ===== 訓練調度配置 =====
+training_scheduler:
+  strategy: "priority"  # fifo, priority, resource_aware, round_robin
+  max_concurrent_jobs: 3
+  resource_constraints:
+    max_cpu_usage_percent: 80.0
+    max_memory_usage_percent: 80.0
+    max_gpu_usage_percent: 90.0
+    max_queue_size: 50
+  
+  priority_weights:
+    paper_experiments: 1    # 最高優先級
+    production_training: 2
+    development_testing: 3
+    background_research: 4
+
+# ===== 性能監控配置 =====
+performance_monitoring:
+  enabled: true
+  collection_interval_seconds: 30
+  retention_days: 90
+  
+  metrics:
+    - "reward"
+    - "latency" 
+    - "throughput"
+    - "success_rate"
+    - "convergence_time"
+    - "memory_usage"
+    - "handover_count"
+    
+  alerting:
+    enabled: true
+    email_notifications: false
+    slack_webhook: ""
+    
+  real_time_streaming:
+    enabled: true
+    websocket_port: 8765
+    max_connections: 100
+
+# ===== 研究與論文配置 =====
+research:
+  baseline_algorithms:
+    - name: "random_selection"
+      description: "隨機衛星選擇基準"
+    - name: "signal_strength_based"  
+      description: "基於信號強度的傳統算法"
+    - name: "load_balancing"
+      description: "負載均衡算法"
+      
+  paper_export:
+    formats: ["csv", "json", "latex"]
+    include_statistical_tests: true
+    confidence_level: 0.95
+    
+  experiment_tracking:
+    enabled: true
+    auto_versioning: true
+    metadata_collection: true
+
+# ===== 場景特定配置 =====
+scenarios:
+  urban:
+    description: "城市密集網路場景"
+    characteristics:
+      user_density: "high"
+      mobility_pattern: "mixed"
+      handover_frequency: "high"
+      latency_requirement: "medium"
+    
+    environment_parameters:
+      satellite_count: 66  # Starlink constellation
+      elevation_angle_min: 25
+      coverage_overlap: 0.3
+      
+  suburban:
+    description: "郊區穩定網路場景"
+    characteristics:
+      user_density: "medium"
+      mobility_pattern: "vehicular"
+      handover_frequency: "medium" 
+      latency_requirement: "medium"
+      
+  low_latency:
+    description: "低延遲關鍵應用場景"
+    characteristics:
+      user_density: "low"
+      mobility_pattern: "stationary"
+      handover_frequency: "low"
+      latency_requirement: "critical"
+      
+  high_mobility:
+    description: "高速移動場景（如高鐵、飛機）"
+    characteristics:
+      user_density: "low"
+      mobility_pattern: "high_speed"
+      handover_frequency: "very_high"
+      latency_requirement: "medium"
+      
+  dense_network:
+    description: "密集網路覆蓋場景"
+    characteristics:
+      user_density: "very_high"
+      mobility_pattern: "pedestrian"
+      handover_frequency: "high"
+      latency_requirement: "high"
+
+# ===== Web UI 配置 =====
+web_ui:
+  enabled: true
+  host: "localhost"
+  port: 8080
+  
+  features:
+    real_time_dashboard: true
+    training_monitoring: true
+    algorithm_comparison: true
+    experiment_management: true
+    paper_export_tools: true
+    
+  authentication:
+    enabled: false  # 開發環境關閉
+    session_timeout_minutes: 60
+
+# ===== API 配置 =====
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  
+  cors:
+    enabled: true
+    origins: ["http://localhost:3000", "http://localhost:8080"]
+    
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 1000
+    
+  documentation:
+    enabled: true
+    openapi_url: "/api/v1/openapi.json"
+    docs_url: "/api/v1/docs"
+
+# ===== 日誌配置 =====
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  handlers:
+    console:
+      enabled: true
+      level: "INFO"
+      
+    file:
+      enabled: true
+      filename: "logs/rl_system.log"
+      max_size_mb: 100
+      backup_count: 5
+      
+    structured:
+      enabled: true
+      filename: "logs/structured.json"
+      
+  loggers:
+    "rl_system": "DEBUG"
+    "uvicorn": "INFO"
+    "sqlalchemy": "WARNING"
+
+# ===== 安全配置 =====
+security:
+  secret_key: "your-secret-key-change-in-production"
+  api_key_required: false
+  
+  encryption:
+    enabled: false
+    algorithm: "AES-256-GCM"
+    
+  backup:
+    encryption_enabled: true
+    retention_days: 30
+
+# ===== 開發工具配置 =====
+development:
+  debug_mode: true
+  hot_reload: true
+  profiling_enabled: false
+  
+  mock_services:
+    enabled: true
+    mock_database: false
+    mock_redis: false
+    
+  testing:
+    test_data_path: "./test_data"
+    integration_tests_enabled: true
