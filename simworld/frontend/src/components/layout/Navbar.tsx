@@ -418,18 +418,6 @@ const Navbar: FC<NavbarProps> = ({
                         >
                             📡 換手事件
                         </li>
-
-                        {/* 營運儀表板按鈕 */}
-                        <li
-                            className={`navbar-item ${
-                                showOperationsDashboardModal ? 'active' : ''
-                            }`}
-                            onClick={() =>
-                                setShowOperationsDashboardModal(true)
-                            }
-                        >
-                            ⚙️ 營運儀表板
-                        </li>
                     </ul>
                 </div>
             </nav>
