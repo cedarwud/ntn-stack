@@ -72,6 +72,12 @@ fresh-up: clean-i build-n up ## 重新啟動所有服務
 
 up: all-start ## 啟動所有服務
 
+start-monitoring: ## [獨立] 啟動階段8的監控服務
+	@echo "$(BLUE)🚀 啟動監控系統...$(RESET)"
+	@$(MAKE) monitoring-start
+	@sleep 5
+	@echo "$(GREEN)✅ 監控系統已啟動。請訪問 Grafana: $(GRAFANA_URL)$(RESET)"
+
 dev: ## 開發環境啟動 (使用 127.0.0.1)
 	@echo "$(CYAN)🚀 啟動開發環境 (EXTERNAL_IP=127.0.0.1)...$(RESET)"
 	@$(MAKE) all-start EXTERNAL_IP=127.0.0.1
@@ -82,8 +88,8 @@ dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 	@cd ${NETSTACK_DIR} && $(MAKE) init-demo-data
 	@echo "$(GREEN)✅ 開發環境設置完成$(RESET)"
 
-all-start: ## 啟動 NetStack、SimWorld 和監控系統
-	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
+all-start: ## 啟動 NetStack 和 SimWorld 核心服務
+	@echo "$(CYAN)🚀 啟動 NTN Stack 核心服務...$(RESET)"
 	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (創建網路)...$(RESET)"
 	@$(MAKE) netstack-start
 	@echo "$(YELLOW)⏳ 等待 NetStack 網路就緒...$(RESET)"
@@ -92,22 +98,17 @@ all-start: ## 啟動 NetStack、SimWorld 和監控系統
 	@$(MAKE) simworld-start
 	@echo "$(YELLOW)⏳ 等待 SimWorld 啟動完成...$(RESET)"
 	@sleep 10
-	@echo "$(YELLOW)⚡ 第三步：啟動監控系統 (階段8)...$(RESET)"
-	@$(MAKE) monitoring-start
-	@echo "$(YELLOW)⏳ 等待監控系統就緒...$(RESET)"
-	@sleep 10
 	@echo "$(YELLOW)🔗 驗證容器間網路連接...$(RESET)"
 	@$(MAKE) verify-network-connection
 	@$(MAKE) status
-	@echo "$(GREEN)✅ 所有服務啟動完成$(RESET)"
+	@echo "$(GREEN)✅ 核心服務啟動完成$(RESET)"
 	@echo ""
 	@echo "$(CYAN)🌐 服務訪問地址:$(RESET)"
 	@echo "  NetStack API:  $(NETSTACK_URL)"
 	@echo "  NetStack Docs: $(NETSTACK_URL)/docs"
 	@echo "  SimWorld:      $(SIMWORLD_URL)"
-	@echo "  Prometheus:    $(PROMETHEUS_URL)"
-	@echo "  Grafana:       $(GRAFANA_URL) (admin/admin123)"
-	@echo "  AlertManager:  $(ALERTMANAGER_URL)"
+	@echo ""
+	@echo "$(YELLOW)💡 如需監控，請執行: $(GREEN)make start-monitoring$(RESET)"
 
 netstack-start: ## 啟動 NetStack 服務
 	@echo "$(BLUE)🚀 啟動 NetStack 服務...$(RESET)"
@@ -178,8 +179,14 @@ monitoring-stop-v: ## 停止監控系統 (清除卷)
 
 restart: all-restart ## 重啟所有服務
 
-all-restart: ## 重啟 NetStack、SimWorld 和監控系統
-	@echo "$(CYAN)🔄 重啟所有 NTN Stack 服務...$(RESET)"
+restart-monitoring: ## [獨立] 重啟階段8的監控服務
+	@echo "$(BLUE)🔄 重啟監控系統...$(RESET)"
+	@$(MAKE) monitoring-restart
+	@sleep 5
+	@echo "$(GREEN)✅ 監控系統已重啟。$(RESET)"
+
+all-restart: ## 重啟 NetStack 和 SimWorld 核心服務
+	@echo "$(CYAN)🔄 重啟 NTN Stack 核心服務...$(RESET)"
 	@$(MAKE) all-stop
 	@sleep 5
 	@$(MAKE) all-start
@@ -222,6 +229,12 @@ simworld-build: ## 構建 SimWorld 服務
 	@cd $(SIMWORLD_DIR) && docker compose build
 	@echo "$(GREEN)✅ SimWorld 服務構建完成$(RESET)"
 
+monitoring-build: ## 構建監控系統服務
+	@echo "$(BLUE)🔨 構建監控系統服務...$(RESET)"
+	@echo "$(YELLOW)注意：監控服務主要使用預構建映像檔，此操作主要為拉取最新映像檔。$(RESET)"
+	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml pull
+	@echo "$(GREEN)✅ 監控系統服務映像檔拉取完成$(RESET)"
+
 build-n: all-build-n ## 構建所有服務
 
 all-build-n: ## 構建 NetStack 和 SimWorld
@@ -240,14 +253,21 @@ simworld-build-n: ## 構建 SimWorld 服務
 	@cd $(SIMWORLD_DIR) && docker compose build --no-cache
 	@echo "$(GREEN)✅ SimWorld 服務構建完成$(RESET)"
 
+monitoring-build-n: ## 構建監控系統服務 (不使用緩存)
+	@echo "$(BLUE)🔨 構建監控系統服務 (不使用緩存)...$(RESET)"
+	@echo "$(YELLOW)注意：監控服務主要使用預構建映像檔，此操作主要為拉取最新映像檔。$(RESET)"
+	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml pull
+	@echo "$(GREEN)✅ 監控系統服務映像檔拉取完成$(RESET)"
+
 # ===== 清理 =====
 
 clean: all-clean ## 清理所有資源
 
-all-clean: ## 清理 NetStack 和 SimWorld 資源
+all-clean: ## 清理 NetStack、SimWorld 和監控系統資源
 	@echo "$(CYAN)🧹 清理所有 NTN Stack 資源...$(RESET)"
 	@$(MAKE) netstack-clean
 	@$(MAKE) simworld-clean
+	@$(MAKE) monitoring-clean
 	@$(MAKE) clean-reports
 	@echo "$(GREEN)✅ 所有資源清理完成$(RESET)"
 
@@ -264,6 +284,12 @@ simworld-clean: ## 清理 SimWorld 資源
 	@docker system prune -f --filter "label=com.docker.compose.project=simworld"
 	@echo "$(GREEN)✅ SimWorld 資源清理完成$(RESET)"
 
+monitoring-clean: ## 清理監控系統資源
+	@echo "$(BLUE)🧹 清理監控系統資源...$(RESET)"
+	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml down -v --remove-orphans
+	@docker system prune -f --filter "label=com.docker.compose.project=monitoring"
+	@echo "$(GREEN)✅ 監控系統資源清理完成$(RESET)"
+
 clean-reports: ## 清理測試報告
 	@echo "$(BLUE)🧹 清理測試報告...$(RESET)"
 	@rm -rf $(REPORTS_DIR)
@@ -276,10 +302,11 @@ clean-project: ## 🧹 完整專案清理（移除不必要的檔案和目錄）
 
 clean-i: all-clean-i ## 清理所有資源
 
-all-clean-i: ## 清理 NetStack 和 SimWorld 資源
+all-clean-i: ## 清理 NetStack、SimWorld 和監控系統資源
 	@echo "$(CYAN)🧹 清理所有 NTN Stack 資源...$(RESET)"
 	@$(MAKE) netstack-clean-i
 	@$(MAKE) simworld-clean-i
+	@$(MAKE) monitoring-clean-i
 	@$(MAKE) clean-reports
 	@docker image prune -f
 	@docker network prune -f
@@ -297,6 +324,12 @@ simworld-clean-i: ## 清理 SimWorld 資源
 	@cd $(SIMWORLD_DIR) && docker compose down -v --remove-orphans --rmi all
 	@docker system prune -f --filter "label=com.docker.compose.project=simworld"
 	@echo "$(GREEN)✅ SimWorld 映像檔清理完成$(RESET)"
+
+monitoring-clean-i: ## 清理監控系統資源和映像檔
+	@echo "$(BLUE)🧹 清理監控系統映像檔...$(RESET)"
+	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml down -v --remove-orphans --rmi all
+	@docker system prune -f --filter "label=com.docker.compose.project=monitoring"
+	@echo "$(GREEN)✅ 監控系統映像檔清理完成$(RESET)"
 
 # ===== 狀態檢查 =====
 
@@ -354,6 +387,11 @@ monitoring-status: ## 檢查監控系統狀態
 # ===== 日誌查看 =====
 
 logs: all-logs ## 查看所有服務日誌
+
+monitoring-logs: ## 查看監控系統日誌
+	@echo "$(BLUE)📋 監控系統日誌:$(RESET)"
+	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
+	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f
 
 all-logs: ## 查看 NetStack 和 SimWorld 日誌
 	@echo "$(CYAN)📋 查看所有 NTN Stack 服務日誌...$(RESET)"

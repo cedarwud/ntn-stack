@@ -121,6 +121,160 @@ frontend:
 - 未使用變數 → 刪除或添加 `_` 前綴
 - React Hook 依賴 → 添加到依賴陣列
 
+## 📐 軟體設計法則
+
+### 🎯 核心設計原則
+
+#### **SOLID 原則** (強制遵循)
+- **S - 單一職責原則**: 一個類/函數只負責一件事
+- **O - 開放封閉原則**: 對擴展開放，對修改封閉
+- **L - 里氏替換原則**: 子類可以完全替換父類
+- **I - 介面隔離原則**: 依賴具體介面而非大而全的介面
+- **D - 依賴反轉原則**: 依賴抽象而非具體實現
+
+#### **基礎設計原則**
+- **DRY (Don't Repeat Yourself)**: 避免重複代碼，提取共用邏輯
+- **YAGNI (You Aren't Gonna Need It)**: 不要過度設計，只實現當前需要的功能
+- **關注點分離**: 不同關注點應該分離到不同模組
+- **組合優於繼承**: 優先使用組合而非繼承來擴展功能
+
+### 🛰️ 衛星系統特殊考量
+
+#### **即時性要求** (毫秒級優化)
+```typescript
+// ✅ 正確：預先計算，避免即時運算
+const precomputedRoutes = computeOptimalRoutes(satellites)
+const nextHop = precomputedRoutes[currentSatellite.id]
+
+// ❌ 禁止：即時複雜運算
+const nextHop = findOptimalRoute(satellites, currentSatellite) // 可能耗時數百毫秒
+```
+
+#### **高可靠性設計**
+- **Circuit Breaker 模式**: 避免級聯失敗
+- **Graceful Degradation**: 部分功能失效時系統仍可運行
+- **健康檢查**: 所有關鍵組件必須有健康檢查端點
+
+#### **分散式系統原則**
+- **Service Mesh**: NetStack 服務間通訊必須通過統一網格
+- **Event Sourcing**: 關鍵狀態變更必須可追溯
+- **最終一致性**: 接受暫時的數據不一致，確保最終一致
+
+### 🧪 測試與驗證原則
+
+#### **測試金字塔** (強制執行)
+```bash
+# 單元測試 (70%) - 快速，隔離
+npm run test:unit
+
+# 整合測試 (20%) - 組件協作
+npm run test:integration  
+
+# E2E 測試 (10%) - 用戶流程
+npm run test:e2e
+```
+
+#### **AI 演算法特殊測試**
+- **確定性測試**: 相同輸入必須產生相同輸出
+- **效能基準測試**: DQN 訓練時間、推理延遲
+- **論文復現測試**: 確保演算法實現符合論文描述
+
+### 🏗️ 架構與模組化
+
+#### **分層架構** (嚴格執行)
+```
+📊 Presentation Layer (UI)
+    ↓ 只能調用
+🔧 Application Layer (業務邏輯)  
+    ↓ 只能調用
+📚 Domain Layer (核心模型)
+    ↓ 只能調用  
+💾 Infrastructure Layer (數據訪問)
+```
+
+#### **模組邊界清晰**
+```typescript
+// ✅ 正確：通過定義良好的介面
+interface SatelliteOrbitCalculator {
+  predictPosition(satelliteId: string, timeOffset: number): Position
+}
+
+// ❌ 禁止：直接訪問內部實現
+import { internalOrbitData } from './orbit-calculator/internal'
+```
+
+#### **依賴注入** (必須使用)
+```typescript
+// ✅ 正確：依賴注入
+class HandoverDecisionEngine {
+  constructor(
+    private orbitCalculator: SatelliteOrbitCalculator,
+    private signalPredictor: SignalStrengthPredictor
+  ) {}
+}
+
+// ❌ 禁止：硬編碼依賴
+class HandoverDecisionEngine {
+  private orbitCalculator = new ConcreteOrbitCalculator() // 難以測試
+}
+```
+
+### ⚡ 性能與優化
+
+#### **性能優化原則**
+1. **先正確，再優化** - 功能正確性優於性能
+2. **測量再優化** - 必須有具體數據支撐優化決策
+3. **避免過早優化** - 除非確認是性能瓶頸
+
+#### **關鍵性能指標** (KPI)
+- 切換決策延遲 < 10ms
+- API 響應時間 < 100ms  
+- 強化學習推理 < 1ms
+- 記憶體使用率 < 80%
+
+### 🔒 安全性原則
+
+#### **安全設計原則**
+- **最小權限原則**: 組件只能訪問必要的資源
+- **輸入驗證**: 所有外部輸入必須驗證
+- **敏感數據加密**: 衛星軌道數據、AI 模型參數
+- **審計日誌**: 關鍵操作必須記錄
+
+#### **安全檢查清單**
+- [ ] API 端點有適當的驗證和授權
+- [ ] 敏感配置不在代碼中硬編碼
+- [ ] 錯誤訊息不洩露系統內部信息
+- [ ] 所有用戶輸入都經過驗證和清理
+
+### 📋 實施檢查清單
+
+#### **🔍 代碼審查清單**
+- [ ] 符合 SOLID 原則
+- [ ] 無重複代碼 (DRY)
+- [ ] 函數職責單一
+- [ ] 依賴通過注入管理
+- [ ] 有適當的單元測試
+- [ ] 性能符合 KPI 要求
+- [ ] 安全性要求滿足
+
+#### **🏗️ 架構設計清單**
+- [ ] 層次劃分清晰
+- [ ] 模組間依賴合理
+- [ ] 介面設計一致
+- [ ] 錯誤處理完整
+- [ ] 監控和日誌完備
+- [ ] 可擴展性考量
+
+#### **🧪 測試完整性清單**
+- [ ] 單元測試覆蓋率 > 80%
+- [ ] 整合測試覆蓋關鍵流程
+- [ ] E2E 測試覆蓋用戶場景
+- [ ] 性能測試通過基準
+- [ ] AI 演算法有確定性測試
+- [ ] 安全性測試通過
+
+**⚠️ 設計法則優先級: 正確性 > 可靠性 > 性能 > 可維護性**
+
 ## 🔧 重構驗證流程
 **重構後強制執行步驟**:
 
