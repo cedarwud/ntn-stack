@@ -1,0 +1,57 @@
+version: '3.9'
+
+# LEO衛星換手決策RL系統 - Docker Compose
+# Phase 1: PostgreSQL真實數據儲存
+#
+# 這個 Docker Compose 文件定義了 RL 系統的兩個核心服務：
+# 1. rl-system-api: FastAPI 應用程式，提供 RL 訓練和數據分析的接口。
+# 2. rl-db: PostgreSQL 數據庫，用於持久化儲存所有實驗數據。
+
+services:
+  rl-system-api:
+    build:
+      context: ../..
+      dockerfile: netstack/rl_system/Dockerfile
+    container_name: rl_system_api
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    volumes:
+      - ../..:/app
+    environment:
+      - ENV=docker
+      - DATABASE_URL=postgresql+asyncpg://rl_user:rl_password@rl-db:5432/rl_db
+    depends_on:
+      rl-db:
+        condition: service_healthy
+    networks:
+      - rl_network
+
+  rl-db:
+    image: postgres:15-alpine
+    container_name: rl_system_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rl_db
+      POSTGRES_USER: rl_user
+      POSTGRES_PASSWORD: rl_password
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - rl_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432" # 映射到 5433 以避免與本地或其他 PostgreSQL 衝突
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rl_user -d rl_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rl_network
+
+volumes:
+  rl_postgres_data:
+    name: rl_postgres_data
+
+networks:
+  rl_network:
+    name: rl_network 

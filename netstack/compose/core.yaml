@@ -4,6 +4,8 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/16
+  simworld_sionna-net:
+    external: true
 
 services:
   # MongoDB 資料庫
@@ -355,6 +357,7 @@ services:
       - DATABASE_URL=mongodb://mongo:27017/open5gs
       - MONGO_HOST=mongo
       - REDIS_URL=redis://redis:6379
+      - RL_DATABASE_URL=postgresql://rl_user:rl_password@simworld_postgis:5432/rl_db
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
       - SIMWORLD_API_URL=http://simworld_backend:8000
@@ -372,6 +375,7 @@ services:
     networks:
       netstack-core:
         ipv4_address: 172.20.0.40
+      simworld_sionna-net:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

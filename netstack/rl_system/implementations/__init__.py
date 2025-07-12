@@ -10,7 +10,9 @@
 
 # PostgreSQL 儲存庫保持可用
 from .postgresql_repository import PostgreSQLRepository
+from .mock_repository import MockRepository
 
 __all__ = [
-    'PostgreSQLRepository'
+    "PostgreSQLRepository",
+    "MockRepository",
 ]
