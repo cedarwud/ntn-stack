@@ -20,6 +20,8 @@ RESET := \033[0m
 NETSTACK_DIR := netstack
 SIMWORLD_DIR := simworld
 MONITORING_DIR := monitoring
+# 新增 RL System 目錄變數
+RL_SYSTEM_DIR := $(NETSTACK_DIR)/rl_system
 COMPOSE_PROJECT_NAME := ntn-stack
 
 # 環境變數配置
@@ -56,9 +58,10 @@ help: ## 顯示幫助信息
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
 	@echo "$(YELLOW)專案管理:$(RESET)"
-	@echo "  $(GREEN)netstack-*$(RESET)          NetStack 專案相關操作"
+	@echo "  $(GREEN)netstack-*$(RESET)          NetStack 專案相關操作 (包含 RL System)"
 	@echo "  $(GREEN)simworld-*$(RESET)          SimWorld 專案相關操作"
 	@echo "  $(GREEN)monitoring-*$(RESET)        階段8監控系統操作"
+	@echo "  $(GREEN)rl-system-*$(RESET)       RL System 專案相關操作"
 	@echo "  $(GREEN)all-*$(RESET)               所有專案一起操作"
 	@echo ""
 	@echo "$(YELLOW)測試相關:$(RESET)"
@@ -88,9 +91,9 @@ dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 	@cd ${NETSTACK_DIR} && $(MAKE) init-demo-data
 	@echo "$(GREEN)✅ 開發環境設置完成$(RESET)"
 
-all-start: ## 啟動所有核心服務 (NetStack, SimWorld)
+all-start: ## 啟動所有核心服務 (NetStack, SimWorld, RL System)
 	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
-	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (創建網路)...$(RESET)"
+	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (包含 RL System)...$(RESET)"
 	@$(MAKE) netstack-start
 	@echo "$(YELLOW)⏳ 等待 NetStack 網路就緒...$(RESET)"
 	@sleep 15
@@ -107,6 +110,8 @@ all-start: ## 啟動所有核心服務 (NetStack, SimWorld)
 	@echo "$(CYAN)🌐 服務訪問地址:$(RESET)"
 	@echo "  NetStack API:  $(NETSTACK_URL)"
 	@echo "  NetStack Docs: $(NETSTACK_URL)/docs"
+	@echo "  RL System:     http://localhost:8001"
+	@echo "  RL System Docs:http://localhost:8001/docs"
 	@echo "  SimWorld:      $(SIMWORLD_URL)"
 	@echo "  Prometheus:    $(PROMETHEUS_URL)"
 	@echo "  Grafana:       $(GRAFANA_URL)"
@@ -131,13 +136,13 @@ monitoring-start: ## 啟動監控系統 (階段8: Prometheus, Grafana, AlertMana
 
 down: all-stop ## 停止所有服務
 
-all-stop: ## 停止 NetStack、SimWorld 和監控系統
+all-stop: ## 停止 NetStack, SimWorld, RL System 和監控系統
 	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務...$(RESET)"
 	@$(MAKE) simworld-stop
-	@$(MAKE) netstack-stop
+	@$(MAKE) netstack-stop # netstack-stop 現在會處理 rl-system
 	@echo "$(GREEN)✅ 所有服務已停止$(RESET)"
 
-netstack-stop: ## 停止 NetStack 服務
+netstack-stop: ## 停止 NetStack 服務 (包含 RL System)
 	@echo "$(BLUE)🛑 停止 NetStack 服務...$(RESET)"
 	@cd ${NETSTACK_DIR} && $(MAKE) down
 	@echo "$(GREEN)✅ NetStack 服務已停止$(RESET)"
@@ -154,13 +159,13 @@ monitoring-stop: ## 停止監控系統
 
 down-v: all-stop-v ## 停止所有服務
 
-all-stop-v: ## 停止 NetStack、SimWorld 和監控系統 (清除卷)
+all-stop-v: ## 停止 NetStack, SimWorld, RL System 和監控系統 (清除卷)
 	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務 (清除卷)...$(RESET)"
 	@$(MAKE) simworld-stop-v
-	@$(MAKE) netstack-stop-v
+	@$(MAKE) netstack-stop-v # netstack-stop-v 會處理 rl-system
 	@echo "$(GREEN)✅ 所有服務已停止$(RESET)"
 
-netstack-stop-v: ## 停止 NetStack 服務
+netstack-stop-v: ## 停止 NetStack 服務 (包含 RL System)
 	@echo "$(BLUE)🛑 停止 NetStack 服務...$(RESET)"
 	@cd ${NETSTACK_DIR} && $(MAKE) down-v
 	@echo "$(GREEN)✅ NetStack 服務已停止$(RESET)"
@@ -185,13 +190,13 @@ restart-monitoring: ## [獨立] 重啟階段8的監控服務
 	@sleep 5
 	@echo "$(GREEN)✅ 監控系統已重啟。$(RESET)"
 
-all-restart: ## 重啟所有核心服務 (NetStack, SimWorld)
+all-restart: ## 重啟所有核心服務 (NetStack, SimWorld, RL System)
 	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務...$(RESET)"
 	@$(MAKE) all-stop
 	@sleep 5
 	@$(MAKE) all-start
 
-netstack-restart: ## 重啟 NetStack 服務
+netstack-restart: ## 重啟 NetStack 服務 (包含 RL System)
 	@echo "$(BLUE)🔄 重啟 NetStack 服務...$(RESET)"
 	@$(MAKE) netstack-stop
 	@sleep 3
@@ -219,9 +224,9 @@ all-build: ## 構建 NetStack 和 SimWorld
 	@$(MAKE) simworld-build
 	@echo "$(GREEN)✅ 所有服務構建完成$(RESET)"
 
-netstack-build: ## 構建 NetStack 服務
+netstack-build: ## 構建 NetStack 服務 (包含 RL System)
 	@echo "$(BLUE)🔨 構建 NetStack 服務...$(RESET)"
-	@cd $(NETSTACK_DIR) && docker build -t netstack-api:latest -f docker/Dockerfile .
+	@cd $(NETSTACK_DIR) && $(MAKE) build
 	@echo "$(GREEN)✅ NetStack 服務構建完成$(RESET)"
 
 simworld-build: ## 構建 SimWorld 服務
@@ -243,13 +248,13 @@ all-build-n: ## 構建 NetStack 和 SimWorld
 	@$(MAKE) simworld-build-n
 	@echo "$(GREEN)✅ 所有服務構建完成$(RESET)"
 
-netstack-build-n: ## 構建 NetStack 服務
-	@echo "$(BLUE)🔨 構建 NetStack 服務...$(RESET)"
-	@cd $(NETSTACK_DIR) && docker build -t netstack-api:latest -f docker/Dockerfile . --no-cache
-	@echo "$(GREEN)✅ NetStack 服務構建完成$(RESET)"
+netstack-build-n: ## 構建 NetStack 服務 (不使用緩存)
+	@echo "$(BLUE)🔨 構建 NetStack 服務 (不使用緩存)...$(RESET)"
+	@cd $(NETSTACK_DIR) && $(MAKE) build-n
+	@echo "$(GREEN)✅ NetStack 服務構建完成 (不使用緩存)$(RESET)"
 
-simworld-build-n: ## 構建 SimWorld 服務
-	@echo "$(BLUE)🔨 構建 SimWorld 服務...$(RESET)"
+simworld-build-n: ## 構建 SimWorld 服務 (不使用緩存)
+	@echo "$(BLUE)🔨 構建 SimWorld 服務 (不使用緩存)...$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose build --no-cache
 	@echo "$(GREEN)✅ SimWorld 服務構建完成$(RESET)"
 
@@ -263,17 +268,16 @@ monitoring-build-n: ## 構建監控系統服務 (不使用緩存)
 
 clean: all-clean ## 清理所有資源
 
-all-clean: ## 清理 NetStack、SimWorld 和監控系統資源
+all-clean: ## 清理所有資源
 	@echo "$(CYAN)🧹 清理所有 NTN Stack 資源...$(RESET)"
-	@$(MAKE) netstack-clean
+	@$(MAKE) netstack-clean # netstack-clean 會處理 rl-system
 	@$(MAKE) simworld-clean
 	@$(MAKE) clean-reports
 	@echo "$(GREEN)✅ 所有資源清理完成$(RESET)"
 
-netstack-clean: ## 清理 NetStack 資源
+netstack-clean: ## 清理 NetStack 資源 (包含 RL System)
 	@echo "$(BLUE)🧹 清理 NetStack 資源...$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml down -v --remove-orphans
-	@cd $(NETSTACK_DIR) && docker compose -f compose/ran.yaml down -v --remove-orphans
+	@cd $(NETSTACK_DIR) && $(MAKE) clean
 	@docker system prune -f --filter "label=com.docker.compose.project=netstack"
 	@echo "$(GREEN)✅ NetStack 資源清理完成$(RESET)"
 
@@ -306,14 +310,14 @@ all-clean-i: ## 清理 NetStack、SimWorld 和監控系統資源
 	@$(MAKE) netstack-clean-i
 	@$(MAKE) simworld-clean-i
 	@$(MAKE) clean-reports
-	@docker image prune -f
+	@echo "$(YELLOW)🧹 執行全局 Docker 資源清理...$(RESET)"
+	@docker image prune -a -f
 	@docker network prune -f
 	@echo "$(GREEN)✅ 所有資源清理完成$(RESET)"
 
 netstack-clean-i: ## 清理 NetStack 資源
 	@echo "$(BLUE)🧹 清理 NetStack 映像檔...$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml down -v --remove-orphans --rmi all
-	@cd $(NETSTACK_DIR) && docker compose -f compose/ran.yaml down -v --remove-orphans --rmi all
+	@cd $(NETSTACK_DIR) && $(MAKE) clean-i
 	@docker system prune -f --filter "label=com.docker.compose.project=netstack"
 	@echo "$(GREEN)✅ NetStack 映像檔清理完成$(RESET)"
 
@@ -335,13 +339,17 @@ status: ## 檢查所有服務狀態
 	@echo "$(CYAN)📊 檢查 NTN Stack 服務狀態...$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)NetStack 服務狀態:$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml ps || echo "$(RED)❌ NetStack 服務未運行$(RESET)"
+	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml ps || echo "$(RED)❌ NetStack 核心網服務未運行$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)RL System 服務狀態:$(RESET)"
+	@cd $(RL_SYSTEM_DIR) && docker compose ps || echo "$(RED)❌ RL System 服務未運行$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)SimWorld 服務狀態:$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose ps || echo "$(RED)❌ SimWorld 服務未運行$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)服務健康檢查:$(RESET)"
 	@curl -s $(NETSTACK_URL)/health > /dev/null && echo "$(GREEN)✅ NetStack 健康檢查通過$(RESET)" || echo "$(RED)❌ NetStack 健康檢查失敗$(RESET)"
+	@curl -s http://localhost:8001/api/v1/health > /dev/null && echo "$(GREEN)✅ RL System 健康檢查通過$(RESET)" || echo "$(RED)❌ RL System 健康檢查失敗$(RESET)"
 	@curl -s $(SIMWORLD_URL)/ > /dev/null && echo "$(GREEN)✅ SimWorld 健康檢查通過$(RESET)" || echo "$(RED)❌ SimWorld 健康檢查失敗$(RESET)"
 
 verify-network-connection: ## 🔗 驗證容器間網路連接
@@ -385,19 +393,20 @@ monitoring-logs: ## 查看監控系統日誌
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f
 
-all-logs: ## 查看所有服務日誌 (NetStack, SimWorld)
+all-logs: ## 查看所有服務日誌 (NetStack, SimWorld, RL System)
 	@echo "$(CYAN)📋 查看所有 NTN Stack 服務日誌...$(RESET)"
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@trap 'echo "結束日誌查看"; exit 0' INT; \
-	(\
-		cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml logs -f & netstack_pid=$$!; \
-		cd $(SIMWORLD_DIR) && docker compose logs -f & simworld_pid=$$!; \
+	( \
+		(cd $(NETSTACK_DIR) && $(MAKE) logs) & \
+		(cd $(SIMWORLD_DIR) && docker compose logs -f) & \
+		wait \
 	)
 
-netstack-logs: ## 查看 NetStack 日誌
+netstack-logs: ## 查看 NetStack 日誌 (包含 RL System)
 	@echo "$(BLUE)📋 NetStack 服務日誌:$(RESET)"
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
-	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml logs -f
+	@cd $(NETSTACK_DIR) && $(MAKE) logs
 
 simworld-logs: ## 查看 SimWorld 日誌
 	@echo "$(BLUE)📋 SimWorld 服務日誌:$(RESET)"
@@ -408,6 +417,37 @@ monitoring-logs: ## 查看監控系統日誌
 	@echo "$(BLUE)📋 監控系統日誌:$(RESET)"
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f
+
+# ===== RL System 專用指令 =====
+
+rl-system-start: ## [獨立] 啟動 RL System 服務
+	@echo "$(CYAN)🚀 啟動 RL System 服務...$(RESET)"
+	@cd $(RL_SYSTEM_DIR) && $(MAKE) up
+	@echo "$(GREEN)✅ RL System 服務已啟動$(RESET)"
+
+rl-system-stop: ## [獨立] 停止 RL System 服務
+	@echo "$(CYAN)🛑 停止 RL System 服務...$(RESET)"
+	@cd $(RL_SYSTEM_DIR) && $(MAKE) down
+	@echo "$(GREEN)✅ RL System 服務已停止$(RESET)"
+
+rl-system-restart: ## [獨立] 重啟 RL System 服務
+	@echo "$(CYAN)🔄 重啟 RL System 服務...$(RESET)"
+	@cd $(RL_SYSTEM_DIR) && $(MAKE) restart
+	@echo "$(GREEN)✅ RL System 服務已重啟$(RESET)"
+
+rl-system-logs: ## [獨立] 查看 RL System 日誌
+	@echo "$(CYAN)📋 查看 RL System 服務日誌...$(RESET)"
+	@cd $(RL_SYSTEM_DIR) && $(MAKE) logs
+
+rl-system-clean: ## [獨立] 清理 RL System 資源
+	@echo "$(CYAN)🧹 清理 RL System 服務資源...$(RESET)"
+	@cd $(RL_SYSTEM_DIR) && $(MAKE) clean
+	@echo "$(GREEN)✅ RL System 服務資源已清理$(RESET)"
+
+rl-system-test: ## [獨立] 執行 RL System 測試
+	@echo "$(CYAN)🧪 執行 RL System 測試...$(RESET)"
+	@cd $(RL_SYSTEM_DIR) && $(MAKE) test
+	@echo "$(GREEN)✅ RL System 測試完成$(RESET)"
 
 # ===== 安裝和初始化 =====
 
@@ -446,4 +486,5 @@ test: ## 🧪 執行測試（重定向到 tests/Makefile）
         simworld-start simworld-stop simworld-restart simworld-build simworld-clean simworld-status simworld-logs \
         monitoring-start monitoring-stop monitoring-restart monitoring-status monitoring-logs \
         health-check metrics api-docs ps top exec-netstack exec-simworld version prune backup deploy \
-        dev-setup dev-start dev-logs install netstack-install simworld-install verify-network-connection fix-network-connection 
+        dev-setup dev-start dev-logs install netstack-install simworld-install verify-network-connection fix-network-connection \
+        rl-system-start rl-system-stop rl-system-restart rl-system-logs rl-system-clean rl-system-test 
