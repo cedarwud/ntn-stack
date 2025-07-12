@@ -97,8 +97,8 @@ const GymnasiumRLMonitor: React.FC = () => {
     const [backendConnected, setBackendConnected] = useState(false)
     const [connectionError, setConnectionError] = useState<string | null>(null)
     const intervalRef = useRef<NodeJS.Timeout | null>(null)
-    const fetchRLStatusRef = useRef<() => Promise<void>>()
-    const syncFrontendStateRef = useRef<() => Promise<void>>()
+    const fetchRLStatusRef = useRef<() => Promise<void>>(null)
+    const syncFrontendStateRef = useRef<() => Promise<void>>(null)
     const lastSyncStateRef = useRef<string>('')  // 跟蹤上次同步的狀態
 
 
@@ -542,92 +542,10 @@ const GymnasiumRLMonitor: React.FC = () => {
             }
         }
 
-        const handleAllToggle = (event: CustomEvent) => {
-            const isTraining = (event.detail as { isTraining: boolean })
-                .isTraining
-            console.log('收到 ALL 切換事件:', { isTraining })
-            _setIsTraining(isTraining)
-
-            // 發送訓練狀態變更事件到 useRLMonitoring hook（所有引擎）
-            const allEngines = ['dqn', 'ppo', 'sac'] as const
-            allEngines.forEach((engine) => {
-                setTimeout(() => {
-                    window.dispatchEvent(
-                        new CustomEvent('trainingStateUpdate', {
-                            detail: {
-                                engine: engine,
-                                isTraining: isTraining,
-                            },
-                        })
-                    )
-                }, 0)
-            })
-
-            if (isTraining) {
-                // 啟動所有引擎訓練 - 順序啟動避免API衝突
-                const engines = ['dqn', 'ppo', 'sac'] as const
-                console.log('🚀 開始批量啟動所有算法...')
-                
-                // 使用async/await確保嚴格的序列化執行
-                const startAllEngines = async () => {
-                    let successCount = 0
-                    let failCount = 0
-                    
-                    for (let i = 0; i < engines.length; i++) {
-                        const engine = engines[i]
-                        try {
-                            console.log(`🔄 [${i + 1}/${engines.length}] 正在啟動 ${engine.toUpperCase()} 訓練...`)
-                            const response = await apiClient.controlTraining('start', engine)
-                            console.log(`✅ [${i + 1}/${engines.length}] ${engine.toUpperCase()} 啟動成功:`, response)
-                            successCount++
-                        } catch (error) {
-                            console.error(`❌ [${i + 1}/${engines.length}] ${engine.toUpperCase()} 啟動失敗:`, error)
-                            failCount++
-                            // 繼續啟動其他算法，不讓單個失敗影響整體
-                        }
-                        
-                        // 每個算法啟動後延遲，避免後端壓力
-                        if (i < engines.length - 1) { // 最後一個不需要延遲
-                            console.log(`⏳ 等待 300ms 後啟動下一個算法...`)
-                            await new Promise(resolve => setTimeout(resolve, 300))
-                        }
-                    }
-                    console.log(`🎉 批量啟動完成！成功: ${successCount}, 失敗: ${failCount}`)
-                }
-                
-                startAllEngines().catch(error => {
-                    console.error('批量啟動過程中發生錯誤:', error)
-                })
-            } else {
-                // 停止所有引擎訓練 - 使用 stopAllTraining API
-                console.log('停止所有引擎訓練')
-                apiClient
-                    .stopAllTraining()
-                    .then((response) => {
-                        console.log('Stop all training successful:', response)
-                    })
-                    .catch((error) => {
-                        console.error('Failed to stop all training:', error)
-                    })
-            }
-
-            // 延遲獲取 API 數據，避免與狀態同步衝突
-            setTimeout(() => {
-                if (backendConnected) {
-                    fetchRLStatusRef.current?.()
-                    // 在所有 API 調用完成後再同步狀態
-                    setTimeout(() => {
-                        syncFrontendStateRef.current?.()
-                    }, 2000) // 給足夠時間讓所有訓練 API 調用完成
-                }
-            }, 500) // 增加延遲避免立即衝突
-        }
-
         console.log('註冊事件監聽器')
         window.addEventListener('dqnToggle', handleDqnToggle as EventListener)
         window.addEventListener('ppoToggle', handlePpoToggle as EventListener)
         window.addEventListener('sacToggle', handleSacToggle as EventListener)
-        window.addEventListener('allToggle', handleAllToggle as EventListener)
 
         return () => {
             console.log('移除事件監聽器')
@@ -642,10 +560,6 @@ const GymnasiumRLMonitor: React.FC = () => {
             window.removeEventListener(
                 'sacToggle',
                 handleSacToggle as EventListener
-            )
-            window.removeEventListener(
-                'allToggle',
-                handleAllToggle as EventListener
             )
         }
     }, [backendConnected]) // 簡化依賴項避免無限重新註冊
