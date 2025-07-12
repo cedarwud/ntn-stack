@@ -262,11 +262,12 @@ docker exec -it netstack-mongo mongosh simworld --eval "db.scenes.find().pretty(
 
 #### **更新 simworld/backend/app/core/config.py**
 ```python
-# 更新數據庫 URL 配置
+# 更新數據庫 URL 配置 - 連接 NetStack MongoDB
 DATABASE_URL = "mongodb://netstack-mongo:27017/simworld"
 
-# 移除 PostgreSQL 相關配置
+# 移除所有 PostgreSQL 相關配置
 # 註釋或刪除所有 postgresql+asyncpg 相關代碼
+# 移除 PostGIS 相關導入和配置
 ```
 
 #### **更新 simworld/backend/requirements.txt**
@@ -274,6 +275,7 @@ DATABASE_URL = "mongodb://netstack-mongo:27017/simworld"
 # 移除 PostgreSQL 相關依賴
 # asyncpg>=0.29.0
 # psycopg2-binary>=2.9.9
+# PostGIS 相關依賴也一併移除
 
 # 新增 MongoDB 依賴
 motor>=3.3.0
@@ -1002,7 +1004,7 @@ echo -e "${BLUE}📊 系統服務地址:${RESET}"
 echo "  NetStack API:  http://localhost:8080"
 echo "  SimWorld:      http://localhost:8888"
 echo "  MongoDB:       localhost:27017 (內部)"
-echo "  PostgreSQL RL: localhost:5433"
+echo "  PostgreSQL RL: localhost:5432"
 ```
 
 ```bash
