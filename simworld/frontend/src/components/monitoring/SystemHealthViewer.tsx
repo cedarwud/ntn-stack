@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { Line } from 'react-chartjs-2'
-import prometheusApiService, { PrometheusTarget } from '../../services/prometheusApi'
+import { prometheusApiService, PrometheusTarget } from '../../services/systemMonitoringApi'
 import './SystemHealthViewer.scss'
 
 interface SystemHealthViewerProps {
