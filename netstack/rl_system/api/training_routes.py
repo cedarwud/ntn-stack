@@ -26,7 +26,7 @@ async def start_training(algorithm: str, background_tasks_param: BackgroundTasks
 
     try:
         # 在此處我們硬編碼環境名稱和設定，未來應從請求或設定檔中讀取。
-        env_name = "ALE/Pong-v5"
+        env_name = "CartPole-v1"
         config = {"total_episodes": 1000, "step_time": 0.1}
 
         trainer = get_algorithm(algorithm, env_name, config)
@@ -47,9 +47,11 @@ async def run_training_loop(algorithm: str, trainer: Any):
     """
     在背景運行的訓練循環。
     """
-    task = asyncio.create_task(trainer.train())
-    background_tasks[algorithm] = task
     try:
+        # 由於 train() 方法不是 async，我們需要在執行器中運行它
+        loop = asyncio.get_event_loop()
+        task = loop.run_in_executor(None, trainer.train)
+        background_tasks[algorithm] = task
         await task
     except asyncio.CancelledError:
         print(f"演算法 '{algorithm}' 的訓練任務被取消。")

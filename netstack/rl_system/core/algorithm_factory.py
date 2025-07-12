@@ -12,13 +12,15 @@ import logging
 from typing import Dict, Type, Any
 from ..interfaces.rl_algorithm import IRLAlgorithm
 from ..algorithms.dqn_algorithm import DQNAlgorithm
+from ..algorithms.ppo_algorithm import PPOAlgorithm
+from ..algorithms.sac_algorithm import SACAlgorithm
 
 # 演算法外掛程式註冊表
 # 將演算法名稱映射到其對應的類別
 algorithm_plugin: Dict[str, Type[IRLAlgorithm]] = {
     "dqn": DQNAlgorithm,
-    # 在此處註冊未來的演算法
-    # "ppo": PPOAlgorithm,
+    "ppo": PPOAlgorithm,
+    "sac": SACAlgorithm,
 }
 
 

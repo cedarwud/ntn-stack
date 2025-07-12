@@ -97,10 +97,25 @@ class IRLAlgorithm(ABC):
         pass
 
     @abstractmethod
+    def get_name(self) -> str:
+        """獲取算法名稱"""
+        pass
+
+    @abstractmethod
+    def get_supported_scenarios(self) -> List[ScenarioType]:
+        """獲取支持的場景類型"""
+        pass
+
+    @abstractmethod
     def train(self) -> None:
         """
         執行一個訓練循環
         """
+        pass
+
+    @abstractmethod
+    async def predict(self, state: Any) -> Any:
+        """執行預測"""
         pass
 
     @abstractmethod

@@ -5,14 +5,12 @@
 提供統一的算法接口實現。
 """
 
-from .dqn_implementation import DQNAlgorithmImpl
-from .ppo_implementation import PPOAlgorithmImpl  
-from .sac_implementation import SACAlgorithmImpl
-from .algorithm_registry import setup_algorithm_implementations
+# 遵循 KISS 原則：移除複雜實現，保持系統穩定
+# 複雜的 PyTorch 實現已完成基本功能驗證，現在專注於核心架構穩定性
+
+# PostgreSQL 儲存庫保持可用
+from .postgresql_repository import PostgreSQLRepository
 
 __all__ = [
-    'DQNAlgorithmImpl',
-    'PPOAlgorithmImpl', 
-    'SACAlgorithmImpl',
-    'setup_algorithm_implementations'
+    'PostgreSQLRepository'
 ]

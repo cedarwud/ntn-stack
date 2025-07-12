@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitoring API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .healthy { background-color: #d4edda; color: #155724; }
+        .unhealthy { background-color: #f8d7da; color: #721c24; }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #155724;
+            background-color: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>System Monitoring API Test</h1>
+    
+    <div class="container">
+        <h2>System Health Check</h2>
+        <button onclick="testHealthCheck()">Test Health Check</button>
+        <div id="health-status"></div>
+    </div>
+
+    <div class="container">
+        <h2>System Status</h2>
+        <button onclick="testSystemStatus()">Get System Status</button>
+        <div id="system-status"></div>
+    </div>
+
+    <div class="container">
+        <h2>Performance Metrics</h2>
+        <button onclick="testPerformanceMetrics()">Get Performance Metrics</button>
+        <div id="performance-metrics"></div>
+    </div>
+
+    <div class="container">
+        <h2>RL Training Metrics</h2>
+        <button onclick="testRLMetrics()">Get RL Training Metrics</button>
+        <div id="rl-metrics"></div>
+    </div>
+
+    <div class="container">
+        <h2>System Health Metrics</h2>
+        <button onclick="testSystemHealthMetrics()">Get System Health Metrics</button>
+        <div id="system-health-metrics"></div>
+    </div>
+
+    <div class="container">
+        <h2>Test All APIs</h2>
+        <button onclick="testAllAPIs()">Test All APIs</button>
+        <div id="all-tests"></div>
+    </div>
+
+    <script>
+        // 基本的 API 測試函數
+        async function apiCall(endpoint, displayId) {
+            const startTime = performance.now();
+            try {
+                const response = await fetch(`/api/v1${endpoint}`);
+                const endTime = performance.now();
+                const data = await response.json();
+                
+                const container = document.getElementById(displayId);
+                if (response.ok) {
+                    container.innerHTML = `
+                        <div class="success">✅ API call successful (${Math.round(endTime - startTime)}ms)</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    container.innerHTML = `
+                        <div class="error">❌ API call failed: ${response.status}</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                const endTime = performance.now();
+                document.getElementById(displayId).innerHTML = `
+                    <div class="error">❌ API call error (${Math.round(endTime - startTime)}ms): ${error.message}</div>
+                `;
+            }
+        }
+
+        async function testHealthCheck() {
+            await apiCall('/health', 'health-status');
+        }
+
+        async function testSystemStatus() {
+            await apiCall('/status', 'system-status');
+        }
+
+        async function testPerformanceMetrics() {
+            await apiCall('/performance/health', 'performance-metrics');
+        }
+
+        async function testRLMetrics() {
+            // 模擬 RL 指標測試
+            const container = document.getElementById('rl-metrics');
+            container.innerHTML = `
+                <div class="success">✅ RL Training Metrics (Mock Data)</div>
+                <div class="metric">
+                    <span>Convergence Rate:</span>
+                    <span>${(Math.random() * 0.1).toFixed(4)}</span>
+                </div>
+                <div class="metric">
+                    <span>Training Loss:</span>
+                    <span>${(Math.random() * 0.5).toFixed(4)}</span>
+                </div>
+                <div class="metric">
+                    <span>GPU Utilization:</span>
+                    <span>${(Math.random() * 100).toFixed(1)}%</span>
+                </div>
+                <div class="metric">
+                    <span>Episodes Completed:</span>
+                    <span>${Math.floor(Math.random() * 1000)}</span>
+                </div>
+            `;
+        }
+
+        async function testSystemHealthMetrics() {
+            // 模擬系統健康指標
+            const container = document.getElementById('system-health-metrics');
+            container.innerHTML = `
+                <div class="success">✅ System Health Metrics (Mock Data)</div>
+                <div class="metric">
+                    <span>CPU Usage:</span>
+                    <span>${(Math.random() * 80).toFixed(1)}%</span>
+                </div>
+                <div class="metric">
+                    <span>Memory Usage:</span>
+                    <span>${(Math.random() * 70).toFixed(1)}%</span>
+                </div>
+                <div class="metric">
+                    <span>Disk Usage:</span>
+                    <span>${(Math.random() * 60).toFixed(1)}%</span>
+                </div>
+                <div class="metric">
+                    <span>Network RX:</span>
+                    <span>${(Math.random() * 1000).toFixed(1)} KB/s</span>
+                </div>
+            `;
+        }
+
+        async function testAllAPIs() {
+            const container = document.getElementById('all-tests');
+            container.innerHTML = '<div>Testing all APIs...</div>';
+            
+            const tests = [
+                { name: 'Health Check', endpoint: '/health' },
+                { name: 'System Status', endpoint: '/status' },
+                { name: 'Performance Health', endpoint: '/performance/health' },
+                { name: 'Performance Metrics', endpoint: '/performance/metrics/simulation' },
+                { name: 'Performance Summary', endpoint: '/performance/summary' }
+            ];
+            
+            let results = '<div class="success">✅ API Test Results</div>';
+            
+            for (const test of tests) {
+                const startTime = performance.now();
+                try {
+                    const response = await fetch(`/api/v1${test.endpoint}`);
+                    const endTime = performance.now();
+                    const status = response.ok ? '✅' : '❌';
+                    results += `<div class="metric">
+                        <span>${status} ${test.name}</span>
+                        <span>${response.status} (${Math.round(endTime - startTime)}ms)</span>
+                    </div>`;
+                } catch (error) {
+                    const endTime = performance.now();
+                    results += `<div class="metric">
+                        <span>❌ ${test.name}</span>
+                        <span>Error (${Math.round(endTime - startTime)}ms)</span>
+                    </div>`;
+                }
+            }
+            
+            container.innerHTML = results;
+        }
+
+        // 自動測試一些基本端點
+        window.addEventListener('load', function() {
+            console.log('System Monitoring API Test Page Loaded');
+            testHealthCheck();
+        });
+    </script>
+</body>
+</html>

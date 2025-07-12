@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Client Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .success {
+            color: #155724;
+            background-color: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #721c24;
+            background-color: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>API Client Test</h1>
+    
+    <div class="container">
+        <h2>Environment Detection</h2>
+        <div id="env-info"></div>
+    </div>
+
+    <div class="container">
+        <h2>API Configuration</h2>
+        <div id="api-config"></div>
+    </div>
+
+    <div class="container">
+        <h2>NetStack API Test</h2>
+        <button onclick="testNetstackHealth()">Test NetStack Health</button>
+        <button onclick="testNetstackStatus()">Test NetStack Status</button>
+        <button onclick="testTrainingStart()">Test Training Start</button>
+        <button onclick="testTrainingStop()">Test Training Stop</button>
+        <div id="netstack-results"></div>
+    </div>
+
+    <script type="module">
+        // 環境檢測函數
+        const detectEnvironment = () => {
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'docker'; // 因為我們在 localhost:5173 上運行
+            }
+            return 'production';
+        };
+
+        // 顯示環境信息
+        const showEnvInfo = () => {
+            const env = detectEnvironment();
+            document.getElementById('env-info').innerHTML = `
+                <div class="success">
+                    <strong>Environment:</strong> ${env}<br>
+                    <strong>Hostname:</strong> ${window.location.hostname}<br>
+                    <strong>Port:</strong> ${window.location.port}<br>
+                    <strong>Protocol:</strong> ${window.location.protocol}
+                </div>
+            `;
+        };
+
+        // 顯示 API 配置
+        const showApiConfig = () => {
+            const config = {
+                netstack: {
+                    baseUrl: '/netstack',
+                    timeout: 15000
+                },
+                simworld: {
+                    baseUrl: '/api',
+                    timeout: 15000
+                }
+            };
+            
+            document.getElementById('api-config').innerHTML = `
+                <div class="success">
+                    <strong>NetStack Base URL:</strong> ${config.netstack.baseUrl}<br>
+                    <strong>SimWorld Base URL:</strong> ${config.simworld.baseUrl}
+                </div>
+            `;
+        };
+
+        // 通用 API 調用函數
+        const makeApiCall = async (method, url, data = null) => {
+            try {
+                const options = {
+                    method: method.toUpperCase(),
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                };
+                
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(url, options);
+                const result = await response.json();
+                
+                return {
+                    success: response.ok,
+                    status: response.status,
+                    data: result
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        };
+
+        // 測試函數
+        window.testNetstackHealth = async () => {
+            const result = await makeApiCall('GET', '/netstack/api/v2/decision/health');
+            displayResult('netstack-results', 'NetStack Health', result);
+        };
+
+        window.testNetstackStatus = async () => {
+            const result = await makeApiCall('GET', '/netstack/api/v2/decision/status');
+            displayResult('netstack-results', 'NetStack Status', result);
+        };
+
+        window.testTrainingStart = async () => {
+            const result = await makeApiCall('POST', '/netstack/api/v2/decision/training', {
+                action: 'start',
+                algorithm: 'dqn'
+            });
+            displayResult('netstack-results', 'Training Start', result);
+        };
+
+        window.testTrainingStop = async () => {
+            const result = await makeApiCall('POST', '/netstack/api/v2/decision/training', {
+                action: 'stop',
+                algorithm: 'dqn'
+            });
+            displayResult('netstack-results', 'Training Stop', result);
+        };
+
+        // 顯示結果
+        const displayResult = (elementId, testName, result) => {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            
+            if (result.success) {
+                element.innerHTML = `
+                    <div class="success">
+                        <strong>${testName} - ${timestamp}</strong><br>
+                        Status: ${result.status}<br>
+                        <pre>${JSON.stringify(result.data, null, 2)}</pre>
+                    </div>
+                `;
+            } else {
+                element.innerHTML = `
+                    <div class="error">
+                        <strong>${testName} - ${timestamp}</strong><br>
+                        Error: ${result.error || 'Unknown error'}<br>
+                        ${result.status ? `Status: ${result.status}` : ''}
+                    </div>
+                `;
+            }
+        };
+
+        // 初始化
+        showEnvInfo();
+        showApiConfig();
+    </script>
+</body>
+</html>
