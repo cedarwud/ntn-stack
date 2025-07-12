@@ -39,6 +39,7 @@ from app.api.routes.integration import router as integration_router
 
 # Import existing specialized routers
 from app.api.v1.satellite_admin_api import router as satellite_admin_router
+from app.api.routes.health import router as health_router
 
 # Create main API router
 api_router = APIRouter()
@@ -88,6 +89,11 @@ api_router.include_router(
 # Register specialized routers
 api_router.include_router(
     satellite_admin_router, prefix="/admin", tags=["Administration"]
+)
+
+# Register health routes
+api_router.include_router(
+    health_router, prefix="/health", tags=["Health"]
 )
 
 # Export the router

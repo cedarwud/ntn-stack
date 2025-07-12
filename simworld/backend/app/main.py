@@ -79,6 +79,14 @@ async def ping():
 app.include_router(api_router, prefix="/api/v1")
 logger.info("Included API router v1 at /api/v1.")
 
+# Include performance router
+try:
+    from app.routers.performance_router import performance_router
+    app.include_router(performance_router, prefix="")
+    logger.info("Performance router registered")
+except ImportError as e:
+    logger.warning(f"Performance router not available: {e}")
+
 # Include algorithm performance router (with fallback)
 try:
     from app.api.routes.algorithm_performance import router as algorithm_performance_router

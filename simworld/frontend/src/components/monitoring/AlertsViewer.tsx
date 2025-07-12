@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
-import prometheusApiService, { AlertManagerAlert } from '../../services/prometheusApi'
+import { prometheusApiService, AlertManagerAlert } from '../../services/systemMonitoringApi'
 import './AlertsViewer.scss'
 
 interface AlertsViewerProps {

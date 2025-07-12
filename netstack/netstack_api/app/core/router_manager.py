@@ -38,6 +38,10 @@ class RouterManager:
             from rl_system.api.training_routes import (
                 router as new_rl_training_router,
             )
+            # 啟用簡化版增強路由 - 遵循 SOLID 原則重新設計
+            from rl_system.api.enhanced_training_routes import (
+                router as enhanced_rl_training_router,
+            )
 
             self.app.include_router(health_router, tags=["健康檢查"])
             self._track_router("health_router", "健康檢查", True)
@@ -48,9 +52,16 @@ class RouterManager:
             self.app.include_router(
                 new_rl_training_router,
                 prefix="/api/v1/rl/training",
-                tags=["RL 訓練 (新)"],
+                tags=["RL 訓練 (基礎)"],
             )
-            self._track_router("new_rl_training_router", "RL 訓練 (新)", True)
+            self._track_router("new_rl_training_router", "RL 訓練 (基礎)", True)
+            # 啟用簡化版增強路由註冊
+            self.app.include_router(
+                enhanced_rl_training_router,
+                prefix="/api/v1/rl/enhanced",
+                tags=["RL 訓練 (增強版)"],
+            )
+            self._track_router("enhanced_rl_training_router", "RL 訓練 (增強版)", True)
             logger.info("✅ 新模組化路由器註冊完成")
         except Exception as e:
             logger.exception("💥 新核心路由器註冊失敗")
