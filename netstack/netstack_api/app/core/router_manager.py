@@ -38,7 +38,7 @@ class RouterManager:
 
             # 嘗試導入 RL System 的路由器 - 如果不存在則跳過
             try:
-                from netstack.rl_system.api.training_routes import (
+                from ...services.rl_training.api.training_routes import (
                     router as new_rl_training_router,
                 )
 
@@ -49,7 +49,7 @@ class RouterManager:
 
             # 嘗試導入增強版路由器 - 如果不存在則跳過
             try:
-                from netstack.rl_system.api.enhanced_training_routes import (
+                from ...services.rl_training.api.enhanced_training_routes import (
                     router as enhanced_rl_training_router,
                 )
 
