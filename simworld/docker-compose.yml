@@ -5,27 +5,7 @@
 # 3. 可選渲染後端: PYOPENGL_PLATFORM=egl (默認) 或 PYOPENGL_PLATFORM=osmesa 或 PYOPENGL_PLATFORM=glfw
 
 services:
-    postgis: # <-- 新增 PostgreSQL + PostGIS 服務
-        image: postgis/postgis:16-3.4 # 建議指定明確的版本，例如 PostgreSQL 16 + PostGIS 3.4
-        container_name: simworld_postgis # 給容器一個明確的名稱
-        env_file:
-            - ./backend/.env # 從 backend 目錄的 .env 讀取配置
-        environment:
-            POSTGRES_USER: sat
-            POSTGRES_PASSWORD: "123"
-            POSTGRES_DB: ntn_stack
-        volumes:
-            - postgres_data:/var/lib/postgresql/data # 將資料庫數據持久化到 volume
-        ports:
-            - '${POSTGRES_PORT:-5432}:5432' # 將主機的某個端口映射到容器的 5432 (方便外部工具連接，可選)
-        networks:
-            - sionna-net
-        healthcheck: # 可選，但建議加上，讓 backend 等待 postgis 啟動完成
-            test:
-                ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
-            interval: 10s
-            timeout: 5s
-            retries: 5
+    # PostgreSQL 已移除 - 改用 NetStack MongoDB
 
     backend:
         build:
@@ -54,8 +34,9 @@ services:
             PYTHONUNBUFFERED: '1'
             # 外部 IP 地址設定 (用於 CORS)
             EXTERNAL_IP: ${EXTERNAL_IP:-127.0.0.1}
-            # 資料庫連接 URL
-            DATABASE_URL: postgresql+asyncpg://sat:123@postgis:5432/ntn_stack
+            # MongoDB 連接配置 (連接到 NetStack MongoDB)
+            MONGODB_URL: mongodb://netstack-mongo:27017
+            MONGODB_DATABASE: simworld
             # Redis 連接 URL (連接到 NetStack 的 Redis)
             REDIS_URL: redis://netstack-redis:6379/0
 
@@ -70,10 +51,8 @@ services:
 
         networks:
             - sionna-net
-            - netstack-core
-        depends_on: # <-- 讓 FastAPI 服務等待 DB 服務啟動 (healthcheck 更可靠)
-            postgis:
-                condition: service_healthy # 等待 DB healthcheck 成功
+            - netstack-core  # 連接到 NetStack 網路訪問 MongoDB
+        # 移除 PostgreSQL 依賴 - MongoDB 在 NetStack 中管理
         # command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload # 開發時可取消註釋
         healthcheck: # <--- 新增 FastAPI 的 healthcheck
             # 嘗試連接 FastAPI 的根路徑 "/"。需要 curl。
@@ -125,6 +104,5 @@ networks:
         external: true
         name: compose_netstack-core
 
-volumes: # <-- 新增 volume 定義
-    postgres_data: # 用於持久化 PostgreSQL 數據
-    node_modules:
+volumes: # <-- Volume 定義
+    node_modules:  # 移除 postgres_data - 不再需要

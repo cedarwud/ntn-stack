@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-# Import existing lifespan (proven working)
+# Import MongoDB lifespan (migrated from PostgreSQL)
 from app.db.lifespan import lifespan
 from app.api.v1.router import api_router
 from app.core.config import OUTPUT_DIR
