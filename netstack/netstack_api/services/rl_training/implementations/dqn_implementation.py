@@ -23,7 +23,7 @@ from ..core.algorithm_factory import algorithm_plugin
 
 # 嘗試導入現有的 DQN 實現
 try:
-    from ...netstack_api.algorithm_ecosystem.rl_algorithms.dqn_agent import DQNHandoverAgent, DQNNetwork
+    from ....algorithm_ecosystem.rl_algorithms.dqn_agent import DQNHandoverAgent, DQNNetwork
     EXISTING_DQN_AVAILABLE = True
 except ImportError:
     EXISTING_DQN_AVAILABLE = False

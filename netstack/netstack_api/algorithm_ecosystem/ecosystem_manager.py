@@ -193,7 +193,7 @@ class AlgorithmEcosystemManager:
             # 初始化環境管理器
             env_config = self.config.get("environment", {})
             self.environment_manager = EnvironmentManager()
-            await self.environment_manager.initialize(env_config)
+            await self.environment_manager.initialize()  # 傳遞 None，使用默認配置
 
             # 初始化算法註冊中心
             await self.algorithm_registry.initialize()

@@ -13,7 +13,7 @@ from .core.system_initializer import RLSystemInitializer
 from .core.service_locator import ServiceLocator
 from .core.config_manager import ConfigDrivenAlgorithmManager
 from .api.training_routes import router as training_router
-from ...rl.training_engine import RLTrainingEngine
+from ...rl.training_engine import RLTrainingEngine, get_training_engine
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class RLTrainingService:
             self.service_locator = ServiceLocator()
 
             # 初始化訓練引擎
-            self.training_engine = RLTrainingEngine.get_instance()
+            self.training_engine = await get_training_engine()
 
             self.is_initialized = True
             logger.info("RL訓練服務初始化成功")

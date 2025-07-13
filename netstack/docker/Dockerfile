@@ -60,7 +60,6 @@ WORKDIR /app
 
 # 複製應用程式源碼
 COPY netstack_api/ ./netstack_api/
-COPY rl_system/ ./rl_system/
 # 複製 UPF 擴展模組
 COPY docker/upf-extension/ ./docker/upf-extension/
 # 複製 RL 訓練腳本
@@ -124,7 +123,6 @@ RUN groupadd -r netstack && useradd -r -g netstack netstack
 
 # 複製應用程式源碼
 COPY netstack_api/ ./netstack_api/
-COPY rl_system/ ./rl_system/
 # 複製 UPF 擴展模組
 COPY docker/upf-extension/ ./docker/upf-extension/
 # 複製 RL 訓練腳本

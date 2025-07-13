@@ -20,7 +20,7 @@ import asyncio
 import hashlib
 
 from ..interfaces.rl_algorithm import IRLAlgorithm, ScenarioType
-from .algorithm_factory import AlgorithmFactory
+from .algorithm_factory import get_algorithm
 from .di_container import DIContainer
 
 logger = logging.getLogger(__name__)
@@ -195,7 +195,7 @@ class ConfigDrivenAlgorithmManager:
                     
                     # 為每個場景創建算法實例
                     for scenario_type in scenario_types:
-                        algorithm = AlgorithmFactory.create_algorithm(
+                        algorithm = get_algorithm(
                             name=algo_config.algorithm_type,
                             config=algo_config.hyperparameters,
                             scenario_type=scenario_type,
