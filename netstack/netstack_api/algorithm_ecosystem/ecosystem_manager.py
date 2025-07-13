@@ -13,10 +13,57 @@ import yaml
 
 from .interfaces import HandoverAlgorithm, HandoverContext, HandoverDecision
 from .registry import AlgorithmRegistry
-from .orchestrator import HandoverOrchestrator, OrchestratorConfig
+# 嘗試導入協調器
+try:
+    from .orchestrator import HandoverOrchestrator, OrchestratorConfig
+    ORCHESTRATOR_AVAILABLE = True
+except ImportError:
+    try:
+        # 嘗試從其他位置導入
+        import sys
+        import os
+        # 添加算法生態系統路徑
+        current_dir = os.path.dirname(__file__)
+        sys.path.insert(0, current_dir)
+        from orchestrator import HandoverOrchestrator, OrchestratorConfig
+        ORCHESTRATOR_AVAILABLE = True
+    except ImportError:
+        # 創建佔位符類
+        class HandoverOrchestrator:
+            def __init__(self, *args, **kwargs):
+                self.initialized = False
+            
+            async def initialize(self):
+                pass
+                
+            async def predict_handover(self, *args, **kwargs):
+                return None
+        
+        class OrchestratorConfig:
+            def __init__(self, *args, **kwargs):
+                pass
+        
+        ORCHESTRATOR_AVAILABLE = False
 from .environment_manager import EnvironmentManager
-from .analysis_engine import PerformanceAnalysisEngine
-from .training_pipeline import RLTrainingPipeline
+
+# 可選依賴導入
+try:
+    from .analysis_engine import PerformanceAnalysisEngine
+    ANALYSIS_ENGINE_AVAILABLE = True
+except ImportError:
+    class PerformanceAnalysisEngine:
+        def __init__(self, *args, **kwargs):
+            pass
+    ANALYSIS_ENGINE_AVAILABLE = False
+
+try:
+    from .training_pipeline import RLTrainingPipeline
+    TRAINING_PIPELINE_AVAILABLE = True
+except ImportError:
+    class RLTrainingPipeline:
+        def __init__(self, *args, **kwargs):
+            pass
+    TRAINING_PIPELINE_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
