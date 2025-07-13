@@ -28,7 +28,9 @@ def get_algorithm(name: str, env_name: str, config: Dict[str, Any]) -> IRLAlgori
     """
     演算法工廠函數。根據名稱獲取並初始化一個演算法實例。
     """
-    algorithm_class = algorithm_plugin.get(name)
+    # 處理大小寫不敏感
+    name_lower = name.lower()
+    algorithm_class = algorithm_plugin.get(name_lower)
     if not algorithm_class:
         raise ValueError(f"未知的演算法: {name}")
     return algorithm_class(env_name=env_name, config=config)

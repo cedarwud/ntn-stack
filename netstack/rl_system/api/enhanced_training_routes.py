@@ -32,7 +32,7 @@ class TrainingConfig(BaseModel):
     total_episodes: int = Field(default=100, description="總訓練回合數")
     step_time: float = Field(default=0.1, description="每步驟時間 (秒)")
     experiment_name: Optional[str] = Field(default=None, description="實驗名稱")
-    scenario_type: str = Field(default="default", description="場景類型")
+    scenario_type: str = Field(default="urban", description="場景類型")
     researcher_id: Optional[str] = Field(default="system", description="研究員 ID")
     research_notes: Optional[str] = Field(default=None, description="研究筆記")
     environment: str = Field(default="CartPole-v1", description="環境名稱")
