@@ -21,6 +21,7 @@ services:
     environment:
       - ENV=docker
       - DATABASE_URL=postgresql+asyncpg://rl_user:rl_password@netstack-rl-postgres:5432/rl_research
+      - RL_DATABASE_URL=postgresql://rl_user:rl_password@netstack-rl-postgres:5432/rl_research
     networks:
       - netstack-core  # 連接到 NetStack 網路
 

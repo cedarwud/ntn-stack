@@ -20,6 +20,21 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
     isOpen,
     onClose,
 }) => {
+    // 使用 RL 監控 Hook
+    const {
+        isDqnTraining,
+        isPpoTraining,
+        isSacTraining,
+        trainingMetrics,
+        rewardTrendData,
+        policyLossData,
+        toggleDqnTraining,
+        togglePpoTraining,
+        toggleSacTraining
+    } = useRLMonitoring(isOpen); // 只在模態框打開時啟用監控
+
+    const [isChartView, setIsChartView] = useState(false);
+
     if (!isOpen) return null;
 
     return (
@@ -37,58 +52,161 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
                             實時監控 DQN、PPO、SAC 演算法訓練狀態與性能指標
                         </p>
                     </div>
-                    <button 
-                        className="modal-close-btn"
-                        onClick={onClose}
-                        aria-label="關閉 RL 監控"
-                    >
-                        ✕
-                    </button>
+                    <div className="modal-controls">
+                        <button 
+                            className={`view-toggle-btn ${!isChartView ? 'active' : ''}`}
+                            onClick={() => setIsChartView(false)}
+                        >
+                            📊 控制面板
+                        </button>
+                        <button 
+                            className={`view-toggle-btn ${isChartView ? 'active' : ''}`}
+                            onClick={() => setIsChartView(true)}
+                        >
+                            📈 圖表分析
+                        </button>
+                        <button 
+                            className="modal-close-btn"
+                            onClick={onClose}
+                            aria-label="關閉 RL 監控"
+                        >
+                            ✕
+                        </button>
+                    </div>
                 </div>
 
                 <div className="modal-body">
-                    <div className="service-unavailable-container" style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minHeight: '400px',
-                        textAlign: 'center',
-                        backgroundColor: '#f8f9fa',
-                        borderRadius: '8px',
-                        border: '2px dashed #dee2e6',
-                        margin: '20px',
-                        padding: '40px'
-                    }}>
-                        <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🔧</div>
-                        <h2 style={{ color: '#6c757d', marginBottom: '16px', fontSize: '1.5rem' }}>
-                            RL 監控功能暫時不可用
-                        </h2>
-                        <p style={{ color: '#6c757d', marginBottom: '24px', fontSize: '1.1rem', lineHeight: '1.6' }}>
-                            強化學習監控系統依賴 PostgreSQL 數據庫，目前系統正在進行數據庫遷移<br />
-                            <strong>（PostgreSQL → MongoDB）</strong>
-                        </p>
-                        <div style={{ 
-                            backgroundColor: '#e3f2fd', 
-                            padding: '20px', 
-                            borderRadius: '8px', 
-                            border: '1px solid #90caf9',
-                            marginBottom: '20px',
-                            maxWidth: '600px'
-                        }}>
-                            <div style={{ color: '#1976d2', fontWeight: 'bold', marginBottom: '8px' }}>
-                                📋 預計恢復時間表：
+                    {!isChartView ? (
+                        // 控制面板視圖
+                        <GymnasiumRLMonitor />
+                    ) : (
+                        // 圖表分析視圖
+                        <div className="chart-analysis-container">
+                            <div className="charts-grid">
+                                <div className="chart-container">
+                                    <h3>獎勵趨勢</h3>
+                                    <Line 
+                                        data={{
+                                            labels: rewardTrendData.labels,
+                                            datasets: [
+                                                {
+                                                    label: 'DQN',
+                                                    data: rewardTrendData.dqnData,
+                                                    borderColor: 'rgb(75, 192, 192)',
+                                                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                                },
+                                                {
+                                                    label: 'PPO',
+                                                    data: rewardTrendData.ppoData,
+                                                    borderColor: 'rgb(255, 99, 132)',
+                                                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                                },
+                                                {
+                                                    label: 'SAC',
+                                                    data: rewardTrendData.sacData,
+                                                    borderColor: 'rgb(54, 162, 235)',
+                                                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                                }
+                                            ]
+                                        }}
+                                        options={createRLChartOptions('獎勵趨勢')}
+                                    />
+                                </div>
+                                <div className="chart-container">
+                                    <h3>策略損失</h3>
+                                    <Line 
+                                        data={{
+                                            labels: policyLossData.labels,
+                                            datasets: [
+                                                {
+                                                    label: 'DQN Loss',
+                                                    data: policyLossData.dqnData,
+                                                    borderColor: 'rgb(75, 192, 192)',
+                                                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                                },
+                                                {
+                                                    label: 'PPO Loss',
+                                                    data: policyLossData.ppoData,
+                                                    borderColor: 'rgb(255, 99, 132)',
+                                                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                                },
+                                                {
+                                                    label: 'SAC Loss',
+                                                    data: policyLossData.sacData,
+                                                    borderColor: 'rgb(54, 162, 235)',
+                                                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                                }
+                                            ]
+                                        }}
+                                        options={createRLChartOptions('策略損失')}
+                                    />
+                                </div>
                             </div>
-                            <div style={{ color: '#1976d2', textAlign: 'left' }}>
-                                • <strong>Phase 3</strong>：RL 系統 PostgreSQL 遷移 (預計 2-3 週)<br />
-                                • <strong>Phase 4</strong>：完整功能測試與驗證 (預計 1 週)<br />
-                                • <strong>總計</strong>：約 3-4 週後恢復完整 RL 監控功能
+                            
+                            {/* 訓練指標概覽 */}
+                            <div className="metrics-overview">
+                                <h3>訓練指標概覽</h3>
+                                <div className="metrics-grid">
+                                    <div className="metric-card">
+                                        <h4>DQN</h4>
+                                        <div className="metric-value">
+                                            Episode: {trainingMetrics.dqn.episodes}
+                                        </div>
+                                        <div className="metric-value">
+                                            Reward: {trainingMetrics.dqn.avgReward.toFixed(2)}
+                                        </div>
+                                        <div className="metric-value">
+                                            Progress: {trainingMetrics.dqn.progress.toFixed(1)}%
+                                        </div>
+                                        <button 
+                                            className={`training-btn ${isDqnTraining ? 'stop' : 'start'}`}
+                                            onClick={toggleDqnTraining}
+                                        >
+                                            {isDqnTraining ? '停止訓練' : '開始訓練'}
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="metric-card">
+                                        <h4>PPO</h4>
+                                        <div className="metric-value">
+                                            Episode: {trainingMetrics.ppo.episodes}
+                                        </div>
+                                        <div className="metric-value">
+                                            Reward: {trainingMetrics.ppo.avgReward.toFixed(2)}
+                                        </div>
+                                        <div className="metric-value">
+                                            Progress: {trainingMetrics.ppo.progress.toFixed(1)}%
+                                        </div>
+                                        <button 
+                                            className={`training-btn ${isPpoTraining ? 'stop' : 'start'}`}
+                                            onClick={togglePpoTraining}
+                                        >
+                                            {isPpoTraining ? '停止訓練' : '開始訓練'}
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="metric-card">
+                                        <h4>SAC</h4>
+                                        <div className="metric-value">
+                                            Episode: {trainingMetrics.sac.episodes}
+                                        </div>
+                                        <div className="metric-value">
+                                            Reward: {trainingMetrics.sac.avgReward.toFixed(2)}
+                                        </div>
+                                        <div className="metric-value">
+                                            Progress: {trainingMetrics.sac.progress.toFixed(1)}%
+                                        </div>
+                                        <button 
+                                            className={`training-btn ${isSacTraining ? 'stop' : 'start'}`}
+                                            onClick={toggleSacTraining}
+                                        >
+                                            {isSacTraining ? '停止訓練' : '開始訓練'}
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <p style={{ color: '#6c757d', fontSize: '0.95rem' }}>
-                            感謝您的耐心等待，我們正在努力提供更穩定的 RL 訓練體驗 🚀
-                        </p>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>

@@ -38,15 +38,32 @@ from ..models.rl_training_models import (
 
 # 嘗試導入算法生態系統組件
 try:
-    from ..algorithm_ecosystem import (
-        AlgorithmEcosystemManager,
-        PerformanceAnalysisEngine,
-        RLTrainingPipeline,
-    )
-
+    from ..algorithm_ecosystem import AlgorithmEcosystemManager
     ECOSYSTEM_AVAILABLE = True
+    
+    # 嘗試導入可選組件
+    try:
+        from ..algorithm_ecosystem import PerformanceAnalysisEngine
+        ANALYSIS_ENGINE_AVAILABLE = True
+    except ImportError:
+        ANALYSIS_ENGINE_AVAILABLE = False
+        class PerformanceAnalysisEngine:
+            def __init__(self, *args, **kwargs):
+                pass
+    
+    try:
+        from ..algorithm_ecosystem import RLTrainingPipeline
+        TRAINING_PIPELINE_AVAILABLE = True
+    except ImportError:
+        TRAINING_PIPELINE_AVAILABLE = False
+        class RLTrainingPipeline:
+            def __init__(self, *args, **kwargs):
+                pass
+
 except ImportError:
     ECOSYSTEM_AVAILABLE = False
+    ANALYSIS_ENGINE_AVAILABLE = False
+    TRAINING_PIPELINE_AVAILABLE = False
     # 定義類型別名避免運行時錯誤
     AlgorithmEcosystemManager = None
     PerformanceAnalysisEngine = None
@@ -521,29 +538,39 @@ async def start_training(
     background_tasks: BackgroundTasks,
     episodes: int = Query(1000, description="訓練回合數"),
 ) -> Dict[str, Any]:
-    """啟動算法訓練"""
+    """啟動算法訓練 - 代理到 RL System"""
     try:
-        manager = await get_ecosystem_manager()
-
-        # 檢查算法是否存在
-        available_algorithms = manager.get_registered_algorithms()
-        if algorithm_name not in available_algorithms:
-            raise HTTPException(
-                status_code=404, detail=f"算法 '{algorithm_name}' 不存在"
+        import httpx
+        
+        # 代理請求到實際的 RL System (port 8001)
+        rl_system_url = "http://localhost:8001"
+        
+        payload = {
+            "experiment_name": f"{algorithm_name.upper()}_前端啟動_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "total_episodes": episodes,
+            "step_time": 0.1  # 較快的訓練速度以便前端觀察
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{rl_system_url}/api/rl/start/{algorithm_name.upper()}",
+                json=payload,
+                timeout=10.0
             )
-
-        # 檢查是否已有活躍的訓練會話
-        for session in training_sessions.values():
-            if (
-                session["algorithm_name"] == algorithm_name
-                and session["status"] == "active"
-            ):
+            
+            if response.status_code == 200:
+                result = response.json()
+                return {
+                    "message": f"演算法 '{algorithm_name}' 的訓練已啟動。",
+                    "session_id": result.get("session_id"),
+                    "algorithm": result.get("algorithm"),
+                    "rl_system_response": result
+                }
+            else:
                 raise HTTPException(
-                    status_code=409, detail=f"算法 '{algorithm_name}' 已在訓練中"
+                    status_code=response.status_code,
+                    detail=f"RL System 啟動失敗: {response.text}"
                 )
-
-        # 創建訓練會話
-        session_id = f"{algorithm_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         training_sessions[session_id] = {
             "algorithm_name": algorithm_name,
