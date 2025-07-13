@@ -929,3 +929,48 @@ async def rl_health_check():
             "timestamp": datetime.now().isoformat(),
             "error": str(e),
         }
+
+
+# 在所有其他路由之後添加新的初始化端點
+
+
+@router.post("/initialize")
+async def initialize_rl_system():
+    """手動初始化 RL 系統"""
+    try:
+        logger.info("🚀 手動初始化 RL 系統...")
+
+        # 重置全局管理器
+        global ecosystem_manager
+        ecosystem_manager = None
+
+        # 重新初始化
+        manager = await get_ecosystem_manager()
+
+        if manager and hasattr(manager, "is_initialized") and manager.is_initialized:
+            logger.info("✅ RL 系統初始化成功")
+
+            # 獲取系統狀態
+            status = manager.get_system_status()
+
+            return {
+                "status": "success",
+                "message": "RL 系統初始化成功",
+                "system_status": status,
+                "timestamp": datetime.now().isoformat(),
+            }
+        else:
+            logger.error("❌ RL 系統初始化失敗")
+            return {
+                "status": "failed",
+                "message": "RL 系統初始化失敗",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    except Exception as e:
+        logger.error(f"💥 RL 系統初始化過程失敗: {e}")
+        return {
+            "status": "error",
+            "message": f"初始化過程失敗: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }
