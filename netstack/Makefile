@@ -46,8 +46,7 @@ dev-up: ## 🛠️ 完整的開發環境設置 (建構並啟動，保留數據)
 	@$(MAKE) init-demo-data
 	@echo "$(YELLOW)⚡ 啟動核心同步服務...$(NC)"
 	@$(MAKE) start-core-sync
-	@echo "$(YELLOW)🤖 啟動 RL System...$(NC)"
-	@$(MAKE) -C rl_system up
+	@echo "$(YELLOW)🤖 RL System 已整合到 NetStack 服務中 (Phase 1.3b)$(NC)"
 	@echo "$(GREEN)✅ 開發環境設置完成，可開始測試$(NC)"
 
 dev-fresh: ## 🆕 全新環境設置 (清除所有數據)
@@ -62,13 +61,12 @@ dev-fresh: ## 🆕 全新環境設置 (清除所有數據)
 	@$(MAKE) init-demo-data
 	@echo "$(YELLOW)⚡ 啟動核心同步服務...$(NC)"
 	@$(MAKE) start-core-sync
-	@echo "$(YELLOW)🤖 啟動 RL System...$(NC)"
-	@$(MAKE) -C rl_system up
+	@echo "$(YELLOW)🤖 RL System 已整合到 NetStack 服務中 (Phase 1.3b)$(NC)"
 	@echo "$(GREEN)✅ 全新環境設置完成，可開始測試$(NC)"
 
 down: ## 🧹 清理容器但保留數據庫資料
 	@echo "$(YELLOW)🧹 清理 NetStack 資源 (保留數據)...$(NC)"
-	@$(MAKE) -C rl_system down
+	@echo "$(YELLOW)RL System 已整合到 NetStack 核心服務中$(NC)"
 	docker compose -f $(COMPOSE_FILE_RAN) down 2>/dev/null || true
 	docker compose -f $(COMPOSE_FILE) down
 	docker network prune -f
@@ -76,7 +74,7 @@ down: ## 🧹 清理容器但保留數據庫資料
 
 down-v: ## 🛑 停止 NetStack
 	@echo "$(YELLOW)🛑 停止 NetStack...$(NC)"
-	@$(MAKE) -C rl_system clean
+	@echo "$(YELLOW)RL System 資源已整合到 NetStack 中$(NC)"
 	docker compose -f $(COMPOSE_FILE_RAN) down -v 2>/dev/null || true
 	docker compose -f $(COMPOSE_FILE) down -v
 	docker volume prune -f
@@ -85,7 +83,7 @@ down-v: ## 🛑 停止 NetStack
 
 clean: ## 🧹 清理所有容器和資料
 	@echo "$(YELLOW)🧹 清理 NetStack 資源...$(NC)"
-	@$(MAKE) -C rl_system clean
+	@echo "$(YELLOW)RL System 資源已整合到 NetStack 中$(NC)"
 	docker compose -f $(COMPOSE_FILE_RAN) down -v 2>/dev/null || true
 	docker compose -f $(COMPOSE_FILE) down -v
 	docker volume prune -f
@@ -95,7 +93,7 @@ clean: ## 🧹 清理所有容器和資料
 
 clean-i: ## 🧹 清理所有容器、資料及映像檔
 	@echo "$(YELLOW)🧹 清理 NetStack 所有資源 (包含映像檔)...$(NC)"
-	@$(MAKE) -C rl_system clean-i
+	@echo "$(YELLOW)RL System 資源已整合到 NetStack 中$(NC)"
 	docker compose -f $(COMPOSE_FILE_RAN) down -v --rmi all 2>/dev/null || true
 	docker compose -f $(COMPOSE_FILE) down -v --rmi all
 	docker volume prune -f
@@ -127,7 +125,7 @@ logs: ## 📋 查看所有 NetStack 服務 (核心網 + RL 系統) 的日誌
 	@trap 'echo "結束日誌查看"; exit 0' INT; \
 	( \
 		docker compose -f $(COMPOSE_FILE) logs -f & \
-		(cd rl_system && docker compose logs -f) & \
+		echo "$(CYAN)RL System 日誌已整合到 NetStack 服務中$(NC)" & \
 		wait \
 	)
 
@@ -324,16 +322,14 @@ build: ## 🏗️ 建置所有 NetStack 映像 (核心網 + RL System)
 	@echo "$(GREEN)🏗️ 建置 NetStack 所有相關映像...$(NC)"
 	@echo "$(BLUE)  - 建置核心網 API 映像...$(NC)"
 	docker build -t netstack-api:latest -f docker/Dockerfile .
-	@echo "$(BLUE)  - 建置 RL System 映像...$(NC)"
-	@$(MAKE) -C rl_system build
+	@echo "$(BLUE)  - RL System 映像已整合到 NetStack 中$(NC)"
 	@echo "$(GREEN)✅ 所有 NetStack 映像建置完成$(NC)"
 
 build-n: ## 🏗️ 建置所有 NetStack 映像 (不使用快取)
 	@echo "$(GREEN)🏗️ 建置 NetStack 所有相關映像 (不使用快取)...$(NC)"
 	@echo "$(BLUE)  - 建置核心網 API 映像...$(NC)"
 	docker build -t netstack-api:latest -f docker/Dockerfile . --no-cache
-	@echo "$(BLUE)  - 建置 RL System 映像...$(NC)"
-	@$(MAKE) -C rl_system build-n
+	@echo "$(BLUE)  - RL System 映像已整合到 NetStack 中$(NC)"
 	@echo "$(GREEN)✅ 所有 NetStack 映像建置完成 (不使用快取)$(NC)"
 
 push: ## 📤 推送映像到 Registry

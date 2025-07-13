@@ -19,9 +19,8 @@ RESET := \033[0m
 # 專案配置
 NETSTACK_DIR := netstack
 SIMWORLD_DIR := simworld
-MONITORING_DIR := monitoring
-# 新增 RL System 目錄變數
-RL_SYSTEM_DIR := $(NETSTACK_DIR)/rl_system
+# MONITORING_DIR := monitoring  # 暫時不使用 monitoring
+# RL System 已整合到 NetStack 服務中 (Phase 1.3b)
 COMPOSE_PROJECT_NAME := ntn-stack
 
 # 環境變數配置
@@ -38,14 +37,14 @@ export EXTERNAL_IP
 # Docker Compose 文件
 NETSTACK_COMPOSE := $(NETSTACK_DIR)/compose/core.yaml
 SIMWORLD_COMPOSE := $(SIMWORLD_DIR)/docker-compose.yml
-MONITORING_COMPOSE := $(MONITORING_DIR)/docker-compose.simple.yml
+# MONITORING_COMPOSE := $(MONITORING_DIR)/docker-compose.simple.yml  # 暫時不使用
 
 # 服務 URL
 NETSTACK_URL := http://localhost:8080
 SIMWORLD_URL := http://localhost:8888
-PROMETHEUS_URL := http://localhost:9090
-GRAFANA_URL := http://localhost:3000
-ALERTMANAGER_URL := http://localhost:9093
+# PROMETHEUS_URL := http://localhost:9090
+# GRAFANA_URL := http://localhost:3000
+# ALERTMANAGER_URL := http://localhost:9093
 
 # 測試報告目錄
 REPORTS_DIR := test-reports
@@ -60,7 +59,7 @@ help: ## 顯示幫助信息
 	@echo "$(YELLOW)專案管理:$(RESET)"
 	@echo "  $(GREEN)netstack-*$(RESET)          NetStack 專案相關操作 (包含 RL System)"
 	@echo "  $(GREEN)simworld-*$(RESET)          SimWorld 專案相關操作"
-	@echo "  $(GREEN)monitoring-*$(RESET)        階段8監控系統操作"
+	@echo "  $(GREEN)# monitoring-*$(RESET)      階段8監控系統操作 (暫時禁用)"
 	@echo "  $(GREEN)rl-system-*$(RESET)       RL System 專案相關操作"
 	@echo "  $(GREEN)all-*$(RESET)               所有專案一起操作"
 	@echo ""
@@ -75,11 +74,11 @@ fresh-up: clean-i build-n up ## 重新啟動所有服務
 
 up: all-start ## 啟動所有服務
 
-start-monitoring: ## [獨立] 啟動階段8的監控服務
-	@echo "$(BLUE)🚀 啟動監控系統...$(RESET)"
-	@$(MAKE) monitoring-start
-	@sleep 5
-	@echo "$(GREEN)✅ 監控系統已啟動。請訪問 Grafana: $(GRAFANA_URL)$(RESET)"
+# start-monitoring: ## [獨立] 啟動階段8的監控服務 (暫時禁用)
+#	@echo "$(BLUE)🚀 啟動監控系統...$(RESET)"
+#	@$(MAKE) monitoring-start
+#	@sleep 5
+#	@echo "$(GREEN)✅ 監控系統已啟動。請訪問 Grafana: $(GRAFANA_URL)$(RESET)"
 
 dev: ## 開發環境啟動 (使用 127.0.0.1)
 	@echo "$(CYAN)🚀 啟動開發環境 (EXTERNAL_IP=127.0.0.1)...$(RESET)"
@@ -91,17 +90,16 @@ dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 	@cd ${NETSTACK_DIR} && $(MAKE) init-demo-data
 	@echo "$(GREEN)✅ 開發環境設置完成$(RESET)"
 
-all-start: ## 啟動所有核心服務 (NetStack, SimWorld, RL System)
+all-start: ## 啟動所有核心服務 (NetStack 含整合 RL System, SimWorld)
 	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
-	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (包含 RL System)...$(RESET)"
+	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (創建網路基礎)...$(RESET)"
 	@$(MAKE) netstack-start
 	@echo "$(YELLOW)⏳ 等待 NetStack 網路就緒...$(RESET)"
 	@sleep 15
 	@echo "$(YELLOW)⚡ 第二步：啟動 SimWorld (連接網路)...$(RESET)"
 	@$(MAKE) simworld-start
-	@echo "$(YELLOW)⏳ 等待 SimWorld 啟動完成...$(RESET)"
+	@echo "$(YELLOW)⏳ 等待服務啟動完成...$(RESET)"
 	@sleep 10
-	@sleep 5
 	@echo "$(YELLOW)🔗 驗證容器間網路連接...$(RESET)"
 	@$(MAKE) verify-network-connection
 	@$(MAKE) status
@@ -110,12 +108,9 @@ all-start: ## 啟動所有核心服務 (NetStack, SimWorld, RL System)
 	@echo "$(CYAN)🌐 服務訪問地址:$(RESET)"
 	@echo "  NetStack API:  $(NETSTACK_URL)"
 	@echo "  NetStack Docs: $(NETSTACK_URL)/docs"
-	@echo "  RL System:     http://localhost:8001"
-	@echo "  RL System Docs:http://localhost:8001/docs"
+	@echo "  RL System:     http://localhost:8080/api/v1/rl (統一到 NetStack)"
+	@echo "  RL System Docs:http://localhost:8080/docs (統一到 NetStack)"
 	@echo "  SimWorld:      $(SIMWORLD_URL)"
-	@echo "  Prometheus:    $(PROMETHEUS_URL)"
-	@echo "  Grafana:       $(GRAFANA_URL)"
-	@echo "  AlertManager:  $(ALERTMANAGER_URL)"
 
 netstack-start: ## 啟動 NetStack 服務
 	@echo "$(BLUE)🚀 啟動 NetStack 服務...$(RESET)"
@@ -127,16 +122,16 @@ simworld-start: ## 啟動 SimWorld 服務
 	@cd $(SIMWORLD_DIR) && docker compose up -d
 	@echo "$(GREEN)✅ SimWorld 服務已啟動$(RESET)"
 
-monitoring-start: ## 啟動監控系統 (階段8: Prometheus, Grafana, AlertManager)
-	@echo "$(BLUE)🚀 啟動監控系統...$(RESET)"
-	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml up -d
-	@echo "$(GREEN)✅ 監控系統已啟動$(RESET)"
+# monitoring-start: ## 啟動監控系統 (階段8: Prometheus, Grafana, AlertManager) - 暫時禁用
+#	@echo "$(BLUE)🚀 啟動監控系統...$(RESET)"
+#	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml up -d
+#	@echo "$(GREEN)✅ 監控系統已啟動$(RESET)"
 
 # ===== 服務停止 =====
 
 down: all-stop ## 停止所有服務
 
-all-stop: ## 停止 NetStack, SimWorld, RL System 和監控系統
+all-stop: ## 停止 NetStack (含整合 RL System), SimWorld 和監控系統
 	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務...$(RESET)"
 	@$(MAKE) simworld-stop
 	@$(MAKE) netstack-stop # netstack-stop 現在會處理 rl-system
@@ -152,14 +147,14 @@ simworld-stop: ## 停止 SimWorld 服務
 	@cd $(SIMWORLD_DIR) && docker compose down
 	@echo "$(GREEN)✅ SimWorld 服務已停止$(RESET)"
 
-monitoring-stop: ## 停止監控系統
-	@echo "$(BLUE)🛑 停止監控系統...$(RESET)"
-	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml down
-	@echo "$(GREEN)✅ 監控系統已停止$(RESET)"
+# monitoring-stop: ## 停止監控系統
+#	@echo "$(BLUE)🛑 停止監控系統...$(RESET)"
+#	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml down
+#	@echo "$(GREEN)✅ 監控系統已停止$(RESET)"
 
 down-v: all-stop-v ## 停止所有服務
 
-all-stop-v: ## 停止 NetStack, SimWorld, RL System 和監控系統 (清除卷)
+all-stop-v: ## 停止 NetStack (含整合 RL System), SimWorld 和監控系統 (清除卷)
 	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務 (清除卷)...$(RESET)"
 	@$(MAKE) simworld-stop-v
 	@$(MAKE) netstack-stop-v # netstack-stop-v 會處理 rl-system
@@ -175,22 +170,22 @@ simworld-stop-v: ## 停止 SimWorld 服務
 	@cd $(SIMWORLD_DIR) && docker compose down -v
 	@echo "$(GREEN)✅ SimWorld 服務已停止$(RESET)"
 
-monitoring-stop-v: ## 停止監控系統 (清除卷)
-	@echo "$(BLUE)🛑 停止監控系統 (清除卷)...$(RESET)"
-	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml down -v
-	@echo "$(GREEN)✅ 監控系統已停止 (卷已清除)$(RESET)"
+# monitoring-stop-v: ## 停止監控系統 (清除卷)
+#	@echo "$(BLUE)🛑 停止監控系統 (清除卷)...$(RESET)"
+#	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml down -v
+#	@echo "$(GREEN)✅ 監控系統已停止 (卷已清除)$(RESET)"
 
 # ===== 服務重啟 =====
 
 restart: all-restart ## 重啟所有服務
 
-restart-monitoring: ## [獨立] 重啟階段8的監控服務
-	@echo "$(BLUE)🔄 重啟監控系統...$(RESET)"
-	@$(MAKE) monitoring-restart
-	@sleep 5
-	@echo "$(GREEN)✅ 監控系統已重啟。$(RESET)"
+# restart-monitoring: ## [獨立] 重啟階段8的監控服務 (暫時禁用)
+#	@echo "$(BLUE)🔄 重啟監控系統...$(RESET)"
+#	@$(MAKE) monitoring-restart
+#	@sleep 5
+#	@echo "$(GREEN)✅ 監控系統已重啟。$(RESET)"
 
-all-restart: ## 重啟所有核心服務 (NetStack, SimWorld, RL System)
+all-restart: ## 重啟所有核心服務 (NetStack 含整合 RL System, SimWorld)
 	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務...$(RESET)"
 	@$(MAKE) all-stop
 	@sleep 5
@@ -208,11 +203,11 @@ simworld-restart: ## 重啟 SimWorld 服務
 	@sleep 3
 	@$(MAKE) simworld-start
 
-monitoring-restart: ## 重啟監控系統
+# monitoring-restart: ## 重啟監控系統
 	@echo "$(BLUE)🔄 重啟監控系統...$(RESET)"
-	@$(MAKE) monitoring-stop
+	# @.*monitoring-stop
 	@sleep 3
-	@$(MAKE) monitoring-start
+	# @.*monitoring-start
 
 # ===== 服務構建 =====
 
@@ -234,7 +229,7 @@ simworld-build: ## 構建 SimWorld 服務
 	@cd $(SIMWORLD_DIR) && docker compose build
 	@echo "$(GREEN)✅ SimWorld 服務構建完成$(RESET)"
 
-monitoring-build: ## 構建監控系統服務
+# monitoring-build: ## 構建監控系統服務
 	@echo "$(BLUE)🔨 構建監控系統服務...$(RESET)"
 	@echo "$(YELLOW)注意：監控服務主要使用預構建映像檔，此操作主要為拉取最新映像檔。$(RESET)"
 	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml pull
@@ -258,7 +253,7 @@ simworld-build-n: ## 構建 SimWorld 服務 (不使用緩存)
 	@cd $(SIMWORLD_DIR) && docker compose build --no-cache
 	@echo "$(GREEN)✅ SimWorld 服務構建完成$(RESET)"
 
-monitoring-build-n: ## 構建監控系統服務 (不使用緩存)
+# monitoring-build-n: ## 構建監控系統服務 (不使用緩存)
 	@echo "$(BLUE)🔨 構建監控系統服務 (不使用緩存)...$(RESET)"
 	@echo "$(YELLOW)注意：監控服務主要使用預構建映像檔，此操作主要為拉取最新映像檔。$(RESET)"
 	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml pull
@@ -287,10 +282,10 @@ simworld-clean: ## 清理 SimWorld 資源
 	@docker system prune -f --filter "label=com.docker.compose.project=simworld"
 	@echo "$(GREEN)✅ SimWorld 資源清理完成$(RESET)"
 
-monitoring-clean: ## 清理監控系統資源
+# monitoring-clean: ## 清理監控系統資源
 	@echo "$(BLUE)🧹 清理監控系統資源...$(RESET)"
 	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml down -v --remove-orphans
-	@docker system prune -f --filter "label=com.docker.compose.project=monitoring"
+	# @.*monitoring"
 	@echo "$(GREEN)✅ 監控系統資源清理完成$(RESET)"
 
 clean-reports: ## 清理測試報告
@@ -327,10 +322,10 @@ simworld-clean-i: ## 清理 SimWorld 資源
 	@docker system prune -f --filter "label=com.docker.compose.project=simworld"
 	@echo "$(GREEN)✅ SimWorld 映像檔清理完成$(RESET)"
 
-monitoring-clean-i: ## 清理監控系統資源和映像檔
+# monitoring-clean-i: ## 清理監控系統資源和映像檔
 	@echo "$(BLUE)🧹 清理監控系統映像檔...$(RESET)"
 	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml down -v --remove-orphans --rmi all
-	@docker system prune -f --filter "label=com.docker.compose.project=monitoring"
+	# @.*monitoring"
 	@echo "$(GREEN)✅ 監控系統映像檔清理完成$(RESET)"
 
 # ===== 狀態檢查 =====
@@ -341,15 +336,14 @@ status: ## 檢查所有服務狀態
 	@echo "$(YELLOW)NetStack 服務狀態:$(RESET)"
 	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml ps || echo "$(RED)❌ NetStack 核心網服務未運行$(RESET)"
 	@echo ""
-	@echo "$(YELLOW)RL System 服務狀態:$(RESET)"
-	@cd $(RL_SYSTEM_DIR) && docker compose ps || echo "$(RED)❌ RL System 服務未運行$(RESET)"
+	@echo "$(YELLOW)RL System 狀態: 已整合到 NetStack 服務中$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)SimWorld 服務狀態:$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose ps || echo "$(RED)❌ SimWorld 服務未運行$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)服務健康檢查:$(RESET)"
 	@curl -s $(NETSTACK_URL)/health > /dev/null && echo "$(GREEN)✅ NetStack 健康檢查通過$(RESET)" || echo "$(RED)❌ NetStack 健康檢查失敗$(RESET)"
-	@curl -s http://localhost:8001/api/v1/health > /dev/null && echo "$(GREEN)✅ RL System 健康檢查通過$(RESET)" || echo "$(RED)❌ RL System 健康檢查失敗$(RESET)"
+	@curl -s http://localhost:8080/api/v1/rl/health > /dev/null && echo "$(GREEN)✅ RL System 健康檢查通過 (統一到 NetStack)$(RESET)" || echo "$(RED)❌ RL System 健康檢查失敗$(RESET)"
 	@curl -s $(SIMWORLD_URL)/ > /dev/null && echo "$(GREEN)✅ SimWorld 健康檢查通過$(RESET)" || echo "$(RED)❌ SimWorld 健康檢查失敗$(RESET)"
 
 verify-network-connection: ## 🔗 驗證容器間網路連接
@@ -380,7 +374,7 @@ simworld-status: ## 檢查 SimWorld 狀態
 	@echo "$(BLUE)📊 SimWorld 服務狀態:$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose ps
 
-monitoring-status: ## 檢查監控系統狀態
+# monitoring-status: ## 檢查監控系統狀態
 	@echo "$(BLUE)📊 監控系統狀態:$(RESET)"
 	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml ps
 
@@ -388,10 +382,10 @@ monitoring-status: ## 檢查監控系統狀態
 
 logs: all-logs ## 查看所有服務日誌
 
-monitoring-logs: ## 查看監控系統日誌
-	@echo "$(BLUE)📋 監控系統日誌:$(RESET)"
-	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
-	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f
+# monitoring-logs: ## 查看監控系統日誌 (暫時禁用)
+#	@echo "$(BLUE)📋 監控系統日誌:$(RESET)"
+#	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
+#	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f
 
 all-logs: ## 查看所有服務日誌 (NetStack, SimWorld, RL System)
 	@echo "$(CYAN)📋 查看所有 NTN Stack 服務日誌...$(RESET)"
@@ -413,41 +407,14 @@ simworld-logs: ## 查看 SimWorld 日誌
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose logs -f
 
-monitoring-logs: ## 查看監控系統日誌
-	@echo "$(BLUE)📋 監控系統日誌:$(RESET)"
-	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
-	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f
+# monitoring-logs: ## 查看監控系統日誌 (暫時禁用)
+#	@echo "$(BLUE)📋 監控系統日誌:$(RESET)"
+#	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
+#	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f
 
-# ===== RL System 專用指令 =====
-
-rl-system-start: ## [獨立] 啟動 RL System 服務
-	@echo "$(CYAN)🚀 啟動 RL System 服務...$(RESET)"
-	@cd $(RL_SYSTEM_DIR) && $(MAKE) up
-	@echo "$(GREEN)✅ RL System 服務已啟動$(RESET)"
-
-rl-system-stop: ## [獨立] 停止 RL System 服務
-	@echo "$(CYAN)🛑 停止 RL System 服務...$(RESET)"
-	@cd $(RL_SYSTEM_DIR) && $(MAKE) down
-	@echo "$(GREEN)✅ RL System 服務已停止$(RESET)"
-
-rl-system-restart: ## [獨立] 重啟 RL System 服務
-	@echo "$(CYAN)🔄 重啟 RL System 服務...$(RESET)"
-	@cd $(RL_SYSTEM_DIR) && $(MAKE) restart
-	@echo "$(GREEN)✅ RL System 服務已重啟$(RESET)"
-
-rl-system-logs: ## [獨立] 查看 RL System 日誌
-	@echo "$(CYAN)📋 查看 RL System 服務日誌...$(RESET)"
-	@cd $(RL_SYSTEM_DIR) && $(MAKE) logs
-
-rl-system-clean: ## [獨立] 清理 RL System 資源
-	@echo "$(CYAN)🧹 清理 RL System 服務資源...$(RESET)"
-	@cd $(RL_SYSTEM_DIR) && $(MAKE) clean
-	@echo "$(GREEN)✅ RL System 服務資源已清理$(RESET)"
-
-rl-system-test: ## [獨立] 執行 RL System 測試
-	@echo "$(CYAN)🧪 執行 RL System 測試...$(RESET)"
-	@cd $(RL_SYSTEM_DIR) && $(MAKE) test
-	@echo "$(GREEN)✅ RL System 測試完成$(RESET)"
+# ===== RL System 已整合到 NetStack 服務中 (Phase 1.3b) =====
+# 所有 RL System 相關功能現在通過 NetStack 服務提供
+# 使用 netstack-* 指令即可管理整合後的服務
 
 # ===== 安裝和初始化 =====
 
