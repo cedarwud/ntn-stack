@@ -20,38 +20,11 @@ services:
       - ../..:/app
     environment:
       - ENV=docker
-      - DATABASE_URL=postgresql+asyncpg://rl_user:rl_password@rl-db:5432/rl_db
-    depends_on:
-      rl-db:
-        condition: service_healthy
+      - DATABASE_URL=postgresql+asyncpg://rl_user:rl_password@netstack-rl-postgres:5432/rl_research
     networks:
-      - rl_network
-
-  rl-db:
-    image: postgres:15-alpine
-    container_name: rl_system_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: rl_db
-      POSTGRES_USER: rl_user
-      POSTGRES_PASSWORD: rl_password
-    volumes:
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - rl_postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5433:5432" # 映射到 5433 以避免與本地或其他 PostgreSQL 衝突
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rl_user -d rl_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - rl_network
-
-volumes:
-  rl_postgres_data:
-    name: rl_postgres_data
+      - netstack-core  # 連接到 NetStack 網路
 
 networks:
-  rl_network:
-    name: rl_network 
+  netstack-core:
+    external: true
+    name: compose_netstack-core 

@@ -1607,9 +1607,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                     </span>
                                 </h3>
                                 {showTempDevices &&
-                                    tempDevices.map((device) => (
+                                    tempDevices.map((device, index) => (
                                         <DeviceItem
-                                            key={device.id}
+                                            key={device.id || `temp-device-${index}`}
                                             device={device}
                                             orientationInput={
                                                 orientationInputs[
@@ -1734,9 +1734,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                     </span>
                                 </h3>
                                 {showReceiverDevices &&
-                                    receiverDevices.map((device) => (
+                                    receiverDevices.map((device, index) => (
                                         <DeviceItem
-                                            key={device.id}
+                                            key={device.id || `receiver-device-${index}`}
                                             device={device}
                                             orientationInput={
                                                 orientationInputs[
@@ -1782,9 +1782,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                     </span>
                                 </h3>
                                 {showDesiredDevices &&
-                                    desiredDevices.map((device) => (
+                                    desiredDevices.map((device, index) => (
                                         <DeviceItem
-                                            key={device.id}
+                                            key={device.id || `desired-device-${index}`}
                                             device={device}
                                             orientationInput={
                                                 orientationInputs[
@@ -1828,9 +1828,9 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                     </span>
                                 </h3>
                                 {showJammerDevices &&
-                                    jammerDevices.map((device) => (
+                                    jammerDevices.map((device, index) => (
                                         <DeviceItem
-                                            key={device.id}
+                                            key={device.id || `jammer-device-${index}`}
                                             device={device}
                                             orientationInput={
                                                 orientationInputs[

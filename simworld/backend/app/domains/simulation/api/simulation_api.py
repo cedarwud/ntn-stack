@@ -2,9 +2,9 @@ import logging
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.api.dependencies import get_db_session
+from app.api.dependencies import get_mongodb_db
 from app.core.config import (
     CFR_PLOT_IMAGE_PATH,
     SINR_MAP_IMAGE_PATH,
@@ -61,29 +61,40 @@ async def get_scene_image():
 
 @router.get("/cfr-plot", response_description="通道頻率響應圖")
 async def get_cfr_plot(
-    session: AsyncSession = Depends(get_db_session),
+    db: AsyncIOMotorDatabase = Depends(get_mongodb_db),
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
 ):
     """產生並回傳通道頻率響應 (CFR) 圖"""
     logger.info(f"--- API Request: /cfr-plot?scene={scene} ---")
 
     try:
-        success = await sionna_service.generate_cfr_plot(
-            session=session, output_path=str(CFR_PLOT_IMAGE_PATH), scene_name=scene
+        # 🚨 暫時功能不可用 - 需要完整的PostgreSQL到MongoDB遷移
+        # CFR圖生成依賴於Sionna服務，該服務目前需要PostgreSQL數據庫連接
+        # 在Phase 3中將實現完整的MongoDB支持
+        
+        logger.warning(f"CFR Plot generation temporarily unavailable during database migration")
+        raise HTTPException(
+            status_code=503, 
+            detail="CFR圖功能暫時不可用。系統正在進行數據庫遷移（PostgreSQL → MongoDB），此功能將在Phase 3中恢復。"
         )
+        
+        # TODO: Phase 3 - 實現MongoDB版本的CFR生成
+        # success = await sionna_service.generate_cfr_plot_mongodb(
+        #     db=db,
+        #     output_path=str(CFR_PLOT_IMAGE_PATH),
+        #     scene_name=scene
+        # )
 
-        if not success:
-            raise HTTPException(status_code=500, detail="產生 CFR 圖失敗")
-
-        return create_image_response(str(CFR_PLOT_IMAGE_PATH), "cfr_plot.png")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"生成 CFR 圖時出錯: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"生成 CFR 圖時出錯: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"CFR圖服務暫時不可用: {str(e)}")
 
 
 @router.get("/sinr-map", response_description="SINR 地圖")
 async def get_sinr_map(
-    session: AsyncSession = Depends(get_db_session),
+    db: AsyncIOMotorDatabase = Depends(get_mongodb_db),
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
     sinr_vmin: float = Query(-40.0, description="SINR 最小值 (dB)"),
     sinr_vmax: float = Query(0.0, description="SINR 最大值 (dB)"),
@@ -96,82 +107,108 @@ async def get_sinr_map(
     )
 
     try:
-        success = await sionna_service.generate_sinr_map(
-            session=session,
-            output_path=str(SINR_MAP_IMAGE_PATH),
-            scene_name=scene,
-            sinr_vmin=sinr_vmin,
-            sinr_vmax=sinr_vmax,
-            cell_size=cell_size,
-            samples_per_tx=samples_per_tx,
+        # 🚨 暫時功能不可用 - 需要完整的PostgreSQL到MongoDB遷移
+        # SINR地圖生成依賴於Sionna服務，該服務目前需要PostgreSQL數據庫連接
+        # 在Phase 3中將實現完整的MongoDB支持
+        
+        logger.warning(f"SINR Map generation temporarily unavailable during database migration")
+        raise HTTPException(
+            status_code=503, 
+            detail="SINR地圖功能暫時不可用。系統正在進行數據庫遷移（PostgreSQL → MongoDB），此功能將在Phase 3中恢復。"
         )
+        
+        # TODO: Phase 3 - 實現MongoDB版本的SINR生成
+        # success = await sionna_service.generate_sinr_map_mongodb(
+        #     db=db,
+        #     output_path=str(SINR_MAP_IMAGE_PATH),
+        #     scene_name=scene,
+        #     sinr_vmin=sinr_vmin,
+        #     sinr_vmax=sinr_vmax,
+        #     cell_size=cell_size,
+        #     samples_per_tx=samples_per_tx,
+        # )
 
-        if not success:
-            raise HTTPException(status_code=500, detail="產生 SINR 地圖失敗")
-
-        return create_image_response(str(SINR_MAP_IMAGE_PATH), "sinr_map.png")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"生成 SINR 地圖時出錯: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"生成 SINR 地圖時出錯: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"SINR地圖服務暫時不可用: {str(e)}")
 
 
 @router.get("/doppler-plots", response_description="延遲多普勒圖")
 async def get_doppler_plots(
-    session: AsyncSession = Depends(get_db_session),
+    db: AsyncIOMotorDatabase = Depends(get_mongodb_db),
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
 ):
     """產生並回傳延遲多普勒圖"""
     logger.info(f"--- API Request: /doppler-plots?scene={scene} ---")
 
     try:
-        success = await sionna_service.generate_doppler_plots(
-            session, str(DOPPLER_IMAGE_PATH), scene_name=scene
+        # 🚨 暫時功能不可用 - 需要完整的PostgreSQL到MongoDB遷移
+        # Doppler圖生成依賴於Sionna服務，該服務目前需要PostgreSQL數據庫連接
+        # 在Phase 3中將實現完整的MongoDB支持
+        
+        logger.warning(f"Doppler plots generation temporarily unavailable during database migration")
+        raise HTTPException(
+            status_code=503, 
+            detail="延遲多普勒圖功能暫時不可用。系統正在進行數據庫遷移（PostgreSQL → MongoDB），此功能將在Phase 3中恢復。"
         )
+        
+        # TODO: Phase 3 - 實現MongoDB版本的Doppler生成
+        # success = await sionna_service.generate_doppler_plots_mongodb(
+        #     db=db,
+        #     output_path=str(DOPPLER_IMAGE_PATH),
+        #     scene_name=scene
+        # )
 
-        if not success:
-            raise HTTPException(status_code=500, detail="產生延遲多普勒圖失敗")
-
-        return create_image_response(str(DOPPLER_IMAGE_PATH), "delay_doppler.png")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"生成延遲多普勒圖時出錯: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"生成延遲多普勒圖時出錯: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"延遲多普勒圖服務暫時不可用: {str(e)}")
 
 
 @router.get("/channel-response", response_description="通道響應圖")
 async def get_channel_response(
-    session: AsyncSession = Depends(get_db_session),
+    db: AsyncIOMotorDatabase = Depends(get_mongodb_db),
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
 ):
     """產生並回傳通道響應圖，顯示 H_des、H_jam 和 H_all 的三維圖"""
     logger.info(f"--- API Request: /channel-response?scene={scene} ---")
 
     try:
-        success = await sionna_service.generate_channel_response_plots(
-            session,
-            str(CHANNEL_RESPONSE_IMAGE_PATH),
-            scene_name=scene,
+        # 🚨 暫時功能不可用 - 需要完整的PostgreSQL到MongoDB遷移
+        # 通道響應圖生成依賴於Sionna服務，該服務目前需要PostgreSQL數據庫連接
+        # 在Phase 3中將實現完整的MongoDB支持
+        
+        logger.warning(f"Channel response generation temporarily unavailable during database migration")
+        raise HTTPException(
+            status_code=503, 
+            detail="通道響應圖功能暫時不可用。系統正在進行數據庫遷移（PostgreSQL → MongoDB），此功能將在Phase 3中恢復。"
         )
+        
+        # TODO: Phase 3 - 實現MongoDB版本的通道響應生成
+        # success = await sionna_service.generate_channel_response_plots_mongodb(
+        #     db=db,
+        #     output_path=str(CHANNEL_RESPONSE_IMAGE_PATH),
+        #     scene_name=scene
+        # )
 
-        if not success:
-            raise HTTPException(status_code=500, detail="產生通道響應圖失敗")
-
-        return create_image_response(
-            str(CHANNEL_RESPONSE_IMAGE_PATH), "channel_response_plots.png"
-        )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"生成通道響應圖時出錯: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"生成通道響應圖時出錯: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"通道響應圖服務暫時不可用: {str(e)}")
 
 
 @router.post("/run", response_model=Dict[str, Any])
-async def run_simulation(
-    params: SimulationParameters, session: AsyncSession = Depends(get_db_session)
-):
+async def run_simulation(params: SimulationParameters):
     """執行通用模擬"""
     logger.info(f"--- API Request: /run (type: {params.simulation_type}) ---")
 
     try:
-        result = await sionna_service.run_simulation(session, params)
+        # 暫時傳遞 None 作為 session，因為已遷移到 MongoDB
+        result = await sionna_service.run_simulation(None, params)
 
         if not result["success"]:
             raise HTTPException(

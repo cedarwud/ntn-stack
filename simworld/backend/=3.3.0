@@ -1,0 +1,4 @@
+Defaulting to user installation because normal site-packages is not writeable
+Requirement already satisfied: motor in /home/sat/.local/lib/python3.8/site-packages (3.6.1)
+Requirement already satisfied: pymongo<4.10,>=4.9 in /home/sat/.local/lib/python3.8/site-packages (from motor) (4.9.2)
+Requirement already satisfied: dnspython<3.0.0,>=1.16.0 in /home/sat/.local/lib/python3.8/site-packages (from pymongo<4.10,>=4.9->motor) (2.6.1)

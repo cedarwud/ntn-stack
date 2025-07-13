@@ -36,10 +36,14 @@ jinja2>=3.1.0  # 模板引擎 (報告生成)
 tensorflow>=2.15.0  # TensorFlow 機器學習框架，新版本支援較新的 typing-extensions
 keras>=2.15.0  # Keras 深度學習 API
 
-# --- 新增資料庫相關套件 ---
+# --- 資料庫相關套件 ---
+# PostgreSQL 依賴 (保留用於未來 RL 系統可能需要)
 sqlmodel
 sqlalchemy[asyncio]>=2.0 # 確保是 2.0+ 版本支援 async
 psycopg[binary,pool] # PostgreSQL driver (binary 包含預編譯版本, pool 提供連接池)
 psycopg2-binary     # 添加 psycopg2-binary (用於兼容性)
 asyncpg             # SQLAlchemy asyncio 需要的 async driver
 geoalchemy2         # SQLAlchemy 的 PostGIS 擴充
+
+# --- MongoDB 相關套件 (新增) ---
+motor>=3.3.0        # MongoDB 的異步驅動程式
