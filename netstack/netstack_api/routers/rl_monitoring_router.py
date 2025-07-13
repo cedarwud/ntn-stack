@@ -39,23 +39,28 @@ from ..models.rl_training_models import (
 # 嘗試導入算法生態系統組件
 try:
     from ..algorithm_ecosystem import AlgorithmEcosystemManager
+
     ECOSYSTEM_AVAILABLE = True
-    
+
     # 嘗試導入可選組件
     try:
         from ..algorithm_ecosystem import PerformanceAnalysisEngine
+
         ANALYSIS_ENGINE_AVAILABLE = True
     except ImportError:
         ANALYSIS_ENGINE_AVAILABLE = False
+
         class PerformanceAnalysisEngine:
             def __init__(self, *args, **kwargs):
                 pass
-    
+
     try:
         from ..algorithm_ecosystem import RLTrainingPipeline
+
         TRAINING_PIPELINE_AVAILABLE = True
     except ImportError:
         TRAINING_PIPELINE_AVAILABLE = False
+
         class RLTrainingPipeline:
             def __init__(self, *args, **kwargs):
                 pass
@@ -505,16 +510,21 @@ async def get_ai_decision_status():
 
 @router.get("/training/sessions", response_model=List[TrainingSessionModel])
 async def get_training_sessions():
-    """獲取訓練會話列表"""
+    """獲取訓練會話列表 - 使用統一的 RLTrainingEngine"""
     try:
-        # 清理舊的已完成會話
-        cleanup_old_sessions()
+        # 使用統一的 RLTrainingEngine
+        from netstack.netstack_api.rl.training_engine import get_training_engine
+
+        engine = await get_training_engine()
+
+        # 獲取所有會話
+        sessions_data = engine.get_all_sessions()
 
         sessions = []
-        for session_id, session_data in training_sessions.items():
+        for session_data in sessions_data:
             sessions.append(
                 TrainingSessionModel(
-                    session_id=session_id,
+                    session_id=session_data["session_id"],
                     algorithm_name=session_data["algorithm_name"],
                     status=session_data["status"],
                     start_time=session_data["start_time"],
@@ -538,39 +548,34 @@ async def start_training(
     background_tasks: BackgroundTasks,
     episodes: int = Query(1000, description="訓練回合數"),
 ) -> Dict[str, Any]:
-    """啟動算法訓練 - 代理到 RL System"""
+    """啟動算法訓練 - 使用統一的 RLTrainingEngine"""
     try:
-        import httpx
-        
-        # 代理請求到實際的 RL System (port 8001)
-        rl_system_url = "http://localhost:8001"
-        
-        payload = {
-            "experiment_name": f"{algorithm_name.upper()}_前端啟動_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-            "total_episodes": episodes,
-            "step_time": 0.1  # 較快的訓練速度以便前端觀察
+        # 使用統一的 RLTrainingEngine
+        from netstack.netstack_api.rl.training_engine import get_training_engine
+
+        engine = await get_training_engine()
+
+        # 定義實驗名稱
+        experiment_name = f"{algorithm_name.upper()}_前端啟動_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+        # 啟動訓練
+        result = await engine.start_training(
+            algorithm_name=algorithm_name.lower(),
+            episodes=episodes,
+            experiment_name=experiment_name,
+            custom_config={"step_time": 0.1},  # 較快的訓練速度以便前端觀察
+        )
+
+        session_id = result.get("session_id")
+
+        return {
+            "message": f"演算法 '{algorithm_name}' 的訓練已啟動。",
+            "session_id": session_id,
+            "algorithm": result.get("algorithm", algorithm_name),
+            "status": result.get("status", "queued"),
+            "episodes_target": episodes,
+            "unified_engine": True,  # 標識使用統一引擎
         }
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{rl_system_url}/api/rl/start/{algorithm_name.upper()}",
-                json=payload,
-                timeout=10.0
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                return {
-                    "message": f"演算法 '{algorithm_name}' 的訓練已啟動。",
-                    "session_id": result.get("session_id"),
-                    "algorithm": result.get("algorithm"),
-                    "rl_system_response": result
-                }
-            else:
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"RL System 啟動失敗: {response.text}"
-                )
 
         training_sessions[session_id] = {
             "algorithm_name": algorithm_name,
@@ -602,25 +607,22 @@ async def start_training(
 
 @router.post("/training/stop/{session_id}")
 async def stop_training(session_id: str) -> Dict[str, Any]:
-    """停止訓練會話"""
+    """停止訓練會話 - 使用統一的 RLTrainingEngine"""
     try:
-        if session_id not in training_sessions:
-            raise HTTPException(
-                status_code=404, detail=f"訓練會話 '{session_id}' 不存在"
-            )
+        # 使用統一的 RLTrainingEngine
+        from netstack.netstack_api.rl.training_engine import get_training_engine
 
-        session = training_sessions[session_id]
-        if session["status"] != "active":
-            raise HTTPException(
-                status_code=409, detail=f"訓練會話 '{session_id}' 不是活躍狀態"
-            )
+        engine = await get_training_engine()
 
-        # 標記為停止
-        session["status"] = "stopped"
-        logger.info(f"用戶手動停止訓練會話: {session_id}")
+        # 停止訓練
+        result = await engine.stop_training(session_id)
 
-        return {"message": f"訓練會話 '{session_id}' 已停止", "session_id": session_id}
-
+        return {
+            "message": f"訓練會話 '{session_id}' 已停止",
+            "session_id": session_id,
+            "status": result.get("status", "stopped"),
+            "unified_engine": True,  # 標識使用統一引擎
+        }
     except HTTPException:
         raise
     except Exception as e:
