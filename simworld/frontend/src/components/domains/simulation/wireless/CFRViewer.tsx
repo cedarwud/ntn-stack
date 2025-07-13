@@ -37,11 +37,21 @@ const CFRViewer: React.FC<ViewerProps> = ({
         const apiUrl = `${API_PATH}?scene=${currentScene}&t=${new Date().getTime()}`
 
         fetch(apiUrl)
-            .then((response) => {
+            .then(async (response) => {
                 if (!response.ok) {
-                    throw new Error(
-                        `API 請求失敗: ${response.status} ${response.statusText}`
-                    )
+                    // 嘗試獲取後端的詳細錯誤消息
+                    let errorMessage = `API 請求失敗: ${response.status} ${response.statusText}`
+                    
+                    try {
+                        const errorData = await response.json()
+                        if (errorData.detail) {
+                            errorMessage = errorData.detail
+                        }
+                    } catch {
+                        // 如果無法解析JSON，使用默認錯誤消息
+                    }
+                    
+                    throw new Error(errorMessage)
                 }
                 return response.blob()
             })

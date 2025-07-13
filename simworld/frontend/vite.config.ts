@@ -23,12 +23,12 @@ export default defineConfig(({ mode }) => {
                     changeOrigin: true,
                     secure: false,
                 },
-                // 代理 NetStack API 請求
-                '/netstack/api': { // 僅代理 /netstack/api 路徑
+                // 代理 NetStack API 請求 - 修復代理路徑匹配
+                '/netstack': { // 代理所有 /netstack 路徑
                     target: env.VITE_NETSTACK_PROXY_TARGET || 'http://netstack-api:8080',
                     changeOrigin: true,
                     secure: false,
-                    rewrite: (path) => path.replace(/^\/netstack\/api/, '/api'), // 修正的正則表達式
+                    rewrite: (path) => path.replace(/^\/netstack/, ''), // 移除 /netstack 前綴
                     configure: (proxy) => {
                         proxy.on('error', (err) => {
                             console.log('🚨 NetStack 代理錯誤:', err)

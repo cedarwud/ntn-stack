@@ -290,7 +290,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     }, [mainScene, SATELLITE_TEXTURE_URL])
 
     const deviceMeshes = useMemo(() => {
-        return devices.map((device: Device) => {
+        return devices.map((device: Device, index: number) => {
             const isSelected =
                 device.role === 'receiver' &&
                 device.id !== null &&
@@ -309,7 +309,7 @@ const MainScene: React.FC<MainSceneProps> = ({
                     <UAVFlight
                         key={
                             device.id ||
-                            `temp-${device.position_x}-${device.position_y}-${device.position_z}`
+                            `receiver-${index}-${device.position_x}-${device.position_y}-${device.position_z}`
                         }
                         position={position}
                         scale={[UAV_SCALE, UAV_SCALE, UAV_SCALE]}
@@ -334,7 +334,10 @@ const MainScene: React.FC<MainSceneProps> = ({
             } else if (device.role === 'desired') {
                 return (
                     <StaticModel
-                        key={device.id}
+                        key={
+                            device.id ||
+                            `desired-${index}-${device.position_x}-${device.position_y}-${device.position_z}`
+                        }
                         url={BS_MODEL_URL}
                         position={[
                             device.position_x,
@@ -348,7 +351,10 @@ const MainScene: React.FC<MainSceneProps> = ({
             } else if (device.role === 'jammer') {
                 return (
                     <StaticModel
-                        key={device.id}
+                        key={
+                            device.id ||
+                            `jammer-${index}-${device.position_x}-${device.position_y}-${device.position_z}`
+                        }
                         url={JAMMER_MODEL_URL}
                         position={[
                             device.position_x,

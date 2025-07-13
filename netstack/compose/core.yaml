@@ -357,7 +357,7 @@ services:
       - DATABASE_URL=mongodb://mongo:27017/open5gs
       - MONGO_HOST=mongo
       - REDIS_URL=redis://redis:6379
-      - RL_DATABASE_URL=postgresql://rl_user:rl_password@simworld_postgis:5432/rl_db
+      - RL_DATABASE_URL=postgresql://rl_user:rl_password@rl-postgres:5432/rl_research
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
       - SIMWORLD_API_URL=http://simworld_backend:8000
@@ -382,6 +382,39 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # RL PostgreSQL 數據庫
+  rl-postgres:
+    image: postgres:15
+    container_name: netstack-rl-postgres
+    hostname: rl-postgres
+    environment:
+      POSTGRES_DB: rl_research
+      POSTGRES_USER: rl_user  
+      POSTGRES_PASSWORD: rl_password
+    ports:
+      - "5432:5432"  # 現在可以使用 5432 (SimWorld PostgreSQL 已移除)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.3'
+          memory: 512M
+    volumes:
+      - rl_postgres_data:/var/lib/postgresql/data
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.51
+        aliases:
+          - rl-postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rl_user -d rl_research"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # Redis 快取
   redis:
@@ -435,6 +468,8 @@ volumes:
   mongo_data:
     driver: local
   redis_data:
+    driver: local
+  rl_postgres_data:
     driver: local
   # prometheus_data:
   #   driver: local

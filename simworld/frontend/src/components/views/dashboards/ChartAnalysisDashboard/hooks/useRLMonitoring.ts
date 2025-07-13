@@ -62,14 +62,8 @@ export const useRLMonitoring = (enabled: boolean = true) => {
         config: config
       });
       
-      // 使用增強版RL訓練端點，這個端點真正會啟動訓練
-      const response = await apiClient.post(`/api/v1/rl/enhanced/start/${algorithm.toLowerCase()}`, {
-        total_episodes: config.episodes || 50, // 减少episode数量
-        step_time: 1.0, // 增加到1秒每episode，让用户能看到进度
-        experiment_name: `${algorithm.toLowerCase()}_training_${Date.now()}`,
-        scenario_type: "handover_simulation",
-        researcher_id: "frontend_user"
-      });
+      // 使用正確的 NetStack RL 訓練端點
+      const response = await apiClient.controlTraining('start', algorithm.toLowerCase());
       
       console.log(`✅ Successfully started training for ${algorithm}`, response);
       console.log('🔍 Training start response analysis:', {
@@ -84,8 +78,6 @@ export const useRLMonitoring = (enabled: boolean = true) => {
       recentlyStartedRef.current.set(algorithm.toLowerCase(), Date.now());
       console.log(`🕐 Training ${algorithm} marked as recently started at ${new Date().toISOString()}`);
       
-      // 移除調試代碼，使用正常的狀態輪詢
-      
     } catch (error) {
       console.error(`❌ Failed to start training for ${algorithm}:`, error);
       throw error; // 向上拋出錯誤，讓調用者可以處理
@@ -95,8 +87,8 @@ export const useRLMonitoring = (enabled: boolean = true) => {
   const stopTraining = async (algorithm: string) => {
     try {
       console.log(`🛑 Stopping training API call for ${algorithm}...`);
-      // 使用增強版RL訓練停止端點
-      const response = await apiClient.post(`/api/v1/rl/enhanced/stop/${algorithm.toLowerCase()}`);
+      // 使用正確的 NetStack RL 訓練停止端點
+      const response = await apiClient.controlTraining('stop', algorithm.toLowerCase());
       console.log(`✅ Successfully stopped training for ${algorithm}`, response);
       console.log('🔍 Training stop response analysis:', {
         status: (response as any).status,
@@ -120,36 +112,37 @@ export const useRLMonitoring = (enabled: boolean = true) => {
     if (!enabled) return; // 如果未啟用，直接返回
     
     try {
-      // 使用增強版RL訓練狀態端點來獲取真實的訓練狀態
-      // 由於我們需要檢查三種算法，並行調用三個端點
-      const [dqnResponse, ppoResponse, sacResponse] = await Promise.allSettled([
-        apiClient.get<any>(`/api/v1/rl/enhanced/status/dqn`),
-        apiClient.get<any>(`/api/v1/rl/enhanced/status/ppo`),
-        apiClient.get<any>(`/api/v1/rl/enhanced/status/sac`)
-      ]);
+      // 使用正確的 NetStack RL 狀態端點來獲取真實的訓練狀態
+      const statusSummary = await apiClient.getTrainingStatusSummary();
+      const trainingSessions = await apiClient.getRLTrainingSessions();
       
-      // 處理三個算法的響應
-      const getStatusFromResponse = (response: any) => {
-        if (response.status === 'fulfilled') {
-          const data = response.value;
-          return {
-            is_training: data.is_training || false,
-            status: data.status || 'idle',
-            training_progress: data.training_progress,
-            metrics: data.metrics
-          };
-        }
+      console.log('🔍 RL Status Data:', { statusSummary, trainingSessions });
+      
+      // 處理狀態響應 - 從狀態摘要中提取各算法狀態
+      const getAlgorithmStatus = (algorithm: string) => {
+        // 從訓練會話中查找活躍的訓練
+        const activeSession = trainingSessions?.active_sessions?.find(
+          (session: any) => session.algorithm?.toLowerCase() === algorithm.toLowerCase() && session.status === 'running'
+        );
+        
+        const algorithmData = statusSummary?.algorithms?.[algorithm] || statusSummary?.[algorithm];
+        
         return {
-          is_training: false,
-          status: 'error',
-          training_progress: null,
-          metrics: null
+          is_training: !!activeSession || (algorithmData?.status === 'running'),
+          status: activeSession?.status || algorithmData?.status || 'idle',
+          training_progress: activeSession?.progress || algorithmData?.progress,
+          metrics: activeSession?.metrics || algorithmData?.metrics || {
+            episodes_completed: activeSession?.current_episode || algorithmData?.current_episode || 0,
+            total_episodes: activeSession?.total_episodes || algorithmData?.total_episodes || 30,
+            average_reward: activeSession?.average_reward || algorithmData?.average_reward || 0,
+            progress: activeSession?.progress || algorithmData?.progress || 0
+          }
         };
       };
 
-      const dqnStatus = getStatusFromResponse(dqnResponse);
-      const ppoStatus = getStatusFromResponse(ppoResponse);
-      const sacStatus = getStatusFromResponse(sacResponse);
+      const dqnStatus = getAlgorithmStatus('dqn');
+      const ppoStatus = getAlgorithmStatus('ppo');
+      const sacStatus = getAlgorithmStatus('sac');
 
       // 更新訓練狀態 - 直接使用API返回的真實狀態
       const newDqnState = dqnStatus.is_training;

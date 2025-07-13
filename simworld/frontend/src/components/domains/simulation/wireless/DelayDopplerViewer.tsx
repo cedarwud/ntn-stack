@@ -61,9 +61,19 @@ const DelayDopplerViewer: React.FC<ViewerProps> = ({
                 setIsLoading(false)
                 updateTimestamp()
             } else {
-                throw new Error(
-                    `API 請求失敗: ${response.status} ${response.statusText}`
-                )
+                // 嘗試獲取後端的詳細錯誤消息
+                let errorMessage = `API 請求失敗: ${response.status} ${response.statusText}`
+                
+                try {
+                    const errorData = await response.json()
+                    if (errorData.detail) {
+                        errorMessage = errorData.detail
+                    }
+                } catch {
+                    // 如果無法解析JSON，使用默認錯誤消息
+                }
+                
+                throw new Error(errorMessage)
             }
         } catch (err: unknown) {
             console.error('載入延遲多普勒圖失敗:', err)
