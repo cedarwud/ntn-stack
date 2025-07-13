@@ -54,7 +54,7 @@ async def load_satellites_from_redis(redis: Redis) -> Dict[str, EarthSatellite]:
     
     try:
         # 載入 Starlink 數據
-        starlink_data = await redis.get('starlink_tle_data')
+        starlink_data = await redis.get('tle_data:starlink')
         if starlink_data:
             starlink_tles = json.loads(starlink_data)
             for tle_data in starlink_tles:
@@ -68,7 +68,7 @@ async def load_satellites_from_redis(redis: Redis) -> Dict[str, EarthSatellite]:
                     logger.debug(f"Failed to load Starlink satellite {tle_data.get('name', 'unknown')}: {e}")
         
         # 載入 Kuiper 數據
-        kuiper_data = await redis.get('kuiper_tle_data')
+        kuiper_data = await redis.get('tle_data:kuiper')
         if kuiper_data:
             kuiper_tles = json.loads(kuiper_data)
             for tle_data in kuiper_tles:
