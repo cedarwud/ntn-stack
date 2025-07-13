@@ -28,15 +28,10 @@ from .registry import AlgorithmRegistry
 from .environment_manager import EnvironmentManager
 
 # 導入重構後的模組
-from .orchestrator import (
-    AlgorithmSelector,
-    PerformanceMonitor,
-    ABTestManager,
-    EnsembleVotingManager,
-    AlgorithmMetrics,
-    OrchestratorMode,
-    DecisionStrategy
-)
+from .orchestrator.algorithm_selection import AlgorithmSelector, OrchestratorMode, DecisionStrategy
+from .orchestrator.performance_monitoring import PerformanceMonitor, AlgorithmMetrics
+from .orchestrator.ab_testing import ABTestManager
+from .orchestrator.ensemble_voting import EnsembleVotingManager
 
 logger = logging.getLogger(__name__)
 

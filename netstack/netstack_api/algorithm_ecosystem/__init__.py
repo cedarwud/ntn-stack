@@ -24,7 +24,21 @@ from .interfaces import (
 )
 
 from .registry import AlgorithmRegistry
-from .orchestrator import HandoverOrchestrator
+# 嘗試導入協調器
+try:
+    from .orchestrator import HandoverOrchestrator, OrchestratorConfig
+    ORCHESTRATOR_AVAILABLE = True
+except ImportError as e:
+    # 創建佔位符類
+    class HandoverOrchestrator:
+        def __init__(self, *args, **kwargs):
+            raise ImportError(f"HandoverOrchestrator not available: {e}")
+    
+    class OrchestratorConfig:
+        def __init__(self, *args, **kwargs):
+            pass
+    
+    ORCHESTRATOR_AVAILABLE = False
 from .environment_manager import EnvironmentManager
 
 # 導入訓練管線
@@ -82,9 +96,12 @@ __all__ = [
     "SignalMetrics",
     "SatelliteInfo",
     "AlgorithmRegistry",
-    "HandoverOrchestrator",
     "EnvironmentManager"
 ]
+
+# 動態添加協調器
+if ORCHESTRATOR_AVAILABLE:
+    __all__.extend(["HandoverOrchestrator", "OrchestratorConfig"])
 
 # 動態添加訓練管線
 if TRAINING_PIPELINE_AVAILABLE:
