@@ -92,14 +92,16 @@ dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 
 all-start: ## 啟動所有核心服務 (NetStack 含整合 RL System, SimWorld)
 	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
-	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (創建網路基礎)...$(RESET)"
-	@$(MAKE) netstack-start
-	@echo "$(YELLOW)⏳ 等待 NetStack 網路就緒...$(RESET)"
-	@sleep 15
-	@echo "$(YELLOW)⚡ 第二步：啟動 SimWorld (連接網路)...$(RESET)"
+	@echo "$(YELLOW)⚡ 第一步：啟動 SimWorld (創建網路基礎)...$(RESET)"
 	@$(MAKE) simworld-start
+	@echo "$(YELLOW)⏳ 等待 SimWorld 網路就緒...$(RESET)"
+	@sleep 10
+	@echo "$(YELLOW)⚡ 第二步：啟動 NetStack (連接到現有網路)...$(RESET)"
+	@$(MAKE) netstack-start
 	@echo "$(YELLOW)⏳ 等待服務啟動完成...$(RESET)"
 	@sleep 10
+	@echo "$(YELLOW)🔗 建立跨服務網路連接...$(RESET)"
+	@$(MAKE) connect-cross-service-networks
 	@echo "$(YELLOW)🔗 驗證容器間網路連接...$(RESET)"
 	@$(MAKE) verify-network-connection
 	@$(MAKE) status
@@ -346,6 +348,14 @@ status: ## 檢查所有服務狀態
 	@curl -s http://localhost:8080/api/v1/rl/health > /dev/null && echo "$(GREEN)✅ RL System 健康檢查通過 (統一到 NetStack)$(RESET)" || echo "$(RED)❌ RL System 健康檢查失敗$(RESET)"
 	@curl -s $(SIMWORLD_URL)/ > /dev/null && echo "$(GREEN)✅ SimWorld 健康檢查通過$(RESET)" || echo "$(RED)❌ SimWorld 健康檢查失敗$(RESET)"
 
+connect-cross-service-networks: ## 🔗 建立跨服務網路連接
+	@echo "$(CYAN)🔗 建立跨服務網路連接...$(RESET)"
+	@echo "$(YELLOW)連接 NetStack API 到 SimWorld 網路...$(RESET)"
+	@docker network connect simworld_sionna-net netstack-api 2>/dev/null || echo "$(YELLOW)⚠️  NetStack API 已連接到 SimWorld 網路$(RESET)"
+	@echo "$(YELLOW)連接 SimWorld backend 到 NetStack 網路...$(RESET)"
+	@docker network connect compose_netstack-core simworld_backend 2>/dev/null || echo "$(YELLOW)⚠️  SimWorld backend 已連接到 NetStack 網路$(RESET)"
+	@echo "$(GREEN)✅ 跨服務網路連接完成$(RESET)"
+
 verify-network-connection: ## 🔗 驗證容器間網路連接
 	@echo "$(CYAN)🔗 驗證容器間網路連接...$(RESET)"
 	@echo "$(YELLOW)檢查網路配置:$(RESET)"
@@ -406,11 +416,6 @@ simworld-logs: ## 查看 SimWorld 日誌
 	@echo "$(BLUE)📋 SimWorld 服務日誌:$(RESET)"
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose logs -f
-
-# monitoring-logs: ## 查看監控系統日誌 (暫時禁用)
-#	@echo "$(BLUE)📋 監控系統日誌:$(RESET)"
-#	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
-#	@cd $(MONITORING_DIR) && docker compose -f docker-compose.simple.yml logs -f
 
 # ===== RL System 已整合到 NetStack 服務中 (Phase 1.3b) =====
 # 所有 RL System 相關功能現在通過 NetStack 服務提供

@@ -513,7 +513,7 @@ async def get_training_sessions():
     """獲取訓練會話列表 - 使用統一的 RLTrainingEngine"""
     try:
         # 使用統一的 RLTrainingEngine
-        from netstack.netstack_api.rl.training_engine import get_training_engine
+        from ..rl.training_engine import get_training_engine
 
         engine = await get_training_engine()
 
@@ -551,7 +551,7 @@ async def start_training(
     """啟動算法訓練 - 使用統一的 RLTrainingEngine"""
     try:
         # 使用統一的 RLTrainingEngine
-        from netstack.netstack_api.rl.training_engine import get_training_engine
+        from ..rl.training_engine import get_training_engine
 
         engine = await get_training_engine()
 
@@ -610,7 +610,7 @@ async def stop_training(session_id: str) -> Dict[str, Any]:
     """停止訓練會話 - 使用統一的 RLTrainingEngine"""
     try:
         # 使用統一的 RLTrainingEngine
-        from netstack.netstack_api.rl.training_engine import get_training_engine
+        from ..rl.training_engine import get_training_engine
 
         engine = await get_training_engine()
 

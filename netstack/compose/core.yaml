@@ -4,8 +4,6 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/16
-  simworld_sionna-net:
-    external: true
 
 services:
   # MongoDB 資料庫
@@ -375,7 +373,6 @@ services:
     networks:
       netstack-core:
         ipv4_address: 172.20.0.40
-      simworld_sionna-net:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

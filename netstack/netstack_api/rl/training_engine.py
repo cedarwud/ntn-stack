@@ -26,9 +26,9 @@ except ImportError:
 
 # 導入 RL System 的核心組件
 try:
-    from netstack.rl_system.core.algorithm_factory import get_algorithm
-    from netstack.rl_system.interfaces.rl_algorithm import ScenarioType, IRLAlgorithm
-    from netstack.rl_system.interfaces.data_repository import (
+    from ..services.rl_training.core.algorithm_factory import get_algorithm
+    from ..services.rl_training.interfaces.rl_algorithm import ScenarioType, IRLAlgorithm
+    from ..services.rl_training.interfaces.data_repository import (
         IDataRepository as RLDataRepository,
         ExperimentSession,
     )
@@ -37,6 +37,45 @@ try:
 except ImportError as e:
     RL_SYSTEM_AVAILABLE = False
     logging.getLogger(__name__).warning(f"RL System 組件不可用: {e}")
+    
+    # 提供備用定義以防導入失敗
+    from dataclasses import dataclass
+    from typing import Any, Dict
+    from datetime import datetime
+    from enum import Enum
+    
+    @dataclass
+    class ExperimentSession:
+        """備用實驗會話實體"""
+        id: Optional[int] = None
+        experiment_name: str = ""
+        algorithm_type: str = ""
+        scenario_type: str = "unknown"
+        researcher_id: str = ""
+        start_time: datetime = None
+        total_episodes: int = 0
+        session_status: str = "unknown"
+        config_hash: str = ""
+        hyperparameters: Dict[str, Any] = None
+        environment_config: Dict[str, Any] = None
+        research_notes: Optional[str] = None
+        created_at: datetime = None
+        
+    class IRLAlgorithm:
+        """備用 RL 算法介面"""
+        pass
+        
+    class RLDataRepository:
+        """備用資料儲存庫"""
+        pass
+        
+    def get_algorithm(*args, **kwargs):
+        """備用算法工廠函數"""
+        return None
+        
+    class ScenarioType(Enum):
+        """備用場景類型"""
+        UNKNOWN = "unknown"
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +135,7 @@ class IDataRepository(ABC):
     """數據儲存庫抽象介面"""
 
     @abstractmethod
-    async def create_experiment_session(self, session: ExperimentSession) -> int:
+    async def create_experiment_session(self, session: Any) -> int:
         """創建實驗會話"""
         pass
 
@@ -141,7 +180,7 @@ class MongoDBRepository(IDataRepository):
             logger.error(f"❌ MongoDB 連接失敗: {e}")
             return False
 
-    async def create_experiment_session(self, session: ExperimentSession) -> int:
+    async def create_experiment_session(self, session: Any) -> int:
         """創建實驗會話"""
         if not self.initialized:
             raise RuntimeError("MongoDB 未初始化")
@@ -209,7 +248,7 @@ class MockRepository(IDataRepository):
         self.sessions = {}
         self.session_counter = 1
 
-    async def create_experiment_session(self, session: ExperimentSession) -> int:
+    async def create_experiment_session(self, session: Any) -> int:
         """創建實驗會話"""
         session_id = self.session_counter
         self.sessions[session_id] = {
@@ -345,7 +384,7 @@ class RLTrainingEngine:
             if RL_SYSTEM_AVAILABLE:
                 # 創建數據庫會話記錄
                 if hasattr(self.repository, "create_experiment_session"):
-                    experiment_session = ExperimentSession(
+                    experiment_session = type('ExperimentSession', (), {})(
                         id=None,
                         experiment_name=config.experiment_name,
                         algorithm_type=algorithm_name,
