@@ -11,7 +11,6 @@ from typing import Any, Optional
 
 from .lifecycle_manager import register_service, register_shutdown_hook, ServicePriority
 from .config import configure_gpu_cpu, configure_matplotlib
-from ..db.database import DatabaseManager, database
 from ..services.satellite_scheduler import initialize_scheduler, shutdown_scheduler
 from ..db.redis_client import initialize_redis_client, close_redis_connection
 from ..domains.satellite.services.cqrs_satellite_service import CQRSSatelliteService

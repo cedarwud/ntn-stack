@@ -259,11 +259,9 @@ def register_performance_services():
 def register_core_services():
     """Register core application services"""
     try:
-        from ..db.database import DatabaseManager
         from ..services.satellite_scheduler import SatelliteScheduler
         
         # Register core services as singletons
-        service_container.register_singleton(DatabaseManager)
         service_container.register_singleton(SatelliteScheduler)
         
         logger.info("Core services registered with dependency injection")
