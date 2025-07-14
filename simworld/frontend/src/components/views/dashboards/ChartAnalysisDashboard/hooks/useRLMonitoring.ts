@@ -116,8 +116,6 @@ export const useRLMonitoring = (enabled: boolean = true) => {
       const statusSummary = await apiClient.getTrainingStatusSummary();
       const trainingSessions = await apiClient.getRLTrainingSessions();
       
-      console.log('🔍 RL Status Data:', { statusSummary, trainingSessions });
-      
       // 處理狀態響應 - 從狀態摘要中提取各算法狀態
       const getAlgorithmStatus = (algorithm: string) => {
         // 從訓練會話中查找活躍的訓練
