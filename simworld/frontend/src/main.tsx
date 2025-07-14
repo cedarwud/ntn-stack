@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/index.scss'
 import App from './App.tsx'
+import DecisionControlCenterSimple from './components/unified-decision-center/DecisionControlCenterSimple'
 import axios from 'axios'
 
 // 導入性能監控器（自動啟動）
@@ -178,6 +179,12 @@ createRoot(document.getElementById('root')!).render(
             <Route
                 path="/:scenes/floor-plan"
                 element={<App activeView="floor-plan" />}
+            />
+
+            {/* 統一決策控制中心 */}
+            <Route
+                path="/decision-center"
+                element={<DecisionControlCenterSimple />}
             />
 
             {/* 404 重定向到預設場景 */}
