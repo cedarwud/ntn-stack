@@ -101,13 +101,9 @@ class SimWorldTLEBridgeService:
                 }
 
                 if observer_location:
-                    params.update(
-                        {
-                            "observer_lat": observer_location["lat"],
-                            "observer_lon": observer_location["lon"],
-                            "observer_alt": observer_location.get("alt", 0),
-                        }
-                    )
+                    params["observer_lat"] = observer_location["lat"]
+                    params["observer_lon"] = observer_location["lon"]
+                    params["observer_alt"] = observer_location.get("alt", 0)
 
                 async with session.get(url, params=params) as response:
                     if response.status == 200:
@@ -255,13 +251,9 @@ class SimWorldTLEBridgeService:
                         )
                         # 不使用 observer_location
                     else:
-                        params.update(
-                            {
-                                "observer_lat": observer_location["lat"],
-                                "observer_lon": observer_location["lon"],
-                                "observer_alt": observer_location.get("alt", 0),
-                            }
-                        )
+                        params["observer_lat"] = str(observer_location["lat"])
+                        params["observer_lon"] = str(observer_location["lon"])
+                        params["observer_alt"] = str(observer_location.get("alt", 0))
 
                 async with session.get(url, params=params) as response:
                     if response.status == 200:
@@ -978,3 +970,184 @@ class SimWorldTLEBridgeService:
                 "error": str(e),
                 "timestamp": datetime.utcnow().isoformat(),
             }
+
+    # 🚀 新增：真實的軌道事件觸發機制
+    async def detect_orbit_events(
+        self,
+        satellite_ids: List[str],
+        ue_location: Dict[str, float],
+        time_horizon_minutes: int = 30,
+    ) -> List[Dict[str, Any]]:
+        """
+        檢測未來的軌道事件
+
+        Args:
+            satellite_ids: 衛星 ID 列表
+            ue_location: UE 位置
+            time_horizon_minutes: 檢測時間範圍（分鐘）
+
+        Returns:
+            軌道事件列表
+        """
+        events = []
+        current_time = datetime.now()
+        end_time = current_time + timedelta(minutes=time_horizon_minutes)
+
+        for satellite_id in satellite_ids:
+            try:
+                # 獲取軌道預測資料
+                orbit_data = await self.get_satellite_orbit_prediction(
+                    satellite_id,
+                    current_time,
+                    end_time,
+                    step_seconds=60,
+                    observer_location=ue_location,
+                )
+
+                # 分析軌道事件
+                satellite_events = self._analyze_orbit_events(
+                    satellite_id, orbit_data, ue_location
+                )
+                events.extend(satellite_events)
+
+            except Exception as e:
+                self.logger.error(f"檢測衛星 {satellite_id} 軌道事件失敗: {e}")
+
+        # 按時間排序
+        events.sort(key=lambda x: x.get("timestamp", ""))
+
+        return events
+
+    def _analyze_orbit_events(
+        self,
+        satellite_id: str,
+        orbit_data: Dict[str, Any],
+        ue_location: Dict[str, float],
+    ) -> List[Dict[str, Any]]:
+        """
+        分析軌道數據以識別事件
+
+        Args:
+            satellite_id: 衛星 ID
+            orbit_data: 軌道數據
+            ue_location: UE 位置
+
+        Returns:
+            事件列表
+        """
+        events = []
+        positions = orbit_data.get("positions", [])
+
+        if len(positions) < 2:
+            return events
+
+        # 檢測仰角變化事件
+        for i in range(1, len(positions)):
+            prev_pos = positions[i - 1]
+            curr_pos = positions[i]
+
+            prev_elevation = prev_pos.get("elevation", 0)
+            curr_elevation = curr_pos.get("elevation", 0)
+
+            elevation_change = curr_elevation - prev_elevation
+
+            # 顯著的仰角變化
+            if abs(elevation_change) > 5.0:
+                events.append(
+                    {
+                        "event_type": "elevation_change",
+                        "satellite_id": satellite_id,
+                        "timestamp": curr_pos.get("timestamp"),
+                        "elevation_change": elevation_change,
+                        "current_elevation": curr_elevation,
+                        "confidence": 0.9,
+                    }
+                )
+
+            # 檢測可見性變化
+            if prev_elevation <= 10 and curr_elevation > 10:
+                events.append(
+                    {
+                        "event_type": "satellite_rise",
+                        "satellite_id": satellite_id,
+                        "timestamp": curr_pos.get("timestamp"),
+                        "elevation": curr_elevation,
+                        "confidence": 0.95,
+                    }
+                )
+
+            if prev_elevation > 10 and curr_elevation <= 10:
+                events.append(
+                    {
+                        "event_type": "satellite_set",
+                        "satellite_id": satellite_id,
+                        "timestamp": curr_pos.get("timestamp"),
+                        "elevation": curr_elevation,
+                        "confidence": 0.95,
+                    }
+                )
+
+        return events
+
+    # 🚀 新增：批量軌道預測
+    async def batch_orbit_prediction(
+        self,
+        satellite_ids: List[str],
+        start_time: datetime,
+        end_time: datetime,
+        step_seconds: int = 60,
+        observer_location: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, Any]:
+        """
+        批量獲取多個衛星的軌道預測
+
+        Args:
+            satellite_ids: 衛星 ID 列表
+            start_time: 開始時間
+            end_time: 結束時間
+            step_seconds: 時間步長
+            observer_location: 觀測者位置
+
+        Returns:
+            批量預測結果
+        """
+        results = {}
+        tasks = []
+
+        # 並行請求所有衛星的軌道預測
+        for satellite_id in satellite_ids:
+            task = asyncio.create_task(
+                self.get_satellite_orbit_prediction(
+                    satellite_id,
+                    start_time,
+                    end_time,
+                    step_seconds,
+                    observer_location,
+                )
+            )
+            tasks.append((satellite_id, task))
+
+        # 等待所有任務完成
+        for satellite_id, task in tasks:
+            try:
+                result = await task
+                results[satellite_id] = result
+            except Exception as e:
+                self.logger.error(f"批量預測失敗 - 衛星 {satellite_id}: {e}")
+                results[satellite_id] = {
+                    "error": str(e),
+                    "success": False,
+                }
+
+        return {
+            "batch_results": results,
+            "total_satellites": len(satellite_ids),
+            "successful_predictions": sum(
+                1 for r in results.values() if r.get("success", True)
+            ),
+            "prediction_time_range": {
+                "start": start_time.isoformat(),
+                "end": end_time.isoformat(),
+                "step_seconds": step_seconds,
+            },
+        }
