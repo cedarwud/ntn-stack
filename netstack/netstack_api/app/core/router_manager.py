@@ -218,6 +218,31 @@ class RouterManager:
                 f"靜態註冊失敗: {str(e)}",
             )
 
+        # Phase 2.3 API 路由器 - 使用簡化版本
+        try:
+            from ...services.rl_training.api.phase_2_3_simple_api import router as phase_2_3_router
+            
+            self.app.include_router(
+                phase_2_3_router, 
+                prefix="/api/v1/rl/phase-2-3",
+                tags=["Phase 2.3 - RL 算法實戰應用"]
+            )
+            self._track_router(
+                "phase_2_3_router",
+                "Phase 2.3 - RL 算法實戰應用",
+                True,
+                "簡化版本註冊成功",
+            )
+            logger.info("✅ Phase 2.3 簡化 API 路由器靜態註冊成功")
+        except Exception as e:
+            logger.exception("💥 Phase 2.3 簡化 API 路由器靜態註冊失敗")
+            self._track_router(
+                "phase_2_3_router",
+                "Phase 2.3 - RL 算法實戰應用",
+                False,
+                f"靜態註冊失敗: {str(e)}",
+            )
+
         optional_routers = [
             # {
             #     "import_path": "netstack.netstack_api.routers.orchestrator_router",
