@@ -140,10 +140,17 @@ class PostgreSQLRepository(IDataRepository):
     ) -> List[ExperimentSession]:
         # 此為簡化實現，實際應解析 filter_obj 構建複雜查詢
         async with self.get_connection() as conn:
-            rows = await conn.fetch(
-                "SELECT * FROM rl_experiment_sessions ORDER BY start_time DESC LIMIT $1",
-                filter_obj.limit or 100,
-            )
+            # Only select columns that exist in ExperimentSession dataclass
+            rows = await conn.fetch("""
+                SELECT id, experiment_name, algorithm_type, scenario_type, 
+                       paper_reference, researcher_id, start_time, end_time, 
+                       total_episodes, session_status, config_hash, 
+                       hyperparameters, environment_config, research_notes, 
+                       created_at
+                FROM rl_experiment_sessions 
+                ORDER BY start_time DESC 
+                LIMIT $1
+            """, filter_obj.limit or 100)
             return [ExperimentSession(**dict(row)) for row in rows]
 
     # ===== 訓練回合管理 =====
