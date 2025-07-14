@@ -1,246 +1,104 @@
-/**
- * WebSocket Hook
- * 負責管理 WebSocket 連接，提供實時數據更新功能
- */
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { WebSocketEvent } from '../types/charts';
-
-interface UseWebSocketOptions {
-  url?: string;
-  reconnectInterval?: number;
-  maxReconnectAttempts?: number;
-  enableReconnect?: boolean;
-  onMessage?: (event: WebSocketEvent) => void;
-  onError?: (error: Event) => void;
-  onConnect?: () => void;
-  onDisconnect?: () => void;
-}
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface UseWebSocketReturn {
-  isConnected: boolean;
-  reconnectCount: number;
-  connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'failed';
-  sendMessage: (data: unknown) => void;
-  disconnect: () => void;
-  connect: () => void;
-  resetReconnection: () => void;
+  data: any
+  isConnected: boolean
+  error: Error | null
+  send: (data: any) => void
+  close: () => void
 }
 
-export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketReturn => {
-  const {
-    url: _url = '/api/ws',  
-    reconnectInterval = 5000,
-    maxReconnectAttempts = 3,
-    enableReconnect = true,
-    onMessage,
-    onError,
-    onConnect,
-    onDisconnect
-  } = options;
-
-  const [isConnected, setIsConnected] = useState(false);
-  const [reconnectCount, setReconnectCount] = useState(0);
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'failed'>('disconnected');
-  
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<number | null>(null);
-  const shouldReconnect = useRef(true);
-  const isManualDisconnect = useRef(false);
-
-  const clearReconnectTimeout = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      window.clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-  }, []);
-
-  const resetReconnection = useCallback(() => {
-    setReconnectCount(0);
-    shouldReconnect.current = true;
-    clearReconnectTimeout();
-    if (connectionStatus === 'failed') {
-      setConnectionStatus('disconnected');
-    }
-  }, [connectionStatus, clearReconnectTimeout]);
+export const useWebSocket = (url: string): UseWebSocketReturn => {
+  const [data, setData] = useState<any>(null)
+  const [isConnected, setIsConnected] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const websocketRef = useRef<WebSocket | null>(null)
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const connect = useCallback(() => {
-    // 如果已經連接或正在連接，不重複連接
-    if (wsRef.current?.readyState === WebSocket.CONNECTING || 
-        wsRef.current?.readyState === WebSocket.OPEN) {
-      return;
-    }
-
-    // 如果超過最大重試次數，標記為失敗
-    if (reconnectCount >= maxReconnectAttempts) {
-      console.warn(`WebSocket 已達到最大重試次數 (${maxReconnectAttempts})，停止重連`);
-      setConnectionStatus('failed');
-      shouldReconnect.current = false;
-      return;
-    }
-
     try {
-      setConnectionStatus('connecting');
-      
-      // 構建 WebSocket URL - 使用統一配置系統
+      // 構建完整的 WebSocket URL
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       const host = window.location.host
-      let wsUrl: string
+      const wsUrl = `${protocol}//${host}${url}`
       
-      // 根據環境配置 WebSocket URL
-      if (import.meta.env.VITE_ENV_MODE === 'docker') {
-        wsUrl = `${protocol}//${host}/netstack/ws`
-      } else {
-        wsUrl = import.meta.env.VITE_NETSTACK_WS_URL || `${protocol}//localhost:8080/ws`
+      const ws = new WebSocket(wsUrl)
+      websocketRef.current = ws
+
+      ws.onopen = () => {
+        setIsConnected(true)
+        setError(null)
+        console.log('✅ WebSocket 連接已建立:', wsUrl)
       }
-      
-      console.log(`正在連接 WebSocket (嘗試 ${reconnectCount + 1}/${maxReconnectAttempts}):`, wsUrl);
-      
-      wsRef.current = new WebSocket(wsUrl);
 
-      wsRef.current.onopen = () => {
-        console.log('WebSocket 連接已建立');
-        setIsConnected(true);
-        setConnectionStatus('connected');
-        setReconnectCount(0);
-        isManualDisconnect.current = false;
-        onConnect?.();
-      };
-
-      wsRef.current.onmessage = (event) => {
+      ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          console.log('收到 WebSocket 消息:', data);
-          
-          // 轉換為標準格式
-          const wsEvent: WebSocketEvent = {
-            type: data.type || 'unknown',
-            data: data.data || data,
-            timestamp: data.timestamp || new Date().toISOString()
-          };
-          
-          onMessage?.(wsEvent);
-        } catch (error) {
-          console.error('解析 WebSocket 消息失敗:', error);
+          const parsedData = JSON.parse(event.data)
+          setData(parsedData)
+        } catch (e) {
+          // 如果不是 JSON，直接使用原始數據
+          setData(event.data)
         }
-      };
+      }
 
-      wsRef.current.onclose = (event) => {
-        console.log('WebSocket 連接已關閉:', event.code, event.reason);
-        setIsConnected(false);
+      ws.onclose = (event) => {
+        setIsConnected(false)
+        console.log('⚠️ WebSocket 連接已關閉:', event.code, event.reason)
         
-        if (!isManualDisconnect.current) {
-          setConnectionStatus('disconnected');
-          onDisconnect?.();
-
-          // 如果需要重連且未超過最大重連次數且啟用重連
-          if (shouldReconnect.current && 
-              enableReconnect && 
-              reconnectCount < maxReconnectAttempts) {
-            
-            console.log(`將在 ${reconnectInterval}ms 後嘗試重連...`);
-            reconnectTimeoutRef.current = window.setTimeout(() => {
-              setReconnectCount(prev => prev + 1);
-              connect();
-            }, reconnectInterval);
-          } else if (reconnectCount >= maxReconnectAttempts) {
-            setConnectionStatus('failed');
-            shouldReconnect.current = false;
-          }
+        // 自動重連（除非是正常關閉）
+        if (event.code !== 1000) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log('🔄 正在重新連接 WebSocket...')
+            connect()
+          }, 3000)
         }
-      };
-
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket 錯誤:', error);
-        setConnectionStatus('disconnected');
-        onError?.(error);
-      };
-
-    } catch (error) {
-      console.error('創建 WebSocket 連接失敗:', error);
-      setConnectionStatus('failed');
-      onError?.(error as Event);
-    }
-  }, [reconnectInterval, maxReconnectAttempts, reconnectCount, onMessage, onError, onConnect, onDisconnect, enableReconnect]);
-
-  const disconnect = useCallback(() => {
-    console.log('手動斷開 WebSocket 連接');
-    isManualDisconnect.current = true;
-    shouldReconnect.current = false;
-    
-    clearReconnectTimeout();
-
-    if (wsRef.current) {
-      wsRef.current.close(1000, 'Manual disconnect');
-      wsRef.current = null;
-    }
-    
-    setIsConnected(false);
-    setConnectionStatus('disconnected');
-    setReconnectCount(0);
-  }, [clearReconnectTimeout]);
-
-  const sendMessage = useCallback((data: unknown) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      try {
-        const message = JSON.stringify(data);
-        wsRef.current.send(message);
-        console.log('發送 WebSocket 消息:', message);
-      } catch (error) {
-        console.error('發送 WebSocket 消息失敗:', error);
       }
+
+      ws.onerror = (event) => {
+        const errorMsg = `WebSocket 連接錯誤: ${url}`
+        setError(new Error(errorMsg))
+        console.error('❌ WebSocket 錯誤:', event)
+      }
+
+    } catch (err) {
+      setError(err as Error)
+      console.error('❌ 建立 WebSocket 連接時發生錯誤:', err)
+    }
+  }, [url])
+
+  const send = useCallback((data: any) => {
+    if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
+      const message = typeof data === 'string' ? data : JSON.stringify(data)
+      websocketRef.current.send(message)
     } else {
-      console.warn('WebSocket 未連接，無法發送消息');
+      console.warn('⚠️ WebSocket 未連接，無法發送數據')
     }
-  }, []);
+  }, [])
 
-  // 組件掛載時嘗試連接（僅在 enableReconnect 為 true 時）
-  useEffect(() => {
-    if (enableReconnect) {
-      // 延遲連接，避免立即失敗
-      const connectTimeout = setTimeout(() => {
-        connect();
-      }, 1000);
-
-      return () => {
-        clearTimeout(connectTimeout);
-        disconnect();
-      };
+  const close = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
     }
-    
-    return () => {
-      disconnect();
-    };
-  }, [connect, disconnect, enableReconnect]);
+    if (websocketRef.current) {
+      websocketRef.current.close(1000, 'User closed connection')
+    }
+  }, [])
 
-  // 瀏覽器可見性變化時的處理
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && 
-          !isConnected && 
-          enableReconnect && 
-          connectionStatus !== 'failed') {
-        console.log('頁面變為可見，嘗試重連 WebSocket');
-        resetReconnection();
-        connect();
-      }
-    };
+    connect()
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isConnected, enableReconnect, connectionStatus, resetReconnection, connect]);
+      close()
+    }
+  }, [connect, close])
 
   return {
+    data,
     isConnected,
-    reconnectCount,
-    connectionStatus,
-    sendMessage,
-    disconnect,
-    connect,
-    resetReconnection
-  };
-};
+    error,
+    send,
+    close
+  }
+}
 
-export default useWebSocket; 
+export default useWebSocket
