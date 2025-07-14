@@ -22,7 +22,13 @@ class MongoDBConfig:
         if self.client is None:
             try:
                 logger.info(f"Connecting to MongoDB at {self.mongodb_url}")
-                self.client = AsyncIOMotorClient(self.mongodb_url)
+                # Add shorter timeout for faster fallback
+                self.client = AsyncIOMotorClient(
+                    self.mongodb_url,
+                    serverSelectionTimeoutMS=5000,  # 5 seconds
+                    connectTimeoutMS=5000,          # 5 seconds
+                    socketTimeoutMS=5000            # 5 seconds
+                )
                 # 測試連接
                 await self.client.admin.command('ping')
                 logger.info("Successfully connected to MongoDB")

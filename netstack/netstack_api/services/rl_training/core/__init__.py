@@ -8,6 +8,6 @@ RL System Core
 - 狀態追蹤
 """
 
-from .algorithm_factory import get_algorithm, algorithm_plugin
+from .algorithm_factory import get_algorithm, algorithm_plugins, AlgorithmFactory
 
-__all__ = ["get_algorithm", "algorithm_plugin"]
+__all__ = ["get_algorithm", "algorithm_plugins", "AlgorithmFactory"]

@@ -196,7 +196,8 @@ class ConfigDrivenAlgorithmManager:
                     # 為每個場景創建算法實例
                     for scenario_type in scenario_types:
                         algorithm = get_algorithm(
-                            name=algo_config.algorithm_type,
+                            name=algo_config.algorithm_type.lower(),
+                            env_name="CartPole-v1",  # 使用標準 Gymnasium 環境
                             config=algo_config.hyperparameters,
                             scenario_type=scenario_type,
                             use_singleton=True

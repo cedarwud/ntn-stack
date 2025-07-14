@@ -36,12 +36,27 @@ except ImportError:
         class HandoverOrchestrator:
             def __init__(self, *args, **kwargs):
                 self.initialized = False
+                self.config = OrchestratorConfig()
 
             async def initialize(self):
                 pass
 
             async def predict_handover(self, *args, **kwargs):
                 return None
+            
+            def get_orchestrator_stats(self) -> Dict[str, Any]:
+                """獲取協調器統計信息 - 佔位符實現"""
+                return {
+                    "status": "placeholder", 
+                    "type": "fallback_orchestrator",
+                    "initialized": self.initialized,
+                    "total_requests": 0,
+                    "successful_requests": 0,
+                    "failed_requests": 0,
+                    "overall_success_rate": 0.0,
+                    "algorithm_count": 0,
+                    "algorithm_stats": {}
+                }
 
         class OrchestratorConfig:
             def __init__(self, *args, **kwargs):
@@ -520,7 +535,7 @@ class AlgorithmEcosystemManager:
             "analysis_engine_available": self.analysis_engine is not None,
             "active_ab_tests": (
                 self.analysis_engine.get_active_ab_tests()
-                if self.analysis_engine
+                if self.analysis_engine and hasattr(self.analysis_engine, 'get_active_ab_tests')
                 else {}
             ),
         }
