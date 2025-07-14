@@ -155,10 +155,14 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
 
             // 使用 ref 避免在每次渲染時觸發狀態更新
             const prevMappingSize = realSatelliteMapping.size
-            const newStatus = mapping.size > 0 ? (isDataFresh ? 'success' : 'stale') : 'error'
+            const newStatus =
+                mapping.size > 0 ? (isDataFresh ? 'success' : 'stale') : 'error'
 
             // 只在數據實際變化時才更新狀態
-            if (mapping.size !== prevMappingSize || realDataStatus !== newStatus) {
+            if (
+                mapping.size !== prevMappingSize ||
+                realDataStatus !== newStatus
+            ) {
                 setRealSatelliteMapping(mapping)
                 setRealDataStatus(newStatus)
             }
@@ -290,7 +294,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
 
     return (
         <group>
-            {satellitesToRender.map((orbit, _index) => {
+            {satellitesToRender.map((orbit, index) => {
                 // 🔥 對接演算法結果 - 優先使用後端演算法狀態
                 // 支援多種 ID 匹配模式：完全匹配、名稱匹配、部分匹配
                 const isAlgorithmCurrent =
@@ -388,7 +392,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                 }
 
                 return (
-                    <group key={orbit.id}>
+                    <group key={`${orbit.id}-${orbit.name}-${index}`}>
                         <StaticModel
                             url={SATELLITE_MODEL_URL}
                             position={orbit.currentPosition}
