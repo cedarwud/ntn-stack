@@ -80,6 +80,7 @@ router = APIRouter(prefix="/api/v1/rl", tags=["RL 監控"])
 
 # 全局變量
 ecosystem_manager: Optional[Any] = None
+ecosystem_manager_initialized: bool = False
 training_sessions: Dict[str, Dict[str, Any]] = {}
 
 
@@ -291,10 +292,10 @@ class MockEcosystemManager:
 
 
 async def get_ecosystem_manager() -> Any:
-    """獲取生態系統管理器"""
-    global ecosystem_manager
+    """獲取生態系統管理器 - 優化版本，避免重複初始化"""
+    global ecosystem_manager, ecosystem_manager_initialized
 
-    if ecosystem_manager is None:
+    if ecosystem_manager is None or not ecosystem_manager_initialized:
         if ECOSYSTEM_AVAILABLE and AlgorithmEcosystemManager is not None:
             # 使用真實的生態系統管理器
             ecosystem_manager = AlgorithmEcosystemManager()
@@ -303,6 +304,8 @@ async def get_ecosystem_manager() -> Any:
             # 使用模擬的生態系統管理器
             ecosystem_manager = MockEcosystemManager()
             await ecosystem_manager.initialize()
+        
+        ecosystem_manager_initialized = True
 
     return ecosystem_manager
 
@@ -310,8 +313,8 @@ async def get_ecosystem_manager() -> Any:
 def get_system_resources() -> SystemResourcesModel:
     """獲取系統資源信息"""
     try:
-        # CPU 使用率
-        cpu_usage = psutil.cpu_percent(interval=1)
+        # CPU 使用率 - 使用非阻塞模式避免 1 秒延遲
+        cpu_usage = psutil.cpu_percent(interval=None)
 
         # 記憶體使用率
         memory = psutil.virtual_memory()
