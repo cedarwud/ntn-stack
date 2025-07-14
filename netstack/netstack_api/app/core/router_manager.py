@@ -47,6 +47,14 @@ class RouterManager:
                 rl_training_available = False
                 logger.warning("RL System training routes 不可用，跳過註冊")
 
+            # 嘗試導入 WebSocket 路由器
+            try:
+                from ...routers.websocket_router import websocket_router
+                websocket_available = True
+            except ImportError:
+                websocket_available = False
+                logger.warning("WebSocket router 不可用，跳過註冊")
+
             # 嘗試導入增強版路由器 - 如果不存在則跳過
             try:
                 from ...services.rl_training.api.enhanced_training_routes import (
@@ -86,6 +94,15 @@ class RouterManager:
                     "enhanced_rl_training_router", "RL 訓練 (增強版)", True
                 )
                 logger.info("✅ RL System 增強版路由器註冊完成")
+
+            # 註冊 WebSocket 路由器
+            if websocket_available:
+                self.app.include_router(
+                    websocket_router,
+                    tags=["WebSocket 實時推送"]
+                )
+                self._track_router("websocket_router", "WebSocket 實時推送", True)
+                logger.info("✅ WebSocket 路由器註冊完成")
 
             logger.info("✅ 新模組化路由器註冊完成")
         except Exception as e:
@@ -151,6 +168,29 @@ class RouterManager:
                 "AI Decision Orchestrator (V2)",
                 False,
                 "靜態註冊失敗",
+            )
+
+        # 算法生態系統路由器 - 靜態註冊
+        try:
+            from ...routers.algorithm_ecosystem import router as algorithm_ecosystem_router
+            
+            self.app.include_router(
+                algorithm_ecosystem_router, tags=["算法生態系統"]
+            )
+            self._track_router(
+                "algorithm_ecosystem_router",
+                "算法生態系統",
+                True,
+                "靜態註冊成功",
+            )
+            logger.info("✅ 算法生態系統路由器靜態註冊成功")
+        except Exception as e:
+            logger.exception("💥 算法生態系統路由器靜態註冊失敗")
+            self._track_router(
+                "algorithm_ecosystem_router",
+                "算法生態系統",
+                False,
+                f"靜態註冊失敗: {str(e)}",
             )
 
         optional_routers = [

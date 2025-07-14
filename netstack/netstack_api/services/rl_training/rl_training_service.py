@@ -14,6 +14,7 @@ from .core.service_locator import ServiceLocator
 from .core.config_manager import ConfigDrivenAlgorithmManager
 from .api.training_routes import router as training_router
 from ...rl.training_engine import RLTrainingEngine, get_training_engine
+from ..unified_websocket_service import get_websocket_service, push_rl_training_event, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class RLTrainingService:
         self.service_locator = None
         self.config_manager = None
         self.training_engine = None
+        self.websocket_service = None
         self.is_initialized = False
 
     async def initialize(self) -> bool:
@@ -54,6 +56,10 @@ class RLTrainingService:
 
             # 初始化訓練引擎
             self.training_engine = await get_training_engine()
+
+            # 初始化WebSocket服務
+            self.websocket_service = get_websocket_service()
+            await self.websocket_service.start()
 
             self.is_initialized = True
             logger.info("RL訓練服務初始化成功")
@@ -81,6 +87,17 @@ class RLTrainingService:
             await self.initialize()
 
         try:
+            # 推送訓練開始事件
+            await push_rl_training_event(
+                EventType.RL_TRAINING_STARTED,
+                {
+                    "algorithm": algorithm,
+                    "environment": environment,
+                    "config": config,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
+
             # 使用統一的訓練引擎
             result = await self.training_engine.start_training(
                 algorithm=algorithm, environment=environment, config=config
@@ -91,6 +108,16 @@ class RLTrainingService:
 
         except Exception as e:
             logger.error(f"訓練開始失敗: {e}")
+            # 推送錯誤事件
+            await push_rl_training_event(
+                EventType.RL_TRAINING_ERROR,
+                {
+                    "algorithm": algorithm,
+                    "environment": environment,
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
             raise
 
     async def stop_training(self, session_id: str) -> Dict[str, Any]:
@@ -108,11 +135,31 @@ class RLTrainingService:
 
         try:
             result = await self.training_engine.stop_training(session_id)
+            
+            # 推送訓練停止事件
+            await push_rl_training_event(
+                EventType.RL_TRAINING_STOPPED,
+                {
+                    "session_id": session_id,
+                    "result": result,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
+            
             logger.info(f"訓練停止成功: {session_id}")
             return result
 
         except Exception as e:
             logger.error(f"訓練停止失敗: {e}")
+            # 推送錯誤事件
+            await push_rl_training_event(
+                EventType.RL_TRAINING_ERROR,
+                {
+                    "session_id": session_id,
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
             raise
 
     async def get_training_status(self, session_id: str) -> Dict[str, Any]:
