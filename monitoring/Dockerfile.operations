@@ -6,11 +6,11 @@ WORKDIR /app
 
 # 複製依賴文件
 COPY monitoring/operations_dashboard.py .
-COPY monitoring/requirements.operations.txt .
+COPY ../netstack/requirements.txt .
 
 # 安裝依賴
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.operations.txt
+    pip install --no-cache-dir -r requirements.txt
 
 # 暴露端口
 EXPOSE 8090
