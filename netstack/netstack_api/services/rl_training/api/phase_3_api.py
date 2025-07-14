@@ -183,6 +183,15 @@ async def health_check():
                 "advanced_visualization",
                 "algorithm_explainability",
             ]
+            status["version"] = "3.0.0"
+        else:
+            status["features"] = [
+                "basic_decision_explanation",
+                "simple_analysis",
+                "data_export",
+                "visualization_placeholder"
+            ]
+            status["version"] = "3.0.0-simplified"
         
         return status
         
