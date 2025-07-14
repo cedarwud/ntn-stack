@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
@@ -198,14 +199,15 @@ async def initialize_redis_client(app: FastAPI):
     try:
         # decode_responses=False because tle_service handles json.dumps and expects bytes from redis for json.loads(.decode())
         redis_client = aioredis.Redis.from_url(
-            redis_url, encoding="utf-8", decode_responses=False
+            redis_url, encoding="utf-8", decode_responses=False, socket_timeout=5, socket_connect_timeout=5
         )
-        await redis_client.ping()
+        # Add timeout for ping
+        await asyncio.wait_for(redis_client.ping(), timeout=5.0)
         app.state.redis = redis_client
         logger.info(
             "Successfully connected to Redis and stored client in app.state.redis"
         )
-    except Exception as e:
+    except (Exception, asyncio.TimeoutError) as e:
         app.state.redis = None
         logger.error(
             f"Failed to connect to Redis: {e}. TLE sync and other Redis features will be unavailable."
