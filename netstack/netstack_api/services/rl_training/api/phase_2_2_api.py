@@ -249,7 +249,7 @@ async def generate_handover_scenario(request: ScenarioGenerationRequest):
         raise HTTPException(status_code=500, detail=f"場景生成失敗: {str(e)}")
 
 
-@router.post("/triggers/monitor", response_model=List[TriggerEventResponse])
+@router.post("/triggers/monitor")
 async def monitor_handover_triggers(request: TriggerMonitoringRequest):
     """
     監控換手觸發條件
@@ -284,7 +284,16 @@ async def monitor_handover_triggers(request: TriggerMonitoringRequest):
             responses.append(response)
 
         logger.info(f"檢測到 {len(trigger_events)} 個觸發事件")
-        return responses
+        
+        # 返回包含 triggers 屬性的 JSON 格式
+        return {
+            "success": True,
+            "triggers": responses,
+            "total_triggers": len(responses),
+            "current_serving_satellite": request.current_serving_satellite,
+            "candidate_satellites": request.candidate_satellites,
+            "timestamp": datetime.now().isoformat(),
+        }
 
     except Exception as e:
         logger.error(f"觸發監控失敗: {e}")
