@@ -14,8 +14,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # 複製需求檔案
-COPY requirements.txt requirements-dev.txt requirements-light.txt requirements-heavy.txt ./
-COPY ../requirements.txt ../requirements.txt
+COPY ../requirements.txt ./requirements.txt
 
 # 建立虛擬環境並安裝 Python 依賴
 RUN python -m venv /opt/venv
@@ -26,11 +25,8 @@ RUN pip install --upgrade pip && \
     pip config set global.timeout 600 && \
     pip config set global.retries 5
 
-# 先安裝較輕量的依賴
-RUN pip install --no-cache-dir --default-timeout=300 -r requirements-light.txt
-
-# 分別安裝重量級依賴，使用更長的超時時間
-RUN pip install --no-cache-dir --default-timeout=600 torch>=2.0.0
+# 安裝所有依賴 - 統一完整安裝
+RUN pip install --no-cache-dir --default-timeout=600 -r requirements.txt
 
 # 生產階段
 FROM python:3.11-slim AS production
@@ -92,22 +88,10 @@ FROM builder AS development
 # 設定工作目錄
 WORKDIR /app
 
-# 安裝開發和測試依賴
+# 安裝所有依賴 - 開發環境使用完整 requirements.txt
 RUN pip config set global.timeout 600 && \
     pip config set global.retries 5 && \
-    pip install --no-cache-dir --default-timeout=300 -r requirements-light.txt && \
-    pip install --no-cache-dir --default-timeout=600 torch>=2.0.0 && \
-    pip install --no-cache-dir --default-timeout=300 -r requirements-dev.txt && \
-    pip install --no-cache-dir --default-timeout=300 -r ../requirements.txt
-
-# 確保關鍵測試依賴安裝
-RUN pip install --no-cache-dir --default-timeout=300 \
-    pytest>=7.4.0 \
-    pytest-asyncio>=0.21.0 \
-    pytest-html>=3.2.0 \
-    pytest-cov>=4.1.0 \
-    httpx>=0.25.2 \
-    structlog>=23.2.0
+    pip install --no-cache-dir --default-timeout=600 -r ../requirements.txt
 
 # 安裝除錯工具
 RUN apt-get update && apt-get install -y \

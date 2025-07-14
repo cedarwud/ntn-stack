@@ -26,6 +26,7 @@ black>=23.11.0
 isort>=5.12.0
 flake8>=6.1.0
 mypy>=1.7.1
+autopep8>=2.0.0
 
 # ===== Docker 和容器管理（用於測試環境） =====
 docker>=6.1.0
