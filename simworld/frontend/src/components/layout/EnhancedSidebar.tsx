@@ -252,7 +252,7 @@ async function fetchVisibleSatellites(
         // 如果獲取到多星座數據，直接返回
         if (allSatellites.length > 0) {
             console.log(
-                `�� EnhancedSidebar: 總共獲取到 ${allSatellites.length} 顆可見衛星`
+                `EnhancedSidebar: 總共獲取到 ${allSatellites.length} 顆可見衛星`
             )
             return allSatellites
         }
@@ -1609,7 +1609,10 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                 {showTempDevices &&
                                     tempDevices.map((device, index) => (
                                         <DeviceItem
-                                            key={device.id || `temp-device-${index}`}
+                                            key={
+                                                device.id ||
+                                                `temp-device-${index}`
+                                            }
                                             device={device}
                                             orientationInput={
                                                 orientationInputs[
@@ -1736,7 +1739,10 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                 {showReceiverDevices &&
                                     receiverDevices.map((device, index) => (
                                         <DeviceItem
-                                            key={device.id || `receiver-device-${index}`}
+                                            key={
+                                                device.id ||
+                                                `receiver-device-${index}`
+                                            }
                                             device={device}
                                             orientationInput={
                                                 orientationInputs[
@@ -1784,7 +1790,10 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                 {showDesiredDevices &&
                                     desiredDevices.map((device, index) => (
                                         <DeviceItem
-                                            key={device.id || `desired-device-${index}`}
+                                            key={
+                                                device.id ||
+                                                `desired-device-${index}`
+                                            }
                                             device={device}
                                             orientationInput={
                                                 orientationInputs[
@@ -1830,7 +1839,10 @@ const EnhancedSidebar: React.FC<SidebarProps> = ({
                                 {showJammerDevices &&
                                     jammerDevices.map((device, index) => (
                                         <DeviceItem
-                                            key={device.id || `jammer-device-${index}`}
+                                            key={
+                                                device.id ||
+                                                `jammer-device-${index}`
+                                            }
                                             device={device}
                                             orientationInput={
                                                 orientationInputs[
