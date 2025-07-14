@@ -41,7 +41,7 @@ except ImportError as e:
     ANALYTICS_AVAILABLE = False
 
 # 創建路由器
-router = APIRouter(prefix="/api/v1/rl/phase-3", tags=["Phase 3 - Decision Transparency"])
+router = APIRouter(tags=["Phase 3 - Decision Transparency"])
 
 # 請求/響應模型
 class DecisionExplanationRequest(BaseModel):
@@ -258,7 +258,7 @@ async def explain_decision(request: DecisionExplanationRequest):
             "scenario_context": request.scenario_context or {},
         }
         
-        explanation = engine.explain_decision(decision_data)
+        explanation = engine.analyze_decision_explainability(decision_data)
         
         if explanation is None:
             raise HTTPException(status_code=500, detail="Failed to generate decision explanation")
