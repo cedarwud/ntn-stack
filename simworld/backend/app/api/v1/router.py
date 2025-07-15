@@ -9,6 +9,7 @@ from fastapi import APIRouter
 
 # Import domain API routers
 # from app.domains.device.api.device_api import router as device_router  # PostgreSQL 版本，已註釋
+from app.api.routes.devices_mongodb import router as device_router  # MongoDB 版本
 from app.domains.coordinates.api.coordinate_api import router as coordinates_router
 # from app.domains.satellite.api.satellite_api import router as satellite_router  # PostgreSQL 版本，已註釋
 from app.domains.simulation.api.simulation_api import router as simulation_router
