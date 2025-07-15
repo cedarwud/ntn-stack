@@ -11,6 +11,7 @@ import ViewerModal from '../shared/ui/layout/ViewerModal'
 import FullChartAnalysisDashboard from './FullChartAnalysisDashboard'
 import MeasurementEventsModal from './MeasurementEventsModal'
 import RLMonitoringModal from './RLMonitoringModal'
+import RLMonitoringModalNew from './RLMonitoringModalNew'
 import OperationsDashboardModal from './OperationsDashboardModal' // 導入新的儀表板組件
 import { ViewerProps } from '../../types/viewer'
 import {
@@ -64,6 +65,7 @@ const Navbar: FC<NavbarProps> = ({
 
     // 新增 RL 監控 Modal 狀態
     const [showRLMonitoringModal, setShowRLMonitoringModal] = useState(false)
+    const [showRLMonitoringModalNew, setShowRLMonitoringModalNew] = useState(false)
 
     // 新增 Operations Dashboard Modal 狀態
     const [showOperationsDashboardModal, setShowOperationsDashboardModal] =
@@ -389,12 +391,12 @@ const Navbar: FC<NavbarProps> = ({
                             立體圖
                         </li>
 
-                        {/* RL 監控按鈕 - 獨立功能 */}
+                        {/* RL 監控按鈕 - 新版系統 */}
                         <li
                             className={`navbar-item ${
-                                showRLMonitoringModal ? 'active' : ''
+                                showRLMonitoringModalNew ? 'active' : ''
                             }`}
-                            onClick={() => setShowRLMonitoringModal(true)}
+                            onClick={() => setShowRLMonitoringModalNew(true)}
                         >
                             🧠 RL 監控
                         </li>
@@ -463,7 +465,13 @@ const Navbar: FC<NavbarProps> = ({
                 onClose={() => setShowMeasurementEventsModal(false)}
             />
 
-            {/* RL 監控模態框 */}
+            {/* RL 監控模態框 - 新版 */}
+            <RLMonitoringModalNew
+                isOpen={showRLMonitoringModalNew}
+                onClose={() => setShowRLMonitoringModalNew(false)}
+            />
+
+            {/* RL 監控模態框 - 舊版 (保留備用) */}
             <RLMonitoringModal
                 isOpen={showRLMonitoringModal}
                 onClose={() => setShowRLMonitoringModal(false)}

@@ -507,6 +507,56 @@ async def get_algorithm_performance(
         raise HTTPException(status_code=500, detail=f"獲取算法效能分析失敗: {str(e)}")
 
 
+@router.get("/performance-metrics")
+async def get_training_performance_metrics():
+    """獲取訓練性能指標 - 為前端 RL 監控系統提供"""
+    try:
+        # 獲取所有算法的效能數據
+        performances = list(algorithm_performance_store.values())
+        
+        # 計算整體性能指標
+        total_sessions = sum(p.total_sessions for p in performances)
+        successful_sessions = sum(p.successful_sessions for p in performances)
+        
+        # 計算平均指標
+        avg_success_rate = successful_sessions / total_sessions if total_sessions > 0 else 0
+        avg_reward = sum(p.average_reward for p in performances) / len(performances) if performances else 0
+        avg_training_time = sum(p.average_training_time for p in performances) / len(performances) if performances else 0
+        avg_handover_success = sum(p.handover_success_rate for p in performances) / len(performances) if performances else 0
+        
+        # 構建標準性能指標響應
+        return {
+            "latency": avg_training_time * 1000,  # 轉換為毫秒
+            "success_rate": avg_success_rate,
+            "throughput": successful_sessions,  # 成功會話數作為吞吐量
+            "error_rate": 1 - avg_success_rate,
+            "response_time": avg_training_time,
+            "resource_utilization": {
+                "cpu": 45.2,  # 模擬 CPU 使用率
+                "memory": 68.5  # 模擬記憶體使用率
+            },
+            "handover_metrics": {
+                "success_rate": avg_handover_success,
+                "average_time": avg_training_time,
+                "total_handovers": total_sessions
+            },
+            "algorithm_breakdown": {
+                alg.algorithm_type.value: {
+                    "success_rate": alg.successful_sessions / alg.total_sessions if alg.total_sessions > 0 else 0,
+                    "average_reward": alg.average_reward,
+                    "total_sessions": alg.total_sessions,
+                    "handover_success_rate": alg.handover_success_rate
+                } for alg in performances
+            },
+            "timestamp": datetime.utcnow().isoformat(),
+            "total_algorithms": len(performances)
+        }
+
+    except Exception as e:
+        logger.error(f"獲取訓練性能指標失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取訓練性能指標失敗: {str(e)}")
+
+
 # ===== 超參數配置管理 =====
 
 
