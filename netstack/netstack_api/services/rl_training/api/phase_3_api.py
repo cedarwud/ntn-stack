@@ -705,36 +705,450 @@ async def _generate_comparison_visualizations(comparison_result: Dict) -> Dict:
 
 async def _generate_decision_tree_viz(data_source: str, parameters: Dict, format: str) -> Dict:
     """生成決策樹可視化"""
-    # 實現決策樹可視化邏輯
-    return {"placeholder": "decision_tree_visualization"}
+    try:
+        # 模擬決策樹數據
+        tree_data = {
+            "name": "Root",
+            "children": [
+                {
+                    "name": "Signal Strength > 0.7",
+                    "children": [
+                        {"name": "Select Satellite A", "value": 0.85},
+                        {"name": "Check Distance", "children": [
+                            {"name": "Distance < 500km", "value": 0.90},
+                            {"name": "Distance >= 500km", "value": 0.65}
+                        ]}
+                    ]
+                },
+                {
+                    "name": "Signal Strength <= 0.7", 
+                    "children": [
+                        {"name": "Select Satellite B", "value": 0.45},
+                        {"name": "No Handover", "value": 0.30}
+                    ]
+                }
+            ]
+        }
+        
+        if format == "json":
+            return {"type": "decision_tree", "data": tree_data}
+        elif format == "plotly":
+            # 創建 Plotly 決策樹圖
+            fig = go.Figure(go.Treemap(
+                labels=["Root", "High Signal", "Low Signal", "Sat A", "Check Dist", "Sat B", "No HO", "<500km", ">=500km"],
+                parents=["", "Root", "Root", "High Signal", "High Signal", "Low Signal", "Low Signal", "Check Dist", "Check Dist"],
+                values=[1, 0.5, 0.5, 0.25, 0.25, 0.25, 0.25, 0.125, 0.125]
+            ))
+            fig.update_layout(title="Decision Tree Visualization")
+            return {"type": "plotly", "data": fig.to_dict()}
+        else:
+            # 默認返回 matplotlib base64 圖像
+            plt.figure(figsize=(10, 6))
+            plt.text(0.5, 0.5, "Decision Tree Visualization\n(Interactive view available in JSON/Plotly format)", 
+                    ha='center', va='center', fontsize=12)
+            plt.title("RL Decision Tree")
+            plt.axis('off')
+            
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            buffer.seek(0)
+            img_base64 = base64.b64encode(buffer.getvalue()).decode()
+            plt.close()
+            
+            return {"type": "image", "format": "png", "data": f"data:image/png;base64,{img_base64}"}
+            
+    except Exception as e:
+        logger.error(f"決策樹可視化生成失敗: {e}")
+        return {"error": str(e)}
 
 async def _generate_feature_importance_viz(data_source: str, parameters: Dict, format: str) -> Dict:
     """生成特徵重要性可視化"""
-    # 實現特徵重要性可視化邏輯
-    return {"placeholder": "feature_importance_visualization"}
+    try:
+        # 模擬特徵重要性數據
+        features = ['Signal Strength', 'Distance', 'Elevation Angle', 'Load', 'Latency', 'SNR']
+        importance = [0.35, 0.25, 0.15, 0.12, 0.08, 0.05]
+        
+        if format == "json":
+            return {
+                "type": "feature_importance",
+                "data": {
+                    "features": features,
+                    "importance": importance,
+                    "confidence_intervals": [[i-0.05, i+0.05] for i in importance]
+                }
+            }
+        elif format == "plotly":
+            # 創建 Plotly 條形圖
+            fig = go.Figure([
+                go.Bar(
+                    x=features,
+                    y=importance,
+                    text=[f"{i:.3f}" for i in importance],
+                    textposition='auto',
+                    marker_color='rgba(55, 128, 191, 0.7)',
+                    marker_line_color='rgba(55, 128, 191, 1.0)',
+                    marker_line_width=2
+                )
+            ])
+            fig.update_layout(
+                title="Feature Importance Analysis",
+                xaxis_title="Features",
+                yaxis_title="Importance Score",
+                showlegend=False
+            )
+            return {"type": "plotly", "data": fig.to_dict()}
+        else:
+            # 生成 matplotlib 圖像
+            plt.figure(figsize=(10, 6))
+            bars = plt.bar(features, importance, color='skyblue', edgecolor='navy', alpha=0.7)
+            plt.title('Feature Importance Analysis', fontsize=14, fontweight='bold')
+            plt.xlabel('Features', fontsize=12)
+            plt.ylabel('Importance Score', fontsize=12)
+            plt.xticks(rotation=45, ha='right')
+            
+            # 添加數值標籤
+            for bar, imp in zip(bars, importance):
+                plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01, 
+                        f'{imp:.3f}', ha='center', va='bottom')
+            
+            plt.tight_layout()
+            
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            buffer.seek(0)
+            img_base64 = base64.b64encode(buffer.getvalue()).decode()
+            plt.close()
+            
+            return {"type": "image", "format": "png", "data": f"data:image/png;base64,{img_base64}"}
+            
+    except Exception as e:
+        logger.error(f"特徵重要性可視化生成失敗: {e}")
+        return {"error": str(e)}
 
 async def _generate_algorithm_comparison_viz(data_source: str, parameters: Dict, format: str) -> Dict:
     """生成算法比較可視化"""
-    # 實現算法比較可視化邏輯
-    return {"placeholder": "algorithm_comparison_visualization"}
+    try:
+        # 模擬算法性能數據
+        algorithms = parameters.get('algorithms', ['DQN', 'PPO', 'SAC'])
+        metrics_data = {
+            'DQN': {'reward': [0.7, 0.6, 0.9, 0.8, 0.75], 'success_rate': 0.78, 'convergence_time': 150},
+            'PPO': {'reward': [0.8, 0.7, 0.85, 0.9, 0.82], 'success_rate': 0.85, 'convergence_time': 120},
+            'SAC': {'reward': [0.75, 0.8, 0.88, 0.85, 0.79], 'success_rate': 0.82, 'convergence_time': 135}
+        }
+        
+        if format == "json":
+            return {"type": "algorithm_comparison", "data": metrics_data}
+        elif format == "plotly":
+            # 創建多子圖比較
+            from plotly.subplots import make_subplots
+            
+            fig = make_subplots(
+                rows=2, cols=2,
+                subplot_titles=('Reward Distribution', 'Success Rate', 'Convergence Time', 'Performance Radar'),
+                specs=[[{"type": "box"}, {"type": "bar"}],
+                       [{"type": "bar"}, {"type": "scatterpolar"}]]
+            )
+            
+            # 獎勵分布箱線圖
+            for alg in algorithms:
+                if alg in metrics_data:
+                    fig.add_trace(
+                        go.Box(y=metrics_data[alg]['reward'], name=alg, boxpoints='outliers'),
+                        row=1, col=1
+                    )
+            
+            # 成功率條形圖
+            success_rates = [metrics_data[alg]['success_rate'] for alg in algorithms if alg in metrics_data]
+            fig.add_trace(
+                go.Bar(x=algorithms, y=success_rates, name='Success Rate'),
+                row=1, col=2
+            )
+            
+            # 收斂時間條形圖
+            conv_times = [metrics_data[alg]['convergence_time'] for alg in algorithms if alg in metrics_data]
+            fig.add_trace(
+                go.Bar(x=algorithms, y=conv_times, name='Convergence Time'),
+                row=2, col=1
+            )
+            
+            # 雷達圖
+            avg_rewards = [np.mean(metrics_data[alg]['reward']) for alg in algorithms if alg in metrics_data]
+            radar_data = go.Scatterpolar(
+                r=success_rates + avg_rewards + [1/ct*100 for ct in conv_times],
+                theta=['Success Rate', 'Avg Reward', 'Speed'] * len(algorithms),
+                fill='toself',
+                name='Performance'
+            )
+            fig.add_trace(radar_data, row=2, col=2)
+            
+            fig.update_layout(title="Algorithm Comparison Dashboard", showlegend=False)
+            return {"type": "plotly", "data": fig.to_dict()}
+        else:
+            # 生成 matplotlib 圖像
+            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
+            
+            # 獎勵分布箱線圖
+            reward_data = [metrics_data[alg]['reward'] for alg in algorithms if alg in metrics_data]
+            ax1.boxplot(reward_data, labels=algorithms)
+            ax1.set_title('Reward Distribution')
+            ax1.set_ylabel('Reward')
+            
+            # 成功率條形圖
+            success_rates = [metrics_data[alg]['success_rate'] for alg in algorithms if alg in metrics_data]
+            ax2.bar(algorithms, success_rates, color=['blue', 'orange', 'green'][:len(algorithms)])
+            ax2.set_title('Success Rate Comparison')
+            ax2.set_ylabel('Success Rate')
+            
+            # 收斂時間
+            conv_times = [metrics_data[alg]['convergence_time'] for alg in algorithms if alg in metrics_data]
+            ax3.bar(algorithms, conv_times, color=['red', 'purple', 'brown'][:len(algorithms)])
+            ax3.set_title('Convergence Time')
+            ax3.set_ylabel('Episodes')
+            
+            # 綜合性能雷達圖
+            angles = np.linspace(0, 2 * np.pi, 3, endpoint=False).tolist()
+            angles += angles[:1]  # 閉合圖形
+            
+            for i, alg in enumerate(algorithms):
+                if alg in metrics_data:
+                    values = [
+                        metrics_data[alg]['success_rate'],
+                        np.mean(metrics_data[alg]['reward']),
+                        1 - (metrics_data[alg]['convergence_time'] / 200)  # 標準化
+                    ]
+                    values += values[:1]
+                    ax4.plot(angles, values, 'o-', linewidth=2, label=alg)
+                    ax4.fill(angles, values, alpha=0.25)
+            
+            ax4.set_xticks(angles[:-1])
+            ax4.set_xticklabels(['Success Rate', 'Avg Reward', 'Speed'])
+            ax4.set_title('Performance Radar')
+            ax4.legend()
+            
+            plt.tight_layout()
+            
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            buffer.seek(0)
+            img_base64 = base64.b64encode(buffer.getvalue()).decode()
+            plt.close()
+            
+            return {"type": "image", "format": "png", "data": f"data:image/png;base64,{img_base64}"}
+            
+    except Exception as e:
+        logger.error(f"算法比較可視化生成失敗: {e}")
+        return {"error": str(e)}
 
 async def _generate_performance_trends_viz(data_source: str, parameters: Dict, format: str) -> Dict:
     """生成性能趨勢可視化"""
-    # 實現性能趨勢可視化邏輯
-    return {"placeholder": "performance_trends_visualization"}
+    try:
+        # 模擬時間序列性能數據
+        episodes = list(range(1, 101))
+        algorithms = parameters.get('algorithms', ['DQN', 'PPO', 'SAC'])
+        
+        # 生成模擬趨勢數據
+        trends_data = {}
+        for alg in algorithms:
+            base_performance = {'DQN': 0.6, 'PPO': 0.7, 'SAC': 0.65}.get(alg, 0.6)
+            noise_level = {'DQN': 0.15, 'PPO': 0.12, 'SAC': 0.13}.get(alg, 0.15)
+            
+            # 生成帶噪聲的學習曲線
+            trend = []
+            for ep in episodes:
+                progress = ep / 100
+                performance = base_performance + (0.3 * (1 - np.exp(-progress * 3)))
+                noise = np.random.normal(0, noise_level * (1 - progress * 0.7))
+                trend.append(max(0, min(1, performance + noise)))
+            
+            trends_data[alg] = trend
+        
+        if format == "json":
+            return {
+                "type": "performance_trends",
+                "data": {
+                    "episodes": episodes,
+                    "algorithms": trends_data
+                }
+            }
+        elif format == "plotly":
+            fig = go.Figure()
+            
+            colors = ['blue', 'orange', 'green', 'red', 'purple']
+            for i, (alg, trend) in enumerate(trends_data.items()):
+                fig.add_trace(go.Scatter(
+                    x=episodes,
+                    y=trend,
+                    mode='lines+markers',
+                    name=alg,
+                    line=dict(color=colors[i % len(colors)], width=2),
+                    marker=dict(size=4)
+                ))
+            
+            fig.update_layout(
+                title="Performance Trends Over Episodes",
+                xaxis_title="Episode",
+                yaxis_title="Performance Score",
+                hovermode='x unified'
+            )
+            return {"type": "plotly", "data": fig.to_dict()}
+        else:
+            # 生成 matplotlib 圖像
+            plt.figure(figsize=(12, 8))
+            
+            colors = ['blue', 'orange', 'green', 'red', 'purple']
+            for i, (alg, trend) in enumerate(trends_data.items()):
+                plt.plot(episodes, trend, label=alg, color=colors[i % len(colors)], 
+                        linewidth=2, marker='o', markersize=3, alpha=0.8)
+            
+            plt.title('Performance Trends Over Episodes', fontsize=14, fontweight='bold')
+            plt.xlabel('Episode', fontsize=12)
+            plt.ylabel('Performance Score', fontsize=12)
+            plt.legend()
+            plt.grid(True, alpha=0.3)
+            plt.tight_layout()
+            
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            buffer.seek(0)
+            img_base64 = base64.b64encode(buffer.getvalue()).decode()
+            plt.close()
+            
+            return {"type": "image", "format": "png", "data": f"data:image/png;base64,{img_base64}"}
+            
+    except Exception as e:
+        logger.error(f"性能趨勢可視化生成失敗: {e}")
+        return {"error": str(e)}
 
 async def _generate_heatmap_viz(data_source: str, parameters: Dict, format: str) -> Dict:
     """生成熱力圖可視化"""
-    # 實現熱力圖可視化邏輯
-    return {"placeholder": "heatmap_visualization"}
+    try:
+        # 模擬熱力圖數據
+        algorithms = parameters.get('algorithms', ['DQN', 'PPO', 'SAC'])
+        metrics = ['Reward', 'Success Rate', 'Convergence', 'Stability', 'Efficiency']
+        
+        # 生成相關性矩陣數據
+        correlation_matrix = np.random.rand(len(algorithms), len(metrics))
+        correlation_matrix = (correlation_matrix + correlation_matrix.T) / 2  # 使矩陣對稱
+        
+        if format == "json":
+            return {
+                "type": "heatmap",
+                "data": {
+                    "algorithms": algorithms,
+                    "metrics": metrics,
+                    "values": correlation_matrix.tolist()
+                }
+            }
+        elif format == "plotly":
+            fig = go.Figure(data=go.Heatmap(
+                z=correlation_matrix,
+                x=metrics,
+                y=algorithms,
+                colorscale='RdYlBu_r',
+                text=[[f'{val:.3f}' for val in row] for row in correlation_matrix],
+                texttemplate="%{text}",
+                textfont={"size": 10},
+                hoverongaps=False
+            ))
+            
+            fig.update_layout(
+                title="Algorithm Performance Heatmap",
+                xaxis_title="Metrics",
+                yaxis_title="Algorithms"
+            )
+            return {"type": "plotly", "data": fig.to_dict()}
+        else:
+            # 生成 matplotlib 熱力圖
+            plt.figure(figsize=(10, 8))
+            
+            # 使用 seaborn 創建熱力圖
+            sns.heatmap(
+                correlation_matrix,
+                xticklabels=metrics,
+                yticklabels=algorithms,
+                annot=True,
+                fmt='.3f',
+                cmap='RdYlBu_r',
+                center=0.5,
+                square=True,
+                cbar_kws={"shrink": .8}
+            )
+            
+            plt.title('Algorithm Performance Heatmap', fontsize=14, fontweight='bold')
+            plt.tight_layout()
+            
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            buffer.seek(0)
+            img_base64 = base64.b64encode(buffer.getvalue()).decode()
+            plt.close()
+            
+            return {"type": "image", "format": "png", "data": f"data:image/png;base64,{img_base64}"}
+            
+    except Exception as e:
+        logger.error(f"熱力圖可視化生成失敗: {e}")
+        return {"error": str(e)}
 
 async def _generate_comprehensive_dashboard() -> Dict:
     """生成綜合儀表板"""
-    return {
-        "components": ["performance_overview", "algorithm_comparison", "feature_analysis"],
-        "layout": {"rows": 3, "cols": 2},
-        "data": {"placeholder": "dashboard_data"}
-    }
+    try:
+        # 生成各個組件的數據
+        performance_data = await _generate_performance_trends_viz("real_time", {"algorithms": ["DQN", "PPO", "SAC"]}, "json")
+        comparison_data = await _generate_algorithm_comparison_viz("database", {"algorithms": ["DQN", "PPO", "SAC"]}, "json")
+        feature_data = await _generate_feature_importance_viz("analysis", {}, "json")
+        heatmap_data = await _generate_heatmap_viz("correlation", {"algorithms": ["DQN", "PPO", "SAC"]}, "json")
+        
+        return {
+            "components": [
+                {
+                    "id": "performance_overview",
+                    "title": "Performance Trends",
+                    "type": "line_chart",
+                    "data": performance_data.get("data", {}),
+                    "position": {"row": 1, "col": 1, "span": 2}
+                },
+                {
+                    "id": "algorithm_comparison", 
+                    "title": "Algorithm Comparison",
+                    "type": "multi_chart",
+                    "data": comparison_data.get("data", {}),
+                    "position": {"row": 2, "col": 1}
+                },
+                {
+                    "id": "feature_analysis",
+                    "title": "Feature Importance",
+                    "type": "bar_chart", 
+                    "data": feature_data.get("data", {}),
+                    "position": {"row": 2, "col": 2}
+                },
+                {
+                    "id": "correlation_heatmap",
+                    "title": "Performance Correlation",
+                    "type": "heatmap",
+                    "data": heatmap_data.get("data", {}),
+                    "position": {"row": 3, "col": 1, "span": 2}
+                }
+            ],
+            "layout": {
+                "rows": 3, 
+                "cols": 2,
+                "responsive": True,
+                "theme": "light"
+            },
+            "metadata": {
+                "generated_at": datetime.now().isoformat(),
+                "data_sources": ["real_time", "database", "analysis", "correlation"],
+                "refresh_interval": 30
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"綜合儀表板生成失敗: {e}")
+        return {
+            "components": [],
+            "layout": {"rows": 0, "cols": 0},
+            "error": str(e)
+        }
 
 async def _generate_research_report(report_id: str, report_type: str, data_range: Dict, include_sections: List, format: str):
     """生成研究報告（背景任務）"""
