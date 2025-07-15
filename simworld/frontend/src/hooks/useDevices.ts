@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
     getDevices as apiGetDevices,
     createDevice as apiCreateDevice,
@@ -27,9 +27,23 @@ export const useDevices = () => {
             // console.log('成功獲取設備數據 (來自 useDevices Hook):', backendDevices)
 
             const frontendDevices = backendDevices.map(convertBackendToFrontend)
-
-            setTempDevices(frontendDevices)
-            setOriginalDevices(frontendDevices)
+            
+            // 只在設備數量或 ID 變化時更新
+            setTempDevices(prev => {
+                if (prev.length !== frontendDevices.length || 
+                    prev.some((device, idx) => device.id !== frontendDevices[idx]?.id)) {
+                    return frontendDevices;
+                }
+                return prev;
+            });
+            
+            setOriginalDevices(prev => {
+                if (prev.length !== frontendDevices.length || 
+                    prev.some((device, idx) => device.id !== frontendDevices[idx]?.id)) {
+                    return frontendDevices;
+                }
+                return prev;
+            });
             setError(null)
             setApiStatus('connected')
             setHasTempDevices(false)
