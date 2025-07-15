@@ -73,11 +73,7 @@ async def get_repository() -> IDataRepository:
 
     except Exception as e:
         logger.error(f"❌ Phase 1: PostgreSQL 連接失敗，錯誤: {e}")
-        if os.getenv("ENV") == "development":
-            logger.warning("⚠️  PHASE 1 警告: 降級到 MockRepository (開發模式)")
-            from ..implementations.mock_repository import MockRepository
-
-            return MockRepository()
+        logger.error("🚫 PHASE 1 強制要求: 必須使用真實數據庫，不接受 Mock Repository 回退")
         raise
 
 
