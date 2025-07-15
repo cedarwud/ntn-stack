@@ -1,0 +1,409 @@
+/**
+ * AlgorithmComparisonSection 組件樣式 - 深色系主題
+ * 用於算法性能對比和排名分析
+ */
+
+.algorithm-comparison-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: 100%;
+  background: #1a1a1a;
+  color: #e5e7eb;
+}
+
+/* 性能概覽卡片 */
+.performance-overview {
+  .overview-card {
+    background: #2a2a2a;
+    border: 1px solid #444444;
+    border-radius: 12px;
+    padding: 20px;
+    
+    .overview-title {
+      margin: 0 0 16px 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+
+      .metric-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: #374151;
+        border-radius: 8px;
+        border: 1px solid #4b5563;
+
+        .metric-icon {
+          font-size: 1.5rem;
+        }
+
+        .metric-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+
+          .metric-label {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            font-weight: 500;
+          }
+
+          .metric-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #e5e7eb;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* 算法排名卡片 */
+.algorithm-ranking {
+  .ranking-card {
+    background: #2a2a2a;
+    border: 1px solid #444444;
+    border-radius: 12px;
+    padding: 20px;
+
+    .ranking-title {
+      margin: 0 0 16px 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ranking-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+
+      .ranking-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px;
+        background: #374151;
+        border-radius: 8px;
+        border: 1px solid #4b5563;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: #4b5563;
+          transform: translateY(-2px);
+        }
+
+        &.rank-1 {
+          border-color: #fbbf24;
+          background: linear-gradient(135deg, #374151 0%, #3a2f1b 100%);
+        }
+
+        &.rank-2 {
+          border-color: #9ca3af;
+        }
+
+        &.rank-3 {
+          border-color: #f59e0b;
+        }
+
+        .ranking-info {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+
+          .rank-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 0.875rem;
+
+            &.rank-1 {
+              background: #fbbf24;
+              color: #1a1a1a;
+            }
+
+            &.rank-2 {
+              background: #9ca3af;
+              color: #1a1a1a;
+            }
+
+            &.rank-3 {
+              background: #f59e0b;
+              color: #1a1a1a;
+            }
+          }
+
+          .algorithm-name {
+            font-weight: 600;
+            font-size: 1.125rem;
+            color: #e5e7eb;
+          }
+        }
+
+        .score-info {
+          display: flex;
+          flex-direction: column;
+          align-items: end;
+          gap: 4px;
+
+          .score-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #10b981;
+          }
+
+          .score-label {
+            font-size: 0.75rem;
+            color: #9ca3af;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* 最佳算法推薦 */
+.best-algorithm-recommendation {
+  .recommendation-card {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border-radius: 12px;
+    padding: 20px;
+    color: white;
+
+    .recommendation-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+
+      .recommendation-icon {
+        font-size: 2rem;
+      }
+
+      .recommendation-title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+    }
+
+    .recommendation-content {
+      .algorithm-highlight {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+
+      .recommendation-reasons {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+
+        li {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+          font-size: 0.875rem;
+
+          &::before {
+            content: '✓';
+            font-weight: bold;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* 算法比較表格 */
+.algorithm-comparison-table {
+  .comparison-table {
+    background: #2a2a2a;
+    border: 1px solid #444444;
+    border-radius: 12px;
+    overflow: hidden;
+
+    .table-header {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+      gap: 16px;
+      padding: 16px;
+      background: #374151;
+      font-weight: 600;
+      color: #e5e7eb;
+      font-size: 0.875rem;
+
+      .col {
+        text-align: center;
+      }
+    }
+
+    .table-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+      gap: 16px;
+      padding: 16px;
+      border-bottom: 1px solid #444444;
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: #374151;
+      }
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .col {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 0.875rem;
+
+        &.col-algorithm {
+          font-weight: 600;
+          color: #e5e7eb;
+        }
+
+        .status-badge {
+          padding: 4px 8px;
+          border-radius: 12px;
+          font-size: 0.75rem;
+          font-weight: 500;
+
+          &.training {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+          }
+
+          &.idle {
+            background: rgba(156, 163, 175, 0.2);
+            color: #9ca3af;
+          }
+        }
+
+        .progress-bar {
+          width: 100%;
+          height: 8px;
+          background: #374151;
+          border-radius: 4px;
+          overflow: hidden;
+
+          .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+          }
+        }
+
+        .episodes-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+
+          .current-episodes {
+            font-weight: 600;
+            color: #e5e7eb;
+          }
+
+          .total-episodes {
+            font-size: 0.75rem;
+            color: #9ca3af;
+          }
+        }
+
+        .reward-value {
+          font-weight: 600;
+          color: #10b981;
+        }
+
+        .active-indicator {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .active-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            
+            &.active {
+              background: #10b981;
+              animation: pulse 2s infinite;
+            }
+
+            &.inactive {
+              background: #6b7280;
+            }
+          }
+
+          .active-text {
+            font-size: 0.75rem;
+            color: #9ca3af;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .performance-overview .overview-card .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .algorithm-comparison-table .comparison-table {
+    .table-header,
+    .table-row {
+      grid-template-columns: 1fr;
+      gap: 8px;
+      text-align: left;
+
+      .col {
+        justify-content: flex-start;
+        border-bottom: 1px solid #444444;
+        padding-bottom: 8px;
+
+        &::before {
+          content: attr(data-label) ': ';
+          font-weight: 600;
+          color: #9ca3af;
+          margin-right: 8px;
+        }
+      }
+    }
+  }
+}
+
+/* 動畫效果 */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+} 

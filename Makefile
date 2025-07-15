@@ -92,13 +92,13 @@ dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 
 all-start: ## 啟動所有核心服務 (NetStack 含整合 RL System, SimWorld)
 	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
-	@echo "$(YELLOW)⚡ 第一步：啟動 SimWorld (創建網路基礎)...$(RESET)"
-	@$(MAKE) simworld-start
-	@echo "$(YELLOW)⏳ 等待 SimWorld 網路就緒...$(RESET)"
-	@sleep 10
-	@echo "$(YELLOW)⚡ 第二步：啟動 NetStack (連接到現有網路)...$(RESET)"
+	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (包含 MongoDB 基礎服務)...$(RESET)"
 	@$(MAKE) netstack-start
-	@echo "$(YELLOW)⏳ 等待服務啟動完成...$(RESET)"
+	@echo "$(YELLOW)⏳ 等待 NetStack 和 MongoDB 就緒...$(RESET)"
+	@sleep 15
+	@echo "$(YELLOW)⚡ 第二步：啟動 SimWorld (連接到現有 MongoDB)...$(RESET)"
+	@$(MAKE) simworld-start
+	@echo "$(YELLOW)⏳ 等待 SimWorld 服務啟動完成...$(RESET)"
 	@sleep 10
 	@echo "$(YELLOW)🔗 建立跨服務網路連接...$(RESET)"
 	@$(MAKE) connect-cross-service-networks
@@ -183,6 +183,8 @@ simworld-stop-v: ## 停止 SimWorld 服務並清除卷
 
 restart: all-restart ## 重啟所有服務
 
+restart-v: all-restart-v ## 重啟所有服務
+
 # restart-monitoring: ## [獨立] 重啟階段8的監控服務 (暫時禁用)
 #	@echo "$(BLUE)🔄 重啟監控系統...$(RESET)"
 #	@$(MAKE) monitoring-restart
@@ -192,6 +194,12 @@ restart: all-restart ## 重啟所有服務
 all-restart: ## 重啟所有核心服務 (NetStack 含整合 RL System, SimWorld)
 	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務...$(RESET)"
 	@$(MAKE) all-stop
+	@sleep 5
+	@$(MAKE) all-start
+
+all-restart-v: ## 重啟所有核心服務 (NetStack 含整合 RL System, SimWorld)
+	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務...$(RESET)"
+	@$(MAKE) all-stop-v
 	@sleep 5
 	@$(MAKE) all-start
 
