@@ -11,6 +11,8 @@
 from .models.interference_models import *
 from .services.interference_simulation_service import *
 from .services.ai_ran_service import *
+from .services.ai_ran_service_integrated import *
+from .services.netstack_rl_client import *
 
 __all__ = [
     "JammerType",
@@ -25,4 +27,8 @@ __all__ = [
     "AIRANControlRequest",
     "InterferenceSimulationService",
     "AIRANService",
+    "AIRANServiceIntegrated",
+    "NetStackRLClient",
+    "get_ai_ran_service_integrated",
+    "get_netstack_rl_client",
 ]

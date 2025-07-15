@@ -24,6 +24,10 @@ from ..models.interference_models import (
 )
 from ..services.interference_simulation_service import InterferenceSimulationService
 from ..services.ai_ran_service import AIRANService
+from ..services.ai_ran_service_integrated import (
+    AIRANServiceIntegrated,
+    get_ai_ran_service_integrated,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +36,8 @@ router = APIRouter(prefix="/interference", tags=["干擾模擬與抗干擾"])
 
 # 服務實例（在實際應用中應通過依賴注入）
 interference_service = InterferenceSimulationService()
-ai_ran_service = AIRANService()
+ai_ran_service = AIRANService()  # 保留原服務作為後備
+# 整合服務將通過依賴注入獲取
 
 
 @router.post("/simulate", response_model=InterferenceSimulationResponse)
@@ -67,15 +72,12 @@ async def ai_ran_control(
     request: AIRANControlRequest, background_tasks: BackgroundTasks
 ):
     """
-    AI-RAN 抗干擾控制
+    AI-RAN 抗干擾控制 (原版)
 
-    基於深度強化學習的智能抗干擾決策，支持：
-    - 毫秒級頻率跳變
-    - 自適應波束成形
-    - 動態功率控制
+    基於本地 DQN 的抗干擾決策，保留作為後備系統。
     """
     try:
-        logger.info(f"收到 AI-RAN 控制請求: {request.request_id}")
+        logger.info(f"收到 AI-RAN 控制請求 (原版): {request.request_id}")
 
         # 執行 AI-RAN 決策
         response = await ai_ran_service.make_anti_jamming_decision(request)
@@ -89,6 +91,40 @@ async def ai_ran_control(
     except Exception as e:
         logger.error(f"AI-RAN 控制API失敗: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"控制失敗: {str(e)}")
+
+
+@router.post("/ai-ran/control-integrated", response_model=AIRANControlResponse)
+async def ai_ran_control_integrated(
+    request: AIRANControlRequest, background_tasks: BackgroundTasks
+):
+    """
+    AI-RAN 抗干擾控制 (NetStack 整合版)
+
+    基於 NetStack RL 系統的智能抗干擾決策，支持：
+    - 多算法支援 (DQN/PPO/SAC)
+    - NetStack PostgreSQL 資料庫整合
+    - 統一的會話管理和持久化
+    - 毫秒級實時決策響應
+    - 自動降級到本地模式
+    """
+    try:
+        logger.info(f"收到 AI-RAN 控制請求 (整合版): {request.request_id}")
+
+        # 獲取整合服務
+        integrated_service = await get_ai_ran_service_integrated()
+
+        # 執行 NetStack 整合決策
+        response = await integrated_service.make_anti_jamming_decision(request)
+
+        # 記錄使用的系統模式
+        system_status = getattr(response, "system_status", {}) or {}
+        logger.info(f"決策完成，模式: {system_status.get('decision_mode', 'unknown')}")
+
+        return response
+
+    except Exception as e:
+        logger.error(f"AI-RAN 整合控制API失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"整合控制失敗: {str(e)}")
 
 
 @router.post("/scenario/create")
@@ -279,6 +315,167 @@ async def get_ai_ran_models():
     }
 
 
+@router.get("/ai-ran/netstack/status")
+async def get_netstack_rl_status():
+    """
+    獲取 NetStack RL 系統狀態
+
+    返回 NetStack RL 系統的連接狀態、可用算法、當前訓練會話等信息
+    """
+    try:
+        integrated_service = await get_ai_ran_service_integrated()
+
+        # 獲取 NetStack 客戶端
+        if integrated_service.netstack_client:
+            # 檢查連接狀態
+            health_ok = await integrated_service.netstack_client.health_check()
+
+            # 獲取可用算法
+            algorithms = (
+                await integrated_service.netstack_client.get_available_algorithms()
+            )
+
+            # 獲取訓練狀態
+            training_status = await integrated_service.get_training_status()
+
+            return {
+                "success": True,
+                "netstack_available": integrated_service.is_netstack_available,
+                "connection_healthy": health_ok,
+                "available_algorithms": algorithms,
+                "preferred_algorithm": integrated_service.preferred_algorithm,
+                "current_session": integrated_service.current_training_session,
+                "training_status": training_status,
+                "last_health_check": (
+                    integrated_service.netstack_client.last_health_check.isoformat()
+                    if integrated_service.netstack_client.last_health_check
+                    else None
+                ),
+            }
+        else:
+            return {
+                "success": False,
+                "error": "NetStack RL 客戶端未初始化",
+                "netstack_available": False,
+            }
+
+    except Exception as e:
+        logger.error(f"獲取 NetStack RL 狀態失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"狀態獲取失敗: {str(e)}")
+
+
+@router.post("/ai-ran/netstack/training/pause")
+async def pause_netstack_training():
+    """暫停 NetStack RL 訓練"""
+    try:
+        integrated_service = await get_ai_ran_service_integrated()
+        success = await integrated_service.pause_training()
+
+        if success:
+            return {
+                "success": True,
+                "message": "訓練已暫停",
+                "session_id": integrated_service.current_training_session,
+            }
+        else:
+            return {
+                "success": False,
+                "message": "暫停訓練失敗",
+                "session_id": integrated_service.current_training_session,
+            }
+
+    except Exception as e:
+        logger.error(f"暫停訓練失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"暫停失敗: {str(e)}")
+
+
+@router.post("/ai-ran/netstack/training/resume")
+async def resume_netstack_training():
+    """恢復 NetStack RL 訓練"""
+    try:
+        integrated_service = await get_ai_ran_service_integrated()
+        success = await integrated_service.resume_training()
+
+        if success:
+            return {
+                "success": True,
+                "message": "訓練已恢復",
+                "session_id": integrated_service.current_training_session,
+            }
+        else:
+            return {
+                "success": False,
+                "message": "恢復訓練失敗",
+                "session_id": integrated_service.current_training_session,
+            }
+
+    except Exception as e:
+        logger.error(f"恢復訓練失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"恢復失敗: {str(e)}")
+
+
+@router.post("/ai-ran/netstack/training/stop")
+async def stop_netstack_training():
+    """停止 NetStack RL 訓練"""
+    try:
+        integrated_service = await get_ai_ran_service_integrated()
+        success = await integrated_service.stop_training()
+
+        if success:
+            return {
+                "success": True,
+                "message": "訓練已停止",
+                "previous_session_id": integrated_service.current_training_session,
+            }
+        else:
+            return {
+                "success": False,
+                "message": "停止訓練失敗",
+                "session_id": integrated_service.current_training_session,
+            }
+
+    except Exception as e:
+        logger.error(f"停止訓練失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"停止失敗: {str(e)}")
+
+
+@router.post("/ai-ran/netstack/training/restart")
+async def restart_netstack_training(
+    algorithm: str = Query(default="dqn", description="要使用的算法 (dqn/ppo/sac)")
+):
+    """重新啟動 NetStack RL 訓練會話"""
+    try:
+        integrated_service = await get_ai_ran_service_integrated()
+
+        # 停止當前會話
+        if integrated_service.current_training_session:
+            await integrated_service.stop_training()
+
+        # 更新首選算法
+        integrated_service.preferred_algorithm = algorithm
+
+        # 啟動新會話
+        session_id = await integrated_service._ensure_training_session()
+
+        if session_id:
+            return {
+                "success": True,
+                "message": f"訓練會話已重新啟動，使用算法: {algorithm}",
+                "session_id": session_id,
+                "algorithm": algorithm,
+            }
+        else:
+            return {
+                "success": False,
+                "message": "重新啟動訓練會話失敗",
+                "algorithm": algorithm,
+            }
+
+    except Exception as e:
+        logger.error(f"重新啟動訓練失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"重新啟動失敗: {str(e)}")
+
+
 @router.get("/metrics")
 async def get_interference_metrics(
     time_window_sec: float = Query(default=3600.0, description="時間窗口（秒）")
@@ -292,11 +489,7 @@ async def get_interference_metrics(
             "metrics": metrics.dict(),
             "service_status": {
                 "interference_simulation": interference_service.get_service_status(),
-                "ai_ran": (
-                    ai_ran_service.get_service_status()
-                    if hasattr(ai_ran_service, "get_service_status")
-                    else {}
-                ),
+                "ai_ran": getattr(ai_ran_service, "get_service_status", lambda: {})(),
             },
         }
 
