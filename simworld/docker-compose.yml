@@ -48,9 +48,12 @@ services:
         #         - driver: nvidia
         #           count: all
         #           capabilities: [gpu]
-
+        
+        # === 網路配置 ===
         networks:
             - sionna-net
+            - netstack-core  # 連接到 NetStack 網路以訪問 MongoDB
+        
         # 移除 PostgreSQL 依賴 - MongoDB 在 NetStack 中管理
         # command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload # 開發時可取消註釋
         healthcheck: # <--- 新增 FastAPI 的 healthcheck
@@ -98,6 +101,9 @@ services:
 networks:
     sionna-net:
         driver: bridge
+    netstack-core:
+        external: true
+        name: compose_netstack-core
 
 volumes: # <-- Volume 定義
     node_modules:  # 移除 postgres_data - 不再需要
