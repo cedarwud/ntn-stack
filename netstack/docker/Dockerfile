@@ -89,9 +89,10 @@ FROM builder AS development
 WORKDIR /app
 
 # 安裝所有依賴 - 開發環境使用完整 requirements.txt
+COPY ../requirements.txt ./requirements.txt
 RUN pip config set global.timeout 600 && \
     pip config set global.retries 5 && \
-    pip install --no-cache-dir --default-timeout=600 -r ../requirements.txt
+    pip install --no-cache-dir --default-timeout=600 -r requirements.txt
 
 # 安裝除錯工具
 RUN apt-get update && apt-get install -y \

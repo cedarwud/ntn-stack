@@ -313,8 +313,8 @@ class RLTrainingEngine:
                 else:
                     raise Exception("MongoDB 初始化失敗")
             except Exception as e:
-                logger.warning(f"⚠️ MongoDB 不可用，降級到 Mock 模式: {e}")
-                self.repository = MockRepository()
+                logger.error(f"❌ MongoDB 不可用，強制要求真實數據庫: {e}")
+                raise Exception("必須使用真實數據庫，不接受 Mock Repository 回退")
 
             self.initialized = True
             logger.info("🚀 RLTrainingEngine 初始化完成")

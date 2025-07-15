@@ -115,9 +115,9 @@ class RepositoryFactory:
         if database_url:
             return RepositoryType.POSTGRESQL
         
-        # 最後回退到 Mock
-        logger.warning("無法推斷倉庫類型，使用 Mock 倉庫")
-        return RepositoryType.MOCK
+        # 如果無法推斷類型，強制使用 PostgreSQL
+        logger.error("無法推斷倉庫類型，強制使用 PostgreSQL - 不接受 Mock Repository 回退")
+        return RepositoryType.POSTGRESQL
     
     @classmethod
     async def _create_repository_instance(
