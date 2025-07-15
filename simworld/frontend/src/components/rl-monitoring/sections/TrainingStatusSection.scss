@@ -1,0 +1,351 @@
+/**
+ * TrainingStatusSection 組件樣式
+ * 用於顯示訓練狀態和算法卡片
+ */
+
+.training-status-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: 100%;
+  
+  .section-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 12px;
+  }
+}
+
+.training-overview {
+  .status-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+    
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      
+      .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        
+        &.running {
+          background: #00ffa3;
+          animation: pulse 2s infinite;
+        }
+        
+        &.idle {
+          background: #666;
+        }
+        
+        &.error {
+          background: #ff6b6b;
+        }
+      }
+      
+      .status-text {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #ffffff;
+      }
+    }
+    
+    .progress-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      
+      .progress-bar {
+        flex: 1;
+        height: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+        
+        .progress-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #00d4ff, #00ffa3);
+          border-radius: 4px;
+          transition: width 0.3s ease;
+        }
+      }
+      
+      .progress-text {
+        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 500;
+        min-width: 48px;
+        text-align: right;
+      }
+    }
+  }
+}
+
+.algorithms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  
+  .algorithm-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #00d4ff, #00ffa3, #ff6b6b);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      
+      &::before {
+        opacity: 1;
+      }
+    }
+    
+    .algorithm-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      
+      .algorithm-name {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #ffffff;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      
+      .algorithm-status {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        
+        &.running {
+          background: rgba(0, 255, 163, 0.2);
+          color: #00ffa3;
+          border: 1px solid rgba(0, 255, 163, 0.3);
+        }
+        
+        &.idle {
+          background: rgba(102, 102, 102, 0.2);
+          color: #999;
+          border: 1px solid rgba(102, 102, 102, 0.3);
+        }
+        
+        &.error {
+          background: rgba(255, 107, 107, 0.2);
+          color: #ff6b6b;
+          border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+        
+        &.not_running {
+          background: rgba(255, 165, 0, 0.2);
+          color: #ffa500;
+          border: 1px solid rgba(255, 165, 0, 0.3);
+        }
+      }
+    }
+    
+    .algorithm-metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      
+      .metric {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        
+        .metric-label {
+          font-size: 0.875rem;
+          color: rgba(255, 255, 255, 0.7);
+          font-weight: 500;
+        }
+        
+        .metric-value {
+          font-size: 0.875rem;
+          color: #ffffff;
+          font-weight: 600;
+          text-align: right;
+        }
+      }
+    }
+  }
+}
+
+// 空狀態樣式
+.no-algorithms-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 40px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  
+  .message-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.7;
+  }
+  
+  .message-text {
+    font-size: 1.25rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  
+  .message-subtext {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.5;
+  }
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .algorithms-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .training-overview .status-card {
+    padding: 16px;
+  }
+  
+  .algorithm-card {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .training-status-section {
+    gap: 16px;
+  }
+  
+  .training-status-section .section-title {
+    font-size: 1.25rem;
+  }
+  
+  .algorithm-card .algorithm-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .algorithm-card .algorithm-header .algorithm-name {
+    font-size: 1.125rem;
+  }
+}
+
+// 動畫效果
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.7; 
+    transform: scale(1.1);
+  }
+}
+
+// 卡片進入動畫
+.algorithm-card {
+  animation: slideInUp 0.4s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// 指標數值動畫
+.metric-value {
+  transition: all 0.3s ease;
+}
+
+// 載入狀態樣式
+.algorithm-card.loading {
+  opacity: 0.6;
+  pointer-events: none;
+  
+  .algorithm-metrics {
+    opacity: 0.5;
+  }
+}
+
+// 高對比度模式支援
+@media (prefers-contrast: high) {
+  .algorithm-card {
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+  
+  .algorithm-status {
+    border-width: 2px;
+  }
+  
+  .metric {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+// 減少動畫偏好支援
+@media (prefers-reduced-motion: reduce) {
+  .algorithm-card {
+    animation: none;
+    transition: none;
+  }
+  
+  .status-dot {
+    animation: none;
+  }
+  
+  .progress-fill {
+    transition: none;
+  }
+}
