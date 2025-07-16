@@ -5,8 +5,8 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react'
-// 暫時隱藏未使用的導入以避免 lint 錯誤
-// TODO: 當這些組件被實際使用時移除下劃線
+// Event viewer components (暫時註釋以避免未使用警告)
+// 可在需要時啟用對應的事件檢視器
 // import EventA4Viewer from '../domains/measurement/charts/EventA4Viewer'
 // import EventD1Viewer from '../domains/measurement/charts/EventD1Viewer'
 // import EventD2Viewer from '../domains/measurement/charts/EventD2Viewer'  

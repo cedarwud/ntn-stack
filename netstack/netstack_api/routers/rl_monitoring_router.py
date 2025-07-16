@@ -514,21 +514,29 @@ async def get_ai_decision_status():
 @router.get("/training/sessions", response_model=List[TrainingSessionModel])
 async def get_training_sessions():
     """獲取訓練會話列表 - 使用統一的 RLTrainingEngine"""
+    logger.info("📋 [會話列表] 收到前端獲取訓練會話列表請求")
+    
     try:
         # 使用統一的 RLTrainingEngine
         from ..rl.training_engine import get_training_engine
 
+        logger.info("🔧 [會話列表] 獲取 RLTrainingEngine...")
         engine = await get_training_engine()
+        logger.info("✅ [會話列表] RLTrainingEngine 獲取成功")
 
         # 獲取所有會話
+        logger.info("📊 [會話列表] 調用 engine.get_all_sessions()...")
         sessions_data = engine.get_all_sessions()
+        logger.info(f"🔍 [會話列表] 獲取到原始數據: {sessions_data}")
+        logger.info(f"✅ [會話列表] 獲取到 {len(sessions_data)} 個會話")
 
         sessions = []
         for session_data in sessions_data:
+            logger.info(f"🔍 [會話列表] 會話數據: {session_data}")
             sessions.append(
                 TrainingSessionModel(
                     session_id=session_data["session_id"],
-                    algorithm_name=session_data["algorithm_name"],
+                    algorithm_name=session_data["algorithm_name"],  # 修正：使用正確的鍵名
                     status=session_data["status"],
                     start_time=session_data["start_time"],
                     episodes_target=session_data["episodes_target"],
@@ -552,16 +560,23 @@ async def start_training(
     episodes: int = Query(1000, description="訓練回合數"),
 ) -> Dict[str, Any]:
     """啟動算法訓練 - 使用統一的 RLTrainingEngine"""
+    logger.info(f"🚀🚀🚀 [RL監控路由] 收到啟動 {algorithm_name} 訓練請求, episodes={episodes}")
+    print(f"🚀🚀🚀 [RL監控路由] 收到啟動 {algorithm_name} 訓練請求, episodes={episodes}")
+    
     try:
         # 使用統一的 RLTrainingEngine
         from ..rl.training_engine import get_training_engine
 
+        logger.info(f"🔧 [後端] 獲取 RLTrainingEngine...")
         engine = await get_training_engine()
+        logger.info(f"✅ [後端] RLTrainingEngine 獲取成功: {type(engine)}")
 
         # 定義實驗名稱
         experiment_name = f"{algorithm_name.upper()}_前端啟動_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        logger.info(f"📝 [後端] 實驗名稱: {experiment_name}")
 
         # 啟動訓練
+        logger.info(f"▶️ [後端] 調用 engine.start_training...")
         result = await engine.start_training(
             algorithm_name=algorithm_name.lower(),
             episodes=episodes,
@@ -570,8 +585,29 @@ async def start_training(
         )
 
         session_id = result.get("session_id")
+        logger.info(f"✅ [後端] 訓練啟動成功, session_id={session_id}, result={result}")
 
-        return {
+        # 記錄到訓練會話（移到 return 之前）
+        if session_id:
+            training_sessions[session_id] = {
+                "algorithm_name": algorithm_name,
+                "status": "active",
+                "start_time": datetime.now(),
+                "episodes_target": episodes,
+                "episodes_completed": 0,
+                "current_reward": 0.0,
+                "best_reward": -1000.0,  # 使用有限的數字而非 -inf
+            }
+            logger.info(f"📋 [後端] 會話已記錄: {training_sessions[session_id]}")
+
+        # 在背景啟動訓練（如果有額外的訓練任務）
+        if 'manager' in globals():
+            background_tasks.add_task(
+                run_training_session, manager, session_id, algorithm_name, episodes
+            )
+            logger.info(f"🎯 [後端] 背景任務已添加")
+
+        response = {
             "message": f"演算法 '{algorithm_name}' 的訓練已啟動。",
             "session_id": session_id,
             "algorithm": result.get("algorithm", algorithm_name),
@@ -579,21 +615,9 @@ async def start_training(
             "episodes_target": episodes,
             "unified_engine": True,  # 標識使用統一引擎
         }
-
-        training_sessions[session_id] = {
-            "algorithm_name": algorithm_name,
-            "status": "active",
-            "start_time": datetime.now(),
-            "episodes_target": episodes,
-            "episodes_completed": 0,
-            "current_reward": 0.0,
-            "best_reward": -1000.0,  # 使用有限的數字而非 -inf
-        }
-
-        # 在背景啟動訓練
-        background_tasks.add_task(
-            run_training_session, manager, session_id, algorithm_name, episodes
-        )
+        
+        logger.info(f"📤 [後端] 返回響應: {response}")
+        return response
 
         return {
             "message": f"算法 '{algorithm_name}' 訓練已啟動",
@@ -704,76 +728,240 @@ async def stop_all_training() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"停止所有訓練失敗: {str(e)}")
 
 
+@router.get("/training/status/{algorithm}")
+async def get_training_status(algorithm: str):
+    """獲取特定算法的訓練狀態 - 前端所需的關鍵端點"""
+    logger.info(f"🔍 [算法狀態] 收到前端查詢 {algorithm} 訓練狀態請求")
+    
+    try:
+        # 使用統一的 RLTrainingEngine 獲取真實狀態
+        from ..rl.training_engine import get_training_engine
+        
+        logger.info("🔧 [算法狀態] 獲取 RLTrainingEngine...")
+        engine = await get_training_engine()
+        logger.info("✅ [算法狀態] RLTrainingEngine 獲取成功")
+        
+        # 獲取所有會話
+        logger.info("📊 [算法狀態] 調用 engine.get_all_sessions()...")
+        sessions_data = engine.get_all_sessions()
+        logger.info(f"✅ [算法狀態] 獲取到 {len(sessions_data)} 個會話")
+        
+        # 查找該算法的最新活躍會話
+        algorithm_session = None
+        for session_data in sessions_data:
+            if session_data["algorithm_name"] == algorithm and session_data["status"] in ["active", "queued"]:
+                algorithm_session = session_data
+                logger.info(f"✅ [算法狀態] 找到算法 {algorithm} 的活躍會話: {session_data['session_id']}")
+                break
+        
+        if algorithm_session:
+            # 構建運行狀態響應
+            progress_percentage = (algorithm_session["episodes_completed"] / algorithm_session["episodes_target"] * 100) if algorithm_session["episodes_target"] > 0 else 0
+            
+            response = {
+                "algorithm": algorithm,
+                "status": "running", 
+                "is_training": True,
+                "message": f"演算法 '{algorithm}' 正在訓練中",
+                "session_id": algorithm_session["session_id"],
+                "training_progress": {
+                    "current_episode": algorithm_session["episodes_completed"],
+                    "total_episodes": algorithm_session["episodes_target"],
+                    "progress_percentage": progress_percentage,
+                    "current_reward": algorithm_session["current_reward"],
+                    "best_reward": algorithm_session["best_reward"]
+                },
+                "metrics": {
+                    "episodes_completed": algorithm_session["episodes_completed"],
+                    "episodes_target": algorithm_session["episodes_target"],
+                    "current_reward": algorithm_session["current_reward"],
+                    "best_reward": algorithm_session["best_reward"],
+                    "start_time": algorithm_session["start_time"].isoformat() if hasattr(algorithm_session["start_time"], 'isoformat') else str(algorithm_session["start_time"])
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            logger.info(f"📤 [算法狀態] 返回運行狀態: {response}")
+            return response
+        else:
+            # 檢查是否有已完成的會話
+            completed_session = None
+            for session_data in sessions_data:
+                if session_data["algorithm_name"] == algorithm and session_data["status"] in ["completed", "stopped"]:
+                    completed_session = session_data
+                    break
+            
+            if completed_session:
+                response = {
+                    "algorithm": algorithm,
+                    "status": "completed",
+                    "is_training": False,
+                    "message": f"演算法 '{algorithm}' 訓練已完成",
+                    "session_id": completed_session["session_id"],
+                    "final_results": {
+                        "episodes_completed": completed_session["episodes_completed"],
+                        "episodes_target": completed_session["episodes_target"],
+                        "final_reward": completed_session["current_reward"],
+                        "best_reward": completed_session["best_reward"]
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+            else:
+                response = {
+                    "algorithm": algorithm,
+                    "status": "not_running",
+                    "is_training": False,
+                    "message": f"演算法 '{algorithm}' 目前沒有在訓練中",
+                    "session_id": None,
+                    "training_progress": None,
+                    "metrics": None,
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            logger.info(f"📤 [算法狀態] 返回非運行狀態: {response}")
+            return response
+            
+    except Exception as e:
+        logger.error(f"獲取算法 {algorithm} 狀態失敗: {e}")
+        import traceback
+        logger.error(f"異常追蹤: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"獲取算法狀態失敗: {str(e)}")
+
+
 @router.get("/training/status-summary")
 async def get_training_status_summary():
-    """獲取訓練狀態摘要，用於前端狀態同步"""
+    """獲取訓練狀態摘要，用於前端狀態同步 - 使用統一的 RLTrainingEngine"""
+    logger.info("📊 [狀態摘要] 收到前端狀態摘要查詢請求")
+    
     try:
-        # 清理舊會話
-        cleanup_old_sessions()
-
+        # 使用統一的 RLTrainingEngine 獲取真實狀態
+        from ..rl.training_engine import get_training_engine
+        
+        logger.info("🔧 [狀態摘要] 獲取 RLTrainingEngine...")
+        engine = await get_training_engine()
+        logger.info("✅ [狀態摘要] RLTrainingEngine 獲取成功")
+        
+        # 獲取所有活躍會話
+        logger.info("📊 [狀態摘要] 調用 engine.get_all_sessions()...")
+        sessions_data = engine.get_all_sessions()
+        logger.info(f"✅ [狀態摘要] 獲取到 {len(sessions_data)} 個會話")
+        
+        # 分析會話狀態
         active_algorithms = []
         completed_algorithms = []
-
-        for session in training_sessions.values():
-            if session["status"] == "active":
-                active_algorithms.append(session["algorithm_name"])
-            elif session["status"] in ["completed", "stopped"]:
-                completed_algorithms.append(session["algorithm_name"])
-
+        
+        for session_data in sessions_data:
+            logger.info(f"🔍 [狀態摘要] 處理會話數據: {session_data}")
+            logger.info(f"🔍 [狀態摘要] 會話數據鍵: {list(session_data.keys())}")
+            
+            try:
+                algorithm_name = session_data["algorithm_name"]
+                status = session_data["status"]
+                
+                logger.info(f"🔍 [狀態摘要] 檢查會話 {session_data['session_id']}: {algorithm_name} - {status}")
+                
+                if status in ["active", "queued"]:
+                    active_algorithms.append(algorithm_name)
+                elif status in ["completed", "stopped"]:
+                    completed_algorithms.append(algorithm_name)
+            except KeyError as e:
+                logger.error(f"❌ [狀態摘要] 缺少鍵 {e} 在會話數據中: {session_data}")
+                raise
+        
         # 去重
         active_algorithms = list(set(active_algorithms))
         completed_algorithms = list(set(completed_algorithms))
-
+        
+        logger.info(f"✅ [狀態摘要] 活躍算法: {active_algorithms}")
+        logger.info(f"✅ [狀態摘要] 完成算法: {completed_algorithms}")
+        
         # 判斷整體狀態
         has_active_training = len(active_algorithms) > 0
         all_algorithms = ["dqn", "ppo", "sac"]
         all_active = all(alg in active_algorithms for alg in all_algorithms)
-
-        return {
+        
+        logger.info(f"📈 [狀態摘要] 整體狀態 - 有活躍訓練: {has_active_training}, 全部算法活躍: {all_active}")
+        
+        # 構建算法詳細狀態
+        algorithms = {}
+        for algorithm in all_algorithms:
+            # 查找該算法的最新活躍會話 (包括 queued 和 active 狀態)
+            algorithm_session = None
+            for session_data in sessions_data:
+                logger.info(f"🔍 [狀態摘要] 檢查會話數據: {session_data}")
+                if session_data["algorithm_name"] == algorithm and session_data["status"] in ["active", "queued"]:
+                    algorithm_session = session_data
+                    logger.info(f"✅ [狀態摘要] 找到算法 {algorithm} 的活躍會話")
+                    break
+            
+            if algorithm_session:
+                logger.info(f"🔧 [狀態摘要] 構建算法 {algorithm} 的運行狀態")
+                try:
+                    algorithms[algorithm] = {
+                        "algorithm": algorithm,
+                        "status": "running",
+                        "message": f"演算法 '{algorithm}' 正在訓練中",
+                        "is_training": True,
+                        "training_progress": {
+                            "current_episode": algorithm_session["episodes_completed"],
+                            "total_episodes": algorithm_session["episodes_target"],
+                            "progress_percentage": (algorithm_session["episodes_completed"] / algorithm_session["episodes_target"] * 100) if algorithm_session["episodes_target"] > 0 else 0,
+                            "current_reward": algorithm_session["current_reward"],
+                            "best_reward": algorithm_session["best_reward"]
+                        },
+                        "metrics": {
+                            "episodes_completed": algorithm_session["episodes_completed"],
+                            "episodes_target": algorithm_session["episodes_target"],
+                            "current_reward": algorithm_session["current_reward"],
+                            "best_reward": algorithm_session["best_reward"]
+                        }
+                    }
+                    logger.info(f"✅ [狀態摘要] 成功構建算法 {algorithm} 的運行狀態")
+                except Exception as e:
+                    logger.error(f"❌ [狀態摘要] 構建算法 {algorithm} 狀態時出錯: {e}")
+                    logger.error(f"❌ [狀態摘要] 會話數據: {algorithm_session}")
+                    raise
+            else:
+                logger.info(f"🔧 [狀態摘要] 構建算法 {algorithm} 的未運行狀態")
+                algorithms[algorithm] = {
+                    "algorithm": algorithm,
+                    "status": "not_running",
+                    "message": f"演算法 '{algorithm}' 目前沒有在訓練中",
+                    "is_training": False,
+                    "training_progress": None,
+                    "metrics": None
+                }
+        
+        status_summary = {
+            "algorithms": algorithms,
+            "total_algorithms": len(all_algorithms),
+            "active_algorithms": active_algorithms,
+            "active_count": len(active_algorithms),
             "has_active_training": has_active_training,
             "all_algorithms_active": all_active,
-            "active_algorithms": active_algorithms,
             "completed_algorithms": completed_algorithms,
-            "total_active_sessions": len(
-                [s for s in training_sessions.values() if s["status"] == "active"]
-            ),
-            "total_sessions": len(training_sessions),
+            "total_active_sessions": len([s for s in sessions_data if s["status"] == "active"]),
+            "total_sessions": len(sessions_data),
             "recommended_ui_state": {
                 "dqn_button": "stop" if "dqn" in active_algorithms else "start",
                 "ppo_button": "stop" if "ppo" in active_algorithms else "start",
                 "sac_button": "stop" if "sac" in active_algorithms else "start",
                 "all_button": "stop" if has_active_training else "start",
             },
+            "timestamp": "2025-07-15T10:00:00Z"  # 固定時間戳以保持一致性
         }
-
+        
+        logger.info(f"📤 [狀態摘要] 返回狀態摘要: {status_summary}")
+        return status_summary
+        
     except Exception as e:
         logger.error(f"獲取訓練狀態摘要失敗: {e}")
+        import traceback
+        logger.error(f"異常追蹤: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"獲取訓練狀態摘要失敗: {str(e)}")
 
 
-@router.get("/training/status-summary")
-async def training_status_summary():
-    """獲取訓練狀態摘要，用於前端狀態同步"""
-    cleanup_old_sessions()
 
-    active_algorithms = []
-    for session in training_sessions.values():
-        if session["status"] == "active":
-            active_algorithms.append(session["algorithm_name"])
-
-    active_algorithms = list(set(active_algorithms))
-    has_active_training = len(active_algorithms) > 0
-
-    return {
-        "has_active_training": has_active_training,
-        "active_algorithms": active_algorithms,
-        "recommended_ui_state": {
-            "dqn_button": "stop" if "dqn" in active_algorithms else "start",
-            "ppo_button": "stop" if "ppo" in active_algorithms else "start",
-            "sac_button": "stop" if "sac" in active_algorithms else "start",
-            "all_button": "stop" if has_active_training else "start",
-        },
-    }
 
 
 @router.get("/algorithms")

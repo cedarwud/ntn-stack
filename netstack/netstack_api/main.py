@@ -84,6 +84,12 @@ async def _initialize_all_managers(app: FastAPI) -> None:
     await managers["service"].initialize_services(app)
 
     await initialize_ai_services(adapters[1])  # Redis adapter
+    
+    # 初始化 RLTrainingEngine 單例
+    logger.info("🚀 開始初始化 RLTrainingEngine...")
+    from .rl.training_engine import get_training_engine
+    await get_training_engine()
+    logger.info("✅ RLTrainingEngine 初始化完成")
 
     logger.info("✅ 所有管理器初始化完成")
 
