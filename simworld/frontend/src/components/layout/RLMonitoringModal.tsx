@@ -3,12 +3,11 @@
  * 從 FullChartAnalysisDashboard 中提取出來，作為 navbar 的獨立功能
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState } from 'react'
 import { Line } from 'react-chartjs-2'
 import GymnasiumRLMonitor from '../dashboard/GymnasiumRLMonitor'
 import { createRLChartOptions } from '../../config/dashboardChartOptions'
 import { useRLMonitoring } from '../views/dashboards/ChartAnalysisDashboard/hooks/useRLMonitoring'
-import { apiClient } from '../../services/api-client'
 import '../views/dashboards/ChartAnalysisDashboard/ChartAnalysisDashboard.scss'
 
 interface RLMonitoringModalProps {

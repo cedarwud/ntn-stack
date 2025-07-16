@@ -440,8 +440,8 @@ class AIRANServiceIntegrated:
             # 計算獎勵（基於預期改善）
             reward = self._calculate_decision_reward(decision, analysis)
 
-            # 下一個狀態（暫時使用當前狀態，實際應用中需要觀察決策後的狀態）
-            next_state = state  # TODO: 實際實現中需要獲取決策後的真實狀態
+            # 下一個狀態（基於決策預期效果模擬）
+            next_state = await self._simulate_post_decision_state(state, decision, analysis)
 
             # 存儲經驗
             success = await self.netstack_client.store_experience(
@@ -672,6 +672,91 @@ class AIRANServiceIntegrated:
                 self.current_training_session = None
             return result
         return False
+
+    async def _simulate_post_decision_state(
+        self, 
+        current_state: np.ndarray, 
+        decision: AIRANDecision, 
+        analysis: Dict[str, Any]
+    ) -> np.ndarray:
+        """模擬決策執行後的狀態變化
+        
+        基於決策類型和預期改善來計算下一狀態
+        """
+        next_state = current_state.copy()
+        
+        try:
+            # 根據決策類型預測狀態變化
+            if decision.decision_type == AIRANDecisionType.FREQUENCY_HOP:
+                # 頻率跳躍：預期SINR改善，干擾水平降低
+                if hasattr(decision, 'expected_sinr_improvement_db') and decision.expected_sinr_improvement_db:
+                    # 狀態[0]是SINR，添加預期改善
+                    current_sinr = next_state[0] * 30.0  # 反歸一化
+                    improved_sinr = current_sinr + decision.expected_sinr_improvement_db
+                    next_state[0] = min(improved_sinr / 30.0, 1.0)  # 重新歸一化並限制範圍
+                
+                # 干擾水平降低
+                if next_state[1] < 0:  # 負值表示干擾
+                    next_state[1] *= 0.7  # 降低30%的干擾
+                    
+            elif decision.decision_type == AIRANDecisionType.POWER_CONTROL:
+                # 功率控制：適度改善但可能增加能耗
+                if hasattr(decision, 'expected_sinr_improvement_db') and decision.expected_sinr_improvement_db:
+                    current_sinr = next_state[0] * 30.0
+                    improved_sinr = current_sinr + decision.expected_sinr_improvement_db
+                    next_state[0] = min(improved_sinr / 30.0, 1.0)
+                
+                # 功率調整可能影響其他指標（如果有功率相關狀態）
+                if len(next_state) > 10:  # 假設位置10存儲功率相關信息
+                    power_adjustment = getattr(decision, 'power_adjustment_db', 0) / 10.0
+                    next_state[10] = min(max(next_state[10] + power_adjustment, -1.0), 1.0)
+                    
+            elif decision.decision_type == AIRANDecisionType.BEAMFORMING:
+                # 波束成形：顯著改善SINR
+                if hasattr(decision, 'expected_sinr_improvement_db') and decision.expected_sinr_improvement_db:
+                    current_sinr = next_state[0] * 30.0
+                    improved_sinr = current_sinr + decision.expected_sinr_improvement_db
+                    next_state[0] = min(improved_sinr / 30.0, 1.0)
+                
+                # 空間選擇性改善，減少干擾
+                next_state[1] *= 0.5  # 干擾降低50%
+                
+            elif decision.decision_type == AIRANDecisionType.EMERGENCY_PROTOCOL:
+                # 緊急協議：保守改善，優先穩定性
+                if next_state[0] < 0:  # 如果當前SINR很差
+                    next_state[0] = max(next_state[0] * 1.2, -0.8)  # 適度改善
+                
+                # 降低系統不確定性（如果有相關狀態維度）
+                if len(next_state) > 15:
+                    next_state[15] *= 0.8  # 假設位置15存儲不確定性指標
+            
+            # 添加決策信心度的影響
+            confidence_factor = getattr(decision, 'confidence_score', 0.5)
+            improvement_scaling = 0.5 + (confidence_factor * 0.5)  # 0.5-1.0範圍
+            
+            # 將改善程度按信心度縮放
+            for i in range(len(next_state)):
+                if next_state[i] != current_state[i]:
+                    diff = next_state[i] - current_state[i]
+                    next_state[i] = current_state[i] + (diff * improvement_scaling)
+            
+            # 添加少量隨機噪聲模擬現實中的不確定性
+            noise_level = 0.05 * (1 - confidence_factor)  # 信心度越低噪聲越大
+            noise = np.random.normal(0, noise_level, next_state.shape)
+            next_state += noise
+            
+            # 確保狀態在合理範圍內
+            next_state = np.clip(next_state, -1.0, 1.0)
+            
+            self.logger.debug(f"狀態模擬完成: 決策類型={decision.decision_type}, 信心度={confidence_factor:.2f}")
+            
+        except Exception as e:
+            self.logger.error(f"狀態模擬失敗: {e}")
+            # 失敗時返回輕微改善的狀態
+            next_state = current_state + np.random.normal(0, 0.01, current_state.shape)
+            next_state = np.clip(next_state, -1.0, 1.0)
+        
+        return next_state
 
 
 # 全局服務實例

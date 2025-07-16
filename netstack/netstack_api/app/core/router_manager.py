@@ -36,13 +36,14 @@ class RouterManager:
                 router as handover_router,
             )
 
-            # 嘗試導入 RL System 的路由器 - 如果不存在則跳過
+            # 嘗試導入 RL System 的路由器 - 暫時禁用以避免路由衝突
             try:
                 from ...services.rl_training.api.training_routes import (
                     router as new_rl_training_router,
                 )
 
-                rl_training_available = True
+                rl_training_available = False  # 暫時禁用
+                logger.warning("RL System training routes 被暫時禁用以避免路由衝突")
             except ImportError:
                 rl_training_available = False
                 logger.warning("RL System training routes 不可用，跳過註冊")

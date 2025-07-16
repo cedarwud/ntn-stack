@@ -3,7 +3,7 @@
  * 根據 @tr.md 規劃實現的完整監控系統
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { RLMonitoringPanelProps } from './types/rl-monitoring.types';
 import { useRLMonitoring } from './hooks/useRLMonitoring';
 
@@ -116,56 +116,55 @@ const RLMonitoringPanel: React.FC<RLMonitoringPanelProps> = ({
       className={containerClasses}
       style={{ height }}
     >
-      {/* 頭部區域 */}
-      <div className="rl-monitoring-panel__header">
-        <div className="rl-monitoring-panel__title">
-          <h2>
-            <span className="icon">🤖</span>
-            RL 訓練監控系統
-            {mode === 'embedded' && (
-              <span className="mode-badge">嵌入模式</span>
-            )}
-          </h2>
-          <div className="rl-monitoring-panel__subtitle">
-            基於 {data.training?.algorithms?.length || 0} 個算法的實時監控
-            {lastUpdated && (
-              <span className="last-updated">
-                最後更新: {lastUpdated.toLocaleTimeString()}
-              </span>
+      {/* 頭部區域 - 只在 standalone 模式下顯示 */}
+      {mode === 'standalone' && (
+        <div className="rl-monitoring-panel__header">
+          <div className="rl-monitoring-panel__title">
+            <h2>
+              <span className="icon">🤖</span>
+              RL 訓練監控系統
+            </h2>
+            <div className="rl-monitoring-panel__subtitle">
+              基於 {data.training?.algorithms?.length || 0} 個算法的實時監控
+              {lastUpdated && (
+                <span className="last-updated">
+                  最後更新: {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="rl-monitoring-panel__controls">
+            {/* 全局控制按鈕 */}
+            <button
+              className="control-btn control-btn--refresh"
+              onClick={refresh}
+              disabled={isLoading}
+              title="手動刷新數據"
+            >
+              {isLoading ? '🔄' : '🔄'}
+            </button>
+
+            <button
+              className="control-btn control-btn--export"
+              onClick={() => utils.exportData('json')}
+              title="導出數據"
+            >
+              📥
+            </button>
+
+            {mode === 'standalone' && (
+              <button
+                className="control-btn control-btn--collapse"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                title={isCollapsed ? '展開面板' : '收起面板'}
+              >
+                {isCollapsed ? '📖' : '📕'}
+              </button>
             )}
           </div>
         </div>
-
-        <div className="rl-monitoring-panel__controls">
-          {/* 全局控制按鈕 */}
-          <button
-            className="control-btn control-btn--refresh"
-            onClick={refresh}
-            disabled={isLoading}
-            title="手動刷新數據"
-          >
-            {isLoading ? '🔄' : '🔄'}
-          </button>
-
-          <button
-            className="control-btn control-btn--export"
-            onClick={() => utils.exportData('json')}
-            title="導出數據"
-          >
-            📥
-          </button>
-
-          {mode === 'standalone' && (
-            <button
-              className="control-btn control-btn--collapse"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              title={isCollapsed ? '展開面板' : '收起面板'}
-            >
-              {isCollapsed ? '📖' : '📕'}
-            </button>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* 狀態指示器 */}
       {(isLoading || error) && (
