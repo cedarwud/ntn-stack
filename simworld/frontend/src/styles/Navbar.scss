@@ -394,8 +394,10 @@
   background-color: #1a1a2e;
   border-radius: 8px;
   width: 95vw;
-  max-width: 1400px;
-  max-height: 90vh;
+  min-width: 1400px;
+  height: 95vh;
+  max-width: none;
+  max-height: 95vh;
   overflow: hidden;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
   animation: modalFadeIn 0.3s ease;
@@ -530,7 +532,7 @@
 .modal-content {
   padding: 20px;
   overflow-y: auto;
-  max-height: calc(90vh - 60px);
+  max-height: calc(95vh - 60px);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -715,7 +717,7 @@
 
 /* 修改 SINR 圖片樣式，直接限制最大高度 */
 .sinr-view-image {
-    max-height: calc(90vh - 120px); /* 90vh - header(60px) - padding(2*30px) */
+    max-height: calc(95vh - 120px); /* 95vh - header(60px) - padding(2*30px) */
     max-width: 100%; 
     width: auto; 
     height: auto; 
@@ -804,4 +806,33 @@
       }
     }
   }
-} 
+}
+
+/* RL 監控模態框專用樣式 - 確保使用全尺寸設計 */
+.constellation-modal.rl-monitoring-modal-new,
+.constellation-modal.rl-monitoring-standalone {
+  width: 95vw !important;
+  min-width: 1400px !important;
+  height: 95vh !important;
+  max-width: none !important;
+  max-height: 95vh !important;
+  
+  .modal-content {
+    height: calc(95vh - 60px) !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* 營運儀表板模態框專用樣式 */
+.constellation-modal.operations-dashboard-modal {
+  width: 95vw !important;
+  min-width: 1400px !important;
+  height: 95vh !important;
+  max-width: none !important;
+  max-height: 95vh !important;
+  
+  .modal-content {
+    height: calc(95vh - 60px) !important;
+    overflow: hidden !important;
+  }
+}
