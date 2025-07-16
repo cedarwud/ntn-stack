@@ -268,6 +268,39 @@ class RouterManager:
                 f"完整版註冊失敗: {str(e)}",
             )
 
+        # Phase 4 API 路由器 - 分散式訓練與深度系統整合 (完整版)
+        try:
+            from ...services.rl_training.api.phase_4_api import router as phase_4_router
+            
+            self.app.include_router(
+                phase_4_router, 
+                prefix="/api/v1/rl/phase-4",
+                tags=["Phase 4 - 分散式訓練與深度系統整合"]
+            )
+            self._track_router(
+                "phase_4_router",
+                "Phase 4 - 分散式訓練與深度系統整合",
+                True,
+                "完整版本註冊成功",
+            )
+            logger.info("✅ Phase 4 完整 API 路由器靜態註冊成功")
+        except Exception as e:
+            logger.exception("💥 Phase 4 完整 API 路由器靜態註冊失敗")
+            self._track_router(
+                "phase_4_router",
+                "Phase 4 - 分散式訓練與深度系統整合",
+                False,
+                f"完整版註冊失敗: {str(e)}",
+            )
+        except Exception as e:
+            logger.exception("💥 Phase 3 完整 API 路由器靜態註冊失敗")
+            self._track_router(
+                "phase_3_router",
+                "Phase 3 - 決策透明化與視覺化",
+                False,
+                f"完整版註冊失敗: {str(e)}",
+            )
+
         optional_routers = [
             # {
             #     "import_path": "netstack.netstack_api.routers.orchestrator_router",

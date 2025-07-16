@@ -956,17 +956,51 @@ class AdvancedExplainabilityEngine:
             raise
     
     def get_engine_statistics(self) -> Dict[str, Any]:
-        """獲取引擎統計信息"""
-        return {
-            "initialized": getattr(self, 'initialized', False),
-            "config": self.config,
-            "sklearn_available": SKLEARN_AVAILABLE,
-            "shap_available": SHAP_AVAILABLE,
-            "feature_analyzer_type": "sklearn" if self.feature_analyzer else "simplified",
-            "pattern_cache_size": len(getattr(self, 'pattern_cache', {})),
-            "supported_levels": [level.value for level in ExplainabilityLevel],
-            "supported_analysis_types": [analysis_type.value for analysis_type in AnalysisType]
-        }
+        """獲取引擎統計信息 - 安全版本"""
+        try:
+            # 檢查 feature_analyzer 狀態
+            analyzer_status = "not_initialized"
+            analyzer_details = {}
+            
+            if hasattr(self, 'feature_analyzer') and self.feature_analyzer is not None:
+                analyzer_status = "initialized"
+                try:
+                    # 安全檢查模型屬性
+                    if hasattr(self.feature_analyzer, 'n_estimators'):
+                        analyzer_details["n_estimators"] = self.feature_analyzer.n_estimators
+                    if hasattr(self.feature_analyzer, 'random_state'):
+                        analyzer_details["random_state"] = self.feature_analyzer.random_state
+                    # 只有在模型已訓練時才檢查 feature_importances_
+                    if hasattr(self.feature_analyzer, 'feature_importances_'):
+                        analyzer_details["is_fitted"] = True
+                        analyzer_details["n_features"] = len(self.feature_analyzer.feature_importances_)
+                    else:
+                        analyzer_details["is_fitted"] = False
+                except Exception as e:
+                    analyzer_details["error"] = str(e)
+            
+            return {
+                "initialized": getattr(self, 'initialized', False),
+                "config": self.config,
+                "sklearn_available": SKLEARN_AVAILABLE,
+                "shap_available": SHAP_AVAILABLE,
+                "feature_analyzer_status": analyzer_status,
+                "feature_analyzer_details": analyzer_details,
+                "pattern_cache_size": len(getattr(self, 'pattern_cache', {})),
+                "supported_levels": [level.value for level in ExplainabilityLevel],
+                "supported_analysis_types": [analysis_type.value for analysis_type in AnalysisType],
+                "last_updated": datetime.now().isoformat()
+            }
+        except Exception as e:
+            # 降級處理
+            return {
+                "initialized": False,
+                "error": str(e),
+                "sklearn_available": SKLEARN_AVAILABLE,
+                "shap_available": SHAP_AVAILABLE,
+                "status": "error",
+                "last_updated": datetime.now().isoformat()
+            }
     
     async def generate_explanation_report(
         self,

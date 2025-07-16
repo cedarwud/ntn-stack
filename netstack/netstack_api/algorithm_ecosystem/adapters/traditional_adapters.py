@@ -242,7 +242,7 @@ class InfocomAlgorithmAdapter(BaseTraditionalAdapter):
             raise ImportError("基準算法模組不可用")
         
         # 創建原始算法實例
-        wrapped_algorithm = InfocomAlgorithm(name, config)
+        wrapped_algorithm = InfocomAlgorithm(config)
         super().__init__(name, wrapped_algorithm, config)
     
     async def _initialize_algorithm(self) -> None:
