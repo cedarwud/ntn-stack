@@ -38,9 +38,9 @@ const RLMonitoringModal: React.FC<RLMonitoringModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-backdrop" onClick={onClose}>
             <div 
-                className="modal-content chart-analysis-modal rl-monitoring-standalone"
+                className="constellation-modal rl-monitoring-standalone"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="modal-header">

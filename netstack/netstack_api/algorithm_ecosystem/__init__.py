@@ -28,11 +28,14 @@ from .registry import AlgorithmRegistry
 try:
     from .orchestrator import HandoverOrchestrator, OrchestratorConfig
     ORCHESTRATOR_AVAILABLE = True
-except ImportError as e:
+except ImportError as import_error:
+    # 存儲錯誤消息
+    orchestrator_error_msg = str(import_error)
+    
     # 創建佔位符類
     class HandoverOrchestrator:
         def __init__(self, *args, **kwargs):
-            raise ImportError(f"HandoverOrchestrator not available: {e}")
+            raise ImportError(f"HandoverOrchestrator not available: {orchestrator_error_msg}")
     
     class OrchestratorConfig:
         def __init__(self, *args, **kwargs):
