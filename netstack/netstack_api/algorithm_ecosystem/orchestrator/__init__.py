@@ -8,6 +8,7 @@ from .performance_monitoring import PerformanceMonitor, AlgorithmMetrics
 from .ab_testing import ABTestManager
 from .ensemble_voting import EnsembleVotingManager
 from .config import OrchestratorConfig
+from .handover_orchestrator import HandoverOrchestrator
 
 __all__ = [
     "AlgorithmSelector",
@@ -17,5 +18,6 @@ __all__ = [
     "AlgorithmMetrics",
     "OrchestratorMode",
     "DecisionStrategy",
-    "OrchestratorConfig"
+    "OrchestratorConfig",
+    "HandoverOrchestrator"
 ]

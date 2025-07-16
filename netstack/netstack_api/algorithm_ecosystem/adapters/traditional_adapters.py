@@ -313,7 +313,7 @@ class SimpleThresholdAlgorithmAdapter(BaseTraditionalAdapter):
         if not BASELINE_ALGORITHMS_AVAILABLE:
             raise ImportError("基準算法模組不可用")
         
-        wrapped_algorithm = SimpleThresholdAlgorithm(name, config)
+        wrapped_algorithm = SimpleThresholdAlgorithm(config)
         super().__init__(name, wrapped_algorithm, config)
     
     async def _initialize_algorithm(self) -> None:
@@ -367,7 +367,7 @@ class RandomAlgorithmAdapter(BaseTraditionalAdapter):
         if not BASELINE_ALGORITHMS_AVAILABLE:
             raise ImportError("基準算法模組不可用")
         
-        wrapped_algorithm = RandomAlgorithm(name, config)
+        wrapped_algorithm = RandomAlgorithm(config)
         super().__init__(name, wrapped_algorithm, config)
     
     async def _initialize_algorithm(self) -> None:
