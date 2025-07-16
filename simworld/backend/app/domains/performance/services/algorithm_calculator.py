@@ -48,6 +48,10 @@ class AlgorithmCalculator(AlgorithmPerformanceInterface):
         self._performance_cache: Dict[str, AlgorithmMetrics] = {}
         self._cache_expiry: Dict[str, datetime] = {}
         self._cache_duration = timedelta(minutes=5)
+        
+        # Cache hit rate tracking
+        self._cache_hits = 0
+        self._cache_misses = 0
     
     async def measure_algorithm_performance(
         self,
@@ -61,8 +65,12 @@ class AlgorithmCalculator(AlgorithmPerformanceInterface):
         # Check cache first
         cache_key = f"{algorithm_name}_{hash(tuple(test_scenarios))}"
         if self._is_cache_valid(cache_key):
+            self._cache_hits += 1
             logger.info(f"Returning cached results for {algorithm_name}")
             return self._performance_cache[cache_key]
+        
+        # Cache miss
+        self._cache_misses += 1
         
         if algorithm_name not in self.algorithm_implementations:
             raise ValueError(f"Unknown algorithm: {algorithm_name}")
@@ -374,9 +382,15 @@ class AlgorithmCalculator(AlgorithmPerformanceInterface):
     
     async def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
+        total_requests = self._cache_hits + self._cache_misses
+        hit_ratio = self._cache_hits / total_requests if total_requests > 0 else 0.0
+        
         return {
             "cache_size": len(self._performance_cache),
-            "cache_hit_ratio": 0.0,  # TODO: implement hit ratio tracking
+            "cache_hit_ratio": round(hit_ratio, 3),
+            "cache_hits": self._cache_hits,
+            "cache_misses": self._cache_misses,
+            "total_requests": total_requests,
             "oldest_entry": min(self._cache_expiry.values()) if self._cache_expiry else None,
             "newest_entry": max(self._cache_expiry.values()) if self._cache_expiry else None
         }

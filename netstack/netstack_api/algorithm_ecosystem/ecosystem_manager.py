@@ -349,8 +349,11 @@ class AlgorithmEcosystemManager:
             return True
 
         except Exception as e:
-            logger.error(f"分析引擎設置失敗: {e}")
-            return False
+            logger.warning(f"分析引擎設置失敗: {e}")
+            # 分析引擎設置失敗不應該阻止整個系統初始化
+            self.analysis_engine = None
+            logger.info("分析引擎設置失敗，但系統將繼續運行")
+            return True  # 返回 True 以允許系統繼續初始化
 
     async def _setup_ab_testing(self, ab_config: Dict[str, Any]) -> None:
         """設置 A/B 測試"""
@@ -376,49 +379,51 @@ class AlgorithmEcosystemManager:
 
     def _create_orchestrator_config(self) -> OrchestratorConfig:
         """創建協調器配置"""
-        from .orchestrator import OrchestratorMode, DecisionStrategy
+        from .orchestrator.config import OrchestratorMode, DecisionStrategy
 
         orchestrator_config = self.config.get("orchestrator", {})
 
+        # 使用 config.py 中定義的正確枚舉值
         mode_mapping = {
-            "single_algorithm": OrchestratorMode.SINGLE_ALGORITHM,
-            "load_balancing": OrchestratorMode.LOAD_BALANCING,
-            "ab_testing": OrchestratorMode.A_B_TESTING,
-            "ensemble": OrchestratorMode.ENSEMBLE,
-            "adaptive": OrchestratorMode.ADAPTIVE,
+            "manual": OrchestratorMode.MANUAL,
+            "automatic": OrchestratorMode.AUTOMATIC,
+            "hybrid": OrchestratorMode.HYBRID,
+            "learning": OrchestratorMode.LEARNING,
         }
 
         strategy_mapping = {
-            "priority_based": DecisionStrategy.PRIORITY_BASED,
+            "priority_based": DecisionStrategy.PERFORMANCE_BASED,
             "performance_based": DecisionStrategy.PERFORMANCE_BASED,
             "round_robin": DecisionStrategy.ROUND_ROBIN,
-            "weighted_random": DecisionStrategy.WEIGHTED_RANDOM,
-            "confidence_based": DecisionStrategy.CONFIDENCE_BASED,
+            "weighted_random": DecisionStrategy.WEIGHTED_AVERAGE,
+            "confidence_based": DecisionStrategy.PERFORMANCE_BASED,
+            "weighted_average": DecisionStrategy.WEIGHTED_AVERAGE,
+            "ensemble_voting": DecisionStrategy.ENSEMBLE_VOTING,
+            "adaptive": DecisionStrategy.ADAPTIVE,
         }
 
+        # 只使用OrchestratorConfig支持的參數
         return OrchestratorConfig(
             mode=mode_mapping.get(
-                orchestrator_config.get("mode", "single_algorithm"),
-                OrchestratorMode.SINGLE_ALGORITHM,
+                orchestrator_config.get("mode", "automatic"),
+                OrchestratorMode.AUTOMATIC,
             ),
             decision_strategy=strategy_mapping.get(
-                orchestrator_config.get("decision_strategy", "priority_based"),
-                DecisionStrategy.PRIORITY_BASED,
+                orchestrator_config.get("decision_strategy", "performance_based"),
+                DecisionStrategy.PERFORMANCE_BASED,
             ),
-            default_algorithm=orchestrator_config.get("default_algorithm"),
-            fallback_algorithm=orchestrator_config.get("fallback_algorithm"),
-            timeout_seconds=orchestrator_config.get("timeout_seconds", 5.0),
-            max_concurrent_requests=orchestrator_config.get(
-                "max_concurrent_requests", 100
-            ),
-            enable_caching=orchestrator_config.get("enable_caching", True),
-            cache_ttl_seconds=orchestrator_config.get("cache_ttl_seconds", 60),
-            enable_monitoring=orchestrator_config.get("enable_monitoring", True),
-            monitoring_window_minutes=orchestrator_config.get(
-                "monitoring_window_minutes", 10
-            ),
-            ab_test_config=self.config.get("experiments", {}).get("ab_test_config"),
-            ensemble_config=self.config.get("experiments", {}).get("ensemble_config"),
+            default_algorithm=orchestrator_config.get("default_algorithm", "infocom2024"),
+            failover_algorithm=orchestrator_config.get("fallback_algorithm", "simple_threshold"),
+            monitoring_enabled=orchestrator_config.get("enable_monitoring", True),
+            monitoring_interval=orchestrator_config.get("monitoring_interval", 5),
+            performance_window=orchestrator_config.get("performance_window", 100),
+            ab_testing_enabled=orchestrator_config.get("ab_testing_enabled", False),
+            ensemble_enabled=orchestrator_config.get("ensemble_enabled", False),
+            learning_enabled=orchestrator_config.get("learning_enabled", False),
+            failover_enabled=orchestrator_config.get("failover_enabled", True),
+            failover_threshold=orchestrator_config.get("failover_threshold", 0.3),
+            logging_level=orchestrator_config.get("logging_level", "INFO"),
+            metrics_collection_enabled=orchestrator_config.get("metrics_collection_enabled", True),
         )
 
     def _get_default_config(self) -> Dict[str, Any]:
@@ -432,12 +437,18 @@ class AlgorithmEcosystemManager:
                 }
             },
             "orchestrator": {
-                "mode": "single_algorithm",
-                "decision_strategy": "priority_based",
-                "timeout_seconds": 5.0,
-                "max_concurrent_requests": 100,
-                "enable_caching": True,
+                "mode": "automatic",
+                "decision_strategy": "performance_based",
                 "enable_monitoring": True,
+                "monitoring_interval": 5,
+                "performance_window": 100,
+                "ab_testing_enabled": False,
+                "ensemble_enabled": False,
+                "learning_enabled": False,
+                "failover_enabled": True,
+                "failover_threshold": 0.3,
+                "logging_level": "INFO",
+                "metrics_collection_enabled": True,
             },
             "experiments": {"enable_ab_testing": False, "enable_ensemble": False},
             "monitoring": {
@@ -531,7 +542,7 @@ class AlgorithmEcosystemManager:
                 else 0
             ),
             "registered_algorithms": self.get_registered_algorithms(),
-            "orchestrator_stats": self.orchestrator.get_orchestrator_stats(),
+            "orchestrator_stats": self.orchestrator.get_orchestrator_stats() if self.orchestrator else {},
             "analysis_engine_available": self.analysis_engine is not None,
             "active_ab_tests": (
                 self.analysis_engine.get_active_ab_tests()

@@ -355,7 +355,7 @@ class NetStackApiClient {
   /**
    * 獲取 AI 決策引擎的整合狀態
    */
-  async getAIDecisionEngineStatus(): Promise<any> {
+  async getAIDecisionEngineStatus(): Promise<Record<string, unknown>> {
     const response = await this.fetchWithConfig('/api/v2/decision/status')
     if (!response.ok) {
       throw new Error(`Failed to get AI decision engine status: ${response.statusText}`)
@@ -366,7 +366,7 @@ class NetStackApiClient {
   /**
    * 獲取 AI 決策引擎的健康狀態
    */
-  async getAIDecisionEngineHealth(): Promise<any> {
+  async getAIDecisionEngineHealth(): Promise<Record<string, unknown>> {
     const response = await this.fetchWithConfig('/api/v2/decision/health')
     if (!response.ok) {
       throw new Error(`Failed to get AI decision engine health: ${response.statusText}`)

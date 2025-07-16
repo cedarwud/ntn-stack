@@ -128,29 +128,29 @@ def get_float_env(var_name):
 # Observer Latitude
 DEFAULT_OBSERVER_LAT = get_float_env("OBSERVER_LAT")
 if DEFAULT_OBSERVER_LAT is None:
-    # TODO: Replace with actual database lookup if OBSERVER_LAT is not in env
+    # 使用台灣預設觀測站座標 (基隆港附近)
     logger.info(
-        "OBSERVER_LAT not found in environment variables. Using placeholder/database fallback."
+        "OBSERVER_LAT not found in environment variables. Using Taiwan default coordinates."
     )
-    DEFAULT_OBSERVER_LAT = 24.943889  # 新座標: 24°56'38"N
-    # Example DB lookup: default_observer_lat = db_service.get_default_observer_lat()
+    DEFAULT_OBSERVER_LAT = 24.943889  # 台灣基隆: 24°56'38"N
+    # 未來可擴展: default_observer_lat = await location_service.get_default_observer_lat()
 
 # Observer Longitude
 DEFAULT_OBSERVER_LON = get_float_env("OBSERVER_LON")
 if DEFAULT_OBSERVER_LON is None:
-    # TODO: Replace with actual database lookup if OBSERVER_LON is not in env
+    # 使用台灣預設觀測站座標 (基隆港附近)
     logger.info(
-        "OBSERVER_LON not found in environment variables. Using placeholder/database fallback."
+        "OBSERVER_LON not found in environment variables. Using Taiwan default coordinates."
     )
-    DEFAULT_OBSERVER_LON = 121.370833  # 新座標: 121°22'15"E
-    # Example DB lookup: default_observer_lon = db_service.get_default_observer_lon()
+    DEFAULT_OBSERVER_LON = 121.370833  # 台灣基隆: 121°22'15"E
+    # 未來可擴展: default_observer_lon = await location_service.get_default_observer_lon()
 
 # Observer Altitude (in meters, defaults to 0 if not specified)
 DEFAULT_OBSERVER_ALT = get_float_env("OBSERVER_ALT")
 if DEFAULT_OBSERVER_ALT is None:
-    # TODO: Replace with actual database lookup if OBSERVER_ALT is not in env
+    # 使用海平面高度作為預設值
     logger.info(
-        "OBSERVER_ALT not found in environment variables. Using placeholder/database fallback (0.0m)."
+        "OBSERVER_ALT not found in environment variables. Using sea level default (0.0m)."
     )
     DEFAULT_OBSERVER_ALT = 0.0  # Default to sea level if not specified or found in DB
     # Example DB lookup: default_observer_alt = db_service.get_default_observer_alt(default_value=0.0)
