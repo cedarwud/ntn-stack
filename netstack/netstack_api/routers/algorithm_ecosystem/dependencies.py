@@ -62,15 +62,33 @@ async def _register_builtin_algorithms():
     try:
         # 註冊 Infocom 算法
         infocom_adapter = InfocomAlgorithmAdapter()
-        await _algorithm_registry.register_algorithm(infocom_adapter)
+        await _algorithm_registry.register_algorithm(
+            name="ieee_infocom_2024",
+            algorithm=infocom_adapter,
+            config={},
+            enabled=True,
+            priority=20
+        )
         
         # 註冊簡單閾值算法
         threshold_adapter = SimpleThresholdAlgorithmAdapter()
-        await _algorithm_registry.register_algorithm(threshold_adapter)
+        await _algorithm_registry.register_algorithm(
+            name="simple_threshold",
+            algorithm=threshold_adapter,
+            config={},
+            enabled=True,
+            priority=15
+        )
         
         # 註冊隨機算法
         random_adapter = RandomAlgorithmAdapter()
-        await _algorithm_registry.register_algorithm(random_adapter)
+        await _algorithm_registry.register_algorithm(
+            name="random_algorithm",
+            algorithm=random_adapter,
+            config={},
+            enabled=True,
+            priority=5
+        )
         
         logger.info("內建算法註冊完成")
         

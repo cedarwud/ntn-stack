@@ -7,6 +7,7 @@ from .algorithm_selection import AlgorithmSelector, OrchestratorMode, DecisionSt
 from .performance_monitoring import PerformanceMonitor, AlgorithmMetrics
 from .ab_testing import ABTestManager
 from .ensemble_voting import EnsembleVotingManager
+from .config import OrchestratorConfig
 
 __all__ = [
     "AlgorithmSelector",
@@ -15,5 +16,6 @@ __all__ = [
     "EnsembleVotingManager",
     "AlgorithmMetrics",
     "OrchestratorMode",
-    "DecisionStrategy"
+    "DecisionStrategy",
+    "OrchestratorConfig"
 ]
