@@ -9,7 +9,7 @@ class NetStackApiClient {
 
     constructor() {
         this.client = axios.create({
-            baseURL: API_CONFIG.netstack.baseUrl,
+            baseURL: '/netstack', // <--- 統一設定 baseURL
             timeout: 10000,
             headers: {
                 'Content-Type': 'application/json',
@@ -72,10 +72,19 @@ class NetStackApiClient {
     controlTraining(action: 'start' | 'stop', algorithm: string) {
         if (action === 'start') {
             // 使用正確的 RL 訓練啟動端點
-            return this.post<any>(`/api/v1/rl/training/start/${algorithm}`, {})
+            return this.post<any>(`/api/v1/rl/training/start/${algorithm}`, {
+                experiment_name: `${algorithm}_training_${new Date().toISOString().slice(0, 19)}`,
+                total_episodes: 1000,
+                scenario_type: 'interference_mitigation',
+                hyperparameters: {
+                    learning_rate: algorithm === 'dqn' ? 0.001 : algorithm === 'ppo' ? 0.0003 : 0.0001,
+                    batch_size: algorithm === 'dqn' ? 32 : algorithm === 'ppo' ? 64 : 128,
+                    gamma: 0.99
+                }
+            })
         } else {
-            // 停止訓練：根據算法名稱停止
-            return this.post<any>(`/api/v1/rl/training/stop-by-algorithm/${algorithm}`, {})
+            // 停止訓練：使用可用的stop-all端點
+            return this.post<any>('/api/v1/rl/training/stop-all', {})
         }
     }
 
@@ -83,6 +92,7 @@ class NetStackApiClient {
      * 獲取訓練狀態摘要，用於前端狀態同步
      */
     getTrainingStatusSummary() {
+        // 移除前綴，由 baseURL 處理
         return this.get<any>('/api/v1/rl/training/status-summary')
     }
 
@@ -136,4 +146,4 @@ class NetStackApiClient {
     }
 }
 
-export const apiClient = new NetStackApiClient() 
+export const apiClient = new NetStackApiClient()
