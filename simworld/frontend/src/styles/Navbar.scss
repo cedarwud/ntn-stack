@@ -820,6 +820,8 @@
   .modal-content {
     height: calc(95vh - 60px) !important;
     overflow-y: auto !important;
+    background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%) !important; /* 深色主題背景 */
+    padding: 0 !important; /* 移除 padding 讓子組件完全填滿 */
   }
 }
 

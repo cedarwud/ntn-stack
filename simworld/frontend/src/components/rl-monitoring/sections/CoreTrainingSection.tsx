@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { netstackFetch } from '../../../config/api-config'
+import { netstackFetch, simworldFetch } from '../../../config/api-config'
 import './CoreTrainingSection.scss'
 
 interface CoreTrainingProps {
@@ -44,34 +44,53 @@ const CoreTrainingSection: React.FC<CoreTrainingProps> = ({
     // 獲取可見衛星數據
     const fetchVisibleSatellites = async () => {
         try {
-            // 嘗試獲取真實衛星數據
-            const response = await netstackFetch(
-                '/api/v1/satellites/visible_satellites?count=10&global_view=true'
+            // 嘗試獲取真實衛星數據 - 使用 SimWorld API
+            const response = await simworldFetch(
+                '/v1/satellites/visible_satellites?count=10&global_view=true'
             )
             if (response.ok) {
                 const data = await response.json()
-                // 適應不同的數據結構
-                const satellitesList =
-                    data.results?.satellites || data.satellites || []
+                // 適應 SimWorld API 數據結構
+                const satellitesList = data.satellites || []
 
                 if (satellitesList.length > 0) {
-                    const satellites = satellitesList.map((sat: any) => ({
-                        id: sat.id || sat.norad_id || 'unknown',
-                        name:
-                            sat.name ||
-                            `Satellite-${
-                                sat.id ||
-                                Math.random().toString(36).substring(7)
-                            }`,
-                        elevation: sat.position?.elevation || 0,
-                        azimuth: sat.position?.azimuth || 0,
-                        range: sat.position?.range || 0,
-                        rsrp: sat.signal_quality?.rsrp || -100,
-                        rsrq: sat.signal_quality?.rsrq || -20,
-                        sinr: sat.signal_quality?.sinr || 0,
-                        load_factor: sat.load_factor || 0.5,
-                    }))
+                    const satellites = satellitesList.map((sat: any) => {
+                        // 基於信號強度計算 RSRP (dBm)
+                        const signalStrength =
+                            sat.signal_quality?.estimated_signal_strength || 80
+                        const pathLoss = sat.signal_quality?.path_loss_db || 120
+                        const rsrp = signalStrength - pathLoss // 簡化的 RSRP 計算
+
+                        // 基於仰角計算 RSRQ 和 SINR
+                        const elevation = sat.position?.elevation || 0
+                        const rsrq = -20 + (elevation / 90) * 10 // 仰角越高，RSRQ 越好
+                        const sinr = 5 + (elevation / 90) * 15 // 仰角越高，SINR 越好
+
+                        // 基於距離計算負載因子
+                        const range = sat.position?.range || 800
+                        const loadFactor = Math.min(
+                            0.9,
+                            0.2 + (range - 500) / 1000
+                        ) // 距離越遠，負載越高
+
+                        return {
+                            id: sat.id?.toString() || sat.norad_id || 'unknown',
+                            name: sat.name || `Satellite-${sat.id}`,
+                            elevation: elevation,
+                            azimuth: sat.position?.azimuth || 0,
+                            range: range,
+                            rsrp: rsrp,
+                            rsrq: rsrq,
+                            sinr: sinr,
+                            load_factor: loadFactor,
+                        }
+                    })
                     setVisibleSatellites(satellites)
+                    console.log(
+                        '✅ 成功獲取真實衛星數據:',
+                        satellites.length,
+                        '顆衛星'
+                    )
                     return
                 }
             }

@@ -7,11 +7,11 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { RLMonitoringPanelProps } from './types/rl-monitoring.types'
 import { useRLMonitoring } from './hooks/useRLMonitoring'
 
-// 導入子組件
-import CoreTrainingSection from './sections/CoreTrainingSection'
-import TrainingStatusSection from './sections/TrainingStatusSection'
-import AlgorithmComparisonSection from './sections/AlgorithmComparisonSection'
-import VisualizationSection from './sections/VisualizationSection'
+// 導入重新設計的組件
+import TrainingControlCenterSection from './sections/TrainingControlCenterSection'
+import PerformanceAnalysisSection from './sections/PerformanceAnalysisSection'
+import EnvironmentVisualizationSection from './sections/EnvironmentVisualizationSection'
+import ParameterTuningSection from './sections/ParameterTuningSection'
 import RealTimeMetricsSection from './sections/RealTimeMetricsSection'
 import ResearchDataSection from './sections/ResearchDataSection'
 
@@ -34,7 +34,7 @@ const RLMonitoringPanel: React.FC<RLMonitoringPanelProps> = ({
         })
 
     // 內部狀態
-    const [activeTab, setActiveTab] = useState<string>('core')
+    const [activeTab, setActiveTab] = useState<string>('control')
     const [isCollapsed, setIsCollapsed] = useState(false)
 
     // 錯誤處理
@@ -64,44 +64,44 @@ const RLMonitoringPanel: React.FC<RLMonitoringPanelProps> = ({
         return () => events.onError.off(handleError)
     }, [events, onError])
 
-    // 標籤頁配置 (使用 useMemo 優化)
+    // 重新設計的 6 個分頁配置
     const tabs = useMemo(
         () => [
             {
-                id: 'core',
-                label: '🛰️ 核心訓練',
+                id: 'control',
+                label: '🎯 訓練控制中心',
                 icon: '🎯',
-                description: 'LEO 衛星換手 RL 訓練核心功能',
+                description: '統一的訓練控制界面和實時進度監控',
             },
             {
-                id: 'training',
-                label: '📊 訓練狀態',
+                id: 'performance',
+                label: '📊 性能分析',
                 icon: '📈',
-                description: 'DQN、PPO、SAC 訓練進度監控',
+                description: '深度訓練結果分析和算法比較',
             },
             {
-                id: 'algorithms',
-                label: '🧠 算法比較',
-                icon: '📈',
-                description: '多算法性能對比分析',
+                id: 'environment',
+                label: '🌐 環境可視化',
+                icon: '🌐',
+                description: '3D LEO 衛星星座和決策過程動畫',
             },
             {
-                id: 'visualization',
-                label: '👁️ 決策視覺化',
-                icon: '🎯',
-                description: 'Phase 3 決策透明化功能',
+                id: 'parameters',
+                label: '⚙️ 參數調優',
+                icon: '⚙️',
+                description: '算法超參數和環境參數調整',
             },
             {
                 id: 'realtime',
-                label: '⚡ 實時監控',
+                label: '📈 實時監控',
                 icon: '🔴',
-                description: 'WebSocket 實時數據流',
+                description: 'WebSocket 實時數據流和系統健康監控',
             },
             {
                 id: 'research',
                 label: '🔬 研究數據',
                 icon: '📚',
-                description: 'MongoDB 實驗數據管理',
+                description: '實驗數據管理和論文數據匯出',
             },
         ],
         []
@@ -254,30 +254,30 @@ const RLMonitoringPanel: React.FC<RLMonitoringPanelProps> = ({
 
                     {/* 內容區域 */}
                     <div className="rl-monitoring-panel__content">
-                        {activeTab === 'core' && (
-                            <CoreTrainingSection
+                        {activeTab === 'control' && (
+                            <TrainingControlCenterSection
                                 data={data}
                                 onRefresh={refresh}
                             />
                         )}
 
-                        {activeTab === 'training' && (
-                            <TrainingStatusSection
-                                data={{ training: data.training }}
+                        {activeTab === 'performance' && (
+                            <PerformanceAnalysisSection
+                                data={data}
                                 onRefresh={refresh}
                             />
                         )}
 
-                        {activeTab === 'algorithms' && (
-                            <AlgorithmComparisonSection
-                                data={data.algorithms}
+                        {activeTab === 'environment' && (
+                            <EnvironmentVisualizationSection
+                                data={data}
                                 onRefresh={refresh}
                             />
                         )}
 
-                        {activeTab === 'visualization' && (
-                            <VisualizationSection
-                                data={data.visualization}
+                        {activeTab === 'parameters' && (
+                            <ParameterTuningSection
+                                data={data}
                                 onRefresh={refresh}
                             />
                         )}

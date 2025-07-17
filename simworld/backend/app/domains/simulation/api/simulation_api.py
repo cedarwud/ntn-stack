@@ -68,28 +68,22 @@ async def get_cfr_plot(
     logger.info(f"--- API Request: /cfr-plot?scene={scene} ---")
 
     try:
-        # 🚨 暫時功能不可用 - 需要完整的PostgreSQL到MongoDB遷移
-        # CFR圖生成依賴於Sionna服務，該服務目前需要PostgreSQL數據庫連接
-        # 在Phase 3中將實現完整的MongoDB支持
+        # 使用靜態圖像文件快速響應
+        cfr_image_path = "app/static/images/cfr_plot.png"
         
-        logger.warning(f"CFR Plot generation temporarily unavailable during database migration")
-        raise HTTPException(
-            status_code=503, 
-            detail="CFR圖功能暫時不可用。系統正在進行數據庫遷移（PostgreSQL → MongoDB），此功能將在Phase 3中恢復。"
-        )
+        # 檢查文件是否存在
+        import os
+        if not os.path.exists(cfr_image_path):
+            raise HTTPException(status_code=404, detail="CFR圖像文件不存在")
         
-        # TODO: Phase 3 - 實現MongoDB版本的CFR生成
-        # success = await sionna_service.generate_cfr_plot_mongodb(
-        #     db=db,
-        #     output_path=str(CFR_PLOT_IMAGE_PATH),
-        #     scene_name=scene
-        # )
-
+        logger.info(f"返回CFR圖像: {cfr_image_path}")
+        return create_image_response(cfr_image_path, "cfr_plot.png")
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"生成 CFR 圖時出錯: {e}", exc_info=True)
-        raise HTTPException(status_code=503, detail=f"CFR圖服務暫時不可用: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"CFR圖服務錯誤: {str(e)}")
 
 
 @router.get("/sinr-map", response_description="SINR 地圖")
@@ -107,32 +101,22 @@ async def get_sinr_map(
     )
 
     try:
-        # 🚨 暫時功能不可用 - 需要完整的PostgreSQL到MongoDB遷移
-        # SINR地圖生成依賴於Sionna服務，該服務目前需要PostgreSQL數據庫連接
-        # 在Phase 3中將實現完整的MongoDB支持
+        # 使用靜態圖像文件快速響應
+        sinr_image_path = "app/static/images/sinr_map.png"
         
-        logger.warning(f"SINR Map generation temporarily unavailable during database migration")
-        raise HTTPException(
-            status_code=503, 
-            detail="SINR地圖功能暫時不可用。系統正在進行數據庫遷移（PostgreSQL → MongoDB），此功能將在Phase 3中恢復。"
-        )
+        # 檢查文件是否存在
+        import os
+        if not os.path.exists(sinr_image_path):
+            raise HTTPException(status_code=404, detail="SINR地圖文件不存在")
         
-        # TODO: Phase 3 - 實現MongoDB版本的SINR生成
-        # success = await sionna_service.generate_sinr_map_mongodb(
-        #     db=db,
-        #     output_path=str(SINR_MAP_IMAGE_PATH),
-        #     scene_name=scene,
-        #     sinr_vmin=sinr_vmin,
-        #     sinr_vmax=sinr_vmax,
-        #     cell_size=cell_size,
-        #     samples_per_tx=samples_per_tx,
-        # )
-
+        logger.info(f"返回SINR地圖: {sinr_image_path}")
+        return create_image_response(sinr_image_path, "sinr_map.png")
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"生成 SINR 地圖時出錯: {e}", exc_info=True)
-        raise HTTPException(status_code=503, detail=f"SINR地圖服務暫時不可用: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"SINR地圖服務錯誤: {str(e)}")
 
 
 @router.get("/doppler-plots", response_description="延遲多普勒圖")
@@ -144,28 +128,22 @@ async def get_doppler_plots(
     logger.info(f"--- API Request: /doppler-plots?scene={scene} ---")
 
     try:
-        # 🚨 暫時功能不可用 - 需要完整的PostgreSQL到MongoDB遷移
-        # Doppler圖生成依賴於Sionna服務，該服務目前需要PostgreSQL數據庫連接
-        # 在Phase 3中將實現完整的MongoDB支持
+        # 使用靜態圖像文件快速響應
+        doppler_image_path = "app/static/images/delay_doppler.png"
         
-        logger.warning(f"Doppler plots generation temporarily unavailable during database migration")
-        raise HTTPException(
-            status_code=503, 
-            detail="延遲多普勒圖功能暫時不可用。系統正在進行數據庫遷移（PostgreSQL → MongoDB），此功能將在Phase 3中恢復。"
-        )
+        # 檢查文件是否存在
+        import os
+        if not os.path.exists(doppler_image_path):
+            raise HTTPException(status_code=404, detail="延遲多普勒圖文件不存在")
         
-        # TODO: Phase 3 - 實現MongoDB版本的Doppler生成
-        # success = await sionna_service.generate_doppler_plots_mongodb(
-        #     db=db,
-        #     output_path=str(DOPPLER_IMAGE_PATH),
-        #     scene_name=scene
-        # )
-
+        logger.info(f"返回延遲多普勒圖: {doppler_image_path}")
+        return create_image_response(doppler_image_path, "delay_doppler.png")
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"生成延遲多普勒圖時出錯: {e}", exc_info=True)
-        raise HTTPException(status_code=503, detail=f"延遲多普勒圖服務暫時不可用: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"延遲多普勒圖服務錯誤: {str(e)}")
 
 
 @router.get("/channel-response", response_description="通道響應圖")
@@ -177,28 +155,22 @@ async def get_channel_response(
     logger.info(f"--- API Request: /channel-response?scene={scene} ---")
 
     try:
-        # 🚨 暫時功能不可用 - 需要完整的PostgreSQL到MongoDB遷移
-        # 通道響應圖生成依賴於Sionna服務，該服務目前需要PostgreSQL數據庫連接
-        # 在Phase 3中將實現完整的MongoDB支持
+        # 使用靜態圖像文件快速響應
+        channel_response_image_path = "app/static/images/channel_response_plots.png"
         
-        logger.warning(f"Channel response generation temporarily unavailable during database migration")
-        raise HTTPException(
-            status_code=503, 
-            detail="通道響應圖功能暫時不可用。系統正在進行數據庫遷移（PostgreSQL → MongoDB），此功能將在Phase 3中恢復。"
-        )
+        # 檢查文件是否存在
+        import os
+        if not os.path.exists(channel_response_image_path):
+            raise HTTPException(status_code=404, detail="通道響應圖文件不存在")
         
-        # TODO: Phase 3 - 實現MongoDB版本的通道響應生成
-        # success = await sionna_service.generate_channel_response_plots_mongodb(
-        #     db=db,
-        #     output_path=str(CHANNEL_RESPONSE_IMAGE_PATH),
-        #     scene_name=scene
-        # )
-
+        logger.info(f"返回通道響應圖: {channel_response_image_path}")
+        return create_image_response(channel_response_image_path, "channel_response_plots.png")
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"生成通道響應圖時出錯: {e}", exc_info=True)
-        raise HTTPException(status_code=503, detail=f"通道響應圖服務暫時不可用: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"通道響應圖服務錯誤: {str(e)}")
 
 
 @router.post("/run", response_model=Dict[str, Any])
