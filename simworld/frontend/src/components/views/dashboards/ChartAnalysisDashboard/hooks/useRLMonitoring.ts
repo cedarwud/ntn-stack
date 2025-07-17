@@ -120,13 +120,15 @@ export const useRLMonitoring = (enabled: boolean = true) => {
       const getAlgorithmStatus = (algorithm: string) => {
         // 從訓練會話中查找活躍的訓練
         const activeSession = trainingSessions?.active_sessions?.find(
-          (session: any) => session.algorithm?.toLowerCase() === algorithm.toLowerCase() && session.status === 'running'
+          (session: any) =>
+            session.algorithm?.toLowerCase() === algorithm.toLowerCase() &&
+            (session.status === 'running' || session.status === 'paused')
         );
         
         const algorithmData = statusSummary?.algorithms?.[algorithm] || statusSummary?.[algorithm];
         
         return {
-          is_training: !!activeSession || (algorithmData?.status === 'running'),
+          is_training: !!activeSession || (algorithmData?.status === 'running') || (algorithmData?.training_active === true),
           status: activeSession?.status || algorithmData?.status || 'idle',
           training_progress: activeSession?.progress || algorithmData?.progress,
           metrics: activeSession?.metrics || algorithmData?.metrics || {
@@ -194,11 +196,15 @@ export const useRLMonitoring = (enabled: boolean = true) => {
             episodes: episodes,
             avgReward: dqnStatus.metrics.average_reward || 0,
             progress: displayProgress,
-            // 使用真實的訓練指標，如果後端沒有提供則使用合理的計算值
-            handoverDelay: dqnStatus.metrics.handover_delay || (100 - (dqnStatus.metrics.progress || 0)) * 2, // 基於進度計算
-            successRate: dqnStatus.metrics.success_rate || Math.max(0, Math.min(100, 50 + (dqnStatus.metrics.average_reward || 0) * 10)), // 基於獎勵計算
-            signalDropTime: dqnStatus.metrics.signal_drop_time || Math.max(0, 50 - (dqnStatus.metrics.progress || 0) * 0.3), // 基於進度計算
-            energyEfficiency: dqnStatus.metrics.energy_efficiency || Math.max(0, Math.min(100, 60 + (dqnStatus.metrics.average_reward || 0) * 5)), // 基於獎勵計算
+            // 使用真實的訓練指標，優先從後端獲取
+            handoverDelay: dqnStatus.metrics.handover_delay || 0,
+            successRate: (dqnStatus.metrics.success_rate || 0) * 100, // 轉換為百分比
+            signalDropTime: dqnStatus.metrics.signal_drop_time || 0,
+            energyEfficiency: dqnStatus.metrics.energy_efficiency || 0,
+            // 新增真實指標
+            stability: (dqnStatus.metrics.stability || 0) * 100, // 轉換為百分比
+            learningEfficiency: (dqnStatus.metrics.learning_efficiency || 0) * 100,
+            confidenceScore: (dqnStatus.metrics.confidence_score || 0) * 100,
           };
         }
         
@@ -213,11 +219,15 @@ export const useRLMonitoring = (enabled: boolean = true) => {
             episodes: episodes,
             avgReward: ppoStatus.metrics.average_reward || 0,
             progress: displayProgress,
-            // 使用真實的訓練指標，如果後端沒有提供則使用合理的計算值
-            handoverDelay: ppoStatus.metrics.handover_delay || (100 - (ppoStatus.metrics.progress || 0)) * 2,
-            successRate: ppoStatus.metrics.success_rate || Math.max(0, Math.min(100, 50 + (ppoStatus.metrics.average_reward || 0) * 10)),
-            signalDropTime: ppoStatus.metrics.signal_drop_time || Math.max(0, 50 - (ppoStatus.metrics.progress || 0) * 0.3),
-            energyEfficiency: ppoStatus.metrics.energy_efficiency || Math.max(0, Math.min(100, 60 + (ppoStatus.metrics.average_reward || 0) * 5)),
+            // 使用真實的訓練指標，優先從後端獲取
+            handoverDelay: ppoStatus.metrics.handover_delay || 0,
+            successRate: (ppoStatus.metrics.success_rate || 0) * 100, // 轉換為百分比
+            signalDropTime: ppoStatus.metrics.signal_drop_time || 0,
+            energyEfficiency: ppoStatus.metrics.energy_efficiency || 0,
+            // 新增真實指標
+            stability: (ppoStatus.metrics.stability || 0) * 100, // 轉換為百分比
+            learningEfficiency: (ppoStatus.metrics.learning_efficiency || 0) * 100,
+            confidenceScore: (ppoStatus.metrics.confidence_score || 0) * 100,
           };
         }
         
@@ -232,11 +242,15 @@ export const useRLMonitoring = (enabled: boolean = true) => {
             episodes: episodes,
             avgReward: sacStatus.metrics.average_reward || 0,
             progress: displayProgress,
-            // 使用真實的訓練指標，如果後端沒有提供則使用合理的計算值
-            handoverDelay: sacStatus.metrics.handover_delay || (100 - (sacStatus.metrics.progress || 0)) * 2,
-            successRate: sacStatus.metrics.success_rate || Math.max(0, Math.min(100, 50 + (sacStatus.metrics.average_reward || 0) * 10)),
-            signalDropTime: sacStatus.metrics.signal_drop_time || Math.max(0, 50 - (sacStatus.metrics.progress || 0) * 0.3),
-            energyEfficiency: sacStatus.metrics.energy_efficiency || Math.max(0, Math.min(100, 60 + (sacStatus.metrics.average_reward || 0) * 5)),
+            // 使用真實的訓練指標，優先從後端獲取
+            handoverDelay: sacStatus.metrics.handover_delay || 0,
+            successRate: (sacStatus.metrics.success_rate || 0) * 100, // 轉換為百分比
+            signalDropTime: sacStatus.metrics.signal_drop_time || 0,
+            energyEfficiency: sacStatus.metrics.energy_efficiency || 0,
+            // 新增真實指標
+            stability: (sacStatus.metrics.stability || 0) * 100, // 轉換為百分比
+            learningEfficiency: (sacStatus.metrics.learning_efficiency || 0) * 100,
+            confidenceScore: (sacStatus.metrics.confidence_score || 0) * 100,
           };
         }
         
@@ -321,7 +335,7 @@ export const useRLMonitoring = (enabled: boolean = true) => {
     if (!enabled) return; // 如果未啟用，不啟動輪詢
     
     // 啟動定期數據獲取 - 使用更快的轮询频率以捕获快速训练
-    const interval = setInterval(fetchTrainingData, 500); // 改为500ms轮询
+    const interval = setInterval(fetchTrainingData, 2000); // 改为2秒轮询，減少伺服器負載
     fetchTrainingData(); // 立即執行一次
 
     return () => {
