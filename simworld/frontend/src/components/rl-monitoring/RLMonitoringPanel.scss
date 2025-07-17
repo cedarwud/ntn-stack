@@ -2,7 +2,7 @@
 .rl-monitoring-panel {
   display: flex;
   flex-direction: column;
-  background: #1a1a1a;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%); /* 深色漸層背景 */
   border: 1px solid #333333;
   border-radius: 12px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
@@ -261,7 +261,7 @@
   flex: 1;
   padding: 0 1rem;
   overflow-y: auto;
-  background: #1a1a1a;
+  background: transparent; /* 改為透明，讓子組件的背景色顯示 */
 }
 
 /* 底部信息 */
