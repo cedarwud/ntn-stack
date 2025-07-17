@@ -47,6 +47,9 @@ except ImportError:
     ECOSYSTEM_AVAILABLE = False
     AlgorithmEcosystemManager = None
 
+# 導入訓練編排器
+from ..services.rl_training.core.training_orchestrator import TrainingOrchestrator
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/rl/training", tags=["RL 訓練管理"])
@@ -61,6 +64,9 @@ hyperparameter_configs_store: Dict[str, RLHyperparameterConfig] = {}
 # 全局算法生態系統管理器
 ecosystem_manager: Optional[Any] = None
 
+# 全局訓練編排器（單例模式）
+training_orchestrator: Optional[TrainingOrchestrator] = None
+
 
 async def get_ecosystem_manager():
     """獲取算法生態系統管理器"""
@@ -74,6 +80,14 @@ async def get_ecosystem_manager():
         except Exception as e:
             logger.warning(f"無法初始化算法生態系統管理器: {e}")
     return ecosystem_manager
+
+async def get_training_orchestrator() -> TrainingOrchestrator:
+    """獲取訓練編排器（單例模式）"""
+    global training_orchestrator
+    if training_orchestrator is None:
+        training_orchestrator = TrainingOrchestrator()
+        logger.info("訓練編排器已初始化")
+    return training_orchestrator
 
 
 def generate_id(prefix: str = "") -> str:
@@ -324,6 +338,7 @@ async def delete_training_session(
 async def start_training_session(
     session_id: str = Path(..., description="訓練會話 ID"),
     background_tasks: BackgroundTasks = None,
+    force: bool = Query(False, description="強制啟動，即使有衝突也繼續"),
 ) -> Dict[str, Any]:
     """開始訓練會話"""
     try:
@@ -339,15 +354,58 @@ async def start_training_session(
                 status_code=409, detail=f"訓練會話 '{session_id}' 已在運行中"
             )
 
+        # 獲取訓練編排器
+        orchestrator = await get_training_orchestrator()
+        
+        # 檢查互斥鎖狀態
+        active_info = await orchestrator.get_active_algorithm_info()
+        if active_info and not force:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "training_conflict",
+                    "message": f"算法 '{active_info['active_algorithm']}' 正在運行中",
+                    "active_algorithm": active_info['active_algorithm'],
+                    "active_session_id": active_info['active_session_id'],
+                    "suggestion": "使用 force=true 強制啟動或先停止當前訓練"
+                }
+            )
+
+        # 嘗試在TrainingOrchestrator中創建會話
+        try:
+            orchestrator_session_id = await orchestrator.create_training_session(
+                algorithm=session.algorithm_type.value,
+                experiment_name=f"API_Session_{session_id}",
+                total_episodes=session.total_episodes,
+                scenario_type="urban",
+                researcher_id="api_user",
+                research_notes=session.notes
+            )
+            
+            # 存儲orchestrator會話ID的映射
+            session.notes = f"orchestrator_session_id: {orchestrator_session_id}"
+            
+        except ValueError as e:
+            if "正在被其他會話使用" in str(e):
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "training_conflict",
+                        "message": str(e),
+                        "suggestion": "使用 force=true 強制啟動或先停止當前訓練"
+                    }
+                )
+            raise
+
         # 更新狀態
         session.status = TrainingStatus.ACTIVE
         session.start_time = datetime.now()
 
         # 在背景啟動訓練
         if background_tasks:
-            background_tasks.add_task(run_training_session, session_id)
+            background_tasks.add_task(run_training_session_with_orchestrator, session_id, orchestrator_session_id)
         else:
-            asyncio.create_task(run_training_session(session_id))
+            asyncio.create_task(run_training_session_with_orchestrator(session_id, orchestrator_session_id))
 
         logger.info(f"啟動訓練會話: {session_id} (算法: {session.algorithm_type})")
 
@@ -356,6 +414,7 @@ async def start_training_session(
             "session_id": session_id,
             "algorithm": session.algorithm_type.value,
             "total_episodes": session.total_episodes,
+            "orchestrator_session_id": orchestrator_session_id,
         }
 
     except HTTPException:
@@ -381,6 +440,24 @@ async def stop_training_session(session_id: str = Path(..., description="訓練�
                 status_code=409, detail=f"訓練會話 '{session_id}' 不是活躍狀態"
             )
 
+        # 獲取訓練編排器
+        orchestrator = await get_training_orchestrator()
+        
+        # 從備註中提取orchestrator會話ID
+        orchestrator_session_id = None
+        if session.notes and "orchestrator_session_id:" in session.notes:
+            try:
+                orchestrator_session_id = int(session.notes.split("orchestrator_session_id: ")[1])
+            except (ValueError, IndexError):
+                logger.warning(f"無法解析orchestrator會話ID: {session.notes}")
+        
+        # 停止TrainingOrchestrator中的會話
+        if orchestrator_session_id:
+            try:
+                await orchestrator.stop_training_session(orchestrator_session_id)
+            except Exception as e:
+                logger.warning(f"停止orchestrator會話失敗: {e}")
+
         # 更新狀態
         session.status = TrainingStatus.CANCELLED
         session.end_time = datetime.now()
@@ -391,6 +468,7 @@ async def stop_training_session(session_id: str = Path(..., description="訓練�
             "message": f"訓練會話 '{session_id}' 已停止",
             "session_id": session_id,
             "episodes_completed": session.episodes_completed,
+            "orchestrator_session_id": orchestrator_session_id,
         }
 
     except HTTPException:
@@ -511,24 +589,92 @@ async def get_algorithm_performance(
 async def get_training_performance_metrics():
     """獲取訓練性能指標 - 為前端 RL 監控系統提供"""
     try:
-        # 獲取所有算法的效能數據
-        performances = list(algorithm_performance_store.values())
+        # 獲取訓練編排器來獲取真實訓練數據
+        orchestrator = await get_training_orchestrator()
         
-        # 計算整體性能指標
-        total_sessions = sum(p.total_sessions for p in performances)
-        successful_sessions = sum(p.successful_sessions for p in performances)
+        # 獲取所有活動會話
+        active_sessions = orchestrator.active_sessions
         
-        # 計算平均指標
-        avg_success_rate = successful_sessions / total_sessions if total_sessions > 0 else 0
-        avg_reward = sum(p.average_reward for p in performances) / len(performances) if performances else 0
-        avg_training_time = sum(p.average_training_time for p in performances) / len(performances) if performances else 0
-        avg_handover_success = sum(p.handover_success_rate for p in performances) / len(performances) if performances else 0
+        # 計算真實的性能指標
+        algorithm_metrics = {}
+        total_sessions = len(active_sessions)
+        completed_sessions = 0
+        total_success_rate = 0
+        total_stability = 0
+        total_rewards = 0
+        total_training_time = 0
+        session_count = 0
+        
+        # 分析每個會話的性能
+        for session_id, session in active_sessions.items():
+            algorithm = session.algorithm
+            
+            # 初始化算法指標
+            if algorithm not in algorithm_metrics:
+                algorithm_metrics[algorithm] = {
+                    "sessions": 0,
+                    "total_episodes": 0,
+                    "completed_episodes": 0,
+                    "success_rate": 0,
+                    "stability": 0,
+                    "average_reward": 0,
+                    "total_rewards": 0,
+                    "training_time": 0
+                }
+            
+            # 獲取會話的性能指標
+            metrics = session.performance_metrics
+            algorithm_metrics[algorithm]["sessions"] += 1
+            algorithm_metrics[algorithm]["total_episodes"] += session.total_episodes
+            algorithm_metrics[algorithm]["completed_episodes"] += session.current_episode
+            
+            # 計算真實的成功率和穩定性
+            if metrics:
+                success_rate = metrics.get("success_rate", 0)
+                average_reward = metrics.get("average_reward", 0)
+                last_reward = metrics.get("last_episode_reward", 0)
+                
+                # 計算穩定性（基於獎勵的一致性）
+                stability = min(1.0, max(0.0, 1.0 - abs(last_reward - average_reward) / max(abs(average_reward), 1.0)))
+                
+                algorithm_metrics[algorithm]["success_rate"] += success_rate
+                algorithm_metrics[algorithm]["stability"] += stability
+                algorithm_metrics[algorithm]["average_reward"] += average_reward
+                algorithm_metrics[algorithm]["total_rewards"] += average_reward
+                
+                total_success_rate += success_rate
+                total_stability += stability
+                total_rewards += average_reward
+                session_count += 1
+            
+            # 計算訓練時間
+            if session.end_time:
+                training_time = (session.end_time - session.start_time).total_seconds()
+                algorithm_metrics[algorithm]["training_time"] += training_time
+                total_training_time += training_time
+                completed_sessions += 1
+        
+        # 計算平均值
+        for algorithm in algorithm_metrics:
+            sessions = algorithm_metrics[algorithm]["sessions"]
+            if sessions > 0:
+                algorithm_metrics[algorithm]["success_rate"] /= sessions
+                algorithm_metrics[algorithm]["stability"] /= sessions
+                algorithm_metrics[algorithm]["average_reward"] /= sessions
+                algorithm_metrics[algorithm]["training_time"] /= sessions
+        
+        # 計算整體平均指標
+        avg_success_rate = total_success_rate / session_count if session_count > 0 else 0
+        avg_stability = total_stability / session_count if session_count > 0 else 0
+        avg_reward = total_rewards / session_count if session_count > 0 else 0
+        avg_training_time = total_training_time / completed_sessions if completed_sessions > 0 else 0
         
         # 構建標準性能指標響應
         return {
             "latency": avg_training_time * 1000,  # 轉換為毫秒
             "success_rate": avg_success_rate,
-            "throughput": successful_sessions,  # 成功會話數作為吞吐量
+            "stability": avg_stability,  # 添加穩定性指標
+            "throughput": completed_sessions,  # 完成的會話數作為吞吐量
             "error_rate": 1 - avg_success_rate,
             "response_time": avg_training_time,
             "resource_utilization": {
@@ -536,20 +682,24 @@ async def get_training_performance_metrics():
                 "memory": 68.5  # 模擬記憶體使用率
             },
             "handover_metrics": {
-                "success_rate": avg_handover_success,
+                "success_rate": avg_success_rate,
                 "average_time": avg_training_time,
                 "total_handovers": total_sessions
             },
             "algorithm_breakdown": {
-                alg.algorithm_type.value: {
-                    "success_rate": alg.successful_sessions / alg.total_sessions if alg.total_sessions > 0 else 0,
-                    "average_reward": alg.average_reward,
-                    "total_sessions": alg.total_sessions,
-                    "handover_success_rate": alg.handover_success_rate
-                } for alg in performances
+                algorithm: {
+                    "success_rate": metrics["success_rate"],
+                    "stability": metrics["stability"],
+                    "average_reward": metrics["average_reward"],
+                    "total_sessions": metrics["sessions"],
+                    "completed_episodes": metrics["completed_episodes"],
+                    "total_episodes": metrics["total_episodes"],
+                    "training_time": metrics["training_time"]
+                } for algorithm, metrics in algorithm_metrics.items()
             },
             "timestamp": datetime.utcnow().isoformat(),
-            "total_algorithms": len(performances)
+            "total_algorithms": len(algorithm_metrics),
+            "active_sessions": len(active_sessions)
         }
 
     except Exception as e:
@@ -691,6 +841,44 @@ async def run_training_session(session_id: str):
         if session_id in training_sessions_store:
             training_sessions_store[session_id].status = TrainingStatus.ERROR
 
+async def run_training_session_with_orchestrator(session_id: str, orchestrator_session_id: int):
+    """使用TrainingOrchestrator在背景執行訓練會話"""
+    try:
+        if session_id not in training_sessions_store:
+            logger.error(f"訓練會話不存在: {session_id}")
+            return
+
+        session = training_sessions_store[session_id]
+        orchestrator = await get_training_orchestrator()
+        
+        logger.info(f"開始執行訓練會話: {session_id} (orchestrator: {orchestrator_session_id})")
+
+        # 使用TrainingOrchestrator執行訓練
+        try:
+            final_stats = await orchestrator.run_training_session(
+                session_id=orchestrator_session_id,
+                algorithm=session.algorithm_type.value,
+                enable_streaming=True
+            )
+            
+            # 更新API會話狀態
+            session.status = TrainingStatus.COMPLETED
+            session.end_time = datetime.now()
+            session.episodes_completed = final_stats.get("total_episodes", session.total_episodes)
+            session.best_reward = final_stats.get("final_metrics", {}).get("last_episode_reward", 0)
+            
+            logger.info(f"訓練會話完成: {session_id}")
+            
+        except Exception as e:
+            logger.error(f"訓練會話執行失敗: {session_id}, 錯誤: {e}")
+            session.status = TrainingStatus.ERROR
+            session.end_time = datetime.now()
+
+    except Exception as e:
+        logger.error(f"訓練會話執行失敗: {session_id}, 錯誤: {e}")
+        if session_id in training_sessions_store:
+            training_sessions_store[session_id].status = TrainingStatus.ERROR
+
 
 # ===== 統計和監控 =====
 
@@ -755,11 +943,66 @@ async def get_training_stats():
         raise HTTPException(status_code=500, detail=f"獲取訓練統計失敗: {str(e)}")
 
 
+@router.get("/mutex/status")
+async def get_mutex_status():
+    """獲取互斥鎖狀態"""
+    try:
+        orchestrator = await get_training_orchestrator()
+        active_info = await orchestrator.get_active_algorithm_info()
+        
+        return {
+            "mutex_locked": active_info is not None,
+            "active_algorithm": active_info['active_algorithm'] if active_info else None,
+            "active_session_id": active_info['active_session_id'] if active_info else None,
+            "session_info": active_info['session_info'] if active_info else None,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"獲取互斥鎖狀態失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取互斥鎖狀態失敗: {str(e)}")
+
+@router.post("/mutex/release")
+async def force_release_mutex():
+    """強制釋放互斥鎖（管理員功能）"""
+    try:
+        orchestrator = await get_training_orchestrator()
+        
+        # 獲取當前活動算法信息
+        active_info = await orchestrator.get_active_algorithm_info()
+        
+        if not active_info:
+            return {
+                "message": "沒有活動的訓練會話需要釋放",
+                "timestamp": datetime.now().isoformat(),
+            }
+        
+        # 強制停止當前活動的會話
+        await orchestrator.stop_training_session(active_info['active_session_id'])
+        
+        logger.info(f"強制釋放互斥鎖: {active_info['active_algorithm']} (會話 {active_info['active_session_id']})")
+        
+        return {
+            "message": f"已強制釋放算法 '{active_info['active_algorithm']}' 的互斥鎖",
+            "released_algorithm": active_info['active_algorithm'],
+            "released_session_id": active_info['active_session_id'],
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"強制釋放互斥鎖失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"強制釋放互斥鎖失敗: {str(e)}")
+
 @router.get("/health")
 async def rl_training_health_check():
     """RL 訓練服務健康檢查"""
     try:
         status = "healthy"
+        
+        # 獲取互斥鎖狀態
+        orchestrator = await get_training_orchestrator()
+        active_info = await orchestrator.get_active_algorithm_info()
+        
         details = {
             "total_sessions": len(training_sessions_store),
             "active_sessions": len(
@@ -770,6 +1013,8 @@ async def rl_training_health_check():
                 ]
             ),
             "ecosystem_available": ECOSYSTEM_AVAILABLE,
+            "mutex_locked": active_info is not None,
+            "active_algorithm": active_info['active_algorithm'] if active_info else None,
         }
 
         return {
