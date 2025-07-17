@@ -289,47 +289,36 @@ const TrainingStatusSection: React.FC<TrainingStatusSectionProps> = ({
                                 </div>
                                 <div className="metric">
                                     <span className="metric-label">
-                                        Success Rate:
+                                        當前回合:
                                     </span>
                                     <span className="metric-value">
-                                        {(
-                                            (algo.metrics?.success_rate || 0) *
-                                            100
-                                        ).toFixed(1)}
-                                        %
-                                        {algo.metrics?.confidence_score && (
-                                            <span
-                                                className="confidence-indicator"
-                                                title={`可信度: ${(
-                                                    algo.metrics
-                                                        .confidence_score * 100
-                                                ).toFixed(0)}%`}
-                                            >
-                                                {algo.metrics.confidence_score >
-                                                0.7
-                                                    ? '🟢'
-                                                    : algo.metrics
-                                                          .confidence_score >
-                                                      0.4
-                                                    ? '🟡'
-                                                    : '🔴'}
-                                            </span>
-                                        )}
+                                        {algo.training_progress
+                                            ?.current_episode || 0}{' '}
+                                        /{' '}
+                                        {algo.training_progress
+                                            ?.total_episodes || 1000}
+                                        <span
+                                            className="episode-status"
+                                            title="訓練狀態"
+                                        >
+                                            {algo.training_active ? '🔄' : '⏸️'}
+                                        </span>
                                     </span>
                                 </div>
                                 <div className="metric">
                                     <span className="metric-label">
-                                        Stability:
+                                        平均獎勵:
                                     </span>
                                     <span className="metric-value">
-                                        {(
-                                            (algo.metrics?.stability || 0) * 100
-                                        ).toFixed(1)}
-                                        %
+                                        {algo.metrics?.average_reward
+                                            ? algo.metrics.average_reward.toFixed(
+                                                  2
+                                              )
+                                            : '0.00'}
                                         {algo.metrics?.performance_trend && (
                                             <span
                                                 className="trend-indicator"
-                                                title={`趨勢: ${algo.metrics.performance_trend}`}
+                                                title={`學習趨勢: ${algo.metrics.performance_trend}`}
                                             >
                                                 {algo.metrics
                                                     .performance_trend ===
