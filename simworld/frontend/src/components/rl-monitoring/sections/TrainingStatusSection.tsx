@@ -26,6 +26,19 @@ const TrainingStatusSection: React.FC<TrainingStatusSectionProps> = ({ data, onR
     const [showStartModal, setShowStartModal] = useState(false);
     const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('dqn');
     
+    // 檢查是否有任何算法正在訓練（互斥控制）
+    const hasActiveTraining = algorithms.some(algo => algo.training_active || algo.status === 'running');
+    
+    // 檢查算法是否處於暫停狀態
+    const isAlgorithmPaused = (algo: any) => {
+        return algo.status === 'paused';
+    };
+    
+    // 檢查算法是否正在運行（非暫停狀態的訓練）
+    const isAlgorithmRunning = (algo: any) => {
+        return algo.training_active && (algo.status === 'running' || algo.status === 'active');
+    };
+    
     // 訓練控制函數
     const handleStartTraining = useCallback(async (algorithm: string) => {
         const controlKey = `start_${algorithm}`;
@@ -89,14 +102,15 @@ const TrainingStatusSection: React.FC<TrainingStatusSectionProps> = ({ data, onR
         setIsControlling(prev => ({ ...prev, [controlKey]: true }));
         
         try {
-            // 使用stop-all端點 (目前API的可用選項)
-            const response = await netstackFetch('/api/v1/rl/training/stop-all', {
+            // 使用新的暫停端點
+            const response = await netstackFetch(`/api/v1/rl/training/pause/${algorithm}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
             
             if (response.ok) {
-                console.log(`${algorithm.toUpperCase()} 訓練已暫停`);
+                const result = await response.json();
+                console.log(`${algorithm.toUpperCase()} 訓練已暫停:`, result);
                 onRefresh?.();
             }
         } catch (error) {
@@ -111,24 +125,15 @@ const TrainingStatusSection: React.FC<TrainingStatusSectionProps> = ({ data, onR
         setIsControlling(prev => ({ ...prev, [controlKey]: true }));
         
         try {
-            // 由於API沒有resume端點，使用重新start代替
-            const response = await netstackFetch(`/api/v1/rl/training/start/${algorithm}`, {
+            // 使用新的恢復端點
+            const response = await netstackFetch(`/api/v1/rl/training/resume/${algorithm}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    experiment_name: `${algorithm}_resume_${new Date().toISOString().slice(0, 19)}`,
-                    total_episodes: 1000,
-                    scenario_type: 'interference_mitigation',
-                    hyperparameters: {
-                        learning_rate: algorithm === 'dqn' ? 0.001 : algorithm === 'ppo' ? 0.0003 : 0.0001,
-                        batch_size: algorithm === 'dqn' ? 32 : algorithm === 'ppo' ? 64 : 128,
-                        gamma: 0.99
-                    }
-                })
+                headers: { 'Content-Type': 'application/json' }
             });
             
             if (response.ok) {
-                console.log(`${algorithm.toUpperCase()} 訓練已恢復`);
+                const result = await response.json();
+                console.log(`${algorithm.toUpperCase()} 訓練已恢復:`, result);
                 onRefresh?.();
             }
         } catch (error) {
@@ -143,13 +148,15 @@ const TrainingStatusSection: React.FC<TrainingStatusSectionProps> = ({ data, onR
         setIsControlling(prev => ({ ...prev, [controlKey]: true }));
         
         try {
-            const response = await netstackFetch('/api/v1/rl/training/stop-all', {
+            // 使用新的特定算法停止端點
+            const response = await netstackFetch(`/api/v1/rl/training/stop-algorithm/${algorithm}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
             
             if (response.ok) {
-                console.log(`${algorithm.toUpperCase()} 訓練已停止`);
+                const result = await response.json();
+                console.log(`${algorithm.toUpperCase()} 訓練已停止:`, result);
                 onRefresh?.();
             }
         } catch (error) {
@@ -232,33 +239,56 @@ const TrainingStatusSection: React.FC<TrainingStatusSectionProps> = ({ data, onR
                                     <button 
                                         className="btn btn-sm btn-success"
                                         onClick={() => handleStartTraining(algo.algorithm)}
-                                        disabled={isControlling[`start_${algo.algorithm}`]}
+                                        disabled={isControlling[`start_${algo.algorithm}`] || hasActiveTraining}
+                                        title={hasActiveTraining ? "其他算法正在訓練中，請先停止後再開始" : "開始訓練"}
                                     >
                                         {isControlling[`start_${algo.algorithm}`] ? '🔄' : '▶️'} 開始
                                     </button>
                                 ) : (
                                     <div className="control-group">
-                                        <button 
-                                            className="btn btn-sm btn-warning"
-                                            onClick={() => handlePauseTraining(algo.algorithm, algo.session_id)}
-                                            disabled={isControlling[`pause_${algo.algorithm}`]}
-                                        >
-                                            {isControlling[`pause_${algo.algorithm}`] ? '🔄' : '⏸️'} 暫停
-                                        </button>
-                                        <button 
-                                            className="btn btn-sm btn-secondary"
-                                            onClick={() => handleResumeTraining(algo.algorithm, algo.session_id)}
-                                            disabled={isControlling[`resume_${algo.algorithm}`]}
-                                        >
-                                            {isControlling[`resume_${algo.algorithm}`] ? '🔄' : '▶️'} 恢復
-                                        </button>
-                                        <button 
-                                            className="btn btn-sm btn-danger"
-                                            onClick={() => handleStopTraining(algo.algorithm, algo.session_id)}
-                                            disabled={isControlling[`stop_${algo.algorithm}`]}
-                                        >
-                                            {isControlling[`stop_${algo.algorithm}`] ? '🔄' : '⏹️'} 停止
-                                        </button>
+                                        {isAlgorithmPaused(algo) ? (
+                                            <>
+                                                <button 
+                                                    className="btn btn-sm btn-secondary"
+                                                    onClick={() => handleResumeTraining(algo.algorithm, algo.session_id)}
+                                                    disabled={isControlling[`resume_${algo.algorithm}`]}
+                                                    title="恢復訓練"
+                                                >
+                                                    {isControlling[`resume_${algo.algorithm}`] ? '🔄' : '▶️'} 恢復
+                                                </button>
+                                                <button 
+                                                    className="btn btn-sm btn-danger"
+                                                    onClick={() => handleStopTraining(algo.algorithm, algo.session_id)}
+                                                    disabled={isControlling[`stop_${algo.algorithm}`]}
+                                                    title="停止訓練"
+                                                >
+                                                    {isControlling[`stop_${algo.algorithm}`] ? '🔄' : '⏹️'} 停止
+                                                </button>
+                                            </>
+                                        ) : isAlgorithmRunning(algo) ? (
+                                            <>
+                                                <button 
+                                                    className="btn btn-sm btn-warning"
+                                                    onClick={() => handlePauseTraining(algo.algorithm, algo.session_id)}
+                                                    disabled={isControlling[`pause_${algo.algorithm}`]}
+                                                    title="暫停訓練"
+                                                >
+                                                    {isControlling[`pause_${algo.algorithm}`] ? '🔄' : '⏸️'} 暫停
+                                                </button>
+                                                <button 
+                                                    className="btn btn-sm btn-danger"
+                                                    onClick={() => handleStopTraining(algo.algorithm, algo.session_id)}
+                                                    disabled={isControlling[`stop_${algo.algorithm}`]}
+                                                    title="停止訓練"
+                                                >
+                                                    {isControlling[`stop_${algo.algorithm}`] ? '🔄' : '⏹️'} 停止
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div className="status-info">
+                                                <span className="status-text">狀態: {algo.status}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

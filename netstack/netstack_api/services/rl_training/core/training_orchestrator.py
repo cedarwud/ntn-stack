@@ -43,6 +43,11 @@ class TrainingOrchestrator:
         self.active_sessions: Dict[int, TrainingSession] = {}
         self.training_tasks: Dict[int, asyncio.Task] = {}
         
+        # 訓練互斥控制
+        self.active_algorithm: Optional[str] = None
+        self.active_algorithm_session: Optional[int] = None
+        self.algorithm_lock = asyncio.Lock()
+        
         # 初始化環境
         self.tle_bridge = SimWorldTLEBridgeService()
         self.leo_env = LEOSatelliteEnvironment({
@@ -51,6 +56,38 @@ class TrainingOrchestrator:
             "scenario": "urban",
             "fallback_enabled": True,
         })
+        
+    async def _can_start_algorithm(self, algorithm: str) -> bool:
+        """檢查算法是否可以開始訓練"""
+        async with self.algorithm_lock:
+            return self.active_algorithm is None or self.active_algorithm == algorithm
+    
+    async def _start_algorithm_training(self, algorithm: str, session_id: int) -> bool:
+        """開始算法訓練（互斥控制）"""
+        async with self.algorithm_lock:
+            if self.active_algorithm is not None and self.active_algorithm != algorithm:
+                # 停止當前正在運行的算法
+                await self._stop_active_algorithm()
+            
+            self.active_algorithm = algorithm
+            self.active_algorithm_session = session_id
+            logger.info(f"算法 {algorithm} 開始訓練 (會話 {session_id})")
+            return True
+    
+    async def _stop_active_algorithm(self):
+        """停止當前活動的算法"""
+        if self.active_algorithm_session is not None:
+            logger.info(f"停止當前活動算法: {self.active_algorithm} (會話 {self.active_algorithm_session})")
+            await self.stop_training_session(self.active_algorithm_session)
+    
+    async def _release_algorithm(self, algorithm: str, session_id: int):
+        """釋放算法資源"""
+        async with self.algorithm_lock:
+            if (self.active_algorithm == algorithm and 
+                self.active_algorithm_session == session_id):
+                self.active_algorithm = None
+                self.active_algorithm_session = None
+                logger.info(f"釋放算法資源: {algorithm} (會話 {session_id})")
         
     async def create_training_session(
         self,
@@ -114,6 +151,13 @@ class TrainingOrchestrator:
                 raise ValueError(f"會話 {session_id} 不存在")
             
             session = self.active_sessions[session_id]
+            
+            # 檢查算法可用性並獲取互斥控制
+            if not await self._can_start_algorithm(algorithm):
+                raise ValueError(f"算法 {algorithm} 正在被其他會話使用")
+            
+            await self._start_algorithm_training(algorithm, session_id)
+            
             session.status = "running"
             
             # 更新數據庫狀態
@@ -121,63 +165,70 @@ class TrainingOrchestrator:
             
             logger.info(f"開始訓練會話: {session_id} ({algorithm})")
             
-            # 獲取算法實例
-            algorithm_instance = await self.algorithm_integrator.get_algorithm(algorithm)
-            if not algorithm_instance:
-                raise ValueError(f"算法 {algorithm} 不可用")
-            
-            # 模擬訓練過程
-            results = []
-            for episode in range(session.total_episodes):
-                session.current_episode = episode + 1
+            try:
+                # 獲取算法實例
+                algorithm_instance = await self.algorithm_integrator.get_algorithm(algorithm)
+                if not algorithm_instance:
+                    raise ValueError(f"算法 {algorithm} 不可用")
                 
-                # 模擬訓練一個回合
-                episode_result = await self._simulate_training_episode(
-                    algorithm_instance, episode, session
-                )
-                results.append(episode_result)
+                # 模擬訓練過程
+                results = []
+                for episode in range(session.total_episodes):
+                    session.current_episode = episode + 1
+                    
+                    # 模擬訓練一個回合
+                    episode_result = await self._simulate_training_episode(
+                        algorithm_instance, episode, session
+                    )
+                    results.append(episode_result)
+                    
+                    # 更新性能指標
+                    session.performance_metrics.update({
+                        "episodes_completed": session.current_episode,
+                        "average_reward": sum(r["reward"] for r in results) / len(results),
+                        "success_rate": sum(1 for r in results if r["success"]) / len(results),
+                        "last_episode_reward": episode_result["reward"]
+                    })
+                    
+                    # 模擬訓練延遲
+                    await asyncio.sleep(0.1)  # 100ms per episode
+                    
+                    # 每10回合記錄一次進度
+                    if episode % 10 == 0 or episode == session.total_episodes - 1:
+                        await self._log_training_progress(session, episode_result)
                 
-                # 更新性能指標
-                session.performance_metrics.update({
-                    "episodes_completed": session.current_episode,
-                    "average_reward": sum(r["reward"] for r in results) / len(results),
-                    "success_rate": sum(1 for r in results if r["success"]) / len(results),
-                    "last_episode_reward": episode_result["reward"]
-                })
+                # 完成訓練
+                session.status = "completed"
+                session.end_time = datetime.now()
                 
-                # 模擬訓練延遲
-                await asyncio.sleep(0.1)  # 100ms per episode
+                # 更新數據庫
+                await self.repository.update_experiment_session_status(session_id, "completed")
+                await self.repository.update_experiment_session_end_time(session_id, session.end_time)
                 
-                # 每10回合記錄一次進度
-                if episode % 10 == 0 or episode == session.total_episodes - 1:
-                    await self._log_training_progress(session, episode_result)
-            
-            # 完成訓練
-            session.status = "completed"
-            session.end_time = datetime.now()
-            
-            # 更新數據庫
-            await self.repository.update_experiment_session_status(session_id, "completed")
-            await self.repository.update_experiment_session_end_time(session_id, session.end_time)
-            
-            # 計算最終統計
-            final_stats = {
-                "session_id": session_id,
-                "algorithm": algorithm,
-                "total_episodes": session.total_episodes,
-                "training_duration": (session.end_time - session.start_time).total_seconds(),
-                "final_metrics": session.performance_metrics,
-                "status": "completed"
-            }
-            
-            logger.info(f"訓練會話完成: {session_id}")
-            return final_stats
+                # 計算最終統計
+                final_stats = {
+                    "session_id": session_id,
+                    "algorithm": algorithm,
+                    "total_episodes": session.total_episodes,
+                    "training_duration": (session.end_time - session.start_time).total_seconds(),
+                    "final_metrics": session.performance_metrics,
+                    "status": "completed"
+                }
+                
+                logger.info(f"訓練會話完成: {session_id}")
+                return final_stats
+                
+            finally:
+                # 無論成功失敗都要釋放算法資源
+                await self._release_algorithm(algorithm, session_id)
             
         except Exception as e:
             logger.error(f"訓練會話 {session_id} 執行失敗: {e}")
             if session_id in self.active_sessions:
                 self.active_sessions[session_id].status = "error"
                 await self.repository.update_experiment_session_status(session_id, "error")
+            # 確保釋放資源
+            await self._release_algorithm(algorithm, session_id)
             raise
     
     async def _simulate_training_episode(
@@ -277,6 +328,9 @@ class TrainingOrchestrator:
                     self.training_tasks[session_id].cancel()
                     del self.training_tasks[session_id]
                 
+                # 釋放算法資源
+                await self._release_algorithm(session.algorithm, session_id)
+                
                 # 更新數據庫
                 await self.repository.update_experiment_session_status(session_id, "stopped")
                 await self.repository.update_experiment_session_end_time(session_id, session.end_time)
@@ -308,6 +362,22 @@ class TrainingOrchestrator:
             
         except Exception as e:
             logger.error(f"獲取會話狀態失敗: {e}")
+            return None
+    
+    async def get_active_algorithm_info(self) -> Optional[Dict[str, Any]]:
+        """獲取當前活動算法信息"""
+        try:
+            async with self.algorithm_lock:
+                if self.active_algorithm is None:
+                    return None
+                
+                return {
+                    "active_algorithm": self.active_algorithm,
+                    "active_session_id": self.active_algorithm_session,
+                    "session_info": await self.get_session_status(self.active_algorithm_session) if self.active_algorithm_session else None
+                }
+        except Exception as e:
+            logger.error(f"獲取活動算法信息失敗: {e}")
             return None
     
     async def get_session_statistics(self) -> Dict[str, Any]:
