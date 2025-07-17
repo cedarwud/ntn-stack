@@ -1,19 +1,18 @@
 /**
  * 主要的 RL 監控面板組件
- * 根據 @tr.md 規劃實現的完整監控系統
+ * 根據 @tr.md 重新設計：從6分頁整合為4分頁，專注LEO衛星切換研究
+ * 新架構：實驗控制台 → 實時監控 → 實驗結果 → 算法對比
  */
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { RLMonitoringPanelProps } from './types/rl-monitoring.types'
 import { useRLMonitoring } from './hooks/useRLMonitoring'
 
-// 導入重新設計的組件
-import TrainingControlCenterSection from './sections/TrainingControlCenterSection'
-import PerformanceAnalysisSection from './sections/PerformanceAnalysisSection'
-import EnvironmentVisualizationSection from './sections/EnvironmentVisualizationSection'
-import ParameterTuningSection from './sections/ParameterTuningSection'
-import RealTimeMetricsSection from './sections/RealTimeMetricsSection'
-import ResearchDataSection from './sections/ResearchDataSection'
+// 導入重新設計的組件 (根據 @tr.md 新架構)
+import ExperimentControlSection from './sections/ExperimentControlSection'
+import RealtimeMonitoringSection from './sections/RealtimeMonitoringSection'
+import ExperimentResultsSection from './sections/ExperimentResultsSection'
+import AlgorithmComparisonSection from './sections/AlgorithmComparisonSection'
 
 // 樣式
 import './RLMonitoringPanel.scss'
@@ -34,7 +33,7 @@ const RLMonitoringPanel: React.FC<RLMonitoringPanelProps> = ({
         })
 
     // 內部狀態
-    const [activeTab, setActiveTab] = useState<string>('control')
+    const [activeTab, setActiveTab] = useState<string>('experiment')
     const [isCollapsed, setIsCollapsed] = useState(false)
 
     // 錯誤處理
@@ -64,44 +63,32 @@ const RLMonitoringPanel: React.FC<RLMonitoringPanelProps> = ({
         return () => events.onError.off(handleError)
     }, [events, onError])
 
-    // 重新設計的 6 個分頁配置
+    // 重新設計的 4 個分頁配置 (根據 @tr.md 新架構)
     const tabs = useMemo(
         () => [
             {
-                id: 'control',
-                label: '🎯 訓練控制中心',
-                icon: '🎯',
-                description: '統一的訓練控制界面和實時進度監控',
+                id: 'experiment',
+                label: '🚀 實驗控制台',
+                icon: '🚀',
+                description: '統一參數管理和實驗執行 (整合原訓練控制中心+參數調優)',
             },
             {
-                id: 'performance',
-                label: '📊 性能分析',
+                id: 'monitoring',
+                label: '📊 實時監控',
+                icon: '📊',
+                description: 'LEO衛星切換性能實時追蹤和決策過程可視化',
+            },
+            {
+                id: 'results',
+                label: '📈 實驗結果',
                 icon: '📈',
-                description: '深度訓練結果分析和算法比較',
+                description: '深度分析和論文圖表生成 (整合原訓練分析+收斂分析)',
             },
             {
-                id: 'environment',
-                label: '🌐 環境可視化',
-                icon: '🌐',
-                description: '3D LEO 衛星星座和決策過程動畫',
-            },
-            {
-                id: 'parameters',
-                label: '⚙️ 參數調優',
-                icon: '⚙️',
-                description: '算法超參數和環境參數調整',
-            },
-            {
-                id: 'realtime',
-                label: '📈 實時監控',
-                icon: '🔴',
-                description: 'WebSocket 實時數據流和系統健康監控',
-            },
-            {
-                id: 'research',
-                label: '🔬 研究數據',
-                icon: '📚',
-                description: '實驗數據管理和論文數據匯出',
+                id: 'comparison',
+                label: '⚖️ 算法對比',
+                icon: '⚖️',
+                description: '傳統算法vs RL算法基準測試和統計顯著性分析',
             },
         ],
         []
@@ -211,7 +198,7 @@ const RLMonitoringPanel: React.FC<RLMonitoringPanelProps> = ({
                                         {tab.label}
                                     </span>
                                     {/* 狀態指示 */}
-                                    {tab.id === 'training' && (
+                                    {tab.id === 'experiment' && (
                                         <span className="tab-status">
                                             {(data.realtime?.metrics
                                                 ?.active_algorithms?.length ||
@@ -252,46 +239,32 @@ const RLMonitoringPanel: React.FC<RLMonitoringPanelProps> = ({
                         </div>
                     </div>
 
-                    {/* 內容區域 */}
+                    {/* 內容區域 - 重新設計的4個分頁 */}
                     <div className="rl-monitoring-panel__content">
-                        {activeTab === 'control' && (
-                            <TrainingControlCenterSection
+                        {activeTab === 'experiment' && (
+                            <ExperimentControlSection
                                 data={data}
                                 onRefresh={refresh}
                             />
                         )}
 
-                        {activeTab === 'performance' && (
-                            <PerformanceAnalysisSection
+                        {activeTab === 'monitoring' && (
+                            <RealtimeMonitoringSection
                                 data={data}
                                 onRefresh={refresh}
                             />
                         )}
 
-                        {activeTab === 'environment' && (
-                            <EnvironmentVisualizationSection
+                        {activeTab === 'results' && (
+                            <ExperimentResultsSection
                                 data={data}
                                 onRefresh={refresh}
                             />
                         )}
 
-                        {activeTab === 'parameters' && (
-                            <ParameterTuningSection
+                        {activeTab === 'comparison' && (
+                            <AlgorithmComparisonSection
                                 data={data}
-                                onRefresh={refresh}
-                            />
-                        )}
-
-                        {activeTab === 'realtime' && (
-                            <RealTimeMetricsSection
-                                data={data.realtime}
-                                onRefresh={refresh}
-                            />
-                        )}
-
-                        {activeTab === 'research' && (
-                            <ResearchDataSection
-                                data={data.research}
                                 onRefresh={refresh}
                             />
                         )}
