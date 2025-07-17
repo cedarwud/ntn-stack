@@ -1,0 +1,463 @@
+.experiment-results-section {
+    padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #e0e0e0;
+    overflow-y: auto;
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #4fc3f7;
+            margin: 0;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+
+            select {
+                padding: 8px 12px;
+                border: 1px solid #333;
+                border-radius: 4px;
+                background: #2a2a3e;
+                color: #e0e0e0;
+                font-size: 0.9rem;
+                min-width: 200px;
+
+                &:focus {
+                    outline: none;
+                    border-color: #4fc3f7;
+                }
+            }
+        }
+    }
+
+    .experiment-overview {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+
+        .overview-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+
+            .overview-card {
+                background: rgba(255, 255, 255, 0.03);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+                padding: 15px;
+                transition: all 0.2s ease;
+
+                &:hover {
+                    border-color: rgba(79, 195, 247, 0.3);
+                    transform: translateY(-2px);
+                }
+
+                .card-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    margin-bottom: 10px;
+
+                    .card-icon {
+                        font-size: 1.2rem;
+                    }
+
+                    .card-title {
+                        font-size: 0.9rem;
+                        color: #ccc;
+                        font-weight: 500;
+                    }
+                }
+
+                .card-content {
+                    .convergence-status {
+                        font-size: 1.1rem;
+                        font-weight: 600;
+                        margin-bottom: 5px;
+
+                        &.converged {
+                            color: #4caf50;
+                        }
+
+                        &.not-converged {
+                            color: #f44336;
+                        }
+                    }
+
+                    .convergence-episode {
+                        font-size: 0.8rem;
+                        color: #aaa;
+                    }
+
+                    .metric-item {
+                        font-size: 0.9rem;
+                        color: #4fc3f7;
+                        margin-bottom: 3px;
+                    }
+                }
+            }
+        }
+    }
+
+    .analysis-tabs {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+
+        .tab-nav {
+            display: flex;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+
+            .tab-btn {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px 20px;
+                background: transparent;
+                border: none;
+                color: #aaa;
+                font-size: 0.9rem;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                border-bottom: 2px solid transparent;
+                white-space: nowrap;
+
+                &:hover {
+                    color: #4fc3f7;
+                    background: rgba(79, 195, 247, 0.05);
+                }
+
+                &.active {
+                    color: #4fc3f7;
+                    border-bottom-color: #4fc3f7;
+                    background: rgba(79, 195, 247, 0.1);
+                }
+            }
+        }
+
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+        }
+    }
+
+    .learning-analysis {
+        h3 {
+            color: #4fc3f7;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+
+            .learning-chart {
+                max-width: 100%;
+                height: auto;
+            }
+        }
+    }
+
+    .handover-analysis {
+        h3 {
+            color: #4fc3f7;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .performance-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+
+            .metric-card {
+                background: rgba(255, 255, 255, 0.03);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+                padding: 20px;
+                text-align: center;
+                transition: all 0.2s ease;
+
+                &:hover {
+                    border-color: rgba(79, 195, 247, 0.3);
+                    transform: translateY(-2px);
+                }
+
+                .metric-label {
+                    font-size: 0.9rem;
+                    color: #ccc;
+                    margin-bottom: 10px;
+                }
+
+                .metric-value {
+                    font-size: 1.6rem;
+                    font-weight: 600;
+                    color: #4fc3f7;
+                }
+            }
+        }
+    }
+
+    .statistical-analysis {
+        h3 {
+            color: #4fc3f7;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .tests-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+
+            .test-item {
+                background: rgba(255, 255, 255, 0.03);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+                padding: 15px;
+
+                .test-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 10px;
+
+                    .test-name {
+                        font-weight: 600;
+                        color: #e0e0e0;
+                    }
+
+                    .test-result {
+                        font-size: 0.9rem;
+                        font-weight: 500;
+                        padding: 3px 8px;
+                        border-radius: 3px;
+
+                        &.converged {
+                            background: rgba(76, 175, 80, 0.2);
+                            color: #4caf50;
+                        }
+
+                        &.not_converged {
+                            background: rgba(244, 67, 54, 0.2);
+                            color: #f44336;
+                        }
+
+                        &.trending {
+                            background: rgba(255, 152, 0, 0.2);
+                            color: #ff9800;
+                        }
+                    }
+                }
+
+                .test-details {
+                    .test-stats {
+                        display: flex;
+                        gap: 20px;
+                        margin-bottom: 8px;
+                        font-size: 0.8rem;
+                        color: #aaa;
+                    }
+
+                    .test-description {
+                        font-size: 0.9rem;
+                        color: #ccc;
+                        line-height: 1.4;
+                    }
+                }
+            }
+        }
+    }
+
+    .export-analysis {
+        h3 {
+            color: #4fc3f7;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .export-controls {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+
+            .export-options {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                margin-bottom: 20px;
+
+                label {
+                    font-size: 0.9rem;
+                    color: #ccc;
+                    font-weight: 500;
+                }
+
+                select {
+                    padding: 8px 12px;
+                    border: 1px solid #333;
+                    border-radius: 4px;
+                    background: #2a2a3e;
+                    color: #e0e0e0;
+                    font-size: 0.9rem;
+
+                    &:focus {
+                        outline: none;
+                        border-color: #4fc3f7;
+                    }
+                }
+            }
+
+            .export-actions {
+                display: flex;
+                gap: 15px;
+                flex-wrap: wrap;
+            }
+        }
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        font-weight: 500;
+
+        &.btn-primary {
+            background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%);
+            color: white;
+        }
+
+        &.btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        &:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+    }
+}
+
+.experiment-results-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 20px;
+    color: #ccc;
+
+    .loading-spinner {
+        font-size: 2rem;
+        animation: spin 2s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+}
+
+// 響應式設計
+@media (max-width: 1024px) {
+    .experiment-results-section {
+        .analysis-tabs {
+            .tab-nav {
+                flex-wrap: wrap;
+                
+                .tab-btn {
+                    padding: 10px 15px;
+                    font-size: 0.8rem;
+                }
+            }
+        }
+    }
+}
+
+@media (max-width: 768px) {
+    .experiment-results-section {
+        padding: 15px;
+
+        .section-header {
+            flex-direction: column;
+            gap: 15px;
+            align-items: flex-start;
+
+            .header-controls {
+                width: 100%;
+                justify-content: space-between;
+
+                select {
+                    min-width: 150px;
+                }
+            }
+        }
+
+        .experiment-overview {
+            .overview-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .handover-analysis {
+            .performance-metrics {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .export-analysis {
+            .export-controls {
+                .export-options {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+
+                .export-actions {
+                    flex-direction: column;
+                    width: 100%;
+
+                    .btn {
+                        width: 100%;
+                    }
+                }
+            }
+        }
+    }
+}
