@@ -316,7 +316,9 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
         const statusData = statusSummary.status === 'fulfilled' ? statusSummary.value : null;
         
         const activeSession = sessionData?.active_sessions?.find(
-          (session: { algorithm?: string; status?: string }) => session.algorithm?.toLowerCase() === algorithm.toLowerCase() && session.status === 'running'
+          (session: { algorithm?: string; status?: string }) =>
+            session.algorithm?.toLowerCase() === algorithm.toLowerCase() &&
+            (session.status === 'running' || session.status === 'paused')
         );
         
         const algorithmData = statusData?.algorithms?.[algorithm] || statusData?.[algorithm] || null;
@@ -331,7 +333,7 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
         const algorithmBreakdown = performanceMetrics?.algorithm_breakdown?.[algorithm] || {};
         
         return {
-          is_training: !!activeSession || (algorithmData?.status === 'running') || (algorithmData?.is_training === true),
+          is_training: !!activeSession || (algorithmData?.status === 'running') || (algorithmData?.is_training === true) || (algorithmData?.training_active === true),
           status: activeSession?.status || algorithmData?.status || 'idle',
           progress: (trainingProgress.progress_percentage || 0) / 100, // 將百分比轉換為小數
           metrics: {
