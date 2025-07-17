@@ -532,8 +532,24 @@ class RLTrainingEngine:
     async def _run_real_training(self, session: TrainingSession, trainer: Any) -> None:
         """使用真實算法進行訓練"""
         for episode in range(session.episodes_target):
-            # 檢查是否需要停止
-            if session.status != TrainingStatus.ACTIVE:
+            # 檢查是否需要停止或暫停
+            if session.status == TrainingStatus.STOPPED:
+                logger.info(f"🛑 [真實訓練] 訓練已停止: {session.session_id}")
+                break
+            elif session.status == TrainingStatus.PAUSED:
+                logger.info(f"⏸️ [真實訓練] 訓練已暫停，等待恢復: {session.session_id}")
+                # 等待恢復，每秒檢查一次狀態
+                while session.status == TrainingStatus.PAUSED:
+                    await asyncio.sleep(1)
+                    
+                if session.status == TrainingStatus.STOPPED:
+                    logger.info(f"🛑 [真實訓練] 暫停期間訓練被停止: {session.session_id}")
+                    break
+                elif session.status == TrainingStatus.ACTIVE:
+                    logger.info(f"▶️ [真實訓練] 訓練已恢復: {session.session_id}")
+                    continue
+            elif session.status != TrainingStatus.ACTIVE:
+                logger.info(f"🛑 [真實訓練] 訓練狀態異常，停止訓練: {session.status}")
                 break
 
             # 執行一個 episode
@@ -558,9 +574,24 @@ class RLTrainingEngine:
         logger.info(f"🎭 [模擬訓練] 開始模擬訓練: {session.session_id}, 目標 episodes: {session.episodes_target}")
         
         for episode in range(session.episodes_target):
-            # 檢查是否需要停止
-            if session.status != TrainingStatus.ACTIVE:
-                logger.info(f"🛑 [模擬訓練] 訓練狀態非 ACTIVE，停止訓練: {session.status}")
+            # 檢查是否需要停止或暫停
+            if session.status == TrainingStatus.STOPPED:
+                logger.info(f"🛑 [模擬訓練] 訓練已停止: {session.session_id}")
+                break
+            elif session.status == TrainingStatus.PAUSED:
+                logger.info(f"⏸️ [模擬訓練] 訓練已暫停，等待恢復: {session.session_id}")
+                # 等待恢復，每秒檢查一次狀態
+                while session.status == TrainingStatus.PAUSED:
+                    await asyncio.sleep(1)
+                    
+                if session.status == TrainingStatus.STOPPED:
+                    logger.info(f"🛑 [模擬訓練] 暫停期間訓練被停止: {session.session_id}")
+                    break
+                elif session.status == TrainingStatus.ACTIVE:
+                    logger.info(f"▶️ [模擬訓練] 訓練已恢復: {session.session_id}")
+                    continue
+            elif session.status != TrainingStatus.ACTIVE:
+                logger.info(f"🛑 [模擬訓練] 訓練狀態異常，停止訓練: {session.status}")
                 break
 
             # 模擬訓練進度
@@ -590,6 +621,127 @@ class RLTrainingEngine:
             await asyncio.sleep(step_time)
             
         logger.info(f"🏁 [模擬訓練] 訓練完成: {session.session_id}, 最終 episodes: {session.episodes_completed}/{session.episodes_target}")
+
+    async def pause_session(self, algorithm_name: str) -> Dict[str, Any]:
+        """暫停指定算法的訓練會話"""
+        logger.info(f"🔍 [訓練引擎] 查找活躍的 {algorithm_name} 訓練會話...")
+        
+        # 查找活躍的會話
+        active_session = None
+        for session_id, session in self.active_sessions.items():
+            if (session.algorithm_name == algorithm_name and 
+                session.status == TrainingStatus.ACTIVE):
+                active_session = session
+                break
+        
+        if not active_session:
+            logger.warning(f"⚠️ [訓練引擎] 沒有找到活躍的 {algorithm_name} 訓練會話")
+            raise ValueError(f"沒有活躍的 {algorithm_name} 訓練會話需要暫停")
+        
+        logger.info(f"⏸️ [訓練引擎] 暫停 {algorithm_name} 訓練會話: {active_session.session_id}")
+        
+        # 更新狀態為暫停
+        active_session.status = TrainingStatus.PAUSED
+        
+        # 更新數據庫狀態
+        if self.repository:
+            await self.repository.update_experiment_session(
+                active_session.session_id,
+                {"session_status": "paused"}
+            )
+        
+        return {
+            "session_id": active_session.session_id,
+            "algorithm": algorithm_name,
+            "status": "paused",
+            "message": f"{algorithm_name.upper()} 訓練已暫停"
+        }
+
+    async def resume_session(self, algorithm_name: str) -> Dict[str, Any]:
+        """恢復指定算法的訓練會話"""
+        logger.info(f"🔍 [訓練引擎] 查找暫停的 {algorithm_name} 訓練會話...")
+        
+        # 查找暫停的會話
+        paused_session = None
+        for session_id, session in self.active_sessions.items():
+            if (session.algorithm_name == algorithm_name and 
+                session.status == TrainingStatus.PAUSED):
+                paused_session = session
+                break
+        
+        if not paused_session:
+            logger.warning(f"⚠️ [訓練引擎] 沒有找到暫停的 {algorithm_name} 訓練會話")
+            raise ValueError(f"沒有暫停的 {algorithm_name} 訓練會話需要恢復")
+        
+        logger.info(f"▶️ [訓練引擎] 恢復 {algorithm_name} 訓練會話: {paused_session.session_id}")
+        
+        # 更新狀態為活躍
+        paused_session.status = TrainingStatus.ACTIVE
+        
+        # 更新數據庫狀態
+        if self.repository:
+            await self.repository.update_experiment_session(
+                paused_session.session_id,
+                {"session_status": "active"}
+            )
+        
+        return {
+            "session_id": paused_session.session_id,
+            "algorithm": algorithm_name,
+            "status": "active",
+            "message": f"{algorithm_name.upper()} 訓練已恢復"
+        }
+
+    async def stop_session(self, algorithm_name: str) -> Dict[str, Any]:
+        """停止指定算法的訓練會話"""
+        logger.info(f"🔍 [訓練引擎] 查找 {algorithm_name} 訓練會話...")
+        
+        # 查找對應的會話 (包括暫停的會話)
+        target_session = None
+        session_id_to_stop = None
+        for session_id, session in self.active_sessions.items():
+            if session.algorithm_name == algorithm_name:
+                target_session = session
+                session_id_to_stop = session_id
+                logger.info(f"✅ [訓練引擎] 找到 {algorithm_name} 會話: {session_id}, 狀態: {session.status}")
+                break
+        
+        if not target_session:
+            logger.warning(f"⚠️ [訓練引擎] 沒有找到 {algorithm_name} 訓練會話")
+            logger.info(f"🔍 [訓練引擎] 當前活躍會話: {list(self.active_sessions.keys())}")
+            raise ValueError(f"沒有 {algorithm_name} 訓練會話需要停止")
+        
+        logger.info(f"⏹️ [訓練引擎] 停止 {algorithm_name} 訓練會話: {session_id_to_stop}")
+        
+        # 取消背景任務
+        if session_id_to_stop in self.background_tasks:
+            task = self.background_tasks[session_id_to_stop]
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        
+        # 更新狀態為停止
+        target_session.status = TrainingStatus.STOPPED
+        target_session.end_time = datetime.now()
+        
+        # 更新數據庫狀態
+        if self.repository:
+            await self.repository.update_experiment_session(
+                session_id_to_stop,
+                {
+                    "session_status": "stopped",
+                    "end_time": target_session.end_time
+                }
+            )
+        
+        return {
+            "session_id": session_id_to_stop,
+            "algorithm": algorithm_name,
+            "status": "stopped",
+            "message": f"{algorithm_name.upper()} 訓練已停止"
+        }
 
     async def stop_training(self, session_id: str) -> Dict[str, Any]:
         """停止訓練"""

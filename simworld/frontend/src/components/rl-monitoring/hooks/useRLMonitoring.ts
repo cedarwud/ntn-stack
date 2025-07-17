@@ -326,19 +326,23 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
         const metricsData = algorithmData?.metrics || {};
         
         // 修復數據映射邏輯，使用正確的字段名
+        // 從性能指標中獲取真實的演算法數據
+        const performanceMetrics = performanceReport.status === 'fulfilled' ? performanceReport.value : null;
+        const algorithmBreakdown = performanceMetrics?.algorithm_breakdown?.[algorithm] || {};
+        
         return {
           is_training: !!activeSession || (algorithmData?.status === 'running') || (algorithmData?.is_training === true),
           status: activeSession?.status || algorithmData?.status || 'idle',
           progress: (trainingProgress.progress_percentage || 0) / 100, // 將百分比轉換為小數
           metrics: {
-            episodes_completed: trainingProgress.current_episode || metricsData.episodes_completed || 0,
-            total_episodes: trainingProgress.total_episodes || metricsData.episodes_target || 30,
-            average_reward: trainingProgress.current_reward || metricsData.current_reward || 0,
-            current_reward: trainingProgress.current_reward || metricsData.current_reward || 0,
-            best_reward: trainingProgress.best_reward || metricsData.best_reward || 0,
-            success_rate: 0.85, // 模擬數據
-            convergence_speed: 0.7, // 模擬數據
-            stability: 0.9, // 模擬數據
+            episodes_completed: trainingProgress.current_episode || metricsData.episodes_completed || algorithmBreakdown.completed_episodes || 0,
+            total_episodes: trainingProgress.total_episodes || metricsData.episodes_target || algorithmBreakdown.total_episodes || 30,
+            average_reward: trainingProgress.current_reward || metricsData.current_reward || algorithmBreakdown.average_reward || 0,
+            current_reward: trainingProgress.current_reward || metricsData.current_reward || algorithmBreakdown.average_reward || 0,
+            best_reward: trainingProgress.best_reward || metricsData.best_reward || algorithmBreakdown.average_reward || 0,
+            success_rate: algorithmBreakdown.success_rate || performanceMetrics?.success_rate || 0,
+            convergence_speed: algorithmBreakdown.stability || performanceMetrics?.stability || 0, // 使用穩定性作為收斂速度
+            stability: algorithmBreakdown.stability || performanceMetrics?.stability || 0,
             ...activeSession?.metrics,
             ...metricsData
           }
@@ -427,9 +431,9 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
           training_active: newDqnState,
           metrics: {
             ...dqnStatus.metrics,
-            success_rate: 0.85,
-            convergence_speed: 0.7,
-            stability: 0.9
+            success_rate: dqnStatus.metrics.success_rate,
+            convergence_speed: dqnStatus.metrics.convergence_speed,
+            stability: dqnStatus.metrics.stability
           }
         },
         {
@@ -442,9 +446,9 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
           training_active: newPpoState,
           metrics: {
             ...ppoStatus.metrics,
-            success_rate: 0.78,
-            convergence_speed: 0.6,
-            stability: 0.8
+            success_rate: ppoStatus.metrics.success_rate,
+            convergence_speed: ppoStatus.metrics.convergence_speed,
+            stability: ppoStatus.metrics.stability
           }
         },
         {
@@ -457,9 +461,9 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
           training_active: newSacState,
           metrics: {
             ...sacStatus.metrics,
-            success_rate: 0.82,
-            convergence_speed: 0.8,
-            stability: 0.75
+            success_rate: sacStatus.metrics.success_rate,
+            convergence_speed: sacStatus.metrics.convergence_speed,
+            stability: sacStatus.metrics.stability
           }
         }
       ];

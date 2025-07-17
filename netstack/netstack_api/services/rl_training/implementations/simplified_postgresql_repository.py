@@ -30,14 +30,15 @@ class SimplifiedPostgreSQLRepository:
     遵循 SOLID 原則：單一職責、依賴反轉、介面隔離
     """
 
-    def __init__(self, database_url: str = "postgresql://sat:123@postgis:5432/ntn_stack"):
+    def __init__(self, database_url: str = None):
         """
         初始化儲存庫
         
         Args:
-            database_url: 資料庫連接字串
+            database_url: 資料庫連接字串，如果未提供則從環境變數 RL_DATABASE_URL 讀取
         """
-        self.database_url = database_url
+        import os
+        self.database_url = database_url or os.getenv("RL_DATABASE_URL", "postgresql://rl_user:rl_password@rl-postgres:5432/rl_research")
         self._connection = None
         self._initialized = False
         
@@ -75,22 +76,13 @@ class SimplifiedPostgreSQLRepository:
             logger.error(f"❌ 資料庫連接失敗: {e}")
             return False
 
-    def create_experiment_session(
-        self,
-        experiment_name: str,
-        algorithm_type: str,
-        scenario_type: str,
-        hyperparameters: Dict[str, Any],
-        environment_config: Dict[str, Any],
-        researcher_id: str = "system",
-        research_notes: Optional[str] = None
-    ) -> int:
+    async def create_experiment_session(self, session_data: Dict[str, Any]) -> int:
         """
         創建實驗會話
         介面隔離原則：明確的方法簽名
         """
         if not self._initialized:
-            raise RuntimeError("資料庫未初始化")
+            self.initialize()
             
         try:
             cursor = self._connection.cursor()
@@ -100,15 +92,18 @@ class SimplifiedPostgreSQLRepository:
                 query = """
                 INSERT INTO rl_experiment_sessions 
                 (experiment_name, algorithm_type, scenario_type, hyperparameters, 
-                 environment_config, researcher_id, research_notes, session_status, start_time)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING session_id
+                 research_notes, session_status, start_time)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
                 """
                 cursor.execute(query, (
-                    experiment_name, algorithm_type, scenario_type,
-                    psycopg2.extras.Json(hyperparameters),
-                    psycopg2.extras.Json(environment_config),
-                    researcher_id, research_notes, 'created', datetime.now()
+                    session_data.get("experiment_name"),
+                    session_data.get("algorithm_type"),
+                    session_data.get("scenario_type"),
+                    psycopg2.extras.Json(session_data.get("hyperparameters", {})),
+                    session_data.get("research_notes"),
+                    session_data.get("session_status", "created"),
+                    datetime.now()
                 ))
                 session_id = cursor.fetchone()[0]
                 
