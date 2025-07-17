@@ -27,7 +27,10 @@ except ImportError:
 # 導入 RL System 的核心組件
 try:
     from ..services.rl_training.core.algorithm_factory import get_algorithm
-    from ..services.rl_training.interfaces.rl_algorithm import ScenarioType, IRLAlgorithm
+    from ..services.rl_training.interfaces.rl_algorithm import (
+        ScenarioType,
+        IRLAlgorithm,
+    )
     from ..services.rl_training.interfaces.data_repository import (
         IDataRepository as RLDataRepository,
         ExperimentSession,
@@ -37,16 +40,17 @@ try:
 except ImportError as e:
     RL_SYSTEM_AVAILABLE = False
     logging.getLogger(__name__).warning(f"RL System 組件不可用: {e}")
-    
+
     # 提供備用定義以防導入失敗
     from dataclasses import dataclass
     from typing import Any, Dict
     from datetime import datetime
     from enum import Enum
-    
+
     @dataclass
     class ExperimentSession:
         """備用實驗會話實體"""
+
         id: Optional[int] = None
         experiment_name: str = ""
         algorithm_type: str = ""
@@ -60,22 +64,26 @@ except ImportError as e:
         environment_config: Dict[str, Any] = None
         research_notes: Optional[str] = None
         created_at: datetime = None
-        
+
     class IRLAlgorithm:
         """備用 RL 算法介面"""
+
         pass
-        
+
     class RLDataRepository:
         """備用資料儲存庫"""
+
         pass
-        
+
     def get_algorithm(*args, **kwargs):
         """備用算法工廠函數"""
         return None
-        
+
     class ScenarioType(Enum):
         """備用場景類型"""
+
         UNKNOWN = "unknown"
+
 
 logger = logging.getLogger(__name__)
 
@@ -303,8 +311,8 @@ class RLTrainingEngine:
         try:
             # 優先使用 MongoDB，失敗時降級到 Mock
             mongodb_url = os.getenv(
-                "MONGODB_URL", 
-                os.getenv("DATABASE_URL", "mongodb://localhost:27017/rl_system")
+                "MONGODB_URL",
+                os.getenv("DATABASE_URL", "mongodb://localhost:27017/rl_system"),
             )
 
             try:
@@ -351,8 +359,10 @@ class RLTrainingEngine:
         Returns:
             Dict: 包含 session_id 和狀態資訊的字典
         """
-        logger.info(f"🚀 [訓練引擎] 收到啟動訓練請求: {algorithm_name}, episodes={episodes}")
-        
+        logger.info(
+            f"🚀 [訓練引擎] 收到啟動訓練請求: {algorithm_name}, episodes={episodes}"
+        )
+
         if not self.initialized:
             logger.error("❌ [訓練引擎] RLTrainingEngine 未初始化")
             raise RuntimeError("RLTrainingEngine 未初始化")
@@ -361,11 +371,13 @@ class RLTrainingEngine:
         # 檢查是否已有相同算法的活躍訓練
         active_session = self._get_active_session_by_algorithm(algorithm_name)
         if active_session:
-            logger.warning(f"⚠️ [訓練引擎] 算法 {algorithm_name} 已有活躍會話: {active_session.session_id}")
+            logger.warning(
+                f"⚠️ [訓練引擎] 算法 {algorithm_name} 已有活躍會話: {active_session.session_id}"
+            )
             raise ValueError(
                 f"算法 '{algorithm_name}' 已有活躍的訓練會話: {active_session.session_id}"
             )
-        
+
         logger.info(f"✅ [訓練引擎] 無衝突會話，可以創建新的 {algorithm_name} 訓練會話")
 
         # 創建訓練配置
@@ -443,7 +455,9 @@ class RLTrainingEngine:
             self.background_tasks[session_id] = task
             logger.info(f"✅ [訓練引擎] 背景任務已創建並啟動: {session_id}")
 
-            logger.info(f"🏃‍♂️ [訓練引擎] 訓練會話已啟動: {session_id} (算法: {algorithm_name})")
+            logger.info(
+                f"🏃‍♂️ [訓練引擎] 訓練會話已啟動: {session_id} (算法: {algorithm_name})"
+            )
             logger.info(f"📊 [訓練引擎] 當前活躍會話數: {len(self.active_sessions)}")
 
             return {
@@ -541,9 +555,11 @@ class RLTrainingEngine:
                 # 等待恢復，每秒檢查一次狀態
                 while session.status == TrainingStatus.PAUSED:
                     await asyncio.sleep(1)
-                    
+
                 if session.status == TrainingStatus.STOPPED:
-                    logger.info(f"🛑 [真實訓練] 暫停期間訓練被停止: {session.session_id}")
+                    logger.info(
+                        f"🛑 [真實訓練] 暫停期間訓練被停止: {session.session_id}"
+                    )
                     break
                 elif session.status == TrainingStatus.ACTIVE:
                     logger.info(f"▶️ [真實訓練] 訓練已恢復: {session.session_id}")
@@ -571,8 +587,10 @@ class RLTrainingEngine:
         import random
         import math
 
-        logger.info(f"🎭 [模擬訓練] 開始模擬訓練: {session.session_id}, 目標 episodes: {session.episodes_target}")
-        
+        logger.info(
+            f"🎭 [模擬訓練] 開始模擬訓練: {session.session_id}, 目標 episodes: {session.episodes_target}"
+        )
+
         for episode in range(session.episodes_target):
             # 檢查是否需要停止或暫停
             if session.status == TrainingStatus.STOPPED:
@@ -583,9 +601,11 @@ class RLTrainingEngine:
                 # 等待恢復，每秒檢查一次狀態
                 while session.status == TrainingStatus.PAUSED:
                     await asyncio.sleep(1)
-                    
+
                 if session.status == TrainingStatus.STOPPED:
-                    logger.info(f"🛑 [模擬訓練] 暫停期間訓練被停止: {session.session_id}")
+                    logger.info(
+                        f"🛑 [模擬訓練] 暫停期間訓練被停止: {session.session_id}"
+                    )
                     break
                 elif session.status == TrainingStatus.ACTIVE:
                     logger.info(f"▶️ [模擬訓練] 訓練已恢復: {session.session_id}")
@@ -613,89 +633,99 @@ class RLTrainingEngine:
 
             # 每10個episode記錄一次詳細進度
             if episode % 10 == 0 or episode == session.episodes_target - 1:
-                logger.info(f"📊 [模擬訓練] {session.session_id} - Episode {episode+1}/{session.episodes_target} "
-                           f"(進度: {progress:.1%}, 獎勵: {current_reward:.2f}, 最佳: {session.best_reward:.2f})")
+                logger.info(
+                    f"📊 [模擬訓練] {session.session_id} - Episode {episode+1}/{session.episodes_target} "
+                    f"(進度: {progress:.1%}, 獎勵: {current_reward:.2f}, 最佳: {session.best_reward:.2f})"
+                )
 
             # 控制訓練速度
             step_time = session.config.step_time if session.config else 0.1
             await asyncio.sleep(step_time)
-            
-        logger.info(f"🏁 [模擬訓練] 訓練完成: {session.session_id}, 最終 episodes: {session.episodes_completed}/{session.episodes_target}")
+
+        logger.info(
+            f"🏁 [模擬訓練] 訓練完成: {session.session_id}, 最終 episodes: {session.episodes_completed}/{session.episodes_target}"
+        )
 
     async def pause_session(self, algorithm_name: str) -> Dict[str, Any]:
         """暫停指定算法的訓練會話"""
         logger.info(f"🔍 [訓練引擎] 查找活躍的 {algorithm_name} 訓練會話...")
-        
+
         # 查找活躍的會話
         active_session = None
         for session_id, session in self.active_sessions.items():
-            if (session.algorithm_name == algorithm_name and 
-                session.status == TrainingStatus.ACTIVE):
+            if (
+                session.algorithm_name == algorithm_name
+                and session.status == TrainingStatus.ACTIVE
+            ):
                 active_session = session
                 break
-        
+
         if not active_session:
             logger.warning(f"⚠️ [訓練引擎] 沒有找到活躍的 {algorithm_name} 訓練會話")
             raise ValueError(f"沒有活躍的 {algorithm_name} 訓練會話需要暫停")
-        
-        logger.info(f"⏸️ [訓練引擎] 暫停 {algorithm_name} 訓練會話: {active_session.session_id}")
-        
+
+        logger.info(
+            f"⏸️ [訓練引擎] 暫停 {algorithm_name} 訓練會話: {active_session.session_id}"
+        )
+
         # 更新狀態為暫停
         active_session.status = TrainingStatus.PAUSED
-        
+
         # 更新數據庫狀態
         if self.repository:
             await self.repository.update_experiment_session(
-                active_session.session_id,
-                {"session_status": "paused"}
+                active_session.session_id, {"session_status": "paused"}
             )
-        
+
         return {
             "session_id": active_session.session_id,
             "algorithm": algorithm_name,
             "status": "paused",
-            "message": f"{algorithm_name.upper()} 訓練已暫停"
+            "message": f"{algorithm_name.upper()} 訓練已暫停",
         }
 
     async def resume_session(self, algorithm_name: str) -> Dict[str, Any]:
         """恢復指定算法的訓練會話"""
         logger.info(f"🔍 [訓練引擎] 查找暫停的 {algorithm_name} 訓練會話...")
-        
+
         # 查找暫停的會話
         paused_session = None
         for session_id, session in self.active_sessions.items():
-            if (session.algorithm_name == algorithm_name and 
-                session.status == TrainingStatus.PAUSED):
+            if (
+                session.algorithm_name == algorithm_name
+                and session.status == TrainingStatus.PAUSED
+            ):
                 paused_session = session
                 break
-        
+
         if not paused_session:
             logger.warning(f"⚠️ [訓練引擎] 沒有找到暫停的 {algorithm_name} 訓練會話")
             raise ValueError(f"沒有暫停的 {algorithm_name} 訓練會話需要恢復")
-        
-        logger.info(f"▶️ [訓練引擎] 恢復 {algorithm_name} 訓練會話: {paused_session.session_id}")
-        
+
+        logger.info(
+            f"▶️ [訓練引擎] 恢復 {algorithm_name} 訓練會話: {paused_session.session_id}"
+        )
+
         # 更新狀態為活躍
         paused_session.status = TrainingStatus.ACTIVE
-        
+
         # 更新數據庫狀態
         if self.repository:
             await self.repository.update_experiment_session(
-                paused_session.session_id,
-                {"session_status": "active"}
+                paused_session.session_id, {"session_status": "active"}
             )
-        
+
         return {
             "session_id": paused_session.session_id,
             "algorithm": algorithm_name,
             "status": "active",
-            "message": f"{algorithm_name.upper()} 訓練已恢復"
+            "message": f"{algorithm_name.upper()} 訓練已恢復",
         }
 
     async def stop_session(self, algorithm_name: str) -> Dict[str, Any]:
         """停止指定算法的訓練會話"""
         logger.info(f"🔍 [訓練引擎] 查找 {algorithm_name} 訓練會話...")
-        
+
         # 查找對應的會話 (包括暫停的會話)
         target_session = None
         session_id_to_stop = None
@@ -703,16 +733,22 @@ class RLTrainingEngine:
             if session.algorithm_name == algorithm_name:
                 target_session = session
                 session_id_to_stop = session_id
-                logger.info(f"✅ [訓練引擎] 找到 {algorithm_name} 會話: {session_id}, 狀態: {session.status}")
+                logger.info(
+                    f"✅ [訓練引擎] 找到 {algorithm_name} 會話: {session_id}, 狀態: {session.status}"
+                )
                 break
-        
+
         if not target_session:
             logger.warning(f"⚠️ [訓練引擎] 沒有找到 {algorithm_name} 訓練會話")
-            logger.info(f"🔍 [訓練引擎] 當前活躍會話: {list(self.active_sessions.keys())}")
+            logger.info(
+                f"🔍 [訓練引擎] 當前活躍會話: {list(self.active_sessions.keys())}"
+            )
             raise ValueError(f"沒有 {algorithm_name} 訓練會話需要停止")
-        
-        logger.info(f"⏹️ [訓練引擎] 停止 {algorithm_name} 訓練會話: {session_id_to_stop}")
-        
+
+        logger.info(
+            f"⏹️ [訓練引擎] 停止 {algorithm_name} 訓練會話: {session_id_to_stop}"
+        )
+
         # 取消背景任務
         if session_id_to_stop in self.background_tasks:
             task = self.background_tasks[session_id_to_stop]
@@ -721,26 +757,40 @@ class RLTrainingEngine:
                 await task
             except asyncio.CancelledError:
                 pass
-        
+
         # 更新狀態為停止
         target_session.status = TrainingStatus.STOPPED
         target_session.end_time = datetime.now()
-        
+
         # 更新數據庫狀態
         if self.repository:
             await self.repository.update_experiment_session(
                 session_id_to_stop,
-                {
-                    "session_status": "stopped",
-                    "end_time": target_session.end_time
-                }
+                {"session_status": "stopped", "end_time": target_session.end_time},
             )
-        
+
+        # 從活躍會話中移除（重要：這樣前端就不會再看到這個會話）
+        if session_id_to_stop in self.active_sessions:
+            del self.active_sessions[session_id_to_stop]
+            logger.info(f"🗑️ [訓練引擎] 已從活躍會話中移除: {session_id_to_stop}")
+
+        # 清理背景任務
+        if session_id_to_stop in self.background_tasks:
+            del self.background_tasks[session_id_to_stop]
+            logger.info(f"🗑️ [訓練引擎] 已清理背景任務: {session_id_to_stop}")
+
+        # 清理訓練實例
+        if session_id_to_stop in self.training_instances:
+            del self.training_instances[session_id_to_stop]
+            logger.info(f"🗑️ [訓練引擎] 已清理訓練實例: {session_id_to_stop}")
+
+        logger.info(f"✅ [訓練引擎] {algorithm_name} 訓練會話完全停止並清理")
+
         return {
             "session_id": session_id_to_stop,
             "algorithm": algorithm_name,
             "status": "stopped",
-            "message": f"{algorithm_name.upper()} 訓練已停止"
+            "message": f"{algorithm_name.upper()} 訓練已停止",
         }
 
     async def stop_training(self, session_id: str) -> Dict[str, Any]:
@@ -770,10 +820,12 @@ class RLTrainingEngine:
     def get_training_status(self, session_id: str) -> Dict[str, Any]:
         """獲取訓練狀態"""
         logger.info(f"📊 [狀態查詢] 查詢訓練狀態: {session_id}")
-        
+
         if session_id not in self.active_sessions:
             logger.warning(f"⚠️ [狀態查詢] 訓練會話不存在: {session_id}")
-            logger.info(f"🔍 [狀態查詢] 當前活躍會話: {list(self.active_sessions.keys())}")
+            logger.info(
+                f"🔍 [狀態查詢] 當前活躍會話: {list(self.active_sessions.keys())}"
+            )
             raise ValueError(f"訓練會話 '{session_id}' 不存在")
 
         session = self.active_sessions[session_id]
@@ -796,19 +848,23 @@ class RLTrainingEngine:
             "end_time": session.end_time.isoformat() if session.end_time else None,
             "error_message": session.error_message,
         }
-        
-        logger.info(f"✅ [狀態查詢] 返回狀態: {session_id} - {session.status.value}, 進度: {progress:.1f}%")
+
+        logger.info(
+            f"✅ [狀態查詢] 返回狀態: {session_id} - {session.status.value}, 進度: {progress:.1f}%"
+        )
         return status_data
 
     def get_all_sessions(self) -> List[Dict[str, Any]]:
         """獲取所有訓練會話"""
-        logger.info(f"📋 [全部會話] 查詢所有訓練會話，當前活躍會話數: {len(self.active_sessions)}")
-        
+        logger.info(
+            f"📋 [全部會話] 查詢所有訓練會話，當前活躍會話數: {len(self.active_sessions)}"
+        )
+
         all_sessions = [
             self.get_training_status(session_id)
             for session_id in self.active_sessions.keys()
         ]
-        
+
         logger.info(f"✅ [全部會話] 返回 {len(all_sessions)} 個會話狀態")
         return all_sessions
 
