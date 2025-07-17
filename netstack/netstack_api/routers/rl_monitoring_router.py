@@ -694,28 +694,247 @@ async def stop_training_by_algorithm(algorithm_name: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"根據算法停止訓練失敗: {str(e)}")
 
 
+@router.post("/training/pause/{algorithm_name}")
+async def pause_training(algorithm_name: str) -> Dict[str, Any]:
+    """暫停特定算法的訓練會話 - 使用統一的 RLTrainingEngine"""
+    try:
+        logger.info(f"🛑 [暫停訓練] 收到暫停 {algorithm_name} 請求")
+        
+        # 使用統一的 RLTrainingEngine
+        from ..rl.training_engine import get_training_engine
+        engine = await get_training_engine()
+        
+        # 獲取該算法的活躍會話
+        all_sessions = engine.get_all_sessions()
+        logger.info(f"🔧 [暫停訓練] 獲取到所有會話: {all_sessions}")
+        
+        active_sessions = [
+            session for session in all_sessions
+            if session["algorithm_name"] == algorithm_name and session["status"] == "active"
+        ]
+        logger.info(f"🔧 [暫停訓練] 篩選出活躍會話: {active_sessions}")
+        
+        if not active_sessions:
+            logger.warning(f"🚫 [暫停訓練] 沒有活躍的 {algorithm_name} 訓練會話")
+            return {
+                "message": f"沒有活躍的 {algorithm_name} 訓練會話需要暫停",
+                "paused_sessions": [],
+                "count": 0,
+            }
+        
+        # 暫停找到的會話
+        paused_sessions = []
+        for session in active_sessions:
+            session_id = session["session_id"]
+            try:
+                logger.info(f"🔧 [暫停訓練] 準備調用 engine.pause_session({algorithm_name})")
+                result = await engine.pause_session(algorithm_name)
+                logger.info(f"🔧 [暫停訓練] engine.pause_session 返回結果: {result}")
+                paused_sessions.append({
+                    "session_id": session_id,
+                    "algorithm": algorithm_name,
+                    "paused_at": datetime.now().isoformat()
+                })
+                logger.info(f"✅ [暫停訓練] 成功暫停會話: {session_id}")
+            except Exception as e:
+                logger.error(f"❌ [暫停訓練] 暫停會話失敗: {session_id}, 錯誤: {e}")
+                logger.exception(f"❌ [暫停訓練] 詳細錯誤信息:")  # 這會打印完整的錯誤堆棧
+        
+        return {
+            "message": f"已暫停 {len(paused_sessions)} 個 {algorithm_name} 訓練會話",
+            "paused_sessions": paused_sessions,
+            "count": len(paused_sessions),
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ [暫停訓練] 暫停 {algorithm_name} 訓練失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"暫停 {algorithm_name} 訓練失敗: {str(e)}")
+
+@router.post("/training/resume/{algorithm_name}")
+async def resume_training(algorithm_name: str) -> Dict[str, Any]:
+    """恢復特定算法的訓練會話 - 使用統一的 RLTrainingEngine"""
+    try:
+        logger.info(f"▶️ [恢復訓練] 收到恢復 {algorithm_name} 請求")
+        
+        # 使用統一的 RLTrainingEngine
+        from ..rl.training_engine import get_training_engine
+        engine = await get_training_engine()
+        
+        # 獲取該算法的暫停會話
+        all_sessions = engine.get_all_sessions()
+        paused_sessions = [
+            session for session in all_sessions
+            if session["algorithm_name"] == algorithm_name and session["status"] == "paused"
+        ]
+        
+        if not paused_sessions:
+            logger.warning(f"🚫 [恢復訓練] 沒有暫停的 {algorithm_name} 訓練會話")
+            return {
+                "message": f"沒有暫停的 {algorithm_name} 訓練會話需要恢復",
+                "resumed_sessions": [],
+                "count": 0,
+            }
+        
+        # 恢復找到的會話
+        resumed_sessions = []
+        for session in paused_sessions:
+            session_id = session["session_id"]
+            try:
+                result = await engine.resume_session(algorithm_name)
+                resumed_sessions.append({
+                    "session_id": session_id,
+                    "algorithm": algorithm_name,
+                    "resumed_at": datetime.now().isoformat()
+                })
+                logger.info(f"✅ [恢復訓練] 成功恢復會話: {session_id}")
+            except Exception as e:
+                logger.error(f"❌ [恢復訓練] 恢復會話失敗: {session_id}, 錯誤: {e}")
+        
+        return {
+            "message": f"已恢復 {len(resumed_sessions)} 個 {algorithm_name} 訓練會話",
+            "resumed_sessions": resumed_sessions,
+            "count": len(resumed_sessions),
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ [恢復訓練] 恢復 {algorithm_name} 訓練失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"恢復 {algorithm_name} 訓練失敗: {str(e)}")
+
+@router.get("/training/performance")
+async def get_training_performance_metrics() -> Dict[str, Any]:
+    """獲取訓練性能指標，包括 Success Rate 和 Stability"""
+    try:
+        import statistics
+        
+        performance_data = {
+            "algorithm_breakdown": {},
+            "success_rate": 0.0,
+            "stability": 0.0,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # 為每個算法計算性能指標
+        for algorithm in ["dqn", "ppo", "sac"]:
+            # 獲取該算法的訓練會話
+            algorithm_sessions = [
+                session for session in training_sessions.values()
+                if session["algorithm_name"] == algorithm
+            ]
+            
+            if algorithm_sessions:
+                # 計算平均指標
+                rewards = [session.get("current_reward", 0) for session in algorithm_sessions]
+                completed_episodes = [session.get("episodes_completed", 0) for session in algorithm_sessions]
+                
+                # 計算 Success Rate (基於獎勵閾值)
+                success_threshold = 300.0  # 設定成功閾值
+                successful_sessions = [r for r in rewards if r >= success_threshold]
+                success_rate = len(successful_sessions) / len(rewards) if rewards else 0.0
+                
+                # 計算 Stability (基於獎勵的變異係數)
+                if len(rewards) > 1:
+                    mean_reward = statistics.mean(rewards)
+                    reward_std = statistics.stdev(rewards)
+                    stability = max(0, 1 - (reward_std / mean_reward)) if mean_reward > 0 else 0.0
+                else:
+                    stability = 1.0 if rewards and rewards[0] > 0 else 0.0
+                
+                performance_data["algorithm_breakdown"][algorithm] = {
+                    "success_rate": success_rate,
+                    "stability": stability,
+                    "average_reward": statistics.mean(rewards) if rewards else 0.0,
+                    "completed_episodes": statistics.mean(completed_episodes) if completed_episodes else 0,
+                    "total_episodes": max([session.get("episodes_target", 0) for session in algorithm_sessions]) if algorithm_sessions else 30,
+                    "session_count": len(algorithm_sessions)
+                }
+        
+        # 計算整體系統指標
+        all_algorithms = performance_data["algorithm_breakdown"]
+        if all_algorithms:
+            performance_data["success_rate"] = statistics.mean([
+                algo["success_rate"] for algo in all_algorithms.values()
+            ])
+            performance_data["stability"] = statistics.mean([
+                algo["stability"] for algo in all_algorithms.values()
+            ])
+        
+        return performance_data
+        
+    except Exception as e:
+        logger.error(f"獲取訓練性能指標失敗: {e}")
+        return {
+            "algorithm_breakdown": {},
+            "success_rate": 0.0,
+            "stability": 0.0,
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e)
+        }
+
+
+@router.post("/training/stop-algorithm/{algorithm}")
+async def stop_training_by_algorithm(algorithm: str) -> Dict[str, Any]:
+    """停止特定算法的訓練會話 - 使用統一的 RLTrainingEngine"""
+    try:
+        logger.info(f"🛑 [停止算法訓練] 收到停止 {algorithm} 訓練請求")
+        
+        # 使用統一的 RLTrainingEngine
+        from ..rl.training_engine import get_training_engine
+        engine = await get_training_engine()
+        logger.info(f"🔧 [停止算法訓練] 準備調用 engine.stop_session({algorithm})")
+        
+        # 調用引擎的停止方法
+        result = await engine.stop_session(algorithm)
+        
+        logger.info(f"✅ [停止算法訓練] {algorithm} 訓練停止成功: {result}")
+        return result
+        
+    except ValueError as e:
+        logger.warning(f"⚠️ [停止算法訓練] {algorithm} 停止失敗: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"❌ [停止算法訓練] 停止 {algorithm} 訓練失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"停止 {algorithm} 訓練失敗: {str(e)}")
+
+
 @router.post("/training/stop-all")
 async def stop_all_training() -> Dict[str, Any]:
-    """停止所有活躍的訓練會話"""
+    """停止所有活躍的訓練會話 - 使用統一的 RLTrainingEngine"""
     try:
-        stopped_sessions = []
-
-        for session_id, session in training_sessions.items():
-            if session["status"] == "active":
-                session["status"] = "stopped"
-                stopped_sessions.append(
-                    {"session_id": session_id, "algorithm": session["algorithm_name"]}
-                )
-                logger.info(
-                    f"停止所有訓練 - 會話: {session_id} (算法: {session['algorithm_name']})"
-                )
-
-        if not stopped_sessions:
+        logger.info("🛑 [停止所有訓練] 收到停止所有訓練請求")
+        
+        # 使用統一的 RLTrainingEngine
+        from ..rl.training_engine import get_training_engine
+        engine = await get_training_engine()
+        
+        # 獲取所有活躍和暫停的會話
+        all_sessions = engine.get_all_sessions()
+        active_sessions = [
+            session for session in all_sessions
+            if session["status"] in ["active", "paused"]
+        ]
+        
+        if not active_sessions:
+            logger.warning("🚫 [停止所有訓練] 沒有活躍的訓練會話需要停止")
             return {
                 "message": "沒有活躍的訓練會話需要停止",
                 "stopped_sessions": [],
                 "count": 0,
             }
+        
+        # 停止找到的會話
+        stopped_sessions = []
+        for session in active_sessions:
+            session_id = session["session_id"]
+            algorithm_name = session["algorithm_name"]
+            try:
+                result = await engine.stop_session(algorithm_name)
+                stopped_sessions.append({
+                    "session_id": session_id,
+                    "algorithm": algorithm_name
+                })
+                logger.info(f"✅ [停止所有訓練] 成功停止會話: {session_id} (算法: {algorithm_name})")
+            except Exception as e:
+                logger.error(f"❌ [停止所有訓練] 停止會話失敗: {session_id} (算法: {algorithm_name}), 錯誤: {e}")
 
         return {
             "message": f"已停止 {len(stopped_sessions)} 個活躍訓練會話",
@@ -724,7 +943,7 @@ async def stop_all_training() -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"停止所有訓練失敗: {e}")
+        logger.error(f"❌ [停止所有訓練] 停止所有訓練失敗: {e}")
         raise HTTPException(status_code=500, detail=f"停止所有訓練失敗: {str(e)}")
 
 
