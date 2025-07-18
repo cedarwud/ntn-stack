@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { netStackApi } from '../../../services/netstack-api';
+import { netstackFetch } from '../../../config/api-config';
 
 // 類型定義
 interface SystemStatus {
@@ -89,7 +90,7 @@ export const useCrossSystemMonitoring = (
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
       
-      const response = await fetch('/system/health', {
+      const response = await netstackFetch('/system/health', {
         method: 'GET',
         signal: controller.signal
       });
@@ -194,7 +195,7 @@ export const useCrossSystemMonitoring = (
   // 檢查 NetStack 客戶端連接
   const checkNetStackClientConnection = useCallback(async (): Promise<boolean> => {
     try {
-      const response = await fetch('/interference/ai-ran/netstack/status');
+      const response = await netstackFetch('/interference/ai-ran/netstack/status');
       return response.ok;
     } catch (error) {
       return false;
@@ -204,7 +205,7 @@ export const useCrossSystemMonitoring = (
   // 檢查 AI-RAN 服務整合
   const checkAIRANIntegration = useCallback(async (): Promise<boolean> => {
     try {
-      const response = await fetch('/interference/ai-ran/control-integrated', {
+      const response = await netstackFetch('/interference/ai-ran/control-integrated', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'health_check' })
@@ -221,7 +222,7 @@ export const useCrossSystemMonitoring = (
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       
-      const response = await fetch('/api/v1/rl/training/sessions', {
+      const response = await netstackFetch('/api/v1/rl/training/sessions', {
         signal: controller.signal
       });
       
@@ -249,7 +250,7 @@ export const useCrossSystemMonitoring = (
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       
-      const response = await fetch('/api/v1/rl/algorithms', {
+      const response = await netstackFetch('/api/v1/rl/algorithms', {
         signal: controller.signal
       });
       
@@ -271,7 +272,7 @@ export const useCrossSystemMonitoring = (
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       
-      const response = await fetch('/api/v1/rl/status', {
+      const response = await netstackFetch('/api/v1/rl/status', {
         signal: controller.signal
       });
       

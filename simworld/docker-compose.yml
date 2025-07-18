@@ -94,6 +94,7 @@ services:
             VITE_DEBUG: true
         networks:
             - sionna-net
+            - netstack-core
         depends_on: # React 通常依賴 FastAPI
             backend: # <--- 修改依賴條件
                 condition: service_healthy # 等待 backend 健康檢查通過

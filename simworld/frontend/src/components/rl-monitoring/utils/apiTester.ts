@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from '../../../services/api-client';
+import { netstackFetch } from '../../../config/api-config';
 
 export interface APITestResult {
   endpoint: string;
@@ -167,7 +168,7 @@ export async function testPhase3APIs(): Promise<APITestResult[]> {
     {
       name: 'Phase 3 Visualization Generate',
       test: async () => {
-        const response = await fetch('/api/v1/rl/phase-3/visualizations/generate', {
+        const response = await netstackFetch('/api/v1/rl/phase-3/visualizations/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -182,7 +183,7 @@ export async function testPhase3APIs(): Promise<APITestResult[]> {
     {
       name: 'Phase 3 Decision Explanation',
       test: async () => {
-        const response = await fetch('/api/v1/rl/phase-3/explain/decision', {
+        const response = await netstackFetch('/api/v1/rl/phase-3/explain/decision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -196,7 +197,7 @@ export async function testPhase3APIs(): Promise<APITestResult[]> {
     {
       name: 'Phase 3 Algorithm Comparison',
       test: async () => {
-        const response = await fetch('/api/v1/rl/phase-3/algorithms/comparison', {
+        const response = await netstackFetch('/api/v1/rl/phase-3/algorithms/comparison', {
           method: 'GET'
         });
         return await response.json();
@@ -244,8 +245,8 @@ export async function healthCheckAllServices(): Promise<{
   try {
     // 測試關鍵服務
     const [rlHealth, aiHealth] = await Promise.allSettled([
-      fetch('/api/v1/rl/health').then(r => r.json()),
-      fetch('/api/v2/decision/health').then(r => r.json())
+      netstackFetch('/api/v1/rl/health').then(r => r.json()),
+      netstackFetch('/api/v2/decision/health').then(r => r.json())
     ]);
     
     const services: Record<string, 'up' | 'down' | 'degraded'> = {};

@@ -187,18 +187,38 @@ export const createConfiguredFetch = (service: 'netstack' | 'simworld') => {
   return async (endpoint: string, options: RequestInit = {}) => {
     const url = getServiceUrl(service, endpoint)
     
+    // 創建超時控制器
+    const timeoutController = new AbortController()
+    const timeoutId = setTimeout(() => timeoutController.abort(), serviceConfig.timeout)
+    
+    // 合併 AbortController signals
+    const existingSignal = options.signal
+    let finalSignal = timeoutController.signal
+    
+    if (existingSignal) {
+      // 如果已存在信號，創建組合信號
+      const combinedController = new AbortController()
+      const abortBoth = () => combinedController.abort()
+      
+      existingSignal.addEventListener('abort', abortBoth)
+      timeoutController.signal.addEventListener('abort', abortBoth)
+      
+      finalSignal = combinedController.signal
+    }
+    
     const defaultOptions: RequestInit = {
-      timeout: serviceConfig.timeout,
       headers: {
         'Content-Type': 'application/json',
         ...options.headers
-      }
+      },
+      signal: finalSignal
     }
     
     const mergedOptions = { ...defaultOptions, ...options }
     
     try {
       const response = await fetch(url, mergedOptions)
+      clearTimeout(timeoutId)
       
       if (!response.ok) {
         console.error(`${service.toUpperCase()} API 錯誤:`, {
@@ -210,6 +230,7 @@ export const createConfiguredFetch = (service: 'netstack' | 'simworld') => {
       
       return response
     } catch (error) {
+      clearTimeout(timeoutId)
       console.error(`${service.toUpperCase()} API 請求失敗:`, {
         url,
         error: error instanceof Error ? error.message : error

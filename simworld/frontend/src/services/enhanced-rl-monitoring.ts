@@ -4,6 +4,7 @@
  */
 
 import { netStackApi } from './netstack-api';
+import { netstackFetch } from '../config/api-config';
 
 // 擴展的數據類型
 export interface EnhancedRLStatus {
@@ -283,7 +284,7 @@ export class EnhancedRLMonitoringService {
 
   private async getBasicRLStatus(): Promise<any> {
     try {
-      const response = await fetch('/api/v1/rl/status');
+      const response = await netstackFetch('/api/v1/rl/status');
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -303,7 +304,7 @@ export class EnhancedRLMonitoringService {
 
   private async getNetStackIntegrationStatus(): Promise<any> {
     try {
-      const response = await fetch('/interference/ai-ran/netstack/status');
+      const response = await netstackFetch('/interference/ai-ran/netstack/status');
       const isConnected = response.ok;
       
       if (isConnected) {
@@ -338,7 +339,7 @@ export class EnhancedRLMonitoringService {
 
   private async getActiveSessions(): Promise<TrainingSession[]> {
     try {
-      const response = await fetch('/api/v1/rl/training/sessions');
+      const response = await netstackFetch('/api/v1/rl/training/sessions');
       if (response.ok) {
         const data = await response.json();
         return Array.isArray(data) ? data : data.sessions || [];
@@ -352,7 +353,7 @@ export class EnhancedRLMonitoringService {
 
   private async getPerformanceMetrics(): Promise<any> {
     try {
-      const response = await fetch('/api/v1/rl/performance/metrics');
+      const response = await netstackFetch('/api/v1/rl/performance/metrics');
       if (response.ok) {
         return await response.json();
       }
@@ -378,7 +379,7 @@ export class EnhancedRLMonitoringService {
 
   private async getRealtimeDecisions(): Promise<RealtimeDecision[]> {
     try {
-      const response = await fetch('/api/v1/rl/decisions/recent?limit=10');
+      const response = await netstackFetch('/api/v1/rl/decisions/recent?limit=10');
       if (response.ok) {
         const data = await response.json();
         return Array.isArray(data) ? data : data.decisions || [];
@@ -391,7 +392,7 @@ export class EnhancedRLMonitoringService {
 
   private async getRecentEvents(): Promise<SystemEvent[]> {
     try {
-      const response = await fetch('/api/v1/rl/events/recent?limit=20');
+      const response = await netstackFetch('/api/v1/rl/events/recent?limit=20');
       if (response.ok) {
         const data = await response.json();
         return Array.isArray(data) ? data : data.events || [];
@@ -405,7 +406,7 @@ export class EnhancedRLMonitoringService {
   // 算法控制方法
   public async controlAlgorithm(request: AlgorithmControlRequest): Promise<boolean> {
     try {
-      const response = await fetch('/api/v1/rl/algorithms/control', {
+      const response = await netstackFetch('/api/v1/rl/algorithms/control', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request)
@@ -425,7 +426,7 @@ export class EnhancedRLMonitoringService {
 
   public async switchAlgorithm(request: AlgorithmSwitchRequest): Promise<boolean> {
     try {
-      const response = await fetch('/api/v1/rl/algorithms/switch', {
+      const response = await netstackFetch('/api/v1/rl/algorithms/switch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request)

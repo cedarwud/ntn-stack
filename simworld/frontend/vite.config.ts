@@ -32,14 +32,14 @@ export default defineConfig(({ mode }) => {
                 },
                 // 代理 NetStack API 請求 - 修復代理路徑匹配
                 '/netstack': { // 代理所有 /netstack 路徑
-                    target: env.VITE_NETSTACK_PROXY_TARGET || 'http://netstack-api:8080',
+                    target: env.VITE_NETSTACK_PROXY_TARGET || 'http://120.126.151.101:8080',
                     changeOrigin: true,
                     secure: false,
                     rewrite: (path) => path.replace(/^\/netstack/, ''), // 移除 /netstack 前綴
                     configure: (proxy) => {
                         proxy.on('error', (err) => {
                             console.log('🚨 NetStack 代理錯誤:', err)
-                            console.log('🔧 代理目標:', env.VITE_NETSTACK_PROXY_TARGET || 'http://netstack-api:8080')
+                            console.log('🔧 代理目標:', env.VITE_NETSTACK_PROXY_TARGET || 'http://120.126.151.101:8080')
                         })
                         proxy.on('proxyReq', (proxyReq, req) => {
                             console.log('🔄 NetStack 代理請求:', req.method, req.url)
