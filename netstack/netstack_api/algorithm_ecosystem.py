@@ -42,7 +42,7 @@ class TrainingSession:
     episodes_target: int
     episodes_completed: int = 0
     current_reward: float = 0.0
-    best_reward: float = float('-inf')
+    best_reward: float = -1000.0
     training_metrics: Dict[str, Any] = None
     
     def __post_init__(self):

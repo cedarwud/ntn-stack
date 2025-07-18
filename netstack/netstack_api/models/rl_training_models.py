@@ -88,7 +88,7 @@ class RLTrainingSession(BaseModel):
 
     # 效能指標
     current_reward: float = Field(default=0.0, description="當前平均獎勵")
-    best_reward: float = Field(default=float("-inf"), description="最佳獎勵")
+    best_reward: float = Field(default=-1000.0, description="最佳獎勵")
     average_reward: float = Field(default=0.0, description="平均獎勵")
 
     # 模型相關
@@ -155,7 +155,7 @@ class RLAlgorithmPerformance(BaseModel):
     )
 
     # 效能指標
-    best_reward: float = Field(default=float("-inf"), description="最佳獎勵")
+    best_reward: float = Field(default=-1000.0, description="最佳獎勵")
     average_reward: float = Field(default=0.0, description="平均獎勵")
     reward_variance: float = Field(default=0.0, description="獎勵方差")
 
