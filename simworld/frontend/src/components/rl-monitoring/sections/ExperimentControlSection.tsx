@@ -758,6 +758,31 @@ const ExperimentControlSection: React.FC<ExperimentControlProps> = ({
 
                                     <div className="config-item">
                                         <label>
+                                            訓練描述
+                                            <span
+                                                className="tooltip"
+                                                title="詳細描述訓練目的和設定"
+                                            >
+                                                ⓘ
+                                            </span>
+                                        </label>
+                                        <textarea
+                                            value={
+                                                experimentConfig.experiment_description
+                                            }
+                                            onChange={(e) =>
+                                                updateConfig(
+                                                    'experiment_description',
+                                                    e.target.value
+                                                )
+                                            }
+                                            disabled={isTraining}
+                                            rows={3}
+                                        />
+                                    </div>
+
+                                    <div className="config-item">
+                                        <label>
                                             算法選擇
                                             <span
                                                 className="tooltip"
@@ -814,31 +839,6 @@ const ExperimentControlSection: React.FC<ExperimentControlProps> = ({
                                                 )
                                             }
                                             disabled={isTraining}
-                                        />
-                                    </div>
-
-                                    <div className="config-item">
-                                        <label>
-                                            訓練描述
-                                            <span
-                                                className="tooltip"
-                                                title="詳細描述訓練目的和設定"
-                                            >
-                                                ⓘ
-                                            </span>
-                                        </label>
-                                        <textarea
-                                            value={
-                                                experimentConfig.experiment_description
-                                            }
-                                            onChange={(e) =>
-                                                updateConfig(
-                                                    'experiment_description',
-                                                    e.target.value
-                                                )
-                                            }
-                                            disabled={isTraining}
-                                            rows={3}
                                         />
                                     </div>
                                 </div>
