@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ViewerProps } from '../../../../types/viewer'
 import { ApiRoutes } from '../../../../config/apiRoutes'
+import { simworldFetch } from '../../../../config/api-config'
 
 // Delay-Doppler 顯示組件
 const DelayDopplerViewer: React.FC<ViewerProps> = ({
@@ -44,7 +45,7 @@ const DelayDopplerViewer: React.FC<ViewerProps> = ({
             const resolutionMap = { low: 64, medium: 128, high: 256 }
             const apiUrl = `${API_PATH}?scene=${currentScene}&max_delay_ns=${maxDelayNs}&max_doppler_hz=${maxDopplerHz}&resolution=${resolutionMap[resolutionLevel]}&enable_phase=${enablePhaseInfo}&t=${timestamp}`
 
-            const response = await fetch(apiUrl)
+            const response = await simworldFetch(apiUrl)
 
             if (response.ok) {
                 const blob = await response.blob()
@@ -61,6 +62,11 @@ const DelayDopplerViewer: React.FC<ViewerProps> = ({
                 setIsLoading(false)
                 updateTimestamp()
             } else {
+                // 改善503錯誤處理
+                if (response.status === 503) {
+                    throw new Error('信號分析服務暫時不可用，請稍後重試')
+                }
+                
                 // 嘗試獲取後端的詳細錯誤消息
                 let errorMessage = `API 請求失敗: ${response.status} ${response.statusText}`
                 

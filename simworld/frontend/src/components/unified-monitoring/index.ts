@@ -2,6 +2,8 @@
  * 統一監控系統導出 - Phase 2
  */
 
+import { netstackFetch } from '../../config/api-config';
+
 export { UnifiedMonitoringCenter } from './UnifiedMonitoringCenter';
 export { useCrossSystemMonitoring } from './hooks/useCrossSystemMonitoring';
 
@@ -38,8 +40,8 @@ export const UnifiedMonitoringInterface: UnifiedMonitoringInterface = {
       // 獲取系統健康狀態的工具函數
       try {
         const [simworldHealth, netstackHealth] = await Promise.all([
-          fetch('/system/health').then(r => r.json()),
-          fetch('/api/v1/rl/health').then(r => r.json())
+          netstackFetch('/system/health').then(r => r.json()),
+          netstackFetch('/api/v1/rl/health').then(r => r.json())
         ]);
         
         return {
@@ -57,9 +59,9 @@ export const UnifiedMonitoringInterface: UnifiedMonitoringInterface = {
       // 刷新所有系統的工具函數
       try {
         await Promise.all([
-          fetch('/system/health'),
-          fetch('/api/v1/rl/health'),
-          fetch('/interference/ai-ran/netstack/status')
+          netstackFetch('/system/health'),
+          netstackFetch('/api/v1/rl/health'),
+          netstackFetch('/interference/ai-ran/netstack/status')
         ]);
       } catch (error) {
         console.error('Failed to refresh all systems:', error);
