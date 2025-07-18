@@ -55,7 +55,61 @@
 
                 .config-actions {
                     display: flex;
-                    gap: 10px;
+                    flex-direction: column;
+                    gap: 15px;
+
+                    .preset-selector {
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+
+                        label {
+                            font-size: 0.9rem;
+                            color: #4fc3f7;
+                            font-weight: 500;
+                            white-space: nowrap;
+                        }
+
+                        select {
+                            flex: 1;
+                            padding: 8px 12px;
+                            background: rgba(255, 255, 255, 0.05);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            border-radius: 4px;
+                            color: #e0e0e0;
+                            font-size: 0.9rem;
+                            cursor: pointer;
+                            transition: all 0.2s ease;
+
+                            &:hover {
+                                background: rgba(255, 255, 255, 0.08);
+                                border-color: rgba(76, 195, 247, 0.5);
+                            }
+
+                            &:focus {
+                                outline: none;
+                                border-color: #4fc3f7;
+                                box-shadow: 0 0 0 2px rgba(76, 195, 247, 0.2);
+                            }
+
+                            &:disabled {
+                                opacity: 0.5;
+                                cursor: not-allowed;
+                            }
+
+                            option {
+                                background: #1a1a2e;
+                                color: #e0e0e0;
+                                padding: 8px;
+                            }
+                        }
+                    }
+
+                    .section-controls {
+                        display: flex;
+                        gap: 10px;
+                        justify-content: flex-end;
+                    }
                 }
             }
 
@@ -235,6 +289,8 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
+            max-height: 100vh;
+            overflow-y: auto;
 
             .control-header {
                 display: flex;
@@ -396,6 +452,33 @@
                             }
                         }
                     }
+
+                    .training-info {
+                        margin-top: 15px;
+                        padding: 12px;
+                        background: rgba(255, 255, 255, 0.03);
+                        border-radius: 6px;
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+
+                        .info-item {
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            padding: 4px 0;
+                            font-size: 0.85rem;
+                            color: #d1d5db;
+
+                            &:not(:last-child) {
+                                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                                margin-bottom: 4px;
+                                padding-bottom: 8px;
+                            }
+
+                            span {
+                                font-weight: 500;
+                            }
+                        }
+                    }
                 }
 
                 .stop-experiment-btn {
@@ -516,6 +599,141 @@
             
             .control-panel {
                 padding: 15px;
+            }
+        }
+    }
+
+    /* 版本管理器樣式 */
+    .version-manager-section {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90vw;
+        max-width: 1200px;
+        max-height: 80vh;
+        background: #1a1a2e;
+        border: 2px solid #4fc3f7;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        overflow: hidden;
+
+        /* 確保版本管理器在訓練控制台中的樣式一致性 */
+        .experiment-version-manager {
+            background: transparent;
+            height: 100%;
+
+            .manager-header {
+                background: transparent;
+                border: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 0;
+                padding: 20px;
+
+                h2 {
+                    color: #4fc3f7;
+                    margin: 0;
+                }
+            }
+
+            .manager-tabs .tab-content {
+                background: transparent;
+                border: none;
+                border-radius: 0;
+                max-height: calc(80vh - 100px);
+                overflow-y: auto;
+            }
+        }
+    }
+
+    /* 版本管理器背景遮罩 */
+    .version-manager-section::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: -1;
+    }
+
+    /* 診斷工具樣式 */
+    .diagnostics-section {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 95vw;
+        max-width: 1400px;
+        max-height: 90vh;
+        background: #1a1a1a;
+        border: 2px solid #f59e0b;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        overflow: hidden;
+    }
+
+    /* 診斷工具背景遮罩 */
+    .diagnostics-section::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: -1;
+    }
+
+    /* 模態框頭部樣式 */
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+
+        h2 {
+            margin: 0;
+            color: #4fc3f7;
+            font-size: 1.2rem;
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e0e0e0;
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.2);
+                color: #fff;
+            }
+        }
+    }
+
+    /* 按鈕樣式增強 */
+    .btn {
+        &.btn-info {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: white;
+
+            &:hover:not(:disabled) {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+            }
+        }
+
+        &.btn-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+
+            &:hover:not(:disabled) {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
             }
         }
     }

@@ -15,7 +15,7 @@ common_labels:
       - "test"        # 測試環境  
       - "staging"     # 預發布環境
       - "prod"        # 生產環境
-      - "lab"         # 實驗室環境
+      - "lab"         # 訓練室環境
     example: 'environment="prod"'
     
   node:

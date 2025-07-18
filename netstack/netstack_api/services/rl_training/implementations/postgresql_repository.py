@@ -70,7 +70,7 @@ class PostgreSQLRepository(IDataRepository):
         async with self.pool.acquire() as connection:
             yield connection
 
-    # ===== 實驗會話管理 =====
+    # ===== 訓練會話管理 =====
 
     async def create_experiment_session(self, session: ExperimentSession) -> int:
         async with self.get_connection() as conn:
@@ -97,7 +97,7 @@ class PostgreSQLRepository(IDataRepository):
                 session.start_time,
                 session.total_episodes,
             )
-            logger.info(f"✅ 創建實驗會話: {session_id} ({session.algorithm_type})")
+            logger.info(f"✅ 創建訓練會話: {session_id} ({session.algorithm_type})")
             return session_id
 
     async def get_experiment_session(
@@ -698,7 +698,7 @@ class PostgreSQLRepository(IDataRepository):
                 cutoff_date
             )
             
-            # 清理舊的實驗會話（只保留沒有關聯數據的）
+            # 清理舊的訓練會話（只保留沒有關聯數據的）
             sessions_deleted = await conn.fetchval(
                 """
                 DELETE FROM rl_experiment_sessions 

@@ -195,7 +195,7 @@ class RandomAlgorithm(BaseAlgorithm):
         logger.info("隨機算法狀態已重置")
     
     def set_deterministic_mode(self, seed: int):
-        """設置確定性模式，用於可重現的實驗"""
+        """設置確定性模式，用於可重現的訓練"""
         self.random_seed = seed
         np.random.seed(seed)
         logger.info(f"隨機算法切換至確定性模式，種子: {seed}")

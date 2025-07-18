@@ -5,7 +5,7 @@ Phase 2.3 RL 算法實戰應用 API 端點
 - 多算法並行訓練管理
 - 實時決策推送和監控
 - A/B 測試和性能對比
-- 統計分析和實驗管理
+- 統計分析和訓練管理
 """
 
 import asyncio
@@ -81,7 +81,7 @@ manager = ConnectionManager()
 # API 模型定義
 class MultiAlgorithmTrainingRequest(BaseModel):
     algorithms: List[str] = Field(description="要並行訓練的算法列表")
-    experiment_name: str = Field(description="實驗名稱")
+    experiment_name: str = Field(description="訓練名稱")
     total_episodes: int = Field(default=100, description="每個算法的訓練回合數")
     scenario_type: str = Field(default="urban", description="場景類型")
     researcher_id: str = Field(default="system", description="研究員 ID")
@@ -197,7 +197,7 @@ async def start_multi_algorithm_training(
                 detail=f"不支援的算法: {invalid_algorithms}。可用算法: {available_algorithms}"
             )
 
-        # 創建實驗 ID
+        # 創建訓練 ID
         experiment_id = f"multi_alg_{int(datetime.now().timestamp())}"
         
         # 為每個算法創建訓練會話
@@ -523,7 +523,7 @@ async def _run_parallel_training(experiment_id: str, session_ids: List[int], alg
                 "timestamp": datetime.now().isoformat()
             }))
             
-        logger.info(f"並行訓練實驗 {experiment_id} 完成")
+        logger.info(f"並行訓練訓練 {experiment_id} 完成")
         
     except Exception as e:
         logger.error(f"並行訓練執行失敗: {e}")
