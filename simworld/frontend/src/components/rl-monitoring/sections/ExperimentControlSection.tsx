@@ -817,7 +817,7 @@ const ExperimentControlSection: React.FC<ExperimentControlProps> = ({
                                         />
                                     </div>
 
-                                    <div className="config-item full-width">
+                                    <div className="config-item">
                                         <label>
                                             訓練描述
                                             <span
@@ -838,7 +838,7 @@ const ExperimentControlSection: React.FC<ExperimentControlProps> = ({
                                                 )
                                             }
                                             disabled={isTraining}
-                                            rows={2}
+                                            rows={3}
                                         />
                                     </div>
                                 </div>
