@@ -30,13 +30,17 @@ const detectEnvironment = (): 'development' | 'docker' | 'production' => {
     return 'docker'
   }
   
-  // 檢查主機名 - 如果是通過 localhost:5173 訪問但有 VITE_ENV_MODE，則使用 docker
+  // 檢查主機名 - 如果是通過 5173 端口訪問，則使用 docker
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
     const port = window.location.port
-    if ((hostname === 'localhost' || hostname === '127.0.0.1') && port === '5173') {
+    if (port === '5173') {
       // 如果有設置 VITE_NETSTACK_URL 為代理路徑，則為 docker 環境
       if (import.meta.env.VITE_NETSTACK_URL?.startsWith('/')) {
+        return 'docker'
+      }
+      // 如果通過 IP 地址訪問且端口為 5173，很可能是 Docker 環境
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
         return 'docker'
       }
     }
@@ -119,7 +123,15 @@ export const getApiConfig = (): ApiConfig => {
   
   // 開發環境下輸出配置信息（只記錄一次）
   if (import.meta.env.DEV && !configLogged) {
-    // console.log(`🔧 API 配置模式: ${environment}`, config)
+    console.log(`🔧 API 配置模式: ${environment}`, config)
+    console.log(`🔧 環境檢測信息:`, {
+      'VITE_ENV_MODE': import.meta.env.VITE_ENV_MODE,
+      'VITE_NETSTACK_URL': import.meta.env.VITE_NETSTACK_URL,
+      'VITE_SIMWORLD_URL': import.meta.env.VITE_SIMWORLD_URL,
+      'hostname': typeof window !== 'undefined' ? window.location.hostname : 'N/A',
+      'port': typeof window !== 'undefined' ? window.location.port : 'N/A',
+      'DEV': import.meta.env.DEV
+    })
     configLogged = true
   }
   

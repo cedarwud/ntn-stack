@@ -129,7 +129,7 @@ const validateNetworkConfiguration = (): { warnings: string[]; errors: string[] 
   
   // 這裡可以擴展來檢查配置文件中的硬編碼 IP
   // 目前先檢查常見的硬編碼模式
-  const commonHardcodedIps = ['172.20.0.40', '120.126.151.101']
+  const commonHardcodedIps = ['172.20.0.40']
   
   commonHardcodedIps.forEach(ip => {
     // 檢查環境變數中是否包含硬編碼 IP
