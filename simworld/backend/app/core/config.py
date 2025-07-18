@@ -27,19 +27,17 @@ if not DATABASE_URL.startswith("postgresql+asyncpg"):
     )
 
 # --- Path Configuration (using pathlib) ---
-# 在容器內，/app 就是 backend 目錄的根
+# Docker volume mount: ./backend:/app
 # config.py 位於 /app/app/core
 CORE_DIR = Path(__file__).resolve().parent  # /app/app/core
 APP_DIR = CORE_DIR.parent  # /app/app
-# BACKEND_DIR = APP_DIR.parent              # 不需要再往上找，/app 就是後端根目錄
-# PROJECT_ROOT = BACKEND_DIR.parent
 
-# 靜態文件應該在 /app/app/static 下，因為 volume mount 是 ./backend:/app
+# 靜態文件位於 /app/app/static/ - 雖然看起來有重複前綴，但這是正確的路徑結構
 STATIC_DIR = APP_DIR / "static"  # Correct path: /app/app/static
 MODELS_DIR = STATIC_DIR / "models"  # Correct path: /app/app/static/models
 STATIC_IMAGES_DIR = STATIC_DIR / "images"  # Correct path: /app/app/static/images
-SCENE_DIR = STATIC_DIR / "scenes"  # 新增: 場景總目錄路徑
-NYCU_DIR = SCENE_DIR / "NYCU"  # 更新: NYCU 目錄現在在 scenes 子目錄下
+SCENE_DIR = STATIC_DIR / "scenes"  # 場景總目錄路徑
+NYCU_DIR = SCENE_DIR / "NYCU"  # NYCU 場景目錄
 
 # 建立目錄
 # STATIC_DIR.mkdir(parents=True, exist_ok=True) # 目錄應該由 volume mount 提供，不需在 config 創建

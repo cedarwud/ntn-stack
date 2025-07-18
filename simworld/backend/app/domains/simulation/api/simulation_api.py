@@ -68,16 +68,21 @@ async def get_cfr_plot(
     logger.info(f"--- API Request: /cfr-plot?scene={scene} ---")
 
     try:
-        # 使用靜態圖像文件快速響應
-        cfr_image_path = "app/static/images/cfr_plot.png"
+        # 動態生成CFR圖表
+        output_path = str(CFR_PLOT_IMAGE_PATH)
         
-        # 檢查文件是否存在
-        import os
-        if not os.path.exists(cfr_image_path):
-            raise HTTPException(status_code=404, detail="CFR圖像文件不存在")
+        # 調用 sionna_service 生成CFR圖表
+        success = await sionna_service.generate_cfr_plot(
+            session=db,
+            output_path=output_path,
+            scene_name=scene
+        )
         
-        logger.info(f"返回CFR圖像: {cfr_image_path}")
-        return create_image_response(cfr_image_path, "cfr_plot.png")
+        if not success:
+            raise HTTPException(status_code=500, detail="CFR圖表生成失敗")
+        
+        logger.info(f"成功生成CFR圖表: {output_path}")
+        return create_image_response(output_path, "cfr_plot.png")
         
     except HTTPException:
         raise
@@ -101,16 +106,25 @@ async def get_sinr_map(
     )
 
     try:
-        # 使用靜態圖像文件快速響應
-        sinr_image_path = "app/static/images/sinr_map.png"
+        # 動態生成SINR地圖
+        output_path = str(SINR_MAP_IMAGE_PATH)
         
-        # 檢查文件是否存在
-        import os
-        if not os.path.exists(sinr_image_path):
-            raise HTTPException(status_code=404, detail="SINR地圖文件不存在")
+        # 調用 sionna_service 生成SINR地圖
+        success = await sionna_service.generate_sinr_map(
+            session=db,
+            output_path=output_path,
+            scene_name=scene,
+            sinr_vmin=sinr_vmin,
+            sinr_vmax=sinr_vmax,
+            cell_size=cell_size,
+            samples_per_tx=samples_per_tx
+        )
         
-        logger.info(f"返回SINR地圖: {sinr_image_path}")
-        return create_image_response(sinr_image_path, "sinr_map.png")
+        if not success:
+            raise HTTPException(status_code=500, detail="SINR地圖生成失敗")
+        
+        logger.info(f"成功生成SINR地圖: {output_path}")
+        return create_image_response(output_path, "sinr_map.png")
         
     except HTTPException:
         raise
@@ -128,16 +142,21 @@ async def get_doppler_plots(
     logger.info(f"--- API Request: /doppler-plots?scene={scene} ---")
 
     try:
-        # 使用靜態圖像文件快速響應
-        doppler_image_path = "app/static/images/delay_doppler.png"
+        # 動態生成延遲多普勒圖
+        output_path = str(DOPPLER_IMAGE_PATH)
         
-        # 檢查文件是否存在
-        import os
-        if not os.path.exists(doppler_image_path):
-            raise HTTPException(status_code=404, detail="延遲多普勒圖文件不存在")
+        # 調用 sionna_service 生成延遲多普勒圖
+        success = await sionna_service.generate_doppler_plots(
+            session=db,
+            output_path=output_path,
+            scene_name=scene
+        )
         
-        logger.info(f"返回延遲多普勒圖: {doppler_image_path}")
-        return create_image_response(doppler_image_path, "delay_doppler.png")
+        if not success:
+            raise HTTPException(status_code=500, detail="延遲多普勒圖生成失敗")
+        
+        logger.info(f"成功生成延遲多普勒圖: {output_path}")
+        return create_image_response(output_path, "delay_doppler.png")
         
     except HTTPException:
         raise
@@ -155,16 +174,21 @@ async def get_channel_response(
     logger.info(f"--- API Request: /channel-response?scene={scene} ---")
 
     try:
-        # 使用靜態圖像文件快速響應
-        channel_response_image_path = "app/static/images/channel_response_plots.png"
+        # 動態生成通道響應圖
+        output_path = str(CHANNEL_RESPONSE_IMAGE_PATH)
         
-        # 檢查文件是否存在
-        import os
-        if not os.path.exists(channel_response_image_path):
-            raise HTTPException(status_code=404, detail="通道響應圖文件不存在")
+        # 調用 sionna_service 生成通道響應圖
+        success = await sionna_service.generate_channel_response_plots(
+            session=db,
+            output_path=output_path,
+            scene_name=scene
+        )
         
-        logger.info(f"返回通道響應圖: {channel_response_image_path}")
-        return create_image_response(channel_response_image_path, "channel_response_plots.png")
+        if not success:
+            raise HTTPException(status_code=500, detail="通道響應圖生成失敗")
+        
+        logger.info(f"成功生成通道響應圖: {output_path}")
+        return create_image_response(output_path, "channel_response_plots.png")
         
     except HTTPException:
         raise

@@ -6,6 +6,9 @@
 // 使用相對路徑，不要加入前綴
 const API_BASE_URL = '/api/v1';
 
+// 只用於 simworldFetch 的路徑（simworldFetch 會自動添加 /api 前綴）
+const SIMWORLD_API_BASE_URL = '/v1';
+
 export const ApiRoutes = {
   // 設備領域API - 更新路徑以符合DDD結構
   devices: {
@@ -40,11 +43,11 @@ export const ApiRoutes = {
   simulations: {
     base: `${API_BASE_URL}/simulations`,
     createSimulation: `${API_BASE_URL}/simulations/run`,
-    // 更新為實際存在的API路徑
-    getCFRMap: `${API_BASE_URL}/simulations/cfr-plot`,
-    getSINRMap: `${API_BASE_URL}/simulations/sinr-map`,
-    getDopplerMap: `${API_BASE_URL}/simulations/doppler-plots`,
-    getChannelResponsePlots: `${API_BASE_URL}/simulations/channel-response`,
+    // 更新為實際存在的API路徑（使用 simworldFetch）
+    getCFRMap: `${SIMWORLD_API_BASE_URL}/simulations/cfr-plot`,
+    getSINRMap: `${SIMWORLD_API_BASE_URL}/simulations/sinr-map`,
+    getDopplerMap: `${SIMWORLD_API_BASE_URL}/simulations/doppler-plots`,
+    getChannelResponsePlots: `${SIMWORLD_API_BASE_URL}/simulations/channel-response`,
     getSceneImage: `${API_BASE_URL}/simulations/scene-image`,
     getResults: (id: string) => `${API_BASE_URL}/simulations/${id}/results`,
     // 模型相關API路徑仍在sionna命名空間下

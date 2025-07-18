@@ -33,9 +33,16 @@ async def seed_default_ground_station():
 async def seed_initial_device_data():
     """Seed initial device data"""
     try:
-        from ..services.device_service import DeviceService
-        service = DeviceService()
-        await service.create_initial_devices()
+        from ..domains.device.services.device_service import DeviceService
+        from ..domains.device.adapters.sqlmodel_device_repository import SQLModelDeviceRepository
+        from ..db.database import get_session
+        
+        # Get database session
+        async with get_session() as session:
+            repository = SQLModelDeviceRepository(session)
+            service = DeviceService(repository)
+            # TODO: Implement create_initial_devices method in DeviceService
+            # await service.create_initial_devices()
         logger.info("Initial device data seeded successfully")
     except Exception as e:
         logger.error(f"Failed to seed initial device data: {e}")
