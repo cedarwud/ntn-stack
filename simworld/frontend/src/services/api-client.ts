@@ -1,52 +1,50 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import axios, { AxiosInstance, AxiosResponse } from 'axios'
-import { getApiConfig } from '../config/api-config'
-
-const API_CONFIG = getApiConfig()
+import { netstackFetch } from '../config/api-config'
 
 class NetStackApiClient {
-    private client: AxiosInstance
-
-    constructor() {
-        this.client = axios.create({
-            baseURL: '/netstack', // <--- 統一設定 baseURL
-            timeout: 10000,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        })
-    }
-
     private async request<T>(
-        method: 'get' | 'post' | 'put' | 'delete',
+        method: 'GET' | 'POST' | 'PUT' | 'DELETE',
         url: string,
         data: any = null
     ): Promise<T> {
         try {
-            const response: AxiosResponse<T> = await this.client[method](
-                url,
-                data
-            )
-            return response.data
+            const options: RequestInit = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            }
+
+            if (data && (method === 'POST' || method === 'PUT')) {
+                options.body = JSON.stringify(data)
+            }
+
+            const response = await netstackFetch(url, options)
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            }
+
+            return await response.json()
         } catch (error) {
-            console.error(`API Error on ${method.toUpperCase()} ${url}:`, error)
+            console.error(`API Error on ${method} ${url}:`, error)
             throw error
         }
     }
 
     get<T>(url: string): Promise<T> {
-        return this.request<T>('get', url)
+        return this.request<T>('GET', url)
     }
 
     post<T>(url: string, data: any): Promise<T> {
-        return this.request<T>('post', url, data)
+        return this.request<T>('POST', url, data)
     }
 
     /**
      * 獲取 AI 決策引擎的健康狀態。
      */
     getAIDecisionEngineHealth() {
-        // 新的 v2 協調器端點
+        // 新的 v2 協調器端點 - 這是 SimWorld 後端的端點
         return this.get<any>('/api/v2/decision/health')
     }
 
@@ -92,7 +90,7 @@ class NetStackApiClient {
      * 獲取訓練狀態摘要，用於前端狀態同步
      */
     getTrainingStatusSummary() {
-        // 移除前綴，由 baseURL 處理
+        // 修復後的正確路徑
         return this.get<any>('/api/v1/rl/training/status-summary')
     }
 

@@ -52,7 +52,7 @@ from ..services.rl_training.core.training_orchestrator import TrainingOrchestrat
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/rl/training", tags=["RL 訓練管理"])
+router = APIRouter(tags=["RL 訓練管理"])
 
 # 記憶體存儲（在實際部署中應該使用資料庫）
 training_sessions_store: Dict[str, RLTrainingSession] = {}

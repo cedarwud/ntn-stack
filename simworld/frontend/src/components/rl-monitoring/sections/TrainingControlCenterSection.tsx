@@ -267,7 +267,7 @@ const TrainingControlCenterSection: React.FC<TrainingControlCenterProps> = ({
 
         try {
             const response = await netstackFetch(
-                `/api/v1/rl/training/stop-algorithm/${selectedAlgorithm}`,
+                `/api/v1/rl/training/stop-by-algorithm/${selectedAlgorithm}`,
                 {
                     method: 'POST',
                 }
