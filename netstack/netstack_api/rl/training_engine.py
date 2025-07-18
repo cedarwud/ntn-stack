@@ -134,7 +134,7 @@ class TrainingSession:
     episodes_target: int = 0
     episodes_completed: int = 0
     current_reward: float = 0.0
-    best_reward: float = float("-inf")
+    best_reward: float = -1000.0  # 使用有限值而非 -inf
     config: Optional[TrainingConfig] = None
     error_message: Optional[str] = None
 
