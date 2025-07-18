@@ -37,7 +37,7 @@ export const DecisionControlCenterSimple: React.FC<DecisionControlCenterSimplePr
   // 系統健康檢查
   const performHealthCheck = async () => {
     try {
-      const response = await fetch('/netstack/api/v1/rl/health')
+      const response = await fetch('/api/v1/rl/health')
       const data = await response.json()
       
       if (data.status === 'healthy') {

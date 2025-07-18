@@ -130,9 +130,17 @@ class RouterManager:
             self._track_router("core_sync_router", "核心同步機制", True)
             self.app.include_router(intelligent_fallback_router, tags=["智能回退機制"])
             self._track_router("intelligent_fallback_router", "智能回退機制", True)
-            self.app.include_router(rl_monitoring_router, tags=["RL 監控"])
+            self.app.include_router(
+                rl_monitoring_router, 
+                prefix="/api/v1/rl",
+                tags=["RL 監控"]
+            )
             self._track_router("rl_monitoring_router", "RL 監控", True)
-            self.app.include_router(rl_training_router, tags=["RL 訓練"])
+            self.app.include_router(
+                rl_training_router, 
+                prefix="/api/v1/rl/training",
+                tags=["RL 訓練"]
+            )
             self._track_router("rl_training_router", "RL 訓練", True)
             self.app.include_router(test_router, tags=["測試"])
             self._track_router("test_router", "測試", True)

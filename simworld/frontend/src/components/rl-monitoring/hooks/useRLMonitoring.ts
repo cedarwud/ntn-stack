@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { apiClient } from '../../../services/api-client';
+import { netstackFetch } from '../../../config/api-config';
 import { 
   RLMonitoringData, 
   RLMonitoringOptions, 
@@ -260,7 +261,7 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
       
       try {
         const [vizGenerate, vizExplain] = await Promise.allSettled([
-          fetch('/netstack/api/v1/rl/phase-3/visualizations/generate', {
+          netstackFetch('/api/v1/rl/phase-3/visualizations/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -269,7 +270,7 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
               format: 'plotly'
             })
           }),
-          fetch('/netstack/api/v1/rl/phase-3/explain/decision', {
+          netstackFetch('/api/v1/rl/phase-3/explain/decision', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
