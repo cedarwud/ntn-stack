@@ -3,6 +3,8 @@
  * 用於分析為什麼衛星數據少於預期數量的問題
  */
 
+import { netstackFetch } from '../config/api-config';
+
 // 定義衛星數據接口
 interface SatelliteData {
   name?: string
@@ -266,15 +268,10 @@ export class SatelliteDebugger {
    */
   static async quickHealthCheck(): Promise<boolean> {
     try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 3000)
-      
-      const response = await fetch('/api/v1/satellite-ops/visible_satellites?count=1&global_view=true', {
-        method: 'GET',
-        signal: controller.signal
+      const response = await netstackFetch('/api/v1/satellite-ops/visible_satellites?count=1&global_view=true', {
+        method: 'GET'
       })
       
-      clearTimeout(timeoutId)
       return response.ok
     } catch {
       return false

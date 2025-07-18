@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ViewerProps } from '../../../../types/viewer'
 import { ApiRoutes } from '../../../../config/apiRoutes'
+import { simworldFetch } from '../../../../config/api-config'
 
 // Time-Frequency 顯示組件
 const TimeFrequencyViewer: React.FC<ViewerProps> = ({
@@ -36,9 +37,14 @@ const TimeFrequencyViewer: React.FC<ViewerProps> = ({
         // 添加timestamp參數防止緩存，並添加 scene 參數
         const apiUrl = `${API_PATH}?scene=${currentScene}&t=${new Date().getTime()}`
 
-        fetch(apiUrl)
+        simworldFetch(apiUrl)
             .then(async (response) => {
                 if (!response.ok) {
+                    // 改善503錯誤處理
+                    if (response.status === 503) {
+                        throw new Error('信號分析服務暫時不可用，請稍後重試')
+                    }
+                    
                     // 嘗試獲取後端的詳細錯誤消息
                     let errorMessage = `API 請求失敗: ${response.status} ${response.statusText}`
                     

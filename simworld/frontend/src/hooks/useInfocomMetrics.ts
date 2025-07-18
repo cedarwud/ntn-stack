@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { netstackFetch } from '../config/api-config';
 
 interface InfocomMetrics {
     handoverLatency: number;      // 換手延遲 (ms)
@@ -49,7 +50,7 @@ export const useInfocomMetrics = (enabled: boolean = true) => {
             setError(null);
 
             try {
-                const response = await fetch('/api/algorithm-performance/infocom-2024-detailed');
+                const response = await netstackFetch('/api/algorithm-performance/infocom-2024-detailed');
                 
                 if (!response.ok) {
                     throw new Error(`API request failed: ${response.status}`);

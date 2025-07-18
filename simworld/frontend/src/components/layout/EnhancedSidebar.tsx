@@ -14,6 +14,7 @@ import { useStrategy } from '../../hooks/useStrategy'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
 import { simWorldApi } from '../../services/simworld-api'
 import { SatelliteDebugger } from '../../utils/satelliteDebugger'
+import { netstackFetch } from '../../config/api-config'
 // 使用懶加載的 HandoverManager 來優化 bundle size
 const HandoverManager = React.lazy(
     () => import('../domains/handover/execution/HandoverManager')
@@ -183,7 +184,7 @@ async function fetchVisibleSatellites(
                     0
                 )}&constellation=${constellation}`
 
-                const response = await fetch(apiUrl)
+                const response = await netstackFetch(apiUrl)
                 if (!response.ok) {
                     console.warn(
                         `⚠️ EnhancedSidebar: 獲取 ${constellation} 衛星失敗: ${response.status}`
