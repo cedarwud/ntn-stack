@@ -152,7 +152,7 @@ export interface SystemStatus {
   }>;
 }
 
-// 實驗會話
+// 訓練會話
 export interface ExperimentSession {
   session_id: string;
   experiment_name: string;

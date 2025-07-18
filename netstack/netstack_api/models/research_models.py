@@ -1,8 +1,8 @@
 """
 研究級 MongoDB 數據模型
 
-專門為學術研究和實驗追蹤設計的高級數據結構
-支援 todo.md 所需的決策透明化和實驗復現
+專門為學術研究和訓練追蹤設計的高級數據結構
+支援 todo.md 所需的決策透明化和訓練復現
 """
 
 from typing import Dict, List, Any, Optional, Union
@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 
 class ExperimentStatus(str, Enum):
-    """實驗狀態"""
+    """訓練狀態"""
     PLANNED = "planned"
     RUNNING = "running" 
     PAUSED = "paused"
@@ -64,7 +64,7 @@ class ResearchMetadata:
 
 
 class ExperimentHyperparameters(BaseModel):
-    """實驗超參數"""
+    """訓練超參數"""
     learning_rate: float = Field(ge=1e-6, le=1.0)
     batch_size: int = Field(ge=1, le=1024)
     episodes: int = Field(ge=1, le=100000)
@@ -127,7 +127,7 @@ class DecisionReasoning(BaseModel):
 
 
 class RLExperimentSession(BaseModel):
-    """研究級 RL 實驗會話"""
+    """研究級 RL 訓練會話"""
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     experiment_name: str
     
@@ -142,7 +142,7 @@ class RLExperimentSession(BaseModel):
     hypothesis: Optional[str] = None
     expected_outcomes: List[str] = Field(default_factory=list)
     
-    # 實驗狀態
+    # 訓練狀態
     status: ExperimentStatus = ExperimentStatus.PLANNED
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None

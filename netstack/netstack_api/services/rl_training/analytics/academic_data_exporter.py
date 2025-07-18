@@ -95,7 +95,7 @@ class ResearchMetadata:
 
 @dataclass
 class ExperimentalDesign:
-    """實驗設計信息"""
+    """訓練設計信息"""
     research_questions: List[str]
     hypotheses: List[str]
     independent_variables: List[str]
@@ -249,7 +249,7 @@ class AcademicDataExporter:
         self.logger.info(f"Creating research data package: {package_id}")
         
         try:
-            # 1. 實驗設計信息
+            # 1. 訓練設計信息
             experimental_design = await self._extract_experimental_design(research_data)
             
             # 2. 可重現性信息
@@ -305,7 +305,7 @@ class AcademicDataExporter:
             raise
     
     async def _extract_experimental_design(self, research_data: Dict[str, Any]) -> ExperimentalDesign:
-        """提取實驗設計信息"""
+        """提取訓練設計信息"""
         # 從研究數據中提取或使用默認值
         return ExperimentalDesign(
             research_questions=research_data.get('research_questions', [
@@ -946,7 +946,7 @@ Future work will focus on extending this analysis to larger-scale deployments an
         with open(metadata_file, 'w', encoding='utf-8') as f:
             json.dump(asdict(data_package.metadata), f, indent=2, default=str)
         
-        # 2. 實驗設計文件
+        # 2. 訓練設計文件
         design_file = package_dir / "experimental_design.json"
         with open(design_file, 'w', encoding='utf-8') as f:
             json.dump(asdict(data_package.experimental_design), f, indent=2, default=str)

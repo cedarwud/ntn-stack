@@ -106,7 +106,7 @@ class ABTestConfig:
     test_id: str
     name: str
     model_a_id: str  # 對照組
-    model_b_id: str  # 實驗組
+    model_b_id: str  # 訓練組
     traffic_split_percent: int  # B組流量百分比
     success_metrics: List[str]
     minimum_sample_size: int = 1000

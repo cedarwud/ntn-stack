@@ -78,7 +78,7 @@ class SimplifiedPostgreSQLRepository:
 
     async def create_experiment_session(self, session_data: Dict[str, Any]) -> int:
         """
-        創建實驗會話
+        創建訓練會話
         介面隔離原則：明確的方法簽名
         """
         if not self._initialized:
@@ -94,7 +94,7 @@ class SimplifiedPostgreSQLRepository:
                 (experiment_name, algorithm_type, scenario_type, hyperparameters, 
                  research_notes, session_status, start_time)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
+                RETURNING session_id
                 """
                 cursor.execute(query, (
                     session_data.get("experiment_name"),
@@ -116,17 +116,22 @@ class SimplifiedPostgreSQLRepository:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
                 cursor.execute(query, (
-                    experiment_name, algorithm_type, scenario_type,
-                    str(hyperparameters), str(environment_config),
-                    researcher_id, research_notes, 'created', datetime.now().isoformat()
+                    session_data.get("experiment_name"),
+                    session_data.get("algorithm_type"), 
+                    session_data.get("scenario_type"),
+                    str(session_data.get("hyperparameters", {})), 
+                    str(session_data.get("environment_config", {})),
+                    session_data.get("researcher_id", "system"), 
+                    session_data.get("research_notes"),
+                    'created', datetime.now().isoformat()
                 ))
                 session_id = cursor.lastrowid
                 
-            logger.info(f"✅ 創建實驗會話: {session_id}")
+            logger.info(f"✅ 創建訓練會話: {session_id}")
             return session_id
             
         except Exception as e:
-            logger.error(f"❌ 創建實驗會話失敗: {e}")
+            logger.error(f"❌ 創建訓練會話失敗: {e}")
             # 優雅降級：返回模擬 ID
             return 1
 
@@ -236,7 +241,7 @@ class SimplifiedPostgreSQLRepository:
         total_episodes: Optional[int] = None
     ) -> bool:
         """
-        更新實驗會話狀態
+        更新訓練會話狀態
         單一職責原則：專門負責會話狀態更新
         """
         if not self._initialized:
@@ -268,7 +273,47 @@ class SimplifiedPostgreSQLRepository:
             return True
             
         except Exception as e:
-            logger.error(f"❌ 更新實驗會話失敗: {e}")
+            logger.error(f"❌ 更新訓練會話失敗: {e}")
+            return False
+    
+    async def update_experiment_session_progress(
+        self,
+        session_id: int,
+        current_episode: int,
+        performance_metrics: Dict[str, Any]
+    ) -> bool:
+        """
+        更新訓練會話進度
+        單一職責原則：專門負責訓練進度更新
+        """
+        if not self._initialized:
+            return False
+            
+        try:
+            cursor = self._connection.cursor()
+            
+            if self._driver == "psycopg2":
+                # 更新current_episode和performance_metrics
+                query = """
+                UPDATE rl_experiment_sessions 
+                SET current_episode = %s, performance_metrics = %s
+                WHERE session_id = %s
+                """
+                cursor.execute(query, (current_episode, performance_metrics, session_id))
+            else:
+                # SQLite 簡化版本
+                query = """
+                UPDATE rl_experiment_sessions 
+                SET current_episode = ?
+                WHERE session_id = ?
+                """
+                cursor.execute(query, (current_episode, session_id))
+            
+            self._connection.commit()
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ 更新訓練進度失敗: {e}")
             return False
 
     def health_check(self) -> Dict[str, Any]:

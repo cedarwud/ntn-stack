@@ -125,7 +125,7 @@ orchestrator:
   enable_monitoring: true
   monitoring_window_minutes: 10
 
-# 實驗配置
+# 訓練配置
 experiments:
   enable_ab_testing: false
   ab_test_config:

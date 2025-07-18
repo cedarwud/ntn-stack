@@ -16,7 +16,7 @@ from .performance_monitor import PerformanceMetric, MetricType
 
 @dataclass
 class ExperimentSession:
-    """實驗會話實體"""
+    """訓練會話實體"""
     id: Optional[int]
     experiment_name: str
     algorithm_type: str
@@ -92,14 +92,14 @@ class IDataRepository(ABC):
     - 數據遷移
     """
     
-    # ===== 實驗會話管理 =====
+    # ===== 訓練會話管理 =====
     
     @abstractmethod
     async def create_experiment_session(self, session: ExperimentSession) -> int:
-        """創建實驗會話
+        """創建訓練會話
         
         Args:
-            session: 實驗會話資料
+            session: 訓練會話資料
             
         Returns:
             int: 新建會話的ID
@@ -111,7 +111,7 @@ class IDataRepository(ABC):
     
     @abstractmethod
     async def get_experiment_session(self, session_id: int) -> Optional[ExperimentSession]:
-        """獲取實驗會話
+        """獲取訓練會話
         
         Args:
             session_id: 會話ID
@@ -123,7 +123,7 @@ class IDataRepository(ABC):
     
     @abstractmethod
     async def update_experiment_session(self, session_id: int, updates: Dict[str, Any]) -> bool:
-        """更新實驗會話
+        """更新訓練會話
         
         Args:
             session_id: 會話ID
@@ -136,7 +136,7 @@ class IDataRepository(ABC):
     
     @abstractmethod
     async def delete_experiment_session(self, session_id: int) -> bool:
-        """刪除實驗會話
+        """刪除訓練會話
         
         Args:
             session_id: 會話ID
@@ -148,7 +148,7 @@ class IDataRepository(ABC):
     
     @abstractmethod
     async def query_experiment_sessions(self, filter_obj: QueryFilter) -> List[ExperimentSession]:
-        """查詢實驗會話
+        """查詢訓練會話
         
         Args:
             filter_obj: 查詢過濾器
