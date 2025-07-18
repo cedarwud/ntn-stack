@@ -1,7 +1,7 @@
 /**
  * 主要的 RL 監控面板組件
  * 根據 @tr.md 重新設計：從6分頁整合為4分頁，專注LEO衛星切換研究
- * 新架構：實驗控制台 → 實時監控 → 實驗結果 → 算法對比
+ * 新架構：訓練控制台 → 實時監控 → 訓練結果 → 算法對比
  */
 
 import React, { useState, useEffect, useMemo } from 'react'
@@ -68,9 +68,9 @@ const RLMonitoringPanel: React.FC<RLMonitoringPanelProps> = ({
         () => [
             {
                 id: 'experiment',
-                label: '🚀 實驗控制台',
+                label: '🚀 訓練控制台',
                 icon: '🚀',
-                description: '統一參數管理和實驗執行 (整合原訓練控制中心+參數調優)',
+                description: '統一參數管理和訓練執行 (整合原訓練控制中心+參數調優)',
             },
             {
                 id: 'monitoring',
@@ -80,7 +80,7 @@ const RLMonitoringPanel: React.FC<RLMonitoringPanelProps> = ({
             },
             {
                 id: 'results',
-                label: '📈 實驗結果',
+                label: '📈 訓練結果',
                 icon: '📈',
                 description: '深度分析和論文圖表生成 (整合原訓練分析+收斂分析)',
             },

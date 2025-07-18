@@ -149,7 +149,7 @@ monitoring:
     latency_max_ms: 50
     reward_improvement_min: 0.1
 
-# 實驗管理配置
+# 訓練管理配置
 experiments:
   auto_backup: true
   backup_interval_hours: 24

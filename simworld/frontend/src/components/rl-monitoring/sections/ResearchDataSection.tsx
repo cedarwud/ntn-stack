@@ -80,7 +80,7 @@ const ResearchDataSection: React.FC<ResearchDataSectionProps> = ({
     const baseline = data?.baseline
     const statistics = data?.statistics
 
-    // 生成模擬實驗數據
+    // 生成模擬訓練數據
     const mockExperiments =
         experiments.length === 0
             ? [
@@ -105,7 +105,7 @@ const ResearchDataSection: React.FC<ResearchDataSectionProps> = ({
                           success_rate: 0.92,
                       },
                       research_notes:
-                          '實驗顯示 DQN 在 LEO 衛星切換場景中表現良好，收斂穩定。',
+                          '訓練顯示 DQN 在 LEO 衛星切換場景中表現良好，收斂穩定。',
                   },
                   {
                       session_id: 'exp_002_ppo_comparative',
@@ -142,7 +142,7 @@ const ResearchDataSection: React.FC<ResearchDataSectionProps> = ({
                           alpha: 0.2,
                           target_update_interval: 1,
                       },
-                      research_notes: '實驗因超參數設置問題而失敗，需要調整。',
+                      research_notes: '訓練因超參數設置問題而失敗，需要調整。',
                   },
               ]
             : experiments
@@ -187,13 +187,13 @@ const ResearchDataSection: React.FC<ResearchDataSectionProps> = ({
         [mockExperiments, baseline, statistics]
     )
 
-    // 渲染實驗歷史
+    // 渲染訓練歷史
     const renderExperiments = () => (
         <div className="experiments-container">
             <div className="experiments-header">
-                <h4 className="experiments-title">🧪 實驗會話歷史</h4>
+                <h4 className="experiments-title">🧪 訓練會話歷史</h4>
                 <div className="experiments-summary">
-                    總計 {mockExperiments.length} 個實驗 | 完成{' '}
+                    總計 {mockExperiments.length} 個訓練 | 完成{' '}
                     {
                         mockExperiments.filter((e) => e.status === 'completed')
                             .length
@@ -336,7 +336,7 @@ const ResearchDataSection: React.FC<ResearchDataSectionProps> = ({
                                     {experiment.results && (
                                         <div className="experiment-results">
                                             <h5 className="detail-title">
-                                                實驗結果
+                                                訓練結果
                                             </h5>
                                             <div className="results-grid">
                                                 <div className="result-item">
@@ -409,7 +409,7 @@ const ResearchDataSection: React.FC<ResearchDataSectionProps> = ({
     const researchTabs = [
         {
             id: 'experiments',
-            label: '實驗歷史',
+            label: '訓練歷史',
             icon: '🧪',
             component: renderExperiments,
         },
@@ -507,12 +507,12 @@ const ResearchDataSection: React.FC<ResearchDataSectionProps> = ({
                     <div className="value-content">
                         <p>
                             <strong>論文支援</strong>
-                            ：完整的實驗數據支援學術論文撰寫，
+                            ：完整的訓練數據支援學術論文撰寫，
                             包含統計顯著性測試和基準比較。
                         </p>
                         <p>
                             <strong>可重現性</strong>
-                            ：詳細記錄超參數配置和實驗條件，
+                            ：詳細記錄超參數配置和訓練條件，
                             確保研究結果的可重現性。
                         </p>
                         <p>

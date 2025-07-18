@@ -39,7 +39,7 @@ class MockRepository(IDataRepository):
         session.id = self._next_session_id
         self._experiments[session.id] = session
         self._episodes[session.id] = []
-        logger.info(f"Mock: 創建實驗會話 #{session.id}")
+        logger.info(f"Mock: 創建訓練會話 #{session.id}")
         self._next_session_id += 1
         return session.id
 
@@ -56,7 +56,7 @@ class MockRepository(IDataRepository):
             for key, value in updates.items():
                 if hasattr(session, key):
                     setattr(session, key, value)
-            logger.info(f"Mock: 更新實驗會話 #{session_id}")
+            logger.info(f"Mock: 更新訓練會話 #{session_id}")
             return True
         return False
 
@@ -65,14 +65,14 @@ class MockRepository(IDataRepository):
             del self._experiments[session_id]
             if session_id in self._episodes:
                 del self._episodes[session_id]
-            logger.info(f"Mock: 刪除實驗會話 #{session_id}")
+            logger.info(f"Mock: 刪除訓練會話 #{session_id}")
             return True
         return False
 
     async def query_experiment_sessions(
         self, filter_obj: QueryFilter
     ) -> List[ExperimentSession]:
-        # 簡化模擬，僅返回所有實驗
+        # 簡化模擬，僅返回所有訓練
         return list(self._experiments.values())
 
     async def create_training_episode(self, episode: TrainingEpisode) -> int:

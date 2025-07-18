@@ -10,7 +10,7 @@
 ## 詳細結果
 - ❌ 數據庫初始化: 錯誤: No module named 'asyncpg'
 - ❌ PostgreSQL 儲存庫: 錯誤: No module named 'asyncpg'
-- ❌ 實驗會話管理: 錯誤: No module named 'asyncpg'
+- ❌ 訓練會話管理: 錯誤: No module named 'asyncpg'
 - ❌ 訓練回合記錄: 錯誤: No module named 'asyncpg'
 - ❌ 性能指標記錄: 錯誤: No module named 'asyncpg'
 - ❌ MockRepository 替換: 錯誤: No module named 'fastapi'

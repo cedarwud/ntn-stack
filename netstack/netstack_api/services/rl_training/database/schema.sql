@@ -1,7 +1,7 @@
 -- 🧠 LEO衛星換手決策RL系統 PostgreSQL 資料庫架構
 -- 基於學術研究需求的進階資料庫設計
 
--- 實驗會話主表（支援論文實驗管理）
+-- 訓練會話主表（支援論文訓練管理）
 CREATE TABLE rl_experiment_sessions (
     id BIGSERIAL PRIMARY KEY,
     experiment_name VARCHAR(100) NOT NULL,
@@ -178,9 +178,9 @@ INSERT INTO rl_experiment_sessions (
     '{"learning_rate": 0.0001, "batch_size": 128, "tau": 0.005}'::jsonb
 );
 
-COMMENT ON TABLE rl_experiment_sessions IS '實驗會話主表，支援論文級別的實驗管理和追蹤';
+COMMENT ON TABLE rl_experiment_sessions IS '訓練會話主表，支援論文級別的訓練管理和追蹤';
 COMMENT ON TABLE rl_training_episodes IS '詳細的訓練回合數據，支援深度性能分析';
 COMMENT ON TABLE rl_baseline_comparisons IS 'Baseline算法比較數據，支援論文寫作';
 COMMENT ON TABLE rl_performance_timeseries IS '性能時間序列數據，支援趨勢分析';
-COMMENT ON TABLE rl_model_versions IS '模型版本管理，支援實驗可重現性';
+COMMENT ON TABLE rl_model_versions IS '模型版本管理，支援訓練可重現性';
 COMMENT ON TABLE rl_paper_exports IS '論文數據匯出記錄，支援學術發表';

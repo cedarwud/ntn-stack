@@ -249,7 +249,7 @@ RL Training Service (統一服務)
 ### 🗄️ **MongoDB 研究級數據架構** (已實現)
 
 ```javascript
-// 研究實驗會話集合
+// 研究訓練會話集合
 rlExperimentSessions: {
   experimentName: String,
   algorithmType: String, // "DQN", "PPO", "SAC"

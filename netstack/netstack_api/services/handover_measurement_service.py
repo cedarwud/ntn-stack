@@ -160,7 +160,7 @@ class HandoverMeasurement:
         self.scheme_statistics: Dict[HandoverScheme, SchemeStatistics] = {}
         self.statistics_cache_valid = False
 
-        # 實驗配置
+        # 訓練配置
         self.experiment_config = {
             "start_time": datetime.now(timezone.utc),
             "target_metrics": {
