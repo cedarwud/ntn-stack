@@ -68,7 +68,7 @@ const VisualizationSection: React.FC<VisualizationSectionProps> = ({
 
                 // 調用 Phase 3 視覺化 API
                 const response = await fetch(
-                    '/netstack/api/v1/rl/phase-3/visualizations/generate',
+                    '/api/v1/rl/phase-3/visualizations/generate',
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },

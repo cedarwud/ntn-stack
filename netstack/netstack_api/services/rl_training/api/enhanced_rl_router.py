@@ -24,7 +24,7 @@ from ..interfaces.model_manager import ModelMetadata
 logger = logging.getLogger(__name__)
 
 # 創建路由器
-router = APIRouter(prefix="/api/v1/rl", tags=["強化學習系統"])
+router = APIRouter(tags=["強化學習系統"])
 
 
 # ===== 請求/響應模型 =====

@@ -76,7 +76,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/rl", tags=["RL 監控"])
+router = APIRouter(tags=["RL 監控"])
 
 # 全局變量
 ecosystem_manager: Optional[Any] = None
