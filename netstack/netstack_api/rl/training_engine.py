@@ -49,7 +49,7 @@ except ImportError as e:
 
     @dataclass
     class ExperimentSession:
-        """備用實驗會話實體"""
+        """備用訓練會話實體"""
 
         id: Optional[int] = None
         experiment_name: str = ""
@@ -113,7 +113,7 @@ class TrainingConfig:
     """訓練配置"""
 
     total_episodes: int = 100
-    step_time: float = 0.1
+    step_time: float = 1.0
     experiment_name: Optional[str] = None
     scenario_type: str = "urban"
     researcher_id: str = "system"
@@ -144,14 +144,14 @@ class IDataRepository(ABC):
 
     @abstractmethod
     async def create_experiment_session(self, session: Any) -> int:
-        """創建實驗會話"""
+        """創建訓練會話"""
         pass
 
     @abstractmethod
     async def update_experiment_session(
         self, session_id: int, updates: Dict[str, Any]
     ) -> bool:
-        """更新實驗會話"""
+        """更新訓練會話"""
         pass
 
     @abstractmethod
@@ -189,7 +189,7 @@ class MongoDBRepository(IDataRepository):
             return False
 
     async def create_experiment_session(self, session: Any) -> int:
-        """創建實驗會話"""
+        """創建訓練會話"""
         if not self.initialized:
             raise RuntimeError("MongoDB 未初始化")
 
@@ -218,7 +218,7 @@ class MongoDBRepository(IDataRepository):
     async def update_experiment_session(
         self, session_id: str, updates: Dict[str, Any]
     ) -> bool:
-        """更新實驗會話"""
+        """更新訓練會話"""
         if not self.initialized:
             raise RuntimeError("MongoDB 未初始化")
 
@@ -230,7 +230,7 @@ class MongoDBRepository(IDataRepository):
             )
             return result.modified_count > 0
         except Exception as e:
-            logger.error(f"更新實驗會話失敗: {e}")
+            logger.error(f"更新訓練會話失敗: {e}")
             return False
 
     async def get_database_health(self) -> Dict[str, Any]:
@@ -257,7 +257,7 @@ class MockRepository(IDataRepository):
         self.session_counter = 1
 
     async def create_experiment_session(self, session: Any) -> int:
-        """創建實驗會話"""
+        """創建訓練會話"""
         session_id = self.session_counter
         self.sessions[session_id] = {
             "id": session_id,
@@ -273,7 +273,7 @@ class MockRepository(IDataRepository):
     async def update_experiment_session(
         self, session_id: int, updates: Dict[str, Any]
     ) -> bool:
-        """更新實驗會話"""
+        """更新訓練會話"""
         if session_id in self.sessions:
             self.sessions[session_id].update(updates)
             return True
@@ -353,7 +353,7 @@ class RLTrainingEngine:
         Args:
             algorithm_name: 算法名稱 (dqn, ppo, sac)
             episodes: 訓練回合數
-            experiment_name: 實驗名稱
+            experiment_name: 訓練名稱
             custom_config: 自定義配置
 
         Returns:
@@ -578,46 +578,76 @@ class RLTrainingEngine:
             if session.current_reward > session.best_reward:
                 session.best_reward = session.current_reward
 
+            # 記錄詳細進度，確保每個episode都有log
+            progress = episode / session.episodes_target
+            logger.info(
+                f"📊 [真實訓練] {session.session_id} - Episode {episode+1}/{session.episodes_target} "
+                f"(進度: {progress:.1%}, 獎勵: {session.current_reward:.2f}, 最佳: {session.best_reward:.2f})"
+            )
+
             # 控制訓練速度
-            if session.config and session.config.step_time:
-                await asyncio.sleep(session.config.step_time)
+            step_time = session.config.step_time if session.config and session.config.step_time else 1.0
+            await asyncio.sleep(step_time)
 
     async def _run_mock_training(self, session: TrainingSession) -> None:
-        """模擬訓練循環"""
+        """模擬真實的RL訓練循環"""
         import random
         import math
+        import time
 
         logger.info(
-            f"🎭 [模擬訓練] 開始模擬訓練: {session.session_id}, 目標 episodes: {session.episodes_target}"
+            f"🎭 [模擬真實訓練] 開始模擬真實RL訓練: {session.session_id}, 目標 episodes: {session.episodes_target}"
         )
 
         for episode in range(session.episodes_target):
+            episode_start_time = time.time()
+            
             # 檢查是否需要停止或暫停
             if session.status == TrainingStatus.STOPPED:
-                logger.info(f"🛑 [模擬訓練] 訓練已停止: {session.session_id}")
+                logger.info(f"🛑 [模擬真實訓練] 訓練已停止: {session.session_id}")
                 break
             elif session.status == TrainingStatus.PAUSED:
-                logger.info(f"⏸️ [模擬訓練] 訓練已暫停，等待恢復: {session.session_id}")
+                logger.info(f"⏸️ [模擬真實訓練] 訓練已暫停，等待恢復: {session.session_id}")
                 # 等待恢復，每秒檢查一次狀態
                 while session.status == TrainingStatus.PAUSED:
                     await asyncio.sleep(1)
 
                 if session.status == TrainingStatus.STOPPED:
                     logger.info(
-                        f"🛑 [模擬訓練] 暫停期間訓練被停止: {session.session_id}"
+                        f"🛑 [模擬真實訓練] 暫停期間訓練被停止: {session.session_id}"
                     )
                     break
                 elif session.status == TrainingStatus.ACTIVE:
-                    logger.info(f"▶️ [模擬訓練] 訓練已恢復: {session.session_id}")
+                    logger.info(f"▶️ [模擬真實訓練] 訓練已恢復: {session.session_id}")
                     continue
             elif session.status != TrainingStatus.ACTIVE:
-                logger.info(f"🛑 [模擬訓練] 訓練狀態異常，停止訓練: {session.status}")
+                logger.info(f"🛑 [模擬真實訓練] 訓練狀態異常，停止訓練: {session.status}")
                 break
+
+            # 模擬真實RL訓練的計算過程
+            logger.info(f"🧠 [模擬真實訓練] Episode {episode+1}: 開始環境重置...")
+            await asyncio.sleep(0.1)  # 環境重置時間
+            
+            # 模擬每個episode中的多個步驟
+            episode_steps = random.randint(50, 200)  # 真實episode通常有50-200步
+            logger.info(f"🧠 [模擬真實訓練] Episode {episode+1}: 執行 {episode_steps} 步...")
+            
+            for step in range(episode_steps):
+                # 模擬神經網路前向傳播和決策
+                await asyncio.sleep(0.01)  # 每步10ms，模擬真實計算時間
+                
+                # 偶爾記錄步驟進度
+                if step % 50 == 0:
+                    logger.info(f"🔄 [模擬真實訓練] Episode {episode+1}: 步驟 {step}/{episode_steps}")
 
             # 模擬訓練進度
             progress = episode / session.episodes_target
 
-            # 模擬獎勵變化
+            # 模擬經驗回放和網路更新
+            logger.info(f"🧠 [模擬真實訓練] Episode {episode+1}: 經驗回放和網路更新...")
+            await asyncio.sleep(0.2)  # 網路更新時間
+
+            # 模擬獎勵變化（更真實的RL訓練曲線）
             base_reward = -50.0 + (progress * 400.0)
             variance = max(5, 30 * (1 - progress))
             noise = random.uniform(-variance, variance)
@@ -631,16 +661,17 @@ class RLTrainingEngine:
             if current_reward > session.best_reward:
                 session.best_reward = current_reward
 
-            # 每10個episode記錄一次詳細進度
-            if episode % 10 == 0 or episode == session.episodes_target - 1:
-                logger.info(
-                    f"📊 [模擬訓練] {session.session_id} - Episode {episode+1}/{session.episodes_target} "
-                    f"(進度: {progress:.1%}, 獎勵: {current_reward:.2f}, 最佳: {session.best_reward:.2f})"
-                )
+            episode_duration = time.time() - episode_start_time
+            
+            # 每個episode都記錄詳細進度，顯示真實訓練時間
+            logger.info(
+                f"📊 [模擬真實訓練] {session.session_id} - Episode {episode+1}/{session.episodes_target} "
+                f"完成 (用時: {episode_duration:.1f}s, 進度: {progress:.1%}, 獎勵: {current_reward:.2f}, "
+                f"最佳: {session.best_reward:.2f})"
+            )
 
-            # 控制訓練速度
-            step_time = session.config.step_time if session.config else 0.1
-            await asyncio.sleep(step_time)
+            # 模擬真實訓練間的短暫間隔
+            await asyncio.sleep(0.1)
 
         logger.info(
             f"🏁 [模擬訓練] 訓練完成: {session.session_id}, 最終 episodes: {session.episodes_completed}/{session.episodes_target}"

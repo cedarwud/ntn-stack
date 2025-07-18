@@ -243,10 +243,13 @@ class RLAlgorithmIntegrator:
     async def get_algorithm(self, algorithm_name: str) -> Optional[IRLAlgorithm]:
         """獲取算法實例"""
         try:
-            if algorithm_name in self.algorithms:
-                return self.algorithms[algorithm_name]
+            # 支持大小寫不敏感的算法名稱
+            algorithm_key = algorithm_name.lower()
+            if algorithm_key in self.algorithms:
+                logger.info(f"✅ 獲取算法實例: {algorithm_name} -> {algorithm_key}")
+                return self.algorithms[algorithm_key]
             else:
-                logger.warning(f"算法 {algorithm_name} 不存在")
+                logger.warning(f"算法 {algorithm_name} (key: {algorithm_key}) 不存在，可用算法: {list(self.algorithms.keys())}")
                 return None
         except Exception as e:
             logger.error(f"獲取算法實例失敗: {e}")

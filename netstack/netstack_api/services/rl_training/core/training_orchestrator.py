@@ -100,7 +100,7 @@ class TrainingOrchestrator:
     ) -> int:
         """創建新的訓練會話"""
         try:
-            # 創建實驗會話記錄
+            # 創建訓練會話記錄
             session_data = {
                 "experiment_name": experiment_name,
                 "algorithm_type": algorithm,
@@ -161,7 +161,7 @@ class TrainingOrchestrator:
             session.status = "running"
             
             # 更新數據庫狀態
-            await self.repository.update_experiment_session_status(session_id, "running")
+            self.repository.update_experiment_session(session_id, "running")
             
             logger.info(f"開始訓練會話: {session_id} ({algorithm})")
             
@@ -173,8 +173,12 @@ class TrainingOrchestrator:
                 
                 # 模擬訓練過程
                 results = []
+                logger.info(f"🚀 開始訓練會話 {session_id}：目標 {session.total_episodes} 回合")
+                
                 for episode in range(session.total_episodes):
+                    # 更新當前回合數
                     session.current_episode = episode + 1
+                    logger.info(f"📈 [會話 {session_id}] 開始第 {session.current_episode}/{session.total_episodes} 回合")
                     
                     # 模擬訓練一個回合
                     episode_result = await self._simulate_training_episode(
@@ -190,20 +194,20 @@ class TrainingOrchestrator:
                         "last_episode_reward": episode_result["reward"]
                     })
                     
-                    # 模擬訓練延遲
-                    await asyncio.sleep(0.1)  # 100ms per episode
+                    logger.info(f"✅ [會話 {session_id}] 完成第 {session.current_episode}/{session.total_episodes} 回合 (進度: {session.current_episode/session.total_episodes*100:.1f}%)")
                     
-                    # 每10回合記錄一次進度
-                    if episode % 10 == 0 or episode == session.total_episodes - 1:
-                        await self._log_training_progress(session, episode_result)
+                    # 每回合都記錄進度，確保連續遞增
+                    await self._log_training_progress(session, episode_result)
+                    
+                    # 模擬訓練延遲 - 調整為更合理的速度
+                    await asyncio.sleep(1.0)  # 1秒 per episode，更適合觀察進度
                 
                 # 完成訓練
                 session.status = "completed"
                 session.end_time = datetime.now()
                 
                 # 更新數據庫
-                await self.repository.update_experiment_session_status(session_id, "completed")
-                await self.repository.update_experiment_session_end_time(session_id, session.end_time)
+                self.repository.update_experiment_session(session_id, "completed", session.end_time)
                 
                 # 計算最終統計
                 final_stats = {
@@ -226,7 +230,7 @@ class TrainingOrchestrator:
             logger.error(f"訓練會話 {session_id} 執行失敗: {e}")
             if session_id in self.active_sessions:
                 self.active_sessions[session_id].status = "error"
-                await self.repository.update_experiment_session_status(session_id, "error")
+                self.repository.update_experiment_session(session_id, "error")
             # 確保釋放資源
             await self._release_algorithm(algorithm, session_id)
             raise
@@ -298,7 +302,7 @@ class TrainingOrchestrator:
             return self.leo_env.action_space.sample()
     
     async def _log_training_progress(self, session: TrainingSession, episode_result: Dict[str, Any]):
-        """記錄訓練進度"""
+        """記錄訓練進度並更新數據庫"""
         try:
             progress_data = {
                 "session_id": session.session_id,
@@ -309,11 +313,29 @@ class TrainingOrchestrator:
                 "timestamp": datetime.now().isoformat()
             }
             
-            # 這裡可以添加更詳細的進度記錄到數據庫
-            logger.info(f"會話 {session.session_id} 進度: {progress_data['progress_percentage']:.1f}%")
+            # 詳細記錄回合進度
+            logger.info(f"🔄 [進度更新] 會話 {session.session_id}: {session.current_episode}/{session.total_episodes} 回合 ({progress_data['progress_percentage']:.1f}%) - 獎勵: {episode_result.get('reward', 0):.3f}")
+            
+            # 更新數據庫中的進度信息
+            try:
+                logger.info(f"💾 [數據庫更新] 準備更新會話 {session.session_id} 的進度到第 {session.current_episode} 回合")
+                success = await self.repository.update_experiment_session_progress(
+                    session.session_id,
+                    session.current_episode,
+                    session.performance_metrics
+                )
+                if success:
+                    logger.info(f"✅ [數據庫更新] 會話 {session.session_id} 進度已成功更新到第 {session.current_episode} 回合")
+                else:
+                    logger.warning(f"⚠️  [數據庫更新] 會話 {session.session_id} 進度更新失敗")
+            except Exception as db_error:
+                logger.error(f"❌ [數據庫更新] 更新數據庫進度失敗: {db_error}")
+            
+            # 記錄詳細狀態
+            logger.info(f"📊 [會話狀態] {session.session_id}: 狀態={session.status}, 當前回合={session.current_episode}, 總回合={session.total_episodes}")
             
         except Exception as e:
-            logger.error(f"記錄訓練進度失敗: {e}")
+            logger.error(f"❌ [進度記錄] 記錄訓練進度失敗: {e}")
     
     async def stop_training_session(self, session_id: int):
         """停止訓練會話"""
@@ -332,8 +354,7 @@ class TrainingOrchestrator:
                 await self._release_algorithm(session.algorithm, session_id)
                 
                 # 更新數據庫
-                await self.repository.update_experiment_session_status(session_id, "stopped")
-                await self.repository.update_experiment_session_end_time(session_id, session.end_time)
+                self.repository.update_experiment_session(session_id, "stopped", session.end_time)
                 
                 logger.info(f"停止訓練會話: {session_id}")
             

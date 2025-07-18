@@ -143,7 +143,7 @@ class RLDatabaseInitializer:
             session_count = await conn.fetchval(
                 "SELECT COUNT(*) FROM rl_experiment_sessions"
             )
-            logger.info(f"✅ 示例實驗會話數量: {session_count}")
+            logger.info(f"✅ 示例訓練會話數量: {session_count}")
             
             await conn.close()
             return True

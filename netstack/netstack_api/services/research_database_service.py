@@ -1,7 +1,7 @@
 """
 研究級數據庫服務
 
-專門處理學術研究和實驗追蹤的高級數據操作
+專門處理學術研究和訓練追蹤的高級數據操作
 支援複雜查詢、統計分析和數據匯出功能
 """
 
@@ -91,10 +91,10 @@ class ResearchDatabaseService:
         except Exception as e:
             logger.error(f"創建數據庫索引失敗: {e}")
     
-    # === 實驗會話管理 ===
+    # === 訓練會話管理 ===
     
     async def create_experiment_session(self, session_data: RLExperimentSession) -> str:
-        """創建新的實驗會話"""
+        """創建新的訓練會話"""
         try:
             session_dict = session_data.dict()
             session_dict["created_at"] = datetime.now()
@@ -102,15 +102,15 @@ class ResearchDatabaseService:
             
             result = await self.collections["rl_experiment_sessions"].insert_one(session_dict)
             
-            logger.info(f"實驗會話創建成功: {session_data.session_id}")
+            logger.info(f"訓練會話創建成功: {session_data.session_id}")
             return session_data.session_id
             
         except Exception as e:
-            logger.error(f"創建實驗會話失敗: {e}")
+            logger.error(f"創建訓練會話失敗: {e}")
             raise
     
     async def update_experiment_session(self, session_id: str, update_data: Dict[str, Any]) -> bool:
-        """更新實驗會話"""
+        """更新訓練會話"""
         try:
             update_data["updated_at"] = datetime.now()
             
@@ -122,11 +122,11 @@ class ResearchDatabaseService:
             return result.modified_count > 0
             
         except Exception as e:
-            logger.error(f"更新實驗會話失敗: {e}")
+            logger.error(f"更新訓練會話失敗: {e}")
             return False
     
     async def get_experiment_session(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """獲取實驗會話"""
+        """獲取訓練會話"""
         try:
             session = await self.collections["rl_experiment_sessions"].find_one(
                 {"session_id": session_id}
@@ -134,7 +134,7 @@ class ResearchDatabaseService:
             return session
             
         except Exception as e:
-            logger.error(f"獲取實驗會話失敗: {e}")
+            logger.error(f"獲取訓練會話失敗: {e}")
             return None
     
     async def list_experiment_sessions(
@@ -144,7 +144,7 @@ class ResearchDatabaseService:
         status: Optional[ExperimentStatus] = None,
         limit: int = 100
     ) -> List[Dict[str, Any]]:
-        """列出實驗會話"""
+        """列出訓練會話"""
         try:
             query = {}
             if researcher:
@@ -160,7 +160,7 @@ class ResearchDatabaseService:
             return sessions
             
         except Exception as e:
-            logger.error(f"列出實驗會話失敗: {e}")
+            logger.error(f"列出訓練會話失敗: {e}")
             return []
     
     # === Episode 數據管理 ===

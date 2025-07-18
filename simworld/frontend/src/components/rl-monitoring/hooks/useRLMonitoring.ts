@@ -231,19 +231,14 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
     if (!enabled) return;
     
     // 只在有狀態變化時記錄日誌，避免無限日誌
-    const shouldLog = Math.random() < 0.05; // 只記錄 5% 的請求
-    if (shouldLog) {
-        console.log(`🔄 [前端監控] 開始獲取訓練數據...`);
-    }
+    const shouldLog = false; // 禁用常規日誌輸出
     
     try {
       // 避免短暫的 loading 狀態導致抖動
       // setIsLoading(true);
       setError(null);
 
-      if (shouldLog) {
-          console.log(`📡 [前端監控] 並行調用多個 API 端點...`);
-      }
+
       // 並行調用多個 API 端點
       const [
         statusSummary,
@@ -257,14 +252,7 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
         apiClient.getAIDecisionEngineHealth()
       ]);
 
-      if (shouldLog) {
-          console.log(`📊 [前端監控] API 調用結果:`, {
-            statusSummary: statusSummary.status,
-            trainingSessions: trainingSessions.status,
-            performanceReport: performanceReport.status,
-            healthCheck: healthCheck.status
-          });
-      }
+
 
       // 處理 Phase 3 視覺化數據
       let visualizationData = null;
@@ -355,13 +343,7 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
       const ppoStatus = processAlgorithmStatus('ppo');
       const sacStatus = processAlgorithmStatus('sac');
 
-      if (shouldLog) {
-          console.log(`🧮 [前端監控] 算法狀態處理結果:`, {
-            dqn: { is_training: dqnStatus.is_training, status: dqnStatus.status, progress: dqnStatus.progress },
-            ppo: { is_training: ppoStatus.is_training, status: ppoStatus.status, progress: ppoStatus.progress },
-            sac: { is_training: sacStatus.is_training, status: sacStatus.status, progress: sacStatus.progress }
-          });
-      }
+
 
       // 更新狀態
       const newDqnState = dqnStatus.is_training;
@@ -385,22 +367,9 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
       const hasProgressChanged = 
         JSON.stringify(currentProgress) !== JSON.stringify(lastProgressRef.current);
 
-      if (hasStateChanged || hasProgressChanged || shouldLog) {
-          console.log(`📈 [前端監控] 狀態比較:`, {
-            previous: lastStateRef.current,
-            current: currentState,
-            hasChanged: hasStateChanged
-          });
-          console.log(`📊 [前端監控] 進度比較:`, {
-            previous: lastProgressRef.current,
-            current: currentProgress,
-            hasProgressChanged: hasProgressChanged
-          });
-      }
+
 
       if (hasStateChanged || hasProgressChanged) {
-        console.log('🔄 [前端監控] Training state changed:', currentState);
-        console.log('📊 [前端監控] Training progress changed:', currentProgress);
         
         // 發射狀態變化事件
         rlMonitoringEvents.onDataUpdate.emit({
@@ -414,9 +383,6 @@ export const useRLMonitoring = (options: RLMonitoringOptions) => {
       lastProgressRef.current = currentProgress;
 
       // 更新組件狀態
-      if (hasStateChanged || shouldLog) {
-          console.log(`🔧 [前端監控] 更新組件狀態:`, { dqn: newDqnState, ppo: newPpoState, sac: newSacState });
-      }
       setIsDqnTraining(newDqnState);
       setIsPpoTraining(newPpoState);
       setIsSacTraining(newSacState);

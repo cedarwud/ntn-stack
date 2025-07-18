@@ -455,7 +455,7 @@ async def get_supported_algorithms():
                 "mode": "single_node",
                 "description": "單節點訓練",
                 "max_nodes": 1,
-                "use_cases": ["原型開發", "小規模實驗"]
+                "use_cases": ["原型開發", "小規模訓練"]
             },
             {
                 "mode": "multi_node", 

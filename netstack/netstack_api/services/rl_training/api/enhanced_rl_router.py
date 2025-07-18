@@ -59,7 +59,7 @@ class TrainingRequest(BaseModel):
     max_steps_per_episode: int = Field(default=1000, ge=1, description="每回合最大步數")
     custom_config: Optional[Dict[str, Any]] = Field(None, description="自定義配置")
     priority: str = Field(default="normal", description="訓練優先級")
-    experiment_name: Optional[str] = Field(None, description="實驗名稱")
+    experiment_name: Optional[str] = Field(None, description="訓練名稱")
 
 
 class PredictionRequest(BaseModel):

@@ -586,9 +586,9 @@ async def start_training(
         engine = await get_training_engine()
         logger.info(f"✅ [後端] RLTrainingEngine 獲取成功: {type(engine)}")
 
-        # 定義實驗名稱
+        # 定義訓練名稱
         experiment_name = f"{algorithm_name.upper()}_前端啟動_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        logger.info(f"📝 [後端] 實驗名稱: {experiment_name}")
+        logger.info(f"📝 [後端] 訓練名稱: {experiment_name}")
 
         # 啟動訓練
         logger.info(f"▶️ [後端] 調用 engine.start_training...")
@@ -596,7 +596,7 @@ async def start_training(
             algorithm_name=algorithm_name.lower(),
             episodes=episodes,
             experiment_name=experiment_name,
-            custom_config={"step_time": 0.1},  # 較快的訓練速度以便前端觀察
+            custom_config={"step_time": 1.0},  # 合理的訓練速度，每秒1回合
         )
 
         session_id = result.get("session_id")
