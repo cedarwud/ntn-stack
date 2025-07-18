@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { netstackFetch } from '../../config/api-config'
 
 interface DecisionControlCenterSimpleProps {
   className?: string
@@ -37,7 +38,7 @@ export const DecisionControlCenterSimple: React.FC<DecisionControlCenterSimplePr
   // 系統健康檢查
   const performHealthCheck = async () => {
     try {
-      const response = await fetch('/api/v1/rl/health')
+      const response = await netstackFetch('/api/v1/rl/health')
       const data = await response.json()
       
       if (data.status === 'healthy') {
