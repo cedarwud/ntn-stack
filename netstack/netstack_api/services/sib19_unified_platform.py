@@ -152,18 +152,15 @@ class NeighborCellConfig:
 class SMTCConfiguration:
     """SMTC (SSB-based Measurement Timing Configuration) 配置"""
     
-    # 測量窗口參數
+    # 必需字段 (無默認值)
     measurement_slots: List[int]        # 測量時隙
+    
+    # 可選字段 (有默認值)
     periodicity_ms: int = 20           # 週期性 (ms)
     offset_ms: int = 0                 # 偏移 (ms)
-    
-    # 可見性窗口
     visibility_windows: List[Tuple[datetime, datetime]] = field(default_factory=list)
-    
-    # 優化參數
     power_optimization: bool = True     # 功耗優化
     measurement_efficiency: float = 0.85  # 測量效率目標
-    
     last_updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
 
@@ -171,28 +168,18 @@ class SMTCConfiguration:
 class SIB19Data:
     """完整的 SIB19 數據結構"""
     
-    # 基本資訊
+    # 所有必需的字段（無默認值）
     broadcast_id: str
     broadcast_time: datetime
     validity_time: float        # 有效期 (小時)
-    
-    # 星曆數據
     satellite_ephemeris: Dict[str, EphemerisData]
-    
-    # 位置參數
     reference_location: ReferenceLocation
-    moving_reference_location: Optional[ReferenceLocation] = None
-    
-    # 時間校正
     time_correction: TimeCorrection
     
-    # 鄰居細胞配置 (最多 8 個)
+    # 可選字段（有默認值）
+    moving_reference_location: Optional[ReferenceLocation] = None
     neighbor_cells: List[NeighborCellConfig] = field(default_factory=list)
-    
-    # SMTC 配置
     smtc_config: SMTCConfiguration = field(default_factory=lambda: SMTCConfiguration(measurement_slots=[0, 1]))
-    
-    # 狀態管理
     broadcast_state: SIB19BroadcastState = SIB19BroadcastState.VALID
     expiry_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(hours=24))
     
