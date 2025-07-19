@@ -20,6 +20,8 @@ export { default as PureD2Chart } from './PureD2Chart'
 export { default as PureT1Chart } from './PureT1Chart'
 
 // 增強版組件 - 新加入
+export { default as EnhancedD1Chart } from './EnhancedD1Chart'
+export { default as EnhancedD1Viewer } from './EnhancedD1Viewer'
 export { default as EnhancedD2Chart } from './EnhancedD2Chart'
 export { default as EnhancedD2Viewer } from './EnhancedD2Viewer'
 

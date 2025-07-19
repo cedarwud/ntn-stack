@@ -114,7 +114,12 @@ async def get_services():
         # 初始化平台
         await _sib19_platform.initialize_sib19_platform()
         await _tle_manager.initialize_default_sources()
-        await _orbit_engine.load_starlink_tle_data()
+        
+        # 強制更新 TLE 數據
+        await _tle_manager.force_update_all()
+        
+        # 確保測量服務與軌道引擎數據同步
+        await _measurement_service.sync_tle_data_from_manager()
         
     return {
         "measurement_service": _measurement_service,
@@ -125,7 +130,7 @@ async def get_services():
 
 
 # API 端點
-@router.get(
+@router.post(
     "/{event_type}/data",
     summary="獲取實時測量數據",
     description="基於真實軌道計算獲取指定事件類型的實時測量數據"
