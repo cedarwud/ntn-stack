@@ -16,7 +16,7 @@ import aiohttp
 import json
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from dataclasses import dataclass, asdict
 from pathlib import Path
 import structlog
