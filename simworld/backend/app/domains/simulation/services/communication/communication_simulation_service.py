@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Base services
 from .base import DeviceManager, SceneSetupService, SionnaConfigService
+from .base.mongo_device_manager import MongoDeviceManager
 
 # Specialized calculators  
 from .calculators import CFRCalculator, SINRCalculator, DopplerCalculator, ChannelCalculator
@@ -102,14 +103,15 @@ class CommunicationSimulationService:
             # Prepare output file
             self._prepare_output_file(output_path, "CFR 圖檔")
             
-            # 1. Load devices using DeviceManager (with fallback for database connection issues)
-            device_manager = DeviceManager(session)
+            # 1. Load devices from MongoDB (with fallback for connection issues)
+            device_manager = MongoDeviceManager()
             try:
                 desired, jammers, receivers = await device_manager.load_simulation_devices()
+                logger.info(f"✅ 成功從 MongoDB 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
             except Exception as e:
-                logger.warning(f"無法從資料庫載入設備，使用預設設備配置: {e}")
+                logger.warning(f"無法從 MongoDB 載入設備，使用預設設備配置: {e}")
                 # 使用預設設備配置作為回退方案
-                desired, jammers, receivers = self._get_default_devices()
+                desired, jammers, receivers = self._get_default_devices(scene_name)
             
             if not desired and not jammers:
                 logger.error("沒有活動的發射器或干擾器，無法生成 CFR 圖")
@@ -164,14 +166,15 @@ class CommunicationSimulationService:
             # Prepare output file
             self._prepare_output_file(output_path, "SINR 地圖圖檔")
             
-            # 1. Load devices (with fallback for database connection issues)
-            device_manager = DeviceManager(session)
+            # 1. Load devices from MongoDB (with fallback for connection issues)
+            device_manager = MongoDeviceManager()
             try:
                 desired, jammers, receivers = await device_manager.load_simulation_devices()
+                logger.info(f"✅ 成功從 MongoDB 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
             except Exception as e:
-                logger.warning(f"無法從資料庫載入設備，使用預設設備配置: {e}")
+                logger.warning(f"無法從 MongoDB 載入設備，使用預設設備配置: {e}")
                 # 使用預設設備配置作為回退方案
-                desired, jammers, receivers = self._get_default_devices()
+                desired, jammers, receivers = self._get_default_devices(scene_name)
             
             # 2. Setup scene
             scene_xml_path = self.scene_service.get_scene_xml_file_path(scene_name)
@@ -214,14 +217,15 @@ class CommunicationSimulationService:
             # Prepare output file
             self._prepare_output_file(output_path, "延遲多普勒圖檔")
             
-            # 1. Load devices (with fallback for database connection issues)
-            device_manager = DeviceManager(session)
+            # 1. Load devices from MongoDB (with fallback for connection issues)
+            device_manager = MongoDeviceManager()
             try:
                 desired, jammers, receivers = await device_manager.load_simulation_devices()
+                logger.info(f"✅ 成功從 MongoDB 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
             except Exception as e:
-                logger.warning(f"無法從資料庫載入設備，使用預設設備配置: {e}")
+                logger.warning(f"無法從 MongoDB 載入設備，使用預設設備配置: {e}")
                 # 使用預設設備配置作為回退方案
-                desired, jammers, receivers = self._get_default_devices()
+                desired, jammers, receivers = self._get_default_devices(scene_name)
             
             if not desired and not jammers:
                 logger.error("沒有活動的發射器或干擾器，無法生成延遲多普勒圖")
@@ -269,14 +273,15 @@ class CommunicationSimulationService:
             # Prepare output file
             self._prepare_output_file(output_path, "通道響應圖檔")
             
-            # 1. Load devices (with fallback for database connection issues)
-            device_manager = DeviceManager(session)
+            # 1. Load devices from MongoDB (with fallback for connection issues)
+            device_manager = MongoDeviceManager()
             try:
                 desired, jammers, receivers = await device_manager.load_simulation_devices()
+                logger.info(f"✅ 成功從 MongoDB 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
             except Exception as e:
-                logger.warning(f"無法從資料庫載入設備，使用預設設備配置: {e}")
+                logger.warning(f"無法從 MongoDB 載入設備，使用預設設備配置: {e}")
                 # 使用預設設備配置作為回退方案
-                desired, jammers, receivers = self._get_default_devices()
+                desired, jammers, receivers = self._get_default_devices(scene_name)
             
             if not desired:
                 logger.error("沒有活動的發射器，無法生成通道響應圖")
@@ -328,9 +333,9 @@ class CommunicationSimulationService:
             logger.error(f"❌ 輸出檔案驗證失敗: {output_path}")
             return False
     
-    def _get_default_devices(self):
+    def _get_default_devices(self, scene_name: str = "nycu"):
         """Get default devices configuration when database loading fails"""
-        logger.info("使用預設設備配置進行仿真")
+        logger.info(f"使用場景 '{scene_name}' 的預設設備配置進行仿真")
         
         # 簡單的設備模擬類
         class MockDevice:
@@ -349,15 +354,53 @@ class CommunicationSimulationService:
                 self.orientation_y = 0.0
                 self.orientation_z = 0.0
         
-        # 預設發射器配置
-        default_desired = [MockDevice('Default_TX', 24.7866, 120.9960, 100.0, 20.0)]
+        # 根據場景提供不同的設備配置
+        if scene_name.lower() == "nycu":
+            # NYCU 場景設備配置
+            default_desired = [
+                MockDevice('NYCU_TX_1', 24.7866, 120.9960, 100.0, 25.0),
+                MockDevice('NYCU_TX_2', 24.7880, 120.9970, 120.0, 22.0)
+            ]
+            default_jammers = [
+                MockDevice('NYCU_Jammer', 24.7900, 121.0000, 50.0, 15.0)
+            ]
+            default_receivers = [
+                MockDevice('NYCU_RX_1', 24.7850, 120.9950, 10.0, 0.0),
+                MockDevice('NYCU_RX_2', 24.7855, 120.9955, 15.0, 0.0)
+            ]
+        elif scene_name.lower() == "ntpu" or scene_name.lower() == "ntpu_v2":
+            # NTPU 場景設備配置
+            default_desired = [
+                MockDevice('NTPU_TX_1', 24.9427, 121.3669, 80.0, 28.0),
+                MockDevice('NTPU_TX_2', 24.9440, 121.3680, 90.0, 26.0)
+            ]
+            default_jammers = [
+                MockDevice('NTPU_Jammer', 24.9450, 121.3690, 60.0, 18.0)
+            ]
+            default_receivers = [
+                MockDevice('NTPU_RX_1', 24.9420, 121.3650, 12.0, 0.0),
+                MockDevice('NTPU_RX_2', 24.9435, 121.3665, 18.0, 0.0)
+            ]
+        elif scene_name.lower() == "lotus":
+            # Lotus 場景設備配置
+            default_desired = [
+                MockDevice('Lotus_TX_1', 24.7600, 120.9800, 110.0, 30.0),
+                MockDevice('Lotus_TX_2', 24.7620, 120.9820, 105.0, 27.0)
+            ]
+            default_jammers = [
+                MockDevice('Lotus_Jammer', 24.7650, 121.0050, 70.0, 20.0)
+            ]
+            default_receivers = [
+                MockDevice('Lotus_RX_1', 24.7580, 120.9780, 8.0, 0.0),
+                MockDevice('Lotus_RX_2', 24.7590, 120.9790, 12.0, 0.0)
+            ]
+        else:
+            # 預設場景設備配置
+            default_desired = [MockDevice('Default_TX', 24.7866, 120.9960, 100.0, 20.0)]
+            default_jammers = [MockDevice('Default_Jammer', 24.7900, 121.0000, 50.0, 15.0)]
+            default_receivers = [MockDevice('Default_RX', 24.7850, 120.9950, 10.0, 0.0)]
         
-        # 預設干擾器配置
-        default_jammers = [MockDevice('Default_Jammer', 24.7900, 121.0000, 50.0, 15.0)]
-        
-        # 預設接收器配置
-        default_receivers = [MockDevice('Default_RX', 24.7850, 120.9950, 10.0, 0.0)]
-        
+        logger.info(f"場景 '{scene_name}' 配置: {len(default_desired)} 發射器, {len(default_jammers)} 干擾器, {len(default_receivers)} 接收器")
         return default_desired, default_jammers, default_receivers
     
     def _create_sinr_plot(
