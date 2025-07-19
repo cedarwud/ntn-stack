@@ -85,15 +85,32 @@ class ChartLoaderManager {
             let pluginModule: any
             
             try {
-                // 嘗試從預定義路徑載入
-                pluginModule = await import(`./plugins/${this.getPluginFileName(pluginId)}`)
-            } catch (importError) {
-                // 嘗試直接路徑
-                try {
-                    pluginModule = await import(`./plugins/${pluginId}`)
-                } catch (directImportError) {
-                    throw new Error(`無法載入插件模組: ${pluginId}`)
+                // 使用顯式映射避免 Vite 警告
+                switch (pluginId) {
+                    case 'A4EventChart':
+                    case 'A4EventChart.ts':
+                        pluginModule = await import('./plugins/A4EventChart')
+                        break
+                    case 'D1EventChart':
+                    case 'D1EventChart.ts':
+                        pluginModule = await import('./plugins/D1EventChart')
+                        break
+                    default:
+                        try {
+                            // 嘗試從預定義路徑載入
+                            pluginModule = await import(/* @vite-ignore */ `./plugins/${this.getPluginFileName(pluginId)}`)
+                        } catch (importError) {
+                            // 嘗試直接路徑
+                            try {
+                                pluginModule = await import(/* @vite-ignore */ `./plugins/${pluginId}`)
+                            } catch (directImportError) {
+                                throw new Error(`無法載入插件模組: ${pluginId}`)
+                            }
+                        }
+                        break
                 }
+            } catch (error) {
+                throw new Error(`無法載入插件模組: ${pluginId}`)
             }
 
             // 提取插件定義
