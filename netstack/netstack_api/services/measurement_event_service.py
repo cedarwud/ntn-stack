@@ -57,7 +57,7 @@ class TriggerState(Enum):
 @dataclass
 class EventParameters:
     """測量事件參數基類"""
-    event_type: EventType
+    event_type: EventType = EventType.A4  # 默認值，會在 __post_init__ 中被覆蓋
     time_to_trigger: int = 160  # ms
     
 
@@ -125,15 +125,14 @@ class MeasurementResult:
 @dataclass
 class SimulationScenario:
     """模擬場景"""
+    # 必需字段 (無默認值)
     scenario_name: str
     ue_position: Position
-    duration_minutes: int = 60
-    sample_interval_seconds: int = 5
-    
-    # 事件參數
     event_parameters: Union[A4Parameters, D1Parameters, D2Parameters, T1Parameters]
     
-    # 衛星配置
+    # 可選字段 (有默認值)
+    duration_minutes: int = 60
+    sample_interval_seconds: int = 5
     target_satellites: List[str] = field(default_factory=list)
     
 
