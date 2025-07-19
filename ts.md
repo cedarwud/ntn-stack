@@ -1,5 +1,25 @@
 3GPP TS 38.331
 
+5.5.4.3 Event A2 (Serving becomes worse than threshold)
+The UE shall:
+1> consider the entering condition for this event to be satisfied when condition A2-1, as specified below, is fulfilled;
+1> consider the leaving condition for this event to be satisfied when condition A2-2, as specified below, is fulfilled;
+1> for this measurement, consider the serving cell indicated by the measObjectNR associated to this event.
+NOTE: If the SCell indicated by the measObjectNR associated to this event is not detectable, then the UE should
+consider for the value of Ms the lowest value of the value range of the measurement quantity as the SCell
+measurement.
+Inequality A2-1 (Entering condition)
+Ms + Hys < Thresh
+Inequality A2-2 (Leaving condition)
+Ms – Hys > Thresh
+The variables in the formula are defined as follows:
+Ms is the measurement result of the serving cell, not taking into account any offsets.
+Hys is the hysteresis parameter for this event (i.e. hysteresis as defined within reportConfigNR for this event).
+Thresh is the threshold parameter for this event (i.e. a2-Threshold as defined within reportConfigNR for this event).
+Ms is expressed in dBm in case of RSRP, or in dB in case of RSRQ and RS-SINR.
+Hys is expressed in dB.
+Thresh is expressed in the same unit as Ms.
+
 5.5.4.4 Event A3 (Neighbour becomes offset better than SpCell)
 The UE shall:
 ETSI
