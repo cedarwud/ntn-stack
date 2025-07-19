@@ -1,0 +1,365 @@
+/**
+ * SIB19 統一基礎平台樣式
+ * 提供統一的視覺設計和響應式佈局
+ */
+
+.sib19-unified-platform {
+  width: 100%;
+  
+  .sib19-control-panel {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    
+    .card-header {
+      background: rgba(255, 255, 255, 0.9);
+      border-bottom: 1px solid #e2e8f0;
+      border-radius: 0.5rem 0.5rem 0 0;
+      
+      .card-title {
+        color: #1e293b;
+        font-weight: 600;
+        
+        svg {
+          color: #3b82f6;
+        }
+      }
+    }
+    
+    .card-content {
+      background: rgba(255, 255, 255, 0.95);
+    }
+  }
+  
+  // 狀態卡片
+  .sib19-status-card,
+  .time-sync-card,
+  .neighbor-cells-card,
+  .reference-location-card {
+    padding: 1rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease-in-out;
+    
+    &:hover {
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    .font-medium {
+      color: #374151;
+      font-weight: 500;
+    }
+    
+    .text-sm {
+      color: #6b7280;
+      line-height: 1.4;
+    }
+  }
+  
+  // 狀態指示器特殊樣式
+  .sib19-status-card {
+    border-left: 4px solid #3b82f6;
+    
+    &.status-valid {
+      border-left-color: #10b981;
+    }
+    
+    &.status-expiring {
+      border-left-color: #f59e0b;
+    }
+    
+    &.status-expired,
+    &.status-error {
+      border-left-color: #ef4444;
+    }
+  }
+  
+  // 時間同步卡片
+  .time-sync-card {
+    border-left: 4px solid #8b5cf6;
+    
+    .accuracy-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      
+      &.good {
+        color: #10b981;
+      }
+      
+      &.warning {
+        color: #f59e0b;
+      }
+      
+      &.error {
+        color: #ef4444;
+      }
+    }
+  }
+  
+  // 鄰居細胞卡片
+  .neighbor-cells-card {
+    border-left: 4px solid #06b6d4;
+    
+    .badge-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-top: 0.5rem;
+    }
+  }
+  
+  // 參考位置卡片
+  .reference-location-card {
+    border-left: 4px solid #ec4899;
+    
+    .coordinates {
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.75rem;
+      background: #f1f5f9;
+      padding: 0.25rem;
+      border-radius: 0.25rem;
+      margin-top: 0.25rem;
+    }
+  }
+  
+  // 鄰居細胞詳細配置
+  .neighbor-cell-detail {
+    transition: all 0.2s ease-in-out;
+    
+    &.active {
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+      border-color: #10b981;
+      
+      &:hover {
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+      }
+    }
+    
+    &.inactive {
+      background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+      border-color: #d1d5db;
+      opacity: 0.7;
+      
+      &:hover {
+        opacity: 0.9;
+      }
+    }
+    
+    .cell-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      
+      .cell-id {
+        font-weight: 600;
+        color: #374151;
+      }
+      
+      .priority-badge {
+        font-size: 0.625rem;
+        padding: 0.125rem 0.375rem;
+      }
+    }
+    
+    .cell-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+      color: #6b7280;
+      
+      .info-item {
+        display: flex;
+        justify-content: space-between;
+        
+        .label {
+          font-weight: 500;
+        }
+        
+        .value {
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+      }
+    }
+  }
+  
+  // SMTC 測量窗口
+  .smtc-window {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border: 1px solid #3b82f6;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    transition: all 0.2s ease-in-out;
+    
+    &:hover {
+      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+    }
+    
+    .window-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      
+      .satellite-id {
+        font-weight: 600;
+        color: #1e40af;
+      }
+      
+      .duration-badge {
+        background: rgba(59, 130, 246, 0.1);
+        color: #1e40af;
+        font-size: 0.625rem;
+        padding: 0.125rem 0.375rem;
+        border-radius: 0.25rem;
+      }
+    }
+    
+    .window-times {
+      font-size: 0.75rem;
+      color: #6b7280;
+      
+      .time-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.125rem;
+        
+        .label {
+          font-weight: 500;
+        }
+        
+        .time {
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+      }
+    }
+    
+    // 進度條指示器
+    .window-progress {
+      margin-top: 0.5rem;
+      height: 0.25rem;
+      background: rgba(59, 130, 246, 0.2);
+      border-radius: 0.125rem;
+      overflow: hidden;
+      
+      .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+        border-radius: 0.125rem;
+        transition: width 0.3s ease-in-out;
+      }
+    }
+  }
+  
+  // 響應式設計
+  @media (max-width: 768px) {
+    .card-content {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .neighbor-cell-detail {
+      .cell-info {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+  
+  @media (max-width: 1024px) {
+    .card-content {
+      .grid.lg\\:grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  }
+  
+  // 動畫效果
+  @keyframes pulse-gentle {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+  
+  .loading-indicator {
+    animation: pulse-gentle 2s infinite;
+  }
+  
+  // 主題適配（暗黑模式）
+  @media (prefers-color-scheme: dark) {
+    .sib19-unified-platform {
+      .sib19-control-panel {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border-color: #475569;
+        
+        .card-header {
+          background: rgba(30, 41, 59, 0.9);
+          border-bottom-color: #475569;
+          
+          .card-title {
+            color: #f1f5f9;
+          }
+        }
+        
+        .card-content {
+          background: rgba(30, 41, 59, 0.95);
+        }
+      }
+      
+      .sib19-status-card,
+      .time-sync-card,
+      .neighbor-cells-card,
+      .reference-location-card {
+        background: #334155;
+        border-color: #475569;
+        color: #f1f5f9;
+        
+        .font-medium {
+          color: #e2e8f0;
+        }
+        
+        .text-sm {
+          color: #cbd5e1;
+        }
+      }
+      
+      .neighbor-cell-detail {
+        &.active {
+          background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+          border-color: #10b981;
+        }
+        
+        &.inactive {
+          background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+          border-color: #6b7280;
+        }
+      }
+      
+      .smtc-window {
+        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+        border-color: #3b82f6;
+        color: #f1f5f9;
+        
+        .satellite-id {
+          color: #bfdbfe;
+        }
+        
+        .window-times {
+          color: #cbd5e1;
+        }
+      }
+    }
+  }
+}

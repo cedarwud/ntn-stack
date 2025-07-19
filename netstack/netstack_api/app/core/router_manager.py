@@ -122,6 +122,18 @@ class RouterManager:
                 self._track_router("satellite_ops_router", "衛星操作", True)
                 logger.info("✅ 衛星操作路由器註冊完成")
 
+            # 嘗試導入測量事件路由器
+            try:
+                from ...routers.measurement_events_router import router as measurement_events_router
+                self.app.include_router(
+                    measurement_events_router,
+                    tags=["測量事件"]
+                )
+                self._track_router("measurement_events_router", "測量事件", True)
+                logger.info("✅ 測量事件路由器註冊完成")
+            except ImportError:
+                logger.warning("測量事件路由器不可用，跳過註冊")
+
             logger.info("✅ 新模組化路由器註冊完成")
         except Exception as e:
             logger.exception("💥 新核心路由器註冊失敗")
