@@ -111,8 +111,25 @@ class ChartRegistryManager {
         }
 
         try {
-            // 動態導入插件
-            const pluginModule = await import(`./plugins/${pluginId}`)
+            // 動態導入插件 - 使用顯式映射避免 Vite 警告
+            let pluginModule: any
+            
+            // 顯式插件映射
+            switch (pluginId) {
+                case 'A4EventChart':
+                case 'A4EventChart.ts':
+                    pluginModule = await import('./plugins/A4EventChart')
+                    break
+                case 'D1EventChart':
+                case 'D1EventChart.ts':
+                    pluginModule = await import('./plugins/D1EventChart')
+                    break
+                default:
+                    // 回退到動態導入，添加 @vite-ignore 來抑制警告
+                    pluginModule = await import(/* @vite-ignore */ `./plugins/${pluginId}`)
+                    break
+            }
+            
             const plugin = pluginModule.default || pluginModule[pluginId]
             
             if (!plugin) {
