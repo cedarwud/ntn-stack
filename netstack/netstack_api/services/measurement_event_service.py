@@ -221,9 +221,14 @@ class MeasurementEventService:
             if not neighbor_cells:
                 self.logger.warning("無可用的鄰居細胞配置")
                 
+                # Phase 2.1 改進：對於 D2 事件，即使沒有鄰居細胞配置也繼續執行
+                if event_type != EventType.D2:
+                    self.logger.error(f"{event_type.value} 事件需要鄰居細胞配置")
+                    return None
+                
             # 處理測量
             processor = self.measurement_processors[event_type]
-            result = await processor(ue_position, event_params, neighbor_cells)
+            result = await processor(ue_position, event_params, neighbor_cells or [])
             
             if result:
                 # 更新狀態
@@ -567,6 +572,269 @@ class MeasurementEventService:
         except Exception as e:
             self.logger.error("D1 測量處理失敗", error=str(e))
             return None
+    
+    async def _select_d2_reference_satellite(self, ue_position: Position) -> Optional[str]:
+        """
+        Phase 2.1 強化：D2 事件移動參考位置衛星選擇
+        
+        符合 3GPP TS 38.331 movingReferenceLocation 標準：
+        1. 基於多因子評分系統選擇最佳參考衛星
+        2. 考慮距離適合度、軌道穩定性、可見性持續時間
+        3. 支援動態參考位置更新和切換優化
+        4. 符合 D2 事件雙重距離條件要求
+        """
+        try:
+            current_time = datetime.now(timezone.utc)
+            timestamp = current_time.timestamp()
+            available_satellites = []
+            
+            # 獲取所有可用衛星
+            all_satellites = list(self.orbit_engine.sgp4_cache.keys())
+            
+            if len(all_satellites) < 2:
+                self.logger.warning("可用衛星數量不足，無法執行 D2 測量")
+                return None
+            
+            # 計算每顆衛星的適合度評分
+            for satellite_id in all_satellites:
+                sat_pos = self.orbit_engine.calculate_satellite_position(satellite_id, timestamp)
+                if sat_pos:
+                    distance = self.orbit_engine.calculate_distance(sat_pos, ue_position)
+                    
+                    # 計算適合度評分
+                    score = await self._calculate_d2_reference_score(
+                        satellite_id, sat_pos, ue_position, distance, current_time
+                    )
+                    
+                    available_satellites.append({
+                        'satellite_id': satellite_id,
+                        'distance': distance,
+                        'position': sat_pos,
+                        'score': score,
+                        'elevation': self._calculate_elevation_angle(sat_pos, ue_position)
+                    })
+            
+            if not available_satellites:
+                self.logger.warning("D2 事件：無可用衛星")
+                return None
+            
+            # 過濾掉不符合基本條件的衛星
+            qualified_satellites = [
+                sat for sat in available_satellites 
+                if sat['distance'] > 400 and sat['elevation'] > 10  # 最小距離和仰角要求
+            ]
+            
+            if not qualified_satellites:
+                # 如果沒有完全符合條件的，放寬條件
+                qualified_satellites = [
+                    sat for sat in available_satellites 
+                    if sat['distance'] > 300  # 放寬距離要求
+                ]
+            
+            if not qualified_satellites:
+                qualified_satellites = available_satellites  # 最後備選
+            
+            # 按適合度評分排序，選擇最佳參考衛星
+            qualified_satellites.sort(key=lambda x: x['score'], reverse=True)
+            
+            selected = qualified_satellites[0]
+            self.logger.info(
+                f"D2 事件選擇參考衛星: {selected['satellite_id']}, "
+                f"距離: {selected['distance']:.1f}km, 評分: {selected['score']:.2f}, "
+                f"仰角: {selected['elevation']:.1f}°"
+            )
+            return selected['satellite_id']
+            
+        except Exception as e:
+            self.logger.error("D2 參考衛星選擇失敗", error=str(e))
+            return None
+    
+    async def _calculate_d2_reference_score(
+        self, 
+        satellite_id: str, 
+        sat_pos: SatellitePosition, 
+        ue_position: Position,
+        distance: float, 
+        current_time: datetime
+    ) -> float:
+        """
+        計算 D2 參考衛星適合度評分
+        
+        評分因子：
+        1. 距離適合度 (60%) - 符合 D2 雙重距離條件的最佳距離
+        2. 軌道穩定性 (25%) - 軌道預測準確性和數據新鮮度
+        3. 可見性持續時間 (15%) - 長期可見性和仰角優勢
+        """
+        try:
+            score = 0.0
+            
+            # 1. 距離適合度評分 (60%)
+            # D2 事件 Thresh1 默認值為 800km，最佳參考衛星距離應在此範圍
+            optimal_distance = 600.0  # 600km 最佳距離
+            distance_km = distance
+            distance_deviation = abs(distance_km - optimal_distance)
+            
+            if distance_deviation <= 100:  # 500-700km 範圍
+                distance_score = 1.0
+            elif distance_deviation <= 200:  # 400-800km 範圍
+                distance_score = 0.9 - (distance_deviation - 100) / 100 * 0.2
+            elif distance_deviation <= 400:  # 200-1000km 範圍
+                distance_score = 0.7 - (distance_deviation - 200) / 200 * 0.3
+            else:
+                distance_score = 0.4 - min(distance_deviation - 400, 600) / 600 * 0.4
+                
+            score += distance_score * 0.6
+            
+            # 2. 軌道穩定性評分 (25%)
+            orbit_stability_score = 0.8  # 預設穩定性分數
+            
+            try:
+                # 檢查未來軌道預測的一致性
+                future_time = current_time.timestamp() + 600  # 10分鐘後
+                future_pos = self.orbit_engine.calculate_satellite_position(satellite_id, future_time)
+                if future_pos:
+                    # 計算軌道運動的合理性
+                    future_distance = self.orbit_engine.calculate_distance(future_pos, ue_position)
+                    distance_change = abs(future_distance - distance_km)
+                    
+                    # 期望的距離變化應該合理（衛星運動速度約 7-8 km/s）
+                    expected_change = 7.5 * 600 / 1000  # 約 4.5km 變化
+                    if distance_change < expected_change * 2:  # 合理範圍內
+                        orbit_stability_score = 0.95
+                    else:
+                        orbit_stability_score = 0.7
+                else:
+                    orbit_stability_score = 0.5
+            except:
+                orbit_stability_score = 0.6
+                
+            score += orbit_stability_score * 0.25
+            
+            # 3. 可見性持續時間評分 (15%)
+            visibility_score = 0.8  # 預設可見性分數
+            
+            # 基於衛星高度和仰角估算可見性
+            elevation = self._calculate_elevation_angle(sat_pos, ue_position)
+            
+            if elevation > 30:  # 高仰角，長期可見
+                visibility_score = 0.95
+            elif elevation > 15:  # 中等仰角
+                visibility_score = 0.85
+            elif elevation > 5:   # 低仰角
+                visibility_score = 0.7
+            else:  # 極低仰角，可能很快消失
+                visibility_score = 0.4
+                
+            score += visibility_score * 0.15
+            
+            self.logger.debug(
+                f"D2 參考衛星評分 {satellite_id}: "
+                f"距離={distance_score:.2f}({distance_km:.0f}km), "
+                f"軌道={orbit_stability_score:.2f}, "
+                f"可見性={visibility_score:.2f}(仰角{elevation:.1f}°), "
+                f"總分={score:.2f}"
+            )
+            
+            return score
+            
+        except Exception as e:
+            self.logger.warning(f"計算衛星評分失敗 {satellite_id}: {str(e)}")
+            return 0.0
+    
+    def _calculate_elevation_angle(self, sat_pos: SatellitePosition, ue_position: Position) -> float:
+        """
+        計算衛星相對於 UE 的仰角
+        
+        Returns:
+            仰角 (度)，範圍 0-90 度
+        """
+        try:
+            import math
+            
+            # 地球半徑 (km)
+            earth_radius = 6371.0
+            
+            # 將緯度經度轉換為弧度
+            ue_lat_rad = math.radians(ue_position.latitude)
+            ue_lon_rad = math.radians(ue_position.longitude)
+            sat_lat_rad = math.radians(sat_pos.latitude)
+            sat_lon_rad = math.radians(sat_pos.longitude)
+            
+            # 計算 UE 到衛星的直線距離
+            distance_3d = self.orbit_engine.calculate_distance(sat_pos, ue_position)
+            
+            # 計算地面距離（大圓距離）
+            dlat = sat_lat_rad - ue_lat_rad
+            dlon = sat_lon_rad - ue_lon_rad
+            a = math.sin(dlat/2)**2 + math.cos(ue_lat_rad) * math.cos(sat_lat_rad) * math.sin(dlon/2)**2
+            ground_distance = 2 * earth_radius * math.asin(math.sqrt(a))
+            
+            # 衛星高度（相對於地面）
+            sat_height = sat_pos.altitude
+            
+            # 計算仰角
+            if ground_distance > 0:
+                elevation_rad = math.atan(sat_height / ground_distance)
+                elevation_deg = math.degrees(elevation_rad)
+                
+                # 確保仰角在合理範圍內
+                elevation_deg = max(0, min(90, elevation_deg))
+            else:
+                elevation_deg = 90.0  # 衛星正在頭頂
+                
+            return elevation_deg
+            
+        except Exception as e:
+            self.logger.warning(f"仰角計算失敗: {str(e)}")
+            return 10.0  # 預設仰角
+    
+    async def _select_d2_serving_satellite(self, ue_position: Position, reference_satellite: str) -> Optional[str]:
+        """
+        Phase 2.1 改進：自動選擇 D2 事件服務衛星
+        
+        選擇策略：
+        1. 選擇離 UE 最近的可見衛星
+        2. 確保不是參考衛星
+        3. 用於模擬模式中缺少鄰居細胞配置時
+        """
+        try:
+            current_time = datetime.now(timezone.utc).timestamp()
+            available_satellites = []
+            
+            # 獲取所有可用衛星 (排除參考衛星)
+            all_satellites = [s for s in self.orbit_engine.sgp4_cache.keys() if s != reference_satellite]
+            
+            if not all_satellites:
+                self.logger.warning("沒有可用的服務衛星")
+                return None
+            
+            # 計算每顆衛星到 UE 的距離
+            for satellite_id in all_satellites:
+                sat_pos = self.orbit_engine.calculate_satellite_position(satellite_id, current_time)
+                if sat_pos:
+                    distance = self.orbit_engine.calculate_distance(sat_pos, ue_position)
+                    available_satellites.append({
+                        'satellite_id': satellite_id,
+                        'distance': distance,
+                        'position': sat_pos
+                    })
+            
+            if not available_satellites:
+                return None
+            
+            # 按距離排序，選擇最近的衛星作為服務衛星
+            available_satellites.sort(key=lambda x: x['distance'])
+            
+            selected = available_satellites[0]
+            self.logger.info(
+                f"D2 事件選擇服務衛星: {selected['satellite_id']}, "
+                f"距離: {selected['distance']:.1f}km"
+            )
+            return selected['satellite_id']
+            
+        except Exception as e:
+            self.logger.error("D2 服務衛星選擇失敗", error=str(e))
+            return None
             
     async def _process_d2_measurement(
         self,
@@ -574,33 +842,49 @@ class MeasurementEventService:
         params: D2Parameters,
         neighbor_cells: List[NeighborCellConfig]
     ) -> Optional[MeasurementResult]:
-        """處理 D2 事件測量"""
+        """
+        處理 D2 事件測量 - Phase 2.1 改進版本
+        
+        D2 事件：移動參考位置距離事件
+        - 雙重距離條件：衛星間距離 (Thresh1) 和地面距離 (Thresh2)
+        - 自動選擇參考衛星，不依賴 SIB19 初始化
+        - 符合 3GPP TS 38.331 標準
+        """
         try:
             current_time = datetime.now(timezone.utc)
             measurement_values = {}
             satellite_positions = {}
             
-            # 獲取 SIB19 動態參考位置 (衛星軌道)
-            moving_reference = await self.sib19_platform.get_d2_moving_reference_location()
+            # Phase 2.1 改進：自動選擇參考衛星
+            reference_satellite = await self._select_d2_reference_satellite(ue_position)
             
-            if not moving_reference or not moving_reference.satellite_id:
+            if not reference_satellite:
+                self.logger.warning("D2 事件：無法選擇參考衛星")
                 return None
                 
             # 計算參考衛星位置
-            reference_satellite = moving_reference.satellite_id
             reference_pos = self.orbit_engine.calculate_satellite_position(
                 reference_satellite,
                 current_time.timestamp()
             )
             
             if not reference_pos:
+                self.logger.warning(f"D2 事件：無法計算參考衛星位置 {reference_satellite}")
                 return None
                 
             satellite_positions[reference_satellite] = reference_pos
+            measurement_values["reference_satellite"] = reference_satellite
             
-            # 計算服務衛星到參考衛星距離 (衛星間距離)
+            # Phase 2.1 改進：計算服務衛星到參考衛星距離 (衛星間距離)
+            serving_satellite = None
+            
             if neighbor_cells:
                 serving_satellite = neighbor_cells[0].satellite_id
+            else:
+                # 模擬模式：自動選擇服務衛星 (選擇離 UE 最近的非參考衛星)
+                serving_satellite = await self._select_d2_serving_satellite(ue_position, reference_satellite)
+            
+            if serving_satellite:
                 serving_pos = self.orbit_engine.calculate_satellite_position(
                     serving_satellite,
                     current_time.timestamp()
@@ -799,12 +1083,34 @@ class MeasurementEventService:
             for key in results[0]["measurement_values"].keys():
                 values = [r["measurement_values"].get(key, 0) for r in results if key in r["measurement_values"]]
                 if values:
-                    measurement_stats[key] = {
-                        "mean": np.mean(values),
-                        "std": np.std(values),
-                        "min": np.min(values),
-                        "max": np.max(values)
-                    }
+                    try:
+                        # 只對數值型數據進行統計計算
+                        numeric_values = []
+                        for val in values:
+                            if isinstance(val, (int, float)):
+                                numeric_values.append(float(val))
+                        
+                        if numeric_values:
+                            measurement_stats[key] = {
+                                "mean": np.mean(numeric_values),
+                                "std": np.std(numeric_values),
+                                "min": np.min(numeric_values),
+                                "max": np.max(numeric_values),
+                                "count": len(numeric_values)
+                            }
+                        else:
+                            # 對於非數值數據，只統計數量
+                            measurement_stats[key] = {
+                                "type": "non_numeric",
+                                "unique_values": len(set(str(v) for v in values)),
+                                "count": len(values)
+                            }
+                    except Exception as e:
+                        # 統計計算失敗時的回退方案
+                        measurement_stats[key] = {
+                            "error": f"統計計算失敗: {str(e)}",
+                            "count": len(values)
+                        }
             stats["measurement_statistics"] = measurement_stats
             
         return stats
