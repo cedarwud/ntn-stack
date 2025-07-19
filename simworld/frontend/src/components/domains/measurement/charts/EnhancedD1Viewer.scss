@@ -1,0 +1,517 @@
+/**
+ * Enhanced D2 Viewer Styles
+ * 增強版 D1 雙重距離測量事件查看器樣式
+ */
+
+.enhanced-d1-viewer {
+  width: 100%;
+  height: 100%;
+  min-height: 700px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  
+  // 深色主題
+  &.dark-theme {
+    background-color: #1a1a1a;
+    color: #ffffff;
+    
+    .viewer-header {
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+      border-bottom: 1px solid #495057;
+    }
+    
+    .side-panel {
+      background-color: #2d3748;
+      border: 1px solid #4a5568;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    .panel-header {
+      background-color: #1a202c;
+      border-bottom: 1px solid #4a5568;
+    }
+    
+    .input-group input,
+    .input-group select {
+      background-color: #1a202c;
+      border: 1px solid #4a5568;
+      color: #ffffff;
+      
+      &:focus {
+        border-color: #63b3ed;
+        box-shadow: 0 0 0 2px rgba(99, 179, 237, 0.2);
+      }
+    }
+    
+    .control-btn {
+      background-color: #4a5568;
+      border: 1px solid #718096;
+      color: #ffffff;
+      
+      &:hover {
+        background-color: #63b3ed;
+        border-color: #63b3ed;
+      }
+      
+      &.active {
+        background-color: #3182ce;
+        border-color: #3182ce;
+      }
+    }
+    
+    .history-item {
+      background-color: #1a202c;
+      border: 1px solid #4a5568;
+    }
+    
+    .satellite-item {
+      background-color: #1a202c;
+      border: 1px solid #4a5568;
+    }
+  }
+  
+  // 淺色主題
+  &.light-theme {
+    background-color: #ffffff;
+    color: #333333;
+    
+    .viewer-header {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-bottom: 1px solid #dee2e6;
+    }
+    
+    .side-panel {
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .panel-header {
+      background-color: #f7fafc;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .input-group input,
+    .input-group select {
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      color: #333333;
+      
+      &:focus {
+        border-color: #3182ce;
+        box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2);
+      }
+    }
+    
+    .control-btn {
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      color: #333333;
+      
+      &:hover {
+        background-color: #3182ce;
+        border-color: #3182ce;
+        color: #ffffff;
+      }
+      
+      &.active {
+        background-color: #3182ce;
+        border-color: #3182ce;
+        color: #ffffff;
+      }
+    }
+    
+    .history-item {
+      background-color: #f7fafc;
+      border: 1px solid #e2e8f0;
+    }
+    
+    .satellite-item {
+      background-color: #f7fafc;
+      border: 1px solid #e2e8f0;
+    }
+  }
+}
+
+// 頭部區域
+.viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 8px;
+  
+  .title-section {
+    h2 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .subtitle {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 4px;
+      font-style: italic;
+    }
+  }
+  
+  .control-buttons {
+    display: flex;
+    gap: 8px;
+    
+    .control-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        transform: translateY(-1px);
+      }
+    }
+  }
+}
+
+// 內容區域
+.viewer-content {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  position: relative;
+  
+  .chart-container {
+    flex: 1;
+    min-height: 600px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+}
+
+// 側邊面板
+.side-panel {
+  width: 320px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+  overflow: hidden;
+  
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    
+    h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s ease;
+      
+      &:hover {
+        background-color: rgba(255, 0, 0, 0.1);
+      }
+    }
+  }
+  
+  .panel-content {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background-color: rgba(155, 155, 155, 0.3);
+      border-radius: 3px;
+    }
+  }
+}
+
+// 配置區段
+.config-section {
+  margin-bottom: 24px;
+  
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.9;
+  }
+  
+  .input-group {
+    margin-bottom: 12px;
+    
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      opacity: 0.8;
+    }
+    
+    input,
+    select {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      transition: all 0.2s ease;
+      
+      &:focus {
+        outline: none;
+      }
+    }
+  }
+  
+  .preset-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 8px;
+    
+    button {
+      padding: 6px 8px;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background-color: #718096;
+      color: white;
+      
+      &:hover {
+        background-color: #4a5568;
+        transform: translateY(-1px);
+      }
+    }
+  }
+  
+  .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      
+      input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+      }
+    }
+  }
+  
+  .reset-btn {
+    width: 100%;
+    padding: 8px;
+    background-color: #e53e3e;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background-color 0.2s ease;
+    
+    &:hover {
+      background-color: #c53030;
+    }
+  }
+}
+
+// 歷史統計
+.history-stats {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    
+    .stat-label {
+      opacity: 0.8;
+    }
+    
+    .stat-value {
+      font-weight: 600;
+      font-family: 'Courier New', monospace;
+    }
+  }
+}
+
+// 歷史記錄列表
+.history-list {
+  max-height: 400px;
+  overflow-y: auto;
+  
+  .no-data {
+    text-align: center;
+    padding: 24px;
+    font-size: 12px;
+    opacity: 0.6;
+    font-style: italic;
+  }
+  
+  .history-item {
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    
+    .history-time {
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .history-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      opacity: 0.9;
+      
+      .trigger-conditions {
+        margin-top: 4px;
+        font-weight: 500;
+      }
+    }
+  }
+}
+
+// 衛星統計
+.satellite-stats {
+  margin-bottom: 16px;
+  
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    margin-bottom: 8px;
+    
+    .stat-label {
+      opacity: 0.8;
+    }
+    
+    .stat-value {
+      font-weight: 600;
+      font-family: 'Courier New', monospace;
+    }
+  }
+}
+
+// 衛星列表
+.satellite-list {
+  max-height: 400px;
+  overflow-y: auto;
+  
+  .satellite-item {
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    
+    .satellite-id {
+      font-weight: 600;
+      font-family: 'Courier New', monospace;
+      margin-bottom: 2px;
+    }
+    
+    .satellite-name {
+      font-size: 10px;
+      opacity: 0.8;
+      margin-bottom: 2px;
+    }
+    
+    .satellite-epoch {
+      font-size: 10px;
+      opacity: 0.6;
+    }
+  }
+  
+  .more-satellites {
+    text-align: center;
+    padding: 8px;
+    font-size: 11px;
+    opacity: 0.6;
+    font-style: italic;
+  }
+}
+
+// 響應式設計
+@media (max-width: 1200px) {
+  .enhanced-d1-viewer {
+    .viewer-content {
+      flex-direction: column;
+    }
+    
+    .side-panel {
+      width: 100%;
+      max-height: 300px;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .enhanced-d1-viewer {
+    .viewer-header {
+      padding: 12px 16px;
+      
+      .title-section h2 {
+        font-size: 16px;
+      }
+      
+      .control-buttons .control-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+      }
+    }
+    
+    .side-panel {
+      .panel-content {
+        padding: 12px;
+      }
+    }
+  }
+}
