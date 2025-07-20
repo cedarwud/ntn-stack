@@ -117,15 +117,36 @@ class PhysicalPropagationModel:
         # 比衰減 (dB/km)
         gamma_r = k * (rain_rate_mm_h**alpha)
 
-        # 有效路徑長度
-        if elevation_angle > 5:
-            elevation_rad = math.radians(elevation_angle)
-            effective_path_length = 5.0 / math.sin(elevation_rad)  # 假設雨層厚度 5km
-        else:
-            effective_path_length = 50.0  # 低仰角時的近似值
+        # 使用完整的 ITU-R P.618 實現
+        try:
+            from .itu_r_p618_rain_attenuation import itu_r_p618_model, Polarization
 
-        rain_attenuation = gamma_r * effective_path_length
-        return rain_attenuation
+            result = itu_r_p618_model.calculate_rain_attenuation(
+                frequency_ghz=frequency_ghz,
+                elevation_angle_deg=elevation_angle,
+                rain_rate_mm_h=rain_rate_mm_h,
+                polarization=Polarization.CIRCULAR,  # 默認圓極化
+                rain_height_km=2.0,  # 標準降雨高度
+                earth_station_height_km=0.0,  # 海平面
+            )
+
+            return result["rain_attenuation_db"]
+
+        except ImportError:
+            # 降級到簡化實現（向後兼容）
+            logger.warning("ITU-R P.618 完整實現不可用，使用簡化版本")
+
+            # 有效路徑長度
+            if elevation_angle > 5:
+                elevation_rad = math.radians(elevation_angle)
+                effective_path_length = 5.0 / math.sin(
+                    elevation_rad
+                )  # 假設雨層厚度 5km
+            else:
+                effective_path_length = 50.0  # 低仰角時的近似值
+
+            rain_attenuation = gamma_r * effective_path_length
+            return rain_attenuation
 
     def calculate_doppler_shift(
         self,

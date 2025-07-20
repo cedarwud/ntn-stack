@@ -305,8 +305,8 @@ export const EventD1Viewer: React.FC<EventD1ViewerProps> = React.memo(
         const narrationContent = useMemo(() => {
             const currentTime = animationState.currentTime
 
-            // 模擬 UE 位置
-            const uePosition = { lat: 25.048, lon: 121.528 }
+            // 模擬 UE 位置 (全球化支援 - 可配置)
+            const uePosition = { lat: 0.048, lon: 0.528 }
 
             // 模擬距離值（實際應用中會基於真實地理計算）
             let simulatedDistance1, simulatedDistance2
