@@ -24,6 +24,8 @@ export { default as EnhancedD1Chart } from './EnhancedD1Chart'
 export { default as EnhancedD1Viewer } from './EnhancedD1Viewer'
 export { default as EnhancedD2Chart } from './EnhancedD2Chart'
 export { default as EnhancedD2Viewer } from './EnhancedD2Viewer'
+export { default as EnhancedT1Chart } from './EnhancedT1Chart'
+export { default as EnhancedT1Viewer } from './EnhancedT1Viewer'
 
 // 共用組件
 export { default as NarrationPanel } from './NarrationPanel'

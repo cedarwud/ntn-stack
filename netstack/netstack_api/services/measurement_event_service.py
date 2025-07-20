@@ -1046,13 +1046,28 @@ class MeasurementEventService:
             measurement_values = {}
             satellite_positions = {}
             
+            # 獲取 SIB19 時間校正數據
+            time_correction = await self.sib19_platform.get_t1_time_frame()
+            if not time_correction:
+                # 如果無法獲取 SIB19 時間校正，創建默認值
+                from ..services.sib19_unified_platform import TimeCorrection
+                time_correction = TimeCorrection(
+                    gnss_time_offset=0.0,
+                    delta_gnss_time=0.0,
+                    epoch_time=current_time,
+                    t_service=3600.0,
+                    current_accuracy_ms=20.0
+                )
+            
             # Phase 2.3 簡化 T1 實現：基於當前時間的基本時間條件檢查
-            # 模擬一個服務會話開始時間 (假設從一小時前開始)
+            # 模擬一個服務會話開始時間 (基於 SIB19 epoch_time)
+            epoch_time = time_correction.epoch_time
             service_start_time = current_time - timedelta(hours=1)
             elapsed_time = (current_time - service_start_time).total_seconds()
             
-            # 模擬服務持續時間 (假設服務會話總時長 2 小時)
-            total_service_duration = 7200  # 2 hours in seconds
+            # 從 SIB19 獲取服務時間
+            t_service = time_correction.t_service
+            total_service_duration = t_service  # seconds
             remaining_service_time = max(0, total_service_duration - elapsed_time)
             
             measurement_values["elapsed_time"] = elapsed_time
@@ -1060,6 +1075,9 @@ class MeasurementEventService:
             measurement_values["total_service_duration"] = total_service_duration
             measurement_values["remaining_service_time"] = remaining_service_time
             measurement_values["current_time"] = current_time.isoformat()
+            measurement_values["epoch_time"] = epoch_time.isoformat()
+            measurement_values["gnss_time_offset_ms"] = time_correction.gnss_time_offset
+            measurement_values["sync_accuracy_ms"] = time_correction.current_accuracy_ms
             
             # T1 觸發條件檢查：當經過的時間超過設定的門檻值
             trigger_condition_met = elapsed_time > params.t1_threshold
