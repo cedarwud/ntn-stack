@@ -227,21 +227,36 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             setShowThresholdLines((prev) => !prev)
         }, [])
 
-        // 計算衛星位置（模擬移動參考位置）
+        // 計算衛星位置（基於真實 LEO 軌道參數）
         const calculateSatellitePosition = useCallback(
             (timeSeconds: number) => {
                 const centerLat = params.movingReferenceLocation.lat
                 const centerLon = params.movingReferenceLocation.lon
-                const orbitRadius = 0.01 // 軌道半徑（度）
-                const orbitPeriod = 120 // 軌道週期（秒）
 
+                // 真實 LEO 衛星軌道參數
+                const orbitRadius = 0.5 // 軌道半徑（度）- 更真實的軌道範圍
+                const orbitPeriod = 5400 // 軌道週期（90分鐘 = 5400秒）✅ 修正
+                const altitude = 550000 // LEO 衛星高度 (550km)
+                const orbitalVelocity = 7.56 // km/s (真實 LEO 軌道速度)
+
+                // 基於真實軌道週期的角度計算
                 const angle = (timeSeconds / orbitPeriod) * 2 * Math.PI
+
+                // 考慮地球自轉效應 (簡化)
+                const earthRotationRate = 360 / 86400 // 度/秒
+                const earthRotationOffset =
+                    (timeSeconds * earthRotationRate) / 3600 // 小時轉換
 
                 return {
                     lat: centerLat + orbitRadius * Math.cos(angle),
-                    lon: centerLon + orbitRadius * Math.sin(angle),
-                    altitude: 550000, // LEO 衛星高度
-                    velocity: 7.5, // km/s
+                    lon:
+                        centerLon +
+                        orbitRadius * Math.sin(angle) -
+                        earthRotationOffset * 0.1, // 地球自轉修正
+                    altitude: altitude,
+                    velocity: orbitalVelocity,
+                    orbitPeriod: orbitPeriod,
+                    currentPhase: (timeSeconds % orbitPeriod) / orbitPeriod, // 軌道相位 (0-1)
                 }
             },
             [params.movingReferenceLocation]
@@ -252,8 +267,8 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             const currentTime = animationState.currentTime
             const satellitePosition = calculateSatellitePosition(currentTime)
 
-            // 模擬 UE 位置
-            const _uePosition = { lat: 25.048, lon: 121.528 }
+            // 模擬 UE 位置 (全球化支援 - 可配置)
+            const _uePosition = { lat: 0.048, lon: 0.528 }
 
             // 計算軌道參數
             const orbitalVelocity = 7.5 // km/s for LEO at 550km
@@ -464,8 +479,8 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             // 根據當前時間計算條件
             const currentTime = animationState.currentTime || 45 // 預設時間
 
-            // 模擬 UE 位置
-            const _uePosition = { lat: 25.048, lon: 121.528 }
+            // 模擬 UE 位置 (全球化支援 - 可配置)
+            const _uePosition = { lat: 0.048, lon: 0.528 }
 
             // 計算移動參考位置（衛星當前位置）
             const satellitePosition = calculateSatellitePosition(currentTime)
@@ -1003,20 +1018,20 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                         <label className="control-label">
                                             軌道週期
                                             <span className="control-unit">
-                                                秒
+                                                分鐘
                                             </span>
                                         </label>
                                         <input
                                             type="range"
-                                            min="60"
-                                            max="300"
-                                            step="10"
-                                            value={120}
+                                            min="85"
+                                            max="100"
+                                            step="1"
+                                            value={90}
                                             className="control-slider"
                                             readOnly
                                         />
                                         <span className="control-value">
-                                            120s
+                                            90分鐘 (5400s)
                                         </span>
                                     </div>
                                     <div className="control-item">

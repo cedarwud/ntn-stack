@@ -232,7 +232,7 @@ export const mockSimworldResponses = {
   },
   '/api/devices': {
     devices: [
-      { id: 'ue_001', position: { lat: 25.0, lng: 121.5 }, signal_strength: -75 }
+      { id: 'ue_001', position: { lat: 0.0, lng: 0.5 }, signal_strength: -75 }
     ]
   },
   '/api/measurements': {

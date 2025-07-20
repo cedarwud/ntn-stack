@@ -69,7 +69,8 @@ const calculateOrbitPosition = (
     _speedMultiplier: number
 ): { position: [number, number, number]; isVisible: boolean } => {
     // 計算總軌道週期 (過境時間 + 不可見時間)
-    const totalOrbitPeriod = orbit.transitDuration + 120 // 2分鐘不可見間隔
+    // 修正：使用真實 LEO 軌道週期 90分鐘 = 5400秒
+    const totalOrbitPeriod = 5400 // 真實 LEO 軌道週期 (90分鐘)
 
     // 計算從開始時間到現在的相對時間
     const relativeTime = currentTime - orbit.transitStartTime
