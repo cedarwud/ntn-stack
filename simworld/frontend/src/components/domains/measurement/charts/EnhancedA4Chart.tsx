@@ -559,7 +559,7 @@ const EnhancedA4Chart: React.FC<EnhancedA4ChartProps> = ({
             </div>
 
             {/* 圖表區域 */}
-            <div className="h-96 w-full">
+            <div className="w-full" style={{ height: '320px', minHeight: '320px' }}>
                 {chartData ? (
                     <Line data={chartData} options={chartOptions} />
                 ) : (
