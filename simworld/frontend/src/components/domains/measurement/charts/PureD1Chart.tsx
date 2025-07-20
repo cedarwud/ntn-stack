@@ -8,6 +8,10 @@
 
 import React, { useEffect, useRef, useMemo } from 'react'
 import { Chart } from 'chart.js/auto'
+import annotationPlugin from 'chartjs-plugin-annotation'
+
+// 註冊 annotation 插件
+Chart.register(annotationPlugin)
 
 // 模擬距離數據：UE 到兩個參考位置的距離隨時間變化
 // 調整數據以正確展示 Event D1 觸發邏輯：
