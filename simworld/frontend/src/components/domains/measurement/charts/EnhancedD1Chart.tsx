@@ -139,7 +139,7 @@ const EnhancedD1Chart: React.FC<EnhancedD1ChartProps> = ({
     // 數據狀態
     const [realTimeData, setRealTimeData] = useState<RealTimeD1Data | null>(null)
     const [simulationData, setSimulationData] = useState<SimulationD1Data | null>(null)
-    const [dataHistory, setDataHistory] = useState<Array<{ time: number, data: RealTimeD1Data }>>([]
+    const [dataHistory, setDataHistory] = useState<Array<{ time: number, data: RealTimeD1Data }>>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected')
