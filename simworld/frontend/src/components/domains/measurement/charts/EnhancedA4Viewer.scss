@@ -125,13 +125,15 @@
     .viewer-content {
         display: flex;
         flex: 1;
-        overflow: hidden;
+        overflow: visible;
 
         .chart-container {
             flex: 1;
             padding: 1rem;
             background: var(--bg-primary);
-            overflow: hidden;
+            overflow: visible;
+            min-height: 500px;
+            height: 500px !important;
         }
     }
 
