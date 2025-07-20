@@ -101,7 +101,7 @@ const EnhancedA4Viewer: React.FC = () => {
     const fetchSIB19PositionStatus = useCallback(async () => {
         try {
             const response = await netstackFetch(
-                '/api/measurement-events/sib19-position-status'
+                '/api/measurement-events/sib19-status'
             )
             if (response.ok) {
                 const data = await response.json()
