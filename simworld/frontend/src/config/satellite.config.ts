@@ -114,6 +114,6 @@ export const TRAJECTORY_ADJUSTMENT = {
   // 換手場景優化
   OPTIMIZE_FOR_HANDOVER: true,
   
-  // 確保最小換手間隔（秒）
-  MIN_HANDOVER_INTERVAL_SEC: 120,
+  // 確保最小換手間隔（秒）- 修正：基於真實 LEO 軌道週期調整
+  MIN_HANDOVER_INTERVAL_SEC: 300, // 5分鐘，考慮真實 90分鐘軌道週期
 } as const;

@@ -1,7 +1,7 @@
 /**
  * Enhanced D2 Event Viewer
  * 增強版 D2 移動參考位置距離事件查看器
- * 
+ *
  * 整合功能：
  * 1. 增強版 D2 圖表
  * 2. 實時數據控制面板
@@ -42,27 +42,30 @@ const EnhancedD2Viewer: React.FC = () => {
     const [useRealData, setUseRealData] = useState(true)
     const [showThresholdLines, setShowThresholdLines] = useState(true)
     const [autoUpdate, setAutoUpdate] = useState(true)
-    
+
     // UE 位置
     const [uePosition, setUePosition] = useState<UEPosition>({
-        latitude: 25.0478,  // 台北101
+        latitude: 25.0478, // 台北101
         longitude: 121.5319,
-        altitude: 100
+        altitude: 100,
     })
-    
+
     // D2 參數
     const [d2Params, setD2Params] = useState<D2Parameters>({
-        thresh1: 800000,  // 800km
-        thresh2: 30000,   // 30km
-        hysteresis: 500,  // 500m
-        time_to_trigger: 160 // 160ms
+        thresh1: 800000, // 800km
+        thresh2: 30000, // 30km
+        hysteresis: 500, // 500m
+        time_to_trigger: 160, // 160ms
     })
-    
+
     // 觸發歷史
-    const [triggerHistory, setTriggerHistory] = useState<EventTriggerRecord[]>([])
+    const [triggerHistory, setTriggerHistory] = useState<EventTriggerRecord[]>(
+        []
+    )
     const [availableSatellites, setAvailableSatellites] = useState<any[]>([])
-    const [currentReferenceSatellite, setCurrentReferenceSatellite] = useState<string>('')
-    
+    const [currentReferenceSatellite, setCurrentReferenceSatellite] =
+        useState<string>('')
+
     // UI 狀態
     const [showParameterPanel, setShowParameterPanel] = useState(false)
     const [showHistoryPanel, setShowHistoryPanel] = useState(false)
@@ -71,7 +74,9 @@ const EnhancedD2Viewer: React.FC = () => {
     // 獲取可用衛星列表
     const fetchAvailableSatellites = useCallback(async () => {
         try {
-            const response = await netstackFetch('/api/measurement-events/orbit-data/satellites?constellation=starlink')
+            const response = await netstackFetch(
+                '/api/measurement-events/orbit-data/satellites?constellation=starlink'
+            )
             if (response.ok) {
                 const data = await response.json()
                 setAvailableSatellites(data.satellites || [])
@@ -87,21 +92,22 @@ const EnhancedD2Viewer: React.FC = () => {
             timestamp: new Date().toISOString(),
             trigger_details: eventData.trigger_details,
             measurement_values: eventData.measurement_values,
-            satellite_id: eventData.measurement_values?.reference_satellite || 'unknown'
+            satellite_id:
+                eventData.measurement_values?.reference_satellite || 'unknown',
         }
-        
-        setTriggerHistory(prev => [newRecord, ...prev.slice(0, 19)]) // 保留最近20條記錄
+
+        setTriggerHistory((prev) => [newRecord, ...prev.slice(0, 19)]) // 保留最近20條記錄
         setCurrentReferenceSatellite(newRecord.satellite_id)
     }, [])
 
     // 切換主題
     const toggleTheme = useCallback(() => {
-        setIsDarkTheme(prev => !prev)
+        setIsDarkTheme((prev) => !prev)
     }, [])
 
     // 切換數據模式
     const toggleDataMode = useCallback(() => {
-        setUseRealData(prev => !prev)
+        setUseRealData((prev) => !prev)
     }, [])
 
     // 重置 D2 參數
@@ -110,19 +116,19 @@ const EnhancedD2Viewer: React.FC = () => {
             thresh1: 800000,
             thresh2: 30000,
             hysteresis: 500,
-            time_to_trigger: 160
+            time_to_trigger: 160,
         })
     }, [])
 
     // 載入預設位置
     const loadPresetLocation = useCallback((preset: string) => {
         const presets = {
-            taipei: { latitude: 25.0478, longitude: 121.5319, altitude: 100 },
-            kaohsiung: { latitude: 22.6273, longitude: 120.3014, altitude: 50 },
-            taichung: { latitude: 24.1477, longitude: 120.6736, altitude: 80 },
-            offshore: { latitude: 24.0, longitude: 122.0, altitude: 10 }
+            global_ref1: { latitude: 0.0478, longitude: 0.5319, altitude: 100 },
+            global_ref2: { latitude: 0.6273, longitude: 0.3014, altitude: 50 },
+            global_ref3: { latitude: 0.1477, longitude: 0.6736, altitude: 80 },
+            global_ref4: { latitude: 0.0, longitude: 1.0, altitude: 10 },
         }
-        
+
         const newPosition = presets[preset as keyof typeof presets]
         if (newPosition) {
             setUePosition(newPosition)
@@ -135,39 +141,52 @@ const EnhancedD2Viewer: React.FC = () => {
     }, [fetchAvailableSatellites])
 
     return (
-        <div className={`enhanced-d2-viewer ${isDarkTheme ? 'dark-theme' : 'light-theme'}`}>
+        <div
+            className={`enhanced-d2-viewer ${
+                isDarkTheme ? 'dark-theme' : 'light-theme'
+            }`}
+        >
             {/* 主標題和控制欄 */}
             <div className="viewer-header">
                 <div className="title-section">
                     <h2>🛰️ 增強版 D2 移動參考位置距離事件監測</h2>
                     <div className="subtitle">
-                        基於 3GPP TS 38.331 規範 | 多因子衛星選擇算法 | 論文研究級數據精度
+                        基於 3GPP TS 38.331 規範 | 多因子衛星選擇算法 |
+                        論文研究級數據精度
                     </div>
                 </div>
-                
+
                 <div className="control-buttons">
-                    <button 
-                        className={`control-btn ${showParameterPanel ? 'active' : ''}`}
-                        onClick={() => setShowParameterPanel(!showParameterPanel)}
+                    <button
+                        className={`control-btn ${
+                            showParameterPanel ? 'active' : ''
+                        }`}
+                        onClick={() =>
+                            setShowParameterPanel(!showParameterPanel)
+                        }
                         title="參數配置"
                     >
                         ⚙️
                     </button>
-                    <button 
-                        className={`control-btn ${showHistoryPanel ? 'active' : ''}`}
+                    <button
+                        className={`control-btn ${
+                            showHistoryPanel ? 'active' : ''
+                        }`}
                         onClick={() => setShowHistoryPanel(!showHistoryPanel)}
                         title="觸發歷史"
                     >
                         📊
                     </button>
-                    <button 
-                        className={`control-btn ${showSatelliteInfo ? 'active' : ''}`}
+                    <button
+                        className={`control-btn ${
+                            showSatelliteInfo ? 'active' : ''
+                        }`}
                         onClick={() => setShowSatelliteInfo(!showSatelliteInfo)}
                         title="衛星資訊"
                     >
                         🛰️
                     </button>
-                    <button 
+                    <button
                         className="control-btn"
                         onClick={toggleTheme}
                         title="切換主題"
@@ -202,14 +221,14 @@ const EnhancedD2Viewer: React.FC = () => {
                     <div className="side-panel parameter-panel">
                         <div className="panel-header">
                             <h3>📋 D2 參數配置</h3>
-                            <button 
+                            <button
                                 className="close-btn"
                                 onClick={() => setShowParameterPanel(false)}
                             >
                                 ✕
                             </button>
                         </div>
-                        
+
                         <div className="panel-content">
                             {/* UE 位置配置 */}
                             <div className="config-section">
@@ -220,10 +239,15 @@ const EnhancedD2Viewer: React.FC = () => {
                                         type="number"
                                         step="0.0001"
                                         value={uePosition.latitude}
-                                        onChange={(e) => setUePosition(prev => ({
-                                            ...prev,
-                                            latitude: parseFloat(e.target.value) || 0
-                                        }))}
+                                        onChange={(e) =>
+                                            setUePosition((prev) => ({
+                                                ...prev,
+                                                latitude:
+                                                    parseFloat(
+                                                        e.target.value
+                                                    ) || 0,
+                                            }))
+                                        }
                                     />
                                 </div>
                                 <div className="input-group">
@@ -232,10 +256,15 @@ const EnhancedD2Viewer: React.FC = () => {
                                         type="number"
                                         step="0.0001"
                                         value={uePosition.longitude}
-                                        onChange={(e) => setUePosition(prev => ({
-                                            ...prev,
-                                            longitude: parseFloat(e.target.value) || 0
-                                        }))}
+                                        onChange={(e) =>
+                                            setUePosition((prev) => ({
+                                                ...prev,
+                                                longitude:
+                                                    parseFloat(
+                                                        e.target.value
+                                                    ) || 0,
+                                            }))
+                                        }
                                     />
                                 </div>
                                 <div className="input-group">
@@ -243,19 +272,47 @@ const EnhancedD2Viewer: React.FC = () => {
                                     <input
                                         type="number"
                                         value={uePosition.altitude}
-                                        onChange={(e) => setUePosition(prev => ({
-                                            ...prev,
-                                            altitude: parseInt(e.target.value) || 0
-                                        }))}
+                                        onChange={(e) =>
+                                            setUePosition((prev) => ({
+                                                ...prev,
+                                                altitude:
+                                                    parseInt(e.target.value) ||
+                                                    0,
+                                            }))
+                                        }
                                     />
                                 </div>
-                                
+
                                 {/* 預設位置 */}
                                 <div className="preset-buttons">
-                                    <button onClick={() => loadPresetLocation('taipei')}>台北</button>
-                                    <button onClick={() => loadPresetLocation('kaohsiung')}>高雄</button>
-                                    <button onClick={() => loadPresetLocation('taichung')}>台中</button>
-                                    <button onClick={() => loadPresetLocation('offshore')}>離岸</button>
+                                    <button
+                                        onClick={() =>
+                                            loadPresetLocation('taipei')
+                                        }
+                                    >
+                                        台北
+                                    </button>
+                                    <button
+                                        onClick={() =>
+                                            loadPresetLocation('kaohsiung')
+                                        }
+                                    >
+                                        高雄
+                                    </button>
+                                    <button
+                                        onClick={() =>
+                                            loadPresetLocation('taichung')
+                                        }
+                                    >
+                                        台中
+                                    </button>
+                                    <button
+                                        onClick={() =>
+                                            loadPresetLocation('offshore')
+                                        }
+                                    >
+                                        離岸
+                                    </button>
                                 </div>
                             </div>
 
@@ -269,10 +326,14 @@ const EnhancedD2Viewer: React.FC = () => {
                                         min="400"
                                         max="2000"
                                         value={d2Params.thresh1 / 1000}
-                                        onChange={(e) => setD2Params(prev => ({
-                                            ...prev,
-                                            thresh1: parseFloat(e.target.value) * 1000 || 800000
-                                        }))}
+                                        onChange={(e) =>
+                                            setD2Params((prev) => ({
+                                                ...prev,
+                                                thresh1:
+                                                    parseFloat(e.target.value) *
+                                                        1000 || 800000,
+                                            }))
+                                        }
                                     />
                                 </div>
                                 <div className="input-group">
@@ -283,10 +344,14 @@ const EnhancedD2Viewer: React.FC = () => {
                                         max="50"
                                         step="0.1"
                                         value={d2Params.thresh2 / 1000}
-                                        onChange={(e) => setD2Params(prev => ({
-                                            ...prev,
-                                            thresh2: parseFloat(e.target.value) * 1000 || 30000
-                                        }))}
+                                        onChange={(e) =>
+                                            setD2Params((prev) => ({
+                                                ...prev,
+                                                thresh2:
+                                                    parseFloat(e.target.value) *
+                                                        1000 || 30000,
+                                            }))
+                                        }
                                     />
                                 </div>
                                 <div className="input-group">
@@ -296,20 +361,28 @@ const EnhancedD2Viewer: React.FC = () => {
                                         min="100"
                                         max="5000"
                                         value={d2Params.hysteresis}
-                                        onChange={(e) => setD2Params(prev => ({
-                                            ...prev,
-                                            hysteresis: parseInt(e.target.value) || 500
-                                        }))}
+                                        onChange={(e) =>
+                                            setD2Params((prev) => ({
+                                                ...prev,
+                                                hysteresis:
+                                                    parseInt(e.target.value) ||
+                                                    500,
+                                            }))
+                                        }
                                     />
                                 </div>
                                 <div className="input-group">
                                     <label>觸發時間 (ms)</label>
                                     <select
                                         value={d2Params.time_to_trigger}
-                                        onChange={(e) => setD2Params(prev => ({
-                                            ...prev,
-                                            time_to_trigger: parseInt(e.target.value)
-                                        }))}
+                                        onChange={(e) =>
+                                            setD2Params((prev) => ({
+                                                ...prev,
+                                                time_to_trigger: parseInt(
+                                                    e.target.value
+                                                ),
+                                            }))
+                                        }
                                     >
                                         <option value={0}>0</option>
                                         <option value={40}>40</option>
@@ -325,8 +398,11 @@ const EnhancedD2Viewer: React.FC = () => {
                                         <option value={640}>640</option>
                                     </select>
                                 </div>
-                                
-                                <button className="reset-btn" onClick={resetParameters}>
+
+                                <button
+                                    className="reset-btn"
+                                    onClick={resetParameters}
+                                >
                                     🔄 重置參數
                                 </button>
                             </div>
@@ -339,7 +415,11 @@ const EnhancedD2Viewer: React.FC = () => {
                                         <input
                                             type="checkbox"
                                             checked={showThresholdLines}
-                                            onChange={(e) => setShowThresholdLines(e.target.checked)}
+                                            onChange={(e) =>
+                                                setShowThresholdLines(
+                                                    e.target.checked
+                                                )
+                                            }
                                         />
                                         顯示門檻線
                                     </label>
@@ -347,7 +427,9 @@ const EnhancedD2Viewer: React.FC = () => {
                                         <input
                                             type="checkbox"
                                             checked={useRealData}
-                                            onChange={(e) => setUseRealData(e.target.checked)}
+                                            onChange={(e) =>
+                                                setUseRealData(e.target.checked)
+                                            }
                                         />
                                         使用真實數據
                                     </label>
@@ -355,7 +437,9 @@ const EnhancedD2Viewer: React.FC = () => {
                                         <input
                                             type="checkbox"
                                             checked={autoUpdate}
-                                            onChange={(e) => setAutoUpdate(e.target.checked)}
+                                            onChange={(e) =>
+                                                setAutoUpdate(e.target.checked)
+                                            }
                                         />
                                         自動更新
                                     </label>
@@ -370,46 +454,83 @@ const EnhancedD2Viewer: React.FC = () => {
                     <div className="side-panel history-panel">
                         <div className="panel-header">
                             <h3>📊 觸發歷史</h3>
-                            <button 
+                            <button
                                 className="close-btn"
                                 onClick={() => setShowHistoryPanel(false)}
                             >
                                 ✕
                             </button>
                         </div>
-                        
+
                         <div className="panel-content">
                             <div className="history-stats">
                                 <div className="stat-item">
-                                    <span className="stat-label">總觸發次數:</span>
-                                    <span className="stat-value">{triggerHistory.length}</span>
+                                    <span className="stat-label">
+                                        總觸發次數:
+                                    </span>
+                                    <span className="stat-value">
+                                        {triggerHistory.length}
+                                    </span>
                                 </div>
                                 <div className="stat-item">
-                                    <span className="stat-label">當前參考衛星:</span>
-                                    <span className="stat-value">{currentReferenceSatellite || 'N/A'}</span>
+                                    <span className="stat-label">
+                                        當前參考衛星:
+                                    </span>
+                                    <span className="stat-value">
+                                        {currentReferenceSatellite || 'N/A'}
+                                    </span>
                                 </div>
                             </div>
-                            
+
                             <div className="history-list">
                                 {triggerHistory.length === 0 ? (
                                     <div className="no-data">暫無觸發記錄</div>
                                 ) : (
                                     triggerHistory.map((record, index) => (
-                                        <div key={index} className="history-item">
+                                        <div
+                                            key={index}
+                                            className="history-item"
+                                        >
                                             <div className="history-time">
-                                                {new Date(record.timestamp).toLocaleTimeString()}
+                                                {new Date(
+                                                    record.timestamp
+                                                ).toLocaleTimeString()}
                                             </div>
                                             <div className="history-details">
-                                                <div>衛星: {record.satellite_id}</div>
                                                 <div>
-                                                    衛星距離: {(record.measurement_values?.satellite_distance / 1000)?.toFixed(1)} km
+                                                    衛星: {record.satellite_id}
                                                 </div>
                                                 <div>
-                                                    地面距離: {(record.measurement_values?.ground_distance / 1000)?.toFixed(2)} km
+                                                    衛星距離:{' '}
+                                                    {(
+                                                        record
+                                                            .measurement_values
+                                                            ?.satellite_distance /
+                                                        1000
+                                                    )?.toFixed(1)}{' '}
+                                                    km
+                                                </div>
+                                                <div>
+                                                    地面距離:{' '}
+                                                    {(
+                                                        record
+                                                            .measurement_values
+                                                            ?.ground_distance /
+                                                        1000
+                                                    )?.toFixed(2)}{' '}
+                                                    km
                                                 </div>
                                                 <div className="trigger-conditions">
-                                                    條件1: {record.trigger_details?.condition1_met ? '✅' : '❌'}
-                                                    條件2: {record.trigger_details?.condition2_met ? '✅' : '❌'}
+                                                    條件1:{' '}
+                                                    {record.trigger_details
+                                                        ?.condition1_met
+                                                        ? '✅'
+                                                        : '❌'}
+                                                    條件2:{' '}
+                                                    {record.trigger_details
+                                                        ?.condition2_met
+                                                        ? '✅'
+                                                        : '❌'}
                                                 </div>
                                             </div>
                                         </div>
@@ -425,35 +546,52 @@ const EnhancedD2Viewer: React.FC = () => {
                     <div className="side-panel satellite-panel">
                         <div className="panel-header">
                             <h3>🛰️ 衛星資訊</h3>
-                            <button 
+                            <button
                                 className="close-btn"
                                 onClick={() => setShowSatelliteInfo(false)}
                             >
                                 ✕
                             </button>
                         </div>
-                        
+
                         <div className="panel-content">
                             <div className="satellite-stats">
                                 <div className="stat-item">
-                                    <span className="stat-label">可用衛星:</span>
-                                    <span className="stat-value">{availableSatellites.length}</span>
+                                    <span className="stat-label">
+                                        可用衛星:
+                                    </span>
+                                    <span className="stat-value">
+                                        {availableSatellites.length}
+                                    </span>
                                 </div>
                             </div>
-                            
+
                             <div className="satellite-list">
-                                {availableSatellites.slice(0, 10).map((satellite, index) => (
-                                    <div key={index} className="satellite-item">
-                                        <div className="satellite-id">{satellite.satellite_id}</div>
-                                        <div className="satellite-name">{satellite.satellite_name}</div>
-                                        <div className="satellite-epoch">
-                                            Epoch: {new Date(satellite.epoch).toLocaleDateString()}
+                                {availableSatellites
+                                    .slice(0, 10)
+                                    .map((satellite, index) => (
+                                        <div
+                                            key={index}
+                                            className="satellite-item"
+                                        >
+                                            <div className="satellite-id">
+                                                {satellite.satellite_id}
+                                            </div>
+                                            <div className="satellite-name">
+                                                {satellite.satellite_name}
+                                            </div>
+                                            <div className="satellite-epoch">
+                                                Epoch:{' '}
+                                                {new Date(
+                                                    satellite.epoch
+                                                ).toLocaleDateString()}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
                                 {availableSatellites.length > 10 && (
                                     <div className="more-satellites">
-                                        ...還有 {availableSatellites.length - 10} 顆衛星
+                                        ...還有{' '}
+                                        {availableSatellites.length - 10} 顆衛星
                                     </div>
                                 )}
                             </div>

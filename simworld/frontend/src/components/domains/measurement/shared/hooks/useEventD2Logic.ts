@@ -17,8 +17,8 @@ const DEFAULT_D2_PARAMS: EventD2Params = {
   reportInterval: 1000, // Report interval in milliseconds
   reportAmount: 4, // Number of reports
   reportOnLeave: true, // Report when leaving condition
-  referenceLocation1: { lat: 25.0478, lon: 121.5170 }, // 台北車站
-  referenceLocation2: { lat: 25.0418, lon: 121.5448 }  // 松山機場
+  referenceLocation1: { lat: 0.0478, lon: 0.5170 }, // 全球化參考位置 1
+  referenceLocation2: { lat: 0.0418, lon: 0.5448 }  // 全球化參考位置 2
 }
 
 interface EventD2Status {

@@ -11,16 +11,13 @@
  */
 
 import React, { useEffect, useRef, useMemo } from 'react'
-import {
-    Chart,
-    registerables,
-} from 'chart.js'
+import { Chart, registerables } from 'chart.js'
 import annotationPlugin from 'chartjs-plugin-annotation'
 
 // 註冊 Chart.js 組件
 Chart.register(...registerables, annotationPlugin)
 
-// 增強的衛星軌道模擬 - 更接近真實的 LEO 衛星特性
+// 增強的衛星軌道模擬 - 基於真實 LEO 衛星軌道參數
 function _calculateAdvancedSatellitePosition(timeSeconds: number): {
     lat: number
     lon: number
@@ -29,8 +26,8 @@ function _calculateAdvancedSatellitePosition(timeSeconds: number): {
 } {
     const centerLat = 25.0478 // 台北101 緯度
     const centerLon = 121.5319 // 台北101 經度
-    const orbitRadius = 0.01 // 軌道半徑（度）
-    const orbitPeriod = 120 // 軌道週期（秒）
+    const orbitRadius = 0.5 // 軌道半徑（度）- 更真實的軌道範圍
+    const orbitPeriod = 5400 // 軌道週期（90分鐘 = 5400秒）✅ 修正
     const orbitAltitude = 550000 // 軌道高度（公尺）- 典型 LEO 衛星
 
     // 計算角度位置（考慮地球自轉）
@@ -96,22 +93,22 @@ function _calculate3DDistance(
     )
 }
 
-// UE 移動軌跡（固定）
+// UE 移動軌跡（全球化支援 - 可配置）
 const _ueTrajectory = [
-    { time: 0, lat: 25.04, lon: 121.52 },
-    { time: 10, lat: 25.042, lon: 121.522 },
-    { time: 20, lat: 25.044, lon: 121.524 },
-    { time: 30, lat: 25.046, lon: 121.526 },
-    { time: 40, lat: 25.048, lon: 121.528 },
-    { time: 50, lat: 25.05, lon: 121.53 },
-    { time: 60, lat: 25.048, lon: 121.532 },
-    { time: 70, lat: 25.046, lon: 121.534 },
-    { time: 80, lat: 25.044, lon: 121.536 },
-    { time: 90, lat: 25.042, lon: 121.538 },
+    { time: 0, lat: 0.0, lon: 0.0 },
+    { time: 10, lat: 0.002, lon: 0.002 },
+    { time: 20, lat: 0.004, lon: 0.004 },
+    { time: 30, lat: 0.006, lon: 0.006 },
+    { time: 40, lat: 0.008, lon: 0.008 },
+    { time: 50, lat: 0.01, lon: 0.01 },
+    { time: 60, lat: 0.008, lon: 0.012 },
+    { time: 70, lat: 0.006, lon: 0.014 },
+    { time: 80, lat: 0.004, lon: 0.016 },
+    { time: 90, lat: 0.002, lon: 0.018 },
 ]
 
-// 固定參考位置（中正紀念堂）
-const _fixedReferenceLocation = { lat: 25.0173, lon: 121.4695 }
+// 固定參考位置（全球化支援 - 可配置）
+const _fixedReferenceLocation = { lat: 0.0, lon: 0.0 }
 
 // 生成距離數據點
 function generateDistanceData() {
@@ -140,20 +137,32 @@ function generateDistanceData() {
 // 生成當前時間游標數據
 const generateCurrentTimeCursor = (currentTime: number) => {
     return [
-        { x: currentTime, y: 0 },      // 底部
-        { x: currentTime, y: 600000 }  // 頂部 (D2 的 Y 軸範圍為距離，最大600km)
+        { x: currentTime, y: 0 }, // 底部
+        { x: currentTime, y: 600000 }, // 頂部 (D2 的 Y 軸範圍為距離，最大600km)
     ]
 }
 
 // 計算當前時間點的距離值（線性插值）
-const getCurrentDistanceFromPoints = (currentTime: number, distancePoints: Array<{x: number, y: number}>) => {
+const getCurrentDistanceFromPoints = (
+    currentTime: number,
+    distancePoints: Array<{ x: number; y: number }>
+) => {
     if (currentTime <= distancePoints[0].x) return distancePoints[0].y
-    if (currentTime >= distancePoints[distancePoints.length - 1].x) return distancePoints[distancePoints.length - 1].y
-    
+    if (currentTime >= distancePoints[distancePoints.length - 1].x)
+        return distancePoints[distancePoints.length - 1].y
+
     for (let i = 0; i < distancePoints.length - 1; i++) {
-        if (currentTime >= distancePoints[i].x && currentTime <= distancePoints[i + 1].x) {
-            const t = (currentTime - distancePoints[i].x) / (distancePoints[i + 1].x - distancePoints[i].x)
-            return distancePoints[i].y + t * (distancePoints[i + 1].y - distancePoints[i].y)
+        if (
+            currentTime >= distancePoints[i].x &&
+            currentTime <= distancePoints[i + 1].x
+        ) {
+            const t =
+                (currentTime - distancePoints[i].x) /
+                (distancePoints[i + 1].x - distancePoints[i].x)
+            return (
+                distancePoints[i].y +
+                t * (distancePoints[i + 1].y - distancePoints[i].y)
+            )
         }
     }
     return distancePoints[0].y
@@ -170,32 +179,42 @@ const generateGroundNode = (currentTime: number, distance: number) => {
 }
 
 // 生成衛星軌道路徑效果
-const generateSatelliteTrail = (currentTime: number, distance1Points: Array<{x: number, y: number}>, trailLength: number = 10) => {
+const generateSatelliteTrail = (
+    currentTime: number,
+    distance1Points: Array<{ x: number; y: number }>,
+    trailLength: number = 10
+) => {
     const trail = []
     const startTime = Math.max(0, currentTime - trailLength)
-    
+
     for (let t = startTime; t <= currentTime; t += 0.5) {
         const distance = getCurrentDistanceFromPoints(t, distance1Points)
         trail.push({ x: t, y: distance })
     }
-    
+
     return trail
 }
 
 // 檢查Event D2事件觸發狀態
-const checkD2EventTrigger = (satDistance: number, groundDistance: number, thresh1: number, thresh2: number, hysteresis: number) => {
+const checkD2EventTrigger = (
+    satDistance: number,
+    groundDistance: number,
+    thresh1: number,
+    thresh2: number,
+    hysteresis: number
+) => {
     // Event D2 進入條件: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2
     // Ml1: 衛星距離, Ml2: 地面距離
-    const condition1 = (satDistance - hysteresis) > thresh1
-    const condition2 = (groundDistance + hysteresis) < thresh2
+    const condition1 = satDistance - hysteresis > thresh1
+    const condition2 = groundDistance + hysteresis < thresh2
     const isTriggered = condition1 && condition2
-    
+
     return {
         isTriggered,
         condition1,
         condition2,
         condition1Status: condition1 ? 'satisfied' : 'not_satisfied',
-        condition2Status: condition2 ? 'satisfied' : 'not_satisfied'
+        condition2Status: condition2 ? 'satisfied' : 'not_satisfied',
     }
 }
 
@@ -346,10 +365,13 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                                       borderWidth: 3,
                                       borderDash: [8, 4],
                                       label: {
-                                          content: `Thresh1: ${(thresh1 / 1000).toFixed(0)}km (衛星)`,
+                                          content: `Thresh1: ${(
+                                              thresh1 / 1000
+                                          ).toFixed(0)}km (衛星)`,
                                           enabled: true,
                                           position: 'start' as const,
-                                          backgroundColor: currentTheme.thresh1Line,
+                                          backgroundColor:
+                                              currentTheme.thresh1Line,
                                           color: 'white',
                                           font: { size: 11, weight: 'bold' },
                                       },
@@ -362,10 +384,13 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                                       borderWidth: 3,
                                       borderDash: [8, 4],
                                       label: {
-                                          content: `Thresh2: ${(thresh2 / 1000).toFixed(1)}km (地面)`,
+                                          content: `Thresh2: ${(
+                                              thresh2 / 1000
+                                          ).toFixed(1)}km (地面)`,
                                           enabled: true,
                                           position: 'end' as const,
-                                          backgroundColor: currentTheme.thresh2Line,
+                                          backgroundColor:
+                                              currentTheme.thresh2Line,
                                           color: 'white',
                                           font: { size: 11, weight: 'bold' },
                                       },
@@ -379,10 +404,14 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                                       borderWidth: 1,
                                       borderDash: [3, 3],
                                       label: {
-                                          content: `+Hys: ${((thresh1 + hysteresis) / 1000).toFixed(0)}km`,
+                                          content: `+Hys: ${(
+                                              (thresh1 + hysteresis) /
+                                              1000
+                                          ).toFixed(0)}km`,
                                           enabled: true,
                                           position: 'start' as const,
-                                          backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                                          backgroundColor:
+                                              'rgba(220, 53, 69, 0.7)',
                                           color: 'white',
                                           font: { size: 9 },
                                       },
@@ -395,10 +424,14 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                                       borderWidth: 1,
                                       borderDash: [3, 3],
                                       label: {
-                                          content: `-Hys: ${((thresh1 - hysteresis) / 1000).toFixed(0)}km`,
+                                          content: `-Hys: ${(
+                                              (thresh1 - hysteresis) /
+                                              1000
+                                          ).toFixed(0)}km`,
                                           enabled: true,
                                           position: 'start' as const,
-                                          backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                                          backgroundColor:
+                                              'rgba(220, 53, 69, 0.7)',
                                           color: 'white',
                                           font: { size: 9 },
                                       },
@@ -412,10 +445,14 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                                       borderWidth: 1,
                                       borderDash: [3, 3],
                                       label: {
-                                          content: `+Hys: ${((thresh2 + hysteresis) / 1000).toFixed(2)}km`,
+                                          content: `+Hys: ${(
+                                              (thresh2 + hysteresis) /
+                                              1000
+                                          ).toFixed(2)}km`,
                                           enabled: true,
                                           position: 'end' as const,
-                                          backgroundColor: 'rgba(0, 123, 255, 0.7)',
+                                          backgroundColor:
+                                              'rgba(0, 123, 255, 0.7)',
                                           color: 'white',
                                           font: { size: 9 },
                                       },
@@ -428,10 +465,14 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                                       borderWidth: 1,
                                       borderDash: [3, 3],
                                       label: {
-                                          content: `-Hys: ${((thresh2 - hysteresis) / 1000).toFixed(2)}km`,
+                                          content: `-Hys: ${(
+                                              (thresh2 - hysteresis) /
+                                              1000
+                                          ).toFixed(2)}km`,
                                           enabled: true,
                                           position: 'end' as const,
-                                          backgroundColor: 'rgba(0, 123, 255, 0.7)',
+                                          backgroundColor:
+                                              'rgba(0, 123, 255, 0.7)',
                                           color: 'white',
                                           font: { size: 9 },
                                       },
@@ -445,14 +486,17 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                                       yScaleID: 'y-left',
                                       yMin: 545000,
                                       yMax: 547000,
-                                      backgroundColor: 'rgba(40, 167, 69, 0.15)',
+                                      backgroundColor:
+                                          'rgba(40, 167, 69, 0.15)',
                                       borderColor: 'rgba(40, 167, 69, 0.6)',
                                       borderWidth: 2,
                                       label: {
-                                          content: 'Event D2 觸發區間 (20-80s)\n條件: Ml1-Hys>Thresh1 AND Ml2+Hys<Thresh2',
+                                          content:
+                                              'Event D2 觸發區間 (20-80s)\n條件: Ml1-Hys>Thresh1 AND Ml2+Hys<Thresh2',
                                           enabled: true,
                                           position: 'center' as const,
-                                          backgroundColor: 'rgba(40, 167, 69, 0.9)',
+                                          backgroundColor:
+                                              'rgba(40, 167, 69, 0.9)',
                                           color: 'white',
                                           font: { size: 10, weight: 'bold' },
                                       },
@@ -585,18 +629,35 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
         const expectedGroundNodeIndex = 4
         const expectedTrailIndex = 5
         const expectedEventNodeIndex = 6
-        
+
         if (currentTime > 0) {
             const cursorData = generateCurrentTimeCursor(currentTime)
-            const currentSatDistance = getCurrentDistanceFromPoints(currentTime, distance1Points)
-            const currentGroundDistance = getCurrentDistanceFromPoints(currentTime, distance2Points)
-            const eventStatus = checkD2EventTrigger(currentSatDistance, currentGroundDistance, thresh1, thresh2, hysteresis)
-            const satelliteTrail = generateSatelliteTrail(currentTime, distance1Points)
-            
+            const currentSatDistance = getCurrentDistanceFromPoints(
+                currentTime,
+                distance1Points
+            )
+            const currentGroundDistance = getCurrentDistanceFromPoints(
+                currentTime,
+                distance2Points
+            )
+            const eventStatus = checkD2EventTrigger(
+                currentSatDistance,
+                currentGroundDistance,
+                thresh1,
+                thresh2,
+                hysteresis
+            )
+            const satelliteTrail = generateSatelliteTrail(
+                currentTime,
+                distance1Points
+            )
+
             // 更新游標
             if (chart.data.datasets[expectedCursorIndex]) {
                 chart.data.datasets[expectedCursorIndex].data = cursorData
-                chart.data.datasets[expectedCursorIndex].label = `Current Time: ${currentTime.toFixed(1)}s`
+                chart.data.datasets[
+                    expectedCursorIndex
+                ].label = `Current Time: ${currentTime.toFixed(1)}s`
             } else {
                 chart.data.datasets.push({
                     label: `Current Time: ${currentTime.toFixed(1)}s`,
@@ -612,21 +673,33 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                     yAxisID: 'y-left',
                 } as Record<string, unknown>)
             }
-            
+
             // 更新衛星節點（左Y軸）
-            const satNodeData = generateSatelliteNode(currentTime, currentSatDistance)
+            const satNodeData = generateSatelliteNode(
+                currentTime,
+                currentSatDistance
+            )
             const satNodeColor = eventStatus.condition1 ? '#28A745' : '#FFC107'
             const satNodeSize = eventStatus.condition1 ? 14 : 10
-            
+
             if (chart.data.datasets[expectedSatNodeIndex]) {
                 chart.data.datasets[expectedSatNodeIndex].data = satNodeData
-                chart.data.datasets[expectedSatNodeIndex].label = `Satellite (${(currentSatDistance/1000).toFixed(0)}km)`
-                chart.data.datasets[expectedSatNodeIndex].borderColor = satNodeColor
-                chart.data.datasets[expectedSatNodeIndex].backgroundColor = satNodeColor
-                chart.data.datasets[expectedSatNodeIndex].pointRadius = satNodeSize
+                chart.data.datasets[
+                    expectedSatNodeIndex
+                ].label = `Satellite (${(currentSatDistance / 1000).toFixed(
+                    0
+                )}km)`
+                chart.data.datasets[expectedSatNodeIndex].borderColor =
+                    satNodeColor
+                chart.data.datasets[expectedSatNodeIndex].backgroundColor =
+                    satNodeColor
+                chart.data.datasets[expectedSatNodeIndex].pointRadius =
+                    satNodeSize
             } else {
                 chart.data.datasets.push({
-                    label: `Satellite (${(currentSatDistance/1000).toFixed(0)}km)`,
+                    label: `Satellite (${(currentSatDistance / 1000).toFixed(
+                        0
+                    )}km)`,
                     data: satNodeData,
                     borderColor: satNodeColor,
                     backgroundColor: satNodeColor,
@@ -640,21 +713,36 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                     tension: 0,
                 } as Record<string, unknown>)
             }
-            
+
             // 更新地面節點（右Y軸）
-            const groundNodeData = generateGroundNode(currentTime, currentGroundDistance)
-            const groundNodeColor = eventStatus.condition2 ? '#007BFF' : '#DC3545'
+            const groundNodeData = generateGroundNode(
+                currentTime,
+                currentGroundDistance
+            )
+            const groundNodeColor = eventStatus.condition2
+                ? '#007BFF'
+                : '#DC3545'
             const groundNodeSize = eventStatus.condition2 ? 14 : 10
-            
+
             if (chart.data.datasets[expectedGroundNodeIndex]) {
-                chart.data.datasets[expectedGroundNodeIndex].data = groundNodeData
-                chart.data.datasets[expectedGroundNodeIndex].label = `Ground (${(currentGroundDistance/1000).toFixed(1)}km)`
-                chart.data.datasets[expectedGroundNodeIndex].borderColor = groundNodeColor
-                chart.data.datasets[expectedGroundNodeIndex].backgroundColor = groundNodeColor
-                chart.data.datasets[expectedGroundNodeIndex].pointRadius = groundNodeSize
+                chart.data.datasets[expectedGroundNodeIndex].data =
+                    groundNodeData
+                chart.data.datasets[
+                    expectedGroundNodeIndex
+                ].label = `Ground (${(currentGroundDistance / 1000).toFixed(
+                    1
+                )}km)`
+                chart.data.datasets[expectedGroundNodeIndex].borderColor =
+                    groundNodeColor
+                chart.data.datasets[expectedGroundNodeIndex].backgroundColor =
+                    groundNodeColor
+                chart.data.datasets[expectedGroundNodeIndex].pointRadius =
+                    groundNodeSize
             } else {
                 chart.data.datasets.push({
-                    label: `Ground (${(currentGroundDistance/1000).toFixed(1)}km)`,
+                    label: `Ground (${(currentGroundDistance / 1000).toFixed(
+                        1
+                    )}km)`,
                     data: groundNodeData,
                     borderColor: groundNodeColor,
                     backgroundColor: groundNodeColor,
@@ -668,7 +756,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                     tension: 0,
                 } as Record<string, unknown>)
             }
-            
+
             // 更新衛星軌道路徑（動態追蹤效果）
             if (chart.data.datasets[expectedTrailIndex]) {
                 chart.data.datasets[expectedTrailIndex].data = satelliteTrail
@@ -687,12 +775,15 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                     borderDash: [3, 3],
                 } as Record<string, unknown>)
             }
-            
+
             // 更新Event D2狀態節點
             if (eventStatus.isTriggered) {
-                const eventNodeData = [{ x: currentTime, y: currentSatDistance }]
+                const eventNodeData = [
+                    { x: currentTime, y: currentSatDistance },
+                ]
                 if (chart.data.datasets[expectedEventNodeIndex]) {
-                    chart.data.datasets[expectedEventNodeIndex].data = eventNodeData
+                    chart.data.datasets[expectedEventNodeIndex].data =
+                        eventNodeData
                 } else {
                     chart.data.datasets.push({
                         label: 'Event D2 TRIGGERED!',
@@ -711,7 +802,12 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 }
             } else {
                 // 移除Event節點
-                if (chart.data.datasets[expectedEventNodeIndex] && chart.data.datasets[expectedEventNodeIndex].label?.includes('TRIGGERED')) {
+                if (
+                    chart.data.datasets[expectedEventNodeIndex] &&
+                    chart.data.datasets[expectedEventNodeIndex].label?.includes(
+                        'TRIGGERED'
+                    )
+                ) {
                     chart.data.datasets.splice(expectedEventNodeIndex, 1)
                 }
             }
@@ -731,7 +827,15 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
             chart.destroy()
             chartRef.current = null
         }
-    }, [currentTime, currentTheme, distance1Points, distance2Points, thresh1, thresh2, hysteresis])
+    }, [
+        currentTime,
+        currentTheme,
+        distance1Points,
+        distance2Points,
+        thresh1,
+        thresh2,
+        hysteresis,
+    ])
 
     return (
         <div
