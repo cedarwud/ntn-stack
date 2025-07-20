@@ -9,11 +9,11 @@ import React from 'react'
 export type EventType = 'A4' | 'D1' | 'D2' | 'T1'
 export type EventCategory = 'signal' | 'distance' | 'time'
 
-// 動態導入事件組件以優化性能
-const EventA4Viewer = React.lazy(() => import('../charts/EventA4Viewer'))
-const EventD1Viewer = React.lazy(() => import('../charts/EventD1Viewer')) 
-const EventD2Viewer = React.lazy(() => import('../charts/EventD2Viewer'))
-const EventT1Viewer = React.lazy(() => import('../charts/EventT1Viewer'))
+// 動態導入適配後的 Enhanced 事件組件以優化性能
+const AdaptedEnhancedA4Viewer = React.lazy(() => import('../adapters/EnhancedViewerAdapter').then(module => ({ default: module.AdaptedEnhancedA4Viewer })))
+const AdaptedEnhancedD1Viewer = React.lazy(() => import('../adapters/EnhancedViewerAdapter').then(module => ({ default: module.AdaptedEnhancedD1Viewer }))) 
+const AdaptedEnhancedD2Viewer = React.lazy(() => import('../adapters/EnhancedViewerAdapter').then(module => ({ default: module.AdaptedEnhancedD2Viewer })))
+const AdaptedEnhancedT1Viewer = React.lazy(() => import('../adapters/EnhancedViewerAdapter').then(module => ({ default: module.AdaptedEnhancedT1Viewer })))
 
 export interface EventConfig {
     id: EventType
@@ -51,7 +51,7 @@ export const EVENT_CONFIGS: Record<EventType, EventConfig> = {
         status: 'available',
         category: 'signal',
         standard: '3GPP TS 38.331 Section 5.5.4.5',
-        ViewerComponent: EventA4Viewer,
+        ViewerComponent: AdaptedEnhancedA4Viewer,
         icon: '📡',
         color: {
             primary: '#4A90E2',
@@ -82,7 +82,7 @@ export const EVENT_CONFIGS: Record<EventType, EventConfig> = {
         status: 'available',
         category: 'distance',
         standard: '3GPP TS 38.331 Section 5.5.4.15',
-        ViewerComponent: EventD1Viewer,
+        ViewerComponent: AdaptedEnhancedD1Viewer,
         icon: '📍',
         color: {
             primary: '#50C878',
@@ -112,7 +112,7 @@ export const EVENT_CONFIGS: Record<EventType, EventConfig> = {
         status: 'available',
         category: 'distance',
         standard: '3GPP TS 38.331 Section 5.5.4.15a',
-        ViewerComponent: EventD2Viewer,
+        ViewerComponent: AdaptedEnhancedD2Viewer,
         icon: '🛰️',
         color: {
             primary: '#FF6B35',
@@ -142,7 +142,7 @@ export const EVENT_CONFIGS: Record<EventType, EventConfig> = {
         status: 'available',
         category: 'time',
         standard: '3GPP TS 38.331 Section 5.5.4.16',
-        ViewerComponent: EventT1Viewer,
+        ViewerComponent: AdaptedEnhancedT1Viewer,
         icon: '⏱️',
         color: {
             primary: '#9B59B6',
