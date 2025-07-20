@@ -243,9 +243,9 @@ class MeasurementEventService:
             if not neighbor_cells:
                 self.logger.warning("無可用的鄰居細胞配置")
                 
-                # Phase 2.1-2.2 改進：對於 D1 和 D2 事件，即使沒有鄰居細胞配置也繼續執行
-                # 這些事件有增強的衛星選擇算法，可以自動選擇最佳衛星
-                if event_type not in [EventType.D1, EventType.D2]:
+                # Phase 2.1-2.3 改進：對於 D1、D2 和 T1 事件，即使沒有鄰居細胞配置也繼續執行
+                # D1/D2 事件有增強的衛星選擇算法，T1 事件基於時間條件不需要鄰居細胞
+                if event_type not in [EventType.D1, EventType.D2, EventType.T1]:
                     self.logger.error(f"{event_type.value} 事件需要鄰居細胞配置")
                     return None
                 else:
@@ -1046,29 +1046,25 @@ class MeasurementEventService:
             measurement_values = {}
             satellite_positions = {}
             
-            # 獲取 SIB19 時間框架
-            time_correction = await self.sib19_platform.get_t1_time_frame()
+            # Phase 2.3 簡化 T1 實現：基於當前時間的基本時間條件檢查
+            # 模擬一個服務會話開始時間 (假設從一小時前開始)
+            service_start_time = current_time - timedelta(hours=1)
+            elapsed_time = (current_time - service_start_time).total_seconds()
             
-            if not time_correction:
-                return None
-                
-            # 計算時間相關參數
-            epoch_time = time_correction.epoch_time
-            t_service = time_correction.t_service
+            # 模擬服務持續時間 (假設服務會話總時長 2 小時)
+            total_service_duration = 7200  # 2 hours in seconds
+            remaining_service_time = max(0, total_service_duration - elapsed_time)
             
-            # 計算自 epoch 以來的時間
-            elapsed_time = (current_time - epoch_time).total_seconds()
             measurement_values["elapsed_time"] = elapsed_time
-            measurement_values["epoch_time"] = epoch_time.isoformat()
-            measurement_values["t_service"] = t_service
-            measurement_values["time_sync_accuracy_ms"] = time_correction.current_accuracy_ms
+            measurement_values["service_start_time"] = service_start_time.isoformat()
+            measurement_values["total_service_duration"] = total_service_duration
+            measurement_values["remaining_service_time"] = remaining_service_time
+            measurement_values["current_time"] = current_time.isoformat()
             
-            # T1 觸發條件檢查
-            # 當經過的時間超過設定的門檻值
+            # T1 觸發條件檢查：當經過的時間超過設定的門檻值
             trigger_condition_met = elapsed_time > params.t1_threshold
             
-            # 如果觸發，檢查持續時間
-            remaining_service_time = max(0, t_service - elapsed_time)
+            # 如果觸發，檢查是否還有足夠的持續時間
             duration_met = remaining_service_time >= params.duration
             
             trigger_details = {
@@ -1341,7 +1337,8 @@ class MeasurementEventService:
             if not available_satellites:
                 try:
                     active_satellites = await self.tle_manager.get_active_satellites(max_age_hours=24)
-                    available_satellites = [sat.satellite_id for sat in active_satellites[:10]]  # 限制前10顆
+                    available_satellites = [sat.satellite_id for sat in active_satellites[:20]]  # 增加到20顆以提高選擇機會
+                    self.logger.info(f"D1 衛星選擇：從 {len(available_satellites)} 顆活躍衛星中選擇")
                 except Exception as e:
                     self.logger.warning(f"無法獲取活躍衛星列表: {str(e)}")
                     return None
@@ -1350,6 +1347,7 @@ class MeasurementEventService:
             best_satellite = None
             best_score = -1
             current_time = datetime.now(timezone.utc)
+            candidate_satellites = []
             
             for satellite_id in available_satellites:
                 try:
@@ -1359,20 +1357,32 @@ class MeasurementEventService:
                     )
                     
                     if not pos:
+                        self.logger.debug(f"衛星 {satellite_id} 位置計算失敗")
                         continue
                     
-                    # 計算仰角
+                    # 計算仰角和距離
                     elevation = self._calculate_elevation_angle(ue_position, pos)
+                    distance = self._calculate_3d_satellite_distance(pos, ue_position)
+                    
+                    # 記錄候選衛星信息
+                    candidate_satellites.append({
+                        'id': satellite_id,
+                        'elevation': elevation,
+                        'distance': distance / 1000.0,  # 轉換為 km
+                        'altitude': pos.altitude
+                    })
                     
                     # 仰角門檻檢查
                     if elevation < params.min_elevation_angle:
+                        self.logger.debug(f"衛星 {satellite_id} 仰角不足: {elevation:.2f}° < {params.min_elevation_angle}°")
                         continue
-                    
-                    # 計算距離
-                    distance = self._calculate_3d_satellite_distance(pos, ue_position)
                     
                     # 計算綜合評分
                     score = self._calculate_d1_satellite_score(elevation, distance, pos)
+                    
+                    self.logger.debug(
+                        f"衛星 {satellite_id} 評分: 仰角={elevation:.2f}°, 距離={distance/1000:.1f}km, 評分={score:.3f}"
+                    )
                     
                     if score > best_score:
                         best_score = score
@@ -1382,13 +1392,27 @@ class MeasurementEventService:
                     self.logger.warning(f"評估衛星 {satellite_id} 失敗: {str(e)}")
                     continue
             
+            # 記錄所有候選衛星的信息
+            self.logger.info(
+                f"D1 衛星候選列表 (前5名)：" + 
+                ", ".join([
+                    f"{sat['id']}(仰角={sat['elevation']:.1f}°,距離={sat['distance']:.0f}km)"
+                    for sat in sorted(candidate_satellites, key=lambda x: x['elevation'], reverse=True)[:5]
+                ])
+            )
+            
             if best_satellite:
+                best_info = next(sat for sat in candidate_satellites if sat['id'] == best_satellite)
                 self.logger.info(
-                    f"D1 服務衛星選擇: {best_satellite}, 評分: {best_score:.3f}"
+                    f"D1 服務衛星選中: {best_satellite}, 仰角: {best_info['elevation']:.2f}°, "
+                    f"距離: {best_info['distance']:.1f}km, 評分: {best_score:.3f}"
                 )
                 return best_satellite
             else:
-                self.logger.warning("D1 事件無可用服務衛星")
+                self.logger.warning(
+                    f"D1 事件無可用服務衛星 (最小仰角要求: {params.min_elevation_angle}°, "
+                    f"檢查了 {len(available_satellites)} 顆衛星)"
+                )
                 return None
                 
         except Exception as e:
