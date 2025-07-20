@@ -111,15 +111,18 @@ async def get_services():
             _orbit_engine, _sib19_platform, _tle_manager
         )
         
-        # 初始化平台
-        await _sib19_platform.initialize_sib19_platform()
+        # 正確的初始化順序
+        # 1. 首先初始化 TLE 管理器和數據源
         await _tle_manager.initialize_default_sources()
         
-        # 強制更新 TLE 數據
+        # 2. 強制更新 TLE 數據，確保有衛星數據
         await _tle_manager.force_update_all()
         
-        # 確保測量服務與軌道引擎數據同步
+        # 3. 確保測量服務與軌道引擎數據同步
         await _measurement_service.sync_tle_data_from_manager()
+        
+        # 4. 最後初始化 SIB19 平台 (此時已有衛星數據)
+        await _sib19_platform.initialize_sib19_platform()
         
     return {
         "measurement_service": _measurement_service,
