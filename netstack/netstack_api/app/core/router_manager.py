@@ -51,6 +51,7 @@ class RouterManager:
             # 嘗試導入 WebSocket 路由器
             try:
                 from ...routers.websocket_router import websocket_router
+
                 websocket_available = True
             except ImportError:
                 websocket_available = False
@@ -69,7 +70,10 @@ class RouterManager:
 
             # 嘗試導入衛星操作路由器
             try:
-                from ...routers.satellite_ops_router import router as satellite_ops_router
+                from ...routers.satellite_ops_router import (
+                    router as satellite_ops_router,
+                )
+
                 satellite_ops_available = True
             except ImportError:
                 satellite_ops_available = False
@@ -106,33 +110,47 @@ class RouterManager:
 
             # 註冊 WebSocket 路由器
             if websocket_available:
-                self.app.include_router(
-                    websocket_router,
-                    tags=["WebSocket 實時推送"]
-                )
+                self.app.include_router(websocket_router, tags=["WebSocket 實時推送"])
                 self._track_router("websocket_router", "WebSocket 實時推送", True)
                 logger.info("✅ WebSocket 路由器註冊完成")
 
             # 註冊衛星操作路由器
             if satellite_ops_available:
-                self.app.include_router(
-                    satellite_ops_router,
-                    tags=["衛星操作"]
-                )
+                self.app.include_router(satellite_ops_router, tags=["衛星操作"])
                 self._track_router("satellite_ops_router", "衛星操作", True)
                 logger.info("✅ 衛星操作路由器註冊完成")
 
             # 嘗試導入測量事件路由器
             try:
-                from ...routers.measurement_events_router import router as measurement_events_router
-                self.app.include_router(
-                    measurement_events_router,
-                    tags=["測量事件"]
+                from ...routers.measurement_events_router import (
+                    router as measurement_events_router,
                 )
+
+                self.app.include_router(measurement_events_router, tags=["測量事件"])
                 self._track_router("measurement_events_router", "測量事件", True)
                 logger.info("✅ 測量事件路由器註冊完成")
             except ImportError:
                 logger.warning("測量事件路由器不可用，跳過註冊")
+
+            # 嘗試導入軌道路由器
+            try:
+                from ...routers.orbit_router import router as orbit_router
+
+                self.app.include_router(orbit_router, tags=["軌道計算"])
+                self._track_router("orbit_router", "軌道計算", True)
+                logger.info("✅ 軌道路由器註冊完成")
+            except ImportError:
+                logger.warning("軌道路由器不可用，跳過註冊")
+
+            # 嘗試導入 SIB19 路由器
+            try:
+                from ...routers.sib19_router import router as sib19_router
+
+                self.app.include_router(sib19_router, tags=["SIB19 統一平台"])
+                self._track_router("sib19_router", "SIB19 統一平台", True)
+                logger.info("✅ SIB19 路由器註冊完成")
+            except ImportError:
+                logger.warning("SIB19 路由器不可用，跳過註冊")
 
             logger.info("✅ 新模組化路由器註冊完成")
         except Exception as e:
@@ -160,15 +178,11 @@ class RouterManager:
             self.app.include_router(intelligent_fallback_router, tags=["智能回退機制"])
             self._track_router("intelligent_fallback_router", "智能回退機制", True)
             self.app.include_router(
-                rl_monitoring_router, 
-                prefix="/api/v1/rl",
-                tags=["RL 監控"]
+                rl_monitoring_router, prefix="/api/v1/rl", tags=["RL 監控"]
             )
             self._track_router("rl_monitoring_router", "RL 監控", True)
             self.app.include_router(
-                rl_training_router, 
-                prefix="/api/v1/rl/training",
-                tags=["RL 訓練"]
+                rl_training_router, prefix="/api/v1/rl/training", tags=["RL 訓練"]
             )
             self._track_router("rl_training_router", "RL 訓練", True)
             self.app.include_router(test_router, tags=["測試"])
@@ -210,11 +224,11 @@ class RouterManager:
 
         # 算法生態系統路由器 - 靜態註冊
         try:
-            from ...routers.algorithm_ecosystem import router as algorithm_ecosystem_router
-            
-            self.app.include_router(
-                algorithm_ecosystem_router, tags=["算法生態系統"]
+            from ...routers.algorithm_ecosystem import (
+                router as algorithm_ecosystem_router,
             )
+
+            self.app.include_router(algorithm_ecosystem_router, tags=["算法生態系統"])
             self._track_router(
                 "algorithm_ecosystem_router",
                 "算法生態系統",
@@ -233,12 +247,14 @@ class RouterManager:
 
         # Phase 2.2 API 路由器 - 靜態註冊
         try:
-            from ...services.rl_training.api.phase_2_2_api import router as phase_2_2_router
-            
+            from ...services.rl_training.api.phase_2_2_api import (
+                router as phase_2_2_router,
+            )
+
             self.app.include_router(
-                phase_2_2_router, 
+                phase_2_2_router,
                 prefix="/api/v1/rl/phase-2-2",
-                tags=["Phase 2.2 - 真實換手場景生成"]
+                tags=["Phase 2.2 - 真實換手場景生成"],
             )
             self._track_router(
                 "phase_2_2_router",
@@ -258,12 +274,14 @@ class RouterManager:
 
         # Phase 2.3 API 路由器 - 使用簡化版本
         try:
-            from ...services.rl_training.api.phase_2_3_simple_api import router as phase_2_3_router
-            
+            from ...services.rl_training.api.phase_2_3_simple_api import (
+                router as phase_2_3_router,
+            )
+
             self.app.include_router(
-                phase_2_3_router, 
+                phase_2_3_router,
                 prefix="/api/v1/rl/phase-2-3",
-                tags=["Phase 2.3 - RL 算法實戰應用"]
+                tags=["Phase 2.3 - RL 算法實戰應用"],
             )
             self._track_router(
                 "phase_2_3_router",
@@ -284,11 +302,11 @@ class RouterManager:
         # Phase 3 API 路由器 - 決策透明化與視覺化 (完整版)
         try:
             from ...services.rl_training.api.phase_3_api import router as phase_3_router
-            
+
             self.app.include_router(
-                phase_3_router, 
+                phase_3_router,
                 prefix="/api/v1/rl/phase-3",
-                tags=["Phase 3 - 決策透明化與視覺化"]
+                tags=["Phase 3 - 決策透明化與視覺化"],
             )
             self._track_router(
                 "phase_3_router",
@@ -309,11 +327,11 @@ class RouterManager:
         # Phase 4 API 路由器 - 分散式訓練與深度系統整合 (完整版)
         try:
             from ...services.rl_training.api.phase_4_api import router as phase_4_router
-            
+
             self.app.include_router(
-                phase_4_router, 
+                phase_4_router,
                 prefix="/api/v1/rl/phase-4",
-                tags=["Phase 4 - 分散式訓練與深度系統整合"]
+                tags=["Phase 4 - 分散式訓練與深度系統整合"],
             )
             self._track_router(
                 "phase_4_router",

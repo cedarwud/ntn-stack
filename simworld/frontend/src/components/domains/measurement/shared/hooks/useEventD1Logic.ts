@@ -16,8 +16,8 @@ const DEFAULT_D1_PARAMS: EventD1Params = {
   reportInterval: 1000, // Report interval in milliseconds
   reportAmount: 8, // Number of reports
   reportOnLeave: true, // Report when leaving condition
-  referenceLocation1: { lat: 25.0330, lon: 121.5654 }, // 台北 101
-  referenceLocation2: { lat: 25.0478, lon: 121.5170 }  // 台北車站
+  referenceLocation1: { lat: 0.0330, lon: 0.5654 }, // 全球化參考位置 1
+  referenceLocation2: { lat: 0.0478, lon: 0.5170 }  // 全球化參考位置 2
 }
 
 interface EventD1Status {
@@ -107,8 +107,8 @@ export const useEventD1Logic = (): UseEventLogicResult<EventD1Params> & {
     const startLat = 25.0330
     const startLon = 121.5654
     
-    // 創建一個橢圓軌跡
-    const progress = (currentTime / 120) * 2 * Math.PI
+    // 創建一個橢圓軌跡 - 修正：使用真實 LEO 軌道週期 90分鐘 = 5400秒
+    const progress = (currentTime / 5400) * 2 * Math.PI
     const latOffset = 0.01 * Math.sin(progress) // 約 1.1 km 範圍
     const lonOffset = 0.015 * Math.cos(progress) // 約 1.5 km 範圍
     

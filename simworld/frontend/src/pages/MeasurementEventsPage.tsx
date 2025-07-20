@@ -37,8 +37,8 @@ export const MeasurementEventsPage: React.FC = () => {
         reportAmount: 3,
         reportInterval: 1000,
         reportOnLeave: true,
-        referenceLocation1: { lat: 25.0478, lon: 121.5319 }, // 台北101
-        referenceLocation2: { lat: 25.0173, lon: 121.4695 }, // 中正紀念堂
+        referenceLocation1: { lat: 0.0, lon: 0.0 }, // 全球化預設位置 - 可配置
+        referenceLocation2: { lat: 0.0, lon: 0.0 }, // 全球化預設位置 - 可配置
     })
 
     const handleA4ParamChange = (
