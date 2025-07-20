@@ -677,7 +677,7 @@ const EnhancedT1Chart: React.FC<EnhancedT1ChartProps> = ({
             )}
 
             {/* 圖表區域 */}
-            <div className="chart-area">
+            <div className="chart-area h-96 w-full" style={{ height: '400px', minHeight: '400px' }}>
                 <Line data={chartData} options={chartOptions} />
             </div>
         </div>
