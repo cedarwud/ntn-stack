@@ -697,8 +697,40 @@ class SIB19UnifiedPlatform:
         # 計算空間補償項 ΔS
         serving_distance = self.orbit_engine.calculate_distance(serving_pos, ue_pos)
         target_distance = self.orbit_engine.calculate_distance(target_pos, ue_pos)
-        delta_s = target_distance - serving_distance  # 距離差 (km -> m)
-        delta_s *= 1000  # 轉換為米
+        raw_delta_s = target_distance - serving_distance  # 距離差 (km)
+        
+        # A4 事件位置補償改進：
+        # 對於衛星通信，主要考慮相對幾何差異而非絕對距離差
+        # 使用仰角和方位角差異來計算有效的位置補償
+        serving_elevation = self._calculate_elevation_angle(serving_pos, ue_pos)
+        target_elevation = self._calculate_elevation_angle(target_pos, ue_pos)
+        
+        # 基於仰角差異的幾何補償 (更符合實際無線通信場景)
+        elevation_diff = target_elevation - serving_elevation  # 度
+        
+        # 調試信息
+        self.logger.info(
+            "A4 位置補償計算",
+            serving_elevation=serving_elevation,
+            target_elevation=target_elevation,
+            elevation_diff=elevation_diff
+        )
+        
+        # 修正：限制仰角差異在合理範圍內 (±10度) 並使用更保守的補償係數
+        elevation_diff = max(-10.0, min(10.0, elevation_diff))
+        geometric_compensation_km = elevation_diff * 1.0  # 每度仰角差異約1km等效距離 (更保守)
+        
+        # 最終限制補償範圍在合理範圍內 (±10km)
+        effective_delta_s = max(-10.0, min(10.0, geometric_compensation_km))
+        delta_s = effective_delta_s * 1000  # 轉換為米
+        
+        # 調試信息
+        self.logger.info(
+            "A4 位置補償結果",
+            geometric_compensation_km=geometric_compensation_km,
+            effective_delta_s=effective_delta_s,
+            delta_s=delta_s
+        )
         
         # 計算時間補償項 ΔT (基於信號傳播時間差)
         c = 299792458  # 光速 m/s
@@ -725,17 +757,23 @@ class SIB19UnifiedPlatform:
     ) -> float:
         """計算衛星仰角"""
         try:
-            # 簡化計算 - 實際應使用更精確的球面幾何
+            # 簡化計算 - 基於地面距離和衛星高度
             distance = self.orbit_engine.calculate_distance(satellite_pos, observer_pos)
-            earth_radius = 6371.0  # km
+            satellite_altitude = satellite_pos.altitude or 550.0  # Starlink 高度 (km)
             
-            # 使用餘弦定理計算仰角
-            satellite_altitude = satellite_pos.altitude or 550.0  # Starlink 高度
+            # 使用簡化的幾何計算仰角
+            # elevation = arctan(height / ground_distance)
+            # 假設地面距離約等於總距離 (對於 LEO 衛星這是合理近似)
+            if distance > 0:
+                angle_rad = math.atan(satellite_altitude / distance)
+                elevation = math.degrees(angle_rad)
+                # 確保仰角在合理範圍內 (0-90度)
+                return max(0.0, min(90.0, elevation))
+            else:
+                return 90.0  # 衛星正上方
             
-            angle = math.asin((satellite_altitude - earth_radius) / distance)
-            return math.degrees(angle)
-            
-        except:
+        except Exception as e:
+            self.logger.warning(f"仰角計算失敗: {e}")
             return 45.0  # 默認仰角
             
     def _calculate_doppler_correction(
