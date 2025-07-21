@@ -315,13 +315,96 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
     const [animationStartTime, setAnimationStartTime] = useState<Date | null>(null)
     const [animationIntervalRef, setAnimationIntervalRef] = useState<NodeJS.Timeout | null>(null)
 
-    // ✅ Phase 4.2: 生成真實時間序列數據函數
-    const generateRealTimeSeriesData = useCallback(async () => {
+    // ✅ Phase 4.2: 獲取真實歷史數據序列函數
+    const fetchRealHistoricalSeriesData = useCallback(async () => {
         setIsLoadingRealData(true)
         setConnectionStatus('connecting')
         
         try {
-            console.log('🔗 [D2] 生成真實時間序列數據...')
+            console.log('🔗 [D2] 獲取真實歷史數據序列...')
+            
+            // 使用 NetStack API 的歷史模擬端點
+            const requestPayload = {
+                ue_position: {
+                    latitude: 25.0478,   // 台北101
+                    longitude: 121.5319,
+                    altitude: 100
+                },
+                d2_params: {
+                    thresh1: thresh1 || 800000.0,
+                    thresh2: thresh2 || 30000.0,
+                    hysteresis: hysteresis || 500.0,
+                    time_to_trigger: 160
+                },
+                simulation_params: {
+                    duration_minutes: 2,      // 2分鐘歷史數據
+                    sample_interval_seconds: 5, // 每5秒一個數據點
+                    start_time: new Date(Date.now() - 2 * 60 * 1000).toISOString() // 從2分鐘前開始
+                }
+            }
+            
+            console.log('🔗 [D2] 請求真實歷史數據:', requestPayload)
+            
+            // 嘗試使用歷史模擬端點
+            const response = await netstackFetch('/api/measurement-events/D2/simulate', {
+                method: 'POST',
+                body: JSON.stringify(requestPayload)
+            })
+            
+            if (!response.ok) {
+                console.warn('⚠️ [D2] 歷史模擬端點不可用，回退到單點數據生成模式')
+                // 如果歷史端點不可用，回退到之前的實現
+                await generatePseudoRealTimeSeriesData()
+                return
+            }
+            
+            const historyData = await response.json()
+            console.log('✅ [D2] 真實歷史數據獲取成功:', historyData)
+            
+            // 轉換歷史數據為時間序列格式
+            const timeSeriesData: NetStackD2Response[] = historyData.data_points?.map((point: any, index: number) => ({
+                event_type: 'D2',
+                timestamp: point.timestamp,
+                trigger_state: point.trigger_state || 'idle',
+                trigger_condition_met: point.trigger_condition_met || false,
+                measurement_values: {
+                    reference_satellite: point.reference_satellite,
+                    satellite_distance: point.satellite_distance,
+                    ground_distance: point.ground_distance,
+                    reference_satellite_lat: point.reference_satellite_lat,
+                    reference_satellite_lon: point.reference_satellite_lon,
+                    reference_satellite_alt: point.reference_satellite_alt
+                },
+                trigger_details: point.trigger_details
+            })) || []
+            
+            if (timeSeriesData.length === 0) {
+                console.warn('⚠️ [D2] 沒有獲取到有效的歷史數據，回退到單點數據生成模式')
+                await generatePseudoRealTimeSeriesData()
+                return
+            }
+            
+            console.log('✅ [D2] 真實歷史序列數據準備完成:', timeSeriesData.length, '個數據點')
+            
+            setRealTimeSeriesData(timeSeriesData)
+            setRealTimeData(timeSeriesData[0]) // 設置第一個點為當前數據
+            setConnectionStatus('connected')
+            setRealDataError(null)
+            
+        } catch (error) {
+            console.error('❌ [D2] 真實歷史數據獲取失敗:', error)
+            console.log('🔄 [D2] 回退到偽真實數據生成模式')
+            // 如果真實歷史數據獲取失敗，回退到偽真實數據
+            await generatePseudoRealTimeSeriesData()
+        } finally {
+            setIsLoadingRealData(false)
+        }
+    }, [thresh1, thresh2, hysteresis])
+
+    // ✅ Phase 4.2: 偽真實時間序列數據生成函數（備用）
+    const generatePseudoRealTimeSeriesData = useCallback(async () => {
+        try {
+            console.log('🔗 [D2] 生成偽真實時間序列數據（基於當前真實數據點）...')
             
             const timeSeriesData: NetStackD2Response[] = []
             const numPoints = 20 // 生成20個時間點，類似原始圖表
@@ -341,58 +424,55 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 }
             }
             
-            // 為了生成時間序列，我們會模擬衛星軌道運動
+            // 獲取一個真實數據點作為基準
+            const response = await netstackFetch('/api/measurement-events/D2/data', {
+                method: 'POST',
+                body: JSON.stringify(baseRequestPayload)
+            })
+            
+            if (!response.ok) {
+                throw new Error('無法獲取基準數據點')
+            }
+            
+            const baseData: NetStackD2Response = await response.json()
+            console.log('📊 [D2] 基準數據點:', baseData.measurement_values)
+            
+            // 基於真實數據點生成時間序列（使用數學函數模擬軌道變化）
             for (let i = 0; i < numPoints; i++) {
                 const timeOffset = i * 5 // 每5秒一個數據點，總共100秒
                 
-                // 獲取當前時間點的數據
-                const response = await netstackFetch('/api/measurement-events/D2/data', {
-                    method: 'POST',
-                    body: JSON.stringify(baseRequestPayload)
-                })
-                
-                if (!response.ok) {
-                    console.warn(`⚠️ [D2] 時間點 ${i} 數據獲取失敗，跳過`)
-                    continue
-                }
-                
-                const data: NetStackD2Response = await response.json()
-                
-                // 為數據添加時間偏移以模擬時間序列
                 const modifiedData = {
-                    ...data,
+                    ...baseData,
                     timestamp: new Date(Date.now() + timeOffset * 1000).toISOString(),
                     measurement_values: {
-                        ...data.measurement_values,
-                        // 模擬衛星軌道運動導致的距離變化
-                        satellite_distance: data.measurement_values.satellite_distance + 
+                        ...baseData.measurement_values,
+                        // 基於真實數據點 + 軌道運動模擬
+                        satellite_distance: baseData.measurement_values.satellite_distance + 
                             Math.sin(timeOffset / 20) * 2000000, // ±2000km 的軌道變化
-                        ground_distance: data.measurement_values.ground_distance + 
+                        ground_distance: baseData.measurement_values.ground_distance + 
                             Math.cos(timeOffset / 15) * 500000   // ±500km 的地面距離變化
                     }
                 }
                 
                 timeSeriesData.push(modifiedData)
                 
-                // 每5個點更新一次進度，避免過於頻繁的狀態更新
+                // 每5個點更新一次進度
                 if (i % 5 === 0) {
-                    console.log(`📊 [D2] 已生成 ${i + 1}/${numPoints} 個數據點`)
+                    console.log(`📊 [D2] 已生成 ${i + 1}/${numPoints} 個偽真實數據點`)
                 }
             }
             
-            console.log('✅ [D2] 時間序列數據生成完成:', timeSeriesData.length, '個數據點')
+            console.log('✅ [D2] 偽真實時間序列數據生成完成:', timeSeriesData.length, '個數據點')
+            console.log('ℹ️ [D2] 注意：這是基於真實數據點的數學模擬，不是真實歷史數據')
             
             setRealTimeSeriesData(timeSeriesData)
-            setRealTimeData(timeSeriesData[0]) // 設置第一個點為當前數據
+            setRealTimeData(timeSeriesData[0])
             setConnectionStatus('connected')
             setRealDataError(null)
             
         } catch (error) {
-            console.error('❌ [D2] 時間序列數據生成失敗:', error)
-            setRealDataError(error instanceof Error ? error.message : '時間序列數據生成失敗')
-            setConnectionStatus('disconnected')
-        } finally {
-            setIsLoadingRealData(false)
+            console.error('❌ [D2] 偽真實時間序列數據生成失敗:', error)
+            throw error
         }
     }, [thresh1, thresh2, hysteresis])
     
@@ -1394,8 +1474,8 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 // 獲取歷史數據
                 await fetchHistoricalD2Data(historicalStartTime, 180) // 3小時數據
             } else {
-                // 生成真實時間序列數據
-                await generateRealTimeSeriesData()
+                // 獲取真實歷史數據序列
+                await fetchRealHistoricalSeriesData()
             }
         } else {
             console.log('🎯 [D2] 切換到原始模擬模式')
@@ -1669,7 +1749,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                     {!realDataError && !isLoadingRealData && (
                         <div style={{ fontSize: '9px', opacity: 0.9, lineHeight: 1.3 }}>
                             <div style={{ marginBottom: '2px' }}>
-                                數據源: {dataSourceInfo.type === 'realtime-series' ? '真實時間序列' : dataSourceInfo.type} | 
+                                數據源: {dataSourceInfo.type === 'realtime-series' ? '真實歷史序列' : dataSourceInfo.type} | 
                                 數據點: {dataSourceInfo.count} | 
                                 連接: {connectionStatus === 'connected' ? '已連線' : '未連線'}
                                 {dataSourceInfo.type === 'realtime-series' && (
@@ -1678,6 +1758,11 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                                     </span>
                                 )}
                             </div>
+                            {dataSourceInfo.type === 'realtime-series' && (
+                                <div style={{ fontSize: '7px', opacity: 0.7, color: '#17a2b8', marginTop: '1px' }}>
+                                    ⚠️ 如果看到規律曲線，可能是使用了偽真實數據（基於真實數據點的數學模擬）
+                                </div>
+                            )}
                             {calculateYAxisRanges.isRealData && (
                                 <div style={{ fontSize: '8px', opacity: 0.8, fontFamily: 'monospace' }}>
                                     衛星: {(calculateYAxisRanges.satelliteRange.min/1000).toFixed(0)}-{(calculateYAxisRanges.satelliteRange.max/1000).toFixed(0)}km | 
