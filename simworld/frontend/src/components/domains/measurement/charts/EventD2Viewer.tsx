@@ -178,6 +178,16 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                     ).length,
                 })
 
+                // 調試：檢查前幾個數據點的地面距離
+                console.log('🔍 [EventD2Viewer] 前3個數據點的距離信息:')
+                convertedData.slice(0, 3).forEach((point, index) => {
+                    console.log(`數據點 ${index}:`, {
+                        satelliteDistance: point.satelliteDistance,
+                        groundDistance: point.groundDistance,
+                        timestamp: point.timestamp,
+                    })
+                })
+
                 setRealD2Data(convertedData)
                 setRealDataError(null)
             } catch (error) {
@@ -207,6 +217,8 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
                 if (mode === 'real-data') {
                     console.log('🚀 [EventD2Viewer] 切換到真實數據模式')
+                    // 清除緩存以確保獲取最新數據
+                    unifiedD2DataService.clearCache()
                     await fetchRealD2Data()
                 } else {
                     console.log('🎯 [EventD2Viewer] 切換到模擬模式')
@@ -1273,7 +1285,9 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                         display: 'inline-block',
                                         width: '44px',
                                         height: '24px',
-                                        cursor: isLoadingRealData ? 'wait' : 'pointer',
+                                        cursor: isLoadingRealData
+                                            ? 'wait'
+                                            : 'pointer',
                                     }}
                                 >
                                     <input
@@ -1281,7 +1295,9 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                         checked={currentMode === 'real-data'}
                                         onChange={(e) =>
                                             handleModeToggle(
-                                                e.target.checked ? 'real-data' : 'simulation'
+                                                e.target.checked
+                                                    ? 'real-data'
+                                                    : 'simulation'
                                             )
                                         }
                                         disabled={isLoadingRealData}
@@ -1294,15 +1310,22 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                     <span
                                         style={{
                                             position: 'absolute',
-                                            cursor: isLoadingRealData ? 'wait' : 'pointer',
+                                            cursor: isLoadingRealData
+                                                ? 'wait'
+                                                : 'pointer',
                                             top: 0,
                                             left: 0,
                                             right: 0,
                                             bottom: 0,
-                                            backgroundColor: currentMode === 'real-data' ? '#28a745' : '#ccc',
+                                            backgroundColor:
+                                                currentMode === 'real-data'
+                                                    ? '#28a745'
+                                                    : '#ccc',
                                             borderRadius: '24px',
                                             transition: 'all 0.3s ease',
-                                            opacity: isLoadingRealData ? 0.7 : 1,
+                                            opacity: isLoadingRealData
+                                                ? 0.7
+                                                : 1,
                                         }}
                                     />
                                     <span
@@ -1311,12 +1334,16 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                             content: '""',
                                             height: '18px',
                                             width: '18px',
-                                            left: currentMode === 'real-data' ? '23px' : '3px',
+                                            left:
+                                                currentMode === 'real-data'
+                                                    ? '23px'
+                                                    : '3px',
                                             bottom: '3px',
                                             backgroundColor: 'white',
                                             borderRadius: '50%',
                                             transition: 'all 0.3s ease',
-                                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                            boxShadow:
+                                                '0 2px 4px rgba(0,0,0,0.2)',
                                         }}
                                     />
                                 </label>

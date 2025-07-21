@@ -130,15 +130,17 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
             (point) => point.groundDistance / 1000
         ) // 轉換為 km
 
-        // 觸發點標記 - 修復顯示問題
-        const triggerPoints = data.map((point, index) => {
+        // 觸發點標記 - 分別顯示在兩條線上
+        const satelliteTriggerPoints = data.map((point, index) => {
             if (point.triggerConditionMet) {
-                // 根據事件類型選擇顯示在哪條線上
-                if (point.d2EventDetails?.enteringCondition) {
-                    return point.satelliteDistance / 1000 // 顯示在衛星距離線上
-                } else {
-                    return point.groundDistance / 1000 // 顯示在地面距離線上
-                }
+                return point.satelliteDistance / 1000 // 顯示在衛星距離線上
+            }
+            return null
+        })
+
+        const groundTriggerPoints = data.map((point, index) => {
+            if (point.triggerConditionMet) {
+                return point.groundDistance / 1000 // 顯示在地面距離線上
             }
             return null
         })
@@ -171,8 +173,8 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
                     yAxisID: 'y-right',
                 },
                 {
-                    label: 'D2 事件觸發點',
-                    data: triggerPoints,
+                    label: 'D2 事件觸發點 (衛星)',
+                    data: satelliteTriggerPoints,
                     borderColor: theme.triggerPoint,
                     backgroundColor: theme.triggerPoint,
                     borderWidth: 0,
@@ -180,6 +182,17 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
                     pointHoverRadius: 10,
                     showLine: false,
                     yAxisID: 'y-left',
+                },
+                {
+                    label: 'D2 事件觸發點 (地面)',
+                    data: groundTriggerPoints,
+                    borderColor: theme.triggerPoint,
+                    backgroundColor: `${theme.triggerPoint}80`, // 半透明
+                    borderWidth: 0,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    showLine: false,
+                    yAxisID: 'y-right',
                 },
             ],
         }
@@ -202,11 +215,17 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
         const groundMin = Math.min(...groundDistances)
         const groundMax = Math.max(...groundDistances)
 
-        // 添加 10% 緩衝區
+        // 添加緩衝區
         const satelliteBuffer = (satelliteMax - satelliteMin) * 0.1
-        const groundBuffer = (groundMax - groundMin) * 0.1
+        let groundBuffer = (groundMax - groundMin) * 0.1
 
-        return {
+        // 如果地面距離範圍太小（所有值相同），使用固定緩衝區
+        if (groundBuffer < 1) {
+            // 小於 1 公里
+            groundBuffer = Math.max(1, groundMax * 0.1) // 至少 1 公里或 10% 的緩衝區
+        }
+
+        const result = {
             satelliteRange: {
                 min: Math.max(0, satelliteMin - satelliteBuffer),
                 max: satelliteMax + satelliteBuffer,
@@ -216,6 +235,10 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
                 max: groundMax + groundBuffer,
             },
         }
+
+        // 調試完成，移除日誌以提高性能
+
+        return result
     }, [data])
 
     // 圖表配置 - 移到條件渲染之前
