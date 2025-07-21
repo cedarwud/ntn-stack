@@ -54,7 +54,7 @@ ENV MPLCONFIGDIR="/tmp/matplotlib"
 # 設定工作目錄
 WORKDIR /app
 
-# 複製應用程式源碼
+# 複製應用程式源碼 - 更新衛星數據路由器
 COPY netstack_api/ ./netstack_api/
 # 複製 UPF 擴展模組
 COPY docker/upf-extension/ ./docker/upf-extension/
