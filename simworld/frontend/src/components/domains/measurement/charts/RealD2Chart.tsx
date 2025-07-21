@@ -76,6 +76,10 @@ export interface RealD2ChartProps {
     className?: string
     onDataPointClick?: (dataPoint: RealD2DataPoint, index: number) => void
     onChartReady?: (chart: ChartJS) => void
+    // 可選的時間進度顯示（用於靜態標記）
+    highlightTime?: number
+    // 觸發區間顯示選項
+    showTriggerIndicator?: 'none' | 'top-bar' | 'bottom-bar'
 }
 
 export const RealD2Chart: React.FC<RealD2ChartProps> = ({
@@ -90,6 +94,8 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
     className = '',
     onDataPointClick,
     onChartReady,
+    highlightTime,
+    showTriggerIndicator = 'none',
 }) => {
     const chartRef = useRef<ChartJS | null>(null)
 
@@ -107,6 +113,38 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
         }),
         [isDarkTheme]
     )
+
+    // 計算觸發區間（僅在需要顯示時計算）
+    const triggerIntervals = useMemo(() => {
+        if (!data || data.length === 0 || showTriggerIndicator === 'none') return []
+        
+        const intervals: Array<{startTime: number, endTime: number}> = []
+        let currentInterval: {startTime: number} | null = null
+        
+        data.forEach((point, index) => {
+            const time = index * 10 // 假設每10秒一個數據點
+            
+            if (point.triggerConditionMet && !currentInterval) {
+                currentInterval = { startTime: time }
+            } else if (!point.triggerConditionMet && currentInterval) {
+                intervals.push({
+                    startTime: currentInterval.startTime,
+                    endTime: (index - 1) * 10
+                })
+                currentInterval = null
+            }
+        })
+        
+        // 如果數據結束時仍在觸發狀態
+        if (currentInterval) {
+            intervals.push({
+                startTime: currentInterval.startTime,
+                endTime: (data.length - 1) * 10
+            })
+        }
+        
+        return intervals
+    }, [data, showTriggerIndicator])
 
     // 處理圖表數據
     const chartData: ChartData<'line'> = useMemo(() => {
@@ -129,8 +167,6 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
         const groundDistanceData = data.map(
             (point) => point.groundDistance / 1000
         ) // 轉換為 km
-
-        // 移除觸發點標記以簡化圖表
 
         return {
             labels,
@@ -219,7 +255,7 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
             plugins: {
                 title: {
                     display: true,
-                    text: 'Event D2: 移動參考位置距離事件 (真實 TLE 數據)',
+                    text: 'Event D2: 移動參考位置距離事件 (3GPP TS 38.331) - 真實數據動態縮放',
                     font: {
                         size: 16,
                         weight: 'bold',
@@ -297,48 +333,161 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
                         },
                     },
                 },
-                annotation: showThresholdLines
-                    ? {
-                          annotations: {
-                              thresh1Line: {
-                                  type: 'line' as const,
-                                  yMin: thresh1 / 1000,
-                                  yMax: thresh1 / 1000,
-                                  borderColor: theme.thresh1Line,
-                                  borderWidth: 2,
-                                  borderDash: [5, 5],
-                                  label: {
-                                      display: true,
-                                      content: `閾值1: ${(
-                                          thresh1 / 1000
-                                      ).toFixed(0)} km`,
-                                      position: 'end' as const,
-                                      backgroundColor: theme.thresh1Line,
-                                      color: 'white',
-                                  },
-                                  scaleID: 'y-left',
-                              },
-                              thresh2Line: {
-                                  type: 'line' as const,
-                                  yMin: thresh2 / 1000,
-                                  yMax: thresh2 / 1000,
-                                  borderColor: theme.thresh2Line,
-                                  borderWidth: 2,
-                                  borderDash: [5, 5],
-                                  label: {
-                                      display: true,
-                                      content: `閾值2: ${(
-                                          thresh2 / 1000
-                                      ).toFixed(0)} km`,
-                                      position: 'end' as const,
-                                      backgroundColor: theme.thresh2Line,
-                                      color: 'black',
-                                  },
-                                  scaleID: 'y-right',
-                              },
-                          },
-                      }
-                    : undefined,
+                annotation: showThresholdLines ? {
+                    annotations: {
+                        thresh1Line: {
+                            type: 'line' as const,
+                            scaleID: 'y-left',
+                            value: thresh1 / 1000, // 轉換為 km
+                            borderColor: '#DC3545', // 紅色門檻線1
+                            borderWidth: 3,
+                            borderDash: [8, 4],
+                            label: {
+                                content: `Thresh1: ${(thresh1 / 1000).toFixed(0)}km (衛星)`,
+                                enabled: true,
+                                position: 'start' as const,
+                                backgroundColor: '#DC3545',
+                                color: 'white',
+                                font: { size: 11, weight: 'bold' },
+                            },
+                        },
+                        thresh2Line: {
+                            type: 'line' as const,
+                            scaleID: 'y-right',
+                            value: thresh2 / 1000, // 轉換為 km
+                            borderColor: '#007BFF', // 藍色門檻線2
+                            borderWidth: 3,
+                            borderDash: [8, 4],
+                            label: {
+                                content: `Thresh2: ${(thresh2 / 1000).toFixed(1)}km (地面)`,
+                                enabled: true,
+                                position: 'end' as const,
+                                backgroundColor: '#007BFF',
+                                color: 'white',
+                                font: { size: 11, weight: 'bold' },
+                            },
+                        },
+                        // 遲滯線段 - 衛星距離
+                        hystThresh1Upper: {
+                            type: 'line' as const,
+                            scaleID: 'y-left',
+                            value: (thresh1 + hysteresis) / 1000,
+                            borderColor: '#DC3545',
+                            borderWidth: 1,
+                            borderDash: [3, 3],
+                            label: {
+                                content: `+Hys: ${((thresh1 + hysteresis) / 1000).toFixed(0)}km`,
+                                enabled: true,
+                                position: 'start' as const,
+                                backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                                color: 'white',
+                                font: { size: 9 },
+                            },
+                        },
+                        hystThresh1Lower: {
+                            type: 'line' as const,
+                            scaleID: 'y-left',
+                            value: (thresh1 - hysteresis) / 1000,
+                            borderColor: '#DC3545',
+                            borderWidth: 1,
+                            borderDash: [3, 3],
+                            label: {
+                                content: `-Hys: ${((thresh1 - hysteresis) / 1000).toFixed(0)}km`,
+                                enabled: true,
+                                position: 'start' as const,
+                                backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                                color: 'white',
+                                font: { size: 9 },
+                            },
+                        },
+                        // 遲滯線段 - 地面距離
+                        hystThresh2Upper: {
+                            type: 'line' as const,
+                            scaleID: 'y-right',
+                            value: (thresh2 + hysteresis) / 1000,
+                            borderColor: '#007BFF',
+                            borderWidth: 1,
+                            borderDash: [3, 3],
+                            label: {
+                                content: `+Hys: ${((thresh2 + hysteresis) / 1000).toFixed(2)}km`,
+                                enabled: true,
+                                position: 'end' as const,
+                                backgroundColor: 'rgba(0, 123, 255, 0.7)',
+                                color: 'white',
+                                font: { size: 9 },
+                            },
+                        },
+                        hystThresh2Lower: {
+                            type: 'line' as const,
+                            scaleID: 'y-right',
+                            value: (thresh2 - hysteresis) / 1000,
+                            borderColor: '#007BFF',
+                            borderWidth: 1,
+                            borderDash: [3, 3],
+                            label: {
+                                content: `-Hys: ${((thresh2 - hysteresis) / 1000).toFixed(2)}km`,
+                                enabled: true,
+                                position: 'end' as const,
+                                backgroundColor: 'rgba(0, 123, 255, 0.7)',
+                                color: 'white',
+                                font: { size: 9 },
+                            },
+                        },
+                        // 可選的時間高亮線
+                        ...(highlightTime !== undefined && {
+                            highlightTimeLine: {
+                                type: 'line' as const,
+                                scaleID: 'x',
+                                value: highlightTime,
+                                borderColor: '#ff6b35',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                label: {
+                                    content: `${highlightTime.toFixed(1)}s`,
+                                    enabled: true,
+                                    position: 'top' as const,
+                                    backgroundColor: 'rgba(255, 107, 53, 0.8)',
+                                    color: 'white',
+                                    font: { size: 9 },
+                                },
+                            },
+                        }),
+                        // 可選的觸發區間指示器
+                        ...(showTriggerIndicator !== 'none' && Object.fromEntries(
+                            triggerIntervals.map((interval, index) => {
+                                const yPosition = showTriggerIndicator === 'top-bar' 
+                                    ? { 
+                                        yMin: yAxisRanges.satelliteRange.max * 0.92,
+                                        yMax: yAxisRanges.satelliteRange.max * 0.98 
+                                    }
+                                    : { 
+                                        yMin: yAxisRanges.satelliteRange.min * 1.02,
+                                        yMax: yAxisRanges.satelliteRange.min * 1.08 
+                                    }
+                                
+                                return [`triggerBar_${index}`, {
+                                    type: 'box' as const,
+                                    xMin: interval.startTime,
+                                    xMax: interval.endTime,
+                                    xScaleID: 'x',
+                                    yScaleID: 'y-left',
+                                    ...yPosition,
+                                    backgroundColor: 'rgba(40, 167, 69, 0.4)',
+                                    borderColor: 'rgba(40, 167, 69, 0.8)',
+                                    borderWidth: 1,
+                                    label: {
+                                        content: `D2 Active`,
+                                        enabled: true,
+                                        position: 'center' as const,
+                                        backgroundColor: 'rgba(40, 167, 69, 0.9)',
+                                        color: 'white',
+                                        font: { size: 9, weight: 'bold' },
+                                    },
+                                }]
+                            })
+                        )),
+                    }
+                } : {},
             },
             scales: {
                 x: {
@@ -421,9 +570,13 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
             theme,
             isDarkTheme,
             showThresholdLines,
+            showTriggerIndicator,
             thresh1,
             thresh2,
+            hysteresis,
             yAxisRanges,
+            triggerIntervals,
+            highlightTime,
             data,
             onDataPointClick,
         ]
@@ -474,6 +627,7 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
                 padding: '10px',
                 borderRadius: '8px',
                 boxSizing: 'border-box',
+                position: 'relative',
             }}
         >
             <Line
@@ -481,6 +635,7 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
                 data={chartData}
                 options={chartOptions}
             />
+            
         </div>
     )
 }
