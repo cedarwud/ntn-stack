@@ -90,9 +90,9 @@ interface D2EventSpecificChartProps {
 export const D2EventSpecificChart: React.FC<D2EventSpecificChartProps> = ({
   className = '',
   height = 400,
-  thresh1 = 800, // 800 km (修正後的真實 LEO 衛星距離)
-  thresh2 = 30, // 30 km (地面距離)
-  hysteresis = 0.5, // 500 m
+  thresh1 = 800000, // 800000 m (修正後的真實 LEO 衛星距離) - 符合 API 約束
+  thresh2 = 30000, // 30000 m (地面距離) - 符合 API 約束
+  hysteresis = 500, // 500 m - 符合 API 約束: ge=100
   uePosition = { latitude: 0.0, longitude: 0.0, altitude: 0.1 },
   showMovingReference = true,
   showRelativeDistances = true,
