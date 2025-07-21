@@ -91,6 +91,16 @@ async def _initialize_all_managers(app: FastAPI) -> None:
     await get_training_engine()
     logger.info("✅ RLTrainingEngine 初始化完成")
 
+    # 初始化真實衛星數據 (自動檢查並下載)
+    logger.info("🛰️ 檢查並初始化真實衛星數據...")
+    try:
+        from .services.auto_init_satellite_data import check_and_init_satellite_data
+        await check_and_init_satellite_data()
+        logger.info("✅ 真實衛星數據初始化完成")
+    except Exception as e:
+        logger.error(f"⚠️ 衛星數據初始化失敗: {e}")
+        # 不阻止系統啟動，只記錄警告
+
     logger.info("✅ 所有管理器初始化完成")
 
 
