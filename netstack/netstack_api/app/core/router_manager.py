@@ -142,6 +142,28 @@ class RouterManager:
             except ImportError:
                 logger.warning("軌道路由器不可用，跳過註冊")
 
+            # 嘗試導入衛星數據路由器 (統一數據架構)
+            logger.info("🔍 開始註冊衛星數據路由器...")
+            try:
+                logger.info("📥 正在導入衛星數據路由器...")
+                from ...routers.satellite_data_router import (
+                    router as satellite_data_router,
+                )
+
+                logger.info(f"✅ 衛星數據路由器導入成功: {satellite_data_router}")
+                logger.info(f"📋 路由器前綴: {satellite_data_router.prefix}")
+                logger.info(f"📋 路由器路由數量: {len(satellite_data_router.routes)}")
+
+                logger.info("🔗 正在註冊路由器到 FastAPI...")
+                self.app.include_router(satellite_data_router, tags=["衛星數據管理"])
+                self._track_router("satellite_data_router", "衛星數據管理", True)
+                logger.info("✅ 衛星數據路由器註冊完成")
+            except Exception as e:
+                logger.error(f"❌ 衛星數據路由器註冊失敗: {e}")
+                import traceback
+
+                logger.error(f"詳細錯誤: {traceback.format_exc()}")
+
             # 嘗試導入 SIB19 路由器
             try:
                 from ...routers.sib19_router import router as sib19_router
