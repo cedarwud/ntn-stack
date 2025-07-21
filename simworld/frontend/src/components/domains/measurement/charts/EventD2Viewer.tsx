@@ -27,9 +27,9 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
     ({ isDarkTheme = true, onThemeToggle, initialParams = {} }) => {
         // Event D2 參數狀態 - 基於 3GPP TS 38.331 規範
         const [params, setParams] = useState<EventD2Params>(() => ({
-            Thresh1: initialParams.Thresh1 ?? 550000, // meters (距離門檻1 - 移動參考位置，衛星距離)
-            Thresh2: initialParams.Thresh2 ?? 6000, // meters (距離門檻2 - 固定參考位置)
-            Hys: initialParams.Hys ?? 20, // meters (hysteresisLocation)
+            Thresh1: initialParams.Thresh1 ?? 800000, // meters (距離門檻1 - 移動參考位置，衛星距離) - 符合 API 約束
+            Thresh2: initialParams.Thresh2 ?? 30000, // meters (距離門檻2 - 固定參考位置) - 符合 API 約束
+            Hys: initialParams.Hys ?? 500, // meters (hysteresisLocation) - 符合 API 約束: ge=100
             timeToTrigger: initialParams.timeToTrigger ?? 320, // ms
             reportAmount: initialParams.reportAmount ?? 3,
             reportInterval: initialParams.reportInterval ?? 1000, // ms
