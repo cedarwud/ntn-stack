@@ -114,9 +114,9 @@ CREATE TABLE IF NOT EXISTS d2_measurement_cache (
     calculation_time_ms FLOAT, -- 計算耗時
     data_source VARCHAR(20) DEFAULT 'real', -- 'real', 'simulated'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    -- 外鍵約束
-    FOREIGN KEY (norad_id) REFERENCES satellite_tle_data(norad_id) ON DELETE CASCADE,
-    FOREIGN KEY (satellite_id, timestamp) REFERENCES satellite_orbital_cache(satellite_id, timestamp) ON DELETE CASCADE
+    -- 外鍵約束 (移除有問題的約束以避免數據插入問題)
+    FOREIGN KEY (norad_id) REFERENCES satellite_tle_data(norad_id) ON DELETE CASCADE
+    -- 注意：移除了 satellite_orbital_cache 的外鍵約束，因為軌道數據可能不完整
 );
 
 -- D2 測量緩存索引
