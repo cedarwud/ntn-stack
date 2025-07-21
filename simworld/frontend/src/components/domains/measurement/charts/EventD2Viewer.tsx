@@ -8,6 +8,13 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import PureD2Chart from './PureD2Chart'
+import RealD2Chart, { RealD2DataPoint } from './RealD2Chart'
+import {
+    unifiedD2DataService,
+    D2ScenarioConfig,
+    D2MeasurementPoint,
+    ConstellationInfo,
+} from '../../../../services/unifiedD2DataService'
 import type { EventD2Params } from '../types'
 import './EventA4Viewer.scss' // 完全重用 A4 的樣式，確保左側控制面板風格一致
 import './NarrationPanel.scss' // 動畫解說面板樣式
@@ -51,6 +58,20 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             speed: 1,
         })
 
+        // 真實數據模式狀態
+        const [currentMode, setCurrentMode] = useState<
+            'simulation' | 'real-data'
+        >('simulation')
+        const [isLoadingRealData, setIsLoadingRealData] = useState(false)
+        const [realDataError, setRealDataError] = useState<string | null>(null)
+        const [realD2Data, setRealD2Data] = useState<RealD2DataPoint[]>([])
+
+        // 真實數據時間段選擇
+        const [selectedTimeRange, setSelectedTimeRange] = useState({
+            startTime: '2024-01-01T00:00:00Z',
+            durationMinutes: 180,
+        })
+
         // 動畫解說系統狀態
         const [showNarration, setShowNarration] = useState(true)
         const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
@@ -81,6 +102,119 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         })
         const animationFrameId = useRef<number | null>(null)
         const latestMouseEvent = useRef({ x: 0, y: 0 })
+
+        // 轉換 API 響應為 RealD2Chart 所需格式的函數
+        const convertToRealD2DataPoints = useCallback(
+            (measurements: D2MeasurementPoint[]): RealD2DataPoint[] => {
+                return measurements.map((measurement, index) => ({
+                    timestamp: measurement.timestamp,
+                    satelliteDistance: measurement.satellite_distance,
+                    groundDistance: measurement.ground_distance,
+                    satelliteInfo: {
+                        noradId: 0, // 暫時使用預設值
+                        name: measurement.satellite_id,
+                        latitude: measurement.satellite_position.latitude,
+                        longitude: measurement.satellite_position.longitude,
+                        altitude: measurement.satellite_position.altitude,
+                    },
+                    triggerConditionMet: measurement.trigger_condition_met,
+                    d2EventDetails: {
+                        thresh1: params.Thresh1,
+                        thresh2: params.Thresh2,
+                        hysteresis: params.Hys,
+                        enteringCondition:
+                            measurement.event_type === 'entering',
+                        leavingCondition: measurement.event_type === 'leaving',
+                    },
+                }))
+            },
+            [params.Thresh1, params.Thresh2, params.Hys]
+        )
+
+        // 獲取真實 D2 數據的函數
+        const fetchRealD2Data = useCallback(async () => {
+            setIsLoadingRealData(true)
+            setRealDataError(null)
+
+            try {
+                console.log(
+                    '🛰️ [EventD2Viewer] 開始獲取真實衛星數據 (統一架構)...'
+                )
+
+                const config: D2ScenarioConfig = {
+                    scenario_name: 'EventD2Viewer_RealData',
+                    constellation: 'starlink', // 支援多星座選擇
+                    ue_position: {
+                        latitude: params.referenceLocation.lat,
+                        longitude: params.referenceLocation.lon,
+                        altitude: 0.1, // 100m 轉換為 km
+                    },
+                    fixed_ref_position: {
+                        latitude: params.movingReferenceLocation.lat,
+                        longitude: params.movingReferenceLocation.lon,
+                        altitude: 0.0, // 地面參考位置
+                    },
+                    thresh1: params.Thresh1,
+                    thresh2: params.Thresh2,
+                    hysteresis: params.Hys,
+                    duration_minutes: selectedTimeRange.durationMinutes,
+                    sample_interval_seconds: 60, // 每分鐘一個數據點
+                }
+
+                const measurements = await unifiedD2DataService.getD2Data(
+                    config
+                )
+                const convertedData = convertToRealD2DataPoints(measurements)
+
+                console.log(
+                    `✅ [EventD2Viewer] 成功獲取並轉換 ${convertedData.length} 個真實數據點`
+                )
+                console.log('數據質量信息:', {
+                    dataSource: 'unified',
+                    constellation: config.constellation,
+                    measurementCount: measurements.length,
+                    triggerEvents: measurements.filter(
+                        (m) => m.trigger_condition_met
+                    ).length,
+                })
+
+                setRealD2Data(convertedData)
+                setRealDataError(null)
+            } catch (error) {
+                console.error('❌ [EventD2Viewer] 獲取真實數據失敗:', error)
+                const errorMessage =
+                    error instanceof Error ? error.message : '未知錯誤'
+                setRealDataError(errorMessage)
+                setRealD2Data([])
+            } finally {
+                setIsLoadingRealData(false)
+            }
+        }, [
+            selectedTimeRange,
+            params.referenceLocation,
+            params.movingReferenceLocation,
+            params.Thresh1,
+            params.Thresh2,
+            params.Hys,
+            convertToRealD2DataPoints,
+        ])
+
+        // 模式切換處理函數
+        const handleModeToggle = useCallback(
+            async (mode: 'simulation' | 'real-data') => {
+                setCurrentMode(mode)
+                setRealDataError(null)
+
+                if (mode === 'real-data') {
+                    console.log('🚀 [EventD2Viewer] 切換到真實數據模式')
+                    await fetchRealD2Data()
+                } else {
+                    console.log('🎯 [EventD2Viewer] 切換到模擬模式')
+                    setRealD2Data([])
+                }
+            },
+            [fetchRealD2Data]
+        )
 
         // 初始化拖拽狀態的位置 (從 A4 引入)
         useEffect(() => {
@@ -1103,16 +1237,205 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                     {/* 圖表區域 */}
                     <div className="event-viewer__chart-container">
                         <div className="chart-area">
+                            {/* 模式切換 Toggle */}
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    top: '10px',
+                                    left: '10px',
+                                    zIndex: 1000,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '8px 12px',
+                                    backgroundColor: isDarkTheme
+                                        ? 'rgba(33, 37, 41, 0.95)'
+                                        : 'rgba(255, 255, 255, 0.95)',
+                                    borderRadius: '8px',
+                                    border: `1px solid ${
+                                        isDarkTheme ? '#495057' : '#dee2e6'
+                                    }`,
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        fontSize: '12px',
+                                        fontWeight: 'bold',
+                                        color: isDarkTheme ? '#fff' : '#333',
+                                    }}
+                                >
+                                    模擬
+                                </span>
+                                <label
+                                    style={{
+                                        position: 'relative',
+                                        display: 'inline-block',
+                                        width: '44px',
+                                        height: '24px',
+                                        cursor: isLoadingRealData ? 'wait' : 'pointer',
+                                    }}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={currentMode === 'real-data'}
+                                        onChange={(e) =>
+                                            handleModeToggle(
+                                                e.target.checked ? 'real-data' : 'simulation'
+                                            )
+                                        }
+                                        disabled={isLoadingRealData}
+                                        style={{
+                                            opacity: 0,
+                                            width: 0,
+                                            height: 0,
+                                        }}
+                                    />
+                                    <span
+                                        style={{
+                                            position: 'absolute',
+                                            cursor: isLoadingRealData ? 'wait' : 'pointer',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            backgroundColor: currentMode === 'real-data' ? '#28a745' : '#ccc',
+                                            borderRadius: '24px',
+                                            transition: 'all 0.3s ease',
+                                            opacity: isLoadingRealData ? 0.7 : 1,
+                                        }}
+                                    />
+                                    <span
+                                        style={{
+                                            position: 'absolute',
+                                            content: '""',
+                                            height: '18px',
+                                            width: '18px',
+                                            left: currentMode === 'real-data' ? '23px' : '3px',
+                                            bottom: '3px',
+                                            backgroundColor: 'white',
+                                            borderRadius: '50%',
+                                            transition: 'all 0.3s ease',
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                        }}
+                                    />
+                                </label>
+                                <span
+                                    style={{
+                                        fontSize: '12px',
+                                        fontWeight: 'bold',
+                                        color: isDarkTheme ? '#fff' : '#333',
+                                    }}
+                                >
+                                    {isLoadingRealData ? '載入中...' : '真實'}
+                                </span>
+                            </div>
+
+                            {/* 狀態指示器 */}
+                            {currentMode === 'real-data' && (
+                                <div
+                                    style={{
+                                        position: 'absolute',
+                                        left: '10px',
+                                        top: '60px',
+                                        zIndex: 999,
+                                        padding: '8px 12px',
+                                        fontSize: '11px',
+                                        backgroundColor: isDarkTheme
+                                            ? 'rgba(33, 37, 41, 0.95)'
+                                            : 'rgba(255, 255, 255, 0.95)',
+                                        borderRadius: '6px',
+                                        border: `1px solid ${
+                                            isDarkTheme ? '#495057' : '#dee2e6'
+                                        }`,
+                                        color: realDataError
+                                            ? '#dc3545'
+                                            : isLoadingRealData
+                                            ? '#ffc107'
+                                            : '#28a745',
+                                        minWidth: '220px',
+                                        maxWidth: '300px',
+                                        boxShadow: '0 3px 8px rgba(0,0,0,0.15)',
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontWeight: 'bold',
+                                            marginBottom: '4px',
+                                        }}
+                                    >
+                                        {realDataError
+                                            ? '❌ 數據獲取失敗'
+                                            : isLoadingRealData
+                                            ? '🔄 載入真實數據中...'
+                                            : `✅ 真實數據模式 (${realD2Data.length} 個數據點)`}
+                                    </div>
+                                    {realDataError && (
+                                        <div
+                                            style={{
+                                                fontSize: '9px',
+                                                opacity: 0.8,
+                                                color: '#dc3545',
+                                            }}
+                                        >
+                                            {realDataError}
+                                        </div>
+                                    )}
+                                    {!realDataError &&
+                                        !isLoadingRealData &&
+                                        realD2Data.length > 0 && (
+                                            <div
+                                                style={{
+                                                    fontSize: '9px',
+                                                    opacity: 0.9,
+                                                    lineHeight: 1.3,
+                                                }}
+                                            >
+                                                時間範圍:{' '}
+                                                {
+                                                    selectedTimeRange.durationMinutes
+                                                }{' '}
+                                                分鐘 | 數據源: 真實 TLE 歷史數據
+                                            </div>
+                                        )}
+                                </div>
+                            )}
+
                             <div className="chart-container">
-                                <PureD2Chart
-                                    thresh1={params.Thresh1}
-                                    thresh2={params.Thresh2}
-                                    hysteresis={params.Hys}
-                                    currentTime={animationState.currentTime}
-                                    showThresholdLines={showThresholdLines}
-                                    isDarkTheme={isDarkTheme}
-                                    onThemeToggle={onThemeToggle}
-                                />
+                                {currentMode === 'real-data' ? (
+                                    <RealD2Chart
+                                        data={realD2Data}
+                                        thresh1={params.Thresh1}
+                                        thresh2={params.Thresh2}
+                                        hysteresis={params.Hys}
+                                        showThresholdLines={showThresholdLines}
+                                        isDarkTheme={isDarkTheme}
+                                        width={1000}
+                                        height={600}
+                                        onDataPointClick={(
+                                            dataPoint,
+                                            index
+                                        ) => {
+                                            console.log(
+                                                '點擊數據點:',
+                                                dataPoint,
+                                                '索引:',
+                                                index
+                                            )
+                                        }}
+                                    />
+                                ) : (
+                                    <PureD2Chart
+                                        thresh1={params.Thresh1}
+                                        thresh2={params.Thresh2}
+                                        hysteresis={params.Hys}
+                                        currentTime={animationState.currentTime}
+                                        showThresholdLines={showThresholdLines}
+                                        isDarkTheme={isDarkTheme}
+                                        onThemeToggle={onThemeToggle}
+                                        showModeToggle={false}
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>

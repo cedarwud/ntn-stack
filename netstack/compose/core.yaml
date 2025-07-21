@@ -363,6 +363,7 @@ services:
       - netstack_models:/app/models
       - netstack_results:/app/results
       - netstack_scripts:/app/scripts
+      - ../netstack_api/routers/satellite_data_router.py:/app/netstack_api/routers/satellite_data_router.py:ro
     ports:
       - "8080:8080"
     depends_on:
