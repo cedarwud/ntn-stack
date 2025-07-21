@@ -584,6 +584,11 @@ class SatelliteDataManager:
             ue_lat, ue_lon, ue_alt, fixed_lat, fixed_lon, fixed_alt
         )
 
+        # 調試日誌
+        logger.info(f"🔍 [D2] UE位置: ({ue_lat}, {ue_lon}, {ue_alt})")
+        logger.info(f"🔍 [D2] 固定參考位置: ({fixed_lat}, {fixed_lon}, {fixed_alt})")
+        logger.info(f"🔍 [D2] 計算的地面距離: {ground_distance} 米")
+
         # 處理每個時間點的軌道數據
         for row in orbital_rows:
             timestamp = row["timestamp"]

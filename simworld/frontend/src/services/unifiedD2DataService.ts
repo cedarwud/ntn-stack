@@ -335,6 +335,16 @@ class UnifiedD2DataService {
         this.cacheExpiry.clear()
         console.log('🧹 [UnifiedD2] 本地緩存已清除')
     }
+
+    /**
+     * 清除特定場景的緩存
+     */
+    clearScenarioCache(scenarioHash: string): void {
+        const cacheKey = `d2_${scenarioHash}`
+        this.cache.delete(cacheKey)
+        this.cacheExpiry.delete(cacheKey)
+        console.log(`🧹 [UnifiedD2] 場景緩存已清除: ${scenarioHash}`)
+    }
 }
 
 // 導出單例實例
