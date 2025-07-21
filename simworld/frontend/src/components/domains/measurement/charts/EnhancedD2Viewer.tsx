@@ -36,7 +36,17 @@ interface EventTriggerRecord {
     satellite_id: string
 }
 
-const EnhancedD2Viewer: React.FC = () => {
+interface EnhancedD2ViewerProps {
+    className?: string
+    defaultViewMode?: 'simple' | 'advanced'
+    enableViewModeToggle?: boolean
+}
+
+const EnhancedD2Viewer: React.FC<EnhancedD2ViewerProps> = ({
+    className = '',
+    defaultViewMode = 'simple',
+    enableViewModeToggle = true,
+}) => {
     // 基本狀態
     const [isDarkTheme, setIsDarkTheme] = useState(true)
     const [useRealData, setUseRealData] = useState(true)
