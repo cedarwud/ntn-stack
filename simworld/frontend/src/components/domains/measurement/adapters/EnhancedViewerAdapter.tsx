@@ -1,15 +1,16 @@
 /**
  * Enhanced Viewer Adapter
- * 
+ *
  * 適配 Modal 傳遞的 props 與 Enhanced 組件期望的介面
  * 確保 Enhanced 組件能在現有的 Modal 系統中正常工作
  */
 
 import React from 'react'
-import EnhancedA4Viewer from '../charts/EnhancedA4Viewer'
-import EnhancedD1Viewer from '../charts/EnhancedD1Viewer'
-import EnhancedT1Viewer from '../charts/EnhancedT1Viewer'
-import EnhancedD2Viewer from '../charts/EnhancedD2Viewer'
+// 🔧 臨時切換到舊版工作正常的實現
+import EventA4Viewer from '../charts/EventA4Viewer'
+import EventD1Viewer from '../charts/EventD1Viewer'
+import EventT1Viewer from '../charts/EventT1Viewer'
+import EventD2Viewer from '../charts/EventD2Viewer'
 
 // Modal 傳遞的 props 介面
 interface ModalProps {
@@ -20,19 +21,47 @@ interface ModalProps {
     isDarkTheme?: boolean
 }
 
-// 簡化的適配器組件
+// 🔧 切換到舊版工作正常的組件
 export const AdaptedEnhancedA4Viewer: React.FC<ModalProps> = (props) => {
-    return <EnhancedA4Viewer className={props.isDarkTheme ? 'dark-theme' : 'light-theme'} />
+    return (
+        <EventA4Viewer
+            onReportLastUpdateToNavbar={props.onReportLastUpdateToNavbar}
+            reportRefreshHandlerToNavbar={props.reportRefreshHandlerToNavbar}
+            reportIsLoadingToNavbar={props.reportIsLoadingToNavbar}
+            isDarkTheme={props.isDarkTheme}
+        />
+    )
 }
 
 export const AdaptedEnhancedD1Viewer: React.FC<ModalProps> = (props) => {
-    return <EnhancedD1Viewer className={props.isDarkTheme ? 'dark-theme' : 'light-theme'} />
+    return (
+        <EventD1Viewer
+            onReportLastUpdateToNavbar={props.onReportLastUpdateToNavbar}
+            reportRefreshHandlerToNavbar={props.reportRefreshHandlerToNavbar}
+            reportIsLoadingToNavbar={props.reportIsLoadingToNavbar}
+            isDarkTheme={props.isDarkTheme}
+        />
+    )
 }
 
 export const AdaptedEnhancedD2Viewer: React.FC<ModalProps> = (props) => {
-    return <EnhancedD2Viewer className={props.isDarkTheme ? 'dark-theme' : 'light-theme'} />
+    return (
+        <EventD2Viewer
+            onReportLastUpdateToNavbar={props.onReportLastUpdateToNavbar}
+            reportRefreshHandlerToNavbar={props.reportRefreshHandlerToNavbar}
+            reportIsLoadingToNavbar={props.reportIsLoadingToNavbar}
+            isDarkTheme={props.isDarkTheme}
+        />
+    )
 }
 
 export const AdaptedEnhancedT1Viewer: React.FC<ModalProps> = (props) => {
-    return <EnhancedT1Viewer className={props.isDarkTheme ? 'dark-theme' : 'light-theme'} />
+    return (
+        <EventT1Viewer
+            onReportLastUpdateToNavbar={props.onReportLastUpdateToNavbar}
+            reportRefreshHandlerToNavbar={props.reportRefreshHandlerToNavbar}
+            reportIsLoadingToNavbar={props.reportIsLoadingToNavbar}
+            isDarkTheme={props.isDarkTheme}
+        />
+    )
 }
