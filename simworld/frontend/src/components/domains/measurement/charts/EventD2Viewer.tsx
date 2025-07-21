@@ -53,6 +53,32 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
         const [showThresholdLines, setShowThresholdLines] = useState(true)
 
+        // 星座信息輔助函數
+        const getConstellationInfo = useCallback((constellation: string) => {
+            switch (constellation) {
+                case 'starlink':
+                    return {
+                        description: '低軌高速軌道 (53°, 550km, 15軌/日)',
+                        characteristics: '快速變化的距離曲線，明顯的都卜勒效應'
+                    }
+                case 'oneweb':
+                    return {
+                        description: '極軌中高度軌道 (87°, 1200km, 13軌/日)',
+                        characteristics: '極地覆蓋，中等變化率的軌道特徵'
+                    }
+                case 'gps':
+                    return {
+                        description: '中軌穩定軌道 (55°, 20200km, 2軌/日)',
+                        characteristics: '緩慢變化，長期穩定的距離關係'
+                    }
+                default:
+                    return {
+                        description: '未知星座',
+                        characteristics: '標準軌道特徵'
+                    }
+            }
+        }, [])
+
         // 真實數據模式狀態
         const [currentMode, setCurrentMode] = useState<
             'simulation' | 'real-data'
@@ -61,10 +87,11 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         const [realDataError, setRealDataError] = useState<string | null>(null)
         const [realD2Data, setRealD2Data] = useState<RealD2DataPoint[]>([])
 
-        // 真實數據時間段選擇
+        // 真實數據配置
+        const [selectedConstellation, setSelectedConstellation] = useState<'starlink' | 'oneweb' | 'gps'>('starlink')
         const [selectedTimeRange, setSelectedTimeRange] = useState({
-            startTime: '2024-01-01T00:00:00Z',
-            durationMinutes: 180,
+            durationMinutes: 120, // 預設為2小時，可看到LEO完整軌道週期
+            sampleIntervalSeconds: 10, // 適合2小時觀測的採樣間隔
         })
 
         // 動畫解說系統狀態
@@ -158,8 +185,8 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                 )
 
                 const config: D2ScenarioConfig = {
-                    scenario_name: 'EventD2Viewer_RealData',
-                    constellation: 'starlink', // 支援多星座選擇
+                    scenario_name: `D2_${selectedConstellation}_initial_${Date.now()}`,
+                    constellation: selectedConstellation,
                     ue_position: {
                         latitude: params.referenceLocation.lat,
                         longitude: params.referenceLocation.lon,
@@ -174,7 +201,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                     thresh2: params.Thresh2,
                     hysteresis: params.Hys,
                     duration_minutes: selectedTimeRange.durationMinutes,
-                    sample_interval_seconds: 60, // 每分鐘一個數據點
+                    sample_interval_seconds: selectedTimeRange.sampleIntervalSeconds,
                 }
 
                 const measurements = await unifiedD2DataService.getD2Data(
@@ -240,6 +267,69 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             params.Hys,
             convertToRealD2DataPoints,
         ])
+
+        // 載入真實數據 - 當星座或時間段改變時自動觸發
+        const loadRealData = useCallback(async () => {
+            if (isLoadingRealData) return
+            
+            setIsLoadingRealData(true)
+            setRealDataError(null)
+            
+            try {
+                console.log(`🔄 [EventD2Viewer] 載入 ${selectedConstellation} 星座數據...`)
+                console.log(`⏱️ 時間段: ${selectedTimeRange.durationMinutes} 分鐘`)
+                
+                // 生成動態的場景配置
+                const dynamicConfig: D2ScenarioConfig = {
+                    scenario_name: `D2_${selectedConstellation}_${Date.now()}`, // 使用時間戳確保唯一性
+                    constellation: selectedConstellation,
+                    ue_position: {
+                        latitude: params.referenceLocation.lat,
+                        longitude: params.referenceLocation.lon,
+                        altitude: 100,
+                    },
+                    fixed_ref_position: {
+                        latitude: params.movingReferenceLocation.lat,
+                        longitude: params.movingReferenceLocation.lon,
+                        altitude: 100,
+                    },
+                    thresh1: params.Thresh1,
+                    thresh2: params.Thresh2,
+                    hysteresis: params.Hys,
+                    duration_minutes: selectedTimeRange.durationMinutes,
+                    sample_interval_seconds: selectedTimeRange.sampleIntervalSeconds,
+                }
+                
+                // 清除舊緩存以確保獲取新數據
+                unifiedD2DataService.clearCache()
+                
+                const measurements = await unifiedD2DataService.getD2Data(dynamicConfig)
+                const convertedData = convertToRealD2DataPoints(measurements)
+                
+                setRealD2Data(convertedData)
+                console.log(`✅ [EventD2Viewer] 成功載入 ${convertedData.length} 個 ${selectedConstellation} 數據點`)
+                
+            } catch (error) {
+                console.error(`❌ [EventD2Viewer] 載入 ${selectedConstellation} 數據失敗:`, error)
+                const errorMessage = error instanceof Error ? error.message : '未知錯誤'
+                setRealDataError(`載入 ${selectedConstellation} 數據失敗: ${errorMessage}`)
+            } finally {
+                setIsLoadingRealData(false)
+            }
+        }, [
+            selectedConstellation,
+            selectedTimeRange,
+            params,
+            convertToRealD2DataService,
+            isLoadingRealData
+        ])
+
+        // 自動載入數據當星座或時間段改變時
+        useEffect(() => {
+            if (mode === 'real') {
+                loadRealData()
+            }
+        }, [mode, selectedConstellation, selectedTimeRange, loadRealData])
 
         // 模式切換處理函數
         const handleModeToggle = useCallback(
@@ -691,6 +781,45 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                         📏 門檻線
                                     </button>
                                 </div>
+
+                                {/* 真實數據控制 */}
+                                {currentMode === 'real-data' && (
+                                    <div className="control-group">
+                                        <div className="control-item">
+                                            <span className="control-label">衛星星座</span>
+                                            <select
+                                                value={selectedConstellation}
+                                                onChange={(e) => setSelectedConstellation(e.target.value as 'starlink' | 'oneweb' | 'gps')}
+                                                className="control-select"
+                                                disabled={isLoadingRealData}
+                                            >
+                                                <option value="starlink">Starlink (7,954 顆)</option>
+                                                <option value="oneweb">OneWeb (651 顆)</option>
+                                                <option value="gps">GPS (32 顆)</option>
+                                            </select>
+                                        </div>
+                                        <div className="control-item">
+                                            <span className="control-label">時間段</span>
+                                            <select
+                                                value={selectedTimeRange.durationMinutes}
+                                                onChange={(e) => setSelectedTimeRange(prev => ({ 
+                                                    ...prev, 
+                                                    durationMinutes: Number(e.target.value) 
+                                                }))}
+                                                className="control-select"
+                                                disabled={isLoadingRealData}
+                                            >
+                                                <option value={5}>5 分鐘 (短期觀測)</option>
+                                                <option value={15}>15 分鐘 (中期觀測)</option>
+                                                <option value={30}>30 分鐘 (長期觀測)</option>
+                                                <option value={60}>1 小時 (部分軌道)</option>
+                                                <option value={120}>2 小時 (LEO完整軌道)</option>
+                                                <option value={360}>6 小時 (多軌道週期)</option>
+                                                <option value={720}>12 小時 (GPS完整週期)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Event D2 距離門檻參數 */}
@@ -1215,11 +1344,15 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                                     lineHeight: 1.3,
                                                 }}
                                             >
-                                                時間範圍:{' '}
-                                                {
-                                                    selectedTimeRange.durationMinutes
-                                                }{' '}
-                                                分鐘 | 數據源: 真實 TLE 歷史數據
+                                                <div style={{ marginBottom: '2px' }}>
+                                                    星座: {selectedConstellation.toUpperCase()} | 
+                                                    時間範圍: {selectedTimeRange.durationMinutes} 分鐘 | 
+                                                    採樣: {selectedTimeRange.sampleIntervalSeconds}s
+                                                </div>
+                                                <div style={{ fontSize: '8px', opacity: 0.8 }}>
+                                                    數據源: 真實 TLE + SGP4 軌道計算 | 
+                                                    星座特徵: {getConstellationInfo(selectedConstellation).description}
+                                                </div>
                                             </div>
                                         )}
                                 </div>
