@@ -579,26 +579,50 @@ class SatelliteDataManager:
         fixed_lon = config.fixed_ref_position["longitude"]
         fixed_alt = config.fixed_ref_position["altitude"]
 
-        # 計算固定參考位置距離 (一次性計算)
-        ground_distance = self._calculate_distance(
-            ue_lat, ue_lon, ue_alt, fixed_lat, fixed_lon, fixed_alt
-        )
+        # 移動軌跡參數（模擬 UE 移動）
+        total_duration = len(orbital_rows) * 60  # 總時長（秒）
+        movement_radius = 0.01  # 移動半徑（度，約1公里）
 
-        # 調試日誌
-        logger.info(f"🔍 [D2] UE位置: ({ue_lat}, {ue_lon}, {ue_alt})")
+        logger.info(f"🔍 [D2] 初始UE位置: ({ue_lat}, {ue_lon}, {ue_alt})")
         logger.info(f"🔍 [D2] 固定參考位置: ({fixed_lat}, {fixed_lon}, {fixed_alt})")
-        logger.info(f"🔍 [D2] 計算的地面距離: {ground_distance} 米")
+        logger.info(f"🔍 [D2] 模擬UE移動軌跡，半徑: {movement_radius}度")
 
         # 處理每個時間點的軌道數據
-        for row in orbital_rows:
+        for i, row in enumerate(orbital_rows):
             timestamp = row["timestamp"]
             sat_lat = row["latitude"]
             sat_lon = row["longitude"]
             sat_alt = row["altitude"]
 
+            # 計算當前時間點的 UE 位置（模擬移動軌跡）
+            import math
+
+            time_progress = i / max(1, len(orbital_rows) - 1)  # 0 到 1
+            angle = time_progress * 2 * math.pi  # 完整圓周
+
+            # UE 沿圓形軌跡移動
+            current_ue_lat = ue_lat + movement_radius * math.cos(angle)
+            current_ue_lon = ue_lon + movement_radius * math.sin(angle)
+            current_ue_alt = ue_alt
+
             # 計算 UE 到衛星的距離 (移動參考位置)
             satellite_distance = self._calculate_distance(
-                ue_lat, ue_lon, ue_alt, sat_lat, sat_lon, sat_alt
+                current_ue_lat,
+                current_ue_lon,
+                current_ue_alt,
+                sat_lat,
+                sat_lon,
+                sat_alt,
+            )
+
+            # 計算 UE 到固定參考位置的距離（現在會隨時間變化）
+            ground_distance = self._calculate_distance(
+                current_ue_lat,
+                current_ue_lon,
+                current_ue_alt,
+                fixed_lat,
+                fixed_lon,
+                fixed_alt,
             )
 
             # 計算 D2 事件條件
