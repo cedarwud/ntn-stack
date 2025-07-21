@@ -17,9 +17,9 @@ interface EventD2ChartProps {
 
 export const EventD2Chart: React.FC<EventD2ChartProps> = React.memo(
     ({
-        thresh1 = 550000,
-        thresh2 = 6000,
-        hysteresis = 20,
+        thresh1 = 800000,
+        thresh2 = 30000,
+        hysteresis = 500,
         showThresholdLines = true,
         isDarkTheme = true,
     }) => {
