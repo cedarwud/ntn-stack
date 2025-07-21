@@ -52,11 +52,6 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         }))
 
         const [showThresholdLines, setShowThresholdLines] = useState(true)
-        const [animationState, setAnimationState] = useState({
-            isPlaying: false,
-            currentTime: 0,
-            speed: 1,
-        })
 
         // 真實數據模式狀態
         const [currentMode, setCurrentMode] = useState<
@@ -371,39 +366,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             []
         )
 
-        // 穩定的動畫控制回調
-        const toggleAnimation = useCallback(() => {
-            setAnimationState((prev) => ({
-                ...prev,
-                isPlaying: !prev.isPlaying,
-            }))
-        }, [])
 
-        const resetAnimation = useCallback(() => {
-            setAnimationState((prev) => ({
-                ...prev,
-                isPlaying: false,
-                currentTime: 0,
-            }))
-        }, [])
-
-        // 動畫進度更新
-        React.useEffect(() => {
-            if (!animationState.isPlaying) return
-
-            const interval = setInterval(() => {
-                setAnimationState((prev) => {
-                    const newTime = prev.currentTime + 0.1 * prev.speed // 0.1 second steps
-                    const maxTime = 95 // 95 seconds max for D2 (matching chart X-axis)
-                    if (newTime >= maxTime) {
-                        return { ...prev, isPlaying: false, currentTime: 0 }
-                    }
-                    return { ...prev, currentTime: newTime }
-                })
-            }, 100) // Update every 100ms (0.1 second)
-
-            return () => clearInterval(interval)
-        }, [animationState.isPlaying, animationState.speed])
 
         // 穩定的閾值線切換回調
         const toggleThresholdLines = useCallback(() => {
@@ -447,7 +410,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
         // 動畫解說內容生成 - 基於衛星軌道和 LEO 星座切換策略
         const narrationContent = useMemo(() => {
-            const currentTime = animationState.currentTime
+            const currentTime = 45 // 固定時間點用於演示
             const satellitePosition = calculateSatellitePosition(currentTime)
 
             // 模擬 UE 位置 (全球化支援 - 可配置)
@@ -649,18 +612,16 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                 groundTrack: `${groundTrackSpeed.toFixed(1)} km/s`,
             }
         }, [
-            animationState.currentTime,
             params.Thresh1,
             params.Thresh2,
             params.Hys,
-            params.timeToTrigger,
             calculateSatellitePosition,
         ])
 
         // 計算 Event D2 條件狀態 - 基於 3GPP TS 38.331 規範
         const eventStatus = useMemo(() => {
             // 根據當前時間計算條件
-            const currentTime = animationState.currentTime || 45 // 預設時間
+            const currentTime = 45 // 固定時間點用於演示
 
             // 模擬 UE 位置 (全球化支援 - 可配置)
             const _uePosition = { lat: 0.048, lon: 0.528 }
@@ -705,7 +666,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                 triggerTimeRange: '20-80秒',
                 satellitePosition, // 當前衛星位置
             }
-        }, [params, animationState.currentTime, calculateSatellitePosition])
+        }, [params, calculateSatellitePosition])
 
         return (
             <div className="event-a4-viewer">
@@ -713,30 +674,12 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                     {/* 控制面板 */}
                     <div className="event-viewer__controls">
                         <div className="control-panel">
-                            {/* 動畫控制 */}
+                            {/* D2事件控制 */}
                             <div className="control-section">
                                 <h3 className="control-section__title">
-                                    🎬 動畫控制
+                                    📊 D2 事件控制
                                 </h3>
                                 <div className="control-group control-group--buttons">
-                                    <button
-                                        className={`control-btn ${
-                                            animationState.isPlaying
-                                                ? 'control-btn--pause'
-                                                : 'control-btn--play'
-                                        }`}
-                                        onClick={toggleAnimation}
-                                    >
-                                        {animationState.isPlaying
-                                            ? '⏸️ 暫停'
-                                            : '▶️ 播放'}
-                                    </button>
-                                    <button
-                                        className="control-btn control-btn--reset"
-                                        onClick={resetAnimation}
-                                    >
-                                        🔄 重置
-                                    </button>
                                     <button
                                         className={`control-btn ${
                                             showThresholdLines
@@ -747,70 +690,6 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                     >
                                         📏 門檻線
                                     </button>
-                                </div>
-
-                                {/* 解說系統控制 */}
-                                <div className="control-group control-group--buttons">
-                                    <button
-                                        className={`control-btn ${
-                                            showNarration
-                                                ? 'control-btn--active'
-                                                : ''
-                                        }`}
-                                        onClick={() =>
-                                            setShowNarration(!showNarration)
-                                        }
-                                    >
-                                        💬 動畫解說
-                                    </button>
-                                    <button
-                                        className={`control-btn ${
-                                            showTechnicalDetails
-                                                ? 'control-btn--active'
-                                                : ''
-                                        }`}
-                                        onClick={() =>
-                                            setShowTechnicalDetails(
-                                                !showTechnicalDetails
-                                            )
-                                        }
-                                    >
-                                        🔍 技術細節
-                                    </button>
-                                </div>
-
-                                {/* 時間遊標控制 */}
-                                <div className="control-group">
-                                    <div className="control-item">
-                                        <label className="control-label">
-                                            當前時間 (動畫時間)
-                                            <span className="control-unit">
-                                                秒
-                                            </span>
-                                        </label>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="95"
-                                            step="0.1"
-                                            value={animationState.currentTime}
-                                            onChange={(e) =>
-                                                setAnimationState((prev) => ({
-                                                    ...prev,
-                                                    currentTime: Number(
-                                                        e.target.value
-                                                    ),
-                                                }))
-                                            }
-                                            className="control-slider"
-                                        />
-                                        <span className="control-value">
-                                            {animationState.currentTime.toFixed(
-                                                1
-                                            )}
-                                            s
-                                        </span>
-                                    </div>
                                 </div>
                             </div>
 
@@ -902,126 +781,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                 </div>
                             </div>
 
-                            {/* 時間參數 */}
-                            <div className="control-section">
-                                <h3 className="control-section__title">
-                                    ⏱️ 時間參數
-                                </h3>
-                                <div className="control-group">
-                                    <div className="control-item control-item--horizontal">
-                                        <span className="control-label">
-                                            TimeToTrigger
-                                        </span>
-                                        <select
-                                            value={params.timeToTrigger}
-                                            onChange={(e) =>
-                                                updateParam(
-                                                    'timeToTrigger',
-                                                    Number(e.target.value)
-                                                )
-                                            }
-                                            className="control-select"
-                                        >
-                                            <option value={0}>0</option>
-                                            <option value={40}>40</option>
-                                            <option value={64}>64</option>
-                                            <option value={80}>80</option>
-                                            <option value={100}>100</option>
-                                            <option value={128}>128</option>
-                                            <option value={160}>160</option>
-                                            <option value={256}>256</option>
-                                            <option value={320}>320</option>
-                                            <option value={480}>480</option>
-                                            <option value={512}>512</option>
-                                            <option value={640}>640</option>
-                                        </select>
-                                        <span className="control-unit">
-                                            毫秒
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
 
-                            {/* 報告參數 */}
-                            <div className="control-section">
-                                <h3 className="control-section__title">
-                                    📊 報告參數
-                                </h3>
-                                <div className="control-group">
-                                    <div className="control-item control-item--horizontal">
-                                        <span className="control-label">
-                                            Report Amount
-                                        </span>
-                                        <select
-                                            value={params.reportAmount}
-                                            onChange={(e) =>
-                                                updateParam(
-                                                    'reportAmount',
-                                                    Number(e.target.value)
-                                                )
-                                            }
-                                            className="control-select"
-                                        >
-                                            <option value={1}>1</option>
-                                            <option value={2}>2</option>
-                                            <option value={4}>4</option>
-                                            <option value={8}>8</option>
-                                            <option value={16}>16</option>
-                                            <option value={32}>32</option>
-                                            <option value={64}>64</option>
-                                            <option value={-1}>無限制</option>
-                                        </select>
-                                        <span className="control-unit">
-                                            次數
-                                        </span>
-                                    </div>
-                                    <div className="control-item control-item--horizontal">
-                                        <span className="control-label">
-                                            Report Interval
-                                        </span>
-                                        <select
-                                            value={params.reportInterval}
-                                            onChange={(e) =>
-                                                updateParam(
-                                                    'reportInterval',
-                                                    Number(e.target.value)
-                                                )
-                                            }
-                                            className="control-select"
-                                        >
-                                            <option value={120}>120</option>
-                                            <option value={240}>240</option>
-                                            <option value={480}>480</option>
-                                            <option value={640}>640</option>
-                                            <option value={1024}>1024</option>
-                                            <option value={2048}>2048</option>
-                                            <option value={5120}>5120</option>
-                                            <option value={10240}>10240</option>
-                                        </select>
-                                        <span className="control-unit">
-                                            毫秒
-                                        </span>
-                                    </div>
-                                    <div className="control-item control-item--horizontal">
-                                        <span className="control-label">
-                                            離開時報告
-                                        </span>
-                                        <label className="control-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={params.reportOnLeave}
-                                                onChange={(e) =>
-                                                    updateParam(
-                                                        'reportOnLeave',
-                                                        e.target.checked
-                                                    )
-                                                }
-                                            />
-                                            Report On Leave
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
 
                             {/* Event D2 狀態 */}
                             <div className="control-section">
@@ -1474,6 +1234,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                         hysteresis={params.Hys}
                                         showThresholdLines={showThresholdLines}
                                         isDarkTheme={isDarkTheme}
+                                        showTriggerIndicator="none"
                                         onDataPointClick={(
                                             dataPoint,
                                             index
@@ -1491,7 +1252,6 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                         thresh1={params.Thresh1}
                                         thresh2={params.Thresh2}
                                         hysteresis={params.Hys}
-                                        currentTime={animationState.currentTime}
                                         showThresholdLines={showThresholdLines}
                                         isDarkTheme={isDarkTheme}
                                         onThemeToggle={onThemeToggle}
