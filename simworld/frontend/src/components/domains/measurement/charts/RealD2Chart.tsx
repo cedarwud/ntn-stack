@@ -85,8 +85,8 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
     hysteresis,
     showThresholdLines = true,
     isDarkTheme = true,
-    width = 1000,
-    height = 600,
+    width,
+    height,
     className = '',
     onDataPointClick,
     onChartReady,
@@ -130,68 +130,33 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
             (point) => point.groundDistance / 1000
         ) // 轉換為 km
 
-        // 觸發點標記 - 分別顯示在兩條線上
-        const satelliteTriggerPoints = data.map((point, index) => {
-            if (point.triggerConditionMet) {
-                return point.satelliteDistance / 1000 // 顯示在衛星距離線上
-            }
-            return null
-        })
-
-        const groundTriggerPoints = data.map((point, index) => {
-            if (point.triggerConditionMet) {
-                return point.groundDistance / 1000 // 顯示在地面距離線上
-            }
-            return null
-        })
+        // 移除觸發點標記以簡化圖表
 
         return {
             labels,
             datasets: [
                 {
-                    label: '衛星距離 (UE ↔ 移動參考位置) ⚡',
+                    label: '衛星距離 (UE ↔ 衛星)',
                     data: satelliteDistanceData,
                     borderColor: theme.satelliteLine,
-                    backgroundColor: `${theme.satelliteLine}20`,
-                    borderWidth: 3,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
+                    backgroundColor: `${theme.satelliteLine}10`,
+                    borderWidth: 2.5, // 增加線條粗細
+                    pointRadius: 1, // 顯示小點以保持數據真實性
+                    pointHoverRadius: 5,
                     fill: false,
-                    tension: 0.1,
+                    tension: 0.2, // 降低平滑度以保持真實數據特徵
                     yAxisID: 'y-left',
                 },
                 {
-                    label: '地面距離 (UE ↔ 固定參考位置) ⚡',
+                    label: '地面距離 (UE ↔ 固定參考位置)',
                     data: groundDistanceData,
                     borderColor: theme.groundLine,
-                    backgroundColor: `${theme.groundLine}20`,
-                    borderWidth: 3,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
+                    backgroundColor: `${theme.groundLine}10`,
+                    borderWidth: 2.5, // 增加線條粗細
+                    pointRadius: 1, // 顯示小點
+                    pointHoverRadius: 5,
                     fill: false,
-                    tension: 0.1,
-                    yAxisID: 'y-right',
-                },
-                {
-                    label: 'D2 事件觸發點 (衛星)',
-                    data: satelliteTriggerPoints,
-                    borderColor: theme.triggerPoint,
-                    backgroundColor: theme.triggerPoint,
-                    borderWidth: 0,
-                    pointRadius: 8,
-                    pointHoverRadius: 10,
-                    showLine: false,
-                    yAxisID: 'y-left',
-                },
-                {
-                    label: 'D2 事件觸發點 (地面)',
-                    data: groundTriggerPoints,
-                    borderColor: theme.triggerPoint,
-                    backgroundColor: `${theme.triggerPoint}80`, // 半透明
-                    borderWidth: 0,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    showLine: false,
+                    tension: 0.3, // 地面距離可以更平滑（因為是人工生成的）
                     yAxisID: 'y-right',
                 },
             ],
@@ -246,6 +211,7 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
         () => ({
             responsive: true,
             maintainAspectRatio: false,
+            resizeDelay: 0,
             interaction: {
                 mode: 'index' as const,
                 intersect: false,
@@ -480,14 +446,16 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
             <div
                 className={`real-d2-chart ${className}`}
                 style={{
-                    width,
-                    height,
+                    width: width ? `${width}px` : '100%',
+                    height: height ? `${height}px` : '100%',
+                    minHeight: '400px', // 確保空狀態也有足夠高度
                     backgroundColor: theme.background,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: theme.text,
                     fontSize: '16px',
+                    boxSizing: 'border-box',
                 }}
             >
                 正在載入真實衛星數據...
@@ -499,11 +467,13 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
         <div
             className={`real-d2-chart ${className}`}
             style={{
-                width,
-                height,
+                width: width ? `${width}px` : '100%',
+                height: height ? `${height}px` : '100%',
+                minHeight: '400px', // 確保空圖表也有最小高度
                 backgroundColor: theme.background,
                 padding: '10px',
                 borderRadius: '8px',
+                boxSizing: 'border-box',
             }}
         >
             <Line
