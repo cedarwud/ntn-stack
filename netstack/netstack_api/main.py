@@ -84,17 +84,30 @@ async def _initialize_all_managers(app: FastAPI) -> None:
     await managers["service"].initialize_services(app)
 
     await initialize_ai_services(adapters[1])  # Redis adapter
-    
+
     # 初始化 RLTrainingEngine 單例
     logger.info("🚀 開始初始化 RLTrainingEngine...")
     from .rl.training_engine import get_training_engine
+
     await get_training_engine()
     logger.info("✅ RLTrainingEngine 初始化完成")
+
+    # 初始化數據庫表結構
+    logger.info("🗄️ 檢查並初始化數據庫表結構...")
+    try:
+        from .services.database_init import ensure_database_initialized
+
+        await ensure_database_initialized()
+        logger.info("✅ 數據庫表結構初始化完成")
+    except Exception as e:
+        logger.error(f"⚠️ 數據庫初始化失敗: {e}")
+        # 不阻止系統啟動，只記錄警告
 
     # 初始化真實衛星數據 (自動檢查並下載)
     logger.info("🛰️ 檢查並初始化真實衛星數據...")
     try:
         from .services.auto_init_satellite_data import check_and_init_satellite_data
+
         await check_and_init_satellite_data()
         logger.info("✅ 真實衛星數據初始化完成")
     except Exception as e:
