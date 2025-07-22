@@ -326,6 +326,8 @@ class SGP4Calculator:
 
         for _ in range(5):  # 迭代修正
             sin_lat = math.sin(latitude)
+            cos_lat = math.cos(latitude)
+            
             N = self.constants.EARTH_RADIUS / math.sqrt(
                 1
                 - (
@@ -334,7 +336,17 @@ class SGP4Calculator:
                 )
                 * sin_lat**2
             )
-            altitude = r / math.cos(latitude) - N
+            
+            # 避免除零錯誤
+            if abs(cos_lat) > 1e-10:
+                altitude = r / cos_lat - N
+            else:
+                # 接近極點時使用替代計算
+                altitude = abs(z_ecef) - N * (1 - (
+                    2 * self.constants.EARTH_FLATTENING
+                    - self.constants.EARTH_FLATTENING**2
+                ))
+            
             latitude = math.atan2(
                 z_ecef,
                 r
@@ -543,12 +555,12 @@ class SGP4Calculator:
         dz_sun = sun_z - z
         r_sun = math.sqrt(dx_sun**2 + dy_sun**2 + dz_sun**2)
 
-        # 太陽引力攝動
+        # 太陽引力攝動 - 修復單位問題
         if r_sun > 0:
+            # 使用 km 單位的引力常數和太陽質量
             sun_factor = (
-                self.constants.GRAVITATIONAL_CONSTANT
-                * self.constants.SUN_MASS
-                / 1e9
+                self.constants.GRAVITATIONAL_CONSTANT * self.constants.SUN_MASS
+                / 1e24  # 正確的單位轉換：m³/s² * kg -> km³/s² * 1e18 kg
                 / (r_sun**3)
             )
             sun_accel_x = sun_factor * dx_sun
@@ -571,10 +583,10 @@ class SGP4Calculator:
         r_moon = math.sqrt(dx_moon**2 + dy_moon**2 + dz_moon**2)
 
         if r_moon > 0:
+            # 使用 km 單位的引力常數和月球質量
             moon_factor = (
-                self.constants.GRAVITATIONAL_CONSTANT
-                * self.constants.MOON_MASS
-                / 1e9
+                self.constants.GRAVITATIONAL_CONSTANT * self.constants.MOON_MASS
+                / 1e24  # 正確的單位轉換
                 / (r_moon**3)
             )
             moon_accel_x = moon_factor * dx_moon
@@ -587,6 +599,16 @@ class SGP4Calculator:
         total_accel_x = sun_accel_x + moon_accel_x
         total_accel_y = sun_accel_y + moon_accel_y
         total_accel_z = sun_accel_z + moon_accel_z
+
+        # 限制攝動修正的大小以避免數值不穩定
+        max_accel = 1e-6  # km/s²（合理的第三體攝動上限）
+        accel_magnitude = math.sqrt(total_accel_x**2 + total_accel_y**2 + total_accel_z**2)
+        
+        if accel_magnitude > max_accel:
+            scale_factor = max_accel / accel_magnitude
+            total_accel_x *= scale_factor
+            total_accel_y *= scale_factor
+            total_accel_z *= scale_factor
 
         # 位置修正（1秒積分）
         dt = 1.0
