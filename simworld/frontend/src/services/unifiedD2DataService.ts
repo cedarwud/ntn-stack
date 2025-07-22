@@ -308,16 +308,23 @@ class UnifiedD2DataService {
     async getD2Data(config: D2ScenarioConfig): Promise<D2MeasurementPoint[]> {
         try {
             console.log(`🚀 [UnifiedD2] 一鍵式獲取 D2 數據: ${config.scenario_name}`)
-            
+
             // 1. 確保 TLE 數據是最新的
             await this.updateTLEData(config.constellation, false)
-            
+
             // 2. 預計算 D2 測量數據
             const precomputeResult = await this.precomputeD2Measurements(config)
-            
-            // 3. 獲取緩存的測量數據
-            const measurements = await this.getCachedD2Measurements(precomputeResult.scenario_hash)
-            
+
+            // 3. 計算所需的數據點數量限制
+            const totalSeconds = config.duration_minutes * 60
+            const expectedDataPoints = Math.ceil(totalSeconds / config.sample_interval_seconds)
+            const limit = Math.max(1000, expectedDataPoints + 100) // 至少1000個，或預期數量+緩衝
+
+            console.log(`📊 [UnifiedD2] 計算數據點限制: ${config.duration_minutes}分鐘 × ${config.sample_interval_seconds}秒間隔 = ${expectedDataPoints}個數據點，設定限制為${limit}`)
+
+            // 4. 獲取緩存的測量數據
+            const measurements = await this.getCachedD2Measurements(precomputeResult.scenario_hash, limit)
+
             console.log(`✅ [UnifiedD2] 一鍵式獲取完成:`, measurements.length, '個數據點')
             return measurements
 
