@@ -174,99 +174,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             [params.Thresh1, params.Thresh2, params.Hys]
         )
 
-        // 獲取真實 D2 數據的函數
-        const fetchRealD2Data = useCallback(async () => {
-            setIsLoadingRealData(true)
-            setRealDataError(null)
-
-            try {
-                console.log(
-                    '🛰️ [EventD2Viewer] 開始獲取真實衛星數據 (統一架構)...'
-                )
-
-                const config: D2ScenarioConfig = {
-                    scenario_name: `D2_${selectedConstellation}_initial_${Date.now()}`,
-                    constellation: selectedConstellation,
-                    ue_position: {
-                        latitude: params.referenceLocation.lat,
-                        longitude: params.referenceLocation.lon,
-                        altitude: 0.1, // 100m 轉換為 km
-                    },
-                    fixed_ref_position: {
-                        latitude: params.movingReferenceLocation.lat,
-                        longitude: params.movingReferenceLocation.lon,
-                        altitude: 0.0, // 地面參考位置
-                    },
-                    thresh1: params.Thresh1,
-                    thresh2: params.Thresh2,
-                    hysteresis: params.Hys,
-                    duration_minutes: selectedTimeRange.durationMinutes,
-                    sample_interval_seconds: selectedTimeRange.sampleIntervalSeconds,
-                }
-
-                const measurements = await unifiedD2DataService.getD2Data(
-                    config
-                )
-                const convertedData = convertToRealD2DataPoints(measurements)
-
-                console.log(
-                    `✅ [EventD2Viewer] 成功獲取並轉換 ${convertedData.length} 個真實數據點`
-                )
-
-                // 分析衛星距離變化範圍
-                const satelliteDistances = convertedData.map(
-                    (p) => p.satelliteDistance
-                )
-                const minSatDistance = Math.min(...satelliteDistances)
-                const maxSatDistance = Math.max(...satelliteDistances)
-                const satDistanceRange = maxSatDistance - minSatDistance
-
-                console.log('數據質量信息:', {
-                    dataSource: 'unified',
-                    constellation: config.constellation,
-                    measurementCount: measurements.length,
-                    triggerEvents: measurements.filter(
-                        (m) => m.trigger_condition_met
-                    ).length,
-                    satelliteDistanceRange: {
-                        min: (minSatDistance / 1000).toFixed(1) + ' km',
-                        max: (maxSatDistance / 1000).toFixed(1) + ' km',
-                        range: (satDistanceRange / 1000).toFixed(1) + ' km',
-                    },
-                })
-
-                // 調試：檢查前幾個數據點的距離信息
-                console.log('🔍 [EventD2Viewer] 前3個數據點的距離信息:')
-                convertedData.slice(0, 3).forEach((point, index) => {
-                    console.log(`數據點 ${index}:`, {
-                        satelliteDistance:
-                            (point.satelliteDistance / 1000).toFixed(1) + ' km',
-                        groundDistance:
-                            (point.groundDistance / 1000).toFixed(1) + ' km',
-                        timestamp: point.timestamp,
-                    })
-                })
-
-                setRealD2Data(convertedData)
-                setRealDataError(null)
-            } catch (error) {
-                console.error('❌ [EventD2Viewer] 獲取真實數據失敗:', error)
-                const errorMessage =
-                    error instanceof Error ? error.message : '未知錯誤'
-                setRealDataError(errorMessage)
-                setRealD2Data([])
-            } finally {
-                setIsLoadingRealData(false)
-            }
-        }, [
-            selectedTimeRange,
-            params.referenceLocation,
-            params.movingReferenceLocation,
-            params.Thresh1,
-            params.Thresh2,
-            params.Hys,
-            convertToRealD2DataPoints,
-        ])
+        // fetchRealD2Data 函數已移除，統一使用 loadRealData
 
         // 載入真實數據 - 當星座或時間段改變時自動觸發
         const loadRealData = useCallback(async () => {
@@ -279,9 +187,14 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                 console.log(`🔄 [EventD2Viewer] 載入 ${selectedConstellation} 星座數據...`)
                 console.log(`⏱️ 時間段: ${selectedTimeRange.durationMinutes} 分鐘`)
                 
-                // 生成動態的場景配置
+                // 強制使用唯一場景名稱避免後端累積效應bug
+                const uniqueId = Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                const scenarioName = `D2_${selectedConstellation}_${selectedTimeRange.durationMinutes}min_${selectedTimeRange.sampleIntervalSeconds}s_${uniqueId}`
+                
+                console.log(`🎯 [EventD2Viewer] 場景名稱: ${scenarioName}`)
+                
                 const dynamicConfig: D2ScenarioConfig = {
-                    scenario_name: `D2_${selectedConstellation}_${Date.now()}`, // 使用時間戳確保唯一性
+                    scenario_name: scenarioName, // 使用半穩定名稱平衡緩存和唯一性
                     constellation: selectedConstellation,
                     ue_position: {
                         latitude: params.referenceLocation.lat,
@@ -300,14 +213,49 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                     sample_interval_seconds: selectedTimeRange.sampleIntervalSeconds,
                 }
                 
-                // 清除舊緩存以確保獲取新數據
+                // 激進清除緩存以避免累積效應
+                console.log('🧹 [EventD2Viewer] 清除所有相關緩存...')
                 unifiedD2DataService.clearCache()
+                // 也清除可能的前端緩存
+                if ('caches' in window) {
+                    try {
+                        const cacheNames = await caches.keys()
+                        for (const cacheName of cacheNames) {
+                            if (cacheName.includes('d2') || cacheName.includes('satellite')) {
+                                await caches.delete(cacheName)
+                            }
+                        }
+                    } catch (e) {
+                        // 忽略緩存清除錯誤
+                    }
+                }
                 
                 const measurements = await unifiedD2DataService.getD2Data(dynamicConfig)
                 const convertedData = convertToRealD2DataPoints(measurements)
                 
                 setRealD2Data(convertedData)
                 console.log(`✅ [EventD2Viewer] 成功載入 ${convertedData.length} 個 ${selectedConstellation} 數據點`)
+                console.log('🔍 [EventD2Viewer] 前3個數據點預覽:', convertedData.slice(0, 3).map(d => ({
+                    time: d.timestamp,
+                    satDist: (d.satelliteDistance / 1000).toFixed(1) + 'km',
+                    groundDist: (d.groundDistance / 1000).toFixed(1) + 'km'
+                })))
+                
+                // 診斷時間範圍問題
+                if (convertedData.length > 1) {
+                    const firstTime = new Date(convertedData[0].timestamp);
+                    const lastTime = new Date(convertedData[convertedData.length - 1].timestamp);
+                    const actualDurationMinutes = (lastTime - firstTime) / (1000 * 60);
+                    const expectedDuration = selectedTimeRange.durationMinutes;
+                    
+                    console.log('⏰ [EventD2Viewer] 時間範圍診斷:', {
+                        預期時間段: expectedDuration + '分鐘',
+                        實際時間段: actualDurationMinutes.toFixed(2) + '分鐘',
+                        開始時間: firstTime.toISOString(),
+                        結束時間: lastTime.toISOString(),
+                        時間異常: actualDurationMinutes < expectedDuration * 0.8 ? '⚠️ 是' : '✅ 否'
+                    });
+                }
                 
             } catch (error) {
                 console.error(`❌ [EventD2Viewer] 載入 ${selectedConstellation} 數據失敗:`, error)
@@ -320,16 +268,11 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             selectedConstellation,
             selectedTimeRange,
             params,
-            convertToRealD2DataService,
+            convertToRealD2DataPoints,
             isLoadingRealData
         ])
 
-        // 自動載入數據當星座或時間段改變時
-        useEffect(() => {
-            if (mode === 'real') {
-                loadRealData()
-            }
-        }, [mode, selectedConstellation, selectedTimeRange, loadRealData])
+        // 手動更新模式 - 移除自動更新以避免選擇困難
 
         // 模式切換處理函數
         const handleModeToggle = useCallback(
@@ -339,15 +282,14 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
                 if (mode === 'real-data') {
                     console.log('🚀 [EventD2Viewer] 切換到真實數據模式')
-                    // 清除緩存以確保獲取最新數據
-                    unifiedD2DataService.clearCache()
-                    await fetchRealD2Data()
+                    // 切換到真實模式時載入一次數據
+                    await loadRealData()
                 } else {
                     console.log('🎯 [EventD2Viewer] 切換到模擬模式')
                     setRealD2Data([])
                 }
             },
-            [fetchRealD2Data]
+            [loadRealData]
         )
 
         // 初始化拖拽狀態的位置 (從 A4 引入)
@@ -817,6 +759,16 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                                 <option value={360}>6 小時 (多軌道週期)</option>
                                                 <option value={720}>12 小時 (GPS完整週期)</option>
                                             </select>
+                                        </div>
+                                        <div className="control-group control-group--buttons">
+                                            <button
+                                                className="control-btn control-btn--refresh"
+                                                onClick={loadRealData}
+                                                disabled={isLoadingRealData}
+                                                title="載入選定星座和時間段的真實軌道數據"
+                                            >
+                                                {isLoadingRealData ? '🔄 載入中...' : '📡 載入數據'}
+                                            </button>
                                         </div>
                                     </div>
                                 )}
