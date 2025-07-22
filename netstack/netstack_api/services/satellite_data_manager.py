@@ -350,6 +350,14 @@ class SatelliteDataManager:
         start_time = datetime.now(timezone.utc)
         scenario_hash = self._generate_scenario_hash(config)
 
+        # 清除該場景的舊 D2 測量緩存以避免時間間隔衝突
+        async with self.db_pool.acquire() as conn:
+            deleted_rows = await conn.execute(
+                "DELETE FROM d2_measurement_cache WHERE scenario_hash = $1",
+                scenario_hash
+            )
+            logger.info(f"🧹 已清除場景 {config.scenario_name} 的 D2 測量緩存: {deleted_rows} 筆記錄")
+
         stats = {
             "scenario_name": config.scenario_name,
             "scenario_hash": scenario_hash,
@@ -375,7 +383,7 @@ class SatelliteDataManager:
             time_range = TimeRange(start=start_time, end=end_time)
 
             # 預計算軌道數據
-            await self._precompute_orbital_data(target_satellite, time_range)
+            await self._precompute_orbital_data(target_satellite, time_range, config)
 
             # 生成 D2 測量數據
             measurements = await self._generate_d2_measurements(
@@ -438,7 +446,7 @@ class SatelliteDataManager:
             return stats
 
     async def _precompute_orbital_data(
-        self, satellite: SatelliteInfo, time_range: TimeRange
+        self, satellite: SatelliteInfo, time_range: TimeRange, config: D2ScenarioConfig
     ):
         """預計算軌道數據"""
         # 從數據庫獲取 TLE 數據
@@ -465,13 +473,24 @@ class SatelliteDataManager:
 
         self.orbit_engine.add_tle_data(tle_data)
 
-        # 計算軌道路徑
+        # 計算軌道路徑 - 修復：使用配置中的採樣間隔，避免硬編碼
+        sample_interval_minutes = config.sample_interval_seconds / 60.0
+        logger.info(f"🔧 使用採樣間隔: {sample_interval_minutes} 分鐘 (來自配置: {config.sample_interval_seconds} 秒)")
+        
         orbit_path = self.orbit_engine.predict_orbit_path(
-            str(satellite.norad_id), time_range, sample_interval_minutes=1
+            str(satellite.norad_id), time_range, sample_interval_minutes=sample_interval_minutes
         )
 
         if not orbit_path:
             raise ValueError(f"無法計算衛星 {satellite.norad_id} 的軌道路徑")
+
+        # 清除該衛星的舊緩存數據以避免採樣間隔衝突
+        async with self.db_pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM satellite_orbital_cache WHERE satellite_id = $1",
+                str(satellite.norad_id)
+            )
+            logger.info(f"🧹 已清除衛星 {satellite.norad_id} 的軌道緩存數據")
 
         # 緩存軌道數據
         async with self.db_pool.acquire() as conn:
