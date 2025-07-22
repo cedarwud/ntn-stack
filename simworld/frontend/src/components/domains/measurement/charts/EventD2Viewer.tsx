@@ -59,22 +59,22 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                 case 'starlink':
                     return {
                         description: '低軌高速軌道 (53°, 550km, 15軌/日)',
-                        characteristics: '快速變化的距離曲線，明顯的都卜勒效應'
+                        characteristics: '快速變化的距離曲線，明顯的都卜勒效應',
                     }
                 case 'oneweb':
                     return {
                         description: '極軌中高度軌道 (87°, 1200km, 13軌/日)',
-                        characteristics: '極地覆蓋，中等變化率的軌道特徵'
+                        characteristics: '極地覆蓋，中等變化率的軌道特徵',
                     }
                 case 'gps':
                     return {
                         description: '中軌穩定軌道 (55°, 20200km, 2軌/日)',
-                        characteristics: '緩慢變化，長期穩定的距離關係'
+                        characteristics: '緩慢變化，長期穩定的距離關係',
                     }
                 default:
                     return {
                         description: '未知星座',
-                        characteristics: '標準軌道特徵'
+                        characteristics: '標準軌道特徵',
                     }
             }
         }, [])
@@ -88,7 +88,9 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         const [realD2Data, setRealD2Data] = useState<RealD2DataPoint[]>([])
 
         // 真實數據配置
-        const [selectedConstellation, setSelectedConstellation] = useState<'starlink' | 'oneweb' | 'gps'>('starlink')
+        const [selectedConstellation, setSelectedConstellation] = useState<
+            'starlink' | 'oneweb' | 'gps'
+        >('starlink')
         const [selectedTimeRange, setSelectedTimeRange] = useState({
             durationMinutes: 120, // 預設為2小時，可看到LEO完整軌道週期
             sampleIntervalSeconds: 10, // 適合2小時觀測的採樣間隔
@@ -179,20 +181,25 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         // 載入真實數據 - 當星座或時間段改變時自動觸發
         const loadRealData = useCallback(async () => {
             if (isLoadingRealData) return
-            
+
             setIsLoadingRealData(true)
             setRealDataError(null)
-            
+
             try {
-                console.log(`🔄 [EventD2Viewer] 載入 ${selectedConstellation} 星座數據...`)
-                console.log(`⏱️ 時間段: ${selectedTimeRange.durationMinutes} 分鐘`)
-                
+                console.log(
+                    `🔄 [EventD2Viewer] 載入 ${selectedConstellation} 星座數據...`
+                )
+                console.log(
+                    `⏱️ 時間段: ${selectedTimeRange.durationMinutes} 分鐘`
+                )
+
                 // 強制使用唯一場景名稱避免後端累積效應bug
-                const uniqueId = Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                const uniqueId =
+                    Date.now() + '_' + Math.random().toString(36).substr(2, 9)
                 const scenarioName = `D2_${selectedConstellation}_${selectedTimeRange.durationMinutes}min_${selectedTimeRange.sampleIntervalSeconds}s_${uniqueId}`
-                
+
                 console.log(`🎯 [EventD2Viewer] 場景名稱: ${scenarioName}`)
-                
+
                 const dynamicConfig: D2ScenarioConfig = {
                     scenario_name: scenarioName, // 使用半穩定名稱平衡緩存和唯一性
                     constellation: selectedConstellation,
@@ -210,9 +217,10 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                     thresh2: params.Thresh2,
                     hysteresis: params.Hys,
                     duration_minutes: selectedTimeRange.durationMinutes,
-                    sample_interval_seconds: selectedTimeRange.sampleIntervalSeconds,
+                    sample_interval_seconds:
+                        selectedTimeRange.sampleIntervalSeconds,
                 }
-                
+
                 // 激進清除緩存以避免累積效應
                 console.log('🧹 [EventD2Viewer] 清除所有相關緩存...')
                 unifiedD2DataService.clearCache()
@@ -221,7 +229,10 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                     try {
                         const cacheNames = await caches.keys()
                         for (const cacheName of cacheNames) {
-                            if (cacheName.includes('d2') || cacheName.includes('satellite')) {
+                            if (
+                                cacheName.includes('d2') ||
+                                cacheName.includes('satellite')
+                            ) {
                                 await caches.delete(cacheName)
                             }
                         }
@@ -229,38 +240,56 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                         // 忽略緩存清除錯誤
                     }
                 }
-                
-                const measurements = await unifiedD2DataService.getD2Data(dynamicConfig)
+
+                const measurements = await unifiedD2DataService.getD2Data(
+                    dynamicConfig
+                )
                 const convertedData = convertToRealD2DataPoints(measurements)
-                
+
                 setRealD2Data(convertedData)
-                console.log(`✅ [EventD2Viewer] 成功載入 ${convertedData.length} 個 ${selectedConstellation} 數據點`)
-                console.log('🔍 [EventD2Viewer] 前3個數據點預覽:', convertedData.slice(0, 3).map(d => ({
-                    time: d.timestamp,
-                    satDist: (d.satelliteDistance / 1000).toFixed(1) + 'km',
-                    groundDist: (d.groundDistance / 1000).toFixed(1) + 'km'
-                })))
-                
+                console.log(
+                    `✅ [EventD2Viewer] 成功載入 ${convertedData.length} 個 ${selectedConstellation} 數據點`
+                )
+                console.log(
+                    '🔍 [EventD2Viewer] 前3個數據點預覽:',
+                    convertedData.slice(0, 3).map((d) => ({
+                        time: d.timestamp,
+                        satDist: (d.satelliteDistance / 1000).toFixed(1) + 'km',
+                        groundDist: (d.groundDistance / 1000).toFixed(1) + 'km',
+                    }))
+                )
+
                 // 診斷時間範圍問題
                 if (convertedData.length > 1) {
-                    const firstTime = new Date(convertedData[0].timestamp);
-                    const lastTime = new Date(convertedData[convertedData.length - 1].timestamp);
-                    const actualDurationMinutes = (lastTime - firstTime) / (1000 * 60);
-                    const expectedDuration = selectedTimeRange.durationMinutes;
-                    
+                    const firstTime = new Date(convertedData[0].timestamp)
+                    const lastTime = new Date(
+                        convertedData[convertedData.length - 1].timestamp
+                    )
+                    const actualDurationMinutes =
+                        (lastTime - firstTime) / (1000 * 60)
+                    const expectedDuration = selectedTimeRange.durationMinutes
+
                     console.log('⏰ [EventD2Viewer] 時間範圍診斷:', {
                         預期時間段: expectedDuration + '分鐘',
                         實際時間段: actualDurationMinutes.toFixed(2) + '分鐘',
                         開始時間: firstTime.toISOString(),
                         結束時間: lastTime.toISOString(),
-                        時間異常: actualDurationMinutes < expectedDuration * 0.8 ? '⚠️ 是' : '✅ 否'
-                    });
+                        時間異常:
+                            actualDurationMinutes < expectedDuration * 0.8
+                                ? '⚠️ 是'
+                                : '✅ 否',
+                    })
                 }
-                
             } catch (error) {
-                console.error(`❌ [EventD2Viewer] 載入 ${selectedConstellation} 數據失敗:`, error)
-                const errorMessage = error instanceof Error ? error.message : '未知錯誤'
-                setRealDataError(`載入 ${selectedConstellation} 數據失敗: ${errorMessage}`)
+                console.error(
+                    `❌ [EventD2Viewer] 載入 ${selectedConstellation} 數據失敗:`,
+                    error
+                )
+                const errorMessage =
+                    error instanceof Error ? error.message : '未知錯誤'
+                setRealDataError(
+                    `載入 ${selectedConstellation} 數據失敗: ${errorMessage}`
+                )
             } finally {
                 setIsLoadingRealData(false)
             }
@@ -269,7 +298,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             selectedTimeRange,
             params,
             convertToRealD2DataPoints,
-            isLoadingRealData
+            isLoadingRealData,
         ])
 
         // 手動更新模式 - 移除自動更新以避免選擇困難
@@ -397,8 +426,6 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             },
             []
         )
-
-
 
         // 穩定的閾值線切換回調
         const toggleThresholdLines = useCallback(() => {
@@ -728,36 +755,77 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                 {currentMode === 'real-data' && (
                                     <div className="control-group">
                                         <div className="control-item">
-                                            <span className="control-label">衛星星座</span>
+                                            <span className="control-label">
+                                                衛星星座
+                                            </span>
                                             <select
                                                 value={selectedConstellation}
-                                                onChange={(e) => setSelectedConstellation(e.target.value as 'starlink' | 'oneweb' | 'gps')}
+                                                onChange={(e) =>
+                                                    setSelectedConstellation(
+                                                        e.target.value as
+                                                            | 'starlink'
+                                                            | 'oneweb'
+                                                            | 'gps'
+                                                    )
+                                                }
                                                 className="control-select"
                                                 disabled={isLoadingRealData}
                                             >
-                                                <option value="starlink">Starlink (7,954 顆)</option>
-                                                <option value="oneweb">OneWeb (651 顆)</option>
-                                                <option value="gps">GPS (32 顆)</option>
+                                                <option value="starlink">
+                                                    Starlink (7,954 顆)
+                                                </option>
+                                                <option value="oneweb">
+                                                    OneWeb (651 顆)
+                                                </option>
+                                                <option value="gps">
+                                                    GPS (32 顆)
+                                                </option>
                                             </select>
                                         </div>
                                         <div className="control-item">
-                                            <span className="control-label">時間段</span>
+                                            <span className="control-label">
+                                                時間段
+                                            </span>
                                             <select
-                                                value={selectedTimeRange.durationMinutes}
-                                                onChange={(e) => setSelectedTimeRange(prev => ({ 
-                                                    ...prev, 
-                                                    durationMinutes: Number(e.target.value) 
-                                                }))}
+                                                value={
+                                                    selectedTimeRange.durationMinutes
+                                                }
+                                                onChange={(e) =>
+                                                    setSelectedTimeRange(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            durationMinutes:
+                                                                Number(
+                                                                    e.target
+                                                                        .value
+                                                                ),
+                                                        })
+                                                    )
+                                                }
                                                 className="control-select"
                                                 disabled={isLoadingRealData}
                                             >
-                                                <option value={5}>5 分鐘 (短期觀測)</option>
-                                                <option value={15}>15 分鐘 (中期觀測)</option>
-                                                <option value={30}>30 分鐘 (長期觀測)</option>
-                                                <option value={60}>1 小時 (部分軌道)</option>
-                                                <option value={120}>2 小時 (LEO完整軌道)</option>
-                                                <option value={360}>6 小時 (多軌道週期)</option>
-                                                <option value={720}>12 小時 (GPS完整週期)</option>
+                                                <option value={5}>
+                                                    5 分鐘 (短期觀測)
+                                                </option>
+                                                <option value={15}>
+                                                    15 分鐘 (中期觀測)
+                                                </option>
+                                                <option value={30}>
+                                                    30 分鐘 (長期觀測)
+                                                </option>
+                                                <option value={60}>
+                                                    1 小時 (部分軌道)
+                                                </option>
+                                                <option value={120}>
+                                                    2 小時 (LEO完整軌道)
+                                                </option>
+                                                <option value={360}>
+                                                    6 小時 (多軌道週期)
+                                                </option>
+                                                <option value={720}>
+                                                    12 小時 (GPS完整週期)
+                                                </option>
                                             </select>
                                         </div>
                                         <div className="control-group control-group--buttons">
@@ -767,7 +835,9 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                                 disabled={isLoadingRealData}
                                                 title="載入選定星座和時間段的真實軌道數據"
                                             >
-                                                {isLoadingRealData ? '🔄 載入中...' : '📡 載入數據'}
+                                                {isLoadingRealData
+                                                    ? '🔄 載入中...'
+                                                    : '📡 載入數據'}
                                             </button>
                                         </div>
                                     </div>
@@ -861,8 +931,6 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                     </div>
                                 </div>
                             </div>
-
-
 
                             {/* Event D2 狀態 */}
                             <div className="control-section">
@@ -1296,14 +1364,36 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                                     lineHeight: 1.3,
                                                 }}
                                             >
-                                                <div style={{ marginBottom: '2px' }}>
-                                                    星座: {selectedConstellation.toUpperCase()} | 
-                                                    時間範圍: {selectedTimeRange.durationMinutes} 分鐘 | 
-                                                    採樣: {selectedTimeRange.sampleIntervalSeconds}s
+                                                <div
+                                                    style={{
+                                                        marginBottom: '2px',
+                                                    }}
+                                                >
+                                                    星座:{' '}
+                                                    {selectedConstellation.toUpperCase()}{' '}
+                                                    | 時間範圍:{' '}
+                                                    {
+                                                        selectedTimeRange.durationMinutes
+                                                    }{' '}
+                                                    分鐘 | 採樣:{' '}
+                                                    {
+                                                        selectedTimeRange.sampleIntervalSeconds
+                                                    }
+                                                    s
                                                 </div>
-                                                <div style={{ fontSize: '8px', opacity: 0.8 }}>
-                                                    數據源: 真實 TLE + SGP4 軌道計算 | 
-                                                    星座特徵: {getConstellationInfo(selectedConstellation).description}
+                                                <div
+                                                    style={{
+                                                        fontSize: '8px',
+                                                        opacity: 0.8,
+                                                    }}
+                                                >
+                                                    數據源: 真實 TLE + SGP4
+                                                    軌道計算 | 星座特徵:{' '}
+                                                    {
+                                                        getConstellationInfo(
+                                                            selectedConstellation
+                                                        ).description
+                                                    }
                                                 </div>
                                             </div>
                                         )}
@@ -1320,6 +1410,9 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                         showThresholdLines={showThresholdLines}
                                         isDarkTheme={isDarkTheme}
                                         showTriggerIndicator="none"
+                                        sampleIntervalSeconds={
+                                            selectedTimeRange.sampleIntervalSeconds
+                                        }
                                         onDataPointClick={(
                                             dataPoint,
                                             index
@@ -1341,6 +1434,9 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                         isDarkTheme={isDarkTheme}
                                         onThemeToggle={onThemeToggle}
                                         showModeToggle={false}
+                                        historicalDurationMinutes={
+                                            selectedTimeRange.durationMinutes
+                                        }
                                     />
                                 )}
                             </div>
