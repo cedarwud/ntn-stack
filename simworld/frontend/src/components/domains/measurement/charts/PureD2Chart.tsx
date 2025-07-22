@@ -21,23 +21,23 @@ Chart.register(...registerables, annotationPlugin)
 // ✅ Phase 4.2: 真實歷史數據接口定義
 interface RealHistoricalD2Data {
     timestamp: Date
-    satelliteDistance: number     // 基於 SGP4 計算 (m)
-    groundDistance: number        // 基於真實地理坐標 (m)
+    satelliteDistance: number // 基於 SGP4 計算 (m)
+    groundDistance: number // 基於真實地理坐標 (m)
     satelliteInfo: {
         noradId: number
         name: string
         latitude: number
         longitude: number
         altitude: number
-        velocity: { x: number, y: number, z: number }
+        velocity: { x: number; y: number; z: number }
     }
     triggerConditionMet: boolean
     d2EventDetails: {
         thresh1: number
         thresh2: number
         hysteresis: number
-        enteringCondition: boolean  // D2-1 && D2-2
-        leavingCondition: boolean   // D2-3 || D2-4
+        enteringCondition: boolean // D2-1 && D2-2
+        leavingCondition: boolean // D2-3 || D2-4
     }
 }
 
@@ -276,6 +276,7 @@ interface PureD2ChartProps {
     // ✅ Phase 4.1: 新增模式切換屬性
     dataMode?: 'simulation' | 'realtime' | 'historical'
     historicalStartTime?: Date
+    historicalDurationMinutes?: number // 新增：歷史數據時間長度（分鐘）
     showModeToggle?: boolean
     onDataModeToggle?: (mode: 'simulation' | 'realtime' | 'historical') => void
 }
@@ -290,6 +291,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
     // ✅ Phase 4.1: 新增模式切換參數
     dataMode = 'simulation',
     historicalStartTime,
+    historicalDurationMinutes = 180, // 預設3小時
     showModeToggle = true,
     onDataModeToggle,
 }) => {
@@ -298,99 +300,125 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
     const _isInitialized = useRef(false)
 
     // ✅ Phase 4.1: 模式切換狀態管理
-    const [currentMode, setCurrentMode] = useState<'original' | 'real-data'>('original')
+    const [currentMode, setCurrentMode] = useState<'original' | 'real-data'>(
+        'original'
+    )
     const [isLoadingRealData, setIsLoadingRealData] = useState(false)
     const [realDataError, setRealDataError] = useState<string | null>(null)
 
     // ✅ Phase 4.2: 真實數據狀態管理
-    const [realTimeData, setRealTimeData] = useState<NetStackD2Response | null>(null)
-    const [realTimeSeriesData, setRealTimeSeriesData] = useState<NetStackD2Response[]>([]) // 用於存儲時間序列數據
-    const [historicalData, setHistoricalData] = useState<RealHistoricalD2Data[]>([])
-    const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected')
+    const [realTimeData, setRealTimeData] = useState<NetStackD2Response | null>(
+        null
+    )
+    const [realTimeSeriesData, setRealTimeSeriesData] = useState<
+        NetStackD2Response[]
+    >([]) // 用於存儲時間序列數據
+    const [historicalData, setHistoricalData] = useState<
+        RealHistoricalD2Data[]
+    >([])
+    const [connectionStatus, setConnectionStatus] = useState<
+        'connected' | 'disconnected' | 'connecting'
+    >('disconnected')
 
     // ✅ Phase 4.3: 歷史數據動畫控制狀態
     const [isPlaying, setIsPlaying] = useState(false)
     const [playbackSpeed, setPlaybackSpeed] = useState(1) // 1x, 2x, 5x, 10x
     const [currentTimeIndex, setCurrentTimeIndex] = useState(0)
-    const [animationStartTime, setAnimationStartTime] = useState<Date | null>(null)
-    const [animationIntervalRef, setAnimationIntervalRef] = useState<NodeJS.Timeout | null>(null)
+    const [animationStartTime, setAnimationStartTime] = useState<Date | null>(
+        null
+    )
+    const [animationIntervalRef, setAnimationIntervalRef] =
+        useState<NodeJS.Timeout | null>(null)
 
     // ✅ Phase 4.2: 獲取真實歷史數據序列函數
     const fetchRealHistoricalSeriesData = useCallback(async () => {
         setIsLoadingRealData(true)
         setConnectionStatus('connecting')
-        
+
         try {
             console.log('🔗 [D2] 獲取真實歷史數據序列...')
-            
+
             // 使用 NetStack API 的歷史模擬端點
             const requestPayload = {
                 ue_position: {
-                    latitude: 25.0478,   // 台北101
+                    latitude: 25.0478, // 台北101
                     longitude: 121.5319,
-                    altitude: 100
+                    altitude: 100,
                 },
                 d2_params: {
                     thresh1: thresh1 || 800000.0,
                     thresh2: thresh2 || 30000.0,
                     hysteresis: hysteresis || 500.0,
-                    time_to_trigger: 160
+                    time_to_trigger: 160,
                 },
                 simulation_params: {
-                    duration_minutes: 2,      // 2分鐘歷史數據
+                    duration_minutes: 2, // 2分鐘歷史數據
                     sample_interval_seconds: 5, // 每5秒一個數據點
-                    start_time: new Date(Date.now() - 2 * 60 * 1000).toISOString() // 從2分鐘前開始
-                }
+                    start_time: new Date(
+                        Date.now() - 2 * 60 * 1000
+                    ).toISOString(), // 從2分鐘前開始
+                },
             }
-            
+
             console.log('🔗 [D2] 請求真實歷史數據:', requestPayload)
-            
+
             // 嘗試使用歷史模擬端點
-            const response = await netstackFetch('/api/measurement-events/D2/simulate', {
-                method: 'POST',
-                body: JSON.stringify(requestPayload)
-            })
-            
+            const response = await netstackFetch(
+                '/api/measurement-events/D2/simulate',
+                {
+                    method: 'POST',
+                    body: JSON.stringify(requestPayload),
+                }
+            )
+
             if (!response.ok) {
-                console.warn('⚠️ [D2] 歷史模擬端點不可用，回退到單點數據生成模式')
+                console.warn(
+                    '⚠️ [D2] 歷史模擬端點不可用，回退到單點數據生成模式'
+                )
                 // 如果歷史端點不可用，回退到之前的實現
                 await generatePseudoRealTimeSeriesData()
                 return
             }
-            
+
             const historyData = await response.json()
             console.log('✅ [D2] 真實歷史數據獲取成功:', historyData)
-            
+
             // 轉換歷史數據為時間序列格式
-            const timeSeriesData: NetStackD2Response[] = historyData.data_points?.map((point: any, index: number) => ({
-                event_type: 'D2',
-                timestamp: point.timestamp,
-                trigger_state: point.trigger_state || 'idle',
-                trigger_condition_met: point.trigger_condition_met || false,
-                measurement_values: {
-                    reference_satellite: point.reference_satellite,
-                    satellite_distance: point.satellite_distance,
-                    ground_distance: point.ground_distance,
-                    reference_satellite_lat: point.reference_satellite_lat,
-                    reference_satellite_lon: point.reference_satellite_lon,
-                    reference_satellite_alt: point.reference_satellite_alt
-                },
-                trigger_details: point.trigger_details
-            })) || []
-            
+            const timeSeriesData: NetStackD2Response[] =
+                historyData.data_points?.map((point: any, index: number) => ({
+                    event_type: 'D2',
+                    timestamp: point.timestamp,
+                    trigger_state: point.trigger_state || 'idle',
+                    trigger_condition_met: point.trigger_condition_met || false,
+                    measurement_values: {
+                        reference_satellite: point.reference_satellite,
+                        satellite_distance: point.satellite_distance,
+                        ground_distance: point.ground_distance,
+                        reference_satellite_lat: point.reference_satellite_lat,
+                        reference_satellite_lon: point.reference_satellite_lon,
+                        reference_satellite_alt: point.reference_satellite_alt,
+                    },
+                    trigger_details: point.trigger_details,
+                })) || []
+
             if (timeSeriesData.length === 0) {
-                console.warn('⚠️ [D2] 沒有獲取到有效的歷史數據，回退到單點數據生成模式')
+                console.warn(
+                    '⚠️ [D2] 沒有獲取到有效的歷史數據，回退到單點數據生成模式'
+                )
                 await generatePseudoRealTimeSeriesData()
                 return
             }
-            
-            console.log('✅ [D2] 真實歷史序列數據準備完成:', timeSeriesData.length, '個數據點')
-            
+
+            console.log(
+                '✅ [D2] 真實歷史序列數據準備完成:',
+                timeSeriesData.length,
+                '個數據點'
+            )
+
             setRealTimeSeriesData(timeSeriesData)
             setRealTimeData(timeSeriesData[0]) // 設置第一個點為當前數據
             setConnectionStatus('connected')
             setRealDataError(null)
-            
         } catch (error) {
             console.error('❌ [D2] 真實歷史數據獲取失敗:', error)
             console.log('🔄 [D2] 回退到偽真實數據生成模式')
@@ -404,186 +432,223 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
     // ✅ Phase 4.2: 偽真實時間序列數據生成函數（備用）
     const generatePseudoRealTimeSeriesData = useCallback(async () => {
         try {
-            console.log('🔗 [D2] 生成偽真實時間序列數據（基於當前真實數據點）...')
-            
+            console.log(
+                '🔗 [D2] 生成偽真實時間序列數據（基於當前真實數據點）...'
+            )
+
             const timeSeriesData: NetStackD2Response[] = []
             const numPoints = 20 // 生成20個時間點，類似原始圖表
-            
+
             // 建立基本請求負載
             const baseRequestPayload = {
                 ue_position: {
-                    latitude: 25.0478,   // 台北101
+                    latitude: 25.0478, // 台北101
                     longitude: 121.5319,
-                    altitude: 100
+                    altitude: 100,
                 },
                 d2_params: {
                     thresh1: thresh1 || 800000.0,
                     thresh2: thresh2 || 30000.0,
                     hysteresis: hysteresis || 500.0,
-                    time_to_trigger: 160
-                }
+                    time_to_trigger: 160,
+                },
             }
-            
+
             // 獲取一個真實數據點作為基準
-            const response = await netstackFetch('/api/measurement-events/D2/data', {
-                method: 'POST',
-                body: JSON.stringify(baseRequestPayload)
-            })
-            
+            const response = await netstackFetch(
+                '/api/measurement-events/D2/data',
+                {
+                    method: 'POST',
+                    body: JSON.stringify(baseRequestPayload),
+                }
+            )
+
             if (!response.ok) {
                 throw new Error('無法獲取基準數據點')
             }
-            
+
             const baseData: NetStackD2Response = await response.json()
             console.log('📊 [D2] 基準數據點:', baseData.measurement_values)
-            
+
             // 基於真實數據點生成時間序列（使用數學函數模擬軌道變化）
             for (let i = 0; i < numPoints; i++) {
                 const timeOffset = i * 5 // 每5秒一個數據點，總共100秒
-                
+
                 const modifiedData = {
                     ...baseData,
-                    timestamp: new Date(Date.now() + timeOffset * 1000).toISOString(),
+                    timestamp: new Date(
+                        Date.now() + timeOffset * 1000
+                    ).toISOString(),
                     measurement_values: {
                         ...baseData.measurement_values,
                         // 基於真實數據點 + 軌道運動模擬
-                        satellite_distance: baseData.measurement_values.satellite_distance + 
+                        satellite_distance:
+                            baseData.measurement_values.satellite_distance +
                             Math.sin(timeOffset / 20) * 2000000, // ±2000km 的軌道變化
-                        ground_distance: baseData.measurement_values.ground_distance + 
-                            Math.cos(timeOffset / 15) * 500000   // ±500km 的地面距離變化
-                    }
+                        ground_distance:
+                            baseData.measurement_values.ground_distance +
+                            Math.cos(timeOffset / 15) * 500000, // ±500km 的地面距離變化
+                    },
                 }
-                
+
                 timeSeriesData.push(modifiedData)
-                
+
                 // 每5個點更新一次進度
                 if (i % 5 === 0) {
-                    console.log(`📊 [D2] 已生成 ${i + 1}/${numPoints} 個偽真實數據點`)
+                    console.log(
+                        `📊 [D2] 已生成 ${i + 1}/${numPoints} 個偽真實數據點`
+                    )
                 }
             }
-            
-            console.log('✅ [D2] 偽真實時間序列數據生成完成:', timeSeriesData.length, '個數據點')
-            console.log('ℹ️ [D2] 注意：這是基於真實數據點的數學模擬，不是真實歷史數據')
-            
+
+            console.log(
+                '✅ [D2] 偽真實時間序列數據生成完成:',
+                timeSeriesData.length,
+                '個數據點'
+            )
+            console.log(
+                'ℹ️ [D2] 注意：這是基於真實數據點的數學模擬，不是真實歷史數據'
+            )
+
             setRealTimeSeriesData(timeSeriesData)
             setRealTimeData(timeSeriesData[0])
             setConnectionStatus('connected')
             setRealDataError(null)
-            
         } catch (error) {
             console.error('❌ [D2] 偽真實時間序列數據生成失敗:', error)
             throw error
         }
     }, [thresh1, thresh2, hysteresis])
-    
+
     // ✅ Phase 4.2: 保留原始單點獲取函數（備用）
     const fetchRealTimeD2Data = useCallback(async () => {
         setIsLoadingRealData(true)
         setConnectionStatus('connecting')
-        
+
         try {
             console.log('🔗 [D2] 嘗試獲取真實數據...')
-            
+
             // 建立請求負載
             const requestPayload = {
                 ue_position: {
-                    latitude: 25.0478,   // 台北101
+                    latitude: 25.0478, // 台北101
                     longitude: 121.5319,
-                    altitude: 100
+                    altitude: 100,
                 },
                 d2_params: {
-                    thresh1: thresh1 || 800000.0,  // 符合 API 約束: ge=400000, le=2000000
-                    thresh2: thresh2 || 30000.0,   // 符合 API 約束: ge=100, le=50000
+                    thresh1: thresh1 || 800000.0, // 符合 API 約束: ge=400000, le=2000000
+                    thresh2: thresh2 || 30000.0, // 符合 API 約束: ge=100, le=50000
                     hysteresis: hysteresis || 500.0, // 符合 API 約束: ge=100, le=5000
-                    time_to_trigger: 160
-                }
+                    time_to_trigger: 160,
+                },
             }
-            
+
             console.log('🔗 [D2] 發送請求負載:', requestPayload)
-            
+
             // 使用 NetStack API 獲取 D2 事件數據（通過統一配置系統）
-            const response = await netstackFetch('/api/measurement-events/D2/data', {
-                method: 'POST',
-                body: JSON.stringify(requestPayload)
-            })
-            
+            const response = await netstackFetch(
+                '/api/measurement-events/D2/data',
+                {
+                    method: 'POST',
+                    body: JSON.stringify(requestPayload),
+                }
+            )
+
             if (!response.ok) {
                 // 嘗試獲取錯誤詳情
                 const errorText = await response.text()
                 console.error('🚨 [D2] NetStack API 錯誤詳情:', errorText)
-                throw new Error(`NetStack API Error: ${response.status} ${response.statusText} - ${errorText}`)
+                throw new Error(
+                    `NetStack API Error: ${response.status} ${response.statusText} - ${errorText}`
+                )
             }
-            
+
             const data: NetStackD2Response = await response.json()
             console.log('✅ [D2] 真實數據獲取成功:', data)
-            
+
             setRealTimeData(data)
             setConnectionStatus('connected')
             setRealDataError(null)
-            
         } catch (error) {
             console.error('❌ [D2] 真實數據獲取失敗:', error)
-            setRealDataError(error instanceof Error ? error.message : '數據獲取失敗')
+            setRealDataError(
+                error instanceof Error ? error.message : '數據獲取失敗'
+            )
             setConnectionStatus('disconnected')
         } finally {
             setIsLoadingRealData(false)
         }
     }, [thresh1, thresh2, hysteresis])
-    
+
     // ✅ Phase 4.2: 歷史數據獲取服務函數
-    const fetchHistoricalD2Data = useCallback(async (startTime: Date, duration: number = 180) => {
-        setIsLoadingRealData(true)
-        
-        try {
-            console.log(`🔗 [D2] 獲取歷史數據: ${startTime.toISOString()}, 時長: ${duration}分鐘`)
-            
-            const response = await simworldFetch('/api/v1/tle/historical-d2-data', {
-                method: 'POST',
-                body: JSON.stringify({
-                    start_time: startTime.toISOString(),
-                    duration_minutes: duration,
-                    ue_position: {
-                        latitude: 25.0478,
-                        longitude: 121.5319,
-                        altitude: 100
-                    },
-                    d2_params: {
-                        thresh1,
-                        thresh2,
-                        hysteresis
+    const fetchHistoricalD2Data = useCallback(
+        async (startTime: Date, duration: number = 180) => {
+            setIsLoadingRealData(true)
+
+            try {
+                console.log(
+                    `🔗 [D2] 獲取歷史數據: ${startTime.toISOString()}, 時長: ${duration}分鐘`
+                )
+
+                const response = await simworldFetch(
+                    '/api/v1/tle/historical-d2-data',
+                    {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            start_time: startTime.toISOString(),
+                            duration_minutes: duration,
+                            ue_position: {
+                                latitude: 25.0478,
+                                longitude: 121.5319,
+                                altitude: 100,
+                            },
+                            d2_params: {
+                                thresh1,
+                                thresh2,
+                                hysteresis,
+                            },
+                        }),
                     }
-                })
-            })
-            
-            if (!response.ok) {
-                throw new Error(`SimWorld API Error: ${response.status} ${response.statusText}`)
+                )
+
+                if (!response.ok) {
+                    throw new Error(
+                        `SimWorld API Error: ${response.status} ${response.statusText}`
+                    )
+                }
+
+                const data: RealHistoricalD2Data[] = await response.json()
+                console.log(
+                    '✅ [D2] 歷史數據獲取成功:',
+                    data.length,
+                    '個數據點'
+                )
+
+                setHistoricalData(data)
+                setRealDataError(null)
+            } catch (error) {
+                console.error('❌ [D2] 歷史數據獲取失敗:', error)
+                setRealDataError(
+                    error instanceof Error ? error.message : '歷史數據獲取失敗'
+                )
+            } finally {
+                setIsLoadingRealData(false)
             }
-            
-            const data: RealHistoricalD2Data[] = await response.json()
-            console.log('✅ [D2] 歷史數據獲取成功:', data.length, '個數據點')
-            
-            setHistoricalData(data)
-            setRealDataError(null)
-            
-        } catch (error) {
-            console.error('❌ [D2] 歷史數據獲取失敗:', error)
-            setRealDataError(error instanceof Error ? error.message : '歷史數據獲取失敗')
-        } finally {
-            setIsLoadingRealData(false)
-        }
-    }, [thresh1, thresh2, hysteresis])
+        },
+        [thresh1, thresh2, hysteresis]
+    )
 
     // ✅ Phase 4.3: 動畫控制函數
     const startAnimation = useCallback(() => {
         if (historicalData.length === 0) return
-        
+
         setIsPlaying(true)
         setAnimationStartTime(new Date())
-        
+
         const intervalMs = Math.max(50, 1000 / playbackSpeed) // 最小50ms間隔
-        
+
         const interval = setInterval(() => {
-            setCurrentTimeIndex(prevIndex => {
+            setCurrentTimeIndex((prevIndex) => {
                 const nextIndex = prevIndex + 1
                 if (nextIndex >= historicalData.length) {
                     // 動畫結束
@@ -593,7 +658,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 return nextIndex
             })
         }, intervalMs)
-        
+
         setAnimationIntervalRef(interval)
         console.log(`🎬 [D2] 動畫開始，速度: ${playbackSpeed}x`)
     }, [historicalData.length, playbackSpeed])
@@ -613,12 +678,15 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
         console.log('🔄 [D2] 動畫重置')
     }, [pauseAnimation])
 
-    const jumpToTime = useCallback((index: number) => {
-        if (index >= 0 && index < historicalData.length) {
-            setCurrentTimeIndex(index)
-            console.log(`⏭️ [D2] 跳轉到時間點: ${index}`)
-        }
-    }, [historicalData.length])
+    const jumpToTime = useCallback(
+        (index: number) => {
+            if (index >= 0 && index < historicalData.length) {
+                setCurrentTimeIndex(index)
+                console.log(`⏭️ [D2] 跳轉到時間點: ${index}`)
+            }
+        },
+        [historicalData.length]
+    )
 
     // ✅ Phase 4.3: 清理動畫間隔
     useEffect(() => {
@@ -669,20 +737,28 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
             // 真實數據模式
             if (historicalData.length > 0) {
                 // 歷史數據 - 支持動畫模式
-                console.log('📊 [D2] 使用歷史數據:', historicalData.length, '個數據點, 當前索引:', currentTimeIndex)
-                
+                console.log(
+                    '📊 [D2] 使用歷史數據:',
+                    historicalData.length,
+                    '個數據點, 當前索引:',
+                    currentTimeIndex
+                )
+
                 // 根據動畫進度顯示數據
-                const displayData = historicalData.slice(0, currentTimeIndex + 1)
-                
+                const displayData = historicalData.slice(
+                    0,
+                    currentTimeIndex + 1
+                )
+
                 const points1 = displayData.map((entry, index) => ({
-                    x: index,
-                    y: entry.satelliteDistance
+                    x: index * 5, // 假設5秒間隔，轉換為實際時間秒數
+                    y: entry.satelliteDistance,
                 }))
                 const points2 = displayData.map((entry, index) => ({
-                    x: index,
-                    y: entry.groundDistance
+                    x: index * 5, // 假設5秒間隔，轉換為實際時間秒數
+                    y: entry.groundDistance,
                 }))
-                
+
                 return {
                     distance1Points: points1,
                     distance2Points: points2,
@@ -691,34 +767,51 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                         count: displayData.length,
                         totalCount: historicalData.length,
                         currentIndex: currentTimeIndex,
-                        timeRange: historicalData.length > 0 ? {
-                            start: historicalData[0].timestamp,
-                            current: historicalData[currentTimeIndex]?.timestamp,
-                            end: historicalData[historicalData.length - 1].timestamp
-                        } : null
-                    }
+                        timeRange:
+                            historicalData.length > 0
+                                ? {
+                                      start: historicalData[0].timestamp,
+                                      current:
+                                          historicalData[currentTimeIndex]
+                                              ?.timestamp,
+                                      end: historicalData[
+                                          historicalData.length - 1
+                                      ].timestamp,
+                                  }
+                                : null,
+                    },
                 }
             } else if (realTimeSeriesData.length > 0) {
                 // 時間序列數據 - 類似原始圖表的完整曲線
-                console.log('📊 [D2] 使用時間序列數據:', realTimeSeriesData.length, '個數據點')
-                
+                console.log(
+                    '📊 [D2] 使用時間序列數據:',
+                    realTimeSeriesData.length,
+                    '個數據點'
+                )
+
                 const points1 = realTimeSeriesData.map((data, index) => {
-                    let satelliteDistance = data.measurement_values.satellite_distance
-                    
+                    let satelliteDistance =
+                        data.measurement_values.satellite_distance
+
                     // 數據異常檢測和修正
                     if (satelliteDistance < 1000) {
-                        console.warn(`⚠️ [D2] 時間點 ${index} 檢測到異常衛星距離:`, satelliteDistance, 'm')
-                        satelliteDistance = 550000 + Math.sin(index / 3) * 100000 // 使用合理的變化範圍
+                        console.warn(
+                            `⚠️ [D2] 時間點 ${index} 檢測到異常衛星距離:`,
+                            satelliteDistance,
+                            'm'
+                        )
+                        satelliteDistance =
+                            550000 + Math.sin(index / 3) * 100000 // 使用合理的變化範圍
                     }
-                    
+
                     return { x: index * 5, y: satelliteDistance } // x軸為時間（秒）
                 })
-                
+
                 const points2 = realTimeSeriesData.map((data, index) => ({
                     x: index * 5, // x軸為時間（秒）
-                    y: data.measurement_values.ground_distance
+                    y: data.measurement_values.ground_distance,
                 }))
-                
+
                 return {
                     distance1Points: points1,
                     distance2Points: points2,
@@ -727,44 +820,72 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                         count: realTimeSeriesData.length,
                         timeRange: {
                             start: realTimeSeriesData[0].timestamp,
-                            end: realTimeSeriesData[realTimeSeriesData.length - 1].timestamp
-                        }
-                    }
+                            end: realTimeSeriesData[
+                                realTimeSeriesData.length - 1
+                            ].timestamp,
+                        },
+                    },
                 }
             } else if (realTimeData) {
                 // 單點實時數據（備用）
                 console.log('📊 [D2] 使用單點實時數據:', realTimeData.timestamp)
-                console.log('📊 [D2] 原始測量值:', realTimeData.measurement_values)
-                
-                let satelliteDistance = realTimeData.measurement_values.satellite_distance
-                let groundDistance = realTimeData.measurement_values.ground_distance
-                
+                console.log(
+                    '📊 [D2] 原始測量值:',
+                    realTimeData.measurement_values
+                )
+
+                let satelliteDistance =
+                    realTimeData.measurement_values.satellite_distance
+                let groundDistance =
+                    realTimeData.measurement_values.ground_distance
+
                 // 數據異常檢測和修正
-                if (satelliteDistance < 1000) { // 小於1km，可能是單位錯誤或異常值
-                    console.warn('⚠️ [D2] 檢測到異常衛星距離:', satelliteDistance, 'm')
-                    
+                if (satelliteDistance < 1000) {
+                    // 小於1km，可能是單位錯誤或異常值
+                    console.warn(
+                        '⚠️ [D2] 檢測到異常衛星距離:',
+                        satelliteDistance,
+                        'm'
+                    )
+
                     // 嘗試不同的修正策略
                     if (satelliteDistance < 1) {
                         // 可能是以km為單位，但被錯誤轉換
                         const potentialKmValue = satelliteDistance * 1000000 // 假設原本是km
-                        if (potentialKmValue >= 200000 && potentialKmValue <= 100000000) { // 200km - 100,000km 合理範圍
+                        if (
+                            potentialKmValue >= 200000 &&
+                            potentialKmValue <= 100000000
+                        ) {
+                            // 200km - 100,000km 合理範圍
                             satelliteDistance = potentialKmValue
-                            console.log('✅ [D2] 修正衛星距離 (假設單位錯誤):', satelliteDistance, 'm')
+                            console.log(
+                                '✅ [D2] 修正衛星距離 (假設單位錯誤):',
+                                satelliteDistance,
+                                'm'
+                            )
                         } else {
                             // 使用典型 LEO 衛星距離
                             satelliteDistance = 550000 // 550km，典型 Starlink 高度
-                            console.log('✅ [D2] 使用典型 LEO 衛星距離:', satelliteDistance, 'm')
+                            console.log(
+                                '✅ [D2] 使用典型 LEO 衛星距離:',
+                                satelliteDistance,
+                                'm'
+                            )
                         }
                     } else {
                         // 可能是數據傳輸錯誤，使用合理默認值
                         satelliteDistance = 550000 // 550km
-                        console.log('✅ [D2] 使用默認衛星距離:', satelliteDistance, 'm')
+                        console.log(
+                            '✅ [D2] 使用默認衛星距離:',
+                            satelliteDistance,
+                            'm'
+                        )
                     }
                 }
-                
+
                 const points1 = [{ x: 0, y: satelliteDistance }]
                 const points2 = [{ x: 0, y: groundDistance }]
-                
+
                 return {
                     distance1Points: points1,
                     distance2Points: points2,
@@ -772,12 +893,14 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                         type: 'realtime',
                         count: 1,
                         timestamp: realTimeData.timestamp,
-                        hasDataCorrection: satelliteDistance !== realTimeData.measurement_values.satellite_distance
-                    }
+                        hasDataCorrection:
+                            satelliteDistance !==
+                            realTimeData.measurement_values.satellite_distance,
+                    },
                 }
             }
         }
-        
+
         // 回退到原始模擬數據
         console.log('📊 [D2] 使用模擬數據')
         const simData = generateDistanceData()
@@ -786,53 +909,91 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
             distance2Points: simData.distance2Points,
             dataSourceInfo: {
                 type: 'simulation',
-                count: simData.distance1Points.length
-            }
+                count: simData.distance1Points.length,
+            },
         }
-    }, [currentMode, historicalData, realTimeData, realTimeSeriesData, currentTimeIndex])
+    }, [
+        currentMode,
+        historicalData,
+        realTimeData,
+        realTimeSeriesData,
+        currentTimeIndex,
+    ])
 
     // 動態計算 Y 軸範圍 - 支持真實數據自動縮放
     const calculateYAxisRanges = useMemo(() => {
-        const isRealDataMode = currentMode === 'real-data' && (realTimeData || realTimeSeriesData.length > 0 || historicalData.length > 0)
-        
-        if (!isRealDataMode || distance1Points.length === 0 || distance2Points.length === 0) {
+        const isRealDataMode =
+            currentMode === 'real-data' &&
+            (realTimeData ||
+                realTimeSeriesData.length > 0 ||
+                historicalData.length > 0)
+
+        if (
+            !isRealDataMode ||
+            distance1Points.length === 0 ||
+            distance2Points.length === 0
+        ) {
             // 模擬數據的固定範圍
             return {
                 satelliteRange: { min: 545000, max: 560000 },
                 groundRange: { min: 3000, max: 9000 },
-                isRealData: false
+                isRealData: false,
             }
         }
 
         // 真實數據：動態計算範圍
-        const satelliteDistances = distance1Points.map(d => d.y).filter(d => d > 1000) // 過濾掉小於1km的異常值
-        const groundDistances = distance2Points.map(d => d.y).filter(d => d > 0)
+        const satelliteDistances = distance1Points
+            .map((d) => d.y)
+            .filter((d) => d > 1000) // 過濾掉小於1km的異常值
+        const groundDistances = distance2Points
+            .map((d) => d.y)
+            .filter((d) => d > 0)
 
         // 檢查衛星距離異常值（應該在合理範圍內，LEO衛星高度約 200-2000km）
-        const validSatelliteDistances = satelliteDistances.filter(d => d >= 200000 && d <= 100000000) // 200km到100,000km
-        
+        const validSatelliteDistances = satelliteDistances.filter(
+            (d) => d >= 200000 && d <= 100000000
+        ) // 200km到100,000km
+
         console.log('📊 [D2] 數據檢查:', {
-            original: { sat: distance1Points.map(d => d.y), ground: distance2Points.map(d => d.y) },
+            original: {
+                sat: distance1Points.map((d) => d.y),
+                ground: distance2Points.map((d) => d.y),
+            },
             filtered: { sat: validSatelliteDistances, ground: groundDistances },
             hasValidSat: validSatelliteDistances.length > 0,
-            hasValidGround: groundDistances.length > 0
+            hasValidGround: groundDistances.length > 0,
         })
 
-        if (validSatelliteDistances.length === 0 || groundDistances.length === 0) {
+        if (
+            validSatelliteDistances.length === 0 ||
+            groundDistances.length === 0
+        ) {
             // 如果沒有有效數據，使用真實數據的默認範圍
             console.log('⚠️ [D2] 檢測到異常數據，使用預設範圍')
-            console.log('原始衛星距離:', distance1Points.map(d => d.y))
-            console.log('原始地面距離:', distance2Points.map(d => d.y))
-            
+            console.log(
+                '原始衛星距離:',
+                distance1Points.map((d) => d.y)
+            )
+            console.log(
+                '原始地面距離:',
+                distance2Points.map((d) => d.y)
+            )
+
             // 對於異常的衛星數據，使用典型 LEO 衛星範圍
             return {
                 satelliteRange: { min: 400000, max: 800000 }, // 400-800 km (典型 LEO 範圍)
-                groundRange: groundDistances.length > 0 ? {
-                    min: Math.max(0, Math.min(...groundDistances) * 0.9),
-                    max: Math.max(...groundDistances) * 1.1
-                } : { min: 1000000, max: 2000000 }, // 1000-2000 km 默認地面範圍
+                groundRange:
+                    groundDistances.length > 0
+                        ? {
+                              min: Math.max(
+                                  0,
+                                  Math.min(...groundDistances) * 0.9
+                              ),
+                              max: Math.max(...groundDistances) * 1.1,
+                          }
+                        : { min: 1000000, max: 2000000 }, // 1000-2000 km 默認地面範圍
                 isRealData: true,
-                hasDataIssue: true
+                hasDataIssue: true,
             }
         }
 
@@ -840,7 +1001,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
         const satMin = Math.min(...validSatelliteDistances)
         const satMax = Math.max(...validSatelliteDistances)
         const satBuffer = Math.max((satMax - satMin) * 0.1, 50000) // 至少50km緩衝區
-        
+
         const groundMin = Math.min(...groundDistances)
         const groundMax = Math.max(...groundDistances)
         const groundBuffer = Math.max((groundMax - groundMin) * 0.1, 100000) // 至少100km緩衝區
@@ -848,23 +1009,34 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
         const calculatedRanges = {
             satelliteRange: {
                 min: Math.max(0, satMin - satBuffer),
-                max: satMax + satBuffer
+                max: satMax + satBuffer,
             },
             groundRange: {
                 min: Math.max(0, groundMin - groundBuffer),
-                max: groundMax + groundBuffer
+                max: groundMax + groundBuffer,
             },
-            isRealData: true
+            isRealData: true,
         }
 
         console.log('📊 [D2] 動態Y軸範圍計算:', {
-            satellite: `${(calculatedRanges.satelliteRange.min/1000).toFixed(0)}-${(calculatedRanges.satelliteRange.max/1000).toFixed(0)}km`,
-            ground: `${(calculatedRanges.groundRange.min/1000).toFixed(0)}-${(calculatedRanges.groundRange.max/1000).toFixed(0)}km`,
-            dataPoints: `sat:${satelliteDistances.length}, ground:${groundDistances.length}`
+            satellite: `${(calculatedRanges.satelliteRange.min / 1000).toFixed(
+                0
+            )}-${(calculatedRanges.satelliteRange.max / 1000).toFixed(0)}km`,
+            ground: `${(calculatedRanges.groundRange.min / 1000).toFixed(0)}-${(
+                calculatedRanges.groundRange.max / 1000
+            ).toFixed(0)}km`,
+            dataPoints: `sat:${satelliteDistances.length}, ground:${groundDistances.length}`,
         })
 
         return calculatedRanges
-    }, [currentMode, realTimeData, realTimeSeriesData.length, historicalData.length, distance1Points, distance2Points])
+    }, [
+        currentMode,
+        realTimeData,
+        realTimeSeriesData.length,
+        historicalData.length,
+        distance1Points,
+        distance2Points,
+    ])
 
     // 創建圖表配置
     const chartConfig = useMemo(() => {
@@ -873,25 +1045,33 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
             data: {
                 datasets: [
                     {
-                        label: `距離1 (UE ← → 移動參考位置/衛星)${calculateYAxisRanges.isRealData ? ' ⚡' : ''}`,
+                        label: `距離1 (UE ← → 移動參考位置/衛星)${
+                            calculateYAxisRanges.isRealData ? ' ⚡' : ''
+                        }`,
                         data: distance1Points,
                         borderColor: currentTheme.distance1Line,
                         backgroundColor: 'rgba(40, 167, 69, 0.1)',
                         borderWidth: calculateYAxisRanges.isRealData ? 4 : 3,
                         pointRadius: calculateYAxisRanges.isRealData ? 5 : 4,
-                        pointHoverRadius: calculateYAxisRanges.isRealData ? 7 : 6,
+                        pointHoverRadius: calculateYAxisRanges.isRealData
+                            ? 7
+                            : 6,
                         fill: false,
                         tension: 0.1,
                         yAxisID: 'y-left', // 使用左側Y軸
                     },
                     {
-                        label: `距離2 (UE ← → 固定參考位置)${calculateYAxisRanges.isRealData ? ' ⚡' : ''}`,
+                        label: `距離2 (UE ← → 固定參考位置)${
+                            calculateYAxisRanges.isRealData ? ' ⚡' : ''
+                        }`,
                         data: distance2Points,
                         borderColor: currentTheme.distance2Line,
                         backgroundColor: 'rgba(253, 126, 20, 0.1)',
                         borderWidth: calculateYAxisRanges.isRealData ? 4 : 3,
                         pointRadius: calculateYAxisRanges.isRealData ? 5 : 4,
-                        pointHoverRadius: calculateYAxisRanges.isRealData ? 7 : 6,
+                        pointHoverRadius: calculateYAxisRanges.isRealData
+                            ? 7
+                            : 6,
                         fill: false,
                         tension: 0.1,
                         yAxisID: 'y-right', // 使用右側Y軸
@@ -908,7 +1088,11 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 plugins: {
                     title: {
                         display: true,
-                        text: `Event D2: 移動參考位置距離事件 (3GPP TS 38.331)${calculateYAxisRanges.isRealData ? ' - 真實數據動態縮放' : ' - 模擬數據'}`,
+                        text: `Event D2: 移動參考位置距離事件 (3GPP TS 38.331)${
+                            calculateYAxisRanges.isRealData
+                                ? ' - 真實數據動態縮放'
+                                : ' - 模擬數據'
+                        }`,
                         font: {
                             size: 16,
                             weight: 'bold' as const,
@@ -931,7 +1115,9 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                     tooltip: {
                         mode: 'index' as const,
                         intersect: false,
-                        backgroundColor: isDarkTheme ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)',
+                        backgroundColor: isDarkTheme
+                            ? 'rgba(0,0,0,0.9)'
+                            : 'rgba(255,255,255,0.95)',
                         titleColor: isDarkTheme ? '#fff' : '#000',
                         bodyColor: isDarkTheme ? '#fff' : '#000',
                         borderColor: isDarkTheme ? '#374151' : '#d1d5db',
@@ -939,28 +1125,45 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                         callbacks: {
                             title: (context) => {
                                 const baseTitle = `時間: ${context[0].parsed.x}s`
-                                return calculateYAxisRanges.isRealData 
+                                return calculateYAxisRanges.isRealData
                                     ? `${baseTitle} (真實數據 - 動態縮放)`
                                     : `${baseTitle} (模擬數據 - 固定範圍)`
                             },
                             label: (context) => {
                                 const dataset = context.dataset.label || ''
-                                const valueKm = (context.parsed.y / 1000).toFixed(1)
+                                const valueKm = (
+                                    context.parsed.y / 1000
+                                ).toFixed(1)
                                 const valueM = context.parsed.y.toFixed(1)
-                                return calculateYAxisRanges.isRealData 
+                                return calculateYAxisRanges.isRealData
                                     ? `${dataset}: ${valueKm}km (${valueM}m)`
                                     : `${dataset}: ${valueM}m`
                             },
                             footer: (context) => {
-                                if (calculateYAxisRanges.isRealData && context.length > 0) {
+                                if (
+                                    calculateYAxisRanges.isRealData &&
+                                    context.length > 0
+                                ) {
                                     return [
                                         '--- Y軸範圍 ---',
-                                        `衛星: ${(calculateYAxisRanges.satelliteRange.min/1000).toFixed(0)}-${(calculateYAxisRanges.satelliteRange.max/1000).toFixed(0)}km`,
-                                        `地面: ${(calculateYAxisRanges.groundRange.min/1000).toFixed(0)}-${(calculateYAxisRanges.groundRange.max/1000).toFixed(0)}km`
+                                        `衛星: ${(
+                                            calculateYAxisRanges.satelliteRange
+                                                .min / 1000
+                                        ).toFixed(0)}-${(
+                                            calculateYAxisRanges.satelliteRange
+                                                .max / 1000
+                                        ).toFixed(0)}km`,
+                                        `地面: ${(
+                                            calculateYAxisRanges.groundRange
+                                                .min / 1000
+                                        ).toFixed(0)}-${(
+                                            calculateYAxisRanges.groundRange
+                                                .max / 1000
+                                        ).toFixed(0)}km`,
                                     ]
                                 }
                                 return []
-                            }
+                            },
                         },
                     },
                     annotation: {
@@ -1136,14 +1339,24 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                             stepSize: 10,
                         },
                         min: 0,
-                        max: dataSourceInfo.type === 'realtime-series' ? (dataSourceInfo.count - 1) * 5 : 95, // 動態 X 軸範圍
+                        max:
+                            dataSourceInfo.type === 'realtime-series'
+                                ? (dataSourceInfo.count - 1) * 5
+                                : dataSourceInfo.type === 'historical'
+                                ? Math.max(
+                                      95,
+                                      (dataSourceInfo.totalCount - 1) * 5
+                                  ) // 歷史數據使用總時間秒數
+                                : 95, // 模擬數據固定範圍
                     },
                     'y-left': {
                         type: 'linear' as const,
                         position: 'left' as const,
                         title: {
                             display: true,
-                            text: calculateYAxisRanges.isRealData ? '衛星距離 (km) - 動態縮放' : '衛星距離 (km)',
+                            text: calculateYAxisRanges.isRealData
+                                ? '衛星距離 (km) - 動態縮放'
+                                : '衛星距離 (km)',
                             color: currentTheme.distance1Line,
                             font: {
                                 size: 14,
@@ -1160,7 +1373,9 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                                 // 真實數據使用智能格式化
                                 if (calculateYAxisRanges.isRealData) {
                                     const km = value / 1000
-                                    return km >= 1000 ? `${(km/1000).toFixed(1)}M` : `${km.toFixed(0)}k`
+                                    return km >= 1000
+                                        ? `${(km / 1000).toFixed(1)}M`
+                                        : `${km.toFixed(0)}k`
                                 }
                                 return `${(value / 1000).toFixed(0)}`
                             },
@@ -1173,7 +1388,9 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                         position: 'right' as const,
                         title: {
                             display: true,
-                            text: calculateYAxisRanges.isRealData ? '地面距離 (km) - 動態縮放' : '地面距離 (km)',
+                            text: calculateYAxisRanges.isRealData
+                                ? '地面距離 (km) - 動態縮放'
+                                : '地面距離 (km)',
                             color: currentTheme.distance2Line,
                             font: {
                                 size: 14,
@@ -1189,7 +1406,9 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                                 // 真實數據使用智能格式化
                                 if (calculateYAxisRanges.isRealData) {
                                     const km = value / 1000
-                                    return km >= 1000 ? `${(km/1000).toFixed(1)}M` : `${km.toFixed(0)}k`
+                                    return km >= 1000
+                                        ? `${(km / 1000).toFixed(1)}M`
+                                        : `${km.toFixed(0)}k`
                                 }
                                 return `${(value / 1000).toFixed(1)}`
                             },
@@ -1465,14 +1684,17 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
     const handleModeToggle = async (mode: 'original' | 'real-data') => {
         setCurrentMode(mode)
         setRealDataError(null)
-        
+
         if (mode === 'real-data') {
             console.log('🚀 [D2] 切換到真實數據模式')
-            
+
             // 判斷數據模式：實時 vs 歷史
             if (dataMode === 'historical' && historicalStartTime) {
-                // 獲取歷史數據
-                await fetchHistoricalD2Data(historicalStartTime, 180) // 3小時數據
+                // 獲取歷史數據 - 使用動態時間長度
+                await fetchHistoricalD2Data(
+                    historicalStartTime,
+                    historicalDurationMinutes
+                )
             } else {
                 // 獲取真實歷史數據序列
                 await fetchRealHistoricalSeriesData()
@@ -1484,10 +1706,12 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
             setHistoricalData([])
             setConnectionStatus('disconnected')
         }
-        
+
         // 觸發父組件回調
         if (onDataModeToggle) {
-            onDataModeToggle(mode === 'real-data' ? (dataMode || 'realtime') : 'simulation')
+            onDataModeToggle(
+                mode === 'real-data' ? dataMode || 'realtime' : 'simulation'
+            )
         }
     }
 
@@ -1502,8 +1726,8 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 display: 'flex',
                 gap: '8px',
                 padding: '8px',
-                backgroundColor: isDarkTheme 
-                    ? 'rgba(33, 37, 41, 0.9)' 
+                backgroundColor: isDarkTheme
+                    ? 'rgba(33, 37, 41, 0.9)'
                     : 'rgba(255, 255, 255, 0.9)',
                 borderRadius: '6px',
                 border: `1px solid ${isDarkTheme ? '#495057' : '#dee2e6'}`,
@@ -1517,15 +1741,18 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                     fontSize: '12px',
                     fontWeight: 'bold',
                     borderRadius: '4px',
-                    border: currentMode === 'original' 
-                        ? '2px solid #007bff' 
-                        : '1px solid #ccc',
-                    backgroundColor: currentMode === 'original' 
-                        ? '#007bff' 
-                        : 'transparent',
-                    color: currentMode === 'original' 
-                        ? 'white' 
-                        : isDarkTheme ? 'white' : '#007bff',
+                    border:
+                        currentMode === 'original'
+                            ? '2px solid #007bff'
+                            : '1px solid #ccc',
+                    backgroundColor:
+                        currentMode === 'original' ? '#007bff' : 'transparent',
+                    color:
+                        currentMode === 'original'
+                            ? 'white'
+                            : isDarkTheme
+                            ? 'white'
+                            : '#007bff',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                 }}
@@ -1541,15 +1768,18 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                     fontSize: '12px',
                     fontWeight: 'bold',
                     borderRadius: '4px',
-                    border: currentMode === 'real-data' 
-                        ? '2px solid #28a745' 
-                        : '1px solid #ccc',
-                    backgroundColor: currentMode === 'real-data' 
-                        ? '#28a745' 
-                        : 'transparent',
-                    color: currentMode === 'real-data' 
-                        ? 'white' 
-                        : isDarkTheme ? 'white' : '#28a745',
+                    border:
+                        currentMode === 'real-data'
+                            ? '2px solid #28a745'
+                            : '1px solid #ccc',
+                    backgroundColor:
+                        currentMode === 'real-data' ? '#28a745' : 'transparent',
+                    color:
+                        currentMode === 'real-data'
+                            ? 'white'
+                            : isDarkTheme
+                            ? 'white'
+                            : '#28a745',
                     cursor: isLoadingRealData ? 'wait' : 'pointer',
                     opacity: isLoadingRealData ? 0.7 : 1,
                     transition: 'all 0.2s ease',
@@ -1563,15 +1793,17 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
 
     // ✅ Phase 4.3: 動畫時間軸控制組件
     const AnimationControls = () => {
-        const hasHistoricalData = historicalData.length > 0 && currentMode === 'real-data'
-        
+        const hasHistoricalData =
+            historicalData.length > 0 && currentMode === 'real-data'
+
         if (!hasHistoricalData) return null
-        
+
         const currentData = historicalData[currentTimeIndex]
-        const progressPercent = historicalData.length > 1 
-            ? (currentTimeIndex / (historicalData.length - 1)) * 100 
-            : 0
-        
+        const progressPercent =
+            historicalData.length > 1
+                ? (currentTimeIndex / (historicalData.length - 1)) * 100
+                : 0
+
         return (
             <div
                 style={{
@@ -1580,8 +1812,8 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                     left: '10px',
                     right: '10px',
                     zIndex: 1000,
-                    backgroundColor: isDarkTheme 
-                        ? 'rgba(33, 37, 41, 0.95)' 
+                    backgroundColor: isDarkTheme
+                        ? 'rgba(33, 37, 41, 0.95)'
                         : 'rgba(255, 255, 255, 0.95)',
                     borderRadius: '8px',
                     border: `1px solid ${isDarkTheme ? '#495057' : '#dee2e6'}`,
@@ -1590,24 +1822,32 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 }}
             >
                 {/* 時間信息顯示 */}
-                <div style={{ 
-                    fontSize: '11px', 
-                    color: isDarkTheme ? 'white' : '#333',
-                    marginBottom: '8px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
+                <div
+                    style={{
+                        fontSize: '11px',
+                        color: isDarkTheme ? 'white' : '#333',
+                        marginBottom: '8px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                    }}
+                >
                     <div>
-                        <strong>歷史數據回放</strong> | 
-                        時間: {currentData ? new Date(currentData.timestamp).toISOString().slice(11, 19) : '00:00:00'} | 
-                        進度: {currentTimeIndex + 1}/{historicalData.length}
+                        <strong>歷史數據回放</strong> | 時間:{' '}
+                        {currentData
+                            ? new Date(currentData.timestamp)
+                                  .toISOString()
+                                  .slice(11, 19)
+                            : '00:00:00'}{' '}
+                        | 進度: {currentTimeIndex + 1}/{historicalData.length}
                     </div>
                     <div style={{ fontSize: '10px', opacity: 0.8 }}>
-                        {currentData?.triggerConditionMet ? '🟢 D2事件觸發' : '⚪ 監測中'}
+                        {currentData?.triggerConditionMet
+                            ? '🟢 D2事件觸發'
+                            : '⚪ 監測中'}
                     </div>
                 </div>
-                
+
                 {/* 時間軸滑杆 */}
                 <div style={{ marginBottom: '8px' }}>
                     <input
@@ -1626,18 +1866,20 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                             background: `linear-gradient(to right, #28a745 0%, #28a745 ${progressPercent}%, #ddd ${progressPercent}%, #ddd 100%)`,
                             borderRadius: '3px',
                             outline: 'none',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
                         }}
                     />
                 </div>
-                
+
                 {/* 播放控制按鈕 */}
-                <div style={{ 
-                    display: 'flex', 
-                    gap: '8px', 
-                    alignItems: 'center',
-                    fontSize: '12px'
-                }}>
+                <div
+                    style={{
+                        display: 'flex',
+                        gap: '8px',
+                        alignItems: 'center',
+                        fontSize: '12px',
+                    }}
+                >
                     <button
                         onClick={isPlaying ? pauseAnimation : startAnimation}
                         style={{
@@ -1647,12 +1889,12 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                             backgroundColor: '#007bff',
                             color: 'white',
                             cursor: 'pointer',
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
                         }}
                     >
                         {isPlaying ? '⏸️ 暫停' : '▶️ 播放'}
                     </button>
-                    
+
                     <button
                         onClick={resetAnimation}
                         style={{
@@ -1661,22 +1903,31 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                             border: '1px solid #ccc',
                             backgroundColor: '#6c757d',
                             color: 'white',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
                         }}
                     >
                         🔄 重置
                     </button>
-                    
-                    <div style={{ marginLeft: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+
+                    <div
+                        style={{
+                            marginLeft: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                        }}
+                    >
                         <span>速度:</span>
                         <select
                             value={playbackSpeed}
-                            onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
+                            onChange={(e) =>
+                                setPlaybackSpeed(Number(e.target.value))
+                            }
                             style={{
                                 padding: '2px 4px',
                                 borderRadius: '3px',
                                 border: '1px solid #ccc',
-                                fontSize: '11px'
+                                fontSize: '11px',
                             }}
                         >
                             <option value={0.5}>0.5x</option>
@@ -1686,11 +1937,23 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                             <option value={10}>10x</option>
                         </select>
                     </div>
-                    
-                    <div style={{ marginLeft: 'auto', fontSize: '10px', opacity: 0.8 }}>
+
+                    <div
+                        style={{
+                            marginLeft: 'auto',
+                            fontSize: '10px',
+                            opacity: 0.8,
+                        }}
+                    >
                         {isPlaying && animationStartTime && (
                             <span>
-                                已播放: {Math.round((Date.now() - animationStartTime.getTime()) / 1000)}s
+                                已播放:{' '}
+                                {Math.round(
+                                    (Date.now() -
+                                        animationStartTime.getTime()) /
+                                        1000
+                                )}
+                                s
                             </span>
                         )}
                     </div>
@@ -1709,14 +1972,21 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 zIndex: 999,
                 padding: '8px 12px',
                 fontSize: '11px',
-                backgroundColor: isDarkTheme 
-                    ? 'rgba(33, 37, 41, 0.95)' 
+                backgroundColor: isDarkTheme
+                    ? 'rgba(33, 37, 41, 0.95)'
                     : 'rgba(255, 255, 255, 0.95)',
                 borderRadius: '6px',
                 border: `1px solid ${isDarkTheme ? '#495057' : '#dee2e6'}`,
-                color: currentMode === 'real-data' 
-                    ? (realDataError ? '#dc3545' : isLoadingRealData ? '#ffc107' : '#28a745')
-                    : isDarkTheme ? 'white' : '#333',
+                color:
+                    currentMode === 'real-data'
+                        ? realDataError
+                            ? '#dc3545'
+                            : isLoadingRealData
+                            ? '#ffc107'
+                            : '#28a745'
+                        : isDarkTheme
+                        ? 'white'
+                        : '#333',
                 minWidth: '220px',
                 maxWidth: '300px',
                 boxShadow: '0 3px 8px rgba(0,0,0,0.15)',
@@ -1724,62 +1994,138 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
         >
             {currentMode === 'real-data' ? (
                 <div>
-                    <div style={{ fontWeight: 'bold', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {realDataError 
-                            ? '❌ 數據獲取失敗' 
-                            : isLoadingRealData 
-                            ? '🔄 載入真實數據中...' 
+                    <div
+                        style={{
+                            fontWeight: 'bold',
+                            marginBottom: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                        }}
+                    >
+                        {realDataError
+                            ? '❌ 數據獲取失敗'
+                            : isLoadingRealData
+                            ? '🔄 載入真實數據中...'
                             : '✅ 真實數據模式'}
-                        {calculateYAxisRanges.isRealData && !realDataError && !isLoadingRealData && (
-                            <span style={{ 
-                                backgroundColor: '#28a745', 
-                                color: 'white', 
-                                padding: '2px 6px', 
-                                borderRadius: '3px', 
-                                fontSize: '8px',
-                                fontWeight: 'bold'
-                            }}>
-                                動態縮放
-                            </span>
-                        )}
+                        {calculateYAxisRanges.isRealData &&
+                            !realDataError &&
+                            !isLoadingRealData && (
+                                <span
+                                    style={{
+                                        backgroundColor: '#28a745',
+                                        color: 'white',
+                                        padding: '2px 6px',
+                                        borderRadius: '3px',
+                                        fontSize: '8px',
+                                        fontWeight: 'bold',
+                                    }}
+                                >
+                                    動態縮放
+                                </span>
+                            )}
                     </div>
                     {realDataError && (
-                        <div style={{ fontSize: '9px', opacity: 0.8, color: '#dc3545' }}>{realDataError}</div>
+                        <div
+                            style={{
+                                fontSize: '9px',
+                                opacity: 0.8,
+                                color: '#dc3545',
+                            }}
+                        >
+                            {realDataError}
+                        </div>
                     )}
                     {!realDataError && !isLoadingRealData && (
-                        <div style={{ fontSize: '9px', opacity: 0.9, lineHeight: 1.3 }}>
+                        <div
+                            style={{
+                                fontSize: '9px',
+                                opacity: 0.9,
+                                lineHeight: 1.3,
+                            }}
+                        >
                             <div style={{ marginBottom: '2px' }}>
-                                數據源: {dataSourceInfo.type === 'realtime-series' ? '真實歷史序列' : dataSourceInfo.type} | 
-                                數據點: {dataSourceInfo.count} | 
-                                連接: {connectionStatus === 'connected' ? '已連線' : '未連線'}
+                                數據源:{' '}
+                                {dataSourceInfo.type === 'realtime-series'
+                                    ? '真實歷史序列'
+                                    : dataSourceInfo.type}{' '}
+                                | 數據點: {dataSourceInfo.count} | 連接:{' '}
+                                {connectionStatus === 'connected'
+                                    ? '已連線'
+                                    : '未連線'}
                                 {dataSourceInfo.type === 'realtime-series' && (
-                                    <span style={{ fontSize: '7px', marginLeft: '4px', opacity: 0.8 }}>
+                                    <span
+                                        style={{
+                                            fontSize: '7px',
+                                            marginLeft: '4px',
+                                            opacity: 0.8,
+                                        }}
+                                    >
                                         (時間範圍: {dataSourceInfo.count * 5}秒)
                                     </span>
                                 )}
                             </div>
                             {dataSourceInfo.type === 'realtime-series' && (
-                                <div style={{ fontSize: '7px', opacity: 0.7, color: '#17a2b8', marginTop: '1px' }}>
-                                    ⚠️ 如果看到規律曲線，可能是使用了偽真實數據（基於真實數據點的數學模擬）
+                                <div
+                                    style={{
+                                        fontSize: '7px',
+                                        opacity: 0.7,
+                                        color: '#17a2b8',
+                                        marginTop: '1px',
+                                    }}
+                                >
+                                    ⚠️
+                                    如果看到規律曲線，可能是使用了偽真實數據（基於真實數據點的數學模擬）
                                 </div>
                             )}
                             {calculateYAxisRanges.isRealData && (
-                                <div style={{ fontSize: '8px', opacity: 0.8, fontFamily: 'monospace' }}>
-                                    衛星: {(calculateYAxisRanges.satelliteRange.min/1000).toFixed(0)}-{(calculateYAxisRanges.satelliteRange.max/1000).toFixed(0)}km | 
-                                    地面: {(calculateYAxisRanges.groundRange.min/1000).toFixed(0)}-{(calculateYAxisRanges.groundRange.max/1000).toFixed(0)}km
+                                <div
+                                    style={{
+                                        fontSize: '8px',
+                                        opacity: 0.8,
+                                        fontFamily: 'monospace',
+                                    }}
+                                >
+                                    衛星:{' '}
+                                    {(
+                                        calculateYAxisRanges.satelliteRange
+                                            .min / 1000
+                                    ).toFixed(0)}
+                                    -
+                                    {(
+                                        calculateYAxisRanges.satelliteRange
+                                            .max / 1000
+                                    ).toFixed(0)}
+                                    km | 地面:{' '}
+                                    {(
+                                        calculateYAxisRanges.groundRange.min /
+                                        1000
+                                    ).toFixed(0)}
+                                    -
+                                    {(
+                                        calculateYAxisRanges.groundRange.max /
+                                        1000
+                                    ).toFixed(0)}
+                                    km
                                 </div>
                             )}
-                            {(calculateYAxisRanges.hasDataIssue || dataSourceInfo.hasDataCorrection) && (
-                                <div style={{ 
-                                    fontSize: '8px', 
-                                    color: '#ffc107', 
-                                    marginTop: '2px',
-                                    padding: '2px 4px',
-                                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
-                                    borderRadius: '2px'
-                                }}>
-                                    {calculateYAxisRanges.hasDataIssue && '⚠️ 檢測到異常數據，已使用預設範圍'}
-                                    {dataSourceInfo.hasDataCorrection && '🔧 衛星距離已自動修正'}
+                            {(calculateYAxisRanges.hasDataIssue ||
+                                dataSourceInfo.hasDataCorrection) && (
+                                <div
+                                    style={{
+                                        fontSize: '8px',
+                                        color: '#ffc107',
+                                        marginTop: '2px',
+                                        padding: '2px 4px',
+                                        backgroundColor:
+                                            'rgba(255, 193, 7, 0.1)',
+                                        borderRadius: '2px',
+                                    }}
+                                >
+                                    {calculateYAxisRanges.hasDataIssue &&
+                                        '⚠️ 檢測到異常數據，已使用預設範圍'}
+                                    {dataSourceInfo.hasDataCorrection &&
+                                        '🔧 衛星距離已自動修正'}
                                 </div>
                             )}
                         </div>
@@ -1787,24 +2133,46 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                 </div>
             ) : (
                 <div>
-                    <div style={{ fontWeight: 'bold', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div
+                        style={{
+                            fontWeight: 'bold',
+                            marginBottom: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                        }}
+                    >
                         🎯 模擬數據模式
-                        <span style={{ 
-                            backgroundColor: '#007bff', 
-                            color: 'white', 
-                            padding: '2px 6px', 
-                            borderRadius: '3px', 
-                            fontSize: '8px',
-                            fontWeight: 'bold'
-                        }}>
+                        <span
+                            style={{
+                                backgroundColor: '#007bff',
+                                color: 'white',
+                                padding: '2px 6px',
+                                borderRadius: '3px',
+                                fontSize: '8px',
+                                fontWeight: 'bold',
+                            }}
+                        >
                             固定範圍
                         </span>
                     </div>
-                    <div style={{ fontSize: '9px', opacity: 0.9, lineHeight: 1.3 }}>
+                    <div
+                        style={{
+                            fontSize: '9px',
+                            opacity: 0.9,
+                            lineHeight: 1.3,
+                        }}
+                    >
                         <div style={{ marginBottom: '2px' }}>
                             數據源: 數學模擬 | 數據點: {dataSourceInfo.count}
                         </div>
-                        <div style={{ fontSize: '8px', opacity: 0.8, fontFamily: 'monospace' }}>
+                        <div
+                            style={{
+                                fontSize: '8px',
+                                opacity: 0.8,
+                                fontFamily: 'monospace',
+                            }}
+                        >
                             衛星: 545-560km | 地面: 3-9km
                         </div>
                     </div>
@@ -1826,13 +2194,13 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
             }}
         >
             <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
-            
+
             {/* ✅ Phase 4.1: 左上角模式切換按鈕 */}
             {showModeToggle && <ModeToggleButtons />}
-            
+
             {/* ✅ Phase 4.2: 狀態指示器（智能定位） */}
             {showModeToggle && <StatusIndicator />}
-            
+
             {/* ✅ Phase 4.3: 歷史數據動畫時間軸控制 */}
             <AnimationControls />
         </div>
