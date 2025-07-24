@@ -27,6 +27,10 @@ export const SATELLITE_CONFIG = {
   SAT_SCALE: 3,                     // 衛星模型大小
   SHOW_ORBIT_TRAILS: true,          // 顯示軌道
   TRAIL_LENGTH: 10,                 // 軌跡長度（分鐘）
+  
+  // === 動畫控制參數 ===
+  SATELLITE_MOVEMENT_SPEED: 5,      // 衛星移動速度（倍數）
+  HANDOVER_TIMING_SPEED: 3,         // 切換演示速度（倍數）
 } as const;
 
 /**
