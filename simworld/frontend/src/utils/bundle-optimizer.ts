@@ -138,7 +138,7 @@ export const codeSpittingConfig = {
     stage3Tests: () => import('../test/stage3-comprehensive-test'),
     
     // 工具組件
-    sidebar: () => import('../components/layout/EnhancedSidebar')
+    sidebar: () => import('../components/layout/Sidebar')
   },
 
   /**

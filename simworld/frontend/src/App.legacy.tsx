@@ -10,7 +10,7 @@ import SceneView from './components/scenes/StereogramView'
 import Layout from './components/layout/Layout'
 import ErrorBoundary from './components/shared/ui/feedback/ErrorBoundary'
 import Navbar from './components/layout/Navbar'
-import EnhancedSidebar from './components/layout/EnhancedSidebar'
+import Sidebar from './components/layout/Sidebar'
 import ToastNotification from './components/shared/ui/feedback/ToastNotification'
 import { backgroundHealthMonitor } from './services/healthMonitor'
 import { countActiveDevices } from './utils/deviceUtils'
@@ -504,7 +504,7 @@ const App: React.FC<AppProps> = ({ activeView = 'stereogram' }) => {
                                     <ErrorBoundary
                                         fallback={<div>側邊欄發生錯誤</div>}
                                     >
-                                        <EnhancedSidebar
+                                        <Sidebar
                                             devices={sortedDevicesForSidebar}
                                             onDeviceChange={handleDeviceChange}
                                             onDeleteDevice={handleDeleteDevice}
