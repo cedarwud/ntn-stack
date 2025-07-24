@@ -2,6 +2,8 @@
 PostgreSQL 配置模組
 提供 PostgreSQL 客戶端連接和配置管理
 用於替代 MongoDB 存儲 SimWorld 數據
+
+Phase 2 重構：統一配置管理，移除重複的環境變數處理
 """
 import logging
 import os
@@ -10,16 +12,18 @@ import asyncpg
 from asyncpg import Pool
 from contextlib import asynccontextmanager
 
+# Phase 2 重構：使用統一的配置管理
+from app.core.config import DATABASE_URL
+
 logger = logging.getLogger(__name__)
 
 class PostgreSQLConfig:
     """PostgreSQL 配置類"""
     
     def __init__(self):
-        self.database_url = os.getenv(
-            "DATABASE_URL", 
-            "postgresql+asyncpg://user:password@postgis/app"
-        )
+        # 使用統一的配置管理
+        self.database_url = DATABASE_URL
+        
         # 移除 +asyncpg 前綴，因為 asyncpg 不需要
         if self.database_url.startswith("postgresql+asyncpg://"):
             self.database_url = self.database_url.replace("postgresql+asyncpg://", "postgresql://")

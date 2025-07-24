@@ -10,7 +10,7 @@ Satellite Operations Router
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 import structlog
@@ -23,6 +23,12 @@ from ..services.simworld_tle_bridge_service import SimWorldTLEBridgeService
 logger = structlog.get_logger(__name__)
 
 # Response Models
+class DataSource(BaseModel):
+    """數據來源信息"""
+    type: str
+    description: str
+    is_simulation: bool
+
 class SatelliteInfo(BaseModel):
     """衛星信息"""
     name: str
@@ -44,6 +50,7 @@ class VisibleSatellitesResponse(BaseModel):
     global_view: bool = False
     timestamp: str
     observer_location: Optional[Dict[str, float]] = None
+    data_source: Optional[DataSource] = None
 
 # Global service instances
 satellite_service: Optional[SatelliteGnbMappingService] = None
@@ -103,6 +110,8 @@ async def get_visible_satellites(
     service: SatelliteGnbMappingService = Depends(get_satellite_service),
 ):
     """獲取可見衛星列表"""
+    print("🔥🔥🔥 SATELLITE OPS ROUTER CALLED 🔥🔥🔥")
+    logger.info("🔥🔥🔥 SATELLITE OPS ROUTER CALLED 🔥🔥🔥")
     try:
         # 構建觀測者位置
         observer_location = None
@@ -122,12 +131,14 @@ async def get_visible_satellites(
             }
 
         # 直接調用 SimWorld 的真實 TLE API
-        satellites = await _call_simworld_satellites_api(
+        logger.info("🚀 NetStack 準備調用 SimWorld API")
+        satellites, data_source = await _call_simworld_satellites_api(
             count=count,
             constellation=constellation,
             min_elevation_deg=min_elevation_deg,
             observer_location=observer_location,
-            bridge_service=bridge_service
+            bridge_service=bridge_service,
+            global_view=global_view
         )
 
         # 按仰角排序（從高到低）
@@ -143,8 +154,27 @@ async def get_visible_satellites(
             constellation=constellation,
             global_view=global_view,
             has_observer=observer_location is not None,
+            data_source_type=data_source.type if data_source else "None",
+            data_source_is_simulation=data_source.is_simulation if data_source else "N/A"
         )
 
+        # Temporary fix: If data_source is None, add a fallback detection
+        if data_source is None:
+            logger.warning("NetStack 未能從 SimWorld 獲取 data_source，使用臨時檢測機制")
+            # Simple fallback based on satellite count and data patterns
+            if len(satellites) <= 10 and any(sat.norad_id in ["44713", "44714", "44715", "44716", "44717", "44718"] for sat in satellites):
+                data_source = DataSource(
+                    type="fallback_simulation",
+                    description="模擬數據 (臨時檢測)",
+                    is_simulation=True
+                )
+            else:
+                data_source = DataSource(
+                    type="unknown",
+                    description="數據來源檢測失敗",
+                    is_simulation=False
+                )
+        
         return VisibleSatellitesResponse(
             satellites=satellites,
             total_count=len(satellites),
@@ -153,6 +183,7 @@ async def get_visible_satellites(
             global_view=global_view,
             timestamp=datetime.utcnow().isoformat(),
             observer_location=observer_location,
+            data_source=data_source
         )
 
     except Exception as e:
@@ -164,8 +195,9 @@ async def _call_simworld_satellites_api(
     constellation: Optional[str],
     min_elevation_deg: float,
     observer_location: Optional[Dict[str, float]],
-    bridge_service: SimWorldTLEBridgeService
-) -> List[SatelliteInfo]:
+    bridge_service: SimWorldTLEBridgeService,
+    global_view: bool = True
+) -> Tuple[List[SatelliteInfo], Optional[DataSource]]:
     """直接調用 SimWorld 的真實 TLE API"""
     import aiohttp
     
@@ -184,10 +216,10 @@ async def _call_simworld_satellites_api(
             "observer_lat": observer_location["lat"],
             "observer_lon": observer_location["lon"],
             "observer_alt": observer_location["alt"] * 1000,  # 轉換回米
-            "global_view": False
         })
-    else:
-        params["global_view"] = True
+    
+    # Phase 2 修復：保持原始的 global_view 參數，讓 SimWorld 正確處理仰角
+    params["global_view"] = "true" if global_view else "false"
     
     # 添加星座過濾
     if constellation:
@@ -201,9 +233,28 @@ async def _call_simworld_satellites_api(
                 if response.status == 200:
                     data = await response.json()
                     
+                    logger.info("🔍 NetStack 處理 SimWorld 響應", raw_response_keys=list(data.keys()))
+                    
                     # 轉換 SimWorld 響應為 NetStack 格式
                     satellites = []
                     satellite_list = data.get("satellites", [])
+                    
+                    # 提取數據來源信息
+                    data_source_info = data.get("data_source")
+                    data_source = None
+                    if data_source_info:
+                        data_source = DataSource(
+                            type=data_source_info.get("type", "unknown"),
+                            description=data_source_info.get("description", "未知數據來源"),
+                            is_simulation=data_source_info.get("is_simulation", False)
+                        )
+                        logger.info(
+                            "從 SimWorld 提取數據來源信息",
+                            data_source_type=data_source.type,
+                            is_simulation=data_source.is_simulation
+                        )
+                    else:
+                        logger.warning("SimWorld API 響應中沒有 data_source 字段", api_response_keys=list(data.keys()))
                     
                     for sat_data in satellite_list:
                         pos = sat_data.get("position", {})
@@ -225,16 +276,17 @@ async def _call_simworld_satellites_api(
                         "成功調用 SimWorld TLE API", 
                         api_url=api_url,
                         returned_count=len(satellites),
-                        constellation=constellation
+                        constellation=constellation,
+                        data_source_type=data_source.type if data_source else "unknown"
                     )
-                    return satellites
+                    return satellites, data_source
                 else:
                     logger.error("SimWorld API 調用失敗", status=response.status, url=api_url)
-                    return []
+                    return [], None
                     
     except Exception as e:
         logger.error("調用 SimWorld API 異常", error=str(e), url=api_url)
-        return []
+        return [], None
 
 def _extract_constellation_from_name(satellite_name: str) -> str:
     """從衛星名稱提取星座信息"""
