@@ -184,23 +184,42 @@ class SimWorldApiClient {
         performance?: Record<string, unknown>;
       }
       
-      // console.log(`🛰️ SimWorldApi: API 原始響應:`, data)
-      // console.log(`🌍 SimWorldApi: 全球視野模式接收到 ${data.satellites?.length || 0} 顆衛星`)
+      console.log(`🛰️ SimWorldApi: API 原始響應:`, data)
+      console.log(`🌍 SimWorldApi: 全球視野模式接收到 ${data.satellites?.length || 0} 顆衛星`)
+      
+      // 顯示數據來源信息
+      if (data.data_source) {
+        console.log(`📊 數據來源類型: ${data.data_source.type}`)
+        console.log(`📝 數據描述: ${data.data_source.description}`)
+        console.log(`🎭 是否為模擬數據: ${data.data_source.is_simulation ? '是' : '否'}`)
+      } else {
+        // 客戶端數據來源檢測機制（後端未提供 data_source 時的備用方案）
+        const fallbackNoradIds = new Set(['44713', '44714', '44715', '44716', '44717', '44718', '58724', '58725', '58726', '58727', '44063', '44064', '37753', '37846'])
+        const detectedNoradIds = data.satellites?.map(sat => sat.norad_id).filter(id => id) || []
+        const isUsingFallbackData = detectedNoradIds.length > 0 && detectedNoradIds.every(id => fallbackNoradIds.has(id))
+        
+        console.log(`📊 數據來源類型: ${isUsingFallbackData ? 'fallback_simulation' : 'unknown'}`)
+        console.log(`📝 數據描述: ${isUsingFallbackData ? '模擬數據 (客戶端檢測)' : '數據來源未知 (客戶端檢測)'}`)
+        console.log(`🎭 是否為模擬數據: ${isUsingFallbackData ? '是' : '未知'}`)
+        console.log(`🔍 檢測到的 NORAD IDs: [${detectedNoradIds.join(', ')}]`)
+        console.log(`⚠️ 注意: 這是客戶端檢測結果，後端未提供 data_source 信息`)
+      }
       
       // 詳細分析 API 響應
-      // console.log(`🛰️ SimWorldApi: 響應分析:`, {
-      //   hasResponse: !!data,
-      //   responseKeys: data ? Object.keys(data) : [],
-      //   hasSatellites: !!data.satellites,
-      //   satellitesLength: data.satellites?.length,
-      //   satellitesType: typeof data.satellites,
-      //   isArray: Array.isArray(data.satellites),
-      //   status: data.status,
-      //   processed: data.processed,
-      //   visible: data.visible,
-      //   error: data.error,
-      //   message: data.message
-      // })
+      console.log(`🛰️ SimWorldApi: 響應分析:`, {
+        hasResponse: !!data,
+        responseKeys: data ? Object.keys(data) : [],
+        hasSatellites: !!data.satellites,
+        satellitesLength: data.satellites?.length,
+        satellitesType: typeof data.satellites,
+        isArray: Array.isArray(data.satellites),
+        status: data.status,
+        processed: data.processed,
+        visible: data.visible,
+        error: data.error,
+        message: data.message,
+        dataSource: data.data_source
+      })
       
       // 🌍 只在衛星數量非常少時警告（0-1顆才異常）
       if (data.satellites && data.satellites.length < 2) {

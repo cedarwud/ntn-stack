@@ -12,15 +12,23 @@ import os
 # Import MongoDB lifespan (migrated from PostgreSQL)
 from app.db.lifespan import lifespan
 from app.api.v1.router import api_router
-from app.core.config import OUTPUT_DIR
+
+# Phase 2 重構：使用統一的配置管理
+from app.core.config import (
+    OUTPUT_DIR, 
+    API_TITLE, 
+    API_DESCRIPTION, 
+    API_VERSION,
+    CORS_ORIGINS
+)
 
 logger = logging.getLogger(__name__)
 
 # Create FastAPI app instance using existing proven lifespan
 app = FastAPI(
-    title="SimWorld Backend API - MVP",
-    description="MVP version with gradual unified lifecycle integration", 
-    version="1.0.0-mvp",
+    title=API_TITLE,
+    description=API_DESCRIPTION, 
+    version=f"{API_VERSION}-phase2",
     lifespan=lifespan,  # Use existing proven lifespan
 )
 
@@ -38,23 +46,17 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 logger.info(f"Mounted static directory '{STATIC_DIR}' at '/static'.")
 
-# --- CORS Middleware (Enhanced from main_refactored) ---
+# --- CORS Middleware (Phase 2 重構：使用統一配置) ---
 EXTERNAL_IP = os.getenv("EXTERNAL_IP", "127.0.0.1")
 
-# Enhanced CORS origins (merged from both versions)
-origins = [
-    "http://localhost",
-    "http://localhost:5173",  # Local development environment
-    "http://127.0.0.1:5173",
+# 合併統一配置和動態配置
+origins = CORS_ORIGINS + [
     f"http://{EXTERNAL_IP}",
-    f"http://{EXTERNAL_IP}:5173",  # External environment IP address
+    f"http://{EXTERNAL_IP}:5173",  
     f"http://{EXTERNAL_IP}:3000",
     f"http://{EXTERNAL_IP}:8080",
     f"https://{EXTERNAL_IP}",
     f"https://{EXTERNAL_IP}:5173",
-    # NetStack integration endpoints (from main_refactored)
-    "http://172.20.0.40",     # NetStack API container
-    "http://172.20.0.40:8080",
     # Docker internal networks
     "http://netstack-api:8080",
     "http://simworld-backend:8888",

@@ -1,13 +1,27 @@
 """
 TLE 數據自動初始化 Fallback 機制
-當 CelesTrak 下載失敗時，使用本地測試數據
+優先級: 外部下載 > 歷史數據 > 模擬數據
+
+1. 嘗試從 CelesTrak 下載最新 TLE 數據
+2. 下載失敗時，載入 Docker 映像內建的歷史 TLE 數據
+3. 歷史數據不可用時，使用硬編碼模擬數據 (最後手段)
 """
 
 import asyncio
 import json
 import logging
 from redis.asyncio import Redis
-from typing import Dict, List
+from typing import Dict, List, Tuple
+
+# 引入歷史數據
+try:
+    from ..data.historical_tle_data import get_historical_tle_data, get_data_source_info
+except ImportError:
+    logger.warning("歷史 TLE 數據模組不可用，將跳過歷史數據 fallback")
+    def get_historical_tle_data(constellation=None):
+        return []
+    def get_data_source_info():
+        return {"type": "unavailable", "description": "歷史數據模組不可用", "is_simulation": True}
 
 logger = logging.getLogger(__name__)
 
