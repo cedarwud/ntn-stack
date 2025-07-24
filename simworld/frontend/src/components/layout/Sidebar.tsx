@@ -39,10 +39,17 @@ async function fetchVisibleSatellites(): Promise<VisibleSatelliteInfo[]> {
     // 支援的星座列表（根據後端數據庫實際擁有的星座）
     const constellations = ['starlink', 'oneweb', 'kuiper'] // 資料庫中有 Starlink (15628顆)、OneWeb (20顆) 和 Kuiper (54顆) 數據
     
+    // 台灣觀測者位置：24°56'39"N 121°22'17"E (根據 CLAUDE.md 要求使用真實地理位置)
+    const TAIWAN_OBSERVER = {
+        lat: 24.94417,    // 24°56'39"N = 24 + 56/60 + 39/3600
+        lon: 121.37139,   // 121°22'17"E = 121 + 22/60 + 17/3600
+        alt: 100          // 台灣平均海拔約100公尺
+    }
+    
     try {
         // 並行獲取多個星座的衛星數據
         const fetchPromises = constellations.map(async (constellation) => {
-            const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?count=${Math.floor(SATELLITE_CONFIG.VISIBLE_COUNT / constellations.length)}&min_elevation_deg=${SATELLITE_CONFIG.MIN_ELEVATION}&constellation=${constellation}`
+            const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?count=${Math.floor(SATELLITE_CONFIG.VISIBLE_COUNT / constellations.length)}&min_elevation_deg=${SATELLITE_CONFIG.MIN_ELEVATION}&constellation=${constellation}&observer_lat=${TAIWAN_OBSERVER.lat}&observer_lon=${TAIWAN_OBSERVER.lon}&observer_alt=${TAIWAN_OBSERVER.alt}&global_view=false`
             
             try {
                 const response = await fetch(apiUrl)

@@ -121,42 +121,14 @@ async def get_visible_satellites(
                 "alt": 0.0
             }
 
-        # 生成衛星ID列表 - 根據星座和數量
-        satellite_ids = await _get_satellite_ids_for_constellation(
-            constellation, count, bridge_service
-        )
-
-        # 獲取衛星位置數據
-        positions = await bridge_service.get_batch_satellite_positions(
-            satellite_ids=satellite_ids,
-            timestamp=datetime.utcnow(),
+        # 直接調用 SimWorld 的真實 TLE API
+        satellites = await _call_simworld_satellites_api(
+            count=count,
+            constellation=constellation,
+            min_elevation_deg=min_elevation_deg,
             observer_location=observer_location,
+            bridge_service=bridge_service
         )
-
-        # 轉換為前端需要的格式
-        satellites = []
-        for sat_id, pos_data in positions.items():
-            if pos_data.get("success") and pos_data.get("position"):
-                pos = pos_data["position"]
-                
-                # 檢查仰角過濾
-                elevation = pos.get("elevation_deg", 0)
-                if elevation < min_elevation_deg:
-                    continue
-                
-                # 構建衛星信息
-                satellite_info = SatelliteInfo(
-                    name=pos.get("name", f"SAT-{sat_id}"),
-                    norad_id=str(sat_id),
-                    elevation_deg=elevation,
-                    azimuth_deg=pos.get("azimuth_deg", 0),
-                    distance_km=pos.get("distance_km", 0),
-                    orbit_altitude_km=pos.get("orbit_altitude_km", 550),  # 默認LEO高度
-                    constellation=constellation or "unknown",
-                    signal_strength=pos.get("signal_strength"),
-                    is_visible=elevation > 0
-                )
-                satellites.append(satellite_info)
 
         # 按仰角排序（從高到低）
         satellites.sort(key=lambda x: x.elevation_deg, reverse=True)
@@ -186,6 +158,99 @@ async def get_visible_satellites(
     except Exception as e:
         logger.error("獲取可見衛星失敗", error=str(e))
         raise HTTPException(status_code=500, detail=f"獲取可見衛星失敗: {str(e)}")
+
+async def _call_simworld_satellites_api(
+    count: int,
+    constellation: Optional[str],
+    min_elevation_deg: float,
+    observer_location: Optional[Dict[str, float]],
+    bridge_service: SimWorldTLEBridgeService
+) -> List[SatelliteInfo]:
+    """直接調用 SimWorld 的真實 TLE API"""
+    import aiohttp
+    
+    # 構建 SimWorld API URL - 使用容器名稱進行內部通訊
+    simworld_api_url = bridge_service.simworld_api_url.replace(":8888", ":8000")  # SimWorld 容器內部使用 8000 端口
+    
+    # 構建請求參數
+    params = {
+        "count": count,
+        "min_elevation_deg": min_elevation_deg,
+    }
+    
+    # 添加觀測者位置參數
+    if observer_location:
+        params.update({
+            "observer_lat": observer_location["lat"],
+            "observer_lon": observer_location["lon"],
+            "observer_alt": observer_location["alt"] * 1000,  # 轉換回米
+            "global_view": False
+        })
+    else:
+        params["global_view"] = True
+    
+    # 添加星座過濾
+    if constellation:
+        params["constellation"] = constellation
+    
+    api_url = f"{simworld_api_url}/api/v1/satellites/visible_satellites"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(api_url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    
+                    # 轉換 SimWorld 響應為 NetStack 格式
+                    satellites = []
+                    satellite_list = data.get("satellites", [])
+                    
+                    for sat_data in satellite_list:
+                        pos = sat_data.get("position", {})
+                        
+                        satellite_info = SatelliteInfo(
+                            name=sat_data.get("name", f"SAT-{sat_data.get('id', 'unknown')}"),
+                            norad_id=str(sat_data.get("norad_id", sat_data.get("id", "unknown"))),
+                            elevation_deg=pos.get("elevation", 0),
+                            azimuth_deg=pos.get("azimuth", 0),
+                            distance_km=pos.get("range", 0),
+                            orbit_altitude_km=pos.get("altitude", 550),
+                            constellation=constellation or _extract_constellation_from_name(sat_data.get("name", "")),
+                            signal_strength=sat_data.get("signal_quality", {}).get("estimated_signal_strength"),
+                            is_visible=pos.get("elevation", 0) >= min_elevation_deg
+                        )
+                        satellites.append(satellite_info)
+                    
+                    logger.info(
+                        "成功調用 SimWorld TLE API", 
+                        api_url=api_url,
+                        returned_count=len(satellites),
+                        constellation=constellation
+                    )
+                    return satellites
+                else:
+                    logger.error("SimWorld API 調用失敗", status=response.status, url=api_url)
+                    return []
+                    
+    except Exception as e:
+        logger.error("調用 SimWorld API 異常", error=str(e), url=api_url)
+        return []
+
+def _extract_constellation_from_name(satellite_name: str) -> str:
+    """從衛星名稱提取星座信息"""
+    name_upper = satellite_name.upper()
+    if "STARLINK" in name_upper:
+        return "STARLINK"
+    elif "ONEWEB" in name_upper:
+        return "ONEWEB" 
+    elif "KUIPER" in name_upper:
+        return "KUIPER"
+    elif "GLOBALSTAR" in name_upper:
+        return "GLOBALSTAR"
+    elif "IRIDIUM" in name_upper:
+        return "IRIDIUM"
+    else:
+        return "UNKNOWN"
 
 async def _get_satellite_ids_for_constellation(
     constellation: Optional[str], 
