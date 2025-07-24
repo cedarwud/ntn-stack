@@ -29,6 +29,18 @@ export default defineConfig(({ mode }) => {
                     target: 'http://simworld_backend:8000',
                     changeOrigin: true,
                     secure: false,
+                    rewrite: (path) => {
+                        // 特殊處理健康檢查端點
+                        if (path === '/api/health') {
+                            return '/health';
+                        }
+                        // 保持 /api/v1 路徑不變，其他移除 /api 前綴
+                        if (path.startsWith('/api/v1/')) {
+                            return path; // 保持原路徑
+                        }
+                        // 其他路徑移除 /api 前綴
+                        return path.replace(/^\/api/, '');
+                    },
                     configure: (proxy) => {
                         proxy.on('error', (err) => {
                             console.log('🚨 SimWorld 代理錯誤:', err)

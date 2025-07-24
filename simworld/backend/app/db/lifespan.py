@@ -292,15 +292,16 @@ async def lifespan(app: FastAPI):
     # 恢復 TLE 相關同步和啟動調度器
     if hasattr(app.state, "redis") and app.state.redis:
         try:
-            # 導入簡化的星座同步函數 (僅 Redis)
+            # 導入同步函數和 fallback 機制
             from app.db.tle_sync_redis import synchronize_constellation_tles
+            from app.db.tle_init_fallback import ensure_tle_data_available
 
-            # 同步 Starlink 衛星 TLE 資料到 Redis（主要星座）
+            # 嘗試同步真實 TLE 數據
             logger.info("Synchronizing Starlink TLE data in the background...")
             starlink_success = await synchronize_constellation_tles(
                 "starlink",
                 None,
-                app.state.redis,  # 傳遞 None 因為不再需要 async_session_maker
+                app.state.redis,
             )
 
             # 同步 Kuiper 衛星 TLE 資料到 Redis（補充星座）
@@ -308,21 +309,44 @@ async def lifespan(app: FastAPI):
             kuiper_success = await synchronize_constellation_tles(
                 "kuiper",
                 None,
-                app.state.redis,  # 傳遞 None 因為不再需要 async_session_maker
+                app.state.redis,
             )
+
+            # 如果真實數據同步失敗，使用 fallback 機制
+            if not starlink_success and not kuiper_success:
+                logger.warning("Both Starlink and Kuiper synchronization failed, using fallback data...")
+                fallback_success = await ensure_tle_data_available(app.state)
+                if fallback_success:
+                    logger.info("✅ Fallback TLE data loaded successfully")
+                    starlink_success = True  # 標記為成功，以便啟動調度器
+                else:
+                    logger.error("❌ Fallback TLE data loading also failed")
 
             if starlink_success or kuiper_success:
                 # 啟動衛星數據定期更新調度器
                 logger.info("Starting satellite data scheduler...")
                 await initialize_scheduler(app.state.redis)
             else:
-                logger.warning("Both Starlink and Kuiper synchronization failed")
+                logger.warning("All TLE data synchronization methods failed")
 
         except Exception as e:
             logger.error(
-                f"Error during Starlink/Kuiper TLE synchronization or scheduler startup: {e}",
+                f"Error during TLE synchronization or scheduler startup: {e}",
                 exc_info=True,
             )
+            
+            # 緊急 fallback：直接載入測試數據
+            try:
+                logger.info("Attempting emergency TLE data loading...")
+                from app.db.tle_init_fallback import ensure_tle_data_available
+                emergency_success = await ensure_tle_data_available(app.state)
+                if emergency_success:
+                    logger.info("✅ Emergency TLE data loaded successfully")
+                    await initialize_scheduler(app.state.redis)
+                else:
+                    logger.error("❌ Emergency TLE data loading failed")
+            except Exception as emergency_e:
+                logger.error(f"Emergency TLE loading also failed: {emergency_e}")
     else:
         logger.warning(
             "Redis unavailable, skipping Starlink/Kuiper TLE synchronization and scheduler"

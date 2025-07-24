@@ -5,8 +5,8 @@
 
 export const SATELLITE_CONFIG = {
   // === 基本顯示參數 ===
-  VISIBLE_COUNT: 50,                // 🌍 大幅增加可見衛星數量以獲得全球範圍數據
-  MIN_ELEVATION: 0,                 // 🌍 使用標準仰角（地平線以上）以包含全球範圍衛星
+  VISIBLE_COUNT: 30,                // 🛰️ 台灣地區可見衛星數量（基於 LEO 軌道特性）
+  MIN_ELEVATION: 10,                // 🛰️ 最小仰角10度（避免大氣干擾，符合實際通訊要求）
   
   // === 移動模擬參數 ===
   REAL_TIME_MULTIPLIER: 1,          // 實時速度倍數（1 = 真實速度）
@@ -44,10 +44,10 @@ export const SATELLITE_CONFIG = {
   
   // === 邊界設定 ===  
   VISIBILITY_BOUNDARY: {
-    MIN_ELEVATION_DEG: 0,           // 🌍 標準仰角（地平線以上）以支持全球視野
+    MIN_ELEVATION_DEG: 10,          // 🛰️ 最小仰角10度（台灣地區實際通訊需求）
     MAX_ELEVATION_DEG: 90,          // 衛星消失的最高仰角（度）
     AZIMUTH_RANGE_DEG: 360,         // 方位角範圍（度）
-    MAX_DISTANCE_KM: 3000,          // 🌍 增加最大可見距離以包含更多衛星
+    MAX_DISTANCE_KM: 2000,          // 🛰️ 台灣地區合理可見距離（LEO 軌道高度約550-600km）
   },
   
 } as const;
