@@ -34,9 +34,8 @@ services:
             PYTHONUNBUFFERED: '1'
             # 外部 IP 地址設定 (用於 CORS)
             EXTERNAL_IP: ${EXTERNAL_IP:-127.0.0.1}
-            # MongoDB 連接配置 (連接到 NetStack MongoDB via network IP)
-            MONGODB_URL: mongodb://172.20.0.10:27017
-            MONGODB_DATABASE: simworld
+            # PostgreSQL 連接配置 (連接到 NetStack PostgreSQL)
+            DATABASE_URL: postgresql://rl_user:rl_password@netstack-rl-postgres:5432/rl_research
             # Redis 連接 URL (連接到 NetStack 的 Redis via network IP)
             REDIS_URL: redis://172.20.0.50:6379/0
 
