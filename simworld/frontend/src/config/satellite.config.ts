@@ -1,119 +1,90 @@
 /**
- * 衛星顯示和移動模擬配置
- * 支援 Starlink + Kuiper 衛星星座的通用參數設定
+ * LEO 衛星系統配置 - 精簡版
+ * 基於真實 LEO 軌道參數和 3GPP NTN 標準
  */
 
 export const SATELLITE_CONFIG = {
-  // === 基本顯示參數 ===
-  VISIBLE_COUNT: 30,                // 🛰️ 台灣地區可見衛星數量（基於 LEO 軌道特性）
-  MIN_ELEVATION: 10,                // 🛰️ 最小仰角10度（避免大氣干擾，符合實際通訊要求）
+  // === 核心顯示參數 ===
+  VISIBLE_COUNT: 30,                // 台灣地區可見衛星數量
+  MIN_ELEVATION: 10,                // 最小仰角（3GPP NTN 標準）
   
-  // === 移動模擬參數 ===
-  REAL_TIME_MULTIPLIER: 1,          // 實時速度倍數（1 = 真實速度）
-  HANDOVER_DEMO_MULTIPLIER: 1,     // 換手演示速度倍數（1倍真實速度，便於演示）
-  ANIMATION_SPEED: 10,              // 動畫速度倍數（可調整）
+  // === 時間控制（統一管理）===
+  TIME_MULTIPLIER: 1,               // 統一時間倍數（1 = 真實速度）
+  UPDATE_INTERVAL: 1000,            // 位置更新間隔（毫秒）
+  ANIMATION_FPS: 60,                // 動畫幀率
   
-  // === 分離的速度控制 ===
-  SATELLITE_MOVEMENT_SPEED: 2,      // 衛星3D移動速度倍數（獨立控制）
-  HANDOVER_TIMING_SPEED: 2,        // 換手時機和演示速度倍數（獨立控制）
-  INTERPOLATION_SMOOTHNESS: 10,     // 插值平滑度（每秒幀數）
+  // === LEO 軌道參數 ===
+  ALTITUDE_KM: 550,                 // 標準 LEO 軌道高度
+  INCLINATION_DEG: 53.0,            // 標準軌道傾角
+  ORBITAL_PERIOD_MIN: 96,           // LEO 軌道週期
   
-  // === 軌跡更新參數 ===
-  POSITION_UPDATE_INTERVAL: 1000,   // 位置更新間隔（毫秒）
-  TRAJECTORY_PREDICTION_TIME: 6000, // 軌跡預測時間（秒，100分鐘，涵蓋完整軌道週期）
-  ORBIT_CALCULATION_STEP: 30,       // 軌道計算步長（秒，提高精度）
-  ANIMATION_FRAME_RATE: 60,         // 動畫幀率（FPS）
+  // === 切換參數（3GPP NTN）===
+  HANDOVER_ELEVATION_THRESHOLD: 25, // 切換觸發仰角
+  HANDOVER_HYSTERESIS: 2,           // 切換滯後
+  SIGNAL_FADE_MARGIN: 3,            // 信號衰落裕度
   
   // === 視覺化參數 ===
-  SAT_SCALE: 3,                     // 衛星模型縮放比例
-  ORBIT_LINE_SEGMENTS: 32,          // 軌道線段數
-  SHOW_ORBIT_TRAILS: true,          // 顯示軌道軌跡
+  SAT_SCALE: 3,                     // 衛星模型大小
+  SHOW_ORBIT_TRAILS: true,          // 顯示軌道
   TRAIL_LENGTH: 10,                 // 軌跡長度（分鐘）
-  
-  // === 衛星星座軌道參數 ===
-  STARLINK_ALTITUDE_KM: 550,        // Starlink 衛星軌道高度
-  STARLINK_INCLINATION_DEG: 53.0,   // Starlink 軌道傾角
-  KUIPER_ALTITUDE_KM: 590,          // Kuiper 衛星軌道高度 
-  KUIPER_INCLINATION_DEG: 51.9,     // Kuiper 軌道傾角
-  ORBITAL_PERIOD_MIN: 96,           // LEO 軌道週期（分鐘）
-  
-  // === 換手相關參數 ===
-  HANDOVER_ELEVATION_THRESHOLD: 25, // 換手觸發仰角閾值（度）
-  HANDOVER_HYSTERESIS: 2,           // 換手滯後角度（度）
-  SIGNAL_FADE_MARGIN: 3,            // 信號衰落裕度（dB）
-  
-  // === 邊界設定 ===  
-  VISIBILITY_BOUNDARY: {
-    MIN_ELEVATION_DEG: 10,          // 🛰️ 最小仰角10度（台灣地區實際通訊需求）
-    MAX_ELEVATION_DEG: 90,          // 衛星消失的最高仰角（度）
-    AZIMUTH_RANGE_DEG: 360,         // 方位角範圍（度）
-    MAX_DISTANCE_KM: 2000,          // 🛰️ 台灣地區合理可見距離（LEO 軌道高度約550-600km）
-  },
-  
 } as const;
 
 /**
- * 運行時模式配置
+ * 模擬模式配置 - 簡化版
  */
 export const SIMULATION_MODE = {
-  // 模擬模式
   REAL_TIME: 'real_time',           // 真實時間模式
-  DEMO: 'demo',                     // 演示模式（加速）
-  ANALYSIS: 'analysis',             // 分析模式（可暫停）
+  DEMO: 'demo',                     // 演示模式
+  ANALYSIS: 'analysis',             // 分析模式
 } as const;
 
 export type SimulationMode = typeof SIMULATION_MODE[keyof typeof SIMULATION_MODE];
 
 /**
- * 獲取當前模式的時間倍數
+ * 獲取模式時間倍數
  */
 export function getTimeMultiplier(mode: SimulationMode): number {
   switch (mode) {
     case SIMULATION_MODE.REAL_TIME:
-      return SATELLITE_CONFIG.REAL_TIME_MULTIPLIER;
+      return SATELLITE_CONFIG.TIME_MULTIPLIER;
     case SIMULATION_MODE.DEMO:
-      return SATELLITE_CONFIG.HANDOVER_DEMO_MULTIPLIER;
+      return SATELLITE_CONFIG.TIME_MULTIPLIER * 10; // 演示模式10倍速
     case SIMULATION_MODE.ANALYSIS:
-      return 0; // 可暫停
+      return 0; // 暫停模式
     default:
-      return SATELLITE_CONFIG.REAL_TIME_MULTIPLIER;
+      return SATELLITE_CONFIG.TIME_MULTIPLIER;
   }
 }
 
 /**
- * 衛星星座標識符配置
- * 用於識別和追蹤特定的 Starlink 和 Kuiper 衛星
+ * 衛星星座配置 - 精簡版
  */
-export const CONSTELLATION_SATELLITES = {
-  // Starlink 衛星 NORAD ID 範圍
-  STARLINK_START: 44713,
-  STARLINK_END: 70000,
-  
-  // Kuiper 衛星 NORAD ID 範圍
-  KUIPER_START: 63724,
-  KUIPER_END: 63750,
-  
+export const CONSTELLATION_CONFIG = {
   // 支援的星座類型
-  SUPPORTED_CONSTELLATIONS: ['STARLINK', 'KUIPER'] as const,
+  SUPPORTED_TYPES: ['STARLINK', 'KUIPER'] as const,
+  
+  // NORAD ID 範圍
+  STARLINK_ID_RANGE: [44713, 70000],
+  KUIPER_ID_RANGE: [63724, 63750],
 } as const;
 
 /**
- * 真實軌跡調整參數
- * 用於在不偏離真實軌跡太遠的情況下，優化換手演示效果
+ * 動態配置支援 - 運行時調整關鍵參數
  */
-export const TRAJECTORY_ADJUSTMENT = {
-  // 是否啟用軌跡調整
-  ENABLE_ADJUSTMENT: true,
+export const DYNAMIC_CONFIG = {
+  // 可動態調整的參數
+  adjustableParams: [
+    'TIME_MULTIPLIER',
+    'VISIBLE_COUNT', 
+    'HANDOVER_ELEVATION_THRESHOLD',
+    'TRAIL_LENGTH'
+  ] as const,
   
-  // 最大位置偏移（公里）
-  MAX_POSITION_OFFSET_KM: 50,
-  
-  // 最大時間偏移（秒）
-  MAX_TIME_OFFSET_SEC: 30,
-  
-  // 換手場景優化
-  OPTIMIZE_FOR_HANDOVER: true,
-  
-  // 確保最小換手間隔（秒）- 修正：基於真實 LEO 軌道週期調整
-  MIN_HANDOVER_INTERVAL_SEC: 300, // 5分鐘，考慮真實 90分鐘軌道週期
+  // 參數範圍限制
+  paramLimits: {
+    TIME_MULTIPLIER: [0.1, 100],
+    VISIBLE_COUNT: [5, 100],
+    HANDOVER_ELEVATION_THRESHOLD: [10, 45],
+    TRAIL_LENGTH: [1, 30]
+  }
 } as const;
