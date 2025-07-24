@@ -1,5 +1,27 @@
 # LEO 衛星系統開發前重構修復計劃
 
+## ✅ 階段1完成狀態 (2025-01-24)
+
+**🎉 關鍵修復已完成 - 系統可正常進行 Phase 1-5 開發**
+
+### 完成項目
+- ✅ **1.1 清理重複 Satellite Redis 路由文件** - 移除重複文件，簡化路由
+- ✅ **1.2 統一數據庫策略** - SimWorld 完全遷移到 PostgreSQL，使用 NetStack PostgreSQL
+- ✅ **1.3 簡化依賴注入系統** - 移除複雜 DI 容器，改為直接實例化
+
+### 額外修復 (發現並解決)
+- ✅ **Pydantic v2 兼容性** - 修復 `regex` → `pattern` 參數更名
+- ✅ **PostgreSQL 連接配置** - 正確配置 NetStack PostgreSQL 憑證
+- ✅ **MongoDB 依賴清理** - 移除 SimWorld 中殘留的 MongoDB 引用
+
+### 驗證結果
+- ✅ **系統狀態**: 所有服務健康運行 (NetStack + SimWorld)
+- ✅ **API 測試**: NetStack `/health`, SimWorld `/api/v1/devices/` 正常
+- ✅ **數據庫**: PostgreSQL 正常工作，設備數據完整載入
+- ✅ **啟動速度**: 依賴注入簡化，提升啟動效率
+
+---
+
 ## 🚨 緊急重構需求分析
 
 在進行 **LEO 衛星系統 Phase 1-5 開發** 之前，發現現有架構存在嚴重問題，**必須先進行重構修復**，否則將嚴重影響開發效率和系統穩定性。
@@ -43,20 +65,32 @@ simworld/backend/app/api/routes/satellite_redis_fixed.py # 刪除
 4. 測試API端點正常工作
 
 #### 1.2 統一數據庫策略
-**問題**: PostgreSQL + MongoDB + Redis 混用造成數據不一致風險
+**問題**: SimWorld 同時使用 PostgreSQL + MongoDB 造成數據分散
 
-**修復策略**:
-- **Phase 1-5 主要使用 PostgreSQL** (符合docs/architecture.md設計)
+**修復策略** (基於系統分析):
+- **SimWorld → PostgreSQL** (時間序列數據、空間查詢優化)
+- **NetStack → 保持 MongoDB** (Open5GS 標準依賴，不可修改)
 - **Redis 僅用於緩存** (衛星位置數據等高頻查詢)
-- **MongoDB 逐步遷移** (設備管理等數據遷移至PostgreSQL)
+
+**SimWorld 遷移範圍**:
+- 設備管理 (`devices_mongodb.py`)
+- 模擬結果存儲 (CFR、SINR、Doppler 圖表)
+- MongoDeviceManager → PostgreSQL DeviceManager
+
+**實施策略** (基於 lifespan.py 分析):
+- ✅ **修改初始化腳本** - `lifespan.py` 中的種子數據初始化
+- ✅ **創建 PostgreSQL Schema** - 設備表、地面站表
+- ✅ **更新 API 路由** - 從 MongoDB 改為 PostgreSQL
+- ❌ **不需要數據遷移** - 都是可重建的種子數據
 
 **具體步驟**:
-1. 確認PostgreSQL schema設計完整性
-2. 創建數據遷移腳本
-3. 更新API路由使用統一數據源
-4. 保留Redis僅作為緩存層
+1. 創建 PostgreSQL 設備和地面站表結構
+2. 修改 lifespan.py 初始化函數使用 PostgreSQL  
+3. 更新 devices_mongodb.py → devices_postgresql.py
+4. 更新模擬 API 使用 PostgreSQL 依賴
+5. 保留 NetStack MongoDB 完全不動
 
-#### 1.3 簡化依賴注入系統
+#### ✅ 1.3 簡化依賴注入系統
 **問題**: app/core/dependency_injection.py 過度複雜，影響服務啟動
 
 **修復原則** (遵循CLAUDE.md規範):
@@ -64,11 +98,11 @@ simworld/backend/app/api/routes/satellite_redis_fixed.py # 刪除
 - **直接依賴注入** - 使用FastAPI內建的Depends系統
 - **避免循環依賴** - 清理複雜的服務依賴關係
 
-**具體行動**:
-1. 評估當前ServiceContainer的實際使用情況
-2. 將核心服務改為直接初始化
-3. 保留必要的依賴注入，移除過度抽象
-4. 測試服務啟動速度改善
+**✅ 實施完成**:
+1. ✅ 分析DI使用情況 - 僅在performance服務初始化中使用
+2. ✅ 改為直接實例化 - 更新service_registry.py
+3. ✅ 移除DI容器依賴 - 標記dependency_injection.py為deprecated
+4. ✅ 簡化啟動邏輯 - 減少啟動時間和複雜度
 
 ### 🟠 階段2: 架構優化 (Phase 1-2 期間)
 
