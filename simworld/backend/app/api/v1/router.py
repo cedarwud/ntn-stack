@@ -7,9 +7,8 @@ Replaces the monolithic router.py as part of Phase 2 refactoring.
 
 from fastapi import APIRouter
 
-# Import domain API routers
-# from app.domains.device.api.device_api import router as device_router  # PostgreSQL 版本，已註釋
-from app.api.routes.devices_mongodb import router as device_router  # MongoDB 版本
+# Import domain API routers  
+from app.api.routes.devices_postgresql import router as device_router  # PostgreSQL 版本 (替代 MongoDB)
 from app.domains.coordinates.api.coordinate_api import router as coordinates_router
 
 # from app.domains.satellite.api.satellite_api import router as satellite_router  # PostgreSQL 版本，已註釋
@@ -46,8 +45,7 @@ from app.api.routes.integration import router as integration_router
 # from app.api.v1.satellite_admin_api import router as satellite_admin_router  # 依賴 satellite 模組，暫時註釋
 from app.api.routes.health import router as health_router
 
-# Import MongoDB routes for migration
-from app.api.routes.devices_mongodb import router as devices_mongodb_router
+# MongoDB routes removed - migrated to PostgreSQL
 
 # Import TLE data routes for Phase 1 - Real satellite data integration
 from app.api.routes.tle import router as tle_router
@@ -62,9 +60,8 @@ api_router = APIRouter()
 api_router.include_router(core_router, tags=["Core"])
 
 # Register domain API routers with clean prefixes
-# api_router.include_router(device_router, prefix="/devices", tags=["Devices"])  # 暫時註釋舊的 PostgreSQL 路由
 api_router.include_router(
-    devices_mongodb_router, prefix="/devices", tags=["Devices (MongoDB)"]
+    device_router, prefix="/devices", tags=["Devices (PostgreSQL)"]
 )
 api_router.include_router(
     coordinates_router, prefix="/coordinates", tags=["Coordinates"]
