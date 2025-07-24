@@ -179,7 +179,7 @@ describe('🏗️ 佈局組件', () => {
     })
   })
 
-  describe('EnhancedSidebar', () => {
+  describe('Sidebar', () => {
     it('應該正確渲染側邊欄並支援切換', async () => {
       const MockSidebar = () => {
         const [isCollapsed, setIsCollapsed] = React.useState(false)
