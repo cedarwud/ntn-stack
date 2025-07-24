@@ -163,22 +163,18 @@ async def shutdown_cqrs_service():
 
 
 async def initialize_performance_services():
-    """Initialize performance domain services with dependency injection"""
+    """Initialize performance domain services (simplified - direct instantiation)"""
     try:
-        from .dependency_injection import configure_dependency_injection, service_container
         from ..domains.performance.services.simworld_optimizer import SimWorldOptimizer
         from ..domains.performance.services.algorithm_calculator import AlgorithmCalculator
         from ..domains.performance.services.performance_aggregator import PerformanceAggregator
         
-        # Configure dependency injection
-        configure_dependency_injection()
+        # Direct instantiation - simpler and faster than DI container
+        optimizer = SimWorldOptimizer()
+        calculator = AlgorithmCalculator()
+        aggregator = PerformanceAggregator()
         
-        # Resolve services through DI container
-        optimizer = service_container.resolve(SimWorldOptimizer)
-        calculator = service_container.resolve(AlgorithmCalculator)
-        aggregator = service_container.resolve(PerformanceAggregator)
-        
-        logger.info("Performance services initialized with dependency injection")
+        logger.info("Performance services initialized (direct instantiation)")
         return {
             "optimizer": optimizer,
             "calculator": calculator,
