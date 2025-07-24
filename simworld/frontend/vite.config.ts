@@ -24,64 +24,44 @@ export default defineConfig(({ mode }) => {
         hmr: false, // 在 Docker 環境中禁用 HMR 避免 WebSocket 問題
         origin: 'http://localhost:5173',
         proxy: {
-                // 代理API請求到 SimWorld 後端
+            // 統一的 SimWorld API 代理
             '/api': {
-                    target: 'http://simworld_backend:8000',
-                    changeOrigin: true,
-                    secure: false,
-                    rewrite: (path) => {
-                        // 特殊處理健康檢查端點
-                        if (path === '/api/health') {
-                            return '/health';
-                        }
-                        // 保持 /api/v1 路徑不變，其他移除 /api 前綴
-                        if (path.startsWith('/api/v1/')) {
-                            return path; // 保持原路徑
-                        }
-                        // 其他路徑移除 /api 前綴
-                        return path.replace(/^\/api/, '');
-                    },
-                    configure: (proxy) => {
-                        proxy.on('error', (err) => {
-                            console.log('🚨 SimWorld 代理錯誤:', err)
-                            console.log('🔧 代理目標: http://simworld_backend:8000')
-                        })
-                        proxy.on('proxyReq', (proxyReq, req) => {
-                            console.log('🔄 SimWorld 代理請求:', req.method, req.url)
-                        })
-                    }
-                },
-                // 代理 NetStack API 請求 - 修復代理路徑匹配
-                '/netstack': { // 代理所有 /netstack 路徑
-                    target: env.VITE_NETSTACK_PROXY_TARGET || 'http://netstack-api:8080',
-                    changeOrigin: true,
-                    secure: false,
-                    rewrite: (path) => path.replace(/^\/netstack/, ''), // 移除 /netstack 前綴
-                    configure: (proxy) => {
-                        proxy.on('error', (err) => {
-                            console.log('🚨 NetStack 代理錯誤:', err)
-                            console.log('🔧 代理目標:', env.VITE_NETSTACK_PROXY_TARGET || 'http://netstack-api:8080')
-                        })
-                        proxy.on('proxyReq', (proxyReq, req) => {
-                            console.log('🔄 NetStack 代理請求:', req.method, req.url)
-                        })
-                    }
-                },
-                // 代理 WebSocket 連接
-                '/socket.io': {
-                    target: 'http://simworld_backend:8000',
-                    changeOrigin: true,
-                    ws: true,
+                target: env.VITE_SIMWORLD_PROXY_TARGET || 'http://simworld_backend:8000',
+                changeOrigin: true,
+                secure: false,
+                configure: (proxy) => {
+                    proxy.on('error', (err) => {
+                        console.log('🚨 SimWorld API 代理錯誤:', err)
+                    })
+                }
             },
-            // 增加對靜態文件的代理
+            
+            // 統一的 NetStack API 代理  
+            '/netstack': {
+                target: env.VITE_NETSTACK_PROXY_TARGET || 'http://netstack-api:8080',
+                changeOrigin: true,
+                secure: false,
+                rewrite: (path) => path.replace(/^\/netstack/, ''),
+                configure: (proxy) => {
+                    proxy.on('error', (err) => {
+                        console.log('🚨 NetStack API 代理錯誤:', err)
+                    })
+                }
+            },
+            
+            // WebSocket 和靜態資源代理
+            '/socket.io': {
+                target: env.VITE_SIMWORLD_PROXY_TARGET || 'http://simworld_backend:8000',
+                changeOrigin: true,
+                ws: true,
+            },
             '/rendered_images': {
-                target: 'http://simworld_backend:8000',
+                target: env.VITE_SIMWORLD_PROXY_TARGET || 'http://simworld_backend:8000',
                 changeOrigin: true,
                 secure: false,
             },
-            // 其他靜態資源路徑
             '/static': {
-                target: 'http://simworld_backend:8000',
+                target: env.VITE_SIMWORLD_PROXY_TARGET || 'http://simworld_backend:8000',
                 changeOrigin: true,
                 secure: false,
             }

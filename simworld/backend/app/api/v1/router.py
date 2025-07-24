@@ -13,8 +13,9 @@ from app.domains.coordinates.api.coordinate_api import router as coordinates_rou
 
 # from app.domains.satellite.api.satellite_api import router as satellite_router  # PostgreSQL 版本，已註釋
 from app.domains.simulation.api.simulation_api import router as simulation_router
-from app.domains.wireless.api.wireless_api import router as wireless_router
-from app.domains.interference.api.interference_api import router as interference_router
+
+# Phase 2 重構：合併 wireless + interference → rf_simulation
+from app.domains.rf_simulation.api.rf_simulation_api import router as rf_simulation_router
 
 # from app.domains.handover.api.handover_api import router as handover_router  # 依賴 satellite 模組，暫時註釋
 # from app.domains.handover.api.fine_grained_sync_api import (
@@ -73,9 +74,10 @@ api_router.include_router(
 api_router.include_router(
     simulation_router, prefix="/simulations", tags=["Simulations"]
 )
-api_router.include_router(wireless_router, prefix="/wireless", tags=["Wireless"])
+
+# Phase 2 重構：統一 RF 模擬 API (合併 wireless + interference)
 api_router.include_router(
-    interference_router, prefix="/interference", tags=["Interference"]
+    rf_simulation_router, prefix="/rf", tags=["RF Simulation"]
 )
 # api_router.include_router(handover_router, prefix="/handover", tags=["Handover"])  # 依賴 satellite 模組，暫時註釋
 api_router.include_router(system_router, prefix="/system", tags=["System"])

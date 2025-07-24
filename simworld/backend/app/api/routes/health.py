@@ -15,9 +15,11 @@ async def health_check():
 @router.get("/monitoring-config")
 async def get_monitoring_config():
     """Get current monitoring configuration"""
-    import os
+    # Phase 2 重構：使用統一的配置管理
+    from app.core.config import PROMETHEUS_URL, ALERTMANAGER_URL, MONITORING_ENABLED
+    
     return {
-        "prometheus_url": os.getenv("PROMETHEUS_URL", "http://localhost:9090"),
-        "alertmanager_url": os.getenv("ALERTMANAGER_URL", "http://localhost:9093"),
-        "monitoring_enabled": True
+        "prometheus_url": PROMETHEUS_URL,
+        "alertmanager_url": ALERTMANAGER_URL,
+        "monitoring_enabled": MONITORING_ENABLED
     }
