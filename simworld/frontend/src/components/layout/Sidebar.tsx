@@ -17,6 +17,7 @@ import { SATELLITE_CONFIG } from '../../config/satellite.config'
 import { simWorldApi } from '../../services/simworld-api'
 import { SatelliteDebugger } from '../../utils/satelliteDebugger'
 import { netstackFetch } from '../../config/api-config'
+import { useDataSync } from '../../contexts/DataSyncContext'
 // 引入重構後的換手管理模組
 import HandoverManagementTab from './sidebar/HandoverManagementTab'
 // 引入重構後的設備列表模組
@@ -371,10 +372,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     // 擴展的UI狀態
     const [activeCategory, setActiveCategory] = useState<string>('uav')
 
-    // 衛星相關狀態已移除，使用固定配置
-    const [skyfieldSatellites, setSkyfieldSatellites] = useState<
-        VisibleSatelliteInfo[]
-    >([])
+    // 使用 DataSyncContext 統一的衛星數據
+    const { state } = useDataSync()
+    const skyfieldSatellites = state.simworld.satellites || []
     const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false)
     const satelliteRefreshIntervalRef = useRef<ReturnType<
         typeof setInterval
@@ -523,23 +523,18 @@ const Sidebar: React.FC<SidebarProps> = ({
             // console.log('🛰️ 首次初始化衛星數據...')
             setLoadingSatellites(true)
 
-            const satellites = await fetchVisibleSatellites(
-                SATELLITE_CONFIG.VISIBLE_COUNT,
-                SATELLITE_CONFIG.MIN_ELEVATION
-            )
-
-            const sortedSatellites = [...satellites]
-            sortedSatellites.sort((a, b) => b.elevation_deg - a.elevation_deg)
-
-            setSkyfieldSatellites(sortedSatellites)
-
-            if (onSatelliteDataUpdate) {
+            // 使用 DataSyncContext 統一的衛星數據，避免重複 API 調用
+            console.log('🛰️ EnhancedSidebar: 使用 DataSyncContext 統一數據源，避免重複 API 調用')
+            
+            // 當 DataSyncContext 有衛星數據時，通知父組件
+            if (skyfieldSatellites.length > 0 && onSatelliteDataUpdate) {
+                const sortedSatellites = [...skyfieldSatellites].sort((a, b) => b.elevation_deg - a.elevation_deg)
                 onSatelliteDataUpdate(sortedSatellites)
+                console.log(`🛰️ EnhancedSidebar: 從 DataSyncContext 獲取到 ${sortedSatellites.length} 顆衛星`)
             }
 
             satelliteDataInitialized.current = true
             setLoadingSatellites(false)
-            // 衛星數據初始化完成
         }
 
         // 清理任何現有的刷新間隔
@@ -560,6 +555,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     }, [
         satelliteEnabled, // 只依賴啟用狀態
         onSatelliteDataUpdate,
+        skyfieldSatellites, // 當 DataSyncContext 的衛星數據變化時更新
         // 移除其他依賴，避免重新載入
     ])
 

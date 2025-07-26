@@ -85,11 +85,11 @@ export const getApiConfig = (): ApiConfig => {
     docker: {
       netstack: {
         baseUrl: '/netstack', // 使用 Vite 代理
-        timeout: 15000
+        timeout: 30000
       },
       simworld: {
         baseUrl: '/api', // 使用 Vite 代理
-        timeout: 15000
+        timeout: 30000
       },
       monitoring: {
         prometheus: '/monitoring/prometheus',
@@ -201,7 +201,10 @@ export const createConfiguredFetch = (service: 'netstack' | 'simworld') => {
     
     // 創建超時控制器
     const timeoutController = new AbortController()
-    const timeoutId = setTimeout(() => timeoutController.abort(), serviceConfig.timeout)
+    const timeoutId = setTimeout(() => {
+      console.warn(`${service.toUpperCase()} API 請求超時 (${serviceConfig.timeout}ms):`, endpoint)
+      timeoutController.abort()
+    }, serviceConfig.timeout)
     
     // 合併 AbortController signals
     const existingSignal = options.signal
@@ -210,7 +213,10 @@ export const createConfiguredFetch = (service: 'netstack' | 'simworld') => {
     if (existingSignal) {
       // 如果已存在信號，創建組合信號
       const combinedController = new AbortController()
-      const abortBoth = () => combinedController.abort()
+      const abortBoth = () => {
+        console.log(`${service.toUpperCase()} API 請求被取消:`, endpoint)
+        combinedController.abort()
+      }
       
       existingSignal.addEventListener('abort', abortBoth)
       timeoutController.signal.addEventListener('abort', abortBoth)
@@ -243,10 +249,21 @@ export const createConfiguredFetch = (service: 'netstack' | 'simworld') => {
       return response
     } catch (error) {
       clearTimeout(timeoutId)
-      console.error(`${service.toUpperCase()} API 請求失敗:`, {
-        url,
-        error: error instanceof Error ? error.message : error
-      })
+      
+      // 針對 AbortError 提供更詳細的日誌
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn(`${service.toUpperCase()} API 請求被中斷:`, {
+          url,
+          endpoint,
+          reason: error.message,
+          timeout: serviceConfig.timeout
+        })
+      } else {
+        console.error(`${service.toUpperCase()} API 請求失敗:`, {
+          url,
+          error: error instanceof Error ? error.message : error
+        })
+      }
       throw error
     }
   }
