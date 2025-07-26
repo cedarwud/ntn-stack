@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Base services
 from .base import DeviceManager, SceneSetupService, SionnaConfigService
-from .base.mongo_device_manager import MongoDeviceManager
 
 # Specialized calculators  
 from .calculators import CFRCalculator, SINRCalculator, DopplerCalculator, ChannelCalculator
@@ -103,13 +102,13 @@ class CommunicationSimulationService:
             # Prepare output file
             self._prepare_output_file(output_path, "CFR 圖檔")
             
-            # 1. Load devices from MongoDB (with fallback for connection issues)
-            device_manager = MongoDeviceManager()
+            # 1. Load devices from PostgreSQL (with fallback for connection issues)
+            device_manager = DeviceManager(session)
             try:
                 desired, jammers, receivers = await device_manager.load_simulation_devices()
-                logger.info(f"✅ 成功從 MongoDB 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
+                logger.info(f"✅ 成功從 PostgreSQL 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
             except Exception as e:
-                logger.warning(f"無法從 MongoDB 載入設備，使用預設設備配置: {e}")
+                logger.warning(f"無法從 PostgreSQL 載入設備，使用預設設備配置: {e}")
                 # 使用預設設備配置作為回退方案
                 desired, jammers, receivers = self._get_default_devices(scene_name)
             
@@ -166,13 +165,13 @@ class CommunicationSimulationService:
             # Prepare output file
             self._prepare_output_file(output_path, "SINR 地圖圖檔")
             
-            # 1. Load devices from MongoDB (with fallback for connection issues)
-            device_manager = MongoDeviceManager()
+            # 1. Load devices from PostgreSQL (with fallback for connection issues)
+            device_manager = DeviceManager(session)
             try:
                 desired, jammers, receivers = await device_manager.load_simulation_devices()
-                logger.info(f"✅ 成功從 MongoDB 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
+                logger.info(f"✅ 成功從 PostgreSQL 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
             except Exception as e:
-                logger.warning(f"無法從 MongoDB 載入設備，使用預設設備配置: {e}")
+                logger.warning(f"無法從 PostgreSQL 載入設備，使用預設設備配置: {e}")
                 # 使用預設設備配置作為回退方案
                 desired, jammers, receivers = self._get_default_devices(scene_name)
             
@@ -217,13 +216,13 @@ class CommunicationSimulationService:
             # Prepare output file
             self._prepare_output_file(output_path, "延遲多普勒圖檔")
             
-            # 1. Load devices from MongoDB (with fallback for connection issues)
-            device_manager = MongoDeviceManager()
+            # 1. Load devices from PostgreSQL (with fallback for connection issues)
+            device_manager = DeviceManager(session)
             try:
                 desired, jammers, receivers = await device_manager.load_simulation_devices()
-                logger.info(f"✅ 成功從 MongoDB 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
+                logger.info(f"✅ 成功從 PostgreSQL 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
             except Exception as e:
-                logger.warning(f"無法從 MongoDB 載入設備，使用預設設備配置: {e}")
+                logger.warning(f"無法從 PostgreSQL 載入設備，使用預設設備配置: {e}")
                 # 使用預設設備配置作為回退方案
                 desired, jammers, receivers = self._get_default_devices(scene_name)
             
@@ -273,13 +272,13 @@ class CommunicationSimulationService:
             # Prepare output file
             self._prepare_output_file(output_path, "通道響應圖檔")
             
-            # 1. Load devices from MongoDB (with fallback for connection issues)
-            device_manager = MongoDeviceManager()
+            # 1. Load devices from PostgreSQL (with fallback for connection issues)
+            device_manager = DeviceManager(session)
             try:
                 desired, jammers, receivers = await device_manager.load_simulation_devices()
-                logger.info(f"✅ 成功從 MongoDB 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
+                logger.info(f"✅ 成功從 PostgreSQL 載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers")
             except Exception as e:
-                logger.warning(f"無法從 MongoDB 載入設備，使用預設設備配置: {e}")
+                logger.warning(f"無法從 PostgreSQL 載入設備，使用預設設備配置: {e}")
                 # 使用預設設備配置作為回退方案
                 desired, jammers, receivers = self._get_default_devices(scene_name)
             

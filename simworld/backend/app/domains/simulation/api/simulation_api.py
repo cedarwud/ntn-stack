@@ -2,7 +2,7 @@ import logging
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from app.api.dependencies import get_postgresql_db
+from app.api.dependencies import get_db_session
 from app.core.config import (
     CFR_PLOT_IMAGE_PATH,
     SINR_MAP_IMAGE_PATH,
@@ -59,7 +59,7 @@ async def get_scene_image():
 
 @router.get("/cfr-plot", response_description="通道頻率響應圖")
 async def get_cfr_plot(
-    db = Depends(get_postgresql_db),
+    db = Depends(get_db_session),
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
 ):
     """產生並回傳通道頻率響應 (CFR) 圖"""
@@ -91,7 +91,7 @@ async def get_cfr_plot(
 
 @router.get("/sinr-map", response_description="SINR 地圖")
 async def get_sinr_map(
-    db = Depends(get_postgresql_db),
+    db = Depends(get_db_session),
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
     sinr_vmin: float = Query(-40.0, description="SINR 最小值 (dB)"),
     sinr_vmax: float = Query(0.0, description="SINR 最大值 (dB)"),
@@ -133,7 +133,7 @@ async def get_sinr_map(
 
 @router.get("/doppler-plots", response_description="延遲多普勒圖")
 async def get_doppler_plots(
-    db = Depends(get_postgresql_db),
+    db = Depends(get_db_session),
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
 ):
     """產生並回傳延遲多普勒圖"""
@@ -165,7 +165,7 @@ async def get_doppler_plots(
 
 @router.get("/channel-response", response_description="通道響應圖")
 async def get_channel_response(
-    db = Depends(get_postgresql_db),
+    db = Depends(get_db_session),
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
 ):
     """產生並回傳通道響應圖，顯示 H_des、H_jam 和 H_all 的三維圖"""

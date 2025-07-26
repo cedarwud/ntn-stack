@@ -30,5 +30,7 @@ class DeviceBase(SQLModel):
 # Represents the table structure, inherits validation from DeviceBase
 class Device(DeviceBase, table=True):
     """設備實體模型，對應資料庫中的設備表"""
-
+    
+    __tablename__ = "devices"  # Specify the exact table name in PostgreSQL
+    
     id: Optional[int] = Field(default=None, primary_key=True)

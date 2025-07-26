@@ -15,8 +15,8 @@ import {
     logConfigurationStatus,
 } from './config/validation'
 
-// 導入插件系統
-import { initializePluginSystem } from './plugins'
+// 導入配置系統
+import { initializeConfigSystem } from './plugins'
 
 // 設定 axios 默認配置，忽略設置 baseURL
 // 讓所有請求都使用相對路徑，由 Vite 代理處理
@@ -137,13 +137,13 @@ if (!configValidation.isValid) {
     console.warn('⚠️ 配置驗證失敗，某些功能可能無法正常工作')
 }
 
-// 🚀 初始化插件系統
-initializePluginSystem()
+// 🚀 初始化配置系統
+initializeConfigSystem()
     .then(() => {
-        // console.log('✅ 插件系統初始化完成')
+        // console.log('✅ 配置系統初始化完成')
     })
     .catch((error) => {
-        console.error('❌ 插件系統初始化失敗:', error)
+        console.error('❌ 配置系統初始化失敗:', error)
     })
 
 createRoot(document.getElementById('root')!).render(
