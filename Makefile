@@ -118,6 +118,26 @@ netstack-start: ## 啟動 NetStack 服務
 	@cd ${NETSTACK_DIR} && $(MAKE) up
 	@echo "$(GREEN)✅ NetStack 服務已啟動$(RESET)"
 
+netstack-start-smart: ## 啟動 NetStack 服務 (智能等待健康檢查)
+	@echo "$(BLUE)🚀 啟動 NetStack 服務 (智能等待)...$(RESET)"
+	@cd ${NETSTACK_DIR} && docker compose -f compose/core.yaml up -d
+	@echo "$(YELLOW)⏳ 等待 NetStack API 健康檢查通過...$(RESET)"
+	@timeout=180; \
+	while [ $$timeout -gt 0 ]; do \
+		if curl -s -f http://localhost:8080/health >/dev/null 2>&1; then \
+			echo "$(GREEN)✅ NetStack API 健康檢查通過 ($$((180-timeout)) 秒)$(RESET)"; \
+			break; \
+		fi; \
+		echo "$(BLUE)  等待中... (剩餘 $$timeout 秒)$(RESET)"; \
+		sleep 5; \
+		timeout=$$((timeout-5)); \
+	done; \
+	if [ $$timeout -le 0 ]; then \
+		echo "$(RED)❌ NetStack API 啟動超時 (180秒)$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✅ NetStack 服務已啟動並通過健康檢查$(RESET)"
+
 netstack-start-full: ## 啟動 NetStack 服務並完成開發環境設置
 	@echo "$(BLUE)🚀 啟動 NetStack 服務並設置開發環境...$(RESET)"
 	@cd ${NETSTACK_DIR} && $(MAKE) start-with-setup
@@ -191,7 +211,7 @@ simworld-stop-v: ## 停止 SimWorld 服務並清除卷
 
 restart: all-restart ## 重啟所有服務
 
-restart-v: all-restart-v ## 重啟所有服務
+restart-v: all-restart-v ## 重啟所有服務 (智能等待版本)
 
 # restart-monitoring: ## [獨立] 重啟階段8的監控服務 (暫時禁用)
 #	@echo "$(BLUE)🔄 重啟監控系統...$(RESET)"
@@ -199,17 +219,35 @@ restart-v: all-restart-v ## 重啟所有服務
 #	@sleep 5
 #	@echo "$(GREEN)✅ 監控系統已重啟。$(RESET)"
 
-all-restart: ## 重啟所有核心服務 (NetStack 含整合 RL System, SimWorld)
-	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務...$(RESET)"
+all-restart: ## 重啟所有核心服務 (NetStack 含整合 RL System, SimWorld) - 智能等待版本
+	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務 (智能等待)...$(RESET)"
 	@$(MAKE) all-stop
-	@sleep 5
-	@$(MAKE) all-start
+	@echo "$(YELLOW)⏳ 等待系統清理完成...$(RESET)"
+	@sleep 3
+	@echo "$(YELLOW)🚀 啟動 NetStack (使用預載衛星數據)...$(RESET)"
+	@$(MAKE) netstack-start-smart
+	@echo "$(YELLOW)🚀 啟動 SimWorld...$(RESET)"
+	@$(MAKE) simworld-start
+	@echo "$(YELLOW)⏳ 等待 SimWorld 服務啟動...$(RESET)"
+	@sleep 10
+	@echo "$(YELLOW)🔗 建立跨服務連接...$(RESET)"
+	@$(MAKE) connect-cross-service-networks
+	@echo "$(GREEN)✅ 智能重啟完成，系統已就緒$(RESET)"
 
-all-restart-v: ## 重啟所有核心服務 (NetStack 含整合 RL System, SimWorld)
-	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務...$(RESET)"
+all-restart-v: ## 重啟所有核心服務 (NetStack 含整合 RL System, SimWorld) - 智能等待版本
+	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務 (智能等待)...$(RESET)"
 	@$(MAKE) all-stop-v
-	@sleep 5
-	@$(MAKE) all-start
+	@echo "$(YELLOW)⏳ 等待系統清理完成...$(RESET)"
+	@sleep 3
+	@echo "$(YELLOW)🚀 啟動 NetStack (使用預載衛星數據)...$(RESET)"
+	@$(MAKE) netstack-start-smart
+	@echo "$(YELLOW)🚀 啟動 SimWorld...$(RESET)"
+	@$(MAKE) simworld-start
+	@echo "$(YELLOW)⏳ 等待 SimWorld 服務啟動...$(RESET)"
+	@sleep 10
+	@echo "$(YELLOW)🔗 建立跨服務連接...$(RESET)"
+	@$(MAKE) connect-cross-service-networks
+	@echo "$(GREEN)✅ 智能重啟完成，系統已就緒$(RESET)"
 
 netstack-restart: ## 重啟 NetStack 服務 (包含 RL System)
 	@echo "$(BLUE)🔄 重啟 NetStack 服務...$(RESET)"
