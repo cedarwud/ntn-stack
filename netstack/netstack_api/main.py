@@ -47,6 +47,37 @@ logger = structlog.get_logger(__name__)
 # 全域管理器
 managers = {}
 
+# 背景衛星數據初始化標誌
+satellite_data_ready = False
+
+
+async def _background_satellite_data_init():
+    """背景執行衛星數據初始化，不阻塞 API 啟動"""
+    global satellite_data_ready
+    
+    try:
+        logger.info("🛰️ 背景初始化：載入預置衛星數據...")
+        
+        from .services.instant_satellite_loader import InstantSatelliteLoader
+        
+        # 獲取數據庫連接字符串
+        db_url = os.getenv("RL_DATABASE_URL", "postgresql://rl_user:rl_password@netstack-rl-postgres:5432/rl_research")
+        
+        # 初始化並載入預置數據
+        loader = InstantSatelliteLoader(db_url)
+        success = await loader.ensure_data_available()
+        
+        if success:
+            logger.info("✅ 背景初始化：衛星數據載入成功")
+            satellite_data_ready = True
+        else:
+            logger.warning("⚠️ 背景初始化：衛星數據載入失敗，將使用緊急數據")
+            satellite_data_ready = False
+            
+    except Exception as e:
+        logger.error(f"❌ 背景初始化：衛星數據載入失敗: {e}")
+        satellite_data_ready = False
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -103,16 +134,10 @@ async def _initialize_all_managers(app: FastAPI) -> None:
         logger.error("❌ 數據庫初始化失敗，停止啟動")
         raise RuntimeError("數據庫初始化失敗")
 
-    # 初始化真實衛星數據 (自動檢查並下載)
-    logger.info("🛰️ 檢查並初始化真實衛星數據...")
-    try:
-        from .services.auto_init_satellite_data import check_and_init_satellite_data
-
-        await check_and_init_satellite_data()
-        logger.info("✅ 真實衛星數據初始化完成")
-    except Exception as e:
-        logger.error(f"⚠️ 衛星數據初始化失敗: {e}")
-        # 不阻止系統啟動，只記錄警告
+    # 啟動背景衛星數據初始化任務
+    logger.info("🛰️ 啟動背景衛星數據初始化...")
+    import asyncio
+    asyncio.create_task(_background_satellite_data_init())
 
     logger.info("✅ 所有管理器初始化完成")
 
@@ -253,6 +278,7 @@ async def health_check():
             "timestamp": datetime.utcnow().isoformat(),
             "version": "2.0.0-final",
             "uptime": "系統運行中",
+            "satellite_data_ready": satellite_data_ready,  # 衛星數據狀態
         }
 
         # 基礎檢查
