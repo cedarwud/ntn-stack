@@ -55,14 +55,18 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
 
     // 網頁載入時執行健康檢查
     useEffect(() => {
+        console.log('🏗️ AppContent 組件掛載，場景:', currentScene)
         backgroundHealthMonitor.setToastFunction(showToast)
         const timer = setTimeout(() => {
             backgroundHealthMonitor.startInitialCheck()
         }, 3000)
 
         console.log('🔍 網頁載入時將執行系統健康檢查')
-        return () => clearTimeout(timer)
-    }, [showToast])
+        return () => {
+            console.log('🔄 AppContent 組件卸載，場景:', currentScene)
+            clearTimeout(timer)
+        }
+    }, [showToast, currentScene])
 
     // 活躍設備計數 (保留以備後用)
     const _activeDevices = useMemo(() => {

@@ -17,6 +17,7 @@ import {
     SatelliteState,
     UIState,
 } from '../../contexts/appStateHooks'
+import { useDataSync } from '../../contexts/DataSyncContext'
 
 interface SceneViewProps {
     devices: Device[]
@@ -45,29 +46,24 @@ export default function SceneView({
     onHandoverEvent,
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
-    const [satellites, setSatellites] = useState<Record<string, unknown>[]>([])
     const [handoverStatusInfo, setHandoverStatusInfo] = useState<unknown>(null)
+    
+    // 使用統一的數據同步上下文獲取衛星數據
+    const { state } = useDataSync()
+    const satellites = satelliteState.satelliteEnabled ? (state.simworld.satellites || []) : []
 
     const handleHandoverStatusUpdate = useCallback((statusInfo: unknown) => {
         setHandoverStatusInfo(statusInfo)
     }, [])
 
+    // 衛星數據現在通過 DataSyncContext 統一管理，不需要額外的 API 調用
     useEffect(() => {
         if (satelliteState.satelliteEnabled) {
-            fetch(
-                '/api/v1/satellite-ops/visible_satellites?count=24&min_elevation_deg=5'
-            )
-                .then((res) => res.json())
-                .then((data) => {
-                    setSatellites(data.satellites || [])
-                })
-                .catch((err) =>
-                    console.error('StereogramView: 衛星數據載入失敗:', err)
-                )
+            console.log('🚀 StereogramView: 使用 DataSyncContext 統一的衛星數據，數量:', satellites.length)
         } else {
-            setSatellites([])
+            console.log('📡 StereogramView: 衛星顯示已禁用')
         }
-    }, [satelliteState.satelliteEnabled])
+    }, [satelliteState.satelliteEnabled, satellites.length])
 
     const handleWebGLContextLost = useCallback((event: Event) => {
         console.warn('WebGL 上下文丟失，嘗試恢復...')

@@ -15,7 +15,6 @@ import '@testing-library/jest-dom'
 // 導入測試組件
 import { SIB19UnifiedPlatform } from '../components/domains/measurement/shared/components/SIB19UnifiedPlatform'
 import { BaseEventViewer } from '../components/domains/measurement/shared/components/BaseEventViewer'
-import { UniversalChart } from '../plugins/charts/UniversalChart'
 
 // 導入配置
 import { EVENT_CONFIGS } from '../components/domains/measurement/config/eventConfig'

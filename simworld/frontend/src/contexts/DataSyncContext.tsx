@@ -233,15 +233,14 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
     const { satellites: realSatellites, error: satellitesError } =
         useVisibleSatellites(5, 15) // 5度仰角，最多15顆
 
-    // 強制同步方法
+    // 強制同步方法 - 只同步 NetStack 數據，衛星數據由 useVisibleSatellites 統一管理
     const forceSync = useCallback(async () => {
         dispatch({ type: 'SET_SYNC_STATUS', payload: { isActive: true } })
 
         try {
-            // 並行獲取 NetStack 和 SimWorld 數據
-            const [netstackData, simworldData] = await Promise.allSettled([
+            // 只獲取 NetStack 數據，避免與 useVisibleSatellites 重複調用
+            const [netstackData] = await Promise.allSettled([
                 netStackApi.getCoreSync(),
-                simWorldApi.getVisibleSatellites(5, 30),
             ])
 
             // 處理 NetStack 結果
@@ -265,32 +264,12 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
                 })
             }
 
-            // 處理 SimWorld 結果
-            if (simworldData.status === 'fulfilled') {
-                dispatch({
-                    type: 'UPDATE_SIMWORLD_SATELLITES',
-                    payload: {
-                        satellites: simworldData.value.visible_satellites,
-                    },
-                })
-            } else {
-                dispatch({
-                    type: 'UPDATE_SIMWORLD_SATELLITES',
-                    payload: {
-                        error:
-                            simworldData.reason?.message ||
-                            'SimWorld connection failed',
-                    },
-                })
-                dispatch({
-                    type: 'ADD_SYNC_ERROR',
-                    error: `SimWorld: ${simworldData.reason?.message}`,
-                })
-            }
+            // SimWorld 衛星數據由 useVisibleSatellites hook 統一管理，此處不再處理
 
-            // 計算數據一致性
+            // 計算數據一致性 - 現在只依賴 NetStack 狀態
             const netstackOk = netstackData.status === 'fulfilled'
-            const simworldOk = simworldData.status === 'fulfilled'
+            // SimWorld 狀態由 realSatellites 和 satellitesError 反映
+            const simworldOk = realSatellites.length > 0 && !satellitesError
 
             let consistency: GlobalDataState['sync']['dataConsistency'] =
                 'out_of_sync'
@@ -311,7 +290,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
                 payload: { isActive: false, consistency: 'out_of_sync' },
             })
         }
-    }, [])
+    }, [realSatellites, satellitesError])
 
     // 獲取數據源狀態
     const getDataSourceStatus = useCallback(() => {

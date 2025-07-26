@@ -351,6 +351,8 @@ services:
   netstack-api:
     image: netstack-api:latest
     container_name: netstack-api
+    entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
+    command: ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
     environment:
       - DATABASE_URL=mongodb://mongo:27017/open5gs
       - MONGO_HOST=mongo
@@ -359,6 +361,12 @@ services:
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
       - SIMWORLD_API_URL=http://simworld_backend:8000
+      # Phase 1 衛星數據載入器環境變數
+      - DB_HOST=rl-postgres
+      - DB_PORT=5432
+      - DB_NAME=rl_research
+      - DB_USER=rl_user
+      - DB_PASSWORD=rl_password
     volumes:
       - netstack_models:/app/models
       - netstack_results:/app/results
@@ -369,6 +377,7 @@ services:
     depends_on:
       - mongo
       - redis
+      - rl-postgres
       - amf
       - smf
     networks:
