@@ -60,14 +60,27 @@ COPY netstack_api/ ./netstack_api/
 COPY docker/upf-extension/ ./docker/upf-extension/
 # 複製 RL 訓練腳本
 COPY scripts/ ./scripts/
+# 複製預計算數據生成腳本
+COPY generate_precomputed_satellite_data.py ./
 
-# 建立日誌目錄、模型目錄、結果目錄和 matplotlib 緩存目錄
-RUN mkdir -p /var/log/netstack /app/models /app/results /tmp/matplotlib && \
-    chown -R netstack:netstack /var/log/netstack /app/models /app/results /tmp/matplotlib
+# 建立目錄並生成預載衛星數據
+RUN mkdir -p /var/log/netstack /app/models /app/results /app/data /tmp/matplotlib
 
-# 建立健康檢查腳本
+# 生成預載衛星數據（6小時，30秒間隔，台灣觀測點）
+RUN python3 generate_precomputed_satellite_data.py \
+    --output /app/data/satellite_history_embedded.sql \
+    --observer_lat 24.94417 \
+    --observer_lon 121.37139 \
+    --duration_hours 6 \
+    --time_step_seconds 30
+
+# 設定目錄權限
+RUN chown -R netstack:netstack /var/log/netstack /app/models /app/results /app/data /tmp/matplotlib
+
+# 建立健康檢查腳本和啟動腳本
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
-RUN chmod +x /usr/local/bin/healthcheck.sh
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh /usr/local/bin/docker-entrypoint.sh
 
 # 換手到非 root 用戶
 USER netstack
@@ -78,6 +91,9 @@ EXPOSE 8080
 # 健康檢查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD /usr/local/bin/healthcheck.sh
+
+# 設定啟動腳本
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # 啟動命令
 CMD ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]

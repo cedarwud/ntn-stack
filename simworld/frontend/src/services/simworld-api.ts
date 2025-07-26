@@ -2,8 +2,8 @@
  * SimWorld API Client
  * 用於連接 SimWorld 後端的真實 TLE 和軌道數據
  */
-import { simworldFetch } from '../config/api-config'
-import * as React from 'react'
+import { simworldFetch } from '../config/api-config';
+import React, { useState, useEffect } from 'react';
 
 export interface SatellitePosition {
   id: number
@@ -127,8 +127,10 @@ export interface AIRANDecision {
 
 class SimWorldApiClient {
   // 使用統一的 API 配置系統，不再繼承 BaseApiClient
+  private pendingRequests: Map<string, Promise<any>> = new Map()
+  
   private async fetchWithConfig(endpoint: string, options: RequestInit = {}) {
-    return simworldFetch(endpoint, options)
+    return simworldFetch(endpoint, options);
   }
 
   /**
@@ -140,135 +142,42 @@ class SimWorldApiClient {
     observerLat: number = 0.0,      // 保留參數但在全球模式下忽略
     observerLon: number = 0.0       // 保留參數但在全球模式下忽略
   ): Promise<VisibleSatellitesResponse> {
-    // 🌍 為了獲得真正的全球視野，我們使用寬鬆的仰角限制和多個虛擬觀測點
-    const params = {
-      count: Math.min(maxSatellites, 150),  // 🚀 大幅提高到150顆衛星
-      min_elevation_deg: -10,  // 🌍 使用-10度寬鬆仰角（包含地平線以下）
-      global_view: 'true',  // 強制全球視野
-      // 🌍 不傳遞觀測點座標，讓後端使用全球模式
-      // observer_lat: observerLat,  // 註釋掉以啟用真正的全球模式
-      // observer_lon: observerLon,  // 註釋掉以啟用真正的全球模式
+    // 創建請求去重鍵
+    const requestKey = 'satellites-' + minElevation + '-' + maxSatellites + '-' + observerLat + '-' + observerLon;
+    
+    // 如果同樣的請求正在進行中，返回該 Promise
+    if (this.pendingRequests.has(requestKey)) {
+      console.log('🛰️ SimWorldApi: 重複請求被去重:', requestKey);
+      return this.pendingRequests.get(requestKey)!;
     }
-    const endpoint = '/v1/satellite-ops/visible_satellites'
     
-    // console.log(`🛰️ SimWorldApi: 調用全球視野模式 ${endpoint}，參數:`, params)
-    // console.log(`🌍 SimWorldApi: 請求全球範圍衛星，不限制地域觀測點`)
+    console.log('🆕 SimWorldApi: 新請求開始:', requestKey);
     
-    try {
-      // 🚀 使用統一的 API 配置系統
-      const response = await this.fetchWithConfig(endpoint)
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.statusText}`)
-      }
-      const data = await response.json() as { 
-        success?: boolean;
-        satellites?: Array<{ 
-          norad_id?: string; 
-          name?: string; 
-          orbit_altitude_km?: number; 
-          elevation_deg?: number; 
-          azimuth_deg?: number; 
-          range_km?: number; 
-          distance_km?: number;
-          velocity?: number; 
-          velocity_km_s?: number;
-          doppler_shift?: number; 
-          estimated_signal_strength?: number; 
-          path_loss_db?: number; 
-        }>;
-        error?: string;
-        message?: string;
-        processed?: number;
-        visible?: number;
-        status?: string;
-        performance?: Record<string, unknown>;
-      }
-      
-      console.log(`🛰️ SimWorldApi: API 原始響應:`, data)
-      console.log(`🌍 SimWorldApi: 全球視野模式接收到 ${data.satellites?.length || 0} 顆衛星`)
-      
-      // 顯示數據來源信息
-      if (data.data_source) {
-        console.log(`📊 數據來源類型: ${data.data_source.type}`)
-        console.log(`📝 數據描述: ${data.data_source.description}`)
-        console.log(`🎭 是否為模擬數據: ${data.data_source.is_simulation ? '是' : '否'}`)
-      } else {
-        // 客戶端數據來源檢測機制（後端未提供 data_source 時的備用方案）
-        const fallbackNoradIds = new Set(['44713', '44714', '44715', '44716', '44717', '44718', '58724', '58725', '58726', '58727', '44063', '44064', '37753', '37846'])
-        const detectedNoradIds = data.satellites?.map(sat => sat.norad_id).filter(id => id) || []
-        const isUsingFallbackData = detectedNoradIds.length > 0 && detectedNoradIds.every(id => fallbackNoradIds.has(id))
+    // 創建並執行請求
+    const executeRequest = async () => {
+      try {
+        // 🌍 為了獲得真正的全球視野，我們使用寬鬆的仰角限制和多個虛擬觀測點
+        const params = {
+          count: Math.min(maxSatellites, 150),  // 🚀 大幅提高到150顆衛星
+          min_elevation_deg: -10,  // 🌍 使用-10度寬鬆仰角（包含地平線以下）
+          global_view: 'true',  // 強制全球視野
+          // 🌍 不傳遞觀測點座標，讓後端使用全球模式
+          // observer_lat: observerLat,  // 註釋掉以啟用真正的全球模式
+          // observer_lon: observerLon,  // 註釋掉以啟用真正的全球模式
+        };
+        const endpoint = '/v1/satellite-ops/visible_satellites';
+    
+        // console.log(`🛰️ SimWorldApi: 調用全球視野模式 ${endpoint}，參數:`, params)
+        // console.log(`🌍 SimWorldApi: 請求全球範圍衛星，不限制地域觀測點`)
         
-        console.log(`📊 數據來源類型: ${isUsingFallbackData ? 'fallback_simulation' : 'unknown'}`)
-        console.log(`📝 數據描述: ${isUsingFallbackData ? '模擬數據 (客戶端檢測)' : '數據來源未知 (客戶端檢測)'}`)
-        console.log(`🎭 是否為模擬數據: ${isUsingFallbackData ? '是' : '未知'}`)
-        console.log(`🔍 檢測到的 NORAD IDs: [${detectedNoradIds.join(', ')}]`)
-        console.log(`⚠️ 注意: 這是客戶端檢測結果，後端未提供 data_source 信息`)
-      }
-      
-      // 詳細分析 API 響應
-      console.log(`🛰️ SimWorldApi: 響應分析:`, {
-        hasResponse: !!data,
-        responseKeys: data ? Object.keys(data) : [],
-        hasSatellites: !!data.satellites,
-        satellitesLength: data.satellites?.length,
-        satellitesType: typeof data.satellites,
-        isArray: Array.isArray(data.satellites),
-        status: data.status,
-        processed: data.processed,
-        visible: data.visible,
-        error: data.error,
-        message: data.message,
-        dataSource: data.data_source
-      })
-      
-      // 🌍 只在衛星數量非常少時警告（0-1顆才異常）
-      if (data.satellites && data.satellites.length < 2) {
-        console.warn(`🌍 SimWorldApi: 衛星數量偏少 (${data.satellites.length} 顆)`)
-        console.warn(`🌍 建議: 檢查後端TLE數據或API配置`)
-      }
-      
-      // 檢查 API 是否返回錯誤
-      if (data.error) {
-        console.error(`🛰️ SimWorldApi: API 返回錯誤: ${data.error}`)
-        throw new Error(`API Error: ${data.error}`)
-      }
-      
-      if (!data.satellites || data.satellites.length === 0) {
-        console.warn(`🛰️ SimWorldApi: API 未返回衛星數據或返回空數組`)
-        console.warn(`🛰️ SimWorldApi: 響應結構檢查:`, {
-          hasSatellites: 'satellites' in data,
-          satellitesType: typeof data.satellites,
-          satellitesLength: data.satellites?.length,
-          responseKeys: Object.keys(data)
-        })
-        
-        // 如果後端處理了衛星但沒有找到可見的，記錄詳細信息
-        if (data.processed !== undefined && data.visible !== undefined && data.visible === 0) {
-          console.warn(`🛰️ SimWorldApi: 後端處理了 ${data.processed} 顆衛星，但沒有可見衛星`)
-          console.warn(`🌍 全球視野模式下仍無可見衛星，可能原因:`)
-          console.warn(`   1. 後端仍在使用地域限制邏輯`)
-          console.warn(`   2. TLE數據庫衛星數量不足`)
-          console.warn(`   3. 仰角限制仍然過嚴格`)
-          console.warn(`   4. 需要後端實現真正的全球視野算法`)
+        // 🚀 使用統一的 API 配置系統
+        const response = await this.fetchWithConfig(endpoint);
+        if (!response.ok) {
+          throw new Error('API request failed: ' + response.statusText);
         }
-      }
-      
-      // 轉換響應格式以匹配原有接口
-      const result = {
-        success: true,
-        observer: {
-          latitude: observerLat,
-          longitude: observerLon,
-          altitude: 0.0
-        },
-        search_criteria: {
-          min_elevation: minElevation,
-          constellation: null,
-          max_results: Math.min(maxSatellites, 20)
-        },
-        results: {
-          total_visible: data.satellites?.length || 0,
-          satellites: data.satellites?.map((sat: { 
+        const data = await response.json() as { 
+          success?: boolean;
+          satellites?: Array<{ 
             norad_id?: string; 
             name?: string; 
             orbit_altitude_km?: number; 
@@ -281,57 +190,175 @@ class SimWorldApiClient {
             doppler_shift?: number; 
             estimated_signal_strength?: number; 
             path_loss_db?: number; 
-          }, _index: number) => {
-            return {
-              id: parseInt(sat.norad_id) || 0,
-              name: sat.name,
-              norad_id: sat.norad_id,
-              position: {
-                latitude: 0, // 舊端點沒提供這些信息
-                longitude: 0,
-                altitude: sat.orbit_altitude_km || 0,
-                elevation: sat.elevation_deg,
-                azimuth: sat.azimuth_deg,
-                range: sat.distance_km,
-                velocity: sat.velocity_km_s || 0,
-                doppler_shift: 0
-              },
-              timestamp: new Date().toISOString(),
-              signal_quality: {
-                elevation_deg: sat.elevation_deg,
-                range_km: sat.distance_km,
-                estimated_signal_strength: Math.min(100, (sat.elevation_deg || 0) * 2),
-                path_loss_db: 20 * Math.log10(Math.max(1, sat.distance_km || 1000)) + 92.45 + 20 * Math.log10(2.15)
-              }
-            }
-          }) || []
-        },
-        timestamp: new Date().toISOString()
-      } as VisibleSatellitesResponse
-      
-      // console.log(`🛰️ SimWorldApi: 最終結果:`, result)
-      return result
-    } catch (error) {
-      console.error(`🛰️ SimWorldApi: 獲取衛星數據時發生錯誤:`, error)
-      console.error(`🛰️ SimWorldApi: 錯誤詳細信息:`, {
-        errorName: error?.name,
-        errorMessage: error?.message,
-        endpoint,
-        params
-      })
-      throw error
-    }
+          }>;
+          error?: string;
+          message?: string;
+          processed?: number;
+          visible?: number;
+          status?: string;
+          performance?: Record<string, unknown>;
+          data_source?: {
+            type: string;
+            description: string;
+            is_simulation: boolean;
+          };
+        };
+        
+        console.log(`🛰️ SimWorldApi: API 原始響應:`, data);
+        console.log(`🌍 SimWorldApi: 全球視野模式接收到 ${data.satellites?.length || 0} 顆衛星`);
+        
+        // 顯示數據來源信息
+        if (data.data_source) {
+          console.log(`📊 數據來源類型: ${data.data_source.type}`);
+          console.log(`📝 數據描述: ${data.data_source.description}`);
+          console.log(`🎭 是否為模擬數據: ${data.data_source.is_simulation ? '是' : '否'}`);
+        } else {
+          // 客戶端數據來源檢測機制（後端未提供 data_source 時的備用方案）
+          const fallbackNoradIds = new Set(['44713', '44714', '44715', '44716', '44717', '44718', '58724', '58725', '58726', '58727', '44063', '44064', '37753', '37846']);
+          const detectedNoradIds = data.satellites?.map(sat => sat.norad_id).filter(id => id) || [];
+          const isUsingFallbackData = detectedNoradIds.length > 0 && detectedNoradIds.every(id => fallbackNoradIds.has(id));
+          
+          console.log(`📊 數據來源類型: ${isUsingFallbackData ? 'fallback_simulation' : 'unknown'}`);
+          console.log(`📝 數據描述: ${isUsingFallbackData ? '模擬數據 (客戶端檢測)' : '數據來源未知 (客戶端檢測)'}`);
+          console.log(`🎭 是否為模擬數據: ${isUsingFallbackData ? '是' : '未知'}`);
+          console.log(`🔍 檢測到的 NORAD IDs: [${detectedNoradIds.join(', ')}]`);
+          console.log(`⚠️ 注意: 這是客戶端檢測結果，後端未提供 data_source 信息`);
+        }
+        
+        // 詳細分析 API 響應
+        console.log(`🛰️ SimWorldApi: 響應分析:`, {
+          hasResponse: !!data,
+          responseKeys: data ? Object.keys(data) : [],
+          hasSatellites: !!data.satellites,
+          satellitesLength: data.satellites?.length,
+          satellitesType: typeof data.satellites,
+          isArray: Array.isArray(data.satellites),
+          status: data.status,
+          processed: data.processed,
+          visible: data.visible,
+          error: data.error,
+          message: data.message,
+          dataSource: data.data_source
+        });
+        
+        // 🌍 只在衛星數量非常少時警告（0-1顆才異常）
+        if (data.satellites && data.satellites.length < 2) {
+          console.warn(`🌍 SimWorldApi: 衛星數量偏少 (${data.satellites.length} 顆)`);
+          console.warn(`🌍 建議: 檢查後端TLE數據或API配置`);
+        }
+        
+        // 檢查 API 是否返回錯誤
+        if (data.error) {
+          console.error(`🛰️ SimWorldApi: API 返回錯誤: ${data.error}`);
+          throw new Error('API Error: ' + data.error);
+        }
+        
+        if (!data.satellites || data.satellites.length === 0) {
+          console.warn(`🛰️ SimWorldApi: API 未返回衛星數據或返回空數組`);
+          console.warn(`🛰️ SimWorldApi: 響應結構檢查:`, {
+            hasSatellites: 'satellites' in data,
+            satellitesType: typeof data.satellites,
+            satellitesLength: data.satellites?.length,
+            responseKeys: Object.keys(data)
+          });
+          
+          // 如果後端處理了衛星但沒有找到可見的，記錄詳細信息
+          if (data.processed !== undefined && data.visible !== undefined && data.visible === 0) {
+            console.warn(`🛰️ SimWorldApi: 後端處理了 ${data.processed} 顆衛星，但沒有可見衛星`);
+            console.warn(`🌍 全球視野模式下仍無可見衛星，可能原因:`);
+            console.warn(`   1. 後端仍在使用地域限制邏輯`);
+            console.warn(`   2. TLE數據庫衛星數量不足`);
+            console.warn(`   3. 仰角限制仍然過嚴格`);
+            console.warn(`   4. 需要後端實現真正的全球視野算法`);
+          }
+        }
+        
+        // 轉換響應格式以匹配原有接口
+        const result = {
+          success: true,
+          observer: {
+            latitude: observerLat,
+            longitude: observerLon,
+            altitude: 0.0
+          },
+          search_criteria: {
+            min_elevation: minElevation,
+            constellation: null,
+            max_results: Math.min(maxSatellites, 20)
+          },
+          results: {
+            total_visible: data.satellites?.length || 0,
+            satellites: data.satellites?.map((sat: { 
+              norad_id?: string; 
+              name?: string; 
+              orbit_altitude_km?: number; 
+              elevation_deg?: number; 
+              azimuth_deg?: number; 
+              range_km?: number; 
+              distance_km?: number;
+              velocity?: number; 
+              velocity_km_s?: number;
+              doppler_shift?: number; 
+              estimated_signal_strength?: number; 
+              path_loss_db?: number; 
+            }, _index: number) => {
+              return {
+                id: parseInt(sat.norad_id || '0') || 0,
+                name: sat.name || '',
+                norad_id: sat.norad_id || '',
+                position: {
+                  latitude: 0, // 舊端點沒提供這些信息
+                  longitude: 0,
+                  altitude: sat.orbit_altitude_km || 0,
+                  elevation: sat.elevation_deg || 0,
+                  azimuth: sat.azimuth_deg || 0,
+                  range: sat.distance_km || 0,
+                  velocity: sat.velocity_km_s || 0,
+                  doppler_shift: 0
+                },
+                timestamp: new Date().toISOString(),
+                signal_quality: {
+                  elevation_deg: sat.elevation_deg || 0,
+                  range_km: sat.distance_km || 0,
+                  estimated_signal_strength: Math.min(100, (sat.elevation_deg || 0) * 2),
+                  path_loss_db: 20 * Math.log10(Math.max(1, sat.distance_km || 1000)) + 92.45 + 20 * Math.log10(2.15)
+                }
+              };
+            }) || []
+          },
+          timestamp: new Date().toISOString()
+        } as VisibleSatellitesResponse;
+        
+        // console.log(`🛰️ SimWorldApi: 最終結果:`, result)
+        return result;
+      } catch (error) {
+        console.error(`🛰️ SimWorldApi: 獲取衛星數據時發生錯誤:`, error);
+        console.error(`🛰️ SimWorldApi: 錯誤詳細信息:`, {
+          errorName: (error as any)?.name,
+          errorMessage: (error as any)?.message,
+          endpoint: '/v1/satellite-ops/visible_satellites'
+        });
+        throw error;
+      } finally {
+        // 清理去重 Map
+        this.pendingRequests.delete(requestKey);
+      }
+    };
+
+    // 執行請求並加入去重 Map
+    const requestPromise = executeRequest();
+    this.pendingRequests.set(requestKey, requestPromise);
+
+    return requestPromise;
   }
 
-  /**
-   * 獲取特定衛星的即時位置
-   */
+  // Get satellite position
   async getSatellitePosition(satelliteId: string): Promise<SatellitePosition> {
-    const response = await this.fetchWithConfig(`/v1/satellites/${satelliteId}/position`)
+    const response = await this.fetchWithConfig('/v1/satellites/' + satelliteId + '/position');
     if (!response.ok) {
-      throw new Error(`Failed to get satellite position: ${response.statusText}`)
+      throw new Error('Failed to get satellite position: ' + response.statusText);
     }
-    return response.json()
+    return response.json();
   }
 
   /**
@@ -343,12 +370,12 @@ class SimWorldApiClient {
     stepMinutes: number = 5
   ): Promise<SatelliteTrajectory> {
     const response = await this.fetchWithConfig(
-      `/v1/satellites/${satelliteId}/trajectory-cqrs?duration_hours=${durationHours}&step_minutes=${stepMinutes}`
-    )
+      '/v1/satellites/' + satelliteId + '/trajectory-cqrs?duration_hours=' + durationHours + '&step_minutes=' + stepMinutes
+    );
     if (!response.ok) {
-      throw new Error(`Failed to get satellite trajectory: ${response.statusText}`)
+      throw new Error('Failed to get satellite trajectory: ' + response.statusText);
     }
-    return response.json()
+    return response.json();
   }
   /**
    * 獲取換手候選衛星 - 基於真實軌道計算
@@ -357,18 +384,18 @@ class SimWorldApiClient {
     currentSatelliteId: string,
     ueLocation?: { lat: number; lon: number }
   ): Promise<SatelliteHandoverCandidates> {
-    const params = new URLSearchParams()
+    const params = new URLSearchParams();
     if (ueLocation) {
-      params.append('ue_lat', ueLocation.lat.toString())
-      params.append('ue_lon', ueLocation.lon.toString())
+      params.append('ue_lat', ueLocation.lat.toString());
+      params.append('ue_lon', ueLocation.lon.toString());
     }
     const response = await this.fetchWithConfig(
-      `/v1/satellites/handover/candidates?current_satellite=${currentSatelliteId}&${params}`
-    )
+      '/v1/satellites/handover/candidates?current_satellite=' + currentSatelliteId + '&' + params
+    );
     if (!response.ok) {
-      throw new Error(`Failed to get handover candidates: ${response.statusText}`)
+      throw new Error('Failed to get handover candidates: ' + response.statusText);
     }
-    return response.json()
+    return response.json();
   }
   /**
    * 批量獲取多個衛星位置 - 優化性能
@@ -385,11 +412,11 @@ class SimWorldApiClient {
         },
         body: JSON.stringify({ satellite_ids: satelliteIds }),
       }
-    )
+    );
     if (!response.ok) {
-      throw new Error(`Failed to get batch satellite positions: ${response.statusText}`)
+      throw new Error('Failed to get batch satellite positions: ' + response.statusText);
     }
-    return response.json()
+    return response.json();
   }
   /**
    * 更新所有衛星的 TLE 數據
@@ -400,11 +427,11 @@ class SimWorldApiClient {
       {
         method: 'POST',
       }
-    )
+    );
     if (!response.ok) {
-      throw new Error(`Failed to update TLEs: ${response.statusText}`)
+      throw new Error('Failed to update TLEs: ' + response.statusText);
     }
-    return response.json()
+    return response.json();
   }
   /**
    * 獲取 AI-RAN 決策數據
@@ -412,14 +439,14 @@ class SimWorldApiClient {
   async getAIRANDecisions(limit: number = 10): Promise<AIRANDecision[]> {
     // 注意：這個端點可能需要根據實際 API 調整
     const response = await this.fetchWithConfig(
-      `/v1/ai-ran/decisions?limit=${limit}`
-    )
+      '/v1/ai-ran/decisions?limit=' + limit
+    );
     if (!response.ok) {
       // 如果端點不存在，返回模擬數據以保持兼容性
       console.warn('AI-RAN endpoint not available, using fallback data')
-      return this.generateMockAIRANDecisions(limit)
+      return this.generateMockAIRANDecisions(limit);
     }
-    return response.json()
+    return response.json();
   }
   /**
    * 獲取通信品質數據 - SINR, 干擾等
@@ -435,21 +462,20 @@ class SimWorldApiClient {
     signal_quality: 'excellent' | 'good' | 'fair' | 'poor'
     estimated_throughput_mbps: number
   }> {
-    const params = new URLSearchParams({ satellite_id: satelliteId })
+    const params = new URLSearchParams({ satellite_id: satelliteId });
     if (ueLocation) {
-      params.append('ue_lat', ueLocation.lat.toString())
-      params.append('ue_lon', ueLocation.lon.toString())
+      params.append('ue_lat', ueLocation.lat.toString());
+      params.append('ue_lon', ueLocation.lon.toString());
     }
     const response = await this.fetchWithConfig(
       `/v1/wireless/satellite-ntn-simulation?${params}`
-    )
+    );
     if (!response.ok) {
-      throw new Error(`Failed to get communication quality: ${response.statusText}`)
+      throw new Error('Failed to get communication quality: ' + response.statusText);
     }
-    return response.json()
+    return response.json();
   }
-  /**
-  /**模擬 AI-RAN 決策數據 (fallback)
+
   /**
    * 模擬 AI-RAN 決策數據 (fallback)
    */
@@ -497,32 +523,34 @@ export const useVisibleSatellites = (
   observerLat: number = 0.0,      // 全球視野預設赤道位置
   observerLon: number = 0.0       // 全球視野預設本初子午線
 ) => {
-  const [satellites, setSatellites] = React.useState<SatellitePosition[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [satellites, setSatellites] = useState<SatellitePosition[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    console.log('🪝 useVisibleSatellites: Hook 被觸發，參數:', { minElevation, maxSatellites, observerLat, observerLon });
+    
     const fetchSatellites = async () => {
       try {
-        setLoading(true)
-        const data = await simWorldApi.getVisibleSatellites(minElevation, maxSatellites, observerLat, observerLon)
-        setSatellites(data.results?.satellites || [])
-        setError(null)
+        setLoading(true);
+        const data = await simWorldApi.getVisibleSatellites(minElevation, maxSatellites, observerLat, observerLon);
+        setSatellites(data.results?.satellites || []);
+        setError(null);
       } catch (err) {
-        console.error('useVisibleSatellites: Error fetching satellites:', err)
-        setError(err instanceof Error ? err.message : 'Unknown error')
+        console.error('useVisibleSatellites: Error fetching satellites:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    fetchSatellites()
+    fetchSatellites();
     // 定期更新衛星位置 - 已根據用戶要求移除
     // const interval = setInterval(fetchSatellites, refreshInterval)
     // return () => clearInterval(interval)
   }, [minElevation, maxSatellites, observerLat, observerLon])
 
-  return { satellites, loading, error, refetch: () => simWorldApi.getVisibleSatellites(minElevation, maxSatellites, observerLat, observerLon) }
+  return { satellites, loading, error, refetch: () => simWorldApi.getVisibleSatellites(minElevation, maxSatellites, observerLat, observerLon) };
 }
 
 export default SimWorldApiClient

@@ -94,14 +94,14 @@ async def _initialize_all_managers(app: FastAPI) -> None:
 
     # 初始化數據庫表結構
     logger.info("🗄️ 檢查並初始化數據庫表結構...")
-    try:
-        from .services.database_init import ensure_database_initialized
+    from .services.database_init import ensure_database_initialized
 
-        await ensure_database_initialized()
+    success = await ensure_database_initialized()
+    if success:
         logger.info("✅ 數據庫表結構初始化完成")
-    except Exception as e:
-        logger.error(f"⚠️ 數據庫初始化失敗: {e}")
-        # 不阻止系統啟動，只記錄警告
+    else:
+        logger.error("❌ 數據庫初始化失敗，停止啟動")
+        raise RuntimeError("數據庫初始化失敗")
 
     # 初始化真實衛星數據 (自動檢查並下載)
     logger.info("🛰️ 檢查並初始化真實衛星數據...")

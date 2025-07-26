@@ -20,7 +20,7 @@ RESET := \033[0m
 NETSTACK_DIR := netstack
 SIMWORLD_DIR := simworld
 # MONITORING_DIR := monitoring  # 暫時不使用 monitoring
-# RL System 已整合到 NetStack 服務中 (Phase 1.3b)
+# RL System 已整合到 NetStack 服務中
 COMPOSE_PROJECT_NAME := ntn-stack
 
 # 環境變數配置
@@ -86,17 +86,16 @@ dev: ## 開發環境啟動 (使用 127.0.0.1)
 
 dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 	@echo "$(CYAN)🛠️ 設置開發環境 (用戶註冊 + 演示數據)...$(RESET)"
-	@cd ${NETSTACK_DIR} && $(MAKE) register-subscribers
-	@cd ${NETSTACK_DIR} && $(MAKE) init-demo-data
+	@$(MAKE) netstack-start-full
 	@echo "$(GREEN)✅ 開發環境設置完成$(RESET)"
 
 all-start: ## 啟動所有核心服務 (NetStack 含整合 RL System, SimWorld)
 	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
-	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (包含 MongoDB 基礎服務)...$(RESET)"
+	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (包含 PostgreSQL 基礎服務)...$(RESET)"
 	@$(MAKE) netstack-start
-	@echo "$(YELLOW)⏳ 等待 NetStack 和 MongoDB 就緒...$(RESET)"
-	@sleep 15
-	@echo "$(YELLOW)⚡ 第二步：啟動 SimWorld (連接到現有 MongoDB)...$(RESET)"
+	@echo "$(YELLOW)⏳ 等待 NetStack 服務完全就緒...$(RESET)"
+	@sleep 20
+	@echo "$(YELLOW)⚡ 第二步：啟動 SimWorld (連接到 NetStack 資料庫)...$(RESET)"
 	@$(MAKE) simworld-start
 	@echo "$(YELLOW)⏳ 等待 SimWorld 服務啟動完成...$(RESET)"
 	@sleep 10
@@ -116,8 +115,13 @@ all-start: ## 啟動所有核心服務 (NetStack 含整合 RL System, SimWorld)
 
 netstack-start: ## 啟動 NetStack 服務
 	@echo "$(BLUE)🚀 啟動 NetStack 服務...$(RESET)"
-	@cd ${NETSTACK_DIR} && $(MAKE) dev-up
+	@cd ${NETSTACK_DIR} && $(MAKE) up
 	@echo "$(GREEN)✅ NetStack 服務已啟動$(RESET)"
+
+netstack-start-full: ## 啟動 NetStack 服務並完成開發環境設置
+	@echo "$(BLUE)🚀 啟動 NetStack 服務並設置開發環境...$(RESET)"
+	@cd ${NETSTACK_DIR} && $(MAKE) start-with-setup
+	@echo "$(GREEN)✅ NetStack 開發環境設置完成$(RESET)"
 
 simworld-start: ## 啟動 SimWorld 服務
 	@echo "$(BLUE)🚀 啟動 SimWorld 服務...$(RESET)"
@@ -160,8 +164,12 @@ down-v: all-stop-v ## 停止所有服務並清除卷
 
 all-stop-v: ## 停止 NetStack (含整合 RL System), SimWorld (清除卷)
 	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務 (清除卷)...$(RESET)"
-	@$(MAKE) simworld-stop-v
-	@$(MAKE) netstack-stop-v # netstack-stop-v 會處理 rl-system
+	@echo "$(YELLOW)斷開跨服務網路連接...$(RESET)"
+	@docker network disconnect compose_netstack-core simworld_backend 2>/dev/null || true
+	@docker network disconnect compose_netstack-core simworld_frontend 2>/dev/null || true
+	@docker network disconnect simworld_sionna-net netstack-api 2>/dev/null || true
+	@$(MAKE) simworld-stop-v # 先停止 SimWorld 服務
+	@$(MAKE) netstack-stop-v # 後停止 NetStack 服務
 	@echo "$(GREEN)✅ 所有服務已停止並清除卷$(RESET)"
 
 netstack-stop-v: ## 停止 NetStack 服務並清除卷 (包含 RL System)
@@ -354,17 +362,39 @@ status: ## 檢查所有服務狀態
 	@cd $(SIMWORLD_DIR) && docker compose ps || echo "$(RED)❌ SimWorld 服務未運行$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)服務健康檢查:$(RESET)"
-	@curl -s $(NETSTACK_URL)/health > /dev/null && echo "$(GREEN)✅ NetStack 健康檢查通過$(RESET)" || echo "$(RED)❌ NetStack 健康檢查失敗$(RESET)"
+	@curl -s $(NETSTACK_URL)/health > /dev/null && echo "$(GREEN)✅ NetStack 健康檢查通過 (宿主機)$(RESET)" || echo "$(RED)❌ NetStack 健康檢查失敗$(RESET)"
 	@curl -s http://localhost:8080/api/v1/rl/health > /dev/null && echo "$(GREEN)✅ RL System 健康檢查通過 (統一到 NetStack)$(RESET)" || echo "$(RED)❌ RL System 健康檢查失敗$(RESET)"
-	@curl -s $(SIMWORLD_URL)/ > /dev/null && echo "$(GREEN)✅ SimWorld 健康檢查通過$(RESET)" || echo "$(RED)❌ SimWorld 健康檢查失敗$(RESET)"
+	@curl -s $(SIMWORLD_URL)/ > /dev/null && echo "$(GREEN)✅ SimWorld 健康檢查通過 (宿主機)$(RESET)" || echo "$(RED)❌ SimWorld 健康檢查失敗$(RESET)"
+	@echo "$(YELLOW)跨服務連接檢查:$(RESET)"
+	@timeout 10s bash -c 'docker exec simworld_backend curl -s http://netstack-api:8080/health > /dev/null 2>&1' && echo "$(GREEN)✅ SimWorld → NetStack 跨服務連接正常$(RESET)" || (echo "$(YELLOW)⚠️ SimWorld → NetStack 跨服務連接失敗，嘗試重新配置 DNS...$(RESET)" && $(MAKE) configure-cross-service-dns >/dev/null 2>&1 && sleep 2 && timeout 5s bash -c 'docker exec simworld_backend curl -s http://netstack-api:8080/health > /dev/null 2>&1' && echo "$(GREEN)✅ SimWorld → NetStack 跨服務連接已修復$(RESET)" || echo "$(RED)❌ SimWorld → NetStack 跨服務連接仍然失敗$(RESET)")
+	@timeout 10s bash -c 'docker exec netstack-api curl -s http://simworld_backend:8000/ > /dev/null 2>&1' && echo "$(GREEN)✅ NetStack → SimWorld 跨服務連接正常$(RESET)" || echo "$(YELLOW)⚠️ NetStack → SimWorld 跨服務連接失敗$(RESET)"
 
 connect-cross-service-networks: ## 🔗 建立跨服務網路連接
 	@echo "$(CYAN)🔗 建立跨服務網路連接...$(RESET)"
 	@echo "$(YELLOW)連接 NetStack API 到 SimWorld 網路...$(RESET)"
-	@docker network connect simworld_sionna-net netstack-api 2>/dev/null || echo "$(YELLOW)⚠️  NetStack API 已連接到 SimWorld 網路$(RESET)"
+	@docker network connect simworld_sionna-net netstack-api 2>/dev/null && echo "$(GREEN)✅ NetStack API 已連接到 SimWorld 網路$(RESET)" || echo "$(BLUE)ℹ️  NetStack API 已連接到 SimWorld 網路$(RESET)"
 	@echo "$(YELLOW)連接 SimWorld backend 到 NetStack 網路...$(RESET)"
-	@docker network connect compose_netstack-core simworld_backend 2>/dev/null || echo "$(YELLOW)⚠️  SimWorld backend 已連接到 NetStack 網路$(RESET)"
+	@docker network connect compose_netstack-core simworld_backend 2>/dev/null && echo "$(GREEN)✅ SimWorld backend 已連接到 NetStack 網路$(RESET)" || echo "$(BLUE)ℹ️  SimWorld backend 已連接到 NetStack 網路$(RESET)"
+	@echo "$(YELLOW)配置容器間 DNS 解析...$(RESET)"
+	@$(MAKE) configure-cross-service-dns
 	@echo "$(GREEN)✅ 跨服務網路連接完成$(RESET)"
+
+configure-cross-service-dns: ## 🌐 配置容器間 DNS 解析
+	@echo "$(CYAN)🌐 配置容器間 DNS 解析...$(RESET)"
+	@echo "$(YELLOW)獲取容器 IP 地址...$(RESET)"
+	@NETSTACK_IP=$$(docker inspect netstack-api --format='{{range $$network, $$config := .NetworkSettings.Networks}}{{if eq $$network "compose_netstack-core"}}{{$$config.IPAddress}}{{end}}{{end}}' 2>/dev/null || echo ""); \
+	SIMWORLD_IP=$$(docker inspect simworld_backend --format='{{range $$network, $$config := .NetworkSettings.Networks}}{{if eq $$network "compose_netstack-core"}}{{$$config.IPAddress}}{{end}}{{end}}' 2>/dev/null || echo ""); \
+	if [ -n "$$NETSTACK_IP" ] && [ -n "$$SIMWORLD_IP" ]; then \
+		echo "$(YELLOW)NetStack API: $$NETSTACK_IP, SimWorld Backend: $$SIMWORLD_IP$(RESET)"; \
+		echo "$(YELLOW)配置 SimWorld → NetStack DNS...$(RESET)"; \
+		docker exec simworld_backend sh -c "grep -q 'netstack-api' /etc/hosts || echo \"$$NETSTACK_IP    netstack-api\" >> /etc/hosts" 2>/dev/null || true; \
+		echo "$(YELLOW)配置 NetStack → SimWorld DNS...$(RESET)"; \
+		docker exec -u root netstack-api sh -c "grep -q 'simworld_backend' /etc/hosts || echo \"$$SIMWORLD_IP    simworld_backend\" >> /etc/hosts" 2>/dev/null || true; \
+		echo "$(GREEN)✅ DNS 解析配置完成$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠️ 無法獲取容器 IP 地址 (容器可能尚未創建): NetStack=$$NETSTACK_IP, SimWorld=$$SIMWORLD_IP$(RESET)"; \
+		echo "$(YELLOW)跳過 DNS 配置，將在容器可用時再次嘗試$(RESET)"; \
+	fi
 
 verify-network-connection: ## 🔗 驗證容器間網路連接
 	@echo "$(CYAN)🔗 驗證容器間網路連接...$(RESET)"
@@ -375,8 +405,10 @@ verify-network-connection: ## 🔗 驗證容器間網路連接
 	@echo "$(YELLOW)檢查 NetStack API 網路連接:$(RESET)"
 	@docker inspect netstack-api --format='{{range $$network, $$config := .NetworkSettings.Networks}}{{$$network}}: {{$$config.IPAddress}} {{end}}' 2>/dev/null && echo "$(GREEN)✅ netstack-api 容器網路正常$(RESET)" || echo "$(RED)❌ netstack-api 容器未找到$(RESET)"
 	@echo "$(YELLOW)測試跨服務 API 連接:$(RESET)"
-	@timeout 10s bash -c 'until docker exec simworld_backend curl -s http://172.20.0.40:8080/health > /dev/null 2>&1; do sleep 1; done' && echo "$(GREEN)✅ SimWorld -> NetStack 連接正常$(RESET)" || echo "$(RED)❌ SimWorld -> NetStack 連接失敗$(RESET)"
-	@timeout 10s bash -c 'until docker exec netstack-api curl -s http://172.20.0.2:8000/ > /dev/null 2>&1; do sleep 1; done' && echo "$(GREEN)✅ NetStack -> SimWorld 連接正常$(RESET)" || echo "$(RED)❌ NetStack -> SimWorld 連接失敗$(RESET)"
+	@echo "$(BLUE)等待 DNS 配置生效...$(RESET)"
+	@sleep 3
+	@timeout 15s bash -c 'until docker exec simworld_backend curl -s http://netstack-api:8080/health > /dev/null 2>&1; do sleep 2; done' && echo "$(GREEN)✅ SimWorld -> NetStack 連接正常$(RESET)" || echo "$(YELLOW)⚠️ SimWorld -> NetStack 跨服務連接失敗$(RESET)"
+	@timeout 15s bash -c 'until docker exec netstack-api curl -s http://simworld_backend:8000/ > /dev/null 2>&1; do sleep 2; done' && echo "$(GREEN)✅ NetStack -> SimWorld 連接正常$(RESET)" || echo "$(YELLOW)⚠️ NetStack -> SimWorld 跨服務連接失敗$(RESET)"
 
 fix-network-connection: ## 🔧 修復網路連接問題（緊急備用）
 	@echo "$(CYAN)🔧 修復網路連接問題...$(RESET)"
@@ -427,7 +459,7 @@ simworld-logs: ## 查看 SimWorld 日誌
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose logs -f
 
-# ===== RL System 已整合到 NetStack 服務中 (Phase 1.3b) =====
+# ===== RL System 已整合到 NetStack 服務中 =====
 # 所有 RL System 相關功能現在通過 NetStack 服務提供
 # 使用 netstack-* 指令即可管理整合後的服務
 

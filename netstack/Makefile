@@ -34,6 +34,19 @@ up: ## 🚀 啟動 NetStack 核心網 (不含建構)
 	@sleep 10
 	@$(MAKE) status
 
+start-with-setup: ## 🚀 啟動並完成開發環境設置 (不含建構)
+	@echo "$(GREEN)🚀 啟動並設置開發環境...$(NC)"
+	@$(MAKE) up
+	@$(MAKE) register-subscribers
+	@$(MAKE) start-ran
+	@sleep 15
+	@echo "$(YELLOW)🚁 初始化 UAV 數據和網絡拓撲...$(NC)"
+	@$(MAKE) init-demo-data
+	@echo "$(YELLOW)⚡ 啟動核心同步服務...$(NC)"
+	@$(MAKE) start-core-sync
+	@echo "$(YELLOW)🤖 RL System 已整合到 NetStack 服務中 $(NC)"
+	@echo "$(GREEN)✅ 開發環境設置完成，可開始測試$(NC)"
+
 # 完整工作流程命令
 dev-up: ## 🛠️ 完整的開發環境設置 (建構並啟動，保留數據)
 	@echo "$(GREEN)🛠️ 設置開發環境...$(NC)"
@@ -46,7 +59,7 @@ dev-up: ## 🛠️ 完整的開發環境設置 (建構並啟動，保留數據)
 	@$(MAKE) init-demo-data
 	@echo "$(YELLOW)⚡ 啟動核心同步服務...$(NC)"
 	@$(MAKE) start-core-sync
-	@echo "$(YELLOW)🤖 RL System 已整合到 NetStack 服務中 (Phase 1.3b)$(NC)"
+	@echo "$(YELLOW)🤖 RL System 已整合到 NetStack 服務中 $(NC)"
 	@echo "$(GREEN)✅ 開發環境設置完成，可開始測試$(NC)"
 
 dev-fresh: ## 🆕 全新環境設置 (清除所有數據)
@@ -61,22 +74,22 @@ dev-fresh: ## 🆕 全新環境設置 (清除所有數據)
 	@$(MAKE) init-demo-data
 	@echo "$(YELLOW)⚡ 啟動核心同步服務...$(NC)"
 	@$(MAKE) start-core-sync
-	@echo "$(YELLOW)🤖 RL System 已整合到 NetStack 服務中 (Phase 1.3b)$(NC)"
+	@echo "$(YELLOW)🤖 RL System 已整合到 NetStack 服務中 $(NC)"
 	@echo "$(GREEN)✅ 全新環境設置完成，可開始測試$(NC)"
 
 down: ## 🧹 清理容器但保留數據庫資料
 	@echo "$(YELLOW)🧹 清理 NetStack 資源 (保留數據)...$(NC)"
 	@echo "$(YELLOW)RL System 已整合到 NetStack 核心服務中$(NC)"
-	docker compose -f $(COMPOSE_FILE_RAN) down 2>/dev/null || true
-	docker compose -f $(COMPOSE_FILE) down
+	docker compose -f $(COMPOSE_FILE_RAN) down --remove-orphans 2>/dev/null || true
+	docker compose -f $(COMPOSE_FILE) down --remove-orphans
 	docker network prune -f
 	@echo "$(GREEN)✅ 清理完成 (數據已保留)$(NC)"
 
 down-v: ## 🛑 停止 NetStack
 	@echo "$(YELLOW)🛑 停止 NetStack...$(NC)"
 	@echo "$(YELLOW)RL System 資源已整合到 NetStack 中$(NC)"
-	docker compose -f $(COMPOSE_FILE_RAN) down -v 2>/dev/null || true
-	docker compose -f $(COMPOSE_FILE) down -v
+	docker compose -f $(COMPOSE_FILE_RAN) down -v --remove-orphans 2>/dev/null || true
+	docker compose -f $(COMPOSE_FILE) down -v --remove-orphans
 	docker volume prune -f
 	docker network prune -f
 	@echo "$(GREEN)✅ NetStack 已停止$(NC)"
@@ -84,8 +97,8 @@ down-v: ## 🛑 停止 NetStack
 clean: ## 🧹 清理所有容器和資料
 	@echo "$(YELLOW)🧹 清理 NetStack 資源...$(NC)"
 	@echo "$(YELLOW)RL System 資源已整合到 NetStack 中$(NC)"
-	docker compose -f $(COMPOSE_FILE_RAN) down -v 2>/dev/null || true
-	docker compose -f $(COMPOSE_FILE) down -v
+	docker compose -f $(COMPOSE_FILE_RAN) down -v --remove-orphans 2>/dev/null || true
+	docker compose -f $(COMPOSE_FILE) down -v --remove-orphans
 	docker volume prune -f
 	docker network prune -f
 	docker rmi netstack-api:latest 2>/dev/null || true
@@ -94,8 +107,8 @@ clean: ## 🧹 清理所有容器和資料
 clean-i: ## 🧹 清理所有容器、資料及映像檔
 	@echo "$(YELLOW)🧹 清理 NetStack 所有資源 (包含映像檔)...$(NC)"
 	@echo "$(YELLOW)RL System 資源已整合到 NetStack 中$(NC)"
-	docker compose -f $(COMPOSE_FILE_RAN) down -v --rmi all 2>/dev/null || true
-	docker compose -f $(COMPOSE_FILE) down -v --rmi all
+	docker compose -f $(COMPOSE_FILE_RAN) down -v --rmi all --remove-orphans 2>/dev/null || true
+	docker compose -f $(COMPOSE_FILE) down -v --rmi all --remove-orphans
 	docker volume prune -f
 	docker network prune -f
 	@echo "$(GREEN)✅ 所有 NetStack 資源及映像檔清理完成$(NC)"
@@ -134,20 +147,13 @@ logs-api: ## 📋 查看 API 服務日誌
 
 register-subscribers: ## 👤 註冊所有預定義測試用戶 (eMBB, uRLLC, mMTC)
 	@echo "$(GREEN)👤 註冊所有預定義測試用戶 (包含三種切片類型)...$(NC)"
-	@echo "$(YELLOW)清理並檢查資料庫狀態...$(NC)"
-	@echo "檢查現有用戶數量..."
-	@docker run --rm --net compose_netstack-core mongo:6.0 mongosh "mongodb://172.20.0.10:27017/open5gs" --quiet --eval "print('刪除前用戶數: ' + db.subscribers.countDocuments({}));" 2>/dev/null || echo "無法連接資料庫"
-	@echo "刪除現有用戶數據..."
-	@docker run --rm --net compose_netstack-core mongo:6.0 mongosh "mongodb://172.20.0.10:27017/open5gs" --quiet --eval "var result = db.subscribers.deleteMany({}); print('已刪除用戶數: ' + result.deletedCount);" 2>/dev/null || echo "無法連接資料庫"
-	@echo "$(YELLOW)開始註冊三種切片的用戶 (eMBB, uRLLC, mMTC)...$(NC)"
-	@-./scripts/register_subscriber.sh || true
-	@echo "$(GREEN)✅ 用戶註冊完成$(NC)"
+	@docker run --rm --net compose_netstack-core mongo:6.0 mongosh "mongodb://172.20.0.10:27017/open5gs" --quiet --eval "db.subscribers.deleteMany({});" >/dev/null 2>&1 || true
+	@./scripts/register_subscriber.sh >/dev/null 2>&1 || true
 	@echo "$(BLUE)檢查註冊結果：$(NC)"
 	@docker run --rm --net compose_netstack-core mongo:6.0 mongosh "mongodb://172.20.0.10:27017/open5gs" --quiet --eval "print('總用戶數: ' + db.subscribers.countDocuments({})); var embb = db.subscribers.countDocuments({'slice.sst': 1}); var urllc = db.subscribers.countDocuments({'slice.sst': 2}); var mmtc = db.subscribers.countDocuments({'slice.sst': 3}); print('eMBB 用戶: ' + embb + ', uRLLC 用戶: ' + urllc + ', mMTC 用戶: ' + mmtc);" 2>/dev/null || echo "無法連接資料庫"
-	@echo "$(YELLOW)重啟核心網服務以確保用戶資料生效...$(NC)"
-	@docker compose -f $(COMPOSE_FILE) restart amf udm udr ausf
+	@docker compose -f $(COMPOSE_FILE) restart amf udm udr ausf >/dev/null 2>&1
 	@sleep 10
-	@echo "$(GREEN)✅ 服務重啟完成，用戶資料已生效$(NC)"
+	@echo "$(GREEN)✅ 用戶註冊和服務重啟完成$(NC)"
 
 add-subscriber: ## 👤 新增單一測試用戶 (使用: make add-subscriber IMSI=.. KEY=.. OPC=.. APN=.. SST=.. SD=..)
 	@echo "$(GREEN)👤 新增單一測試用戶...$(NC)"
@@ -268,12 +274,12 @@ start-ran: ## 📡 啟動 RAN 模擬器
 			exit 0; \
 		fi \
 	fi
-	docker compose -f $(COMPOSE_FILE_RAN) up -d
+	docker compose -f $(COMPOSE_FILE_RAN) up -d --remove-orphans
 	@echo "$(GREEN)✅ RAN 模擬器啟動完成$(NC)"
 
 stop-ran: ## 📡 停止 RAN 模擬器  
 	@echo "$(YELLOW)📡 停止 RAN 模擬器...$(NC)"
-	docker compose -f $(COMPOSE_FILE_RAN) down
+	docker compose -f $(COMPOSE_FILE_RAN) down --remove-orphans
 	@echo "$(GREEN)✅ RAN 模擬器已停止$(NC)"
 
 # ===== 測試指令 (已移至根目錄統一管理) =====
@@ -320,15 +326,15 @@ clean-test-runs: ## 🧹 清理測試執行所建立的容器和服務
 
 build: ## 🏗️ 建置所有 NetStack 映像 (核心網 + RL System)
 	@echo "$(GREEN)🏗️ 建置 NetStack 所有相關映像...$(NC)"
-	@echo "$(BLUE)  - 建置核心網 API 映像...$(NC)"
-	docker build -t netstack-api:latest -f docker/Dockerfile .
+	@echo "$(BLUE)  - 建置核心網 API 映像 (production 階段)...$(NC)"
+	docker build -t netstack-api:latest -f docker/Dockerfile --target production .
 	@echo "$(BLUE)  - RL System 映像已整合到 NetStack 中$(NC)"
 	@echo "$(GREEN)✅ 所有 NetStack 映像建置完成$(NC)"
 
 build-n: ## 🏗️ 建置所有 NetStack 映像 (不使用快取)
 	@echo "$(GREEN)🏗️ 建置 NetStack 所有相關映像 (不使用快取)...$(NC)"
-	@echo "$(BLUE)  - 建置核心網 API 映像...$(NC)"
-	docker build -t netstack-api:latest -f docker/Dockerfile . --no-cache
+	@echo "$(BLUE)  - 建置核心網 API 映像 (production 階段)...$(NC)"
+	docker build -t netstack-api:latest -f docker/Dockerfile --target production . --no-cache
 	@echo "$(BLUE)  - RL System 映像已整合到 NetStack 中$(NC)"
 	@echo "$(GREEN)✅ 所有 NetStack 映像建置完成 (不使用快取)$(NC)"
 
