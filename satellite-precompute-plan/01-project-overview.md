@@ -169,8 +169,8 @@ VISIBILITY_LEVELS = {
 - 適合早期研究和系統驗證
 
 ### **📊 研究應用場景**
-1. **Handover 算法比較**: DQN vs PPO vs SAC 性能分析
-2. **3GPP Events 驗證**: A1, A2, A3 事件觸發準確性
+1. **Handover 算法比較**: DQN 性能分析
+2. **3GPP Events 驗證**: A4, D1, D2, T1 事件觸發準確性
 3. **多星座對比研究**: Starlink vs OneWeb 覆蓋特性
 4. **時間序列分析**: 衛星可見性周期性模式研究
 
