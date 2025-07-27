@@ -31,8 +31,8 @@
 
 ```bash
 # 測試工具基本功能
-cd /home/sat/ntn-stack
-python starlink_ntpu_visibility_finder.py --duration 96 --output test_results.json
+cd /home/sat/ntn-stack/netstack
+python src/services/satellite/starlink_ntpu_visibility_finder.py --duration 96 --output test_results.json
 
 # 驗證結果格式
 cat test_results.json | jq '.optimal_handover_times[0]'
@@ -69,7 +69,10 @@ def enhanced_visibility_analysis():
 
 ```bash
 # 驗證計算準確性
+cd /home/sat/ntn-stack/netstack
 python -c "
+import sys
+sys.path.append('src/services/satellite')
 from starlink_ntpu_visibility_finder import StarlinkVisibilityFinder
 import datetime
 
@@ -213,10 +216,9 @@ async def calculate_satellite_positions(
 **目標**: 將獨立工具整合到 NetStack
 
 ```bash
-# 創建 NetStack 衛星模組
-mkdir -p /home/sat/ntn-stack/netstack/src/services/satellite
-cp /home/sat/ntn-stack/starlink_ntpu_visibility_finder.py \
-   /home/sat/ntn-stack/netstack/src/services/satellite/starlink_finder.py
+# NetStack 衛星模組已創建
+# starlink_ntpu_visibility_finder.py 已移至 
+# /home/sat/ntn-stack/netstack/src/services/satellite/starlink_ntpu_visibility_finder.py
 ```
 
 **整合要點**:
