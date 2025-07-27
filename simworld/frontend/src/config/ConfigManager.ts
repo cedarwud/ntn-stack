@@ -24,6 +24,7 @@ export interface ChartConfig {
     defaultHeight: number
     animationDuration: number
     refreshInterval: number
+    plugins: string[]
 }
 
 export interface ThemeConfig {
@@ -69,7 +70,8 @@ const DEFAULT_CONFIG: AppConfig = {
         defaultWidth: 800,
         defaultHeight: 400,
         animationDuration: 300,
-        refreshInterval: 1000
+        refreshInterval: 1000,
+        plugins: ['tooltip', 'legend', 'zoom']
     },
     theme: {
         default: 'dark',

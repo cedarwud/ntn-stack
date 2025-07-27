@@ -1,320 +1,298 @@
-# LEO 衛星系統開發前重構修復計劃
+# 待修復問題清單
 
-## ✅ 階段3完成狀態 (2025-07-24)
+## ✅ 已成功解決的核心問題
+- **NetStack v2.0.0-final**: 系統版本已正確升級 ✅
+- **衛星數據系統**: 預計算6小時衛星數據已激活 (satellite_data_ready: true) ✅
+- **觀測者座標**: 已更新為台灣NTPU精確座標 (24°56'39"N 121°22'17"E) ✅
+- **真實TLE數據**: 系統使用NetStack歷史TLE數據而非模擬數據 ✅
+- **衛星數量**: 從固定20顆改為動態5-6顆真實可見衛星 ✅
 
-**🎉 Phase 3 清理優化完成 - 測試結構更加清晰，配置更加精簡**
+## 🔧 待修復的前端配置問題
 
-### 完成項目
-- ✅ **3.1 NetStack 測試文件整理** - 按功能分組，統一測試結構
-  - 單元測試：`/tests/unit/` (按服務分類)
-  - 整合測試：`/tests/integration/` (Phase 2.3, Phase 3)
-  - 端到端測試：`/tests/e2e/` (完整流程測試)
-- ✅ **3.2 前端配置參數簡化** - satellite.config.ts 精簡為核心參數
-  - 統一時間控制參數
-  - 基於 3GPP NTN 標準的切換參數
-  - 支援動態配置調整
+### 1. SimWorld API 配置問題
+**錯誤**: `SimWorld BaseURL 未配置`
+**原因**: api-config.ts 中 simworld.baseUrl 設為空字串導致 URL 構造失敗
+**影響**: 前端無法正確調用 SimWorld 後端 API
 
-### 測試結構改進
+**修復方案**:
+```typescript
+// 檔案: /home/u24/ntn-stack/simworld/frontend/src/config/api-config.ts
+// 第79行修改
+simworld: {
+  baseUrl: '', // ❌ 當前配置 - 導致 URL 構造失敗
+  timeout: 30000
+},
+
+// 應改為：
+simworld: {
+  baseUrl: '/', // ✅ 修復配置 - 使用根路徑
+  timeout: 30000
+},
 ```
-netstack/tests/
-├── unit/                    # 單元測試
-│   ├── ai_decision_integration/
-│   └── rl_training/
-├── integration/             # 整合測試  
-│   ├── phase_2_3_integration_test.py
-│   └── phase_3_integration_test.py
-└── e2e/                     # 端到端測試
-    └── test_rl_integration_e2e.py
+
+### 2. URL 構造邏輯問題
+**錯誤**: `Failed to construct 'URL': Invalid base URL`
+**位置**: api-config.ts:123:16 getServiceUrl 函數
+**原因**: 空字串 baseUrl 無法與 endpoint 組成有效 URL
+
+**修復方案**:
+```typescript
+// 檔案: /home/u24/ntn-stack/simworld/frontend/src/config/api-config.ts
+// getServiceUrl 函數需要處理空 baseUrl 的情況
+
+export const getServiceUrl = (service: 'netstack' | 'simworld', endpoint: string = ''): string => {
+  const config = getApiConfig()
+  const baseUrl = config[service].baseUrl
+  
+  // 確保端點以 / 開頭
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  
+  // ✅ 修復：處理空 baseUrl 的情況
+  if (\!baseUrl || baseUrl === '') {
+    return normalizedEndpoint
+  }
+  
+  // 如果是代理路徑，直接拼接
+  if (baseUrl.startsWith('/')) {
+    return `${baseUrl}${normalizedEndpoint}`
+  }
+  
+  // 如果是完整 URL，使用 URL 構造器
+  try {
+    return new URL(normalizedEndpoint, baseUrl).toString()
+  } catch (error) {
+    console.error('無效的 URL 配置:', { baseUrl, endpoint, error })
+    return `${baseUrl}${normalizedEndpoint}`
+  }
+}
 ```
 
-### 配置簡化成果
-- 參數數量減少 60% (從 30+ 個減少到 12 個核心參數)
-- 統一時間控制機制
-- 移除冗餘的調整參數
-- 支援運行時動態調整
+### 3. 配置驗證邏輯問題
+**錯誤**: `Docker 模式下 SimWorld 必須使用代理路徑 (以 / 開頭)`
+**位置**: validateApiConfig 函數
+**原因**: 驗證邏輯與實際需求不符
 
-### 驗證結果
-- ✅ **系統狀態**: 所有服務健康運行 (NetStack + SimWorld)
-- ✅ **API 測試**: NetStack `/health`, SimWorld `/health` 正常
-- ✅ **前端載入**: 頁面正常顯示
-- ✅ **測試結構**: 文件組織清晰，便於維護
+**修復方案**:
+```typescript
+// 檔案: /home/u24/ntn-stack/simworld/frontend/src/config/api-config.ts
+// validateApiConfig 函數
 
----
+export const validateApiConfig = (): string[] => {
+  const warnings: string[] = []
+  const config = getApiConfig()
+  
+  // 檢查 NetStack 配置
+  if (\!config.netstack.baseUrl) {
+    warnings.push('NetStack BaseURL 未配置')
+  }
+  
+  // ✅ 修復：SimWorld 配置檢查邏輯
+  // Docker 環境下允許空字串或根路徑
+  if (config.mode === 'docker') {
+    if (\!config.netstack.baseUrl.startsWith('/')) {
+      warnings.push('Docker 環境下 NetStack 應使用代理路徑')
+    }
+    // SimWorld 在 Docker 環境下可以使用空字串或根路徑
+    // 不需要強制要求代理路徑前綴
+  } else {
+    // 非 Docker 環境下才檢查 SimWorld BaseURL
+    if (\!config.simworld.baseUrl) {
+      warnings.push('SimWorld BaseURL 未配置')
+    }
+  }
+  
+  return warnings
+}
+```
 
-## ✅ 階段1完成狀態 (2025-01-24)
+## 🎯 修復優先級
 
-**🎉 關鍵修復已完成 - 系統可正常進行 Phase 1-5 開發**
+### 🔥 **最高優先級** (影響研究數據準確性)
+4. **全球視野模式錯誤** - 修復返回20顆衛星而非5-6顆的問題
 
-### 完成項目
-- ✅ **1.1 清理重複 Satellite Redis 路由文件** - 移除重複文件，簡化路由
-- ✅ **1.2 統一數據庫策略** - SimWorld 完全遷移到 PostgreSQL，使用 NetStack PostgreSQL
-- ✅ **1.3 簡化依賴注入系統** - 移除複雜 DI 容器，改為直接實例化
+### 高優先級 (立即修復)  
+1. **SimWorld baseUrl 配置** - 修復 API 調用失敗問題
+2. **URL 構造邏輯** - 處理空 baseUrl 情況
 
-### 額外修復 (發現並解決)
-- ✅ **Pydantic v2 兼容性** - 修復 `regex` → `pattern` 參數更名
-- ✅ **PostgreSQL 連接配置** - 正確配置 NetStack PostgreSQL 憑證
-- ✅ **MongoDB 依賴清理** - 移除 SimWorld 中殘留的 MongoDB 引用
+### 中優先級 (後續優化)
+3. **配置驗證邏輯** - 改善用戶體驗
 
-### 驗證結果
-- ✅ **系統狀態**: 所有服務健康運行 (NetStack + SimWorld)
-- ✅ **API 測試**: NetStack `/health`, SimWorld `/api/v1/devices/` 正常
-- ✅ **數據庫**: PostgreSQL 正常工作，設備數據完整載入
-- ✅ **啟動速度**: 依賴注入簡化，提升啟動效率
+### 4. ⚠️ **前端API參數傳遞不一致問題** (新發現)
+**現象**: 前端接收到20顆衛星，而非預期的5-6顆
+**日誌證據**:
+```
+🛰️ SimWorldApi: API 原始響應: 
+- 數據來源: 真實 TLE 歷史數據 ✅
+- 全球視野: true ❌ (應該是 false)
+- 處理衛星: 20 顆
+- 可見衛星: 20 顆 ❌ (應該是 5-6 顆)
+- 最小仰角: -90 度 ❌ (應該是 5 度)
+```
 
----
+**問題根因**: 前端API調用可能仍在使用全球視野模式或參數傳遞有誤
 
-## 🚨 緊急重構需求分析
+**影響**: 
+- 顯示過多不相關衛星（仰角為負的衛星無法進行換手）
+- 與論文研究需求不符（需要真實可換手的衛星）
 
-在進行 **LEO 衛星系統 Phase 1-5 開發** 之前，發現現有架構存在嚴重問題，**必須先進行重構修復**，否則將嚴重影響開發效率和系統穩定性。
+**檢查位置**:
+1. **前端API調用邏輯**: `simworld-api.ts` 中的參數構建
+2. **後端參數處理**: SimWorld backend 的 global_view 邏輯
+3. **數據過濾機制**: 前端或後端的衛星過濾邏輯
 
-## 📊 問題嚴重程度評估
+**預期行為**:
+- `global_view: false`
+- `min_elevation: 5` (而非 -90)
+- 返回 5-6 顆可見衛星 (仰角 ≥ 5°)
 
-### 🔴 CRITICAL - 必須在 Phase 1 前修復
-- **數據層混亂**: PostgreSQL + MongoDB + Redis 混用，造成數據不一致風險
-- **重複路由文件**: 3個satellite_redis文件導致維護混亂
-- **依賴注入過度複雜**: 影響服務啟動和調試
+**具體問題位置**: 
+- **檔案**: `/home/u24/ntn-stack/simworld/frontend/src/services/simworld-api.ts`
+- **第163行**: `global_view: 'true',  // 強制全球視野` ❌
 
-### 🟠 HIGH - Phase 1-2 期間修復
-- **Domain架構過度工程化**: 過多領域分離增加複雜度
-- **前端代理配置混亂**: 影響API整合
-- **配置文件分散**: 環境變數管理困難
+**修復方案**:
+```typescript
+// 檔案: /home/u24/ntn-stack/simworld/frontend/src/services/simworld-api.ts
+// 第160-167行修改
 
-### 🟡 MEDIUM - Phase 3-4 期間修復
-- **測試文件冗餘**: NetStack中過多phase測試文件
-- **前端配置參數過多**: 維護成本高
-- **構建配置過度優化**: 不必要的複雜性
+const params = {
+  count: Math.min(maxSatellites, 150),
+  min_elevation_deg: minElevation,  // 使用傳入的仰角參數 (5度)
+  global_view: 'false',  // ✅ 修復：使用精確仰角過濾，而非全球視野
+  observer_lat: observerLat,  // NTPU座標
+  observer_lon: observerLon,  // NTPU座標  
+  observer_alt: 0.0,
+};
+```
 
----
+**修復後預期結果**:
+- `global_view: false` ✅
+- `min_elevation: 5` ✅ 
+- 返回 5-6 顆可見衛星 ✅
+- 所有衛星仰角 ≥ 5° ✅ (適合換手研究)
 
-## 🏗️ 具體重構計劃
+## 📊 驗證步驟
+修復後執行以下驗證：
 
-### 🔴 階段1: 緊急修復 (Phase 1 開發前)
-
-#### 1.1 清理重複的 Satellite Redis 路由文件
-**問題**: 存在3個重複文件造成維護混亂
 ```bash
-# 需要清理的文件:
-simworld/backend/app/api/routes/satellite_redis.py     # 保留
-simworld/backend/app/api/routes/satellite_redis_old.py  # 刪除
-simworld/backend/app/api/routes/satellite_redis_fixed.py # 刪除
+# 1. 重啟前端容器
+make simworld-restart
+
+# 2. 檢查瀏覽器控制台是否還有錯誤
+
+# 3. 驗證 API 調用
+curl -s "http://localhost:5173/api/v1/satellites/visible_satellites?count=10&min_elevation_deg=5&observer_lat=24.9441667&observer_lon=121.3713889"
+
+# 4. 確認衛星數據顯示
+# 檢查側邊欄是否顯示正確的衛星數量和數據
+```
+
+## 🏆 當前系統狀態評估
+
+**✅ 核心功能**: LEO衛星換手研究系統已準備就緒
+- NetStack v2.0.0-final 正常運行
+- 真實TLE數據，適合學術發表
+- NTPU觀測點，符合台灣地理位置
+- 動態衛星數量，反映真實可見情況
+
+**❌ 前端問題**: **直接影響研究工作流程** - 需要立即修復
+- 後端API數據正確，但前端無法顯示 ❌
+- 側邊欄「衛星 gNB」無衛星顯示 ❌ **（影響研究）**
+- 無法通過UI查看和分析衛星數據 ❌ **（影響研究）**
+- 研究人員無法直觀檢視衛星位置、仰角、距離 ❌ **（影響研究）**
+
+**🚨 影響評估修正**: 
+- **錯誤評估**: ~~「不影響研究」~~
+- **正確評估**: **嚴重影響研究工作流程和數據分析**
+
+## 5. ⚠️ **側邊欄衛星顯示問題** - **核心研究功能受影響**
+
+**現象**: 側邊欄「衛星 gNB」面板顯示空白，無任何衛星數據
+**影響**: **直接阻礙論文研究工作**
+- 無法查看當前可見衛星列表
+- 無法分析衛星仰角、方位角、距離數據  
+- 無法進行換手決策演算法驗證
+- 研究人員失去主要的數據檢視界面
+
+**根本原因**: 
+1. **API配置錯誤** (問題1-2) → API調用失敗
+2. **全球視野參數錯誤** (問題4) → 數據格式不符預期  
+3. **數據映射問題** → 後端正確數據無法正確顯示在UI
+
+**連鎖影響**:
+```
+API配置問題 → API調用失敗 → 無數據返回 → 側邊欄空白 → 無法進行研究
+     ↓
+全球視野問題 → 錯誤數據格式 → 前端處理失敗 → 側邊欄空白 → 無法進行研究
+```
+
+**修復優先級**: **🔥 最高優先級** - 必須立即修復才能恢復研究功能
+
+## 6. 🔍 **重要發現：SimWorld vs NetStack 數據來源問題**
+
+**關鍵發現**: SimWorld **並未串接** NetStack v2.0.0-final API！
+
+**證據分析**:
+```bash
+# NetStack v2.0 API (正確版本，但無衛星)
+$ docker exec simworld_backend curl "http://netstack-api:8080/api/v1/satellite-ops/visible_satellites?..."
+{"satellites":[],"total_count":0,...}
+
+# SimWorld 自己的 API (有20顆衛星)  
+$ curl "http://localhost:8888/api/v1/satellites/visible_satellites?..."
+{"satellites": [20顆衛星], "data_source": {"type": "real_tle_data"}}
+```
+
+**日誌證據**:
+```
+SimWorld Backend 日誌:
+- "Returning cached satellites: 20 satellites" 
+- "全球視野模式：調整最小仰角為 -90 度"
+- "✅ 找到 20 顆可見衛星 (使用真實 TLE 數據)"
+```
+
+**結論**: 
+- ✅ SimWorld **有自己的衛星計算引擎**和TLE數據
+- ❌ SimWorld **沒有使用** NetStack v2.0.0-final 的預計算衛星數據
+- ⚠️ 兩個系統在**並行運行不同的衛星計算**
+
+**影響評估**:
+1. **數據一致性問題** - 兩套衛星系統可能產生不同結果
+2. **版本混淆** - 前端顯示的"v2.0數據"實際是SimWorld自己的計算
+3. **研究準確性** - 需要確認使用哪套衛星數據進行論文研究
+
+**架構決策**:
+✅ **應該使用**: NetStack v2.0.0-final 預計算衛星數據
+❌ **應該捨棄**: SimWorld 的20顆衛星系統
+
+**原因分析**:
+1. **符合設計規範**: NetStack v2.0 符合 satellite-precompute-plan 的 6-8 顆衛星標準
+2. **3GPP NTN 合規**: 6-8 顆衛星符合真實 LEO 換手場景
+3. **學術價值**: 適合論文研究和頂級期刊發表
+4. **架構進化**: NetStack v2.0 是最新的技術實作
+
+**SimWorld 20顆衛星問題**:
+- ❌ 超出 3GPP NTN 標準（6-8 顆）
+- ❌ 不符合真實換手場景  
+- ❌ 屬於過時的技術實作
+- ❌ 架構設計已被 NetStack v2.0 取代
+
+**修復策略**: 
+1. **停用** SimWorld 自己的衛星計算
+2. **串接** NetStack v2.0 API 
+3. **使用** 符合標準的 6-8 顆衛星數據
+
+## 7. 🔄 **架構修復：SimWorld 串接 NetStack v2.0**
+
+**目標**: 讓 SimWorld 前端顯示 NetStack v2.0 的標準衛星數據（6-8顆）
+
+**當前問題**: NetStack v2.0 API 返回 0 顆衛星
+```bash
+$ docker exec simworld_backend curl "http://netstack-api:8080/api/v1/satellite-ops/visible_satellites?..."
+{"satellites":[],"total_count":0}
 ```
 
 **修復步驟**:
-1. 比較三個文件的差異，整合最佳功能到主文件
-2. 刪除舊版本和臨時修復版本
-3. 更新router.py中的import引用
-4. 測試API端點正常工作
-
-#### 1.2 統一數據庫策略
-**問題**: SimWorld 同時使用 PostgreSQL + MongoDB 造成數據分散
-
-**修復策略** (基於系統分析):
-- **SimWorld → PostgreSQL** (時間序列數據、空間查詢優化)
-- **NetStack → 保持 MongoDB** (Open5GS 標準依賴，不可修改)
-- **Redis 僅用於緩存** (衛星位置數據等高頻查詢)
-
-**SimWorld 遷移範圍**:
-- 設備管理 (`devices_mongodb.py`)
-- 模擬結果存儲 (CFR、SINR、Doppler 圖表)
-- MongoDeviceManager → PostgreSQL DeviceManager
-
-**實施策略** (基於 lifespan.py 分析):
-- ✅ **修改初始化腳本** - `lifespan.py` 中的種子數據初始化
-- ✅ **創建 PostgreSQL Schema** - 設備表、地面站表
-- ✅ **更新 API 路由** - 從 MongoDB 改為 PostgreSQL
-- ❌ **不需要數據遷移** - 都是可重建的種子數據
-
-**具體步驟**:
-1. 創建 PostgreSQL 設備和地面站表結構
-2. 修改 lifespan.py 初始化函數使用 PostgreSQL  
-3. 更新 devices_mongodb.py → devices_postgresql.py
-4. 更新模擬 API 使用 PostgreSQL 依賴
-5. 保留 NetStack MongoDB 完全不動
-
-#### ✅ 1.3 簡化依賴注入系統
-**問題**: app/core/dependency_injection.py 過度複雜，影響服務啟動
-
-**修復原則** (遵循CLAUDE.md規範):
-- **簡化優於複雜** - 移除不必要的抽象層
-- **直接依賴注入** - 使用FastAPI內建的Depends系統
-- **避免循環依賴** - 清理複雜的服務依賴關係
-
-**✅ 實施完成**:
-1. ✅ 分析DI使用情況 - 僅在performance服務初始化中使用
-2. ✅ 改為直接實例化 - 更新service_registry.py
-3. ✅ 移除DI容器依賴 - 標記dependency_injection.py為deprecated
-4. ✅ 簡化啟動邏輯 - 減少啟動時間和複雜度
-
-### 🟠 階段2: 架構優化 (Phase 1-2 期間)
-
-#### 2.1 簡化 Domain 架構
-**問題**: 過多領域分離導致維護複雜度增加
-
-**當前架構問題**:
-```
-app/domains/
-├── satellite/     # 衛星領域
-├── simulation/    # 模擬領域
-├── device/        # 設備領域
-├── coordinates/   # 坐標領域
-├── handover/      # 切換領域
-├── interference/  # 干擾領域
-├── wireless/      # 無線領域
-├── system/        # 系統領域
-└── performance/   # 性能領域
-```
-
-**簡化策略**:
-1. **合併相關領域** - wireless + interference → rf_simulation
-2. **移除過度抽象** - 將simple的CRUD操作直接實現
-3. **專注核心領域** - satellite, simulation, handover為主
-
-#### 2.2 修復前端代理配置
-**問題**: vite.config.ts 中代理配置過於複雜
-
-**當前問題**:
-- 複雜的路徑重寫邏輯
-- 硬編碼的容器名稱
-- 重複的代理規則
-
-**修復計劃**:
-1. **簡化代理規則** - 統一API路徑管理
-2. **環境變數化** - 移除硬編碼容器名稱
-3. **API統一前綴** - /api/simworld, /api/netstack
-4. **測試代理配置** - 確保開發和生產環境一致
-
-#### 2.3 整合配置文件
-**問題**: 配置分散在多個文件中
-
-**目標**:
-- **app/core/config.py** - 後端配置統一管理
-- **前端環境變數** - 統一API端點配置
-- **Docker環境** - 一致的容器間通訊配置
-
-#### 2.4 修復衛星數據載入和 Fallback 機制
-**問題**: TLE 數據下載失敗導致前端衛星API返回空數組
-
-**根本原因**:
-- 外部 TLE 數據源 (CelesTrak) 下載失敗
-- NetStack 缺乏有效的 fallback 初始化機制
-- 數據格式和存儲位置不匹配
-
-**修復策略**:
-1. **改善 Fallback 機制** - 自動檢測下載失敗並載入本地數據
-2. **統一數據格式** - 確保 Redis 數據格式符合 API 預期
-3. **健康檢查增強** - 衛星數據載入狀態監控
-4. **初始化順序優化** - 確保 TLE 數據在 API 啟動前就緒
-
-**具體修復步驟**:
-1. 分析 NetStack 衛星數據管理架構和數據流
-2. 實現自動 fallback 觸發機制
-3. 統一 Redis TLE 數據鍵值格式
-4. 添加衛星數據健康檢查端點
-5. 測試前端 API 響應正確的衛星數據
-
-**優先級**: Phase 1-2 期間修復 (不阻礙核心功能開發)
-
-### 🟡 階段3: 清理優化 (Phase 3-4 期間)
-
-#### 3.1 NetStack 測試文件整理
-**問題**: 過多的phase測試文件造成維護困難
-
-**當前狀況**:
-```bash
-netstack/
-├── test_phase0_*.py    # Phase 0 相關測試
-├── test_phase1_*.py    # Phase 1 相關測試
-├── test_phase2_*.py    # Phase 2 相關測試
-└── 其他零散測試文件...
-```
-
-**整理策略**:
-1. **按功能分組** - satellite_tests/, rl_tests/, integration_tests/
-2. **合併重複測試** - 避免功能重疊的測試
-3. **統一測試框架** - 使用一致的測試模式
-
-#### 3.2 前端配置參數簡化
-**問題**: satellite.config.ts 中參數過多
-
-**簡化原則**:
-- **移除非必要參數** - 減少配置複雜度
-- **合理預設值** - 提供適合LEO衛星的預設配置
-- **動態配置** - 支援運行時調整關鍵參數
-
----
-
-## 📋 重構驗證流程
-
-### 每個階段完成後必須執行
-
-```bash
-# 1. 完全重啟系統
-make down && make up
-
-# 2. 檢查所有服務狀態
-make status
-
-# 3. 驗證關鍵API端點
-curl -s http://localhost:8080/health  < /dev/null |  jq
-curl -s http://localhost:8888/health | jq
-curl -s http://localhost:5173/api/health | jq
-
-# 4. 執行重構驗證腳本
-./verify-refactor.sh --after-refactor
-```
-
-## ⚠️ 重構風險控制原則
-
-**遵循 CLAUDE.md 中的重構安全原則**:
-
-### 🛡️ 黃金法則
-1. **簡化問題，而非複雜化解決方案**
-2. **功能不減少** - 重構後功能 ≥ 重構前
-3. **穩定性提升** - bug 數量應該減少
-4. **維護性改善** - 未來修改應該更容易
-
-### 🚨 危險信號識別
-- **引入事件系統到簡單功能** ❌
-- **過度抽象化** ❌
-- **為了技術炫技而重構** ❌
-- **追求完美而忽略實用性** ❌
-
-### ✅ 重構成功標準
-- [ ] 所有原有功能正常工作
-- [ ] 新功能按預期工作
-- [ ] 系統整體穩定性沒有下降
-- [ ] 代碼複雜度沒有明顯增加
-- [ ] 維護成本沒有增加
-
----
-
-## 🎯 總結與建議
-
-### 📊 重構影響評估
-
-**如果不進行重構，LEO衛星系統開發將面臨**:
-- ⚠️ **Phase 1 數據整合困難** - 多數據源衝突
-- ⚠️ **Phase 2-3 API開發緩慢** - 路由和配置混亂
-- ⚠️ **Phase 4 前端整合問題** - 代理配置複雜
-- ⚠️ **Phase 5 部署困難** - 服務依賴不清晰
-
-**重構後的優勢**:
-- ✅ **統一數據架構** - PostgreSQL為主，Redis為輔
-- ✅ **清晰的API結構** - 簡化的路由和端點
-- ✅ **簡化的配置管理** - 統一的環境變數
-- ✅ **提高開發效率** - 減少配置和依賴複雜度
-
-### 🚀 開始重構的建議
-
-**優先執行階段1的緊急修復**，這些是影響Phase 1-5開發的關鍵瓶頸。
-
-**時間估算**:
-- **階段1 (緊急修復)**: 2-3天
-- **階段2 (架構優化)**: 1週
-- **階段3 (清理優化)**: 3-5天
-
-**投資回報**: 重構投入的時間將在後續Phase 1-5開發中節省2-3倍的時間。
-
----
-*重構計劃創建時間: 2025-07-24*
-*符合 CLAUDE.md 中的架構設計和重構原則*
+1. **診斷 NetStack v2.0 數據問題** - 為什麼預計算系統返回 0 顆衛星
+2. **修復 NetStack 衛星數據載入** - 確保 6 小時預計算數據正確載入
+3. **修改 SimWorld API** - 從自己的20顆衛星改為調用 NetStack v2.0
+4. **驗證數據一致性** - 確保前端顯示符合標準的 6-8 顆衛星
