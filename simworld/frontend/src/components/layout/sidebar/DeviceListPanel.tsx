@@ -99,16 +99,16 @@ const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
                                             <span
                                                 style={{
                                                     color:
-                                                        sat.elevation_deg > 45
+                                                        (sat.elevation_deg ?? 0) > 45
                                                             ? '#ff3300'
                                                             : '#0088ff',
                                                 }}
                                             >
-                                                {sat.elevation_deg.toFixed(2)}°
+                                                {(sat.elevation_deg ?? 0).toFixed(2)}°
                                             </span>
                                             {' | '}方位角:{' '}
-                                            {sat.azimuth_deg.toFixed(2)}°{' | '}
-                                            距離: {sat.distance_km.toFixed(2)} km
+                                            {(sat.azimuth_deg ?? 0).toFixed(2)}°{' | '}
+                                            距離: {(sat.distance_km ?? 0).toFixed(2)} km
                                         </div>
                                     </div>
                                 ))

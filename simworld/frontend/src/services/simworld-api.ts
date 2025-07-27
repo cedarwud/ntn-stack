@@ -156,19 +156,26 @@ class SimWorldApiClient {
     // 創建並執行請求
     const executeRequest = async () => {
       try {
-        // 🌍 為了獲得真正的全球視野，我們使用寬鬆的仰角限制和多個虛擬觀測點
+        // 🌍 為了獲得真正的全球視野，我們使用寬鬆的仰角限制和觀測點座標
         const params = {
           count: Math.min(maxSatellites, 150),  // 🚀 大幅提高到150顆衛星
-          min_elevation_deg: -10,  // 🌍 使用-10度寬鬆仰角（包含地平線以下）
+          min_elevation_deg: minElevation,  // 使用傳入的仰角參數
           global_view: 'true',  // 強制全球視野
-          // 🌍 不傳遞觀測點座標，讓後端使用全球模式
-          // observer_lat: observerLat,  // 註釋掉以啟用真正的全球模式
-          // observer_lon: observerLon,  // 註釋掉以啟用真正的全球模式
+          observer_lat: observerLat,  // 傳遞觀測點緯度以正確計算仰角
+          observer_lon: observerLon,  // 傳遞觀測點經度以正確計算方位角和距離
+          observer_alt: 0.0,  // 觀測點高度
         };
-        const endpoint = '/v1/satellite-ops/visible_satellites';
+
+        // 🔧 構建查詢參數字符串
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          queryParams.append(key, value.toString());
+        });
+        
+        const endpoint = `/api/v1/satellites/visible_satellites?${queryParams.toString()}`;
     
-        // console.log(`🛰️ SimWorldApi: 調用全球視野模式 ${endpoint}，參數:`, params)
-        // console.log(`🌍 SimWorldApi: 請求全球範圍衛星，不限制地域觀測點`)
+        console.log(`🛰️ SimWorldApi: 調用衛星API ${endpoint}`);
+        console.log(`🌍 SimWorldApi: 觀測點座標 (${observerLat}, ${observerLon}), 最小仰角 ${minElevation}°`);
         
         // 🚀 使用統一的 API 配置系統
         const response = await this.fetchWithConfig(endpoint);
@@ -288,40 +295,58 @@ class SimWorldApiClient {
           },
           results: {
             total_visible: data.satellites?.length || 0,
-            satellites: data.satellites?.map((sat: { 
-              norad_id?: string; 
-              name?: string; 
-              orbit_altitude_km?: number; 
-              elevation_deg?: number; 
-              azimuth_deg?: number; 
-              range_km?: number; 
-              distance_km?: number;
-              velocity?: number; 
-              velocity_km_s?: number;
-              doppler_shift?: number; 
-              estimated_signal_strength?: number; 
-              path_loss_db?: number; 
-            }, _index: number) => {
+            satellites: (data.satellites || data.results?.satellites || [])
+              ?.filter((sat: any) => {
+                // 🛰️ 只保留仰角≥5度的衛星（可進行換手的候選衛星）
+                const elevation = sat.position?.elevation || sat.elevation_deg || sat.elevation || 0;
+                return elevation >= 5;
+              })
+              ?.map((sat: any) => {
+              // 🔄 支援多種後端響應格式，適應新舊API
+              // 📍 優先使用 position 物件內的數據（新API格式）
+              const elevation = sat.position?.elevation || sat.elevation_deg || sat.elevation || 0;
+              const azimuth = sat.position?.azimuth || sat.azimuth_deg || sat.azimuth || 0;
+              const range = sat.position?.range || sat.range_km || sat.distance_km || sat.range || 0;
+              
+              // 🐛 Debug: 檢查數據映射
+              if (sat.name && sat.name.includes('31879')) {
+                console.log(`🔍 Debug ${sat.name}:`, {
+                  rawSat: sat,
+                  elevation: elevation,
+                  azimuth: azimuth,
+                  range: range,
+                  positionObject: sat.position
+                });
+              }
+              const altitude = sat.position?.altitude || sat.orbit_altitude_km || sat.altitude || 0;
+              const latitude = sat.position?.latitude || sat.latitude || 0;
+              const longitude = sat.position?.longitude || sat.longitude || 0;
+              
               return {
-                id: parseInt(sat.norad_id || '0') || 0,
+                id: parseInt(sat.norad_id || sat.id || '0') || 0,
                 name: sat.name || '',
-                norad_id: sat.norad_id || '',
+                norad_id: sat.norad_id || sat.id || '',
+                // 🔧 DeviceListPanel期望的頂層字段格式
+                elevation_deg: elevation,
+                azimuth_deg: azimuth,
+                distance_km: range,
+                // 🔧 保持position物件以向後兼容
                 position: {
-                  latitude: 0, // 舊端點沒提供這些信息
-                  longitude: 0,
-                  altitude: sat.orbit_altitude_km || 0,
-                  elevation: sat.elevation_deg || 0,
-                  azimuth: sat.azimuth_deg || 0,
-                  range: sat.distance_km || 0,
-                  velocity: sat.velocity_km_s || 0,
-                  doppler_shift: 0
+                  latitude: latitude,
+                  longitude: longitude, 
+                  altitude: altitude,
+                  elevation: elevation,
+                  azimuth: azimuth,
+                  range: range,
+                  velocity: sat.velocity_km_s || sat.velocity || 7.5,
+                  doppler_shift: sat.doppler_shift || 0
                 },
                 timestamp: new Date().toISOString(),
                 signal_quality: {
-                  elevation_deg: sat.elevation_deg || 0,
-                  range_km: sat.distance_km || 0,
-                  estimated_signal_strength: Math.min(100, (sat.elevation_deg || 0) * 2),
-                  path_loss_db: 20 * Math.log10(Math.max(1, sat.distance_km || 1000)) + 92.45 + 20 * Math.log10(2.15)
+                  elevation_deg: elevation,
+                  range_km: range,
+                  estimated_signal_strength: sat.estimated_signal_strength || Math.min(100, Math.max(0, elevation * 2 + 50)),
+                  path_loss_db: sat.path_loss_db || (20 * Math.log10(Math.max(1, range)) + 92.45 + 20 * Math.log10(2.15))
                 }
               };
             }) || []
