@@ -76,7 +76,7 @@ export const getApiConfig = (): ApiConfig => {
         timeout: 30000
       },
       simworld: {
-        baseUrl: '', // 直接使用相對路徑，不需要 /api 前綴
+        baseUrl: '/', // 使用根路徑修復 URL 構造失敗問題
         timeout: 30000
       },
       mode: 'docker' as const
@@ -126,15 +126,16 @@ export const validateApiConfig = (): string[] => {
     warnings.push('NetStack BaseURL 未配置')
   }
   
-  // 檢查 SimWorld 配置
-  if (!config.simworld.baseUrl) {
-    warnings.push('SimWorld BaseURL 未配置')
-  }
-  
   // Docker 環境特定檢查
   if (config.mode === 'docker') {
     if (!config.netstack.baseUrl.startsWith('/')) {
       warnings.push('Docker 環境下 NetStack 應使用代理路徑')
+    }
+    // SimWorld 在 Docker 環境下可以使用空字串或根路徑，不需要強制要求代理路徑前綴
+  } else {
+    // 非 Docker 環境下才檢查 SimWorld BaseURL
+    if (!config.simworld.baseUrl) {
+      warnings.push('SimWorld BaseURL 未配置')
     }
   }
   
@@ -150,6 +151,11 @@ export const getServiceUrl = (service: 'netstack' | 'simworld', endpoint: string
   
   // 確保端點以 / 開頭
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  
+  // 處理空 baseUrl 的情況
+  if (!baseUrl || baseUrl === '') {
+    return normalizedEndpoint
+  }
   
   // 如果是代理路徑，直接拼接
   if (baseUrl.startsWith('/')) {
