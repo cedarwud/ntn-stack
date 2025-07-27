@@ -49,6 +49,11 @@ jinja2>=3.1.0      # 模板引擎 (LaTeX/HTML報告)
 # 結構化日誌 (測試追蹤)
 structlog>=23.2.0  # 結構化日誌系統
 
+# ===== 衛星軌道計算和 TLE 數據處理 =====
+skyfield>=1.53     # 精確的衛星軌道計算（SGP4、天體力學）
+sgp4>=2.24         # SGP4/SDP4 軌道傳播模型（由 skyfield 依賴）
+jplephem>=2.22     # JPL 行星星曆數據（由 skyfield 依賴）
+
 # ===== 伺服器啟動依賴 =====
 # 在本地開發和整合測試中啟動 uvicorn 伺服器所需
 torch>=2.4.0
