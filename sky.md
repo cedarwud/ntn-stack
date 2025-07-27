@@ -24,106 +24,255 @@
 
 ## 🚀 開發步驟流程
 
-### Phase 0: 獨立篩選工具完善 (1天) ⚡ **可立即開始**
+### Phase 0: Starlink 完整數據下載與換手篩選工具 (1天) ⚡ **可立即開始**
 
-#### 0.1 測試現有篩選工具功能
-**目標**: 驗證 starlink_ntpu_visibility_finder.py 的基本功能
+#### 0.1 完整 Starlink TLE 數據下載器
+**目標**: 下載96分鐘(一個完整 Starlink 週期)內所有 Starlink 衛星 TLE 歷史數據
 
 ```bash
-# 測試工具基本功能
-cd /home/sat/ntn-stack/netstack
-python src/services/satellite/starlink_ntpu_visibility_finder.py --duration 96 --output test_results.json
+# 下載當前所有 Starlink TLE 數據
+cd /home/sat/ntn-stack/netstack/src/services/satellite
+python starlink_tle_downloader.py --download-all --output starlink_complete_tle.json
 
-# 驗證結果格式
-cat test_results.json | jq '.optimal_handover_times[0]'
+# 驗證下載數據
+python starlink_tle_downloader.py --verify starlink_complete_tle.json
 ```
 
-**測試項目**:
-- [ ] TLE 數據下載成功
-- [ ] NTPU 座標衛星可見性計算正確
-- [ ] 6-8 顆衛星篩選邏輯正常
-- [ ] JSON 輸出格式完整
+**核心功能**:
+- [ ] 從 CelesTrak 下載所有當前 Starlink TLE 數據（~6000 顆衛星）
+- [ ] 本地存儲完整數據集，避免重複下載
+- [ ] 數據驗證和完整性檢查
+- [ ] 支援增量更新和快取機制
 
-#### 0.2 功能增強與優化
-**目標**: 完善工具功能，準備生產使用
+#### 0.2 衛星候選預篩選器
+**目標**: 基於軌道參數預篩選，排除不可能在目標座標進行換手的衛星
 
 ```python
-# 增強功能範例
-def enhanced_visibility_analysis():
-    """增強的可見性分析"""
-    # 1. 添加衛星切換序列分析
-    # 2. 計算都卜勒頻移預估
-    # 3. 路徑損耗基本估算
-    # 4. 切換時機建議
-    pass
+# 預篩選功能範例
+def pre_filter_satellites_by_orbit(observer_lat, observer_lon, all_tle_data):
+    """
+    軌道幾何預篩選
+    - 基於軌道傾角判斷緯度覆蓋範圍
+    - 基於軌道高度計算最大可見距離
+    - 排除在96分鐘內不可能達到5度仰角的衛星
+    - 大幅減少後續詳細計算的工作量
+    """
+    candidate_satellites = []
+    excluded_satellites = []
+    
+    for satellite in all_tle_data:
+        if can_potentially_be_visible(satellite, observer_lat, observer_lon):
+            candidate_satellites.append(satellite)
+        else:
+            excluded_satellites.append(satellite)
+    
+    return candidate_satellites, excluded_satellites
 ```
 
-**增強項目**:
-- [ ] 添加衛星切換序列分析
-- [ ] 計算信號強度預估
-- [ ] 生成切換時機建議
-- [ ] 優化計算性能（批次處理）
+**預篩選標準**:
+- [ ] **軌道傾角檢查** - 衛星能到達的最大/最小緯度範圍
+- [ ] **軌道高度檢查** - 在目標緯度的理論最大仰角
+- [ ] **地理覆蓋檢查** - 軌道平面是否可能經過目標經度
+- [ ] **最小距離檢查** - 衛星與目標座標的最近可能距離
 
-#### 0.3 準確性驗證
-**目標**: 確保計算結果符合學術研究要求
+**預期優化效果**:
+- [ ] 從 ~6000 顆衛星篩選到 ~500-1000 顆候選衛星
+- [ ] 減少後續計算量 80-90%
+- [ ] 加速整體分析時間從小時級到分鐘級
 
-```bash
-# 驗證計算準確性
-cd /home/sat/ntn-stack/netstack
-python -c "
-import sys
-sys.path.append('src/services/satellite')
-from starlink_ntpu_visibility_finder import StarlinkVisibilityFinder
-import datetime
+#### 0.3 最佳時間段分析與數據產出
+**目標**: 找出30-45分鐘的最佳換手時間段，並產出完整的衛星配置數據
 
-# 使用固定時間點驗證
-finder = StarlinkVisibilityFinder(24.9441667, 121.3713889)
-# 比對其他衛星軌道預測工具的結果
-"
+```python
+# 最佳時間段分析功能範例
+def find_optimal_handover_timeframe(observer_lat, observer_lon, candidate_satellites):
+    """
+    找出30-45分鐘的最佳換手時間段
+    - 分析候選衛星在不同時間段的可見性
+    - 找出包含6-10顆衛星的最佳時間段
+    - 確保時間段長度適合動畫展示（30-45分鐘）
+    - 產出該時間段的完整衛星軌跡數據
+    """
+    best_timeframe = None
+    max_satellite_coverage = 0
+    
+    # 掃描不同的30-45分鐘時間窗
+    for start_time in range(0, 5760, 300):  # 每5分鐘檢查一次
+        for duration in [30, 35, 40, 45]:  # 測試不同時間段長度
+            timeframe_satellites = analyze_timeframe_coverage(
+                candidate_satellites, start_time, duration * 60, observer_lat, observer_lon
+            )
+            
+            if len(timeframe_satellites) > max_satellite_coverage:
+                max_satellite_coverage = len(timeframe_satellites)
+                best_timeframe = {
+                    'start_time': start_time,
+                    'duration_minutes': duration,
+                    'satellites': timeframe_satellites
+                }
+    
+    return best_timeframe
 ```
 
-**驗證標準**:
-- [ ] 與 Gpredict 軟體結果比對（誤差 < 0.1°）
-- [ ] 與 Heavens-Above 網站數據比對
-- [ ] SGP4 模型實現正確性驗證
-- [ ] 座標轉換精度測試
+**分析重點**:
+- [ ] **時間段最佳化** - 30-45分鐘長度，適合動畫展示
+- [ ] **衛星數量最大化** - 尋找包含6-10顆衛星的時間段
+- [ ] **換手連續性** - 確保時間段內有完整的換手序列
+- [ ] **軌跡完整性** - 包含衛星從出現到消失的完整軌跡
 
-#### 0.4 結果標準化
-**目標**: 為後續整合準備標準化的數據格式
-
+**產出數據結構**:
 ```json
-// 標準化輸出格式範例
 {
-  "analysis_metadata": {
-    "timestamp": "2025-07-27T12:00:00Z",
-    "observer_location": {"lat": 24.9441667, "lon": 121.3713889},
-    "analysis_duration_minutes": 96,
-    "total_satellites_analyzed": 4000
-  },
-  "optimal_handover_windows": [
-    {
-      "window_start": "2025-07-27T12:15:00Z",
-      "window_duration_seconds": 300,
-      "visible_satellites": 7,
-      "handover_sequence": ["STARLINK-1234", "STARLINK-5678"],
-      "signal_quality_estimate": "excellent"
+  "optimal_timeframe": {
+    "start_timestamp": "2025-07-27T12:15:00Z",
+    "duration_minutes": 40,
+    "satellite_count": 8,
+    "satellites": [
+      {
+        "norad_id": 44713,
+        "name": "STARLINK-1007",
+        "trajectory": [
+          {"time": "2025-07-27T12:15:00Z", "elevation": 5.2, "azimuth": 45.0, "lat": 24.9, "lon": 121.4},
+          {"time": "2025-07-27T12:15:30Z", "elevation": 6.1, "azimuth": 46.2, "lat": 24.95, "lon": 121.45}
+          // ... 每30秒一個數據點，共80個點
+        ],
+        "visibility_window": {
+          "rise_time": "2025-07-27T12:15:00Z",
+          "peak_time": "2025-07-27T12:28:15Z", 
+          "set_time": "2025-07-27T12:41:30Z"
+        },
+        "handover_priority": 1
+      }
+      // ... 其他7顆衛星
+    ]
+  }
+}
+```
+
+#### 0.4 前端數據源格式化
+**目標**: 將最佳時間段數據格式化為側邊欄和立體圖動畫所需的數據源
+
+```python
+# 前端數據格式化功能範例
+def format_for_frontend_display(optimal_timeframe_data, observer_location):
+    """
+    格式化數據以支援前端展示需求
+    - 側邊欄「衛星 gNB」數據源
+    - 立體圖動畫軌跡數據源
+    - 換手序列展示數據
+    """
+    
+    # 1. 側邊欄數據源
+    sidebar_data = format_sidebar_satellite_list(optimal_timeframe_data)
+    
+    # 2. 動畫軌跡數據源
+    animation_data = format_3d_animation_trajectories(optimal_timeframe_data)
+    
+    # 3. 換手序列數據源
+    handover_sequence_data = format_handover_sequence(optimal_timeframe_data)
+    
+    return {
+        "sidebar_data": sidebar_data,
+        "animation_data": animation_data, 
+        "handover_sequence": handover_sequence_data,
+        "metadata": {
+            "observer_location": observer_location,
+            "timeframe_info": optimal_timeframe_data["optimal_timeframe"]
+        }
     }
+```
+
+**前端數據源格式**:
+
+**1. 側邊欄「衛星 gNB」數據源**:
+```json
+{
+  "satellite_gnb_list": [
+    {
+      "id": "STARLINK-1007",
+      "name": "STARLINK-1007", 
+      "status": "visible",
+      "signal_strength": 85,
+      "elevation": 25.4,
+      "azimuth": 120.8,
+      "distance_km": 850,
+      "handover_priority": 1,
+      "availability_window": "12:15:00 - 12:41:30"
+    }
+    // ... 其他衛星
   ]
 }
 ```
 
-**標準化項目**:
-- [ ] 統一時間格式（ISO 8601）
-- [ ] 座標系統標準化（WGS84）
-- [ ] 衛星 ID 格式統一（NORAD ID）
-- [ ] 建立結果評分機制
+**2. 立體圖動畫軌跡數據源**:
+```json
+{
+  "animation_trajectories": [
+    {
+      "satellite_id": "STARLINK-1007",
+      "trajectory_points": [
+        {"time_offset": 0, "x": 850.2, "y": 120.8, "z": 350.5, "visible": true},
+        {"time_offset": 30, "x": 852.1, "y": 122.1, "z": 352.2, "visible": true}
+        // ... 每30秒一個3D位置點
+      ],
+      "animation_config": {
+        "color": "#00ff00",
+        "trail_length": 10,
+        "visibility_threshold": 5.0
+      }
+    }
+    // ... 其他衛星軌跡
+  ],
+  "animation_settings": {
+    "total_duration_seconds": 2400,
+    "playback_speed_multiplier": 10,
+    "camera_follow_mode": "overview"
+  }
+}
+```
+
+**3. 換手序列展示數據**:
+```json
+{
+  "handover_sequence": [
+    {
+      "sequence_id": 1,
+      "from_satellite": "STARLINK-1007",
+      "to_satellite": "STARLINK-1019", 
+      "handover_time": "2025-07-27T12:28:45Z",
+      "handover_type": "planned",
+      "signal_overlap_duration": 120
+    }
+    // ... 其他換手事件
+  ]
+}
+```
+
+**座標參數化支援**:
+```python
+# 支援任意座標的相同分析
+def generate_optimal_timeframe_for_coordinates(lat, lon, alt=0):
+    """
+    對任意座標執行相同的最佳時間段分析
+    - 下載完整 TLE 數據
+    - 預篩選候選衛星
+    - 找出最佳時間段
+    - 格式化前端數據源
+    """
+    return {
+        "coordinates": {"lat": lat, "lon": lon, "alt": alt},
+        "optimal_timeframe": find_optimal_handover_timeframe(lat, lon, candidate_satellites),
+        "frontend_data": format_for_frontend_display(optimal_timeframe_data, {"lat": lat, "lon": lon})
+    }
+```
 
 **Phase 0 驗收標準：**
-- [ ] 工具可穩定運行並產生正確結果
-- [ ] 計算精度符合學術研究要求
-- [ ] 輸出格式標準化且完整
-- [ ] 性能滿足實際使用需求（< 2分鐘完成96分鐘分析）
-- [ ] 準備好整合到 NetStack 的接口規範
+- [ ] 能成功下載所有當前 Starlink TLE 數據（~6000 顆）
+- [ ] 基於完整數據找出在 NTPU 座標上空真實的最佳換手時間點
+- [ ] 確定該時間點的真實衛星數量和配置（自然數量，不強制限制）
+- [ ] 支援任意座標輸入進行相同的最佳時機分析
+- [ ] 輸出適合學術研究的標準化數據格式
+- [ ] 96分鐘完整分析在合理時間內完成（< 10分鐘）
 
 ---
 
@@ -181,7 +330,7 @@ cat /home/sat/ntn-stack/simworld/backend/requirements.txt | grep -E "(skyfield|s
 ### Phase 2: NetStack 衛星 API 增強 (2-3天)
 
 #### 2.1 設計統一的衛星 API
-**目標**: 創建完整的衛星計算 API
+**目標**: 創建完整的衛星計算 API，包含對 Phase 0 數據的支援
 
 ```python
 # /netstack/src/api/satellite/endpoints.py (範例)
@@ -210,6 +359,33 @@ async def calculate_satellite_positions(
 ):
     """批次計算衛星位置"""
     pass
+
+# === Phase 0 數據支援 API ===
+@router.get("/satellites/optimal-timeframe")
+async def get_optimal_handover_timeframe(
+    observer_lat: float,
+    observer_lon: float,
+    duration_minutes: int = 45
+):
+    """獲取最佳換手時間段（Phase 0 的產出）"""
+    pass
+
+@router.get("/satellites/historical-config/{timeframe_id}")
+async def get_historical_satellite_config(
+    timeframe_id: str,
+    observer_lat: float,
+    observer_lon: float
+):
+    """獲取特定歷史時間段的衛星配置"""
+    pass
+
+@router.get("/satellites/frontend-data/{timeframe_id}")
+async def get_frontend_data_sources(
+    timeframe_id: str,
+    data_type: str = "all"  # "sidebar", "animation", "handover", "all"
+):
+    """獲取前端展示所需的數據源（側邊欄、動畫、換手序列）"""
+    pass
 ```
 
 #### 2.2 整合 Starlink 篩選工具
@@ -228,7 +404,7 @@ async def calculate_satellite_positions(
 - [ ] 添加錯誤處理
 
 #### 2.3 TLE 數據管理系統
-**目標**: 建立可靠的 TLE 數據更新機制
+**目標**: 建立可靠的 TLE 數據更新機制，包含 Phase 0 歷史數據持久化
 
 ```python
 # /netstack/src/services/satellite/tle_manager.py (範例)
@@ -244,12 +420,36 @@ class TLEDataManager:
     async def get_cached_tle_data(self) -> Optional[List[TLEData]]:
         """獲取緩存的 TLE 數據"""
         pass
+    
+    # === Phase 0 歷史數據管理 ===
+    async def store_optimal_timeframe(self, timeframe_data: dict, coordinates: dict) -> str:
+        """存儲最佳時間段數據，返回 timeframe_id"""
+        pass
+    
+    async def get_optimal_timeframe(self, timeframe_id: str) -> Optional[dict]:
+        """獲取存儲的最佳時間段數據"""
+        pass
+    
+    async def store_frontend_data(self, timeframe_id: str, frontend_data: dict) -> None:
+        """存儲前端展示數據（側邊欄、動畫、換手序列）"""
+        pass
+    
+    async def get_frontend_data(self, timeframe_id: str, data_type: str = "all") -> dict:
+        """獲取前端展示數據"""
+        pass
+    
+    async def cache_coordinate_analysis(self, coordinates: dict, analysis_result: dict) -> None:
+        """緩存座標分析結果，支援座標參數化"""
+        pass
 ```
 
 **Phase 2 驗收標準：**
 - [ ] 衛星可見性 API 正常運作
 - [ ] Starlink TLE 數據自動更新
 - [ ] 批次位置計算 API 測試通過
+- [ ] **Phase 0 數據支援 API 正常運作**
+- [ ] **最佳時間段數據能正確存儲和檢索**
+- [ ] **前端數據源 API 回應格式正確**
 - [ ] API 文檔自動生成
 
 ### Phase 3: SimWorld 衛星功能移除 (2-3天)
@@ -332,10 +532,16 @@ make down && make up
 # 2. 測試 NetStack 衛星 API
 curl "http://localhost:8080/api/satellites/visibility?observer_lat=24.9441667&observer_lon=121.3713889"
 
-# 3. 測試 SimWorld 代理功能
+# 3. 測試 Phase 0 數據 API
+curl "http://localhost:8080/api/satellites/optimal-timeframe?observer_lat=24.9441667&observer_lon=121.3713889&duration_minutes=40"
+
+# 4. 測試前端數據源 API
+curl "http://localhost:8080/api/satellites/frontend-data/test_timeframe_id?data_type=all"
+
+# 5. 測試 SimWorld 代理功能
 curl "http://localhost:8888/api/satellites/visibility?observer_lat=24.9441667&observer_lon=121.3713889"
 
-# 4. 測試前端顯示
+# 6. 測試前端顯示
 curl "http://localhost:5173"
 ```
 
@@ -382,6 +588,8 @@ def test_orbital_calculation_consistency():
 
 **Phase 4 驗收標準：**
 - [ ] 所有 API 端點回應正常
+- [ ] **Phase 0 數據 API 端點正確回應**
+- [ ] **前端數據源格式驗證通過**
 - [ ] 性能測試通過基準線
 - [ ] 數據一致性測試通過
 - [ ] 前端顯示正常
