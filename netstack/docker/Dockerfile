@@ -117,6 +117,7 @@ RUN apt-get update && apt-get install -y \
     strace \
     jq \
     curl \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 # 建立非 root 用戶
@@ -133,9 +134,10 @@ COPY scripts/ ./scripts/
 RUN mkdir -p /var/log/netstack /app/test-reports /app/models /app/results /tmp/matplotlib && \
     chown -R netstack:netstack /var/log/netstack /app/test-reports /app/models /app/results /tmp/matplotlib
 
-# 建立健康檢查腳本
+# 建立健康檢查腳本和啟動腳本
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
-RUN chmod +x /usr/local/bin/healthcheck.sh
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # 設定開發環境變數
 ENV ENVIRONMENT=development
