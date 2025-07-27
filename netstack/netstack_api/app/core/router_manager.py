@@ -142,6 +142,16 @@ class RouterManager:
             except ImportError:
                 logger.warning("軌道路由器不可用，跳過註冊")
 
+            # 嘗試導入衛星預計算路由器 (Phase 2)
+            try:
+                from ...routers.satellite_precompute_router import router as precompute_router
+
+                self.app.include_router(precompute_router, tags=["衛星預計算"])
+                self._track_router("satellite_precompute_router", "衛星預計算", True)
+                logger.info("✅ 衛星預計算路由器註冊完成")
+            except ImportError:
+                logger.warning("衛星預計算路由器不可用，跳過註冊")
+
             # 嘗試導入衛星數據路由器 (統一數據架構)
             logger.info("🔍 開始註冊衛星數據路由器...")
             try:
@@ -173,6 +183,16 @@ class RouterManager:
                 logger.info("✅ SIB19 路由器註冊完成")
             except ImportError:
                 logger.warning("SIB19 路由器不可用，跳過註冊")
+
+            # 嘗試導入 Phase 2 背景下載狀態路由器
+            try:
+                from ...routers.phase2_status_router import router as phase2_status_router
+
+                self.app.include_router(phase2_status_router, tags=["Phase 2 背景下載"])
+                self._track_router("phase2_status_router", "Phase 2 背景下載", True)
+                logger.info("✅ Phase 2 狀態路由器註冊完成")
+            except ImportError:
+                logger.warning("Phase 2 狀態路由器不可用，跳過註冊")
 
             logger.info("✅ 新模組化路由器註冊完成")
         except Exception as e:

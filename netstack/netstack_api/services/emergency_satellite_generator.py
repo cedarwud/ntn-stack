@@ -53,10 +53,10 @@ class EmergencySatelliteGenerator:
         data = []
         start_time = datetime.utcnow()
         
-        # 使用現有的 NORAD ID 來避免外鍵約束問題
-        existing_norad_ids = [44714, 44716, 44717, 44718, 44719, 44721]
+        # 使用預載數據相同的 NORAD ID 範圍來避免外鍵約束問題
+        emergency_norad_ids = [50000, 50001, 50002, 50003, 50004, 50005]
         satellites = [
-            {"id": f"EMERGENCY-SAT-{i+1}", "norad_id": existing_norad_ids[i], "orbit_offset": i * 30}
+            {"id": f"EMERGENCY-SAT-{i+1}", "norad_id": emergency_norad_ids[i], "orbit_offset": i * 30}
             for i in range(6)
         ]
         
@@ -133,6 +133,28 @@ class EmergencySatelliteGenerator:
                 DELETE FROM satellite_orbital_cache 
                 WHERE constellation = 'emergency'
             """)
+            
+            # 清空並創建緊急 TLE 數據
+            await conn.execute("""
+                DELETE FROM satellite_tle_data 
+                WHERE constellation = 'emergency'
+            """)
+            
+            # 為緊急衛星創建 TLE 數據
+            from datetime import datetime
+            emergency_norad_ids = [50000, 50001, 50002, 50003, 50004, 50005]
+            for i, norad_id in enumerate(emergency_norad_ids):
+                sat_id = f"EMERGENCY-SAT-{i+1}"
+                await conn.execute("""
+                    INSERT INTO satellite_tle_data (
+                        satellite_id, norad_id, satellite_name, constellation,
+                        line1, line2, epoch, orbital_period
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    ON CONFLICT (norad_id) DO NOTHING
+                """, sat_id, norad_id, sat_id, "emergency",
+                    f"1 {norad_id}U 24001A   24001.00000000  .00000000  00000-0  00000-0 0  9990",
+                    f"2 {norad_id}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000",
+                    datetime(2024, 1, 1), 95.0)
             
             # 批次插入
             records = []
