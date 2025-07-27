@@ -12,7 +12,6 @@ import FullChartAnalysisDashboard from './FullChartAnalysisDashboard'
 import MeasurementEventsModal from './MeasurementEventsModal'
 import RLMonitoringModal from './RLMonitoringModal'
 import RLMonitoringModalNew from './RLMonitoringModalNew'
-import OperationsDashboardModal from './OperationsDashboardModal' // 導入新的儀表板組件
 import { ViewerProps } from '../../types/viewer'
 import {
     SCENE_DISPLAY_NAMES,
@@ -67,9 +66,6 @@ const Navbar: FC<NavbarProps> = ({
     const [showRLMonitoringModal, setShowRLMonitoringModal] = useState(false)
     const [showRLMonitoringModalNew, setShowRLMonitoringModalNew] = useState(false)
 
-    // 新增 Operations Dashboard Modal 狀態
-    const [showOperationsDashboardModal, setShowOperationsDashboardModal] =
-        useState(false)
 
     // States for modal visibility
     const [showSINRModal, setShowSINRModal] = useState(false)
@@ -477,11 +473,6 @@ const Navbar: FC<NavbarProps> = ({
                 onClose={() => setShowRLMonitoringModal(false)}
             />
 
-            {/* 營運儀表板模態框 */}
-            <OperationsDashboardModal
-                isOpen={showOperationsDashboardModal}
-                onClose={() => setShowOperationsDashboardModal(false)}
-            />
         </>
     )
 }

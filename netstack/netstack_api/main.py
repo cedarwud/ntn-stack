@@ -70,6 +70,9 @@ async def _background_satellite_data_init():
         if success:
             logger.info("✅ 背景初始化：衛星數據載入成功")
             satellite_data_ready = True
+            
+            # Phase 2: 啟動 45 天數據背景下載（完全非阻塞）
+            await _start_phase2_background_download(db_url)
         else:
             logger.warning("⚠️ 背景初始化：衛星數據載入失敗，將使用緊急數據")
             satellite_data_ready = False
@@ -77,6 +80,31 @@ async def _background_satellite_data_init():
     except Exception as e:
         logger.error(f"❌ 背景初始化：衛星數據載入失敗: {e}")
         satellite_data_ready = False
+
+
+async def _start_phase2_background_download(db_url: str):
+    """啟動 Phase 2: 45天數據背景下載（完全獨立進程）"""
+    try:
+        from .services.phase2_background_downloader import Phase2BackgroundDownloader
+        
+        downloader = Phase2BackgroundDownloader(db_url)
+        
+        # 檢查當前下載狀態
+        status = await downloader.get_download_status()
+        
+        if status.get("status") == "completed":
+            logger.info("✅ Phase 2: 45天數據已完成，跳過下載")
+            return
+        elif status.get("status") == "downloading":
+            logger.info(f"📊 Phase 2: 45天數據下載進行中 ({status.get('progress', 0)}%)")
+            return
+            
+        # 啟動背景下載（完全非阻塞）
+        logger.info("🚀 Phase 2: 啟動 45天衛星數據背景下載")
+        await downloader.start_background_download()
+        
+    except Exception as e:
+        logger.warning(f"⚠️ Phase 2 背景下載啟動失敗: {e} (不影響 API 正常運行)")
 
 
 @asynccontextmanager
