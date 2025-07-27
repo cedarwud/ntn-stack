@@ -44,7 +44,7 @@ class ConfigManager:
             "app": {
                 "title": "NetStack API",
                 "description": "Open5GS + UERANSIM 雙 Slice 核心網管理 API",
-                "version": "2.0.0",
+                "version": "2.0.0-final",
                 "environment": os.getenv("ENVIRONMENT", "development"),
                 "debug": os.getenv("DEBUG", "false").lower() == "true",
             },
