@@ -134,13 +134,13 @@ class SimWorldApiClient {
   }
 
   /**
-   * 獲取可見衛星列表 - 真實 TLE 數據（全球視野，無地域限制）
+   * 獲取可見衛星列表 - 真實 TLE 數據（精確仰角過濾，適合LEO換手研究）
    */
   async getVisibleSatellites(
-    minElevation: number = -10,     // 🌍 全球視野使用更寬鬆的仰角（地平線以下）
-    maxSatellites: number = 100,    // 🚀 大幅增加衛星數量
-    observerLat: number = 0.0,      // 保留參數但在全球模式下忽略
-    observerLon: number = 0.0       // 保留參數但在全球模式下忽略
+    minElevation: number = 5,       // 📡 適合換手研究的最小仰角（5度以上可進行換手）
+    maxSatellites: number = 10,     // 🎯 適量衛星數量，符合3GPP NTN標準（6-8顆）
+    observerLat: number = 24.9441667,    // 🇹🇼 NTPU觀測點緯度
+    observerLon: number = 121.3713889    // 🇹🇼 NTPU觀測點經度
   ): Promise<VisibleSatellitesResponse> {
     // 創建請求去重鍵
     const requestKey = 'satellites-' + minElevation + '-' + maxSatellites + '-' + observerLat + '-' + observerLon;
@@ -156,13 +156,13 @@ class SimWorldApiClient {
     // 創建並執行請求
     const executeRequest = async () => {
       try {
-        // 🌍 為了獲得真正的全球視野，我們使用寬鬆的仰角限制和觀測點座標
+        // 📍 使用精確仰角過濾，適合換手研究（返回5-6顆可見衛星）
         const params = {
-          count: Math.min(maxSatellites, 150),  // 🚀 大幅提高到150顆衛星
-          min_elevation_deg: minElevation,  // 使用傳入的仰角參數
-          global_view: 'true',  // 強制全球視野
-          observer_lat: observerLat,  // 傳遞觀測點緯度以正確計算仰角
-          observer_lon: observerLon,  // 傳遞觀測點經度以正確計算方位角和距離
+          count: Math.min(maxSatellites, 150),  // 保持最大衛星數量限制
+          min_elevation_deg: minElevation,  // 使用傳入的仰角參數 (通常是5度)
+          global_view: 'false',  // ✅ 修復：使用精確仰角過濾，而非全球視野
+          observer_lat: observerLat,  // NTPU座標 (24.9441667°N)
+          observer_lon: observerLon,  // NTPU座標 (121.3713889°E)
           observer_alt: 0.0,  // 觀測點高度
         };
 
@@ -175,7 +175,7 @@ class SimWorldApiClient {
         const endpoint = `/api/v1/satellites/visible_satellites?${queryParams.toString()}`;
     
         console.log(`🛰️ SimWorldApi: 調用衛星API ${endpoint}`);
-        console.log(`🌍 SimWorldApi: 觀測點座標 (${observerLat}, ${observerLon}), 最小仰角 ${minElevation}°`);
+        console.log(`📡 SimWorldApi: NTPU觀測點座標 (${observerLat}, ${observerLon}), 最小仰角 ${minElevation}°`);
         
         // 🚀 使用統一的 API 配置系統
         const response = await this.fetchWithConfig(endpoint);
@@ -212,7 +212,7 @@ class SimWorldApiClient {
         };
         
         console.log(`🛰️ SimWorldApi: API 原始響應:`, data);
-        console.log(`🌍 SimWorldApi: 全球視野模式接收到 ${data.satellites?.length || 0} 顆衛星`);
+        console.log(`📡 SimWorldApi: 接收到 ${data.satellites?.length || 0} 顆衛星 (仰角≥${minElevation}°)`);
         
         // 顯示數據來源信息
         if (data.data_source) {
@@ -248,10 +248,10 @@ class SimWorldApiClient {
           dataSource: data.data_source
         });
         
-        // 🌍 只在衛星數量非常少時警告（0-1顆才異常）
+        // 📡 檢查衛星數量是否符合換手研究需求（5-6顆為理想）
         if (data.satellites && data.satellites.length < 2) {
-          console.warn(`🌍 SimWorldApi: 衛星數量偏少 (${data.satellites.length} 顆)`);
-          console.warn(`🌍 建議: 檢查後端TLE數據或API配置`);
+          console.warn(`📡 SimWorldApi: 衛星數量偏少 (${data.satellites.length} 顆)`);
+          console.warn(`📡 建議: 檢查後端TLE數據或仰角設定`);
         }
         
         // 檢查 API 是否返回錯誤
@@ -272,11 +272,11 @@ class SimWorldApiClient {
           // 如果後端處理了衛星但沒有找到可見的，記錄詳細信息
           if (data.processed !== undefined && data.visible !== undefined && data.visible === 0) {
             console.warn(`🛰️ SimWorldApi: 後端處理了 ${data.processed} 顆衛星，但沒有可見衛星`);
-            console.warn(`🌍 全球視野模式下仍無可見衛星，可能原因:`);
-            console.warn(`   1. 後端仍在使用地域限制邏輯`);
-            console.warn(`   2. TLE數據庫衛星數量不足`);
-            console.warn(`   3. 仰角限制仍然過嚴格`);
-            console.warn(`   4. 需要後端實現真正的全球視野算法`);
+            console.warn(`📡 仰角過濾模式下無可見衛星，可能原因:`);
+            console.warn(`   1. 仰角閾值設定過高 (當前: ${minElevation}°)`);
+            console.warn(`   2. NTPU觀測點位置沒有適合的衛星通過`);
+            console.warn(`   3. TLE數據需要更新`);
+            console.warn(`   4. 時間點沒有衛星在可見區域內`);
           }
         }
         
@@ -543,10 +543,10 @@ export const simWorldApi = new SimWorldApiClient()
  * React Hook 用於獲取可見衛星
  */
 export const useVisibleSatellites = (
-  minElevation: number = -10,     // 全球視野預設-10度
-  maxSatellites: number = 100,    // 增加預設衛星數量
-  observerLat: number = 0.0,      // 全球視野預設赤道位置
-  observerLon: number = 0.0       // 全球視野預設本初子午線
+  minElevation: number = 5,       // 📡 換手研究預設5度仰角
+  maxSatellites: number = 10,     // 🎯 適量衛星數量，符合3GPP NTN標準
+  observerLat: number = 24.9441667,    // 🇹🇼 NTPU觀測點緯度
+  observerLon: number = 121.3713889    // 🇹🇼 NTPU觀測點經度
 ) => {
   const [satellites, setSatellites] = useState<SatellitePosition[]>([]);
   const [loading, setLoading] = useState(true);
