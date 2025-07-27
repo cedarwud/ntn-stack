@@ -95,14 +95,9 @@ def generate_simplified_satellite_data(
                     "timestamp": current_time.isoformat(),
                     "latitude": round(sat_lat, 6),
                     "longitude": round(sat_lon, 6),
-                    "altitude": altitude,
+                    "altitude": altitude * 1000,  # 轉換為米
                     "elevation_angle": round(elevation, 2),
                     "azimuth_angle": round(azimuth, 2),
-                    "observer_latitude": observer_lat,
-                    "observer_longitude": observer_lon,
-                    "observer_altitude": 100,
-                    "signal_strength": round(signal_strength, 2),
-                    "path_loss_db": round(path_loss, 2),
                     "calculation_method": "precomputed",
                     "data_quality": 0.8  # 中等品質預載數據
                 }

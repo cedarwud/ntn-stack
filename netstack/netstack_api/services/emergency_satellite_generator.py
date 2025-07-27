@@ -114,14 +114,9 @@ class EmergencySatelliteGenerator:
                         "timestamp": current_time,
                         "latitude": sat_lat,
                         "longitude": sat_lon,
-                        "altitude": 550,  # 固定高度
+                        "altitude": 550000,  # 550km 轉換為米
                         "elevation_angle": elevation,
                         "azimuth_angle": azimuth,
-                        "observer_latitude": observer_lat,
-                        "observer_longitude": observer_lon,
-                        "observer_altitude": 100,
-                        "signal_strength": max(20, 80 - distance),
-                        "path_loss_db": 120 + 20 * math.log10(max(1, distance)),
                         "calculation_method": "emergency_simplified",
                         "data_quality": 0.5  # 標記為低品質數據
                     }
@@ -149,10 +144,7 @@ class EmergencySatelliteGenerator:
                     0, 0, 0,  # velocity_x, y, z 設為 0
                     None,  # orbital_period
                     record["elevation_angle"], record["azimuth_angle"], 0,  # range_rate
-                    record["calculation_method"], record["data_quality"],
-                    record["observer_latitude"], record["observer_longitude"], 
-                    record["observer_altitude"], record["signal_strength"],
-                    record["path_loss_db"]
+                    record["calculation_method"], record["data_quality"]
                 ))
             
             await conn.executemany("""
@@ -162,10 +154,8 @@ class EmergencySatelliteGenerator:
                     latitude, longitude, altitude,
                     velocity_x, velocity_y, velocity_z, orbital_period,
                     elevation_angle, azimuth_angle, range_rate,
-                    calculation_method, data_quality,
-                    observer_latitude, observer_longitude, observer_altitude,
-                    signal_strength, path_loss_db
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+                    calculation_method, data_quality
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
             """, records)
             
             logger.info(f"✅ 成功存儲 {len(records)} 條緊急衛星數據")
