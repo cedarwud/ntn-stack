@@ -211,13 +211,6 @@ def configure_matplotlib():
         logger.warning(f"Failed to set Matplotlib backend to Agg: {e}", exc_info=True)
 
 
-# --- Monitoring Configuration ---
-# Phase 2 重構：統一監控配置管理
-PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
-ALERTMANAGER_URL = os.getenv("ALERTMANAGER_URL", "http://localhost:9093")
-MONITORING_ENABLED = os.getenv("MONITORING_ENABLED", "true").lower() == "true"
-
-logger.info(f"Monitoring Configuration: PROMETHEUS_URL={PROMETHEUS_URL}, ALERTMANAGER_URL={ALERTMANAGER_URL}, ENABLED={MONITORING_ENABLED}")
 
 # --- API Configuration ---
 # SimWorld API 基本配置
@@ -228,7 +221,6 @@ API_DESCRIPTION = "LEO 衛星系統模擬與通訊引擎"
 # CORS 配置
 CORS_ORIGINS = [
     "http://localhost:5173",  # Vite 開發服務器
-    "http://localhost:3000",  # 可能的其他前端端口
     "http://simworld_frontend:5173",  # Docker 容器名稱
 ]
 
