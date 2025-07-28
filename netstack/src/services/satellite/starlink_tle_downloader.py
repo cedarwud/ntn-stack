@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 import time
+import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
@@ -23,6 +24,14 @@ import aiohttp
 import aiofiles
 from skyfield.api import EarthSatellite, utc, load
 from skyfield.sgp4lib import EarthSatellite as SGP4Satellite
+
+# 添加 NetStack API 路徑以訪問歷史數據
+sys.path.append('/app/netstack_api')
+try:
+    from netstack_api.data.historical_tle_data import get_historical_tle_data, get_data_source_info
+    HISTORICAL_DATA_AVAILABLE = True
+except ImportError:
+    HISTORICAL_DATA_AVAILABLE = False
 
 
 # 設置日誌
@@ -37,11 +46,11 @@ class StarlinkTLEDownloader:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
-        # CelesTrak Starlink TLE 數據源
+        # CelesTrak Starlink TLE 數據源 (使用正確的URL)
         self.starlink_urls = [
-            "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle",
-            "https://celestrak.org/NORAD/elements/supplemental/starlink.txt",
-            "https://celestrak.org/NORAD/elements/starlink.txt"
+            "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle",  # 標準TLE格式
+            "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=json", # JSON格式
+            "https://celestrak.org/NORAD/elements/supplemental/?FORMAT=json"          # 高精度SupGP數據
         ]
         
         # 緩存文件路徑
@@ -229,20 +238,68 @@ class StarlinkTLEDownloader:
             return None
     
     async def get_starlink_tle_data(self, force_download: bool = False) -> List[Dict[str, str]]:
-        """獲取 Starlink TLE 數據（優先使用緩存）"""
+        """獲取 Starlink TLE 數據（優先使用緩存，失敗時使用歷史數據）"""
         if not force_download:
             cached_data = await self.load_cached_data()
             if cached_data:
                 return cached_data
         
-        # 下載新數據
+        # 嘗試下載新數據
         satellites = await self.download_all_starlink_data()
         
         if satellites:
             await self.cache_tle_data(satellites)
+            logger.info(f"成功下載 {len(satellites)} 顆 Starlink 衛星（來源：CelesTrak）")
             return satellites
         else:
-            logger.error("無法下載任何 Starlink 數據")
+            logger.warning("外部 TLE 數據源不可用，回退到歷史數據")
+            
+            # 回退到歷史數據
+            if HISTORICAL_DATA_AVAILABLE:
+                historical_data = self.load_historical_starlink_data()
+                if historical_data:
+                    logger.info(f"使用歷史 TLE 數據: {len(historical_data)} 顆 Starlink 衛星")
+                    # 緩存歷史數據供後續使用
+                    await self.cache_tle_data(historical_data)
+                    return historical_data
+            
+            logger.error("無法獲取任何 Starlink 數據（包括歷史數據）")
+            return []
+    
+    def load_historical_starlink_data(self) -> List[Dict[str, str]]:
+        """加載歷史 Starlink TLE 數據"""
+        try:
+            if not HISTORICAL_DATA_AVAILABLE:
+                logger.error("歷史數據模組不可用")
+                return []
+            
+            # 獲取 Starlink 歷史數據
+            historical_starlink = get_historical_tle_data('starlink')
+            
+            # 轉換為標準格式
+            satellites = []
+            for sat_data in historical_starlink:
+                satellite = {
+                    'name': sat_data['name'],
+                    'norad_id': sat_data['norad_id'],
+                    'line1': sat_data['line1'],
+                    'line2': sat_data['line2'],
+                    'download_time': datetime.now(timezone.utc).isoformat(),
+                    'data_source': 'historical_data',
+                    'launch_date': sat_data.get('launch_date', 'unknown')
+                }
+                satellites.append(satellite)
+            
+            # 獲取數據源信息
+            source_info = get_data_source_info()
+            logger.info(f"加載歷史數據: {source_info['description']}")
+            logger.info(f"數據日期: {source_info['data_date']}")
+            logger.info(f"總衛星數: {len(satellites)}")
+            
+            return satellites
+            
+        except Exception as e:
+            logger.error(f"加載歷史數據失敗: {e}")
             return []
     
     async def verify_complete_dataset(self, satellites: List[Dict[str, str]]) -> Dict[str, Any]:
