@@ -70,30 +70,28 @@ class NTPUVisibilityFilter:
         
         try:
             if self.coordinate_engine is None:
-                # 如果沒有座標引擎，使用簡化計算
-                visibility_result = self._quick_visibility_check(satellite_data, reference_time)
+                # 如果沒有座標引擎，使用簡化瞬時計算
+                visibility_result = self._instantaneous_visibility_check(satellite_data, reference_time)
             else:
-                # 使用完整軌道計算
-                orbit_data = self.coordinate_engine.compute_96min_orbital_cycle(
+                # 使用精確瞬時計算
+                visibility_data = self.coordinate_engine.compute_instantaneous_visibility(
                     satellite_data, reference_time
                 )
                 
-                if 'error' not in orbit_data:
-                    stats = orbit_data['statistics']
+                if 'error' not in visibility_data:
                     visibility_result = {
-                        'is_visible': stats['visible_positions'] > 0,
-                        'visibility_percentage': stats['visibility_percentage'],
-                        'max_elevation': stats['max_elevation'],
-                        'visibility_windows': orbit_data['visibility_windows'],
-                        'total_positions': stats['total_positions'],
-                        'visible_positions': stats['visible_positions'],
-                        'calculation_method': 'full_orbit'
+                        'is_visible': visibility_data['is_visible'],
+                        'elevation': visibility_data.get('elevation', -90.0),
+                        'azimuth': visibility_data.get('azimuth', 0.0),
+                        'range_km': visibility_data.get('range_km', 0.0),
+                        'calculation_method': 'instantaneous_precise',
+                        'observation_time': visibility_data['observation_time']
                     }
                 else:
                     visibility_result = {
                         'is_visible': False,
-                        'error': orbit_data['error'],
-                        'calculation_method': 'error'
+                        'error': visibility_data['error'],
+                        'calculation_method': 'instantaneous_error'
                     }
             
             # 添加衛星基本信息
@@ -120,11 +118,11 @@ class NTPUVisibilityFilter:
                 'calculation_method': 'error'
             }
     
-    def _quick_visibility_check(self, satellite_data: Dict[str, Any], 
-                              reference_time: datetime) -> Dict[str, Any]:
+    def _instantaneous_visibility_check(self, satellite_data: Dict[str, Any], 
+                                       reference_time: datetime) -> Dict[str, Any]:
         """
-        快速可見性檢查 (簡化版本)
-        基於軌道參數的粗略估算
+        瞬時可見性檢查 (簡化版本)
+        僅計算特定時間點的可見性
         """
         try:
             from sgp4.api import Satrec, jday
@@ -132,43 +130,38 @@ class NTPUVisibilityFilter:
             # 創建 SGP4 衛星對象
             satellite = Satrec.twoline2rv(satellite_data['line1'], satellite_data['line2'])
             
-            # 檢查幾個時間點
-            visible_count = 0
-            total_checks = 12  # 每小時檢查一次，12小時
-            max_elevation = -90.0
+            # 轉換為 Julian Day
+            jd, fr = jday(reference_time.year, reference_time.month, reference_time.day,
+                         reference_time.hour, reference_time.minute, 
+                         reference_time.second + reference_time.microsecond / 1e6)
             
-            for hour_offset in range(total_checks):
-                check_time = reference_time + timedelta(hours=hour_offset)
-                
-                # 轉換為 Julian Day
-                jd, fr = jday(check_time.year, check_time.month, check_time.day,
-                             check_time.hour, check_time.minute, check_time.second)
-                
-                # SGP4 計算
-                error, position, velocity = satellite.sgp4(jd, fr)
-                
-                if error == 0:
-                    # 簡化的仰角計算
-                    elevation = self._estimate_elevation(position)
-                    max_elevation = max(max_elevation, elevation)
-                    
-                    if elevation >= self.min_elevation:
-                        visible_count += 1
+            # SGP4 計算
+            error, position, velocity = satellite.sgp4(jd, fr)
             
-            return {
-                'is_visible': visible_count > 0,
-                'visibility_percentage': (visible_count / total_checks) * 100,
-                'max_elevation': max_elevation,
-                'visible_checks': visible_count,
-                'total_checks': total_checks,
-                'calculation_method': 'quick_estimate'
-            }
+            if error == 0:
+                # 簡化的仰角計算
+                elevation = self._estimate_elevation(position)
+                
+                return {
+                    'is_visible': elevation >= self.min_elevation,
+                    'elevation': elevation,
+                    'azimuth': 0.0,  # 簡化版本不計算方位角
+                    'range_km': 0.0,  # 簡化版本不計算距離
+                    'calculation_method': 'instantaneous_simple',
+                    'observation_time': reference_time.isoformat()
+                }
+            else:
+                return {
+                    'is_visible': False,
+                    'error': f'SGP4 calculation error: {error}',
+                    'calculation_method': 'instantaneous_simple_error'
+                }
             
         except Exception as e:
             return {
                 'is_visible': False,
                 'error': str(e),
-                'calculation_method': 'quick_estimate_error'
+                'calculation_method': 'instantaneous_simple_error'
             }
     
     def _estimate_elevation(self, eci_position: Tuple[float, float, float]) -> float:

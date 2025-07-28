@@ -111,6 +111,74 @@ class CoordinateSpecificOrbitEngine:
                 'enu_coordinates': {'east': 0.0, 'north': 0.0, 'up': 0.0}
             }
     
+    def compute_instantaneous_visibility(self, satellite_tle_data: Dict[str, Any], 
+                                       observation_time: datetime) -> Dict[str, Any]:
+        """
+        計算特定時間點的瞬時可見性
+        
+        Args:
+            satellite_tle_data: 衛星 TLE 數據
+            observation_time: 觀測時間
+            
+        Returns:
+            Dict: 瞬時可見性數據
+        """
+        try:
+            from sgp4.api import Satrec, jday
+            
+            # 創建 SGP4 衛星對象
+            satellite = Satrec.twoline2rv(satellite_tle_data['line1'], satellite_tle_data['line2'])
+            
+            # 轉換時間為 Julian Day
+            jd, fr = jday(observation_time.year, observation_time.month, observation_time.day,
+                         observation_time.hour, observation_time.minute, 
+                         observation_time.second + observation_time.microsecond / 1e6)
+            
+            # 計算衛星位置
+            error, position, velocity = satellite.sgp4(jd, fr)
+            
+            if error == 0:
+                # 轉換為觀測點相對座標
+                observer_coords = self.eci_to_observer_coordinates(position, observation_time)
+                
+                # 檢查是否可見
+                is_visible = observer_coords['elevation_deg'] >= self.min_elevation
+                
+                return {
+                    'satellite_info': {
+                        'name': satellite_tle_data['name'],
+                        'norad_id': satellite_tle_data['norad_id']
+                    },
+                    'observation_time': observation_time.isoformat(),
+                    'position_eci': {'x': position[0], 'y': position[1], 'z': position[2]},
+                    'observer_coordinates': observer_coords,
+                    'is_visible': is_visible,
+                    'elevation': observer_coords['elevation_deg'],
+                    'azimuth': observer_coords['azimuth_deg'],
+                    'range_km': observer_coords['range_km']
+                }
+            else:
+                return {
+                    'satellite_info': {
+                        'name': satellite_tle_data['name'],
+                        'norad_id': satellite_tle_data['norad_id']
+                    },
+                    'observation_time': observation_time.isoformat(),
+                    'is_visible': False,
+                    'error': f'SGP4 calculation error: {error}'
+                }
+                
+        except Exception as e:
+            return {
+                'satellite_info': {
+                    'name': satellite_tle_data.get('name', 'Unknown'),
+                    'norad_id': satellite_tle_data.get('norad_id', 0)
+                },
+                'observation_time': observation_time.isoformat(),
+                'is_visible': False,
+                'error': str(e)
+            }
+    
     def compute_96min_orbital_cycle(self, satellite_tle_data: Dict[str, Any], 
                                    start_time: datetime) -> Dict[str, Any]:
         """
@@ -309,6 +377,67 @@ class CoordinateSpecificOrbitEngine:
         logger.info(f"  - 篩選效率: {filter_efficiency:.1f}% 減少")
         
         return filtered_satellites
+    
+    def filter_instantaneous_visible_satellites(self, all_satellites: List[Dict[str, Any]], 
+                                               observation_time: datetime) -> List[Dict[str, Any]]:
+        """
+        瞬時可見性篩選器 - 僅返回在特定時間點可見的衛星
+        
+        Args:
+            all_satellites: 所有衛星數據
+            observation_time: 觀測時間
+            
+        Returns:
+            List: 在觀測時間可見的衛星清單
+        """
+        logger.info(f"開始瞬時可見性篩選: {len(all_satellites)} 顆衛星")
+        logger.info(f"  觀測時間: {observation_time.isoformat()}")
+        
+        visible_satellites = []
+        filter_stats = {
+            'total_input': len(all_satellites),
+            'instantaneous_visible': 0,
+            'not_visible': 0,
+            'calculation_errors': 0
+        }
+        
+        for i, satellite in enumerate(all_satellites):
+            try:
+                # 計算瞬時可見性
+                visibility_data = self.compute_instantaneous_visibility(satellite, observation_time)
+                
+                if 'error' not in visibility_data and visibility_data['is_visible']:
+                    # 添加可見性信息到衛星數據
+                    visible_satellite = satellite.copy()
+                    visible_satellite['instantaneous_visibility'] = visibility_data
+                    visible_satellite['elevation'] = visibility_data['elevation']
+                    visible_satellite['azimuth'] = visibility_data['azimuth']
+                    visible_satellite['range_km'] = visibility_data['range_km']
+                    
+                    visible_satellites.append(visible_satellite)
+                    filter_stats['instantaneous_visible'] += 1
+                elif 'error' in visibility_data:
+                    filter_stats['calculation_errors'] += 1
+                else:
+                    filter_stats['not_visible'] += 1
+                
+                # 進度報告
+                if (i + 1) % 200 == 0:
+                    logger.info(f"瞬時篩選進度: {i + 1}/{len(all_satellites)} ({(i + 1)/len(all_satellites)*100:.1f}%)")
+                    
+            except Exception as e:
+                logger.error(f"瞬時篩選衛星 {satellite.get('name', 'Unknown')} 失敗: {e}")
+                filter_stats['calculation_errors'] += 1
+                continue
+        
+        logger.info("✅ 瞬時可見性篩選完成:")
+        logger.info(f"  - 輸入衛星: {filter_stats['total_input']}")
+        logger.info(f"  - 瞬時可見: {filter_stats['instantaneous_visible']}")
+        logger.info(f"  - 不可見: {filter_stats['not_visible']}")
+        logger.info(f"  - 計算錯誤: {filter_stats['calculation_errors']}")
+        logger.info(f"  - 可見率: {filter_stats['instantaneous_visible']/filter_stats['total_input']*100:.2f}%")
+        
+        return visible_satellites
     
     def find_optimal_timewindow(self, filtered_satellites: List[Dict[str, Any]], 
                                window_hours: int = 6, 
