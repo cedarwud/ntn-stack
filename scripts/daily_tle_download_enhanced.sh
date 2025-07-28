@@ -94,21 +94,49 @@ file_exists_and_valid() {
     fi
 }
 
-# 備份現有檔案
+# 備份現有檔案到統一備份目錄
 backup_file() {
     local source_file="$1"
     local description="$2"
-    
+
     if [[ ! -f "$source_file" ]]; then
         return 0
     fi
-    
+
     local filename=$(basename "$source_file")
     local backup_path="$BACKUP_DIR/$filename"
-    
+
     if $BACKUP_EXISTING; then
         cp "$source_file" "$backup_path"
         log_info "備份 $description: $backup_path"
+    fi
+}
+
+# 清理舊的散落備份檔案
+cleanup_scattered_backups() {
+    local constellation="$1"
+
+    # 清理 TLE 目錄中的 .backup_* 檔案
+    find "$TLE_DATA_DIR/$constellation/tle" -name "*.backup_*" -type f -delete 2>/dev/null || true
+
+    # 清理 JSON 目錄中的 .backup_* 檔案
+    find "$TLE_DATA_DIR/$constellation/json" -name "*.backup_*" -type f -delete 2>/dev/null || true
+
+    log_info "已清理 $constellation 的散落備份檔案"
+}
+
+# 清理過期備份檔案
+cleanup_old_backups() {
+    local days_to_keep=7  # 保留7天的備份
+
+    if [[ -d "$TLE_DATA_DIR/backups" ]]; then
+        # 刪除超過指定天數的備份目錄
+        find "$TLE_DATA_DIR/backups" -maxdepth 1 -type d -name "????????" -mtime +$days_to_keep -exec rm -rf {} \; 2>/dev/null || true
+
+        local deleted_count=$(find "$TLE_DATA_DIR/backups" -maxdepth 1 -type d -name "????????" -mtime +$days_to_keep 2>/dev/null | wc -l)
+        if [[ $deleted_count -gt 0 ]]; then
+            log_info "已清理 $deleted_count 個過期備份目錄（保留 $days_to_keep 天）"
+        fi
     fi
 }
 
@@ -225,59 +253,128 @@ download_file() {
     fi
 }
 
+# 從 TLE 數據提取實際日期
+extract_tle_date() {
+    local tle_file="$1"
+
+    # 檢查檔案是否存在
+    if [[ ! -f "$tle_file" ]]; then
+        echo ""
+        return 1
+    fi
+
+    # 提取第一顆衛星的 epoch
+    local first_line1=$(sed -n '2p' "$tle_file" 2>/dev/null)
+    if [[ -z "$first_line1" ]]; then
+        echo ""
+        return 1
+    fi
+
+    # 提取年份和天數
+    local epoch_year=$(echo "$first_line1" | cut -c19-20)
+    local epoch_day_decimal=$(echo "$first_line1" | cut -c21-32)
+    local epoch_day=$(echo "$epoch_day_decimal" | cut -d'.' -f1)
+
+    # 轉換為完整年份
+    local full_year
+    if [[ $epoch_year -lt 57 ]]; then  # 假設 57 以下是 20xx 年
+        full_year="20$epoch_year"
+    else
+        full_year="19$epoch_year"
+    fi
+
+    # 轉換天數為日期
+    local epoch_date
+    if command -v python3 >/dev/null 2>&1; then
+        epoch_date=$(python3 -c "
+from datetime import datetime, timedelta
+import sys
+try:
+    year = int('$full_year')
+    day = int('$epoch_day')
+    date = datetime(year, 1, 1) + timedelta(days=day-1)
+    print(date.strftime('%Y%m%d'))
+except:
+    sys.exit(1)
+" 2>/dev/null)
+    else
+        # 備用方法：使用 date 命令
+        epoch_date=$(date -d "$full_year-01-01 +$((epoch_day-1)) days" '+%Y%m%d' 2>/dev/null)
+    fi
+
+    echo "$epoch_date"
+    return 0
+}
+
 # 驗證 TLE 數據
 validate_tle_data() {
     local tle_file="$1"
     local expected_date="$2"
     local constellation="$3"
-    
+
     log_info "驗證 TLE 數據: $constellation"
-    
+
     # 檢查檔案格式
     local line_count=$(wc -l < "$tle_file")
     if [[ $line_count -lt 6 ]]; then
         log_error "TLE 檔案行數過少 ($line_count 行)"
         return 1
     fi
-    
+
     # 檢查是否為 TLE 格式
     local first_line1=$(sed -n '2p' "$tle_file")
     local first_line2=$(sed -n '3p' "$tle_file")
-    
+
     if [[ ! "$first_line1" =~ ^1\  ]] || [[ ! "$first_line2" =~ ^2\  ]]; then
         log_error "TLE 格式驗證失敗"
         return 1
     fi
-    
+
     # 提取 epoch date 進行詳細分析
     local epoch_year=$(echo "$first_line1" | cut -c19-20)
     local epoch_day=$(echo "$first_line1" | cut -c21-32)
-    
+
     # 計算當前年份的後兩位
     local current_year_short=$(date -u '+%y')
     local prev_year_short=$(printf "%02d" $(( ($(date -u '+%y') - 1 + 100) % 100 )))
-    
+
     # 檢查年份是否合理
     if [[ "$epoch_year" != "$current_year_short" && "$epoch_year" != "$prev_year_short" ]]; then
         log_warn "TLE epoch 年份 ($epoch_year) 可能不是最新數據"
     fi
-    
+
     # 計算衛星數量和基本統計
     local satellite_count=$((line_count / 3))
-    
+
     # 提取更詳細的 epoch 信息用於新鮮度檢查
     local epoch_day_decimal=$(echo "$first_line1" | cut -c21-32)
     local current_day=$(date -u '+%j')
     local current_decimal=$(echo "$current_day" | sed 's/^0*//')
-    
+
     # 簡單的新鮮度檢查 (允許幾天的差異)
-    local day_diff=$(echo "$epoch_day_decimal - $current_decimal" | bc -l 2>/dev/null | cut -d'.' -f1 2>/dev/null || echo "0")
-    if [[ ${day_diff#-} -gt 5 ]]; then  # 絕對值大於5天
-        log_warn "TLE 數據可能不夠新鮮 (epoch day: $epoch_day_decimal, current: $current_decimal)"
+    local day_diff_raw=$(echo "$epoch_day_decimal - $current_decimal" | bc -l 2>/dev/null || echo "0")
+    local day_diff=$(echo "$day_diff_raw" | cut -d'.' -f1 2>/dev/null || echo "0")
+
+    # 確保 day_diff 是有效數字
+    if [[ ! "$day_diff" =~ ^-?[0-9]+$ ]]; then
+        day_diff=0
     fi
-    
+
+    local abs_day_diff=${day_diff#-}  # 取絕對值
+    if [[ -n "$abs_day_diff" && "$abs_day_diff" -gt 5 ]]; then  # 絕對值大於5天
+        log_warn "TLE 數據可能不夠新鮮 (epoch day: $epoch_day_decimal, current: $current_decimal, diff: $day_diff)"
+    fi
+
+    # 提取實際數據日期
+    local actual_date=$(extract_tle_date "$tle_file")
+    if [[ -n "$actual_date" ]]; then
+        log_info "TLE 數據實際日期: $actual_date"
+        # 將實際日期存儲到全局變量中，供後續使用
+        export TLE_ACTUAL_DATE="$actual_date"
+    fi
+
     log_success "TLE 驗證通過: $satellite_count 顆衛星, epoch: 20$epoch_year $epoch_day_decimal"
-    
+
     return 0
 }
 
@@ -326,69 +423,137 @@ with open('$json_file', 'r') as f:
     return 0
 }
 
+# 檢查是否需要更新已存在的檔案
+need_update_existing() {
+    local existing_file="$1"
+    local url="$2"
+    local description="$3"
+
+    if $FORCE_UPDATE; then
+        log_update "強制更新模式：將重新下載 $description"
+        return 0
+    fi
+
+    if ! file_exists_and_valid "$existing_file"; then
+        return 0  # 檔案不存在或無效，需要下載
+    fi
+
+    if ! $CHECK_UPDATES; then
+        log_info "跳過更新檢查：$description"
+        return 1  # 不檢查更新
+    fi
+
+    # 使用原有的更新檢查邏輯
+    need_update "$existing_file" "$url" "$description"
+    return $?
+}
+
 # 主下載函數
 download_constellation_data() {
     local constellation="$1"
     local date_str="$2"
-    
+
     local tle_url="https://celestrak.org/NORAD/elements/gp.php?GROUP=$constellation&FORMAT=tle"
     local json_url="https://celestrak.org/NORAD/elements/gp.php?GROUP=$constellation&FORMAT=json"
-    
-    local tle_file="$TLE_DATA_DIR/$constellation/tle/${constellation}_${date_str}.tle"
-    local json_file="$TLE_DATA_DIR/$constellation/json/${constellation}_${date_str}.json"
-    
+
+    # 使用臨時檔案名
+    local temp_tle_file="$TLE_DATA_DIR/$constellation/tle/temp_${constellation}.tle"
+    local temp_json_file="$TLE_DATA_DIR/$constellation/json/temp_${constellation}.json"
+
     local success_count=0
     local total_count=2
     local updated_count=0
-    
+
     log_info "=========================================="
-    log_info "處理 $constellation 數據 (日期: $date_str)"
+    log_info "處理 $constellation 數據 (下載日期: $date_str)"
     log_info "=========================================="
     
     # 處理 TLE 檔案
-    if need_update "$tle_file" "$tle_url" "$constellation TLE"; then
-        if download_file "$tle_url" "$tle_file" "$constellation TLE"; then
-            if validate_tle_data "$tle_file" "$date_str" "$constellation"; then
-                ((success_count++))
-                ((updated_count++))
-                log_success "$constellation TLE 更新成功"
-            else
-                log_error "TLE 驗證失敗，恢復備份"
-                local backup_file="$BACKUP_DIR/$(basename "$tle_file")"
-                if [[ -f "$backup_file" ]]; then
-                    cp "$backup_file" "$tle_file"
-                    log_info "已恢復備份檔案"
+    log_info "開始處理 $constellation TLE 數據..."
+
+    # 先下載到臨時檔案
+    if download_file "$tle_url" "$temp_tle_file" "$constellation TLE"; then
+        if validate_tle_data "$temp_tle_file" "$date_str" "$constellation"; then
+            # 提取實際數據日期
+            local actual_date="$TLE_ACTUAL_DATE"
+            if [[ -z "$actual_date" ]]; then
+                actual_date="$date_str"  # 如果無法提取，使用下載日期
+                log_warn "無法提取實際數據日期，使用下載日期: $actual_date"
+            fi
+
+            local final_tle_file="$TLE_DATA_DIR/$constellation/tle/${constellation}_${actual_date}.tle"
+            log_info "數據實際日期: $actual_date"
+
+            # 檢查是否需要更新現有檔案
+            local should_update=true
+            if [[ -f "$final_tle_file" ]]; then
+                log_info "發現現有檔案: $(basename "$final_tle_file")"
+                if need_update_existing "$final_tle_file" "$tle_url" "$constellation TLE (實際日期: $actual_date)"; then
+                    log_info "現有檔案需要更新"
+                    backup_file "$final_tle_file" "$constellation TLE"
                 else
-                    rm -f "$tle_file"
+                    log_info "現有檔案無需更新，跳過"
+                    should_update=false
                 fi
             fi
+
+            if $should_update; then
+                # 移動臨時檔案到最終位置
+                mv "$temp_tle_file" "$final_tle_file"
+                log_success "$constellation TLE 更新成功: $(basename "$final_tle_file")"
+                updated_count=$((updated_count + 1))
+            else
+                # 清理臨時檔案
+                rm -f "$temp_tle_file"
+            fi
+
+            success_count=$((success_count + 1))
+        else
+            log_error "TLE 驗證失敗，刪除臨時檔案"
+            rm -f "$temp_tle_file"
         fi
-    else
-        ((success_count++))
-        log_info "$constellation TLE 無需更新"
     fi
     
     # 處理 JSON 檔案
-    if need_update "$json_file" "$json_url" "$constellation JSON"; then
-        if download_file "$json_url" "$json_file" "$constellation JSON"; then
-            if validate_json_data "$json_file" "$date_str" "$constellation"; then
-                ((success_count++))
-                ((updated_count++))
-                log_success "$constellation JSON 更新成功"
+    log_info "開始處理 $constellation JSON 數據..."
+
+    # 使用與 TLE 相同的實際日期
+    local actual_date="$TLE_ACTUAL_DATE"
+    if [[ -z "$actual_date" ]]; then
+        actual_date="$date_str"  # 如果無法提取，使用下載日期
+    fi
+
+    local final_json_file="$TLE_DATA_DIR/$constellation/json/${constellation}_${actual_date}.json"
+
+    # 檢查是否需要更新現有檔案
+    local should_download=true
+    if [[ -f "$final_json_file" ]]; then
+        log_info "發現現有 JSON 檔案: $(basename "$final_json_file")"
+        if need_update_existing "$final_json_file" "$json_url" "$constellation JSON (實際日期: $actual_date)"; then
+            log_info "現有 JSON 檔案需要更新"
+            backup_file "$final_json_file" "$constellation JSON"
+        else
+            log_info "現有 JSON 檔案無需更新，跳過"
+            should_download=false
+        fi
+    fi
+
+    if $should_download; then
+        # 下載到臨時檔案
+        if download_file "$json_url" "$temp_json_file" "$constellation JSON"; then
+            if validate_json_data "$temp_json_file" "$date_str" "$constellation"; then
+                # 移動臨時檔案到最終位置
+                mv "$temp_json_file" "$final_json_file"
+                log_success "$constellation JSON 更新成功: $(basename "$final_json_file")"
+                updated_count=$((updated_count + 1))
+                success_count=$((success_count + 1))
             else
-                log_error "JSON 驗證失敗，恢復備份"
-                local backup_file="$BACKUP_DIR/$(basename "$json_file")"
-                if [[ -f "$backup_file" ]]; then
-                    cp "$backup_file" "$json_file"
-                    log_info "已恢復備份檔案"
-                else
-                    rm -f "$json_file"
-                fi
+                log_error "JSON 驗證失敗，刪除臨時檔案"
+                rm -f "$temp_json_file"
             fi
         fi
     else
-        ((success_count++))
-        log_info "$constellation JSON 無需更新"
+        success_count=$((success_count + 1))
     fi
     
     log_info "$constellation 處理完成: $success_count/$total_count 檔案就緒, $updated_count 個更新"
@@ -435,15 +600,28 @@ generate_enhanced_report() {
     fi
     
     echo
-    echo "📁 當日檔案:"
+    echo "📁 本次下載的檔案:"
     if [[ -d "$TLE_DATA_DIR" ]]; then
-        find "$TLE_DATA_DIR" -name "*${date_str}*" -type f | sort | while read -r file; do
+        # 顯示今天修改的所有檔案（不限於檔案名中的日期）
+        find "$TLE_DATA_DIR" -type f -newermt "$(date '+%Y-%m-%d')" ! -path "*/backups/*" | sort | while read -r file; do
             local size=$(stat -c%s "$file" 2>/dev/null || echo "0")
             local mtime=$(stat -c%Y "$file" 2>/dev/null || echo "0")
             local formatted_time=$(date -d "@$mtime" '+%H:%M:%S' 2>/dev/null || echo "unknown")
             local relative_path=${file#$TLE_DATA_DIR/}
             printf "  %-50s %8s bytes (更新: %s)\n" "$relative_path" "$size" "$formatted_time"
         done
+
+        # 如果沒有找到今天的檔案，則顯示最近的檔案
+        local today_files=$(find "$TLE_DATA_DIR" -type f -newermt "$(date '+%Y-%m-%d')" ! -path "*/backups/*" | wc -l)
+        if [[ $today_files -eq 0 ]]; then
+            echo "  (沒有找到今天修改的檔案，顯示最近的檔案:)"
+            find "$TLE_DATA_DIR" -type f ! -path "*/backups/*" -exec stat -c '%Y %n' {} \; | sort -nr | head -10 | while read -r timestamp file; do
+                local size=$(stat -c%s "$file" 2>/dev/null || echo "0")
+                local formatted_time=$(date -d "@$timestamp" '+%H:%M:%S' 2>/dev/null || echo "unknown")
+                local relative_path=${file#$TLE_DATA_DIR/}
+                printf "  %-50s %8s bytes (更新: %s)\n" "$relative_path" "$size" "$formatted_time"
+            done
+        fi
     fi
     
     echo
@@ -507,9 +685,15 @@ main() {
     download_constellation_data "oneweb" "$date_str"
     local oneweb_result=$?
     
+    # 清理散落的備份檔案和過期備份
+    log_info "執行備份清理..."
+    cleanup_scattered_backups "starlink"
+    cleanup_scattered_backups "oneweb"
+    cleanup_old_backups
+
     # 生成報告
     generate_enhanced_report "$date_str" "$starlink_result" "$oneweb_result"
-    
+
     # 總結
     local total_failures=$((starlink_result + oneweb_result))
     if [[ $total_failures -eq 0 ]]; then
