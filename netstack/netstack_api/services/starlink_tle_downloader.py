@@ -25,13 +25,16 @@ import aiofiles
 from skyfield.api import EarthSatellite, utc, load
 from skyfield.sgp4lib import EarthSatellite as SGP4Satellite
 
-# 添加 NetStack API 路徑以訪問歷史數據
-sys.path.append('/app/netstack_api')
+# 導入歷史數據模組
 try:
-    from netstack_api.data.historical_tle_data import get_historical_tle_data, get_data_source_info
+    from .data.historical_tle_data import get_historical_tle_data, get_data_source_info
     HISTORICAL_DATA_AVAILABLE = True
 except ImportError:
-    HISTORICAL_DATA_AVAILABLE = False
+    try:
+        from data.historical_tle_data import get_historical_tle_data, get_data_source_info
+        HISTORICAL_DATA_AVAILABLE = True
+    except ImportError:
+        HISTORICAL_DATA_AVAILABLE = False
 
 
 # 設置日誌
@@ -46,11 +49,11 @@ class StarlinkTLEDownloader:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
-        # CelesTrak Starlink TLE 數據源 (使用正確的URL)
+        # CelesTrak Starlink TLE 數據源
         self.starlink_urls = [
-            "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle",  # 標準TLE格式
-            "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=json", # JSON格式
-            "https://celestrak.org/NORAD/elements/supplemental/?FORMAT=json"          # 高精度SupGP數據
+            "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle",
+            "https://celestrak.org/NORAD/elements/supplemental/starlink.txt",
+            "https://celestrak.org/NORAD/elements/starlink.txt"
         ]
         
         # 緩存文件路徑
