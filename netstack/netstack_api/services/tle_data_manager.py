@@ -115,19 +115,19 @@ class TLEDataManager:
             default_sources = [
                 TLESource(
                     name="celestrak_starlink",
-                    url="https://celestrak.org/NORAD/elements/supplemental/starlink.txt",
+                    url="https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle",
                     constellation="starlink",
                     update_interval_hours=12
                 ),
                 TLESource(
                     name="celestrak_oneweb", 
-                    url="https://celestrak.org/NORAD/elements/supplemental/oneweb.txt",
+                    url="https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=tle",
                     constellation="oneweb",
                     update_interval_hours=24
                 ),
                 TLESource(
                     name="celestrak_gps",
-                    url="https://celestrak.org/NORAD/elements/gps-ops.txt", 
+                    url="https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle", 
                     constellation="gps",
                     update_interval_hours=168  # 每週更新
                 ),

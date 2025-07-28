@@ -18,261 +18,155 @@
 🎮 SimWorld Backend (純3D仿真)
     ↓ (衛星數據請求)
 🛰️ NetStack API (衛星計算中心)
-    ↓ (TLE數據獲取)
-📡 Starlink TLE API
+    ↓ (本地TLE數據讀取)
+📂 45天收集TLE數據 (/tle_data/)
+    ├── starlink/ (45個每日文件)
+    └── oneweb/ (45個每日文件)
 ```
 
 ## 🚀 開發步驟流程
 
-### Phase 0: Starlink 完整數據下載與換手篩選工具 (1天) ⚡ **可立即開始**
+### Phase 0: 本地 TLE 數據收集與換手篩選工具 (45天收集 + 1天分析) ⚡ **可立即開始**
 
-#### 0.1 完整 Starlink TLE 數據下載器
-**目標**: 下載96分鐘(一個完整 Starlink 週期)內所有 Starlink 衛星 TLE 歷史數據
+#### 0.1 45天本地 TLE 數據收集基礎設施
+**目標**: 建立每日 TLE 數據收集系統，支援 45 天 RL 研究數據需求
 
+**數據收集架構**:
 ```bash
-# 下載當前所有 Starlink TLE 數據
-cd /home/sat/ntn-stack/netstack/src/services/satellite
-python starlink_tle_downloader.py --download-all --output starlink_complete_tle.json
-
-# 驗證下載數據
-python starlink_tle_downloader.py --verify starlink_complete_tle.json
+# 已創建的數據收集結構
+/home/sat/ntn-stack/tle_data/
+├── starlink/                    # Starlink TLE 數據目錄
+│   ├── starlink_day_01.tle    # 第1天數據 (手動填入)
+│   ├── starlink_day_02.tle    # 第2天數據 (手動填入)
+│   └── ...                     # 總計45個文件
+└── oneweb/                      # OneWeb TLE 數據目錄
+    ├── oneweb_day_01.tle      # 第1天數據 (手動填入)
+    ├── oneweb_day_02.tle      # 第2天數據 (手動填入)
+    └── ...                     # 總計45個文件
 ```
 
 **核心功能**:
-- [ ] 從 CelesTrak 下載所有當前 Starlink TLE 數據（~6000 顆衛星）
-- [ ] 本地存儲完整數據集，避免重複下載
-- [ ] 數據驗證和完整性檢查
-- [ ] 支援增量更新和快取機制
+- [x] **數據目錄結構建立** - 45天 × 2星座 = 90個TLE數據槽
+- [x] **空文件預創建** - 支援每日數據填入工作流程
+- [ ] **本地TLE數據加載器** - 從收集的文件讀取歷史數據
+- [ ] **數據完整性檢查** - 驗證每日數據品質和連續性
+- [ ] **建置時數據預處理** - Docker建置階段處理所有45天數據
 
-#### 0.2 衛星候選預篩選器
-**目標**: 基於軌道參數預篩選，排除不可能在目標座標進行換手的衛星
+#### 0.2 本地數據加載與驗證系統
+**目標**: 處理用戶手動收集的真實 TLE 歷史數據
 
 ```python
-# 預篩選功能範例
-def pre_filter_satellites_by_orbit(observer_lat, observer_lon, all_tle_data):
+# 本地數據加載器增強
+def load_45_day_tle_collection(constellation='starlink'):
     """
-    軌道幾何預篩選
-    - 基於軌道傾角判斷緯度覆蓋範圍
-    - 基於軌道高度計算最大可見距離
-    - 排除在96分鐘內不可能達到5度仰角的衛星
-    - 大幅減少後續詳細計算的工作量
+    載入45天收集的TLE歷史數據
+    - 自動檢測可用的日期範圍
+    - 驗證TLE格式完整性
+    - 計算數據覆蓋率和品質指標
+    - 支援Starlink和OneWeb雙星座
     """
-    candidate_satellites = []
-    excluded_satellites = []
+    data_dir = f"/app/tle_data/{constellation}/"
+    collected_data = []
+    missing_days = []
     
-    for satellite in all_tle_data:
-        if can_potentially_be_visible(satellite, observer_lat, observer_lon):
-            candidate_satellites.append(satellite)
+    for day in range(1, 46):
+        file_path = f"{data_dir}{constellation}_day_{day:02d}.tle"
+        if file_exists_and_valid(file_path):
+            daily_data = parse_tle_file(file_path)
+            collected_data.append({
+                'day': day,
+                'satellite_count': len(daily_data),
+                'data': daily_data
+            })
         else:
-            excluded_satellites.append(satellite)
-    
-    return candidate_satellites, excluded_satellites
-```
-
-**預篩選標準**:
-- [ ] **軌道傾角檢查** - 衛星能到達的最大/最小緯度範圍
-- [ ] **軌道高度檢查** - 在目標緯度的理論最大仰角
-- [ ] **地理覆蓋檢查** - 軌道平面是否可能經過目標經度
-- [ ] **最小距離檢查** - 衛星與目標座標的最近可能距離
-
-**預期優化效果**:
-- [ ] 從 ~6000 顆衛星篩選到 ~500-1000 顆候選衛星
-- [ ] 減少後續計算量 80-90%
-- [ ] 加速整體分析時間從小時級到分鐘級
-
-#### 0.3 最佳時間段分析與數據產出
-**目標**: 找出30-45分鐘的最佳換手時間段，並產出完整的衛星配置數據
-
-```python
-# 最佳時間段分析功能範例
-def find_optimal_handover_timeframe(observer_lat, observer_lon, candidate_satellites):
-    """
-    找出30-45分鐘的最佳換手時間段
-    - 分析候選衛星在不同時間段的可見性
-    - 找出包含6-10顆衛星的最佳時間段
-    - 確保時間段長度適合動畫展示（30-45分鐘）
-    - 產出該時間段的完整衛星軌跡數據
-    """
-    best_timeframe = None
-    max_satellite_coverage = 0
-    
-    # 掃描不同的30-45分鐘時間窗
-    for start_time in range(0, 5760, 300):  # 每5分鐘檢查一次
-        for duration in [30, 35, 40, 45]:  # 測試不同時間段長度
-            timeframe_satellites = analyze_timeframe_coverage(
-                candidate_satellites, start_time, duration * 60, observer_lat, observer_lon
-            )
-            
-            if len(timeframe_satellites) > max_satellite_coverage:
-                max_satellite_coverage = len(timeframe_satellites)
-                best_timeframe = {
-                    'start_time': start_time,
-                    'duration_minutes': duration,
-                    'satellites': timeframe_satellites
-                }
-    
-    return best_timeframe
-```
-
-**分析重點**:
-- [ ] **時間段最佳化** - 30-45分鐘長度，適合動畫展示
-- [ ] **衛星數量最大化** - 尋找包含6-10顆衛星的時間段
-- [ ] **換手連續性** - 確保時間段內有完整的換手序列
-- [ ] **軌跡完整性** - 包含衛星從出現到消失的完整軌跡
-
-**產出數據結構**:
-```json
-{
-  "optimal_timeframe": {
-    "start_timestamp": "2025-07-27T12:15:00Z",
-    "duration_minutes": 40,
-    "satellite_count": 8,
-    "satellites": [
-      {
-        "norad_id": 44713,
-        "name": "STARLINK-1007",
-        "trajectory": [
-          {"time": "2025-07-27T12:15:00Z", "elevation": 5.2, "azimuth": 45.0, "lat": 24.9, "lon": 121.4},
-          {"time": "2025-07-27T12:15:30Z", "elevation": 6.1, "azimuth": 46.2, "lat": 24.95, "lon": 121.45}
-          // ... 每30秒一個數據點，共80個點
-        ],
-        "visibility_window": {
-          "rise_time": "2025-07-27T12:15:00Z",
-          "peak_time": "2025-07-27T12:28:15Z", 
-          "set_time": "2025-07-27T12:41:30Z"
-        },
-        "handover_priority": 1
-      }
-      // ... 其他7顆衛星
-    ]
-  }
-}
-```
-
-#### 0.4 前端數據源格式化
-**目標**: 將最佳時間段數據格式化為側邊欄和立體圖動畫所需的數據源
-
-```python
-# 前端數據格式化功能範例
-def format_for_frontend_display(optimal_timeframe_data, observer_location):
-    """
-    格式化數據以支援前端展示需求
-    - 側邊欄「衛星 gNB」數據源
-    - 立體圖動畫軌跡數據源
-    - 換手序列展示數據
-    """
-    
-    # 1. 側邊欄數據源
-    sidebar_data = format_sidebar_satellite_list(optimal_timeframe_data)
-    
-    # 2. 動畫軌跡數據源
-    animation_data = format_3d_animation_trajectories(optimal_timeframe_data)
-    
-    # 3. 換手序列數據源
-    handover_sequence_data = format_handover_sequence(optimal_timeframe_data)
+            missing_days.append(day)
     
     return {
-        "sidebar_data": sidebar_data,
-        "animation_data": animation_data, 
-        "handover_sequence": handover_sequence_data,
-        "metadata": {
-            "observer_location": observer_location,
-            "timeframe_info": optimal_timeframe_data["optimal_timeframe"]
-        }
+        'total_days_collected': len(collected_data),
+        'missing_days': missing_days,
+        'coverage_percentage': len(collected_data) / 45 * 100,
+        'historical_data': collected_data
     }
 ```
 
-**前端數據源格式**:
+**驗證標準**:
+- [ ] **格式正確性** - 所有TLE行符合標準格式(69字符)
+- [ ] **時間連續性** - 檢查45天數據的時間跨度
+- [ ] **星座完整性** - Starlink(~7000顆) + OneWeb(~600顆)
+- [ ] **軌道參數合理性** - 高度、傾角、週期在合理範圍
 
-**1. 側邊欄「衛星 gNB」數據源**:
-```json
-{
-  "satellite_gnb_list": [
-    {
-      "id": "STARLINK-1007",
-      "name": "STARLINK-1007", 
-      "status": "visible",
-      "signal_strength": 85,
-      "elevation": 25.4,
-      "azimuth": 120.8,
-      "distance_km": 850,
-      "handover_priority": 1,
-      "availability_window": "12:15:00 - 12:41:30"
-    }
-    // ... 其他衛星
-  ]
-}
+#### 0.3 Docker建置時預計算整合
+**目標**: 在容器建置階段處理45天歷史數據，實現RL研究需求
+
+```dockerfile
+# 修改後的Dockerfile預計算整合
+# 位置: /netstack/docker/Dockerfile
+
+# 複製45天收集的TLE數據到容器 (包含TLE和JSON格式)
+COPY ../tle_data/ /app/tle_data/
+
+# 建置時預計算45天歷史軌道數據
+RUN python3 generate_precomputed_satellite_data.py \
+    --tle_source local_collection \
+    --input_dir /app/tle_data \
+    --output /app/data/rl_research_45day_embedded.sql \
+    --observer_lat 24.94417 --observer_lon 121.37139 \
+    --duration_days 45 --time_step_seconds 30 \
+    --constellations starlink,oneweb
 ```
 
-**2. 立體圖動畫軌跡數據源**:
-```json
-{
-  "animation_trajectories": [
-    {
-      "satellite_id": "STARLINK-1007",
-      "trajectory_points": [
-        {"time_offset": 0, "x": 850.2, "y": 120.8, "z": 350.5, "visible": true},
-        {"time_offset": 30, "x": 852.1, "y": 122.1, "z": 352.2, "visible": true}
-        // ... 每30秒一個3D位置點
-      ],
-      "animation_config": {
-        "color": "#00ff00",
-        "trail_length": 10,
-        "visibility_threshold": 5.0
-      }
-    }
-    // ... 其他衛星軌跡
-  ],
-  "animation_settings": {
-    "total_duration_seconds": 2400,
-    "playback_speed_multiplier": 10,
-    "camera_follow_mode": "overview"
-  }
-}
-```
+**預計算增強功能**:
+- [ ] **多星座支援** - 同時處理Starlink和OneWeb歷史數據
+- [ ] **時間軸重建** - 基於收集日期重現歷史時間軸
+- [ ] **軌道演化追蹤** - 分析45天內的軌道變化模式
+- [ ] **RL訓練數據格式** - 產出適合強化學習的標準化數據
 
-**3. 換手序列展示數據**:
-```json
-{
-  "handover_sequence": [
-    {
-      "sequence_id": 1,
-      "from_satellite": "STARLINK-1007",
-      "to_satellite": "STARLINK-1019", 
-      "handover_time": "2025-07-27T12:28:45Z",
-      "handover_type": "planned",
-      "signal_overlap_duration": 120
-    }
-    // ... 其他換手事件
-  ]
-}
-```
+#### 0.4 換手分析與最佳時間段識別
+**目標**: 基於45天真實歷史數據找出最佳換手時間段
 
-**座標參數化支援**:
 ```python
-# 支援任意座標的相同分析
-def generate_optimal_timeframe_for_coordinates(lat, lon, alt=0):
+# 45天歷史分析增強
+def analyze_45day_handover_patterns(collected_data, observer_location):
     """
-    對任意座標執行相同的最佳時間段分析
-    - 下載完整 TLE 數據
-    - 預篩選候選衛星
-    - 找出最佳時間段
-    - 格式化前端數據源
+    基於45天歷史數據分析換手模式
+    - 識別重複出現的最佳換手時間段
+    - 分析星座間的互補性（Starlink vs OneWeb）
+    - 計算長期可見性統計
+    - 產出RL研究用的训练数据
     """
+    optimal_timeframes = []
+    constellation_comparison = {}
+    
+    for day_data in collected_data:
+        # 分析每日的30-45分鐘最佳時間段
+        daily_optimal = find_optimal_handover_timeframe(
+            day_data['data'], observer_location, duration_minutes=40
+        )
+        
+        # 記錄每日最佳配置
+        optimal_timeframes.append({
+            'day': day_data['day'],
+            'timeframe': daily_optimal,
+            'satellite_count': len(daily_optimal.get('satellites', [])),
+            'constellation': 'starlink'  # 或 'oneweb'
+        })
+    
     return {
-        "coordinates": {"lat": lat, "lon": lon, "alt": alt},
-        "optimal_timeframe": find_optimal_handover_timeframe(lat, lon, candidate_satellites),
-        "frontend_data": format_for_frontend_display(optimal_timeframe_data, {"lat": lat, "lon": lon})
+        'daily_optimal_timeframes': optimal_timeframes,
+        'pattern_analysis': analyze_recurring_patterns(optimal_timeframes),
+        'constellation_coverage': constellation_comparison,
+        'rl_training_dataset': format_for_rl_training(optimal_timeframes)
     }
 ```
 
 **Phase 0 驗收標準：**
-- [ ] 能成功下載所有當前 Starlink TLE 數據（~6000 顆）
-- [ ] 基於完整數據找出在 NTPU 座標上空真實的最佳換手時間點
-- [ ] 確定該時間點的真實衛星數量和配置（自然數量，不強制限制）
-- [ ] 支援任意座標輸入進行相同的最佳時機分析
-- [ ] 輸出適合學術研究的標準化數據格式
-- [ ] 96分鐘完整分析在合理時間內完成（< 10分鐘）
+- [ ] 45天TLE數據收集基礎設施完全建立（90個空文件）
+- [ ] 本地數據加載器能處理手動收集的歷史數據
+- [ ] Docker建置階段能預處理45天完整數據集
+- [ ] 基於真實歷史數據找出台灣上空最佳換手時間模式
+- [ ] 產出適合RL研究的45天訓練數據集
+- [ ] 支援Starlink和OneWeb雙星座對比分析
+- [ ] 數據收集工作流程文檔完整，支援每日操作
 
 ---
 
@@ -403,40 +297,148 @@ async def get_frontend_data_sources(
 - [ ] 實現數據緩存
 - [ ] 添加錯誤處理
 
-#### 2.3 TLE 數據管理系統
-**目標**: 建立可靠的 TLE 數據更新機制，包含 Phase 0 歷史數據持久化
+#### 2.3 本地TLE數據管理系統
+**目標**: 建立基於45天收集數據的管理機制，取代網路即時下載
 
 ```python
-# /netstack/src/services/satellite/tle_manager.py (範例)
-class TLEDataManager:
-    async def download_latest_starlink_tle(self) -> List[TLEData]:
-        """下載最新 Starlink TLE 數據"""
-        pass
+# /netstack/src/services/satellite/local_tle_manager.py (範例)
+class LocalTLEDataManager:
+    def __init__(self, tle_data_dir: str = "/app/tle_data"):
+        self.tle_data_dir = Path(tle_data_dir)
         
-    async def cache_tle_data(self, tle_data: List[TLEData]) -> None:
-        """緩存 TLE 數據"""
-        pass
+    async def load_45_day_collection(self, constellation: str = "starlink") -> List[Dict]:
+        """載入45天收集的TLE數據"""
+        data_dir = self.tle_data_dir / constellation
+        collected_data = []
         
-    async def get_cached_tle_data(self) -> Optional[List[TLEData]]:
-        """獲取緩存的 TLE 數據"""
-        pass
+        for day in range(1, 46):
+            file_path = data_dir / f"{constellation}_day_{day:02d}.tle"
+            if file_path.exists() and file_path.stat().st_size > 0:
+                daily_satellites = await self.parse_tle_file(file_path)
+                if daily_satellites:
+                    collected_data.append({
+                        'day': day,
+                        'date': self.calculate_date_from_day(day),
+                        'satellites': daily_satellites,
+                        'satellite_count': len(daily_satellites)
+                    })
+        
+        return collected_data
+        
+    async def get_data_coverage_status(self) -> Dict[str, Any]:
+        """檢查45天數據收集狀態"""
+        status = {
+            'starlink': await self.check_constellation_coverage('starlink'),
+            'oneweb': await self.check_constellation_coverage('oneweb'),
+            'total_days_available': 0,
+            'missing_days': [],
+            'coverage_percentage': 0
+        }
+        
+        # 計算整體覆蓋率
+        starlink_days = status['starlink']['days_collected']
+        oneweb_days = status['oneweb']['days_collected'] 
+        total_available = max(starlink_days, oneweb_days)
+        
+        status['total_days_available'] = total_available
+        status['coverage_percentage'] = (total_available / 45) * 100
+        
+        return status
     
-    # === Phase 0 歷史數據管理 ===
+    async def validate_daily_data_quality(self, constellation: str, day: int) -> Dict[str, Any]:
+        """驗證特定日期數據品質"""
+        file_path = self.tle_data_dir / constellation / f"{constellation}_day_{day:02d}.tle"
+        
+        if not file_path.exists():
+            return {'valid': False, 'error': 'File not found'}
+            
+        satellites = await self.parse_tle_file(file_path)
+        
+        validation_result = {
+            'valid': True,
+            'satellite_count': len(satellites),
+            'format_errors': [],
+            'orbit_warnings': [],
+            'data_quality_score': 0
+        }
+        
+        # 詳細驗證邏輯
+        for sat in satellites:
+            if not self.validate_tle_format(sat):
+                validation_result['format_errors'].append(f"Invalid TLE: {sat.get('name', 'Unknown')}")
+            
+            if not self.validate_orbital_parameters(sat):
+                validation_result['orbit_warnings'].append(f"Suspicious orbit: {sat.get('name', 'Unknown')}")
+        
+        # 計算品質分數
+        total_sats = len(satellites)
+        format_errors = len(validation_result['format_errors'])
+        orbit_warnings = len(validation_result['orbit_warnings'])
+        
+        if total_sats > 0:
+            validation_result['data_quality_score'] = max(0, 
+                100 - (format_errors * 10) - (orbit_warnings * 2))
+        
+        validation_result['valid'] = (format_errors == 0 and total_sats > 0)
+        
+        return validation_result
+    
+    # === Phase 0 歷史數據管理增強 ===
     async def store_optimal_timeframe(self, timeframe_data: dict, coordinates: dict) -> str:
-        """存儲最佳時間段數據，返回 timeframe_id"""
-        pass
+        """存儲基於45天數據分析的最佳時間段"""
+        timeframe_id = f"analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        analysis_result = {
+            'id': timeframe_id,
+            'coordinates': coordinates,
+            'analysis_period': '45_days',
+            'data_source': 'local_collection',
+            'timeframe_data': timeframe_data,
+            'created_at': datetime.now(timezone.utc).isoformat()
+        }
+        
+        # 存儲到數據庫或文件
+        await self.save_analysis_result(analysis_result)
+        return timeframe_id
     
     async def get_optimal_timeframe(self, timeframe_id: str) -> Optional[dict]:
         """獲取存儲的最佳時間段數據"""
-        pass
+        return await self.load_analysis_result(timeframe_id)
     
-    async def store_frontend_data(self, timeframe_id: str, frontend_data: dict) -> None:
-        """存儲前端展示數據（側邊欄、動畫、換手序列）"""
-        pass
-    
-    async def get_frontend_data(self, timeframe_id: str, data_type: str = "all") -> dict:
-        """獲取前端展示數據"""
-        pass
+    async def get_rl_training_dataset(self, constellation: str = "starlink") -> Dict[str, Any]:
+        """產出RL研究用的45天訓練數據集"""
+        collected_data = await self.load_45_day_collection(constellation)
+        
+        if not collected_data:
+            return {'error': 'No collected data available'}
+        
+        training_dataset = {
+            'metadata': {
+                'constellation': constellation,
+                'total_days': len(collected_data),
+                'date_range': {
+                    'start': collected_data[0]['date'] if collected_data else None,
+                    'end': collected_data[-1]['date'] if collected_data else None
+                },
+                'data_source': 'local_45_day_collection'
+            },
+            'daily_samples': [],
+            'aggregated_statistics': {},
+            'handover_patterns': {}
+        }
+        
+        # 處理每日數據為RL訓練樣本
+        for day_data in collected_data:
+            daily_sample = await self.process_daily_data_for_rl(day_data)
+            training_dataset['daily_samples'].append(daily_sample)
+        
+        # 計算45天統計
+        training_dataset['aggregated_statistics'] = self.calculate_45_day_statistics(collected_data)
+        
+        # 分析換手模式
+        training_dataset['handover_patterns'] = await self.analyze_handover_patterns(collected_data)
+        
+        return training_dataset
     
     async def cache_coordinate_analysis(self, coordinates: dict, analysis_result: dict) -> None:
         """緩存座標分析結果，支援座標參數化"""
@@ -445,11 +447,12 @@ class TLEDataManager:
 
 **Phase 2 驗收標準：**
 - [ ] 衛星可見性 API 正常運作
-- [ ] Starlink TLE 數據自動更新
+- [ ] **本地45天TLE數據載入系統正常運作**
+- [ ] **數據覆蓋率檢查API能正確回報收集狀態**
 - [ ] 批次位置計算 API 測試通過
-- [ ] **Phase 0 數據支援 API 正常運作**
-- [ ] **最佳時間段數據能正確存儲和檢索**
-- [ ] **前端數據源 API 回應格式正確**
+- [ ] **基於45天歷史數據的最佳時間段分析API**
+- [ ] **RL訓練數據集生成API正常運作**
+- [ ] **雙星座(Starlink+OneWeb)支援完整**
 - [ ] API 文檔自動生成
 
 ### Phase 3: SimWorld 衛星功能移除 (2-3天)
@@ -666,19 +669,20 @@ echo "- [ ] 數據庫遷移完成" >> deployment_checklist.md
 
 #### 原有流程 (有問題)
 ```
-SimWorld Frontend → SimWorld Backend (skyfield) → 直接計算
-NetStack Backend → 獨立 skyfield 計算 → 重複功能
+SimWorld Frontend → SimWorld Backend (skyfield) → 網路即時下載TLE → 直接計算
+NetStack Backend → 獨立 skyfield 計算 → 網路即時下載TLE → 重複功能
 ```
 
 #### 新流程 (重構後)
 ```
-SimWorld Frontend → SimWorld Backend → NetStack API → 統一計算
-獨立篩選工具 → 整合到 NetStack → 統一管理
+SimWorld Frontend → SimWorld Backend → NetStack API → 本地45天TLE數據 → 統一計算
+RL研究需求 → NetStack API → 45天歷史數據集 → 訓練數據生成
+手動數據收集 → 每日填入TLE檔案 → 建置時預處理 → 容器內嵌數據
 ```
 
 ### 📊 性能優化策略
 
-#### TLE 數據緩存
+#### 本地TLE數據優化
 ```python
 # Redis 緩存策略
 CACHE_TTL = 3600  # 1小時
