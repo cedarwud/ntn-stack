@@ -51,11 +51,19 @@
 #### **2. Docker 建置階段整合**  
 ```dockerfile
 # 位置：/netstack/docker/Dockerfile 第 69-75 行
-# 功能：建置時自動生成預載數據到容器映像檔
+# 功能：建置時從本地收集的 TLE 檔案生成預載數據
+
+# 複製本地收集的 TLE 數據
+COPY ../data/tle/ /app/data/tle/
+COPY ../data/json/ /app/data/json/
+
+# 從本地檔案預計算歷史數據
 RUN python3 generate_precomputed_satellite_data.py \
+    --input_dir /app/data/tle/ \
     --output /app/data/satellite_history_embedded.sql \
     --observer_lat 24.94417 --observer_lon 121.37139 \
-    --duration_hours 6 --time_step_seconds 30
+    --duration_hours 6 --time_step_seconds 30 \
+    --date_format YYYYMMDD
 # 狀態：✅ 完全實現
 ```
 
@@ -157,7 +165,7 @@ graph TD
     D --> F[rl-postgres 啟動]
     F --> G[netstack-api 啟動]
     G --> H[數據庫表初始化]
-    H --> I[衛星數據載入]
+    H --> I[本地 TLE 檔案載入]
     I --> J[NetStack API 就緒]
     
     E --> K[simworld-backend 啟動]

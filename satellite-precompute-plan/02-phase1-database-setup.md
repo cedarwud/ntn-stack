@@ -4,9 +4,14 @@
 
 ## 🎯 Phase 1 目標
 
-**目標**：建立 PostgreSQL 歷史數據存儲架構，實現容器啟動時立即數據可用
+**目標**：建立 PostgreSQL 歷史數據存儲架構，基於本地收集的 TLE 檔案實現容器啟動時立即數據可用
 
 **預估時間**: 1-2 天
+
+**核心改進**：
+- 使用本地收集的 TLE/JSON 檔案取代網路下載
+- 支援 YYYYMMDD 實際日期格式命名
+- 智能檔案選擇和日期範圍檢測
 
 ## 📋 開發任務
 
@@ -53,17 +58,24 @@ WHERE elevation_angle >= 10;
 
 #### **Docker 構建時預載數據**
 ```dockerfile
-# netstack/Dockerfile 添加預載數據生成
+# netstack/Dockerfile 使用本地收集的 TLE 檔案
 
-# 第1步：構建時預計算歷史數據
+# 第1步：複製本地收集的 TLE 和 JSON 數據
+COPY ../data/tle/ /app/data/tle/
+COPY ../data/json/ /app/data/json/
+
+# 第2步：構建時從本地檔案預計算歷史數據
 RUN python3 generate_precomputed_satellite_data.py \
+    --input_dir /app/data/tle/ \
+    --input_format auto \
+    --date_format YYYYMMDD \
     --output /app/data/satellite_history_embedded.sql \
     --observer_lat 24.94417 \
     --observer_lon 121.37139 \
     --duration_hours 6 \
     --time_step_seconds 30
 
-# 第2步：啟動時立即載入（無需網路連接）
+# 第3步：啟動時立即載入（完全離線）
 COPY docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
 ```
@@ -79,11 +91,13 @@ import logging
 from datetime import datetime, timedelta
 
 class InstantSatelliteLoader:
-    """容器啟動時立即載入衛星數據"""
+    """容器啟動時立即載入衛星數據（支援本地 TLE 檔案）"""
     
     def __init__(self, postgres_url: str):
         self.postgres_url = postgres_url
         self.embedded_data_path = "/app/data/satellite_history_embedded.sql"
+        self.local_tle_dir = "/app/data/tle/"
+        self.local_json_dir = "/app/data/json/"
         
     async def ensure_data_available(self) -> bool:
         """確保衛星數據立即可用"""
@@ -95,17 +109,17 @@ class InstantSatelliteLoader:
             logging.info(f"✅ 發現 {existing_data['count']} 條新鮮的衛星歷史數據，跳過載入")
             return True
             
-        # 2. 載入內建預載數據
-        logging.info("📡 載入內建衛星歷史數據...")
+        # 2. 載入內建預載數據（基於本地 TLE 檔案）
+        logging.info("📡 載入本地 TLE 檔案生成的預載數據...")
         success = await self._load_embedded_data()
         
         if success:
-            logging.info("✅ 衛星數據載入完成，系統立即可用")
+            logging.info("✅ 本地衛星數據載入完成，系統立即可用")
             return True
             
-        # 3. 緊急 fallback：生成最小可用數據集
-        logging.warning("⚠️ 使用緊急 fallback 數據")
-        return await self._generate_emergency_data()
+        # 3. 緊急 fallback：從本地 TLE 檔案即時生成
+        logging.warning("⚠️ 使用本地 TLE 檔案緊急生成數據")
+        return await self._generate_from_local_files()
         
     async def _check_existing_data(self):
         """檢查現有數據"""
@@ -166,6 +180,20 @@ class InstantSatelliteLoader:
         finally:
             await conn.close()
             
+    async def _generate_from_local_files(self) -> bool:
+        """從本地 TLE 檔案即時生成數據"""
+        from .local_tle_processor import LocalTLEProcessor
+        
+        processor = LocalTLEProcessor(self.postgres_url)
+        return await processor.process_local_files(
+            tle_dir=self.local_tle_dir,
+            json_dir=self.local_json_dir,
+            observer_lat=24.94417,
+            observer_lon=121.37139,
+            duration_hours=1,
+            time_step_seconds=60
+        )
+        
     async def _generate_emergency_data(self) -> bool:
         """生成緊急最小數據集（1小時數據）"""
         from .emergency_satellite_generator import EmergencySatelliteGenerator
@@ -177,6 +205,195 @@ class InstantSatelliteLoader:
             duration_hours=1,
             time_step_seconds=60
         )
+```
+
+#### **本地 TLE 檔案處理器**
+```python
+# app/services/local_tle_processor.py
+import os
+import asyncpg
+import logging
+from datetime import datetime, timedelta
+from typing import List, Dict, Optional
+import glob
+
+class LocalTLEProcessor:
+    """處理本地收集的 TLE 檔案並生成衛星數據"""
+    
+    def __init__(self, postgres_url: str):
+        self.postgres_url = postgres_url
+        
+    async def process_local_files(
+        self, 
+        tle_dir: str,
+        json_dir: str,
+        observer_lat: float, 
+        observer_lon: float,
+        duration_hours: int = 1,
+        time_step_seconds: int = 60
+    ) -> bool:
+        """處理本地 TLE 檔案生成衛星數據"""
+        
+        try:
+            # 1. 掃描可用的 TLE 檔案
+            available_files = self._scan_tle_files(tle_dir)
+            
+            if not available_files:
+                logging.error("❌ 未找到本地 TLE 檔案")
+                return False
+                
+            # 2. 選擇最新的 TLE 檔案
+            latest_file = self._select_latest_file(available_files)
+            logging.info(f"📡 使用 TLE 檔案: {latest_file}")
+            
+            # 3. 解析 TLE 數據並生成軌道數據
+            satellite_data = await self._process_tle_file(
+                latest_file, observer_lat, observer_lon, 
+                duration_hours, time_step_seconds
+            )
+            
+            # 4. 存儲到數據庫
+            success = await self._store_satellite_data(satellite_data)
+            
+            if success:
+                logging.info(f"✅ 本地 TLE 檔案處理完成，共 {len(satellite_data)} 條記錄")
+                return True
+            else:
+                logging.error("❌ 本地 TLE 數據存儲失敗")
+                return False
+                
+        except Exception as e:
+            logging.error(f"❌ 本地 TLE 檔案處理失敗: {e}")
+            return False
+            
+    def _scan_tle_files(self, tle_dir: str) -> List[str]:
+        """掃描本地 TLE 檔案"""
+        if not os.path.exists(tle_dir):
+            return []
+            
+        # 掃描 YYYYMMDD 格式的檔案
+        pattern = os.path.join(tle_dir, "????????")  # 8位數字格式
+        directories = glob.glob(pattern)
+        
+        tle_files = []
+        for dir_path in directories:
+            tle_file = os.path.join(dir_path, "starlink.tle")
+            if os.path.exists(tle_file):
+                tle_files.append(tle_file)
+                
+        return sorted(tle_files)  # 按日期排序
+        
+    def _select_latest_file(self, files: List[str]) -> str:
+        """選擇最新的 TLE 檔案"""
+        return files[-1] if files else None
+        
+    async def _process_tle_file(
+        self, 
+        tle_file: str,
+        observer_lat: float,
+        observer_lon: float, 
+        duration_hours: int,
+        time_step_seconds: int
+    ) -> List[Dict]:
+        """處理單一 TLE 檔案生成軌道數據"""
+        
+        # 這裡應該集成 Skyfield 或類似的軌道計算庫
+        # 簡化版本，實際應該使用真實的 SGP4 計算
+        
+        satellite_data = []
+        start_time = datetime.utcnow()
+        
+        # 讀取 TLE 檔案
+        with open(tle_file, 'r') as f:
+            lines = f.readlines()
+            
+        # 解析 TLE 數據（每3行為一組）
+        for i in range(0, len(lines), 3):
+            if i + 2 >= len(lines):
+                break
+                
+            sat_name = lines[i].strip()
+            line1 = lines[i + 1].strip()  
+            line2 = lines[i + 2].strip()
+            
+            # 從 TLE 提取基本資訊
+            norad_id = int(line1[2:7])
+            
+            # 簡化的軌道計算（實際應使用 Skyfield）
+            time_points = int(duration_hours * 3600 / time_step_seconds)
+            
+            for t in range(time_points):
+                current_time = start_time + timedelta(seconds=t * time_step_seconds)
+                
+                # 簡化的位置計算（實際應使用 SGP4）
+                # 這裡只是示例，真實實現需要完整的軌道動力學計算
+                
+                record = {
+                    "satellite_id": sat_name,
+                    "norad_id": norad_id,
+                    "constellation": "starlink",
+                    "timestamp": current_time,
+                    "latitude": 0.0,  # 需要 SGP4 計算
+                    "longitude": 0.0,  # 需要 SGP4 計算
+                    "altitude": 550.0,  # 從 TLE 提取
+                    "elevation_angle": 0.0,  # 需要計算
+                    "azimuth_angle": 0.0,  # 需要計算
+                    "observer_latitude": observer_lat,
+                    "observer_longitude": observer_lon,
+                    "observer_altitude": 100.0,
+                    "signal_strength": 0.0,  # 需要計算
+                    "path_loss_db": 0.0,  # 需要計算
+                    "calculation_method": "local_tle_processing",
+                    "data_quality": 0.8  # 標記為本地處理數據
+                }
+                satellite_data.append(record)
+                
+        return satellite_data
+        
+    async def _store_satellite_data(self, data: List[Dict]) -> bool:
+        """存儲衛星數據到數據庫"""
+        conn = await asyncpg.connect(self.postgres_url)
+        try:
+            # 清空現有本地處理數據
+            await conn.execute("""
+                DELETE FROM satellite_orbital_cache 
+                WHERE calculation_method = 'local_tle_processing'
+            """)
+            
+            # 批次插入
+            records = [
+                (
+                    record["satellite_id"], record["norad_id"], record["constellation"],
+                    record["timestamp"], 0, 0, 0,  # position_x, y, z
+                    record["latitude"], record["longitude"], record["altitude"],
+                    record["elevation_angle"], record["azimuth_angle"], 0,  # range_rate
+                    record["observer_latitude"], record["observer_longitude"], 
+                    record["observer_altitude"], record["signal_strength"],
+                    record["path_loss_db"], record["calculation_method"], 
+                    record["data_quality"]
+                )
+                for record in data
+            ]
+            
+            await conn.executemany("""
+                INSERT INTO satellite_orbital_cache (
+                    satellite_id, norad_id, constellation, timestamp,
+                    position_x, position_y, position_z,
+                    latitude, longitude, altitude,
+                    elevation_angle, azimuth_angle, range_rate,
+                    observer_latitude, observer_longitude, observer_altitude,
+                    signal_strength, path_loss_db,
+                    calculation_method, data_quality
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+            """, records)
+            
+            return True
+            
+        except Exception as e:
+            logging.error(f"❌ 本地 TLE 數據存儲失敗: {e}")
+            return False
+        finally:
+            await conn.close()
 ```
 
 #### **緊急數據生成器**
