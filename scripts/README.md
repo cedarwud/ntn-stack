@@ -3,11 +3,11 @@
 ## 📝 功能描述
 
 自動下載 Starlink 和 OneWeb 的 TLE 和 JSON 數據，支援：
-- 自動日期命名（YYYYMMDD 格式）
+- 智能日期命名（基於數據實際日期，非下載日期）
 - 數據完整性驗證
-- 重複下載檢查
-- 詳細執行報告
-- 錯誤處理和重試
+- 智能更新檢查（避免重複下載）
+- 自動備份管理和清理
+- 詳細執行報告和錯誤處理
 
 ## 🕰️ 建議執行時間
 
@@ -23,28 +23,32 @@
 
 ### 📦 雙版本腳本說明
 
-| 腳本版本 | 功能特點 | 適用場景 |
+| 腳本版本 | 功能特點 | 檔案命名邏輯 |
 |---------|---------|---------|
-| `daily_tle_download.sh` | 基礎版本，檔案存在時跳過 | 首次下載或確定不需要更新 |
-| `daily_tle_download_enhanced.sh` | **智能更新檢查版本** | **每日例行下載，自動檢測更新** |
+| `daily_tle_download_enhanced.sh` | **智能更新檢查 + 實際日期命名 + 自動備份清理** | **基於 TLE epoch 實際日期** |
 
-### 基本執行（推薦使用增強版）
+**注意**：舊版基礎腳本已移除，統一使用增強版腳本。
+
+### 基本執行
 ```bash
-cd /home/sat/ntn-stack
+cd /home/u24/ntn-stack
 
-# 智能更新模式（推薦）
+# 標準執行 - 智能更新 + 實際日期命名 + 自動清理
 ./scripts/daily_tle_download_enhanced.sh
-
-# 基礎版本
-./scripts/daily_tle_download.sh
 ```
+
+### 🔄 自動化功能
+- **智能檔案命名**：基於數據實際日期而非下載日期
+- **自動備份管理**：統一備份到 `backups/` 目錄
+- **自動清理**：清理散落備份檔案和過期備份（保留7天）
+- **重複檢測**：避免下載相同數據
 
 ### 增強版本高級選項
 ```bash
 # 強制重新下載所有檔案
 ./scripts/daily_tle_download_enhanced.sh --force
 
-# 不檢查更新，直接跳過已存在檔案（等同於基礎版本）
+# 不檢查更新，直接跳過已存在檔案
 ./scripts/daily_tle_download_enhanced.sh --no-update-check
 
 # 不備份現有檔案
@@ -58,41 +62,49 @@ cd /home/sat/ntn-stack
 
 ### 成功執行範例
 ```
-🚀 LEO 衛星 TLE 數據每日下載工具
-📅 目標日期: 20250728 (UTC)
+🚀 增強版 LEO 衛星 TLE 數據下載工具
+📅 目標日期: 20250728 (UTC) - 下載日期
 🕐 當前時間: 2025-07-28 08:00:00 UTC
 
 ==========================================
-📊 每日 TLE 數據下載報告
+📊 增強版每日 TLE 數據下載報告
 ==========================================
 ✅ Starlink: 全部成功
 ✅ OneWeb: 全部成功
 
-📁 檔案結構:
-  starlink/tle/starlink_20250728.tle        1,245,678 bytes
-  starlink/json/starlink_20250728.json      3,456,789 bytes
-  oneweb/tle/oneweb_20250728.tle              156,234 bytes
-  oneweb/json/oneweb_20250728.json            234,567 bytes
+📁 本次下載的檔案: (基於數據實際日期命名)
+  starlink/tle/starlink_20250727.tle        1,343,328 bytes
+  starlink/json/starlink_20250727.json      3,343,319 bytes
+  oneweb/tle/oneweb_20250727.tle              109,368 bytes
+  oneweb/json/oneweb_20250727.json            270,055 bytes
 
-📈 收集進度統計:
-  starlink tle   :   1 個檔案
-  starlink json  :   1 個檔案
-  oneweb tle     :   1 個檔案
-  oneweb json    :   1 個檔案
+💾 備份檔案: (自動備份到 backups/20250728/)
+  starlink_20250727.tle.backup
+  starlink_20250727.json.backup
+  oneweb_20250727.tle.backup
+  oneweb_20250727.json.backup
 ==========================================
 ```
 
 ## 📁 檔案命名格式
 
+**重要更新**：檔案名稱現在基於**數據實際日期**而非下載日期
+
 ```
 tle_data/
 ├── starlink/
-│   ├── tle/starlink_20250728.tle     # YYYYMMDD 格式
-│   └── json/starlink_20250728.json
+│   ├── tle/starlink_20250727.tle     # 基於 TLE epoch 的實際日期
+│   └── json/starlink_20250727.json   # 與 TLE 使用相同日期
 └── oneweb/
-    ├── tle/oneweb_20250728.tle
-    └── json/oneweb_20250728.json
+    ├── tle/oneweb_20250727.tle       # 基於 TLE epoch 的實際日期
+    └── json/oneweb_20250727.json     # 與 TLE 使用相同日期
 ```
+
+### 📅 智能日期命名邏輯
+- **自動提取實際日期**：從 TLE 數據的 epoch 欄位提取真實的軌道數據日期
+- **檔案名稱一致性**：檔案名稱準確反映數據內容的實際日期
+- **避免混淆**：不再使用下載日期，消除檔案名與數據內容不符的問題
+- **範例**：下載日期 2025-07-28，但數據實際日期是 2025-07-27，檔案名為 `starlink_20250727.tle`
 
 ## 🔄 智能更新檢查機制（增強版專屬）
 
@@ -107,9 +119,10 @@ tle_data/
    - 檔案相同且最新 → 跳過下載
 
 ### 🛡️ 安全備份機制
-- **自動備份**：更新前備份現有檔案到 `tle_data/backups/YYYYMMDD/`
+- **自動備份**：更新前備份現有檔案到 `tle_data/backups/下載日期/`
 - **原子操作**：先下載到臨時檔案，驗證通過後才覆蓋
 - **失敗恢復**：驗證失敗時自動恢復備份檔案
+- **自動清理**：保留最近7天的備份，自動刪除過期備份
 
 ### 🎯 實際應用場景
 ```bash
@@ -186,13 +199,13 @@ curl -I https://celestrak.org
 # 手動檢查遠端檔案信息
 curl -I https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle
 
-# 比較本地檔案時間
-stat tle_data/starlink/tle/starlink_$(date -u '+%Y%m%d').tle
+# 比較本地檔案時間（注意：檔案名基於數據實際日期，非當前日期）
+find tle_data/starlink/tle/ -name "starlink_*.tle" -exec stat {} \;
 ```
 
-#### 3. 檔案已存在（基礎版）
-- 基礎版腳本會自動跳過已存在的檔案
-- 如需重新下載，請手動刪除檔案或使用增強版
+#### 3. 檔案已存在
+- 腳本會進行智能更新檢查
+- 如需強制重新下載，使用 `--force` 參數
 
 #### 4. 數據驗證失敗
 - 腳本會自動刪除驗證失敗的檔案
@@ -223,11 +236,8 @@ chmod 755 /home/sat/ntn-stack/tle_data
 # 編輯 crontab
 crontab -e
 
-# 推薦：使用增強版自動執行
-0 8 * * * /home/sat/ntn-stack/scripts/daily_tle_download_enhanced.sh >> /home/sat/ntn-stack/logs/cron.log 2>&1
-
-# 或者：基礎版本
-# 0 8 * * * /home/sat/ntn-stack/scripts/daily_tle_download.sh >> /home/sat/ntn-stack/logs/cron.log 2>&1
+# 每日自動執行
+0 8 * * * /home/u24/ntn-stack/scripts/daily_tle_download_enhanced.sh >> /home/u24/ntn-stack/logs/cron.log 2>&1
 ```
 
 ### 數據備份
@@ -238,6 +248,20 @@ tar -czf "tle_backup_$(date +%Y%m%d).tar.gz" tle_data/
 # 同步到遠端
 rsync -av tle_data/ backup_server:/path/to/backup/
 ```
+
+## 🔧 自動化管理
+
+### 備份管理
+- **自動備份**：每次更新前自動備份到 `backups/下載日期/`
+- **自動清理**：保留最近7天的備份，自動刪除過期備份
+- **統一管理**：所有備份集中在 `backups/` 目錄，不再散落各處
+
+## 🎯 使用建議
+
+1. **每日例行下載**：直接執行腳本，自動處理所有細節
+2. **強制更新**：使用 `--force` 參數強制重新下載
+3. **自動維護**：腳本會自動清理備份，無需手動維護
+4. **生產環境**：提供完整的錯誤處理、日誌記錄和備份機制
 
 ## 🎯 下一步
 
