@@ -1,0 +1,48 @@
+{
+  "phase0_data_summary": {
+    "total_constellations": 2,
+    "total_files": 2,
+    "total_satellites": 8647,
+    "date_range": {
+      "start": "20250727",
+      "end": "20250727"
+    },
+    "constellation_details": {
+      "starlink": {
+        "name": "starlink",
+        "files": 1,
+        "satellites": 7996,
+        "dates": [
+          "20250727"
+        ],
+        "dual_format_count": 1,
+        "data_quality": "excellent"
+      },
+      "oneweb": {
+        "name": "oneweb",
+        "files": 1,
+        "satellites": 651,
+        "dates": [
+          "20250727"
+        ],
+        "dual_format_count": 1,
+        "data_quality": "excellent"
+      }
+    }
+  },
+  "orbit_computation_summary": {
+    "total_visible_satellites": 8647,
+    "computation_errors": 0,
+    "observer_location": {
+      "lat": 24.94417,
+      "lon": 121.37139,
+      "alt": 50.0,
+      "name": "NTPU"
+    },
+    "computation_method": "SGP4",
+    "orbital_period_minutes": 96
+  },
+  "build_recommendations": [
+    "More historical data days recommended for better RL training"
+  ]
+}

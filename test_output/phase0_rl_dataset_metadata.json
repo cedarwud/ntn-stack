@@ -1,0 +1,29 @@
+{
+  "dataset_type": "satellite_handover_rl_training",
+  "generated_at": "2025-07-28T13:31:26.004739+00:00",
+  "computation_method": "sgp4_orbit_precomputation",
+  "constellations": {
+    "starlink": {
+      "available_days": 1,
+      "satellite_count": 7996,
+      "episodes_count": 24,
+      "data_quality": "excellent",
+      "orbit_precomputed": true
+    },
+    "oneweb": {
+      "available_days": 1,
+      "satellite_count": 651,
+      "episodes_count": 24,
+      "data_quality": "excellent",
+      "orbit_precomputed": true
+    }
+  },
+  "training_parameters": {
+    "observation_space_size": 80,
+    "action_space_size": 11,
+    "episode_length_minutes": 45,
+    "reward_function": "handover_efficiency",
+    "orbit_computation_enabled": true,
+    "total_episodes": 48
+  }
+}

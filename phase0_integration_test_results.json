@@ -1,0 +1,54 @@
+{
+  "test_start_time": "2025-07-28T13:42:33.918674+00:00",
+  "phase_03_validation": {
+    "sgp4_data_available": true,
+    "satellite_count": 7996,
+    "data_date": "20250727",
+    "orbit_files_available": false,
+    "docker_integration_ready": true
+  },
+  "phase_04_validation": {
+    "orbit_engine_success_rate": 100.0,
+    "visibility_filter": {
+      "input_satellites": 10,
+      "visible_satellites": 7,
+      "filter_efficiency_percent": 30.0,
+      "processing_time_seconds": 0.005325
+    },
+    "optimal_window": {
+      "quality_score": 57.97607998092656,
+      "visible_satellites": 8,
+      "avg_elevation": 17.928239942779665,
+      "handover_opportunities": 0,
+      "duration_hours": 6
+    },
+    "display_data": {
+      "animation_keyframes": 72,
+      "animation_duration_seconds": 360.0,
+      "acceleration_factor": 60
+    }
+  },
+  "integration_results": {
+    "pipeline_success": true,
+    "processing_time_seconds": 0.004328,
+    "input_satellites": 5,
+    "orbit_calculations_success": 5,
+    "visible_satellites_found": 3,
+    "final_window_identified": true
+  },
+  "performance_metrics": {
+    "data_processing_efficiency": "high",
+    "filtering_effectiveness": "medium",
+    "memory_usage": "acceptable",
+    "scalability_rating": "good"
+  },
+  "test_end_time": "2025-07-28T13:42:33.976275+00:00",
+  "test_duration_seconds": 0.057601,
+  "overall_assessment": {
+    "phase_03_score": "2/3",
+    "phase_04_score": "4/4",
+    "integration_success": true,
+    "overall_success": true,
+    "recommendation": "Production Ready"
+  }
+}
