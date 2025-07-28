@@ -1,57 +1,37 @@
 #!/usr/bin/env python3
 """
-本地 TLE 文字檔載入器
-支援從本地文字檔載入 Starlink TLE 數據
-
-使用方法：
-1. 將 TLE 文字檔放在 data/ 目錄
-2. 支援的檔案名：starlink.txt, starlink.tle, starlink_tle.txt
-3. 格式：標準 TLE 三行格式
+測試本地 TLE 數據加載器 - Phase 0
 """
 
+import sys
 import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
+# 設置日誌
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class LocalTLELoader:
     """本地 TLE 數據加載器 - Phase 0 增強版本，支援實際日期命名"""
     
-    def __init__(self, tle_data_dir: str = "/app/tle_data"):
+    def __init__(self, tle_data_dir: str = "/home/sat/ntn-stack/tle_data"):
         """
         初始化本地 TLE 數據加載器
         
         Args:
-            tle_data_dir: TLE 數據根目錄，預設為 /app/tle_data
+            tle_data_dir: TLE 數據根目錄，預設為 /home/sat/ntn-stack/tle_data
         """
         self.tle_data_dir = Path(tle_data_dir)
         logger.info(f"LocalTLELoader 初始化，數據目錄: {self.tle_data_dir}")
         
         # Phase 0 支援的星座
         self.supported_constellations = ['starlink', 'oneweb']
-        
-        # 舊版兼容性：傳統檔案名稱支援
-        self.legacy_supported_filenames = [
-            "starlink.txt",
-            "starlink.tle", 
-            "starlink_tle.txt",
-            "celestrak_starlink.txt",
-            "starlink_latest.txt"
-        ]
-        
+    
     def scan_available_dates(self, constellation: str) -> List[str]:
-        """
-        掃描指定星座的可用日期
-        
-        Args:
-            constellation: 星座名稱 ('starlink' 或 'oneweb')
-            
-        Returns:
-            List[str]: 可用日期列表 (YYYYMMDD 格式)
-        """
+        """掃描指定星座的可用日期"""
         if constellation not in self.supported_constellations:
             logger.error(f"不支援的星座: {constellation}")
             return []
@@ -79,91 +59,6 @@ class LocalTLELoader:
         available_dates.sort()
         logger.info(f"{constellation} 可用日期: {len(available_dates)} 天，範圍: {available_dates[0] if available_dates else 'N/A'} - {available_dates[-1] if available_dates else 'N/A'}")
         return available_dates
-    
-    def load_collected_data(self, constellation: str = "starlink", 
-                           start_date: str = None, end_date: str = None) -> Dict[str, Any]:
-        """
-        載入手動收集的TLE歷史數據
-        
-        Args:
-            constellation: 星座名稱 ('starlink' 或 'oneweb')
-            start_date: 開始日期 (YYYYMMDD)，None 表示無限制
-            end_date: 結束日期 (YYYYMMDD)，None 表示無限制
-            
-        Returns:
-            Dict: 包含收集數據的詳細信息
-        """
-        if constellation not in self.supported_constellations:
-            return {'error': f'不支援的星座: {constellation}'}
-            
-        tle_dir = self.tle_data_dir / constellation / "tle"
-        json_dir = self.tle_data_dir / constellation / "json"
-        
-        if not tle_dir.exists():
-            return {'error': f'TLE 目錄不存在: {tle_dir}'}
-            
-        collected_data = []
-        available_dates = []
-        
-        import glob
-        import re
-        
-        # 掃描所有可用的 TLE 檔案
-        tle_pattern = str(tle_dir / f"{constellation}_*.tle")
-        tle_files = glob.glob(tle_pattern)
-        
-        for tle_file in tle_files:
-            # 提取實際日期 (YYYYMMDD)
-            match = re.search(r'(\d{8})\.tle$', tle_file)
-            if match:
-                date_str = match.group(1)
-                
-                # 日期範圍過濾
-                if start_date and date_str < start_date:
-                    continue
-                if end_date and date_str > end_date:
-                    continue
-                
-                tle_path = Path(tle_file)
-                json_path = json_dir / f"{constellation}_{date_str}.json"
-                
-                if tle_path.exists() and tle_path.stat().st_size > 0:
-                    # 解析 TLE 數據
-                    daily_tle_data = self.parse_tle_file(tle_path)
-                    daily_json_data = None
-                    
-                    # 嘗試讀取對應的 JSON 數據
-                    if json_path.exists() and json_path.stat().st_size > 0:
-                        daily_json_data = self.parse_json_file(json_path)
-                    
-                    if daily_tle_data:
-                        collected_data.append({
-                            'date': date_str,
-                            'tle_file': str(tle_path),
-                            'json_file': str(json_path) if daily_json_data else None,
-                            'satellites': daily_tle_data,
-                            'satellite_count': len(daily_tle_data),
-                            'json_metadata': daily_json_data[:3] if daily_json_data else None,  # 只保留前3個作為樣本
-                            'has_dual_format': daily_json_data is not None
-                        })
-                        available_dates.append(date_str)
-        
-        # 按日期排序
-        collected_data.sort(key=lambda x: x['date'])
-        available_dates.sort()
-        
-        return {
-            'constellation': constellation,
-            'total_days_collected': len(collected_data),
-            'date_range': {
-                'start': available_dates[0] if available_dates else None,
-                'end': available_dates[-1] if available_dates else None,
-                'available_dates': available_dates
-            },
-            'dual_format_coverage': sum(1 for d in collected_data if d['has_dual_format']),
-            'coverage_percentage': len(collected_data) / len(available_dates) * 100 if available_dates else 0,
-            'daily_data': collected_data
-        }
     
     def parse_tle_file(self, file_path: Path) -> List[Dict[str, Any]]:
         """解析 TLE 文件"""
@@ -232,6 +127,81 @@ class LocalTLELoader:
         except Exception as e:
             logger.error(f"解析 JSON 文件失敗 {file_path}: {e}")
             return None
+    
+    def load_collected_data(self, constellation: str = "starlink", 
+                           start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+        """載入手動收集的TLE歷史數據"""
+        if constellation not in self.supported_constellations:
+            return {'error': f'不支援的星座: {constellation}'}
+            
+        tle_dir = self.tle_data_dir / constellation / "tle"
+        json_dir = self.tle_data_dir / constellation / "json"
+        
+        if not tle_dir.exists():
+            return {'error': f'TLE 目錄不存在: {tle_dir}'}
+            
+        collected_data = []
+        available_dates = []
+        
+        import glob
+        import re
+        
+        # 掃描所有可用的 TLE 檔案
+        tle_pattern = str(tle_dir / f"{constellation}_*.tle")
+        tle_files = glob.glob(tle_pattern)
+        
+        for tle_file in tle_files:
+            # 提取實際日期 (YYYYMMDD)
+            match = re.search(r'(\d{8})\.tle$', tle_file)
+            if match:
+                date_str = match.group(1)
+                
+                # 日期範圍過濾
+                if start_date and date_str < start_date:
+                    continue
+                if end_date and date_str > end_date:
+                    continue
+                
+                tle_path = Path(tle_file)
+                json_path = json_dir / f"{constellation}_{date_str}.json"
+                
+                if tle_path.exists() and tle_path.stat().st_size > 0:
+                    # 解析 TLE 數據
+                    daily_tle_data = self.parse_tle_file(tle_path)
+                    daily_json_data = None
+                    
+                    # 嘗試讀取對應的 JSON 數據
+                    if json_path.exists() and json_path.stat().st_size > 0:
+                        daily_json_data = self.parse_json_file(json_path)
+                    
+                    if daily_tle_data:
+                        collected_data.append({
+                            'date': date_str,
+                            'tle_file': str(tle_path),
+                            'json_file': str(json_path) if daily_json_data else None,
+                            'satellites': daily_tle_data[:3],  # 只保留前3個作為樣本
+                            'satellite_count': len(daily_tle_data),
+                            'json_metadata': daily_json_data[:3] if daily_json_data else None,  # 只保留前3個作為樣本
+                            'has_dual_format': daily_json_data is not None
+                        })
+                        available_dates.append(date_str)
+        
+        # 按日期排序
+        collected_data.sort(key=lambda x: x['date'])
+        available_dates.sort()
+        
+        return {
+            'constellation': constellation,
+            'total_days_collected': len(collected_data),
+            'date_range': {
+                'start': available_dates[0] if available_dates else None,
+                'end': available_dates[-1] if available_dates else None,
+                'available_dates': available_dates
+            },
+            'dual_format_coverage': sum(1 for d in collected_data if d['has_dual_format']),
+            'coverage_percentage': len(collected_data) / len(available_dates) * 100 if available_dates else 0,
+            'daily_data': collected_data
+        }
     
     def get_data_coverage_status(self) -> Dict[str, Any]:
         """檢查手動收集數據的狀態和覆蓋率"""
@@ -320,7 +290,7 @@ class LocalTLELoader:
                 format_errors += 1
                 validation_result['format_errors'].append(f"Invalid TLE length: {sat.get('name', 'Unknown')}")
             
-            # 基本軌道參數檢查 (可後續增強)
+            # 基本軌道參數檢查
             try:
                 if not (1 <= sat.get('norad_id', 0) <= 99999):
                     orbit_warnings += 1
@@ -337,137 +307,69 @@ class LocalTLELoader:
         validation_result['valid'] = (format_errors == 0 and total_sats > 0)
         
         return validation_result
-    
-    # === 舊版兼容性方法 ===
-    
-    def find_tle_file(self) -> Optional[Path]:
-        """尋找可用的 TLE 檔案 (舊版兼容)"""
-        data_dir = Path("data")  # 舊版預設目錄
-        data_dir.mkdir(parents=True, exist_ok=True)
-        
-        for filename in self.legacy_supported_filenames:
-            file_path = data_dir / filename
-            if file_path.exists():
-                logger.info(f"找到傳統 TLE 檔案: {file_path}")
-                return file_path
-        
-        logger.warning(f"未找到傳統 TLE 檔案，查找路徑: {data_dir}")
-        return None
-    
-    def get_starlink_tle_data(self) -> List[Dict[str, str]]:
-        """獲取 Starlink TLE 數據 (舊版兼容)"""
-        # 1. 嘗試載入最新的收集數據
-        collected_data = self.load_collected_data('starlink')
-        
-        if collected_data.get('daily_data'):
-            # 返回最新日期的數據
-            latest_data = collected_data['daily_data'][-1]
-            satellites = latest_data['satellites']
-            
-            # 轉換為舊格式
-            legacy_format = []
-            for sat in satellites:
-                legacy_sat = {
-                    'name': sat['name'],
-                    'norad_id': str(sat['norad_id']),
-                    'line1': sat['line1'],
-                    'line2': sat['line2'],
-                    'download_time': datetime.now(timezone.utc).isoformat(),
-                    'data_source': 'collected_data'
-                }
-                legacy_format.append(legacy_sat)
-            
-            logger.info(f"從收集數據載入 {len(legacy_format)} 顆 Starlink 衛星")
-            return legacy_format
-        
-        # 2. 回退到傳統文件查找
-        tle_file = self.find_tle_file()
-        if tle_file:
-            satellites = self.load_tle_from_file(tle_file)
-            if satellites:
-                logger.info(f"從傳統文件載入 {len(satellites)} 顆 Starlink 衛星")
-                return satellites
-        
-        # 3. 最後回退到歷史數據
-        logger.warning("本地數據不可用，回退到歷史數據")
-        return self.load_historical_data()
-    
-    def load_tle_from_file(self, file_path: Path) -> List[Dict[str, str]]:
-        """從檔案載入 TLE 數據 (舊版兼容)"""
-        try:
-            satellites_data = self.parse_tle_file(file_path)
-            
-            # 轉換為舊格式
-            legacy_format = []
-            for sat in satellites_data:
-                legacy_sat = {
-                    'name': sat['name'],
-                    'norad_id': str(sat['norad_id']),
-                    'line1': sat['line1'],
-                    'line2': sat['line2'],
-                    'download_time': datetime.now(timezone.utc).isoformat(),
-                    'data_source': 'local_file'
-                }
-                legacy_format.append(legacy_sat)
-            
-            return legacy_format
-            
-        except Exception as e:
-            logger.error(f"讀取檔案失敗 {file_path}: {e}")
-            return []
-    
-    def load_historical_data(self) -> List[Dict[str, str]]:
-        """載入歷史數據作為備用 (舊版兼容)"""
-        try:
-            import sys
-            sys.path.append('/app/netstack_api')
-            from netstack_api.data.historical_tle_data import get_historical_tle_data
-            
-            historical_starlink = get_historical_tle_data('starlink')
-            
-            # 轉換為標準格式
-            satellites = []
-            for sat_data in historical_starlink:
-                satellite = {
-                    'name': sat_data['name'],
-                    'norad_id': str(sat_data['norad_id']),
-                    'line1': sat_data['line1'],
-                    'line2': sat_data['line2'],
-                    'download_time': datetime.now(timezone.utc).isoformat(),
-                    'data_source': 'historical_data'
-                }
-                satellites.append(satellite)
-            
-            logger.info(f"載入歷史數據: {len(satellites)} 顆衛星")
-            return satellites
-            
-        except Exception as e:
-            logger.error(f"載入歷史數據失敗: {e}")
-            return []
 
 def main():
-    """主函數 - 演示本地 TLE 載入"""
-    print("📄 本地 TLE 文字檔載入器")
-    print("=" * 40)
+    """測試主程序"""
+    print("🚀 Phase 0 本地 TLE 數據加載器測試")
+    print("=" * 60)
     
+    # 初始化加載器
     loader = LocalTLELoader()
     
-    # 創建範例檔案
-    loader.save_sample_file()
+    # 1. 檢查數據覆蓋狀態
+    print("\n📊 數據覆蓋狀態檢查")
+    print("-" * 30)
+    status = loader.get_data_coverage_status()
+    print(json.dumps(status, indent=2, ensure_ascii=False))
     
-    # 嘗試載入數據
-    satellites = loader.get_starlink_tle_data()
-    
-    if satellites:
-        print(f"\n✅ 成功載入 {len(satellites)} 顆衛星數據")
-        print(f"📊 數據來源: {satellites[0].get('data_source', 'unknown')}")
+    # 2. 載入 Starlink 數據
+    print("\n🛰️ Starlink 數據載入測試")
+    print("-" * 30)
+    starlink_data = loader.load_collected_data('starlink')
+    if 'error' not in starlink_data:
+        print(f"✅ 總天數: {starlink_data.get('total_days_collected', 0)}")
+        print(f"✅ 日期範圍: {starlink_data.get('date_range', {}).get('start', 'N/A')} - {starlink_data.get('date_range', {}).get('end', 'N/A')}")
+        print(f"✅ 雙格式覆蓋: {starlink_data.get('dual_format_coverage', 0)} / {starlink_data.get('total_days_collected', 0)}")
         
-        # 顯示前幾顆衛星
-        print(f"\n📝 前5顆衛星:")
-        for i, sat in enumerate(satellites[:5]):
-            print(f"  {i+1}. {sat['name']} (ID: {sat['norad_id']})")
+        # 顯示樣本數據
+        if starlink_data.get('daily_data'):
+            sample_day = starlink_data['daily_data'][0]
+            print(f"✅ 樣本日期: {sample_day['date']}")
+            print(f"✅ 衛星數量: {sample_day['satellite_count']}")
+            print(f"✅ 雙格式支援: {sample_day['has_dual_format']}")
     else:
-        print("❌ 未載入任何數據")
+        print(f"❌ 錯誤: {starlink_data['error']}")
+    
+    # 3. 載入 OneWeb 數據
+    print("\n🌐 OneWeb 數據載入測試")
+    print("-" * 30)
+    oneweb_data = loader.load_collected_data('oneweb')
+    if 'error' not in oneweb_data:
+        print(f"✅ 總天數: {oneweb_data.get('total_days_collected', 0)}")
+        print(f"✅ 日期範圍: {oneweb_data.get('date_range', {}).get('start', 'N/A')} - {oneweb_data.get('date_range', {}).get('end', 'N/A')}")
+        print(f"✅ 雙格式覆蓋: {oneweb_data.get('dual_format_coverage', 0)} / {oneweb_data.get('total_days_collected', 0)}")
+        
+        # 顯示樣本數據
+        if oneweb_data.get('daily_data'):
+            sample_day = oneweb_data['daily_data'][0]
+            print(f"✅ 樣本日期: {sample_day['date']}")
+            print(f"✅ 衛星數量: {sample_day['satellite_count']}")
+            print(f"✅ 雙格式支援: {sample_day['has_dual_format']}")
+    else:
+        print(f"❌ 錯誤: {oneweb_data['error']}")
+    
+    # 4. 數據品質檢查測試
+    print("\n🔍 數據品質檢查測試")
+    print("-" * 30)
+    if starlink_data.get('daily_data'):
+        test_date = starlink_data['daily_data'][0]['date']
+        validation_result = loader.validate_daily_data_quality('starlink', test_date)
+        print(f"✅ 測試日期: {test_date}")
+        print(f"✅ 數據有效: {validation_result['valid']}")
+        print(f"✅ 衛星數量: {validation_result['satellite_count']}")
+        print(f"✅ 品質分數: {validation_result['data_quality_score']}")
+    
+    print("\n🎉 Phase 0 本地 TLE 數據加載器測試完成")
 
 if __name__ == "__main__":
     main()
