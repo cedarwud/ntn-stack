@@ -15,10 +15,21 @@ simworld/backend/
 │   ├── services/ # 🔄 TLEDataService.ts, HistoricalDataCache.ts (重複)
 │   ├── routes/   # 🔄 tle.ts (重複 API)
 │   └── utils/    # 🔄 logger.ts
-└── data/         # 🔄 外部數據緩存 (需整合)
-    ├── tle_cache/      # TLE 緩存文件
-    ├── tle_historical/ # 歷史數據
-    └── batch_cache/    # 批次緩存
+└── data/         # 🔄 舊式外部數據緩存 (已改為本地 TLE 檔案)
+    ├── tle_cache/      # 舊式 TLE 緩存 (將被本地檔案取代)
+    ├── tle_historical/ # 舊式歷史數據 (將改用 YYYYMMDD 格式)
+    └── batch_cache/    # 舊式批次緩存 (將簡化)
+
+# 新架構數據來源 (專案根目錄):
+ntn-stack/data/
+├── tle/          # 本地收集的 TLE 檔案
+│   ├── 20250728/ # 實際日期命名
+│   │   ├── starlink.tle
+│   │   └── oneweb.tle
+│   └── 20250729/
+└── json/         # JSON 格式數據
+    ├── 20250728/
+    └── 20250729/
 ```
 
 ### ⚠️ 核心問題識別
@@ -26,7 +37,8 @@ simworld/backend/
 #### 1. **技術債務嚴重**
 - **雙重實現**: TLE 服務同時有 Python 和 TypeScript 版本
 - **維護負擔**: 需要同時維護兩套相同功能的代碼
-- **數據不一致風險**: 兩套緩存系統可能產生不同步
+- **數據架構過時**: 舊式外部下載緩存 vs 新式本地檔案處理
+- **數據不一致風險**: 兩套處理系統可能產生不同步
 
 #### 2. **架構不清晰**
 - **職責混亂**: 衛星計算功能分散在兩種語言中
@@ -151,55 +163,75 @@ grep -r "@router\.\(get\|post\|put\|delete\)" simworld/backend/app/api/routes/ >
 - [ ] API 端點完全對齊
 - [ ] 功能測試全部通過
 
-### Phase 3: 數據整合階段 (低風險)
-**目標**: 將外部數據緩存整合到 Python 應用內
+### Phase 3: 數據架構現代化階段 (低風險)
+**目標**: 將舊式外部緩存系統遷移到新式本地 TLE 檔案處理架構
 
-#### 3.1 數據目錄重組
+#### 3.1 新式數據結構建立
 ```bash
-# 在 app 內建立統一數據結構
+# 在 app 內建立本地 TLE 檔案處理結構
+mkdir -p simworld/backend/app/data/local_tle
+mkdir -p simworld/backend/app/data/processed  
 mkdir -p simworld/backend/app/data/cache
-mkdir -p simworld/backend/app/data/historical  
-mkdir -p simworld/backend/app/data/batch
 
-# 複製 (不是移動) 數據到新位置
-cp -r simworld/backend/data/tle_cache/* simworld/backend/app/data/cache/
-cp -r simworld/backend/data/tle_historical/* simworld/backend/app/data/historical/
-cp -r simworld/backend/data/batch_cache/* simworld/backend/app/data/batch/
+# 建立指向專案根目錄本地 TLE 檔案的軟連結
+ln -sf ../../../../data/tle simworld/backend/app/data/local_tle/source
+ln -sf ../../../../data/json simworld/backend/app/data/local_tle/json_source
+
+# 保留現有緩存作為過渡期備份
+cp -r simworld/backend/data/tle_cache/* simworld/backend/app/data/cache/ 2>/dev/null || true
+cp -r simworld/backend/data/tle_historical/* simworld/backend/app/data/processed/ 2>/dev/null || true
 ```
 
-#### 3.2 Python 服務路徑更新
+#### 3.2 Python 服務架構更新
 ```python
 # 更新 app/services/tle_data_service.py
-# 從:
+# 從舊式緩存路徑:
 cache_dir = Path("./data/tle_cache")
-# 改為:
-cache_dir = Path("./app/data/cache")
+# 改為新式本地 TLE 檔案處理:
+local_tle_dir = Path("./app/data/local_tle/source")  # 指向 ntn-stack/data/tle/
+json_source_dir = Path("./app/data/local_tle/json_source")  # 指向 ntn-stack/data/json/
+processed_dir = Path("./app/data/processed")
 
 # 更新 app/services/historical_data_cache.py  
-# 從:
+# 從舊式歷史數據路徑:
 historical_dir = Path("./data/tle_historical")
-# 改為:
-historical_dir = Path("./app/data/historical")
+# 改為新式處理模式:
+def get_date_range_files(start_date: str, end_date: str):
+    """從本地 TLE 檔案獲取日期範圍數據"""
+    date_dirs = []
+    for date_dir in local_tle_dir.glob("????????"):  # YYYYMMDD 格式
+        if start_date <= date_dir.name <= end_date:
+            date_dirs.append(date_dir)
+    return sorted(date_dirs)
 ```
 
-#### 3.3 數據一致性驗證
+#### 3.3 新式數據架構驗證
 ```bash
-# 重啟 Python 服務測試新數據路徑
+# 重啟 Python 服務測試新數據架構
 make simworld-restart
 
-# 驗證數據訪問正常
-curl -s http://localhost:8888/api/tle/cache-stats | jq
-curl -s http://localhost:8888/api/tle/constellations | jq
+# 驗證本地 TLE 檔案訪問正常
+curl -s http://localhost:8888/api/tle/local-files | jq
+curl -s http://localhost:8888/api/tle/available-dates | jq
 
-# 比較數據一致性
-diff baseline_cache_stats.json <(curl -s http://localhost:8888/api/tle/cache-stats) || echo "數據路徑更新檢查"
+# 測試 YYYYMMDD 格式日期查詢
+curl -s "http://localhost:8888/api/tle/date-range?start=20250728&end=20250729" | jq
+
+# 驗證新式數據處理功能
+echo "=== 新式本地檔案架構驗證 ===" > local_file_verification.txt
+curl -s http://localhost:8888/api/tle/local-stats | jq >> local_file_verification.txt
+
+# 檢查軟連結是否正常
+ls -la simworld/backend/app/data/local_tle/
+ls -la simworld/backend/app/data/local_tle/source/???????? 2>/dev/null | head -5 || echo "等待本地 TLE 檔案收集"
 ```
 
 **Phase 3 驗收標準:**
-- [ ] 數據目錄成功整合到 app/data/
-- [ ] Python 服務正常讀取新路徑數據
-- [ ] 數據一致性驗證通過
-- [ ] API 響應時間無明顯變化
+- [ ] 本地 TLE 檔案架構成功建立在 app/data/local_tle/
+- [ ] 軟連結正確指向專案根目錄的 data/tle/ 和 data/json/
+- [ ] Python 服務能正常處理 YYYYMMDD 格式的本地檔案
+- [ ] 新式 API 端點 (local-files, available-dates, date-range) 正常運作
+- [ ] 新舊數據架構共存期間無衝突
 
 ### Phase 4: TypeScript 服務漸進移除階段 (高風險)
 **目標**: 安全移除 TypeScript 服務，確保無影響
@@ -287,12 +319,21 @@ function verify_system() {
 # 移除空的 src 目錄
 rmdir simworld/backend/src 2>/dev/null || rm -rf simworld/backend/src
 
-# 移除舊的 data 目錄 (確保新路徑正常後)
-if curl -s http://localhost:8888/api/tle/cache-stats | jq -e '.total_files > 0' >/dev/null; then
-    echo "✅ 新數據路徑正常，移除舊 data 目錄"
+# 清理舊的 data 目錄 (確保新本地檔案架構正常後)
+if curl -s http://localhost:8888/api/tle/local-stats | jq -e '.available_dates | length > 0' >/dev/null; then
+    echo "✅ 新式本地檔案架構正常，移除舊 data 目錄"
     rm -rf simworld/backend/data
+    echo "✅ 舊式外部緩存目錄已清理"
 else
-    echo "❌ 新數據路徑異常，保留舊 data 目錄"
+    echo "❌ 新式架構異常，保留舊 data 目錄作為備份"
+    mv simworld/backend/data simworld/backend/data_legacy_backup
+fi
+
+# 驗證軟連結仍然有效
+if [ -L "simworld/backend/app/data/local_tle/source" ] && [ -d "$(readlink simworld/backend/app/data/local_tle/source)" ]; then
+    echo "✅ 本地 TLE 檔案軟連結正常"
+else
+    echo "❌ 軟連結異常，請檢查 data/tle/ 目錄"
 fi
 ```
 
@@ -302,36 +343,46 @@ fi
 sed -i 's|simworld/backend/src/|simworld/backend/app/|g' d2.md
 
 # 更新項目文檔
-echo "## 架構簡化完成
+echo "## 架構現代化完成
 - ✅ 統一使用 Python 技術棧  
 - ✅ 消除 TypeScript 重複實現
-- ✅ 整合數據緩存到 app/data/
+- ✅ 數據架構現代化：從外部緩存升級到本地 TLE 檔案處理
+- ✅ 支援 YYYYMMDD 實際日期格式
+- ✅ 建立本地檔案軟連結架構
 - ✅ 簡化部署和維護" >> simworld/backend/README.md
 ```
 
-#### 5.3 最終系統驗證
+#### 5.3 最終新式架構驗證
 ```bash
 # 完整系統測試
 make down && make up
 sleep 60
 make status
 
-# 功能完整性測試
-echo "=== 最終功能驗證 ===" > final_verification.txt
+# 新式本地檔案架構功能測試
+echo "=== 最終新式架構驗證 ===" > final_verification.txt
 curl -s http://localhost:8888/health | jq >> final_verification.txt
-curl -s http://localhost:8888/api/tle/constellations | jq >> final_verification.txt
-curl -s http://localhost:8888/api/satellite-data/constellations/starlink/positions | jq '.satellites | length' >> final_verification.txt
+curl -s http://localhost:8888/api/tle/local-files | jq >> final_verification.txt
+curl -s http://localhost:8888/api/tle/available-dates | jq >> final_verification.txt
 
-# 與基線對比
-echo "=== 基線對比 ===" >> final_verification.txt
-diff baseline_test.txt <(curl -s http://localhost:8888/api/satellite-data/constellations/starlink/positions | jq '.satellites | length') >> final_verification.txt || echo "功能對比完成" >> final_verification.txt
+# 測試本地 TLE 檔案處理能力
+echo "=== 本地檔案處理測試 ===" >> final_verification.txt
+curl -s "http://localhost:8888/api/tle/process-date/$(date +%Y%m%d)" | jq >> final_verification.txt
+
+# 驗證數據架構現代化成果
+echo "=== 架構現代化驗證 ===" >> final_verification.txt
+echo "舊式架構 (外部緩存): $([ -d simworld/backend/data ] && echo '存在' || echo '已清理')" >> final_verification.txt
+echo "新式架構 (本地檔案): $([ -L simworld/backend/app/data/local_tle/source ] && echo '已建立' || echo '未建立')" >> final_verification.txt
+echo "可用日期範圍: $(curl -s http://localhost:8888/api/tle/available-dates | jq -r 'length')" >> final_verification.txt
 ```
 
 **Phase 5 驗收標準:**
 - [ ] 所有 TypeScript 相關目錄已移除
-- [ ] 數據路徑完全遷移到 app/data/
-- [ ] 文檔引用已更新
-- [ ] 最終功能測試與基線一致
+- [ ] 舊式外部緩存目錄已清理
+- [ ] 新式本地 TLE 檔案軟連結架構正常運作
+- [ ] 新式 API 端點 (local-files, available-dates, process-date) 功能完整
+- [ ] 文檔引用已更新反映架構現代化
+- [ ] 本地檔案處理能力驗證通過
 
 ## 🚨 風險控制措施
 
