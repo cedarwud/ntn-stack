@@ -15,10 +15,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 TLE_DATA_DIR="$PROJECT_ROOT/tle_data"
 LOG_FILE="$PROJECT_ROOT/logs/tle_download.log"
-BACKUP_DIR="$TLE_DATA_DIR/backups/$(date -u '+%Y%m%d')"
+# 備份目錄將在確定實際數據日期後動態設置
+BACKUP_BASE_DIR="$TLE_DATA_DIR/backups"
 
 # 創建必要目錄
-mkdir -p "$(dirname "$LOG_FILE")" "$BACKUP_DIR"
+mkdir -p "$(dirname "$LOG_FILE")" "$BACKUP_BASE_DIR"
 
 # 顏色輸出
 RED='\033[0;31m'
@@ -94,17 +95,26 @@ file_exists_and_valid() {
     fi
 }
 
-# 備份現有檔案到統一備份目錄
+# 備份現有檔案到基於數據實際日期的備份目錄
 backup_file() {
     local source_file="$1"
     local description="$2"
+    local actual_date="$3"  # 新增參數：數據實際日期
 
     if [[ ! -f "$source_file" ]]; then
         return 0
     fi
 
+    # 如果沒有提供實際日期，使用執行日期作為備份
+    if [[ -z "$actual_date" ]]; then
+        actual_date=$(date -u '+%Y%m%d')
+    fi
+
+    local backup_dir="$BACKUP_BASE_DIR/$actual_date"
+    mkdir -p "$backup_dir"
+
     local filename=$(basename "$source_file")
-    local backup_path="$BACKUP_DIR/$filename"
+    local backup_path="$backup_dir/$filename"
 
     if $BACKUP_EXISTING; then
         cp "$source_file" "$backup_path"
@@ -220,9 +230,8 @@ download_file() {
     
     # 確保輸出目錄存在
     mkdir -p "$(dirname "$output_path")"
-    
-    # 備份現有檔案
-    backup_file "$output_path" "$description"
+
+    # 注意：備份邏輯已移至上層函數處理，基於實際數據日期
     
     # 使用臨時檔案下載
     local temp_file="${output_path}.tmp"
@@ -490,7 +499,7 @@ download_constellation_data() {
                 log_info "發現現有檔案: $(basename "$final_tle_file")"
                 if need_update_existing "$final_tle_file" "$tle_url" "$constellation TLE (實際日期: $actual_date)"; then
                     log_info "現有檔案需要更新"
-                    backup_file "$final_tle_file" "$constellation TLE"
+                    backup_file "$final_tle_file" "$constellation TLE" "$actual_date"
                 else
                     log_info "現有檔案無需更新，跳過"
                     should_update=false
@@ -531,7 +540,7 @@ download_constellation_data() {
         log_info "發現現有 JSON 檔案: $(basename "$final_json_file")"
         if need_update_existing "$final_json_file" "$json_url" "$constellation JSON (實際日期: $actual_date)"; then
             log_info "現有 JSON 檔案需要更新"
-            backup_file "$final_json_file" "$constellation JSON"
+            backup_file "$final_json_file" "$constellation JSON" "$actual_date"
         else
             log_info "現有 JSON 檔案無需更新，跳過"
             should_download=false
@@ -573,7 +582,7 @@ generate_enhanced_report() {
     echo "📅 下載日期: $date_str (UTC)"
     echo "🕐 執行時間: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
     echo "📍 數據目錄: $TLE_DATA_DIR"
-    echo "💾 備份目錄: $BACKUP_DIR"
+    echo "💾 備份基礎目錄: $BACKUP_BASE_DIR"
     echo
     
     # 模式說明
@@ -626,11 +635,12 @@ generate_enhanced_report() {
     
     echo
     echo "💾 備份檔案:"
-    if [[ -d "$BACKUP_DIR" ]]; then
-        find "$BACKUP_DIR" -type f | sort | while read -r file; do
+    if [[ -d "$BACKUP_BASE_DIR" ]]; then
+        # 顯示所有備份目錄中的檔案，按日期分組
+        find "$BACKUP_BASE_DIR" -type f | sort | while read -r file; do
             local size=$(stat -c%s "$file" 2>/dev/null || echo "0")
-            local filename=$(basename "$file")
-            printf "  %-30s %8s bytes\n" "$filename" "$size"
+            local relative_path=${file#$BACKUP_BASE_DIR/}
+            printf "  %-40s %8s bytes\n" "$relative_path" "$size"
         done
     else
         echo "  (無備份檔案)"
