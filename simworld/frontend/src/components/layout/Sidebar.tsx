@@ -18,6 +18,7 @@ import { simWorldApi } from '../../services/simworld-api'
 import { SatelliteDebugger } from '../../utils/satelliteDebugger'
 import { netstackFetch } from '../../config/api-config'
 import { useDataSync } from '../../contexts/DataSyncContext'
+import { useSatelliteState } from '../../contexts/appStateHooks'
 // 引入重構後的換手管理模組
 import HandoverManagementTab from './sidebar/HandoverManagementTab'
 // 引入重構後的設備列表模組
@@ -30,6 +31,7 @@ import ManualControlPanel from './sidebar/ManualControlPanel'
 import FeatureToggleManager from './sidebar/FeatureToggleManager'
 // 引入重構後的類別導航模組
 import CategoryNavigation from './sidebar/CategoryNavigation'
+// 移除重複的 Phase 2 組件，使用原有的衛星控制邏輯
 // RL 監控已移動到 Chart Analysis Dashboard
 
 interface SidebarProps {
@@ -126,6 +128,10 @@ interface SidebarProps {
     handoverMode?: 'demo' | 'real'
     onHandoverModeChange?: (mode: 'demo' | 'real') => void
 
+    // 星座切換控制 (根據開發計畫)
+    selectedConstellation?: 'starlink' | 'oneweb'
+    onConstellationChange?: (constellation: 'starlink' | 'oneweb') => void
+
     // 3D 動畫狀態更新回調
     onHandoverStateChange?: (state: HandoverState) => void
     onCurrentConnectionChange?: (connection: SatelliteConnection) => void
@@ -173,17 +179,17 @@ async function fetchVisibleSatellites(
 
         // 台灣觀測者位置：24°56'39"N 121°22'17"E (根據 CLAUDE.md 要求使用真實地理位置)
         const TAIWAN_OBSERVER = {
-            lat: 24.94417,    // 24°56'39"N = 24 + 56/60 + 39/3600
-            lon: 121.37139,   // 121°22'17"E = 121 + 22/60 + 17/3600
-            alt: 100          // 台灣平均海拔約100公尺
+            lat: 24.94417, // 24°56'39"N = 24 + 56/60 + 39/3600
+            lon: 121.37139, // 121°22'17"E = 121 + 22/60 + 17/3600
+            alt: 100, // 台灣平均海拔約100公尺
         }
 
         // 使用台灣觀測點的新API方式，取代過時的多星座邏輯
         const data = await simWorldApi.getVisibleSatellites(
-            Math.max(minElevation, 0),     // 使用標準仰角（地平線以上）
-            Math.max(count, 20),           // 請求足夠的衛星數量
-            TAIWAN_OBSERVER.lat,           // 台灣觀測點緯度
-            TAIWAN_OBSERVER.lon            // 台灣觀測點經度
+            Math.max(minElevation, 0), // 使用標準仰角（地平線以上）
+            Math.max(count, 20), // 請求足夠的衛星數量
+            TAIWAN_OBSERVER.lat, // 台灣觀測點緯度
+            TAIWAN_OBSERVER.lon // 台灣觀測點經度
         )
 
         // 詳細檢查 API 響應格式
@@ -198,48 +204,57 @@ async function fetchVisibleSatellites(
         }
 
         if (!data.results.satellites) {
-            console.warn(`🛰️ EnhancedSidebar: API 響應 results 中缺少 satellites 字段`)
+            console.warn(
+                `🛰️ EnhancedSidebar: API 響應 results 中缺少 satellites 字段`
+            )
             return []
         }
 
         if (!Array.isArray(data.results.satellites)) {
-            console.warn(`🛰️ EnhancedSidebar: satellites 不是數組，類型: ${typeof data.results.satellites}`)
+            console.warn(
+                `🛰️ EnhancedSidebar: satellites 不是數組，類型: ${typeof data
+                    .results.satellites}`
+            )
             return []
         }
 
-        console.log(`🛰️ EnhancedSidebar: 成功從台灣觀測點獲取到 ${data.results.satellites.length} 顆衛星`)
+        console.log(
+            `🛰️ EnhancedSidebar: 成功從台灣觀測點獲取到 ${data.results.satellites.length} 顆衛星`
+        )
 
         // 轉換衛星數據格式
-        const satellites = data.results.satellites.map((sat: Record<string, unknown>) => {
-            const noradId = String(sat.norad_id || sat.id || '0')
-            const position = (sat.position as Record<string, unknown>) || {}
-            const signalQuality = (sat.signal_quality as Record<string, unknown>) || {}
+        const satellites = data.results.satellites.map(
+            (sat: Record<string, unknown>) => {
+                const noradId = String(sat.norad_id || sat.id || '0')
+                const position = (sat.position as Record<string, unknown>) || {}
+                const signalQuality =
+                    (sat.signal_quality as Record<string, unknown>) || {}
 
-            return {
-                norad_id: parseInt(noradId),
-                name: String(sat.name || 'Unknown'),
-                elevation_deg: Number(
-                    position.elevation || signalQuality.elevation_deg || 0
-                ),
-                azimuth_deg: Number(position.azimuth || 0),
-                distance_km: Number(
-                    position.range || signalQuality.range_km || 0
-                ),
-                line1: `1 ${noradId}U 20001001.00000000  .00000000  00000-0  00000-0 0  9999`,
-                line2: `2 ${noradId}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
-                constellation: 'MIXED', // 使用新API時不區分星座
+                return {
+                    norad_id: parseInt(noradId),
+                    name: String(sat.name || 'Unknown'),
+                    elevation_deg: Number(
+                        position.elevation || signalQuality.elevation_deg || 0
+                    ),
+                    azimuth_deg: Number(position.azimuth || 0),
+                    distance_km: Number(
+                        position.range || signalQuality.range_km || 0
+                    ),
+                    line1: `1 ${noradId}U 20001001.00000000  .00000000  00000-0  00000-0 0  9999`,
+                    line2: `2 ${noradId}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
+                    constellation: 'MIXED', // 使用新API時不區分星座
+                }
             }
-        })
+        )
 
         // 按仰角排序，仰角高的衛星優先
         const sortedSatellites = [...satellites]
         sortedSatellites.sort((a, b) => b.elevation_deg - a.elevation_deg)
 
         return sortedSatellites
-
     } catch (error) {
         console.error(`❌ EnhancedSidebar: 獲取台灣觀測點衛星數據失敗:`, error)
-        
+
         // 嘗試健康檢查
         try {
             const healthStatus = await SatelliteDebugger.quickHealthCheck()
@@ -327,6 +342,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     // 換手模式控制 props
     handoverMode = 'demo',
     onHandoverModeChange,
+
+    // 星座切換 props
+    selectedConstellation = 'starlink',
+    onConstellationChange,
 }) => {
     // 🎯 使用全域策略狀態
     const { currentStrategy } = useStrategy()
@@ -363,18 +382,20 @@ const Sidebar: React.FC<SidebarProps> = ({
         handleOrientationInputChange,
         handleDeviceRoleChange,
     } = useDeviceManagement({ devices, onDeviceChange })
-    
+
     const { selectedReceiverIds, handleBadgeClick } = useReceiverSelection({
         devices,
         onSelectedReceiversChange,
     })
 
-    // 擴展的UI狀態
-    const [activeCategory, setActiveCategory] = useState<string>('uav')
+    // 擴展的UI狀態 - 衛星控制為默認分頁
+    const [activeCategory, setActiveCategory] = useState<string>('satellite')
 
     // 使用 DataSyncContext 統一的衛星數據
     const { state } = useDataSync()
-    const skyfieldSatellites = state.simworld.satellites || []
+    // 使用 NetStack 預計算衛星數據，支援星座切換
+    const satelliteState = useSatelliteState()
+    const skyfieldSatellites = satelliteState.skyfieldSatellites || []
     const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false)
     const satelliteRefreshIntervalRef = useRef<ReturnType<
         typeof setInterval
@@ -488,10 +509,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         })
     }
 
-    // 精簡的類別配置 - 4 個分頁
+    // 精簡的類別配置 - 4 個分頁，衛星控制為首位
     const categories = [
-        { id: 'uav', label: 'UAV 控制', icon: '🚁' },
-        { id: 'satellite', label: '衛星控制', icon: '🛰️' },
+        { id: 'satellite', label: '衛星控制', icon: '�️' },
+        { id: 'uav', label: 'UAV 控制', icon: '�' },
         { id: 'handover_mgr', label: '換手管理', icon: '🔄' },
         { id: 'quality', label: '通信品質', icon: '📶' },
     ]
@@ -524,13 +545,19 @@ const Sidebar: React.FC<SidebarProps> = ({
             setLoadingSatellites(true)
 
             // 使用 DataSyncContext 統一的衛星數據，避免重複 API 調用
-            console.log('🛰️ EnhancedSidebar: 使用 DataSyncContext 統一數據源，避免重複 API 調用')
-            
+            console.log(
+                '🛰️ EnhancedSidebar: 使用 DataSyncContext 統一數據源，避免重複 API 調用'
+            )
+
             // 當 DataSyncContext 有衛星數據時，通知父組件
             if (skyfieldSatellites.length > 0 && onSatelliteDataUpdate) {
-                const sortedSatellites = [...skyfieldSatellites].sort((a, b) => b.elevation_deg - a.elevation_deg)
+                const sortedSatellites = [...skyfieldSatellites].sort(
+                    (a, b) => b.elevation_deg - a.elevation_deg
+                )
                 onSatelliteDataUpdate(sortedSatellites)
-                console.log(`🛰️ EnhancedSidebar: 從 DataSyncContext 獲取到 ${sortedSatellites.length} 顆衛星`)
+                console.log(
+                    `🛰️ EnhancedSidebar: 從 DataSyncContext 獲取到 ${sortedSatellites.length} 顆衛星`
+                )
             }
 
             satelliteDataInitialized.current = true
@@ -561,7 +588,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     // 處理衛星顯示數量變更
 
-
     return (
         <div className="enhanced-sidebar-container">
             <SidebarStarfield />
@@ -585,192 +611,294 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 featureToggles={featureToggles}
                             />
 
-                            {/* 衛星動畫速度控制 - 當衛星控制分頁啟用且衛星啟用時顯示 */}
-                            {activeCategory === 'satellite' && satelliteEnabled && (
-                                <div className="satellite-animation-controls">
-                                    <div className="control-section-title">
-                                        🔄 換手控制
-                                    </div>
-
-                                    {/* 換手模式切換 */}
-                                    <div className="control-item">
-                                        <div className="handover-mode-switch">
-                                            <button
-                                                className={`mode-btn ${
-                                                    handoverMode === 'demo' ? 'active' : ''
-                                                }`}
-                                                onClick={() =>
-                                                    onHandoverModeChange &&
-                                                    onHandoverModeChange('demo')
-                                                }
-                                            >
-                                                🎭 演示模式
-                                            </button>
-                                            <button
-                                                className={`mode-btn ${
-                                                    handoverMode === 'real' ? 'active' : ''
-                                                }`}
-                                                onClick={() =>
-                                                    onHandoverModeChange &&
-                                                    onHandoverModeChange('real')
-                                                }
-                                            >
-                                                🔗 真實模式
-                                            </button>
+                            {/* Phase 2: 衛星控制分頁 - 當衛星控制分頁啟用且衛星啟用時顯示 */}
+                            {activeCategory === 'satellite' &&
+                                satelliteEnabled && (
+                                    <div className="satellite-animation-controls">
+                                        {/* 星座選擇器 */}
+                                        <div className="control-section-title">
+                                            🛰️ 星座系統選擇
                                         </div>
-                                        <div className="mode-description">
-                                            {handoverMode === 'demo'
-                                                ? '20秒演示週期，適合展示和理解'
-                                                : '快速換手週期，對接後端真實數據'}
-                                        </div>
-                                    </div>
-
-                                    {/* 衛星移動速度控制 */}
-                                    <div className="control-item">
-                                        <div className="control-label">
-                                            衛星移動速度: {satelliteMovementSpeed}倍
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="1"
-                                            max="10"
-                                            step="1"
-                                            value={satelliteMovementSpeed || SATELLITE_CONFIG.SATELLITE_MOVEMENT_SPEED}
-                                            onChange={(e) =>
-                                                onSatelliteMovementSpeedChange &&
-                                                onSatelliteMovementSpeedChange(Number(e.target.value))
-                                            }
-                                            className="speed-slider"
-                                        />
-                                        <div className="speed-labels">
-                                            <span>1倍</span>
-                                            <span>衛星3D移動速度</span>
-                                            <span>10倍</span>
-                                        </div>
-                                    </div>
-
-                                    {/* 換手時機速度控制 - 只在衛星-UAV連接開啟時顯示 */}
-                                    {satelliteUavConnectionEnabled && (
                                         <div className="control-item">
-                                            <div className="control-label">
-                                                換手時機速度: {handoverTimingSpeed}秒
-                                                {handoverMode === 'demo' && ' (演示模式)'}
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="1"
-                                                max="10"
-                                                step="1"
-                                                value={handoverTimingSpeed || SATELLITE_CONFIG.HANDOVER_TIMING_SPEED}
-                                                onChange={(e) =>
-                                                    onHandoverTimingSpeedChange &&
-                                                    onHandoverTimingSpeedChange(Number(e.target.value))
-                                                }
-                                                className="speed-slider"
-                                            />
-                                            <div className="speed-labels">
-                                                <span>1秒</span>
-                                                <span>換手演示速度</span>
-                                                <span>10秒</span>
+                                            <div className="constellation-selector">
+                                                <div className="constellation-options-compact">
+                                                    <button
+                                                        className={`constellation-btn-compact ${
+                                                            selectedConstellation ===
+                                                            'starlink'
+                                                                ? 'active'
+                                                                : ''
+                                                        }`}
+                                                        onClick={() =>
+                                                            onConstellationChange &&
+                                                            onConstellationChange(
+                                                                'starlink'
+                                                            )
+                                                        }
+                                                    >
+                                                        🛰️ Starlink
+                                                    </button>
+                                                    <button
+                                                        className={`constellation-btn-compact ${
+                                                            selectedConstellation ===
+                                                            'oneweb'
+                                                                ? 'active'
+                                                                : ''
+                                                        }`}
+                                                        onClick={() =>
+                                                            onConstellationChange &&
+                                                            onConstellationChange(
+                                                                'oneweb'
+                                                            )
+                                                        }
+                                                    >
+                                                        🌐 OneWeb
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                    )}
 
-                                    {/* 換手穩定期時間控制 - 只在衛星-UAV連接開啟時顯示 */}
-                                    {satelliteUavConnectionEnabled && (
+                                        <div className="control-section-title">
+                                            🔄 換手控制
+                                        </div>
+
+                                        {/* 換手模式切換 */}
                                         <div className="control-item">
-                                            <div className="control-label">
-                                                換手穩定期: {handoverStableDuration}秒
-                                                {handoverMode === 'real' && ' (真實模式)'}
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="1"
-                                                max="10"
-                                                step="1"
-                                                value={handoverStableDuration}
-                                                onChange={(e) =>
-                                                    onHandoverStableDurationChange &&
-                                                    onHandoverStableDurationChange(Number(e.target.value))
-                                                }
-                                                className="speed-slider"
-                                            />
-                                            <div className="speed-labels">
-                                                <span>1秒</span>
-                                                <span>穩定期持續時間</span>
-                                                <span>10秒</span>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* 衛星移動速度快速設定 */}
-                                    <div className="control-item">
-                                        <div className="control-label">衛星移動快速設定:</div>
-                                        <div className="speed-preset-buttons">
-                                            {[1, 2, 3, 5, 8, 10].map((speed) => (
+                                            <div className="handover-mode-switch">
                                                 <button
-                                                    key={speed}
-                                                    className={`speed-preset-btn ${
-                                                        satelliteMovementSpeed === speed ? 'active' : ''
+                                                    className={`mode-btn ${
+                                                        handoverMode === 'demo'
+                                                            ? 'active'
+                                                            : ''
                                                     }`}
                                                     onClick={() =>
-                                                        onSatelliteMovementSpeedChange &&
-                                                        onSatelliteMovementSpeedChange(speed)
+                                                        onHandoverModeChange &&
+                                                        onHandoverModeChange(
+                                                            'demo'
+                                                        )
                                                     }
                                                 >
-                                                    {speed}倍
+                                                    🎭 演示模式
                                                 </button>
-                                            ))}
+                                                <button
+                                                    className={`mode-btn ${
+                                                        handoverMode === 'real'
+                                                            ? 'active'
+                                                            : ''
+                                                    }`}
+                                                    onClick={() =>
+                                                        onHandoverModeChange &&
+                                                        onHandoverModeChange(
+                                                            'real'
+                                                        )
+                                                    }
+                                                >
+                                                    🔗 真實模式
+                                                </button>
+                                            </div>
+                                            <div className="mode-description">
+                                                {handoverMode === 'demo'
+                                                    ? '20秒演示週期，適合展示和理解'
+                                                    : '快速換手週期，對接後端真實數據'}
+                                            </div>
                                         </div>
+
+                                        {/* 衛星移動速度控制 */}
+                                        <div className="control-item">
+                                            <div className="control-label">
+                                                衛星移動速度:{' '}
+                                                {satelliteMovementSpeed}倍
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="10"
+                                                step="1"
+                                                value={
+                                                    satelliteMovementSpeed ||
+                                                    SATELLITE_CONFIG.SATELLITE_MOVEMENT_SPEED
+                                                }
+                                                onChange={(e) =>
+                                                    onSatelliteMovementSpeedChange &&
+                                                    onSatelliteMovementSpeedChange(
+                                                        Number(e.target.value)
+                                                    )
+                                                }
+                                                className="speed-slider"
+                                            />
+                                            <div className="speed-labels">
+                                                <span>1倍</span>
+                                                <span>衛星3D移動速度</span>
+                                                <span>10倍</span>
+                                            </div>
+                                        </div>
+
+                                        {/* 換手時機速度控制 - 只在衛星-UAV連接開啟時顯示 */}
+                                        {satelliteUavConnectionEnabled && (
+                                            <div className="control-item">
+                                                <div className="control-label">
+                                                    換手時機速度:{' '}
+                                                    {handoverTimingSpeed}秒
+                                                    {handoverMode === 'demo' &&
+                                                        ' (演示模式)'}
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="1"
+                                                    max="10"
+                                                    step="1"
+                                                    value={
+                                                        handoverTimingSpeed ||
+                                                        SATELLITE_CONFIG.HANDOVER_TIMING_SPEED
+                                                    }
+                                                    onChange={(e) =>
+                                                        onHandoverTimingSpeedChange &&
+                                                        onHandoverTimingSpeedChange(
+                                                            Number(
+                                                                e.target.value
+                                                            )
+                                                        )
+                                                    }
+                                                    className="speed-slider"
+                                                />
+                                                <div className="speed-labels">
+                                                    <span>1秒</span>
+                                                    <span>換手演示速度</span>
+                                                    <span>10秒</span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 換手穩定期時間控制 - 只在衛星-UAV連接開啟時顯示 */}
+                                        {satelliteUavConnectionEnabled && (
+                                            <div className="control-item">
+                                                <div className="control-label">
+                                                    換手穩定期:{' '}
+                                                    {handoverStableDuration}秒
+                                                    {handoverMode === 'real' &&
+                                                        ' (真實模式)'}
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="1"
+                                                    max="10"
+                                                    step="1"
+                                                    value={
+                                                        handoverStableDuration
+                                                    }
+                                                    onChange={(e) =>
+                                                        onHandoverStableDurationChange &&
+                                                        onHandoverStableDurationChange(
+                                                            Number(
+                                                                e.target.value
+                                                            )
+                                                        )
+                                                    }
+                                                    className="speed-slider"
+                                                />
+                                                <div className="speed-labels">
+                                                    <span>1秒</span>
+                                                    <span>穩定期持續時間</span>
+                                                    <span>10秒</span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 衛星移動速度快速設定 */}
+                                        <div className="control-item">
+                                            <div className="control-label">
+                                                衛星移動快速設定:
+                                            </div>
+                                            <div className="speed-preset-buttons">
+                                                {[1, 2, 3, 5, 8, 10].map(
+                                                    (speed) => (
+                                                        <button
+                                                            key={speed}
+                                                            className={`speed-preset-btn ${
+                                                                satelliteMovementSpeed ===
+                                                                speed
+                                                                    ? 'active'
+                                                                    : ''
+                                                            }`}
+                                                            onClick={() =>
+                                                                onSatelliteMovementSpeedChange &&
+                                                                onSatelliteMovementSpeedChange(
+                                                                    speed
+                                                                )
+                                                            }
+                                                        >
+                                                            {speed}倍
+                                                        </button>
+                                                    )
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* 換手時機速度快速設定 - 只在衛星-UAV連接開啟時顯示 */}
+                                        {satelliteUavConnectionEnabled && (
+                                            <div className="control-item">
+                                                <div className="control-label">
+                                                    換手時機快速設定:
+                                                </div>
+                                                <div className="speed-preset-buttons">
+                                                    {[1, 2, 3, 5, 8, 10].map(
+                                                        (speed) => (
+                                                            <button
+                                                                key={speed}
+                                                                className={`speed-preset-btn ${
+                                                                    handoverTimingSpeed ===
+                                                                    speed
+                                                                        ? 'active'
+                                                                        : ''
+                                                                }`}
+                                                                onClick={() =>
+                                                                    onHandoverTimingSpeedChange &&
+                                                                    onHandoverTimingSpeedChange(
+                                                                        speed
+                                                                    )
+                                                                }
+                                                            >
+                                                                {speed}秒
+                                                            </button>
+                                                        )
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 穩定期預設時間按鈕 - 只在衛星-UAV連接開啟時顯示 */}
+                                        {satelliteUavConnectionEnabled && (
+                                            <div className="control-item">
+                                                <div className="control-label">
+                                                    穩定期快速設定:
+                                                </div>
+                                                <div className="speed-preset-buttons">
+                                                    {[1, 2, 3, 5, 8, 10].map(
+                                                        (duration) => (
+                                                            <button
+                                                                key={duration}
+                                                                className={`speed-preset-btn ${
+                                                                    handoverStableDuration ===
+                                                                    duration
+                                                                        ? 'active'
+                                                                        : ''
+                                                                }`}
+                                                                onClick={() =>
+                                                                    onHandoverStableDurationChange &&
+                                                                    onHandoverStableDurationChange(
+                                                                        duration
+                                                                    )
+                                                                }
+                                                            >
+                                                                {duration}秒
+                                                            </button>
+                                                        )
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-
-                                    {/* 換手時機速度快速設定 - 只在衛星-UAV連接開啟時顯示 */}
-                                    {satelliteUavConnectionEnabled && (
-                                        <div className="control-item">
-                                            <div className="control-label">換手時機快速設定:</div>
-                                            <div className="speed-preset-buttons">
-                                                {[1, 2, 3, 5, 8, 10].map((speed) => (
-                                                    <button
-                                                        key={speed}
-                                                        className={`speed-preset-btn ${
-                                                            handoverTimingSpeed === speed ? 'active' : ''
-                                                        }`}
-                                                        onClick={() =>
-                                                            onHandoverTimingSpeedChange &&
-                                                            onHandoverTimingSpeedChange(speed)
-                                                        }
-                                                    >
-                                                        {speed}秒
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* 穩定期預設時間按鈕 - 只在衛星-UAV連接開啟時顯示 */}
-                                    {satelliteUavConnectionEnabled && (
-                                        <div className="control-item">
-                                            <div className="control-label">穩定期快速設定:</div>
-                                            <div className="speed-preset-buttons">
-                                                {[1, 2, 3, 5, 8, 10].map((duration) => (
-                                                    <button
-                                                        key={duration}
-                                                        className={`speed-preset-btn ${
-                                                            handoverStableDuration === duration ? 'active' : ''
-                                                        }`}
-                                                        onClick={() =>
-                                                            onHandoverStableDurationChange &&
-                                                            onHandoverStableDurationChange(duration)
-                                                        }
-                                                    >
-                                                        {duration}秒
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                )}
 
                             {/* 🚀 換手管理分頁 - 使用獨立模組 */}
                             <HandoverManagementTab
@@ -778,11 +906,17 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 selectedUEId={selectedReceiverIds[0]}
                                 isVisible={activeCategory === 'handover_mgr'}
                                 handoverMode={handoverMode}
-                                satelliteSpeedMultiplier={satelliteSpeedMultiplier}
+                                satelliteSpeedMultiplier={
+                                    satelliteSpeedMultiplier
+                                }
                                 currentStrategy={currentStrategy}
                                 onHandoverStateChange={onHandoverStateChange}
-                                onCurrentConnectionChange={onCurrentConnectionChange}
-                                onPredictedConnectionChange={onPredictedConnectionChange}
+                                onCurrentConnectionChange={
+                                    onCurrentConnectionChange
+                                }
+                                onPredictedConnectionChange={
+                                    onPredictedConnectionChange
+                                }
                                 onTransitionChange={onTransitionChange}
                                 onAlgorithmResults={onAlgorithmResults}
                             />
@@ -843,16 +977,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                     </div>
 
-                    {/* 設備列表 - 使用獨立模組 */}
+                    {/* UAV 設備列表 - 使用獨立模組（不包含衛星） */}
                     <DeviceListPanel
                         devices={devices}
                         tempDevices={tempDevices}
                         receiverDevices={receiverDevices}
                         desiredDevices={desiredDevices}
                         jammerDevices={jammerDevices}
-                        skyfieldSatellites={skyfieldSatellites}
-                        satelliteEnabled={satelliteEnabled}
-                        loadingSatellites={loadingSatellites}
+                        skyfieldSatellites={[]} // UAV 分頁不顯示衛星
+                        satelliteEnabled={false} // UAV 分頁不顯示衛星
+                        loadingSatellites={false}
                         orientationInputs={orientationInputs}
                         onDeviceChange={onDeviceChange}
                         onDeleteDevice={onDeleteDevice}
@@ -860,6 +994,27 @@ const Sidebar: React.FC<SidebarProps> = ({
                         onDeviceRoleChange={handleDeviceRoleChange}
                     />
                 </>
+            )}
+
+            {/* 衛星 gNB 列表 - 移動到衛星控制分頁 */}
+            {activeCategory === 'satellite' && satelliteEnabled && (
+                <div className="satellite-gnb-section">
+                    <DeviceListPanel
+                        devices={[]} // 衛星分頁不顯示 UAV 設備
+                        tempDevices={[]}
+                        receiverDevices={[]}
+                        desiredDevices={[]}
+                        jammerDevices={[]}
+                        skyfieldSatellites={skyfieldSatellites}
+                        satelliteEnabled={satelliteEnabled}
+                        loadingSatellites={loadingSatellites}
+                        orientationInputs={orientationInputs}
+                        onDeviceChange={() => {}} // 衛星分頁不需要設備操作功能
+                        onDeleteDevice={() => {}}
+                        onOrientationInputChange={() => {}}
+                        onDeviceRoleChange={() => {}}
+                    />
+                </div>
             )}
         </div>
     )

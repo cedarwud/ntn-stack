@@ -19,6 +19,11 @@ import {
 } from '../../contexts/appStateHooks'
 import { useDataSync } from '../../contexts/DataSyncContext'
 
+// Phase 2: 新增組件導入
+import SatelliteAnimationController from '../domains/satellite/animation/SatelliteAnimationController'
+import HandoverEventVisualizer from '../domains/handover/visualization/HandoverEventVisualizer'
+import type { HandoverEvent } from '../../types/satellite'
+
 interface SceneViewProps {
     devices: Device[]
     uiState: UIState
@@ -47,19 +52,79 @@ export default function SceneView({
 }: SceneViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [handoverStatusInfo, setHandoverStatusInfo] = useState<unknown>(null)
-    
+
+    // Phase 2: 新增狀態管理
+    const [currentLocation, setCurrentLocation] = useState('ntpu')
+    const [currentConstellation, setCurrentConstellation] = useState<
+        'starlink' | 'oneweb'
+    >('starlink')
+    const [satellitePositions, setSatellitePositions] = useState<
+        Map<string, [number, number, number]>
+    >(new Map())
+    const [handoverEvents, setHandoverEvents] = useState<HandoverEvent[]>([])
+    const [animationConfig] = useState({
+        acceleration: 1, // 修正：改為 1 倍速度
+        distanceScale: 0.1,
+        fps: 30,
+        smoothing: true,
+    })
+
     // 使用統一的數據同步上下文獲取衛星數據
     const { state } = useDataSync()
-    const satellites = satelliteState.satelliteEnabled ? (state.simworld.satellites || []) : []
+    const satellites = satelliteState.satelliteEnabled
+        ? state.simworld.satellites || []
+        : []
 
     const handleHandoverStatusUpdate = useCallback((statusInfo: unknown) => {
         setHandoverStatusInfo(statusInfo)
     }, [])
 
+    // Phase 2: 事件處理函數
+    const handleLocationChange = useCallback(
+        (locationId: string) => {
+            console.log(`🌍 切換觀測點: ${currentLocation} -> ${locationId}`)
+            setCurrentLocation(locationId)
+            // 清除當前衛星位置，等待新數據載入
+            setSatellitePositions(new Map())
+        },
+        [currentLocation]
+    )
+
+    const handleSatellitePositions = useCallback(
+        (positions: Map<string, [number, number, number]>) => {
+            setSatellitePositions(positions)
+        },
+        []
+    )
+
+    const handleHandoverEvent = useCallback(
+        (event: HandoverEvent) => {
+            console.log(
+                `🔄 換手事件: ${event.fromSatelliteId} -> ${event.toSatelliteId}`
+            )
+            setHandoverEvents((prev) => [...prev, event])
+
+            // 通知父組件
+            if (onHandoverEvent) {
+                onHandoverEvent(event)
+            }
+        },
+        [onHandoverEvent]
+    )
+
+    const handleHandoverComplete = useCallback((event: HandoverEvent) => {
+        console.log(
+            `✅ 換手完成: ${event.fromSatelliteId} -> ${event.toSatelliteId}`
+        )
+    }, [])
+
     // 衛星數據現在通過 DataSyncContext 統一管理，不需要額外的 API 調用
     useEffect(() => {
         if (satelliteState.satelliteEnabled) {
-            console.log('🚀 StereogramView: 使用 DataSyncContext 統一的衛星數據，數量:', satellites.length)
+            console.log(
+                '🚀 StereogramView: 使用 DataSyncContext 統一的衛星數據，數量:',
+                satellites.length
+            )
         } else {
             console.log('📡 StereogramView: 衛星顯示已禁用')
         }
@@ -251,12 +316,32 @@ export default function SceneView({
                         satelliteMovementSpeed={
                             handoverState.satelliteMovementSpeed
                         }
-                        handoverTimingSpeed={
-                            handoverState.handoverTimingSpeed
-                        }
+                        handoverTimingSpeed={handoverState.handoverTimingSpeed}
                         algorithmResults={handoverState.algorithmResults}
                         onHandoverStatusUpdate={handleHandoverStatusUpdate}
                     />
+
+                    {/* Phase 2: 衛星動畫控制器 */}
+                    <SatelliteAnimationController
+                        enabled={satelliteState.satelliteEnabled}
+                        location={currentLocation}
+                        constellation={currentConstellation}
+                        animationConfig={animationConfig}
+                        onHandoverEvent={handleHandoverEvent}
+                        onSatellitePositions={handleSatellitePositions}
+                    />
+
+                    {/* Phase 2: 換手事件視覺化 */}
+                    <HandoverEventVisualizer
+                        enabled={satelliteState.satelliteEnabled}
+                        handoverEvents={handoverEvents}
+                        currentTime={0} // 這裡需要從 TimelineController 獲取
+                        satellitePositions={satellitePositions}
+                        onHandoverComplete={handleHandoverComplete}
+                        showTrails={true}
+                        animationDuration={3.0}
+                    />
+
                     <ContactShadows
                         position={[0, 0.1, 0]}
                         opacity={0.4}
@@ -267,6 +352,8 @@ export default function SceneView({
                 </Suspense>
                 <OrbitControls makeDefault />
             </Canvas>
+
+            {/* Phase 2 UI 控制組件已移至側邊欄 */}
         </div>
     )
 }

@@ -49,7 +49,6 @@ from app.api.routes.health import router as health_router
 # MongoDB routes removed - migrated to PostgreSQL
 
 # Import TLE data routes for Phase 1 - Real satellite data integration
-from app.api.routes.tle import router as tle_router
 
 # Import measurement events routes for Phase 4 - Frontend integration
 from app.api.routes.measurement_events import router as measurement_events_router
@@ -117,7 +116,6 @@ api_router.include_router(
 api_router.include_router(health_router, prefix="/health", tags=["Health"])
 
 # Register TLE data routes for Phase 1 - Real satellite data integration
-api_router.include_router(tle_router, tags=["TLE Data"])
 
 # Register measurement events routes for Phase 4 - Frontend integration
 api_router.include_router(measurement_events_router, tags=["Measurement Events"])

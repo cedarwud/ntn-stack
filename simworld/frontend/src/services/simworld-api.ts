@@ -2,7 +2,7 @@
  * SimWorld API Client
  * 用於連接 SimWorld 後端的真實 TLE 和軌道數據
  */
-import { simworldFetch } from '../config/api-config';
+import { simworldFetch, netstackFetch } from '../config/api-config';
 import React, { useState, useEffect } from 'react';
 
 export interface SatellitePosition {
@@ -172,13 +172,14 @@ class SimWorldApiClient {
           queryParams.append(key, value.toString());
         });
         
-        const endpoint = `/api/v1/satellites/visible_satellites?${queryParams.toString()}`;
-    
-        console.log(`🛰️ SimWorldApi: 調用衛星API ${endpoint}`);
+        // 使用 NetStack API 的預計算端點 (修正路徑)
+        const endpoint = `/api/v1/satellites/precomputed/ntpu?${queryParams.toString()}`;
+
+        console.log(`🛰️ SimWorldApi: 調用 NetStack 衛星API ${endpoint}`);
         console.log(`📡 SimWorldApi: NTPU觀測點座標 (${observerLat}, ${observerLon}), 最小仰角 ${minElevation}°`);
-        
-        // 🚀 使用統一的 API 配置系統
-        const response = await this.fetchWithConfig(endpoint);
+
+        // 🚀 使用 NetStack API 配置調用預計算端點
+        const response = await netstackFetch(endpoint);
         if (!response.ok) {
           throw new Error('API request failed: ' + response.statusText);
         }
@@ -361,7 +362,7 @@ class SimWorldApiClient {
         console.error(`🛰️ SimWorldApi: 錯誤詳細信息:`, {
           errorName: (error as any)?.name,
           errorMessage: (error as any)?.message,
-          endpoint: '/v1/satellite-ops/visible_satellites'
+          endpoint: '/api/v1/satellites/precomputed/ntpu'
         });
         throw error;
       } finally {

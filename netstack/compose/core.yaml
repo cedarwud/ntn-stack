@@ -367,11 +367,19 @@ services:
       - DB_NAME=rl_research
       - DB_USER=rl_user
       - DB_PASSWORD=rl_password
+      # Phase 5 容器啟動優化環境變數
+      - SATELLITE_DATA_MODE=instant_load     # 啟動時立即載入
+      - POSTGRES_WAIT_TIMEOUT=30             # 等待超時設定
+      - PRECOMPUTE_ON_STARTUP=true           # 啟動時執行預計算
     volumes:
       - netstack_models:/app/models
       - netstack_results:/app/results
       - netstack_scripts:/app/scripts
       - ../netstack_api/routers/satellite_data_router.py:/app/netstack_api/routers/satellite_data_router.py:ro
+      - ../netstack_api/routers/coordinate_orbit_endpoints.py:/app/netstack_api/routers/coordinate_orbit_endpoints.py:ro
+      - ../netstack_api/app/core/router_manager.py:/app/netstack_api/app/core/router_manager.py:ro
+      # Phase 0 預計算數據掛載 (移動到 netstack 目錄)
+      - ../data:/app/data:ro
     ports:
       - "8080:8080"
     depends_on:
@@ -419,9 +427,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U rl_user -d rl_research"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      interval: 5s          # 從 30s 縮短為 5s (Phase 5 優化)
+      timeout: 3s           # 從 5s 縮短為 3s
+      retries: 5            # 從 3 增加為 5
+      start_period: 10s     # 新增，給 PostgreSQL 足夠啟動時間
 
   # Redis 快取
   redis:

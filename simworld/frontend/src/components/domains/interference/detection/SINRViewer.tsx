@@ -21,7 +21,7 @@ const SINRViewer: React.FC<ViewerProps> = ({
     const maxRetries = 3
 
     const imageUrlRef = useRef<string | null>(null)
-    const API_PATH = ApiRoutes.simulations.getSINRMap
+    const API_PATH = '/api/v1/simulations/sinr-map' // 修正：使用正確的 API 路徑
 
     const updateTimestamp = useCallback(() => {
         const now = new Date()
@@ -37,7 +37,11 @@ const SINRViewer: React.FC<ViewerProps> = ({
 
     const handleLoadError = useCallback(
         (err: Error | unknown) => {
-            if (err instanceof Error && err.message && err.message.includes('404')) {
+            if (
+                err instanceof Error &&
+                err.message &&
+                err.message.includes('404')
+            ) {
                 setError('圖像文件未找到: 後端可能正在生成圖像，請稍後重試')
             } else if (err instanceof Error) {
                 setError('無法載入 SINR Map: ' + err.message)
@@ -88,10 +92,10 @@ const SINRViewer: React.FC<ViewerProps> = ({
                 if (response.status === 503) {
                     throw new Error('信號分析服務暫時不可用，請稍後重試')
                 }
-                
+
                 // 嘗試獲取後端的詳細錯誤消息
                 let errorMessage = `API 請求失敗: ${response.status} ${response.statusText}`
-                
+
                 try {
                     const errorData = await response.json()
                     if (errorData.detail) {
@@ -100,7 +104,7 @@ const SINRViewer: React.FC<ViewerProps> = ({
                 } catch {
                     // 如果無法解析JSON，使用默認錯誤消息
                 }
-                
+
                 throw new Error(errorMessage)
             }
         } catch (err: unknown) {

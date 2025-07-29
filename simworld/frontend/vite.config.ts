@@ -35,6 +35,18 @@ export default defineConfig(({ mode }) => {
                     })
                 }
             },
+
+            // SimWorld v1 API 代理（用於信號分析圖表）
+            '/v1': {
+                target: env.VITE_SIMWORLD_PROXY_TARGET || 'http://simworld_backend:8000',
+                changeOrigin: true,
+                secure: false,
+                configure: (proxy) => {
+                    proxy.on('error', (err) => {
+                        console.log('🚨 SimWorld v1 API 代理錯誤:', err)
+                    })
+                }
+            },
             
             // 統一的 NetStack API 代理  
             '/netstack': {

@@ -34,12 +34,23 @@ export const useFeatureState = () => {
 }
 
 export const useSatelliteState = () => {
-  const { satelliteState, setSkyfieldSatellites, setSatelliteEnabled } = useAppState()
+  const {
+    satelliteState,
+    setSkyfieldSatellites,
+    setSatelliteEnabled,
+    setSelectedConstellation
+  } = useAppState()
   return useMemo(() => ({
     ...satelliteState,
     setSkyfieldSatellites,
     setSatelliteEnabled,
-  }), [satelliteState, setSkyfieldSatellites, setSatelliteEnabled])
+    setSelectedConstellation,
+  }), [
+    satelliteState,
+    setSkyfieldSatellites,
+    setSatelliteEnabled,
+    setSelectedConstellation
+  ])
 }
 
 export const useHandoverState = () => {

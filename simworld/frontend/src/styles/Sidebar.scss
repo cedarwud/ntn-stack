@@ -1501,3 +1501,41 @@ td {
     }
   }
 }
+
+/* 星座選擇器樣式 - 緊湊版本 */
+.constellation-selector {
+  .constellation-options-compact {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+
+  .constellation-btn-compact {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid rgba(70, 90, 120, 0.4);
+    border-radius: 6px;
+    background: rgba(25, 35, 50, 0.7);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #e0f2ff;
+
+    &:hover {
+      border-color: #4a7baf;
+      background: rgba(74, 123, 175, 0.15);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(74, 123, 175, 0.2);
+    }
+
+    &.active {
+      border-color: #4a7baf;
+      background: rgba(74, 123, 175, 0.25);
+      box-shadow: 0 2px 6px rgba(74, 123, 175, 0.3);
+      color: #4a7baf;
+      font-weight: 600;
+    }
+  }
+}

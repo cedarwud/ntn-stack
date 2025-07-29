@@ -18,7 +18,7 @@ const TimeFrequencyViewer: React.FC<ViewerProps> = ({
 
     const imageUrlRef = useRef<string | null>(null)
     // 使用ApiRoutes中定義的路徑
-    const API_PATH = ApiRoutes.simulations.getChannelResponsePlots
+    const API_PATH = '/api/v1/simulations/channel-response' // 修正：使用正確的 API 路徑
 
     const updateTimestamp = useCallback(() => {
         const now = new Date()
@@ -44,10 +44,10 @@ const TimeFrequencyViewer: React.FC<ViewerProps> = ({
                     if (response.status === 503) {
                         throw new Error('信號分析服務暫時不可用，請稍後重試')
                     }
-                    
+
                     // 嘗試獲取後端的詳細錯誤消息
                     let errorMessage = `API 請求失敗: ${response.status} ${response.statusText}`
-                    
+
                     try {
                         const errorData = await response.json()
                         if (errorData.detail) {
@@ -56,7 +56,7 @@ const TimeFrequencyViewer: React.FC<ViewerProps> = ({
                     } catch {
                         // 如果無法解析JSON，使用默認錯誤消息
                     }
-                    
+
                     throw new Error(errorMessage)
                 }
                 return response.blob()

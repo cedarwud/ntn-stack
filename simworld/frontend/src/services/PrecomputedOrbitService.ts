@@ -5,17 +5,15 @@
  * 支援 60 倍加速動畫和距離縮放優化。
  */
 
-import type { 
-  OrbitData, 
-  OptimalTimeWindow, 
-  DisplayData, 
-  SatelliteTrajectory, 
+import type {
+  OrbitData,
+  OptimalTimeWindow,
+  DisplayData,
+  SatelliteTrajectory,
   HandoverEvent,
-  ObserverLocation 
+  ObserverLocation
 } from '../types/satellite';
-
-// API 配置
-const NETSTACK_API_BASE = '/netstack/api/v1/satellites';
+import { netstackFetch } from '../config/api-config';
 
 export interface PrecomputedOrbitConfig {
   location: string;
@@ -61,8 +59,8 @@ export class PrecomputedOrbitService {
         params.append('elevation_threshold', config.elevationThreshold.toString());
       }
 
-      const response = await fetch(
-        `${NETSTACK_API_BASE}/precomputed/${config.location}?${params}`
+      const response = await netstackFetch(
+        `/api/v1/satellites/precomputed/${config.location}?${params}`
       );
 
       if (!response.ok) {
@@ -108,8 +106,8 @@ export class PrecomputedOrbitService {
     }
 
     try {
-      const response = await fetch(
-        `${NETSTACK_API_BASE}/optimal-window/${location}?constellation=${constellation}&window_hours=${windowHours}`
+      const response = await netstackFetch(
+        `/optimal-window/${location}?constellation=${constellation}&window_hours=${windowHours}`
       );
 
       if (!response.ok) {
@@ -161,8 +159,8 @@ export class PrecomputedOrbitService {
     }
 
     try {
-      const response = await fetch(
-        `${NETSTACK_API_BASE}/display-data/${location}?acceleration=${config.acceleration}&distance_scale=${config.distanceScale}`
+      const response = await netstackFetch(
+        `/display-data/${location}?acceleration=${config.acceleration}&distance_scale=${config.distanceScale}`
       );
 
       if (!response.ok) {
@@ -204,7 +202,7 @@ export class PrecomputedOrbitService {
     }
 
     try {
-      const response = await fetch(`${NETSTACK_API_BASE}/locations`);
+      const response = await netstackFetch(`/locations`);
 
       if (!response.ok) {
         throw new Error(`NetStack API 錯誤: ${response.status}`);
@@ -232,7 +230,7 @@ export class PrecomputedOrbitService {
    */
   async checkPrecomputedHealth(): Promise<boolean> {
     try {
-      const response = await fetch(`${NETSTACK_API_BASE}/health/precomputed`);
+      const response = await netstackFetch(`/health/precomputed`);
       
       if (!response.ok) {
         console.warn('⚠️ NetStack 預計算健康檢查失敗');
