@@ -17,6 +17,8 @@ import {
     SatellitePosition,
     useVisibleSatellites,
 } from '../services/simworld-api'
+import { useNetstackPrecomputedSatellites } from '../services/netstack-precomputed-api'
+import { useAppState } from './appStateHooks'
 
 // 全局數據狀態接口
 export interface GlobalDataState {
@@ -228,13 +230,18 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
     const [state, dispatch] = useReducer(dataSyncReducer, initialState)
+    const { satelliteState, setSkyfieldSatellites } = useAppState() // 獲取衛星狀態和更新函數
 
-    // 使用真實衛星數據 hook - 移除自動更新
+    // Phase 1: 使用 NetStack 預計算數據 - 統一數據源
     // 🌍 使用台灣NTPU精確座標作為預設觀測點，確保獲得真實計算的仰角方位角距離
     // 📍 NTPU座標: 24°56'39"N 121°22'17"E (24.9441667°, 121.3713889°)
-    // 🛰️ 只顯示可進行真實換手的衛星：仰角≥5度（符合3GPP NTN標準的最小仰角要求）
+    // 🛰️ 使用 Phase 0 預計算數據：10度仰角閾值（ITU-R P.618 合規標準）
+    // 🛰️ 支援星座切換：根據側邊欄選擇的星座動態載入數據
     const { satellites: realSatellites, error: satellitesError } =
-        useVisibleSatellites(5, 150, 24.9441667, 121.3713889) // 5度仰角（可換手衛星），最多150顆，台灣NTPU精確座標
+        useNetstackPrecomputedSatellites(
+            'ntpu',
+            satelliteState.selectedConstellation
+        ) // 使用 NetStack 預計算數據
 
     // 強制同步方法 - 只同步 NetStack 數據，衛星數據由 useVisibleSatellites 統一管理
     const forceSync = useCallback(async () => {
@@ -315,13 +322,38 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
         return state.sync.dataConsistency === 'synced'
     }, [state.sync.dataConsistency])
 
-    // 自動處理 SimWorld 衛星數據更新
+    // 自動處理 NetStack 衛星數據更新 - 同步到 SimWorld 和 AppStateContext
     useEffect(() => {
         if (realSatellites && realSatellites.length > 0) {
+            // 更新 SimWorld 狀態
             dispatch({
                 type: 'UPDATE_SIMWORLD_SATELLITES',
                 payload: { satellites: realSatellites },
             })
+
+            // 同步到 AppStateContext 的 satelliteState（用於側邊欄顯示）
+            // 轉換 NetStack API 數據格式為前端期望的格式
+            const convertedSatellites = realSatellites.map((sat) => ({
+                ...sat,
+                elevation_deg: sat.position?.elevation || 0,
+                azimuth_deg: sat.position?.azimuth || 0,
+                distance_km: sat.position?.range || 0,
+            }))
+
+            // 調試日誌：檢查數據轉換
+            if (convertedSatellites.length > 0) {
+                console.log('🛰️ DataSync: 衛星數據轉換完成', {
+                    count: convertedSatellites.length,
+                    sample: {
+                        name: convertedSatellites[0].name,
+                        elevation_deg: convertedSatellites[0].elevation_deg,
+                        azimuth_deg: convertedSatellites[0].azimuth_deg,
+                        distance_km: convertedSatellites[0].distance_km,
+                    },
+                })
+            }
+
+            setSkyfieldSatellites(convertedSatellites)
         }
 
         if (satellitesError) {
@@ -330,7 +362,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
                 payload: { error: satellitesError },
             })
         }
-    }, [realSatellites, satellitesError])
+    }, [realSatellites, satellitesError, setSkyfieldSatellites])
 
     // 定期自動同步
     useEffect(() => {

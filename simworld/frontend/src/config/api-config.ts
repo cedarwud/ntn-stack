@@ -24,19 +24,17 @@ const detectEnvironment = (): 'development' | 'docker' | 'production' => {
     return 'docker'
   }
   
-  // 檢查主機名 - 如果是通過 5173 端口訪問，則使用 docker
+  // 如果有設置代理路徑環境變量，強制使用 docker 模式
+  if (import.meta.env.VITE_NETSTACK_URL?.startsWith('/')) {
+    return 'docker'
+  }
+  
+  // 檢查主機名 - 如果是通過 5173 端口訪問，使用 docker 環境
   if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname
     const port = window.location.port
     if (port === '5173') {
-      // 如果有設置 VITE_NETSTACK_URL 為代理路徑，則為 docker 環境
-      if (import.meta.env.VITE_NETSTACK_URL?.startsWith('/')) {
-        return 'docker'
-      }
-      // 如果通過 IP 地址訪問且端口為 5173，很可能是 Docker 環境
-      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-        return 'docker'
-      }
+      // 只要是 5173 端口且有代理環境變數，都使用 docker 模式
+      return 'docker'
     }
   }
   
@@ -159,6 +157,10 @@ export const getServiceUrl = (service: 'netstack' | 'simworld', endpoint: string
   
   // 如果是代理路徑，直接拼接
   if (baseUrl.startsWith('/')) {
+    // 處理根路徑的特殊情況，避免雙斜線
+    if (baseUrl === '/') {
+      return normalizedEndpoint
+    }
     return `${baseUrl}${normalizedEndpoint}`
   }
   

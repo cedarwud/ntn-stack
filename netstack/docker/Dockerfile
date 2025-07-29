@@ -1,5 +1,5 @@
-# NetStack API Dockerfile - Phase 0 增強版
-# 支援本地收集 TLE 數據的 Docker 建置
+# NetStack API Dockerfile - Phase 0 整合版
+# 支援本地收集 TLE 數據和預計算軌道數據的 Docker 建置
 
 FROM python:3.11-slim AS builder
 
@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
+    wget \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # 複製需求檔案
@@ -28,16 +30,31 @@ RUN pip install --upgrade pip && \
 # 安裝所有依賴 - 統一完整安裝
 RUN pip install --no-cache-dir --default-timeout=600 -r requirements.txt
 
+# 複製應用程式碼
+COPY . .
+
 # Phase 0 增強：複製手動收集的 TLE 數據
 COPY tle_data/ /app/tle_data/
 
-# 複製 Phase 0 預處理腳本
-COPY netstack/docker/build_with_phase0_data.py /app/build_with_phase0_data.py
+# 複製 Phase 0 建置腳本
+COPY build_with_phase0_data.py /app/build_with_phase0_data.py
 
-# Phase 0 預處理：掃描並處理收集的數據
-RUN python3 /app/build_with_phase0_data.py \
-    --tle-data-dir /app/tle_data \
-    --output-dir /app/data
+# 創建必要目錄
+RUN mkdir -p /app/data /app/tle_data /app/logs
+
+# 設置 Phase 0 環境變量
+ENV PYTHONPATH=/app:/app/src
+ENV PRECOMPUTED_DATA_ENABLED=true
+ENV ORBIT_CACHE_PRELOAD=true
+
+# Phase 0: 建置時執行預計算
+# 這確保容器啟動時預計算數據已經可用
+RUN echo "🚀 開始 Phase 0 預計算建置..." && \
+    python build_with_phase0_data.py && \
+    echo "✅ Phase 0 預計算建置完成"
+
+# 記錄啟動時間
+RUN echo $(date +%s) > /tmp/netstack_startup_time
 
 # 生產階段
 FROM python:3.11-slim AS production
@@ -177,9 +194,9 @@ USER netstack
 # 暴露埠號
 EXPOSE 8080
 
-# 健康檢查
+# Phase 0 增強健康檢查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD /usr/local/bin/healthcheck.sh
+    CMD curl -f http://localhost:8080/api/v1/satellites/health/precomputed || /usr/local/bin/healthcheck.sh
 
 # 開發模式啟動命令
 CMD ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
