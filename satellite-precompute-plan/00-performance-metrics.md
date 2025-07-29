@@ -8,7 +8,7 @@
 
 **原始系統 vs 預計算系統**：
 - **API 響應時間**：從 500-2000ms → 50-100ms (**10-20x 提升**)  
-- **衛星數據量**：從 6 顆模擬 → 6-8 顆真實可見衛星（符合 3GPP NTN 標準）
+- **衛星數據量**：從 6 顆模擬 → 6-8 顆真實可見衛星（符合 3GPP NTN 標準，10° ITU-R P.618 合規門檻）
 - **handover 候選**：3-5 顆（符合真實場景）
 - **時間範圍**：支援 6 小時完整歷史數據
 - **動畫流暢度**：支援 1x-60x 倍速播放
@@ -172,7 +172,7 @@ DB_QUERIES=(
     "SELECT COUNT(*) FROM satellite_tle_data;"
     "SELECT COUNT(*) FROM satellite_orbital_cache;"
     "SELECT constellation, COUNT(*) FROM satellite_orbital_cache GROUP BY constellation;"
-    "SELECT * FROM satellite_orbital_cache WHERE elevation_angle >= 15 ORDER BY elevation_angle DESC LIMIT 10;"
+    "SELECT * FROM satellite_orbital_cache WHERE elevation_angle >= 10 ORDER BY elevation_angle DESC LIMIT 10;"
 )
 
 for query in "${DB_QUERIES[@]}"; do
@@ -582,8 +582,9 @@ class SatelliteStatisticsAnalyzer:
                 COUNT(DISTINCT satellite_id) as unique_satellites,
                 AVG(elevation_angle) as avg_elevation,
                 STDDEV(elevation_angle) as elevation_stddev,
-                COUNT(*) FILTER (WHERE elevation_angle >= 15) as handover_events,
-                COUNT(*) FILTER (WHERE elevation_angle BETWEEN 10 AND 15) as monitoring_events
+                COUNT(*) FILTER (WHERE elevation_angle >= 15) as pre_handover_events,
+                COUNT(*) FILTER (WHERE elevation_angle >= 10) as handover_events,
+                COUNT(*) FILTER (WHERE elevation_angle BETWEEN 5 AND 10) as critical_events
             FROM satellite_orbital_cache 
             WHERE constellation = $1 
               AND timestamp BETWEEN $2 AND $3
