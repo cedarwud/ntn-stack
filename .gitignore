@@ -84,7 +84,6 @@ docker-compose.override.yml
 *.tmp
 *.temp
 *.backup
-.claude
 
 # Phase 0 預計算數據 (大檔案，建置時生成)
 netstack/data/phase0_precomputed_orbits.json

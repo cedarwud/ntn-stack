@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional, Set, Callable
 from datetime import datetime, timedelta
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
+from pathlib import Path
 
 import sgp4.api as sgp4
 import math
@@ -24,7 +25,87 @@ from app.domains.satellite.adapters.sqlmodel_satellite_repository import (
 logger = logging.getLogger(__name__)
 
 
-# 定義同步 OneWeb TLE 數據的函數
+# NetStack TLE 同步到 Redis 函數
+async def sync_netstack_tle_to_redis(
+    constellation: str, 
+    redis_client: Redis,
+    netstack_tle_base_path: str = "/app/netstack/tle_data"
+) -> bool:
+    """將 NetStack TLE 數據文件同步到 Redis"""
+    try:
+        logger.info(f"開始從 NetStack 同步 {constellation} TLE 數據到 Redis")
+        
+        # 檢查 NetStack 最新 TLE 文件
+        tle_dir = Path(f"{netstack_tle_base_path}/{constellation}/tle")
+        tle_files = sorted(tle_dir.glob(f"{constellation}_*.tle"), reverse=True)
+        
+        if not tle_files:
+            logger.error(f"NetStack 找不到 {constellation} TLE 文件")
+            return False
+        
+        latest_file = tle_files[0]
+        logger.info(f"處理文件: {latest_file}")
+        
+        # 解析 TLE 數據
+        satellites = []
+        with open(latest_file, 'r') as f:
+            lines = f.readlines()
+        
+        for i in range(0, len(lines), 3):
+            if i + 2 < len(lines):
+                name = lines[i].strip()
+                line1 = lines[i + 1].strip()
+                line2 = lines[i + 2].strip()
+                
+                try:
+                    norad_id = int(line1[2:7])
+                    satellite_data = {
+                        "name": name,
+                        "norad_id": norad_id,
+                        "line1": line1,
+                        "line2": line2,
+                        "constellation": constellation,
+                        "updated_at": datetime.utcnow().isoformat(),
+                        "source": "netstack_local_file",
+                        "file_path": str(latest_file)
+                    }
+                    satellites.append(satellite_data)
+                except (ValueError, IndexError) as e:
+                    logger.warning(f"解析 TLE 失敗: {e}")
+                    continue
+        
+        if not satellites:
+            logger.warning(f"沒有找到有效的 {constellation} 衛星數據")
+            return False
+        
+        # 儲存到 Redis
+        redis_key = f"netstack_tle_data:{constellation}"
+        await redis_client.set(
+            redis_key,
+            json.dumps(satellites),
+            ex=86400 * 3  # 3天過期
+        )
+        
+        # 儲存統計資訊
+        stats_key = f"netstack_tle_stats:{constellation}"
+        stats = {
+            "count": len(satellites),
+            "last_updated": datetime.utcnow().isoformat(),
+            "source": "netstack_local_file",
+            "file_path": str(latest_file),
+            "data_freshness": "real_time"
+        }
+        await redis_client.set(stats_key, json.dumps(stats), ex=86400 * 3)
+        
+        logger.info(f"成功同步 {len(satellites)} 個 {constellation} 衛星到 Redis")
+        return True
+        
+    except Exception as e:
+        logger.error(f"NetStack 到 Redis 同步失敗: {e}", exc_info=True)
+        return False
+
+
+# 定義同步 OneWeb TLE 數據的函數 (保持向後兼容)
 async def synchronize_constellation_tles(
     constellation: str, session_factory: Callable[..., AsyncSession], redis_client: Redis
 ) -> bool:
@@ -41,6 +122,14 @@ async def synchronize_constellation_tles(
     try:
         logger.info(f"開始同步 {constellation.upper()} 衛星 TLE 數據...")
 
+        # 優先使用 NetStack 本地文件
+        success = await sync_netstack_tle_to_redis(constellation, redis_client)
+        if success:
+            return True
+
+        # 如果 NetStack 同步失敗，回退到 Celestrak
+        logger.warning(f"NetStack 同步失敗，回退到 Celestrak 獲取 {constellation} 數據")
+        
         # 創建 TLE 服務和衛星儲存庫
         satellite_repo = SQLModelSatelliteRepository(session_factory)
         tle_service = TLEService(satellite_repo)
@@ -95,7 +184,14 @@ class TLEService(TLEServiceInterface):
             satellite_repository or SQLModelSatelliteRepository()
         )
 
-        # Celestrak API URL
+        # NetStack TLE 數據路徑配置
+        self._netstack_tle_base_path = "/app/netstack/tle_data"
+        self._local_tle_paths = {
+            "starlink": f"{self._netstack_tle_base_path}/starlink/tle",
+            "oneweb": f"{self._netstack_tle_base_path}/oneweb/tle"
+        }
+
+        # Celestrak API URL (作為備用)
         self._celestrak_base_url = "https://celestrak.org/NORAD/elements/gp.php"
         self._celestrak_categories = {
             "stations": "stations",
@@ -121,6 +217,32 @@ class TLEService(TLEServiceInterface):
         # 從環境變數讀取Space-Track憑證
         self._spacetrack_username = os.getenv("SPACETRACK_USERNAME")
         self._spacetrack_password = os.getenv("SPACETRACK_PASSWORD")
+
+    async def fetch_tle_from_netstack_files(self, constellation: str) -> List[Dict[str, Any]]:
+        """從 NetStack TLE 數據文件讀取數據而非 Celestrak 網址"""
+        try:
+            tle_dir = Path(self._local_tle_paths.get(constellation))
+            if not tle_dir.exists():
+                logger.error(f"NetStack TLE 目錄不存在: {tle_dir}")
+                return []
+            
+            # 尋找最新 TLE 文件 (YYYYMMDD 格式)
+            tle_files = sorted(tle_dir.glob(f"{constellation}_*.tle"), reverse=True)
+            if not tle_files:
+                logger.error(f"找不到 {constellation} TLE 文件")
+                return []
+            
+            latest_tle_file = tle_files[0]
+            logger.info(f"讀取 NetStack TLE 文件: {latest_tle_file}")
+            
+            with open(latest_tle_file, 'r') as f:
+                tle_text = f.read()
+            
+            return await self._parse_tle_text(tle_text)
+            
+        except Exception as e:
+            logger.error(f"從 NetStack 讀取 {constellation} TLE 失敗: {e}")
+            return []
 
     async def fetch_tle_from_celestrak(
         self, category: Optional[str] = None

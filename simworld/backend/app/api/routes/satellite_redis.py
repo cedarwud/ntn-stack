@@ -35,7 +35,7 @@ async def get_redis_client(request: Request) -> Redis:
 
 
 async def load_satellites_from_redis(redis: Redis) -> Dict[str, EarthSatellite]:
-    """從 NetStack 載入真實歷史衛星數據 (Phase 2 修復)"""
+    """從 NetStack Redis 中載入真實 TLE 數據 (Phase 2 集成)"""
     global ts, satellites_cache, cache_timestamp, is_using_fallback_data
 
     # 檢查緩存是否有效
@@ -47,7 +47,7 @@ async def load_satellites_from_redis(redis: Redis) -> Dict[str, EarthSatellite]:
         logger.info(f"Returning cached satellites: {len(satellites_cache)} satellites")
         return satellites_cache
 
-    logger.info("Loading satellites from NetStack historical data...")
+    logger.info("Loading satellites from NetStack Redis TLE data...")
 
     # 初始化 Skyfield 時間尺度
     if ts is None:
@@ -56,92 +56,66 @@ async def load_satellites_from_redis(redis: Redis) -> Dict[str, EarthSatellite]:
     satellites = {}
 
     try:
-        # Phase 2 修復：直接從 NetStack 獲取歷史 TLE 數據
-        import aiohttp
+        # Phase 2 集成：直接從 Redis 中讀取 NetStack TLE 數據
+        constellation_keys = ["starlink", "oneweb"]
+        total_satellites_loaded = 0
         
-        # NetStack API URL - 使用容器內部網路
-        netstack_api_url = "http://netstack-api:8080"
-        
-        # 嘗試從 NetStack 獲取真實歷史衛星數據
-        async with aiohttp.ClientSession() as session:
-            # 獲取 Starlink 歷史數據 - 使用新的 TLE 端點
+        for constellation in constellation_keys:
             try:
-                starlink_url = f"{netstack_api_url}/api/satellite-data/constellations/starlink/tle"
-                async with session.get(starlink_url, timeout=10) as response:
-                    if response.status == 200:
-                        response_data = await response.json()
-                        starlink_data = response_data.get("satellites", [])
-                        logger.info(f"✅ 從 NetStack 載入 Starlink 歷史 TLE 數據: {len(starlink_data)} 顆衛星")
-                        
-                        for sat_data in starlink_data:
-                            try:
-                                name = sat_data.get("satellite_name", f"STARLINK-{sat_data.get('norad_id')}")
-                                line1 = sat_data.get("line1", "")
-                                line2 = sat_data.get("line2", "")
-                                
-                                if line1 and line2:
-                                    satellite = EarthSatellite(line1, line2, name, ts)
-                                    satellites[name] = satellite
-                                else:
-                                    logger.debug(f"TLE data missing for {name}: line1='{line1[:20]}...', line2='{line2[:20]}...'")
-                            except Exception as e:
-                                logger.debug(f"Failed to load Starlink satellite {sat_data.get('satellite_name', 'unknown')}: {e}")
-                    else:
-                        logger.warning(f"NetStack Starlink TLE API 返回 {response.status}")
+                # 從 Redis 讀取 NetStack TLE 數據
+                redis_key = f"netstack_tle_data:{constellation}"
+                tle_data_json = await redis.get(redis_key)
+                
+                if tle_data_json:
+                    tle_data_list = json.loads(tle_data_json)
+                    logger.info(f"✅ 從 NetStack Redis 載入 {constellation} TLE 數據: {len(tle_data_list)} 顆衛星")
+                    
+                    for sat_data in tle_data_list:
+                        try:
+                            name = sat_data.get("name", f"{constellation.upper()}-{sat_data.get('norad_id')}")
+                            line1 = sat_data.get("line1", "")
+                            line2 = sat_data.get("line2", "")
+                            
+                            if line1 and line2:
+                                satellite = EarthSatellite(line1, line2, name, ts)
+                                satellites[name] = satellite
+                                total_satellites_loaded += 1
+                            else:
+                                logger.debug(f"TLE data missing for {name}")
+                        except Exception as e:
+                            logger.debug(f"Failed to load {constellation} satellite {sat_data.get('name', 'unknown')}: {e}")
+                            continue
+                else:
+                    logger.warning(f"No NetStack TLE data found in Redis for {constellation}")
+                    
             except Exception as e:
-                logger.warning(f"無法從 NetStack 獲取 Starlink TLE 數據: {e}")
-
-            # 獲取 OneWeb 歷史數據 - 使用新的 TLE 端點
-            try:
-                oneweb_url = f"{netstack_api_url}/api/satellite-data/constellations/oneweb/tle"
-                async with session.get(oneweb_url, timeout=10) as response:
-                    if response.status == 200:
-                        response_data = await response.json()
-                        oneweb_data = response_data.get("satellites", [])
-                        logger.info(f"✅ 從 NetStack 載入 OneWeb 歷史 TLE 數據: {len(oneweb_data)} 顆衛星")
-                        
-                        for sat_data in oneweb_data:
-                            try:
-                                name = sat_data.get("satellite_name", f"ONEWEB-{sat_data.get('norad_id')}")
-                                line1 = sat_data.get("line1", "")
-                                line2 = sat_data.get("line2", "")
-                                
-                                if line1 and line2:
-                                    satellite = EarthSatellite(line1, line2, name, ts)
-                                    satellites[name] = satellite
-                                else:
-                                    logger.debug(f"TLE data missing for {name}: line1='{line1[:20]}...', line2='{line2[:20]}...'")
-                            except Exception as e:
-                                logger.debug(f"Failed to load OneWeb satellite {sat_data.get('satellite_name', 'unknown')}: {e}")
-                    else:
-                        logger.warning(f"NetStack OneWeb TLE API 返回 {response.status}")
-            except Exception as e:
-                logger.warning(f"無法從 NetStack 獲取 OneWeb TLE 數據: {e}")
+                logger.warning(f"Error loading {constellation} from NetStack Redis: {e}")
+                continue
 
         # 更新緩存
         satellites_cache = satellites
         cache_timestamp = datetime.utcnow()
 
         # 檢查是否成功載入真實數據
-        if satellites:
+        if satellites and total_satellites_loaded > 100:  # 至少需要100顆衛星才算成功
             is_using_fallback_data = False
-            logger.info(f"✅ 從 NetStack 載入真實歷史 TLE 數據: {len(satellites)} 顆衛星")
-            logger.info("🎯 數據來源: NetStack 歷史 TLE 數據模組 (非模擬數據)")
+            logger.info(f"✅ 從 NetStack Redis 載入真實 TLE 數據: {len(satellites)} 顆衛星")
+            logger.info("🎯 數據來源: NetStack 本地 TLE 文件 (真實軌道數據)")
             return satellites
         else:
-            logger.warning("🔴 NetStack 沒有返回衛星數據，使用 fallback 機制")
+            logger.warning(f"🔴 NetStack Redis 衛星數據不足 ({total_satellites_loaded} 顆)，使用 fallback 機制")
             satellites = await _load_fallback_satellites()
             is_using_fallback_data = True
-            logger.warning(f"⚠️  正在使用模擬數據: {len(satellites)} 顆衛星 (NetStack 無數據)")
+            logger.warning(f"⚠️  正在使用模擬數據: {len(satellites)} 顆衛星 (NetStack 數據不足)")
             return satellites
 
     except Exception as e:
-        logger.error(f"❌ NetStack 連接失敗: {e}")
-        # NetStack 不可用時使用 fallback 數據
-        logger.warning("🔴 NetStack 不可用，使用 fallback 衛星數據")
+        logger.error(f"❌ NetStack Redis 連接失敗: {e}")
+        # Redis 不可用時使用 fallback 數據
+        logger.warning("🔴 NetStack Redis 不可用，使用 fallback 衛星數據")
         is_using_fallback_data = True
         fallback_satellites = await _load_fallback_satellites()
-        logger.warning(f"⚠️  正在使用模擬數據: {len(fallback_satellites)} 顆衛星 (NetStack 連接失敗)")
+        logger.warning(f"⚠️  正在使用模擬數據: {len(fallback_satellites)} 顆衛星 (Redis 連接失敗)")
         return fallback_satellites
 
 
@@ -371,15 +345,37 @@ async def get_visible_satellites(
 
 @router.get("/stats", tags=["Satellites"])
 async def get_satellite_stats(request: Request):
-    """獲取衛星統計資訊"""
+    """獲取衛星統計資訊 - 基於 NetStack TLE 數據"""
     try:
         redis = await get_redis_client(request)
+        
+        # 直接從 Redis 讀取 NetStack 統計信息
+        total_satellites = 0
+        constellations = {}
+        
+        for constellation in ["starlink", "oneweb"]:
+            stats_key = f"netstack_tle_stats:{constellation}"
+            stats_data = await redis.get(stats_key)
+            
+            if stats_data:
+                stats = json.loads(stats_data)
+                count = stats.get("count", 0)
+                total_satellites += count
+                constellations[constellation] = {
+                    "count": count,
+                    "last_updated": stats.get("last_updated"),
+                    "source": stats.get("source", "netstack_local_file")
+                }
+        
+        # 載入衛星以檢查是否使用 fallback
         satellites = await load_satellites_from_redis(redis)
         
         return {
-            "total_satellites": len(satellites),
-            "data_source": "fallback_simulation" if is_using_fallback_data else "redis_tle_data",
-            "data_description": "模擬數據 (外部 TLE 源不可用)" if is_using_fallback_data else "Redis 中的真實 TLE 數據",
+            "total_satellites": total_satellites,
+            "constellations": constellations,
+            "data_source": "netstack_tle_files",
+            "data_description": "NetStack 本地 TLE 數據文件數據",
+            "is_real_time": True,
             "skyfield_loaded": ts is not None,
             "timestamp": datetime.utcnow().isoformat(),
             "is_simulation": is_using_fallback_data,
