@@ -22,8 +22,8 @@ class StandardElevationConfig:
     preferred_handover_threshold: float = 12.0     # 推薦換手門檻
     optimal_service_threshold: float = 15.0        # 最佳服務門檻
     
-    # 分層換手門檻
-    pre_handover_trigger: float = 15.0             # 預備觸發
+    # 分層換手門檻 (根據 NASA 衛星激光測距系統建議調整)
+    pre_handover_trigger: float = 12.0             # 預備觸發
     handover_execution: float = 10.0               # 執行門檻
     critical_handover: float = 5.0                 # 臨界換手
     
@@ -34,10 +34,10 @@ class StandardElevationConfig:
         if self.environment_adjustments is None:
             self.environment_adjustments = {
                 "open_area": 1.0,       # 開闊地區
-                "urban": 1.1,           # 城市環境  
+                "urban": 1.125,         # 城市環境 (1.1-1.15 中值)
                 "suburban": 1.05,       # 郊區
-                "mountain": 1.3,        # 山區
-                "heavy_rain": 1.4,      # 強降雨區
+                "mountain": 1.3,        # 山區 (1.2-1.4 中值)
+                "heavy_rain": 1.45,     # 強降雨區 (1.4-1.5 中值)
                 "coastal": 1.1,         # 海岸地區
                 "indoor": 1.5           # 室內環境
             }
@@ -149,6 +149,57 @@ class ElevationConfigManager:
             ),
             "critical": self.config.critical_handover,  # 臨界門檻不調整
             "environment": environment
+        }
+    
+    def get_dynamic_adjustment(self, threshold: float, snr: float = None, rssi: float = None) -> Dict[str, Any]:
+        """
+        基於信號品質動態調整門檻
+        
+        Args:
+            threshold: 基礎門檻值
+            snr: 信噪比 (dB)
+            rssi: 接收信號強度指示器 (dBm)
+            
+        Returns:
+            Dict: 動態調整結果
+        """
+        adjusted_threshold = threshold
+        adjustment_reason = []
+        
+        # 基於 SNR 調整
+        if snr is not None:
+            if snr < 10:  # 低信噪比
+                snr_adjustment = 2.0
+                adjustment_reason.append(f"低 SNR ({snr} dB) +2°")
+            elif snr < 15:  # 中等信噪比  
+                snr_adjustment = 1.0
+                adjustment_reason.append(f"中等 SNR ({snr} dB) +1°")
+            else:  # 高信噪比
+                snr_adjustment = 0.0
+                adjustment_reason.append(f"良好 SNR ({snr} dB) 無調整")
+            
+            adjusted_threshold += snr_adjustment
+        
+        # 基於 RSSI 調整
+        if rssi is not None:
+            if rssi < -100:  # 弱信號
+                rssi_adjustment = 1.5
+                adjustment_reason.append(f"弱 RSSI ({rssi} dBm) +1.5°")
+            elif rssi < -90:  # 中等信號
+                rssi_adjustment = 0.5  
+                adjustment_reason.append(f"中等 RSSI ({rssi} dBm) +0.5°")
+            else:  # 強信號
+                rssi_adjustment = 0.0
+                adjustment_reason.append(f"強 RSSI ({rssi} dBm) 無調整")
+            
+            adjusted_threshold += rssi_adjustment
+        
+        return {
+            "original_threshold": threshold,
+            "adjusted_threshold": round(adjusted_threshold, 1),
+            "total_adjustment": round(adjusted_threshold - threshold, 1),
+            "adjustment_factors": adjustment_reason,
+            "recommendation": "使用調整後門檻" if adjusted_threshold != threshold else "使用原始門檻"
         }
     
     def generate_migration_plan(self) -> Dict[str, Any]:

@@ -58,7 +58,7 @@ class HistoricalPattern:
 class Phase0HandoverAnalyzer:
     """Phase 0 換手分析器 - 基於歷史收集數據"""
     
-    def __init__(self, tle_data_dir: str = "/app/tle_data", min_elevation: float = 5.0):
+    def __init__(self, tle_data_dir: str = "/app/tle_data", min_elevation: float = 10.0):
         """
         初始化 Phase 0 換手分析器
         

@@ -28,7 +28,7 @@ class NTPUVisibilityFilter:
         self.observer_lat = 24.94417   # 24°56'39"N
         self.observer_lon = 121.37139  # 121°22'17"E
         self.observer_alt = 50.0       # 海拔50米
-        self.min_elevation = 5.0       # 5度仰角閾值
+        self.min_elevation = 10.0      # 10度仰角閾值 (ITU-R P.618 合規標準)
         
         self.coordinate_engine = coordinate_engine
         self.cache_enabled = cache_enabled
