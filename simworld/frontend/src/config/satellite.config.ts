@@ -29,7 +29,7 @@ export const SATELLITE_CONFIG = {
   TRAIL_LENGTH: 10,                 // 軌跡長度（分鐘）
   
   // === 動畫控制參數 ===
-  SATELLITE_MOVEMENT_SPEED: 5,      // 衛星移動速度（倍數）
+  SATELLITE_MOVEMENT_SPEED: 1,      // 衛星移動速度（倍數）- 修正為1倍
   HANDOVER_TIMING_SPEED: 3,         // 切換演示速度（倍數）
 } as const;
 

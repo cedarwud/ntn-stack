@@ -1,5 +1,3 @@
-test_output/
-
 # 環境變數
 .env
 .env.local
@@ -86,3 +84,20 @@ docker-compose.override.yml
 *.temp
 *.backup
 .claude
+
+# Phase 0 預計算數據 (大檔案，建置時生成)
+# 舊的 test_output 路徑 (已移動到 netstack/data/)
+test_output/phase0_precomputed_orbits.json
+test_output/*_precomputed_*.json
+test_output/*.sql
+
+# 新的預計算數據路徑
+netstack/data/phase0_precomputed_orbits.json
+netstack/data/*_precomputed_*.json
+netstack/data/*.sql
+
+# 其他大型預計算結果
+**/precomputed_orbits.json
+**/precomputed_*.json
+data/precomputed/
+*.orbit_cache

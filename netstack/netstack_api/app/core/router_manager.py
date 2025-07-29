@@ -144,7 +144,9 @@ class RouterManager:
 
             # 嘗試導入衛星預計算路由器 (Phase 2)
             try:
-                from ...routers.satellite_precompute_router import router as precompute_router
+                from ...routers.satellite_precompute_router import (
+                    router as precompute_router,
+                )
 
                 self.app.include_router(precompute_router, tags=["衛星預計算"])
                 self._track_router("satellite_precompute_router", "衛星預計算", True)
@@ -186,7 +188,9 @@ class RouterManager:
 
             # 嘗試導入 Phase 2 背景下載狀態路由器
             try:
-                from ...routers.phase2_status_router import router as phase2_status_router
+                from ...routers.phase2_status_router import (
+                    router as phase2_status_router,
+                )
 
                 self.app.include_router(phase2_status_router, tags=["Phase 2 背景下載"])
                 self._track_router("phase2_status_router", "Phase 2 背景下載", True)
@@ -229,6 +233,31 @@ class RouterManager:
             self._track_router("rl_training_router", "RL 訓練", True)
             self.app.include_router(test_router, tags=["測試"])
             self._track_router("test_router", "測試", True)
+
+            # Phase 1: 座標軌道端點 (Phase 0 預計算數據整合)
+            try:
+                from ...routers.coordinate_orbit_endpoints import (
+                    router as coordinate_orbit_router,
+                )
+
+                self.app.include_router(
+                    coordinate_orbit_router,
+                    prefix="/api/v1/satellites",
+                    tags=["Phase 1 - 座標軌道預計算"],
+                )
+                self._track_router(
+                    "coordinate_orbit_router", "Phase 1 - 座標軌道預計算", True
+                )
+                logger.info("✅ Phase 1 座標軌道路由器註冊完成")
+            except Exception as e:
+                logger.exception("💥 Phase 1 座標軌道路由器註冊失敗")
+                self._track_router(
+                    "coordinate_orbit_router",
+                    "Phase 1 - 座標軌道預計算",
+                    False,
+                    f"註冊失敗: {str(e)}",
+                )
+
             logger.info("✅ 舊核心路由器註冊完成")
         except Exception as e:
             logger.exception("💥 舊核心路由器註冊失敗")

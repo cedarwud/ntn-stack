@@ -27,6 +27,8 @@ interface UIState {
 interface SatelliteState {
     skyfieldSatellites: VisibleSatelliteInfo[]
     satelliteEnabled: boolean
+    // 星座選擇狀態
+    selectedConstellation: 'starlink' | 'oneweb'
 }
 
 interface HandoverState {
@@ -106,6 +108,8 @@ export interface AppStateContextType {
     // 衛星狀態更新函數
     setSkyfieldSatellites: (satellites: VisibleSatelliteInfo[]) => void
     setSatelliteEnabled: (enabled: boolean) => void
+    // 星座選擇狀態更新函數
+    setSelectedConstellation: (constellation: 'starlink' | 'oneweb') => void
 
     // 換手狀態更新函數
     setHandoverStableDuration: (duration: number) => void
@@ -154,6 +158,8 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
     const [satelliteState, setSatelliteState] = useState<SatelliteState>({
         skyfieldSatellites: [],
         satelliteEnabled: true,
+        // 星座選擇初始狀態
+        selectedConstellation: 'starlink', // 預設為 Starlink
     })
 
     // 換手狀態
@@ -248,6 +254,17 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
         setSatelliteState((prev) => ({ ...prev, satelliteEnabled: enabled }))
     }, [])
 
+    // 星座選擇狀態更新函數
+    const setSelectedConstellation = useCallback(
+        (constellation: 'starlink' | 'oneweb') => {
+            setSatelliteState((prev) => ({
+                ...prev,
+                selectedConstellation: constellation,
+            }))
+        },
+        []
+    )
+
     // 換手狀態更新
     const setHandoverStableDuration = useCallback((duration: number) => {
         setHandoverState((prev) => ({
@@ -327,6 +344,8 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
             // 衛星狀態更新函數
             setSkyfieldSatellites,
             setSatelliteEnabled,
+            // 星座選擇狀態更新函數
+            setSelectedConstellation,
 
             // 換手狀態更新函數
             setHandoverStableDuration,
@@ -355,6 +374,7 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
             setSelectedReceiverIds,
             setSkyfieldSatellites,
             setSatelliteEnabled,
+            setSelectedConstellation,
             setHandoverStableDuration,
             setHandoverMode,
             setAlgorithmResults,

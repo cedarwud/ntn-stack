@@ -18,7 +18,18 @@ from typing import List, Dict, Optional, Tuple, Any, Set
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 
-from .tle_data_service import TLEData, TLEDataService
+
+# TLE 數據現在由 NetStack 統一管理，移除本地 TLE 服務依賴
+@dataclass
+class TLEData:
+    """簡化的 TLE 數據類型（用於向後兼容）"""
+
+    name: str
+    line1: str
+    line2: str
+    epoch: Optional[str] = None
+
+
 from .sgp4_calculator import SGP4Calculator, OrbitPosition
 from .distance_calculator import DistanceCalculator, Position
 
@@ -67,7 +78,8 @@ class ConstellationManager:
     """衛星星座管理器"""
 
     def __init__(self):
-        self.tle_service = TLEDataService()
+        # TLE 數據現在由 NetStack 統一管理，移除本地 TLE 服務
+        # self.tle_service = TLEDataService()  # 已移除
         self.sgp4_calculator = SGP4Calculator()
         self.distance_calculator = DistanceCalculator()
 

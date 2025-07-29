@@ -269,6 +269,13 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
                                     onHandoverStableDurationChange={
                                         handoverState.setHandoverStableDuration
                                     }
+                                    // 星座切換控制
+                                    selectedConstellation={
+                                        satelliteState.selectedConstellation
+                                    }
+                                    onConstellationChange={
+                                        satelliteState.setSelectedConstellation
+                                    }
                                 />
                             </ErrorBoundary>
                         }
