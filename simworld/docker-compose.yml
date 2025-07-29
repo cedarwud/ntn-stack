@@ -16,6 +16,7 @@ services:
             - '8888:8000'
         volumes:
             - ./backend:/app
+            - ../netstack/tle_data:/app/netstack/tle_data:ro  # Mount NetStack TLE data as read-only
         env_file:
             - ./backend/.env # 從 backend 目錄的 .env 讀取配置
         environment:
