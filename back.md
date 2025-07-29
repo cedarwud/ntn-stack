@@ -185,12 +185,18 @@ cp -r simworld/backend/data/tle_historical/* simworld/backend/app/data/processed
 #### 3.2 Python 服務架構更新
 ```python
 # 更新 app/services/tle_data_service.py
+# ⚠️ 重要：整合最新的統一仰角門檻配置系統
+from src.services.satellite.unified_elevation_config import get_standard_threshold
+
 # 從舊式緩存路徑:
 cache_dir = Path("./data/tle_cache")
 # 改為新式本地 TLE 檔案處理:
 local_tle_dir = Path("./app/data/local_tle/source")  # 指向 ntn-stack/data/tle/
 json_source_dir = Path("./app/data/local_tle/json_source")  # 指向 ntn-stack/data/json/
 processed_dir = Path("./app/data/processed")
+
+# 使用統一配置標準
+standard_threshold = get_standard_threshold("handover", "urban")  # 11.0° (城市環境)
 
 # 更新 app/services/historical_data_cache.py  
 # 從舊式歷史數據路徑:

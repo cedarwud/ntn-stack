@@ -213,14 +213,14 @@ class CoordinateSpecificOrbitEngine:
     """座標特定軌道預計算引擎 - 支援任意觀測點"""
     
     def __init__(self, observer_lat: float, observer_lon: float, 
-                 observer_alt: float = 0.0, min_elevation: float = 5.0):
+                 observer_alt: float = 0.0, min_elevation: float = 10.0):
         """
         初始化引擎
         Args:
             observer_lat: 觀測點緯度 (度)
             observer_lon: 觀測點經度 (度) 
             observer_alt: 觀測點海拔 (米)
-            min_elevation: 最小仰角閾值 (度)
+            min_elevation: 最小仰角閾值 (度) - 建議使用 10° (ITU-R P.618 合規標準)
         """
         self.observer_lat = observer_lat
         self.observer_lon = observer_lon
@@ -240,9 +240,10 @@ class CoordinateSpecificOrbitEngine:
     def filter_visible_satellites(self, all_satellites):
         """
         衛星可見性篩選器
-        - 篩選掉永遠無法到達最小仰角的衛星
+        - 篩選掉永遠無法到達最小仰角的衛星 (使用統一仰角標準)
         - 大幅減少後續計算量 (預期可減少60-80%衛星)
         - 返回篩選後的「可換手衛星清單」
+        - 支援分層仰角門檻 (5°/10°/15°) 和環境調整
         """
         pass
     
@@ -265,12 +266,16 @@ class CoordinateSpecificOrbitEngine:
         """
         pass
 
+# 統一配置系統整合
+from src.services.satellite.unified_elevation_config import get_standard_threshold
+
 # 預設座標配置 (可擴展到其他觀測點)
 NTPU_COORDINATES = {
     'lat': 24.94417,    # 24°56'39"N
     'lon': 121.37139,   # 121°22'17"E
     'alt': 50.0,        # 海拔50米
-    'name': 'NTPU'
+    'name': 'NTPU',
+    'environment': 'urban'  # 城市環境，調整係數 1.1
 }
 
 OBSERVER_LOCATIONS = {
@@ -284,11 +289,14 @@ OBSERVER_LOCATIONS = {
 **Docker 建置時預計算整合**:
 ```dockerfile
 # 在建置階段完成軌道預計算，避免運行時延遲
+# 使用統一配置標準和分層門檻
 RUN python3 precompute_coordinate_orbits.py \
     --tle-data-dir /app/tle_data \
     --output-dir /app/data/precomputed \
     --observer-lat 24.94417 --observer-lon 121.37139 \
-    --min-elevation 5.0 \
+    --use-unified-config \
+    --environment urban \
+    --layered-thresholds \
     --orbital-cycle-minutes 96 \
     --optimal-window-hours 6 \
     --time-step-seconds 30 \
@@ -341,7 +349,7 @@ RUN python3 precompute_coordinate_orbits.py \
 ### **🎯 核心突破**:
 - **真正的 SGP4 軌道預計算** - 取代統計預處理，實現國際標準軌道計算
 - **座標特定軌道引擎** - CoordinateSpecificOrbitEngine，支援任意觀測點
-- **智能可見性篩選** - NTPU 5度仰角閾值，40% 篩選效率
+- **智能可見性篩選** - NTPU 10度仰角閾值 (ITU-R P.618 合規)，40% 篩選效率
 - **最佳時間窗口識別** - 6小時窗口算法，品質分數評估系統
 - **Docker 預計算整合** - Dockerfile.phase0 完成，支援建置時軌道計算
 
@@ -355,7 +363,7 @@ RUN python3 precompute_coordinate_orbits.py \
 **✅ Phase 0.4 新功能開發 (全部完成)**:
 - [x] **CoordinateSpecificOrbitEngine** - 座標特定軌道預計算引擎
 - [x] **96分鐘軌道週期計算** - 完整軌道週期 SGP4 可見性分析
-- [x] **NTPUVisibilityFilter** - 5度仰角閾值篩選器，支援緩存
+- [x] **NTPUVisibilityFilter** - 10度仰角閾值篩選器 (統一標準)，支援緩存
 - [x] **最佳時間窗口識別** - 多因子評估：衛星數量、仰角、可見時間、換手機會
 - [x] **前端展示數據優化** - 60倍加速、距離縮放、動畫關鍵幀生成
 - [x] **完整整合測試** - phase0_comprehensive_test.py 全面驗證
@@ -441,12 +449,17 @@ cd netstack/docker && docker build -t netstack-api .
 async def get_precomputed_orbit_data(
     location: str,  # 'ntpu', 'nctu' 等預定義座標
     constellation: str = "starlink",
+    elevation_threshold: Optional[float] = None,  # 支援自訂門檻
+    environment: str = "open_area",  # 環境調整係數
+    use_layered_thresholds: bool = True,  # 使用分層門檻
     time_range: Optional[str] = None
 ):
     """
     獲取預計算的軌道數據
-    - 使用 Phase 0 預計算結果
-    - 支援多座標位置
+    - 使用 Phase 0 預計算結果和統一配置系統
+    - 支援多座標位置和環境調整
+    - 支援分層仰角門檻 (5°/10°/15°)
+    - 符合 ITU-R P.618 標準
     - 無需即時軌道計算
     """
 
