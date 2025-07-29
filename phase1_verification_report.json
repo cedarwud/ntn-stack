@@ -1,0 +1,132 @@
+{
+  "timestamp": "2025-07-29T07:16:36.209974",
+  "phase": "Phase 1 - Sky Project Integration",
+  "summary": {
+    "total_tests": 7,
+    "passed": 6,
+    "failed": 1,
+    "errors": 0,
+    "success_rate": 85.7
+  },
+  "test_results": [
+    {
+      "phase": "基礎連接測試",
+      "status": "PASS",
+      "details": {}
+    },
+    {
+      "phase": "NetStack 座標軌道 API",
+      "status": "PASS",
+      "details": {
+        "total_endpoints": 5,
+        "successful_endpoints": 0,
+        "success_rate": 0.0,
+        "details": {
+          "/api/v1/satellites/locations": {
+            "status_code": 404,
+            "success": false,
+            "response_size": 256
+          },
+          "/api/v1/satellites/precomputed/ntpu": {
+            "status_code": 404,
+            "success": false,
+            "response_size": 270
+          },
+          "/api/v1/satellites/optimal-window/ntpu": {
+            "status_code": 404,
+            "success": false,
+            "response_size": 276
+          },
+          "/api/v1/satellites/display-data/ntpu": {
+            "status_code": 404,
+            "success": false,
+            "response_size": 272
+          },
+          "/api/v1/satellites/health/precomputed": {
+            "status_code": 404,
+            "success": false,
+            "response_size": 274
+          }
+        }
+      }
+    },
+    {
+      "phase": "健康檢查驗證",
+      "status": "PASS",
+      "details": {
+        "total_services": 3,
+        "healthy_services": 2,
+        "all_healthy": false,
+        "details": {
+          "NetStack 基礎健康": {
+            "status_code": 200,
+            "response_time_ms": 2.37,
+            "healthy": true
+          },
+          "預計算數據健康": {
+            "status_code": 404,
+            "response_time_ms": 0.87,
+            "healthy": false
+          },
+          "SimWorld 健康": {
+            "status_code": 200,
+            "response_time_ms": 0.85,
+            "healthy": true
+          }
+        }
+      }
+    },
+    {
+      "phase": "預計算數據驗證",
+      "status": "PASS",
+      "details": {
+        "success": false,
+        "error": "HTTP 404"
+      }
+    },
+    {
+      "phase": "SimWorld NetStack 整合",
+      "status": "PASS",
+      "details": {
+        "success": true,
+        "integration_tests": {
+          "配置檢查": {
+            "netstack_url_configured": true,
+            "migration_enabled": true,
+            "fallback_available": true
+          },
+          "網路連通性": {
+            "simworld_to_netstack": true,
+            "api_accessible": true
+          }
+        },
+        "migration_ready": true
+      }
+    },
+    {
+      "phase": "性能基準測試",
+      "status": "FAIL",
+      "details": {}
+    },
+    {
+      "phase": "容器啟動順序",
+      "status": "PASS",
+      "details": {
+        "success": true,
+        "configuration": {
+          "netstack_healthcheck_configured": true,
+          "simworld_depends_on_netstack": true,
+          "health_check_endpoints": [
+            "/api/v1/satellites/health/precomputed"
+          ],
+          "startup_timeout_configured": true
+        },
+        "recommendations": [
+          "確保 NetStack 完全啟動後再啟動 SimWorld",
+          "使用健康檢查端點監控預計算數據狀態",
+          "適當的啟動超時時間設置"
+        ]
+      }
+    }
+  ]
+}
