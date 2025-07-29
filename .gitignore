@@ -1,3 +1,5 @@
+test_output/
+
 # 環境變數
 .env
 .env.local
