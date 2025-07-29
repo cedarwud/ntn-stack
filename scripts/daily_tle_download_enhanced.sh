@@ -13,7 +13,7 @@ set -euo pipefail
 # 配置參數
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-TLE_DATA_DIR="$PROJECT_ROOT/tle_data"
+TLE_DATA_DIR="$PROJECT_ROOT/netstack/tle_data"
 LOG_FILE="$PROJECT_ROOT/logs/tle_download.log"
 # 備份目錄將在確定實際數據日期後動態設置
 BACKUP_BASE_DIR="$TLE_DATA_DIR/backups"
