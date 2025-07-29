@@ -29,6 +29,15 @@ from ..models.ueransim_models import (
 )
 from .simworld_tle_bridge_service import SimWorldTLEBridgeService
 
+# 導入統一配置系統
+import sys
+sys.path.append('/home/sat/ntn-stack/netstack/src/services/satellite')
+try:
+    from unified_elevation_config import get_standard_threshold
+    UNIFIED_CONFIG_AVAILABLE = True
+except ImportError:
+    UNIFIED_CONFIG_AVAILABLE = False
+
 logger = structlog.get_logger(__name__)
 
 # 全域 Skyfield 時間尺度對象
@@ -388,8 +397,11 @@ class SatelliteGnbMappingService:
         )
         max_coverage_degrees = math.degrees(max_coverage_angle)
 
-        # 實際服務覆蓋（考慮最小仰角限制，如10度）
-        min_elevation_deg = 10
+        # 實際服務覆蓋（考慮最小仰角限制，使用統一配置系統）
+        if UNIFIED_CONFIG_AVAILABLE:
+            min_elevation_deg = get_standard_threshold()  # 統一配置系統：10.0°
+        else:
+            min_elevation_deg = 10.0  # 回退值：ITU-R P.618 合規標準
         min_elevation_rad = math.radians(min_elevation_deg)
 
         # 服務覆蓋半徑

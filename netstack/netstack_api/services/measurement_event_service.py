@@ -35,6 +35,15 @@ from .sib19_unified_platform import (
 )
 from .tle_data_manager import TLEDataManager
 
+# 導入統一配置系統
+import sys
+sys.path.append('/home/sat/ntn-stack/netstack/src/services/satellite')
+try:
+    from unified_elevation_config import get_standard_threshold
+    UNIFIED_CONFIG_AVAILABLE = True
+except ImportError:
+    UNIFIED_CONFIG_AVAILABLE = False
+
 logger = structlog.get_logger(__name__)
 
 
@@ -92,7 +101,7 @@ class D1Parameters(EventParameters):
     hysteresis: float = 500.0       # 遲滯值 (m)
     
     # 新增增強參數
-    min_elevation_angle: float = 5.0      # 最小仰角 (度)
+    min_elevation_angle: float = field(default_factory=lambda: get_standard_threshold() if UNIFIED_CONFIG_AVAILABLE else 10.0)  # 最小仰角 (度) - 使用統一配置系統
     serving_satellite_id: Optional[str] = None  # 指定服務衛星
     reference_location_id: str = "default"      # 參考位置 ID
     time_window_ms: int = 1000                  # 時間窗口過濾 (ms)

@@ -18,7 +18,7 @@ class CoordinateSpecificOrbitEngine:
     """座標特定軌道預計算引擎 - 支援任意觀測點"""
     
     def __init__(self, observer_lat: float, observer_lon: float, 
-                 observer_alt: float = 0.0, min_elevation: float = 5.0):
+                 observer_alt: float = 0.0, min_elevation: float = 10.0):
         """
         初始化引擎
         
