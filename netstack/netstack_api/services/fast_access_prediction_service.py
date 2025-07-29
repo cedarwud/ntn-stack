@@ -27,6 +27,15 @@ import structlog
 import numpy as np
 from .simworld_tle_bridge_service import SimWorldTLEBridgeService
 
+# 導入統一配置系統
+import sys
+sys.path.append('/home/sat/ntn-stack/netstack/src/services/satellite')
+try:
+    from unified_elevation_config import get_standard_threshold
+    UNIFIED_CONFIG_AVAILABLE = True
+except ImportError:
+    UNIFIED_CONFIG_AVAILABLE = False
+
 logger = structlog.get_logger(__name__)
 
 
@@ -763,8 +772,12 @@ class FastSatellitePrediction:
     def _estimate_coverage_radius(self, altitude_km: float) -> float:
         """估算衛星覆蓋半徑"""
         # 基於衛星高度估算覆蓋半徑
-        # 考慮最小仰角約束（如 10 度）
-        min_elevation_rad = math.radians(10)
+        # 考慮最小仰角約束（使用統一配置系統）
+        if UNIFIED_CONFIG_AVAILABLE:
+            min_elevation_deg = get_standard_threshold()  # 統一配置系統：10.0°
+        else:
+            min_elevation_deg = 10.0  # 回退值：ITU-R P.618 合規標準
+        min_elevation_rad = math.radians(min_elevation_deg)
 
         # 地平線距離
         horizon_distance = math.sqrt(

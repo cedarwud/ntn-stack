@@ -1,0 +1,25 @@
+{
+  "generation_timestamp": "2025-07-29T02:21:23.115198+00:00",
+  "generator_version": "LayeredPhase0Generator v1.0",
+  "configuration": {
+    "pre_handover_threshold": 13.5,
+    "execution_threshold": 11.25,
+    "critical_threshold": 5.0,
+    "observer_location": {
+      "lat": 24.94417,
+      "lon": 121.37139,
+      "alt": 50.0
+    }
+  },
+  "processing_results": {
+    "total_dates_attempted": 2,
+    "successful_dates": 2,
+    "failed_dates": 0,
+    "success_rate": 100.0
+  },
+  "processed_dates": [
+    "20250727",
+    "20250728"
+  ],
+  "failed_dates": []
+}

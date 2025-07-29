@@ -52,7 +52,7 @@ class Phase0IntegrationTester:
     def __init__(self):
         self.observer_lat = 24.9441667  # NTPU 緯度
         self.observer_lon = 121.3713889  # NTPU 經度
-        self.min_elevation = 5.0
+        self.min_elevation = 10.0  # ITU-R P.618 合規標準
     
     async def test_tle_processing(self):
         """測試 TLE 數據處理"""
