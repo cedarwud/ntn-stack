@@ -58,6 +58,7 @@ netstack/tests/test_results/
 *.log.*
 measurement_results
 test_measurement_results/
+logs/
 
 # IDE 和編輯器
 .vscode/
@@ -86,12 +87,6 @@ docker-compose.override.yml
 .claude
 
 # Phase 0 預計算數據 (大檔案，建置時生成)
-# 舊的 test_output 路徑 (已移動到 netstack/data/)
-test_output/phase0_precomputed_orbits.json
-test_output/*_precomputed_*.json
-test_output/*.sql
-
-# 新的預計算數據路徑
 netstack/data/phase0_precomputed_orbits.json
 netstack/data/*_precomputed_*.json
 netstack/data/*.sql
