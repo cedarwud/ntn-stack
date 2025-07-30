@@ -21,14 +21,31 @@ check_data_integrity() {
         return 1
     fi
     
-    # 檢查文件大小（應該 > 100MB）
-    SIZE=$(stat -c%s "$DATA_DIR/phase0_precomputed_orbits.json" 2>/dev/null || echo 0)
-    if [ "$SIZE" -lt 100000000 ]; then
-        echo "❌ 數據文件太小，可能損壞"
+    # 檢查數據新鮮度（7天內）
+    LAST_UPDATE=$(cat "$MARKER_FILE" 2>/dev/null || echo "")
+    if [ -n "$LAST_UPDATE" ]; then
+        CURRENT_TIME=$(date +%s)
+        LAST_UPDATE_TIME=$(date -d "$LAST_UPDATE" +%s 2>/dev/null || echo 0)
+        WEEK_IN_SECONDS=604800  # 7天
+        
+        if [ $((CURRENT_TIME - LAST_UPDATE_TIME)) -gt $WEEK_IN_SECONDS ]; then
+            echo "⏰ 數據超過1週，需要更新 (上次更新: $LAST_UPDATE)"
+            return 1
+        fi
+        echo "📅 數據新鮮度檢查通過 (上次更新: $LAST_UPDATE)"
+    else
+        echo "⚠️ 無法讀取更新時間，假設數據過期"
         return 1
     fi
     
-    echo "✅ 數據完整性檢查通過"
+    # 檢查文件大小（應該 > 100MB）
+    SIZE=$(stat -c%s "$DATA_DIR/phase0_precomputed_orbits.json" 2>/dev/null || echo 0)
+    if [ "$SIZE" -lt 100000000 ]; then
+        echo "❌ 數據文件太小，可能損壞 (大小: ${SIZE} bytes)"
+        return 1
+    fi
+    
+    echo "✅ 數據完整性和新鮮度檢查通過"
     return 0
 }
 

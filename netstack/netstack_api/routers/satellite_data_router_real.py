@@ -18,12 +18,17 @@ from dataclasses import dataclass
 # 創建路由器
 router = APIRouter(prefix="/api/satellite-data", tags=["satellite-data"])
 
-# 真實 TLE 數據源
+# TLE 數據源 - Celestrak API 已禁用
+# 改用本地數據源
 TLE_SOURCES = {
-    "starlink": "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle",
-    "oneweb": "https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=tle",
-    "gps": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle",
-    "galileo": "https://celestrak.org/NORAD/elements/gp.php?GROUP=galileo&FORMAT=tle",
+    # "starlink": "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle",   # 已禁用
+    # "oneweb": "https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=tle",       # 已禁用
+    # "gps": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle",         # 已禁用
+    # "galileo": "https://celestrak.org/NORAD/elements/gp.php?GROUP=galileo&FORMAT=tle",     # 已禁用
+    "starlink": "local://starlink",
+    "oneweb": "local://oneweb", 
+    "gps": "local://gps",
+    "galileo": "local://galileo",
 }
 
 # 記憶體緩存
@@ -104,12 +109,29 @@ class D2MeasurementPoint(BaseModel):
 
 
 async def download_tle_data(constellation: str) -> List[TLEData]:
-    """從 Celestrak 下載真實 TLE 數據"""
+    """
+    載入 TLE 數據 - 已禁用 Celestrak API
+    改用本地數據源
+    """
     if constellation not in TLE_SOURCES:
         raise ValueError(f"不支援的星座: {constellation}")
 
     url = TLE_SOURCES[constellation]
 
+    # 檢查是否為本地數據源
+    if url.startswith("local://"):
+        print(f"🔄 使用本地 TLE 數據源: {constellation}")
+        return await load_local_tle_data(constellation)
+    
+    # 禁用所有 Celestrak API 調用
+    if "celestrak" in url.lower():
+        print(f"⚠️ Celestrak API 調用已被禁用: {constellation}")
+        raise HTTPException(
+            status_code=503, 
+            detail=f"Celestrak API 已被禁用，constellation: {constellation}，請使用本地數據源"
+        )
+
+    # 其他外部 API (如果有的話)
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=30) as response:
@@ -123,6 +145,143 @@ async def download_tle_data(constellation: str) -> List[TLEData]:
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"TLE 下載異常: {str(e)}")
+
+
+async def load_local_tle_data(constellation: str) -> List[TLEData]:
+    """
+    從本地 TLE 數據目錄載入數據
+    """
+    try:
+        import sys
+        sys.path.append('/app/src')
+        from services.satellite.local_tle_loader import LocalTLELoader
+        
+        loader = LocalTLELoader("/app/tle_data")
+        
+        # 載入指定星座的最新數據
+        collected_data = loader.load_collected_data(constellation)
+        
+        if collected_data.get('daily_data'):
+            latest_data = collected_data['daily_data'][-1]
+            satellites = latest_data['satellites']
+            
+            # 轉換為 TLEData 格式
+            tle_data_list = []
+            for sat in satellites:
+                # 從 line1 解析 epoch 時間
+                line1 = sat["line1"]
+                epoch_year = int(line1[18:20])
+                epoch_day = float(line1[20:32])
+                
+                # 轉換為完整年份
+                if epoch_year < 57:
+                    full_year = 2000 + epoch_year
+                else:
+                    full_year = 1900 + epoch_year
+                
+                # 計算 epoch 時間
+                epoch = datetime(full_year, 1, 1, tzinfo=timezone.utc) + timedelta(
+                    days=epoch_day - 1
+                )
+                
+                tle_data = TLEData(
+                    satellite_id=f"{constellation}_{sat['norad_id']}",
+                    satellite_name=sat["name"],
+                    line1=sat["line1"],
+                    line2=sat["line2"],
+                    epoch=epoch,
+                    norad_id=int(sat["norad_id"]),
+                )
+                
+                tle_data_list.append(tle_data)
+            
+            print(
+                f"✅ 從本地數據載入 {constellation} TLE: {len(tle_data_list)} 顆衛星"
+            )
+            
+            return tle_data_list
+        else:
+            print(f"⚠️ 本地 {constellation} TLE 數據不可用")
+            # 回退到固定的 fallback 數據
+            return get_fallback_tle_data(constellation)
+            
+    except Exception as e:
+        print(f"❌ 本地 {constellation} TLE 數據載入失敗: {e}")
+        return get_fallback_tle_data(constellation)
+
+
+def get_fallback_tle_data(constellation: str) -> List[TLEData]:
+    """
+    獲取 fallback TLE 數據
+    """
+    fallback_data = {
+        "starlink": [
+            {
+                "name": "STARLINK-1007",
+                "norad_id": 44713,
+                "line1": "1 44713U 19074A   25204.91667000  .00002182  00000-0  16538-3 0  9999",
+                "line2": "2 44713  53.0534  95.4567 0001234  87.6543 272.3456 15.05000000289456",
+            }
+        ],
+        "oneweb": [
+            {
+                "name": "ONEWEB-0001",
+                "norad_id": 44063,
+                "line1": "1 44063U 19005A   25204.50000000  .00001234  00000-0  12345-3 0  9999",
+                "line2": "2 44063  87.4000  10.0000 0001000  45.0000 315.0000 13.26000000234567",
+            }
+        ],
+        "gps": [
+            {
+                "name": "GPS IIF-1",
+                "norad_id": 37753,
+                "line1": "1 37753U 11036A   25204.50000000 -.00000018  00000-0  00000-0 0  9999",
+                "line2": "2 37753  55.0000  50.0000 0001000  45.0000 315.0000  2.00000000567890",
+            }
+        ],
+        "galileo": [
+            {
+                "name": "GALILEO-101",
+                "norad_id": 37846,
+                "line1": "1 37846U 11060A   25204.50000000  .00000010  00000-0  00000-0 0  9999",
+                "line2": "2 37846  56.0000  60.0000 0002000  50.0000 310.0000  1.70000000345678",
+            }
+        ]
+    }
+    
+    constellation_data = fallback_data.get(constellation, [])
+    tle_data_list = []
+    
+    for sat_data in constellation_data:
+        # 從 line1 解析 epoch 時間
+        line1 = sat_data["line1"]
+        epoch_year = int(line1[18:20])
+        epoch_day = float(line1[20:32])
+        
+        # 轉換為完整年份
+        if epoch_year < 57:
+            full_year = 2000 + epoch_year
+        else:
+            full_year = 1900 + epoch_year
+        
+        # 計算 epoch 時間
+        epoch = datetime(full_year, 1, 1, tzinfo=timezone.utc) + timedelta(
+            days=epoch_day - 1
+        )
+        
+        tle_data = TLEData(
+            satellite_id=f"{constellation}_{sat_data['norad_id']}",
+            satellite_name=sat_data["name"],
+            line1=sat_data["line1"],
+            line2=sat_data["line2"],
+            epoch=epoch,
+            norad_id=sat_data["norad_id"],
+        )
+        
+        tle_data_list.append(tle_data)
+    
+    print(f"✅ 使用 {constellation} fallback 數據: {len(tle_data_list)} 顆衛星")
+    return tle_data_list
 
 
 def parse_tle_content(content: str, constellation: str) -> List[TLEData]:

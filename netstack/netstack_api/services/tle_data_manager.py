@@ -385,7 +385,19 @@ class TLEDataManager:
         return valid_results
         
     async def _download_tle_data(self, url: str, api_key: Optional[str] = None) -> Optional[str]:
-        """下載 TLE 數據"""
+        """
+        下載 TLE 數據 - Celestrak API 已禁用
+        改用本地預載數據
+        """
+        if "celestrak" in url.lower():
+            self.logger.warning(
+                "Celestrak API 調用已被禁用，請使用本地 TLE 數據",
+                url=url,
+                alternative="使用本地 tle_data/ 目錄中的預載數據"
+            )
+            return await self._download_from_local_source()
+        
+        # 其他 API 源保持不變 (如果有的話)
         try:
             headers = {}
             if api_key:
@@ -408,6 +420,44 @@ class TLEDataManager:
                         
         except Exception as e:
             self.logger.error("TLE 數據下載異常", url=url, error=str(e))
+            return None
+            
+    async def _download_from_local_source(self) -> Optional[str]:
+        """從本地 TLE 數據目錄加載"""
+        try:
+            import sys
+            sys.path.append('/app/src')
+            from services.satellite.local_tle_loader import LocalTLELoader
+            
+            loader = LocalTLELoader("/app/tle_data")
+            
+            # 獲取最新的 Starlink 數據
+            starlink_data = loader.load_collected_data('starlink')
+            
+            if starlink_data.get('daily_data'):
+                latest_data = starlink_data['daily_data'][-1]
+                satellites = latest_data['satellites']
+                
+                # 轉換為 TLE 文本格式
+                tle_lines = []
+                for sat in satellites:
+                    tle_lines.append(sat['name'])
+                    tle_lines.append(sat['line1'])
+                    tle_lines.append(sat['line2'])
+                
+                self.logger.info(
+                    "從本地數據載入 TLE",
+                    satellites_count=len(satellites),
+                    source="local_tle_loader"
+                )
+                
+                return '\n'.join(tle_lines)
+            else:
+                self.logger.warning("本地 TLE 數據不可用")
+                return None
+                
+        except Exception as e:
+            self.logger.error("本地 TLE 數據加載失敗", error=str(e))
             return None
             
     async def _parse_tle_content(self, content: str, constellation: str) -> List[TLEData]:
