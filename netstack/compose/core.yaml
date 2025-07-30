@@ -351,7 +351,7 @@ services:
   netstack-api:
     image: netstack-api:latest
     container_name: netstack-api
-    entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
+    entrypoint: ["/usr/local/bin/smart-entrypoint.sh"]
     command: ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
     environment:
       - DATABASE_URL=mongodb://mongo:27017/open5gs
@@ -372,14 +372,13 @@ services:
       - POSTGRES_WAIT_TIMEOUT=30             # 等待超時設定
       - PRECOMPUTE_ON_STARTUP=true           # 啟動時執行預計算
     volumes:
+      - satellite_precomputed_data:/app/data  # 共享衛星預計算數據 volume
       - netstack_models:/app/models
       - netstack_results:/app/results
       - netstack_scripts:/app/scripts
       - ../netstack_api/routers/satellite_data_router.py:/app/netstack_api/routers/satellite_data_router.py:ro
       - ../netstack_api/routers/coordinate_orbit_endpoints.py:/app/netstack_api/routers/coordinate_orbit_endpoints.py:ro
       - ../netstack_api/app/core/router_manager.py:/app/netstack_api/app/core/router_manager.py:ro
-      # Phase 0 預計算數據掛載 (移動到 netstack 目錄)
-      - ../data:/app/data:ro
     ports:
       - "8080:8080"
     depends_on:
@@ -481,6 +480,8 @@ services:
   #   restart: unless-stopped
 
 volumes:
+  satellite_precomputed_data:
+    driver: local
   mongo_data:
     driver: local
   redis_data:

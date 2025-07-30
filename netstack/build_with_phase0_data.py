@@ -37,7 +37,10 @@ def main():
         
         # 初始化組件
         logger.info("📡 初始化軌道計算引擎")
-        orbit_engine = CoordinateSpecificOrbitEngine()
+        # NTPU 座標 (台灣新北市)
+        observer_lat = 24.94417
+        observer_lon = 121.37139
+        orbit_engine = CoordinateSpecificOrbitEngine(observer_lat, observer_lon)
         tle_loader = LocalTLELoader("tle_data")
         visibility_filter = NTPUVisibilityFilter()
         
@@ -73,24 +76,60 @@ def main():
         # 處理 Starlink
         if starlink_data:
             logger.info("🛰️ 處理 Starlink 數據")
-            starlink_results = orbit_engine.compute_visibility_windows(
-                starlink_data, 
-                observer_lat=24.94417,
-                observer_lon=121.37139,
-                observer_alt=50.0
-            )
-            precomputed_data['constellations']['starlink'] = starlink_results
+            starlink_results = {}
+            for sat_id, sat_data in starlink_data.items():
+                try:
+                    sat_results = orbit_engine.compute_96min_orbital_cycle(sat_data, duration_minutes=360)
+                    starlink_results[sat_id] = sat_results
+                except Exception as e:
+                    logger.warning(f"跳過衛星 {sat_id}: {e}")
+            precomputed_data['constellations']['starlink'] = {
+                'name': 'STARLINK',
+                'orbit_data': {
+                    'metadata': {
+                        'start_time': datetime.now().isoformat(),
+                        'duration_minutes': 360,
+                        'time_step_seconds': 30,
+                        'total_time_points': 720,
+                        'observer_location': {
+                            'lat': observer_lat,
+                            'lon': observer_lon,
+                            'alt': 50.0,
+                            'name': 'NTPU'
+                        }
+                    },
+                    'satellites': starlink_results
+                }
+            }
         
         # 處理 OneWeb
         if oneweb_data:
             logger.info("🛰️ 處理 OneWeb 數據")
-            oneweb_results = orbit_engine.compute_visibility_windows(
-                oneweb_data,
-                observer_lat=24.94417,
-                observer_lon=121.37139,
-                observer_alt=50.0
-            )
-            precomputed_data['constellations']['oneweb'] = oneweb_results
+            oneweb_results = {}
+            for sat_id, sat_data in oneweb_data.items():
+                try:
+                    sat_results = orbit_engine.compute_96min_orbital_cycle(sat_data, duration_minutes=360)
+                    oneweb_results[sat_id] = sat_results
+                except Exception as e:
+                    logger.warning(f"跳過衛星 {sat_id}: {e}")
+            precomputed_data['constellations']['oneweb'] = {
+                'name': 'ONEWEB',
+                'orbit_data': {
+                    'metadata': {
+                        'start_time': datetime.now().isoformat(),
+                        'duration_minutes': 360,
+                        'time_step_seconds': 30,
+                        'total_time_points': 720,
+                        'observer_location': {
+                            'lat': observer_lat,
+                            'lon': observer_lon,
+                            'alt': 50.0,
+                            'name': 'NTPU'
+                        }
+                    },
+                    'satellites': oneweb_results
+                }
+            }
         
         # 更新建置時間
         build_duration = time.time() - build_start_time
@@ -127,6 +166,23 @@ def main():
         logger.info(f"✅ Phase 0 建置完成！耗時 {build_duration:.2f}s")
         logger.info(f"📊 處理衛星數: {summary['total_satellites']}")
         logger.info(f"💾 輸出檔案大小: {summary['output_file_size_bytes']:,} bytes")
+        
+        # 自動同步數據到前端 (如果在開發環境中)
+        try:
+            import subprocess
+            sync_script = Path(__file__).parent.parent / 'scripts' / 'sync-netstack-data.sh'
+            if sync_script.exists():
+                logger.info("🔄 自動同步數據到前端...")
+                result = subprocess.run([str(sync_script)], capture_output=True, text=True, timeout=30)
+                if result.returncode == 0:
+                    logger.info("✅ 數據同步到前端成功")
+                else:
+                    logger.warning("⚠️ 數據同步到前端失敗，可手動運行同步腳本")
+            else:
+                logger.info("ℹ️ 同步腳本不存在，跳過自動同步")
+        except Exception as sync_error:
+            logger.warning(f"⚠️ 自動同步過程中出現錯誤: {sync_error}")
+            logger.info("💡 可以手動運行: scripts/sync-netstack-data.sh")
         
         return True
         
