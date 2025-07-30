@@ -394,8 +394,8 @@ class OrbitServiceNetStack(OrbitServiceInterface):
     ) -> OrbitPropagationResult:
         """使用動態 TLE 獲取生成軌道（優先最新數據）"""
         
-        # 1. 嘗試從 Celestrak 獲取最新 TLE 數據
-        latest_tle = await self._fetch_latest_tle_from_celestrak(norad_id)
+        # 1. 嘗試從本地 Docker Volume 獲取 TLE 數據 (符合衛星數據架構)
+        latest_tle = await self._fetch_latest_tle_from_local_volume(norad_id)
         if latest_tle:
             logger.info(f"✅ 成功獲取 NORAD {norad_id} 的最新 TLE 數據")
             return await self._generate_orbit_from_tle_data(
@@ -425,36 +425,53 @@ class OrbitServiceNetStack(OrbitServiceInterface):
             norad_id, tle_line1, tle_line2, start_time, end_time, time_step_seconds
         )
 
-    async def _fetch_latest_tle_from_celestrak(self, norad_id: int) -> Optional[Dict[str, Any]]:
-        """從 Celestrak 獲取指定衛星的最新 TLE 數據"""
+    async def _fetch_latest_tle_from_local_volume(self, norad_id: int) -> Optional[Dict[str, Any]]:
+        """
+        從本地 Docker Volume 獲取 TLE 數據 (替代 Celestrak API)
+        遵循衛星數據架構：優先本地數據，避免外部 API 依賴
+        """
         try:
-            # Celestrak API endpoint for specific satellite
-            urls_to_try = [
-                f"https://celestrak.org/NORAD/elements/gp.php?CATNR={norad_id}&FORMAT=TLE",
-                "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=TLE",
-                "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=TLE"
-            ]
+            # 導入本地數據服務
+            from app.services.local_volume_data_service import get_local_volume_service
             
-            for url in urls_to_try:
-                try:
-                    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
-                        async with session.get(url) as response:
-                            if response.status == 200:
-                                text = await response.text()
-                                tle_data = await self._parse_tle_text_for_norad_id(text, norad_id)
-                                if tle_data:
-                                    logger.info(f"✅ 從 Celestrak 獲取到 NORAD {norad_id} 最新數據")
-                                    return tle_data
-                except Exception as e:
-                    logger.debug(f"Celestrak URL {url} 失敗: {e}")
-                    continue
+            local_service = get_local_volume_service()
             
-            logger.warning(f"無法從 Celestrak 獲取 NORAD {norad_id} 的數據")
+            # 首先檢查是否有可用的本地數據
+            if not local_service.is_data_available():
+                logger.warning("⚠️  本地 Docker Volume 數據不可用")
+                return None
+            
+            # 嘗試從不同星座獲取 TLE 數據
+            constellations = ["starlink", "oneweb"]
+            
+            for constellation in constellations:
+                logger.info(f"🔍 在 {constellation} 中搜索 NORAD {norad_id}")
+                
+                tle_data_list = await local_service.get_local_tle_data(constellation)
+                
+                # 搜索指定的 NORAD ID
+                for tle_data in tle_data_list:
+                    if tle_data.get("norad_id") == norad_id:
+                        logger.info(f"✅ 從本地 Volume 找到 NORAD {norad_id}: {tle_data.get('name')}")
+                        return tle_data
+            
+            logger.warning(f"⚠️  本地 Volume 中未找到 NORAD {norad_id} 的數據")
             return None
             
         except Exception as e:
-            logger.error(f"Celestrak 請求失敗: {e}")
+            logger.error(f"❌ 從本地 Volume 獲取 TLE 失敗: {e}")
             return None
+
+    async def _fetch_latest_tle_from_celestrak_deprecated(self, norad_id: int) -> Optional[Dict[str, Any]]:
+        """
+        [已廢棄] 從 Celestrak 獲取指定衛星的最新 TLE 數據
+        
+        根據衛星數據架構文檔，已禁用所有外部 API 調用。
+        改用 _fetch_latest_tle_from_local_volume() 方法。
+        """
+        logger.warning("🚫 Celestrak API 調用已被禁用 - 根據衛星數據架構文檔")
+        logger.info("ℹ️  請使用本地 Docker Volume 數據：_fetch_latest_tle_from_local_volume()")
+        return None
 
     async def _parse_tle_text_for_norad_id(self, tle_text: str, target_norad_id: int) -> Optional[Dict[str, Any]]:
         """從 TLE 文本中解析特定 NORAD ID 的數據"""

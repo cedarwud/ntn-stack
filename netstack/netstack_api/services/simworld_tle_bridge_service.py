@@ -652,18 +652,25 @@ class SimWorldTLEBridgeService:
 
     def _normalize_position_data(self, position_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        標準化位置數據格式，修正字段命名不一致問題
+        標準化位置數據格式 - 統一為 v1.1.0 標準格式
+
+        統一格式標準：
+        - elevation_deg: 衛星仰角（度）
+        - azimuth_deg: 衛星方位角（度）
+        - range_km: 衛星距離（公里）
+        - is_visible: 是否可見（布林值）
 
         Args:
             position_data: 原始位置數據
 
         Returns:
-            標準化後的位置數據
+            標準化後的位置數據（符合統一格式）
         """
         try:
             # 創建新的字典避免修改原始數據
             normalized_data = position_data.copy()
 
+            # === 地理座標標準化 ===
             # 處理經緯度字段命名不一致
             if "latitude" in position_data and "lat" not in position_data:
                 normalized_data["lat"] = position_data["latitude"]
@@ -691,16 +698,53 @@ class SimWorldTLEBridgeService:
                 else:
                     normalized_data["alt"] = 0.0
 
-            # 確保仰角和距離字段存在 (用於接入品質計算)
-            if "elevation" not in normalized_data:
-                normalized_data["elevation"] = 0.0
+            # === 統一格式標準化 (v1.1.0) ===
+            # 仰角標準化：elevation_deg
+            if "elevation_deg" not in normalized_data:
+                if "elevation" in position_data:
+                    normalized_data["elevation_deg"] = position_data["elevation"]
+                else:
+                    normalized_data["elevation_deg"] = 0.0
+
+            # 方位角標準化：azimuth_deg
+            if "azimuth_deg" not in normalized_data:
+                if "azimuth" in position_data:
+                    normalized_data["azimuth_deg"] = position_data["azimuth"]
+                else:
+                    normalized_data["azimuth_deg"] = 0.0
+
+            # 距離標準化：range_km
             if "range_km" not in normalized_data:
                 normalized_data["range_km"] = 1000.0  # 預設距離
+
+            # 可見性標準化：is_visible
+            if "is_visible" not in normalized_data:
+                if "visible" in position_data:
+                    normalized_data["is_visible"] = bool(position_data["visible"])
+                else:
+                    normalized_data["is_visible"] = True  # 預設可見
+
+            # === 向後兼容性 ===
+            # 保持舊字段以確保向後兼容
+            if "elevation" not in normalized_data:
+                normalized_data["elevation"] = normalized_data["elevation_deg"]
+            if "azimuth" not in normalized_data:
+                normalized_data["azimuth"] = normalized_data["azimuth_deg"]
             if "visible" not in normalized_data:
-                normalized_data["visible"] = True  # 預設可見
+                normalized_data["visible"] = normalized_data["is_visible"]
 
             # 確保必要的數值字段是數字類型
-            for field in ["lat", "lon", "alt", "elevation", "range_km"]:
+            numeric_fields = [
+                "lat",
+                "lon",
+                "alt",
+                "elevation_deg",
+                "azimuth_deg",
+                "range_km",
+                "elevation",
+                "azimuth",
+            ]
+            for field in numeric_fields:
                 if field in normalized_data:
                     try:
                         normalized_data[field] = float(normalized_data[field])

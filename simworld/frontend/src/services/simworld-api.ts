@@ -140,10 +140,11 @@ class SimWorldApiClient {
     minElevation: number = 5,       // 📡 適合換手研究的最小仰角（5度以上可進行換手）
     maxSatellites: number = 10,     // 🎯 適量衛星數量，符合3GPP NTN標準（6-8顆）
     observerLat: number = 24.9441667,    // 🇹🇼 NTPU觀測點緯度
-    observerLon: number = 121.3713889    // 🇹🇼 NTPU觀測點經度
+    observerLon: number = 121.3713889,   // 🇹🇼 NTPU觀測點經度
+    constellation: string = 'starlink'   // 🛰️ 星座選擇 (starlink, oneweb)
   ): Promise<VisibleSatellitesResponse> {
     // 創建請求去重鍵
-    const requestKey = 'satellites-' + minElevation + '-' + maxSatellites + '-' + observerLat + '-' + observerLon;
+    const requestKey = 'satellites-' + minElevation + '-' + maxSatellites + '-' + observerLat + '-' + observerLon + '-' + constellation;
     
     // 如果同樣的請求正在進行中，返回該 Promise
     if (this.pendingRequests.has(requestKey)) {
@@ -151,7 +152,7 @@ class SimWorldApiClient {
       return this.pendingRequests.get(requestKey)!;
     }
     
-    console.log('🆕 SimWorldApi: 新請求開始:', requestKey);
+    // console.log('🆕 SimWorldApi: 新請求開始:', requestKey);
     
     // 創建並執行請求
     const executeRequest = async () => {
@@ -164,6 +165,7 @@ class SimWorldApiClient {
           observer_lat: observerLat,  // NTPU座標 (24.9441667°N)
           observer_lon: observerLon,  // NTPU座標 (121.3713889°E)
           observer_alt: 0.0,  // 觀測點高度
+          constellation: constellation,  // 🛰️ 星座選擇
         };
 
         // 🔧 構建查詢參數字符串
@@ -175,29 +177,29 @@ class SimWorldApiClient {
         // 使用 NetStack API 的預計算端點 (修正路徑)
         const endpoint = `/api/v1/satellites/precomputed/ntpu?${queryParams.toString()}`;
 
-        console.log(`🛰️ SimWorldApi: 調用 NetStack 衛星API ${endpoint}`);
-        console.log(`📡 SimWorldApi: NTPU觀測點座標 (${observerLat}, ${observerLon}), 最小仰角 ${minElevation}°`);
+        // 只在首次調用時記錄 API 端點
+        // console.log(`🛰️ SimWorldApi: 調用 NetStack 衛星API ${endpoint}`);
 
         // 🚀 使用 NetStack API 配置調用預計算端點
         const response = await netstackFetch(endpoint);
         if (!response.ok) {
           throw new Error('API request failed: ' + response.statusText);
         }
-        const data = await response.json() as { 
+        const data = await response.json() as {
           success?: boolean;
-          satellites?: Array<{ 
-            norad_id?: string; 
-            name?: string; 
-            orbit_altitude_km?: number; 
-            elevation_deg?: number; 
-            azimuth_deg?: number; 
-            range_km?: number; 
+          satellites?: Array<{
+            norad_id?: string;
+            name?: string;
+            orbit_altitude_km?: number;
+            elevation_deg?: number;
+            azimuth_deg?: number;
+            range_km?: number;
             distance_km?: number;
-            velocity?: number; 
+            velocity?: number;
             velocity_km_s?: number;
-            doppler_shift?: number; 
-            estimated_signal_strength?: number; 
-            path_loss_db?: number; 
+            doppler_shift?: number;
+            estimated_signal_strength?: number;
+            path_loss_db?: number;
           }>;
           error?: string;
           message?: string;
@@ -210,48 +212,38 @@ class SimWorldApiClient {
             description: string;
             is_simulation: boolean;
           };
+          computation_metadata?: {
+            constellation?: string;
+            elevation_threshold?: number;
+            use_layered?: boolean;
+            environment_factor?: string;
+            computation_date?: string;
+            total_satellites_input?: number;
+            filtered_satellites_count?: number;
+            filtering_efficiency?: string;
+            computation_type?: string;
+            data_source?: string;
+          };
         };
         
-        console.log(`🛰️ SimWorldApi: API 原始響應:`, data);
-        console.log(`📡 SimWorldApi: 接收到 ${data.satellites?.length || 0} 顆衛星 (仰角≥${minElevation}°)`);
-        
-        // 顯示數據來源信息
-        if (data.data_source) {
-          console.log(`📊 數據來源類型: ${data.data_source.type}`);
-          console.log(`📝 數據描述: ${data.data_source.description}`);
-          console.log(`🎭 是否為模擬數據: ${data.data_source.is_simulation ? '是' : '否'}`);
-        } else {
-          // 客戶端數據來源檢測機制（後端未提供 data_source 時的備用方案）
-          const fallbackNoradIds = new Set(['44713', '44714', '44715', '44716', '44717', '44718', '58724', '58725', '58726', '58727', '44063', '44064', '37753', '37846']);
-          const detectedNoradIds = data.satellites?.map(sat => sat.norad_id).filter(id => id) || [];
-          const isUsingFallbackData = detectedNoradIds.length > 0 && detectedNoradIds.every(id => fallbackNoradIds.has(id));
-          
-          console.log(`📊 數據來源類型: ${isUsingFallbackData ? 'fallback_simulation' : 'unknown'}`);
-          console.log(`📝 數據描述: ${isUsingFallbackData ? '模擬數據 (客戶端檢測)' : '數據來源未知 (客戶端檢測)'}`);
-          console.log(`🎭 是否為模擬數據: ${isUsingFallbackData ? '是' : '未知'}`);
-          console.log(`🔍 檢測到的 NORAD IDs: [${detectedNoradIds.join(', ')}]`);
-          console.log(`⚠️ 注意: 這是客戶端檢測結果，後端未提供 data_source 信息`);
+        // 簡化的數據來源檢測和日誌
+        const satelliteCount = data.filtered_satellites?.length || 0;
+        const dataSource = data.computation_metadata?.data_source || 'unknown';
+        const responseConstellation = data.computation_metadata?.constellation || 'unknown';
+
+        // 只在衛星數量為 0 或有問題時記錄日誌
+        if (satelliteCount === 0 || satelliteCount > 15) {
+          console.log(`🛰️ [${responseConstellation.toUpperCase()}] ${satelliteCount}顆衛星 | 來源: ${dataSource}`);
+        }
+
+        // 只在有問題時顯示詳細信息
+        if (satelliteCount === 0) {
+          console.warn(`⚠️ 無衛星數據:`, data);
         }
         
-        // 詳細分析 API 響應
-        console.log(`🛰️ SimWorldApi: 響應分析:`, {
-          hasResponse: !!data,
-          responseKeys: data ? Object.keys(data) : [],
-          hasSatellites: !!data.satellites,
-          satellitesLength: data.satellites?.length,
-          satellitesType: typeof data.satellites,
-          isArray: Array.isArray(data.satellites),
-          status: data.status,
-          processed: data.processed,
-          visible: data.visible,
-          error: data.error,
-          message: data.message,
-          dataSource: data.data_source
-        });
-        
         // 📡 檢查衛星數量是否符合換手研究需求（5-6顆為理想）
-        if (data.satellites && data.satellites.length < 2) {
-          console.warn(`📡 SimWorldApi: 衛星數量偏少 (${data.satellites.length} 顆)`);
+        if (data.filtered_satellites && data.filtered_satellites.length < 2) {
+          console.warn(`📡 SimWorldApi: 衛星數量偏少 (${data.filtered_satellites.length} 顆)`);
           console.warn(`📡 建議: 檢查後端TLE數據或仰角設定`);
         }
         
@@ -261,12 +253,12 @@ class SimWorldApiClient {
           throw new Error('API Error: ' + data.error);
         }
         
-        if (!data.satellites || data.satellites.length === 0) {
+        if (!data.filtered_satellites || data.filtered_satellites.length === 0) {
           console.warn(`🛰️ SimWorldApi: API 未返回衛星數據或返回空數組`);
           console.warn(`🛰️ SimWorldApi: 響應結構檢查:`, {
-            hasSatellites: 'satellites' in data,
-            satellitesType: typeof data.satellites,
-            satellitesLength: data.satellites?.length,
+            hasSatellites: 'filtered_satellites' in data,
+            satellitesType: typeof data.filtered_satellites,
+            satellitesLength: data.filtered_satellites?.length,
             responseKeys: Object.keys(data)
           });
           
@@ -295,16 +287,17 @@ class SimWorldApiClient {
             max_results: Math.min(maxSatellites, 20)
           },
           results: {
-            total_visible: data.satellites?.length || 0,
-            satellites: (data.satellites || data.results?.satellites || [])
-              ?.filter((sat: any) => {
-                // 🛰️ 只保留仰角≥5度的衛星（可進行換手的候選衛星）
-                const elevation = sat.position?.elevation || sat.elevation_deg || sat.elevation || 0;
-                return elevation >= 5;
-              })
+            total_visible: data.filtered_satellites?.length || 0,
+            satellites: (data.filtered_satellites || data.results?.satellites || [])
+              // 🛰️ 暫時移除仰角過濾，因為後端軌道計算返回的 elevation 都是 0
+              // TODO: 修復後端軌道計算後，恢復仰角過濾邏輯
+              // ?.filter((sat: any) => {
+              //   const elevation = sat.position?.elevation || sat.elevation_deg || sat.elevation || 0;
+              //   return elevation >= 5;
+              // })
               ?.map((sat: any) => {
               // 🔄 支援多種後端響應格式，適應新舊API
-              // 📍 優先使用 position 物件內的數據（新API格式）
+              // 📍 優先使用 position 物件內的數據（新API格式），然後是 NetStack 直接字段
               const elevation = sat.position?.elevation || sat.elevation_deg || sat.elevation || 0;
               const azimuth = sat.position?.azimuth || sat.azimuth_deg || sat.azimuth || 0;
               const range = sat.position?.range || sat.range_km || sat.distance_km || sat.range || 0;
@@ -547,23 +540,24 @@ export const useVisibleSatellites = (
   minElevation: number = 5,       // 📡 換手研究預設5度仰角
   maxSatellites: number = 10,     // 🎯 適量衛星數量，符合3GPP NTN標準
   observerLat: number = 24.9441667,    // 🇹🇼 NTPU觀測點緯度
-  observerLon: number = 121.3713889    // 🇹🇼 NTPU觀測點經度
+  observerLon: number = 121.3713889,   // 🇹🇼 NTPU觀測點經度
+  constellation: string = 'starlink'   // 🛰️ 星座選擇 (starlink, oneweb)
 ) => {
   const [satellites, setSatellites] = useState<SatellitePosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('🪝 useVisibleSatellites: Hook 被觸發，參數:', { minElevation, maxSatellites, observerLat, observerLon });
-    
+    console.log(`🪝 [${constellation.toUpperCase()}] 載入衛星數據...`);
+
     const fetchSatellites = async () => {
       try {
         setLoading(true);
-        const data = await simWorldApi.getVisibleSatellites(minElevation, maxSatellites, observerLat, observerLon);
+        const data = await simWorldApi.getVisibleSatellites(minElevation, maxSatellites, observerLat, observerLon, constellation);
         setSatellites(data.results?.satellites || []);
         setError(null);
       } catch (err) {
-        console.error('useVisibleSatellites: Error fetching satellites:', err);
+        console.error(`❌ [${constellation.toUpperCase()}] 載入失敗:`, err);
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setLoading(false);
@@ -574,7 +568,7 @@ export const useVisibleSatellites = (
     // 定期更新衛星位置 - 已根據用戶要求移除
     // const interval = setInterval(fetchSatellites, refreshInterval)
     // return () => clearInterval(interval)
-  }, [minElevation, maxSatellites, observerLat, observerLon])
+  }, [minElevation, maxSatellites, observerLat, observerLon, constellation])
 
   return { satellites, loading, error, refetch: () => simWorldApi.getVisibleSatellites(minElevation, maxSatellites, observerLat, observerLon) };
 }

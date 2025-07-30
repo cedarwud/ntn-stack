@@ -189,19 +189,20 @@ export const logConfigurationStatus = (result: ConfigValidationResult): void => 
     console.groupEnd()
   }
 
-  if (result.recommendations.length > 0) {
-    console.group('💡 配置建議')
-    result.recommendations.forEach(rec => console.info(`💡 ${rec}`))
-    console.groupEnd()
-  }
+  // 已禁用配置建議和當前配置日誌，減少噪音
+  // if (result.recommendations.length > 0) {
+  //   console.group('💡 配置建議')
+  //   result.recommendations.forEach(rec => console.info(`💡 ${rec}`))
+  //   console.groupEnd()
+  // }
 
   // 輸出當前配置信息
-  const config = getApiConfig()
-  console.group('📋 當前配置')
-  console.log('環境模式:', config.mode)
-  console.log('NetStack URL:', config.netstack.baseUrl)
-  console.log('SimWorld URL:', config.simworld.baseUrl)
-  console.groupEnd()
+  // const config = getApiConfig()
+  // console.group('📋 當前配置')
+  // console.log('環境模式:', config.mode)
+  // console.log('NetStack URL:', config.netstack.baseUrl)
+  // console.log('SimWorld URL:', config.simworld.baseUrl)
+  // console.groupEnd()
 }
 
 /**

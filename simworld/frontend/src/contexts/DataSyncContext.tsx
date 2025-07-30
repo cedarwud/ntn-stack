@@ -13,11 +13,9 @@ import React, {
 } from 'react'
 import { netStackApi, CoreSyncStatus } from '../services/netstack-api'
 import {
-    simWorldApi,
     SatellitePosition,
     useVisibleSatellites,
 } from '../services/simworld-api'
-import { useNetstackPrecomputedSatellites } from '../services/netstack-precomputed-api'
 import { useAppState } from './appStateHooks'
 
 // 全局數據狀態接口
@@ -237,8 +235,15 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
     // 📍 NTPU座標: 24°56'39"N 121°22'17"E (24.9441667°, 121.3713889°)
     // 🛰️ 修復：統一使用 useVisibleSatellites，確保立體圖和側邊欄數據同步
     // 🔧 不再使用 useNetstackPrecomputedSatellites，改用統一的即時數據源
+    // 🛰️ 響應星座選擇變化
     const { satellites: realSatellites, error: satellitesError } =
-        useVisibleSatellites() // 改為使用統一的即時數據源
+        useVisibleSatellites(
+            5,
+            10,
+            24.9441667,
+            121.3713889,
+            satelliteState.selectedConstellation || 'starlink'
+        )
 
     // 強制同步方法 - 只同步 NetStack 數據，衛星數據由 useVisibleSatellites 統一管理
     const forceSync = useCallback(async () => {
@@ -329,24 +334,30 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
             })
 
             // 同步到 AppStateContext 的 satelliteState（用於側邊欄顯示）
-            // 轉換 NetStack API 數據格式為前端期望的格式
+            // 修復：轉換 NetStack API 數據格式為前端期望的格式
             const convertedSatellites = realSatellites.map((sat) => ({
                 ...sat,
-                elevation_deg: sat.position?.elevation || 0,
-                azimuth_deg: sat.position?.azimuth || 0,
-                distance_km: sat.position?.range || 0,
+                // 修復：支援統一格式的字段名
+                elevation_deg:
+                    sat.elevation_deg ||
+                    sat.elevation ||
+                    sat.position?.elevation ||
+                    0,
+                azimuth_deg:
+                    sat.azimuth_deg ||
+                    sat.azimuth ||
+                    sat.position?.azimuth ||
+                    0,
+                distance_km:
+                    sat.range_km || sat.distance_km || sat.position?.range || 0,
+                is_visible: sat.is_visible || sat.visible || true,
             }))
 
-            // 調試日誌：檢查數據轉換
-            if (convertedSatellites.length > 0) {
-                console.log('🛰️ DataSync: 衛星數據轉換完成', {
-                    count: convertedSatellites.length,
-                    sample: {
-                        name: convertedSatellites[0].name,
-                        elevation_deg: convertedSatellites[0].elevation_deg,
-                        azimuth_deg: convertedSatellites[0].azimuth_deg,
-                        distance_km: convertedSatellites[0].distance_km,
-                    },
+            // 只在有錯誤時記錄日誌
+            if (convertedSatellites.length === 0 && realSatellites.length > 0) {
+                console.warn('⚠️ DataSync: 衛星數據轉換失敗', {
+                    原始數據: realSatellites.length,
+                    轉換結果: convertedSatellites.length,
                 })
             }
 

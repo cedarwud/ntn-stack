@@ -32,6 +32,13 @@ export function parseCSVData(csvContent: string): ParsedCSVData {
     if (!line.trim()) continue;
     
     const [timeStr, rsrpStr] = line.split(',');
+    
+    // 添加安全檢查，防止 undefined 錯誤
+    if (!timeStr || !rsrpStr) {
+      console.warn('Invalid CSV line format:', line);
+      continue;
+    }
+    
     const time = parseFloat(timeStr.trim());
     const rsrp = parseFloat(rsrpStr.trim());
     
@@ -78,10 +85,19 @@ export async function loadCSVData(): Promise<ParsedCSVData> {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const csvContent = await response.text();
+    
+    // 檢查 CSV 內容是否為空
+    if (!csvContent || csvContent.trim().length === 0) {
+      console.warn('CSV file is empty, using sample data');
+      return generateSampleRSRPData();
+    }
+    
     return parseCSVData(csvContent);
   } catch (error) {
     console.error('Error loading CSV data:', error);
-    throw error;
+    console.warn('Falling back to sample RSRP data');
+    // 如果載入失敗，回退到樣本數據
+    return generateSampleRSRPData();
   }
 }
 

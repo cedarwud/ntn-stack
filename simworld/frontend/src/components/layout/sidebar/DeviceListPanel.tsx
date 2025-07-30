@@ -22,7 +22,7 @@ const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
     const [showDesiredDevices, setShowDesiredDevices] = useState(false)
     const [showJammerDevices, setShowJammerDevices] = useState(false)
-    const [showSkyfieldSection, setShowSkyfieldSection] = useState(false)
+    const [showSkyfieldSection, setShowSkyfieldSection] = useState(true)
 
     return (
         <div className="device-list-panel">
@@ -55,7 +55,9 @@ const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
                                 }
                                 onDeviceChange={onDeviceChange}
                                 onDeleteDevice={onDeleteDevice}
-                                onOrientationInputChange={onOrientationInputChange}
+                                onOrientationInputChange={
+                                    onOrientationInputChange
+                                }
                                 onDeviceRoleChange={onDeviceRoleChange}
                             />
                         ))}
@@ -76,7 +78,11 @@ const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
                         <span className="header-icon">🛰️</span>
                         <span className="header-title">衛星 gNB</span>
                         <span className="header-count">
-                            ({loadingSatellites ? '...' : skyfieldSatellites.length})
+                            (
+                            {loadingSatellites
+                                ? '...'
+                                : skyfieldSatellites.length}
+                            )
                         </span>
                     </h3>
                     {showSkyfieldSection && (
@@ -99,16 +105,25 @@ const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
                                             <span
                                                 style={{
                                                     color:
-                                                        (sat.elevation_deg ?? 0) > 45
+                                                        (sat.elevation_deg ??
+                                                            0) > 45
                                                             ? '#ff3300'
                                                             : '#0088ff',
                                                 }}
                                             >
-                                                {(sat.elevation_deg ?? 0).toFixed(2)}°
+                                                {(
+                                                    sat.elevation_deg ?? 0
+                                                ).toFixed(2)}
+                                                °
                                             </span>
                                             {' | '}方位角:{' '}
-                                            {(sat.azimuth_deg ?? 0).toFixed(2)}°{' | '}
-                                            距離: {(sat.distance_km ?? 0).toFixed(2)} km
+                                            {(sat.azimuth_deg ?? 0).toFixed(2)}°
+                                            {' | '}
+                                            距離:{' '}
+                                            {(sat.distance_km ?? 0).toFixed(
+                                                2
+                                            )}{' '}
+                                            km
                                         </div>
                                     </div>
                                 ))
@@ -153,7 +168,9 @@ const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
                                 }
                                 onDeviceChange={onDeviceChange}
                                 onDeleteDevice={onDeleteDevice}
-                                onOrientationInputChange={onOrientationInputChange}
+                                onOrientationInputChange={
+                                    onOrientationInputChange
+                                }
                                 onDeviceRoleChange={onDeviceRoleChange}
                             />
                         ))}
@@ -191,7 +208,9 @@ const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
                                 }
                                 onDeviceChange={onDeviceChange}
                                 onDeleteDevice={onDeleteDevice}
-                                onOrientationInputChange={onOrientationInputChange}
+                                onOrientationInputChange={
+                                    onOrientationInputChange
+                                }
                                 onDeviceRoleChange={onDeviceRoleChange}
                             />
                         ))}
@@ -227,7 +246,9 @@ const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
                                 }
                                 onDeviceChange={onDeviceChange}
                                 onDeleteDevice={onDeleteDevice}
-                                onOrientationInputChange={onOrientationInputChange}
+                                onOrientationInputChange={
+                                    onOrientationInputChange
+                                }
                                 onDeviceRoleChange={onDeviceRoleChange}
                             />
                         ))}
