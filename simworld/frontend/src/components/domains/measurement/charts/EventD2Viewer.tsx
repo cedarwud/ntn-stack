@@ -179,7 +179,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
         // fetchRealD2Data 函數已移除，統一使用 loadRealData
 
-        // 載入真實數據 - 使用預計算數據
+        // 載入真實數據 - 使用 SimWorld NetStack 96分鐘預處理數據 API
         const loadRealData = useCallback(async () => {
             if (isLoadingRealData) return
 
@@ -188,35 +188,68 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
             try {
                 console.log(
-                    `🔄 [EventD2Viewer] 從預計算數據載入 ${selectedConstellation} 星座數據...`
+                    `🔄 [EventD2Viewer] 從 NetStack 96分鐘預處理數據載入 ${selectedConstellation} 星座數據...`
                 )
                 console.log(
                     `⏱️ 時間段: ${selectedTimeRange.durationMinutes} 分鐘`
                 )
 
-                // 清除預計算數據緩存
-                console.log('🧹 [EventD2Viewer] 清除預計算數據緩存...')
-                precomputedDataService.clearCache()
-
-                // 使用預計算數據服務
-                const convertedData = await precomputedDataService.convertToD2DataPoints(
-                    selectedConstellation,
-                    {
-                        Thresh1: params.Thresh1,
-                        Thresh2: params.Thresh2,
-                        Hys: params.Hys,
-                        referenceLocation: params.referenceLocation,
-                        movingReferenceLocation: params.movingReferenceLocation,
+                // 構建 API 請求
+                const requestBody = {
+                    scenario_name: `D2_Real_Data_${selectedConstellation}`,
+                    ue_position: {
+                        latitude: params.referenceLocation.latitude,
+                        longitude: params.referenceLocation.longitude,
+                        altitude: params.referenceLocation.altitude || 50.0
                     },
-                    {
-                        durationMinutes: selectedTimeRange.durationMinutes,
-                        sampleIntervalSeconds: selectedTimeRange.sampleIntervalSeconds,
+                    duration_minutes: selectedTimeRange.durationMinutes,
+                    sample_interval_seconds: selectedTimeRange.sampleIntervalSeconds,
+                    constellation: selectedConstellation,
+                    reference_position: {
+                        latitude: params.movingReferenceLocation.latitude,
+                        longitude: params.movingReferenceLocation.longitude,
+                        altitude: params.movingReferenceLocation.altitude || 0.0
                     }
-                )
+                }
+
+                // 調用 SimWorld NetStack API
+                const response = await fetch('/api/v1/measurement-events/D2/real', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                })
+
+                if (!response.ok) {
+                    throw new Error(`API 調用失敗: ${response.status} ${response.statusText}`)
+                }
+
+                const apiResult = await response.json()
+                
+                if (!apiResult.success) {
+                    throw new Error(`API 回傳錯誤: ${apiResult.error || '未知錯誤'}`)
+                }
+
+                // 轉換 API 響應為前端格式
+                const convertedData = apiResult.results.map((result: any, index: number) => ({
+                    timestamp: result.timestamp,
+                    satelliteDistance: result.measurement_values.satellite_distance,
+                    groundDistance: result.measurement_values.ground_distance,
+                    referenceSatellite: result.measurement_values.reference_satellite,
+                    elevationAngle: result.measurement_values.elevation_angle,
+                    azimuthAngle: result.measurement_values.azimuth_angle,
+                    signalStrength: result.measurement_values.signal_strength,
+                    triggerConditionMet: result.trigger_condition_met,
+                    measurements: {
+                        d2Distance: result.measurement_values.satellite_distance - result.measurement_values.ground_distance,
+                        event_type: result.trigger_condition_met ? 'entering' : 'normal',
+                    }
+                }))
 
                 setRealD2Data(convertedData)
                 console.log(
-                    `✅ [EventD2Viewer] 成功載入 ${convertedData.length} 個 ${selectedConstellation} 預計算數據點`
+                    `✅ [EventD2Viewer] 成功載入 ${convertedData.length} 個 ${selectedConstellation} NetStack 數據點`
                 )
                 console.log(
                     '🔍 [EventD2Viewer] 前3個數據點預覽:',
@@ -242,7 +275,8 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                         實際時間段: actualDurationMinutes.toFixed(2) + '分鐘',
                         開始時間: firstTime.toISOString(),
                         結束時間: lastTime.toISOString(),
-                        數據來源: '預計算數據 (phase0_precomputed_orbits.json)',
+                        數據來源: `NetStack 96分鐘預處理數據 (${apiResult.data_source})`,
+                        星座: apiResult.metadata?.constellation || selectedConstellation,
                         時間異常:
                             actualDurationMinutes < expectedDuration * 0.8
                                 ? '⚠️ 是'
@@ -251,13 +285,13 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                 }
             } catch (error) {
                 console.error(
-                    `❌ [EventD2Viewer] 載入 ${selectedConstellation} 預計算數據失敗:`,
+                    `❌ [EventD2Viewer] 載入 ${selectedConstellation} NetStack 數據失敗:`,
                     error
                 )
                 const errorMessage =
                     error instanceof Error ? error.message : '未知錯誤'
                 setRealDataError(
-                    `載入 ${selectedConstellation} 預計算數據失敗: ${errorMessage}`
+                    `載入 ${selectedConstellation} NetStack 96分鐘預處理數據失敗: ${errorMessage}`
                 )
             } finally {
                 setIsLoadingRealData(false)
