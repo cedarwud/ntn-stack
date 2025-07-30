@@ -85,51 +85,26 @@ class BenchmarkRequest(BaseModel):
 @router.post("/tle/download")
 async def download_tle_data(request: TLEDownloadRequest, background_tasks: BackgroundTasks):
     """
-    下載 TLE 數據
+    TLE 數據下載 - 已禁用 Celestrak API
     
-    下載指定星座的最新 TLE 數據到系統中。
+    由於 IP 限制，已停用 Celestrak 即時下載功能，系統將自動使用本地預載的 TLE 數據。
     """
-    try:
-        logger.info("開始 TLE 數據下載", constellations=request.constellations)
-        
-        tle_manager = TLEDataManager()
-        await tle_manager.initialize_default_sources()
-        
-        if request.force_update:
-            # 強制更新所有數據源
-            results = await tle_manager.force_update_all()
-        else:
-            # 只更新需要的星座
-            results = []
-            for constellation in request.constellations:
-                try:
-                    # 查找對應的數據源
-                    source_name = f"celestrak_{constellation}"
-                    result = await tle_manager.update_tle_from_source(source_name)
-                    results.append(result)
-                except Exception as e:
-                    logger.warning(f"星座 {constellation} 更新失敗", error=str(e))
-        
-        # 統計下載結果
-        total_satellites = 0
-        downloaded = {}
-        
-        for constellation in request.constellations:
-            satellites = await tle_manager.get_constellation_satellites(constellation)
-            count = len(satellites)
-            downloaded[constellation] = count
-            total_satellites += count
-        
-        return {
-            "success": True,
-            "downloaded": downloaded,
-            "total_satellites": total_satellites,
-            "download_time_ms": 1500  # 模擬值
-        }
-        
-    except Exception as e:
-        logger.error("TLE 數據下載失敗", error=str(e))
-        raise HTTPException(status_code=500, detail=f"TLE 數據下載失敗: {str(e)}")
+    logger.warning(
+        "TLE 下載端點被調用，但 Celestrak API 已禁用",
+        constellations=request.constellations,
+        force_update=request.force_update
+    )
+    
+    return {
+        "success": False,
+        "error": "Celestrak API 已被禁用",
+        "message": "由於 IP 限制，已停用 Celestrak 即時下載功能",
+        "alternative": "系統將自動使用本地預載的 TLE 數據",
+        "local_data_status": "available",
+        "last_update": "使用 Docker 建置時的數據",
+        "constellations_requested": request.constellations,
+        "recommended_action": "使用本地 TLE 數據，無需手動下載"
+    }
 
 
 @router.post("/precompute")

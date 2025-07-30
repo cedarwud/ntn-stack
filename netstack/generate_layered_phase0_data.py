@@ -39,7 +39,7 @@ class LayeredPhase0Generator:
             tle_data_dir: TLE 數據目錄
         """
         self.tle_data_dir = Path(tle_data_dir)
-        self.output_dir = Path("/home/sat/ntn-stack/netstack/data/layered_phase0")
+        self.output_dir = Path("/app/data/layered_phase0")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # NTPU 觀測座標

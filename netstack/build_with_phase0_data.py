@@ -79,7 +79,8 @@ def main():
             starlink_results = {}
             for sat_id, sat_data in starlink_data.items():
                 try:
-                    sat_results = orbit_engine.compute_96min_orbital_cycle(sat_data, duration_minutes=360)
+                    from datetime import datetime
+                    sat_results = orbit_engine.compute_96min_orbital_cycle(sat_data, datetime.now())
                     starlink_results[sat_id] = sat_results
                 except Exception as e:
                     logger.warning(f"跳過衛星 {sat_id}: {e}")
