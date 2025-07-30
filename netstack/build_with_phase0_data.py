@@ -13,28 +13,30 @@ from pathlib import Path
 from datetime import datetime
 
 # 添加路徑
-sys.path.append('/app/src')
-sys.path.append('/app')
+sys.path.append("/app/src")
+sys.path.append("/app")
 
 # 配置日誌
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 def main():
     """主建置函數"""
     logger.info("🚀 開始 Phase 0 預計算數據建置")
-    
+
     build_start_time = time.time()
-    
+
     try:
         # 導入 Phase 0 模組
-        from src.services.satellite.coordinate_specific_orbit_engine import CoordinateSpecificOrbitEngine
+        from src.services.satellite.coordinate_specific_orbit_engine import (
+            CoordinateSpecificOrbitEngine,
+        )
         from src.services.satellite.local_tle_loader import LocalTLELoader
         from src.services.satellite.ntpu_visibility_filter import NTPUVisibilityFilter
-        
+
         # 初始化組件
         logger.info("📡 初始化軌道計算引擎")
         # NTPU 座標 (台灣新北市)
@@ -43,138 +45,184 @@ def main():
         orbit_engine = CoordinateSpecificOrbitEngine(observer_lat, observer_lon)
         tle_loader = LocalTLELoader("tle_data")
         visibility_filter = NTPUVisibilityFilter()
-        
+
         # 載入 TLE 數據
         logger.info("📊 載入 TLE 數據")
-        starlink_data = tle_loader.load_collected_data('starlink')
-        oneweb_data = tle_loader.load_collected_data('oneweb')
-        
+        starlink_collection = tle_loader.load_collected_data("starlink")
+        oneweb_collection = tle_loader.load_collected_data("oneweb")
+
+        # 提取實際的衛星數據
+        starlink_data = {}
+        oneweb_data = {}
+
+        if starlink_collection and "daily_data" in starlink_collection:
+            # 取最新一天的數據
+            daily_data = starlink_collection["daily_data"]
+            if daily_data and len(daily_data) > 0:
+                latest_data = daily_data[-1]  # 取最後一天的數據
+                if "satellites" in latest_data:
+                    starlink_data = {
+                        sat["norad_id"]: sat for sat in latest_data["satellites"]
+                    }
+                    logger.info(f"📡 載入 Starlink 數據: {len(starlink_data)} 顆衛星")
+
+        if oneweb_collection and "daily_data" in oneweb_collection:
+            # 取最新一天的數據
+            daily_data = oneweb_collection["daily_data"]
+            if daily_data and len(daily_data) > 0:
+                latest_data = daily_data[-1]  # 取最後一天的數據
+                if "satellites" in latest_data:
+                    oneweb_data = {
+                        sat["norad_id"]: sat for sat in latest_data["satellites"]
+                    }
+                    logger.info(f"📡 載入 OneWeb 數據: {len(oneweb_data)} 顆衛星")
+
         if not starlink_data and not oneweb_data:
             logger.warning("⚠️ 沒有找到 TLE 數據，使用模擬數據")
             # 創建模擬數據用於建置
-            starlink_data = create_mock_tle_data('starlink', 100)
-            oneweb_data = create_mock_tle_data('oneweb', 50)
-        
+            starlink_data = {
+                str(i): sat
+                for i, sat in enumerate(create_mock_tle_data("starlink", 100))
+            }
+            oneweb_data = {
+                str(i): sat for i, sat in enumerate(create_mock_tle_data("oneweb", 50))
+            }
+
         # 執行預計算
         logger.info("⚙️ 執行軌道預計算")
-        
+
+        from datetime import datetime
+
         precomputed_data = {
-            'metadata': {
-                'generation_timestamp': datetime.now().isoformat(),
-                'build_time_seconds': 0,  # 稍後更新
-                'data_source': 'phase0_build'
+            "metadata": {
+                "generation_timestamp": datetime.now().isoformat(),
+                "build_time_seconds": 0,  # 稍後更新
+                "data_source": "phase0_build",
+                "computation_type": "real_constellation_data",
             },
-            'observer_location': {
-                'name': 'NTPU',
-                'lat': 24.94417,
-                'lon': 121.37139,
-                'alt': 50.0
+            "observer_location": {
+                "name": "NTPU",
+                "lat": 24.94417,
+                "lon": 121.37139,
+                "alt": 50.0,
             },
-            'constellations': {}
+            "constellations": {},
         }
-        
+
         # 處理 Starlink
         if starlink_data:
             logger.info("🛰️ 處理 Starlink 數據")
             starlink_results = {}
             for sat_id, sat_data in starlink_data.items():
                 try:
-                    from datetime import datetime
-                    sat_results = orbit_engine.compute_96min_orbital_cycle(sat_data, datetime.now())
+                    sat_results = orbit_engine.compute_96min_orbital_cycle(
+                        sat_data, datetime.now()
+                    )
                     starlink_results[sat_id] = sat_results
                 except Exception as e:
                     logger.warning(f"跳過衛星 {sat_id}: {e}")
-            precomputed_data['constellations']['starlink'] = {
-                'name': 'STARLINK',
-                'orbit_data': {
-                    'metadata': {
-                        'start_time': datetime.now().isoformat(),
-                        'duration_minutes': 360,
-                        'time_step_seconds': 30,
-                        'total_time_points': 720,
-                        'observer_location': {
-                            'lat': observer_lat,
-                            'lon': observer_lon,
-                            'alt': 50.0,
-                            'name': 'NTPU'
-                        }
+            logger.info(f"✅ Starlink 處理完成: {len(starlink_results)} 顆衛星")
+            precomputed_data["constellations"]["starlink"] = {
+                "name": "STARLINK",
+                "orbit_data": {
+                    "metadata": {
+                        "start_time": datetime.now().isoformat(),
+                        "duration_minutes": 96,
+                        "time_step_seconds": 30,
+                        "total_time_points": 192,
+                        "observer_location": {
+                            "lat": observer_lat,
+                            "lon": observer_lon,
+                            "alt": 50.0,
+                            "name": "NTPU",
+                        },
                     },
-                    'satellites': starlink_results
-                }
+                    "satellites": starlink_results,
+                },
             }
-        
+
         # 處理 OneWeb
         if oneweb_data:
             logger.info("🛰️ 處理 OneWeb 數據")
             oneweb_results = {}
             for sat_id, sat_data in oneweb_data.items():
                 try:
-                    sat_results = orbit_engine.compute_96min_orbital_cycle(sat_data, duration_minutes=360)
+                    sat_results = orbit_engine.compute_96min_orbital_cycle(
+                        sat_data, datetime.now()
+                    )
                     oneweb_results[sat_id] = sat_results
                 except Exception as e:
                     logger.warning(f"跳過衛星 {sat_id}: {e}")
-            precomputed_data['constellations']['oneweb'] = {
-                'name': 'ONEWEB',
-                'orbit_data': {
-                    'metadata': {
-                        'start_time': datetime.now().isoformat(),
-                        'duration_minutes': 360,
-                        'time_step_seconds': 30,
-                        'total_time_points': 720,
-                        'observer_location': {
-                            'lat': observer_lat,
-                            'lon': observer_lon,
-                            'alt': 50.0,
-                            'name': 'NTPU'
-                        }
+            logger.info(f"✅ OneWeb 處理完成: {len(oneweb_results)} 顆衛星")
+            precomputed_data["constellations"]["oneweb"] = {
+                "name": "ONEWEB",
+                "orbit_data": {
+                    "metadata": {
+                        "start_time": datetime.now().isoformat(),
+                        "duration_minutes": 96,
+                        "time_step_seconds": 30,
+                        "total_time_points": 192,
+                        "observer_location": {
+                            "lat": observer_lat,
+                            "lon": observer_lon,
+                            "alt": 50.0,
+                            "name": "NTPU",
+                        },
                     },
-                    'satellites': oneweb_results
-                }
+                    "satellites": oneweb_results,
+                },
             }
-        
+
         # 更新建置時間
         build_duration = time.time() - build_start_time
-        precomputed_data['metadata']['build_time_seconds'] = round(build_duration, 2)
-        
+        precomputed_data["metadata"]["build_time_seconds"] = round(build_duration, 2)
+
         # 確保輸出目錄存在
-        output_dir = Path('/app/data')
+        output_dir = Path("/app/data")
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # 保存預計算數據
-        output_file = output_dir / 'phase0_precomputed_orbits.json'
+        output_file = output_dir / "phase0_precomputed_orbits.json"
         logger.info(f"💾 保存預計算數據: {output_file}")
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
+
+        with open(output_file, "w", encoding="utf-8") as f:
             json.dump(precomputed_data, f, indent=2, ensure_ascii=False)
-        
+
         # 生成建置摘要
         summary = {
-            'build_timestamp': datetime.now().isoformat(),
-            'build_duration_seconds': build_duration,
-            'total_constellations': len(precomputed_data['constellations']),
-            'total_satellites': sum(
-                len(constellation.get('orbit_data', {})) 
-                for constellation in precomputed_data['constellations'].values()
+            "build_timestamp": datetime.now().isoformat(),
+            "build_duration_seconds": build_duration,
+            "total_constellations": len(precomputed_data["constellations"]),
+            "total_satellites": sum(
+                len(constellation.get("orbit_data", {}))
+                for constellation in precomputed_data["constellations"].values()
             ),
-            'output_file_size_bytes': output_file.stat().st_size if output_file.exists() else 0,
-            'status': 'success'
+            "output_file_size_bytes": (
+                output_file.stat().st_size if output_file.exists() else 0
+            ),
+            "status": "success",
         }
-        
-        summary_file = output_dir / 'phase0_build_summary.json'
-        with open(summary_file, 'w', encoding='utf-8') as f:
+
+        summary_file = output_dir / "phase0_build_summary.json"
+        with open(summary_file, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2, ensure_ascii=False)
-        
+
         logger.info(f"✅ Phase 0 建置完成！耗時 {build_duration:.2f}s")
         logger.info(f"📊 處理衛星數: {summary['total_satellites']}")
         logger.info(f"💾 輸出檔案大小: {summary['output_file_size_bytes']:,} bytes")
-        
+
         # 自動同步數據到前端 (如果在開發環境中)
         try:
             import subprocess
-            sync_script = Path(__file__).parent.parent / 'scripts' / 'sync-netstack-data.sh'
+
+            sync_script = (
+                Path(__file__).parent.parent / "scripts" / "sync-netstack-data.sh"
+            )
             if sync_script.exists():
                 logger.info("🔄 自動同步數據到前端...")
-                result = subprocess.run([str(sync_script)], capture_output=True, text=True, timeout=30)
+                result = subprocess.run(
+                    [str(sync_script)], capture_output=True, text=True, timeout=30
+                )
                 if result.returncode == 0:
                     logger.info("✅ 數據同步到前端成功")
                 else:
@@ -184,47 +232,49 @@ def main():
         except Exception as sync_error:
             logger.warning(f"⚠️ 自動同步過程中出現錯誤: {sync_error}")
             logger.info("💡 可以手動運行: scripts/sync-netstack-data.sh")
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f"❌ Phase 0 建置失敗: {e}")
-        
+
         # 創建錯誤報告
         error_report = {
-            'build_timestamp': datetime.now().isoformat(),
-            'build_duration_seconds': time.time() - build_start_time,
-            'status': 'failed',
-            'error_message': str(e),
-            'error_type': type(e).__name__
+            "build_timestamp": datetime.now().isoformat(),
+            "build_duration_seconds": time.time() - build_start_time,
+            "status": "failed",
+            "error_message": str(e),
+            "error_type": type(e).__name__,
         }
-        
-        output_dir = Path('/app/data')
+
+        output_dir = Path("/app/data")
         output_dir.mkdir(parents=True, exist_ok=True)
-        
-        error_file = output_dir / 'phase0_build_error.json'
-        with open(error_file, 'w', encoding='utf-8') as f:
+
+        error_file = output_dir / "phase0_build_error.json"
+        with open(error_file, "w", encoding="utf-8") as f:
             json.dump(error_report, f, indent=2, ensure_ascii=False)
-        
+
         return False
+
 
 def create_mock_tle_data(constellation: str, count: int) -> list:
     """創建模擬 TLE 數據用於建置測試"""
     logger.info(f"🔧 創建 {constellation} 模擬數據 ({count} 顆衛星)")
-    
+
     mock_data = []
-    base_norad_id = 44713 if constellation == 'starlink' else 47844
-    
+    base_norad_id = 44713 if constellation == "starlink" else 47844
+
     for i in range(count):
         satellite = {
-            'name': f'{constellation.upper()}-{i+1}',
-            'norad_id': str(base_norad_id + i),
-            'line1': f'1 {base_norad_id + i:05d}U 19074A   21001.00000000  .00000000  00000-0  00000-0 0  9990',
-            'line2': f'2 {base_norad_id + i:05d}  53.0000 290.0000 0001000  90.0000 270.0000 15.50000000000010'
+            "name": f"{constellation.upper()}-{i+1}",
+            "norad_id": str(base_norad_id + i),
+            "line1": f"1 {base_norad_id + i:05d}U 19074A   21001.00000000  .00000000  00000-0  00000-0 0  9990",
+            "line2": f"2 {base_norad_id + i:05d}  53.0000 290.0000 0001000  90.0000 270.0000 15.50000000000010",
         }
         mock_data.append(satellite)
-    
+
     return mock_data
+
 
 if __name__ == "__main__":
     success = main()

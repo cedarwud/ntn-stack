@@ -545,9 +545,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             setLoadingSatellites(true)
 
             // 使用 DataSyncContext 統一的衛星數據，避免重複 API 調用
-            console.log(
-                '🛰️ EnhancedSidebar: 使用 DataSyncContext 統一數據源，避免重複 API 調用'
-            )
+            // console.log('🛰️ EnhancedSidebar: 使用 DataSyncContext 統一數據源，避免重複 API 調用')
 
             // 當 DataSyncContext 有衛星數據時，通知父組件
             if (skyfieldSatellites.length > 0 && onSatelliteDataUpdate) {

@@ -95,17 +95,9 @@ export const getApiConfig = (): ApiConfig => {
   
   const config = configs[environment]
   
-  // 開發環境下輸出配置信息（只記錄一次）
+  // 開發環境下輸出配置信息（只記錄一次） - 已禁用減少日誌噪音
   if (import.meta.env.DEV && !configLogged) {
-    console.log(`🔧 API 配置模式: ${environment}`, config)
-    console.log(`🔧 環境檢測信息:`, {
-      'VITE_ENV_MODE': import.meta.env.VITE_ENV_MODE,
-      'VITE_NETSTACK_URL': import.meta.env.VITE_NETSTACK_URL,
-      'VITE_SIMWORLD_URL': import.meta.env.VITE_SIMWORLD_URL,
-      'hostname': typeof window !== 'undefined' ? window.location.hostname : 'N/A',
-      'port': typeof window !== 'undefined' ? window.location.port : 'N/A',
-      'DEV': import.meta.env.DEV
-    })
+    // console.log(`🔧 API 配置模式: ${environment}`, config)
     configLogged = true
   }
   

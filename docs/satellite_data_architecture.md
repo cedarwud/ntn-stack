@@ -1,8 +1,8 @@
 # 🛰️ 衛星數據架構 - 本地化實施方案
 
-**文件版本**: 1.0.0  
-**最後更新**: 2025-07-30  
-**狀態**: 正式實施  
+**文件版本**: 1.1.0
+**最後更新**: 2025-07-30
+**狀態**: 正式實施 + 數據格式統一
 
 ## 📋 概述
 
@@ -45,6 +45,73 @@ TLE 數據收集 → Docker Volume → NetStack → SimWorld
 - **主要生成器**: `simple_data_generator.py`
 - **真實數據生成器**: `build_with_phase0_data.py` (已修復)
 - **輸出**: Volume 掛載路徑 `/app/data/`
+
+## 📊 數據格式統一規範 (v1.1.0 新增)
+
+### 問題背景
+在系統發展過程中，發現了數據格式不統一的問題：
+- **預計算程式** (`build_with_phase0_data.py`) 生成的數據使用 `positions` 數組格式
+- **API 端點** (`coordinate_orbit_endpoints.py`) 期望 `visibility_data` 數組格式
+- 導致數據不匹配，需要在 API 層進行轉換，增加了複雜度和出錯風險
+
+### 統一決策：採用預計算格式為標準
+
+**理由**：
+1. **數據源頭原則**：預計算數據是整個系統的數據源頭，其他模組適配它是最自然的
+2. **性能考量**：避免不必要的數據轉換開銷
+3. **維護簡化**：統一格式降低維護複雜度
+4. **錯誤減少**：避免格式不匹配導致的運行時錯誤
+
+### 標準數據格式
+
+#### 衛星位置數據結構
+```json
+{
+  "positions": [
+    {
+      "elevation_deg": 83.7,      // 仰角（度）
+      "azimuth_deg": 152.6,       // 方位角（度）
+      "range_km": 565.9,          // 距離（公里）
+      "is_visible": true,         // 是否可見
+      "timestamp": "2025-07-30T12:00:00Z"
+    }
+  ]
+}
+```
+
+#### 字段標準
+- `elevation_deg`: 衛星仰角，範圍 0-90 度
+- `azimuth_deg`: 衛星方位角，範圍 0-360 度
+- `range_km`: 衛星距離，單位公里
+- `is_visible`: 布林值，表示衛星是否在地平線以上且可見
+- `timestamp`: ISO 8601 格式的時間戳
+
+### 實施指南
+
+#### 新 API 開發規範
+1. **必須使用** 標準的 `positions` 數組格式
+2. **禁止創建** 新的數據格式變體
+3. **參考實現** 見 `coordinate_orbit_endpoints.py` 中的 `_get_latest_position()` 函數修復版本
+
+#### 現有 API 遷移
+- 已修復：`/api/v1/satellites/precomputed/{location}` 端點
+- 狀態：✅ 支援統一格式，向後兼容舊格式
+
+#### 數據驗證
+```python
+def validate_satellite_position(position_data):
+    """驗證衛星位置數據格式"""
+    required_fields = ['elevation_deg', 'azimuth_deg', 'range_km', 'is_visible']
+    for field in required_fields:
+        if field not in position_data:
+            raise ValueError(f"Missing required field: {field}")
+
+    # 範圍驗證
+    if not (0 <= position_data['elevation_deg'] <= 90):
+        raise ValueError("elevation_deg must be between 0 and 90")
+    if not (0 <= position_data['azimuth_deg'] <= 360):
+        raise ValueError("azimuth_deg must be between 0 and 360")
+```
 
 ## 🔧 實施細節
 

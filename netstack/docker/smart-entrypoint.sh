@@ -61,8 +61,8 @@ regenerate_data() {
     
     # 執行預計算
     cd /app
-    echo "🔨 執行簡化數據生成 (測試 Volume 架構)..."
-    python simple_data_generator.py
+    echo "🔨 執行真實數據生成 (Phase 0 完整數據)..."
+    python build_with_phase0_data.py
     
     # 檢查生成是否成功
     if [ -f "$DATA_DIR/phase0_precomputed_orbits.json" ]; then

@@ -8,6 +8,8 @@
 
 本文檔定義 NTN Stack 系統中衛星換手的統一仰角門檻標準，解決不同組件間標準不一致的問題。
 
+> **📡 數據架構**: 系統已轉換為本地數據架構，使用 Docker Volume 存儲衛星數據，無外部 API 依賴。詳見 [衛星數據架構文檔](./satellite_data_architecture.md)。
+
 ## 🎯 標準制定依據
 
 ### 技術參考標準
@@ -275,6 +277,7 @@ curl -s http://localhost:8080/metrics | grep handover_success_rate
 ## 📖 相關文檔
 
 ### 技術文檔
+- [衛星數據架構文檔](./satellite_data_architecture.md) - 本地數據實施方案
 - [CoordinateSpecificOrbitEngine API 文檔](./coordinate_orbit_api.md)
 - [LayeredElevationEngine 使用指南](./layered_elevation_guide.md)
 - [環境調整配置手冊](./environment_config.md)

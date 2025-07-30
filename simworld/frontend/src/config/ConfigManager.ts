@@ -334,15 +334,16 @@ class ConfigurationManager {
     }
 
     /**
-     * 輸出配置摘要
+     * 輸出配置摘要 - 已禁用減少日誌噪音
      */
     private logConfigSummary(): void {
-        console.log('📋 [ConfigManager] 配置摘要:')
-        console.log('  - API Base URL:', this.get('api.baseUrl'))
-        console.log('  - 默認主題:', this.get('theme.default'))
-        console.log('  - 插件啟用:', this.get('feature.enablePlugins'))
-        console.log('  - 緩存啟用:', this.get('feature.enableCaching'))
-        console.log('  - 圖表插件:', this.get('chart.plugins'))
+        // 已禁用詳細配置日誌，只在需要調試時啟用
+        // console.log('📋 [ConfigManager] 配置摘要:')
+        // console.log('  - API Base URL:', this.get('api.baseUrl'))
+        // console.log('  - 默認主題:', this.get('theme.default'))
+        // console.log('  - 插件啟用:', this.get('feature.enablePlugins'))
+        // console.log('  - 緩存啟用:', this.get('feature.enableCaching'))
+        // console.log('  - 圖表插件:', this.get('chart.plugins'))
     }
 
     /**
