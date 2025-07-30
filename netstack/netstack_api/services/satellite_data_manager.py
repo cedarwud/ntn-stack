@@ -84,12 +84,17 @@ class SatelliteDataManager:
         self.orbit_engine = OrbitCalculationEngine()
         self.db_pool: Optional[asyncpg.Pool] = None
 
-        # TLE 數據源配置
+        # TLE 數據源配置 - Celestrak API 已禁用
+        # 改用本地 TLE 數據源
         self.tle_sources = {
-            "starlink": "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle",
-            "oneweb": "https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=tle",
-            "gps": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle",
-            "galileo": "https://celestrak.org/NORAD/elements/gp.php?GROUP=galileo&FORMAT=tle",
+            # "starlink": "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle",  # 已禁用
+            # "oneweb": "https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=tle",      # 已禁用
+            # "gps": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle",        # 已禁用
+            # "galileo": "https://celestrak.org/NORAD/elements/gp.php?GROUP=galileo&FORMAT=tle",   # 已禁用
+            "starlink": "local://starlink",
+            "oneweb": "local://oneweb",
+            "gps": "local://gps",
+            "galileo": "local://galileo",
         }
 
     async def initialize(self):
@@ -234,9 +239,27 @@ class SatelliteDataManager:
             return stats
 
     async def _download_tle_data(self, constellation: str) -> List[TLEData]:
-        """下載 TLE 數據，支持 fallback 機制"""
+        """
+        載入 TLE 數據 - 已禁用 Celestrak API
+        改用本地數據源和 fallback 機制
+        """
         url = self.tle_sources[constellation]
 
+        # 檢查是否為本地數據源
+        if url.startswith("local://"):
+            logger.info(f"🔄 使用本地 TLE 數據源: {constellation}")
+            return await self._load_local_tle_data(constellation)
+        
+        # 禁用所有 Celestrak API 調用
+        if "celestrak" in url.lower():
+            logger.warning(
+                f"Celestrak API 調用已被禁用，constellation: {constellation}",
+                url=url,
+                alternative="使用本地 TLE 數據和 fallback 機制"
+            )
+            return await self._load_fallback_tle_data(constellation)
+
+        # 其他外部 API (如果有的話)
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=30) as response:
@@ -306,6 +329,68 @@ class SatelliteDataManager:
 
         logger.info(f"📡 解析 {constellation} TLE 數據: {len(tle_data_list)} 顆衛星")
         return tle_data_list
+
+    async def _load_local_tle_data(self, constellation: str) -> List[TLEData]:
+        """
+        從本地 TLE 數據目錄載入數據
+        優先使用 LocalTLELoader，失敗時回退到 fallback
+        """
+        try:
+            import sys
+            sys.path.append('/app/src')
+            from services.satellite.local_tle_loader import LocalTLELoader
+            
+            loader = LocalTLELoader("/app/tle_data")
+            
+            # 載入指定星座的最新數據
+            collected_data = loader.load_collected_data(constellation)
+            
+            if collected_data.get('daily_data'):
+                latest_data = collected_data['daily_data'][-1]
+                satellites = latest_data['satellites']
+                
+                # 轉換為 TLEData 格式
+                tle_data_list = []
+                for sat in satellites:
+                    # 從 line1 解析 epoch 時間
+                    line1 = sat["line1"]
+                    epoch_year = int(line1[18:20])
+                    epoch_day = float(line1[20:32])
+                    
+                    # 轉換為完整年份
+                    if epoch_year < 57:
+                        full_year = 2000 + epoch_year
+                    else:
+                        full_year = 1900 + epoch_year
+                    
+                    # 計算 epoch 時間
+                    epoch = datetime(full_year, 1, 1, tzinfo=timezone.utc) + timedelta(
+                        days=epoch_day - 1
+                    )
+                    
+                    tle_data = TLEData(
+                        satellite_id=str(sat["norad_id"]),
+                        satellite_name=sat["name"],
+                        line1=sat["line1"],
+                        line2=sat["line2"],
+                        epoch=epoch,
+                    )
+                    
+                    tle_data_list.append(tle_data)
+                
+                logger.info(
+                    f"✅ 從本地數據載入 {constellation} TLE: {len(tle_data_list)} 顆衛星",
+                    source="local_tle_loader"
+                )
+                
+                return tle_data_list
+            else:
+                logger.warning(f"⚠️ 本地 {constellation} TLE 數據不可用，使用 fallback")
+                return await self._load_fallback_tle_data(constellation)
+                
+        except Exception as e:
+            logger.error(f"❌ 本地 {constellation} TLE 數據載入失敗: {e}")
+            return await self._load_fallback_tle_data(constellation)
 
     async def _load_fallback_tle_data(self, constellation: str) -> List[TLEData]:
         """

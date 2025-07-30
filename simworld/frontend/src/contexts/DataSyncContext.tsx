@@ -232,16 +232,13 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
     const [state, dispatch] = useReducer(dataSyncReducer, initialState)
     const { satelliteState, setSkyfieldSatellites } = useAppState() // 獲取衛星狀態和更新函數
 
-    // Phase 1: 使用 NetStack 預計算數據 - 統一數據源
+    // Phase 1: 統一數據源 - 立體圖和側邊欄都使用相同的即時數據
     // 🌍 使用台灣NTPU精確座標作為預設觀測點，確保獲得真實計算的仰角方位角距離
     // 📍 NTPU座標: 24°56'39"N 121°22'17"E (24.9441667°, 121.3713889°)
-    // 🛰️ 使用 Phase 0 預計算數據：10度仰角閾值（ITU-R P.618 合規標準）
-    // 🛰️ 支援星座切換：根據側邊欄選擇的星座動態載入數據
+    // 🛰️ 修復：統一使用 useVisibleSatellites，確保立體圖和側邊欄數據同步
+    // 🔧 不再使用 useNetstackPrecomputedSatellites，改用統一的即時數據源
     const { satellites: realSatellites, error: satellitesError } =
-        useNetstackPrecomputedSatellites(
-            'ntpu',
-            satelliteState.selectedConstellation
-        ) // 使用 NetStack 預計算數據
+        useVisibleSatellites() // 改為使用統一的即時數據源
 
     // 強制同步方法 - 只同步 NetStack 數據，衛星數據由 useVisibleSatellites 統一管理
     const forceSync = useCallback(async () => {
