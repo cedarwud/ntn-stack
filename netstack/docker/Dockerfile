@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # 複製需求檔案
-COPY netstack/requirements.txt ./requirements.txt
+COPY requirements.txt ./requirements.txt
 
 # 建立虛擬環境並安裝 Python 依賴
 RUN python -m venv /opt/venv
@@ -47,11 +47,9 @@ ENV PYTHONPATH=/app:/app/src
 ENV PRECOMPUTED_DATA_ENABLED=true
 ENV ORBIT_CACHE_PRELOAD=true
 
-# Phase 0: 建置時執行預計算
-# 這確保容器啟動時預計算數據已經可用
-RUN echo "🚀 開始 Phase 0 預計算建置..." && \
-    python build_with_phase0_data.py && \
-    echo "✅ Phase 0 預計算建置完成"
+# Phase 0: Volume 優化 - 數據將在運行時生成
+# 數據將通過智能啟動腳本在運行時生成到 volume 中
+RUN echo "🚀 Phase 0 數據將在運行時通過智能啟動腳本生成"
 
 # 記錄啟動時間
 RUN echo $(date +%s) > /tmp/netstack_startup_time
@@ -96,12 +94,12 @@ RUN if [ -f /app/data/phase0.env ]; then \
 WORKDIR /app
 
 # 複製應用程式源碼
-COPY netstack/src/ ./src/
-COPY netstack/netstack_api/ ./netstack_api/
+COPY src/ ./src/
+COPY netstack_api/ ./netstack_api/
 # 複製 UPF 擴展模組
-COPY netstack/docker/upf-extension/ ./docker/upf-extension/
+COPY docker/upf-extension/ ./docker/upf-extension/
 # 複製 RL 訓練腳本
-COPY netstack/scripts/ ./scripts/
+COPY scripts/ ./scripts/
 
 # 建立目錄
 RUN mkdir -p /var/log/netstack /app/models /app/results /tmp/matplotlib
@@ -113,9 +111,10 @@ RUN ls -lh /app/data/ && echo "Phase 0 precomputed data validation passed"
 RUN chown -R netstack:netstack /var/log/netstack /app/models /app/results /app/data /app/tle_data /tmp/matplotlib
 
 # 建立健康檢查腳本和啟動腳本
-COPY netstack/docker/healthcheck.sh /usr/local/bin/healthcheck.sh
-COPY netstack/docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/healthcheck.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker/smart-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh /usr/local/bin/docker-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
 
 # 換手到非 root 用戶
 USER netstack
@@ -160,12 +159,12 @@ RUN apt-get update && apt-get install -y \
 RUN groupadd -r netstack && useradd -r -g netstack netstack
 
 # 複製應用程式源碼
-COPY netstack/src/ ./src/
-COPY netstack/netstack_api/ ./netstack_api/
+COPY src/ ./src/
+COPY netstack_api/ ./netstack_api/
 # 複製 UPF 擴展模組
-COPY netstack/docker/upf-extension/ ./docker/upf-extension/
+COPY docker/upf-extension/ ./docker/upf-extension/
 # 複製 RL 訓練腳本
-COPY netstack/scripts/ ./scripts/
+COPY scripts/ ./scripts/
 
 # Phase 0 增強：複製數據和配置
 COPY --from=builder /app/tle_data /app/tle_data
@@ -176,9 +175,10 @@ RUN mkdir -p /var/log/netstack /app/test-reports /app/models /app/results /tmp/m
     chown -R netstack:netstack /var/log/netstack /app/test-reports /app/models /app/results /app/data /app/tle_data /tmp/matplotlib
 
 # 建立健康檢查腳本和啟動腳本
-COPY netstack/docker/healthcheck.sh /usr/local/bin/healthcheck.sh
-COPY netstack/docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/healthcheck.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker/smart-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh && chmod +x /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/smart-entrypoint.sh
 
 # 設定開發環境變數
 ENV ENVIRONMENT=development
