@@ -27,6 +27,8 @@ export interface SatelliteAnimationControllerProps {
     onSatellitePositions?: (
         positions: Map<string, [number, number, number]>
     ) => void
+    // 修復：使用統一的衛星數據源
+    unifiedSatellites?: any[]
     children?: React.ReactNode
 }
 
@@ -60,6 +62,7 @@ export const SatelliteAnimationController: React.FC<
     animationConfig,
     onHandoverEvent,
     onSatellitePositions,
+    unifiedSatellites = [],
     children,
 }) => {
     const [orbitService] = useState(() => new PrecomputedOrbitService())
@@ -87,41 +90,139 @@ export const SatelliteAnimationController: React.FC<
     const animationStartTime = useRef<number>(Date.now())
     const lastHandoverCheck = useRef<number>(0)
 
-    // 載入預計算數據
+    // 修復：優先使用統一的衛星數據，回退到預計算數據載入
     useEffect(() => {
         if (!enabled) return
 
-        const loadData = async () => {
-            try {
-                console.log(
-                    `🚀 載入 ${location} 的 ${constellation} 預計算軌道數據`
-                )
-
-                const data = await orbitService.loadPrecomputedOrbitData({
-                    location,
-                    constellation,
-                    environment: 'open_area',
-                    useLayeredThresholds: true,
-                })
-
-                setPrecomputedData(data)
-                initializeSatellites(data)
-
-                console.log(
-                    `✅ 成功載入 ${
-                        data.computation_metadata?.filtered_satellites_count ||
-                        0
-                    } 顆衛星數據`
-                )
-            } catch (error) {
-                console.error('❌ 載入預計算數據失敗:', error)
+        // 修復：完全依賴統一的衛星數據，不再回退到獨立的預計算數據載入
+        if (unifiedSatellites && unifiedSatellites.length > 0) {
+            // 只在數據異常時記錄日誌
+            if (unifiedSatellites.length === 0) {
+                console.log(`⚠️ SatelliteAnimationController: [${constellation.toUpperCase()}] 無衛星數據`)
+            } else if (unifiedSatellites.length > 20) {
+                console.log(`⚠️ SatelliteAnimationController: [${constellation.toUpperCase()}] 衛星數量異常: ${unifiedSatellites.length}顆`)
             }
+            initializeSatellitesFromUnified(unifiedSatellites)
+        } else {
+            // 如果沒有統一數據，清空衛星顯示
+            console.log(
+                `⚠️ SatelliteAnimationController: 沒有統一衛星數據 [${constellation.toUpperCase()}]，清空顯示`
+            )
+            setSatellites(new Map())
         }
+    }, [enabled, location, constellation, unifiedSatellites, orbitService])
 
-        loadData()
-    }, [enabled, location, constellation, orbitService])
+    // 修復：從統一衛星數據初始化
+    const initializeSatellitesFromUnified = useCallback(
+        (unifiedSats: any[]) => {
+            const satelliteMap = new Map<string, PrecomputedSatellite>()
 
-    // 初始化衛星數據
+            unifiedSats.forEach((sat: any) => {
+                // 將統一數據轉換為動畫控制器格式
+                const satellite: PrecomputedSatellite = {
+                    norad_id:
+                        sat.norad_id?.toString() ||
+                        sat.id?.toString() ||
+                        'unknown',
+                    name: sat.name || `SAT-${sat.norad_id || sat.id}`,
+                    trajectory: {
+                        timePoints: [0], // 簡化：使用當前時間點
+                        positions: [
+                            [
+                                // 修復：支援多種字段名格式
+                                // 使用球面座標轉換為3D位置（簡化版）
+                                (sat.distance_km || sat.range_km || 1000) *
+                                    Math.cos(
+                                        ((sat.elevation_deg ||
+                                            sat.elevation ||
+                                            0) *
+                                            Math.PI) /
+                                            180
+                                    ) *
+                                    Math.cos(
+                                        ((sat.azimuth_deg || sat.azimuth || 0) *
+                                            Math.PI) /
+                                            180
+                                    ),
+                                (sat.distance_km || sat.range_km || 1000) *
+                                    Math.sin(
+                                        ((sat.elevation_deg ||
+                                            sat.elevation ||
+                                            0) *
+                                            Math.PI) /
+                                            180
+                                    ),
+                                (sat.distance_km || sat.range_km || 1000) *
+                                    Math.cos(
+                                        ((sat.elevation_deg ||
+                                            sat.elevation ||
+                                            0) *
+                                            Math.PI) /
+                                            180
+                                    ) *
+                                    Math.sin(
+                                        ((sat.azimuth_deg || sat.azimuth || 0) *
+                                            Math.PI) /
+                                            180
+                                    ),
+                            ],
+                        ],
+                        velocities: [[0, 0, 0]], // 簡化：無速度數據
+                        visibilityWindows: sat.is_visible
+                            ? [{ start: 0, end: 3600 }]
+                            : [],
+                    },
+                    handoverEvents: [],
+                    isVisible: sat.is_visible || false,
+                    // 修復：使用計算出的實際位置，而不是 [0, 0, 0]
+                    currentPosition: [
+                        // 使用球面座標轉換為3D位置（簡化版）
+                        (sat.distance_km || sat.range_km || 1000) *
+                            Math.cos(
+                                ((sat.elevation_deg || sat.elevation || 0) *
+                                    Math.PI) /
+                                    180
+                            ) *
+                            Math.cos(
+                                ((sat.azimuth_deg || sat.azimuth || 0) *
+                                    Math.PI) /
+                                    180
+                            ),
+                        (sat.distance_km || sat.range_km || 1000) *
+                            Math.sin(
+                                ((sat.elevation_deg || sat.elevation || 0) *
+                                    Math.PI) /
+                                    180
+                            ),
+                        (sat.distance_km || sat.range_km || 1000) *
+                            Math.cos(
+                                ((sat.elevation_deg || sat.elevation || 0) *
+                                    Math.PI) /
+                                    180
+                            ) *
+                            Math.sin(
+                                ((sat.azimuth_deg || sat.azimuth || 0) *
+                                    Math.PI) /
+                                    180
+                            ),
+                    ],
+                    currentVelocity: [0, 0, 0],
+                }
+
+                satelliteMap.set(satellite.norad_id, satellite)
+            })
+
+            setSatellites(satelliteMap)
+
+            // 只在轉換失敗時記錄日誌
+            if (satelliteMap.size === 0 && unifiedSats.length > 0) {
+                console.warn(`⚠️ SatelliteAnimationController: 衛星數據轉換失敗，原始: ${unifiedSats.length}，轉換: ${satelliteMap.size}`)
+            }
+        },
+        []
+    )
+
+    // 初始化衛星數據（預計算數據）
     const initializeSatellites = useCallback((data: OrbitData) => {
         const satelliteMap = new Map<string, PrecomputedSatellite>()
 
@@ -152,17 +253,47 @@ export const SatelliteAnimationController: React.FC<
     const interpolatePosition = useCallback(
         (
             trajectory: SatelliteTrajectory,
-            currentTime: number
+            currentTime: number,
+            recursionDepth: number = 0
         ): {
             position: [number, number, number]
             velocity: [number, number, number]
             isVisible: boolean
         } => {
+            // 防止無限遞歸
+            if (recursionDepth > 5) {
+                console.warn(
+                    'interpolatePosition: 達到最大遞歸深度，返回預設值'
+                )
+                return {
+                    position: [0, -1000, 0],
+                    velocity: [0, 0, 0],
+                    isVisible: false,
+                }
+            }
+
             if (!trajectory.timePoints || trajectory.timePoints.length === 0) {
                 return {
                     position: [0, -1000, 0], // 隱藏在地下
                     velocity: [0, 0, 0],
                     isVisible: false,
+                }
+            }
+
+            // 修復：對於統一數據的衛星（只有一個時間點），直接返回固定位置
+            if (
+                trajectory.timePoints.length === 1 &&
+                trajectory.timePoints[0] === 0
+            ) {
+                return {
+                    position: trajectory.positions[0] || [0, -1000, 0],
+                    velocity: trajectory.velocities[0] || [0, 0, 0],
+                    isVisible:
+                        trajectory.visibilityWindows.some(
+                            (window) =>
+                                currentTime >= window.start &&
+                                currentTime <= window.end
+                        ) || true, // 統一數據的衛星預設可見
                 }
             }
 
@@ -172,12 +303,28 @@ export const SatelliteAnimationController: React.FC<
             )
 
             if (timeIndex === -1) {
-                // 超出軌跡範圍，循環到軌跡開始（修正衛星消失問題）
-                const cycleTime =
-                    currentTime %
-                    (trajectory.timePoints[trajectory.timePoints.length - 1] ||
-                        1)
-                return interpolatePosition(trajectory, cycleTime)
+                // 超出軌跡範圍，使用最後一個點而非遞歸
+                const lastIndex = trajectory.timePoints.length - 1
+                const maxTime = trajectory.timePoints[lastIndex]
+
+                // 如果時間點無效，直接返回最後一個位置
+                if (!maxTime || maxTime <= 0) {
+                    return {
+                        position: trajectory.positions[lastIndex] || [
+                            0, -1000, 0,
+                        ],
+                        velocity: trajectory.velocities[lastIndex] || [0, 0, 0],
+                        isVisible: false,
+                    }
+                }
+
+                // 循環到軌跡開始（但限制遞歸深度）
+                const cycleTime = currentTime % maxTime
+                return interpolatePosition(
+                    trajectory,
+                    cycleTime,
+                    recursionDepth + 1
+                )
             }
 
             if (timeIndex === 0) {

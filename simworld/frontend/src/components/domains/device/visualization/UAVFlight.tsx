@@ -652,7 +652,7 @@ export default function UAVFlight({
         }
     }, [manualDirection, auto, onManualMoveDone, onPositionUpdate])
     useEffect(() => {
-        console.log('UAV 模型載入成功')
+        // console.log('UAV 模型載入成功')
         // console.log('光源已添加到組件中')
     }, [clonedScene])
     return (

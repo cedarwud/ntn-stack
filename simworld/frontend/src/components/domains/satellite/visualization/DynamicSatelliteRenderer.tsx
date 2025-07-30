@@ -178,46 +178,79 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         return () => clearInterval(interval)
     }, [enabled, useRealData, realSatelliteMapping.size, realDataStatus])
 
-    // 初始化衛星軌道
+    // 初始化衛星軌道 - 修復：使用真實衛星數據而非模擬數據
     useEffect(() => {
         if (!enabled) {
             setOrbits([])
             return
         }
 
-        // 創建 18 顆模擬衛星軌道 - 更好的分佈和時間間隔
-        const initialOrbits: SatelliteOrbit[] = Array.from(
-            { length: 18 },
-            (_, i) => {
-                const orbitGroup = Math.floor(i / 6) // 3 個軌道平面，每個6顆衛星
-                const satelliteInGroup = i % 6
-                const satelliteId = `sat_${i}`
-
-                // 嘗試獲取真實衛星數據
+        // 🛰️ 修復：優先使用傳入的真實衛星數據
+        if (satellites && satellites.length > 0) {
+            // console.log(`🛰️ DynamicSatelliteRenderer: 使用真實衛星數據 ${satellites.length} 顆`)
+            
+            const initialOrbits: SatelliteOrbit[] = satellites.map((sat, i) => {
+                // 從真實衛星數據提取信息
+                const satelliteId = sat.norad_id?.toString() || sat.id?.toString() || `sat_${i}`
+                const satelliteName = sat.name || `SAT-${satelliteId}`
+                
+                // 獲取真實衛星數據匹配
                 const realData = realSatelliteMapping.get(satelliteId)
-                const satelliteName = realData?.name || `STARLINK-${1000 + i}`
-
+                
                 return {
                     id: satelliteId,
-                    name: satelliteName,
-                    azimuthShift: orbitGroup * 60 + satelliteInGroup * 10, // 更分散的分佈
+                    name: satelliteName, // 🏷️ 修復：使用真實衛星名稱
+                    azimuthShift: (i % 6) * 60 + Math.floor(i / 6) * 10, // 分散分佈
                     transitDuration: 90 + Math.random() * 60, // 1.5-2.5 分鐘過境時間
-                    transitStartTime: i * 15 + Math.random() * 30, // 錯開開始時間，避免全部同時出現
+                    transitStartTime: i * 15 + Math.random() * 30, // 錯開開始時間
                     isTransiting: false,
                     isVisible: false,
                     nextAppearTime: 0,
                     currentPosition: [0, -200, 0],
                     // 整合真實數據
                     realData: realData,
-                    signalStrength:
-                        realData?.signal_quality.estimated_signal_strength,
-                    elevation: realData?.position.elevation,
-                    azimuth: realData?.position.azimuth,
+                    signalStrength: sat.estimated_signal_strength || realData?.signal_quality.estimated_signal_strength,
+                    elevation: sat.elevation_deg || sat.elevation || realData?.position.elevation,
+                    azimuth: sat.azimuth_deg || sat.azimuth || realData?.position.azimuth,
                 }
-            }
-        )
+            })
 
-        setOrbits(initialOrbits)
+            setOrbits(initialOrbits)
+        } else {
+            // 🔙 Fallback：當沒有真實數據時使用模擬數據
+            // console.log('🛰️ DynamicSatelliteRenderer: 使用模擬衛星數據 (Fallback)')
+            
+            const initialOrbits: SatelliteOrbit[] = Array.from(
+                { length: 18 },
+                (_, i) => {
+                    const orbitGroup = Math.floor(i / 6) // 3 個軌道平面，每個6顆衛星
+                    const satelliteInGroup = i % 6
+                    const satelliteId = `sat_${i}`
+
+                    // 嘗試獲取真實衛星數據
+                    const realData = realSatelliteMapping.get(satelliteId)
+                    const satelliteName = realData?.name || `STARLINK-${1000 + i}`
+
+                    return {
+                        id: satelliteId,
+                        name: satelliteName,
+                        azimuthShift: orbitGroup * 60 + satelliteInGroup * 10,
+                        transitDuration: 90 + Math.random() * 60,
+                        transitStartTime: i * 15 + Math.random() * 30,
+                        isTransiting: false,
+                        isVisible: false,
+                        nextAppearTime: 0,
+                        currentPosition: [0, -200, 0],
+                        realData: realData,
+                        signalStrength: realData?.signal_quality.estimated_signal_strength,
+                        elevation: realData?.position.elevation,
+                        azimuth: realData?.position.azimuth,
+                    }
+                }
+            )
+
+            setOrbits(initialOrbits)
+        }
     }, [enabled, satellites, realSatelliteMapping])
 
     // 更新軌道動畫
@@ -463,10 +496,6 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                                             '\n[數據較舊]'}
                                     </>
                                 )}
-                                {!orbit.realData &&
-                                    useRealData &&
-                                    realDataStatus === 'success' &&
-                                    '\n[演示模擬]'}
                             </Text>
                         )}
                     </group>

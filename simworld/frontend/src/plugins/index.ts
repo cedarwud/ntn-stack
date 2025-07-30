@@ -19,7 +19,7 @@ export const initializeConfigSystem = async (): Promise<void> => {
             console.warn('⚠️ [ConfigSystem] 配置驗證警告:', validation.errors)
         }
         
-        console.log('✅ [ConfigSystem] 配置系統初始化完成')
+        // console.log('✅ [ConfigSystem] 配置系統初始化完成')
     } catch (error) {
         console.error('❌ [ConfigSystem] 配置系統初始化失敗:', error)
         throw error

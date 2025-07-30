@@ -1,10 +1,15 @@
 """
-TLE 數據自動初始化 Fallback 機制
-優先級: 外部下載 > 歷史數據 > 模擬數據
+TLE 數據自動初始化 Fallback 機制 - 遵循衛星數據架構
+優先級: Docker Volume 本地數據 > 歷史數據 > 最小備用數據
 
-1. 嘗試從 CelesTrak 下載最新 TLE 數據
-2. 下載失敗時，載入 Docker 映像內建的歷史 TLE 數據
-3. 歷史數據不可用時，使用硬編碼模擬數據 (最後手段)
+1. 優先從 Docker Volume 本地數據 (/app/netstack/tle_data)
+2. 本地數據不可用時，載入歷史真實 TLE 數據 
+3. 歷史數據不可用時，使用最小備用數據 (最後手段)
+
+根據 @docs/satellite_data_architecture.md：
+- 禁用外部 API 調用 (Celestrak)
+- 使用本地 Docker Volume 數據架構
+- 確保 100% 可靠性和快速啟動
 """
 
 import asyncio
@@ -101,7 +106,12 @@ FALLBACK_STARLINK_TLE = [
 
 async def check_and_initialize_tle_data(redis_client: Redis) -> bool:
     """
-    檢查 Redis 中是否有 TLE 數據，如果沒有就載入 fallback 數據
+    檢查 Redis 中是否有 TLE 數據，按照衛星數據架構載入本地數據
+    
+    優先級:
+    1. Docker Volume 本地數據 (/app/netstack/tle_data)
+    2. 歷史真實 TLE 數據
+    3. 最小備用數據 (最後手段)
     
     Args:
         redis_client: Redis 客戶端
@@ -122,16 +132,30 @@ async def check_and_initialize_tle_data(redis_client: Redis) -> bool:
             except json.JSONDecodeError:
                 logger.warning("Redis 中的 TLE 數據格式錯誤，將重新初始化")
         
-        # 載入 fallback 數據
-        logger.info("📡 載入 fallback Starlink TLE 數據到 Redis...")
+        logger.info("📡 開始 TLE 數據初始化 (遵循衛星數據架構)...")
         
-        tle_json = json.dumps(FALLBACK_STARLINK_TLE)
+        # 1. 優先嘗試從 Docker Volume 本地數據載入
+        tle_data = await _load_from_docker_volume()
+        if tle_data:
+            logger.info(f"✅ 從 Docker Volume 成功載入 {len(tle_data)} 顆衛星數據")
+        else:
+            # 2. 回退到歷史真實數據
+            logger.info("⚠️  Docker Volume 數據不可用，使用歷史真實數據")
+            tle_data = await _load_historical_tle_data()
+            
+            if not tle_data:
+                # 3. 最後使用最小備用數據
+                logger.warning("⚠️  歷史數據不可用，使用最小備用數據")
+                tle_data = FALLBACK_STARLINK_TLE
+        
+        # 載入數據到 Redis
+        tle_json = json.dumps(tle_data)
         await redis_client.set("tle_data:starlink", tle_json)
         
         # 設置過期時間（7天），確保數據會更新
         await redis_client.expire("tle_data:starlink", 7 * 24 * 3600)  # 7天
         
-        logger.info(f"✅ 成功載入 {len(FALLBACK_STARLINK_TLE)} 顆 Starlink fallback 衛星數據")
+        logger.info(f"✅ 成功載入 {len(tle_data)} 顆 Starlink 衛星數據到 Redis")
         
         # 驗證載入
         verification_data = await redis_client.get("tle_data:starlink")
@@ -146,6 +170,48 @@ async def check_and_initialize_tle_data(redis_client: Redis) -> bool:
     except Exception as e:
         logger.error(f"❌ TLE 數據初始化失敗: {e}")
         return False
+
+
+async def _load_from_docker_volume() -> list:
+    """從 Docker Volume 載入本地 TLE 數據"""
+    try:
+        from ..services.local_volume_data_service import get_local_volume_service
+        
+        local_service = get_local_volume_service()
+        
+        if not local_service.is_data_available():
+            logger.warning("📊 Docker Volume 數據不可用")
+            return []
+        
+        # 載入 Starlink 數據
+        tle_data = await local_service.get_local_tle_data("starlink")
+        
+        if tle_data:
+            logger.info(f"📊 從 Docker Volume 載入 {len(tle_data)} 顆 Starlink 衛星")
+            return tle_data
+        
+        return []
+        
+    except Exception as e:
+        logger.error(f"從 Docker Volume 載入失敗: {e}")
+        return []
+
+
+async def _load_historical_tle_data() -> list:
+    """載入歷史真實 TLE 數據"""
+    try:
+        # 嘗試載入歷史數據模組
+        historical_data = get_historical_tle_data("starlink")
+        
+        if historical_data:
+            logger.info(f"📊 載入 {len(historical_data)} 顆 Starlink 歷史衛星數據")
+            return historical_data
+        
+        return []
+        
+    except Exception as e:
+        logger.error(f"載入歷史數據失敗: {e}")
+        return []
 
 async def ensure_tle_data_available(app_state) -> bool:
     """

@@ -55,9 +55,8 @@ export default function SceneView({
 
     // Phase 2: 新增狀態管理
     const [currentLocation, setCurrentLocation] = useState('ntpu')
-    const [currentConstellation, setCurrentConstellation] = useState<
-        'starlink' | 'oneweb'
-    >('starlink')
+    // 修復：使用 AppStateContext 中的星座選擇，確保與側邊欄同步
+    const currentConstellation = satelliteState.selectedConstellation
     const [satellitePositions, setSatellitePositions] = useState<
         Map<string, [number, number, number]>
     >(new Map())
@@ -71,8 +70,9 @@ export default function SceneView({
 
     // 使用統一的數據同步上下文獲取衛星數據
     const { state } = useDataSync()
+    // 修復：使用 AppStateContext 中的統一衛星數據，確保與側邊欄同步
     const satellites = satelliteState.satelliteEnabled
-        ? state.simworld.satellites || []
+        ? satelliteState.skyfieldSatellites || []
         : []
 
     const handleHandoverStatusUpdate = useCallback((statusInfo: unknown) => {
@@ -121,14 +121,16 @@ export default function SceneView({
     // 衛星數據現在通過 DataSyncContext 統一管理，不需要額外的 API 調用
     useEffect(() => {
         if (satelliteState.satelliteEnabled) {
-            console.log(
-                '🚀 StereogramView: 使用 DataSyncContext 統一的衛星數據，數量:',
-                satellites.length
-            )
-        } else {
-            console.log('📡 StereogramView: 衛星顯示已禁用')
+            // 只在有錯誤或首次載入時記錄日誌
+            if (satellites.length === 0) {
+                console.log(`⚠️ StereogramView: [${currentConstellation.toUpperCase()}] 無衛星數據`)
+            }
         }
-    }, [satelliteState.satelliteEnabled, satellites.length])
+    }, [
+        satelliteState.satelliteEnabled,
+        satellites.length,
+        currentConstellation,
+    ])
 
     const handleWebGLContextLost = useCallback((event: Event) => {
         console.warn('WebGL 上下文丟失，嘗試恢復...')
@@ -225,7 +227,7 @@ export default function SceneView({
                 }}
                 onCreated={({ gl }) => {
                     gl.debug.checkShaderErrors = true
-                    console.log('WebGL 渲染器已創建')
+                    // console.log('WebGL 渲染器已創建')
                 }}
             >
                 <hemisphereLight args={[0xffffff, 0x444444, 1.0]} />
@@ -321,7 +323,7 @@ export default function SceneView({
                         onHandoverStatusUpdate={handleHandoverStatusUpdate}
                     />
 
-                    {/* Phase 2: 衛星動畫控制器 */}
+                    {/* Phase 2: 衛星動畫控制器 - 修復：使用統一衛星數據 */}
                     <SatelliteAnimationController
                         enabled={satelliteState.satelliteEnabled}
                         location={currentLocation}
@@ -329,6 +331,7 @@ export default function SceneView({
                         animationConfig={animationConfig}
                         onHandoverEvent={handleHandoverEvent}
                         onSatellitePositions={handleSatellitePositions}
+                        unifiedSatellites={satellites}
                     />
 
                     {/* Phase 2: 換手事件視覺化 */}

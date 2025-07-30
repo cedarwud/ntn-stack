@@ -4,6 +4,13 @@
 
 ## 🎯 核心標準文檔
 
+### 🛰️ 衛星數據架構
+- **[衛星數據架構文檔](./satellite_data_architecture.md)** 🏗️ **重要！**
+  - 本地數據實施方案
+  - Docker Volume 架構
+  - 系統性能改善
+  - 維護操作指南
+
 ### 🛰️ 衛星換手標準
 - **[衛星換手仰角門檻標準規範](./satellite_handover_standards.md)** ⭐
   - 分層仰角門檻定義 (5°/10°/15°)
@@ -14,6 +21,7 @@
 ## 📋 實施狀況
 
 ### ✅ 已完成文檔
+- [x] 衛星數據架構文檔
 - [x] 衛星換手標準規範
 - [x] 仰角門檻標準化報告
 
@@ -26,6 +34,7 @@
 ## 🗂️ 文檔分類
 
 ### 標準規範
+- `satellite_data_architecture.md` - 本地數據架構實施
 - `satellite_handover_standards.md` - 換手仰角門檻標準
 
 ### 實施指南

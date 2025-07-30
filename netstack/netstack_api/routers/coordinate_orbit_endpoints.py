@@ -130,13 +130,15 @@ def _select_optimal_satellites(
             else:
                 score += max(0, 20.0 - (range_km - 2000) * 0.01)  # 距離懲罰
 
-        # 4. 可見性持續時間權重 (10%)
-        visibility_windows = sat_data.get("visibility_windows", [])
-        if visibility_windows:
-            max_duration = max(
-                window.get("duration_seconds", 0) for window in visibility_windows
-            )
-            score += min(10.0, max_duration / 60.0)  # 每分鐘 1 分，最高 10 分
+        # 4. 可見性持續時間權重 (10%) - 基於可見位置數量
+        visibility_data = sat_data.get("visibility_data", [])
+        visible_positions_count = sum(
+            1 for pos in visibility_data if pos.get("is_visible", False)
+        )
+        if visible_positions_count > 0:
+            score += min(
+                10.0, visible_positions_count / 10.0
+            )  # 每10個可見位置得1分，最高10分
 
         satellite_scores.append((sat_id, score, latest_pos))
 
@@ -159,11 +161,39 @@ def _select_optimal_satellites(
     return selected_ids
 
 
+def _extract_norad_id(sat_id: str) -> int:
+    """從衛星 ID 中提取 NORAD ID"""
+    try:
+        # 如果是純數字字符串，直接轉換
+        return int(sat_id)
+    except ValueError:
+        # 如果是 'starlink_001' 格式，提取數字部分
+        import re
+
+        match = re.search(r"(\d+)", sat_id)
+        if match:
+            return int(match.group(1))
+        # 如果沒有數字，使用 hash 生成一個唯一 ID
+        return abs(hash(sat_id)) % 100000
+
+
 def _get_latest_position(satellite_data: Dict[str, Any]) -> Dict[str, Any]:
-    """獲取衛星的最新位置數據"""
+    """獲取衛星的最新位置數據 - 修復：支援實際的預計算數據結構"""
+    # 修復：從 positions 中取得位置資料（實際的數據結構）
     positions = satellite_data.get("positions", [])
     if not positions:
-        return {}
+        # 回退：嘗試舊的 visibility_data 結構
+        positions = satellite_data.get("visibility_data", [])
+        if not positions:
+            return {
+                "latitude": 0.0,
+                "longitude": 0.0,
+                "altitude_km": 550.0,
+                "elevation_deg": 0.0,
+                "azimuth_deg": 0.0,
+                "range_km": 1000.0,
+                "is_visible": False,
+            }
 
     # 找到最新的可見位置
     visible_positions = [pos for pos in positions if pos.get("is_visible", False)]
@@ -172,34 +202,14 @@ def _get_latest_position(satellite_data: Dict[str, Any]) -> Dict[str, Any]:
     else:
         latest_position = positions[-1]  # 最後一個位置
 
-    # 從 ECI 座標計算地理座標（簡化版本）
-    position_eci = latest_position.get("position_eci", {})
-    x, y, z = (
-        position_eci.get("x", 0),
-        position_eci.get("y", 0),
-        position_eci.get("z", 0),
-    )
-
-    # 簡化的地理座標轉換
-    import math
-
-    if x != 0 or y != 0 or z != 0:
-        # 計算緯度
-        r = math.sqrt(x * x + y * y + z * z)
-        latitude = math.degrees(math.asin(z / r)) if r > 0 else 0.0
-
-        # 計算經度
-        longitude = math.degrees(math.atan2(y, x))
-
-        # 計算高度（相對於地球表面）
-        altitude_km = r - 6371.0  # 地球半徑約 6371 km
-    else:
-        latitude = longitude = altitude_km = 0.0
-
+    # 修復：直接從位置數據中提取座標（新的數據結構）
+    # 新結構：position_eci 包含 ECI 座標，elevation_deg/azimuth_deg/range_km 是頂層字段
     return {
-        "latitude": latitude,
-        "longitude": longitude,
-        "altitude_km": max(altitude_km, 0.0),
+        "latitude": latest_position.get("position_eci", {}).get("lat", 0.0),  # 簡化處理
+        "longitude": latest_position.get("position_eci", {}).get(
+            "lon", 0.0
+        ),  # 簡化處理
+        "altitude_km": 550.0,  # 使用典型 LEO 高度
         "elevation_deg": latest_position.get("elevation_deg", 0.0),
         "azimuth_deg": latest_position.get("azimuth_deg", 0.0),
         "range_km": latest_position.get("range_km", 1000.0),
@@ -471,7 +481,9 @@ async def get_precomputed_orbit_data(
                 },
                 "filtered_satellites": [
                     {
-                        "norad_id": int(sat_id),
+                        "norad_id": satellites_data[sat_id].get(
+                            "norad_id", _extract_norad_id(sat_id)
+                        ),
                         "name": satellites_data[sat_id].get(
                             "name", f"{constellation.upper()}-{sat_id}"
                         ),
@@ -487,17 +499,25 @@ async def get_precomputed_orbit_data(
                         "altitude": _get_latest_position(satellites_data[sat_id]).get(
                             "altitude_km", 550.0
                         ),
-                        "elevation": _get_latest_position(satellites_data[sat_id]).get(
-                            "elevation_deg", 0.0
-                        ),
-                        "azimuth": _get_latest_position(satellites_data[sat_id]).get(
-                            "azimuth_deg", 0.0
-                        ),
+                        # === 統一格式標準 (v1.1.0) ===
+                        "elevation_deg": _get_latest_position(
+                            satellites_data[sat_id]
+                        ).get("elevation_deg", 0.0),
+                        "azimuth_deg": _get_latest_position(
+                            satellites_data[sat_id]
+                        ).get("azimuth_deg", 0.0),
                         "range_km": _get_latest_position(satellites_data[sat_id]).get(
                             "range_km", 1000.0
                         ),
                         "is_visible": _get_latest_position(satellites_data[sat_id]).get(
                             "is_visible", False
+                        ),
+                        # === 向後兼容性 ===
+                        "elevation": _get_latest_position(satellites_data[sat_id]).get(
+                            "elevation_deg", 0.0
+                        ),
+                        "azimuth": _get_latest_position(satellites_data[sat_id]).get(
+                            "azimuth_deg", 0.0
                         ),
                     }
                     for sat_id in _select_optimal_satellites(
