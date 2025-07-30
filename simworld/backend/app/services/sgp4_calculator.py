@@ -26,6 +26,19 @@ class TLEData:
     line1: str
     line2: str
     epoch: Optional[str] = None
+    
+    @property
+    def satellite_name(self) -> str:
+        """與 NetStack API 兼容的衛星名稱屬性"""
+        return self.name
+    
+    @property
+    def catalog_number(self) -> int:
+        """從 TLE 第一行提取 NORAD 目錄號"""
+        try:
+            return int(self.line1[2:7])
+        except (ValueError, IndexError):
+            return 40000  # 默認值
 
 
 logger = logging.getLogger(__name__)

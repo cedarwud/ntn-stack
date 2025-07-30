@@ -20,7 +20,7 @@ from app.services.distance_calculator import DistanceCalculator, Position
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/measurement-events", tags=["Measurement Events"])
+router = APIRouter(prefix="/measurement-events", tags=["Measurement Events"])
 
 # 服務實例
 constellation_manager = ConstellationManager()
