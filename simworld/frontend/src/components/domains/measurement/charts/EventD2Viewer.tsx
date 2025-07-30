@@ -15,6 +15,7 @@ import {
     D2MeasurementPoint,
     ConstellationInfo,
 } from '../../../../services/unifiedD2DataService'
+import { precomputedDataService } from '../../../../services/precomputedDataService'
 import type { EventD2Params } from '../types'
 import './EventA4Viewer.scss' // 完全重用 A4 的樣式，確保左側控制面板風格一致
 import './NarrationPanel.scss' // 動畫解說面板樣式
@@ -178,7 +179,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
         // fetchRealD2Data 函數已移除，統一使用 loadRealData
 
-        // 載入真實數據 - 當星座或時間段改變時自動觸發
+        // 載入真實數據 - 使用預計算數據
         const loadRealData = useCallback(async () => {
             if (isLoadingRealData) return
 
@@ -187,68 +188,35 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
             try {
                 console.log(
-                    `🔄 [EventD2Viewer] 載入 ${selectedConstellation} 星座數據...`
+                    `🔄 [EventD2Viewer] 從預計算數據載入 ${selectedConstellation} 星座數據...`
                 )
                 console.log(
                     `⏱️ 時間段: ${selectedTimeRange.durationMinutes} 分鐘`
                 )
 
-                // 強制使用唯一場景名稱避免後端累積效應bug
-                const uniqueId =
-                    Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-                const scenarioName = `D2_${selectedConstellation}_${selectedTimeRange.durationMinutes}min_${selectedTimeRange.sampleIntervalSeconds}s_${uniqueId}`
+                // 清除預計算數據緩存
+                console.log('🧹 [EventD2Viewer] 清除預計算數據緩存...')
+                precomputedDataService.clearCache()
 
-                console.log(`🎯 [EventD2Viewer] 場景名稱: ${scenarioName}`)
-
-                const dynamicConfig: D2ScenarioConfig = {
-                    scenario_name: scenarioName, // 使用半穩定名稱平衡緩存和唯一性
-                    constellation: selectedConstellation,
-                    ue_position: {
-                        latitude: params.referenceLocation.lat,
-                        longitude: params.referenceLocation.lon,
-                        altitude: 100,
+                // 使用預計算數據服務
+                const convertedData = await precomputedDataService.convertToD2DataPoints(
+                    selectedConstellation,
+                    {
+                        Thresh1: params.Thresh1,
+                        Thresh2: params.Thresh2,
+                        Hys: params.Hys,
+                        referenceLocation: params.referenceLocation,
+                        movingReferenceLocation: params.movingReferenceLocation,
                     },
-                    fixed_ref_position: {
-                        latitude: params.movingReferenceLocation.lat,
-                        longitude: params.movingReferenceLocation.lon,
-                        altitude: 100,
-                    },
-                    thresh1: params.Thresh1,
-                    thresh2: params.Thresh2,
-                    hysteresis: params.Hys,
-                    duration_minutes: selectedTimeRange.durationMinutes,
-                    sample_interval_seconds:
-                        selectedTimeRange.sampleIntervalSeconds,
-                }
-
-                // 激進清除緩存以避免累積效應
-                console.log('🧹 [EventD2Viewer] 清除所有相關緩存...')
-                unifiedD2DataService.clearCache()
-                // 也清除可能的前端緩存
-                if ('caches' in window) {
-                    try {
-                        const cacheNames = await caches.keys()
-                        for (const cacheName of cacheNames) {
-                            if (
-                                cacheName.includes('d2') ||
-                                cacheName.includes('satellite')
-                            ) {
-                                await caches.delete(cacheName)
-                            }
-                        }
-                    } catch (e) {
-                        // 忽略緩存清除錯誤
+                    {
+                        durationMinutes: selectedTimeRange.durationMinutes,
+                        sampleIntervalSeconds: selectedTimeRange.sampleIntervalSeconds,
                     }
-                }
-
-                const measurements = await unifiedD2DataService.getD2Data(
-                    dynamicConfig
                 )
-                const convertedData = convertToRealD2DataPoints(measurements)
 
                 setRealD2Data(convertedData)
                 console.log(
-                    `✅ [EventD2Viewer] 成功載入 ${convertedData.length} 個 ${selectedConstellation} 數據點`
+                    `✅ [EventD2Viewer] 成功載入 ${convertedData.length} 個 ${selectedConstellation} 預計算數據點`
                 )
                 console.log(
                     '🔍 [EventD2Viewer] 前3個數據點預覽:',
@@ -266,7 +234,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                         convertedData[convertedData.length - 1].timestamp
                     )
                     const actualDurationMinutes =
-                        (lastTime - firstTime) / (1000 * 60)
+                        (lastTime.getTime() - firstTime.getTime()) / (1000 * 60)
                     const expectedDuration = selectedTimeRange.durationMinutes
 
                     console.log('⏰ [EventD2Viewer] 時間範圍診斷:', {
@@ -274,6 +242,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                         實際時間段: actualDurationMinutes.toFixed(2) + '分鐘',
                         開始時間: firstTime.toISOString(),
                         結束時間: lastTime.toISOString(),
+                        數據來源: '預計算數據 (phase0_precomputed_orbits.json)',
                         時間異常:
                             actualDurationMinutes < expectedDuration * 0.8
                                 ? '⚠️ 是'
@@ -282,13 +251,13 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                 }
             } catch (error) {
                 console.error(
-                    `❌ [EventD2Viewer] 載入 ${selectedConstellation} 數據失敗:`,
+                    `❌ [EventD2Viewer] 載入 ${selectedConstellation} 預計算數據失敗:`,
                     error
                 )
                 const errorMessage =
                     error instanceof Error ? error.message : '未知錯誤'
                 setRealDataError(
-                    `載入 ${selectedConstellation} 數據失敗: ${errorMessage}`
+                    `載入 ${selectedConstellation} 預計算數據失敗: ${errorMessage}`
                 )
             } finally {
                 setIsLoadingRealData(false)
@@ -297,7 +266,6 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             selectedConstellation,
             selectedTimeRange,
             params,
-            convertToRealD2DataPoints,
             isLoadingRealData,
         ])
 
@@ -1387,8 +1355,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                                         opacity: 0.8,
                                                     }}
                                                 >
-                                                    數據源: 真實 TLE + SGP4
-                                                    軌道計算 | 星座特徵:{' '}
+                                                    數據源: 預計算軌道數據 (TLE + SGP4) | 星座特徵:{' '}
                                                     {
                                                         getConstellationInfo(
                                                             selectedConstellation

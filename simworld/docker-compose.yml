@@ -78,6 +78,7 @@ services:
         ports:
             - '5173:5173'
         volumes:
+            - satellite_precomputed_data:/app/public/data:ro  # 共享衛星數據 (只讀)
             - ./frontend:/app
             - node_modules:/app/node_modules
         environment:
@@ -107,4 +108,7 @@ networks:
         name: compose_netstack-core
 
 volumes: # <-- Volume 定義
+    satellite_precomputed_data:
+        external: true
+        name: compose_satellite_precomputed_data  # 引用 NetStack 創建的 volume
     node_modules:  # 移除 postgres_data - 不再需要

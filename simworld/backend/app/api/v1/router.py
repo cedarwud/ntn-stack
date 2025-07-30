@@ -53,6 +53,9 @@ from app.api.routes.health import router as health_router
 # Import measurement events routes for Phase 4 - Frontend integration
 from app.api.routes.measurement_events import router as measurement_events_router
 
+# Import historical orbits routes for real data fallback
+from app.api.routes.historical_orbits import router as historical_orbits_router
+
 # Create main API router
 api_router = APIRouter()
 
@@ -119,6 +122,9 @@ api_router.include_router(health_router, prefix="/health", tags=["Health"])
 
 # Register measurement events routes for Phase 4 - Frontend integration
 api_router.include_router(measurement_events_router, tags=["Measurement Events"])
+
+# Register historical orbits routes for real data fallback
+api_router.include_router(historical_orbits_router, tags=["Historical Orbits"])
 
 # Export the router
 __all__ = ["api_router"]
