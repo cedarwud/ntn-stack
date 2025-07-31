@@ -1,0 +1,10 @@
+{
+  "preprocess_time": "2025-07-31T05:28:01.350446+00:00",
+  "successful_constellations": [
+    "starlink",
+    "oneweb"
+  ],
+  "total_constellations": 2,
+  "success_rate": 100.0,
+  "data_ready": true
+}

@@ -528,15 +528,15 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
         const satelliteDistancePoints = dataSource.map((entry, index) => ({
             x: index,
             y: usePreloadedData
-                ? entry.satellite_distance
-                : entry.satellite_distance / 1000, // 軌跡數據已經是km
+                ? entry.satellite_distance  // 預載數據已經是km
+                : entry.satellite_distance / 1000, // 真實數據是米，轉換為km
         }))
 
         const groundDistancePoints = dataSource.map((entry, index) => ({
             x: index,
             y: usePreloadedData
-                ? entry.ground_distance
-                : entry.ground_distance / 1000, // 軌跡數據已經是km
+                ? entry.ground_distance  // 預載數據已經是km
+                : entry.ground_distance / 1000, // 真實數據是米，轉換為km
         }))
 
         // 減少重複log，只在數據長度變化時記錄
@@ -648,14 +648,11 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
                             label: (context) => {
                                 const value = context.parsed.y
                                 const label = context.dataset.label || ''
+                                // 數據已經轉換為km，直接顯示
                                 if (label.includes('衛星')) {
-                                    return `${label}: ${(value / 1000).toFixed(
-                                        1
-                                    )} km`
+                                    return `${label}: ${value.toFixed(1)} km`
                                 } else {
-                                    return `${label}: ${(value / 1000).toFixed(
-                                        2
-                                    )} km`
+                                    return `${label}: ${value.toFixed(2)} km`
                                 }
                             },
                         },
@@ -672,13 +669,13 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
                                                 thresh1Line: {
                                                     type: 'line',
                                                     scaleID: 'y-left',
-                                                    value: 550,
+                                                    value: useRealData ? 1300 : 550, // 真實數據使用1300km門檻
                                                     borderColor:
                                                         currentTheme.thresh1Line,
                                                     borderWidth: 3, // 簡易版線條更粗
                                                     borderDash: [5, 5], // 簡化虛線樣式
                                                     label: {
-                                                        content: '衛星門檻',
+                                                        content: useRealData ? '衛星門檻: 1300km' : '衛星門檻',
                                                         enabled: true,
                                                         position: 'start',
                                                         backgroundColor:
@@ -696,14 +693,15 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
                                                 thresh1Line: {
                                                     type: 'line',
                                                     scaleID: 'y-left',
-                                                    value: 550,
+                                                    value: useRealData ? 1300 : 550, // 真實數據使用1300km門檻
                                                     borderColor:
                                                         currentTheme.thresh1Line,
                                                     borderWidth: 2,
                                                     borderDash: [8, 4],
                                                     label: {
-                                                        content:
-                                                            '衛星門檻: 550km',
+                                                        content: useRealData 
+                                                            ? '衛星門檻: 1300km'
+                                                            : '衛星門檻: 550km',
                                                         enabled: true,
                                                         position: 'start',
                                                         backgroundColor:
@@ -718,14 +716,15 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
                                                 thresh2Line: {
                                                     type: 'line',
                                                     scaleID: 'y-right',
-                                                    value: 6,
+                                                    value: useRealData ? 1300 : 6, // 真實數據地面距離門檻也約1300km
                                                     borderColor:
                                                         currentTheme.thresh2Line,
                                                     borderWidth: 2,
                                                     borderDash: [8, 4],
                                                     label: {
-                                                        content:
-                                                            '地面門檻: 6.0km',
+                                                        content: useRealData
+                                                            ? '地面門檻: 1300km'
+                                                            : '地面門檻: 6.0km',
                                                         enabled: true,
                                                         position: 'end',
                                                         backgroundColor:
@@ -835,8 +834,8 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
                             color: currentTheme.satelliteDistance,
                             callback: (value) => `${Number(value).toFixed(0)}`,
                         },
-                        min: 540, // 匹配舊版圖表範圍
-                        max: 565,
+                        min: useRealData ? 1100 : 540, // 真實數據範圍 ~1100-1500km，預載數據 540-565km
+                        max: useRealData ? 1500 : 565,
                     },
                     'y-right': {
                         type: 'linear',
@@ -852,8 +851,8 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
                             color: currentTheme.groundDistance,
                             callback: (value) => `${Number(value).toFixed(1)}`,
                         },
-                        min: 3, // 匹配舊版圖表範圍
-                        max: 9,
+                        min: useRealData ? 1100 : 3, // 真實數據地面距離也約1100-1500km，預載數據 3-9km
+                        max: useRealData ? 1500 : 9,
                     },
                 },
                 interaction: {

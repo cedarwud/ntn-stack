@@ -223,7 +223,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                 console.log('📤 [EventD2Viewer] 實際發送的請求體:', requestBody)
 
                 // 調用 SimWorld NetStack API - 使用配置化的 fetch
-                const response = await simworldFetch('api/v1/measurement-events/D2/real', {
+                const response = await simworldFetch('/v1/measurement-events/D2/real', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

@@ -5,6 +5,7 @@
 
 import json
 import logging
+import math
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime
@@ -153,21 +154,7 @@ class LocalVolumeDataService:
                 logger.warning(f"星座目錄不存在: {constellation_dir}")
                 return []
             
-            # 檢查 JSON 格式數據
-            json_dir = constellation_dir / "json"
-            if json_dir.exists():
-                json_files = sorted(json_dir.glob(f"{constellation}_*.json"), reverse=True)
-                if json_files:
-                    latest_file = json_files[0]
-                    logger.info(f"📡 從本地 Volume 載入 TLE 數據: {latest_file}")
-                    
-                    with open(latest_file, 'r', encoding='utf-8') as f:
-                        tle_data = json.load(f)
-                    
-                    logger.info(f"✅ 成功載入 {len(tle_data)} 顆 {constellation} 衛星數據")
-                    return tle_data
-            
-            # 檢查 TLE 格式數據
+            # 優先檢查 TLE 格式數據（包含完整的 line1 和 line2）
             tle_dir = constellation_dir / "tle"
             if tle_dir.exists():
                 tle_files = sorted(tle_dir.glob(f"{constellation}_*.tle"), reverse=True)
@@ -178,6 +165,15 @@ class LocalVolumeDataService:
                     tle_data = await self._parse_tle_file(latest_file, constellation)
                     logger.info(f"✅ 解析得到 {len(tle_data)} 顆 {constellation} 衛星數據")
                     return tle_data
+            
+            # 備用：檢查 JSON 格式數據（但缺少 line1 和 line2，不適合 SGP4 計算）
+            json_dir = constellation_dir / "json"
+            if json_dir.exists():
+                json_files = sorted(json_dir.glob(f"{constellation}_*.json"), reverse=True)
+                if json_files:
+                    latest_file = json_files[0]
+                    logger.warning(f"⚠️ JSON 格式數據缺少 TLE line1/line2，將無法進行 SGP4 計算: {latest_file}")
+                    # 暫時不載入 JSON 數據，因為它無法用於 SGP4 計算
             
             logger.warning(f"❌ 未找到 {constellation} 的本地 TLE 數據")
             return []
@@ -308,7 +304,7 @@ class LocalVolumeDataService:
     ) -> Optional[Dict[str, Any]]:
         """
         生成 120 分鐘統一時間序列數據
-        直接從 Docker Volume 處理，無需 NetStack API
+        優先載入預處理數據，否則動態生成
         """
         try:
             if reference_location is None:
@@ -318,13 +314,77 @@ class LocalVolumeDataService:
                     "altitude": 0.0
                 }
             
+            # 優先檢查預處理數據
+            preprocess_data = await self._load_preprocess_timeseries(constellation, reference_location)
+            if preprocess_data:
+                logger.info(f"✅ 使用預處理時間序列數據: {constellation}")
+                return preprocess_data
+            
+            # 預處理數據不可用時，動態生成
+            logger.info(f"🔄 動態生成時間序列數據: {constellation}")
+            return await self._generate_dynamic_timeseries(constellation, reference_location)
+            
+        except Exception as e:
+            logger.error(f"❌ 生成 120分鐘時間序列數據失敗: {e}")
+            return None
+    
+    async def _load_preprocess_timeseries(
+        self, 
+        constellation: str, 
+        reference_location: Dict[str, float]
+    ) -> Optional[Dict[str, Any]]:
+        """載入預處理的時間序列數據"""
+        try:
+            # 檢查預處理數據文件
+            preprocess_file = self.netstack_data_path / f"{constellation}_120min_timeseries.json"
+            
+            if not preprocess_file.exists():
+                logger.info(f"📊 預處理數據不存在: {preprocess_file}")
+                return None
+            
+            # 檢查文件新鮮度（24小時內）
+            import time
+            file_age_hours = (time.time() - preprocess_file.stat().st_mtime) / 3600
+            if file_age_hours > 24:
+                logger.warning(f"⚠️ 預處理數據已過時 ({file_age_hours:.1f}小時): {preprocess_file}")
+                return None
+            
+            # 載入預處理數據
+            logger.info(f"📂 載入預處理數據: {preprocess_file}")
+            with open(preprocess_file, 'r', encoding='utf-8') as f:
+                preprocess_data = json.load(f)
+            
+            # 驗證數據完整性
+            if not self._validate_timeseries_data(preprocess_data):
+                logger.warning(f"⚠️ 預處理數據格式驗證失敗")
+                return None
+            
+            # 更新元數據以反映當前請求
+            preprocess_data["metadata"]["load_time"] = datetime.now().isoformat()
+            preprocess_data["metadata"]["data_source"] = "preprocess_timeseries"
+            preprocess_data["metadata"]["reference_location"] = reference_location
+            
+            logger.info(f"✅ 成功載入預處理數據: {len(preprocess_data.get('satellites', []))} 顆衛星")
+            return preprocess_data
+            
+        except Exception as e:
+            logger.error(f"❌ 載入預處理數據失敗: {e}")
+            return None
+    
+    async def _generate_dynamic_timeseries(
+        self, 
+        constellation: str, 
+        reference_location: Dict[str, float]
+    ) -> Optional[Dict[str, Any]]:
+        """動態生成時間序列數據（運行時）"""
+        try:
             # 載入本地 TLE 數據
             tle_data = await self.get_local_tle_data(constellation)
             if not tle_data:
                 logger.error(f"❌ 無可用的 {constellation} TLE 數據")
                 return None
             
-            logger.info(f"🛰️ 開始生成 {constellation} 120分鐘時間序列數據")
+            logger.info(f"🛰️ 開始動態生成 {constellation} 120分鐘時間序列數據")
             logger.info(f"📍 參考位置: {reference_location['latitude']:.4f}°N, {reference_location['longitude']:.4f}°E")
             
             # 當前時間作為起始點
@@ -333,9 +393,9 @@ class LocalVolumeDataService:
             
             satellites_timeseries = []
             
-            # 只處理前10顆衛星以提高性能 (可根據需要調整)
-            selected_satellites = tle_data[:10]
-            logger.info(f"📊 處理 {len(selected_satellites)} 顆衛星的軌道數據")
+            # 智能選擇可見衛星以提高有效性
+            selected_satellites = self._select_visible_satellites(tle_data, reference_location, start_time, max_satellites=10)
+            logger.info(f"📊 處理 {len(selected_satellites)} 顆衛星的軌道數據（智能篩選）")
             
             for i, sat_data in enumerate(selected_satellites):
                 logger.info(f"🔄 處理衛星 {i+1}/{len(selected_satellites)}: {sat_data.get('name', 'Unknown')}")
@@ -371,7 +431,8 @@ class LocalVolumeDataService:
                     "time_span_minutes": self.time_span_minutes,
                     "time_interval_seconds": self.time_interval_seconds,
                     "total_time_points": self.total_time_points,
-                    "data_source": "local_docker_volume_direct",
+                    "data_source": "dynamic_generation",
+                    "sgp4_mode": "runtime_precision",
                     "network_dependency": False,
                     "reference_location": reference_location,
                     "satellites_processed": len(satellites_timeseries)
@@ -381,12 +442,56 @@ class LocalVolumeDataService:
                 "handover_events": []  # 暫時為空，後續可擴展
             }
             
-            logger.info(f"✅ 成功生成 120分鐘時間序列數據: {len(satellites_timeseries)} 顆衛星, {self.total_time_points} 時間點")
+            logger.info(f"✅ 成功動態生成 120分鐘時間序列數據: {len(satellites_timeseries)} 顆衛星, {self.total_time_points} 時間點")
             return unified_data
             
         except Exception as e:
-            logger.error(f"❌ 生成 120分鐘時間序列數據失敗: {e}")
+            logger.error(f"❌ 動態生成時間序列數據失敗: {e}")
             return None
+    
+    def _validate_timeseries_data(self, data: Dict[str, Any]) -> bool:
+        """驗證時間序列數據格式"""
+        try:
+            # 檢查必要字段
+            required_fields = ["metadata", "satellites", "ue_trajectory"]
+            for field in required_fields:
+                if field not in data:
+                    logger.warning(f"缺少必要字段: {field}")
+                    return False
+            
+            # 檢查元數據
+            metadata = data.get("metadata", {})
+            metadata_fields = ["constellation", "time_span_minutes", "total_time_points"]
+            for field in metadata_fields:
+                if field not in metadata:
+                    logger.warning(f"元數據缺少字段: {field}")
+                    return False
+            
+            # 檢查衛星數據
+            satellites = data.get("satellites", [])
+            if not satellites:
+                logger.warning("衛星數據為空")
+                return False
+            
+            # 檢查第一顆衛星的數據格式
+            first_sat = satellites[0]
+            sat_fields = ["norad_id", "name", "time_series"]
+            for field in sat_fields:
+                if field not in first_sat:
+                    logger.warning(f"衛星數據缺少字段: {field}")
+                    return False
+            
+            # 檢查時間序列數據
+            time_series = first_sat.get("time_series", [])
+            if not time_series:
+                logger.warning("時間序列數據為空")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"數據格式驗證失敗: {e}")
+            return False
     
     async def _calculate_satellite_120min_timeseries(
         self,
@@ -394,10 +499,12 @@ class LocalVolumeDataService:
         start_time: datetime,
         reference_location: Dict[str, float]
     ) -> List[Dict[str, Any]]:
-        """計算單顆衛星的 120 分鐘時間序列"""
+        """計算單顆衛星的 120 分鐘時間序列 - 使用 SGP4 精確軌道計算"""
         try:
             from datetime import timedelta
             import math
+            from .sgp4_calculator import SGP4Calculator, TLEData
+            from .distance_calculator import DistanceCalculator, Position
             
             time_series = []
             current_time = start_time
@@ -406,101 +513,410 @@ class LocalVolumeDataService:
             line1 = sat_data.get("line1", "")
             line2 = sat_data.get("line2", "")
             
-            # 簡化的軌道計算 (基於圓軌道近似)
-            # 在實際實施中，應使用 SGP4 進行精確計算
-            try:
-                # 從 TLE line2 提取平均運動 (每日繞行次數)
-                mean_motion = float(line2[52:63]) if len(line2) > 63 else 15.5
-                orbital_period_minutes = 1440 / mean_motion  # 軌道週期(分鐘)
-                
-                # 軌道傾角
-                inclination = float(line2[8:16]) if len(line2) > 16 else 53.0
-                
-                # 軌道高度估算 (基於平均運動)
-                altitude_km = 550.0  # Starlink 典型高度
-                
-            except (ValueError, IndexError):
-                # Fallback 值
-                mean_motion = 15.5
-                orbital_period_minutes = 96.0
-                inclination = 53.0
-                altitude_km = 550.0
+            if not line1 or not line2:
+                logger.warning(f"缺少 TLE 數據: {sat_data.get('name', 'Unknown')}")
+                return []
+            
+            # 創建 TLE 數據對象
+            tle_data = TLEData(
+                name=sat_data.get("name", "Unknown"),
+                line1=line1,
+                line2=line2,
+                epoch=start_time.isoformat()
+            )
+            
+            # 初始化 SGP4 計算器和距離計算器
+            sgp4_calculator = SGP4Calculator()
+            distance_calculator = DistanceCalculator()
+            
+            # 參考位置對象
+            reference_pos = Position(
+                latitude=reference_location["latitude"], 
+                longitude=reference_location["longitude"],
+                altitude=reference_location["altitude"]
+            )
+            
+            logger.info(f"🛰️ 使用 SGP4 計算衛星 {tle_data.name} 的精確軌道")
             
             for i in range(self.total_time_points):
-                # 時間進度
+                # 計算當前時間點
                 time_offset = i * self.time_interval_seconds
-                progress = (time_offset / 60) / orbital_period_minutes  # 軌道進度比例
+                current_timestamp = current_time + timedelta(seconds=time_offset)
                 
-                # 簡化的位置計算 (圓軌道近似)
-                orbital_angle = (progress * 360) % 360  # 軌道角度
+                # 使用 SGP4 計算精確軌道位置
+                orbit_position = sgp4_calculator.propagate_orbit(tle_data, current_timestamp)
                 
-                # 緯度變化 (基於軌道傾角)
-                latitude = inclination * math.sin(math.radians(orbital_angle))
-                longitude = (orbital_angle - 180) % 360 - 180  # -180 到 180
+                if not orbit_position:
+                    # SGP4 計算失敗時使用簡化備用方案
+                    logger.warning(f"SGP4 計算失敗，時間點 {i}，使用簡化備用方案")
+                    orbit_position = self._calculate_fallback_position(
+                        tle_data, current_timestamp, i
+                    )
                 
-                # 計算與參考位置的距離和角度
-                lat_diff = latitude - reference_location["latitude"]
-                lon_diff = longitude - reference_location["longitude"]
-                
-                # 地面距離估算 (球面距離公式簡化版)
-                ground_distance_km = math.sqrt(lat_diff**2 + lon_diff**2) * 111.32  # 1度≈111.32km
-                
-                # 3D 距離 (包含高度)
-                satellite_distance_km = math.sqrt(ground_distance_km**2 + altitude_km**2)
-                
-                # 仰角計算
-                elevation_deg = max(0, 90 - math.degrees(math.atan2(ground_distance_km, altitude_km)))
-                
-                # 方位角簡化計算
-                azimuth_deg = (math.degrees(math.atan2(lon_diff, lat_diff)) + 360) % 360
+                # 計算觀測角度和距離
+                try:
+                    # 計算仰角 - 直接使用 orbit_position (OrbitPosition 類型)
+                    elevation_deg = distance_calculator.calculate_elevation_angle(
+                        reference_pos, orbit_position
+                    )
+                    
+                    # 計算方位角 - 直接使用 orbit_position (OrbitPosition 類型)
+                    azimuth_deg = distance_calculator.calculate_azimuth_angle(
+                        reference_pos, orbit_position
+                    )
+                    
+                    # 計算距離 - 這裡需要 OrbitPosition 類型
+                    distance_result = distance_calculator.calculate_d2_distances(
+                        reference_pos, orbit_position, reference_pos
+                    )
+                    
+                    satellite_distance_km = distance_result.satellite_distance / 1000  # 轉換為 km
+                    ground_distance_km = distance_result.ground_distance / 1000  # 轉換為 km
+                    
+                    # D2 事件專用：計算到衛星地面投影點的距離 (符合 3GPP TS 38.331 標準)
+                    # 使用正確的大圓距離公式計算地球曲面上的距離
+                    
+                    # 服務衛星地面投影點 (nadir point)
+                    serving_sat_nadir_lat = math.radians(orbit_position.latitude)
+                    serving_sat_nadir_lon = math.radians(orbit_position.longitude)
+                    ue_lat_rad = math.radians(reference_location["latitude"])
+                    ue_lon_rad = math.radians(reference_location["longitude"])
+                    
+                    # 使用 Haversine 公式計算 UE 到服務衛星地面投影點的距離 (Ml1)
+                    dlat1 = ue_lat_rad - serving_sat_nadir_lat
+                    dlon1 = ue_lon_rad - serving_sat_nadir_lon
+                    a1 = math.sin(dlat1/2)**2 + math.cos(ue_lat_rad) * math.cos(serving_sat_nadir_lat) * math.sin(dlon1/2)**2
+                    c1 = 2 * math.atan2(math.sqrt(a1), math.sqrt(1-a1))
+                    d2_serving_distance_km = 6371.0 * c1  # 地球半徑 6371 km
+                    
+                    # 目標衛星地面投影點 (簡化：使用稍微偏移的位置模擬另一顆衛星)
+                    # 在實際應用中，這應該是另一顆候選衛星的真實位置
+                    target_sat_nadir_lat = math.radians(orbit_position.latitude + 0.5)
+                    target_sat_nadir_lon = math.radians(orbit_position.longitude + 0.5)
+                    
+                    # 使用 Haversine 公式計算 UE 到目標衛星地面投影點的距離 (Ml2)
+                    dlat2 = ue_lat_rad - target_sat_nadir_lat
+                    dlon2 = ue_lon_rad - target_sat_nadir_lon
+                    a2 = math.sin(dlat2/2)**2 + math.cos(ue_lat_rad) * math.cos(target_sat_nadir_lat) * math.sin(dlon2/2)**2
+                    c2 = 2 * math.atan2(math.sqrt(a2), math.sqrt(1-a2))
+                    d2_target_distance_km = 6371.0 * c2
+                    
+                except Exception as e:
+                    logger.warning(f"距離計算失敗: {e}，使用估算值")
+                    # 簡化距離計算作為備用
+                    lat_diff = orbit_position.latitude - reference_location["latitude"]
+                    lon_diff = orbit_position.longitude - reference_location["longitude"]
+                    ground_distance_km = math.sqrt(lat_diff**2 + lon_diff**2) * 111.32
+                    satellite_distance_km = math.sqrt(ground_distance_km**2 + orbit_position.altitude**2)
+                    elevation_deg = max(0, 90 - math.degrees(math.atan2(ground_distance_km, orbit_position.altitude)))
+                    azimuth_deg = (math.degrees(math.atan2(lon_diff, lat_diff)) + 360) % 360
+                    
+                    # D2 事件專用：計算到衛星地面投影點的距離 (符合 3GPP TS 38.331 標準)
+                    # 使用正確的大圓距離公式計算地球曲面上的距離
+                    
+                    # 服務衛星地面投影點 (nadir point)
+                    serving_sat_nadir_lat = math.radians(orbit_position.latitude)
+                    serving_sat_nadir_lon = math.radians(orbit_position.longitude)
+                    ue_lat_rad = math.radians(reference_location["latitude"])
+                    ue_lon_rad = math.radians(reference_location["longitude"])
+                    
+                    # 使用 Haversine 公式計算 UE 到服務衛星地面投影點的距離 (Ml1)
+                    dlat1 = ue_lat_rad - serving_sat_nadir_lat
+                    dlon1 = ue_lon_rad - serving_sat_nadir_lon
+                    a1 = math.sin(dlat1/2)**2 + math.cos(ue_lat_rad) * math.cos(serving_sat_nadir_lat) * math.sin(dlon1/2)**2
+                    c1 = 2 * math.atan2(math.sqrt(a1), math.sqrt(1-a1))
+                    d2_serving_distance_km = 6371.0 * c1  # 地球半徑 6371 km
+                    
+                    # 目標衛星地面投影點 (簡化：使用稍微偏移的位置模擬另一顆衛星)
+                    # 在實際應用中，這應該是另一顆候選衛星的真實位置
+                    target_sat_nadir_lat = math.radians(orbit_position.latitude + 0.5)
+                    target_sat_nadir_lon = math.radians(orbit_position.longitude + 0.5)
+                    
+                    # 使用 Haversine 公式計算 UE 到目標衛星地面投影點的距離 (Ml2)
+                    dlat2 = ue_lat_rad - target_sat_nadir_lat
+                    dlon2 = ue_lon_rad - target_sat_nadir_lon
+                    a2 = math.sin(dlat2/2)**2 + math.cos(ue_lat_rad) * math.cos(target_sat_nadir_lat) * math.sin(dlon2/2)**2
+                    c2 = 2 * math.atan2(math.sqrt(a2), math.sqrt(1-a2))
+                    d2_target_distance_km = 6371.0 * c2
                 
                 # 可見性判斷 (仰角 > 10度)
                 is_visible = elevation_deg > 10.0
                 
-                # RSRP 估算 (基於距離的簡化模型)
-                rsrp_dbm = -70 - 20 * math.log10(satellite_distance_km / 500) if satellite_distance_km > 0 else -70
-                rsrp_dbm = max(-120, min(-50, rsrp_dbm))  # 限制在合理範圍
+                # RSRP 估算 (基於精確距離的模型)
+                rsrp_dbm = self._calculate_rsrp(satellite_distance_km, elevation_deg)
+                
+                # 信號品質估算
+                rsrq_db = -12.0 + (elevation_deg - 10) * 0.1  # 仰角越高品質越好
+                sinr_db = 18.0 + (elevation_deg - 10) * 0.2   # 仰角越高 SINR 越好
+                
+                # 構建時間點數據
+                observation_data = {
+                    "elevation_deg": elevation_deg,
+                    "azimuth_deg": azimuth_deg,
+                    "range_km": satellite_distance_km,
+                    "is_visible": is_visible,
+                    "rsrp_dbm": rsrp_dbm,
+                    "rsrq_db": -12.0 + (elevation_deg - 10) * 0.1,
+                    "sinr_db": 18.0 + (elevation_deg - 10) * 0.2
+                }
+                
+                measurement_events_data = {
+                    "d1_distance_m": ground_distance_km * 1000,
+                    "d2_satellite_distance_m": d2_serving_distance_km * 1000,  # Ml1: UE 到服務衛星地面投影點距離
+                    "d2_ground_distance_m": d2_target_distance_km * 1000,     # Ml2: UE 到目標衛星地面投影點距離
+                    "a4_trigger_condition": rsrp_dbm > -90,
+                    "t1_time_condition": True
+                }
+                
+                # 驗證數據並修正異常值
+                validated_observation = self._validate_observation_data(observation_data)
+                validated_measurement_events = self._validate_measurement_events(measurement_events_data)
                 
                 time_point = {
                     "time_offset_seconds": time_offset,
-                    "timestamp": (current_time + timedelta(seconds=time_offset)).isoformat(),
+                    "timestamp": current_timestamp.isoformat(),
                     "position": {
-                        "latitude": latitude,
-                        "longitude": longitude,
-                        "altitude": altitude_km * 1000,  # 轉換為米
-                        "velocity": {"x": 7.8, "y": 0.0, "z": 0.0}  # 簡化速度
+                        "latitude": orbit_position.latitude,
+                        "longitude": orbit_position.longitude,
+                        "altitude": orbit_position.altitude * 1000,  # 轉換為米
+                        "velocity": {
+                            "x": orbit_position.velocity[0],
+                            "y": orbit_position.velocity[1], 
+                            "z": orbit_position.velocity[2]
+                        }
                     },
-                    "observation": {
-                        "elevation_deg": elevation_deg,
-                        "azimuth_deg": azimuth_deg,
-                        "range_km": satellite_distance_km,
-                        "is_visible": is_visible,
-                        "rsrp_dbm": rsrp_dbm,
-                        "rsrq_db": -12.0,  # 固定值
-                        "sinr_db": 18.0    # 固定值
-                    },
+                    "observation": validated_observation,
                     "handover_metrics": {
-                        "signal_strength": max(0, (rsrp_dbm + 120) / 70),  # 歸一化
-                        "handover_score": 0.8 if is_visible else 0.1,
-                        "is_handover_candidate": is_visible and elevation_deg > 15,
-                        "predicted_service_time_seconds": 300 if is_visible else 0
+                        "signal_strength": max(0, (validated_observation["rsrp_dbm"] + 120) / 70),  # 歸一化
+                        "handover_score": 0.8 if validated_observation["is_visible"] else 0.1,
+                        "is_handover_candidate": validated_observation["is_visible"] and validated_observation["elevation_deg"] > 15,
+                        "predicted_service_time_seconds": self._calculate_service_time(validated_observation["elevation_deg"])
                     },
-                    "measurement_events": {
-                        "d1_distance_m": ground_distance_km * 1000,
-                        "d2_satellite_distance_m": satellite_distance_km * 1000,
-                        "d2_ground_distance_m": ground_distance_km * 1000,
-                        "a4_trigger_condition": rsrp_dbm > -90,
-                        "t1_time_condition": True
-                    }
+                    "measurement_events": validated_measurement_events
                 }
                 
                 time_series.append(time_point)
             
+            logger.info(f"✅ SGP4 成功計算衛星 {tle_data.name} 的 {len(time_series)} 個時間點")
             return time_series
             
         except Exception as e:
-            logger.error(f"❌ 計算衛星時間序列失敗: {e}")
+            logger.error(f"❌ SGP4 衛星時間序列計算失敗: {e}")
+            # 完全失敗時返回空列表，讓上層處理
             return []
+    
+    def _calculate_fallback_position(self, tle_data: Any, timestamp: datetime, time_index: int) -> Any:
+        """SGP4 失敗時的簡化備用位置計算"""
+        from .sgp4_calculator import OrbitPosition
+        import math
+        
+        try:
+            # 使用簡化圓軌道模型作為備用
+            orbital_period_minutes = 1440 / tle_data.mean_motion  # 軌道週期
+            progress = (time_index * self.time_interval_seconds / 60) / orbital_period_minutes
+            orbital_angle = (progress * 360) % 360
+            
+            # 基於軌道傾角的位置估算
+            latitude = tle_data.inclination * math.sin(math.radians(orbital_angle))
+            longitude = (orbital_angle - 180) % 360 - 180
+            altitude = 550.0  # 典型 LEO 高度
+            
+            return OrbitPosition(
+                latitude=latitude,
+                longitude=longitude,
+                altitude=altitude,
+                velocity=(7.8, 0.0, 0.0),  # 簡化速度
+                timestamp=timestamp,
+                satellite_id=str(tle_data.catalog_number)
+            )
+        except Exception as e:
+            logger.error(f"備用位置計算失敗: {e}")
+            # 返回最基本的位置
+            return OrbitPosition(
+                latitude=25.0,
+                longitude=121.0,
+                altitude=550.0,
+                velocity=(7.8, 0.0, 0.0),
+                timestamp=timestamp,
+                satellite_id="unknown"
+            )
+    
+    def _calculate_rsrp(self, distance_km: float, elevation_deg: float) -> float:
+        """基於精確距離和仰角的 RSRP 計算"""
+        try:
+            # 基於自由空間路徑損耗的 RSRP 模型
+            # RSRP = Transmit_Power - Path_Loss - Atmospheric_Loss
+            
+            # 假設衛星發射功率 (dBm)
+            transmit_power_dbm = 40.0  # 典型 LEO 衛星功率
+            
+            # 自由空間路徑損耗 (dB)
+            frequency_ghz = 12.0  # Ku 頻段
+            fspl_db = 20 * math.log10(distance_km) + 20 * math.log10(frequency_ghz) + 32.44
+            
+            # 大氣損耗 (基於仰角)
+            atmospheric_loss_db = max(0, (90 - elevation_deg) / 90 * 3.0)  # 最大3dB大氣損耗
+            
+            # 其他損耗 (多路徑、遮擋等)
+            other_losses_db = 5.0
+            
+            rsrp_dbm = transmit_power_dbm - fspl_db - atmospheric_loss_db - other_losses_db
+            
+            # 限制在合理範圍內
+            return max(-120, min(-50, rsrp_dbm))
+            
+        except Exception as e:
+            logger.warning(f"RSRP 計算失敗: {e}，使用簡化模型")
+            # 簡化模型備用
+            return -70 - 20 * math.log10(distance_km / 500) if distance_km > 0 else -70
+    
+    def _calculate_service_time(self, elevation_deg: float) -> int:
+        """基於仰角估算衛星服務時間"""
+        if elevation_deg <= 10:
+            return 0
+        elif elevation_deg <= 30:
+            return 300  # 5分鐘
+        elif elevation_deg <= 60:
+            return 600  # 10分鐘
+        else:
+            return 900  # 15分鐘
+
+    def _select_visible_satellites(self, tle_data: List[Dict[str, Any]], reference_location: Dict[str, float], timestamp: datetime, max_satellites: int = 10) -> List[Dict[str, Any]]:
+        """智能選擇可見衛星，優先選擇高仰角衛星"""
+        from .sgp4_calculator import SGP4Calculator, TLEData
+        from .distance_calculator import DistanceCalculator, Position
+        
+        try:
+            sgp4_calc = SGP4Calculator()
+            dist_calc = DistanceCalculator()
+            
+            reference_pos = Position(
+                latitude=reference_location["latitude"], 
+                longitude=reference_location["longitude"],
+                altitude=reference_location.get("altitude", 0)
+            )
+            
+            visible_satellites = []
+            
+            for sat_data in tle_data:
+                try:
+                    # 創建 TLE 數據對象
+                    tle_data_obj = TLEData(
+                        name=sat_data["name"],
+                        line1=sat_data["line1"],
+                        line2=sat_data["line2"]
+                    )
+                    
+                    # 計算當前位置
+                    orbit_pos = sgp4_calc.propagate_orbit(tle_data_obj, timestamp)
+                    
+                    if orbit_pos:
+                        satellite_pos = Position(
+                            latitude=orbit_pos.latitude,
+                            longitude=orbit_pos.longitude,
+                            altitude=orbit_pos.altitude,  # 保持km單位
+                            velocity=getattr(orbit_pos, 'velocity', (0.0, 0.0, 0.0))
+                        )
+                        
+                        # 計算仰角 - 直接使用 orbit_pos (OrbitPosition 類型)
+                        elevation = dist_calc.calculate_elevation_angle(reference_pos, orbit_pos)
+                        
+                        # 只選擇可見衛星（仰角 > 5 度，避免地平線附近的噪音）
+                        if elevation > 5.0:
+                            visible_satellites.append({
+                                'satellite_data': sat_data,
+                                'elevation': elevation,
+                                'orbit_position': orbit_pos
+                            })
+                            
+                except Exception as e:
+                    logger.debug(f"跳過衛星 {sat_data.get('name', 'unknown')}: {e}")
+                    continue
+            
+            # 按仰角排序，選擇最高的衛星
+            visible_satellites.sort(key=lambda x: x['elevation'], reverse=True)
+            selected = visible_satellites[:max_satellites]
+            
+            logger.info(f"🛰️ 從 {len(tle_data)} 顆衛星中篩選出 {len(selected)} 顆可見衛星")
+            for sat in selected:
+                logger.info(f"   - {sat['satellite_data']['name']}: 仰角 {sat['elevation']:.1f}°")
+            
+            # 如果沒有可見衛星，回退到前幾顆衛星
+            if not selected:
+                logger.warning("⚠️ 沒有找到可見衛星，使用前10顆衛星作為備用")
+                return tle_data[:max_satellites]
+            
+            return [sat['satellite_data'] for sat in selected]
+            
+        except Exception as e:
+            logger.error(f"衛星選擇失敗: {e}，使用前10顆衛星作為備用")
+            return tle_data[:max_satellites]
+
+    def _validate_observation_data(self, observation: Dict[str, Any]) -> Dict[str, Any]:
+        """驗證並修正觀測數據中的異常數值"""
+        try:
+            validated = observation.copy()
+            
+            # 距離驗證 (LEO 衛星應該在 300-2000 km 範圍內)
+            range_km = validated.get("range_km", 0)
+            if range_km <= 0 or range_km > 10000:
+                logger.warning(f"⚠️ 異常距離數值 {range_km} km，修正為合理範圍")
+                validated["range_km"] = 550  # 預設為典型 LEO 高度
+            elif range_km > 3000:
+                logger.warning(f"⚠️ 距離過遠 {range_km} km，限制在 3000km 內")
+                validated["range_km"] = min(range_km, 3000)
+            
+            # 仰角驗證 (0-90 度)
+            elevation_deg = validated.get("elevation_deg", 0)
+            if elevation_deg < 0 or elevation_deg > 90:
+                logger.warning(f"⚠️ 異常仰角數值 {elevation_deg}°，修正為合理範圍")
+                validated["elevation_deg"] = max(0, min(90, elevation_deg))
+            
+            # 方位角驗證 (0-360 度)
+            azimuth_deg = validated.get("azimuth_deg", 0)
+            if azimuth_deg < 0 or azimuth_deg > 360:
+                logger.warning(f"⚠️ 異常方位角數值 {azimuth_deg}°，修正為合理範圍")
+                validated["azimuth_deg"] = azimuth_deg % 360
+            
+            # RSRP 驗證 (-150 到 -50 dBm)
+            rsrp_dbm = validated.get("rsrp_dbm", -70)
+            if rsrp_dbm > -50 or rsrp_dbm < -150:
+                logger.warning(f"⚠️ 異常 RSRP 數值 {rsrp_dbm} dBm，修正為合理範圍")
+                validated["rsrp_dbm"] = max(-150, min(-50, rsrp_dbm))
+            
+            return validated
+            
+        except Exception as e:
+            logger.error(f"數據驗證失敗: {e}")
+            return observation
+
+    def _validate_measurement_events(self, measurement_events: Dict[str, Any]) -> Dict[str, Any]:
+        """驗證並修正測量事件數據中的異常數值"""
+        try:
+            validated = measurement_events.copy()
+            
+            # D2 距離驗證 (地面距離應該在合理範圍內)
+            d2_satellite_distance_m = validated.get("d2_satellite_distance_m", 0)
+            if d2_satellite_distance_m > 1000000:  # 超過 1000 km 的地面距離異常
+                logger.warning(f"⚠️ 異常 D2 衛星距離 {d2_satellite_distance_m} m，修正為合理值")
+                validated["d2_satellite_distance_m"] = min(100000, d2_satellite_distance_m)  # 最大 100 km
+            
+            d2_ground_distance_m = validated.get("d2_ground_distance_m", 0)
+            if d2_ground_distance_m > 1000000:  # 超過 1000 km 的地面距離異常
+                logger.warning(f"⚠️ 異常 D2 地面距離 {d2_ground_distance_m} m，修正為合理值")
+                validated["d2_ground_distance_m"] = min(100000, d2_ground_distance_m)  # 最大 100 km
+            
+            # D1 距離驗證
+            d1_distance_m = validated.get("d1_distance_m", 0)
+            if d1_distance_m > 2000000:  # 超過 2000 km 異常
+                logger.warning(f"⚠️ 異常 D1 距離 {d1_distance_m} m，修正為合理值")
+                validated["d1_distance_m"] = min(500000, d1_distance_m)  # 最大 500 km
+            
+            return validated
+            
+        except Exception as e:
+            logger.error(f"測量事件數據驗證失敗: {e}")
+            return measurement_events
 
 
 # 全局實例

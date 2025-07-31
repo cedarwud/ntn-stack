@@ -79,148 +79,136 @@ class D2Response(BaseModel):
 
 @router.post("/D2/real")
 async def get_real_d2_data(request: D2RealDataRequest):
-    """獲取真實 D2 測量數據"""
+    """獲取真實 D2 測量數據 - 使用預處理 Volume 數據"""
     try:
         logger.info(f"獲取真實 D2 數據: {request.scenario_name}")
         
-        # 轉換位置格式
-        ue_position = Position(
-            latitude=request.ue_position.latitude,
-            longitude=request.ue_position.longitude,
-            altitude=request.ue_position.altitude
+        # 導入本地數據服務
+        from app.services.local_volume_data_service import get_local_volume_service
+        volume_service = get_local_volume_service()
+        
+        # 構建參考位置
+        reference_location = {
+            "latitude": request.ue_position.latitude,
+            "longitude": request.ue_position.longitude,
+            "altitude": request.ue_position.altitude
+        }
+        
+        logger.info(f"🌐 使用預處理數據 - 星座: {request.constellation}, 位置: {request.ue_position.latitude:.4f}°N, {request.ue_position.longitude:.4f}°E")
+        
+        # 從預處理數據獲取統一時間序列
+        unified_data = await volume_service.generate_120min_timeseries(
+            constellation=request.constellation,
+            reference_location=reference_location
         )
         
-        # 設置參考位置（如果未提供，使用台中作為默認）
-        if request.reference_position:
-            reference_position = Position(
-                latitude=request.reference_position.latitude,
-                longitude=request.reference_position.longitude,
-                altitude=request.reference_position.altitude
-            )
-        else:
-            reference_position = Position(
-                latitude=25.0330,  # 台北（與台中有足夠距離差異）
-                longitude=121.5654,
-                altitude=0.0
+        if not unified_data or not unified_data.get('satellites'):
+            raise HTTPException(
+                status_code=404,
+                detail=f"無法獲取 {request.constellation} 預處理數據"
             )
         
-        # 生成時間序列
-        start_time = datetime.now(timezone.utc)
+        # 提取 D2 測量事件數據
         results = []
-        current_time = start_time
-        end_time = start_time + timedelta(minutes=request.duration_minutes)
-        interval_delta = timedelta(seconds=request.sample_interval_seconds)
+        start_time = datetime.now(timezone.utc)
         
-        while current_time <= end_time:
-            try:
-                # 獲取最佳衛星
-                best_satellite = await constellation_manager.get_best_satellite(
-                    ue_position, current_time, request.constellation
-                )
-                
-                if best_satellite:
-                    # 計算距離
-                    distance_result = distance_calculator.calculate_d2_distances(
-                        ue_position, best_satellite.current_position, reference_position
-                    )
+        # 計算時間點數量（根據請求的持續時間）
+        total_points = min(
+            (request.duration_minutes * 60) // request.sample_interval_seconds,
+            len(unified_data['satellites'][0]['time_series']) if unified_data['satellites'] else 0
+        )
+        
+        # 獲取最佳衛星的時間序列數據（通常是第一顆）
+        if unified_data['satellites']:
+            best_satellite_data = unified_data['satellites'][0]
+            time_series = best_satellite_data['time_series'][:total_points]
+            
+            for i, time_point in enumerate(time_series):
+                try:
+                    current_time = start_time + timedelta(seconds=i * request.sample_interval_seconds)
+                    measurement_events = time_point.get('measurement_events', {})
+                    observation = time_point.get('observation', {})
+                    position = time_point.get('position', {})
                     
-                    # 創建測量結果
+                    # 創建測量值
                     measurement_values = MeasurementValues(
-                        satellite_distance=distance_result.satellite_distance,
-                        ground_distance=distance_result.ground_distance,
-                        reference_satellite=best_satellite.tle_data.satellite_name,
-                        elevation_angle=best_satellite.elevation_angle,
-                        azimuth_angle=best_satellite.azimuth_angle,
-                        signal_strength=best_satellite.signal_strength
+                        satellite_distance=measurement_events.get('d2_satellite_distance_m', 0.0),
+                        ground_distance=measurement_events.get('d2_ground_distance_m', 0.0),
+                        reference_satellite=best_satellite_data.get('name', 'Unknown'),
+                        elevation_angle=observation.get('elevation_deg', 0.0),
+                        azimuth_angle=observation.get('azimuth_deg', 0.0),
+                        signal_strength=observation.get('rsrp_dbm', -120.0)
                     )
                     
-                    # 簡單的觸發條件（可以根據需要調整）
-                    trigger_condition_met = (
-                        distance_result.satellite_distance > 800000 and  # 800km
-                        distance_result.ground_distance < 50000  # 50km
-                    )
+                    # 觸發條件
+                    trigger_condition_met = measurement_events.get('a4_trigger_condition', False)
                     
                     result = D2MeasurementResult(
                         timestamp=current_time.isoformat(),
                         measurement_values=measurement_values,
                         trigger_condition_met=trigger_condition_met,
                         satellite_info={
-                            "norad_id": best_satellite.tle_data.catalog_number,
-                            "constellation": best_satellite.constellation,
-                            "orbital_period": 1440 / best_satellite.tle_data.mean_motion,
-                            "inclination": best_satellite.tle_data.inclination,
-                            "latitude": best_satellite.current_position.latitude,
-                            "longitude": best_satellite.current_position.longitude,
-                            "altitude": best_satellite.current_position.altitude
+                            "norad_id": best_satellite_data.get('norad_id', 0),
+                            "constellation": best_satellite_data.get('constellation', request.constellation),
+                            "orbital_period": 95.0,  # 典型 LEO 週期
+                            "inclination": 53.0,     # 典型傾角
+                            "latitude": position.get('latitude', 0.0),
+                            "longitude": position.get('longitude', 0.0),
+                            "altitude": position.get('altitude', 550000.0)
                         }
                     )
                     
                     results.append(result)
-                else:
-                    # 如果沒有可見衛星，創建空結果
-                    measurement_values = MeasurementValues(
-                        satellite_distance=0.0,
-                        ground_distance=distance_calculator.calculate_d2_distances(
-                            ue_position, ue_position, reference_position
-                        ).ground_distance,
-                        reference_satellite="none",
-                        elevation_angle=0.0,
-                        azimuth_angle=0.0,
-                        signal_strength=0.0
-                    )
                     
-                    result = D2MeasurementResult(
-                        timestamp=current_time.isoformat(),
-                        measurement_values=measurement_values,
-                        trigger_condition_met=False,
-                        satellite_info={}
-                    )
-                    
-                    results.append(result)
-                
-            except Exception as e:
-                logger.error(f"計算時間點 {current_time} 的數據失敗: {e}")
-                import traceback
-                logger.error(f"詳細錯誤: {traceback.format_exc()}")
-            
-            current_time += interval_delta
+                except Exception as e:
+                    logger.warning(f"處理時間點 {i} 失敗: {e}")
+                    continue
         
-        # 獲取覆蓋分析
-        coverage_analysis = await constellation_manager.analyze_coverage(ue_position)
+        # 設置參考位置（如果未提供，使用台北作為默認）
+        if request.reference_position:
+            reference_pos = {
+                "latitude": request.reference_position.latitude,
+                "longitude": request.reference_position.longitude,
+                "altitude": request.reference_position.altitude
+            }
+        else:
+            reference_pos = {
+                "latitude": 25.0330,  # 台北
+                "longitude": 121.5654,
+                "altitude": 0.0
+            }
         
         response = D2Response(
             success=True,
             scenario_name=request.scenario_name,
-            data_source="real",
+            data_source="real_preprocessed_volume",
             ue_position=request.ue_position,
             duration_minutes=request.duration_minutes,
             sample_count=len(results),
             results=results,
             metadata={
                 "constellation": request.constellation,
-                "reference_position": {
-                    "latitude": reference_position.latitude,
-                    "longitude": reference_position.longitude,
-                    "altitude": reference_position.altitude
-                },
-                "coverage_analysis": {
-                    "visible_satellites": coverage_analysis.visible_satellites,
-                    "coverage_percentage": coverage_analysis.coverage_percentage,
-                    "average_elevation": coverage_analysis.average_elevation,
-                    "constellation_distribution": coverage_analysis.constellation_distribution
-                },
-                "data_quality": "real_satellite_data",
-                "sgp4_precision": "high",
-                "atmospheric_corrections": True
+                "reference_position": reference_pos,
+                "data_source": unified_data.get('metadata', {}).get('data_source', 'volume_preprocessed'),
+                "satellites_processed": len(unified_data.get('satellites', [])),
+                "data_quality": "preprocessed_volume_data",
+                "sgp4_precision": "preprocessed",
+                "atmospheric_corrections": True,
+                "volume_timestamp": unified_data.get('metadata', {}).get('computation_time', 'unknown')
             },
             timestamp=datetime.now(timezone.utc).isoformat()
         )
         
-        logger.info(f"成功生成 {len(results)} 個真實 D2 測量點")
+        logger.info(f"✅ 成功從預處理數據生成 {len(results)} 個 D2 測量點")
         return response
         
+    except HTTPException:
+        # 重新拋出 HTTP 異常
+        raise
     except Exception as e:
         logger.error(f"獲取真實 D2 數據失敗: {e}")
+        import traceback
+        logger.error(f"詳細錯誤: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"獲取真實 D2 數據失敗: {str(e)}"
