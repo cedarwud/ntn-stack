@@ -172,6 +172,11 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
             (point) => point.groundDistance / 1000
         ) // 轉換為 km
 
+        // 距離差異數據集 (放大10倍以便可視化)
+        const distanceDifferenceData = data.map(
+            (point) => (point.satelliteDistance - point.groundDistance) / 100 // 轉換為100m為單位，便於可視化
+        )
+
         return {
             labels,
             datasets: [
@@ -199,6 +204,19 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
                     tension: 0.3, // 地面距離可以更平滑（因為是人工生成的）
                     yAxisID: 'y-right',
                 },
+                {
+                    label: '距離差異 (衛星-地面) × 10 倍放大',
+                    data: distanceDifferenceData,
+                    borderColor: '#e74c3c', // 紅色 - 突出顯示差異
+                    backgroundColor: '#e74c3c20',
+                    borderWidth: 3,
+                    pointRadius: 2,
+                    pointHoverRadius: 6,
+                    fill: false,
+                    tension: 0.1,
+                    yAxisID: 'y-difference', // 使用獨立的Y軸
+                    borderDash: [5, 5], // 虛線樣式
+                },
             ],
         }
     }, [data, theme])
@@ -209,6 +227,7 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
             return {
                 satelliteRange: { min: 400, max: 800 },
                 groundRange: { min: 0, max: 100 },
+                differenceRange: { min: 0, max: 100 },
             }
         }
 
@@ -220,15 +239,34 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
         const groundMin = Math.min(...groundDistances)
         const groundMax = Math.max(...groundDistances)
 
-        // 添加緩衝區
-        const satelliteBuffer = (satelliteMax - satelliteMin) * 0.1
-        let groundBuffer = (groundMax - groundMin) * 0.1
+        // 計算數據範圍和差異
+        const satelliteRange = satelliteMax - satelliteMin
+        const groundRange = groundMax - groundMin
+        const averageSatellite = (satelliteMax + satelliteMin) / 2
+        const averageGround = (groundMax + groundMin) / 2
 
-        // 如果地面距離範圍太小（所有值相同），使用固定緩衝區
-        if (groundBuffer < 1) {
-            // 小於 1 公里
-            groundBuffer = Math.max(1, groundMax * 0.1) // 至少 1 公里或 10% 的緩衝區
+        // 增強版範圍計算 - 讓兩條線更加可見
+        let satelliteBuffer = Math.max(satelliteRange * 0.2, 50) // 至少50km緩衝
+        let groundBuffer = Math.max(groundRange * 0.2, 50) // 至少50km緩衝
+        
+        // 如果數據範圍很小，使用相對於平均值的緩衝
+        if (satelliteRange < 100) {
+            satelliteBuffer = Math.max(averageSatellite * 0.05, 100) // 至少平均值的5%或100km
         }
+        if (groundRange < 100) {
+            groundBuffer = Math.max(averageGround * 0.05, 100) // 至少平均值的5%或100km
+        }
+
+        // 為了增強可視化差異，讓地面距離軸從更低的值開始
+        const groundMinAdjusted = Math.max(0, groundMin - groundBuffer * 2)
+        const groundMaxAdjusted = groundMax + groundBuffer
+
+        // 計算距離差異範圍 (以100m為單位)
+        const differenceValues = data.map(d => (d.satelliteDistance - d.groundDistance) / 100)
+        const diffMin = Math.min(...differenceValues)
+        const diffMax = Math.max(...differenceValues)
+        const diffRange = diffMax - diffMin
+        const diffBuffer = Math.max(diffRange * 0.1, 5) // 至少5個單位的緩衝
 
         const result = {
             satelliteRange: {
@@ -236,8 +274,12 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
                 max: satelliteMax + satelliteBuffer,
             },
             groundRange: {
-                min: Math.max(0, groundMin - groundBuffer),
-                max: groundMax + groundBuffer,
+                min: groundMinAdjusted,
+                max: groundMaxAdjusted,
+            },
+            differenceRange: {
+                min: diffMin - diffBuffer,
+                max: diffMax + diffBuffer,
             },
         }
 
@@ -605,6 +647,29 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
                     },
                     min: yAxisRanges.groundRange.min,
                     max: yAxisRanges.groundRange.max,
+                },
+                'y-difference': {
+                    type: 'linear' as const,
+                    position: 'right' as const,
+                    title: {
+                        display: true,
+                        text: '距離差異 (×100m) - 放大顯示',
+                        color: '#e74c3c',
+                        font: {
+                            size: 12,
+                            weight: 'bold',
+                        },
+                    },
+                    grid: {
+                        display: false, // 避免網格線重疊
+                    },
+                    ticks: {
+                        color: '#e74c3c',
+                        callback: (value) => `${Number(value).toFixed(1)}`,
+                    },
+                    min: yAxisRanges.differenceRange.min,
+                    max: yAxisRanges.differenceRange.max,
+                    offset: true, // 偏移右軸以避免重疊
                 },
             },
             onClick: (event, elements) => {

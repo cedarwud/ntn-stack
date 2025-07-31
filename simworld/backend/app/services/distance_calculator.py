@@ -29,6 +29,7 @@ class Position:
     x: float = 0.0    # ECEF 坐標 (km)
     y: float = 0.0    # ECEF 坐標 (km)
     z: float = 0.0    # ECEF 坐標 (km)
+    velocity: tuple = (0.0, 0.0, 0.0)  # 速度向量 (km/s)
 
 @dataclass
 class DistanceResult:

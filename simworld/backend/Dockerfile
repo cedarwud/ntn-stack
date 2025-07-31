@@ -55,9 +55,17 @@ RUN pip install --no-cache-dir --default-timeout=600 -r requirements.txt
 # 6. 複製應用程式碼到工作目錄
 COPY . .
 
-# 7. 暴露 Uvicorn 運行的端口
+# 7. Docker 建置階段：執行 120 分鐘數據預處理
+RUN echo "🚀 執行 120 分鐘數據預處理..." && \
+    python preprocess_120min_timeseries.py || echo "⚠️ 預處理未能完成，將使用運行時動態載入"
+
+# 8. 創建數據目錄並設置權限
+RUN mkdir -p /app/data /app/netstack/tle_data && \
+    chmod 755 /app/data /app/netstack/tle_data
+
+# 9. 暴露 Uvicorn 運行的端口
 EXPOSE 8000
 
-# 8. 容器啟動時運行的命令
+# 10. 容器啟動時運行的命令
 # 注意：這裡不加 --reload，因為開發時會用 volume 掛載 + compose 控制
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
