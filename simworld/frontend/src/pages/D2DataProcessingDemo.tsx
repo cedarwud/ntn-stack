@@ -276,8 +276,6 @@ const D2DataProcessingDemo: React.FC = () => {
                                 thresh2={80000}  // 80km
                                 hysteresis={5000} // 5km
                                 processingConfig={processingConfig}
-                                showOriginalData={true}
-                                showProcessedData={true}
                                 showProcessingMetrics={true}
                                 showTriggerIndicators={true}
                                 height={400}
