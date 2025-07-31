@@ -86,6 +86,7 @@ logger.info("Included API router v1 at /api/v1.")
 # Include unified timeseries router
 try:
     from app.api.unified_timeseries import router as unified_timeseries_router
+
     app.include_router(unified_timeseries_router, prefix="")
     logger.info("Unified timeseries router registered")
 except ImportError as e:
@@ -119,6 +120,24 @@ except ImportError as e:
         return {
             "status": "service_not_available",
             "message": "Algorithm performance service not configured",
+        }
+
+
+# Include measurement events router
+try:
+    from app.api.routes.measurement_events import router as measurement_events_router
+
+    app.include_router(measurement_events_router, prefix="/api")
+    logger.info("Measurement events router registered at /api")
+except ImportError as e:
+    logger.warning(f"Measurement events router not available: {e}")
+
+    # Create fallback endpoint
+    @app.get("/api/measurement-events/status", tags=["Measurement Events"])
+    async def measurement_events_status():
+        return {
+            "status": "service_not_available",
+            "message": "Measurement events service not configured",
         }
 
 

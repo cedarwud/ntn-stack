@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/index.scss'
 import App from './App.tsx'
 import DecisionControlCenterSimple from './components/unified-decision-center/DecisionControlCenterSimple'
+import D2DataProcessingDemo from './pages/D2DataProcessingDemo'
 import axios from 'axios'
 
 // 導入性能監控器（自動啟動）
@@ -185,6 +186,12 @@ createRoot(document.getElementById('root')!).render(
             <Route
                 path="/decision-center"
                 element={<DecisionControlCenterSimple />}
+            />
+
+            {/* D2數據處理演示頁面 */}
+            <Route
+                path="/d2-processing"
+                element={<D2DataProcessingDemo />}
             />
 
             {/* 404 重定向到預設場景 */}

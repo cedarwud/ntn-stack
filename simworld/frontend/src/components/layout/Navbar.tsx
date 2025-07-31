@@ -416,6 +416,14 @@ const Navbar: FC<NavbarProps> = ({
                         >
                             📡 換手事件
                         </li>
+
+                        {/* D2數據處理演示按鈕 */}
+                        <li
+                            className="navbar-item"
+                            onClick={() => navigate('/d2-processing')}
+                        >
+                            📊 D2數據分析
+                        </li>
                     </ul>
                 </div>
             </nav>
