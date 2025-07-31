@@ -41,6 +41,22 @@ class TLEData:
             return int(self.line1[2:7])
         except:
             return 40000  # 預設值
+    
+    @property
+    def mean_motion(self) -> float:
+        """從 TLE 第二行提取平均角速度 (每日轉數)"""
+        try:
+            return float(self.line2[52:63])
+        except (ValueError, IndexError):
+            return 15.5  # LEO 衛星典型值 (約90分鐘軌道週期)
+    
+    @property
+    def inclination(self) -> float:
+        """從 TLE 第二行提取軌道傾角 (度)"""
+        try:
+            return float(self.line2[8:16])
+        except (ValueError, IndexError):
+            return 53.0  # Starlink 典型傾角
 
 
 from .sgp4_calculator import SGP4Calculator, OrbitPosition
@@ -425,144 +441,251 @@ class ConstellationManager:
     async def _calculate_satellite_positions(
         self, constellations: List[str], timestamp: datetime
     ) -> List[SatelliteInfo]:
-        """計算所有衛星的當前位置 - 使用 NetStack 96 分鐘預處理數據"""
-        all_satellites = []
-
-        logger.info(f"從 NetStack 獲取 96 分鐘預處理數據，星座: {constellations}")
+        """
+        計算所有衛星的當前位置 - 使用本地 Docker Volume 統一時間序列數據
+        優先級: 本地統一時間序列 > NetStack API > 模擬數據
+        """
+        satellites = []
         
         try:
-            # 調用 NetStack 的預處理數據 API
-            import aiohttp
-            netstack_url = "http://netstack-api:8080/api/v1/satellites/precomputed/ntpu"
+            # 方案 A: 優先使用本地 Docker Volume 統一時間序列數據
+            from .local_volume_data_service import get_local_volume_service
+            
+            volume_service = get_local_volume_service()
             
             for constellation in constellations:
-                if constellation not in self.constellation_configs:
-                    continue
-                    
-                config = self.constellation_configs[constellation]
+                logger.info(f"🛰️ 使用本地統一時間序列數據處理星座: {constellation}")
                 
-                try:
-                    async with aiohttp.ClientSession() as session:
-                        params = {
-                            "constellation": constellation,
-                            "count": config.max_satellites
-                        }
-                        async with session.get(netstack_url, params=params) as response:
-                            if response.status == 200:
-                                data = await response.json()
-                                
-                                filtered_satellites = data.get("filtered_satellites", [])
-                                logger.info(f"從 NetStack 獲取 {constellation} 星座數據: {len(filtered_satellites)} 顆衛星")
-                                
-                                for sat_data in filtered_satellites:
-                                    # 從預處理數據構建 TLE 數據
-                                    sat_name = sat_data.get("name", f"{constellation}-{sat_data.get('norad_id', 'unknown')}")
-                                    norad_id = sat_data.get("norad_id", 40000)
-                                    
-                                    mock_tle = TLEData(
-                                        name=sat_name,
-                                        line1=f"1 {norad_id:05d}U 23001001 23001.50000000  .00001000  00000-0  50000-4 0  9999",
-                                        line2=f"2 {norad_id:05d}  53.0000   0.0000 0001000   0.0000   0.0000 15.50000000    10"
-                                    )
-                                    
-                                    # 從預處理數據提取位置信息（NetStack API 直接提供位置數據）
-                                    if sat_data.get("is_visible", False):
-                                        from .sgp4_calculator import OrbitPosition
-                                        current_position = OrbitPosition(
-                                            latitude=sat_data.get("latitude", 0.0),
-                                            longitude=sat_data.get("longitude", 0.0),
-                                            altitude=sat_data.get("altitude", 550.0),
-                                            velocity=(7.8, 0.0, 0.0),  # 典型軌道速度 (x, y, z)
-                                            timestamp=timestamp,
-                                            satellite_id=str(norad_id)
-                                        )
-                                        
-                                        # 計算觀測角度和信號強度（使用 NetStack 預計算數據）
-                                        elevation_angle = sat_data.get("elevation_deg", 0.0)
-                                        azimuth_angle = sat_data.get("azimuth_deg", 0.0)
-                                        range_km = sat_data.get("range_km", 1000.0)
-                                        
-                                        # 基於仰角計算信號強度
-                                        signal_strength = max(0.1, elevation_angle / 90.0 * 0.9 + 0.1)
-                                        
-                                        sat_info = SatelliteInfo(
-                                            tle_data=mock_tle,
-                                            current_position=current_position,
-                                            constellation=constellation,
-                                            elevation_angle=elevation_angle,
-                                            azimuth_angle=azimuth_angle,
-                                            signal_strength=signal_strength,
-                                            distance=range_km,
-                                            is_visible=True
-                                        )
-                                        all_satellites.append(sat_info)
-                                        
-                            else:
-                                logger.warning(f"NetStack API 調用失敗: {response.status} for {constellation}")
-                                
-                except Exception as e:
-                    logger.error(f"從 NetStack 獲取 {constellation} 數據失敗: {e}")
+                # 生成當前時間的統一時間序列數據
+                unified_data = await volume_service.generate_120min_timeseries(
+                    constellation=constellation,
+                    reference_location={
+                        "latitude": 24.9441,   # NTPU 位置
+                        "longitude": 121.3714,
+                        "altitude": 0.0
+                    }
+                )
+                
+                if unified_data and unified_data.get("satellites"):
+                    logger.info(f"✅ 成功載入 {constellation} 統一時間序列數據: {len(unified_data['satellites'])} 顆衛星")
                     
+                    # 找到最接近當前時間的時間點
+                    current_time_point = self._find_closest_time_point(unified_data, timestamp)
+                    
+                    # 轉換為 SatelliteInfo 格式
+                    for sat_data in unified_data["satellites"]:
+                        if current_time_point < len(sat_data["time_series"]):
+                            time_point = sat_data["time_series"][current_time_point]
+                            
+                            # 構建 TLE 數據 (用於兼容性)
+                            tle_data = TLEData(
+                                name=sat_data["name"],
+                                line1="",  # 統一時間序列不需要原始 TLE
+                                line2="",
+                                epoch=timestamp.isoformat()
+                            )
+                            
+                            # 構建位置信息
+                            current_position = Position(
+                                latitude=time_point["position"]["latitude"],
+                                longitude=time_point["position"]["longitude"],
+                                altitude=time_point["position"]["altitude"]
+                            )
+                            
+                            # 構建衛星信息
+                            satellite_info = SatelliteInfo(
+                                tle_data=tle_data,
+                                constellation=constellation,
+                                current_position=current_position,
+                                last_updated=timestamp,
+                                is_visible=time_point["observation"]["is_visible"],
+                                elevation=time_point["observation"]["elevation_deg"],
+                                azimuth=time_point["observation"]["azimuth_deg"],
+                                range_km=time_point["observation"]["range_km"]
+                            )
+                            
+                            satellites.append(satellite_info)
+                    
+                    logger.info(f"✅ {constellation} 處理完成: {len([s for s in satellites if s.constellation == constellation])} 顆衛星")
+                    continue  # 成功處理此星座，繼續下一個
+            
+            if satellites:
+                logger.info(f"🎯 本地統一時間序列數據成功: 總共 {len(satellites)} 顆衛星")
+                return satellites
+            
+            logger.warning("⚠️ 本地統一時間序列數據不可用，嘗試 NetStack API")
+            
         except Exception as e:
-            logger.error(f"NetStack API 調用失敗: {e}")
+            logger.error(f"❌ 本地統一時間序列處理失敗: {e}")
+            logger.info("🔄 回退到 NetStack API 方案")
+        
+        # 方案 B: NetStack API 備用方案 (現有代碼)
+        try:
+            import aiohttp
             
-        # 如果沒有從 NetStack 獲取到數據，使用簡單的模擬數據作為備用
-        if not all_satellites:
-            logger.warning("NetStack 數據獲取失敗，使用備用模擬數據")
             for constellation in constellations:
-                if constellation not in self.constellation_configs:
-                    continue
-                    
-                config = self.constellation_configs[constellation]
+                logger.info(f"🌐 使用 NetStack API 處理星座: {constellation}")
                 
-                # 生成少量備用衛星數據
-                for i in range(min(config.max_satellites, 3)):
-                    mock_tle = TLEData(
-                        name=f"{constellation}_backup_{i+1}",
-                        line1=f"1 {50000+i:05d}U 23001{i:03d} 23001.50000000  .00001000  00000-0  50000-4 0  9999",
-                        line2=f"2 {50000+i:05d}  53.0000 {i*72:7.4f} 0001000 {i*36:7.4f} {i*45:7.4f} 15.50000000{i*1000:6d}"
+                async with aiohttp.ClientSession() as session:
+                    url = f"http://netstack-api:8080/api/v1/satellites/precomputed/ntpu"
+                    params = {"constellation": constellation}
+                    
+                    async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            logger.info(f"✅ NetStack API 成功獲取 {constellation} 數據")
+                            
+                            # 處理 NetStack API 響應數據
+                            api_satellites = await self._process_netstack_api_response(data, constellation, timestamp)
+                            satellites.extend(api_satellites)
+                            
+                        else:
+                            logger.warning(f"⚠️ NetStack API 響應異常: {response.status}")
+                            
+        except Exception as e:
+            logger.error(f"❌ NetStack API 調用失敗: {e}")
+        
+        # 方案 C: 模擬數據最後備用方案
+        if not satellites:
+            logger.warning("🔄 回退到模擬數據備用方案")
+            satellites = await self._generate_fallback_satellites(constellations, timestamp)
+        
+        logger.info(f"🎯 最終結果: {len(satellites)} 顆衛星位置已計算")
+        return satellites
+
+    def _find_closest_time_point(self, unified_data: Dict[str, Any], target_timestamp: datetime) -> int:
+        """找到最接近目標時間的時間點索引"""
+        try:
+            start_time_str = unified_data["metadata"]["computation_time"]
+            start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+            
+            # 計算時間差（秒）
+            time_diff_seconds = (target_timestamp - start_time).total_seconds()
+            
+            # 計算對應的時間點索引
+            time_point_index = int(time_diff_seconds / unified_data["metadata"]["time_interval_seconds"])
+            
+            # 限制在有效範圍內
+            time_point_index = max(0, min(time_point_index, unified_data["metadata"]["total_time_points"] - 1))
+            
+            logger.debug(f"目標時間: {target_timestamp}, 對應時間點索引: {time_point_index}")
+            return time_point_index
+            
+        except Exception as e:
+            logger.warning(f"計算時間點索引失敗: {e}, 使用預設索引 0")
+            return 0
+    
+    async def _process_netstack_api_response(
+        self, data: Dict[str, Any], constellation: str, timestamp: datetime
+    ) -> List[SatelliteInfo]:
+        """處理 NetStack API 響應數據"""
+        satellites = []
+        
+        try:
+            # 處理 NetStack API 格式的數據
+            positions = data.get("positions", [])
+            
+            for i, position_data in enumerate(positions[:10]):  # 限制處理前10個
+                # 構建 TLE 數據 (模擬)
+                tle_data = TLEData(
+                    name=f"{constellation.upper()}-SAT-{i+1}",
+                    line1="",
+                    line2="",
+                    epoch=timestamp.isoformat()
+                )
+                
+                # 構建位置信息 (NetStack API 數據可能沒有實際的緯經度)
+                current_position = Position(
+                    latitude=position_data.get("latitude", 25.0 + i * 0.1),
+                    longitude=position_data.get("longitude", 121.0 + i * 0.1),
+                    altitude=position_data.get("altitude_km", 550) * 1000  # 轉換為米
+                )
+                
+                # 構建衛星信息
+                satellite_info = SatelliteInfo(
+                    tle_data=tle_data,
+                    constellation=constellation,
+                    current_position=current_position,
+                    last_updated=timestamp,
+                    is_visible=position_data.get("is_visible", True),
+                    elevation=position_data.get("elevation_deg", 15.0),
+                    azimuth=position_data.get("azimuth_deg", 180.0),
+                    range_km=position_data.get("range_km", 1000.0)
+                )
+                
+                satellites.append(satellite_info)
+            
+            logger.info(f"成功處理 NetStack API 響應: {len(satellites)} 顆衛星")
+            return satellites
+            
+        except Exception as e:
+            logger.error(f"處理 NetStack API 響應失敗: {e}")
+            return []
+    
+    async def _generate_fallback_satellites(
+        self, constellations: List[str], timestamp: datetime
+    ) -> List[SatelliteInfo]:
+        """生成備用模擬衛星數據"""
+        satellites = []
+        
+        try:
+            logger.info("🔄 生成備用模擬衛星數據")
+            
+            for constellation in constellations:
+                constellation_sats = []
+                
+                # 每個星座生成5顆模擬衛星
+                for i in range(5):
+                    # 模擬 TLE 數據
+                    tle_data = TLEData(
+                        name=f"{constellation.upper()}-FALLBACK-{i+1}",
+                        line1="",
+                        line2="",
+                        epoch=timestamp.isoformat()
                     )
                     
-                    orbital_angle = (i * 72 + timestamp.timestamp() * 0.001) % 360
-                    radius_km = 550 + i * 10
+                    # 模擬位置 (分散在不同象限)
+                    lat_offset = (i - 2) * 10  # -20 到 20 度變化
+                    lon_offset = (i - 2) * 15  # -30 到 30 度變化
                     
-                    lat = 45 * math.sin(math.radians(orbital_angle))
-                    lon = (orbital_angle + timestamp.timestamp() * 0.01) % 360 - 180
-                    alt = radius_km
-                    
-                    from .sgp4_calculator import OrbitPosition
-                    mock_position = OrbitPosition(
-                        latitude=lat,
-                        longitude=lon,
-                        altitude=alt,
-                        velocity=(7.8, 0.0, 0.0),  # 典型軌道速度 (x, y, z)
-                        timestamp=timestamp,
-                        satellite_id=f"{constellation}_backup_{i+1}"
+                    current_position = Position(
+                        latitude=24.9441 + lat_offset,
+                        longitude=121.3714 + lon_offset,
+                        altitude=550000.0  # 550km 高度
                     )
                     
-                    sat_info = SatelliteInfo(
-                        tle_data=mock_tle,
-                        current_position=mock_position,
+                    # 模擬觀測數據
+                    elevation = 15.0 + i * 10  # 15-55度仰角
+                    azimuth = i * 72  # 0, 72, 144, 216, 288度方位角
+                    range_km = 1000 + i * 200  # 1000-1800km距離
+                    
+                    satellite_info = SatelliteInfo(
+                        tle_data=tle_data,
                         constellation=constellation,
-                        elevation_angle=30.0 + i * 10,  # 模擬仰角
-                        azimuth_angle=(i * 120) % 360,  # 模擬方位角
-                        signal_strength=0.7 + i * 0.1,  # 模擬信號強度
-                        distance=alt,  # 距離
-                        is_visible=True
+                        current_position=current_position,
+                        last_updated=timestamp,
+                        is_visible=True,
+                        elevation=elevation,
+                        azimuth=azimuth,
+                        range_km=range_km
                     )
-                    all_satellites.append(sat_info)
-
-        # 更新緩存
-        self._satellite_cache = {}
-        for sat_info in all_satellites:
-            if sat_info.constellation not in self._satellite_cache:
-                self._satellite_cache[sat_info.constellation] = []
-            self._satellite_cache[sat_info.constellation].append(sat_info)
-
-        self._cache_timestamp = timestamp
-        logger.info(f"總共載入了 {len(all_satellites)} 顆衛星數據 (來源: NetStack 96分鐘預處理)")
-
-        return all_satellites
+                    
+                    # 計算信號強度
+                    satellite_info.signal_strength = self._calculate_signal_strength(
+                        elevation, range_km
+                    )
+                    
+                    constellation_sats.append(satellite_info)
+                
+                satellites.extend(constellation_sats)
+                logger.info(f"✅ 生成 {constellation} 備用數據: {len(constellation_sats)} 顆衛星")
+            
+            logger.info(f"🎯 備用模擬數據生成完成: 總共 {len(satellites)} 顆衛星")
+            return satellites
+            
+        except Exception as e:
+            logger.error(f"❌ 生成備用衛星數據失敗: {e}")
+            return []
 
     def _calculate_signal_strength(
         self, elevation_angle: float, distance_km: float
@@ -605,516 +728,3 @@ class ConstellationManager:
 
         now = datetime.now(timezone.utc)
         return (now - self._cache_timestamp) < self._cache_duration
-
-    def update_constellation_config(
-        self, constellation: str, config: ConstellationConfig
-    ) -> bool:
-        """更新星座配置"""
-        try:
-            self.constellation_configs[constellation] = config
-            logger.info(f"更新星座配置: {constellation}")
-
-            # 清除緩存以強制重新計算
-            self._satellite_cache.clear()
-            self._cache_timestamp = None
-
-            return True
-        except Exception as e:
-            logger.error(f"更新星座配置失敗: {e}")
-            return False
-
-    def get_constellation_configs(self) -> Dict[str, ConstellationConfig]:
-        """獲取所有星座配置"""
-        return self.constellation_configs.copy()
-
-    async def get_constellation_statistics(self) -> Dict[str, Dict]:
-        """獲取星座統計信息 - 使用模擬數據"""
-        stats = {}
-
-        for constellation_name, config in self.constellation_configs.items():
-            if not config.enabled:
-                continue
-
-            try:
-                # TLE 服務已移除，返回模擬統計數據
-                mock_satellite_counts = {
-                    "starlink": 4200,
-                    "oneweb": 648,
-                    "gps": 31,
-                    "galileo": 30
-                }
-                
-                mock_altitudes = {
-                    "starlink": 550,
-                    "oneweb": 1200,
-                    "gps": 20200,
-                    "galileo": 23200
-                }
-
-                total_sats = mock_satellite_counts.get(constellation_name, 100)
-                avg_altitude = mock_altitudes.get(constellation_name, 550)
-
-                stats[constellation_name] = {
-                    "name": config.name,
-                    "total_satellites": total_sats,
-                    "valid_satellites": total_sats - 10,  # 假設10顆無效
-                    "average_altitude": avg_altitude,
-                    "inclination_range": {"min": 50, "max": 55},
-                    "last_updated": datetime.now(timezone.utc).isoformat(),
-                    "data_source": "simulated",
-                    "config": {
-                        "min_elevation": config.min_elevation,
-                        "max_satellites": config.max_satellites,
-                        "priority": config.priority,
-                        "frequency_band": config.frequency_band,
-                        "enabled": config.enabled,
-                    },
-                }
-                
-                logger.info(f"返回 {constellation_name} 的模擬統計數據")
-                
-            except Exception as e:
-                logger.error(f"生成 {constellation_name} 統計信息失敗: {e}")
-                stats[constellation_name] = {
-                    "name": config.name,
-                    "error": str(e),
-                    "config": {
-                        "min_elevation": config.min_elevation,
-                        "max_satellites": config.max_satellites,
-                        "priority": config.priority,
-                        "frequency_band": config.frequency_band,
-                        "enabled": config.enabled,
-                    },
-                }
-
-        return stats
-
-    async def simulate_handover_scenario(
-        self,
-        observer_position: Position,
-        start_time: datetime,
-        duration_minutes: int = 30,
-    ) -> List[Dict]:
-        """
-        模擬衛星切換場景
-
-        Args:
-            observer_position: 觀測者位置
-            start_time: 開始時間
-            duration_minutes: 模擬時長（分鐘）
-
-        Returns:
-            切換事件列表
-        """
-        try:
-            handover_events = []
-            current_time = start_time
-            end_time = start_time + timedelta(minutes=duration_minutes)
-            step_seconds = 30  # 30秒步長
-
-            current_best_satellite = None
-
-            while current_time <= end_time:
-                # 獲取當前最佳衛星
-                best_satellite = await self.get_best_satellite(
-                    observer_position, current_time
-                )
-
-                # 檢查是否需要切換
-                if best_satellite and (
-                    current_best_satellite is None
-                    or best_satellite.tle_data.catalog_number
-                    != current_best_satellite.tle_data.catalog_number
-                ):
-                    handover_event = {
-                        "timestamp": current_time.isoformat(),
-                        "event_type": (
-                            "handover"
-                            if current_best_satellite
-                            else "initial_acquisition"
-                        ),
-                        "old_satellite": (
-                            {
-                                "name": current_best_satellite.tle_data.satellite_name,
-                                "norad_id": current_best_satellite.tle_data.catalog_number,
-                                "constellation": current_best_satellite.constellation,
-                                "elevation": current_best_satellite.elevation_angle,
-                                "signal_strength": current_best_satellite.signal_strength,
-                            }
-                            if current_best_satellite
-                            else None
-                        ),
-                        "new_satellite": {
-                            "name": best_satellite.tle_data.satellite_name,
-                            "norad_id": best_satellite.tle_data.catalog_number,
-                            "constellation": best_satellite.constellation,
-                            "elevation": best_satellite.elevation_angle,
-                            "signal_strength": best_satellite.signal_strength,
-                        },
-                        "reason": self._determine_handover_reason(
-                            current_best_satellite, best_satellite
-                        ),
-                    }
-
-                    handover_events.append(handover_event)
-                    current_best_satellite = best_satellite
-
-                    logger.info(
-                        f"衛星切換: {handover_event['event_type']} at {current_time}"
-                    )
-
-                current_time += timedelta(seconds=step_seconds)
-
-            logger.info(f"模擬完成: {len(handover_events)} 次切換事件")
-            return handover_events
-
-        except Exception as e:
-            logger.error(f"切換場景模擬失敗: {e}")
-            return []
-
-    def _determine_handover_reason(
-        self, old_satellite: Optional[SatelliteInfo], new_satellite: SatelliteInfo
-    ) -> str:
-        """確定切換原因"""
-        if old_satellite is None:
-            return "initial_acquisition"
-
-        if old_satellite.elevation_angle < 10:
-            return "low_elevation"
-
-        if new_satellite.signal_strength > old_satellite.signal_strength * 1.2:
-            return "better_signal"
-
-        if new_satellite.constellation != old_satellite.constellation:
-            priority_old = self.constellation_configs[
-                old_satellite.constellation
-            ].priority
-            priority_new = self.constellation_configs[
-                new_satellite.constellation
-            ].priority
-            if priority_new < priority_old:
-                return "higher_priority_constellation"
-
-        return "optimization"
-
-    async def get_optimal_handover_targets(
-        self,
-        observer_position: Position,
-        current_satellite: Optional[SatelliteInfo],
-        timestamp: Optional[datetime] = None,
-        prediction_window_minutes: int = 10,
-    ) -> List[Dict[str, Any]]:
-        """
-        獲取最佳切換目標衛星
-
-        Args:
-            observer_position: 觀測者位置
-            current_satellite: 當前衛星
-            timestamp: 時間戳
-            prediction_window_minutes: 預測窗口（分鐘）
-
-        Returns:
-            排序後的切換目標列表
-        """
-        if timestamp is None:
-            timestamp = datetime.now(timezone.utc)
-
-        try:
-            # 獲取所有可見衛星
-            visible_satellites = await self.get_visible_satellites(
-                observer_position, timestamp
-            )
-
-            if not visible_satellites:
-                return []
-
-            # 排除當前衛星
-            if current_satellite:
-                visible_satellites = [
-                    sat
-                    for sat in visible_satellites
-                    if sat.tle_data.catalog_number
-                    != current_satellite.tle_data.catalog_number
-                ]
-
-            # 計算每個衛星的切換評分
-            handover_candidates = []
-
-            for satellite in visible_satellites:
-                score = await self._calculate_handover_score(
-                    observer_position,
-                    satellite,
-                    current_satellite,
-                    timestamp,
-                    prediction_window_minutes,
-                )
-
-                # 預測未來軌跡
-                future_trajectory = await self._predict_satellite_trajectory(
-                    satellite, timestamp, prediction_window_minutes
-                )
-
-                # 計算切換時機
-                optimal_handover_time = self._calculate_optimal_handover_time(
-                    observer_position,
-                    current_satellite,
-                    satellite,
-                    timestamp,
-                    prediction_window_minutes,
-                )
-
-                candidate = {
-                    "satellite_info": satellite,
-                    "handover_score": score,
-                    "predicted_trajectory": future_trajectory,
-                    "optimal_handover_time": optimal_handover_time,
-                    "handover_reason": self._determine_handover_reason(
-                        current_satellite, satellite
-                    ),
-                    "quality_metrics": {
-                        "elevation_stability": self._calculate_elevation_stability(
-                            future_trajectory
-                        ),
-                        "signal_quality": satellite.signal_strength,
-                        "geometric_diversity": (
-                            self._calculate_geometric_diversity(
-                                current_satellite, satellite
-                            )
-                            if current_satellite
-                            else 1.0
-                        ),
-                        "constellation_priority": self.constellation_configs[
-                            satellite.constellation
-                        ].priority,
-                    },
-                }
-
-                handover_candidates.append(candidate)
-
-            # 按切換評分排序
-            handover_candidates.sort(key=lambda x: x["handover_score"], reverse=True)
-
-            logger.info(f"找到 {len(handover_candidates)} 個切換候選目標")
-            return handover_candidates[:10]  # 返回前10個最佳目標
-
-        except Exception as e:
-            logger.error(f"獲取最佳切換目標失敗: {e}")
-            return []
-
-    async def _calculate_handover_score(
-        self,
-        observer_position: Position,
-        candidate_satellite: SatelliteInfo,
-        current_satellite: Optional[SatelliteInfo],
-        timestamp: datetime,
-        prediction_window_minutes: int,
-    ) -> float:
-        """
-        計算衛星切換評分
-
-        評分因子：
-        1. 信號強度 (30%)
-        2. 仰角穩定性 (25%)
-        3. 幾何多樣性 (20%)
-        4. 星座優先級 (15%)
-        5. 切換成本 (10%)
-        """
-        try:
-            # 1. 信號強度評分 (0-1)
-            signal_score = candidate_satellite.signal_strength
-
-            # 2. 仰角穩定性評分
-            future_positions = []
-            current_time = timestamp
-            for i in range(prediction_window_minutes):
-                future_time = current_time + timedelta(minutes=i)
-                future_pos = self.sgp4_calculator.propagate_orbit(
-                    candidate_satellite.tle_data, future_time
-                )
-                if future_pos:
-                    elevation = self.distance_calculator.calculate_elevation_angle(
-                        observer_position, future_pos
-                    )
-                    future_positions.append(elevation)
-
-            if future_positions:
-                elevation_variance = sum(
-                    (e - sum(future_positions) / len(future_positions)) ** 2
-                    for e in future_positions
-                ) / len(future_positions)
-                elevation_stability_score = max(
-                    0, 1 - elevation_variance / 100
-                )  # 歸一化
-            else:
-                elevation_stability_score = 0
-
-            # 3. 幾何多樣性評分
-            if current_satellite:
-                geometric_diversity_score = self._calculate_geometric_diversity(
-                    current_satellite, candidate_satellite
-                )
-            else:
-                geometric_diversity_score = 1.0
-
-            # 4. 星座優先級評分
-            constellation_config = self.constellation_configs[
-                candidate_satellite.constellation
-            ]
-            priority_score = 1.0 / constellation_config.priority  # 優先級越高分數越高
-
-            # 5. 切換成本評分（基於角度差異）
-            if current_satellite:
-                angle_diff = abs(
-                    candidate_satellite.elevation_angle
-                    - current_satellite.elevation_angle
-                )
-                handover_cost_score = max(
-                    0, 1 - angle_diff / 90
-                )  # 角度差異越小成本越低
-            else:
-                handover_cost_score = 1.0
-
-            # 加權總分
-            total_score = (
-                signal_score * 0.30
-                + elevation_stability_score * 0.25
-                + geometric_diversity_score * 0.20
-                + priority_score * 0.15
-                + handover_cost_score * 0.10
-            )
-
-            return min(total_score, 1.0)
-
-        except Exception as e:
-            logger.error(f"計算切換評分失敗: {e}")
-            return 0.0
-
-    async def _predict_satellite_trajectory(
-        self, satellite: SatelliteInfo, start_time: datetime, duration_minutes: int
-    ) -> List[Dict[str, Any]]:
-        """預測衛星軌跡"""
-        try:
-            trajectory = []
-            current_time = start_time
-
-            for i in range(0, duration_minutes, 2):  # 每2分鐘一個點
-                future_time = current_time + timedelta(minutes=i)
-                future_pos = self.sgp4_calculator.propagate_orbit(
-                    satellite.tle_data, future_time
-                )
-
-                if future_pos:
-                    trajectory.append(
-                        {
-                            "timestamp": future_time.isoformat(),
-                            "latitude": future_pos.latitude,
-                            "longitude": future_pos.longitude,
-                            "altitude": future_pos.altitude,
-                        }
-                    )
-
-            return trajectory
-        except Exception as e:
-            logger.error(f"預測衛星軌跡失敗: {e}")
-            return []
-
-    def _calculate_optimal_handover_time(
-        self,
-        observer_position: Position,
-        current_satellite: Optional[SatelliteInfo],
-        candidate_satellite: SatelliteInfo,
-        start_time: datetime,
-        window_minutes: int,
-    ) -> Optional[str]:
-        """計算最佳切換時機"""
-        try:
-            if not current_satellite:
-                return start_time.isoformat()
-
-            best_time = start_time
-            best_score = 0
-
-            # 在預測窗口內尋找最佳切換時機
-            for i in range(window_minutes):
-                test_time = start_time + timedelta(minutes=i)
-
-                # 計算當前衛星在該時間的信號強度
-                current_pos = self.sgp4_calculator.propagate_orbit(
-                    current_satellite.tle_data, test_time
-                )
-                candidate_pos = self.sgp4_calculator.propagate_orbit(
-                    candidate_satellite.tle_data, test_time
-                )
-
-                if current_pos and candidate_pos:
-                    current_elevation = (
-                        self.distance_calculator.calculate_elevation_angle(
-                            observer_position, current_pos
-                        )
-                    )
-                    candidate_elevation = (
-                        self.distance_calculator.calculate_elevation_angle(
-                            observer_position, candidate_pos
-                        )
-                    )
-
-                    # 切換評分：候選衛星信號強度 - 當前衛星信號強度
-                    current_signal = self._calculate_signal_strength(
-                        current_elevation, current_pos.altitude
-                    )
-                    candidate_signal = self._calculate_signal_strength(
-                        candidate_elevation, candidate_pos.altitude
-                    )
-
-                    score = candidate_signal - current_signal
-
-                    if score > best_score:
-                        best_score = score
-                        best_time = test_time
-
-            return best_time.isoformat()
-        except Exception as e:
-            logger.error(f"計算最佳切換時機失敗: {e}")
-            return start_time.isoformat()
-
-    def _calculate_elevation_stability(self, trajectory: List[Dict[str, Any]]) -> float:
-        """計算仰角穩定性"""
-        if len(trajectory) < 2:
-            return 0.0
-
-        try:
-            # 這裡需要重新計算仰角，因為軌跡只包含位置信息
-            # 簡化處理：基於高度變化評估穩定性
-            altitudes = [point["altitude"] for point in trajectory]
-            altitude_variance = sum(
-                (alt - sum(altitudes) / len(altitudes)) ** 2 for alt in altitudes
-            ) / len(altitudes)
-
-            # 高度變化越小，穩定性越高
-            stability = max(0, 1 - altitude_variance / 10000)  # 歸一化
-            return stability
-        except Exception as e:
-            logger.error(f"計算仰角穩定性失敗: {e}")
-            return 0.0
-
-    def _calculate_geometric_diversity(
-        self, satellite1: SatelliteInfo, satellite2: SatelliteInfo
-    ) -> float:
-        """計算幾何多樣性"""
-        try:
-            # 基於方位角和仰角差異計算多樣性
-            azimuth_diff = abs(satellite1.azimuth_angle - satellite2.azimuth_angle)
-            elevation_diff = abs(
-                satellite1.elevation_angle - satellite2.elevation_angle
-            )
-
-            # 歸一化到 0-1 範圍
-            azimuth_diversity = min(azimuth_diff / 180, 1.0)
-            elevation_diversity = min(elevation_diff / 90, 1.0)
-
-            # 綜合多樣性評分
-            diversity = (azimuth_diversity + elevation_diversity) / 2
-            return diversity
-        except Exception as e:
-            logger.error(f"計算幾何多樣性失敗: {e}")
-            return 0.0

@@ -177,14 +177,17 @@ def validate_satellite_position(position_data):
 
 ### 數據更新流程
 ```bash
-# 1. 手動收集新 TLE 數據 (每月)
-cd /home/sat/ntn-stack/netstack/scripts
-python daily_tle_collector.py
+# 1. 每日自動 TLE 數據下載 (推薦)
+cd /home/sat/ntn-stack/scripts
+./daily_tle_download_enhanced.sh
+
+# 1.1. 強制更新模式 (如需要)
+./daily_tle_download_enhanced.sh --force
 
 # 2. 重新建置 Docker 映像檔
 docker build -t netstack:latest .
 
-# 3. 重啟容器應用新數據
+# 3. 重啟容器應用新數據 
 make netstack-restart
 ```
 
@@ -203,14 +206,107 @@ docker exec netstack-api cat /app/data/.data_ready
 ## ⚠️ 注意事項
 
 ### 重要限制
-1. **數據更新頻率**: 建議每月手動更新 TLE 數據
+1. **數據更新頻率**: 每日自動更新 TLE 數據 (使用 `daily_tle_download_enhanced.sh`)
 2. **Volume 持久性**: 確保 Docker Volume 正確掛載
 3. **Fallback 依賴**: 內建數據僅作緊急備用
+4. **軌道計算精度**: 目前使用簡化圓軌道模型，建議升級至 SGP4 以提高精度
 
 ### 故障排除
 - **數據過期**: 容器會自動重新生成
 - **Volume 問題**: 檢查 Docker 掛載配置
 - **載入失敗**: 查看 `LocalTLELoader` 日誌
+
+## 🛰️ 軌道計算精度分析
+
+### 當前實施狀況
+
+**目前使用**: 簡化圓軌道模型
+- **優點**: 計算速度快、資源消耗低
+- **缺點**: 精度有限，可能影響換手決策準確性
+- **實施位置**: `/simworld/backend/app/services/local_volume_data_service.py`
+
+### SGP4 精確軌道計算建議
+
+**SGP4 模型優勢**:
+1. **高精度**: 考慮地球扁率、大氣阻力、重力攝動等因素
+2. **標準化**: 國際通用的衛星軌道計算標準
+3. **LEO 優化**: 特別適合 LEO 衛星的軌道預測
+4. **研究價值**: 提高換手研究的學術價值和實用性
+
+**對換手研究的影響**:
+- **位置精度**: 提升至米級精度 (vs. 簡化模型的公里級)
+- **時序準確性**: 精確的衛星可見時間預測
+- **換手決策**: 更準確的信號強度和距離計算
+- **覆蓋分析**: 真實的星座覆蓋模式
+
+### 實施建議
+
+**階段式升級方案**:
+
+1. **Phase 1 - 混合模式** (短期):
+   - 關鍵換手計算使用 SGP4
+   - 一般顯示保持簡化模型
+   - 性能與精度平衡
+
+2. **Phase 2 - 完整 SGP4** (中期):
+   - 全面使用 SGP4 計算
+   - 預計算並快取軌道數據
+   - 提升整體系統精度
+
+3. **Phase 3 - 高級功能** (長期):
+   - 軌道攝動補償
+   - 多體重力場效應
+   - 大氣密度變化修正
+
+**實施成本評估**:
+- **開發時間**: 2-3 週 (Phase 1), 4-6 週 (Phase 2)
+- **計算資源**: 增加 20-30% CPU 使用率
+- **記憶體需求**: 增加 15-25% 記憶體使用
+- **論文價值**: 顯著提升研究成果的學術價值
+
+## 📅 TLE 數據更新機制
+
+### 自動化數據更新系統
+
+**當前實施**: `daily_tle_download_enhanced.sh`
+- **頻率**: 每日自動檢查並更新
+- **智能更新**: 比較檔案修改時間和大小
+- **備份機制**: 7天滾動備份，防止數據遺失
+- **驗證功能**: 自動驗證下載數據的完整性
+
+**更新流程**:
+```bash
+# 日常更新 (自動檢查)
+./daily_tle_download_enhanced.sh
+
+# 強制更新 (忽略快取)
+./daily_tle_download_enhanced.sh --force
+
+# 跳過更新檢查 (離線模式)
+./daily_tle_download_enhanced.sh --no-update-check
+```
+
+**數據新鮮度保證**:
+- **Epoch 檢查**: 驗證 TLE 數據時間戳
+- **衛星數量驗證**: 確保星座完整性
+- **格式驗證**: JSON 和 TLE 格式完整性檢查
+- **異常處理**: 下載失敗時保持現有數據
+
+### 定期維護建議
+
+**每日監控**:
+- 檢查 TLE 下載日誌: `/home/sat/ntn-stack/logs/tle_download.log`
+- 驗證數據新鮮度: `docker exec netstack-api cat /app/data/.data_ready`
+
+**每週維護**:
+- 清理過期備份 (自動執行，保留7天)
+- 檢查磁碟空間使用情況
+- 驗證系統健康狀態
+
+**每月審查**:
+- 評估數據品質和覆蓋範圍
+- 更新星座配置 (如有新衛星)
+- 性能調優和系統優化
 
 ## 📚 相關文檔
 
@@ -222,7 +318,9 @@ docker exec netstack-api cat /app/data/.data_ready
 - `/netstack/src/services/satellite/local_tle_loader.py` - 本地數據載入器
 - `/netstack/docker/smart-entrypoint.sh` - 容器啟動腳本
 - `/netstack/simple_data_generator.py` - 數據生成器
+- `/scripts/daily_tle_download_enhanced.sh` - 增強版 TLE 自動下載腳本
+- `/simworld/backend/app/services/local_volume_data_service.py` - 本地數據服務 (包含軌道計算)
 
 ---
 
-**本文檔記錄 NTN Stack 衛星數據架構的重大轉換，確保系統穩定可靠運行。**
+**本文檔記錄 NTN Stack 衛星數據架構的重大轉換，確保系統穩定可靠運行。建議優先考慮 SGP4 升級以提升換手研究的學術價值和實用性。**

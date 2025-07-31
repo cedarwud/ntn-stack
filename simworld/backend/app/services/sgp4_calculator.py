@@ -39,6 +39,22 @@ class TLEData:
             return int(self.line1[2:7])
         except (ValueError, IndexError):
             return 40000  # 默認值
+    
+    @property
+    def mean_motion(self) -> float:
+        """從 TLE 第二行提取平均角速度 (每日轉數)"""
+        try:
+            return float(self.line2[52:63])
+        except (ValueError, IndexError):
+            return 15.5  # LEO 衛星典型值 (約90分鐘軌道週期)
+    
+    @property
+    def inclination(self) -> float:
+        """從 TLE 第二行提取軌道傾角 (度)"""
+        try:
+            return float(self.line2[8:16])
+        except (ValueError, IndexError):
+            return 53.0  # Starlink 典型傾角
 
 
 logger = logging.getLogger(__name__)
