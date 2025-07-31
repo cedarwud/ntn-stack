@@ -21,6 +21,11 @@ class LocalVolumeDataService:
         self.netstack_data_path = Path("/app/data")  # 主要預計算數據
         self.netstack_tle_data_path = Path("/app/netstack/tle_data")  # TLE 原始數據
         
+        # 統一時間序列配置
+        self.time_span_minutes = 120
+        self.time_interval_seconds = 10
+        self.total_time_points = 720
+        
         # 檢查路徑是否存在
         self._check_volume_paths()
     
@@ -295,6 +300,207 @@ class LocalVolumeDataService:
         except Exception as e:
             logger.error(f"檢查數據可用性失敗: {e}")
             return False
+
+    async def generate_120min_timeseries(
+        self,
+        constellation: str = "starlink",
+        reference_location: Optional[Dict[str, float]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        生成 120 分鐘統一時間序列數據
+        直接從 Docker Volume 處理，無需 NetStack API
+        """
+        try:
+            if reference_location is None:
+                reference_location = {
+                    "latitude": 24.9441,   # 台北科技大學
+                    "longitude": 121.3714,
+                    "altitude": 0.0
+                }
+            
+            # 載入本地 TLE 數據
+            tle_data = await self.get_local_tle_data(constellation)
+            if not tle_data:
+                logger.error(f"❌ 無可用的 {constellation} TLE 數據")
+                return None
+            
+            logger.info(f"🛰️ 開始生成 {constellation} 120分鐘時間序列數據")
+            logger.info(f"📍 參考位置: {reference_location['latitude']:.4f}°N, {reference_location['longitude']:.4f}°E")
+            
+            # 當前時間作為起始點
+            from datetime import datetime, timezone, timedelta
+            start_time = datetime.now(timezone.utc)
+            
+            satellites_timeseries = []
+            
+            # 只處理前10顆衛星以提高性能 (可根據需要調整)
+            selected_satellites = tle_data[:10]
+            logger.info(f"📊 處理 {len(selected_satellites)} 顆衛星的軌道數據")
+            
+            for i, sat_data in enumerate(selected_satellites):
+                logger.info(f"🔄 處理衛星 {i+1}/{len(selected_satellites)}: {sat_data.get('name', 'Unknown')}")
+                
+                satellite_timeseries = await self._calculate_satellite_120min_timeseries(
+                    sat_data, start_time, reference_location
+                )
+                
+                if satellite_timeseries:
+                    satellites_timeseries.append({
+                        "norad_id": sat_data.get("norad_id", 0),
+                        "name": sat_data.get("name", "Unknown"),
+                        "constellation": constellation,
+                        "time_series": satellite_timeseries
+                    })
+            
+            # 生成 UE 軌跡 (靜態 UE)
+            ue_trajectory = []
+            for i in range(self.total_time_points):
+                current_time = start_time + timedelta(seconds=i * self.time_interval_seconds)
+                ue_trajectory.append({
+                    "time_offset_seconds": i * self.time_interval_seconds,
+                    "position": reference_location.copy(),
+                    "serving_satellite": satellites_timeseries[0]["name"] if satellites_timeseries else "None",
+                    "handover_state": "stable"
+                })
+            
+            # 構建統一時間序列數據
+            unified_data = {
+                "metadata": {
+                    "computation_time": start_time.isoformat(),
+                    "constellation": constellation,
+                    "time_span_minutes": self.time_span_minutes,
+                    "time_interval_seconds": self.time_interval_seconds,
+                    "total_time_points": self.total_time_points,
+                    "data_source": "local_docker_volume_direct",
+                    "network_dependency": False,
+                    "reference_location": reference_location,
+                    "satellites_processed": len(satellites_timeseries)
+                },
+                "satellites": satellites_timeseries,
+                "ue_trajectory": ue_trajectory,
+                "handover_events": []  # 暫時為空，後續可擴展
+            }
+            
+            logger.info(f"✅ 成功生成 120分鐘時間序列數據: {len(satellites_timeseries)} 顆衛星, {self.total_time_points} 時間點")
+            return unified_data
+            
+        except Exception as e:
+            logger.error(f"❌ 生成 120分鐘時間序列數據失敗: {e}")
+            return None
+    
+    async def _calculate_satellite_120min_timeseries(
+        self,
+        sat_data: Dict[str, Any],
+        start_time: datetime,
+        reference_location: Dict[str, float]
+    ) -> List[Dict[str, Any]]:
+        """計算單顆衛星的 120 分鐘時間序列"""
+        try:
+            from datetime import timedelta
+            import math
+            
+            time_series = []
+            current_time = start_time
+            
+            # 提取 TLE 數據
+            line1 = sat_data.get("line1", "")
+            line2 = sat_data.get("line2", "")
+            
+            # 簡化的軌道計算 (基於圓軌道近似)
+            # 在實際實施中，應使用 SGP4 進行精確計算
+            try:
+                # 從 TLE line2 提取平均運動 (每日繞行次數)
+                mean_motion = float(line2[52:63]) if len(line2) > 63 else 15.5
+                orbital_period_minutes = 1440 / mean_motion  # 軌道週期(分鐘)
+                
+                # 軌道傾角
+                inclination = float(line2[8:16]) if len(line2) > 16 else 53.0
+                
+                # 軌道高度估算 (基於平均運動)
+                altitude_km = 550.0  # Starlink 典型高度
+                
+            except (ValueError, IndexError):
+                # Fallback 值
+                mean_motion = 15.5
+                orbital_period_minutes = 96.0
+                inclination = 53.0
+                altitude_km = 550.0
+            
+            for i in range(self.total_time_points):
+                # 時間進度
+                time_offset = i * self.time_interval_seconds
+                progress = (time_offset / 60) / orbital_period_minutes  # 軌道進度比例
+                
+                # 簡化的位置計算 (圓軌道近似)
+                orbital_angle = (progress * 360) % 360  # 軌道角度
+                
+                # 緯度變化 (基於軌道傾角)
+                latitude = inclination * math.sin(math.radians(orbital_angle))
+                longitude = (orbital_angle - 180) % 360 - 180  # -180 到 180
+                
+                # 計算與參考位置的距離和角度
+                lat_diff = latitude - reference_location["latitude"]
+                lon_diff = longitude - reference_location["longitude"]
+                
+                # 地面距離估算 (球面距離公式簡化版)
+                ground_distance_km = math.sqrt(lat_diff**2 + lon_diff**2) * 111.32  # 1度≈111.32km
+                
+                # 3D 距離 (包含高度)
+                satellite_distance_km = math.sqrt(ground_distance_km**2 + altitude_km**2)
+                
+                # 仰角計算
+                elevation_deg = max(0, 90 - math.degrees(math.atan2(ground_distance_km, altitude_km)))
+                
+                # 方位角簡化計算
+                azimuth_deg = (math.degrees(math.atan2(lon_diff, lat_diff)) + 360) % 360
+                
+                # 可見性判斷 (仰角 > 10度)
+                is_visible = elevation_deg > 10.0
+                
+                # RSRP 估算 (基於距離的簡化模型)
+                rsrp_dbm = -70 - 20 * math.log10(satellite_distance_km / 500) if satellite_distance_km > 0 else -70
+                rsrp_dbm = max(-120, min(-50, rsrp_dbm))  # 限制在合理範圍
+                
+                time_point = {
+                    "time_offset_seconds": time_offset,
+                    "timestamp": (current_time + timedelta(seconds=time_offset)).isoformat(),
+                    "position": {
+                        "latitude": latitude,
+                        "longitude": longitude,
+                        "altitude": altitude_km * 1000,  # 轉換為米
+                        "velocity": {"x": 7.8, "y": 0.0, "z": 0.0}  # 簡化速度
+                    },
+                    "observation": {
+                        "elevation_deg": elevation_deg,
+                        "azimuth_deg": azimuth_deg,
+                        "range_km": satellite_distance_km,
+                        "is_visible": is_visible,
+                        "rsrp_dbm": rsrp_dbm,
+                        "rsrq_db": -12.0,  # 固定值
+                        "sinr_db": 18.0    # 固定值
+                    },
+                    "handover_metrics": {
+                        "signal_strength": max(0, (rsrp_dbm + 120) / 70),  # 歸一化
+                        "handover_score": 0.8 if is_visible else 0.1,
+                        "is_handover_candidate": is_visible and elevation_deg > 15,
+                        "predicted_service_time_seconds": 300 if is_visible else 0
+                    },
+                    "measurement_events": {
+                        "d1_distance_m": ground_distance_km * 1000,
+                        "d2_satellite_distance_m": satellite_distance_km * 1000,
+                        "d2_ground_distance_m": ground_distance_km * 1000,
+                        "a4_trigger_condition": rsrp_dbm > -90,
+                        "t1_time_condition": True
+                    }
+                }
+                
+                time_series.append(time_point)
+            
+            return time_series
+            
+        except Exception as e:
+            logger.error(f"❌ 計算衛星時間序列失敗: {e}")
+            return []
 
 
 # 全局實例

@@ -290,10 +290,10 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
                             return [
                                 `時間: ${context[0].label}s`,
                                 `衛星: ${
-                                    dataPoint?.satelliteInfo.name || 'Unknown'
+                                    dataPoint?.satelliteInfo?.name || dataPoint?.referenceSatellite || 'Unknown'
                                 }`,
                                 `NORAD ID: ${
-                                    dataPoint?.satelliteInfo.noradId || 'N/A'
+                                    dataPoint?.satelliteInfo?.noradId || 'N/A'
                                 }`,
                             ]
                         },
@@ -319,7 +319,7 @@ export const RealD2Chart: React.FC<RealD2ChartProps> = ({
                         footer: (context) => {
                             const dataIndex = context[0].dataIndex
                             const dataPoint = data[dataIndex]
-                            if (dataPoint) {
+                            if (dataPoint?.satelliteInfo?.latitude != null) {
                                 return [
                                     '--- 衛星位置 ---',
                                     `緯度: ${dataPoint.satelliteInfo.latitude.toFixed(

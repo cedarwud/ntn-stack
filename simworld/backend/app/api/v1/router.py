@@ -56,6 +56,9 @@ from app.api.routes.measurement_events import router as measurement_events_route
 # Import historical orbits routes for real data fallback
 from app.api.routes.historical_orbits import router as historical_orbits_router
 
+# Import unified timeseries routes for 120-minute local data architecture
+from app.api.routes.unified_timeseries import router as unified_timeseries_router
+
 # Create main API router
 api_router = APIRouter()
 
@@ -125,6 +128,9 @@ api_router.include_router(measurement_events_router, tags=["Measurement Events"]
 
 # Register historical orbits routes for real data fallback
 api_router.include_router(historical_orbits_router, tags=["Historical Orbits"])
+
+# Register unified timeseries routes for 120-minute local data architecture
+api_router.include_router(unified_timeseries_router, prefix="/satellites", tags=["Unified Timeseries"])
 
 # Export the router
 __all__ = ["api_router"]
