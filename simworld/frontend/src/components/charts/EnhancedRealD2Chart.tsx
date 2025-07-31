@@ -118,6 +118,8 @@ export const EnhancedRealD2Chart: React.FC<EnhancedRealD2ChartProps> = ({
         likelihood: 'high' | 'medium' | 'low'
         maxIntensity: number
     }>>([])
+    const [showOriginalDataState, setShowOriginalDataState] = useState(false) // 只隱藏原始衛星距離
+    const [showProcessedDataState, setShowProcessedDataState] = useState(true) // 顯示智能衛星距離
 
     // 合併處理配置
     const fullProcessingConfig = useMemo(() => ({
@@ -132,9 +134,9 @@ export const EnhancedRealD2Chart: React.FC<EnhancedRealD2ChartProps> = ({
         text: isDarkTheme ? '#ffffff' : '#333333',
         grid: isDarkTheme ? '#374151' : '#e5e7eb',
         
-        // 原始數據 - 半透明，顯示噪聲
-        originalSatLine: '#dc354540',
-        originalGroundLine: '#ffc10740',
+        // 原始數據 - 較亮較粗的線條
+        originalSatLine: '#dc3545',
+        originalGroundLine: '#cc9900',
         
         // 處理後數據 - 清晰，主要展示
         processedSatLine: '#00D2FF',
@@ -274,7 +276,7 @@ export const EnhancedRealD2Chart: React.FC<EnhancedRealD2ChartProps> = ({
         }
 
         processData()
-    }, [rawData, fullProcessingConfig, thresh1, thresh2, hysteresis, onProcessingComplete, onTriggerDetected])
+    }, [rawData, fullProcessingConfig, thresh1, thresh2, hysteresis, onProcessingComplete, onTriggerDetected, detectTriggerEvents])
 
     // 構建圖表數據
     const chartData: ChartData<'line'> = useMemo(() => {
@@ -285,37 +287,39 @@ export const EnhancedRealD2Chart: React.FC<EnhancedRealD2ChartProps> = ({
         const labels = processingResult.processedData.map((_, index) => index * 10)
         const datasets = []
 
-        // 原始數據（可選顯示）
-        if (showOriginalData) {
+        // 地面距離線（始終顯示）
+        datasets.push({
+            label: '地面距離',
+            data: processingResult.originalData.map(d => d.groundDistance / 1000),
+            borderColor: theme.originalGroundLine,
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+            yAxisID: 'y-ground',
+        })
+
+        // 原始衛星距離（可選顯示）
+        if (showOriginalDataState) {
             datasets.push({
-                label: '原始衛星距離 (含噪聲)',
+                label: '原始衛星距離',
                 data: processingResult.originalData.map(d => d.satelliteDistance / 1000),
                 borderColor: theme.originalSatLine,
                 backgroundColor: 'transparent',
-                borderWidth: 1,
+                borderWidth: 2,
+                borderDash: [8, 4],
                 pointRadius: 0,
                 fill: false,
                 tension: 0,
                 yAxisID: 'y-satellite',
             })
-
-            datasets.push({
-                label: '原始地面距離 (含噪聲)',
-                data: processingResult.originalData.map(d => d.groundDistance / 1000),
-                borderColor: theme.originalGroundLine,
-                backgroundColor: 'transparent',
-                borderWidth: 1,
-                pointRadius: 0,
-                fill: false,
-                tension: 0,
-                yAxisID: 'y-ground',
-            })
         }
 
         // 處理後數據（主要顯示）
-        if (showProcessedData) {
+        if (showProcessedDataState) {
             datasets.push({
-                label: '智能處理後 - 衛星距離',
+                label: '智能衛星距離',
                 data: processingResult.processedData.map(d => d.satelliteDistance / 1000),
                 borderColor: theme.processedSatLine,
                 backgroundColor: `${theme.processedSatLine}20`,
@@ -326,23 +330,10 @@ export const EnhancedRealD2Chart: React.FC<EnhancedRealD2ChartProps> = ({
                 tension: 0.3,
                 yAxisID: 'y-satellite',
             })
-
-            datasets.push({
-                label: '智能處理後 - 地面距離',
-                data: processingResult.processedData.map(d => d.groundDistance / 1000),
-                borderColor: theme.processedGroundLine,
-                backgroundColor: `${theme.processedGroundLine}20`,
-                borderWidth: 3,
-                pointRadius: 0,
-                pointHoverRadius: 6,
-                fill: false,
-                tension: 0.3,
-                yAxisID: 'y-ground',
-            })
         }
 
         return { labels, datasets }
-    }, [processingResult, showOriginalData, showProcessedData, theme])
+    }, [processingResult, showOriginalDataState, showProcessedDataState, theme])
 
     // 圖表配置
     const chartOptions: ChartOptions<'line'> = useMemo(() => ({
@@ -595,18 +586,18 @@ export const EnhancedRealD2Chart: React.FC<EnhancedRealD2ChartProps> = ({
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: theme.text, fontSize: '14px' }}>
                         <input
                             type="checkbox"
-                            checked={showOriginalData}
-                            onChange={(e) => setShowOriginalData(e.target.checked)}
+                            checked={showOriginalDataState}
+                            onChange={(e) => setShowOriginalDataState(e.target.checked)}
                         />
-                        顯示原始數據
+                        顯示原始衛星距離
                     </label>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: theme.text, fontSize: '14px' }}>
                         <input
                             type="checkbox"
-                            checked={showProcessedData}
-                            onChange={(e) => setShowProcessedData(e.target.checked)}
+                            checked={showProcessedDataState}
+                            onChange={(e) => setShowProcessedDataState(e.target.checked)}
                         />
-                        顯示處理後數據
+                        顯示智能衛星距離
                     </label>
                 </div>
 
