@@ -74,7 +74,7 @@ export const getApiConfig = (): ApiConfig => {
         timeout: 30000
       },
       simworld: {
-        baseUrl: '/', // 使用根路徑修復 URL 構造失敗問題
+        baseUrl: '/api', // 使用 Vite 代理路徑，與 vite.config.ts 中的 '/api' 代理匹配
         timeout: 30000
       },
       mode: 'docker' as const

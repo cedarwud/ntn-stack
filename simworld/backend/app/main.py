@@ -83,6 +83,14 @@ async def ping():
 app.include_router(api_router, prefix="/api/v1")
 logger.info("Included API router v1 at /api/v1.")
 
+# Include unified timeseries router
+try:
+    from app.api.unified_timeseries import router as unified_timeseries_router
+    app.include_router(unified_timeseries_router, prefix="")
+    logger.info("Unified timeseries router registered")
+except ImportError as e:
+    logger.warning(f"Unified timeseries router not available: {e}")
+
 # Include performance router
 try:
     from app.routers.performance_router import performance_router
