@@ -195,18 +195,16 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
 
         try {
             const response = await netstackFetch(
-                '/api/measurement-events/D2/data',
+                '/api/measurement-events/D2/real',
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        scenario_name: 'Enhanced_D2_Real_Data',
                         ue_position: uePosition,
-                        d2_params: {
-                            thresh1,
-                            thresh2,
-                            hysteresis,
-                            time_to_trigger: 160,
-                        },
+                        duration_minutes: 2,
+                        sample_interval_seconds: 10,
+                        constellation: 'starlink',
                     }),
                 }
             )
@@ -215,21 +213,48 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
                 throw new Error(`API Error: ${response.status}`)
             }
 
-            const data: RealTimeD2Data = await response.json()
-            setRealTimeData(data)
-            setConnectionStatus('connected')
-            setError(null)
+            const apiResponse = await response.json()
 
-            // 添加到歷史數據
-            const currentTimeStamp = Date.now() / 1000
-            setDataHistory((prev) => {
-                const newHistory = [...prev, { time: currentTimeStamp, data }]
-                return newHistory.slice(-1800) // 保留最近1800個數據點 (30分鐘)
-            })
+            // 轉換 API 響應格式為前端期望的格式
+            if (apiResponse.results && apiResponse.results.length > 0) {
+                // 使用第一個結果作為當前數據點
+                const firstResult = apiResponse.results[0]
+                const data: RealTimeD2Data = {
+                    timestamp: firstResult.timestamp,
+                    satellite_distance:
+                        firstResult.measurement_values.satellite_distance /
+                        1000, // 轉換為 km
+                    ground_distance:
+                        firstResult.measurement_values.ground_distance / 1000, // 轉換為 km
+                    elevation_angle:
+                        firstResult.measurement_values.elevation_angle,
+                    azimuth_angle: firstResult.measurement_values.azimuth_angle,
+                    signal_strength:
+                        firstResult.measurement_values.signal_strength,
+                    trigger_condition_met: firstResult.trigger_condition_met,
+                    satellite_info: firstResult.satellite_info,
+                }
 
-            // 觸發事件回調
-            if (data.trigger_condition_met && onTriggerEvent) {
-                onTriggerEvent(data)
+                setRealTimeData(data)
+                setConnectionStatus('connected')
+                setError(null)
+
+                // 添加到歷史數據
+                const currentTimeStamp = Date.now() / 1000
+                setDataHistory((prev) => {
+                    const newHistory = [
+                        ...prev,
+                        { time: currentTimeStamp, data },
+                    ]
+                    return newHistory.slice(-1800) // 保留最近1800個數據點 (30分鐘)
+                })
+
+                // 觸發事件回調
+                if (data.trigger_condition_met && onTriggerEvent) {
+                    onTriggerEvent(data)
+                }
+            } else {
+                throw new Error('API 響應中沒有數據')
             }
         } catch (err) {
             console.error('❌ [EnhancedD2Chart] 真實數據獲取失敗:', err)
@@ -528,14 +553,14 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
         const satelliteDistancePoints = dataSource.map((entry, index) => ({
             x: index,
             y: usePreloadedData
-                ? entry.satellite_distance  // 預載數據已經是km
+                ? entry.satellite_distance // 預載數據已經是km
                 : entry.satellite_distance / 1000, // 真實數據是米，轉換為km
         }))
 
         const groundDistancePoints = dataSource.map((entry, index) => ({
             x: index,
             y: usePreloadedData
-                ? entry.ground_distance  // 預載數據已經是km
+                ? entry.ground_distance // 預載數據已經是km
                 : entry.ground_distance / 1000, // 真實數據是米，轉換為km
         }))
 
@@ -669,13 +694,17 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
                                                 thresh1Line: {
                                                     type: 'line',
                                                     scaleID: 'y-left',
-                                                    value: useRealData ? 1300 : 550, // 真實數據使用1300km門檻
+                                                    value: useRealData
+                                                        ? 1300
+                                                        : 550, // 真實數據使用1300km門檻
                                                     borderColor:
                                                         currentTheme.thresh1Line,
                                                     borderWidth: 3, // 簡易版線條更粗
                                                     borderDash: [5, 5], // 簡化虛線樣式
                                                     label: {
-                                                        content: useRealData ? '衛星門檻: 1300km' : '衛星門檻',
+                                                        content: useRealData
+                                                            ? '衛星門檻: 1300km'
+                                                            : '衛星門檻',
                                                         enabled: true,
                                                         position: 'start',
                                                         backgroundColor:
@@ -693,13 +722,15 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
                                                 thresh1Line: {
                                                     type: 'line',
                                                     scaleID: 'y-left',
-                                                    value: useRealData ? 1300 : 550, // 真實數據使用1300km門檻
+                                                    value: useRealData
+                                                        ? 1300
+                                                        : 550, // 真實數據使用1300km門檻
                                                     borderColor:
                                                         currentTheme.thresh1Line,
                                                     borderWidth: 2,
                                                     borderDash: [8, 4],
                                                     label: {
-                                                        content: useRealData 
+                                                        content: useRealData
                                                             ? '衛星門檻: 1300km'
                                                             : '衛星門檻: 550km',
                                                         enabled: true,
@@ -716,7 +747,9 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
                                                 thresh2Line: {
                                                     type: 'line',
                                                     scaleID: 'y-right',
-                                                    value: useRealData ? 1300 : 6, // 真實數據地面距離門檻也約1300km
+                                                    value: useRealData
+                                                        ? 1300
+                                                        : 6, // 真實數據地面距離門檻也約1300km
                                                     borderColor:
                                                         currentTheme.thresh2Line,
                                                     borderWidth: 2,
