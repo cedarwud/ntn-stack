@@ -99,8 +99,8 @@ async def get_real_d2_data(request: D2RealDataRequest):
             )
         else:
             reference_position = Position(
-                latitude=24.1477,  # 台中
-                longitude=120.6736,
+                latitude=25.0330,  # 台北（與台中有足夠距離差異）
+                longitude=121.5654,
                 altitude=0.0
             )
         
@@ -148,7 +148,10 @@ async def get_real_d2_data(request: D2RealDataRequest):
                             "norad_id": best_satellite.tle_data.catalog_number,
                             "constellation": best_satellite.constellation,
                             "orbital_period": 1440 / best_satellite.tle_data.mean_motion,
-                            "inclination": best_satellite.tle_data.inclination
+                            "inclination": best_satellite.tle_data.inclination,
+                            "latitude": best_satellite.current_position.latitude,
+                            "longitude": best_satellite.current_position.longitude,
+                            "altitude": best_satellite.current_position.altitude
                         }
                     )
                     
@@ -176,7 +179,9 @@ async def get_real_d2_data(request: D2RealDataRequest):
                     results.append(result)
                 
             except Exception as e:
-                logger.warning(f"計算時間點 {current_time} 的數據失敗: {e}")
+                logger.error(f"計算時間點 {current_time} 的數據失敗: {e}")
+                import traceback
+                logger.error(f"詳細錯誤: {traceback.format_exc()}")
             
             current_time += interval_delta
         
