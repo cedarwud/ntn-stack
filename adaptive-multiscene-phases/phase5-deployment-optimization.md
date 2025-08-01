@@ -74,7 +74,7 @@ class RLModelInterface:
         return RuleBasedHandoverEngine().process_event(state)
 ```
 
-### 5.3 雲端部署準備
+<!-- ### 5.3 雲端部署準備
 
 ```yaml
 # docker-compose.cloud.yml
@@ -100,7 +100,7 @@ services:
   # Redis -> AWS ElastiCache / Azure Cache
   # Storage -> S3 / Azure Blob Storage
   # Database -> RDS / Azure Database
-```
+``` -->
 
 ### 5.4 資料管道擴展
 
