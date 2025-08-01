@@ -312,6 +312,173 @@ class CoordinateSpecificOrbitEngine:
                     'norad_id': satellite_tle_data.get('norad_id', 0)
                 }
             }
+
+    def compute_120min_orbital_cycle(self, satellite_tle_data: Dict[str, Any], 
+                                   start_time: datetime) -> Dict[str, Any]:
+        """
+        計算120分鐘軌道週期，使用標準化時間網格確保多衛星時間對齊
+        
+        Args:
+            satellite_tle_data: 衛星 TLE 數據
+            start_time: 開始時間
+            
+        Returns:
+            Dict: 優化的軌道數據（使用標準時間網格）
+        """
+        try:
+            from sgp4.api import Satrec, jday
+            
+            # 創建 SGP4 衛星對象
+            satellite = Satrec.twoline2rv(satellite_tle_data['line1'], satellite_tle_data['line2'])
+            
+            # 120分鐘週期設定
+            duration_minutes = 120
+            total_seconds = duration_minutes * 60
+            
+            # 🎯 關鍵修復：標準化時間網格 - 所有衛星使用相同的時間點
+            # 將開始時間對齊到整分鐘，確保所有衛星使用相同的時間基準
+            aligned_start_time = start_time.replace(second=0, microsecond=0)
+            standard_time_points = []
+            
+            for t_offset in range(0, total_seconds, self.time_step_seconds):
+                standard_time_points.append({
+                    'offset_seconds': t_offset,
+                    'datetime': aligned_start_time + timedelta(seconds=t_offset),
+                    'timestamp': (aligned_start_time + timedelta(seconds=t_offset)).isoformat()
+                })
+            
+            # 先計算所有位置，篩選可見的
+            visible_positions = []
+            visibility_windows = []
+            current_window = None
+            total_positions = 0
+            calculation_errors = 0
+            max_elevation = -90.0
+            
+            for time_point in standard_time_points:
+                current_time = time_point['datetime']
+                t_offset = time_point['offset_seconds']
+                
+                # 轉換為 Julian Day
+                jd, fr = jday(current_time.year, current_time.month, current_time.day,
+                             current_time.hour, current_time.minute, current_time.second)
+                
+                # SGP4 計算位置和速度
+                error, position, velocity = satellite.sgp4(jd, fr)
+                
+                if error == 0:  # 無錯誤
+                    total_positions += 1
+                    
+                    # 轉換為觀測點座標
+                    observer_coords = self.eci_to_observer_coordinates(position, current_time)
+                    elevation = observer_coords['elevation_deg']
+                    
+                    # 只儲存可見位置（仰角 >= min_elevation）
+                    if elevation >= self.min_elevation:
+                        position_data = {
+                            'time': time_point['timestamp'],  # 使用標準化時間戳
+                            'time_offset_seconds': t_offset,
+                            'lat': observer_coords.get('satellite_lat', 0.0),
+                            'lon': observer_coords.get('satellite_lon', 0.0), 
+                            'alt_km': observer_coords['range_km'],  # 簡化：用距離代替高度
+                            'elevation_deg': round(elevation, 2),
+                            'azimuth_deg': round(observer_coords['azimuth_deg'], 2),
+                            'range_km': round(observer_coords['range_km'], 1)
+                        }
+                        
+                        visible_positions.append(position_data)
+                        max_elevation = max(max_elevation, elevation)
+                        
+                        # 追蹤可見性窗口
+                        if current_window is None:
+                            current_window = {
+                                'start_time': time_point['timestamp'],
+                                'start_elevation': round(elevation, 2),
+                                'max_elevation': round(elevation, 2),
+                                'end_time': time_point['timestamp'],
+                                'duration_seconds': 0
+                            }
+                        else:
+                            current_window['max_elevation'] = round(max(
+                                current_window['max_elevation'], elevation
+                            ), 2)
+                            current_window['end_time'] = time_point['timestamp']
+                            current_window['duration_seconds'] = t_offset
+                    else:
+                        # 不可見時結束當前窗口
+                        if current_window is not None:
+                            visibility_windows.append(current_window)
+                            current_window = None
+                else:
+                    calculation_errors += 1
+            
+            # 結束最後一個窗口
+            if current_window is not None:
+                visibility_windows.append(current_window)
+            
+            # 如果沒有可見位置，返回簡化的結果
+            if not visible_positions:
+                return {
+                    'satellite_info': {
+                        'name': satellite_tle_data['name'],
+                        'norad_id': satellite_tle_data['norad_id'],
+                        'status': 'not_visible'
+                    },
+                    'statistics': {
+                        'total_positions': total_positions,
+                        'visible_positions': 0,
+                        'visibility_percentage': 0.0,
+                        'calculation_errors': calculation_errors
+                    }
+                }
+            
+            # 返回優化的結果
+            orbit_data = {
+                'satellite_info': {
+                    'name': satellite_tle_data['name'],
+                    'norad_id': satellite_tle_data['norad_id'],
+                    'tle_date': satellite_tle_data.get('tle_date', 'unknown')
+                },
+                'computation_metadata': {
+                    'start_time': aligned_start_time.isoformat(),  # 使用對齊的開始時間
+                    'duration_minutes': duration_minutes,
+                    'time_step_seconds': self.time_step_seconds,
+                    'total_computed_positions': total_positions,
+                    'stored_visible_positions': len(visible_positions),
+                    'time_grid_aligned': True,  # 標記使用了標準時間網格
+                    'observer_location': {
+                        'lat': self.observer_lat,
+                        'lon': self.observer_lon,
+                        'alt': self.observer_alt
+                    }
+                },
+                'positions': visible_positions,  # 使用標準化時間戳
+                'visibility_windows': visibility_windows,
+                'statistics': {
+                    'total_positions': total_positions,
+                    'visible_positions': len(visible_positions),
+                    'visibility_percentage': round(
+                        (len(visible_positions) / total_positions * 100) if total_positions > 0 else 0, 2
+                    ),
+                    'max_elevation': round(max_elevation, 2),
+                    'calculation_errors': calculation_errors,
+                    'data_reduction_ratio': round(
+                        (1 - len(visible_positions) / total_positions) * 100 if total_positions > 0 else 0, 1
+                    )
+                }
+            }
+            
+            return orbit_data
+            
+        except Exception as e:
+            logger.error(f"軌道計算失敗 {satellite_tle_data.get('name', 'Unknown')}: {e}")
+            return {
+                'error': str(e),
+                'satellite_info': {
+                    'name': satellite_tle_data.get('name', 'Unknown'),
+                    'norad_id': satellite_tle_data.get('norad_id', 0)
+                }
+            }
     
     def filter_visible_satellites(self, all_satellites: List[Dict[str, Any]], 
                                  reference_time: datetime) -> List[Dict[str, Any]]:
