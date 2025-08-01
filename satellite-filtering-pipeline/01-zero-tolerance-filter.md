@@ -92,7 +92,7 @@ class RLOptimizedSatelliteFilter:
 ```python
 # 初始化篩選器
 filter_system = RLOptimizedSatelliteFilter(
-    target_lat=24.9441,  # 台北大學
+    target_lat=24.9441,  # 國立臺北大學
     target_lon=121.3714
 )
 
