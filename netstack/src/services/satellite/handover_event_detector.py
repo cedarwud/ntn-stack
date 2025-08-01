@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
+import time
 logger = logging.getLogger(__name__)
 
 class HandoverEventDetector:
@@ -40,8 +41,47 @@ class HandoverEventDetector:
         # D2 事件預警時間餘量
         self.d2_warning_margin = 2.0  # 度
         
+        # 🆕 多普勒補償系統
+        try:
+            from doppler_compensation_system import DopplerCompensationSystem
+            self.doppler_system = DopplerCompensationSystem()
+            self.doppler_enabled = True
+            logger.info("多普勒補償系統已啟用")
+        except ImportError as e:
+            logger.warning(f"多普勒補償系統載入失敗: {e}")
+            self.doppler_system = None
+            self.doppler_enabled = False
+        
+        # 🆕 動態鏈路預算計算器
+        try:
+            from dynamic_link_budget_calculator import DynamicLinkBudgetCalculator
+            self.link_budget_calculator = DynamicLinkBudgetCalculator()
+            self.link_budget_enabled = True
+            logger.info("動態鏈路預算計算器已啟用")
+        except ImportError as e:
+            logger.warning(f"動態鏈路預算計算器載入失敗: {e}")
+            self.link_budget_calculator = None
+            self.link_budget_enabled = False
+        
+        # 🆕 SMTC 測量優化系統
+        try:
+            from smtc_measurement_optimizer import SMTCOptimizer
+            self.smtc_optimizer = SMTCOptimizer()
+            self.smtc_enabled = True
+            logger.info("SMTC 測量優化系統已啟用")
+        except ImportError as e:
+            logger.warning(f"SMTC 測量優化系統載入失敗: {e}")
+            self.smtc_optimizer = None
+            self.smtc_enabled = False
+        
+        # 預設 UE 位置 (NTPU)
+        self.default_ue_position = (24.9442, 121.3711, 0.05)  # (lat, lon, alt_km)
+        
         logger.info(f"HandoverEventDetector 初始化 - 場景: {scene_id}")
         logger.info(f"  門檻設定: 預備={self.pre_handover_threshold}°, 執行={self.execution_threshold}°, 臨界={self.critical_threshold}°")
+        logger.info(f"  多普勒補償: {'啟用' if self.doppler_enabled else '停用'}")
+        logger.info(f"  鏈路預算計算: {'啟用' if self.link_budget_enabled else '停用'}")
+        logger.info(f"  SMTC 測量優化: {'啟用' if self.smtc_enabled else '停用'}")
     
     def load_scene_thresholds(self):
         """從 scenes.csv 載入場景門檻參數"""
@@ -393,7 +433,7 @@ class HandoverEventDetector:
     
     def _create_a4_event(self, timestamp: str, candidate_satellite: Dict, serving_satellite: Dict) -> Optional[Dict]:
         """
-        創建 A4 事件：鄰近衛星測量值超過門檻
+        創建 A4 事件：鄰近衛星測量值超過門檻 (多普勒增強)
         
         Args:
             timestamp: 事件時間戳
@@ -403,13 +443,30 @@ class HandoverEventDetector:
         Returns:
             Optional[Dict]: A4 事件資料
         """
-        # 模擬 RSRP 計算 (基於仰角)
-        rsrp = self._estimate_rsrp(candidate_satellite['elevation_deg'])
+        # 🆕 多普勒增強 RSRP 計算
+        timestamp_float = time.time()  # 轉換為浮點數時間戳
         
-        # 降低 RSRP 門檻，讓事件更容易觸發 (從 -110 降到 -120)
-        adjusted_rsrp_threshold = -120  # dBm，更寬鬆的門檻
-        if rsrp <= adjusted_rsrp_threshold:
+        candidate_rsrp = self._estimate_rsrp(
+            candidate_satellite['elevation_deg'], 
+            candidate_satellite, 
+            timestamp_float,
+            use_doppler_compensation=True
+        )
+        
+        serving_rsrp = self._estimate_rsrp(
+            serving_satellite['elevation_deg'],
+            serving_satellite,
+            timestamp_float,
+            use_doppler_compensation=True
+        )
+        
+        # 調整後的 RSRP 門檻（更寬鬆以考慮多普勒補償效果）
+        adjusted_rsrp_threshold = -120  # dBm
+        if candidate_rsrp <= adjusted_rsrp_threshold:
             return None
+        
+        # 計算品質優勢
+        quality_advantage = candidate_rsrp - serving_rsrp
         
         return {
             "timestamp": timestamp,
@@ -420,19 +477,21 @@ class HandoverEventDetector:
                 "elevation": round(candidate_satellite['elevation_deg'], 2),
                 "azimuth": round(candidate_satellite['azimuth_deg'], 1),
                 "range_km": round(candidate_satellite['range_km'], 1),
-                "estimated_rsrp_dbm": round(rsrp, 1)
+                "estimated_rsrp_dbm": round(candidate_rsrp, 1),
+                "doppler_enhanced": self.doppler_enabled
             },
             "serving_satellite": {
                 "id": serving_satellite['satellite_id'],
-                "elevation": round(serving_satellite['elevation_deg'], 2)
+                "elevation": round(serving_satellite['elevation_deg'], 2),
+                "estimated_rsrp_dbm": round(serving_rsrp, 1)
             },
-            "quality_advantage_db": round(rsrp - self._estimate_rsrp(serving_satellite['elevation_deg']), 1),
-            "handover_opportunity": True
+            "quality_advantage_db": round(quality_advantage, 1),
+            "handover_opportunity": quality_advantage > 3.0  # 需要明顯優勢才推薦切換
         }
     
     def _create_a5_event(self, timestamp: str, serving_satellite: Dict, candidate_satellite: Dict) -> Optional[Dict]:
         """
-        創建 A5 事件：服務變差且鄰近變好
+        創建 A5 事件：服務變差且鄰近變好 (多普勒增強)
         
         Args:
             timestamp: 事件時間戳
@@ -442,15 +501,33 @@ class HandoverEventDetector:
         Returns:
             Optional[Dict]: A5 事件資料
         """
-        serving_rsrp = self._estimate_rsrp(serving_satellite['elevation_deg'])
-        candidate_rsrp = self._estimate_rsrp(candidate_satellite['elevation_deg'])
+        # 🆕 多普勒增強 RSRP 計算
+        timestamp_float = time.time()
+        
+        serving_rsrp = self._estimate_rsrp(
+            serving_satellite['elevation_deg'],
+            serving_satellite,
+            timestamp_float,
+            use_doppler_compensation=True
+        )
+        
+        candidate_rsrp = self._estimate_rsrp(
+            candidate_satellite['elevation_deg'],
+            candidate_satellite,
+            timestamp_float,
+            use_doppler_compensation=True
+        )
         
         # 計算換手增益
         handover_gain = candidate_rsrp - serving_rsrp
         
-        # 只有當增益足夠大時才建議換手
-        if handover_gain < 3.0:  # 至少 3dB 增益
+        # 多普勒補償後的A5條件更嚴格，確保真正的信號品質優勢
+        min_gain_threshold = 5.0 if self.doppler_enabled else 3.0  # 多普勒增強需更高門檻
+        if handover_gain < min_gain_threshold:
             return None
+        
+        # 計算緊急程度
+        urgency = self._calculate_a5_urgency(serving_satellite, handover_gain)
         
         return {
             "timestamp": timestamp,
@@ -459,18 +536,36 @@ class HandoverEventDetector:
                 "id": serving_satellite['satellite_id'],
                 "constellation": serving_satellite['constellation'],
                 "elevation": round(serving_satellite['elevation_deg'], 2),
-                "estimated_rsrp_dbm": round(serving_rsrp, 1)
+                "estimated_rsrp_dbm": round(serving_rsrp, 1),
+                "doppler_enhanced": self.doppler_enabled
             },
             "candidate_satellite": {
                 "id": candidate_satellite['satellite_id'],
                 "constellation": candidate_satellite['constellation'],
                 "elevation": round(candidate_satellite['elevation_deg'], 2),
-                "estimated_rsrp_dbm": round(candidate_rsrp, 1)
+                "estimated_rsrp_dbm": round(candidate_rsrp, 1),
+                "doppler_enhanced": self.doppler_enabled
             },
             "handover_gain_db": round(handover_gain, 1),
-            "urgency": "high" if serving_satellite['elevation_deg'] < 8.0 else "normal",
-            "recommended_action": "execute_handover"
+            "urgency": urgency,
+            "recommended_action": "execute_handover" if urgency == "critical" else "prepare_handover",
+            "doppler_compensation_active": self.doppler_enabled
         }
+    
+    def _calculate_a5_urgency(self, serving_satellite: Dict, handover_gain: float) -> str:
+        """
+        計算 A5 事件的緊急程度
+        """
+        elevation = serving_satellite['elevation_deg']
+        
+        if elevation < 5.0 and handover_gain > 10.0:
+            return "critical"
+        elif elevation < 8.0 and handover_gain > 7.0:
+            return "high"
+        elif handover_gain > 5.0:
+            return "normal"
+        else:
+            return "low"
     
     def _estimate_time_to_los(self, satellite: Dict) -> int:
         """
@@ -494,15 +589,42 @@ class HandoverEventDetector:
         # 估算：1° ≈ 60 秒 (簡化模型)
         return int(degrees_to_critical * 60)
     
-    def _estimate_rsrp(self, elevation_deg: float) -> float:
+    def _estimate_rsrp(self, elevation_deg: float, satellite_data: dict = None, 
+                       timestamp: float = None, use_enhanced_calculation: bool = True) -> float:
         """
-        根據仰角估算 RSRP (dBm)
+        根據仰角估算 RSRP (dBm)，支援多種計算方法
         
         Args:
             elevation_deg: 仰角 (度)
+            satellite_data: 衛星數據字典 (可選)
+            timestamp: 時間戳 (可選)
+            use_enhanced_calculation: 是否使用增強計算 (鏈路預算+多普勒)
             
         Returns:
             float: 估算的 RSRP 值 (dBm)
+        """
+        # 如果不使用增強計算或缺少衛星數據，使用基礎計算
+        if not use_enhanced_calculation or not satellite_data:
+            return self._calculate_base_rsrp(elevation_deg)
+        
+        # 使用綜合 RSRP 計算
+        try:
+            # 確保衛星數據包含必要信息
+            if 'elevation_deg' not in satellite_data:
+                satellite_data['elevation_deg'] = elevation_deg
+            
+            comprehensive_result = self._calculate_comprehensive_rsrp(
+                satellite_data, timestamp)
+            
+            return comprehensive_result['final_rsrp_dbm']
+            
+        except Exception as e:
+            logger.warning(f"增強 RSRP 計算失敗，使用基礎方法: {e}")
+            return self._calculate_base_rsrp(elevation_deg)
+    
+    def _calculate_base_rsrp(self, elevation_deg: float) -> float:
+        """
+        計算基礎 RSRP (無多普勒補償)
         """
         # 簡化的 RSRP 模型：仰角越高，信號越強
         # 基於自由空間路徑損耗模型
@@ -513,6 +635,285 @@ class HandoverEventDetector:
         environment_penalty = (self.environment_factor - 1.0) * 10
         
         return base_rsrp + elevation_bonus - environment_penalty
+    
+    def _calculate_doppler_enhanced_rsrp(self, base_rsrp: float, 
+                                       satellite_data: dict, timestamp: float) -> float:
+        """
+        計算多普勒增強的 RSRP
+        """
+        try:
+            # 準備衛星數據結構
+            from .doppler_compensation_system import SatelliteData
+            
+            sat_data = SatelliteData(
+                satellite_id=satellite_data.get('satellite_id', 'unknown'),
+                position=(
+                    satellite_data.get('lat', 25.0),
+                    satellite_data.get('lon', 122.0),
+                    satellite_data.get('altitude_km', 550)
+                ),
+                carrier_freq_hz=28e9,  # Ka 頻段
+                rsrp_dbm=base_rsrp,
+                elevation_deg=satellite_data.get('elevation_deg'),
+                range_km=satellite_data.get('range_km')
+            )
+            
+            # 執行多普勒校正 RSRP 計算
+            result = self.doppler_system.calculate_doppler_corrected_rsrp(
+                sat_data, self.default_ue_position, timestamp, base_rsrp)
+            
+            corrected_rsrp = result['corrected_rsrp_dbm']
+            
+            # 記錄多普勒補償效果
+            if result['doppler_info']:
+                doppler_info = result['doppler_info']
+                logger.debug(f"多普勒補償效果: {base_rsrp:.1f} → {corrected_rsrp:.1f} dBm "
+                           f"(補償: {doppler_info.total_offset_hz:.0f} Hz, "
+                           f"精度: {doppler_info.compensation_accuracy:.2f})")
+            
+            return corrected_rsrp
+            
+        except Exception as e:
+            logger.error(f"多普勒增強 RSRP 計算失敗: {e}")
+            return base_rsrp
+
+    def _calculate_comprehensive_rsrp(self, satellite_data: dict, 
+                                     timestamp: float = None,
+                                     weather_data=None,
+                                     environment_type: str = 'standard') -> Dict[str, Any]:
+        """
+        綜合 RSRP 計算：整合動態鏈路預算 + 多普勒補償
+        
+        Args:
+            satellite_data: 衛星數據
+            timestamp: 時間戳
+            weather_data: 天氣數據 (可選)
+            environment_type: 環境類型
+            
+        Returns:
+            Dict: 詳細的 RSRP 計算結果
+        """
+        timestamp = timestamp or time.time()
+        
+        try:
+            # 方法1: 動態鏈路預算計算 (如果可用)
+            if self.link_budget_enabled:
+                # 準備鏈路預算計算所需數據
+                link_budget_data = {
+                    'range_km': satellite_data.get('range_km', 800.0),
+                    'elevation_deg': satellite_data.get('elevation_deg', 45.0),
+                    'frequency_ghz': 28.0,  # Ka 頻段
+                    'satellite_id': satellite_data.get('satellite_id', 'unknown'),
+                    'azimuth_deg': satellite_data.get('azimuth_deg', 0.0)
+                }
+                
+                # 執行增強 RSRP 計算
+                rsrp_result = self.link_budget_calculator.calculate_enhanced_rsrp(
+                    link_budget_data, 
+                    self.default_ue_position, 
+                    timestamp,
+                    weather_data,
+                    environment_type
+                )
+                
+                base_rsrp = rsrp_result['rsrp_dbm']
+                calculation_method = 'link_budget_enhanced'
+                
+                logger.debug(f"鏈路預算 RSRP: {base_rsrp:.1f} dBm")
+                
+            else:
+                # 備用方法: 基礎 RSRP 計算
+                base_rsrp = self._calculate_base_rsrp(satellite_data.get('elevation_deg', 45.0))
+                rsrp_result = {
+                    'rsrp_dbm': base_rsrp,
+                    'base_rsrp_dbm': base_rsrp,
+                    'calculation_method': 'basic'
+                }
+                calculation_method = 'basic'
+            
+            # 方法2: 多普勒補償增強 (如果可用)
+            if self.doppler_enabled:
+                doppler_enhanced_rsrp = self._calculate_doppler_enhanced_rsrp(
+                    base_rsrp, satellite_data, timestamp)
+                
+                # 計算多普勒改善
+                doppler_improvement = doppler_enhanced_rsrp - base_rsrp
+                final_rsrp = doppler_enhanced_rsrp
+                calculation_method += '_doppler_enhanced'
+                
+                logger.debug(f"多普勒增強 RSRP: {base_rsrp:.1f} → {final_rsrp:.1f} dBm "
+                           f"(改善: {doppler_improvement:.1f} dB)")
+            else:
+                final_rsrp = base_rsrp
+                doppler_improvement = 0.0
+            
+            # 綜合結果
+            comprehensive_result = {
+                'final_rsrp_dbm': final_rsrp,
+                'base_rsrp_dbm': base_rsrp,
+                'doppler_improvement_db': doppler_improvement,
+                'calculation_method': calculation_method,
+                'timestamp': timestamp,
+                'satellite_id': satellite_data.get('satellite_id', 'unknown'),
+                'elevation_deg': satellite_data.get('elevation_deg', 45.0),
+                'link_budget_details': rsrp_result if self.link_budget_enabled else None,
+                'doppler_enabled': self.doppler_enabled,
+                'link_budget_enabled': self.link_budget_enabled
+            }
+            
+            logger.debug(f"綜合 RSRP: {final_rsrp:.1f} dBm (方法: {calculation_method})")
+            
+            return comprehensive_result
+            
+        except Exception as e:
+            logger.error(f"綜合 RSRP 計算失敗: {e}")
+            # 備用計算
+            fallback_rsrp = self._calculate_base_rsrp(satellite_data.get('elevation_deg', 45.0))
+            return {
+                'final_rsrp_dbm': fallback_rsrp,
+                'base_rsrp_dbm': fallback_rsrp,
+                'doppler_improvement_db': 0.0,
+                'calculation_method': 'fallback',
+                'timestamp': timestamp,
+                'satellite_id': satellite_data.get('satellite_id', 'unknown'),
+                'elevation_deg': satellite_data.get('elevation_deg', 45.0),
+                'link_budget_details': None,
+                'doppler_enabled': False,
+                'link_budget_enabled': False
+            }
+
+    def optimize_smtc_configuration(self, 
+                                  satellite_data: Dict[str, Dict],
+                                  measurement_requirements: Optional[Dict[str, Any]] = None,
+                                  power_budget: float = 5000.0) -> Dict[str, Any]:
+        """
+        優化 SMTC 測量配置
+        
+        Args:
+            satellite_data: 衛星數據字典 {sat_id: sat_info}
+            measurement_requirements: 測量需求配置
+            power_budget: 功耗預算 (mW)
+            
+        Returns:
+            Dict: SMTC 配置結果
+        """
+        try:
+            if not self.smtc_enabled:
+                logger.warning("SMTC 優化系統未啟用")
+                return self._get_default_smtc_result()
+            
+            # 預設測量需求
+            if measurement_requirements is None:
+                measurement_requirements = {
+                    'high_accuracy_mode': True,
+                    'power_efficiency_mode': False,
+                    'priority_satellites': list(satellite_data.keys())[:3]  # 前3顆衛星
+                }
+            
+            # 獲取當前時間戳
+            timestamp = time.time()
+            
+            # 執行 SMTC 配置優化
+            smtc_config = self.smtc_optimizer.optimize_smtc_configuration(
+                satellite_data,
+                self.default_ue_position,
+                measurement_requirements,
+                power_budget,
+                timestamp
+            )
+            
+            # 生成配置建議
+            configuration_advice = self._generate_smtc_advice(smtc_config)
+            
+            result = {
+                'smtc_config': {
+                    'config_id': smtc_config.config_id,
+                    'periodicity_ms': smtc_config.periodicity_ms,
+                    'offset_ms': smtc_config.offset_ms,
+                    'duration_ms': smtc_config.duration_ms,
+                    'total_power_consumption': smtc_config.total_power_consumption,
+                    'efficiency_score': smtc_config.efficiency_score
+                },
+                'measurement_windows': [
+                    {
+                        'window_id': window.window_id,
+                        'start_time': window.start_time,
+                        'duration_ms': window.duration_ms,
+                        'measurement_types': [mt.value for mt in window.measurement_types],
+                        'target_satellites': window.target_satellites,
+                        'priority': window.priority.value,
+                        'power_budget': window.power_budget,
+                        'expected_measurements': window.expected_measurements
+                    }
+                    for window in smtc_config.measurement_slots
+                ],
+                'adaptive_parameters': smtc_config.adaptive_parameters,
+                'configuration_advice': configuration_advice,
+                'optimization_timestamp': timestamp,
+                'optimization_method': 'intelligent_smtc_optimizer'
+            }
+            
+            logger.info(f"SMTC 配置優化完成: 週期={smtc_config.periodicity_ms}ms, "
+                       f"窗口數={len(smtc_config.measurement_slots)}, "
+                       f"效率={smtc_config.efficiency_score:.2f}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"SMTC 配置優化失敗: {e}")
+            return self._get_default_smtc_result()
+    
+    def _generate_smtc_advice(self, smtc_config) -> List[str]:
+        """生成 SMTC 配置建議"""
+        advice = []
+        
+        # 基於效率評分的建議
+        if smtc_config.efficiency_score > 0.8:
+            advice.append("配置效率優秀，建議保持當前設定")
+        elif smtc_config.efficiency_score > 0.6:
+            advice.append("配置效率良好，可考慮微調測量類型")
+        elif smtc_config.efficiency_score > 0.4:
+            advice.append("配置效率中等，建議降低測量複雜度或增加功耗預算")
+        else:
+            advice.append("配置效率偏低，建議重新評估測量需求")
+        
+        # 基於功耗的建議
+        if smtc_config.total_power_consumption > 3000:
+            advice.append("功耗偏高，建議啟用功耗效率模式")
+        elif smtc_config.total_power_consumption < 1000:
+            advice.append("功耗富餘，可考慮增加測量精度")
+        
+        # 基於測量窗口數量的建議
+        window_count = len(smtc_config.measurement_slots)
+        if window_count > 5:
+            advice.append("測量窗口較多，注意避免測量衝突")
+        elif window_count < 2:
+            advice.append("測量窗口較少，可能影響換手決策準確性")
+        
+        # 基於自適應參數的建議
+        if smtc_config.adaptive_parameters:
+            if 'recommended_updates' in smtc_config.adaptive_parameters:
+                advice.extend(smtc_config.adaptive_parameters['recommended_updates'])
+        
+        return advice
+    
+    def _get_default_smtc_result(self) -> Dict[str, Any]:
+        """獲取預設 SMTC 配置結果"""
+        return {
+            'smtc_config': {
+                'config_id': f'default_{int(time.time())}',
+                'periodicity_ms': 160,
+                'offset_ms': 0,
+                'duration_ms': 80,
+                'total_power_consumption': 500.0,
+                'efficiency_score': 0.5
+            },
+            'measurement_windows': [],
+            'adaptive_parameters': {},
+            'configuration_advice': ['使用預設配置，建議啟用 SMTC 優化系統'],
+            'optimization_timestamp': time.time(),
+            'optimization_method': 'default_fallback'
+        }
     
     def _calculate_handover_urgency(self, elevation_deg: float) -> str:
         """
