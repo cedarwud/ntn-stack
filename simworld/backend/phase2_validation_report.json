@@ -1,5 +1,5 @@
 {
-  "validation_timestamp": "2025-08-01T07:22:22.298515",
+  "validation_timestamp": "2025-08-01T08:19:51.699438",
   "target_coordinate": "24.9441°N, 121.3714°E",
   "validation_criteria": {
     "target_satellite_count": {
@@ -24,122 +24,122 @@
   },
   "test_results": {
     "satellite_count": {
-      "actual_count": 446,
+      "actual_count": 408,
       "target_range": "490-510",
       "ideal_count": 500,
       "within_range": false,
-      "deviation_from_ideal": 54,
+      "deviation_from_ideal": 92,
       "score": 30,
       "status": "fail"
     },
     "raan_coverage": {
-      "covered_bins": 23,
+      "covered_bins": 25,
       "total_bins": 36,
-      "coverage_percent": 63.888888888888886,
+      "coverage_percent": 69.44444444444444,
       "threshold": 85.0,
       "meets_threshold": false,
       "raan_distribution": {
         "sector_distribution": [
-          18,
-          56,
-          68,
-          80,
+          40,
+          41,
+          48,
+          60,
           60,
           20,
-          0,
+          1,
           15,
           8,
-          16,
-          50,
-          55
+          35,
+          40,
+          40
         ],
-        "chi_square_statistic": 214.64573991031392,
+        "chi_square_statistic": 118.47058823529412,
         "uniformity_score": 0,
-        "empty_sectors": 1
+        "empty_sectors": 0
       },
-      "score": 76.66666666666666,
+      "score": 83.33333333333333,
       "status": "fail"
     },
     "quality_scores": {
-      "total_satellites_scored": 446,
-      "average_score": 82.71306574758347,
+      "total_satellites_scored": 408,
+      "average_score": 82.12389243638344,
       "min_score": 75.27547566666667,
       "max_score": 88.35123035555556,
-      "std_deviation": 2.889525943618746,
+      "std_deviation": 3.329196340759392,
       "min_threshold": 60.0,
       "avg_threshold": 75.0,
       "meets_min_threshold": "True",
       "meets_avg_threshold": "True",
       "category_averages": {
-        "orbital_stability": 21.678511587144996,
-        "coverage_uniformity": 22.869955156950674,
-        "handover_frequency": 16.092850124564027,
-        "signal_quality": 22.071748878923767
+        "orbital_stability": 21.735628111764704,
+        "coverage_uniformity": 23.03921568627451,
+        "handover_frequency": 15.608852559912854,
+        "signal_quality": 21.74019607843137
       },
-      "score": 99.25567889710017,
+      "score": 98.54867092366013,
       "status": "pass"
     },
     "constellation_balance": {
       "constellation_counts": {
-        "starlink": 296,
-        "oneweb": 150
+        "starlink": 246,
+        "oneweb": 162
       },
       "balance_analysis": {
         "starlink": {
-          "count": 296,
+          "count": 246,
           "required_range": "300-400",
           "within_range": false,
           "balance_score": 30
         },
         "oneweb": {
-          "count": 150,
+          "count": 162,
           "required_range": "100-200",
           "within_range": true,
-          "balance_score": 100.0
+          "balance_score": 92.8
         }
       },
-      "overall_balance_score": 65.0,
+      "overall_balance_score": 61.4,
       "meets_requirements": false,
-      "score": 65.0,
+      "score": 61.4,
       "status": "fail"
     },
     "orbital_diversity": {
       "parameter_diversity": {
         "inclinations": {
-          "std_deviation": 15.73405852875179,
+          "std_deviation": 14.808638417956894,
           "range": 44.60759999999999,
-          "diversity_score": 78.67029264375896
+          "diversity_score": 74.04319208978447
         },
         "eccentricities": {
-          "std_deviation": 9.373971642607617e-05,
+          "std_deviation": 9.541256356297823e-05,
           "range": 0.0015398,
-          "diversity_score": 0.009373971642607616
+          "diversity_score": 0.009541256356297823
         },
         "mean_motions": {
-          "std_deviation": 0.9058822916820706,
+          "std_deviation": 0.9349263216351296,
           "range": 2.7911320600000007,
-          "diversity_score": 45.294114584103525
+          "diversity_score": 46.746316081756476
         },
         "raans": {
-          "std_deviation": 108.6962406364107,
-          "range": 329.6782,
-          "diversity_score": 91.57727777777778
+          "std_deviation": 110.33106624986968,
+          "range": 344.8741,
+          "diversity_score": 95.7983611111111
         },
         "arg_perigees": {
-          "std_deviation": 77.55437377312265,
+          "std_deviation": 76.39885918004931,
           "range": 266.3426,
           "diversity_score": 100
         }
       },
-      "overall_diversity_score": 63.11021179545658,
+      "overall_diversity_score": 63.319482107801676,
       "diversity_threshold": 60.0,
       "meets_diversity_threshold": "True",
-      "score": 63.11021179545658,
+      "score": 63.319482107801676,
       "status": "pass"
     },
     "temporal_coverage": {
       "hourly_coverage": [
-        446,
+        408,
         0,
         0,
         0,
@@ -153,8 +153,8 @@
         0,
         0,
         0,
-        25,
-        111,
+        22,
+        101,
         9,
         0,
         0,
@@ -165,7 +165,7 @@
         0
       ],
       "min_hourly_coverage": 0,
-      "avg_hourly_coverage": 24.625,
+      "avg_hourly_coverage": 22.5,
       "coverage_gaps_hours": 20,
       "max_allowed_gaps": 2,
       "meets_coverage_requirement": false,
@@ -174,12 +174,12 @@
     },
     "handover_potential": {
       "handover_metrics": {
-        "polar_satellites": 256,
-        "high_inclination_satellites": 111,
-        "medium_inclination_satellites": 79,
-        "diverse_raan_groups": 11,
+        "polar_satellites": 248,
+        "high_inclination_satellites": 101,
+        "medium_inclination_satellites": 59,
+        "diverse_raan_groups": 12,
         "multiple_altitudes": 1,
-        "altitude_diversity": 309.4715187925119
+        "altitude_diversity": 319.38272146193015
       },
       "potential_score": 100,
       "potential_threshold": 70.0,
@@ -189,7 +189,7 @@
     }
   },
   "overall_assessment": {
-    "overall_score": 66.53045149359352,
+    "overall_score": 66.84509004708528,
     "pass_rate": 42.857142857142854,
     "total_tests": 7,
     "passed_tests": 3,
@@ -197,19 +197,19 @@
     "status": "needs_improvement",
     "test_scores": {
       "satellite_count": 30,
-      "raan_coverage": 76.66666666666666,
-      "quality_scores": 99.25567889710017,
-      "constellation_balance": 65.0,
-      "orbital_diversity": 63.11021179545658,
+      "raan_coverage": 83.33333333333333,
+      "quality_scores": 98.54867092366013,
+      "constellation_balance": 61.4,
+      "orbital_diversity": 63.319482107801676,
       "temporal_coverage": 0,
       "handover_potential": 100
     },
     "weighted_contributions": {
       "satellite_count": 6.0,
-      "raan_coverage": 11.499999999999998,
-      "quality_scores": 24.813919724275042,
-      "constellation_balance": 9.75,
-      "orbital_diversity": 9.466531769318486,
+      "raan_coverage": 12.499999999999998,
+      "quality_scores": 24.63716773091503,
+      "constellation_balance": 9.209999999999999,
+      "orbital_diversity": 9.497922316170252,
       "temporal_coverage": 0.0,
       "handover_potential": 5.0
     }
