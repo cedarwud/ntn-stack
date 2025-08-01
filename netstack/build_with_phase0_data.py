@@ -115,7 +115,7 @@ def main():
             starlink_results = {}
             for sat_id, sat_data in starlink_data.items():
                 try:
-                    sat_results = orbit_engine.compute_96min_orbital_cycle(
+                    sat_results = orbit_engine.compute_120min_orbital_cycle(
                         sat_data, datetime.now()
                     )
                     starlink_results[sat_id] = sat_results
@@ -127,9 +127,9 @@ def main():
                 "orbit_data": {
                     "metadata": {
                         "start_time": datetime.now().isoformat(),
-                        "duration_minutes": 96,
+                        "duration_minutes": 120,
                         "time_step_seconds": 30,
-                        "total_time_points": 192,
+                        "total_time_points": 240,
                         "observer_location": {
                             "lat": observer_lat,
                             "lon": observer_lon,
@@ -147,7 +147,7 @@ def main():
             oneweb_results = {}
             for sat_id, sat_data in oneweb_data.items():
                 try:
-                    sat_results = orbit_engine.compute_96min_orbital_cycle(
+                    sat_results = orbit_engine.compute_120min_orbital_cycle(
                         sat_data, datetime.now()
                     )
                     oneweb_results[sat_id] = sat_results
@@ -159,9 +159,9 @@ def main():
                 "orbit_data": {
                     "metadata": {
                         "start_time": datetime.now().isoformat(),
-                        "duration_minutes": 96,
+                        "duration_minutes": 120,
                         "time_step_seconds": 30,
-                        "total_time_points": 192,
+                        "total_time_points": 240,
                         "observer_location": {
                             "lat": observer_lat,
                             "lon": observer_lon,
@@ -181,12 +181,13 @@ def main():
         output_dir = Path("/app/data")
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # 保存預計算數據
+        # 保存預計算數據（原始 JSON）
         output_file = output_dir / "phase0_precomputed_orbits.json"
         logger.info(f"💾 保存預計算數據: {output_file}")
 
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(precomputed_data, f, indent=2, ensure_ascii=False)
+
 
         # 生成建置摘要
         summary = {
@@ -194,7 +195,12 @@ def main():
             "build_duration_seconds": build_duration,
             "total_constellations": len(precomputed_data["constellations"]),
             "total_satellites": sum(
-                len(constellation.get("orbit_data", {}))
+                len(constellation.get("orbit_data", {}).get("satellites", {}))
+                for constellation in precomputed_data["constellations"].values()
+            ),
+            "visible_satellites": sum(
+                len([sat for sat in constellation.get("orbit_data", {}).get("satellites", {}).values() 
+                     if not sat.get("satellite_info", {}).get("status") == "not_visible"])
                 for constellation in precomputed_data["constellations"].values()
             ),
             "output_file_size_bytes": (
@@ -207,9 +213,48 @@ def main():
         with open(summary_file, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2, ensure_ascii=False)
 
-        logger.info(f"✅ Phase 0 建置完成！耗時 {build_duration:.2f}s")
+        # Phase 2: 生成 D2/A4/A5 事件資料
+        logger.info("🎯 開始 Phase 2: D2/A4/A5 事件檢測")
+        try:
+            from src.services.satellite.handover_event_detector import HandoverEventDetector
+            
+            # 初始化事件檢測器
+            event_detector = HandoverEventDetector(scene_id="ntpu")
+            
+            # 處理軌道資料生成事件
+            events_data = event_detector.process_orbit_data(precomputed_data)
+            
+            # 保存事件資料
+            events_dir = output_dir / "events"
+            events_dir.mkdir(exist_ok=True)
+            
+            events_file = events_dir / "ntpu_handover_events.json"
+            logger.info(f"📋 保存事件資料: {events_file}")
+            
+            with open(events_file, "w", encoding="utf-8") as f:
+                json.dump(events_data, f, indent=2, ensure_ascii=False)
+            
+            # 更新摘要
+            summary.update({
+                "events_generated": True,
+                "total_d2_events": events_data["statistics"]["total_d2_events"],
+                "total_a4_events": events_data["statistics"]["total_a4_events"],
+                "total_a5_events": events_data["statistics"]["total_a5_events"],
+                "events_file_size_bytes": events_file.stat().st_size if events_file.exists() else 0
+            })
+            
+            logger.info(f"🎯 事件生成完成: D2={summary['total_d2_events']}, A4={summary['total_a4_events']}, A5={summary['total_a5_events']}")
+            
+        except Exception as e:
+            logger.error(f"❌ Phase 2 事件檢測失敗: {e}")
+            summary["events_generated"] = False
+            summary["events_error"] = str(e)
+
+        logger.info(f"✅ Phase 0+2 建置完成！耗時 {build_duration:.2f}s")
         logger.info(f"📊 處理衛星數: {summary['total_satellites']}")
-        logger.info(f"💾 輸出檔案大小: {summary['output_file_size_bytes']:,} bytes")
+        logger.info(f"💾 軌道檔案大小: {summary['output_file_size_bytes']:,} bytes")
+        if summary.get("events_generated"):
+            logger.info(f"🎯 事件檔案大小: {summary.get('events_file_size_bytes', 0):,} bytes")
 
         # 自動同步數據到前端 (如果在開發環境中)
         try:

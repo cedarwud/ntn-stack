@@ -10,7 +10,7 @@ import logging
 
 # 導入相關模型
 from ...models.responses import HealthResponse
-from ...metrics.prometheus_exporter import metrics_exporter
+# Prometheus exporter removed - UAV functionality not needed
 
 router = APIRouter(tags=["健康檢查"])
 logger = logging.getLogger(__name__)
@@ -90,9 +90,5 @@ async def health_check(request: Request):
 
 @router.get("/metrics", response_class=PlainTextResponse)
 async def prometheus_metrics():
-    """Prometheus 指標端點"""
-    try:
-        return metrics_exporter.get_metrics()
-    except Exception as e:
-        logger.error("獲取指標失敗", extra={"error": str(e)})
-        return "# Error collecting metrics"
+    """Prometheus 指標端點 - UAV功能已移除"""
+    return "# UAV-specific metrics removed - use unified_metrics_collector for general system metrics"

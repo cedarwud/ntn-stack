@@ -20,13 +20,9 @@ from ...services.ueransim_service import UERANSIMConfigService
 from ...services.satellite_gnb_mapping_service import SatelliteGnbMappingService
 from ...services.sionna_integration_service import SionnaIntegrationService
 from ...services.interference_control_service import InterferenceControlService
-from ...services.connection_quality_service import ConnectionQualityService
+# ConnectionQualityService removed - UAV functionality not needed
 from ...services.mesh_bridge_service import MeshBridgeService
-from ...services.uav_mesh_failover_service import (
-    UAVMeshFailoverService,
-    NetworkMode,
-    FailoverTriggerReason,
-)
+# UAVMeshFailoverService removed - UAV functionality not needed
 
 # 導入 RL 訓練服務
 try:
@@ -107,8 +103,8 @@ class ServiceManager:
             # === 第二層：進階服務 (依賴基礎服務) ===
             logger.info("🔧 初始化進階服務...")
 
-            app.state.connection_service = ConnectionQualityService(self.mongo_adapter)
-            logger.info("✅ 連接品質服務初始化完成")
+            # ConnectionQualityService removed - UAV functionality not needed
+            logger.info("✅ UAV 連接品質服務已移除")
 
             app.state.mesh_service = MeshBridgeService(
                 self.mongo_adapter, self.redis_adapter, self.open5gs_adapter
@@ -118,13 +114,8 @@ class ServiceManager:
             # === 第三層：複合服務 (依賴多個服務) ===
             logger.info("⚡ 初始化複合服務...")
 
-            app.state.uav_failover_service = UAVMeshFailoverService(
-                self.mongo_adapter,
-                self.redis_adapter,
-                app.state.connection_service,
-                app.state.mesh_service,
-            )
-            logger.info("✅ UAV Mesh 故障轉移服務初始化完成")
+            # UAVMeshFailoverService removed - UAV functionality not needed  
+            logger.info("✅ UAV Mesh 故障轉移服務已移除")
 
             # === RL 訓練服務初始化 ===
             logger.info("🧠 初始化 RL 訓練服務...")
