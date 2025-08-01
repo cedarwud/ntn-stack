@@ -101,6 +101,15 @@ try:
 except ImportError as e:
     logger.warning(f"Performance router not available: {e}")
 
+# Include D2 event router
+try:
+    from app.api.d2_event_endpoints import router as d2_event_router
+    
+    app.include_router(d2_event_router, prefix="")
+    logger.info("D2 event router registered")
+except ImportError as e:
+    logger.warning(f"D2 event router not available: {e}")
+
 
 # Include algorithm performance router (with fallback)
 try:
