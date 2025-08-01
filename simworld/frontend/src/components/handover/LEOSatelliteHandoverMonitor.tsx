@@ -268,56 +268,50 @@ const LEOSatelliteHandoverMonitor: React.FC = () => {
             targetTimeSeries: targetSat.time_series?.length
         })
         
-        // 修復：真實數據使用 time_series 而不是 positions
-        const servingData = servingSat.time_series || servingSat.positions
-        const targetData = targetSat.time_series || targetSat.positions
+        // 使用增強的 D2 數據，包含預計算的 MRL 距離
+        const servingMrlDistances = servingSat.mrl_distances || []
+        const targetMrlDistances = targetSat.mrl_distances || []
+        const servingTimestamps = servingSat.time_series || []
+        const targetTimestamps = targetSat.time_series || []
         
-        // 確保兩顆衛星都有時間序列數據
-        if (!servingData || !targetData) {
-            console.warn('衛星時間序列數據缺失:', {
-                servingHasData: !!servingData,
-                targetHasData: !!targetData,
-                servingDataType: servingSat.time_series ? 'time_series' : 'positions',
-                targetDataType: targetSat.time_series ? 'time_series' : 'positions'
+        // 確保兩顆衛星都有 MRL 距離數據
+        if (!servingMrlDistances.length || !targetMrlDistances.length) {
+            console.warn('衛星 MRL 距離數據缺失:', {
+                servingHasMRL: !!servingMrlDistances.length,
+                targetHasMRL: !!targetMrlDistances.length,
+                servingMRLCount: servingMrlDistances.length,
+                targetMRLCount: targetMrlDistances.length
             })
             return []
         }
         
-        const minLength = Math.min(servingData.length, targetData.length)
+        const minLength = Math.min(servingMrlDistances.length, targetMrlDistances.length, servingTimestamps.length, targetTimestamps.length)
         console.log(`處理 ${minLength} 個時間點的數據`)
         
         for (let i = 0; i < minLength; i++) {
-            const servingPos = servingData[i]
-            const targetPos = targetData[i]
+            const servingTimestamp = servingTimestamps[i]
+            const targetTimestamp = targetTimestamps[i]
             
             // 檢查數據點結構（僅在第一個點打印）
             if (i === 0) {
-                console.log('時間序列數據點結構:', {
-                    servingPos,
-                    targetPos,
-                    servingPosKeys: servingPos ? Object.keys(servingPos) : 'null',
-                    targetPosKeys: targetPos ? Object.keys(targetPos) : 'null'
+                console.log('增強 D2 數據點結構:', {
+                    servingMRLDistance: servingMrlDistances[i],
+                    targetMRLDistance: targetMrlDistances[i],
+                    servingTimestamp,
+                    targetTimestamp
                 })
             }
             
-            // 從真實 SGP4 數據結構中提取距離信息
-            const servingDistance = servingPos.observation?.range_km || 
-                                  servingPos.observation?.distance || 
-                                  servingPos.range_km || 
-                                  servingPos.distance || 0
-            
-            const targetDistance = targetPos.observation?.range_km || 
-                                 targetPos.observation?.distance || 
-                                 targetPos.range_km || 
-                                 targetPos.distance || 0
+            // 直接使用預計算的 MRL 距離（真實的衛星 nadir point 到 UE 的距離）
+            const servingDistance = servingMrlDistances[i] || 0
+            const targetDistance = targetMrlDistances[i] || 0
             
             // 額外日誌檢查 (僅前幾個點)
             if (i < 3) {
-                console.log(`數據點 ${i}:`, {
-                    servingDistance,
-                    targetDistance,
-                    servingObservation: servingPos.observation,
-                    targetObservation: targetPos.observation
+                console.log(`真實 MRL 距離點 ${i}:`, {
+                    servingDistance: servingDistance.toFixed(1) + 'km',
+                    targetDistance: targetDistance.toFixed(1) + 'km',
+                    timestamp: servingTimestamp?.iso_string || servingTimestamp?.timestamp
                 })
             }
             
@@ -325,29 +319,9 @@ const LEOSatelliteHandoverMonitor: React.FC = () => {
             const servingRSRP = -75 - 15 * Math.log10(Math.max(servingDistance, 50) / 400)
             const targetRSRP = -80 - 18 * Math.log10(Math.max(targetDistance, 50) / 400)
             
-            // 數據平滑處理 - 消除 SGP4 數據的量化效應
-            let smoothedServingDistance = servingDistance
-            let smoothedTargetDistance = targetDistance
-            
-            if (i > 0 && i < minLength - 1) {
-                // 使用簡單的三點移動平均進行平滑
-                const prevServing = chartData[chartData.length - 1]?.servingDistance || servingDistance
-                const nextServingData = servingData[i + 1]
-                const nextServingDist = nextServingData?.observation?.range_km || 
-                                      nextServingData?.observation?.distance || 
-                                      nextServingData?.range_km || 
-                                      nextServingData?.distance || servingDistance
-                
-                const prevTarget = chartData[chartData.length - 1]?.neighborDistance || targetDistance
-                const nextTargetData = targetData[i + 1]
-                const nextTargetDist = nextTargetData?.observation?.range_km || 
-                                     nextTargetData?.observation?.distance || 
-                                     nextTargetData?.range_km || 
-                                     nextTargetData?.distance || targetDistance
-                
-                smoothedServingDistance = (prevServing + servingDistance + nextServingDist) / 3
-                smoothedTargetDistance = (prevTarget + targetDistance + nextTargetDist) / 3
-            }
+            // 使用真實的連續衛星通過數據，無需額外平滑處理
+            const smoothedServingDistance = servingDistance
+            const smoothedTargetDistance = targetDistance
             
             // 3GPP TS 38.331 D2 事件觸發條件實施
             // 根據 section 5.5.4.15a Event D2 標準
@@ -387,10 +361,10 @@ const LEOSatelliteHandoverMonitor: React.FC = () => {
             }
             
             chartData.push({
-                time: i * 10, // 每10秒一個數據點 (120分鐘 / 720點)
-                servingDistance: smoothedServingDistance, // 使用平滑後的數據
+                time: i * 10, // 每10秒一個數據點，簡化時間軸
+                servingDistance: smoothedServingDistance,
                 servingRSRP,
-                neighborDistance: smoothedTargetDistance, // 使用平滑後的數據
+                neighborDistance: smoothedTargetDistance,
                 neighborRSRP: targetRSRP,
                 d2Triggered
             })
@@ -548,16 +522,16 @@ const LEOSatelliteHandoverMonitor: React.FC = () => {
         const loadRealSatelliteData = async () => {
             try {
                 // 使用統一 API 獲取真實的 SGP4 計算數據
-                const response = await fetch('/api/v1/satellites/unified/timeseries?constellation=starlink')
+                const response = await fetch('/api/v1/d2-events/data/starlink')
                 if (!response.ok) {
                     throw new Error(`API 響應錯誤: ${response.status}`)
                 }
                 
                 const realData = await response.json()
-                console.log('載入真實 SGP4 軌道數據:', realData)
+                console.log('載入增強 D2 事件數據:', realData)
                 
-                // 修復數據結構：API 返回的是 { data: { satellites: [...] } }
-                const actualData = realData.data || realData
+                // D2 事件 API 直接返回增強數據結構
+                const actualData = realData
                 console.log('實際衛星數據:', actualData)
                 
                 // 轉換真實數據為圖表格式

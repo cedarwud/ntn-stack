@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-08-01T01:49:10.787886+00:00",
+  "successful_constellations": [
+    "starlink",
+    "oneweb"
+  ],
+  "sgp4_mode": "full_propagation",
+  "time_span_minutes": 120,
+  "total_time_points": 720
+}

@@ -424,6 +424,13 @@ const Navbar: FC<NavbarProps> = ({
                         >
                             📊 D2數據分析
                         </li>
+                        {/* Real D2 Events with actual satellite data */}
+                        <li
+                            className="navbar-item"
+                            onClick={() => navigate('/real-d2-events')}
+                        >
+                            🛰️ Real D2 Events
+                        </li>
                     </ul>
                 </div>
             </nav>

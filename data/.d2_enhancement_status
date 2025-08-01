@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-08-01T00:17:58.753107+00:00",
+  "results": [
+    {
+      "constellation": "starlink",
+      "status": "success",
+      "output_file": "/home/sat/ntn-stack/data/starlink_120min_d2_enhanced.json"
+    },
+    {
+      "constellation": "oneweb",
+      "status": "success",
+      "output_file": "/home/sat/ntn-stack/data/oneweb_120min_d2_enhanced.json"
+    }
+  ]
+}
