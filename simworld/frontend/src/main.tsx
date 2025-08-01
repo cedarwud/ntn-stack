@@ -5,6 +5,7 @@ import './styles/index.scss'
 import App from './App.tsx'
 import DecisionControlCenterSimple from './components/unified-decision-center/DecisionControlCenterSimple'
 import D2DataProcessingDemo from './pages/D2DataProcessingDemo'
+import RealD2EventDemo from './pages/RealD2EventDemo'
 import axios from 'axios'
 
 // 導入性能監控器（自動啟動）
@@ -192,6 +193,12 @@ createRoot(document.getElementById('root')!).render(
             <Route
                 path="/d2-processing"
                 element={<D2DataProcessingDemo />}
+            />
+
+            {/* Real D2 Event Demo with actual satellite data */}
+            <Route
+                path="/real-d2-events"
+                element={<RealD2EventDemo />}
             />
 
             {/* 404 重定向到預設場景 */}

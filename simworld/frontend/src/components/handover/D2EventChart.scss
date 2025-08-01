@@ -1,0 +1,142 @@
+.d2-event-chart-card {
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+
+    .d2-event-chart-content {
+        padding: 20px;
+
+        .chart-title {
+            margin: 0 0 8px 0;
+            font-size: 20px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .chart-subtitle {
+            margin: 0 0 16px 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 20px;
+            align-items: center;
+            justify-content: center;
+
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                .legend-line {
+                    width: 20px;
+                    height: 2px;
+                    
+                    &.serving {
+                        background-color: #22c55e;
+                    }
+                    
+                    &.target {
+                        background-color: #f97316;
+                    }
+                }
+
+                span {
+                    font-size: 14px;
+                    color: #333;
+                }
+            }
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            min-width: 800px;
+            
+            svg {
+                display: block;
+                width: 100% !important;
+                height: auto;
+                max-width: none;
+            }
+        }
+
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+
+            .loading-spinner {
+                width: 40px;
+                height: 40px;
+                border: 3px solid #f3f3f3;
+                border-top: 3px solid #3498db;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+
+            p {
+                margin-top: 16px;
+                color: #666;
+            }
+        }
+
+        .error-message {
+            color: #d32f2f;
+            padding: 20px;
+            text-align: center;
+        }
+    }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+// Dark theme support
+@media (prefers-color-scheme: dark) {
+    .d2-event-chart-card {
+        background: #1e1e1e;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+
+        .d2-event-chart-content {
+            .chart-title {
+                color: #fff;
+            }
+
+            .chart-subtitle {
+                color: #aaa;
+            }
+
+            .chart-legend {
+                .legend-item {
+                    span {
+                        color: #ccc;
+                    }
+                }
+            }
+
+            .loading-container {
+                p {
+                    color: #aaa;
+                }
+
+                .loading-spinner {
+                    border-color: #333;
+                    border-top-color: #3498db;
+                }
+            }
+
+            .error-message {
+                color: #f44336;
+            }
+        }
+    }
+}
