@@ -82,10 +82,8 @@ class DQNAlgorithm(IRLAlgorithm):
         logger.debug(f"🧠 [DQN] 真實學習更新: 獎勵={reward}")
 
     def get_metrics(self) -> Dict[str, Any]:
-        if self.is_real:
-            return self.real_algorithm.get_metrics()
-        else:
-            return self.metrics.copy()
+        # 只支援真實算法 - 符合 CLAUDE.md 原則
+        return self.real_algorithm.get_metrics()
 
 
 class PPOAlgorithm(IRLAlgorithm):
@@ -114,20 +112,13 @@ class PPOAlgorithm(IRLAlgorithm):
         self, state: Any, action: Any, reward: float, next_state: Any, done: bool
     ):
         """PPO 學習"""
-        if self.is_real:
-            await self.real_algorithm.learn(state, action, reward, next_state, done)
-            logger.debug(f"🎯 [PPO] 真實學習更新: 獎勵={reward}")
-        else:
-            self.metrics["total_steps"] += 1
-            self.metrics["policy_loss"] = abs(reward - 0.8) * 0.1
-            self.metrics["value_loss"] = abs(reward - 0.8) * 0.05
-            logger.debug(f"🎲 [PPO] 模擬學習更新: 獎勵={reward}")
+        # 只支援真實算法 - 符合 CLAUDE.md 原則
+        await self.real_algorithm.learn(state, action, reward, next_state, done)
+        logger.debug(f"🎯 [PPO] 真實學習更新: 獎勵={reward}")
 
     def get_metrics(self) -> Dict[str, Any]:
-        if self.is_real:
-            return self.real_algorithm.get_metrics()
-        else:
-            return self.metrics.copy()
+        # 只支援真實算法 - 符合 CLAUDE.md 原則
+        return self.real_algorithm.get_metrics()
 
 
 class SACAlgorithm(IRLAlgorithm):
@@ -142,47 +133,27 @@ class SACAlgorithm(IRLAlgorithm):
             self.is_real = True
             logger.info("⚡ [SAC] 使用真實 SAC 算法初始化完成")
         else:
-            # 使用模擬算法
-            self.metrics = {
-                "total_steps": 0,
-                "actor_loss": 0.0,
-                "critic_loss": 0.0,
-                "temperature": 0.2,
-            }
-            self.is_real = False
-            logger.info("🎲 [SAC] 使用模擬 SAC 算法初始化完成")
+            # 違反 CLAUDE.md 原則 - 禁止模擬算法後備
+            raise RuntimeError("真實算法不可用，根據 CLAUDE.md 原則禁止使用模擬算法後備")
 
     async def predict(self, state: Any) -> Any:
         """SAC 動作預測"""
-        if self.is_real:
-            action = await self.real_algorithm.predict(state)
-            logger.debug(f"⚡ [SAC] 真實預測動作: {action}")
-            return action
-        else:
-            import random
-
-            action = random.choice([0, 1, 2, 3])
-            logger.debug(f"🎲 [SAC] 模擬預測動作: {action}")
-            return action
+        # 只支援真實算法 - 符合 CLAUDE.md 原則
+        action = await self.real_algorithm.predict(state)
+        logger.debug(f"⚡ [SAC] 真實預測動作: {action}")
+        return action
 
     async def learn(
         self, state: Any, action: Any, reward: float, next_state: Any, done: bool
     ):
         """SAC 學習"""
-        if self.is_real:
-            await self.real_algorithm.learn(state, action, reward, next_state, done)
-            logger.debug(f"⚡ [SAC] 真實學習更新: 獎勵={reward}")
-        else:
-            self.metrics["total_steps"] += 1
-            self.metrics["actor_loss"] = abs(reward - 0.75) * 0.1
-            self.metrics["critic_loss"] = abs(reward - 0.75) * 0.08
-            logger.debug(f"🎲 [SAC] 模擬學習更新: 獎勵={reward}")
+        # 只支援真實算法 - 符合 CLAUDE.md 原則
+        await self.real_algorithm.learn(state, action, reward, next_state, done)
+        logger.debug(f"⚡ [SAC] 真實學習更新: 獎勵={reward}")
 
     def get_metrics(self) -> Dict[str, Any]:
-        if self.is_real:
-            return self.real_algorithm.get_metrics()
-        else:
-            return self.metrics.copy()
+        # 只支援真實算法 - 符合 CLAUDE.md 原則
+        return self.real_algorithm.get_metrics()
 
 
 class RLAlgorithmIntegrator:
