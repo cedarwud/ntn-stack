@@ -1,0 +1,12 @@
+FROM netstack-api:latest
+
+# Fix the uav_models import issue and permissions
+USER root
+RUN sed -i '/from \.uav_models import \*/d' /app/netstack_api/models/__init__.py
+
+# Fix permissions for data directory
+RUN mkdir -p /app/data /app/logs && \
+    chown -R 1000:1000 /app/data /app/logs && \
+    chmod -R 755 /app/data /app/logs
+
+USER 1000

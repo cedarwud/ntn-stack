@@ -349,7 +349,7 @@ services:
 
   # NetStack API 服務
   netstack-api:
-    image: netstack-api:latest
+    image: netstack-api:fixed
     container_name: netstack-api
     entrypoint: ["/usr/local/bin/smart-entrypoint.sh"]
     command: ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]

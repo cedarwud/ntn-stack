@@ -10,9 +10,9 @@
 
 # PostgreSQL 儲存庫保持可用
 from .postgresql_repository import PostgreSQLRepository
-from .mock_repository import MockRepository
+# MockRepository 已刪除 - 違反 CLAUDE.md 核心原則
 
 __all__ = [
     "PostgreSQLRepository",
-    "MockRepository",
+    # "MockRepository",  # 已刪除 - 模擬數據違規
 ]
