@@ -21,7 +21,15 @@ import structlog
 
 # 導入 Phase 3 核心組件
 try:
-    from netstack.src.services.satellite.handover_event_detector import (
+    import sys
+    from pathlib import Path
+    
+    # 添加 netstack 根目錄到 Python 路徑
+    netstack_root = Path(__file__).parent.parent.parent
+    if str(netstack_root) not in sys.path:
+        sys.path.insert(0, str(netstack_root))
+    
+    from src.services.satellite.handover_event_detector import (
         RuleBasedHandoverEngine,
         HandoverDataAccess, 
         HandoverMetrics

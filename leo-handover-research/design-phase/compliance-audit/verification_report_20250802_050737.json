@@ -1,0 +1,226 @@
+{
+  "verification_timestamp": "2025-08-02T05:07:36.016609+00:00",
+  "standards_tested": [
+    "3GPP_TS_38.331_v17.3.0",
+    "ITU-R_P.618-14",
+    "IEEE_802.11"
+  ],
+  "overall_compliance": {
+    "total_score": 71.32548944950103,
+    "compliance_level": "high",
+    "status": "LOW_COMPLIANCE",
+    "component_scores": {
+      "3gpp_ts_38_331": 75.0,
+      "itu_r_p618_14": 33.33333333333333,
+      "system_health": 100.0,
+      "performance": 108.83659633000691
+    },
+    "weights": {
+      "3gpp_compliance": 0.4,
+      "itu_compliance": 0.3,
+      "system_health": 0.15,
+      "performance": 0.15
+    },
+    "production_ready": false
+  },
+  "detailed_results": {
+    "3gpp_ts_38_331": {
+      "standard": "3GPP TS 38.331 v17.3.0",
+      "total_tests": 4,
+      "passed_tests": 3,
+      "compliance_score": 75.0,
+      "test_results": [
+        {
+          "test_name": "D2_Event_3GPP_Compliance",
+          "standard": "3GPP TS 38.331 Section 5.5.4.7",
+          "passed": true,
+          "score": 100.0,
+          "duration_ms": 1.6531944274902344,
+          "details": {
+            "compliance_checks": {
+              "uses_geographic_distance": true,
+              "not_elevation_based": true,
+              "threshold_correct": true,
+              "hysteresis_applied": true,
+              "candidate_selection": true
+            },
+            "d2_triggered": true,
+            "selected_candidate": "STARLINK-5678",
+            "serving_distance_km": 1600.0,
+            "candidate_distance_km": 1000.0,
+            "detection_method": "geographic_distance",
+            "3gpp_compliant": true
+          }
+        },
+        {
+          "test_name": "A4_Event_3GPP_Compliance",
+          "standard": "3GPP TS 38.331 Section 5.5.4.4",
+          "passed": true,
+          "score": 100.0,
+          "duration_ms": 3.5157203674316406,
+          "details": {
+            "compliance_checks": {
+              "uses_rsrp_measurement": true,
+              "rsrp_in_valid_range": true,
+              "not_elevation_based": true,
+              "threshold_applied": true,
+              "hysteresis_considered": true
+            },
+            "a4_triggered": true,
+            "calculated_rsrp_dbm": -53.596823183293644,
+            "threshold_dbm": -110.0,
+            "detection_method": "rsrp_signal_strength",
+            "3gpp_compliant": true
+          }
+        },
+        {
+          "test_name": "A5_Event_3GPP_Compliance",
+          "standard": "3GPP TS 38.331 Section 5.5.4.5",
+          "passed": true,
+          "score": 100.0,
+          "duration_ms": 0.9210109710693359,
+          "details": {
+            "compliance_checks": {
+              "dual_rsrp_conditions": true,
+              "serving_rsrp_calculated": true,
+              "candidate_rsrp_calculated": true,
+              "conditions_independent": true,
+              "hysteresis_applied": true,
+              "thresholds_correct": true
+            },
+            "a5_triggered": false,
+            "serving_rsrp_dbm": -56.94783123432571,
+            "candidate_rsrp_dbm": -47.25062931819774,
+            "threshold_1_dbm": -115.0,
+            "threshold_2_dbm": -105.0,
+            "detection_method": "dual_rsrp_conditions",
+            "3gpp_compliant": true
+          }
+        },
+        {
+          "test_name": "SIB19_3GPP_Compliance",
+          "passed": false,
+          "score": 0.0,
+          "duration_ms": 8.186101913452148,
+          "error": "'module' object is not subscriptable"
+        }
+      ]
+    },
+    "itu_r_p618_14": {
+      "standard": "ITU-R P.618-14",
+      "total_tests": 3,
+      "passed_tests": 1,
+      "compliance_score": 33.33333333333333,
+      "test_results": [
+        {
+          "test_name": "ITU_R_P618_RSRP_Compliance",
+          "passed": false,
+          "score": 0.0,
+          "duration_ms": 0.24437904357910156,
+          "error": "No module named 'requests'"
+        },
+        {
+          "test_name": "Atmospheric_Attenuation_ITU_Compliance",
+          "passed": false,
+          "score": 0.0,
+          "duration_ms": 0.2117156982421875,
+          "error": "No module named 'requests'"
+        },
+        {
+          "test_name": "Path_Loss_ITU_Compliance",
+          "standard": "ITU-R P.618-14 Free Space Loss",
+          "passed": true,
+          "score": 100.0,
+          "duration_ms": 0.012159347534179688,
+          "details": {
+            "compliance_checks": {
+              "distance_dependency": true,
+              "increasing_with_distance": true,
+              "frequency_factor": true,
+              "realistic_loss_values": true,
+              "itu_formula_used": true
+            },
+            "fspl_results": [
+              {
+                "distance_km": 500.0,
+                "frequency_ghz": 28.0,
+                "fspl_db": 115.37256071356477
+              },
+              {
+                "distance_km": 800.0,
+                "frequency_ghz": 28.0,
+                "fspl_db": 119.45496036668327
+              },
+              {
+                "distance_km": 1200.0,
+                "frequency_ghz": 28.0,
+                "fspl_db": 122.97678554779688
+              },
+              {
+                "distance_km": 1500.0,
+                "frequency_ghz": 28.0,
+                "fspl_db": 124.91498580795802
+              }
+            ],
+            "formula": "32.45 + 20*log10(d_km) + 20*log10(f_ghz)",
+            "itu_compliant": true
+          }
+        }
+      ]
+    }
+  },
+  "system_health": {
+    "overall_health": true,
+    "health_score": 100.0,
+    "metrics": {
+      "cpu_usage_percent": 4.3,
+      "memory_usage_percent": 49.4,
+      "response_time_ms": 1.2905597686767578,
+      "timestamp": "2025-08-02T05:07:37.039588+00:00"
+    },
+    "health_checks": {
+      "cpu_usage_ok": true,
+      "memory_usage_ok": true,
+      "response_time_ok": true,
+      "system_stable": true,
+      "services_running": true
+    }
+  },
+  "performance_metrics": {
+    "overall_performance_score": 108.83659633000691,
+    "benchmarks": {
+      "event_detection": {
+        "test_name": "Event_Detection_Performance",
+        "iterations": 100,
+        "average_time_ms": 0.18457651138305664,
+        "total_time_sec": 0.018457651138305664,
+        "score": 109.81542348861694,
+        "meets_requirement": true
+      },
+      "rsrp_calculation": {
+        "test_name": "RSRP_Calculation_Performance",
+        "iterations": 1000,
+        "average_time_ms": 0.0007343292236328125,
+        "total_time_sec": 0.0007343292236328125,
+        "score": 100.99926567077637,
+        "meets_requirement": true
+      },
+      "sib19_processing": {
+        "test_name": "SIB19_Processing_Performance",
+        "iterations": 50,
+        "average_time_ms": 4.304900169372559,
+        "total_time_sec": 0.21524500846862793,
+        "score": 115.69509983062744,
+        "meets_requirement": true
+      }
+    },
+    "performance_meets_requirements": true
+  },
+  "recommendations": [
+    "❌ 系統合規性不足，需要重大改進",
+    "🚨 建議暫停生產部署，進行全面修復",
+    "📡 3GPP TS 38.331 合規性需要改進 - 檢查 D2/A4/A5 事件邏輯",
+    "📊 ITU-R P.618-14 合規性需要改進 - 檢查 RSRP 計算模型"
+  ],
+  "verification_duration_sec": 1.2627193927764893
+}
