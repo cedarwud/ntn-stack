@@ -10,7 +10,7 @@ pyglet>=2.0.0  # 為 pyrender 提供渲染支持
 PyOpenGL>=3.1.0  # OpenGL 支持
 PyOpenGL_accelerate  # 可選但建議，提高 OpenGL 性能
 python-multipart  # 支援表單數據和文件上傳
-# skyfield # 已移除 - 改用 NetStack API 進行軌道計算
+skyfield>=1.45  # 軌道計算和天體坐標轉換
 httpx # 用於非同步 HTTP 請求
 redis # 用於 Redis 客戶端
 aiohttp # 用於非同步 HTTP 客戶端
@@ -31,6 +31,7 @@ scipy>=1.10.0  # 科學計算和統計
 seaborn>=0.12.0  # 統計數據可視化
 scikit-learn>=1.3.0  # 機器學習算法
 jinja2>=3.1.0  # 模板引擎 (報告生成)
+sgp4>=2.21  # 衛星軌道計算 (SGP4/SDP4 模型)
 
 # --- AI/ML 相關套件 ---
 tensorflow>=2.15.0  # TensorFlow 機器學習框架，新版本支援較新的 typing-extensions

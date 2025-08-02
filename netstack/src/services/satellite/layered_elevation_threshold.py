@@ -77,12 +77,13 @@ class LayeredElevationEngine:
         分析衛星當前所處的換手階段
         
         Args:
-            satellite_info: 包含 elevation, azimuth, range_km 等信息
+            satellite_info: 包含 elevation/elevation_deg, azimuth, range_km 等信息
             
         Returns:
             Dict: 換手階段分析結果
         """
-        elevation = satellite_info.get('elevation', 0.0)
+        # 統一處理仰角字段 - 支援 elevation_deg 和 elevation
+        elevation = satellite_info.get('elevation_deg') or satellite_info.get('elevation', 0.0)
         satellite_id = satellite_info.get('satellite_id', 'unknown')
         
         # 判斷當前階段
