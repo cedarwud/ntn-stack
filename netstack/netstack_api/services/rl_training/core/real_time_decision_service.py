@@ -16,9 +16,10 @@ from datetime import datetime
 import numpy as np
 from enum import Enum
 
-from ..algorithms.dqn_algorithm import DQNAlgorithm
-from ..algorithms.ppo_algorithm import PPOAlgorithm
-from ..algorithms.sac_algorithm import SACAlgorithm
+# 違規算法已刪除 - 違反 CLAUDE.md 核心原則
+# from ..algorithms.dqn_algorithm import DQNAlgorithm
+# from ..algorithms.ppo_algorithm import PPOAlgorithm
+# from ..algorithms.sac_algorithm import SACAlgorithm
 from ..environments.leo_satellite_environment import LEOSatelliteEnvironment
 from ..implementations.simplified_postgresql_repository import SimplifiedPostgreSQLRepository
 
@@ -59,38 +60,10 @@ class RealTimeDecisionService:
         self.decision_history: List[Dict[str, Any]] = []
         self.max_history_size = 1000
         
-        # 算法配置
+        # 算法配置 - 違規算法已移除
+        # DQN, PPO, SAC 算法已刪除 - 違反 CLAUDE.md 核心原則
         self.algorithm_configs = {
-            "dqn": {
-                "class": DQNAlgorithm,
-                "default_params": {
-                    "lr": 0.001,
-                    "gamma": 0.99,
-                    "epsilon": 0.1,
-                    "batch_size": 32,
-                    "memory_size": 10000
-                }
-            },
-            "ppo": {
-                "class": PPOAlgorithm,
-                "default_params": {
-                    "lr": 0.0003,
-                    "gamma": 0.99,
-                    "clip_ratio": 0.2,
-                    "epochs": 10,
-                    "batch_size": 64
-                }
-            },
-            "sac": {
-                "class": SACAlgorithm,
-                "default_params": {
-                    "lr": 0.0003,
-                    "gamma": 0.99,
-                    "alpha": 0.2,
-                    "tau": 0.005,
-                    "batch_size": 256
-                }
-            }
+            # Phase 2 將重新實現真實的 RL 算法
         }
         
         logger.info("實時決策服務初始化完成")
@@ -292,7 +265,7 @@ class RealTimeDecisionService:
     
     async def _execute_dqn_decision(
         self,
-        dqn_instance: DQNAlgorithm,
+        dqn_instance: Any,  # DQNAlgorithm 已刪除
         state: np.ndarray,
         decision_mode: DecisionMode
     ) -> Dict[str, Any]:
@@ -339,7 +312,7 @@ class RealTimeDecisionService:
     
     async def _execute_ppo_decision(
         self,
-        ppo_instance: PPOAlgorithm,
+        ppo_instance: Any,  # PPOAlgorithm 已刪除
         state: np.ndarray,
         decision_mode: DecisionMode
     ) -> Dict[str, Any]:
@@ -376,7 +349,7 @@ class RealTimeDecisionService:
     
     async def _execute_sac_decision(
         self,
-        sac_instance: SACAlgorithm,
+        sac_instance: Any,  # SACAlgorithm 已刪除
         state: np.ndarray,
         decision_mode: DecisionMode
     ) -> Dict[str, Any]:

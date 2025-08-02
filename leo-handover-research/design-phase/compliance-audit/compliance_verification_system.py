@@ -618,16 +618,24 @@ class ComplianceVerificationSystem:
                 else:
                     return original_import(name, globals, locals, fromlist, level)
             
-            # 暫時替換import函數
-            original_import = __builtins__['__import__']
-            __builtins__['__import__'] = mock_import
+            # 暫時替換import函數 - 處理__builtins__可能是dict或module的情況
+            if isinstance(__builtins__, dict):
+                original_import = __builtins__['__import__']
+                __builtins__['__import__'] = mock_import
+            else:
+                # __builtins__ 是 module 對象
+                original_import = __builtins__.__import__
+                __builtins__.__import__ = mock_import
             
             try:
                 sib19_spec.loader.exec_module(sib19_module)
                 SIB19UnifiedPlatform = sib19_module.SIB19UnifiedPlatform
             finally:
                 # 恢復原import函數
-                __builtins__['__import__'] = original_import
+                if isinstance(__builtins__, dict):
+                    __builtins__['__import__'] = original_import
+                else:
+                    __builtins__.__import__ = original_import
             
             # 實例化和測試
             orbit_engine = orbit_engine_module.OrbitCalculationEngine()

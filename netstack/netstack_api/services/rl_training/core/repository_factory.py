@@ -10,7 +10,8 @@ from enum import Enum
 
 from ..interfaces.data_repository import IDataRepository
 from ..implementations.postgresql_repository import PostgreSQLRepository  
-from ..implementations.mock_repository import MockRepository
+# MockRepository 已刪除 - 違反 CLAUDE.md 核心原則
+# from ..implementations.mock_repository import MockRepository
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +140,9 @@ class RepositoryFactory:
         if repository_type == RepositoryType.POSTGRESQL:
             return await cls._create_postgresql_repository(database_url, **kwargs)
         elif repository_type == RepositoryType.MOCK:
-            return cls._create_mock_repository(**kwargs)
+            # Mock Repository 已刪除 - 強制使用 PostgreSQL
+            logger.error("Mock Repository 已被禁用，強制使用 PostgreSQL")
+            return await cls._create_postgresql_repository(database_url, **kwargs)
         else:
             raise ValueError(f"不支援的倉庫類型: {repository_type}")
     
@@ -176,17 +179,12 @@ class RepositoryFactory:
         )
     
     @classmethod
-    def _create_mock_repository(cls, **kwargs) -> MockRepository:
-        """創建 Mock 倉庫實例
+    def _create_mock_repository(cls, **kwargs):
+        """Mock Repository 已刪除 - 違反 CLAUDE.md 核心原則
         
-        Args:
-            **kwargs: 額外配置（Mock 倉庫暫不使用）
-            
-        Returns:
-            MockRepository: Mock 倉庫實例
+        此方法已被廢棄，禁止使用模擬數據
         """
-        logger.info("創建 Mock 倉庫")
-        return MockRepository()
+        raise RuntimeError("Mock Repository 已被禁用 - 違反 CLAUDE.md 核心原則，必須使用真實數據")
     
     @classmethod
     async def get_default_repository(cls) -> IDataRepository:
