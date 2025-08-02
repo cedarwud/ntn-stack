@@ -59,42 +59,59 @@ async def initialize_algorithm_ecosystem():
 
 async def _register_builtin_algorithms():
     """註冊內建算法"""
+    registered_count = 0
+    
     try:
-        # 註冊 Infocom 算法
-        infocom_adapter = InfocomAlgorithmAdapter()
-        await _algorithm_registry.register_algorithm(
-            name="ieee_infocom_2024",
-            algorithm=infocom_adapter,
-            config={},
-            enabled=True,
-            priority=20
-        )
+        # 嘗試註冊Infocom 算法
+        try:
+            infocom_adapter = InfocomAlgorithmAdapter()
+            await _algorithm_registry.register_algorithm(
+                name="ieee_infocom_2024",
+                algorithm=infocom_adapter,
+                config={},
+                enabled=True,
+                priority=20
+            )
+            registered_count += 1
+            logger.info("✅ Infocom算法註冊成功")
+        except ImportError as e:
+            logger.warning(f"⚠️ Infocom算法註冊跳過: {e}")
         
-        # 註冊簡單閾值算法
-        threshold_adapter = SimpleThresholdAlgorithmAdapter()
-        await _algorithm_registry.register_algorithm(
-            name="simple_threshold",
-            algorithm=threshold_adapter,
-            config={},
-            enabled=True,
-            priority=15
-        )
+        # 嘗試註冊簡單閾值算法
+        try:
+            threshold_adapter = SimpleThresholdAlgorithmAdapter()
+            await _algorithm_registry.register_algorithm(
+                name="simple_threshold",
+                algorithm=threshold_adapter,
+                config={},
+                enabled=True,
+                priority=15
+            )
+            registered_count += 1
+            logger.info("✅ 簡單閾值算法註冊成功")
+        except ImportError as e:
+            logger.warning(f"⚠️ 簡單閾值算法註冊跳過: {e}")
         
-        # 註冊隨機算法
-        random_adapter = RandomAlgorithmAdapter()
-        await _algorithm_registry.register_algorithm(
-            name="random_algorithm",
-            algorithm=random_adapter,
-            config={},
-            enabled=True,
-            priority=5
-        )
+        # 嘗試註冊隨機算法
+        try:
+            random_adapter = RandomAlgorithmAdapter()
+            await _algorithm_registry.register_algorithm(
+                name="random_algorithm",
+                algorithm=random_adapter,
+                config={},
+                enabled=True,
+                priority=5
+            )
+            registered_count += 1
+            logger.info("✅ 隨機算法註冊成功")
+        except ImportError as e:
+            logger.warning(f"⚠️ 隨機算法註冊跳過: {e}")
         
-        logger.info("內建算法註冊完成")
+        logger.info(f"內建算法註冊完成 ({registered_count}/3 個算法可用)")
         
     except Exception as e:
-        logger.error(f"內建算法註冊失敗: {e}")
-        raise
+        logger.error(f"內建算法註冊過程中發生錯誤: {e}")
+        # 不再拋出異常，讓系統能夠繼續啟動
 
 
 async def cleanup_algorithm_ecosystem():

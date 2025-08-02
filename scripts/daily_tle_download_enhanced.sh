@@ -382,6 +382,10 @@ download_constellation_data() {
     local total_count=2
     local updated_count=0
     
+    # 追蹤下載和更新的檔案
+    declare -a downloaded_files
+    declare -a updated_files
+    
     # 處理 TLE 檔案
 
     # 先下載到臨時檔案
@@ -397,7 +401,9 @@ download_constellation_data() {
 
             # 檢查是否需要更新現有檔案
             local should_update=true
+            local is_new_file=true
             if [[ -f "$final_tle_file" ]]; then
+                is_new_file=false
                 if need_update_existing "$final_tle_file" "$tle_url" "$constellation TLE (實際日期: $actual_date)"; then
                     backup_file "$final_tle_file" "$constellation TLE" "$actual_date"
                 else
@@ -409,6 +415,16 @@ download_constellation_data() {
                 # 移動臨時檔案到最終位置
                 mv "$temp_tle_file" "$final_tle_file"
                 updated_count=$((updated_count + 1))
+                
+                # 記錄下載或更新的檔案
+                local file_info="$constellation TLE: ${constellation}_${actual_date}.tle"
+                if $is_new_file; then
+                    downloaded_files+=("$file_info")
+                    log_success "已下載: $file_info"
+                else
+                    updated_files+=("$file_info")
+                    log_update "已更新: $file_info"
+                fi
             else
                 # 清理臨時檔案
                 rm -f "$temp_tle_file"
@@ -431,7 +447,9 @@ download_constellation_data() {
 
     # 檢查是否需要更新現有檔案
     local should_download=true
+    local is_new_json_file=true
     if [[ -f "$final_json_file" ]]; then
+        is_new_json_file=false
         if need_update_existing "$final_json_file" "$json_url" "$constellation JSON (實際日期: $actual_date)"; then
             backup_file "$final_json_file" "$constellation JSON" "$actual_date"
         else
@@ -447,12 +465,30 @@ download_constellation_data() {
                 mv "$temp_json_file" "$final_json_file"
                 updated_count=$((updated_count + 1))
                 success_count=$((success_count + 1))
+                
+                # 記錄下載或更新的檔案
+                local file_info="$constellation JSON: ${constellation}_${actual_date}.json"
+                if $is_new_json_file; then
+                    downloaded_files+=("$file_info")
+                    log_success "已下載: $file_info"
+                else
+                    updated_files+=("$file_info")
+                    log_update "已更新: $file_info"
+                fi
             else
                 rm -f "$temp_json_file"
             fi
         fi
     else
         success_count=$((success_count + 1))
+    fi
+    
+    # 將下載和更新的檔案信息保存到全局變量
+    if [[ ${#downloaded_files[@]} -gt 0 ]]; then
+        eval "${constellation}_downloaded_files=(\"\${downloaded_files[@]}\")"
+    fi
+    if [[ ${#updated_files[@]} -gt 0 ]]; then
+        eval "${constellation}_updated_files=(\"\${updated_files[@]}\")"
     fi
     
     return $((total_count - success_count))
@@ -466,15 +502,57 @@ generate_summary() {
     echo
     echo "===== TLE 數據下載完成 ====="
     
-    # 統計檔案狀態
+    # 統計檔案狀態並顯示具體檔案
     if [[ $starlink_result -eq 0 ]]; then
         echo -e "${GREEN}✅ Starlink: 已下載/更新${NC}"
+        
+        # 顯示下載的檔案
+        if [[ -n "${starlink_downloaded_files[*]}" ]]; then
+            echo -e "${CYAN}  📥 新下載檔案:${NC}"
+            for file in "${starlink_downloaded_files[@]}"; do
+                echo -e "    • $file"
+            done
+        fi
+        
+        # 顯示更新的檔案
+        if [[ -n "${starlink_updated_files[*]}" ]]; then
+            echo -e "${YELLOW}  🔄 更新檔案:${NC}"
+            for file in "${starlink_updated_files[@]}"; do
+                echo -e "    • $file"
+            done
+        fi
+        
+        # 如果沒有任何檔案被處理，顯示跳過信息
+        if [[ -z "${starlink_downloaded_files[*]}" && -z "${starlink_updated_files[*]}" ]]; then
+            echo -e "${BLUE}  ⏭️  所有檔案已是最新，跳過下載${NC}"
+        fi
     else
         echo -e "${RED}❌ Starlink: 失敗${NC}"
     fi
     
     if [[ $oneweb_result -eq 0 ]]; then
         echo -e "${GREEN}✅ OneWeb: 已下載/更新${NC}"
+        
+        # 顯示下載的檔案
+        if [[ -n "${oneweb_downloaded_files[*]}" ]]; then
+            echo -e "${CYAN}  📥 新下載檔案:${NC}"
+            for file in "${oneweb_downloaded_files[@]}"; do
+                echo -e "    • $file"
+            done
+        fi
+        
+        # 顯示更新的檔案
+        if [[ -n "${oneweb_updated_files[*]}" ]]; then
+            echo -e "${YELLOW}  🔄 更新檔案:${NC}"
+            for file in "${oneweb_updated_files[@]}"; do
+                echo -e "    • $file"
+            done
+        fi
+        
+        # 如果沒有任何檔案被處理，顯示跳過信息
+        if [[ -z "${oneweb_downloaded_files[*]}" && -z "${oneweb_updated_files[*]}" ]]; then
+            echo -e "${BLUE}  ⏭️  所有檔案已是最新，跳過下載${NC}"
+        fi
     else
         echo -e "${RED}❌ OneWeb: 失敗${NC}"
     fi
@@ -486,6 +564,12 @@ generate_summary() {
 main() {
     local date_str
     date_str=$(get_current_date)
+    
+    # 初始化全局數組變量
+    declare -a starlink_downloaded_files
+    declare -a starlink_updated_files
+    declare -a oneweb_downloaded_files
+    declare -a oneweb_updated_files
     
     echo
     echo "🚀 TLE 數據下載工具 (簡化版)"

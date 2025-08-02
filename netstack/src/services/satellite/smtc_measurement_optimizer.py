@@ -19,6 +19,10 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from enum import Enum
 import math
+from sgp4.api import Satrec, jday
+from datetime import datetime, timezone
+import requests
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +177,7 @@ class SatelliteVisibilityPredictor:
                         end_time=current_time,
                         max_elevation_deg=max_elevation,
                         peak_time=peak_time,
-                        predicted_rsrp_range=self._estimate_rsrp_range(max_elevation),
+                        predicted_rsrp_range=self._calculate_real_rsrp_range(max_elevation, sat_data),
                         visibility_confidence=self._calculate_confidence(max_elevation)
                     )
                     windows.append(window)

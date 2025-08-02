@@ -8,7 +8,6 @@ from .responses import *
 from .unified_models import *
 
 # 專門模型
-from .uav_models import *
 from .mesh_models import *
 from .performance_models import *
 from .sionna_models import *

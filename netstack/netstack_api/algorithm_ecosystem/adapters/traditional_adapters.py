@@ -239,7 +239,13 @@ class InfocomAlgorithmAdapter(BaseTraditionalAdapter):
     def __init__(self, name: str = "ieee_infocom_2024", config: Optional[Dict[str, Any]] = None):
         """初始化 INFOCOM 算法適配器"""
         if not BASELINE_ALGORITHMS_AVAILABLE:
-            raise ImportError("基準算法模組不可用")
+            logger.warning("基準算法模組不可用，使用 fallback 實現")
+            # 使用 fallback 實現而不是拋出異常
+            self.name = name
+            self.config = config or {}
+            self._algorithm_info = None
+            self.wrapped_algorithm = None
+            return
         
         # 創建原始算法實例
         wrapped_algorithm = InfocomAlgorithm(config)
@@ -259,6 +265,50 @@ class InfocomAlgorithmAdapter(BaseTraditionalAdapter):
         Returns:
             HandoverDecision: 換手決策
         """
+        if not BASELINE_ALGORITHMS_AVAILABLE or self.wrapped_algorithm is None:
+            # Fallback 實現：基於信號強度的簡單決策
+            try:
+                if context.current_satellite and context.candidate_satellites:
+                    current_rsrp = context.current_satellite.signal_metrics.rsrp if context.current_satellite.signal_metrics else -120
+                    best_candidate = max(context.candidate_satellites, 
+                                       key=lambda s: s.signal_metrics.rsrp if s.signal_metrics else -120)
+                    best_rsrp = best_candidate.signal_metrics.rsrp if best_candidate.signal_metrics else -120
+                    
+                    if best_rsrp > current_rsrp + 3:  # 3dB 門檻
+                        return HandoverDecision(
+                            target_satellite=best_candidate.satellite_id,
+                            handover_decision=HandoverDecisionType.HANDOVER,
+                            confidence=0.7,
+                            timing=None,
+                            decision_reason="Fallback: Signal strength based decision",
+                            algorithm_name=self.name,
+                            decision_time=0.0,
+                            metadata={'fallback': True}
+                        )
+                
+                return HandoverDecision(
+                    target_satellite=None,
+                    handover_decision=HandoverDecisionType.NO_HANDOVER,
+                    confidence=0.7,
+                    timing=None,
+                    decision_reason="Fallback: No better candidate found",
+                    algorithm_name=self.name,
+                    decision_time=0.0,
+                    metadata={'fallback': True}
+                )
+            except Exception as e:
+                logger.error(f"Fallback算法執行失敗: {e}")
+                return HandoverDecision(
+                    target_satellite=None,
+                    handover_decision=HandoverDecisionType.NO_HANDOVER,
+                    confidence=0.1,
+                    timing=None,
+                    decision_reason=f"Fallback error: {str(e)}",
+                    algorithm_name=self.name,
+                    decision_time=0.0,
+                    metadata={'error': True, 'fallback': True}
+                )
+        
         try:
             # 轉換輸入格式
             observation, info = self._context_to_observation(context)
@@ -288,19 +338,33 @@ class InfocomAlgorithmAdapter(BaseTraditionalAdapter):
     def get_algorithm_info(self) -> AlgorithmInfo:
         """獲取算法信息"""
         if not self._algorithm_info:
-            original_info = self.wrapped_algorithm.get_algorithm_info()
-            
-            self._algorithm_info = AlgorithmInfo(
-                name=self.name,
-                version="1.0.0-adapter",
-                algorithm_type=AlgorithmType.TRADITIONAL,
-                description="IEEE INFOCOM 2024 論文算法適配器 - 基於二分搜索的精確換手時機預測",
-                parameters=self.config,
-                author="Adapted from original implementation",
-                created_at=datetime.now(),
-                performance_metrics=original_info.get('performance_metrics'),
-                supported_scenarios=["urban", "suburban", "rural", "highway"]
-            )
+            if not BASELINE_ALGORITHMS_AVAILABLE or self.wrapped_algorithm is None:
+                # Fallback 模式的算法信息
+                self._algorithm_info = AlgorithmInfo(
+                    name=self.name,
+                    version="1.0.0-fallback",
+                    algorithm_type=AlgorithmType.TRADITIONAL,
+                    description="IEEE INFOCOM 2024 算法適配器 (Fallback模式) - 基於信號強度的簡單換手決策",
+                    parameters=self.config,
+                    author="Fallback implementation",
+                    created_at=datetime.now(),
+                    performance_metrics={},
+                    supported_scenarios=["urban", "suburban", "rural", "highway"]
+                )
+            else:
+                original_info = self.wrapped_algorithm.get_algorithm_info()
+                
+                self._algorithm_info = AlgorithmInfo(
+                    name=self.name,
+                    version="1.0.0-adapter",
+                    algorithm_type=AlgorithmType.TRADITIONAL,
+                    description="IEEE INFOCOM 2024 論文算法適配器 - 基於二分搜索的精確換手時機預測",
+                    parameters=self.config,
+                    author="Adapted from original implementation",
+                    created_at=datetime.now(),
+                    performance_metrics=original_info.get('performance_metrics'),
+                    supported_scenarios=["urban", "suburban", "rural", "highway"]
+                )
         
         return self._algorithm_info
 
@@ -311,7 +375,12 @@ class SimpleThresholdAlgorithmAdapter(BaseTraditionalAdapter):
     def __init__(self, name: str = "simple_threshold", config: Optional[Dict[str, Any]] = None):
         """初始化簡單閾值算法適配器"""
         if not BASELINE_ALGORITHMS_AVAILABLE:
-            raise ImportError("基準算法模組不可用")
+            logger.warning("基準算法模組不可用，使用 fallback 實現")
+            self.name = name
+            self.config = config or {}
+            self._algorithm_info = None
+            self.wrapped_algorithm = None
+            return
         
         wrapped_algorithm = SimpleThresholdAlgorithm(config)
         super().__init__(name, wrapped_algorithm, config)
@@ -322,6 +391,50 @@ class SimpleThresholdAlgorithmAdapter(BaseTraditionalAdapter):
     
     async def predict_handover(self, context: HandoverContext) -> HandoverDecision:
         """執行換手預測"""
+        if not BASELINE_ALGORITHMS_AVAILABLE or self.wrapped_algorithm is None:
+            # Fallback: 簡單閾值實現
+            try:
+                if context.current_satellite and context.candidate_satellites:
+                    current_rsrp = context.current_satellite.signal_metrics.rsrp if context.current_satellite.signal_metrics else -120
+                    threshold = self.config.get('rsrp_threshold', -110)  # 默認 -110dBm
+                    
+                    for candidate in context.candidate_satellites:
+                        candidate_rsrp = candidate.signal_metrics.rsrp if candidate.signal_metrics else -120
+                        if candidate_rsrp > threshold and candidate_rsrp > current_rsrp:
+                            return HandoverDecision(
+                                target_satellite=candidate.satellite_id,
+                                handover_decision=HandoverDecisionType.HANDOVER,
+                                confidence=0.8,
+                                timing=None,
+                                decision_reason="Fallback: Threshold-based decision",
+                                algorithm_name=self.name,
+                                decision_time=0.0,
+                                metadata={'fallback': True, 'threshold': threshold}
+                            )
+                
+                return HandoverDecision(
+                    target_satellite=None,
+                    handover_decision=HandoverDecisionType.NO_HANDOVER,
+                    confidence=0.8,
+                    timing=None,
+                    decision_reason="Fallback: No candidate above threshold",
+                    algorithm_name=self.name,
+                    decision_time=0.0,
+                    metadata={'fallback': True}
+                )
+            except Exception as e:
+                logger.error(f"Fallback閾值算法執行失敗: {e}")
+                return HandoverDecision(
+                    target_satellite=None,
+                    handover_decision=HandoverDecisionType.NO_HANDOVER,
+                    confidence=0.1,
+                    timing=None,
+                    decision_reason=f"Fallback error: {str(e)}",
+                    algorithm_name=self.name,
+                    decision_time=0.0,
+                    metadata={'error': True, 'fallback': True}
+                )
+        
         try:
             observation, info = self._context_to_observation(context)
             result = self.wrapped_algorithm.decide(observation, info)
@@ -365,7 +478,12 @@ class RandomAlgorithmAdapter(BaseTraditionalAdapter):
     def __init__(self, name: str = "random", config: Optional[Dict[str, Any]] = None):
         """初始化隨機算法適配器"""
         if not BASELINE_ALGORITHMS_AVAILABLE:
-            raise ImportError("基準算法模組不可用")
+            logger.warning("基準算法模組不可用，使用 fallback 實現")
+            self.name = name
+            self.config = config or {}
+            self._algorithm_info = None
+            self.wrapped_algorithm = None
+            return
         
         wrapped_algorithm = RandomAlgorithm(config)
         super().__init__(name, wrapped_algorithm, config)
@@ -376,6 +494,49 @@ class RandomAlgorithmAdapter(BaseTraditionalAdapter):
     
     async def predict_handover(self, context: HandoverContext) -> HandoverDecision:
         """執行換手預測"""
+        if not BASELINE_ALGORITHMS_AVAILABLE or self.wrapped_algorithm is None:
+            # Fallback: 隨機決策實現
+            import random
+            try:
+                handover_probability = self.config.get('handover_probability', 0.3)  # 30% 機率換手
+                
+                if context.candidate_satellites and random.random() < handover_probability:
+                    # 隨機選擇一個候選衛星
+                    target = random.choice(context.candidate_satellites)
+                    return HandoverDecision(
+                        target_satellite=target.satellite_id,
+                        handover_decision=HandoverDecisionType.HANDOVER,
+                        confidence=0.5,
+                        timing=None,
+                        decision_reason="Fallback: Random decision",
+                        algorithm_name=self.name,
+                        decision_time=0.0,
+                        metadata={'fallback': True, 'probability': handover_probability}
+                    )
+                else:
+                    return HandoverDecision(
+                        target_satellite=None,
+                        handover_decision=HandoverDecisionType.NO_HANDOVER,
+                        confidence=0.5,
+                        timing=None,
+                        decision_reason="Fallback: Random no-handover",
+                        algorithm_name=self.name,
+                        decision_time=0.0,
+                        metadata={'fallback': True}
+                    )
+            except Exception as e:
+                logger.error(f"Fallback隨機算法執行失敗: {e}")
+                return HandoverDecision(
+                    target_satellite=None,
+                    handover_decision=HandoverDecisionType.NO_HANDOVER,
+                    confidence=0.1,
+                    timing=None,
+                    decision_reason=f"Fallback error: {str(e)}",
+                    algorithm_name=self.name,
+                    decision_time=0.0,
+                    metadata={'error': True, 'fallback': True}
+                )
+        
         try:
             observation, info = self._context_to_observation(context)
             result = self.wrapped_algorithm.decide(observation, info)
