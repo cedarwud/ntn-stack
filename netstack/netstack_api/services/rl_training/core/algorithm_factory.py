@@ -12,18 +12,19 @@ import logging
 from typing import Dict, Type, Any, List, Optional
 from datetime import datetime
 from ..interfaces.rl_algorithm import IRLAlgorithm, ScenarioType
-from ..algorithms.dqn_algorithm import DQNAlgorithm
-from ..algorithms.ppo_algorithm import PPOAlgorithm
-from ..algorithms.sac_algorithm import SACAlgorithm
+# 違規算法已刪除 - 違反 CLAUDE.md 核心原則
+# from ..algorithms.dqn_algorithm import DQNAlgorithm
+# from ..algorithms.ppo_algorithm import PPOAlgorithm
+# from ..algorithms.sac_algorithm import SACAlgorithm
 
 logger = logging.getLogger(__name__)
 
 # 演算法外掛程式註冊表
 # 將演算法名稱映射到其對應的類別
+# 違規算法已移除 - 遵循 CLAUDE.md 核心原則禁止模擬算法
 algorithm_plugins: Dict[str, Type[IRLAlgorithm]] = {
-    "dqn": DQNAlgorithm,
-    "ppo": PPOAlgorithm,
-    "sac": SACAlgorithm,
+    # DQN, PPO, SAC 算法已刪除 - 因使用模擬數據違反 CLAUDE.md 原則
+    # Phase 2 將實現真實的 RL 算法
 }
 
 
