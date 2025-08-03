@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
     getDevices as apiGetDevices,
     createDevice as apiCreateDevice,

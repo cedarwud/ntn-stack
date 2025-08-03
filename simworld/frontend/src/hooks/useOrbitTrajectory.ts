@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { netstackFetch } from '../../config/api-config'
+// import { netstackFetch } from '../../config/api-config'
 
 interface OrbitPoint {
     timestamp: string
@@ -101,7 +101,7 @@ export const useOrbitTrajectory = ({
         } finally {
             setIsLoading(false)
         }
-    }, [uePosition, durationHours, intervalMinutes])
+    }, [uePosition, durationHours, intervalMinutes, generateSimulatedTrajectory])
     
     // 生成模擬軌跡（基於真實軌道動力學）
     const generateSimulatedTrajectory = async (

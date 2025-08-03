@@ -9,8 +9,8 @@ import type {
   OrbitData,
   OptimalTimeWindow,
   DisplayData,
-  SatelliteTrajectory,
-  HandoverEvent,
+  // SatelliteTrajectory,
+  // HandoverEvent,
   ObserverLocation
 } from '../types/satellite';
 import { netstackFetch } from '../config/api-config';
@@ -31,6 +31,7 @@ export interface AnimationConfig {
 }
 
 export class PrecomputedOrbitService {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private cache: Map<string, any> = new Map();
   private cacheTTL: number = 10 * 60 * 1000; // 10 分鐘快取
 
