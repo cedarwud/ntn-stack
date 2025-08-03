@@ -140,7 +140,7 @@ interface SidebarProps {
 // ]
 
 // Helper function to fetch visible satellites from multiple constellations using the simWorldApi client
-async function fetchVisibleSatellites(
+async function _fetchVisibleSatellites(
     count: number,
     minElevation: number
 ): Promise<VisibleSatelliteInfo[]> {
@@ -291,8 +291,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     _intelligentRecommendationEnabled = false,
     _onIntelligentRecommendationChange,
     // 衛星動畫控制 props（動畫永遠開啟）
-    satelliteSpeedMultiplier = 5,
-    onSatelliteSpeedChange,
+    satelliteSpeedMultiplier: _satelliteSpeedMultiplier = 5,
+    onSatelliteSpeedChange: _onSatelliteSpeedChange,
 
     // 星座切換 props
     selectedConstellation = 'starlink',
@@ -303,7 +303,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     onHandoverModeChange,
 }) => {
     // 🎯 使用全域策略狀態
-    const { currentStrategy } = useStrategy()
+    const { currentStrategy: _currentStrategy } = useStrategy()
 
     // 🎯 使用換手狀態
     const {
@@ -357,7 +357,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     const [activeCategory, setActiveCategory] = useState<string>('satellite')
 
     // 使用 DataSyncContext 統一的衛星數據
-    const { state } = useDataSync()
+    const { state: _state } = useDataSync()
     // 使用 NetStack 預計算衛星數據，支援星座切換
     const satelliteState = useSatelliteState()
     const skyfieldSatellites = satelliteState.skyfieldSatellites || []
