@@ -442,7 +442,7 @@ export class IntelligentDataProcessor {
      * 計算點置信度
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private calculatePointConfidence(original: number, processed: number, parameters: any): number {
+    private calculatePointConfidence(original: number, processed: number, _parameters: any): number {
         const difference = Math.abs(original - processed)
         const relativeDifference = difference / original
         

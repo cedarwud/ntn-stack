@@ -87,6 +87,7 @@ export function useVisibleSatellites(
                 if (!isMounted) return
 
                 // Convert NetStack format to SimWorld format
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const convertedSatellites: SatellitePosition[] = (data.satellites || []).map((sat: any, index: number) => ({
                     id: index + 1,
                     name: sat.name || `${constellation.toUpperCase()}-${sat.norad_id}`,
@@ -159,6 +160,7 @@ export function useVisibleSatellites(
 /**
  * Get satellite health status
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getSatelliteHealth(): Promise<any> {
     const endpoint = '/api/v1/satellite-ops/health'
     const response = await netstackFetch(endpoint)
@@ -184,7 +186,7 @@ export async function getAvailableConstellations(): Promise<string[]> {
         
         const data = await response.json()
         return data.available_constellations || ['starlink', 'oneweb']
-    } catch (error) {
+    } catch (_error) {
         console.warn('⚠️ Failed to get constellations from API, using defaults')
         return ['starlink', 'oneweb']
     }
@@ -220,6 +222,7 @@ export const simWorldApi = {
             const data = await response.json()
             
             // Convert NetStack format to SimWorld format
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const convertedSatellites: SatellitePosition[] = (data.satellites || []).map((sat: any, index: number) => ({
                 id: index + 1,
                 name: sat.name || `${constellation.toUpperCase()}-${sat.norad_id}`,

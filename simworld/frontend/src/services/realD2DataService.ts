@@ -69,6 +69,7 @@ export interface D2ServiceStatus {
     data_source: string
     supported_constellations: string[]
     total_satellites: number
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constellation_stats: Record<string, any>
     service_health: Record<string, string>
     capabilities: {
