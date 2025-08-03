@@ -17,7 +17,7 @@ import DelayDopplerViewer from '../domains/simulation/wireless/DelayDopplerViewe
 import TimeFrequencyViewer from '../domains/simulation/wireless/TimeFrequencyViewer'
 
 import ViewerModal from '../shared/ui/layout/ViewerModal'
-import FullChartAnalysisDashboard from './FullChartAnalysisDashboard'
+
 import MeasurementEventsModal from './MeasurementEventsModal'
 
 import { ViewerProps } from '../../types/viewer'
@@ -62,9 +62,6 @@ const Navbar: FC<NavbarProps> = ({
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
     const [isChartsDropdownOpen, setIsChartsDropdownOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
-
-    // 新增 Chart Analysis Modal 狀態
-    const [showChartAnalysisModal, setShowChartAnalysisModal] = useState(false)
 
     // 新增 Measurement Events Modal 狀態
     const [showMeasurementEventsModal, setShowMeasurementEventsModal] =
@@ -390,16 +387,6 @@ const Navbar: FC<NavbarProps> = ({
                             立體圖
                         </li>
 
-                        {/* 圖表分析按鈕 */}
-                        <li
-                            className={`navbar-item ${
-                                showChartAnalysisModal ? 'active' : ''
-                            }`}
-                            onClick={() => setShowChartAnalysisModal(true)}
-                        >
-                            📈 圖表分析
-                        </li>
-
                         {/* 3GPP 測量事件按鈕 */}
                         <li
                             className={`navbar-item ${
@@ -456,12 +443,6 @@ const Navbar: FC<NavbarProps> = ({
                     />
                 ) : null
             )}
-
-            {/* 圖表分析儀表板 */}
-            <FullChartAnalysisDashboard
-                isOpen={showChartAnalysisModal}
-                onClose={() => setShowChartAnalysisModal(false)}
-            />
 
             {/* 測量事件模態框 */}
             <MeasurementEventsModal
