@@ -6,7 +6,7 @@ import Starfield from '../shared/ui/effects/Starfield'
 import MainScene from './MainScene'
 import { Device } from '../../types/device'
 // Note: SINRLegend removed - interference domain was cleaned up
-import FullChartAnalysisDashboard from '../layout/FullChartAnalysisDashboard'
+
 import PredictiveMaintenanceViewer from '../domains/analytics/performance/PredictiveMaintenanceViewer'
 import IntelligentRecommendationSystem from '../domains/analytics/ai/IntelligentRecommendationSystem'
 import CoreNetworkSyncViewer from '../domains/monitoring/realtime/CoreNetworkSyncViewer'
@@ -123,7 +123,9 @@ export default function SceneView({
         if (satelliteState.satelliteEnabled) {
             // 只在有錯誤或首次載入時記錄日誌
             if (satellites.length === 0) {
-                console.log(`⚠️ StereogramView: [${currentConstellation.toUpperCase()}] 無衛星數據`)
+                console.log(
+                    `⚠️ StereogramView: [${currentConstellation.toUpperCase()}] 無衛星數據`
+                )
             }
         }
     }, [
@@ -178,13 +180,6 @@ export default function SceneView({
             <Starfield starCount={180} />
 
             {/* SINR Heatmap legend removed - interference domain cleaned up */}
-
-            {featureState.predictionAccuracyDashboardEnabled && (
-                <FullChartAnalysisDashboard
-                    isOpen={featureState.predictionAccuracyDashboardEnabled}
-                    onClose={() => {}}
-                />
-            )}
 
             {featureState.coreNetworkSyncEnabled && (
                 <CoreNetworkSyncViewer
