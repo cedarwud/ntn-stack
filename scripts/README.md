@@ -1,276 +1,358 @@
 # 🚀 TLE 數據自動下載工具
 
-## 📝 功能描述
+生產級 LEO 衛星軌道數據收集系統，支援 Starlink 和 OneWeb。
 
-自動下載 Starlink 和 OneWeb 的 TLE 和 JSON 數據，支援：
-- 智能日期命名（基於數據實際日期，非下載日期）
-- 數據完整性驗證
-- 智能更新檢查（避免重複下載）
-- 自動備份管理和清理
-- 詳細執行報告和錯誤處理
+## 🎯 核心特點
+- **🤖 全自動排程**: 6 小時間隔，智能更新檢查
+- **📅 精確命名**: 基於軌道數據實際日期（非下載日期）
+- **🛡️ 生產可靠**: 自動備份、錯誤恢復、日誌管理
+- **🚫 API 友善**: 避免頻繁請求被 CelesTrak 封鎖
 
-## 🕰️ 建議執行時間
+## ⚡ 快速開始
 
-**UTC 08:00 (台灣時間 16:00)**
-
-原因：
-- CelesTrak 在 UTC 00:00-06:00 更新數據
-- UTC 08:00 後確保獲得最新數據
-- 避開網路高峰期
-- 台灣時間 16:00 適合手動執行
-
-## 🚀 使用方法
-
-### 📦 雙版本腳本說明
-
-| 腳本版本 | 功能特點 | 檔案命名邏輯 |
-|---------|---------|---------|
-| `daily_tle_download_enhanced.sh` | **智能更新檢查 + 實際日期命名 + 自動備份清理** | **基於 TLE epoch 實際日期** |
-
-**注意**：舊版基礎腳本已移除，統一使用增強版腳本。
-
-### 基本執行
+### 🚀 一鍵啟用（推薦）
 ```bash
-cd /home/u24/ntn-stack
+# 1. 安裝自動排程（每 6 小時執行）
+./scripts/tle_cron_scheduler.sh install
 
-# 標準執行 - 智能更新 + 實際日期命名 + 自動清理
-./scripts/daily_tle_download_enhanced.sh
+# 2. 檢查狀態
+./scripts/tle_cron_scheduler.sh status
+
+# 3. 測試下載
+./scripts/tle_cron_scheduler.sh test
 ```
 
-### 🔄 自動化功能
-- **智能檔案命名**：基於數據實際日期而非下載日期
-- **自動備份管理**：統一備份到 `backups/` 目錄
-- **自動清理**：清理散落備份檔案和過期備份（保留7天）
-- **重複檢測**：避免下載相同數據
+### ⏰ 自動執行時間
+- **排程**: 每天 02:00, 08:00, 14:00, 20:00 (UTC)
+- **頻率**: 每 6 小時（最佳實踐，避免 API 限制）
+- **更新策略**: 只在數據更新時下載
 
-### 增強版本高級選項
+### 🔧 管理命令
 ```bash
-# 強制重新下載所有檔案
-./scripts/daily_tle_download_enhanced.sh --force
-
-# 不檢查更新，直接跳過已存在檔案
-./scripts/daily_tle_download_enhanced.sh --no-update-check
-
-# 不備份現有檔案
-./scripts/daily_tle_download_enhanced.sh --no-backup
-
-# 查看幫助
-./scripts/daily_tle_download_enhanced.sh --help
+./scripts/tle_cron_scheduler.sh remove     # 移除排程
+./scripts/tle_cron_scheduler.sh logs 50    # 查看日誌
+./scripts/tle_cron_scheduler.sh rotate     # 日誌輪替
+./scripts/tle_cron_scheduler.sh help       # 完整說明
 ```
 
-## 📊 執行結果
+## 📅 Cron 排程詳解
 
-### 成功執行範例
-```
-🚀 增強版 LEO 衛星 TLE 數據下載工具
-📅 目標日期: 20250728 (UTC) - 下載日期
-🕐 當前時間: 2025-07-28 08:00:00 UTC
-
-==========================================
-📊 增強版每日 TLE 數據下載報告
-==========================================
-✅ Starlink: 全部成功
-✅ OneWeb: 全部成功
-
-📁 本次下載的檔案: (基於數據實際日期命名)
-  starlink/tle/starlink_20250727.tle        1,343,328 bytes
-  starlink/json/starlink_20250727.json      3,343,319 bytes
-  oneweb/tle/oneweb_20250727.tle              109,368 bytes
-  oneweb/json/oneweb_20250727.json            270,055 bytes
-
-💾 備份檔案: (自動備份到 backups/20250728/)
-  starlink_20250727.tle.backup
-  starlink_20250727.json.backup
-  oneweb_20250727.tle.backup
-  oneweb_20250727.json.backup
-==========================================
+### 🎯 預設排程設定
+```bash
+# TLE 數據自動下載（每 6 小時執行一次）
+# 分別在 02:00, 08:00, 14:00, 20:00 執行
+0 2,8,14,20 * * * /path/to/daily_tle_download_enhanced.sh >> /path/to/logs/tle_download.log 2>> /path/to/logs/tle_error.log
 ```
 
-## 📁 檔案命名格式
+### 📋 Cron 時間格式說明
+```
+分鐘 小時 日期 月份 星期 命令
+ │    │   │   │   │
+ │    │   │   │   └─── 星期幾 (0-7, 0或7是星期日)
+ │    │   │   └────── 月份 (1-12)
+ │    │   └─────────── 日期 (1-31)
+ │    └────────────── 小時 (0-23)
+ └─────────────────── 分鐘 (0-59)
+```
 
-**重要更新**：檔案名稱現在基於**數據實際日期**而非下載日期
+### ⏰ 常見時間設定範例
+| 描述 | Cron 表達式 | 說明 |
+|------|-------------|------|
+| 每 6 小時 | `0 */6 * * *` | 00:00, 06:00, 12:00, 18:00 |
+| 每 4 小時 | `0 */4 * * *` | 每 4 小時執行一次 |
+| 特定時間 | `0 2,8,14,20 * * *` | 02:00, 08:00, 14:00, 20:00 |
+| 每天一次 | `0 8 * * *` | 每天 08:00 執行 |
+| 工作日執行 | `0 8 * * 1-5` | 週一到週五 08:00 執行 |
+
+### 🛠️ 手動 Cron 管理
+```bash
+# 編輯 cron 表
+crontab -e
+
+# 查看當前 cron 任務
+crontab -l
+
+# 刪除所有 cron 任務
+crontab -r
+
+# 查看 cron 服務狀態
+sudo systemctl status cron
+
+# 重啟 cron 服務
+sudo systemctl restart cron
+```
+
+### 📊 頻率建議與限制
+- **🎯 推薦頻率**: 6 小時（02:00, 08:00, 14:00, 20:00 UTC）
+- **⚠️ 最小間隔**: 不少於 4 小時（避免被 CelesTrak API 封鎖）
+- **❌ 不建議**: 每小時或更頻繁（可能被 API 限制）
+- **💡 最佳時間**: UTC 08:00 後（CelesTrak 在 00:00-06:00 更新數據）
+
+## 🖥️ WSL 環境特殊設定
+
+### ⚠️ WSL Cron 運行條件（重要！）
+**WSL 中的 cron 服務需要滿足以下條件才能正常運行：**
+
+1. **WSL 實例必須處於運行狀態**
+   - WSL 關閉時，所有 cron 任務停止
+   - 電腦休眠/關機時，cron 無法執行
+
+2. **Cron 服務必須手動啟動**
+   ```bash
+   # 檢查 cron 服務狀態
+   sudo service cron status
+   
+   # 啟動 cron 服務（每次 WSL 重啟後需要執行）
+   sudo service cron start
+   
+   # 設定開機自動啟動（推薦）
+   echo 'sudo service cron start' >> ~/.bashrc
+   ```
+
+3. **網路連接必須可用**
+   - 需要能夠訪問 `celestrak.org`
+   - 防火牆或代理設定可能影響下載
+
+### 🔄 自動啟動 Cron 服務
+```bash
+# 方法1: 加入 .bashrc（每次開啟終端時啟動）
+echo 'sudo service cron start > /dev/null 2>&1' >> ~/.bashrc
+
+# 方法2: 創建啟動腳本
+cat > ~/start-cron.sh << 'EOF'
+#!/bin/bash
+sudo service cron start
+echo "Cron service started"
+EOF
+chmod +x ~/start-cron.sh
+```
+
+### 💡 WSL 使用建議
+
+#### 🎯 最佳實踐
+1. **保持 WSL 運行**: 
+   - 不要完全關閉 WSL
+   - 可以關閉 VSCode，但保持 WSL 實例運行
+
+2. **檢查運行狀態**:
+   ```bash
+   # 檢查 WSL 是否運行
+   wsl --list --running
+   
+   # 檢查 cron 服務
+   sudo service cron status
+   
+   # 檢查排程任務
+   ./scripts/tle_cron_scheduler.sh status
+   ```
+
+### 🚨 常見問題排解
+
+| 問題 | 症狀 | 解決方案 |
+|------|------|----------|
+| **Cron 未執行** | 排程時間到了但沒有執行 | `sudo service cron start` |
+| **WSL 自動關閉** | 一段時間後 WSL 自動休眠 | 設定 Windows 電源管理，保持 WSL 運行 |
+| **網路問題** | 下載失敗 | 檢查防火牆、代理設定 |
+| **權限問題** | 無法寫入日誌或數據 | 檢查文件夾權限 `chmod 755` |
+
+### 🎯 實際使用場景
+
+#### ✅ 可以正常運行
+- 開啟 WSL，關閉 VSCode
+- 電腦正常使用，WSL 在背景運行
+- 設定 `.bashrc` 自動啟動 cron 服務
+
+#### ❌ 會停止運行  
+- 完全關閉 WSL
+- 電腦休眠/關機
+- 重啟 WSL 但忘記啟動 cron 服務
+
+### 💡 最佳實踐建議
+```bash
+# 設定自動啟動 cron（推薦）
+echo 'sudo service cron start > /dev/null 2>&1' >> ~/.bashrc
+
+# 檢查 WSL 和 cron 狀態
+wsl --list --running
+sudo service cron status
+./scripts/tle_cron_scheduler.sh status
+```
+
+### 📝 重要提醒
+- **❌ 不需要 VSCode 開啟**: 只要 WSL 實例運行即可
+- **⚠️ 電腦可以休眠**: 但 WSL 會暫停，cron 也會暫停
+- **🔄 重啟後重新設定**: 每次重啟 WSL 後需要重新啟動 cron 服務
+
+## 📦 系統架構
+
+| 腳本 | 功能 |
+|------|------|
+| `tle_cron_scheduler.sh` | **排程管理系統** - cron 設置、日誌管理、狀態監控 |
+| `daily_tle_download_enhanced.sh` | **核心下載引擎** - 智能更新、實際日期命名、自動備份 |
+
+## 🔄 智能更新機制
+- **HTTP 標頭檢查**: 比較遠端 `Last-Modified` 和 `Content-Length`
+- **本地檔案比對**: 大小和修改時間比較
+- **智能決策**: 只在數據更新時下載，避免重複請求
+- **自動備份**: 更新前備份，失敗自動恢復
+
+## 🛠️ 手動執行選項
+
+### 下載引擎選項
+```bash
+./scripts/daily_tle_download_enhanced.sh --force        # 強制重新下載
+./scripts/daily_tle_download_enhanced.sh --no-backup   # 不備份現有檔案
+./scripts/daily_tle_download_enhanced.sh --help        # 查看所有選項
+```
+
+### 最佳執行時間
+**UTC 08:00 (台灣 16:00)** - CelesTrak 在 UTC 00:00-06:00 更新，此時確保獲得最新數據
+
+## 📁 檔案結構
+
+基於**軌道數據實際日期**命名（非下載日期）：
 
 ```
 tle_data/
 ├── starlink/
-│   ├── tle/starlink_20250727.tle     # 基於 TLE epoch 的實際日期
-│   └── json/starlink_20250727.json   # 與 TLE 使用相同日期
-└── oneweb/
-    ├── tle/oneweb_20250727.tle       # 基於 TLE epoch 的實際日期
-    └── json/oneweb_20250727.json     # 與 TLE 使用相同日期
+│   ├── tle/starlink_20250802.tle     # 基於 TLE epoch 實際日期
+│   └── json/starlink_20250802.json   # 與 TLE 使用相同日期
+├── oneweb/
+│   ├── tle/oneweb_20250802.tle
+│   └── json/oneweb_20250802.json
+└── backups/
+    └── 20250803/                     # 按日期組織的備份目錄
+        ├── starlink_20250802.tle.old
+        └── oneweb_20250802.json.old
 ```
 
-### 📅 智能日期命名邏輯
-- **自動提取實際日期**：從 TLE 數據的 epoch 欄位提取真實的軌道數據日期
-- **檔案名稱一致性**：檔案名稱準確反映數據內容的實際日期
-- **避免混淆**：不再使用下載日期，消除檔案名與數據內容不符的問題
-- **範例**：下載日期 2025-07-28，但數據實際日期是 2025-07-27，檔案名為 `starlink_20250727.tle`
+## 📊 執行結果範例
 
-## 🔄 智能更新檢查機制（增強版專屬）
-
-### 📋 檔案更新判斷邏輯
-增強版腳本解決了「當天檔案已存在但可能有更新數據」的問題：
-
-1. **HTTP 標頭檢查**：比較遠端檔案的 `Last-Modified` 和 `Content-Length`
-2. **本地檔案比對**：檢查本地檔案大小和修改時間
-3. **智能決策**：
-   - 檔案大小不同 → 立即更新
-   - 遠端檔案較新 → 立即更新  
-   - 檔案相同且最新 → 跳過下載
-
-### 🛡️ 安全備份機制
-- **自動備份**：更新前備份現有檔案到 `tle_data/backups/下載日期/`
-- **原子操作**：先下載到臨時檔案，驗證通過後才覆蓋
-- **失敗恢復**：驗證失敗時自動恢復備份檔案
-- **自動清理**：保留最近7天的備份，自動刪除過期備份
-
-### 🎯 實際應用場景
+### 排程狀態檢查
 ```bash
-# 場景1：早上8點首次下載
-./scripts/daily_tle_download_enhanced.sh
-# 結果：下載新檔案
+$ ./scripts/tle_cron_scheduler.sh status
 
-# 場景2：下午再次執行，CelesTrak有更新
-./scripts/daily_tle_download_enhanced.sh  
-# 結果：檢測到更新，備份舊檔案並下載新版本
+===== TLE 下載排程狀態 =====
+✅ 排程狀態: 已啟用
 
-# 場景3：晚上再次執行，無更新
-./scripts/daily_tle_download_enhanced.sh
-# 結果：檢測到檔案最新，跳過下載
+Cron 條目:
+0 2,8,14,20 * * * /path/to/daily_tle_download_enhanced.sh
+
+日誌文件: tle_download.log (2.1K, 最後修改: 2025-08-03 08:00:15)
+錯誤日誌: 尚未創建
+
+下次執行時間:
+  今天: 2025-08-03 14:00, 20:00
+  明天: 2025-08-04 02:00
+============================
 ```
 
-## 🔍 數據驗證機制
+### 下載執行結果
+```
+===== TLE 數據下載完成 =====
+✅ Starlink: 已下載/更新
+  📥 新下載檔案:
+    • Starlink TLE: starlink_20250802.tle
+    • Starlink JSON: starlink_20250802.json
+
+✅ OneWeb: 已下載/更新
+  📥 新下載檔案:
+    • OneWeb TLE: oneweb_20250802.tle
+    • OneWeb JSON: oneweb_20250802.json
+=============================
+```
+
+## 📈 數據驗證機制
 
 ### TLE 數據驗證
-- 檢查檔案格式（第2、3行必須以"1 "和"2 "開頭）
-- 驗證 epoch 年份是否合理
-- 確認衛星數量 > 0
-- 檢查檔案大小 > 100 bytes
+- **格式檢查**: 驗證 TLE 標準格式（Line 1/2 格式）
+- **Epoch 驗證**: 檢查年份和天數有效性
+- **衛星數量**: 確認下載的衛星數量合理
 
 ### JSON 數據驗證
-- 驗證 JSON 格式正確性
-- 確認數組長度 > 0
-- 檢查第一個元素的 EPOCH 欄位
-- 確認檔案大小合理
+- **語法檢查**: 確保 JSON 格式正確
+- **數組長度**: 驗證衛星數據數量
+- **EPOCH 欄位**: 檢查時間戳有效性
 
-## 📝 日誌功能
+### 安全備份策略
+- **更新前備份**: 自動備份到 `tle_data/backups/日期/`
+- **原子操作**: 臨時文件→驗證→覆蓋
+- **失敗恢復**: 驗證失敗時自動恢復
+- **自動清理**: 保留 7 天備份，過期自動刪除
 
-### 日誌位置
-```
-/home/sat/ntn-stack/logs/tle_download.log
-```
+## 📝 日誌系統
 
-### 日誌內容
-- 下載開始/結束時間
-- 成功/失敗狀態
-- 檔案大小和衛星數量
-- 錯誤訊息和警告
+### 自動日誌管理
+- **執行日誌**: `/logs/tle_scheduler/tle_download.log`
+- **錯誤日誌**: `/logs/tle_scheduler/tle_error.log`
+- **自動輪替**: 超過 1MB 自動壓縮歸檔
+- **自動清理**: 保留 30 天壓縮日誌
 
 ### 查看日誌
 ```bash
-# 查看最新日誌
-tail -f /home/sat/ntn-stack/logs/tle_download.log
-
-# 查看今天的日誌
-grep "$(date -u '+%Y-%m-%d')" /home/sat/ntn-stack/logs/tle_download.log
-
-# 查看錯誤日誌
-grep "ERROR" /home/sat/ntn-stack/logs/tle_download.log
+./scripts/tle_cron_scheduler.sh logs      # 最近 20 行
+./scripts/tle_cron_scheduler.sh logs 50   # 指定行數
 ```
 
 ## 🛠️ 故障排除
 
+### 快速診斷
+```bash
+./scripts/tle_cron_scheduler.sh status    # 檢查排程狀態
+./scripts/tle_cron_scheduler.sh logs 50   # 查看錯誤日誌
+./scripts/tle_cron_scheduler.sh test      # 測試下載功能
+```
+
 ### 常見問題
 
-#### 1. 網路連接失敗
+| 問題 | 解決方法 |
+|------|----------|
+| **排程未執行** | `sudo systemctl status cron`<br>重新安裝: `remove` → `install` |
+| **網路連接失敗** | `ping celestrak.org`<br>`curl -I https://celestrak.org` |
+| **強制重新下載** | `--force` 參數或 `test` 命令 |
+| **權限問題** | `chmod +x scripts/*.sh`<br>`chmod 755 tle_data/` |
+
+## 📈 最佳實踐
+
+### 🎯 推薦工作流程
+
+#### 生產環境
 ```bash
-# 檢查網路連接
-ping celestrak.org
-curl -I https://celestrak.org
+./scripts/tle_cron_scheduler.sh install   # 一次設置
+./scripts/tle_cron_scheduler.sh status    # 定期監控
+./scripts/tle_cron_scheduler.sh logs      # 問題排查
 ```
 
-#### 2. 檔案更新檢查（增強版）
+#### 開發環境
 ```bash
-# 如果懷疑更新檢查有問題，可以：
-
-# 強制重新下載
-./scripts/daily_tle_download_enhanced.sh --force
-
-# 手動檢查遠端檔案信息
-curl -I https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle
-
-# 比較本地檔案時間（注意：檔案名基於數據實際日期，非當前日期）
-find tle_data/starlink/tle/ -name "starlink_*.tle" -exec stat {} \;
+./scripts/tle_cron_scheduler.sh test      # 測試下載
+./scripts/daily_tle_download_enhanced.sh --force  # 強制更新
 ```
 
-#### 3. 檔案已存在
-- 腳本會進行智能更新檢查
-- 如需強制重新下載，使用 `--force` 參數
-
-#### 4. 數據驗證失敗
-- 腳本會自動刪除驗證失敗的檔案
-- 檢查日誌了解具體失敗原因
-
-#### 5. 權限問題
-```bash
-# 確保腳本可執行
-chmod +x /home/sat/ntn-stack/scripts/daily_tle_download.sh
-chmod +x /home/sat/ntn-stack/scripts/daily_tle_download_enhanced.sh
-
-# 確保目錄可寫
-chmod 755 /home/sat/ntn-stack/tle_data
-```
-
-## 📈 使用建議
-
-### 每日執行流程（推薦使用增強版）
-1. **UTC 08:00** 執行增強版腳本 `./scripts/daily_tle_download_enhanced.sh`
-2. 檢查執行報告確認成功
-3. 如有失敗，查看日誌並重新執行  
-4. **可重複執行**：一天內多次執行會自動檢查更新
-5. 定期備份 tle_data 目錄（增強版有自動備份功能）
-
-### 自動化選項
-可以設定 cron job 自動執行：
-```bash
-# 編輯 crontab
-crontab -e
-
-# 每日自動執行
-0 8 * * * /home/u24/ntn-stack/scripts/daily_tle_download_enhanced.sh >> /home/u24/ntn-stack/logs/cron.log 2>&1
-```
-
-### 數據備份
-```bash
-# 每週備份數據
-tar -czf "tle_backup_$(date +%Y%m%d).tar.gz" tle_data/
-
-# 同步到遠端
-rsync -av tle_data/ backup_server:/path/to/backup/
-```
-
-## 🔧 自動化管理
-
-### 備份管理
-- **自動備份**：每次更新前自動備份到 `backups/下載日期/`
-- **自動清理**：保留最近7天的備份，自動刪除過期備份
-- **統一管理**：所有備份集中在 `backups/` 目錄，不再散落各處
-
-## 🎯 使用建議
-
-1. **每日例行下載**：直接執行腳本，自動處理所有細節
-2. **強制更新**：使用 `--force` 參數強制重新下載
-3. **自動維護**：腳本會自動清理備份，無需手動維護
-4. **生產環境**：提供完整的錯誤處理、日誌記錄和備份機制
-
-## 🎯 下一步
-
-執行腳本後，收集的數據將自動支援：
-- RL 強化學習訓練數據生成
-- 軌道演化分析
-- Starlink vs OneWeb 對比研究
-- 學術論文數據來源
+### 🔧 維護建議
+- **日誌輪替**: 自動執行，可手動 `rotate`
+- **數據備份**: 系統自動備份，可額外手動備份
+- **監控頻率**: 每週檢查狀態和日誌
+- **API 限制**: 最小間隔 4 小時，推薦 6 小時
 
 ---
 
-**🎯 目標**: 每天收集高品質的 LEO 衛星軌道數據，支援換手優化研究
+## 🎯 使用場景
+
+### 新用戶（推薦）
+```bash
+./scripts/tle_cron_scheduler.sh install   # 一鍵啟用
+./scripts/tle_cron_scheduler.sh test      # 驗證運行
+./scripts/tle_cron_scheduler.sh status    # 檢查狀態
+```
+
+### 升級用戶
+```bash
+crontab -e  # 手動移除舊條目
+./scripts/tle_cron_scheduler.sh install   # 安裝新系統
+```
+
+---
+
+**🎯 目標**: 全自動收集高品質 LEO 衛星軌道數據，支援 NTN 換手優化研究  
+**🆕 特色**: 生產級自動化系統，零維護運行
