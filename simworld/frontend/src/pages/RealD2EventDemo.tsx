@@ -23,7 +23,7 @@ const RealD2EventDemo: React.FC = () => {
         setConstellation(newConstellation)
     }
 
-    const handleTimeSelect = (time: Date) => {
+    const _handleTimeSelect = (time: Date) => {
         setCurrentTime(time)
         console.log('Selected time:', time)
     }
