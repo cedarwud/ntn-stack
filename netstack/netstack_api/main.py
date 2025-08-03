@@ -38,8 +38,8 @@ from .app.core.router_manager import RouterManager
 from .app.core.middleware_manager import MiddlewareManager
 from .app.core.exception_manager import ExceptionManager
 
-# AI 服務
-from .routers.ai_decision_router import initialize_ai_services, shutdown_ai_services
+# AI 服務 - ai_decision_router 已移除
+# from .routers.ai_decision_router import initialize_ai_services, shutdown_ai_services
 
 # 日誌設定
 logger = structlog.get_logger(__name__)
@@ -61,7 +61,7 @@ async def _background_satellite_data_init():
         from .services.instant_satellite_loader import InstantSatelliteLoader
         
         # 獲取數據庫連接字符串
-        db_url = os.getenv("RL_DATABASE_URL", "postgresql://rl_user:rl_password@netstack-rl-postgres:5432/rl_research")
+        db_url = os.getenv("SATELLITE_DATABASE_URL", "postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db")
         
         # 初始化並載入預置數據
         loader = InstantSatelliteLoader(db_url)
@@ -142,25 +142,25 @@ async def _initialize_all_managers(app: FastAPI) -> None:
     managers["service"] = ServiceManager(*adapters)
     await managers["service"].initialize_services(app)
 
-    await initialize_ai_services(adapters[1])  # Redis adapter
+    # await initialize_ai_services(adapters[1])  # AI 服務已移除
 
-    # 初始化 RLTrainingEngine 單例
-    logger.info("🚀 開始初始化 RLTrainingEngine...")
-    from .rl.training_engine import get_training_engine
+    # 初始化 RLTrainingEngine 單例 - RL 已移除
+    # logger.info("🚀 開始初始化 RLTrainingEngine...")
+    # from .rl.training_engine import get_training_engine
 
-    await get_training_engine()
-    logger.info("✅ RLTrainingEngine 初始化完成")
+    # await get_training_engine()
+    # logger.info("✅ RLTrainingEngine 初始化完成")
 
-    # 初始化數據庫表結構
-    logger.info("🗄️ 檢查並初始化數據庫表結構...")
-    from .services.database_init import ensure_database_initialized
+    # 初始化數據庫表結構 - 暫時跳過以快速啟動
+    # logger.info("🗄️ 檢查並初始化數據庫表結構...")
+    # from .services.database_init import ensure_database_initialized
 
-    success = await ensure_database_initialized()
-    if success:
-        logger.info("✅ 數據庫表結構初始化完成")
-    else:
-        logger.error("❌ 數據庫初始化失敗，停止啟動")
-        raise RuntimeError("數據庫初始化失敗")
+    # success = await ensure_database_initialized()
+    # if success:
+    #     logger.info("✅ 數據庫表結構初始化完成")
+    # else:
+    #     logger.error("❌ 數據庫初始化失敗，停止啟動")
+    #     raise RuntimeError("數據庫初始化失敗")
 
     # 啟動背景衛星數據初始化任務
     logger.info("🛰️ 啟動背景衛星數據初始化...")
@@ -182,7 +182,7 @@ async def _graceful_shutdown() -> None:
     logger.info("🔧 系統正在關閉...")
 
     try:
-        await shutdown_ai_services()
+        # await shutdown_ai_services()  # AI 服務已移除
         if managers.get("adapter"):
             await managers["adapter"].cleanup()
         logger.info("✅ 系統已優雅關閉")

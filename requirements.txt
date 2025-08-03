@@ -55,6 +55,5 @@ structlog>=23.2.0  # 結構化日誌系統
 
 # ===== 伺服器啟動依賴 =====
 # 在本地開發和整合測試中啟動 uvicorn 伺服器所需
-torch>=2.4.0
-optuna>=4.4.0
+# optuna>=4.4.0  # Moved to NetStack requirements
 python-dotenv>=1.0.0

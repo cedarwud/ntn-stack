@@ -77,35 +77,6 @@ export interface CoreSyncData {
   }
 }
 
-// RL 訓練指標
-export interface RLEngineMetrics {
-  episodes: number
-  avgReward: number
-  progress: number
-  handoverDelay: number
-  successRate: number
-  signalDropTime: number
-  energyEfficiency: number
-}
-
-export interface TrainingMetrics {
-  dqn: RLEngineMetrics
-  ppo: RLEngineMetrics
-}
-
-// 獎勵趨勢數據
-export interface RewardTrendData {
-  dqnData: number[]
-  ppoData: number[]
-  labels: string[]
-}
-
-// 策略損失數據
-export interface PolicyLossData {
-  dqnLoss: number[]
-  ppoLoss: number[]
-  labels: string[]
-}
 
 // 策略歷史數據
 export interface StrategyHistoryData {

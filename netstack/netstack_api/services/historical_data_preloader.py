@@ -477,7 +477,7 @@ if __name__ == "__main__":
     """直接執行測試"""
     import os
     
-    db_url = os.getenv("RL_DATABASE_URL", "postgresql://rl_user:rl_password@localhost:5432/rl_research")
+    db_url = os.getenv("SATELLITE_DATABASE_URL", "postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db")
     
     async def test_preload():
         result = await preload_historical_data(db_url)

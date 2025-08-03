@@ -41,76 +41,15 @@ handover_algorithms:
       author: "Baseline implementation"
       supported_scenarios: ["testing", "baseline"]
   
-  # 強化學習算法配置
-  reinforcement_learning:
-    dqn_handover:
-      class: "netstack_api.algorithm_ecosystem.rl_algorithms.DQNHandoverAgent"
-      model_path: "/models/dqn_handover_v2.pth"
-      enabled: true  # 已實現，可以啟用
-      priority: 20
-      training_config:
-        episodes: 50000
-        batch_size: 64
-        learning_rate: 0.0001
-        epsilon_decay: 0.995
-        memory_size: 100000
-        target_update_frequency: 1000
-      inference_config:
-        temperature: 0.1
-        use_exploration: false
-      description: "深度Q網路換手智能體"
-      author: "RL Implementation"
-      supported_scenarios: ["urban", "suburban", "complex"]
-    
-    ppo_handover:
-      class: "netstack_api.algorithm_ecosystem.rl_algorithms.PPOHandoverAgent"
-      model_path: "/models/ppo_handover_v1.pth"
-      enabled: true  # 已實現，可以啟用
-      priority: 18
-      training_config:
-        episodes: 30000
-        batch_size: 256
-        learning_rate: 0.0003
-        clip_epsilon: 0.2
-        value_coefficient: 0.5
-        entropy_coefficient: 0.01
-      description: "近端策略優化換手智能體"
-      author: "RL Implementation"
-      supported_scenarios: ["urban", "suburban", "highway"]
-    
-    sac_handover:
-      class: "netstack_api.algorithm_ecosystem.rl_algorithms.SACHandoverAgent"
-      model_path: "/models/sac_handover_v1.pth"
-      enabled: true  # 已實現，可以啟用
-      priority: 16
-      training_config:
-        episodes: 40000
-        batch_size: 128
-        learning_rate: 0.0003
-        alpha: 0.2
-        tau: 0.005
-      description: "軟演員評論家換手智能體"
-      author: "RL Implementation"
-      supported_scenarios: ["complex", "dynamic", "interference"]
+
 
 # 環境配置
 environment:
-  gymnasium:
-    env_name: "LEOSatelliteHandoverEnv-v1"
-    max_episode_steps: 1000
-    scenario: "urban"
-    max_ues: 100
+  simulation:
     max_satellites: 10
-    episode_length: 1000
+    scenario: "urban"
     netstack_api_url: "http://netstack-api:8080"
     simworld_api_url: "http://simworld_backend:8000"
-    reward_config:
-      latency_weight: -0.1
-      success_reward: 10.0
-      efficiency_weight: 2.0
-      qoe_weight: 5.0
-      interference_penalty: -1.0
-      resource_penalty: -0.5
 
 # 協調器配置
 orchestrator:
@@ -174,7 +113,7 @@ logging:
 resources:
   max_memory_mb: 2048
   max_cpu_cores: 4
-  max_concurrent_training: 2
+  max_concurrent_algorithms: 2
   model_cache_size_mb: 512
 
 # 安全配置

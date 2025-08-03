@@ -36,17 +36,7 @@ class RouterManager:
                 router as handover_router,
             )
 
-            # 嘗試導入 RL System 的路由器 - 暫時禁用以避免路由衝突
-            try:
-                from ...services.rl_training.api.training_routes import (
-                    router as new_rl_training_router,
-                )
-
-                rl_training_available = False  # 暫時禁用
-                logger.warning("RL System training routes 被暫時禁用以避免路由衝突")
-            except ImportError:
-                rl_training_available = False
-                logger.warning("RL System training routes 不可用，跳過註冊")
+            # RL System 已移除
 
             # 嘗試導入 WebSocket 路由器
             try:
@@ -58,15 +48,8 @@ class RouterManager:
                 logger.warning("WebSocket router 不可用，跳過註冊")
 
             # 嘗試導入增強版路由器 - 如果不存在則跳過
-            try:
-                from ...services.rl_training.api.enhanced_training_routes import (
-                    router as enhanced_rl_training_router,
-                )
-
-                enhanced_rl_available = True
-            except ImportError:
-                enhanced_rl_available = False
-                logger.warning("RL System enhanced training routes 不可用，跳過註冊")
+            # Enhanced RL training routes 已移除
+            enhanced_rl_available = False
 
             # 嘗試導入衛星操作路由器
             try:
@@ -87,26 +70,7 @@ class RouterManager:
             self._track_router("handover_router", "切換管理", True)
 
             # 只有在成功導入時才註冊 RL System 路由器
-            if rl_training_available:
-                self.app.include_router(
-                    new_rl_training_router,
-                    prefix="/api/v1/rl/training",
-                    tags=["RL 訓練 (基礎)"],
-                )
-                self._track_router("new_rl_training_router", "RL 訓練 (基礎)", True)
-                logger.info("✅ RL System 基礎路由器註冊完成")
-
-            # 只有在成功導入時才註冊增強版路由器
-            if enhanced_rl_available:
-                self.app.include_router(
-                    enhanced_rl_training_router,
-                    prefix="/api/v1/rl/enhanced",
-                    tags=["RL 訓練 (增強版)"],
-                )
-                self._track_router(
-                    "enhanced_rl_training_router", "RL 訓練 (增強版)", True
-                )
-                logger.info("✅ RL System 增強版路由器註冊完成")
+            # RL System 路由器已移除
 
             # 註冊 WebSocket 路由器
             if websocket_available:
@@ -210,27 +174,14 @@ class RouterManager:
             from ...routers.intelligent_fallback_router import (
                 router as intelligent_fallback_router,
             )
-            from ...routers.rl_monitoring_router import (
-                router as rl_monitoring_router,
-            )
-
-            from ...routers.rl_training_router import (
-                router as rl_training_router,
-            )
+            # RL 路由器已移除
             from ...routers.test_router import router as test_router
 
             self.app.include_router(core_sync_router, tags=["核心同步機制"])
             self._track_router("core_sync_router", "核心同步機制", True)
             self.app.include_router(intelligent_fallback_router, tags=["智能回退機制"])
             self._track_router("intelligent_fallback_router", "智能回退機制", True)
-            self.app.include_router(
-                rl_monitoring_router, prefix="/api/v1/rl", tags=["RL 監控"]
-            )
-            self._track_router("rl_monitoring_router", "RL 監控", True)
-            self.app.include_router(
-                rl_training_router, prefix="/api/v1/rl/training", tags=["RL 訓練"]
-            )
-            self._track_router("rl_training_router", "RL 訓練", True)
+            # RL 路由器註冊已移除
             self.app.include_router(test_router, tags=["測試"])
             self._track_router("test_router", "測試", True)
 
@@ -317,58 +268,10 @@ class RouterManager:
             )
 
         # Phase 2.2 API 路由器 - 靜態註冊
-        try:
-            from ...services.rl_training.api.phase_2_2_api import (
-                router as phase_2_2_router,
-            )
-
-            self.app.include_router(
-                phase_2_2_router,
-                prefix="/api/v1/rl/phase-2-2",
-                tags=["Phase 2.2 - 真實換手場景生成"],
-            )
-            self._track_router(
-                "phase_2_2_router",
-                "Phase 2.2 - 真實換手場景生成",
-                True,
-                "靜態註冊成功",
-            )
-            logger.info("✅ Phase 2.2 API 路由器靜態註冊成功")
-        except Exception as e:
-            logger.exception("💥 Phase 2.2 API 路由器靜態註冊失敗")
-            self._track_router(
-                "phase_2_2_router",
-                "Phase 2.2 - 真實換手場景生成",
-                False,
-                f"靜態註冊失敗: {str(e)}",
-            )
+        # Phase 2.2 RL API 已移除
 
         # Phase 2.3 API 路由器 - 使用簡化版本
-        try:
-            from ...services.rl_training.api.phase_2_3_simple_api import (
-                router as phase_2_3_router,
-            )
-
-            self.app.include_router(
-                phase_2_3_router,
-                prefix="/api/v1/rl/phase-2-3",
-                tags=["Phase 2.3 - RL 算法實戰應用"],
-            )
-            self._track_router(
-                "phase_2_3_router",
-                "Phase 2.3 - RL 算法實戰應用",
-                True,
-                "簡化版本註冊成功",
-            )
-            logger.info("✅ Phase 2.3 簡化 API 路由器靜態註冊成功")
-        except Exception as e:
-            logger.exception("💥 Phase 2.3 簡化 API 路由器靜態註冊失敗")
-            self._track_router(
-                "phase_2_3_router",
-                "Phase 2.3 - RL 算法實戰應用",
-                False,
-                f"靜態註冊失敗: {str(e)}",
-            )
+        # Phase 2.3 RL API 已移除
 
         # Phase 3 API 路由器 - 規則式換手決策引擎 (新實現)
         try:
@@ -394,73 +297,16 @@ class RouterManager:
                 f"新實現註冊失敗: {str(e)}"
             )
         
-        # Phase 3 API 路由器 - 決策透明化與視覺化 (完整版) - 保留舊版
-        try:
-            from ...services.rl_training.api.phase_3_api import router as phase_3_router
+        # Phase 3 RL API 已移除
 
-            self.app.include_router(
-                phase_3_router,
-                prefix="/api/v1/rl/phase-3",
-                tags=["Phase 3 - 決策透明化與視覺化"],
-            )
-            self._track_router(
-                "phase_3_router",
-                "Phase 3 - 決策透明化與視覺化",
-                True,
-                "完整版本註冊成功",
-            )
-            logger.info("✅ Phase 3 完整 API 路由器靜態註冊成功")
-        except Exception as e:
-            logger.exception("💥 Phase 3 完整 API 路由器靜態註冊失敗")
-            self._track_router(
-                "phase_3_router",
-                "Phase 3 - 決策透明化與視覺化",
-                False,
-                f"完整版註冊失敗: {str(e)}",
-            )
-
-        # Phase 4 API 路由器 - 分散式訓練與深度系統整合 (完整版)
-        try:
-            from ...services.rl_training.api.phase_4_api import router as phase_4_router
-
-            self.app.include_router(
-                phase_4_router,
-                prefix="/api/v1/rl/phase-4",
-                tags=["Phase 4 - 分散式訓練與深度系統整合"],
-            )
-            self._track_router(
-                "phase_4_router",
-                "Phase 4 - 分散式訓練與深度系統整合",
-                True,
-                "完整版本註冊成功",
-            )
-            logger.info("✅ Phase 4 完整 API 路由器靜態註冊成功")
-        except Exception as e:
-            logger.exception("💥 Phase 4 完整 API 路由器靜態註冊失敗")
-            self._track_router(
-                "phase_4_router",
-                "Phase 4 - 分散式訓練與深度系統整合",
-                False,
-                f"完整版註冊失敗: {str(e)}",
-            )
-        except Exception as e:
-            logger.exception("💥 Phase 3 完整 API 路由器靜態註冊失敗")
-            self._track_router(
-                "phase_3_router",
-                "Phase 3 - 決策透明化與視覺化",
-                False,
-                f"完整版註冊失敗: {str(e)}",
-            )
+        # Phase 4 API 路由器已移除
 
         optional_routers = [
             # {
             #     "import_path": "netstack.netstack_api.routers.orchestrator_router",
             #     "tag": "AI Decision Orchestrator (V2)",
             # },
-            {
-                "import_path": "netstack_api.routers.ai_decision_status_router",
-                "tag": "AI 決策狀態",
-            },
+            # AI 決策狀態路由器已移除
             {
                 "import_path": "netstack_api.routers.performance_router",
                 "tag": "性能監控",
@@ -527,7 +373,7 @@ class RouterManager:
             "health_router",
             "ue_router",
             "handover_router",
-            "new_rl_training_router",
+            # RL training router removed
             "core_sync_router",
             "intelligent_fallback_router",
         ]

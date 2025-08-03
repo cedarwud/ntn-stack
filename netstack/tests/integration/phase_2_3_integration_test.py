@@ -160,7 +160,7 @@ class Phase23IntegrationTest:
         start_time = time.time()
 
         try:
-            from . import RL_INTEGRATOR_AVAILABLE, RLAlgorithmIntegrator
+            from . import RL_INTEGRATOR_AVAILABLE, # RLAlgorithmIntegrator - Removed
 
             if not RL_INTEGRATOR_AVAILABLE:
                 return {
@@ -180,7 +180,7 @@ class Phase23IntegrationTest:
             }
 
             # 初始化整合器
-            integrator = RLAlgorithmIntegrator(config)
+            integrator = # RLAlgorithmIntegrator - Removed(config)
 
             # 測試初始化
             init_success = await integrator.initialize()
@@ -199,7 +199,7 @@ class Phase23IntegrationTest:
             switch_success = True
 
             if len(available_algorithms) > 1:
-                from .rl_algorithm_integrator import AlgorithmType
+                from .# rl_algorithm_integrator - Removed import AlgorithmType
 
                 target_algorithm = available_algorithms[1]  # 切換到第二個算法
                 switch_success = await integrator.switch_algorithm(target_algorithm)
@@ -307,7 +307,7 @@ class Phase23IntegrationTest:
             analytics = DecisionAnalyticsEngine(config)
 
             # 測試開始 episode
-            from .rl_algorithm_integrator import AlgorithmType
+            from .# rl_algorithm_integrator - Removed import AlgorithmType
 
             episode_id = "test_episode_001"
             start_success = analytics.start_episode(
@@ -349,7 +349,7 @@ class Phase23IntegrationTest:
                 COMPARATOR_AVAILABLE,
                 MultiAlgorithmComparator,
                 RL_INTEGRATOR_AVAILABLE,
-                RLAlgorithmIntegrator,
+                # RLAlgorithmIntegrator - Removed,
                 ENV_BRIDGE_AVAILABLE,
                 RealEnvironmentBridge,
                 ANALYTICS_AVAILABLE,
@@ -371,7 +371,7 @@ class Phase23IntegrationTest:
                 }
 
             # 創建依賴組件（簡化配置）
-            integrator = RLAlgorithmIntegrator(
+            integrator = # RLAlgorithmIntegrator - Removed(
                 {
                     "enabled_algorithms": ["dqn"],
                     "default_algorithm": "dqn",
@@ -424,7 +424,7 @@ class Phase23IntegrationTest:
                 REALTIME_AVAILABLE,
                 RealtimeDecisionService,
                 RL_INTEGRATOR_AVAILABLE,
-                RLAlgorithmIntegrator,
+                # RLAlgorithmIntegrator - Removed,
                 ENV_BRIDGE_AVAILABLE,
                 RealEnvironmentBridge,
                 ANALYTICS_AVAILABLE,
@@ -441,7 +441,7 @@ class Phase23IntegrationTest:
                 }
 
             # 創建依賴組件（最簡配置）
-            integrator = RLAlgorithmIntegrator({"enabled_algorithms": ["dqn"]})
+            integrator = # RLAlgorithmIntegrator - Removed({"enabled_algorithms": ["dqn"]})
             bridge = RealEnvironmentBridge({"scenario_type": "urban"})
             analytics = DecisionAnalyticsEngine({"enable_detailed_logging": False})
             comparator = MultiAlgorithmComparator(integrator, bridge, analytics, {})
@@ -505,12 +505,12 @@ class Phase23IntegrationTest:
                     "error": "完整工作流需要的核心組件不完整",
                 }
 
-            from .rl_algorithm_integrator import RLAlgorithmIntegrator, AlgorithmType
+            from .# rl_algorithm_integrator - Removed import # RLAlgorithmIntegrator - Removed, AlgorithmType
             from .real_environment_bridge import RealEnvironmentBridge
             from .decision_analytics_engine import DecisionAnalyticsEngine
 
             # 創建核心組件
-            integrator = RLAlgorithmIntegrator(
+            integrator = # RLAlgorithmIntegrator - Removed(
                 {
                     "enabled_algorithms": ["dqn"],
                     "default_algorithm": "dqn",

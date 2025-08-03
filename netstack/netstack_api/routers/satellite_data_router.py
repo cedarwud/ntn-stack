@@ -93,8 +93,8 @@ async def get_satellite_manager() -> SatelliteDataManager:
     global _satellite_manager
     
     if _satellite_manager is None:
-        # 從環境變量獲取數據庫連接字串 (優先使用 RL_DATABASE_URL)
-        db_url = os.getenv("RL_DATABASE_URL", "postgresql://rl_user:rl_password@netstack-rl-postgres:5432/rl_research")
+        # 從環境變量獲取數據庫連接字串
+        db_url = os.getenv("SATELLITE_DATABASE_URL", "postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db")
         
         _satellite_manager = SatelliteDataManager(db_url)
         await _satellite_manager.initialize()

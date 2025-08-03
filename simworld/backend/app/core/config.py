@@ -11,20 +11,26 @@ logger = logging.getLogger(__name__)
 
 
 # --- Environment Variables & Basic Config ---
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql+asyncpg://user:password@postgis/app"
-)  # 提供預設值以防萬一
-if not DATABASE_URL:
-    logger.critical(
-        "DATABASE_URL environment variable not set and no default provided!"
-    )
-    raise ValueError("DATABASE_URL environment variable not set!")
+# PostgreSQL 配置已移除，改用 MongoDB
+# DATABASE_URL = os.getenv(
+#     "DATABASE_URL", "postgresql+asyncpg://user:password@postgis/app"
+# )  # PostgreSQL 已不再使用
+# if not DATABASE_URL:
+#     logger.critical(
+#         "DATABASE_URL environment variable not set and no default provided!"
+#     )
+#     raise ValueError("DATABASE_URL environment variable not set!")
 
-# 檢查 URL 是否符合 asyncpg
-if not DATABASE_URL.startswith("postgresql+asyncpg"):
-    logger.warning(
-        f"DATABASE_URL does not start with 'postgresql+asyncpg://'. Received: {DATABASE_URL}. Ensure it's correctly configured for async."
-    )
+# # 檢查 URL 是否符合 asyncpg
+# if not DATABASE_URL.startswith("postgresql+asyncpg"):
+#     logger.warning(
+#         f"DATABASE_URL does not start with 'postgresql+asyncpg://'. Received: {DATABASE_URL}. Ensure it's correctly configured for async."
+#     )
+
+# MongoDB 配置
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://netstack-mongo:27017")
+MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "simworld")
+logger.info(f"MongoDB URL: {MONGODB_URL}, Database: {MONGODB_DATABASE}")
 
 # --- Path Configuration (using pathlib) ---
 # Docker volume mount: ./backend:/app

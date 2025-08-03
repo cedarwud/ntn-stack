@@ -38,11 +38,11 @@ class TaiwanBatchPrecomputer:
         
         # PostgreSQL 連接配置
         self.db_config = {
-            'host': 'netstack-rl-postgres',
+            'host': 'netstack-postgres',
             'port': 5432,
-            'database': 'rl_research',
-            'user': 'rl_user',
-            'password': 'rl_password'
+            'database': 'netstack_db',
+            'user': 'netstack_user',
+            'password': 'netstack_password'
         }
     
     async def get_db_connection(self):

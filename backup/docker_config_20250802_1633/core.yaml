@@ -349,7 +349,7 @@ services:
 
   # NetStack API 服務
   netstack-api:
-    image: netstack-api:latest
+    image: netstack-api:fixed
     container_name: netstack-api
     entrypoint: ["/usr/local/bin/smart-entrypoint.sh"]
     command: ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
@@ -357,10 +357,16 @@ services:
       - DATABASE_URL=mongodb://mongo:27017/open5gs
       - MONGO_HOST=mongo
       - REDIS_URL=redis://redis:6379
-      - SATELLITE_DATABASE_URL=postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db
+      - RL_DATABASE_URL=postgresql://rl_user:rl_password@rl-postgres:5432/rl_research
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
       - SIMWORLD_API_URL=http://simworld_backend:8000
+      # Phase 1 衛星數據載入器環境變數
+      - DB_HOST=rl-postgres
+      - DB_PORT=5432
+      - DB_NAME=rl_research
+      - DB_USER=rl_user
+      - DB_PASSWORD=rl_password
       # Phase 5 容器啟動優化環境變數
       - SATELLITE_DATA_MODE=instant_load     # 啟動時立即載入
       - POSTGRES_WAIT_TIMEOUT=30             # 等待超時設定
@@ -378,7 +384,7 @@ services:
     depends_on:
       - mongo
       - redis
-      - postgres
+      - rl-postgres
       - amf
       - smf
     networks:
@@ -391,7 +397,39 @@ services:
       timeout: 5s
       retries: 5
 
-
+  # RL PostgreSQL 數據庫
+  rl-postgres:
+    image: postgres:15
+    container_name: netstack-rl-postgres
+    hostname: rl-postgres
+    environment:
+      POSTGRES_DB: rl_research
+      POSTGRES_USER: rl_user  
+      POSTGRES_PASSWORD: rl_password
+    ports:
+      - "5432:5432"  # 現在可以使用 5432 (SimWorld PostgreSQL 已移除)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.3'
+          memory: 512M
+    volumes:
+      - rl_postgres_data:/var/lib/postgresql/data
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.51
+        aliases:
+          - rl-postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rl_user -d rl_research"]
+      interval: 5s          # 從 30s 縮短為 5s (Phase 5 優化)
+      timeout: 3s           # 從 5s 縮短為 3s
+      retries: 5            # 從 3 增加為 5
+      start_period: 10s     # 新增，給 PostgreSQL 足夠啟動時間
 
   # Redis 快取
   redis:
@@ -419,40 +457,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-
-  # PostgreSQL 衛星數據庫
-  postgres:
-    image: postgres:16-alpine
-    container_name: netstack-postgres
-    hostname: netstack-postgres
-    environment:
-      POSTGRES_DB: netstack_db
-      POSTGRES_USER: netstack_user
-      POSTGRES_PASSWORD: netstack_password
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
-    ports:
-      - "5432:5432"  # 映射到主機，以便本地開發
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.3'
-          memory: 512M
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      netstack-core:
-        ipv4_address: 172.20.0.55
-        aliases:
-          - netstack-postgres
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U netstack_user -d netstack_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # # Prometheus 監控
   # prometheus:
@@ -482,9 +486,8 @@ volumes:
     driver: local
   redis_data:
     driver: local
-  postgres_data:
+  rl_postgres_data:
     driver: local
-
   # prometheus_data:
   #   driver: local
   mongo_config:

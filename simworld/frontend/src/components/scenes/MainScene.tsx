@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useState, useCallback } from 'react'
+import React, { useLayoutEffect, useMemo, useState, useCallback } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
@@ -13,15 +13,15 @@ import {
     getBackendSceneName,
     getSceneTextureName,
 } from '../../utils/sceneUtils'
-import InterferenceOverlay from '../domains/interference/detection/InterferenceOverlay'
-import SINRHeatmap from '../domains/interference/detection/SINRHeatmap'
+// import InterferenceOverlay from '../domains/interference/detection/InterferenceOverlay' // Removed - interference domain cleaned up
+// import SINRHeatmap from '../domains/interference/detection/SINRHeatmap' // Removed - interference domain cleaned up
 // import AIRANVisualization from '../domains/interference/mitigation/AIRANVisualization' // 已移除未使用的組件
 // import Sionna3DVisualization from '../domains/simulation/sionna/Sionna3DVisualization' // 已移除未使用的組件
 import RealTimeMetrics from './visualization/RealTimeMetrics'
-import InterferenceAnalytics from '../domains/interference/analysis/InterferenceAnalytics'
+// import InterferenceAnalytics from '../domains/interference/analysis/InterferenceAnalytics' // Removed - interference domain cleaned up
 import UAVSwarmCoordination from '../domains/simulation/coordination/UAVSwarmCoordination'
 import MeshNetworkTopology from './visualization/MeshNetworkTopology'
-import FailoverMechanism from '../domains/interference/mitigation/FailoverMechanism'
+// import FailoverMechanism from '../domains/interference/mitigation/FailoverMechanism' // Removed - interference domain cleaned up
 import TestResultsVisualization from '../domains/analytics/testing/TestResultsVisualization'
 import PerformanceTrendAnalyzer from '../domains/analytics/performance/PerformanceTrendAnalyzer'
 import AutomatedReportGenerator from '../domains/analytics/ai/AutomatedReportGenerator'
@@ -382,29 +382,20 @@ const MainScene: React.FC<MainSceneProps> = ({
     ])
 
     return (
-        <>
+        <React.Fragment>
             <primitive object={prepared} castShadow receiveShadow />
             {deviceMeshes}
 
-            {/* 階段四可視化覆蓋層 */}
-            <InterferenceOverlay
-                devices={devices}
-                enabled={interferenceVisualizationEnabled}
-            />
-            <SINRHeatmap devices={devices} enabled={sinrHeatmapEnabled} />
-            {/* <AIRANVisualization
-                devices={devices}
-                enabled={aiRanVisualizationEnabled}
-            /> */}
+            {/* 階段四可視化覆蓋層 - Interference components removed during cleanup
+               InterferenceOverlay, SINRHeatmap and related components were removed
+            */}
+            {/* AIRANVisualization component removed - domain cleaned up */}
             {aiRanVisualizationEnabled && (
                 <div className="ai-ran-placeholder">
                     <p>AI-RAN 可視化組件已移除，功能已整合至統一分析圖表</p>
                 </div>
             )}
-            {/* <Sionna3DVisualization
-                devices={devices}
-                enabled={sionna3DVisualizationEnabled}
-            /> */}
+            {/* Sionna3DVisualization component removed - domain cleaned up */}
             {sionna3DVisualizationEnabled && (
                 <div className="sionna-placeholder">
                     <p>Sionna 3D 可視化組件已移除，功能已整合至統一分析圖表</p>
@@ -414,10 +405,7 @@ const MainScene: React.FC<MainSceneProps> = ({
                 devices={devices}
                 enabled={realTimeMetricsEnabled}
             />
-            <InterferenceAnalytics
-                devices={devices}
-                enabled={interferenceAnalyticsEnabled}
-            />
+            {/* InterferenceAnalytics component removed - domain cleaned up */}
 
             {/* 階段五可視化覆蓋層 */}
             <UAVSwarmCoordination
@@ -428,10 +416,7 @@ const MainScene: React.FC<MainSceneProps> = ({
                 devices={devices}
                 enabled={meshNetworkTopologyEnabled}
             />
-            <FailoverMechanism
-                devices={devices}
-                enabled={failoverMechanismEnabled}
-            />
+            {/* FailoverMechanism component removed - domain cleaned up */}
 
             {/* 🚀 新的換手連接線動畫系統 - 根據 handover.md 設計 */}
             <HandoverAnimation3D
@@ -481,7 +466,7 @@ const MainScene: React.FC<MainSceneProps> = ({
                 satellites={satellites}
                 enabled={predictionPath3DEnabled}
             />
-        </>
+        </React.Fragment>
     )
 }
 

@@ -96,26 +96,6 @@ class OrchestratorConfigRequest(BaseModel):
     ensemble_config: Optional[Dict[str, Any]] = Field(None, description="集成配置")
 
 
-class EnvironmentCreateRequest(BaseModel):
-    """環境創建請求"""
-    environment_type: str = Field(..., description="環境類型")
-    config: Dict[str, Any] = Field(default_factory=dict, description="環境配置")
-    enable_gymnasium: bool = Field(default=False, description="是否啟用Gymnasium")
-
-
-class EnvironmentActionRequest(BaseModel):
-    """環境動作請求"""
-    action: Dict[str, Any] = Field(..., description="動作數據")
-    environment_id: Optional[str] = Field(None, description="環境ID")
-
-
-class TrainingStartRequest(BaseModel):
-    """訓練開始請求"""
-    algorithm_name: str = Field(..., description="算法名稱")
-    environment_type: str = Field(..., description="環境類型")
-    training_config: Dict[str, Any] = Field(default_factory=dict, description="訓練配置")
-    max_episodes: int = Field(default=1000, description="最大訓練回合")
-    target_reward: Optional[float] = Field(None, description="目標獎勵")
 
 
 class ABTestConfigRequest(BaseModel):
@@ -150,27 +130,6 @@ class StatsResponse(BaseModel):
     data: Dict[str, Any] = Field(..., description="統計數據")
 
 
-class TrainingStatusResponse(BaseModel):
-    """訓練狀態響應"""
-    algorithm_name: str = Field(..., description="算法名稱")
-    status: str = Field(..., description="訓練狀態")
-    current_episode: int = Field(..., description="當前回合")
-    total_episodes: int = Field(..., description="總回合數")
-    current_reward: float = Field(..., description="當前獎勵")
-    best_reward: float = Field(..., description="最佳獎勵")
-    training_time: float = Field(..., description="訓練時間")
-    metrics: Dict[str, Any] = Field(default_factory=dict, description="訓練指標")
-
-
-class EnvironmentStatusResponse(BaseModel):
-    """環境狀態響應"""
-    environment_id: str = Field(..., description="環境ID")
-    environment_type: str = Field(..., description="環境類型")
-    status: str = Field(..., description="環境狀態")
-    current_step: int = Field(..., description="當前步數")
-    total_reward: float = Field(..., description="總獎勵")
-    observation: Optional[Dict[str, Any]] = Field(None, description="當前觀測")
-    info: Dict[str, Any] = Field(default_factory=dict, description="環境信息")
 
 
 class OperationResponse(BaseModel):

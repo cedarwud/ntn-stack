@@ -19,7 +19,7 @@ RESET := \033[0m
 # 專案配置
 NETSTACK_DIR := netstack
 SIMWORLD_DIR := simworld
-# RL System 已整合到 NetStack 服務中
+# RL System 已從專案中移除
 COMPOSE_PROJECT_NAME := ntn-stack
 
 # 環境變數配置
@@ -52,9 +52,8 @@ help: ## 顯示幫助信息
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
 	@echo "$(YELLOW)專案管理:$(RESET)"
-	@echo "  $(GREEN)netstack-*$(RESET)          NetStack 專案相關操作 (包含 RL System)"
+	@echo "  $(GREEN)netstack-*$(RESET)          NetStack 專案相關操作"
 	@echo "  $(GREEN)simworld-*$(RESET)          SimWorld 專案相關操作"
-	@echo "  $(GREEN)rl-system-*$(RESET)       RL System 專案相關操作"
 	@echo "  $(GREEN)all-*$(RESET)               所有專案一起操作"
 	@echo ""
 	@echo "$(YELLOW)測試相關:$(RESET)"
@@ -78,9 +77,9 @@ dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 	@$(MAKE) netstack-start-full
 	@echo "$(GREEN)✅ 開發環境設置完成$(RESET)"
 
-all-start: ## 啟動所有核心服務 (NetStack 含整合 RL System, SimWorld)
+all-start: ## 啟動所有核心服務 (NetStack, SimWorld)
 	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
-	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (包含 PostgreSQL 基礎服務)...$(RESET)"
+	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (包含 MongoDB 基礎服務)...$(RESET)"
 	@$(MAKE) netstack-start
 	@echo "$(YELLOW)⏳ 等待 NetStack 服務完全就緒...$(RESET)"
 	@sleep 20
@@ -98,8 +97,7 @@ all-start: ## 啟動所有核心服務 (NetStack 含整合 RL System, SimWorld)
 	@echo "$(CYAN)🌐 服務訪問地址:$(RESET)"
 	@echo "  NetStack API:  $(NETSTACK_URL)"
 	@echo "  NetStack Docs: $(NETSTACK_URL)/docs"
-	@echo "  RL System:     http://localhost:8080/api/v1/rl (統一到 NetStack)"
-	@echo "  RL System Docs:http://localhost:8080/docs (統一到 NetStack)"
+
 	@echo "  SimWorld:      $(SIMWORLD_URL)"
 
 netstack-start: ## 啟動 NetStack 服務
@@ -142,13 +140,13 @@ simworld-start: ## 啟動 SimWorld 服務
 
 down: all-stop ## 停止所有服務
 
-all-stop: ## 停止 NetStack (含整合 RL System), SimWorld 和監控系統
+all-stop: ## 停止 NetStack, SimWorld 和監控系統
 	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務...$(RESET)"
 	@$(MAKE) simworld-stop
-	@$(MAKE) netstack-stop # netstack-stop 現在會處理 rl-system
+	@$(MAKE) netstack-stop
 	@echo "$(GREEN)✅ 所有服務已停止$(RESET)"
 
-netstack-stop: ## 停止 NetStack 服務 (包含 RL System)
+netstack-stop: ## 停止 NetStack 服務
 	@echo "$(BLUE)🛑 停止 NetStack 服務...$(RESET)"
 	@cd ${NETSTACK_DIR} && $(MAKE) down
 	@echo "$(GREEN)✅ NetStack 服務已停止$(RESET)"
@@ -163,7 +161,7 @@ simworld-stop: ## 停止 SimWorld 服務
 
 down-v: all-stop-v ## 停止所有服務並清除卷
 
-all-stop-v: ## 停止 NetStack (含整合 RL System), SimWorld (清除卷)
+all-stop-v: ## 停止 NetStack, SimWorld (清除卷)
 	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務 (清除卷)...$(RESET)"
 	@echo "$(YELLOW)斷開跨服務網路連接...$(RESET)"
 	@docker network disconnect compose_netstack-core simworld_backend 2>/dev/null || true
@@ -173,7 +171,7 @@ all-stop-v: ## 停止 NetStack (含整合 RL System), SimWorld (清除卷)
 	@$(MAKE) netstack-stop-v # 後停止 NetStack 服務
 	@echo "$(GREEN)✅ 所有服務已停止並清除卷$(RESET)"
 
-netstack-stop-v: ## 停止 NetStack 服務並清除卷 (包含 RL System)
+netstack-stop-v: ## 停止 NetStack 服務並清除卷
 	@echo "$(BLUE)🛑 停止 NetStack 服務 (清除卷)...$(RESET)"
 	@cd ${NETSTACK_DIR} && $(MAKE) down-v
 	@echo "$(GREEN)✅ NetStack 服務已停止並清除卷$(RESET)"
@@ -191,7 +189,7 @@ restart: all-restart ## 重啟所有服務
 restart-v: all-restart-v ## 重啟所有服務 (智能等待版本)
 
 
-all-restart: ## 重啟所有核心服務 (NetStack 含整合 RL System, SimWorld) - 智能等待版本
+all-restart: ## 重啟所有核心服務 (NetStack, SimWorld) - 智能等待版本
 	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務 (智能等待)...$(RESET)"
 	@$(MAKE) all-stop
 	@echo "$(YELLOW)⏳ 等待系統清理完成...$(RESET)"
@@ -206,7 +204,7 @@ all-restart: ## 重啟所有核心服務 (NetStack 含整合 RL System, SimWorld
 	@$(MAKE) connect-cross-service-networks
 	@echo "$(GREEN)✅ 智能重啟完成，系統已就緒$(RESET)"
 
-all-restart-v: ## 重啟所有核心服務 (NetStack 含整合 RL System, SimWorld) - 智能等待版本
+all-restart-v: ## 重啟所有核心服務 (NetStack, SimWorld) - 智能等待版本
 	@echo "$(CYAN)🔄 重啟所有 NTN Stack 核心服務 (智能等待)...$(RESET)"
 	@$(MAKE) all-stop-v
 	@echo "$(YELLOW)⏳ 等待系統清理完成...$(RESET)"
@@ -221,7 +219,7 @@ all-restart-v: ## 重啟所有核心服務 (NetStack 含整合 RL System, SimWor
 	@$(MAKE) connect-cross-service-networks
 	@echo "$(GREEN)✅ 智能重啟完成，系統已就緒$(RESET)"
 
-netstack-restart: ## 重啟 NetStack 服務 (包含 RL System)
+netstack-restart: ## 重啟 NetStack 服務
 	@echo "$(BLUE)🔄 重啟 NetStack 服務...$(RESET)"
 	@$(MAKE) netstack-stop
 	@sleep 3
@@ -244,7 +242,7 @@ all-build: ## 構建 NetStack 和 SimWorld
 	@$(MAKE) simworld-build
 	@echo "$(GREEN)✅ 所有服務構建完成$(RESET)"
 
-netstack-build: ## 構建 NetStack 服務 (包含 RL System)
+netstack-build: ## 構建 NetStack 服務
 	@echo "$(BLUE)🔨 構建 NetStack 服務...$(RESET)"
 	@cd $(NETSTACK_DIR) && $(MAKE) build
 	@echo "$(GREEN)✅ NetStack 服務構建完成$(RESET)"
@@ -280,12 +278,12 @@ clean: all-clean ## 清理所有資源
 
 all-clean: ## 清理所有資源
 	@echo "$(CYAN)🧹 清理所有 NTN Stack 資源...$(RESET)"
-	@$(MAKE) netstack-clean # netstack-clean 會處理 rl-system
+	@$(MAKE) netstack-clean
 	@$(MAKE) simworld-clean
 	@$(MAKE) clean-reports
 	@echo "$(GREEN)✅ 所有資源清理完成$(RESET)"
 
-netstack-clean: ## 清理 NetStack 資源 (包含 RL System)
+netstack-clean: ## 清理 NetStack 資源
 	@echo "$(BLUE)🧹 清理 NetStack 資源...$(RESET)"
 	@cd $(NETSTACK_DIR) && $(MAKE) clean
 	@docker system prune -f --filter "label=com.docker.compose.project=netstack"
@@ -341,14 +339,13 @@ status: ## 檢查所有服務狀態
 	@echo "$(YELLOW)NetStack 服務狀態:$(RESET)"
 	@cd $(NETSTACK_DIR) && docker compose -f compose/core.yaml ps || echo "$(RED)❌ NetStack 核心網服務未運行$(RESET)"
 	@echo ""
-	@echo "$(YELLOW)RL System 狀態: 已整合到 NetStack 服務中$(RESET)"
-	@echo ""
+
 	@echo "$(YELLOW)SimWorld 服務狀態:$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose ps || echo "$(RED)❌ SimWorld 服務未運行$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)服務健康檢查:$(RESET)"
 	@curl -s $(NETSTACK_URL)/health > /dev/null && echo "$(GREEN)✅ NetStack 健康檢查通過 (宿主機)$(RESET)" || echo "$(RED)❌ NetStack 健康檢查失敗$(RESET)"
-	@curl -s http://localhost:8080/api/v1/rl/health > /dev/null && echo "$(GREEN)✅ RL System 健康檢查通過 (統一到 NetStack)$(RESET)" || echo "$(RED)❌ RL System 健康檢查失敗$(RESET)"
+
 	@curl -s $(SIMWORLD_URL)/ > /dev/null && echo "$(GREEN)✅ SimWorld 健康檢查通過 (宿主機)$(RESET)" || echo "$(RED)❌ SimWorld 健康檢查失敗$(RESET)"
 	@echo "$(YELLOW)跨服務連接檢查:$(RESET)"
 	@timeout 10s bash -c 'docker exec simworld_backend curl -s http://netstack-api:8080/health > /dev/null 2>&1' && echo "$(GREEN)✅ SimWorld → NetStack 跨服務連接正常$(RESET)" || (echo "$(YELLOW)⚠️ SimWorld → NetStack 跨服務連接失敗，嘗試重新配置 DNS...$(RESET)" && $(MAKE) configure-cross-service-dns >/dev/null 2>&1 && sleep 2 && timeout 5s bash -c 'docker exec simworld_backend curl -s http://netstack-api:8080/health > /dev/null 2>&1' && echo "$(GREEN)✅ SimWorld → NetStack 跨服務連接已修復$(RESET)" || echo "$(RED)❌ SimWorld → NetStack 跨服務連接仍然失敗$(RESET)")
@@ -427,7 +424,7 @@ all-logs: ## 查看所有服務日誌 (NetStack, SimWorld)
 		wait \
 	)
 
-netstack-logs: ## 查看 NetStack 日誌 (包含 RL System)
+netstack-logs: ## 查看 NetStack 日誌
 	@echo "$(BLUE)📋 NetStack 服務日誌:$(RESET)"
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@cd $(NETSTACK_DIR) && $(MAKE) logs
@@ -437,9 +434,8 @@ simworld-logs: ## 查看 SimWorld 日誌
 	@echo "$(YELLOW)使用 Ctrl+C 退出日誌查看$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose logs -f
 
-# ===== RL System 已整合到 NetStack 服務中 =====
-# 所有 RL System 相關功能現在通過 NetStack 服務提供
-# 使用 netstack-* 指令即可管理整合後的服務
+# ===== RL System 已從專案中移除 =====
+# RL System 相關功能已完全清理
 
 # ===== 安裝與初始化 =====
 

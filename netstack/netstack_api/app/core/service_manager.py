@@ -19,23 +19,17 @@ from ...services.health_service import HealthService
 from ...services.ueransim_service import UERANSIMConfigService
 from ...services.satellite_gnb_mapping_service import SatelliteGnbMappingService
 from ...services.sionna_integration_service import SionnaIntegrationService
-from ...services.interference_control_service import InterferenceControlService
+# 移除干擾控制服務 (與衛星換手無關)
+# from ...services.interference_control_service import InterferenceControlService
+
 # ConnectionQualityService removed - UAV functionality not needed
 from ...services.mesh_bridge_service import MeshBridgeService
+
 # UAVMeshFailoverService removed - UAV functionality not needed
 
-# 導入 RL 訓練服務
-try:
-    from ...services.rl_training.rl_training_service import get_rl_training_service
-
-    RL_TRAINING_AVAILABLE = True
-except ImportError:
-    RL_TRAINING_AVAILABLE = False
+# RL 訓練服務已移除
 
 logger = structlog.get_logger(__name__)
-
-if not RL_TRAINING_AVAILABLE:
-    logger.warning("RL 訓練服務不可用")
 
 
 class ServiceManager:
@@ -97,8 +91,9 @@ class ServiceManager:
             app.state.sionna_service = SionnaIntegrationService()
             logger.info("✅ Sionna 整合服務初始化完成")
 
-            app.state.interference_service = InterferenceControlService()
-            logger.info("✅ 干擾控制服務初始化完成")
+            # 移除干擾控制服務 (與衛星換手無關)
+            # app.state.interference_service = InterferenceControlService()
+            logger.info("✅ 干擾控制服務已移除 (與衛星換手研究無關)")
 
             # === 第二層：進階服務 (依賴基礎服務) ===
             logger.info("🔧 初始化進階服務...")
@@ -114,26 +109,10 @@ class ServiceManager:
             # === 第三層：複合服務 (依賴多個服務) ===
             logger.info("⚡ 初始化複合服務...")
 
-            # UAVMeshFailoverService removed - UAV functionality not needed  
+            # UAVMeshFailoverService removed - UAV functionality not needed
             logger.info("✅ UAV Mesh 故障轉移服務已移除")
 
-            # === RL 訓練服務初始化 ===
-            logger.info("🧠 初始化 RL 訓練服務...")
-            try:
-                from ...services.rl_training.rl_training_service import (
-                    get_rl_training_service,
-                )
-
-                app.state.rl_training_service = get_rl_training_service()
-                success = await app.state.rl_training_service.initialize()
-                if success:
-                    logger.info("✅ RL 訓練服務初始化完成")
-                else:
-                    logger.warning("⚠️ RL 訓練服務初始化失敗，但繼續執行")
-            except Exception as e:
-                logger.error(f"❌ RL 訓練服務初始化失敗: {e}")
-                # 設置為 None，讓系統知道服務不可用
-                app.state.rl_training_service = None
+            # RL 訓練服務已移除
 
             logger.info("🎉 所有服務初始化完成！")
 
@@ -158,11 +137,10 @@ class ServiceManager:
             "ueransim_service",
             "satellite_service",
             "sionna_service",
-            "interference_service",
+            # "interference_service",  # 已移除
             "connection_service",
             "mesh_service",
             "uav_failover_service",
-            "rl_training_service",  # 添加 RL 訓練服務
         ]
 
         status = {}
