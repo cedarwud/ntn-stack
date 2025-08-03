@@ -1,0 +1,27 @@
+{
+  "timestamp": "2025-08-03 18:45:26",
+  "report_period_hours": 1,
+  "system_health": {
+    "overall_score": 100.0,
+    "healthy_services": 1,
+    "total_services": 1,
+    "avg_response_time_ms": 108.81733894348145
+  },
+  "performance_metrics": {
+    "total_metrics_collected": 4,
+    "metrics_within_threshold": 4,
+    "metrics_exceeded_threshold": 0
+  },
+  "alerts": {
+    "total_alerts": 0,
+    "by_severity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0
+    }
+  },
+  "recommendations": [
+    "系統運行正常，無需特別關注"
+  ]
+}

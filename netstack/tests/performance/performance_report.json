@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-08-03 18:42:30",
+  "total_tests": 4,
+  "benchmarks": [
+    {
+      "test_name": "api_health_check",
+      "response_time_ms": 107.50479698181152,
+      "memory_usage_mb": 0.0,
+      "cpu_usage_percent": 0.0,
+      "success_rate": 1.0,
+      "throughput_rps": 10.0,
+      "timestamp": "2025-08-03 18:42:23"
+    },
+    {
+      "test_name": "concurrent_requests",
+      "response_time_ms": 13.894672393798828,
+      "memory_usage_mb": 0.25,
+      "cpu_usage_percent": 0.0,
+      "success_rate": 1.0,
+      "throughput_rps": 600.5658713158226,
+      "timestamp": "2025-08-03 18:42:24"
+    },
+    {
+      "test_name": "memory_usage",
+      "response_time_ms": 0,
+      "memory_usage_mb": 0,
+      "cpu_usage_percent": 0,
+      "success_rate": 1.0,
+      "throughput_rps": 0,
+      "timestamp": "2025-08-03 18:42:24"
+    },
+    {
+      "test_name": "response_time_stability",
+      "response_time_ms": 8.87014071146647,
+      "memory_usage_mb": 0,
+      "cpu_usage_percent": 0,
+      "success_rate": 1.0,
+      "throughput_rps": 5.0,
+      "timestamp": "2025-08-03 18:42:30"
+    }
+  ]
+}
