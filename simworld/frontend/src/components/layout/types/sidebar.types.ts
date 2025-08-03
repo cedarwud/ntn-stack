@@ -7,7 +7,7 @@ import { UAVManualDirection } from '../../domains/device/visualization/UAVFlight
 export interface FeatureToggle {
     id: string
     label: string
-    category: 'uav' | 'satellite' | 'handover_mgr' | 'quality'
+    category: 'uav' | 'satellite' | 'handover_mgr'
     enabled: boolean
     onToggle: (enabled: boolean) => void
     icon?: string

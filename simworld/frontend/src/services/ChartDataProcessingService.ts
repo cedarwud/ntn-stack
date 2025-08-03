@@ -4,45 +4,11 @@
  * 負責數據計算、轉換和格式化，讓組件只專注於 UI 渲染
  */
 
-export interface SignalMetrics {
-  sinrQuality: number[]
-  cfrMagnitude: number[]
-  delaySpread: number[]
-  dopplerShift: number[]
-}
-
-export interface RealTimeSignalData {
-  timeLabels: string[]
-  signalStrength: number[]
-  interferenceLevel: number[]
-  channelQuality: number[]
-}
-
 export interface StrategyMetrics {
   handoverLatency: number[]
   successRate: number[]
   energyEfficiency: number[]
   systemLoad: number[]
-}
-
-export interface ProcessedSignalAnalysis {
-  radarData: {
-    sinrQuality: number
-    cfrResponse: number
-    delaySpread: number
-    dopplerShift: number
-    channelStability: number
-    signalPurity: number
-  }
-  averages: {
-    signalStrength: number
-    interferenceLevel: number
-    channelQuality: number
-  }
-  insights: {
-    signalSummary: string
-    performanceLevel: 'excellent' | 'good' | 'fair' | 'poor'
-  }
 }
 
 export interface ProcessedStrategyComparison {
@@ -64,49 +30,7 @@ export interface ProcessedStrategyComparison {
 
 export class ChartDataProcessingService {
   
-  /**
-   * 處理信號分析數據，生成雷達圖和統計信息
-   */
-  static processSignalAnalysis(
-    signalMetrics: SignalMetrics | null,
-    realTimeSignal: RealTimeSignalData | null
-  ): ProcessedSignalAnalysis | null {
-    if (!signalMetrics) return null
 
-    // 計算雷達圖數據
-    const radarData = {
-      sinrQuality: Math.round(this.calculateAverage(signalMetrics.sinrQuality)),
-      cfrResponse: Math.round(this.calculateAverage(signalMetrics.cfrMagnitude) * 100),
-      delaySpread: Math.max(0, 100 - this.calculateAverage(signalMetrics.delaySpread) * 20),
-      dopplerShift: Math.max(0, 100 - this.calculateAverage(signalMetrics.dopplerShift) * 3),
-      channelStability: Math.round(90 + (Math.random() - 0.5) * 10),
-      signalPurity: Math.round(85 + (Math.random() - 0.5) * 15)
-    }
-
-    // 計算平均值
-    const averages = realTimeSignal ? {
-      signalStrength: Math.round(this.calculateAverage(realTimeSignal.signalStrength)),
-      interferenceLevel: Math.round(this.calculateAverage(realTimeSignal.interferenceLevel)),
-      channelQuality: Math.round(this.calculateAverage(realTimeSignal.channelQuality))
-    } : {
-      signalStrength: 0,
-      interferenceLevel: 0,
-      channelQuality: 0
-    }
-
-    // 生成性能等級和洞察
-    const performanceLevel = this.determineSignalPerformanceLevel(radarData, averages)
-    const signalSummary = this.generateSignalInsight(averages, radarData)
-
-    return {
-      radarData,
-      averages,
-      insights: {
-        signalSummary,
-        performanceLevel
-      }
-    }
-  }
 
   /**
    * 處理策略對比數據，生成改善率和趨勢分析
@@ -185,39 +109,7 @@ export class ChartDataProcessingService {
     return array.reduce((sum, value) => sum + value, 0) / array.length
   }
 
-  /**
-   * 決定信號性能等級
-   */
-  private static determineSignalPerformanceLevel(
-    radarData: ProcessedSignalAnalysis['radarData'],
-    averages: ProcessedSignalAnalysis['averages']
-  ): 'excellent' | 'good' | 'fair' | 'poor' {
-    const overallScore = (
-      radarData.sinrQuality + 
-      radarData.cfrResponse + 
-      averages.channelQuality + 
-      (100 - averages.interferenceLevel)
-    ) / 4
 
-    if (overallScore >= 90) return 'excellent'
-    if (overallScore >= 80) return 'good'
-    if (overallScore >= 70) return 'fair'
-    return 'poor'
-  }
-
-  /**
-   * 生成信號洞察文本
-   */
-  private static generateSignalInsight(
-    averages: ProcessedSignalAnalysis['averages'],
-    radarData: ProcessedSignalAnalysis['radarData']
-  ): string {
-    return `基於NetStack實測數據，整合navbar中SINR映射、CFR響應、Delay-Doppler分析結果。` +
-           `當前信號強度${averages.signalStrength || 'N/A'}dBm，` +
-           `干擾水平${averages.interferenceLevel || 'N/A'}dB，` +
-           `通道品質${averages.channelQuality || 'N/A'}%。` +
-           `SINR品質達到${radarData.sinrQuality}dB，CFR響應${radarData.cfrResponse}%。`
-  }
 
   /**
    * 計算策略改善率

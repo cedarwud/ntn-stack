@@ -52,8 +52,6 @@ interface HandoverState {
 
 interface FeatureState {
     // 階段四功能
-    interferenceVisualizationEnabled: boolean
-    sinrHeatmapEnabled: boolean
     aiRanVisualizationEnabled: boolean
     manualControlEnabled: boolean
     sionna3DVisualizationEnabled: boolean
@@ -179,8 +177,6 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
     // 功能狀態
     const [featureState, setFeatureState] = useState<FeatureState>({
         // 階段四功能 - 預設關閉
-        interferenceVisualizationEnabled: false,
-        sinrHeatmapEnabled: false,
         aiRanVisualizationEnabled: false,
         manualControlEnabled: false,
         sionna3DVisualizationEnabled: false,
