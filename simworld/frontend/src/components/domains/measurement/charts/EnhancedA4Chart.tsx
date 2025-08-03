@@ -34,7 +34,7 @@ import { netstackFetch } from '../../../../config/api-config'
 import TimelineAnimator from '../../../common/TimelineAnimator'
 import { useOrbitTrajectory } from '../../../../hooks/useOrbitTrajectory'
 import { useViewModeManager } from '../../../../hooks/useViewModeManager'
-import ViewModeToggle from '../../../common/ViewModeToggle'
+// import ViewModeToggle from '../../../common/ViewModeToggle'
 
 ChartJS.register(
     CategoryScale,
@@ -141,7 +141,7 @@ const EnhancedA4Chart: React.FC<EnhancedA4ChartProps> = ({
     })
 
     // ✅ 根據視圖模式調整行為
-    const { currentMode, config } = viewModeManager
+    const { currentMode: _currentMode, config: _config } = viewModeManager
 
     const [chartData, setChartData] = useState<{
         labels: unknown[]

@@ -10,12 +10,12 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import PureD2Chart from './PureD2Chart'
 import RealD2Chart, { RealD2DataPoint } from './RealD2Chart'
 import {
-    unifiedD2DataService,
-    D2ScenarioConfig,
+    // unifiedD2DataService,
+    // D2ScenarioConfig,
     D2MeasurementPoint,
-    ConstellationInfo,
+    // ConstellationInfo,
 } from '../../../../services/unifiedD2DataService'
-import { precomputedDataService } from '../../../../services/precomputedDataService'
+// import { precomputedDataService } from '../../../../services/precomputedDataService'
 import { simworldFetch } from '../../../../config/api-config'
 import type { EventD2Params } from '../types'
 import './EventA4Viewer.scss' // 完全重用 A4 的樣式，確保左側控制面板風格一致
@@ -130,11 +130,11 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         const latestMouseEvent = useRef({ x: 0, y: 0 })
 
         // 轉換 API 響應為 RealD2Chart 所需格式的函數
-        const convertToRealD2DataPoints = useCallback(
+        const _convertToRealD2DataPoints = useCallback(
             (measurements: D2MeasurementPoint[]): RealD2DataPoint[] => {
                 return measurements.map((measurement, index) => {
                     // 模擬動態地面距離變化（基於穩定的時間進度）
-                    const baseGroundDistance = measurement.ground_distance
+                    const _baseGroundDistance = measurement.ground_distance
                     const timeProgress =
                         index / Math.max(1, measurements.length - 1)
 
@@ -200,82 +200,114 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                     referenceLocation: params.referenceLocation,
                     movingReferenceLocation: params.movingReferenceLocation,
                     selectedTimeRange,
-                    selectedConstellation
+                    selectedConstellation,
                 })
 
                 const requestBody = {
                     scenario_name: `D2_Real_Data_${selectedConstellation}`,
                     ue_position: {
-                        latitude: params.referenceLocation?.latitude || 24.94417,
-                        longitude: params.referenceLocation?.longitude || 121.37139,
-                        altitude: params.referenceLocation?.altitude || 50.0
+                        latitude:
+                            params.referenceLocation?.latitude || 24.94417,
+                        longitude:
+                            params.referenceLocation?.longitude || 121.37139,
+                        altitude: params.referenceLocation?.altitude || 50.0,
                     },
                     duration_minutes: selectedTimeRange.durationMinutes || 5,
-                    sample_interval_seconds: selectedTimeRange.sampleIntervalSeconds || 30,
+                    sample_interval_seconds:
+                        selectedTimeRange.sampleIntervalSeconds || 30,
                     constellation: selectedConstellation || 'starlink',
                     reference_position: {
-                        latitude: params.movingReferenceLocation?.latitude || 24.1477,
-                        longitude: params.movingReferenceLocation?.longitude || 120.6736,
-                        altitude: params.movingReferenceLocation?.altitude || 0.0
-                    }
+                        latitude:
+                            params.movingReferenceLocation?.latitude || 24.1477,
+                        longitude:
+                            params.movingReferenceLocation?.longitude ||
+                            120.6736,
+                        altitude:
+                            params.movingReferenceLocation?.altitude || 0.0,
+                    },
                 }
 
                 console.log('📤 [EventD2Viewer] 實際發送的請求體:', requestBody)
 
                 // 調用 SimWorld NetStack API - 使用配置化的 fetch
-                const response = await simworldFetch('/v1/measurement-events/D2/real', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(requestBody)
-                })
+                const response = await simworldFetch(
+                    '/v1/measurement-events/D2/real',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestBody),
+                    }
+                )
 
                 if (!response.ok) {
                     let errorDetail = `${response.status} ${response.statusText}`
                     try {
                         const errorData = await response.json()
                         if (errorData.detail) {
-                            console.error('📋 [EventD2Viewer] 詳細驗證錯誤:', errorData.detail)
-                            errorDetail = `${errorDetail} - 驗證錯誤: ${JSON.stringify(errorData.detail)}`
+                            console.error(
+                                '📋 [EventD2Viewer] 詳細驗證錯誤:',
+                                errorData.detail
+                            )
+                            errorDetail = `${errorDetail} - 驗證錯誤: ${JSON.stringify(
+                                errorData.detail
+                            )}`
                         }
-                    } catch (e) {
+                    } catch (_e) {
                         // 無法解析錯誤響應，使用原始錯誤
                     }
                     throw new Error(`API 調用失敗: ${errorDetail}`)
                 }
 
                 const apiResult = await response.json()
-                
+
                 if (!apiResult.success) {
-                    throw new Error(`API 回傳錯誤: ${apiResult.error || '未知錯誤'}`)
+                    throw new Error(
+                        `API 回傳錯誤: ${apiResult.error || '未知錯誤'}`
+                    )
                 }
 
                 // 轉換 API 響應為前端格式
-                const convertedData = apiResult.results.map((result: any, index: number) => ({
-                    timestamp: result.timestamp,
-                    satelliteDistance: result.measurement_values.satellite_distance,
-                    groundDistance: result.measurement_values.ground_distance,
-                    referenceSatellite: result.measurement_values.reference_satellite,
-                    elevationAngle: result.measurement_values.elevation_angle,
-                    azimuthAngle: result.measurement_values.azimuth_angle,
-                    signalStrength: result.measurement_values.signal_strength,
-                    triggerConditionMet: result.trigger_condition_met,
-                    satelliteInfo: {
-                        name: result.measurement_values.reference_satellite,
-                        noradId: result.satellite_info?.norad_id || 'N/A',
-                        constellation: result.satellite_info?.constellation || selectedConstellation,
-                        orbitalPeriod: result.satellite_info?.orbital_period || 0,
-                        inclination: result.satellite_info?.inclination || 0,
-                        latitude: result.satellite_info?.latitude || 0,
-                        longitude: result.satellite_info?.longitude || 0,
-                        altitude: result.satellite_info?.altitude || 0
-                    },
-                    measurements: {
-                        d2Distance: result.measurement_values.satellite_distance - result.measurement_values.ground_distance,
-                        event_type: result.trigger_condition_met ? 'entering' : 'normal',
-                    }
-                }))
+                const convertedData = apiResult.results.map(
+                    (result: any, _index: number) => ({
+                        timestamp: result.timestamp,
+                        satelliteDistance:
+                            result.measurement_values.satellite_distance,
+                        groundDistance:
+                            result.measurement_values.ground_distance,
+                        referenceSatellite:
+                            result.measurement_values.reference_satellite,
+                        elevationAngle:
+                            result.measurement_values.elevation_angle,
+                        azimuthAngle: result.measurement_values.azimuth_angle,
+                        signalStrength:
+                            result.measurement_values.signal_strength,
+                        triggerConditionMet: result.trigger_condition_met,
+                        satelliteInfo: {
+                            name: result.measurement_values.reference_satellite,
+                            noradId: result.satellite_info?.norad_id || 'N/A',
+                            constellation:
+                                result.satellite_info?.constellation ||
+                                selectedConstellation,
+                            orbitalPeriod:
+                                result.satellite_info?.orbital_period || 0,
+                            inclination:
+                                result.satellite_info?.inclination || 0,
+                            latitude: result.satellite_info?.latitude || 0,
+                            longitude: result.satellite_info?.longitude || 0,
+                            altitude: result.satellite_info?.altitude || 0,
+                        },
+                        measurements: {
+                            d2Distance:
+                                result.measurement_values.satellite_distance -
+                                result.measurement_values.ground_distance,
+                            event_type: result.trigger_condition_met
+                                ? 'entering'
+                                : 'normal',
+                        },
+                    })
+                )
 
                 setRealD2Data(convertedData)
                 console.log(
@@ -306,7 +338,9 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                         開始時間: firstTime.toISOString(),
                         結束時間: lastTime.toISOString(),
                         數據來源: `NetStack 96分鐘預處理數據 (${apiResult.data_source})`,
-                        星座: apiResult.metadata?.constellation || selectedConstellation,
+                        星座:
+                            apiResult.metadata?.constellation ||
+                            selectedConstellation,
                         時間異常:
                             actualDurationMinutes < expectedDuration * 0.8
                                 ? '⚠️ 是'
@@ -1419,7 +1453,8 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                                         opacity: 0.8,
                                                     }}
                                                 >
-                                                    數據源: 預計算軌道數據 (TLE + SGP4) | 星座特徵:{' '}
+                                                    數據源: 預計算軌道數據 (TLE
+                                                    + SGP4) | 星座特徵:{' '}
                                                     {
                                                         getConstellationInfo(
                                                             selectedConstellation
