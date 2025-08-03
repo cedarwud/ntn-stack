@@ -8,7 +8,16 @@
  * 4. 支援與立體圖的時間同步
  */
 
-import { ImprovedD2DataPoint } from '../components/domains/measurement/charts/ImprovedD2Chart'
+// ImprovedD2Chart removed - defining interface locally
+interface ImprovedD2DataPoint {
+    timestamp: number
+    satellite_distance: number
+    ground_distance: number
+    is_triggered: boolean
+    trigger_intensity?: number
+    smoothed_satellite_distance?: number
+    smoothed_ground_distance?: number
+}
 
 // 原始數據接口（從現有API獲取）
 export interface RawSatelliteData {

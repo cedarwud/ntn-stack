@@ -8,7 +8,16 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import PureD2Chart from './PureD2Chart'
-import RealD2Chart, { RealD2DataPoint } from './RealD2Chart'
+// RealD2Chart removed - using PureD2Chart for all modes
+// import RealD2Chart, { RealD2DataPoint } from './RealD2Chart'
+
+// Define RealD2DataPoint locally
+interface RealD2DataPoint {
+    timestamp: number
+    satellite_distance: number
+    ground_distance: number
+    is_triggered?: boolean
+}
 import {
     // unifiedD2DataService,
     // D2ScenarioConfig,
@@ -1468,28 +1477,18 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
                             <div className="chart-container">
                                 {currentMode === 'real-data' ? (
-                                    <RealD2Chart
-                                        data={realD2Data}
+                                    {/* RealD2Chart removed - using PureD2Chart for all modes */}
+                                    <PureD2Chart
                                         thresh1={params.Thresh1}
                                         thresh2={params.Thresh2}
                                         hysteresis={params.Hys}
                                         showThresholdLines={showThresholdLines}
                                         isDarkTheme={isDarkTheme}
-                                        showTriggerIndicator="none"
-                                        sampleIntervalSeconds={
-                                            selectedTimeRange.sampleIntervalSeconds
+                                        dataMode="real-data"
+                                        historicalDurationMinutes={
+                                            selectedTimeRange.durationMinutes
                                         }
-                                        onDataPointClick={(
-                                            dataPoint,
-                                            index
-                                        ) => {
-                                            console.log(
-                                                '點擊數據點:',
-                                                dataPoint,
-                                                '索引:',
-                                                index
-                                            )
-                                        }}
+                                        showModeToggle={false}
                                     />
                                 ) : (
                                     <PureD2Chart
