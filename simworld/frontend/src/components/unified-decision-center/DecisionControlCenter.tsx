@@ -69,6 +69,7 @@ export const DecisionControlCenter: React.FC<DecisionControlCenterProps> = ({
 
     // 候選衛星更新
     const handleCandidateUpdate = useCallback(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (candidates: any[]) => {
             setCandidateSatellites(candidates)
             visualCoordinator.updateCandidates(candidates)
