@@ -9,7 +9,7 @@
  * 5. 常見問題解答
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { EventType } from './UnifiedChartExplanation'
 import './EducationalContentSystem.scss'
 
@@ -55,6 +55,7 @@ interface EducationalSection {
     }
     interactive?: {
         type: 'simulation' | 'calculator' | 'diagram'
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: any
     }
     quiz?: {
@@ -224,8 +225,8 @@ export const EducationalContentSystem: React.FC<
     EducationalContentSystemProps
 > = ({
     eventType,
-    contentType,
-    difficulty,
+    contentType: _contentType,
+    difficulty: _difficulty,
     isOpen = false,
     onClose,
     className = '',

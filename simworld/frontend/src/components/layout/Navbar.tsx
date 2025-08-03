@@ -46,7 +46,7 @@ const Navbar: FC<NavbarProps> = ({
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
-    const [isMobile, setIsMobile] = useState(false)
+    const [_isMobile, setIsMobile] = useState(false)
 
     // 新增 Measurement Events Modal 狀態
     const [showMeasurementEventsModal, setShowMeasurementEventsModal] =
@@ -76,7 +76,7 @@ const Navbar: FC<NavbarProps> = ({
         onMenuClick('3DRT')
     }
 
-    const modalConfigs: ModalConfig[] = []
+    const _modalConfigs: ModalConfig[] = []
 
     const [dropdownPosition, setDropdownPosition] = useState<{ left: number }>({
         left: 0,

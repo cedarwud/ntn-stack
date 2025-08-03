@@ -335,7 +335,7 @@ export class SIB19UnifiedDataManager extends EventEmitter {
     const orbitalPhase = (timeInOrbit / orbitalPeriod) * 2 * Math.PI
 
     // LEO 衛星典型參數
-    const orbitalRadius = 6371 + 550 // 地球半徑 + 550km 高度
+    const _orbitalRadius = 6371 + 550 // 地球半徑 + 550km 高度
     const orbitalInclination = 53.0 * Math.PI / 180 // 53度傾角
 
     // 計算當前衛星位置 (簡化的軌道模型)
