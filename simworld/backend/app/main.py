@@ -104,7 +104,7 @@ except ImportError as e:
 # Include D2 event router
 try:
     from app.api.d2_event_endpoints import router as d2_event_router
-    
+
     app.include_router(d2_event_router, prefix="")
     logger.info("D2 event router registered")
 except ImportError as e:
@@ -132,22 +132,13 @@ except ImportError as e:
         }
 
 
-# Include measurement events router
-try:
-    from app.api.routes.measurement_events import router as measurement_events_router
-
-    app.include_router(measurement_events_router, prefix="/api")
-    logger.info("Measurement events router registered at /api")
-except ImportError as e:
-    logger.warning(f"Measurement events router not available: {e}")
-
-    # Create fallback endpoint
-    @app.get("/api/measurement-events/status", tags=["Measurement Events"])
-    async def measurement_events_status():
-        return {
-            "status": "service_not_available",
-            "message": "Measurement events service not configured",
-        }
+# Measurement events service has been removed
+@app.get("/api/measurement-events/status", tags=["Measurement Events"])
+async def measurement_events_status():
+    return {
+        "status": "service_not_available",
+        "message": "Measurement events service has been removed",
+    }
 
 
 # --- Enhanced Root Endpoint ---
