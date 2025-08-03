@@ -166,8 +166,8 @@ need_update() {
         
         rm -f "$temp_header_file"
         
-        # 檢查大小是否不同
-        if [[ -n "$remote_content_length" && "$remote_content_length" != "$local_size" ]]; then
+        # 檢查大小是否不同 (只有在獲得有效遠端大小時才比較)
+        if [[ -n "$remote_content_length" && "$remote_content_length" -gt 0 && "$remote_content_length" != "$local_size" ]]; then
             return 0
         fi
         
@@ -572,7 +572,7 @@ main() {
     declare -a oneweb_updated_files
     
     echo
-    echo "🚀 TLE 數據下載工具 (簡化版)"
+    echo "🚀 TLE 數據下載工具"
     
     if $FORCE_UPDATE; then
         echo -e "${YELLOW}⚡ 強制更新模式已啟用${NC}"
