@@ -90,7 +90,7 @@ class BaseTraditionalAdapter(HandoverAlgorithm):
         """
         try:
             # 構建觀察向量 (基於原始算法的期望格式)
-            max_satellites = self.config.get('max_satellites', 10)
+            max_satellites = self.config.get('max_satellites', 8)  # 使用 SIB19 合規配置
             obs_dim = 4 + 6 + (6 * max_satellites) + 4  # ue + current_sat + candidates + network
             
             observation = np.zeros(obs_dim)

@@ -17,6 +17,10 @@ import sys
 # 添加 netstack_api 到路徑
 sys.path.append('/app/netstack_api')
 
+# 導入統一配置系統 (Phase 1 改進)
+sys.path.append('/app')
+from netstack.config.satellite_config import SATELLITE_CONFIG
+
 from netstack_api.services.precompute_satellite_history import (
     SatelliteHistoryPrecomputer, 
     ObserverPosition
@@ -85,11 +89,11 @@ class TaiwanBatchPrecomputer:
                 time_range=(start_time, end_time)
             )
             
-            # 執行預計算
+            # 執行預計算 (使用統一配置)
             results = await precomputer.compute_history_async(
                 time_interval_seconds=30,  # 30秒間隔
                 min_elevation=10.0,        # 10度最小仰角
-                max_satellites=50          # 最多50顆衛星
+                max_satellites=SATELLITE_CONFIG.BATCH_COMPUTE_MAX_SATELLITES  # 使用統一配置
             )
             
             # 存儲到數據庫
