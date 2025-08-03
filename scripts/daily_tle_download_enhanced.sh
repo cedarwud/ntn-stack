@@ -17,8 +17,13 @@ TLE_DATA_DIR="$PROJECT_ROOT/netstack/tle_data"
 # 備份目錄將在確定實際數據日期後動態設置
 BACKUP_BASE_DIR="$TLE_DATA_DIR/backups"
 
+# 日誌配置
+LOG_DIR="$PROJECT_ROOT/logs/tle_scheduler"
+LOG_FILE="$LOG_DIR/tle_download.log"
+ERROR_LOG="$LOG_DIR/tle_error.log"
+
 # 創建必要目錄
-mkdir -p "$BACKUP_BASE_DIR"
+mkdir -p "$BACKUP_BASE_DIR" "$LOG_DIR"
 
 # 顏色輸出
 RED='\033[0;31m'
@@ -64,12 +69,36 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# 簡化列印函數
-log_info() { echo -e "${BLUE}[INFO]${NC} $@"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $@"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $@"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $@"; }
-log_update() { echo -e "${CYAN}[UPDATE]${NC} $@"; }
+# 日誌函數 - 同時輸出到終端和日誌文件
+log_info() { 
+    local msg="${BLUE}[INFO]${NC} $@"
+    echo -e "$msg"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $@" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+log_warn() { 
+    local msg="${YELLOW}[WARN]${NC} $@"
+    echo -e "$msg"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN] $@" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+log_error() { 
+    local msg="${RED}[ERROR]${NC} $@"
+    echo -e "$msg" >&2
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $@" >> "$ERROR_LOG" 2>/dev/null || true
+}
+
+log_success() { 
+    local msg="${GREEN}[SUCCESS]${NC} $@"
+    echo -e "$msg"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $@" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+log_update() { 
+    local msg="${CYAN}[UPDATE]${NC} $@"
+    echo -e "$msg"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [UPDATE] $@" >> "$LOG_FILE" 2>/dev/null || true
+}
 
 # 獲取當前 UTC 日期
 get_current_date() {
@@ -383,8 +412,8 @@ download_constellation_data() {
     local updated_count=0
     
     # 追蹤下載和更新的檔案
-    declare -a downloaded_files
-    declare -a updated_files
+    declare -a downloaded_files=()
+    declare -a updated_files=()
     
     # 處理 TLE 檔案
 
@@ -484,10 +513,10 @@ download_constellation_data() {
     fi
     
     # 將下載和更新的檔案信息保存到全局變量
-    if [[ ${#downloaded_files[@]} -gt 0 ]]; then
+    if [[ ${#downloaded_files[@]} -gt 0 ]] 2>/dev/null; then
         eval "${constellation}_downloaded_files=(\"\${downloaded_files[@]}\")"
     fi
-    if [[ ${#updated_files[@]} -gt 0 ]]; then
+    if [[ ${#updated_files[@]} -gt 0 ]] 2>/dev/null; then
         eval "${constellation}_updated_files=(\"\${updated_files[@]}\")"
     fi
     
@@ -507,7 +536,7 @@ generate_summary() {
         echo -e "${GREEN}✅ Starlink: 已下載/更新${NC}"
         
         # 顯示下載的檔案
-        if [[ -n "${starlink_downloaded_files[*]}" ]]; then
+        if [[ -n "${starlink_downloaded_files[*]:-}" ]]; then
             echo -e "${CYAN}  📥 新下載檔案:${NC}"
             for file in "${starlink_downloaded_files[@]}"; do
                 echo -e "    • $file"
@@ -523,7 +552,7 @@ generate_summary() {
         fi
         
         # 如果沒有任何檔案被處理，顯示跳過信息
-        if [[ -z "${starlink_downloaded_files[*]}" && -z "${starlink_updated_files[*]}" ]]; then
+        if [[ -z "${starlink_downloaded_files[*]:-}" && -z "${starlink_updated_files[*]:-}" ]]; then
             echo -e "${BLUE}  ⏭️  所有檔案已是最新，跳過下載${NC}"
         fi
     else
@@ -534,7 +563,7 @@ generate_summary() {
         echo -e "${GREEN}✅ OneWeb: 已下載/更新${NC}"
         
         # 顯示下載的檔案
-        if [[ -n "${oneweb_downloaded_files[*]}" ]]; then
+        if [[ -n "${oneweb_downloaded_files[*]:-}" ]]; then
             echo -e "${CYAN}  📥 新下載檔案:${NC}"
             for file in "${oneweb_downloaded_files[@]}"; do
                 echo -e "    • $file"
@@ -550,7 +579,7 @@ generate_summary() {
         fi
         
         # 如果沒有任何檔案被處理，顯示跳過信息
-        if [[ -z "${oneweb_downloaded_files[*]}" && -z "${oneweb_updated_files[*]}" ]]; then
+        if [[ -z "${oneweb_downloaded_files[*]:-}" && -z "${oneweb_updated_files[*]:-}" ]]; then
             echo -e "${BLUE}  ⏭️  所有檔案已是最新，跳過下載${NC}"
         fi
     else
@@ -562,17 +591,27 @@ generate_summary() {
 
 # 主程序
 main() {
+    # 記錄開始時間
+    local start_time=$(date +%s)
+    local start_timestamp=$(date '+%Y-%m-%d %H:%M:%S %Z')
+    
     local date_str
     date_str=$(get_current_date)
     
     # 初始化全局數組變量
-    declare -a starlink_downloaded_files
-    declare -a starlink_updated_files
-    declare -a oneweb_downloaded_files
-    declare -a oneweb_updated_files
+    declare -ga starlink_downloaded_files=()
+    declare -ga starlink_updated_files=()
+    declare -ga oneweb_downloaded_files=()
+    declare -ga oneweb_updated_files=()
     
     echo
     echo "🚀 TLE 數據下載工具"
+    echo "⏰ 開始時間: $start_timestamp"
+    
+    # 記錄執行開始
+    log_info "========== TLE 數據下載開始 =========="
+    log_info "執行時間: $start_timestamp"
+    log_info "工作目錄: $TLE_DATA_DIR"
     
     if $FORCE_UPDATE; then
         echo -e "${YELLOW}⚡ 強制更新模式已啟用${NC}"
@@ -587,6 +626,7 @@ main() {
 
     
     # 檢查網路連接
+    echo "🌐 檢查網路連接..."
     if ! curl -s --connect-timeout 10 "https://celestrak.org" > /dev/null; then
         log_error "無法連接到 CelesTrak，請檢查網路連接"
         exit 1
@@ -596,9 +636,11 @@ main() {
     mkdir -p "$TLE_DATA_DIR"/{starlink,oneweb}/{tle,json}
     
     # 下載數據
+    echo "📡 開始下載 Starlink 數據... ($(date '+%H:%M:%S'))"
     download_constellation_data "starlink" "$date_str"
     local starlink_result=$?
     
+    echo "🛰️ 開始下載 OneWeb 數據... ($(date '+%H:%M:%S'))"
     download_constellation_data "oneweb" "$date_str"
     local oneweb_result=$?
     
@@ -612,10 +654,17 @@ main() {
 
     # 總結
     local total_failures=$((starlink_result + oneweb_result))
+    local end_timestamp=$(date '+%Y-%m-%d %H:%M:%S %Z')
+    
     if [[ $total_failures -eq 0 ]]; then
+        log_info "========== TLE 數據下載完成 =========="
+        log_info "結束時間: $end_timestamp"
+        log_info "執行結果: 成功"
         exit 0
     else
-        log_error "部分數據處理失敗"
+        log_error "========== TLE 數據下載失敗 =========="
+        log_error "結束時間: $end_timestamp"
+        log_error "執行結果: 部分數據處理失敗"
         exit 1
     fi
 }
