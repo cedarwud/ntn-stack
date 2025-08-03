@@ -273,7 +273,7 @@ export class IntelligentDataProcessor {
         reasoning: string[]
     } {
         const reasoning = []
-        let parameters = {
+        const parameters = {
             movingAverageWindow: config.movingAverageWindow || 5,
             exponentialAlpha: config.exponentialSmoothingAlpha || 0.3,
             preserveExtremes: config.preserveExtremeEvents,

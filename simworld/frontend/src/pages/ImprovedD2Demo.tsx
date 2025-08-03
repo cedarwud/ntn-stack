@@ -16,10 +16,11 @@ import React, { useState, useCallback } from 'react'
 //     DataQualityMetrics,
 //     TimeSync
 // } from '../components/domains/measurement/charts/SynchronizedD2Dashboard'
-import {
-    DEFAULT_D2_TRIGGER_CONFIG,
-    DEFAULT_SMOOTHING_CONFIG,
-} from '../services/improvedD2DataService'
+// Configs no longer needed
+// import {
+//     DEFAULT_D2_TRIGGER_CONFIG,
+//     DEFAULT_SMOOTHING_CONFIG,
+// } from '../services/improvedD2DataService'
 
 const ImprovedD2Demo: React.FC = () => {
     // 狀態管理
@@ -41,7 +42,7 @@ const ImprovedD2Demo: React.FC = () => {
     }, [])
 
     // 換手事件檢測回調
-    const handleHandoverEvent = useCallback(
+    const _handleHandoverEvent = useCallback(
         (event: HandoverEvent) => {
             setDetectedEvents((prev) => [...prev, event])
             addLog(
@@ -52,7 +53,7 @@ const ImprovedD2Demo: React.FC = () => {
     )
 
     // 數據品質變化回調
-    const handleDataQualityChange = useCallback(
+    const _handleDataQualityChange = useCallback(
         (metrics: DataQualityMetrics) => {
             setDataQuality(metrics)
             addLog(
@@ -67,7 +68,7 @@ const ImprovedD2Demo: React.FC = () => {
     )
 
     // 時間同步回調
-    const handleTimeSync = useCallback((timeSync: TimeSync) => {
+    const _handleTimeSync = useCallback((timeSync: TimeSync) => {
         setCurrentTimeSync(timeSync)
     }, [])
 
