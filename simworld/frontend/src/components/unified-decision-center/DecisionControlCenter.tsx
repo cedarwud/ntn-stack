@@ -15,7 +15,7 @@ import {
 
 // 導入現有組件
 import HandoverAnimation3D from '@/components/domains/handover/execution/HandoverAnimation3D'
-import UnifiedHandoverStatus from '@/components/domains/handover/execution/UnifiedHandoverStatus'
+// import UnifiedHandoverStatus from '@/components/domains/handover/execution/UnifiedHandoverStatus'
 
 // 導入視覺化協調系統
 import { VisualizationCoordinator } from './VisualizationCoordinator'
@@ -38,8 +38,10 @@ export const DecisionControlCenter: React.FC<DecisionControlCenterProps> = ({
     const [currentPhase, setCurrentPhase] = useState<string>('monitoring')
     const [decisionProgress, setDecisionProgress] = useState<number>(0)
     const [activeAlgorithm, setActiveAlgorithm] = useState<string>('DQN')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [candidateSatellites, setCandidateSatellites] = useState<any[]>([])
-    const [decisionMetrics, setDecisionMetrics] = useState<any>({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [decisionMetrics, _setDecisionMetrics] = useState<any>({})
     const [systemStatus, setSystemStatus] = useState<
         'healthy' | 'warning' | 'error'
     >('healthy')
