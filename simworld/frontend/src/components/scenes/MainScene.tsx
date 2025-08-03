@@ -114,18 +114,18 @@ const MainScene: React.FC<MainSceneProps> = ({
     uavAnimation,
     selectedReceiverIds = [],
     sceneName,
-    interferenceVisualizationEnabled = false,
-    sinrHeatmapEnabled = false,
+    interferenceVisualizationEnabled: _interferenceVisualizationEnabled = false,
+    sinrHeatmapEnabled: _sinrHeatmapEnabled = false,
     aiRanVisualizationEnabled = false,
     sionna3DVisualizationEnabled = false,
     realTimeMetricsEnabled = false,
-    interferenceAnalyticsEnabled = false,
+    interferenceAnalyticsEnabled: _interferenceAnalyticsEnabled = false,
     uavSwarmCoordinationEnabled = false,
     meshNetworkTopologyEnabled = false,
-    satelliteUavConnectionEnabled = false,
-    failoverMechanismEnabled = false,
+    satelliteUavConnectionEnabled: _satelliteUavConnectionEnabled = false,
+    failoverMechanismEnabled: _failoverMechanismEnabled = false,
     predictionPath3DEnabled = false,
-    handover3DAnimationEnabled = false,
+    handover3DAnimationEnabled: _handover3DAnimationEnabled = false,
     handoverState,
     currentConnection,
     predictedConnection,
@@ -135,14 +135,14 @@ const MainScene: React.FC<MainSceneProps> = ({
     // Analytics parameters removed
     satellites = [],
     satelliteEnabled = false,
-    satelliteSpeedMultiplier, // 動態設定，不使用固定預設值
-    handoverStableDuration = 5,
+    satelliteSpeedMultiplier: _satelliteSpeedMultiplier, // 動態設定，不使用固定預設值
+    handoverStableDuration: _handoverStableDuration = 5,
     handoverMode = 'real',
     // 分離的速度控制
     satelliteMovementSpeed,
     handoverTimingSpeed,
     algorithmResults,
-    onHandoverStatusUpdate,
+    onHandoverStatusUpdate: _onHandoverStatusUpdate,
 }) => {
     // 標記未使用但保留的props為已消費（避免TypeScript警告）
     void handoverState
@@ -154,11 +154,11 @@ const MainScene: React.FC<MainSceneProps> = ({
     const actualSatelliteMovementSpeed =
         satelliteMovementSpeed ?? SATELLITE_CONFIG.SATELLITE_MOVEMENT_SPEED
 
-    const actualHandoverTimingSpeed =
+    const _actualHandoverTimingSpeed =
         handoverTimingSpeed ??
         (handoverMode === 'demo'
             ? SATELLITE_CONFIG.HANDOVER_TIMING_SPEED
-            : SATELLITE_CONFIG.REAL_TIME_MULTIPLIER)
+            : SATELLITE_CONFIG.TIME_MULTIPLIER)
 
     // 根據場景名稱動態生成 URL
     const backendSceneName = getBackendSceneName(sceneName)
@@ -171,7 +171,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     )
 
     // 🔗 衛星位置狀態管理 - 用於 HandoverAnimation3D
-    const [satellitePositions, setSatellitePositions] = useState<
+    const [_satellitePositions, setSatellitePositions] = useState<
         Map<string, [number, number, number]>
     >(new Map())
 
@@ -188,7 +188,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     )
 
     // 換手狀態更新回調
-    const handleHandoverStateUpdate = useCallback((state: unknown) => {
+    const _handleHandoverStateUpdate = useCallback((state: unknown) => {
         setInternalHandoverState(state)
     }, [])
 

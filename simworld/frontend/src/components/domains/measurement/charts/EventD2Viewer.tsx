@@ -279,6 +279,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
                 // 轉換 API 響應為前端格式
                 const convertedData = apiResult.results.map(
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (result: any, _index: number) => ({
                         timestamp: result.timestamp,
                         satelliteDistance:
@@ -749,6 +750,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             params.Thresh1,
             params.Thresh2,
             params.Hys,
+            params.timeToTrigger,
             calculateSatellitePosition,
         ])
 
@@ -1477,7 +1479,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
                             <div className="chart-container">
                                 {currentMode === 'real-data' ? (
-                                    {/* RealD2Chart removed - using PureD2Chart for all modes */}
+                                    // RealD2Chart removed - using PureD2Chart for all modes
                                     <PureD2Chart
                                         thresh1={params.Thresh1}
                                         thresh2={params.Thresh2}
