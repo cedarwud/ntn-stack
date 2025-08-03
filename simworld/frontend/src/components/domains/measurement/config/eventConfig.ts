@@ -6,14 +6,12 @@
 import React from 'react'
 
 // 基本類型定義
-export type EventType = 'A4' | 'D1' | 'D2' | 'T1'
+export type EventType = 'A4' | 'D2'
 export type EventCategory = 'signal' | 'distance' | 'time'
 
 // 動態導入適配後的 Enhanced 事件組件以優化性能
 const AdaptedEnhancedA4Viewer = React.lazy(() => import('../adapters/EnhancedViewerAdapter').then(module => ({ default: module.AdaptedEnhancedA4Viewer })))
-const AdaptedEnhancedD1Viewer = React.lazy(() => import('../adapters/EnhancedViewerAdapter').then(module => ({ default: module.AdaptedEnhancedD1Viewer }))) 
 const AdaptedEnhancedD2Viewer = React.lazy(() => import('../adapters/EnhancedViewerAdapter').then(module => ({ default: module.AdaptedEnhancedD2Viewer })))
-const AdaptedEnhancedT1Viewer = React.lazy(() => import('../adapters/EnhancedViewerAdapter').then(module => ({ default: module.AdaptedEnhancedT1Viewer })))
 
 export interface EventConfig {
     id: EventType
@@ -74,36 +72,6 @@ export const EVENT_CONFIGS: Record<EventType, EventConfig> = {
             leave: 'Mn + Ofn + Ocn + Hys < Thresh'
         }
     },
-    D1: {
-        id: 'D1',
-        name: 'Event D1',
-        description: 'Distance between UE and reference locations',
-        shortName: 'D1',
-        status: 'available',
-        category: 'distance',
-        standard: '3GPP TS 38.331 Section 5.5.4.15',
-        ViewerComponent: AdaptedEnhancedD1Viewer,
-        icon: '📍',
-        color: {
-            primary: '#50C878',
-            secondary: '#45B06A',
-            background: 'rgba(80, 200, 120, 0.1)'
-        },
-        parameters: {
-            primary: ['distanceThreshFromReference1', 'distanceThreshFromReference2'],
-            secondary: ['hysteresisLocation', 'TimeToTrigger'],
-            units: {
-                'distanceThreshFromReference1': 'm',
-                'distanceThreshFromReference2': 'm',
-                'hysteresisLocation': 'm',
-                'TimeToTrigger': 'ms'
-            }
-        },
-        conditions: {
-            enter: 'Ml1 - Hys > Thresh1 且 Ml2 + Hys < Thresh2',
-            leave: 'Ml1 + Hys < Thresh1 或 Ml2 - Hys > Thresh2'
-        }
-    },
     D2: {
         id: 'D2',
         name: 'Event D2',
@@ -132,35 +100,6 @@ export const EVENT_CONFIGS: Record<EventType, EventConfig> = {
         conditions: {
             enter: 'Ml1 - Hys > Thresh1 且 Ml2 + Hys < Thresh2',
             leave: 'Ml1 + Hys < Thresh1 或 Ml2 - Hys > Thresh2'
-        }
-    },
-    T1: {
-        id: 'T1',
-        name: 'CondEvent T1',
-        description: 'Time measured at UE within duration from threshold',
-        shortName: 'T1',
-        status: 'available',
-        category: 'time',
-        standard: '3GPP TS 38.331 Section 5.5.4.16',
-        ViewerComponent: AdaptedEnhancedT1Viewer,
-        icon: '⏱️',
-        color: {
-            primary: '#9B59B6',
-            secondary: '#8E44AD',
-            background: 'rgba(155, 89, 182, 0.1)'
-        },
-        parameters: {
-            primary: ['t1-Threshold', 'Duration'],
-            secondary: ['當前時間 Mt'],
-            units: {
-                't1-Threshold': 'ms',
-                'Duration': 'ms',
-                '當前時間 Mt': 'ms'
-            }
-        },
-        conditions: {
-            enter: 'Mt > Thresh1',
-            leave: 'Mt > Thresh1 + Duration'
         }
     }
 }

@@ -385,7 +385,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
 
             // 轉換歷史數據為時間序列格式
             const timeSeriesData: NetStackD2Response[] =
-                historyData.data_points?.map((point: any, index: number) => ({
+                historyData.data_points?.map((point: any, _index: number) => ({
                     event_type: 'D2',
                     timestamp: point.timestamp,
                     trigger_state: point.trigger_state || 'idle',
@@ -521,7 +521,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
     }, [thresh1, thresh2, hysteresis])
 
     // ✅ Phase 4.2: 保留原始單點獲取函數（備用）
-    const fetchRealTimeD2Data = useCallback(async () => {
+    const _fetchRealTimeD2Data = useCallback(async () => {
         setIsLoadingRealData(true)
         setConnectionStatus('connecting')
 
@@ -836,7 +836,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
 
                 let satelliteDistance =
                     realTimeData.measurement_values.satellite_distance
-                let groundDistance =
+                const groundDistance =
                     realTimeData.measurement_values.ground_distance
 
                 // 數據異常檢測和修正

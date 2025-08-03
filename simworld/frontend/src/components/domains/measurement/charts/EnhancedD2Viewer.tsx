@@ -43,9 +43,9 @@ interface EnhancedD2ViewerProps {
 }
 
 const EnhancedD2Viewer: React.FC<EnhancedD2ViewerProps> = ({
-    className = '',
-    defaultViewMode = 'simple',
-    enableViewModeToggle = true,
+    _className = '',
+    _defaultViewMode = 'simple',
+    _enableViewModeToggle = true,
 }) => {
     // 基本狀態
     const [isDarkTheme, setIsDarkTheme] = useState(true)

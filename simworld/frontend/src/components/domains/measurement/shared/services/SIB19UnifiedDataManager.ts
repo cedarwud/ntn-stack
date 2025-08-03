@@ -103,22 +103,6 @@ export interface A4VisualizationData {
   }
 }
 
-export interface D1VisualizationData {
-  reference_location: Position
-  distances: {
-    ml1_distance: number
-    ml2_distance: number
-    threshold1: number
-    threshold2: number
-    hysteresis: number
-  }
-  serving_satellite: {
-    satellite_id: string
-    elevation: number
-    distance: number
-  }
-}
-
 export interface D2VisualizationData {
   moving_reference: {
     current_position: Position
@@ -134,24 +118,6 @@ export interface D2VisualizationData {
   movement_vector: {
     velocity_kmh: number
     direction_deg: number
-  }
-}
-
-export interface T1VisualizationData {
-  time_frame: {
-    epoch_time: string
-    t_service: number
-    current_time: string
-    time_to_trigger: number
-  }
-  synchronization: {
-    gnss_offset_ms: number
-    accuracy_ms: number
-    is_synchronized: boolean
-  }
-  countdown: {
-    remaining_seconds: number
-    is_active: boolean
   }
 }
 
@@ -238,9 +204,7 @@ export class SIB19UnifiedDataManager extends EventEmitter {
         
         // 發送事件特定的數據更新通知
         this.emit('a4DataUpdated', this.getA4SpecificData())
-        this.emit('d1DataUpdated', this.getD1SpecificData())
         this.emit('d2DataUpdated', this.getD2SpecificData())
-        this.emit('t1DataUpdated', this.getT1SpecificData())
       }
 
       return true
@@ -349,30 +313,6 @@ export class SIB19UnifiedDataManager extends EventEmitter {
         is_triggered: false,
         hysteresis: 3.0,
         time_to_trigger: 160
-      }
-    }
-  }
-
-  /**
-   * D1 事件特定數據萃取
-   * 提取固定參考位置、距離計算等 D1 專屬資訊
-   */
-  public getD1SpecificData(): D1VisualizationData | null {
-    if (!this.sib19Data) return null
-
-    return {
-      reference_location: this.sib19Data.reference_location,
-      distances: {
-        ml1_distance: 8500.0,
-        ml2_distance: 4200.0,
-        threshold1: 10000.0,
-        threshold2: 5000.0,
-        hysteresis: 500.0
-      },
-      serving_satellite: {
-        satellite_id: Object.keys(this.sib19Data.satellite_ephemeris)[0] || '',
-        elevation: 45.0,
-        distance: 850000.0
       }
     }
   }
@@ -494,56 +434,6 @@ export class SIB19UnifiedDataManager extends EventEmitter {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
 
     return R * c
-  }
-
-  /**
-   * T1 事件特定數據萃取
-   * 提取時間框架、同步狀態等 T1 專屬資訊
-   * 完成 Phase 2.3: 實現真實的 GNSS 時間同步數據
-   */
-  public getT1SpecificData(): T1VisualizationData | null {
-    if (!this.sib19Data) return null
-
-    const timeCorrection = this.sib19Data.time_correction
-    const currentTime = Date.now()
-
-    // 基於真實 GNSS 時間同步計算
-    // 模擬真實的時鐘偏移和同步精度
-    const baseClockOffset = Math.sin(currentTime / 10000) * 15 // ±15ms 基礎偏移
-    const noiseOffset = (Math.random() - 0.5) * 10 // ±5ms 隨機噪聲
-    const clockOffsetMs = baseClockOffset + noiseOffset
-
-    // 同步精度基於信號質量和衛星可見性
-    const baseAccuracy = 2.0 // 基礎精度 2ms
-    const qualityFactor = Math.random() * 0.5 + 0.75 // 0.75-1.25 質量因子
-    const accuracyMs = baseAccuracy / qualityFactor
-
-    // 計算時間框架 (基於 SIB19 epochTime)
-    const epochTime = timeCorrection?.epoch_time || currentTime
-    const serviceStartTime = epochTime + (timeCorrection?.service_start_offset_ms || 0)
-    const serviceDuration = timeCorrection?.service_duration_ms || 300000 // 5分鐘默認
-
-    const elapsedTime = Math.max(0, (currentTime - serviceStartTime) / 1000)
-    const totalTime = serviceDuration / 1000
-    const remainingTime = Math.max(0, totalTime - elapsedTime)
-
-    return {
-      time_frame: {
-        elapsed_time: elapsedTime,
-        remaining_time: remainingTime,
-        total_time: totalTime,
-        service_start_time: serviceStartTime,
-        current_time: currentTime
-      },
-      time_sync: {
-        clock_offset_ms: clockOffsetMs,
-        accuracy_ms: accuracyMs,
-        sync_status: Math.abs(clockOffsetMs) <= 50 && accuracyMs <= 10 ? 'synced' : 'degraded',
-        gnss_signal_strength: Math.random() * 20 + 30, // 30-50 dB
-        satellite_count: Math.floor(Math.random() * 8) + 4, // 4-12 顆衛星
-        last_sync_time: currentTime - Math.random() * 60000 // 最近1分鐘內同步
-      }
-    }
   }
 
   /**
