@@ -95,6 +95,7 @@ interface LayeredAnalysisData {
 class PrecomputedDataService {
     private precomputedData: PrecomputedOrbitData | null = null
     private layeredData: LayeredAnalysisData | null = null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private cache = new Map<string, any>()
 
     /**
@@ -115,7 +116,7 @@ class PrecomputedDataService {
                 '/data/historical_precomputed_orbits.json'  // 歷史數據 fallback
             ]
             
-            let lastError: Error | null = null
+            // let lastError: Error | null = null
             
             for (const [index, dataSource] of dataSources.entries()) {
                 try {
@@ -154,7 +155,7 @@ class PrecomputedDataService {
                     return this.precomputedData
                     
                 } catch (error) {
-                    lastError = error as Error
+                    const _lastError = error as Error
                     console.warn(`❌ 數據源 ${index + 1} 載入失敗: ${error}`)
                     continue
                 }
@@ -222,6 +223,7 @@ class PrecomputedDataService {
         console.log('📦 生成最小 fallback 數據...')
         
         const now = new Date()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const satellites: { [key: string]: any } = {}
         
         // 生成3顆模擬衛星（基於真實 Starlink 參數）
@@ -276,6 +278,7 @@ class PrecomputedDataService {
     /**
      * 生成 fallback 可見性數據
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private generateFallbackVisibilityData(startTime: Date, satelliteIndex: number): Array<any> {
         const data = []
         const totalPoints = 360 // 6小時，每分鐘一個點
