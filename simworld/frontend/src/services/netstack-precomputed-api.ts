@@ -143,6 +143,7 @@ export async function getOptimalTimeWindow(
     location: string = 'ntpu',
     constellation: string = 'starlink',
     windowHours: number = 6
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
     const endpoint = `/optimal-window/${location}?constellation=${constellation}&window_hours=${windowHours}`
     
@@ -162,6 +163,7 @@ export async function getDisplayOptimizedData(
     location: string = 'ntpu',
     acceleration: number = 60,
     distanceScale: number = 0.1
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
     const endpoint = `/display-data/${location}?acceleration=${acceleration}&distance_scale=${distanceScale}`
     
@@ -177,6 +179,7 @@ export async function getDisplayOptimizedData(
 /**
  * NetStack 健康檢查
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function checkNetstackHealth(): Promise<any> {
     const endpoint = '/health/precomputed'
     

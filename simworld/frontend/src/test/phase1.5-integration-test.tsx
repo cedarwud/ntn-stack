@@ -14,7 +14,7 @@ import '@testing-library/jest-dom'
 
 // 導入測試組件
 import { SIB19UnifiedPlatform } from '../components/domains/measurement/shared/components/SIB19UnifiedPlatform'
-import { BaseEventViewer } from '../components/domains/measurement/shared/components/BaseEventViewer'
+// import { BaseEventViewer } from '../components/domains/measurement/shared/components/BaseEventViewer'
 
 // 導入配置
 import { EVENT_CONFIGS } from '../components/domains/measurement/config/eventConfig'
@@ -234,6 +234,7 @@ describe('🧪 Phase 1.5 統一平台整合測試', () => {
 
     describe('🔄 跨事件資訊共享測試', () => {
         it('應該在不同事件間共享 SIB19 數據', async () => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let sharedSIB19Status: any = null
             let sharedNeighborCells: any[] = []
 
