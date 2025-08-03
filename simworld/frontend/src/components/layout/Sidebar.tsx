@@ -7,7 +7,7 @@ import DeviceItem from '../domains/device/management/DeviceItem'
 import { useReceiverSelection } from '../../hooks/useReceiverSelection'
 import { useDeviceManagement } from './hooks/useDeviceManagement'
 import { VisibleSatelliteInfo } from '../../types/satellite'
-import { HandoverState, SatelliteConnection } from '../../types/handover'
+
 import { FeatureToggle } from './types/sidebar.types'
 import { SatellitePosition } from '../../services/simworld-api'
 // import { ApiRoutes } from '../../../../config/apiRoutes'
@@ -18,9 +18,11 @@ import { simWorldApi } from '../../services/simworld-api'
 import { SatelliteDebugger } from '../../utils/satelliteDebugger'
 import { netstackFetch } from '../../config/api-config'
 import { useDataSync } from '../../contexts/DataSyncContext'
-import { useSatelliteState } from '../../contexts/appStateHooks'
-// 引入重構後的換手管理模組
-import HandoverManagementTab from './sidebar/HandoverManagementTab'
+import {
+    useSatelliteState,
+    useHandoverState,
+} from '../../contexts/appStateHooks'
+
 // 引入重構後的設備列表模組
 import DeviceListPanel from './sidebar/DeviceListPanel'
 // 引入重構後的UAV選擇模組
@@ -110,37 +112,13 @@ interface SidebarProps {
     satelliteSpeedMultiplier?: number
     onSatelliteSpeedChange?: (speed: number) => void
 
-    // 新增：衛星移動速度和換手演示速度控制
-    satelliteMovementSpeed?: number
-    onSatelliteMovementSpeedChange?: (speed: number) => void
-    handoverTimingSpeed?: number
-    onHandoverTimingSpeedChange?: (speed: number) => void
-
-    // 換手穩定期控制
-    handoverStableDuration?: number
-    onHandoverStableDurationChange?: (duration: number) => void
-
-    // 換手模式控制
-    handoverMode?: 'demo' | 'real'
-    onHandoverModeChange?: (mode: 'demo' | 'real') => void
-
     // 星座切換控制 (根據開發計畫)
     selectedConstellation?: 'starlink' | 'oneweb'
     onConstellationChange?: (constellation: 'starlink' | 'oneweb') => void
 
-    // 3D 動畫狀態更新回調
-    onHandoverStateChange?: (state: HandoverState) => void
-    onCurrentConnectionChange?: (connection: SatelliteConnection) => void
-    onPredictedConnectionChange?: (connection: SatelliteConnection) => void
-    onTransitionChange?: (isTransitioning: boolean, progress: number) => void
-    // 🚀 演算法結果回調 - 用於對接視覺化
-    onAlgorithmResults?: (results: {
-        currentSatelliteId?: string
-        predictedSatelliteId?: string
-        handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
-        binarySearchActive?: boolean
-        predictionConfidence?: number
-    }) => void
+    // 換手模式控制
+    handoverMode?: 'demo' | 'real'
+    onHandoverModeChange?: (mode: 'demo' | 'real') => void
 }
 
 // 核心功能開關配置 - 根據 paper.md 計畫書精簡
@@ -312,36 +290,30 @@ const Sidebar: React.FC<SidebarProps> = ({
     _onPredictiveMaintenanceChange,
     _intelligentRecommendationEnabled = false,
     _onIntelligentRecommendationChange,
-    // 3D 動畫狀態更新回調
-    onHandoverStateChange,
-    onCurrentConnectionChange,
-    onPredictedConnectionChange,
-    onTransitionChange,
-    onAlgorithmResults,
     // 衛星動畫控制 props（動畫永遠開啟）
     satelliteSpeedMultiplier = 5,
     onSatelliteSpeedChange,
 
-    // 新增：衛星移動速度和換手演示速度控制
-    satelliteMovementSpeed = SATELLITE_CONFIG.SATELLITE_MOVEMENT_SPEED,
-    onSatelliteMovementSpeedChange,
-    handoverTimingSpeed = SATELLITE_CONFIG.HANDOVER_TIMING_SPEED,
-    onHandoverTimingSpeedChange,
-
-    // 換手穩定期控制 props
-    handoverStableDuration = 5,
-    onHandoverStableDurationChange,
-
-    // 換手模式控制 props
-    handoverMode = 'demo',
-    onHandoverModeChange,
-
     // 星座切換 props
     selectedConstellation = 'starlink',
     onConstellationChange,
+
+    // 換手模式 props
+    handoverMode = 'demo',
+    onHandoverModeChange,
 }) => {
     // 🎯 使用全域策略狀態
     const { currentStrategy } = useStrategy()
+
+    // 🎯 使用換手狀態
+    const {
+        satelliteMovementSpeed,
+        handoverTimingSpeed,
+        handoverStableDuration,
+        setSatelliteMovementSpeed,
+        setHandoverTimingSpeed,
+        setHandoverStableDuration,
+    } = useHandoverState()
 
     // 標記未使用但保留的props為已消費（避免TypeScript警告）
     void _predictionAccuracyDashboardEnabled
@@ -482,11 +454,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         })
     }
 
-    // 精簡的類別配置 - 3 個分頁，衛星控制為首位
+    // 精簡的類別配置 - 2 個分頁，衛星控制為首位
     const categories = [
         { id: 'satellite', label: '衛星控制', icon: '🛰️' },
         { id: 'uav', label: 'UAV 控制', icon: '🚁' },
-        { id: 'handover_mgr', label: '換手管理', icon: '🔄' },
     ]
 
     // 靜態衛星數據管理：完全避免重新載入和重新渲染
@@ -689,8 +660,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                     SATELLITE_CONFIG.SATELLITE_MOVEMENT_SPEED
                                                 }
                                                 onChange={(e) =>
-                                                    onSatelliteMovementSpeedChange &&
-                                                    onSatelliteMovementSpeedChange(
+                                                    setSatelliteMovementSpeed &&
+                                                    setSatelliteMovementSpeed(
                                                         Number(e.target.value)
                                                     )
                                                 }
@@ -722,8 +693,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                         SATELLITE_CONFIG.HANDOVER_TIMING_SPEED
                                                     }
                                                     onChange={(e) =>
-                                                        onHandoverTimingSpeedChange &&
-                                                        onHandoverTimingSpeedChange(
+                                                        setHandoverTimingSpeed &&
+                                                        setHandoverTimingSpeed(
                                                             Number(
                                                                 e.target.value
                                                             )
@@ -757,8 +728,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                         handoverStableDuration
                                                     }
                                                     onChange={(e) =>
-                                                        onHandoverStableDurationChange &&
-                                                        onHandoverStableDurationChange(
+                                                        setHandoverStableDuration &&
+                                                        setHandoverStableDuration(
                                                             Number(
                                                                 e.target.value
                                                             )
@@ -791,8 +762,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                                     : ''
                                                             }`}
                                                             onClick={() =>
-                                                                onSatelliteMovementSpeedChange &&
-                                                                onSatelliteMovementSpeedChange(
+                                                                setSatelliteMovementSpeed &&
+                                                                setSatelliteMovementSpeed(
                                                                     speed
                                                                 )
                                                             }
@@ -822,8 +793,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                                         : ''
                                                                 }`}
                                                                 onClick={() =>
-                                                                    onHandoverTimingSpeedChange &&
-                                                                    onHandoverTimingSpeedChange(
+                                                                    setHandoverTimingSpeed &&
+                                                                    setHandoverTimingSpeed(
                                                                         speed
                                                                     )
                                                                 }
@@ -854,8 +825,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                                         : ''
                                                                 }`}
                                                                 onClick={() =>
-                                                                    onHandoverStableDurationChange &&
-                                                                    onHandoverStableDurationChange(
+                                                                    setHandoverStableDuration &&
+                                                                    setHandoverStableDuration(
                                                                         duration
                                                                     )
                                                                 }
@@ -869,27 +840,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         )}
                                     </div>
                                 )}
-
-                            {/* 🚀 換手管理分頁 - 使用獨立模組 */}
-                            <HandoverManagementTab
-                                satellites={skyfieldSatellites}
-                                selectedUEId={selectedReceiverIds[0]}
-                                isVisible={activeCategory === 'handover_mgr'}
-                                handoverMode={handoverMode}
-                                satelliteSpeedMultiplier={
-                                    satelliteSpeedMultiplier
-                                }
-                                currentStrategy={currentStrategy}
-                                onHandoverStateChange={onHandoverStateChange}
-                                onCurrentConnectionChange={
-                                    onCurrentConnectionChange
-                                }
-                                onPredictedConnectionChange={
-                                    onPredictedConnectionChange
-                                }
-                                onTransitionChange={onTransitionChange}
-                                onAlgorithmResults={onAlgorithmResults}
-                            />
 
                             {/* 手動控制面板 - 使用獨立模組 */}
                             <ManualControlPanel

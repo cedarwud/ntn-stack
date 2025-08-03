@@ -97,7 +97,13 @@ OUTPUT_DIR = STATIC_IMAGES_DIR
 DOPPLER_IMAGE_PATH = OUTPUT_DIR / "delay_doppler.png"  # 延遲多普勒圖路徑
 # 通道響應圖路徑
 CHANNEL_RESPONSE_IMAGE_PATH = OUTPUT_DIR / "channel_response_plots.png"
+# CFR 圖表路徑
+CFR_PLOT_IMAGE_PATH = OUTPUT_DIR / "cfr_plot.png"  # CFR 圖表路徑
+# SINR 地圖圖片路徑
+SINR_MAP_IMAGE_PATH = OUTPUT_DIR / "sinr_map.png"  # SINR 地圖路徑
 logger.info(f"Time-Frequency Image Path (in container): {CHANNEL_RESPONSE_IMAGE_PATH}")
+logger.info(f"CFR Plot Image Path (in container): {CFR_PLOT_IMAGE_PATH}")
+logger.info(f"SINR Map Image Path (in container): {SINR_MAP_IMAGE_PATH}")
 
 # logger.info(f"Project Root (estimated): {PROJECT_ROOT}") # 不再需要
 logger.info(f"Static Directory (in container): {STATIC_DIR}")

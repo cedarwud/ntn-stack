@@ -1,13 +1,12 @@
 import { Device } from '../../../types/device'
 import { VisibleSatelliteInfo } from '../../../types/satellite'
-import { HandoverState, SatelliteConnection } from '../../../types/handover'
 import { UAVManualDirection } from '../../domains/device/visualization/UAVFlight'
 
 // 功能開關介面
 export interface FeatureToggle {
     id: string
     label: string
-    category: 'uav' | 'satellite' | 'handover_mgr'
+    category: 'uav' | 'satellite'
     enabled: boolean
     onToggle: (enabled: boolean) => void
     icon?: string
@@ -81,27 +80,7 @@ export interface CategoryNavigationProps {
     onCategoryChange: (categoryId: string) => void
 }
 
-// 換手管理分頁 Props
-export interface HandoverManagementTabProps {
-    satellites: VisibleSatelliteInfo[]
-    selectedUEId: number
-    isVisible: boolean
-    handoverMode: 'demo' | 'real'
-    satelliteSpeedMultiplier: number
-    currentStrategy: string
-    // 所有換手相關的回調函數
-    onHandoverStateChange?: (state: HandoverState) => void
-    onCurrentConnectionChange?: (connection: SatelliteConnection) => void
-    onPredictedConnectionChange?: (connection: SatelliteConnection) => void
-    onTransitionChange?: (isTransitioning: boolean, progress: number) => void
-    onAlgorithmResults?: (results: {
-        currentSatelliteId?: string
-        predictedSatelliteId?: string
-        handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
-        binarySearchActive?: boolean
-        predictionConfidence?: number
-    }) => void
-}
+
 
 // 衛星數據管理相關
 export interface UseSatelliteDataReturn {
