@@ -12,7 +12,7 @@ import React, {
     ReactNode,
 } from 'react'
 import { VisibleSatelliteInfo } from '../types/satellite'
-import { SATELLITE_CONFIG } from '../config/satellite.config'
+// import { SATELLITE_CONFIG } from '../config/satellite.config'
 
 // ==================== 狀態類型定義 ====================
 

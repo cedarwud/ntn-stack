@@ -56,7 +56,7 @@ export const ConstellationSelector: React.FC<Props> = ({
     value,
     onChange,
     disabled = false,
-    showComparison = true,
+    showComparison: _showComparison = true,
 }) => {
     const [constellations, setConstellations] = useState(CONSTELLATION_CONFIGS)
     const [loading, setLoading] = useState(false)

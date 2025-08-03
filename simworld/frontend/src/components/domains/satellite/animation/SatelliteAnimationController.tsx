@@ -7,7 +7,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { useFrame } from '@react-three/fiber'
-import * as THREE from 'three'
+// import * as THREE from 'three'
 import {
     PrecomputedOrbitService,
     AnimationConfig,
@@ -67,7 +67,7 @@ export const SatelliteAnimationController: React.FC<
     children,
 }) => {
     const [orbitService] = useState(() => new PrecomputedOrbitService())
-    const [precomputedData, setPrecomputedData] = useState<OrbitData | null>(
+    const [precomputedData, _setPrecomputedData] = useState<OrbitData | null>(
         null
     )
     const [satellites, setSatellites] = useState<
@@ -234,7 +234,7 @@ export const SatelliteAnimationController: React.FC<
     )
 
     // 初始化衛星數據（預計算數據）
-    const initializeSatellites = useCallback((data: OrbitData) => {
+    const _initializeSatellites = useCallback((data: OrbitData) => {
         const satelliteMap = new Map<string, PrecomputedSatellite>()
 
         // 從預計算數據中提取衛星軌跡
