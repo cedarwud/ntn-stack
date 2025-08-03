@@ -5,6 +5,7 @@
 
 export interface RealtimeEvent {
   type: 'rl_update' | 'handover_trigger' | 'candidate_update' | 'decision_made' | 'performance_update'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any
   timestamp: number
   source: string
@@ -91,6 +92,7 @@ export class RealtimeEventStreamer {
   /**
    * 處理實時數據
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public processRealtimeData(data: any) {
     try {
       const event = this.parseWebSocketData(data)
@@ -105,6 +107,7 @@ export class RealtimeEventStreamer {
   /**
    * 解析 WebSocket 數據
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private parseWebSocketData(data: any): RealtimeEvent | null {
     if (!data || typeof data !== 'object') {
       return null
@@ -159,6 +162,7 @@ export class RealtimeEventStreamer {
     // 通用事件格式
     if (data.event_type && data.payload) {
       return {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         type: data.event_type as any,
         data: data.payload,
         timestamp: data.timestamp || Date.now(),
@@ -287,6 +291,7 @@ export class RealtimeEventStreamer {
   /**
    * 模擬事件（用於測試）
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public simulateEvent(type: RealtimeEvent['type'], data: any) {
     const event: RealtimeEvent = {
       type,

@@ -117,7 +117,14 @@ export const SatelliteAnimationController: React.FC<
             )
             setSatellites(new Map())
         }
-    }, [enabled, location, constellation, unifiedSatellites, orbitService])
+    }, [
+        enabled,
+        location,
+        constellation,
+        unifiedSatellites,
+        orbitService,
+        initializeSatellitesFromUnified,
+    ])
 
     // 修復：從統一衛星數據初始化
     const initializeSatellitesFromUnified = useCallback(

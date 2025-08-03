@@ -33,6 +33,7 @@ export interface HandoverState {
 
 export interface AnimationEvent {
   type: 'phase_change' | 'candidate_highlight' | 'decision_made' | 'handover_execute'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any
   timestamp: number
 }
@@ -92,6 +93,7 @@ export class VisualizationCoordinator {
 
   private currentPhaseIndex = 0
   private animationQueue: AnimationEvent[] = []
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   private eventListeners: Map<string, Function[]> = new Map()
   private handoverState: HandoverState = {
     isHandover: false,
@@ -117,6 +119,7 @@ export class VisualizationCoordinator {
   /**
    * 註冊事件監聽器
    */
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   public addEventListener(event: string, listener: Function) {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, [])
@@ -127,6 +130,7 @@ export class VisualizationCoordinator {
   /**
    * 移除事件監聽器
    */
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   public removeEventListener(event: string, listener: Function) {
     const listeners = this.eventListeners.get(event)
     if (listeners) {
@@ -140,6 +144,7 @@ export class VisualizationCoordinator {
   /**
    * 觸發事件
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private emit(event: string, data?: any) {
     const listeners = this.eventListeners.get(event)
     if (listeners) {
@@ -272,6 +277,7 @@ export class VisualizationCoordinator {
   /**
    * 執行階段變更動畫
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private executePhaseChangeAnimation(data: any) {
     // 這裡會與 3D 場景協調，更新視覺效果
     console.log('🎭 階段變更動畫:', data.phase, data.progress)
@@ -280,6 +286,7 @@ export class VisualizationCoordinator {
   /**
    * 執行候選衛星高亮動畫
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private executeCandidateHighlightAnimation(data: any) {
     // 這裡會在 3D 場景中高亮候選衛星
     console.log('🎯 候選衛星高亮動畫:', data.candidates.length, '個候選')
@@ -288,6 +295,7 @@ export class VisualizationCoordinator {
   /**
    * 執行決策動畫
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private executeDecisionMadeAnimation(data: any) {
     // 這裡會顯示決策過程動畫
     console.log('🧠 決策動畫:', data.algorithm)
@@ -296,6 +304,7 @@ export class VisualizationCoordinator {
   /**
    * 執行換手動畫
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private executeHandoverAnimation(data: any) {
     // 這裡會執行完整的換手動畫序列
     console.log('🔄 換手動畫:', data)

@@ -94,7 +94,7 @@ export const ConstellationSelector: React.FC<Props> = ({
         }
 
         fetchConstellationData()
-    }, [])
+    }, [constellations])
 
     const handleChange = (newValue: string) => {
         if (!disabled) {
