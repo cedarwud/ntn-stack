@@ -29,6 +29,11 @@ from .orbit_calculation_engine import (
     OrbitCalculationEngine, SatellitePosition, Position, 
     SatelliteConfig, TLEData, TimeRange
 )
+# 導入統一配置系統 (Phase 1 改進)
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+from config.satellite_config import SATELLITE_CONFIG
 from .tle_data_manager import TLEDataManager
 
 logger = structlog.get_logger(__name__)
@@ -214,9 +219,9 @@ class SIB19UnifiedPlatform:
         self.sib19_history: List[SIB19Data] = []
         self.max_history = 10
         
-        # 多衛星管理
+        # 多衛星管理 (使用統一配置)
         self.tracked_satellites: Dict[str, SatellitePosition] = {}
-        self.max_tracked_satellites = 8  # 最多追蹤 8 顆鄰居衛星
+        self.max_tracked_satellites = SATELLITE_CONFIG.MAX_CANDIDATE_SATELLITES
         
         # 生命週期管理
         self.update_interval_minutes = 30  # SIB19 更新間隔

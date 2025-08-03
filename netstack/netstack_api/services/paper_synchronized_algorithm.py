@@ -26,6 +26,12 @@ import structlog
 from .enhanced_synchronized_algorithm import EnhancedSynchronizedAlgorithm
 from .simworld_tle_bridge_service import SimWorldTLEBridgeService
 
+# 導入統一配置系統 (Phase 1 改進)
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+from config.satellite_config import SATELLITE_CONFIG
+
 logger = structlog.get_logger(__name__)
 
 
@@ -499,7 +505,7 @@ class SynchronizedAlgorithm:
 
                 # 限制候選衛星數量 (優化策略: 5 顆候選衛星, 降低計算負載)
                 candidate_satellites = await self._get_regional_candidate_satellites(
-                    ue_position, max_satellites=5, min_elevation=30.0
+                    ue_position, max_satellites=SATELLITE_CONFIG.MAX_CANDIDATE_SATELLITES, min_elevation=30.0
                 )
 
                 best_satellite = await self.tle_bridge._calculate_best_access_satellite(
@@ -525,7 +531,7 @@ class SynchronizedAlgorithm:
             try:
                 ue_position = await self._get_ue_position(ue_id)
                 candidate_satellites = await self._get_regional_candidate_satellites(
-                    ue_position, max_satellites=5, min_elevation=30.0
+                    ue_position, max_satellites=SATELLITE_CONFIG.MAX_CANDIDATE_SATELLITES, min_elevation=30.0
                 )
 
                 timestamp = datetime.fromtimestamp(time_t)
@@ -867,7 +873,7 @@ class SynchronizedAlgorithm:
     async def _get_regional_candidate_satellites(
         self,
         ue_position: Dict[str, float],
-        max_satellites: int = 50,
+        max_satellites: int = SATELLITE_CONFIG.BATCH_COMPUTE_MAX_SATELLITES,
         min_elevation: float = 40.0,
     ) -> List[str]:
         """
@@ -1012,7 +1018,7 @@ class SynchronizedAlgorithm:
             }
 
     # 🚀 新增：真實衛星數據庫和 NORAD ID 管理
-    async def _get_real_satellite_catalog(self, max_satellites: int = 50) -> List[str]:
+    async def _get_real_satellite_catalog(self, max_satellites: int = SATELLITE_CONFIG.BATCH_COMPUTE_MAX_SATELLITES) -> List[str]:
         """
         獲取真實的衛星目錄，使用真實的 NORAD ID 和衛星名稱
         
