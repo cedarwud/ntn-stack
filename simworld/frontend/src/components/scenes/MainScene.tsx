@@ -21,9 +21,7 @@ import RealTimeMetrics from './visualization/RealTimeMetrics'
 import UAVSwarmCoordination from '../domains/simulation/coordination/UAVSwarmCoordination'
 import MeshNetworkTopology from './visualization/MeshNetworkTopology'
 // import FailoverMechanism from '../domains/interference/mitigation/FailoverMechanism' // Removed - interference domain cleaned up
-import TestResultsVisualization from '../domains/analytics/testing/TestResultsVisualization'
-import PerformanceTrendAnalyzer from '../domains/analytics/performance/PerformanceTrendAnalyzer'
-import AutomatedReportGenerator from '../domains/analytics/ai/AutomatedReportGenerator'
+// Analytics components removed - no UI controls available to enable them
 // import HandoverAnomalyVisualization from './visualization/HandoverAnomalyVisualization' // 未使用，已註釋
 
 import PredictionPath3D from '../shared/visualization/PredictionPath3D'
@@ -134,9 +132,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     isTransitioning = false,
     transitionProgress = 0,
     onHandoverEvent,
-    testResultsVisualizationEnabled = false,
-    performanceTrendAnalysisEnabled = false,
-    automatedReportGenerationEnabled = false,
+    // Analytics parameters removed
     satellites = [],
     satelliteEnabled = false,
     satelliteSpeedMultiplier, // 動態設定，不使用固定預設值
@@ -422,19 +418,7 @@ const MainScene: React.FC<MainSceneProps> = ({
             />
             {/* FailoverMechanism component removed - domain cleaned up */}
 
-            {/* 階段七可視化覆蓋層 */}
-            <TestResultsVisualization
-                devices={devices}
-                enabled={testResultsVisualizationEnabled}
-            />
-            <PerformanceTrendAnalyzer
-                devices={devices}
-                enabled={performanceTrendAnalysisEnabled}
-            />
-            <AutomatedReportGenerator
-                devices={devices}
-                enabled={automatedReportGenerationEnabled}
-            />
+            {/* 階段七可視化覆蓋層 - Analytics components removed */}
 
             {/* 衛星渲染器 - 動態軌跡模擬 */}
             <DynamicSatelliteRenderer
