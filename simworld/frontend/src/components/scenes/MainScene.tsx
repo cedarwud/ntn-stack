@@ -13,8 +13,7 @@ import {
     getBackendSceneName,
     getSceneTextureName,
 } from '../../utils/sceneUtils'
-// import InterferenceOverlay from '../domains/interference/detection/InterferenceOverlay' // Removed - interference domain cleaned up
-// import SINRHeatmap from '../domains/interference/detection/SINRHeatmap' // Removed - interference domain cleaned up
+
 // import AIRANVisualization from '../domains/interference/mitigation/AIRANVisualization' // 已移除未使用的組件
 // import Sionna3DVisualization from '../domains/simulation/sionna/Sionna3DVisualization' // 已移除未使用的組件
 import RealTimeMetrics from './visualization/RealTimeMetrics'
@@ -157,9 +156,8 @@ const MainScene: React.FC<MainSceneProps> = ({
 
     // 動態計算衛星速度倍數：分離衛星移動和換手演示速度
     const actualSatelliteMovementSpeed =
-        satelliteMovementSpeed ??
-        SATELLITE_CONFIG.SATELLITE_MOVEMENT_SPEED
-    
+        satelliteMovementSpeed ?? SATELLITE_CONFIG.SATELLITE_MOVEMENT_SPEED
+
     const actualHandoverTimingSpeed =
         handoverTimingSpeed ??
         (handoverMode === 'demo'

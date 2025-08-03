@@ -54,11 +54,7 @@ interface SidebarProps {
     onSatelliteDataUpdate?: (satellites: VisibleSatelliteInfo[]) => void
     satelliteEnabled?: boolean
     onSatelliteEnabledChange?: (enabled: boolean) => void
-    // 新增的階段四功能開關
-    interferenceVisualizationEnabled?: boolean
-    onInterferenceVisualizationChange?: (enabled: boolean) => void
-    sinrHeatmapEnabled?: boolean
-    onSinrHeatmapChange?: (enabled: boolean) => void
+
     aiRanVisualizationEnabled?: boolean
     onAiRanVisualizationChange?: (enabled: boolean) => void
     manualControlEnabled?: boolean
@@ -288,10 +284,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     onSatelliteDataUpdate,
     satelliteEnabled = false,
     onSatelliteEnabledChange,
-    interferenceVisualizationEnabled = false,
-    onInterferenceVisualizationChange,
-    sinrHeatmapEnabled = false,
-    onSinrHeatmapChange,
+
     manualControlEnabled = false,
     onManualControlEnabledChange,
     satelliteUavConnectionEnabled = false,
@@ -472,26 +465,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             description: '衛星與 UAV 連接狀態監控（需先開啟衛星顯示）',
         },
 
-        // 通信品質 (2個)
-        {
-            id: 'sinrHeatmap',
-            label: 'SINR 熱力圖',
-            category: 'quality',
-            enabled: sinrHeatmapEnabled,
-            onToggle: onSinrHeatmapChange || (() => {}),
-            icon: '🔥',
-            description: '地面 SINR 信號強度熱力圖',
-        },
-        {
-            id: 'interferenceVisualization',
-            label: '干擾源可視化',
-            category: 'quality',
-            enabled: interferenceVisualizationEnabled,
-            onToggle: onInterferenceVisualizationChange || (() => {}),
-            icon: '📡',
-            description: '3D 干擾源範圍和影響可視化',
-        },
-
         // 手動控制面板會根據自動飛行狀態動態顯示
         // 隱藏的非核心功能：predictionAccuracyDashboard, predictionPath3D, coreNetworkSync 等 17 個功能
     ]
@@ -509,12 +482,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         })
     }
 
-    // 精簡的類別配置 - 4 個分頁，衛星控制為首位
+    // 精簡的類別配置 - 3 個分頁，衛星控制為首位
     const categories = [
-        { id: 'satellite', label: '衛星控制', icon: '�️' },
-        { id: 'uav', label: 'UAV 控制', icon: '�' },
+        { id: 'satellite', label: '衛星控制', icon: '🛰️' },
+        { id: 'uav', label: 'UAV 控制', icon: '🚁' },
         { id: 'handover_mgr', label: '換手管理', icon: '🔄' },
-        { id: 'quality', label: '通信品質', icon: '📶' },
     ]
 
     // 靜態衛星數據管理：完全避免重新載入和重新渲染

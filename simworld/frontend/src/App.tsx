@@ -182,25 +182,6 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
                                     onSatelliteEnabledChange={
                                         satelliteState.setSatelliteEnabled
                                     }
-                                    interferenceVisualizationEnabled={
-                                        featureState.interferenceVisualizationEnabled
-                                    }
-                                    onInterferenceVisualizationChange={(
-                                        enabled
-                                    ) =>
-                                        featureState.updateFeatureState({
-                                            interferenceVisualizationEnabled:
-                                                enabled,
-                                        })
-                                    }
-                                    sinrHeatmapEnabled={
-                                        featureState.sinrHeatmapEnabled
-                                    }
-                                    onSinrHeatmapChange={(enabled) =>
-                                        featureState.updateFeatureState({
-                                            sinrHeatmapEnabled: enabled,
-                                        })
-                                    }
                                     manualControlEnabled={
                                         featureState.manualControlEnabled
                                     }
