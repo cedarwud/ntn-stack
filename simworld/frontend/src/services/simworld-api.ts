@@ -51,7 +51,7 @@ export function useVisibleSatellites(
 
     useEffect(() => {
         let isMounted = true
-        let timeoutId: NodeJS.Timeout
+        // 不再需要 timeoutId，因為沒有定期更新
 
         const fetchVisibleSatellites = async () => {
             if (!isMounted) return
@@ -60,7 +60,11 @@ export function useVisibleSatellites(
             setError(null)
 
             try {
-                console.log(`🛰️ SimWorld API: 載入可見衛星 (${constellation}, 仰角≥${minElevation}°)`)
+                // 減少日誌輸出頻率 - 只在初次載入或錯誤恢復時顯示
+                const isInitialLoad = satellites.length === 0
+                if (isInitialLoad || error) {
+                    console.log(`🛰️ SimWorld API: 載入可見衛星 (${constellation}, 仰角≥${minElevation}°)`)
+                }
 
                 // Use NetStack's real-time visible satellites endpoint
                 const endpoint = `/api/v1/satellite-ops/visible_satellites?` + 
@@ -112,7 +116,11 @@ export function useVisibleSatellites(
 
                 setSatellites(convertedSatellites)
                 
-                console.log(`✅ SimWorld API: 成功載入 ${convertedSatellites.length} 顆可見衛星`)
+                // 只在初次載入或錯誤恢復時顯示成功日誌
+                const isFirstLoad = satellites.length === 0
+                if (isFirstLoad || error) {
+                    console.log(`✅ SimWorld API: 成功載入 ${convertedSatellites.length} 顆可見衛星`)
+                }
 
             } catch (err) {
                 if (!isMounted) return
@@ -129,26 +137,15 @@ export function useVisibleSatellites(
             }
         }
 
-        // Initial fetch
+        // Initial fetch - 只載入一次，之後依靠軌道計算
         fetchVisibleSatellites()
 
-        // Set up periodic updates every 30 seconds
-        const setupPeriodicUpdates = () => {
-            timeoutId = setTimeout(() => {
-                if (isMounted) {
-                    fetchVisibleSatellites()
-                    setupPeriodicUpdates() // Schedule next update
-                }
-            }, 30000)
-        }
-
-        setupPeriodicUpdates()
+        // 不再設置定期更新 - 衛星軌道由 3D 引擎基於 TLE 數據計算
+        // 這避免了不必要的 API 調用和日誌輸出
 
         return () => {
             isMounted = false
-            if (timeoutId) {
-                clearTimeout(timeoutId)
-            }
+            // 清理已不需要，因為沒有定時器
         }
     }, [minElevation, maxCount, observerLat, observerLon, constellation])
 

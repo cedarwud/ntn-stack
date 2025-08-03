@@ -12,7 +12,7 @@ from .dependencies import (
     get_algorithm_registry,
     get_environment_manager,
     get_handover_orchestrator,
-    LifecycleManager
+    LifecycleManager,
 )
 from .endpoints import AlgorithmEcosystemEndpoints
 
@@ -27,13 +27,9 @@ endpoints = AlgorithmEcosystemEndpoints()
 
 # === 核心預測端點 ===
 
-@router.post("/predict", response_model=HandoverDecisionResponse)
-async def predict_handover(request: HandoverPredictionRequest):
-    """換手預測"""
-    return await endpoints.predict_handover(request)
-
 
 # === 算法管理端點 ===
+
 
 @router.get("/algorithms", response_model=List[AlgorithmInfoResponse])
 async def list_algorithms():
@@ -67,6 +63,7 @@ async def disable_algorithm(algorithm_name: str):
 
 # === 協調器管理端點 ===
 
+
 @router.get("/orchestrator/stats", response_model=StatsResponse)
 async def get_orchestrator_stats():
     """獲取協調器統計信息"""
@@ -81,6 +78,7 @@ async def update_orchestrator_config(request: OrchestratorConfigRequest):
 
 # === 環境管理端點 ===
 
+
 @router.get("/environment/stats", response_model=StatsResponse)
 async def get_environment_stats():
     """獲取環境統計信息"""
@@ -88,6 +86,7 @@ async def get_environment_stats():
 
 
 # === A/B測試端點 ===
+
 
 @router.post("/ab-tests", response_model=OperationResponse)
 async def set_ab_test_config(request: ABTestConfigRequest):
@@ -102,6 +101,7 @@ async def get_ab_test_performance(test_id: str):
 
 
 # === 統計和監控端點 ===
+
 
 @router.get("/registry/stats", response_model=StatsResponse)
 async def get_registry_stats():
@@ -122,6 +122,7 @@ async def export_metrics(request: MetricsExportRequest):
 
 
 # === 生命週期事件 ===
+
 
 @router.on_event("startup")
 async def startup_event():

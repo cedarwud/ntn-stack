@@ -174,6 +174,7 @@ class RouterManager:
             from ...routers.intelligent_fallback_router import (
                 router as intelligent_fallback_router,
             )
+
             # RL 路由器已移除
             from ...routers.test_router import router as test_router
 
@@ -273,30 +274,6 @@ class RouterManager:
         # Phase 2.3 API 路由器 - 使用簡化版本
         # Phase 2.3 RL API 已移除
 
-        # Phase 3 API 路由器 - 規則式換手決策引擎 (新實現)
-        try:
-            from ...routers.phase3_handover_router import router as phase3_handover_router
-            
-            self.app.include_router(
-                phase3_handover_router,
-                tags=["Phase 3 - 規則式換手決策"]
-            )
-            self._track_router(
-                "phase3_handover_router",
-                "Phase 3 - 規則式換手決策",
-                True,
-                "新實現註冊成功"
-            )
-            logger.info("✅ Phase 3 規則式換手決策路由器註冊成功")
-        except Exception as e:
-            logger.exception("💥 Phase 3 規則式換手決策路由器註冊失敗")
-            self._track_router(
-                "phase3_handover_router", 
-                "Phase 3 - 規則式換手決策",
-                False,
-                f"新實現註冊失敗: {str(e)}"
-            )
-        
         # Phase 3 RL API 已移除
 
         # Phase 4 API 路由器已移除

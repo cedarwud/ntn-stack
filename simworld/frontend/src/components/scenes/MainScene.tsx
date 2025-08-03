@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useMemo, useState, useCallback } from 'react'
-import { useGLTF } from '@react-three/drei'
+import { useGLTF, Html } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
@@ -25,7 +25,7 @@ import TestResultsVisualization from '../domains/analytics/testing/TestResultsVi
 import PerformanceTrendAnalyzer from '../domains/analytics/performance/PerformanceTrendAnalyzer'
 import AutomatedReportGenerator from '../domains/analytics/ai/AutomatedReportGenerator'
 // import HandoverAnomalyVisualization from './visualization/HandoverAnomalyVisualization' // 未使用，已註釋
-import HandoverAnimation3D from '../domains/handover/execution/HandoverAnimation3D'
+
 import PredictionPath3D from '../shared/visualization/PredictionPath3D'
 import DynamicSatelliteRenderer from '../domains/satellite/visualization/DynamicSatelliteRenderer'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
@@ -389,15 +389,21 @@ const MainScene: React.FC<MainSceneProps> = ({
             */}
             {/* AIRANVisualization component removed - domain cleaned up */}
             {aiRanVisualizationEnabled && (
-                <div className="ai-ran-placeholder">
-                    <p>AI-RAN 可視化組件已移除，功能已整合至統一分析圖表</p>
-                </div>
+                <Html position={[0, 5, 0]} center>
+                    <div className="ai-ran-placeholder">
+                        <p>AI-RAN 可視化組件已移除，功能已整合至統一分析圖表</p>
+                    </div>
+                </Html>
             )}
             {/* Sionna3DVisualization component removed - domain cleaned up */}
             {sionna3DVisualizationEnabled && (
-                <div className="sionna-placeholder">
-                    <p>Sionna 3D 可視化組件已移除，功能已整合至統一分析圖表</p>
-                </div>
+                <Html position={[0, 3, 0]} center>
+                    <div className="sionna-placeholder">
+                        <p>
+                            Sionna 3D 可視化組件已移除，功能已整合至統一分析圖表
+                        </p>
+                    </div>
+                </Html>
             )}
             <RealTimeMetrics
                 devices={devices}
@@ -415,18 +421,6 @@ const MainScene: React.FC<MainSceneProps> = ({
                 enabled={meshNetworkTopologyEnabled}
             />
             {/* FailoverMechanism component removed - domain cleaned up */}
-
-            {/* 🚀 新的換手連接線動畫系統 - 根據 handover.md 設計 */}
-            <HandoverAnimation3D
-                devices={devices}
-                enabled={satelliteUavConnectionEnabled}
-                satellitePositions={satellitePositions}
-                stableDuration={handoverStableDuration}
-                handoverMode={handoverMode}
-                speedMultiplier={actualHandoverTimingSpeed}
-                onStatusUpdate={onHandoverStatusUpdate}
-                onHandoverStateUpdate={handleHandoverStateUpdate}
-            />
 
             {/* 階段七可視化覆蓋層 */}
             <TestResultsVisualization
