@@ -385,6 +385,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
 
             // 轉換歷史數據為時間序列格式
             const timeSeriesData: NetStackD2Response[] =
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 historyData.data_points?.map((point: any, _index: number) => ({
                     event_type: 'D2',
                     timestamp: point.timestamp,
@@ -427,7 +428,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
         } finally {
             setIsLoadingRealData(false)
         }
-    }, [thresh1, thresh2, hysteresis])
+    }, [thresh1, thresh2, hysteresis, generatePseudoRealTimeSeriesData])
 
     // ✅ Phase 4.2: 偽真實時間序列數據生成函數（備用）
     const generatePseudoRealTimeSeriesData = useCallback(async () => {
@@ -1436,6 +1437,10 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
         showThresholdLines,
         currentTheme,
         calculateYAxisRanges,
+        dataSourceInfo.count,
+        dataSourceInfo.totalCount,
+        dataSourceInfo.type,
+        isDarkTheme,
     ])
 
     // 創建和更新圖表

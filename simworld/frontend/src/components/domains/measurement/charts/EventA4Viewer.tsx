@@ -951,13 +951,7 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
                     </div>
                 </div>
             ),
-            [
-                a4Threshold,
-                hysteresis,
-                animationState.currentTime,
-                showThresholdLines,
-                isDarkTheme,
-            ]
+            [a4Threshold, hysteresis, animationState.currentTime, isDarkTheme]
         )
 
         // 載入中組件 - 使用 useMemo 穩定化
