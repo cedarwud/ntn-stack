@@ -1,7 +1,8 @@
 from typing import Optional
 from pydantic import BaseModel, Field
-from sqlmodel import SQLModel, Column, Field
-from sqlalchemy import Integer, String, Column as SAColumn
+# SQLModel imports removed - migrated to MongoDB
+# from sqlmodel import SQLModel, Column, Field
+# from sqlalchemy import Integer, String, Column as SAColumn
 
 
 class GeoCoordinate(BaseModel):
@@ -20,13 +21,12 @@ class CartesianCoordinate(BaseModel):
     z: float = Field(..., description="Z 座標")
 
 
-class CoordinateTransformation(SQLModel, table=True):
-    """座標轉換記錄，用於追蹤常用的座標轉換"""
+class CoordinateTransformation(BaseModel):
+    """座標轉換記錄，用於追蹤常用的座標轉換 (MongoDB)"""
 
-    __tablename__ = "coordinatetransformation"
-
-    id: int = Field(primary_key=True, default=None)
-    source_system: str = Field(index=True)
-    target_system: str = Field(index=True)
-    transformation_parameters: str
-    description: Optional[str] = None
+    # MongoDB document structure - no SQLModel table definition needed
+    id: Optional[str] = Field(default=None, description="MongoDB ObjectId")
+    source_system: str = Field(..., description="源座標系統")
+    target_system: str = Field(..., description="目標座標系統")
+    transformation_parameters: str = Field(..., description="轉換參數")
+    description: Optional[str] = Field(None, description="描述")

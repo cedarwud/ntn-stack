@@ -4,7 +4,7 @@
 
 ### 單元測試 (/tests/unit/)
 - **ai_decision_integration/** - AI 決策整合組件測試
-- **rl_training/** - 強化學習訓練組件測試
+- **rl_training/** - 強化學習組件已移除
 - **test_*.py** - 其他單元測試
 
 ### 整合測試 (/tests/integration/)  
@@ -12,7 +12,7 @@
 - **phase_3_integration_test.py** - Phase 3 整合測試
 
 ### 端到端測試 (/tests/e2e/)
-- **test_rl_integration_e2e.py** - 強化學習完整流程測試
+- **test_rl_integration_e2e.py** - 強化學習測試已移除
 
 ## 執行測試
 

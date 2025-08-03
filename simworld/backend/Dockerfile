@@ -12,8 +12,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 # 強制 stdout/stderr 不緩存，方便看日誌
 ENV PYTHONUNBUFFERED=1
-# 減少 TensorFlow 日誌
-ENV TF_CPP_MIN_LOG_LEVEL="3"
+# 移除 TensorFlow 配置 - 不再需要
 # 讓 Dr.Jit 能找到 LLVM shared lib
 ENV DRJIT_LIBLLVM_PATH=/usr/lib/x86_64-linux-gnu/libLLVM-14.so.1
 # 設定 PyOpenGL 默認使用 EGL (可通過環境變數覆蓋)
@@ -21,7 +20,7 @@ ENV PYOPENGL_PLATFORM=egl
 
 # 4. 安裝系統依賴
 #    - 渲染相關：更完整的 OpenGL/EGL/OSMesa 支持
-#    - 資料庫相關：PostgreSQL, GDAL, PostGIS
+#    - 移除 PostgreSQL 依賴 (使用 NetStack 的 PostgreSQL)
 RUN apt update && apt install -y --no-install-recommends \
     libgl1-mesa-glx \
     libegl1-mesa \
@@ -32,10 +31,6 @@ RUN apt update && apt install -y --no-install-recommends \
     llvm-dev \
     libllvm14 \
     build-essential \
-    libpq-dev \
-    gdal-bin \
-    libgdal-dev \
-    postgresql-client \
     curl \
     && apt clean && rm -rf /var/lib/apt/lists/*
 

@@ -114,7 +114,7 @@ class SatelliteDataManager:
 
     async def _ensure_tables_exist(self):
         """確保數據庫表存在"""
-        schema_file = "services/rl_training/database/satellite_cache_schema.sql"
+        # RL training schema reference removed
         try:
             with open(schema_file, "r", encoding="utf-8") as f:
                 schema_sql = f.read()

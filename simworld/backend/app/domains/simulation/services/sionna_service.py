@@ -13,7 +13,8 @@ while providing better modularity, testability, and maintainability.
 
 import logging
 from typing import Dict, Any, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+# SQLAlchemy removed - migrated to MongoDB
+# from sqlalchemy.ext.asyncio import AsyncSession
 
 # Interface and models
 from app.domains.simulation.interfaces.simulation_service_interface import SimulationServiceInterface
@@ -96,7 +97,7 @@ class SionnaSimulationService(SimulationServiceInterface):
     
     async def generate_cfr_plot(
         self,
-        session: AsyncSession,
+        session: Optional[Any],
         output_path: str = str(CFR_PLOT_IMAGE_PATH),
         scene_name: str = "nycu",
     ) -> bool:
@@ -140,7 +141,7 @@ class SionnaSimulationService(SimulationServiceInterface):
     
     async def generate_sinr_map(
         self,
-        session: AsyncSession,
+        session: Optional[Any],
         output_path: str = str(SINR_MAP_IMAGE_PATH),
         scene_name: str = "nycu",
         sinr_vmin: float = -40,
@@ -191,7 +192,7 @@ class SionnaSimulationService(SimulationServiceInterface):
     
     async def generate_doppler_plots(
         self,
-        session: AsyncSession,
+        session: Optional[Any],
         output_path: str = str(DOPPLER_IMAGE_PATH),
         scene_name: str = "nycu",
     ) -> bool:
@@ -234,7 +235,7 @@ class SionnaSimulationService(SimulationServiceInterface):
     
     async def generate_channel_response_plots(
         self,
-        session: AsyncSession,
+        session: Optional[Any],
         output_path: str = str(CHANNEL_RESPONSE_IMAGE_PATH),
         scene_name: str = "nycu",
     ) -> bool:
@@ -281,7 +282,7 @@ class SionnaSimulationService(SimulationServiceInterface):
     
     async def run_simulation(
         self, 
-        session: AsyncSession, 
+        session: Optional[Any], 
         params: SimulationParameters
     ) -> Dict[str, Any]:
         """

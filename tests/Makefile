@@ -1,6 +1,6 @@
 # NTN-Stack 統一測試 Makefile
 
-.PHONY: test test-quick test-unit test-integration test-performance test-e2e test-paper test-gymnasium clean help
+.PHONY: test test-quick test-unit test-integration test-performance test-e2e test-paper clean help
 
 # 預設目標
 all: test
@@ -48,19 +48,9 @@ test-paper-stage2:
 	@echo "📚 執行論文階段二測試..."
 	python run_all_tests.py --type=paper --stage=2
 
-# Gymnasium測試
-test-gymnasium:
-	@echo "🤖 執行Gymnasium測試..."
-	python run_all_tests.py --type=gymnasium
-
 test-paper-stage2:
 	@echo "📚 執行論文階段二測試..."
 	python paper_tests.py --stage=2
-
-# Gymnasium RL測試
-test-gymnasium:
-	@echo "🎮 執行Gymnasium RL測試..."
-	python gymnasium_tests.py --env=all
 
 # 清理
 clean:
@@ -83,6 +73,6 @@ help:
 	@echo "  test-paper        - 執行論文復現測試"
 	@echo "  test-paper-stage1 - 執行論文階段一測試"
 	@echo "  test-paper-stage2 - 執行論文階段二測試"
-	@echo "  test-gymnasium    - 執行Gymnasium RL測試"
+	@echo ""
 	@echo "  clean             - 清理測試檔案"
 	@echo "  help              - 顯示此說明"

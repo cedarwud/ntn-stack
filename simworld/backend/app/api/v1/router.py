@@ -7,15 +7,16 @@ Replaces the monolithic router.py as part of Phase 2 refactoring.
 
 from fastapi import APIRouter
 
-# Import domain API routers  
-from app.api.routes.devices_postgresql import router as device_router  # PostgreSQL 版本 (替代 MongoDB)
+# Import domain API routers
+# from app.api.routes.devices_postgresql import router as device_router  # PostgreSQL 版本 (已移除，改用 MongoDB)
+from app.api.routes.devices_mongodb import router as devices_mongodb_router
 from app.domains.coordinates.api.coordinate_api import router as coordinates_router
 
 # from app.domains.satellite.api.satellite_api import router as satellite_router  # PostgreSQL 版本，已註釋
 from app.domains.simulation.api.simulation_api import router as simulation_router
 
-# Phase 2 重構：合併 wireless + interference → rf_simulation
-from app.domains.rf_simulation.api.rf_simulation_api import router as rf_simulation_router
+# Phase 2 重構：移除 RF simulation (與衛星換手無關)
+# from app.domains.rf_simulation.api.rf_simulation_api import router as rf_simulation_router
 
 # from app.domains.handover.api.handover_api import router as handover_router  # 依賴 satellite 模組，暫時註釋
 # from app.domains.handover.api.fine_grained_sync_api import (
@@ -40,7 +41,8 @@ from app.api.routes.core import router as core_router
 # from app.api.routes.satellite import router as satellite_ops_router  # PostgreSQL 版本，已註釋
 from app.api.routes.satellite_redis import router as satellite_redis_router
 from app.api.routes.uav import router as uav_router
-from app.api.routes.integration import router as integration_router
+
+# from app.api.routes.integration import router as integration_router  # 已刪除的 RL 相關功能
 
 # Import existing specialized routers
 # from app.api.v1.satellite_admin_api import router as satellite_admin_router  # 依賴 satellite 模組，暫時註釋
@@ -51,7 +53,7 @@ from app.api.routes.health import router as health_router
 # Import TLE data routes for Phase 1 - Real satellite data integration
 
 # Import measurement events routes for Phase 4 - Frontend integration
-from app.api.routes.measurement_events import router as measurement_events_router
+# from app.api.routes.measurement_events import router as measurement_events_router  # 暫時註釋，依賴已刪除的 constellation_manager
 
 # Import historical orbits routes for real data fallback
 from app.api.routes.historical_orbits import router as historical_orbits_router
@@ -66,8 +68,11 @@ api_router = APIRouter()
 api_router.include_router(core_router, tags=["Core"])
 
 # Register domain API routers with clean prefixes
+# api_router.include_router(
+#     device_router, prefix="/devices", tags=["Devices (PostgreSQL)"]
+# )  # PostgreSQL 已移除，改用 MongoDB
 api_router.include_router(
-    device_router, prefix="/devices", tags=["Devices (PostgreSQL)"]
+    devices_mongodb_router, prefix="/devices", tags=["Devices (MongoDB)"]
 )
 api_router.include_router(
     coordinates_router, prefix="/coordinates", tags=["Coordinates"]
@@ -80,10 +85,10 @@ api_router.include_router(
     simulation_router, prefix="/simulations", tags=["Simulations"]
 )
 
-# Phase 2 重構：統一 RF 模擬 API (合併 wireless + interference)
-api_router.include_router(
-    rf_simulation_router, prefix="/rf", tags=["RF Simulation"]
-)
+# Phase 2 重構：移除 RF simulation (與衛星換手研究無關)
+# api_router.include_router(
+#     rf_simulation_router, prefix="/rf", tags=["RF Simulation"]
+# )
 # api_router.include_router(handover_router, prefix="/handover", tags=["Handover"])  # 依賴 satellite 模組，暫時註釋
 api_router.include_router(system_router, prefix="/system", tags=["System"])
 
@@ -109,9 +114,9 @@ api_router.include_router(
     tags=["Satellite Operations (Redis)"],
 )
 api_router.include_router(uav_router, prefix="/tracking", tags=["UAV Tracking"])
-api_router.include_router(
-    integration_router, prefix="/integration", tags=["Integration"]
-)
+# api_router.include_router(
+#     integration_router, prefix="/integration", tags=["Integration"]
+# )  # 已刪除的 RL 相關功能
 
 # Register specialized routers (暫時註釋，依賴 satellite 模組)
 # api_router.include_router(
@@ -124,13 +129,15 @@ api_router.include_router(health_router, prefix="/health", tags=["Health"])
 # Register TLE data routes for Phase 1 - Real satellite data integration
 
 # Register measurement events routes for Phase 4 - Frontend integration
-api_router.include_router(measurement_events_router, tags=["Measurement Events"])
+# api_router.include_router(measurement_events_router, tags=["Measurement Events"])  # 暫時註釋，依賴已刪除的 constellation_manager
 
 # Register historical orbits routes for real data fallback
 api_router.include_router(historical_orbits_router, tags=["Historical Orbits"])
 
 # Register unified timeseries routes for 120-minute local data architecture
-api_router.include_router(unified_timeseries_router, prefix="/satellites", tags=["Unified Timeseries"])
+api_router.include_router(
+    unified_timeseries_router, prefix="/satellites", tags=["Unified Timeseries"]
+)
 
 # Export the router
 __all__ = ["api_router"]

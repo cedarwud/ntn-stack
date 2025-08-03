@@ -9,9 +9,8 @@ python run_all_tests.py [options]
 
 選項:
 --quick                快速模式（跳過耗時測試）
---type=TYPE           測試類型: unit,integration,performance,e2e,paper,gymnasium,frontend,all
+--type=TYPE           測試類型: unit,integration,performance,e2e,paper,frontend,all
 --stage=STAGE         論文測試階段: 1,2,all
---env=ENV             Gymnasium環境: satellite,handover,all
 --frontend-type=TYPE  前端測試類型: components,api,e2e,console,all
 --verbose             詳細輸出
 --report              生成報告
@@ -109,12 +108,6 @@ class UnifiedTestRunner:
             args.append("--quick")
         return self.run_test_module("paper_tests", args)
 
-    def run_gymnasium_tests(self, env: str = "all", quick_mode: bool = False):
-        """執行Gymnasium測試"""
-        args = [f"--env={env}"]
-        if quick_mode:
-            args.append("--quick")
-        return self.run_test_module("gymnasium_tests", args)
 
     def run_frontend_tests(
             self,
@@ -271,7 +264,6 @@ def main():
             'performance',
             'e2e',
             'paper',
-            'gymnasium',
             'frontend',
             'all'],
         default='all',
@@ -322,8 +314,6 @@ def main():
     if args.type in ['all', 'paper']:
         runner.run_paper_tests(args.stage, args.quick)
 
-    if args.type in ['all', 'gymnasium']:
-        runner.run_gymnasium_tests(args.env, args.quick)
 
     if args.type in ['all', 'frontend']:
         runner.run_frontend_tests(

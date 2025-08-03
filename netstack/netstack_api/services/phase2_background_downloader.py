@@ -332,7 +332,7 @@ async def main():
     )
     
     # 從環境變數獲取數據庫連接
-    postgres_url = os.getenv("RL_DATABASE_URL", "postgresql://rl_user:rl_password@rl-postgres:5432/rl_research")
+    postgres_url = os.getenv("SATELLITE_DATABASE_URL", "postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db")
     
     downloader = Phase2BackgroundDownloader(postgres_url)
     

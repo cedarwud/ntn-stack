@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import Starfield from '../shared/ui/effects/Starfield'
 import MainScene from './MainScene'
 import { Device } from '../../types/device'
-import { SINRLegend } from '../domains/interference/detection/SINRHeatmap'
+// Note: SINRLegend removed - interference domain was cleaned up
 import FullChartAnalysisDashboard from '../layout/FullChartAnalysisDashboard'
 import PredictiveMaintenanceViewer from '../domains/analytics/performance/PredictiveMaintenanceViewer'
 import IntelligentRecommendationSystem from '../domains/analytics/ai/IntelligentRecommendationSystem'
@@ -177,7 +177,7 @@ export default function SceneView({
         >
             <Starfield starCount={180} />
 
-            {featureState.sinrHeatmapEnabled && <SINRLegend />}
+            {/* SINR Heatmap legend removed - interference domain cleaned up */}
 
             {featureState.predictionAccuracyDashboardEnabled && (
                 <FullChartAnalysisDashboard

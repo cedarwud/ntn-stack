@@ -25,26 +25,13 @@ ntplib>=0.4.0  # NTP時間同步客戶端 - 真實NTP伺服器連接
 aiohttp>=3.9.0
 aiofiles>=23.2.0
 pyyaml>=6.0.1
-# Machine Learning and Data Science Dependencies
-torch>=2.0.0
-scikit-learn>=1.3.0
+# Scientific Computing and Data Analysis Dependencies (for satellite research)
 scipy>=1.11.0
 pandas>=2.0.0
-joblib>=1.3.0
-optuna>=3.4.0
-# Reinforcement Learning Dependencies
-gymnasium>=0.29.0
-stable-baselines3>=2.0.0
-tensorboard>=2.13.0
 
-# Advanced Analytics and Visualization Dependencies
+# Visualization Dependencies (for satellite research)
 matplotlib>=3.7.0
-plotly>=5.15.0
-bokeh>=3.2.0
 seaborn>=0.12.0
-shap>=0.42.0
-openpyxl>=3.1.0
-statsmodels>=0.14.0
 
 # Development and Testing Dependencies
 pytest>=7.4.0

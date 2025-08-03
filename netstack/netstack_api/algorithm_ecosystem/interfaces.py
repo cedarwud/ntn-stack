@@ -11,17 +11,14 @@ from typing import Dict, Any, Optional, List
 from enum import Enum
 import numpy as np
 
-try:
-    import gymnasium as gym
-    GYMNASIUM_AVAILABLE = True
-except ImportError:
-    GYMNASIUM_AVAILABLE = False
+# Gymnasium dependency removed
+GYMNASIUM_AVAILABLE = False
 
 
 class AlgorithmType(Enum):
     """算法類型枚舉"""
     TRADITIONAL = "traditional"
-    REINFORCEMENT_LEARNING = "rl"
+    # REINFORCEMENT_LEARNING = "rl"  # Removed
     HYBRID = "hybrid"
     HEURISTIC = "heuristic"
 
@@ -187,106 +184,4 @@ class HandoverAlgorithm(ABC):
         return self._is_initialized
 
 
-class RLHandoverAlgorithm(HandoverAlgorithm):
-    """強化學習換手算法特化接口
-    
-    為強化學習算法提供額外的訓練和模型管理功能。
-    """
-    
-    @abstractmethod
-    async def train(self, env: 'gym.Env', config: Dict[str, Any]) -> Dict[str, Any]:
-        """訓練算法
-        
-        Args:
-            env: Gymnasium 環境
-            config: 訓練配置
-            
-        Returns:
-            Dict[str, Any]: 訓練結果和統計信息
-        """
-        pass
-    
-    @abstractmethod
-    async def load_model(self, model_path: str) -> None:
-        """載入訓練好的模型
-        
-        Args:
-            model_path: 模型檔案路徑
-        """
-        pass
-    
-    @abstractmethod
-    async def save_model(self, model_path: str) -> None:
-        """保存模型
-        
-        Args:
-            model_path: 模型保存路徑
-        """
-        pass
-    
-    @abstractmethod
-    def get_model_info(self) -> Dict[str, Any]:
-        """獲取模型信息
-        
-        Returns:
-            Dict[str, Any]: 模型元數據
-        """
-        pass
-    
-    async def evaluate(self, env: 'gym.Env', episodes: int = 100) -> Dict[str, Any]:
-        """評估算法性能
-        
-        Args:
-            env: 評估環境
-            episodes: 評估回合數
-            
-        Returns:
-            Dict[str, Any]: 評估結果
-        """
-        if not GYMNASIUM_AVAILABLE:
-            raise ImportError("Gymnasium not available for RL algorithm evaluation")
-        
-        total_reward = 0.0
-        total_steps = 0
-        successful_handovers = 0
-        
-        for episode in range(episodes):
-            obs, info = env.reset()
-            episode_reward = 0.0
-            episode_steps = 0
-            
-            while True:
-                # 轉換觀察為 HandoverContext
-                context = self._obs_to_context(obs, info)
-                decision = await self.predict_handover(context)
-                
-                # 轉換決策為環境動作
-                action = self._decision_to_action(decision)
-                obs, reward, terminated, truncated, info = env.step(action)
-                
-                episode_reward += reward
-                episode_steps += 1
-                
-                if decision.handover_decision == HandoverDecisionType.IMMEDIATE_HANDOVER:
-                    successful_handovers += 1
-                
-                if terminated or truncated:
-                    break
-            
-            total_reward += episode_reward
-            total_steps += episode_steps
-        
-        return {
-            'average_reward': total_reward / episodes,
-            'average_steps': total_steps / episodes,
-            'handover_success_rate': successful_handovers / total_steps if total_steps > 0 else 0.0,
-            'total_episodes': episodes
-        }
-    
-    def _obs_to_context(self, obs: np.ndarray, info: Dict[str, Any]) -> HandoverContext:
-        """將環境觀察轉換為 HandoverContext - 子類應重寫"""
-        raise NotImplementedError("子類必須實現觀察轉換邏輯")
-    
-    def _decision_to_action(self, decision: HandoverDecision) -> Any:
-        """將 HandoverDecision 轉換為環境動作 - 子類應重寫"""
-        raise NotImplementedError("子類必須實現決策轉換邏輯")
+# RLHandoverAlgorithm class removed - RL functionality deprecated

@@ -2,7 +2,16 @@ import { useState, useRef, useEffect } from 'react'
 import type { FC, RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/Navbar.scss'
-import SINRViewer from '../domains/interference/detection/SINRViewer'
+// import SINRViewer from '../domains/interference/detection/SINRViewer' // Removed - interference domain cleaned up
+
+// Placeholder component for removed SINRViewer
+const PlaceholderSINRViewer: FC<ViewerProps> = () => (
+    <div style={{ padding: '20px', textAlign: 'center' }}>
+        <h3>SINR 分析工具</h3>
+        <p>此功能已整合至統一分析系統中</p>
+        <p>請使用主面板的分析工具進行 SINR 相關分析</p>
+    </div>
+)
 import CFRViewer from '../domains/simulation/wireless/CFRViewer'
 import DelayDopplerViewer from '../domains/simulation/wireless/DelayDopplerViewer'
 import TimeFrequencyViewer from '../domains/simulation/wireless/TimeFrequencyViewer'
@@ -10,8 +19,7 @@ import TimeFrequencyViewer from '../domains/simulation/wireless/TimeFrequencyVie
 import ViewerModal from '../shared/ui/layout/ViewerModal'
 import FullChartAnalysisDashboard from './FullChartAnalysisDashboard'
 import MeasurementEventsModal from './MeasurementEventsModal'
-import RLMonitoringModal from './RLMonitoringModal'
-import RLMonitoringModalNew from './RLMonitoringModalNew'
+
 import { ViewerProps } from '../../types/viewer'
 import {
     SCENE_DISPLAY_NAMES,
@@ -61,11 +69,6 @@ const Navbar: FC<NavbarProps> = ({
     // 新增 Measurement Events Modal 狀態
     const [showMeasurementEventsModal, setShowMeasurementEventsModal] =
         useState(false)
-
-    // 新增 RL 監控 Modal 狀態
-    const [showRLMonitoringModal, setShowRLMonitoringModal] = useState(false)
-    const [showRLMonitoringModalNew, setShowRLMonitoringModalNew] = useState(false)
-
 
     // States for modal visibility
     const [showSINRModal, setShowSINRModal] = useState(false)
@@ -136,7 +139,7 @@ const Navbar: FC<NavbarProps> = ({
             isLoading: sinrIsLoadingForHeader,
             setIsLoading: setSinrIsLoadingForHeader,
             refreshHandlerRef: sinrRefreshHandlerRef,
-            ViewerComponent: SINRViewer,
+            ViewerComponent: PlaceholderSINRViewer,
         },
         {
             id: 'cfr',
@@ -387,16 +390,6 @@ const Navbar: FC<NavbarProps> = ({
                             立體圖
                         </li>
 
-                        {/* RL 監控按鈕 - 新版系統 */}
-                        <li
-                            className={`navbar-item ${
-                                showRLMonitoringModalNew ? 'active' : ''
-                            }`}
-                            onClick={() => setShowRLMonitoringModalNew(true)}
-                        >
-                            🧠 RL 監控
-                        </li>
-
                         {/* 圖表分析按鈕 */}
                         <li
                             className={`navbar-item ${
@@ -475,19 +468,6 @@ const Navbar: FC<NavbarProps> = ({
                 isOpen={showMeasurementEventsModal}
                 onClose={() => setShowMeasurementEventsModal(false)}
             />
-
-            {/* RL 監控模態框 - 新版 */}
-            <RLMonitoringModalNew
-                isOpen={showRLMonitoringModalNew}
-                onClose={() => setShowRLMonitoringModalNew(false)}
-            />
-
-            {/* RL 監控模態框 - 舊版 (保留備用) */}
-            <RLMonitoringModal
-                isOpen={showRLMonitoringModal}
-                onClose={() => setShowRLMonitoringModal(false)}
-            />
-
         </>
     )
 }

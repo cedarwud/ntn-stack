@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+# SQLAlchemy removed - migrated to MongoDB
+# from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.simulation.models.simulation_model import SimulationParameters
 
@@ -15,7 +16,7 @@ class SimulationServiceInterface(ABC):
 
     @abstractmethod
     async def generate_cfr_plot(
-        self, session: AsyncSession, output_path: str, scene_name: str = "nycu"
+        self, session: Optional[Any], output_path: str, scene_name: str = "nycu"
     ) -> bool:
         """生成通道頻率響應(CFR)圖像"""
         pass
@@ -23,7 +24,7 @@ class SimulationServiceInterface(ABC):
     @abstractmethod
     async def generate_sinr_map(
         self,
-        session: AsyncSession,
+        session: Optional[Any],
         output_path: str,
         scene_name: str = "nycu",
         sinr_vmin: float = -40.0,
@@ -36,21 +37,21 @@ class SimulationServiceInterface(ABC):
 
     @abstractmethod
     async def generate_doppler_plots(
-        self, session: AsyncSession, output_path: str, scene_name: str = "nycu"
+        self, session: Optional[Any], output_path: str, scene_name: str = "nycu"
     ) -> bool:
         """生成延遲多普勒圖"""
         pass
 
     @abstractmethod
     async def generate_channel_response_plots(
-        self, session: AsyncSession, output_path: str, scene_name: str = "nycu"
+        self, session: Optional[Any], output_path: str, scene_name: str = "nycu"
     ) -> bool:
         """生成通道響應圖"""
         pass
 
     @abstractmethod
     async def run_simulation(
-        self, session: AsyncSession, params: SimulationParameters
+        self, session: Optional[Any], params: SimulationParameters
     ) -> Dict[str, Any]:
         """
         根據提供的參數執行通用模擬

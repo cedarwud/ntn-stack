@@ -2,7 +2,7 @@ import logging
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from app.api.dependencies import get_db_session
+# from app.api.dependencies import get_db_session  # PostgreSQL 已移除，改用 MongoDB
 from app.core.config import (
     CFR_PLOT_IMAGE_PATH,
     SINR_MAP_IMAGE_PATH,
@@ -59,7 +59,7 @@ async def get_scene_image():
 
 @router.get("/cfr-plot", response_description="通道頻率響應圖")
 async def get_cfr_plot(
-    db = Depends(get_db_session),
+    # db = Depends(get_db_session),  # PostgreSQL 已移除，不需要資料庫
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
 ):
     """產生並回傳通道頻率響應 (CFR) 圖"""
@@ -69,9 +69,9 @@ async def get_cfr_plot(
         # 動態生成CFR圖表
         output_path = str(CFR_PLOT_IMAGE_PATH)
         
-        # 調用 sionna_service 生成CFR圖表
+        # 調用 sionna_service 生成CFR圖表（不需要資料庫）
         success = await sionna_service.generate_cfr_plot(
-            session=db,
+            session=None,  # PostgreSQL 已移除，改用 MongoDB
             output_path=output_path,
             scene_name=scene
         )
@@ -91,7 +91,7 @@ async def get_cfr_plot(
 
 @router.get("/sinr-map", response_description="SINR 地圖")
 async def get_sinr_map(
-    db = Depends(get_db_session),
+    # db = Depends(get_db_session),  # PostgreSQL 已移除，不需要資料庫
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
     sinr_vmin: float = Query(-40.0, description="SINR 最小值 (dB)"),
     sinr_vmax: float = Query(0.0, description="SINR 最大值 (dB)"),
@@ -107,9 +107,9 @@ async def get_sinr_map(
         # 動態生成SINR地圖
         output_path = str(SINR_MAP_IMAGE_PATH)
         
-        # 調用 sionna_service 生成SINR地圖
+        # 調用 sionna_service 生成SINR地圖（不需要資料庫）
         success = await sionna_service.generate_sinr_map(
-            session=db,
+            session=None,  # PostgreSQL 已移除，改用 MongoDB
             output_path=output_path,
             scene_name=scene,
             sinr_vmin=sinr_vmin,
@@ -133,7 +133,7 @@ async def get_sinr_map(
 
 @router.get("/doppler-plots", response_description="延遲多普勒圖")
 async def get_doppler_plots(
-    db = Depends(get_db_session),
+    # db = Depends(get_db_session),  # PostgreSQL 已移除，不需要資料庫
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
 ):
     """產生並回傳延遲多普勒圖"""
@@ -143,9 +143,9 @@ async def get_doppler_plots(
         # 動態生成延遲多普勒圖
         output_path = str(DOPPLER_IMAGE_PATH)
         
-        # 調用 sionna_service 生成延遲多普勒圖
+        # 調用 sionna_service 生成延遲多普勒圖（不需要資料庫）
         success = await sionna_service.generate_doppler_plots(
-            session=db,
+            session=None,  # PostgreSQL 已移除，改用 MongoDB
             output_path=output_path,
             scene_name=scene
         )
@@ -165,7 +165,7 @@ async def get_doppler_plots(
 
 @router.get("/channel-response", response_description="通道響應圖")
 async def get_channel_response(
-    db = Depends(get_db_session),
+    # db = Depends(get_db_session),  # PostgreSQL 已移除，不需要資料庫
     scene: str = Query("nycu", description="場景名稱 (nycu, lotus)"),
 ):
     """產生並回傳通道響應圖，顯示 H_des、H_jam 和 H_all 的三維圖"""
@@ -175,9 +175,9 @@ async def get_channel_response(
         # 動態生成通道響應圖
         output_path = str(CHANNEL_RESPONSE_IMAGE_PATH)
         
-        # 調用 sionna_service 生成通道響應圖
+        # 調用 sionna_service 生成通道響應圖（不需要資料庫）
         success = await sionna_service.generate_channel_response_plots(
-            session=db,
+            session=None,  # PostgreSQL 已移除，改用 MongoDB
             output_path=output_path,
             scene_name=scene
         )
