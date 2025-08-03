@@ -86,28 +86,14 @@ EXECUTE_TIME=$(date -d "+${HOURS_LATER} hours" '+%M %H %d %m *')
 EXECUTE_TIME_DISPLAY=$(date -d "+${HOURS_LATER} hours" '+%Y-%m-%d %H:%M')
 CRON_EXPR="$EXECUTE_TIME"
 
-# 設定查詢內容
+# 設定查詢內容 - 直接使用預設查詢
 echo ""
-echo "💬 設定查詢內容："
+echo "💬 查詢內容設定："
 echo "系統會使用預設查詢 'Please respond with exactly \"OK\" and nothing else.'"
 echo "這確保 Claude 會回應 'OK'，讓重試系統正常運作"
-echo ""
-echo "選項："
-echo "1. 使用預設查詢 (推薦)"
-echo "2. 自訂查詢內容"
 
-read -p "請選擇 (1-2，預設為 1): " query_choice
-
-if [[ "$query_choice" == "2" ]]; then
-    echo ""
-    echo "⚠️  注意：自訂查詢需要確保 Claude 會回應 'OK'，否則會持續重試"
-    read -p "請輸入自訂查詢內容: " CUSTOM_QUERY
-    QUERY="$CUSTOM_QUERY"
-    echo "🔧 使用自訂查詢: '$QUERY'"
-else
-    QUERY=""  # 空字串表示使用預設查詢
-    echo "🤖 使用預設查詢 (系統會自動處理)"
-fi
+QUERY=""  # 空字串表示使用預設查詢
+echo "🤖 使用預設查詢 (系統會自動處理)"
 
 # 建立 cron 命令
 ENV_VARS="ANTHROPIC_BASE_URL='$ANTHROPIC_BASE_URL' ANTHROPIC_AUTH_TOKEN='$ANTHROPIC_AUTH_TOKEN'"
