@@ -44,8 +44,6 @@ export const ApiRoutes = {
     base: `${API_BASE_URL}/simulations`,
     createSimulation: `${API_BASE_URL}/simulations/run`,
     // 更新為實際存在的API路徑（使用 simworldFetch）
-    getCFRMap: `${SIMWORLD_API_BASE_URL}/simulations/cfr-plot`,
-    getSINRMap: `${SIMWORLD_API_BASE_URL}/simulations/sinr-map`,
     getDopplerMap: `${SIMWORLD_API_BASE_URL}/simulations/doppler-plots`,
     getChannelResponsePlots: `${SIMWORLD_API_BASE_URL}/simulations/channel-response`,
     getSceneImage: `${API_BASE_URL}/simulations/scene-image`,
@@ -97,8 +95,6 @@ export const ApiRoutes = {
     getModel: (modelName: string) => `${API_BASE_URL}/sionna/models/${modelName}`,
     // 這些路由已遷移到 simulations 命名空間下
     getSceneImageDevices: `${API_BASE_URL}/simulations/scene-image`,
-    getSINRMap: `${API_BASE_URL}/simulations/sinr-map`,
-    getCFRPlot: `${API_BASE_URL}/simulations/cfr-plot`,
     getDopplerPlots: `${API_BASE_URL}/simulations/doppler-plots`,
     getChannelResponsePlots: `${API_BASE_URL}/simulations/channel-response`,
   }

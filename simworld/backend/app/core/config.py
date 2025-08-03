@@ -74,17 +74,17 @@ def get_scene_xml_path(scene_name: str, xml_name: str = None) -> str:
     # 場景名稱標準化: 小寫輸入映射到大寫目錄名
     scene_mapping = {
         "nycu": "NYCU",
-        "lotus": "Lotus", 
+        "lotus": "Lotus",
         "nanliao": "Nanliao",
-        "ntpu": "NTPU_v2"
+        "ntpu": "NTPU_v2",
     }
-    
+
     # 獲取實際的目錄名稱
     actual_scene_name = scene_mapping.get(scene_name.lower(), scene_name)
-    
+
     if xml_name is None:
         xml_name = actual_scene_name
-    
+
     xml_path = get_scene_dir(actual_scene_name) / f"{xml_name}.xml"
     return str(xml_path)  # 返回字符串而非Path對象
 
@@ -93,8 +93,6 @@ def get_scene_xml_path(scene_name: str, xml_name: str = None) -> str:
 OUTPUT_DIR = STATIC_IMAGES_DIR
 
 # 圖片檔案完整路徑 (使用 Path 對象)
-CFR_PLOT_IMAGE_PATH = OUTPUT_DIR / "cfr_plot.png"  # CFR 圖像路徑
-SINR_MAP_IMAGE_PATH = OUTPUT_DIR / "sinr_map.png"  # SINR 地圖路徑
 # 延遲多普勒圖路徑
 DOPPLER_IMAGE_PATH = OUTPUT_DIR / "delay_doppler.png"  # 延遲多普勒圖路徑
 # 通道響應圖路徑
@@ -110,8 +108,7 @@ logger.info(f"NYCU GLB Path (in container): {NYCU_GLB_PATH}")
 logger.info(
     f"NYCU XML Path (in container): {NYCU_XML_PATH}"
 )  # 新增: 記錄 NYCU.xml 路徑
-logger.info(f"CFR Plot Image Path (in container): {CFR_PLOT_IMAGE_PATH}")
-logger.info(f"SINR Map Image Path (in container): {SINR_MAP_IMAGE_PATH}")
+
 logger.info(f"DOPPLER Image Path (in container): {DOPPLER_IMAGE_PATH}")
 
 
@@ -215,7 +212,6 @@ def configure_matplotlib():
         logger.info("Matplotlib backend set to Agg.")
     except Exception as e:
         logger.warning(f"Failed to set Matplotlib backend to Agg: {e}", exc_info=True)
-
 
 
 # --- API Configuration ---
