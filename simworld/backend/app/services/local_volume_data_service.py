@@ -6,11 +6,23 @@
 import json
 import logging
 import math
+import sys
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
+# 導入統一配置系統 (Phase 1 改進)
+# 由於 simworld 容器需要訪問 netstack 配置，添加路徑
 logger = logging.getLogger(__name__)
+
+sys.path.append('/app/netstack')
+try:
+    from config.satellite_config import SATELLITE_CONFIG
+    CONFIG_AVAILABLE = True
+    logger.info("✅ 統一配置系統載入成功")
+except ImportError:
+    CONFIG_AVAILABLE = False
+    logger.warning("⚠️ 統一配置系統不可用，使用預設值")
 
 
 class LocalVolumeDataService:
@@ -423,8 +435,10 @@ class LocalVolumeDataService:
             satellites_timeseries = []
 
             # 智能選擇可見衛星以提高有效性
+            # 使用統一配置或預設值
+            max_sats = SATELLITE_CONFIG.ALGORITHM_TEST_MAX_SATELLITES if CONFIG_AVAILABLE else 10
             selected_satellites = self._select_visible_satellites(
-                tle_data, reference_location, start_time, max_satellites=10
+                tle_data, reference_location, start_time, max_satellites=max_sats
             )
             logger.info(
                 f"📊 處理 {len(selected_satellites)} 顆衛星的軌道數據（智能篩選）"
@@ -727,26 +741,37 @@ class LocalVolumeDataService:
                     )  # 轉換為公里
 
                 except Exception as e:
-                    logger.warning(f"距離計算失敗: {e}，使用估算值")
-                    # 簡化距離計算作為備用
-                    lat_diff = orbit_position.latitude - reference_location["latitude"]
-                    lon_diff = (
-                        orbit_position.longitude - reference_location["longitude"]
-                    )
-                    ground_distance_km = math.sqrt(lat_diff**2 + lon_diff**2) * 111.32
+                    logger.warning(f"距離計算失敗: {e}，使用改進估算方案")
+                    # 改進的距離計算備用方案 - 使用球面三角學
+                    lat1_rad = math.radians(reference_location["latitude"])
+                    lon1_rad = math.radians(reference_location["longitude"])
+                    lat2_rad = math.radians(orbit_position.latitude)
+                    lon2_rad = math.radians(orbit_position.longitude)
+                    
+                    # 使用 Haversine 公式計算地面距離
+                    dlat = lat2_rad - lat1_rad
+                    dlon = lon2_rad - lon1_rad
+                    a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
+                    c = 2 * math.asin(math.sqrt(a))
+                    ground_distance_km = 6371.0 * c  # 地球半徑
+                    
+                    # 3D 距離計算
                     satellite_distance_km = math.sqrt(
                         ground_distance_km**2 + orbit_position.altitude**2
                     )
-                    elevation_deg = max(
-                        0,
-                        90
-                        - math.degrees(
-                            math.atan2(ground_distance_km, orbit_position.altitude)
-                        ),
+                    
+                    # 改進的仰角計算
+                    elevation_deg = math.degrees(
+                        math.atan2(orbit_position.altitude, ground_distance_km)
                     )
-                    azimuth_deg = (
-                        math.degrees(math.atan2(lon_diff, lat_diff)) + 360
-                    ) % 360
+                    
+                    # 改進的方位角計算
+                    azimuth_rad = math.atan2(
+                        math.sin(dlon) * math.cos(lat2_rad),
+                        math.cos(lat1_rad) * math.sin(lat2_rad) - 
+                        math.sin(lat1_rad) * math.cos(lat2_rad) * math.cos(dlon)
+                    )
+                    azimuth_deg = (math.degrees(azimuth_rad) + 360) % 360
 
                     # D2 事件專用：基於 SIB19 移動參考位置計算距離 (符合 3GPP TS 38.331 標準) - 備用計算
                     # 實現真正的 D2 事件：Ml1 和 Ml2 都是基於衛星星曆數據的移動參考位置
@@ -926,41 +951,60 @@ class LocalVolumeDataService:
     def _calculate_fallback_position(
         self, tle_data: Any, timestamp: datetime, time_index: int
     ) -> Any:
-        """SGP4 失敗時的簡化備用位置計算"""
+        """SGP4 失敗時的改進備用位置計算"""
         from .sgp4_calculator import OrbitPosition
         import math
 
         try:
-            # 使用簡化圓軌道模型作為備用
+            # 改進：使用真實軌道力學參數而非過度簡化
             orbital_period_minutes = 1440 / tle_data.mean_motion  # 軌道週期
             progress = (
                 time_index * self.time_interval_seconds / 60
             ) / orbital_period_minutes
             orbital_angle = (progress * 360) % 360
 
-            # 基於軌道傾角的位置估算
-            latitude = tle_data.inclination * math.sin(math.radians(orbital_angle))
-            longitude = (orbital_angle - 180) % 360 - 180
-            altitude = 550.0  # 典型 LEO 高度
+            # 使用真實的軌道傾角和 RAAN
+            inclination_rad = math.radians(tle_data.inclination)
+            orbital_angle_rad = math.radians(orbital_angle)
+            
+            # 更精確的緯度計算
+            latitude = math.degrees(math.asin(math.sin(inclination_rad) * math.sin(orbital_angle_rad)))
+            
+            # 考慮地球自轉的經度計算
+            earth_rotation_deg = (time_index * self.time_interval_seconds / 3600) * 15.0  # 地球15度/小時
+            longitude = (orbital_angle - 180 - earth_rotation_deg) % 360 - 180
+            
+            # 使用真實的軌道高度估算
+            altitude = getattr(tle_data, 'altitude', 550.0)  # 從 TLE 推導或使用典型值
+            
+            # 計算軌道速度 (使用真實公式)
+            earth_mu = 398600.4418  # km³/s² (地球引力參數)
+            orbital_radius = 6371.0 + altitude  # km
+            orbital_velocity = math.sqrt(earth_mu / orbital_radius)  # km/s
+            
+            # 速度向量估算 (在軌道平面內)
+            velocity_x = orbital_velocity * math.cos(orbital_angle_rad)
+            velocity_y = orbital_velocity * math.sin(orbital_angle_rad)
+            velocity_z = 0.0  # 簡化：假設在軌道平面內
 
             return OrbitPosition(
                 latitude=latitude,
                 longitude=longitude,
                 altitude=altitude,
-                velocity=(7.8, 0.0, 0.0),  # 簡化速度
+                velocity=(velocity_x, velocity_y, velocity_z),
                 timestamp=timestamp,
                 satellite_id=str(tle_data.catalog_number),
             )
         except Exception as e:
-            logger.error(f"備用位置計算失敗: {e}")
-            # 返回最基本的位置
+            logger.error(f"改進備用位置計算失敗: {e}")
+            # 最終備用：使用基本但物理上合理的參數
             return OrbitPosition(
-                latitude=25.0,
+                latitude=25.0,  # NTPU 附近
                 longitude=121.0,
-                altitude=550.0,
-                velocity=(7.8, 0.0, 0.0),
+                altitude=550.0,  # Starlink 典型高度
+                velocity=(7.8, 0.0, 0.0),  # LEO 典型軌道速度
                 timestamp=timestamp,
-                satellite_id="unknown",
+                satellite_id="fallback",
             )
 
     def _calculate_rsrp(self, distance_km: float, elevation_deg: float) -> float:
@@ -994,9 +1038,31 @@ class LocalVolumeDataService:
             return max(-120, min(-50, rsrp_dbm))
 
         except Exception as e:
-            logger.warning(f"RSRP 計算失敗: {e}，使用簡化模型")
-            # 簡化模型備用
-            return -70 - 20 * math.log10(distance_km / 500) if distance_km > 0 else -70
+            logger.warning(f"RSRP 計算失敗: {e}，使用改進備用模型")
+            # 改進的備用模型 - 基於 ITU-R P.618 簡化版本
+            try:
+                if distance_km <= 0:
+                    return -70
+                
+                # 基本自由空間路徑損耗
+                frequency_ghz = 12.0  # Ku 頻段
+                fspl_db = 20 * math.log10(distance_km) + 20 * math.log10(frequency_ghz) + 32.44
+                
+                # 衛星功率估算 (基於 LEO 特性)
+                satellite_power_dbm = 35.0  # 典型 LEO 衛星
+                
+                # 大氣和其他損耗
+                atmospheric_loss = 2.0  # 簡化大氣損耗
+                other_losses = 3.0      # 其他損耗
+                
+                rsrp = satellite_power_dbm - fspl_db - atmospheric_loss - other_losses
+                
+                # 限制在合理範圍
+                return max(-120, min(-50, rsrp))
+                
+            except Exception as backup_error:
+                logger.error(f"備用 RSRP 計算也失敗: {backup_error}")
+                return -85  # 合理的預設值
 
     def _calculate_service_time(self, elevation_deg: float) -> int:
         """基於仰角估算衛星服務時間"""
