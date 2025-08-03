@@ -196,30 +196,7 @@ class MetricsRegistry:
             )
         )
 
-        # AI-RAN 指標
-        self.register_metric(
-            MetricDefinition(
-                name="decision_accuracy",
-                metric_type="gauge",
-                description="AI 決策準確性",
-                unit="percent",
-                labels=["model_type", "scenario"],
-                domain="ai",
-                subsystem="ran",
-            )
-        )
-
-        self.register_metric(
-            MetricDefinition(
-                name="interference_detected",
-                metric_type="counter",
-                description="檢測到的干擾事件數",
-                unit="total",
-                labels=["interference_type", "frequency_band"],
-                domain="ai",
-                subsystem="ran",
-            )
-        )
+        # AI-RAN 指標已移除 (與衛星換手研究無關)
 
         # 系統資源指標
         self.register_metric(
@@ -608,52 +585,8 @@ class SionnaChannelCollector(ServiceCollector):
                                     )
                                 )
 
-                # 收集干擾控制指標
-                async with session.get(
-                    f"{self.endpoint_url}/api/v1/interference/metrics"
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-
-                        # 干擾強度指標
-                        for interference_data in data.get("interference_metrics", []):
-                            source_type = interference_data.get("source_type", "unknown")
-                            frequency_band = interference_data.get("frequency_band", "unknown")
-                            location = interference_data.get("location", "unknown")
-                            
-                            if "interference_level_dbm" in interference_data:
-                                metrics.append(
-                                    MetricValue(
-                                        metric_name="interference_control_interference_level_dbm",
-                                        value=interference_data["interference_level_dbm"],
-                                        labels={
-                                            "source_type": source_type,
-                                            "frequency_band": frequency_band,
-                                            "location": location,
-                                        },
-                                        timestamp=time.time(),
-                                        source_service="simworld",
-                                    )
-                                )
-
-                        # 緩解成功率指標
-                        for mitigation_data in data.get("mitigation_stats", []):
-                            strategy_type = mitigation_data.get("strategy_type", "unknown")
-                            interference_type = mitigation_data.get("interference_type", "unknown")
-                            
-                            if "success_rate_percent" in mitigation_data:
-                                metrics.append(
-                                    MetricValue(
-                                        metric_name="interference_control_mitigation_success_rate_percent",
-                                        value=mitigation_data["success_rate_percent"],
-                                        labels={
-                                            "strategy_type": strategy_type,
-                                            "interference_type": interference_type,
-                                        },
-                                        timestamp=time.time(),
-                                        source_service="simworld",
-                                    )
-                                )
+                # 移除干擾控制指標 (與衛星換手研究無關)
+                # 干擾控制相關的指標已被移除
 
         except Exception as e:
             self.logger.error("收集 Sionna 通道指標失敗", error=str(e))
@@ -823,32 +756,7 @@ class KPICollector:
                         )
                     )
             
-            # AI-RAN性能KPI
-            async with session.get(f"{base_url}/api/v1/kpi/ai-ran-performance") as response:
-                if response.status == 200:
-                    data = await response.json()
-                    
-                    # 干擾檢測準確率
-                    metrics.append(
-                        MetricValue(
-                            metric_name="ntn_kpi_ai_interference_detection_accuracy_percent",
-                            value=data.get("interference_detection_accuracy", 0),
-                            labels={"kpi_type": "ai_performance", "function": "interference_detection"},
-                            timestamp=time.time(),
-                            source_service="netstack-api"
-                        )
-                    )
-                    
-                    # 資源分配效率
-                    metrics.append(
-                        MetricValue(
-                            metric_name="ntn_kpi_ai_resource_allocation_efficiency_percent",
-                            value=data.get("resource_allocation_efficiency", 0),
-                            labels={"kpi_type": "ai_performance", "function": "resource_allocation"},
-                            timestamp=time.time(),
-                            source_service="netstack-api"
-                        )
-                    )
+            # AI-RAN性能KPI已移除 (與衛星換手研究無關)
             
             # UAV連通性KPI
             async with session.get(f"{base_url}/api/v1/kpi/uav-connectivity") as response:

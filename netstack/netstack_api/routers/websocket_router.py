@@ -42,7 +42,7 @@ async def websocket_rl_endpoint(websocket: WebSocket, channel: Optional[str] = Q
         if channel:
             service.subscribe_channel(connection_id, channel)
         else:
-            service.subscribe_channel(connection_id, "rl_training")
+            # RL training channel subscription removed
             service.subscribe_channel(connection_id, "system")
         
         # 保持連接並處理客戶端消息
@@ -178,18 +178,7 @@ async def get_websocket_channels():
     return JSONResponse(content={
         "status": "success",
         "channels": [
-            {
-                "name": "rl_training",
-                "description": "RL 訓練事件和進度更新",
-                "events": [
-                    "rl_training_started",
-                    "rl_training_stopped", 
-                    "rl_training_progress",
-                    "rl_training_completed",
-                    "rl_training_error",
-                    "rl_metrics_update"
-                ]
-            },
+            # RL training channel removed
             {
                 "name": "system",
                 "description": "系統狀態和健康監控",

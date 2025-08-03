@@ -111,12 +111,12 @@ export class RealtimeEventStreamer {
     }
 
     // 根據數據格式判斷事件類型
-    if (data.type === 'rl_monitoring') {
+    if (data.type === 'handover_monitoring') {
       return {
-        type: 'rl_update',
+        type: 'handover_update',
         data: data.payload,
         timestamp: Date.now(),
-        source: 'rl_monitor'
+        source: 'handover_monitor'
       }
     }
 

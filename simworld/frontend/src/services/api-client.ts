@@ -55,58 +55,6 @@ class NetStackApiClient {
         return this.get<any>('/api/v2/decision/status')
     }
 
-    /**
-     * 獲取 RL 訓練會話狀態（真實數據）
-     */
-    getRLTrainingSessions() {
-        return this.get<any>('/api/v1/rl/training/sessions')
-    }
-
-    /**
-     * 控制 RL 算法的訓練過程。
-     * @param action 'start' 或 'stop'
-     * @param algorithm 算法名稱 (dqn, ppo, sac)
-     */
-    controlTraining(action: 'start' | 'stop', algorithm: string) {
-        if (action === 'start') {
-            // 使用正確的 RL 訓練啟動端點
-            return this.post<any>(`/api/v1/rl/training/start/${algorithm}`, {
-                experiment_name: `${algorithm}_training_${new Date().toISOString().slice(0, 19)}`,
-                total_episodes: 1000,
-                scenario_type: 'interference_mitigation',
-                hyperparameters: {
-                    learning_rate: algorithm === 'dqn' ? 0.001 : algorithm === 'ppo' ? 0.0003 : 0.0001,
-                    batch_size: algorithm === 'dqn' ? 32 : algorithm === 'ppo' ? 64 : 128,
-                    gamma: 0.99
-                }
-            })
-        } else {
-            // 停止訓練：使用可用的stop-all端點
-            return this.post<any>('/api/v1/rl/training/stop-all', {})
-        }
-    }
-
-    /**
-     * 獲取訓練狀態摘要，用於前端狀態同步
-     */
-    getTrainingStatusSummary() {
-        // 修復後的正確路徑
-        return this.get<any>('/api/v1/rl/training/status-summary')
-    }
-
-    /**
-     * 停止所有活躍的訓練會話
-     */
-    stopAllTraining() {
-        return this.post<any>('/api/v1/rl/training/stop-all', {})
-    }
-
-    /**
-     * 根據會話 ID 停止特定訓練會話
-     */
-    stopTrainingSession(sessionId: string) {
-        return this.post<any>(`/api/v1/rl/training/stop/${sessionId}`, {})
-    }
 
     /**
      * 獲取系統資源監控數據
@@ -115,12 +63,6 @@ class NetStackApiClient {
         return this.get<any>('/api/v2/decision/status')
     }
 
-    /**
-     * 獲取訓練性能指標
-     */
-    getTrainingPerformanceMetrics() {
-        return this.get<any>('/api/v1/rl/training/performance-metrics')
-    }
 
     /**
      * 獲取AI推薦數據

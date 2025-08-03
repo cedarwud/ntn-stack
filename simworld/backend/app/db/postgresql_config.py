@@ -12,8 +12,8 @@ import asyncpg
 from asyncpg import Pool
 from contextlib import asynccontextmanager
 
-# Phase 2 重構：使用統一的配置管理
-from app.core.config import DATABASE_URL
+# Phase 2 重構：使用統一的配置管理 - PostgreSQL 已移除，改用 MongoDB
+# from app.core.config import DATABASE_URL  # PostgreSQL 已不再使用
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +21,13 @@ class PostgreSQLConfig:
     """PostgreSQL 配置類"""
     
     def __init__(self):
-        # 使用統一的配置管理
-        self.database_url = DATABASE_URL
+        # 使用統一的配置管理 - PostgreSQL 已移除，改用 MongoDB
+        # self.database_url = DATABASE_URL  # PostgreSQL 已不再使用
+        self.database_url = None  # PostgreSQL 已禁用
         
-        # 移除 +asyncpg 前綴，因為 asyncpg 不需要
-        if self.database_url.startswith("postgresql+asyncpg://"):
-            self.database_url = self.database_url.replace("postgresql+asyncpg://", "postgresql://")
+        # 移除 +asyncpg 前綴，因為 asyncpg 不需要 - PostgreSQL 已禁用
+        # if self.database_url.startswith("postgresql+asyncpg://"):
+        #     self.database_url = self.database_url.replace("postgresql+asyncpg://", "postgresql://")
         
         self.pool: Optional[Pool] = None
         

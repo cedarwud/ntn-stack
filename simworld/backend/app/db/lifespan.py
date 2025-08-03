@@ -3,12 +3,12 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
-# PostgreSQL 相關導入 (替代 MongoDB)
-from app.db.postgresql_config import postgresql_config
-from app.db.postgresql_seeds import (
-    seed_initial_device_data_postgresql,
-    seed_default_ground_station_postgresql
-)
+# PostgreSQL 相關導入 (已移除，改用 MongoDB)
+# from app.db.postgresql_config import postgresql_config
+# from app.db.postgresql_seeds import (
+#     seed_initial_device_data_postgresql,
+#     seed_default_ground_station_postgresql
+# )
 import os
 
 from app.core.config import (
@@ -16,6 +16,10 @@ from app.core.config import (
     configure_gpu_cpu,
     configure_matplotlib,
 )
+
+# MongoDB 初始化
+from app.db.mongodb_config import initialize_mongodb, close_mongodb_connection
+from app.db.mongodb_seeds import seed_initial_device_data_mongodb
 
 # New import for TLE synchronization service (Redis only)
 from app.db.tle_sync_redis import synchronize_constellation_tles
@@ -78,25 +82,44 @@ async def lifespan(app: FastAPI):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     logger.info("Environment configured.")
 
-    logger.info("PostgreSQL initialization sequence...")
+    # logger.info("PostgreSQL initialization sequence...")
 
-    # 初始化 PostgreSQL 連接池
-    postgresql_pool = await postgresql_config.connect()
-    app.state.postgresql = postgresql_pool
+    # 初始化 PostgreSQL 連接池 - 已移除，改用 MongoDB
+    # postgresql_pool = await postgresql_config.connect()
+    # app.state.postgresql = postgresql_pool
 
     # 初始化 Redis 客戶端
     await initialize_redis_client(app)
 
-    # 異步初始化 PostgreSQL 數據
-    try:
-        async with postgresql_config.get_connection() as connection:
-            # 初始化設備資料
-            await seed_initial_device_data_postgresql(connection)
-            # 初始化地面站資料
-            await seed_default_ground_station_postgresql(connection)
-        logger.info("PostgreSQL data initialization completed")
-    except Exception as e:
-        logger.error(f"Error during PostgreSQL initialization: {e}", exc_info=True)
+    # 初始化 MongoDB
+    logger.info("Initializing MongoDB...")
+    mongodb_success = await initialize_mongodb(app)
+    if mongodb_success:
+        logger.info("MongoDB initialization successful")
+
+        # 初始化設備種子數據
+        try:
+            await seed_initial_device_data_mongodb(app.state.mongodb_database)
+            logger.info("Device seed data initialization completed")
+        except Exception as e:
+            logger.error(
+                f"Error during device seed data initialization: {e}", exc_info=True
+            )
+    else:
+        logger.warning(
+            "MongoDB initialization failed, some features may be unavailable"
+        )
+
+    # 異步初始化 PostgreSQL 數據 - 已移除，改用 MongoDB
+    # try:
+    #     async with postgresql_config.get_connection() as connection:
+    #         # 初始化設備資料
+    #         await seed_initial_device_data_postgresql(connection)
+    #         # 初始化地面站資料
+    #         await seed_default_ground_station_postgresql(connection)
+    #     logger.info("PostgreSQL data initialization completed")
+    # except Exception as e:
+    #     logger.error(f"Error during PostgreSQL initialization: {e}", exc_info=True)
 
     # 恢復 TLE 相關同步和啟動調度器
     if hasattr(app.state, "redis") and app.state.redis:
@@ -123,7 +146,9 @@ async def lifespan(app: FastAPI):
 
             # 如果真實數據同步失敗，使用 fallback 機制
             if not starlink_success and not kuiper_success:
-                logger.warning("Both Starlink and Kuiper synchronization failed, using fallback data...")
+                logger.warning(
+                    "Both Starlink and Kuiper synchronization failed, using fallback data..."
+                )
                 fallback_success = await ensure_tle_data_available(app.state)
                 if fallback_success:
                     logger.info("✅ Fallback TLE data loaded successfully")
@@ -143,11 +168,12 @@ async def lifespan(app: FastAPI):
                 f"Error during TLE synchronization or scheduler startup: {e}",
                 exc_info=True,
             )
-            
+
             # 緊急 fallback：直接載入測試數據
             try:
                 logger.info("Attempting emergency TLE data loading...")
                 from app.db.tle_init_fallback import ensure_tle_data_available
+
                 emergency_success = await ensure_tle_data_available(app.state)
                 if emergency_success:
                     logger.info("✅ Emergency TLE data loaded successfully")
@@ -177,8 +203,13 @@ async def lifespan(app: FastAPI):
         logger.info("Closing Redis connection...")
         await app.state.redis.close()
 
-    if hasattr(app.state, "postgresql") and app.state.postgresql:
-        logger.info("Closing PostgreSQL connection pool...")
-        await postgresql_config.disconnect()
+    # 關閉 MongoDB 連接
+    if hasattr(app.state, "mongodb_client"):
+        logger.info("Closing MongoDB connection...")
+        await close_mongodb_connection()
+
+    # if hasattr(app.state, "postgresql") and app.state.postgresql:
+    #     logger.info("Closing PostgreSQL connection pool...")
+    #     await postgresql_config.disconnect()
 
     logger.info("Application shutdown complete.")

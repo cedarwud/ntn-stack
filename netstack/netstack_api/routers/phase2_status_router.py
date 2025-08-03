@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/v1/satellite-phase2", tags=["Phase 2 Background 
 
 def get_downloader() -> Phase2BackgroundDownloader:
     """依賴注入：獲取 Phase 2 下載器實例"""
-    db_url = os.getenv("RL_DATABASE_URL", "postgresql://rl_user:rl_password@netstack-rl-postgres:5432/rl_research")
+    db_url = os.getenv("SATELLITE_DATABASE_URL", "postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db")
     return Phase2BackgroundDownloader(db_url)
 
 @router.get("/status", summary="獲取 Phase 2 下載狀態")

@@ -18,14 +18,7 @@ class DatabaseInitializer:
     def __init__(self, database_url: str):
         self.database_url = database_url
         # 從當前文件位置計算 schema 文件路徑
-        # 當前文件: netstack_api/services/database_init.py
-        # 目標文件: netstack_api/services/rl_training/database/satellite_cache_schema.sql
-        self.schema_path = (
-            Path(__file__).parent
-            / "rl_training"
-            / "database"
-            / "satellite_cache_schema.sql"
-        )
+        self.schema_path = Path(__file__).parent / "schema.sql"
 
     async def ensure_tables_exist(self) -> bool:
         """確保所有必要的表都存在"""
@@ -76,8 +69,8 @@ async def ensure_database_initialized(database_url: Optional[str] = None) -> boo
         import os
 
         database_url = os.getenv(
-            "RL_DATABASE_URL",
-            "postgresql://rl_user:rl_password@rl-postgres:5432/rl_research",
+            "RESEARCH_DATABASE_URL",
+            "postgresql://research_user:research_password@research-postgres:5432/research_db",
         )
 
     initializer = DatabaseInitializer(database_url)

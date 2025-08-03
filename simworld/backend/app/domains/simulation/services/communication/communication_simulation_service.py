@@ -13,7 +13,8 @@ import logging
 import os
 import numpy as np
 from typing import Optional, Any
-from sqlalchemy.ext.asyncio import AsyncSession
+# SQLAlchemy removed - migrated to MongoDB
+# from sqlalchemy.ext.asyncio import AsyncSession
 
 # Base services
 from .base import DeviceManager, SceneSetupService, SionnaConfigService
@@ -84,7 +85,7 @@ class CommunicationSimulationService:
 
     async def generate_cfr_plot(
         self, 
-        session: AsyncSession, 
+        session: Optional[Any], 
         output_path: str, 
         scene_name: str = "nycu"
     ) -> bool:
@@ -148,7 +149,7 @@ class CommunicationSimulationService:
 
     async def generate_sinr_map(
         self,
-        session: AsyncSession,
+        session: Optional[Any],
         output_path: str,
         scene_name: str = "nycu",
         sinr_vmin: float = -40.0,
@@ -203,7 +204,7 @@ class CommunicationSimulationService:
 
     async def generate_doppler_plots(
         self, 
-        session: AsyncSession, 
+        session: Optional[Any], 
         output_path: str, 
         scene_name: str = "nycu"
     ) -> bool:
@@ -259,7 +260,7 @@ class CommunicationSimulationService:
         
     async def generate_channel_response_plots(
         self, 
-        session: AsyncSession, 
+        session: Optional[Any], 
         output_path: str, 
         scene_name: str = "nycu"
     ) -> bool:

@@ -24,11 +24,7 @@ class EventType(Enum):
     """事件類型"""
 
     # RL 系統事件
-    RL_TRAINING_STARTED = "rl_training_started"
-    RL_TRAINING_STOPPED = "rl_training_stopped"
-    RL_TRAINING_PROGRESS = "rl_training_progress"
-    RL_TRAINING_COMPLETED = "rl_training_completed"
-    RL_TRAINING_ERROR = "rl_training_error"
+    # RL_TRAINING events removed
     RL_METRICS_UPDATE = "rl_metrics_update"
 
     # 網路狀態事件
@@ -494,30 +490,7 @@ def get_websocket_service() -> UnifiedWebSocketService:
     return _websocket_service
 
 
-# RL 系統事件推送輔助函數
-async def push_rl_training_event(
-    event_type: EventType, data: Dict[str, Any], source: str = "rl_system"
-):
-    """
-    推送 RL 訓練事件
-
-    Args:
-        event_type: 事件類型
-        data: 事件數據
-        source: 事件源
-    """
-    service = get_websocket_service()
-
-    event = WebSocketEvent(
-        event_id=str(uuid.uuid4()),
-        event_type=event_type,
-        timestamp=datetime.now(),
-        data=data,
-        source=source,
-        channel="rl_training",
-    )
-
-    await service.send_to_channel("rl_training", event)
+# RL 系統事件推送功能已移除
 
 
 async def push_system_event(

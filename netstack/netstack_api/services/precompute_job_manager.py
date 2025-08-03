@@ -113,7 +113,7 @@ class PrecomputeJobManager:
             db_url: 數據庫連接字符串
         """
         self.max_concurrent_jobs = max_concurrent_jobs
-        self.db_url = db_url or os.getenv('RL_DATABASE_URL')
+        self.db_url = db_url or os.getenv('SATELLITE_DATABASE_URL', 'postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db')
         self.logger = structlog.get_logger(__name__)
         
         # 作業存儲

@@ -98,7 +98,7 @@ COPY src/ ./src/
 COPY netstack_api/ ./netstack_api/
 # 複製 UPF 擴展模組
 COPY docker/upf-extension/ ./docker/upf-extension/
-# 複製 RL 訓練腳本
+# 複製腳本 (移除 RL 訓練腳本)
 COPY scripts/ ./scripts/
 # 複製 Phase 0 建置腳本到生產階段
 COPY build_with_phase0_data.py /app/build_with_phase0_data.py
@@ -165,7 +165,7 @@ COPY src/ ./src/
 COPY netstack_api/ ./netstack_api/
 # 複製 UPF 擴展模組
 COPY docker/upf-extension/ ./docker/upf-extension/
-# 複製 RL 訓練腳本
+# 複製腳本 (移除 RL 訓練腳本)
 COPY scripts/ ./scripts/
 
 # Phase 0 增強：複製數據和配置
