@@ -18,16 +18,7 @@ from app.domains.simulation.api.simulation_api import router as simulation_route
 # Phase 2 重構：移除 RF simulation (與衛星換手無關)
 # from app.domains.rf_simulation.api.rf_simulation_api import router as rf_simulation_router
 
-# from app.domains.handover.api.handover_api import router as handover_router  # 依賴 satellite 模組，暫時註釋
-# from app.domains.handover.api.fine_grained_sync_api import (
-#     router as fine_grained_sync_router,
-# )  # 依賴 satellite 模組，暫時註釋
-from app.domains.handover.api.constrained_access_api import (
-    router as constrained_access_router,
-)
-from app.domains.handover.api.weather_prediction_api import (
-    router as weather_prediction_router,
-)
+
 from app.domains.system.api.system_api import router as system_router
 
 
@@ -85,19 +76,7 @@ api_router.include_router(
 # api_router.include_router(
 #     rf_simulation_router, prefix="/rf", tags=["RF Simulation"]
 # )
-# api_router.include_router(handover_router, prefix="/handover", tags=["Handover"])  # 依賴 satellite 模組，暫時註釋
 api_router.include_router(system_router, prefix="/system", tags=["System"])
-
-# Register handover sub-routers (暫時註釋，依賴 satellite 模組)
-# api_router.include_router(
-#     fine_grained_sync_router, prefix="/handover", tags=["Handover"]
-# )
-api_router.include_router(
-    constrained_access_router, prefix="/handover", tags=["Handover"]
-)
-api_router.include_router(
-    weather_prediction_router, prefix="/handover", tags=["Handover"]
-)
 
 
 # Register new consolidated routes

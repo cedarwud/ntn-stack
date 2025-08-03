@@ -329,17 +329,6 @@ export default function SceneView({
                         unifiedSatellites={satellites}
                     />
 
-                    {/* Phase 2: 換手事件視覺化 */}
-                    <HandoverEventVisualizer
-                        enabled={satelliteState.satelliteEnabled}
-                        handoverEvents={handoverEvents}
-                        currentTime={0} // 這裡需要從 TimelineController 獲取
-                        satellitePositions={satellitePositions}
-                        onHandoverComplete={handleHandoverComplete}
-                        showTrails={true}
-                        animationDuration={3.0}
-                    />
-
                     <ContactShadows
                         position={[0, 0.1, 0]}
                         opacity={0.4}
@@ -350,6 +339,17 @@ export default function SceneView({
                 </Suspense>
                 <OrbitControls makeDefault />
             </Canvas>
+
+            {/* Phase 2: 換手事件視覺化 - 移到 Canvas 外面 */}
+            <HandoverEventVisualizer
+                enabled={satelliteState.satelliteEnabled}
+                handoverEvents={handoverEvents}
+                currentTime={0} // 這裡需要從 TimelineController 獲取
+                satellitePositions={satellitePositions}
+                onHandoverComplete={handleHandoverComplete}
+                showTrails={true}
+                animationDuration={3.0}
+            />
 
             {/* Phase 2 UI 控制組件已移至側邊欄 */}
         </div>

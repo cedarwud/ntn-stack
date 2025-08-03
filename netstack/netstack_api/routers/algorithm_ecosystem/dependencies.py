@@ -6,16 +6,11 @@
 from typing import Optional
 import logging
 
-from ...algorithm_ecosystem import (
-    HandoverOrchestrator,
-    AlgorithmRegistry,
-    EnvironmentManager
-)
-from ...algorithm_ecosystem.orchestrator import OrchestratorConfig
+from ...algorithm_ecosystem import AlgorithmRegistry, EnvironmentManager
 from ...algorithm_ecosystem.adapters import (
     InfocomAlgorithmAdapter,
     SimpleThresholdAlgorithmAdapter,
-    RandomAlgorithmAdapter
+    RandomAlgorithmAdapter,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,35 +18,25 @@ logger = logging.getLogger(__name__)
 # 全局實例
 _algorithm_registry: Optional[AlgorithmRegistry] = None
 _environment_manager: Optional[EnvironmentManager] = None
-_handover_orchestrator: Optional[HandoverOrchestrator] = None
 
 
 async def initialize_algorithm_ecosystem():
     """初始化算法生態系統組件"""
-    global _algorithm_registry, _environment_manager, _handover_orchestrator
-    
+    global _algorithm_registry, _environment_manager
+
     try:
         # 初始化算法註冊中心
         _algorithm_registry = AlgorithmRegistry()
-        
+
         # 註冊內建算法
         await _register_builtin_algorithms()
-        
+
         # 初始化環境管理器
         _environment_manager = EnvironmentManager()
         await _environment_manager.initialize()
-        
-        # 初始化協調器
-        config = OrchestratorConfig()
-        _handover_orchestrator = HandoverOrchestrator(
-            algorithm_registry=_algorithm_registry,
-            environment_manager=_environment_manager,
-            config=config
-        )
-        await _handover_orchestrator.initialize()
-        
+
         logger.info("算法生態系統初始化完成")
-        
+
     except Exception as e:
         logger.error(f"算法生態系統初始化失敗: {e}")
         raise
@@ -60,7 +45,7 @@ async def initialize_algorithm_ecosystem():
 async def _register_builtin_algorithms():
     """註冊內建算法"""
     registered_count = 0
-    
+
     try:
         # 嘗試註冊Infocom 算法
         try:
@@ -70,13 +55,13 @@ async def _register_builtin_algorithms():
                 algorithm=infocom_adapter,
                 config={},
                 enabled=True,
-                priority=20
+                priority=20,
             )
             registered_count += 1
             logger.info("✅ Infocom算法註冊成功")
         except ImportError as e:
             logger.warning(f"⚠️ Infocom算法註冊跳過: {e}")
-        
+
         # 嘗試註冊簡單閾值算法
         try:
             threshold_adapter = SimpleThresholdAlgorithmAdapter()
@@ -85,13 +70,13 @@ async def _register_builtin_algorithms():
                 algorithm=threshold_adapter,
                 config={},
                 enabled=True,
-                priority=15
+                priority=15,
             )
             registered_count += 1
             logger.info("✅ 簡單閾值算法註冊成功")
         except ImportError as e:
             logger.warning(f"⚠️ 簡單閾值算法註冊跳過: {e}")
-        
+
         # 嘗試註冊隨機算法
         try:
             random_adapter = RandomAlgorithmAdapter()
@@ -100,15 +85,15 @@ async def _register_builtin_algorithms():
                 algorithm=random_adapter,
                 config={},
                 enabled=True,
-                priority=5
+                priority=5,
             )
             registered_count += 1
             logger.info("✅ 隨機算法註冊成功")
         except ImportError as e:
             logger.warning(f"⚠️ 隨機算法註冊跳過: {e}")
-        
+
         logger.info(f"內建算法註冊完成 ({registered_count}/3 個算法可用)")
-        
+
     except Exception as e:
         logger.error(f"內建算法註冊過程中發生錯誤: {e}")
         # 不再拋出異常，讓系統能夠繼續啟動
@@ -116,27 +101,24 @@ async def _register_builtin_algorithms():
 
 async def cleanup_algorithm_ecosystem():
     """清理算法生態系統資源"""
-    global _algorithm_registry, _environment_manager, _handover_orchestrator
-    
+    global _algorithm_registry, _environment_manager
+
     try:
-        if _handover_orchestrator:
-            await _handover_orchestrator.cleanup()
-            _handover_orchestrator = None
-        
         if _environment_manager:
             await _environment_manager.cleanup()
             _environment_manager = None
-        
+
         if _algorithm_registry:
             _algorithm_registry = None
-        
+
         logger.info("算法生態系統資源清理完成")
-        
+
     except Exception as e:
         logger.error(f"算法生態系統資源清理失敗: {e}")
 
 
 # === 依賴注入函數 ===
+
 
 def get_algorithm_registry() -> AlgorithmRegistry:
     """獲取算法註冊中心實例"""
@@ -152,40 +134,31 @@ def get_environment_manager() -> EnvironmentManager:
     return _environment_manager
 
 
-def get_handover_orchestrator() -> HandoverOrchestrator:
-    """獲取換手協調器實例"""
-    if _handover_orchestrator is None:
-        raise RuntimeError("換手協調器未初始化")
-    return _handover_orchestrator
-
-
 # === 健康檢查依賴 ===
+
 
 def check_services_health() -> dict:
     """檢查各服務健康狀態"""
     health_status = {
         "algorithm_registry": _algorithm_registry is not None,
         "environment_manager": _environment_manager is not None,
-        "handover_orchestrator": _handover_orchestrator is not None
     }
-    
-    return {
-        "overall_healthy": all(health_status.values()),
-        "services": health_status
-    }
+
+    return {"overall_healthy": all(health_status.values()), "services": health_status}
 
 
 # === 生命週期管理 ===
 
+
 class LifecycleManager:
     """生命週期管理器"""
-    
+
     @staticmethod
     async def startup():
         """啟動事件處理"""
         await initialize_algorithm_ecosystem()
         logger.info("算法生態系統啟動完成")
-    
+
     @staticmethod
     async def shutdown():
         """關閉事件處理"""
@@ -194,10 +167,6 @@ class LifecycleManager:
 
 
 # === 配置管理依賴 ===
-
-def get_default_orchestrator_config() -> OrchestratorConfig:
-    """獲取默認協調器配置"""
-    return OrchestratorConfig()
 
 
 def validate_orchestrator_config(config: dict) -> bool:

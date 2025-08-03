@@ -190,6 +190,106 @@ class SionnaSimulationService(SimulationServiceInterface):
             logger.error(f"Error generating channel response plots: {e}", exc_info=True)
             return False
 
+    async def generate_cfr_plot(
+        self,
+        session: Optional[Any],
+        output_path: str = str(CFR_PLOT_IMAGE_PATH),
+        scene_name: str = "nycu",
+    ) -> bool:
+        """
+        Generate Channel Frequency Response (CFR) plot
+
+        This method delegates to the CommunicationSimulationService for CFR analysis
+
+        Args:
+            session: Database session for fetching device data
+            output_path: Path where the plot should be saved
+            scene_name: Name of the scene to use
+
+        Returns:
+            True if successful, False otherwise
+        """
+        logger.info(f"Generating CFR plot for scene '{scene_name}' at {output_path}")
+
+        try:
+            # Prepare output file
+            self.scene_service.prepare_output_file(output_path, "CFR圖檔")
+
+            # Get scene XML path with health checking
+            scene_xml_path = self.scene_service.get_scene_xml_file_path(scene_name)
+            logger.info(f"Using scene: {scene_xml_path}")
+
+            # Delegate to communication service
+            success = await self.communication_service.generate_cfr_plot(
+                session, output_path, scene_name
+            )
+
+            if success:
+                return self.scene_service.verify_output_file(output_path)
+            else:
+                return False
+
+        except Exception as e:
+            logger.error(f"Error generating CFR plot: {e}", exc_info=True)
+            return False
+
+    async def generate_sinr_map(
+        self,
+        session: Optional[Any],
+        output_path: str = str(SINR_MAP_IMAGE_PATH),
+        scene_name: str = "nycu",
+        sinr_vmin: float = -40.0,
+        sinr_vmax: float = 0.0,
+        cell_size: float = 1.0,
+        samples_per_tx: int = 10**7,
+    ) -> bool:
+        """
+        Generate SINR (Signal-to-Interference-plus-Noise Ratio) map
+
+        This method delegates to the CommunicationSimulationService for SINR analysis
+
+        Args:
+            session: Database session for fetching device data
+            output_path: Path where the map should be saved
+            scene_name: Name of the scene to use
+            sinr_vmin: Minimum SINR value for color scale
+            sinr_vmax: Maximum SINR value for color scale
+            cell_size: Size of each cell in the map
+            samples_per_tx: Number of samples per transmitter
+
+        Returns:
+            True if successful, False otherwise
+        """
+        logger.info(f"Generating SINR map for scene '{scene_name}' at {output_path}")
+
+        try:
+            # Prepare output file
+            self.scene_service.prepare_output_file(output_path, "SINR地圖檔")
+
+            # Get scene XML path with health checking
+            scene_xml_path = self.scene_service.get_scene_xml_file_path(scene_name)
+            logger.info(f"Using scene: {scene_xml_path}")
+
+            # Delegate to communication service
+            success = await self.communication_service.generate_sinr_map(
+                session,
+                output_path,
+                scene_name,
+                sinr_vmin,
+                sinr_vmax,
+                cell_size,
+                samples_per_tx,
+            )
+
+            if success:
+                return self.scene_service.verify_output_file(output_path)
+            else:
+                return False
+
+        except Exception as e:
+            logger.error(f"Error generating SINR map: {e}", exc_info=True)
+            return False
+
     # =============================================================================
     # Generic Simulation Interface
     # =============================================================================

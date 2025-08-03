@@ -32,22 +32,22 @@ interface SatelliteState {
 }
 
 interface HandoverState {
-    handoverStableDuration: number
     handoverMode: 'demo' | 'real'
-    algorithmResults: {
-        currentSatelliteId?: string
-        predictedSatelliteId?: string
-        handoverStatus?: 'idle' | 'calculating' | 'handover_ready' | 'executing'
-        binarySearchActive?: boolean
-        predictionConfidence?: number
-    }
-    handoverState: unknown
-    currentConnection: unknown
-    predictedConnection: unknown
+    handoverState: any
+    currentConnection: any
+    predictedConnection: any
     isTransitioning: boolean
     transitionProgress: number
+    algorithmResults: any
     satelliteMovementSpeed: number
     handoverTimingSpeed: number
+    handoverStableDuration: number
+}
+
+interface DataState {
+    // 可以根據需要添加數據相關的狀態
+    isLoading: boolean
+    lastUpdated: Date | null
 }
 
 interface FeatureState {
@@ -93,8 +93,9 @@ export interface AppStateContextType {
     // 狀態
     uiState: UIState
     satelliteState: SatelliteState
-    handoverState: HandoverState
     featureState: FeatureState
+    handoverState: HandoverState
+    dataState: DataState
 
     // UI狀態更新函數
     setActiveComponent: (component: string) => void
@@ -109,20 +110,14 @@ export interface AppStateContextType {
     // 星座選擇狀態更新函數
     setSelectedConstellation: (constellation: 'starlink' | 'oneweb') => void
 
-    // 換手狀態更新函數
-    setHandoverStableDuration: (duration: number) => void
-    setHandoverMode: (mode: 'demo' | 'real') => void
-    setAlgorithmResults: (results: HandoverState['algorithmResults']) => void
-    setHandoverState: (state: unknown) => void
-    setCurrentConnection: (connection: unknown) => void
-    setPredictedConnection: (connection: unknown) => void
-    setIsTransitioning: (transitioning: boolean) => void
-    setTransitionProgress: (progress: number) => void
-    setSatelliteMovementSpeed: (speed: number) => void
-    setHandoverTimingSpeed: (speed: number) => void
-
     // 功能開關更新函數
     updateFeatureState: (updates: Partial<FeatureState>) => void
+
+    // Handover狀態更新函數
+    updateHandoverState: (updates: Partial<HandoverState>) => void
+
+    // Data狀態更新函數
+    updateDataState: (updates: Partial<DataState>) => void
 }
 
 // ==================== Context創建 ====================
@@ -158,20 +153,6 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
         satelliteEnabled: true,
         // 星座選擇初始狀態
         selectedConstellation: 'starlink', // 預設為 Starlink
-    })
-
-    // 換手狀態
-    const [handoverState, setHandoverState] = useState<HandoverState>({
-        handoverStableDuration: 5,
-        handoverMode: 'demo',
-        algorithmResults: {},
-        handoverState: null,
-        currentConnection: null,
-        predictedConnection: null,
-        isTransitioning: false,
-        transitionProgress: 0,
-        satelliteMovementSpeed: SATELLITE_CONFIG.SATELLITE_MOVEMENT_SPEED,
-        handoverTimingSpeed: SATELLITE_CONFIG.HANDOVER_TIMING_SPEED,
     })
 
     // 功能狀態
@@ -210,6 +191,26 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
         // 階段八功能 - 預設關閉
         predictiveMaintenanceEnabled: false,
         intelligentRecommendationEnabled: false,
+    })
+
+    // Handover狀態
+    const [handoverState, setHandoverState] = useState<HandoverState>({
+        handoverMode: 'demo',
+        handoverState: null,
+        currentConnection: null,
+        predictedConnection: null,
+        isTransitioning: false,
+        transitionProgress: 0,
+        algorithmResults: null,
+        satelliteMovementSpeed: 1,
+        handoverTimingSpeed: 1,
+        handoverStableDuration: 5,
+    })
+
+    // Data狀態
+    const [dataState, setDataState] = useState<DataState>({
+        isLoading: false,
+        lastUpdated: null,
     })
 
     // ==================== 更新函數 ====================
@@ -261,62 +262,22 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
         []
     )
 
-    // 換手狀態更新
-    const setHandoverStableDuration = useCallback((duration: number) => {
-        setHandoverState((prev) => ({
-            ...prev,
-            handoverStableDuration: duration,
-        }))
+    // 功能狀態批量更新
+    const updateFeatureState = useCallback((updates: Partial<FeatureState>) => {
+        setFeatureState((prev) => ({ ...prev, ...updates }))
     }, [])
 
-    const setHandoverMode = useCallback((mode: 'demo' | 'real') => {
-        setHandoverState((prev) => ({ ...prev, handoverMode: mode }))
-    }, [])
-
-    const setAlgorithmResults = useCallback(
-        (results: HandoverState['algorithmResults']) => {
-            setHandoverState((prev) => ({ ...prev, algorithmResults: results }))
+    // Handover狀態批量更新
+    const updateHandoverState = useCallback(
+        (updates: Partial<HandoverState>) => {
+            setHandoverState((prev) => ({ ...prev, ...updates }))
         },
         []
     )
 
-    const setHandoverStateInternal = useCallback((state: unknown) => {
-        setHandoverState((prev) => ({ ...prev, handoverState: state }))
-    }, [])
-
-    const setCurrentConnection = useCallback((connection: unknown) => {
-        setHandoverState((prev) => ({ ...prev, currentConnection: connection }))
-    }, [])
-
-    const setPredictedConnection = useCallback((connection: unknown) => {
-        setHandoverState((prev) => ({
-            ...prev,
-            predictedConnection: connection,
-        }))
-    }, [])
-
-    const setIsTransitioning = useCallback((transitioning: boolean) => {
-        setHandoverState((prev) => ({
-            ...prev,
-            isTransitioning: transitioning,
-        }))
-    }, [])
-
-    const setTransitionProgress = useCallback((progress: number) => {
-        setHandoverState((prev) => ({ ...prev, transitionProgress: progress }))
-    }, [])
-
-    const setSatelliteMovementSpeed = useCallback((speed: number) => {
-        setHandoverState((prev) => ({ ...prev, satelliteMovementSpeed: speed }))
-    }, [])
-
-    const setHandoverTimingSpeed = useCallback((speed: number) => {
-        setHandoverState((prev) => ({ ...prev, handoverTimingSpeed: speed }))
-    }, [])
-
-    // 功能狀態批量更新
-    const updateFeatureState = useCallback((updates: Partial<FeatureState>) => {
-        setFeatureState((prev) => ({ ...prev, ...updates }))
+    // Data狀態批量更新
+    const updateDataState = useCallback((updates: Partial<DataState>) => {
+        setDataState((prev) => ({ ...prev, ...updates }))
     }, [])
 
     // ==================== Context值 ====================
@@ -327,8 +288,9 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
             // 狀態
             uiState,
             satelliteState,
-            handoverState,
             featureState,
+            handoverState,
+            dataState,
 
             // UI狀態更新函數
             setActiveComponent,
@@ -343,26 +305,19 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
             // 星座選擇狀態更新函數
             setSelectedConstellation,
 
-            // 換手狀態更新函數
-            setHandoverStableDuration,
-            setHandoverMode,
-            setAlgorithmResults,
-            setHandoverState: setHandoverStateInternal,
-            setCurrentConnection,
-            setPredictedConnection,
-            setIsTransitioning,
-            setTransitionProgress,
-            setSatelliteMovementSpeed,
-            setHandoverTimingSpeed,
-
             // 功能開關更新函數
             updateFeatureState,
+            // Handover狀態更新函數
+            updateHandoverState,
+            // Data狀態更新函數
+            updateDataState,
         }),
         [
             uiState,
             satelliteState,
-            handoverState,
             featureState,
+            handoverState,
+            dataState,
             setActiveComponent,
             setAuto,
             setManualDirection,
@@ -371,17 +326,9 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
             setSkyfieldSatellites,
             setSatelliteEnabled,
             setSelectedConstellation,
-            setHandoverStableDuration,
-            setHandoverMode,
-            setAlgorithmResults,
-            setHandoverStateInternal,
-            setCurrentConnection,
-            setPredictedConnection,
-            setIsTransitioning,
-            setTransitionProgress,
-            setSatelliteMovementSpeed,
-            setHandoverTimingSpeed,
             updateFeatureState,
+            updateHandoverState,
+            updateDataState,
         ]
     )
 

@@ -53,35 +53,25 @@ export const useSatelliteState = () => {
   ])
 }
 
+
+
 export const useHandoverState = () => {
-  const { 
-    handoverState, 
-    setHandoverStableDuration, 
-    setHandoverMode, 
-    setAlgorithmResults,
-    setHandoverState,
-    setCurrentConnection,
-    setPredictedConnection,
-    setIsTransitioning,
-    setTransitionProgress,
-    setSatelliteMovementSpeed,
-    setHandoverTimingSpeed
-  } = useAppState()
-  
-  // 直接返回對象，讓 React 處理優化
-  return {
+  const { handoverState, updateHandoverState } = useAppState()
+  return useMemo(() => ({
     ...handoverState,
-    setHandoverStableDuration,
-    setHandoverMode,
-    setAlgorithmResults,
-    setHandoverState,
-    setCurrentConnection,
-    setPredictedConnection,
-    setIsTransitioning,
-    setTransitionProgress,
-    setSatelliteMovementSpeed,
-    setHandoverTimingSpeed
-  }
+    updateHandoverState,
+    // 提供方便的單個狀態更新方法
+    setHandoverMode: (mode: 'demo' | 'real') => updateHandoverState({ handoverMode: mode }),
+    setHandoverState: (state: any) => updateHandoverState({ handoverState: state }),
+    setCurrentConnection: (connection: any) => updateHandoverState({ currentConnection: connection }),
+    setPredictedConnection: (connection: any) => updateHandoverState({ predictedConnection: connection }),
+    setIsTransitioning: (isTransitioning: boolean) => updateHandoverState({ isTransitioning }),
+    setTransitionProgress: (progress: number) => updateHandoverState({ transitionProgress: progress }),
+    setAlgorithmResults: (results: any) => updateHandoverState({ algorithmResults: results }),
+    setSatelliteMovementSpeed: (speed: number) => updateHandoverState({ satelliteMovementSpeed: speed }),
+    setHandoverTimingSpeed: (speed: number) => updateHandoverState({ handoverTimingSpeed: speed }),
+    setHandoverStableDuration: (duration: number) => updateHandoverState({ handoverStableDuration: duration }),
+  }), [handoverState, updateHandoverState])
 }
 
 export const useDataState = () => {

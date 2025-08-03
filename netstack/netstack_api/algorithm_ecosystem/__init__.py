@@ -5,7 +5,7 @@
 
 核心組件：
 - HandoverOrchestrator: 算法協調器
-- AlgorithmRegistry: 算法註冊中心  
+- AlgorithmRegistry: 算法註冊中心
 - EnvironmentManager: 環境管理器
 - TrainingPipeline: RL 訓練管線
 - InferencePipeline: 推理管線
@@ -20,27 +20,31 @@ from .interfaces import (
     AlgorithmInfo,
     GeoCoordinate,
     SignalMetrics,
-    SatelliteInfo
+    SatelliteInfo,
 )
 
 from .registry import AlgorithmRegistry
+
 # 嘗試導入協調器
 try:
     from .orchestrator import HandoverOrchestrator, OrchestratorConfig
+
     ORCHESTRATOR_AVAILABLE = True
 except ImportError as import_error:
     # 存儲錯誤消息
     orchestrator_error_msg = str(import_error)
-    
+
     # 創建佔位符類
     class HandoverOrchestrator:
         def __init__(self, *args, **kwargs):
-            raise ImportError(f"HandoverOrchestrator not available: {orchestrator_error_msg}")
-    
+            raise ImportError(
+                f"HandoverOrchestrator not available: {orchestrator_error_msg}"
+            )
+
     class OrchestratorConfig:
         def __init__(self, *args, **kwargs):
             pass
-    
+
     ORCHESTRATOR_AVAILABLE = False
 from .environment_manager import EnvironmentManager
 
@@ -48,6 +52,7 @@ from .environment_manager import EnvironmentManager
 # 導入分析引擎
 try:
     from .analysis_engine import PerformanceAnalysisEngine
+
     ANALYSIS_ENGINE_AVAILABLE = True
 except ImportError:
     ANALYSIS_ENGINE_AVAILABLE = False
@@ -55,6 +60,7 @@ except ImportError:
 # 導入生態系統管理器
 try:
     from .ecosystem_manager import AlgorithmEcosystemManager
+
     ECOSYSTEM_MANAGER_AVAILABLE = True
 except ImportError:
     ECOSYSTEM_MANAGER_AVAILABLE = False
@@ -64,8 +70,9 @@ try:
     from .adapters.traditional_adapters import (
         InfocomAlgorithmAdapter,
         SimpleThresholdAlgorithmAdapter,
-        RandomAlgorithmAdapter
+        RandomAlgorithmAdapter,
     )
+
     TRADITIONAL_ADAPTERS_AVAILABLE = True
 except ImportError:
     TRADITIONAL_ADAPTERS_AVAILABLE = False
@@ -80,12 +87,8 @@ __all__ = [
     "SignalMetrics",
     "SatelliteInfo",
     "AlgorithmRegistry",
-    "EnvironmentManager"
+    "EnvironmentManager",
 ]
-
-# 動態添加協調器
-if ORCHESTRATOR_AVAILABLE:
-    __all__.extend(["HandoverOrchestrator", "OrchestratorConfig"])
 
 
 # 動態添加分析引擎
@@ -98,11 +101,13 @@ if ECOSYSTEM_MANAGER_AVAILABLE:
 
 # 動態添加可用的組件
 if TRADITIONAL_ADAPTERS_AVAILABLE:
-    __all__.extend([
-        "InfocomAlgorithmAdapter",
-        "SimpleThresholdAlgorithmAdapter", 
-        "RandomAlgorithmAdapter"
-    ])
+    __all__.extend(
+        [
+            "InfocomAlgorithmAdapter",
+            "SimpleThresholdAlgorithmAdapter",
+            "RandomAlgorithmAdapter",
+        ]
+    )
 
 
 __version__ = "1.0.0"

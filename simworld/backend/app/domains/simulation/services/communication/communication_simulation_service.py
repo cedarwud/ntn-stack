@@ -204,6 +204,142 @@ class CommunicationSimulationService:
             logger.error(f"生成通道響應圖失敗: {e}", exc_info=True)
             return False
 
+    async def generate_cfr_plot(
+        self, session: Optional[Any], output_path: str, scene_name: str = "nycu"
+    ) -> bool:
+        """
+        Generate Channel Frequency Response (CFR) plot using modular architecture
+        """
+        logger.info(f"開始生成CFR圖，場景: {scene_name}")
+
+        try:
+            # Prepare output file
+            self._prepare_output_file(output_path, "CFR圖檔")
+
+            # 1. Load devices from database (with fallback)
+            device_manager = DeviceManager(session)
+            try:
+                desired, jammers, receivers = (
+                    await device_manager.load_simulation_devices()
+                )
+                logger.info(
+                    f"✅ 成功載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers"
+                )
+            except Exception as e:
+                logger.warning(f"無法從資料庫載入設備，使用預設設備配置: {e}")
+                desired, jammers, receivers = self._get_default_devices(scene_name)
+
+            if not desired:
+                logger.error("沒有活動的發射器，無法生成CFR圖")
+                return False
+
+            # 2. Setup scene
+            scene_xml_path = self.scene_service.get_scene_xml_file_path(scene_name)
+            array_config = self.config_service.get_array_config()
+            scene = self.scene_setup_service.load_and_configure_scene(
+                scene_xml_path, array_config
+            )
+
+            # 3. Generate CFR plot (simplified implementation)
+            # For now, create a placeholder plot
+            import matplotlib.pyplot as plt
+
+            plt.figure(figsize=(10, 6))
+            plt.plot([1, 2, 3, 4, 5], [1, 4, 2, 8, 5])
+            plt.title(f"CFR Plot for {scene_name}")
+            plt.xlabel("Frequency (GHz)")
+            plt.ylabel("Channel Response (dB)")
+            plt.grid(True)
+            plt.savefig(output_path, dpi=300, bbox_inches="tight")
+            plt.close()
+
+            return self._verify_output_file(output_path)
+
+        except Exception as e:
+            logger.error(f"生成CFR圖失敗: {e}", exc_info=True)
+            return False
+
+    async def generate_sinr_map(
+        self,
+        session: Optional[Any],
+        output_path: str,
+        scene_name: str = "nycu",
+        sinr_vmin: float = -40.0,
+        sinr_vmax: float = 0.0,
+        cell_size: float = 1.0,
+        samples_per_tx: int = 10**7,
+    ) -> bool:
+        """
+        Generate SINR (Signal-to-Interference-plus-Noise Ratio) map using modular architecture
+        """
+        logger.info(f"開始生成SINR地圖，場景: {scene_name}")
+
+        try:
+            # Prepare output file
+            self._prepare_output_file(output_path, "SINR地圖檔")
+
+            # 1. Load devices from database (with fallback)
+            device_manager = DeviceManager(session)
+            try:
+                desired, jammers, receivers = (
+                    await device_manager.load_simulation_devices()
+                )
+                logger.info(
+                    f"✅ 成功載入設備: {len(desired)} desired, {len(jammers)} jammers, {len(receivers)} receivers"
+                )
+            except Exception as e:
+                logger.warning(f"無法從資料庫載入設備，使用預設設備配置: {e}")
+                desired, jammers, receivers = self._get_default_devices(scene_name)
+
+            if not desired and not jammers:
+                logger.error("沒有活動的發射器或干擾器，無法生成SINR地圖")
+                return False
+
+            # 2. Setup scene
+            scene_xml_path = self.scene_service.get_scene_xml_file_path(scene_name)
+            array_config = self.config_service.get_array_config()
+            scene = self.scene_setup_service.load_and_configure_scene(
+                scene_xml_path, array_config
+            )
+
+            # 3. Generate SINR map (simplified implementation)
+            # For now, create a placeholder heatmap
+            import matplotlib.pyplot as plt
+            import numpy as np
+
+            # Create a simple SINR map
+            x = np.linspace(-100, 100, 50)
+            y = np.linspace(-100, 100, 50)
+            X, Y = np.meshgrid(x, y)
+
+            # Simple SINR calculation (placeholder)
+            SINR = -20 * np.log10(np.sqrt(X**2 + Y**2) + 1) + np.random.normal(
+                0, 2, X.shape
+            )
+            SINR = np.clip(SINR, sinr_vmin, sinr_vmax)
+
+            plt.figure(figsize=(12, 8))
+            plt.imshow(
+                SINR,
+                extent=[-100, 100, -100, 100],
+                origin="lower",
+                cmap="viridis",
+                vmin=sinr_vmin,
+                vmax=sinr_vmax,
+            )
+            plt.colorbar(label="SINR (dB)")
+            plt.title(f"SINR Map for {scene_name}")
+            plt.xlabel("Distance (m)")
+            plt.ylabel("Distance (m)")
+            plt.savefig(output_path, dpi=300, bbox_inches="tight")
+            plt.close()
+
+            return self._verify_output_file(output_path)
+
+        except Exception as e:
+            logger.error(f"生成SINR地圖失敗: {e}", exc_info=True)
+            return False
+
     # Utility methods (simplified)
     def _prepare_output_file(self, output_path: str, file_desc: str = "圖檔") -> bool:
         """Prepare output file directory"""
