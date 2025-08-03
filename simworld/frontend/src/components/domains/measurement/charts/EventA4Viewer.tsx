@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { loadCSVData } from '../../../../utils/csvDataParser'
 import { ViewerProps } from '../../../../types/viewer'
-import PureA4Chart from './PureA4Chart'
+// PureA4Chart removed - using enhanced chart implementation
 import './EventA4Viewer.scss'
 import './NarrationPanel.scss'
 
@@ -918,13 +918,36 @@ const EventA4Viewer: React.FC<EventA4ViewerProps> = React.memo(
             () => (
                 <div className="chart-area">
                     <div className="chart-container">
-                        <PureA4Chart
-                            threshold={a4Threshold}
-                            hysteresis={hysteresis}
-                            currentTime={animationState.currentTime}
-                            showThresholdLines={showThresholdLines}
-                            isDarkTheme={isDarkTheme}
-                        />
+                        {/* PureA4Chart removed - using placeholder */}
+                        <div
+                            style={{
+                                width: '100%',
+                                height: '400px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: isDarkTheme
+                                    ? '#1a1a1a'
+                                    : '#ffffff',
+                                color: isDarkTheme ? '#ffffff' : '#333333',
+                                border: `1px solid ${
+                                    isDarkTheme ? '#333' : '#ddd'
+                                }`,
+                                borderRadius: '8px',
+                            }}
+                        >
+                            <div style={{ textAlign: 'center' }}>
+                                <p>Event A4 Chart Implementation</p>
+                                <p style={{ fontSize: '0.9em', opacity: 0.7 }}>
+                                    Threshold: {a4Threshold} dBm | Hysteresis:{' '}
+                                    {hysteresis} dB
+                                </p>
+                                <p style={{ fontSize: '0.8em', opacity: 0.5 }}>
+                                    Time:{' '}
+                                    {animationState.currentTime.toFixed(1)}s
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             ),

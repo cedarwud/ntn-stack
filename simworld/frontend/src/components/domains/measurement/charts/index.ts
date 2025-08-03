@@ -9,8 +9,7 @@ export { default as EventA4Viewer } from './EventA4Viewer'
 export { default as EventD2Chart } from './EventD2Chart'
 export { default as EventD2Viewer } from './EventD2Viewer'
 
-// Pure Charts
-export { default as PureA4Chart } from './PureA4Chart'
+// Pure Charts - PureA4Chart removed (duplicate), keeping PureD2Chart
 export { default as PureD2Chart } from './PureD2Chart'
 
 // 增強版組件 - 新加入

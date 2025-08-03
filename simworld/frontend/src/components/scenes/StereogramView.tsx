@@ -8,7 +8,7 @@ import { Device } from '../../types/device'
 // Note: SINRLegend removed - interference domain was cleaned up
 
 import PredictiveMaintenanceViewer from '../domains/analytics/performance/PredictiveMaintenanceViewer'
-import IntelligentRecommendationSystem from '../domains/analytics/ai/IntelligentRecommendationSystem'
+// IntelligentRecommendationSystem removed - no UI controls available
 import CoreNetworkSyncViewer from '../domains/monitoring/realtime/CoreNetworkSyncViewer'
 import { HandoverStatusPanel } from '../domains/handover/execution/HandoverAnimation3D'
 import {
@@ -195,9 +195,7 @@ export default function SceneView({
                 />
             )}
 
-            {featureState.intelligentRecommendationEnabled && (
-                <IntelligentRecommendationSystem />
-            )}
+            {/* IntelligentRecommendationSystem removed - no UI controls available */}
 
             <HandoverStatusPanel
                 enabled={
