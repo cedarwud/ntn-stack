@@ -101,7 +101,7 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
     thresh1 = 800000, // 800km 預設衛星距離門檻
     thresh2 = 30000, // 30km 預設地面距離門檻
     hysteresis = 500, // 500m 預設遲滯
-    currentTime = 0,
+    _currentTime = 0,
     uePosition = {
         latitude: 25.0478,
         longitude: 121.5319,
@@ -312,7 +312,7 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
             reference_satellite: string
         }>
     >([])
-    const [currentTrajectoryIndex, setCurrentTrajectoryIndex] = useState(0)
+    const [_currentTrajectoryIndex, _setCurrentTrajectoryIndex] = useState(0)
     const [usePreloadedData, setUsePreloadedData] = useState(true) // 預設啟用軌跡動畫
 
     // 生成靜態測試數據（確保交叉變化模式正確顯示）

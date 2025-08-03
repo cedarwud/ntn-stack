@@ -9,7 +9,7 @@
 
 /* 側邊欄樣式 - 懸浮 & 下移 */
 .sidebar {
-  width: 500px;
+  width: 400px;
   height: calc(100vh - 60px); /* 修改：高度減去 Navbar 高度 */
   position: fixed;
   left: 0;

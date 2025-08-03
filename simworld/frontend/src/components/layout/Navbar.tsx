@@ -3,8 +3,6 @@ import type { FC, RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/Navbar.scss'
 
-import ViewerModal from '../shared/ui/layout/ViewerModal'
-
 import MeasurementEventsModal from './MeasurementEventsModal'
 
 import { ViewerProps } from '../../types/viewer'
