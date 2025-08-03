@@ -30,10 +30,6 @@ from app.domains.handover.api.weather_prediction_api import (
 )
 from app.domains.system.api.system_api import router as system_router
 
-# Import new performance domain API
-from app.domains.performance.api.performance_api import (
-    router as performance_domain_router,
-)
 
 # Import new consolidated route modules
 from app.api.routes.core import router as core_router
@@ -103,8 +99,6 @@ api_router.include_router(
     weather_prediction_router, prefix="/handover", tags=["Handover"]
 )
 
-# Register new performance domain API (replaces old performance routes)
-api_router.include_router(performance_domain_router, tags=["Performance"])
 
 # Register new consolidated routes
 # api_router.include_router(satellite_ops_router, prefix="/satellite-ops", tags=["Satellite Operations"])  # 暫時註釋 PostgreSQL 版本
