@@ -236,12 +236,15 @@ describe('🧪 Phase 1.5 統一平台整合測試', () => {
         it('應該在不同事件間共享 SIB19 數據', async () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let sharedSIB19Status: any = null
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let sharedNeighborCells: any[] = []
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const onSIB19Update = (status: any) => {
                 sharedSIB19Status = status
             }
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const onNeighborCellsUpdate = (cells: any[]) => {
                 sharedNeighborCells = cells
             }
@@ -276,8 +279,10 @@ describe('🧪 Phase 1.5 統一平台整合測試', () => {
         })
 
         it('應該正確處理 SMTC 測量窗口', async () => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let smtcWindows: any[] = []
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const onSMTCWindowsUpdate = (windows: any[]) => {
                 smtcWindows = windows
             }
