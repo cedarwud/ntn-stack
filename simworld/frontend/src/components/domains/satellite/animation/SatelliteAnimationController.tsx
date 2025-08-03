@@ -91,6 +91,57 @@ export const SatelliteAnimationController: React.FC<
     const animationStartTime = useRef<number>(Date.now())
     const lastHandoverCheck = useRef<number>(0)
 
+    // 修復：從統一衛星數據初始化
+    const initializeSatellitesFromUnified = useCallback(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (unifiedSats: any[]) => {
+            const satelliteMap = new Map<string, PrecomputedSatellite>()
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            unifiedSats.forEach((sat: any) => {
+                // 將統一數據轉換為動畫控制器格式
+                const satellite: PrecomputedSatellite = {
+                    norad_id:
+                        sat.norad_id?.toString() ||
+                        sat.id?.toString() ||
+                        `${constellation}-${satelliteMap.size}`,
+                    name:
+                        sat.name ||
+                        `${constellation.toUpperCase()}-${
+                            sat.norad_id || sat.id
+                        }`,
+                    position: {
+                        latitude: sat.position?.latitude || sat.latitude || 0,
+                        longitude:
+                            sat.position?.longitude || sat.longitude || 0,
+                        altitude: sat.position?.altitude || sat.altitude || 550,
+                    },
+                    velocity: {
+                        x: sat.velocity?.x || 0,
+                        y: sat.velocity?.y || 0,
+                        z: sat.velocity?.z || 0,
+                    },
+                    visibility: sat.visibility || 'visible',
+                    elevation: sat.elevation || 0,
+                    azimuth: sat.azimuth || 0,
+                    distance: sat.distance || 0,
+                    isVisible: sat.isVisible !== false,
+                    lastUpdate: Date.now(),
+                }
+
+                satelliteMap.set(satellite.norad_id, satellite)
+            })
+
+            setSatellites(satelliteMap)
+            console.log(
+                `✅ SatelliteAnimationController: 從統一數據初始化 ${
+                    satelliteMap.size
+                } 顆 ${constellation.toUpperCase()} 衛星`
+            )
+        },
+        [constellation]
+    )
+
     // 修復：優先使用統一的衛星數據，回退到預計算數據載入
     useEffect(() => {
         if (!enabled) return
@@ -125,120 +176,6 @@ export const SatelliteAnimationController: React.FC<
         orbitService,
         initializeSatellitesFromUnified,
     ])
-
-    // 修復：從統一衛星數據初始化
-    const initializeSatellitesFromUnified = useCallback(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (unifiedSats: any[]) => {
-            const satelliteMap = new Map<string, PrecomputedSatellite>()
-
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            unifiedSats.forEach((sat: any) => {
-                // 將統一數據轉換為動畫控制器格式
-                const satellite: PrecomputedSatellite = {
-                    norad_id:
-                        sat.norad_id?.toString() ||
-                        sat.id?.toString() ||
-                        'unknown',
-                    name: sat.name || `SAT-${sat.norad_id || sat.id}`,
-                    trajectory: {
-                        timePoints: [0], // 簡化：使用當前時間點
-                        positions: [
-                            [
-                                // 修復：支援多種字段名格式
-                                // 使用球面座標轉換為3D位置（簡化版）
-                                (sat.distance_km || sat.range_km || 1000) *
-                                    Math.cos(
-                                        ((sat.elevation_deg ||
-                                            sat.elevation ||
-                                            0) *
-                                            Math.PI) /
-                                            180
-                                    ) *
-                                    Math.cos(
-                                        ((sat.azimuth_deg || sat.azimuth || 0) *
-                                            Math.PI) /
-                                            180
-                                    ),
-                                (sat.distance_km || sat.range_km || 1000) *
-                                    Math.sin(
-                                        ((sat.elevation_deg ||
-                                            sat.elevation ||
-                                            0) *
-                                            Math.PI) /
-                                            180
-                                    ),
-                                (sat.distance_km || sat.range_km || 1000) *
-                                    Math.cos(
-                                        ((sat.elevation_deg ||
-                                            sat.elevation ||
-                                            0) *
-                                            Math.PI) /
-                                            180
-                                    ) *
-                                    Math.sin(
-                                        ((sat.azimuth_deg || sat.azimuth || 0) *
-                                            Math.PI) /
-                                            180
-                                    ),
-                            ],
-                        ],
-                        velocities: [[0, 0, 0]], // 簡化：無速度數據
-                        visibilityWindows: sat.is_visible
-                            ? [{ start: 0, end: 3600 }]
-                            : [],
-                    },
-                    handoverEvents: [],
-                    isVisible: sat.is_visible || false,
-                    // 修復：使用計算出的實際位置，而不是 [0, 0, 0]
-                    currentPosition: [
-                        // 使用球面座標轉換為3D位置（簡化版）
-                        (sat.distance_km || sat.range_km || 1000) *
-                            Math.cos(
-                                ((sat.elevation_deg || sat.elevation || 0) *
-                                    Math.PI) /
-                                    180
-                            ) *
-                            Math.cos(
-                                ((sat.azimuth_deg || sat.azimuth || 0) *
-                                    Math.PI) /
-                                    180
-                            ),
-                        (sat.distance_km || sat.range_km || 1000) *
-                            Math.sin(
-                                ((sat.elevation_deg || sat.elevation || 0) *
-                                    Math.PI) /
-                                    180
-                            ),
-                        (sat.distance_km || sat.range_km || 1000) *
-                            Math.cos(
-                                ((sat.elevation_deg || sat.elevation || 0) *
-                                    Math.PI) /
-                                    180
-                            ) *
-                            Math.sin(
-                                ((sat.azimuth_deg || sat.azimuth || 0) *
-                                    Math.PI) /
-                                    180
-                            ),
-                    ],
-                    currentVelocity: [0, 0, 0],
-                }
-
-                satelliteMap.set(satellite.norad_id, satellite)
-            })
-
-            setSatellites(satelliteMap)
-
-            // 只在轉換失敗時記錄日誌
-            if (satelliteMap.size === 0 && unifiedSats.length > 0) {
-                console.warn(
-                    `⚠️ SatelliteAnimationController: 衛星數據轉換失敗，原始: ${unifiedSats.length}，轉換: ${satelliteMap.size}`
-                )
-            }
-        },
-        []
-    )
 
     // 初始化衛星數據（預計算數據）
     const _initializeSatellites = useCallback((data: OrbitData) => {
