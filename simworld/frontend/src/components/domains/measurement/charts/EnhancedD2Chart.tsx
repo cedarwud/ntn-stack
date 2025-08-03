@@ -591,7 +591,6 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
     }, [
         usePreloadedData,
         preloadedTrajectory,
-        currentTrajectoryIndex,
         useRealData,
         dataHistory,
         simulationData,
