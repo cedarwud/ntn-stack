@@ -49,8 +49,11 @@ export interface MeasurementResult {
     trigger_state: 'idle' | 'approaching' | 'triggered' | 'hysteresis'
     trigger_condition_met: boolean
     measurement_values: Record<string, number>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     trigger_details: Record<string, any>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sib19_data?: Record<string, any>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     satellite_positions?: Record<string, any>
 }
 
@@ -148,6 +151,7 @@ export async function getRealTimeMeasurementData(
 export async function simulateMeasurementEvent(
     eventType: 'A4' | 'D1' | 'D2' | 'T1',
     scenario: SimulationScenario
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
     const response = await netstackFetch(`/api/measurement-events/${eventType}/simulate`, {
         method: 'POST',
@@ -167,6 +171,7 @@ export async function simulateMeasurementEvent(
 /**
  * 獲取事件參數配置
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getEventParametersConfig(): Promise<Record<string, any>> {
     const response = await netstackFetch('/api/measurement-events/config/parameters')
 
@@ -235,6 +240,7 @@ export async function getSatellitePosition(
 /**
  * 強制更新 TLE 數據
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function forceUpdateTLEData(): Promise<any> {
     const response = await netstackFetch('/api/measurement-events/orbit-data/update-tle', {
         method: 'POST'
@@ -250,6 +256,7 @@ export async function forceUpdateTLEData(): Promise<any> {
 /**
  * 健康檢查
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function checkMeasurementServiceHealth(): Promise<any> {
     const response = await netstackFetch('/api/measurement-events/health')
 
@@ -323,6 +330,7 @@ export const PARAMETER_CONSTRAINTS = {
  */
 export function validateEventParameters(
     eventType: 'A4' | 'D1' | 'D2' | 'T1',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     params: any
 ): { valid: boolean; errors: string[] } {
     const errors: string[] = []
