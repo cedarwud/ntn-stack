@@ -69,7 +69,7 @@ export default function SceneView({
     })
 
     // 使用統一的數據同步上下文獲取衛星數據
-    const { state } = useDataSync()
+    const { state: _state } = useDataSync()
     // 修復：使用 AppStateContext 中的統一衛星數據，確保與側邊欄同步
     const satellites = satelliteState.satelliteEnabled
         ? satelliteState.skyfieldSatellites || []
@@ -80,7 +80,7 @@ export default function SceneView({
     }, [])
 
     // Phase 2: 事件處理函數
-    const handleLocationChange = useCallback(
+    const _handleLocationChange = useCallback(
         (locationId: string) => {
             console.log(`🌍 切換觀測點: ${currentLocation} -> ${locationId}`)
             setCurrentLocation(locationId)

@@ -22,24 +22,24 @@ import {
     Progress,
     Alert,
     AlertDescription,
-    Button,
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
+    // Button,
+    // Tooltip,
+    // TooltipContent,
+    // TooltipProvider,
+    // TooltipTrigger,
 } from '@/components/ui'
 import {
     Navigation,
     MapPin,
     Target,
-    Clock,
-    TrendingUp,
-    TrendingDown,
+    // Clock,
+    // TrendingUp,
+    // TrendingDown,
     Activity,
     Satellite,
     AlertTriangle,
     CheckCircle,
-    RefreshCw,
+    // RefreshCw,
 } from 'lucide-react'
 import {
     LineChart,
@@ -49,8 +49,8 @@ import {
     CartesianGrid,
     Tooltip as RechartsTooltip,
     ResponsiveContainer,
-    AreaChart,
-    Area,
+    // AreaChart,
+    // Area,
     ScatterChart,
     Scatter,
     ReferenceLine,
@@ -92,12 +92,12 @@ export const D2EventSpecificChart: React.FC<D2EventSpecificChartProps> = ({
     height = 400,
     thresh1 = 800000, // 800000 m (修正後的真實 LEO 衛星距離) - 符合 API 約束
     thresh2 = 30000, // 30000 m (地面距離) - 符合 API 約束
-    hysteresis = 500, // 500 m - 符合 API 約束: ge=100
-    uePosition = { latitude: 0.0, longitude: 0.0, altitude: 0.1 },
+    hysteresis: _hysteresis = 500, // 500 m - 符合 API 約束: ge=100
+    uePosition: _uePosition = { latitude: 0.0, longitude: 0.0, altitude: 0.1 },
     showMovingReference = true,
     showRelativeDistances = true,
     showMovementVector = true,
-    showThresholdVisualization = true,
+    showThresholdVisualization: _showThresholdVisualization = true,
     onTriggerStateChange,
     onReferenceLocationUpdate,
 }) => {

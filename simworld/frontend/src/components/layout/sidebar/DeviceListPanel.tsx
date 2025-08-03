@@ -3,7 +3,7 @@ import { DeviceListPanelProps } from '../types/sidebar.types'
 import DeviceItem from '../../domains/device/management/DeviceItem'
 
 const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
-    devices,
+    devices: _devices,
     tempDevices,
     receiverDevices,
     desiredDevices,

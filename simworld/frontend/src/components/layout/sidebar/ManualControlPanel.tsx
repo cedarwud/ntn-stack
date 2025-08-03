@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { ManualControlPanelProps } from '../types/sidebar.types'
-import { UAVManualDirection } from '../../domains/device/visualization/UAVFlight'
+// import { UAVManualDirection } from '../../domains/device/visualization/UAVFlight'
 
 const ManualControlPanel: React.FC<ManualControlPanelProps> = ({
     isVisible,
@@ -19,7 +19,7 @@ const ManualControlPanel: React.FC<ManualControlPanelProps> = ({
     const handleManualDown = (
         direction:
             | 'up'
-            | 'down' 
+            | 'down'
             | 'left'
             | 'right'
             | 'ascend'
@@ -48,9 +48,7 @@ const ManualControlPanel: React.FC<ManualControlPanelProps> = ({
 
     return (
         <div className="manual-control-panel">
-            <div className="manual-control-title">
-                🕹️ UAV 手動控制
-            </div>
+            <div className="manual-control-title">🕹️ UAV 手動控制</div>
             <div className="manual-control-grid">
                 {/* 第一排：↖ ↑ ↗ */}
                 <div className="manual-row">

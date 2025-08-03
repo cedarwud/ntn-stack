@@ -37,21 +37,21 @@ import {
 import {
     Satellite,
     Clock,
-    MapPin,
+    // MapPin,
     Signal,
     AlertTriangle,
     CheckCircle,
     RefreshCw,
-    Settings,
-    Eye,
-    EyeOff,
+    // Settings,
+    // Eye,
+    // EyeOff,
 } from 'lucide-react'
 import {
     getSIB19UnifiedDataManager,
     SIB19Data,
     SatellitePosition,
-    NeighborCellConfig,
-    SMTCWindow,
+    // NeighborCellConfig,
+    // SMTCWindow,
 } from '../services/SIB19UnifiedDataManager'
 
 interface SIB19UnifiedBaseChartProps {
@@ -83,7 +83,7 @@ export const SIB19UnifiedBaseChart: React.FC<SIB19UnifiedBaseChartProps> = ({
     eventType,
     showSatelliteConstellation = true,
     showNeighborCells = true,
-    showTimeSync = true,
+    showTimeSync: _showTimeSync = true,
     showSMTCWindows = true,
     className = '',
     height = 600,
