@@ -27,7 +27,9 @@ export interface ProcessingConfig {
 
 // 數據處理結果
 export interface ProcessingResult {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     processedData: any[]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     originalData: any[]
     processingMetrics: {
         noiseReductionRate: number // 噪聲減少率
@@ -61,6 +63,7 @@ export class IntelligentDataProcessor {
      * 主要數據處理入口
      */
     public processRealSatelliteData(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rawData: any[],
         config: ProcessingConfig
     ): ProcessingResult {
@@ -103,6 +106,7 @@ export class IntelligentDataProcessor {
     /**
      * 數據品質分析
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private analyzeDataQuality(data: any[]): {
         noiseLevel: number
         signalStrength: number
@@ -183,6 +187,7 @@ export class IntelligentDataProcessor {
     /**
      * 頻譜分析 - 簡化版本，識別主要頻率成分
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private performFrequencyAnalysis(data: any[]): FrequencyAnalysis {
         const satelliteDistances = data.map(d => d.satelliteDistance || d.satellite_distance || 0)
         
@@ -264,11 +269,13 @@ export class IntelligentDataProcessor {
      * 確定最佳處理策略
      */
     private determineOptimalStrategy(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         qualityAnalysis: any,
         frequencyAnalysis: FrequencyAnalysis,
         config: ProcessingConfig
     ): {
         strategy: string
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         parameters: any
         reasoning: string[]
     } {
@@ -320,6 +327,7 @@ export class IntelligentDataProcessor {
     /**
      * 應用智能數據處理
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private applyIntelligentProcessing(data: any[], strategy: any): any[] {
         // console.log(`🔧 應用處理策略: ${strategy.strategy}`, strategy.parameters)
         
@@ -433,6 +441,7 @@ export class IntelligentDataProcessor {
     /**
      * 計算點置信度
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private calculatePointConfidence(original: number, processed: number, parameters: any): number {
         const difference = Math.abs(original - processed)
         const relativeDifference = difference / original
@@ -444,6 +453,7 @@ export class IntelligentDataProcessor {
     /**
      * 評估處理結果
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private evaluateProcessingResults(original: any[], processed: any[]): {
         noiseReductionRate: number
         signalEnhancementRatio: number
@@ -545,6 +555,7 @@ export class IntelligentDataProcessor {
     /**
      * 生成處理建議
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private generateRecommendations(metrics: any, qualityAnalysis: any): string[] {
         const recommendations = []
         

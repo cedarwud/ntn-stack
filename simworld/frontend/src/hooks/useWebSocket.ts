@@ -38,7 +38,7 @@ export const useWebSocket = (url: string): UseWebSocketReturn => {
         try {
           const parsedData = JSON.parse(event.data)
           setData(parsedData)
-        } catch (e) {
+        } catch (_e) {
           // 如果不是 JSON，直接使用原始數據
           setData(event.data)
         }

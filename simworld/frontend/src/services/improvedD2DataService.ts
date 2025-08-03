@@ -305,7 +305,7 @@ export class ImprovedD2DataService {
      */
     private assessDataQuality(
         satelliteDistances: number[],
-        groundDistances: number[]
+        _groundDistances: number[]
     ): {
         noiseLevel: number
         signalToNoiseRatio: number

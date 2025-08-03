@@ -35,9 +35,13 @@ interface D2EventData {
         time_series?: Array<{
             timestamp: string;
             time_offset_seconds: number;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             position: any;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             observation: any;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             handover_metrics: any;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             measurement_events: any;
         }>;
     }>;
