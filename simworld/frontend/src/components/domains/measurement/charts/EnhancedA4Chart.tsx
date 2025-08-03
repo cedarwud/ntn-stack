@@ -692,6 +692,41 @@ const EnhancedA4Chart: React.FC<EnhancedA4ChartProps> = ({
         setError(null)
     }, [])
 
+    // 時間軸動畫處理 - 移到條件返回之前
+    const handleTimeChange = useCallback(
+        (time: Date) => {
+            setAnimationTime(time)
+            if (trajectory.trajectoryData) {
+                trajectory.setTimeIndex(time)
+            }
+
+            // 如果使用預繪製數據，更新當前軌跡索引
+            if (usePreloadedData && preloadedTrajectory.length > 0) {
+                const startTime = new Date(preloadedTrajectory[0].timestamp)
+                const elapsed = time.getTime() - startTime.getTime()
+                const index = Math.floor(elapsed / (30 * 1000)) // 30秒間隔
+                setCurrentTrajectoryIndex(
+                    Math.max(0, Math.min(index, preloadedTrajectory.length - 1))
+                )
+            }
+        },
+        [trajectory, usePreloadedData, preloadedTrajectory]
+    )
+
+    const handleSpeedChange = useCallback((speed: number) => {
+        setPlaybackSpeed(speed)
+    }, [])
+
+    // 觸發軌跡數據生成 - 移到條件返回之前
+    useEffect(() => {
+        if (
+            trajectory.trajectoryData &&
+            trajectory.trajectoryData.points.length > 0
+        ) {
+            generatePreloadedTrajectory()
+        }
+    }, [trajectory.trajectoryData, generatePreloadedTrajectory])
+
     if (error) {
         return (
             <div
@@ -719,41 +754,6 @@ const EnhancedA4Chart: React.FC<EnhancedA4ChartProps> = ({
             </div>
         )
     }
-
-    // 時間軸動畫處理
-    const handleTimeChange = useCallback(
-        (time: Date) => {
-            setAnimationTime(time)
-            if (trajectory.trajectoryData) {
-                trajectory.setTimeIndex(time)
-            }
-
-            // 如果使用預繪製數據，更新當前軌跡索引
-            if (usePreloadedData && preloadedTrajectory.length > 0) {
-                const startTime = new Date(preloadedTrajectory[0].timestamp)
-                const elapsed = time.getTime() - startTime.getTime()
-                const index = Math.floor(elapsed / (30 * 1000)) // 30秒間隔
-                setCurrentTrajectoryIndex(
-                    Math.max(0, Math.min(index, preloadedTrajectory.length - 1))
-                )
-            }
-        },
-        [trajectory, usePreloadedData, preloadedTrajectory]
-    )
-
-    const handleSpeedChange = useCallback((speed: number) => {
-        setPlaybackSpeed(speed)
-    }, [])
-
-    // 觸發軌跡數據生成
-    useEffect(() => {
-        if (
-            trajectory.trajectoryData &&
-            trajectory.trajectoryData.points.length > 0
-        ) {
-            generatePreloadedTrajectory()
-        }
-    }, [trajectory.trajectoryData, generatePreloadedTrajectory])
 
     return (
         <div className="w-full h-full space-y-4">

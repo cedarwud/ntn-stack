@@ -51,6 +51,7 @@ interface EnhancedD2ChartProps {
     // 回調函數
     onThemeToggle?: () => void
     onDataModeToggle?: () => void
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onTriggerEvent?: (eventData: any) => void
 }
 
@@ -77,6 +78,7 @@ interface RealTimeD2Data {
         overall_condition_met: boolean
         reference_satellite: string
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     satellite_positions: Record<string, any>
 }
 
@@ -91,9 +93,12 @@ interface SimulationD2Data {
         timestamp: string
         trigger_state: string
         trigger_condition_met: boolean
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         measurement_values: any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         trigger_details: any
     }>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     statistics: any
 }
 
@@ -263,7 +268,7 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
         } finally {
             setIsLoading(false)
         }
-    }, [useRealData, uePosition, thresh1, thresh2, hysteresis, onTriggerEvent])
+    }, [useRealData, uePosition, onTriggerEvent])
 
     // 獲取模擬數據
     const fetchSimulationData = useCallback(async () => {
@@ -590,6 +595,7 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
         useRealData,
         dataHistory,
         simulationData,
+        generatePreloadedTrajectory,
     ])
 
     // 圖表配置
@@ -978,6 +984,7 @@ const EnhancedD2Chart: React.FC<EnhancedD2ChartProps> = ({
         fetchSimulationData,
         usePreloadedData,
         preloadedTrajectory.length,
+        generatePreloadedTrajectory,
     ])
 
     // 軌跡動畫進度控制（完全禁用，專注於靜態測試）

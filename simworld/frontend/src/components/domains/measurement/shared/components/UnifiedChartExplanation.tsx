@@ -481,6 +481,7 @@ export const generateUnifiedChartConfig = (
                 bodyFont: { size: 13 },
                 footerFont: { size: 12 },
                 callbacks: {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     afterBody: (context: any[]) => {
                         if (context.length > 0) {
                             return [

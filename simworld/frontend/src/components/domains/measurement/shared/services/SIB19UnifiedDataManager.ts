@@ -60,6 +60,7 @@ export interface SIB19Data {
   validity_time: number
   time_to_expiry_hours: number
   satellites_count: number
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   satellite_ephemeris: Record<string, any>
   reference_location: {
     type: string

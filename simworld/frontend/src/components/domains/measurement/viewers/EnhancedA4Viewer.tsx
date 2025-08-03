@@ -46,6 +46,7 @@ interface A4ViewerProps {
     className?: string
     initialConfig?: Partial<A4Config>
     onConfigChange?: (config: A4Config) => void
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onEventTriggered?: (eventData: any) => void
 }
 
@@ -116,6 +117,7 @@ export const EnhancedA4Viewer: React.FC<A4ViewerProps> = ({
     })
     const [signalStrength, setSignalStrength] = useState(-95)
     const [selectedSatellites, setSelectedSatellites] = useState<string[]>([])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [eventHistory, setEventHistory] = useState<any[]>([])
     const [currentStatus, setCurrentStatus] = useState<
         'idle' | 'measuring' | 'compensating'
@@ -157,6 +159,7 @@ export const EnhancedA4Viewer: React.FC<A4ViewerProps> = ({
 
     // 事件觸發處理
     const handleEventTriggered = useCallback(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (eventData: any) => {
             setCurrentStatus('compensating')
             setCompensationActive(true)
