@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface UseWebSocketReturn {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any
   isConnected: boolean
   error: Error | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   send: (data: any) => void
   close: () => void
 }
 
 export const useWebSocket = (url: string): UseWebSocketReturn => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -66,6 +69,7 @@ export const useWebSocket = (url: string): UseWebSocketReturn => {
     }
   }, [url])
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const send = useCallback((data: any) => {
     if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
       const message = typeof data === 'string' ? data : JSON.stringify(data)
