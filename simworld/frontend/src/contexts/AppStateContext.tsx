@@ -33,11 +33,15 @@ interface SatelliteState {
 
 interface HandoverState {
     handoverMode: 'demo' | 'real'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     handoverState: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     currentConnection: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     predictedConnection: any
     isTransitioning: boolean
     transitionProgress: number
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     algorithmResults: any
     satelliteMovementSpeed: number
     handoverTimingSpeed: number

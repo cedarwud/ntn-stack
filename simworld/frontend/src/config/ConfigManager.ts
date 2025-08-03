@@ -50,6 +50,7 @@ export interface PerformanceConfig {
 }
 
 // 配置變更監聽器類型
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ConfigChangeListener = (key: string, newValue: any, oldValue: any) => void
 
 // 默認配置
@@ -120,6 +121,7 @@ const DEFAULT_CONFIG: AppConfig = {
 class ConfigurationManager {
     private config: AppConfig
     private listeners: Map<string, ConfigChangeListener[]> = new Map()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private cache: Map<string, any> = new Map()
 
     constructor(initialConfig: Partial<AppConfig> = {}) {
@@ -141,8 +143,10 @@ class ConfigurationManager {
                     result[key as keyof AppConfig] = {
                         ...target[key as keyof AppConfig],
                         ...sourceValue
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } as any
                 } else {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     result[key as keyof AppConfig] = sourceValue as any
                 }
             }
@@ -154,6 +158,7 @@ class ConfigurationManager {
     /**
      * 獲取配置值
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     get<T = any>(path: string): T {
         // 檢查緩存
         if (this.cache.has(path)) {
@@ -161,6 +166,7 @@ class ConfigurationManager {
         }
 
         const keys = path.split('.')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let value: any = this.config
 
         for (const key of keys) {
@@ -180,9 +186,11 @@ class ConfigurationManager {
     /**
      * 設置配置值
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     set(path: string, value: any): void {
         const keys = path.split('.')
         const lastKey = keys.pop()!
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let target: any = this.config
 
         // 導航到目標對象
@@ -208,6 +216,7 @@ class ConfigurationManager {
     /**
      * 批量更新配置
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     update(updates: Record<string, any>): void {
         // console.log('🔄 [ConfigManager] 批量更新配置:', updates)
         
@@ -260,6 +269,7 @@ class ConfigurationManager {
     /**
      * 通知監聽器
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private notifyListeners(path: string, newValue: any, oldValue: any): void {
         // 通知具體路徑的監聽器
         const listeners = this.listeners.get(path) || []
@@ -404,8 +414,11 @@ class ConfigurationManager {
 export const ConfigManager = new ConfigurationManager()
 
 // 便利函數
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getConfig = <T = any>(path: string): T => ConfigManager.get<T>(path)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const setConfig = (path: string, value: any): void => ConfigManager.set(path, value)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const updateConfig = (updates: Record<string, any>): void => ConfigManager.update(updates)
 
 // 默認導出
