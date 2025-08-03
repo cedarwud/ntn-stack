@@ -128,6 +128,7 @@ const EnhancedA4Viewer: React.FC = () => {
     }, [])
 
     // 處理 A4 事件觸發
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleTriggerEvent = useCallback((eventData: any) => {
         const newRecord: EventTriggerRecord = {
             timestamp: new Date().toISOString(),

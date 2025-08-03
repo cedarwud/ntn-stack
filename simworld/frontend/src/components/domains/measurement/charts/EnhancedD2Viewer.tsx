@@ -31,7 +31,9 @@ interface D2Parameters {
 
 interface EventTriggerRecord {
     timestamp: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     trigger_details: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     measurement_values: any
     satellite_id: string
 }
@@ -72,6 +74,7 @@ const EnhancedD2Viewer: React.FC<EnhancedD2ViewerProps> = ({
     const [triggerHistory, setTriggerHistory] = useState<EventTriggerRecord[]>(
         []
     )
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [availableSatellites, setAvailableSatellites] = useState<any[]>([])
     const [currentReferenceSatellite, setCurrentReferenceSatellite] =
         useState<string>('')
@@ -97,6 +100,7 @@ const EnhancedD2Viewer: React.FC<EnhancedD2ViewerProps> = ({
     }, [])
 
     // 處理事件觸發
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleTriggerEvent = useCallback((eventData: any) => {
         const newRecord: EventTriggerRecord = {
             timestamp: new Date().toISOString(),

@@ -28,6 +28,7 @@ export interface SatelliteAnimationControllerProps {
         positions: Map<string, [number, number, number]>
     ) => void
     // 修復：使用統一的衛星數據源
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     unifiedSatellites?: any[]
     children?: React.ReactNode
 }
@@ -98,9 +99,15 @@ export const SatelliteAnimationController: React.FC<
         if (unifiedSatellites && unifiedSatellites.length > 0) {
             // 只在數據異常時記錄日誌
             if (unifiedSatellites.length === 0) {
-                console.log(`⚠️ SatelliteAnimationController: [${constellation.toUpperCase()}] 無衛星數據`)
+                console.log(
+                    `⚠️ SatelliteAnimationController: [${constellation.toUpperCase()}] 無衛星數據`
+                )
             } else if (unifiedSatellites.length > 20) {
-                console.log(`⚠️ SatelliteAnimationController: [${constellation.toUpperCase()}] 衛星數量異常: ${unifiedSatellites.length}顆`)
+                console.log(
+                    `⚠️ SatelliteAnimationController: [${constellation.toUpperCase()}] 衛星數量異常: ${
+                        unifiedSatellites.length
+                    }顆`
+                )
             }
             initializeSatellitesFromUnified(unifiedSatellites)
         } else {
@@ -114,9 +121,11 @@ export const SatelliteAnimationController: React.FC<
 
     // 修復：從統一衛星數據初始化
     const initializeSatellitesFromUnified = useCallback(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (unifiedSats: any[]) => {
             const satelliteMap = new Map<string, PrecomputedSatellite>()
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             unifiedSats.forEach((sat: any) => {
                 // 將統一數據轉換為動畫控制器格式
                 const satellite: PrecomputedSatellite = {
@@ -216,7 +225,9 @@ export const SatelliteAnimationController: React.FC<
 
             // 只在轉換失敗時記錄日誌
             if (satelliteMap.size === 0 && unifiedSats.length > 0) {
-                console.warn(`⚠️ SatelliteAnimationController: 衛星數據轉換失敗，原始: ${unifiedSats.length}，轉換: ${satelliteMap.size}`)
+                console.warn(
+                    `⚠️ SatelliteAnimationController: 衛星數據轉換失敗，原始: ${unifiedSats.length}，轉換: ${satelliteMap.size}`
+                )
             }
         },
         []
@@ -227,6 +238,7 @@ export const SatelliteAnimationController: React.FC<
         const satelliteMap = new Map<string, PrecomputedSatellite>()
 
         // 從預計算數據中提取衛星軌跡
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data.filtered_satellites?.forEach((sat: any) => {
             const satellite: PrecomputedSatellite = {
                 norad_id: sat.norad_id,
