@@ -21,7 +21,7 @@ import { useDataSync } from '../../contexts/DataSyncContext'
 
 // Phase 2: 新增組件導入
 import SatelliteAnimationController from '../domains/satellite/animation/SatelliteAnimationController'
-import HandoverEventVisualizer from '../domains/handover/visualization/HandoverEventVisualizer'
+// HandoverEventVisualizer removed - cleaning up position:absolute overlay
 import type { HandoverEvent } from '../../types/satellite'
 
 interface SceneViewProps {
@@ -338,16 +338,7 @@ export default function SceneView({
                 <OrbitControls makeDefault />
             </Canvas>
 
-            {/* Phase 2: 換手事件視覺化 - 移到 Canvas 外面 */}
-            <HandoverEventVisualizer
-                enabled={satelliteState.satelliteEnabled}
-                handoverEvents={handoverEvents}
-                currentTime={0} // 這裡需要從 TimelineController 獲取
-                satellitePositions={satellitePositions}
-                onHandoverComplete={handleHandoverComplete}
-                showTrails={true}
-                animationDuration={3.0}
-            />
+            {/* HandoverEventVisualizer removed - cleaned up position:absolute overlay */}
 
             {/* Phase 2 UI 控制組件已移至側邊欄 */}
         </div>
