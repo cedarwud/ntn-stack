@@ -143,13 +143,36 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         const getModeConfig = useCallback((mode: string) => {
             switch(mode) {
                 case 'processing':
-                    return { title: 'D2數據分析', showAdvancedControls: true }
+                    return { 
+                        title: 'D2數據處理與分析', 
+                        showAdvancedControls: true,
+                        description: '專注於 LEO 衛星換手研究的數據處理功能',
+                        preferredDataMode: 'real-data',
+                        showAnalysisFeatures: true
+                    }
                 case 'real-events': 
-                    return { title: 'Real D2 Events', showRealDataOnly: true }
+                    return { 
+                        title: '真實 D2 事件監控', 
+                        showRealDataOnly: true,
+                        description: '使用真實衛星數據和 Moving Reference Location (MRL) 計算來可視化 3GPP D2 換手事件',
+                        preferredDataMode: 'real-data',
+                        forceRealData: true
+                    }
                 case 'dashboard':
-                    return { title: 'D2 移動參考位置事件', showFullFeatures: true }
+                    return { 
+                        title: 'D2 移動參考位置事件監控', 
+                        showFullFeatures: true,
+                        description: '完整的 D2 事件監控面板，支援模擬和真實數據模式',
+                        preferredDataMode: 'simulation',
+                        showAllControls: true
+                    }
                 default:
-                    return { title: 'Event D2 Viewer', showFullFeatures: true }
+                    return { 
+                        title: 'Event D2 Viewer', 
+                        showFullFeatures: true,
+                        description: '標準 D2 事件查看器',
+                        preferredDataMode: 'simulation'
+                    }
             }
         }, [])
 
@@ -158,6 +181,17 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
         // 星座信息輔助函數（從 DataManager 取得）
         const getConstellationInfo = dataManager.getConstellationInfo
+
+        // 根據模式自動初始化數據模式
+        React.useEffect(() => {
+            if (modeConfig.forceRealData && currentMode !== 'real-data') {
+                console.log(`🔄 [EventD2Viewer] 模式 ${mode} 要求真實數據，自動切換`)
+                handleModeToggle('real-data')
+            } else if (modeConfig.preferredDataMode && currentMode !== modeConfig.preferredDataMode) {
+                console.log(`🎯 [EventD2Viewer] 模式 ${mode} 偏好 ${modeConfig.preferredDataMode} 數據模式`)
+                handleModeToggle(modeConfig.preferredDataMode as 'simulation' | 'real-data')
+            }
+        }, [mode, modeConfig, currentMode, handleModeToggle])
 
         // 記錄模式變更
         useMemo(() => {
@@ -175,6 +209,19 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                 <h3 className="control-section__title">
                                     📊 {displayTitle}
                                 </h3>
+                                
+                                {/* 模式描述 */}
+                                {showModeSpecificFeatures && modeConfig.description && (
+                                    <div className="mode-description">
+                                        <p className="mode-description-text">
+                                            {modeConfig.description}
+                                        </p>
+                                        <div className="mode-indicator">
+                                            模式：<span className="mode-badge">{mode}</span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="control-group control-group--buttons">
                                     <button
                                         className={`control-btn ${
@@ -253,38 +300,51 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                     </div>
                                 )}
 
-                                {/* 數據模式切換 */}
-                                <div className="control-group">
-                                    <span className="control-label">數據模式</span>
-                                    <div className="mode-toggle-group">
-                                        <button
-                                            className={`mode-toggle-btn ${
-                                                currentMode === 'simulation'
-                                                    ? 'active'
-                                                    : ''
-                                            }`}
-                                            onClick={() => handleModeToggle('simulation')}
-                                            disabled={dataManager.isLoadingRealData}
-                                        >
-                                            🎮 模擬數據
-                                        </button>
-                                        <button
-                                            className={`mode-toggle-btn ${
-                                                currentMode === 'real-data'
-                                                    ? 'active'
-                                                    : ''
-                                            }`}
-                                            onClick={() => handleModeToggle('real-data')}
-                                            disabled={dataManager.isLoadingRealData}
-                                        >
-                                            {dataManager.isLoadingRealData ? (
-                                                <>🔄 載入中...</>
-                                            ) : (
-                                                <>🛰️ NetStack 真實數據</>
+                                {/* 數據模式切換 - 根據模式配置條件渲染 */}
+                                {!modeConfig.showRealDataOnly && (
+                                    <div className="control-group">
+                                        <span className="control-label">數據模式</span>
+                                        <div className="mode-toggle-group">
+                                            {!modeConfig.forceRealData && (
+                                                <button
+                                                    className={`mode-toggle-btn ${
+                                                        currentMode === 'simulation'
+                                                            ? 'active'
+                                                            : ''
+                                                    }`}
+                                                    onClick={() => handleModeToggle('simulation')}
+                                                    disabled={dataManager.isLoadingRealData}
+                                                >
+                                                    🎮 模擬數據
+                                                </button>
                                             )}
-                                        </button>
+                                            <button
+                                                className={`mode-toggle-btn ${
+                                                    currentMode === 'real-data'
+                                                        ? 'active'
+                                                        : ''
+                                                }`}
+                                                onClick={() => handleModeToggle('real-data')}
+                                                disabled={dataManager.isLoadingRealData}
+                                            >
+                                                {dataManager.isLoadingRealData ? (
+                                                    <>🔄 載入中...</>
+                                                ) : (
+                                                    <>🛰️ NetStack 真實數據</>
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+                                
+                                {/* 強制真實數據模式的提示 */}
+                                {modeConfig.forceRealData && (
+                                    <div className="mode-forced-indicator">
+                                        <span className="forced-mode-badge">
+                                            🛰️ 此模式僅支援真實數據
+                                        </span>
+                                    </div>
+                                )}
 
                                 {/* 載入狀態和錯誤顯示 */}
                                 {dataManager.realDataError && (
