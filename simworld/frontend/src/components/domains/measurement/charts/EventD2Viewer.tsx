@@ -13,6 +13,8 @@ import React, { useState, useCallback, useMemo } from 'react'
 import PureD2Chart from './PureD2Chart'
 import { useD2DataManager, RealD2DataPoint } from './d2-components/D2DataManager'
 import D2NarrationPanel from './d2-components/D2NarrationPanel'
+import D2AnimationController from './d2-components/D2AnimationController'
+import { useD2ThemeManager } from './d2-components/D2ThemeManager'
 import type { EventD2Params } from '../types'
 import './EventA4Viewer.scss' // 完全重用 A4 的樣式，確保左側控制面板風格一致
 
@@ -65,19 +67,35 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         const [showNarration, setShowNarration] = useState(true)
         const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
         const [isNarrationExpanded, setIsNarrationExpanded] = useState(false)
+        
+        // 動畫控制狀態
+        const [showAnimationControls, setShowAnimationControls] = useState(false)
+        const [currentAnimationTime, setCurrentAnimationTime] = useState(0)
+        const [animationSpeed, setAnimationSpeed] = useState(1)
+        
+        // 連接狀態管理
+        const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected')
 
         // 使用數據管理 Hook
         const dataManager = useD2DataManager({
             params,
             onDataLoad: (data) => {
                 console.log('✅ [EventD2Viewer] 數據載入完成:', data.length)
+                setConnectionStatus('connected')
             },
             onError: (error) => {
                 console.error('❌ [EventD2Viewer] 數據載入錯誤:', error)
+                setConnectionStatus('disconnected')
             },
             onLoadingChange: (loading) => {
                 console.log('🔄 [EventD2Viewer] 載入狀態變更:', loading)
+                if (loading) setConnectionStatus('connecting')
             },
+        })
+
+        // 使用主題管理 Hook
+        const themeManager = useD2ThemeManager(isDarkTheme, (theme) => {
+            console.log('🎨 [EventD2Viewer] 主題變更:', theme)
         })
 
         // 穩定的參數更新回調
@@ -111,6 +129,15 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
             },
             [dataManager]
         )
+
+        // 動畫控制回調
+        const handleAnimationTimeChange = useCallback((time: number) => {
+            setCurrentAnimationTime(time)
+        }, [])
+
+        const handleAnimationPlayStateChange = useCallback((isPlaying: boolean) => {
+            console.log('🎬 [EventD2Viewer] 動畫播放狀態:', isPlaying)
+        }, [])
 
         // 根據模式獲取配置
         const getModeConfig = useCallback((mode: string) => {
@@ -266,6 +293,15 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                     </div>
                                 )}
 
+                                {/* 連接狀態指示器 */}
+                                <div className="connection-status">
+                                    <span className={`status-indicator status-${connectionStatus}`}>
+                                        {connectionStatus === 'connected' && '🟢 已連接'}
+                                        {connectionStatus === 'connecting' && '🟡 連接中'}
+                                        {connectionStatus === 'disconnected' && '🔴 未連接'}
+                                    </span>
+                                </div>
+
                                 {/* 星座信息顯示 */}
                                 {currentMode === 'real-data' && (
                                     <div className="constellation-info">
@@ -359,7 +395,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                             {/* 動畫解說控制 */}
                             <div className="control-section">
                                 <h3 className="control-section__title">
-                                    🎬 動畫解說
+                                    🎬 動畫控制
                                 </h3>
                                 <div className="control-group control-group--buttons">
                                     <button
@@ -378,7 +414,27 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                     >
                                         🔧 技術詳情
                                     </button>
+                                    <button
+                                        className={`control-btn ${
+                                            showAnimationControls ? 'control-btn--active' : ''
+                                        }`}
+                                        onClick={() => setShowAnimationControls(!showAnimationControls)}
+                                    >
+                                        🎮 播放控制
+                                    </button>
                                 </div>
+                                
+                                {/* 動畫播放控制器 */}
+                                {showAnimationControls && (
+                                    <D2AnimationController
+                                        initialTime={currentAnimationTime}
+                                        maxTime={120}
+                                        speed={animationSpeed}
+                                        onTimeChange={handleAnimationTimeChange}
+                                        onPlayStateChange={handleAnimationPlayStateChange}
+                                        isDarkTheme={isDarkTheme}
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>
@@ -390,7 +446,10 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                             showThresholdLines={showThresholdLines}
                             realD2Data={currentMode === 'real-data' ? dataManager.realD2Data : []}
                             currentMode={currentMode}
+                            currentTime={currentAnimationTime}
                             isDarkTheme={isDarkTheme}
+                            // 傳遞主題配色
+                            themeColors={themeManager.getDatasetColors()}
                         />
                     </div>
                 </div>
