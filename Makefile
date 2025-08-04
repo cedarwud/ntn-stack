@@ -35,6 +35,7 @@ export EXTERNAL_IP
 
 # Docker Compose 文件
 NETSTACK_COMPOSE := $(NETSTACK_DIR)/compose/core.yaml
+NETSTACK_COMPOSE_SIMPLE := $(NETSTACK_DIR)/compose/core-simple.yaml
 SIMWORLD_COMPOSE := $(SIMWORLD_DIR)/docker-compose.yml
 
 # 服務 URL
@@ -64,12 +65,49 @@ help: ## 顯示幫助信息
 	@echo "$(YELLOW)衛星數據管理:$(RESET)"
 	@echo "  $(GREEN)clean-satellite-data$(RESET) 清理衛星預計算數據 (重啟後重新計算)"
 	@echo "  $(GREEN)update-satellite-data$(RESET) 一鍵更新衛星數據 (TLE 更新後使用)"
+	@echo ""
+	@echo "$(YELLOW)🚀 Cron 自動調度系統:$(RESET)"
+	@echo "  $(GREEN)install-cron$(RESET)         安裝自動 Cron 調度系統"
+	@echo "  $(GREEN)status-cron$(RESET)          檢查 Cron 任務狀態"
+	@echo "  $(GREEN)uninstall-cron$(RESET)       移除 Cron 自動調度任務"
 
 # ===== 服務啟動 =====
 
 fresh-up: clean-i build-n up ## 重新啟動所有服務
 
-up: all-start ## 啟動所有服務
+up: ## 🚀 啟動所有服務 (Pure Cron 驅動模式 - 最優化架構)
+	@echo "$(CYAN)🚀 啟動 NTN Stack (Pure Cron 驅動模式)...$(RESET)"
+	@echo "$(YELLOW)📋 Pure Cron 模式優勢:$(RESET)"
+	@echo "   • 啟動時間 < 30 秒，完全可預期"  
+	@echo "   • Cron 自動管理數據更新 (每6小時)"
+	@echo "   • 容器只負責數據載入，無運行時計算"
+	@echo ""
+	@echo "$(YELLOW)⚡ 第一步：自動安裝/更新 Cron 調度系統...$(RESET)"
+	@$(MAKE) install-cron
+	@echo "$(YELLOW)⚡ 第二步：啟動 NetStack (Pure Cron 模式)...$(RESET)"  
+	@$(MAKE) netstack-start-optimized
+	@echo "$(YELLOW)⏳ 等待 NetStack 服務完全就緒...$(RESET)"
+	@sleep 10
+	@echo "$(YELLOW)⚡ 第三步：啟動 SimWorld...$(RESET)"
+	@$(MAKE) simworld-start
+	@echo "$(YELLOW)⏳ 等待 SimWorld 服務啟動完成...$(RESET)"
+	@sleep 10
+	@echo "$(YELLOW)🔗 建立跨服務網路連接...$(RESET)"
+	@$(MAKE) connect-cross-service-networks
+	@echo "$(YELLOW)🔗 驗證容器間網路連接...$(RESET)"
+	@$(MAKE) verify-network-connection
+	@$(MAKE) status
+	@echo "$(GREEN)✅ Pure Cron 驅動模式啟動完成$(RESET)"
+	@echo ""
+	@echo "$(CYAN)🌐 服務訪問地址:$(RESET)"
+	@echo "  NetStack API:  $(NETSTACK_URL)"
+	@echo "  NetStack Docs: $(NETSTACK_URL)/docs"
+	@echo "  SimWorld:      $(SIMWORLD_URL)"
+	@echo ""
+	@echo "$(CYAN)🕒 Cron 數據更新狀態:$(RESET)"
+	@echo "  $(BLUE)📅 TLE 下載時間$(RESET): 02:00, 08:00, 14:00, 20:00 (每6小時)"
+	@echo "  $(BLUE)⚙️ 增量處理時間$(RESET): 02:30, 08:30, 14:30, 20:30 (下載後30分鐘)"
+	@crontab -l | grep -E "(tle_download|incremental)" || echo "  $(YELLOW)⚠️ Cron 任務未找到，請檢查安裝$(RESET)"
 
 
 dev: ## 開發環境啟動 (使用 127.0.0.1)
@@ -81,7 +119,7 @@ dev-setup: ## 🛠️ 開發環境設置 (僅在需要時執行)
 	@$(MAKE) netstack-start-full
 	@echo "$(GREEN)✅ 開發環境設置完成$(RESET)"
 
-all-start: ## 啟動所有核心服務 (NetStack, SimWorld)
+all-start-legacy: ## 舊版啟動方式 (保留用於特殊需求)
 	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務...$(RESET)"
 	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (包含 MongoDB 基礎服務)...$(RESET)"
 	@$(MAKE) netstack-start
@@ -134,6 +172,52 @@ netstack-start-full: ## 啟動 NetStack 服務並完成開發環境設置
 	@cd ${NETSTACK_DIR} && $(MAKE) start-with-setup
 	@echo "$(GREEN)✅ NetStack 開發環境設置完成$(RESET)"
 
+netstack-start-optimized: ## 啟動 NetStack 服務 (Pure Cron 驅動模式 - 整合版)
+	@echo "$(BLUE)🚀 啟動 NetStack 服務 (Pure Cron 驅動模式)..."
+	@cd ${NETSTACK_DIR} && docker compose -f compose/core-simple.yaml up -d
+	@echo "$(YELLOW)⏳ 等待 NetStack API 健康檢查通過...$(RESET)"
+	@timeout=60; \
+	while [ $$timeout -gt 0 ]; do \
+		if curl -s -f http://localhost:8080/health >/dev/null 2>&1; then \
+			echo "$(GREEN)✅ NetStack API 健康檢查通過 ($$((60-timeout)) 秒)$(RESET)"; \
+			break; \
+		fi; \
+		echo "$(BLUE)  等待中... (剩餘 $$timeout 秒)$(RESET)"; \
+		sleep 2; \
+		timeout=$$((timeout-2)); \
+	done; \
+	if [ $$timeout -le 0 ]; then \
+		echo "$(RED)❌ NetStack API 啟動超時 (60秒)$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✅ NetStack 服務已啟動 (Pure Cron 驅動模式)$(RESET)"
+
+
+
+up-legacy: ## 舊版混合模式啟動 (保留用於特殊需求)
+	@echo "$(CYAN)🚀 啟動所有 NTN Stack 服務 (舊版混合模式)...$(RESET)"
+	@echo "$(YELLOW)⚡ 第一步：啟動 NetStack (包含 MongoDB 基礎服務)...$(RESET)"
+	@$(MAKE) netstack-start
+	@echo "$(YELLOW)⏳ 等待 NetStack 服務完全就緒...$(RESET)"
+	@sleep 20
+	@echo "$(YELLOW)⚡ 第二步：啟動 SimWorld (連接到 NetStack 資料庫)...$(RESET)"
+	@$(MAKE) simworld-start
+	@echo "$(YELLOW)⏳ 等待 SimWorld 服務啟動完成...$(RESET)"
+	@sleep 10
+	@echo "$(YELLOW)🔗 建立跨服務網路連接...$(RESET)"
+	@$(MAKE) connect-cross-service-networks
+	@echo "$(YELLOW)🔗 驗證容器間網路連接...$(RESET)"
+	@$(MAKE) verify-network-connection
+	@$(MAKE) status
+	@echo "$(GREEN)✅ 所有服務啟動完成$(RESET)"
+	@echo ""
+	@echo "$(CYAN)🌐 服務訪問地址:$(RESET)"
+	@echo "  NetStack API:  $(NETSTACK_URL)"
+	@echo "  NetStack Docs: $(NETSTACK_URL)/docs"
+	@echo "  SimWorld:      $(SIMWORLD_URL)"
+
+
+
 simworld-start: ## 啟動 SimWorld 服務
 	@echo "$(BLUE)🚀 啟動 SimWorld 服務...$(RESET)"
 	@cd $(SIMWORLD_DIR) && docker compose up -d
@@ -144,11 +228,14 @@ simworld-start: ## 啟動 SimWorld 服務
 
 down: all-stop ## 停止所有服務
 
-all-stop: ## 停止 NetStack, SimWorld 和監控系統
-	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務...$(RESET)"
+all-stop: ## 停止 NetStack, SimWorld 和監控系統 (自動清理 Cron)
+	@echo "$(CYAN)🛑 停止所有 NTN Stack 服務 (Pure Cron 驅動模式)...$(RESET)"
+	@echo "$(YELLOW)第一步：停止容器服務...$(RESET)"
 	@$(MAKE) simworld-stop
 	@$(MAKE) netstack-stop
-	@echo "$(GREEN)✅ 所有服務已停止$(RESET)"
+	@echo "$(YELLOW)第二步：清理 Cron 自動調度任務...$(RESET)"
+	@$(MAKE) uninstall-cron
+	@echo "$(GREEN)✅ 所有服務已停止，Cron 任務已清理$(RESET)"
 
 netstack-stop: ## 停止 NetStack 服務
 	@echo "$(BLUE)🛑 停止 NetStack 服務...$(RESET)"
@@ -499,10 +586,91 @@ test: ## 🧪 執行測試（重定向到 tests/Makefile）
 	@echo "$(YELLOW)或直接執行：$(RESET)"
 	@cd tests && $(MAKE) test-smoke
 
+# ===== Cron 自動調度管理 =====
+
+install-cron: ## 🕒 安裝 Cron 自動調度系統 (用於純 Cron 驅動模式)
+	@echo "$(CYAN)🕒 安裝 Cron 自動調度系統...$(RESET)"
+	@echo "$(YELLOW)檢查 Cron 服務狀態...$(RESET)"
+	@if ! command -v crontab >/dev/null 2>&1; then \
+		echo "$(RED)❌ Cron 未安裝，正在安裝...$(RESET)"; \
+		sudo apt-get update -qq && sudo apt-get install -y cron; \
+		sudo systemctl enable cron; \
+		sudo systemctl start cron; \
+	fi
+	@echo "$(GREEN)✅ Cron 服務已安裝並啟動$(RESET)"
+	@echo "$(YELLOW)設置 TLE 數據自動更新任務 (每6小時)...$(RESET)"
+	@if [ -f "scripts/daily_tle_download_enhanced.sh" ]; then \
+		chmod +x scripts/daily_tle_download_enhanced.sh; \
+		SCRIPT_PATH="$$(pwd)/scripts/daily_tle_download_enhanced.sh"; \
+		(crontab -l 2>/dev/null | grep -v "daily_tle_download"; \
+		 echo "# TLE 數據自動下載（每 6 小時執行一次）"; \
+		 echo "0 2,8,14,20 * * * $$SCRIPT_PATH >> /tmp/tle_download.log 2>&1") | crontab -; \
+		echo "$(GREEN)✅ TLE 數據自動更新任務已設置 (02:00, 08:00, 14:00, 20:00)$(RESET)"; \
+	else \
+		echo "$(RED)❌ TLE 下載腳本不存在: scripts/daily_tle_download_enhanced.sh$(RESET)"; \
+	fi
+	@echo "$(YELLOW)設置增量數據處理任務 (TLE下載後30分鐘)...$(RESET)"
+	@if [ -f "scripts/incremental_data_processor.sh" ]; then \
+		chmod +x scripts/incremental_data_processor.sh; \
+		SCRIPT_PATH="$$(pwd)/scripts/incremental_data_processor.sh"; \
+		(crontab -l 2>/dev/null | grep -v "incremental_data_processor"; \
+		 echo "# 增量數據處理（TLE下載後30分鐘執行）"; \
+		 echo "30 2,8,14,20 * * * $$SCRIPT_PATH >> /tmp/incremental_update.log 2>&1") | crontab -; \
+		echo "$(GREEN)✅ 增量數據處理任務已設置 (02:30, 08:30, 14:30, 20:30)$(RESET)"; \
+	else \
+		echo "$(RED)❌ 增量處理腳本不存在: scripts/incremental_data_processor.sh$(RESET)"; \
+	fi
+	@echo "$(YELLOW)設置安全數據清理任務...$(RESET)"
+	@if [ -f "scripts/safe_data_cleanup.sh" ]; then \
+		chmod +x scripts/safe_data_cleanup.sh; \
+		SCRIPT_PATH="$$(pwd)/scripts/safe_data_cleanup.sh"; \
+		(crontab -l 2>/dev/null | grep -v "safe_data_cleanup\|intelligent_data_cleanup"; \
+		 echo "# 安全數據清理（每日檢查，只清理可重新生成的數據，保護原始 TLE 數據）"; \
+		 echo "15 3 * * * $$SCRIPT_PATH >> /tmp/safe_cleanup.log 2>&1") | crontab -; \
+		echo "$(GREEN)✅ 安全數據清理任務已設置 (每日 03:15，保護原始 TLE 數據)$(RESET)"; \
+	else \
+		echo "$(RED)❌ 安全清理腳本不存在: scripts/safe_data_cleanup.sh$(RESET)"; \
+	fi
+	@echo "$(CYAN)📋 Cron 任務概要:$(RESET)"
+	@echo "  $(GREEN)🕐 TLE 下載$(RESET): 每6小時 (02:00, 08:00, 14:00, 20:00)"
+	@echo "  $(GREEN)⚙️ 增量處理$(RESET): TLE下載後30分鐘 (02:30, 08:30, 14:30, 20:30)"
+	@echo "  $(GREEN)🧹 數據清理$(RESET): 每日 03:15 (安全清理，保護原始 TLE 數據)"
+	@echo ""
+	@echo "$(CYAN)📋 實際安裝的 Cron 任務:$(RESET)"
+	@crontab -l 2>/dev/null | grep -E "(tle_download|incremental|cleanup)" | while read line; do \
+		echo "  $(GREEN)✓$(RESET) $$line"; \
+	done
+	@echo "$(GREEN)🎉 Cron 自動調度系統安裝完成！$(RESET)"
+
+status-cron: ## 🕒 檢查 Cron 任務狀態
+	@echo "$(CYAN)🕒 Cron 任務狀態檢查...$(RESET)"
+	@echo "$(YELLOW)Cron 服務狀態:$(RESET)"
+	@systemctl is-active cron >/dev/null 2>&1 && echo "$(GREEN)✅ Cron 服務運行中$(RESET)" || echo "$(RED)❌ Cron 服務未運行$(RESET)"
+	@echo "$(YELLOW)已安裝的 Cron 任務:$(RESET)"
+	@crontab -l 2>/dev/null | grep -E "(tle_download|incremental|cleanup)" | while read line; do \
+		echo "  $(GREEN)✓$(RESET) $$line"; \
+	done || echo "  $(YELLOW)⚠️ 未找到 TLE 數據更新相關的 Cron 任務$(RESET)"
+	@echo "$(YELLOW)最近的執行日誌:$(RESET)"
+	@if [ -f "/tmp/tle_download.log" ]; then \
+		echo "  $(BLUE)TLE 下載日誌:$(RESET)"; \
+		tail -3 /tmp/tle_download.log 2>/dev/null | sed 's/^/    /' || echo "    $(YELLOW)無日誌記錄$(RESET)"; \
+	fi
+	@if [ -f "/tmp/incremental_update.log" ]; then \
+		echo "  $(BLUE)增量更新日誌:$(RESET)"; \
+		tail -3 /tmp/incremental_update.log 2>/dev/null | sed 's/^/    /' || echo "    $(YELLOW)無日誌記錄$(RESET)"; \
+	fi
+
+uninstall-cron: ## 🗑️ 移除 Cron 自動調度任務
+	@echo "$(CYAN)🗑️ 移除 Cron 自動調度任務...$(RESET)"
+	@crontab -l 2>/dev/null | grep -v -E "(tle_download|incremental|cleanup)" | crontab - || echo "$(YELLOW)⚠️ 無現有 Cron 任務需要移除$(RESET)"
+	@echo "$(GREEN)✅ Cron 任務已移除$(RESET)"
+
 .PHONY: all help start stop restart build clean status logs test \
         all-start all-stop all-restart all-build all-clean \
         netstack-start netstack-stop netstack-restart netstack-build netstack-clean netstack-status netstack-logs \
+        netstack-start-optimized \
         simworld-start simworld-stop simworld-restart simworld-build simworld-clean simworld-status simworld-logs \
-        dev-setup dev-start dev-logs install netstack-install simworld-install verify-network-connection fix-network-connection
+        dev-setup dev-start dev-logs install netstack-install simworld-install verify-network-connection fix-network-connection \
+        install-cron status-cron uninstall-cron
 
  
