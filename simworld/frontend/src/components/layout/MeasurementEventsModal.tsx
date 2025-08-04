@@ -26,7 +26,7 @@ interface MeasurementEventsModalProps {
 const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> =
     React.memo(({ isOpen, onClose }) => {
         const [isDarkTheme, setIsDarkTheme] = useState(true)
-        const [selectedEvent, setSelectedEvent] = useState<EventType>('A4')
+        const [selectedEvent, setSelectedEvent] = useState<EventType>('A4') // 現在只有 A4 事件可選
 
         const toggleTheme = useCallback(() => {
             setIsDarkTheme(!isDarkTheme)
@@ -84,19 +84,14 @@ const MeasurementEventsModal: React.FC<MeasurementEventsModalProps> =
             ]
         )
 
-        // 即將推出的占位符組件
+        // 即將推出的占位符組件 - 移除 D2 相關內容
         const comingSoonPlaceholder = useMemo(
             () => (
                 <div className="coming-soon-placeholder">
                     <h3>{selectedEventConfig?.name}</h3>
                     <p>此事件類型即將推出</p>
                     <div className="formula-preview">
-                        {selectedEvent === 'D2' && (
-                            <p>
-                                <strong>移動參考:</strong>{' '}
-                                基於衛星星曆的動態位置
-                            </p>
-                        )}
+                        {/* D2 事件已移除，統一由 EventD2Viewer 處理 */}
                         {selectedEvent === 'T1' && (
                             <p>
                                 <strong>時間條件:</strong> Mt &gt; Thresh1
