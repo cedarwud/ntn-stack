@@ -185,29 +185,22 @@ const Navbar: FC<NavbarProps> = ({
                             立體圖
                         </li>
 
-                        {/* 3GPP 測量事件按鈕 */}
+                        {/* 3GPP A4 測量事件按鈕 - 專注於信號切換事件 */}
                         <li
                             className={`navbar-item ${
                                 showMeasurementEventsModal ? 'active' : ''
                             }`}
                             onClick={() => setShowMeasurementEventsModal(true)}
                         >
-                            📡 換手事件
+                            📡 A4 信號切換
                         </li>
 
-                        {/* D2數據處理演示按鈕 */}
+                        {/* D2 移動參考位置事件統一入口 */}
                         <li
                             className="navbar-item"
-                            onClick={() => navigate('/d2-processing')}
+                            onClick={() => navigate('/d2-dashboard')}
                         >
-                            📊 D2數據分析
-                        </li>
-                        {/* Real D2 Events with actual satellite data */}
-                        <li
-                            className="navbar-item"
-                            onClick={() => navigate('/real-d2-events')}
-                        >
-                            🛰️ Real D2 Events
+                            📊 D2 事件監控
                         </li>
                     </ul>
                 </div>

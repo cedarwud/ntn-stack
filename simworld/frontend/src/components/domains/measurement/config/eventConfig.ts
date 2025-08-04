@@ -6,12 +6,12 @@
 import React from 'react'
 
 // 基本類型定義
-export type EventType = 'A4' | 'D2'
+export type EventType = 'A4' // 移除 D2，只保留 A4 事件用於 MeasurementEventsModal
 export type EventCategory = 'signal' | 'distance' | 'time'
 
 // 動態導入適配後的 Enhanced 事件組件以優化性能
 const AdaptedEnhancedA4Viewer = React.lazy(() => import('../adapters/EnhancedViewerAdapter').then(module => ({ default: module.AdaptedEnhancedA4Viewer })))
-const AdaptedEnhancedD2Viewer = React.lazy(() => import('../adapters/EnhancedViewerAdapter').then(module => ({ default: module.AdaptedEnhancedD2Viewer })))
+// 移除 D2 組件導入，D2 功能統一到 EventD2Viewer
 
 export interface EventConfig {
     id: EventType
@@ -39,7 +39,7 @@ export interface EventConfig {
     }
 }
 
-// 統一的事件配置庫
+// 統一的事件配置庫 - 只保留 A4 事件用於 MeasurementEventsModal
 export const EVENT_CONFIGS: Record<EventType, EventConfig> = {
     A4: {
         id: 'A4',
@@ -71,37 +71,8 @@ export const EVENT_CONFIGS: Record<EventType, EventConfig> = {
             enter: 'Mn + Ofn + Ocn - Hys > Thresh',
             leave: 'Mn + Ofn + Ocn + Hys < Thresh'
         }
-    },
-    D2: {
-        id: 'D2',
-        name: 'Event D2',
-        description: 'Distance between UE and moving reference locations',
-        shortName: 'D2',
-        status: 'available',
-        category: 'distance',
-        standard: '3GPP TS 38.331 Section 5.5.4.15a',
-        ViewerComponent: AdaptedEnhancedD2Viewer,
-        icon: '🛰️',
-        color: {
-            primary: '#FF6B35',
-            secondary: '#E55A2E',
-            background: 'rgba(255, 107, 53, 0.1)'
-        },
-        parameters: {
-            primary: ['distanceThreshFromReference1', 'distanceThreshFromReference2'],
-            secondary: ['hysteresisLocation', 'movingReferenceLocation', 'TimeToTrigger'],
-            units: {
-                'distanceThreshFromReference1': 'm',
-                'distanceThreshFromReference2': 'm',
-                'hysteresisLocation': 'm',
-                'TimeToTrigger': 'ms'
-            }
-        },
-        conditions: {
-            enter: 'Ml1 - Hys > Thresh1 且 Ml2 + Hys < Thresh2',
-            leave: 'Ml1 + Hys < Thresh1 或 Ml2 - Hys > Thresh2'
-        }
     }
+    // 移除 D2 配置 - D2 事件統一由 EventD2Viewer 通過 📊 D2 事件監控 按鈕訪問
 }
 
 // 獲取所有可用事件
