@@ -1,7 +1,8 @@
 # 📚 LEO 衛星切換系統文檔中心
 
-**版本**: 2.0.0  
+**版本**: 3.0.0  
 **建立日期**: 2025-08-04  
+**更新日期**: 2025-08-04  
 **適用範圍**: 學術研究導向系統文檔  
 
 ## 🎯 文檔概述
@@ -11,11 +12,11 @@
 ## 📖 核心文檔指南
 
 ### 🛰️ 數據處理相關
-- **[衛星數據預處理流程](./satellite_data_preprocessing.md)** 📊 **重要！** ✨ **v2.0 混合模式**
-  - **適用情況**: 需要了解混合模式數據處理的完整流程
-  - **內容涵蓋**: 建構時預計算 + 運行時智能檢查、完整 SGP4 算法、智能篩選
-  - **關鍵信息**: 90% 時間秒級啟動，10% 時間智能重算的革命性改進
-  - **新特性**: 自動 TLE 更新偵測、容錯設計、最佳用戶體驗
+- **[衛星數據預處理流程](./satellite_data_preprocessing.md)** 📊 **重要！** ✨ **v3.0 Pure Cron 驅動**
+  - **適用情況**: 需要了解 Pure Cron 驅動數據處理的完整流程
+  - **內容涵蓋**: 容器純載入 + Cron 自動調度、完整 SGP4 算法、智能增量處理
+  - **關鍵信息**: 100% 時間 < 30秒穩定啟動，零維護運行的最佳化架構
+  - **新特性**: Cron 全自動調度、智能變更檢測、多重容錯機制、高可用設計
 
 ### 🏗️ 系統架構相關  
 - **[系統架構現況](./system_architecture.md)** 🏗️ **重要！**
@@ -150,17 +151,20 @@ config = get_satellite_config()
 
 ## 🔧 開發和維護
 
-### 日常維護操作
+### 日常維護操作（Pure Cron 驅動）
 ```bash
-# 數據更新
-./scripts/daily_tle_download_enhanced.sh
+# 一鍵啟動（自動安裝 Cron 調度）
+make up
 
-# 服務重啟
-make netstack-restart  # 算法更新時
-make simworld-restart  # 數據更新時
+# 檢查 Cron 自動調度狀態
+make status-cron
 
-# 日誌監控
-docker-compose logs -f
+# 檢查 Cron 執行日誌
+tail -f /tmp/tle_download.log
+tail -f /tmp/incremental_update.log
+
+# 手動觸發更新（測試用）
+./scripts/incremental_data_processor.sh
 ```
 
 ### 故障排除
@@ -245,7 +249,7 @@ python -m pytest tests/unit/ --benchmark-only
 ## 📝 文檔維護
 
 **文檔更新頻率**: 系統更新時同步維護  
-**最後更新**: 2025-08-04  
+**最後更新**: 2025-08-04 (Pure Cron 驅動架構更新)  
 **維護人員**: 系統開發團隊  
 
 **文檔品質保證**:

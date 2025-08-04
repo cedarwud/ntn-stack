@@ -125,7 +125,8 @@ RUN chown -R netstack:netstack /var/log/netstack /app/models /app/results /app/d
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY docker/smart-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
-RUN chmod +x /usr/local/bin/healthcheck.sh /usr/local/bin/docker-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
+COPY docker/simple-entrypoint.sh /usr/local/bin/simple-entrypoint.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh /usr/local/bin/docker-entrypoint.sh /usr/local/bin/smart-entrypoint.sh /usr/local/bin/simple-entrypoint.sh
 
 # 換手到非 root 用戶
 USER netstack
@@ -189,7 +190,8 @@ RUN mkdir -p /var/log/netstack /app/test-reports /app/models /app/results /tmp/m
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY docker/smart-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
-RUN chmod +x /usr/local/bin/healthcheck.sh && chmod +x /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/smart-entrypoint.sh
+COPY docker/simple-entrypoint.sh /usr/local/bin/simple-entrypoint.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh && chmod +x /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/smart-entrypoint.sh && chmod +x /usr/local/bin/simple-entrypoint.sh
 
 # 設定開發環境變數
 ENV ENVIRONMENT=development
