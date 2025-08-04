@@ -32,8 +32,16 @@ from .orbit_calculation_engine import (
 # 導入統一配置系統 (Phase 1 改進)
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
-from config.satellite_config import SATELLITE_CONFIG
+# 修復 Docker 容器中的路徑配置
+config_path = os.path.join(os.path.dirname(__file__), '../../config')
+if config_path not in sys.path:
+    sys.path.insert(0, config_path)
+try:
+    from satellite_config import SATELLITE_CONFIG  
+except ImportError:
+    # 備用路徑
+    sys.path.insert(0, '/app/config')
+    from satellite_config import SATELLITE_CONFIG
 from .tle_data_manager import TLEDataManager
 
 logger = structlog.get_logger(__name__)

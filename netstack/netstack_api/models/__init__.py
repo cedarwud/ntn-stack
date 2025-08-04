@@ -9,7 +9,7 @@ from .unified_models import *
 
 # 專門模型
 from .mesh_models import *
-from .performance_models import *
+# from .performance_models import *  # 文件不存在，已註釋
 from .sionna_models import *
 from .physical_propagation_models import *
 from .ueransim_models import *
