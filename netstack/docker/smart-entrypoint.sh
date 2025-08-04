@@ -9,32 +9,13 @@ MARKER_FILE="$DATA_DIR/.data_ready"
 # 確保數據目錄存在並且權限正確
 mkdir -p "$DATA_DIR" || true
 
-# 檢查數據是否存在且完整
+# 混合模式：檢查數據完整性和新鮮度
 check_data_integrity() {
-    if [ ! -f "$MARKER_FILE" ]; then
-        echo "❌ 數據標記文件不存在"
-        return 1
-    fi
+    echo "🔍 智能數據檢查開始..."
     
+    # 檢查基本文件是否存在
     if [ ! -f "$DATA_DIR/phase0_precomputed_orbits.json" ]; then
-        echo "❌ 主要數據文件缺失"
-        return 1
-    fi
-    
-    # 檢查數據新鮮度（7天內）
-    LAST_UPDATE=$(cat "$MARKER_FILE" 2>/dev/null || echo "")
-    if [ -n "$LAST_UPDATE" ]; then
-        CURRENT_TIME=$(date +%s)
-        LAST_UPDATE_TIME=$(date -d "$LAST_UPDATE" +%s 2>/dev/null || echo 0)
-        WEEK_IN_SECONDS=604800  # 7天
-        
-        if [ $((CURRENT_TIME - LAST_UPDATE_TIME)) -gt $WEEK_IN_SECONDS ]; then
-            echo "⏰ 數據超過1週，需要更新 (上次更新: $LAST_UPDATE)"
-            return 1
-        fi
-        echo "📅 數據新鮮度檢查通過 (上次更新: $LAST_UPDATE)"
-    else
-        echo "⚠️ 無法讀取更新時間，假設數據過期"
+        echo "❌ 主要數據文件缺失，需要重新計算"
         return 1
     fi
     
@@ -45,6 +26,46 @@ check_data_integrity() {
         return 1
     fi
     
+    # 混合模式關鍵：比較 TLE 數據和預計算數據的時間戳
+    echo "📊 檢查 TLE 數據 vs 預計算數據的新鮮度..."
+    
+    # 獲取最新 TLE 數據的修改時間
+    LATEST_TLE_TIME=0
+    if [ -d "/app/tle_data" ]; then
+        # 找到最新的 TLE 文件時間戳
+        for tle_file in $(find /app/tle_data -name "*.tle" -o -name "*.json" 2>/dev/null); do
+            if [ -f "$tle_file" ]; then
+                FILE_TIME=$(stat -c%Y "$tle_file" 2>/dev/null || echo 0)
+                if [ "$FILE_TIME" -gt "$LATEST_TLE_TIME" ]; then
+                    LATEST_TLE_TIME=$FILE_TIME
+                    LATEST_TLE_FILE="$tle_file"
+                fi
+            fi
+        done
+    fi
+    
+    # 獲取預計算數據的時間戳
+    DATA_TIME=$(stat -c%Y "$DATA_DIR/phase0_precomputed_orbits.json" 2>/dev/null || echo 0)
+    
+    # 比較時間戳
+    if [ "$LATEST_TLE_TIME" -gt 0 ] && [ "$DATA_TIME" -gt 0 ]; then
+        TIME_DIFF=$((LATEST_TLE_TIME - DATA_TIME))
+        echo "📅 TLE 最新時間: $(date -d @$LATEST_TLE_TIME '+%Y-%m-%d %H:%M:%S')"
+        echo "📅 預計算時間: $(date -d @$DATA_TIME '+%Y-%m-%d %H:%M:%S')"
+        
+        if [ "$TIME_DIFF" -gt 3600 ]; then  # TLE 數據比預計算數據新超過 1 小時
+            echo "🔄 TLE 數據已更新，需要重新計算 (差異: $((TIME_DIFF/3600)) 小時)"
+            return 1
+        else
+            echo "✅ 預計算數據是最新的，可以快速啟動！"
+        fi
+    else
+        echo "⚠️ 無法比較時間戳，假設需要重新計算"
+        return 1
+    fi
+    
+    # 更新或創建標記文件
+    echo "$(date -Iseconds)" > "$MARKER_FILE"
     echo "✅ 數據完整性和新鮮度檢查通過"
     return 0
 }
