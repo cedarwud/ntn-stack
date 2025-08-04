@@ -60,6 +60,10 @@ help: ## 顯示幫助信息
 	@echo "  $(GREEN)test$(RESET)                執行完整功能測試"
 	@echo "  $(GREEN)test-quick$(RESET)          執行快速測試"
 	@echo "  $(GREEN)test-report$(RESET)         生成詳細測試報告"
+	@echo ""
+	@echo "$(YELLOW)衛星數據管理:$(RESET)"
+	@echo "  $(GREEN)clean-satellite-data$(RESET) 清理衛星預計算數據 (重啟後重新計算)"
+	@echo "  $(GREEN)update-satellite-data$(RESET) 一鍵更新衛星數據 (TLE 更新後使用)"
 
 # ===== 服務啟動 =====
 
@@ -301,6 +305,32 @@ clean-reports: ## 清理測試報告
 	@rm -rf $(REPORTS_DIR)
 	@echo "$(GREEN)✅ 測試報告清理完成$(RESET)"
 
+clean-satellite-data: ## 清理衛星預計算數據 volume (會導致下次啟動時重新計算)
+	@echo "$(YELLOW)⚠️  準備清理衛星預計算數據...$(RESET)"
+	@echo "$(YELLOW)⚠️  這會導致下次啟動時需要重新計算軌道數據 (約2-5分鐘)$(RESET)"
+	@read -p "確定要繼續嗎？ (y/N): " confirm && [ "$$confirm" = "y" ] || { echo "$(BLUE)取消操作$(RESET)"; exit 1; }
+	@docker volume rm compose_satellite_precomputed_data 2>/dev/null && echo "$(GREEN)✅ 衛星預計算數據已清理$(RESET)" || echo "$(BLUE)ℹ️  Volume 不存在或已被清理$(RESET)"
+
+update-satellite-data: ## 🔄 一鍵更新衛星數據：清理舊數據 + 重啟計算 (TLE 數據更新後使用)
+	@echo "$(CYAN)🔄 開始衛星數據更新流程...$(RESET)"
+	@echo "$(YELLOW)📋 更新步驟：$(RESET)"
+	@echo "   1. 停止 NetStack 服務"
+	@echo "   2. 清理衛星預計算數據 volume"  
+	@echo "   3. 重啟服務並觸發數據重新計算 (約2-5分鐘)"
+	@echo ""
+	@echo "$(YELLOW)⚠️  請確保已將新的 TLE 數據放入 /netstack/tle_data/ 目錄$(RESET)"
+	@read -p "確定要繼續更新嗎？ (y/N): " confirm && [ "$$confirm" = "y" ] || { echo "$(BLUE)取消操作$(RESET)"; exit 1; }
+	@echo "$(BLUE)🛑 停止 NetStack 服務...$(RESET)"
+	@$(MAKE) netstack-down
+	@echo "$(BLUE)🧹 清理舊的衛星預計算數據...$(RESET)"
+	@docker volume rm compose_satellite_precomputed_data 2>/dev/null && echo "$(GREEN)✅ 舊數據已清理$(RESET)" || echo "$(BLUE)ℹ️  無舊數據需清理$(RESET)"
+	@echo "$(BLUE)🚀 重啟 NetStack 並開始數據重新計算...$(RESET)"
+	@$(MAKE) netstack-up
+	@echo "$(YELLOW)⏱️  數據計算中，請等待約2-5分鐘...$(RESET)"
+	@echo "$(YELLOW)📊 可使用以下指令監控進度：$(RESET)"
+	@echo "   docker logs -f netstack-api"
+	@echo "$(GREEN)🎉 衛星數據更新流程已啟動！$(RESET)"
+
 clean-project: ## 🧹 完整專案清理（移除不必要的檔案和目錄）
 	@echo "$(CYAN)🧹 執行完整專案清理...$(RESET)"
 	@bash scripts/cleanup_project.sh
@@ -316,6 +346,7 @@ all-clean-i: ## 清理 NetStack 和 SimWorld 資源
 	@echo "$(YELLOW)🧹 執行全局 Docker 資源清理...$(RESET)"
 	@docker image prune -a -f
 	@docker network prune -f
+	@echo "$(BLUE)ℹ️  衛星預計算數據已保留 (使用 'make clean-satellite-data' 清理)$(RESET)"
 	@echo "$(GREEN)✅ 所有資源清理完成$(RESET)"
 
 netstack-clean-i: ## 清理 NetStack 資源
