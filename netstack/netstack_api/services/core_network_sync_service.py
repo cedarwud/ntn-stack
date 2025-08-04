@@ -37,7 +37,7 @@ from pydantic import BaseModel
 # Import related services
 from .fine_grained_sync_service import FineGrainedSyncService, SyncState, SatelliteAccessPrediction
 from .enhanced_synchronized_algorithm import EnhancedSynchronizedAlgorithm
-from .satellite_handover_service import SatelliteHandoverService
+# from .satellite_handover_service import SatelliteHandoverService  # 暫時註釋，使用其他handover服務
 from .event_bus_service import EventBusService
 
 logger = structlog.get_logger(__name__)
@@ -115,7 +115,7 @@ class CoreNetworkSyncService:
     def __init__(self, 
                  fine_grained_sync_service: Optional[FineGrainedSyncService] = None,
                  enhanced_sync_algorithm: Optional[EnhancedSynchronizedAlgorithm] = None,
-                 handover_service: Optional[SatelliteHandoverService] = None,
+                 handover_service: Optional[Any] = None,  # SatelliteHandoverService 暫時移除
                  event_bus_service: Optional[EventBusService] = None):
         
         self.logger = structlog.get_logger(__name__)

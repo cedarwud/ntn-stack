@@ -50,9 +50,8 @@ RUN pip install --no-cache-dir --default-timeout=600 -r requirements.txt
 # 6. 複製應用程式碼到工作目錄
 COPY . .
 
-# 7. Docker 建置階段：執行 120 分鐘數據預處理
-RUN echo "🚀 執行 120 分鐘數據預處理..." && \
-    python preprocess_120min_timeseries.py || echo "⚠️ 預處理未能完成，將使用運行時動態載入"
+# 7. 混合模式 v2.0：數據預處理已移至 NetStack，SimWorld 僅負責 API 服務
+# 不再在建置階段執行預處理，改用運行時從 NetStack 獲取預處理數據
 
 # 8. 創建數據目錄並設置權限
 RUN mkdir -p /app/data /app/netstack/tle_data && \
