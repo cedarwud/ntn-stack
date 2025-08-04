@@ -103,6 +103,8 @@ WORKDIR /app
 # 複製應用程式源碼
 COPY src/ ./src/
 COPY netstack_api/ ./netstack_api/
+# 複製配置目錄（修復模組導入問題）
+COPY config/ ./config/
 # 複製 UPF 擴展模組
 COPY docker/upf-extension/ ./docker/upf-extension/
 # 複製腳本 (移除 RL 訓練腳本)

@@ -3,10 +3,10 @@
 測量事件服務模組 - 統一改進主準則 API 實現
 
 實現統一的測量事件服務，支援：
-1. A4 - 信號強度測量事件
-2. D1 - 雙重距離測量事件
+1. A4 - 信號強度測量事件 
+2. A5 - PCell 與 PSCell 之間信號強度測量事件
 3. D2 - 移動參考位置距離事件
-4. T1 - 時間條件測量事件
+注意：D1 和 T1 事件已被捨棄
 
 核心特點：
 - 基於真實 SGP4 軌道計算
@@ -59,9 +59,9 @@ class EventType(Enum):
     """測量事件類型"""
 
     A4 = "A4"  # 信號強度測量事件
-    D1 = "D1"  # 雙重距離測量事件
+    A5 = "A5"  # PCell 與 PSCell 之間信號強度測量事件
     D2 = "D2"  # 移動參考位置距離事件
-    T1 = "T1"  # 時間條件測量事件
+    # D1 和 T1 事件已被捨棄
 
 
 class TriggerState(Enum):
@@ -90,6 +90,18 @@ class A4Parameters(EventParameters):
 
     def __post_init__(self):
         self.event_type = EventType.A4
+
+
+@dataclass
+class A5Parameters(EventParameters):
+    """A5 事件參數 - PCell 與 PSCell 之間信號強度測量"""
+
+    a5_threshold1: float = -70.0  # dBm - PCell 門檻值
+    a5_threshold2: float = -72.0  # dBm - PSCell 門檻值  
+    hysteresis: float = 3.0  # dB - 遲滯
+
+    def __post_init__(self):
+        self.event_type = EventType.A5
 
 
 @dataclass
@@ -131,7 +143,7 @@ class SimulationScenario:
     # 必需字段 (無默認值)
     scenario_name: str
     ue_position: Position
-    event_parameters: Union[A4Parameters, D1Parameters, D2Parameters, T1Parameters]
+    event_parameters: Union[A4Parameters, A5Parameters, D2Parameters]
 
     # 可選字段 (有默認值)
     duration_minutes: int = 60
@@ -176,6 +188,7 @@ class MeasurementEventService:
         # 參數驗證器
         self.parameter_validators = {
             EventType.A4: self._validate_a4_parameters,
+            EventType.A5: self._validate_a5_parameters,
             EventType.D2: self._validate_d2_parameters,
         }
 
@@ -185,6 +198,7 @@ class MeasurementEventService:
         # 測量處理器
         self.measurement_processors = {
             EventType.A4: self._process_a4_measurement,
+            EventType.A5: self._process_a5_measurement,
             EventType.D2: self._process_d2_measurement,
         }
 
@@ -194,7 +208,7 @@ class MeasurementEventService:
         self,
         event_type: EventType,
         ue_position: Position,
-        event_params: Union[A4Parameters, D1Parameters, D2Parameters, T1Parameters],
+        event_params: Union[A4Parameters, A5Parameters, D2Parameters],
     ) -> Optional[MeasurementResult]:
         """
         獲取實時測量數據
@@ -556,91 +570,104 @@ class MeasurementEventService:
             self.logger.error("A4 測量處理失敗", error=str(e))
             return None
 
-    async def _process_d1_measurement(
+    async def _process_a5_measurement(
         self,
         ue_position: Position,
-        params: D1Parameters,
+        params: A5Parameters,
         neighbor_cells: List[NeighborCellConfig],
     ) -> Optional[MeasurementResult]:
-        """
-        處理 D1 事件測量 - 增強版實現
-
-        實現功能：
-        1. 智能服務衛星選擇（基於信號強度、距離、可見性）
-        2. 多樣化固定參考位置支援
-        3. 精確 3D 距離計算
-        4. 增強觸發邏輯和時間窗口過濾
-        """
+        """處理 A5 事件測量 - PCell 與 PSCell 之間信號強度測量"""
         try:
             current_time = datetime.now(timezone.utc)
             measurement_values = {}
             satellite_positions = {}
 
-            # 獲取增強的固定參考位置
-            reference_position = await self._get_d1_reference_position(
-                params.reference_location_id
-            )
-
-            # 智能服務衛星選擇
-            serving_satellite_id = await self._select_d1_serving_satellite(
-                ue_position, params, neighbor_cells
-            )
-
-            if not serving_satellite_id:
-                self.logger.warning("D1 事件無法選擇服務衛星")
+            # 確保至少有兩個鄰居細胞 (PCell 和 PSCell)
+            if len(neighbor_cells) < 2:
+                self.logger.warning("A5 事件需要至少兩個鄰居細胞 (PCell 和 PSCell)")
                 return None
 
-            # 計算服務衛星位置和距離 (Ml1)
-            serving_pos = self.orbit_engine.calculate_satellite_position(
-                serving_satellite_id, current_time.timestamp()
+            # PCell (主服務細胞) - 第一個
+            pcell = neighbor_cells[0]
+            pcell_satellite = pcell.satellite_id
+
+            # PSCell (次要服務細胞) - 第二個
+            pscell = neighbor_cells[1]
+            pscell_satellite = pscell.satellite_id
+
+            # 計算 PCell 衛星位置和信號強度
+            pcell_pos = self.orbit_engine.calculate_satellite_position(
+                pcell_satellite, current_time.timestamp()
             )
 
-            if not serving_pos:
-                self.logger.warning(f"無法獲取服務衛星 {serving_satellite_id} 的位置")
+            if not pcell_pos:
+                self.logger.warning(f"無法獲取 PCell 衛星 {pcell_satellite} 的位置")
                 return None
 
-            satellite_positions[serving_satellite_id] = serving_pos
+            satellite_positions[pcell_satellite] = pcell_pos
 
-            # 計算精確的 3D 距離
-            ml1_distance = self._calculate_3d_satellite_distance(
-                serving_pos, ue_position
-            )
-            measurement_values["ml1_distance"] = ml1_distance
-            measurement_values["serving_satellite"] = serving_satellite_id
-            measurement_values["serving_satellite_lat"] = serving_pos.latitude
-            measurement_values["serving_satellite_lon"] = serving_pos.longitude
-            measurement_values["serving_satellite_alt"] = serving_pos.altitude
-
-            # 計算仰角
-            elevation_angle = self._calculate_elevation_angle(ue_position, serving_pos)
-            measurement_values["elevation_angle"] = elevation_angle
-
-            # 計算 UE 到固定參考位置距離 (Ml2)
-            ml2_distance = self._calculate_ground_distance(
-                ue_position, reference_position
-            )
-            measurement_values["ml2_distance"] = ml2_distance
-            measurement_values["reference_latitude"] = reference_position.latitude
-            measurement_values["reference_longitude"] = reference_position.longitude
-            measurement_values["reference_altitude"] = reference_position.altitude
-
-            # 增強的 D1 觸發條件檢查
-            trigger_result = self._evaluate_d1_trigger_conditions(
-                ml1_distance, ml2_distance, elevation_angle, params
+            # 計算 PSCell 衛星位置和信號強度
+            pscell_pos = self.orbit_engine.calculate_satellite_position(
+                pscell_satellite, current_time.timestamp()
             )
 
-            trigger_condition_met = trigger_result["overall_condition_met"]
+            if not pscell_pos:
+                self.logger.warning(f"無法獲取 PSCell 衛星 {pscell_satellite} 的位置")
+                return None
+
+            satellite_positions[pscell_satellite] = pscell_pos
+
+            # 計算信號強度
+            pcell_config = SatelliteConfig(
+                satellite_id=pcell_satellite,
+                name=pcell_satellite,
+                transmit_power_dbm=30.0,
+                frequency_mhz=pcell.carrier_frequency,
+            )
+
+            pcell_distance = self.orbit_engine.calculate_distance(pcell_pos, ue_position)
+            pcell_rsrp = self.orbit_engine.calculate_signal_strength(
+                pcell_distance, pcell_config, SignalModel.ATMOSPHERIC
+            )
+
+            pscell_config = SatelliteConfig(
+                satellite_id=pscell_satellite,
+                name=pscell_satellite,
+                transmit_power_dbm=30.0,
+                frequency_mhz=pscell.carrier_frequency,
+            )
+
+            pscell_distance = self.orbit_engine.calculate_distance(pscell_pos, ue_position)
+            pscell_rsrp = self.orbit_engine.calculate_signal_strength(
+                pscell_distance, pscell_config, SignalModel.ATMOSPHERIC
+            )
+
+            measurement_values["pcell_rsrp"] = pcell_rsrp
+            measurement_values["pscell_rsrp"] = pscell_rsrp
+            measurement_values["pcell_distance"] = pcell_distance
+            measurement_values["pscell_distance"] = pscell_distance
+            measurement_values["pcell_satellite"] = pcell_satellite
+            measurement_values["pscell_satellite"] = pscell_satellite
+
+            # A5 觸發條件檢查
+            # A5 條件: PSCell_RSRP - Hys > Threshold1 AND PCell_RSRP + Hys < Threshold2
+            condition1 = (pscell_rsrp - params.hysteresis) > params.a5_threshold1
+            condition2 = (pcell_rsrp + params.hysteresis) < params.a5_threshold2
+
+            trigger_condition_met = condition1 and condition2
+
             trigger_details = {
-                "ml1_distance": ml1_distance,
-                "ml2_distance": ml2_distance,
-                "elevation_angle": elevation_angle,
-                "thresh1": params.thresh1,
-                "thresh2": params.thresh2,
+                "pcell_rsrp": pcell_rsrp,
+                "pscell_rsrp": pscell_rsrp,
+                "pcell_satellite": pcell_satellite,
+                "pscell_satellite": pscell_satellite,
+                "a5_threshold1": params.a5_threshold1,
+                "a5_threshold2": params.a5_threshold2,
                 "hysteresis": params.hysteresis,
-                "min_elevation_angle": params.min_elevation_angle,
-                "serving_satellite": serving_satellite_id,
-                "reference_location_id": params.reference_location_id,
-                **trigger_result,
+                "condition1_met": condition1,  # PSCell 強度條件
+                "condition2_met": condition2,  # PCell 強度條件
+                "overall_condition_met": trigger_condition_met,
+                "rsrp_difference": pscell_rsrp - pcell_rsrp,
             }
 
             trigger_state = (
@@ -648,7 +675,7 @@ class MeasurementEventService:
             )
 
             return MeasurementResult(
-                event_type=EventType.D1,
+                event_type=EventType.A5,
                 timestamp=current_time,
                 trigger_state=trigger_state,
                 measurement_values=measurement_values,
@@ -656,25 +683,21 @@ class MeasurementEventService:
                 trigger_condition_met=trigger_condition_met,
                 trigger_details=trigger_details,
                 sib19_data={
-                    "reference_type": "static_enhanced",
-                    "reference_location": {
-                        "latitude": reference_position.latitude,
-                        "longitude": reference_position.longitude,
-                        "altitude": reference_position.altitude,
-                        "location_id": params.reference_location_id,
+                    "pcell_info": {
+                        "satellite_id": pcell_satellite,
+                        "carrier_frequency": pcell.carrier_frequency,
+                        "rsrp": pcell_rsrp,
                     },
-                    "serving_satellite": {
-                        "satellite_id": serving_satellite_id,
-                        "elevation_angle": elevation_angle,
-                        "orbital_period_minutes": getattr(
-                            serving_pos, "orbital_period", 95.0
-                        ),
+                    "pscell_info": {
+                        "satellite_id": pscell_satellite,
+                        "carrier_frequency": pscell.carrier_frequency,
+                        "rsrp": pscell_rsrp,
                     },
                 },
             )
 
         except Exception as e:
-            self.logger.error("D1 增強測量處理失敗", error=str(e))
+            self.logger.error("A5 測量處理失敗", error=str(e))
             return None
 
     async def _select_d2_reference_satellite(
@@ -1139,96 +1162,7 @@ class MeasurementEventService:
             self.logger.error("D2 測量處理失敗", error=str(e))
             return None
 
-    async def _process_t1_measurement(
-        self,
-        ue_position: Position,
-        params: T1Parameters,
-        neighbor_cells: List[NeighborCellConfig],
-    ) -> Optional[MeasurementResult]:
-        """處理 T1 事件測量"""
-        try:
-            current_time = datetime.now(timezone.utc)
-            measurement_values = {}
-            satellite_positions = {}
 
-            # 獲取 SIB19 時間校正數據
-            time_correction = await self.sib19_platform.get_t1_time_frame()
-            if not time_correction:
-                # 如果無法獲取 SIB19 時間校正，創建默認值
-                from ..services.sib19_unified_platform import TimeCorrection
-
-                time_correction = TimeCorrection(
-                    gnss_time_offset=0.0,
-                    delta_gnss_time=0.0,
-                    epoch_time=current_time,
-                    t_service=3600.0,
-                    current_accuracy_ms=20.0,
-                )
-
-            # Phase 2.3 簡化 T1 實現：基於當前時間的基本時間條件檢查
-            # 模擬一個服務會話開始時間 (基於 SIB19 epoch_time)
-            epoch_time = time_correction.epoch_time
-            service_start_time = current_time - timedelta(hours=1)
-            elapsed_time = (current_time - service_start_time).total_seconds()
-
-            # 從 SIB19 獲取服務時間
-            t_service = time_correction.t_service
-            total_service_duration = t_service  # seconds
-            remaining_service_time = max(0, total_service_duration - elapsed_time)
-
-            measurement_values["elapsed_time"] = elapsed_time
-            measurement_values["service_start_time"] = service_start_time.isoformat()
-            measurement_values["total_service_duration"] = total_service_duration
-            measurement_values["remaining_service_time"] = remaining_service_time
-            measurement_values["current_time"] = current_time.isoformat()
-            measurement_values["epoch_time"] = epoch_time.isoformat()
-            measurement_values["gnss_time_offset_ms"] = time_correction.gnss_time_offset
-            measurement_values["sync_accuracy_ms"] = time_correction.current_accuracy_ms
-
-            # T1 觸發條件檢查：當經過的時間超過設定的門檻值
-            trigger_condition_met = elapsed_time > params.t1_threshold
-
-            # 如果觸發，檢查是否還有足夠的持續時間
-            duration_met = remaining_service_time >= params.duration
-
-            trigger_details = {
-                "elapsed_time": elapsed_time,
-                "t1_threshold": params.t1_threshold,
-                "required_duration": params.duration,
-                "remaining_service_time": remaining_service_time,
-                "threshold_condition_met": trigger_condition_met,
-                "duration_condition_met": duration_met,
-                "overall_condition_met": trigger_condition_met and duration_met,
-                "gnss_time_offset_ms": time_correction.gnss_time_offset,
-                "sync_accuracy_ms": time_correction.current_accuracy_ms,
-            }
-
-            # 最終觸發條件
-            final_trigger = trigger_condition_met and duration_met
-
-            trigger_state = (
-                TriggerState.TRIGGERED if final_trigger else TriggerState.IDLE
-            )
-
-            return MeasurementResult(
-                event_type=EventType.T1,
-                timestamp=current_time,
-                trigger_state=trigger_state,
-                measurement_values=measurement_values,
-                satellite_positions=satellite_positions,
-                trigger_condition_met=final_trigger,
-                trigger_details=trigger_details,
-                sib19_data={
-                    "time_frame_type": "absolute",
-                    "epoch_time": epoch_time.isoformat(),
-                    "service_duration": t_service,
-                    "sync_accuracy_requirement_ms": time_correction.sync_accuracy_ms,
-                },
-            )
-
-        except Exception as e:
-            self.logger.error("T1 測量處理失敗", error=str(e))
-            return None
 
     def _calculate_ground_distance(self, pos1: Position, pos2: Position) -> float:
         """計算兩點間地面距離 (米)"""
@@ -1326,7 +1260,7 @@ class MeasurementEventService:
     async def _validate_parameters(
         self,
         event_type: EventType,
-        params: Union[A4Parameters, D1Parameters, D2Parameters, T1Parameters],
+        params: Union[A4Parameters, A5Parameters, D2Parameters],
     ) -> Dict[str, Any]:
         """驗證事件參數"""
         validator = self.parameter_validators.get(event_type)
@@ -1362,18 +1296,34 @@ class MeasurementEventService:
 
         return {"valid": len(errors) == 0, "errors": errors}
 
-    def _validate_d1_parameters(self, params: D1Parameters) -> Dict[str, Any]:
-        """驗證 D1 參數"""
+    def _validate_a5_parameters(self, params: A5Parameters) -> Dict[str, Any]:
+        """驗證 A5 參數"""
         errors = []
 
-        if not (50 <= params.thresh1 <= 50000):
-            errors.append("Thresh1 應在 50 到 50000 米之間")
+        if not (-100 <= params.a5_threshold1 <= -40):
+            errors.append("A5 門檻值1應在 -100 到 -40 dBm 之間")
 
-        if not (10 <= params.thresh2 <= 10000):
-            errors.append("Thresh2 應在 10 到 10000 米之間")
+        if not (-100 <= params.a5_threshold2 <= -40):
+            errors.append("A5 門檻值2應在 -100 到 -40 dBm 之間")
 
-        if not (1 <= params.hysteresis <= 1000):
-            errors.append("遲滯值應在 1 到 1000 米之間")
+        if not (0 <= params.hysteresis <= 10):
+            errors.append("遲滯值應在 0 到 10 dB 之間")
+
+        if params.time_to_trigger not in [
+            0,
+            40,
+            64,
+            80,
+            100,
+            128,
+            160,
+            256,
+            320,
+            480,
+            512,
+            640,
+        ]:
+            errors.append("觸發時間必須是 3GPP 標準值之一")
 
         return {"valid": len(errors) == 0, "errors": errors}
 
@@ -1392,370 +1342,7 @@ class MeasurementEventService:
 
         return {"valid": len(errors) == 0, "errors": errors}
 
-    def _validate_t1_parameters(self, params: T1Parameters) -> Dict[str, Any]:
-        """驗證 T1 參數"""
-        errors = []
 
-        if not (1 <= params.t1_threshold <= 3600):
-            errors.append("T1 門檻值應在 1 到 3600 秒之間")
-
-        if not (1 <= params.duration <= 300):
-            errors.append("持續時間應在 1 到 300 秒之間")
-
-        return {"valid": len(errors) == 0, "errors": errors}
-
-    async def _get_d1_reference_position(self, location_id: str) -> Position:
-        """
-        獲取 D1 事件的固定參考位置
-
-        支援多種預定義參考位置和自定義位置
-        """
-        reference_locations = {
-            "default": Position(
-                x=0, y=0, z=0, latitude=25.0330, longitude=121.5654, altitude=0.0
-            ),  # 台北
-            "taipei": Position(
-                x=0, y=0, z=0, latitude=25.0478, longitude=121.5319, altitude=100.0
-            ),  # 台北101
-            "kaohsiung": Position(
-                x=0, y=0, z=0, latitude=22.6273, longitude=120.3014, altitude=50.0
-            ),  # 高雄
-            "taichung": Position(
-                x=0, y=0, z=0, latitude=24.1477, longitude=120.6736, altitude=80.0
-            ),  # 台中
-            "central_taiwan": Position(
-                x=0, y=0, z=0, latitude=24.0, longitude=121.0, altitude=500.0
-            ),  # 台灣中部
-            "offshore": Position(
-                x=0, y=0, z=0, latitude=24.0, longitude=122.0, altitude=10.0
-            ),  # 離岸位置
-        }
-
-        if location_id in reference_locations:
-            return reference_locations[location_id]
-
-        # 嘗試從 SIB19 平台獲取自定義位置
-        try:
-            custom_location = await self.sib19_platform.get_d1_reference_location(
-                location_id
-            )
-            if custom_location:
-                return Position(
-                    x=0,
-                    y=0,
-                    z=0,
-                    latitude=custom_location.latitude,
-                    longitude=custom_location.longitude,
-                    altitude=custom_location.altitude or 0.0,
-                )
-        except Exception as e:
-            self.logger.warning(f"無法獲取自定義參考位置 {location_id}: {str(e)}")
-
-        # 預設返回台北位置
-        return reference_locations["default"]
-
-    async def _select_d1_serving_satellite(
-        self,
-        ue_position: Position,
-        params: D1Parameters,
-        neighbor_cells: List[NeighborCellConfig],
-    ) -> Optional[str]:
-        """
-        智能服務衛星選擇 - D1 事件專用
-
-        選擇算法基於：
-        1. 仰角要求 (> min_elevation_angle)
-        2. 信號強度評估
-        3. 距離適合度
-        4. 軌道穩定性
-        """
-        try:
-            # 如果指定了特定衛星，優先使用
-            if params.serving_satellite_id:
-                # 驗證指定衛星的可用性
-                current_time = datetime.now(timezone.utc)
-                pos = self.orbit_engine.calculate_satellite_position(
-                    params.serving_satellite_id, current_time.timestamp()
-                )
-
-                if pos:
-                    elevation = self._calculate_elevation_angle(ue_position, pos)
-                    if elevation >= params.min_elevation_angle:
-                        return params.serving_satellite_id
-                    else:
-                        self.logger.warning(
-                            f"指定衛星 {params.serving_satellite_id} 仰角不足: {elevation:.1f}° < {params.min_elevation_angle}°"
-                        )
-
-            # 從可用衛星中選擇最佳的
-            available_satellites = []
-
-            # 添加鄰近小區衛星
-            for cell in neighbor_cells:
-                if cell.satellite_id:
-                    available_satellites.append(cell.satellite_id)
-
-            # 如果沒有鄰近小區，獲取可見衛星
-            if not available_satellites:
-                try:
-                    active_satellites = await self.tle_manager.get_active_satellites(
-                        max_age_hours=24
-                    )
-                    available_satellites = [
-                        sat.satellite_id for sat in active_satellites[:20]
-                    ]  # 增加到20顆以提高選擇機會
-                    self.logger.info(
-                        f"D1 衛星選擇：從 {len(available_satellites)} 顆活躍衛星中選擇"
-                    )
-                except Exception as e:
-                    self.logger.warning(f"無法獲取活躍衛星列表: {str(e)}")
-                    return None
-
-            # 評估每顆衛星的適合度
-            best_satellite = None
-            best_score = -1
-            current_time = datetime.now(timezone.utc)
-            candidate_satellites = []
-
-            for satellite_id in available_satellites:
-                try:
-                    pos = self.orbit_engine.calculate_satellite_position(
-                        satellite_id, current_time.timestamp()
-                    )
-
-                    if not pos:
-                        self.logger.debug(f"衛星 {satellite_id} 位置計算失敗")
-                        continue
-
-                    # 計算仰角和距離
-                    elevation = self._calculate_elevation_angle(ue_position, pos)
-                    distance = self._calculate_3d_satellite_distance(pos, ue_position)
-
-                    # 記錄候選衛星信息
-                    candidate_satellites.append(
-                        {
-                            "id": satellite_id,
-                            "elevation": elevation,
-                            "distance": distance / 1000.0,  # 轉換為 km
-                            "altitude": pos.altitude,
-                        }
-                    )
-
-                    # 仰角門檻檢查
-                    if elevation < params.min_elevation_angle:
-                        self.logger.debug(
-                            f"衛星 {satellite_id} 仰角不足: {elevation:.2f}° < {params.min_elevation_angle}°"
-                        )
-                        continue
-
-                    # 計算綜合評分
-                    score = self._calculate_d1_satellite_score(elevation, distance, pos)
-
-                    self.logger.debug(
-                        f"衛星 {satellite_id} 評分: 仰角={elevation:.2f}°, 距離={distance/1000:.1f}km, 評分={score:.3f}"
-                    )
-
-                    if score > best_score:
-                        best_score = score
-                        best_satellite = satellite_id
-
-                except Exception as e:
-                    self.logger.warning(f"評估衛星 {satellite_id} 失敗: {str(e)}")
-                    continue
-
-            # 記錄所有候選衛星的信息
-            self.logger.info(
-                f"D1 衛星候選列表 (前5名)："
-                + ", ".join(
-                    [
-                        f"{sat['id']}(仰角={sat['elevation']:.1f}°,距離={sat['distance']:.0f}km)"
-                        for sat in sorted(
-                            candidate_satellites,
-                            key=lambda x: x["elevation"],
-                            reverse=True,
-                        )[:5]
-                    ]
-                )
-            )
-
-            if best_satellite:
-                best_info = next(
-                    sat for sat in candidate_satellites if sat["id"] == best_satellite
-                )
-                self.logger.info(
-                    f"D1 服務衛星選中: {best_satellite}, 仰角: {best_info['elevation']:.2f}°, "
-                    f"距離: {best_info['distance']:.1f}km, 評分: {best_score:.3f}"
-                )
-                return best_satellite
-            else:
-                self.logger.warning(
-                    f"D1 事件無可用服務衛星 (最小仰角要求: {params.min_elevation_angle}°, "
-                    f"檢查了 {len(available_satellites)} 顆衛星)"
-                )
-                return None
-
-        except Exception as e:
-            self.logger.error(f"D1 服務衛星選擇失敗: {str(e)}")
-            return None
-
-    def _calculate_d1_satellite_score(
-        self, elevation: float, distance: float, satellite_pos
-    ) -> float:
-        """
-        計算 D1 事件服務衛星評分 - 支援 LEO 和 GPS 衛星
-
-        評分因子：
-        - 仰角適合度 (50%)：高仰角更穩定
-        - 距離適合度 (30%)：根據衛星類型調整最佳距離
-        - 軌道穩定性 (20%)：速度和高度穩定性
-        """
-        try:
-            altitude_km = satellite_pos.altitude
-
-            # 仰角評分 (0-1)，45° 為最佳，但 30° 以上都給高分
-            if elevation >= 30:
-                elevation_score = 1.0
-            elif elevation >= 15:
-                elevation_score = (
-                    0.8 + (elevation - 15) * 0.2 / 15
-                )  # 15-30° 線性增長到 0.8-1.0
-            elif elevation >= 5:
-                elevation_score = (
-                    0.4 + (elevation - 5) * 0.4 / 10
-                )  # 5-15° 線性增長到 0.4-0.8
-            else:
-                elevation_score = elevation / 5.0 * 0.4  # 0-5° 線性增長到 0-0.4
-
-            # 距離評分 (0-1) - 根據衛星高度動態調整
-            distance_km = distance / 1000.0
-
-            if altitude_km >= 15000:  # GPS 等高軌道衛星 (>15,000km)
-                # GPS 衛星的最佳距離範圍：20,000-30,000km
-                if 20000 <= distance_km <= 30000:
-                    distance_score = 1.0
-                elif distance_km < 20000:
-                    distance_score = max(0.3, distance_km / 20000.0)
-                else:
-                    distance_score = max(0.2, 1.0 - (distance_km - 30000) / 20000.0)
-            else:  # LEO 衛星 (<15,000km)
-                # LEO 衛星的最佳距離範圍：550-1500km
-                if 550 <= distance_km <= 1500:
-                    distance_score = 1.0
-                elif distance_km < 550:
-                    distance_score = max(0.2, distance_km / 550.0)
-                else:
-                    distance_score = max(0.1, 1.0 - (distance_km - 1500) / 1000.0)
-
-            # 軌道穩定性評分 (基於高度類型)
-            if altitude_km >= 19000 and altitude_km <= 22000:  # GPS 高度範圍
-                stability_score = 1.0
-            elif altitude_km >= 500 and altitude_km <= 2000:  # LEO 高度範圍
-                stability_score = 1.0
-            else:
-                # 其他高度給較低分數但不為 0
-                stability_score = 0.5
-
-            # 加權綜合評分 - 調整權重，更重視仰角
-            total_score = (
-                elevation_score * 0.50 + distance_score * 0.30 + stability_score * 0.20
-            )
-
-            self.logger.debug(
-                f"D1 衛星評分詳情",
-                altitude_km=altitude_km,
-                elevation=elevation,
-                distance_km=distance_km,
-                elevation_score=elevation_score,
-                distance_score=distance_score,
-                stability_score=stability_score,
-                total_score=total_score,
-            )
-
-            return total_score
-
-        except Exception as e:
-            self.logger.warning(f"D1 衛星評分計算失敗: {str(e)}")
-            return 0.0
-
-    def _evaluate_d1_trigger_conditions(
-        self,
-        ml1_distance: float,
-        ml2_distance: float,
-        elevation_angle: float,
-        params: D1Parameters,
-    ) -> Dict[str, Any]:
-        """
-        評估 D1 事件觸發條件
-
-        標準 3GPP 條件：
-        - 進入: Ml1 - Hys > Thresh1 AND Ml2 + Hys < Thresh2
-        - 離開: Ml1 + Hys < Thresh1 OR Ml2 - Hys > Thresh2
-
-        增強條件：
-        - 仰角檢查：必須 >= min_elevation_angle
-        - 時間窗口過濾：避免瞬間波動
-        """
-        try:
-            # 基本觸發條件
-            condition1 = (ml1_distance - params.hysteresis) > params.thresh1
-            condition2 = (ml2_distance + params.hysteresis) < params.thresh2
-            condition3 = elevation_angle >= params.min_elevation_angle
-
-            # 標準觸發邏輯
-            standard_trigger = condition1 and condition2
-
-            # 增強觸發邏輯（加入仰角檢查）
-            enhanced_trigger = standard_trigger and condition3
-
-            # 計算距離邊緣值
-            ml1_margin = ml1_distance - params.thresh1
-            ml2_margin = params.thresh2 - ml2_distance
-            elevation_margin = elevation_angle - params.min_elevation_angle
-
-            # 觸發強度評分 (0-1)
-            trigger_strength = 0.0
-            if enhanced_trigger:
-                strength_factors = [
-                    min(1.0, ml1_margin / params.hysteresis) if ml1_margin > 0 else 0.0,
-                    min(1.0, ml2_margin / params.hysteresis) if ml2_margin > 0 else 0.0,
-                    min(1.0, elevation_margin / 10.0) if elevation_margin > 0 else 0.0,
-                ]
-                trigger_strength = sum(strength_factors) / len(strength_factors)
-
-            # 離開條件檢查
-            leave_condition1 = (ml1_distance + params.hysteresis) < params.thresh1
-            leave_condition2 = (ml2_distance - params.hysteresis) > params.thresh2
-            leave_condition3 = elevation_angle < params.min_elevation_angle
-
-            should_leave = leave_condition1 or leave_condition2 or leave_condition3
-
-            return {
-                "condition1_met": condition1,  # Ml1 距離條件
-                "condition2_met": condition2,  # Ml2 距離條件
-                "condition3_met": condition3,  # 仰角條件
-                "standard_trigger": standard_trigger,
-                "enhanced_trigger": enhanced_trigger,
-                "overall_condition_met": enhanced_trigger,
-                "trigger_strength": trigger_strength,
-                "should_leave": should_leave,
-                "ml1_margin": ml1_margin,
-                "ml2_margin": ml2_margin,
-                "elevation_margin": elevation_margin,
-                "leave_condition1": leave_condition1,
-                "leave_condition2": leave_condition2,
-                "leave_condition3": leave_condition3,
-            }
-
-        except Exception as e:
-            self.logger.error(f"D1 觸發條件評估失敗: {str(e)}")
-            return {
-                "condition1_met": False,
-                "condition2_met": False,
-                "condition3_met": False,
-                "overall_condition_met": False,
-                "trigger_strength": 0.0,
-                "should_leave": True,
-            }
 
     def _calculate_3d_satellite_distance(
         self, satellite_pos, ue_position: Position
