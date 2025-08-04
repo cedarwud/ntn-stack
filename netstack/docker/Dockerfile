@@ -47,9 +47,16 @@ ENV PYTHONPATH=/app:/app/src
 ENV PRECOMPUTED_DATA_ENABLED=true
 ENV ORBIT_CACHE_PRELOAD=true
 
-# Phase 0: Volume 優化 - 數據將在運行時生成
-# 數據將通過智能啟動腳本在運行時生成到 volume 中
-RUN echo "🚀 Phase 0 數據將在運行時通過智能啟動腳本生成"
+# Phase 0: 混合模式 - 建構時預計算基礎數據
+# 在建構時執行預計算，提供基礎數據供快速啟動使用
+RUN echo "🚀 Phase 0 混合模式：建構時預計算基礎數據..." && \
+    python build_with_phase0_data.py || echo "⚠️ 建構時預計算未完成，將在運行時處理" && \
+    if [ -f /app/data/phase0_precomputed_orbits.json ]; then \
+        echo "$(date -Iseconds)" > /app/data/.build_timestamp && \
+        echo "✅ 建構時預計算完成，啟動將更快速"; \
+    else \
+        echo "ℹ️ 建構時預計算跳過，將使用運行時計算"; \
+    fi
 
 # 記錄啟動時間
 RUN echo $(date +%s) > /tmp/netstack_startup_time

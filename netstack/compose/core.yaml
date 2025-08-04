@@ -387,9 +387,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s          # 增加檢查間隔
+      timeout: 10s           # 增加單次超時
+      retries: 20            # 大幅增加重試次數 (總計 10 分鐘)
+      start_period: 300s     # 給予 5 分鐘的啟動寬限期
 
 
 
