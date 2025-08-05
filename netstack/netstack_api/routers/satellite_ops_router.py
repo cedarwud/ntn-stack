@@ -144,6 +144,11 @@ async def get_visible_satellites(
         # 按仰角排序（從高到低）
         satellites.sort(key=lambda x: x.elevation_deg, reverse=True)
         
+        # 調試：記錄排序後的前3顆衛星
+        logger.info(f"🔍 排序後前3顆衛星:")
+        for i, sat in enumerate(satellites[:3]):
+            logger.info(f"  {i+1}. {sat.name}: elevation={sat.elevation_deg}°, azimuth={sat.azimuth_deg}°, distance={sat.distance_km}km")
+        
         # 限制返回數量
         satellites = satellites[:count]
 
@@ -201,8 +206,8 @@ async def _call_simworld_satellites_api(
     """直接調用 SimWorld 的真實 TLE API"""
     import aiohttp
     
-    # 構建 SimWorld API URL - 使用容器名稱進行內部通訊
-    simworld_api_url = bridge_service.simworld_api_url.replace(":8888", ":8000")  # SimWorld 容器內部使用 8000 端口
+    # 構建 SimWorld API URL - 使用主機網絡通訊
+    simworld_api_url = "http://host.docker.internal:8888"  # 通過主機網絡訪問 SimWorld
     
     # 構建請求參數
     params = {
@@ -257,19 +262,29 @@ async def _call_simworld_satellites_api(
                         logger.warning("SimWorld API 響應中沒有 data_source 字段", api_response_keys=list(data.keys()))
                     
                     for sat_data in satellite_list:
-                        pos = sat_data.get("position", {})
+                        # 修復：SimWorld API 返回的數據格式是直接在根層級，不是嵌套在 position 中
+                        # 調試：記錄轉換前的數據
+                        logger.info(f"🔍 轉換衛星數據: {sat_data.get('name', 'unknown')}, "
+                                   f"elevation_deg={sat_data.get('elevation_deg')}, "
+                                   f"azimuth_deg={sat_data.get('azimuth_deg')}, "
+                                   f"distance_km={sat_data.get('distance_km')}")
                         
                         satellite_info = SatelliteInfo(
                             name=sat_data.get("name", f"SAT-{sat_data.get('id', 'unknown')}"),
                             norad_id=str(sat_data.get("norad_id", sat_data.get("id", "unknown"))),
-                            elevation_deg=pos.get("elevation", 0),
-                            azimuth_deg=pos.get("azimuth", 0),
-                            distance_km=pos.get("range", 0),
-                            orbit_altitude_km=pos.get("altitude", 550),
+                            elevation_deg=sat_data.get("elevation_deg", 0),
+                            azimuth_deg=sat_data.get("azimuth_deg", 0),
+                            distance_km=sat_data.get("distance_km", 0),
+                            orbit_altitude_km=sat_data.get("orbit_altitude_km", sat_data.get("altitude", 550)),
                             constellation=constellation or _extract_constellation_from_name(sat_data.get("name", "")),
-                            signal_strength=sat_data.get("signal_quality", {}).get("estimated_signal_strength"),
-                            is_visible=pos.get("elevation", 0) >= min_elevation_deg
+                            signal_strength=sat_data.get("signal_strength"),
+                            is_visible=sat_data.get("is_visible", True) and sat_data.get("elevation_deg", 0) >= min_elevation_deg
                         )
+                        
+                        logger.info(f"✅ 轉換後衛星信息: {satellite_info.name}, "
+                                   f"elevation={satellite_info.elevation_deg}, "
+                                   f"azimuth={satellite_info.azimuth_deg}, "
+                                   f"distance={satellite_info.distance_km}")
                         satellites.append(satellite_info)
                     
                     logger.info(
