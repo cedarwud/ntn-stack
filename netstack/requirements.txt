@@ -31,7 +31,6 @@ pandas>=2.0.0
 
 # Visualization Dependencies (for satellite research)
 matplotlib>=3.7.0
-seaborn>=0.12.0
 
 # Development and Testing Dependencies
 pytest>=7.4.0

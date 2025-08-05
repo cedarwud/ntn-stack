@@ -74,7 +74,7 @@ function _calculateAdvancedSatellitePosition(timeSeconds: number): {
     const centerLat = 25.0478 // 台北101 緯度
     const centerLon = 121.5319 // 台北101 經度
     const orbitRadius = 0.5 // 軌道半徑（度）- 更真實的軌道範圍
-    const orbitPeriod = 5400 // 軌道週期（90分鐘 = 5400秒）✅ 修正
+    const orbitPeriod = 5760 // Starlink軌道週期（96分鐘 = 5760秒）✅ 修正為真實值
     const orbitAltitude = 550000 // 軌道高度（公尺）- 典型 LEO 衛星
 
     // 計算角度位置（考慮地球自轉）
@@ -162,16 +162,16 @@ function generateDistanceData() {
     const distance1Points = [] // UE 到移動參考位置（衛星）的距離
     const distance2Points = [] // UE 到固定參考位置的距離
 
-    for (let time = 0; time <= 95; time += 5) {
+    for (let time = 0; time <= 7200; time += 10) { // 2小時 = 7200秒，10秒間隔，確保曲線平滑
         // 模擬實際的 Event D2 觸發場景
-        // 距離1: 衛星距離 (545-555km 範圍變化)
-        const satelliteBaseDistance = 550000 // 550km 基準距離
-        const satelliteVariation = 5000 * Math.sin((time / 95) * 2 * Math.PI) // ±5km 變化
+        // 距離1: serving satellite距離 (450-1050km 範圍變化)
+        const satelliteBaseDistance = 750000 // 750km 基準距離
+        const satelliteVariation = 300000 * Math.sin((time / 5760) * 2 * Math.PI) // 基於96分鐘Starlink軌道週期的±300km變化
         const distance1 = satelliteBaseDistance + satelliteVariation
 
-        // 距離2: 地面固定點距離 (4-8km 範圍變化)
-        const groundBaseDistance = 6000 // 6km 基準距離
-        const groundVariation = 2000 * Math.cos((time / 95) * 2 * Math.PI) // ±2km 變化
+        // 距離2: candidate satellite距離 (400-900km 範圍變化)
+        const groundBaseDistance = 650000 // 650km 基準距離
+        const groundVariation = 250000 * Math.cos((time / 5760) * 2 * Math.PI + Math.PI/3) // 第二顆候選衛星，96分鐘週期，相位差60度，±250km變化
         const distance2 = groundBaseDistance + groundVariation
 
         distance1Points.push({ x: time, y: distance1 })
@@ -234,7 +234,7 @@ const generateSatelliteTrail = (
     const trail = []
     const startTime = Math.max(0, currentTime - trailLength)
 
-    for (let t = startTime; t <= currentTime; t += 0.5) {
+    for (let t = startTime; t <= currentTime; t += 0.2) { // 提高採樣密度
         const distance = getCurrentDistanceFromPoints(t, distance1Points)
         trail.push({ x: t, y: distance })
     }
@@ -364,7 +364,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
             console.log(`🔄 [D2] 同步數據模式: ${dataMode} -> ${expectedMode}`)
             setCurrentMode(expectedMode)
         }
-    }, [dataMode, currentMode])
+    }, [dataMode]) // 移除 currentMode 依賴，避免循環同步
 
     // ✅ Phase 4.2: 偽真實時間序列數據生成函數（備用）
     const generatePseudoRealTimeSeriesData = useCallback(async () => {
@@ -900,22 +900,22 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
         console.log(`📊 [D2] 數據選擇邏輯: currentMode=${currentMode}, dataMode=${dataMode}`)
         console.log(`📊 [D2] 外部數據可用: ${externalRealTimeSeriesData ? externalRealTimeSeriesData.length : 0} 個數據點`)
         
-        // 🔥 優先級1: 外部真實數據 - 最高優先級，不受currentMode限制
-        if (externalRealTimeSeriesData && externalRealTimeSeriesData.length > 0) {
+        // 🔥 優先級1: 外部真實數據 - 僅在真實數據模式下使用
+        if (currentMode === 'real-data' && externalRealTimeSeriesData && externalRealTimeSeriesData.length > 0) {
             console.log(
                 '📊 [D2] 使用外部真實數據:',
                 externalRealTimeSeriesData.length,
-                '個數據點 (優先級1 - 不受模式限制)'
+                '個數據點 (僅限真實數據模式)'
             )
 
             const points1 = externalRealTimeSeriesData.map((data, index) => ({
-                x: index * 10, // 假設10秒間隔
-                y: data.satelliteDistance,
+                x: index * 30, // 使用30秒間隔，與D2DataManager一致
+                y: data.ml1_distance || data.satelliteDistance, // 修正：使用 ml1_distance (服務衛星距離)
             }))
 
             const points2 = externalRealTimeSeriesData.map((data, index) => ({
-                x: index * 10, // 假設10秒間隔  
-                y: data.groundDistance,
+                x: index * 30, // 使用30秒間隔，與D2DataManager一致  
+                y: data.ml2_distance || data.groundDistance, // 修正：使用 ml2_distance (候選衛星距離)
             }))
 
             return {
@@ -1137,10 +1137,10 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
             distance1Points.length === 0 ||
             distance2Points.length === 0
         ) {
-            // 模擬數據的固定範圍
+            // 模擬數據的固定範圍 - 基於真實LEO衛星軌道變化
             return {
-                satelliteRange: { min: 545000, max: 560000 },
-                groundRange: { min: 3000, max: 9000 },
+                satelliteRange: { min: 400000, max: 1100000 }, // 400-1100km，覆蓋完整的LEO變化範圍
+                groundRange: { min: 350000, max: 950000 }, // 350-950km，第二顆衛星範圍
                 isRealData: false,
             }
         }
@@ -1256,8 +1256,8 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                         data: distance1Points,
                         borderColor: currentTheme.distance1Line,
                         backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                        borderWidth: calculateYAxisRanges.isRealData ? 4 : 3,
-                        pointRadius: calculateYAxisRanges.isRealData ? 5 : 4,
+                        borderWidth: 2, // 統一使用較細的線條
+                        pointRadius: calculateYAxisRanges.isRealData ? 2 : 1, // 減少圓圈節點大小
                         pointHoverRadius: calculateYAxisRanges.isRealData
                             ? 7
                             : 6,
@@ -1272,8 +1272,8 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                         data: distance2Points,
                         borderColor: currentTheme.distance2Line,
                         backgroundColor: 'rgba(253, 126, 20, 0.1)',
-                        borderWidth: calculateYAxisRanges.isRealData ? 4 : 3,
-                        pointRadius: calculateYAxisRanges.isRealData ? 5 : 4,
+                        borderWidth: 2, // 統一使用較細的線條
+                        pointRadius: calculateYAxisRanges.isRealData ? 2 : 1, // 減少圓圈節點大小
                         pointHoverRadius: calculateYAxisRanges.isRealData
                             ? 7
                             : 6,
@@ -1541,18 +1541,18 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
                         },
                         ticks: {
                             color: currentTheme.text,
-                            stepSize: 10,
+                            stepSize: 600, // 10分鐘間隔，確保7200秒能完整顯示
                         },
                         min: 0,
                         max:
                             dataSourceInfo.type === 'realtime-series'
-                                ? (dataSourceInfo.count - 1) * 5
+                                ? (dataSourceInfo.count - 1) * 30 // 改為30秒間隔
                                 : dataSourceInfo.type === 'historical'
                                 ? Math.max(
-                                      95,
-                                      (dataSourceInfo.totalCount - 1) * 5
+                                      7200,
+                                      (dataSourceInfo.totalCount - 1) * 30
                                   ) // 歷史數據使用總時間秒數
-                                : 95, // 模擬數據固定範圍
+                                : 7200, // 模擬數據固定範圍：2小時 = 7200秒
                     },
                     'y-left': {
                         type: 'linear' as const,
@@ -1701,7 +1701,8 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
             )
             const satelliteTrail = generateSatelliteTrail(
                 currentTime,
-                distance1Points
+                distance1Points,
+                20 // 增加軌跡長度到20秒
             )
 
             // 更新游標
@@ -1812,19 +1813,24 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
             // 更新衛星軌道路徑（動態追蹤效果）
             if (chart.data.datasets[expectedTrailIndex]) {
                 chart.data.datasets[expectedTrailIndex].data = satelliteTrail
+                chart.data.datasets[expectedTrailIndex].label = `🛰️ Satellite Orbit Trail (${satelliteTrail.length} points)`
             } else {
                 chart.data.datasets.push({
-                    label: 'Satellite Orbit Trail',
+                    label: '🛰️ Satellite Orbit Trail',
                     data: satelliteTrail,
-                    borderColor: 'rgba(40, 167, 69, 0.5)',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
+                    borderColor: 'rgba(40, 167, 69, 0.8)', // 增加不透明度
+                    backgroundColor: 'transparent', 
+                    borderWidth: 3, // 增加線寬
                     fill: false,
-                    pointRadius: 2,
-                    pointHoverRadius: 0,
-                    tension: 0.3,
+                    pointRadius: 3, // 增加點大小
+                    pointHoverRadius: 6,
+                    pointStyle: 'circle',
+                    tension: 0.4, // 更平滑的曲線
                     yAxisID: 'y-left',
-                    borderDash: [3, 3],
+                    borderDash: [5, 2], // 更明顯的虛線樣式
+                    pointBackgroundColor: 'rgba(40, 167, 69, 0.9)',
+                    pointBorderColor: 'rgba(40, 167, 69, 1)',
+                    pointBorderWidth: 1,
                 } as Record<string, unknown>)
             }
 
@@ -1919,7 +1925,7 @@ const PureD2Chart: React.FC<PureD2ChartProps> = ({
         // 觸發父組件回調
         if (onDataModeToggle) {
             onDataModeToggle(
-                mode === 'real-data' ? dataMode || 'realtime' : 'simulation'
+                mode === 'real-data' ? 'realtime' : 'simulation'
             )
         }
     }

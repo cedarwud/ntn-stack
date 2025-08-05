@@ -193,7 +193,7 @@ export const D2NarrationPanel: React.FC<D2NarrationPanelProps> = ({
 
             // 真實 LEO 衛星軌道參數
             const orbitRadius = 0.5 // 軌道半徑（度）- 更真實的軌道範圍
-            const orbitPeriod = 5400 // 軌道週期（90分鐘 = 5400秒）✅ 修正
+            const orbitPeriod = 5760 // 軌道週期（96分鐘 = 5760秒）✅ 統一為Starlink標準
             const altitude = 550000 // LEO 衛星高度 (550km)
             const orbitalVelocity = 7.56 // km/s (真實 LEO 軌道速度)
 

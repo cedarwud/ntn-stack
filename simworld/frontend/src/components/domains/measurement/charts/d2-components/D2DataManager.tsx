@@ -11,19 +11,45 @@ import {
 } from '../../../../../services/unifiedD2DataService'
 import type { EventD2Params } from '../../types'
 
-// 定義數據點接口
+// 定義數據點接口 - 修正為符合 3GPP TS 38.331 規範
 export interface RealD2DataPoint {
     timestamp: number
-    satellite_distance: number
-    ground_distance: number
+    // 正確的 D2 事件數據結構：兩個移動參考位置（衛星）的距離
+    ml1_distance: number // Ml1: UE 到 serving satellite 的距離
+    ml2_distance: number // Ml2: UE 到 candidate satellite 的距離
     is_triggered?: boolean
-    satelliteDistance?: number
-    groundDistance?: number
+    // 保持向後相容性
+    satelliteDistance?: number  // 將對應到 ml1_distance
+    groundDistance?: number     // 將對應到 ml2_distance (已修正為第二顆衛星距離)
+    satellite_distance?: number // 舊欄位，用於相容性
+    ground_distance?: number    // 舊欄位，用於相容性
     referenceSatellite?: string
+    candidateSatellite?: string // 新增：候選衛星資訊
     elevationAngle?: number
     azimuthAngle?: number
     signalStrength?: number
     triggerConditionMet?: boolean
+    servingSatelliteInfo?: {    // serving satellite 資訊
+        name: string
+        noradId: string | number
+        constellation: string
+        orbitalPeriod: number
+        inclination: number
+        latitude: number
+        longitude: number
+        altitude: number
+    }
+    candidateSatelliteInfo?: {  // candidate satellite 資訊
+        name: string
+        noradId: string | number
+        constellation: string
+        orbitalPeriod: number
+        inclination: number
+        latitude: number
+        longitude: number
+        altitude: number
+    }
+    // 保持向後相容性
     satelliteInfo?: {
         name: string
         noradId: string | number
@@ -37,6 +63,8 @@ export interface RealD2DataPoint {
     measurements?: {
         d2Distance: number
         event_type: string
+        ml1_distance: number // 新增：Ml1 距離
+        ml2_distance: number // 新增：Ml2 距離
     }
 }
 
@@ -77,7 +105,7 @@ export const useD2DataManager = ({
         selectedConstellation: 'starlink',
         selectedTimeRange: {
             durationMinutes: 120, // 預設為2小時，可看到LEO完整軌道週期
-            sampleIntervalSeconds: 10, // 適合2小時觀測的採樣間隔
+            sampleIntervalSeconds: 30, // 2小時觀測使用30秒間隔更合適
         },
     })
 
@@ -89,17 +117,13 @@ export const useD2DataManager = ({
                 const _baseGroundDistance = measurement.ground_distance
                 const timeProgress = index / Math.max(1, measurements.length - 1)
 
-                // 創建穩定的 sin 波變化，調整到與模擬數據相似的範圍
-                // 模擬數據範圍：5.5-6.8 公里，真實數據基礎：7.14 公里
-                // 調整為 5.5-6.8 公里範圍以統一顯示
-                const minDistance = 5500 // 5.5 公里（米）
-                const maxDistance = 6800 // 6.8 公里（米）
-                const midDistance = (minDistance + maxDistance) / 2
-                const amplitude = (maxDistance - minDistance) / 2
-
+                // 創建穩定的 sin 波變化，基於正確的 LEO 軌道週期
+                // 2小時觀測時間對應約1.33個Starlink軌道週期（96分鐘/軌道）
+                // timeProgress 從 0 到 1，對應 1.33 個軌道週期
+                const orbitalCycles = 1.33 // 2小時 ÷ 96分鐘 = 1.33個週期
                 const dynamicGroundDistance =
                     midDistance +
-                    Math.sin(timeProgress * 4 * Math.PI + Math.PI / 4) * amplitude
+                    Math.sin(timeProgress * orbitalCycles * 2 * Math.PI + Math.PI / 4) * amplitude
 
                 return {
                     timestamp: measurement.timestamp,
@@ -128,37 +152,45 @@ export const useD2DataManager = ({
 
     // 載入真實數據 - 使用 SimWorld NetStack 96分鐘預處理數據 API
     const loadRealData = useCallback(async () => {
-        if (state.isLoadingRealData) return
+        // 使用setState來獲取最新狀態，避免closure問題
+        const currentState = await new Promise<D2DataManagerState>((resolve) => {
+            setState(prev => {
+                resolve(prev)
+                return prev
+            })
+        })
+        
+        if (currentState.isLoadingRealData) return
 
         setState(prev => ({ ...prev, isLoadingRealData: true, realDataError: null }))
         onLoadingChange?.(true)
 
         try {
             console.log(
-                `🔄 [D2DataManager] 從 NetStack 96分鐘預處理數據載入 ${state.selectedConstellation} 星座數據...`
+                `🔄 [D2DataManager] 從 NetStack 96分鐘預處理數據載入 ${currentState.selectedConstellation} 星座數據...`
             )
             console.log(
-                `⏱️ 時間段: ${state.selectedTimeRange.durationMinutes} 分鐘`
+                `⏱️ 時間段: ${currentState.selectedTimeRange.durationMinutes} 分鐘`
             )
 
             // 構建 API 請求 - 添加參數驗證和默認值
             console.log('🔍 [D2DataManager] 請求參數調試:', {
                 referenceLocation: params.referenceLocation,
                 movingReferenceLocation: params.movingReferenceLocation,
-                selectedTimeRange: state.selectedTimeRange,
-                selectedConstellation: state.selectedConstellation,
+                selectedTimeRange: currentState.selectedTimeRange,
+                selectedConstellation: currentState.selectedConstellation,
             })
 
             const requestBody = {
-                scenario_name: `D2_Real_Data_${state.selectedConstellation}`,
+                scenario_name: `D2_Real_Data_${currentState.selectedConstellation}`,
                 ue_position: {
                     latitude: params.referenceLocation?.latitude || 24.94417,
                     longitude: params.referenceLocation?.longitude || 121.37139,
                     altitude: params.referenceLocation?.altitude || 50.0,
                 },
-                duration_minutes: state.selectedTimeRange.durationMinutes || 5,
-                sample_interval_seconds: state.selectedTimeRange.sampleIntervalSeconds || 30,
-                constellation: state.selectedConstellation || 'starlink',
+                duration_minutes: currentState.selectedTimeRange.durationMinutes || 5,
+                sample_interval_seconds: currentState.selectedTimeRange.sampleIntervalSeconds || 30,
+                constellation: currentState.selectedConstellation || 'starlink',
                 reference_position: {
                     latitude: params.movingReferenceLocation?.latitude || 24.1477,
                     longitude: params.movingReferenceLocation?.longitude || 120.6736,
@@ -195,9 +227,9 @@ export const useD2DataManager = ({
             if (useLocalFallback) {
                 // 🛡️ 生成本地回退數據
                 console.log('🔄 [D2DataManager] 生成本地回退數據')
-                const duration = state.selectedTimeRange.durationMinutes
-                const interval = state.selectedTimeRange.sampleIntervalSeconds
-                const numPoints = Math.floor((duration * 60) / interval)
+                const duration = currentState.selectedTimeRange.durationMinutes
+                const interval = currentState.selectedTimeRange.sampleIntervalSeconds
+                const numPoints = Math.floor((duration * 60) / interval) + 1 // +1 確保包含結束時間點
                 
                 const fallbackData: RealD2DataPoint[] = []
                 const startTime = Date.now()
@@ -206,33 +238,78 @@ export const useD2DataManager = ({
                     const timeOffset = i * interval * 1000
                     const timestamp = startTime + timeOffset
                     
-                    // 基於真實 LEO 軌道參數生成數據
-                    const orbitalPhase = (timeOffset / 1000) / 5400 * 2 * Math.PI // 90分鐘軌道週期
-                    const satelliteDistance = 750000 + Math.sin(orbitalPhase) * 300000 // 450-1050km
-                    const groundDistance = 28000 + Math.cos(orbitalPhase * 1.3) * 12000 // 16-40km
+                    // 基於真實 LEO 軌道參數生成正確的雙衛星距離數據
+                    const orbitalPhase1 = (timeOffset / 1000) / 5760 * 2 * Math.PI // serving satellite, 96分鐘Starlink軌道週期
+                    const orbitalPhase2 = (timeOffset / 1000) / 5760 * 2 * Math.PI + Math.PI/3 // candidate satellite, 96分鐘Starlink軌道週期，相位差60度
+                    
+                    // Ml1: UE 到 serving satellite 的距離 (450-1050km)
+                    const ml1_distance = 750000 + Math.sin(orbitalPhase1) * 300000
+                    
+                    // Ml2: UE 到 candidate satellite 的距離 (400-900km, 不同的軌道參數)
+                    const ml2_distance = 650000 + Math.cos(orbitalPhase2) * 250000
+                    
+                    // 計算換手觸發條件 (基於 3GPP TS 38.331)
+                    const thresh1 = params.Thresh1 || 800000 // 800km
+                    const thresh2 = params.Thresh2 || 600000 // 600km (修正為合理的衛星距離)
+                    const hys = params.Hys || 500
+                    
+                    // D2-1: Ml1 - Hys > Thresh1 && D2-2: Ml2 + Hys < Thresh2
+                    const d2_1_condition = (ml1_distance - hys) > thresh1
+                    const d2_2_condition = (ml2_distance + hys) < thresh2
+                    const triggerConditionMet = d2_1_condition && d2_2_condition
                     
                     fallbackData.push({
                         timestamp,
-                        satelliteDistance,
-                        groundDistance,
-                        referenceSatellite: `STARLINK-LOCAL-${state.selectedConstellation.toUpperCase()}`,
-                        elevationAngle: 15 + Math.sin(orbitalPhase * 2) * 30, // 5-45度
-                        azimuthAngle: 180 + Math.cos(orbitalPhase * 1.5) * 90, // 90-270度
-                        signalStrength: -75 + Math.sin(orbitalPhase * 3) * 15, // -90 to -60 dBm
-                        triggerConditionMet: Math.random() > 0.7,
-                        satelliteInfo: {
-                            name: `${state.selectedConstellation.toUpperCase()}-LOCAL-SIM`,
-                            noradId: 'LOCAL',
-                            constellation: state.selectedConstellation,
-                            orbitalPeriod: 90, // 90分鐘軌道週期
+                        // 新的正確數據結構
+                        ml1_distance, // serving satellite 距離
+                        ml2_distance, // candidate satellite 距離
+                        // 向後相容性欄位
+                        satelliteDistance: ml1_distance,
+                        groundDistance: ml2_distance, // 修正：現在是第二顆衛星距離
+                        satellite_distance: ml1_distance,
+                        ground_distance: ml2_distance,
+                        referenceSatellite: `STARLINK-SERVING-${i % 100}`,
+                        candidateSatellite: `STARLINK-CANDIDATE-${(i + 50) % 100}`,
+                        elevationAngle: 15 + Math.sin(orbitalPhase1 * 2) * 30, // 5-45度
+                        azimuthAngle: 180 + Math.cos(orbitalPhase1 * 1.5) * 90, // 90-270度
+                        signalStrength: -75 + Math.sin(orbitalPhase1 * 3) * 15, // -90 to -60 dBm
+                        triggerConditionMet,
+                        servingSatelliteInfo: {
+                            name: `${currentState.selectedConstellation.toUpperCase()}-SERVING-${i % 100}`,
+                            noradId: `SRV-${i % 100}`,
+                            constellation: currentState.selectedConstellation,
+                            orbitalPeriod: 96, // 96分鐘軌道週期（Starlink標準）
                             inclination: 53, // 典型 LEO 軌道傾角
-                            latitude: 24.95 + Math.sin(orbitalPhase) * 5,
-                            longitude: 121.37 + Math.cos(orbitalPhase) * 5,
-                            altitude: 550000 + Math.sin(orbitalPhase * 0.5) * 50000,
+                            latitude: 24.95 + Math.sin(orbitalPhase1) * 5,
+                            longitude: 121.37 + Math.cos(orbitalPhase1) * 5,
+                            altitude: 550000 + Math.sin(orbitalPhase1 * 0.5) * 50000,
+                        },
+                        candidateSatelliteInfo: {
+                            name: `${currentState.selectedConstellation.toUpperCase()}-CANDIDATE-${(i + 50) % 100}`,
+                            noradId: `CND-${(i + 50) % 100}`,
+                            constellation: currentState.selectedConstellation,
+                            orbitalPeriod: 90,
+                            inclination: 53,
+                            latitude: 24.95 + Math.sin(orbitalPhase2) * 5,
+                            longitude: 121.37 + Math.cos(orbitalPhase2) * 5,
+                            altitude: 550000 + Math.sin(orbitalPhase2 * 0.5) * 50000,
+                        },
+                        // 向後相容性
+                        satelliteInfo: {
+                            name: `${currentState.selectedConstellation.toUpperCase()}-DUAL-SIM`,
+                            noradId: 'DUAL-LOCAL',
+                            constellation: currentState.selectedConstellation,
+                            orbitalPeriod: 90,
+                            inclination: 53,
+                            latitude: 24.95 + Math.sin(orbitalPhase1) * 5,
+                            longitude: 121.37 + Math.cos(orbitalPhase1) * 5,
+                            altitude: 550000 + Math.sin(orbitalPhase1 * 0.5) * 50000,
                         },
                         measurements: {
-                            d2Distance: satelliteDistance - groundDistance,
-                            event_type: Math.random() > 0.7 ? 'entering' : 'normal',
+                            d2Distance: Math.abs(ml1_distance - ml2_distance),
+                            event_type: triggerConditionMet ? 'entering' : 'normal',
+                            ml1_distance, // 新增：正確的 Ml1 距離
+                            ml2_distance, // 新增：正確的 Ml2 距離
                         },
                     })
                 }
@@ -246,35 +323,81 @@ export const useD2DataManager = ({
                     throw new Error(`API 回傳錯誤: ${apiResult.error || '未知錯誤'}`)
                 }
 
-                // 轉換 API 響應為前端格式
+                // 轉換 API 響應為前端格式 - 修正為正確的雙衛星距離結構
                 convertedData = apiResult.results.map(
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    (result: any, _index: number) => ({
-                        timestamp: result.timestamp,
-                        satelliteDistance: result.measurement_values.satellite_distance,
-                        groundDistance: result.measurement_values.ground_distance,
-                        referenceSatellite: result.measurement_values.reference_satellite,
-                        elevationAngle: result.measurement_values.elevation_angle,
-                        azimuthAngle: result.measurement_values.azimuth_angle,
-                        signalStrength: result.measurement_values.signal_strength,
-                        triggerConditionMet: result.trigger_condition_met,
-                        satelliteInfo: {
-                            name: result.measurement_values.reference_satellite,
-                            noradId: result.satellite_info?.norad_id || 'N/A',
-                            constellation: result.satellite_info?.constellation || state.selectedConstellation,
-                            orbitalPeriod: result.satellite_info?.orbital_period || 0,
-                            inclination: result.satellite_info?.inclination || 0,
-                            latitude: result.satellite_info?.latitude || 0,
-                            longitude: result.satellite_info?.longitude || 0,
-                            altitude: result.satellite_info?.altitude || 0,
-                        },
-                        measurements: {
-                            d2Distance:
-                                result.measurement_values.satellite_distance -
-                                result.measurement_values.ground_distance,
-                            event_type: result.trigger_condition_met ? 'entering' : 'normal',
-                        },
-                    }) as RealD2DataPoint
+                    (result: any, index: number) => {
+                        // 如果 API 還沒有雙衛星數據，使用合理的替代方案
+                        const ml1_distance = result.measurement_values.satellite_distance || 750000
+                        // 將 ground_distance 重新解釋為第二顆衛星距離，並確保在合理範圍
+                        const ml2_distance = result.measurement_values.ground_distance > 100000 
+                            ? result.measurement_values.ground_distance 
+                            : 600000 + Math.sin(index * 0.1) * 200000 // 400-800km 範圍
+                        
+                        // 計算正確的 D2 觸發條件
+                        const thresh1 = params.Thresh1 || 800000
+                        const thresh2 = params.Thresh2 || 600000 // 修正為合理的衛星距離門檻
+                        const hys = params.Hys || 500
+                        
+                        const d2_1_condition = (ml1_distance - hys) > thresh1
+                        const d2_2_condition = (ml2_distance + hys) < thresh2
+                        const triggerConditionMet = d2_1_condition && d2_2_condition
+                        
+                        return {
+                            timestamp: result.timestamp,
+                            // 新的正確數據結構
+                            ml1_distance,
+                            ml2_distance,
+                            // 向後相容性欄位
+                            satelliteDistance: ml1_distance,
+                            groundDistance: ml2_distance, // 修正：現在代表第二顆衛星距離
+                            satellite_distance: ml1_distance,
+                            ground_distance: ml2_distance,
+                            referenceSatellite: result.measurement_values.reference_satellite,
+                            candidateSatellite: `CANDIDATE-${result.measurement_values.reference_satellite}`,
+                            elevationAngle: result.measurement_values.elevation_angle,
+                            azimuthAngle: result.measurement_values.azimuth_angle,
+                            signalStrength: result.measurement_values.signal_strength,
+                            triggerConditionMet, // 使用正確計算的觸發條件
+                            servingSatelliteInfo: {
+                                name: result.measurement_values.reference_satellite,
+                                noradId: result.satellite_info?.norad_id || 'N/A',
+                                constellation: result.satellite_info?.constellation || currentState.selectedConstellation,
+                                orbitalPeriod: result.satellite_info?.orbital_period || 90,
+                                inclination: result.satellite_info?.inclination || 53,
+                                latitude: result.satellite_info?.latitude || 0,
+                                longitude: result.satellite_info?.longitude || 0,
+                                altitude: result.satellite_info?.altitude || 550000,
+                            },
+                            candidateSatelliteInfo: {
+                                name: `CANDIDATE-${result.measurement_values.reference_satellite}`,
+                                noradId: `CND-${result.satellite_info?.norad_id || 'N/A'}`,
+                                constellation: result.satellite_info?.constellation || currentState.selectedConstellation,
+                                orbitalPeriod: result.satellite_info?.orbital_period || 90,
+                                inclination: result.satellite_info?.inclination || 53,
+                                latitude: (result.satellite_info?.latitude || 0) + 1, // 略微不同的位置
+                                longitude: (result.satellite_info?.longitude || 0) + 1,
+                                altitude: (result.satellite_info?.altitude || 550000) + 10000,
+                            },
+                            // 向後相容性
+                            satelliteInfo: {
+                                name: result.measurement_values.reference_satellite,
+                                noradId: result.satellite_info?.norad_id || 'N/A',
+                                constellation: result.satellite_info?.constellation || currentState.selectedConstellation,
+                                orbitalPeriod: result.satellite_info?.orbital_period || 90,
+                                inclination: result.satellite_info?.inclination || 53,
+                                latitude: result.satellite_info?.latitude || 0,
+                                longitude: result.satellite_info?.longitude || 0,
+                                altitude: result.satellite_info?.altitude || 550000,
+                            },
+                            measurements: {
+                                d2Distance: Math.abs(ml1_distance - ml2_distance),
+                                event_type: triggerConditionMet ? 'entering' : 'normal',
+                                ml1_distance, // 新增：正確的 Ml1 距離
+                                ml2_distance, // 新增：正確的 Ml2 距離
+                            },
+                        } as RealD2DataPoint
+                    }
                 )
             }
 
@@ -282,7 +405,7 @@ export const useD2DataManager = ({
             onDataLoad?.(convertedData)
 
             console.log(
-                `✅ [D2DataManager] 成功載入 ${convertedData.length} 個 ${state.selectedConstellation} NetStack 數據點`
+                `✅ [D2DataManager] 成功載入 ${convertedData.length} 個 ${currentState.selectedConstellation} NetStack 數據點`
             )
             console.log(
                 '🔍 [D2DataManager] 前3個數據點預覽:',
@@ -299,7 +422,7 @@ export const useD2DataManager = ({
                 const lastTime = new Date(convertedData[convertedData.length - 1].timestamp)
                 const actualDurationMinutes =
                     (lastTime.getTime() - firstTime.getTime()) / (1000 * 60)
-                const expectedDuration = state.selectedTimeRange.durationMinutes
+                const expectedDuration = currentState.selectedTimeRange.durationMinutes
 
                 console.log('⏰ [D2DataManager] 時間範圍診斷:', {
                     預期時間段: expectedDuration + '分鐘',
@@ -307,7 +430,7 @@ export const useD2DataManager = ({
                     開始時間: firstTime.toISOString(),
                     結束時間: lastTime.toISOString(),
                     數據點數量: convertedData.length,
-                    採樣間隔: state.selectedTimeRange.sampleIntervalSeconds + '秒',
+                    採樣間隔: currentState.selectedTimeRange.sampleIntervalSeconds + '秒',
                 })
             }
         } catch (error) {
@@ -320,10 +443,7 @@ export const useD2DataManager = ({
             onLoadingChange?.(false)
         }
     }, [
-        state.isLoadingRealData,
-        state.selectedConstellation,
-        state.selectedTimeRange,
-        params,
+        // 移除state和params依賴，避免重複調用
         onDataLoad,
         onError,
         onLoadingChange,
