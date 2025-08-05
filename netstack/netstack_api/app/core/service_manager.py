@@ -14,7 +14,7 @@ from ...adapters.open5gs_adapter import Open5GSAdapter
 
 # 服務導入
 from ...services.ue_service import UEService
-from ...services.slice_service import SliceService, SliceType
+# from ...services.slice_service import SliceService, SliceType  # 已刪除
 from ...services.health_service import HealthService
 from ...services.ueransim_service import UERANSIMConfigService
 from ...services.satellite_gnb_mapping_service import SatelliteGnbMappingService
@@ -23,7 +23,7 @@ from ...services.sionna_integration_service import SionnaIntegrationService
 # from ...services.interference_control_service import InterferenceControlService
 
 # ConnectionQualityService removed - UAV functionality not needed
-from ...services.mesh_bridge_service import MeshBridgeService
+# from ...services.mesh_bridge_service import MeshBridgeService  # 已刪除
 
 # UAVMeshFailoverService removed - UAV functionality not needed
 
@@ -72,10 +72,8 @@ class ServiceManager:
             app.state.ue_service = UEService(self.mongo_adapter, self.open5gs_adapter)
             logger.info("✅ UE 服務初始化完成")
 
-            app.state.slice_service = SliceService(
-                self.mongo_adapter, self.open5gs_adapter, self.redis_adapter
-            )
-            logger.info("✅ Slice 服務初始化完成")
+            # app.state.slice_service = SliceService(...)  # 已刪除
+            # logger.info("✅ Slice 服務初始化完成")  # 已刪除
 
             app.state.health_service = HealthService(
                 self.mongo_adapter, self.redis_adapter
@@ -101,10 +99,8 @@ class ServiceManager:
             # ConnectionQualityService removed - UAV functionality not needed
             logger.info("✅ UAV 連接品質服務已移除")
 
-            app.state.mesh_service = MeshBridgeService(
-                self.mongo_adapter, self.redis_adapter, self.open5gs_adapter
-            )
-            logger.info("✅ Mesh 橋接服務初始化完成")
+            # app.state.mesh_service = MeshBridgeService(...)  # 已刪除
+            # logger.info("✅ Mesh 橋接服務初始化完成")  # 已刪除
 
             # === 第三層：複合服務 (依賴多個服務) ===
             logger.info("⚡ 初始化複合服務...")
@@ -132,15 +128,15 @@ class ServiceManager:
         """
         services = [
             "ue_service",
-            "slice_service",
+            # "slice_service",  # 已刪除
             "health_service",
             "ueransim_service",
             "satellite_service",
             "sionna_service",
             # "interference_service",  # 已移除
-            "connection_service",
-            "mesh_service",
-            "uav_failover_service",
+            # "connection_service",  # 已刪除
+            # "mesh_service",  # 已刪除  
+            # "uav_failover_service",  # 已刪除
         ]
 
         status = {}
@@ -194,10 +190,10 @@ class ServiceHealthChecker:
         service_checks = {}
         services = [
             "ue_service",
-            "slice_service",
-            "connection_service",
-            "mesh_service",
-            "uav_failover_service",
+            # "slice_service",  # 已刪除
+            # "connection_service",  # 已刪除
+            # "mesh_service",  # 已刪除  
+            # "uav_failover_service",  # 已刪除
         ]
 
         for service_name in services:

@@ -4,18 +4,6 @@
 handover_algorithms:
   # 傳統算法配置
   traditional:
-    ieee_infocom_2024:
-      class: "netstack_api.algorithm_ecosystem.adapters.InfocomAlgorithmAdapter"
-      enabled: true
-      priority: 15
-      config:
-        precision_threshold: 0.001
-        max_binary_search_iterations: 50
-        prediction_window_seconds: 30
-        max_satellites: 8  # 使用 SIB19 合規的統一配置
-      description: "IEEE INFOCOM 2024 論文算法 - 基於二分搜索的精確換手時機預測"
-      author: "Adapted from original paper implementation"
-      supported_scenarios: ["urban", "suburban", "rural", "highway"]
     
     simple_threshold:
       class: "netstack_api.algorithm_ecosystem.adapters.SimpleThresholdAlgorithmAdapter"
