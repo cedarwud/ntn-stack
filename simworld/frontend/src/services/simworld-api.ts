@@ -66,27 +66,27 @@ export function useVisibleSatellites(
                     console.log(`🛰️ SimWorld API: 載入可見衛星 (${constellation}, 仰角≥${minElevation}°)`)
                 }
 
-                // Use NetStack's real-time visible satellites endpoint
-                const endpoint = `/api/v1/satellite-ops/visible_satellites?` + 
+                // 修復：使用統一的 API 配置系統，支援 Docker 代理
+                const endpoint = `/api/v1/satellites/visible_satellites?` + 
                     `count=${maxCount}&` +
                     `min_elevation_deg=${minElevation}&` +
                     `observer_lat=${observerLat}&` +
                     `observer_lon=${observerLon}&` +
-                    `utc_timestamp=${new Date().toISOString()}&` +
                     `global_view=false&` +
                     `constellation=${constellation}`
 
-                const response = await netstackFetch(endpoint)
+                // 使用統一的 API 路徑，通過 Vite 代理到 SimWorld
+                const response = await fetch(endpoint)
                 
                 if (!response.ok) {
-                    throw new Error(`NetStack API 錯誤: ${response.status} ${response.statusText}`)
+                    throw new Error(`SimWorld API 錯誤: ${response.status} ${response.statusText}`)
                 }
 
                 const data = await response.json()
                 
                 if (!isMounted) return
 
-                // Convert NetStack format to SimWorld format
+                // Convert SimWorld format to frontend format
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const convertedSatellites: SatellitePosition[] = (data.satellites || []).map((sat: any, index: number) => ({
                     id: index + 1,
