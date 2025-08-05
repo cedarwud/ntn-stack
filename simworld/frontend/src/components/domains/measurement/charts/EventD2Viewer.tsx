@@ -44,8 +44,8 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
     }) => {
         // Event D2 參數狀態 - 基於 3GPP TS 38.331 規範
         const [params, setParams] = useState<EventD2Params>(() => ({
-            Thresh1: initialParams.Thresh1 ?? 800000, // meters (距離門檻1 - 移動參考位置，衛星距離) - 符合 API 約束
-            Thresh2: initialParams.Thresh2 ?? 30000, // meters (距離門檻2 - 固定參考位置) - 符合 API 約束
+            Thresh1: initialParams.Thresh1 ?? 800000, // meters (距離門檻1 - serving satellite 距離)
+            Thresh2: initialParams.Thresh2 ?? 600000, // meters (距離門檻2 - candidate satellite 距離) - 修正為合理的衛星距離
             Hys: initialParams.Hys ?? 500, // meters (hysteresisLocation) - 符合 API 約束: ge=100
             timeToTrigger: initialParams.timeToTrigger ?? 320, // ms
             reportAmount: initialParams.reportAmount ?? 3,
@@ -63,7 +63,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
         // UI 控制狀態
         const [showThresholdLines, setShowThresholdLines] = useState(true)
-        const [currentMode, setCurrentMode] = useState<'simulation' | 'real-data'>('simulation')
+        const [currentMode, setCurrentMode] = useState<'simulation' | 'real-data'>('real-data') // 默認使用真實數據
         const [showNarration, setShowNarration] = useState(false) // 預設關閉動畫解說面板
         const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
         const [isNarrationExpanded, setIsNarrationExpanded] = useState(false)
@@ -182,16 +182,11 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         // 星座信息輔助函數（從 DataManager 取得）
         const getConstellationInfo = dataManager.getConstellationInfo
 
-        // 根據模式自動初始化數據模式
+        // 自動載入真實數據（只在組件掛載時執行一次）
         React.useEffect(() => {
-            if (modeConfig.forceRealData && currentMode !== 'real-data') {
-                console.log(`🔄 [EventD2Viewer] 模式 ${mode} 要求真實數據，自動切換`)
-                handleModeToggle('real-data')
-            } else if (modeConfig.preferredDataMode && currentMode !== modeConfig.preferredDataMode) {
-                console.log(`🎯 [EventD2Viewer] 模式 ${mode} 偏好 ${modeConfig.preferredDataMode} 數據模式`)
-                handleModeToggle(modeConfig.preferredDataMode as 'simulation' | 'real-data')
-            }
-        }, [mode, modeConfig, currentMode, handleModeToggle])
+            console.log('🚀 [EventD2Viewer] 組件掛載，載入真實數據')
+            dataManager.loadRealData()
+        }, []) // 移除 dataManager 依賴，只在掛載時執行一次
 
         // 記錄模式變更
         useMemo(() => {
@@ -300,42 +295,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                     </div>
                                 )}
 
-                                {/* 數據模式切換 - 根據模式配置條件渲染 */}
-                                {!modeConfig.showRealDataOnly && (
-                                    <div className="control-group">
-                                        <span className="control-label">數據模式</span>
-                                        <div className="mode-toggle-group">
-                                            {!modeConfig.forceRealData && (
-                                                <button
-                                                    className={`mode-toggle-btn ${
-                                                        currentMode === 'simulation'
-                                                            ? 'active'
-                                                            : ''
-                                                    }`}
-                                                    onClick={() => handleModeToggle('simulation')}
-                                                    disabled={dataManager.isLoadingRealData}
-                                                >
-                                                    🎮 模擬數據
-                                                </button>
-                                            )}
-                                            <button
-                                                className={`mode-toggle-btn ${
-                                                    currentMode === 'real-data'
-                                                        ? 'active'
-                                                        : ''
-                                                }`}
-                                                onClick={() => handleModeToggle('real-data')}
-                                                disabled={dataManager.isLoadingRealData}
-                                            >
-                                                {dataManager.isLoadingRealData ? (
-                                                    <>🔄 載入中...</>
-                                                ) : (
-                                                    <>🛰️ NetStack 真實數據</>
-                                                )}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
+                                {/* 自動使用真實數據，無需切換 */}
                                 
                                 {/* 強制真實數據模式的提示 */}
                                 {modeConfig.forceRealData && (
@@ -502,9 +462,6 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                     {/* 圖表區域 */}
                     <div className="event-viewer__chart">
                         <div className="d2-chart-container">
-                            <div className={`data-mode-indicator data-mode-indicator--${currentMode}`}>
-                                {currentMode === 'simulation' ? '🎯 模擬模式' : '⚡ 真實數據'}
-                            </div>
                             <PureD2Chart
                                 thresh1={params.Thresh1}
                                 thresh2={params.Thresh2}
@@ -512,12 +469,9 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
                                 showThresholdLines={showThresholdLines}
                                 currentTime={currentAnimationTime}
                                 isDarkTheme={isDarkTheme}
-                                dataMode={currentMode === 'real-data' ? 'realtime' : 'simulation'}
-                                showModeToggle={true}
-                                realTimeSeriesData={(() => {
-                                    console.log('🔗 [EventD2Viewer] 傳遞給PureD2Chart的realD2Data:', dataManager.realD2Data?.length || 0, '個數據點')
-                                    return dataManager.realD2Data
-                                })()}
+                                dataMode="realtime" // 固定使用真實數據模式
+                                showModeToggle={false} // 不顯示模式切換按鈕
+                                realTimeSeriesData={dataManager.realD2Data}
                                 onDataModeToggle={(mode) => {
                                     const newMode = mode === 'simulation' ? 'simulation' : 'real-data'
                                     handleModeToggle(newMode)

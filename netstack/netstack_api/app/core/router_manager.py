@@ -168,23 +168,23 @@ class RouterManager:
             raise
 
         try:
-            from ...routers.core_sync_router import (
-                router as core_sync_router,
-            )
-            from ...routers.intelligent_fallback_router import (
-                router as intelligent_fallback_router,
-            )
+            # from ...routers.core_sync_router import (
+            #     router as core_sync_router,
+            # )  # 已刪除 - IEEE INFOCOM 2024 相關組件
+            # from ...routers.intelligent_fallback_router import (
+            #     router as intelligent_fallback_router,
+            # )  # 已刪除 - IEEE INFOCOM 2024 相關組件
 
             # RL 路由器已移除
-            from ...routers.test_router import router as test_router
+            # from ...routers.test_router import router as test_router  # 已刪除 - 開發測試組件
 
-            self.app.include_router(core_sync_router, tags=["核心同步機制"])
-            self._track_router("core_sync_router", "核心同步機制", True)
-            self.app.include_router(intelligent_fallback_router, tags=["智能回退機制"])
-            self._track_router("intelligent_fallback_router", "智能回退機制", True)
+            # self.app.include_router(core_sync_router, tags=["核心同步機制"])  # 已刪除
+            # self._track_router("core_sync_router", "核心同步機制", True)  # 已刪除
+            # self.app.include_router(intelligent_fallback_router, tags=["智能回退機制"])  # 已刪除
+            # self._track_router("intelligent_fallback_router", "智能回退機制", True)  # 已刪除
             # RL 路由器註冊已移除
-            self.app.include_router(test_router, tags=["測試"])
-            self._track_router("test_router", "測試", True)
+            # self.app.include_router(test_router, tags=["測試"])  # 已刪除
+            # self._track_router("test_router", "測試", True)  # 已刪除
 
             # Phase 1: 座標軌道端點 (Phase 0 預計算數據整合)
             try:
@@ -351,8 +351,8 @@ class RouterManager:
             "ue_router",
             "handover_router",
             # RL training router removed
-            "core_sync_router",
-            "intelligent_fallback_router",
+            # "core_sync_router",  # 已刪除 - IEEE INFOCOM 2024 相關組件
+            # "intelligent_fallback_router",  # 已刪除 - IEEE INFOCOM 2024 相關組件
         ]
 
         core_router_status = {}

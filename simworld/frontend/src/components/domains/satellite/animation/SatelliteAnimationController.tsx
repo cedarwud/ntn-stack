@@ -110,23 +110,25 @@ export const SatelliteAnimationController: React.FC<
                         `${constellation.toUpperCase()}-${
                             sat.norad_id || sat.id
                         }`,
-                    position: {
-                        latitude: sat.position?.latitude || sat.latitude || 0,
-                        longitude:
-                            sat.position?.longitude || sat.longitude || 0,
-                        altitude: sat.position?.altitude || sat.altitude || 550,
+                    // 添加必需的trajectory字段以避免undefined錯誤
+                    trajectory: {
+                        timePoints: [0], // 單個時間點
+                        positions: [[
+                            (sat.position?.longitude || sat.longitude || 0) * 100, // 簡單的經度映射
+                            (sat.position?.altitude || sat.altitude || 550) / 10,   // 高度縮放
+                            (sat.position?.latitude || sat.latitude || 0) * 100     // 緯度映射
+                        ]],
+                        velocities: [[
+                            sat.velocity?.x || 0,
+                            sat.velocity?.y || 0,
+                            sat.velocity?.z || 0
+                        ]],
+                        visibilityWindows: [{ start: 0, end: 21600 }] // 默認6小時可見
                     },
-                    velocity: {
-                        x: sat.velocity?.x || 0,
-                        y: sat.velocity?.y || 0,
-                        z: sat.velocity?.z || 0,
-                    },
-                    visibility: sat.visibility || 'visible',
-                    elevation: sat.elevation || 0,
-                    azimuth: sat.azimuth || 0,
-                    distance: sat.distance || 0,
+                    handoverEvents: [], // 空的換手事件列表
                     isVisible: sat.isVisible !== false,
-                    lastUpdate: Date.now(),
+                    currentPosition: [0, 0, 0],
+                    currentVelocity: [0, 0, 0]
                 }
 
                 satelliteMap.set(satellite.norad_id, satellite)
@@ -228,7 +230,7 @@ export const SatelliteAnimationController: React.FC<
                 }
             }
 
-            if (!trajectory.timePoints || trajectory.timePoints.length === 0) {
+            if (!trajectory || !trajectory.timePoints || trajectory.timePoints.length === 0) {
                 return {
                     position: [0, -1000, 0], // 隱藏在地下
                     velocity: [0, 0, 0],

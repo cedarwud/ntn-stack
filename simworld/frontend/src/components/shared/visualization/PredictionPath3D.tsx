@@ -737,7 +737,7 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
                     anchorX="center"
                     anchorY="middle"
                 >
-                    🔮 IEEE INFOCOM 2024 預測系統
+                    🔮 衛星軌道預測系統
                 </Text>
                 <Text
                     position={[0, -6, 0]}

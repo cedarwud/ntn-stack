@@ -78,10 +78,10 @@ export async function fetchHandoverStatus(ue_id: string = 'ue_001'): Promise<Rea
             return {
                 ue_id: ue_id,
                 current_satellite: `sat_${Math.floor(Math.random() * 18)}`,
-                target_satellite: syncStatus.ieee_infocom_2024_features.fine_grained_sync_active 
-                    ? `sat_${Math.floor(Math.random() * 18)}` 
+                target_satellite: syncStatus.service_info.is_running
+                    ? `sat_${Math.floor(Math.random() * 18)}`
                     : undefined,
-                handover_status: syncStatus.ieee_infocom_2024_features.fine_grained_sync_active ? 'predicting' : 'idle',
+                handover_status: syncStatus.service_info.is_running ? 'predicting' : 'idle',
                 prediction_confidence: 0.85 + Math.random() * 0.1,
                 signal_quality_current: -70 - Math.random() * 20,
                 signal_quality_target: -65 - Math.random() * 15,

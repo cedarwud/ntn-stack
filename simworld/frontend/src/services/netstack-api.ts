@@ -48,12 +48,7 @@ export interface CoreSyncStatus {
     emergency_threshold_ms: number
     auto_resync_enabled: boolean
   }
-  ieee_infocom_2024_features: {
-    fine_grained_sync_active: boolean
-    two_point_prediction: boolean
-    signaling_free_coordination: boolean
-    binary_search_refinement: number
-  }
+
 }
 
 export interface SatelliteAccessPredictionResponse {
@@ -120,7 +115,7 @@ export interface SatelliteAccessPredictionResponse {
   algorithm_metadata: {
     execution_time_ms: number
     algorithm_version: string
-    ieee_infocom_2024_compliance: boolean
+
   }
 }
 

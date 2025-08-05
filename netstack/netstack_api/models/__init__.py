@@ -8,7 +8,7 @@ from .responses import *
 from .unified_models import *
 
 # 專門模型
-from .mesh_models import *
+# from .mesh_models import *  # 已刪除
 # from .performance_models import *  # 文件不存在，已註釋
 from .sionna_models import *
 from .physical_propagation_models import *
