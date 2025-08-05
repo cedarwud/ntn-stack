@@ -250,10 +250,11 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
         dispatch({ type: 'SET_SYNC_STATUS', payload: { isActive: true } })
 
         try {
-            // 只獲取 NetStack 數據，避免與 useVisibleSatellites 重複調用
-            const [netstackData] = await Promise.allSettled([
-                netStackApi.getCoreSync(),
-            ])
+            // 暫時註釋掉不存在的 API 調用
+            // const [netstackData] = await Promise.allSettled([
+            //     netStackApi.getCoreSync(),
+            // ])
+            const netstackData = { status: 'rejected', reason: new Error('API endpoint not implemented') }
 
             // 處理 NetStack 結果
             if (netstackData.status === 'fulfilled') {

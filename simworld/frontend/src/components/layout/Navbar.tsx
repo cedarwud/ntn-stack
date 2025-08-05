@@ -3,8 +3,6 @@ import type { FC, RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/Navbar.scss'
 
-import MeasurementEventsModal from './MeasurementEventsModal'
-
 import { ViewerProps } from '../../types/viewer'
 import {
     SCENE_DISPLAY_NAMES,
@@ -47,10 +45,6 @@ const Navbar: FC<NavbarProps> = ({
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
     const [_isMobile, setIsMobile] = useState(false)
-
-    // 新增 Measurement Events Modal 狀態
-    const [showMeasurementEventsModal, setShowMeasurementEventsModal] =
-        useState(false)
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen)
@@ -184,33 +178,9 @@ const Navbar: FC<NavbarProps> = ({
                         >
                             立體圖
                         </li>
-
-                        {/* 3GPP A4 測量事件按鈕 - 專注於信號切換事件 */}
-                        <li
-                            className={`navbar-item ${
-                                showMeasurementEventsModal ? 'active' : ''
-                            }`}
-                            onClick={() => setShowMeasurementEventsModal(true)}
-                        >
-                            📡 A4 信號切換
-                        </li>
-
-                        {/* D2 移動參考位置事件統一入口 */}
-                        <li
-                            className="navbar-item"
-                            onClick={() => navigate('/d2-dashboard')}
-                        >
-                            📊 D2 事件監控
-                        </li>
                     </ul>
                 </div>
             </nav>
-
-            {/* 測量事件模態框 */}
-            <MeasurementEventsModal
-                isOpen={showMeasurementEventsModal}
-                onClose={() => setShowMeasurementEventsModal(false)}
-            />
         </>
     )
 }
