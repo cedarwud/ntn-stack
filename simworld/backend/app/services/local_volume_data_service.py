@@ -241,6 +241,138 @@ class LocalVolumeDataService:
             logger.error(f"解析 TLE 文件失敗: {e}")
             return []
 
+    async def get_visible_satellites_from_precomputed(
+        self,
+        observer_lat: float,
+        observer_lon: float,
+        min_elevation_deg: float,
+        constellation: Optional[str] = None,
+        count: int = 50,
+        global_view: bool = False
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        從預處理數據中獲取可見衛星
+        直接讀取 phase0_precomputed_orbits.json 並過濾
+        """
+        try:
+            # 載入預處理數據
+            main_data_file = self.netstack_data_path / "phase0_precomputed_orbits.json"
+            
+            if not main_data_file.exists():
+                logger.warning(f"預處理數據文件不存在: {main_data_file}")
+                return None
+            
+            logger.info(f"📊 載入預處理數據: {main_data_file}")
+            
+            with open(main_data_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            # 新的數據格式：data['constellations'][constellation]['orbit_data']['satellites']
+            if 'constellations' not in data:
+                logger.warning("預處理數據缺少 constellations 欄位")
+                return None
+            
+            # 決定要載入的星座
+            target_constellation = constellation.lower() if constellation else 'starlink'
+            
+            if target_constellation not in data['constellations']:
+                logger.warning(f"找不到星座數據: {target_constellation}")
+                return None
+            
+            # 獲取衛星數據
+            constellation_data = data['constellations'][target_constellation]
+            orbit_data = constellation_data.get('orbit_data', {})
+            satellites_dict = orbit_data.get('satellites', {})
+            
+            logger.info(f"載入 {target_constellation} 星座，共 {len(satellites_dict)} 顆衛星")
+            
+            visible_satellites = []
+            
+            # 遍歷所有衛星
+            for norad_id, sat_data in satellites_dict.items():
+                # 獲取衛星信息
+                sat_info = sat_data.get('satellite_info', {})
+                positions = sat_data.get('positions', [])
+                
+                if not positions:
+                    continue
+                
+                # 使用最新的位置數據
+                latest_pos = positions[-1] if positions else None
+                if not latest_pos:
+                    continue
+                
+                # 提取位置信息
+                sat_lat = latest_pos.get('lat', 0)
+                sat_lon = latest_pos.get('lon', 0) 
+                sat_alt = latest_pos.get('alt_km', 550)
+                
+                # 如果位置數據已包含仰角方位角（相對於觀測點計算過的）
+                if 'elevation_deg' in latest_pos and 'azimuth_deg' in latest_pos:
+                    elevation = latest_pos['elevation_deg']
+                    azimuth = latest_pos['azimuth_deg']
+                    distance = latest_pos.get('range_km', 1000)
+                    
+                    # 根據全球視角和仰角過濾
+                    if not global_view and elevation < min_elevation_deg:
+                        continue
+                else:
+                    # 簡單的距離和仰角估算
+                    lat_diff = abs(sat_lat - observer_lat)
+                    lon_diff = abs(sat_lon - observer_lon)
+                    angular_distance = math.sqrt(lat_diff**2 + lon_diff**2)
+                    
+                    if not global_view:
+                        # 簡化的仰角計算
+                        if angular_distance < 90:  # 在地平線以上
+                            elevation = 90 - angular_distance
+                            if elevation < min_elevation_deg:
+                                continue
+                        else:
+                            continue
+                    else:
+                        # 全球視角模式，顯示所有衛星
+                        elevation = 45.0  # 預設仰角
+                    
+                    # 計算方位角（簡化）
+                    azimuth = math.degrees(math.atan2(
+                        sat_lon - observer_lon,
+                        sat_lat - observer_lat
+                    )) % 360
+                    
+                    # 計算距離（簡化）
+                    distance = math.sqrt(
+                        (111.32 * lat_diff)**2 + 
+                        (111.32 * lon_diff * math.cos(math.radians(observer_lat)))**2 +
+                        sat_alt**2
+                    )
+                
+                visible_satellites.append({
+                    "name": sat_info.get('name', f"{target_constellation.upper()}-{norad_id}"),
+                    "norad_id": str(norad_id),
+                    "elevation_deg": elevation,
+                    "azimuth_deg": azimuth,
+                    "distance_km": distance,
+                    "orbit_altitude_km": sat_alt,
+                    "constellation": target_constellation,
+                    "is_visible": True,
+                    "latitude": sat_lat,
+                    "longitude": sat_lon,
+                    "altitude": sat_alt
+                })
+            
+            # 按仰角排序
+            visible_satellites.sort(key=lambda x: x["elevation_deg"], reverse=True)
+            
+            logger.info(f"✅ 從預處理數據獲取 {len(visible_satellites)} 顆可見衛星")
+            return visible_satellites
+            
+        except Exception as e:
+            logger.error(f"❌ 從預處理數據獲取可見衛星失敗: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+
     async def check_data_freshness(self) -> Dict[str, Any]:
         """檢查本地數據的新鮮度"""
         try:
