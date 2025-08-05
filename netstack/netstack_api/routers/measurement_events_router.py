@@ -20,7 +20,7 @@ import structlog
 
 from ..services.measurement_event_service import (
     MeasurementEventService, EventType, TriggerState,
-    A4Parameters, D1Parameters, D2Parameters, T1Parameters,
+    A4Parameters, A5Parameters, D2Parameters,
     SimulationScenario, MeasurementResult
 )
 from ..services.orbit_calculation_engine import (
@@ -32,7 +32,7 @@ from ..services.tle_data_manager import TLEDataManager
 logger = structlog.get_logger(__name__)
 
 # 創建路由器
-router = APIRouter(prefix="/api/measurement-events", tags=["measurement-events"])
+router = APIRouter(prefix="/measurement-events", tags=["measurement-events"])
 
 # 全局服務實例
 _orbit_engine: Optional[OrbitCalculationEngine] = None

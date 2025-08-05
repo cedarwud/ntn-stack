@@ -29,11 +29,18 @@ const detectEnvironment = (): 'development' | 'docker' | 'production' => {
     return 'docker'
   }
   
-  // 檢查主機名 - 如果是通過 5173 端口訪問，使用 docker 環境
+  // 檢查主機名 - 如果是通過 5173 端口訪問
   if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
     const port = window.location.port
-    if (port === '5173') {
-      // 只要是 5173 端口且有代理環境變數，都使用 docker 模式
+    
+    // 如果從外部 IP 訪問，使用 development 模式（直接連接）
+    if (port === '5173' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return 'development'
+    }
+    
+    // 如果從 localhost 訪問，使用 docker 模式（使用代理）
+    if (port === '5173' && (hostname === 'localhost' || hostname === '127.0.0.1')) {
       return 'docker'
     }
   }
@@ -55,14 +62,29 @@ let configLogged = false
 export const getApiConfig = (): ApiConfig => {
   const environment = detectEnvironment()
   
+  // 環境檢測日誌（生產環境可註釋）
+  // if (typeof window !== 'undefined') {
+  //   console.log('🔍 [API Config] 環境檢測:', {
+  //     hostname: window.location.hostname,
+  //     port: window.location.port,
+  //     detected: environment
+  //   })
+  // }
+  
   const configs = {
     development: {
       netstack: {
-        baseUrl: import.meta.env.VITE_NETSTACK_URL || 'http://localhost:8080',
+        // 從外部 IP 訪問時，使用主機的 IP 地址
+        baseUrl: typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+          ? `http://${window.location.hostname}:8080`
+          : (import.meta.env.VITE_NETSTACK_URL || 'http://localhost:8080'),
         timeout: 10000
       },
       simworld: {
-        baseUrl: import.meta.env.VITE_SIMWORLD_URL || 'http://localhost:8000',
+        // 從外部 IP 訪問時，使用主機的 IP 地址
+        baseUrl: typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+          ? `http://${window.location.hostname}:8888`
+          : (import.meta.env.VITE_SIMWORLD_URL || 'http://localhost:8000'),
         timeout: 10000
       },
       mode: 'development' as const
@@ -138,6 +160,13 @@ export const validateApiConfig = (): string[] => {
 export const getServiceUrl = (service: 'netstack' | 'simworld', endpoint: string = ''): string => {
   const config = getApiConfig()
   const baseUrl = config[service].baseUrl
+  
+  // URL 構建日誌（生產環境可註釋）
+  // console.log(`🔍 [API Config] ${service} URL:`, {
+  //   mode: config.mode,
+  //   baseUrl: baseUrl,
+  //   endpoint: endpoint
+  // })
   
   // 確保端點以 / 開頭
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
