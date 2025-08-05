@@ -86,7 +86,7 @@ class RouterManager:
 
             # 嘗試導入測量事件路由器
             try:
-                from ...routers.measurement_events_router import (
+                from ...routers.measurement_events_router_simple import (
                     router as measurement_events_router,
                 )
 
