@@ -61,7 +61,6 @@ export const useHandoverState = () => {
     ...handoverState,
     updateHandoverState,
     // 提供方便的單個狀態更新方法
-    setHandoverMode: (mode: 'demo' | 'real') => updateHandoverState({ handoverMode: mode }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setHandoverState: (state: any) => updateHandoverState({ handoverState: state }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,8 +72,6 @@ export const useHandoverState = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setAlgorithmResults: (results: any) => updateHandoverState({ algorithmResults: results }),
     setSatelliteMovementSpeed: (speed: number) => updateHandoverState({ satelliteMovementSpeed: speed }),
-    setHandoverTimingSpeed: (speed: number) => updateHandoverState({ handoverTimingSpeed: speed }),
-    setHandoverStableDuration: (duration: number) => updateHandoverState({ handoverStableDuration: duration }),
   }), [handoverState, updateHandoverState])
 }
 

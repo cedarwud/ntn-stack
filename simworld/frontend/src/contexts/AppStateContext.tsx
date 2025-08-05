@@ -32,7 +32,6 @@ interface SatelliteState {
 }
 
 interface HandoverState {
-    handoverMode: 'demo' | 'real'
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     handoverState: any
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,8 +43,6 @@ interface HandoverState {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     algorithmResults: any
     satelliteMovementSpeed: number
-    handoverTimingSpeed: number
-    handoverStableDuration: number
 }
 
 interface DataState {
@@ -199,7 +196,6 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
 
     // Handover狀態
     const [handoverState, setHandoverState] = useState<HandoverState>({
-        handoverMode: 'demo',
         handoverState: null,
         currentConnection: null,
         predictedConnection: null,
@@ -207,8 +203,6 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
         transitionProgress: 0,
         algorithmResults: null,
         satelliteMovementSpeed: 1,
-        handoverTimingSpeed: 1,
-        handoverStableDuration: 5,
     })
 
     // Data狀態

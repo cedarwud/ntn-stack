@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/index.scss'
 import App from './App.tsx'
 import DecisionControlCenterSimple from './components/unified-decision-center/DecisionControlCenterSimple'
-import EventD2Viewer from './components/domains/measurement/charts/EventD2Viewer'
+
 import axios from 'axios'
 
 // 導入性能監控器（自動啟動）
@@ -186,42 +186,6 @@ createRoot(document.getElementById('root')!).render(
             <Route
                 path="/decision-center"
                 element={<DecisionControlCenterSimple />}
-            />
-
-            {/* D2數據處理演示頁面 - 使用統一的 EventD2Viewer */}
-            <Route
-                path="/d2-processing"
-                element={
-                    <EventD2Viewer 
-                        mode="processing" 
-                        pageTitle="D2數據處理與分析" 
-                        showModeSpecificFeatures={true}
-                    />
-                }
-            />
-
-            {/* Real D2 Event Demo - 使用統一的 EventD2Viewer */}
-            <Route
-                path="/real-d2-events"
-                element={
-                    <EventD2Viewer 
-                        mode="real-events" 
-                        pageTitle="真實 D2 事件監控" 
-                        showModeSpecificFeatures={true}
-                    />
-                }
-            />
-
-            {/* D2 Dashboard 模式 - 通用 D2 監控面板 */}
-            <Route
-                path="/d2-dashboard"
-                element={
-                    <EventD2Viewer 
-                        mode="dashboard" 
-                        pageTitle="D2 移動參考位置事件監控" 
-                        showModeSpecificFeatures={true}
-                    />
-                }
             />
 
             {/* 404 重定向到預設場景 */}
