@@ -11,12 +11,12 @@
 
 import React, { useState, useCallback, useMemo } from 'react'
 import PureD2Chart from './PureD2Chart'
-import { useD2DataManager, RealD2DataPoint } from './d2-components/D2DataManager'
+import { useD2DataManager } from './d2-components/D2DataManager'
 import D2NarrationPanel from './d2-components/D2NarrationPanel'
 import D2AnimationController from './d2-components/D2AnimationController'
 import { useD2ThemeManager } from './d2-components/D2ThemeManager'
 import type { EventD2Params } from '../types'
-import './EventA4Viewer.scss' // 完全重用 A4 的樣式，確保左側控制面板風格一致
+import './EventD2Viewer.scss' // D2 專用樣式
 
 interface EventD2ViewerProps {
     isDarkTheme?: boolean
@@ -36,7 +36,7 @@ interface EventD2ViewerProps {
 export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
     ({ 
         isDarkTheme = true, 
-        onThemeToggle, 
+        _onThemeToggle, 
         initialParams = {},
         mode = 'dashboard',
         pageTitle,
@@ -64,14 +64,14 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         // UI 控制狀態
         const [showThresholdLines, setShowThresholdLines] = useState(true)
         const [currentMode, setCurrentMode] = useState<'simulation' | 'real-data'>('simulation')
-        const [showNarration, setShowNarration] = useState(true)
+        const [showNarration, setShowNarration] = useState(false) // 預設關閉動畫解說面板
         const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
         const [isNarrationExpanded, setIsNarrationExpanded] = useState(false)
         
         // 動畫控制狀態
         const [showAnimationControls, setShowAnimationControls] = useState(false)
         const [currentAnimationTime, setCurrentAnimationTime] = useState(0)
-        const [animationSpeed, setAnimationSpeed] = useState(1)
+        const [_animationSpeed, _setAnimationSpeed] = useState(1)
         
         // 連接狀態管理
         const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected')
@@ -94,7 +94,7 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         })
 
         // 使用主題管理 Hook
-        const themeManager = useD2ThemeManager(isDarkTheme, (theme) => {
+        const _themeManager = useD2ThemeManager(isDarkTheme, (theme) => {
             console.log('🎨 [EventD2Viewer] 主題變更:', theme)
         })
 
@@ -199,8 +199,8 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
         }, [mode, displayTitle])
 
         return (
-            <div className="event-a4-viewer">
-                <div className="event-viewer__content">
+            <div className="event-d2-viewer">
+                <div className="d2-viewer__content">
                     {/* 控制面板 */}
                     <div className="event-viewer__controls">
                         <div className="control-panel">
@@ -501,16 +501,29 @@ export const EventD2Viewer: React.FC<EventD2ViewerProps> = React.memo(
 
                     {/* 圖表區域 */}
                     <div className="event-viewer__chart">
-                        <PureD2Chart
-                            params={params}
-                            showThresholdLines={showThresholdLines}
-                            realD2Data={currentMode === 'real-data' ? dataManager.realD2Data : []}
-                            currentMode={currentMode}
-                            currentTime={currentAnimationTime}
-                            isDarkTheme={isDarkTheme}
-                            // 傳遞主題配色
-                            themeColors={themeManager.getDatasetColors()}
-                        />
+                        <div className="d2-chart-container">
+                            <div className={`data-mode-indicator data-mode-indicator--${currentMode}`}>
+                                {currentMode === 'simulation' ? '🎯 模擬模式' : '⚡ 真實數據'}
+                            </div>
+                            <PureD2Chart
+                                thresh1={params.Thresh1}
+                                thresh2={params.Thresh2}
+                                hysteresis={params.Hys}
+                                showThresholdLines={showThresholdLines}
+                                currentTime={currentAnimationTime}
+                                isDarkTheme={isDarkTheme}
+                                dataMode={currentMode === 'real-data' ? 'realtime' : 'simulation'}
+                                showModeToggle={true}
+                                realTimeSeriesData={(() => {
+                                    console.log('🔗 [EventD2Viewer] 傳遞給PureD2Chart的realD2Data:', dataManager.realD2Data?.length || 0, '個數據點')
+                                    return dataManager.realD2Data
+                                })()}
+                                onDataModeToggle={(mode) => {
+                                    const newMode = mode === 'simulation' ? 'simulation' : 'real-data'
+                                    handleModeToggle(newMode)
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
 

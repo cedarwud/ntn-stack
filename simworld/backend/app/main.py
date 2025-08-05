@@ -92,14 +92,7 @@ try:
 except ImportError as e:
     logger.warning(f"Unified timeseries router not available: {e}")
 
-# Include performance router
-try:
-    from app.routers.performance_router import performance_router
-
-    app.include_router(performance_router, prefix="")
-    logger.info("Performance router registered")
-except ImportError as e:
-    logger.warning(f"Performance router not available: {e}")
+# Performance router removed (INFOCOM 2024 outdated content)
 
 # Include D2 event router
 try:
@@ -161,7 +154,7 @@ async def root():
                 "Performance Monitoring",
                 "NetStack Integration",
                 "Enhanced CORS Support",
-                "IEEE INFOCOM 2024 Algorithms",
+
             ],
             "endpoints": {
                 "docs": "/docs",
