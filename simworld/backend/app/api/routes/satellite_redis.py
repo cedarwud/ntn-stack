@@ -214,10 +214,46 @@ async def get_visible_satellites(
     constellation: Optional[str] = Query(default=None, description="星座過濾 (starlink, kuiper)"),
 ):
     """
-    獲取可見衛星列表 - 僅使用真實 TLE 數據和 SGP4 軌道計算
+    獲取可見衛星列表 - 使用預處理數據 (phase0_precomputed_orbits.json)
     """
     try:
-        # 獲取 Redis 客戶端並載入真實衛星數據
+        # 優先使用預處理數據
+        from app.services.local_volume_data_service import LocalVolumeDataService
+        local_service = LocalVolumeDataService()
+        
+        # 嘗試從預處理數據獲取衛星位置
+        satellites_from_precomputed = await local_service.get_visible_satellites_from_precomputed(
+            observer_lat=observer_lat,
+            observer_lon=observer_lon,
+            min_elevation_deg=min_elevation_deg,
+            constellation=constellation,
+            count=count,
+            global_view=global_view
+        )
+        
+        if satellites_from_precomputed:
+            logger.info(f"✅ 使用預處理數據: {len(satellites_from_precomputed)} 顆可見衛星")
+            return {
+                "satellites": satellites_from_precomputed[:count],
+                "total_count": len(satellites_from_precomputed),
+                "requested_count": count,
+                "constellation": constellation,
+                "global_view": global_view,
+                "timestamp": datetime.utcnow().isoformat(),
+                "observer_location": {
+                    "lat": observer_lat,
+                    "lon": observer_lon,
+                    "alt": observer_alt / 1000.0
+                },
+                "data_source": {
+                    "type": "phase0_precomputed",
+                    "description": "預處理軌道數據 (2250 顆真實衛星)",
+                    "is_simulation": False
+                }
+            }
+        
+        # Fallback: 嘗試從 Redis 載入
+        logger.warning("⚠️ 預處理數據不可用，嘗試從 Redis 載入")
         redis = await get_redis_client(request)
         satellites = await load_satellites_from_redis(redis)
         
