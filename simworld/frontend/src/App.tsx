@@ -199,10 +199,6 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
                                                 enabled,
                                         })
                                     }
-                                    handoverMode={handoverState.handoverMode}
-                                    onHandoverModeChange={
-                                        handoverState.setHandoverMode
-                                    }
                                     satelliteSpeedMultiplier={
                                         handoverState.handoverStableDuration
                                     }
