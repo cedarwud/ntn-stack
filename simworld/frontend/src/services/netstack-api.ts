@@ -340,7 +340,7 @@ class NetStackApiClient {
    * 獲取健康檢查狀態
    */
   async getHealthStatus(): Promise<Record<string, unknown>> {
-    const response = await this.fetchWithConfig('/api/v1/core-sync/health')
+    const response = await this.fetchWithConfig('/health')
     if (!response.ok) {
       throw new Error(`Failed to get health status: ${response.statusText}`)
     }

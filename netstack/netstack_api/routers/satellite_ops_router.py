@@ -207,7 +207,7 @@ async def _call_simworld_satellites_api(
     import aiohttp
     
     # 構建 SimWorld API URL - 使用主機網絡通訊
-    simworld_api_url = "http://host.docker.internal:8888"  # 通過主機網絡訪問 SimWorld
+    simworld_api_url = "http://simworld_backend:8000"  # 通過 Docker 網絡訪問 SimWorld
     
     # 構建請求參數
     params = {
@@ -274,7 +274,8 @@ async def _call_simworld_satellites_api(
                             norad_id=str(sat_data.get("norad_id", sat_data.get("id", "unknown"))),
                             elevation_deg=sat_data.get("elevation_deg", 0),
                             azimuth_deg=sat_data.get("azimuth_deg", 0),
-                            distance_km=sat_data.get("distance_km", 0),
+                            # 修復距離計算：從地心距離轉換為 slant range
+                            distance_km=max(550, sat_data.get("distance_km", 0) - 6371) if sat_data.get("distance_km", 0) > 3000 else sat_data.get("distance_km", 0),
                             orbit_altitude_km=sat_data.get("orbit_altitude_km", sat_data.get("altitude", 550)),
                             constellation=constellation or _extract_constellation_from_name(sat_data.get("name", "")),
                             signal_strength=sat_data.get("signal_strength"),

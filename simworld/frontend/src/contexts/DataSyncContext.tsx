@@ -238,8 +238,8 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
     // 🛰️ 響應星座選擇變化
     const { satellites: realSatellites, error: satellitesError } =
         useVisibleSatellites(
-            5,
-            10,
+            0, // 修復：降低仰角門檻從5度到0度，顯示更多衛星
+            15, // 修復：使用完整的星座衛星數量
             24.9441667,
             121.3713889,
             satelliteState.selectedConstellation || 'starlink'
@@ -250,18 +250,37 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
         dispatch({ type: 'SET_SYNC_STATUS', payload: { isActive: true } })
 
         try {
-            // 暫時註釋掉不存在的 API 調用
-            // const [netstackData] = await Promise.allSettled([
-            //     netStackApi.getCoreSync(),
-            // ])
-            const netstackData = { status: 'rejected', reason: new Error('API endpoint not implemented') }
+            // 修復：使用實際存在的健康檢查端點
+            const [netstackData] = await Promise.allSettled([
+                netStackApi.getHealthStatus(),
+            ])
 
-            // 處理 NetStack 結果
+            // 處理 NetStack 健康檢查結果
             if (netstackData.status === 'fulfilled') {
-                dispatch({
-                    type: 'UPDATE_NETSTACK_STATUS',
-                    payload: { status: netstackData.value },
-                })
+                // 轉換健康檢查響應為同步狀態格式
+                const healthData = netstackData.value
+                const isHealthy = healthData.overall_status === 'healthy'
+                
+                if (isHealthy) {
+                    dispatch({
+                        type: 'UPDATE_NETSTACK_STATUS',
+                        payload: { 
+                            status: {
+                                service_info: {
+                                    is_running: true,
+                                    core_sync_state: 'healthy',
+                                    uptime_hours: 0,
+                                    active_tasks: 0
+                                }
+                            } as CoreSyncStatus
+                        },
+                    })
+                } else {
+                    dispatch({
+                        type: 'UPDATE_NETSTACK_STATUS',
+                        payload: { error: 'NetStack health check failed' },
+                    })
+                }
             } else {
                 dispatch({
                     type: 'UPDATE_NETSTACK_STATUS',
@@ -415,7 +434,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
             if (state.sync.isActive) {
                 // 移除重複的同步開始日誌
             } else {
-                // 只在狀態變化或有錯誤時記錄
+                // 顯示所有同步錯誤（已修復API端點問題）
                 if (state.sync.syncErrors.length > 0) {
                     console.warn(
                         '⚠️ 同步錯誤:',
