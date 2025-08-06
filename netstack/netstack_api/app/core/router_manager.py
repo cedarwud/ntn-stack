@@ -98,13 +98,16 @@ class RouterManager:
 
             # 嘗試導入軌道路由器
             try:
-                from ...routers.orbit_router import router as orbit_router
+                from netstack_api.routers.orbit_router import router as orbit_router
 
                 self.app.include_router(orbit_router, tags=["軌道計算"])
                 self._track_router("orbit_router", "軌道計算", True)
                 logger.info("✅ 軌道路由器註冊完成")
-            except ImportError:
-                logger.warning("軌道路由器不可用，跳過註冊")
+            except Exception as e:
+                logger.error(f"❌ 軌道路由器註冊失敗: {e}")
+                import traceback
+                logger.error(f"詳細錯誤: {traceback.format_exc()}")
+                self._track_router("orbit_router", "軌道計算", False, f"註冊失敗: {str(e)}")
 
             # 嘗試導入衛星預計算路由器 (Phase 2)
             try:

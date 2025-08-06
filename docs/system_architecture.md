@@ -1,417 +1,263 @@
-# 🏗️ 系統架構現況
+# 🏗️ 系統架構概覽
 
-**版本**: 3.0.0  
+**版本**: 4.0.0  
 **建立日期**: 2025-08-04  
-**更新日期**: 2025-08-04  
-**適用於**: LEO 衛星切換研究系統（Pure Cron 驅動架構）
+**更新日期**: 2025-08-06  
+**適用於**: LEO 衛星切換研究系統
 
 ## 📋 概述
 
-本文檔說明當前 LEO 衛星切換研究系統的整體架構、各組件職責分工，以及服務間的交互關係。特別說明 **v3.0 Pure Cron 驅動數據處理架構**的設計與實現。
+本文檔提供 LEO 衛星切換研究系統的**高層架構設計**和組件分工概覽。
 
-## 🔧 整體架構圖
+**📋 相關文檔**：
+- **技術實現細節**：參考 [技術實現指南](./technical_guide.md)
+- **標準規範**：參考 [標準與實現指南](./standards_implementation.md)
+- **API 介面**：參考 [API 接口使用指南](./api_reference.md)
+
+## 🎯 系統架構層次
 
 ```mermaid
 graph TB
+    subgraph "研究應用層"
+        A1[學術研究工具]
+        A2[算法比較分析]  
+        A3[論文數據輸出]
+    end
+    
     subgraph "前端展示層"
-        F1[SimWorld Frontend]
+        F1[SimWorld Frontend :5173]
         F2[3D 衛星視覺化]
         F3[實時數據儀表板]
     end
     
-    subgraph "NetStack (5G 核心網)"
-        N1[API Gateway :8080]
-        N2[演算法引擎]
-        N3[時間同步服務]
-        N4[切換決策引擎]
-        N5[狀態同步管理]
+    subgraph "核心服務層"
+        N1[NetStack API :8080]
+        N2[SimWorld Backend :8888]
     end
     
-    subgraph "SimWorld (仿真引擎)"
-        S1[SimWorld Backend :8888]
-        S2[SGP4 軌道計算]
-        S3[數據預處理]
-        S4[統一時間序列API]
+    subgraph "算法引擎層" 
+        E1[切換決策引擎]
+        E2[軌道預測引擎]
+        E3[ML 預測模型]
+        E4[狀態同步引擎]
     end
     
-    subgraph "數據存儲層 (Pure Cron v3.0)"
-        D1[(PostgreSQL)]
-        D2[Docker Volume /app/data]
-        D3[TLE 原始數據 /tle_data]
-        D4[🏗️ 建構時預計算數據]
-        D5[🕒 Cron 調度更新]
+    subgraph "數據服務層"
+        D1[PostgreSQL 數據庫]
+        D2[Docker Volume 存儲]
+        D3[TLE 數據管理]
     end
     
-    subgraph "Cron 調度系統"
-        C1[TLE 下載器 02:00,08:00,14:00,20:00]
-        C2[增量處理器 02:30,08:30,14:30,20:30]
-        C3[安全清理 03:15]
-    end
-    
-    F1 --> S1
+    A1 --> F1
+    A2 --> N1  
+    A3 --> N2
+    F1 --> N1
     F2 --> N1
-    F3 --> N1
-    N1 --> N2
-    N1 --> S1
-    S1 --> S2
-    S1 --> D2
-    N2 --> D1
-    S2 --> D3
-    C1 --> D3
-    C2 --> D2
-    C3 --> D3
+    F3 --> N2
+    N1 --> E1
+    N1 --> E2
+    N2 --> E3
+    N2 --> E4
+    E1 --> D1
+    E2 --> D2
+    E3 --> D2
+    E4 --> D1
 ```
 
-## 🎯 組件職責分工
+## 🔧 核心組件職責
 
-### NetStack (5G 核心網路) - Port 8080
+### NetStack (5G 核心網路) - :8080
 **主要職責**: LEO 衛星切換算法研究和 3GPP NTN 協議實現
 
-#### 核心服務
-- **API Gateway** (`/src/api/`)
-  - 統一 API 入口點
-  - 路由管理和請求分發
-  - 認證和授權控制
+**核心功能模組**:
+- **API Gateway**: 統一 API 入口和路由管理
+- **算法引擎集群**: 切換決策、軌道預測、ML 模型、狀態同步
+- **3GPP NTN 協議**: 信令系統、時間同步、頻率補償
+- **數據持久化**: PostgreSQL 實驗數據和 RL 訓練記錄
 
-- **演算法引擎** (`/src/algorithms/`)
-  - **切換決策**: 精細化切換決策引擎
-  - **軌道預測**: SGP4/SDP4 軌道預測優化
-  - **ML 模型**: LSTM、Transformer 預測模型
-  - **狀態同步**: 分散式狀態同步保證
-
-- **3GPP NTN 協議** (`/src/protocols/`)
-  - **信令系統**: NTN 特定 RRC 程序
-  - **時間同步**: 多層級時間同步協議
-  - **頻率補償**: 都卜勒頻率補償
-
-#### 容器配置
-```yaml
-netstack-api:
-  image: netstack:latest
-  ports: ["8080:8080"]
-  depends_on: [netstack-rl-postgres]
-  volumes: ["/app/data:/app/data"]
-```
-
-### SimWorld (3D 仿真引擎) - Port 8888
+### SimWorld (3D 仿真引擎) - :8888  
 **主要職責**: 衛星軌道計算、數據預處理和 3D 視覺化
 
-#### 核心服務
-- **軌道計算服務** (`/backend/app/services/`)
-  - **SGP4 計算器**: 精確軌道位置計算
-  - **本地數據服務**: Docker Volume 數據管理
-  - **智能篩選**: 地理相關性和換手適用性篩選
+**核心功能模組**:
+- **軌道計算引擎**: SGP4 精確計算和本地數據服務
+- **數據預處理系統**: 時間序列生成和格式標準化  
+- **3D 視覺化前端**: Three.js 軌道展示和實時監控
+- **統一 API 服務**: 跨系統數據交換接口
 
-- **數據預處理** (`/backend/`)
-  - **120分鐘時間序列**: 預計算軌道數據
-  - **統一 API**: 時間序列數據統一接口
-  - **格式標準化**: 數據格式一致性保證
+## 🌐 服務交互模式
 
-- **前端服務** (`/frontend/`)
-  - **3D 視覺化**: Three.js 衛星軌道展示
-  - **實時儀表板**: 切換事件監控
-  - **用戶交互**: 參數調整和場景控制
-
-#### 容器配置
-```yaml
-simworld_backend:
-  image: simworld-backend:latest
-  ports: ["8888:8888"]  
-  volumes: ["/app/data:/app/data", "/app/tle_data:/app/tle_data"]
-
-simworld_frontend:
-  image: simworld-frontend:latest
-  ports: ["5173:5173"]
-  depends_on: [simworld_backend]
+### 研究工作流程
+```
+學術研究需求 → 算法配置 → 實驗執行 → 數據分析 → 結果輸出
+     ↓              ↓           ↓          ↓          ↓
+  NetStack API → 算法引擎 → SimWorld → 可視化 → 論文數據
 ```
 
-## 🗄️ 數據存儲架構
-
-### PostgreSQL (NetStack RL 數據庫)
-**用途**: 強化學習訓練數據和實驗結果存儲
-
-```sql
--- 主要數據表
-├── satellite_orbital_cache     -- 軌道緩存數據
-├── satellite_tle_data         -- TLE 歷史數據  
-├── handover_experiment_data   -- 切換實驗記錄
-└── rl_training_sessions       -- RL 訓練會話
+### 數據流向架構
+```
+真實 TLE 數據 → SGP4 計算 → 衛星篩選 → 時間序列 → API 服務 → 研究應用
+      ↓             ↓         ↓          ↓         ↓          ↓
+   CelesTrak → 完整物理模型 → 地理篩選 → 預計算 → 統一格式 → 學術分析
 ```
 
-### Docker Volume 數據
-**位置**: `/app/data/` (跨容器共享)
+### 跨服務通信
+- **NetStack ↔ SimWorld**: RESTful API 調用，JSON 數據交換
+- **前端 ↔ 後端**: HTTP/WebSocket 雙向通信
+- **算法引擎 ↔ 數據庫**: 直接數據庫連接，高性能查詢
+- **外部系統整合**: 標準 REST API 接口
 
-```
-/app/data/
-├── phase0_precomputed_orbits.json     # 17MB Pure Cron 主數據文件
-├── starlink_120min_timeseries.json    # 35MB 預處理數據
-├── oneweb_120min_timeseries.json      # 26MB 預處理數據
-├── layered_phase0/                    # 分層仰角數據
-├── .build_timestamp                   # 建構時間戳
-├── .data_ready                        # 數據載入完成標記
-└── .incremental_update_timestamp      # Cron 增量更新時間戳
-```
+## 💾 數據架構設計
 
-### TLE 原始數據
-**位置**: `/app/tle_data/` (僅 SimWorld 訪問)
-
+### 存儲分層策略
 ```
-/app/tle_data/
-├── starlink/
-│   ├── tle/starlink.tle     # 7,992 顆衛星
-│   └── json/starlink.json
-└── oneweb/
-    ├── tle/oneweb.tle       # 651 顆衛星  
-    └── json/oneweb.json
-```
-
-## 🌐 服務交互關係
-
-### API 路由分工
-```
-前端請求路由:
-├── /api/v1/satellites/*          → SimWorld Backend  
-├── /api/v1/handover/*            → NetStack API
-├── /api/v1/ml/*                  → NetStack API
-├── /api/v1/time_sync/*           → NetStack API
-└── /api/v1/rl/*                  → NetStack API
+┌─────────────────────────────────────────────────────────┐
+│                    應用數據層                              │
+│  ┌─────────────────┐  ┌─────────────────────────────┐    │
+│  │  研究實驗數據    │  │      論文輸出數據            │    │
+│  │  (PostgreSQL)   │  │      (JSON/CSV)           │    │
+│  └─────────────────┘  └─────────────────────────────┘    │
+├─────────────────────────────────────────────────────────┤
+│                    核心數據層                              │
+│  ┌─────────────────┐  ┌─────────────────────────────┐    │
+│  │  預計算軌道數據  │  │      配置和元數據            │    │
+│  │  (Docker Volume)│  │      (YAML/JSON)          │    │
+│  └─────────────────┘  └─────────────────────────────┘    │
+├─────────────────────────────────────────────────────────┤
+│                    原始數據層                              │
+│  ┌─────────────────┐  ┌─────────────────────────────┐    │
+│  │    TLE 數據     │  │      歷史軌道記錄            │    │
+│  │  (文件系統)      │  │      (時間序列)             │    │
+│  └─────────────────┘  └─────────────────────────────┘    │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 數據流向（Pure Cron 驅動）
-1. **TLE 自動下載**: Cron (每6小時) → CelesTrak → TLE 原始數據
-2. **智能增量處理**: Cron → 變更分析 → 增量重算 → Docker Volume 更新
-3. **容器啟動**: simple-entrypoint.sh → 數據完整性驗證 → < 30秒啟動
-4. **實驗數據**: NetStack 算法 → PostgreSQL → 結果分析
-5. **視覺化數據**: Docker Volume → SimWorld Backend → 前端展示
+### 數據一致性保證
+- **事務性操作**: PostgreSQL ACID 特性
+- **版本控制**: 數據變更追蹤和回滾機制
+- **備份策略**: 自動化數據備份和災難恢復
+- **同步機制**: 跨服務數據一致性保證
 
-## 🕒 Pure Cron 調度系統
+## ⚡ 性能架構設計
 
-### Cron 任務配置
-**位置**: 系統 Cron (`make install-cron` 自動配置)
-
-```bash
-# TLE 數據自動下載（每 6 小時執行一次）
-0 2,8,14,20 * * * /home/sat/ntn-stack/scripts/daily_tle_download_enhanced.sh
-
-# 增量數據處理（TLE下載後30分鐘執行）
-30 2,8,14,20 * * * /home/sat/ntn-stack/scripts/incremental_data_processor.sh
-
-# 安全數據清理（每日檢查，只清理可重新生成的數據）
-15 3 * * * /home/sat/ntn-stack/scripts/safe_data_cleanup.sh
+### 橫向擴展能力
+```
+負載均衡器
+     │
+  ┌──┴──┐
+  │     │
+NetStack SimWorld
+實例群組 實例群組
+  │     │
+  └──┬──┘
+     │
+共享數據層
 ```
 
-### Cron 系統組件
+### 縱向優化策略
+- **計算優化**: 算法並行化和向量化計算
+- **記憶體管理**: 智能緩存和數據預載入
+- **I/O 優化**: 非同步處理和批量操作
+- **網路優化**: 連接池和請求合併
 
-#### TLE 下載器 (`daily_tle_download_enhanced.sh`)
-- **功能**: 自動從 CelesTrak 下載最新 TLE 數據
-- **容錯**: 下載失敗時自動使用現有數據
-- **智能檢查**: 比較檔案修改時間和大小
-- **備份機制**: 自動備份舊版本數據
+## 🔒 安全架構考量
 
-#### 增量處理器 (`incremental_data_processor.sh`)
-- **功能**: 智能分析 TLE 數據變更並進行增量重新計算
-- **變更檢測**: 比較預計算數據與 TLE 文件的衛星清單
-- **按需處理**: 僅在檢測到新衛星或顯著變更時才重新計算
-- **容器熱更新**: 無需重啟容器即可更新數據
-
-#### 安全清理器 (`safe_data_cleanup.sh`)
-- **功能**: 清理臨時文件和過期數據
-- **保護機制**: 絕不刪除原始 TLE 數據
-- **智能判斷**: 只清理可重新生成的計算結果
-- **空間管理**: 保持適當的磁盤空間使用
-
-### Cron 監控和維護
-
-```bash
-# 檢查 Cron 狀態
-make status-cron
-
-# 查看執行日誌
-tail -f /tmp/tle_download.log
-tail -f /tmp/incremental_update.log
-tail -f /tmp/safe_cleanup.log
-
-# 重新安裝 Cron 任務
-make install-cron
-
-# 移除 Cron 任務
-make uninstall-cron
+### 系統安全層次
+```
+┌─────────────────────────────────────────────────┐
+│                應用安全層                          │
+│  API 認證 │ 授權控制 │ 輸入驗證 │ 輸出過濾        │
+├─────────────────────────────────────────────────┤
+│                網路安全層                          │
+│  HTTPS/TLS │ 防火牆 │ DDoS 防護 │ 入侵檢測       │
+├─────────────────────────────────────────────────┤
+│                數據安全層                          │
+│  加密存儲 │ 存取控制 │ 審計日誌 │ 數據去敏        │
+├─────────────────────────────────────────────────┤
+│                基礎設施安全層                       │
+│  容器安全 │ 主機加固 │ 網路隔離 │ 監控告警        │
+└─────────────────────────────────────────────────┘
 ```
 
-## 🚀 啟動順序和依賴
+### 研究數據保護
+- **數據匿名化**: 敏感研究數據去識別化處理
+- **存取日誌**: 完整的數據存取審計追蹤
+- **權限分級**: 基於角色的數據存取控制
+- **合規保證**: 符合學術研究數據保護標準
 
-### 容器啟動順序（Pure Cron 驅動）
-```mermaid
-graph TD
-    A[Cron 系統安裝] --> B[PostgreSQL]
-    B --> C[NetStack API<br/>純數據載入模式]
-    B --> D[SimWorld Backend]  
-    C --> E[SimWorld Frontend]
-    D --> E
-    F[Cron 調度系統<br/>後台運行] --> G[自動數據更新]
+## 📈 監控與可觀測性
+
+### 監控層次架構
+```
+┌─────────────────────────────────────────────────┐
+│                業務監控層                          │
+│  研究指標 │ 算法效能 │ 實驗進度 │ 論文數據        │
+├─────────────────────────────────────────────────┤
+│                應用監控層                          │
+│  API 延遲 │ 錯誤率  │ 吞吐量  │ 可用性         │
+├─────────────────────────────────────────────────┤
+│                基礎設施監控層                       │
+│  CPU 使用 │ 記憶體  │ 磁碟 I/O │ 網路流量       │
+├─────────────────────────────────────────────────┤
+│                日誌聚合層                          │
+│  應用日誌 │ 系統日誌 │ 安全日誌 │ 審計日誌        │
+└─────────────────────────────────────────────────┘
 ```
 
-### 健康檢查端點
-```bash
-# NetStack 健康檢查
-curl http://localhost:8080/health
+### 關鍵性能指標 (KPI)
+- **系統可用性**: 目標 99.9% 正常運行時間
+- **API 響應時間**: 衛星查詢 < 50ms，切換決策 < 100ms
+- **數據處理延遲**: SGP4 計算 < 15ms，預測模型 < 50ms
+- **算法準確率**: 位置預測 > 94%，切換成功率 > 99%
 
-# SimWorld 健康檢查  
-curl http://localhost:8888/api/v1/satellites/unified/health
+## 🚀 部署與運維架構
 
-# 數據庫連接檢查
-docker exec netstack-rl-postgres pg_isready
+### 容器化部署策略
+```
+Docker Compose 編排
+├── NetStack 服務群組
+│   ├── netstack-api (核心 API)
+│   ├── netstack-postgres (數據庫)
+│   └── netstack-redis (緩存)
+├── SimWorld 服務群組  
+│   ├── simworld-backend (後端服務)
+│   └── simworld-frontend (前端應用)
+└── 共享資源
+    ├── Docker Volume (數據存儲)
+    └── Docker Network (內部通信)
 ```
 
-## ⚙️ 核心配置系統
+### 自動化運維
+- **健康檢查**: 自動化服務健康狀態監控
+- **自動重啟**: 服務異常時的自動恢復機制  
+- **滾動更新**: 零停機時間的版本升級
+- **配置管理**: 集中化配置和動態更新
 
-### 統一配置管理
-**位置**: `/netstack/src/core/config/satellite_config.py`
+## 📊 架構決策記錄
 
-```python
-@dataclass
-class SatelliteConfig:
-    # SIB19 合規配置
-    MAX_CANDIDATE_SATELLITES: int = 8
-    
-    # 預處理優化配置  
-    PREPROCESS_SATELLITES: Dict[str, int] = {
-        "starlink": 40,
-        "oneweb": 30
-    }
-    
-    # 智能篩選配置
-    INTELLIGENT_SELECTION: Dict = {
-        "enabled": True,
-        "target_location": {"lat": 24.9441, "lon": 121.3714}
-    }
-```
+### 關鍵設計選擇
+1. **微服務架構**: 選擇 NetStack + SimWorld 分離設計，提升開發和部署靈活性
+2. **容器化部署**: 採用 Docker Compose，簡化部署和環境一致性
+3. **REST API**: 標準化 API 設計，提升系統互操作性
+4. **PostgreSQL + Volume**: 混合存儲策略，平衡性能和靈活性
 
-### 環境配置
-```bash
-# NetStack 環境變數
-POSTGRES_HOST=netstack-rl-postgres
-POSTGRES_PORT=5432
-POSTGRES_DB=rl_research
+### 技術選型理由
+- **Python**: 豐富的科學計算生態系統，適合研究環境
+- **FastAPI**: 高性能 API 框架，自動文檔生成
+- **Three.js**: 強大的 3D 視覺化能力，適合衛星軌道展示
+- **PostgreSQL**: 穩定的關係型數據庫，支援複雜查詢
 
-# SimWorld 環境變數  
-DATA_VOLUME_PATH=/app/data
-TLE_DATA_PATH=/app/tle_data
-SGP4_MODE=production
-```
+## ⚠️ 架構限制與考量
 
-## 📊 性能指標
+### 當前限制
+- **單節點部署**: 當前版本限制在單機部署
+- **手動擴展**: 需要手動調整容器資源配置
+- **數據同步**: 跨服務數據一致性依賴應用層實現
 
-### 系統資源使用
-| 服務 | CPU | 記憶體 | 磁盤 | 網路 |
-|------|-----|--------|------|------|
-| **NetStack API** | ~15% | ~200MB | 500MB | 低 |
-| **SimWorld Backend** | ~20% | ~300MB | 1GB | 中 |
-| **SimWorld Frontend** | ~5% | ~100MB | 200MB | 低 |
-| **PostgreSQL** | ~10% | ~150MB | 2GB | 低 |
-
-### 響應時間基準
-```
-API 響應時間目標:
-├── 衛星位置查詢: < 50ms
-├── 切換決策計算: < 100ms  
-├── 軌道預測: < 200ms
-└── 數據預處理: < 30秒 (批次)
-```
-
-## 🔄 部署和運維
-
-### 快速啟動（Pure Cron 驅動）
-```bash
-# 完整系統啟動（自動安裝 Cron 調度）
-make up
-
-# 檢查所有服務狀態（包含 Cron）
-make status
-
-# 檢查 Cron 調度狀態
-make status-cron
-
-# 查看服務日誌
-make logs SERVICE=netstack-api
-```
-
-### 重啟策略（Pure Cron 驅動）
-```bash
-# NetStack 重啟（算法更新）
-make netstack-restart
-
-# SimWorld 重啟（前端更新）  
-make simworld-restart
-
-# 完整重啟（配置更新，自動重新安裝 Cron）
-make down && make up
-
-# Cron 任務管理
-make install-cron    # 安裝/更新 Cron 任務
-make uninstall-cron  # 停止時自動清理
-```
-
-### 數據備份
-```bash
-# 備份實驗數據
-docker exec netstack-rl-postgres pg_dump rl_research > backup.sql
-
-# 備份預處理數據
-docker cp netstack-api:/app/data ./data_backup
-```
-
-## 🛠️ 開發和調試
-
-### 容內開發
-```bash
-# 進入 NetStack 容器
-docker exec -it netstack-api bash
-
-# 進入 SimWorld 容器
-docker exec -it simworld_backend bash
-
-# 直接執行 Python 代碼測試
-docker exec simworld_backend python -c "
-from app.services.sgp4_calculator import SGP4Calculator
-calc = SGP4Calculator()
-print(calc.test_calculation())
-"
-```
-
-### 日誌監控
-```bash
-# 實時監控所有容器日誌
-docker-compose logs -f
-
-# 過濾特定服務的錯誤日誌  
-docker logs netstack-api 2>&1 | grep ERROR
-
-# 監控 API 請求
-tail -f /var/log/netstack/api_access.log
-```
-
-## 🔧 擴展和自定義
-
-### 新增算法模組
-1. **NetStack 演算法**: `/src/algorithms/[category]/your_algorithm.py`
-2. **註冊 API 端點**: `/src/api/v1/your_api.py`  
-3. **更新路由配置**: `/src/api/main.py`
-4. **添加測試用例**: `/tests/unit/test_your_algorithm.py`
-
-### 新增星座支援
-1. **TLE 數據**: 添加到 `/app/tle_data/[constellation]/`
-2. **預處理配置**: 更新 `SatelliteConfig`
-3. **智能篩選**: 調整篩選參數
-4. **API 支援**: 更新統一時間序列 API
-
-## ⚠️ 重要注意事項
-
-1. **容器間通信**: 使用 Docker 內部網路，服務名作為主機名
-2. **數據一致性**: Docker Volume 確保數據跨容器同步
-3. **配置管理**: 統一配置系統避免參數不一致
-4. **資源限制**: 開發環境建議至少 8GB RAM
+### 未來改進方向
+- **微服務編排**: 採用 Kubernetes 進行容器編排
+- **服務網格**: 引入 Istio 提升服務間通信管理
+- **分散式數據**: 採用分散式數據庫提升擴展性
 
 ---
 
-**本文檔記錄了當前系統的完整架構現況，為日後開發和維護提供參考基礎。**
+**本架構文檔提供系統的整體設計概覽，具體實現細節請參考相應的技術文檔。**

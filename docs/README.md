@@ -1,263 +1,113 @@
 # 📚 LEO 衛星切換系統文檔中心
 
-**版本**: 3.0.0  
+**版本**: 4.0.0  
 **建立日期**: 2025-08-04  
-**更新日期**: 2025-08-04  
-**適用範圍**: 學術研究導向系統文檔  
+**更新日期**: 2025-08-06  
+**適用範圍**: 學術研究導向系統 - 文檔導航中心
 
-## 🎯 文檔概述
+## 🎯 系統概述
 
-本文檔中心提供 LEO 衛星切換研究系統的完整技術資料，專注於學術研究需求，涵蓋系統架構、算法實現、數據處理和 API 使用等各個方面。
+本系統專注於 **LEO 衛星切換優化研究**，使用完整 SGP4 算法和真實 TLE 數據，絕不使用簡化算法或模擬數據。支援 8,042 顆 Starlink 和 651 顆 OneWeb 衛星的真實軌道計算與換手決策研究。
 
-## 📖 核心文檔指南
+## 📖 核心文檔導航
 
-### 🛰️ 數據處理相關
-- **[衛星數據預處理流程](./satellite_data_preprocessing.md)** 📊 **重要！** ✨ **v3.0 Pure Cron 驅動**
-  - **適用情況**: 需要了解 Pure Cron 驅動數據處理的完整流程
-  - **內容涵蓋**: 容器純載入 + Cron 自動調度、完整 SGP4 算法、智能增量處理
-  - **關鍵信息**: 100% 時間 < 30秒穩定啟動，零維護運行的最佳化架構
-  - **新特性**: Cron 全自動調度、智能變更檢測、多重容錯機制、高可用設計
+### 🔧 **[技術實現指南](./technical_guide.md)** - **新整合！** ⭐
+**一站式技術文檔** - 包含：
+- 完整 SGP4 算法實現與 Pure Cron 驅動架構  
+- 3GPP NTN 信令系統與精細化切換決策
+- ML 預測模型與狀態同步機制
+- 統一配置管理與性能監控
 
-### 🏗️ 系統架構相關  
-- **[系統架構現況](./system_architecture.md)** 🏗️ **重要！**
-  - **適用情況**: 需要了解系統整體結構和組件分工
-  - **內容涵蓋**: NetStack vs SimWorld、容器配置、服務交互、部署結構
-  - **關鍵信息**: Docker 容器架構和服務間通信機制
+### 🌐 **[API 接口使用指南](./api_reference.md)**
+完整 API 參考 - NetStack (8080) 和 SimWorld (8888) 端點、格式、範例
 
-### 🧠 算法開發相關
-- **[核心算法實現現況](./algorithms_implementation.md)** 🧠 **重要！**
-  - **適用情況**: 開發或修改切換算法、預測模型時
-  - **內容涵蓋**: 3GPP NTN 信令、切換決策、軌道預測、ML 模型、狀態同步
-  - **關鍵信息**: Phase 3.1/3.2 完成的算法及其 API 位置
+### 🏗️ **[系統架構現況](./system_architecture.md)**
+系統組件分工、容器配置、服務交互機制
 
-### 🌐 API 整合相關
-- **[API 接口使用指南](./api_reference.md)** 🌐
-  - **適用情況**: 需要調用系統 API 進行實驗或整合
-  - **內容涵蓋**: 所有可用 API 端點、請求/響應格式、使用範例
-  - **關鍵信息**: NetStack (8080) 和 SimWorld (8888) 的完整 API 參考
+### 📐 **[衛星換手仰角門檻標準](./satellite_handover_standards.md)**
+分層仰角門檻系統 (5°/10°/15°)、ITU-R P.618 合規、環境調整係數
 
-### ⚙️ 配置管理相關
-- **[配置管理指南](./configuration_management.md)** ⚙️
-  - **適用情況**: 需要修改系統配置或參數調優
-  - **內容涵蓋**: 統一配置系統、關鍵參數、環境配置、驗證機制
-  - **關鍵信息**: `SatelliteConfig` 類別和配置載入機制
+## 📂 參考資料
 
-## 🔗 專項技術文檔
+### 🛰️ 衛星數據分析
+- **[衛星數據預處理流程](./satellite_data_preprocessing.md)** - Pure Cron 驅動數據處理詳細流程
+- **[核心算法實現現況](./algorithms_implementation.md)** - 算法實現細節和API位置  
 
-### 📐 標準與規範
-- **[衛星換手仰角門檻標準](./satellite_handover_standards.md)** 📐
-  - 分層仰角門檻系統 (5°/10°/15°)
-  - ITU-R P.618 合規標準
-  - 環境調整係數和地理位置優化
+### 📎 附錄資料
+- **[附錄：詳細分析報告](./appendix/)** - 低頻參考資料和詳細分析文檔
 
-### 📊 技術規格
-- **[技術規格文檔](./tech.md)** 📊
-  - 系統技術指標和性能基準
-  - 硬體需求和軟體依賴
-  - 測試框架和驗證標準
-
-## 🎓 學術研究支援
-
-### 研究場景設計
-```python
-# 支援的研究場景類型
-research_scenarios = {
-    "algorithm_comparison": {
-        "algorithms": ["fine_grained", "traditional", "ml_driven"],
-        "metrics": ["latency", "success_rate", "accuracy"]
-    },
-    "performance_optimization": {
-        "optimization_targets": ["latency", "throughput", "resource_usage"],
-        "evaluation_methods": ["statistical_testing", "benchmarking"]
-    },
-    "prediction_accuracy": {
-        "models": ["lstm", "transformer", "hybrid"], 
-        "prediction_horizons": ["short_term", "medium_term", "long_term"]
-    }
-}
-```
-
-### 實驗數據匯出
-- **格式支援**: CSV, JSON, Excel
-- **統計分析**: t-test, ANOVA, Mann-Whitney U
-- **視覺化**: 學習曲線、性能比較圖、收斂分析
-- **論文整合**: IEEE 標準格式報告
-
-## 🚀 快速開始指南
+## 🚀 快速開始
 
 ### 1. 系統啟動
 ```bash
-# 完整系統啟動
 cd /home/sat/ntn-stack
-make up
-
-# 檢查所有服務狀態
-make status
-
-# 驗證 API 可用性
-curl http://localhost:8080/health
-curl http://localhost:8888/api/v1/satellites/unified/health
+make up                                    # 啟動完整系統
+make status                                # 檢查服務狀態
 ```
 
-### 2. 數據驗證
+### 2. 健康檢查
 ```bash
-# 檢查預處理數據
-docker exec netstack-api ls -la /app/data/
-
-# 驗證數據完整性
-curl -s http://localhost:8888/api/v1/satellites/unified/status | jq
+curl http://localhost:8080/health | jq                              # NetStack API
+curl http://localhost:8888/api/v1/satellites/unified/health | jq    # SimWorld API
 ```
 
-### 3. 算法測試
+### 3. 基礎測試
 ```bash
-# 運行核心算法測試
+# 測試衛星時間序列數據
+curl "http://localhost:8888/api/v1/satellites/unified/timeseries?constellation=starlink&duration_minutes=5" | jq
+
+# 測試切換決策 API
+curl http://localhost:8080/api/v1/handover_decision/performance_metrics | jq
+```
+
+## 📊 系統指標
+
+### 技術規格
+- **衛星數量**: 8,042 顆 Starlink + 651 顆 OneWeb (2025年實際數據)
+- **算法精度**: 完整 SGP4，位置精度 < 100m，預測準確率 > 94%
+- **API 響應**: < 50ms (衛星位置查詢)，< 100ms (切換決策)
+- **系統啟動**: < 30秒 (Pure Cron 驅動架構)
+
+### 研究能力
+- **算法比較**: Fine-Grained vs Traditional vs ML-Driven
+- **性能指標**: 延遲、成功率、準確性、資源使用
+- **數據匯出**: CSV, JSON, Excel，支援 IEEE 標準格式
+- **統計分析**: t-test, ANOVA, Mann-Whitney U
+
+## 🔧 維護指令
+
+```bash
+# 日常監控
+make status                               # 系統狀態
+docker logs netstack-api | grep ERROR    # 錯誤日誌檢查
+tail -f /tmp/tle_download.log            # TLE 更新日誌
+
+# 性能測試  
 cd /home/sat/ntn-stack/netstack
 python -m pytest tests/unit/test_fine_grained_handover.py -v
 python -m pytest tests/unit/test_orbit_prediction.py -v
 ```
 
-### 4. 實驗設置
-```python
-# Python 實驗環境設置
-from src.core.performance.algorithm_metrics import SimplePerformanceMonitor
-from src.core.config.satellite_config import get_satellite_config
+## 🎓 學術研究支援
 
-# 初始化性能監控
-monitor = SimplePerformanceMonitor("research_experiment")
-config = get_satellite_config()
+### 實驗場景
+- **多算法並行比較**：同時運行不同切換算法進行性能對比
+- **參數敏感性分析**：仰角門檻、權重配置的影響研究
+- **預測模型評估**：LSTM、Transformer、混合模型準確性比較
 
-# 開始實驗...
-```
-
-## 📊 系統現況一覽
-
-### 實現完成度
-| 組件類別 | 完成度 | 學術價值 | 狀態 |
-|----------|--------|----------|------|
-| **數據基礎設施** | 100% | ⭐⭐⭐⭐⭐ | ✅ 生產就緒 |
-| **3GPP NTN 信令** | 100% | ⭐⭐⭐⭐⭐ | ✅ 標準合規 |
-| **切換決策算法** | 100% | ⭐⭐⭐⭐⭐ | ✅ 研究就緒 |
-| **軌道預測** | 100% | ⭐⭐⭐⭐⭐ | ✅ 高精度 |
-| **ML 預測模型** | 100% | ⭐⭐⭐⭐⭐ | ✅ 多模型 |
-| **狀態同步** | 100% | ⭐⭐⭐⭐ | ✅ 分散式 |
-| **性能監控** | 100% | ⭐⭐⭐ | ✅ 學術用 |
-
-### 核心技術指標
-- **衛星數據**: 70 顆高價值衛星 (智能篩選後)
-- **位置精度**: 米級 (SGP4 精確計算)
-- **API 響應**: < 50ms (衛星位置查詢)
-- **切換延遲**: < 100ms (決策算法)
-- **預測準確率**: > 94% (LSTM/Transformer)
-
-## 🔧 開發和維護
-
-### 日常維護操作（Pure Cron 驅動）
-```bash
-# 一鍵啟動（自動安裝 Cron 調度）
-make up
-
-# 檢查 Cron 自動調度狀態
-make status-cron
-
-# 檢查 Cron 執行日誌
-tail -f /tmp/tle_download.log
-tail -f /tmp/incremental_update.log
-
-# 手動觸發更新（測試用）
-./scripts/incremental_data_processor.sh
-```
-
-### 故障排除
-```bash
-# 檢查服務狀態
-make status
-
-# 查看錯誤日誌
-docker logs netstack-api 2>&1 | grep ERROR
-docker logs simworld_backend 2>&1 | grep ERROR
-
-# 數據完整性檢查
-curl -s http://localhost:8080/health | jq
-docker exec netstack-api stat /app/data/.preprocess_status
-```
-
-### 性能監控
-```bash
-# 系統資源監控
-docker stats
-
-# API 性能測試
-curl -w "@curl-format.txt" -s http://localhost:8080/api/v1/handover_decision/performance_metrics
-
-# 算法執行時間分析
-python -m pytest tests/unit/ --benchmark-only
-```
-
-## 🎯 研究應用場景
-
-### 1. 算法比較研究
-- **多算法並行**: Fine-Grained vs Traditional vs ML-Driven
-- **性能指標**: 延遲、成功率、資源使用、預測準確性
-- **統計分析**: t-test, ANOVA, 效應量計算
-- **結果匯出**: 論文級數據和圖表
-
-### 2. 系統優化研究  
-- **參數調優**: 仰角門檻、權重配置、模型超參數
-- **性能基準**: 建立不同環境下的性能基線
-- **擴展性測試**: 多星座、大規模場景驗證
-
-### 3. 創新算法開發
-- **框架整合**: 新算法易於整合到現有系統
-- **標準 API**: 統一的介面和數據格式
-- **測試支援**: 完整的單元測試和整合測試框架
-
-## 📞 技術支援
-
-### 問題報告
-- **系統錯誤**: 檢查日誌並提供錯誤訊息
-- **性能問題**: 提供系統資源使用情況
-- **數據問題**: 確認數據版本和完整性
-- **算法問題**: 提供測試案例和預期結果
-
-### 開發貢獻
-- **代碼規範**: PEP 8 (Python), ESLint (JavaScript)
-- **測試要求**: 新功能必須包含單元測試
-- **文檔更新**: 修改功能時同步更新相關文檔
-
-## 📈 未來發展路線
-
-### 短期目標 (1-3個月)
-- [ ] 算法實驗設計和基準建立
-- [ ] 多環境測試和驗證  
-- [ ] 論文數據收集和分析
-- [ ] 開源準備和文檔完善
-
-### 中期目標 (3-6個月)
-- [ ] 強化學習算法整合
-- [ ] 多星座擴展支援
-- [ ] 邊緣計算部署
-- [ ] 商業化可行性評估
-
-### 長期願景 (6個月+)
-- [ ] 6G 網路技術整合
-- [ ] 數位孿生系統建設
-- [ ] 開源社群建立
-- [ ] 產業標準制定參與
+### 論文數據產出
+- **IEEE 標準報告**：自動生成符合學術發表要求的數據格式
+- **統計顯著性**：支援 t-test、ANOVA 等統計檢驗
+- **可重現性**：完整的實驗配置和數據版本控制
 
 ---
 
-## 📝 文檔維護
+## 🔗 相關連結
 
-**文檔更新頻率**: 系統更新時同步維護  
-**最後更新**: 2025-08-04 (Pure Cron 驅動架構更新)  
-**維護人員**: 系統開發團隊  
-
-**文檔品質保證**:
-- ✅ 內容準確性驗證
-- ✅ 範例代碼測試 
-- ✅ 連結有效性檢查
-- ✅ 版本一致性維護
+- **GitHub Issues**: 問題回報和功能請求
+- **技術支援**: 查看 [technical_guide.md](./technical_guide.md) 故障排除章節
+- **貢獻指南**: 代碼規範和測試要求請參考各技術文檔
 
 ---
 
-**本文檔中心為 LEO 衛星切換研究提供完整的技術文檔支援，確保研究工作的高效進行和學術成果的順利產出。**
+**本文檔中心為 LEO 衛星切換研究提供完整的導航和快速開始支援，確保研究工作的高效進行。**

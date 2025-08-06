@@ -420,7 +420,7 @@ const MainScene: React.FC<MainSceneProps> = ({
 
             {/* 階段七可視化覆蓋層 - Analytics components removed */}
 
-            {/* 衛星渲染器 - 動態軌跡模擬 */}
+            {/* 🚀 重新啟用 DynamicSatelliteRenderer（已整合真實歷史軌跡邏輯）*/}
             <DynamicSatelliteRenderer
                 satellites={satellites}
                 enabled={satelliteEnabled}

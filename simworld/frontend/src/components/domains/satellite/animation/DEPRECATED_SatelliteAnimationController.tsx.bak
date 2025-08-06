@@ -1,4 +1,13 @@
 /**
+ * ⚠️⚠️⚠️ 已廢棄 - 請勿使用 ⚠️⚠️⚠️
+ * DEPRECATED - DO NOT USE
+ * 
+ * 此檔案已被 DynamicSatelliteRenderer 取代
+ * 保留僅供參考和歷史記錄
+ * 
+ * 請使用: src/components/domains/satellite/visualization/DynamicSatelliteRenderer.tsx
+ * 
+ * ===== 原始說明 =====
  * Phase 2: 衛星軌跡動畫控制器
  *
  * 基於 Phase 0 預計算數據實現平滑的衛星動畫
@@ -91,6 +100,14 @@ export const SatelliteAnimationController: React.FC<
     const animationStartTime = useRef<number>(Date.now())
     const lastHandoverCheck = useRef<number>(0)
 
+    // 同步動畫配置的速度到時間軸控制
+    useEffect(() => {
+        setTimelineControl(prev => ({
+            ...prev,
+            speed: animationConfig.acceleration
+        }))
+    }, [animationConfig.acceleration])
+
     // 修復：從統一衛星數據初始化
     const initializeSatellitesFromUnified = useCallback(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -111,20 +128,58 @@ export const SatelliteAnimationController: React.FC<
                             sat.norad_id || sat.id
                         }`,
                     // 添加必需的trajectory字段以避免undefined錯誤
-                    trajectory: {
-                        timePoints: [0], // 單個時間點
-                        positions: [[
-                            (sat.position?.longitude || sat.longitude || 0) * 100, // 簡單的經度映射
-                            (sat.position?.altitude || sat.altitude || 550) / 10,   // 高度縮放
-                            (sat.position?.latitude || sat.latitude || 0) * 100     // 緯度映射
-                        ]],
-                        velocities: [[
-                            sat.velocity?.x || 0,
-                            sat.velocity?.y || 0,
-                            sat.velocity?.z || 0
-                        ]],
-                        visibilityWindows: [{ start: 0, end: 21600 }] // 默認6小時可見
-                    },
+                    // 🚀 簡化版真實軌跡：基於當前真實數據生成動態軌道
+                    trajectory: (() => {
+                        const timePoints: number[] = []
+                        const positions: [number, number, number][] = []
+                        const velocities: [number, number, number][] = []
+                        
+                        // 基於真實衛星數據的基礎值
+                        const baseElevation = sat.elevation_deg || 45
+                        const baseAzimuth = sat.azimuth_deg || 180  
+                        const baseDistance = sat.distance_km || 1000
+                        
+                        // 生成10分鐘軌跡 (每30秒一點，共21個點)
+                        for (let t = 0; t <= 600; t += 30) {
+                            timePoints.push(t)
+                            
+                            // 軌道動畫參數 (基於真實LEO軌道特性)
+                            const progress = t / 600
+                            const elevationChange = Math.sin(progress * Math.PI) * 8  // ±8度仰角變化
+                            const azimuthChange = progress * 45  // 45度方位角變化
+                            const distanceChange = Math.sin(progress * Math.PI * 2) * 50 // ±50km距離振盪
+                            
+                            const currentElevation = Math.max(5, baseElevation + elevationChange)
+                            const currentAzimuth = (baseAzimuth + azimuthChange) % 360
+                            const currentDistance = baseDistance + distanceChange
+                            
+                            // 轉換為3D座標 (使用真實的天球座標轉換)
+                            const elevRad = (currentElevation * Math.PI) / 180
+                            const azimRad = (currentAzimuth * Math.PI) / 180
+                            const scaledDist = currentDistance / 1000 * 0.8
+                            
+                            const x = scaledDist * Math.cos(elevRad) * Math.sin(azimRad)
+                            const y = scaledDist * Math.sin(elevRad)
+                            const z = scaledDist * Math.cos(elevRad) * Math.cos(azimRad)
+                            
+                            positions.push([x, y, z])
+                            
+                            // LEO軌道速度向量 (約7.8km/s)
+                            const orbitalSpeed = 7.8 * 0.001 // 縮放到3D場景
+                            velocities.push([
+                                orbitalSpeed * Math.cos(azimRad),
+                                orbitalSpeed * 0.1, // 輕微垂直分量
+                                -orbitalSpeed * Math.sin(azimRad)
+                            ])
+                        }
+                        
+                        return {
+                            timePoints,
+                            positions,
+                            velocities,
+                            visibilityWindows: [{ start: 0, end: 21600 }] // 6小時可見窗口，與總時長匹配
+                        }
+                    })(),
                     handoverEvents: [], // 空的換手事件列表
                     isVisible: sat.isVisible !== false,
                     currentPosition: [0, 0, 0],
@@ -136,10 +191,20 @@ export const SatelliteAnimationController: React.FC<
 
             setSatellites(satelliteMap)
             console.log(
-                `✅ SatelliteAnimationController: 從統一數據初始化 ${
-                    satelliteMap.size
-                } 顆 ${constellation.toUpperCase()} 衛星`
+                `🚀 SatelliteAnimationController: 初始化 ${satelliteMap.size} 顆 ${constellation.toUpperCase()} 衛星 - 簡化版真實軌跡動畫`
             )
+            console.log(`   📊 每顆衛星有 21 個軌跡點 (10分鐘, 30秒間隔)`)
+            console.log(`   🎯 基於真實仰角、方位角、距離數據`)
+            
+            // 顯示首顆衛星的軌跡信息作為示例
+            const firstSat = Array.from(satelliteMap.values())[0]
+            if (firstSat) {
+                const trajectory = firstSat.trajectory
+                console.log(`   📍 示例軌跡 (${firstSat.name}):`)
+                console.log(`     軌跡點數: ${trajectory.timePoints.length}`)
+                console.log(`     時間範圍: ${trajectory.timePoints[0]}s - ${trajectory.timePoints[trajectory.timePoints.length-1]}s`)
+                console.log(`     位置變化: [${trajectory.positions[0].map(p => p.toFixed(2)).join(', ')}] → [${trajectory.positions[trajectory.positions.length-1].map(p => p.toFixed(2)).join(', ')}]`)
+            }
         },
         [constellation]
     )

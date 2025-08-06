@@ -22,10 +22,9 @@ class ProcessingStage(Enum):
     ALGORITHM_TEST = "algorithm_test"      # 算法測試：受控環境
 
 class ConstellationType(Enum):
-    """星座類型枚舉"""
+    """星座類型枚舉 - 僅支援實際部署的 LEO 通信星座"""
     STARLINK = "starlink"
     ONEWEB = "oneweb"
-    KUIPER = "kuiper"
     ALL = "all"
 
 @dataclass
@@ -129,11 +128,11 @@ class SatelliteConfig:
     def __post_init__(self):
         """初始化預設值"""
         if self.PREPROCESS_SATELLITES is None:
+            # 🆕 v3.1.0: 這些值現在用作回退默認值，實際使用動態篩選
             self.PREPROCESS_SATELLITES = {
-                "starlink": 40,     # Starlink：較大星座，需更多候選
-                "oneweb": 30,       # OneWeb：中等星座，適中候選
-                "kuiper": 35,       # Kuiper：預估值 (未來)
-                "all": 50           # 所有星座：最大覆蓋
+                "starlink": 15,     # Starlink：動態篩選後的典型數量 (回退值)
+                "oneweb": 10,       # OneWeb：動態篩選後的典型數量 (回退值)
+                "all": 25           # 兩個星座總計：動態總和 (回退值)
             }
         
         if self.elevation_thresholds is None:

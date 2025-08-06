@@ -193,6 +193,166 @@ class Phase0DataPreprocessor:
         logger.info(f"從 {tle_file} 載入 {len(satellites)} 顆衛星")
         return satellites
     
+    def apply_constellation_separated_filtering(self, satellites: List[Dict[str, Any]], 
+                                              constellation: str) -> List[Dict[str, Any]]:
+        """
+        應用星座分離篩選邏輯 - 基於新的文檔v3.1.0星座分離要求
+        
+        Args:
+            satellites: 原始衛星數據列表
+            constellation: 星座名稱 ('starlink' 或 'oneweb')
+            
+        Returns:
+            篩選後的衛星數據列表
+        """
+        import math
+        
+        logger.info(f"🛰️ 開始 {constellation.upper()} 星座分離篩選")
+        logger.info(f"  原始數量: {len(satellites)} 顆")
+        
+        # 計算實際可見性估算 (基於軌道傾角)
+        visible_count = 0
+        for sat in satellites:
+            try:
+                # 從TLE line2提取軌道傾角
+                line2 = sat.get('line2', '')
+                if len(line2) >= 17:
+                    inclination = float(line2[8:16].strip())
+                    # 軌道傾角覆蓋 NTPU 緯度
+                    if inclination > abs(self.observer_lat):
+                        visible_count += 1
+            except (ValueError, TypeError):
+                continue
+        
+        # 考慮軌道覆蓋因子 (約12%同時可見)
+        estimated_visible = int(visible_count * 0.12)
+        
+        # 動態決定篩選策略
+        min_satellites = 8  # 至少保證換手候選數量
+        max_display = 15    # 前端渲染效能考量
+        
+        if estimated_visible < min_satellites:
+            # 放寬條件：確保足夠數量
+            target_count = min(len(satellites), min_satellites)
+            strategy = "relaxed_criteria"
+        elif estimated_visible > max_display * 3:
+            # 嚴格篩選：選擇最優衛星
+            target_count = max_display
+            strategy = "strict_filtering"
+        else:
+            # 標準篩選：平衡品質和數量
+            target_count = min(estimated_visible, max_display)
+            strategy = "standard_filtering"
+        
+        logger.info(f"  估計可見: {estimated_visible} 顆")
+        logger.info(f"  目標數量: {target_count} 顆")
+        logger.info(f"  篩選策略: {strategy}")
+        
+        # 評分並排序
+        scored_satellites = []
+        for sat in satellites:
+            score = self._calculate_constellation_specific_score(sat, constellation, strategy)
+            scored_satellites.append((score, sat))
+        
+        # 按分數排序
+        scored_satellites.sort(key=lambda x: x[0], reverse=True)
+        
+        # 相位多樣化選擇（避免同步出現）
+        selected = self._phase_diversity_selection(
+            [sat for _, sat in scored_satellites], target_count
+        )
+        
+        logger.info(f"  ✅ 篩選完成: {len(selected)} 顆")
+        return selected
+    
+    def _calculate_constellation_specific_score(self, sat_data: Dict[str, Any], 
+                                              constellation: str, strategy: str) -> float:
+        """計算星座特定的評分"""
+        score = 0
+        
+        try:
+            # 從TLE數據提取軌道參數
+            line1 = sat_data.get('line1', '')
+            line2 = sat_data.get('line2', '')
+            
+            if len(line2) >= 70:
+                inclination = float(line2[8:16].strip())      # 軌道傾角
+                eccentricity = float('0.' + line2[26:33].strip())  # 偏心率
+                mean_motion = float(line2[52:63].strip())     # 平運動
+                
+                # 1. 緯度覆蓋評分
+                if inclination > abs(self.observer_lat):
+                    score += 30
+                
+                # 2. 高度評分（基於平運動計算高度）
+                if mean_motion > 0:
+                    # 使用開普勒第三定律計算軌道高度
+                    altitude_km = (398600.4418 / (mean_motion * 2 * math.pi / 86400) ** 2) ** (1/3) - 6378.137
+                    
+                    # 星座特定高度評分
+                    if constellation == 'starlink':
+                        if 500 <= altitude_km <= 600:
+                            score += 25  # Starlink 最佳高度：550km
+                        elif 400 <= altitude_km <= 700:
+                            score += 15
+                    elif constellation == 'oneweb':
+                        if 1100 <= altitude_km <= 1300:
+                            score += 25  # OneWeb 最佳高度：1200km
+                        elif 1000 <= altitude_km <= 1400:
+                            score += 15
+                
+                # 3. 軌道形狀評分（近圓軌道）
+                if eccentricity < 0.001:
+                    score += 20
+                elif eccentricity < 0.01:
+                    score += 10
+                
+                # 4. 通過頻率評分
+                if mean_motion > 15:  # 一天超過 15 圈
+                    score += 15
+                elif mean_motion > 14:
+                    score += 10
+                
+                # 5. 策略特定調整
+                if strategy == "strict_filtering":
+                    # 嚴格篩選：優先選擇最優衛星
+                    if altitude_km > 500:
+                        score += 15
+                elif strategy == "relaxed_criteria":
+                    # 放寬條件：確保足夠數量
+                    score += 10  # 基礎加分
+                
+        except (ValueError, TypeError, IndexError):
+            score = 0  # 數據異常的衛星評分為 0
+        
+        return score
+    
+    def _phase_diversity_selection(self, satellites: List[Dict[str, Any]], 
+                                 target_count: int) -> List[Dict[str, Any]]:
+        """相位多樣化選擇（避免衛星同步出現）"""
+        if len(satellites) <= target_count:
+            return satellites
+        
+        # 基於衛星 NORAD ID 生成相位分散
+        satellites_with_phase = []
+        for sat in satellites:
+            norad_id = sat.get('norad_id', 0)
+            phase = (hash(str(norad_id)) % 1000000) / 1000000.0
+            satellites_with_phase.append((phase, sat))
+        
+        # 按相位排序並均勻選擇
+        satellites_with_phase.sort(key=lambda x: x[0])
+        
+        step = len(satellites_with_phase) / target_count
+        selected = []
+        
+        for i in range(target_count):
+            index = int(i * step)
+            if index < len(satellites_with_phase):
+                selected.append(satellites_with_phase[index][1])
+        
+        return selected
+    
     def compute_sgp4_orbit_positions(self, satellites: List[Dict[str, Any]], 
                                    start_time: datetime, duration_minutes: int = 96) -> Dict[str, Any]:
         """使用 SGP4 計算衛星軌道位置"""
@@ -257,14 +417,19 @@ class Phase0DataPreprocessor:
                             lat_rad = radians(self.observer_lat)
                             lon_rad = radians(self.observer_lon)
                             
-                            # 地心距離
-                            range_km = sqrt(x*x + y*y + z*z)
+                            # 觀測者在地表的ECEF坐標系位置 (地球半徑 + 地表高度)
+                            earth_radius = 6378.137  # WGS84橢球體半徑 (km)
+                            observer_x = earth_radius * cos(lat_rad) * cos(lon_rad)  
+                            observer_y = earth_radius * cos(lat_rad) * sin(lon_rad)
+                            observer_z = earth_radius * sin(lat_rad)
                             
-                            # 簡化的仰角計算 (近似)
-                            # 實際應用需要更精確的座標轉換
-                            dx = x - 6371.0 * cos(lat_rad) * cos(lon_rad)  # 近似地球半徑
-                            dy = y - 6371.0 * cos(lat_rad) * sin(lon_rad)
-                            dz = z - 6371.0 * sin(lat_rad)
+                            # 衛星相對於觀測者的向量 (slant range vector)
+                            dx = x - observer_x
+                            dy = y - observer_y  
+                            dz = z - observer_z
+                            
+                            # 正確的slant range距離（地表觀測者到LEO衛星）
+                            range_km = sqrt(dx*dx + dy*dy + dz*dz)
                             
                             ground_range = sqrt(dx*dx + dy*dy)
                             elevation_rad = atan2(dz, ground_range)
@@ -407,6 +572,18 @@ class Phase0DataPreprocessor:
                 satellites = self.load_tle_satellites(constellation, latest_date)
                 
                 if satellites:
+                    # 🆕 應用星座分離篩選邏輯
+                    logger.info(f"🔄 應用星座分離篩選 - {constellation}")
+                    filtered_satellites = self.apply_constellation_separated_filtering(
+                        satellites, constellation)
+                    
+                    if filtered_satellites:
+                        logger.info(f"篩選結果: {len(satellites)} → {len(filtered_satellites)} 顆衛星")
+                        satellites = filtered_satellites
+                    else:
+                        logger.warning(f"⚠️ 篩選後無可用衛星 - {constellation}")
+                        continue
+                    
                     # 計算軌道位置
                     orbit_computation = self.compute_sgp4_orbit_positions(
                         satellites, reference_time, self.orbital_period_minutes)
@@ -443,8 +620,8 @@ class Phase0DataPreprocessor:
         config = {
             'generated_at': datetime.now(timezone.utc).isoformat(),
             'build_environment': 'docker',
-            'phase0_version': '1.0.1',  # 更新版本號
-            'computation_type': 'sgp4_orbit_precomputation',  # 新增類型標識
+            'phase0_version': '3.1.0',  # 🆕 更新版本號支援星座分離
+            'computation_type': 'sgp4_orbit_precomputation_constellation_separated',  # 新增類型標識
             'data_source': 'local_manual_collection',
             'scan_result': scan_result,
             'runtime_settings': {
@@ -452,7 +629,9 @@ class Phase0DataPreprocessor:
                 'data_validation_level': 'strict',
                 'cache_enabled': True,
                 'precomputed_data_available': True,
-                'sgp4_orbit_data_enabled': True  # 新增 SGP4 標識
+                'sgp4_orbit_data_enabled': True,  # 新增 SGP4 標識
+                'constellation_separated_filtering': True,  # 🆕 星座分離篩選標識
+                'cross_constellation_handover_disabled': True  # 🆕 跨星座換手禁用
             }
         }
         
@@ -470,14 +649,16 @@ class Phase0DataPreprocessor:
         rl_dataset = {
             'dataset_type': 'satellite_handover_rl_training',
             'generated_at': datetime.now(timezone.utc).isoformat(),
-            'computation_method': 'sgp4_orbit_precomputation',  # 新增計算方法
+            'computation_method': 'sgp4_orbit_precomputation_constellation_separated',  # 🆕 v3.1.0 星座分離篩選計算方法
             'constellations': {},
             'training_parameters': {
                 'observation_space_size': 0,
                 'action_space_size': 0,
                 'episode_length_minutes': 45,
                 'reward_function': 'handover_efficiency',
-                'orbit_computation_enabled': True  # 新增軌道計算標識
+                'orbit_computation_enabled': True,  # 新增軌道計算標識
+                'constellation_separation_enabled': True,  # 🆕 星座分離標識
+                'dynamic_filtering_enabled': True  # 🆕 動態篩選標識
             }
         }
         
@@ -494,7 +675,9 @@ class Phase0DataPreprocessor:
                     'satellite_count': data['satellites'],
                     'episodes_count': constellation_episodes,
                     'data_quality': data['data_quality'],
-                    'orbit_precomputed': True  # 新增預計算標識
+                    'orbit_precomputed': True,  # 新增預計算標識
+                    'constellation_separated': True,  # 🆕 星座分離處理標識
+                    'dynamic_satellite_count': True  # 🆕 動態數量標識
                 }
                 
                 total_episodes += constellation_episodes
@@ -647,7 +830,7 @@ class Phase0DataPreprocessor:
             # 3. 生成處理結果
             processing_result = {
                 'success': True,
-                'computation_method': 'sgp4_orbit_precomputation',
+                'computation_method': 'sgp4_orbit_precomputation_constellation_separated',
                 'scan_result': scan_result,
                 'artifacts': artifacts,
                 'processing_time': datetime.now(timezone.utc).isoformat(),
@@ -663,7 +846,7 @@ class Phase0DataPreprocessor:
             if scan_result['total_satellites'] == 0:
                 processing_result['recommendations'].append("No satellites found - orbit computation skipped")
             
-            logger.info("✅ Phase 0 建置預處理完成 (包含 SGP4 軌道預計算)")
+            logger.info("✅ Phase 0 建置預處理完成 (包含 SGP4 軌道預計算 + 星座分離篩選)")
             return processing_result
             
         except Exception as e:

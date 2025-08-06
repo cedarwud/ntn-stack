@@ -600,7 +600,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                             <input
                                                 type="range"
                                                 min="1"
-                                                max="10"
+                                                max="60"
                                                 step="1"
                                                 value={
                                                     satelliteMovementSpeed ||
@@ -617,7 +617,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                             <div className="speed-labels">
                                                 <span>1倍</span>
                                                 <span>衛星3D移動速度</span>
-                                                <span>10倍</span>
+                                                <span>60倍</span>
                                             </div>
                                         </div>
 
@@ -627,7 +627,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                 衛星移動快速設定:
                                             </div>
                                             <div className="speed-preset-buttons">
-                                                {[1, 2, 3, 5, 8, 10].map(
+                                                {[1, 5, 10, 20, 30, 60].map(
                                                     (speed) => (
                                                         <button
                                                             key={speed}

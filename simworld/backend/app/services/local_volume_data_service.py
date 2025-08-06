@@ -297,10 +297,29 @@ class LocalVolumeDataService:
                 if not positions:
                     continue
                 
-                # 使用最新的位置數據
-                latest_pos = positions[-1] if positions else None
-                if not latest_pos:
-                    continue
+                # 🔥 修復：尋找當前時間最適合的可見位置（而非隨機最後一個位置）
+                current_time = datetime.utcnow()
+                best_pos = None
+                
+                # 優先尋找仰角 >= min_elevation_deg 的位置
+                for pos in positions:
+                    if pos.get('elevation_deg', -90) >= min_elevation_deg:
+                        if not global_view:  # 非全球視野時，嚴格應用仰角門檻
+                            if best_pos is None or pos.get('elevation_deg', -90) > best_pos.get('elevation_deg', -90):
+                                best_pos = pos
+                        else:  # 全球視野時，任何可見位置都可以
+                            best_pos = pos
+                            break
+                
+                # 如果沒有找到可見位置，跳過此衛星（除非是全球視野模式）
+                if best_pos is None:
+                    if global_view:
+                        # 全球視野模式：使用最高仰角位置（即使是負數）
+                        best_pos = max(positions, key=lambda p: p.get('elevation_deg', -90))
+                    else:
+                        continue  # 跳過不可見的衛星
+                
+                latest_pos = best_pos
                 
                 # 提取位置信息
                 sat_lat = latest_pos.get('lat', 0)
@@ -340,12 +359,20 @@ class LocalVolumeDataService:
                         sat_lat - observer_lat
                     )) % 360
                     
-                    # 計算距離（簡化）
-                    distance = math.sqrt(
-                        (111.32 * lat_diff)**2 + 
-                        (111.32 * lon_diff * math.cos(math.radians(observer_lat)))**2 +
-                        sat_alt**2
-                    )
+                    # 計算真實的3D slant range距離（正確方法）
+                    # 將地理坐標轉換為ECEF坐標系（米）
+                    from .distance_calculator import DistanceCalculator
+                    
+                    calc = DistanceCalculator()
+                    
+                    # 觀測者ECEF位置
+                    observer_ecef = calc._geodetic_to_ecef(observer_lat, observer_lon, 0.0)  # 地面觀測者
+                    
+                    # 衛星ECEF位置
+                    sat_ecef = calc._geodetic_to_ecef(sat_lat, sat_lon, sat_alt)
+                    
+                    # 真實3D距離 (轉換為km)
+                    distance = calc._calculate_3d_distance(observer_ecef, sat_ecef) / 1000.0
                 
                 visible_satellites.append({
                     "name": sat_info.get('name', f"{target_constellation.upper()}-{norad_id}"),

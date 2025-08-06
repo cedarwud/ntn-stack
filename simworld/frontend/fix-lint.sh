@@ -24,7 +24,7 @@ files_with_unused_vars=(
     "src/contexts/AppStateContext.tsx"
     "src/components/domains/satellite/ConstellationSelector.tsx"
     "src/components/domains/satellite/SatelliteAnalysisPage.tsx"
-    "src/components/domains/satellite/animation/SatelliteAnimationController.tsx"
+    # "src/components/domains/satellite/animation/SatelliteAnimationController.tsx" # 已廢棄
 )
 
 # 為 any 類型添加 eslint-disable 註釋

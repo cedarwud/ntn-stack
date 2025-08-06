@@ -199,7 +199,7 @@ class NTPUVisibilityFilter:
                                      reference_time: datetime = None,
                                      progress_callback: callable = None) -> Dict[str, Any]:
         """
-        篩選整個衛星星座
+        篩選整個衛星星座 - v3.1.0 整合星座分離篩選
         
         Args:
             satellites: 衛星列表
@@ -214,14 +214,154 @@ class NTPUVisibilityFilter:
         
         start_time = datetime.now()
         
-        logger.info(f"🔍 開始 NTPU 可見性篩選")
+        logger.info(f"🔍 開始 NTPU 可見性篩選 (v3.1.0 星座分離版)")
         logger.info(f"  輸入衛星數: {len(satellites)}")
         logger.info(f"  參考時間: {reference_time.isoformat()}")
         
+        # 🆕 Step 1: 星座分離處理
+        logger.info("🛰️ Step 1: 星座分離篩選")
+        constellation_groups = self._separate_constellations(satellites)
+        
+        # 分別處理每個星座
+        all_visible_satellites = []
+        all_filtered_satellites = []
+        constellation_stats = {}
+        
+        for constellation, constellation_satellites in constellation_groups.items():
+            logger.info(f"  處理 {constellation.upper()} 星座: {len(constellation_satellites)} 顆")
+            
+            # 對每個星座進行可見性篩選
+            constellation_result = self._filter_constellation_visibility(
+                constellation_satellites, constellation, reference_time, progress_callback)
+            
+            all_visible_satellites.extend(constellation_result['visible_satellites'])
+            all_filtered_satellites.extend(constellation_result['filtered_satellites'])
+            
+            constellation_stats[constellation] = {
+                'input_count': len(constellation_satellites),
+                'visible_count': len(constellation_result['visible_satellites']),
+                'filtered_count': len(constellation_result['filtered_satellites']),
+                'visibility_rate': (len(constellation_result['visible_satellites']) / 
+                                  len(constellation_satellites) * 100) if constellation_satellites else 0
+            }
+        
+        end_time = datetime.now()
+        processing_time = (end_time - start_time).total_seconds()
+        
+        # 更新統計
+        self.filter_stats['total_processed'] = len(satellites)
+        self.filter_stats['visible_satellites'] = len(all_visible_satellites)
+        self.filter_stats['filtered_out'] = len(all_filtered_satellites)
+        self.filter_stats['processing_time_seconds'] = processing_time
+        
+        # 計算篩選效率
+        filter_efficiency = (len(all_filtered_satellites) / len(satellites)) * 100 if satellites else 0
+        
+        result = {
+            'filtering_completed_at': end_time.isoformat(),
+            'reference_time': reference_time.isoformat(),
+            'constellation_separation_enabled': True,  # 🆕 標識星座分離
+            'input_statistics': {
+                'total_satellites': len(satellites),
+                'processing_time_seconds': processing_time,
+                'constellation_breakdown': constellation_stats
+            },
+            'filtering_results': {
+                'visible_satellites': len(all_visible_satellites),
+                'filtered_out_satellites': len(all_filtered_satellites),
+                'filter_efficiency_percent': filter_efficiency,
+                'cache_hit_rate': (self.filter_stats['cache_hits'] / len(satellites) * 100) if satellites else 0,
+                'constellation_results': constellation_stats
+            },
+            'visible_satellites': all_visible_satellites,
+            'filtered_satellites': all_filtered_satellites[:100],  # 限制輸出大小
+            'ntpu_observer_config': {
+                'latitude': self.observer_lat,
+                'longitude': self.observer_lon,
+                'altitude_m': self.observer_alt,
+                'min_elevation_deg': self.min_elevation
+            },
+            'handover_constraints': {  # 🆕 換手約束說明
+                'cross_constellation_handover': False,
+                'intra_constellation_handover_only': True,
+                'supported_constellations': list(constellation_groups.keys())
+            }
+        }
+        
+        logger.info("✅ NTPU 可見性篩選完成 (星座分離)")
+        for constellation, stats in constellation_stats.items():
+            logger.info(f"  {constellation.upper()}: {stats['visible_count']}/{stats['input_count']} 顆可見 ({stats['visibility_rate']:.1f}%)")
+        logger.info(f"  總可見衛星: {len(all_visible_satellites)}")
+        logger.info(f"  總篩選掉: {len(all_filtered_satellites)}")
+        logger.info(f"  處理時間: {processing_time:.1f} 秒")
+        
+        return result
+
+    
+    def _separate_constellations(self, satellites: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        將衛星按星座分離 - 基於 v3.1.0 星座分離標準
+        
+        Args:
+            satellites: 衛星數據列表
+            
+        Returns:
+            Dict: 按星座分組的衛星數據
+        """
+        constellation_groups = {
+            'starlink': [],
+            'oneweb': []
+        }
+        
+        for satellite in satellites:
+            satellite_name = satellite.get('name', '').upper()
+            
+            # 根據衛星名稱判斷星座
+            if 'STARLINK' in satellite_name:
+                constellation_groups['starlink'].append(satellite)
+            elif 'ONEWEB' in satellite_name:
+                constellation_groups['oneweb'].append(satellite)
+            else:
+                # 未知星座，根據 NORAD ID 範圍判斷 (備用邏輯)
+                norad_id = satellite.get('norad_id', 0)
+                if isinstance(norad_id, (int, str)):
+                    try:
+                        norad_num = int(norad_id)
+                        # Starlink NORAD ID 通常在 44000-60000 範圍
+                        if 44000 <= norad_num <= 60000:
+                            constellation_groups['starlink'].append(satellite)
+                        # OneWeb NORAD ID 通常在 43000-48000 範圍
+                        elif 43000 <= norad_num <= 48000:
+                            constellation_groups['oneweb'].append(satellite)
+                    except (ValueError, TypeError):
+                        logger.warning(f"無法判斷衛星星座: {satellite_name} (NORAD: {norad_id})")
+        
+        # 移除空的星座組
+        constellation_groups = {k: v for k, v in constellation_groups.items() if v}
+        
+        logger.info(f"星座分離結果:")
+        for constellation, sats in constellation_groups.items():
+            logger.info(f"  {constellation.upper()}: {len(sats)} 顆衛星")
+        
+        return constellation_groups
+    
+    def _filter_constellation_visibility(self, satellites: List[Dict[str, Any]], 
+                                       constellation: str, reference_time: datetime,
+                                       progress_callback: callable = None) -> Dict[str, Any]:
+        """
+        對單一星座進行可見性篩選
+        
+        Args:
+            satellites: 單一星座的衛星列表
+            constellation: 星座名稱
+            reference_time: 參考時間
+            progress_callback: 進度回調函數
+            
+        Returns:
+            Dict: 該星座的篩選結果
+        """
         visible_satellites = []
         filtered_satellites = []
-        
-        self.filter_stats['total_processed'] = len(satellites)
         
         for i, satellite in enumerate(satellites):
             visibility_result = self.is_satellite_visible(satellite, reference_time)
@@ -230,11 +370,13 @@ class NTPUVisibilityFilter:
                 # 添加可見性分析結果到衛星數據
                 satellite_with_visibility = satellite.copy()
                 satellite_with_visibility['ntpu_visibility'] = visibility_result
+                satellite_with_visibility['constellation'] = constellation.upper()  # 🆕 標記星座
                 visible_satellites.append(satellite_with_visibility)
             else:
                 filtered_satellites.append({
                     'satellite_name': satellite.get('name', 'Unknown'),
                     'norad_id': satellite.get('norad_id', 0),
+                    'constellation': constellation.upper(),  # 🆕 標記星座
                     'filter_reason': visibility_result.get('error', 'Below elevation threshold')
                 })
             
@@ -242,53 +384,11 @@ class NTPUVisibilityFilter:
             if progress_callback and (i + 1) % 100 == 0:
                 progress = (i + 1) / len(satellites) * 100
                 progress_callback(progress, len(visible_satellites), len(filtered_satellites))
-            
-            # 進度日誌
-            if (i + 1) % 500 == 0:
-                progress = (i + 1) / len(satellites) * 100
-                logger.info(f"  篩選進度: {i + 1}/{len(satellites)} ({progress:.1f}%)")
         
-        end_time = datetime.now()
-        processing_time = (end_time - start_time).total_seconds()
-        
-        # 更新統計
-        self.filter_stats['visible_satellites'] = len(visible_satellites)
-        self.filter_stats['filtered_out'] = len(filtered_satellites)
-        self.filter_stats['processing_time_seconds'] = processing_time
-        
-        # 計算篩選效率
-        filter_efficiency = (len(filtered_satellites) / len(satellites)) * 100 if satellites else 0
-        
-        result = {
-            'filtering_completed_at': end_time.isoformat(),
-            'reference_time': reference_time.isoformat(),
-            'input_statistics': {
-                'total_satellites': len(satellites),
-                'processing_time_seconds': processing_time
-            },
-            'filtering_results': {
-                'visible_satellites': len(visible_satellites),
-                'filtered_out_satellites': len(filtered_satellites),
-                'filter_efficiency_percent': filter_efficiency,
-                'cache_hit_rate': (self.filter_stats['cache_hits'] / len(satellites) * 100) if satellites else 0
-            },
+        return {
             'visible_satellites': visible_satellites,
-            'filtered_satellites': filtered_satellites[:100],  # 限制輸出大小
-            'ntpu_observer_config': {
-                'latitude': self.observer_lat,
-                'longitude': self.observer_lon,
-                'altitude_m': self.observer_alt,
-                'min_elevation_deg': self.min_elevation
-            }
+            'filtered_satellites': filtered_satellites
         }
-        
-        logger.info("✅ NTPU 可見性篩選完成")
-        logger.info(f"  可見衛星: {len(visible_satellites)}")
-        logger.info(f"  篩選掉: {len(filtered_satellites)}")
-        logger.info(f"  篩選效率: {filter_efficiency:.1f}%")
-        logger.info(f"  處理時間: {processing_time:.1f} 秒")
-        
-        return result
     
     def get_visibility_statistics(self) -> Dict[str, Any]:
         """獲取篩選統計信息"""
