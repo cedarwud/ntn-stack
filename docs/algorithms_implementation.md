@@ -1,12 +1,18 @@
 # 🧠 核心算法實現現況
 
-**版本**: 1.0.0  
+**版本**: 2.0.0  
 **建立日期**: 2025-08-04  
+**更新日期**: 2025-08-06  
 **適用於**: LEO 衛星切換研究系統  
 
 ## 📋 概述
 
-本文檔記錄當前系統中已實現的核心算法、其功能特性、API 位置和使用方式，專注於學術研究價值高的算法組件。
+本文檔專注於**算法邏輯實現和功能特性**，記錄當前系統中核心算法的技術細節。
+
+**📋 文檔分工**：
+- 本文檔：算法實現邏輯、功能特性、使用範例
+- **[技術實現指南](./technical_guide.md)**：完整技術實現和配置管理  
+- **[API 接口使用指南](./api_reference.md)**：完整 API 參考和使用方式
 
 ## 🎯 算法分類架構
 
@@ -30,20 +36,30 @@
 ### 3.1.1 NTN 特定 RRC 程序
 **實施位置**: `/src/protocols/ntn/ntn_signaling.py`
 
+#### 3GPP TS 38.331 標準參考
+**Event A4**: 鄰近小區變得優於門檻
+- 進入條件: `Mn + Ofn + Ocn – Hys > Thresh`
+- 離開條件: `Mn + Ofn + Ocn + Hys < Thresh`
+
+**Event A5**: 服務小區低於門檻1且鄰近小區高於門檻2
+- 進入條件: `Mp + Hys < Thresh1` 且 `Mn + Ofn + Ocn – Hys > Thresh2`
+- 離開條件: `Mp – Hys > Thresh1` 或 `Mn + Ofn + Ocn + Hys < Thresh2`
+
+變數定義：
+- `Mn`: 鄰近小區測量結果（dBm for RSRP, dB for RSRQ/RS-SINR）
+- `Mp`: 服務小區測量結果
+- `Ofn`: 測量對象特定偏移
+- `Ocn`: 小區特定偏移
+- `Hys`: 遲滯參數（dB）
+- `Thresh`: 門檻參數
+
 #### 核心功能
 - **衛星特定信令流程**: 適應 LEO 衛星移動性的 RRC 程序
 - **UE 位置更新機制**: 基於衛星位置的 UE 定位更新
 - **多波束切換信令**: 支援衛星內多波束切換
 - **時間提前補償**: 自動計算和應用傳播延遲補償
 
-#### API 端點
-```python
-# 主要 API 接口
-POST /api/v1/ntn/signaling/initiate_handover
-GET  /api/v1/ntn/signaling/beam_info/{satellite_id}
-POST /api/v1/ntn/signaling/update_location
-GET  /api/v1/ntn/signaling/timing_advance/{ue_id}
-```
+**API 參考**: 詳細的 NTN 信令 API 請參考 [API 接口使用指南](./api_reference.md#ntn-signaling)
 
 #### 使用範例
 ```python
@@ -69,13 +85,7 @@ handover_result = await signaling.initiate_satellite_handover(
 - **動態星曆更新**: 即時更新衛星軌道參數
 - **位置精度優化**: 基於 SGP4 的高精度位置廣播
 
-#### API 端點
-```python
-GET  /api/v1/ntn/broadcast/sib19/{cell_id}
-GET  /api/v1/ntn/broadcast/satellite_candidates
-POST /api/v1/ntn/broadcast/update_ephemeris
-GET  /api/v1/ntn/broadcast/coverage_map
-```
+**API 參考**: 詳細的衛星位置廣播 API 請參考 [API 接口使用指南](./api_reference.md#satellite-broadcast)
 
 #### SIB19 廣播格式
 ```json
@@ -107,13 +117,7 @@ GET  /api/v1/ntn/broadcast/coverage_map
 - **傳播延遲補償**: 基於衛星距離的延遲補償
 - **同步精度監控**: 時間同步品質指標追蹤
 
-#### API 端點
-```python
-GET  /api/v1/time_sync/status
-POST /api/v1/time_sync/calibrate
-GET  /api/v1/time_sync/doppler_compensation/{satellite_id}
-POST /api/v1/time_sync/set_reference_source
-```
+**API 參考**: 詳細的時間同步 API 請參考 [API 接口使用指南](./api_reference.md#time-sync)
 
 #### 同步精度指標
 ```python
@@ -147,13 +151,7 @@ decision_factors = {
 }
 ```
 
-#### API 端點
-```python
-POST /api/v1/handover_decision/evaluate_candidates
-GET  /api/v1/handover_decision/decision_history/{ue_id}
-POST /api/v1/handover_decision/update_weights
-GET  /api/v1/handover_decision/performance_metrics
-```
+**API 參考**: 詳細的切換決策 API 請參考 [API 接口使用指南](./api_reference.md#handover-decision)
 
 #### 使用範例
 ```python
@@ -191,13 +189,7 @@ orbit_accuracy = {
 }
 ```
 
-#### API 端點
-```python
-POST /api/v1/orbit_prediction/predict_position
-GET  /api/v1/orbit_prediction/satellite_trajectory/{satellite_id}
-POST /api/v1/orbit_prediction/update_tle
-GET  /api/v1/orbit_prediction/accuracy_metrics
-```
+**API 參考**: 詳細的軌道預測 API 請參考 [API 接口使用指南](./api_reference.md#orbit-prediction)
 
 ### 3.2.3 ML 驅動預測模型
 **實施位置**: `/src/algorithms/ml/prediction_models.py`
@@ -226,13 +218,7 @@ ml_models = {
 }
 ```
 
-#### API 端點
-```python
-POST /api/v1/ml_prediction/train_model
-POST /api/v1/ml_prediction/predict_handover
-GET  /api/v1/ml_prediction/model_performance
-POST /api/v1/ml_prediction/update_training_data
-```
+**API 參考**: 詳細的 ML 預測 API 請參考 [API 接口使用指南](./api_reference.md#ml-prediction)
 
 ### 3.2.4 狀態同步保證機制
 **實施位置**: `/src/algorithms/sync/state_synchronization.py`
@@ -252,13 +238,7 @@ consistency_levels = {
 }
 ```
 
-#### API 端點
-```python
-POST /api/v1/state_sync/create_state
-GET  /api/v1/state_sync/get_state/{state_id}
-PUT  /api/v1/state_sync/update_state/{state_id}
-GET  /api/v1/state_sync/sync_status
-```
+**API 參考**: 詳細的狀態同步 API 請參考 [API 接口使用指南](./api_reference.md#state-sync)
 
 ## 📊 簡化性能監控 (學術用)
 

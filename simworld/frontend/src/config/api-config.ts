@@ -34,13 +34,9 @@ const detectEnvironment = (): 'development' | 'docker' | 'production' => {
     const hostname = window.location.hostname
     const port = window.location.port
     
-    // 如果從外部 IP 訪問，使用 development 模式（直接連接）
-    if (port === '5173' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      return 'development'
-    }
-    
-    // 如果從 localhost 訪問，使用 docker 模式（使用代理）
-    if (port === '5173' && (hostname === 'localhost' || hostname === '127.0.0.1')) {
+    // 如果訪問端口是 5173，都使用 docker 模式（使用代理）
+    // 因為不管是 localhost 還是外部 IP，都需要通過前端服务器代理到後端
+    if (port === '5173') {
       return 'docker'
     }
   }

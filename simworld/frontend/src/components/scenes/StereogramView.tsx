@@ -20,7 +20,8 @@ import {
 import { useDataSync } from '../../contexts/DataSyncContext'
 
 // Phase 2: 新增組件導入
-import SatelliteAnimationController from '../domains/satellite/animation/SatelliteAnimationController'
+// SatelliteAnimationController 已廢棄 - 現在使用 DynamicSatelliteRenderer
+// import SatelliteAnimationController from '../domains/satellite/animation/SatelliteAnimationController'
 // HandoverEventVisualizer removed - cleaning up position:absolute overlay
 import type { HandoverEvent } from '../../types/satellite'
 
@@ -61,12 +62,21 @@ export default function SceneView({
         Map<string, [number, number, number]>
     >(new Map())
     const [handoverEvents, setHandoverEvents] = useState<HandoverEvent[]>([])
-    const [animationConfig] = useState({
-        acceleration: 1, // 修正：改為 1 倍速度
+    // 修復：連接側邊欄的速度控制到動畫配置
+    const [animationConfig, setAnimationConfig] = useState({
+        acceleration: handoverState.satelliteMovementSpeed || 60, // 🚀 使用側邊欄控制的速度
         distanceScale: 0.1,
         fps: 30,
         smoothing: true,
     })
+
+    // 同步側邊欄速度變更到動畫配置
+    useEffect(() => {
+        setAnimationConfig(prev => ({
+            ...prev,
+            acceleration: handoverState.satelliteMovementSpeed || 60
+        }))
+    }, [handoverState.satelliteMovementSpeed])
 
     // 使用統一的數據同步上下文獲取衛星數據
     const { state: _state } = useDataSync()
@@ -316,16 +326,10 @@ export default function SceneView({
                         onHandoverStatusUpdate={handleHandoverStatusUpdate}
                     />
 
-                    {/* Phase 2: 衛星動畫控制器 - 修復：使用統一衛星數據 */}
-                    <SatelliteAnimationController
-                        enabled={satelliteState.satelliteEnabled}
-                        location={currentLocation}
-                        constellation={currentConstellation}
-                        animationConfig={animationConfig}
-                        onHandoverEvent={handleHandoverEvent}
-                        onSatellitePositions={handleSatellitePositions}
-                        unifiedSatellites={satellites}
-                    />
+                    {/* Phase 2: SatelliteAnimationController 已完全廢棄並移除
+                        現在使用整合後的 DynamicSatelliteRenderer (在 MainScene 中)
+                        廢棄檔案位置: DEPRECATED_SatelliteAnimationController.tsx.bak
+                    */}
 
                     <ContactShadows
                         position={[0, 0.1, 0]}

@@ -37,7 +37,7 @@ COPY . .
 COPY tle_data/ /app/tle_data/
 
 # 複製 Phase 0 建置腳本
-COPY build_with_phase0_data.py /app/build_with_phase0_data.py
+COPY docker/build_with_phase0_data.py /app/build_with_phase0_data.py
 
 # 創建必要目錄
 RUN mkdir -p /app/data /app/tle_data /app/logs
@@ -112,7 +112,7 @@ COPY docker/upf-extension/ ./docker/upf-extension/
 # 複製腳本 (移除 RL 訓練腳本)
 COPY scripts/ ./scripts/
 # 複製 Phase 0 建置腳本到生產階段
-COPY build_with_phase0_data.py /app/build_with_phase0_data.py
+COPY docker/build_with_phase0_data.py /app/build_with_phase0_data.py
 
 # 建立目錄
 RUN mkdir -p /var/log/netstack /app/models /app/results /tmp/matplotlib
