@@ -7,9 +7,9 @@
 export * from './deviceApi';
 import deviceApi from './deviceApi';
 
-// 導出衛星API服務
-export * from './satelliteApi';
-import satelliteApi from './satelliteApi';
+// 衛星API服務已整合到 simworld-api.ts
+// export * from './satelliteApi'; // 已廢棄
+// import satelliteApi from './satelliteApi'; // 已廢棄
 
 // 導出模擬API服務
 export * from './simulationApi';
@@ -25,7 +25,7 @@ export { default as ApiRoutes } from '../config/apiRoutes';
 // 導出統一API對象
 const api = {
   device: deviceApi,
-  satellite: satelliteApi,
+  // satellite: satelliteApi, // 已整合到 simworld-api.ts
   simulation: simulationApi,
   coordinate: coordinateApi
 };

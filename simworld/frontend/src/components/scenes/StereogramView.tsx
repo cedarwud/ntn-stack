@@ -58,12 +58,12 @@ export default function SceneView({
     const [currentLocation, setCurrentLocation] = useState('ntpu')
     // 修復：使用 AppStateContext 中的星座選擇，確保與側邊欄同步
     const currentConstellation = satelliteState.selectedConstellation
-    const [satellitePositions, setSatellitePositions] = useState<
+    const [_satellitePositions, _setSatellitePositions] = useState<
         Map<string, [number, number, number]>
     >(new Map())
-    const [handoverEvents, setHandoverEvents] = useState<HandoverEvent[]>([])
+    const [_handoverEvents, _setHandoverEvents] = useState<HandoverEvent[]>([])
     // 修復：連接側邊欄的速度控制到動畫配置
-    const [animationConfig, setAnimationConfig] = useState({
+    const [_animationConfig, _setAnimationConfig] = useState({
         acceleration: handoverState.satelliteMovementSpeed || 60, // 🚀 使用側邊欄控制的速度
         distanceScale: 0.1,
         fps: 30,
@@ -72,7 +72,7 @@ export default function SceneView({
 
     // 同步側邊欄速度變更到動畫配置
     useEffect(() => {
-        setAnimationConfig(prev => ({
+        _setAnimationConfig(prev => ({
             ...prev,
             acceleration: handoverState.satelliteMovementSpeed || 60
         }))
@@ -95,24 +95,24 @@ export default function SceneView({
             console.log(`🌍 切換觀測點: ${currentLocation} -> ${locationId}`)
             setCurrentLocation(locationId)
             // 清除當前衛星位置，等待新數據載入
-            setSatellitePositions(new Map())
+            _setSatellitePositions(new Map())
         },
         [currentLocation]
     )
 
-    const handleSatellitePositions = useCallback(
+    const _handleSatellitePositions = useCallback(
         (positions: Map<string, [number, number, number]>) => {
-            setSatellitePositions(positions)
+            _setSatellitePositions(positions)
         },
         []
     )
 
-    const handleHandoverEvent = useCallback(
+    const _handleHandoverEvent = useCallback(
         (event: HandoverEvent) => {
             console.log(
                 `🔄 換手事件: ${event.fromSatelliteId} -> ${event.toSatelliteId}`
             )
-            setHandoverEvents((prev) => [...prev, event])
+            _setHandoverEvents((prev) => [...prev, event])
 
             // 通知父組件
             if (onHandoverEvent) {
@@ -122,7 +122,7 @@ export default function SceneView({
         [onHandoverEvent]
     )
 
-    const handleHandoverComplete = useCallback((event: HandoverEvent) => {
+    const _handleHandoverComplete = useCallback((event: HandoverEvent) => {
         console.log(
             `✅ 換手完成: ${event.fromSatelliteId} -> ${event.toSatelliteId}`
         )
@@ -132,6 +132,7 @@ export default function SceneView({
     useEffect(() => {
         if (satelliteState.satelliteEnabled) {
             // 只在有錯誤或首次載入時記錄日誌
+            console.log(`🔧 StereogramView: [${currentConstellation.toUpperCase()}] 衛星數據:`, satellites.length, '顆')
             if (satellites.length === 0) {
                 console.log(
                     `⚠️ StereogramView: [${currentConstellation.toUpperCase()}] 無衛星數據`
@@ -328,7 +329,7 @@ export default function SceneView({
 
                     {/* Phase 2: SatelliteAnimationController 已完全廢棄並移除
                         現在使用整合後的 DynamicSatelliteRenderer (在 MainScene 中)
-                        廢棄檔案位置: DEPRECATED_SatelliteAnimationController.tsx.bak
+                        衛星渲染器: DynamicSatelliteRenderer.tsx (已整合)
                     */}
 
                     <ContactShadows

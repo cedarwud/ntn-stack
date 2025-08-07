@@ -31,7 +31,7 @@ const detectEnvironment = (): 'development' | 'docker' | 'production' => {
   
   // 檢查主機名 - 如果是通過 5173 端口訪問
   if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname
+    const _hostname = window.location.hostname
     const port = window.location.port
     
     // 如果訪問端口是 5173，都使用 docker 模式（使用代理）

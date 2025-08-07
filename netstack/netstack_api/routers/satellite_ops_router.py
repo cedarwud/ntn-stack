@@ -19,6 +19,7 @@ import asyncio
 # Import existing services
 from ..services.satellite_gnb_mapping_service import SatelliteGnbMappingService
 from ..services.simworld_tle_bridge_service import SimWorldTLEBridgeService
+from ..services.distance_correction_service import create_distance_correction_service
 
 logger = structlog.get_logger(__name__)
 
@@ -55,6 +56,7 @@ class VisibleSatellitesResponse(BaseModel):
 # Global service instances
 satellite_service: Optional[SatelliteGnbMappingService] = None
 tle_bridge_service: Optional[SimWorldTLEBridgeService] = None
+distance_correction_service = None
 
 def get_satellite_service() -> SatelliteGnbMappingService:
     """獲取衛星服務實例"""
@@ -82,6 +84,13 @@ def get_tle_bridge_service() -> SimWorldTLEBridgeService:
         )
     return tle_bridge_service
 
+def get_distance_correction_service():
+    """獲取距離修正服務實例"""
+    global distance_correction_service
+    if distance_correction_service is None:
+        distance_correction_service = create_distance_correction_service()
+    return distance_correction_service
+
 # 創建路由器
 router = APIRouter(
     prefix="/api/v1/satellite-ops",
@@ -106,8 +115,10 @@ async def get_visible_satellites(
     observer_lat: Optional[float] = Query(None, ge=-90, le=90, description="觀測者緯度"),
     observer_lon: Optional[float] = Query(None, ge=-180, le=180, description="觀測者經度"),
     observer_alt: Optional[float] = Query(None, ge=0, description="觀測者高度（米）"),
+    enable_distance_correction: bool = Query(True, description="是否啟用距離修正"),
     bridge_service: SimWorldTLEBridgeService = Depends(get_tle_bridge_service),
     service: SatelliteGnbMappingService = Depends(get_satellite_service),
+    correction_service = Depends(get_distance_correction_service),
 ):
     """獲取可見衛星列表"""
     print("🔥🔥🔥 SATELLITE OPS ROUTER CALLED 🔥🔥🔥")
@@ -140,6 +151,47 @@ async def get_visible_satellites(
             bridge_service=bridge_service,
             global_view=global_view
         )
+
+        # 🔧 應用距離修正 (如果啟用)
+        if enable_distance_correction and observer_location and satellites:
+            logger.info("🔧 應用距離修正服務")
+            
+            # 轉換衛星數據格式供距離修正服務使用
+            satellites_dict = []
+            for sat in satellites:
+                satellites_dict.append({
+                    'name': sat.name,
+                    'norad_id': sat.norad_id,
+                    'latitude': 0.0,  # 這些會在修正服務中重新計算
+                    'longitude': 0.0,
+                    'altitude': sat.orbit_altitude_km,
+                    'distance_km': sat.distance_km,
+                    'elevation_deg': sat.elevation_deg,
+                    'azimuth_deg': sat.azimuth_deg
+                })
+            
+            # 執行距離修正
+            corrected_satellites_dict, correction_stats = correction_service.process_satellite_constellation(
+                satellites_dict, 
+                observer_location["lat"], 
+                observer_location["lon"]
+            )
+            
+            # 更新衛星對象
+            for i, sat in enumerate(satellites):
+                if i < len(corrected_satellites_dict):
+                    corrected_data = corrected_satellites_dict[i]
+                    sat.distance_km = corrected_data["distance_km"]
+                    # 添加修正信息到衛星對象（如果SatelliteInfo支持的話）
+                    if hasattr(sat, 'validation_status'):
+                        sat.validation_status = corrected_data.get("distance_validation_status", "UNKNOWN")
+            
+            logger.info(
+                "距離修正完成", 
+                total_satellites=correction_stats["total_satellites"],
+                corrections_applied=correction_stats["corrections_applied"],
+                average_error_improvement=f"{correction_stats['average_original_error']:.1f}km → {correction_stats['average_corrected_error']:.1f}km"
+            )
 
         # 按仰角排序（從高到低）
         satellites.sort(key=lambda x: x.elevation_deg, reverse=True)
@@ -264,28 +316,62 @@ async def _call_simworld_satellites_api(
                     for sat_data in satellite_list:
                         # 修復：SimWorld API 返回的數據格式是直接在根層級，不是嵌套在 position 中
                         # 調試：記錄轉換前的數據
-                        logger.info(f"🔍 轉換衛星數據: {sat_data.get('name', 'unknown')}, "
-                                   f"elevation_deg={sat_data.get('elevation_deg')}, "
-                                   f"azimuth_deg={sat_data.get('azimuth_deg')}, "
-                                   f"distance_km={sat_data.get('distance_km')}")
+                        # 🔍 詳細調試任何可能有問題的衛星 - 當接收到的distance_km與應該的值不匹配
+                        simworld_distance = sat_data.get('distance_km')
+                        is_problem_satellite = (simworld_distance is not None and 
+                                              abs(simworld_distance - 550.0) > 100.0)  # 距離差異大於100km的衛星
+                        if is_problem_satellite:
+                            logger.error(f"🚨 問題衛星數據詳情: {sat_data.get('name', 'unknown')} (NORAD: {sat_data.get('norad_id')})")
+                            logger.error(f"  📊 原始數據字段: {list(sat_data.keys())}")
+                            logger.error(f"  📏 distance_km字段值: {sat_data.get('distance_km')} (類型: {type(sat_data.get('distance_km'))})")
+                            logger.error(f"  📍 座標: lat={sat_data.get('latitude')}, lon={sat_data.get('longitude')}, alt={sat_data.get('altitude')}")
+                        else:
+                            logger.info(f"🔍 轉換衛星數據: {sat_data.get('name', 'unknown')}, "
+                                       f"elevation_deg={sat_data.get('elevation_deg')}, "
+                                       f"azimuth_deg={sat_data.get('azimuth_deg')}, "
+                                       f"distance_km={sat_data.get('distance_km')}")
+                        
+                        # 🔧 修復：正確的地心距離到slant range轉換
+                        received_distance = sat_data.get("distance_km")
+                        elevation_deg = sat_data.get("elevation_deg", 0)
+                        fallback_distance = 550
+                        
+                        if received_distance is not None:
+                            # ✅ 修復：SimWorld已經使用正確的三維歐幾里得距離公式計算
+                            # d = √[(x_s - x_u)² + (y_s - y_u)² + (z_s - z_u)²]
+                            # 直接使用SimWorld返回的正確距離值，無需轉換
+                            final_distance = received_distance
+                        else:
+                            final_distance = fallback_distance
+                        
+                        # 🚨 對任何距離異常的衛星進行詳細記錄
+                        if received_distance is not None and abs(received_distance - 550.0) > 100.0:
+                            logger.error(f"🔧 距離處理追蹤: {sat_data.get('name')} (NORAD: {sat_data.get('norad_id')})")
+                            logger.error(f"  📥 SimWorld返回: {received_distance}km")
+                            logger.error(f"  🎯 即將創建SatelliteInfo使用: {final_distance}km")
                         
                         satellite_info = SatelliteInfo(
                             name=sat_data.get("name", f"SAT-{sat_data.get('id', 'unknown')}"),
                             norad_id=str(sat_data.get("norad_id", sat_data.get("id", "unknown"))),
                             elevation_deg=sat_data.get("elevation_deg", 0),
                             azimuth_deg=sat_data.get("azimuth_deg", 0),
-                            # 修復距離計算：從地心距離轉換為 slant range
-                            distance_km=max(550, sat_data.get("distance_km", 0) - 6371) if sat_data.get("distance_km", 0) > 3000 else sat_data.get("distance_km", 0),
+                            # 🚀 修復：強制使用 SimWorld 返回的正確距離值
+                            distance_km=final_distance,
                             orbit_altitude_km=sat_data.get("orbit_altitude_km", sat_data.get("altitude", 550)),
                             constellation=constellation or _extract_constellation_from_name(sat_data.get("name", "")),
                             signal_strength=sat_data.get("signal_strength"),
                             is_visible=sat_data.get("is_visible", True) and sat_data.get("elevation_deg", 0) >= min_elevation_deg
                         )
                         
-                        logger.info(f"✅ 轉換後衛星信息: {satellite_info.name}, "
-                                   f"elevation={satellite_info.elevation_deg}, "
-                                   f"azimuth={satellite_info.azimuth_deg}, "
-                                   f"distance={satellite_info.distance_km}")
+                        # 🔍 最終驗證：檢查 SatelliteInfo 對象的實際值
+                        logger.error(f"🔍 最終檢查: {satellite_info.name} - 創建後distance_km={satellite_info.distance_km}km (預期: {final_distance}km)")
+                        
+                        # 🚨 如果創建後的值與預期不符，強制修正
+                        if satellite_info.distance_km != final_distance:
+                            logger.error(f"🚨 檢測到距離值異常修改！{satellite_info.name}: {final_distance}km → {satellite_info.distance_km}km")
+                            # 強制重新設置正確值
+                            satellite_info.distance_km = final_distance
+                            logger.error(f"🔧 強制修正為: {satellite_info.distance_km}km")
                         satellites.append(satellite_info)
                     
                     logger.info(

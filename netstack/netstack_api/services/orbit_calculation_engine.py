@@ -41,13 +41,19 @@ class Position:
 
 @dataclass
 class SatellitePosition(Position):
-    """衛星位置 (繼承 Position)"""
+    """衛星位置 (繼承 Position) + 觀測者相關數據"""
 
     satellite_id: str = ""
     velocity_x: float = 0.0  # km/s
     velocity_y: float = 0.0  # km/s
     velocity_z: float = 0.0  # km/s
     orbital_period: float = 0.0  # 分鐘
+    
+    # 🚀 新增觀測者相關欄位 (來自預計算數據)
+    elevation_deg: Optional[float] = None      # 仰角 (度)
+    azimuth_deg: Optional[float] = None        # 方位角 (度)  
+    range_km: Optional[float] = None           # 距離 (公里)
+    is_visible: Optional[bool] = None          # 是否可見  # 分鐘
 
 
 @dataclass
@@ -508,28 +514,92 @@ class OrbitCalculationEngine:
         step_minutes: float = 10.0,
     ) -> List[Dict[str, Any]]:
         """
-        獲取衛星軌跡 (Pure Cron 架構)
-        
-        遵循 @docs/satellite_data_preprocessing.md:
-        - 使用預計算時間序列數據，無即時計算
-        - 支援時間範圍查詢和插值
-        - 返回真實歷史軌道數據
+        計算衛星軌跡 (支援觀測者相關數據)
 
         Args:
-            satellite_id: 衛星ID
+            satellite_id: 衛星ID（NORAD ID）
             start_time: 開始時間（Unix時間戳）
             duration_hours: 持續時間（小時）
             step_minutes: 步長（分鐘）
 
         Returns:
-            軌跡點列表
+            軌跡點列表，包含觀測者相關數據 (elevation_deg, azimuth_deg, range_km, is_visible)
         """
-        if satellite_id not in self.orbit_cache:
-            self.logger.warning(
-                "衛星預計算數據不存在", 
+        try:
+            # 檢查衛星是否存在
+            if satellite_id not in self.sgp4_cache:
+                self.logger.warning("衛星不存在於緩存中", satellite_id=satellite_id)
+                return []
+
+            trajectory_points = []
+            start_datetime = datetime.fromtimestamp(start_time, timezone.utc)
+            end_datetime = start_datetime + timedelta(hours=duration_hours)
+
+            # 觀測者位置 (NTPU)
+            observer_lat = 24.9441667  # NTPU 緯度
+            observer_lon = 121.3713889  # NTPU 經度  
+            observer_alt = 0.024  # NTPU 高度 24米
+
+            current_time = start_datetime
+            step_delta = timedelta(minutes=step_minutes)
+
+            while current_time <= end_datetime:
+                timestamp = current_time.timestamp()
+
+                # 計算衛星位置
+                position = self.calculate_satellite_position(satellite_id, timestamp)
+
+                if position:
+                    # 🚀 計算觀測者相關數據
+                    elevation_deg, azimuth_deg, range_km = self._calculate_distance_elevation(
+                        observer_lat,
+                        observer_lon,
+                        observer_alt,
+                        position.latitude or 0.0,
+                        position.longitude or 0.0, 
+                        position.altitude or 0.0
+                    )
+                    
+                    is_visible = elevation_deg > 0  # 地平線以上才可見
+
+                    # 創建軌跡點
+                    trajectory_point = {
+                        "time": current_time.isoformat(),
+                        "timestamp": timestamp,
+                        "position": {
+                            "x": position.x,
+                            "y": position.y,
+                            "z": position.z,
+                            "latitude": position.latitude if position.latitude else 0.0,
+                            "longitude": position.longitude if position.longitude else 0.0,
+                            "altitude": position.altitude if position.altitude else 0.0,
+                        },
+                        "velocity": {
+                            "x": position.velocity_x,
+                            "y": position.velocity_y,
+                            "z": position.velocity_z,
+                        },
+                        # 🚀 新增觀測者相關數據
+                        "elevation_deg": elevation_deg,
+                        "azimuth_deg": azimuth_deg,
+                        "range_km": range_km,
+                        "is_visible": is_visible,
+                    }
+                    trajectory_points.append(trajectory_point)
+
+                current_time += step_delta
+
+            self.logger.info(
+                "衛星軌跡計算完成",
                 satellite_id=satellite_id,
-                available_satellites=len(self.orbit_cache)
+                points_count=len(trajectory_points),
+                duration_hours=duration_hours,
             )
+
+            return trajectory_points
+
+        except Exception as e:
+            self.logger.error("軌跡計算失敗", satellite_id=satellite_id, error=str(e))
             return []
 
         try:
@@ -543,7 +613,7 @@ class OrbitCalculationEngine:
             # 篩選時間範圍內的數據點
             for position in precomputed_positions:
                 if position.timestamp and start_datetime <= position.timestamp <= end_datetime:
-                    # 計算 ECEF 坐標 (如果需要)
+                    # 計算 ECEF 座標 (如果需要)
                     x, y, z = self._geodetic_to_ecef(
                         position.latitude,
                         position.longitude, 
@@ -551,6 +621,7 @@ class OrbitCalculationEngine:
                     ) if position.latitude and position.longitude and position.altitude else (0.0, 0.0, 0.0)
                     
                     trajectory_point = {
+                        "time": position.timestamp.isoformat(),
                         "timestamp": position.timestamp.timestamp(),
                         "position": {
                             "x": x,
@@ -565,6 +636,11 @@ class OrbitCalculationEngine:
                             "y": position.velocity_y,
                             "z": position.velocity_z,
                         },
+                        # 🚀 關鍵修復：返回預計算的觀測者相關數據
+                        "elevation_deg": position.elevation_deg,
+                        "azimuth_deg": position.azimuth_deg,
+                        "range_km": position.range_km,
+                        "is_visible": position.is_visible,
                     }
                     trajectory_points.append(trajectory_point)
 
@@ -589,17 +665,14 @@ class OrbitCalculationEngine:
         """
         獲取可用衛星列表 (Pure Cron 架構)
         
-        🚨 修復：實現文檔要求的地理相關性篩選
-        針對台灣NTPU觀測點 (24.9441°N, 121.3713°E) 篩選可見衛星
-
         Returns:
-            台灣觀測點可見的衛星ID列表
+            已載入的衛星ID列表
         """
-        # 🎯 實現文檔要求的地理相關性篩選
-        visible_satellites = self._filter_visible_satellites_for_ntpu()
+        # 直接返回已載入的衛星ID，不做複雜篩選
+        satellites = list(self.orbit_cache.keys())
         
-        self.logger.info(f"地理篩選完成: {len(visible_satellites)} 颗台湾可見衛星 (總共 {len(self.orbit_cache)} 颗)")
-        return visible_satellites
+        self.logger.info(f"可用衛星查詢完成: {len(satellites)} 顆衛星 (來源: Pure Cron 預計算數據)")
+        return satellites
     
     def _filter_visible_satellites_for_ntpu(self) -> List[str]:
         """
@@ -656,7 +729,7 @@ class OrbitCalculationEngine:
         return visible_satellites
     
     def _calculate_distance_elevation(self, obs_lat, obs_lon, obs_alt, sat_lat, sat_lon, sat_alt):
-        """計算觀測者到衛星的距離和仰角"""
+        """計算觀測者到衛星的距離、仰角和方位角"""
         import math
         
         # 地球半徑
@@ -682,7 +755,6 @@ class OrbitCalculationEngine:
         # 3D距離
         distance = math.sqrt((sat_x - obs_x)**2 + (sat_y - obs_y)**2 + (sat_z - obs_z)**2)
         
-        # 仰角計算 (簡化版本)
         # 計算本地坐標系 (ENU)
         dx, dy, dz = sat_x - obs_x, sat_y - obs_y, sat_z - obs_z
         
@@ -699,7 +771,12 @@ class OrbitCalculationEngine:
         horiz_distance = math.sqrt(east**2 + north**2)
         elevation = math.degrees(math.atan2(up, horiz_distance))
         
-        return distance, elevation
+        # 方位角計算 (從北方順時針測量)
+        azimuth = math.degrees(math.atan2(east, north))
+        if azimuth < 0:
+            azimuth += 360
+        
+        return elevation, azimuth, distance
 
     def get_constellation_satellites(self, constellation: str) -> List[str]:
         """
@@ -906,6 +983,7 @@ class OrbitCalculationEngine:
         - 數據來源: /app/data/phase0_precomputed_orbits.json
         - 架構原則: 純數據載入，無 TLE 解析或 SGP4 計算
         - 啟動速度: < 30秒快速啟動
+        - 🚀 包含預計算的觀測者相關數據 (elevation_deg, azimuth_deg, range_km, is_visible)
 
         Returns:
             載入的衛星數量
@@ -974,7 +1052,12 @@ class OrbitCalculationEngine:
                             velocity_x=velocity_eci.get('x', 0.0),
                             velocity_y=velocity_eci.get('y', 0.0),
                             velocity_z=velocity_eci.get('z', 0.0),
-                            timestamp=datetime.fromisoformat(pos_data.get('time', '').replace('Z', '+00:00'))
+                            timestamp=datetime.fromisoformat(pos_data.get('time', '').replace('Z', '+00:00')),
+                            # 🚀 關鍵修復：存儲預計算的觀測者相關數據
+                            elevation_deg=pos_data.get('elevation_deg'),
+                            azimuth_deg=pos_data.get('azimuth_deg'), 
+                            range_km=pos_data.get('range_km'),
+                            is_visible=pos_data.get('is_visible')
                         )
                         positions.append(position)
                     
