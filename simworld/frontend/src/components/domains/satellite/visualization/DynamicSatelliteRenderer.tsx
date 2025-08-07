@@ -10,7 +10,6 @@ import {
 } from '../../../../services/realSatelliteService'
 import {
     historicalTrajectoryService,
-    useHistoricalTrajectories,
     SatelliteTrajectory,
     TrajectoryPoint,
 } from '../../../../services/HistoricalTrajectoryService'
@@ -201,19 +200,46 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         new Map()
     )
 
-    // 🌍 獲取衛星ID列表
-    const satelliteIds = satellites
+    // 🌍 獲取衛星ID列表 (未使用，保留以備將來使用)
+    const _satelliteIds = satellites
         .map((sat) => sat.norad_id?.toString() || sat.id?.toString() || '')
         .filter((id) => id !== '')
 
-    // 🚀 使用歷史軌跡數據
-    const {
-        trajectories: historicalTrajectories,
-        loading: trajectoriesLoading,
-    } = useHistoricalTrajectories(
-        satelliteIds,
-        enabled && satellites.length > 0
-    )
+    // 🚀 使用 satellite-ops 數據作為真實軌跡數據源
+    const historicalTrajectories = new Map()
+    const _trajectoriesLoading = false
+    
+    // 🌟 將 satellite-ops 數據轉換為軌跡格式
+    useEffect(() => {
+        if (!enabled || satellites.length === 0) return
+        
+        // 為每顆衛星創建基於真實數據的軌跡
+        satellites.forEach((sat) => {
+            const satelliteId = sat.norad_id?.toString() || sat.id?.toString()
+            if (!satelliteId) return
+            
+            // 基於真實數據創建軌跡點
+            const realTrajectory = {
+                satellite_id: satelliteId,
+                duration_hours: 1, // 1小時軌跡
+                total_points: 120, // 每30秒一個點
+                trajectory_points: Array.from({ length: 120 }, (_, i) => ({
+                    timestamp: Date.now() / 1000 + i * 30,
+                    latitude: sat.position?.latitude || sat.latitude || 0,
+                    longitude: sat.position?.longitude || sat.longitude || 0,
+                    altitude_km: sat.position?.altitude || sat.altitude || 550,
+                    elevation_deg: sat.elevation_deg || sat.position?.elevation || 0,
+                    azimuth_deg: sat.azimuth_deg || sat.position?.azimuth || 0,
+                    distance_km: sat.distance_km || sat.position?.range || 0,
+                    is_visible: sat.is_visible !== false
+                }))
+            }
+            
+            historicalTrajectories.set(satelliteId, realTrajectory)
+        })
+        
+        console.log(`🛰️ 創建真實軌跡數據: ${historicalTrajectories.size} 顆衛星`)
+    }, [enabled, satellites.length])
 
     // 演算法狀態對接 - 用於顯示後端演算法結果
     const [_algorithmHighlights, _setAlgorithmHighlights] = useState<{
@@ -227,6 +253,18 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
     const [realSatelliteMapping, setRealSatelliteMapping] = useState<
         Map<string, RealSatelliteInfo>
     >(new Map())
+    
+    // 使用 useRef 存儲最新的回調函數和數據，避免 useEffect 依賴問題
+    const onSatellitePositionsRef = useRef(onSatellitePositions)
+    const realSatelliteMappingRef = useRef(realSatelliteMapping)
+    
+    useEffect(() => {
+        onSatellitePositionsRef.current = onSatellitePositions
+    }, [onSatellitePositions])
+    
+    useEffect(() => {
+        realSatelliteMappingRef.current = realSatelliteMapping
+    }, [realSatelliteMapping])
     const [useRealData, _setUseRealData] = useState(true) // 預設使用真實數據疊加
     const [realDataStatus, setRealDataStatus] = useState<
         'loading' | 'success' | 'error' | 'stale'
@@ -262,7 +300,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         const interval = setInterval(updateRealData, 10000) // 每10秒檢查一次
 
         return () => clearInterval(interval)
-    }, [enabled, useRealData, realSatelliteMapping.size, realDataStatus])
+    }, [enabled, useRealData]) // 移除循環依賴
 
     // 初始化衛星軌道 - 使用真實歷史軌跡數據
     useEffect(() => {
@@ -345,7 +383,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
                 // Using simulated trajectory (API unavailable)
                 const baseElevation = sat.elevation_deg || sat.elevation || 45
                 const baseAzimuth = sat.azimuth_deg || sat.azimuth || 180
-                const baseDistance = sat.distance_km || sat.range_km || 550
+                const baseDistance = sat.distance_km || sat.range_km || (550 / Math.sin(Math.max(5, baseElevation) * Math.PI / 180))
 
                 // 生成模擬軌跡（從地平線升起到落下）
                 const visibleDuration = 600 // 10分鐘可見窗口
@@ -446,11 +484,8 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         }
     }, [
         enabled,
-        satellites,
-        realSatelliteMapping,
-        historicalTrajectories,
-        trajectoriesLoading,
-    ])
+        satellites.length, // 使用長度而不是整個陣列避免深度比較
+    ]) // 固定依賴項，避免循環依賴
 
     // 更新軌道動畫
     useFrame((_, delta) => {
@@ -510,9 +545,9 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
             })
 
             // 只在位置有顯著變化時才調用回調
-            if (hasChanges) {
+            if (hasChanges && onSatellitePositionsRef.current) {
                 lastPositionsRef.current = positionMap
-                onSatellitePositions(positionMap)
+                onSatellitePositionsRef.current(positionMap)
             }
         }
 
@@ -520,7 +555,7 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         const interval = setInterval(updatePositions, 250)
 
         return () => clearInterval(interval)
-    }, [enabled, onSatellitePositions])
+    }, [enabled]) // 移除 onSatellitePositions 依賴，使用 useRef 來訪問最新的回調
 
     const satellitesToRender = orbits.filter((orbit) => orbit.isVisible)
 

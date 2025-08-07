@@ -237,6 +237,7 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
     // 衛星狀態更新
     const setSkyfieldSatellites = useCallback(
         (satellites: VisibleSatelliteInfo[]) => {
+            console.log(`🔧 AppState: setSkyfieldSatellites 收到:`, satellites.length, '顆衛星')
             setSatelliteState((prev) => ({
                 ...prev,
                 skyfieldSatellites: satellites,

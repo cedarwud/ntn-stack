@@ -2,7 +2,7 @@
  * 真實 UE-衛星連接狀態服務
  * 獲取真實的連接狀態和換手決策數據
  */
-import { netStackApi } from './netstack-api'
+// import { netStackApi } from './netstack-api' // 暫時未使用
 
 export interface RealConnectionInfo {
     ue_id: string
@@ -35,14 +35,14 @@ export const realConnectionManager = {
 }
 
 // 導出空函數以避免錯誤
-export function getConnectionLineColor(signalQuality: number): string {
+export function getConnectionLineColor(_signalQuality: number): string {
     return '#00ff00'
 }
 
-export function getConnectionLineOpacity(signalQuality: number): number {
+export function getConnectionLineOpacity(_signalQuality: number): number {
     return 0.8
 }
 
-export function getConnectionLineRadius(signalQuality: number): number {
+export function getConnectionLineRadius(_signalQuality: number): number {
     return 0.3
 }
