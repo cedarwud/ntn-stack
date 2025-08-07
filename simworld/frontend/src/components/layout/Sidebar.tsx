@@ -300,11 +300,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     // 🎯 使用換手狀態
     const {
         satelliteMovementSpeed,
-        handoverTimingSpeed,
-        handoverStableDuration,
+        handoverTimingSpeed: _handoverTimingSpeed,
+        handoverStableDuration: _handoverStableDuration,
         setSatelliteMovementSpeed,
-        setHandoverTimingSpeed,
-        setHandoverStableDuration,
+        setHandoverTimingSpeed: _setHandoverTimingSpeed,
+        setHandoverStableDuration: _setHandoverStableDuration,
     } = useHandoverState()
 
     // 標記未使用但保留的props為已消費（避免TypeScript警告）

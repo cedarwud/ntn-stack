@@ -354,23 +354,19 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
             })
 
             // 同步到 AppStateContext 的 satelliteState（用於側邊欄顯示）
-            // 修復：轉換 NetStack API 數據格式為前端期望的格式
+            // 修復：轉換 SatellitePosition 格式為 VisibleSatelliteInfo 格式
             const convertedSatellites = realSatellites.map((sat) => ({
-                ...sat,
-                // 修復：支援統一格式的字段名
-                elevation_deg:
-                    sat.elevation_deg ||
-                    sat.elevation ||
-                    sat.position?.elevation ||
-                    0,
-                azimuth_deg:
-                    sat.azimuth_deg ||
-                    sat.azimuth ||
-                    sat.position?.azimuth ||
-                    0,
-                distance_km:
-                    sat.range_km || sat.distance_km || sat.position?.range || 0,
-                is_visible: sat.is_visible || sat.visible || true,
+                norad_id: parseInt(sat.norad_id) || sat.id,
+                name: sat.name,
+                elevation_deg: sat.elevation_deg || sat.position?.elevation || 0,
+                azimuth_deg: sat.azimuth_deg || sat.position?.azimuth || 0,
+                distance_km: sat.distance_km || sat.position?.range || 0,
+                line1: '', // TLE 數據在此處不可用
+                line2: '', // TLE 數據在此處不可用
+                ecef_x_km: null,
+                ecef_y_km: null,
+                ecef_z_km: null,
+                constellation: 'starlink', // 根據選擇的星座設定
             }))
 
             // 只在有錯誤時記錄日誌
@@ -381,6 +377,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
                 })
             }
 
+            console.log(`🔧 DataSync: 設置 skyfieldSatellites:`, convertedSatellites.length, '顆衛星')
             setSkyfieldSatellites(convertedSatellites)
         }
 

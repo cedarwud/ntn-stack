@@ -14,7 +14,7 @@ import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { 
   historicalTrajectoryService,
-  type SatelliteTrajectory,
+  type SatelliteTrajectory as _SatelliteTrajectory,
   type TrajectoryPoint,
   type HistoricalAnimationConfig
 } from '../../../../services/HistoricalTrajectoryService'
@@ -336,7 +336,7 @@ interface TrajectoryPathProps {
   currentTime: number
 }
 
-const TrajectoryPath: React.FC<TrajectoryPathProps> = ({ trajectory, currentTime }) => {
+const TrajectoryPath: React.FC<TrajectoryPathProps> = ({ trajectory, currentTime: _currentTime }) => {
   const pathRef = useRef<THREE.BufferGeometry>(null)
 
   useEffect(() => {

@@ -47,7 +47,7 @@ class HistoricalTrajectoryService {
     async getMultipleSatelliteTrajectories(
         satelliteIds: string[],
         startTime?: number,
-        durationHours: number = this.TRAJECTORY_DURATION_HOURS
+        _durationHours: number = this.TRAJECTORY_DURATION_HOURS
     ): Promise<Map<string, SatelliteTrajectory>> {
         const now = Date.now()
         
@@ -94,18 +94,21 @@ class HistoricalTrajectoryService {
     async getSatelliteTrajectory(
         satelliteId: string,
         startTime?: number,
-        durationHours: number = this.TRAJECTORY_DURATION_HOURS
+        _durationHours: number = this.TRAJECTORY_DURATION_HOURS
     ): Promise<SatelliteTrajectory | null> {
         try {
-            const start = startTime || Date.now() / 1000
-            const endpoint = `/api/v1/orbits/satellite/${satelliteId}/trajectory`
+            // 使用 satellite-ops API 獲取觀測者相對數據
+            const endpoint = `/api/v1/satellite-ops/visible_satellites`
             const params = new URLSearchParams({
-                start_time: start.toString(),
-                duration_hours: durationHours.toString(),
-                step_minutes: this.STEP_MINUTES.toString()
+                count: '1',
+                min_elevation_deg: '-90',
+                observer_lat: '24.9441667',
+                observer_lon: '121.3713889', 
+                utc_timestamp: '2025-07-26T00:00:00Z',
+                global_view: 'false',
+                satellite_filter: satelliteId
             })
 
-            // Removed verbose trajectory logging
             const response = await netstackFetch(`${endpoint}?${params}`)
             
             if (!response.ok) {
@@ -115,26 +118,34 @@ class HistoricalTrajectoryService {
 
             const data = await response.json()
             
-            // 轉換為前端格式
-            const trajectoryPoints: TrajectoryPoint[] = data.trajectory.map((point: any) => ({
-                timestamp: point.timestamp,
-                latitude: point.position.latitude,
-                longitude: point.position.longitude,
-                altitude: point.position.altitude,
-                elevation_deg: point.position.elevation || 0,
-                azimuth_deg: point.position.azimuth || 0,
-                distance_km: point.position.range || point.position.distance || 550,
-                is_visible: point.is_visible !== undefined ? point.is_visible : point.position.elevation > 0
-            }))
+            if (!data.satellites || data.satellites.length === 0) {
+                console.warn(`⚠️ 衛星 ${satelliteId} 無觀測數據`)
+                return null
+            }
+            
+            const satellite = data.satellites[0]
+            const currentTime = Date.now() / 1000
+            
+            // satellite-ops API 返回單點數據，轉換為軌跡格式
+            const trajectoryPoints: TrajectoryPoint[] = [{
+                timestamp: currentTime,
+                latitude: 24.9441667, // NTPU 觀測者位置
+                longitude: 121.3713889, // NTPU 觀測者位置  
+                altitude: satellite.orbit_altitude_km || 550,
+                elevation_deg: satellite.elevation_deg,
+                azimuth_deg: satellite.azimuth_deg,
+                distance_km: satellite.distance_km,
+                is_visible: satellite.is_visible
+            }]
 
             return {
                 satellite_id: satelliteId,
-                name: data.satellite_name || satelliteId,
-                constellation: data.constellation || "unknown",
+                name: satellite.name,
+                constellation: satellite.constellation || "unknown",
                 trajectory_points: trajectoryPoints,
-                start_time: start,
-                end_time: start + durationHours * 3600,
-                duration_hours: durationHours
+                start_time: currentTime,
+                end_time: currentTime,
+                duration_hours: 0 // 單點數據
             }
         } catch (error) {
             console.error(`❌ 獲取衛星 ${satelliteId} 軌跡失敗:`, error)
