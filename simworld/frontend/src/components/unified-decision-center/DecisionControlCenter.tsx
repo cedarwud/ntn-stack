@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 
 // 導入現有組件
-import HandoverAnimation3D from '@/components/domains/handover/execution/HandoverAnimation3D'
+import HandoverStatusPanel from '@/components/domains/handover/execution/HandoverStatusPanel'
 // import UnifiedHandoverStatus from '@/components/domains/handover/execution/UnifiedHandoverStatus'
 
 // 導入視覺化協調系統
@@ -195,7 +195,7 @@ export const DecisionControlCenter: React.FC<DecisionControlCenterProps> = ({
                         </CardHeader>
                         <CardContent className="p-2">
                             <div className="h-[600px] relative">
-                                <HandoverAnimation3D
+                                <HandoverStatusPanel
                                     satellites={candidateSatellites}
                                     devices={[]}
                                     enabled={true}

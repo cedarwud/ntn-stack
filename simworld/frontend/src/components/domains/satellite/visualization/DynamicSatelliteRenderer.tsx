@@ -2,7 +2,6 @@ import React, { useRef, useEffect, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import StaticModel from '../../../scenes/StaticModel'
-import { ApiRoutes } from '../../../../config/apiRoutes'
 import { SATELLITE_CONFIG } from '../../../../config/satellite.config'
 import {
     realSatelliteDataManager,
@@ -61,7 +60,7 @@ interface DynamicSatelliteRendererProps {
         progress: number
     }
     onSatelliteClick?: (satelliteId: string) => void
-    // 🔗 新增：衛星位置回調，供 HandoverAnimation3D 使用
+    // 🔗 新增：衛星位置回調，供 HandoverStatusPanel 使用
     onSatellitePositions?: (
         positions: Map<string, [number, number, number]>
     ) => void
