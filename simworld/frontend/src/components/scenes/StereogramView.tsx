@@ -10,7 +10,7 @@ import { Device } from '../../types/device'
 import PredictiveMaintenanceViewer from '../domains/analytics/performance/PredictiveMaintenanceViewer'
 // IntelligentRecommendationSystem removed - no UI controls available
 import CoreNetworkSyncViewer from '../domains/monitoring/realtime/CoreNetworkSyncViewer'
-import { HandoverStatusPanel } from '../domains/handover/execution/HandoverAnimation3D'
+import { HandoverStatusPanel } from '../domains/handover/execution/HandoverStatusPanel'
 import {
     FeatureState,
     HandoverState,

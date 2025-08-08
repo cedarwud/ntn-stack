@@ -355,40 +355,4 @@ async def get_supported_constellations():
         }
 
 
-@router.get("/constellations/{constellation}/tle")
-async def get_constellation_tle_data(constellation: str):
-    """獲取指定星座的TLE數據 - 供SimWorld使用"""
-    try:
-        # 從歷史數據模組獲取TLE數據
-        from ..data.historical_tle_data import get_historical_tle_data, get_data_source_info
-        
-        tle_data = get_historical_tle_data(constellation)
-        data_source_info = get_data_source_info()
-        
-        if not tle_data:
-            raise HTTPException(status_code=404, detail=f"星座 {constellation} 沒有可用的TLE數據")
-        
-        # 轉換為SimWorld需要的格式
-        satellites = []
-        for tle_entry in tle_data:
-            satellites.append({
-                "satellite_name": tle_entry["name"],
-                "norad_id": tle_entry["norad_id"],
-                "line1": tle_entry["line1"],
-                "line2": tle_entry["line2"],
-                "constellation": tle_entry["constellation"],
-                "launch_date": tle_entry.get("launch_date", "unknown")
-            })
-        
-        logger.info(f"🛰️ 為SimWorld提供 {constellation} TLE數據: {len(satellites)} 顆衛星")
-        
-        return {
-            "constellation": constellation,
-            "satellites": satellites,
-            "data_source": data_source_info,
-            "satellite_count": len(satellites)
-        }
-        
-    except Exception as e:
-        logger.error(f"❌ 獲取 {constellation} TLE數據失敗: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+

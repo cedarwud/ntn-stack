@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import ConstellationSelectorCompact from '../domains/satellite/ConstellationSelectorCompact'
 import '../../styles/Sidebar.scss'
 import { UAVManualDirection } from '../domains/device/visualization/UAVFlight'
 import { Device } from '../../types/device'
@@ -12,12 +13,10 @@ import { FeatureToggle } from './types/sidebar.types'
 // import { SatellitePosition } from '../../services/simworld-api'
 // import { ApiRoutes } from '../../../../config/apiRoutes'
 // import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName'
-import { useStrategy } from '../../hooks/useStrategy'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
 import { simWorldApi } from '../../services/simworld-api'
 import { SatelliteDebugger } from '../../utils/satelliteDebugger'
 // import { netstackFetch } from '../../config/api-config'
-import { useDataSync } from '../../contexts/DataSyncContext'
 import {
     useSatelliteState,
     useHandoverState,
@@ -81,32 +80,6 @@ interface SidebarProps {
     // 階段六功能開關 - 已刪除換手相關功能
     predictionPath3DEnabled?: boolean
     onPredictionPath3DChange?: (enabled: boolean) => void
-    _predictionAccuracyDashboardEnabled?: boolean
-    _onChartAnalysisDashboardChange?: (enabled: boolean) => void
-    _coreNetworkSyncEnabled?: boolean
-    _onCoreNetworkSyncChange?: (enabled: boolean) => void
-
-    // Stage 3 功能開關
-    _realtimePerformanceMonitorEnabled?: boolean
-    _onRealtimePerformanceMonitorChange?: (enabled: boolean) => void
-    _scenarioTestEnvironmentEnabled?: boolean
-    _onScenarioTestEnvironmentChange?: (enabled: boolean) => void
-
-    // 階段七功能開關
-    _e2ePerformanceMonitoringEnabled?: boolean
-    _onE2EPerformanceMonitoringChange?: (enabled: boolean) => void
-    _testResultsVisualizationEnabled?: boolean
-    _onTestResultsVisualizationChange?: (enabled: boolean) => void
-    _performanceTrendAnalysisEnabled?: boolean
-    _onPerformanceTrendAnalysisChange?: (enabled: boolean) => void
-    _automatedReportGenerationEnabled?: boolean
-    _onAutomatedReportGenerationChange?: (enabled: boolean) => void
-
-    // 階段八功能開關
-    _predictiveMaintenanceEnabled?: boolean
-    _onPredictiveMaintenanceChange?: (enabled: boolean) => void
-    _intelligentRecommendationEnabled?: boolean
-    _onIntelligentRecommendationChange?: (enabled: boolean) => void
 
     // 衛星動畫控制（動畫永遠開啟）
     satelliteSpeedMultiplier?: number
@@ -250,29 +223,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     onManualControlEnabledChange,
     satelliteUavConnectionEnabled = false,
     onSatelliteUavConnectionChange,
-    _predictionAccuracyDashboardEnabled = false,
-    _onChartAnalysisDashboardChange,
-    _coreNetworkSyncEnabled = false,
-    _onCoreNetworkSyncChange,
-    // Stage 3 功能 props (未使用但保留用於未來功能)
-    _realtimePerformanceMonitorEnabled = false,
-    _onRealtimePerformanceMonitorChange,
-    _scenarioTestEnvironmentEnabled = false,
-    _onScenarioTestEnvironmentChange,
-    // 階段七功能 props (未使用但保留用於未來功能)
-    _e2ePerformanceMonitoringEnabled = false,
-    _onE2EPerformanceMonitoringChange,
-    _testResultsVisualizationEnabled = false,
-    _onTestResultsVisualizationChange,
-    _performanceTrendAnalysisEnabled = false,
-    _onPerformanceTrendAnalysisChange,
-    _automatedReportGenerationEnabled = false,
-    _onAutomatedReportGenerationChange,
-    // 階段八功能 props (未使用但保留用於未來功能)
-    _predictiveMaintenanceEnabled = false,
-    _onPredictiveMaintenanceChange,
-    _intelligentRecommendationEnabled = false,
-    _onIntelligentRecommendationChange,
     // 衛星動畫控制 props（動畫永遠開啟）
     satelliteSpeedMultiplier: _satelliteSpeedMultiplier = 5,
     onSatelliteSpeedChange: _onSatelliteSpeedChange,
@@ -281,40 +231,16 @@ const Sidebar: React.FC<SidebarProps> = ({
     selectedConstellation = 'starlink',
     onConstellationChange,
 }) => {
-    // 🎯 使用全域策略狀態
-    const { currentStrategy: _currentStrategy } = useStrategy()
+    // 標記未使用的props為已消費（避免TypeScript警告）
+    void _satelliteSpeedMultiplier
+    void _onSatelliteSpeedChange
 
     // 🎯 使用換手狀態
     const {
         satelliteMovementSpeed,
-        handoverTimingSpeed: _handoverTimingSpeed,
-        handoverStableDuration: _handoverStableDuration,
         setSatelliteMovementSpeed,
-        setHandoverTimingSpeed: _setHandoverTimingSpeed,
-        setHandoverStableDuration: _setHandoverStableDuration,
     } = useHandoverState()
 
-    // 標記未使用但保留的props為已消費（避免TypeScript警告）
-    void _predictionAccuracyDashboardEnabled
-    void _onChartAnalysisDashboardChange
-    void _coreNetworkSyncEnabled
-    void _onCoreNetworkSyncChange
-    void _realtimePerformanceMonitorEnabled
-    void _onRealtimePerformanceMonitorChange
-    void _scenarioTestEnvironmentEnabled
-    void _onScenarioTestEnvironmentChange
-    void _e2ePerformanceMonitoringEnabled
-    void _onE2EPerformanceMonitoringChange
-    void _testResultsVisualizationEnabled
-    void _onTestResultsVisualizationChange
-    void _performanceTrendAnalysisEnabled
-    void _onPerformanceTrendAnalysisChange
-    void _automatedReportGenerationEnabled
-    void _onAutomatedReportGenerationChange
-    void _predictiveMaintenanceEnabled
-    void _onPredictiveMaintenanceChange
-    void _intelligentRecommendationEnabled
-    void _onIntelligentRecommendationChange
 
     // 使用設備管理 Hook
     const {
@@ -335,15 +261,20 @@ const Sidebar: React.FC<SidebarProps> = ({
     // 擴展的UI狀態 - 衛星控制為默認分頁
     const [activeCategory, setActiveCategory] = useState<string>('satellite')
 
-    // 使用 DataSyncContext 統一的衛星數據
-    const { state: _state } = useDataSync()
     // 使用 NetStack 預計算衛星數據，支援星座切換
     const satelliteState = useSatelliteState()
+    const { setSkyfieldSatellites } = satelliteState
     const skyfieldSatellites = satelliteState.skyfieldSatellites || []
     const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false)
     const satelliteRefreshIntervalRef = useRef<ReturnType<
         typeof setInterval
     > | null>(null)
+    const onSatelliteDataUpdateRef = useRef(onSatelliteDataUpdate)
+    
+    // Update ref when prop changes
+    useEffect(() => {
+        onSatelliteDataUpdateRef.current = onSatelliteDataUpdate
+    }, [onSatelliteDataUpdate])
 
     // 處理衛星星座顯示開關，連帶控制換手動畫顯示
     const handleSatelliteEnabledToggle = (enabled: boolean) => {
@@ -448,8 +379,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         const initializeSatellitesOnce = async () => {
             if (!satelliteEnabled) {
                 setSkyfieldSatellites([])
-                if (onSatelliteDataUpdate) {
-                    onSatelliteDataUpdate([])
+                if (onSatelliteDataUpdateRef.current) {
+                    onSatelliteDataUpdateRef.current([])
                 }
                 satelliteDataInitialized.current = false
                 setLoadingSatellites(false)
@@ -481,8 +412,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 // Final result: Show data source type only
                 console.log(`🛰️ 衛星數據來源: 真實軌道計算 (NetStack API) - ${newSatellites.length} 顆衛星`)
                 
-                if (onSatelliteDataUpdate) {
-                    onSatelliteDataUpdate(newSatellites)
+                if (onSatelliteDataUpdateRef.current) {
+                    onSatelliteDataUpdateRef.current(newSatellites)
                     // console.log(`🛰️ EnhancedSidebar: 成功載入 ${selectedConstellation} 星座 ${newSatellites.length} 顆衛星`)
                 }
 
@@ -511,10 +442,9 @@ const Sidebar: React.FC<SidebarProps> = ({
         }
     }, [
         satelliteEnabled, // 只依賴啟用狀態
-        onSatelliteDataUpdate,
-        skyfieldSatellites, // 當 DataSyncContext 的衛星數據變化時更新
         selectedConstellation, // 當星座選擇變化時重新載入衛星數據
-        // 移除其他依賴，避免重新載入
+        setSkyfieldSatellites, // 包含 setSkyfieldSatellites 依賴
+        // 移除 onSatelliteDataUpdate 和 skyfieldSatellites 避免無限循環
     ])
 
     // 處理衛星顯示數量變更
@@ -552,40 +482,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         </div>
                                         <div className="control-item">
                                             <div className="constellation-selector">
-                                                <div className="constellation-options-compact">
-                                                    <button
-                                                        className={`constellation-btn-compact ${
-                                                            selectedConstellation ===
-                                                            'starlink'
-                                                                ? 'active'
-                                                                : ''
-                                                        }`}
-                                                        onClick={() =>
-                                                            onConstellationChange &&
-                                                            onConstellationChange(
-                                                                'starlink'
-                                                            )
-                                                        }
-                                                    >
-                                                        🛰️ Starlink
-                                                    </button>
-                                                    <button
-                                                        className={`constellation-btn-compact ${
-                                                            selectedConstellation ===
-                                                            'oneweb'
-                                                                ? 'active'
-                                                                : ''
-                                                        }`}
-                                                        onClick={() =>
-                                                            onConstellationChange &&
-                                                            onConstellationChange(
-                                                                'oneweb'
-                                                            )
-                                                        }
-                                                    >
-                                                        🌐 OneWeb
-                                                    </button>
-                                                </div>
+                                                <ConstellationSelectorCompact
+                                                    value={selectedConstellation}
+                                                    onChange={onConstellationChange || (() => {})}
+                                                    disabled={!satelliteEnabled}
+                                                />
                                             </div>
                                         </div>
 

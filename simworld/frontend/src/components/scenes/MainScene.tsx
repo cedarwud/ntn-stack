@@ -170,7 +170,7 @@ const MainScene: React.FC<MainSceneProps> = ({
         getSceneTextureName(sceneName)
     )
 
-    // 🔗 衛星位置狀態管理 - 用於 HandoverAnimation3D
+    // 🔗 衛星位置狀態管理 - 用於 HandoverStatusPanel
     const [_satellitePositions, setSatellitePositions] = useState<
         Map<string, [number, number, number]>
     >(new Map())
