@@ -140,10 +140,31 @@ OneWeb 專用評分 (總分 100 分):
 └── 相位分散: 10 分 (避免同步出現)
 ```
 
-**動態篩選策略**:
-- **放寬條件** (visible < 8): 確保最少換手候選數量
-- **標準篩選** (8 ≤ visible ≤ 45): 平衡品質和數量
-- **嚴格篩選** (visible > 45): 選擇最優衛星
+**動態篩選策略** (build_with_phase0_data.py:235-245):
+- **放寬條件** (visible < 8): 確保最少換手候選數量 (`relaxed_criteria`)
+- **標準篩選** (8 ≤ visible ≤ 45): 平衡品質和數量 (`standard_filtering`)
+- **🆕 嚴格篩選** (visible > 45): 選擇最優衛星 (`strict_filtering`)
+
+#### 🔍 strict_filtering 策略詳細實現
+**觸發條件**: `estimated_visible > max_display * 3` (通常 >45 顆可見衛星)
+**實現邏輯**:
+```python
+# 實際案例：8040 顆 Starlink → 15 顆精選
+if estimated_visible > max_display * 3:
+    target_count = max_display  # 通常 15 顆
+    strategy = "strict_filtering"
+    
+# 星座特定評分權重 (constellation_specific_score)
+Starlink_評分 = {
+    "軌道傾角適用性": 30分,  # 針對 53° 傾角優化
+    "高度適用性": 25分,      # 550km 最佳高度
+    "相位分散度": 20分,      # 避免同步出現/消失
+    "換手頻率": 15分,        # 適中的切換頻率
+    "信號穩定性": 10分       # 軌道穩定性評估
+}
+```
+
+**篩選結果**: 從 8040 顆衛星中選出最優 15 顆，確保換手場景的高品質和研究價值
 
 ### 篩選結果（基於動態可見性，非硬編碼）
 | 星座 | 原始數量 | 篩選策略 | 選擇標準 | 星座分離 |

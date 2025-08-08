@@ -366,7 +366,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
                 ecef_x_km: null,
                 ecef_y_km: null,
                 ecef_z_km: null,
-                constellation: 'starlink', // 根據選擇的星座設定
+                constellation: satelliteState.selectedConstellation || 'starlink', // 根據選擇的星座設定
             }))
 
             // 只在有錯誤時記錄日誌
@@ -377,7 +377,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({
                 })
             }
 
-            console.log(`🔧 DataSync: 設置 skyfieldSatellites:`, convertedSatellites.length, '顆衛星')
+            // console.log(`🔧 DataSync: 設置 skyfieldSatellites:`, convertedSatellites.length, '顆衛星')
             setSkyfieldSatellites(convertedSatellites)
         }
 
