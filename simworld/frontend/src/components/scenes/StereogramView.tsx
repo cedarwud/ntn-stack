@@ -85,6 +85,8 @@ export default function SceneView({
         ? satelliteState.skyfieldSatellites || []
         : []
 
+    // 調試日誌已移除
+
     const handleHandoverStatusUpdate = useCallback((statusInfo: unknown) => {
         setHandoverStatusInfo(statusInfo)
     }, [])
@@ -131,13 +133,11 @@ export default function SceneView({
     // 衛星數據現在通過 DataSyncContext 統一管理，不需要額外的 API 調用
     useEffect(() => {
         if (satelliteState.satelliteEnabled) {
-            // 只在有錯誤或首次載入時記錄日誌
-            console.log(`🔧 StereogramView: [${currentConstellation.toUpperCase()}] 衛星數據:`, satellites.length, '顆')
-            if (satellites.length === 0) {
-                console.log(
-                    `⚠️ StereogramView: [${currentConstellation.toUpperCase()}] 無衛星數據`
-                )
-            }
+            // Logs removed to reduce noise - only final result matters
+            // console.log(`🔧 StereogramView: [${currentConstellation.toUpperCase()}] 衛星數據:`, satellites.length, '顆')
+            // if (satellites.length === 0) {
+            //     console.log(`⚠️ StereogramView: [${currentConstellation.toUpperCase()}] 無衛星數據`)
+            // }
         }
     }, [
         satelliteState.satelliteEnabled,

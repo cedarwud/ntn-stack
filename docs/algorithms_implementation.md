@@ -36,22 +36,55 @@
 ### 3.1.1 NTN 特定 RRC 程序
 **實施位置**: `/src/protocols/ntn/ntn_signaling.py`
 
-#### 3GPP TS 38.331 標準參考
-**Event A4**: 鄰近小區變得優於門檻
-- 進入條件: `Mn + Ofn + Ocn – Hys > Thresh`
-- 離開條件: `Mn + Ofn + Ocn + Hys < Thresh`
+#### 3GPP TS 38.331 標準參考與完整實現
 
-**Event A5**: 服務小區低於門檻1且鄰近小區高於門檻2
-- 進入條件: `Mp + Hys < Thresh1` 且 `Mn + Ofn + Ocn – Hys > Thresh2`
-- 離開條件: `Mp – Hys > Thresh1` 或 `Mn + Ofn + Ocn + Hys < Thresh2`
+**🆕 Event A4/A5/D2 完整算法實現** (satellite_ops_router.py:358-439)
+
+**Event A4**: 鄰近衛星信號優於門檻
+- **3GPP 標準**: `Mn + Ofn + Ocn – Hys > Thresh2`
+- **實現邏輯**: `neighbor_rsrp > -100 dBm`
+- **演算法**: `a4_trigger = neighbor["rsrp_dbm"] > -100`
+
+**Event A5**: 服務衛星劣化且鄰近衛星良好
+- **3GPP 標準**: `Mp + Hys < Thresh1` 且 `Mn + Ofn + Ocn – Hys > Thresh2`
+- **實現邏輯**: 服務 < -110 dBm 且 鄰居 > -100 dBm
+- **演算法**: 
+  ```python
+  a5_condition1 = serving["rsrp_dbm"] < -110  # 服務衛星劣化
+  a5_condition2 = neighbor["rsrp_dbm"] > -100  # 鄰居衛星良好
+  a5_trigger = a5_condition1 and a5_condition2
+  ```
+
+**🆕 Event D2**: LEO 衛星距離優化換手
+- **觸發邏輯**: 服務衛星距離 > 5000km 且候選衛星 < 3000km
+- **演算法**:
+  ```python
+  d2_condition1 = serving["distance_km"] > 5000.0
+  d2_condition2 = neighbor["distance_km"] < 3000.0
+  d2_trigger = d2_condition1 and d2_condition2
+  ```
+
+**🔧 RSRP 精確計算實現**:
+```python
+def calculate_rsrp_simple(sat):
+    # 自由空間路徑損耗 (Ku頻段 12 GHz)
+    fspl_db = 20 * math.log10(sat.distance_km) + 20 * math.log10(12.0) + 32.45
+    elevation_gain = min(sat.elevation_deg / 90.0, 1.0) * 15  # 最大15dB增益
+    tx_power = 43.0  # 43dBm發射功率
+    return tx_power - fspl_db + elevation_gain
+```
+
+**事件優先級決策**:
+```python
+priority = "HIGH" if a5_trigger else ("MEDIUM" if a4_trigger else "LOW")
+```
 
 變數定義：
-- `Mn`: 鄰近小區測量結果（dBm for RSRP, dB for RSRQ/RS-SINR）
-- `Mp`: 服務小區測量結果
-- `Ofn`: 測量對象特定偏移
-- `Ocn`: 小區特定偏移
-- `Hys`: 遲滯參數（dB）
-- `Thresh`: 門檻參數
+- `Mn`: 鄰近衛星 RSRP 測量結果（dBm）
+- `Mp`: 服務衛星 RSRP 測量結果（dBm） 
+- `distance_km`: 真實 3D 距離（基於 SGP4 軌道計算）
+- `Thresh1`: -110 dBm (A5 服務衛星門檻)
+- `Thresh2`: -100 dBm (A4/A5 鄰居衛星門檻)
 
 #### 核心功能
 - **衛星特定信令流程**: 適應 LEO 衛星移動性的 RRC 程序

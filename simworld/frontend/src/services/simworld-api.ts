@@ -185,7 +185,7 @@ export function useVisibleSatellites(
                     timestamp: Date.now()
                 })
                 
-                console.log(`✅ NetStack satellite-ops API: 載入 ${convertedSatellites.length} 顆衛星 (observer-relative calculations)`)
+                // console.log(`✅ NetStack satellite-ops API: 載入 ${convertedSatellites.length} 顆衛星 (observer-relative calculations)`)
 
             } catch (err) {
                 if (!isMounted) return
@@ -261,11 +261,11 @@ export const simWorldApi = {
         maxCount: number = 10,
         observerLat: number = 24.9441667,
         observerLon: number = 121.3713889,
-_constellation: string = 'starlink'
+        constellation: string = 'starlink'
     ): Promise<SatellitePosition[]> {
         try {
-            // 使用 satellite-ops API 獲取觀測者相對計算數據
-            const endpoint = `/api/v1/satellite-ops/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&utc_timestamp=2025-07-26T00:00:00Z&global_view=false`
+            // 使用 satellite-ops API 獲取觀測者相對計算數據，包含星座篩選
+            const endpoint = `/api/v1/satellite-ops/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=2025-07-26T00:00:00Z&global_view=false`
             const response = await netstackFetch(endpoint)
             
             if (!response.ok) {
@@ -303,7 +303,7 @@ _constellation: string = 'starlink'
                 visible: sat.is_visible
             }))
 
-            console.log(`✅ NetStack satellite-ops API: 載入 ${convertedSatellites.length} 顆衛星`)
+            // console.log(`✅ NetStack satellite-ops API: 載入 ${convertedSatellites.length} 顆衛星`)
             return convertedSatellites
         } catch (error) {
             console.error('❌ NetStack satellite-ops API failed:', error)
