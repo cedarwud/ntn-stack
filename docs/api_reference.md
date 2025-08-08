@@ -137,6 +137,74 @@ curl "http://localhost:8888/api/v1/satellites/positions?timestamp=2025-08-04T12:
 
 ## 🎯 切換決策 API (NetStack)
 
+### 🆕 A4/A5/D2 換手評估 (最新實現)
+**基礎路徑**: `/api/v1/satellite-ops/`
+
+#### 綜合換手決策評估
+```http
+POST /api/v1/satellite-ops/evaluate_handover
+```
+
+**參數**:
+- `serving_satellite_id` (string): 當前服務衛星 ID
+- `count` (int, 1-100): 考慮的鄰居衛星數量，預設 10
+- `constellation` (string, 可選): 星座過濾 (`starlink`, `oneweb`)
+- `min_elevation_deg` (float, 0-90): 最小仰角門檻，預設 10
+- `observer_lat` (float): 觀測者緯度，預設 24.9441667 (NTPU)
+- `observer_lon` (float): 觀測者經度，預設 121.3713889 (NTPU)
+- `observer_alt` (float): 觀測者高度（米），預設 24
+
+**範例請求**:
+```bash
+curl -X POST "http://localhost:8080/api/v1/satellite-ops/evaluate_handover" \
+  -G \
+  -d "serving_satellite_id=63388" \
+  -d "count=15" \
+  -d "constellation=starlink" \
+  -d "min_elevation_deg=5"
+```
+
+**範例響應**:
+```json
+{
+  "handover_decision": {
+    "should_handover": true,
+    "target_satellite_id": "62508",
+    "handover_reason": "觸發事件: A4, D2",
+    "priority": "MEDIUM",
+    "expected_improvement": {
+      "rsrp_gain_db": 12.45,
+      "distance_reduction_km": 2156.78
+    },
+    "confidence_score": 0.75,
+    "triggered_events": ["A4", "D2"]
+  },
+  "serving_satellite": {
+    "satellite_id": "63388",
+    "rsrp_dbm": -67.23,
+    "distance_km": 1029.92,
+    "elevation_deg": 84.72,
+    "signal_quality_score": 0.89
+  },
+  "neighbor_satellites": [
+    {
+      "satellite_id": "62508", 
+      "rsrp_dbm": -54.78,
+      "distance_km": 1873.14,
+      "elevation_deg": 45.67,
+      "signal_quality_score": 0.94
+    }
+  ],
+  "evaluation_context": {
+    "total_events_processed": 42,
+    "a4_events_triggered": 20,
+    "a5_events_triggered": 0, 
+    "d2_events_triggered": 3,
+    "successful_handovers": 4
+  }
+}
+```
+
 ### 切換決策引擎
 **基礎路徑**: `/api/v1/handover_decision/`
 

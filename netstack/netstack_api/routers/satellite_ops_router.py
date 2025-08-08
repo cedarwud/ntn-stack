@@ -11,6 +11,7 @@ Satellite Operations Router
 
 from datetime import datetime
 from typing import List, Optional, Dict, Any, Tuple
+import math
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 import structlog
@@ -247,6 +248,228 @@ async def get_visible_satellites(
         logger.error("獲取可見衛星失敗", error=str(e))
         raise HTTPException(status_code=500, detail=f"獲取可見衛星失敗: {str(e)}")
 
+@router.post(
+    "/evaluate_handover",
+    summary="評估換手決策",
+    description="基於可見衛星數據評估換手決策，整合A4/A5/D2事件觸發"
+)
+async def evaluate_handover_from_visible_satellites(
+    serving_satellite_id: str = Query(..., description="服務衛星ID"),
+    count: int = Query(10, ge=1, le=100, description="考慮的鄰居衛星數量"),
+    constellation: Optional[str] = Query(None, description="星座過濾"),
+    min_elevation_deg: float = Query(10, ge=0, le=90, description="最小仰角"),
+    observer_lat: float = Query(24.9441667, ge=-90, le=90, description="觀測者緯度"),
+    observer_lon: float = Query(121.3713889, ge=-180, le=180, description="觀測者經度"),
+    observer_alt: float = Query(24, ge=0, description="觀測者高度（米）"),
+    bridge_service: SimWorldTLEBridgeService = Depends(get_tle_bridge_service),
+    service: SatelliteGnbMappingService = Depends(get_satellite_service),
+    correction_service = Depends(get_distance_correction_service),
+):
+    """整合的換手決策評估端點"""
+    try:
+        logger.info(f"🎯 評估換手決策: 服務衛星={serving_satellite_id}")
+        
+        # 1. 獲取可見衛星列表
+        observer_location = {
+            "lat": observer_lat,
+            "lon": observer_lon, 
+            "alt": observer_alt / 1000
+        }
+        
+        satellites, data_source = await _call_simworld_satellites_api(
+            count=count + 5,  # 多取一些確保有足夠候選
+            constellation=constellation,
+            min_elevation_deg=min_elevation_deg,
+            observer_location=observer_location,
+            bridge_service=bridge_service,
+            global_view=False
+        )
+        
+        if not satellites:
+            raise HTTPException(status_code=404, detail="未找到可見衛星")
+        
+        # 2. 應用距離修正
+        if satellites:
+            satellites_dict = [
+                {
+                    'name': sat.name,
+                    'norad_id': sat.norad_id,
+                    'latitude': 0.0,
+                    'longitude': 0.0,
+                    'altitude': sat.orbit_altitude_km,
+                    'distance_km': sat.distance_km,
+                    'elevation_deg': sat.elevation_deg,
+                    'azimuth_deg': sat.azimuth_deg
+                }
+                for sat in satellites
+            ]
+            
+            corrected_satellites_dict, correction_stats = correction_service.process_satellite_constellation(
+                satellites_dict, observer_lat, observer_lon
+            )
+            
+            # 更新距離值
+            for i, sat in enumerate(satellites):
+                if i < len(corrected_satellites_dict):
+                    sat.distance_km = corrected_satellites_dict[i]["distance_km"]
+        
+        # 3. 計算RSRP值（簡化版）
+        def calculate_rsrp_simple(sat):
+            """簡化的RSRP計算"""
+            # 自由空間路徑損耗 (Ku頻段 12 GHz)
+            fspl_db = 20 * math.log10(sat.distance_km) + 20 * math.log10(12.0) + 32.45
+            elevation_gain = min(sat.elevation_deg / 90.0, 1.0) * 15  # 最大15dB增益
+            tx_power = 43.0  # 43dBm發射功率
+            return tx_power - fspl_db + elevation_gain
+        
+        # 4. 找到服務衛星和鄰居衛星
+        serving_satellite = None
+        neighbor_satellites = []
+        
+        for sat in satellites:
+            rsrp = calculate_rsrp_simple(sat)
+            
+            # 計算信號品質分數（0-1）
+            signal_quality = max(0, min(1, (rsrp + 120) / 30))  # -120dBm到-90dBm映射到0-1
+            
+            measurement = {
+                "satellite_id": sat.norad_id,
+                "rsrp_dbm": rsrp,
+                "rsrq_db": rsrp - 10,  # 簡化的RSRQ
+                "distance_km": sat.distance_km,
+                "elevation_deg": sat.elevation_deg,
+                "azimuth_deg": sat.azimuth_deg,
+                "is_visible": True,
+                "signal_quality_score": signal_quality
+            }
+            
+            if sat.norad_id == serving_satellite_id or sat.name.endswith(serving_satellite_id):
+                serving_satellite = measurement
+            else:
+                neighbor_satellites.append(measurement)
+        
+        if not serving_satellite:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"未找到服務衛星: {serving_satellite_id}"
+            )
+        
+        # 5. 簡化的換手決策實現（避免複雜依賴）
+        def evaluate_handover_decision(serving, neighbors):
+            """簡化的A4/A5/D2換手決策實現"""
+            
+            # 3GPP標準門檻值
+            rsrp_thresholds = {
+                'threshold1': -110,  # A5服務衛星門檻
+                'threshold2': -100,  # A4/A5鄰居衛星門檻
+            }
+            
+            distance_thresholds = {
+                'serving_threshold': 5000.0,  # D2服務衛星距離門檻
+                'neighbor_threshold': 3000.0  # D2鄰居衛星距離門檻
+            }
+            
+            handover_candidates = []
+            triggered_events = []
+            
+            for neighbor in neighbors:
+                events_for_neighbor = []
+                
+                # A4事件檢查：鄰居衛星RSRP優於門檻
+                a4_trigger = neighbor["rsrp_dbm"] > rsrp_thresholds['threshold2']
+                if a4_trigger:
+                    events_for_neighbor.append("A4")
+                
+                # A5事件檢查：服務衛星劣化且鄰居衛星良好
+                a5_condition1 = serving["rsrp_dbm"] < rsrp_thresholds['threshold1']
+                a5_condition2 = neighbor["rsrp_dbm"] > rsrp_thresholds['threshold2']
+                a5_trigger = a5_condition1 and a5_condition2
+                if a5_trigger:
+                    events_for_neighbor.append("A5")
+                
+                # D2事件檢查：基於距離的換手
+                d2_condition1 = serving["distance_km"] > distance_thresholds['serving_threshold']
+                d2_condition2 = neighbor["distance_km"] < distance_thresholds['neighbor_threshold']
+                d2_trigger = d2_condition1 and d2_condition2
+                if d2_trigger:
+                    events_for_neighbor.append("D2")
+                
+                # 如果有事件觸發，加入候選列表
+                if events_for_neighbor:
+                    priority = "HIGH" if a5_trigger else ("MEDIUM" if a4_trigger else "LOW")
+                    handover_candidates.append({
+                        'satellite_id': neighbor['satellite_id'],
+                        'triggered_events': events_for_neighbor,
+                        'priority': priority,
+                        'rsrp_improvement': neighbor['rsrp_dbm'] - serving['rsrp_dbm'],
+                        'distance_improvement': serving['distance_km'] - neighbor['distance_km'],
+                        'confidence_score': 0.85 if a5_trigger else (0.75 if a4_trigger else 0.65)
+                    })
+                    triggered_events.extend(events_for_neighbor)
+            
+            # 選擇最佳候選
+            if handover_candidates:
+                # 按優先級排序：HIGH > MEDIUM > LOW
+                priority_order = {"HIGH": 3, "MEDIUM": 2, "LOW": 1}
+                best_candidate = max(handover_candidates, 
+                                   key=lambda x: (priority_order[x['priority']], 
+                                                x['rsrp_improvement']))
+                
+                return {
+                    "should_handover": True,
+                    "target_satellite_id": best_candidate['satellite_id'],
+                    "handover_reason": f"觸發事件: {', '.join(best_candidate['triggered_events'])}",
+                    "priority": best_candidate['priority'],
+                    "expected_improvement": {
+                        "rsrp_gain_db": round(best_candidate['rsrp_improvement'], 2),
+                        "distance_reduction_km": round(best_candidate['distance_improvement'], 2)
+                    },
+                    "confidence_score": best_candidate['confidence_score'],
+                    "triggered_events": list(set(triggered_events))
+                }
+            else:
+                return {
+                    "should_handover": False,
+                    "target_satellite_id": None,
+                    "handover_reason": "無符合換手條件的鄰居衛星",
+                    "priority": "NONE",
+                    "expected_improvement": {"rsrp_gain_db": 0, "distance_reduction_km": 0},
+                    "confidence_score": 1.0,
+                    "triggered_events": []
+                }
+        
+        # 6. 執行換手決策
+        decision = evaluate_handover_decision(serving_satellite, neighbor_satellites)
+        
+        # 7. 返回結果
+        result = {
+            "handover_decision": decision,
+            "serving_satellite": serving_satellite,
+            "neighbor_satellites": neighbor_satellites[:3],  # 返回前3個鄰居
+            "evaluation_context": {
+                "total_visible_satellites": len(satellites),
+                "observer_location": observer_location,
+                "min_elevation_deg": min_elevation_deg,
+                "constellation": constellation,
+                "data_source": data_source.type if data_source else "unknown"
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        logger.info(
+            f"✅ 換手決策評估完成: {decision.should_handover}, "
+            f"目標: {decision.target_satellite_id}, "
+            f"觸發事件: {decision.triggered_events}"
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"換手決策評估失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"換手決策評估失敗: {str(e)}")
+
 async def _call_simworld_satellites_api(
     count: int,
     constellation: Optional[str],
@@ -449,6 +672,7 @@ async def health_check():
             "timestamp": datetime.utcnow().isoformat(),
             "endpoints": [
                 "/api/v1/satellite-ops/visible_satellites",
+                "/api/v1/satellite-ops/evaluate_handover",
                 "/api/v1/satellite-ops/health"
             ]
         }

@@ -16,11 +16,12 @@ logger = logging.getLogger(__name__)
 class MeasurementEventType(Enum):
     """3GPP 測量事件類型"""
     A1 = "A1"  # 服務衛星信號強度高於閾值
-    A2 = "A2"  # 服務衛星信號強度低於閾值
+    A2 = "A2"  # 服務衛星信號強度低於閾值  
     A3 = "A3"  # 相鄰衛星信號強度比服務衛星強
     A4 = "A4"  # 相鄰衛星信號強度高於閾值
     A5 = "A5"  # 服務衛星信號低於閾值1且相鄰衛星高於閾值2
     A6 = "A6"  # 相鄰衛星信號強度比服務衛星強且高於偏移量
+    D2 = "D2"  # 基於距離的換手觸發  # 相鄰衛星信號強度比服務衛星強且高於偏移量
 
 class ThreeGPPEventGenerator:
     """3GPP NTN 標準事件生成器"""
@@ -29,9 +30,9 @@ class ThreeGPPEventGenerator:
         # 3GPP TS 38.331 標準閾值配置
         self.measurement_config = {
             'rsrp_thresholds': {
-                'threshold1': -110,  # dBm
-                'threshold2': -100,  # dBm
-                'threshold3': -90,   # dBm
+                'threshold1': -110,  # dBm - A5服務衛星門檻
+                'threshold2': -100,  # dBm - A4/A5鄰居衛星門檻
+                'threshold3': -90,   # dBm - A1高品質門檻
             },
             'rsrq_thresholds': {
                 'threshold1': -15,   # dB
@@ -50,6 +51,15 @@ class ThreeGPPEventGenerator:
             'beam_switching_enabled': True,
             'elevation_threshold': 10.0,  # 度
             'max_handover_frequency': 5,  # 每分鐘最大換手次數
+        }
+        
+        # D2 距離換手配置
+        self.distance_config = {
+            'serving_distance_threshold': 5000.0,    # km - 服務衛星最大距離
+            'neighbor_distance_threshold': 3000.0,   # km - 鄰居衛星最大距離
+            'distance_hysteresis': 200.0,            # km - 距離滯後參數
+            'enable_distance_handover': True,        # 啟用距離換手
+            'distance_weight': 0.3,                  # 距離權重(相對於RSRP)
         }
     
     def generate_measurement_events(self, handover_data: Dict) -> List[Dict]:
@@ -84,6 +94,9 @@ class ThreeGPPEventGenerator:
             rsrp = self.calculate_rsrp(point)
             rsrq = self.calculate_rsrq(point)
             
+            # 獲取服務衛星距離
+            serving_distance = point.get('distance_km', point.get('range_km', 1000.0))
+            
             # 生成各類測量事件
             events.extend(self.check_a1_event(serving_sat_id, timestamp, rsrp, point))
             events.extend(self.check_a2_event(serving_sat_id, timestamp, rsrp, point))
@@ -94,6 +107,10 @@ class ThreeGPPEventGenerator:
             )
             
             for neighbor_id, neighbor_rsrp, neighbor_point in neighbor_measurements:
+                # 獲取鄰居衛星距離
+                neighbor_distance = neighbor_point.get('distance_km', neighbor_point.get('range_km', 1000.0))
+                
+                # RSRP基礎的換手事件
                 events.extend(self.check_a3_event(
                     serving_sat_id, neighbor_id, timestamp, rsrp, neighbor_rsrp, point, neighbor_point
                 ))
@@ -105,6 +122,11 @@ class ThreeGPPEventGenerator:
                 ))
                 events.extend(self.check_a6_event(
                     serving_sat_id, neighbor_id, timestamp, rsrp, neighbor_rsrp, point, neighbor_point
+                ))
+                
+                # 🎯 D2距離基礎的換手事件 - 新增！
+                events.extend(self.check_d2_event(
+                    serving_sat_id, neighbor_id, timestamp, serving_distance, neighbor_distance, point, neighbor_point
                 ))
         
         return events
@@ -326,6 +348,62 @@ class ThreeGPPEventGenerator:
                 }
             )
             events.append(event)
+        
+        return events
+
+    
+    def check_d2_event(self, serving_sat_id: str, neighbor_sat_id: str, timestamp: float,
+                       serving_distance: float, neighbor_distance: float,
+                       serving_point: Dict, neighbor_point: Dict) -> List[Dict]:
+        """檢查 D2 事件：基於距離的換手觸發
+        
+        觸發條件：
+        - 服務衛星距離 > 距離門檻1 (太遠)
+        - 鄰居衛星距離 < 距離門檻2 (較近)
+        """
+        events = []
+        
+        if not self.distance_config.get('enable_distance_handover', True):
+            return events
+            
+        serving_threshold = self.distance_config['serving_distance_threshold']
+        neighbor_threshold = self.distance_config['neighbor_distance_threshold'] 
+        hysteresis = self.distance_config['distance_hysteresis']
+        
+        # D2 觸發條件 - 符合您提到的標準
+        condition1 = serving_distance > (serving_threshold + hysteresis)  # 服務衛星太遠
+        condition2 = neighbor_distance < (neighbor_threshold - hysteresis)  # 鄰居衛星較近
+        
+        if condition1 and condition2:
+            # 計算距離優勢 (鄰居衛星的距離優勢)
+            distance_advantage = serving_distance - neighbor_distance
+            
+            event = self.create_measurement_event(
+                MeasurementEventType.D2,
+                serving_sat_id,
+                timestamp,
+                {
+                    'serving_distance_km': serving_distance,
+                    'neighbor_distance_km': neighbor_distance,
+                    'neighbor_sat_id': neighbor_sat_id,
+                    'serving_threshold_km': serving_threshold,
+                    'neighbor_threshold_km': neighbor_threshold,
+                    'distance_advantage_km': distance_advantage,
+                    'serving_elevation': serving_point.get('elevation', 0),
+                    'neighbor_elevation': neighbor_point.get('elevation', 0),
+                    'handover_required': True,
+                    'handover_candidate': neighbor_sat_id,
+                    'handover_reason': 'distance_optimization',
+                    'expected_improvement_km': distance_advantage
+                }
+            )
+            events.append(event)
+            
+            logger.info(
+                f"🎯 D2事件觸發: {serving_sat_id}→{neighbor_sat_id}, "
+                f"距離改善: {distance_advantage:.1f}km "
+                f"({serving_distance:.1f}km → {neighbor_distance:.1f}km)"
+            )
         
         return events
     

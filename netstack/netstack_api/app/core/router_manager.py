@@ -53,14 +53,15 @@ class RouterManager:
 
             # 嘗試導入衛星操作路由器
             try:
-                from ...routers.satellite_ops_router import (
+                from netstack_api.routers.satellite_ops_router import (
                     router as satellite_ops_router,
                 )
 
                 satellite_ops_available = True
-            except ImportError:
+                logger.info("✅ 衛星操作路由器導入成功")
+            except ImportError as e:
                 satellite_ops_available = False
-                logger.warning("Satellite Operations router 不可用，跳過註冊")
+                logger.warning(f"Satellite Operations router 不可用，跳過註冊: {e}")
 
             self.app.include_router(health_router, tags=["健康檢查"])
             self._track_router("health_router", "健康檢查", True)
@@ -83,6 +84,20 @@ class RouterManager:
                 self.app.include_router(satellite_ops_router, tags=["衛星操作"])
                 self._track_router("satellite_ops_router", "衛星操作", True)
                 logger.info("✅ 衛星操作路由器註冊完成")
+
+            # 嘗試導入換手事件API路由器
+            try:
+                import sys
+                sys.path.append('/home/sat/ntn-stack/netstack')
+                from src.api.v1.handover_events import (
+                    router as handover_events_router,
+                )
+
+                self.app.include_router(handover_events_router, tags=["換手事件"])
+                self._track_router("handover_events_router", "換手事件", True)
+                logger.info("✅ 換手事件路由器註冊完成")
+            except ImportError as e:
+                logger.warning(f"換手事件路由器不可用，跳過註冊: {e}")
 
             # 嘗試導入測量事件路由器
             try:

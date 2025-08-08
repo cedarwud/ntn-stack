@@ -138,7 +138,8 @@ interface SidebarProps {
 // Helper function to fetch visible satellites from multiple constellations using the simWorldApi client
 async function _fetchVisibleSatellites(
     count: number,
-    minElevation: number
+    minElevation: number,
+    constellation: 'starlink' | 'oneweb' = 'starlink'
 ): Promise<VisibleSatelliteInfo[]> {
     try {
         // 🔍 快速健康檢查，減少詳細調試輸出
@@ -154,46 +155,32 @@ async function _fetchVisibleSatellites(
             alt: 100, // 台灣平均海拔約100公尺
         }
 
-        // 使用台灣觀測點的新API方式，取代過時的多星座邏輯
-        const data = await simWorldApi.getVisibleSatellites(
+        // 使用台灣觀測點的新API方式，支援星座篩選
+        const satellites = await simWorldApi.getVisibleSatellites(
             Math.max(minElevation, 0), // 使用標準仰角（地平線以上）
             Math.max(count, 20), // 請求足夠的衛星數量
             TAIWAN_OBSERVER.lat, // 台灣觀測點緯度
-            TAIWAN_OBSERVER.lon // 台灣觀測點經度
+            TAIWAN_OBSERVER.lon, // 台灣觀測點經度
+            constellation // 傳遞星座篩選參數
         )
 
-        // 詳細檢查 API 響應格式
-        if (!data) {
+        // simWorldApi.getVisibleSatellites 直接返回 SatellitePosition[] 數組
+        if (!satellites) {
             console.warn(`🛰️ EnhancedSidebar: API 未返回數據`)
             return []
         }
 
-        if (!data.results) {
-            console.warn(`🛰️ EnhancedSidebar: API 響應缺少 results 字段`)
-            return []
-        }
-
-        if (!data.results.satellites) {
+        if (!Array.isArray(satellites)) {
             console.warn(
-                `🛰️ EnhancedSidebar: API 響應 results 中缺少 satellites 字段`
+                `🛰️ EnhancedSidebar: satellites 不是數組，類型: ${typeof satellites}`
             )
             return []
         }
 
-        if (!Array.isArray(data.results.satellites)) {
-            console.warn(
-                `🛰️ EnhancedSidebar: satellites 不是數組，類型: ${typeof data
-                    .results.satellites}`
-            )
-            return []
-        }
+        // Reduced logging: Only log when significant changes occur (moved to component level)
 
-        console.log(
-            `🛰️ EnhancedSidebar: 成功從台灣觀測點獲取到 ${data.results.satellites.length} 顆衛星`
-        )
-
-        // 轉換衛星數據格式
-        const satellites = data.results.satellites.map(
+        // 轉換衛星數據格式 (從 SatellitePosition 到 VisibleSatelliteInfo)
+        const _convertedSatellites = satellites.map(
             (sat: Record<string, unknown>) => {
                 const noradId = String(sat.norad_id || sat.id || '0')
                 const position = (sat.position as Record<string, unknown>) || {}
@@ -454,6 +441,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     // 靜態衛星數據管理：完全避免重新載入和重新渲染
     const satelliteDataInitialized = useRef(false)
+    const lastConstellationRef = useRef<string>(selectedConstellation)
 
     useEffect(() => {
         // 只在首次啟用衛星時載入一次，之後完全依賴內在軌道運動
@@ -468,33 +456,42 @@ const Sidebar: React.FC<SidebarProps> = ({
                 return
             }
 
-            // 如果已經初始化過，就不再重新載入
-            if (satelliteDataInitialized.current) {
+            // 檢查星座是否變化，如果變化則需要重新載入
+            if (lastConstellationRef.current !== selectedConstellation) {
+                console.log(`🔄 星座切換: ${lastConstellationRef.current} -> ${selectedConstellation}，重新載入衛星數據`)
+                satelliteDataInitialized.current = false
+                lastConstellationRef.current = selectedConstellation
+            }
+
+            // 如果已經初始化過且星座沒有變化，就不再重新載入
+            if (satelliteDataInitialized.current && lastConstellationRef.current === selectedConstellation) {
                 // console.log(
                 //     '🛰️ 衛星數據已初始化，使用內在軌道運動，避免重新載入'
                 // )
                 return
             }
 
-            // console.log('🛰️ 首次初始化衛星數據...')
+            // console.log(`🛰️ 初始化 ${selectedConstellation} 星座衛星數據...`)
             setLoadingSatellites(true)
 
-            // 使用 DataSyncContext 統一的衛星數據，避免重複 API 調用
-            // console.log('🛰️ EnhancedSidebar: 使用 DataSyncContext 統一數據源，避免重複 API 調用')
+            // 直接調用 API 獲取當前星座的衛星數據
+            try {
+                const newSatellites = await _fetchVisibleSatellites(20, 0, selectedConstellation)
+                
+                // Final result: Show data source type only
+                console.log(`🛰️ 衛星數據來源: 真實軌道計算 (NetStack API) - ${newSatellites.length} 顆衛星`)
+                
+                if (onSatelliteDataUpdate) {
+                    onSatelliteDataUpdate(newSatellites)
+                    // console.log(`🛰️ EnhancedSidebar: 成功載入 ${selectedConstellation} 星座 ${newSatellites.length} 顆衛星`)
+                }
 
-            // 當 DataSyncContext 有衛星數據時，通知父組件
-            if (skyfieldSatellites.length > 0 && onSatelliteDataUpdate) {
-                const sortedSatellites = [...skyfieldSatellites].sort(
-                    (a, b) => b.elevation_deg - a.elevation_deg
-                )
-                onSatelliteDataUpdate(sortedSatellites)
-                console.log(
-                    `🛰️ EnhancedSidebar: 從 DataSyncContext 獲取到 ${sortedSatellites.length} 顆衛星`
-                )
+                satelliteDataInitialized.current = true
+                setLoadingSatellites(false)
+            } catch (error) {
+                console.error(`❌ 載入 ${selectedConstellation} 星座衛星數據失敗:`, error)
+                setLoadingSatellites(false)
             }
-
-            satelliteDataInitialized.current = true
-            setLoadingSatellites(false)
         }
 
         // 清理任何現有的刷新間隔
@@ -516,6 +513,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         satelliteEnabled, // 只依賴啟用狀態
         onSatelliteDataUpdate,
         skyfieldSatellites, // 當 DataSyncContext 的衛星數據變化時更新
+        selectedConstellation, // 當星座選擇變化時重新載入衛星數據
         // 移除其他依賴，避免重新載入
     ])
 
