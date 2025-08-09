@@ -17,7 +17,7 @@ from ...services.ue_service import UEService
 # from ...services.slice_service import SliceService, SliceType  # 已刪除
 from ...services.health_service import HealthService
 from ...services.ueransim_service import UERANSIMConfigService
-from ...services.satellite_gnb_mapping_service import SatelliteGnbMappingService
+# from ...services.satellite_gnb_mapping_service import SatelliteGnbMappingService  # Temporarily disabled due to SimWorld dependencies
 from ...services.sionna_integration_service import SionnaIntegrationService
 # 移除干擾控制服務 (與衛星換手無關)
 # from ...services.interference_control_service import InterferenceControlService
@@ -83,8 +83,8 @@ class ServiceManager:
             app.state.ueransim_service = UERANSIMConfigService()
             logger.info("✅ UERANSIM 配置服務初始化完成")
 
-            app.state.satellite_service = SatelliteGnbMappingService(self.mongo_adapter)
-            logger.info("✅ 衛星 gNodeB 映射服務初始化完成")
+            # app.state.satellite_service = SatelliteGnbMappingService(self.mongo_adapter)  # Temporarily disabled
+            logger.info("✅ 衛星 gNodeB 映射服務暫時停用 (SimWorld 依賴清除中)")
 
             app.state.sionna_service = SionnaIntegrationService()
             logger.info("✅ Sionna 整合服務初始化完成")
@@ -131,7 +131,7 @@ class ServiceManager:
             # "slice_service",  # 已刪除
             "health_service",
             "ueransim_service",
-            "satellite_service",
+            # "satellite_service",  # Temporarily disabled
             "sionna_service",
             # "interference_service",  # 已移除
             # "connection_service",  # 已刪除

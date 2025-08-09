@@ -1,0 +1,128 @@
+# 🎭 換手算法生態系統配置
+# 多算法研究平台配置文件
+
+handover_algorithms:
+  # 傳統算法配置
+  traditional:
+    
+    simple_threshold:
+      class: "netstack_api.algorithm_ecosystem.adapters.SimpleThresholdAlgorithmAdapter"
+      enabled: true
+      priority: 10
+      config:
+        rsrp_threshold: -85
+        rsrq_threshold: -12
+        sinr_threshold: 10
+        hysteresis_margin: 3
+      description: "基於簡單信號強度閾值的換手算法"
+      author: "Baseline implementation"
+      supported_scenarios: ["basic", "testing"]
+    
+    random_baseline:
+      class: "netstack_api.algorithm_ecosystem.adapters.RandomAlgorithmAdapter"
+      enabled: true
+      priority: 5
+      config:
+        handover_probability: 0.1
+        seed: 42
+      description: "隨機換手決策算法 - 用於基準比較"
+      author: "Baseline implementation"
+      supported_scenarios: ["testing", "baseline"]
+  
+
+
+# 環境配置
+environment:
+  simulation:
+    max_satellites: 10
+    scenario: "urban"
+    netstack_api_url: "http://netstack-api:8080"
+    simworld_api_url: "http://simworld_backend:8000"
+
+# 協調器配置
+orchestrator:
+  mode: "single_algorithm"  # single_algorithm, load_balancing, ab_testing, ensemble, adaptive
+  decision_strategy: "priority_based"  # priority_based, performance_based, round_robin, weighted_random, confidence_based
+  default_algorithm: "ieee_infocom_2024"
+  fallback_algorithm: "simple_threshold"
+  timeout_seconds: 5.0
+  max_concurrent_requests: 100
+  enable_caching: true
+  cache_ttl_seconds: 60
+  enable_monitoring: true
+  monitoring_window_minutes: 10
+
+# 訓練配置
+experiments:
+  enable_ab_testing: false
+  ab_test_config:
+    traffic_split:
+      ieee_infocom_2024: 50
+      simple_threshold: 30
+      random_baseline: 20
+    metrics_to_track:
+      - "handover_success_rate"
+      - "average_latency" 
+      - "user_satisfaction"
+      - "network_efficiency"
+  
+  enable_ensemble: false
+  ensemble_config:
+    voting_strategy: "majority"  # majority, weighted, confidence_based
+    min_algorithms: 2
+    max_algorithms: 3
+    algorithms_to_use:
+      - "ieee_infocom_2024"
+      - "simple_threshold"
+
+# 性能監控配置
+monitoring:
+  enable_metrics_collection: true
+  metrics_retention_hours: 24
+  alert_thresholds:
+    error_rate: 0.05
+    average_latency_ms: 1000
+    success_rate: 0.95
+  
+  export_metrics:
+    prometheus: true
+    influxdb: false
+    elasticsearch: false
+
+# 日誌配置
+logging:
+  level: "INFO"
+  format: "structured"
+  enable_performance_logging: true
+  enable_decision_logging: true
+  log_retention_days: 7
+
+# 資源限制
+resources:
+  max_memory_mb: 2048
+  max_cpu_cores: 4
+  max_concurrent_algorithms: 2
+  model_cache_size_mb: 512
+
+# 安全配置
+security:
+  enable_authentication: false
+  api_key_required: false
+  rate_limiting:
+    requests_per_minute: 1000
+    burst_size: 100
+
+# 部署配置
+deployment:
+  environment: "development"  # development, staging, production
+  auto_scaling:
+    enabled: false
+    min_replicas: 1
+    max_replicas: 5
+    target_cpu_utilization: 70
+  
+  health_checks:
+    enabled: true
+    interval_seconds: 30
+    timeout_seconds: 10
+    failure_threshold: 3

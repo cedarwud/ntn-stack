@@ -1,92 +1,73 @@
-# NetStack API Dockerfile - Phase 0 整合版
-# 支援本地收集 TLE 數據和預計算軌道數據的 Docker 建置
+# NetStack API Dockerfile - 簡化單階段設計
+# 永久性解決多階段構建的代碼覆蓋問題
+# 統一的構建環境，根據參數控制生產/開發差異
 
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim
+
+# 構建參數
+ARG BUILD_ENV=production
+ARG INSTALL_DEV_TOOLS=false
 
 # 設定工作目錄
 WORKDIR /app
 
-# 安裝系統依賴
+# 安裝系統依賴 (基礎 + 開發工具)
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
     wget \
     git \
+    netcat-traditional \
+    bc \
+    && if [ "$INSTALL_DEV_TOOLS" = "true" ]; then \
+        apt-get install -y vim htop strace jq netcat-openbsd; \
+    fi \
     && rm -rf /var/lib/apt/lists/*
 
-# 複製需求檔案
+# 創建非root用戶
+RUN groupadd -r netstack && useradd -r -g netstack netstack
+
+# 複製需求檔案並安裝Python依賴
 COPY requirements.txt ./requirements.txt
 
-# 建立虛擬環境並安裝 Python 依賴
+# 建立虛擬環境並安裝所有依賴
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# 升級 pip 並配置超時設定
+# 升級pip並安裝依賴
 RUN pip install --upgrade pip && \
     pip config set global.timeout 600 && \
-    pip config set global.retries 5
+    pip config set global.retries 5 && \
+    pip install --no-cache-dir --default-timeout=600 -r requirements.txt
 
-# 安裝所有依賴 - 統一完整安裝
-RUN pip install --no-cache-dir --default-timeout=600 -r requirements.txt
-
-# 複製應用程式碼
+# 複製所有應用程式代碼 (一次性複製，避免覆蓋問題)
 COPY . .
 
-# Phase 0 增強：複製手動收集的 TLE 數據
-COPY tle_data/ /app/tle_data/
-
-# 複製 Phase 0 建置腳本
+# Phase 0 預計算：在代碼複製後立即執行，確保修改不被覆蓋
 COPY docker/build_with_phase0_data.py /app/build_with_phase0_data.py
 
 # 創建必要目錄
-RUN mkdir -p /app/data /app/tle_data /app/logs
+RUN mkdir -p /app/data /app/tle_data /app/logs /var/log/netstack \
+             /app/models /app/results /tmp/matplotlib
 
-# 設置 Phase 0 環境變量
-ENV PYTHONPATH=/app:/app/src
+# 設定環境變數
+ENV PYTHONPATH="/app:/app/src"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV MPLCONFIGDIR="/tmp/matplotlib"
 ENV PRECOMPUTED_DATA_ENABLED=true
 ENV ORBIT_CACHE_PRELOAD=true
 
-# Phase 0: 混合模式 - 建構時預計算基礎數據
-# 在建構時執行預計算，提供基礎數據供快速啟動使用
-RUN echo "🚀 Phase 0 混合模式：建構時預計算基礎數據..." && \
+# Phase 0 混合模式：建構時預計算基礎數據
+RUN echo "🚀 Phase 0 單階段模式：執行預計算..." && \
     python build_with_phase0_data.py || echo "⚠️ 建構時預計算未完成，將在運行時處理" && \
     if [ -f /app/data/phase0_precomputed_orbits.json ]; then \
         echo "$(date -Iseconds)" > /app/data/.build_timestamp && \
-        echo "✅ 建構時預計算完成，啟動將更快速"; \
+        echo "✅ 建構時預計算完成，數據已就緒"; \
     else \
         echo "ℹ️ 建構時預計算跳過，將使用運行時計算"; \
     fi
-
-# 記錄啟動時間
-RUN echo $(date +%s) > /tmp/netstack_startup_time
-
-# 生產階段
-FROM python:3.11-slim AS production
-
-# 建立非 root 用戶
-RUN groupadd -r netstack && useradd -r -g netstack netstack
-
-# 安裝運行時依賴
-RUN apt-get update && apt-get install -y \
-    curl \
-    netcat-traditional \
-    && rm -rf /var/lib/apt/lists/*
-
-# 複製虛擬環境
-COPY --from=builder /opt/venv /opt/venv
-
-# Phase 0 增強：複製預處理後的數據
-COPY --from=builder /app/tle_data /app/tle_data
-COPY --from=builder /app/data /app/data
-
-# 設定環境變數
-ENV PATH="/opt/venv/bin:$PATH"
-ENV PYTHONPATH="/app"
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-# 修復 matplotlib 權限問題
-ENV MPLCONFIGDIR="/tmp/matplotlib"
 
 # Phase 0 環境變數：從建置時生成的配置加載
 RUN if [ -f /app/data/phase0.env ]; then \
@@ -97,123 +78,49 @@ RUN if [ -f /app/data/phase0.env ]; then \
         done < /app/data/phase0.env; \
     fi
 
-# 設定工作目錄
-WORKDIR /app
-
-# 複製應用程式源碼
-COPY src/ ./src/
-COPY netstack_api/ ./netstack_api/
-# 確保所有路由器文件都被複製
-COPY netstack_api/routers/ ./netstack_api/routers/
-# 複製配置目錄（修復模組導入問題）
-COPY config/ ./config/
-# 複製 UPF 擴展模組
-COPY docker/upf-extension/ ./docker/upf-extension/
-# 複製腳本 (移除 RL 訓練腳本)
-COPY scripts/ ./scripts/
-# 複製 Phase 0 建置腳本到生產階段
-COPY docker/build_with_phase0_data.py /app/build_with_phase0_data.py
-
-# 建立目錄
-RUN mkdir -p /var/log/netstack /app/models /app/results /tmp/matplotlib
-
-# Phase 0 增強：驗證預計算數據完整性
-RUN ls -lh /app/data/ && echo "Phase 0 precomputed data validation passed"
-
 # 設定目錄權限
-RUN chown -R netstack:netstack /var/log/netstack /app/models /app/results /app/data /app/tle_data /tmp/matplotlib
+RUN chown -R netstack:netstack /var/log/netstack /app/models /app/results \
+                               /app/data /app/tle_data /tmp/matplotlib
 
-# 建立健康檢查腳本和啟動腳本
+# 複製並設定啟動腳本權限
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY docker/smart-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
 COPY docker/simple-entrypoint.sh /usr/local/bin/simple-entrypoint.sh
-RUN chmod +x /usr/local/bin/healthcheck.sh /usr/local/bin/docker-entrypoint.sh /usr/local/bin/smart-entrypoint.sh /usr/local/bin/simple-entrypoint.sh
 
-# 換手到非 root 用戶
+RUN chmod +x /usr/local/bin/healthcheck.sh \
+             /usr/local/bin/docker-entrypoint.sh \
+             /usr/local/bin/smart-entrypoint.sh \
+             /usr/local/bin/simple-entrypoint.sh
+
+# 切換到非root用戶
 USER netstack
 
 # 暴露埠號
 EXPOSE 8080
 
-# 健康檢查
+# 健康檢查 (根據環境調整)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD /usr/local/bin/healthcheck.sh
+    CMD if [ "$BUILD_ENV" = "development" ]; then \
+            curl -f http://localhost:8080/api/v1/satellites/health/precomputed || /usr/local/bin/healthcheck.sh; \
+        else \
+            /usr/local/bin/healthcheck.sh; \
+        fi
 
-# 設定啟動腳本
+# 設定預設啟動腳本
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# 啟動命令
-CMD ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# 啟動命令 (根據環境調整)
+CMD if [ "$BUILD_ENV" = "development" ]; then \
+        uvicorn netstack_api.main:app --host 0.0.0.0 --port 8080 --reload; \
+    else \
+        uvicorn netstack_api.main:app --host 0.0.0.0 --port 8080; \
+    fi
 
 # Phase 0 標籤
-LABEL phase0.version="1.0.1"
+LABEL phase0.version="2.0.0"
+LABEL phase0.architecture="single-stage-unified"
 LABEL phase0.data_source="local_manual_collection" 
 LABEL phase0.build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 LABEL phase0.computation_method="sgp4_orbit_precomputation"
-LABEL phase0.description="NetStack with Phase 0 SGP4 orbit precomputation support"
-
-# 開發階段
-FROM builder AS development
-
-# 設定工作目錄
-WORKDIR /app
-
-# 安裝除錯工具
-RUN apt-get update && apt-get install -y \
-    vim \
-    htop \
-    strace \
-    jq \
-    curl \
-    netcat-openbsd \
-    && rm -rf /var/lib/apt/lists/*
-
-# 建立非 root 用戶
-RUN groupadd -r netstack && useradd -r -g netstack netstack
-
-# 複製應用程式源碼
-COPY src/ ./src/
-COPY netstack_api/ ./netstack_api/
-# 確保所有路由器文件都被複製（開發階段）
-COPY netstack_api/routers/ ./netstack_api/routers/
-# 複製 UPF 擴展模組
-COPY docker/upf-extension/ ./docker/upf-extension/
-# 複製腳本 (移除 RL 訓練腳本)
-COPY scripts/ ./scripts/
-
-# Phase 0 增強：複製數據和配置
-COPY --from=builder /app/tle_data /app/tle_data
-COPY --from=builder /app/data /app/data
-
-# 建立日誌、測試目錄、模型目錄、結果目錄和 matplotlib 緩存目錄
-RUN mkdir -p /var/log/netstack /app/test-reports /app/models /app/results /tmp/matplotlib && \
-    chown -R netstack:netstack /var/log/netstack /app/test-reports /app/models /app/results /app/data /app/tle_data /tmp/matplotlib
-
-# 建立健康檢查腳本和啟動腳本
-COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
-COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-COPY docker/smart-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
-COPY docker/simple-entrypoint.sh /usr/local/bin/simple-entrypoint.sh
-RUN chmod +x /usr/local/bin/healthcheck.sh && chmod +x /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/smart-entrypoint.sh && chmod +x /usr/local/bin/simple-entrypoint.sh
-
-# 設定開發環境變數
-ENV ENVIRONMENT=development
-ENV LOG_LEVEL=DEBUG
-# 修復 matplotlib 權限問題
-ENV MPLCONFIGDIR="/tmp/matplotlib"
-# Phase 0 開發模式
-ENV PHASE0_DEV_MODE=true
-
-# 換手回應用程式用戶
-USER netstack
-
-# 暴露埠號
-EXPOSE 8080
-
-# Phase 0 增強健康檢查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8080/api/v1/satellites/health/precomputed || /usr/local/bin/healthcheck.sh
-
-# 開發模式啟動命令
-CMD ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+LABEL phase0.description="NetStack unified single-stage build eliminating code overwrite issues"

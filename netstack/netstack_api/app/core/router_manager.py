@@ -51,17 +51,21 @@ class RouterManager:
             # Enhanced RL training routes 已移除
             enhanced_rl_available = False
 
-            # 嘗試導入衛星操作路由器
+            # 暫時禁用satellite_ops_router，使用simple_satellite_router
+            intelligent_satellite_ops_available = False
+            logger.info("智能衛星操作路由器暫時禁用，使用simple_satellite_router")
+                
+            # 備用：嘗試導入簡單衛星操作路由器（零依賴版本）
             try:
-                from netstack_api.routers.satellite_ops_router import (
-                    router as satellite_ops_router,
+                from netstack_api.routers.simple_satellite_router import (
+                    router as simple_satellite_ops_router,
                 )
 
-                satellite_ops_available = True
-                logger.info("✅ 衛星操作路由器導入成功")
+                simple_satellite_ops_available = True
+                logger.info("✅ 簡單衛星操作路由器導入成功 (備用)")
             except ImportError as e:
-                satellite_ops_available = False
-                logger.warning(f"Satellite Operations router 不可用，跳過註冊: {e}")
+                simple_satellite_ops_available = False
+                logger.warning(f"Simple Satellite Operations router 不可用，跳過註冊: {e}")
 
             self.app.include_router(health_router, tags=["健康檢查"])
             self._track_router("health_router", "健康檢查", True)
@@ -79,11 +83,16 @@ class RouterManager:
                 self._track_router("websocket_router", "WebSocket 實時推送", True)
                 logger.info("✅ WebSocket 路由器註冊完成")
 
-            # 註冊衛星操作路由器
-            if satellite_ops_available:
-                self.app.include_router(satellite_ops_router, tags=["衛星操作"])
-                self._track_router("satellite_ops_router", "衛星操作", True)
-                logger.info("✅ 衛星操作路由器註冊完成")
+            # 註冊智能衛星操作路由器（優先）
+            if intelligent_satellite_ops_available:
+                self.app.include_router(intelligent_satellite_ops_router, tags=["衛星操作-智能版"])
+                self._track_router("intelligent_satellite_ops_router", "衛星操作-智能版", True)
+                logger.info("✅ 智能衛星操作路由器註冊完成")
+            elif simple_satellite_ops_available:
+                # 備用：註冊簡單衛星操作路由器（零依賴版本）
+                self.app.include_router(simple_satellite_ops_router, tags=["衛星操作-簡單版"])
+                self._track_router("simple_satellite_ops_router", "衛星操作-簡單版", True)
+                logger.info("✅ 簡單衛星操作路由器註冊完成 (備用)")
 
             # 嘗試導入換手事件API路由器
             try:
