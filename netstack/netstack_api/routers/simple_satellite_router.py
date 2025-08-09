@@ -340,6 +340,16 @@ async def get_visible_satellites(
         selected_satellites = []
         preprocessing_stats = {}
         
+        # 🎯 研究模式調整：根據請求數量決定篩選策略
+        if count <= 15:
+            # 傳統研究模式：嚴格控制數量，優化選擇品質
+            logger.info(f"🔬 啟用傳統研究模式: 目標 {count} 顆高品質衛星")
+            use_traditional_mode = True
+        else:
+            # 高密度研究模式：展示2025年真實衛星密度
+            logger.info(f"🌐 啟用高密度研究模式: 目標 {count} 顆衛星")
+            use_traditional_mode = False
+        
         selector = get_intelligent_selector()
         if selector:
             try:
@@ -377,7 +387,23 @@ async def get_visible_satellites(
             
             # 按仰角排序，選擇仰角最高的衛星
             candidate_satellites.sort(key=lambda x: x.elevation_deg, reverse=True)
-            selected_satellites = candidate_satellites[:count]
+            
+            # 🎯 根據研究模式決定篩選策略
+            if use_traditional_mode:
+                # 傳統模式：提高仰角門檻，確保品質
+                high_quality_sats = [s for s in candidate_satellites if s.elevation_deg >= 15]
+                if len(high_quality_sats) >= count:
+                    selected_satellites = high_quality_sats[:count]
+                    logger.info(f"🔬 傳統模式：選擇 {count} 顆高品質衛星 (仰角≥15°)")
+                else:
+                    # 如果高品質衛星不夠，降級到10°門檻
+                    medium_quality_sats = [s for s in candidate_satellites if s.elevation_deg >= 10]
+                    selected_satellites = medium_quality_sats[:count]
+                    logger.info(f"🔬 傳統模式：選擇 {count} 顆中等品質衛星 (仰角≥10°)")
+            else:
+                # 高密度模式：展示所有可見衛星
+                selected_satellites = candidate_satellites[:count]
+                logger.info(f"🌐 高密度模式：選擇 {len(selected_satellites)} 顆可見衛星")
             
             logger.info(f"📊 掃描結果: 從 {len(all_satellites)} 顆衛星中找到 {len(candidate_satellites)} 顆可見衛星")
         
