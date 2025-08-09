@@ -130,8 +130,8 @@ async function _fetchVisibleSatellites(
 
         // 使用台灣觀測點的新API方式，支援星座篩選
         const satellites = await simWorldApi.getVisibleSatellites(
-            Math.max(minElevation, 0), // 使用標準仰角（地平線以上）
-            Math.max(count, 20), // 請求足夠的衛星數量
+            Math.max(minElevation, 5), // 使用最低可接受仰角門檻 (5°) 符合FCC規範
+            Math.max(count, 50), // 確保請求足夠的衛星數量以支援651+301配置
             TAIWAN_OBSERVER.lat, // 台灣觀測點緯度
             TAIWAN_OBSERVER.lon, // 台灣觀測點經度
             constellation // 傳遞星座篩選參數
@@ -407,7 +407,11 @@ const Sidebar: React.FC<SidebarProps> = ({
 
             // 直接調用 API 獲取當前星座的衛星數據
             try {
-                const newSatellites = await _fetchVisibleSatellites(20, 0, selectedConstellation)
+                // 根據新的651+301完整軌道週期配置，請求足夠的衛星數量
+                // Starlink: 651顆衛星池, OneWeb: 301顆衛星池
+                const requestCount = selectedConstellation === 'starlink' ? 100 : 50  // 實用顯示數量
+                // 使用標準服務仰角門檻 (10°) - 符合3GPP NTN標準和ITU-R建議
+                const newSatellites = await _fetchVisibleSatellites(requestCount, 10, selectedConstellation)
                 
                 // Final result: Show data source type only
                 console.log(`🛰️ 衛星數據來源: 真實軌道計算 (NetStack API) - ${newSatellites.length} 顆衛星`)

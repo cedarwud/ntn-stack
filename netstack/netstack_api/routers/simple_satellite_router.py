@@ -137,7 +137,7 @@ def get_phase0_satellite_data(constellation: str, count: int = 200) -> List[Dict
     except Exception as e:
         logger.error(f"❌ Phase0數據載入失敗: {e}, 使用備用數據")
         # 備用：生成足夠的衛星數據
-        target_count = 150 if constellation.lower() == 'starlink' else 50  # 優化配置
+        target_count = 651 if constellation.lower() == 'starlink' else 301  # 完整軌道週期配置 v4.0.0
         for i in range(target_count):
             satellites.append({
                 'name': f'{constellation.upper()}-BACKUP-{i}',
@@ -301,7 +301,7 @@ def calculate_satellite_position(sat_data: Dict, timestamp: datetime, observer_l
     "/visible_satellites",
     response_model=VisibleSatellitesResponse,
     summary="獲取智能選擇的可見衛星",
-    description="使用智能預處理系統從8000+顆衛星中選擇最優的150+50顆子集 (基於真實234顆可見衛星優化)"
+    description="使用智能預處理系統基於完整軌道週期分析的651+301顆衛星智能選擇 (基於真實234顆可見衛星優化)"
 )
 async def get_visible_satellites(
     count: int = Query(20, ge=1, le=200, description="返回的衛星數量"),
@@ -331,7 +331,7 @@ async def get_visible_satellites(
         logger.info(f"🛰️ 開始智能衛星選擇: {constellation} 星座, 請求 {count} 顆")
         
         # 1. 獲取完整衛星星座數據 (150+50顆優化配置)
-        target_pool_size = 150 if constellation.lower() == 'starlink' else 50
+        target_pool_size = 651 if constellation.lower() == 'starlink' else 301
         all_satellites = get_phase0_satellite_data(constellation, target_pool_size)  # 使用Phase0真實數據
         
         logger.info(f"📊 完整星座數據: {len(all_satellites)} 顆 {constellation} 衛星")
@@ -427,8 +427,8 @@ async def get_visible_satellites(
             },
             data_source="phase0_preprocessing_150_50_satellites_optimized",
             preprocessing_stats=preprocessing_stats or {
-                "starlink_satellites": 150 if constellation.lower() == 'starlink' else 0,
-                "oneweb_satellites": 50 if constellation.lower() == 'oneweb' else 0,
+                "starlink_satellites": 651 if constellation.lower() == 'starlink' else 0,
+                "oneweb_satellites": 301 if constellation.lower() == 'oneweb' else 0,
                 "total_constellation_pool": len(all_satellites),
                 "intelligent_selector_used": selector is not None,
                 "data_generation_method": "phase0_preprocessing"
@@ -515,8 +515,8 @@ async def health_check():
         ],
         "supported_constellations": ["starlink", "oneweb"],
         "intelligent_selection": {
-            "starlink_target": 150,
-            "oneweb_target": 50,
+            "starlink_target": 651,
+            "oneweb_target": 301,
             "simultaneous_visible_target": "8-12 satellites",
             "selection_algorithm": "IntelligentSatelliteSelector",
             "orbit_calculation": "SGP4",
