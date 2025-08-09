@@ -41,7 +41,7 @@ export const TimelineControl: React.FC<Props> = ({
       
       setLoading(true);
       try {
-        const response = await netstackFetch(`/api/v1/satellites/timeline/${constellation}`);
+        const response = await netstackFetch(`/api/v1/satellite-simple/timeline/${constellation}`);
         const data = await response.json();
         
         if (data.success) {
