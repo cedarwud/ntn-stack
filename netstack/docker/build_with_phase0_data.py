@@ -227,21 +227,30 @@ class Phase0DataPreprocessor:
         # 考慮軌道覆蓋因子 (約12%同時可見)
         estimated_visible = int(visible_count * 0.12)
         
-        # 動態決定篩選策略
-        min_satellites = 8  # 至少保證換手候選數量
-        max_display = 15    # 前端渲染效能考量
+        # 動態決定篩選策略 - 更新為120+80星座配置
+        min_satellites = 60   # 至少保證換手候選數量 (研究級要求)
+        max_display_starlink = 120   # Starlink目標：120顆
+        max_display_oneweb = 80      # OneWeb目標：80顆
+        
+        # 根據星座類型決定最大數量
+        if constellation.lower() == 'starlink':
+            max_display = max_display_starlink
+        elif constellation.lower() == 'oneweb':
+            max_display = max_display_oneweb
+        else:
+            max_display = 100  # 其他星座預設值
         
         if estimated_visible < min_satellites:
             # 放寬條件：確保足夠數量
-            target_count = min(len(satellites), min_satellites)
+            target_count = min(len(satellites), max_display)  # 使用星座特定上限
             strategy = "relaxed_criteria"
-        elif estimated_visible > max_display * 3:
+        elif estimated_visible > max_display * 2:
             # 嚴格篩選：選擇最優衛星
             target_count = max_display
             strategy = "strict_filtering"
         else:
-            # 標準篩選：平衡品質和數量
-            target_count = min(estimated_visible, max_display)
+            # 標準篩選：平衡品質和數量 - 優先達到目標數量
+            target_count = min(max(estimated_visible, max_display // 2), max_display)
             strategy = "standard_filtering"
         
         logger.info(f"  估計可見: {estimated_visible} 顆")
@@ -352,6 +361,59 @@ class Phase0DataPreprocessor:
                 selected.append(satellites_with_phase[index][1])
         
         return selected
+    
+    def _extract_altitude_from_tle(self, line2: str) -> float:
+        """從TLE line2提取軌道高度"""
+        try:
+            import math
+            # 提取平運動 (revs per day)
+            mean_motion = float(line2[52:63].strip())
+            if mean_motion > 0:
+                # 使用開普勒第三定律計算軌道高度
+                altitude_km = (398600.4418 / (mean_motion * 2 * math.pi / 86400) ** 2) ** (1/3) - 6378.137
+                return round(altitude_km, 3)
+        except (ValueError, IndexError):
+            pass
+        return 550.0  # 預設高度
+    
+    def _extract_inclination_from_tle(self, line2: str) -> float:
+        """從TLE line2提取軌道傾角"""
+        try:
+            inclination = float(line2[8:16].strip())
+            return round(inclination, 4)
+        except (ValueError, IndexError):
+            return 53.0  # 預設傾角
+    
+    def _extract_raan_from_tle(self, line2: str) -> float:
+        """從TLE line2提取升交點赤經"""
+        try:
+            raan = float(line2[17:25].strip())
+            return round(raan, 4)
+        except (ValueError, IndexError):
+            return 0.0  # 預設RAAN
+    
+    def _extract_epoch_from_tle(self, line1: str) -> float:
+        """從TLE line1提取元素時刻"""
+        try:
+            # TLE格式：年份(2位) + 一年中的第幾天 + 天的小數部分
+            epoch_str = line1[18:32].strip()
+            year_2digit = int(epoch_str[:2])
+            day_of_year = float(epoch_str[2:])
+            
+            # 轉換為4位年份
+            if year_2digit > 57:  # Sputnik era cutoff
+                full_year = 1900 + year_2digit
+            else:
+                full_year = 2000 + year_2digit
+                
+            # 轉換為timestamp (簡化)
+            from datetime import datetime, timezone
+            epoch_date = datetime(full_year, 1, 1, tzinfo=timezone.utc)
+            epoch_date = epoch_date.replace(day=int(day_of_year))
+            return epoch_date.timestamp()
+            
+        except (ValueError, IndexError):
+            return datetime.now(timezone.utc).timestamp() - 3600  # 預設：一小時前
     
     def compute_sgp4_orbit_positions(self, satellites: List[Dict[str, Any]], 
                                    start_time: datetime, duration_minutes: int = 96) -> Dict[str, Any]:
@@ -555,6 +617,7 @@ class Phase0DataPreprocessor:
                 
             constellation_data = {
                 'name': constellation,
+                'satellites': [],  # 🔧 關鍵修復：添加篩選後的衛星基本數據
                 'orbit_data': {},
                 'statistics': {
                     'satellites_processed': 0,
@@ -580,6 +643,26 @@ class Phase0DataPreprocessor:
                     if filtered_satellites:
                         logger.info(f"篩選結果: {len(satellites)} → {len(filtered_satellites)} 顆衛星")
                         satellites = filtered_satellites
+                        
+                        # 🔧 關鍵修復：保存篩選後的衛星基本數據到JSON
+                        logger.info(f"💾 保存 {len(satellites)} 顆 {constellation} 衛星基本數據...")
+                        for sat in satellites:
+                            satellite_basic_data = {
+                                'name': sat['name'],
+                                'norad_id': str(sat['norad_id']),
+                                'line1': sat['line1'],
+                                'line2': sat['line2'],
+                                'tle_date': sat['tle_date'],
+                                'constellation': constellation,
+                                # 從TLE提取軌道參數用於API計算
+                                'altitude': self._extract_altitude_from_tle(sat['line2']),
+                                'inclination': self._extract_inclination_from_tle(sat['line2']),
+                                'raan': self._extract_raan_from_tle(sat['line2']),
+                                'tle_epoch': self._extract_epoch_from_tle(sat['line1'])
+                            }
+                            constellation_data['satellites'].append(satellite_basic_data)
+                            
+                        logger.info(f"✅ {len(constellation_data['satellites'])} 顆衛星基本數據已保存")
                     else:
                         logger.warning(f"⚠️ 篩選後無可用衛星 - {constellation}")
                         continue

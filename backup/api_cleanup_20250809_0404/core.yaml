@@ -1,8 +1,3 @@
-# =============================================================================
-# NetStack 核心服務 - 簡化模式（純 Cron 驅動更新）
-# 基於 core.yaml，但使用簡化啟動腳本，移除運行時數據更新邏輯
-# =============================================================================
-
 networks:
   netstack-core:
     driver: bridge
@@ -19,7 +14,7 @@ services:
     environment:
       MONGO_INITDB_DATABASE: open5gs
     ports:
-      - "27017:27017"
+      - "27017:27017"  # 添加端口映射以便外部訪問
     deploy:
       resources:
         limits:
@@ -43,72 +38,21 @@ services:
       timeout: 5s
       retries: 5
 
-  # PostgreSQL 資料庫
-  postgres:
-    image: postgres:16-alpine
-    container_name: netstack-postgres
-    hostname: postgres
-    environment:
-      POSTGRES_DB: netstack_db
-      POSTGRES_USER: netstack_user
-      POSTGRES_PASSWORD: netstack_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ../sql:/docker-entrypoint-initdb.d
-    networks:
-      netstack-core:
-        ipv4_address: 172.20.0.51
-        aliases:
-          - postgres
-          - netstack-postgres
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U netstack_user -d netstack_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis 緩存
-  redis:
-    image: redis:7-alpine
-    container_name: netstack-redis
-    hostname: redis
-    command: redis-server --appendonly yes
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      netstack-core:
-        ipv4_address: 172.20.0.52
-        aliases:
-          - redis
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # NRF 服務必須先啟動
   nrf:
     image: gradiant/open5gs:2.7.5
     container_name: netstack-nrf
     hostname: nrf
     command: open5gs-nrfd
-    environment:
-      DB_URI: mongodb://mongo/open5gs
     networks:
       netstack-core:
         ipv4_address: 172.20.0.23
         aliases:
           - nrf
+    restart: unless-stopped
     depends_on:
       mongo:
         condition: service_healthy
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "pgrep", "open5gs-nrfd"]
       interval: 5s
@@ -142,89 +86,13 @@ services:
       retries: 3
       start_period: 5s
 
-  # NetStack API - 簡化模式
-  netstack-api:
-    image: netstack-api:latest
-    container_name: netstack-api
-    # 🎯 關鍵修改：使用簡化啟動腳本
-    entrypoint: ["/usr/local/bin/simple-entrypoint.sh"]
-    command: ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
-    environment:
-      - DATABASE_URL=mongodb://mongo:27017/open5gs
-      - MONGO_HOST=mongo
-      - REDIS_URL=redis://redis:6379
-      - SATELLITE_DATABASE_URL=postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db
-      - LOG_LEVEL=INFO
-      - ENVIRONMENT=production
-      # - SIMWORLD_API_URL=http://simworld_backend:8000  # Removed - using Phase0 preprocessing instead
-      # 🚀 簡化模式環境變數
-      - SATELLITE_DATA_MODE=simple_load        # 簡單載入模式
-      - SKIP_DATA_UPDATE_CHECK=true           # 跳過數據更新檢查
-      - CRON_DRIVEN_UPDATES=true              # 表明使用 Cron 驅動更新
-    volumes:
-      - satellite_precomputed_data:/app/data
-      - netstack_models:/app/models
-      - netstack_results:/app/results
-      - netstack_scripts:/app/scripts
-    ports:
-      - "8080:8080"
-    networks:
-      netstack-core:
-        ipv4_address: 172.20.0.40
-        aliases:
-          - netstack-api
-    depends_on:
-      mongo:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      nrf:
-        condition: service_healthy
-      scp:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 4G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
-
-  # 其他 Open5GS 核心網服務 (保持不變)
-  ausf:
-    image: gradiant/open5gs:2.7.5
-    container_name: netstack-ausf
-    hostname: ausf
-    command: open5gs-ausfd
-    networks:
-      netstack-core:
-        ipv4_address: 172.20.0.25
-        aliases:
-          - ausf
-    depends_on:
-      nrf:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "pgrep", "open5gs-ausfd"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
+  # Open5GS 核心網服務
   amf:
     image: gradiant/open5gs:2.7.5
     container_name: netstack-amf
     hostname: amf
+    volumes:
+      - ../config/amf.yaml:/opt/open5gs/etc/open5gs/amf.yaml
     command: open5gs-amfd
     deploy:
       resources:
@@ -253,7 +121,27 @@ services:
       timeout: 5s
       retries: 5
 
-
+  ausf:
+    image: gradiant/open5gs:2.7.5
+    container_name: netstack-ausf
+    hostname: ausf
+    command: open5gs-ausfd
+    depends_on:
+      nrf:
+        condition: service_healthy
+      scp:
+        condition: service_healthy
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.21
+        aliases:
+          - ausf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pgrep", "open5gs-ausfd"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   bsf:
     image: gradiant/open5gs:2.7.5
@@ -267,7 +155,7 @@ services:
         condition: service_healthy
     networks:
       netstack-core:
-        ipv4_address: 172.20.0.32
+        ipv4_address: 172.20.0.22
         aliases:
           - bsf
     restart: unless-stopped
@@ -275,12 +163,14 @@ services:
       test: ["CMD", "pgrep", "open5gs-bsfd"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   nssf:
     image: gradiant/open5gs:2.7.5
     container_name: netstack-nssf
     hostname: nssf
+    volumes:
+      - ../config/nssf.yaml:/opt/open5gs/etc/open5gs/nssf.yaml
     command: open5gs-nssfd
     depends_on:
       nrf:
@@ -289,7 +179,7 @@ services:
         condition: service_healthy
     networks:
       netstack-core:
-        ipv4_address: 172.20.0.33
+        ipv4_address: 172.20.0.24
         aliases:
           - nssf
     restart: unless-stopped
@@ -297,21 +187,25 @@ services:
       test: ["CMD", "pgrep", "open5gs-nssfd"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   pcf:
     image: gradiant/open5gs:2.7.5
     container_name: netstack-pcf
     hostname: pcf
     command: open5gs-pcfd
+    environment:
+      DB_URI: mongodb://mongo/open5gs
     depends_on:
+      mongo:
+        condition: service_healthy
       nrf:
         condition: service_healthy
       scp:
         condition: service_healthy
     networks:
       netstack-core:
-        ipv4_address: 172.20.0.34
+        ipv4_address: 172.20.0.25
         aliases:
           - pcf
     restart: unless-stopped
@@ -319,21 +213,33 @@ services:
       test: ["CMD", "pgrep", "open5gs-pcfd"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   smf:
     image: gradiant/open5gs:2.7.5
     container_name: netstack-smf
     hostname: smf
+    volumes:
+      - ../config/smf.yaml:/opt/open5gs/etc/open5gs/smf.yaml
     command: open5gs-smfd
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     depends_on:
       nrf:
         condition: service_healthy
       scp:
         condition: service_healthy
+      upf:
+        condition: service_healthy
     networks:
       netstack-core:
-        ipv4_address: 172.20.0.35
+        ipv4_address: 172.20.0.27
         aliases:
           - smf
     restart: unless-stopped
@@ -341,7 +247,7 @@ services:
       test: ["CMD", "pgrep", "open5gs-smfd"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   udm:
     image: gradiant/open5gs:2.7.5
@@ -355,7 +261,7 @@ services:
         condition: service_healthy
     networks:
       netstack-core:
-        ipv4_address: 172.20.0.36
+        ipv4_address: 172.20.0.28
         aliases:
           - udm
     restart: unless-stopped
@@ -363,21 +269,25 @@ services:
       test: ["CMD", "pgrep", "open5gs-udmd"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   udr:
     image: gradiant/open5gs:2.7.5
     container_name: netstack-udr
     hostname: udr
     command: open5gs-udrd
+    environment:
+      DB_URI: mongodb://mongo/open5gs
     depends_on:
+      mongo:
+        condition: service_healthy
       nrf:
         condition: service_healthy
       scp:
         condition: service_healthy
     networks:
       netstack-core:
-        ipv4_address: 172.20.0.37
+        ipv4_address: 172.20.0.29
         aliases:
           - udr
     restart: unless-stopped
@@ -385,7 +295,7 @@ services:
       test: ["CMD", "pgrep", "open5gs-udrd"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   upf:
     image: gradiant/open5gs:2.7.5
@@ -437,16 +347,148 @@ services:
         ipv4_address: 172.20.0.31
     restart: unless-stopped
 
+  # NetStack API 服務
+  netstack-api:
+    image: netstack-api:latest
+    container_name: netstack-api
+    entrypoint: ["/usr/local/bin/smart-entrypoint.sh"]
+    command: ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+    environment:
+      - DATABASE_URL=mongodb://mongo:27017/open5gs
+      - MONGO_HOST=mongo
+      - REDIS_URL=redis://redis:6379
+      - SATELLITE_DATABASE_URL=postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+      - SIMWORLD_API_URL=http://simworld_backend:8000
+      # Phase 5 容器啟動優化環境變數
+      - SATELLITE_DATA_MODE=instant_load     # 啟動時立即載入
+      - POSTGRES_WAIT_TIMEOUT=30             # 等待超時設定
+      - PRECOMPUTE_ON_STARTUP=true           # 啟動時執行預計算
+    volumes:
+      - satellite_precomputed_data:/app/data  # 共享衛星預計算數據 volume
+      - netstack_models:/app/models
+      - netstack_results:/app/results
+      - netstack_scripts:/app/scripts
+      - ../netstack_api/routers/satellite_data_router.py:/app/netstack_api/routers/satellite_data_router.py:ro
+      - ../netstack_api/routers/coordinate_orbit_endpoints.py:/app/netstack_api/routers/coordinate_orbit_endpoints.py:ro
+      - ../netstack_api/app/core/router_manager.py:/app/netstack_api/app/core/router_manager.py:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongo
+      - redis
+      - postgres
+      - amf
+      - smf
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.40
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s          # 增加檢查間隔
+      timeout: 10s           # 增加單次超時
+      retries: 20            # 大幅增加重試次數 (總計 10 分鐘)
+      start_period: 300s     # 給予 5 分鐘的啟動寬限期
+
+
+
+  # Redis 快取
+  redis:
+    image: redis:7-alpine
+    container_name: netstack-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"  # 映射到主機，以便本地開發
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    volumes:
+      - redis_data:/data
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.50
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # PostgreSQL 衛星數據庫
+  postgres:
+    image: postgres:16-alpine
+    container_name: netstack-postgres
+    hostname: netstack-postgres
+    environment:
+      POSTGRES_DB: netstack_db
+      POSTGRES_USER: netstack_user
+      POSTGRES_PASSWORD: netstack_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"  # 映射到主機，以便本地開發
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.3'
+          memory: 512M
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      netstack-core:
+        ipv4_address: 172.20.0.55
+        aliases:
+          - netstack-postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netstack_user -d netstack_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # # Prometheus 監控
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: netstack-prometheus
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
+  #     - '--web.console.templates=/etc/prometheus/consoles'
+  #     - '--storage.tsdb.retention.time=200h'
+  #     - '--web.enable-lifecycle'
+  #   volumes:
+  #     - ../config/prometheus.yml:/etc/prometheus/prometheus.yml
+  #     - prometheus_data:/prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     netstack-core:
+  #       ipv4_address: 172.20.0.60
+  #   restart: unless-stopped
+
 volumes:
+  satellite_precomputed_data:
+    driver: local
   mongo_data:
-    driver: local
-  mongo_config:
-    driver: local
-  postgres_data:
     driver: local
   redis_data:
     driver: local
-  satellite_precomputed_data:
+  postgres_data:
+    driver: local
+
+  # prometheus_data:
+  #   driver: local
+  mongo_config:
     driver: local
   netstack_models:
     driver: local

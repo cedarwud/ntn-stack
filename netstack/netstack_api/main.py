@@ -135,12 +135,18 @@ async def lifespan(app: FastAPI):
 
 async def _initialize_all_managers(app: FastAPI) -> None:
     """一鍵初始化所有管理器"""
-    # 適配器 → 服務 → AI → 完成
+    # 適配器 → 服務 → 路由器 → 完成
     managers["adapter"] = AdapterManager()
     adapters = await managers["adapter"].initialize()
 
     managers["service"] = ServiceManager(*adapters)
     await managers["service"].initialize_services(app)
+
+    # 添加 RouterManager 初始化
+    managers["router"] = RouterManager(app)
+    managers["router"].register_core_routers()
+    managers["router"].register_optional_routers()
+    logger.info("✅ 路由管理器初始化完成")
 
     # await initialize_ai_services(adapters[1])  # AI 服務已移除
 
@@ -215,10 +221,7 @@ if security_config["security_headers"]:
     middleware_manager.setup_security_headers()
 middleware_manager.setup_request_size_limit(security_config["max_request_size"])
 
-# 路由器
-router_manager = RouterManager(app)
-router_manager.register_core_routers()
-router_manager.register_optional_routers()
+# 路由器初始化已移動到 _initialize_all_managers 函數中
 
 # 異常處理
 exception_manager = ExceptionManager(app)
@@ -275,7 +278,10 @@ async def system_status():
     if managers.get("service"):
         status["services"] = managers["service"].get_service_status(app)
 
-    status["routers"] = router_manager.get_router_status()
+    if managers.get("router"):
+        status["routers"] = managers["router"].get_router_status()
+    else:
+        status["routers"] = {"status": "not_initialized"}
     status["middleware"] = middleware_manager.get_middleware_status()
 
     return status
@@ -320,9 +326,10 @@ async def health_check():
                 f"{service_count['initialized_services']}/{service_count['total_services']}"
             )
 
-        health_data["routers"] = router_manager.validate_router_health()[
-            "overall_status"
-        ]
+        if managers.get("router"):
+            health_data["routers"] = managers["router"].validate_router_health()["overall_status"]
+        else:
+            health_data["routers"] = "not_initialized"
 
         return health_data
 

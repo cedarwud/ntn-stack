@@ -3,6 +3,7 @@
  * 為立體圖提供真實衛星數據疊加功能
  */
 import { ApiRoutes } from '../config/apiRoutes'
+import { netstackFetch } from '../config/api-config'
 
 export interface RealSatelliteInfo {
     id: number
@@ -63,12 +64,12 @@ export async function fetchRealSatelliteData(
             global_view: globalView.toString()
         })
         
-        const apiUrl = `${ApiRoutes.satelliteOps.getVisibleSatellites}?${params.toString()}`
+        const endpoint = `/api/v1/satellite-simple/visible_satellites?${params.toString()}`
         
         // 減少重複日誌 - 只在首次請求時記錄
     // console.log(`🛰️ 請求衛星數據: 觀察者位置(${observerLat}, ${observerLon}, ${observerAlt}m), 全球視野: ${globalView}`)
         
-        const response = await fetch(apiUrl)
+        const response = await netstackFetch(endpoint)
         
         if (!response.ok) {
             console.error(`Error fetching real satellite data: ${response.status} ${response.statusText}`)

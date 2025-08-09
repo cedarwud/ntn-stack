@@ -97,8 +97,8 @@ class HistoricalTrajectoryService {
         _durationHours: number = this.TRAJECTORY_DURATION_HOURS
     ): Promise<SatelliteTrajectory | null> {
         try {
-            // 使用 satellite-ops API 獲取觀測者相對數據
-            const endpoint = `/api/v1/satellite-ops/visible_satellites`
+            // 使用 satellite-simple API 獲取觀測者相對數據
+            const endpoint = `/api/v1/satellite-simple/visible_satellites`
             const params = new URLSearchParams({
                 count: '1',
                 min_elevation_deg: '-90',
@@ -126,7 +126,7 @@ class HistoricalTrajectoryService {
             const satellite = data.satellites[0]
             const currentTime = Date.now() / 1000
             
-            // satellite-ops API 返回單點數據，轉換為軌跡格式
+            // satellite-simple API 返回單點數據，轉換為軌跡格式
             const trajectoryPoints: TrajectoryPoint[] = [{
                 timestamp: currentTime,
                 latitude: 24.9441667, // NTPU 觀測者位置

@@ -64,7 +64,7 @@ export const ApiRoutes = {
   
   // 臨時的衛星可見性路由
   satelliteOps: {
-    getVisibleSatellites: `${API_BASE_URL}/satellite-ops/visible_satellites`,
+    getVisibleSatellites: `${API_BASE_URL}/satellite-simple/visible_satellites`,
   },
   
   // 換手機制 API

@@ -37,7 +37,7 @@ environment:
     max_satellites: 10
     scenario: "urban"
     netstack_api_url: "http://netstack-api:8080"
-    # simworld_api_url: "http://simworld_backend:8000"  # Removed - using Phase0 preprocessing instead
+    simworld_api_url: "http://simworld_backend:8000"
 
 # 協調器配置
 orchestrator:

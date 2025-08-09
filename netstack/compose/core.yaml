@@ -347,12 +347,16 @@ services:
         ipv4_address: 172.20.0.31
     restart: unless-stopped
 
-  # NetStack API 服務
+  # NetStack API 服務 - 單階段統一構建
   netstack-api:
-    image: netstack-api:latest
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      args:
+        BUILD_ENV: production  # 可改為 development 啟用開發模式
+        INSTALL_DEV_TOOLS: false  # 可改為 true 安裝開發工具
     container_name: netstack-api
     entrypoint: ["/usr/local/bin/smart-entrypoint.sh"]
-    command: ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
     environment:
       - DATABASE_URL=mongodb://mongo:27017/open5gs
       - MONGO_HOST=mongo
@@ -360,7 +364,7 @@ services:
       - SATELLITE_DATABASE_URL=postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
-      - SIMWORLD_API_URL=http://simworld_backend:8000
+      # - SIMWORLD_API_URL=http://simworld_backend:8000  # Removed - using Phase0 preprocessing instead
       # Phase 5 容器啟動優化環境變數
       - SATELLITE_DATA_MODE=instant_load     # 啟動時立即載入
       - POSTGRES_WAIT_TIMEOUT=30             # 等待超時設定

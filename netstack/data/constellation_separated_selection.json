@@ -16,14 +16,14 @@
     },
     "strategies_applied": {
       "starlink": {
-        "target_count": 15,
-        "strategy": "strict_filtering",
-        "reason": "基於 965 顆可見衛星的動態決策"
+        "target_count": 120,
+        "strategy": "intelligent_filtering",
+        "reason": "研究級配置：120顆Starlink確保8-12顆同時可見"
       },
       "oneweb": {
-        "target_count": 15,
-        "strategy": "strict_filtering",
-        "reason": "基於 78 顆可見衛星的動態決策"
+        "target_count": 80,
+        "strategy": "intelligent_filtering", 
+        "reason": "研究級配置：80顆OneWeb提供換手候選"
       }
     }
   },
