@@ -1,0 +1,120 @@
+{
+  "analysis_metadata": {
+    "timestamp": "2025-08-09T12:00:00+00:00",
+    "observer_location": {
+      "lat": 24.9441667,
+      "lon": 121.3713889,
+      "alt_m": 50
+    },
+    "calculation_method": "Full SGP4 computation",
+    "data_source": "CelesTrak TLE 2025-08-08"
+  },
+  "starlink": {
+    "constellation": "Starlink",
+    "timestamp": "2025-08-09T12:00:00+00:00",
+    "total_satellites": 8039,
+    "processed": 8039,
+    "errors": 0,
+    "visible_count": 337,
+    "above_5deg_count": 205,
+    "above_10deg_count": 121,
+    "above_15deg_count": 84,
+    "above_20deg_count": 52,
+    "above_30deg_count": 21,
+    "max_elevation": 79.04503103897835,
+    "min_elevation": -89.54600048722062,
+    "avg_elevation": NaN,
+    "top_satellites": [
+      {
+        "name": "STARLINK-33994",
+        "elevation": 79.05,
+        "azimuth": 147.92,
+        "distance": 584.72
+      },
+      {
+        "name": "STARLINK-32651",
+        "elevation": 70.98,
+        "azimuth": 151.55,
+        "distance": 500.88
+      },
+      {
+        "name": "STARLINK-3046",
+        "elevation": 70.85,
+        "azimuth": 152.63,
+        "distance": 605.84
+      },
+      {
+        "name": "STARLINK-5117",
+        "elevation": 67.46,
+        "azimuth": 308.1,
+        "distance": 581.12
+      },
+      {
+        "name": "STARLINK-6066",
+        "elevation": 61.4,
+        "azimuth": 77.56,
+        "distance": 629.43
+      }
+    ]
+  },
+  "oneweb": {
+    "constellation": "OneWeb",
+    "timestamp": "2025-08-09T12:00:00+00:00",
+    "total_satellites": 651,
+    "processed": 651,
+    "errors": 0,
+    "visible_count": 38,
+    "above_5deg_count": 29,
+    "above_10deg_count": 22,
+    "above_15deg_count": 18,
+    "above_20deg_count": 13,
+    "above_30deg_count": 5,
+    "max_elevation": 71.4852248996384,
+    "min_elevation": -88.36342489886013,
+    "avg_elevation": -38.05724130294842,
+    "top_satellites": [
+      {
+        "name": "ONEWEB-0692",
+        "elevation": 71.49,
+        "azimuth": 47.87,
+        "distance": 1276.4
+      },
+      {
+        "name": "ONEWEB-0069",
+        "elevation": 71.08,
+        "azimuth": 128.0,
+        "distance": 1277.79
+      },
+      {
+        "name": "ONEWEB-0620",
+        "elevation": 53.66,
+        "azimuth": 155.21,
+        "distance": 1453.5
+      },
+      {
+        "name": "ONEWEB-0018",
+        "elevation": 39.26,
+        "azimuth": 9.74,
+        "distance": 1739.67
+      },
+      {
+        "name": "ONEWEB-0532",
+        "elevation": 34.6,
+        "azimuth": 270.45,
+        "distance": 1837.75
+      }
+    ]
+  },
+  "summary": {
+    "total_satellites": 8690,
+    "total_processed": 8690,
+    "visible_counts": {
+      "elevation_0deg": 375,
+      "elevation_5deg": 234,
+      "elevation_10deg": 143,
+      "elevation_15deg": 102,
+      "elevation_20deg": 65,
+      "elevation_30deg": 26
+    }
+  }
+}
