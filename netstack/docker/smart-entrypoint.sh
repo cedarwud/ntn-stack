@@ -111,4 +111,8 @@ else
 fi
 
 echo "🎯 啟動 NetStack API 服務..."
+
+# 設置Python模塊搜索路徑
+export PYTHONPATH="/app:$PYTHONPATH"
+
 exec "$@"

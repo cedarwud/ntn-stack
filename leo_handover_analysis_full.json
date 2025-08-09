@@ -1,0 +1,85 @@
+{
+  "analysis_timestamp": "2025-08-09T16:15:46.388916+00:00",
+  "observation_point": {
+    "latitude": 24.9441667,
+    "longitude": 121.3713889,
+    "name": "NTPU"
+  },
+  "satellite_counts": {
+    "starlink_total": 8039,
+    "oneweb_total": 651
+  },
+  "statistics": {
+    "starlink": {
+      "min": 190,
+      "max": 232,
+      "mean": 206.5,
+      "median": 207.0,
+      "std": 8.054501846793507
+    },
+    "oneweb": {
+      "min": 23,
+      "max": 33,
+      "mean": 27.729166666666668,
+      "median": 27.0,
+      "std": 2.4216005668886753
+    },
+    "total": {
+      "min": 216,
+      "max": 265,
+      "mean": 234.22916666666666,
+      "median": 234.0,
+      "std": 8.160472778719516
+    }
+  },
+  "sample_data": [
+    {
+      "time": "2025-08-09T16:15:33.792945+00:00",
+      "starlink_5deg": 199,
+      "oneweb_5deg": 25,
+      "total_5deg": 224
+    },
+    {
+      "time": "2025-08-09T19:15:33.792945+00:00",
+      "starlink_5deg": 202,
+      "oneweb_5deg": 27,
+      "total_5deg": 229
+    },
+    {
+      "time": "2025-08-09T22:15:33.792945+00:00",
+      "starlink_5deg": 216,
+      "oneweb_5deg": 26,
+      "total_5deg": 242
+    },
+    {
+      "time": "2025-08-10T01:15:33.792945+00:00",
+      "starlink_5deg": 199,
+      "oneweb_5deg": 30,
+      "total_5deg": 229
+    },
+    {
+      "time": "2025-08-10T04:15:33.792945+00:00",
+      "starlink_5deg": 190,
+      "oneweb_5deg": 26,
+      "total_5deg": 216
+    },
+    {
+      "time": "2025-08-10T07:15:33.792945+00:00",
+      "starlink_5deg": 205,
+      "oneweb_5deg": 27,
+      "total_5deg": 232
+    },
+    {
+      "time": "2025-08-10T10:15:33.792945+00:00",
+      "starlink_5deg": 209,
+      "oneweb_5deg": 31,
+      "total_5deg": 240
+    },
+    {
+      "time": "2025-08-10T13:15:33.792945+00:00",
+      "starlink_5deg": 204,
+      "oneweb_5deg": 33,
+      "total_5deg": 237
+    }
+  ]
+}

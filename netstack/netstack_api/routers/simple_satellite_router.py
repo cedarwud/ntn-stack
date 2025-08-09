@@ -3,7 +3,7 @@ Enhanced Satellite Router with Intelligent Preprocessing
 使用智能預處理系統的強化衛星路由器
 
 基於 @docs/satellite-preprocessing/ 完整實現
-真正調用 IntelligentSatelliteSelector 實現 120+80 顆衛星智能選擇
+真正調用 IntelligentSatelliteSelector 實現 150+50 顆衛星智能選擇 (基於234顆真實可見衛星優化)
 """
 
 import sys
@@ -91,7 +91,7 @@ def get_intelligent_selector():
 def get_phase0_satellite_data(constellation: str, count: int = 200) -> List[Dict]:
     """
     從Phase0預處理系統獲取實際衛星數據
-    使用120+80顆真實衛星取代舊的15顆模擬數據
+    使用150+50顆真實衛星取代舊的15顆模擬數據 (基於SGP4全量計算優化配置)
     """
     satellites = []
     
@@ -137,7 +137,7 @@ def get_phase0_satellite_data(constellation: str, count: int = 200) -> List[Dict
     except Exception as e:
         logger.error(f"❌ Phase0數據載入失敗: {e}, 使用備用數據")
         # 備用：生成足夠的衛星數據
-        target_count = 120 if constellation.lower() == 'starlink' else 80
+        target_count = 150 if constellation.lower() == 'starlink' else 50  # 優化配置
         for i in range(target_count):
             satellites.append({
                 'name': f'{constellation.upper()}-BACKUP-{i}',
@@ -301,7 +301,7 @@ def calculate_satellite_position(sat_data: Dict, timestamp: datetime, observer_l
     "/visible_satellites",
     response_model=VisibleSatellitesResponse,
     summary="獲取智能選擇的可見衛星",
-    description="使用智能預處理系統從8000+顆衛星中選擇最優的120+80顆子集"
+    description="使用智能預處理系統從8000+顆衛星中選擇最優的150+50顆子集 (基於真實234顆可見衛星優化)"
 )
 async def get_visible_satellites(
     count: int = Query(20, ge=1, le=200, description="返回的衛星數量"),
@@ -314,8 +314,8 @@ async def get_visible_satellites(
     獲取智能選擇的可見衛星列表
     
     實現 @docs/satellite-preprocessing/ 計劃:
-    - Starlink: 從8000+顆中選擇120顆最優衛星
-    - OneWeb: 從2000+顆中選擇80顆最優衛星  
+    - Starlink: 從8000+顆中選擇150顆最優衛星 (73%覆蓋205顆實際可見)
+    - OneWeb: 從651顆中選擇50顆最優衛星 (172%覆蓋29顆實際可見)  
     - 確保8-12顆同時可見
     - 真實SGP4軌道計算
     - ITU-R P.618信號強度計算
@@ -330,8 +330,8 @@ async def get_visible_satellites(
                 
         logger.info(f"🛰️ 開始智能衛星選擇: {constellation} 星座, 請求 {count} 顆")
         
-        # 1. 獲取完整衛星星座數據 (120+80顆真實數據)
-        target_pool_size = 120 if constellation.lower() == 'starlink' else 80
+        # 1. 獲取完整衛星星座數據 (150+50顆優化配置)
+        target_pool_size = 150 if constellation.lower() == 'starlink' else 50
         all_satellites = get_phase0_satellite_data(constellation, target_pool_size)  # 使用Phase0真實數據
         
         logger.info(f"📊 完整星座數據: {len(all_satellites)} 顆 {constellation} 衛星")
@@ -425,10 +425,10 @@ async def get_visible_satellites(
                 "lon": 121.3713889,
                 "alt": 0.024
             },
-            data_source="phase0_preprocessing_120_80_satellites",
+            data_source="phase0_preprocessing_150_50_satellites_optimized",
             preprocessing_stats=preprocessing_stats or {
-                "starlink_satellites": 120 if constellation.lower() == 'starlink' else 0,
-                "oneweb_satellites": 80 if constellation.lower() == 'oneweb' else 0,
+                "starlink_satellites": 150 if constellation.lower() == 'starlink' else 0,
+                "oneweb_satellites": 50 if constellation.lower() == 'oneweb' else 0,
                 "total_constellation_pool": len(all_satellites),
                 "intelligent_selector_used": selector is not None,
                 "data_generation_method": "phase0_preprocessing"
@@ -502,7 +502,7 @@ async def health_check():
     return {
         "healthy": True,
         "service": "intelligent-satellite-preprocessing",
-        "data_source": "phase0_preprocessing_120_80_satellites",
+        "data_source": "phase0_preprocessing_150_50_satellites_optimized",
         "timestamp": datetime.utcnow().isoformat() + 'Z',
         "components": {
             "preprocessing_service": preprocessing_service is not None,
@@ -515,8 +515,8 @@ async def health_check():
         ],
         "supported_constellations": ["starlink", "oneweb"],
         "intelligent_selection": {
-            "starlink_target": 120,
-            "oneweb_target": 80,
+            "starlink_target": 150,
+            "oneweb_target": 50,
             "simultaneous_visible_target": "8-12 satellites",
             "selection_algorithm": "IntelligentSatelliteSelector",
             "orbit_calculation": "SGP4",

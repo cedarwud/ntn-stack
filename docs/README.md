@@ -29,8 +29,8 @@
 
 ## 📂 參考資料
 
-### 🛰️ 衛星數據分析
-- **[衛星數據預處理流程](./satellite_data_preprocessing.md)** - Pure Cron 驅動數據處理詳細流程
+### 🛰️ 衛星數據分析 ⭐ **v4.0.0 重大更新**
+- **[衛星數據預處理流程](./satellite_data_preprocessing.md)** - ⭐ **新增完整軌道週期分析** - Pure Cron 驅動 + 651+301顆衛星池配置
 - **[核心算法實現現況](./algorithms_implementation.md)** - 算法實現細節和API位置  
 
 ### 📎 附錄資料

@@ -357,12 +357,13 @@ services:
         INSTALL_DEV_TOOLS: false  # 可改為 true 安裝開發工具
     container_name: netstack-api
     entrypoint: ["/usr/local/bin/smart-entrypoint.sh"]
+    command: ["python", "-m", "netstack_api.main"]
     environment:
       - DATABASE_URL=mongodb://mongo:27017/open5gs
       - MONGO_HOST=mongo
       - REDIS_URL=redis://redis:6379
       - SATELLITE_DATABASE_URL=postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=info
       - ENVIRONMENT=production
       # - SIMWORLD_API_URL=http://simworld_backend:8000  # Removed - using Phase0 preprocessing instead
       # Phase 5 容器啟動優化環境變數

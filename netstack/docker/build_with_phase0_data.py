@@ -229,8 +229,8 @@ class Phase0DataPreprocessor:
         
         # 動態決定篩選策略 - 更新為120+80星座配置
         min_satellites = 60   # 至少保證換手候選數量 (研究級要求)
-        max_display_starlink = 120   # Starlink目標：120顆
-        max_display_oneweb = 80      # OneWeb目標：80顆
+        max_display_starlink = 150   # Starlink目標：150顆
+        max_display_oneweb = 50      # OneWeb目標：50顆
         
         # 根據星座類型決定最大數量
         if constellation.lower() == 'starlink':
