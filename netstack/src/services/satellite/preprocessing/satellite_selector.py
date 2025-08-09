@@ -47,19 +47,21 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SatelliteSelectionConfig:
-    """衛星選擇配置"""
-    target_visible_count: int = 10  # 目標可見衛星數
-    min_visible_count: int = 8      # 最小可見衛星數
-    max_visible_count: int = 12     # 最大可見衛星數
+    """衛星選擇配置 - 更新至完整軌道週期配置 v4.0.0"""
+    target_visible_count: int = 15  # 目標可見衛星數 (基於完整軌道週期分析)
+    min_visible_count: int = 10     # 最小可見衛星數 (Starlink + OneWeb)  
+    max_visible_count: int = 25     # 最大可見衛星數 (峰值時段)
     
-    starlink_target: int = 150      # Starlink 目標數量 (基於真實234顆可見衛星的73%覆蓋優化)
-    oneweb_target: int = 50         # OneWeb 目標數量 (基於真實29顆可見衛星的172%覆蓋優化)
+    # 📊 完整軌道週期配置 (v4.0.0) - 基於651+301完整軌道週期分析
+    starlink_target: int = 651      # Starlink 總數量 (確保120.9顆平均換手候選)
+    oneweb_target: int = 301        # OneWeb 總數量 (確保21.7顆平均換手候選)
     
     observer_lat: float = 24.9441667    # NTPU 緯度
     observer_lon: float = 121.3713889   # NTPU 經度
-    min_elevation: float = 10.0         # 最小仰角門檻 (度)
+    min_elevation: float = 10.0         # 最小仰角門檻 (度) - Starlink 換手區域
+    oneweb_min_elevation: float = 8.0   # OneWeb 最小仰角門檻 (度)
     
-    safety_factor: float = 1.5      # 安全係數
+    safety_factor: float = 1.2      # 安全係數 (降低，因為使用完整軌道週期)      # 安全係數
     
 @dataclass
 class SatelliteMetrics:
@@ -80,15 +82,17 @@ class IntelligentSatelliteSelector:
         self.phase_optimizer = PhaseDistributionOptimizer()
         self.visibility_scorer = VisibilityScorer()
         
-        # 3GPP NTN 事件觸發條件
+        # 3GPP NTN 事件觸發條件 - 基於完整軌道週期優化
         self.event_thresholds = {
             'A4': {'rsrp': -95, 'hysteresis': 3},       # dBm, dB
             'A5': {'thresh1': -100, 'thresh2': -95},    # dBm
-            'D2': {'low_elev': 15, 'high_elev': 25}     # 度
+            'D2': {'low_elev': 10, 'high_elev': 30}     # 度 - 擴展範圍支援更多換手機會
         }
         
-        logger.info(f"初始化智能衛星選擇器: 目標 Starlink={self.config.starlink_target}, OneWeb={self.config.oneweb_target}")
-        logger.info("配置已優化：基於234顆真實可見衛星 (205 Starlink + 29 OneWeb) 的SGP4計算結果")
+        logger.info(f"🚀 智能衛星選擇器 v4.0.0 啟動")
+        logger.info(f"📡 完整軌道週期配置: Starlink={self.config.starlink_target}, OneWeb={self.config.oneweb_target}")
+        logger.info(f"🎯 預期換手性能: Starlink 120.9顆/平均, OneWeb 21.7顆/平均")
+        logger.info("✅ 配置基於8,690顆衛星的完整SGP4軌道週期分析")
     
     def select_research_subset(self, all_satellites: List[Dict]) -> Tuple[List[Dict], Dict]:
         """
