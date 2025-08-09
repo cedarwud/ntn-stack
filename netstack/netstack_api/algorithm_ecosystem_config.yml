@@ -45,10 +45,11 @@ handover_algorithms:
 # 環境配置
 environment:
   simulation:
-    max_satellites: 10
+    max_satellites: 10  # 暫時恢復原始值，等API啟動穩定後再優化
     scenario: "urban"
     netstack_api_url: "http://netstack-api:8080"
     # simworld_api_url: "http://simworld_backend:8000"  # Removed - using Phase0 preprocessing instead
+    # 預處理池配置已優化：Starlink 150顆, OneWeb 50顆 (總計200顆)
 
 # 協調器配置
 orchestrator:
