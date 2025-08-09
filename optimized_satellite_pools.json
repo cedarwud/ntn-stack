@@ -1,0 +1,86 @@
+{
+  "analysis_timestamp": "2025-08-09T17:46:54.928241+00:00",
+  "research_targets": {
+    "starlink": {
+      "min_handover_always": 8,
+      "optimal_handover": 10,
+      "total_pool_size": 25
+    },
+    "oneweb": {
+      "min_handover_always": 5,
+      "optimal_handover": 7,
+      "total_pool_size": 15
+    }
+  },
+  "elevation_thresholds": {
+    "starlink": {
+      "handover": 15,
+      "tracking": 10,
+      "prediction": 5
+    },
+    "oneweb": {
+      "handover": 10,
+      "tracking": 7,
+      "prediction": 4
+    }
+  },
+  "starlink_config": {
+    "selected_satellites": [
+      "STARLINK-30127",
+      "STARLINK-2628",
+      "STARLINK-2593",
+      "STARLINK-2245",
+      "STARLINK-3551",
+      "STARLINK-3922",
+      "STARLINK-4298",
+      "STARLINK-6030",
+      "STARLINK-6083",
+      "STARLINK-6079",
+      "STARLINK-6126",
+      "STARLINK-5090",
+      "STARLINK-5016",
+      "STARLINK-6289",
+      "STARLINK-5352",
+      "STARLINK-5724",
+      "STARLINK-6264",
+      "STARLINK-30067",
+      "STARLINK-30121",
+      "STARLINK-30130",
+      "STARLINK-30053",
+      "STARLINK-30125",
+      "STARLINK-30132",
+      "STARLINK-30079",
+      "STARLINK-30070"
+    ],
+    "pool_size": 25,
+    "success_rate": 0.0,
+    "spatial_quality": "needs_improvement"
+  },
+  "oneweb_config": {
+    "selected_satellites": [
+      "ONEWEB-0101",
+      "ONEWEB-0113",
+      "ONEWEB-0158",
+      "ONEWEB-0174",
+      "ONEWEB-0333",
+      "ONEWEB-0339",
+      "ONEWEB-0116",
+      "ONEWEB-0497",
+      "ONEWEB-0499",
+      "ONEWEB-0500",
+      "ONEWEB-0505",
+      "ONEWEB-0516",
+      "ONEWEB-0671",
+      "ONEWEB-0152",
+      "ONEWEB-0112"
+    ],
+    "pool_size": 15,
+    "success_rate": 0.041666666666666664,
+    "spatial_quality": "needs_improvement"
+  },
+  "validation_results": {
+    "starlink_quality": "needs_improvement",
+    "oneweb_quality": "needs_improvement",
+    "research_readiness": "needs_improvement"
+  }
+}

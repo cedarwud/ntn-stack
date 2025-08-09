@@ -353,7 +353,7 @@ if __name__ == "__main__":
     logger.info(f"🌍 環境: {config.get('app.environment')}")
 
     uvicorn.run(
-        "main:app",
+        app,  # 直接傳遞app對象，避免模塊導入問題
         host=server_config["host"],
         port=server_config["port"],
         reload=server_config["reload"] and not config.is_production(),
