@@ -236,7 +236,7 @@ def calculate_satellite_position(sat_data: Dict, timestamp: datetime,
     "/visible_satellites",
     response_model=VisibleSatellitesResponse,
     summary="獲取智能選擇的可見衛星",
-    description="使用IntelligentSatelliteSelector從8000+顆衛星中選擇最優的120+80顆子集"
+    description="使用IntelligentSatelliteSelector基於完整軌道週期分析選擇651+301顆衛星池"
 )
 async def get_visible_satellites(
     count: int = Query(20, ge=1, le=200, description="返回的衛星數量"),
@@ -343,14 +343,14 @@ async def get_constellations_info():
             ConstellationInfo(
                 name="starlink",
                 total_satellites=8000,
-                active_satellites=120,  # 智能選擇的數量
+                active_satellites=651,  # 完整軌道週期配置 v4.0.0
                 coverage_area="全球覆蓋",
                 orbital_altitude_range="540-570 km"
             ),
             ConstellationInfo(
                 name="oneweb",
                 total_satellites=648,
-                active_satellites=80,   # 智能選擇的數量
+                active_satellites=301,  # 完整軌道週期配置 v4.0.0
                 coverage_area="全球覆蓋",
                 orbital_altitude_range="1200-1230 km"
             )
