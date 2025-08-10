@@ -45,7 +45,7 @@ RUN pip install --upgrade pip && \
 COPY . .
 
 # Phase 0 預計算：在代碼複製後立即執行，確保修改不被覆蓋
-COPY docker/build_with_phase0_data.py /app/build_with_phase0_data.py
+COPY docker/build_with_phase0_data_refactored.py /app/build_with_phase0_data.py
 
 # 創建必要目錄
 RUN mkdir -p /app/data /app/tle_data /app/logs /var/log/netstack \
