@@ -13,16 +13,16 @@ from enum import Enum
 
 try:
     # 嘗試容器內的路徑
-    from netstack.src.services.research.threegpp_event_generator import ThreeGPPEventGenerator, MeasurementEventType
+    from netstack.src.services.threegpp_event_generator import ThreeGPPEventGenerator, MeasurementEventType
 except ImportError:
     # 嘗試本地開發路徑
-    from ..research.threegpp_event_generator import ThreeGPPEventGenerator, MeasurementEventType
+    from .threegpp_event_generator import ThreeGPPEventGenerator, MeasurementEventType
 try:
     # 嘗試容器內的路徑
     from netstack_api.services.distance_correction_service import DistanceCorrectionService
 except ImportError:
-    # 嘗試本地開發路徑
-    from ..distance_correction_service import DistanceCorrectionService
+    # 嘗試本地開發路徑  
+    from netstack_api.services.distance_correction_service import DistanceCorrectionService
 
 logger = logging.getLogger(__name__)
 
