@@ -503,6 +503,296 @@ python -m pytest tests/unit/test_fine_grained_handover.py -v --benchmark-only
 2. **星座分離**: Starlink 和 OneWeb 完全分離處理，符合真實技術約束
 3. **動態篩選**: 基於實際可見性自動調整，避免硬編碼限制
 
+## ⚙️ 統一配置管理系統
+
+**版本**: 1.0.0  
+**建立日期**: 2025-08-04  
+**目的**: 確保系統配置的一致性和可維護性  
+
+### 🔧 核心配置類
+
+**位置**: `/netstack/src/core/config/satellite_config.py`
+
+```python
+from dataclasses import dataclass
+from typing import Dict, Any, Optional
+
+@dataclass  
+class SatelliteConfig:
+    """衛星系統統一配置類"""
+    
+    # SIB19 合規配置
+    MAX_CANDIDATE_SATELLITES: int = 8
+    
+    # 預處理優化配置
+    PREPROCESS_SATELLITES: Dict[str, int] = None
+    
+    # 智能篩選配置
+    INTELLIGENT_SELECTION: Dict[str, Any] = None
+    
+    # 觀測位置配置
+    OBSERVER_LOCATION: Dict[str, float] = None
+    
+    # 仰角門檻配置  
+    ELEVATION_THRESHOLDS: Dict[str, float] = None
+    
+    def __post_init__(self):
+        """初始化預設值"""
+        self.PREPROCESS_SATELLITES = self.PREPROCESS_SATELLITES or {
+            "starlink": 40,
+            "oneweb": 30
+        }
+        
+        self.INTELLIGENT_SELECTION = self.INTELLIGENT_SELECTION or {
+            "enabled": True,
+            "geographic_filter": True,
+            "handover_suitability": True,
+            "target_location": {"lat": 24.9441667, "lon": 121.3713889}
+        }
+        
+        self.OBSERVER_LOCATION = self.OBSERVER_LOCATION or {
+            "latitude": 24.9441667,   # 台北科技大學
+            "longitude": 121.3713889,
+            "altitude": 50.0          # 米
+        }
+        
+        self.ELEVATION_THRESHOLDS = self.ELEVATION_THRESHOLDS or {
+            "minimum": 5.0,    # 最小可見仰角
+            "handover": 10.0,  # 切換觸發仰角  
+            "optimal": 15.0    # 最佳服務仰角
+        }
+```
+
+### 📊 關鍵配置參數
+
+#### 1. 衛星候選配置
+```python
+satellite_selection = {
+    # 3GPP NTN 標準合規
+    "MAX_CANDIDATE_SATELLITES": 8,    # SIB19 最大候選數
+    
+    # 預處理階段優化  
+    "PREPROCESS_SATELLITES": {
+        "starlink": 40,               # Starlink 智能篩選數量
+        "oneweb": 30                  # OneWeb 智能篩選數量
+    },
+    
+    # 運行時動態調整
+    "RUNTIME_CANDIDATES": 8           # API 返回候選數量
+}
+```
+
+#### 2. 智能篩選配置
+```python
+intelligent_selection = {
+    "enabled": True,                  # 啟用智能篩選
+    "geographic_filter": True,        # 地理相關性篩選
+    "handover_suitability": True,     # 切換適用性評分
+    
+    # 地理篩選參數
+    "target_location": {
+        "lat": 24.9441667,            # 目標緯度 (台北科技大學)
+        "lon": 121.3713889            # 目標經度
+    },
+    
+    # 評分權重配置
+    "scoring_weights": {
+        "inclination_score": 0.25,    # 軌道傾角權重
+        "altitude_score": 0.20,       # 高度適用性權重
+        "orbital_shape": 0.15,        # 軌道形狀權重  
+        "pass_frequency": 0.20,       # 經過頻率權重
+        "constellation_bonus": 0.20   # 星座類型權重
+    }
+}
+```
+
+#### 3. 軌道計算配置
+```python
+orbit_calculation = {
+    # SGP4 計算模式
+    "sgp4_mode": "production",        # production | simplified | debug
+    
+    # 精度配置
+    "position_accuracy_m": 100,       # 目標位置精度 (米)
+    "time_resolution_s": 10,          # 時間解析度 (秒)
+    
+    # 預測範圍
+    "prediction_horizon_h": 24,       # 預測時間範圍 (小時)
+    "update_interval_h": 1,           # 軌道更新間隔 (小時)
+    
+    # 攝動模型
+    "atmospheric_drag": True,         # 大氣阻力
+    "j2_perturbation": True,          # J2 重力場攝動
+    "solar_radiation": False          # 太陽輻射壓 (LEO 影響小)
+}
+```
+
+#### 4. 仰角門檻配置
+```python  
+elevation_thresholds = {
+    # 基礎門檻 (度)
+    "minimum": 5.0,                   # 最小可見仰角
+    "handover": 10.0,                 # 切換觸發仰角
+    "optimal": 15.0,                  # 最佳服務仰角
+    
+    # 環境調整係數
+    "environment_factors": {
+        "urban": 1.1,                 # 城市環境
+        "suburban": 1.0,              # 郊區環境
+        "rural": 0.9,                 # 鄉村環境
+        "mountain": 1.3,              # 山區環境
+        "coastal": 1.0                # 海岸環境
+    },
+    
+    # 天氣調整係數
+    "weather_factors": {
+        "clear": 1.0,                 # 晴天
+        "light_rain": 1.1,            # 小雨
+        "heavy_rain": 1.4,            # 大雨
+        "snow": 1.2,                  # 下雪
+        "fog": 1.15                   # 霧
+    }
+}
+```
+
+### 🔄 配置載入機制
+
+#### 配置來源優先級 (高到低)
+1. **環境變數**: `SATELLITE_*` 環境變數
+2. **命令列參數**: `--config` 參數指定的檔案
+3. **配置檔案**: `config/satellite_config.json`
+4. **預設值**: 程式碼中的預設配置
+
+#### 配置載入流程
+```python
+def load_configuration() -> SatelliteConfig:
+    """載入配置的完整流程"""
+    config_data = {}
+    
+    # 1. 載入預設配置
+    config_data.update(DEFAULT_CONFIG)
+    
+    # 2. 載入檔案配置
+    config_file = os.getenv('SATELLITE_CONFIG_FILE', 'config/satellite_config.json')
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            file_config = json.load(f)
+            config_data.update(file_config)
+    
+    # 3. 載入環境變數
+    env_config = {}
+    for key, value in os.environ.items():
+        if key.startswith('SATELLITE_'):
+            config_key = key[10:]  # 移除 'SATELLITE_' 前綴
+            env_config[config_key] = parse_env_value(value)
+    config_data.update(env_config)
+    
+    # 4. 建立配置實例
+    return SatelliteConfig(**config_data)
+```
+
+### 🛠️ 配置驗證機制
+
+#### 配置完整性檢查
+```python
+class ConfigValidator:
+    """配置驗證器"""
+    
+    @staticmethod
+    def validate_satellite_config(config: SatelliteConfig) -> List[str]:
+        """驗證衛星配置的完整性"""
+        errors = []
+        
+        # 檢查候選衛星數量
+        if config.MAX_CANDIDATE_SATELLITES < 1 or config.MAX_CANDIDATE_SATELLITES > 16:
+            errors.append("MAX_CANDIDATE_SATELLITES 必須在 1-16 之間")
+        
+        # 檢查觀測位置
+        lat = config.OBSERVER_LOCATION["latitude"]
+        lon = config.OBSERVER_LOCATION["longitude"] 
+        if not (-90 <= lat <= 90):
+            errors.append("觀測緯度必須在 -90 到 90 度之間")
+        if not (-180 <= lon <= 180):
+            errors.append("觀測經度必須在 -180 到 180 度之間")
+            
+        # 檢查仰角門檻
+        if config.ELEVATION_THRESHOLDS["minimum"] < 0:
+            errors.append("最小仰角不能小於 0 度")
+        if config.ELEVATION_THRESHOLDS["handover"] <= config.ELEVATION_THRESHOLDS["minimum"]:
+            errors.append("切換仰角必須大於最小仰角")
+            
+        return errors
+    
+    @staticmethod
+    def validate_and_load() -> SatelliteConfig:
+        """驗證並載入配置"""
+        config = load_configuration()
+        errors = ConfigValidator.validate_satellite_config(config)
+        
+        if errors:
+            raise ValueError(f"配置驗證失敗: {'; '.join(errors)}")
+            
+        return config
+```
+
+### 🔧 實際使用範例
+
+#### 在算法中使用配置
+```python
+from src.core.config.satellite_config import get_satellite_config
+
+def handover_decision_algorithm(candidates):
+    """切換決策算法使用配置"""
+    config = get_satellite_config()
+    
+    # 使用配置的候選數量限制
+    max_candidates = config.MAX_CANDIDATE_SATELLITES
+    candidates = candidates[:max_candidates]
+    
+    # 使用配置的仰角門檻
+    min_elevation = config.ELEVATION_THRESHOLDS["handover"]
+    valid_candidates = [
+        c for c in candidates 
+        if c["elevation_deg"] >= min_elevation
+    ]
+    
+    # 使用智能篩選配置
+    if config.INTELLIGENT_SELECTION["enabled"]:
+        return intelligent_selection_algorithm(valid_candidates, config)
+    else:
+        return traditional_selection_algorithm(valid_candidates)
+```
+
+#### Docker 容器配置
+```yaml
+# docker-compose.yml 環境變數
+environment:
+  - SATELLITE_CONFIG_MODE=production
+  - MAX_CANDIDATE_SATELLITES=8
+  - OBSERVER_LAT=24.9441667
+  - OBSERVER_LON=121.3713889
+  - ELEVATION_THRESHOLD=10.0
+  - SGP4_MODE=production
+  - LOG_LEVEL=INFO
+```
+
+### ⚠️ 配置管理注意事項
+
+#### 1. 配置一致性
+- **所有組件** 必須使用 `get_satellite_config()` 獲取配置
+- **禁止硬編碼** 配置參數在程式碼中
+- **配置變更** 後必須重啟相關服務
+
+#### 2. 性能考量  
+- 配置載入時進行一次性驗證
+- 頻繁訪問的配置值可以快取
+- 避免在性能關鍵路徑中重複載入配置
+
+#### 3. 安全性
+- 敏感配置使用環境變數而非配置檔案
+- 配置檔案權限控制 (600 或 640)
+- 生產環境禁用配置動態更新 API
+
 ---
 
 **本技術指南確保 LEO 衛星切換研究系統的完整技術實現，為學術研究和算法開發提供可靠的技術基礎。**
