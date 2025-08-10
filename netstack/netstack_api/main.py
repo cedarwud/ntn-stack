@@ -38,8 +38,6 @@ from .app.core.router_manager import RouterManager
 from .app.core.middleware_manager import MiddlewareManager
 from .app.core.exception_manager import ExceptionManager
 
-# AI 服務 - ai_decision_router 已移除
-# from .routers.ai_decision_router import initialize_ai_services, shutdown_ai_services
 
 # 日誌設定
 logger = structlog.get_logger(__name__)
@@ -148,26 +146,6 @@ async def _initialize_all_managers(app: FastAPI) -> None:
     managers["router"].register_optional_routers()
     logger.info("✅ 路由管理器初始化完成")
 
-    # await initialize_ai_services(adapters[1])  # AI 服務已移除
-
-    # 初始化 RLTrainingEngine 單例 - RL 已移除
-    # logger.info("🚀 開始初始化 RLTrainingEngine...")
-    # from .rl.training_engine import get_training_engine
-
-    # await get_training_engine()
-    # logger.info("✅ RLTrainingEngine 初始化完成")
-
-    # 初始化數據庫表結構 - 暫時跳過以快速啟動
-    # logger.info("🗄️ 檢查並初始化數據庫表結構...")
-    # from .services.database_init import ensure_database_initialized
-
-    # success = await ensure_database_initialized()
-    # if success:
-    #     logger.info("✅ 數據庫表結構初始化完成")
-    # else:
-    #     logger.error("❌ 數據庫初始化失敗，停止啟動")
-    #     raise RuntimeError("數據庫初始化失敗")
-
     # 啟動背景衛星數據初始化任務
     logger.info("🛰️ 啟動背景衛星數據初始化...")
     import asyncio
@@ -188,7 +166,6 @@ async def _graceful_shutdown() -> None:
     logger.info("🔧 系統正在關閉...")
 
     try:
-        # await shutdown_ai_services()  # AI 服務已移除
         if managers.get("adapter"):
             await managers["adapter"].cleanup()
         logger.info("✅ 系統已優雅關閉")
