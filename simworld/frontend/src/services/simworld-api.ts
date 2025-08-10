@@ -106,7 +106,7 @@ const satelliteCache = new Map<string, { data: SatellitePosition[], timestamp: n
 const CACHE_DURATION = 30000 // 30秒緩存
 
 export function useVisibleSatellites(
-    minElevation: number = 5,
+    minElevation: number = 10,  // 使用標準服務門檻 (10°) - 符合3GPP NTN標準
     maxCount: number = 40,  // 調整為 40 顆以支援自適應研究
     observerLat: number = 24.9441667,
     observerLon: number = 121.3713889,
@@ -136,8 +136,9 @@ export function useVisibleSatellites(
             setError(null)
 
             try {
-                // 使用 satellite-simple API 直接獲取觀測者相對計算數據
-                const endpoint = `/api/v1/satellite-simple/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&utc_timestamp=2025-07-26T00:00:00Z&global_view=false`
+                // 使用 NetStack satellite-simple API 獲取觀測者相對計算數據，支援651+301衛星池配置
+                const currentTime = new Date().toISOString()
+                const endpoint = `/api/v1/satellite-simple/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${currentTime}&global_view=false`
                 
                 const response = await netstackFetch(endpoint)
                 
@@ -257,15 +258,16 @@ export async function getAvailableConstellations(): Promise<string[]> {
  */
 export const simWorldApi = {
     async getVisibleSatellites(
-        minElevation: number = 5,
+        minElevation: number = 10,  // 使用標準服務門檻 (10°)
         maxCount: number = 10,
         observerLat: number = 24.9441667,
         observerLon: number = 121.3713889,
         constellation: string = 'starlink'
     ): Promise<SatellitePosition[]> {
         try {
-            // 使用 satellite-simple API 獲取觀測者相對計算數據，包含星座篩選
-            const endpoint = `/api/v1/satellite-simple/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=2025-07-26T00:00:00Z&global_view=false`
+            // 使用 NetStack satellite-simple API 獲取觀測者相對計算數據，支援651+301衛星池配置
+            const currentTime = new Date().toISOString()
+            const endpoint = `/api/v1/satellite-simple/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${currentTime}&global_view=false`
             const response = await netstackFetch(endpoint)
             
             if (!response.ok) {
