@@ -1,0 +1,126 @@
+# NetStack API Multi-Stage Dockerfile - 優化版本
+# 多階段構建，減少映像大小和提高構建效率
+
+# ===== Stage 1: Base Dependencies =====
+FROM python:3.11-slim as base
+WORKDIR /app
+
+# 安裝系統依賴 (構建基礎)
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# ===== Stage 2: Python Dependencies =====
+FROM base as python-deps
+
+# 創建虛擬環境
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# 複製需求文件 (優化 Docker 緩存)
+COPY requirements.txt ./requirements.txt
+
+# 安裝 Python 依賴 (分離安裝，最大化緩存)
+RUN pip install --upgrade pip && \
+    pip config set global.timeout 600 && \
+    pip config set global.retries 5 && \
+    pip install --no-cache-dir --default-timeout=600 -r requirements.txt
+
+# ===== Stage 3: Development (可選) =====
+FROM python-deps as development
+ARG INSTALL_DEV_TOOLS=false
+
+# 複製開發依賴並安裝
+COPY requirements-dev.txt ./requirements-dev.txt
+RUN if [ "$INSTALL_DEV_TOOLS" = "true" ]; then \
+        pip install --no-cache-dir -r requirements-dev.txt; \
+    fi
+
+# 安裝開發工具
+RUN if [ "$INSTALL_DEV_TOOLS" = "true" ]; then \
+        apt-get update && apt-get install -y \
+        vim htop strace jq netcat-openbsd \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# 設定開發環境
+ENV PYTHONPATH="/app:/app/src"
+ENV PYTHONUNBUFFERED=1
+ENV BUILD_ENV=development
+
+# 暴露端口
+EXPOSE 8080
+
+# 開發模式啟動命令
+CMD ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+
+# ===== Stage 4: Production =====
+FROM python-deps as production
+
+# 創建非root用戶
+RUN groupadd -r netstack && useradd -r -g netstack netstack
+
+# 複製應用代碼 (最後複製，最大化緩存效益)
+COPY . .
+
+# Phase 0 預計算設置
+COPY docker/build_with_phase0_data.py /app/build_with_phase0_data.py
+
+# 創建必要目錄
+RUN mkdir -p /app/data /app/tle_data /app/logs /var/log/netstack \
+             /app/models /app/results /tmp/matplotlib
+
+# 設定生產環境變數
+ENV PYTHONPATH="/app:/app/src"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV MPLCONFIGDIR="/tmp/matplotlib"
+ENV PRECOMPUTED_DATA_ENABLED=true
+ENV ORBIT_CACHE_PRELOAD=true
+ENV BUILD_ENV=production
+
+# Phase 0 混合模式：建構時預計算基礎數據
+RUN echo "🚀 Phase 0 生產模式：執行預計算..." && \
+    python build_with_phase0_data.py || echo "⚠️ 建構時預計算未完成，將在運行時處理" && \
+    if [ -f /app/data/phase0_precomputed_orbits.json ]; then \
+        echo "$(date -Iseconds)" > /app/data/.build_timestamp && \
+        echo "✅ 建構時預計算完成，數據已就緒"; \
+    else \
+        echo "ℹ️ 建構時預計算跳過，將使用運行時計算"; \
+    fi
+
+# 複製並設定啟動腳本
+COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker/smart-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/healthcheck.sh \
+             /usr/local/bin/docker-entrypoint.sh \
+             /usr/local/bin/smart-entrypoint.sh
+
+# 設定權限
+RUN chown -R netstack:netstack /var/log/netstack /app/models /app/results \
+                               /app/data /app/tle_data /tmp/matplotlib
+
+# 切換到非root用戶
+USER netstack
+
+# 暴露端口
+EXPOSE 8080
+
+# 生產環境健康檢查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD /usr/local/bin/healthcheck.sh
+
+# 生產環境啟動
+ENTRYPOINT ["/usr/local/bin/smart-entrypoint.sh"]
+CMD ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+
+# ===== Labels =====
+LABEL stage="production"
+LABEL version="1.0.0"
+LABEL architecture="multi-stage-optimized"
+LABEL description="NetStack API multi-stage optimized build"

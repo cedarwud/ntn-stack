@@ -82,7 +82,7 @@ services:
       - redis_data:/data
     networks:
       netstack-core:
-        ipv4_address: 172.20.0.52
+        ipv4_address: 172.20.0.50
         aliases:
           - redis
     restart: unless-stopped
