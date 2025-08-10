@@ -344,7 +344,7 @@ services:
       - mongo
     networks:
       netstack-core:
-        ipv4_address: 172.20.0.31
+        ipv4_address: 172.20.0.40
     restart: unless-stopped
 
   # NetStack API 服務 - 單階段統一構建
@@ -450,8 +450,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       netstack-core:
-        ipv4_address: 172.20.0.55
+        ipv4_address: 172.20.0.51
         aliases:
+          - postgres
           - netstack-postgres
     restart: unless-stopped
     healthcheck:
