@@ -7,7 +7,7 @@
 
 ## 🎯 系統概述
 
-本系統專注於 **LEO 衛星切換優化研究**，使用完整 SGP4 算法和真實 TLE 數據，絕不使用簡化算法或模擬數據。支援 8,042 顆 Starlink 和 651 顆 OneWeb 衛星的真實軌道計算與換手決策研究。
+本系統專注於 **LEO 衛星切換優化研究**，使用完整 SGP4 算法和真實 TLE 數據，絕不使用簡化算法或模擬數據。支援 8,039 顆 Starlink 和 134 顆 OneWeb 衛星的真實軌道計算與換手決策研究。
 
 ## 📖 核心文檔導航
 
@@ -30,11 +30,11 @@
 ## 📂 參考資料
 
 ### 🛰️ 衛星數據分析 ⭐ **v4.0.0 重大更新**
-- **[衛星數據預處理流程](./satellite_data_preprocessing.md)** - ⭐ **新增完整軌道週期分析** - Pure Cron 驅動 + 651+301顆衛星池配置
+- **[衛星數據預處理流程](./satellite_data_preprocessing.md)** - ⭐ **新增完整軌道週期分析** - Pure Cron 驅動 + 555+134顆衛星池配置
 - **[核心算法實現現況](./algorithms_implementation.md)** - 算法實現細節和API位置  
 
-### 📎 附錄資料
-- **[附錄：詳細分析報告](./appendix/)** - 低頻參考資料和詳細分析文檔
+### 📎 詳細分析
+- **[衛星星座完整分析](./satellite_constellation_analysis.md)** - LEO衛星系統詳細技術分析與計算結果
 
 ## 🚀 快速開始
 
@@ -63,7 +63,7 @@ curl http://localhost:8080/api/v1/handover_decision/performance_metrics | jq
 ## 📊 系統指標
 
 ### 技術規格
-- **衛星數量**: 8,042 顆 Starlink + 651 顆 OneWeb (2025年實際數據)
+- **衛星數量**: 8,039 顆 Starlink + 134 顆 OneWeb (2025年實際數據)
 - **算法精度**: 完整 SGP4，位置精度 < 100m，預測準確率 > 94%
 - **API 響應**: < 50ms (衛星位置查詢)，< 100ms (切換決策)
 - **系統啟動**: < 30秒 (Pure Cron 驅動架構)

@@ -5,7 +5,7 @@
 ### 1. 配置管理分散化問題 (嚴重)
 **問題描述：**
 - 衛星配置在多個文件中重複定義：
-  - `satellite_selector.py` line 55-56: `starlink_target=150, oneweb_target=50`
+  - `satellite_selector.py` line 55-56: `starlink_target=555, oneweb_target=134 (已更新為v5.0.0統一標準)`
   - `build_with_phase0_data.py` line 232-233: `max_display_starlink=150, max_display_oneweb=50`
   - `constellation_separated_selection.json`: 實際運行時數據
 - 配置更新需要修改多個文件，容易不一致

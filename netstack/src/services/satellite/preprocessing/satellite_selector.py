@@ -47,21 +47,21 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SatelliteSelectionConfig:
-    """衛星選擇配置 - 更新至完整軌道週期配置 v4.0.0"""
+    """衛星選擇配置 - 更新至最新標準 555+134 配置 v5.0.0"""
     target_visible_count: int = 15  # 目標可見衛星數 (基於完整軌道週期分析)
     min_visible_count: int = 10     # 最小可見衛星數 (Starlink + OneWeb)  
     max_visible_count: int = 25     # 最大可見衛星數 (峰值時段)
     
-    # 📊 完整軌道週期配置 (v4.0.0) - 基於651+301完整軌道週期分析
-    starlink_target: int = 651      # Starlink 總數量 (確保120.9顆平均換手候選)
-    oneweb_target: int = 301        # OneWeb 總數量 (確保21.7顆平均換手候選)
+    # 📊 最新標準配置 (v5.0.0) - 基於完整軌道週期動態分析優化
+    starlink_target: int = 555      # Starlink 總數量 (7%選擇率，超額滿足需求)
+    oneweb_target: int = 134        # OneWeb 總數量 (21%選擇率，超額滿足需求)
     
     observer_lat: float = 24.9441667    # NTPU 緯度
     observer_lon: float = 121.3713889   # NTPU 經度
     min_elevation: float = 10.0         # 最小仰角門檻 (度) - Starlink 換手區域
     oneweb_min_elevation: float = 8.0   # OneWeb 最小仰角門檻 (度)
     
-    safety_factor: float = 1.2      # 安全係數 (降低，因為使用完整軌道週期)      # 安全係數
+    safety_factor: float = 1.2      # 安全係數      # 安全係數 (降低，因為使用完整軌道週期)      # 安全係數
     
 @dataclass
 class SatelliteMetrics:
