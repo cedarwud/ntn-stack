@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timezone
 import logging
 
-from src.protocols.sync.time_frequency_sync import (
+from src.protocols.time_frequency_sync import (
     TimeFrequencySynchronizer,
     DopplerCompensator,
     TimeReference,

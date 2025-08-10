@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 import logging
 
-from src.protocols.sib.sib19_broadcast import (
+from src.protocols.sib19_broadcast import (
     SIB19BroadcastScheduler,
     SatelliteEphemeris,
     SIB19BroadcastType,
