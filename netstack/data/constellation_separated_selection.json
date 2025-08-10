@@ -16,14 +16,14 @@
     },
     "strategies_applied": {
       "starlink": {
-        "target_count": 150,
+        "target_count": 651,
         "strategy": "intelligent_filtering",
-        "reason": "研究級配置：120顆Starlink確保8-12顆同時可見"
+        "reason": "完整軌道週期配置：651顆Starlink確保120.9顆平均換手候選"
       },
       "oneweb": {
-        "target_count": 50,
-        "strategy": "intelligent_filtering", 
-        "reason": "研究級配置：80顆OneWeb提供換手候選"
+        "target_count": 301,
+        "strategy": "intelligent_filtering",
+        "reason": "完整軌道週期配置：301顆OneWeb確保21.7顆平均換手候選"
       }
     }
   },

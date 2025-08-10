@@ -125,15 +125,17 @@ class SatellitePreprocessingService:
             observer_lon=request.observer_lon
         )
         
-        # 設置星座特定的目標數量
+        # 🚀 設置完整軌道週期配置 v4.0.0
         if request.constellation.lower() == 'starlink':
-            config.starlink_target = request.target_count
+            config.starlink_target = 651      # 完整軌道週期配置
             config.oneweb_target = 0
+            logger.info("🛰️ 使用 Starlink 完整軌道週期配置：651顆衛星")
         elif request.constellation.lower() == 'oneweb':
             config.starlink_target = 0
-            config.oneweb_target = request.target_count
+            config.oneweb_target = 301         # 完整軌道週期配置
+            logger.info("🛰️ 使用 OneWeb 完整軌道週期配置：301顆衛星")
         else:
-            # 通用星座
+            # 通用星座 - 保持靈活性
             config.starlink_target = request.target_count
         
         # 獲取選擇器
