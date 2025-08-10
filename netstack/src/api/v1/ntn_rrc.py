@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 import logging
 
-from src.protocols.rrc.ntn_procedures import (
+from src.protocols.rrc_ntn_procedures import (
     NTNRRCProcessor, 
     RRCMessage,
     RRCMessageType,
