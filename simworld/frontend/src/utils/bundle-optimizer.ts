@@ -147,7 +147,7 @@ export const codeSpittingConfig = {
     performanceMonitoring: () => import('./performance-optimizer'),
     
     // API 服務
-    netstackApi: () => import('../services/netstack-api'),
+    netstackApi: () => import('../services/unified-netstack-api'),
     simworldApi: () => import('../services/simworld-api'),
     
     // 圖表庫 (分離大型依賴)
