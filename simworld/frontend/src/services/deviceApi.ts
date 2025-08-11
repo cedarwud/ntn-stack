@@ -1,4 +1,4 @@
-import api from './api';
+import api from './base-api';
 import { Device, DeviceCreate, DeviceUpdate } from '../types/device';
 import { ApiRoutes } from '../config/apiRoutes';
 
@@ -18,8 +18,8 @@ export const getDevices = async (role?: string): Promise<Device[]> => {
   }
   
   try {
-    const response = await api.get<Device[]>(url);
-    return response.data;
+    const devices = await api.get<Device[]>(url);
+    return devices;
   } catch (error) {
     console.error('獲取設備列表失敗:', error);
     throw error;
@@ -29,8 +29,8 @@ export const getDevices = async (role?: string): Promise<Device[]> => {
 // 根據ID獲取單個設備
 export const getDeviceById = async (deviceId: number): Promise<Device> => {
   try {
-    const response = await api.get<Device>(ApiRoutes.devices.getById(deviceId.toString()));
-    return response.data;
+    const device = await api.get<Device>(ApiRoutes.devices.getById(deviceId.toString()));
+    return device;
   } catch (error) {
     console.error(`獲取設備ID ${deviceId} 失敗:`, error);
     throw error;
@@ -40,8 +40,8 @@ export const getDeviceById = async (deviceId: number): Promise<Device> => {
 // 創建新設備
 export const createDevice = async (deviceData: DeviceCreate): Promise<Device> => {
   try {
-    const response = await api.post<Device>(ApiRoutes.devices.create, deviceData);
-    return response.data;
+    const device = await api.post<Device>(ApiRoutes.devices.create, deviceData);
+    return device;
   } catch (error) {
     console.error('創建設備失敗:', error);
     throw error;
@@ -51,8 +51,8 @@ export const createDevice = async (deviceData: DeviceCreate): Promise<Device> =>
 // 更新現有設備
 export const updateDevice = async (deviceId: number, deviceData: DeviceUpdate): Promise<Device> => {
   try {
-    const response = await api.put<Device>(ApiRoutes.devices.update(deviceId.toString()), deviceData);
-    return response.data;
+    const device = await api.put<Device>(ApiRoutes.devices.update(deviceId.toString()), deviceData);
+    return device;
   } catch (error) {
     console.error(`更新設備ID ${deviceId} 失敗:`, error);
     throw error;

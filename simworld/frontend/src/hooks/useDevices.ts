@@ -22,9 +22,7 @@ export const useDevices = () => {
         try {
             setLoading(true)
             setApiStatus('disconnected')
-            // console.log('嘗試從API獲取設備數據 (來自 useDevices Hook)...')
             const backendDevices = await apiGetDevices()
-            // console.log('成功獲取設備數據 (來自 useDevices Hook):', backendDevices)
 
             const frontendDevices = backendDevices.map(convertBackendToFrontend)
             
@@ -51,27 +49,13 @@ export const useDevices = () => {
             // 注意：原 App.tsx 中 setSelectedReceiverIds 的邏輯已移除，
             // App.tsx 將在拿到 tempDevices 後自行處理 selectedReceiverIds
         } catch (err: unknown) {
-            console.error('獲取設備失敗 (來自 useDevices Hook):', err)
+            console.error('❌ [useDevices] 獲取設備失敗:', err)
             const errorMessage = err instanceof Error ? err.message : '未知錯誤'
             setError(`獲取設備數據時發生錯誤: ${errorMessage}`)
             setApiStatus('error')
 
-            const defaultDevices: Device[] = Array.from(
-                { length: 3 },
-                (_, i) => ({
-                    id: -(i + 1),
-                    name: `測試設備 ${i + 1}`,
-                    position_x: i * 10,
-                    position_y: i * 10,
-                    position_z: 0,
-                    orientation_x: 0,
-                    orientation_y: 0,
-                    orientation_z: 0,
-                    power_dbm: 0,
-                    active: true,
-                    role: ['desired', 'receiver', 'jammer'][i % 3] as string,
-                })
-            )
+            // 使用簡單的臨時設備，等待後端初始化
+            const defaultDevices: Device[] = []
             setTempDevices(defaultDevices)
             setOriginalDevices(defaultDevices)
             setHasTempDevices(false)

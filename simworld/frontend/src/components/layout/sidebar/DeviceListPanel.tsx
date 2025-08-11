@@ -17,12 +17,15 @@ const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
     onOrientationInputChange,
     onDeviceRoleChange,
 }) => {
-    // 本地展開/收合狀態
-    const [showTempDevices, setShowTempDevices] = useState(true)
+    // Calculate total device count to check if data is loaded
+    const totalDevices = receiverDevices.length + desiredDevices.length + jammerDevices.length;
+    const hasDeviceData = totalDevices > 0;
+    // 本地展開/收合狀態 - 預設收合所有分類
+    const [showTempDevices, setShowTempDevices] = useState(false)
     const [showReceiverDevices, setShowReceiverDevices] = useState(false)
     const [showDesiredDevices, setShowDesiredDevices] = useState(false)
     const [showJammerDevices, setShowJammerDevices] = useState(false)
-    const [showSkyfieldSection, setShowSkyfieldSection] = useState(true)
+    const [showSkyfieldSection, setShowSkyfieldSection] = useState(false)
 
     return (
         <div className="device-list-panel">
@@ -137,123 +140,144 @@ const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
                 </>
             )}
 
-            {/* 接收器 */}
-            {receiverDevices.length > 0 && (
-                <>
-                    <h3
-                        className={`section-header ${
-                            showReceiverDevices ? 'expanded' : ''
-                        }`}
-                        onClick={() =>
-                            setShowReceiverDevices(!showReceiverDevices)
-                        }
-                    >
-                        <span className="header-icon">📱</span>
-                        <span className="header-title">接收器 Rx</span>
-                        <span className="header-count">
-                            ({receiverDevices.length})
-                        </span>
-                    </h3>
-                    {showReceiverDevices &&
-                        receiverDevices.map((device, index) => (
-                            <DeviceItem
-                                key={device.id || `receiver-device-${index}`}
-                                device={device}
-                                orientationInput={
-                                    orientationInputs[device.id] || {
-                                        x: '0',
-                                        y: '0',
-                                        z: '0',
+            {/* 接收器 - Always show section */}
+            <>
+                <h3
+                    className={`section-header ${
+                        showReceiverDevices ? 'expanded' : ''
+                    }`}
+                    onClick={() =>
+                        setShowReceiverDevices(!showReceiverDevices)
+                    }
+                >
+                    <span className="header-icon">📱</span>
+                    <span className="header-title">接收器 Rx</span>
+                    <span className="header-count">
+                        ({receiverDevices.length})
+                    </span>
+                </h3>
+                {showReceiverDevices && (
+                    <div className="device-section">
+                        {receiverDevices.length > 0 ? (
+                            receiverDevices.map((device, index) => (
+                                <DeviceItem
+                                    key={device.id || `receiver-device-${index}`}
+                                    device={device}
+                                    orientationInput={
+                                        orientationInputs[device.id] || {
+                                            x: '0',
+                                            y: '0',
+                                            z: '0',
+                                        }
                                     }
-                                }
-                                onDeviceChange={onDeviceChange}
-                                onDeleteDevice={onDeleteDevice}
-                                onOrientationInputChange={
-                                    onOrientationInputChange
-                                }
-                                onDeviceRoleChange={onDeviceRoleChange}
-                            />
-                        ))}
-                </>
-            )}
+                                    onDeviceChange={onDeviceChange}
+                                    onDeleteDevice={onDeleteDevice}
+                                    onOrientationInputChange={
+                                        onOrientationInputChange
+                                    }
+                                    onDeviceRoleChange={onDeviceRoleChange}
+                                />
+                            ))
+                        ) : (
+                            <div className="no-devices-message">
+                                等待設備數據載入...
+                            </div>
+                        )}
+                    </div>
+                )}
+            </>
 
-            {/* 發射器 */}
-            {desiredDevices.length > 0 && (
-                <>
-                    <h3
-                        className={`section-header ${
-                            showDesiredDevices ? 'expanded' : ''
-                        }`}
-                        onClick={() =>
-                            setShowDesiredDevices(!showDesiredDevices)
-                        }
-                    >
-                        <span className="header-icon">📡</span>
-                        <span className="header-title">發射器 Tx</span>
-                        <span className="header-count">
-                            ({desiredDevices.length})
-                        </span>
-                    </h3>
-                    {showDesiredDevices &&
-                        desiredDevices.map((device, index) => (
-                            <DeviceItem
-                                key={device.id || `desired-device-${index}`}
-                                device={device}
-                                orientationInput={
-                                    orientationInputs[device.id] || {
-                                        x: '0',
-                                        y: '0',
-                                        z: '0',
+            {/* 發射器 - Always show section */}
+            <>
+                <h3
+                    className={`section-header ${
+                        showDesiredDevices ? 'expanded' : ''
+                    }`}
+                    onClick={() =>
+                        setShowDesiredDevices(!showDesiredDevices)
+                    }
+                >
+                    <span className="header-icon">📡</span>
+                    <span className="header-title">發射器 Tx</span>
+                    <span className="header-count">
+                        ({desiredDevices.length})
+                    </span>
+                </h3>
+                {showDesiredDevices && (
+                    <div className="device-section">
+                        {desiredDevices.length > 0 ? (
+                            desiredDevices.map((device, index) => (
+                                <DeviceItem
+                                    key={device.id || `desired-device-${index}`}
+                                    device={device}
+                                    orientationInput={
+                                        orientationInputs[device.id] || {
+                                            x: '0',
+                                            y: '0',
+                                            z: '0',
+                                        }
                                     }
-                                }
-                                onDeviceChange={onDeviceChange}
-                                onDeleteDevice={onDeleteDevice}
-                                onOrientationInputChange={
-                                    onOrientationInputChange
-                                }
-                                onDeviceRoleChange={onDeviceRoleChange}
-                            />
-                        ))}
-                </>
-            )}
+                                    onDeviceChange={onDeviceChange}
+                                    onDeleteDevice={onDeleteDevice}
+                                    onOrientationInputChange={
+                                        onOrientationInputChange
+                                    }
+                                    onDeviceRoleChange={onDeviceRoleChange}
+                                />
+                            ))
+                        ) : (
+                            <div className="no-devices-message">
+                                等待設備數據載入...
+                            </div>
+                        )}
+                    </div>
+                )}
+            </>
 
-            {/* 干擾源 */}
-            {jammerDevices.length > 0 && (
-                <>
-                    <h3
-                        className={`section-header ${
-                            showJammerDevices ? 'expanded' : ''
-                        }`}
-                        onClick={() => setShowJammerDevices(!showJammerDevices)}
-                    >
-                        <span className="header-icon">⚡</span>
-                        <span className="header-title">干擾源 Jam</span>
-                        <span className="header-count">
-                            ({jammerDevices.length})
-                        </span>
-                    </h3>
-                    {showJammerDevices &&
-                        jammerDevices.map((device, index) => (
-                            <DeviceItem
-                                key={device.id || `jammer-device-${index}`}
-                                device={device}
-                                orientationInput={
-                                    orientationInputs[device.id] || {
-                                        x: '0',
-                                        y: '0',
-                                        z: '0',
+            {/* 干擾源 - Always show section */}
+            <>
+                <h3
+                    className={`section-header ${
+                        showJammerDevices ? 'expanded' : ''
+                    }`}
+                    onClick={() => setShowJammerDevices(!showJammerDevices)}
+                >
+                    <span className="header-icon">⚡</span>
+                    <span className="header-title">干擾源 Jam</span>
+                    <span className="header-count">
+                        ({jammerDevices.length})
+                    </span>
+                </h3>
+                {showJammerDevices && (
+                    <div className="device-section">
+                        {jammerDevices.length > 0 ? (
+                            jammerDevices.map((device, index) => (
+                                <DeviceItem
+                                    key={device.id || `jammer-device-${index}`}
+                                    device={device}
+                                    orientationInput={
+                                        orientationInputs[device.id] || {
+                                            x: '0',
+                                            y: '0',
+                                            z: '0',
+                                        }
                                     }
-                                }
-                                onDeviceChange={onDeviceChange}
-                                onDeleteDevice={onDeleteDevice}
-                                onOrientationInputChange={
-                                    onOrientationInputChange
-                                }
-                                onDeviceRoleChange={onDeviceRoleChange}
-                            />
-                        ))}
-                </>
-            )}
+                                    onDeviceChange={onDeviceChange}
+                                    onDeleteDevice={onDeleteDevice}
+                                    onOrientationInputChange={
+                                        onOrientationInputChange
+                                    }
+                                    onDeviceRoleChange={onDeviceRoleChange}
+                                />
+                            ))
+                        ) : (
+                            <div className="no-devices-message">
+                                等待設備數據載入...
+                            </div>
+                        )}
+                    </div>
+                )}
+            </>
         </div>
     )
 }
