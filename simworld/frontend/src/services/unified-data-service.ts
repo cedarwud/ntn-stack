@@ -4,7 +4,7 @@
  * 提供全域數據快取和共享機制
  */
 
-import { netStackApi } from './netstack-api'
+import { unifiedNetStackApi } from './unified-netstack-api'
 import { satelliteCache } from '../utils/satellite-cache'
 
 // 數據快取接口
@@ -146,7 +146,7 @@ class UnifiedDataService {
     
     try {
       console.log('🔄 Fetching fresh Core Sync data')
-      const syncData = await netStackApi.getCoreSync()
+      const syncData = await unifiedNetStackApi.getCoreSync()
       
       this.coreSync = {
         data: syncData,
@@ -299,7 +299,7 @@ class UnifiedDataService {
     
     try {
       console.log('🔄 Fetching fresh Health Status data')
-      const healthData = await netStackApi.getHealthStatus()
+      const healthData = await unifiedNetStackApi.getHealthStatus()
       
       this.healthStatus = {
         data: healthData,
@@ -362,7 +362,7 @@ class UnifiedDataService {
     
     try {
       console.log('🔄 Fetching fresh Handover Latency data')
-      const latencyData = await netStackApi.getHandoverLatencyMetrics()
+      const latencyData = await unifiedNetStackApi.getHandoverLatencyMetrics()
       
       this.handoverLatency = {
         data: latencyData,
