@@ -293,18 +293,16 @@ const MainScene: React.FC<MainSceneProps> = ({
             if (device.role === 'receiver') {
                 const position: [number, number, number] = [
                     device.position_x,
-                    device.position_z,
+                    device.position_z + 15, // 增加高度避免与TX模型重叠
                     device.position_y,
                 ]
 
+                // 恢復正確的UAV選擇控制邏輯
                 const shouldControl = isSelected
 
                 return (
                     <UAVFlight
-                        key={
-                            device.id ||
-                            `receiver-${index}-${device.position_x}-${device.position_y}-${device.position_z}`
-                        }
+                        key={`uav-flight-${device.id ?? 'temp'}-${index}-${device.position_x}-${device.position_y}-${device.position_z}`}
                         position={position}
                         scale={[UAV_SCALE, UAV_SCALE, UAV_SCALE]}
                         auto={shouldControl ? auto : false}
@@ -315,11 +313,29 @@ const MainScene: React.FC<MainSceneProps> = ({
                             }
                         }}
                         onPositionUpdate={(pos) => {
+                            // 防循環的位置更新：只有當位置有顯著變化時才通知父組件
                             if (onUAVPositionUpdate && shouldControl) {
-                                onUAVPositionUpdate(
-                                    pos,
-                                    device.id !== null ? device.id : undefined
+                                const [x, y, z] = pos
+                                const originalPos = [device.position_x, device.position_z + 15, device.position_y]
+                                const threshold = 5 // 位置變化閾值
+                                
+                                // 計算位置變化距離
+                                const distance = Math.sqrt(
+                                    Math.pow(x - originalPos[0], 2) +
+                                    Math.pow(y - originalPos[1], 2) +
+                                    Math.pow(z - originalPos[2], 2)
                                 )
+                                
+                                // 只有當位置變化超過閾值時才更新，避免微小變化導致的循環
+                                if (distance > threshold) {
+                                    // 使用 setTimeout 避免在渲染過程中觸發狀態更新
+                                    setTimeout(() => {
+                                        onUAVPositionUpdate(
+                                            pos,
+                                            device.id !== null ? device.id : undefined
+                                        )
+                                    }, 0)
+                                }
                             }
                         }}
                         uavAnimation={shouldControl ? uavAnimation : false}
@@ -328,10 +344,7 @@ const MainScene: React.FC<MainSceneProps> = ({
             } else if (device.role === 'desired') {
                 return (
                     <StaticModel
-                        key={
-                            device.id ||
-                            `desired-${index}-${device.position_x}-${device.position_y}-${device.position_z}`
-                        }
+                        key={`static-desired-${device.id ?? 'temp'}-${index}-${device.position_x}-${device.position_y}-${device.position_z}`}
                         url={BS_MODEL_URL}
                         position={[
                             device.position_x,
@@ -345,10 +358,7 @@ const MainScene: React.FC<MainSceneProps> = ({
             } else if (device.role === 'jammer') {
                 return (
                     <StaticModel
-                        key={
-                            device.id ||
-                            `jammer-${index}-${device.position_x}-${device.position_y}-${device.position_z}`
-                        }
+                        key={`static-jammer-${device.id ?? 'temp'}-${index}-${device.position_x}-${device.position_y}-${device.position_z}`}
                         url={JAMMER_MODEL_URL}
                         position={[
                             device.position_x,

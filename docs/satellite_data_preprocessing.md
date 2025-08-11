@@ -71,11 +71,39 @@ STARLINK-1007
 2 44713  53.0532 123.4567 0001234  90.1234 270.5678 15.05123456123456
 ```
 
-## ⚙️ 第一階段：SGP4 精確軌道計算
+## ⚙️ 第一階段：TLE數據載入與SGP4精確軌道計算
 
 ### 🎯 階段目的與處理範圍
 
-**核心目的**：解析全部 TLE 資訊，建立完整衛星軌道數據庫，用於判斷哪些衛星有可能通過 UE 上方
+**核心目的**：完整的TLE數據載入、驗證、篩選與SGP4軌道計算，建立完整衛星軌道數據庫
+
+#### 📋 階段一完整流程
+
+**1.1 TLE數據掃描與載入**
+- **目的**: 掃描和載入所有可用的TLE數據檔案
+- **處理位置**: `Phase25DataPreprocessor.scan_tle_data()`
+- **輸入**: `/netstack/tle_data/` 目錄結構
+- **輸出**: TLE檔案清單和基礎統計
+
+**1.2 原始衛星數據載入**
+- **目的**: 從TLE檔案中解析出原始衛星軌道參數
+- **處理位置**: `Phase25DataPreprocessor._load_constellation_satellites()`
+- **功能**: 載入最新日期的TLE數據，解析三行格式
+- **輸出**: 原始衛星數據列表
+
+**1.3 衛星池建構（基礎篩選）**
+- **目的**: 基礎數據驗證和初步篩選，移除無效數據
+- **處理位置**: `Phase25DataPreprocessor._build_satellite_pools()`
+- **使用組件**: `SatelliteDataPoolBuilder`
+- **篩選條件**: TLE格式驗證、軌道參數合理性、基本覆蓋檢查
+- **輸出**: 經過基礎篩選的衛星池
+
+**1.4 完整SGP4軌道計算與時間序列生成**
+- **目的**: 使用完整SGP4算法計算精確軌道和時間序列數據
+- **處理位置**: `Phase25DataPreprocessor._calculate_constellation_orbits()`
+- **軌道引擎**: `CoordinateSpecificOrbitEngine`
+- **算法**: 完整SGP4（非簡化版本）
+- **輸出**: 包含完整軌道時間序列的衛星數據
 
 #### 🔍 為什麼需要全量處理？
 1. **軌道不可預測性**：僅從 TLE 原始數據無法直接判斷衛星是否會出現在特定觀測點上空
@@ -98,13 +126,28 @@ STARLINK-1007
 └── ✅ 確保不遺漏任何潛在候選衛星
 ```
 
-### 處理位置
-- **Pure Cron 預計算引擎**: `/netstack/docker/build_with_phase0_data_refactored.py`
-- **簡化啟動腳本**: `/netstack/docker/simple-entrypoint.sh`
-- **智能增量處理器**: `/scripts/incremental_data_processor.sh`
-- **Cron 下載器**: `/scripts/daily_tle_download_enhanced.sh`
-- **🆕 星座分離篩選**: `/correct-constellation-filtering.py`
-- **🆕 配置統一管理**: `/netstack/config/satellite_config.py`
+### 🗂️ 程式實現位置
+
+#### 主要處理器
+- **主控制器**: `/netstack/docker/build_with_phase0_data_refactored.py`
+  - `Phase25DataPreprocessor.process_all_tle_data()` - 主流程控制
+  - `Phase25DataPreprocessor._execute_phase1_orbit_calculation()` - 階段一執行器
+
+#### 子組件模組
+- **TLE掃描**: `/netstack/docker/build_with_phase0_data_refactored.py:258-336`
+  - `Phase25DataPreprocessor.scan_tle_data()` - TLE檔案掃描器
+- **數據載入**: `/netstack/docker/build_with_phase0_data_refactored.py:238-256`
+  - `Phase25DataPreprocessor._load_constellation_satellites()` - 星座數據載入器
+- **基礎篩選**: `/netstack/config/satellite_data_pool_builder.py`
+  - `SatelliteDataPoolBuilder.build_satellite_pools()` - 衛星池建構器
+- **軌道計算**: `/netstack/src/services/satellite/coordinate_specific_orbit_engine.py`
+  - `CoordinateSpecificOrbitEngine.calculate_satellite_orbit()` - SGP4軌道計算引擎
+
+#### 支援服務
+- **配置管理**: `/netstack/config/satellite_config.py`
+- **Cron更新**: `/scripts/daily_tle_download_enhanced.sh`
+- **增量處理**: `/scripts/incremental_data_processor.sh`
+- **簡化啟動**: `/netstack/docker/simple-entrypoint.sh`
 
 ### 計算特性
 - **精度等級**: 米級位置精度（完整 SGP4 算法）
