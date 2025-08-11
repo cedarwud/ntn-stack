@@ -13,10 +13,10 @@ import {
 } from '../../utils/sceneUtils'
 
 // import AIRANVisualization from '../domains/interference/mitigation/AIRANVisualization' // 已移除未使用的組件
-// import Sionna3DVisualization from '../domains/simulation/sionna/Sionna3DVisualization' // 已移除未使用的組件
+
 import RealTimeMetrics from './visualization/RealTimeMetrics'
 // import InterferenceAnalytics from '../domains/interference/analysis/InterferenceAnalytics' // Removed - interference domain cleaned up
-import UAVSwarmCoordination from '../domains/simulation/coordination/UAVSwarmCoordination'
+
 import MeshNetworkTopology from './visualization/MeshNetworkTopology'
 // import FailoverMechanism from '../domains/interference/mitigation/FailoverMechanism' // Removed - interference domain cleaned up
 // Analytics components removed - no UI controls available to enable them
@@ -55,7 +55,7 @@ export interface MainSceneProps {
     realTimeMetricsEnabled?: boolean
     interferenceAnalyticsEnabled?: boolean
     // 階段五功能狀態
-    uavSwarmCoordinationEnabled?: boolean
+
     meshNetworkTopologyEnabled?: boolean
     satelliteUavConnectionEnabled?: boolean
     failoverMechanismEnabled?: boolean
@@ -107,7 +107,7 @@ const MainScene: React.FC<MainSceneProps> = ({
     aiRanVisualizationEnabled = false,
     realTimeMetricsEnabled = false,
     interferenceAnalyticsEnabled: _interferenceAnalyticsEnabled = false,
-    uavSwarmCoordinationEnabled = false,
+
     meshNetworkTopologyEnabled = false,
     satelliteUavConnectionEnabled: _satelliteUavConnectionEnabled = false,
     failoverMechanismEnabled: _failoverMechanismEnabled = false,
@@ -359,11 +359,7 @@ const MainScene: React.FC<MainSceneProps> = ({
             />
             {/* InterferenceAnalytics component removed - domain cleaned up */}
 
-            {/* 階段五可視化覆蓋層 */}
-            <UAVSwarmCoordination
-                devices={devices}
-                enabled={uavSwarmCoordinationEnabled}
-            />
+            {/* 階段五可視化覆蓋層 - UAV Swarm Coordination 已移除 */}
             <MeshNetworkTopology
                 devices={devices}
                 enabled={meshNetworkTopologyEnabled}
