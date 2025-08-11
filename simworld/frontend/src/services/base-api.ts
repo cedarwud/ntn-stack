@@ -385,3 +385,7 @@ export class BaseApiClient {
     }
   }
 }
+
+// Create a default instance for backward compatibility
+const api = new BaseApiClient('/api')
+export default api

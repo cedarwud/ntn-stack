@@ -26,8 +26,7 @@ import {
 import DeviceListPanel from './sidebar/DeviceListPanel'
 // 引入重構後的UAV選擇模組
 import UAVSelectionPanel from './sidebar/UAVSelectionPanel'
-// 引入重構後的手動控制模組
-import ManualControlPanel from './sidebar/ManualControlPanel'
+
 // 引入重構後的功能開關模組
 import FeatureToggleManager from './sidebar/FeatureToggleManager'
 // 引入重構後的類別導航模組
@@ -58,8 +57,6 @@ interface SidebarProps {
 
     aiRanVisualizationEnabled?: boolean
     onAiRanVisualizationChange?: (enabled: boolean) => void
-    manualControlEnabled?: boolean
-    onManualControlEnabledChange?: (enabled: boolean) => void
     // 新增的擴展功能
 
     onSionna3DVisualizationChange?: (enabled: boolean) => void
@@ -94,7 +91,7 @@ interface SidebarProps {
 
 // 定義核心功能和隱藏功能 - 未來擴展用
 // const CORE_HANDOVER_FEATURES = {
-//     basic: ['auto', 'uavAnimation', 'satelliteEnabled'],
+//     basic: ['auto', 'satelliteEnabled'],
 //     handover: ['handoverPrediction', 'handoverDecision', 'handoverPerformance'],
 //     quality: ['sinrHeatmap', 'interferenceVisualization'],
 //     network: ['satelliteUAVConnection']
@@ -210,17 +207,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     hasTempDevices,
     auto,
     onAutoChange,
-    onManualControl,
+    onManualControl: _onManualControl,
     activeComponent,
-    uavAnimation,
+    uavAnimation: _uavAnimation,
     onUavAnimationChange,
     onSelectedReceiversChange,
     onSatelliteDataUpdate,
     satelliteEnabled = false,
     onSatelliteEnabledChange,
 
-    manualControlEnabled = false,
-    onManualControlEnabledChange,
     satelliteUavConnectionEnabled = false,
     onSatelliteUavConnectionChange,
     // 衛星動畫控制 props（動畫永遠開啟）
@@ -234,6 +229,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     // 標記未使用的props為已消費（避免TypeScript警告）
     void _satelliteSpeedMultiplier
     void _onSatelliteSpeedChange
+    void _onManualControl
+    void _uavAnimation
 
     // 🎯 使用換手狀態
     const {
@@ -307,25 +304,21 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     // 精簡的核心功能開關配置
     const featureToggles: FeatureToggle[] = [
-        // UAV 控制 (4個)
+        // UAV 控制 (1個)
         {
             id: 'auto',
             label: '自動飛行模式',
             category: 'uav',
             enabled: auto,
-            onToggle: onAutoChange,
+            onToggle: (enabled: boolean) => {
+                onAutoChange(enabled)
+                // 自動飛行模式開啟時同時開啟 UAV 飛行動畫
+                onUavAnimationChange(enabled)
+            },
             icon: '🤖',
-            description: 'UAV 自動飛行模式',
+            description: 'UAV 自動飛行模式（包含飛行動畫效果）',
         },
-        {
-            id: 'uavAnimation',
-            label: 'UAV 飛行動畫',
-            category: 'uav',
-            enabled: uavAnimation,
-            onToggle: onUavAnimationChange,
-            icon: '🎬',
-            description: 'UAV 飛行動畫效果',
-        },
+
 
         // 衛星控制 (7個 - 包含移動過來的3個換手開關)
         {
@@ -347,22 +340,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             description: '衛星與 UAV 連接狀態監控（需先開啟衛星顯示）',
         },
 
-        // 手動控制面板會根據自動飛行狀態動態顯示
         // 隱藏的非核心功能：predictionAccuracyDashboard, predictionPath3D, coreNetworkSync 等 17 個功能
     ]
 
-    // 動態添加手動控制開關（當自動飛行關閉時）
-    if (!auto) {
-        featureToggles.splice(2, 0, {
-            id: 'manualControl',
-            label: '手動控制面板',
-            category: 'uav',
-            enabled: manualControlEnabled,
-            onToggle: onManualControlEnabledChange || (() => {}),
-            icon: '🕹️',
-            description: '顯示 UAV 手動控制面板',
-        })
-    }
+
 
     // 精簡的類別配置 - 2 個分頁，衛星控制為首位
     const categories = [
@@ -556,13 +537,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     </div>
                                 )}
 
-                            {/* 手動控制面板 - 使用獨立模組 */}
-                            <ManualControlPanel
-                                isVisible={activeCategory === 'uav'}
-                                auto={auto}
-                                manualControlEnabled={manualControlEnabled}
-                                onManualControl={onManualControl}
-                            />
+
                         </div>
                     </div>
 
