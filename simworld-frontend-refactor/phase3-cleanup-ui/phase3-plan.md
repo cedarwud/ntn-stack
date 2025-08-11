@@ -5,39 +5,49 @@
 
 ## 🎯 核心保留組件 (LEO Satellite Handover 相關)
 
-### 🛰️ 衛星核心組件 (絕對保留)
-- `domains/satellite/` - 所有衛星相關組件
-  - `ConstellationSelector.tsx` - 星座選擇器
-  - `SatelliteAnalysisPage.tsx` - 衛星分析頁面
-  - `SatelliteAnimationViewer.tsx` - 衛星動畫查看器
-  - `TimelineControl.tsx` - 時間軸控制
-  - `visualization/DynamicSatelliteRenderer.tsx` - 動態衛星渲染器
+### 🛰️ 衛星核心組件 (經驗證後分類)
+- **✅ 實際使用的組件**:
+  - `ConstellationSelectorCompact.tsx` - ✅ 星座選擇器 (在Sidebar顯示)
+  - `visualization/DynamicSatelliteRenderer.tsx` - ✅ 動態衛星渲染器 (在主視圖顯示)
+- **❌ 虛假保留組件 (實際未使用)**:
+  - `ConstellationSelector.tsx` - ❌ 未被使用
+  - `SatelliteAnalysisPage.tsx` - ❌ 沒有路由，不會顯示
+  - `SatelliteAnimationViewer.tsx` - ❌ 未被使用
+  - `TimelineControl.tsx` - ❌ 未被任何組件導入
 
-### 🔄 換手決策組件 (核心功能)
-- `domains/handover/` - 換手相關組件
-  - `execution/HandoverStatusPanel.tsx` - 換手狀態面板
-  - `visualization/` - 換手可視化組件
+### 🔄 換手決策組件 (經驗證後分類)
+- **✅ 實際使用的組件**:
+  - `execution/HandoverStatusPanel.tsx` - ✅ 在StereogramView中顯示
+- **❌ 虛假保留組件 (實際未使用)**:
+  - `visualization/` - ❌ 整個目錄未被使用
 
-### 🎮 決策中心組件 (重要功能)
-- `unified-decision-center/` - 統一決策中心
-  - `DecisionControlCenter.tsx` - 決策控制中心
-  - `AlgorithmExplainabilityPanel.tsx` - 算法解釋面板
-  - `CandidateSelectionPanel.tsx` - 候選選擇面板
+### 🎮 決策中心組件 (經驗證後分類)
+- **✅ 實際使用的組件**:
+  - `DecisionControlCenterSimple.tsx` - ✅ 有路由 /decision-center
+- **❌ 虛假保留組件 (沒有後端支持)**:
+  - `DecisionControlCenter.tsx` - ❌ 沒有路由，不會顯示
+  - `AlgorithmExplainabilityPanel.tsx` - ❌ 沒有後端API支持
+  - `CandidateSelectionPanel.tsx` - ❌ 沒有真實數據
+  - `DecisionFlowTracker.tsx` - ❌ 僅內部使用
+  - `VisualizationCoordinator.ts` - ❌ 僅內部使用
+  - `RealtimeEventStreamer.ts` - ❌ WebSocket後端不存在
 
-### 📊 Sionna 仿真組件 (研究相關)
-- `domains/simulation/sionna/` - Sionna 仿真庫集成
+### 📊 Sionna 仿真組件 (❌ 完全虛假實現)
+- `domains/simulation/sionna/index.ts` - ❌ **空文件，建議完全移除**
+- 相關 Sionna API 調用 - ❌ **後端全部404錯誤**
 
-## 🤔 需要評估的組件
+## ✅ 經驗證的其他組件
 
-### 📍 座標系統組件
-- `domains/coordinates/CoordinateDisplay.tsx` - 可能對衛星位置顯示有用
+### 📍 座標系統組件 (✅ 實際使用)
+- `domains/coordinates/CoordinateDisplay.tsx` - ✅ 在Sidebar中顯示
 
-### 📡 設備管理組件
-- `domains/device/management/` - 可能對地面站管理有用
-- `domains/device/visualization/DeviceOverlaySVG.tsx` - 設備覆蓋層可視化
+### 📡 設備管理組件 (✅ 實際使用)  
+- `domains/device/management/DeviceItem.tsx` - ✅ 在Sidebar中顯示
+- `domains/device/management/DevicePopover.tsx` - ✅ 設備彈出設定
+- `domains/device/visualization/DeviceOverlaySVG.tsx` - ✅ 設備覆蓋層可視化
 
-### 📊 監控組件
-- `domains/monitoring/realtime/CoreNetworkSyncViewer.tsx` - 實時網路同步監控
+### 📊 監控組件 (❌ 暫時用不到)
+- `domains/monitoring/realtime/CoreNetworkSyncViewer.tsx` - ❌ 實時監控暫不需要
 
 ## 🧹 UI 結構優化
 
@@ -63,15 +73,16 @@ components/
 │   ├── satellite/          # 衛星相關
 │   ├── handover/           # 換手相關
 │   └── decision/           # 決策相關
-├── simulation/             # 仿真相關 (Sionna, etc.)
+├── scenes/                 # 主要UI場景 (StereogramView, FloorView)
 ├── visualization/          # 3D 可視化組件
 ├── ui/                     # 通用 UI 組件
 └── legacy/                 # 待移除的過時組件
 ```
 
 ## ✅ 驗證檢查點
-- [ ] 核心衛星換手功能完整保留
-- [ ] 3D 可視化效果正常
-- [ ] Sionna 仿真集成工作正常
+- [ ] 核心衛星換手功能完整保留 (僅保留實際使用的組件)
+- [ ] 3D 可視化效果正常 (DynamicSatelliteRenderer)
+- [ ] 設備管理功能正常 (Sidebar中的設備控制)
 - [ ] 用戶介面響應流暢
 - [ ] 無斷裂的組件引用
+- [ ] 死代碼清理完成 (Sionna、未使用的決策中心等)
