@@ -222,9 +222,9 @@ def configure_matplotlib():
 
 # --- API Configuration ---
 # SimWorld API 基本配置
-API_VERSION = "v1"
+API_VERSION = "v1.1-refactored"
 API_TITLE = "SimWorld Backend API"
-API_DESCRIPTION = "LEO 衛星系統模擬與通訊引擎"
+API_DESCRIPTION = "LEO 衛星系統模擬與通訊引擎 - 重構優化版本。專注於衛星換手研究，支援 3D 渲染與真實軌道計算。"
 
 # CORS 配置
 CORS_ORIGINS = [
