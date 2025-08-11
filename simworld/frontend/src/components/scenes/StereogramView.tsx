@@ -7,9 +7,9 @@ import MainScene from './MainScene'
 import { Device } from '../../types/device'
 // Note: SINRLegend removed - interference domain was cleaned up
 
-import PredictiveMaintenanceViewer from '../domains/analytics/performance/PredictiveMaintenanceViewer'
+// PredictiveMaintenanceViewer removed - not core to LEO satellite handover research
 // IntelligentRecommendationSystem removed - no UI controls available
-import CoreNetworkSyncViewer from '../domains/monitoring/realtime/CoreNetworkSyncViewer'
+// CoreNetworkSyncViewer removed - not core to LEO satellite handover research
 import { HandoverStatusPanel } from '../domains/handover/execution/HandoverStatusPanel'
 import {
     FeatureState,
@@ -192,20 +192,8 @@ export default function SceneView({
 
             {/* SINR Heatmap legend removed - interference domain cleaned up */}
 
-            {featureState.coreNetworkSyncEnabled && (
-                <CoreNetworkSyncViewer
-                    enabled={featureState.coreNetworkSyncEnabled}
-                    devices={devices}
-                />
-            )}
-
-            {featureState.predictiveMaintenanceEnabled && (
-                <PredictiveMaintenanceViewer
-                    devices={devices}
-                    enabled={featureState.predictiveMaintenanceEnabled}
-                />
-            )}
-
+            {/* CoreNetworkSyncViewer removed - not core to LEO satellite handover research */}
+            {/* PredictiveMaintenanceViewer removed - not core to LEO satellite handover research */}
             {/* IntelligentRecommendationSystem removed - no UI controls available */}
 
             <HandoverStatusPanel
@@ -267,9 +255,6 @@ export default function SceneView({
                         sinrHeatmapEnabled={featureState.sinrHeatmapEnabled}
                         aiRanVisualizationEnabled={
                             featureState.aiRanVisualizationEnabled
-                        }
-                        sionna3DVisualizationEnabled={
-                            featureState.sionna3DVisualizationEnabled
                         }
                         realTimeMetricsEnabled={
                             featureState.realTimeMetricsEnabled
