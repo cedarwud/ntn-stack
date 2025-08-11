@@ -2,7 +2,7 @@
  * 真實衛星數據服務
  * 為立體圖提供真實衛星數據疊加功能
  */
-import { ApiRoutes } from '../config/apiRoutes'
+// import { ApiRoutes } from '../config/apiRoutes' // Unused import removed during cleanup
 import { netstackFetch } from '../config/api-config'
 
 export interface RealSatelliteInfo {

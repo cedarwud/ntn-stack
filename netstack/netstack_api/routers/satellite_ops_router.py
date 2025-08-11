@@ -86,7 +86,7 @@ def get_intelligent_selector():
     global _intelligent_selector
     if _intelligent_selector is None:
         try:
-            from satellite_selector import IntelligentSatelliteSelector
+            from ...src.services.satellite.preprocessing.satellite_selector import IntelligentSatelliteSelector
             _intelligent_selector = IntelligentSatelliteSelector()
             logger.info("✅ 智能衛星選擇器初始化成功")
         except Exception as e:

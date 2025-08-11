@@ -13,15 +13,15 @@ mkdir -p "$DATA_DIR" || true
 check_data_integrity() {
     echo "🔍 智能數據檢查開始..."
     
-    # 檢查基本文件是否存在
-    if [ ! -f "$DATA_DIR/phase0_precomputed_orbits.json" ]; then
+    # 檢查基本文件是否存在 (修正文件名)
+    if [ ! -f "$DATA_DIR/enhanced_satellite_data.json" ]; then
         echo "❌ 主要數據文件缺失，需要重新計算"
         return 1
     fi
     
-    # 檢查文件大小（應該 > 100MB）
-    SIZE=$(stat -c%s "$DATA_DIR/phase0_precomputed_orbits.json" 2>/dev/null || echo 0)
-    if [ "$SIZE" -lt 100000000 ]; then
+    # 檢查文件大小（應該 > 200KB，合理的地理可見性數據大小）
+    SIZE=$(stat -c%s "$DATA_DIR/enhanced_satellite_data.json" 2>/dev/null || echo 0)
+    if [ "$SIZE" -lt 200000 ]; then
         echo "❌ 數據文件太小，可能損壞 (大小: ${SIZE} bytes)"
         return 1
     fi
@@ -45,7 +45,7 @@ check_data_integrity() {
     fi
     
     # 獲取預計算數據的時間戳
-    DATA_TIME=$(stat -c%Y "$DATA_DIR/phase0_precomputed_orbits.json" 2>/dev/null || echo 0)
+    DATA_TIME=$(stat -c%Y "$DATA_DIR/enhanced_satellite_data.json" 2>/dev/null || echo 0)
     
     # 比較時間戳
     if [ "$LATEST_TLE_TIME" -gt 0 ] && [ "$DATA_TIME" -gt 0 ]; then
@@ -82,11 +82,25 @@ regenerate_data() {
     
     # 執行預計算
     cd /app
-    echo "🔨 執行真實數據生成 (Phase 0 完整數據)..."
-    python build_with_phase0_data.py
+    echo "🔨 執行真實數據生成 (Phase 2.5 完整數據)..."
+    
+    # 檢查 Python 腳本執行結果
+    if python docker/build_with_phase0_data_refactored.py; then
+        echo "✅ Python 腳本執行成功"
+    else
+        echo "❌ Python 腳本執行失敗"
+        exit 1
+    fi
     
     # 檢查生成是否成功
-    if [ -f "$DATA_DIR/phase0_precomputed_orbits.json" ]; then
+    echo "🔍 檢查數據文件是否存在: $DATA_DIR/enhanced_satellite_data.json"
+    ls -la "$DATA_DIR"/ || echo "❌ 無法列出數據目錄"
+    
+    if [ -f "$DATA_DIR/enhanced_satellite_data.json" ]; then
+        # 檢查文件大小
+        FILE_SIZE=$(stat -c%s "$DATA_DIR/enhanced_satellite_data.json" 2>/dev/null || echo 0)
+        echo "📊 數據文件大小: $FILE_SIZE bytes"
+        
         # 創建完成標記
         echo "$(date -Iseconds)" > "$MARKER_FILE"
         echo "✅ 數據重生完成"
@@ -95,7 +109,9 @@ regenerate_data() {
         echo "📊 生成的數據文件:"
         ls -lh "$DATA_DIR"/*.json 2>/dev/null || true
     else
-        echo "❌ 數據生成失敗"
+        echo "❌ 數據生成失敗 - 文件不存在"
+        echo "🔍 數據目錄內容:"
+        ls -la "$DATA_DIR"/ || echo "無法訪問數據目錄"
         exit 1
     fi
 }

@@ -1,6 +1,5 @@
 import React, { useRef } from 'react'
-import { ManualControlPanelProps } from '../types/sidebar.types'
-// import { UAVManualDirection } from '../../domains/device/visualization/UAVFlight'
+import { ManualControlPanelProps, UAVManualDirection } from '../types/sidebar.types'
 
 const ManualControlPanel: React.FC<ManualControlPanelProps> = ({
     isVisible,
@@ -16,21 +15,7 @@ const ManualControlPanel: React.FC<ManualControlPanelProps> = ({
     }
 
     // 手動控制處理
-    const handleManualDown = (
-        direction:
-            | 'up'
-            | 'down'
-            | 'left'
-            | 'right'
-            | 'ascend'
-            | 'descend'
-            | 'left-up'
-            | 'right-up'
-            | 'left-down'
-            | 'right-down'
-            | 'rotate-left'
-            | 'rotate-right'
-    ) => {
+    const handleManualDown = (direction: UAVManualDirection) => {
         onManualControl(direction)
         if (manualIntervalRef.current) clearInterval(manualIntervalRef.current)
         manualIntervalRef.current = setInterval(() => {

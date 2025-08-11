@@ -1,442 +1,150 @@
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
+import { useRef, useEffect, useState, useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+// @ts-expect-error SkeletonUtils has no TypeScript definitions
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { ApiRoutes } from '../../../../config/apiRoutes'
 
 const UAV_MODEL_URL = ApiRoutes.simulations.getModel('uav')
 
-// 請調整此值以補償懸停動畫的 Y 軸位移
-const HOVER_ANIMATION_Y_OFFSET = -1.28 // 範例值，如果向上跳了 5 個單位，則設為 -5
-
-export type UAVManualDirection =
-    | 'up'
-    | 'down'
-    | 'left'
-    | 'right'
-    | 'ascend'
-    | 'descend'
-    | 'left-up'
-    | 'right-up'
-    | 'left-down'
-    | 'right-down'
-    | 'rotate-left'
-    | 'rotate-right'
-    | null
-
-interface FlightModeParams {
-    cruise: FlightParams
-    hover: FlightParams
-    agile: FlightParams
-    explore: FlightParams
+// 🎯 簡化的飛行配置
+const FLIGHT_CONFIG = {
+    MOVE_DISTANCE: 60,        // 直線移動距離
+    FLIGHT_SPEED: 15,         // 飛行速度（單位/秒）
+    HEIGHT_VARIATION: 2,      // 高度變化幅度
+    HEIGHT_SPEED: 0.01        // 高度變化速度
 }
 
-interface FlightParams {
-    pathCurvature: number
-    speedFactor: number
-    turbulenceEffect: number
-    heightVariation: number
-    smoothingFactor: number
-}
-
-type FlightMode = 'cruise' | 'hover' | 'agile' | 'explore'
-
+// 🎯 簡化的UAV屬性 - 只保留直線飛行需要的
 export interface UAVFlightProps {
     position: [number, number, number]
     scale: [number, number, number]
-    auto: boolean
-    manualDirection?: UAVManualDirection
-    onManualMoveDone?: () => void
-    onPositionUpdate?: (position: [number, number, number]) => void
-    uavAnimation: boolean
+    auto: boolean                    // 是否自動飛行
+    uavAnimation: boolean           // 是否播放螺旋槳動畫
 }
 
 export default function UAVFlight({
     position,
     scale,
     auto,
-    manualDirection,
-    onManualMoveDone,
-    onPositionUpdate,
     uavAnimation,
 }: UAVFlightProps) {
     const group = useRef<THREE.Group>(null)
-    const lightRef = useRef<THREE.PointLight>(null)
-
-    // 使用標準加載方式
     const { scene, animations } = useGLTF(UAV_MODEL_URL) as {
-        scene: THREE.Group
+        scene: THREE.Object3D
         animations: THREE.AnimationClip[]
     }
-
-    // 用 useMemo 確保每個 UAV 都有獨立骨架
     const clonedScene = useMemo(() => SkeletonUtils.clone(scene), [scene])
-
-    const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null)
-    const [actions, setActions] = useState<{
-        [key: string]: THREE.AnimationAction
-    }>({})
-
-    const lastUpdateTimeRef = useRef<number>(0)
-    const throttleInterval = 100
-
-    // 🔥 重写的简化自动飞行系统
-    const FIXED_BASE_POSITION = useRef<THREE.Vector3>(new THREE.Vector3(...position))
-    const [currentPosition, setCurrentPosition] = useState<THREE.Vector3>(
-        new THREE.Vector3(...position)
-    )
     
-    // 简化的飞行状态
-    const [flyingTime, setFlyingTime] = useState(0)
-    const [flightPhase, setFlightPhase] = useState<'orbit' | 'return'>('orbit')
-
-    // 移除复杂的飞行模式状态，简化为基本飞行控制
-
-    // 移除复杂的飞行参数系统
-
-    // 移除复杂的飞行模式切换逻辑
-
-    // 移除复杂的路径生成函数
-
+    const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null)
+    
+    // 🎯 簡化的狀態 - 直線來回移動
+    const flightTime = useRef(0)
+    const basePosition = useRef(new THREE.Vector3(...position))  // 原始位置
+    const currentPosition = useRef(new THREE.Vector3(...position))
+    const flightDirection = useRef(1)                            // 1=向右移動, -1=向左移動
+    
+    // 🎯 初始化
     useEffect(() => {
-        // 設置警告攔截器以忽略動畫綁定錯誤
-        const originalWarning = console.warn
-        console.warn = function (...args: unknown[]) {
-            const message = args[0]
-            if (
-                message &&
-                typeof message === 'string' &&
-                message.includes(
-                    'THREE.PropertyBinding: No target node found for track:'
-                )
-            ) {
-                // 忽略找不到節點的警告
-                return
-            }
-            if (
-                message &&
-                typeof message === 'string' &&
-                message.includes(
-                    'Unknown extension "KHR_materials_pbrSpecularGlossiness"'
-                )
-            ) {
-                // 忽略未知擴展警告
-                return
-            }
-            originalWarning.apply(console, args)
-        }
+        basePosition.current.set(...position)
+        currentPosition.current.set(...position)
+        console.log(`🛩️ UAV初始化 at (${position[0]}, ${position[1]}, ${position[2]})`)
+    }, [position])
 
-        // 安全地播放動畫，忽略錯誤
-        // try {
-        //     // 檢查是否有可用的動畫
-        //     if (actions && Object.keys(actions).length > 0) {
-        //         const action = actions[Object.keys(actions)[0]]
-        //         if (action) {
-        //             action.setLoop(THREE.LoopRepeat, Infinity)
-        //             action.play()
-        //             action.paused = !uavAnimation
-        //         }
-        //     } else {
-        //         console.log('沒有可用的動畫')
-        //     }
-        // } catch (error) {
-        //     console.error('動畫播放錯誤:', error)
-        // }
-
-        // 移除复杂路径生成
-
-        if (clonedScene) {
-            clonedScene.traverse((child: THREE.Object3D) => {
-                if ((child as THREE.Mesh).isMesh) {
-                    child.castShadow = true
-                    child.receiveShadow = true
-
-                    // 檢查材質，如果必要，替換為標準材質
-                    const mesh = child as THREE.Mesh
-                    if (Array.isArray(mesh.material)) {
-                        mesh.material = mesh.material.map((mat) =>
-                            ensureStandardMaterial(mat)
-                        )
-                    } else {
-                        mesh.material = ensureStandardMaterial(mesh.material)
-                    }
-                }
-            })
-        }
-
-        // 清理函數：恢復原始警告功能
-        return () => {
-            console.warn = originalWarning
-        }
-    }, [actions, clonedScene, uavAnimation])
-
-    // 確保使用標準材質
-    const ensureStandardMaterial = (material: THREE.Material) => {
-        if (
-            !(material instanceof THREE.MeshStandardMaterial) &&
-            !(material instanceof THREE.MeshPhysicalMaterial)
-        ) {
-            const stdMaterial = new THREE.MeshStandardMaterial()
-
-            // 複製基本屬性
-            if (
-                'color' in material &&
-                (material as { color: THREE.Color }).color instanceof
-                    THREE.Color
-            ) {
-                stdMaterial.color.copy(
-                    (material as { color: THREE.Color }).color
-                )
-            }
-            if ('map' in material) {
-                stdMaterial.map = (material as { map: THREE.Texture }).map
-            }
-
-            return stdMaterial
-        }
-        return material
-    }
-
-    // 尋找動畫 root（骨架/SkinnedMesh/Armature）
-    function findAnimationRoot(obj: THREE.Object3D): THREE.Object3D {
-        let found: THREE.Object3D | null = null
-        obj.traverse((child) => {
-            if (
-                child.type === 'Bone' ||
-                child.type === 'SkinnedMesh' ||
-                child.name.toLowerCase().includes('armature')
-            ) {
-                if (!found) found = child
-            }
-        })
-        return found || obj
-    }
-
+    // 🎯 簡化的動畫設置
     useEffect(() => {
         if (clonedScene && animations && animations.length > 0) {
-            // // 診斷 log (暫時註解掉以減少控制台輸出)
-            // console.log('=== AnimationClip tracks ===')
-            // animations.forEach((clip: THREE.AnimationClip) => {
-            //     console.log(
-            //         'clip:',
-            //         clip.name,
-            //         clip.tracks.map((t) => t.name)
-            //     )
-            // })
-            // console.log('=== clonedScene children ===')
-            // clonedScene.traverse((obj: THREE.Object3D) => {
-            //     console.log('obj:', obj.name, obj.type)
-            // })
-
-            // 自動尋找動畫 root
-            const animationRoot = findAnimationRoot(clonedScene)
-            // console.log(
-            //     'AnimationMixer root:',
-            //     animationRoot.name,
-            //     animationRoot.type
-            // )
-            const newMixer = new THREE.AnimationMixer(animationRoot)
-            const newActions: { [key: string]: THREE.AnimationAction } = {}
-            animations.forEach((clip: THREE.AnimationClip) => {
-                newActions[clip.name] = newMixer.clipAction(clip)
-            })
+            console.log('🛩️ UAV模型載入成功')
+            const newMixer = new THREE.AnimationMixer(clonedScene)
             setMixer(newMixer)
-            setActions(newActions)
-        }
-    }, [clonedScene, animations])
-
-    // 控制動畫播放/暫停
-    useEffect(() => {
-        if (mixer && animations && animations.length > 0 && clonedScene) {
-            // 只建立 hover 動畫
-            const hoverClip = animations.find(
-                (clip: THREE.AnimationClip) => clip.name === 'hover'
-            )
-            let hoverAction: THREE.AnimationAction | null = null
-            if (hoverClip) {
-                hoverAction = mixer.clipAction(hoverClip)
-                hoverAction.reset()
-                hoverAction.setLoop(THREE.LoopRepeat, Infinity)
-
+            
+            // 只播放第一個找到的動畫（通常是懸停）
+            if (animations[0]) {
+                const action = newMixer.clipAction(animations[0])
+                action.setEffectiveWeight(1)
+                action.setLoop(THREE.LoopRepeat, Infinity)
                 if (uavAnimation) {
-                    hoverAction.enabled = true
-                    hoverAction.play()
-                    hoverAction.paused = false
-                    hoverAction.setEffectiveWeight(1)
-                    clonedScene.position.y = HOVER_ANIMATION_Y_OFFSET
-                } else {
-                    hoverAction.stop()
-                    hoverAction.paused = true
-                    hoverAction.enabled = false
-                    hoverAction.reset()
-                    clonedScene.position.y = 0 // 恢復原始相對 Y 位置
+                    action.play()
                 }
             }
-            // 停用所有非 hover 動畫
-            animations.forEach((clip: THREE.AnimationClip) => {
-                if (clip.name !== 'hover') {
-                    const action = mixer.existingAction(clip)
-                    if (action) {
-                        action.stop()
-                        action.enabled = false
-                        action.setEffectiveWeight(0)
-                        action.reset()
-                    }
-                }
-            })
         }
-    }, [mixer, animations, uavAnimation, clonedScene])
+    }, [clonedScene, animations, uavAnimation])
 
-    // 🚁 简化的自动飞行逻辑
+    // 🎯 簡單的直線來回飛行邏輯
     useFrame((state, delta) => {
-        if (mixer) mixer.update(delta)
-        
-        if (!group.current || !lightRef.current) return
-        
-        // 设置光照
-        if (lightRef.current) {
-            lightRef.current.position.set(0, 5, 0)
-            lightRef.current.intensity = 2000
+        // 更新動畫mixer
+        if (mixer) {
+            mixer.update(delta)
         }
-        
-        // 如果不是自动模式，直接设置位置并返回
-        if (!auto) {
-            group.current.position.copy(currentPosition)
-            return
-        }
-        
-        // 🔥 简单的圆形飞行模式
-        setFlyingTime(prev => prev + delta)
-        
-        const basePos = FIXED_BASE_POSITION.current
-        const radius = 50 // 飞行半径
-        const speed = 0.5 // 飞行速度
-        const heightVariation = 10 // 高度变化
-        
-        // 计算圆形轨道位置
-        const angle = flyingTime * speed
-        const x = basePos.x + Math.cos(angle) * radius
-        const z = basePos.z + Math.sin(angle) * radius
-        const y = basePos.y + Math.sin(flyingTime * 0.3) * heightVariation
-        
-        const newPosition = new THREE.Vector3(x, y, z)
-        
-        // 更新位置
-        group.current.position.copy(newPosition)
-        setCurrentPosition(newPosition)
-        
-        // 节流的位置更新回调
-        const now = performance.now()
-        if (now - lastUpdateTimeRef.current > throttleInterval) {
-            onPositionUpdate?.([newPosition.x, newPosition.y, newPosition.z])
-            lastUpdateTimeRef.current = now
+
+        if (auto && group.current) {
+            flightTime.current += delta
+
+            // 計算基於時間的X軸偏移量
+            const moveSpeed = FLIGHT_CONFIG.FLIGHT_SPEED * delta
+            const maxDistance = FLIGHT_CONFIG.MOVE_DISTANCE / 2  // 左右各移動一半距離
+            
+            // 計算當前X偏移量（從basePosition開始）
+            const currentXOffset = currentPosition.current.x - basePosition.current.x
+            
+            // 檢查是否到達邊界，需要轉向
+            if (currentXOffset >= maxDistance) {
+                flightDirection.current = -1  // 向左移動
+            } else if (currentXOffset <= -maxDistance) {
+                flightDirection.current = 1   // 向右移動
+            }
+            
+            // 計算新位置
+            const newXOffset = currentXOffset + (moveSpeed * flightDirection.current)
+            const x = basePosition.current.x + newXOffset
+            
+            // Y軸：保持在基礎高度附近，小幅波動
+            const heightWave = Math.sin(flightTime.current * FLIGHT_CONFIG.HEIGHT_SPEED) * FLIGHT_CONFIG.HEIGHT_VARIATION
+            const y = basePosition.current.y + heightWave
+            
+            // Z軸：保持原位
+            const z = basePosition.current.z
+            
+            // Debug信息（每3秒輸出一次）
+            if (Math.floor(flightTime.current) % 3 === 0 && Math.floor(flightTime.current * 10) % 10 === 0) {
+                console.log(`🛩️ UAV直線飛行: 
+                  基礎位置: (${basePosition.current.x.toFixed(1)}, ${basePosition.current.y.toFixed(1)}, ${basePosition.current.z.toFixed(1)})
+                  當前位置: (${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)})
+                  X偏移: ${newXOffset.toFixed(1)}, 方向: ${flightDirection.current > 0 ? '→' : '←'}`)
+            }
+            
+            // 更新位置
+            currentPosition.current.set(x, y, z)
+            group.current.position.copy(currentPosition.current)
+            
+            // 讓UAV面向飛行方向
+            const lookAtX = x + (flightDirection.current * 10)  // 朝著移動方向看
+            group.current.lookAt(lookAtX, y, z)
+            
+        } else if (group.current) {
+            // 🎯 停止飛行時立即回到原始位置
+            console.log('🛩️ 停止飛行 - 回到原始位置')
+            currentPosition.current.copy(basePosition.current)
+            group.current.position.copy(basePosition.current)
+            flightTime.current = 0      // 重置飛行時間
+            flightDirection.current = 1 // 重置方向為向右
         }
     })
-    useEffect(() => {
-        if (!auto && manualDirection) {
-            let finalPosition: [number, number, number] | null = null
-            setCurrentPosition((prev) => {
-                const next = prev.clone()
-                switch (manualDirection) {
-                    case 'up':
-                        next.y += 1
-                        break
-                    case 'down':
-                        next.y -= 1
-                        break
-                    case 'left':
-                        next.x -= 1
-                        break
-                    case 'right':
-                        next.x += 1
-                        break
-                    case 'ascend':
-                        next.z += 1
-                        break
-                    case 'descend':
-                        next.z -= 1
-                        break
-                    case 'left-up':
-                        next.x -= 1
-                        next.z -= 1
-                        break
-                    case 'right-up':
-                        next.x += 1
-                        next.z -= 1
-                        break
-                    case 'left-down':
-                        next.x -= 1
-                        next.z += 1
-                        break
-                    case 'right-down':
-                        next.x += 1
-                        next.z += 1
-                        break
-                    case 'rotate-left':
-                        if (group.current) {
-                            group.current.rotation.y += 0.087
-                        }
-                        break
-                    case 'rotate-right':
-                        if (group.current) {
-                            group.current.rotation.y -= 0.087
-                        }
-                        break
-                }
-                finalPosition = [next.x, next.y, next.z]
-                return next
-            })
-            if (onManualMoveDone) onManualMoveDone()
-            if (finalPosition) {
-                const now = performance.now()
-                if (now - lastUpdateTimeRef.current > throttleInterval) {
-                    onPositionUpdate?.(finalPosition)
-                    lastUpdateTimeRef.current = now
-                }
-            }
-        }
-    }, [manualDirection, auto, onManualMoveDone, onPositionUpdate])
-    useEffect(() => {
-        // console.log('UAV 模型載入成功')
-        // console.log('光源已添加到組件中')
-    }, [clonedScene])
+
     return (
-        <group ref={group} position={position} scale={scale}>
-            <primitive
-                object={clonedScene}
-                onUpdate={(self: THREE.Object3D) => {
-                    // 只做材質處理，不要 setState
-                    self.traverse((child: THREE.Object3D) => {
-                        if ((child as THREE.Mesh).isMesh) {
-                            const mesh = child as THREE.Mesh
-                            if (Array.isArray(mesh.material)) {
-                                mesh.material = mesh.material.map((mat) =>
-                                    ensureStandardMaterial(mat)
-                                )
-                            } else {
-                                mesh.material = ensureStandardMaterial(
-                                    mesh.material
-                                )
-                            }
-                            mesh.castShadow = true
-                            mesh.receiveShadow = true
-                        }
-                    })
-                }}
-            />
+        <group ref={group} scale={scale}>
+            <primitive object={clonedScene} />
             <pointLight
-                ref={lightRef}
-                position={[0, 5, 0]}
-                intensity={2000}
-                distance={100}
+                intensity={0.3}
+                distance={50}
                 decay={2}
-                color={0xffffff}
-                castShadow
-                shadow-mapSize-width={512}
-                shadow-mapSize-height={512}
-                shadow-bias={-0.001}
+                color="#ffffff"
+                position={[0, 2, 0]}
             />
         </group>
     )
 }
+
+// 預載入模型
+useGLTF.preload(UAV_MODEL_URL)

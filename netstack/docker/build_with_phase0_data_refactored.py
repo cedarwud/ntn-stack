@@ -513,7 +513,8 @@ class Phase25DataPreprocessor:
             orbit_engine = CoordinateSpecificOrbitEngine(
                 observer_lat=self.observer_lat,
                 observer_lon=self.observer_lon,
-                observer_alt_m=self.observer_alt
+                observer_alt=self.observer_alt,
+                min_elevation=10.0
             )
             
             # 設定計算起始時間（當前時間）
