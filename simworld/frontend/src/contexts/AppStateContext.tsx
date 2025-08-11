@@ -54,7 +54,6 @@ interface DataState {
 interface FeatureState {
     // 階段四功能
     aiRanVisualizationEnabled: boolean
-    manualControlEnabled: boolean
     realTimeMetricsEnabled: boolean
     interferenceAnalyticsEnabled: boolean
 
@@ -157,7 +156,6 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
     const [featureState, setFeatureState] = useState<FeatureState>({
         // 階段四功能 - 預設關閉
         aiRanVisualizationEnabled: false,
-        manualControlEnabled: false,
         realTimeMetricsEnabled: false,
         interferenceAnalyticsEnabled: false,
 
