@@ -48,8 +48,8 @@ export const ApiRoutes = {
     getChannelResponsePlots: `${SIMWORLD_API_BASE_URL}/simulations/channel-response`,
     getSceneImage: `${API_BASE_URL}/simulations/scene-image`,
     getResults: (id: string) => `${API_BASE_URL}/simulations/${id}/results`,
-    // 模型相關API路徑仍在sionna命名空間下
-    getModel: (modelName: string) => `${API_BASE_URL}/sionna/models/${modelName}`,
+    // 3D模型相關API - 用於載入UAV、衛星、基站等模型
+    getModel: (modelName: string) => `/static/models/${modelName}.glb`
   },
   
   // 場景相關API
@@ -90,14 +90,7 @@ export const ApiRoutes = {
     health: `${API_BASE_URL}/scenario-test/health`,
   },
   
-  // 臨時的 sionna 命名空間相關路由 (已不存在於後端，前端保留向後兼容)
-  sionna: {
-    getModel: (modelName: string) => `${API_BASE_URL}/sionna/models/${modelName}`,
-    // 這些路由已遷移到 simulations 命名空間下
-    getSceneImageDevices: `${API_BASE_URL}/simulations/scene-image`,
-    getDopplerPlots: `${API_BASE_URL}/simulations/doppler-plots`,
-    getChannelResponsePlots: `${API_BASE_URL}/simulations/channel-response`,
-  }
+  // Sionna 相關API路由已完全移除 - 後端不支援且前端未使用
 };
 
 export default ApiRoutes;

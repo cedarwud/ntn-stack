@@ -55,7 +55,6 @@ interface FeatureState {
     // 階段四功能
     aiRanVisualizationEnabled: boolean
     manualControlEnabled: boolean
-    sionna3DVisualizationEnabled: boolean
     realTimeMetricsEnabled: boolean
     interferenceAnalyticsEnabled: boolean
 
@@ -68,7 +67,6 @@ interface FeatureState {
     // 階段六功能
     predictionPath3DEnabled: boolean
     predictionAccuracyDashboardEnabled: boolean
-    coreNetworkSyncEnabled: boolean
 
     // Stage 3 功能
     realtimePerformanceMonitorEnabled: boolean
@@ -84,7 +82,6 @@ interface FeatureState {
     automatedReportGenerationEnabled: boolean
 
     // 階段八功能
-    predictiveMaintenanceEnabled: boolean
     intelligentRecommendationEnabled: boolean
 }
 
@@ -161,7 +158,6 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
         // 階段四功能 - 預設關閉
         aiRanVisualizationEnabled: false,
         manualControlEnabled: false,
-        sionna3DVisualizationEnabled: false,
         realTimeMetricsEnabled: false,
         interferenceAnalyticsEnabled: false,
 
@@ -174,7 +170,6 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
         // 階段六功能 - 預設關閉
         predictionPath3DEnabled: false,
         predictionAccuracyDashboardEnabled: false,
-        coreNetworkSyncEnabled: false,
 
         // Stage 3 功能 - 預設關閉
         realtimePerformanceMonitorEnabled: false,
@@ -190,7 +185,6 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({
         automatedReportGenerationEnabled: false,
 
         // 階段八功能 - 預設關閉
-        predictiveMaintenanceEnabled: false,
         intelligentRecommendationEnabled: false,
     })
 

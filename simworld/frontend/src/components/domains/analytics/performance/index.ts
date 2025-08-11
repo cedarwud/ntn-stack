@@ -1,1 +1,1 @@
-export { default as PredictiveMaintenanceViewer } from './PredictiveMaintenanceViewer';
+// Predictive maintenance components removed - not core to LEO satellite handover research

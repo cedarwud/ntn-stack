@@ -372,15 +372,7 @@ export const getOneWebStatus = async (): Promise<Record<string, unknown>> => {
 /**
  * 獲取 Sionna 狀態
  */
-export const getSionnaStatus = async (): Promise<Record<string, unknown>> => {
-  try {
-    const response = await netstackApi.get('/api/v1/sionna/status');
-    return response.data;
-  } catch (error) {
-    console.error('獲取 Sionna 狀態失敗:', error);
-    throw error;
-  }
-};
+// getSionnaStatus 已移除 - Sionna功能完全移除且後端不支援
 
 /**
  * 執行系統發現

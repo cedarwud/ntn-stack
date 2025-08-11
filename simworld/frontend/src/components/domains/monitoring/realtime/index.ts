@@ -1,1 +1,1 @@
-export { default as CoreNetworkSyncViewer } from './CoreNetworkSyncViewer';
+// Core network sync monitoring components removed - not core to LEO satellite handover research
