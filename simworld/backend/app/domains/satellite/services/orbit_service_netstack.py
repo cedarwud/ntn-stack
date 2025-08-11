@@ -31,7 +31,7 @@ from app.domains.satellite.adapters.sqlmodel_satellite_repository import (
 
 # 導入 NetStack 客戶端
 from app.services.netstack_client import get_netstack_client
-from app.services.skyfield_migration import get_migration_service
+# Migration service dependency removed - not needed anymore
 from app.data.historical_tle_data import get_historical_tle_data
 from sgp4.earth_gravity import wgs72
 from sgp4.io import twoline2rv
@@ -56,7 +56,7 @@ class OrbitServiceNetStack(OrbitServiceInterface):
             satellite_repository or SQLModelSatelliteRepository()
         )
         self.netstack_client = get_netstack_client()
-        self.migration_service = get_migration_service()
+        # Migration service removed - using direct NetStack API calls instead
         
         # 默認觀測位置 (NTPU)
         self.default_observer = {
@@ -216,11 +216,15 @@ class OrbitServiceNetStack(OrbitServiceInterface):
                 observer_location.altitude if observer_location else self.default_observer["altitude"]
             )
             
-            positions = await self.migration_service.get_satellite_position_batch(
+            # Use direct NetStack API call instead of migration service
+            response = await self.netstack_client.get_satellite_positions(
                 satellite_ids=[norad_id],
-                observer_coords=observer_coords,
-                timestamp=timestamp
+                timestamp=timestamp,
+                observer_lat=observer_coords[0],
+                observer_lon=observer_coords[1], 
+                observer_alt=observer_coords[2]
             )
+            positions = response.get("positions", []) if response else []
             
             if positions:
                 pos_data = positions[0]
