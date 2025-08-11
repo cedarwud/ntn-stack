@@ -1,4 +1,4 @@
-import api from './api';
+import api from './base-api';
 import ApiRoutes from '../config/apiRoutes';
 
 // 座標相關類型定義

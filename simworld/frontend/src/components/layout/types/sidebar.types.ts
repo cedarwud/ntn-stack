@@ -74,13 +74,7 @@ export interface DeviceListPanelProps {
     onDeviceRoleChange: (deviceId: number, newRole: string) => void
 }
 
-// 手動控制面板 Props
-export interface ManualControlPanelProps {
-    isVisible: boolean
-    auto: boolean
-    manualControlEnabled: boolean
-    onManualControl: (direction: UAVManualDirection) => void
-}
+
 
 // 功能開關管理器 Props
 export interface FeatureToggleManagerProps {

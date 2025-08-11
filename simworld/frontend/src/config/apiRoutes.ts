@@ -10,15 +10,15 @@ const API_BASE_URL = '/api/v1';
 const SIMWORLD_API_BASE_URL = '/v1';
 
 export const ApiRoutes = {
-  // 設備領域API - 更新路徑以符合DDD結構
+  // 設備領域API - 使用 SIMWORLD_API_BASE_URL 避免雙重 /api 前綴
   devices: {
     // 根據307重定向，可能需要調整路徑
-    base: `${API_BASE_URL}/devices`,
-    getAll: `${API_BASE_URL}/devices/`,  // 注意尾部斜線
-    create: `${API_BASE_URL}/devices/`,
-    getById: (id: string) => `${API_BASE_URL}/devices/${id}`,
-    update: (id: string) => `${API_BASE_URL}/devices/${id}`,
-    delete: (id: string) => `${API_BASE_URL}/devices/${id}`,
+    base: `${SIMWORLD_API_BASE_URL}/devices`,
+    getAll: `${SIMWORLD_API_BASE_URL}/devices/`,  // 注意尾部斜線
+    create: `${SIMWORLD_API_BASE_URL}/devices/`,
+    getById: (id: string) => `${SIMWORLD_API_BASE_URL}/devices/${id}`,
+    update: (id: string) => `${SIMWORLD_API_BASE_URL}/devices/${id}`,
+    delete: (id: string) => `${SIMWORLD_API_BASE_URL}/devices/${id}`,
   },
   
   // 座標領域API
