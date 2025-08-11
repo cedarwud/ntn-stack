@@ -19,7 +19,7 @@ from app.domains.simulation.api.simulation_api import router as simulation_route
 # from app.domains.rf_simulation.api.rf_simulation_api import router as rf_simulation_router
 
 
-from app.domains.system.api.system_api import router as system_router
+# from app.domains.system.api.system_api import router as system_router  # Removed in Phase 3
 
 
 # Import new consolidated route modules
@@ -27,7 +27,6 @@ from app.api.routes.core import router as core_router
 
 
 from app.api.routes.satellite_redis import router as satellite_redis_router
-from app.api.routes.uav import router as uav_router
 
 # from app.api.routes.integration import router as integration_router  # 已刪除的 RL 相關功能
 
@@ -76,7 +75,7 @@ api_router.include_router(
 # api_router.include_router(
 #     rf_simulation_router, prefix="/rf", tags=["RF Simulation"]
 # )
-api_router.include_router(system_router, prefix="/system", tags=["System"])
+# api_router.include_router(system_router, prefix="/system", tags=["System"])  # Removed in Phase 3
 
 
 # Register new consolidated routes
@@ -86,7 +85,6 @@ api_router.include_router(
     prefix="/satellite-ops",
     tags=["Satellite Operations (Redis)"],
 )
-api_router.include_router(uav_router, prefix="/tracking", tags=["UAV Tracking"])
 # api_router.include_router(
 #     integration_router, prefix="/integration", tags=["Integration"]
 # )  # 已刪除的 RL 相關功能
