@@ -245,9 +245,37 @@ async def create_device(
     try:
         logger.info(f"Creating device: {device_data.name}")
 
-        # 獲取下一個ID
-        last_device = await db.devices.find_one(sort=[("id", -1)])
-        next_id = (last_device["id"] + 1) if last_device else 1
+        # 獲取下一個ID - 修复ID重复和数据类型问题（添加调试日志）
+        # 先检查是否存在任何设备
+        device_count = await db.devices.count_documents({})
+        logger.info(f"📊 设备总数: {device_count}")
+        
+        if device_count == 0:
+            next_id = 1
+            logger.info(f"🆕 数据库为空，使用 next_id = {next_id}")
+        else:
+            # 获取所有设备，检查 _id 和 id 字段
+            all_devices = await db.devices.find({}, {"_id": 1, "id": 1}).to_list(length=None)
+            logger.info(f"📄 查询到的设备数据: {all_devices}")
+            
+            existing_ids = []
+            for device in all_devices:
+                # 优先使用 id 字段，如果没有则使用 _id
+                if device.get("id") is not None:
+                    try:
+                        existing_ids.append(int(device["id"]))
+                    except (ValueError, TypeError):
+                        logger.warning(f"无效的 id 值: {device.get('id')}")
+                elif device.get("_id") is not None:
+                    try:
+                        existing_ids.append(int(device["_id"]))
+                    except (ValueError, TypeError):
+                        logger.warning(f"无效的 _id 值: {device.get('_id')}")
+            
+            logger.info(f"🔢 提取的现有ID列表: {existing_ids}")
+            
+            next_id = max(existing_ids) + 1 if existing_ids else 1
+            logger.info(f"🎯 计算的下一个ID: {next_id}")
 
         # 準備設備數據
         device_dict = device_data.dict()
@@ -258,14 +286,15 @@ async def create_device(
 
         # 返回創建的設備
         created_device = await db.devices.find_one({"_id": result.inserted_id})
-        created_device["_id"] = str(created_device["_id"])
+        if created_device and "_id" in created_device:
+            created_device["_id"] = str(created_device["_id"])
 
         logger.info(f"Created device with ID: {next_id}")
         return created_device
 
     except Exception as e:
         logger.error(f"Error creating device: {e}")
-        raise HTTPException(status_code=500, detail="Error creating device")
+        raise HTTPException(status_code=500, detail=f"Error creating device: {str(e)}")
 
 
 @router.get("/{device_id}")

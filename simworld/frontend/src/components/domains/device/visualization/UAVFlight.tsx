@@ -81,221 +81,23 @@ export default function UAVFlight({
     const lastUpdateTimeRef = useRef<number>(0)
     const throttleInterval = 100
 
+    // 🔥 重写的简化自动飞行系统
+    const FIXED_BASE_POSITION = useRef<THREE.Vector3>(new THREE.Vector3(...position))
     const [currentPosition, setCurrentPosition] = useState<THREE.Vector3>(
         new THREE.Vector3(...position)
     )
-    const initialPosition = useRef<THREE.Vector3>(
-        new THREE.Vector3(...position)
-    )
-    useEffect(() => {
-        initialPosition.current.set(...position)
-    }, [position])
+    
+    // 简化的飞行状态
+    const [flyingTime, setFlyingTime] = useState(0)
+    const [flightPhase, setFlightPhase] = useState<'orbit' | 'return'>('orbit')
 
-    const [, setTargetPosition] = useState<THREE.Vector3>(
-        new THREE.Vector3(0, 10, 0)
-    )
+    // 移除复杂的飞行模式状态，简化为基本飞行控制
 
-    // 飛行模式相關狀態
-    const [flightMode, setFlightMode] = useState<FlightMode>('cruise')
-    const flightModes = useMemo<FlightMode[]>(
-        () => ['cruise', 'hover', 'agile', 'explore'],
-        []
-    )
-    const turbulence = useRef({ x: 0, y: 0, z: 0 })
-    const maxSpeed = useRef(1.0)
-    const acceleration = useRef(0.5)
-    const flightModeTimer = useRef<NodeJS.Timeout | null>(null)
-    const velocity = useRef(new THREE.Vector3(0, 0, 0))
-    const lastDirection = useRef(new THREE.Vector3(0, 0, 0))
-    const deceleration = useRef(0.3)
+    // 移除复杂的飞行参数系统
 
-    // Initialize flight parameters
-    const flightModeParams = useRef<FlightModeParams>({
-        cruise: {
-            pathCurvature: 0.2,
-            speedFactor: 1.0,
-            turbulenceEffect: 0.2,
-            heightVariation: 5,
-            smoothingFactor: 0.85,
-        },
-        hover: {
-            pathCurvature: 0.4,
-            speedFactor: 0.6,
-            turbulenceEffect: 0.4,
-            heightVariation: 2,
-            smoothingFactor: 0.7,
-        },
-        agile: {
-            pathCurvature: 0.5,
-            speedFactor: 1.5,
-            turbulenceEffect: 0.1,
-            heightVariation: 15,
-            smoothingFactor: 0.6,
-        },
-        explore: {
-            pathCurvature: 0.3,
-            speedFactor: 0.8,
-            turbulenceEffect: 0.3,
-            heightVariation: 10,
-            smoothingFactor: 0.8,
-        },
-    })
-    const [waypoints, setWaypoints] = useState<THREE.Vector3[]>([])
-    const currentWaypoint = useRef(0)
-    const pathCurvature = useRef(0.3 + Math.random() * 0.4)
+    // 移除复杂的飞行模式切换逻辑
 
-    useEffect(() => {
-        const updateTurbulence = () => {
-            const strength =
-                flightModeParams.current[flightMode].turbulenceEffect
-            turbulence.current = {
-                x: (Math.random() - 0.5) * 0.4 * strength,
-                y: (Math.random() - 0.5) * 0.2 * strength,
-                z: (Math.random() - 0.5) * 0.4 * strength,
-            }
-        }
-        updateTurbulence()
-        const interval = setInterval(updateTurbulence, 2000)
-        const switchFlightMode = () => {
-            const nextMode =
-                flightModes[Math.floor(Math.random() * flightModes.length)]
-            setFlightMode(nextMode)
-            const modeParams = flightModeParams.current[nextMode]
-            pathCurvature.current = modeParams.pathCurvature
-            maxSpeed.current = 1.0 * modeParams.speedFactor
-            acceleration.current = 0.5 * modeParams.speedFactor
-            const duration = 10000 + Math.random() * 15000
-            if (flightModeTimer.current) clearTimeout(flightModeTimer.current)
-            flightModeTimer.current = setTimeout(switchFlightMode, duration)
-        }
-        flightModeTimer.current = setTimeout(switchFlightMode, 10000)
-        return () => {
-            clearInterval(interval)
-            if (flightModeTimer.current) clearTimeout(flightModeTimer.current)
-        }
-    }, [flightMode, flightModes])
-
-    const generateBezierPath = (
-        start: THREE.Vector3,
-        end: THREE.Vector3,
-        points: number = 10
-    ) => {
-        const path: THREE.Vector3[] = []
-        const direction = new THREE.Vector3().subVectors(end, start).normalize()
-        const up = new THREE.Vector3(0, 1, 0)
-        const perpendicular = new THREE.Vector3()
-            .crossVectors(direction, up)
-            .normalize()
-        if (perpendicular.lengthSq() < 0.001) {
-            perpendicular
-                .crossVectors(direction, new THREE.Vector3(1, 0, 0))
-                .normalize()
-        }
-        const distance = start.distanceTo(end)
-        const curveOffset = distance * pathCurvature.current
-        const offset1 = perpendicular
-            .clone()
-            .multiplyScalar(curveOffset * (Math.random() > 0.5 ? 1 : -1))
-        const offset2 = perpendicular
-            .clone()
-            .multiplyScalar(curveOffset * (Math.random() > 0.5 ? 1 : -1))
-        const heightVariation =
-            flightModeParams.current[flightMode].heightVariation
-        const control1 = start
-            .clone()
-            .add(direction.clone().multiplyScalar(distance / 3))
-            .add(offset1)
-            .add(
-                new THREE.Vector3(0, (Math.random() - 0.3) * heightVariation, 0)
-            )
-        const control2 = start
-            .clone()
-            .add(direction.clone().multiplyScalar((distance * 2) / 3))
-            .add(offset2)
-            .add(
-                new THREE.Vector3(0, (Math.random() - 0.3) * heightVariation, 0)
-            )
-        for (let i = 0; i < points; i++) {
-            const t = i / (points - 1)
-            const b0 = Math.pow(1 - t, 3)
-            const b1 = 3 * Math.pow(1 - t, 2) * t
-            const b2 = 3 * (1 - t) * Math.pow(t, 2)
-            const b3 = Math.pow(t, 3)
-            const point = new THREE.Vector3(
-                b0 * start.x + b1 * control1.x + b2 * control2.x + b3 * end.x,
-                b0 * start.y + b1 * control1.y + b2 * control2.y + b3 * end.y,
-                b0 * start.z + b1 * control1.z + b2 * control2.z + b3 * end.z
-            )
-            if (i > 0 && i < points - 1) {
-                const smallNoise = new THREE.Vector3(
-                    (Math.random() - 0.5) * 2,
-                    (Math.random() - 0.5) * 1,
-                    (Math.random() - 0.5) * 2
-                )
-                point.add(smallNoise)
-            }
-            path.push(point)
-        }
-        return path
-    }
-    const generateNewTarget = () => {
-        let distance
-        let heightRange
-        switch (flightMode) {
-            case 'hover':
-                distance = 80 + Math.random() * 120
-                heightRange = [40, 80]
-                break
-            case 'agile':
-                distance = 100 + Math.random() * 150
-                heightRange = [30, 120]
-                break
-            case 'explore':
-                distance = 150 + Math.random() * 200
-                heightRange = [60, 150]
-                break
-            case 'cruise':
-            default:
-                distance = 120 + Math.random() * 150
-                heightRange = [50, 100]
-        }
-        const randomDirection = new THREE.Vector3(
-            Math.random() * 2 - 1,
-            0,
-            Math.random() * 2 - 1
-        ).normalize()
-        const newX = initialPosition.current.x + randomDirection.x * distance
-        const newZ = initialPosition.current.z + randomDirection.z * distance
-        const newY =
-            heightRange[0] + Math.random() * (heightRange[1] - heightRange[0])
-        return new THREE.Vector3(newX, newY, newZ)
-    }
-    const hasReachedTarget = (
-        current: THREE.Vector3,
-        target: THREE.Vector3,
-        threshold: number = 5
-    ) => {
-        return current.distanceTo(target) < threshold
-    }
-
-    const generateBezierPathCallback = useCallback(generateBezierPath, [
-        flightMode,
-    ])
-    const generateNewTargetCallback = useCallback(generateNewTarget, [
-        flightMode,
-    ])
-
-    const generatePath = useCallback(() => {
-        const start = currentPosition
-        const end = generateNewTargetCallback()
-        const distance = start.distanceTo(end)
-        const points = Math.max(8, Math.min(20, Math.floor(distance / 15)))
-        const newWaypoints = generateBezierPathCallback(start, end, points)
-        setWaypoints(newWaypoints)
-        currentWaypoint.current = 0
-        setTargetPosition(end)
-        return newWaypoints
-    }, [currentPosition, generateBezierPathCallback, generateNewTargetCallback])
+    // 移除复杂的路径生成函数
 
     useEffect(() => {
         // 設置警告攔截器以忽略動畫綁定錯誤
@@ -342,7 +144,7 @@ export default function UAVFlight({
         //     console.error('動畫播放錯誤:', error)
         // }
 
-        generatePath()
+        // 移除复杂路径生成
 
         if (clonedScene) {
             clonedScene.traverse((child: THREE.Object3D) => {
@@ -367,7 +169,7 @@ export default function UAVFlight({
         return () => {
             console.warn = originalWarning
         }
-    }, [actions, clonedScene, uavAnimation, generatePath])
+    }, [actions, clonedScene, uavAnimation])
 
     // 確保使用標準材質
     const ensureStandardMaterial = (material: THREE.Material) => {
@@ -486,101 +288,45 @@ export default function UAVFlight({
         }
     }, [mixer, animations, uavAnimation, clonedScene])
 
-    // 驅動 mixer
+    // 🚁 简化的自动飞行逻辑
     useFrame((state, delta) => {
         if (mixer) mixer.update(delta)
-        if (group.current) {
-            // 不要在這裡直接修改 group.current.position，currentPosition 已經包含了Z軸位移
-            // group.current.position.copy(currentPosition)
-            // 如果 currentPosition 已經包含了動畫的Z軸位移，那麼上面的 HOVER_ANIMATION_Z_OFFSET 應該加到 currentPosition
-            // 但目前假設動畫位移是 clonsedScene 內部的，由 HOVER_ANIMATION_Z_OFFSET 補償
-            group.current.position.set(
-                currentPosition.x,
-                currentPosition.y,
-                currentPosition.z
-            )
-        }
+        
+        if (!group.current || !lightRef.current) return
+        
+        // 设置光照
         if (lightRef.current) {
             lightRef.current.position.set(0, 5, 0)
             lightRef.current.intensity = 2000
         }
-        if (!auto) return
-        if (!group.current || !lightRef.current || waypoints.length === 0)
-            return
-        const current = currentPosition.clone()
-        const modeParams = flightModeParams.current[flightMode]
-        const currentTargetIndex = currentWaypoint.current
-        if (currentTargetIndex >= waypoints.length - 1) {
-            const newPath = generatePath()
-            if (newPath.length > 0) {
-                velocity.current.set(0, 0, 0)
-                return
-            }
-        }
-        const currentTarget = waypoints[currentTargetIndex]
-        if (hasReachedTarget(current, currentTarget, 10)) {
-            currentWaypoint.current = Math.min(
-                currentWaypoint.current + 1,
-                waypoints.length - 1
-            )
+        
+        // 如果不是自动模式，直接设置位置并返回
+        if (!auto) {
+            group.current.position.copy(currentPosition)
             return
         }
-        const rawDirection = new THREE.Vector3()
-            .subVectors(currentTarget, current)
-            .normalize()
-        const smoothingFactor = modeParams.smoothingFactor
-        const smoothDirection = new THREE.Vector3(
-            smoothingFactor * rawDirection.x +
-                (1 - smoothingFactor) * lastDirection.current.x,
-            smoothingFactor * rawDirection.y +
-                (1 - smoothingFactor) * lastDirection.current.y,
-            smoothingFactor * rawDirection.z +
-                (1 - smoothingFactor) * lastDirection.current.z
-        ).normalize()
-        lastDirection.current = smoothDirection.clone()
-        const turbulenceEffect = modeParams.turbulenceEffect
-        const movementWithTurbulence = new THREE.Vector3(
-            smoothDirection.x + turbulence.current.x * turbulenceEffect,
-            smoothDirection.y + turbulence.current.y * turbulenceEffect,
-            smoothDirection.z + turbulence.current.z * turbulenceEffect
-        ).normalize()
-        const distanceToTarget = current.distanceTo(currentTarget)
-        const targetSpeed =
-            Math.min(maxSpeed.current, distanceToTarget / 10) *
-            modeParams.speedFactor
-        const currentSpeed = velocity.current.length()
-        const accelerationFactor =
-            Math.min(1, distanceToTarget / 50) *
-            (currentSpeed < targetSpeed
-                ? acceleration.current
-                : -deceleration.current)
-        const speedChange = accelerationFactor * delta * 10
-        velocity.current.lerp(
-            movementWithTurbulence.clone().multiplyScalar(targetSpeed),
-            delta * 2
-        )
-        if (velocity.current.length() > 0) {
-            if (currentSpeed + speedChange > 0) {
-                velocity.current
-                    .normalize()
-                    .multiplyScalar(currentSpeed + speedChange)
-            } else {
-                velocity.current.set(0, 0, 0)
-            }
-        }
-        if (
-            velocity.current.length() >
-            maxSpeed.current * modeParams.speedFactor
-        ) {
-            velocity.current
-                .normalize()
-                .multiplyScalar(maxSpeed.current * modeParams.speedFactor)
-        }
-        const newPosition = current
-            .clone()
-            .add(velocity.current.clone().multiplyScalar(delta * 30))
-        group.current.position.set(newPosition.x, newPosition.y, newPosition.z)
+        
+        // 🔥 简单的圆形飞行模式
+        setFlyingTime(prev => prev + delta)
+        
+        const basePos = FIXED_BASE_POSITION.current
+        const radius = 50 // 飞行半径
+        const speed = 0.5 // 飞行速度
+        const heightVariation = 10 // 高度变化
+        
+        // 计算圆形轨道位置
+        const angle = flyingTime * speed
+        const x = basePos.x + Math.cos(angle) * radius
+        const z = basePos.z + Math.sin(angle) * radius
+        const y = basePos.y + Math.sin(flyingTime * 0.3) * heightVariation
+        
+        const newPosition = new THREE.Vector3(x, y, z)
+        
+        // 更新位置
+        group.current.position.copy(newPosition)
         setCurrentPosition(newPosition)
+        
+        // 节流的位置更新回调
         const now = performance.now()
         if (now - lastUpdateTimeRef.current > throttleInterval) {
             onPositionUpdate?.([newPosition.x, newPosition.y, newPosition.z])
