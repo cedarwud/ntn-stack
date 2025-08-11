@@ -73,130 +73,22 @@ STARLINK-1007
 
 ## ⚙️ 第一階段：TLE數據載入與SGP4精確軌道計算
 
-### 🎯 階段目的與處理範圍
+> **📋 完整內容已遷移到新文檔結構**：
+> - **[📖 階段一概述](./overviews/data-processing-flow.md#階段一tele數據載入與sgp4精確軌道計算)** - 詳細處理流程、處理數量、計算特性
+> - **[🔧 階段一技術實現](./technical-details/data-processing-implementation.md#階段一tele數據載入與sgp4軌道計算)** - 程式位置、核心邏輯、子組件詳細實現
+
+### 🎯 階段摘要
 
 **核心目的**：完整的TLE數據載入、驗證、篩選與SGP4軌道計算，建立完整衛星軌道數據庫
 
-#### 📋 階段一完整流程
+**關鍵特性**：
+- **全量處理**: 8,715 顆衛星（8,064 Starlink + 651 OneWeb）
+- **完整SGP4算法**: 米級位置精度，非簡化版本
+- **Pure Cron驅動**: 智能增量處理，每6小時自動更新
 
-**1.1 TLE數據掃描與載入**
-- **目的**: 掃描和載入所有可用的TLE數據檔案
-- **處理位置**: `Phase25DataPreprocessor.scan_tle_data()`
-- **輸入**: `/netstack/tle_data/` 目錄結構
-- **輸出**: TLE檔案清單和基礎統計
+**主要流程**：TLE掃描 → 數據載入 → 基礎篩選 → SGP4軌道計算
 
-**1.2 原始衛星數據載入**
-- **目的**: 從TLE檔案中解析出原始衛星軌道參數
-- **處理位置**: `Phase25DataPreprocessor._load_constellation_satellites()`
-- **功能**: 載入最新日期的TLE數據，解析三行格式
-- **輸出**: 原始衛星數據列表
-
-**1.3 衛星池建構（基礎篩選）**
-- **目的**: 基礎數據驗證和初步篩選，移除無效數據
-- **處理位置**: `Phase25DataPreprocessor._build_satellite_pools()`
-- **使用組件**: `SatelliteDataPoolBuilder`
-- **篩選條件**: TLE格式驗證、軌道參數合理性、基本覆蓋檢查
-- **輸出**: 經過基礎篩選的衛星池
-
-**1.4 完整SGP4軌道計算與時間序列生成**
-- **目的**: 使用完整SGP4算法計算精確軌道和時間序列數據
-- **處理位置**: `Phase25DataPreprocessor._calculate_constellation_orbits()`
-- **軌道引擎**: `CoordinateSpecificOrbitEngine`
-- **算法**: 完整SGP4（非簡化版本）
-- **輸出**: 包含完整軌道時間序列的衛星數據
-
-#### 🔍 為什麼需要全量處理？
-1. **軌道不可預測性**：僅從 TLE 原始數據無法直接判斷衛星是否會出現在特定觀測點上空
-2. **動態軌道特性**：衛星軌道隨時間變化，需要完整時間序列計算才能確定可見性
-3. **避免遺漏候選**：預篩選可能錯過重要的換手候選衛星
-4. **統一精度基準**：為後續地理篩選提供一致的高精度軌道數據
-
-### 📊 實際處理數量 (2025-08-10 最新驗證)
-
-```
-全量 TLE 數據處理:
-├── Starlink: 8,064 顆衛星 (來自 starlink_20250809.tle)
-├── OneWeb: 651 顆衛星 (來自 oneweb_20250809.tle)  
-└── 總計: 8,715 顆衛星
-
-處理策略: 無篩選全量載入
-├── ✅ 載入所有格式正確的 TLE 記錄
-├── ✅ 包含活躍、測試、備用衛星
-├── ✅ 僅跳過格式錯誤或損壞的記錄
-└── ✅ 確保不遺漏任何潛在候選衛星
-```
-
-### 🗂️ 程式實現位置
-
-#### 主要處理器
-- **主控制器**: `/netstack/docker/build_with_phase0_data_refactored.py`
-  - `Phase25DataPreprocessor.process_all_tle_data()` - 主流程控制
-  - `Phase25DataPreprocessor._execute_phase1_orbit_calculation()` - 階段一執行器
-
-#### 子組件模組
-- **TLE掃描**: `/netstack/docker/build_with_phase0_data_refactored.py:258-336`
-  - `Phase25DataPreprocessor.scan_tle_data()` - TLE檔案掃描器
-- **數據載入**: `/netstack/docker/build_with_phase0_data_refactored.py:238-256`
-  - `Phase25DataPreprocessor._load_constellation_satellites()` - 星座數據載入器
-- **基礎篩選**: `/netstack/config/satellite_data_pool_builder.py`
-  - `SatelliteDataPoolBuilder.build_satellite_pools()` - 衛星池建構器
-- **軌道計算**: `/netstack/src/services/satellite/coordinate_specific_orbit_engine.py`
-  - `CoordinateSpecificOrbitEngine.calculate_satellite_orbit()` - SGP4軌道計算引擎
-
-#### 支援服務
-- **配置管理**: `/netstack/config/satellite_config.py`
-- **Cron更新**: `/scripts/daily_tle_download_enhanced.sh`
-- **增量處理**: `/scripts/incremental_data_processor.sh`
-- **簡化啟動**: `/netstack/docker/simple-entrypoint.sh`
-
-### 計算特性
-- **精度等級**: 米級位置精度（完整 SGP4 算法）
-- **考慮因素**: 地球扁率、大氣阻力、重力場攝動
-- **適用範圍**: LEO 衛星 (200-2000km 高度)
-- **建構時計算**: 完整數據預計算（2-5 分鐘）
-- **啟動時驗證**: 純數據完整性檢查（毫秒級）
-- **Cron 更新**: 智能增量處理（每6小時，按需執行）
-
-### 🔄 處理邏輯詳解
-
-#### 全量載入策略
-```python
-# 實際程式邏輯 (build_with_phase0_data_refactored.py:349-400)
-def load_tle_satellites(constellation, date_str):
-    """載入指定星座的全部 TLE 數據"""
-    # 1. 讀取完整 TLE 文件
-    # 2. 逐一解析每個 TLE 記錄 (3行為一組)
-    # 3. 驗證 TLE 格式正確性
-    # 4. 提取 NORAD ID、軌道參數
-    # 5. 返回所有有效衛星記錄
-    
-    # 關鍵：沒有任何篩選邏輯！
-    # 目的：確保不遺漏任何可能經過觀測點的衛星
-```
-
-#### 為什麼不在第1階段篩選？
-1. **地理位置未知**：此階段尚未計算衛星相對於觀測點的位置
-2. **時間相關性**：衛星可見性高度依賴時間，需要完整時間序列
-3. **軌道週期複雜**：某些衛星可能在特定時間才經過觀測點上空
-4. **安全邊際**：寧可多算後篩選，也不要遺漏重要候選
-
-### 輸出格式
-```python
-{
-    "satellite_id": "STARLINK-1007",
-    "timestamp": "2025-07-30T12:00:00Z",
-    "position": {
-        "x": 1234.567,  # km, ECEF 座標
-        "y": -5678.901, # km
-        "z": 3456.789   # km
-    },
-    "velocity": {
-        "vx": 7.123,    # km/s
-        "vy": -2.456,   # km/s
-        "vz": 1.789     # km/s
-    }
-}
-```
+> ⚠️ **階段一的所有詳細內容（1.1-1.4詳細流程、實際處理數量統計、全量處理原理、計算特性、程式實現邏輯等）已完整遷移至上述新文檔結構，請參閱相應連結獲取完整信息。**
 
 ## 🔧 第二階段：3GPP Events & 信號品質計算
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ConstellationSelectorCompact from '../domains/satellite/ConstellationSelectorCompact'
 import '../../styles/Sidebar.scss'
-import { UAVManualDirection } from '../domains/device/visualization/UAVFlight'
+import { UAVManualDirection } from './types/sidebar.types'
 import { Device } from '../../types/device'
 import SidebarStarfield from '../shared/ui/effects/SidebarStarfield'
 // import DeviceItem from '../domains/device/management/DeviceItem'
