@@ -56,19 +56,15 @@ components/domains/satellite/SatelliteAnimationViewer.tsx      # ❌ 未被使�
 components/domains/satellite/TimelineControl.tsx              # ❌ 未被任何組件導入
 ```
 
-### 換手決策組件 (部分可用)
+### ❌ 換手決策組件 (完全未使用)
 ```
-components/domains/handover/execution/HandoverStatusPanel.tsx  # ✅ 在StereogramView中顯示
-```
-
-### ❌ 虛假保留的換手組件
-```
+components/domains/handover/execution/HandoverStatusPanel.tsx  # ❌ enabled永遠為false，不會顯示
 components/domains/handover/visualization/          # ❌ 整個目錄未被使用
 ```
 
-### 統一決策中心 (大部分過時)
+### ❌ 統一決策中心 (完全虛假)
 ```
-components/unified-decision-center/DecisionControlCenterSimple.tsx  # ✅ 有路由 /decision-center
+components/unified-decision-center/DecisionControlCenterSimple.tsx  # ❌ API 404錯誤，虛假界面
 ```
 
 ### ❌ 虛假保留的統一決策中心組件
@@ -200,12 +196,12 @@ components/scenes/StaticModel.tsx                # 保留 - 靜態模型場景
 
 ## 🚨 重大發現總結
 
-### 📊 實際可見組件統計
+### 📊 實際可見組件統計 (修正後)
 - **主要UI**: StereogramView, FloorView (2個)
 - **側邊欄功能**: ConstellationSelectorCompact, 設備管理組件 (5個)  
-- **3D渲染**: DynamicSatelliteRenderer, HandoverStatusPanel (2個)
+- **3D渲染**: DynamicSatelliteRenderer (1個)
 - **基礎服務**: 核心API服務和配置 (6個)
-- **總計實際使用**: ~15個真正有用的組件
+- **總計實際使用**: ~14個真正有用的組件 (更正：HandoverStatusPanel不會顯示)
 
 ### ❌ 死代碼問題嚴重
 - **虛假保留組件**: ~40個標記保留但實際不顯示
