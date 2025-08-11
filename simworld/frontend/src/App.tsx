@@ -1,11 +1,13 @@
-// src/App.tsx - 階段四重構版本
-// 繼續減少Props傳遞，由組件直接使用Context
+// src/App.tsx - Phase 4 優化版本 
+// 實現懶載入和性能優化
 
-import { useMemo, useEffect, useCallback } from 'react'
+import { useMemo, useEffect, useCallback, lazy, Suspense } from 'react'
 import { useParams } from 'react-router-dom'
 import { useToast } from './hooks/useToast'
-import SceneViewer from './components/scenes/FloorView'
-import SceneView from './components/scenes/StereogramView'
+
+// 懶載入 3D 場景組件
+const SceneViewer = lazy(() => import('./components/scenes/FloorView'))
+const SceneView = lazy(() => import('./components/scenes/StereogramView'))
 import Layout from './components/layout/Layout'
 import ErrorBoundary from './components/shared/ui/feedback/ErrorBoundary'
 import Navbar from './components/layout/Navbar'
@@ -103,29 +105,50 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
         []
     )
 
-    // 渲染活躍組件
+    // 載入指示器組件
+    const LoadingComponent = () => (
+        <div className="loading-container" style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100%',
+            backgroundColor: '#1a1a1a',
+            color: '#ffffff'
+        }}>
+            <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '18px', marginBottom: '10px' }}>🛰️ 載入衛星可視化系統中...</div>
+                <div style={{ fontSize: '14px', opacity: 0.7 }}>正在初始化 3D 渲染引擎</div>
+            </div>
+        </div>
+    )
+
+    // 渲染活躍組件 - 使用 Suspense 懶載入
     const renderActiveComponent = () => {
         if (uiState.activeComponent === '3DRT') {
             return (
-                <SceneView
-                    devices={tempDevices}
-                    uiState={uiState}
-                    featureState={featureState}
-                    handoverState={handoverState}
-                    satelliteState={satelliteState}
-                    sceneName={currentScene}
-                    onUAVPositionUpdate={handleUAVPositionUpdate}
-                    onManualControl={handleSceneViewManualControl}
-                    onHandoverEvent={handleHandoverEvent}
-                />
+                <Suspense fallback={<LoadingComponent />}>
+                    <SceneView
+                        devices={tempDevices}
+                        uiState={uiState}
+                        featureState={featureState}
+                        handoverState={handoverState}
+                        satelliteState={satelliteState}
+                        sceneName={currentScene}
+                        onUAVPositionUpdate={handleUAVPositionUpdate}
+                        onManualControl={handleSceneViewManualControl}
+                        onHandoverEvent={handleHandoverEvent}
+                    />
+                </Suspense>
             )
         } else if (uiState.activeComponent === '2DRT') {
             return (
-                <SceneViewer
-                    devices={tempDevices}
-                    refreshDeviceData={refreshDeviceData}
-                    sceneName={currentScene}
-                />
+                <Suspense fallback={<LoadingComponent />}>
+                    <SceneViewer
+                        devices={tempDevices}
+                        refreshDeviceData={refreshDeviceData}
+                        sceneName={currentScene}
+                    />
+                </Suspense>
             )
         }
         return <div>未知組件</div>
@@ -182,14 +205,7 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
                                     onSatelliteEnabledChange={
                                         satelliteState.setSatelliteEnabled
                                     }
-                                    manualControlEnabled={
-                                        featureState.manualControlEnabled
-                                    }
-                                    onManualControlEnabledChange={(enabled) =>
-                                        featureState.updateFeatureState({
-                                            manualControlEnabled: enabled,
-                                        })
-                                    }
+
                                     satelliteUavConnectionEnabled={
                                         featureState.satelliteUavConnectionEnabled
                                     }
