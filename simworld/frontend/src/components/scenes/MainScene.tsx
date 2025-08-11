@@ -4,9 +4,7 @@ import { useThree } from '@react-three/fiber'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
 import { TextureLoader, RepeatWrapping, SRGBColorSpace } from 'three'
-import UAVFlight, {
-    UAVManualDirection,
-} from '../domains/device/visualization/UAVFlight'
+import UAVFlight from '../domains/device/visualization/UAVFlight'
 import StaticModel from './StaticModel'
 import { ApiRoutes } from '../../config/apiRoutes'
 import {
@@ -47,12 +45,6 @@ interface Satellite {
 export interface MainSceneProps {
     devices: Device[]
     auto: boolean
-    manualControl?: (direction: UAVManualDirection) => void
-    manualDirection?: UAVManualDirection
-    onUAVPositionUpdate?: (
-        position: [number, number, number],
-        deviceId?: number
-    ) => void
     uavAnimation: boolean
     selectedReceiverIds?: number[]
     sceneName: string
@@ -108,9 +100,6 @@ const UAV_SCALE = 10
 const MainScene: React.FC<MainSceneProps> = ({
     devices = [],
     auto,
-    manualDirection,
-    manualControl,
-    onUAVPositionUpdate,
     uavAnimation,
     selectedReceiverIds = [],
     sceneName,
@@ -306,38 +295,6 @@ const MainScene: React.FC<MainSceneProps> = ({
                         position={position}
                         scale={[UAV_SCALE, UAV_SCALE, UAV_SCALE]}
                         auto={shouldControl ? auto : false}
-                        manualDirection={shouldControl ? manualDirection : null}
-                        onManualMoveDone={() => {
-                            if (manualControl) {
-                                manualControl(null)
-                            }
-                        }}
-                        onPositionUpdate={(pos) => {
-                            // 防循環的位置更新：只有當位置有顯著變化時才通知父組件
-                            if (onUAVPositionUpdate && shouldControl) {
-                                const [x, y, z] = pos
-                                const originalPos = [device.position_x, device.position_z + 15, device.position_y]
-                                const threshold = 5 // 位置變化閾值
-                                
-                                // 計算位置變化距離
-                                const distance = Math.sqrt(
-                                    Math.pow(x - originalPos[0], 2) +
-                                    Math.pow(y - originalPos[1], 2) +
-                                    Math.pow(z - originalPos[2], 2)
-                                )
-                                
-                                // 只有當位置變化超過閾值時才更新，避免微小變化導致的循環
-                                if (distance > threshold) {
-                                    // 使用 setTimeout 避免在渲染過程中觸發狀態更新
-                                    setTimeout(() => {
-                                        onUAVPositionUpdate(
-                                            pos,
-                                            device.id !== null ? device.id : undefined
-                                        )
-                                    }, 0)
-                                }
-                            }
-                        }}
                         uavAnimation={shouldControl ? uavAnimation : false}
                     />
                 )
@@ -376,9 +333,6 @@ const MainScene: React.FC<MainSceneProps> = ({
     }, [
         devices,
         auto,
-        manualDirection,
-        onUAVPositionUpdate,
-        manualControl,
         uavAnimation,
         selectedReceiverIds,
         BS_MODEL_URL,

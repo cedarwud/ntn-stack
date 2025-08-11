@@ -388,7 +388,7 @@ services:
       - smf
     networks:
       netstack-core:
-        ipv4_address: 172.20.0.40
+        ipv4_address: 172.20.0.41
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

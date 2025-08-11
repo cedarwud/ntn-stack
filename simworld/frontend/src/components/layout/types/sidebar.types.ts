@@ -1,6 +1,21 @@
 import { Device } from '../../../types/device'
 import { VisibleSatelliteInfo } from '../../../types/satellite'
-import { UAVManualDirection } from '../../domains/device/visualization/UAVFlight'
+
+// UAV 手動控制方向定義 - 移動到此處避免循環依賴
+export type UAVManualDirection =
+    | 'up'
+    | 'down'
+    | 'left'
+    | 'right'
+    | 'ascend'
+    | 'descend'
+    | 'left-up'
+    | 'right-up'
+    | 'left-down'
+    | 'right-down'
+    | 'rotate-left'
+    | 'rotate-right'
+    | null
 
 // 功能開關介面
 export interface FeatureToggle {

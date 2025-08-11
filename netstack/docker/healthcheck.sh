@@ -30,7 +30,7 @@ check_api_health() {
 
 # 檢查進程是否運行
 check_process() {
-    if pgrep -f "uvicorn.*netstack_api" > /dev/null; then
+    if ps aux | grep -v grep | grep "uvicorn.*netstack_api" > /dev/null; then
         echo "✅ NetStack API 進程正在運行"
         return 0
     else
