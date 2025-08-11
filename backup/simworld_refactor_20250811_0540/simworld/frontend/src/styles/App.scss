@@ -1,0 +1,221 @@
+#root {
+  /* max-width: 1280px; */
+  margin: 0 auto;
+  height: 100vh;
+  width: 100%;
+  padding: 0;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+
+  &:hover {
+    filter: drop-shadow(0 0 2em #646cffaa);
+  }
+
+  &.react:hover {
+    filter: drop-shadow(0 0 2em #61dafbaa);
+  }
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* 暗色主題樣式 */
+:root {
+  --dark-bg: #1e1e1e;
+  --dark-accent: #2d2d2d;
+  --dark-component: #333;
+  --dark-border: #444;
+  --dark-text: #eee;
+  --dark-text-secondary: #aaa;
+  --dark-button-primary: #4a6baf;
+  --dark-button-secondary: #af4a4a;
+  --dark-highlight: #505050;
+  --dark-input-bg: #242424;
+}
+
+body {
+  background-color: var(--dark-bg);
+  color: var(--dark-text);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.App {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--dark-bg);
+  color: var(--dark-text);
+}
+
+.scene-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #333;
+  color: white;
+  border-bottom: 1px solid #555;
+}
+
+.scene-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  select {
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid #666;
+    background-color: #444;
+    color: white;
+  }
+}
+
+.view-selector {
+  display: flex;
+  gap: 10px;
+
+  button {
+    padding: 6px 12px;
+    border: none;
+    background-color: #444;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+
+    &.active {
+      background-color: #0066cc;
+    }
+  }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 0 10px;
+}
+
+.apply-button {
+  background-color: #4a7bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+
+  &:hover:not(:disabled) {
+    background-color: #3a6be6;
+  }
+
+  &:disabled {
+    background-color: #8ca6e9;
+    cursor: not-allowed;
+  }
+}
+
+.cancel-button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+
+  &:hover:not(:disabled) {
+    background-color: #d32f2f;
+  }
+
+  &:disabled {
+    background-color: #e57373;
+    cursor: not-allowed;
+  }
+}
+
+.error-message {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 10px;
+  margin: 10px;
+  border-radius: 4px;
+  border: 1px solid #ef9a9a;
+}
+
+/* 深色主題 */
+.dark-theme {
+  background-color: #222;
+  color: #eee;
+
+  .main-content {
+    background-color: #333;
+  }
+}
+
+/* 載入中和錯誤訊息樣式 */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.5rem;
+  color: var(--dark-text);
+  background-color: var(--dark-bg);
+}
+
+/* 按鈕禁用狀態 */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 警告訊息 */
+.warning-message {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* App container styles */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.content-wrapper {
+  flex: 1;
+  margin-top: 60px; /* 為Navbar騰出空間 */
+  overflow: hidden;
+}

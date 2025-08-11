@@ -52,7 +52,6 @@ export interface MainSceneProps {
     interferenceVisualizationEnabled?: boolean
     sinrHeatmapEnabled?: boolean
     aiRanVisualizationEnabled?: boolean
-    sionna3DVisualizationEnabled?: boolean
     realTimeMetricsEnabled?: boolean
     interferenceAnalyticsEnabled?: boolean
     // 階段五功能狀態
@@ -106,7 +105,6 @@ const MainScene: React.FC<MainSceneProps> = ({
     interferenceVisualizationEnabled: _interferenceVisualizationEnabled = false,
     sinrHeatmapEnabled: _sinrHeatmapEnabled = false,
     aiRanVisualizationEnabled = false,
-    sionna3DVisualizationEnabled = false,
     realTimeMetricsEnabled = false,
     interferenceAnalyticsEnabled: _interferenceAnalyticsEnabled = false,
     uavSwarmCoordinationEnabled = false,
@@ -352,16 +350,6 @@ const MainScene: React.FC<MainSceneProps> = ({
                 <Html position={[0, 5, 0]} center>
                     <div className="ai-ran-placeholder">
                         <p>AI-RAN 可視化組件已移除，功能已整合至統一分析圖表</p>
-                    </div>
-                </Html>
-            )}
-            {/* Sionna3DVisualization component removed - domain cleaned up */}
-            {sionna3DVisualizationEnabled && (
-                <Html position={[0, 3, 0]} center>
-                    <div className="sionna-placeholder">
-                        <p>
-                            Sionna 3D 可視化組件已移除，功能已整合至統一分析圖表
-                        </p>
                     </div>
                 </Html>
             )}
