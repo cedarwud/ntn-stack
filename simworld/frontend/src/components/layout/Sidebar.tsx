@@ -61,7 +61,7 @@ interface SidebarProps {
     manualControlEnabled?: boolean
     onManualControlEnabledChange?: (enabled: boolean) => void
     // 新增的擴展功能
-    sionna3DVisualizationEnabled?: boolean
+
     onSionna3DVisualizationChange?: (enabled: boolean) => void
     realTimeMetricsEnabled?: boolean
     onRealTimeMetricsChange?: (enabled: boolean) => void
@@ -104,7 +104,7 @@ interface SidebarProps {
 //     'adaptiveLearning', 'predictiveMaintenance', 'testVisualization',
 //     'intelligentRecommendation', 'automatedReporting', 'mlModelMonitoring',
 //     'e2ePerformanceMonitoring', 'performanceTrendAnalysis', 'realTimeMetrics',
-//     'interferenceAnalytics', 'sionna3DVisualization', 'uavSwarmCoordination',
+
 //     'meshNetworkTopology', 'failoverMechanism', 'aiRanVisualization'
 // ]
 
