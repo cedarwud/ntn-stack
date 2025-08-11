@@ -44,18 +44,17 @@ export default function UAVFlight({
     const basePosition = useRef(new THREE.Vector3(...position))  // 原始位置
     const currentPosition = useRef(new THREE.Vector3(...position))
     const flightDirection = useRef(1)                            // 1=向右移動, -1=向左移動
+    const hasStopped = useRef(false)                             // 追蹤是否已經停止飛行
     
     // 🎯 初始化
     useEffect(() => {
         basePosition.current.set(...position)
         currentPosition.current.set(...position)
-        console.log(`🛩️ UAV初始化 at (${position[0]}, ${position[1]}, ${position[2]})`)
     }, [position])
 
     // 🎯 簡化的動畫設置
     useEffect(() => {
         if (clonedScene && animations && animations.length > 0) {
-            console.log('🛩️ UAV模型載入成功')
             const newMixer = new THREE.AnimationMixer(clonedScene)
             setMixer(newMixer)
             
@@ -79,6 +78,9 @@ export default function UAVFlight({
         }
 
         if (auto && group.current) {
+            // 重置停止狀態，表示正在飛行
+            hasStopped.current = false
+            
             flightTime.current += delta
 
             // 計算基於時間的X軸偏移量
@@ -106,13 +108,6 @@ export default function UAVFlight({
             // Z軸：保持原位
             const z = basePosition.current.z
             
-            // Debug信息（每3秒輸出一次）
-            if (Math.floor(flightTime.current) % 3 === 0 && Math.floor(flightTime.current * 10) % 10 === 0) {
-                console.log(`🛩️ UAV直線飛行: 
-                  基礎位置: (${basePosition.current.x.toFixed(1)}, ${basePosition.current.y.toFixed(1)}, ${basePosition.current.z.toFixed(1)})
-                  當前位置: (${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)})
-                  X偏移: ${newXOffset.toFixed(1)}, 方向: ${flightDirection.current > 0 ? '→' : '←'}`)
-            }
             
             // 更新位置
             currentPosition.current.set(x, y, z)
@@ -122,13 +117,13 @@ export default function UAVFlight({
             const lookAtX = x + (flightDirection.current * 10)  // 朝著移動方向看
             group.current.lookAt(lookAtX, y, z)
             
-        } else if (group.current) {
-            // 🎯 停止飛行時立即回到原始位置
-            console.log('🛩️ 停止飛行 - 回到原始位置')
+        } else if (group.current && !hasStopped.current) {
+            // 🎯 停止飛行時立即回到原始位置（只執行一次）
             currentPosition.current.copy(basePosition.current)
             group.current.position.copy(basePosition.current)
             flightTime.current = 0      // 重置飛行時間
             flightDirection.current = 1 // 重置方向為向右
+            hasStopped.current = true   // 標記已經停止
         }
     })
 
