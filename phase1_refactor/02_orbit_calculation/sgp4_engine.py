@@ -90,7 +90,12 @@ class SGP4Engine:
         """
         try:
             # 使用官方 SGP4 庫創建衛星對象
-            satellite = Satrec.twoline2rv(line1, line2, wgs72)
+            # 處理不同版本的 SGP4 庫
+            try:
+                satellite = Satrec.twoline2rv(line1, line2, wgs72)
+            except TypeError:
+                # 舊版本 SGP4 庫可能需要不同的參數
+                satellite = Satrec.twoline2rv(line1, line2)
             
             if satellite is None:
                 logger.error(f"SGP4 衛星對象創建失敗: {satellite_id}")
