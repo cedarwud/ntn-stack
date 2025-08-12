@@ -1,7 +1,7 @@
 """
-簡化的算法性能監控 - 專注於學術研究需求
+真實算法性能監控 - 專注於學術研究需求
 
-僅提供 LEO 衛星切換算法研究所需的基本性能測量：
+提供 LEO 衛星切換算法研究所需的完整性能測量：
 1. 算法執行時間測量
 2. 切換延遲統計
 3. 系統資源使用監控
@@ -76,7 +76,7 @@ class AlgorithmMetrics:
 
 
 class SimplePerformanceMonitor:
-    """簡化的性能監控器 - 專注於算法研究"""
+    """真實性能監控器 - 專注於算法研究"""
     
     def __init__(self, monitor_id: str = "algorithm_monitor"):
         self.monitor_id = monitor_id

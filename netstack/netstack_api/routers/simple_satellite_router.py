@@ -80,7 +80,7 @@ def get_intelligent_selector():
     global _intelligent_selector
     if _intelligent_selector is None:
         try:
-            from ...src.services.satellite.preprocessing.satellite_selector import IntelligentSatelliteSelector
+            from src.services.satellite.preprocessing.satellite_selector import IntelligentSatelliteSelector
             _intelligent_selector = IntelligentSatelliteSelector()
             logger.info("✅ 智能衛星選擇器初始化成功")
         except Exception as e:
@@ -96,70 +96,57 @@ def get_phase0_satellite_data(constellation: str, count: int = 200) -> List[Dict
     satellites = []
     
     try:
-        # 載入真實的Phase0預計算軌道數據
+        # 🔥 CRITICAL FIX: 使用真實的 SGP4 預計算軌道數據
         import json
-        precomputed_file = '/app/data/enhanced_satellite_data.json'  # 🔧 修復：使用正確的文件名
+        precomputed_file = '/app/data/phase0_precomputed_orbits.json'  # 真實 SGP4 數據文件
         
         with open(precomputed_file, 'r') as f:
             precomputed_data = json.load(f)
             
-        # 🔧 修復：根據實際數據結構提取衛星數據
+        # 🔧 修復：使用正確的數據結構提取衛星數據
         constellation_data = precomputed_data.get('constellations', {}).get(constellation.lower(), {})
-        satellites_list = constellation_data.get('satellites', [])  # 是列表不是字典
+        orbit_data = constellation_data.get('orbit_data', {})
+        satellites_dict = orbit_data.get('satellites', {})  # 這是字典不是列表
         
-        logger.info(f"🔍 找到 {len(satellites_list)} 顆 {constellation} 衛星數據")
+        logger.info(f"🔍 找到 {len(satellites_dict)} 顆 {constellation} 衛星數據")
         
-        # 🔧 修復：使用可見性窗口而不是空的時間序列
-        for satellite_data in satellites_list:
-            # 使用可見性窗口創建模擬位置數據
-            visibility_windows = satellite_data.get('visibility_windows', [])
-            statistics = satellite_data.get('statistics', {})
+        # 🔧 修復：從真實 SGP4 預計算數據中構建衛星列表
+        for norad_id, satellite_data in satellites_dict.items():
+            # 🎯 CRITICAL FIX: 使用正確的字段名 'positions' 而不是 'orbit_positions'
+            orbit_positions = satellite_data.get('positions', [])
             
-            # 為每個可見性窗口創建代表性位置點
-            precomputed_positions = []
-            for window in visibility_windows:
-                if window.get('max_elevation', 0) >= 0:
-                    # 創建可見性窗口中間時刻的位置
+            # 只包含有真實軌道數據的衛星
+            if orbit_positions:
+                # 轉換為API需要的格式，保持真實SGP4計算結果
+                precomputed_positions = []
+                for position in orbit_positions:
                     precomputed_positions.append({
-                        'time': window.get('start_time', ''),
-                        'time_offset_seconds': 0,
-                        'position_eci': {'x': 0, 'y': 0, 'z': 6900},  # 近似 LEO 高度
-                        'velocity_eci': {'x': 7.5, 'y': 0, 'z': 0},   # 近似軌道速度
-                        'range_km': 1000.0,  # 默認距離
-                        'elevation_deg': window.get('max_elevation', 0),
-                        'azimuth_deg': 180.0,  # 默認方位角
-                        'is_visible': True
+                        'time': position.get('time', ''),
+                        'time_offset_seconds': position.get('time_offset_seconds', 0),
+                        'position_eci': position.get('position_eci', {}),
+                        'velocity_eci': position.get('velocity_eci', {}),
+                        'range_km': position.get('range_km', 0),
+                        'elevation_deg': position.get('elevation_deg', -90),
+                        'azimuth_deg': position.get('azimuth_deg', 0),
+                        'is_visible': position.get('elevation_deg', -90) >= 0
                     })
-            
-            # 如果沒有可見性窗口但有統計數據，使用統計信息創建位置
-            if not precomputed_positions and statistics.get('max_elevation', -90) >= 0:
-                precomputed_positions.append({
-                    'time': '2025-08-11T12:00:00Z',
-                    'time_offset_seconds': 0,
-                    'position_eci': {'x': 0, 'y': 0, 'z': 6900},
-                    'velocity_eci': {'x': 7.5, 'y': 0, 'z': 0},
-                    'range_km': 800.0,
-                    'elevation_deg': statistics.get('max_elevation', 20.0),
-                    'azimuth_deg': 180.0,
-                    'is_visible': True
-                })
-            
-            satellites.append({
-                'name': satellite_data.get('name', f'SAT-{satellite_data.get("norad_id", "unknown")}'),
-                'norad_id': str(satellite_data.get('norad_id', 'unknown')),
-                'constellation': constellation.lower(),
-                'altitude': 550.0,  # 從TLE數據提取的默認值
-                'inclination': 53.0,  # 從TLE數據提取的默認值
-                'raan': 0,
-                'line1': satellite_data.get('line1', ''),
-                'line2': satellite_data.get('line2', ''),
-                'tle_epoch': datetime.utcnow().timestamp(),
-                # 🔧 載入基於可見性窗口的位置數據
-                'precomputed_positions': precomputed_positions,
-                'has_orbit_data': len(precomputed_positions) > 0
-            })
                 
-        logger.info(f"✅ Phase0數據載入完成: {len(satellites)} 顆 {constellation} 衛星，軌道數據: {len([s for s in satellites if s['has_orbit_data']])} 顆")
+                satellites.append({
+                    'name': satellite_data.get('name', f'SAT-{norad_id}'),
+                    'norad_id': str(norad_id),
+                    'constellation': constellation.lower(),
+                    'altitude': satellite_data.get('altitude', 550.0),
+                    'inclination': satellite_data.get('inclination', 53.0),
+                    'raan': satellite_data.get('raan', 0),
+                    'line1': satellite_data.get('line1', ''),
+                    'line2': satellite_data.get('line2', ''),
+                    'tle_epoch': satellite_data.get('tle_epoch', 0),
+                    # 🎯 關鍵修復：使用真實的 SGP4 預計算位置數據
+                    'precomputed_positions': precomputed_positions,
+                    'has_orbit_data': len(precomputed_positions) > 0
+                })
+        
+        logger.info(f"✅ Phase0真實SGP4數據載入完成: {len(satellites)} 顆 {constellation} 衛星，軌道數據: {len([s for s in satellites if s['has_orbit_data']])} 顆")
         
         # 🔧 關鍵修復：如果成功載入真實數據，立即返回，不使用備用數據
         if satellites and len([s for s in satellites if s['has_orbit_data']]) > 0:
@@ -167,28 +154,14 @@ def get_phase0_satellite_data(constellation: str, count: int = 200) -> List[Dict
             return satellites
         
     except Exception as e:
-        logger.error(f"❌ Phase0數據載入失敗: {e}, 使用備用數據")
+        logger.error(f"❌ Phase0真實SGP4數據載入失敗: {e}")
         import traceback
         logger.error(f"詳細錯誤: {traceback.format_exc()}")
     
-    # 備用：生成足夠的衛星數據（只有在真實數據載入完全失敗時才使用）
-    logger.warning("⚠️ 回退到備用數據生成機制")
-    target_count = 651 if constellation.lower() == 'starlink' else 301  # 完整軌道週期配置 v4.0.0
-    for i in range(target_count):
-        satellites.append({
-            'name': f'{constellation.upper()}-BACKUP-{i}',
-            'norad_id': str(50000 + i),
-            'constellation': constellation.lower(),
-            'altitude': 550.0 if constellation.lower() == 'starlink' else 1200.0,
-            'inclination': 53.0 if constellation.lower() == 'starlink' else 87.4,
-            'raan': (i * 15) % 360,
-            'line1': f'1 {50000 + i:05d}U 20001001.00000000  .00001817  00000-0  41860-4 0  9999',
-            'line2': f'2 {50000 + i:05d}  53.0000 {(i*15)%360:8.4f} 0001000 000.0000 000.0000 15.48919103000000',
-            'tle_epoch': datetime.utcnow().timestamp() - 3600
-        })
-    
-    logger.info(f"📊 完整數據集: {len(satellites)} 顆 {constellation} 衛星")
-    return satellites
+    # 🚫 根據 CLAUDE.md 核心原則，禁止使用備用數據生成
+    # 必須使用真實的 Phase0 預計算 SGP4 數據，如無數據則報告錯誤
+    logger.error(f"❌ Phase0 預計算數據載入完全失敗，拒絕使用備用數據生成: {constellation}")
+    raise FileNotFoundError(f"Phase0 precomputed SGP4 data required for constellation {constellation}. Backup data generation prohibited.")
 
 def calculate_satellite_position(sat_data: Dict, timestamp: datetime, observer_lat: float = 24.9441667, observer_lon: float = 121.3713889) -> SatelliteInfo:
     """
@@ -241,95 +214,16 @@ def calculate_satellite_position(sat_data: Dict, timestamp: datetime, observer_l
                     is_visible=is_actually_visible
                 )
         
-        # 回退到簡化計算（如果沒有預計算數據）
-        logger.warning(f"⚠️ 沒有預計算數據，使用簡化計算: {sat_data['name']}")
-        
-        # 從TLE數據提取軌道參數
-        altitude = sat_data.get('altitude', 550.0)
-        inclination = sat_data.get('inclination', 53.0)
-        raan = sat_data.get('raan', 0.0)
-        
-        # 計算軌道週期 (簡化計算)
-        earth_radius = 6371.0  # km
-        orbital_radius = earth_radius + altitude
-        orbital_period_min = 2 * math.pi * math.sqrt(orbital_radius**3 / 398600.4418) / 60  # 分鐘
-        
-        # 基於時間計算軌道位置
-        time_since_epoch = (timestamp.timestamp() - sat_data.get('tle_epoch', timestamp.timestamp())) / 60
-        orbital_progress = (time_since_epoch / orbital_period_min) % 1.0
-        
-        # 計算地心緯度/經度 (簡化)
-        sat_lat = inclination * math.sin(orbital_progress * 2 * math.pi) * 0.8
-        sat_lon = (raan + orbital_progress * 360) % 360 - 180
-        
-        # 計算相對於觀測者的方位角和仰角
-        lat_diff = math.radians(sat_lat - observer_lat) 
-        lon_diff = math.radians(sat_lon - observer_lon)
-        
-        # 方位角計算
-        y = math.sin(lon_diff) * math.cos(math.radians(sat_lat))
-        x = math.cos(math.radians(observer_lat)) * math.sin(math.radians(sat_lat)) - \
-            math.sin(math.radians(observer_lat)) * math.cos(math.radians(sat_lat)) * math.cos(lon_diff)
-        azimuth = math.degrees(math.atan2(y, x)) % 360
-        
-        # 距離和仰角計算 (簡化)
-        angular_separation = math.acos(
-            math.sin(math.radians(observer_lat)) * math.sin(math.radians(sat_lat)) +
-            math.cos(math.radians(observer_lat)) * math.cos(math.radians(sat_lat)) * math.cos(lon_diff)
-        )
-        
-        # 地平線距離
-        horizon_angle = math.acos(earth_radius / orbital_radius)
-        
-        if angular_separation < horizon_angle:
-            # 衛星可見 - 計算仰角
-            elevation = math.degrees(math.asin(
-                (orbital_radius * math.cos(angular_separation) - earth_radius) / 
-                math.sqrt(orbital_radius**2 - 2 * earth_radius * orbital_radius * math.cos(angular_separation) + earth_radius**2)
-            ))
-            distance = math.sqrt(orbital_radius**2 - 2 * earth_radius * orbital_radius * math.cos(angular_separation) + earth_radius**2)
-        else:
-            # 衛星不可見
-            elevation = -45
-            distance = orbital_radius + earth_radius
-            
-        # 信號強度計算 (基於ITU-R P.618)
-        if elevation > 0:
-            frequency_ghz = 12.0  # Ku-band
-            fspl_db = 20 * math.log10(distance) + 20 * math.log10(frequency_ghz) + 92.45
-            satellite_eirp_dbm = 52.0 + 30  # 轉換為dBm
-            rx_antenna_gain_db = 35.0
-            elevation_gain = max(0, 10 * math.log10(math.sin(math.radians(max(elevation, 5)))))
-            signal_strength = satellite_eirp_dbm + rx_antenna_gain_db - fspl_db + elevation_gain - 5
-        else:
-            signal_strength = -120.0  # 不可見衛星
-            
-        return SatelliteInfo(
-            name=sat_data['name'],
-            norad_id=sat_data['norad_id'],
-            elevation_deg=round(elevation, 2),
-            azimuth_deg=round(azimuth, 2),
-            distance_km=round(distance, 2),
-            orbit_altitude_km=altitude,
-            constellation=sat_data['constellation'],
-            signal_strength=round(signal_strength, 1),
-            is_visible=elevation > 0
-        )
+        # 🚫 根據 CLAUDE.md 核心原則，禁止使用簡化算法
+        # 必須使用真實 SGP4 算法，如無預計算數據則返回錯誤
+        logger.error(f"❌ 缺少 SGP4 軌道數據，拒絕使用簡化算法: {sat_data['name']}")
+        return None  # 不返回簡化數據，強制使用真實算法
         
     except Exception as e:
         logger.error(f"計算衛星位置失敗: {e}")
-        # 返回一個默認的可見衛星
-        return SatelliteInfo(
-            name=sat_data.get('name', 'UNKNOWN'),
-            norad_id=sat_data.get('norad_id', '00000'),
-            elevation_deg=20.0,
-            azimuth_deg=180.0, 
-            distance_km=600.0,
-            orbit_altitude_km=sat_data.get('altitude', 550.0),
-            constellation=sat_data.get('constellation', 'unknown'),
-            signal_strength=-60.0,
-            is_visible=True
-        )
+        # 🚫 根據 CLAUDE.md 核心原則，禁止返回模擬數據
+        # 計算失敗時返回 None，強制使用真實數據
+        return None
 
 # === API Endpoints ===
 
@@ -399,7 +293,7 @@ async def get_visible_satellites(
                 # 計算選擇的衛星的實時位置
                 for sat_data in selected_subset:
                     sat_info = calculate_satellite_position(sat_data, current_time)
-                    if sat_info.elevation_deg >= min_elevation_deg:
+                    if sat_info and sat_info.elevation_deg >= min_elevation_deg:
                         selected_satellites.append(sat_info)
                         
             except Exception as e:
@@ -415,7 +309,7 @@ async def get_visible_satellites(
             for sat_data in all_satellites:
                 try:
                     sat_info = calculate_satellite_position(sat_data, current_time)
-                    if sat_info.elevation_deg >= min_elevation_deg:
+                    if sat_info and sat_info.elevation_deg >= min_elevation_deg:
                         candidate_satellites.append(sat_info)
                 except Exception as e:
                     logger.debug(f"計算衛星 {sat_data.get('name', 'UNKNOWN')} 位置失敗: {e}")

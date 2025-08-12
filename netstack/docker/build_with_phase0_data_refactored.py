@@ -49,6 +49,8 @@ class Phase25DataPreprocessor:
         
         # 載入統一配置
         try:
+            import sys
+            sys.path.append('/home/sat/ntn-stack/netstack')
             from config.unified_satellite_config import get_unified_config
             self.config = get_unified_config()
             
@@ -506,6 +508,8 @@ class Phase25DataPreprocessor:
         
         try:
             # 嘗試導入軌道計算引擎
+            import sys
+            sys.path.append('/home/sat/ntn-stack/netstack')
             from services.satellite.coordinate_specific_orbit_engine import CoordinateSpecificOrbitEngine
             from datetime import datetime, timezone
             
@@ -570,55 +574,18 @@ class Phase25DataPreprocessor:
             }
             
         except ImportError as e:
-            logger.warning(f"{constellation}: 軌道計算引擎不可用 ({e})，使用簡化處理")
-            return self._fallback_orbit_calculation(constellation, satellite_pool)
+            # 🚫 根據 CLAUDE.md 核心原則，禁止使用簡化處理
+            # 必須使用完整 SGP4 算法，如計算引擎不可用則報告錯誤
+            logger.error(f"❌ {constellation}: SGP4 軌道計算引擎不可用 ({e})，拒絕使用簡化處理")
+            raise ImportError(f"SGP4 orbital calculation engine required for {constellation}. Simplified algorithms prohibited.")
         
         except Exception as e:
-            logger.error(f"{constellation}: 軌道計算失敗 - {e}")
-            return self._fallback_orbit_calculation(constellation, satellite_pool)
+            logger.error(f"❌ {constellation}: SGP4 軌道計算失敗 - {e}")
+            raise Exception(f"SGP4 orbital calculation failed for {constellation}: {e}")
     
-    def _fallback_orbit_calculation(self, constellation: str, satellite_pool: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        軌道計算回退方案 - 保持原始數據結構
-        """
-        logger.warning(f"{constellation}: 使用軌道計算回退方案")
-        
-        # 為每顆衛星添加基礎軌道元數據
-        fallback_satellites = []
-        for satellite_data in satellite_pool:
-            enhanced_satellite = satellite_data.copy()
-            
-            # 從 TLE 數據提取軌道參數
-            if 'line2' in satellite_data:
-                try:
-                    line2 = satellite_data['line2']
-                    inclination = float(line2[8:16].strip())
-                    raan = float(line2[17:25].strip()) 
-                    eccentricity = float('0.' + line2[26:33].strip())
-                    arg_perigee = float(line2[34:42].strip())
-                    mean_anomaly = float(line2[43:51].strip())
-                    mean_motion = float(line2[52:63].strip())
-                    
-                    enhanced_satellite['orbit_parameters'] = {
-                        'inclination_deg': inclination,
-                        'raan_deg': raan,
-                        'eccentricity': eccentricity,
-                        'arg_perigee_deg': arg_perigee,
-                        'mean_anomaly_deg': mean_anomaly,
-                        'mean_motion_rev_per_day': mean_motion
-                    }
-                    
-                except Exception as parse_error:
-                    logger.debug(f"解析軌道參數失敗: {parse_error}")
-            
-            enhanced_satellite['orbit_calculation'] = "fallback_tle_parameters"
-            fallback_satellites.append(enhanced_satellite)
-        
-        return {
-            "satellite_count": len(fallback_satellites),
-            "orbit_calculation": "fallback_mode",
-            "satellites": fallback_satellites
-        }
+    # 🚫 _fallback_orbit_calculation 函數已刪除
+    # 根據 CLAUDE.md 核心原則，禁止使用簡化處理回退機制
+    # 必須使用完整 SGP4 算法，不允許任何回退到簡化計算
 
 # ======================== 階段二：3GPP Events & 信號品質計算系統 ========================
 
