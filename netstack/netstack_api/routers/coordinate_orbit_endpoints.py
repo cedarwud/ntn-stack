@@ -51,7 +51,7 @@ class Phase0DataLoader:
                     break
 
             if not data_found:
-                logger.warning("⚠️ Phase 0 預計算軌道數據不存在，使用模擬數據")
+                logger.error("❌ Phase 0 預計算軌道數據不存在，真實SGP4數據必須可用")
 
             # 載入數據摘要
             for base_path in possible_paths:
@@ -527,44 +527,13 @@ async def get_precomputed_orbit_data(
                 "total_processing_time_ms": 45,
             }
 
-    # 回退到模擬數據
-    logger.warning(f"Phase 0 數據不可用，使用模擬數據回應 {location} 請求")
-    return {
-        "location": {
-            "id": location,
-            "name": "國立臺北大學" if location == "ntpu" else location,
-            "latitude": 24.9434,
-            "longitude": 121.3709,
-            "altitude": 50.0,
-            "environment": environment,
-        },
-        "computation_metadata": {
-            "constellation": constellation,
-            "elevation_threshold": elevation_threshold or 10.0,
-            "use_layered": use_layered_thresholds,
-            "environment_factor": "1.1x",
-            "computation_date": datetime.now(timezone.utc).isoformat(),
-            "total_satellites_input": 4408,
-            "filtered_satellites_count": 15,
-            "filtering_efficiency": "99.7%",
-            "data_source": "simulated_fallback",
-        },
-        "filtered_satellites": [
-            {
-                "norad_id": 44713 + i,
-                "name": f"STARLINK-{1007 + i}",
-                "latitude": 25.0 + i * 2,
-                "longitude": 121.0 + i * 3,
-                "altitude": 550.0,
-                "elevation": 15.0 + i * 5,
-                "azimuth": 45.0 + i * 30,
-                "range_km": 1000.0 + i * 100,
-                "is_visible": True,
-            }
-            for i in range(15)
-        ],
-        "total_processing_time_ms": 45,
-    }
+    # 🚫 根據 CLAUDE.md 核心原則，禁止使用模擬數據
+    # 必須使用真實 Phase 0 預計算數據，如無數據則返回錯誤
+    logger.error(f"❌ Phase 0 數據不可用，拒絕使用模擬數據: {location}")
+    raise HTTPException(
+        status_code=503, 
+        detail=f"Phase 0 precomputed orbital data unavailable for location {location}. Real SGP4 data required."
+    )
 
 
 @router.get("/optimal-window/{location}")
