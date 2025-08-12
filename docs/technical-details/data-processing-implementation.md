@@ -1,7 +1,7 @@
 # 🔧 衛星數據預處理流程 - 技術實現詳細說明
 
-**版本**: 1.0.0  
-**更新日期**: 2025-08-11  
+**版本**: 2.0.0  
+**更新日期**: 2025-08-12  
 **適用於**: 開發參考、程式實現、系統維護  
 
 ## 🗂️ 程式實現架構
@@ -9,11 +9,11 @@
 ### 主要處理器位置
 ```bash
 # 核心控制器
-/netstack/docker/build_with_phase0_data_refactored.py
-├── Phase25DataPreprocessor.process_all_tle_data()           # 主流程控制
-├── Phase25DataPreprocessor._execute_phase1_orbit_calculation() # 階段一執行
-├── Phase25DataPreprocessor._execute_phase2_signal_enhancement() # 階段二執行
-└── Phase25DataPreprocessor._execute_phase3_intelligent_filtering() # 階段三執行
+/netstack/docker/satellite_orbit_preprocessor.py
+├── SatelliteOrbitPreprocessor.process_all_tle_data()           # 主流程控制
+├── SatelliteOrbitPreprocessor._execute_orbit_calculation() # 軌道計算執行
+├── SatelliteOrbitPreprocessor._execute_signal_enhancement() # 信號增強執行
+└── SatelliteOrbitPreprocessor._execute_intelligent_filtering() # 智能篩選執行
 
 # 支援組件
 /netstack/config/satellite_data_pool_builder.py             # 基礎篩選
@@ -36,7 +36,7 @@
 
 ### 核心處理邏輯
 ```python
-# 實際程式邏輯 (build_with_phase0_data_refactored.py:349-400)
+# 實際程式邏輯 (satellite_orbit_preprocessor.py:349-400)
 def load_tle_satellites(constellation, date_str):
     """載入指定星座的全部 TLE 數據"""
     # 1. 讀取完整 TLE 文件
@@ -51,11 +51,11 @@ def load_tle_satellites(constellation, date_str):
 
 ### 子組件詳細位置
 ```python
-# TLE掃描器 (/netstack/docker/build_with_phase0_data_refactored.py:258-336)
-Phase25DataPreprocessor.scan_tle_data()
+# TLE掃描器 (/netstack/docker/satellite_orbit_preprocessor.py:258-336)
+SatelliteOrbitPreprocessor.scan_tle_data()
 
-# 數據載入器 (/netstack/docker/build_with_phase0_data_refactored.py:238-256)
-Phase25DataPreprocessor._load_constellation_satellites()
+# 數據載入器 (/netstack/docker/satellite_orbit_preprocessor.py:238-256)
+SatelliteOrbitPreprocessor._load_constellation_satellites()
 
 # 衛星池建構器 (/netstack/config/satellite_data_pool_builder.py)
 SatelliteDataPoolBuilder.build_satellite_pools()
@@ -123,7 +123,7 @@ def check_a4_event(satellite_data):
 
 ### 篩選策略實現
 ```python
-# 動態篩選策略 (build_with_phase0_data.py:235-245)
+# 動態篩選策略 (satellite_orbit_preprocessor.py:235-245)
 if estimated_visible > max_display * 3:
     target_count = max_display  # 通常 15 顆
     strategy = "strict_filtering"
@@ -298,7 +298,7 @@ curl -s http://localhost:8080/api/v1/satellites/unified/status | jq
 docker exec netstack-api ls -la /app/data/
 
 # 5. 檢查各階段處理日誌
-docker logs netstack-api | grep -E "(Phase|階段)" | tail -20
+docker logs netstack-api | grep -E "階段" | tail -20
 ```
 
 ### Pure Cron 故障排除

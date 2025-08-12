@@ -1,0 +1,84 @@
+# Phase 1 重構 - 主配置文件
+
+# 🎯 核心配置
+phase1:
+  version: "1.0.0"
+  name: "Complete Satellite Orbit Calculation System"
+  algorithm: "complete_sgp4_algorithm"
+  
+# 📊 數據源配置
+data_sources:
+  tle_data_dir: "/netstack/tle_data"
+  output_dir: "/app/data"
+  backup_dir: "/app/backup"
+  
+# 🧮 計算參數
+computation:
+  # 軌跡參數
+  trajectory_duration_minutes: 120  # 2小時軌跡
+  time_step_seconds: 30             # 30秒間隔
+  
+  # 觀測點 (NTPU)
+  observer:
+    latitude: 24.9441667
+    longitude: 121.3713889
+    altitude_m: 50.0
+    name: "NTPU Observatory"
+  
+  # SGP4 配置
+  sgp4:
+    earth_gravity_model: "wgs72"
+    coordinate_systems: ["ECI", "TEME"]
+    precision_level: "meter_accuracy"
+  
+# 🛰️ 支援星座
+supported_constellations:
+  - name: "starlink"
+    enabled: true
+    priority: 1
+    expected_satellites: 8064
+    
+  - name: "oneweb" 
+    enabled: true
+    priority: 2
+    expected_satellites: 651
+
+# 📈 性能配置
+performance:
+  batch_calculation: true
+  parallel_processing: false  # 單執行緒保證結果一致性
+  memory_optimization: true
+  cache_enabled: true
+  
+# 🔧 輸出配置  
+output:
+  formats: ["json"]
+  include_metadata: true
+  include_statistics: true
+  compression: false
+  
+  # 文件命名
+  orbit_database_name: "phase1_orbit_database.json"
+  summary_name: "phase1_execution_summary.json"
+  
+# 🚨 錯誤處理
+error_handling:
+  continue_on_error: true
+  max_retry_attempts: 3
+  log_level: "INFO"
+  detailed_error_logging: true
+  
+# 🔗 Phase 2 接口
+phase2_interface:
+  interface_version: "1.0.0"
+  data_format: "phase1_orbit_database"
+  coordinate_systems: ["ECI", "TEME"]
+  recommended_usage: "3gpp_ntn_handover_analysis"
+  
+# 🎭 CLAUDE.md 合規性
+claude_md_compliance:
+  simplified_algorithms_forbidden: true
+  mock_data_forbidden: true
+  complete_sgp4_required: true
+  real_data_sources_only: true
+  algorithm_verification_required: true
