@@ -1,24 +1,19 @@
 {
-  "validation_timestamp": "2025-08-12T02:33:53.888256",
-  "phase1_refactor_status": "validation_complete",
-  "validation_results": {
-    "directory_structure": "✅ PASS",
-    "sgp4_availability": "✅ PASS",
-    "module_imports": "✅ PASS",
-    "algorithm_compliance": "✅ PASS",
-    "data_sources": "✅ PASS",
-    "phase2_interface": "✅ PASS"
-  },
-  "summary": {
-    "total_checks": 6,
-    "passed_checks": 6,
-    "failed_checks": 0,
-    "overall_status": "READY_FOR_INTEGRATION"
-  },
-  "next_steps": [
-    "執行完整的 Phase 1 處理流程測試",
-    "驗證與現有系統的整合",
-    "部署 Phase 1 重構版本",
-    "更新相關文檔和 API 說明"
-  ]
+  "validation_timestamp": "2025-08-12T08:22:48.664823+00:00",
+  "tests_passed": 26,
+  "tests_failed": 1,
+  "errors": [
+    "協調器測試失敗: 'Phase1Coordinator' object has no attribute 'get_status'"
+  ],
+  "warnings": [
+    "發現可疑關鍵字 '簡化' 在 /home/sat/ntn-stack/phase1_refactor/validate_phase1_refactor.py",
+    "發現可能的模擬數據 'random.normal' 在 /home/sat/ntn-stack/phase1_refactor/validate_phase1_refactor.py",
+    "CLAUDE.md 合規性部分通過 (2/4)"
+  ],
+  "compliance_checks": {
+    "no_simplified_algorithms": false,
+    "real_data_sources": true,
+    "complete_sgp4_usage": true,
+    "no_mock_data": false
+  }
 }
