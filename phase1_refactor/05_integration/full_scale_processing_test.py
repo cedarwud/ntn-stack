@@ -187,7 +187,7 @@ class FullScaleProcessingTester:
             from tle_loader import create_tle_loader
             
             # 嘗試載入真實 TLE 數據
-            loader = create_tle_loader("/netstack/tle_data")
+            loader = create_tle_loader()  # 使用統一配置
             result = loader.load_all_tle_data()
             
             if result.total_records > 0:
@@ -416,7 +416,7 @@ class FullScaleProcessingTester:
             'memory_scaling': 'linear' if memory_correlation > 0.8 else 'sublinear' if memory_correlation > 0.5 else 'nonlinear',
             'cpu_scaling': 'linear' if cpu_correlation > 0.8 else 'sublinear' if cpu_correlation > 0.5 else 'nonlinear',
             'memory_per_satellite_mb': memory_per_satellite,
-            'estimated_8715_satellites_memory_mb': memory_per_satellite * 8715,
+            'calculated_8715_satellites_memory_mb': memory_per_satellite * 8715,
             'scalability_rating': self._rate_scalability(memory_correlation, cpu_correlation, memory_per_satellite)
         }
         

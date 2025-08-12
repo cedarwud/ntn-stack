@@ -117,7 +117,7 @@ class OrbitAccuracyVerifier:
             from tle_loader import create_tle_loader
             
             # 使用實際 TLE 數據目錄
-            loader = create_tle_loader("/netstack/tle_data")
+            loader = create_tle_loader()  # 使用統一配置
             result = loader.load_all_tle_data()
             
             if result.total_records == 0:

@@ -1,0 +1,57 @@
+# Phase 1 增強 NetStack Dockerfile
+FROM python:3.11-slim
+
+# 設置工作目錄
+WORKDIR /app
+
+# 安裝系統依賴
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    wget \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# 複製 requirements 文件
+COPY requirements.txt /app/requirements.txt
+COPY phase1_refactor/requirements.txt /app/phase1_requirements.txt
+
+# 安裝 Python 依賴
+RUN pip install --no-cache-dir --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r phase1_requirements.txt
+
+# 複製應用程式代碼
+COPY . /app/
+
+# 設置 Python 路徑
+ENV PYTHONPATH="${PYTHONPATH}:/app:/app/phase1_refactor:/app/netstack"
+
+# Phase 1 特定環境變量
+ENV PHASE1_TLE_DATA_PATH="/netstack/tle_data"
+ENV PHASE1_OUTPUT_PATH="/app/data"
+ENV PHASE1_LOG_LEVEL="INFO"
+ENV PHASE1_CACHE_SIZE="2000"
+ENV PHASE1_API_TIMEOUT="30"
+
+# 創建必要目錄
+RUN mkdir -p /netstack/tle_data/starlink/tle && \
+    mkdir -p /netstack/tle_data/oneweb/tle && \
+    mkdir -p /app/data && \
+    mkdir -p /app/logs
+
+# 設置權限
+RUN chmod -R 755 /app/phase1_refactor && \
+    chmod +x /app/phase1_refactor/deployment/*.sh
+
+# 健康檢查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/health || \
+        python -c "import sys; sys.path.append('/app/phase1_refactor/04_output_interface'); from phase1_api_enhanced import health_check; health_check()" || exit 1
+
+# 暴露端口
+EXPOSE 8080 8001
+
+# 啟動命令
+CMD ["python", "-m", "uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
