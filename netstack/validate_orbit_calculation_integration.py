@@ -131,10 +131,10 @@ def test_phase1_execution():
     try:
         # 導入階段一處理器
         sys.path.append('/home/sat/ntn-stack/netstack/docker')
-        from build_with_phase0_data_refactored import Phase25DataPreprocessor
+        from satellite_orbit_preprocessor import SatelliteOrbitPreprocessor
         
         # 創建處理器實例
-        preprocessor = Phase25DataPreprocessor(
+        preprocessor = SatelliteOrbitPreprocessor(
             tle_data_dir='/home/sat/ntn-stack/netstack/tle_data',
             output_dir='/tmp/phase1_test_output'
         )
