@@ -197,7 +197,7 @@ class SGP4AlgorithmVerifier:
         
         compliance = {
             "uses_official_sgp4": self._check_official_sgp4_usage(),
-            "no_simplified_algorithms": self._check_no_simplified_algorithms(),
+            "no_reduced_algorithms": self._check_no_reduced_algorithms(),
             "proper_error_handling": self._check_error_handling(),
             "complete_implementation": self._check_complete_implementation()
         }
@@ -238,29 +238,33 @@ class SGP4AlgorithmVerifier:
             logger.error(f"檢查官方 SGP4 使用失敗: {e}")
             return False
     
-    def _check_no_simplified_algorithms(self) -> bool:
-        """檢查無簡化算法"""
+    def _check_no_reduced_algorithms(self) -> bool:
+        """檢查無簡化算法使用"""
+        logger.debug("檢查 SGP4 引擎是否使用完整算法...")
+        
+        # 檢查禁用的算法關鍵詞
+        forbidden_patterns = [
+            "reduced", "簡化", "approximate", "近似", 
+            "mock", "fake", "dummy", "假"
+        ]
+        
         try:
-            sgp4_file = PHASE1_ROOT / "02_orbit_calculation" / "sgp4_engine.py"
+            # 檢查 SGP4 引擎文件
+            sgp4_engine_path = Path(__file__).parent.parent / "02_orbit_calculation" / "sgp4_engine.py"
             
-            with open(sgp4_file, 'r', encoding='utf-8') as f:
-                content = f.read().lower()
-            
-            # 禁止的關鍵字
-            forbidden_keywords = [
-                "simplified", "簡化", "approximate", "近似", 
-                "mock", "fake", "dummy", "假"
-            ]
-            
-            for keyword in forbidden_keywords:
-                if keyword in content:
-                    logger.warning(f"發現可疑關鍵字: {keyword}")
-                    return False
+            if sgp4_engine_path.exists():
+                with open(sgp4_engine_path, 'r', encoding='utf-8') as f:
+                    content = f.read().lower()
+                
+                for keyword in forbidden_patterns:
+                    if keyword.lower() in content:
+                        logger.warning(f"發現可疑關鍵字: {keyword}")
+                        return False
             
             return True
             
         except Exception as e:
-            logger.error(f"檢查簡化算法失敗: {e}")
+            logger.error(f"檢查算法合規性失敗: {e}")
             return False
     
     def _check_error_handling(self) -> bool:

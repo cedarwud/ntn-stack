@@ -37,13 +37,32 @@ logger = logging.getLogger(__name__)
 class SGP4Phase1DataProvider(Phase1DataProvider):
     """基於 SGP4 的 Phase 1 數據提供者"""
     
-    def __init__(self, tle_data_path: str = "/netstack/tle_data"):
+    def __init__(self, tle_data_path: str = ""):
         """
         初始化數據提供者
         
         Args:
-            tle_data_path: TLE 數據路徑
+            tle_data_path: TLE 數據路徑，為空時使用統一配置
         """
+        if not tle_data_path:
+            # 使用統一配置載入器
+            try:
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                config_dir = os.path.join(os.path.dirname(current_dir), 'config')
+                if config_dir not in sys.path:
+                    sys.path.insert(0, config_dir)
+                
+                from config_loader import get_tle_data_path
+                tle_data_path = get_tle_data_path()
+                logger.info("✅ 數據提供者使用統一配置載入器")
+            except Exception as e:
+                logger.warning(f"⚠️ 統一配置載入失敗，使用預設路徑: {e}")
+                # 回退到智能路徑解析
+                from pathlib import Path
+                current_file = Path(__file__)
+                project_root = current_file.parent.parent.parent
+                tle_data_path = str(project_root / "netstack" / "tle_data")
+                
         self.tle_data_path = tle_data_path
         self.tle_loader = None
         self.sgp4_engine = None
@@ -419,7 +438,7 @@ class SGP4Phase1DataProvider(Phase1DataProvider):
             raise
 
 # 便利函數
-def create_sgp4_data_provider(tle_data_path: str = "/netstack/tle_data") -> SGP4Phase1DataProvider:
+def create_sgp4_data_provider(tle_data_path: str = "") -> SGP4Phase1DataProvider:
     """創建 SGP4 數據提供者"""
     return SGP4Phase1DataProvider(tle_data_path)
 

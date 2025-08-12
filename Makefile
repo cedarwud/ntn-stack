@@ -153,7 +153,7 @@ netstack-start-smart: ## 啟動 NetStack 服務 (智能等待健康檢查)
 	@echo "$(YELLOW)⏳ 等待 NetStack API 健康檢查通過...$(RESET)"
 	@timeout=180; \
 	while [ $$timeout -gt 0 ]; do \
-		if curl -s -f http://localhost:8080/health >/dev/null 2>&1; then \
+		if curl -s -f $(NETSTACK_URL)/health >/dev/null 2>&1; then \
 			echo "$(GREEN)✅ NetStack API 健康檢查通過 ($$((180-timeout)) 秒)$(RESET)"; \
 			break; \
 		fi; \
@@ -178,7 +178,7 @@ netstack-start-optimized: ## 啟動 NetStack 服務 (Pure Cron 驅動模式 - �
 	@echo "$(YELLOW)⏳ 等待 NetStack API 健康檢查通過...$(RESET)"
 	@timeout=60; \
 	while [ $$timeout -gt 0 ]; do \
-		if curl -s -f http://localhost:8080/health >/dev/null 2>&1; then \
+		if curl -s -f $(NETSTACK_URL)/health >/dev/null 2>&1; then \
 			echo "$(GREEN)✅ NetStack API 健康檢查通過 ($$((60-timeout)) 秒)$(RESET)"; \
 			break; \
 		fi; \

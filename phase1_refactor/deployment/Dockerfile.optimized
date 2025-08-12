@@ -1,0 +1,64 @@
+# Phase 1 優化 Dockerfile (多階段建構)
+
+# 第一階段：建構環境
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+# 安裝建構依賴
+RUN apt-get update && apt-get install -y \
+    gcc g++ build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# 複製並安裝 Python 依賴
+COPY requirements.txt phase1_refactor/requirements.txt ./
+RUN pip install --user --no-cache-dir -r requirements.txt && \
+    pip install --user --no-cache-dir -r phase1_refactor/requirements.txt
+
+# 第二階段：運行環境
+FROM python:3.11-slim as runtime
+
+WORKDIR /app
+
+# 只安裝運行時依賴
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# 複製已安裝的 Python 包
+COPY --from=builder /root/.local /root/.local
+
+# 複製應用程式代碼
+COPY . /app/
+
+# 設置環境變量
+ENV PYTHONPATH="${PYTHONPATH}:/app:/app/phase1_refactor:/app/netstack"
+ENV PATH="/root/.local/bin:$PATH"
+
+# Phase 1 優化配置
+ENV PHASE1_TLE_DATA_PATH="/netstack/tle_data"
+ENV PHASE1_OUTPUT_PATH="/app/data"
+ENV PHASE1_LOG_LEVEL="INFO"
+ENV PHASE1_CACHE_SIZE="5000"
+ENV PHASE1_API_TIMEOUT="30"
+ENV PHASE1_WORKERS="4"
+
+# 創建必要目錄並設置權限
+RUN mkdir -p /netstack/tle_data /app/data /app/logs && \
+    adduser --disabled-password --gecos '' appuser && \
+    chown -R appuser:appuser /app /netstack && \
+    chmod -R 755 /app/phase1_refactor/deployment
+
+# 切換到非 root 用戶
+USER appuser
+
+# 健康檢查優化
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# 暴露端口
+EXPOSE 8080
+
+# 使用 Gunicorn 啟動（生產級 WSGI 服務器）
+CMD ["gunicorn", "netstack_api.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8080"]

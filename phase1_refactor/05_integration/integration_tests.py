@@ -55,11 +55,16 @@ class Phase1IntegrationTest:
         logger.info("🔍 測試 TLE 載入器...")
         
         try:
-            # 檢查 TLE 數據目錄
-            tle_dirs = [
-                "/netstack/tle_data",
-                "/home/sat/ntn-stack/netstack/tle_data"
-            ]
+            # 使用統一配置載入器獲取 TLE 目錄
+            try:
+                from config_loader import get_tle_data_path
+                tle_path = get_tle_data_path()
+                tle_dirs = [tle_path] if tle_path else []
+            except:
+                # 回退到預設路徑
+                tle_dirs = [
+                    "/home/sat/ntn-stack/netstack/tle_data"
+                ]
             
             tle_dir = None
             for dir_path in tle_dirs:
@@ -150,11 +155,16 @@ class Phase1IntegrationTest:
         logger.info("🔍 測試 Phase 1 協調器...")
         
         try:
-            # 檢查 TLE 數據目錄
-            tle_dirs = [
-                "/netstack/tle_data",
-                "/home/sat/ntn-stack/netstack/tle_data"
-            ]
+            # 使用統一配置載入器獲取 TLE 目錄
+            try:
+                from config_loader import get_tle_data_path
+                tle_path = get_tle_data_path()
+                tle_dirs = [tle_path] if tle_path else []
+            except:
+                # 回退到預設路徑
+                tle_dirs = [
+                    "/home/sat/ntn-stack/netstack/tle_data"
+                ]
             
             tle_dir = None
             for dir_path in tle_dirs:

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: netstack-phase1-config
+data:
+  PHASE1_LOG_LEVEL: "INFO"
+  PHASE1_CACHE_SIZE: "5000"
+  PHASE1_API_TIMEOUT: "30"

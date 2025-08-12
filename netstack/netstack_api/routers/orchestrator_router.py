@@ -424,11 +424,15 @@ async def control_training_simple(request: TrainingRequest):
         # 調用 RL 監控系統的訓練啟動端點
         try:
             import httpx
+            from app.core.config_manager import config
+            
+            # 獲取API基礎URL配置
+            api_base_url = f"http://{config.get('server.host', 'localhost')}:{config.get('server.port', 8080)}"
             
             # 首先檢查是否已有活躍的訓練會話
             async with httpx.AsyncClient() as client:
                 # 檢查現有會話
-                sessions_response = await client.get("http://localhost:8080/api/v1/rl/training/sessions")
+                sessions_response = await client.get(f"{api_base_url}/api/v1/rl/training/sessions")
                 if sessions_response.status_code == 200:
                     sessions = sessions_response.json()
                     # 檢查是否已有該算法的活躍會話
@@ -445,7 +449,7 @@ async def control_training_simple(request: TrainingRequest):
                 # 如果沒有活躍會話，啟動新的訓練
                 episodes = 1000
                 response = await client.post(
-                    f"http://localhost:8080/api/v1/rl/training/start/{request.algorithm}?episodes={episodes}"
+                    f"{api_base_url}/api/v1/rl/training/start/{request.algorithm}?episodes={episodes}"
                 )
                 if response.status_code == 200:
                     result = response.json()
