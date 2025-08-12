@@ -31,11 +31,11 @@ from .frontend_data_formatter import (
     FrontendDataFormatter,
     generate_optimal_timeframe_for_coordinates
 )
-from .phase0_integration import Phase0Integration
+from .starlink_data_downloader import StarlinkDataDownloader
 
 __all__ = [
     # 核心類
-    "Phase0Integration",
+    "StarlinkDataDownloader",
     "StarlinkTLEDownloader", 
     "SatellitePrefilter",
     "OptimalTimeframeAnalyzer",

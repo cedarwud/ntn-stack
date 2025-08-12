@@ -88,7 +88,7 @@ def get_intelligent_selector():
             _intelligent_selector = None
     return _intelligent_selector
 
-def get_phase0_satellite_data(constellation: str, count: int = 200) -> List[Dict]:
+def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List[Dict]:
     """
     從Phase0預處理系統獲取實際衛星數據
     使用150+50顆真實衛星取代舊的15顆模擬數據 (基於SGP4全量計算優化配置)
@@ -262,7 +262,7 @@ async def get_visible_satellites(
         
         # 1. 獲取完整衛星星座數據 (150+50顆優化配置)
         target_pool_size = 651 if constellation.lower() == 'starlink' else 301
-        all_satellites = get_phase0_satellite_data(constellation, target_pool_size)  # 使用Phase0真實數據
+        all_satellites = get_precomputed_satellite_data(constellation, target_pool_size)  # 使用預計算真實數據
         
         logger.info(f"📊 完整星座數據: {len(all_satellites)} 顆 {constellation} 衛星")
         

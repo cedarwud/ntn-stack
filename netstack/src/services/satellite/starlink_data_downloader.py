@@ -10,7 +10,7 @@ Phase 0 集成模組 - Starlink 完整數據下載與換手篩選工具
 4. 前端數據源格式化
 
 使用方法:
-python phase0_integration.py --coordinates 24.9441667,121.3713889 --output results.json
+python starlink_data_downloader.py --coordinates 24.9441667,121.3713889 --output results.json
 """
 
 import asyncio
@@ -36,8 +36,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class Phase0Integration:
-    """Phase 0 完整集成系統"""
+class StarlinkDataDownloader:
+    """Starlink 數據下載與分析工具"""
     
     def __init__(self, cache_dir: str = "data/phase0_cache"):
         """
