@@ -25,7 +25,7 @@ sys.path.insert(0, '/app')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class Phase25DataPreprocessor:
+class SatelliteOrbitPreprocessor:
     """Phase 2.5 數據預處理器 - 重構版
     
     重構改進：
