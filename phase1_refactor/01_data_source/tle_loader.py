@@ -14,6 +14,7 @@ Phase 1 重構 - TLE 數據載入器
 """
 
 import os
+import sys
 import json
 import logging
 from datetime import datetime
@@ -53,13 +54,31 @@ class TLELoader:
     確保數據品質符合 SGP4 計算要求
     """
     
-    def __init__(self, tle_data_dir: str = "/netstack/tle_data"):
+    def __init__(self, tle_data_dir: str = ""):
         """
         初始化 TLE 載入器
         
         Args:
-            tle_data_dir: TLE 數據根目錄
+            tle_data_dir: TLE 數據根目錄，為空時使用統一配置
         """
+        if not tle_data_dir:
+            # 使用統一配置載入器
+            try:
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                config_dir = os.path.join(os.path.dirname(current_dir), 'config')
+                if config_dir not in sys.path:
+                    sys.path.insert(0, config_dir)
+                
+                from config_loader import get_tle_data_path
+                tle_data_dir = get_tle_data_path()
+                logger.info("✅ 使用統一配置載入器獲取 TLE 路徑")
+            except Exception as e:
+                logger.warning(f"⚠️ 統一配置載入失敗，使用預設路徑: {e}")
+                # 回退到智能路徑解析
+                current_file = Path(__file__)
+                project_root = current_file.parent.parent.parent
+                tle_data_dir = str(project_root / "netstack" / "tle_data")
+        
         self.tle_data_dir = Path(tle_data_dir)
         self.supported_constellations = ["starlink", "oneweb"]
         
@@ -309,7 +328,7 @@ class TLELoader:
         logger.info(f"TLE 載入摘要已保存: {output_path}")
 
 # 便利函數
-def create_tle_loader(tle_data_dir: str = "/netstack/tle_data") -> TLELoader:
+def create_tle_loader(tle_data_dir: str = "") -> TLELoader:
     """創建 TLE 載入器實例"""
     return TLELoader(tle_data_dir)
 

@@ -1,0 +1,57 @@
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    - name: Build Phase 1 image
+      run: docker build -f phase1_refactor/deployment/Dockerfile.phase1 -t netstack-phase1:latest
+        .
+    - name: Test Docker image
+      run: docker run --rm netstack-phase1:latest python -c 'import sys; print(f"Python
+        {sys.version}"); from sgp4.api import Satrec; print("SGP4 OK")'
+  deploy:
+    environment: production
+    if: github.ref == 'refs/heads/main'
+    needs:
+    - test
+    - build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy to staging
+      run: echo 'Deploy to staging environment'
+    - name: Run deployment verification
+      run: echo 'Verify deployment'
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: pip install -r phase1_refactor/requirements.txt
+    - name: Run Phase 1 tests
+      run: cd phase1_refactor && python validate_phase1_refactor.py
+    - name: Run integration tests
+      run: cd phase1_refactor/05_integration && python end_to_end_tests.py
+name: Phase 1 Enhanced Deployment
+'on':
+  pull_request:
+    branches:
+    - main
+    paths:
+    - phase1_refactor/**
+    - netstack/**
+  push:
+    branches:
+    - main
+    paths:
+    - phase1_refactor/**
+    - netstack/**

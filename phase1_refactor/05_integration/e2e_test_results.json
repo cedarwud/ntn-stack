@@ -1,0 +1,154 @@
+{
+  "test_metadata": {
+    "export_timestamp": "2025-08-12T10:35:46.864309+00:00",
+    "api_base_url": "http://localhost:8001",
+    "total_scenarios": 5
+  },
+  "test_scenarios": [
+    {
+      "scenario_name": "基礎數據流測試",
+      "description": "從 TLE 載入到 API 響應的基本數據流",
+      "test_steps": [
+        "載入 TLE 數據",
+        "創建 SGP4 衛星對象",
+        "執行軌道計算",
+        "通過標準接口查詢",
+        "驗證 API 響應"
+      ],
+      "expected_outcomes": {
+        "tle_loaded": true,
+        "satellites_created": true,
+        "calculations_successful": true,
+        "api_response_valid": true,
+        "data_accuracy": true
+      },
+      "performance_requirements": {
+        "tle_load_time": 10.0,
+        "satellite_creation_time": 30.0,
+        "calculation_time": 5.0,
+        "api_response_time": 0.5
+      },
+      "data_requirements": {
+        "min_satellites": 1000,
+        "min_constellations": 2,
+        "position_accuracy_km": 0.1,
+        "velocity_accuracy_km_per_s": 1e-05
+      }
+    },
+    {
+      "scenario_name": "高負載併發測試",
+      "description": "多用戶併發訪問的高負載測試",
+      "test_steps": [
+        "啟動多個併發客戶端",
+        "執行大量 API 請求",
+        "監控系統性能",
+        "驗證響應準確性",
+        "檢查系統穩定性"
+      ],
+      "expected_outcomes": {
+        "all_requests_successful": true,
+        "response_times_acceptable": true,
+        "data_consistency": true,
+        "no_memory_leaks": true,
+        "system_stable": true
+      },
+      "performance_requirements": {
+        "concurrent_users": 20,
+        "requests_per_user": 10,
+        "max_response_time": 2.0,
+        "success_rate": 0.95,
+        "max_memory_increase": 200
+      },
+      "data_requirements": {
+        "query_satellites": 100,
+        "time_range_hours": 2,
+        "data_consistency_check": true
+      }
+    },
+    {
+      "scenario_name": "大規模數據處理測試",
+      "description": "全量 8,715 顆衛星的大規模處理測試",
+      "test_steps": [
+        "載入全量 TLE 數據",
+        "創建所有衛星對象",
+        "執行批量軌道計算",
+        "測試大量數據查詢",
+        "驗證系統擴展性"
+      ],
+      "expected_outcomes": {
+        "full_data_loaded": true,
+        "all_satellites_active": true,
+        "batch_calculations_successful": true,
+        "large_queries_handled": true,
+        "scalability_maintained": true
+      },
+      "performance_requirements": {
+        "total_satellites": 8715,
+        "calculation_rate": 1000,
+        "large_query_time": 5.0,
+        "memory_efficiency": 0.5
+      },
+      "data_requirements": {
+        "starlink_satellites": 8000,
+        "oneweb_satellites": 600,
+        "calculation_accuracy": 0.99
+      }
+    },
+    {
+      "scenario_name": "API 兼容性測試",
+      "description": "新舊 API 接口的兼容性和一致性測試",
+      "test_steps": [
+        "測試新標準 API",
+        "測試兼容 API",
+        "對比響應數據",
+        "驗證格式一致性",
+        "檢查功能完整性"
+      ],
+      "expected_outcomes": {
+        "new_api_functional": true,
+        "legacy_api_functional": true,
+        "data_consistency": true,
+        "format_compatibility": true,
+        "feature_parity": true
+      },
+      "performance_requirements": {
+        "api_response_time": 1.0,
+        "data_match_rate": 0.99
+      },
+      "data_requirements": {
+        "test_constellations": [
+          "starlink",
+          "oneweb"
+        ],
+        "sample_size": 50
+      }
+    },
+    {
+      "scenario_name": "錯誤恢復測試",
+      "description": "系統錯誤處理和恢復能力測試",
+      "test_steps": [
+        "模擬 TLE 數據錯誤",
+        "測試無效請求處理",
+        "模擬系統過載",
+        "測試錯誤恢復",
+        "驗證系統魯棒性"
+      ],
+      "expected_outcomes": {
+        "error_handling_correct": true,
+        "graceful_degradation": true,
+        "recovery_successful": true,
+        "no_data_corruption": true,
+        "system_resilient": true
+      },
+      "performance_requirements": {
+        "error_response_time": 1.0,
+        "recovery_time": 30.0
+      },
+      "data_requirements": {
+        "error_scenarios": 5,
+        "recovery_validation": true
+      }
+    }
+  ],
+  "test_results": []
+}

@@ -14,6 +14,7 @@ Phase 1 重構 - API 輸出接口
 """
 
 import os
+import sys
 import json
 import logging
 from datetime import datetime, timezone
@@ -37,13 +38,32 @@ class Phase1APIInterface:
     支援多種查詢方式和數據格式
     """
     
-    def __init__(self, data_dir: str = "/app/data"):
+    def __init__(self, data_dir: str = ""):
         """
         初始化 API 接口
         
         Args:
-            data_dir: Phase 1 數據輸出目錄
+            data_dir: Phase 1 數據輸出目錄，為空時使用統一配置
         """
+        if not data_dir:
+            # 使用統一配置載入器
+            try:
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                config_dir = os.path.join(os.path.dirname(current_dir), 'config')
+                if config_dir not in sys.path:
+                    sys.path.insert(0, config_dir)
+                
+                from config_loader import get_output_data_path
+                data_dir = get_output_data_path()
+                logger.info("✅ API 接口使用統一配置載入器")
+            except Exception as e:
+                logger.warning(f"⚠️ 統一配置載入失敗，使用預設路徑: {e}")
+                # 回退到智能路徑解析
+                from pathlib import Path
+                current_file = Path(__file__)
+                project_root = current_file.parent.parent.parent
+                data_dir = str(project_root / "netstack" / "data")
+        
         self.data_dir = Path(data_dir)
         self.orbit_database = None
         self.summary_data = None

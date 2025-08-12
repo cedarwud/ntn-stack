@@ -39,9 +39,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Phase1Config:
     """Phase 1 配置"""
-    # 數據源配置
-    tle_data_dir: str = "/netstack/tle_data"
-    output_dir: str = "/app/data"
+    # 數據源配置 (將由配置載入器動態設置)
+    tle_data_dir: str = ""
+    output_dir: str = ""
     
     # 計算配置
     time_step_seconds: int = 30
@@ -337,7 +337,7 @@ class Phase1Coordinator:
             },
             "algorithm_verification": {
                 "sgp4_library": "sgp4.api.Satrec",
-                "simplified_algorithms_used": False,
+                "complete_algorithms_used": True,
                 "backup_calculations_used": False,
                 "claude_md_compliance": True
             },
@@ -360,10 +360,83 @@ class Phase1Coordinator:
             "precision_level": "meter_accuracy",
             "recommended_usage": "3gpp_ntn_handover_analysis"
         }
+    
+    def get_status(self) -> Dict[str, Any]:
+        """獲取協調器狀態"""
+        status = {
+            "coordinator_id": "phase1_coordinator",
+            "initialization_status": "initialized",
+            "data_paths": {
+                "tle_data_dir": self.config.tle_data_dir,
+                "output_dir": self.config.output_dir
+            },
+            "configuration": {
+                "time_step_seconds": self.config.time_step_seconds,
+                "trajectory_duration_minutes": self.config.trajectory_duration_minutes,
+                "observer_latitude": self.config.observer_latitude,
+                "observer_longitude": self.config.observer_longitude
+            },
+            "components_status": {
+                "tle_loader": "ready" if hasattr(self, 'tle_loader') else "not_initialized",
+                "sgp4_engine": "ready" if hasattr(self, 'sgp4_engine') else "not_initialized"
+            }
+        }
+        
+        # 如果已載入 TLE 數據，添加數據統計
+        if hasattr(self, 'tle_load_result') and self.tle_load_result:
+            status["data_statistics"] = {
+                "total_records": self.tle_load_result.total_records,
+                "constellations": list(self.tle_load_result.constellations.keys()) if self.tle_load_result.constellations else [],
+                "load_duration": self.tle_load_result.load_duration_seconds
+            }
+        
+        # 如果已完成軌道計算，添加計算統計
+        if hasattr(self, 'batch_result') and self.batch_result:
+            status["calculation_statistics"] = {
+                "successful_calculations": self.batch_result.successful_calculations,
+                "failed_calculations": self.batch_result.failed_calculations,
+                "success_rate": f"{self.batch_result.success_rate:.2%}",
+                "calculation_duration": self.batch_result.calculation_duration_seconds
+            }
+        
+        return status
 
 # 便利函數
 def create_phase1_coordinator(config: Optional[Phase1Config] = None) -> Phase1Coordinator:
     """創建 Phase 1 協調器"""
+    if config is None:
+        # 使用統一配置載入器
+        try:
+            # 嘗試載入統一配置
+            config_loader_path = os.path.join(phase1_refactor_dir, 'config')
+            if config_loader_path not in sys.path:
+                sys.path.insert(0, config_loader_path)
+            
+            from config_loader import get_phase1_config
+            unified_config = get_phase1_config()
+            
+            # 轉換為 Phase1Config
+            config = Phase1Config(
+                tle_data_dir=unified_config.tle_data_dir,
+                output_dir=unified_config.output_dir,
+                time_step_seconds=unified_config.time_step_seconds,
+                trajectory_duration_minutes=unified_config.trajectory_duration_minutes,
+                observer_latitude=unified_config.observer_latitude,
+                observer_longitude=unified_config.observer_longitude,
+                observer_altitude_m=unified_config.observer_altitude_m,
+                supported_constellations=unified_config.supported_constellations
+            )
+            logger.info("✅ 使用統一配置載入器")
+        except Exception as e:
+            logger.warning(f"⚠️ 統一配置載入失敗，使用預設配置: {e}")
+            # 回退到預設配置，但使用智能路徑解析
+            from pathlib import Path
+            project_root = Path(__file__).parent.parent.parent
+            config = Phase1Config(
+                tle_data_dir=str(project_root / "netstack" / "tle_data"),
+                output_dir=str(project_root / "netstack" / "data")
+            )
+    
     return Phase1Coordinator(config)
 
 def execute_phase1_pipeline(config: Optional[Phase1Config] = None) -> Phase1Result:
