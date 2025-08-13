@@ -72,8 +72,7 @@ RUN echo "🗑️ 清理舊數據檔案，確保重新生成..." && \
           /app/data/.build_timestamp \
           /app/data/.data_ready && \
     echo "🚀 三階段數據處理：執行預計算..." && \
-    (python src/stages/stage1_tle_processor.py && \
-     python src/stages/stage2_filter_processor.py && \
+    (python -c "import sys; sys.path.insert(0, '/app'); sys.path.insert(0, '/app/src'); from src.stages.stage1_tle_processor import Stage1TLEProcessor; from src.stages.stage2_filter_processor import Stage2FilterProcessor; print('Building: Stage 1 with debug_mode=True'); stage1_processor = Stage1TLEProcessor(debug_mode=True); stage1_data = stage1_processor.process_stage1(); print(f'Stage 1 completed: {stage1_data[\"metadata\"][\"total_satellites\"]} satellites'); print('Building: Stage 2 reading from JSON file'); stage2_processor = Stage2FilterProcessor(); stage2_data = stage2_processor.process_stage2(); print('Stage 2 completed')" && \
      python src/stages/stage3_signal_processor.py) || echo "⚠️ 建構時預計算未完成，將在運行時處理" && \
     if [ -f /app/data/enhanced_satellite_data.json ]; then \
         echo "$(date -Iseconds)" > /app/data/.build_timestamp && \

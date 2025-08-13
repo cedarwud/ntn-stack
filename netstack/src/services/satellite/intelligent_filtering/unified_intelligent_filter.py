@@ -163,20 +163,62 @@ class UnifiedIntelligentFilter:
                     satellite_data["satellite_id"] = satellite_id
                     satellite_data["constellation"] = constellation_name
                     
+                    # 提取並處理軌道參數
+                    orbit_result = satellite_data.get("orbit_data", {})
+                    tle_data = satellite_data.get("tle_data", {})
+                    
+                    # 從TLE中解析軌道參數
+                    if tle_data and "line2" in tle_data:
+                        try:
+                            line2 = tle_data["line2"]
+                            # 從TLE Line 2提取參數
+                            inclination = float(line2[8:16].strip())  # 傾角 (度)
+                            raan = float(line2[17:25].strip())        # 升交點赤經 (度)
+                            eccentricity = float("0." + line2[26:33].strip())  # 離心率
+                            arg_perigee = float(line2[34:42].strip()) # 近地點幅角 (度)
+                            mean_anomaly = float(line2[43:51].strip()) # 平近點角 (度)
+                            mean_motion = float(line2[52:63].strip())  # 平運動 (每日轉數)
+                            
+                            # 計算軌道高度 (簡化計算)
+                            # 使用平運動計算半長軸
+                            mu = 398600.4418  # 地球引力參數 km³/s²
+                            n = mean_motion * 2 * 3.14159265359 / 86400  # 轉換為 rad/s
+                            semi_major_axis = (mu / (n * n)) ** (1/3)    # km
+                            altitude = semi_major_axis - 6371.0         # 地球半徑 6371km
+                            
+                            # 更新orbit_data，保留現有數據並添加TLE參數
+                            satellite_data["orbit_data"] = {
+                                **orbit_result,  # 保留SGP4計算結果
+                                "altitude": altitude,
+                                "inclination": inclination,
+                                "raan": raan,
+                                "eccentricity": eccentricity,
+                                "arg_perigee": arg_perigee,
+                                "mean_anomaly": mean_anomaly,
+                                "mean_motion": mean_motion,
+                                "semi_major_axis": semi_major_axis
+                            }
+                        except (ValueError, IndexError) as e:
+                            logger.warning(f"無法解析衛星 {satellite_id} 的TLE參數: {e}")
+                            # 保持原有orbit_data，但設置默認值避免篩選失敗
+                            satellite_data["orbit_data"] = {
+                                **orbit_result,
+                                "altitude": 550.0,  # 預設Starlink高度
+                                "inclination": 53.0  # 預設Starlink傾角
+                            }
+                    
                     # 如果有positions數據，提取第一個位置作為代表，但保留原有的orbit_data
                     positions = satellite_data.get("positions", [])
                     if positions:
                         first_pos = positions[0]
-                        # 保留現有的orbit_data，只添加位置信息
-                        existing_orbit_data = satellite_data.get("orbit_data", {})
-                        satellite_data["orbit_data"] = {
-                            **existing_orbit_data,  # 保留原有軌道參數
+                        # 添加位置信息到orbit_data，但不覆蓋TLE參數
+                        satellite_data["orbit_data"].update({
                             "position": first_pos.get("position_eci", {}),
                             "velocity": first_pos.get("velocity_eci", {}),
                             "elevation_deg": first_pos.get("elevation_deg", 0),
                             "azimuth_deg": first_pos.get("azimuth_deg", 0),
                             "range_km": first_pos.get("range_km", 0)
-                        }
+                        })
                         satellite_data["timeseries"] = [
                             {
                                 "time": pos.get("time"),
