@@ -19,10 +19,9 @@ from typing import Dict, List, Any, Optional
 # 添加必要路徑
 sys.path.insert(0, '/app/netstack')
 sys.path.insert(0, '/app')
-sys.path.insert(0, '/app/intelligent_satellite_filtering')
 
-# 引用現有的統一智能篩選系統
-from intelligent_satellite_filtering.unified_intelligent_filter import create_unified_intelligent_filter
+# 引用重新組織後的智能篩選系統
+from src.services.satellite.intelligent_filtering.unified_intelligent_filter import create_unified_intelligent_filter
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,7 @@
 
 # 新的統一智能篩選系統
 from .satellite_selector import IntelligentSatelliteSelector, SatelliteSelectionConfig
-# 注意：智能篩選已移至 /intelligent_satellite_filtering/ 目錄
+# 注意：統一智能篩選系統已整合至 src/services/satellite/intelligent_filtering/ 目錄
 from .orbital_grouping import OrbitalPlaneGrouper
 from .phase_distribution import PhaseDistributionOptimizer
 from .visibility_scoring import VisibilityScorer
