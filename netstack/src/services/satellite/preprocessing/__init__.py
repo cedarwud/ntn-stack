@@ -7,7 +7,7 @@
 
 # 新的統一智能篩選系統
 from .satellite_selector import IntelligentSatelliteSelector, SatelliteSelectionConfig
-from .intelligent_satellite_filtering import UnifiedIntelligentSatelliteFilter, create_unified_intelligent_filter
+# 注意：智能篩選已移至 /intelligent_satellite_filtering/ 目錄
 from .orbital_grouping import OrbitalPlaneGrouper
 from .phase_distribution import PhaseDistributionOptimizer
 from .visibility_scoring import VisibilityScorer
@@ -15,8 +15,6 @@ from .visibility_scoring import VisibilityScorer
 __all__ = [
     'IntelligentSatelliteSelector',
     'SatelliteSelectionConfig',
-    'UnifiedIntelligentSatelliteFilter',
-    'create_unified_intelligent_filter',
     'OrbitalPlaneGrouper', 
     'PhaseDistributionOptimizer',
     'VisibilityScorer'

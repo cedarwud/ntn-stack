@@ -12,7 +12,7 @@
   "constellations": {
     "starlink": {
       "name": "starlink",
-      "total_satellites": 555,
+      "total_satellites": 8064,
       "target_satellites": 15,
       "min_elevation": 10.0,
       "selection_strategy": "dynamic_optimal",
@@ -22,7 +22,7 @@
     },
     "oneweb": {
       "name": "oneweb",
-      "total_satellites": 134,
+      "total_satellites": 651,
       "target_satellites": 8,
       "min_elevation": 8.0,
       "selection_strategy": "coverage_optimal",

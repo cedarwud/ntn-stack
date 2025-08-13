@@ -44,24 +44,32 @@ RUN pip install --upgrade pip && \
 # 複製所有應用程式代碼 (一次性複製，避免覆蓋問題)
 COPY . .
 
-# 衛星軌道預處理：使用統一的衛星軌道預處理器
-COPY docker/satellite_orbit_preprocessor.py /app/satellite_orbit_preprocessor.py
+# 三階段處理系統：分離的階段處理器
+COPY src/stages/ /app/src/stages/
+
+# 智能篩選系統：確保階段二智能篩選模組可用
+COPY intelligent_satellite_filtering /app/intelligent_satellite_filtering
+
+# TLE 數據：複製衛星軌道數據
+COPY tle_data /app/tle_data
 
 # 創建必要目錄
 RUN mkdir -p /app/data /app/tle_data /app/logs /var/log/netstack \
              /app/models /app/results /tmp/matplotlib
 
 # 設定環境變數
-ENV PYTHONPATH="/app:/app/src"
+ENV PYTHONPATH="/app:/app/src:/app/netstack"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV MPLCONFIGDIR="/tmp/matplotlib"
 ENV PRECOMPUTED_DATA_ENABLED=true
 ENV ORBIT_CACHE_PRELOAD=true
 
-# 衛星軌道預計算：建構時預計算基礎數據
-RUN echo "🚀 衛星軌道預處理：執行預計算..." && \
-    python satellite_orbit_preprocessor.py || echo "⚠️ 建構時預計算未完成，將在運行時處理" && \
+# 衛星軌道預計算：建構時執行三階段數據處理
+RUN echo "🚀 三階段數據處理：執行預計算..." && \
+    (python src/stages/stage1_tle_processor.py && \
+     python src/stages/stage2_filter_processor.py && \
+     python src/stages/stage3_signal_processor.py) || echo "⚠️ 建構時預計算未完成，將在運行時處理" && \
     if [ -f /app/data/enhanced_satellite_data.json ]; then \
         echo "$(date -Iseconds)" > /app/data/.build_timestamp && \
         echo "✅ 建構時預計算完成，數據已就緒"; \
