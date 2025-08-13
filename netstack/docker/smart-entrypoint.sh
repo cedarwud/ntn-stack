@@ -84,11 +84,28 @@ regenerate_data() {
     cd /app
     echo "🔨 執行真實數據生成 (Phase 2.5 完整數據)..."
     
-    # 檢查 Python 腳本執行結果
-    if python docker/satellite_orbit_preprocessor.py; then
-        echo "✅ Python 腳本執行成功"
+    # 執行三階段數據處理管道
+    echo "🔨 第一階段：TLE數據載入與SGP4軌道計算..."
+    if python src/stages/stage1_tle_processor.py; then
+        echo "✅ 階段一完成"
     else
-        echo "❌ Python 腳本執行失敗"
+        echo "❌ 階段一失敗"
+        exit 1
+    fi
+    
+    echo "🔨 第二階段：智能衛星篩選..."
+    if python src/stages/stage2_filter_processor.py; then
+        echo "✅ 階段二完成"
+    else
+        echo "❌ 階段二失敗"
+        exit 1
+    fi
+    
+    echo "🔨 第三階段：信號品質分析與3GPP事件處理..."
+    if python src/stages/stage3_signal_processor.py; then
+        echo "✅ 階段三完成"
+    else
+        echo "❌ 階段三失敗"
         exit 1
     fi
     

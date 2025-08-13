@@ -993,7 +993,7 @@ class OrbitCalculationEngine:
             import os
             
             # Pure Cron 主數據文件路徑 (根據文檔定義)
-            precomputed_data_path = "/app/data/enhanced_satellite_data.json"
+            precomputed_data_path = "/app/data/sgp4_orbital_dataset.json"
             
             if not os.path.exists(precomputed_data_path):
                 self.logger.error(

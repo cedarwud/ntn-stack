@@ -62,9 +62,10 @@ class ConstellationConfig:
         """驗證星座配置合理性"""
         if self.total_satellites <= 0:
             raise ValueError(f"{self.name}: 衛星池大小必須為正數: {self.total_satellites}")
-        if self.target_satellites <= 0:
-            raise ValueError(f"{self.name}: 目標衛星數量必須為正數: {self.target_satellites}")
-        if self.target_satellites > self.total_satellites:
+        # target_satellites=0 表示動態篩選模式，無固定數量限制
+        if self.target_satellites < 0:
+            raise ValueError(f"{self.name}: 目標衛星數量不能為負數: {self.target_satellites}")
+        if self.target_satellites > 0 and self.target_satellites > self.total_satellites:
             raise ValueError(f"{self.name}: 目標衛星數量不能超過衛星池大小: {self.target_satellites} > {self.total_satellites}")
         if not (0 <= self.min_elevation <= 90):
             raise ValueError(f"{self.name}: 仰角門檻必須在 0° 到 90° 之間: {self.min_elevation}")
@@ -128,38 +129,39 @@ class UnifiedSatelliteConfig:
     3. 邏輯重複 -> 單一真實源
     
     設計原則：
-    - 建構時：準備充足的衛星池 (555/134 配置)
-    - 運行時：智能選擇最佳衛星 (15/8 目標)
+    - 建構時：全量處理所有衛星數據 (8,715顆)
+    - 階段二：動態篩選符合條件的衛星（不設固定數量）
+    - 運行時：基於實際需求動態選擇最佳衛星
     - 配置統一：單一配置源，消除重複
     """
     
     # 版本資訊
     version: str = "5.0.0"
-    config_name: str = "unified_555_134_standard"
+    config_name: str = "dynamic_filtering_standard"
     created_at: str = "2025-08-10"
     
     # 觀測點配置
     observer: ObserverLocation = field(default_factory=ObserverLocation)
     
-    # 星座配置 - 555/134 統一標準 (基於完整軌道週期分析結果)
+    # 星座配置 - 動態篩選標準 (無固定數量限制)
     constellations: Dict[str, ConstellationConfig] = field(default_factory=lambda: {
         "starlink": ConstellationConfig(
             name="starlink",
-            total_satellites=555,      # 建構時衛星池：基於 SGP4 分析結果
-            target_satellites=15,      # 運行時目標：3GPP NTN 標準換手候選
+            total_satellites=8064,     # 建構時：全量處理Starlink衛星
+            target_satellites=0,       # 動態篩選模式：不設固定目標數量
             min_elevation=10.0,        # 商業服務標準仰角門檻
             selection_strategy=SelectionStrategy.DYNAMIC_OPTIMAL,
-            pool_selection_method="diverse_orbital_sampling",
+            pool_selection_method="quality_based_filtering",  # 基於品質的動態篩選
             tle_validity_hours=24,     # Starlink TLE 更新頻繁
             orbital_validation=True
         ),
         "oneweb": ConstellationConfig(
             name="oneweb",
-            total_satellites=134,      # 建構時衛星池：基於 SGP4 分析結果
-            target_satellites=8,       # 運行時目標：OneWeb 極地軌道特性
+            total_satellites=651,      # 建構時：全量處理OneWeb衛星
+            target_satellites=0,       # 動態篩選模式：不設固定目標數量
             min_elevation=8.0,         # 略低於 Starlink，適應極地軌道
             selection_strategy=SelectionStrategy.COVERAGE_OPTIMAL,
-            pool_selection_method="polar_coverage_sampling",
+            pool_selection_method="quality_based_filtering",  # 基於品質的動態篩選
             tle_validity_hours=48,     # OneWeb TLE 更新較慢
             orbital_validation=True
         )
@@ -202,12 +204,14 @@ class UnifiedSatelliteConfig:
                         result.add_error(f"星座 {constellation_name} 配置錯誤: {e}")
                     
                     # 檢查建構時/運行時配置一致性
-                    if config.target_satellites > config.total_satellites:
+                    if config.target_satellites > 0 and config.target_satellites > config.total_satellites:
                         result.add_error(f"{constellation_name}: 運行時目標 ({config.target_satellites}) 超過建構時衛星池 ({config.total_satellites})")
                     
-                    # 檢查是否符合 3GPP NTN 標準
+                    # 檢查是否符合 3GPP NTN 標準（僅對固定數量模式）
                     if config.target_satellites > 8:
                         result.add_warning(f"{constellation_name}: 目標衛星數 ({config.target_satellites}) 超過 3GPP NTN 建議的 8 顆上限")
+                    elif config.target_satellites == 0:
+                        logger.info(f"{constellation_name}: 使用動態篩選模式，無固定數量限制")
             
             # 驗證系統級配置
             if self.max_processing_threads <= 0:

@@ -130,20 +130,20 @@ def test_phase1_execution():
     
     try:
         # 導入階段一處理器
-        sys.path.append('/home/sat/ntn-stack/netstack/docker')
-        from satellite_orbit_preprocessor import SatelliteOrbitPreprocessor
+        sys.path.append('/home/sat/ntn-stack/netstack/src/stages')
+        from stage1_tle_processor import Stage1TLEProcessor
         
         # 創建處理器實例
-        preprocessor = SatelliteOrbitPreprocessor(
+        preprocessor = Stage1TLEProcessor(
             tle_data_dir='/home/sat/ntn-stack/netstack/tle_data',
             output_dir='/tmp/phase1_test_output'
         )
         
-        logger.info("✅ Phase25DataPreprocessor 創建成功")
+        logger.info("✅ Stage1TLEProcessor 創建成功")
         
         # 執行階段一處理
         logger.info("⏳ 執行階段一處理（這可能需要幾分鐘）...")
-        result = preprocessor.process_all_tle_data()
+        result = preprocessor.process_stage1()
         
         # 驗證輸出結果
         if 'metadata' in result:

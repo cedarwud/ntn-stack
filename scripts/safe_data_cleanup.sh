@@ -74,7 +74,7 @@ cleanup_precomputed_data() {
         "oneweb_*_timeseries.json"
         "starlink_*_d2_*.json"
         "oneweb_*_d2_*.json"
-        "phase0_precomputed_orbits_*.json"
+        "sgp4_orbital_dataset_*.json"
     )
     
     for pattern in "${timeseries_patterns[@]}"; do
