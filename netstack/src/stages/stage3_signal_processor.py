@@ -20,12 +20,11 @@ from typing import Dict, List, Any, Optional
 # 添加必要路徑
 sys.path.insert(0, '/app/netstack')
 sys.path.insert(0, '/app')
-sys.path.insert(0, '/app/intelligent_satellite_filtering')
 
-# 引用現有的模組
-from intelligent_satellite_filtering.signal_calculation.rsrp_calculator import create_rsrp_calculator
-from intelligent_satellite_filtering.event_analysis.gpp_event_analyzer import create_gpp_event_analyzer
-from intelligent_satellite_filtering.unified_intelligent_filter import UnifiedIntelligentFilter
+# 引用重新組織後的模組
+from src.services.satellite.intelligent_filtering.signal_calculation.rsrp_calculator import create_rsrp_calculator
+from src.services.satellite.intelligent_filtering.event_analysis.gpp_event_analyzer import create_gpp_event_analyzer
+from src.services.satellite.intelligent_filtering.unified_intelligent_filter import UnifiedIntelligentFilter
 
 logger = logging.getLogger(__name__)
 
