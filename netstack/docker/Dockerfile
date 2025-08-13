@@ -47,8 +47,7 @@ COPY . .
 # 三階段處理系統：分離的階段處理器
 COPY src/stages/ /app/src/stages/
 
-# 智能篩選系統：確保階段二智能篩選模組可用
-COPY intelligent_satellite_filtering /app/intelligent_satellite_filtering
+# 智能篩選系統已整合到 src/services/satellite/ 中，不需要單獨複製
 
 # TLE 數據：複製衛星軌道數據
 COPY tle_data /app/tle_data
@@ -65,8 +64,14 @@ ENV MPLCONFIGDIR="/tmp/matplotlib"
 ENV PRECOMPUTED_DATA_ENABLED=true
 ENV ORBIT_CACHE_PRELOAD=true
 
-# 衛星軌道預計算：建構時執行三階段數據處理
-RUN echo "🚀 三階段數據處理：執行預計算..." && \
+# 衛星軌道預計算：建構時執行三階段數據處理 (強制重新生成)
+RUN echo "🗑️ 清理舊數據檔案，確保重新生成..." && \
+    rm -f /app/data/sgp4_orbital_dataset*.json \
+          /app/data/enhanced_satellite_data.json \
+          /app/data/stage*_*.json \
+          /app/data/.build_timestamp \
+          /app/data/.data_ready && \
+    echo "🚀 三階段數據處理：執行預計算..." && \
     (python src/stages/stage1_tle_processor.py && \
      python src/stages/stage2_filter_processor.py && \
      python src/stages/stage3_signal_processor.py) || echo "⚠️ 建構時預計算未完成，將在運行時處理" && \

@@ -18,13 +18,13 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 # 添加必要路徑
-sys.path.insert(0, '/app/netstack')
 sys.path.insert(0, '/app')
+sys.path.insert(0, '/app/src')
 
 # 引用現有的模組
 from src.services.satellite.sgp4_engine import SGP4Engine, create_sgp4_engine
 from src.services.satellite.coordinate_specific_orbit_engine import CoordinateSpecificOrbitEngine
-from netstack.config.unified_satellite_config import get_unified_config
+from config.unified_satellite_config import get_unified_config
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +38,11 @@ class Stage1TLEProcessor:
     4. 絕對不做任何篩選或取樣
     """
     
-    def __init__(self, tle_data_dir: str = "/app/tle_data", output_dir: str = "/app/data"):
+    def __init__(self, tle_data_dir: str = "/app/tle_data", output_dir: str = "/app/data", debug_mode: bool = True):
         self.tle_data_dir = Path(tle_data_dir)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.debug_mode = debug_mode  # 控制是否生成檔案
         
         # 載入配置（只使用觀測點座標，忽略取樣配置）
         try:
@@ -59,6 +60,7 @@ class Stage1TLEProcessor:
         logger.info(f"  TLE 數據目錄: {self.tle_data_dir}")
         logger.info(f"  輸出目錄: {self.output_dir}")
         logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
+        logger.info(f"  Debug 模式: {'啟用 (將生成檔案)' if self.debug_mode else '停用 (即時處理模式)'}")
         
     def scan_tle_data(self) -> Dict[str, Any]:
         """掃描所有可用的 TLE 數據檔案"""
@@ -272,14 +274,18 @@ class Stage1TLEProcessor:
         
         return final_data
         
-    def save_stage1_output(self, stage1_data: Dict[str, Any]) -> str:
-        """保存階段一輸出數據"""
+    def save_stage1_output(self, stage1_data: Dict[str, Any]) -> Optional[str]:
+        """保存階段一輸出數據（根據 debug_mode 控制）"""
+        if not self.debug_mode:
+            logger.info("🚀 即時處理模式：跳過檔案生成，數據將直接傳遞給階段二")
+            return None
+            
         output_file = self.output_dir / "stage1_tle_sgp4_output.json"
         
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(stage1_data, f, indent=2, ensure_ascii=False)
             
-        logger.info(f"💾 階段一數據已保存到: {output_file}")
+        logger.info(f"💾 Debug 模式：階段一數據已保存到: {output_file}")
         return str(output_file)
         
     def process_stage1(self) -> Dict[str, Any]:
@@ -301,12 +307,16 @@ class Stage1TLEProcessor:
         # 3. 全量 SGP4 軌道計算
         stage1_data = self.calculate_all_orbits(raw_satellite_data)
         
-        # 4. 保存輸出
+        # 4. 根據模式決定是否保存輸出
         output_file = self.save_stage1_output(stage1_data)
         
         logger.info("✅ 階段一處理完成")
         logger.info(f"  處理的衛星數: {stage1_data['metadata']['total_satellites']}")
-        logger.info(f"  輸出檔案: {output_file}")
+        
+        if output_file:
+            logger.info(f"  輸出檔案: {output_file}")
+        else:
+            logger.info("  即時處理模式: 數據已準備好直接傳遞給階段二")
         
         return stage1_data
 

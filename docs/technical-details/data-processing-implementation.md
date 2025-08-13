@@ -1,7 +1,7 @@
 # 🔧 衛星數據預處理流程 - 技術實現詳細說明
 
-**版本**: 2.0.0  
-**更新日期**: 2025-08-12  
+**版本**: 2.1.0  
+**更新日期**: 2025-08-13  
 **適用於**: 開發參考、程式實現、系統維護  
 
 ## 🗂️ 程式實現架構
@@ -34,34 +34,76 @@
 
 ## 🔄 階段一：TLE數據載入與SGP4軌道計算
 
-### 核心處理邏輯
-```python
-# 實際程式邏輯 (satellite_orbit_preprocessor.py:349-400)
-def load_tle_satellites(constellation, date_str):
-    """載入指定星座的全部 TLE 數據"""
-    # 1. 讀取完整 TLE 文件
-    # 2. 逐一解析每個 TLE 記錄 (3行為一組)
-    # 3. 驗證 TLE 格式正確性
-    # 4. 提取 NORAD ID、軌道參數
-    # 5. 返回所有有效衛星記錄
-    
-    # 關鍵：沒有任何篩選邏輯！
-    # 目的：確保不遺漏任何可能經過觀測點的衛星
+### 核心處理器位置
+```bash
+# 主要處理器實現
+/netstack/src/stages/stage1_tle_processor.py
+├── Stage1TLEProcessor.scan_tle_data()              # TLE檔案掃描
+├── Stage1TLEProcessor.load_raw_satellite_data()    # 原始數據載入  
+├── Stage1TLEProcessor.calculate_all_orbits()       # 完整SGP4計算
+├── Stage1TLEProcessor.save_stage1_output()         # Debug模式控制輸出
+└── Stage1TLEProcessor.process_stage1()             # 完整流程執行
 ```
 
-### 子組件詳細位置
+### 核心處理邏輯
 ```python
-# TLE掃描器 (/netstack/docker/satellite_orbit_preprocessor.py:258-336)
-SatelliteOrbitPreprocessor.scan_tle_data()
+# 階段一處理器主要流程
+class Stage1TLEProcessor:
+    def __init__(self, debug_mode: bool = True):
+        """初始化處理器
+        Args:
+            debug_mode: True=生成檔案, False=即時處理模式
+        """
+        self.debug_mode = debug_mode
+        
+    def process_stage1(self) -> Dict[str, Any]:
+        """完整階段一流程"""
+        # 1. 掃描 TLE 數據檔案
+        scan_result = self.scan_tle_data()
+        
+        # 2. 載入所有原始衛星數據 (無篩選)
+        raw_data = self.load_raw_satellite_data(scan_result)
+        
+        # 3. 全量 SGP4 軌道計算
+        stage1_data = self.calculate_all_orbits(raw_data)
+        
+        # 4. Debug模式控制輸出
+        if self.debug_mode:
+            self.save_stage1_output(stage1_data)  # 生成檔案
+        else:
+            # 即時處理模式：直接返回數據給階段二
+            pass
+            
+        return stage1_data
+```
 
-# 數據載入器 (/netstack/docker/satellite_orbit_preprocessor.py:238-256)
-SatelliteOrbitPreprocessor._load_constellation_satellites()
+### Debug Mode 控制機制
+```python
+# Debug Mode 檔案輸出控制
+def save_stage1_output(self, stage1_data: Dict[str, Any]) -> Optional[str]:
+    """根據 debug_mode 控制檔案生成"""
+    if not self.debug_mode:
+        logger.info("🚀 即時處理模式：跳過檔案生成，數據將直接傳遞給階段二")
+        return None
+        
+    # Debug模式：生成 stage1_tle_sgp4_output.json 檔案
+    output_file = self.output_dir / "stage1_tle_sgp4_output.json"
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(stage1_data, f, indent=2, ensure_ascii=False)
+    
+    logger.info(f"💾 Debug模式：階段一數據已保存到: {output_file}")
+    return str(output_file)
+```
 
-# 衛星池建構器 (/netstack/config/satellite_data_pool_builder.py)
-SatelliteDataPoolBuilder.build_satellite_pools()
+### 支援組件位置
+```python
+# SGP4軌道計算引擎 (/netstack/src/services/satellite/sgp4_engine.py)
+SGP4Engine.create_satellite()         # 從TLE創建衛星對象
+SGP4Engine.calculate_position()       # 單點位置計算
+SGP4Engine.calculate_trajectory()     # 軌跡時間序列計算
 
-# SGP4軌道計算引擎 (/netstack/src/services/satellite/coordinate_specific_orbit_engine.py)
-CoordinateSpecificOrbitEngine.calculate_satellite_orbit()
+# 座標特定軌道引擎 (/netstack/src/services/satellite/coordinate_specific_orbit_engine.py)
+CoordinateSpecificOrbitEngine.compute_96min_orbital_cycle()  # 96分鐘完整軌道週期
 ```
 
 ## 🔧 階段二：3GPP Events & 信號品質計算
@@ -168,20 +210,59 @@ if estimated_visible > max_display * 3:
 
 #### 階段一輸出（軌道數據）
 ```python
+# stage1_tle_sgp4_output.json (Debug Mode = True)
 {
-    "satellite_id": "STARLINK-1007",
-    "timestamp": "2025-07-30T12:00:00Z",
-    "position": {
-        "x": 1234.567,  # km, ECEF 座標
-        "y": -5678.901, # km
-        "z": 3456.789   # km
+    "metadata": {
+        "version": "1.0.0-stage1-only",
+        "created_at": "2025-08-13T08:25:00Z",
+        "processing_stage": "stage1_tle_sgp4",
+        "observer_coordinates": {
+            "latitude": 24.9441667,
+            "longitude": 121.3713889,
+            "altitude_m": 50.0
+        },
+        "total_satellites": 8715,
+        "total_constellations": 2
     },
-    "velocity": {
-        "vx": 7.123,    # km/s
-        "vy": -2.456,   # km/s
-        "vz": 1.789     # km/s
+    "constellations": {
+        "starlink": {
+            "satellite_count": 8064,
+            "orbit_data": {
+                "satellites": {
+                    "starlink_00001": {
+                        "satellite_id": "starlink_00001",
+                        "name": "STARLINK-1007",
+                        "constellation": "starlink",
+                        "tle_data": {
+                            "line1": "1 44235U 19029A   ...",
+                            "line2": "2 44235  53.0538 ..."
+                        },
+                        "orbit_data": {
+                            "orbital_period_minutes": 96.0,
+                            "positions": [
+                                {
+                                    "timestamp": "2025-08-13T08:00:00Z",
+                                    "position": {"x": 1234.567, "y": -5678.901, "z": 3456.789},
+                                    "velocity": {"vx": 7.123, "vy": -2.456, "vz": 1.789},
+                                    "elevation_deg": 45.7,
+                                    "azimuth_deg": 152.3,
+                                    "distance_km": 589.2
+                                }
+                                // ... 192 個時間點 (30秒間隔)
+                            ]
+                        }
+                    }
+                    // ... 8064 顆 Starlink 衛星
+                }
+            }
+        },
+        "oneweb": {
+            // ... 651 顆 OneWeb 衛星，結構相同
+        }
     }
 }
+
+# Debug Mode = False: 不生成檔案，數據直接傳遞給階段二
 ```
 
 #### 階段二輸出（信號品質增強）
