@@ -86,7 +86,7 @@ docker-compose.override.yml
 *.backup
 
 # Phase 0 預計算數據 (大檔案，建置時生成)
-netstack/data/phase0_precomputed_orbits.json
+netstack/data/sgp4_orbital_dataset.json
 netstack/data/*_precomputed_*.json
 netstack/data/*.sql
 

@@ -14,7 +14,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 # 移除 TensorFlow 配置 - 不再需要
 # 讓 Dr.Jit 能找到 LLVM shared lib
-ENV DRJIT_LIBLLVM_PATH=/usr/lib/x86_64-linux-gnu/libLLVM-14.so.1
+ENV DRJIT_LIBLLVM_PATH=/usr/lib/x86_64-linux-gnu/libLLVM-19.so
 # 設定 PyOpenGL 默認使用 EGL (可通過環境變數覆蓋)
 ENV PYOPENGL_PLATFORM=egl
 
@@ -22,14 +22,15 @@ ENV PYOPENGL_PLATFORM=egl
 #    - 渲染相關：更完整的 OpenGL/EGL/OSMesa 支持
 #    - 移除 PostgreSQL 依賴 (使用 NetStack 的 PostgreSQL)
 RUN apt update && apt install -y --no-install-recommends \
-    libgl1-mesa-glx \
-    libegl1-mesa \
+    libgl1 \
+    libegl1 \
+    libegl-mesa0 \
     libosmesa6 \
     libopengl0 \
     libglfw3 \
     xvfb \
     llvm-dev \
-    libllvm14 \
+    libllvm19 \
     build-essential \
     curl \
     && apt clean && rm -rf /var/lib/apt/lists/*
