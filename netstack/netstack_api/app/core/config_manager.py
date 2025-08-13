@@ -90,7 +90,7 @@ class ConfigManager:
                 ),
                 
                 # Phase 0 預計算數據路徑
-                "phase0_data_dir": self._resolve_data_path(
+                "enhanced_data_dir": self._resolve_data_path(
                     os.getenv("PHASE0_DATA_PATH", "/app/data")
                 ),
                 

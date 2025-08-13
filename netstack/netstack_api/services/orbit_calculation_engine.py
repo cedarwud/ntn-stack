@@ -980,7 +980,7 @@ class OrbitCalculationEngine:
         載入 Pure Cron 預計算軌道數據
         
         遵循 @docs/satellite_data_preprocessing.md 中定義的 Pure Cron 架構:
-        - 數據來源: /app/data/phase0_precomputed_orbits.json
+        - 數據來源: /app/data/enhanced_satellite_data.json
         - 架構原則: 純數據載入，無 TLE 解析或 SGP4 計算
         - 啟動速度: < 30秒快速啟動
         - 🚀 包含預計算的觀測者相關數據 (elevation_deg, azimuth_deg, range_km, is_visible)
@@ -993,7 +993,7 @@ class OrbitCalculationEngine:
             import os
             
             # Pure Cron 主數據文件路徑 (根據文檔定義)
-            precomputed_data_path = "/app/data/phase0_precomputed_orbits.json"
+            precomputed_data_path = "/app/data/enhanced_satellite_data.json"
             
             if not os.path.exists(precomputed_data_path):
                 self.logger.error(
@@ -1079,7 +1079,7 @@ class OrbitCalculationEngine:
             self.logger.info(
                 "Pure Cron 預計算軌道數據載入完成",
                 loaded_count=loaded_count,
-                data_source="phase0_precomputed_orbits.json",
+                data_source="enhanced_satellite_data.json",
                 architecture="Pure Cron"
             )
 

@@ -18,7 +18,7 @@ logger = structlog.get_logger(__name__)
 
 
 # Phase 0 預計算數據載入器
-class Phase0DataLoader:
+class EnhancedDataLoader:
     """Phase 0 預計算數據載入器"""
 
     def __init__(self):
@@ -42,11 +42,11 @@ class Phase0DataLoader:
 
             for base_path in possible_paths:
                 # 嘗試載入預計算軌道數據
-                orbit_data_path = PathLib(base_path) / "phase0_precomputed_orbits.json"
+                orbit_data_path = PathLib(base_path) / "enhanced_satellite_data.json"
                 if orbit_data_path.exists():
                     with open(orbit_data_path, "r", encoding="utf-8") as f:
                         self.precomputed_data = json.load(f)
-                    logger.info(f"✅ Phase 0 預計算軌道數據載入成功: {orbit_data_path}")
+                    logger.info(f"✅ 增強衛星軌道數據載入成功: {orbit_data_path}")
                     data_found = True
                     break
 
@@ -55,7 +55,7 @@ class Phase0DataLoader:
 
             # 載入數據摘要
             for base_path in possible_paths:
-                summary_path = PathLib(base_path) / "phase0_data_summary.json"
+                summary_path = PathLib(base_path) / "enhanced_data_summary.json"
                 if summary_path.exists():
                     with open(summary_path, "r", encoding="utf-8") as f:
                         self.data_summary = json.load(f)
@@ -64,7 +64,7 @@ class Phase0DataLoader:
 
             # 載入建置配置
             for base_path in possible_paths:
-                config_path = PathLib(base_path) / "phase0_build_config.json"
+                config_path = PathLib(base_path) / "enhanced_build_config.json"
                 if config_path.exists():
                     with open(config_path, "r", encoding="utf-8") as f:
                         self.build_config = json.load(f)
@@ -95,7 +95,7 @@ class Phase0DataLoader:
 
 
 # 全域數據載入器
-phase0_loader = Phase0DataLoader()
+enhanced_loader = EnhancedDataLoader()
 
 
 def _select_optimal_satellites(
@@ -286,19 +286,19 @@ async def check_precomputed_health():
     logger.info("API: 預計算數據健康檢查")
 
     # 檢查 Phase 0 數據狀態
-    data_available = phase0_loader.is_data_available()
+    data_available = enhanced_loader.is_data_available()
     total_satellites = 0
 
-    if data_available and phase0_loader.data_summary:
-        total_satellites = phase0_loader.data_summary.get(
-            "phase0_data_summary", {}
+    if data_available and enhanced_loader.data_summary:
+        total_satellites = enhanced_loader.data_summary.get(
+            "enhanced_data_summary", {}
         ).get("total_satellites", 0)
 
     return {
         "overall_status": "healthy" if data_available else "degraded",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "services": {
-            "phase0_data": {
+            "enhanced_data": {
                 "status": "healthy" if data_available else "unavailable",
                 "response_time": 0.001,
                 "data_available": data_available,
@@ -311,10 +311,10 @@ async def check_precomputed_health():
             "data_cache": {"status": "healthy", "cache_hit_rate": 0.95},
         },
         "version": "1.0.0",
-        "phase0_integration": {
+        "enhanced_integration": {
             "precomputed_data_loaded": data_available,
-            "build_config_available": phase0_loader.build_config is not None,
-            "data_summary_available": phase0_loader.data_summary is not None,
+            "build_config_available": enhanced_loader.build_config is not None,
+            "data_summary_available": enhanced_loader.data_summary is not None,
         },
         "phase4_production": {
             "startup_time_seconds": get_startup_time(),
@@ -371,16 +371,16 @@ def get_memory_usage() -> float:
 
 def get_data_freshness() -> float:
     """獲取數據新鮮度 (小時)"""
-    if not phase0_loader.data_summary:
+    if not enhanced_loader.data_summary:
         return 999.0
 
     try:
         from datetime import datetime
 
-        generation_time = phase0_loader.data_summary.get("generation_timestamp")
+        generation_time = enhanced_loader.data_summary.get("generation_timestamp")
         if not generation_time:
             # 嘗試其他可能的時間戳字段
-            generation_time = phase0_loader.data_summary.get("timestamp")
+            generation_time = enhanced_loader.data_summary.get("timestamp")
 
         if generation_time:
             # 處理不同的時間格式
@@ -441,12 +441,12 @@ async def get_precomputed_orbit_data(
     )
 
     # 使用 Phase 0 預計算數據
-    if phase0_loader.is_data_available():
+    if enhanced_loader.is_data_available():
         # 獲取觀測點位置
-        observer_location = phase0_loader.get_observer_location()
+        observer_location = enhanced_loader.get_observer_location()
 
         # 獲取星座數據
-        constellation_data = phase0_loader.get_constellation_data(constellation)
+        constellation_data = enhanced_loader.get_constellation_data(constellation)
 
         if constellation_data:
             # 從預計算數據中提取衛星信息
@@ -469,7 +469,7 @@ async def get_precomputed_orbit_data(
                     "elevation_threshold": elevation_threshold or 10.0,
                     "use_layered": use_layered_thresholds,
                     "environment_factor": "1.1x",
-                    "computation_date": phase0_loader.precomputed_data.get(
+                    "computation_date": enhanced_loader.precomputed_data.get(
                         "generated_at"
                     ),
                     "total_satellites_input": statistics.get("satellites_processed", 0),
@@ -477,7 +477,7 @@ async def get_precomputed_orbit_data(
                         satellites_data
                     ),  # 修正：使用實際衛星數量
                     "filtering_efficiency": f"{statistics.get('avg_visibility_percentage', 0):.1f}%",
-                    "data_source": "phase0_precomputed",
+                    "data_source": "enhanced_precomputed",
                 },
                 "filtered_satellites": [
                     {

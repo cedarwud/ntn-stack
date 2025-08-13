@@ -64,7 +64,7 @@ class LocalVolumeDataService:
         """
         try:
             # 主要預計算數據文件
-            main_data_file = self.netstack_data_path / "phase0_precomputed_orbits.json"
+            main_data_file = self.netstack_data_path / "enhanced_satellite_data.json"
 
             if main_data_file.exists():
                 logger.info(f"📊 從本地 Volume 載入預計算軌道數據: {main_data_file}")
@@ -252,11 +252,11 @@ class LocalVolumeDataService:
     ) -> Optional[List[Dict[str, Any]]]:
         """
         從預處理數據中獲取可見衛星
-        直接讀取 phase0_precomputed_orbits.json 並過濾
+        直接讀取 enhanced_satellite_data.json 並過濾
         """
         try:
             # 載入預處理數據
-            main_data_file = self.netstack_data_path / "phase0_precomputed_orbits.json"
+            main_data_file = self.netstack_data_path / "enhanced_satellite_data.json"
             
             if not main_data_file.exists():
                 logger.warning(f"預處理數據文件不存在: {main_data_file}")
@@ -423,7 +423,7 @@ class LocalVolumeDataService:
                     pass
 
             # 檢查主要預計算數據
-            main_data_file = self.netstack_data_path / "phase0_precomputed_orbits.json"
+            main_data_file = self.netstack_data_path / "enhanced_satellite_data.json"
             if main_data_file.exists():
                 stat = main_data_file.stat()
                 freshness_info["precomputed_data"] = {
@@ -461,7 +461,7 @@ class LocalVolumeDataService:
         """檢查是否有可用的本地數據"""
         try:
             # 檢查主要數據文件
-            main_data_file = self.netstack_data_path / "phase0_precomputed_orbits.json"
+            main_data_file = self.netstack_data_path / "enhanced_satellite_data.json"
             if main_data_file.exists() and main_data_file.stat().st_size > 0:
                 return True
 

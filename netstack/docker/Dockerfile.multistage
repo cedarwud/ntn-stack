@@ -66,8 +66,8 @@ RUN groupadd -r netstack && useradd -r -g netstack netstack
 # 複製應用代碼 (最後複製，最大化緩存效益)
 COPY . .
 
-# Phase 0 預計算設置
-COPY docker/build_with_phase0_data_refactored.py /app/build_with_phase0_data.py
+# 衛星軌道預計算設置
+COPY docker/satellite_orbit_preprocessor.py /app/satellite_orbit_preprocessor.py
 
 # 創建必要目錄
 RUN mkdir -p /app/data /app/tle_data /app/logs /var/log/netstack \
@@ -82,10 +82,10 @@ ENV PRECOMPUTED_DATA_ENABLED=true
 ENV ORBIT_CACHE_PRELOAD=true
 ENV BUILD_ENV=production
 
-# Phase 0 混合模式：建構時預計算基礎數據
-RUN echo "🚀 Phase 0 生產模式：執行預計算..." && \
-    python build_with_phase0_data.py || echo "⚠️ 建構時預計算未完成，將在運行時處理" && \
-    if [ -f /app/data/phase0_precomputed_orbits.json ]; then \
+# 衛星軌道混合模式：建構時預計算基礎數據
+RUN echo "🚀 衛星軌道生產模式：執行預計算..." && \
+    python satellite_orbit_preprocessor.py || echo "⚠️ 建構時預計算未完成，將在運行時處理" && \
+    if [ -f /app/data/enhanced_satellite_data.json ]; then \
         echo "$(date -Iseconds)" > /app/data/.build_timestamp && \
         echo "✅ 建構時預計算完成，數據已就緒"; \
     else \

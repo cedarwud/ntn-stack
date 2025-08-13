@@ -85,7 +85,7 @@ regenerate_data() {
     echo "🔨 執行真實數據生成 (Phase 2.5 完整數據)..."
     
     # 檢查 Python 腳本執行結果
-    if python docker/build_with_phase0_data_refactored.py; then
+    if python docker/satellite_orbit_preprocessor.py; then
         echo "✅ Python 腳本執行成功"
     else
         echo "❌ Python 腳本執行失敗"

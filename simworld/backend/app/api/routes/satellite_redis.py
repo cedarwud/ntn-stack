@@ -214,7 +214,7 @@ async def get_visible_satellites(
     constellation: Optional[str] = Query(default=None, description="星座過濾 (starlink, kuiper)"),
 ):
     """
-    獲取可見衛星列表 - 使用預處理數據 (phase0_precomputed_orbits.json)
+    獲取可見衛星列表 - 使用預處理數據 (enhanced_satellite_data.json)
     """
     try:
         # 優先使用預處理數據

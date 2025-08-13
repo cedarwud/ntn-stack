@@ -145,8 +145,8 @@ update_precomputed_cache() {
     log_info "更新 NetStack 預計算緩存..."
     
     # 檢查數據完整性
-    if [[ -f "$NETSTACK_DATA_DIR/phase0_precomputed_orbits.json" ]]; then
-        local file_size=$(stat -c%s "$NETSTACK_DATA_DIR/phase0_precomputed_orbits.json")
+    if [[ -f "$NETSTACK_DATA_DIR/enhanced_satellite_data.json" ]]; then
+        local file_size=$(stat -c%s "$NETSTACK_DATA_DIR/enhanced_satellite_data.json")
         if [[ $file_size -gt 1000000 ]]; then  # 至少 1MB
             # 更新時間戳
             touch "$NETSTACK_DATA_DIR/.incremental_update_timestamp"
@@ -173,7 +173,7 @@ trigger_full_rebuild() {
     
     # 清理舊的預計算數據
     log_info "清理舊的預計算數據..."
-    docker exec netstack-api rm -rf /app/data/phase0_precomputed_orbits.* 2>/dev/null || true
+    docker exec netstack-api rm -rf /app/data/enhanced_satellite_data.* 2>/dev/null || true
     
     # 在容器中觸發完整重新計算
     log_info "觸發完整軌道重新計算..."
@@ -250,7 +250,7 @@ trigger_intelligent_restart() {
 
 # 分析預計算數據中的衛星清單和時間範圍
 analyze_precomputed_data() {
-    local precomputed_file="$NETSTACK_DATA_DIR/phase0_precomputed_orbits.json"
+    local precomputed_file="$NETSTACK_DATA_DIR/enhanced_satellite_data.json"
     
     if [[ ! -f "$precomputed_file" ]]; then
         log_info "預計算數據文件不存在，將進行完整重新計算"
@@ -263,7 +263,7 @@ import json
 import sys
 from datetime import datetime
 
-precomputed_file = "/home/sat/ntn-stack/netstack/data/phase0_precomputed_orbits.json"
+precomputed_file = "/home/sat/ntn-stack/netstack/data/enhanced_satellite_data.json"
 
 try:
     with open(precomputed_file, 'r') as f:

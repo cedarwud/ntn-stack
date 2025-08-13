@@ -318,12 +318,14 @@ class CoordinateSpecificOrbitEngine:
         """
         計算120分鐘軌道週期，使用標準化時間網格確保多衛星時間對齊
         
+        Stage 1: 全量軌道計算，不做地理篩選
+        
         Args:
             satellite_tle_data: 衛星 TLE 數據
             start_time: 開始時間
             
         Returns:
-            Dict: 優化的軌道數據（使用標準時間網格）
+            Dict: 完整軌道數據（所有計算位置，不做可見性篩選）
         """
         try:
             from sgp4.api import Satrec, jday
@@ -347,13 +349,10 @@ class CoordinateSpecificOrbitEngine:
                     'timestamp': (aligned_start_time + timedelta(seconds=t_offset)).isoformat()
                 })
             
-            # 先計算所有位置，篩選可見的
-            visible_positions = []
-            visibility_windows = []
-            current_window = None
+            # 🚨 Stage 1: 計算所有位置，不做任何地理或可見性篩選
+            all_positions = []
             total_positions = 0
             calculation_errors = 0
-            max_elevation = -90.0
             
             for time_point in standard_time_points:
                 current_time = time_point['datetime']
@@ -369,70 +368,27 @@ class CoordinateSpecificOrbitEngine:
                 if error == 0:  # 無錯誤
                     total_positions += 1
                     
-                    # 轉換為觀測點座標
+                    # 轉換為觀測點座標（但不篩選）
                     observer_coords = self.eci_to_observer_coordinates(position, current_time)
                     elevation = observer_coords['elevation_deg']
                     
-                    # 只儲存可見位置（仰角 >= min_elevation）
-                    if elevation >= self.min_elevation:
-                        position_data = {
-                            'time': time_point['timestamp'],  # 使用標準化時間戳
-                            'time_offset_seconds': t_offset,
-                            'lat': observer_coords.get('satellite_lat', 0.0),
-                            'lon': observer_coords.get('satellite_lon', 0.0), 
-                            'alt_km': observer_coords['range_km'],  # 簡化：用距離代替高度
-                            'elevation_deg': round(elevation, 2),
-                            'azimuth_deg': round(observer_coords['azimuth_deg'], 2),
-                            'range_km': round(observer_coords['range_km'], 1)
-                        }
-                        
-                        visible_positions.append(position_data)
-                        max_elevation = max(max_elevation, elevation)
-                        
-                        # 追蹤可見性窗口
-                        if current_window is None:
-                            current_window = {
-                                'start_time': time_point['timestamp'],
-                                'start_elevation': round(elevation, 2),
-                                'max_elevation': round(elevation, 2),
-                                'end_time': time_point['timestamp'],
-                                'duration_seconds': 0
-                            }
-                        else:
-                            current_window['max_elevation'] = round(max(
-                                current_window['max_elevation'], elevation
-                            ), 2)
-                            current_window['end_time'] = time_point['timestamp']
-                            current_window['duration_seconds'] = t_offset
-                    else:
-                        # 不可見時結束當前窗口
-                        if current_window is not None:
-                            visibility_windows.append(current_window)
-                            current_window = None
+                    # Stage 1: 儲存所有位置，不做可見性篩選
+                    position_data = {
+                        'time': time_point['timestamp'],  # 使用標準化時間戳
+                        'time_offset_seconds': t_offset,
+                        'lat': observer_coords.get('satellite_lat', 0.0),
+                        'lon': observer_coords.get('satellite_lon', 0.0), 
+                        'alt_km': observer_coords['range_km'],  # 簡化：用距離代替高度
+                        'elevation_deg': round(elevation, 2),
+                        'azimuth_deg': round(observer_coords['azimuth_deg'], 2),
+                        'range_km': round(observer_coords['range_km'], 1)
+                    }
+                    
+                    all_positions.append(position_data)
                 else:
                     calculation_errors += 1
             
-            # 結束最後一個窗口
-            if current_window is not None:
-                visibility_windows.append(current_window)
-            
-            # 如果沒有可見位置，返回簡化的結果
-            if not visible_positions:
-                return {
-                    'satellite_info': {
-                        'name': satellite_tle_data['name'],
-                        'norad_id': satellite_tle_data['norad_id'],
-                        'status': 'not_visible'
-                    },
-                    'statistics': {
-                        'total_positions': total_positions,
-                        'visible_positions': 0,
-                        'visibility_percentage': 0.0,
-                        'calculation_errors': calculation_errors
-                    }
-                }
-            
-            # 返回優化的結果
+            # Stage 1: 返回完整軌道數據，不做任何篩選
             orbit_data = {
                 'satellite_info': {
                     'name': satellite_tle_data['name'],
@@ -444,26 +400,22 @@ class CoordinateSpecificOrbitEngine:
                     'duration_minutes': duration_minutes,
                     'time_step_seconds': self.time_step_seconds,
                     'total_computed_positions': total_positions,
-                    'stored_visible_positions': len(visible_positions),
+                    'stored_positions': len(all_positions),
                     'time_grid_aligned': True,  # 標記使用了標準時間網格
+                    'stage': 'stage1_full_orbit',  # 標記這是 Stage 1 全量計算
                     'observer_location': {
                         'lat': self.observer_lat,
                         'lon': self.observer_lon,
                         'alt': self.observer_alt
                     }
                 },
-                'positions': visible_positions,  # 使用標準化時間戳
-                'visibility_windows': visibility_windows,
+                'positions': all_positions,  # 完整位置數據，不做篩選
                 'statistics': {
                     'total_positions': total_positions,
-                    'visible_positions': len(visible_positions),
-                    'visibility_percentage': round(
-                        (len(visible_positions) / total_positions * 100) if total_positions > 0 else 0, 2
-                    ),
-                    'max_elevation': round(max_elevation, 2),
+                    'stored_positions': len(all_positions),
                     'calculation_errors': calculation_errors,
-                    'data_reduction_ratio': round(
-                        (1 - len(visible_positions) / total_positions) * 100 if total_positions > 0 else 0, 1
+                    'success_rate': round(
+                        (total_positions / (total_positions + calculation_errors) * 100) if (total_positions + calculation_errors) > 0 else 0, 2
                     )
                 }
             }

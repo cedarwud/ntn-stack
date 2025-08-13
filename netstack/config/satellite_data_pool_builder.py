@@ -58,48 +58,128 @@ class SatelliteDataPoolBuilder:
         for name, constellation in self.config.constellations.items():
             logger.info(f"  {name}: 目標衛星池 {constellation.total_satellites} 顆")
     
-    def build_satellite_pools(self, raw_satellite_data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
-        """為每個星座準備充足的衛星池
+    def build_satellite_pools_phase1_only(self, raw_satellite_data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
+        """階段一專用：僅進行基本TLE有效性驗證，不做智能篩選
+        
+        ⚠️ 重要：此方法已修復為符合文檔要求的全量處理
+        
+        階段一職責：
+        1. ✅ TLE格式基本驗證（移除損壞數據）
+        2. ✅ 保留所有有效衛星進行SGP4計算
+        3. ❌ 不做任何數量限制或智能篩選（移至階段二）
         
         Args:
             raw_satellite_data: 原始衛星數據 {constellation_name: [satellite_data]}
             
         Returns:
-            準備好的衛星池 {constellation_name: [selected_satellites]}
+            有效衛星池 {constellation_name: [all_valid_satellites]} - 全量數據
         """
         pools = {}
         
-        logger.info("開始建構衛星數據池...")
+        logger.info("🚀 開始階段一衛星池建構（全量處理模式）...")
+        
+        for constellation_name in raw_satellite_data.keys():
+            raw_satellites = raw_satellite_data[constellation_name]
+            logger.info(f"📡 處理 {constellation_name}: {len(raw_satellites)} 顆原始衛星")
+            
+            # 🔥 關鍵修復：僅進行基本TLE格式驗證，不做智能篩選
+            valid_satellites = self._basic_tle_validation_only(raw_satellites, constellation_name)
+            
+            pools[constellation_name] = valid_satellites
+            logger.info(f"  ✅ 階段一完成: {len(valid_satellites)} 顆有效衛星（保留全量進入SGP4計算）")
+        
+        # 總結統計
+        total_valid_satellites = sum(len(pool) for pool in pools.values())
+        total_raw_satellites = sum(len(satellites) for satellites in raw_satellite_data.values())
+        
+        logger.info(f"🎯 階段一全量處理完成:")
+        logger.info(f"  原始衛星: {total_raw_satellites} 顆")
+        logger.info(f"  有效衛星: {total_valid_satellites} 顆")
+        logger.info(f"  有效率: {total_valid_satellites/total_raw_satellites*100:.1f}%")
+        logger.info(f"  ⚠️  智能篩選將在階段二執行")
+        
+        return pools
+
+    def _basic_tle_validation_only(self, satellites: List[Dict[str, Any]], constellation: str) -> List[Dict[str, Any]]:
+        """階段一專用：僅進行基本TLE格式驗證
+        
+        檢查項目：
+        1. ✅ TLE格式驗證（必要）
+        2. ❌ 移除軌道參數範圍檢查（過於嚴格）
+        3. ❌ 移除覆蓋潛力預判（屬於階段二智能篩選）
+        """
+        valid_satellites = []
+        
+        for satellite in satellites:
+            try:
+                # 僅檢查TLE格式有效性
+                if self._validate_tle_format(satellite):
+                    valid_satellites.append(satellite)
+                    
+            except Exception as e:
+                logger.debug(f"TLE格式無效，跳過: {e}")
+                continue
+        
+        success_rate = len(valid_satellites) / len(satellites) * 100 if satellites else 0
+        logger.info(f"  {constellation} 基本格式驗證: {success_rate:.1f}% 通過")
+        
+        return valid_satellites
+
+    # 保留原方法作為階段二使用（重命名）
+    def build_satellite_pools_stage2_intelligent(self, phase1_data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
+        """階段二專用：智能衛星篩選（從階段一移動過來）
+        
+        這個方法包含了原本錯誤放在階段一的智能篩選邏輯：
+        1. 軌道參數合理性檢查
+        2. 覆蓋潛力評估  
+        3. 多樣性採樣
+        4. 數量限制到目標配置
+        
+        應該被階段二的智能篩選系統調用
+        """
+        pools = {}
+        
+        logger.info("🎯 開始階段二智能篩選...")
         
         for constellation_name, constellation_config in self.config.constellations.items():
-            if constellation_name not in raw_satellite_data:
-                logger.warning(f"未找到 {constellation_name} 的原始數據，跳過")
+            if constellation_name not in phase1_data:
+                logger.warning(f"未找到 {constellation_name} 的階段一數據，跳過")
                 continue
             
-            raw_satellites = raw_satellite_data[constellation_name]
-            logger.info(f"處理 {constellation_name}: {len(raw_satellites)} 顆原始衛星")
+            phase1_satellites = phase1_data[constellation_name]
+            logger.info(f"🔍 階段二處理 {constellation_name}: {len(phase1_satellites)} 顆階段一衛星")
             
-            # 基礎篩選：只保留基本有效的衛星
-            valid_satellites = self._basic_filter_satellites(raw_satellites, constellation_name)
-            logger.info(f"  基礎篩選後: {len(valid_satellites)} 顆有效衛星")
+            # 智能篩選：軌道參數和覆蓋性檢查
+            suitable_satellites = self._basic_filter_satellites(phase1_satellites, constellation_name)
+            logger.info(f"  智能篩選後: {len(suitable_satellites)} 顆適合衛星")
             
-            if len(valid_satellites) == 0:
-                logger.error(f"  {constellation_name}: 沒有有效的衛星數據！")
+            if len(suitable_satellites) == 0:
+                logger.error(f"  {constellation_name}: 沒有適合的換手候選衛星！")
                 pools[constellation_name] = []
                 continue
             
-            # 多樣性採樣：確保衛星池的多樣性
+            # 多樣性採樣到目標數量
             target_pool_size = constellation_config.total_satellites
-            selected_pool = self._diverse_sampling(valid_satellites, target_pool_size, constellation_name)
+            selected_pool = self._diverse_sampling(suitable_satellites, target_pool_size, constellation_name)
             
             pools[constellation_name] = selected_pool
-            logger.info(f"  最終衛星池: {len(selected_pool)} 顆衛星")
+            logger.info(f"  🎯 最終篩選結果: {len(selected_pool)} 顆高品質候選衛星")
         
         # 統計總結
-        total_pool_size = sum(len(pool) for pool in pools.values())
-        logger.info(f"衛星池準備完成: 總計 {total_pool_size} 顆衛星")
+        total_selected = sum(len(pool) for pool in pools.values())
+        total_input = sum(len(satellites) for satellites in phase1_data.values())
+        logger.info(f"✅ 階段二智能篩選完成: {total_input} → {total_selected} 顆衛星")
         
         return pools
+    
+    def build_satellite_pools(self, raw_satellite_data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
+        """🔧 修復：統一入口方法，根據階段選擇正確的處理邏輯
+        
+        ⚠️ 重要：這個方法現在默認調用 Phase 1 全量處理
+        如需 Stage 2 智能篩選，請直接調用 build_satellite_pools_stage2_intelligent()
+        """
+        logger.info("⚠️ 調用了通用 build_satellite_pools 方法，默認使用 Phase 1 全量處理")
+        return self.build_satellite_pools_phase1_only(raw_satellite_data)
     
     def _basic_filter_satellites(self, satellites: List[Dict[str, Any]], constellation: str) -> List[Dict[str, Any]]:
         """基礎篩選 - 只檢查數據有效性，不做智能選擇
@@ -451,9 +531,9 @@ if __name__ == "__main__":
     print(f"  Starlink: {len(mock_raw_data['starlink'])} 顆原始衛星")
     print(f"  OneWeb: {len(mock_raw_data['oneweb'])} 顆原始衛星")
     
-    # 建構衛星池
+    # 建構衛星池 - 修復：使用正確的 Phase 1 方法
     print(f"\n開始建構衛星數據池...")
-    pools = builder.build_satellite_pools(mock_raw_data)
+    pools = builder.build_satellite_pools_phase1_only(mock_raw_data)
     
     # 獲取統計信息
     stats = builder.get_pool_statistics(pools)

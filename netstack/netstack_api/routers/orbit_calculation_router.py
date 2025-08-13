@@ -77,7 +77,7 @@ class Phase1APIInterface:
         """
         獲取衛星軌道數據
         
-        取代原有的 get_phase0_satellite_data() 函數
+        取代原有的 get_enhanced_satellite_data() 函數
         
         Args:
             constellation: 星座名稱 ("starlink" 或 "oneweb")

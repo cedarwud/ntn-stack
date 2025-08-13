@@ -22,15 +22,15 @@ check_data_availability() {
     echo "📂 檢查預計算數據可用性..."
     
     # 檢查主要數據文件是否存在
-    if [ ! -f "$DATA_DIR/phase0_precomputed_orbits.json" ]; then
-        echo "❌ 主要數據文件缺失: phase0_precomputed_orbits.json"
+    if [ ! -f "$DATA_DIR/enhanced_satellite_data.json" ]; then
+        echo "❌ 主要數據文件缺失: enhanced_satellite_data.json"
         echo "💡 提示：這通常表示映像檔建構時未包含預計算數據"
         echo "💡 解決方案：重新建構映像檔或等待 Cron 更新"
         return 1
     fi
     
     # 檢查文件基本完整性
-    SIZE=$(stat -c%s "$DATA_DIR/phase0_precomputed_orbits.json" 2>/dev/null || echo 0)
+    SIZE=$(stat -c%s "$DATA_DIR/enhanced_satellite_data.json" 2>/dev/null || echo 0)
     if [ "$SIZE" -lt 1000000 ]; then  # 至少 1MB
         echo "❌ 數據文件過小，可能損壞 (大小: ${SIZE} bytes)"
         return 1
@@ -42,7 +42,7 @@ check_data_availability() {
     if python3 -c "
 import json
 try:
-    with open('$DATA_DIR/phase0_precomputed_orbits.json', 'r') as f:
+    with open('$DATA_DIR/enhanced_satellite_data.json', 'r') as f:
         data = json.load(f)
     print('✅ JSON 格式驗證通過')
     
@@ -99,9 +99,9 @@ show_startup_info() {
     fi
     
     # 顯示主要數據文件資訊
-    if [ -f "$DATA_DIR/phase0_precomputed_orbits.json" ]; then
-        local file_size=$(stat -c%s "$DATA_DIR/phase0_precomputed_orbits.json" 2>/dev/null || echo 0)
-        local file_time=$(stat -c%y "$DATA_DIR/phase0_precomputed_orbits.json" 2>/dev/null | cut -d'.' -f1)
+    if [ -f "$DATA_DIR/enhanced_satellite_data.json" ]; then
+        local file_size=$(stat -c%s "$DATA_DIR/enhanced_satellite_data.json" 2>/dev/null || echo 0)
+        local file_time=$(stat -c%y "$DATA_DIR/enhanced_satellite_data.json" 2>/dev/null | cut -d'.' -f1)
         echo "📁 主數據文件: $(echo "scale=2; $file_size/1024/1024" | bc -l 2>/dev/null || echo "N/A") MB"
         echo "🕐 文件時間: $file_time"
     fi

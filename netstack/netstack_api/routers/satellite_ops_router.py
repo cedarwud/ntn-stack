@@ -86,7 +86,7 @@ def get_intelligent_selector():
     global _intelligent_selector
     if _intelligent_selector is None:
         try:
-            from src.services.satellite.preprocessing.satellite_selector import IntelligentSatelliteSelector
+            from src.services.satellite.preprocessing import IntelligentSatelliteSelector
             _intelligent_selector = IntelligentSatelliteSelector()
             logger.info("✅ 智能衛星選擇器初始化成功")
         except Exception as e:
@@ -282,7 +282,7 @@ async def health_check():
         "data_source": "intelligent_preprocessing_system",
         "timestamp": datetime.utcnow().isoformat() + 'Z',
         "removed_legacy_systems": {
-            "phase0_15_satellites": "✅ 完全移除",
+            "enhanced_15_satellites": "✅ 完全移除",
             "simworld_api_bridge": "✅ 完全移除",
             "hardcoded_mock_data": "✅ 完全移除"
         },
