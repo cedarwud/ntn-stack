@@ -38,11 +38,13 @@ class Stage1TLEProcessor:
     4. 絕對不做任何篩選或取樣
     """
     
-    def __init__(self, tle_data_dir: str = "/app/tle_data", output_dir: str = "/app/data", debug_mode: bool = True):
+    def __init__(self, tle_data_dir: str = "/app/tle_data", output_dir: str = "/app/data", debug_mode: bool = False, sampling_mode: bool = False, sample_size: int = 50):
         self.tle_data_dir = Path(tle_data_dir)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.debug_mode = debug_mode  # 控制是否生成檔案
+        self.sampling_mode = sampling_mode  # 控制是否使用取樣模式
+        self.sample_size = sample_size  # 每個星座的取樣數量
         
         # 載入配置（只使用觀測點座標，忽略取樣配置）
         try:
@@ -61,6 +63,8 @@ class Stage1TLEProcessor:
         logger.info(f"  輸出目錄: {self.output_dir}")
         logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
         logger.info(f"  Debug 模式: {'啟用 (將生成檔案)' if self.debug_mode else '停用 (即時處理模式)'}")
+        if self.sampling_mode:
+            logger.info(f"  🚀 取樣模式: 啟用 (每個星座取樣 {self.sample_size} 顆衛星)")
         
     def scan_tle_data(self) -> Dict[str, Any]:
         """掃描所有可用的 TLE 數據檔案"""
@@ -158,18 +162,26 @@ class Stage1TLEProcessor:
                             satellites.append(satellite_data)
                             satellite_count += 1
                 
+                # 🚀 取樣模式：限制每個星座的衛星數量
+                if self.sampling_mode:
+                    original_count = len(satellites)
+                    satellites = satellites[:self.sample_size]  # 只取前N顆
+                    logger.info(f"🎯 {constellation} 取樣: {original_count} → {len(satellites)} 顆衛星")
+                else:
+                    logger.info(f"📡 {constellation}: 載入 {len(satellites)} 顆原始衛星")
+                
                 all_raw_satellites[constellation] = satellites
                 
                 logger.info(f"從 {latest_file} 載入 {len(satellites)} 顆衛星")
                 logger.info(f"{constellation}: 從 {info['latest_date']} 載入 {len(satellites)} 顆衛星")
-                logger.info(f"   {constellation}: 載入 {len(satellites)} 顆原始衛星")
                 
             except Exception as e:
                 logger.error(f"載入 {constellation} 數據失敗: {e}")
                 all_raw_satellites[constellation] = []
         
         total_loaded = sum(len(sats) for sats in all_raw_satellites.values())
-        logger.info(f"✅ 原始數據載入完成: 總計 {total_loaded} 顆衛星")
+        mode_str = f"取樣模式 (每個星座最多{self.sample_size}顆)" if self.sampling_mode else "全量模式"
+        logger.info(f"✅ 原始數據載入完成 ({mode_str}): 總計 {total_loaded} 顆衛星")
         
         return all_raw_satellites
         
@@ -275,23 +287,82 @@ class Stage1TLEProcessor:
         return final_data
         
     def save_stage1_output(self, stage1_data: Dict[str, Any]) -> Optional[str]:
-        """保存階段一輸出數據（根據 debug_mode 控制）"""
+        """保存階段一輸出數據（根據 debug_mode 控制）- 修正版本"""
         if not self.debug_mode:
             logger.info("🚀 即時處理模式：跳過檔案生成，數據將直接傳遞給階段二")
             return None
             
         output_file = self.output_dir / "stage1_tle_sgp4_output.json"
         
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(stage1_data, f, indent=2, ensure_ascii=False)
+        logger.info(f"💾 Debug 模式：開始保存階段一數據到: {output_file}")
+        
+        try:
+            # 使用更安全的JSON寫入方式，避免內存問題和格式錯誤
+            import json
+            import tempfile
             
-        logger.info(f"💾 Debug 模式：階段一數據已保存到: {output_file}")
-        return str(output_file)
+            # 首先寫入臨時檔案
+            temp_file = output_file.with_suffix('.tmp')
+            
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                # 使用較小的indent來減少檔案大小，並確保ASCII安全
+                json.dump(stage1_data, f, indent=1, ensure_ascii=True, separators=(',', ': '))
+            
+            # 驗證臨時檔案的JSON格式
+            with open(temp_file, 'r', encoding='utf-8') as f:
+                json.load(f)  # 驗證JSON格式
+            
+            # 如果驗證成功，將臨時檔案重命名為最終檔案
+            if output_file.exists():
+                output_file.unlink()
+            temp_file.rename(output_file)
+            
+            logger.info(f"💾 Debug 模式：階段一數據已安全保存到: {output_file}")
+            return str(output_file)
+            
+        except Exception as e:
+            logger.error(f"❌ 保存階段一數據失敗: {e}")
+            # 清理臨時檔案
+            if 'temp_file' in locals() and temp_file.exists():
+                temp_file.unlink()
+            return None
         
     def process_stage1(self) -> Dict[str, Any]:
         """執行完整的階段一處理流程"""
         logger.info("🚀 開始階段一：TLE數據載入與SGP4軌道計算")
         
+        # 檢查現有檔案
+        existing_data_file = self.output_dir / "stage1_tle_sgp4_output.json"
+        
+        # Debug 模式邏輯
+        if self.debug_mode:
+            logger.info("🔧 Debug 模式：執行完整數據重新計算並存檔")
+            stage1_data = self._execute_full_calculation()
+            self.save_stage1_output(stage1_data)
+            
+        else:
+            # 即時處理模式：清理舊檔案，確保使用最新數據
+            if existing_data_file.exists():
+                logger.info("🗑️ 即時處理模式：刪除舊檔案，確保使用最新數據")
+                existing_data_file.unlink()
+                logger.info(f"  已刪除舊檔案: {existing_data_file}")
+            
+            logger.info("🚀 即時處理模式：執行即時計算（不存檔，直接傳遞給階段二）")
+            stage1_data = self._execute_full_calculation()
+            # 不存檔，確保 2.2GB 檔案不會持續存在
+        
+        logger.info("✅ 階段一處理完成")
+        logger.info(f"  處理的衛星數: {stage1_data['metadata']['total_satellites']}")
+        
+        if self.debug_mode:
+            logger.info("  Debug 模式：數據已存檔並準備傳遞給階段二")
+        else:
+            logger.info("  即時處理模式：數據已準備好直接傳遞給階段二（未存檔）")
+        
+        return stage1_data
+        
+    def _execute_full_calculation(self) -> Dict[str, Any]:
+        """執行完整的計算流程（抽取為私有方法）"""
         # 1. 掃描 TLE 數據
         scan_result = self.scan_tle_data()
         
@@ -306,17 +377,6 @@ class Stage1TLEProcessor:
             
         # 3. 全量 SGP4 軌道計算
         stage1_data = self.calculate_all_orbits(raw_satellite_data)
-        
-        # 4. 根據模式決定是否保存輸出
-        output_file = self.save_stage1_output(stage1_data)
-        
-        logger.info("✅ 階段一處理完成")
-        logger.info(f"  處理的衛星數: {stage1_data['metadata']['total_satellites']}")
-        
-        if output_file:
-            logger.info(f"  輸出檔案: {output_file}")
-        else:
-            logger.info("  即時處理模式: 數據已準備好直接傳遞給階段二")
         
         return stage1_data
 
