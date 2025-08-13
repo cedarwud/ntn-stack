@@ -133,12 +133,24 @@ class Stage2FilterProcessor:
         logger.info(f"💾 階段二數據已保存到: {output_file}")
         return str(output_file)
         
-    def process_stage2(self, stage1_file: Optional[str] = None) -> Dict[str, Any]:
+    def process_stage2(self, stage1_file: Optional[str] = None, stage1_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """執行完整的階段二處理流程"""
         logger.info("🚀 開始階段二：智能衛星篩選")
         
-        # 1. 載入階段一數據
-        stage1_data = self.load_stage1_output(stage1_file)
+        # 1. 載入階段一數據（優先使用內存數據）
+        if stage1_data is not None:
+            logger.info("📥 使用提供的階段一內存數據")
+            # 驗證內存數據格式
+            if 'constellations' not in stage1_data:
+                raise ValueError("階段一數據缺少 constellations 欄位")
+            total_satellites = 0
+            for constellation_name, constellation_data in stage1_data['constellations'].items():
+                satellites = constellation_data.get('orbit_data', {}).get('satellites', {})
+                total_satellites += len(satellites)
+                logger.info(f"  {constellation_name}: {len(satellites)} 顆衛星")
+            logger.info(f"✅ 階段一內存數據驗證完成: 總計 {total_satellites} 顆衛星")
+        else:
+            stage1_data = self.load_stage1_output(stage1_file)
         
         # 2. 執行智能篩選
         filtered_data = self.execute_intelligent_filtering(stage1_data)

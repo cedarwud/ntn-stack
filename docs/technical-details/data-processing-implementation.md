@@ -77,9 +77,9 @@ class Stage1TLEProcessor:
         return stage1_data
 ```
 
-### Debug Mode 控制機制
+### Debug Mode 控制機制 (v2.1 最終版本)
 ```python
-# Debug Mode 檔案輸出控制
+# Debug Mode 檔案輸出控制與數據一致性保證
 def save_stage1_output(self, stage1_data: Dict[str, Any]) -> Optional[str]:
     """根據 debug_mode 控制檔案生成"""
     if not self.debug_mode:
@@ -93,7 +93,38 @@ def save_stage1_output(self, stage1_data: Dict[str, Any]) -> Optional[str]:
     
     logger.info(f"💾 Debug模式：階段一數據已保存到: {output_file}")
     return str(output_file)
+
+# 完整的 Debug Mode 流程控制
+def process_stage1(self) -> Dict[str, Any]:
+    """執行完整的階段一處理流程"""
+    logger.info("🚀 開始階段一：TLE數據載入與SGP4軌道計算")
+    
+    # 檢查現有檔案
+    existing_data_file = self.output_dir / "stage1_tle_sgp4_output.json"
+    
+    # Debug 模式邏輯
+    if self.debug_mode:
+        logger.info("🔧 Debug 模式：執行完整數據重新計算並存檔")
+        stage1_data = self._execute_full_calculation()
+        self.save_stage1_output(stage1_data)
+        
+    else:
+        # 即時處理模式：清理舊檔案，確保使用最新數據
+        if existing_data_file.exists():
+            logger.info("🗑️ 即時處理模式：刪除舊檔案，確保使用最新數據")
+            existing_data_file.unlink()
+            logger.info(f"  已刪除舊檔案: {existing_data_file}")
+        
+        logger.info("🚀 即時處理模式：執行即時計算（不存檔，直接傳遞給階段二）")
+        stage1_data = self._execute_full_calculation()
+        # 不存檔，確保 2.2GB 檔案不會持續存在
+    
+    return stage1_data
 ```
+
+### Debug Mode 行為說明
+- **debug_mode=True** (預設): 重新計算所有數據並生成檔案，適用於開發和調試
+- **debug_mode=False**: 刪除任何現有檔案，重新計算最新數據，不保存檔案，適用於即時處理模式
 
 ### 支援組件位置
 ```python

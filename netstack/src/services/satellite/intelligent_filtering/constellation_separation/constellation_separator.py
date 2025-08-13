@@ -89,29 +89,20 @@ class ConstellationSeparator:
     
     def apply_constellation_specific_filtering(self, constellation_data: Dict[str, List[Dict]]) -> Dict[str, List[Dict]]:
         """
-        應用星座特定的篩選邏輯
+        星座分離階段：僅分類，不做篩選
+        
+        在階段二的星座分離步驟中，我們只需要按星座分類衛星，
+        不應該根據軌道參數進行過濾，避免過早丟失衛星數據。
         
         Args:
             constellation_data: 分離後的星座數據
             
         Returns:
-            Dict[str, List[Dict]]: 應用星座特定篩選後的數據
+            Dict[str, List[Dict]]: 分類後的數據（不篩選）
         """
-        filtered_data = {}
-        
-        # Starlink 特定篩選
-        if "starlink" in constellation_data:
-            filtered_data["starlink"] = self._apply_starlink_filtering(
-                constellation_data["starlink"]
-            )
-        
-        # OneWeb 特定篩選
-        if "oneweb" in constellation_data:
-            filtered_data["oneweb"] = self._apply_oneweb_filtering(
-                constellation_data["oneweb"]
-            )
-        
-        return filtered_data
+        # 直接返回分類後的數據，不做任何篩選
+        # 篩選邏輯應該在後續的地理篩選和換手評分階段執行
+        return constellation_data
     
     def _apply_starlink_filtering(self, starlink_satellites: List[Dict]) -> List[Dict]:
         """
