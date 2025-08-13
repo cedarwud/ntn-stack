@@ -60,8 +60,8 @@ class LegacyConfigExtractor:
         self.legacy_configs = {}
     
     def extract_build_time_config(self) -> Dict:
-        """提取建構時配置 - 從 build_with_phase0_data.py 提取"""
-        build_script = self.netstack_root / "docker" / "build_with_phase0_data.py"
+        """提取建構時配置 - 從 satellite_orbit_preprocessor.py 提取"""
+        build_script = self.netstack_root / "docker" / "satellite_orbit_preprocessor.py"
         
         config = {
             "starlink_pool_size": 555,  # 從文檔中已知的最終配置
@@ -151,7 +151,7 @@ class ConfigMigrator:
             # 備份配置文件
             config_files = [
                 self.netstack_root / "config" / "satellite_config.py",
-                self.netstack_root / "docker" / "build_with_phase0_data.py",
+                self.netstack_root / "docker" / "satellite_orbit_preprocessor.py",
                 self.netstack_root / "src" / "services" / "satellite" / "preprocessing" / "satellite_selector.py"
             ]
             

@@ -31,14 +31,14 @@ class StartupOptimizer:
         self.startup_start_time = time.time()
         self.startup_file = "/tmp/netstack_startup_time"
         self.data_paths = {
-            "phase0_data": "/app/data",
+            "enhanced_data": "/app/data",
             "tle_data": "/app/tle_data",
             "data": "/app/data",  # 修正路徑：從 test_output 改為 data
         }
         self.required_files = [
-            "phase0_precomputed_orbits.json",
-            "phase0_data_summary.json",
-            "phase0_build_config.json",
+            "enhanced_satellite_data.json",
+            "enhanced_data_summary.json",
+            "enhanced_build_config.json",
         ]
 
     def record_startup_time(self):
@@ -96,7 +96,7 @@ class StartupOptimizer:
                             data = json.load(f)
 
                         # 只載入元數據，不載入大型數據
-                        if required_file == "phase0_precomputed_orbits.json":
+                        if required_file == "enhanced_satellite_data.json":
                             # 只載入摘要信息，不載入完整軌道數據
                             summary_data = {
                                 "metadata": data.get("metadata", {}),

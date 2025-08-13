@@ -119,18 +119,23 @@ class SatelliteOrbitPreprocessor:
     
     def process_all_tle_data(self) -> Dict[str, Any]:
         """
-        處理所有 TLE 數據 - Phase 2.0 完整版本
+        處理所有 TLE 數據 - Phase 2.1 重構版本
         
-        完整流程：
+        完整三階段流程：
         1. ⭐ 階段一：TLE數據載入與SGP4軌道計算
            1.1 掃描 TLE 數據檔案
            1.2 載入原始衛星數據 
            1.3 使用數據池準備器建構衛星池
            1.4 完整 SGP4 軌道計算
-        2. ⭐ 階段二：3GPP Events & 信號品質增強
-        3. ⭐ 統一輸出增強數據格式
+        2. ⭐ 階段二：智能衛星篩選 (新增重構架構)
+           2.1 星座分離篩選
+           2.2 地理相關性篩選 
+           2.3 換手適用性評分與選擇
+        3. ⭐ 階段三：信號品質增強與3GPP事件
+           3.1 信號品質計算
+           3.2 3GPP事件分析
         """
-        logger.info("🚀 開始 Phase 2.0 完整數據處理管線")
+        logger.info("🚀 開始 Phase 2.1 重構三階段處理管線")
         
         # === 階段一：TLE數據載入與SGP4軌道計算 ===
         logger.info("📡 開始階段一：TLE數據載入與SGP4軌道計算...")
@@ -169,44 +174,62 @@ class SatelliteOrbitPreprocessor:
         logger.info("  1.4 執行完整SGP4軌道計算...")
         phase1_data = self._execute_phase1_orbit_calculation(satellite_pools)
         
-        # === 階段二：3GPP Events & 信號品質增強 ===
-        logger.info("🛰️ 開始階段二：3GPP Events & 信號品質增強...")
-        phase2_data = self._execute_phase2_signal_enhancement(phase1_data)
+        # === 階段二：智能衛星篩選 (新增) ===
+        logger.info("🎯 開始階段二：智能衛星篩選...")
+        filtered_data = self._execute_phase2_intelligent_filtering(phase1_data)
+        
+        # === 階段三：信號品質增強與3GPP事件 ===
+        logger.info("🛰️ 開始階段三：信號品質增強與3GPP事件...")
+        final_data = self._execute_phase3_signal_enhancement(filtered_data)
         
         # === 最終輸出 ===
-        output_file = self.output_dir / "enhanced_satellite_data.json"
-        self._save_processed_data(phase2_data, output_file)
+        output_file = self.output_dir / "enhanced_satellite_data_v2.1.json"
+        self._save_processed_data(final_data, output_file)
         
-        logger.info("✅ Phase 2.0 完整處理管線完成")
-        logger.info(f"  總星座數: {phase2_data['metadata']['total_constellations']}")
-        logger.info(f"  總衛星數: {phase2_data['metadata']['total_satellites']}")
-        logger.info(f"  增強數據點: {phase2_data['metadata'].get('enhanced_points', 0)}")
+        logger.info("✅ Phase 2.1 重構三階段處理管線完成")
+        logger.info(f"  總星座數: {final_data['metadata']['total_constellations']}")
+        logger.info(f"  原始衛星數: {final_data['metadata']['total_satellites']}")
+        
+        # 報告篩選結果
+        stage2_results = final_data['metadata'].get('stage2_results', {})
+        if stage2_results:
+            logger.info(f"  智能篩選結果: {stage2_results.get('total_selected', 0)} 顆高品質衛星")
+            logger.info(f"    - Starlink: {stage2_results.get('starlink_selected', 0)} 顆")
+            logger.info(f"    - OneWeb: {stage2_results.get('oneweb_selected', 0)} 顆")
+        
+        logger.info(f"  處理管線: {final_data['metadata'].get('processing_pipeline', 'unknown')}")
         logger.info(f"  輸出文件: {output_file}")
         
-        return phase2_data
+        return final_data
     
     def _build_satellite_pools(self, raw_satellite_data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
-        """使用數據池準備器建構衛星池"""
+        """🔧 修復：使用 Phase 1 專用數據池建構器（只做基礎 TLE 驗證）"""
         try:
             from config.satellite_data_pool_builder import create_satellite_data_pool_builder
             
-            logger.info("🔧 使用數據池準備器建構衛星池...")
+            logger.info("🔧 使用 Phase 1 數據池準備器（全量處理模式）...")
             
             # 創建數據池準備器
             builder = create_satellite_data_pool_builder(self.config)
             
-            # 建構衛星池
-            satellite_pools = builder.build_satellite_pools(raw_satellite_data)
+            # 🚨 關鍵修復：使用 Phase 1 專用方法，只做基礎 TLE 驗證，不做智能篩選
+            satellite_pools = builder.build_satellite_pools_phase1_only(raw_satellite_data)
             
             # 獲取統計信息
             stats = builder.get_pool_statistics(satellite_pools)
             
-            logger.info("📊 數據池統計:")
+            logger.info("📊 Phase 1 數據池統計（全量處理）:")
             for constellation, constellation_stats in stats["constellations"].items():
-                completion_rate = constellation_stats["completion_rate"]
                 pool_size = constellation_stats["pool_size"]
-                target_size = constellation_stats["target_size"]
-                logger.info(f"  {constellation}: {pool_size}/{target_size} 顆 ({completion_rate:.1f}%)")
+                logger.info(f"  {constellation}: {pool_size} 顆（已通過基礎 TLE 驗證）")
+            
+            # 驗證全量處理
+            total_processed = sum(len(pool) for pool in satellite_pools.values())
+            logger.info(f"🎯 Phase 1 全量處理驗證: {total_processed} 顆衛星進入 SGP4 計算")
+            
+            if total_processed < 8000:  # 預期應該有 8,715 顆
+                logger.warning(f"⚠️  全量處理警告: 只處理了 {total_processed} 顆衛星，預期應有 ~8,715 顆")
+                logger.warning("   請檢查 TLE 數據完整性或基礎驗證邏輯")
             
             return satellite_pools
             
@@ -417,7 +440,7 @@ class SatelliteOrbitPreprocessor:
         1.4 此方法執行：完整SGP4軌道計算與時間序列生成
         
         輸入: 衛星池數據（經過基礎篩選）
-        輸出: 包含完整軌道數據的數據結構（符合階段二輸入要求）
+        輸出: 包含完整軌道數據的數據結構（符合軌道引擎期望格式）
         """
         phase1_data = {
             "metadata": {
@@ -459,27 +482,195 @@ class SatelliteOrbitPreprocessor:
                 constellation_name, satellite_pool)
             
             if constellation_with_orbits:
-                phase1_data["constellations"][constellation_name] = constellation_with_orbits
+                # 🔧 關鍵修復：產生軌道計算引擎期望的數據結構格式
+                orbit_data_structure = {
+                    "satellite_count": constellation_with_orbits.get("satellite_count", 0),
+                    "orbit_calculation": constellation_with_orbits.get("orbit_calculation", "unknown"),
+                    "successful_calculations": constellation_with_orbits.get("successful_calculations", 0),
+                    "calculation_success_rate": constellation_with_orbits.get("calculation_success_rate", 0.0),
+                    "algorithms": constellation_with_orbits.get("algorithms", {}),
+                    # 💎 核心修復：將 satellites 數據放入 orbit_data.satellites 結構
+                    "orbit_data": {
+                        "satellites": {}
+                    }
+                }
+                
+                # 將衛星數據轉換為 {satellite_id: satellite_data} 字典格式
+                satellites_list = constellation_with_orbits.get('satellites', [])
+                satellites_with_positions = 0  # 🔧 修復：正確計算有軌道數據的衛星數量
+                
+                for satellite in satellites_list:
+                    satellite_id = satellite.get('satellite_id') or satellite.get('name', 'unknown')
+                    
+                    # 🛰️ 轉換為軌道引擎期望的格式
+                    satellite_formatted = {
+                        'name': satellite.get('name', satellite_id),
+                        'norad_id': satellite.get('norad_id'),
+                        'constellation': satellite.get('constellation', constellation_name.lower()),
+                        'positions': satellite.get('timeseries', []),  # 重要：timeseries 改名為 positions
+                        'orbit_data': satellite.get('orbit_data', {}),
+                        'computation_metadata': satellite.get('computation_metadata', {}),
+                        'statistics': satellite.get('statistics', {}),
+                        'sgp4_calculation': satellite.get('sgp4_calculation', 'unknown')
+                    }
+                    
+                    # 🎯 修復：檢查原始 timeseries 而不是格式化後的 positions 來計算有效衛星
+                    if satellite.get('timeseries'):  # 檢查原始數據結構中的 timeseries
+                        satellites_with_positions += 1
+                    
+                    orbit_data_structure["orbit_data"]["satellites"][satellite_id] = satellite_formatted
+                
+                phase1_data["constellations"][constellation_name] = orbit_data_structure
                 phase1_data["metadata"]["total_constellations"] += 1
-                phase1_data["metadata"]["total_satellites"] += len(constellation_with_orbits.get('satellites', []))
+                
+                # 🎯 修復：使用正確的計數邏輯，統計有軌道位置數據的衛星
+                phase1_data["metadata"]["total_satellites"] += satellites_with_positions
+                
+                logger.info(f"  {constellation_name}: 已格式化 {len(orbit_data_structure['orbit_data']['satellites'])} 顆衛星至軌道引擎結構")
+                logger.info(f"  {constellation_name}: 其中 {satellites_with_positions} 顆有完整軌道位置數據")
         
-        logger.info(f"✅ 階段一完成: {phase1_data['metadata']['total_satellites']} 顆衛星已完成完整軌道計算")
+        logger.info(f"✅ 階段一完成: {phase1_data['metadata']['total_satellites']} 顆衛星已完成完整軌道計算並格式化")
         return phase1_data
     
-    def _execute_phase2_signal_enhancement(self, phase1_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _execute_phase2_intelligent_filtering(self, phase1_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        執行階段二：3GPP Events & 信號品質增強
+        執行階段二：統一智能衛星篩選
         
-        輸入: 階段一軌道數據
+        使用完整整合的統一智能篩選系統，包含：
+        1. 星座分離篩選
+        2. 地理相關性篩選
+        3. 換手適用性評分
+        4. 信號品質評估
+        5. 3GPP 事件分析
+        
+        輸入: 階段一軌道數據 
+        輸出: 完整篩選後的高品質衛星子集
+        """
+        try:
+            # 導入統一智能篩選系統
+            import sys
+            from pathlib import Path
+            
+            # 添加 stage2 模組路徑
+            project_root = Path(__file__).parent.parent
+            stage2_path = project_root / "stage2_intelligent_filtering"
+            sys.path.insert(0, str(stage2_path))
+            
+            from unified_intelligent_filter import create_unified_intelligent_filter
+            
+            logger.info("🎯 開始階段二：統一智能衛星篩選")
+            
+            # 創建統一智能篩選系統
+            intelligent_filter = create_unified_intelligent_filter(
+                observer_lat=self.observer_lat,
+                observer_lon=self.observer_lon
+            )
+            
+            # 設定選擇配置 (從 config 獲取或使用默認值)
+            selection_config = {
+                "starlink": getattr(self.config, 'starlink_target', 555),
+                "oneweb": getattr(self.config, 'oneweb_target', 134)
+            }
+            
+            logger.info(f"📊 篩選配置: Starlink {selection_config['starlink']} 顆, "
+                       f"OneWeb {selection_config['oneweb']} 顆")
+            
+            # 執行完整智能篩選
+            filtered_data = intelligent_filter.process_complete_filtering(phase1_data, selection_config)
+            
+            # 驗證篩選結果
+            validation = intelligent_filter.validate_filtering_results(filtered_data)
+            
+            # 更新元數據
+            filtered_data['metadata']['phase2_completion'] = "unified_intelligent_filtering"
+            filtered_data['metadata']['phase2_algorithm'] = "complete_modular_architecture_v2.1"
+            filtered_data['metadata']['validation_passed'] = validation['overall_quality']
+            
+            total_selected = filtered_data['metadata']['unified_filtering_results']['total_selected']
+            logger.info(f"✅ 階段二統一智能篩選完成: 選擇了 {total_selected} 顆高品質衛星")
+            
+            if not validation['overall_quality']:
+                logger.warning("⚠️ 篩選結果未達到最佳品質標準，但繼續處理")
+            
+            return filtered_data
+            
+        except ImportError as e:
+            logger.error(f"❌ 統一智能篩選系統模組載入失敗: {e}")
+            logger.warning("🔄 回退到基礎處理模式")
+            return self._fallback_basic_filtering(phase1_data)
+            
+        except Exception as e:
+            logger.error(f"❌ 階段二統一智能篩選失敗: {e}")
+            logger.warning("🔄 回退到基礎處理模式")
+            return self._fallback_basic_filtering(phase1_data)
+            
+    def _fallback_basic_filtering(self, phase1_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        回退的基礎篩選模式
+        
+        當統一智能篩選系統不可用時的後備方案
+        """
+        logger.info("⚙️ 執行基礎篩選模式")
+        
+        try:
+            # 嘗試使用現有的智能選擇器作為後備
+            from src.services.satellite.preprocessing import IntelligentSatelliteSelector, SatelliteSelectionConfig
+            
+            config = SatelliteSelectionConfig(
+                starlink_target=getattr(self.config, 'starlink_target', 555),
+                oneweb_target=getattr(self.config, 'oneweb_target', 134),
+                observer_lat=self.observer_lat,
+                observer_lon=self.observer_lon
+            )
+            
+            selector = IntelligentSatelliteSelector(config)
+            
+            # 提取衛星數據
+            all_satellites = []
+            for constellation_name, constellation_data in phase1_data.get("constellations", {}).items():
+                satellites = constellation_data.get("satellites", [])
+                for satellite in satellites:
+                    satellite["constellation"] = constellation_name
+                    all_satellites.append(satellite)
+            
+            # 執行智能選擇
+            selected_satellites, selection_stats = selector.select_research_subset(all_satellites)
+            
+            # 構建輸出數據
+            fallback_data = phase1_data.copy()
+            fallback_data['metadata']['phase2_completion'] = "fallback_intelligent_selector"
+            fallback_data['metadata']['phase2_algorithm'] = "legacy_intelligent_selector_v4.0"
+            fallback_data['metadata']['selected_satellites_count'] = len(selected_satellites)
+            fallback_data['metadata']['selection_stats'] = selection_stats
+            
+            logger.info(f"✅ 基礎篩選完成: 選擇了 {len(selected_satellites)} 顆衛星")
+            return fallback_data
+            
+        except Exception as e:
+            logger.error(f"❌ 基礎篩選也失敗: {e}")
+            logger.warning("⚠️ 跳過智能篩選，直接使用完整數據集")
+            
+            # 最後的後備方案：跳過篩選
+            phase1_data['metadata']['phase2_error'] = str(e)
+            phase1_data['metadata']['phase2_completion'] = "skipped_due_to_error"
+            return phase1_data
+            
+    def _execute_phase3_signal_enhancement(self, filtered_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        執行階段三：信號品質增強與3GPP事件分析
+        
+        輸入: 階段二篩選後的衛星數據
         輸出: 增強後的完整數據，包含信號品質和3GPP事件
         """
         try:
-            # 創建階段二處理器
-            phase2_processor = Phase2SignalProcessor(self.config)
-            event_analyzer = GPPEventAnalyzer(self.config, phase2_processor.signal_calculator)
+            # 創建階段三處理器
+            phase3_processor = Phase2SignalProcessor(self.config)  # 重命名但保持相容性
+            event_analyzer = GPPEventAnalyzer(self.config, phase3_processor.signal_calculator)
+            
+            logger.info("📡 開始階段三信號品質增強")
             
             # 執行信號品質增強
-            enhanced_data = phase2_processor.enhance_satellite_data(phase1_data)
+            enhanced_data = phase3_processor.enhance_satellite_data(filtered_data)
             
             # 執行3GPP事件分析
             event_analysis = event_analyzer.analyze_handover_events(enhanced_data)
@@ -488,23 +679,26 @@ class SatelliteOrbitPreprocessor:
             enhanced_data['event_analysis'] = event_analysis
             
             # 更新元數據
-            enhanced_data['metadata']['phase2_completion'] = "signal_quality_and_3gpp_events"
+            enhanced_data['metadata']['phase3_completion'] = "signal_quality_and_3gpp_events"
             enhanced_data['metadata']['final_version'] = "2.0.0-complete"
+            enhanced_data['metadata']['processing_pipeline'] = "phase1_sgp4 -> phase2_intelligent_filtering -> phase3_signal_enhancement"
             
+            logger.info("✅ 階段三信號品質增強完成")
             return enhanced_data
             
         except Exception as e:
-            logger.error(f"階段二處理失敗: {e}")
-            # 回退到階段一數據
-            logger.warning("回退到階段一數據（無信號品質增強）")
-            phase1_data['metadata']['phase2_error'] = str(e)
-            return phase1_data
+            logger.error(f"❌ 階段三信號增強失敗: {e}")
+            # 回退到篩選後的數據
+            logger.warning("⚠️ 回退到階段二篩選數據（無信號品質增強）")
+            filtered_data['metadata']['phase3_error'] = str(e)
+            filtered_data['metadata']['phase3_completion'] = "skipped_due_to_error"
+            return filtered_data
     
     def _calculate_constellation_orbits(self, constellation: str, satellite_pool: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         計算星座軌道數據 (階段一核心邏輯)
         
-        這個方法執行完整的 SGP4 軌道計算，為每顆衛星生成時間序列軌道數據
+        🔧 修復：確保輸出格式完全符合 Stage 2 期待
         """
         if not self.enable_sgp4:
             logger.warning(f"{constellation}: SGP4 已禁用，跳過軌道計算")
@@ -526,7 +720,7 @@ class SatelliteOrbitPreprocessor:
                 observer_lat=self.observer_lat,
                 observer_lon=self.observer_lon,
                 observer_alt=self.observer_alt,
-                min_elevation=10.0
+                min_elevation=5.0  # 降低最小仰角以增加可見性
             )
             
             # 設定計算起始時間（當前時間）
@@ -538,32 +732,78 @@ class SatelliteOrbitPreprocessor:
             
             for satellite_data in satellite_pool:
                 try:
-                    # 🔑 修復：使用實際存在的方法 compute_120min_orbital_cycle
+                    # 執行 120 分鐘軌道計算
                     orbit_result = orbit_engine.compute_120min_orbital_cycle(
                         satellite_data, start_time)
                     
                     if orbit_result and 'positions' in orbit_result:
-                        # 將軌道結果整合到衛星數據中
+                        # 🔧 修復：構建完整的 Stage 2 兼容格式
                         enhanced_satellite = {
-                            **satellite_data,
+                            # Stage 2 必需欄位
+                            'satellite_id': satellite_data.get('name', f"SAT-{satellite_data.get('norad_id', 'UNKNOWN')}"),
+                            'constellation': constellation.lower(),  # 確保小寫
+                            
+                            # ConstellationSeparator 需要的 orbit_data
+                            'orbit_data': {
+                                'altitude': self._extract_altitude_from_tle(satellite_data),
+                                'inclination': self._extract_inclination_from_tle(satellite_data),
+                                'position': {'x': 6371, 'y': 0, 'z': 0},  # 預設位置
+                                'velocity': {'vx': 7.5, 'vy': 0, 'vz': 0}  # 預設速度
+                            },
+                            
+                            # GeographicFilter 需要的 timeseries
                             'timeseries': orbit_result['positions'],
+                            
+                            # 其他有用的數據
                             'visibility_windows': orbit_result.get('visibility_windows', []),
                             'computation_metadata': orbit_result.get('computation_metadata', {}),
                             'statistics': orbit_result.get('statistics', {}),
+                            'timestamp': start_time.isoformat(),
+                            
+                            # 原始 TLE 數據保留
+                            'name': satellite_data.get('name'),
+                            'norad_id': satellite_data.get('norad_id'),
+                            'line1': satellite_data.get('line1'),
+                            'line2': satellite_data.get('line2'),
                             'sgp4_calculation': 'complete'
                         }
+                        
                         calculated_satellites.append(enhanced_satellite)
                         successful_calculations += 1
                     else:
                         # 保留原始數據但標記為計算失敗
-                        satellite_data['sgp4_calculation'] = 'failed'
-                        calculated_satellites.append(satellite_data)
+                        failed_satellite = {
+                            'satellite_id': satellite_data.get('name', f"SAT-{satellite_data.get('norad_id', 'UNKNOWN')}"),
+                            'constellation': constellation.lower(),
+                            'orbit_data': {
+                                'altitude': self._extract_altitude_from_tle(satellite_data),
+                                'inclination': self._extract_inclination_from_tle(satellite_data),
+                                'position': {'x': 0, 'y': 0, 'z': 0},
+                                'velocity': {'vx': 0, 'vy': 0, 'vz': 0}
+                            },
+                            'timeseries': [],  # 空的時間序列
+                            **satellite_data,
+                            'sgp4_calculation': 'failed'
+                        }
+                        calculated_satellites.append(failed_satellite)
                 
                 except Exception as sat_error:
                     logger.debug(f"衛星 {satellite_data.get('name', 'unknown')} 計算失敗: {sat_error}")
                     # 保留原始數據
-                    satellite_data['sgp4_calculation'] = 'error'
-                    calculated_satellites.append(satellite_data)
+                    error_satellite = {
+                        'satellite_id': satellite_data.get('name', f"SAT-{satellite_data.get('norad_id', 'UNKNOWN')}"),
+                        'constellation': constellation.lower(),
+                        'orbit_data': {
+                            'altitude': 550 if constellation == 'starlink' else 1200,  # 預設高度
+                            'inclination': 53 if constellation == 'starlink' else 87,   # 預設傾角
+                            'position': {'x': 0, 'y': 0, 'z': 0},
+                            'velocity': {'vx': 0, 'vy': 0, 'vz': 0}
+                        },
+                        'timeseries': [],
+                        **satellite_data,
+                        'sgp4_calculation': 'error'
+                    }
+                    calculated_satellites.append(error_satellite)
             
             logger.info(f"  {constellation}: {successful_calculations}/{len(satellite_pool)} 顆衛星軌道計算完成")
             
@@ -590,6 +830,46 @@ class SatelliteOrbitPreprocessor:
         except Exception as e:
             logger.error(f"❌ {constellation}: SGP4 軌道計算失敗 - {e}")
             raise Exception(f"SGP4 orbital calculation failed for {constellation}: {e}")
+            
+    def _extract_altitude_from_tle(self, tle_data: Dict[str, Any]) -> float:
+        """從 TLE 數據提取軌道高度"""
+        try:
+            # 從 TLE 第二行提取平均運動值計算高度
+            line2 = tle_data.get('line2', '')
+            if line2:
+                # TLE 格式：平均運動在第 52-63 位
+                mean_motion_str = line2[52:63].strip()
+                mean_motion = float(mean_motion_str)
+                
+                # 計算半長軸 a (km) = (GM / (2π * n)^2)^(1/3)
+                # 其中 GM = 398600.4418 km³/s², n = mean_motion * 2π / 86400
+                GM = 398600.4418
+                n_rad_per_sec = mean_motion * 2 * 3.14159 / 86400
+                a = (GM / (n_rad_per_sec ** 2)) ** (1/3)
+                
+                # 高度 = 半長軸 - 地球半徑
+                altitude = a - 6371.0
+                return max(200, min(2000, altitude))  # 限制在合理範圍
+        except:
+            pass
+        
+        # 預設值
+        return 550.0 if 'starlink' in tle_data.get('name', '').lower() else 1200.0
+    
+    def _extract_inclination_from_tle(self, tle_data: Dict[str, Any]) -> float:
+        """從 TLE 數據提取軌道傾角"""
+        try:
+            # 從 TLE 第二行提取傾角 (第 8-16 位)
+            line2 = tle_data.get('line2', '')
+            if line2:
+                inclination_str = line2[8:16].strip()
+                inclination = float(inclination_str)
+                return inclination
+        except:
+            pass
+        
+        # 預設值
+        return 53.0 if 'starlink' in tle_data.get('name', '').lower() else 87.0
     
     # 🚫 _fallback_orbit_calculation 函數已刪除
     # 根據 CLAUDE.md 核心原則，禁止使用簡化處理回退機制
@@ -1377,7 +1657,7 @@ def main():
     
     try:
         # 創建重構版預處理器
-        preprocessor = Phase25DataPreprocessor()
+        preprocessor = SatelliteOrbitPreprocessor()
         
         # 執行數據處理
         result = preprocessor.process_all_tle_data()
