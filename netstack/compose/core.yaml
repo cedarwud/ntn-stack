@@ -347,14 +347,9 @@ services:
         ipv4_address: 172.20.0.40
     restart: unless-stopped
 
-  # NetStack API 服務 - 單階段統一構建
+  # NetStack API 服務 - 使用預構建映像
   netstack-api:
-    build:
-      context: ../
-      dockerfile: docker/Dockerfile
-      args:
-        BUILD_ENV: production  # 可改為 development 啟用開發模式
-        INSTALL_DEV_TOOLS: false  # 可改為 true 安裝開發工具
+    image: netstack-api:latest
     container_name: netstack-api
     entrypoint: ["/usr/local/bin/smart-entrypoint.sh"]
     command: ["python", "-m", "netstack_api.main"]

@@ -44,8 +44,8 @@ RUN pip install --upgrade pip && \
 # 複製所有應用程式代碼 (一次性複製，避免覆蓋問題)
 COPY . .
 
-# Phase 0 預計算：在代碼複製後立即執行，確保修改不被覆蓋
-COPY docker/build_with_phase0_data_refactored.py /app/build_with_phase0_data.py
+# 衛星軌道預處理：使用統一的衛星軌道預處理器
+COPY docker/satellite_orbit_preprocessor.py /app/satellite_orbit_preprocessor.py
 
 # 創建必要目錄
 RUN mkdir -p /app/data /app/tle_data /app/logs /var/log/netstack \
@@ -59,23 +59,23 @@ ENV MPLCONFIGDIR="/tmp/matplotlib"
 ENV PRECOMPUTED_DATA_ENABLED=true
 ENV ORBIT_CACHE_PRELOAD=true
 
-# Phase 0 混合模式：建構時預計算基礎數據
-RUN echo "🚀 Phase 0 單階段模式：執行預計算..." && \
-    python build_with_phase0_data.py || echo "⚠️ 建構時預計算未完成，將在運行時處理" && \
-    if [ -f /app/data/phase0_precomputed_orbits.json ]; then \
+# 衛星軌道預計算：建構時預計算基礎數據
+RUN echo "🚀 衛星軌道預處理：執行預計算..." && \
+    python satellite_orbit_preprocessor.py || echo "⚠️ 建構時預計算未完成，將在運行時處理" && \
+    if [ -f /app/data/enhanced_satellite_data.json ]; then \
         echo "$(date -Iseconds)" > /app/data/.build_timestamp && \
         echo "✅ 建構時預計算完成，數據已就緒"; \
     else \
         echo "ℹ️ 建構時預計算跳過，將使用運行時計算"; \
     fi
 
-# Phase 0 環境變數：從建置時生成的配置加載
-RUN if [ -f /app/data/phase0.env ]; then \
+# 衛星數據環境變數：從建置時生成的配置加載
+RUN if [ -f /app/data/satellite_data.env ]; then \
         while IFS='=' read -r key value; do \
             if [ -n "$key" ] && [ -n "$value" ]; then \
                 echo "export $key=\"$value\"" >> /etc/environment; \
             fi; \
-        done < /app/data/phase0.env; \
+        done < /app/data/satellite_data.env; \
     fi
 
 # 設定目錄權限
@@ -117,10 +117,10 @@ CMD if [ "$BUILD_ENV" = "development" ]; then \
         uvicorn netstack_api.main:app --host 0.0.0.0 --port 8080; \
     fi
 
-# Phase 0 標籤
-LABEL phase0.version="2.0.0"
-LABEL phase0.architecture="single-stage-unified"
-LABEL phase0.data_source="local_manual_collection" 
-LABEL phase0.build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-LABEL phase0.computation_method="sgp4_orbit_precomputation"
-LABEL phase0.description="NetStack unified single-stage build eliminating code overwrite issues"
+# 衛星數據處理標籤
+LABEL satellite_data.version="2.0.0"
+LABEL satellite_data.architecture="single-stage-unified"
+LABEL satellite_data.source="local_sgp4_computation" 
+LABEL satellite_data.build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+LABEL satellite_data.computation_method="sgp4_orbit_precomputation"
+LABEL satellite_data.description="NetStack unified satellite data processing build"

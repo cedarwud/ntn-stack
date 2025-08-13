@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 class StarlinkDataDownloader:
     """Starlink 數據下載與分析工具"""
     
-    def __init__(self, cache_dir: str = "data/phase0_cache"):
+    def __init__(self, cache_dir: str = "data/enhanced_cache"):
         """
         初始化 Phase 0 集成系統
         
@@ -128,7 +128,7 @@ class StarlinkDataDownloader:
                         "longitude": observer_lon,
                         "altitude_m": observer_alt
                     },
-                    "phase0_version": "1.0"
+                    "enhanced_version": "1.0"
                 },
                 "raw_data_statistics": {
                     "total_starlink_satellites": len(satellites),
@@ -226,7 +226,7 @@ class StarlinkDataDownloader:
         
         # 導出文件路徑
         files = {
-            "complete_results": export_path / f"phase0_complete_{timestamp}.json",
+            "complete_results": export_path / f"enhanced_complete_{timestamp}.json",
             "satellite_trajectories": export_path / f"trajectories_{timestamp}.csv",
             "handover_sequence": export_path / f"handover_sequence_{timestamp}.csv",
             "analysis_summary": export_path / f"analysis_summary_{timestamp}.txt"
@@ -310,13 +310,13 @@ async def main():
     parser = argparse.ArgumentParser(description="Phase 0 Starlink 換手分析工具")
     parser.add_argument("--coordinates", required=True, 
                        help="觀察者座標 (格式: lat,lon 或 lat,lon,alt)")
-    parser.add_argument("--output", default="phase0_results.json",
+    parser.add_argument("--output", default="enhanced_results.json",
                        help="輸出文件路徑")
     parser.add_argument("--force-download", action="store_true",
                        help="強制重新下載 TLE 數據")
     parser.add_argument("--export-academic", action="store_true",
                        help="導出學術研究格式")
-    parser.add_argument("--cache-dir", default="data/phase0_cache",
+    parser.add_argument("--cache-dir", default="data/enhanced_cache",
                        help="緩存目錄")
     
     args = parser.parse_args()
@@ -336,19 +336,19 @@ async def main():
     
     # 執行分析
     try:
-        phase0 = Phase0Integration(cache_dir=args.cache_dir)
+        enhanced = EnhancedIntegration(cache_dir=args.cache_dir)
         
-        results = await phase0.run_complete_analysis(
+        results = await enhanced.run_complete_analysis(
             observer_lat, observer_lon, observer_alt, 
             force_download=args.force_download
         )
         
         # 保存結果
-        await phase0.save_results(results, args.output)
+        await enhanced.save_results(results, args.output)
         
         # 導出學術格式
         if args.export_academic:
-            export_files = await phase0.export_for_academic_research(results)
+            export_files = await enhanced.export_for_academic_research(results)
             logger.info("學術格式文件:")
             for name, path in export_files.items():
                 logger.info(f"  {name}: {path}")

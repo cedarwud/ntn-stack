@@ -39,7 +39,7 @@ class LayeredPhase0Generator:
             tle_data_dir: TLE 數據目錄
         """
         self.tle_data_dir = Path(tle_data_dir)
-        self.output_dir = Path("/app/data/layered_phase0")
+        self.output_dir = Path("/app/data/layered_enhanced")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # NTPU 觀測座標
@@ -366,7 +366,7 @@ class LayeredPhase0Generator:
             'failed_dates': sorted(failed_dates)
         }
         
-        summary_file = self.output_dir / "layered_phase0_summary.json"
+        summary_file = self.output_dir / "layered_enhanced_summary.json"
         
         try:
             with open(summary_file, 'w', encoding='utf-8') as f:

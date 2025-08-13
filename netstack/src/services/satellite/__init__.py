@@ -14,8 +14,8 @@
 Usage:
     from netstack.src.services.satellite import Phase0Integration
     
-    phase0 = Phase0Integration()
-    results = await phase0.run_complete_analysis(24.9441667, 121.3713889)
+    enhanced = EnhancedIntegration()
+    results = await enhanced.run_complete_analysis(24.9441667, 121.3713889)
 """
 
 from .starlink_tle_downloader import StarlinkTLEDownloader

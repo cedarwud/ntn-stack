@@ -80,7 +80,7 @@ def get_intelligent_selector():
     global _intelligent_selector
     if _intelligent_selector is None:
         try:
-            from src.services.satellite.preprocessing.satellite_selector import IntelligentSatelliteSelector
+            from src.services.satellite.preprocessing import IntelligentSatelliteSelector
             _intelligent_selector = IntelligentSatelliteSelector()
             logger.info("✅ 智能衛星選擇器初始化成功")
         except Exception as e:
@@ -98,7 +98,7 @@ def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List
     try:
         # 🔥 CRITICAL FIX: 使用真實的 SGP4 預計算軌道數據
         import json
-        precomputed_file = '/app/data/phase0_precomputed_orbits.json'  # 真實 SGP4 數據文件
+        precomputed_file = '/app/data/enhanced_satellite_data.json'  # 真實 SGP4 數據文件
         
         with open(precomputed_file, 'r') as f:
             precomputed_data = json.load(f)
@@ -355,13 +355,13 @@ async def get_visible_satellites(
                 "lon": 121.3713889,
                 "alt": 0.024
             },
-            data_source="phase0_preprocessing_150_50_satellites_optimized",
+            data_source="enhanced_preprocessing_150_50_satellites_optimized",
             preprocessing_stats=preprocessing_stats or {
                 "starlink_satellites": 651 if constellation.lower() == 'starlink' else 0,
                 "oneweb_satellites": 301 if constellation.lower() == 'oneweb' else 0,
                 "total_constellation_pool": len(all_satellites),
                 "intelligent_selector_used": selector is not None,
-                "data_generation_method": "phase0_preprocessing"
+                "data_generation_method": "enhanced_preprocessing"
             }
         )
         
@@ -412,7 +412,7 @@ async def get_constellation_timeline(
             "timeline": timeline_data,
             "total_points": len(timeline_data),
             "time_range_hours": hours,
-            "data_source": "phase0_preprocessing_120_80_satellites"
+            "data_source": "enhanced_preprocessing_120_80_satellites"
         }
         
     except Exception as e:
@@ -432,7 +432,7 @@ async def health_check():
     return {
         "healthy": True,
         "service": "intelligent-satellite-preprocessing",
-        "data_source": "phase0_preprocessing_150_50_satellites_optimized",
+        "data_source": "enhanced_preprocessing_150_50_satellites_optimized",
         "timestamp": datetime.utcnow().isoformat() + 'Z',
         "components": {
             "preprocessing_service": preprocessing_service is not None,
