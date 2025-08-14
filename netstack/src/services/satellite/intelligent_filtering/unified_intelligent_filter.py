@@ -146,6 +146,87 @@ class UnifiedIntelligentFilter:
         
         return result
     
+    def process_stage2_filtering_only(self, 
+                                    sgp4_data: Dict[str, Any], 
+                                    selection_config: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
+        """
+        執行階段二專用的篩選流程（不包含信號品質和事件分析）
+        
+        Args:
+            sgp4_data: 階段一輸出的完整衛星軌道數據
+            selection_config: 選擇配置。如果為None，則使用動態篩選（推薦）
+            
+        Returns:
+            階段二篩選後的數據（只包含篩選功能）
+        """
+        logger.info("🎯 開始階段二專用篩選流程")
+        
+        # 提取衛星數據
+        all_satellites = self._extract_satellites_from_sgp4_data(sgp4_data)
+        total_input = len(all_satellites)
+        logger.info(f"📡 輸入衛星總數: {total_input}")
+        
+        # === 階段 2.1：星座分離篩選 ===
+        logger.info("⚙️ 執行階段 2.1: 星座分離篩選")
+        separated_data = self.constellation_separator.separate_constellations(all_satellites)
+        constellation_filtered = self.constellation_separator.apply_constellation_specific_filtering(separated_data)
+        
+        sep_stats = self.constellation_separator.get_separation_statistics(constellation_filtered)
+        stage1_total = sum(len(sats) for sats in constellation_filtered.values())
+        logger.info(f"✅ 星座分離完成: {stage1_total}/{total_input} 顆衛星保留 "
+                   f"(Starlink: {len(constellation_filtered.get('starlink', []))}, "
+                   f"OneWeb: {len(constellation_filtered.get('oneweb', []))})")
+        
+        # === 階段 2.2：地理相關性篩選 ===
+        logger.info("🌍 執行階段 2.2: 地理相關性篩選")
+        geo_filtered = self.geographic_filter.apply_geographic_filtering(constellation_filtered)
+        
+        geo_stats = self.geographic_filter.get_filtering_statistics(constellation_filtered, geo_filtered)
+        stage2_total = sum(len(sats) for sats in geo_filtered.values())
+        logger.info(f"✅ 地理篩選完成: {stage2_total}/{stage1_total} 顆衛星保留 "
+                   f"(減少 {geo_stats['overall_reduction']['reduction_rate_percent']:.1f}%)")
+        
+        # === 階段 2.3：換手適用性評分 ===
+        logger.info("📊 執行階段 2.3: 換手適用性評分")
+        scored_data = self.handover_scorer.apply_handover_scoring(geo_filtered)
+        
+        scoring_stats = self.handover_scorer.get_scoring_statistics(scored_data)
+        stage3_total = sum(len(sats) for sats in scored_data.values())
+        logger.info(f"✅ 換手評分完成: {stage3_total} 顆衛星已評分")
+        
+        # === 動態衛星選擇（階段二結束）===
+        if selection_config is None:
+            logger.info("🎯 執行動態篩選模式 - 保留所有通過篩選的衛星")
+            selected_satellites = scored_data  # 階段二結束，不包含信號品質
+        else:
+            logger.info("🏆 執行固定數量選擇模式")
+            selected_satellites = self.handover_scorer.select_top_satellites(scored_data, selection_config)
+        
+        final_total = sum(len(sats) for sats in selected_satellites.values())
+        logger.info(f"✅ 階段二篩選完成: {final_total} 顆衛星通過篩選")
+        
+        # === 構建階段二專用輸出數據 ===
+        result = self._build_stage2_output(
+            sgp4_data, selected_satellites, {
+                'input_statistics': {'total_input': total_input},
+                'separation_stats': sep_stats,
+                'geographic_stats': geo_stats, 
+                'scoring_stats': scoring_stats,
+                'selection_summary': {
+                    'stage1_separated': stage1_total,
+                    'stage2_geo_filtered': stage2_total,
+                    'stage2_scored': stage3_total,
+                    'final_selected': final_total,
+                    'selection_config': selection_config
+                }
+            }
+        )
+        
+        logger.info(f"🎉 階段二篩選完成: {total_input} → {final_total} 顆衛星 "
+                   f"(篩選率: {(1 - final_total/total_input)*100:.1f}%)")
+        
+        return result
+    
     def _extract_satellites_from_sgp4_data(self, sgp4_data: Dict[str, Any]) -> List[Dict]:
         """從SGP4數據中提取衛星列表，兼容字典和列表格式"""
         all_satellites = []
@@ -363,6 +444,100 @@ class UnifiedIntelligentFilter:
                 result["constellations"][constellation_name] = constellation_data
         
         return result
+    
+    def _build_stage2_output(self, 
+                           sgp4_data: Dict[str, Any],
+                           selected_satellites: Dict[str, List[Dict]],
+                           processing_stats: Dict[str, Any]) -> Dict[str, Any]:
+        """構建階段二專用輸出數據格式（只包含篩選後的衛星，大幅減少檔案大小）"""
+        
+        result = {
+            "metadata": {
+                **sgp4_data.get("metadata", {}),
+                "stage2_filtering_completion": "stage2_filtering_only",
+                "stage2_filtering_version": "3.0.0-clean_separation", 
+                "processing_pipeline": [
+                    "phase1_sgp4_orbit_calculation",
+                    "phase2.1_constellation_separation",
+                    "phase2.2_geographic_filtering", 
+                    "phase2.3_handover_scoring"
+                ],
+                "stage2_algorithms": {
+                    "constellation_separation": "complete_starlink_oneweb_separation",
+                    "geographic_filtering": "ntpu_location_optimized_filtering",
+                    "handover_scoring": "constellation_specific_scoring_system"
+                },
+                "unified_filtering_results": {
+                    "total_selected": sum(len(sats) for sats in selected_satellites.values()),
+                    "starlink_selected": len(selected_satellites.get("starlink", [])),
+                    "oneweb_selected": len(selected_satellites.get("oneweb", [])),
+                    "processing_quality": "stage2_filtering_complete"
+                },
+                "processing_statistics": processing_stats,
+                "ready_for_stage3": True  # 標記可以進入階段三
+            },
+            "constellations": {}
+        }
+        
+        # 只構建篩選後的衛星數據，減少檔案大小
+        original_constellations = sgp4_data.get("constellations", {})
+        
+        for constellation_name, selected_sats in selected_satellites.items():
+            if constellation_name in original_constellations:
+                # 只保留必要的星座元數據
+                constellation_data = {
+                    "constellation": constellation_name,
+                    "satellite_count": len(selected_sats),
+                    "selection_quality": "stage2_intelligent_filtered",
+                    "filtering_stages": [
+                        "constellation_separation",
+                        "geographic_filtering", 
+                        "handover_scoring"
+                    ],
+                    # 提取篩選後衛星的完整軌道數據
+                    "orbit_data": {
+                        "satellites": self._extract_selected_orbit_data(
+                            original_constellations[constellation_name], 
+                            selected_sats
+                        )
+                    }
+                }
+                
+                result["constellations"][constellation_name] = constellation_data
+        
+        return result
+    
+    def _extract_selected_orbit_data(self, original_constellation: Dict, selected_sats: List[Dict]) -> Dict:
+        """提取篩選後衛星的完整軌道數據 - 完全修復版本"""
+        selected_orbit_data = {}
+        original_satellites = original_constellation.get("orbit_data", {}).get("satellites", {})
+        
+        logger.info(f"🔧 強制修復版本: 開始提取篩選後的軌道數據")
+        logger.info(f"   篩選後衛星數: {len(selected_sats)} 顆")
+        logger.info(f"   原始衛星數據庫: {len(original_satellites)} 顆")
+        
+        # 🎯 修復：直接按 selected_sats 提取，忽略所有其他邏輯
+        extracted_count = 0
+        for selected_sat in selected_sats:
+            satellite_id = selected_sat.get("satellite_id")
+            if satellite_id and satellite_id in original_satellites:
+                selected_orbit_data[satellite_id] = original_satellites[satellite_id]
+                extracted_count += 1
+        
+        logger.info(f"✅ 修復版本完成: 提取了 {extracted_count} 顆衛星的軌道數據")
+        
+        # 🚨 最終驗證：如果提取的衛星數超過篩選數的2倍，強制只返回前N顆
+        if len(selected_orbit_data) > len(selected_sats) * 2:
+            logger.error(f"❌ 異常檢測: 提取了 {len(selected_orbit_data)} 顆，但只應該有 {len(selected_sats)} 顆")
+            limited_data = {}
+            for i, (sat_id, sat_data) in enumerate(selected_orbit_data.items()):
+                if i >= len(selected_sats):
+                    break
+                limited_data[sat_id] = sat_data
+            logger.info(f"🛡️ 強制限制為 {len(limited_data)} 顆衛星")
+            return limited_data
+        
+        return selected_orbit_data
     
     def validate_filtering_results(self, result: Dict[str, Any]) -> Dict[str, bool]:
         """驗證篩選結果的品質"""

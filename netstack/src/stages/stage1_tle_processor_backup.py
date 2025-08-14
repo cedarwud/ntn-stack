@@ -41,50 +41,90 @@ class Stage1TLEProcessor:
     def __init__(self, tle_data_dir: str = "/app/tle_data", output_dir: str = "/app/data", debug_mode: bool = False, sample_size: int = 50):
         """
         階段一處理器初始化 - v3.0 重新設計版本
-        
-        Args:
-            tle_data_dir: TLE數據目錄路徑
-            output_dir: 輸出目錄路徑（僅用於臨時檔案清理）
-            debug_mode: 處理模式控制
-                - False (預設): 全量處理模式（8,735顆衛星）
-                - True: 除錯取樣模式（每星座最多sample_size顆）
-            sample_size: debug_mode=True時每個星座的取樣數量
-        
-        檔案儲存策略:
-            - v3.0版本完全停用JSON檔案儲存（避免2.2GB問題）
-            - 採用純記憶體傳遞給階段二
-        """
-        self.tle_data_dir = Path(tle_data_dir)
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # 🎯 v3.0 重新定義：debug_mode統一控制處理模式
-        self.debug_mode = debug_mode  # True=取樣除錯, False=全量處理
-        self.sample_size = sample_size  # 取樣數量
-        
-        # 載入配置（只使用觀測點座標）
-        try:
-            self.config = get_unified_config()
-            self.observer_lat = self.config.observer.latitude
-            self.observer_lon = self.config.observer.longitude
-            self.observer_alt = self.config.observer.altitude_m
-        except Exception as e:
-            logger.warning(f"配置載入失敗，使用預設值: {e}")
-            self.observer_lat = 24.9441667
-            self.observer_lon = 121.3713889
-            self.observer_alt = 50.0
-            
-        logger.info("✅ 階段一處理器初始化完成 (v3.0)")
-        logger.info(f"  TLE 數據目錄: {self.tle_data_dir}")
-        logger.info(f"  輸出目錄: {self.output_dir}")
-        logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
-        logger.info("  💾 檔案策略: 純記憶體傳遞（不生成任何JSON檔案）")
-        
-        if self.debug_mode:
-            logger.info(f"  🔧 除錯模式: 啟用（每星座取樣 {self.sample_size} 顆衛星）")
-        else:
-            logger.info("  🚀 全量模式: 處理所有 8,735 顆衛星")
     
+    Args:
+        tle_data_dir: TLE數據目錄路徑
+        output_dir: 輸出目錄路徑（僅用於臨時檔案清理）
+        debug_mode: 處理模式控制
+            - False (預設): 全量處理模式（8,735顆衛星）
+            - True: 除錯取樣模式（每星座最多sample_size顆）
+        sample_size: debug_mode=True時每個星座的取樣數量
+    
+    檔案儲存策略:
+        - v3.0版本完全停用JSON檔案儲存（避免2.2GB問題）
+        - 採用純記憶體傳遞給階段二
+    """
+    self.tle_data_dir = Path(tle_data_dir)
+    self.output_dir = Path(output_dir)
+    self.output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 🎯 v3.0 重新定義：debug_mode統一控制處理模式
+    self.debug_mode = debug_mode  # True=取樣除錯, False=全量處理
+    self.sample_size = sample_size  # 取樣數量
+    
+    # 載入配置（只使用觀測點座標）
+    try:
+        self.config = get_unified_config()
+        self.observer_lat = self.config.observer.latitude
+        self.observer_lon = self.config.observer.longitude
+        self.observer_alt = self.config.observer.altitude_m
+    except Exception as e:
+        logger.warning(f"配置載入失敗，使用預設值: {e}")
+        self.observer_lat = 24.9441667
+        self.observer_lon = 121.3713889
+        self.observer_alt = 50.0
+        
+    logger.info("✅ 階段一處理器初始化完成 (v3.0)")
+    logger.info(f"  TLE 數據目錄: {self.tle_data_dir}")
+    logger.info(f"  輸出目錄: {self.output_dir}")
+    logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
+    logger.info("  💾 檔案策略: 純記憶體傳遞（不生成任何JSON檔案）")
+    
+    if self.debug_mode:
+        logger.info(f"  🔧 除錯模式: 啟用（每星座取樣 {self.sample_size} 顆衛星）")
+    else:
+        logger.info("  🚀 全量模式: 處理所有 8,735 顆衛星")
+    """
+    重新定義初始化參數語義：
+    
+    Args:
+        debug_mode: 控制是否使用取樣模式進行快速除錯（預設False=全量處理）
+        sampling_mode: 已廢棄，由debug_mode統一控制
+        sample_size: debug_mode=True時的每個星座取樣數量
+    """
+    self.tle_data_dir = Path(tle_data_dir)
+    self.output_dir = Path(output_dir)
+    self.output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 🔄 重新定義語義：debug_mode控制取樣，不控制檔案儲存
+    self.use_sampling = debug_mode  # debug_mode=True時使用取樣
+    self.sample_size = sample_size  # 每個星座的取樣數量
+    
+    # 💾 檔案儲存策略：預設不儲存（避免2.2GB問題）
+    self.save_to_file = False  # 一律不儲存到檔案，直接記憶體傳遞
+    
+    # 載入配置（只使用觀測點座標，忽略取樣配置）
+    try:
+        self.config = get_unified_config()
+        self.observer_lat = self.config.observer.latitude
+        self.observer_lon = self.config.observer.longitude
+        self.observer_alt = self.config.observer.altitude_m
+    except Exception as e:
+        logger.warning(f"配置載入失敗，使用預設值: {e}")
+        self.observer_lat = 24.9441667
+        self.observer_lon = 121.3713889
+        self.observer_alt = 50.0
+        
+    logger.info("✅ 階段一處理器初始化完成")
+    logger.info(f"  TLE 數據目錄: {self.tle_data_dir}")
+    logger.info(f"  輸出目錄: {self.output_dir}")
+    logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
+    logger.info(f"  💾 儲存策略: 僅記憶體傳遞（避免2.2GB檔案）")
+    
+    if self.use_sampling:
+        logger.info(f"  🔧 除錯模式: 啟用（每個星座取樣 {self.sample_size} 顆衛星）")
+    else:
+        logger.info(f"  🚀 生產模式: 全量處理（8,735顆衛星）")        
     def scan_tle_data(self) -> Dict[str, Any]:
         """掃描所有可用的 TLE 數據檔案"""
         logger.info("🔍 掃描 TLE 數據檔案...")
@@ -146,63 +186,120 @@ class Stage1TLEProcessor:
         return scan_result
         
     def load_raw_satellite_data(self, scan_result: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
-        """載入所有原始衛星數據 - v3.0 統一處理模式"""
-        logger.info("📥 載入原始衛星數據...")
+    """載入所有原始衛星數據 - v3.0 統一處理模式"""
+    logger.info("📥 載入原始衛星數據...")
+    
+    all_raw_satellites = {}
+    
+    for constellation, info in scan_result['constellations'].items():
+        logger.info(f"   處理 {constellation} 星座...")
         
-        all_raw_satellites = {}
+        latest_file = Path(info['latest_file'])
         
-        for constellation, info in scan_result['constellations'].items():
-            logger.info(f"   處理 {constellation} 星座...")
+        try:
+            with open(latest_file, 'r', encoding='utf-8') as f:
+                tle_lines = f.readlines()
             
-            latest_file = Path(info['latest_file'])
+            satellites = []
+            satellite_count = 0
             
-            try:
-                with open(latest_file, 'r', encoding='utf-8') as f:
-                    tle_lines = f.readlines()
-                
-                satellites = []
-                satellite_count = 0
-                
-                # 解析 TLE 數據
-                for i in range(0, len(tle_lines), 3):
-                    if i + 2 < len(tle_lines):
-                        name_line = tle_lines[i].strip()
-                        line1 = tle_lines[i + 1].strip()
-                        line2 = tle_lines[i + 2].strip()
-                        
-                        if line1.startswith('1 ') and line2.startswith('2 '):
-                            satellite_data = {
-                                'satellite_id': f"{constellation}_{satellite_count:05d}",
-                                'name': name_line,
-                                'tle_line1': line1,
-                                'tle_line2': line2,
-                                'constellation': constellation
-                            }
-                            satellites.append(satellite_data)
-                            satellite_count += 1
-                
-                # 🎯 v3.0 統一模式控制
-                if self.debug_mode:
-                    # 除錯取樣模式：限制衛星數量
-                    original_count = len(satellites)
-                    satellites = satellites[:self.sample_size]
-                    logger.info(f"🔧 {constellation} 除錯取樣: {original_count} → {len(satellites)} 顆衛星")
-                else:
-                    # 全量處理模式：使用所有衛星
-                    logger.info(f"🚀 {constellation}: 全量載入 {len(satellites)} 顆衛星")
-                
-                all_raw_satellites[constellation] = satellites
-                logger.info(f"從 {latest_file} 處理完成: {len(satellites)} 顆衛星")
-                
-            except Exception as e:
-                logger.error(f"載入 {constellation} 數據失敗: {e}")
-                all_raw_satellites[constellation] = []
+            # 解析 TLE 數據
+            for i in range(0, len(tle_lines), 3):
+                if i + 2 < len(tle_lines):
+                    name_line = tle_lines[i].strip()
+                    line1 = tle_lines[i + 1].strip()
+                    line2 = tle_lines[i + 2].strip()
+                    
+                    if line1.startswith('1 ') and line2.startswith('2 '):
+                        satellite_data = {
+                            'satellite_id': f"{constellation}_{satellite_count:05d}",
+                            'name': name_line,
+                            'tle_line1': line1,
+                            'tle_line2': line2,
+                            'constellation': constellation
+                        }
+                        satellites.append(satellite_data)
+                        satellite_count += 1
+            
+            # 🎯 v3.0 統一模式控制
+            if self.debug_mode:
+                # 除錯取樣模式：限制衛星數量
+                original_count = len(satellites)
+                satellites = satellites[:self.sample_size]
+                logger.info(f"🔧 {constellation} 除錯取樣: {original_count} → {len(satellites)} 顆衛星")
+            else:
+                # 全量處理模式：使用所有衛星
+                logger.info(f"🚀 {constellation}: 全量載入 {len(satellites)} 顆衛星")
+            
+            all_raw_satellites[constellation] = satellites
+            logger.info(f"從 {latest_file} 處理完成: {len(satellites)} 顆衛星")
+            
+        except Exception as e:
+            logger.error(f"載入 {constellation} 數據失敗: {e}")
+            all_raw_satellites[constellation] = []
+    
+    total_loaded = sum(len(sats) for sats in all_raw_satellites.values())
+    mode_info = f"除錯取樣 (每星座最多{self.sample_size}顆)" if self.debug_mode else "全量處理"
+    logger.info(f"✅ 原始數據載入完成 ({mode_info}): 總計 {total_loaded} 顆衛星")
+    
+    return all_raw_satellites
+    """載入所有原始衛星數據（支援取樣模式）"""
+    logger.info("📥 載入所有原始衛星數據...")
+    
+    all_raw_satellites = {}
+    
+    for constellation, info in scan_result['constellations'].items():
+        logger.info(f"   處理 {constellation} 星座...")
         
-        total_loaded = sum(len(sats) for sats in all_raw_satellites.values())
-        mode_info = f"除錯取樣 (每星座最多{self.sample_size}顆)" if self.debug_mode else "全量處理"
-        logger.info(f"✅ 原始數據載入完成 ({mode_info}): 總計 {total_loaded} 顆衛星")
+        latest_file = Path(info['latest_file'])
         
-        return all_raw_satellites
+        try:
+            with open(latest_file, 'r', encoding='utf-8') as f:
+                tle_lines = f.readlines()
+            
+            satellites = []
+            satellite_count = 0
+            
+            # 解析 TLE 數據
+            for i in range(0, len(tle_lines), 3):
+                if i + 2 < len(tle_lines):
+                    name_line = tle_lines[i].strip()
+                    line1 = tle_lines[i + 1].strip()
+                    line2 = tle_lines[i + 2].strip()
+                    
+                    if line1.startswith('1 ') and line2.startswith('2 '):
+                        satellite_data = {
+                            'satellite_id': f"{constellation}_{satellite_count:05d}",
+                            'name': name_line,
+                            'tle_line1': line1,
+                            'tle_line2': line2,
+                            'constellation': constellation
+                        }
+                        satellites.append(satellite_data)
+                        satellite_count += 1
+            
+            # 🔧 使用新的取樣邏輯
+            if self.use_sampling:
+                original_count = len(satellites)
+                satellites = satellites[:self.sample_size]  # 只取前N顆
+                logger.info(f"🔧 {constellation} 除錯取樣: {original_count} → {len(satellites)} 顆衛星")
+            else:
+                logger.info(f"🚀 {constellation}: 載入 {len(satellites)} 顆衛星（全量模式）")
+            
+            all_raw_satellites[constellation] = satellites
+            
+            logger.info(f"從 {latest_file} 載入 {len(satellites)} 顆衛星")
+            logger.info(f"{constellation}: 從 {info['latest_date']} 載入 {len(satellites)} 顆衛星")
+            
+        except Exception as e:
+            logger.error(f"載入 {constellation} 數據失敗: {e}")
+            all_raw_satellites[constellation] = []
+    
+    total_loaded = sum(len(sats) for sats in all_raw_satellites.values())
+    mode_str = f"除錯取樣模式 (每個星座最多{self.sample_size}顆)" if self.use_sampling else "全量模式"
+    logger.info(f"✅ 原始數據載入完成 ({mode_str}): 總計 {total_loaded} 顆衛星")
+    
+    return all_raw_satellites
         
     def calculate_all_orbits(self, raw_satellite_data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
         """對所有衛星進行 SGP4 軌道計算（全量處理）"""
@@ -324,10 +421,48 @@ class Stage1TLEProcessor:
         logger.info("✅ v3.0策略：數據準備完成，將直接透過記憶體傳遞給階段二")
         logger.info("  💾 優勢：無2.2GB檔案、無I/O延遲、即時驗證")
         return None  # 不返回檔案路徑，表示採用記憶體傳遞
+            
+        output_file = self.output_dir / "stage1_tle_sgp4_output.json"
+        
+        logger.info(f"💾 Debug 模式：開始保存階段一數據到: {output_file}")
+        
+        try:
+            # 使用更安全的JSON寫入方式，避免內存問題和格式錯誤
+            import json
+            import tempfile
+            
+            # 首先寫入臨時檔案
+            temp_file = output_file.with_suffix('.tmp')
+            
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                # 使用較小的indent來減少檔案大小，並確保ASCII安全
+                json.dump(stage1_data, f, indent=1, ensure_ascii=True, separators=(',', ': '))
+            
+            # 驗證臨時檔案的JSON格式
+            with open(temp_file, 'r', encoding='utf-8') as f:
+                json.load(f)  # 驗證JSON格式
+            
+            # 如果驗證成功，將臨時檔案重命名為最終檔案
+            if output_file.exists():
+                output_file.unlink()
+            temp_file.rename(output_file)
+            
+            logger.info(f"💾 Debug 模式：階段一數據已安全保存到: {output_file}")
+            return str(output_file)
+            
+        except Exception as e:
+            logger.error(f"❌ 保存階段一數據失敗: {e}")
+            # 清理臨時檔案
+            if 'temp_file' in locals() and temp_file.exists():
+                temp_file.unlink()
+            return None
         
     def process_stage1(self) -> Dict[str, Any]:
         """執行完整的階段一處理流程"""
         logger.info("🚀 開始階段一：TLE數據載入與SGP4軌道計算")
+        
+        # 檢查現有檔案
+        existing_data_file = self.output_dir / "stage1_tle_sgp4_output.json"
         
         # 💾 v3.0儲存策略：完全停用檔案儲存，純記憶體傳遞
         logger.info("🚀 v3.0記憶體傳遞模式：執行即時計算（不儲存檔案）")
@@ -341,6 +476,7 @@ class Stage1TLEProcessor:
         
         # 執行計算（支援除錯取樣模式）
         stage1_data = self._execute_full_calculation()
+            # 不存檔，確保 2.2GB 檔案不會持續存在
         
         logger.info("✅ 階段一處理完成")
         logger.info(f"  處理的衛星數: {stage1_data['metadata']['total_satellites']}")

@@ -64,9 +64,10 @@ class LegacyConfigExtractor:
         build_script = self.netstack_root / "docker" / "satellite_orbit_preprocessor.py"
         
         config = {
-            "starlink_pool_size": 555,  # 從文檔中已知的最終配置
-            "oneweb_pool_size": 134,
-            "selection_method": "intelligent_filtering"
+            # 移除硬編碼數量，使用動態篩選
+            "selection_method": "intelligent_filtering",
+            "use_dynamic_selection": True,
+            "note": "實際數量由地理篩選和換手適用性動態決定"
         }
         
         if build_script.exists():
