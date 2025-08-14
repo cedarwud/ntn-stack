@@ -78,7 +78,13 @@ class Stage3SignalProcessor:
                 
             total_satellites = 0
             for constellation_name, constellation_data in stage2_data['constellations'].items():
-                satellites = constellation_data.get('satellites', [])
+                # Handle both file-based and memory-based data structures  
+                if 'satellites' in constellation_data:
+                    satellites = constellation_data.get('satellites', [])
+                elif 'orbit_data' in constellation_data:
+                    satellites = constellation_data.get('orbit_data', {}).get('satellites', [])
+                else:
+                    satellites = []
                 total_satellites += len(satellites)
                 logger.info(f"  {constellation_name}: {len(satellites)} 顆衛星")
                 
@@ -108,18 +114,52 @@ class Stage3SignalProcessor:
         total_processed = 0
         
         for constellation_name, constellation_data in stage2_data['constellations'].items():
-            satellites = constellation_data.get('satellites', [])
+            # Handle both file-based and memory-based data structures
+            satellites_list = []
             
-            if not satellites:
+            # Debug constellation data structure
+            logger.debug(f"Debug {constellation_name}: type={type(constellation_data)}")
+            if 'orbit_data' in constellation_data:
+                orbit_data = constellation_data.get('orbit_data', {})
+                logger.debug(f"Debug orbit_data: type={type(orbit_data)}")
+                satellites_data = orbit_data.get('satellites', {})
+                logger.debug(f"Debug satellites_data: type={type(satellites_data)}, len={len(satellites_data) if hasattr(satellites_data, '__len__') else 'N/A'}")
+                
+                if isinstance(satellites_data, dict):
+                    # Convert dictionary to list of satellite objects
+                    satellites_list = list(satellites_data.values())
+                    logger.debug(f"Converted to list: {len(satellites_list)} satellites")
+                    # Check the first few satellites
+                    for i, sat in enumerate(satellites_list[:3]):
+                        logger.debug(f"Satellite {i}: type={type(sat)}, content={str(sat)[:100]}...")
+                elif isinstance(satellites_data, list):
+                    satellites_list = satellites_data
+                else:
+                    logger.warning(f"Unexpected satellites_data type: {type(satellites_data)}")
+            elif 'satellites' in constellation_data:
+                # File-based format: satellites is already a list
+                satellites_data = constellation_data.get('satellites', [])
+                if isinstance(satellites_data, list):
+                    satellites_list = satellites_data
+                elif isinstance(satellites_data, dict):
+                    # Convert dictionary to list
+                    satellites_list = list(satellites_data.values())
+            
+            if not satellites_list:
                 logger.warning(f"跳過 {constellation_name}: 無可用衛星")
                 continue
                 
-            logger.info(f"   處理 {constellation_name}: {len(satellites)} 顆衛星")
+            logger.info(f"   處理 {constellation_name}: {len(satellites_list)} 顆衛星")
             
             enhanced_satellites = []
             
-            for satellite in satellites:
+            for i, satellite in enumerate(satellites_list):
                 try:
+                    # Ensure satellite is a dictionary, not a string or other type
+                    if not isinstance(satellite, dict):
+                        logger.warning(f"跳過無效衛星數據類型 {i}: {type(satellite)} - {str(satellite)[:50]}...")
+                        continue
+                        
                     enhanced_satellite = satellite.copy()
                     
                     # 計算多個仰角下的RSRP
@@ -158,14 +198,30 @@ class Stage3SignalProcessor:
                     total_processed += 1
                     
                 except Exception as e:
-                    logger.warning(f"衛星 {satellite.get('satellite_id', 'Unknown')} 信號計算失敗: {e}")
+                    sat_id = "Unknown"
+                    if isinstance(satellite, dict):
+                        sat_id = satellite.get('satellite_id', 'Unknown')
+                    logger.warning(f"衛星 {sat_id} (索引 {i}) 信號計算失敗: {e}")
+                    logger.debug(f"Problem satellite type: {type(satellite)}, content: {str(satellite)[:100]}...")
+                    
                     # 保留原始衛星數據，但標記錯誤
-                    satellite_copy = satellite.copy()
-                    satellite_copy['signal_quality'] = {
-                        'error': str(e),
-                        'status': 'calculation_failed'
-                    }
-                    enhanced_satellites.append(satellite_copy)
+                    if isinstance(satellite, dict):
+                        satellite_copy = satellite.copy()
+                        satellite_copy['signal_quality'] = {
+                            'error': str(e),
+                            'status': 'calculation_failed'
+                        }
+                        enhanced_satellites.append(satellite_copy)
+                    else:
+                        # Create a placeholder for invalid data
+                        enhanced_satellites.append({
+                            'satellite_id': f'Invalid_{i}',
+                            'error_type': str(type(satellite)),
+                            'signal_quality': {
+                                'error': str(e),
+                                'status': 'invalid_data_type'
+                            }
+                        })
             
             # 更新星座數據
             enhanced_constellation_data = constellation_data.copy()
@@ -353,12 +409,31 @@ class Stage3SignalProcessor:
         
         return str(output_file)
         
-    def process_stage3(self, stage2_file: Optional[str] = None) -> Dict[str, Any]:
+    def process_stage3(self, stage2_file: Optional[str] = None, stage2_data: Optional[Dict[str, Any]] = None,
+                      save_output: bool = True) -> Dict[str, Any]:
         """執行完整的階段三處理流程"""
         logger.info("🚀 開始階段三：信號品質分析與3GPP事件處理")
         
-        # 1. 載入階段二數據
-        stage2_data = self.load_stage2_output(stage2_file)
+        # 1. 載入階段二數據（優先使用內存數據）
+        if stage2_data is not None:
+            logger.info("📥 使用提供的階段二內存數據")
+            # 驗證內存數據格式
+            if 'constellations' not in stage2_data:
+                raise ValueError("階段二數據缺少 constellations 欄位")
+            total_satellites = 0
+            for constellation_name, constellation_data in stage2_data['constellations'].items():
+                # Handle both file-based and memory-based data structures
+                if 'satellites' in constellation_data:
+                    satellites = constellation_data.get('satellites', [])
+                elif 'orbit_data' in constellation_data:
+                    satellites = constellation_data.get('orbit_data', {}).get('satellites', [])
+                else:
+                    satellites = []
+                total_satellites += len(satellites)
+                logger.info(f"  {constellation_name}: {len(satellites)} 顆衛星")
+            logger.info(f"✅ 階段二內存數據驗證完成: 總計 {total_satellites} 顆衛星")
+        else:
+            stage2_data = self.load_stage2_output(stage2_file)
         
         # 2. 信號品質分析
         signal_enhanced_data = self.calculate_signal_quality(stage2_data)
@@ -369,12 +444,18 @@ class Stage3SignalProcessor:
         # 4. 生成最終建議
         final_data = self.generate_final_recommendations(event_enhanced_data)
         
-        # 5. 保存輸出
-        output_file = self.save_stage3_output(final_data)
+        # 5. 可選的輸出策略
+        output_file = None
+        if save_output:
+            output_file = self.save_stage3_output(final_data)
+            logger.info(f"📁 階段三數據已保存到: {output_file}")
+        else:
+            logger.info("🚀 階段三使用內存傳遞模式，未保存檔案")
         
         logger.info("✅ 階段三處理完成")
         logger.info(f"  分析的衛星數: {final_data['metadata'].get('stage3_final_recommended_total', 0)}")
-        logger.info(f"  輸出檔案: {output_file}")
+        if output_file:
+            logger.info(f"  輸出檔案: {output_file}")
         
         return final_data
         

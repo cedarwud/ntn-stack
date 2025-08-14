@@ -38,17 +38,17 @@ class Stage1TLEProcessor:
     4. 絕對不做任何篩選或取樣
     """
     
-    def __init__(self, tle_data_dir: str = "/app/tle_data", output_dir: str = "/app/data", debug_mode: bool = False, sample_size: int = 50):
+    def __init__(self, tle_data_dir: str = "/app/tle_data", output_dir: str = "/app/data", sample_mode: bool = False, sample_size: int = 50):
         """
         階段一處理器初始化 - v3.0 重新設計版本
         
         Args:
             tle_data_dir: TLE數據目錄路徑
             output_dir: 輸出目錄路徑（僅用於臨時檔案清理）
-            debug_mode: 處理模式控制
+            sample_mode: 處理模式控制
                 - False (預設): 全量處理模式（8,735顆衛星）
-                - True: 除錯取樣模式（每星座最多sample_size顆）
-            sample_size: debug_mode=True時每個星座的取樣數量
+                - True: 取樣模式（每星座最多sample_size顆）
+            sample_size: sample_mode=True時每個星座的取樣數量
         
         檔案儲存策略:
             - v3.0版本完全停用JSON檔案儲存（避免2.2GB問題）
@@ -58,8 +58,8 @@ class Stage1TLEProcessor:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # 🎯 v3.0 重新定義：debug_mode統一控制處理模式
-        self.debug_mode = debug_mode  # True=取樣除錯, False=全量處理
+        # 🎯 v3.0 重新定義：sample_mode統一控制處理模式
+        self.sample_mode = sample_mode  # True=取樣模式, False=全量處理
         self.sample_size = sample_size  # 取樣數量
         
         # 載入配置（只使用觀測點座標）
@@ -80,11 +80,10 @@ class Stage1TLEProcessor:
         logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
         logger.info("  💾 檔案策略: 純記憶體傳遞（不生成任何JSON檔案）")
         
-        if self.debug_mode:
-            logger.info(f"  🔧 除錯模式: 啟用（每星座取樣 {self.sample_size} 顆衛星）")
+        if self.sample_mode:
+            logger.info(f"  🔬 取樣模式: 啟用（每星座取樣 {self.sample_size} 顆衛星）")
         else:
-            logger.info("  🚀 全量模式: 處理所有 8,735 顆衛星")
-    
+            logger.info("  🚀 全量模式: 處理所有 8,735 顆衛星")    
     def scan_tle_data(self) -> Dict[str, Any]:
         """掃描所有可用的 TLE 數據檔案"""
         logger.info("🔍 掃描 TLE 數據檔案...")
@@ -182,11 +181,11 @@ class Stage1TLEProcessor:
                             satellite_count += 1
                 
                 # 🎯 v3.0 統一模式控制
-                if self.debug_mode:
-                    # 除錯取樣模式：限制衛星數量
+                if self.sample_mode:
+                    # 取樣模式：限制衛星數量
                     original_count = len(satellites)
                     satellites = satellites[:self.sample_size]
-                    logger.info(f"🔧 {constellation} 除錯取樣: {original_count} → {len(satellites)} 顆衛星")
+                    logger.info(f"🔬 {constellation} 取樣模式: {original_count} → {len(satellites)} 顆衛星")
                 else:
                     # 全量處理模式：使用所有衛星
                     logger.info(f"🚀 {constellation}: 全量載入 {len(satellites)} 顆衛星")
@@ -199,7 +198,7 @@ class Stage1TLEProcessor:
                 all_raw_satellites[constellation] = []
         
         total_loaded = sum(len(sats) for sats in all_raw_satellites.values())
-        mode_info = f"除錯取樣 (每星座最多{self.sample_size}顆)" if self.debug_mode else "全量處理"
+        mode_info = f"取樣模式 (每星座最多{self.sample_size}顆)" if self.sample_mode else "全量處理"
         logger.info(f"✅ 原始數據載入完成 ({mode_info}): 總計 {total_loaded} 顆衛星")
         
         return all_raw_satellites
@@ -339,13 +338,13 @@ class Stage1TLEProcessor:
             existing_data_file.unlink()
             logger.info(f"  已刪除: {existing_data_file}")
         
-        # 執行計算（支援除錯取樣模式）
+        # 執行計算（支援取樣模式）
         stage1_data = self._execute_full_calculation()
         
         logger.info("✅ 階段一處理完成")
         logger.info(f"  處理的衛星數: {stage1_data['metadata']['total_satellites']}")
         
-        processing_mode = "除錯取樣模式" if self.debug_mode else "全量處理模式"
+        processing_mode = "取樣模式" if self.sample_mode else "全量處理模式"
         logger.info(f"  🎯 處理模式: {processing_mode}")
         logger.info("  💾 v3.0記憶體傳遞：數據已準備好直接傳遞給階段二（零檔案儲存）")
         
