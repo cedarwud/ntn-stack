@@ -47,14 +47,16 @@
 
 ### 核心處理邏輯
 ```python
-# 階段一處理器主要流程
+# 階段一處理器主要流程 - v3.0 重新設計版本
 class Stage1TLEProcessor:
-    def __init__(self, debug_mode: bool = True):
-        """初始化處理器
+    def __init__(self, debug_mode: bool = False, sample_size: int = 50):
+        """初始化處理器 - v3.0版本
         Args:
-            debug_mode: True=生成檔案, False=即時處理模式
+            debug_mode: False=全量處理(8735顆), True=除錯取樣(50顆/星座)
+            sample_size: debug_mode=True時的取樣數量
         """
         self.debug_mode = debug_mode
+        self.sample_size = sample_size
         
     def process_stage1(self) -> Dict[str, Any]:
         """完整階段一流程"""
@@ -67,64 +69,74 @@ class Stage1TLEProcessor:
         # 3. 全量 SGP4 軌道計算
         stage1_data = self.calculate_all_orbits(raw_data)
         
-        # 4. Debug模式控制輸出
-        if self.debug_mode:
-            self.save_stage1_output(stage1_data)  # 生成檔案
-        else:
-            # 即時處理模式：直接返回數據給階段二
-            pass
-            
+        # 4. v3.0記憶體傳遞策略
+        self.save_stage1_output(stage1_data)  # 清理舊檔案，不生成新檔案
+        
+        # 直接透過記憶體傳遞給階段二（無檔案I/O）
         return stage1_data
 ```
 
-### Debug Mode 控制機制 (v2.1 最終版本)
+### 處理模式控制機制 (v3.0 重新設計版本)
 ```python
-# Debug Mode 檔案輸出控制與數據一致性保證
+# v3.0版本：完全停用檔案儲存，採用記憶體傳遞策略
 def save_stage1_output(self, stage1_data: Dict[str, Any]) -> Optional[str]:
-    """根據 debug_mode 控制檔案生成"""
-    if not self.debug_mode:
-        logger.info("🚀 即時處理模式：跳過檔案生成，數據將直接傳遞給階段二")
-        return None
-        
-    # Debug模式：生成 stage1_tle_sgp4_output.json 檔案
-    output_file = self.output_dir / "stage1_tle_sgp4_output.json"
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(stage1_data, f, indent=2, ensure_ascii=False)
+    """v3.0版本：完全停用檔案儲存，採用純記憶體傳遞策略"""
+    logger.info("🚀 v3.0記憶體傳遞策略：不產生任何JSON檔案")
     
-    logger.info(f"💾 Debug模式：階段一數據已保存到: {output_file}")
-    return str(output_file)
+    # 清理任何可能存在的舊檔案
+    legacy_files = [
+        self.output_dir / "stage1_tle_sgp4_output.json",
+        self.output_dir / "stage1_tle_sgp4_output.tmp",
+    ]
+    
+    for legacy_file in legacy_files:
+        if legacy_file.exists():
+            logger.info(f"🗑️ 清理舊檔案: {legacy_file}")
+            legacy_file.unlink()
+    
+    logger.info("✅ v3.0策略：數據準備完成，將直接透過記憶體傳遞給階段二")
+    return None  # 不返回檔案路徑，表示採用記憶體傳遞
 
-# 完整的 Debug Mode 流程控制
+# v3.0處理模式控制
 def process_stage1(self) -> Dict[str, Any]:
-    """執行完整的階段一處理流程"""
-    logger.info("🚀 開始階段一：TLE數據載入與SGP4軌道計算")
+    """執行完整的階段一處理流程 - v3.0版本"""
+    logger.info("🚀 開始階段一：TLE數據載入與SGP4軌道計算 (v3.0)")
     
-    # 檢查現有檔案
-    existing_data_file = self.output_dir / "stage1_tle_sgp4_output.json"
+    # v3.0儲存策略：完全停用檔案儲存，純記憶體傳遞
+    logger.info("🚀 v3.0記憶體傳遞模式：執行即時計算（不儲存檔案）")
     
-    # Debug 模式邏輯
-    if self.debug_mode:
-        logger.info("🔧 Debug 模式：執行完整數據重新計算並存檔")
-        stage1_data = self._execute_full_calculation()
-        self.save_stage1_output(stage1_data)
-        
-    else:
-        # 即時處理模式：清理舊檔案，確保使用最新數據
-        if existing_data_file.exists():
-            logger.info("🗑️ 即時處理模式：刪除舊檔案，確保使用最新數據")
-            existing_data_file.unlink()
-            logger.info(f"  已刪除舊檔案: {existing_data_file}")
-        
-        logger.info("🚀 即時處理模式：執行即時計算（不存檔，直接傳遞給階段二）")
-        stage1_data = self._execute_full_calculation()
-        # 不存檔，確保 2.2GB 檔案不會持續存在
+    # 執行計算（支援除錯取樣模式）
+    stage1_data = self._execute_full_calculation()
+    
+    # 清理舊檔案但不生成新檔案
+    self.save_stage1_output(stage1_data)
+    
+    processing_mode = "除錯取樣模式" if self.debug_mode else "全量處理模式"
+    logger.info(f"  🎯 處理模式: {processing_mode}")
+    logger.info("  💾 v3.0記憶體傳遞：數據已準備好直接傳遞給階段二（零檔案儲存）")
     
     return stage1_data
+
+# 取樣邏輯實現
+def load_raw_satellite_data(self, scan_result) -> Dict[str, List[Dict]]:
+    """載入原始衛星數據 - v3.0統一處理模式"""
+    # ... TLE解析邏輯 ...
+    
+    if self.debug_mode:
+        # 除錯取樣模式：限制衛星數量
+        satellites = satellites[:self.sample_size]
+        logger.info(f"🔧 {constellation} 除錯取樣: {original_count} → {len(satellites)} 顆衛星")
+    else:
+        # 全量處理模式：使用所有衛星
+        logger.info(f"🚀 {constellation}: 全量載入 {len(satellites)} 顆衛星")
 ```
 
-### Debug Mode 行為說明
-- **debug_mode=True** (預設): 重新計算所有數據並生成檔案，適用於開發和調試
-- **debug_mode=False**: 刪除任何現有檔案，重新計算最新數據，不保存檔案，適用於即時處理模式
+### v3.0處理模式說明
+- **debug_mode=False** (預設): 全量處理模式，處理所有8,735顆衛星，適用於生產環境
+- **debug_mode=True**: 除錯取樣模式，每星座取樣50顆衛星，適用於快速開發除錯
+- **檔案策略**: 完全停用JSON檔案儲存，避免2.2GB檔案問題
+- **記憶體傳遞**: 數據直接透過記憶體傳遞給階段二，無I/O延遲
+- **驗證機制**: 階段二的處理結果就是最好的數據正確性驗證
 
 ### 支援組件位置
 ```python
@@ -137,87 +149,196 @@ SGP4Engine.calculate_trajectory()     # 軌跡時間序列計算
 CoordinateSpecificOrbitEngine.compute_96min_orbital_cycle()  # 96分鐘完整軌道週期
 ```
 
-## 🔧 階段二：3GPP Events & 信號品質計算
+## 🎯 階段二：智能衛星篩選 (v3.0 統一智能篩選系統)
 
-### 星座特定信號模型實現
-
-#### Starlink 信號處理
-```python
-# Starlink 特定參數
-constellation_config = {
-    "frequency_ghz": 12.0,        # Ku 頻段
-    "altitude_km": 550,           # 平均軌道高度
-    "inclination_deg": 53,        # 軌道傾角
-    "tx_power_dbm": 43.0,         # 發射功率
-    "antenna_gain_db": 15.0       # 最大天線增益
-}
-
-def calculate_starlink_rsrp(satellite_data):
-    """Starlink 專用 RSRP 計算"""
-    # 自由空間路徑損耗
-    fspl_db = 20 * log10(satellite_data.distance_km) + \
-              20 * log10(12.0) + 32.44
-    
-    # 仰角相關增益
-    elevation_gain = min(satellite_data.elevation_deg / 90.0, 1.0) * 15.0
-    
-    # 大氣衰減 (仰角相關)
-    atmospheric_loss = (90 - satellite_data.elevation_deg) / 90.0 * 3.0
-    
-    # 最終 RSRP
-    rsrp_dbm = 43.0 - fspl_db + elevation_gain - atmospheric_loss
-    
-    return rsrp_dbm
-```
-
-### 3GPP Events 實現
-
-#### Event A4 實現
-```python
-def check_a4_event(satellite_data):
-    """A4 事件條件檢查 - 3GPP TS 38.331 Section 5.5.4.5"""
-    Mn = satellite_data.rsrp_dbm          # 測量結果
-    Ofn = 0.0                             # 測量對象偏移
-    Ocn = 0.0                             # 小區特定偏移
-    Hys = 3.0                             # 滯後參數 3dB
-    Thresh = -80.0                        # A4 門檻 -80dBm
-    
-    entering_condition = (Mn + Ofn + Ocn - Hys) > Thresh
-    leaving_condition = (Mn + Ofn + Ocn + Hys) < Thresh
-    
-    return {
-        'a4_entering': entering_condition,
-        'a4_leaving': leaving_condition,
-        'measurement_dbm': Mn
-    }
-```
-
-## 🎯 階段三：智能衛星篩選
-
-### 篩選策略實現
-```python
-# 動態篩選策略 (satellite_orbit_preprocessor.py:235-245)
-if estimated_visible > max_display * 3:
-    target_count = max_display  # 通常 15 顆
-    strategy = "strict_filtering"
-    
-    # 星座特定評分權重 (constellation_specific_score)
-    Starlink_評分 = {
-        "軌道傾角適用性": 30分,  # 針對 53° 傾角優化
-        "高度適用性": 25分,      # 550km 最佳高度
-        "相位分散度": 20分,      # 避免同步出現/消失
-        "換手頻率": 15分,        # 適中的切換頻率
-        "信號穩定性": 10分       # 軌道穩定性評估
-    }
-```
-
-### 智能篩選器位置
+### 核心處理器實現
 ```bash
-# 主要智能篩選實現
-/netstack/src/services/satellite/preprocessing/satellite_selector.py
-├── IntelligentSatelliteSelector                    # 智能篩選主類
-├── evaluate_handover_suitability()                 # 換手適用性評估
-└── select_optimal_satellites()                     # 最佳衛星選擇
+# 統一智能篩選系統 - 階段二的核心實現
+/netstack/src/services/satellite/intelligent_filtering/unified_intelligent_filter.py
+├── UnifiedIntelligentFilter.process_stage2_filtering_only()    # 階段二專用篩選
+├── UnifiedIntelligentFilter._extract_satellites_from_sgp4_data() # SGP4數據提取
+├── UnifiedIntelligentFilter._enhance_with_signal_quality()      # 信號品質增強
+├── UnifiedIntelligentFilter._enhance_with_event_analysis()      # 3GPP事件分析
+├── UnifiedIntelligentFilter._build_stage2_output()             # 階段二輸出構建
+└── UnifiedIntelligentFilter._extract_selected_orbit_data()     # 篩選數據提取
+
+# 階段二處理器
+/netstack/src/stages/stage2_filter_processor.py
+├── Stage2FilterProcessor.process_stage2()          # 階段二主流程
+├── Stage2FilterProcessor.load_stage1_output()      # 階段一數據載入
+└── Stage2FilterProcessor.save_stage2_output()      # 階段二結果保存
+```
+
+### 統一智能篩選實現 (v3.0 實際驗證版)
+```python
+class UnifiedIntelligentFilter:
+    """統一智能篩選系統 - 整合6階段篩選管道"""
+    
+    def __init__(self):
+        """初始化統一篩選系統"""
+        # 觀測點配置 (NTPU)
+        self.observer_lat = 24.9442
+        self.observer_lon = 121.3714
+        
+        # 載入篩選組件
+        self.constellation_separator = ConstellationSeparator()
+        self.geographic_filter = GeographicFilter(self.observer_lat, self.observer_lon)
+        self.handover_scorer = HandoverSuitabilityScorer()
+        self.rsrp_calculator = RSRPCalculator()
+        self.event_analyzer = GPPEventAnalyzer()
+    
+    def process_stage2_filtering_only(self, sgp4_data: Dict[str, Any]) -> Dict[str, Any]:
+        """階段二專用篩選流程 - 6階段智能篩選管道"""
+        
+        # 🔍 提取衛星數據 (8,735顆)
+        all_satellites = self._extract_satellites_from_sgp4_data(sgp4_data)
+        logger.info(f"📡 輸入衛星總數: {len(all_satellites)}")
+        
+        # 階段 2.1: 星座分離篩選
+        separated_satellites = self.constellation_separator.separate_constellations(all_satellites)
+        logger.info("⚙️ 執行階段 2.1: 星座分離篩選")
+        
+        # 階段 2.2: 地理相關性篩選 (關鍵篩選步驟)
+        geographic_filtered = {}
+        total_after_geo = 0
+        for constellation, satellites in separated_satellites.items():
+            filtered = self.geographic_filter.filter_by_geographic_relevance(satellites)
+            geographic_filtered[constellation] = filtered
+            total_after_geo += len(filtered)
+        
+        logger.info(f"🌍 執行階段 2.2: 地理相關性篩選")
+        logger.info(f"✅ 地理篩選完成: {total_after_geo}/{len(all_satellites)} 顆衛星保留 "
+                   f"(減少 {100*(1-total_after_geo/len(all_satellites)):.1f}%)")
+        
+        # 階段 2.3: 換手適用性評分
+        scored_satellites = {}
+        for constellation, satellites in geographic_filtered.items():
+            scored = self.handover_scorer.score_handover_suitability(satellites, constellation)
+            scored_satellites[constellation] = scored
+        logger.info("📊 執行階段 2.3: 換手適用性評分")
+        
+        # 階段 2.4: 信號品質評估 (整合到篩選流程)
+        enhanced_satellites = {}
+        for constellation, satellites in scored_satellites.items():
+            enhanced = self._enhance_with_signal_quality(satellites, constellation)
+            enhanced_satellites[constellation] = enhanced
+        logger.info("📡 執行階段 2.4: 信號品質評估")
+        
+        # 階段 2.5: 3GPP 事件分析
+        analyzed_satellites = {}
+        total_final = 0
+        for constellation, satellites in enhanced_satellites.items():
+            analyzed = self._enhance_with_event_analysis(satellites)
+            analyzed_satellites[constellation] = analyzed
+            total_final += len(analyzed)
+        logger.info("🎯 執行階段 2.5: 3GPP 事件分析")
+        
+        # 階段 2.6: 頂級衛星選擇 (動態篩選模式)
+        logger.info("🎯 執行動態篩選模式 - 保留所有通過篩選的衛星")
+        final_selected = analyzed_satellites
+        
+        logger.info(f"✅ 最終選擇: {total_final} 顆頂級衛星")
+        logger.info(f"🎉 階段二篩選完成: {len(all_satellites)} → {total_final} 顆衛星 "
+                   f"(篩選率: {100*(1-total_final/len(all_satellites)):.1f}%)")
+        
+        # 構建階段二輸出
+        processing_stats = {
+            "input_satellites": len(all_satellites),
+            "output_satellites": total_final,
+            "filtering_rate": f"{100*(1-total_final/len(all_satellites)):.1f}%",
+            "starlink_selected": len(final_selected.get("starlink", [])),
+            "oneweb_selected": len(final_selected.get("oneweb", [])),
+        }
+        
+        return self._build_stage2_output(sgp4_data, final_selected, processing_stats)
+```
+
+### 關鍵篩選組件實現
+
+#### 地理相關性篩選器 (關鍵組件)
+```python
+class GeographicFilter:
+    """地理相關性篩選器 - 階段2.2核心實現"""
+    
+    def filter_by_geographic_relevance(self, satellites: List[Dict]) -> List[Dict]:
+        """基於NTPU觀測點的地理相關性篩選"""
+        relevant_satellites = []
+        
+        for satellite in satellites:
+            # 檢查軌道數據中的可見性
+            has_positive_elevation = False
+            for position in satellite.get("orbit_data", {}).get("positions", []):
+                if position.get("elevation_deg", -999) > 5.0:  # 最低仰角門檻
+                    has_positive_elevation = True
+                    break
+            
+            if has_positive_elevation:
+                relevant_satellites.append(satellite)
+        
+        return relevant_satellites
+```
+
+#### 數據提取修復實現 (關鍵修復)
+```python
+def _extract_selected_orbit_data(self, original_constellation: Dict, selected_sats: List[Dict]) -> Dict:
+    """提取篩選後衛星的完整軌道數據 - 完全修復版本"""
+    selected_orbit_data = {}
+    original_satellites = original_constellation.get("orbit_data", {}).get("satellites", {})
+    
+    logger.info(f"🔧 強制修復版本: 開始提取篩選後的軌道數據")
+    logger.info(f"   篩選後衛星數: {len(selected_sats)} 顆")
+    logger.info(f"   原始衛星數據庫: {len(original_satellites)} 顆")
+    
+    # 🎯 修復：直接按 selected_sats 提取，忽略所有其他邏輯
+    extracted_count = 0
+    for selected_sat in selected_sats:
+        satellite_id = selected_sat.get("satellite_id")
+        if satellite_id and satellite_id in original_satellites:
+            selected_orbit_data[satellite_id] = original_satellites[satellite_id]
+            extracted_count += 1
+    
+    logger.info(f"✅ 修復版本完成: 提取了 {extracted_count} 顆衛星的軌道數據")
+    
+    # 🚨 最終驗證：如果提取的衛星數超過篩選數的2倍，強制只返回前N顆
+    if len(selected_orbit_data) > len(selected_sats) * 2:
+        logger.error(f"❌ 異常檢測: 提取了 {len(selected_orbit_data)} 顆，但只應該有 {len(selected_sats)} 顆")
+        limited_data = {}
+        for i, (sat_id, sat_data) in enumerate(selected_orbit_data.items()):
+            if i >= len(selected_sats):
+                break
+            limited_data[sat_id] = sat_data
+        logger.info(f"🛡️ 強制限制為 {len(limited_data)} 顆衛星")
+        return limited_data
+    
+    return selected_orbit_data
+```
+
+### 實際執行結果驗證 (2025-08-13)
+```python
+# 階段二處理結果統計
+Stage2_實際結果 = {
+    "輸入數據": {
+        "總衛星數": 8735,
+        "Starlink": 8084,
+        "OneWeb": 651,
+        "文件大小": "2.3GB"
+    },
+    "篩選處理": {
+        "星座分離": "8735/8735 顆保留",
+        "地理篩選": "536/8735 顆保留 (減少93.9%)",
+        "換手評分": "536 顆已評分",
+        "信號品質": "536/536 通過",
+        "事件分析": "11/536 事件能力"
+    },
+    "最終輸出": {
+        "總衛星數": 536,
+        "Starlink": 486,
+        "OneWeb": 50,
+        "文件大小": "141MB",
+        "篩選率": "93.9%",
+        "文件減少": "94.2%"
+    }
+}
 ```
 
 ## 📂 數據結構與格式
@@ -293,7 +414,8 @@ if estimated_visible > max_display * 3:
     }
 }
 
-# Debug Mode = False: 不生成檔案，數據直接傳遞給階段二
+# v3.0記憶體傳遞模式: 不生成檔案，數據直接透過記憶體傳遞給階段二
+# 這解決了2.2GB檔案問題，並提供更好的數據驗證機制
 ```
 
 #### 階段二輸出（信號品質增強）
@@ -391,6 +513,177 @@ Cron_調度流程 = {
     "按需重算": "僅當檢測到新衛星或顯著變更時才重新計算",
     "安全清理": "每日03:15清理臨時文件，保護原始TLE數據"
 }
+```
+
+## 🔄 檔案生成規則與清理機制 (v3.0 統一實現)
+
+### 📋 檔案生成規則總覽
+
+**核心原則**: 所有階段的輸出檔案都遵循「先刪除舊檔，再生成新檔」的清理機制，確保資料一致性和避免累積殘留檔案。
+
+#### 🗂️ 各階段檔案處理策略
+
+```python
+# 統一的檔案清理和生成流程
+檔案生成規則 = {
+    "階段一 (Stage1)": {
+        "策略": "v3.0記憶體傳遞模式",
+        "檔案處理": "清理舊檔案，不生成新檔案", 
+        "優勢": "避免2.2GB檔案問題，零I/O延遲",
+        "清理目標": ["stage1_tle_sgp4_output.json", "stage1_tle_sgp4_output.tmp"]
+    },
+    
+    "階段二 (Stage2)": {
+        "策略": "清理重生成模式",
+        "檔案處理": "刪除舊檔案 → 生成新檔案",
+        "優勢": "確保篩選結果一致性，避免資料混淆", 
+        "清理目標": ["stage2_intelligent_filtered_output.json"],
+        "生成檔案": "141MB (536顆衛星)"
+    },
+    
+    "階段三 (Stage3)": {
+        "策略": "清理重生成模式", 
+        "檔案處理": "刪除舊檔案 → 生成新檔案",
+        "優勢": "信號品質和事件分析資料清潔",
+        "清理目標": ["stage3_signal_event_analysis_output.json"],
+        "生成檔案": "增強型衛星數據 (含3GPP事件)"
+    }
+}
+```
+
+#### 🔧 檔案清理實現細節
+
+**階段一清理邏輯** (記憶體傳遞模式):
+```python
+def save_stage1_output(self, stage1_data: Dict[str, Any]) -> Optional[str]:
+    """v3.0版本：完全停用檔案儲存，採用純記憶體傳遞策略"""
+    logger.info("🚀 v3.0記憶體傳遞策略：不產生任何JSON檔案")
+    
+    # 🗑️ 清理任何可能存在的舊檔案
+    legacy_files = [
+        self.output_dir / "stage1_tle_sgp4_output.json",
+        self.output_dir / "stage1_tle_sgp4_output.tmp",
+    ]
+    
+    for legacy_file in legacy_files:
+        if legacy_file.exists():
+            logger.info(f"🗑️ 清理舊檔案: {legacy_file}")
+            legacy_file.unlink()
+    
+    return None  # 不返回檔案路徑，表示採用記憶體傳遞
+```
+
+**階段二清理邏輯** (清理重生成模式):
+```python
+def save_stage2_output(self, filtered_data: Dict[str, Any]) -> str:
+    """保存階段二輸出數據 - v3.0 清理舊檔案版本"""
+    output_file = self.output_dir / "stage2_intelligent_filtered_output.json"
+    
+    # 🗑️ 清理舊檔案 - 確保資料一致性
+    if output_file.exists():
+        file_size = output_file.stat().st_size
+        logger.info(f"🗑️ 清理舊階段二輸出檔案: {output_file}")
+        logger.info(f"   舊檔案大小: {file_size / (1024*1024):.1f} MB")
+        output_file.unlink()
+        logger.info("✅ 舊檔案已刪除")
+    
+    # 添加階段二完成標記
+    filtered_data['metadata'].update({
+        'stage2_completion': 'intelligent_filtering_complete',
+        'stage2_timestamp': datetime.now(timezone.utc).isoformat(),
+        'ready_for_stage3': True,
+        'file_generation': 'clean_regeneration'  # 標記為重新生成
+    })
+    
+    # 💾 生成新的階段二輸出檔案
+    logger.info(f"💾 生成新的階段二輸出檔案: {output_file}")
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(filtered_data, f, indent=2, ensure_ascii=False)
+        
+    # 檢查新檔案大小和內容
+    new_file_size = output_file.stat().st_size
+    logger.info(f"✅ 階段二數據已保存: {output_file}")
+    logger.info(f"   新檔案大小: {new_file_size / (1024*1024):.1f} MB")
+    logger.info(f"   包含衛星數: {filtered_data['metadata'].get('unified_filtering_results', {}).get('total_selected', 'unknown')}")
+    
+    return str(output_file)
+```
+
+**階段三清理邏輯** (清理重生成模式):
+```python
+def save_stage3_output(self, final_data: Dict[str, Any]) -> str:
+    """保存階段三輸出數據 - v3.0 清理舊檔案版本"""
+    output_file = self.output_dir / "stage3_signal_event_analysis_output.json"
+    
+    # 🗑️ 清理舊檔案 - 確保資料一致性
+    if output_file.exists():
+        file_size = output_file.stat().st_size
+        logger.info(f"🗑️ 清理舊階段三輸出檔案: {output_file}")
+        logger.info(f"   舊檔案大小: {file_size / (1024*1024):.1f} MB")
+        output_file.unlink()
+        logger.info("✅ 舊檔案已刪除")
+    
+    # 添加階段三完成標記
+    final_data['metadata'].update({
+        'stage3_completion': 'signal_event_analysis_complete',
+        'stage3_timestamp': datetime.now(timezone.utc).isoformat(),
+        'ready_for_stage4': True,
+        'file_generation': 'clean_regeneration'  # 標記為重新生成
+    })
+    
+    # 💾 生成新的階段三輸出檔案
+    logger.info(f"💾 生成新的階段三輸出檔案: {output_file}")
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(final_data, f, indent=2, ensure_ascii=False)
+        
+    # 檢查新檔案大小和內容
+    new_file_size = output_file.stat().st_size
+    logger.info(f"✅ 階段三數據已保存: {output_file}")
+    logger.info(f"   新檔案大小: {new_file_size / (1024*1024):.1f} MB")
+    logger.info(f"   包含衛星數: {final_data['metadata'].get('unified_filtering_results', {}).get('total_selected', 'unknown')}")
+    
+    return str(output_file)
+```
+
+#### 🎯 檔案清理機制優勢
+
+**1. 資料一致性保證**
+- 消除舊檔案和新檔案混淆的風險
+- 確保每次處理都是從零開始的清潔狀態
+- 避免部分更新導致的資料不一致
+
+**2. 故障排除友善**
+- 清楚記錄舊檔案刪除和新檔案生成過程
+- 提供檔案大小對比，便於驗證處理效果
+- 檔案生成標記便於追蹤處理狀態
+
+**3. 存儲空間優化**
+- 防止累積大量歷史檔案占用磁碟空間
+- 階段一零檔案策略大幅節省存儲
+- 階段二/三清理機制避免重複存儲
+
+#### 🔍 檔案處理驗證
+
+**檢查檔案清理效果**:
+```bash
+# 檢查各階段輸出檔案狀態
+ls -la /app/data/stage*_output.json
+
+# 檢查檔案大小變化（應該看到合理的檔案大小）
+du -h /app/data/stage2_intelligent_filtered_output.json  # 應該約141MB
+du -h /app/data/stage3_signal_event_analysis_output.json # 應該適中
+
+# 檢查檔案中的衛星數量
+jq '.metadata.unified_filtering_results.total_selected' /app/data/stage2_intelligent_filtered_output.json
+```
+
+**檔案生成日誌追蹤**:
+```bash
+# 查看檔案清理和生成日誌
+docker logs netstack-api | grep -E "(清理舊檔案|生成新.*檔案|檔案大小)" | tail -10
+
+# 檢查處理完成標記
+jq '.metadata.file_generation' /app/data/stage2_intelligent_filtered_output.json  # 應該顯示 "clean_regeneration"
 ```
 
 ## 🛠️ 維護與故障排除

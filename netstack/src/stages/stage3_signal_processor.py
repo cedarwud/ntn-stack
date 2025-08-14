@@ -321,13 +321,36 @@ class Stage3SignalProcessor:
         return final_data
         
     def save_stage3_output(self, final_data: Dict[str, Any]) -> str:
-        """保存階段三輸出數據"""
+        """保存階段三輸出數據 - v3.0 清理舊檔案版本"""
         output_file = self.output_dir / "stage3_signal_event_analysis_output.json"
         
+        # 🗑️ 清理舊檔案 - 確保資料一致性
+        if output_file.exists():
+            file_size = output_file.stat().st_size
+            logger.info(f"🗑️ 清理舊階段三輸出檔案: {output_file}")
+            logger.info(f"   舊檔案大小: {file_size / (1024*1024):.1f} MB")
+            output_file.unlink()
+            logger.info("✅ 舊檔案已刪除")
+        
+        # 添加階段三完成標記
+        final_data['metadata'].update({
+            'stage3_completion': 'signal_event_analysis_complete',
+            'stage3_timestamp': datetime.now(timezone.utc).isoformat(),
+            'ready_for_stage4': True,
+            'file_generation': 'clean_regeneration'  # 標記為重新生成
+        })
+        
+        # 💾 生成新的階段三輸出檔案
+        logger.info(f"💾 生成新的階段三輸出檔案: {output_file}")
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(final_data, f, indent=2, ensure_ascii=False)
             
-        logger.info(f"💾 階段三數據已保存到: {output_file}")
+        # 檢查新檔案大小
+        new_file_size = output_file.stat().st_size
+        logger.info(f"✅ 階段三數據已保存: {output_file}")
+        logger.info(f"   新檔案大小: {new_file_size / (1024*1024):.1f} MB")
+        logger.info(f"   包含衛星數: {final_data['metadata'].get('unified_filtering_results', {}).get('total_selected', 'unknown')}")
+        
         return str(output_file)
         
     def process_stage3(self, stage2_file: Optional[str] = None) -> Dict[str, Any]:

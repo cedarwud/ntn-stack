@@ -28,9 +28,9 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SatelliteSelectionConfig:
-    """衛星選擇配置"""
-    starlink_target: int = 555
-    oneweb_target: int = 134
+    """衛星選擇配置 - 使用動態篩選，不設固定數量"""
+    # 移除硬編碼數量，使用動態篩選策略
+    use_dynamic_selection: bool = True
     observer_lat: float = 24.9441667  # NTPU 緯度
     observer_lon: float = 121.3713889  # NTPU 經度
     min_elevation: float = 10.0
