@@ -1386,4 +1386,359 @@ docker stats --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 
 ---
 
+## 📊 階段四：時間序列預處理 *(基於優化順序的處理結果)*
+
+### 核心處理器位置
+```bash
+# 時間序列預處理實現位置
+/simworld/frontend/src/services/HistoricalTrajectoryService.ts  # 歷史軌跡服務
+/simworld/frontend/src/components/domains/satellite/visualization/DynamicSatelliteRenderer.tsx  # 3D渲染器
+/netstack/docker/build_with_phase0_data.py                    # 建構階段預計算
+/netstack/docker/simple-entrypoint.sh                         # 啟動階段驗證
+/scripts/incremental_data_processor.sh                        # Cron增量處理
+```
+
+### 處理設定與Pure Cron執行機制
+```python
+# 階段四處理配置
+STAGE4_CONFIG = {
+    "時間範圍": 120,        # 分鐘
+    "採樣間隔": 30,         # 秒
+    "總時間點": 240,        # 個
+    "觀測位置": {
+        "latitude": 24.9441667,   # NTPU緯度
+        "longitude": 121.3713889, # NTPU經度 
+        "altitude": 50.0          # 高度(米)
+    }
+}
+```
+
+### Pure Cron調度邏輯實現
+```python
+class Stage4TimeSeriesProcessor:
+    """階段四：時間序列預處理器 - Pure Cron驅動版本"""
+    
+    def __init__(self):
+        self.cron_schedule = {
+            "TLE下載": "0 2,8,14,20 * * *",     # 每6小時自動下載
+            "增量處理": "30 2,8,14,20 * * *",    # 下載後30分鐘處理
+            "安全清理": "15 3 * * *"             # 每日03:15清理
+        }
+    
+    def build_phase_precomputation(self):
+        """建構階段：完整預計算"""
+        # 使用 docker/build_with_phase0_data.py
+        # 執行完整SGP4算法計算
+        # 生成基礎數據到映像檔
+        pass
+    
+    def startup_phase_verification(self):
+        """啟動階段：純數據載入驗證"""
+        # 使用 simple-entrypoint.sh
+        # 純數據完整性檢查
+        # < 30秒快速啟動驗證
+        pass
+    
+    def cron_incremental_processing(self):
+        """Cron階段：智能增量更新"""
+        # 使用 incremental_data_processor.sh
+        # 比較TLE數據與預計算數據差異
+        # 僅當檢測到實際變更時才重新計算
+        pass
+```
+
+### 歷史軌跡渲染實現
+
+#### 3D軌跡計算與轉換
+```typescript
+// HistoricalTrajectoryService.ts - 軌跡計算核心
+class HistoricalTrajectoryService {
+    /**
+     * 計算真實軌跡數據
+     * @param timeRange 時間範圍 (2小時)
+     * @param interval 間隔 (30秒)
+     */
+    calculateRealTrajectory(timeRange: number, interval: number) {
+        // 1. 獲取歷史軌跡數據 (2小時, 30秒間隔)
+        const trajectoryData = this.fetchHistoricalData(timeRange, interval);
+        
+        // 2. 時間插值計算當前位置
+        const interpolatedPositions = this.interpolatePositions(trajectoryData);
+        
+        // 3. 仰角/方位角轉換為3D座標
+        const coordinates3D = interpolatedPositions.map(pos => 
+            this.convertToScene3D(pos.elevation_deg, pos.azimuth_deg)
+        );
+        
+        // 4. 地平線判斷
+        return coordinates3D.filter(coord => coord.elevation > 0);
+    }
+    
+    /**
+     * 3D座標轉換公式實現
+     */
+    convertToScene3D(elevation_deg: number, azimuth_deg: number) {
+        const elevRad = (elevation_deg * Math.PI) / 180;
+        const azimRad = (azimuth_deg * Math.PI) / 180;
+        const sceneScale = 1000; // 場景比例
+        const heightScale = 100;  // 高度比例
+        
+        return {
+            x: sceneScale * Math.cos(elevRad) * Math.sin(azimRad),
+            z: sceneScale * Math.cos(elevRad) * Math.cos(azimRad),
+            y: elevation_deg > 0 
+                ? Math.max(10, heightScale * Math.sin(elevRad) + 100)
+                : -200,  // 地平線以下隱藏
+            elevation: elevation_deg
+        };
+    }
+}
+```
+
+#### 動態衛星渲染器
+```typescript
+// DynamicSatelliteRenderer.tsx - 3D渲染實現
+class DynamicSatelliteRenderer {
+    /**
+     * 渲染真實物理軌跡
+     */
+    renderSatelliteTrajectory() {
+        // 真實物理軌跡特性:
+        // - 衛星從地平線 (-5°) 升起，過頂，落下
+        // - 連續性：任何時間都有衛星在上空
+        // - 自然的出現和消失
+        
+        this.satellites.forEach(satellite => {
+            const trajectory = this.trajectoryService.calculateRealTrajectory(
+                120, // 2小時
+                30   // 30秒間隔
+            );
+            
+            // 支援1-60倍速播放
+            const playbackSpeed = this.getPlaybackSpeed(); // 1-60倍
+            
+            // Fallback機制：無真實數據時使用模擬軌跡
+            const finalTrajectory = trajectory.length > 0 
+                ? trajectory 
+                : this.generateFallbackTrajectory(satellite);
+            
+            this.renderSatelliteMovement(satellite, finalTrajectory, playbackSpeed);
+        });
+    }
+    
+    /**
+     * Fallback模擬軌跡生成
+     */
+    generateFallbackTrajectory(satellite: Satellite) {
+        // 生成符合物理規律的模擬軌跡
+        // 確保動畫連續性和真實感
+        return this.simulateOrbitPath(satellite);
+    }
+}
+```
+
+### 數據流程架構
+
+#### 完整數據流向圖實現
+```python
+# 階段四數據流程實現
+STAGE4_DATA_FLOW = {
+    "輸入源": {
+        "階段三結果": "575顆篩選分析完成的衛星",
+        "信號品質數據": "8個仰角RSRP計算結果", 
+        "3GPP事件數據": "A4/A5/D2事件分析結果",
+        "綜合評分": "多維度加權評分系統結果"
+    },
+    
+    "處理流程": {
+        "歷史TLE數據": "CelesTrak官方TLE數據",
+        "SGP4計算": "完整軌道動力學計算",
+        "仰角方位角計算": "觀測者視角轉換",
+        "3D座標轉換": "場景座標系映射", 
+        "動畫渲染": "自然升降軌跡動畫"
+    },
+    
+    "輸出結果": {
+        "時間序列數據": "240個時間點完整軌跡",
+        "3D動畫數據": "前端渲染用座標序列",
+        "軌跡特性": "真實物理軌跡特徵",
+        "播放控制": "1-60倍速播放支援"
+    }
+}
+```
+
+#### 處理效能實現
+```python
+# 階段四性能指標實現
+class Stage4PerformanceMetrics:
+    """階段四性能監控和優化"""
+    
+    def __init__(self):
+        self.metrics = {
+            "建構時間": "2-5分鐘 (完整預計算)",
+            "啟動時間": "< 30秒 (Pure Cron驅動)",
+            "數據載入": "< 2秒 (時間序列)",
+            "渲染幀率": "60 FPS (3D動畫)",
+            "記憶體使用": "< 200MB (前端渲染)",
+            "CPU使用率": "< 50% (動畫播放)"
+        }
+    
+    def monitor_performance(self):
+        """監控階段四處理性能"""
+        # 監控3D渲染性能
+        # 監控時間序列數據載入效率
+        # 監控動畫播放流暢度
+        # 監控系統資源使用情況
+        pass
+    
+    def optimize_rendering(self):
+        """優化渲染性能"""
+        # 實施LOD (Level of Detail) 優化
+        # 實施視錐剔除 (Frustum Culling)
+        # 實施時間序列數據緩存
+        # 實施動態精度調整
+        pass
+```
+
+### Cron自動化機制實現
+
+#### 增量處理邏輯
+```bash
+#!/bin/bash
+# incremental_data_processor.sh - Cron增量處理實現
+
+INCREMENTAL_PROCESSOR_LOG="/tmp/incremental_stage4_update.log"
+DATA_DIR="/app/data"
+TLE_DATA_DIR="/app/tle_data"
+
+# 記錄開始時間
+echo "[$(date)] 🚀 開始階段四增量處理..." >> $INCREMENTAL_PROCESSOR_LOG
+
+# 檢查TLE數據變更
+check_tle_changes() {
+    echo "[$(date)] 🔍 檢查TLE數據變更..." >> $INCREMENTAL_PROCESSOR_LOG
+    
+    # 比較現有TLE數據與上次處理時的數據
+    if [ -f "$DATA_DIR/.last_tle_checksum" ]; then
+        current_checksum=$(find $TLE_DATA_DIR -name "*.tle" -exec md5sum {} \; | sort | md5sum)
+        last_checksum=$(cat "$DATA_DIR/.last_tle_checksum")
+        
+        if [ "$current_checksum" = "$last_checksum" ]; then
+            echo "[$(date)] ✅ TLE數據無變更，跳過重新計算" >> $INCREMENTAL_PROCESSOR_LOG
+            return 1  # 無變更
+        fi
+    fi
+    
+    echo "[$(date)] 📡 檢測到TLE數據變更，需要重新計算" >> $INCREMENTAL_PROCESSOR_LOG
+    return 0  # 有變更
+}
+
+# 增量重新計算
+incremental_recalculation() {
+    echo "[$(date)] ⚙️ 執行增量重新計算..." >> $INCREMENTAL_PROCESSOR_LOG
+    
+    # 僅重新計算變更的部分
+    python3 /app/src/stages/stage4_incremental_processor.py --mode=incremental
+    
+    if [ $? -eq 0 ]; then
+        # 更新checksum
+        find $TLE_DATA_DIR -name "*.tle" -exec md5sum {} \; | sort | md5sum > "$DATA_DIR/.last_tle_checksum"
+        echo "[$(date)] ✅ 增量重新計算完成" >> $INCREMENTAL_PROCESSOR_LOG
+    else
+        echo "[$(date)] ❌ 增量重新計算失敗" >> $INCREMENTAL_PROCESSOR_LOG
+    fi
+}
+
+# 主處理流程
+if check_tle_changes; then
+    incremental_recalculation
+else
+    echo "[$(date)] 🎯 無需處理，系統保持最新狀態" >> $INCREMENTAL_PROCESSOR_LOG
+fi
+
+echo "[$(date)] ✅ 階段四增量處理完成" >> $INCREMENTAL_PROCESSOR_LOG
+```
+
+#### Cron任務配置實現
+```bash
+# /etc/crontab - Cron任務配置
+# 階段四相關的自動化任務
+
+# TLE數據自動下載 (每6小時)
+0 2,8,14,20 * * * root /home/sat/ntn-stack/scripts/daily_tle_download_enhanced.sh >> /tmp/tle_download.log 2>&1
+
+# 階段四增量處理 (下載後30分鐘)
+30 2,8,14,20 * * * root /home/sat/ntn-stack/scripts/incremental_data_processor.sh >> /tmp/incremental_update.log 2>&1
+
+# 安全數據清理 (每日03:15)
+15 3 * * * root /home/sat/ntn-stack/scripts/safe_data_cleanup.sh >> /tmp/cleanup.log 2>&1
+
+# 階段四性能監控 (每小時)
+0 * * * * root /home/sat/ntn-stack/scripts/monitor_stage4_performance.sh >> /tmp/stage4_monitor.log 2>&1
+```
+
+### 故障排除與維護
+
+#### 階段四專用診斷
+```bash
+# 階段四故障排除指令
+
+# 檢查時間序列數據狀態
+check_timeseries_data() {
+    echo "🔍 檢查時間序列數據狀態..."
+    
+    # 檢查數據文件
+    if [ -d "/app/data/enhanced_timeseries" ]; then
+        file_count=$(find /app/data/enhanced_timeseries -name "*.json" | wc -l)
+        echo "✅ 時間序列文件數量: $file_count"
+        
+        # 檢查文件大小
+        du -h /app/data/enhanced_timeseries/*.json 2>/dev/null
+    else
+        echo "❌ 時間序列數據目錄不存在"
+    fi
+}
+
+# 檢查3D渲染狀態
+check_3d_rendering() {
+    echo "🔍 檢查3D渲染狀態..."
+    
+    # 檢查前端服務
+    curl -s http://localhost:5173 > /dev/null
+    if [ $? -eq 0 ]; then
+        echo "✅ 前端服務正常"
+    else
+        echo "❌ 前端服務異常"
+    fi
+    
+    # 檢查軌跡服務
+    docker logs simworld_frontend 2>&1 | grep -i "trajectory" | tail -5
+}
+
+# 檢查Cron調度狀態
+check_cron_schedule() {
+    echo "🔍 檢查Cron調度狀態..."
+    
+    # 檢查Cron任務
+    crontab -l | grep -E "(tle_download|incremental|cleanup)"
+    
+    # 檢查最近執行日誌
+    if [ -f "/tmp/incremental_update.log" ]; then
+        echo "📋 最近增量處理日誌:"
+        tail -10 /tmp/incremental_update.log
+    fi
+}
+
+# 執行完整診斷
+diagnose_stage4() {
+    echo "🔧 開始階段四完整診斷..."
+    check_timeseries_data
+    check_3d_rendering 
+    check_cron_schedule
+    echo "✅ 階段四診斷完成"
+}
+```
+
+---
+
 **本文檔提供完整的技術實現參考，涵蓋所有開發和維護所需的詳細信息。**
