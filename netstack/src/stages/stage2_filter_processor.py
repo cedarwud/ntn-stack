@@ -93,8 +93,8 @@ class Stage2FilterProcessor:
         selection_config = None  # 使用動態篩選模式
         
         try:
-            # 執行完整智能篩選流程
-            filtered_result = self.filter_system.process_complete_filtering(
+            # 執行階段二專用篩選流程（不包含信號品質和事件分析）
+            filtered_result = self.filter_system.process_stage2_filtering_only(
                 stage1_data, 
                 selection_config
             )
@@ -117,23 +117,40 @@ class Stage2FilterProcessor:
             raise
             
     def save_stage2_output(self, filtered_data: Dict[str, Any]) -> str:
-        """保存階段二輸出數據"""
+        """保存階段二輸出數據 - v3.0 清理舊檔案版本"""
         output_file = self.output_dir / "stage2_intelligent_filtered_output.json"
+        
+        # 🗑️ 清理舊檔案 - 確保資料一致性
+        if output_file.exists():
+            file_size = output_file.stat().st_size
+            logger.info(f"🗑️ 清理舊階段二輸出檔案: {output_file}")
+            logger.info(f"   舊檔案大小: {file_size / (1024*1024):.1f} MB")
+            output_file.unlink()
+            logger.info("✅ 舊檔案已刪除")
         
         # 添加階段二完成標記
         filtered_data['metadata'].update({
             'stage2_completion': 'intelligent_filtering_complete',
             'stage2_timestamp': datetime.now(timezone.utc).isoformat(),
-            'ready_for_stage3': True
+            'ready_for_stage3': True,
+            'file_generation': 'clean_regeneration'  # 標記為重新生成
         })
         
+        # 💾 生成新的階段二輸出檔案
+        logger.info(f"💾 生成新的階段二輸出檔案: {output_file}")
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(filtered_data, f, indent=2, ensure_ascii=False)
             
-        logger.info(f"💾 階段二數據已保存到: {output_file}")
+        # 檢查新檔案大小
+        new_file_size = output_file.stat().st_size
+        logger.info(f"✅ 階段二數據已保存: {output_file}")
+        logger.info(f"   新檔案大小: {new_file_size / (1024*1024):.1f} MB")
+        logger.info(f"   包含衛星數: {filtered_data['metadata'].get('unified_filtering_results', {}).get('total_selected', 'unknown')}")
+        
         return str(output_file)
         
-    def process_stage2(self, stage1_file: Optional[str] = None, stage1_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def process_stage2(self, stage1_file: Optional[str] = None, stage1_data: Optional[Dict[str, Any]] = None, 
+                      save_output: bool = True) -> Dict[str, Any]:
         """執行完整的階段二處理流程"""
         logger.info("🚀 開始階段二：智能衛星篩選")
         
@@ -155,8 +172,13 @@ class Stage2FilterProcessor:
         # 2. 執行智能篩選
         filtered_data = self.execute_intelligent_filtering(stage1_data)
         
-        # 3. 保存輸出
-        output_file = self.save_stage2_output(filtered_data)
+        # 3. 可選的輸出策略
+        output_file = None
+        if save_output:
+            output_file = self.save_stage2_output(filtered_data)
+            logger.info(f"💾 階段二數據已保存到: {output_file}")
+        else:
+            logger.info("🚀 階段二使用內存傳遞模式，未保存檔案")
         
         logger.info("✅ 階段二處理完成")
         # 獲取篩選結果統計
@@ -165,7 +187,8 @@ class Stage2FilterProcessor:
         oneweb_selected = filtered_data['metadata'].get('unified_filtering_results', {}).get('oneweb_selected', 0)
         
         logger.info(f"  篩選的衛星數: {total_selected} (Starlink: {starlink_selected}, OneWeb: {oneweb_selected})")
-        logger.info(f"  輸出檔案: {output_file}")
+        if output_file:
+            logger.info(f"  輸出檔案: {output_file}")
         
         return filtered_data
 
