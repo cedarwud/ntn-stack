@@ -17,7 +17,7 @@ current_dir = Path(__file__).parent
 sys.path.append(str(current_dir))
 
 from f1_tle_loader.tle_loader_engine import TLELoaderEngine
-from f2_satellite_filter.satellite_filter_engine import SatelliteFilterEngine  
+from f2_satellite_filter.satellite_filter_engine_v2 import SatelliteFilterEngineV2  
 from f3_signal_analyzer.a4_a5_d2_event_processor import A4A5D2EventProcessor
 from a1_dynamic_pool_planner.simulated_annealing_optimizer import SimulatedAnnealingOptimizer
 
@@ -88,11 +88,11 @@ class Phase1Pipeline:
             
             self.logger.info(f"✅ Stage 1完成 ({stage1_duration:.1f}秒)")
             
-            # Stage 2: F2_Satellite_Filter - 篩選554顆候選
+            # Stage 2: F2_Satellite_Filter - 篩選候選並使用全量軌道位置
             stage2_start = datetime.now(timezone.utc)
             self.logger.info("🔍 Stage 2: F2_Satellite_Filter 開始...")
             
-            filtered_candidates = await self._execute_stage2_satellite_filtering(satellite_data)
+            filtered_candidates, candidate_orbital_positions = await self._execute_stage2_satellite_filtering(satellite_data, orbital_positions)
             
             stage2_duration = (datetime.now(timezone.utc) - stage2_start).total_seconds()
             self.pipeline_stats['stage_durations']['stage2_filtering'] = stage2_duration
@@ -104,7 +104,7 @@ class Phase1Pipeline:
             stage3_start = datetime.now(timezone.utc)
             self.logger.info("📊 Stage 3: F3_Signal_Analyzer 開始...")
             
-            handover_events = await self._execute_stage3_signal_analysis(filtered_candidates, orbital_positions)
+            handover_events = await self._execute_stage3_signal_analysis(filtered_candidates, candidate_orbital_positions)
             
             stage3_duration = (datetime.now(timezone.utc) - stage3_start).total_seconds()
             self.pipeline_stats['stage_durations']['stage3_signal_analysis'] = stage3_duration
@@ -116,7 +116,7 @@ class Phase1Pipeline:
             stage4_start = datetime.now(timezone.utc)
             self.logger.info("🔥 Stage 4: A1_Dynamic_Pool_Planner 開始...")
             
-            optimal_pools = await self._execute_stage4_pool_optimization(filtered_candidates, orbital_positions)
+            optimal_pools = await self._execute_stage4_pool_optimization(filtered_candidates, candidate_orbital_positions)
             
             stage4_duration = (datetime.now(timezone.utc) - stage4_start).total_seconds()
             self.pipeline_stats['stage_durations']['stage4_optimization'] = stage4_duration
@@ -152,43 +152,174 @@ class Phase1Pipeline:
         # 載入全量衛星數據
         satellite_data = await self.tle_loader.load_full_satellite_data()
         
-        # 計算軌道位置 (選擇代表性衛星進行測試)
-        # 實際部署時應處理全量數據
-        test_satellites = []
+        # 記錄全量衛星數據
         if satellite_data.get('starlink'):
-            test_satellites.extend(satellite_data['starlink'][:100])  # 測試用前100顆
+            self.logger.info(f"   Starlink衛星: {len(satellite_data['starlink'])}顆")
         if satellite_data.get('oneweb'):
-            test_satellites.extend(satellite_data['oneweb'][:50])   # 測試用前50顆
+            self.logger.info(f"   OneWeb衛星: {len(satellite_data['oneweb'])}顆")
         
-        orbital_positions = await self.tle_loader.calculate_orbital_positions(
-            test_satellites, time_range_minutes=200
-        )
+        total_satellites = sum(len(sats) for sats in satellite_data.values())
+        self.logger.info(f"📊 全量衛星總計: {total_satellites}顆")
+        
+        # ✅ 修正: 按照計劃，Stage 1應該計算全量衛星的軌道位置
+        self.logger.info("🧮 開始計算全量衛星軌道位置...")
+        
+        # ✅ 收集**全量**衛星進行軌道計算 (按照原始架構修正)
+        all_satellites = []
+        for constellation_satellites in satellite_data.values():
+            all_satellites.extend(constellation_satellites)
+        
+        if len(all_satellites) > 0:
+            self.logger.info(f"📊 全量衛星構成：總計{len(all_satellites)}顆衛星")
+            self.logger.info(f"   包含：{len(satellite_data.get('starlink', []))}顆Starlink + {len(satellite_data.get('oneweb', []))}顆OneWeb")
+            self.logger.info(f"📊 計算全量{len(all_satellites)}顆衛星的軌道位置(96分鐘軌道週期)...")
+            
+            # 🔧 使用96分鐘覆蓋Starlink完整軌道週期
+            orbital_positions = await self.tle_loader.calculate_orbital_positions(
+                all_satellites, time_range_minutes=96
+            )
+            self.logger.info(f"✅ 全量軌道位置計算完成: {len(orbital_positions)}顆衛星")
+        else:
+            self.logger.warning("⚠️ 沒有衛星數據，跳過軌道位置計算")
+            orbital_positions = {}
         
         # 匯出Stage 1結果
         stage1_output = self.output_dir / "stage1_tle_loading_results.json"
         await self.tle_loader.export_load_statistics(str(stage1_output))
         
-        self.logger.info(f"📊 Stage 1統計: 載入{self.tle_loader.load_statistics['total_satellites']}顆衛星")
+        self.logger.info(f"📊 Stage 1統計: 載入{self.tle_loader.load_statistics['total_satellites']}顆衛星，計算{len(orbital_positions)}顆軌道")
         
         return satellite_data, orbital_positions
     
-    async def _execute_stage2_satellite_filtering(self, satellite_data):
+    async def _execute_stage2_satellite_filtering(self, satellite_data, orbital_positions):
         """執行Stage 2: 衛星篩選"""
         
-        # 初始化篩選器
-        self.satellite_filter = SatelliteFilterEngine(self.config.get('satellite_filter', {}))
+        # 初始化篩選器 (v2 - 六階段篩選管線)
+        self.satellite_filter = SatelliteFilterEngineV2(self.config.get('satellite_filter', {}))
         
-        # 應用綜合篩選
-        filtered_candidates = await self.satellite_filter.apply_comprehensive_filter(satellite_data)
+        # ✅ 修正: 從有軌道數據的衛星中進行智能篩選
+        self.logger.info(f"🔍 基於{len(orbital_positions)}顆衛星的軌道位置進行智能篩選")
         
-        # 匯出Stage 2結果
+        # 🔧 調整：僅從有軌道數據的衛星中篩選候選
+        filtered_satellite_data = {}
+        for constellation, satellites in satellite_data.items():
+            # 只保留有軌道數據的衛星
+            filtered_sats = [sat for sat in satellites if sat.satellite_id in orbital_positions]
+            filtered_satellite_data[constellation] = filtered_sats
+            self.logger.info(f"   {constellation}: {len(filtered_sats)}顆衛星有軌道數據")
+        
+        # 應用六階段綜合篩選 - 需要軌道位置數據
+        filtered_candidates = await self.satellite_filter.apply_comprehensive_filter(
+            filtered_satellite_data, orbital_positions
+        )
+        
+        # 從全量軌道位置中提取候選衛星的軌道數據
+        candidate_orbital_positions = {}
+        candidate_satellites = []
+        for candidates in filtered_candidates.values():
+            candidate_satellites.extend(candidates)
+        
+        self.logger.info(f"📊 篩選結果: {len(candidate_satellites)}顆候選衛星")
+        
+        # 提取候選衛星的軌道位置數據
+        missing_orbital_data = []
+        for candidate in candidate_satellites:
+            satellite_id = candidate.satellite_id
+            if satellite_id in orbital_positions:
+                candidate_orbital_positions[satellite_id] = orbital_positions[satellite_id]
+            else:
+                missing_orbital_data.append(satellite_id)
+        
+        if missing_orbital_data:
+            self.logger.warning(f"⚠️ {len(missing_orbital_data)}顆候選衛星缺少軌道數據: {missing_orbital_data[:5]}...")
+        
+        # 輸出調試信息
+        self.logger.info(f"🔍 調試信息：")
+        self.logger.info(f"   候選衛星數量: {len(candidate_satellites)}")
+        self.logger.info(f"   有軌道數據的候選: {len(candidate_orbital_positions)}")
+        if candidate_orbital_positions:
+            sample_sat = list(candidate_orbital_positions.keys())[0]
+            sample_positions = candidate_orbital_positions[sample_sat]
+            self.logger.info(f"   樣本衛星 {sample_sat}: {len(sample_positions)}個位置點")
+            if sample_positions:
+                self.logger.info(f"   樣本位置: 仰角{sample_positions[0].elevation_deg:.1f}°")
+        
+        # 導出Stage 2結果 - 增強版包含軌道位置數據
         stage2_output = self.output_dir / "stage2_filtering_results.json"
-        await self.satellite_filter.export_filter_results(filtered_candidates, str(stage2_output))
+        await self._export_stage2_enhanced_results(filtered_candidates, candidate_orbital_positions, str(stage2_output))
         
         total_candidates = sum(len(candidates) for candidates in filtered_candidates.values())
         self.logger.info(f"📊 Stage 2統計: 篩選出{total_candidates}顆候選衛星")
         
-        return filtered_candidates
+        return filtered_candidates, candidate_orbital_positions
+
+    async def _export_stage2_enhanced_results(self, 
+                                        filtered_candidates: dict, 
+                                        orbital_positions: dict, 
+                                        output_path: str):
+        """導出Stage 2增強結果，包含軌道位置數據"""
+        try:
+            export_data = {
+                'filter_statistics': {
+                    'input_satellites': len(self.tle_loader.tle_database) if hasattr(self, 'tle_loader') else 0,
+                    'final_candidates': sum(len(candidates) for candidates in filtered_candidates.values()),
+                    'starlink_candidates': len(filtered_candidates.get('starlink', [])),
+                    'oneweb_candidates': len(filtered_candidates.get('oneweb', [])),
+                    'geographic_filtered': 0,
+                    'constellation_filtered': 0,
+                    'filter_stages': {}
+                },
+                'filter_timestamp': datetime.now(timezone.utc).isoformat(),
+                'observer_coordinates': {
+                    'latitude': 24.9441667,
+                    'longitude': 121.3713889,
+                    'location_name': 'NTPU'
+                },
+                'candidates': {},
+                'orbital_positions': {}  # 新增：軌道位置數據
+            }
+            
+            # 導出候選衛星詳細信息
+            for constellation, candidates in filtered_candidates.items():
+                export_data['candidates'][constellation] = []
+                
+                for candidate in candidates:
+                    export_data['candidates'][constellation].append({
+                        'satellite_id': candidate.satellite_id,
+                        'total_score': round(candidate.total_score, 2),
+                        'geographic_relevance_score': round(candidate.geographic_relevance_score, 2),
+                        'orbital_characteristics_score': round(candidate.orbital_characteristics_score, 2),
+                        'signal_quality_score': round(candidate.signal_quality_score, 2),
+                        'temporal_distribution_score': round(candidate.temporal_distribution_score, 2),
+                        'scoring_rationale': candidate.scoring_rationale,
+                        'is_selected': candidate.is_selected
+                    })
+            
+            # 導出軌道位置數據
+            for satellite_id, positions in orbital_positions.items():
+                export_data['orbital_positions'][satellite_id] = []
+                for position in positions:
+                    export_data['orbital_positions'][satellite_id].append({
+                        'timestamp': position.timestamp.isoformat(),
+                        'latitude_deg': round(position.latitude_deg, 6),
+                        'longitude_deg': round(position.longitude_deg, 6),
+                        'altitude_km': round(position.altitude_km, 2),
+                        'elevation_deg': round(position.elevation_deg, 2),
+                        'azimuth_deg': round(position.azimuth_deg, 2),
+                        'distance_km': round(position.distance_km, 2),
+                        'velocity_km_s': round(position.velocity_km_s, 3)
+                    })
+            
+            with open(output_path, 'w') as f:
+                json.dump(export_data, f, indent=2, ensure_ascii=False)
+                
+            self.logger.info(f"📊 Stage 2增強結果已導出至: {output_path}")
+            self.logger.info(f"   包含軌道位置數據: {len(orbital_positions)}顆衛星")
+            
+        except Exception as e:
+            self.logger.error(f"❌ Stage 2增強結果導出失敗: {e}")
+            import traceback
+            traceback.print_exc()
     
     async def _execute_stage3_signal_analysis(self, filtered_candidates, orbital_positions):
         """執行Stage 3: 信號分析和事件檢測"""
@@ -240,13 +371,34 @@ class Phase1Pipeline:
         
         return optimal_solution
     
+    def _serialize_pipeline_stats(self):
+        """序列化pipeline統計中的datetime對象為JSON兼容格式"""
+        serialized = {}
+        for key, value in self.pipeline_stats.items():
+            if isinstance(value, datetime):
+                serialized[key] = value.isoformat()
+            elif isinstance(value, dict):
+                # 遞歸處理嵌套的字典
+                serialized[key] = {}
+                for sub_key, sub_value in value.items():
+                    if isinstance(sub_value, datetime):
+                        serialized[key][sub_key] = sub_value.isoformat()
+                    else:
+                        serialized[key][sub_key] = sub_value
+            else:
+                serialized[key] = value
+        return serialized
+    
     async def _generate_final_report(self, optimal_pools, handover_events):
         """生成最終報告"""
+        
+        # 序列化pipeline_stats中的datetime對象
+        serialized_stats = self._serialize_pipeline_stats()
         
         final_report = {
             'phase1_completion_report': {
                 'timestamp': datetime.now(timezone.utc).isoformat(),
-                'pipeline_statistics': self.pipeline_stats,
+                'pipeline_statistics': serialized_stats,
                 'final_results': {
                     'optimal_satellite_pools': {
                         'starlink_count': len(optimal_pools.starlink_satellites),
@@ -339,8 +491,8 @@ def create_default_config():
                 'cooling_rate': 0.95
             },
             'targets': {
-                'starlink_pool_size': 96,  # ⚠️ 預估值，實際數量待程式驗證
-                'oneweb_pool_size': 38,   # ⚠️ 預估值，實際數量待程式驗證
+                'starlink_pool_size': 8085,  # ✅ 基於本地TLE數據實際值
+                'oneweb_pool_size': 651,   # ✅ 基於本地TLE數據實際值
                 'starlink_visible_range': (10, 15),
                 'oneweb_visible_range': (3, 6)
             }
