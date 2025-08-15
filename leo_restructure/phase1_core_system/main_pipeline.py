@@ -16,10 +16,10 @@ import os
 current_dir = Path(__file__).parent
 sys.path.append(str(current_dir))
 
-from f1_tle_loader.tle_loader_engine import TLELoaderEngine
-from f2_satellite_filter.satellite_filter_engine_v2 import SatelliteFilterEngineV2  
-from f3_signal_analyzer.a4_a5_d2_event_processor import A4A5D2EventProcessor
-from a1_dynamic_pool_planner.simulated_annealing_optimizer import SimulatedAnnealingOptimizer
+from tle_data_loader.tle_loader_engine import TLELoaderEngine
+from satellite_filter_engine.satellite_filter_engine_v2 import SatelliteFilterEngineV2  
+from signal_analyzer.threegpp_event_processor import A4A5D2EventProcessor
+from dynamic_pool_planner.simulated_annealing_optimizer import SimulatedAnnealingOptimizer
 
 class Phase1Pipeline:
     """Phase 1 完整管道執行器"""
