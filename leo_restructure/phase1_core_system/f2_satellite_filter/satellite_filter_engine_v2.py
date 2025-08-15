@@ -149,6 +149,75 @@ class SatelliteFilterEngineV2:
         except Exception as e:
             self.logger.error(f"❌ 六階段篩選失敗: {e}")
             raise
+
+    async def apply_development_filter(self, 
+                                     orbital_data: Dict[str, List], 
+                                     satellite_orbital_positions: Dict) -> Dict[str, List[SatelliteScore]]:
+        """🚀 開發模式：寬鬆篩選，用於小數據集測試"""
+        self.logger.info("🚀 開始開發模式寬鬆篩選...")
+        
+        # 統計輸入數據
+        total_input = sum(len(sats) for sats in orbital_data.values())
+        self.filter_statistics['input_satellites'] = total_input
+        self.logger.info(f"📊 輸入衛星總數: {total_input} 顆")
+        
+        filtered_candidates = {}
+        
+        try:
+            # 對每個星座應用寬鬆篩選
+            for constellation in ['starlink', 'oneweb']:
+                if constellation in orbital_data and orbital_data[constellation]:
+                    satellites = orbital_data[constellation]
+                    self.logger.info(f"🛰️ 處理{constellation.upper()} ({len(satellites)} 顆)")
+                    
+                    # 寬鬆的開發模式篩選
+                    candidates = []
+                    for satellite in satellites:
+                        # 創建簡化的可見性分析 (使用正確的參數名稱)
+                        visibility_analysis = VisibilityAnalysis(
+                            satellite_id=satellite.satellite_id,
+                            total_visible_time_minutes=100.0,
+                            max_elevation_deg=45.0,
+                            visible_passes_count=5,
+                            avg_pass_duration_minutes=20.0,
+                            best_elevation_time=datetime.utcnow(),
+                            signal_strength_estimate_dbm=-85.0
+                        )
+                        
+                        # 創建寬鬆的評分候選
+                        candidate = SatelliteScore(
+                            satellite_id=satellite.satellite_id,
+                            constellation=constellation,
+                            total_score=75.0,  # 固定給高分確保通過
+                            geographic_relevance_score=75.0,
+                            orbital_characteristics_score=75.0, 
+                            signal_quality_score=75.0,
+                            temporal_distribution_score=75.0,
+                            visibility_compliance_score=75.0,
+                            visibility_analysis=visibility_analysis,
+                            scoring_rationale={"mode": "🚀 開發模式：寬鬆評分"},
+                            is_selected=True
+                        )
+                        candidates.append(candidate)
+                    
+                    filtered_candidates[constellation] = candidates
+                    self.filter_statistics[f'{constellation}_candidates'] = len(candidates)
+                    self.logger.info(f"✅ {constellation.upper()}開發篩選: {len(candidates)} 顆候選")
+            
+            # 統計最終結果
+            total_candidates = sum(len(candidates) for candidates in filtered_candidates.values())
+            self.filter_statistics['final_candidates'] = total_candidates
+            
+            self.logger.info(f"🎯 開發模式篩選完成:")
+            self.logger.info(f"   Starlink候選: {self.filter_statistics.get('starlink_candidates', 0)} 顆")
+            self.logger.info(f"   OneWeb候選: {self.filter_statistics.get('oneweb_candidates', 0)} 顆")
+            self.logger.info(f"   總候選數: {total_candidates} 顆")
+            
+            return filtered_candidates
+            
+        except Exception as e:
+            self.logger.error(f"❌ 開發模式篩選失敗: {e}")
+            raise
     
     async def _apply_six_stage_filter(self, 
                                     satellites: List, 

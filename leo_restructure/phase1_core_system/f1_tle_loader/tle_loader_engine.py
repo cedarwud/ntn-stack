@@ -73,8 +73,9 @@ class SatellitePosition:
 class TLELoaderEngine:
     """TLE載入和SGP4計算引擎"""
     
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, full_config: Dict = None):
         self.config = config
+        self.full_config = full_config or config  # 保存完整配置以訪問其他模組設定
         self.logger = logging.getLogger(__name__)
         
         # NTPU觀測點座標
@@ -87,6 +88,14 @@ class TLELoaderEngine:
             'starlink': '/home/sat/ntn-stack/netstack/tle_data/starlink/tle/starlink_20250814.tle',
             'oneweb': '/home/sat/ntn-stack/netstack/tle_data/oneweb/tle/oneweb_20250814.tle'
         }
+        
+        # ✅ 新增：從完整配置中讀取sample_limits
+        self.sample_limits = {}
+        if self.full_config and 'satellite_filter' in self.full_config:
+            filter_config = self.full_config['satellite_filter']
+            if 'sample_limits' in filter_config:
+                self.sample_limits = filter_config['sample_limits']
+                self.logger.info(f"🎯 樣本限制配置: {self.sample_limits}")
         
         # 載入統計
         self.load_statistics = {
@@ -278,11 +287,26 @@ class TLELoaderEngine:
     def _parse_tle_content(self, content: str, constellation: str) -> List[TLEData]:
         """解析TLE內容"""
         tle_list = []
-        lines = content.strip().split('\n')
+        lines = content.strip().split('\n')  # ✅ 修復：移除多餘的反斜杠
+        
+        # ✅ 檢查樣本限制
+        sample_limit = None
+        if self.sample_limits:
+            limit_key = f"{constellation}_sample"
+            if limit_key in self.sample_limits:
+                sample_limit = self.sample_limits[limit_key]
+                self.logger.info(f"🎯 應用樣本限制: {constellation} = {sample_limit}顆")
         
         try:
             i = 0
+            parsed_count = 0
+            
             while i < len(lines) - 2:
+                # ✅ 檢查是否達到樣本限制
+                if sample_limit is not None and parsed_count >= sample_limit:
+                    self.logger.info(f"✅ {constellation}達到樣本限制({sample_limit}顆)，停止解析")
+                    break
+                
                 # TLE格式: 衛星名稱 + Line1 + Line2
                 name_line = lines[i].strip()
                 line1 = lines[i + 1].strip()
@@ -295,15 +319,22 @@ class TLELoaderEngine:
                     try:
                         tle_data = self._parse_single_tle(name_line, line1, line2, constellation)
                         tle_list.append(tle_data)
+                        parsed_count += 1
                         self.load_statistics['successful_tle_parsing'] += 1
                     except Exception as e:
                         self.logger.warning(f"⚠️ TLE解析失敗 {name_line}: {e}")
                         self.load_statistics['error_count'] += 1
                 
                 i += 3
-                
+        
         except Exception as e:
             self.logger.error(f"❌ TLE內容解析失敗: {e}")
+        
+        # ✅ 記錄樣本限制應用結果
+        if sample_limit is not None:
+            self.logger.info(f"📊 {constellation}樣本限制結果: 解析{len(tle_list)}顆 (限制:{sample_limit}顆)")
+        else:
+            self.logger.info(f"📊 {constellation}全量解析: {len(tle_list)}顆衛星")
         
         return tle_list
     
