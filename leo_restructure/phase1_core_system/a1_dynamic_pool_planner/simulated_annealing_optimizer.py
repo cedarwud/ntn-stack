@@ -71,16 +71,16 @@ class SimulatedAnnealingOptimizer:
         self.observer_lat = 24.9441667
         self.observer_lon = 121.3713889
         
-        # 目標規格 (⚠️ 池大小為預估值，待程式驗證)
+        # 目標規格 (✅ 基於本地TLE數據的實際值)
         self.targets = {
             'starlink': {
-                'pool_size': 96,  # ⚠️ 預估值，實際數量待模擬退火驗證
+                'pool_size': 8085,  # ✅ 基於NetStack本地TLE數據實際值
                 'visible_range': (10, 15),
                 'elevation_threshold': 5.0,
                 'orbit_period_minutes': 96
             },
             'oneweb': {
-                'pool_size': 38,  # ⚠️ 預估值，實際數量待模擬退火驗證
+                'pool_size': 651,   # ✅ 基於NetStack本地TLE數據實際值
                 'visible_range': (3, 6),
                 'elevation_threshold': 10.0,
                 'orbit_period_minutes': 109
@@ -599,8 +599,19 @@ class SimulatedAnnealingOptimizer:
                                              orbital_positions: Dict) -> float:
         """計算可見性合規度"""
         
+        # 動態計算時間點數，基於實際軌道位置數據
+        if not starlink_sats and not oneweb_sats:
+            return 0.0
+            
+        # 從第一顆衛星獲取實際時間點數
+        sample_satellite = next(iter(orbital_positions.keys())) if orbital_positions else None
+        if not sample_satellite or sample_satellite not in orbital_positions:
+            return 0.0
+            
+        total_points = len(orbital_positions[sample_satellite])
         compliant_points = 0
-        total_points = 192  # 96分鐘 × 2個時間點/分鐘
+        
+        self.logger.debug(f"🔍 可見性計算: 檢查{total_points}個時間點")
         
         for time_idx in range(total_points):
             visible_starlink = sum(1 for sat in starlink_sats 
@@ -613,8 +624,15 @@ class SimulatedAnnealingOptimizer:
             
             if starlink_ok and oneweb_ok:
                 compliant_points += 1
+                
+            # 調試：記錄前10個時間點的可見性
+            if time_idx < 10:
+                self.logger.debug(f"  時間點{time_idx}: Starlink可見{visible_starlink}顆, OneWeb可見{visible_oneweb}顆, 合規={starlink_ok and oneweb_ok}")
         
-        return compliant_points / total_points
+        compliance_rate = compliant_points / total_points
+        self.logger.info(f"✅ 可見性合規計算完成: {compliant_points}/{total_points} ({compliance_rate:.1%})")
+        
+        return compliance_rate
     
     async def _calculate_temporal_distribution_quality(self,
                                                      starlink_sats: List[str],
@@ -723,7 +741,7 @@ class SimulatedAnnealingOptimizer:
                     'visibility_compliance': solution.visibility_compliance,
                     'temporal_distribution': solution.temporal_distribution,
                     'signal_quality': solution.signal_quality,
-                    'constraints_satisfied': solution.constraints_satisfied
+                    'constraints_satisfied': {k: str(v) for k, v in solution.constraints_satisfied.items()}  # 轉換bool為string
                 }
             }
             
@@ -746,8 +764,8 @@ async def main():
             'cooling_rate': 0.95
         },
         'targets': {
-            'starlink_pool_size': 96,
-            'oneweb_pool_size': 38
+            'starlink_pool_size': 8085,  # 基於本地TLE數據
+            'oneweb_pool_size': 651      # 基於本地TLE數據
         }
     }
     
