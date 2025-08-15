@@ -154,6 +154,9 @@ def create_custom_config(args):
     if args.ultra_fast:
         config['tle_loader']['calculation_params']['time_range_minutes'] = 30
         config['tle_loader']['calculation_params']['time_interval_seconds'] = 60
+        # 確保sample_limits字段存在
+        if 'sample_limits' not in config['satellite_filter']:
+            config['satellite_filter']['sample_limits'] = {}
         config['satellite_filter']['sample_limits']['starlink_sample'] = 5
         config['satellite_filter']['sample_limits']['oneweb_sample'] = 5
         config['optimizer']['optimization_params']['max_iterations'] = 50
@@ -165,10 +168,17 @@ def create_custom_config(args):
     elif args.dev_mode:
         config['tle_loader']['calculation_params']['time_range_minutes'] = 96
         config['tle_loader']['calculation_params']['time_interval_seconds'] = 30
+        # 確保sample_limits字段存在
+        if 'sample_limits' not in config['satellite_filter']:
+            config['satellite_filter']['sample_limits'] = {}
         config['satellite_filter']['sample_limits']['starlink_sample'] = 50
         config['satellite_filter']['sample_limits']['oneweb_sample'] = 50
         config['optimizer']['optimization_params']['max_iterations'] = 500
         config['optimizer']['optimization_params']['cooling_rate'] = 0.92
+        
+        # 確保signal_analyzer section存在
+        if 'signal_analyzer' not in config:
+            config['signal_analyzer'] = {}
         config['signal_analyzer']['enable_signal_analysis'] = True
         config['signal_analyzer']['enable_handover_events'] = True
         
@@ -179,7 +189,15 @@ def create_custom_config(args):
         config['satellite_filter']['use_all_satellites'] = True
         config['optimizer']['optimization_params']['max_iterations'] = 5000
         config['optimizer']['optimization_params']['cooling_rate'] = 0.90
+        
+        # 確保signal_analyzer section存在
+        if 'signal_analyzer' not in config:
+            config['signal_analyzer'] = {}
         config['signal_analyzer']['enable_all_features'] = True
+        
+        # 確保performance_monitoring section存在
+        if 'performance_monitoring' not in config:
+            config['performance_monitoring'] = {}
         config['performance_monitoring']['enable_memory_monitoring'] = True
         config['performance_monitoring']['enable_performance_logging'] = True
         

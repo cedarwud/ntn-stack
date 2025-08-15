@@ -145,8 +145,11 @@ class Phase1Pipeline:
     async def _execute_stage1_tle_loading(self):
         """執行Stage 1: TLE數據載入"""
         
-        # 初始化TLE載入器
-        self.tle_loader = TLELoaderEngine(self.config.get('tle_loader', {}))
+        # ✅ 修正：初始化TLE載入器，傳遞完整配置以支援sample_limits
+        self.tle_loader = TLELoaderEngine(
+            config=self.config.get('tle_loader', {}),
+            full_config=self.config  # 傳遞完整配置以訪問satellite_filter.sample_limits
+        )
         await self.tle_loader.initialize()
         
         # 載入全量衛星數據
@@ -208,10 +211,22 @@ class Phase1Pipeline:
             filtered_satellite_data[constellation] = filtered_sats
             self.logger.info(f"   {constellation}: {len(filtered_sats)}顆衛星有軌道數據")
         
-        # 應用六階段綜合篩選 - 需要軌道位置數據
-        filtered_candidates = await self.satellite_filter.apply_comprehensive_filter(
-            filtered_satellite_data, orbital_positions
-        )
+        # ✅ 新增：檢查是否為開發模式（衛星數量 ≤ 200）
+        total_satellites = sum(len(sats) for sats in filtered_satellite_data.values())
+        is_dev_mode = total_satellites <= 200  # 🔧 調整門檻到200，支持開發測試
+        
+        if is_dev_mode:
+            self.logger.info(f"🚀 檢測到開發模式 ({total_satellites}顆 ≤ 200)，使用寬鬆篩選")
+            # 使用開發模式篩選
+            filtered_candidates = await self.satellite_filter.apply_development_filter(
+                filtered_satellite_data, orbital_positions
+            )
+        else:
+            self.logger.info(f"🏭 生產模式 ({total_satellites}顆 > 200)，使用六階段篩選")
+            # 應用六階段綜合篩選
+            filtered_candidates = await self.satellite_filter.apply_comprehensive_filter(
+                filtered_satellite_data, orbital_positions
+            )
         
         # 從全量軌道位置中提取候選衛星的軌道數據
         candidate_orbital_positions = {}
@@ -327,10 +342,15 @@ class Phase1Pipeline:
         # 初始化事件處理器
         self.event_processor = A4A5D2EventProcessor(self.config.get('event_processor', {}))
         
-        # 模擬服務衛星和鄰居衛星時間軸
-        # 實際實現需要基於filtered_candidates和orbital_positions生成
-        serving_timeline = []  # TODO: 從filtered_candidates生成
-        neighbor_timelines = []  # TODO: 從filtered_candidates生成
+        # ✅ 修復：從filtered_candidates和orbital_positions生成SatelliteSignalData時間軸
+        self.logger.info("🔄 開始生成衛星信號數據時間軸...")
+        serving_timeline, neighbor_timelines = await self._generate_signal_timelines(
+            filtered_candidates, orbital_positions
+        )
+        
+        self.logger.info(f"📊 時間軸生成完成:")
+        self.logger.info(f"   服務衛星時間軸: {len(serving_timeline)}個時間點")
+        self.logger.info(f"   鄰居衛星數量: {len(neighbor_timelines)}")
         
         # 檢測換手事件
         handover_events = await self.event_processor.process_handover_events(
@@ -344,6 +364,162 @@ class Phase1Pipeline:
         self.logger.info(f"📊 Stage 3統計: 檢測{len(handover_events)}個換手事件")
         
         return handover_events
+    
+    async def _generate_signal_timelines(self, filtered_candidates, orbital_positions):
+        """✅ 關鍵修復：生成SatelliteSignalData時間軸"""
+        from f3_signal_analyzer.a4_a5_d2_event_processor import SatelliteSignalData
+        import math
+        
+        self.logger.info("🔄 開始orbital_positions→SatelliteSignalData轉換...")
+        
+        # 1. 選擇服務衛星（從Starlink中選擇評分最高的）
+        starlink_candidates = filtered_candidates.get('starlink', [])
+        if not starlink_candidates:
+            self.logger.warning("⚠️ 沒有Starlink候選衛星，使用OneWeb")
+            starlink_candidates = filtered_candidates.get('oneweb', [])
+        
+        if not starlink_candidates:
+            self.logger.error("❌ 沒有候選衛星可用於信號分析")
+            return [], []
+        
+        # 選擇總評分最高的衛星作為服務衛星
+        serving_satellite = max(starlink_candidates, key=lambda s: s.total_score)
+        serving_satellite_id = serving_satellite.satellite_id
+        
+        self.logger.info(f"📡 選擇服務衛星: {serving_satellite_id} (評分: {serving_satellite.total_score:.2f})")
+        
+        # 2. 獲取服務衛星的軌道位置數據
+        if serving_satellite_id not in orbital_positions:
+            self.logger.error(f"❌ 服務衛星 {serving_satellite_id} 缺少軌道數據")
+            return [], []
+        
+        serving_orbital_data = orbital_positions[serving_satellite_id]
+        self.logger.info(f"📊 服務衛星軌道數據: {len(serving_orbital_data)}個時間點")
+        
+        # 3. 生成服務衛星時間軸
+        serving_timeline = []
+        for position in serving_orbital_data:
+            # 計算信號參數
+            signal_data = await self._create_satellite_signal_data(
+                serving_satellite, position, "starlink" if "starlink" in serving_satellite_id.lower() else "oneweb"
+            )
+            serving_timeline.append(signal_data)
+        
+        # 4. 選擇鄰居衛星（排除服務衛星，選擇前10個評分最高的）
+        all_candidates = []
+        for constellation_candidates in filtered_candidates.values():
+            all_candidates.extend(constellation_candidates)
+        
+        # 排除服務衛星，按評分排序
+        neighbor_candidates = [c for c in all_candidates if c.satellite_id != serving_satellite_id]
+        neighbor_candidates.sort(key=lambda s: s.total_score, reverse=True)
+        neighbor_candidates = neighbor_candidates[:10]  # 限制鄰居數量
+        
+        self.logger.info(f"👥 選擇鄰居衛星數量: {len(neighbor_candidates)}")
+        
+        # 5. 生成鄰居衛星時間軸
+        neighbor_timelines = []
+        for neighbor_candidate in neighbor_candidates:
+            neighbor_id = neighbor_candidate.satellite_id
+            
+            if neighbor_id not in orbital_positions:
+                self.logger.warning(f"⚠️ 鄰居衛星 {neighbor_id} 缺少軌道數據")
+                continue
+            
+            neighbor_orbital_data = orbital_positions[neighbor_id]
+            neighbor_timeline = []
+            
+            constellation = "starlink" if "starlink" in neighbor_id.lower() else "oneweb"
+            
+            for position in neighbor_orbital_data:
+                signal_data = await self._create_satellite_signal_data(
+                    neighbor_candidate, position, constellation
+                )
+                neighbor_timeline.append(signal_data)
+            
+            neighbor_timelines.append(neighbor_timeline)
+        
+        self.logger.info(f"✅ 時間軸生成完成:")
+        self.logger.info(f"   服務衛星時間軸: {len(serving_timeline)}個時間點")
+        self.logger.info(f"   鄰居衛星數量: {len(neighbor_timelines)}")
+        
+        return serving_timeline, neighbor_timelines
+    
+    async def _create_satellite_signal_data(self, satellite_candidate, orbital_position, constellation):
+        """創建SatelliteSignalData對象"""
+        from f3_signal_analyzer.a4_a5_d2_event_processor import SatelliteSignalData
+        import math
+        
+        # 基本位置信息
+        satellite_id = satellite_candidate.satellite_id
+        timestamp = orbital_position.timestamp
+        latitude = orbital_position.latitude_deg
+        longitude = orbital_position.longitude_deg
+        altitude_km = orbital_position.altitude_km
+        elevation_deg = orbital_position.elevation_deg
+        azimuth_deg = orbital_position.azimuth_deg
+        distance_km = orbital_position.distance_km
+        
+        # 創建臨時SatelliteSignalData用於RSRP計算
+        temp_signal_data = SatelliteSignalData(
+            satellite_id=satellite_id,
+            constellation=constellation,
+            timestamp=timestamp,
+            latitude=latitude,
+            longitude=longitude,
+            altitude_km=altitude_km,
+            elevation_deg=elevation_deg,
+            azimuth_deg=azimuth_deg,
+            distance_km=distance_km,
+            rsrp_dbm=0.0,  # 臨時值
+            rsrq_db=0.0,   # 臨時值
+            sinr_db=0.0,   # 臨時值
+            path_loss_db=0.0,  # 臨時值
+            doppler_shift_hz=0.0,  # 臨時值
+            propagation_delay_ms=0.0   # 臨時值
+        )
+        
+        # 使用事件處理器計算精確RSRP
+        rsrp_dbm = await self.event_processor.calculate_precise_rsrp(temp_signal_data)
+        
+        # 計算其他信號參數
+        # RSRQ: 基於仰角動態調整
+        rsrq_db = -12.0 + (elevation_deg - 10) * 0.1  # -12dB基準，仰角越高越好
+        
+        # SINR: 基於仰角和距離
+        sinr_db = 18.0 + (elevation_deg - 10) * 0.2 - (distance_km - 550) / 100  # 18dB基準
+        
+        # 自由空間路徑損耗
+        frequency_ghz = 12.0 if constellation == "starlink" else 20.0  # Ku/Ka頻段
+        path_loss_db = 20 * math.log10(distance_km) + 20 * math.log10(frequency_ghz) + 32.45
+        
+        # 多普勒頻移 (簡化計算)
+        velocity_km_s = getattr(orbital_position, 'velocity_km_s', 7.8)  # LEO衛星典型速度
+        doppler_shift_hz = frequency_ghz * 1e9 * velocity_km_s * 1000 / 299792458  # c = 光速
+        
+        # 傳播延遲
+        propagation_delay_ms = distance_km / 299.792458  # 光速 km/ms
+        
+        # 創建完整的SatelliteSignalData
+        signal_data = SatelliteSignalData(
+            satellite_id=satellite_id,
+            constellation=constellation,
+            timestamp=timestamp,
+            latitude=latitude,
+            longitude=longitude,
+            altitude_km=altitude_km,
+            elevation_deg=elevation_deg,
+            azimuth_deg=azimuth_deg,
+            distance_km=distance_km,
+            rsrp_dbm=rsrp_dbm,
+            rsrq_db=rsrq_db,
+            sinr_db=sinr_db,
+            path_loss_db=path_loss_db,
+            doppler_shift_hz=doppler_shift_hz,
+            propagation_delay_ms=propagation_delay_ms
+        )
+        
+        return signal_data
     
     async def _execute_stage4_pool_optimization(self, filtered_candidates, orbital_positions):
         """執行Stage 4: 動態池最佳化"""
@@ -373,24 +549,50 @@ class Phase1Pipeline:
     
     def _serialize_pipeline_stats(self):
         """序列化pipeline統計中的datetime對象為JSON兼容格式"""
+        import numpy as np
+        
+        def serialize_value(value):
+            """遞歸序列化各種數據類型"""
+            if isinstance(value, datetime):
+                return value.isoformat()
+            elif isinstance(value, (np.bool_, bool)):
+                return bool(value)  # 確保numpy boolean轉為Python boolean
+            elif isinstance(value, (np.integer, np.int64, np.int32)):
+                return int(value)  # 確保numpy整數轉為Python int
+            elif isinstance(value, (np.floating, np.float64, np.float32)):
+                return float(value)  # 確保numpy浮點數轉為Python float
+            elif isinstance(value, dict):
+                return {k: serialize_value(v) for k, v in value.items()}
+            elif isinstance(value, (list, tuple)):
+                return [serialize_value(item) for item in value]
+            elif hasattr(value, 'tolist'):  # numpy arrays
+                return value.tolist()
+            else:
+                return value
+        
         serialized = {}
         for key, value in self.pipeline_stats.items():
-            if isinstance(value, datetime):
-                serialized[key] = value.isoformat()
-            elif isinstance(value, dict):
-                # 遞歸處理嵌套的字典
-                serialized[key] = {}
-                for sub_key, sub_value in value.items():
-                    if isinstance(sub_value, datetime):
-                        serialized[key][sub_key] = sub_value.isoformat()
-                    else:
-                        serialized[key][sub_key] = sub_value
-            else:
-                serialized[key] = value
+            serialized[key] = serialize_value(value)
         return serialized
     
     async def _generate_final_report(self, optimal_pools, handover_events):
         """生成最終報告"""
+        import numpy as np
+        
+        def safe_serialize(value):
+            """安全序列化各種數據類型"""
+            if isinstance(value, datetime):
+                return value.isoformat()
+            elif isinstance(value, (np.bool_, bool)):
+                return bool(value)
+            elif isinstance(value, (np.integer, np.int64, np.int32)):
+                return int(value)
+            elif isinstance(value, (np.floating, np.float64, np.float32)):
+                return float(value)
+            elif hasattr(value, 'tolist'):  # numpy arrays
+                return value.tolist()
+            else:
+                return value
         
         # 序列化pipeline_stats中的datetime對象
         serialized_stats = self._serialize_pipeline_stats()
@@ -401,24 +603,24 @@ class Phase1Pipeline:
                 'pipeline_statistics': serialized_stats,
                 'final_results': {
                     'optimal_satellite_pools': {
-                        'starlink_count': len(optimal_pools.starlink_satellites),
-                        'oneweb_count': len(optimal_pools.oneweb_satellites),
-                        'total_count': optimal_pools.get_total_satellites(),
-                        'visibility_compliance': optimal_pools.visibility_compliance,
-                        'temporal_distribution': optimal_pools.temporal_distribution,
-                        'signal_quality': optimal_pools.signal_quality
+                        'starlink_count': int(len(optimal_pools.starlink_satellites)),
+                        'oneweb_count': int(len(optimal_pools.oneweb_satellites)),
+                        'total_count': int(optimal_pools.get_total_satellites()),
+                        'visibility_compliance': safe_serialize(optimal_pools.visibility_compliance),
+                        'temporal_distribution': safe_serialize(optimal_pools.temporal_distribution),
+                        'signal_quality': safe_serialize(optimal_pools.signal_quality)
                     },
                     'handover_events': {
-                        'total_events': len(handover_events),
-                        'a4_events': len([e for e in handover_events if e.event_type.value == 'A4']),
-                        'a5_events': len([e for e in handover_events if e.event_type.value == 'A5']),
-                        'd2_events': len([e for e in handover_events if e.event_type.value == 'D2'])
+                        'total_events': int(len(handover_events)),
+                        'a4_events': int(len([e for e in handover_events if e.event_type.value == 'A4'])),
+                        'a5_events': int(len([e for e in handover_events if e.event_type.value == 'A5'])),
+                        'd2_events': int(len([e for e in handover_events if e.event_type.value == 'D2']))
                     },
                     'compliance_check': {
-                        'starlink_target_met': 10 <= len(optimal_pools.starlink_satellites) <= 15,  # 簡化檢查
-                        'oneweb_target_met': 3 <= len(optimal_pools.oneweb_satellites) <= 6,      # 簡化檢查
-                        'visibility_compliance_ok': optimal_pools.visibility_compliance >= 0.90,
-                        'temporal_distribution_ok': optimal_pools.temporal_distribution >= 0.70,
+                        'starlink_target_met': bool(10 <= len(optimal_pools.starlink_satellites) <= 15),
+                        'oneweb_target_met': bool(3 <= len(optimal_pools.oneweb_satellites) <= 6),
+                        'visibility_compliance_ok': bool(safe_serialize(optimal_pools.visibility_compliance) >= 0.90),
+                        'temporal_distribution_ok': bool(safe_serialize(optimal_pools.temporal_distribution) >= 0.70),
                         'frontend_ready': True
                     }
                 }
@@ -428,7 +630,7 @@ class Phase1Pipeline:
         # 記錄最終結果到統計
         self.pipeline_stats['final_results'] = final_report['phase1_completion_report']['final_results']
         
-        # 匯出最終報告
+        # 導出最終報告
         final_report_path = self.output_dir / "phase1_final_report.json"
         with open(final_report_path, 'w') as f:
             json.dump(final_report, f, indent=2, ensure_ascii=False)
