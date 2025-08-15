@@ -121,6 +121,45 @@ class SimulatedAnnealingOptimizer:
             'constraint_violations': {}
         }
     
+    def _calculate_visibility_compliance_from_candidates(self, satellites: List) -> float:
+        """計算可見性合規度基於候選衛星的實際可見性分析數據"""
+        print(f"🔥🔥🔥 [COMPLIANCE] Calculating for {len(satellites) if satellites else 0} satellites")
+        if not satellites:
+            return 0.0
+        
+        # 計算平均可見時間和達標率
+        total_visible_time = 0.0
+        satellites_with_good_visibility = 0
+        
+        for i, sat in enumerate(satellites):
+            if i < 3:  # Debug first 3 satellites
+                print(f"🔥🔥🔥 [COMPLIANCE] Sat {i}: {type(sat)}, has visibility_analysis: {hasattr(sat, 'visibility_analysis')}")
+                if hasattr(sat, 'visibility_analysis'):
+                    print(f"🔥🔥🔥 [COMPLIANCE] visibility_analysis is: {sat.visibility_analysis}")
+            
+            if hasattr(sat, 'visibility_analysis') and sat.visibility_analysis:
+                visible_time = sat.visibility_analysis.total_visible_time_minutes
+                total_visible_time += visible_time
+                
+                # 根據星座類型檢查是否達標
+                if sat.constellation == 'starlink':
+                    # Starlink: 至少10分鐘可見時間（5°仰角）
+                    if visible_time >= 10.0:
+                        satellites_with_good_visibility += 1
+                elif sat.constellation == 'oneweb':
+                    # OneWeb: 至少8分鐘可見時間（10°仰角）
+                    if visible_time >= 8.0:
+                        satellites_with_good_visibility += 1
+        
+        # 計算合規度：達標衛星比例
+        if len(satellites) > 0:
+            compliance = satellites_with_good_visibility / len(satellites)
+        else:
+            compliance = 0.0
+        
+        print(f"🔥🔥🔥 [COMPLIANCE] Final: {satellites_with_good_visibility}/{len(satellites)} = {compliance:.2%}")
+        return compliance
+    
     async def optimize_satellite_pools(self, 
                                      starlink_candidates: List,
                                      oneweb_candidates: List,
@@ -171,11 +210,15 @@ class SimulatedAnnealingOptimizer:
             starlink_pool, oneweb_pool, {}  # 簡化初始評估
         )
         
+        # 計算可見性合規度基於實際可見性數據
+        visibility_compliance = self._calculate_visibility_compliance_from_candidates(starlink_pool + oneweb_pool)
+        print(f"🔥🔥🔥 [INITIAL] Setting visibility_compliance to {visibility_compliance:.2%}")
+        
         return SatellitePoolSolution(
             starlink_satellites=[sat.satellite_id for sat in starlink_pool],
             oneweb_satellites=[sat.satellite_id for sat in oneweb_pool],
             cost=initial_cost,
-            visibility_compliance=0.0,
+            visibility_compliance=visibility_compliance,
             temporal_distribution=0.0,
             signal_quality=0.0,
             constraints_satisfied={}

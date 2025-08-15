@@ -299,7 +299,7 @@ class Phase1Pipeline:
                 export_data['candidates'][constellation] = []
                 
                 for candidate in candidates:
-                    export_data['candidates'][constellation].append({
+                    candidate_data = {
                         'satellite_id': candidate.satellite_id,
                         'total_score': round(candidate.total_score, 2),
                         'geographic_relevance_score': round(candidate.geographic_relevance_score, 2),
@@ -308,7 +308,22 @@ class Phase1Pipeline:
                         'temporal_distribution_score': round(candidate.temporal_distribution_score, 2),
                         'scoring_rationale': candidate.scoring_rationale,
                         'is_selected': candidate.is_selected
-                    })
+                    }
+                    
+                    # ✅ 新增：導出可見性分析數據
+                    if hasattr(candidate, 'visibility_analysis') and candidate.visibility_analysis:
+                        va = candidate.visibility_analysis
+                        candidate_data['visibility_analysis'] = {
+                            'total_visible_time_minutes': round(va.total_visible_time_minutes, 2),
+                            'max_elevation_deg': round(va.max_elevation_deg, 2),
+                            'visible_passes_count': va.visible_passes_count,
+                            'avg_pass_duration_minutes': round(va.avg_pass_duration_minutes, 2),
+                            'signal_strength_estimate_dbm': round(va.signal_strength_estimate_dbm, 2)
+                        }
+                        if va.best_elevation_time:
+                            candidate_data['visibility_analysis']['best_elevation_time'] = va.best_elevation_time.isoformat() if hasattr(va.best_elevation_time, 'isoformat') else str(va.best_elevation_time)
+                    
+                    export_data['candidates'][constellation].append(candidate_data)
             
             # 導出軌道位置數據
             for satellite_id, positions in orbital_positions.items():
@@ -367,7 +382,7 @@ class Phase1Pipeline:
     
     async def _generate_signal_timelines(self, filtered_candidates, orbital_positions):
         """✅ 關鍵修復：生成SatelliteSignalData時間軸"""
-        from f3_signal_analyzer.a4_a5_d2_event_processor import SatelliteSignalData
+        from signal_analyzer.threegpp_event_processor import SatelliteSignalData
         import math
         
         self.logger.info("🔄 開始orbital_positions→SatelliteSignalData轉換...")
@@ -447,7 +462,7 @@ class Phase1Pipeline:
     
     async def _create_satellite_signal_data(self, satellite_candidate, orbital_position, constellation):
         """創建SatelliteSignalData對象"""
-        from f3_signal_analyzer.a4_a5_d2_event_processor import SatelliteSignalData
+        from signal_analyzer.threegpp_event_processor import SatelliteSignalData
         import math
         
         # 基本位置信息
@@ -666,6 +681,10 @@ def create_default_config():
             }
         },
         'satellite_filter': {
+            'sample_limits': {
+                'starlink_sample': 50,  # 開發模式：50顆Starlink
+                'oneweb_sample': 50     # 開發模式：50顆OneWeb
+            },
             'filtering_params': {
                 'geographic_threshold': 60.0,
                 'min_score_threshold': 70.0
