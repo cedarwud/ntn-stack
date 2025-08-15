@@ -272,6 +272,56 @@ class RouterManager:
                 "靜態註冊失敗",
             )
 
+        # LEO Config Router - P0.2 配置系統統一
+        try:
+            from ...routers.leo_config_router import (
+                router as leo_config_router,
+            )
+
+            self.app.include_router(
+                leo_config_router, tags=["LEO配置系統"]
+            )
+            self._track_router(
+                "leo_config_router",
+                "LEO配置系統",
+                True,
+                "P0.2 靜態註冊成功",
+            )
+            logger.info("✅ LEO配置系統路由器靜態註冊成功")
+        except Exception as e:
+            logger.exception("💥 LEO配置系統路由器靜態註冊失敗")
+            self._track_router(
+                "leo_config_router",
+                "LEO配置系統",
+                False,
+                "P0.2 靜態註冊失敗",
+            )
+
+        # LEO Frontend Data Router - P0.3 輸出格式對接
+        try:
+            from ...routers.leo_frontend_data_router import (
+                router as leo_frontend_data_router,
+            )
+
+            self.app.include_router(
+                leo_frontend_data_router, tags=["LEO前端數據"]
+            )
+            self._track_router(
+                "leo_frontend_data_router",
+                "LEO前端數據",
+                True,
+                "P0.3 靜態註冊成功",
+            )
+            logger.info("✅ LEO前端數據路由器靜態註冊成功")
+        except Exception as e:
+            logger.exception("💥 LEO前端數據路由器靜態註冊失敗")
+            self._track_router(
+                "leo_frontend_data_router",
+                "LEO前端數據",
+                False,
+                "P0.3 靜態註冊失敗",
+            )
+
         # 算法生態系統路由器 - 靜態註冊
         try:
             from ...routers.algorithm_ecosystem import (
