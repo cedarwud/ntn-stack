@@ -153,70 +153,156 @@ class SatelliteFilterEngineV2:
     async def apply_development_filter(self, 
                                      orbital_data: Dict[str, List], 
                                      satellite_orbital_positions: Dict) -> Dict[str, List[SatelliteScore]]:
-        """🚀 開發模式：寬鬆篩選，用於小數據集測試"""
-        self.logger.info("🚀 開始開發模式寬鬆篩選...")
+        """🚀 开发模式：宽松筛选，使用真实轨道计算数据"""
+        print("🔥🔥🔥 [CRITICAL] apply_development_filter CALLED! Using improved visibility calculation")
+        self.logger.info("🚀 开始开发模式宽松筛选...")
         
-        # 統計輸入數據
+        # 🔥 强制日志：确认方法被正确调用
+        self.logger.info("🔥 [DEBUG] apply_development_filter 被调用！改进的可见性计算方法正在运行")
+        
+        # 统计输入数据
         total_input = sum(len(sats) for sats in orbital_data.values())
         self.filter_statistics['input_satellites'] = total_input
-        self.logger.info(f"📊 輸入衛星總數: {total_input} 顆")
+        self.logger.info(f"📊 输入卫星总数: {total_input} 颗")
+        
+        # ✅ 新增：检查轨道数据可用性
+        available_orbital_data = len(satellite_orbital_positions)
+        self.logger.info(f"📊 可用轨道数据: {available_orbital_data} 颗卫星")
         
         filtered_candidates = {}
+        total_visibility_time_all = 0.0
+        max_elevation_all = -90.0
+        successful_calculations = 0
         
         try:
-            # 對每個星座應用寬鬆篩選
+            # 对每个星座应用宽松筛选
             for constellation in ['starlink', 'oneweb']:
                 if constellation in orbital_data and orbital_data[constellation]:
                     satellites = orbital_data[constellation]
-                    self.logger.info(f"🛰️ 處理{constellation.upper()} ({len(satellites)} 顆)")
+                    self.logger.info(f"🛰️ 处理{constellation.upper()} ({len(satellites)} 颗)")
                     
-                    # 寬鬆的開發模式篩選
+                    # 宽松的开发模式筛选
                     candidates = []
+                    constellation_visibility_time = 0.0
+                    constellation_max_elevation = -90.0
+                    
                     for satellite in satellites:
-                        # 創建簡化的可見性分析 (使用正確的參數名稱)
-                        visibility_analysis = VisibilityAnalysis(
-                            satellite_id=satellite.satellite_id,
-                            total_visible_time_minutes=100.0,
-                            max_elevation_deg=45.0,
-                            visible_passes_count=5,
-                            avg_pass_duration_minutes=20.0,
-                            best_elevation_time=datetime.utcnow(),
-                            signal_strength_estimate_dbm=-85.0
-                        )
+                        satellite_id = satellite.satellite_id
                         
-                        # 創建寬鬆的評分候選
+                        # ✅ 关键修复：使用真实轨道数据计算可见性分析
+                        if satellite_id in satellite_orbital_positions:
+                            orbital_positions = satellite_orbital_positions[satellite_id]
+                            self.logger.info(f"📡 {satellite_id}: 使用{len(orbital_positions)}个真实轨道位置")
+                            print(f"🔥🔥🔥 [VISIBILITY] Calculating for {satellite_id}, {len(orbital_positions)} positions")
+                            
+                            # 使用真实轨道计算可见性分析
+                            visibility_analysis = await self._calculate_visibility_analysis(
+                                satellite, orbital_positions, constellation
+                            )
+                            
+                            print(f"🔥🔥🔥 [RESULT] {satellite_id}: {visibility_analysis.total_visible_time_minutes:.1f} min, max {visibility_analysis.max_elevation_deg:.1f}°")
+                            
+                            # 🔥 强制日志：记录每个卫星的可见性结果
+                            self.logger.info(f"🔥 [DEBUG] {satellite_id} 可见性结果: {visibility_analysis.total_visible_time_minutes:.1f}分钟, 最高{visibility_analysis.max_elevation_deg:.1f}°")
+                            
+                            # 统计总体可见性
+                            constellation_visibility_time += visibility_analysis.total_visible_time_minutes
+                            constellation_max_elevation = max(constellation_max_elevation, visibility_analysis.max_elevation_deg)
+                            successful_calculations += 1
+                            
+                            # 基于真实可见性数据动态评分
+                            visibility_score = min(100.0, visibility_analysis.total_visible_time_minutes * 2)  # 可见时间转评分
+                            elevation_score = min(100.0, (visibility_analysis.max_elevation_deg + 90) * 0.5)  # 仰角转评分
+                            signal_score = min(100.0, (visibility_analysis.signal_strength_estimate_dbm + 150) * 2)  # 信号转评分
+                            
+                            # 开发模式给予宽松评分（最低60分）
+                            total_score = max(60.0, (visibility_score + elevation_score + signal_score) / 3)
+                            
+                            self.logger.info(f"   🎯 {satellite_id}: 可见{visibility_analysis.total_visible_time_minutes:.1f}分钟, 最高仰角{visibility_analysis.max_elevation_deg:.1f}°, 评分{total_score:.1f}")
+                            
+                        else:
+                            # 没有轨道数据时使用简化分析（但记录警告）
+                            self.logger.warning(f"⚠️ {satellite_id}: 缺少轨道数据，使用简化分析")
+                            visibility_analysis = VisibilityAnalysis(
+                                satellite_id=satellite.satellite_id,
+                                total_visible_time_minutes=50.0,  # 降低预设值
+                                max_elevation_deg=20.0,           # 降低预设值
+                                visible_passes_count=3,
+                                avg_pass_duration_minutes=15.0,
+                                best_elevation_time=datetime.utcnow(),
+                                signal_strength_estimate_dbm=-100.0  # 较弱信号
+                            )
+                            total_score = 60.0  # 最低分
+                        
+                        # 创建评分候选（使用计算出的评分）
                         candidate = SatelliteScore(
                             satellite_id=satellite.satellite_id,
                             constellation=constellation,
-                            total_score=75.0,  # 固定給高分確保通過
-                            geographic_relevance_score=75.0,
-                            orbital_characteristics_score=75.0, 
-                            signal_quality_score=75.0,
-                            temporal_distribution_score=75.0,
-                            visibility_compliance_score=75.0,
+                            total_score=total_score,
+                            geographic_relevance_score=total_score * 0.8,  # 基于总分调整
+                            orbital_characteristics_score=total_score * 0.9,
+                            signal_quality_score=total_score * 0.85,
+                            temporal_distribution_score=total_score * 0.95,
+                            visibility_compliance_score=total_score,
                             visibility_analysis=visibility_analysis,
-                            scoring_rationale={"mode": "🚀 開發模式：寬鬆評分"},
+                            scoring_rationale={"mode": "🚀 开发模式：基于真实轨道数据评分"},
                             is_selected=True
                         )
                         candidates.append(candidate)
                     
                     filtered_candidates[constellation] = candidates
                     self.filter_statistics[f'{constellation}_candidates'] = len(candidates)
-                    self.logger.info(f"✅ {constellation.upper()}開發篩選: {len(candidates)} 顆候選")
+                    
+                    # 记录星座统计
+                    total_visibility_time_all += constellation_visibility_time
+                    max_elevation_all = max(max_elevation_all, constellation_max_elevation)
+                    
+                    self.logger.info(f"✅ {constellation.upper()}开发筛选: {len(candidates)} 颗候选")
+                    self.logger.info(f"🔥 [DEBUG] {constellation.upper()} 总可见时间: {constellation_visibility_time:.1f}分钟, 最高仰角: {constellation_max_elevation:.1f}°")
             
-            # 統計最終結果
+            # 统计最终结果
             total_candidates = sum(len(candidates) for candidates in filtered_candidates.values())
             self.filter_statistics['final_candidates'] = total_candidates
             
-            self.logger.info(f"🎯 開發模式篩選完成:")
-            self.logger.info(f"   Starlink候選: {self.filter_statistics.get('starlink_candidates', 0)} 顆")
-            self.logger.info(f"   OneWeb候選: {self.filter_statistics.get('oneweb_candidates', 0)} 顆")
-            self.logger.info(f"   總候選數: {total_candidates} 顆")
+            # 🔥 强制日志：最终统计结果
+            self.logger.info(f"🔥 [DEBUG] 开发模式筛选最终统计:")
+            self.logger.info(f"🔥 [DEBUG]   成功计算可见性: {successful_calculations} 颗")
+            self.logger.info(f"🔥 [DEBUG]   全系统总可见时间: {total_visibility_time_all:.1f} 分钟")
+            self.logger.info(f"🔥 [DEBUG]   全系统最高仰角: {max_elevation_all:.1f}°")
+            
+            # ✅ 计算真实可见性统计
+            total_visible_time = 0.0
+            max_elevation_found = -90.0
+            candidates_with_orbital_data = 0
+            
+            for candidates in filtered_candidates.values():
+                for candidate in candidates:
+                    if candidate.visibility_analysis:
+                        total_visible_time += candidate.visibility_analysis.total_visible_time_minutes
+                        max_elevation_found = max(max_elevation_found, candidate.visibility_analysis.max_elevation_deg)
+                        if candidate.satellite_id in satellite_orbital_positions:
+                            candidates_with_orbital_data += 1
+            
+            self.logger.info(f"🎯 开发模式筛选完成:")
+            self.logger.info(f"   Starlink候选: {self.filter_statistics.get('starlink_candidates', 0)} 颗")
+            self.logger.info(f"   OneWeb候选: {self.filter_statistics.get('oneweb_candidates', 0)} 颗")
+            self.logger.info(f"   总候选数: {total_candidates} 颗")
+            self.logger.info(f"   有轨道数据: {candidates_with_orbital_data} 颗")
+            self.logger.info(f"   总可见时间: {total_visible_time:.1f} 分钟")
+            self.logger.info(f"   最高仰角: {max_elevation_found:.1f}°")
+            
+            # 🔥 强制验证：确认可见性结果被正确保存
+            if total_visible_time > 0:
+                self.logger.info(f"✅ [SUCCESS] 改进的可见性计算成功！发现 {total_visible_time:.1f} 分钟总可见时间")
+            else:
+                self.logger.error(f"❌ [ERROR] 可见性计算失败！总可见时间为 0")
             
             return filtered_candidates
             
         except Exception as e:
-            self.logger.error(f"❌ 開發模式篩選失敗: {e}")
+            self.logger.error(f"❌ 开发模式筛选失败: {e}")
+            import traceback
+            traceback.print_exc()
             raise
     
     async def _apply_six_stage_filter(self, 
@@ -442,7 +528,16 @@ class SatelliteFilterEngineV2:
                                            satellite, 
                                            orbital_positions: List, 
                                            constellation: str) -> VisibilityAnalysis:
-        """計算衛星的詳細可見性分析"""
+        """計算衛星的詳細可見性分析 - 使用原本6階段系統的proven方法"""
+        import math
+        
+        sat_id = satellite.get('satellite_id', 'unknown') if isinstance(satellite, dict) else 'unknown'
+        print(f"🔥🔥🔥 [CALC] Starting calculation for {sat_id}")
+        if orbital_positions:
+            print(f"🔥🔥🔥 [CALC] First position sample: {orbital_positions[0]}")
+        else:
+            print("🔥🔥🔥 [CALC] NO POSITIONS!")
+        
         params = self.constellation_params[constellation]
         min_elevation = params['min_elevation_deg']
         
@@ -454,11 +549,86 @@ class SatelliteFilterEngineV2:
         signal_strengths = []
         
         current_pass_start = None
+        current_pass_duration = 0.0
+        
+        # 🔧 使用原本6階段系統的proven elevation calculation
+        def calculate_elevation_from_eci(eci_position):
+            """使用原本系統的proven方法計算仰角"""
+            x, y, z = eci_position
+            
+            # 轉換為弧度
+            lat_rad = math.radians(self.observer_lat)
+            lon_rad = math.radians(self.observer_lon)
+            
+            # 地球半徑 (km)
+            earth_radius = 6371.0
+            
+            # 觀測點位置
+            observer_x = earth_radius * math.cos(lat_rad) * math.cos(lon_rad)
+            observer_y = earth_radius * math.cos(lat_rad) * math.sin(lon_rad)
+            observer_z = earth_radius * math.sin(lat_rad)
+            
+            # 相對位置
+            dx = x - observer_x
+            dy = y - observer_y
+            dz = z - observer_z
+            
+            # 簡化仰角計算
+            ground_range = math.sqrt(dx*dx + dy*dy)
+            elevation_rad = math.atan2(dz, ground_range)
+            
+            return math.degrees(elevation_rad)
+        
+        # 🔧 新增：根據地理位置計算ECI座標
+        def geodetic_to_eci(lat_deg, lon_deg, alt_km):
+            """將地理座標轉換為ECI座標 - 簡化版本"""
+            lat_rad = math.radians(lat_deg)
+            lon_rad = math.radians(lon_deg)
+            earth_radius = 6371.0
+            
+            # 簡化的ECI轉換（忽略地球自轉和時間差）
+            x = (earth_radius + alt_km) * math.cos(lat_rad) * math.cos(lon_rad)
+            y = (earth_radius + alt_km) * math.cos(lat_rad) * math.sin(lon_rad)
+            z = (earth_radius + alt_km) * math.sin(lat_rad)
+            
+            return (x, y, z)
         
         for position in orbital_positions:
-            elevation = position.elevation_deg
-            timestamp = position.timestamp
-            distance = position.distance_km
+            # 支援字典格式和SatellitePosition物件格式的軌道位置數據
+            if isinstance(position, dict):
+                lat_deg = position['latitude_deg']
+                lon_deg = position['longitude_deg']
+                alt_km = position['altitude_km']
+                timestamp = position['timestamp']
+            else:
+                # 處理SatellitePosition物件
+                lat_deg = float(position.latitude_deg)
+                lon_deg = float(position.longitude_deg)
+                alt_km = float(position.altitude_km)
+                timestamp = position.timestamp
+            
+            # 🎯 關鍵修復：使用原本系統的proven方法重新計算仰角
+            eci_position = geodetic_to_eci(lat_deg, lon_deg, alt_km)
+            elevation = calculate_elevation_from_eci(eci_position)
+            
+            # 計算距離（使用球面距離公式）
+            observer_lat_rad = math.radians(self.observer_lat)
+            observer_lon_rad = math.radians(self.observer_lon)
+            sat_lat_rad = math.radians(lat_deg)
+            sat_lon_rad = math.radians(lon_deg)
+            
+            # Haversine distance formula
+            dlat = sat_lat_rad - observer_lat_rad
+            dlon = sat_lon_rad - observer_lon_rad
+            a = math.sin(dlat/2)**2 + math.cos(observer_lat_rad) * math.cos(sat_lat_rad) * math.sin(dlon/2)**2
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+            ground_distance = 6371.0 * c
+            distance = math.sqrt(ground_distance**2 + alt_km**2)
+            
+            # 🔍 Debug: 記錄仰角計算結果
+            if len(signal_strengths) < 3:  # 只記錄前3個位置以避免過多log
+                original_elev = position.get('elevation_deg', 'N/A') if isinstance(position, dict) else getattr(position, 'elevation_deg', 'N/A')
+                print(f"🔥🔥🔥 [ELEV] Position {len(signal_strengths)+1}: Recalculated {elevation:.2f}° (Original: {original_elev}°)")
             
             # 檢查是否可見
             is_visible = elevation >= min_elevation
@@ -479,21 +649,27 @@ class SatelliteFilterEngineV2:
                 # 追蹤可見窗口
                 if current_pass_start is None:
                     current_pass_start = timestamp
+                    current_pass_duration = 0.5
+                else:
+                    current_pass_duration += 0.5
             else:
                 # 可見窗口結束
                 if current_pass_start is not None:
                     visible_passes += 1
-                    # 計算這次pass的持續時間（簡化估算）
-                    pass_durations.append(total_visible_time / visible_passes if visible_passes > 0 else 0)
+                    pass_durations.append(current_pass_duration)
                     current_pass_start = None
+                    current_pass_duration = 0.0
         
         # 處理最後一個可見窗口
         if current_pass_start is not None:
             visible_passes += 1
-            pass_durations.append(total_visible_time / visible_passes if visible_passes > 0 else 0)
+            pass_durations.append(current_pass_duration)
         
         avg_pass_duration = sum(pass_durations) / len(pass_durations) if pass_durations else 0
         avg_signal_strength = sum(signal_strengths) / len(signal_strengths) if signal_strengths else -150
+        
+        # 🔍 Debug: 記錄可見性分析結果
+        self.logger.info(f"   🎯 {satellite.satellite_id}: 可見{total_visible_time:.1f}分鐘, 最高仰角{max_elevation:.1f}°, {visible_passes}次通過")
         
         return VisibilityAnalysis(
             satellite_id=satellite.satellite_id,
