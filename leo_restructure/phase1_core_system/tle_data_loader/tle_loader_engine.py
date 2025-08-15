@@ -1,8 +1,14 @@
-# 🛰️ F1: TLE載入引擎
+# 🛰️ Phase 1: TLE載入引擎增強版
 """
-TLE Loader Engine - 完整的衛星TLE數據載入與SGP4軌道計算
-功能: 載入~8,735顆衛星TLE數據，執行SGP4軌道計算
-輸出: 為F2提供完整的軌道位置數據
+Enhanced TLE Loader Engine - Phase 1規格完整實現
+功能: 載入8,735顆衛星TLE數據，SGP4精確軌道計算，數據驗證
+規格: 
+- 載入時間 < 2分鐘
+- 計算精度 < 100m
+- 記憶體使用 < 2GB  
+- 錯誤處理 90%+成功率
+- 時間軸: 200個時間點，30秒間隔
+版本: Phase 1.1 Enhanced
 """
 
 import asyncio
@@ -24,6 +30,15 @@ try:
 except ImportError:
     SKYFIELD_AVAILABLE = False
     logging.warning("⚠️ Skyfield未安裝，將使用簡化軌道計算")
+
+# Phase 1增強模組導入
+try:
+    from .orbital_calculator import EnhancedOrbitalCalculator, SGP4Parameters, OrbitalState
+    from .data_validator import EnhancedTLEValidator, ValidationLevel, ValidationResult
+    ENHANCED_MODULES_AVAILABLE = True
+except ImportError:
+    ENHANCED_MODULES_AVAILABLE = False
+    logging.warning("⚠️ Phase 1增強模組未安裝，將使用基礎功能")
 
 @dataclass
 class TLEData:
@@ -70,8 +85,8 @@ class SatellitePosition:
     distance_km: float
     velocity_km_s: float
 
-class TLELoaderEngine:
-    """TLE載入和SGP4計算引擎"""
+class EnhancedTLELoaderEngine:
+    """Phase 1增強TLE載入和SGP4計算引擎"""
     
     def __init__(self, config: Dict, full_config: Dict = None):
         self.config = config
@@ -82,6 +97,20 @@ class TLELoaderEngine:
         self.observer_lat = 24.9441667
         self.observer_lon = 121.3713889
         self.observer_alt_m = 50.0  # NTPU海拔高度
+        
+        # Phase 1增強組件
+        self.orbital_calculator = None
+        self.data_validator = None
+        
+        # Phase 1性能目標
+        self.phase1_targets = {
+            'max_load_time_seconds': 120.0,       # <2分鐘載入
+            'max_calculation_accuracy_m': 100.0,  # <100米精度
+            'max_memory_usage_gb': 2.0,           # <2GB記憶體
+            'min_success_rate': 0.90,             # 90%+成功率
+            'time_points': 200,                   # 200個時間點
+            'time_resolution_seconds': 30         # 30秒間隔
+        }
         
         # 本地TLE數據源配置 (NetStack已下載的數據)
         self.local_tle_sources = {
@@ -118,9 +147,10 @@ class TLELoaderEngine:
         self.observer_location = None
         
     async def initialize(self):
-        """初始化TLE載入引擎"""
-        self.logger.info("🚀 初始化TLE載入引擎...")
+        """初始化Phase 1增強TLE載入引擎"""
+        self.logger.info("🚀 初始化Phase 1增強TLE載入引擎...")
         
+        # 基礎Skyfield初始化
         if SKYFIELD_AVAILABLE:
             try:
                 self.ts = load.timescale()
@@ -130,12 +160,33 @@ class TLELoaderEngine:
                     longitude_degrees=self.observer_lon,
                     elevation_m=self.observer_alt_m
                 )
-                self.logger.info("✅ Skyfield初始化成功")
+                self.logger.info("✅ Skyfield SGP4引擎初始化成功")
             except Exception as e:
                 self.logger.warning(f"⚠️ Skyfield初始化失敗: {e}")
                 globals()['SKYFIELD_AVAILABLE'] = False
         
-        self.logger.info(f"📍 觀測點: NTPU ({self.observer_lat:.4f}°N, {self.observer_lon:.4f}°E)")
+        # Phase 1增強模組初始化
+        if ENHANCED_MODULES_AVAILABLE:
+            try:
+                # 初始化增強軌道計算器
+                self.orbital_calculator = EnhancedOrbitalCalculator(
+                    self.observer_lat, self.observer_lon, self.observer_alt_m
+                )
+                await self.orbital_calculator.initialize()
+                
+                # 初始化數據驗證器
+                self.data_validator = EnhancedTLEValidator(ValidationLevel.ENHANCED)
+                
+                self.logger.info("✅ Phase 1增強模組初始化成功")
+                self.logger.info(f"   - 增強軌道計算器: 精度目標 <{self.phase1_targets['max_calculation_accuracy_m']}m")
+                self.logger.info(f"   - 數據驗證器: 目標成功率 ≥{self.phase1_targets['min_success_rate']*100:.0f}%")
+                
+            except Exception as e:
+                self.logger.warning(f"⚠️ Phase 1增強模組初始化失敗: {e}")
+                globals()['ENHANCED_MODULES_AVAILABLE'] = False
+        
+        self.logger.info(f"📍 觀測點: NTPU ({self.observer_lat:.6f}°N, {self.observer_lon:.6f}°E, {self.observer_alt_m}m)")
+        self.logger.info(f"🎯 Phase 1目標: 載入8,735顆衛星，SGP4精度<100m，成功率≥90%")
     
     async def load_full_satellite_data(self) -> Dict[str, List[TLEData]]:
         """載入全量衛星TLE數據"""
@@ -740,6 +791,9 @@ async def main():
     print(f"✅ F1_TLE_Loader測試完成")
     print(f"   載入衛星數: {tle_loader.load_statistics['total_satellites']}")
     print(f"   計算位置數: {len(orbital_positions)}")
+
+# 向後兼容性別名
+TLELoaderEngine = EnhancedTLELoaderEngine
 
 if __name__ == "__main__":
     asyncio.run(main())
