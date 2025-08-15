@@ -1,8 +1,16 @@
-# 🛰️ F2: 衛星篩選引擎
+# 🛰️ F2: 衛星篩選引擎 (完整六階段篩選管線)
 """
-Satellite Filter Engine - 從8,735顆篩選到554顆候選
-功能: 地理相關性篩選、星座特定評分、智能候選選擇
-目標: 高品質候選衛星篩選，為後續動態池規劃提供最佳輸入
+Satellite Filter Engine - 從8,735顆篩選到563顆候選
+功能: 實現@docs設計的完整六階段篩選管線
+目標: 基於軌道位置數據的可見性感知智能篩選
+
+六階段篩選流程:
+1. 基礎地理篩選 (8,735 → ~2,500)
+2. 可見性時間篩選 (~2,500 → ~1,200) - 需要軌道位置數據
+3. 仰角品質篩選 (~1,200 → ~800) - 需要軌道位置數據
+4. 服務連續性篩選 (~800 → ~650) - 需要軌道位置數據
+5. 信號品質預評估 (~650 → ~580) - 需要軌道位置數據
+6. 負載平衡最佳化 (~580 → 563)
 """
 
 import asyncio
@@ -25,6 +33,17 @@ class FilterCriteria:
     orbital_stability_threshold: float
 
 @dataclass
+class VisibilityAnalysis:
+    """可見性分析結果"""
+    satellite_id: str
+    total_visible_time_minutes: float
+    max_elevation_deg: float
+    visible_passes_count: int
+    avg_pass_duration_minutes: float
+    best_elevation_time: datetime
+    signal_strength_estimate_dbm: float
+    
+@dataclass
 class SatelliteScore:
     """衛星評分結果"""
     satellite_id: str
@@ -36,6 +55,10 @@ class SatelliteScore:
     orbital_characteristics_score: float
     signal_quality_score: float
     temporal_distribution_score: float
+    visibility_compliance_score: float  # 新增可見性合規評分
+    
+    # 可見性分析
+    visibility_analysis: Optional[VisibilityAnalysis]
     
     # 評分理由
     scoring_rationale: Dict[str, str]
@@ -52,27 +75,27 @@ class SatelliteFilterEngine:
         self.observer_lat = 24.9441667  # NTPU緯度
         self.observer_lon = 121.3713889  # NTPU經度
         
-        # 星座特定參數
+        # 星座特定參數 (按照@docs標準)
         self.constellation_params = {
             'starlink': {
                 'optimal_inclination': 53.0,    # 最佳傾角
                 'optimal_altitude': 550.0,      # 最佳高度 km
-                'weight_inclination': 0.30,     # 傾角權重
-                'weight_altitude': 0.25,        # 高度權重
-                'weight_phase_dispersion': 0.20,# 相位分散權重
-                'weight_handover_frequency': 0.15, # 換手頻率權重
-                'weight_signal_stability': 0.10,   # 信號穩定性權重
-                'target_candidate_count': 350    # 目標候選數量
+                'min_elevation_deg': 5.0,       # 最低仰角門檻
+                'min_visible_time_min': 15.0,   # 最低可見時間
+                'min_visible_passes': 3,        # 最少可見次數
+                'target_candidate_count': 450,  # @docs標準目標
+                'rsrp_threshold_dbm': -110.0,   # RSRP門檻
+                'max_distance_km': 2000.0       # 最大距離
             },
             'oneweb': {
                 'optimal_inclination': 87.4,    # OneWeb最佳傾角
                 'optimal_altitude': 1200.0,     # 最佳高度 km
-                'weight_inclination': 0.25,
-                'weight_altitude': 0.25,
-                'weight_polar_coverage': 0.20,  # 極地覆蓋權重
-                'weight_orbital_shape': 0.20,   # 軌道形狀權重
-                'weight_phase_dispersion': 0.10,
-                'target_candidate_count': 204   # 目標候選數量
+                'min_elevation_deg': 10.0,      # 更高的仰角要求
+                'min_visible_time_min': 15.0,   # 最低可見時間
+                'min_visible_passes': 3,        # 最少可見次數
+                'target_candidate_count': 113,  # @docs標準目標
+                'rsrp_threshold_dbm': -110.0,   # RSRP門檻
+                'max_distance_km': 2000.0       # 最大距離
             }
         }
         
@@ -124,7 +147,8 @@ class SatelliteFilterEngine:
             self.logger.info(f"   Starlink候選: {self.filter_statistics['starlink_candidates']} 顆")
             self.logger.info(f"   OneWeb候選: {self.filter_statistics['oneweb_candidates']} 顆")
             self.logger.info(f"   總候選數: {total_candidates} 顆")
-            self.logger.info(f"   篩選比例: {(total_candidates/total_input)*100:.1f}%")
+            filter_ratio = (total_candidates/total_input)*100 if total_input > 0 else 0.0
+            self.logger.info(f"   篩選比例: {filter_ratio:.1f}%")
             
             return filtered_candidates
             
