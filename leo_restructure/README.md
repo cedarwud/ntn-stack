@@ -25,28 +25,26 @@ leo_restructure/
 ├── 🚀 IMPLEMENTATION_PLAN.md       # 5階段實施計劃 (F1→F2→F3→A1→測試)
 │
 ├── 🎯 phase1_core_system/          # Phase 1: 核心系統 (3-4週)
-│   ├── tle_loader/                 # TLE數據載入器
-│   │   ├── tle_data_engine.py      # 全量8,735顆衛星處理
+│   ├── tle_data_loader/            # TLE數據載入器 ✅ 功能型命名
+│   │   ├── tle_loader_engine.py    # 全量8,735顆衛星處理
 │   │   ├── orbital_calculator.py   # SGP4軌道計算引擎
 │   │   ├── data_validator.py       # TLE數據驗證模組
-│   │   └── fallback_data_provider.py # 備援數據提供
+│   │   └── fallback_test_data.py   # 備援測試數據
 │   │
-│   ├── satellite_filter/           # 衛星篩選器
-│   │   ├── intelligent_filter_engine.py # 智能篩選核心引擎
+│   ├── satellite_filter_engine/    # 衛星篩選器 ✅ 功能型命名
+│   │   ├── satellite_filter_engine_v2.py # 智能篩選核心引擎
 │   │   ├── geographic_optimizer.py # 地理相關性優化
 │   │   ├── constellation_balancer.py # 星座負載平衡
 │   │   └── candidate_selector.py   # 候選衛星選擇器
 │   │
-│   ├── signal_analyzer/            # 信號分析器
-│   │   ├── signal_quality_engine.py # 信號品質分析引擎
-│   │   ├── threegpp_event_detector.py # 3GPP事件檢測器
+│   ├── signal_analyzer/            # 信號分析器 ✅ 功能型命名
+│   │   ├── threegpp_event_processor.py # 3GPP事件處理器 (A4/A5/D2)
 │   │   ├── rsrp_calculation_engine.py # RSRP精確計算引擎
 │   │   ├── handover_event_processor.py # 換手事件處理器
 │   │   └── timeline_generator.py   # 200時間點完整時間軸
 │   │
-│   └── pool_planner/               # 動態池規劃器
-│       ├── pool_optimization_engine.py # 池最佳化引擎
-│       ├── simulated_annealing_core.py # 模擬退火演算法核心
+│   └── dynamic_pool_planner/       # 動態池規劃器 ✅ 功能型命名
+│       ├── simulated_annealing_optimizer.py # 模擬退火最佳化引擎
 │       ├── temporal_distributor.py # 時空分散算法
 │       ├── coverage_validator.py   # 動態覆蓋驗證器
 │       └── constraint_evaluator.py # 約束評估器
