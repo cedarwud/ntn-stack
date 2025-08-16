@@ -1,0 +1,41 @@
+{
+  "f1_tle_loader_statistics": {
+    "timestamp": "2025-08-16T13:18:03.328312+00:00",
+    "load_statistics": {
+      "total_satellites": 100,
+      "starlink_count": 50,
+      "oneweb_count": 50,
+      "other_constellation_count": 0,
+      "load_duration_seconds": 0.005319,
+      "calculation_duration_seconds": 3.886173,
+      "error_count": 0,
+      "successful_tle_parsing": 100
+    },
+    "configuration": {
+      "observer_coordinates": {
+        "latitude": 24.9441667,
+        "longitude": 121.3713889,
+        "altitude_m": 50.0
+      },
+      "local_tle_sources": {
+        "starlink": "/app/tle_data/starlink/tle/starlink_20250814.tle",
+        "oneweb": "/app/tle_data/oneweb/tle/oneweb_20250814.tle"
+      },
+      "skyfield_available": true
+    },
+    "constellation_breakdown": {
+      "starlink": {
+        "count": 50,
+        "percentage": 50.0
+      },
+      "oneweb": {
+        "count": 50,
+        "percentage": 50.0
+      },
+      "others": {
+        "count": 0,
+        "percentage": 0.0
+      }
+    }
+  }
+}

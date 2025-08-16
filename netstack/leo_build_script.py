@@ -21,24 +21,24 @@ def main():
             print(f'❌ LEO重構系統路徑不存在: {leo_core_path}')
             return False
             
-        # Check if run_phase1.py exists
-        run_phase1_path = os.path.join(leo_core_path, 'run_phase1.py')
-        if not os.path.exists(run_phase1_path):
-            print(f'❌ LEO Phase 1腳本不存在: {run_phase1_path}')
+        # Check if main.py exists
+        main_script_path = os.path.join(leo_core_path, 'main.py')
+        if not os.path.exists(main_script_path):
+            print(f'❌ LEO 核心系統腳本不存在: {main_script_path}')
             return False
         
-        print(f'🔍 LEO重構系統路徑確認: {leo_core_path}')
-        print(f'🔍 LEO Phase 1腳本確認: {run_phase1_path}')
+        print(f'🔍 LEO 核心系統路徑確認: {leo_core_path}')
+        print(f'🔍 LEO 核心系統腳本確認: {main_script_path}')
         
-        # Import LEO restructure system
-        from src.leo_core.run_phase1 import main as leo_main
+        # Import LEO core system
+        from src.leo_core.main import main as leo_main
         
         # Execute LEO Phase 1 with production settings
         print('🛰️ LEO重構系統：啟動Phase 1完整處理...')
         
         # Set command line arguments for the script
         original_argv = sys.argv[:]
-        sys.argv = ['run_phase1.py', '--output-dir', '/app/data', '--fast']
+        sys.argv = ['main.py', '--output-dir', '/app/data', '--fast']
         
         try:
             asyncio.run(leo_main())

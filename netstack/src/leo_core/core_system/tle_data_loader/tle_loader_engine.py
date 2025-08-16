@@ -112,11 +112,8 @@ class EnhancedTLELoaderEngine:
             'time_resolution_seconds': 30         # 30秒間隔
         }
         
-        # 本地TLE數據源配置 (NetStack已下載的數據)
-        self.local_tle_sources = {
-            'starlink': '/home/sat/ntn-stack/netstack/tle_data/starlink/tle/starlink_20250814.tle',
-            'oneweb': '/home/sat/ntn-stack/netstack/tle_data/oneweb/tle/oneweb_20250814.tle'
-        }
+        # 🔧 修復：動態查找最新本地TLE數據文件
+        self.local_tle_sources = self._get_latest_local_tle_files()
         
         # ✅ 新增：從完整配置中讀取sample_limits
         self.sample_limits = {}
@@ -145,6 +142,39 @@ class EnhancedTLELoaderEngine:
         # Skyfield對象 (如果可用)
         self.ts = None
         self.observer_location = None
+
+    def _get_latest_local_tle_files(self) -> Dict[str, str]:
+        """動態查找最新的本地TLE數據文件"""
+        # 🔧 修復：使用正確的本地TLE數據路徑
+        tle_base_path = Path("/home/sat/ntn-stack/netstack/tle_data")
+        latest_files = {}
+        
+        try:
+            # 查找 Starlink 最新文件
+            starlink_dir = tle_base_path / "starlink" / "tle"
+            if starlink_dir.exists():
+                starlink_files = list(starlink_dir.glob("starlink_*.tle"))
+                if starlink_files:
+                    latest_starlink = max(starlink_files, key=lambda f: f.stat().st_mtime)
+                    latest_files['starlink'] = str(latest_starlink)
+                    self.logger.info(f"🔍 找到最新Starlink TLE: {latest_starlink.name}")
+            
+            # 查找 OneWeb 最新文件
+            oneweb_dir = tle_base_path / "oneweb" / "tle"
+            if oneweb_dir.exists():
+                oneweb_files = list(oneweb_dir.glob("oneweb_*.tle"))
+                if oneweb_files:
+                    latest_oneweb = max(oneweb_files, key=lambda f: f.stat().st_mtime)
+                    latest_files['oneweb'] = str(latest_oneweb)
+                    self.logger.info(f"🔍 找到最新OneWeb TLE: {latest_oneweb.name}")
+            
+            if not latest_files:
+                self.logger.warning("⚠️ 未找到本地TLE文件，將使用fallback數據")
+                
+        except Exception as e:
+            self.logger.error(f"❌ 查找本地TLE文件失敗: {e}")
+            
+        return latest_files
         
     async def initialize(self):
         """初始化Phase 1增強TLE載入引擎"""

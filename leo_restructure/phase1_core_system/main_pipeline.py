@@ -175,11 +175,11 @@ class Phase1Pipeline:
         if len(all_satellites) > 0:
             self.logger.info(f"📊 全量衛星構成：總計{len(all_satellites)}顆衛星")
             self.logger.info(f"   包含：{len(satellite_data.get('starlink', []))}顆Starlink + {len(satellite_data.get('oneweb', []))}顆OneWeb")
-            self.logger.info(f"📊 計算全量{len(all_satellites)}顆衛星的軌道位置(96分鐘軌道週期)...")
-            
-            # 🔧 使用96分鐘覆蓋Starlink完整軌道週期
+            # 🔧 使用配置中的時間範圍，確保F1-F3一致性
+            time_range = self.config.get('tle_loader', {}).get('calculation_params', {}).get('time_range_minutes', 200)
+            self.logger.info(f"📊 計算全量{len(all_satellites)}顆衛星的軌道位置({time_range}分鐘時間範圍)...")
             orbital_positions = await self.tle_loader.calculate_orbital_positions(
-                all_satellites, time_range_minutes=96
+                all_satellites, time_range_minutes=time_range
             )
             self.logger.info(f"✅ 全量軌道位置計算完成: {len(orbital_positions)}顆衛星")
         else:
@@ -211,18 +211,40 @@ class Phase1Pipeline:
             filtered_satellite_data[constellation] = filtered_sats
             self.logger.info(f"   {constellation}: {len(filtered_sats)}顆衛星有軌道數據")
         
-        # ✅ 新增：檢查是否為開發模式（衛星數量 ≤ 200）
+        # ✅ 修復：根據衛星數量選擇適當的篩選策略
         total_satellites = sum(len(sats) for sats in filtered_satellite_data.values())
-        is_dev_mode = total_satellites <= 200  # 🔧 調整門檻到200，支持開發測試
         
-        if is_dev_mode:
-            self.logger.info(f"🚀 檢測到開發模式 ({total_satellites}顆 ≤ 200)，使用寬鬆篩選")
+        if total_satellites >= 8000:  # 真正的全量模式
+            self.logger.info(f"🌍 全量模式 ({total_satellites}顆 ≥ 8000)，使用寬鬆篩選避免過度篩選")
+            # 修改篩選器配置為更寬鬆的參數
+            original_config = self.satellite_filter.config.copy()
+            
+            # 調整為全量模式適用的寬鬆參數
+            self.satellite_filter.config.update({
+                'filtering_params': {
+                    'geographic_threshold': 120.0,    # 放寬地理範圍
+                    'min_score_threshold': 30.0,      # 降低評分門檻
+                    'rsrp_threshold_dbm': -120.0,     # 放寬RSRP門檻
+                    'max_candidates_per_constellation': 500  # 增加候選數上限
+                }
+            })
+            
+            # 使用開發模式篩選（較寬鬆）
+            filtered_candidates = await self.satellite_filter.apply_development_filter(
+                filtered_satellite_data, orbital_positions
+            )
+            
+            # 恢復原始配置
+            self.satellite_filter.config = original_config
+            
+        elif total_satellites <= 200:
+            self.logger.info(f"🚀 開發模式 ({total_satellites}顆 ≤ 200)，使用寬鬆篩選")
             # 使用開發模式篩選
             filtered_candidates = await self.satellite_filter.apply_development_filter(
                 filtered_satellite_data, orbital_positions
             )
         else:
-            self.logger.info(f"🏭 生產模式 ({total_satellites}顆 > 200)，使用六階段篩選")
+            self.logger.info(f"🏭 中型規模模式 ({total_satellites}顆)，使用六階段篩選")
             # 應用六階段綜合篩選
             filtered_candidates = await self.satellite_filter.apply_comprehensive_filter(
                 filtered_satellite_data, orbital_positions

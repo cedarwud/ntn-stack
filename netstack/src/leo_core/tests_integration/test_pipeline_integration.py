@@ -193,12 +193,12 @@ class TestPhase1Integration:
             output_dir = pipeline.output_dir
             assert output_dir.exists(), "輸出目錄應存在"
             
-            # 檢查各階段輸出文件
+            # 檢查各階段輸出文件 - 使用有意義的檔名
             expected_files = [
-                "stage1_tle_loading_results.json",
-                "stage2_filtering_results.json", 
-                "stage3_event_analysis_results.json",
-                "stage4_optimization_results.json",
+                "tle_loading_and_orbit_calculation_results.json",
+                "satellite_filtering_and_candidate_selection_results.json", 
+                "handover_event_analysis_results.json",
+                "dynamic_satellite_pool_optimization_results.json",
                 "phase1_final_report.json"
             ]
             

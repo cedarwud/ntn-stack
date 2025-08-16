@@ -1,0 +1,37 @@
+{
+  "leo_optimization_completion_report": {
+    "timestamp": "2025-08-16T13:18:04.145540+00:00",
+    "pipeline_statistics": {
+      "start_time": "2025-08-16T13:17:59.433227+00:00",
+      "end_time": "2025-08-16T13:18:04.145540+00:00",
+      "total_duration_seconds": 4.712313,
+      "stages_completed": 4,
+      "total_stages": 4,
+      "stage_durations": {
+        "stage1_tle_loading": 3.895213,
+        "stage2_filtering": 0.33222,
+        "stage3_signal_analysis": 0.035919,
+        "stage4_optimization": 0.448861
+      },
+      "final_results": {}
+    },
+    "final_results": {
+      "optimal_satellite_pools": {
+        "starlink_count": 50,
+        "oneweb_count": 50,
+        "total_count": 100,
+        "visibility_compliance": 1.0,
+        "temporal_distribution": 0.9083590557542123,
+        "signal_quality": 0.011446886446886446
+      },
+      "handover_events": {
+        "total_events": 1920,
+        "a4_events": 0,
+        "a5_events": 0,
+        "d2_events": 0
+      },
+      "compliance_check": {
+        "starlink_target_met": true,
+        "oneweb_target_met": true,
+        "visibility_compliance_ok": true,
+        "temporal_distribution_ok": 

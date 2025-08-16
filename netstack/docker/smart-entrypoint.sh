@@ -13,17 +13,25 @@ mkdir -p "$DATA_DIR" || true
 check_data_integrity() {
     echo "🔍 智能數據檢查開始..."
     
-    # 檢查基本文件是否存在 (修正文件名)
-    if [ ! -f "$DATA_DIR/enhanced_satellite_data.json" ]; then
-        echo "❌ 主要數據文件缺失，需要重新計算"
+    # 檢查 LEO 核心系統輸出文件是否存在
+    if [ ! -f "$DATA_DIR/phase1_final_report.json" ] && [ ! -f "$DATA_DIR/stage2_filtering_results.json" ]; then
+        echo "❌ LEO 核心系統輸出文件缺失，需要重新計算"
         return 1
     fi
     
-    # 檢查文件大小（應該 > 200KB，合理的地理可見性數據大小）
-    SIZE=$(stat -c%s "$DATA_DIR/enhanced_satellite_data.json" 2>/dev/null || echo 0)
-    if [ "$SIZE" -lt 200000 ]; then
-        echo "❌ 數據文件太小，可能損壞 (大小: ${SIZE} bytes)"
-        return 1
+    # 檢查文件大小（彈性檢查，允許較小的檔案）
+    if [ -f "$DATA_DIR/phase1_final_report.json" ]; then
+        SIZE=$(stat -c%s "$DATA_DIR/phase1_final_report.json" 2>/dev/null || echo 0)
+        if [ "$SIZE" -lt 10000 ]; then
+            echo "❌ LEO 主要輸出文件太小，可能損壞 (大小: ${SIZE} bytes)"
+            return 1
+        fi
+    elif [ -f "$DATA_DIR/stage2_filtering_results.json" ]; then
+        SIZE=$(stat -c%s "$DATA_DIR/stage2_filtering_results.json" 2>/dev/null || echo 0)
+        if [ "$SIZE" -lt 10000 ]; then
+            echo "❌ LEO 篩選結果文件太小，可能損壞 (大小: ${SIZE} bytes)"
+            return 1
+        fi
     fi
     
     # 混合模式關鍵：比較 TLE 數據和預計算數據的時間戳
@@ -44,8 +52,14 @@ check_data_integrity() {
         done
     fi
     
-    # 獲取預計算數據的時間戳
-    DATA_TIME=$(stat -c%Y "$DATA_DIR/enhanced_satellite_data.json" 2>/dev/null || echo 0)
+    # 獲取 LEO 核心系統輸出的時間戳（彈性檢查）
+    if [ -f "$DATA_DIR/phase1_final_report.json" ]; then
+        DATA_TIME=$(stat -c%Y "$DATA_DIR/phase1_final_report.json" 2>/dev/null || echo 0)
+    elif [ -f "$DATA_DIR/stage2_filtering_results.json" ]; then
+        DATA_TIME=$(stat -c%Y "$DATA_DIR/stage2_filtering_results.json" 2>/dev/null || echo 0)
+    else
+        DATA_TIME=0
+    fi
     
     # 比較時間戳
     if [ "$LATEST_TLE_TIME" -gt 0 ] && [ "$DATA_TIME" -gt 0 ]; then
@@ -84,49 +98,46 @@ regenerate_data() {
     cd /app
     echo "🔨 執行真實數據生成 (Phase 2.5 完整數據)..."
     
-    # 執行三階段數據處理管道
-    echo "🔨 第一階段：TLE數據載入與SGP4軌道計算..."
-    if python src/stages/stage1_tle_processor.py; then
-        echo "✅ 階段一完成"
+    # 執行 LEO 核心系統 (Phase 1 - 統一四組件管道)
+    echo "🔨 LEO 核心系統：四組件統一管道 (TLE載入→篩選→信號分析→動態規劃)..."
+    echo "🎯 分層輸出策略：F1/F2→/tmp(臨時)，F3/A1→$DATA_DIR(永久)"
+    echo "⏱️ 預估處理時間：2-5分鐘 (開發模式) 或 15-30分鐘 (完整模式)"
+    if timeout 1800 python src/leo_core/main.py --output-dir "$DATA_DIR" --full-test; then
+        echo "✅ LEO 核心系統完成"
     else
-        echo "❌ 階段一失敗"
-        exit 1
+        echo "❌ LEO 核心系統失敗或超時 (30分鐘)"
+        echo "🔍 檢查是否有部分輸出可用..."
+        if [ -f "$DATA_DIR/stage1_tle_loading_results.json" ] || [ -f "$DATA_DIR/stage2_filtering_results.json" ]; then
+            echo "⚠️ 發現部分輸出，繼續啟動 API 服務 (降級模式)"
+        else
+            exit 1
+        fi
     fi
     
-    echo "🔨 第二階段：智能衛星篩選..."
-    if python src/stages/stage2_filter_processor.py; then
-        echo "✅ 階段二完成"
-    else
-        echo "❌ 階段二失敗"
-        exit 1
-    fi
-    
-    echo "🔨 第三階段：信號品質分析與3GPP事件處理..."
-    if python src/stages/stage3_signal_processor.py; then
-        echo "✅ 階段三完成"
-    else
-        echo "❌ 階段三失敗"
-        exit 1
-    fi
-    
-    # 檢查生成是否成功
-    echo "🔍 檢查數據文件是否存在: $DATA_DIR/enhanced_satellite_data.json"
+    # 檢查 LEO 核心系統輸出是否成功
+    echo "🔍 檢查 LEO 核心系統輸出文件是否存在: $DATA_DIR/phase1_final_report.json"
     ls -la "$DATA_DIR"/ || echo "❌ 無法列出數據目錄"
     
-    if [ -f "$DATA_DIR/enhanced_satellite_data.json" ]; then
+    # 檢查輸出文件
+    if [ -f "$DATA_DIR/phase1_final_report.json" ]; then
         # 檢查文件大小
-        FILE_SIZE=$(stat -c%s "$DATA_DIR/enhanced_satellite_data.json" 2>/dev/null || echo 0)
-        echo "📊 數據文件大小: $FILE_SIZE bytes"
+        FILE_SIZE=$(stat -c%s "$DATA_DIR/phase1_final_report.json" 2>/dev/null || echo 0)
+        echo "📊 LEO 核心系統輸出文件大小: $FILE_SIZE bytes"
         
         # 創建完成標記
         echo "$(date -Iseconds)" > "$MARKER_FILE"
-        echo "✅ 數據重生完成"
+        echo "✅ LEO 核心系統數據生成完成"
         
         # 顯示生成的文件信息
-        echo "📊 生成的數據文件:"
-        ls -lh "$DATA_DIR"/*.json 2>/dev/null || true
+        echo "📊 生成的 LEO 核心系統文件:"
+        ls -lh "$DATA_DIR"/phase1_*.json 2>/dev/null || true
+        ls -lh "$DATA_DIR"/stage*_*.json 2>/dev/null || true
+    elif [ -f "$DATA_DIR/stage2_filtering_results.json" ]; then
+        echo "⚠️ 主要輸出文件不存在，但發現篩選結果，繼續啟動 (降級模式)"
+        echo "$(date -Iseconds)" > "$MARKER_FILE"
+        ls -lh "$DATA_DIR"/stage*_*.json 2>/dev/null || true
     else
-        echo "❌ 數據生成失敗 - 文件不存在"
+        echo "❌ LEO 核心系統數據生成失敗 - 無可用輸出文件"
         echo "🔍 數據目錄內容:"
         ls -la "$DATA_DIR"/ || echo "無法訪問數據目錄"
         exit 1

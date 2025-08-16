@@ -16,7 +16,7 @@ import logging
 current_dir = Path(__file__).parent
 sys.path.append(str(current_dir))
 
-from core_system.main_pipeline import Phase1Pipeline, create_default_config
+from core_system.main_pipeline import LEOCorePipeline, create_default_config
 from shared_core.utils import setup_logger, format_duration
 from shared_core.auto_cleanup_manager import create_auto_cleanup_manager
 from shared_core.incremental_update_manager import create_incremental_update_manager
@@ -140,8 +140,8 @@ def parse_arguments():
     parser.add_argument(
         '--output-dir',
         type=str,
-        default='/tmp/phase1_outputs',
-        help='輸出目錄路徑 (預設: /tmp/phase1_outputs)'
+        default=None,  # 讓pipeline自動檢測跨平台路徑
+        help='輸出目錄路徑 (預設: 自動檢測跨平台路徑)'
     )
     
     return parser.parse_args()
@@ -190,6 +190,10 @@ def create_custom_config(args):
         config['optimizer']['optimization_params']['max_iterations'] = 5000
         config['optimizer']['optimization_params']['cooling_rate'] = 0.90
         
+        # 🔥 全量模式：完全移除sample_limits限制
+        if 'sample_limits' in config['satellite_filter']:
+            del config['satellite_filter']['sample_limits']
+        
         # 確保signal_analyzer section存在
         if 'signal_analyzer' not in config:
             config['signal_analyzer'] = {}
@@ -201,13 +205,19 @@ def create_custom_config(args):
         config['performance_monitoring']['enable_memory_monitoring'] = True
         config['performance_monitoring']['enable_performance_logging'] = True
         
-    # 快速模式（原有）
+    # 快速模式（原有） - 添加sample_limits用於快速開發測試
     elif args.fast:
         config['tle_loader']['calculation_params']['time_range_minutes'] = 100
         config['optimizer']['optimization_params']['max_iterations'] = 100
         config['optimizer']['optimization_params']['cooling_rate'] = 0.90
         config['optimizer']['targets']['starlink_pool_size'] = 8085
         config['optimizer']['targets']['oneweb_pool_size'] = 651
+        
+        # 🎯 快速模式：添加適度的sample_limits用於快速測試
+        if 'sample_limits' not in config['satellite_filter']:
+            config['satellite_filter']['sample_limits'] = {}
+        config['satellite_filter']['sample_limits']['starlink_sample'] = 1000
+        config['satellite_filter']['sample_limits']['oneweb_sample'] = 300
         
     else:
         # 正常模式參數
@@ -314,11 +324,8 @@ async def main():
         # 創建輸出目錄
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # 創建管道實例
-        pipeline = Phase1Pipeline(config)
-        
-        # 修改輸出目錄
-        pipeline.output_dir = output_dir
+        # 創建管道實例並直接傳遞輸出目錄
+        pipeline = LEOCorePipeline(config, str(output_dir))
         
         # 檢測開發階段
         stage_name, stage_config = detect_development_stage(args)

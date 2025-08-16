@@ -17,7 +17,8 @@ services:
         volumes:
             - ./backend:/app
             - ../netstack/tle_data:/app/netstack/tle_data:ro  # Mount NetStack TLE data as read-only
-            - satellite_precomputed_data:/app/data:ro  # Mount NetStack preprocessed data volume as read-only
+            # 🎯 F3/A1永久數據：Bind Mount到項目目錄 (只讀)
+            - /home/sat/ntn-stack/data/leo_outputs:/app/data:ro
         env_file:
             - ./backend/.env # 從 backend 目錄的 .env 讀取配置
         environment:
@@ -79,7 +80,8 @@ services:
         ports:
             - '5173:5173'
         volumes:
-            - satellite_precomputed_data:/app/public/data:ro  # 共享衛星數據 (只讀)
+            # 🎯 F3/A1永久數據：Bind Mount到項目目錄 (只讀)  
+            - /home/sat/ntn-stack/data/leo_outputs:/app/public/data:ro
             - ./frontend:/app
             - node_modules:/app/node_modules
         environment:
@@ -109,7 +111,5 @@ networks:
         name: compose_netstack-core
 
 volumes: # <-- Volume 定義
-    satellite_precomputed_data:
-        external: true
-        name: compose_satellite_precomputed_data  # 引用 NetStack 創建的 volume
-    node_modules:  # 移除 postgres_data - 不再需要
+    # 🎯 移除satellite_precomputed_data Docker volume，改用Bind Mount
+    node_modules:  # 保留 node_modules volume
