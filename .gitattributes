@@ -3,3 +3,4 @@
 .serena/ filter=lfs diff=lfs merge=lfs -text
 .serena filter=lfs diff=lfs merge=lfs -text
 .serena/cache/python/ filter=lfs diff=lfs merge=lfs -text
+.serena/cache/python/document_symbols_cache_v23-06-25.pkl filter=lfs diff=lfs merge=lfs -text
