@@ -95,3 +95,6 @@ netstack/data/*.sql
 **/precomputed_*.json
 data/precomputed/
 *.orbit_cache
+
+# Serena 緩存文件
+.serena/cache/
