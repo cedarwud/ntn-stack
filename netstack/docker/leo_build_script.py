@@ -13,7 +13,7 @@ sys.path.insert(0, '/app/src/leo_core')
 def main():
     try:
         # Import LEO restructure system
-        from src.leo_core.run_phase1 import main as leo_main
+        from src.leo_core.main import main as leo_main
         
         # Execute LEO Phase 1 with production settings
         print('🛰️ LEO重構系統：啟動Phase 1完整處理...')
