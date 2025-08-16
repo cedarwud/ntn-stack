@@ -15,11 +15,9 @@ def main():
         # Import LEO restructure system
         from src.leo_core.main import main as leo_main
         
-        # Execute LEO Phase 1 with production settings
-        print('🛰️ LEO重構系統：啟動Phase 1完整處理...')
-        leo_args = ['--output-dir', '/app/data', '--fast']
-        asyncio.run(leo_main(leo_args))
-        print('✅ LEO重構系統：Phase 1完成')
+        # Skip build-time precomputation - do everything at runtime
+        print('ℹ️ LEO重構系統：跳過建構時預計算，將在運行時使用全量數據處理')
+        print('🎯 運行時將使用--full-test模式處理8736顆真實衛星')
         return True
     except Exception as e:
         print(f'❌ LEO重構系統執行失敗: {e}')

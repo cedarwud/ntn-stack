@@ -193,30 +193,64 @@ class SimulatedAnnealingOptimizer:
     async def _generate_initial_solution(self, 
                                        starlink_candidates: List,
                                        oneweb_candidates: List) -> SatellitePoolSolution:
-        """生成初始解決方案"""
+        """生成初始解決方案 - 🔥 動態池大小優化"""
         
-        # 隨機選擇初始衛星池
-        starlink_pool = random.sample(
+        # 🔥 Phase 1 Week 3: 動態池大小規劃 (不使用固定目標)
+        # 目標：最大化可見性合規，同時控制池大小在合理範圍
+        
+        # 基於可見性分析動態決定初始池大小
+        starlink_with_visibility = [sat for sat in starlink_candidates 
+                                   if hasattr(sat, 'visibility_analysis') and 
+                                   sat.visibility_analysis and 
+                                   sat.visibility_analysis.total_visible_time_minutes >= 10.0]
+        
+        oneweb_with_visibility = [sat for sat in oneweb_candidates 
+                                 if hasattr(sat, 'visibility_analysis') and 
+                                 sat.visibility_analysis and 
+                                 sat.visibility_analysis.total_visible_time_minutes >= 8.0]
+        
+        # 動態池大小：優先選擇有良好可見性的衛星
+        # Starlink: 目標10-15顆可見，初始選擇更多候選以便優化
+        initial_starlink_size = min(len(starlink_with_visibility) + 5, len(starlink_candidates))
+        initial_starlink_size = max(initial_starlink_size, 15)  # 至少15顆開始優化
+        
+        # OneWeb: 目標3-6顆可見，初始選擇更多候選以便優化  
+        initial_oneweb_size = min(len(oneweb_with_visibility) + 3, len(oneweb_candidates))
+        initial_oneweb_size = max(initial_oneweb_size, 8)  # 至少8顆開始優化
+        
+        self.logger.info(f"🔥 動態池規劃: Starlink可見{len(starlink_with_visibility)}顆，初始選擇{initial_starlink_size}顆")
+        self.logger.info(f"🔥 動態池規劃: OneWeb可見{len(oneweb_with_visibility)}顆，初始選擇{initial_oneweb_size}顆")
+        
+        # 隨機選擇初始衛星池 (在合理範圍內)
+        starlink_pool_objects = random.sample(
             starlink_candidates, 
-            min(self.targets['starlink']['pool_size'], len(starlink_candidates))
+            min(initial_starlink_size, len(starlink_candidates))
         )
-        oneweb_pool = random.sample(
+        oneweb_pool_objects = random.sample(
             oneweb_candidates,
-            min(self.targets['oneweb']['pool_size'], len(oneweb_candidates))
+            min(initial_oneweb_size, len(oneweb_candidates))
         )
+        
+        # 🔥 重要：轉換為ID列表以符合SatellitePoolSolution格式
+        starlink_pool_ids = [sat.satellite_id for sat in starlink_pool_objects]
+        oneweb_pool_ids = [sat.satellite_id for sat in oneweb_pool_objects]
         
         # 評估初始解
         initial_cost = await self._evaluate_solution_cost(
-            starlink_pool, oneweb_pool, {}  # 簡化初始評估
+            starlink_pool_ids, oneweb_pool_ids, {}  # 簡化初始評估
         )
         
-        # 計算可見性合規度基於實際可見性數據
-        visibility_compliance = self._calculate_visibility_compliance_from_candidates(starlink_pool + oneweb_pool)
-        print(f"🔥🔥🔥 [INITIAL] Setting visibility_compliance to {visibility_compliance:.2%}")
+        # 🔥 計算可見性合規度：使用原始衛星物件（含可見性分析）
+        visibility_compliance = self._calculate_visibility_compliance_from_candidates(
+            starlink_pool_objects + oneweb_pool_objects
+        )
+        
+        self.logger.info(f"🎯 初始解: Starlink {len(starlink_pool_ids)}顆, OneWeb {len(oneweb_pool_ids)}顆")
+        self.logger.info(f"🎯 初始可見性合規: {visibility_compliance:.1%}")
         
         return SatellitePoolSolution(
-            starlink_satellites=[sat.satellite_id for sat in starlink_pool],
-            oneweb_satellites=[sat.satellite_id for sat in oneweb_pool],
+            starlink_satellites=starlink_pool_ids,  # 🔥 存儲ID列表
+            oneweb_satellites=oneweb_pool_ids,      # 🔥 存儲ID列表  
             cost=initial_cost,
             visibility_compliance=visibility_compliance,
             temporal_distribution=0.0,
@@ -301,8 +335,10 @@ class SimulatedAnnealingOptimizer:
         self.optimization_stats['iterations'] = iteration
         self.optimization_stats['best_cost'] = best_cost
         
-        # 計算最終指標
-        best_solution = await self._calculate_solution_metrics(best_solution, orbital_positions)
+        # 🔥 計算最終指標：傳遞候選列表
+        best_solution = await self._calculate_solution_metrics(
+            best_solution, orbital_positions, starlink_candidates, oneweb_candidates
+        )
         
         return best_solution
     
@@ -609,15 +645,30 @@ class SimulatedAnnealingOptimizer:
     
     async def _calculate_solution_metrics(self,
                                         solution: SatellitePoolSolution,
-                                        orbital_positions: Dict) -> SatellitePoolSolution:
+                                        orbital_positions: Dict,
+                                        starlink_candidates: List = None,
+                                        oneweb_candidates: List = None) -> SatellitePoolSolution:
         """計算解決方案的詳細指標"""
         
         try:
-            # 計算可見性合規度
-            compliance = await self._calculate_visibility_compliance(
-                solution.starlink_satellites, solution.oneweb_satellites, orbital_positions
-            )
-            solution.visibility_compliance = compliance
+            # 🔥 需要從候選列表中重新獲取衛星物件以計算可見性
+            if starlink_candidates and oneweb_candidates:
+                # 重建衛星物件列表
+                starlink_objects = [sat for sat in starlink_candidates 
+                                  if sat.satellite_id in solution.starlink_satellites]
+                oneweb_objects = [sat for sat in oneweb_candidates 
+                                if sat.satellite_id in solution.oneweb_satellites]
+                
+                all_satellite_objects = starlink_objects + oneweb_objects
+                compliance = self._calculate_visibility_compliance_from_candidates(all_satellite_objects)
+                solution.visibility_compliance = compliance
+            else:
+                # 如果沒有候選列表，使用舊方法（但這可能不準確）
+                self.logger.warning("⚠️ 缺少候選列表，使用備用可見性計算")
+                compliance = await self._calculate_visibility_compliance(
+                    solution.starlink_satellites, solution.oneweb_satellites, orbital_positions
+                )
+                solution.visibility_compliance = compliance
             
             # 計算時空分佈品質
             distribution = await self._calculate_temporal_distribution_quality(
@@ -630,6 +681,8 @@ class SimulatedAnnealingOptimizer:
                 solution.starlink_satellites, solution.oneweb_satellites, orbital_positions
             )
             solution.signal_quality = signal_quality
+            
+            self.logger.info(f"🔥 指標計算完成: 可見性{compliance:.1%}, 時空分佈{distribution:.1%}, 信號{signal_quality:.1%}")
             
         except Exception as e:
             self.logger.warning(f"⚠️ 解決方案指標計算失敗: {e}")

@@ -190,6 +190,10 @@ def create_custom_config(args):
         config['optimizer']['optimization_params']['max_iterations'] = 5000
         config['optimizer']['optimization_params']['cooling_rate'] = 0.90
         
+        # 🔥 全量模式：完全移除sample_limits限制
+        if 'sample_limits' in config['satellite_filter']:
+            del config['satellite_filter']['sample_limits']
+        
         # 確保signal_analyzer section存在
         if 'signal_analyzer' not in config:
             config['signal_analyzer'] = {}

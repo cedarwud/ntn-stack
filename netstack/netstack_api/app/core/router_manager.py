@@ -145,6 +145,16 @@ class RouterManager:
             except ImportError:
                 logger.warning("衛星預計算路由器不可用，跳過註冊")
 
+            # 嘗試導入 LEO 前端整合路由器 (Phase 1 Week 4)
+            try:
+                from ...routers.leo_frontend.endpoints import router as leo_frontend_router
+                
+                self.app.include_router(leo_frontend_router, tags=["LEO前端整合"])
+                self._track_router("leo_frontend_router", "LEO前端整合", True)
+                logger.info("✅ LEO前端整合路由器註冊完成 (Phase 1 Week 4)")
+            except ImportError as e:
+                logger.warning(f"LEO前端整合路由器不可用，跳過註冊: {e}")
+
             # 嘗試導入衛星數據路由器 (統一數據架構)
             logger.info("🔍 開始註冊衛星數據路由器...")
             try:
