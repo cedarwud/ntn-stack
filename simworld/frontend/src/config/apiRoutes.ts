@@ -28,7 +28,7 @@ export const ApiRoutes = {
     validate: `${API_BASE_URL}/coordinates/validate`,
   },
   
-  // 衛星領域API (已從 /satellite-ops 更改為 /satellites)
+  // 衛星領域API (已從舊六階段系統遷移到新四階段F1→F2→F3→A1系統)
   satellites: {
     base: `${API_BASE_URL}/satellites`,
     getAll: `${API_BASE_URL}/satellites`,
@@ -62,9 +62,11 @@ export const ApiRoutes = {
       `/static/scenes/${sceneName}/textures/${textureName}`,
   },
   
-  // 臨時的衛星可見性路由
-  satelliteOps: {
-    getVisibleSatellites: `${API_BASE_URL}/satellite-simple/visible_satellites`,
+  // LEO四階段系統衛星路由 (F1→F2→F3→A1)
+  leoFrontend: {
+    getVisibleSatellites: `${API_BASE_URL}/leo-frontend/visible_satellites`,
+    getStatus: `${API_BASE_URL}/leo-frontend/status`,
+    getHealth: `${API_BASE_URL}/leo-frontend/health`,
   },
   
   // 換手機制 API

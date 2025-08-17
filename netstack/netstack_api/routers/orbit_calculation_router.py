@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Phase 1 重構 - API 輸出接口
+LEO F1→F2→F3→A1 系統 - API 輸出接口
 
 功能:
-1. 提供 Phase 1 數據的統一 API 接口
-2. 替代原有的 simple_satellite_router.py
-3. 支援 Phase 2 數據查詢
+1. 提供 F1→F2→F3→A1 數據的統一 API 接口
+2. 替代原有的舊六階段系統
+3. 支援動態衛星池優化數據查詢
 
 符合 CLAUDE.md 原則:
 - 提供真實的 SGP4 計算結果
-- 明確標識數據來源為 "phase1_sgp4_full_calculation"
+- 明確標識數據來源為 "leo_f1_f2_f3_a1_system"
 - 支援完整的 8,715 顆衛星數據
 """
 
@@ -23,17 +23,17 @@ from fastapi import APIRouter, HTTPException, Query
 
 logger = logging.getLogger(__name__)
 
-# Phase 1 API 路由器
+# LEO F1→F2→F3→A1 API 路由器
 router = APIRouter(
-    prefix="/api/v1/phase1",
-    tags=["Phase 1 Satellite Data"]
+    prefix="/api/v1/leo-orbit",
+    tags=["LEO F1→F2→F3→A1 Satellite Data"]
 )
 
-class Phase1APIInterface:
+class LEOOrbitAPIInterface:
     """
-    Phase 1 API 接口類
+    LEO F1→F2→F3→A1 API 接口類
     
-    負責提供 Phase 1 軌道數據的 REST API
+    負責提供 F1→F2→F3→A1 軌道數據的 REST API
     支援多種查詢方式和數據格式
     """
     
@@ -42,36 +42,36 @@ class Phase1APIInterface:
         初始化 API 接口
         
         Args:
-            data_dir: Phase 1 數據輸出目錄
+            data_dir: F1→F2→F3→A1 數據輸出目錄
         """
         self.data_dir = Path(data_dir)
         self.orbit_database = None
         self.summary_data = None
         
-        # 載入 Phase 1 數據
-        self._load_phase1_data()
+        # 載入 LEO 數據
+        self._load_leo_data()
         
-        logger.info(f"✅ Phase 1 API 接口初始化完成: {self.data_dir}")
+        logger.info(f"✅ LEO F1→F2→F3→A1 API 接口初始化完成: {self.data_dir}")
     
-    def _load_phase1_data(self):
-        """載入 Phase 1 生成的數據"""
+    def _load_leo_data(self):
+        """載入 F1→F2→F3→A1 生成的數據"""
         try:
             # 載入軌道數據庫
-            orbit_db_path = self.data_dir / "phase1_orbit_database.json"
+            orbit_db_path = self.data_dir / "tle_loading_and_orbit_calculation_results.json"
             if orbit_db_path.exists():
                 with open(orbit_db_path, 'r', encoding='utf-8') as f:
                     self.orbit_database = json.load(f)
-                logger.info("✅ Phase 1 軌道數據庫已載入")
+                logger.info("✅ LEO 軌道數據庫已載入")
             
             # 載入執行摘要
-            summary_path = self.data_dir / "phase1_execution_summary.json"
+            summary_path = self.data_dir / "leo_optimization_final_report.json"
             if summary_path.exists():
                 with open(summary_path, 'r', encoding='utf-8') as f:
                     self.summary_data = json.load(f)
-                logger.info("✅ Phase 1 執行摘要已載入")
+                logger.info("✅ LEO 執行摘要已載入")
                 
         except Exception as e:
-            logger.warning(f"載入 Phase 1 數據時出現問題: {e}")
+            logger.warning(f"載入 LEO 數據時出現問題: {e}")
     
     def get_satellite_orbits(self, constellation: str, count: int = 200) -> List[Dict]:
         """
@@ -87,7 +87,7 @@ class Phase1APIInterface:
             List[Dict]: 衛星軌道數據列表
         """
         if not self.orbit_database:
-            raise HTTPException(status_code=503, detail="Phase 1 數據尚未準備就緒")
+            raise HTTPException(status_code=503, detail="LEO 數據尚未準備就緒")
         
         constellations = self.orbit_database.get("constellations", {})
         
@@ -124,7 +124,7 @@ class Phase1APIInterface:
                         "vy": latest_position["velocity_eci"][1],
                         "vz": latest_position["velocity_eci"][2]
                     },
-                    "data_source": "phase1_sgp4_full_calculation",
+                    "data_source": "leo_f1_f2_f3_a1_system",
                     "algorithm": "complete_sgp4_algorithm"
                 }
                 results.append(result)
@@ -140,7 +140,7 @@ class Phase1APIInterface:
             Dict: 星座統計信息
         """
         if not self.orbit_database:
-            return {"error": "Phase 1 數據尚未準備就緒"}
+            return {"error": "LEO 數據尚未準備就緒"}
         
         constellations_info = {}
         constellations = self.orbit_database.get("constellations", {})
@@ -149,7 +149,7 @@ class Phase1APIInterface:
             constellations_info[constellation_name] = {
                 "total_satellites": constellation_data.get("total_satellites", 0),
                 "available_satellites": len(constellation_data.get("satellites", {})),
-                "data_source": "phase1_sgp4_full_calculation"
+                "data_source": "leo_f1_f2_f3_a1_system"
             }
         
         result = {
@@ -174,7 +174,7 @@ class Phase1APIInterface:
             Dict: 衛星軌跡數據
         """
         if not self.orbit_database:
-            raise HTTPException(status_code=503, detail="Phase 1 數據尚未準備就緒")
+            raise HTTPException(status_code=503, detail="LEO 數據尚未準備就緒")
         
         constellations = self.orbit_database.get("constellations", {})
         
@@ -195,13 +195,13 @@ class Phase1APIInterface:
             "tle_epoch": satellite_info.get("tle_epoch", ""),
             "positions": satellite_info.get("positions", []),
             "total_positions": satellite_info.get("total_positions", 0),
-            "data_source": "phase1_sgp4_full_calculation",
+            "data_source": "leo_f1_f2_f3_a1_system",
             "computation_parameters": self.orbit_database.get("computation_parameters", {})
         }
     
     def get_execution_summary(self) -> Dict[str, Any]:
         """
-        獲取 Phase 1 執行摘要
+        獲取 LEO F1→F2→F3→A1 執行摘要
         
         Returns:
             Dict: 執行摘要信息
@@ -212,14 +212,14 @@ class Phase1APIInterface:
         return self.summary_data
 
 # 全局 API 接口實例
-phase1_api = None
+leo_orbit_api = None
 
-def get_phase1_api() -> Phase1APIInterface:
-    """獲取 Phase 1 API 接口實例"""
-    global phase1_api
-    if phase1_api is None:
-        phase1_api = Phase1APIInterface()
-    return phase1_api
+def get_leo_orbit_api() -> LEOOrbitAPIInterface:
+    """獲取 LEO 軌道 API 接口實例"""
+    global leo_orbit_api
+    if leo_orbit_api is None:
+        leo_orbit_api = LEOOrbitAPIInterface()
+    return leo_orbit_api
 
 # FastAPI 路由定義
 @router.get("/satellite_orbits")
@@ -228,13 +228,13 @@ def get_satellite_orbits_endpoint(
     count: int = Query(200, ge=1, le=10000, description="返回數量")
 ):
     """獲取衛星軌道數據 API 端點"""
-    api = get_phase1_api()
+    api = get_leo_orbit_api()
     return api.get_satellite_orbits(constellation, count)
 
 @router.get("/constellations/info")
 def get_constellations_info_endpoint():
     """獲取星座統計信息 API 端點"""
-    api = get_phase1_api()
+    api = get_leo_orbit_api()
     return api.get_constellation_info()
 
 @router.get("/satellite/{satellite_id}/trajectory")
@@ -243,25 +243,25 @@ def get_satellite_trajectory_endpoint(
     constellation: str = Query(..., description="星座名稱")
 ):
     """獲取單顆衛星軌跡 API 端點"""
-    api = get_phase1_api()
+    api = get_leo_orbit_api()
     return api.get_satellite_trajectory(satellite_id, constellation)
 
 @router.get("/execution/summary")
 def get_execution_summary_endpoint():
     """獲取執行摘要 API 端點"""
-    api = get_phase1_api()
+    api = get_leo_orbit_api()
     return api.get_execution_summary()
 
 @router.get("/health")
-def phase1_health_check():
-    """Phase 1 健康檢查"""
-    api = get_phase1_api()
+def leo_orbit_health_check():
+    """LEO 軌道健康檢查"""
+    api = get_leo_orbit_api()
     
     status = "healthy" if api.orbit_database else "no_data"
     
     return {
         "status": status,
-        "service": "Phase 1 Satellite Orbit Data",
+        "service": "LEO F1→F2→F3→A1 Satellite Orbit Data",
         "algorithm": "complete_sgp4_algorithm",
         "data_available": api.orbit_database is not None,
         "timestamp": datetime.now(timezone.utc).isoformat()
@@ -270,10 +270,10 @@ def phase1_health_check():
 if __name__ == "__main__":
     # 測試用例
     try:
-        api = Phase1APIInterface()
+        api = LEOOrbitAPIInterface()
         info = api.get_constellation_info()
-        print("✅ Phase 1 API 測試成功")
+        print("✅ LEO F1→F2→F3→A1 API 測試成功")
         print(f"   可用星座: {list(info.get('constellations', {}).keys())}")
         print(f"   總衛星數: {info.get('total_satellites', 0)}")
     except Exception as e:
-        print(f"❌ Phase 1 API 測試失敗: {e}")
+        print(f"❌ LEO F1→F2→F3→A1 API 測試失敗: {e}")

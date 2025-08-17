@@ -60,7 +60,7 @@ class LocalVolumeDataService:
     ) -> Optional[Dict[str, Any]]:
         """
         從本地 Docker Volume 獲取預計算軌道數據
-        優先級: phase0 數據 > layered 數據 > 無數據
+        優先級: F3/A1 永久數據 > 分層數據 > 無數據
         """
         try:
             # 主要預計算數據文件
@@ -84,7 +84,7 @@ class LocalVolumeDataService:
                 logger.warning(f"📊 主要預計算數據文件不存在: {main_data_file}")
 
             # 嘗試分層數據作為備用
-            layered_data_dir = self.netstack_data_path / "layered_phase0"
+            layered_data_dir = self.netstack_data_path / "layered_f3_a1_data"
             if layered_data_dir.exists():
                 return await self._load_layered_data(
                     layered_data_dir, location, constellation
@@ -466,7 +466,7 @@ class LocalVolumeDataService:
                 return True
 
             # 檢查分層數據
-            layered_data_dir = self.netstack_data_path / "layered_phase0"
+            layered_data_dir = self.netstack_data_path / "layered_f3_a1_data"
             if layered_data_dir.exists():
                 json_files = list(layered_data_dir.glob("*.json"))
                 if json_files:

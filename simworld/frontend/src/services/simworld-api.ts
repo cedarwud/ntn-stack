@@ -136,21 +136,21 @@ export function useVisibleSatellites(
             setError(null)
 
             try {
-                // 使用 NetStack satellite-simple API 獲取觀測者相對計算數據，支援651+301衛星池配置
+                // 使用 NetStack leo-frontend API 獲取F3/A1階段預處理數據，支援全量衛星池配置
                 const currentTime = new Date().toISOString()
-                const endpoint = `/api/v1/satellite-simple/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${currentTime}&global_view=false`
+                const endpoint = `/api/v1/leo-frontend/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${currentTime}&global_view=false`
                 
                 const response = await netstackFetch(endpoint)
                 
                 if (!response.ok) {
-                    throw new Error(`NetStack satellite-simple API 錯誤: ${response.status} ${response.statusText}`)
+                    throw new Error(`NetStack leo-frontend API 錯誤: ${response.status} ${response.statusText}`)
                 }
 
                 const data = await response.json()
                 
                 if (!isMounted) return
 
-                // 轉換 satellite-simple API 數據到前端格式
+                // 轉換 leo-frontend API 數據到前端格式
                 const convertedSatellites: SatellitePosition[] = data.satellites.map((sat: Record<string, unknown>, index: number) => ({
                     id: index + 1,
                     name: sat.name,
@@ -186,7 +186,7 @@ export function useVisibleSatellites(
                     timestamp: Date.now()
                 })
                 
-                // console.log(`✅ NetStack satellite-simple API: 載入 ${convertedSatellites.length} 顆衛星 (observer-relative calculations)`)
+                // console.log(`✅ NetStack leo-frontend API: 載入 ${convertedSatellites.length} 顆衛星 (observer-relative calculations)`)
 
             } catch (err) {
                 if (!isMounted) return
@@ -195,7 +195,7 @@ export function useVisibleSatellites(
                 setError(errorMessage)
                 setSatellites([])
                 
-                console.error('❌ NetStack satellite-simple API 失敗:', errorMessage)
+                console.error('❌ NetStack leo-frontend API 失敗:', errorMessage)
             } finally {
                 if (isMounted) {
                     setLoading(false)
@@ -223,7 +223,7 @@ export function useVisibleSatellites(
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getSatelliteHealth(): Promise<any> {
-    const endpoint = '/api/v1/satellite-simple/health'
+    const endpoint = '/api/v1/leo-frontend/health'
     const response = await netstackFetch(endpoint)
     
     if (!response.ok) {
@@ -265,13 +265,13 @@ export const simWorldApi = {
         constellation: string = 'starlink'
     ): Promise<SatellitePosition[]> {
         try {
-            // 使用 NetStack satellite-simple API 獲取觀測者相對計算數據，支援651+301衛星池配置
+            // 使用 NetStack leo-frontend API 獲取F3/A1階段預處理數據，支援全量衛星池配置
             const currentTime = new Date().toISOString()
-            const endpoint = `/api/v1/satellite-simple/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${currentTime}&global_view=false`
+            const endpoint = `/api/v1/leo-frontend/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${currentTime}&global_view=false`
             const response = await netstackFetch(endpoint)
             
             if (!response.ok) {
-                throw new Error(`NetStack satellite-simple API 錯誤: ${response.status} ${response.statusText}`)
+                throw new Error(`NetStack leo-frontend API 錯誤: ${response.status} ${response.statusText}`)
             }
 
             const data = await response.json()
@@ -305,10 +305,10 @@ export const simWorldApi = {
                 visible: sat.is_visible
             }))
 
-            // console.log(`✅ NetStack satellite-simple API: 載入 ${convertedSatellites.length} 顆衛星`)
+            // console.log(`✅ NetStack leo-frontend API: 載入 ${convertedSatellites.length} 顆衛星`)
             return convertedSatellites
         } catch (error) {
-            console.error('❌ NetStack satellite-simple API failed:', error)
+            console.error('❌ NetStack leo-frontend API failed:', error)
             return []
         }
     }

@@ -153,13 +153,13 @@ class SatelliteCacheManager {
     return this.withCache(cacheKey, async () => {
       try {
         // 獲取 Starlink 衛星數據
-        const starlinkResponse = await netstackFetch('/api/v1/satellite-simple/visible_satellites?constellation=starlink&count=10&global_view=true')
+        const starlinkResponse = await netstackFetch('/api/v1/leo-frontend/visible_satellites?constellation=starlink&count=10&global_view=true')
         const starlinkData = await starlinkResponse.json()
         
         // 獲取 Kuiper 衛星數據（如果沒有 Kuiper 數據，使用預設值）
         let kuiperData = { satellites: [] }
         try {
-          const kuiperResponse = await netstackFetch('/api/v1/satellite-simple/visible_satellites?constellation=kuiper&count=10&global_view=true')
+          const kuiperResponse = await netstackFetch('/api/v1/leo-frontend/visible_satellites?constellation=kuiper&count=10&global_view=true')
           kuiperData = await kuiperResponse.json()
         } catch (_error) {
           console.warn('Kuiper 衛星數據不可用，使用預設值')

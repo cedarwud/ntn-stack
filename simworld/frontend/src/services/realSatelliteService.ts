@@ -64,7 +64,7 @@ export async function fetchRealSatelliteData(
             global_view: globalView.toString()
         })
         
-        const endpoint = `/api/v1/satellite-simple/visible_satellites?${params.toString()}`
+        const endpoint = `/api/v1/leo-frontend/visible_satellites?${params.toString()}`
         
         // 減少重複日誌 - 只在首次請求時記錄
     // console.log(`🛰️ 請求衛星數據: 觀察者位置(${observerLat}, ${observerLon}, ${observerAlt}m), 全球視野: ${globalView}`)

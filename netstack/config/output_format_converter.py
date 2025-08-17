@@ -63,14 +63,14 @@ class LEOToFrontendConverter:
             'altitude': 0.0
         }
     
-    def convert_phase1_report_to_frontend(self, 
+    def convert_leo_report_to_frontend(self, 
                                         leo_report: Dict[str, Any],
                                         detailed_timeseries: Optional[List[Dict]] = None) -> Dict[str, Any]:
         """
-        將 LEO Phase 1 報告轉換為前端格式
+        將 LEO F1→F2→F3→A1 報告轉換為前端格式
         
         Args:
-            leo_report: LEO restructure phase1_final_report.json
+            leo_report: LEO restructure leo_optimization_final_report.json
             detailed_timeseries: 詳細時間序列數據 (如果可用)
         
         Returns:
@@ -78,14 +78,14 @@ class LEOToFrontendConverter:
         """
         try:
             # Extract report data
-            phase1_report = leo_report.get('phase1_completion_report', {})
-            final_results = phase1_report.get('final_results', {})
+            final_report = leo_report.get('final_report', leo_report)
+            final_results = final_report.get('final_results', {})
             optimal_pools = final_results.get('optimal_satellite_pools', {})
             handover_events = final_results.get('handover_events', {})
             
             # Create metadata
             metadata = self._create_frontend_metadata(
-                phase1_report, optimal_pools, handover_events
+                final_report, optimal_pools, handover_events
             )
             
             # Create satellite data
@@ -112,10 +112,10 @@ class LEOToFrontendConverter:
             logger.error("Failed to convert LEO format to frontend format", error=str(e))
             raise
     
-    def _create_frontend_metadata(self, phase1_report: Dict, 
+    def _create_frontend_metadata(self, final_report: Dict, 
                                 optimal_pools: Dict, handover_events: Dict) -> FrontendMetadata:
         """創建前端元數據"""
-        timestamp = phase1_report.get('timestamp', datetime.utcnow().isoformat())
+        timestamp = final_report.get('timestamp', datetime.utcnow().isoformat())
         total_satellites = optimal_pools.get('total_count', 8)
         
         return FrontendMetadata(
@@ -124,7 +124,7 @@ class LEOToFrontendConverter:
             time_span_minutes=120,  # Standard frontend expectation
             time_interval_seconds=30,  # LEO restructure standard
             total_time_points=240,  # 120min / 30s = 240 points
-            data_source="leo_restructure_phase1",
+            data_source="leo_f1_f2_f3_a1_system",
             sgp4_mode="real_tle_computation",
             selection_mode="intelligent_dynamic_pool",
             reference_location={
@@ -305,18 +305,24 @@ class LEOToFrontendConverter:
             logger.error("Frontend format validation failed", error=str(e))
             return False
 
+    # Backward compatibility alias for existing code
+    def convert_phase1_report_to_frontend(self, leo_report: Dict[str, Any], 
+                                        detailed_timeseries: Optional[List[Dict]] = None) -> Dict[str, Any]:
+        """Backward compatibility alias for convert_leo_report_to_frontend"""
+        return self.convert_leo_report_to_frontend(leo_report, detailed_timeseries)
+
 def create_leo_to_frontend_converter() -> LEOToFrontendConverter:
     """創建 LEO 到前端格式轉換器"""
     return LEOToFrontendConverter()
 
-def convert_phase1_to_frontend_format(leo_report_path: str, 
+def convert_leo_to_frontend_format(leo_report_path: str, 
                                     output_path: str,
                                     constellation: Optional[str] = None) -> bool:
     """
     便利函數：轉換 Phase 1 報告為前端格式
     
     Args:
-        leo_report_path: LEO phase1_final_report.json 路徑
+        leo_report_path: LEO leo_optimization_final_report.json 路徑
         output_path: 輸出前端格式文件路徑  
         constellation: 特定星座過濾 ('starlink' 或 'oneweb')
     
@@ -330,7 +336,7 @@ def convert_phase1_to_frontend_format(leo_report_path: str,
         
         # Convert to frontend format
         converter = create_leo_to_frontend_converter()
-        frontend_data = converter.convert_phase1_report_to_frontend(leo_report)
+        frontend_data = converter.convert_leo_report_to_frontend(leo_report)
         
         # Filter by constellation if specified
         if constellation:
@@ -352,5 +358,12 @@ def convert_phase1_to_frontend_format(leo_report_path: str,
         return True
         
     except Exception as e:
-        logger.error(f"Failed to convert phase1 to frontend format", error=str(e))
+        logger.error(f"Failed to convert LEO to frontend format", error=str(e))
         return False
+
+# Backward compatibility alias for existing code
+def convert_phase1_to_frontend_format(leo_report_path: str, 
+                                    output_path: str,
+                                    constellation: Optional[str] = None) -> bool:
+    """Backward compatibility alias for convert_leo_to_frontend_format"""
+    return convert_leo_to_frontend_format(leo_report_path, output_path, constellation)

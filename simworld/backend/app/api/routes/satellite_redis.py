@@ -246,8 +246,8 @@ async def get_visible_satellites(
                     "alt": observer_alt / 1000.0
                 },
                 "data_source": {
-                    "type": "phase0_precomputed",
-                    "description": "預處理軌道數據 (2250 顆真實衛星)",
+                    "type": "f3_a1_precomputed",
+                    "description": "F3/A1階段預處理軌道數據 (2250 顆真實衛星)",
                     "is_simulation": False
                 }
             }

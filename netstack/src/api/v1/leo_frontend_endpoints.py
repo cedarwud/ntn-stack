@@ -29,7 +29,7 @@ async def get_satellites_for_frontend(
     """
     try:
         # 使用最新的 LEO 輸出數據
-        leo_output_dir = "/tmp/phase1_outputs"
+        leo_output_dir = "/tmp/leo_outputs"
         
         # 檢查數據是否存在
         output_path = Path(leo_output_dir)
@@ -69,7 +69,7 @@ async def get_satellites_for_frontend(
         
         return {
             "success": True,
-            "source": "LEO_Phase1_System",
+            "source": "LEO_F1_F2_F3_A1_System",
             "format": format,
             "satellites": filtered_satellites,
             "statistics": statistics
@@ -87,7 +87,7 @@ async def get_enhanced_satellites_data():
         Dict: 增強版前端格式數據，包含 LEO 系統的詳細分析
     """
     try:
-        leo_output_dir = "/tmp/phase1_outputs"
+        leo_output_dir = "/tmp/leo_outputs"
         
         # 獲取基本衛星數據
         satellites = converter.convert_leo_to_frontend_format(leo_output_dir)
@@ -96,7 +96,7 @@ async def get_enhanced_satellites_data():
         analysis_data = {}
         
         # 讀取最終報告
-        final_report_path = Path(leo_output_dir) / "phase1_final_report.json"
+        final_report_path = Path(leo_output_dir) / "leo_optimization_final_report.json"
         if final_report_path.exists():
             with open(final_report_path, 'r') as f:
                 analysis_data['final_report'] = json.load(f)
@@ -110,7 +110,7 @@ async def get_enhanced_satellites_data():
         # 構建增強版響應
         enhanced_data = {
             "success": True,
-            "source": "LEO_Phase1_System_Enhanced",
+            "source": "LEO_F1_F2_F3_A1_System_Enhanced",
             "satellites": satellites,
             "leo_analysis": analysis_data,
             "statistics": {
@@ -145,7 +145,7 @@ async def get_leo_system_status():
         Dict: LEO 系統運行狀態和數據可用性
     """
     try:
-        leo_output_dir = "/tmp/phase1_outputs"
+        leo_output_dir = "/tmp/leo_outputs"
         output_path = Path(leo_output_dir)
         
         status = {
@@ -158,7 +158,7 @@ async def get_leo_system_status():
         if output_path.exists():
             # 檢查各種數據檔案
             expected_files = [
-                "phase1_final_report.json",
+                "leo_optimization_final_report.json",
                 "tle_loading_and_orbit_calculation_results.json", 
                 "satellite_filtering_and_candidate_selection_results.json",
                 "handover_event_analysis_results.json",
@@ -174,8 +174,8 @@ async def get_leo_system_status():
                 }
             
             # 獲取最後更新時間
-            if status["data_files"]["phase1_final_report.json"]["exists"]:
-                status["last_updated"] = status["data_files"]["phase1_final_report.json"]["modified"]
+            if status["data_files"]["leo_optimization_final_report.json"]["exists"]:
+                status["last_updated"] = status["data_files"]["leo_optimization_final_report.json"]["modified"]
                 status["system_health"] = "healthy"
             else:
                 status["system_health"] = "incomplete"
@@ -207,7 +207,7 @@ async def refresh_leo_data():
         Dict: 數據刷新結果
     """
     try:
-        leo_output_dir = "/tmp/phase1_outputs"
+        leo_output_dir = "/tmp/leo_outputs"
         
         # 重新轉換數據
         output_file = converter.save_frontend_format(leo_output_dir)

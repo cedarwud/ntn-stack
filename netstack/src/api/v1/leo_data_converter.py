@@ -199,7 +199,7 @@ class LEODataConverter:
         # 構建完整的前端格式
         frontend_format = {
             "generated_at": datetime.now().isoformat(),
-            "source": "LEO_Phase1_System",
+            "source": "LEO_F1_F2_F3_A1_System",
             "satellites": frontend_data,
             "statistics": {
                 "total_satellites": len(frontend_data),
@@ -224,7 +224,7 @@ def test_converter():
     converter = LEODataConverter()
     
     # 測試轉換
-    leo_output_dir = "/tmp/phase1_outputs"
+    leo_output_dir = "/tmp/leo_outputs"
     output_file = converter.save_frontend_format(leo_output_dir)
     
     print(f"✅ 轉換測試完成: {output_file}")

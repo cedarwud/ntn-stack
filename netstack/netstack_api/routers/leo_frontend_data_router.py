@@ -58,30 +58,30 @@ async def get_conversion_status():
     獲取 LEO 前端數據轉換狀態
     """
     try:
-        # Check if Phase 1 report exists
-        phase1_paths = [
-            "/app/data/phase1_final_report.json",
-            "/tmp/p01_v2_verification/phase1_final_report.json"
+        # Check if F1→F2→F3→A1 final report exists
+        final_report_paths = [
+            "/app/data/leo_optimization_final_report.json",
+            "/tmp/leo_temporary_outputs/leo_optimization_final_report.json"
         ]
         
-        phase1_available = False
-        phase1_path = None
+        final_report_available = False
+        final_report_path = None
         
-        for path in phase1_paths:
+        for path in final_report_paths:
             if os.path.exists(path):
-                phase1_available = True
-                phase1_path = path
+                final_report_available = True
+                final_report_path = path
                 break
         
         last_conversion = None
-        if phase1_path:
-            stat = os.stat(phase1_path)
+        if final_report_path:
+            stat = os.stat(final_report_path)
             last_conversion = datetime.fromtimestamp(stat.st_mtime).isoformat()
         
         return ConversionStatus(
-            available=phase1_available,
+            available=final_report_available,
             last_conversion=last_conversion,
-            phase1_report_available=phase1_available,
+            phase1_report_available=final_report_available,  # 保持兼容性
             conversion_error=None
         )
         
@@ -90,7 +90,7 @@ async def get_conversion_status():
         return ConversionStatus(
             available=False,
             last_conversion=None,
-            phase1_report_available=False,
+            phase1_report_available=False,  # 保持兼容性
             conversion_error=str(e)
         )
 
@@ -104,31 +104,31 @@ async def get_frontend_data(
     P0.3: 核心端點 - 將 LEO Restructure 數據轉換為前端格式
     """
     try:
-        # Find Phase 1 report
-        phase1_paths = [
-            "/app/data/phase1_final_report.json",
-            "/tmp/p01_v2_verification/phase1_final_report.json"
+        # Find F1→F2→F3→A1 final report
+        final_report_paths = [
+            "/app/data/leo_optimization_final_report.json",
+            "/tmp/leo_temporary_outputs/leo_optimization_final_report.json"
         ]
         
-        phase1_path = None
-        for path in phase1_paths:
+        final_report_path = None
+        for path in final_report_paths:
             if os.path.exists(path):
-                phase1_path = path
+                final_report_path = path
                 break
         
-        if not phase1_path:
+        if not final_report_path:
             raise HTTPException(
                 status_code=404,
-                detail="Phase 1 report not found. Run LEO Phase 1 processing first."
+                detail="LEO final report not found. Run F1→F2→F3→A1 LEO processing first."
             )
         
-        # Load Phase 1 report
-        with open(phase1_path, 'r', encoding='utf-8') as f:
-            phase1_report = json.load(f)
+        # Load LEO final report
+        with open(final_report_path, 'r', encoding='utf-8') as f:
+            leo_final_report = json.load(f)
         
         # Convert to frontend format
         converter = create_leo_to_frontend_converter()
-        frontend_data = converter.convert_phase1_report_to_frontend(phase1_report)
+        frontend_data = converter.convert_phase1_report_to_frontend(leo_final_report)  # 使用同樣的轉換函數保持兼容性
         
         # Filter by constellation if specified
         if constellation:
@@ -152,7 +152,7 @@ async def get_frontend_data(
         
         return FrontendDataResponse(
             success=True,
-            data_source="leo_restructure_phase1",
+            data_source="leo_f1_f2_f3_a1_system",
             constellation=constellation,
             satellites_count=len(frontend_data['satellites']),
             timestamp=datetime.utcnow().isoformat(),
@@ -175,30 +175,30 @@ async def get_constellation_data(constellation: str):
     return await get_frontend_data(constellation=constellation)
 
 @router.post("/convert")
-async def convert_phase1_to_frontend(
+async def convert_leo_to_frontend(
     force_convert: bool = Query(False, description="強制重新轉換"),
     save_files: bool = Query(True, description="保存轉換後的文件")
 ):
     """
-    手動觸發 Phase 1 到前端格式轉換
+    手動觸發 F1→F2→F3→A1 LEO 系統到前端格式轉換
     """
     try:
-        # Find Phase 1 report
-        phase1_paths = [
-            "/app/data/phase1_final_report.json",
-            "/tmp/p01_v2_verification/phase1_final_report.json"
+        # Find LEO final report
+        final_report_paths = [
+            "/app/data/leo_optimization_final_report.json",
+            "/tmp/leo_temporary_outputs/leo_optimization_final_report.json"
         ]
         
-        phase1_path = None
-        for path in phase1_paths:
+        final_report_path = None
+        for path in final_report_paths:
             if os.path.exists(path):
-                phase1_path = path
+                final_report_path = path
                 break
         
-        if not phase1_path:
+        if not final_report_path:
             raise HTTPException(
                 status_code=404,
-                detail="Phase 1 report not found"
+                detail="LEO final report not found"
             )
         
         results = {}
@@ -211,7 +211,7 @@ async def convert_phase1_to_frontend(
             # Mixed constellation data
             mixed_output = output_dir / "leo_frontend_mixed.json"
             success = convert_phase1_to_frontend_format(
-                phase1_path,
+                final_report_path,
                 str(mixed_output)
             )
             results["mixed_data"] = {
@@ -222,7 +222,7 @@ async def convert_phase1_to_frontend(
             # Starlink specific
             starlink_output = output_dir / "leo_frontend_starlink.json"
             success = convert_phase1_to_frontend_format(
-                phase1_path,
+                final_report_path,
                 str(starlink_output),
                 constellation="starlink"
             )
@@ -234,7 +234,7 @@ async def convert_phase1_to_frontend(
             # OneWeb specific
             oneweb_output = output_dir / "leo_frontend_oneweb.json"
             success = convert_phase1_to_frontend_format(
-                phase1_path,
+                final_report_path,
                 str(oneweb_output),
                 constellation="oneweb"
             )
@@ -247,7 +247,7 @@ async def convert_phase1_to_frontend(
         
         return {
             "success": True,
-            "message": "Phase 1 to frontend conversion completed",
+            "message": "LEO F1→F2→F3→A1 to frontend conversion completed",
             "timestamp": datetime.utcnow().isoformat(),
             "results": results
         }
@@ -255,7 +255,7 @@ async def convert_phase1_to_frontend(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to convert phase1 to frontend", error=str(e))
+        logger.error("Failed to convert LEO to frontend", error=str(e))
         raise HTTPException(status_code=500, detail=f"Conversion error: {str(e)}")
 
 @router.get("/health")
@@ -268,19 +268,19 @@ async def frontend_data_health():
         converter = create_leo_to_frontend_converter()
         converter_ok = converter is not None
         
-        # Check Phase 1 data availability
-        phase1_paths = [
-            "/app/data/phase1_final_report.json",
-            "/tmp/p01_v2_verification/phase1_final_report.json"
+        # Check LEO final report data availability
+        final_report_paths = [
+            "/app/data/leo_optimization_final_report.json",
+            "/tmp/leo_temporary_outputs/leo_optimization_final_report.json"
         ]
         
-        phase1_available = any(os.path.exists(path) for path in phase1_paths)
+        final_report_available = any(os.path.exists(path) for path in final_report_paths)
         
         # Test conversion functionality
         conversion_ok = False
-        if phase1_available and converter_ok:
+        if final_report_available and converter_ok:
             try:
-                for path in phase1_paths:
+                for path in final_report_paths:
                     if os.path.exists(path):
                         with open(path, 'r') as f:
                             test_data = json.load(f)
@@ -291,10 +291,10 @@ async def frontend_data_health():
                 conversion_ok = False
         
         return {
-            "status": "healthy" if all([converter_ok, phase1_available, conversion_ok]) else "degraded",
+            "status": "healthy" if all([converter_ok, final_report_available, conversion_ok]) else "degraded",
             "components": {
                 "format_converter": "ok" if converter_ok else "error",
-                "phase1_data": "ok" if phase1_available else "missing",
+                "leo_final_data": "ok" if final_report_available else "missing",
                 "conversion_functionality": "ok" if conversion_ok else "error"
             },
             "timestamp": datetime.utcnow().isoformat()
