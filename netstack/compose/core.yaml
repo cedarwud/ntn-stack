@@ -369,6 +369,8 @@ services:
     volumes:
       # 🎯 F3/A1永久數據：Bind Mount到項目目錄
       - /home/sat/ntn-stack/data/leo_outputs:/app/data
+      # 🔥 CRITICAL FIX: 掛載TLE數據目錄，確保載入8735顆真實衛星
+      - ../tle_data:/app/tle_data:ro
       - netstack_models:/app/models
       - netstack_results:/app/results
       - netstack_scripts:/app/scripts

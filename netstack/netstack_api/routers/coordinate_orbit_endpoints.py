@@ -316,7 +316,7 @@ async def check_precomputed_health():
             "build_config_available": enhanced_loader.build_config is not None,
             "data_summary_available": enhanced_loader.data_summary is not None,
         },
-        "phase4_production": {
+        "leo_a1_production": {
             "startup_time_seconds": get_startup_time(),
             "memory_usage_mb": get_memory_usage(),
             "data_freshness_hours": get_data_freshness(),
