@@ -22,12 +22,31 @@ class GeographicFilter:
             "timezone": "Asia/Taipei"
         }
         
-        # 地理篩選參數
-        self.filtering_params = {
-            "min_elevation_deg": 0,      # 最低仰角門檻
-            "max_range_km": 5000,        # 最大距離範圍
-            "geographic_relevance_zone": 50,  # 地理相關區域半徑(度)
+        # 🔧 星座特定的地理篩選參數
+        self.constellation_filtering_params = {
+            "starlink": {
+                "min_elevation_deg": 5,      # Starlink使用5度仰角門檻
+                "max_range_km": 2000,        # LEO合理服務範圍  
+                "geographic_relevance_zone": 10,  # 台灣周邊區域
+            },
+            "oneweb": {
+                "min_elevation_deg": 10,     # OneWeb使用10度仰角門檻
+                "max_range_km": 2000,        # LEO合理服務範圍
+                "geographic_relevance_zone": 10,  # 台灣周邊區域
+            }
         }
+        
+        # 🔧 通用地理篩選參數（向下兼容）
+        self.filtering_params = {
+            "min_elevation_deg": 5,          # 預設使用Starlink標準
+            "max_range_km": 2000,            # 從5000km縮減到2000km
+            "geographic_relevance_zone": 10,  # 從50度縮減到10度
+        }
+        
+        # 📊 理論計算：
+        # - Starlink (5度): 較多候選衛星，約50-55顆
+        # - OneWeb (10度): 較少候選衛星，約12-15顆
+        # - 總動態池：預期約67顆衛星（vs原567顆）
     
     def apply_geographic_filtering(self, constellation_data: Dict[str, List[Dict]]) -> Dict[str, List[Dict]]:
         """
@@ -67,6 +86,14 @@ class GeographicFilter:
         """
         orbit_data = satellite.get("orbit_data", {})
         
+        # 🔧 根據星座確定仰角門檻
+        constellation = satellite.get("constellation", "starlink").lower()
+        constellation_params = self.constellation_filtering_params.get(
+            constellation, 
+            self.constellation_filtering_params["starlink"]  # 預設使用Starlink參數
+        )
+        min_elevation = constellation_params["min_elevation_deg"]
+        
         # 軌道傾角匹配檢查
         inclination = orbit_data.get("inclination", 0)
         if not self._check_inclination_coverage(inclination):
@@ -82,15 +109,25 @@ class GeographicFilter:
         if not timeseries:
             return False
         
-        # 檢查是否有可見時間點
+        # 🔧 使用星座特定的仰角門檻檢查可見時間點
         visible_points = 0
         for point in timeseries:
             elevation = point.get("elevation_deg", -90)
-            if elevation >= self.filtering_params["min_elevation_deg"]:
+            if elevation >= min_elevation:  # 使用星座特定門檻
                 visible_points += 1
         
         # 至少需要有一些可見時間點
-        return visible_points > 0
+        is_relevant = visible_points > 0
+        
+        # 記錄使用的參數供調試
+        satellite["_filtering_params_used"] = {
+            "constellation": constellation,
+            "min_elevation_deg": min_elevation,
+            "visible_points": visible_points,
+            "total_points": len(timeseries)
+        }
+        
+        return is_relevant
     
     def _check_inclination_coverage(self, inclination: float) -> bool:
         """

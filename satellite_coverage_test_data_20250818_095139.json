@@ -1,0 +1,74 @@
+{
+  "test_period": {
+    "start": "2025-08-18T09:51:39.619635",
+    "end": "2025-08-18T13:11:09.619635",
+    "duration_minutes": 199.5
+  },
+  "coverage_statistics": {
+    "total_samples": 400,
+    "compliant_samples": 3,
+    "compliance_rate": 0.75,
+    "average_visible": {
+      "starlink": 8.04,
+      "oneweb": 0.59
+    },
+    "visible_range": {
+      "starlink": {
+        "min": 6,
+        "max": 10,
+        "median": 8.0
+      },
+      "oneweb": {
+        "min": 0,
+        "max": 4,
+        "median": 0.0
+      }
+    }
+  },
+  "target_ranges": {
+    "starlink": [
+      10,
+      15
+    ],
+    "oneweb": [
+      3,
+      6
+    ]
+  },
+  "failure_analysis": {
+    "failure_count": 397,
+    "failure_rate": 99.25,
+    "failure_examples": [
+      {
+        "time": "09:51:39",
+        "starlink": 9,
+        "oneweb": 1,
+        "reason": "Starlink不足(9<10); OneWeb不足(1<3)"
+      },
+      {
+        "time": "09:52:09",
+        "starlink": 10,
+        "oneweb": 0,
+        "reason": "OneWeb不足(0<3)"
+      },
+      {
+        "time": "09:52:39",
+        "starlink": 7,
+        "oneweb": 0,
+        "reason": "Starlink不足(7<10); OneWeb不足(0<3)"
+      },
+      {
+        "time": "09:53:09",
+        "starlink": 9,
+        "oneweb": 0,
+        "reason": "Starlink不足(9<10); OneWeb不足(0<3)"
+      },
+      {
+        "time": "09:53:39",
+        "starlink": 6,
+        "oneweb": 0,
+        "reason": "Starlink不足(6<10); OneWeb不足(0<3)"
+      }
+    ]
+  }
+}

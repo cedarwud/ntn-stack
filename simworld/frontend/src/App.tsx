@@ -11,7 +11,8 @@ const SceneView = lazy(() => import('./components/scenes/StereogramView'))
 import Layout from './components/layout/Layout'
 import ErrorBoundary from './components/shared/ui/feedback/ErrorBoundary'
 import Navbar from './components/layout/Navbar'
-import Sidebar from './components/layout/Sidebar'
+// 🚀 使用重構後的統一數據源版本
+import Sidebar from './components/layout/Sidebar.refactored'
 import ToastNotification from './components/shared/ui/feedback/ToastNotification'
 import { backgroundHealthMonitor } from './services/healthMonitor'
 import { countActiveDevices } from './utils/deviceUtils'
@@ -19,6 +20,8 @@ import { DataSyncProvider } from './contexts/DataSyncContext'
 import { StrategyProvider } from './contexts/StrategyContext'
 import { AppStateProvider } from './contexts/AppStateContext'
 import { DeviceProvider, useDeviceContext } from './contexts/DeviceContext'
+// 🚀 引入重構後的統一Providers
+import AppProviders from './providers/AppProviders'
 import {
     useUIState,
     useSatelliteState,
@@ -294,10 +297,13 @@ const App: React.FC<AppProps> = ({
                 <AppStateProvider>
                     <DeviceProvider>
                         <DataSyncProvider>
-                            <AppContent
-                                key={currentScene}
-                                currentScene={currentScene}
-                            />
+                            {/* 🚀 統一衛星數據管理 */}
+                            <AppProviders>
+                                <AppContent
+                                    key={currentScene}
+                                    currentScene={currentScene}
+                                />
+                            </AppProviders>
                         </DataSyncProvider>
                     </DeviceProvider>
                 </AppStateProvider>

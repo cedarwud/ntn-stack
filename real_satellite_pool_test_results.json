@@ -1,0 +1,1530 @@
+{
+  "test_config": {
+    "observer_location": {
+      "lat": 24.9441667,
+      "lon": 121.3713889,
+      "alt": 100
+    },
+    "elevation_thresholds": {
+      "starlink": 5.0,
+      "oneweb": 10.0
+    },
+    "duration_minutes": 96,
+    "interval_minutes": 2,
+    "total_satellites": 8735
+  },
+  "timeline_results": [
+    {
+      "timestamp": "2025-08-16T12:00:00+00:00",
+      "visible_satellites": {
+        "starlink": [],
+        "oneweb": [
+          {
+            "name": "ONEWEB-0058",
+            "norad_id": 45161,
+            "elevation": 20.925035447278105,
+            "azimuth": 330.58043386475106,
+            "latitude": 27.00442968994275,
+            "longitude": 120.06401042584511,
+            "altitude": 1228.849402706971
+          }
+        ]
+      },
+      "counts": {
+        "starlink": 0,
+        "oneweb": 1,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:02:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-2050",
+            "norad_id": 47357,
+            "elevation": 8.486098952837349,
+            "azimuth": 306.56008841964154,
+            "latitude": 25.71300156500902,
+            "longitude": 120.2140094321502,
+            "altitude": 554.3857716694692
+          }
+        ],
+        "oneweb": [
+          {
+            "name": "ONEWEB-0058",
+            "norad_id": 45161,
+            "elevation": 10.831351398368678,
+            "azimuth": 186.1735029886378,
+            "latitude": 20.457933881619603,
+            "longitude": 120.85408948994399,
+            "altitude": 1228.849402706972
+          }
+        ]
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 1,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:04:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-33970",
+            "norad_id": 64106,
+            "elevation": 13.266620884321572,
+            "azimuth": 48.44715341193546,
+            "latitude": 25.312628364583905,
+            "longitude": 121.83211974422228,
+            "altitude": 454.3334477881217
+          }
+        ],
+        "oneweb": [
+          {
+            "name": "ONEWEB-0021",
+            "norad_id": 45134,
+            "elevation": 12.349551830268489,
+            "azimuth": 341.2011340061061,
+            "latitude": 28.887017813495962,
+            "longitude": 119.8365621322072,
+            "altitude": 1228.8471756015779
+          }
+        ]
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 1,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:06:00+00:00",
+      "visible_satellites": {
+        "starlink": [],
+        "oneweb": [
+          {
+            "name": "ONEWEB-0021",
+            "norad_id": 45134,
+            "elevation": 19.361278676982742,
+            "azimuth": 194.6655782838835,
+            "latitude": 22.340682511572375,
+            "longitude": 120.63551237938772,
+            "altitude": 1228.8471756015788
+          },
+          {
+            "name": "ONEWEB-0025",
+            "norad_id": 45138,
+            "elevation": 23.8762635429217,
+            "azimuth": 320.1134226761064,
+            "latitude": 26.306414209831765,
+            "longitude": 120.09640493668724,
+            "altitude": 1228.8599312151428
+          }
+        ]
+      },
+      "counts": {
+        "starlink": 0,
+        "oneweb": 2,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:08:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-2082",
+            "norad_id": 47367,
+            "elevation": 5.809640463556236,
+            "azimuth": 155.35535183184174,
+            "latitude": 23.53361345200635,
+            "longitude": 122.07633556602573,
+            "altitude": 554.3687554127746
+          },
+          {
+            "name": "STARLINK-5480",
+            "norad_id": 55664,
+            "elevation": 5.100297679600548,
+            "azimuth": 329.32191716226924,
+            "latitude": 26.43603159584837,
+            "longitude": 120.38092292645125,
+            "altitude": 579.1983614363717
+          }
+        ],
+        "oneweb": [
+          {
+            "name": "ONEWEB-0056",
+            "norad_id": 45159,
+            "elevation": 18.294543443195696,
+            "azimuth": 334.69798348602967,
+            "latitude": 27.566868912208914,
+            "longitude": 119.96967430535435,
+            "altitude": 1228.8587751267114
+          }
+        ]
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 1,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:10:00+00:00",
+      "visible_satellites": {
+        "starlink": [],
+        "oneweb": [
+          {
+            "name": "ONEWEB-0052",
+            "norad_id": 45156,
+            "elevation": 12.620591160852761,
+            "azimuth": 340.2817185460394,
+            "latitude": 28.80836117500113,
+            "longitude": 119.78848763417365,
+            "altitude": 1228.8596605589491
+          },
+          {
+            "name": "ONEWEB-0056",
+            "norad_id": 45159,
+            "elevation": 13.308085372061601,
+            "azimuth": 188.25375385208906,
+            "latitude": 21.020432123704865,
+            "longitude": 120.7622974676415,
+            "altitude": 1228.8587751267105
+          }
+        ]
+      },
+      "counts": {
+        "starlink": 0,
+        "oneweb": 2,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:12:00+00:00",
+      "visible_satellites": {
+        "starlink": [],
+        "oneweb": [
+          {
+            "name": "ONEWEB-0052",
+            "norad_id": 45156,
+            "elevation": 18.934378028144245,
+            "azimuth": 195.16094780135887,
+            "latitude": 22.262032095021603,
+            "longitude": 120.5869727154572,
+            "altitude": 1228.8596605589482
+          }
+        ]
+      },
+      "counts": {
+        "starlink": 0,
+        "oneweb": 1,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:14:00+00:00",
+      "visible_satellites": {
+        "starlink": [],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 0,
+        "oneweb": 0,
+        "total": 0
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:16:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-4489",
+            "norad_id": 53542,
+            "elevation": 7.235492668536711,
+            "azimuth": 10.260369997558996,
+            "latitude": 26.304274349536705,
+            "longitude": 121.64605419263364,
+            "altitude": 546.8935598846074
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 0,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:18:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-2088",
+            "norad_id": 47371,
+            "elevation": 10.354447319662393,
+            "azimuth": 288.2708883395466,
+            "latitude": 25.292497768486395,
+            "longitude": 120.1888071208394,
+            "altitude": 554.3681240479127
+          },
+          {
+            "name": "STARLINK-4616",
+            "norad_id": 53734,
+            "elevation": 16.062697414348868,
+            "azimuth": 39.988493811949525,
+            "latitude": 25.397761550810895,
+            "longitude": 121.79309763109629,
+            "altitude": 546.8934101105006
+          },
+          {
+            "name": "STARLINK-34179",
+            "norad_id": 64103,
+            "elevation": 8.87308000037846,
+            "azimuth": 93.14458742431583,
+            "latitude": 24.892779280208895,
+            "longitude": 122.3397742231782,
+            "altitude": 454.3448674616593
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 3,
+        "oneweb": 0,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:20:00+00:00",
+      "visible_satellites": {
+        "starlink": [],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 0,
+        "oneweb": 0,
+        "total": 0
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:22:00+00:00",
+      "visible_satellites": {
+        "starlink": [],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 0,
+        "oneweb": 0,
+        "total": 0
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:24:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-34146",
+            "norad_id": 64098,
+            "elevation": 12.234072993114863,
+            "azimuth": 32.60179720604043,
+            "latitude": 25.475891345573306,
+            "longitude": 121.74842471560088,
+            "altitude": 454.3296294193224
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 0,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:26:00+00:00",
+      "visible_satellites": {
+        "starlink": [],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 0,
+        "oneweb": 0,
+        "total": 0
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:28:00+00:00",
+      "visible_satellites": {
+        "starlink": [],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 0,
+        "oneweb": 0,
+        "total": 0
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:30:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-1398",
+            "norad_id": 45699,
+            "elevation": 16.38029634050161,
+            "azimuth": 135.4263090955252,
+            "latitude": 24.697364682784134,
+            "longitude": 121.63876777377463,
+            "altitude": 460.5106924669999
+          },
+          {
+            "name": "STARLINK-5134",
+            "norad_id": 53976,
+            "elevation": 7.849525385194547,
+            "azimuth": 293.83819130186623,
+            "latitude": 25.473927961655427,
+            "longitude": 120.02817866010518,
+            "altitude": 546.8828709243717
+          },
+          {
+            "name": "STARLINK-32224",
+            "norad_id": 60941,
+            "elevation": 16.956777819635917,
+            "azimuth": 50.96318004607275,
+            "latitude": 25.166988781921567,
+            "longitude": 121.67543252537605,
+            "altitude": 482.38913563627466
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 3,
+        "oneweb": 0,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:32:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-4118",
+            "norad_id": 53538,
+            "elevation": 9.881692544355605,
+            "azimuth": 29.60449688719956,
+            "latitude": 25.934271382326315,
+            "longitude": 121.99774696742934,
+            "altitude": 546.8767638389436
+          },
+          {
+            "name": "STARLINK-33656",
+            "norad_id": 63389,
+            "elevation": 14.057439586053578,
+            "azimuth": 141.6551030723839,
+            "latitude": 24.55226394876882,
+            "longitude": 121.71187200089311,
+            "altitude": 454.3250722090643
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 0,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:34:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-1812",
+            "norad_id": 47126,
+            "elevation": 11.193359427827813,
+            "azimuth": 320.1578378403566,
+            "latitude": 25.747959980342674,
+            "longitude": 120.62505216955464,
+            "altitude": 554.3099686054984
+          },
+          {
+            "name": "STARLINK-2097",
+            "norad_id": 47377,
+            "elevation": 12.323731416890407,
+            "azimuth": 280.07372093904263,
+            "latitude": 25.106300270958045,
+            "longitude": 120.34150528830277,
+            "altitude": 554.362015753547
+          },
+          {
+            "name": "STARLINK-34517",
+            "norad_id": 64595,
+            "elevation": 15.459949105312345,
+            "azimuth": 20.77996860165274,
+            "latitude": 25.316158666680085,
+            "longitude": 121.52757652024832,
+            "altitude": 454.32013671755794
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 3,
+        "oneweb": 0,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:36:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-2406",
+            "norad_id": 47821,
+            "elevation": 11.94833870701017,
+            "azimuth": 218.292322940255,
+            "latitude": 24.172832993416996,
+            "longitude": 120.70515638123909,
+            "altitude": 554.3119208922453
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 0,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:38:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-3642",
+            "norad_id": 51989,
+            "elevation": 10.756860408813022,
+            "azimuth": 346.2061352834098,
+            "latitude": 25.974612935701053,
+            "longitude": 121.08992067768455,
+            "altitude": 546.858699415905
+          },
+          {
+            "name": "STARLINK-32019",
+            "norad_id": 60147,
+            "elevation": 16.454922785581005,
+            "azimuth": 150.01231398645484,
+            "latitude": 24.6039509821118,
+            "longitude": 121.5872203112473,
+            "altitude": 482.414524522449
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 0,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:40:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-33985",
+            "norad_id": 63943,
+            "elevation": 16.468987709839993,
+            "azimuth": 40.88885861669206,
+            "latitude": 25.433326291283553,
+            "longitude": 121.84110229284978,
+            "altitude": 579.3236630792771
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 0,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:42:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-2314",
+            "norad_id": 47788,
+            "elevation": 5.2343367388269755,
+            "azimuth": 245.489310859106,
+            "latitude": 24.269742856265864,
+            "longitude": 119.76937445395629,
+            "altitude": 554.3472400505216
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 0,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:44:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-4139",
+            "norad_id": 52879,
+            "elevation": 6.170496039267484,
+            "azimuth": 315.2201903748199,
+            "latitude": 25.99127156935048,
+            "longitude": 120.21044677370436,
+            "altitude": 546.8702502406641
+          },
+          {
+            "name": "STARLINK-4709",
+            "norad_id": 53778,
+            "elevation": 5.473307567401236,
+            "azimuth": 101.92131096189263,
+            "latitude": 24.615321956192734,
+            "longitude": 123.03658538930064,
+            "altitude": 546.9039279403896
+          },
+          {
+            "name": "STARLINK-34189",
+            "norad_id": 64121,
+            "elevation": 16.716949918901154,
+            "azimuth": 357.1510852779726,
+            "latitude": 25.25155336065326,
+            "longitude": 121.35447601325406,
+            "altitude": 454.37205144194013
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 3,
+        "oneweb": 0,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:46:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-4695",
+            "norad_id": 53718,
+            "elevation": 14.04213748377544,
+            "azimuth": 77.34859034721427,
+            "latitude": 25.110416358077046,
+            "longitude": 122.20062883256583,
+            "altitude": 546.8795300596521
+          },
+          {
+            "name": "STARLINK-5130",
+            "norad_id": 53997,
+            "elevation": 11.555908975591558,
+            "azimuth": 288.0083986976515,
+            "latitude": 25.246568599279733,
+            "longitude": 120.33060083063066,
+            "altitude": 546.8894976469292
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 0,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:48:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-1724",
+            "norad_id": 46375,
+            "elevation": 14.120441718398501,
+            "azimuth": 60.83462252390211,
+            "latitude": 25.26834242140611,
+            "longitude": 122.01647012436402,
+            "altitude": 515.7901518826884
+          },
+          {
+            "name": "STARLINK-31229",
+            "norad_id": 58986,
+            "elevation": 5.5907701738765985,
+            "azimuth": 104.39882899909776,
+            "latitude": 24.62828849890332,
+            "longitude": 122.69970450787451,
+            "altitude": 482.34689201276797
+          },
+          {
+            "name": "STARLINK-34469",
+            "norad_id": 64615,
+            "elevation": 12.954043233686766,
+            "azimuth": 92.73115218131107,
+            "latitude": 24.915201510051137,
+            "longitude": 122.00948715896567,
+            "altitude": 454.3641397467827
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 3,
+        "oneweb": 0,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:50:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-1871",
+            "norad_id": 47157,
+            "elevation": 13.901671665948411,
+            "azimuth": 319.2438983850409,
+            "latitude": 25.55318519218063,
+            "longitude": 120.78852828052797,
+            "altitude": 554.3200273409429
+          },
+          {
+            "name": "STARLINK-2094",
+            "norad_id": 47375,
+            "elevation": 14.596138140683927,
+            "azimuth": 263.33339115771514,
+            "latitude": 24.85561396911428,
+            "longitude": 120.5572646585323,
+            "altitude": 554.3620739860944
+          },
+          {
+            "name": "STARLINK-32276",
+            "norad_id": 60944,
+            "elevation": 7.127438371266146,
+            "azimuth": 114.66302367408161,
+            "latitude": 24.471880147547388,
+            "longitude": 122.4914867482268,
+            "altitude": 482.3960717981099
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 3,
+        "oneweb": 0,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:52:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-3147",
+            "norad_id": 49410,
+            "elevation": 20.741167861473695,
+            "azimuth": 293.5024462106148,
+            "latitude": 25.01918082019075,
+            "longitude": 121.1807179225206,
+            "altitude": 546.8764918019197
+          },
+          {
+            "name": "STARLINK-4279",
+            "norad_id": 53018,
+            "elevation": 7.67362892977711,
+            "azimuth": 133.81331878014385,
+            "latitude": 24.011388833539513,
+            "longitude": 122.43143453036807,
+            "altitude": 546.8872082469807
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 0,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:54:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-4013",
+            "norad_id": 52604,
+            "elevation": 6.4439788441028245,
+            "azimuth": 359.61568972592227,
+            "latitude": 26.40013711643247,
+            "longitude": 121.36048695356112,
+            "altitude": 546.8783899484624
+          },
+          {
+            "name": "STARLINK-34508",
+            "norad_id": 64601,
+            "elevation": 13.248700116539966,
+            "azimuth": 4.219147486684108,
+            "latitude": 25.500530852629932,
+            "longitude": 121.4168625126539,
+            "altitude": 454.34150716456315
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 0,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:56:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-3764",
+            "norad_id": 52280,
+            "elevation": 15.992547255833456,
+            "azimuth": 1.0819294970289661,
+            "latitude": 25.542957137538217,
+            "longitude": 121.38392211512884,
+            "altitude": 546.8881374558086
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 0,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T12:58:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-34122",
+            "norad_id": 64117,
+            "elevation": 14.695328173011298,
+            "azimuth": 103.74841172419713,
+            "latitude": 24.835673999776652,
+            "longitude": 121.8564703085558,
+            "altitude": 454.3685640277263
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 0,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:00:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-1928",
+            "norad_id": 46758,
+            "elevation": 16.729946795226674,
+            "azimuth": 37.748171937641246,
+            "latitude": 25.382506018418812,
+            "longitude": 121.74742880610987,
+            "altitude": 554.3855724511623
+          },
+          {
+            "name": "STARLINK-31368",
+            "norad_id": 58970,
+            "elevation": 12.093260070201458,
+            "azimuth": 117.84229054412498,
+            "latitude": 24.602310553590563,
+            "longitude": 122.07975822146655,
+            "altitude": 482.3605760329874
+          },
+          {
+            "name": "STARLINK-32533",
+            "norad_id": 61706,
+            "elevation": 5.688551772219337,
+            "azimuth": 33.23426326159398,
+            "latitude": 25.978388739796088,
+            "longitude": 122.12657183950513,
+            "altitude": 482.3776878724748
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 3,
+        "oneweb": 0,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:02:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-1736",
+            "norad_id": 46585,
+            "elevation": 12.36216532315183,
+            "azimuth": 113.07464000273183,
+            "latitude": 24.571307207672934,
+            "longitude": 122.3259337976512,
+            "altitude": 554.3286425757506
+          },
+          {
+            "name": "STARLINK-5042",
+            "norad_id": 53899,
+            "elevation": 7.789318360311579,
+            "azimuth": 223.73814952975818,
+            "latitude": 23.978932584005364,
+            "longitude": 120.36408660238153,
+            "altitude": 546.8880671538145
+          },
+          {
+            "name": "STARLINK-5145",
+            "norad_id": 54008,
+            "elevation": 11.48491234328413,
+            "azimuth": 253.72162016233017,
+            "latitude": 24.661234980444892,
+            "longitude": 120.31913761838167,
+            "altitude": 546.8908394990458
+          },
+          {
+            "name": "STARLINK-32022",
+            "norad_id": 60149,
+            "elevation": 11.591232954384974,
+            "azimuth": 314.29461340925553,
+            "latitude": 25.478967115114163,
+            "longitude": 120.76280279093213,
+            "altitude": 482.3784343344878
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 4,
+        "oneweb": 0,
+        "total": 4
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:04:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-11492 [DTC]",
+            "norad_id": 62224,
+            "elevation": 9.292735977869292,
+            "azimuth": 165.7736673995447,
+            "latitude": 24.397708078199784,
+            "longitude": 121.52349269151705,
+            "altitude": 366.73983379643323
+          },
+          {
+            "name": "STARLINK-34080",
+            "norad_id": 64116,
+            "elevation": 14.122710809647117,
+            "azimuth": 347.75348042663336,
+            "latitude": 25.427551660877437,
+            "longitude": 121.25520285025003,
+            "altitude": 454.4045732716777
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 0,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:06:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-2081",
+            "norad_id": 47366,
+            "elevation": 15.665927734426875,
+            "azimuth": 241.33354212454438,
+            "latitude": 24.631603104704727,
+            "longitude": 120.74508779868424,
+            "altitude": 554.3658131311504
+          },
+          {
+            "name": "STARLINK-6032",
+            "norad_id": 57371,
+            "elevation": 5.790237930238206,
+            "azimuth": 176.83086257200034,
+            "latitude": 23.339111151349968,
+            "longitude": 121.46816331251412,
+            "altitude": 566.2276203796264
+          },
+          {
+            "name": "STARLINK-31315",
+            "norad_id": 58884,
+            "elevation": 13.285960322524,
+            "azimuth": 59.01849019035154,
+            "latitude": 25.270273523951104,
+            "longitude": 121.97422962746542,
+            "altitude": 482.36836010027764
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 3,
+        "oneweb": 0,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:08:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-34513",
+            "norad_id": 64609,
+            "elevation": 13.837189787771548,
+            "azimuth": 74.27109743714698,
+            "latitude": 25.082836242215034,
+            "longitude": 121.91896212545848,
+            "altitude": 454.3544282240391
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 0,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:10:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-3649",
+            "norad_id": 51980,
+            "elevation": 16.865051277313814,
+            "azimuth": 20.767361390465055,
+            "latitude": 25.433048441007635,
+            "longitude": 121.57673045045223,
+            "altitude": 546.8796095312282
+          },
+          {
+            "name": "STARLINK-5039",
+            "norad_id": 57247,
+            "elevation": 7.313836503355188,
+            "azimuth": 264.0451879662036,
+            "latitude": 24.78419297954193,
+            "longitude": 119.77214198061844,
+            "altitude": 566.2293871612383
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 0,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:12:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-5426",
+            "norad_id": 54802,
+            "elevation": 6.455084894155705,
+            "azimuth": 179.7994130757918,
+            "latitude": 23.489172307051806,
+            "longitude": 121.37694235053911,
+            "altitude": 546.8865143971716
+          },
+          {
+            "name": "STARLINK-30401",
+            "norad_id": 57818,
+            "elevation": 8.917732886138111,
+            "azimuth": 238.8015314145465,
+            "latitude": 24.262312288866752,
+            "longitude": 120.14542940384008,
+            "altitude": 566.2151667557728
+          },
+          {
+            "name": "STARLINK-30942",
+            "norad_id": 58441,
+            "elevation": 9.821527496060218,
+            "azimuth": 288.6154330727173,
+            "latitude": 25.32858754530789,
+            "longitude": 120.09072701866722,
+            "altitude": 566.2307445673896
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 3,
+        "oneweb": 0,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:14:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-6110",
+            "norad_id": 56907,
+            "elevation": 8.540195799611011,
+            "azimuth": 326.6349003084632,
+            "latitude": 26.063141780236602,
+            "longitude": 120.54951308467564,
+            "altitude": 566.221390482704
+          },
+          {
+            "name": "STARLINK-30981",
+            "norad_id": 58494,
+            "elevation": 14.99951484595099,
+            "azimuth": 256.5560393121283,
+            "latitude": 24.769117248523077,
+            "longitude": 120.57465595953032,
+            "altitude": 566.2292701965689
+          },
+          {
+            "name": "STARLINK-11233 [DTC]",
+            "norad_id": 61061,
+            "elevation": 11.06707259575747,
+            "azimuth": 119.6018554010488,
+            "latitude": 24.71658156518967,
+            "longitude": 121.81113202502664,
+            "altitude": 366.87105327682184
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 3,
+        "oneweb": 0,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:16:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-1094",
+            "norad_id": 44941,
+            "elevation": 15.842343939849606,
+            "azimuth": 81.23821993726278,
+            "latitude": 25.039016103403647,
+            "longitude": 122.0620352245042,
+            "altitude": 554.3261692558654
+          },
+          {
+            "name": "STARLINK-4181",
+            "norad_id": 52882,
+            "elevation": 13.568180729853383,
+            "azimuth": 289.42276676765016,
+            "latitude": 25.211563296429368,
+            "longitude": 120.52569883339446,
+            "altitude": 546.8837481694827
+          },
+          {
+            "name": "STARLINK-4486",
+            "norad_id": 53540,
+            "elevation": 7.796392225508521,
+            "azimuth": 66.70935885772263,
+            "latitude": 25.46416456742436,
+            "longitude": 122.72510263264553,
+            "altitude": 546.8882444371093
+          },
+          {
+            "name": "STARLINK-30552",
+            "norad_id": 57999,
+            "elevation": 17.810611314751633,
+            "azimuth": 81.23036109124519,
+            "latitude": 25.017954838182774,
+            "longitude": 121.90606006474238,
+            "altitude": 566.2201900595101
+          },
+          {
+            "name": "STARLINK-11276 [DTC]",
+            "norad_id": 61244,
+            "elevation": 6.721679585568817,
+            "azimuth": 359.7079015979827,
+            "latitude": 25.661878183316414,
+            "longitude": 121.36732962925086,
+            "altitude": 366.87012897211207
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 5,
+        "oneweb": 0,
+        "total": 5
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:18:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-5046",
+            "norad_id": 53892,
+            "elevation": 7.559147120597447,
+            "azimuth": 208.70369240377488,
+            "latitude": 23.756111848045585,
+            "longitude": 120.66167203885482,
+            "altitude": 546.9073299671572
+          },
+          {
+            "name": "STARLINK-5149",
+            "norad_id": 53981,
+            "elevation": 13.25191269632313,
+            "azimuth": 233.66622889137207,
+            "latitude": 24.44509111326076,
+            "longitude": 120.62874892157294,
+            "altitude": 546.8922180311711
+          },
+          {
+            "name": "STARLINK-30147",
+            "norad_id": 57511,
+            "elevation": 8.303556542657953,
+            "azimuth": 262.78307970897356,
+            "latitude": 24.765266196045715,
+            "longitude": 119.87998583319593,
+            "altitude": 566.222575516369
+          },
+          {
+            "name": "STARLINK-34124",
+            "norad_id": 64109,
+            "elevation": 16.028040528991273,
+            "azimuth": 78.91063229904614,
+            "latitude": 25.01237602006321,
+            "longitude": 121.75822421872634,
+            "altitude": 454.3720809963179
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 4,
+        "oneweb": 0,
+        "total": 4
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:20:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-4518",
+            "norad_id": 53550,
+            "elevation": 8.324612169447304,
+            "azimuth": 84.29351868208215,
+            "latitude": 25.065025128804937,
+            "longitude": 122.77978082339929,
+            "altitude": 546.8879968518222
+          },
+          {
+            "name": "STARLINK-4737",
+            "norad_id": 53834,
+            "elevation": 7.836295193482304,
+            "azimuth": 58.144042850176504,
+            "latitude": 25.639292277201896,
+            "longitude": 122.62157655992274,
+            "altitude": 546.89128576436
+          },
+          {
+            "name": "STARLINK-33891",
+            "norad_id": 63827,
+            "elevation": 8.550042745835242,
+            "azimuth": 345.29186412897127,
+            "latitude": 25.94695784677295,
+            "longitude": 121.0785821071467,
+            "altitude": 490.1660728290608
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 3,
+        "oneweb": 0,
+        "total": 3
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:22:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-2109",
+            "norad_id": 47388,
+            "elevation": 15.527438863544626,
+            "azimuth": 220.10556492458204,
+            "latitude": 24.437784404694355,
+            "longitude": 120.90360107104695,
+            "altitude": 554.3677869113944
+          },
+          {
+            "name": "STARLINK-30386",
+            "norad_id": 57816,
+            "elevation": 5.674222645954848,
+            "azimuth": 171.38252699954342,
+            "latitude": 23.343443455269096,
+            "longitude": 121.6355293502111,
+            "altitude": 566.2145850134648
+          },
+          {
+            "name": "STARLINK-30977",
+            "norad_id": 58459,
+            "elevation": 16.961876610440466,
+            "azimuth": 158.14612565112543,
+            "latitude": 24.418178100492113,
+            "longitude": 121.60298439623051,
+            "altitude": 566.2356694025348
+          },
+          {
+            "name": "STARLINK-34095",
+            "norad_id": 63809,
+            "elevation": 12.435629598399057,
+            "azimuth": 17.77099899639518,
+            "latitude": 25.63544428975466,
+            "longitude": 121.61720434162471,
+            "altitude": 490.1893509106285
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 4,
+        "oneweb": 0,
+        "total": 4
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:24:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-31600",
+            "norad_id": 59341,
+            "elevation": 10.14178758626532,
+            "azimuth": 198.78916529364818,
+            "latitude": 24.083610262423154,
+            "longitude": 121.0508363124649,
+            "altitude": 490.16906417425434
+          },
+          {
+            "name": "STARLINK-34156",
+            "norad_id": 64108,
+            "elevation": 11.446545281450378,
+            "azimuth": 343.41941449862423,
+            "latitude": 25.604882067042364,
+            "longitude": 121.15319401069583,
+            "altitude": 454.3865833676009
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 0,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:26:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-3655",
+            "norad_id": 51983,
+            "elevation": 17.213924053886437,
+            "azimuth": 70.98472340539695,
+            "latitude": 25.103838297030787,
+            "longitude": 121.88587062864491,
+            "altitude": 546.8935048655458
+          },
+          {
+            "name": "STARLINK-31186",
+            "norad_id": 59030,
+            "elevation": 8.123818598382153,
+            "azimuth": 281.58724647861936,
+            "latitude": 25.15872230601625,
+            "longitude": 120.1901744999177,
+            "altitude": 495.2043761734958
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 0,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:28:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-11154 [DTC]",
+            "norad_id": 61059,
+            "elevation": 15.92497303089299,
+            "azimuth": 34.93900337004385,
+            "latitude": 25.089172456978424,
+            "longitude": 121.48327921394446,
+            "altitude": 366.88304637377223
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 0,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:30:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-30538",
+            "norad_id": 57994,
+            "elevation": 10.106891981660345,
+            "azimuth": 322.06445363389514,
+            "latitude": 25.884176059132482,
+            "longitude": 120.55506806019565,
+            "altitude": 566.2351738406032
+          },
+          {
+            "name": "STARLINK-31733",
+            "norad_id": 59486,
+            "elevation": 17.087025245007666,
+            "azimuth": 228.99617136102015,
+            "latitude": 24.705947034732066,
+            "longitude": 121.070161029143,
+            "altitude": 490.1977351406749
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 0,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:32:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-4700",
+            "norad_id": 53722,
+            "elevation": 11.324524112719375,
+            "azimuth": 335.0789506295719,
+            "latitude": 25.85992182418407,
+            "longitude": 120.89818397099174,
+            "altitude": 546.9061134288022
+          },
+          {
+            "name": "STARLINK-31564",
+            "norad_id": 59526,
+            "elevation": 8.173777655721358,
+            "azimuth": 76.5578349937262,
+            "latitude": 25.18798916675154,
+            "longitude": 122.519061818203,
+            "altitude": 490.19978628656554
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 2,
+        "oneweb": 0,
+        "total": 2
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:34:00+00:00",
+      "visible_satellites": {
+        "starlink": [
+          {
+            "name": "STARLINK-30280",
+            "norad_id": 57643,
+            "elevation": 11.55901244705554,
+            "azimuth": 56.90912732898573,
+            "latitude": 25.519236528972268,
+            "longitude": 122.35474390853547,
+            "altitude": 566.2192020192706
+          }
+        ],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 1,
+        "oneweb": 0,
+        "total": 1
+      }
+    },
+    {
+      "timestamp": "2025-08-16T13:36:00+00:00",
+      "visible_satellites": {
+        "starlink": [],
+        "oneweb": []
+      },
+      "counts": {
+        "starlink": 0,
+        "oneweb": 0,
+        "total": 0
+      }
+    }
+  ],
+  "statistics": {
+    "starlink": {
+      "mean": 1.7551020408163265,
+      "median": 2,
+      "min": 0,
+      "max": 5,
+      "std_dev": 1.2995289570471609
+    },
+    "oneweb": {
+      "mean": 0.1836734693877551,
+      "median": 0,
+      "min": 0,
+      "max": 2,
+      "std_dev": 0.48620423468243185
+    },
+    "total": {
+      "mean": 1.9387755102040816,
+      "median": 2,
+      "min": 0,
+      "max": 5,
+      "std_dev": 1.1973610438743008
+    }
+  }
+}

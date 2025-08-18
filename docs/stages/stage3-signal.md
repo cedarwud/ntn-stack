@@ -1,13 +1,13 @@
 # 📡 階段三：信號品質分析與3GPP事件處理
 
-[🔄 返回數據流程導航](../data-flow-index.md) > 階段三
+[🔄 返回數據流程導航](../README.md) > 階段三
 
 ## 📖 階段概述
 
-**目標**：對 563 顆候選衛星進行精細信號品質分析及 3GPP NTN 事件處理  
-**輸入**：階段二記憶體傳遞的篩選結果  
-**輸出**：信號品質數據 + 3GPP事件數據（~295MB，可接受大小）  
-**處理對象**：563顆高品質衛星  
+**目標**：對候選衛星進行精細信號品質分析及 3GPP NTN 事件處理  
+**輸入**：智能篩選處理器記憶體傳遞的篩選結果  
+**輸出**：信號品質數據 + 3GPP事件數據（約200MB）  
+**實際處理**：391顆衛星 (358 Starlink + 33 OneWeb)
 **處理時間**：約 3-5 分鐘
 
 ## 🎯 核心處理模組
@@ -53,12 +53,12 @@ Path_Loss_dB = 32.45 + 20*log10(frequency_MHz) + 20*log10(distance_km)
 
 ### 主要實現位置
 ```bash
-# 信號處理引擎
-/netstack/src/stages/stage3_signal_processor.py
-├── Stage3SignalProcessor.analyze_signal_quality()        # 信號品質分析
-├── Stage3SignalProcessor.generate_3gpp_events()          # 3GPP事件生成
-├── Stage3SignalProcessor.calculate_rsrp_timeseries()     # RSRP時間序列
-└── Stage3SignalProcessor.process_stage3()                # 完整流程執行
+# 信號品質分析引擎
+/netstack/src/stages/signal_quality_analysis_processor.py
+├── SignalQualityAnalysisProcessor.calculate_signal_quality()      # 信號品質分析
+├── SignalQualityAnalysisProcessor.analyze_3gpp_events()           # 3GPP事件生成
+├── SignalQualityAnalysisProcessor.generate_final_recommendations() # 最終建議生成
+└── SignalQualityAnalysisProcessor.process_signal_quality_analysis()  # 完整流程執行
 
 # 3GPP事件生成器
 /netstack/src/services/signal/gpp3_event_generator.py
@@ -69,7 +69,7 @@ Path_Loss_dB = 32.45 + 20*log10(frequency_MHz) + 20*log10(distance_km)
 
 ### 處理流程詳解
 
-1. **基礎信號計算** (563顆衛星 × 720個時間點)
+1. **基礎信號計算** (391顆衛星 × 720個時間點)
    - 計算每個時間點的 RSRP/RSRQ/SINR
    - 生成信號品質時間序列
    - 統計信號品質分佈
@@ -162,10 +162,10 @@ EVENT_THRESHOLDS = {
 
 ### 信號品質統計
 ```
-563顆衛星信號分析結果：
-├── 高品質信號 (RSRP > -90 dBm): ~180顆 (32%)
-├── 中等品質 (-90 ~ -110 dBm): ~250顆 (44%)  
-└── 邊緣品質 (-110 ~ -125 dBm): ~133顆 (24%)
+391顆衛星信號分析結果：
+├── 高品質信號 (RSRP > -90 dBm): ~125顆 (32%)
+├── 中等品質 (-90 ~ -110 dBm): ~172顆 (44%)  
+└── 邊緣品質 (-110 ~ -125 dBm): ~94顆 (24%)
 ```
 
 ### 3GPP事件統計
@@ -195,11 +195,11 @@ EVENT_THRESHOLDS = {
 ### 診斷指令
 
 ```bash
-# 檢查信號處理模組
+# 檢查信號品質分析模組
 python -c "
-from src.stages.stage3_signal_processor import Stage3SignalProcessor
+from src.stages.signal_quality_analysis_processor import SignalQualityAnalysisProcessor
 from src.services.signal.gpp3_event_generator import GPP3EventGenerator
-print('✅ 信號處理模組載入成功')
+print('✅ 信號品質分析模組載入成功')
 "
 
 # 驗證輸出檔案

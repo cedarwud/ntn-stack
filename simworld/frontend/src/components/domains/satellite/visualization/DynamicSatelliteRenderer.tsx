@@ -85,53 +85,82 @@ interface SatelliteOrbit {
 
 const SATELLITE_MODEL_URL = '/static/models/sat.glb' // 修復：使用正確的靜態文件路徑
 
-// 衛星軌道位置計算函數 - 支持循環軌道
+// 🚀 Phase 1 優化：基於真實數據的衛星軌道位置計算
 const calculateOrbitPosition = (
     currentTime: number,
     orbit: SatelliteOrbit,
-    _speedMultiplier: number
+    speedMultiplier: number
 ): { position: [number, number, number]; isVisible: boolean } => {
+    // ✅ 優先使用真實衛星數據進行軌跡計算
+    if (orbit.realData && orbit.realData.position) {
+        const realPos = orbit.realData.position;
+        
+        // 基於真實仰角和方位角計算3D位置
+        const elevation = (realPos.elevation * Math.PI) / 180; // 轉換為弧度
+        const azimuth = (realPos.azimuth * Math.PI) / 180; // 轉換為弧度
+        const range = realPos.range || 1000; // 距離 (km)
+        
+        // 3D球面座標轉換 (基於真實軌道參數)
+        const scaledRange = Math.min(range / 3, 800); // 縮放到適合的3D顯示範圍
+        const x = scaledRange * Math.cos(elevation) * Math.sin(azimuth);
+        const z = scaledRange * Math.cos(elevation) * Math.cos(azimuth);
+        const y = Math.max(15, scaledRange * Math.sin(elevation) + 80); // 確保最小高度
+        
+        // ✅ 基於真實仰角判定可見性 (符合物理原理)
+        const isVisible = realPos.elevation > 0; // 仰角 > 0° 才可見
+        
+        return {
+            position: [x, y, z] as [number, number, number],
+            isVisible: isVisible
+        };
+    }
+    
+    // 🔙 Fallback：當沒有真實數據時使用簡化軌道計算
     // 計算總軌道週期 (過境時間 + 不可見時間)
-    // 修正：使用真實 LEO 軌道週期 90分鐘 = 5400秒
-    const totalOrbitPeriod = 5400 // 真實 LEO 軌道週期 (90分鐘)
+    const totalOrbitPeriod = 5400; // 真實 LEO 軌道週期 (90分鐘)
 
     // 計算從開始時間到現在的相對時間
-    const relativeTime = currentTime - orbit.transitStartTime
+    const relativeTime = currentTime - orbit.transitStartTime;
 
     // 使用模運算實現循環軌道
     const normalizedTime =
         ((relativeTime % totalOrbitPeriod) + totalOrbitPeriod) %
-        totalOrbitPeriod
+        totalOrbitPeriod;
 
     // 檢查是否在過境期間
-    const isInTransit = normalizedTime <= orbit.transitDuration
+    const isInTransit = normalizedTime <= orbit.transitDuration;
 
     if (!isInTransit) {
         return {
             position: [0, -200, 0] as [number, number, number], // 隱藏在地下
             isVisible: false,
-        }
+        };
     }
 
     // 計算過境進度 (0 到 1)
-    const transitProgress = normalizedTime / orbit.transitDuration
+    const transitProgress = normalizedTime / orbit.transitDuration;
+
+    // 🔧 應用真實速度倍數調整 (如果可用)
+    const realVelocity = orbit.realData?.position.velocity || 7.5; // km/s
+    const velocityFactor = (realVelocity / 7.5) * speedMultiplier; // 標準化速度調整
+    const adjustedProgress = Math.min(1.0, transitProgress * velocityFactor);
 
     // 計算軌道位置 - 完整的半圓弧軌道
-    const azimuthShift = (orbit.azimuthShift * Math.PI) / 180
-    const angle = transitProgress * Math.PI // 0 到 π 的半圓
+    const azimuthShift = (orbit.azimuthShift * Math.PI) / 180;
+    const angle = adjustedProgress * Math.PI; // 0 到 π 的半圓
 
-    const baseRadius = 600
-    const heightRadius = 300
+    const baseRadius = 600;
+    const heightRadius = 300;
 
     // 3D 軌道計算
-    const x = baseRadius * Math.cos(angle) * Math.cos(azimuthShift)
-    const z = baseRadius * Math.cos(angle) * Math.sin(azimuthShift)
-    const y = Math.max(15, 80 + heightRadius * Math.sin(angle))
+    const x = baseRadius * Math.cos(angle) * Math.cos(azimuthShift);
+    const z = baseRadius * Math.cos(angle) * Math.sin(azimuthShift);
+    const y = Math.max(15, 80 + heightRadius * Math.sin(angle));
 
     // 只有高度足夠才可見
-    const isVisible = y > 25
+    const isVisible = y > 25;
 
-    return { position: [x, y, z], isVisible }
+    return { position: [x, y, z], isVisible };
 }
 
 const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
@@ -195,11 +224,27 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         // 立即更新一次
         updateRealData()
 
-        // 定期檢查更新 - 降低頻率避免過度渲染
-        const interval = setInterval(updateRealData, 10000) // 每10秒檢查一次
+        // 🚀 Phase 1 優化：提高更新頻率以獲得更精確的軌跡
+        const interval = setInterval(updateRealData, 5000) // 每5秒檢查一次，提高軌跡精確度
 
         return () => clearInterval(interval)
     }, [enabled, useRealData, realSatelliteMapping.size, realDataStatus])
+
+    // 🚀 Phase 1 優化：在真實數據更新時立即重算軌道
+    useEffect(() => {
+        if (realSatelliteMapping.size > 0) {
+            // 立即更新所有軌道的真實數據
+            setOrbits(prevOrbits => 
+                prevOrbits.map(orbit => ({
+                    ...orbit,
+                    realData: realSatelliteMapping.get(orbit.id) || orbit.realData,
+                    // ✅ 同步更新仰角和方位角
+                    elevation: realSatelliteMapping.get(orbit.id)?.position.elevation || orbit.elevation,
+                    azimuth: realSatelliteMapping.get(orbit.id)?.position.azimuth || orbit.azimuth,
+                }))
+            );
+        }
+    }, [realSatelliteMapping])
 
     // 初始化衛星軌道 - 修復：使用真實衛星數據而非模擬數據
     useEffect(() => {
@@ -272,28 +317,33 @@ const DynamicSatelliteRenderer: React.FC<DynamicSatelliteRendererProps> = ({
         }
     }, [enabled, satellites, realSatelliteMapping])
 
-    // 更新軌道動畫
+    // 🚀 Phase 1 優化：使用真實速度的動畫更新
     useFrame(() => {
         if (!enabled) return
 
-        timeRef.current += speedMultiplier / 60
-
         setOrbits((prevOrbits) => {
-            const updatedOrbits = prevOrbits.map((orbit) => {
+            return prevOrbits.map((orbit) => {
+                // ✅ 基於真實速度調整時間步長
+                const realVelocity = orbit.realData?.position.velocity || 7.5; // km/s
+                const normalizedVelocity = realVelocity / 7.5; // 標準化 (LEO 平均速度 7.5 km/s)
+                const timeStep = speedMultiplier * normalizedVelocity / 60;
+                
+                // 更新時間基準
+                timeRef.current += timeStep;
+                
                 const state = calculateOrbitPosition(
                     timeRef.current,
                     orbit,
                     speedMultiplier
-                )
+                );
+                
                 return {
                     ...orbit,
                     currentPosition: state.position,
                     isVisible: state.isVisible,
-                }
-            })
-
-            return updatedOrbits
-        })
+                };
+            });
+        });
     })
 
     // 🔗 使用 useRef 來避免在 useEffect 中依賴不斷變化的 orbits

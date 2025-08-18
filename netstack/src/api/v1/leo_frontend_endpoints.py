@@ -15,21 +15,20 @@ router = APIRouter(prefix="/api/v1/leo-frontend", tags=["leo-frontend"])
 # 全域轉換器實例
 converter = LEODataConverter()
 
-@router.get("/satellites", response_model=Dict[str, Any])
 async def get_satellites_for_frontend(
-    format: str = Query("current", description="數據格式: current|historical|enhanced"),
-    constellation: Optional[str] = Query(None, description="星座篩選: starlink|oneweb"),
-    min_elevation: float = Query(10.0, description="最小仰角篩選")
+    constellation: Optional[str] = Query(None, description="星座篩選 (starlink/oneweb)"),
+    min_elevation: float = Query(5.0, description="最小仰角 (度)"),
+    format: str = Query("enhanced", description="輸出格式 (basic/enhanced)")
 ) -> Dict[str, Any]:
     """
-    獲取前端格式的衛星數據
+    獲取衛星數據，支援多種篩選和格式選項
     
     Returns:
-        Dict: 包含衛星列表和統計信息的前端格式數據
+        Dict: 前端格式的衛星數據，包含位置、可見性等信息
     """
     try:
-        # 使用最新的 LEO 輸出數據
-        leo_output_dir = "/tmp/leo_outputs"
+        # 使用 /app/data 目錄而非 /tmp
+        leo_output_dir = "/app/data/dynamic_pool_planning_outputs"
         
         # 檢查數據是否存在
         output_path = Path(leo_output_dir)
@@ -78,7 +77,58 @@ async def get_satellites_for_frontend(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"數據轉換失敗: {str(e)}")
 
-@router.get("/satellites/enhanced", response_model=Dict[str, Any])
+
+@router.get("/dynamic-pools/summary")
+async def get_dynamic_pool_summary() -> Dict[str, Any]:
+    """
+    獲取動態衛星池規劃摘要信息
+    
+    Returns:
+        Dict: 動態池規劃的統計摘要
+    """
+    try:
+        # Stage 6 輸出文件路徑
+        stage6_output_path = Path("/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json")
+        
+        # 如果主輸出路徑不存在，嘗試替代文件名
+        if not stage6_output_path.exists():
+            stage6_output_path = Path("/app/data/dynamic_pool_planning_outputs/enhanced_pools_with_3d.json")
+        
+        if not stage6_output_path.exists():
+            raise HTTPException(
+                status_code=404, 
+                detail="動態衛星池數據不存在"
+            )
+        
+        # 載入 Stage 6 輸出
+        with open(stage6_output_path, 'r', encoding='utf-8') as f:
+            stage6_data = json.load(f)
+        
+        # 提取關鍵統計信息
+        summary = {
+            "status": "success",
+            "timestamp": stage6_data.get('metadata', {}).get('timestamp'),
+            "processing_time_seconds": stage6_data.get('metadata', {}).get('processing_time_seconds'),
+            "optimization_results": stage6_data.get('optimization_results', {}),
+            "dynamic_satellite_pool": stage6_data.get('dynamic_satellite_pool', {}),
+            "coverage_targets_met": stage6_data.get('coverage_targets_met', {}),
+            "performance_metrics": stage6_data.get('performance_metrics', {}),
+            "observer_coordinates": stage6_data.get('metadata', {}).get('observer_coordinates', {}),
+            "current_3d_status": {
+                "visible_count": stage6_data.get('frontend_3d_data', {}).get('current_visible_count', 0),
+                "last_updated": stage6_data.get('frontend_3d_data', {}).get('timestamp'),
+                "data_freshness": "real-time" if stage6_data.get('frontend_3d_data') else "unavailable"
+            }
+        }
+        
+        return summary
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"獲取動態池摘要失敗: {str(e)}"
+        )
+
 async def get_enhanced_satellites_data():
     """
     獲取增強版衛星數據（包含可見性分析和軌道數據）
@@ -87,7 +137,8 @@ async def get_enhanced_satellites_data():
         Dict: 增強版前端格式數據，包含 LEO 系統的詳細分析
     """
     try:
-        leo_output_dir = "/tmp/leo_outputs"
+        # 使用 /app/data 目錄而非 /tmp
+        leo_output_dir = "/app/data/dynamic_pool_planning_outputs"
         
         # 獲取基本衛星數據
         satellites = converter.convert_leo_to_frontend_format(leo_output_dir)
@@ -96,13 +147,13 @@ async def get_enhanced_satellites_data():
         analysis_data = {}
         
         # 讀取最終報告
-        final_report_path = Path(leo_output_dir) / "leo_optimization_final_report.json"
+        final_report_path = Path(leo_output_dir) / "enhanced_dynamic_pools_output.json"
         if final_report_path.exists():
             with open(final_report_path, 'r') as f:
                 analysis_data['final_report'] = json.load(f)
         
         # 讀取事件分析結果
-        event_analysis_path = Path(leo_output_dir) / "handover_event_analysis_results.json"
+        event_analysis_path = Path("/app/data/signal_analysis_outputs") / "signal_event_analysis_output.json"
         if event_analysis_path.exists():
             with open(event_analysis_path, 'r') as f:
                 analysis_data['event_analysis'] = json.load(f)
@@ -136,7 +187,6 @@ async def get_enhanced_satellites_data():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"增強數據獲取失敗: {str(e)}")
 
-@router.get("/status", response_model=Dict[str, Any])
 async def get_leo_system_status():
     """
     獲取 LEO 系統狀態
@@ -145,7 +195,8 @@ async def get_leo_system_status():
         Dict: LEO 系統運行狀態和數據可用性
     """
     try:
-        leo_output_dir = "/tmp/leo_outputs"
+        # 使用 /app/data 目錄而非 /tmp
+        leo_output_dir = "/app/data/dynamic_pool_planning_outputs"
         output_path = Path(leo_output_dir)
         
         status = {
@@ -158,45 +209,75 @@ async def get_leo_system_status():
         if output_path.exists():
             # 檢查各種數據檔案
             expected_files = [
-                "leo_optimization_final_report.json",
-                "tle_loading_and_orbit_calculation_results.json", 
-                "satellite_filtering_and_candidate_selection_results.json",
-                "handover_event_analysis_results.json",
-                "dynamic_satellite_pool_optimization_results.json"
+                "enhanced_dynamic_pools_output.json",
             ]
             
-            for filename in expected_files:
-                file_path = output_path / filename
-                status["data_files"][filename] = {
-                    "exists": file_path.exists(),
-                    "size_mb": file_path.stat().st_size / 1024 / 1024 if file_path.exists() else 0,
-                    "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat() if file_path.exists() else None
-                }
+            # 檢查其他階段輸出
+            stage_outputs = [
+                ("/app/data/tle_calculation_outputs", "tle_calculation_output.json"),
+                ("/app/data/intelligent_filtering_outputs", "intelligent_filtering_output.json"), 
+                ("/app/data/signal_analysis_outputs", "signal_event_analysis_output.json"),
+                ("/app/data/timeseries_preprocessing_outputs", "starlink_enhanced.json"),
+                ("/app/data/data_integration_outputs", "data_integration_output.json")
+            ]
             
-            # 獲取最後更新時間
-            if status["data_files"]["leo_optimization_final_report.json"]["exists"]:
-                status["last_updated"] = status["data_files"]["leo_optimization_final_report.json"]["modified"]
-                status["system_health"] = "healthy"
+            file_count = 0
+            latest_time = None
+            
+            for file_name in expected_files:
+                file_path = output_path / file_name
+                if file_path.exists():
+                    file_stat = file_path.stat()
+                    status["data_files"][file_name] = {
+                        "exists": True,
+                        "size_mb": file_stat.st_size / (1024 * 1024),
+                        "modified": datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+                    }
+                    
+                    file_time = datetime.fromtimestamp(file_stat.st_mtime)
+                    if latest_time is None or file_time > latest_time:
+                        latest_time = file_time
+                    
+                    file_count += 1
+                else:
+                    status["data_files"][file_name] = {"exists": False}
+            
+            # 檢查其他階段檔案
+            for stage_dir, stage_file in stage_outputs:
+                stage_path = Path(stage_dir) / stage_file
+                if stage_path.exists():
+                    file_stat = stage_path.stat()
+                    status["data_files"][f"{stage_dir.split('/')[-1]}/{stage_file}"] = {
+                        "exists": True,
+                        "size_mb": file_stat.st_size / (1024 * 1024),
+                        "modified": datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+                    }
+                    file_count += 1
+            
+            # 設定狀態
+            if latest_time:
+                status["last_updated"] = latest_time.isoformat()
+                
+                # 檢查數據新鮮度
+                time_diff = datetime.now() - latest_time
+                if time_diff.total_seconds() < 3600:  # 1小時內
+                    status["system_health"] = "excellent"
+                elif time_diff.total_seconds() < 86400:  # 24小時內
+                    status["system_health"] = "good"
+                else:
+                    status["system_health"] = "outdated"
+            
+            if file_count >= 3:
+                status["data_completeness"] = "complete"
+            elif file_count >= 1:
+                status["data_completeness"] = "partial"
             else:
-                status["system_health"] = "incomplete"
-        else:
-            status["system_health"] = "offline"
+                status["data_completeness"] = "empty"
         
-        return {
-            "success": True,
-            "status": status,
-            "frontend_compatibility": True,
-            "recommended_action": "ready" if status["system_health"] == "healthy" else "run_leo_system"
-        }
+        return status
         
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "status": {"system_health": "error"},
-            "frontend_compatibility": False,
-            "recommended_action": "check_system"
-        }
+        raise HTTPException(status_code=500, detail=f"狀態檢查失敗: {str(e)}")
 
 @router.post("/refresh", response_model=Dict[str, Any])
 async def refresh_leo_data():
@@ -207,7 +288,7 @@ async def refresh_leo_data():
         Dict: 數據刷新結果
     """
     try:
-        leo_output_dir = "/tmp/leo_outputs"
+        leo_output_dir = "/app/data/leo_outputs"
         
         # 重新轉換數據
         output_file = converter.save_frontend_format(leo_output_dir)

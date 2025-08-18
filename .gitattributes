@@ -4,3 +4,6 @@
 .serena filter=lfs diff=lfs merge=lfs -text
 .serena/cache/python/ filter=lfs diff=lfs merge=lfs -text
 .serena/cache/python/document_symbols_cache_v23-06-25.pkl filter=lfs diff=lfs merge=lfs -text
+data/ filter=lfs diff=lfs merge=lfs -text
+data/leo_outputs/signal_analysis_outputs/*.json filter=lfs diff=lfs merge=lfs -text
+*.json filter=lfs diff=lfs merge=lfs -text lockable

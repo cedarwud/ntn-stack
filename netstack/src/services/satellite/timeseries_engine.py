@@ -308,85 +308,91 @@ class DynamicTimeWindowSelector:
         }
     
     async def _simulate_visible_satellites(self, timestamp: datetime, constellation: str) -> int:
-        """真實可見衛星數量計算 - 使用物理原理
+    """計算特定時間點的可見衛星數量 - 使用真實 SGP4 軌道計算"""
+    
+    try:
+        # 獲取最新的 TLE 數據檔案
+        constellation_lower = constellation.lower()
+        tle_data_dir = Path("/netstack/tle_data") / constellation_lower / "tle"
         
-        禁止使用隨機數模擬！必須基於真實軌道計算
-        """
-        try:
-            # 嘗試使用真實 SGP4 計算庫
-            from skyfield.api import Loader, utc, wgs84
-            from skyfield.sgp4lib import EarthSatellite
-            
-            # 載入真實 TLE 數據
-            tle_data_path = f"/home/sat/ntn-stack/netstack/tle_data/{constellation}/tle/"
-            import os
-            import glob
-            
-            # 找到最新的 TLE 文件
-            tle_files = glob.glob(f"{tle_data_path}{constellation}_*.tle")
-            if not tle_files:
-                logger.warning(f"無法找到 {constellation} 的 TLE 數據")
-                return self._calculate_deterministic_visibility(timestamp, constellation)
-            
-            latest_tle_file = max(tle_files, key=os.path.getctime)
-            
-            # 載入 Skyfield
-            loader = Loader('/tmp/skyfield-data')
-            ts = loader.timescale()
-            
-            # NTPU 觀測點
-            ntpu = wgs84.latlon(NTPU_LAT, NTPU_LON, elevation_m=int(NTPU_ALT * 1000))
-            
-            # 讀取 TLE 數據
-            visible_count = 0
-            with open(latest_tle_file, 'r') as f:
-                lines = f.readlines()
-            
-            # 解析 TLE (每3行一組，取前20顆進行快速計算)
-            sample_size = min(60, len(lines) // 3)  # 快速採樣
-            for i in range(0, sample_size * 3, 3):
-                if i + 2 >= len(lines):
-                    break
-                
-                name = lines[i].strip()
-                line1 = lines[i + 1].strip()
-                line2 = lines[i + 2].strip()
-                
-                if not (line1.startswith('1 ') and line2.startswith('2 ')):
-                    continue
-                
-                try:
-                    # 創建衛星對象
-                    satellite = EarthSatellite(line1, line2, name, ts)
-                    
-                    # 計算位置
-                    t = ts.from_datetime(timestamp.replace(tzinfo=utc))
-                    difference = satellite - ntpu
-                    topocentric = difference.at(t)
-                    alt, az, distance = topocentric.altaz()
-                    
-                    # 檢查可見性 (仰角 >= 10 度)
-                    if alt.degrees >= 10.0:
-                        visible_count += 1
-                        
-                except Exception as e:
-                    logger.debug(f"計算衛星 {name} 可見性失敗: {e}")
-                    continue
-            
-            # 根據採樣比例估算總數
-            if sample_size > 0:
-                total_satellites = len(lines) // 3
-                estimated_total = int(visible_count * total_satellites / sample_size)
-                return min(estimated_total, 15)  # 限制最大值
-            
-            return visible_count
-            
-        except ImportError:
-            logger.warning("無法載入 Skyfield，使用確定性計算")
+        if not tle_data_dir.exists():
+            logger.warning(f"TLE 數據目錄不存在: {tle_data_dir}")
             return self._calculate_deterministic_visibility(timestamp, constellation)
-        except Exception as e:
-            logger.warning(f"真實可見性計算失敗: {e}，使用確定性計算")
+        
+        # 尋找最新的 TLE 檔案
+        tle_files = list(tle_data_dir.glob("*.tle"))
+        if not tle_files:
+            logger.warning(f"無可用的 TLE 檔案: {tle_data_dir}")
             return self._calculate_deterministic_visibility(timestamp, constellation)
+        
+        # 按檔案時間排序，選擇最新的
+        latest_tle_file = max(tle_files, key=lambda x: x.stat().st_mtime)
+        logger.debug(f"使用 TLE 檔案: {latest_tle_file}")
+        
+        # 嘗試使用 Skyfield 進行真實軌道計算
+        from skyfield.api import Loader, utc, wgs84
+        from skyfield.sgp4lib import EarthSatellite
+        
+        # 使用 /app/data 目錄存儲 Skyfield 數據
+        skyfield_data_dir = Path("/app/data/skyfield-data")
+        skyfield_data_dir.mkdir(parents=True, exist_ok=True)
+        
+        loader = Loader(str(skyfield_data_dir))
+        ts = loader.timescale()
+        
+        # NTPU 觀測點
+        ntpu = wgs84.latlon(NTPU_LAT, NTPU_LON, elevation_m=int(NTPU_ALT * 1000))
+        
+        # 讀取 TLE 數據
+        visible_count = 0
+        with open(latest_tle_file, 'r') as f:
+            lines = f.readlines()
+        
+        # 解析 TLE (每3行一組，取前20顆進行快速計算)
+        sample_size = min(60, len(lines) // 3)  # 快速採樣
+        for i in range(0, sample_size * 3, 3):
+            if i + 2 >= len(lines):
+                break
+            
+            name = lines[i].strip()
+            line1 = lines[i + 1].strip()
+            line2 = lines[i + 2].strip()
+            
+            if not (line1.startswith('1 ') and line2.startswith('2 ')):
+                continue
+            
+            try:
+                # 創建衛星對象
+                satellite = EarthSatellite(line1, line2, name, ts)
+                
+                # 計算位置
+                t = ts.from_datetime(timestamp.replace(tzinfo=utc))
+                difference = satellite - ntpu
+                topocentric = difference.at(t)
+                alt, az, distance = topocentric.altaz()
+                
+                # 檢查可見性 (仰角 >= 10 度)
+                if alt.degrees >= 10.0:
+                    visible_count += 1
+                    
+            except Exception as e:
+                logger.debug(f"計算衛星 {name} 可見性失敗: {e}")
+                continue
+        
+        # 根據採樣比例估算總數
+        if sample_size > 0:
+            total_satellites = len(lines) // 3
+            estimated_total = int(visible_count * total_satellites / sample_size)
+            return min(estimated_total, 15)  # 限制最大值
+        
+        return visible_count
+        
+    except ImportError:
+        logger.warning("無法載入 Skyfield，使用確定性計算")
+        return self._calculate_deterministic_visibility(timestamp, constellation)
+    except Exception as e:
+        logger.warning(f"真實可見性計算失敗: {e}，使用確定性計算")
+        return self._calculate_deterministic_visibility(timestamp, constellation)
     
     def _calculate_deterministic_visibility(self, timestamp: datetime, constellation: str) -> int:
         """確定性可見衛星計算 - 基於軌道力學原理
@@ -706,7 +712,7 @@ class BatchTrajectoryCalculator:
             # 檢查是否有 TLE 數據
             if 'line1' in satellite and 'line2' in satellite:
                 # 使用真實 TLE 數據
-                loader = Loader('/tmp/skyfield-data')
+                loader = Loader('/app/data/cache/skyfield-data')
                 ts = loader.timescale()
                 
                 sat = EarthSatellite(

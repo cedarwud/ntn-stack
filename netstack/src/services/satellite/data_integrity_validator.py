@@ -515,7 +515,7 @@ class DataIntegrityValidator:
         """
         if output_path is None:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            output_path = f"/tmp/data_integrity_report_{timestamp}.json"
+            output_path = f"/app/data/reports/data_integrity_report_{timestamp}.json"
         
         try:
             with open(output_path, 'w', encoding='utf-8') as f:

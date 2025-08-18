@@ -5,7 +5,7 @@
 
 export const SATELLITE_CONFIG = {
   // === 核心顯示參數 ===
-  VISIBLE_COUNT: 30,                // 台灣地區可見衛星數量
+  // VISIBLE_COUNT: 移除硬編碼，改用動態API數據
   MIN_ELEVATION: 10,                // 最小仰角（3GPP NTN 標準）
   
   // === 時間控制（統一管理）===
@@ -79,7 +79,6 @@ export const DYNAMIC_CONFIG = {
   // 可動態調整的參數
   adjustableParams: [
     'TIME_MULTIPLIER',
-    'VISIBLE_COUNT', 
     'HANDOVER_ELEVATION_THRESHOLD',
     'TRAIL_LENGTH'
   ] as const,
@@ -87,7 +86,6 @@ export const DYNAMIC_CONFIG = {
   // 參數範圍限制
   paramLimits: {
     TIME_MULTIPLIER: [0.1, 100],
-    VISIBLE_COUNT: [5, 100],
     HANDOVER_ELEVATION_THRESHOLD: [10, 45],
     TRAIL_LENGTH: [1, 30]
   }

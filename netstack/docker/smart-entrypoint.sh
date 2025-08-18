@@ -13,25 +13,39 @@ mkdir -p "$DATA_DIR" || true
 check_data_integrity() {
     echo "🔍 智能數據檢查開始..."
     
-    # 檢查 LEO 核心系統輸出文件是否存在
-    if [ ! -f "$DATA_DIR/phase1_final_report.json" ] && [ ! -f "$DATA_DIR/stage2_filtering_results.json" ]; then
-        echo "❌ LEO 核心系統輸出文件缺失，需要重新計算"
+    # 檢查六階段系統輸出文件是否存在 (混合模式：Stage1-2記憶體，Stage3-6檔案)
+    # Stage3-6 應該有檔案輸出，Stage1-2 使用記憶體傳遞
+    critical_files=(
+        "$DATA_DIR/signal_analysis_outputs/signal_event_analysis_output.json"
+        "$DATA_DIR/timeseries_preprocessing_outputs/enhanced_timeseries_output.json"
+        "$DATA_DIR/data_integration_outputs/data_integration_output.json"
+        "$DATA_DIR/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json"
+    )
+    
+    missing_files=0
+    for file in "${critical_files[@]}"; do
+        if [ ! -f "$file" ]; then
+            echo "❌ 關鍵階段輸出檔案缺失: $file"
+            missing_files=$((missing_files + 1))
+        fi
+    done
+    
+    if [ $missing_files -gt 0 ]; then
+        echo "❌ 六階段系統輸出不完整，需要重新計算 (缺失 $missing_files 個檔案)"
         return 1
     fi
     
-    # 檢查文件大小（彈性檢查，允許較小的檔案）
-    if [ -f "$DATA_DIR/phase1_final_report.json" ]; then
-        SIZE=$(stat -c%s "$DATA_DIR/phase1_final_report.json" 2>/dev/null || echo 0)
+    # 檢查關鍵檔案大小（彈性檢查，動態池規劃作為完整性指標）
+    if [ -f "$DATA_DIR/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json" ]; then
+        SIZE=$(stat -c%s "$DATA_DIR/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json" 2>/dev/null || echo 0)
         if [ "$SIZE" -lt 10000 ]; then
-            echo "❌ LEO 主要輸出文件太小，可能損壞 (大小: ${SIZE} bytes)"
+            echo "❌ 動態池規劃輸出文件太小，可能損壞 (大小: ${SIZE} bytes)"
             return 1
         fi
-    elif [ -f "$DATA_DIR/stage2_filtering_results.json" ]; then
-        SIZE=$(stat -c%s "$DATA_DIR/stage2_filtering_results.json" 2>/dev/null || echo 0)
-        if [ "$SIZE" -lt 10000 ]; then
-            echo "❌ LEO 篩選結果文件太小，可能損壞 (大小: ${SIZE} bytes)"
-            return 1
-        fi
+        echo "✅ 動態池規劃輸出文件大小正常: ${SIZE} bytes"
+    else
+        echo "❌ 動態池規劃輸出文件不存在"
+        return 1
     fi
     
     # 混合模式關鍵：比較 TLE 數據和預計算數據的時間戳
@@ -52,11 +66,9 @@ check_data_integrity() {
         done
     fi
     
-    # 獲取 LEO 核心系統輸出的時間戳（彈性檢查）
-    if [ -f "$DATA_DIR/phase1_final_report.json" ]; then
-        DATA_TIME=$(stat -c%Y "$DATA_DIR/phase1_final_report.json" 2>/dev/null || echo 0)
-    elif [ -f "$DATA_DIR/stage2_filtering_results.json" ]; then
-        DATA_TIME=$(stat -c%Y "$DATA_DIR/stage2_filtering_results.json" 2>/dev/null || echo 0)
+    # 獲取六階段系統輸出的時間戳（使用動態池規劃作為完整性指標）
+    if [ -f "$DATA_DIR/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json" ]; then
+        DATA_TIME=$(stat -c%Y "$DATA_DIR/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json" 2>/dev/null || echo 0)
     else
         DATA_TIME=0
     fi
@@ -98,46 +110,45 @@ regenerate_data() {
     cd /app
     echo "🔨 執行真實數據生成 (Phase 2.5 完整數據)..."
     
-    # 執行 LEO 核心系統 (Phase 1 - 統一四組件管道)
-    echo "🔨 LEO 核心系統：四組件統一管道 (TLE載入→篩選→信號分析→動態規劃)..."
-    echo "🎯 分層輸出策略：F1/F2→/tmp(臨時)，F3/A1→$DATA_DIR(永久)"
-    echo "⏱️ 預估處理時間：2-5分鐘 (開發模式) 或 15-30分鐘 (完整模式)"
-    if timeout 1800 python src/leo_core/main.py --output-dir "$DATA_DIR" --full-test; then
-        echo "✅ LEO 核心系統完成"
+    # 執行增強六階段系統 (完整流程)
+    echo "🔨 增強六階段系統：完整統一管道 (TLE載入→智能篩選→信號分析→時間序列→數據整合→動態池規劃)..."
+    echo "🎯 unified controller: leo_main_pipeline_controller.py"
+    echo "⏱️ 預估處理時間：5-10分鐘 (開發模式) 或 20-45分鐘 (完整模式)"
+    if timeout 2700 python src/leo_core/main_pipeline_controller.py --mode full --data-dir "$DATA_DIR"; then
+        echo "✅ 增強六階段系統完成"
     else
-        echo "❌ LEO 核心系統失敗或超時 (30分鐘)"
+        echo "❌ 增強六階段系統失敗或超時 (45分鐘)"
         echo "🔍 檢查是否有部分輸出可用..."
-        if [ -f "$DATA_DIR/stage1_tle_loading_results.json" ] || [ -f "$DATA_DIR/stage2_filtering_results.json" ]; then
+        if [ -f "$DATA_DIR/tle_calculation_outputs/tle_sgp4_calculation_output.json" ] || [ -f "$DATA_DIR/intelligent_filtering_outputs/intelligent_filtered_output.json" ]; then
             echo "⚠️ 發現部分輸出，繼續啟動 API 服務 (降級模式)"
         else
             exit 1
         fi
     fi
     
-    # 檢查 LEO 核心系統輸出是否成功
-    echo "🔍 檢查 LEO 核心系統輸出文件是否存在: $DATA_DIR/phase1_final_report.json"
+    # 檢查增強六階段系統輸出是否成功
+    echo "🔍 檢查增強六階段系統輸出文件是否存在: $DATA_DIR/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json"
     ls -la "$DATA_DIR"/ || echo "❌ 無法列出數據目錄"
     
     # 檢查輸出文件
-    if [ -f "$DATA_DIR/phase1_final_report.json" ]; then
+    if [ -f "$DATA_DIR/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json" ]; then
         # 檢查文件大小
-        FILE_SIZE=$(stat -c%s "$DATA_DIR/phase1_final_report.json" 2>/dev/null || echo 0)
-        echo "📊 LEO 核心系統輸出文件大小: $FILE_SIZE bytes"
+        FILE_SIZE=$(stat -c%s "$DATA_DIR/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json" 2>/dev/null || echo 0)
+        echo "📊 增強六階段系統輸出文件大小: $FILE_SIZE bytes"
         
         # 創建完成標記
         echo "$(date -Iseconds)" > "$MARKER_FILE"
-        echo "✅ LEO 核心系統數據生成完成"
+        echo "✅ 增強六階段系統數據生成完成"
         
         # 顯示生成的文件信息
-        echo "📊 生成的 LEO 核心系統文件:"
-        ls -lh "$DATA_DIR"/phase1_*.json 2>/dev/null || true
-        ls -lh "$DATA_DIR"/stage*_*.json 2>/dev/null || true
-    elif [ -f "$DATA_DIR/stage2_filtering_results.json" ]; then
+        echo "📊 生成的增強六階段系統文件:"
+        ls -lh "$DATA_DIR"/*_outputs/*.json 2>/dev/null || true
+    elif [ -f "$DATA_DIR/intelligent_filtering_outputs/intelligent_filtered_output.json" ]; then
         echo "⚠️ 主要輸出文件不存在，但發現篩選結果，繼續啟動 (降級模式)"
         echo "$(date -Iseconds)" > "$MARKER_FILE"
-        ls -lh "$DATA_DIR"/stage*_*.json 2>/dev/null || true
+        ls -lh "$DATA_DIR"/*_outputs/*.json 2>/dev/null || true
     else
-        echo "❌ LEO 核心系統數據生成失敗 - 無可用輸出文件"
+        echo "❌ 增強六階段系統數據生成失敗 - 無可用輸出文件"
         echo "🔍 數據目錄內容:"
         ls -la "$DATA_DIR"/ || echo "無法訪問數據目錄"
         exit 1
