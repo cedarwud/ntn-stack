@@ -1,19 +1,3 @@
-{
-  "metadata": {
-    "constellation": "oneweb",
-    "processing_stage": "stage4_enhanced_timeseries",
-    "generation_time": "2025-08-18T09:42:12.738077+00:00",
-    "source_stage": "stage3_signal_event_analysis",
-    "total_satellites": 36,
-    "successful_conversions": 36,
-    "failed_conversions": 0,
-    "conversion_rate": "100.0%",
-    "satellite_count": 36,
-    "filename_standard": "fixed_naming",
-    "previous_dynamic_name": "oneweb_enhanced_36sats.json",
-    "elevation_threshold_deg": 10,
-    "filtered_satellites_count": 0,
-    "stage5_processing_time": "2025-08-18T09:42:13.913706+00:00"
-  },
-  "satellites": []
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:9f9fc183ae94ee2221db805a187ed497374511e4f29723571b6077c95ff9ba4b
+size 627

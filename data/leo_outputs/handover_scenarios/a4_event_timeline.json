@@ -1,10 +1,3 @@
-{
-  "metadata": {
-    "event_type": "A4_neighbor_better_than_threshold",
-    "threshold_dbm": -80.0,
-    "hysteresis_db": 3.0,
-    "total_events": 0,
-    "generation_time": "2025-08-18T09:42:13.913922+00:00"
-  },
-  "events": []
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:a143032249fa282e9ca84d62fa26f173391baa228abe4d5f8603d579cfa789d5
+size 229

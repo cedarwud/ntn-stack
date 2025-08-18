@@ -1,12 +1,3 @@
-{
-  "metadata": {
-    "analysis_type": "optimal_handover_windows",
-    "quality_criteria": {
-      "min_rsrp_dbm": -85,
-      "min_elevation_deg": 10
-    },
-    "total_windows": 0,
-    "generation_time": "2025-08-18T09:42:13.914100+00:00"
-  },
-  "windows": []
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:1f56771b583b81ebf137e6c7abaeda8b1517d9529b16f90f21602ad3e5af69d3
+size 261
