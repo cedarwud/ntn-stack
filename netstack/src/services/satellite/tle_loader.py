@@ -322,4 +322,4 @@ if __name__ == "__main__":
     print(f"   星座分佈: {result.constellations}")
     
     # 導出摘要
-    loader.export_tle_summary(result, "/tmp/tle_load_summary.json")
+    loader.export_tle_summary(result, "/app/data/tle_load_summary.json")

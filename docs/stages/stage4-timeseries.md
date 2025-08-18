@@ -1,13 +1,13 @@
 # 📊 階段四：時間序列預處理
 
-[🔄 返回數據流程導航](../data-flow-index.md) > 階段四
+[🔄 返回數據流程導航](../README.md) > 階段四
 
 ## 📖 階段概述
 
 **目標**：將信號分析結果轉換為前端可用的時間序列數據  
-**輸入**：階段三的信號品質數據（~295MB）  
-**輸出**：前端時間序列數據（~85-100MB）  
-**處理對象**：563顆衛星的時間序列最佳化  
+**輸入**：階段三的信號品質數據（~200MB）  
+**輸出**：前端時間序列數據（~60-75MB）  
+**處理對象**：391顆衛星的時間序列最佳化  
 **處理時間**：約 1-2 分鐘
 
 ## 🎯 處理目標
@@ -28,12 +28,12 @@
 
 ### 主要實現位置
 ```bash
-# 時間序列處理器
-/netstack/src/stages/stage4_timeseries_processor.py
-├── Stage4TimeseriesProcessor.optimize_for_frontend()      # 前端最佳化
-├── Stage4TimeseriesProcessor.generate_animation_data()    # 動畫數據生成
-├── Stage4TimeseriesProcessor.compress_timeseries()       # 時間序列壓縮
-└── Stage4TimeseriesProcessor.process_stage4()            # 完整流程執行
+# 時間序列預處理器
+/netstack/src/stages/timeseries_preprocessing_processor.py
+├── TimeseriesPreprocessingProcessor.load_signal_analysis_output()      # 載入信號數據
+├── TimeseriesPreprocessingProcessor.convert_to_enhanced_timeseries()   # 增強時間序列轉換
+├── TimeseriesPreprocessingProcessor.save_enhanced_timeseries()         # 保存增強數據
+└── TimeseriesPreprocessingProcessor.process_timeseries_preprocessing() # 完整流程執行
 
 # Pure Cron 支援模組
 /netstack/src/services/animation/cron_animation_builder.py
@@ -104,8 +104,8 @@ def optimize_timeseries_for_frontend(raw_data):
 ### enhanced_timeseries/ 目錄
 ```bash
 /app/data/enhanced_timeseries/
-├── animation_enhanced_starlink.json    # Starlink動畫數據 (~60MB)
-└── animation_enhanced_oneweb.json      # OneWeb動畫數據 (~25-40MB)
+├── animation_enhanced_starlink.json    # Starlink動畫數據 (~45MB)
+└── animation_enhanced_oneweb.json      # OneWeb動畫數據 (~15-20MB)
 ```
 
 ### JSON 數據格式
@@ -113,7 +113,7 @@ def optimize_timeseries_for_frontend(raw_data):
 {
   "metadata": {
     "constellation": "starlink",
-    "satellite_count": 450,
+    "satellite_count": 358,
     "time_range": {
       "start": "2025-08-14T00:00:00Z",
       "end": "2025-08-14T06:00:00Z"
@@ -173,9 +173,9 @@ const loadTimeseriesData = async (constellation) => {
 
 ### 處理性能
 - **數據減量率**：65% (720點 → 360點)
-- **檔案大小減少**：60% (295MB → 85-100MB)
+- **檔案大小減少**：70% (200MB → 60-75MB)
 - **載入速度提升**：3倍 (前端首次載入)
-- **記憶體使用**：瀏覽器端 < 200MB
+- **記憶體使用**：瀏覽器端 < 150MB
 
 ### 動畫品質
 - **幀率穩定性**：60 FPS 穩定渲染
@@ -220,4 +220,4 @@ curl -w '%{time_total}s' -o /dev/null -s http://localhost:5173/data/enhanced_tim
 ---
 **上一階段**: [階段三：信號分析](./stage3-signal.md)  
 **下一階段**: [階段五：數據整合](./stage5-integration.md)  
-**相關文檔**: [Pure Cron架構](../overviews/data-processing-flow.md#pure-cron驅動架構)
+**相關文檔**: [Pure Cron架構](../data_processing_flow.md#pure-cron驅動架構)

@@ -21,7 +21,7 @@ class IncrementalUpdateManager:
     def __init__(self, project_root: Optional[str] = None):
         self.project_root = Path(project_root) if project_root else Path("/home/sat/ntn-stack")
         self.leo_restructure_path = self.project_root / "leo_restructure"
-        self.change_tracking_file = Path("/tmp/leo_change_tracking.json")
+        self.change_tracking_file = Path("/app/data/logs/leo_change_tracking.json")
         self.logger = logging.getLogger('IncrementalUpdate')
         
         # 載入上次更新信息
@@ -45,8 +45,8 @@ class IncrementalUpdateManager:
             ],
             'output_data': [
                 "/app/data/stage*.json",
-                "/tmp/phase1_outputs/*.json",
-                "/tmp/dev_stage*_outputs/*.json"
+                "/app/data/processing_outputs/*.json",
+                "/app/data/dev_processing_outputs/*.json"
             ]
         }
     

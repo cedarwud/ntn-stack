@@ -23,7 +23,8 @@ import MeshNetworkTopology from './visualization/MeshNetworkTopology'
 // import HandoverAnomalyVisualization from './visualization/HandoverAnomalyVisualization' // 未使用，已註釋
 
 import PredictionPath3D from '../shared/visualization/PredictionPath3D'
-import DynamicSatelliteRenderer from '../domains/satellite/visualization/DynamicSatelliteRenderer'
+// 🚀 使用重構後的統一數據源版本
+import DynamicSatelliteRenderer from '../domains/satellite/visualization/DynamicSatelliteRenderer.refactored'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
 
 interface Device {
@@ -368,9 +369,9 @@ const MainScene: React.FC<MainSceneProps> = ({
 
             {/* 階段七可視化覆蓋層 - Analytics components removed */}
 
-            {/* 🚀 重新啟用 DynamicSatelliteRenderer（已整合真實歷史軌跡邏輯）*/}
+            {/* 🚀 重構版 DynamicSatelliteRenderer（使用統一數據源）*/}
             <DynamicSatelliteRenderer
-                satellites={satellites}
+                satellites={satellites} // 向後兼容，但由Context管理數據
                 enabled={satelliteEnabled}
                 currentConnection={currentConnection}
                 predictedConnection={predictedConnection}

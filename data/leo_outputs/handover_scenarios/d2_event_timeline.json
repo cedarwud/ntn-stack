@@ -1,0 +1,13 @@
+{
+  "metadata": {
+    "event_type": "D2_distance_based",
+    "distance_threshold_km": 2000.0,
+    "observer_location": {
+      "lat": 24.9441667,
+      "lon": 121.3713889
+    },
+    "total_events": 0,
+    "generation_time": "2025-08-18T09:42:13.914043+00:00"
+  },
+  "events": []
+}

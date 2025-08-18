@@ -1,0 +1,12 @@
+{
+  "metadata": {
+    "analysis_type": "optimal_handover_windows",
+    "quality_criteria": {
+      "min_rsrp_dbm": -85,
+      "min_elevation_deg": 10
+    },
+    "total_windows": 0,
+    "generation_time": "2025-08-18T09:42:13.914100+00:00"
+  },
+  "windows": []
+}

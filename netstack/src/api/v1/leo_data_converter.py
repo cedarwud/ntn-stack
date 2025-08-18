@@ -224,7 +224,7 @@ def test_converter():
     converter = LEODataConverter()
     
     # 測試轉換
-    leo_output_dir = "/tmp/leo_outputs"
+    leo_output_dir = "/app/data/dynamic_pool_planning_outputs"
     output_file = converter.save_frontend_format(leo_output_dir)
     
     print(f"✅ 轉換測試完成: {output_file}")

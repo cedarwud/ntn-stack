@@ -1,6 +1,6 @@
-# NetStack API Dockerfile - LEO Restructure Edition
-# Phase 0 Implementation: Complete replacement of 6-stage system with leo_restructure
-# Unified build environment with new 4-component architecture (F1→F2→F3→A1)
+# NetStack API Dockerfile - Enhanced Six-Stage Edition
+# 增強六階段系統：整合 shared_core + simulated_annealing + 統一主流程控制器
+# 完整六階段架構：TLE載入→智能篩選→信號分析→時間序列→數據整合→動態池規劃
 
 FROM python:3.11-slim
 
@@ -44,8 +44,8 @@ RUN pip install --upgrade pip && \
 # 複製所有應用程式代碼 (一次性複製，避免覆蓋問題)
 COPY . .
 
-# LEO Restructure System: 4-component architecture (F1→F2→F3→A1)
-# Note: leo_core is copied from the root directory via COPY . . above
+# Enhanced Six-Stage System: 六階段增強系統 + shared_core + simulated_annealing
+# 主流程控制器：src/leo_main_pipeline_controller.py
 
 # TLE 數據：複製衛星軌道數據
 COPY tle_data /app/tle_data
@@ -55,18 +55,14 @@ RUN mkdir -p /app/data /app/tle_data /app/logs /var/log/netstack \
              /app/models /app/results /tmp/matplotlib
 
 # 設定環境變數
-ENV PYTHONPATH="/app:/app/src:/app/netstack:/app/src/leo_core"
+ENV PYTHONPATH="/app:/app/src:/app/netstack"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV MPLCONFIGDIR="/tmp/matplotlib"
 ENV PRECOMPUTED_DATA_ENABLED=true
 ENV ORBIT_CACHE_PRELOAD=true
 
-# LEO Build Script: Execute LEO restructure system (4-component processing)
-# Note: leo_build_script.py is copied from the root directory via COPY . . above
-RUN chmod +x /app/leo_build_script.py
-
-# LEO衛星軌道預計算：建構時執行LEO重構系統 (4組件處理)
+# 六階段系統衛星軌道預計算：建構時執行增強六階段系統 
 RUN echo "🗑️ 清理舊數據檔案，確保重新生成..." && \
     rm -f /app/data/sgp4_orbital_dataset*.json \
           /app/data/enhanced_satellite_data.json \
@@ -74,14 +70,14 @@ RUN echo "🗑️ 清理舊數據檔案，確保重新生成..." && \
           /app/data/phase1_*.json \
           /app/data/.build_timestamp \
           /app/data/.data_ready && \
-    echo "🚀 LEO重構系統：執行4組件預計算 (F1→F2→F3→A1)..." && \
-    (cd /app && python leo_build_script.py) || echo "⚠️ 建構時LEO預計算未完成，將在運行時處理" && \
-    if [ -f /app/data/phase1_final_report.json ]; then \
+    echo "🚀 增強六階段系統：執行完整預計算流程..." && \
+    (cd /app && PYTHONPATH=/app:/app/src python six_stage_build_script.py) || echo "⚠️ 建構時六階段預計算未完成，將在運行時處理" && \
+    if [ -f /app/data/stage2_outputs/stage2_intelligent_filtered_output.json ] || find /app/data -name "*stage*" -type f | head -1 > /dev/null 2>&1; then \
         echo "$(date -Iseconds)" > /app/data/.build_timestamp && \
-        echo "✅ LEO建構時預計算完成，數據已就緒" && \
-        ls -la /app/data/phase1_*.json | head -5; \
+        echo "✅ 六階段建構時預計算完成，數據已就緒" && \
+        ls -la /app/data/stage*_*.json | head -6; \
     else \
-        echo "ℹ️ LEO建構時預計算跳過，將使用運行時計算"; \
+        echo "ℹ️ 六階段建構時預計算跳過，將使用運行時計算"; \
     fi
 
 # 衛星數據環境變數：從建置時生成的配置加載
@@ -132,11 +128,12 @@ CMD if [ "$BUILD_ENV" = "development" ]; then \
         uvicorn netstack_api.main:app --host 0.0.0.0 --port 8080; \
     fi
 
-# LEO重構系統標籤
-LABEL leo_restructure.version="1.0.0"
-LABEL leo_restructure.architecture="4-component-unified"  
-LABEL leo_restructure.components="F1_TLE_Loader→F2_Satellite_Filter→F3_Signal_Analyzer→A1_Dynamic_Pool_Planner"
-LABEL leo_restructure.source="real_tle_data_computation" 
-LABEL leo_restructure.build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-LABEL leo_restructure.computation_method="leo_phase1_handover_events"
-LABEL leo_restructure.description="NetStack LEO重構系統 Phase 0實現"
+# 增強六階段系統標籤
+LABEL six_stage_enhanced.version="3.0.0"
+LABEL six_stage_enhanced.architecture="enhanced-six-stage-unified"  
+LABEL six_stage_enhanced.components="TLE載入→智能篩選→信號分析→時間序列→數據整合→動態池規劃"
+LABEL six_stage_enhanced.source="real_tle_data_computation" 
+LABEL six_stage_enhanced.build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+LABEL six_stage_enhanced.computation_method="six_stage_complete_pipeline"
+LABEL six_stage_enhanced.enhancements="shared_core+simulated_annealing+unified_controller"
+LABEL six_stage_enhanced.description="NetStack 增強六階段系統 - 整合四階段技術資產"

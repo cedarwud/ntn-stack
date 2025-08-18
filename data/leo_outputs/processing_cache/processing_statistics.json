@@ -1,0 +1,15 @@
+{
+  "total_satellites": 399,
+  "constellations": {
+    "starlink": {
+      "satellite_count": 363,
+      "has_position_data": true,
+      "has_signal_data": true
+    },
+    "oneweb": {
+      "satellite_count": 36,
+      "has_position_data": true,
+      "has_signal_data": true
+    }
+  }
+}

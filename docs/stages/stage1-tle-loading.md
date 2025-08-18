@@ -1,13 +1,14 @@
 # 📊 階段一：TLE數據載入與SGP4軌道計算
 
-[🔄 返回數據流程導航](../data-flow-index.md) > 階段一
+[🔄 返回文檔總覽](../README.md) > 階段一
 
 ## 📖 階段概述
 
 **目標**：從 8,735 顆衛星載入 TLE 數據並執行精確的 SGP4 軌道計算  
 **輸入**：TLE 檔案（約 2.2MB）  
-**輸出**：記憶體傳遞給階段二（避免 2.2GB 檔案問題）  
+**輸出**：記憶體傳遞給智能篩選處理器（避免 2.2GB 檔案問題）  
 **處理時間**：約 2-3 分鐘
+**實際處理數量**：8,084 Starlink + 651 OneWeb = 8,735 顆衛星
 
 ### 🚀 v3.0 記憶體傳遞模式
 
@@ -20,12 +21,12 @@
 ### 主要實現位置
 ```bash
 # 核心處理器
-/netstack/src/stages/stage1_tle_processor.py
-├── Stage1TLEProcessor.scan_tle_data()              # TLE檔案掃描
-├── Stage1TLEProcessor.load_raw_satellite_data()    # 原始數據載入  
-├── Stage1TLEProcessor.calculate_all_orbits()       # 完整SGP4計算
-├── Stage1TLEProcessor.save_stage1_output()         # Debug模式控制輸出
-└── Stage1TLEProcessor.process_stage1()             # 完整流程執行
+/netstack/src/stages/tle_orbital_calculation_processor.py
+├── Stage1TLEProcessor.scan_tle_data()                          # TLE檔案掃描
+├── Stage1TLEProcessor.load_raw_satellite_data()               # 原始數據載入  
+├── Stage1TLEProcessor.calculate_all_orbits()                  # 完整SGP4計算
+├── Stage1TLEProcessor.save_tle_calculation_output()           # Debug模式控制輸出
+└── Stage1TLEProcessor.process_tle_orbital_calculation()       # 完整流程執行
 
 # SGP4引擎支援
 /netstack/src/services/satellite/coordinate_specific_orbit_engine.py
@@ -34,8 +35,8 @@
 ### 處理流程
 
 1. **TLE檔案掃描**：掃描兩個星座的TLE資料
-   - Starlink: ~/6,800顆衛星
-   - OneWeb: ~/1,935顆衛星
+   - Starlink: 8,084顆衛星 (最新20250816數據)
+   - OneWeb: 651顆衛星 (最新20250816數據)
 
 2. **原始數據載入**：解析TLE格式並驗證數據完整性
 
@@ -88,12 +89,15 @@ TIME_STEP_SECONDS = 30      # 時間解析度
 
 ```bash
 # 檢查TLE數據狀態
-find /netstack/tle_data -name '*.tle' -exec ls -la {} \;
+find /app/tle_data -name '*.tle' -exec ls -la {} \;
+
+# 驗證TLE軌道計算處理器
+python -c "from stages.tle_orbital_calculation_processor import Stage1TLEProcessor; print('TLE軌道計算處理器正常')"
 
 # 驗證SGP4引擎
 python -c "from src.services.satellite.coordinate_specific_orbit_engine import *; print('SGP4引擎正常')"
 ```
 
 ---
-**下一階段**: [階段二：智能衛星篩選](./stage2-filtering.md)  
-**相關文檔**: [Pure Cron架構](../overviews/data-processing-flow.md#pure-cron驅動架構)
+**下一處理器**: [智能衛星篩選處理器](./stage2-filtering.md)  
+**相關文檔**: [Pure Cron架構](../data_processing_flow.md#pure-cron驅動架構)

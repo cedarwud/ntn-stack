@@ -1,0 +1,12 @@
+{
+  "metadata": {
+    "data_type": "signal_analysis_structure_setup",
+    "note": "信號品質計算已在階段三完成，此處僅設置目錄結構",
+    "stage3_reference": "signal_quality_analysis在stage3_signal_event_analysis_output.json中",
+    "generation_time": "2025-08-18T09:42:13.914146+00:00"
+  },
+  "directory_structure": {
+    "analysis_dir": "/app/data/signal_quality_analysis",
+    "available_for_future_analysis": true
+  }
+}

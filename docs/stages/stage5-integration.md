@@ -1,13 +1,13 @@
 # 📁 階段五：數據整合與混合存儲
 
-[🔄 返回數據流程導航](../data-flow-index.md) > 階段五
+[🔄 返回數據流程導航](../README.md) > 階段五
 
 ## 📖 階段概述
 
 **目標**：將所有處理結果整合並建立混合存儲架構  
-**輸入**：階段四的前端時間序列數據（~85-100MB）  
+**輸入**：階段四的前端時間序列數據（~60-75MB）  
 **輸出**：PostgreSQL結構化數據 + Docker Volume檔案存儲  
-**存儲總量**：~486MB (PostgreSQL ~86MB + Volume ~400MB)  
+**存儲總量**：~365MB (PostgreSQL ~65MB + Volume ~300MB)  
 **處理時間**：約 2-3 分鐘
 
 ## 🏗️ 混合存儲架構
@@ -103,11 +103,11 @@ CREATE INDEX idx_handover_serving ON handover_events_summary(serving_satellite_i
 ### Volume 組織架構
 ```bash
 /app/data/
-├── enhanced_timeseries/          # 前端動畫數據 (~85-100MB)
+├── enhanced_timeseries/          # 前端動畫數據 (~60-75MB)
 │   ├── animation_enhanced_starlink.json
 │   └── animation_enhanced_oneweb.json
 │
-├── layered_phase0_enhanced/      # 分層處理結果 (~120MB)
+├── layered_phase0_enhanced/      # 分層處理結果 (~85MB)
 │   ├── starlink_5deg_enhanced.json
 │   ├── starlink_10deg_enhanced.json
 │   ├── starlink_15deg_enhanced.json
@@ -115,18 +115,18 @@ CREATE INDEX idx_handover_serving ON handover_events_summary(serving_satellite_i
 │   ├── oneweb_15deg_enhanced.json
 │   └── oneweb_20deg_enhanced.json
 │
-├── handover_scenarios/           # 換手場景數據 (~80MB)
+├── handover_scenarios/           # 換手場景數據 (~55MB)
 │   ├── a4_events_enhanced.json
 │   ├── a5_events_enhanced.json
 │   ├── d2_events_enhanced.json
 │   └── best_handover_windows.json
 │
-├── signal_quality_analysis/      # 信號分析結果 (~90MB)
+├── signal_quality_analysis/      # 信號分析結果 (~65MB)
 │   ├── signal_heatmap_data.json
 │   ├── quality_metrics_summary.json
 │   └── constellation_comparison.json
 │
-├── processing_cache/             # 處理緩存 (~50MB)
+├── processing_cache/             # 處理緩存 (~35MB)
 │   ├── sgp4_calculation_cache.json
 │   ├── filtering_results_cache.json
 │   └── gpp3_event_cache.json
@@ -142,13 +142,13 @@ CREATE INDEX idx_handover_serving ON handover_events_summary(serving_satellite_i
 
 ### 主要實現位置
 ```bash
-# 整合處理器
-/netstack/src/stages/stage5_integration_processor.py
-├── Stage5IntegrationProcessor.setup_postgresql_schema()    # 資料庫架構設定
-├── Stage5IntegrationProcessor.populate_metadata_tables()   # 元數據填入
-├── Stage5IntegrationProcessor.generate_volume_files()      # Volume檔案生成
-├── Stage5IntegrationProcessor.verify_mixed_storage()       # 混合存儲驗證
-└── Stage5IntegrationProcessor.process_stage5()             # 完整流程執行
+# 數據整合處理器
+/netstack/src/stages/data_integration_processor.py
+├── Stage5IntegrationProcessor.process_enhanced_timeseries()    # 增強時間序列處理
+├── Stage5IntegrationProcessor._integrate_postgresql_data()     # PostgreSQL數據整合
+├── Stage5IntegrationProcessor._generate_layered_data()         # 分層數據生成
+├── Stage5IntegrationProcessor._generate_handover_scenarios()   # 換手場景生成
+└── Stage5IntegrationProcessor._verify_mixed_storage_access()   # 混合存儲驗證
 
 # 資料庫連接管理
 /netstack/src/services/database/postgresql_manager.py
@@ -159,9 +159,9 @@ CREATE INDEX idx_handover_serving ON handover_events_summary(serving_satellite_i
 
 ### 核心處理邏輯
 ```python
-class Stage5IntegrationProcessor:
+class DataIntegrationProcessor:
     
-    async def process_stage5(self) -> Dict[str, Any]:
+    async def process_data_integration(self) -> Dict[str, Any]:
         """執行階段五完整整合處理"""
         
         results = {}
@@ -275,21 +275,21 @@ JSON_CONFIG = {
 ```python
 # 預期存儲分佈
 STORAGE_BREAKDOWN = {
-    'postgresql_total_mb': 86,
+    'postgresql_total_mb': 65,
     'postgresql_breakdown': {
-        'satellite_metadata': 2,      # 563顆衛星 × 基本資訊
-        'signal_statistics': 35,      # 563顆 × 統計數據
-        'handover_events': 25,        # ~2,600個換手事件
-        'indexes_overhead': 12,       # 索引空間
-        'system_metadata': 12         # PostgreSQL系統開銷
+        'satellite_metadata': 1.5,     # 391顆衛星 × 基本資訊
+        'signal_statistics': 25,       # 391顆 × 統計數據
+        'handover_events': 18,         # ~1,800個換手事件
+        'indexes_overhead': 9,         # 索引空間
+        'system_metadata': 11.5        # PostgreSQL系統開銷
     },
-    'volume_total_mb': 400,
+    'volume_total_mb': 300,
     'volume_breakdown': {
-        'enhanced_timeseries': 100,   # 前端動畫數據
-        'layered_phase0': 120,        # 分層處理結果  
-        'handover_scenarios': 80,     # 換手場景
-        'signal_analysis': 90,        # 信號分析
-        'cache_files': 10            # 緩存檔案
+        'enhanced_timeseries': 75,     # 前端動畫數據
+        'layered_phase0': 85,          # 分層處理結果  
+        'handover_scenarios': 55,      # 換手場景
+        'signal_analysis': 65,         # 信號分析
+        'cache_files': 20             # 緩存檔案
     }
 }
 ```

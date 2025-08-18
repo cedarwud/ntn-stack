@@ -288,9 +288,10 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
 
         console.log('生成3D預測路徑數據')
 
-        // 生成衛星預測
+        // 生成衛星預測 - 修復：支援動態範圍8-14顆衛星
+        const maxSatellites = Math.min(satellites.length, 14)  // 支援最多14顆衛星
         const satPredictions = satellites
-            .slice(0, 8)
+            .slice(0, maxSatellites)
             .map(generateSatellitePrediction)
         setSatellitePredictions(satPredictions)
 

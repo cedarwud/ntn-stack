@@ -16,7 +16,7 @@ class AutoCleanupManager:
     """自動清理管理器"""
     
     def __init__(self, output_dir: Optional[str] = None):
-        self.output_dir = Path(output_dir) if output_dir else Path("/tmp/phase1_outputs")
+        self.output_dir = Path(output_dir) if output_dir else Path("/app/data/processing_outputs")
         self.logger = logging.getLogger('AutoCleanup')
         
         # 🛡️ 受保護路徑 - 不清理 RL 訓練數據資料夾
@@ -30,8 +30,8 @@ class AutoCleanupManager:
         self.cleanup_patterns = {
             # 開發階段輸出
             'dev_outputs': [
-                '/tmp/dev_stage*_outputs/*.json',
-                '/tmp/phase1_outputs/*.json',
+                '/app/data/dev_processing_outputs/*.json',
+                '/app/data/processing_outputs/*.json',
                 str(self.output_dir / "*.json"),
                 str(self.output_dir / "*.pkl"),
                 str(self.output_dir / "*.cache")
@@ -44,10 +44,10 @@ class AutoCleanupManager:
             ],
             # 臨時快取 (僅外部緩存，不包含 RL 數據)
             'temp_cache': [
-                '/tmp/tle_cache/*.tle',          # 外部臨時緩存
-                '/tmp/sgp4_cache/*.pkl',         # SGP4 計算緩存
-                '/tmp/leo_*.tmp',                # LEO 臨時文件
-                '/tmp/orbit_cache/*.pkl'         # 軌道計算緩存
+                '/app/data/cache/tle_cache/*.tle',          # 外部臨時緩存
+                '/app/data/cache/sgp4_cache/*.pkl',         # SGP4 計算緩存
+                '/app/data/cache/leo_*.tmp',                # LEO 臨時文件
+                '/app/data/cache/orbit_cache/*.pkl'         # 軌道計算緩存
             ],
             # 全部清理
             'all': []  # 將在init中設置
@@ -240,7 +240,7 @@ class AutoCleanupManager:
 from shared_core.auto_cleanup_manager import AutoCleanupManager
 manager = AutoCleanupManager()
 manager.cleanup_by_age({max_age_hours})
-" >> /tmp/auto_cleanup.log 2>&1
+" >> /app/data/logs/auto_cleanup.log 2>&1
 """
         
         self.logger.info(f"📋 建議的Cron配置:\n{cron_command}")
@@ -259,7 +259,7 @@ if __name__ == "__main__":
     parser.add_argument('--mode', default='dev_outputs', choices=['dev_outputs', 'container_data', 'temp_cache', 'all'])
     parser.add_argument('--age-hours', type=int, default=24, help='清理多少小時前的檔案')
     parser.add_argument('--max-size-mb', type=int, default=1024, help='最大總大小(MB)')
-    parser.add_argument('--output-dir', default='/tmp/phase1_outputs', help='輸出目錄')
+    parser.add_argument('--output-dir', default='/app/data/processing_outputs', help='輸出目錄')
     parser.add_argument('--stats-only', action='store_true', help='僅顯示統計信息')
     parser.add_argument('--verbose', action='store_true', help='詳細輸出')
     

@@ -212,7 +212,7 @@ export class RealSatelliteDataManager {
     private data: RealSatelliteData | null = null
     private mapping: Map<string, RealSatelliteInfo> = new Map()
     private lastUpdateTime: number = 0
-    private updateInterval: number = 30000 // 恢復為30秒更新一次，減少日誌
+    private updateInterval: number = 5000 // 🚀 Phase 1 優化：5秒更新一次，提高軌跡精確度
     private observerLat: number = 0.0
     private observerLon: number = 0.0
     private observerAlt: number = 0.0

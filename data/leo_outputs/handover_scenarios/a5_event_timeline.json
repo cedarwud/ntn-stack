@@ -1,0 +1,10 @@
+{
+  "metadata": {
+    "event_type": "A5_serving_poor_neighbor_good",
+    "serving_threshold_dbm": -72.0,
+    "neighbor_threshold_dbm": -70.0,
+    "total_events": 0,
+    "generation_time": "2025-08-18T09:42:13.913984+00:00"
+  },
+  "events": []
+}
