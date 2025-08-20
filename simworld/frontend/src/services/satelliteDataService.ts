@@ -3,7 +3,7 @@
  * 整合所有衛星相關的API調用和數據處理邏輯
  */
 
-import { netstackFetch } from '../config/api-config'
+import { netstackFetchWithRetry } from '../config/api-config'
 import { getNTPUCoordinates } from '../config/observerConfig'
 
 // 導入時間序列接口
@@ -148,13 +148,13 @@ export class SatelliteDataService {
             
             let endpoint = `/api/v1/satellite-simple/visible_satellites?count=${actualMaxCount}&min_elevation_deg=${actualMinElevation}&observer_lat=${this.config.observerLat}&observer_lon=${this.config.observerLon}&constellation=${this.config.constellation}&utc_timestamp=${targetTime.toISOString()}&global_view=false`
             
-            let response = await netstackFetch(endpoint)
+            let response = await netstackFetchWithRetry(endpoint)
             
             // 如果主要端點失敗，嘗試使用備用端點
             if (!response.ok) {
                 console.warn(`⚠️ 主要API端點失敗 (${response.status})，嘗試備用端點...`)
                 endpoint = `/api/v1/leo-frontend/satellites`
-                response = await netstackFetch(endpoint)
+                response = await netstackFetchWithRetry(endpoint)
                 
                 if (!response.ok) {
                     throw new Error(`NetStack API 錯誤: ${response.status} ${response.statusText}`)
@@ -232,7 +232,7 @@ export class SatelliteDataService {
     public async getSystemHealth(): Promise<{ status: string, details: Record<string, unknown> }> {
         try {
             const endpoint = '/api/v1/leo-frontend/health'
-            const response = await netstackFetch(endpoint)
+            const response = await netstackFetchWithRetry(endpoint)
             
             if (!response.ok) {
                 throw new Error(`Health check failed: ${response.status}`)
@@ -251,7 +251,7 @@ export class SatelliteDataService {
     public async getAvailableConstellations(): Promise<string[]> {
         try {
             const endpoint = '/api/v1/satellites/constellations/info'
-            const response = await netstackFetch(endpoint)
+            const response = await netstackFetchWithRetry(endpoint)
             
             if (!response.ok) {
                 throw new Error(`Failed to get constellations: ${response.status}`)

@@ -98,11 +98,104 @@ def get_intelligent_selector():
             _intelligent_selector = None
     return _intelligent_selector
 
+def get_dynamic_pool_satellite_data(constellation: str, count: int = 200) -> List[Dict]:
+    """
+    從階段六動態池規劃獲取優化的衛星數據 (包含完整時間序列)
+    使用156顆精選衛星 (120 Starlink + 36 OneWeb) 取代分層數據
+    """
+    satellites = []
+    
+    try:
+        # 🎯 使用階段六動態池規劃數據
+        import json
+        dynamic_pool_file = '/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json'
+        
+        with open(dynamic_pool_file, 'r') as f:
+            pool_data = json.load(f)
+        
+        # 提取選中的衛星詳情
+        selected_satellites = pool_data.get('dynamic_satellite_pool', {}).get('selection_details', [])
+        
+        # 過濾指定星座的衛星
+        constellation_satellites = [
+            sat for sat in selected_satellites 
+            if sat.get('constellation', '').lower() == constellation.lower()
+        ]
+        
+        logger.info(f"🎯 階段六動態池數據: {len(constellation_satellites)} 顆 {constellation} 衛星")
+        
+        # 轉換為API格式，保留完整時間序列
+        for sat_data in constellation_satellites:
+            satellite_id = sat_data.get('satellite_id', '')
+            norad_id = sat_data.get('norad_id', 0)
+            name = sat_data.get('satellite_name', satellite_id)
+            
+            if not satellite_id:
+                continue
+                
+            # 🎯 關鍵修復：使用階段六保留的完整時間序列數據
+            position_timeseries = sat_data.get('position_timeseries', [])
+            
+            # 只包含有時間序列數據的衛星
+            if position_timeseries:
+                # 轉換為API需要的格式，保持真實SGP4計算結果
+                precomputed_positions = []
+                for position in position_timeseries:
+                    precomputed_positions.append({
+                        'time': position.get('time', ''),
+                        'time_offset_seconds': position.get('time_offset_seconds', 0),
+                        'position_eci': position.get('position_eci', {}),
+                        'velocity_eci': position.get('velocity_eci', {}),
+                        'range_km': position.get('range_km', 0),
+                        'elevation_deg': position.get('elevation_deg', -90),
+                        'azimuth_deg': position.get('azimuth_deg', 0),
+                        'is_visible': position.get('elevation_deg', -90) >= 0
+                    })
+                
+                satellites.append({
+                    'name': name,
+                    'norad_id': str(norad_id) if norad_id else satellite_id,
+                    'constellation': constellation.lower(),
+                    'altitude': 550.0,  # 預設高度
+                    'inclination': 53.0,  # 預設傾角
+                    'semi_major_axis': 6950.0,
+                    'eccentricity': 0.0,
+                    'mean_motion': 15.0,
+                    # 🎯 關鍵修復：使用階段六的完整時間序列數據
+                    'precomputed_positions': precomputed_positions,
+                    'has_orbit_data': len(precomputed_positions) > 0
+                })
+        
+        logger.info(f"✅ 階段六動態池數據載入完成: {len(satellites)} 顆 {constellation} 衛星，時間序列數據: {len([s for s in satellites if s['has_orbit_data']])} 顆")
+        
+        if satellites and len([s for s in satellites if s['has_orbit_data']]) > 0:
+            logger.info(f"🎯 使用階段六動態池優化數據: {len([s for s in satellites if s['has_orbit_data']])} 顆有完整軌道數據的衛星")
+            return satellites
+        
+    except Exception as e:
+        logger.error(f"❌ 階段六動態池數據載入失敗: {e}")
+        import traceback
+        logger.error(f"詳細錯誤: {traceback.format_exc()}")
+    
+    logger.warning(f"⚠️ 階段六動態池數據不可用，回退到分層數據")
+    return []
+
 def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List[Dict]:
     """
-    從Phase0預處理系統獲取實際衛星數據
-    使用150+50顆真實衛星取代舊的15顆模擬數據 (基於SGP4全量計算優化配置)
+    獲取預計算衛星數據，優先使用階段六動態池數據
+    階段六(156顆優化) > 階段五分層數據(150+50顆) > 錯誤
     """
+    
+    # 🎯 優先嘗試階段六動態池數據
+    try:
+        dynamic_pool_satellites = get_dynamic_pool_satellite_data(constellation, count)
+        if dynamic_pool_satellites:
+            logger.info(f"✅ 使用階段六動態池數據: {len(dynamic_pool_satellites)} 顆 {constellation} 衛星")
+            return dynamic_pool_satellites
+    except Exception as e:
+        logger.warning(f"⚠️ 階段六動態池數據載入失敗，回退到階段五: {e}")
+    
+    # 🔄 回退到階段五分層數據
     satellites = []
     
     try:
@@ -173,21 +266,21 @@ def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List
                     'has_orbit_data': len(precomputed_positions) > 0
                 })
         
-        logger.info(f"✅ Phase0真實SGP4數據載入完成: {len(satellites)} 顆 {constellation} 衛星，軌道數據: {len([s for s in satellites if s['has_orbit_data']])} 顆")
+        logger.info(f"✅ 階段五分層SGP4數據載入完成: {len(satellites)} 顆 {constellation} 衛星，軌道數據: {len([s for s in satellites if s['has_orbit_data']])} 顆")
         
         # 🔧 關鍵修復：如果成功載入真實數據，立即返回，不使用備用數據
         if satellites and len([s for s in satellites if s['has_orbit_data']]) > 0:
-            logger.info(f"🎯 使用真實SGP4預計算數據: {len([s for s in satellites if s['has_orbit_data']])} 顆有軌道數據的衛星")
+            logger.info(f"🎯 使用階段五分層真實SGP4預計算數據: {len([s for s in satellites if s['has_orbit_data']])} 顆有軌道數據的衛星")
             return satellites
         
     except Exception as e:
-        logger.error(f"❌ Phase0真實SGP4數據載入失敗: {e}")
+        logger.error(f"❌ 階段五分層真實SGP4數據載入失敗: {e}")
         import traceback
         logger.error(f"詳細錯誤: {traceback.format_exc()}")
     
     # 🚫 根據 CLAUDE.md 核心原則，禁止使用備用數據生成
     # 必須使用真實的 Phase0 預計算 SGP4 數據，如無數據則報告錯誤
-    logger.error(f"❌ Phase0 預計算數據載入完全失敗，拒絕使用備用數據生成: {constellation}")
+    logger.error(f"❌ 所有預計算數據載入完全失敗，拒絕使用備用數據生成: {constellation}")
     raise FileNotFoundError(f"Phase0 precomputed SGP4 data required for constellation {constellation}. Backup data generation prohibited.")
 
 def calculate_satellite_position(sat_data: Dict, timestamp: datetime, observer_lat: float = 24.9441667, observer_lon: float = 121.3713889) -> SatelliteInfo:

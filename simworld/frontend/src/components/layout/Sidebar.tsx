@@ -375,13 +375,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                     disabled={!satelliteEnabled}
                                                 />
                                                 
-                                                {/* 🎯 動態池狀態顯示 */}
-                                                {process.env.NODE_ENV === 'development' && satelliteEnabled && (
-                                                    <div className="pool-status-info" style={{marginTop: '8px', fontSize: '12px', color: '#888'}}>
-                                                        🎯 池模式: {satelliteContextState.dynamicPool.enabled ? '優化池' : '全量數據'} 
-                                                        ({contextSatellites.length} 顆衛星)
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
 

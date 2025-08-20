@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API 連接調試工具</title>
+    <style>
+        body { 
+            font-family: monospace; 
+            padding: 20px; 
+            background: #1a1a1a; 
+            color: #00ff00; 
+        }
+        .test-result { 
+            margin: 10px 0; 
+            padding: 10px; 
+            background: #2a2a2a; 
+            border-radius: 4px; 
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff6b6b; }
+        .warning { color: #ffd93d; }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            background: #4a4a4a; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+        }
+        button:hover { background: #6a6a6a; }
+        pre { 
+            background: #0a0a0a; 
+            padding: 10px; 
+            border-radius: 4px; 
+            overflow-x: auto; 
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 SimWorld 前端 API 連接調試工具</h1>
+    <div id="results"></div>
+    
+    <div>
+        <button onclick="testAPI()">🔄 測試 API 連接</button>
+        <button onclick="testProxy()">🌐 測試代理連接</button>
+        <button onclick="clearResults()">🗑️ 清除結果</button>
+    </div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `[${timestamp}] ${message}`;
+            resultsDiv.appendChild(div);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+        
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+        }
+        
+        async function testAPI() {
+            log('🚀 開始 API 連接測試...', 'info');
+            
+            const testUrl = '/netstack/api/v1/satellite-simple/visible_satellites?count=3&min_elevation_deg=5&observer_lat=24.9441667&observer_lon=121.3713889&utc_timestamp=2025-08-18T12:00:00.000Z&global_view=false';
+            
+            try {
+                log(`📡 請求 URL: ${testUrl}`, 'info');
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    log('⏰ 60秒超時，中斷請求', 'warning');
+                    controller.abort();
+                }, 60000);
+                
+                const startTime = performance.now();
+                
+                const response = await fetch(testUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                const endTime = performance.now();
+                const duration = Math.round(endTime - startTime);
+                
+                log(`⏱️ 請求耗時: ${duration}ms`, 'info');
+                
+                if (!response.ok) {
+                    log(`❌ HTTP 錯誤: ${response.status} ${response.statusText}`, 'error');
+                    return;
+                }
+                
+                const data = await response.json();
+                log(`✅ API 連接成功！`, 'success');
+                log(`📊 返回衛星數量: ${data.total_count}`, 'success');
+                log(`🛰️ 第一顆衛星: ${data.satellites?.[0]?.name || '無'}`, 'success');
+                
+                // 顯示詳細響應信息
+                log(`📄 響應詳情:`, 'info');
+                log(`<pre>${JSON.stringify({
+                    status: response.status,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    dataPreview: {
+                        total_count: data.total_count,
+                        constellation: data.constellation,
+                        timestamp: data.timestamp
+                    }
+                }, null, 2)}</pre>`, 'info');
+                
+            } catch (error) {
+                clearTimeout(timeoutId);
+                log(`❌ 連接失敗: ${error.message}`, 'error');
+                
+                if (error.name === 'AbortError') {
+                    log('📋 原因: 請求超時', 'error');
+                } else if (error.message.includes('Failed to fetch')) {
+                    log('📋 原因: 網路連接失敗', 'error');
+                    log('💡 可能解決方案:', 'warning');
+                    log('  - 檢查 Vite 代理配置', 'warning');
+                    log('  - 確認後端服務運行', 'warning');
+                    log('  - 檢查瀏覽器網路設定', 'warning');
+                } else {
+                    log(`📋 詳細錯誤: ${error.stack}`, 'error');
+                }
+            }
+        }
+        
+        async function testProxy() {
+            log('🌐 測試代理連接...', 'info');
+            
+            // 測試多個端點
+            const endpoints = [
+                '/netstack/health',
+                '/api/health',
+                '/netstack/api/v1/health'
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    log(`🔍 測試端點: ${endpoint}`, 'info');
+                    
+                    const response = await fetch(endpoint, {
+                        method: 'GET',
+                        timeout: 10000
+                    });
+                    
+                    if (response.ok) {
+                        log(`✅ ${endpoint} - 連接成功 (${response.status})`, 'success');
+                    } else {
+                        log(`⚠️ ${endpoint} - HTTP ${response.status}`, 'warning');
+                    }
+                } catch (error) {
+                    log(`❌ ${endpoint} - ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        // 頁面載入時自動檢測環境
+        window.addEventListener('load', () => {
+            log(`🌍 瀏覽器環境: ${navigator.userAgent}`, 'info');
+            log(`🔗 當前頁面: ${window.location.href}`, 'info');
+            log(`🕒 載入時間: ${new Date().toLocaleString()}`, 'info');
+        });
+    </script>
+</body>
+</html>

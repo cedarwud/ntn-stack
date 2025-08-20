@@ -89,11 +89,11 @@ export const getApiConfig = (): ApiConfig => {
     docker: {
       netstack: {
         baseUrl: '/netstack', // 使用 Vite 代理
-        timeout: 30000
+        timeout: 60000 // 增加到 60 秒
       },
       simworld: {
         baseUrl: '/api', // 使用 Vite 代理路徑，與 vite.config.ts 中的 '/api' 代理匹配
-        timeout: 30000
+        timeout: 60000 // 增加到 60 秒
       },
       mode: 'docker' as const
     },
@@ -259,6 +259,14 @@ export const createConfiguredFetch = (service: 'netstack' | 'simworld') => {
           reason: error.message,
           timeout: serviceConfig.timeout
         })
+      } else if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        // 網路連接失敗的特殊處理
+        console.error(`${service.toUpperCase()} 網路連接失敗:`, {
+          url,
+          endpoint,
+          error: error.message,
+          suggestion: '檢查網路連接和服務狀態'
+        })
       } else {
         console.error(`${service.toUpperCase()} API 請求失敗:`, {
           url,
@@ -270,10 +278,55 @@ export const createConfiguredFetch = (service: 'netstack' | 'simworld') => {
   }
 }
 
+/**
+ * 創建帶有重試機制的 fetch 函數
+ */
+export const createRetryFetch = (service: 'netstack' | 'simworld', maxRetries = 3) => {
+  const baseFetch = createConfiguredFetch(service)
+  
+  return async (endpoint: string, options: RequestInit = {}) => {
+    let lastError: Error | null = null
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await baseFetch(endpoint, options)
+        return response
+      } catch (error) {
+        lastError = error as Error
+        
+        // 如果是最後一次嘗試，直接拋出錯誤
+        if (attempt === maxRetries) {
+          console.error(`${service.toUpperCase()} API 重試 ${maxRetries} 次後仍然失敗:`, {
+            endpoint,
+            finalError: lastError.message
+          })
+          throw lastError
+        }
+        
+        // 計算重試延遲 (exponential backoff)
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
+        console.warn(`${service.toUpperCase()} API 請求失敗，${delay}ms 後重試 (${attempt}/${maxRetries}):`, {
+          endpoint,
+          error: lastError.message
+        })
+        
+        // 等待後重試
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
+    
+    // 不會到這裡，但 TypeScript 需要
+    throw lastError
+  }
+}
+
 // 預設的服務特定 fetch 函數
 export const netstackFetch = createConfiguredFetch('netstack')
 export const simworldFetch = createConfiguredFetch('simworld')
 
+// 帶重試機制的 fetch 函數
+export const netstackFetchWithRetry = createRetryFetch('netstack', 3)
+export const simworldFetchWithRetry = createRetryFetch('simworld', 3)
 
 // 導出當前配置供調試使用
 export const currentApiConfig = getApiConfig()
