@@ -64,7 +64,7 @@ export const ApiRoutes = {
   
   // LEO四階段系統衛星路由 (F1→F2→F3→A1)
   leoFrontend: {
-    getVisibleSatellites: `${API_BASE_URL}/leo-frontend/visible_satellites`,
+    getVisibleSatellites: `${API_BASE_URL}/satellite-simple/visible_satellites`,
     getStatus: `${API_BASE_URL}/leo-frontend/status`,
     getHealth: `${API_BASE_URL}/leo-frontend/health`,
   },

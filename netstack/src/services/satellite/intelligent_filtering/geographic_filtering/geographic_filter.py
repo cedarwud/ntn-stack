@@ -8,6 +8,7 @@
 
 import math
 from typing import Dict, List, Any, Tuple
+from shared_core.elevation_threshold_manager import get_elevation_threshold_manager
 
 class GeographicFilter:
     """地理相關性篩選器"""
@@ -22,23 +23,26 @@ class GeographicFilter:
             "timezone": "Asia/Taipei"
         }
         
-        # 🔧 星座特定的地理篩選參數
+        # 🔧 統一仰角門檻管理器
+        self.elevation_manager = get_elevation_threshold_manager()
+        
+        # 🔧 星座特定的地理篩選參數 (使用統一管理器)
         self.constellation_filtering_params = {
             "starlink": {
-                "min_elevation_deg": 5,      # Starlink使用5度仰角門檻
+                "min_elevation_deg": self.elevation_manager.get_min_elevation('starlink'),
                 "max_range_km": 2000,        # LEO合理服務範圍  
                 "geographic_relevance_zone": 10,  # 台灣周邊區域
             },
             "oneweb": {
-                "min_elevation_deg": 10,     # OneWeb使用10度仰角門檻
+                "min_elevation_deg": self.elevation_manager.get_min_elevation('oneweb'),
                 "max_range_km": 2000,        # LEO合理服務範圍
                 "geographic_relevance_zone": 10,  # 台灣周邊區域
             }
         }
         
-        # 🔧 通用地理篩選參數（向下兼容）
+        # 🔧 通用地理篩選參數（向下兼容，使用統一管理器）
         self.filtering_params = {
-            "min_elevation_deg": 5,          # 預設使用Starlink標準
+            "min_elevation_deg": self.elevation_manager.get_min_elevation('starlink'),  # 預設使用Starlink標準
             "max_range_km": 2000,            # 從5000km縮減到2000km
             "geographic_relevance_zone": 10,  # 從50度縮減到10度
         }

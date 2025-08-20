@@ -1,6 +1,7 @@
 /**
  * App級別的Providers整合
  * 將所有Context Providers統一管理
+ * 🚀 修復：移除 SatelliteDataBridge，避免循環依賴
  */
 
 import React from 'react'
@@ -14,8 +15,8 @@ const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
     return (
         <SatelliteDataProvider
             initialConfig={{
-                minElevation: 10, // 使用標準服務門檻
-                maxCount: 40,     // 支援更多衛星顯示
+                minElevation: 5,  // 會根據星座動態調整 (Starlink 5°, OneWeb 10°)
+                maxCount: 15,     // Starlink: 10-15顆, OneWeb: 3-6顆
                 observerLat: 24.9441667, // NTPU觀測點
                 observerLon: 121.3713889,
                 constellation: 'starlink',

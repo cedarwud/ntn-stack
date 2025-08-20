@@ -39,22 +39,55 @@ class SignalQualityAnalysisProcessor:
     5. 絕對不重複篩選邏輯
     """
     
-    def __init__(self, observer_lat: float = 24.9441667, observer_lon: float = 121.3713889, 
-                 input_dir: str = "/app/data", output_dir: str = "/app/data"):
-        self.observer_lat = observer_lat
-        self.observer_lon = observer_lon
-        self.input_dir = Path(input_dir)
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, input_dir: str = "/app/data", output_dir: str = "/app/data"):
+    """
+    信號品質分析處理器初始化 - v3.1 重構版本（移除硬編碼座標）
+    
+    Args:
+        input_dir: 輸入目錄路徑
+        output_dir: 輸出目錄路徑
+    
+    重構改進:
+        - 移除硬編碼觀測座標參數
+        - 使用統一觀測配置服務
+        - 整合shared_core管理器
+    """
+    self.input_dir = Path(input_dir)
+    self.output_dir = Path(output_dir)
+    self.output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 🔧 重構：使用統一觀測配置服務（消除硬編碼）
+    try:
+        from shared_core.observer_config_service import get_ntpu_coordinates
+        self.observer_lat, self.observer_lon, self.observer_alt = get_ntpu_coordinates()
+        logger.info("✅ 使用統一觀測配置服務")
+    except Exception as e:
+        logger.error(f"觀測配置載入失敗: {e}")
+        raise RuntimeError("無法載入觀測點配置，請檢查shared_core配置")
+    
+    # 🔧 整合shared_core管理器
+    try:
+        from shared_core.signal_quality_cache import get_signal_quality_cache
+        from shared_core.elevation_threshold_manager import get_elevation_threshold_manager
         
-        # 初始化信號計算器
-        self.rsrp_calculator = create_rsrp_calculator(observer_lat, observer_lon)
-        self.event_analyzer = create_gpp_event_analyzer(self.rsrp_calculator)
-        
-        logger.info("✅ 信號品質分析處理器初始化完成")
-        logger.info(f"  輸入目錄: {self.input_dir}")
-        logger.info(f"  輸出目錄: {self.output_dir}")
-        logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
+        self.signal_cache = get_signal_quality_cache()
+        self.elevation_manager = get_elevation_threshold_manager()
+        logger.info("✅ 整合shared_core管理器")
+    except Exception as e:
+        logger.warning(f"shared_core管理器載入失敗，使用直接計算模式: {e}")
+        self.signal_cache = None
+        self.elevation_manager = None
+    
+    # 初始化信號計算器
+    self.rsrp_calculator = create_rsrp_calculator(self.observer_lat, self.observer_lon)
+    self.event_analyzer = create_gpp_event_analyzer(self.rsrp_calculator)
+    
+    logger.info("✅ 信號品質分析處理器初始化完成 (v3.1 重構版)")
+    logger.info(f"  輸入目錄: {self.input_dir}")
+    logger.info(f"  輸出目錄: {self.output_dir}")
+    logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
+    logger.info("  📐 座標來源: 統一觀測配置服務（已消除硬編碼）")
+    logger.info("  🔧 shared_core整合: 信號緩存 + 仰角管理器")
         
     def load_intelligent_filtering_output(self, filtering_file: Optional[str] = None) -> Dict[str, Any]:
         """載入智能篩選輸出數據"""

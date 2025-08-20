@@ -4,6 +4,17 @@
  */
 
 import { netstackFetch } from '../config/api-config'
+import { getNTPUCoordinates } from '../config/observerConfig'
+
+// 導入時間序列接口
+export interface PositionTimePoint {
+    time: string
+    time_offset_seconds: number
+    elevation_deg: number
+    azimuth_deg: number
+    range_km: number
+    is_visible: boolean
+}
 
 // 統一的衛星數據接口
 export interface UnifiedSatelliteInfo {
@@ -33,6 +44,8 @@ export interface UnifiedSatelliteInfo {
         sinr: number
         estimated_signal_strength: number
     }
+    // 🎯 真實SGP4軌道時間序列數據用於精確軌道運動
+    position_timeseries?: PositionTimePoint[]
 }
 
 export interface SatelliteDataServiceConfig {
@@ -56,17 +69,42 @@ export class SatelliteDataService {
 
     public static getInstance(config?: SatelliteDataServiceConfig): SatelliteDataService {
         if (!SatelliteDataService.instance) {
+            // 🎯 使用統一觀測配置服務，消除硬編碼座標
+            const coordinates = getNTPUCoordinates()
             const defaultConfig: SatelliteDataServiceConfig = {
                 minElevation: 10,
-                maxCount: 40,
-                observerLat: 24.9441667, // NTPU
-                observerLon: 121.3713889,
+                maxCount: 12, // 默認值，會根據星座動態調整
+                observerLat: coordinates.lat, // 統一配置服務
+                observerLon: coordinates.lon, // 統一配置服務
                 constellation: 'starlink',
                 updateInterval: 5000 // 5秒更新
             }
             SatelliteDataService.instance = new SatelliteDataService(config || defaultConfig)
         }
         return SatelliteDataService.instance
+    }
+
+    /**
+     * 根據星座獲取配置參數
+     */
+    private getConstellationConfig(constellation: 'starlink' | 'oneweb'): { maxCount: number, minElevation: number } {
+        switch (constellation) {
+            case 'starlink':
+                return {
+                    maxCount: 15,        // 顯示10-15顆可見衛星
+                    minElevation: 5      // Starlink 5° 仰角門檻（低軌道，信號較強）
+                }
+            case 'oneweb':
+                return {
+                    maxCount: 6,         // 顯示3-6顆可見衛星  
+                    minElevation: 10     // OneWeb 10° 仰角門檻（稍高軌道）
+                }
+            default:
+                return {
+                    maxCount: 12,
+                    minElevation: 10
+                }
+        }
     }
 
     /**
@@ -82,33 +120,66 @@ export class SatelliteDataService {
      * 獲取可見衛星數據 - 統一API調用
      */
     public async getVisibleSatellites(forceRefresh: boolean = false): Promise<UnifiedSatelliteInfo[]> {
-        const cacheKey = `${this.config.constellation}_${this.config.minElevation}_${this.config.maxCount}`
+        // 🎯 根據星座動態調整參數（仰角門檻和衛星數量）
+        const constellationConfig = this.getConstellationConfig(this.config.constellation)
+        const actualMinElevation = constellationConfig.minElevation
+        const actualMaxCount = constellationConfig.maxCount
+        
+        const cacheKey = `${this.config.constellation}_${actualMinElevation}_${actualMaxCount}`
         
         // 檢查緩存
         if (!forceRefresh) {
             const cached = this.cache.get(cacheKey)
             if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-                console.log(`⚡ SatelliteDataService: 使用緩存數據 (${cached.data.length} 顆衛星)`)
                 return cached.data
             }
         }
 
         try {
-            const currentTime = new Date().toISOString()
-            const endpoint = `/api/v1/leo-frontend/visible_satellites?count=${this.config.maxCount}&min_elevation_deg=${this.config.minElevation}&observer_lat=${this.config.observerLat}&observer_lon=${this.config.observerLon}&constellation=${this.config.constellation}&utc_timestamp=${currentTime}&global_view=false`
+            // 🎯 使用預計算數據的時間範圍 (2025-08-18 09:42:02 to 11:17:32)
+            // 避免使用當前時間，而是在預計算數據範圍內循環
+            const dataStartTime = new Date('2025-08-18T09:42:02Z')
+            const dataEndTime = new Date('2025-08-18T11:17:32Z')
+            const dataDuration = dataEndTime.getTime() - dataStartTime.getTime()
             
-            const response = await netstackFetch(endpoint)
+            // 基於當前秒數在數據範圍內循環
+            const currentSeconds = Math.floor(Date.now() / 1000) % Math.floor(dataDuration / 1000)
+            const targetTime = new Date(dataStartTime.getTime() + currentSeconds * 1000)
             
+            let endpoint = `/api/v1/satellite-simple/visible_satellites?count=${actualMaxCount}&min_elevation_deg=${actualMinElevation}&observer_lat=${this.config.observerLat}&observer_lon=${this.config.observerLon}&constellation=${this.config.constellation}&utc_timestamp=${targetTime.toISOString()}&global_view=false`
+            
+            let response = await netstackFetch(endpoint)
+            
+            // 如果主要端點失敗，嘗試使用備用端點
             if (!response.ok) {
-                throw new Error(`NetStack API 錯誤: ${response.status} ${response.statusText}`)
+                console.warn(`⚠️ 主要API端點失敗 (${response.status})，嘗試備用端點...`)
+                endpoint = `/api/v1/leo-frontend/satellites`
+                response = await netstackFetch(endpoint)
+                
+                if (!response.ok) {
+                    throw new Error(`NetStack API 錯誤: ${response.status} ${response.statusText}`)
+                }
             }
 
             const data = await response.json()
             const satellites = data.satellites || []
 
-            // 轉換為統一格式
+            // 轉換為統一格式，保留position_timeseries數據
             const unifiedSatellites: UnifiedSatelliteInfo[] = satellites.map((sat: Record<string, unknown>, index: number) => {
                 const satelliteId = String(sat.norad_id || sat.id || index)
+                
+                // 🚀 關鍵修復：保留position_timeseries數據
+                const positionTimeseries = Array.isArray(sat.position_timeseries) 
+                    ? sat.position_timeseries.map((point: any) => ({
+                        time: String(point.time || ''),
+                        time_offset_seconds: Number(point.time_offset_seconds || 0),
+                        elevation_deg: Number(point.elevation_deg || 0),
+                        azimuth_deg: Number(point.azimuth_deg || 0),
+                        range_km: Number(point.range_km || 0),
+                        is_visible: Boolean(point.is_visible)
+                    })) 
+                    : undefined;
+                
                 return {
                     id: satelliteId,
                     norad_id: String(sat.norad_id || ''),
@@ -135,7 +206,9 @@ export class SatelliteDataService {
                         rsrq: Number(sat.rsrq || -10),
                         sinr: Number(sat.sinr || 10),
                         estimated_signal_strength: Number(sat.signal_strength || Math.max(0.3, 1.0 - (Number(sat.distance_km || 1000) / 2000)))
-                    }
+                    },
+                    // 🌟 保留真實SGP4軌道數據
+                    position_timeseries: positionTimeseries
                 }
             })
 
@@ -145,7 +218,6 @@ export class SatelliteDataService {
                 timestamp: Date.now()
             })
 
-            console.log(`✅ SatelliteDataService: 成功獲取 ${unifiedSatellites.length} 顆 ${this.config.constellation} 衛星`)
             return unifiedSatellites
 
         } catch (error) {

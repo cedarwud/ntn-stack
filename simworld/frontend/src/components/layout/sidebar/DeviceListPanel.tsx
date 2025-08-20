@@ -225,7 +225,7 @@ const DeviceListPanel: React.FC<DeviceListPanelProps> = ({
                             ) : skyfieldSatellites.length > 0 ? (
                                 skyfieldSatellites.map((sat) => (
                                     <div
-                                        key={sat.norad_id}
+                                        key={sat.norad_id || sat.name || `sat-${Math.random()}`}
                                         className="satellite-item"
                                     >
                                         <div className="satellite-name">

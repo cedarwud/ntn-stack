@@ -20,6 +20,7 @@ from dataclasses import dataclass, asdict
 
 from skyfield.api import EarthSatellite, utc, load, wgs84
 import numpy as np
+from shared_core.elevation_threshold_manager import get_elevation_threshold_manager
 
 
 logger = logging.getLogger(__name__)
@@ -73,15 +74,20 @@ class OptimalTimeframe:
 class OptimalTimeframeAnalyzer:
     """最佳時間段分析器"""
     
-    def __init__(self, min_elevation: float = 5.0, time_step_seconds: int = 30):
+    def __init__(self, min_elevation: float = None, time_step_seconds: int = 30):
         """
         初始化分析器
         
         Args:
-            min_elevation: 最小仰角要求 (度)
+            min_elevation: 最小仰角要求 (度)，None時使用統一管理器的Starlink標準
             time_step_seconds: 軌跡計算時間步長 (秒)
         """
-        self.min_elevation = min_elevation
+        # 🔧 使用統一仰角門檻管理器
+        self.elevation_manager = get_elevation_threshold_manager()
+        if min_elevation is None:
+            self.min_elevation = self.elevation_manager.get_min_elevation('starlink')
+        else:
+            self.min_elevation = min_elevation
         self.time_step_seconds = time_step_seconds
         self.ts = load.timescale()
         

@@ -14,13 +14,13 @@ import { FeatureToggle } from './types/sidebar.types'
 // import { ApiRoutes } from '../../../../config/apiRoutes'
 // import { generateDeviceName as utilGenerateDeviceName } from '../../utils/deviceName'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
-import { simWorldApi } from '../../services/simworld-api'
-import { SatelliteDebugger } from '../../utils/satelliteDebugger'
+// 🎯 移除未使用的imports（simWorldApi, SatelliteDebugger）
 // import { netstackFetch } from '../../config/api-config'
 import {
     useSatelliteState,
     useHandoverState,
 } from '../../contexts/appStateHooks'
+import { useSatelliteData } from '../../contexts/SatelliteDataContext'
 
 // 引入重構後的設備列表模組
 import DeviceListPanel from './sidebar/DeviceListPanel'
@@ -105,95 +105,8 @@ interface SidebarProps {
 //     'meshNetworkTopology', 'failoverMechanism', 'aiRanVisualization'
 // ]
 
-// Helper function to fetch visible satellites from multiple constellations using the simWorldApi client
-async function _fetchVisibleSatellites(
-    count: number,
-    minElevation: number,
-    constellation: 'starlink' | 'oneweb' = 'starlink'
-): Promise<VisibleSatelliteInfo[]> {
-    try {
-        // 🔍 快速健康檢查，減少詳細調試輸出
-        const isHealthy = await SatelliteDebugger.quickHealthCheck()
-        if (!isHealthy) {
-            console.warn(`⚠️ EnhancedSidebar: 衛星API健康檢查失敗，將嘗試繼續`)
-        }
-
-        // 台灣觀測者位置：24°56'39"N 121°22'17"E (根據 CLAUDE.md 要求使用真實地理位置)
-        const TAIWAN_OBSERVER = {
-            lat: 24.94417, // 24°56'39"N = 24 + 56/60 + 39/3600
-            lon: 121.37139, // 121°22'17"E = 121 + 22/60 + 17/3600
-            alt: 100, // 台灣平均海拔約100公尺
-        }
-
-        // 使用台灣觀測點的新API方式，支援星座篩選
-        const satellites = await simWorldApi.getVisibleSatellites(
-            Math.max(minElevation, 5), // 使用最低可接受仰角門檻 (5°) 符合FCC規範
-            Math.max(count, 50), // 確保請求足夠的衛星數量以支援651+301配置
-            TAIWAN_OBSERVER.lat, // 台灣觀測點緯度
-            TAIWAN_OBSERVER.lon, // 台灣觀測點經度
-            constellation // 傳遞星座篩選參數
-        )
-
-        // simWorldApi.getVisibleSatellites 直接返回 SatellitePosition[] 數組
-        if (!satellites) {
-            console.warn(`🛰️ EnhancedSidebar: API 未返回數據`)
-            return []
-        }
-
-        if (!Array.isArray(satellites)) {
-            console.warn(
-                `🛰️ EnhancedSidebar: satellites 不是數組，類型: ${typeof satellites}`
-            )
-            return []
-        }
-
-        // Reduced logging: Only log when significant changes occur (moved to component level)
-
-        // 轉換衛星數據格式 (從 SatellitePosition 到 VisibleSatelliteInfo)
-        const _convertedSatellites = satellites.map(
-            (sat: Record<string, unknown>) => {
-                const noradId = String(sat.norad_id || sat.id || '0')
-                const position = (sat.position as Record<string, unknown>) || {}
-                const signalQuality =
-                    (sat.signal_quality as Record<string, unknown>) || {}
-
-                return {
-                    norad_id: parseInt(noradId),
-                    name: String(sat.name || 'Unknown'),
-                    elevation_deg: Number(
-                        position.elevation || signalQuality.elevation_deg || 0
-                    ),
-                    azimuth_deg: Number(position.azimuth || 0),
-                    distance_km: Number(
-                        position.range || signalQuality.range_km || 0
-                    ),
-                    line1: `1 ${noradId}U 20001001.00000000  .00000000  00000-0  00000-0 0  9999`,
-                    line2: `2 ${noradId}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
-                    constellation: 'MIXED', // 使用新API時不區分星座
-                }
-            }
-        )
-
-        // 按仰角排序，仰角高的衛星優先
-        const sortedSatellites = [...satellites]
-        sortedSatellites.sort((a, b) => b.elevation_deg - a.elevation_deg)
-
-        return sortedSatellites
-    } catch (error) {
-        console.error(`❌ EnhancedSidebar: 獲取台灣觀測點衛星數據失敗:`, error)
-
-        // 嘗試健康檢查
-        try {
-            const healthStatus = await SatelliteDebugger.quickHealthCheck()
-            console.log(`🔍 健康檢查結果: ${healthStatus ? '正常' : '異常'}`)
-        } catch (healthError) {
-            console.error(`❌ 健康檢查也失敗:`, healthError)
-        }
-
-        // 不再使用模擬數據，返回空數組以便調試
-        return []
-    }
-}
+// 🎯 移除直接API調用，改用SatelliteDataContext
+// 這確保Sidebar使用Stage 6優化的156衛星池數據而非全量391衛星數據
 
 const Sidebar: React.FC<SidebarProps> = ({
     devices = [],
@@ -224,13 +137,14 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     // 星座切換 props
     selectedConstellation = 'starlink',
-    onConstellationChange,
+    onConstellationChange: _onConstellationChange,
 }) => {
     // 標記未使用的props為已消費（避免TypeScript警告）
     void _satelliteSpeedMultiplier
     void _onSatelliteSpeedChange
     void _onManualControl
     void _uavAnimation
+    void _onConstellationChange
 
     // 🎯 使用換手狀態
     const {
@@ -262,6 +176,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     const satelliteState = useSatelliteState()
     const { setSkyfieldSatellites } = satelliteState
     const skyfieldSatellites = satelliteState.skyfieldSatellites || []
+    
+    // 🎯 獲取 SatelliteDataContext 數據
+    const { state: satelliteContextState } = useSatelliteData()
+    const contextSatellites = satelliteContextState.satellites || []
     const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false)
     const satelliteRefreshIntervalRef = useRef<ReturnType<
         typeof setInterval
@@ -370,44 +288,22 @@ const Sidebar: React.FC<SidebarProps> = ({
 
             // 檢查星座是否變化，如果變化則需要重新載入
             if (lastConstellationRef.current !== selectedConstellation) {
-                console.log(`🔄 星座切換: ${lastConstellationRef.current} -> ${selectedConstellation}，重新載入衛星數據`)
                 satelliteDataInitialized.current = false
                 lastConstellationRef.current = selectedConstellation
             }
 
             // 如果已經初始化過且星座沒有變化，就不再重新載入
             if (satelliteDataInitialized.current && lastConstellationRef.current === selectedConstellation) {
-                // console.log(
-                //     '🛰️ 衛星數據已初始化，使用內在軌道運動，避免重新載入'
-                // )
                 return
             }
 
-            // console.log(`🛰️ 初始化 ${selectedConstellation} 星座衛星數據...`)
             setLoadingSatellites(true)
 
-            // 直接調用 API 獲取當前星座的衛星數據
-            try {
-                // 根據新的651+301完整軌道週期配置，請求足夠的衛星數量
-                // Starlink: 651顆衛星池, OneWeb: 301顆衛星池
-                const requestCount = selectedConstellation === 'starlink' ? 100 : 50  // 實用顯示數量
-                // 使用標準服務仰角門檻 (10°) - 符合3GPP NTN標準和ITU-R建議
-                const newSatellites = await _fetchVisibleSatellites(requestCount, 10, selectedConstellation)
-                
-                // Final result: Show data source type only
-                console.log(`🛰️ 衛星數據來源: 真實軌道計算 (NetStack API) - ${newSatellites.length} 顆衛星`)
-                
-                if (onSatelliteDataUpdateRef.current) {
-                    onSatelliteDataUpdateRef.current(newSatellites)
-                    // console.log(`🛰️ EnhancedSidebar: 成功載入 ${selectedConstellation} 星座 ${newSatellites.length} 顆衛星`)
-                }
-
-                satelliteDataInitialized.current = true
-                setLoadingSatellites(false)
-            } catch (error) {
-                console.error(`❌ 載入 ${selectedConstellation} 星座衛星數據失敗:`, error)
-                setLoadingSatellites(false)
-            }
+            // 🎯 使用SatelliteDataContext的動態池數據，無需手動初始化
+            // 數據自動通過context獲取並已過濾為156顆優化衛星
+            
+            // 標記已初始化
+            satelliteDataInitialized.current = true
         }
 
         // 清理任何現有的刷新間隔
@@ -429,6 +325,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         satelliteEnabled, // 只依賴啟用狀態
         selectedConstellation, // 當星座選擇變化時重新載入衛星數據
         setSkyfieldSatellites, // 包含 setSkyfieldSatellites 依賴
+        contextSatellites, // 添加 contextSatellites 依賴
         // 移除 onSatelliteDataUpdate 和 skyfieldSatellites 避免無限循環
     ])
 
@@ -469,9 +366,22 @@ const Sidebar: React.FC<SidebarProps> = ({
                                             <div className="constellation-selector">
                                                 <ConstellationSelectorCompact
                                                     value={selectedConstellation}
-                                                    onChange={onConstellationChange || (() => {})}
+                                                    onChange={(constellation) => {
+                                                        // 處理星座切換
+                                                        if (_onConstellationChange) {
+                                                            _onConstellationChange(constellation)
+                                                        }
+                                                    }}
                                                     disabled={!satelliteEnabled}
                                                 />
+                                                
+                                                {/* 🎯 動態池狀態顯示 */}
+                                                {process.env.NODE_ENV === 'development' && satelliteEnabled && (
+                                                    <div className="pool-status-info" style={{marginTop: '8px', fontSize: '12px', color: '#888'}}>
+                                                        🎯 池模式: {satelliteContextState.dynamicPool.enabled ? '優化池' : '全量數據'} 
+                                                        ({contextSatellites.length} 顆衛星)
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 

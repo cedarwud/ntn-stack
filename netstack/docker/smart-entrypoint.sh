@@ -3,6 +3,13 @@ set -e
 
 echo "🚀 NetStack 智能啟動開始..."
 
+# 🔧 緊急修復模式：自動檢測並跳過有問題的六階段系統
+if ! python -c "import sys; sys.path.append('/app/src'); from leo_core.main_pipeline_controller import main" 2>/dev/null; then
+    echo "⚡ 檢測到六階段系統導入錯誤，啟用緊急模式：跳過數據生成，直接啟動 API"
+    exec "$@"
+    exit 0
+fi
+
 DATA_DIR="/app/data"
 MARKER_FILE="$DATA_DIR/.data_ready"
 

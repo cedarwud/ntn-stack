@@ -31,7 +31,7 @@ from dataclasses import dataclass
 # 導入所有階段處理器
 sys.path.insert(0, '/home/sat/ntn-stack/netstack/src')
 
-from stages.tle_orbital_calculation_processor import TLEOrbitalCalculationProcessor
+from stages.tle_orbital_calculation_processor import Stage1TLEProcessor as TLEOrbitalCalculationProcessor
 from stages.intelligent_satellite_filter_processor import IntelligentSatelliteFilterProcessor  
 from stages.signal_quality_analysis_processor import SignalQualityAnalysisProcessor
 from stages.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor

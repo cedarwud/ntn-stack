@@ -10,6 +10,15 @@ export default defineConfig(({ mode }) => {
     return {
     plugins: [react()],
     
+    // 依賴優化配置
+    optimizeDeps: {
+        exclude: [
+            // 排除有問題的 chunk
+            'chunk-BWUY46IE'
+        ],
+        force: true // 強制重新優化依賴
+    },
+    
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),

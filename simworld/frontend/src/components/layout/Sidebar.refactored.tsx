@@ -140,16 +140,20 @@ const Sidebar: React.FC<SidebarProps> = ({
     React.useEffect(() => {
         if (onSatelliteDataUpdate && satellites.length > 0) {
             // 轉換格式以保持向後兼容
-            const compatibleSatellites: VisibleSatelliteInfo[] = satellites.map(sat => ({
-                norad_id: parseInt(sat.norad_id),
+            const compatibleSatellites: VisibleSatelliteInfo[] = satellites.map(sat => {
+                // 從 "starlink_07937" 或 "oneweb_12345" 提取數字部分
+                const numericId = String(sat.norad_id).match(/\d+/)?.[0] || '0'
+                return {
+                    norad_id: parseInt(numericId),
                 name: sat.name,
                 elevation_deg: sat.elevation_deg,
                 azimuth_deg: sat.azimuth_deg,
                 distance_km: sat.distance_km,
-                line1: `1 ${sat.norad_id}U 20001001.00000000  .00000000  00000-0  00000-0 0  9999`,
-                line2: `2 ${sat.norad_id}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
+                line1: `1 ${numericId}U 20001001.00000000  .00000000  00000-0  00000-0 0  9999`,
+                line2: `2 ${numericId}  53.0000   0.0000 0000000   0.0000   0.0000 15.50000000000000`,
                 constellation: 'MIXED'
-            }))
+                }
+            })
             onSatelliteDataUpdate(compatibleSatellites)
         }
     }, [satellites, onSatelliteDataUpdate])

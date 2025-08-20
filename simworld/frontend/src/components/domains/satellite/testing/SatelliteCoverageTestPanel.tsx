@@ -90,13 +90,13 @@ const SatelliteCoverageTestPanel: React.FC<SatelliteCoverageTestPanelProps> = ({
     setIsRecording(true)
     setTestResult(null)
     setCurrentMetrics(null)
-    console.log('🎬 開始記錄衛星覆蓋數據')
+    // 調試已移除：開始記錄衛星覆蓋數據
   }
 
   const handleStopRecording = () => {
     satelliteCoverageValidator.stopRecording()
     setIsRecording(false)
-    console.log('⏹️ 停止記錄衛星覆蓋數據')
+    // 調試已移除：停止記錄衛星覆蓋數據
   }
 
   const handleRunFullTest = async () => {
@@ -104,7 +104,7 @@ const SatelliteCoverageTestPanel: React.FC<SatelliteCoverageTestPanelProps> = ({
     setTestResult(null)
     
     try {
-      console.log('🧪 開始執行完整軌道週期測試...')
+      // 調試已移除：開始執行完整軌道週期測試
       
       // 執行200分鐘測試（覆蓋兩個完整的Starlink軌道週期）
       const result = await satelliteCoverageValidator.runOrbitPeriodTest(200, 30)
@@ -113,7 +113,7 @@ const SatelliteCoverageTestPanel: React.FC<SatelliteCoverageTestPanelProps> = ({
       
       // 生成並輸出報告
       const report = satelliteCoverageValidator.generateTestReport(result)
-      console.log(report)
+      // 調試已移除：輸出測試報告
       
       // 可以考慮下載報告文件
       if (typeof window !== 'undefined') {
@@ -129,7 +129,7 @@ const SatelliteCoverageTestPanel: React.FC<SatelliteCoverageTestPanelProps> = ({
       }
       
     } catch (error) {
-      console.error('❌ 測試執行失敗:', error)
+      // 調試已移除：測試執行失敗記錄
     } finally {
       setTestInProgress(false)
     }
@@ -140,7 +140,7 @@ const SatelliteCoverageTestPanel: React.FC<SatelliteCoverageTestPanelProps> = ({
     setRecordCount(0)
     setCurrentMetrics(null)
     setTestResult(null)
-    console.log('🗑️ 清理測試數據')
+    // 調試已移除：清理測試數據
   }
 
   const handleExportData = () => {

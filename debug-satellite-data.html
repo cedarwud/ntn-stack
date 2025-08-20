@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>衛星數據調試</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .status { margin: 10px 0; padding: 10px; background: #2a2a2a; border-radius: 5px; }
+        .success { border-left: 5px solid #00ff00; }
+        .error { border-left: 5px solid #ff0000; }
+        .warning { border-left: 5px solid #ffaa00; }
+        .info { border-left: 5px solid #0088ff; }
+        pre { overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🛰️ 衛星數據流調試工具</h1>
+    <div id="status">載入中...</div>
+    
+    <script>
+        const statusDiv = document.getElementById('status');
+        
+        function addStatus(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> ${message}`;
+            statusDiv.appendChild(div);
+            console.log(message);
+        }
+        
+        async function testSatelliteAPI() {
+            addStatus('🔍 測試 NetStack 衛星 API...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/v1/satellite-simple/visible_satellites?count=3&min_elevation_deg=5&observer_lat=24.9441667&observer_lon=121.3713889&constellation=starlink&utc_timestamp=2025-08-18T10:00:00Z&global_view=false');
+                const data = await response.json();
+                
+                addStatus(`✅ API 成功: ${data.satellites.length} 顆衛星`, 'success');
+                addStatus(`<pre>${JSON.stringify(data.satellites[0], null, 2)}</pre>`, 'info');
+                
+                return data;
+            } catch (error) {
+                addStatus(`❌ API 錯誤: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        
+        async function testSatelliteModel() {
+            addStatus('🔍 測試衛星 3D 模型...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:8888/static/models/sat.glb', { method: 'HEAD' });
+                if (response.ok) {
+                    addStatus(`✅ 衛星模型正常: ${response.headers.get('content-length')} bytes`, 'success');
+                } else {
+                    addStatus(`❌ 衛星模型錯誤: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addStatus(`❌ 模型請求錯誤: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testFrontendData() {
+            addStatus('🔍 檢查前端數據服務...', 'info');
+            
+            // 模擬前端數據服務調用邏輯
+            try {
+                // 模擬 satelliteDataService 的調用
+                const API_BASE = 'http://localhost:8080';
+                const endpoint = `/api/v1/satellite-simple/visible_satellites?count=15&min_elevation_deg=5&observer_lat=24.9441667&observer_lon=121.3713889&constellation=starlink&utc_timestamp=2025-08-18T10:00:00Z&global_view=false`;
+                
+                const response = await fetch(API_BASE + endpoint);
+                const data = await response.json();
+                
+                addStatus(`✅ 前端數據服務模擬成功`, 'success');
+                addStatus(`衛星數量: ${data.satellites.length}`, 'info');
+                
+                // 檢查數據結構
+                const firstSat = data.satellites[0];
+                if (firstSat) {
+                    addStatus(`第一顆衛星:`, 'info');
+                    addStatus(`- ID: ${firstSat.norad_id || firstSat.id}`, 'info');
+                    addStatus(`- 名稱: ${firstSat.name}`, 'info');
+                    addStatus(`- 時間序列長度: ${firstSat.position_timeseries ? firstSat.position_timeseries.length : 0}`, 'info');
+                    addStatus(`- 可見性: ${firstSat.is_visible}`, 'info');
+                    addStatus(`- 仰角: ${firstSat.elevation_deg}°`, 'info');
+                    
+                    if (firstSat.position_timeseries && firstSat.position_timeseries.length > 0) {
+                        addStatus(`✅ 時間序列數據存在，可進行軌道計算`, 'success');
+                        
+                        // 檢查第一個時間序列點
+                        const firstPoint = firstSat.position_timeseries[0];
+                        addStatus(`第一個軌道點: 仰角${firstPoint.elevation_deg}°, 方位角${firstPoint.azimuth_deg}°`, 'info');
+                    } else {
+                        addStatus(`❌ 缺少時間序列數據，無法計算軌道`, 'error');
+                    }
+                }
+                
+            } catch (error) {
+                addStatus(`❌ 前端數據服務錯誤: ${error.message}`, 'error');
+            }
+        }
+        
+        async function runAllTests() {
+            addStatus('🚀 開始完整衛星系統診斷...', 'info');
+            
+            await testSatelliteAPI();
+            await testSatelliteModel();
+            await testFrontendData();
+            
+            addStatus('📊 診斷完成！檢查上述結果確定問題所在。', 'success');
+        }
+        
+        // 自動開始測試
+        runAllTests();
+        
+        // 每30秒重新測試API
+        setInterval(async () => {
+            addStatus('🔄 定期檢查衛星API...', 'info');
+            await testSatelliteAPI();
+        }, 30000);
+    </script>
+</body>
+</html>

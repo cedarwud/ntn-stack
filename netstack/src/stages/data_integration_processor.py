@@ -19,16 +19,21 @@ import psycopg2
 
 @dataclass
 class Stage5Config:
-    """階段五配置"""
+    """階段五配置參數"""
+    
+    # 輸入目錄
     input_enhanced_timeseries_dir: str = "/app/data/timeseries_preprocessing_outputs"
+    
+    # 輸出目錄
     output_layered_dir: str = "/app/data/layered_phase0_enhanced"
     output_handover_scenarios_dir: str = "/app/data/handover_scenarios"
     output_signal_analysis_dir: str = "/app/data/signal_quality_analysis"
     output_processing_cache_dir: str = "/app/data/processing_cache"
     output_status_files_dir: str = "/app/data/status_files"
+    output_data_integration_dir: str = "/app/data/data_integration_outputs"
     
     # PostgreSQL 配置
-    postgres_host: str = "localhost"
+    postgres_host: str = "netstack-postgres"
     postgres_port: int = 5432
     postgres_user: str = "netstack_user"
     postgres_password: str = "netstack_password"
@@ -48,6 +53,27 @@ class Stage5IntegrationProcessor:
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.processing_start_time = time.time()
+        
+        # 🔧 重構：使用統一觀測配置服務（消除硬編碼座標）
+        try:
+            from shared_core.observer_config_service import get_ntpu_coordinates
+            self.observer_lat, self.observer_lon, self.observer_alt = get_ntpu_coordinates()
+            self.logger.info("✅ Stage5使用統一觀測配置服務")
+        except Exception as e:
+            self.logger.error(f"觀測配置載入失敗: {e}")
+            raise RuntimeError("無法載入觀測點配置，請檢查shared_core配置")
+        
+        # 初始化統一管理器 (重構改進)
+        from shared_core.elevation_threshold_manager import get_elevation_threshold_manager
+        from shared_core.signal_quality_cache import get_signal_quality_cache
+        
+        self.elevation_manager = get_elevation_threshold_manager()
+        self.signal_cache = get_signal_quality_cache()
+        
+        self.logger.info("✅ Stage5 數據整合處理器初始化完成 (v3.1重構版)")
+        self.logger.info(f"  📐 觀測座標: ({self.observer_lat}°, {self.observer_lon}°) - 統一配置")
+        self.logger.info("  🔧 統一仰角門檻管理器已啟用")
+        self.logger.info("  🔧 信號品質緩存已啟用")
         
     async def process_enhanced_timeseries(self) -> Dict[str, Any]:
         """處理增強時間序列數據並實現混合存儲架構"""
@@ -161,7 +187,7 @@ class Stage5IntegrationProcessor:
             "handover_scores_inserted": 0,
             "constellation_stats_updated": 0
         }
-        
+    
         try:
             # 建立資料庫連接
             conn = psycopg2.connect(
@@ -199,15 +225,20 @@ class Stage5IntegrationProcessor:
                     integration_results["satellite_metadata_inserted"] += 1
                     
                     # 插入軌道參數（從第一個時間點估算）
-                    if satellite.get('timeseries'):
-                        first_point = satellite['timeseries'][0]
+                    timeseries_data = satellite.get('position_timeseries', satellite.get('timeseries', []))
+                    if timeseries_data:
+                        first_point = timeseries_data[0]
+                        
+                        # 從range_km估算高度（減去地球半徑約6371km）
+                        range_km = first_point.get('range_km', 7000)
+                        estimated_altitude = max(range_km - 6371, 400)  # 最低400km
                         
                         cur.execute("""
                             INSERT INTO orbital_parameters 
                             (satellite_id, altitude_km) 
                             VALUES (%s, %s)
                             ON CONFLICT DO NOTHING
-                        """, (satellite_id, first_point.get('alt_km', 550.0)))
+                        """, (satellite_id, estimated_altitude))
                         
                         integration_results["orbital_parameters_inserted"] += 1
                 
@@ -234,13 +265,26 @@ class Stage5IntegrationProcessor:
         return integration_results
     
     async def _generate_layered_data(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
-        """生成分層數據增強"""
+        """
+        生成分層數據增強 (重構版)
         
-        self.logger.info("🔄 生成分層仰角數據")
+        使用統一仰角門檻管理器，移除重複的仰角邏輯
+        """
+        
+        self.logger.info("🔄 生成分層仰角數據 (重構版)")
+        self.logger.info("  🔧 使用統一仰角門檻管理器")
+        
+        # 導入統一仰角管理器
+        from shared_core.elevation_threshold_manager import get_elevation_threshold_manager
+        elevation_manager = get_elevation_threshold_manager()
+        
+        # 使用統一管理器的分層門檻
+        layered_thresholds = elevation_manager.get_layered_thresholds()
+        self.logger.info(f"  📐 分層門檻: {layered_thresholds}")
         
         layered_results = {}
         
-        for threshold in self.config.elevation_thresholds:
+        for threshold in layered_thresholds:
             threshold_dir = Path(self.config.output_layered_dir) / f"elevation_{threshold}deg"
             threshold_dir.mkdir(parents=True, exist_ok=True)
             
@@ -250,21 +294,15 @@ class Stage5IntegrationProcessor:
                 if not data:
                     continue
                 
-                # 篩選符合仰角門檻的數據
-                filtered_satellites = []
+                self.logger.info(f"  📡 處理 {constellation} 星座 @ {threshold}° 門檻")
                 
-                for satellite in data.get('satellites', []):
-                    filtered_timeseries = []
-                    
-                    for point in satellite.get('timeseries', []):
-                        if point.get('elevation_deg', 0) >= threshold:
-                            filtered_timeseries.append(point)
-                    
-                    if filtered_timeseries:
-                        filtered_satellites.append({
-                            **satellite,
-                            'timeseries': filtered_timeseries
-                        })
+                # 使用統一仰角管理器進行濾波
+                satellites = data.get('satellites', [])
+                
+                # 調用統一管理器的濾波方法
+                filtered_satellites = elevation_manager.filter_satellites_by_elevation(
+                    satellites, constellation, threshold
+                )
                 
                 # 生成分層數據檔案
                 layered_data = {
@@ -272,7 +310,11 @@ class Stage5IntegrationProcessor:
                         **data.get('metadata', {}),
                         "elevation_threshold_deg": threshold,
                         "filtered_satellites_count": len(filtered_satellites),
-                        "stage5_processing_time": datetime.now(timezone.utc).isoformat()
+                        "processing_method": "unified_elevation_threshold_manager",
+                        "constellation_min_threshold": elevation_manager.get_min_elevation(constellation),
+                        "constellation_optimal_threshold": elevation_manager.get_optimal_elevation(constellation),
+                        "stage5_processing_time": datetime.now(timezone.utc).isoformat(),
+                        "refactoring_notes": "Using unified elevation threshold manager, removed duplicate logic"
                     },
                     "satellites": filtered_satellites
                 }
@@ -287,10 +329,27 @@ class Stage5IntegrationProcessor:
                 layered_results[f"elevation_{threshold}deg"][constellation] = {
                     "file_path": str(output_file),
                     "satellites_count": len(filtered_satellites),
-                    "file_size_mb": round(file_size_mb, 2)
+                    "file_size_mb": round(file_size_mb, 2),
+                    "filtering_method": "unified_elevation_threshold_manager",
+                    "retention_stats": {
+                        sat.get('elevation_filter_info', {}) 
+                        for sat in filtered_satellites 
+                        if 'elevation_filter_info' in sat
+                    } if filtered_satellites else []
                 }
                 
                 self.logger.info(f"✅ {constellation} {threshold}度: {len(filtered_satellites)} 顆衛星, {file_size_mb:.1f}MB")
+                
+                # 記錄濾波統計
+                if filtered_satellites and 'elevation_filter_info' in filtered_satellites[0]:
+                    total_retention = sum(
+                        sat.get('elevation_filter_info', {}).get('retention_rate', 0) 
+                        for sat in filtered_satellites
+                    ) / len(filtered_satellites)
+                    self.logger.info(f"    📊 平均點保留率: {total_retention*100:.1f}%")
+        
+        self.logger.info("✅ 重構版分層數據生成完成")
+        self.logger.info("  🎯 改進: 移除重複仰角邏輯，統一使用仰角管理器")
         
         return layered_results
     
@@ -353,8 +412,8 @@ class Stage5IntegrationProcessor:
         }
         
         return scenario_results
-    
-    async def _generate_a4_event_timeline(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
+        
+        async def _generate_a4_event_timeline(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
         """生成A4事件時間軸"""
         
         a4_threshold = -80.0  # dBm
@@ -395,8 +454,8 @@ class Stage5IntegrationProcessor:
             },
             "events": events
         }
-    
-    async def _generate_a5_event_timeline(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
+        
+        async def _generate_a5_event_timeline(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
         """生成A5事件時間軸"""
         
         serving_threshold = -72.0  # dBm
@@ -455,8 +514,8 @@ class Stage5IntegrationProcessor:
             },
             "events": events
         }
-    
-    async def _generate_d2_event_timeline(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
+        
+        async def _generate_d2_event_timeline(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
         """生成D2事件時間軸"""
         
         distance_threshold_km = 2000.0
@@ -482,22 +541,22 @@ class Stage5IntegrationProcessor:
                             "threshold_km": distance_threshold_km,
                             "event_type": "d2_distance_trigger",
                             "elevation_deg": point.get('elevation_deg'),
-                            "ue_latitude": 24.9441667,  # NTPU位置
-                            "ue_longitude": 121.3713889
+                            "ue_latitude": self.observer_lat,  # NTPU位置（統一配置）
+                            "ue_longitude": self.observer_lon
                         })
         
         return {
             "metadata": {
                 "event_type": "D2_distance_based",
                 "distance_threshold_km": distance_threshold_km,
-                "observer_location": {"lat": 24.9441667, "lon": 121.3713889},
+                "observer_location": {"lat": self.observer_lat, "lon": self.observer_lon},
                 "total_events": len(events),
                 "generation_time": datetime.now(timezone.utc).isoformat()
             },
             "events": events
         }
-    
-    async def _generate_optimal_handover_windows(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
+        
+        async def _generate_optimal_handover_windows(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
         """生成最佳換手時間窗口分析"""
         
         windows = []
@@ -510,57 +569,57 @@ class Stage5IntegrationProcessor:
             
             # 簡化的最佳窗口檢測
             for satellite in satellites:
-                satellite_id = satellite.get('satellite_id')
-                timeseries = satellite.get('timeseries', [])
+            satellite_id = satellite.get('satellite_id')
+            timeseries = satellite.get('timeseries', [])
+            
+            # 尋找信號品質良好的時間窗口
+            good_periods = []
+            current_window = None
+            
+            for point in timeseries:
+                rsrp = point.get('rsrp_dbm', -120)
+                elevation = point.get('elevation_deg', 0)
                 
-                # 尋找信號品質良好的時間窗口
-                good_periods = []
-                current_window = None
-                
-                for point in timeseries:
-                    rsrp = point.get('rsrp_dbm', -120)
-                    elevation = point.get('elevation_deg', 0)
-                    
-                    if rsrp > -85 and elevation > 10:  # 良好信號條件
-                        if current_window is None:
-                            current_window = {
-                                "start_time": point.get('time'),
-                                "start_rsrp": rsrp,
-                                "start_elevation": elevation
-                            }
-                        current_window["end_time"] = point.get('time')
-                        current_window["end_rsrp"] = rsrp
-                        current_window["end_elevation"] = elevation
-                    else:
-                        if current_window:
-                            good_periods.append(current_window)
-                            current_window = None
-                
-                if current_window:
-                    good_periods.append(current_window)
-                
-                for period in good_periods:
-                    windows.append({
-                        "satellite_id": satellite_id,
-                        "constellation": constellation,
-                        "window_start": period["start_time"],
-                        "window_end": period["end_time"],
-                        "window_quality": "optimal",
-                        "min_rsrp_dbm": min(period["start_rsrp"], period["end_rsrp"]),
-                        "max_elevation_deg": max(period["start_elevation"], period["end_elevation"])
-                    })
+                if rsrp > -85 and elevation > 10:  # 良好信號條件
+                    if current_window is None:
+                        current_window = {
+                            "start_time": point.get('time'),
+                            "start_rsrp": rsrp,
+                            "start_elevation": elevation
+                        }
+                    current_window["end_time"] = point.get('time')
+                    current_window["end_rsrp"] = rsrp
+                    current_window["end_elevation"] = elevation
+                else:
+                    if current_window:
+                        good_periods.append(current_window)
+                        current_window = None
+            
+            if current_window:
+                good_periods.append(current_window)
+            
+            for period in good_periods:
+                windows.append({
+                    "satellite_id": satellite_id,
+                    "constellation": constellation,
+                    "window_start": period["start_time"],
+                    "window_end": period["end_time"],
+                    "window_quality": "optimal",
+                    "min_rsrp_dbm": min(period["start_rsrp"], period["end_rsrp"]),
+                    "max_elevation_deg": max(period["start_elevation"], period["end_elevation"])
+                })
         
         return {
-            "metadata": {
-                "analysis_type": "optimal_handover_windows",
-                "quality_criteria": {
-                    "min_rsrp_dbm": -85,
-                    "min_elevation_deg": 10
-                },
-                "total_windows": len(windows),
-                "generation_time": datetime.now(timezone.utc).isoformat()
+        "metadata": {
+            "analysis_type": "optimal_handover_windows",
+            "quality_criteria": {
+                "min_rsrp_dbm": -85,
+                "min_elevation_deg": 10
             },
-            "windows": windows
+            "total_windows": len(windows),
+            "generation_time": datetime.now(timezone.utc).isoformat()
+        },
+        "windows": windows
         }
     
     async def _setup_signal_analysis_structure(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -573,29 +632,29 @@ class Stage5IntegrationProcessor:
         
         # 創建基本結構文件（引用階段三的計算結果，不重複計算）
         structure_info = {
-            "metadata": {
-                "data_type": "signal_analysis_structure_setup",
-                "note": "信號品質計算已在階段三完成，此處僅設置目錄結構",
-                "stage3_reference": "signal_quality_analysis在stage3_signal_event_analysis_output.json中",
-                "generation_time": datetime.now(timezone.utc).isoformat()
-            },
-            "directory_structure": {
-                "analysis_dir": str(analysis_dir),
-                "available_for_future_analysis": True
-            }
+        "metadata": {
+            "data_type": "signal_analysis_structure_setup",
+            "note": "信號品質計算已在階段三完成，此處僅設置目錄結構",
+            "stage3_reference": "signal_quality_analysis在stage3_signal_event_analysis_output.json中",
+            "generation_time": datetime.now(timezone.utc).isoformat()
+        },
+        "directory_structure": {
+            "analysis_dir": str(analysis_dir),
+            "available_for_future_analysis": True
+        }
         }
         
         # 保存結構信息
         structure_file = analysis_dir / "analysis_structure_info.json"
         with open(structure_file, 'w') as f:
-            json.dump(structure_info, f, indent=2, ensure_ascii=False)
+        json.dump(structure_info, f, indent=2, ensure_ascii=False)
         
         self.logger.info("✅ 信號品質分析目錄結構設置完成（避免與階段三重複）")
         
         return {
-            "setup_completed": True,
-            "structure_file": str(structure_file),
-            "note": "Signal quality analysis completed in Stage 3"
+        "setup_completed": True,
+        "structure_file": str(structure_file),
+        "note": "Signal quality analysis completed in Stage 3"
         }
     
     async def _create_processing_cache(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -610,33 +669,33 @@ class Stage5IntegrationProcessor:
         
         # 緩存基本統計信息
         cache_stats = {
-            "total_satellites": 0,
-            "constellations": {}
+        "total_satellites": 0,
+        "constellations": {}
         }
         
         for constellation, data in enhanced_data.items():
-            if not data or not isinstance(data, dict):
-                continue
-                
-            satellites = data.get('satellites', [])
-            satellite_count = len(satellites)
-            cache_stats["total_satellites"] += satellite_count
+        if not data or not isinstance(data, dict):
+            continue
             
-            cache_stats["constellations"][constellation] = {
-                "satellite_count": satellite_count,
-                "has_position_data": any('position_timeseries' in sat for sat in satellites),
-                "has_signal_data": any('signal_quality' in sat for sat in satellites)
-            }
+        satellites = data.get('satellites', [])
+        satellite_count = len(satellites)
+        cache_stats["total_satellites"] += satellite_count
+        
+        cache_stats["constellations"][constellation] = {
+            "satellite_count": satellite_count,
+            "has_position_data": any('position_timeseries' in sat for sat in satellites),
+            "has_signal_data": any('signal_quality' in sat for sat in satellites)
+        }
         
         # 保存緩存統計
         stats_file = cache_dir / "processing_statistics.json"
         with open(stats_file, 'w') as f:
-            json.dump(cache_stats, f, indent=2, ensure_ascii=False)
+        json.dump(cache_stats, f, indent=2, ensure_ascii=False)
         
         cache_results["statistics"] = {
-            "file_path": str(stats_file),
-            "total_satellites": cache_stats["total_satellites"],
-            "file_size_kb": round(stats_file.stat().st_size / 1024, 2)
+        "file_path": str(stats_file),
+        "total_satellites": cache_stats["total_satellites"],
+        "file_size_kb": round(stats_file.stat().st_size / 1024, 2)
         }
         
         self.logger.info(f"✅ 處理緩存創建完成：{cache_stats['total_satellites']} 顆衛星統計")
@@ -655,18 +714,18 @@ class Stage5IntegrationProcessor:
         
         # 建構時間戳
         build_timestamp = {
-            "stage5_completion_time": datetime.now(timezone.utc).isoformat(),
-            "data_ready": True,
-            "processing_completed": True
+        "stage5_completion_time": datetime.now(timezone.utc).isoformat(),
+        "data_ready": True,
+        "processing_completed": True
         }
         
         timestamp_file = status_dir / "build_timestamp.json"
         with open(timestamp_file, 'w') as f:
-            json.dump(build_timestamp, f, indent=2, ensure_ascii=False)
+        json.dump(build_timestamp, f, indent=2, ensure_ascii=False)
         
         status_results["build_timestamp"] = {
-            "file_path": str(timestamp_file),
-            "status": "completed"
+        "file_path": str(timestamp_file),
+        "status": "completed"
         }
         
         self.logger.info("✅ 狀態文件創建完成")
@@ -679,16 +738,16 @@ class Stage5IntegrationProcessor:
         self.logger.info("🔍 驗證混合存儲訪問模式")
         
         verification_results = {
-            "postgresql_access": {
-                "available": True,
-                "note": "PostgreSQL connection will be verified at runtime"
-            },
-            "volume_access": {
-                "available": True,
-                "enhanced_timeseries_exists": Path(self.config.input_enhanced_timeseries_dir).exists(),
-                "layered_data_exists": Path(self.config.output_layered_dir).exists()
-            },
-            "mixed_storage_ready": True
+        "postgresql_access": {
+            "available": True,
+            "note": "PostgreSQL connection will be verified at runtime"
+        },
+        "volume_access": {
+            "available": True,
+            "enhanced_timeseries_exists": Path(self.config.input_enhanced_timeseries_dir).exists(),
+            "layered_data_exists": Path(self.config.output_layered_dir).exists()
+        },
+        "mixed_storage_ready": True
         }
         
         self.logger.info("✅ 混合存儲訪問驗證完成")
