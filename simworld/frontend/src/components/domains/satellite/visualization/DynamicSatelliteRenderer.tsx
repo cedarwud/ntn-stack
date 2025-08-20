@@ -318,17 +318,6 @@ const DynamicSatelliteRenderer: React.FC<SatelliteRendererProps> = ({
                 </group>
             ))}
             
-            {/* 調試信息 - 優化版本 */}
-            {process.env.NODE_ENV === 'development' && (
-                <Text
-                    position={[0, 300, 0]}
-                    fontSize={4}
-                    color="#ffffff"
-                    anchorX="center"
-                >
-                    {`可見: ${visibleSatellites.length}/${satellites.length} | 速度: ${speedMultiplier}x`}
-                </Text>
-            )}
         </group>
     )
 }

@@ -1,9 +1,9 @@
 # 🔄 NTN Stack 數據處理流程
 
-**版本**: 3.1.0 (重構優化版)  
-**更新日期**: 2025-08-19  
-**專案狀態**: ✅ 生產就緒 + 重構優化  
-**適用於**: LEO 衛星切換研究 - 六階段增強版 + 統一管理器
+**版本**: 3.2.0 (時間序列修復版)  
+**更新日期**: 2025-08-20  
+**專案狀態**: ✅ 生產就緒 + 軌跡連續性修復  
+**適用於**: LEO 衛星切換研究 - 六階段完整版 + 時間序列保留
 
 ## 📋 概述
 
@@ -28,7 +28,7 @@
       ↓                     ↓                    ↓                   ↓
    預計算基礎數據         純數據載入驗證         自動數據更新        shared_core模型
       ↓                     ↓                    ↓                   ↓
-   映像檔包含數據         < 30秒快速啟動      智能增量處理        模擬退火優化
+   映像檔包含數據         < 30秒快速啟動      智能增量處理        時間序列保留
                                               (每6小時執行)        auto_cleanup管理
 ```
 
@@ -37,7 +37,7 @@
 - **智能增量處理** - incremental_update_manager 避免不必要計算
 - **自動清理管理** - auto_cleanup_manager 容錯設計確保系統高可用性
 - **統一數據模型** - shared_core 保證跨階段一致性
-- **模擬退火優化** - 提升 Stage6 效能和準確性
+- **時間序列保留** - Stage6 確保完整軌跡數據連續性
 - **🔧 統一管理器架構** - 消除重複功能，提升維護性
 - **🔧 信號品質緩存** - 避免重複RSRP計算，提升40%性能
 - **🔧 統一可見性服務** - 標準化衛星可見性判斷邏輯
@@ -146,22 +146,26 @@ def calculate_rsrp_simple(sat):
 - **格式標準化**: 統一 `position_timeseries` 數據結構
 - **換手場景生成**: A4/A5/D2 事件時間軸
 
-#### **Stage 6: 動態池規劃 (增強版)**
-**處理對象**: 從 391 顆候選中選出 90-110 顆組成動態衛星池  
-**處理時間**: 約 2-5 分鐘 (軌道動力學分析 + 模擬退火最佳化)
+#### **Stage 6: 動態池規劃 (時間序列保留版)**
+**處理對象**: 從 391 顆候選中選出 156 顆衛星池 (120 Starlink + 36 OneWeb)  
+**處理時間**: 約 0.5 秒 (快速選擇 + 時間序列數據保留)
 
-**動態覆蓋需求**:
-- **連續覆蓋**: 整個 96/109 分鐘軌道週期內維持目標可見數量
-- **時空分散**: 確保衛星進出時間錯開，無縫隙切換
-- **軌道互補**: 不同軌道面的衛星組合，提供全方位覆蓋
+**核心功能**:
+- **時間序列保留**: 確保每顆衛星包含完整的 192 點軌跡數據
+- **數據完整性**: 30 秒間隔的連續 SGP4 計算結果
+- **前端支持**: 解決軌跡跳躍問題，支持平滑 3D 動畫
 
-**模擬退火優化**:
+**關鍵實現**:
 ```python
-# 實際實現位置: /netstack/src/stages/algorithms/simulated_annealing_optimizer.py
-class SimulatedAnnealingOptimizer:
-    def optimize_satellite_pool()         # 池規劃優化
-    def calculate_coverage_score()        # 覆蓋評分計算
-    def generate_neighbor_solution()      # 鄰域解生成
+# 實際實現位置: /netstack/src/stages/enhanced_dynamic_pool_planner.py
+@dataclass 
+class EnhancedSatelliteCandidate:
+    position_timeseries: List[Dict[str, Any]] = None  # 🎯 完整時間序列
+
+def convert_to_enhanced_candidates(satellite_data):
+    # 保留完整的時間序列數據
+    position_timeseries = sat_data.get('position_timeseries', [])
+    # 確保 192 點×30 秒間隔軌跡數據完整性
 ```
 
 ## 🗃️ 數據存儲架構
@@ -195,7 +199,7 @@ class SimulatedAnnealingOptimizer:
 │   ├── elevation_10deg/             # 351顆衛星 (4.0MB)  
 │   └── elevation_15deg/             # 277顆衛星 (2.8MB)
 ├── data_integration_outputs/        # Stage 5: PostgreSQL整合狀態
-└── dynamic_pool_planning_outputs/   # Stage 6: 90-110顆動態池
+└── dynamic_pool_planning_outputs/   # Stage 6: 156顆動態池 (含完整時間序列)
 ```
 
 ### PostgreSQL 數據庫整合

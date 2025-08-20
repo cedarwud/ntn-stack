@@ -63,7 +63,7 @@ const getInitialState = (): SatelliteDataState => {
         dynamicPool: {
             data: null,
             loading: false,
-            enabled: true, // 默認啟用優化池
+            enabled: false, // 暫時禁用優化池，顯示所有可見衛星
             error: null
         }
     }

@@ -55,68 +55,74 @@ export class SatelliteOrbitCalculator {
             };
         }
 
-        // 🎯 修復時間進度計算：使用實際時間偏移，處理數據間隙
+        // 🎯 修復時間進度計算：識別連續數據段並循環播放
         const maxTimeOffset = timeseries[timeseries.length - 1]?.time_offset_seconds || 0;
-        const timeProgress = currentTime * speedMultiplier;
         
-        // 如果超出實際時間範圍，衛星消失
-        if (timeProgress >= maxTimeOffset) {
-            const lastPoint = timeseries[timeseries.length - 1];
-            const position = this.sphericalToCartesian({
-                elevation_deg: lastPoint.elevation_deg,
-                azimuth_deg: lastPoint.azimuth_deg, 
-                range_km: lastPoint.range_km
-            });
+        // 🔍 識別連續的數據段（避免間隙問題）
+        const continuousSegments: TimeseriesPoint[][] = [];
+        let currentSegment: TimeseriesPoint[] = [timeseries[0]];
+        
+        for (let i = 1; i < timeseries.length; i++) {
+            const timeDiff = timeseries[i].time_offset_seconds - timeseries[i-1].time_offset_seconds;
+            
+            if (timeDiff <= 60) { // 連續數據（≤60秒間隔）
+                currentSegment.push(timeseries[i]);
+            } else { // 發現間隙，開始新段
+                if (currentSegment.length > 1) {
+                    continuousSegments.push(currentSegment);
+                }
+                currentSegment = [timeseries[i]];
+            }
+        }
+        
+        if (currentSegment.length > 1) {
+            continuousSegments.push(currentSegment);
+        }
+        
+        // 選擇最長的連續段作為主要軌道
+        const mainSegment = continuousSegments.reduce((longest, current) => 
+            current.length > longest.length ? current : longest, continuousSegments[0] || []);
+        
+        if (!mainSegment || mainSegment.length < 2) {
             return {
-                position,
-                isVisible: false, // 超時後不可見
-                progress: 1.0,
-                currentPoint: lastPoint
+                position: [0, -500, 0],
+                isVisible: false,
+                progress: 0,
+                currentPoint: null
             };
         }
         
-        // 🔍 尋找當前時間對應的數據段（處理間隙）
-        let currentIndex = 0;
-        let nextIndex = 0;
+        // 在主要段內循環播放
+        const segmentDuration = mainSegment[mainSegment.length - 1].time_offset_seconds - mainSegment[0].time_offset_seconds;
+        const timeProgress = (currentTime * speedMultiplier) % segmentDuration;
         
-        for (let i = 0; i < timeseries.length - 1; i++) {
-            const currentTime_offset = timeseries[i].time_offset_seconds;
-            const nextTime_offset = timeseries[i + 1].time_offset_seconds;
+        // 🔍 在主要段內尋找當前位置
+        let currentIndex = 0;
+        let nextIndex = 1;
+        
+        const adjustedTimeProgress = timeProgress + mainSegment[0].time_offset_seconds;
+        
+        for (let i = 0; i < mainSegment.length - 1; i++) {
+            const currentTime_offset = mainSegment[i].time_offset_seconds;
+            const nextTime_offset = mainSegment[i + 1].time_offset_seconds;
             
-            if (timeProgress >= currentTime_offset && timeProgress <= nextTime_offset) {
+            if (adjustedTimeProgress >= currentTime_offset && adjustedTimeProgress <= nextTime_offset) {
                 currentIndex = i;
                 nextIndex = i + 1;
                 break;
             }
         }
         
-        // 如果在間隙中，衛星暫時不可見
-        const currentPoint = timeseries[currentIndex];
-        const nextPoint = timeseries[nextIndex];
-        const timeGap = nextPoint.time_offset_seconds - currentPoint.time_offset_seconds;
-        
-        if (timeGap > 60) { // 間隙超過1分鐘，衛星消失
-            return {
-                position: [0, -500, 0],
-                isVisible: false,
-                progress: timeProgress / maxTimeOffset,
-                currentPoint: null
-            };
-        }
+        const currentPoint = mainSegment[currentIndex];
+        const nextPoint = mainSegment[nextIndex];
         
         // 計算在當前段內的比例
-        const segmentDuration = nextPoint.time_offset_seconds - currentPoint.time_offset_seconds;
-        const segmentProgress = timeProgress - currentPoint.time_offset_seconds;
-        const timeRatio = Math.max(0, Math.min(1, segmentProgress / segmentDuration));
+        const pointDuration = nextPoint.time_offset_seconds - currentPoint.time_offset_seconds;
+        const pointProgress = adjustedTimeProgress - currentPoint.time_offset_seconds;
+        const timeRatio = Math.max(0, Math.min(1, pointProgress / pointDuration));
         
         // 🔄 線性插值：在真實數據點之間平滑過渡
-        const interpolated = segmentDuration <= 30 ? 
-            this.interpolateTimeseriesPoint(currentPoint, nextPoint, timeRatio) :
-            {
-                elevation_deg: currentPoint.elevation_deg,
-                azimuth_deg: currentPoint.azimuth_deg,
-                range_km: currentPoint.range_km
-            };
+        const interpolated = this.interpolateTimeseriesPoint(currentPoint, nextPoint, timeRatio);
         
         // 🌍 轉換為3D座標（修復後的轉換）
         const position = this.sphericalToCartesian(interpolated);
@@ -127,7 +133,7 @@ export class SatelliteOrbitCalculator {
         return {
             position,
             isVisible,
-            progress: Math.min(1.0, timeProgress / maxTimeOffset),
+            progress: timeProgress / segmentDuration,
             currentPoint: currentPoint
         };
     }
@@ -174,10 +180,6 @@ export class SatelliteOrbitCalculator {
         const baseHeight = 100; // 地面基準高度
         const y = baseHeight + (scaledRange * Math.sin(elevationRad) * heightScale);
         
-        // 🔍 調試日志（開發環境）
-        if (process.env.NODE_ENV === 'development' && Math.random() < 0.001) {
-            console.log(`座標轉換: elevation=${elevation_deg.toFixed(1)}° → y=${y.toFixed(1)}, range=${range_km.toFixed(0)}km`);
-        }
         
         return [x, y, z];
     }

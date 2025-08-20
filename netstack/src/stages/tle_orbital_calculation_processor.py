@@ -39,62 +39,62 @@ class Stage1TLEProcessor:
     """
     
     def __init__(self, tle_data_dir: str = "/app/tle_data", output_dir: str = "/app/data", sample_mode: bool = False, sample_size: int = 50):
-    """
-    階段一處理器初始化 - v3.1 重構版本（移除硬編碼座標）
-    
-    Args:
-        tle_data_dir: TLE數據目錄路徑
-        output_dir: 輸出目錄路徑（僅用於臨時檔案清理）
-        sample_mode: 處理模式控制
-            - False (預設): 全量處理模式（8,735顆衛星）
-            - True: 取樣模式（每星座最多sample_size顆）
-        sample_size: sample_mode=True時每個星座的取樣數量
-    
-    檔案儲存策略:
-        - v3.0版本完全停用JSON檔案儲存（避免2.2GB問題）
-        - 採用純記憶體傳遞給階段二
-    
-    重構改進:
-        - 移除硬編碼NTPU座標
-        - 使用統一觀測配置服務
-        - 保持與統一配置系統的兼容性
-    """
-    self.tle_data_dir = Path(tle_data_dir)
-    self.output_dir = Path(output_dir)
-    self.output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # 🎯 v3.1 重構：統一觀測配置管理
-    self.sample_mode = sample_mode  # True=取樣模式, False=全量處理
-    self.sample_size = sample_size  # 取樣數量
-    
-    # 🔧 重構：使用統一觀測配置服務（消除硬編碼）
-    try:
-        from shared_core.observer_config_service import get_ntpu_coordinates
-        self.observer_lat, self.observer_lon, self.observer_alt = get_ntpu_coordinates()
-        logger.info("✅ 使用統一觀測配置服務")
-    except Exception as e:
-        # 降級到統一配置系統
-        try:
-            self.config = get_unified_config()
-            self.observer_lat = self.config.observer.latitude
-            self.observer_lon = self.config.observer.longitude
-            self.observer_alt = self.config.observer.altitude_m
-            logger.info("✅ 使用統一配置系統")
-        except Exception as e2:
-            logger.error(f"配置載入完全失敗: {e}, {e2}")
-            raise RuntimeError("無法載入觀測點配置，請檢查配置系統")
+        """
+        階段一處理器初始化 - v3.1 重構版本（移除硬編碼座標）
         
-    logger.info("✅ 階段一處理器初始化完成 (v3.1 重構版)")
-    logger.info(f"  TLE 數據目錄: {self.tle_data_dir}")
-    logger.info(f"  輸出目錄: {self.output_dir}")
-    logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
-    logger.info("  📐 座標來源: 統一觀測配置服務（已消除硬編碼）")
-    logger.info("  💾 檔案策略: 純記憶體傳遞（不生成任何JSON檔案）")
-    
-    if self.sample_mode:
-        logger.info(f"  🔬 取樣模式: 啟用（每星座取樣 {self.sample_size} 顆衛星）")
-    else:
-        logger.info("  🚀 全量模式: 處理所有 8,735 顆衛星")   
+        Args:
+            tle_data_dir: TLE數據目錄路徑
+            output_dir: 輸出目錄路徑（僅用於臨時檔案清理）
+            sample_mode: 處理模式控制
+                - False (預設): 全量處理模式（8,735顆衛星）
+                - True: 取樣模式（每星座最多sample_size顆）
+            sample_size: sample_mode=True時每個星座的取樣數量
+        
+        檔案儲存策略:
+            - v3.0版本完全停用JSON檔案儲存（避免2.2GB問題）
+            - 採用純記憶體傳遞給階段二
+        
+        重構改進:
+            - 移除硬編碼NTPU座標
+            - 使用統一觀測配置服務
+            - 保持與統一配置系統的兼容性
+        """
+        self.tle_data_dir = Path(tle_data_dir)
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 🎯 v3.1 重構：統一觀測配置管理
+        self.sample_mode = sample_mode  # True=取樣模式, False=全量處理
+        self.sample_size = sample_size  # 取樣數量
+        
+        # 🔧 重構：使用統一觀測配置服務（消除硬編碼）
+        try:
+            from shared_core.observer_config_service import get_ntpu_coordinates
+            self.observer_lat, self.observer_lon, self.observer_alt = get_ntpu_coordinates()
+            logger.info("✅ 使用統一觀測配置服務")
+        except Exception as e:
+            # 降級到統一配置系統
+            try:
+                self.config = get_unified_config()
+                self.observer_lat = self.config.observer.latitude
+                self.observer_lon = self.config.observer.longitude
+                self.observer_alt = self.config.observer.altitude_m
+                logger.info("✅ 使用統一配置系統")
+            except Exception as e2:
+                logger.error(f"配置載入完全失敗: {e}, {e2}")
+                raise RuntimeError("無法載入觀測點配置，請檢查配置系統")
+        
+        logger.info("✅ 階段一處理器初始化完成 (v3.1 重構版)")
+        logger.info(f"  TLE 數據目錄: {self.tle_data_dir}")
+        logger.info(f"  輸出目錄: {self.output_dir}")
+        logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
+        logger.info("  📐 座標來源: 統一觀測配置服務（已消除硬編碼）")
+        logger.info("  💾 檔案策略: 純記憶體傳遞（不生成任何JSON檔案）")
+        
+        if self.sample_mode:
+            logger.info(f"  🔬 取樣模式: 啟用（每星座取樣 {self.sample_size} 顆衛星）")
+        else:
+            logger.info("  🚀 全量模式: 處理所有 8,735 顆衛星")   
     def scan_tle_data(self) -> Dict[str, Any]:
         """掃描所有可用的 TLE 數據檔案"""
         logger.info("🔍 掃描 TLE 數據檔案...")
