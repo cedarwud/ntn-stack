@@ -69,6 +69,16 @@ function _calculateElevationAzimuth(
     }
 }
 
+// 時間序列位置點接口
+export interface PositionTimePoint {
+    time: string
+    time_offset_seconds: number
+    elevation_deg: number
+    azimuth_deg: number
+    range_km: number
+    is_visible: boolean
+}
+
 // Standard satellite position interface used across the application
 export interface SatellitePosition {
     id: number
@@ -87,6 +97,8 @@ export interface SatellitePosition {
     signal_strength: number
     is_visible: boolean
     last_updated: string
+    // 真實SGP4軌道時間序列數據
+    position_timeseries?: PositionTimePoint[]
     // Additional optional fields for compatibility
     elevation_deg?: number
     azimuth_deg?: number
@@ -106,8 +118,8 @@ const satelliteCache = new Map<string, { data: SatellitePosition[], timestamp: n
 const CACHE_DURATION = 30000 // 30秒緩存
 
 export function useVisibleSatellites(
-    minElevation: number = 10,  // 使用標準服務門檻 (10°) - 符合3GPP NTN標準
-    maxCount: number = 40,  // 調整為 40 顆以支援自適應研究
+    minElevation: number = 5,   // 會根據星座動態調整 (Starlink 5°, OneWeb 10°)
+    maxCount: number = 15,      // 實時可見衛星數 (10-15顆)
     observerLat: number = 24.9441667,
     observerLon: number = 121.3713889,
     constellation: 'starlink' | 'oneweb' = 'starlink'
@@ -128,7 +140,7 @@ export function useVisibleSatellites(
             if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
                 setSatellites(cached.data)
                 setLoading(false)
-                console.log(`⚡ 使用緩存數據: ${cached.data.length} 顆衛星`)
+                // 調試已移除：使用緩存數據
                 return
             }
 
@@ -136,21 +148,33 @@ export function useVisibleSatellites(
             setError(null)
 
             try {
-                // 使用 NetStack leo-frontend API 獲取F3/A1階段預處理數據，支援全量衛星池配置
-                const currentTime = new Date().toISOString()
-                const endpoint = `/api/v1/leo-frontend/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${currentTime}&global_view=false`
+                // 🎯 根據星座設置特定參數
+                const constellationConfig = constellation === 'starlink' 
+                    ? { maxCount: 15, minElevation: 5 }   // Starlink: 5° 仰角，10-15顆可見
+                    : { maxCount: 6, minElevation: 10 }   // OneWeb: 10° 仰角，3-6顆可見
+                
+                // 🎯 使用預計算數據的時間範圍 (2025-08-18 09:42:02 to 11:17:32)
+                const dataStartTime = new Date('2025-08-18T09:42:02Z')
+                const dataEndTime = new Date('2025-08-18T11:17:32Z')
+                const dataDuration = dataEndTime.getTime() - dataStartTime.getTime()
+                
+                // 基於當前秒數在數據範圍內循環，實現動態衛星位置
+                const currentSeconds = Math.floor(Date.now() / 1000) % Math.floor(dataDuration / 1000)
+                const targetTime = new Date(dataStartTime.getTime() + currentSeconds * 1000)
+                
+                const endpoint = `/api/v1/satellite-simple/visible_satellites?count=${constellationConfig.maxCount}&min_elevation_deg=${constellationConfig.minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${targetTime.toISOString()}&global_view=false`
                 
                 const response = await netstackFetch(endpoint)
                 
                 if (!response.ok) {
-                    throw new Error(`NetStack leo-frontend API 錯誤: ${response.status} ${response.statusText}`)
+                    throw new Error(`NetStack satellite-simple API 錯誤: ${response.status} ${response.statusText}`)
                 }
 
                 const data = await response.json()
                 
                 if (!isMounted) return
 
-                // 轉換 leo-frontend API 數據到前端格式
+                // 轉換 leo-frontend API 數據到前端格式，保留SGP4時間序列數據
                 const convertedSatellites: SatellitePosition[] = data.satellites.map((sat: Record<string, unknown>, index: number) => ({
                     id: index + 1,
                     name: sat.name,
@@ -168,6 +192,8 @@ export function useVisibleSatellites(
                     signal_strength: sat.signal_strength || Math.max(0.3, 1.0 - (sat.distance_km / 2000)),
                     is_visible: sat.is_visible,
                     last_updated: new Date().toISOString(),
+                    // 🎯 保留真實SGP4時間序列數據用於前端軌道運動
+                    position_timeseries: sat.position_timeseries as PositionTimePoint[] || undefined,
                     // Compatibility fields
                     elevation_deg: sat.elevation_deg,
                     azimuth_deg: sat.azimuth_deg,
@@ -259,25 +285,37 @@ export async function getAvailableConstellations(): Promise<string[]> {
 export const simWorldApi = {
     async getVisibleSatellites(
         minElevation: number = 10,  // 使用標準服務門檻 (10°)
-        maxCount: number = 10,
+        maxCount: number = 50,  // 允許顯示更多衛星，會根據星座動態調整
         observerLat: number = 24.9441667,
         observerLon: number = 121.3713889,
         constellation: string = 'starlink'
     ): Promise<SatellitePosition[]> {
         try {
-            // 使用 NetStack leo-frontend API 獲取F3/A1階段預處理數據，支援全量衛星池配置
-            const currentTime = new Date().toISOString()
-            const endpoint = `/api/v1/leo-frontend/visible_satellites?count=${maxCount}&min_elevation_deg=${minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${currentTime}&global_view=false`
+            // 🎯 根據星座設置特定參數
+            const constellationConfig = constellation === 'starlink' 
+                ? { maxCount: 15, minElevation: 5 }   // Starlink: 5° 仰角，10-15顆可見
+                : { maxCount: 6, minElevation: 10 }   // OneWeb: 10° 仰角，3-6顆可見
+            
+            // 🎯 使用預計算數據的時間範圍 (2025-08-18 09:42:02 to 11:17:32)
+            const dataStartTime = new Date('2025-08-18T09:42:02Z')
+            const dataEndTime = new Date('2025-08-18T11:17:32Z')
+            const dataDuration = dataEndTime.getTime() - dataStartTime.getTime()
+            
+            // 基於當前秒數在數據範圍內循環，實現動態衛星位置
+            const currentSeconds = Math.floor(Date.now() / 1000) % Math.floor(dataDuration / 1000)
+            const targetTime = new Date(dataStartTime.getTime() + currentSeconds * 1000)
+            
+            const endpoint = `/api/v1/satellite-simple/visible_satellites?count=${constellationConfig.maxCount}&min_elevation_deg=${constellationConfig.minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${targetTime.toISOString()}&global_view=false`
             const response = await netstackFetch(endpoint)
             
             if (!response.ok) {
-                throw new Error(`NetStack leo-frontend API 錯誤: ${response.status} ${response.statusText}`)
+                throw new Error(`NetStack satellite-simple API 錯誤: ${response.status} ${response.statusText}`)
             }
 
             const data = await response.json()
             const satellites = data.satellites || []
             
-            // 轉換為前端格式
+            // 轉換為前端格式，保留SGP4時間序列數據
             const convertedSatellites: SatellitePosition[] = satellites.map((sat: Record<string, unknown>, index: number) => ({
                 id: index + 1,
                 name: sat.name,
@@ -295,6 +333,8 @@ export const simWorldApi = {
                 signal_strength: sat.signal_strength || 0.8,
                 is_visible: sat.is_visible,
                 last_updated: new Date().toISOString(),
+                // 🎯 保留真實SGP4時間序列數據用於前端軌道運動
+                position_timeseries: sat.position_timeseries as PositionTimePoint[] || undefined,
                 // Compatibility fields
                 elevation_deg: sat.elevation_deg,
                 azimuth_deg: sat.azimuth_deg,

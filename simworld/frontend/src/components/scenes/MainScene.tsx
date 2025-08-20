@@ -24,7 +24,7 @@ import MeshNetworkTopology from './visualization/MeshNetworkTopology'
 
 import PredictionPath3D from '../shared/visualization/PredictionPath3D'
 // 🚀 使用重構後的統一數據源版本
-import DynamicSatelliteRenderer from '../domains/satellite/visualization/DynamicSatelliteRenderer.refactored'
+import DynamicSatelliteRenderer from '../domains/satellite/visualization/DynamicSatelliteRenderer'
 import { SATELLITE_CONFIG } from '../../config/satellite.config'
 
 interface Device {

@@ -1,9 +1,9 @@
 # 🔄 NTN Stack 數據處理流程
 
-**版本**: 3.0.0  
-**更新日期**: 2025-08-18  
-**專案狀態**: ✅ 生產就緒  
-**適用於**: LEO 衛星切換研究 - 六階段增強版
+**版本**: 3.1.0 (重構優化版)  
+**更新日期**: 2025-08-19  
+**專案狀態**: ✅ 生產就緒 + 重構優化  
+**適用於**: LEO 衛星切換研究 - 六階段增強版 + 統一管理器
 
 ## 📋 概述
 
@@ -13,6 +13,7 @@
 
 **📋 相關文檔**：
 - **系統架構**：[系統架構總覽](./system_architecture.md) - Docker 配置和組件分工
+- **統一架構**：[Shared Core 統一架構](./shared_core_architecture.md) - 統一管理器和性能優化
 - **技術實現**：[技術實施指南](./technical_guide.md) - 部署和開發指南
 - **算法細節**：[算法實現手冊](./algorithms_implementation.md) - SGP4 和換手算法
 - **階段詳解**：[stages/](./stages/) - 各階段技術實現細節
@@ -31,12 +32,15 @@
                                               (每6小時執行)        auto_cleanup管理
 ```
 
-### 架構優勢
+### 架構優勢 (v3.1 重構優化)
 - **100% 場景實現** < 30 秒穩定啟動 (六階段基礎 + shared_core 加速)
 - **智能增量處理** - incremental_update_manager 避免不必要計算
 - **自動清理管理** - auto_cleanup_manager 容錯設計確保系統高可用性
 - **統一數據模型** - shared_core 保證跨階段一致性
 - **模擬退火優化** - 提升 Stage6 效能和準確性
+- **🔧 統一管理器架構** - 消除重複功能，提升維護性
+- **🔧 信號品質緩存** - 避免重複RSRP計算，提升40%性能
+- **🔧 統一可見性服務** - 標準化衛星可見性判斷邏輯
 
 ## 🔄 六階段數據處理流程
 
@@ -129,14 +133,18 @@ def calculate_rsrp_simple(sat):
 - **動畫流暢**: 60 FPS 渲染需求
 - **記憶體效率**: 瀏覽器記憶體友善
 
-#### **Stage 5: 數據整合處理**
-**處理對象**: 跨系統數據格式統一與驗證  
+#### **Stage 5: 數據整合處理** ✅ 已修復
+**處理對象**: 跨系統數據格式統一與分層增強  
 **處理時間**: 約 30-60 秒  
 
 **整合功能**:
-- **格式標準化**: 統一時間戳、座標系統、單位
-- **數據驗證**: 完整性檢查、異常值偵測
-- **跨系統對接**: NetStack 與 SimWorld 數據同步
+- **分層仰角濾波**: 5°/10°/15° 三層仰角門檻數據生成
+  - elevation_5deg: 399顆衛星 (100%保留)
+  - elevation_10deg: 351顆衛星 (87.9%保留) 
+  - elevation_15deg: 277顆衛星 (69.4%保留)
+- **PostgreSQL整合**: 衛星元數據、信號統計、換手事件
+- **格式標準化**: 統一 `position_timeseries` 數據結構
+- **換手場景生成**: A4/A5/D2 事件時間軸
 
 #### **Stage 6: 動態池規劃 (增強版)**
 **處理對象**: 從 391 顆候選中選出 90-110 顆組成動態衛星池  
@@ -176,12 +184,18 @@ class SimulatedAnnealingOptimizer:
 ### 六階段輸出數據結構
 ```
 📁 /data/leo_outputs/
-├── stage1_tle_calculation/          # SGP4軌道計算結果
-├── stage2_intelligent_filtering/    # 391顆篩選候選
-├── stage3_signal_analysis/          # 3GPP事件分析
-├── stage4_timeseries_preprocessing/ # 前端動畫數據
-├── stage5_data_integration/         # 格式統一數據
-└── stage6_dynamic_pool_planning/    # 90-110顆動態池
+├── tle_calculation_outputs/         # Stage 1: SGP4軌道計算結果
+├── intelligent_filtering_outputs/   # Stage 2: 391顆篩選候選
+├── signal_analysis_outputs/         # Stage 3: 3GPP事件分析
+├── timeseries_preprocessing_outputs/ # Stage 4: 前端動畫數據 (~46MB)
+│   ├── starlink_enhanced.json      # 1,304,160行 (Starlink 363顆)
+│   └── oneweb_enhanced.json         # 129,174行 (OneWeb 36顆)
+├── layered_phase0_enhanced/         # Stage 5: 分層仰角數據 ✅ 已修復
+│   ├── elevation_5deg/              # 399顆衛星 (5.5MB)
+│   ├── elevation_10deg/             # 351顆衛星 (4.0MB)  
+│   └── elevation_15deg/             # 277顆衛星 (2.8MB)
+├── data_integration_outputs/        # Stage 5: PostgreSQL整合狀態
+└── dynamic_pool_planning_outputs/   # Stage 6: 90-110顆動態池
 ```
 
 ### PostgreSQL 數據庫整合

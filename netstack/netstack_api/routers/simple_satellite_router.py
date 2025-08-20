@@ -34,6 +34,15 @@ logger = logging.getLogger(__name__)
 
 # === Response Models ===
 
+class PositionTimePoint(BaseModel):
+    """時間序列位置點"""
+    time: str
+    time_offset_seconds: float
+    elevation_deg: float
+    azimuth_deg: float
+    range_km: float
+    is_visible: bool
+
 class SatelliteInfo(BaseModel):
     """衛星信息"""
     name: str
@@ -45,6 +54,7 @@ class SatelliteInfo(BaseModel):
     constellation: Optional[str] = None
     signal_strength: Optional[float] = None
     is_visible: bool = True
+    position_timeseries: Optional[List[PositionTimePoint]] = None
 
 class VisibleSatellitesResponse(BaseModel):
     """可見衛星響應"""
@@ -96,30 +106,45 @@ def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List
     satellites = []
     
     try:
-        # 🔥 CRITICAL FIX: 使用真實的 SGP4 預計算軌道數據
+        # 🔥 CRITICAL FIX: 使用分層預計算數據 (10°仰角門檻)
         import json
-        precomputed_file = '/app/data/enhanced_satellite_data.json'  # 真實 SGP4 數據文件
+        precomputed_file = f'/app/data/layered_phase0_enhanced/elevation_10deg/{constellation.lower()}_with_3gpp_events.json'
         
         with open(precomputed_file, 'r') as f:
             precomputed_data = json.load(f)
+        
+        # 檢查數據結構 - 期望是包含衛星列表的結構
+        if isinstance(precomputed_data, list):
+            satellites_list = precomputed_data
+        elif isinstance(precomputed_data, dict):
+            # 從分層數據結構中提取衛星列表
+            satellites_list = precomputed_data.get('satellites', [])
+            metadata = precomputed_data.get('metadata', {})
+            logger.info(f"📊 數據元信息: {metadata.get('total_satellites', 0)} 顆衛星, 處理階段: {metadata.get('processing_stage', 'unknown')}")
+        else:
+            logger.error(f"❌ 未預期的數據格式: {type(precomputed_data)}")
+            satellites_list = []
+        
+        logger.info(f"🔍 載入 {len(satellites_list)} 顆 {constellation} 衛星數據")
+        
+        # 🔧 修復：從分層預計算數據中構建衛星列表
+        for satellite_data in satellites_list:
+            # 提取衛星基本信息
+            satellite_id = satellite_data.get('satellite_id', '')
+            norad_id = satellite_data.get('norad_id', 0)
+            name = satellite_data.get('name', satellite_id)
             
-        # 🔧 修復：使用正確的數據結構提取衛星數據
-        constellation_data = precomputed_data.get('constellations', {}).get(constellation.lower(), {})
-        orbit_data = constellation_data.get('orbit_data', {})
-        satellites_dict = orbit_data.get('satellites', {})  # 這是字典不是列表
-        
-        logger.info(f"🔍 找到 {len(satellites_dict)} 顆 {constellation} 衛星數據")
-        
-        # 🔧 修復：從真實 SGP4 預計算數據中構建衛星列表
-        for norad_id, satellite_data in satellites_dict.items():
-            # 🎯 CRITICAL FIX: 使用正確的字段名 'positions' 而不是 'orbit_positions'
-            orbit_positions = satellite_data.get('positions', [])
+            if not satellite_id:
+                continue
+                
+            # 🎯 CRITICAL FIX: 使用分層數據中的時間序列位置數據
+            position_timeseries = satellite_data.get('position_timeseries', [])
             
             # 只包含有真實軌道數據的衛星
-            if orbit_positions:
+            if position_timeseries:
                 # 轉換為API需要的格式，保持真實SGP4計算結果
                 precomputed_positions = []
-                for position in orbit_positions:
+                for position in position_timeseries:
                     precomputed_positions.append({
                         'time': position.get('time', ''),
                         'time_offset_seconds': position.get('time_offset_seconds', 0),
@@ -131,16 +156,18 @@ def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List
                         'is_visible': position.get('elevation_deg', -90) >= 0
                     })
                 
+                # 提取軌道參數
+                orbit_params = satellite_data.get('orbit_parameters', {})
+                
                 satellites.append({
-                    'name': satellite_data.get('name', f'SAT-{norad_id}'),
-                    'norad_id': str(norad_id),
+                    'name': name,
+                    'norad_id': str(norad_id) if norad_id else satellite_id,
                     'constellation': constellation.lower(),
-                    'altitude': satellite_data.get('altitude', 550.0),
-                    'inclination': satellite_data.get('inclination', 53.0),
-                    'raan': satellite_data.get('raan', 0),
-                    'line1': satellite_data.get('line1', ''),
-                    'line2': satellite_data.get('line2', ''),
-                    'tle_epoch': satellite_data.get('tle_epoch', 0),
+                    'altitude': orbit_params.get('altitude', 550.0),
+                    'inclination': orbit_params.get('inclination', 53.0),
+                    'semi_major_axis': orbit_params.get('semi_major_axis', 6950.0),
+                    'eccentricity': orbit_params.get('eccentricity', 0.0),
+                    'mean_motion': orbit_params.get('mean_motion', 15.0),
                     # 🎯 關鍵修復：使用真實的 SGP4 預計算位置數據
                     'precomputed_positions': precomputed_positions,
                     'has_orbit_data': len(precomputed_positions) > 0
@@ -173,12 +200,26 @@ def calculate_satellite_position(sat_data: Dict, timestamp: datetime, observer_l
         precomputed_positions = sat_data.get('precomputed_positions', [])
         
         if precomputed_positions:
-            # 直接使用第一個預計算位置（或根據請求時間選擇時間點索引）
-            # 這樣確保始終使用真實的SGP4計算結果
-            selected_position = precomputed_positions[0]  # 使用第一個時間點
+            # 🎯 關鍵修復：根據當前時間選擇最接近的預計算位置
+            selected_position = None
+            min_time_diff = float('inf')
             
-            # 如果用戶提供了具體的時間戳參數，可以選擇對應的時間點
-            # 這裡可以後續擴展為時間軸控制
+            # 選擇時間上最接近當前請求時間的預計算位置
+            for position in precomputed_positions:
+                try:
+                    pos_time_str = position.get('time', '')
+                    if pos_time_str:
+                        pos_time = datetime.fromisoformat(pos_time_str.replace('Z', '+00:00'))
+                        time_diff = abs((timestamp - pos_time).total_seconds())
+                        if time_diff < min_time_diff:
+                            min_time_diff = time_diff
+                            selected_position = position
+                except Exception:
+                    continue
+            
+            # 如果沒有找到匹配的時間，使用第一個位置作為後備
+            if selected_position is None and precomputed_positions:
+                selected_position = precomputed_positions[0]
             
             if selected_position:
                 # 使用真實的SGP4計算結果
@@ -197,10 +238,22 @@ def calculate_satellite_position(sat_data: Dict, timestamp: datetime, observer_l
                 else:
                     signal_strength = -120.0  # 不可見衛星
                 
-                logger.debug(f"✅ 使用預計算SGP4數據: {sat_data['name']} 仰角{elevation:.2f}° 距離{distance:.1f}km")
+# 使用預計算SGP4數據
                 
                 # 🔧 根據實際仰角判斷可見性
                 is_actually_visible = elevation >= 0  # 地平線以上即為可見
+                
+                # 🎯 構建時間序列數據
+                timeseries_points = []
+                for pos in precomputed_positions:
+                    timeseries_points.append(PositionTimePoint(
+                        time=pos.get('time', ''),
+                        time_offset_seconds=pos.get('time_offset_seconds', 0),
+                        elevation_deg=round(pos.get('elevation_deg', -90), 2),
+                        azimuth_deg=round(pos.get('azimuth_deg', 0), 2),
+                        range_km=round(pos.get('range_km', 2000), 2),
+                        is_visible=pos.get('elevation_deg', -90) >= 0
+                    ))
                 
                 return SatelliteInfo(
                     name=sat_data['name'],
@@ -211,7 +264,8 @@ def calculate_satellite_position(sat_data: Dict, timestamp: datetime, observer_l
                     orbit_altitude_km=sat_data.get('altitude', 550.0),
                     constellation=sat_data['constellation'],
                     signal_strength=round(signal_strength, 1),
-                    is_visible=is_actually_visible
+                    is_visible=is_actually_visible,
+                    position_timeseries=timeseries_points
                 )
         
         # 🚫 根據 CLAUDE.md 核心原則，禁止使用簡化算法

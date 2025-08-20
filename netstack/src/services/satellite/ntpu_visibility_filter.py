@@ -10,6 +10,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 import numpy as np
+from shared_core.elevation_threshold_manager import get_elevation_threshold_manager
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,11 @@ class NTPUVisibilityFilter:
         self.observer_lat = 24.94417   # 24°56'39"N
         self.observer_lon = 121.37139  # 121°22'17"E
         self.observer_alt = 50.0       # 海拔50米
-        self.min_elevation = 10.0      # 10度仰角閾值 (ITU-R P.618 合規標準)
+        
+        # 🔧 使用統一仰角門檻管理器
+        self.elevation_manager = get_elevation_threshold_manager()
+        # 預設使用 OneWeb 的10度標準 (ITU-R P.618 合規標準)
+        self.min_elevation = self.elevation_manager.get_min_elevation('oneweb')
         
         self.coordinate_engine = coordinate_engine
         self.cache_enabled = cache_enabled

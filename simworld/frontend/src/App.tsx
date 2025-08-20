@@ -22,6 +22,7 @@ import { AppStateProvider } from './contexts/AppStateContext'
 import { DeviceProvider, useDeviceContext } from './contexts/DeviceContext'
 // 🚀 引入重構後的統一Providers
 import AppProviders from './providers/AppProviders'
+import SatelliteDataBridge from './providers/SatelliteDataBridge'
 import {
     useUIState,
     useSatelliteState,
@@ -294,19 +295,22 @@ const App: React.FC<AppProps> = ({
     return (
         <ErrorBoundary fallback={<div>應用程式發生嚴重錯誤</div>}>
             <StrategyProvider>
-                <AppStateProvider>
-                    <DeviceProvider>
-                        <DataSyncProvider>
-                            {/* 🚀 統一衛星數據管理 */}
-                            <AppProviders>
-                                <AppContent
-                                    key={currentScene}
-                                    currentScene={currentScene}
-                                />
-                            </AppProviders>
-                        </DataSyncProvider>
-                    </DeviceProvider>
-                </AppStateProvider>
+                <DeviceProvider>
+                    {/* 🚀 修復：正確的Provider嵌套順序 */}
+                    <AppProviders>
+                        <AppStateProvider>
+                            {/* 🌉 SatelliteDataBridge：現在可以同時訪問兩個Context */}
+                            <SatelliteDataBridge>
+                                <DataSyncProvider>
+                                    <AppContent
+                                        key={currentScene}
+                                        currentScene={currentScene}
+                                    />
+                                </DataSyncProvider>
+                            </SatelliteDataBridge>
+                        </AppStateProvider>
+                    </AppProviders>
+                </DeviceProvider>
             </StrategyProvider>
         </ErrorBoundary>
     )

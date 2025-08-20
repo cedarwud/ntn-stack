@@ -5,6 +5,8 @@
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react'
 import { getSatelliteDataService, UnifiedSatelliteInfo, SatelliteDataServiceConfig } from '../services/satelliteDataService'
+import { getNTPUCoordinates } from '../config/observerConfig'
+import { dynamicPoolService, DynamicPoolData } from '../services/DynamicPoolService'
 
 // 衛星數據狀態類型定義
 export interface SatelliteDataState {
@@ -15,6 +17,13 @@ export interface SatelliteDataState {
     config: SatelliteDataServiceConfig
     selectedConstellation: 'starlink' | 'oneweb'
     systemHealth: { status: string, details: Record<string, unknown> } | null
+    // 動態池相關狀態
+    dynamicPool: {
+        data: DynamicPoolData | null
+        loading: boolean
+        enabled: boolean
+        error: string | null
+    }
 }
 
 // Action類型定義
@@ -26,23 +35,38 @@ export type SatelliteDataAction =
     | { type: 'SET_CONSTELLATION'; payload: 'starlink' | 'oneweb' }
     | { type: 'SET_SYSTEM_HEALTH'; payload: { status: string, details: Record<string, unknown> } }
     | { type: 'CLEAR_DATA' }
+    // 動態池相關Actions
+    | { type: 'SET_POOL_LOADING'; payload: boolean }
+    | { type: 'SET_POOL_DATA'; payload: DynamicPoolData | null }
+    | { type: 'SET_POOL_ERROR'; payload: string | null }
+    | { type: 'TOGGLE_POOL_MODE'; payload: boolean }
 
 // 初始狀態
-const initialState: SatelliteDataState = {
-    satellites: [],
-    loading: false,
-    error: null,
-    lastUpdated: null,
-    config: {
-        minElevation: 10,
-        maxCount: 40,
-        observerLat: 24.9441667,
-        observerLon: 121.3713889,
-        constellation: 'starlink',
-        updateInterval: 5000
-    },
-    selectedConstellation: 'starlink',
-    systemHealth: null
+const getInitialState = (): SatelliteDataState => {
+    const coordinates = getNTPUCoordinates()
+    return {
+        satellites: [],
+        loading: false,
+        error: null,
+        lastUpdated: null,
+        config: {
+            minElevation: 5,  // 會根據星座動態調整 (Starlink 5°, OneWeb 10°)
+            maxCount: 15,     // Starlink: 10-15顆, OneWeb: 3-6顆
+            observerLat: coordinates.lat, // 統一配置服務
+            observerLon: coordinates.lon, // 統一配置服務
+            constellation: 'starlink',
+            updateInterval: 5000
+        },
+        selectedConstellation: 'starlink',
+        systemHealth: null,
+        // 動態池初始狀態
+        dynamicPool: {
+            data: null,
+            loading: false,
+            enabled: true, // 默認啟用優化池
+            error: null
+        }
+    }
 }
 
 // Reducer函數
@@ -97,6 +121,40 @@ function satelliteDataReducer(state: SatelliteDataState, action: SatelliteDataAc
                 lastUpdated: null
             }
         
+        // 動態池相關cases
+        case 'SET_POOL_LOADING':
+            return {
+                ...state,
+                dynamicPool: { ...state.dynamicPool, loading: action.payload }
+            }
+        
+        case 'SET_POOL_DATA':
+            return {
+                ...state,
+                dynamicPool: {
+                    ...state.dynamicPool,
+                    data: action.payload,
+                    loading: false,
+                    error: null
+                }
+            }
+        
+        case 'SET_POOL_ERROR':
+            return {
+                ...state,
+                dynamicPool: {
+                    ...state.dynamicPool,
+                    error: action.payload,
+                    loading: false
+                }
+            }
+        
+        case 'TOGGLE_POOL_MODE':
+            return {
+                ...state,
+                dynamicPool: { ...state.dynamicPool, enabled: action.payload }
+            }
+        
         default:
             return state
     }
@@ -110,6 +168,10 @@ interface SatelliteDataContextType {
     updateConfig: (newConfig: Partial<SatelliteDataServiceConfig>) => void
     setConstellation: (constellation: 'starlink' | 'oneweb') => void
     checkSystemHealth: () => Promise<void>
+    // 動態池相關方法
+    loadDynamicPool: () => Promise<void>
+    togglePoolMode: (enabled: boolean) => void
+    getPoolStatistics: () => { mode: string, total: number, starlink: number, oneweb: number }
 }
 
 // 創建Context
@@ -125,6 +187,7 @@ export const SatelliteDataProvider: React.FC<SatelliteDataProviderProps> = ({
     children, 
     initialConfig 
 }) => {
+    const initialState = getInitialState()
     const [state, dispatch] = useReducer(satelliteDataReducer, {
         ...initialState,
         config: { ...initialState.config, ...initialConfig }
@@ -133,19 +196,44 @@ export const SatelliteDataProvider: React.FC<SatelliteDataProviderProps> = ({
     const serviceRef = useRef(getSatelliteDataService(state.config))
     const updateIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
+    // 載入動態池數據
+    const loadDynamicPool = useCallback(async () => {
+        dispatch({ type: 'SET_POOL_LOADING', payload: true })
+        
+        try {
+            await dynamicPoolService.loadDynamicPool()
+            const poolStats = dynamicPoolService.getPoolStatistics()
+            dispatch({ type: 'SET_POOL_DATA', payload: poolStats.total > 0 ? {
+                starlink_satellites: [], // 實際數據在service中
+                oneweb_satellites: [],
+                total_selected: poolStats.total
+            } : null })
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '未知錯誤'
+            console.error('❌ SatelliteDataProvider: 動態池載入失敗:', error)
+            dispatch({ type: 'SET_POOL_ERROR', payload: errorMessage })
+        }
+    }, [])
+
     // 刷新衛星數據
     const refreshSatellites = useCallback(async (forceRefresh: boolean = false) => {
         dispatch({ type: 'SET_LOADING', payload: true })
         
         try {
-            const satellites = await serviceRef.current.getVisibleSatellites(forceRefresh)
-            dispatch({ type: 'SET_SATELLITES', payload: satellites })
+            const rawSatellites = await serviceRef.current.getVisibleSatellites(forceRefresh)
+            
+            // 🎯 關鍵改變：通過動態池過濾衛星數據
+            const filteredSatellites = state.dynamicPool.enabled ? 
+                dynamicPoolService.filterSatellitesByPool(rawSatellites) : 
+                rawSatellites
+            
+            dispatch({ type: 'SET_SATELLITES', payload: filteredSatellites })
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '未知錯誤'
-            dispatch({ type: 'SET_ERROR', payload: errorMessage })
             console.error('❌ SatelliteDataProvider: 刷新衛星數據失敗:', error)
+            dispatch({ type: 'SET_ERROR', payload: errorMessage })
         }
-    }, [])
+    }, [state.dynamicPool.enabled])
 
     // 更新配置
     const updateConfig = useCallback((newConfig: Partial<SatelliteDataServiceConfig>) => {
@@ -172,6 +260,24 @@ export const SatelliteDataProvider: React.FC<SatelliteDataProviderProps> = ({
             console.error('❌ SatelliteDataProvider: 健康檢查失敗:', error)
         }
     }, [])
+
+    // 切換池模式
+    const togglePoolMode = useCallback((enabled: boolean) => {
+        dispatch({ type: 'TOGGLE_POOL_MODE', payload: enabled })
+        dynamicPoolService.togglePoolMode(enabled)
+        // 切換後立即刷新數據
+        refreshSatellites(true)
+    }, [refreshSatellites])
+
+    // 獲取池統計信息
+    const getPoolStatistics = useCallback(() => {
+        return dynamicPoolService.getPoolStatistics()
+    }, [])
+
+    // 初始化動態池
+    useEffect(() => {
+        loadDynamicPool()
+    }, [loadDynamicPool])
 
     // 自動更新機制
     useEffect(() => {
@@ -206,7 +312,11 @@ export const SatelliteDataProvider: React.FC<SatelliteDataProviderProps> = ({
         refreshSatellites,
         updateConfig,
         setConstellation,
-        checkSystemHealth
+        checkSystemHealth,
+        // 動態池相關方法
+        loadDynamicPool,
+        togglePoolMode,
+        getPoolStatistics
     }
 
     return (

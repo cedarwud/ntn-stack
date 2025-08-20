@@ -104,6 +104,14 @@ except ImportError as e:
     logger.warning(f"D2 event router not available: {e}")
 
 
+# Include satellite dynamic pool router
+try:
+    from app.api.satellite_dynamic_pool import router as dynamic_pool_router
+    app.include_router(dynamic_pool_router, prefix="")
+    logger.info("Satellite dynamic pool router registered")
+except ImportError as e:
+    logger.warning(f"Satellite dynamic pool router not available: {e}")
+
 # Include algorithm performance router (with fallback)
 try:
     from app.api.routes.algorithm_performance import (

@@ -56,7 +56,7 @@ export class SatelliteDebugger {
       Object.entries(params).map(([key, value]) => [key, String(value)])
     )
     const queryString = new URLSearchParams(stringParams).toString()
-    const apiUrl = `/api/v1/leo-frontend/visible_satellites?${queryString}`
+    const apiUrl = `/api/v1/satellite-simple/visible_satellites?${queryString}`
     
     debugInfo.apiUrl = apiUrl
     debugInfo.params = params
@@ -268,7 +268,7 @@ export class SatelliteDebugger {
    */
   static async quickHealthCheck(): Promise<boolean> {
     try {
-      const response = await netstackFetch('/api/v1/leo-frontend/visible_satellites?count=1&global_view=true', {
+      const response = await netstackFetch('/api/v1/satellite-simple/visible_satellites?count=1&global_view=true', {
         method: 'GET'
       })
       

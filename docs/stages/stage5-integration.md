@@ -159,69 +159,120 @@ CREATE INDEX idx_handover_serving ON handover_events_summary(serving_satellite_i
 
 ### 核心處理邏輯
 ```python
-class DataIntegrationProcessor:
+class Stage5IntegrationProcessor:
     
-    async def process_data_integration(self) -> Dict[str, Any]:
+    async def process_enhanced_timeseries(self) -> Dict[str, Any]:
         """執行階段五完整整合處理"""
         
-        results = {}
+        results = {
+            "stage": "stage5_integration",
+            "start_time": datetime.now(timezone.utc).isoformat(),
+            "postgresql_integration": {},
+            "layered_data_enhancement": {},
+            "handover_scenarios": {},
+            "signal_quality_analysis": {},
+            "processing_cache": {},
+            "status_files": {},
+            "mixed_storage_verification": {}
+        }
         
-        # 1. 設定PostgreSQL架構
-        await self._setup_postgresql_schema()
-        logger.info("✅ PostgreSQL架構設定完成")
-        
-        # 2. 填入衛星元數據
-        satellite_count = await self._populate_metadata_tables()
-        results['postgresql_satellites'] = satellite_count
-        logger.info(f"✅ PostgreSQL元數據: {satellite_count}顆衛星")
-        
-        # 3. 填入信號統計數據
-        signal_records = await self._populate_signal_statistics()
-        results['postgresql_signal_records'] = signal_records
-        logger.info(f"✅ PostgreSQL信號統計: {signal_records}筆記錄")
-        
-        # 4. 填入換手事件摘要
-        event_records = await self._populate_handover_events()
-        results['postgresql_event_records'] = event_records
-        logger.info(f"✅ PostgreSQL換手事件: {event_records}筆記錄")
-        
-        # 5. 生成Volume檔案
-        volume_files = await self._generate_all_volume_files()
-        results['volume_files'] = volume_files
-        logger.info(f"✅ Volume檔案: {len(volume_files)}個檔案")
-        
-        # 6. 混合存儲驗證
-        verification = await self._verify_mixed_storage_access()
-        results['storage_verification'] = verification
-        logger.info(f"✅ 混合存儲驗證完成")
-        
+        try:
+            # 1. 載入增強時間序列數據
+            enhanced_data = await self._load_enhanced_timeseries()
+            
+            # 2. PostgreSQL 數據整合
+            results["postgresql_integration"] = await self._integrate_postgresql_data(enhanced_data)
+            
+            # 3. 生成分層數據增強
+            results["layered_data_enhancement"] = await self._generate_layered_data(enhanced_data)
+            
+            # 4. 生成換手場景專用數據
+            results["handover_scenarios"] = await self._generate_handover_scenarios(enhanced_data)
+            
+            # 5. 創建信號品質分析目錄結構
+            results["signal_quality_analysis"] = await self._setup_signal_analysis_structure(enhanced_data)
+            
+            # 6. 創建處理緩存
+            results["processing_cache"] = await self._create_processing_cache(enhanced_data)
+            
+            # 7. 生成狀態文件
+            results["status_files"] = await self._create_status_files()
+            
+            # 8. 驗證混合存儲訪問模式
+            results["mixed_storage_verification"] = await self._verify_mixed_storage_access()
+            
+            results["success"] = True
+            
+        except Exception as e:
+            logger.error(f"❌ 階段五處理失敗: {e}")
+            results["success"] = False
+            results["error"] = str(e)
+            
         return results
     
-    async def _populate_metadata_tables(self) -> int:
-        """批次填入衛星元數據到PostgreSQL"""
+    async def _generate_layered_data(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
+        """生成分層數據增強 - 修正後的版本"""
         
-        satellites = self.get_all_processed_satellites()
+        self.logger.info("🔄 生成分層仰角數據")
         
-        insert_data = []
-        for satellite in satellites:
-            insert_data.append({
-                'satellite_id': satellite['satellite_id'],
-                'constellation': satellite['constellation'],
-                'norad_id': satellite['norad_id'],
-                'tle_epoch': satellite['tle_epoch'],
-                'orbital_period_minutes': satellite['orbital_period_minutes'],
-                'inclination_deg': satellite['inclination_deg'],
-                'mean_altitude_km': satellite['mean_altitude_km']
-            })
+        layered_results = {}
         
-        # 批次插入優化
-        await self.postgresql_manager.execute_batch_insert(
-            'satellite_metadata',
-            insert_data,
-            batch_size=100
-        )
+        for threshold in self.config.elevation_thresholds:
+            threshold_dir = Path(self.config.output_layered_dir) / f"elevation_{threshold}deg"
+            threshold_dir.mkdir(parents=True, exist_ok=True)
+            
+            layered_results[f"elevation_{threshold}deg"] = {}
+            
+            for constellation, data in enhanced_data.items():
+                if not data:
+                    continue
+                
+                # 篩選符合仰角門檻的數據
+                filtered_satellites = []
+                
+                for satellite in data.get('satellites', []):
+                    filtered_timeseries = []
+                    
+                    # 修正：使用正確的時序數據欄位名稱
+                    timeseries_data = satellite.get('position_timeseries', satellite.get('timeseries', []))
+                    
+                    for point in timeseries_data:
+                        if point.get('elevation_deg', 0) >= threshold:
+                            filtered_timeseries.append(point)
+                    
+                    if filtered_timeseries:
+                        filtered_satellites.append({
+                            **satellite,
+                            'position_timeseries': filtered_timeseries  # 保持原始欄位名稱
+                        })
+                
+                # 生成分層數據檔案
+                layered_data = {
+                    "metadata": {
+                        **data.get('metadata', {}),
+                        "elevation_threshold_deg": threshold,
+                        "filtered_satellites_count": len(filtered_satellites),
+                        "stage5_processing_time": datetime.now(timezone.utc).isoformat()
+                    },
+                    "satellites": filtered_satellites
+                }
+                
+                output_file = threshold_dir / f"{constellation}_with_3gpp_events.json"
+                
+                with open(output_file, 'w') as f:
+                    json.dump(layered_data, f, indent=2)
+                
+                file_size_mb = output_file.stat().st_size / (1024 * 1024)
+                
+                layered_results[f"elevation_{threshold}deg"][constellation] = {
+                    "file_path": str(output_file),
+                    "satellites_count": len(filtered_satellites),
+                    "file_size_mb": round(file_size_mb, 2)
+                }
+                
+                self.logger.info(f"✅ {constellation} {threshold}度: {len(filtered_satellites)} 顆衛星, {file_size_mb:.1f}MB")
         
-        return len(insert_data)
+        return layered_results
 ```
 
 ## ⚙️ 性能最佳化策略
@@ -324,19 +375,74 @@ else
 fi
 ```
 
+## 🔧 重要修復記錄 (2025-08-18)
+
+### 已修復的關鍵問題
+
+#### 1. PostgreSQL連接配置錯誤
+**問題**：Stage5Config 使用 `localhost` 而非容器網路名稱  
+**症狀**：PostgreSQL整合失敗，連接被拒  
+**修正**：
+```python
+# 修正前
+postgres_host: str = "localhost"
+
+# 修正後  
+postgres_host: str = "netstack-postgres"
+```
+
+#### 2. 時序數據欄位名稱不一致
+**問題**：代碼查找 `timeseries` 但數據使用 `position_timeseries`  
+**症狀**：分層濾波產生0顆衛星  
+**修正**：
+```python
+# 修正前
+for point in satellite.get('timeseries', []):
+
+# 修正後
+timeseries_data = satellite.get('position_timeseries', satellite.get('timeseries', []))
+for point in timeseries_data:
+```
+
+#### 3. 分層濾波邏輯完整修正
+**成果**：
+- elevation_5deg: 399顆衛星 (100%保留)
+- elevation_10deg: 351顆衛星 (87.9%保留) 
+- elevation_15deg: 277顆衛星 (69.4%保留)
+
+**檔案大小**：
+- Starlink: 4.9MB (5°) → 3.5MB (10°) → 2.5MB (15°)
+- OneWeb: 560KB (5°) → 477KB (10°) → 339KB (15°)
+
+### 修復驗證
+```bash
+# 驗證分層數據生成
+ls -lh /app/data/layered_phase0_enhanced/elevation_*/
+
+# 驗證PostgreSQL配置
+python -c "from stages.data_integration_processor import Stage5Config; print(Stage5Config().postgres_host)"
+
+# 驗證數據完整性
+python -c "import json; data=json.load(open('starlink_with_3gpp_events.json')); print(f'衛星數: {len(data[\"satellites\"])}')"
+```
+
 ## 🚨 故障排除
 
 ### 常見問題
 
 1. **PostgreSQL連接失敗**
    - 檢查：容器狀態和連接字串
-   - 解決：重啟PostgreSQL容器
+   - 解決：確認使用 `netstack-postgres` 而非 `localhost`
 
-2. **Volume檔案權限問題**
+2. **分層濾波產生空結果** 
+   - 檢查：時序數據欄位名稱一致性
+   - 解決：使用 `position_timeseries` 欄位
+
+3. **Volume檔案權限問題**
    - 檢查：檔案所有權和權限
    - 解決：`chown -R app:app /app/data`
 
-3. **混合查詢性能差**
+4. **混合查詢性能差**
    - 檢查：PostgreSQL索引使用
    - 解決：分析查詢計劃並優化索引
 

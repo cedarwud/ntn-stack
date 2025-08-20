@@ -3,6 +3,14 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { Line, Text, Sphere, Ring, Cylinder, Cone } from '@react-three/drei'
 import * as THREE from 'three'
 
+// 🚀 導入統一的軌道計算器和數據類型
+import {
+    SatelliteOrbitCalculator,
+    TimeseriesPoint
+} from '../../../utils/satellite/SatelliteOrbitCalculator'
+import { StandardSatelliteData } from '../../../types/satellite'
+
+// ⚠️ 保持向後兼容的舊接口（逐步廢棄）
 interface Satellite {
     norad_id?: string
     id?: string
@@ -10,6 +18,7 @@ interface Satellite {
     distance_km?: number
     elevation_deg?: number
     position?: { x?: number; y?: number; z?: number }
+    position_timeseries?: TimeseriesPoint[] // 🎯 新增：支持真實SGP4數據
     [key: string]: unknown
 }
 
@@ -79,64 +88,115 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
     const [handoverPoints, setHandoverPoints] = useState<HandoverPoint[]>([])
     const [animationTime, setAnimationTime] = useState(0)
 
-    // 生成衛星預測軌道
+    // 🛰️ 生成真實的衛星預測軌道（使用統一軌道計算器）
     const generateSatellitePrediction = useCallback(
         (satellite: Satellite): SatellitePrediction => {
+            // ✅ 優先使用真實的SGP4時間序列數據
+            if (satellite.position_timeseries && satellite.position_timeseries.length > 0) {
+                return generateRealSatellitePrediction(satellite, satellite.position_timeseries)
+            }
+            
+            // ⚠️ 後備：使用當前位置數據生成簡化預測（逐步廢棄）
+            return generateFallbackSatellitePrediction(satellite)
+        },
+        [predictionTimeHorizon]
+    )
+    
+    // 🎯 使用真實SGP4數據生成預測
+    const generateRealSatellitePrediction = useCallback(
+        (satellite: Satellite, timeseries: TimeseriesPoint[]): SatellitePrediction => {
+            const predictedPath: PredictionPoint[] = []
+            const steps = Math.min(60, timeseries.length) // 最多60個預測點
+            const timeStep = predictionTimeHorizon / steps
+            
+            // 🔄 基於真實軌道數據生成預測路徑
+            for (let i = 0; i < steps; i++) {
+                const currentTime = i * timeStep
+                const orbitResult = SatelliteOrbitCalculator.calculateOrbitPosition(
+                    timeseries,
+                    currentTime,
+                    1.0 // 預測使用正常速度
+                )
+                
+                if (orbitResult.currentPoint) {
+                    const confidence = orbitResult.isVisible ? 
+                        Math.max(0.3, 1 - orbitResult.currentPoint.elevation_deg / 90) : 0.1
+                    
+                    predictedPath.push({
+                        position: orbitResult.position,
+                        timestamp: Date.now() + currentTime * 1000,
+                        confidence,
+                        handoverProbability: orbitResult.isVisible ? 
+                            Math.random() * 0.3 : Math.random() * 0.8
+                    })
+                }
+            }
+            
+            // 計算可見性窗口
+            const visibilityWindow = SatelliteOrbitCalculator.calculateVisibilityWindow(timeseries)
+            
+            return {
+                satelliteId: satellite.norad_id || satellite.id || 'unknown',
+                currentPosition: predictedPath[0]?.position || [0, 0, 0],
+                predictedPath,
+                visibility: {
+                    start: Date.now() + visibilityWindow.start * 1000,
+                    end: Date.now() + visibilityWindow.end * 1000,
+                    maxElevation: visibilityWindow.maxElevation,
+                },
+            }
+        },
+        [predictionTimeHorizon]
+    )
+    
+    // 📦 後備方案：使用當前位置生成簡化預測
+    const generateFallbackSatellitePrediction = useCallback(
+        (satellite: Satellite): SatellitePrediction => {
+            console.warn('⚠️ 使用後備軌道預測，建議使用真實SGP4數據')
+            
             const currentPos: [number, number, number] = [
                 satellite.position?.x ||
-                    (Math.cos((satellite.azimuth_deg * Math.PI) / 180) *
-                        satellite.distance_km) /
-                        10,
-                satellite.position?.z || satellite.distance_km / 10,
+                    (Math.cos((satellite.azimuth_deg || 0) * Math.PI / 180) *
+                        (satellite.distance_km || 500)) / 10,
+                satellite.position?.z || (satellite.distance_km || 500) / 10,
                 satellite.position?.y ||
-                    (Math.sin((satellite.azimuth_deg * Math.PI) / 180) *
-                        satellite.distance_km) /
-                        10,
+                    (Math.sin((satellite.azimuth_deg || 0) * Math.PI / 180) *
+                        (satellite.distance_km || 500)) / 10,
             ]
 
-            // 生成預測路徑點
             const predictedPath: PredictionPoint[] = []
-            const steps = 60 // 60個時間步長
+            const steps = 30 // 減少步數避免過多計算
             const timeStep = predictionTimeHorizon / steps
 
             for (let i = 0; i < steps; i++) {
                 const t = i * timeStep
-                // 模擬衛星軌道運動（簡化的圓形軌道）
-                const angle = t * 0.001 // 軌道角速度
-                const _radius = satellite.distance_km / 10
+                const angle = t * 0.001
 
                 const position: [number, number, number] = [
-                    currentPos[0] * Math.cos(angle) -
-                        currentPos[2] * Math.sin(angle),
-                    currentPos[1] + t * 0.01, // 輕微的高度變化
-                    currentPos[0] * Math.sin(angle) +
-                        currentPos[2] * Math.cos(angle),
+                    currentPos[0] * Math.cos(angle) - currentPos[2] * Math.sin(angle),
+                    Math.max(10, currentPos[1] + Math.sin(t * 0.002) * 20), // 添加升降變化
+                    currentPos[0] * Math.sin(angle) + currentPos[2] * Math.cos(angle),
                 ]
 
-                // 計算信號強度和可見性
-                const distance = Math.sqrt(
-                    position[0] ** 2 + position[1] ** 2 + position[2] ** 2
-                )
-                const confidence = Math.max(0.3, 1 - distance / 100)
-                const handoverProbability =
-                    confidence < 0.6 ? Math.random() * 0.8 : Math.random() * 0.3
-
+                const distance = Math.sqrt(position[0]**2 + position[1]**2 + position[2]**2)
+                const confidence = Math.max(0.2, 1 - distance / 150)
+                
                 predictedPath.push({
                     position,
                     timestamp: Date.now() + t * 1000,
                     confidence,
-                    handoverProbability,
+                    handoverProbability: Math.random() * 0.5,
                 })
             }
 
             return {
-                satelliteId: satellite.norad_id || satellite.id,
+                satelliteId: satellite.norad_id || satellite.id || 'fallback',
                 currentPosition: currentPos,
                 predictedPath,
                 visibility: {
                     start: Date.now(),
                     end: Date.now() + predictionTimeHorizon * 1000,
-                    maxElevation: satellite.elevation_deg,
+                    maxElevation: satellite.elevation_deg || 45,
                 },
             }
         },
@@ -286,13 +346,27 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
     useEffect(() => {
         if (!enabled || !satellites.length) return
 
-        console.log('生成3D預測路徑數據')
+        console.log(`🛰️ 生成3D預測路徑數據 (${satellites.length}顆衛星)`)
 
-        // 生成衛星預測 - 修復：支援動態範圍8-14顆衛星
-        const maxSatellites = Math.min(satellites.length, 14)  // 支援最多14顆衛星
-        const satPredictions = satellites
-            .slice(0, maxSatellites)
-            .map(generateSatellitePrediction)
+        // 🎯 支援動態範圍衛星數據，優先處理有真實軌道數據的衛星
+        const maxSatellites = Math.min(satellites.length, 12)  // 限制為12顆以保持性能
+        
+        // 優先選擇有position_timeseries的衛星
+        const satellitesWithData = satellites.filter(sat => 
+            sat.position_timeseries && sat.position_timeseries.length > 0
+        )
+        const satellitesWithoutData = satellites.filter(sat => 
+            !sat.position_timeseries || sat.position_timeseries.length === 0
+        )
+        
+        const selectedSatellites = [
+            ...satellitesWithData.slice(0, Math.min(maxSatellites, satellitesWithData.length)),
+            ...satellitesWithoutData.slice(0, Math.max(0, maxSatellites - satellitesWithData.length))
+        ]
+        
+        console.log(`📡 選中衛星: ${satellitesWithData.length}顆有真實數據, ${satellitesWithoutData.length}顆使用後備數據`)
+        
+        const satPredictions = selectedSatellites.map(generateSatellitePrediction)
         setSatellitePredictions(satPredictions)
 
         // 生成UAV預測（如果有選中的UAV）
@@ -446,7 +520,22 @@ const PredictionPath3D: React.FC<PredictionPath3DProps> = ({
                         anchorX="center"
                         anchorY="middle"
                     >
-                        🛰️ {satPred.satelliteId}
+                        🛰️ {String(satPred.satelliteId).substring(0, 10)}
+                    </Text>
+                    
+                    {/* 數據來源指示 */}
+                    <Text
+                        position={[
+                            currentPos[0],
+                            currentPos[1] + 5,
+                            currentPos[2],
+                        ]}
+                        fontSize={1.5}
+                        color={satellites[index]?.position_timeseries ? '#00ff88' : '#ffaa44'}
+                        anchorX="center"
+                        anchorY="middle"
+                    >
+                        {satellites[index]?.position_timeseries ? '真實數據' : '模擬數據'}
                     </Text>
                 </group>
             )

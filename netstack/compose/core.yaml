@@ -360,6 +360,7 @@ services:
       - SATELLITE_DATABASE_URL=postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db
       - LOG_LEVEL=info
       - ENVIRONMENT=production
+      # - SKIP_DATA_GENERATION=true
       # - SIMWORLD_API_URL=http://simworld_backend:8000  # Removed - using Phase0 preprocessing instead
       # Phase 5 容器啟動優化環境變數
       - SATELLITE_DATA_MODE=instant_load     # 啟動時立即載入

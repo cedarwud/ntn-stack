@@ -67,9 +67,14 @@ class SimulatedAnnealingOptimizer:
         self.config = config
         self.logger = logging.getLogger(__name__)
         
-        # NTPU觀測點座標
-        self.observer_lat = 24.9441667
-        self.observer_lon = 121.3713889
+        # 🔧 重構：使用統一觀測配置服務（消除硬編碼座標）
+        try:
+            from shared_core.observer_config_service import get_ntpu_coordinates
+            self.observer_lat, self.observer_lon, self.observer_alt = get_ntpu_coordinates()
+            self.logger.info("✅ 模擬退火優化器使用統一觀測配置服務")
+        except Exception as e:
+            self.logger.error(f"觀測配置載入失敗: {e}")
+            raise RuntimeError("無法載入觀測點配置，請檢查shared_core配置")
         
         # 目標規格 (✅ 基於本地TLE數據的實際值)
         self.targets = {

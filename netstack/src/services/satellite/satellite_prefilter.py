@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 
 from skyfield.api import EarthSatellite, utc, load
 import numpy as np
+from shared_core.elevation_threshold_manager import get_elevation_threshold_manager
 
 
 logger = logging.getLogger(__name__)

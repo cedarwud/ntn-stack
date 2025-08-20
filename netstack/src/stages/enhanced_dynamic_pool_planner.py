@@ -83,21 +83,46 @@ class EnhancedDynamicPoolPlanner:
         self.logger = logging.getLogger(__name__)
         self.processing_start_time = time.time()
         
-        # NTPU觀測座標
-        self.observer_lat = 24.9441667
-        self.observer_lon = 121.3713889
-        self.observer_alt = 0.0  # 海拔高度 (米)
+        # 🔧 重構：使用統一觀測配置服務（消除硬編碼座標）
+        try:
+            from shared_core.observer_config_service import get_ntpu_coordinates
+            self.observer_lat, self.observer_lon, self.observer_alt = get_ntpu_coordinates()
+            self.logger.info("✅ Stage6使用統一觀測配置服務")
+        except Exception as e:
+            self.logger.error(f"觀測配置載入失敗: {e}")
+            raise RuntimeError("無法載入觀測點配置，請檢查shared_core配置")
+        
         self.time_resolution = 30  # 秒
+        
+        # 導入統一管理器 (重構改進)
+        from shared_core.elevation_threshold_manager import get_elevation_threshold_manager
+        from shared_core.visibility_service import get_visibility_service, ObserverLocation
+        from shared_core.signal_quality_cache import get_signal_quality_cache
+        
+        self.elevation_manager = get_elevation_threshold_manager()
+        self.signal_cache = get_signal_quality_cache()
+        
+        # 創建觀測者位置對象
+        observer_location = ObserverLocation(
+            latitude=self.observer_lat,
+            longitude=self.observer_lon,
+            altitude=self.observer_alt,
+            location_name="NTPU"
+        )
+        self.visibility_service = get_visibility_service(observer_location)
         
         # 整合技術基礎架構
         self.cleanup_manager = AutoCleanupManager()
         self.update_manager = IncrementalUpdateManager()
         
-        # 真正的動態池覆蓋目標 (時間連續覆蓋)
+        # 使用統一管理器定義覆蓋目標
+        starlink_thresholds = self.elevation_manager.get_threshold_config('starlink')
+        oneweb_thresholds = self.elevation_manager.get_threshold_config('oneweb')
+        
         self.coverage_targets = {
             'starlink': EnhancedDynamicCoverageTarget(
                 constellation=ConstellationType.STARLINK,
-                min_elevation_deg=5.0,
+                min_elevation_deg=starlink_thresholds.min_elevation,  # 使用統一管理器的值
                 target_visible_range=(10, 15),    # 任何時刻可見衛星數量
                 target_handover_range=(3, 5),     # 換手候選數
                 orbit_period_minutes=96,
@@ -105,7 +130,7 @@ class EnhancedDynamicPoolPlanner:
             ),
             'oneweb': EnhancedDynamicCoverageTarget(
                 constellation=ConstellationType.ONEWEB,
-                min_elevation_deg=10.0,
+                min_elevation_deg=oneweb_thresholds.min_elevation,  # 使用統一管理器的值
                 target_visible_range=(3, 6),      # 任何時刻可見衛星數量  
                 target_handover_range=(1, 2),     # 換手候選數
                 orbit_period_minutes=109,
@@ -123,10 +148,15 @@ class EnhancedDynamicPoolPlanner:
         }
         self.sa_optimizer = SimulatedAnnealingOptimizer(sa_config)
         
-        self.logger.info("✅ 增強動態衛星池規劃器初始化完成")
+        self.logger.info("✅ 增強動態衛星池規劃器初始化完成 (重構版)")
         self.logger.info(f"📍 觀測點: NTPU ({self.observer_lat}, {self.observer_lon})")
+        self.logger.info("  🔧 統一仰角門檻管理器已啟用")
+        self.logger.info("  🔧 統一可見性服務已啟用")
+        self.logger.info("  🔧 信號品質緩存已啟用")
         self.logger.info("🧠 已載入: 模擬退火優化器 + shared_core技術棧")
-        self.logger.info("🎯 使用真實測試數據校正的覆蓋目標")
+        self.logger.info("🎯 使用統一管理器的覆蓋目標:")
+        self.logger.info(f"   Starlink門檻: {starlink_thresholds.min_elevation}° (最低) | {starlink_thresholds.optimal_elevation}° (最佳)")
+        self.logger.info(f"   OneWeb門檻: {oneweb_thresholds.min_elevation}° (最低) | {oneweb_thresholds.optimal_elevation}° (最佳)")
         self.logger.info(f"   Starlink目標: {self.coverage_targets['starlink'].target_visible_range[0]}-{self.coverage_targets['starlink'].target_visible_range[1]}顆")
         self.logger.info(f"   OneWeb目標: {self.coverage_targets['oneweb'].target_visible_range[0]}-{self.coverage_targets['oneweb'].target_visible_range[1]}顆")
     @performance_monitor

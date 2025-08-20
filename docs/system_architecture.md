@@ -77,18 +77,12 @@ graph TB
 - **3GPP NTN 協議**: 信令系統、時間同步、頻率補償
 - **數據持久化**: PostgreSQL 實驗數據和 RL 訓練記錄
 
-**容器配置**:
-```yaml
-netstack-api:
-  port: 8080
-  depends_on: [netstack-postgres, netstack-redis]
-  volumes: [tle_data, leo_outputs]
-  
-netstack-postgres:  
-  port: 5432
-  database: rl_research
-  persistent_volume: postgres_data
-```
+**容器概要**:
+- **netstack-api**: 核心 API 服務 (:8080)
+- **netstack-postgres**: 主數據庫 (:5432)  
+- **netstack-redis**: 緩存服務 (:6379)
+
+**詳細 Docker 配置請參考**: [技術實施指南 - Docker 配置](./technical_guide.md#docker-配置詳解)
 
 ### SimWorld (3D 仿真引擎) - :8888  
 **主要職責**: 衛星軌道計算、數據預處理和 3D 視覺化
@@ -99,18 +93,12 @@ netstack-postgres:
 - **3D 視覺化前端**: Three.js 軌道展示和實時監控
 - **統一 API 服務**: 跨系統數據交換接口
 
-**容器配置**:
-```yaml
-simworld-backend:
-  port: 8888
-  depends_on: [simworld-postgres]
-  volumes: [satellite_data, leo_outputs]
-  
-simworld-frontend:
-  port: 5173
-  build_context: ./simworld/frontend
-  nginx_config: production
-```
+**容器概要**:
+- **simworld-backend**: 後端計算服務 (:8888)
+- **simworld-frontend**: 前端 UI (:5173)
+- **simworld-postgres**: SimWorld 數據庫 (:5432)
+
+**詳細配置請參考**: [技術實施指南 - Docker 配置](./technical_guide.md#docker-配置詳解)
 
 ## 🌐 Docker Compose 架構
 
