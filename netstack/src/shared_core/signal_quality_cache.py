@@ -399,9 +399,9 @@ def get_signal_quality_cache() -> SignalQualityCache:
     """獲取全局信號品質緩存實例"""
     global _global_signal_cache
     if _global_signal_cache is None:
-        # 使用本地路徑而非容器路徑
+        # 🔧 修復：使用容器內的工作目錄路徑
         import os
-        cache_dir = os.path.expanduser("~/ntn-stack/data/signal_cache")
+        cache_dir = "/app/data/signal_cache"  # 使用容器內的工作目錄
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir, exist_ok=True)
         _global_signal_cache = SignalQualityCache(cache_dir=cache_dir)

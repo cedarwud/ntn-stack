@@ -411,7 +411,10 @@ class SignalQualityAnalysisProcessor:
         
     def save_signal_analysis_output(self, final_data: Dict[str, Any]) -> str:
         """保存信號分析輸出數據 - v3.0 清理舊檔案版本"""
-        output_file = self.output_dir / "signal_event_analysis_output.json"
+        # 確保輸出到正確的 leo_outputs 目錄
+        leo_outputs_dir = self.output_dir / "leo_outputs"
+        leo_outputs_dir.mkdir(parents=True, exist_ok=True)
+        output_file = leo_outputs_dir / "signal_event_analysis_output.json"
         
         # 🗑️ 清理舊檔案 - 確保資料一致性
         if output_file.exists():

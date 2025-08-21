@@ -96,9 +96,19 @@ class IntelligentSatelliteFilterProcessor:
                 
             total_satellites = 0
             for constellation_name, constellation_data in orbital_data['constellations'].items():
-                satellites = constellation_data.get('satellites', [])
-                total_satellites += len(satellites)
-                logger.info(f"  {constellation_name}: {len(satellites)} 顆衛星")
+                # 🔧 修復：使用正確的數據路徑
+                if 'orbit_data' in constellation_data:
+                    satellites_data = constellation_data['orbit_data'].get('satellites', {})
+                    if isinstance(satellites_data, dict):
+                        satellites_count = len(satellites_data)
+                    else:
+                        satellites_count = len(satellites_data) if hasattr(satellites_data, '__len__') else 0
+                else:
+                    satellites = constellation_data.get('satellites', [])
+                    satellites_count = len(satellites)
+                
+                total_satellites += satellites_count
+                logger.info(f"  {constellation_name}: {satellites_count} 顆衛星")
                 
             logger.info(f"✅ 軌道計算數據載入完成: 總計 {total_satellites} 顆衛星")
             return orbital_data
@@ -140,9 +150,9 @@ class IntelligentSatelliteFilterProcessor:
             # 使用統一可見性服務進行篩選
             logger.info(f"  🔍 使用統一可見性服務篩選 {original_count} 顆衛星...")
             
-            # 設定最小可見時間要求 (15分鐘)
+            # 設定最小可見時間要求 (5分鐘)
             visible_satellites = self.visibility_service.filter_visible_satellites(
-                satellites_list, constellation_name, min_visibility_duration_minutes=15.0
+                satellites_list, constellation_name, min_visibility_duration_minutes=5.0
             )
             
             # 進一步使用統一仰角管理器進行品質篩選
@@ -180,7 +190,7 @@ class IntelligentSatelliteFilterProcessor:
                     'filtering_method': 'unified_elevation_visibility_service',
                     'min_elevation_threshold': self.elevation_manager.get_min_elevation(constellation_name),
                     'optimal_elevation_threshold': self.elevation_manager.get_optimal_elevation(constellation_name),
-                    'min_visibility_duration_minutes': 15.0,
+                    'min_visibility_duration_minutes': 5.0,
                     'min_optimal_points_required': 10,
                     'processing_timestamp': datetime.now(timezone.utc).isoformat()
                 }
@@ -235,7 +245,10 @@ class IntelligentSatelliteFilterProcessor:
             
     def save_intelligent_filtering_output(self, filtered_data: Dict[str, Any]) -> str:
         """保存智能篩選輸出數據 - v3.0 清理舊檔案版本"""
-        output_file = self.output_dir / "intelligent_filtered_output.json"
+        # 確保輸出到正確的 leo_outputs 目錄
+        leo_outputs_dir = self.output_dir / "leo_outputs"
+        leo_outputs_dir.mkdir(parents=True, exist_ok=True)
+        output_file = leo_outputs_dir / "intelligent_filtered_output.json"
         
         # 🗑️ 清理舊檔案 - 確保資料一致性
         if output_file.exists():
