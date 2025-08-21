@@ -89,7 +89,7 @@ class Stage1TLEProcessor:
         logger.info(f"  輸出目錄: {self.output_dir}")
         logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
         logger.info("  📐 座標來源: 統一觀測配置服務（已消除硬編碼）")
-        logger.info("  💾 檔案策略: 純記憶體傳遞（不生成任何JSON檔案）")
+        logger.info("  💾 檔案策略: 檔案保存模式（支援後續階段處理）")
         
         if self.sample_mode:
             logger.info(f"  🔬 取樣模式: 啟用（每星座取樣 {self.sample_size} 顆衛星）")
@@ -316,31 +316,37 @@ class Stage1TLEProcessor:
         return final_data
         
     def save_tle_calculation_output(self, tle_data: Dict[str, Any]) -> Optional[str]:
-        """v3.0版本：完全停用檔案儲存，採用純記憶體傳遞策略"""
-        logger.info("🚀 v3.0記憶體傳遞策略：不產生任何JSON檔案")
+        """重新啟用檔案保存以支援階段二到六的數據讀取"""
+        logger.info("💾 重新啟用檔案保存模式以支援後續階段處理")
         
-        # 🗑️ 清理任何可能存在的舊檔案
-        legacy_files = [
-            self.output_dir / "tle_orbital_calculation_output.json",
-            self.output_dir / "tle_orbital_calculation_output.tmp",
-        ]
+        # 生成輸出檔案路徑
+        output_file = self.output_dir / "tle_orbital_calculation_output.json"
         
-        for legacy_file in legacy_files:
-            if legacy_file.exists():
-                logger.info(f"🗑️ 清理舊檔案: {legacy_file}")
-                legacy_file.unlink()
-                logger.info(f"  已刪除: {legacy_file}")
-        
-        logger.info("✅ v3.0策略：數據準備完成，將直接透過記憶體傳遞給階段二")
-        logger.info("  💾 優勢：無2.2GB檔案、無I/O延遲、即時驗證")
-        return None  # 不返回檔案路徑，表示採用記憶體傳遞
+        try:
+            # 保存到 JSON 檔案
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(tle_data, f, ensure_ascii=False, indent=2)
+            
+            # 計算檔案大小
+            file_size_mb = output_file.stat().st_size / (1024 * 1024)
+            
+            logger.info(f"✅ TLE軌道計算數據已保存: {output_file}")
+            logger.info(f"  檔案大小: {file_size_mb:.1f} MB")
+            logger.info(f"  包含衛星數: {tle_data['metadata']['total_satellites']}")
+            logger.info(f"  包含星座數: {tle_data['metadata']['total_constellations']}")
+            
+            return str(output_file)
+            
+        except Exception as e:
+            logger.error(f"保存TLE軌道計算數據失敗: {e}")
+            return None  # 不返回檔案路徑，表示採用記憶體傳遞
         
     def process_tle_orbital_calculation(self) -> Dict[str, Any]:
         """執行完整的TLE軌道計算處理流程"""
         logger.info("🚀 開始階段一：TLE數據載入與SGP4軌道計算")
         
-        # 💾 v3.0儲存策略：完全停用檔案儲存，純記憶體傳遞
-        logger.info("🚀 v3.0記憶體傳遞模式：執行即時計算（不儲存檔案）")
+        # 🔧 啟用檔案保存模式以支援後續階段
+        logger.info("💾 啟用檔案保存模式以支援階段二到六處理")
         
         # 🗑️ 清理任何可能存在的舊檔案
         existing_data_file = self.output_dir / "tle_orbital_calculation_output.json"
@@ -352,12 +358,19 @@ class Stage1TLEProcessor:
         # 執行計算（支援取樣模式）
         tle_data = self._execute_full_calculation()
         
+        # 💾 保存檔案以供後續階段使用
+        output_file_path = self.save_tle_calculation_output(tle_data)
+        
         logger.info("✅ TLE軌道計算處理完成")
         logger.info(f"  處理的衛星數: {tle_data['metadata']['total_satellites']}")
         
         processing_mode = "取樣模式" if self.sample_mode else "全量處理模式"
         logger.info(f"  🎯 處理模式: {processing_mode}")
-        logger.info("  💾 v3.0記憶體傳遞：數據已準備好直接傳遞給智能篩選處理器（零檔案儲存）")
+        
+        if output_file_path:
+            logger.info(f"  💾 檔案已保存: {output_file_path}")
+        else:
+            logger.warning("  ⚠️ 檔案保存失敗")
         
         return tle_data
         

@@ -183,8 +183,8 @@ class SatelliteVisibilityService:
                 # 提取衛星位置信息
                 satellite_id = satellite.get('satellite_id', satellite.get('name', 'Unknown'))
                 
-                # 處理時間序列數據或單點數據
-                if 'position_timeseries' in satellite or 'timeseries' in satellite:
+                # 處理時間序列數據或單點數據 - 修復：包含 positions 字段
+                if ('position_timeseries' in satellite or 'timeseries' in satellite or 'positions' in satellite):
                     enhanced_satellite = self._process_timeseries_visibility(
                         satellite, constellation, timestamp
                     )
@@ -198,7 +198,7 @@ class SatelliteVisibilityService:
                     
                     # 檢查是否有可見時間點
                     has_visible_points = False
-                    timeseries = enhanced_satellite.get('position_timeseries', enhanced_satellite.get('timeseries', []))
+                    timeseries = enhanced_satellite.get('position_timeseries', enhanced_satellite.get('timeseries', enhanced_satellite.get('positions', [])))
                     for point in timeseries:
                         if point.get('visibility_info', {}).get('is_visible', False):
                             has_visible_points = True
@@ -238,7 +238,7 @@ class SatelliteVisibilityService:
         visible_satellites = []
         
         for satellite in enhanced_satellites:
-            timeseries = satellite.get('position_timeseries', satellite.get('timeseries', []))
+            timeseries = satellite.get('position_timeseries', satellite.get('timeseries', satellite.get('positions', [])))
             
             # 計算可見時間點
             visible_points = []
@@ -294,7 +294,7 @@ class SatelliteVisibilityService:
         }
         
         for satellite in enhanced_satellites:
-            timeseries = satellite.get('position_timeseries', satellite.get('timeseries', []))
+            timeseries = satellite.get('position_timeseries', satellite.get('timeseries', satellite.get('positions', [])))
             has_visible_points = False
             
             for point in timeseries:
@@ -397,9 +397,9 @@ class SatelliteVisibilityService:
     def _process_timeseries_visibility(self, satellite: Dict[str, Any], 
                                      constellation: str,
                                      target_timestamp: Optional[str] = None) -> Dict[str, Any]:
-        """處理時間序列數據的可見性檢查"""
+        """處理時間序列數據的可見性檢查 - 使用預計算的可見性數據"""
         enhanced_satellite = satellite.copy()
-        timeseries_data = satellite.get('position_timeseries', satellite.get('timeseries', []))
+        timeseries_data = satellite.get('position_timeseries', satellite.get('timeseries', satellite.get('positions', [])))
         
         enhanced_timeseries = []
         
@@ -410,28 +410,54 @@ class SatelliteVisibilityService:
                 continue
             
             try:
-                # 創建衛星位置對象
-                sat_pos = SatellitePosition(
-                    latitude=point.get('latitude', 0),
-                    longitude=point.get('longitude', 0),
-                    altitude=point.get('altitude', 0),
-                    timestamp=point.get('time', ''),
-                    satellite_id=satellite.get('satellite_id')
-                )
-                
-                # 檢查可見性
-                visibility_result = self.check_satellite_visibility(sat_pos, constellation)
-                
-                # 增強時間點數據
-                enhanced_point = point.copy()
-                enhanced_point['visibility_info'] = {
-                    'is_visible': visibility_result.is_visible,
-                    'elevation_deg': visibility_result.elevation_deg,
-                    'azimuth_deg': visibility_result.azimuth_deg,
-                    'distance_km': visibility_result.distance_km,
-                    'visibility_level': visibility_result.visibility_level.value,
-                    'quality_score': visibility_result.quality_score
-                }
+                # 檢查是否已有預計算的可見性數據
+                if 'elevation_deg' in point and 'is_visible' in point:
+                    # 使用預計算的可見性數據
+                    elevation = point['elevation_deg']
+                    is_visible = point['is_visible']
+                    azimuth = point.get('azimuth_deg', 0)
+                    range_km = point.get('range_km', 0)
+                    
+                    # 評估可見性等級
+                    visibility_level = self._assess_visibility_level(elevation, constellation)
+                    
+                    # 計算品質評分
+                    quality_score = self.elevation_manager.get_elevation_quality_score(elevation, constellation)
+                    
+                    # 增強時間點數據
+                    enhanced_point = point.copy()
+                    enhanced_point['visibility_info'] = {
+                        'is_visible': is_visible,
+                        'elevation_deg': elevation,
+                        'azimuth_deg': azimuth,
+                        'distance_km': range_km,
+                        'visibility_level': visibility_level.value,
+                        'quality_score': quality_score
+                    }
+                    
+                else:
+                    # 如果沒有預計算數據，嘗試使用舊方法（適用於緯度/經度數據）
+                    sat_pos = SatellitePosition(
+                        latitude=point.get('latitude', 0),
+                        longitude=point.get('longitude', 0),
+                        altitude=point.get('altitude', 0),
+                        timestamp=point.get('time', ''),
+                        satellite_id=satellite.get('satellite_id')
+                    )
+                    
+                    # 檢查可見性
+                    visibility_result = self.check_satellite_visibility(sat_pos, constellation)
+                    
+                    # 增強時間點數據
+                    enhanced_point = point.copy()
+                    enhanced_point['visibility_info'] = {
+                        'is_visible': visibility_result.is_visible,
+                        'elevation_deg': visibility_result.elevation_deg,
+                        'azimuth_deg': visibility_result.azimuth_deg,
+                        'distance_km': visibility_result.distance_km,
+                        'visibility_level': visibility_result.visibility_level.value,
+                        'quality_score': visibility_result.quality_score
+                    }
                 
                 enhanced_timeseries.append(enhanced_point)
                 
