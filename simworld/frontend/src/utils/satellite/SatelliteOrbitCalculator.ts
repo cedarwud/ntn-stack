@@ -38,8 +38,7 @@ export class SatelliteOrbitCalculator {
     
     /**
      * 基於position_timeseries數據計算當前軌道位置
-     * 這是核心方法，統一處理所有軌道計算
-     * 修復：實現真正的升降軌跡，避免循環轉圈
+     * 🚀 修復版本：只在可見窗口內循環，實現平滑升降軌跡
      */
     static calculateOrbitPosition(
         timeseries: TimeseriesPoint[],
@@ -55,35 +54,10 @@ export class SatelliteOrbitCalculator {
             };
         }
 
-        // 🎯 修復時間進度計算：識別連續數據段並循環播放
-        const maxTimeOffset = timeseries[timeseries.length - 1]?.time_offset_seconds || 0;
+        // 🌟 關鍵修復：只識別可見窗口，避免長時間不可見期的跳躍
+        const visibleWindows = this.extractVisibleWindows(timeseries);
         
-        // 🔍 識別連續的數據段（避免間隙問題）
-        const continuousSegments: TimeseriesPoint[][] = [];
-        let currentSegment: TimeseriesPoint[] = [timeseries[0]];
-        
-        for (let i = 1; i < timeseries.length; i++) {
-            const timeDiff = timeseries[i].time_offset_seconds - timeseries[i-1].time_offset_seconds;
-            
-            if (timeDiff <= 60) { // 連續數據（≤60秒間隔）
-                currentSegment.push(timeseries[i]);
-            } else { // 發現間隙，開始新段
-                if (currentSegment.length > 1) {
-                    continuousSegments.push(currentSegment);
-                }
-                currentSegment = [timeseries[i]];
-            }
-        }
-        
-        if (currentSegment.length > 1) {
-            continuousSegments.push(currentSegment);
-        }
-        
-        // 選擇最長的連續段作為主要軌道
-        const mainSegment = continuousSegments.reduce((longest, current) => 
-            current.length > longest.length ? current : longest, continuousSegments[0] || []);
-        
-        if (!mainSegment || mainSegment.length < 2) {
+        if (visibleWindows.length === 0) {
             return {
                 position: [0, -500, 0],
                 isVisible: false,
@@ -92,29 +66,42 @@ export class SatelliteOrbitCalculator {
             };
         }
         
-        // 在主要段內循環播放
-        const segmentDuration = mainSegment[mainSegment.length - 1].time_offset_seconds - mainSegment[0].time_offset_seconds;
-        const timeProgress = (currentTime * speedMultiplier) % segmentDuration;
+        // 選擇最長的可見窗口作為主要軌道
+        const mainWindow = visibleWindows.reduce((longest, current) => 
+            current.duration > longest.duration ? current : longest);
         
-        // 🔍 在主要段內尋找當前位置
+        if (mainWindow.points.length < 2) {
+            return {
+                position: [0, -500, 0],
+                isVisible: false,
+                progress: 0,
+                currentPoint: null
+            };
+        }
+        
+        // 🎯 只在可見窗口內循環，避免軌跡斷點
+        const windowDuration = mainWindow.duration;
+        const timeProgress = (currentTime * speedMultiplier) % windowDuration;
+        
+        // 🔍 在可見窗口內尋找當前位置
         let currentIndex = 0;
         let nextIndex = 1;
         
-        const adjustedTimeProgress = timeProgress + mainSegment[0].time_offset_seconds;
+        const adjustedTimeProgress = timeProgress + mainWindow.startTime;
         
-        for (let i = 0; i < mainSegment.length - 1; i++) {
-            const currentTime_offset = mainSegment[i].time_offset_seconds;
-            const nextTime_offset = mainSegment[i + 1].time_offset_seconds;
+        for (let i = 0; i < mainWindow.points.length - 1; i++) {
+            const currentTimeOffset = mainWindow.points[i].time_offset_seconds;
+            const nextTimeOffset = mainWindow.points[i + 1].time_offset_seconds;
             
-            if (adjustedTimeProgress >= currentTime_offset && adjustedTimeProgress <= nextTime_offset) {
+            if (adjustedTimeProgress >= currentTimeOffset && adjustedTimeProgress <= nextTimeOffset) {
                 currentIndex = i;
                 nextIndex = i + 1;
                 break;
             }
         }
         
-        const currentPoint = mainSegment[currentIndex];
-        const nextPoint = mainSegment[nextIndex];
+        const currentPoint = mainWindow.points[currentIndex];
+        const nextPoint = mainWindow.points[nextIndex];
         
         // 計算在當前段內的比例
         const pointDuration = nextPoint.time_offset_seconds - currentPoint.time_offset_seconds;
@@ -124,18 +111,65 @@ export class SatelliteOrbitCalculator {
         // 🔄 線性插值：在真實數據點之間平滑過渡
         const interpolated = this.interpolateTimeseriesPoint(currentPoint, nextPoint, timeRatio);
         
-        // 🌍 轉換為3D座標（修復後的轉換）
+        // 🌍 轉換為3D座標（增強版升降軌跡）
         const position = this.sphericalToCartesian(interpolated);
         
-        // ✅ 修復可見性判斷：基於真實仰角和API數據
-        const isVisible = currentPoint.is_visible && interpolated.elevation_deg > 5; // 5度以上才可見
+        // ✅ 可見性判斷：只有可見窗口內的點才可見
+        const isVisible = true; // 可見窗口內的所有點都應該可見
         
         return {
             position,
             isVisible,
-            progress: timeProgress / segmentDuration,
+            progress: timeProgress / windowDuration,
             currentPoint: currentPoint
         };
+    }
+    
+    /**
+     * 🌟 新增方法：提取可見窗口
+     * 解決軌跡斷點問題的核心方法
+     */
+    private static extractVisibleWindows(timeseries: TimeseriesPoint[]): Array<{
+        points: TimeseriesPoint[],
+        startTime: number,
+        endTime: number,
+        duration: number
+    }> {
+        const windows = [];
+        let currentWindow: TimeseriesPoint[] = [];
+        
+        for (const point of timeseries) {
+            if (point.is_visible && point.elevation_deg >= 0) {
+                currentWindow.push(point);
+            } else {
+                // 結束當前窗口
+                if (currentWindow.length >= 2) {
+                    const startTime = currentWindow[0].time_offset_seconds;
+                    const endTime = currentWindow[currentWindow.length - 1].time_offset_seconds;
+                    windows.push({
+                        points: [...currentWindow],
+                        startTime,
+                        endTime,
+                        duration: endTime - startTime
+                    });
+                }
+                currentWindow = [];
+            }
+        }
+        
+        // 處理最後一個窗口
+        if (currentWindow.length >= 2) {
+            const startTime = currentWindow[0].time_offset_seconds;
+            const endTime = currentWindow[currentWindow.length - 1].time_offset_seconds;
+            windows.push({
+                points: [...currentWindow],
+                startTime,
+                endTime,
+                duration: endTime - startTime
+            });
+        }
+        
+        return windows;
     }
     
     /**
@@ -155,13 +189,13 @@ export class SatelliteOrbitCalculator {
     
     /**
      * 球面座標轉3D直角座標
-     * 修復：實現真正的升降軌跡，允許負Y值
+     * 🚀 修復版：衛星應在天空中升降，而非地面附近
      */
     static sphericalToCartesian(
         spherical: SphericalCoordinates,
-        scaleRange: number = 3.0,
-        maxRange: number = 300,
-        heightScale: number = 1.0
+        scaleRange: number = 4.0,     // 增大縮放使衛星更遠離地面
+        maxRange: number = 300,       // 適當減小最大範圍保持在場景內
+        heightScale: number = 1.5     // 適中的高度縮放
     ): [number, number, number] {
         const { elevation_deg, azimuth_deg, range_km } = spherical;
         
@@ -169,17 +203,20 @@ export class SatelliteOrbitCalculator {
         const elevationRad = (elevation_deg * Math.PI) / 180;
         const azimuthRad = (azimuth_deg * Math.PI) / 180;
         
-        // 距離縮放（調整為更合理的範圍）
-        const scaledRange = Math.min(range_km / scaleRange, maxRange);
+        // 🎯 改進的距離縮放：根據場景大小調整
+        let scaledRange = Math.min(range_km / scaleRange, maxRange);
         
-        // 🌍 修復3D座標轉換：允許衛星自然升降
+        // 🌍 3D座標計算：標準球面轉直角座標
         const x = scaledRange * Math.cos(elevationRad) * Math.sin(azimuthRad);
         const z = scaledRange * Math.cos(elevationRad) * Math.cos(azimuthRad);
         
-        // ⭐ 關鍵修復：Y座標直接反映仰角，允許負值（地平線以下）
-        const baseHeight = 100; // 地面基準高度
-        const y = baseHeight + (scaledRange * Math.sin(elevationRad) * heightScale);
+        // ⭐ 關鍵修復：衛星應在天空中升降（地面設備在15-20高度，衛星應在150+）
+        const skyBaseHeight = 200;  // 天空基準高度，遠高於地面設備
+        const elevationHeight = scaledRange * Math.sin(elevationRad) * heightScale;
+        const y = skyBaseHeight + elevationHeight;
         
+        // 📊 調試信息
+        // console.log(`衛星座標: 仰角${elevation_deg.toFixed(1)}° → Y=${y.toFixed(1)} (天空基準${skyBaseHeight} + 仰角高度${elevationHeight.toFixed(1)})`);
         
         return [x, y, z];
     }

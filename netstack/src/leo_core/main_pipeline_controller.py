@@ -563,13 +563,15 @@ async def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="LEO核心系統主流程控制器")
-    parser.add_argument("--mode", choices=['full', 'single'], default='full', 
-                       help="執行模式: full=完整流程, single=單一階段")
+    parser.add_argument("--mode", choices=['full', 'single', 'build_optimized'], default='full', 
+                       help="執行模式: full=完整流程, single=單一階段, build_optimized=建構時優化")
     parser.add_argument("--stage", choices=['stage1', 'stage2', 'stage3', 'stage4', 'stage5', 'stage6'],
                        help="單一階段模式下指定要執行的階段")
     parser.add_argument("--input", help="單一階段模式下的輸入檔案")
     parser.add_argument("--data-dir", default="/home/sat/ntn-stack/netstack/data",
                        help="數據目錄路徑")
+    parser.add_argument("--output-dir", help="輸出目錄路徑 (建構時優化模式)")
+    # 移除壓縮選項 - 直接包含所有預處理數據以實現最高性能
     
     args = parser.parse_args()
     
@@ -597,6 +599,39 @@ async def main():
             # 執行單一階段
             result = await pipeline.execute_single_stage(args.stage, args.input)
             print(f"\n🎯 {args.stage} 執行結果:")
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+            
+        elif args.mode == 'build_optimized':
+            print("🏗️ 建構時優化模式執行...")
+            
+            # 使用指定的輸出目錄或預設目錄
+            output_dir = args.output_dir or args.data_dir
+            pipeline.config.base_data_dir = output_dir
+            
+            # 執行完整流程但進行建構優化
+            result = await pipeline.execute_complete_pipeline()
+            
+            if result.get('success', False) or result.get('pipeline_success', False):
+                print("✅ 建構時預處理成功完成")
+                
+                # 創建建構優化標記文件
+                build_info = {
+                    'build_time': datetime.now(timezone.utc).isoformat(),
+                    'mode': 'build_optimized',
+                    'compressed': args.compress,
+                    'data_dir': output_dir,
+                    'status': 'completed'
+                }
+                
+                with open(f"{output_dir}/.build_preprocessed", 'w') as f:
+                    json.dump(build_info, f, indent=2)
+                    
+                print(f"📊 建構信息已保存到 {output_dir}/.build_preprocessed")
+            else:
+                print("❌ 建構時預處理失敗")
+                sys.exit(1)
+            
+            print(f"\n🎯 建構時優化執行結果:")
             print(json.dumps(result, indent=2, ensure_ascii=False))
         
         if result.get('success', False) or result.get('pipeline_success', False):

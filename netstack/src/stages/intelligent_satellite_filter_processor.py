@@ -160,13 +160,24 @@ class IntelligentSatelliteFilterProcessor:
             
             high_quality_satellites = []
             for satellite in visible_satellites:
+                # 🎯 關鍵修復：確保保留軌道數據
+                # Stage 1 輸出 "positions"，我們需要保留並轉換為 "position_timeseries"
+                if 'positions' in satellite and 'position_timeseries' not in satellite:
+                    satellite['position_timeseries'] = satellite['positions']
+                    logger.debug(f"  轉換 positions -> position_timeseries for {satellite.get('satellite_id', 'Unknown')}")
+                
                 # 檢查衛星是否有足夠的高品質時間點
-                timeseries = satellite.get('position_timeseries', [])
+                timeseries = satellite.get('position_timeseries', satellite.get('positions', []))
                 optimal_points = 0
                 
                 for point in timeseries:
-                    visibility_info = point.get('visibility_info', {})
-                    elevation = visibility_info.get('elevation_deg', 0)
+                    # 兼容不同的數據格式
+                    if isinstance(point, dict):
+                        # 檢查多種可能的仰角字段
+                        elevation = (point.get('elevation_deg') or 
+                                   point.get('visibility_info', {}).get('elevation_deg', 0))
+                    else:
+                        elevation = 0
                     
                     # 檢查是否達到最佳仰角
                     if self.elevation_manager.is_satellite_optimal(elevation, constellation_name):
@@ -174,7 +185,11 @@ class IntelligentSatelliteFilterProcessor:
                 
                 # 如果有至少10個最佳品質點 (5分鐘)，保留此衛星
                 if optimal_points >= 10:
-                    high_quality_satellites.append(satellite)
+                    # 確保保留完整的軌道數據
+                    satellite_copy = satellite.copy()
+                    if 'positions' in satellite_copy and 'position_timeseries' not in satellite_copy:
+                        satellite_copy['position_timeseries'] = satellite_copy['positions']
+                    high_quality_satellites.append(satellite_copy)
             
             filtered_count = len(high_quality_satellites)
             total_filtered += filtered_count

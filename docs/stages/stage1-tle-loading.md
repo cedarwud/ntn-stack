@@ -10,11 +10,38 @@
 **處理時間**：約 2-3 分鐘
 **實際處理數量**：8,079 Starlink + 651 OneWeb = 8,730 顆衛星
 
-### 🚀 v3.0 記憶體傳遞模式
+### 🚀 v3.1 數據血統追蹤版本
 
-- **問題解決**：避免生成 2.2GB 大檔案
-- **傳遞方式**：直接將軌道計算結果在記憶體中傳遞給階段二
-- **效能提升**：消除檔案 I/O 開銷，處理速度提升 50%+
+- **核心修復**：✅ **數據血統追蹤機制**
+  - **TLE數據日期**：記錄實際TLE檔案日期（如：2025-08-20）
+  - **處理時間戳**：記錄程式執行時間（如：2025-08-21）
+  - **計算基準時間**：使用TLE epoch時間進行軌道計算
+  - **數據治理**：完全符合數據血統管理原則
+
+- **技術改進**：
+  - **傳遞方式**：直接將軌道計算結果在記憶體中傳遞給階段二
+  - **效能提升**：消除檔案 I/O 開銷，處理速度提升 50%+
+  - **數據完整性**：確保每顆衛星都有完整的TLE來源追蹤信息
+
+### ⏰ 時間週期與數據血統說明
+
+**重要澄清**：系統中有三個不同的時間概念：
+
+1. **軌道計算週期**：96分鐘
+   - 單次處理每顆衛星的完整軌道週期
+   - 192個時間點，30秒間隔
+   - 用於生成連續的軌跡動畫數據
+
+2. **系統更新週期**：6小時  
+   - Cron自動下載新TLE數據的頻率
+   - 重新執行六階段處理的間隔
+   - 保持衛星軌道數據新鮮度
+
+3. **🎯 數據血統時間戳**（v3.1 新增）：
+   - **TLE數據日期**：實際衛星軌道元素的有效時間
+   - **TLE Epoch時間**：TLE軌道元素的參考時間點
+   - **處理執行時間**：軌道計算程序的實際運行時間
+   - **計算基準時間**：SGP4算法使用的時間基準（採用TLE Epoch）
 
 ## 🏗️ 核心處理器架構
 
@@ -42,8 +69,8 @@
 
 3. **SGP4軌道計算**：基於真實物理模型計算衛星位置
    - 使用官方SGP4演算法（非簡化版本）
-   - 計算6小時完整軌道數據
-   - 時間解析度：30秒間隔
+   - 計算96分鐘完整軌道週期數據
+   - 時間解析度：30秒間隔（192個時間點）
 
 4. **記憶體傳遞**：將結果直接傳遞給階段二
 
@@ -53,6 +80,31 @@
 - **標準遵循**：嚴格遵循官方SGP4/SDP4標準
 - **誤差控制**：位置誤差 < 1km（LEO衛星）
 - **時間精度**：UTC時間精確到秒級
+
+### 🎯 數據血統追蹤系統（v3.1）
+- **TLE來源追蹤**：每顆衛星記錄完整的TLE文件來源信息
+- **時間戳分離**：明確區分數據時間與處理時間
+- **血統元數據**：包含文件路徑、文件日期、epoch時間等完整信息
+- **數據治理標準**：符合數據血統管理最佳實踐
+
+```python
+# 數據血統結構示例
+satellite_data = {
+    'tle_data': {
+        'source_file': '/app/tle_data/starlink/tle/starlink_20250820.tle',
+        'source_file_date': '20250820',  # TLE數據實際日期
+        'epoch_year': 2025,
+        'epoch_day': 232.5,
+        'calculation_base_time': '2025-08-20T12:00:00Z',  # TLE epoch時間
+        'data_lineage': {
+            'data_source_date': '20250820',           # 數據來源日期
+            'tle_epoch_date': '2025-08-20T12:00:00Z', # TLE參考時間
+            'processing_execution_date': '2025-08-21T10:30:00Z', # 處理執行時間
+            'calculation_strategy': 'sgp4_with_tle_epoch_base'
+        }
+    }
+}
+```
 
 ### 記憶體管理
 - **數據結構**：使用高效的numpy陣列
@@ -85,6 +137,11 @@ TIME_STEP_SECONDS = 30      # 時間解析度
    - 檢查：系統可用記憶體
    - 解決：增加swap空間或分批處理
 
+4. **🎯 數據血統追蹤問題（v3.1）**
+   - **症狀**：數據時間戳與處理時間戳相同
+   - **檢查**：輸出metadata中的 `data_lineage` 字段
+   - **解決**：確認TLE文件日期正確解析，重新執行處理
+
 ### 診斷指令
 
 ```bash
@@ -96,6 +153,18 @@ python -c "from stages.tle_orbital_calculation_processor import Stage1TLEProcess
 
 # 驗證SGP4引擎
 python -c "from src.services.satellite.coordinate_specific_orbit_engine import *; print('SGP4引擎正常')"
+
+# 🎯 驗證數據血統追蹤（v3.1）
+python -c "
+import json
+with open('/app/data/tle_orbital_calculation_output.json', 'r') as f:
+    data = json.load(f)
+    lineage = data['metadata']['data_lineage']
+    print('📊 數據血統檢查:')
+    print(f'  TLE日期: {lineage.get(\"tle_dates\", {})}')
+    print(f'  處理時間: {data[\"metadata\"][\"processing_timestamp\"]}')
+    print('✅ 數據血統追蹤正常' if lineage.get('tle_dates') else '❌ 數據血統追蹤異常')
+"
 ```
 
 ---

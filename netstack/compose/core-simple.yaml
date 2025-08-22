@@ -142,12 +142,12 @@ services:
       retries: 3
       start_period: 5s
 
-  # NetStack API - 簡化模式
+  # NetStack API - 建構時優化快速啟動模式
   netstack-api:
     image: netstack-api:latest
     container_name: netstack-api
-    # 🎯 關鍵修改：使用簡化啟動腳本
-    entrypoint: ["/usr/local/bin/simple-entrypoint.sh"]
+    # 🎯 關鍵修改：使用建構時優化快速啟動腳本 (< 30秒啟動)
+    entrypoint: ["/usr/local/bin/build-time-optimized-entrypoint.sh"]
     command: ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
     environment:
       - DATABASE_URL=mongodb://mongo:27017/open5gs
@@ -157,10 +157,12 @@ services:
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
       # - SIMWORLD_API_URL=http://simworld_backend:8000  # Removed - using Phase0 preprocessing instead
-      # 🚀 簡化模式環境變數
-      - SATELLITE_DATA_MODE=simple_load        # 簡單載入模式
-      - SKIP_DATA_UPDATE_CHECK=true           # 跳過數據更新檢查
-      - CRON_DRIVEN_UPDATES=true              # 表明使用 Cron 驅動更新
+      # 🚀 建構時優化快速啟動模式環境變數
+      - SATELLITE_DATA_MODE=build_preprocessed  # 建構時預處理模式
+      - SKIP_DATA_UPDATE_CHECK=true            # 跳過數據更新檢查，使用預處理數據
+      - CRON_DRIVEN_UPDATES=true               # 表明使用 Cron 驅動更新
+      - BUILD_TIME_PREPROCESSED=true           # 建構時預處理標記
+      - FAST_STARTUP_MODE=true                 # 快速啟動模式
     volumes:
       - satellite_precomputed_data:/app/data
       - netstack_models:/app/models

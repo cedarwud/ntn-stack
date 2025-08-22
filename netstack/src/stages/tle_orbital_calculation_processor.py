@@ -156,10 +156,34 @@ class Stage1TLEProcessor:
         return scan_result
         
     def load_raw_satellite_data(self, scan_result: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
-        """載入所有原始衛星數據 - v3.0 統一處理模式"""
+        """載入所有原始衛星數據 - v3.1 數據血統追蹤版本"""
         logger.info("📥 載入原始衛星數據...")
         
         all_raw_satellites = {}
+        
+        # 🎯 v3.1 使用統一的數據血統追蹤管理器
+        try:
+            from shared_core import get_lineage_manager, create_tle_data_source
+            lineage_manager = get_lineage_manager()
+            
+            # 開始新的數據血統追蹤
+            lineage_id = lineage_manager.start_new_lineage("satellite_orbital_data")
+            logger.info(f"🎯 開始數據血統追蹤: {lineage_id}")
+            
+        except ImportError:
+            # 降級到原有機制
+            logger.warning("🔄 降級到傳統TLE數據來源追蹤機制")
+            lineage_manager = None
+        
+        # 🎯 原有TLE數據來源追蹤機制（保持兼容性）
+        self.tle_source_info = {
+            'tle_files_used': {},
+            'processing_timestamp': datetime.now(timezone.utc).isoformat(),
+            'data_lineage': {}
+        }
+        
+        processing_start_time = datetime.now(timezone.utc)
+        input_data_sources = []
         
         for constellation, info in scan_result['constellations'].items():
             logger.info(f"   處理 {constellation} 星座...")
@@ -181,12 +205,24 @@ class Stage1TLEProcessor:
                         line2 = tle_lines[i + 2].strip()
                         
                         if line1.startswith('1 ') and line2.startswith('2 '):
+                            # 🎯 解析 TLE epoch 時間
+                            tle_epoch_day = float(line1[20:32])  # 儒略日
+                            tle_year = int(line1[18:20])
+                            if tle_year < 57:
+                                tle_year += 2000
+                            else:
+                                tle_year += 1900
+                            
                             satellite_data = {
                                 'satellite_id': f"{constellation}_{satellite_count:05d}",
                                 'name': name_line,
                                 'tle_line1': line1,
                                 'tle_line2': line2,
-                                'constellation': constellation
+                                'constellation': constellation,
+                                # 🎯 新增：TLE 數據來源資訊
+                                'tle_source_file': str(latest_file),
+                                'tle_epoch_year': tle_year,
+                                'tle_epoch_day': tle_epoch_day
                             }
                             satellites.append(satellite_data)
                             satellite_count += 1
@@ -202,11 +238,55 @@ class Stage1TLEProcessor:
                     logger.info(f"🚀 {constellation}: 全量載入 {len(satellites)} 顆衛星")
                 
                 all_raw_satellites[constellation] = satellites
+                
+                # 🎯 記錄 TLE 數據來源（兼容舊機制）
+                file_stat = latest_file.stat()
+                file_date = latest_file.name.split('_')[-1].replace('.tle', '')
+                
+                self.tle_source_info['tle_files_used'][constellation] = {
+                    'file_path': str(latest_file),
+                    'file_name': latest_file.name,
+                    'file_date': file_date,
+                    'file_size_bytes': file_stat.st_size,
+                    'file_modified_time': datetime.fromtimestamp(file_stat.st_mtime, timezone.utc).isoformat(),
+                    'satellites_count': len(satellites)
+                }
+                
+                # 🎯 v3.1 添加到統一數據血統追蹤
+                if lineage_manager:
+                    data_source = create_tle_data_source(
+                        tle_file_path=str(latest_file),
+                        tle_date=file_date
+                    )
+                    input_data_sources.append(data_source)
+                
                 logger.info(f"從 {latest_file} 處理完成: {len(satellites)} 顆衛星")
+                logger.info(f"📅 TLE 數據日期: {file_date}")
                 
             except Exception as e:
                 logger.error(f"載入 {constellation} 數據失敗: {e}")
                 all_raw_satellites[constellation] = []
+        
+        # 🎯 v3.1 記錄處理階段到數據血統追蹤
+        if lineage_manager and input_data_sources:
+            try:
+                lineage_manager.record_processing_stage(
+                    stage_name="stage1_tle_data_loading",
+                    input_data_sources=input_data_sources,
+                    processing_start_time=processing_start_time,
+                    configuration={
+                        'sample_mode': self.sample_mode,
+                        'sample_size': self.sample_size if self.sample_mode else None,
+                        'observer_coordinates': {
+                            'latitude': self.observer_lat,
+                            'longitude': self.observer_lon,
+                            'altitude_m': self.observer_alt
+                        }
+                    }
+                )
+                logger.info("✅ Stage 1 數據載入已記錄到數據血統追蹤")
+            except Exception as e:
+                logger.warning(f"數據血統記錄失敗，但不影響處理: {e}")
         
         total_loaded = sum(len(sats) for sats in all_raw_satellites.values())
         mode_info = f"取樣模式 (每星座最多{self.sample_size}顆)" if self.sample_mode else "全量處理"
@@ -215,18 +295,34 @@ class Stage1TLEProcessor:
         return all_raw_satellites
         
     def calculate_all_orbits(self, raw_satellite_data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
-        """對所有衛星進行 SGP4 軌道計算（全量處理）"""
+        """對所有衛星進行 SGP4 軌道計算（全量處理） - 修復數據血統追蹤"""
         logger.info("🛰️ 開始全量 SGP4 軌道計算...")
+        
+        # 🎯 修復：將 processing_timestamp 和 tle_data_timestamp 分離
+        current_time = datetime.now(timezone.utc)
         
         final_data = {
             'metadata': {
                 'version': '1.0.0-tle-orbital-calculation',
-                'created_at': datetime.now(timezone.utc).isoformat(),
+                'processing_timestamp': current_time.isoformat(),
                 'processing_stage': 'tle_orbital_calculation',
                 'observer_coordinates': {
                     'latitude': self.observer_lat,
                     'longitude': self.observer_lon,
                     'altitude_m': self.observer_alt
+                },
+                # 🎯 修復：完整的TLE數據來源追蹤
+                'tle_data_sources': getattr(self, 'tle_source_info', {}),
+                'data_lineage': {
+                    'input_tle_files': [info['file_path'] for info in getattr(self, 'tle_source_info', {}).get('tle_files_used', {}).values()],
+                    'tle_dates': {const: info['file_date'] for const, info in getattr(self, 'tle_source_info', {}).get('tle_files_used', {}).items()},
+                    'processing_mode': 'complete_sgp4_calculation',
+                    # 🎯 新增：明確區分數據時間戳和處理時間戳
+                    'data_timestamps': {
+                        'tle_data_dates': {const: info['file_date'] for const, info in getattr(self, 'tle_source_info', {}).get('tle_files_used', {}).items()},
+                        'processing_execution_time': current_time.isoformat(),
+                        'calculation_base_time_strategy': 'tle_epoch_time'
+                    }
                 },
                 'total_satellites': 0,
                 'total_constellations': 0
@@ -276,10 +372,21 @@ class Stage1TLEProcessor:
                     except:
                         tle_data['norad_id'] = successful_calculations
                     
-                    # 使用正確的軌道計算方法
+                    # 🎯 使用 TLE epoch 時間作為計算基準，而非當前時間
+                    from datetime import datetime, timedelta
+                    
+                    # 計算 TLE epoch 對應的實際時間
+                    tle_epoch_year = sat_data.get('tle_epoch_year', datetime.now().year)
+                    tle_epoch_day = sat_data.get('tle_epoch_day', 1.0)
+                    tle_epoch_date = datetime(tle_epoch_year, 1, 1, tzinfo=timezone.utc) + timedelta(days=tle_epoch_day - 1)
+                    
+                    # 🎯 重要修復：記錄實際使用的TLE epoch時間，而不是處理時間
+                    logger.debug(f"衛星 {sat_data['satellite_id']}: TLE epoch = {tle_epoch_date.isoformat()}, 處理時間 = {current_time.isoformat()}")
+                    
+                    # 使用 TLE epoch 時間作為計算基準
                     orbit_result = orbit_engine.compute_96min_orbital_cycle(
                         tle_data,
-                        datetime.now(timezone.utc)
+                        tle_epoch_date  # 🎯 修復：使用 TLE epoch 時間而非當前時間
                     )
                     
                     if orbit_result and 'positions' in orbit_result:
@@ -289,7 +396,20 @@ class Stage1TLEProcessor:
                             'constellation': constellation,
                             'tle_data': {
                                 'line1': sat_data['tle_line1'],
-                                'line2': sat_data['tle_line2']
+                                'line2': sat_data['tle_line2'],
+                                # 🎯 修復：完整的TLE數據血統追蹤
+                                'source_file': sat_data.get('tle_source_file', 'unknown'),
+                                'source_file_date': self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', 'unknown'),
+                                'epoch_year': sat_data.get('tle_epoch_year', 'unknown'),
+                                'epoch_day': sat_data.get('tle_epoch_day', 'unknown'),
+                                'calculation_base_time': tle_epoch_date.isoformat(),
+                                # 🎯 新增：明確數據血統記錄
+                                'data_lineage': {
+                                    'data_source_date': self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', 'unknown'),
+                                    'tle_epoch_date': tle_epoch_date.isoformat(),
+                                    'processing_execution_date': current_time.isoformat(),
+                                    'calculation_strategy': 'sgp4_with_tle_epoch_base'
+                                }
                             },
                             'orbit_data': orbit_result,
                             'positions': orbit_result['positions']  # 提供階段二需要的位置數據
@@ -311,18 +431,41 @@ class Stage1TLEProcessor:
         final_data['metadata']['total_satellites'] = total_processed
         final_data['metadata']['total_constellations'] = len(final_data['constellations'])
         
+        # 🎯 修復：在日誌中明確顯示數據血統信息
+        for const, info in getattr(self, 'tle_source_info', {}).get('tle_files_used', {}).items():
+            logger.info(f"  📅 {const} 數據來源日期: {info.get('file_date', 'unknown')} (TLE文件日期)")
+        logger.info(f"  🕐 處理執行時間: {current_time.isoformat()}")
+        
         logger.info(f"✅ 階段一完成: {total_processed} 顆衛星已完成完整軌道計算並格式化")
         
         return final_data
         
     def save_tle_calculation_output(self, tle_data: Dict[str, Any]) -> Optional[str]:
-        """重新啟用檔案保存以支援階段二到六的數據讀取"""
-        logger.info("💾 重新啟用檔案保存模式以支援後續階段處理")
+        """重新啟用檔案保存以支持階段二到六的數據讀取 - 修復數據血統追蹤"""
+        logger.info("💾 重新啟用檔案保存模式以支持後續階段處理")
         
         # 生成輸出檔案路徑
         output_file = self.output_dir / "tle_orbital_calculation_output.json"
         
         try:
+            # 🎯 修復：在保存前增強metadata，確保數據血統信息完整
+            enhanced_metadata = tle_data.get('metadata', {}).copy()
+            
+            # 添加檔案保存特定的數據血統信息
+            enhanced_metadata['file_output'] = {
+                'output_file_path': str(output_file),
+                'file_generation_time': datetime.now(timezone.utc).isoformat(),
+                'data_governance': {
+                    'data_source_dates': enhanced_metadata.get('data_lineage', {}).get('tle_dates', {}),
+                    'processing_execution_date': enhanced_metadata.get('processing_timestamp'),
+                    'file_purpose': 'stage1_to_stage6_data_transfer',
+                    'data_freshness_note': 'TLE數據日期反映實際衛星軌道元素時間，處理時間戳反映計算執行時間'
+                }
+            }
+            
+            # 更新增強後的metadata
+            tle_data['metadata'] = enhanced_metadata
+            
             # 保存到 JSON 檔案
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(tle_data, f, ensure_ascii=False, indent=2)
@@ -335,11 +478,18 @@ class Stage1TLEProcessor:
             logger.info(f"  包含衛星數: {tle_data['metadata']['total_satellites']}")
             logger.info(f"  包含星座數: {tle_data['metadata']['total_constellations']}")
             
+            # 🎯 修復：明確顯示數據血統信息
+            logger.info("  📊 數據血統摘要:")
+            for const, date in enhanced_metadata.get('data_lineage', {}).get('tle_dates', {}).items():
+                logger.info(f"    {const}: TLE數據日期 = {date}")
+            logger.info(f"    處理執行時間: {enhanced_metadata.get('processing_timestamp')}")
+            logger.info("    ✅ 數據血統追蹤: TLE來源日期與處理時間已正確分離")
+            
             return str(output_file)
             
         except Exception as e:
             logger.error(f"保存TLE軌道計算數據失敗: {e}")
-            return None  # 不返回檔案路徑，表示採用記憶體傳遞
+            return None  # 不返回檔案路徑，表示採用記憶體傳遞  # 不返回檔案路徑，表示採用記憶體傳遞
         
     def process_tle_orbital_calculation(self) -> Dict[str, Any]:
         """執行完整的TLE軌道計算處理流程"""
