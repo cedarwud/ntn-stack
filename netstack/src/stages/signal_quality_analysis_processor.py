@@ -195,6 +195,10 @@ class SignalQualityAnalysisProcessor:
                         
                     enhanced_satellite = satellite.copy()
                     
+                    # 🎯 關鍵修復：確保保留時間序列數據
+                    if 'position_timeseries' in satellite:
+                        enhanced_satellite['position_timeseries'] = satellite['position_timeseries']
+                    
                     # 計算多個仰角下的RSRP
                     rsrp_calculations = {}
                     rsrp_values = []

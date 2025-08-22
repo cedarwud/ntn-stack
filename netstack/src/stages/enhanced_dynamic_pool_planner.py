@@ -388,49 +388,98 @@ class EnhancedDynamicPoolPlanner:
             )
             
     def _select_temporal_coverage_pool(self, candidates, target_visible_per_window, pool_size_target, orbit_period, constellation_name):
-        """為單個星座選擇時間覆蓋動態池"""
+        """為單個星座選擇時間覆蓋動態池 - 確保連續覆蓋優先"""
         if not candidates:
             return []
             
         self.logger.info(f"🔄 {constellation_name} 時間覆蓋分析: 目標池大小 {pool_size_target}")
         
-        # 簡化的時間覆蓋模擬
-        # 假設軌道運動過程中，不同衛星會在不同時間段經過NTPU上空
+        # 🎯 關鍵修復：使用連續覆蓋優先算法，而非簡單分散選擇
+        # 構建時間覆蓋矩陣，確保每個時間點都有衛星覆蓋
         
-        # 按可見窗口數量和信號品質排序
-        def temporal_score(candidate):
-            window_score = len(candidate.windows) * 20  # 可見窗口越多越好
-            signal_score = candidate.signal_metrics.rsrp_dbm if candidate.signal_metrics.rsrp_dbm > -120 else -120
-            coverage_score = candidate.coverage_ratio * 50
-            return window_score + signal_score + coverage_score
+        # Step 1: 分析時間覆蓋情況
+        time_points = 192  # 96分鐘軌道週期，30秒間隔 = 192個時間點
+        coverage_matrix = {}  # satellite_id -> set of covered time points
+        
+        for candidate in candidates:
+            sat_id = candidate.basic_info.satellite_id
+            covered_times = set()
             
-        sorted_candidates = sorted(candidates, key=temporal_score, reverse=True)
+            # 使用position_timeseries判斷覆蓋時間點
+            if hasattr(candidate, 'position_timeseries') and candidate.position_timeseries:
+                for idx, pos in enumerate(candidate.position_timeseries):
+                    if pos.get('elevation_deg', -90) >= 5:  # 可見門檻
+                        covered_times.add(idx)
+            else:
+                # 使用visibility windows作為備用
+                for window in candidate.windows:
+                    # 將分鐘轉換為時間點索引
+                    start_idx = int(window.start_minute * 2)  # 30秒間隔
+                    end_idx = int(window.end_minute * 2)
+                    for idx in range(start_idx, min(end_idx, time_points)):
+                        covered_times.add(idx)
+            
+            if covered_times:  # 只記錄有覆蓋的衛星
+                coverage_matrix[sat_id] = covered_times
         
-        # 選擇足夠的衛星組成動態池
-        # 考慮軌道分散性：不要只選前N名，而是在整個候選池中分散選擇
+        # Step 2: 使用貪婪集合覆蓋算法選擇衛星
         selected_pool = []
-        pool_size = min(pool_size_target, len(sorted_candidates))
+        uncovered_times = set(range(time_points))  # 初始所有時間點都未覆蓋
+        candidate_map = {c.basic_info.satellite_id: c for c in candidates}
         
-        # 分散選擇策略：從排序後的候選中等間隔選擇
-        if pool_size > 0:
-            step = max(1, len(sorted_candidates) // pool_size)
-            for i in range(0, len(sorted_candidates), step):
-                if len(selected_pool) >= pool_size:
-                    break
-                selected_pool.append(sorted_candidates[i].basic_info.satellite_id)
+        while len(selected_pool) < pool_size_target and uncovered_times and coverage_matrix:
+            # 找出覆蓋最多未覆蓋時間點的衛星
+            best_satellite = None
+            best_coverage_count = 0
+            best_new_coverage = set()
             
-            # 如果還沒選夠，補充最佳候選
-            remaining_needed = pool_size - len(selected_pool)
-            for candidate in sorted_candidates:
-                if len(selected_pool) >= pool_size:
-                    break
-                if candidate.basic_info.satellite_id not in selected_pool:
-                    selected_pool.append(candidate.basic_info.satellite_id)
-                    remaining_needed -= 1
-                    if remaining_needed <= 0:
-                        break
+            for sat_id, covered_times in coverage_matrix.items():
+                if sat_id not in selected_pool:
+                    # 計算這顆衛星能覆蓋多少新的時間點
+                    new_coverage = covered_times & uncovered_times
+                    coverage_count = len(new_coverage)
+                    
+                    # 如果覆蓋數相同，考慮信號品質
+                    if coverage_count > best_coverage_count or (
+                        coverage_count == best_coverage_count and 
+                        best_satellite and sat_id in candidate_map and best_satellite in candidate_map and
+                        candidate_map[sat_id].signal_metrics.rsrp_dbm > candidate_map[best_satellite].signal_metrics.rsrp_dbm
+                    ):
+                        best_satellite = sat_id
+                        best_coverage_count = coverage_count
+                        best_new_coverage = new_coverage
+            
+            if best_satellite:
+                selected_pool.append(best_satellite)
+                uncovered_times -= best_new_coverage
+                self.logger.debug(f"  選擇 {best_satellite}: 新覆蓋 {best_coverage_count} 個時間點")
+            else:
+                break  # 沒有衛星能提供新覆蓋
         
-        self.logger.info(f"📊 {constellation_name} 選出 {len(selected_pool)}/{len(candidates)} 顆衛星組成動態池")
+        # Step 3: 如果還有未覆蓋時間點但池未滿，補充高品質衛星
+        if uncovered_times and len(selected_pool) < pool_size_target:
+            self.logger.warning(f"⚠️ {constellation_name} 仍有 {len(uncovered_times)} 個時間點無覆蓋")
+            
+            # 按信號品質排序剩餘候選
+            remaining_candidates = [c for c in candidates if c.basic_info.satellite_id not in selected_pool]
+            remaining_candidates.sort(key=lambda x: x.signal_metrics.rsrp_dbm, reverse=True)
+            
+            # 補充到目標數量
+            for candidate in remaining_candidates:
+                if len(selected_pool) >= pool_size_target:
+                    break
+                selected_pool.append(candidate.basic_info.satellite_id)
+        
+        # 計算覆蓋統計
+        total_covered = time_points - len(uncovered_times)
+        coverage_percentage = (total_covered / time_points) * 100
+        
+        self.logger.info(f"📊 {constellation_name} 選出 {len(selected_pool)}/{len(candidates)} 顆衛星")
+        self.logger.info(f"⏰ 時間覆蓋率: {coverage_percentage:.1f}% ({total_covered}/{time_points} 時間點)")
+        
+        if coverage_percentage < 95:
+            self.logger.warning(f"⚠️ {constellation_name} 覆蓋率低於95%，可能存在覆蓋空隙")
+        
         return selected_pool
 
 

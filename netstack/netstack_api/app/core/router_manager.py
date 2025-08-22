@@ -36,8 +36,6 @@ class RouterManager:
                 router as handover_router,
             )
 
-            # RL System 已移除
-
             # 嘗試導入 WebSocket 路由器
             try:
                 from ...routers.websocket_router import websocket_router
@@ -47,9 +45,6 @@ class RouterManager:
                 websocket_available = False
                 logger.warning("WebSocket router 不可用，跳過註冊")
 
-            # 嘗試導入增強版路由器 - 如果不存在則跳過
-            # Enhanced RL training routes 已移除
-            enhanced_rl_available = False
 
             # 暫時禁用satellite_ops_router，使用simple_satellite_router
             intelligent_satellite_ops_available = False
@@ -73,9 +68,6 @@ class RouterManager:
             self._track_router("ue_router", "UE 管理", True)
             self.app.include_router(handover_router, tags=["切換管理"])
             self._track_router("handover_router", "切換管理", True)
-
-            # 只有在成功導入時才註冊 RL System 路由器
-            # RL System 路由器已移除
 
             # 註冊 WebSocket 路由器
             if websocket_available:
@@ -205,24 +197,6 @@ class RouterManager:
             raise
 
         try:
-            # from ...routers.core_sync_router import (
-            #     router as core_sync_router,
-            # )  # 已刪除 - IEEE INFOCOM 2024 相關組件
-            # from ...routers.intelligent_fallback_router import (
-            #     router as intelligent_fallback_router,
-            # )  # 已刪除 - IEEE INFOCOM 2024 相關組件
-
-            # RL 路由器已移除
-            # from ...routers.test_router import router as test_router  # 已刪除 - 開發測試組件
-
-            # self.app.include_router(core_sync_router, tags=["核心同步機制"])  # 已刪除
-            # self._track_router("core_sync_router", "核心同步機制", True)  # 已刪除
-            # self.app.include_router(intelligent_fallback_router, tags=["智能回退機制"])  # 已刪除
-            # self._track_router("intelligent_fallback_router", "智能回退機制", True)  # 已刪除
-            # RL 路由器註冊已移除
-            # self.app.include_router(test_router, tags=["測試"])  # 已刪除
-            # self._track_router("test_router", "測試", True)  # 已刪除
-
             # Phase 1: 座標軌道端點 (Phase 0 預計算數據整合)
             try:
                 from ...routers.coordinate_orbit_endpoints import (
@@ -355,22 +329,7 @@ class RouterManager:
                 f"靜態註冊失敗: {str(e)}",
             )
 
-        # Phase 2.2 API 路由器 - 靜態註冊
-        # Phase 2.2 RL API 已移除
-
-        # Phase 2.3 API 路由器 - 使用簡化版本
-        # Phase 2.3 RL API 已移除
-
-        # Phase 3 RL API 已移除
-
-        # Phase 4 API 路由器已移除
-
         optional_routers = [
-            # {
-            #     "import_path": "netstack.netstack_api.routers.orchestrator_router",
-            #     "tag": "AI Decision Orchestrator (V2)",
-            # },
-            # AI 決策狀態路由器已移除
             {
                 "import_path": "netstack_api.routers.performance_router",
                 "tag": "性能監控",
@@ -437,9 +396,6 @@ class RouterManager:
             "health_router",
             "ue_router",
             "handover_router",
-            # RL training router removed
-            # "core_sync_router",  # 已刪除 - IEEE INFOCOM 2024 相關組件
-            # "intelligent_fallback_router",  # 已刪除 - IEEE INFOCOM 2024 相關組件
         ]
 
         core_router_status = {}

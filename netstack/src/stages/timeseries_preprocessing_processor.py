@@ -168,10 +168,13 @@ class TimeseriesPreprocessingProcessor:
             }
         
         # 2. 處理位置時間序列
-        positions = satellite.get('positions', [])
+        # 🎯 關鍵修復：Stage 3 現在輸出 "position_timeseries" 而不是 "positions"
+        # 需要兼容兩種字段名稱
+        positions = satellite.get('position_timeseries', satellite.get('positions', []))
         if positions:
             enhanced_satellite["position_timeseries"] = []
             for pos in positions:
+                # 兼容不同的數據格式
                 enhanced_pos = {
                     "time": pos.get('time', ''),
                     "time_offset_seconds": pos.get('time_offset_seconds', 0),
@@ -183,6 +186,7 @@ class TimeseriesPreprocessingProcessor:
                     "velocity_eci": pos.get('velocity_eci', {})
                 }
                 enhanced_satellite["position_timeseries"].append(enhanced_pos)
+            logger.debug(f"  成功處理 {len(positions)} 個時間點的軌道數據")
         
         # 3. 處理簡化時間序列（來自原始 timeseries）
         timeseries = satellite.get('timeseries', [])

@@ -399,9 +399,15 @@ def get_signal_quality_cache() -> SignalQualityCache:
     """獲取全局信號品質緩存實例"""
     global _global_signal_cache
     if _global_signal_cache is None:
-        # 🔧 修復：使用容器內的工作目錄路徑
+        # 🔧 修復：智能檢測環境，使用正確的路徑
         import os
-        cache_dir = "/app/data/signal_cache"  # 使用容器內的工作目錄
+        if os.path.exists("/app"):
+            # 容器內環境
+            cache_dir = "/app/data/signal_cache"
+        else:
+            # 主機環境
+            cache_dir = "/home/sat/ntn-stack/data/signal_cache"
+        
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir, exist_ok=True)
         _global_signal_cache = SignalQualityCache(cache_dir=cache_dir)

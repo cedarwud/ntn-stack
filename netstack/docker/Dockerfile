@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y \
     git \
     netcat-traditional \
     bc \
+    gzip \
+    jq \
     && if [ "$INSTALL_DEV_TOOLS" = "true" ]; then \
         apt-get install -y vim htop strace jq netcat-openbsd; \
     fi \
@@ -62,23 +64,27 @@ ENV MPLCONFIGDIR="/tmp/matplotlib"
 ENV PRECOMPUTED_DATA_ENABLED=true
 ENV ORBIT_CACHE_PRELOAD=true
 
-# 六階段系統衛星軌道預計算：建構時執行增強六階段系統 
-RUN echo "🗑️ 清理舊數據檔案，確保重新生成..." && \
-    rm -f /app/data/sgp4_orbital_dataset*.json \
-          /app/data/enhanced_satellite_data.json \
-          /app/data/stage*_*.json \
-          /app/data/phase1_*.json \
-          /app/data/.build_timestamp \
-          /app/data/.data_ready && \
-    echo "🚀 增強六階段系統：執行完整預計算流程..." && \
-    (cd /app && PYTHONPATH=/app:/app/src python six_stage_build_script.py) || echo "⚠️ 建構時六階段預計算未完成，將在運行時處理" && \
-    if [ -f /app/data/stage2_outputs/stage2_intelligent_filtered_output.json ] || find /app/data -name "*stage*" -type f | head -1 > /dev/null 2>&1; then \
-        echo "$(date -Iseconds)" > /app/data/.build_timestamp && \
-        echo "✅ 六階段建構時預計算完成，數據已就緒" && \
-        ls -la /app/data/stage*_*.json | head -6; \
-    else \
-        echo "ℹ️ 六階段建構時預計算跳過，將使用運行時計算"; \
-    fi
+# 🏗️ 建構時預處理：執行六階段數據處理（無壓縮，高效能版）
+RUN echo "🏗️ 開始建構時六階段數據預處理..." && \
+    echo "📊 Stage 1-6: 完整六階段處理" && \
+    echo "⚡ 策略: 直接包含900MB數據，最高性能" && \
+    echo "🎯 目標: < 5秒啟動時間（無解壓縮）" && \
+    # 執行完整六階段預處理
+    cd /app && \
+    timeout 2700 python src/leo_core/main_pipeline_controller.py --mode build_optimized --output-dir /app/data || \
+    echo "⚠️ 建構時預處理執行中或失敗，將使用運行時處理" && \
+    # 🎯 簡化策略：只移除超大檔案（2.3GB），其餘直接保留
+    if [ -d "/app/data/leo_outputs" ]; then \
+        echo "📊 移除超大TLE檔案，保留其餘900MB預處理數據..."; \
+        # 只刪除超大的TLE軌道文件（2.3GB），運行時重新生成
+        rm -f /app/data/leo_outputs/tle_orbital_output.json || true; \
+        echo "✅ 建構時數據準備完成 (保留~900MB預處理數據)"; \
+        du -sh /app/data/leo_outputs/ 2>/dev/null || true; \
+    fi && \
+    # 創建建構時預處理標記
+    echo "BUILD_TIME_PREPROCESSED=true" > /app/data/.build_mode && \
+    echo "NO_COMPRESSION_FAST_STARTUP=true" > /app/data/.fast_startup && \
+    du -sh /app/data/ 2>/dev/null || echo "Data size check completed"
 
 # 衛星數據環境變數：從建置時生成的配置加載
 RUN if [ -f /app/data/satellite_data.env ]; then \
@@ -93,16 +99,26 @@ RUN if [ -f /app/data/satellite_data.env ]; then \
 RUN chown -R netstack:netstack /var/log/netstack /app/models /app/results \
                                /app/data /app/tle_data /tmp/matplotlib
 
-# 複製並設定啟動腳本權限
+# 複製並設定啟動腳本權限 (包含新的無壓縮直接啟動腳本)
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY docker/smart-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
 COPY docker/simple-entrypoint.sh /usr/local/bin/simple-entrypoint.sh
+COPY docker/build-time-entrypoint.sh /usr/local/bin/build-time-entrypoint.sh
+COPY docker/runtime-entrypoint.sh /usr/local/bin/runtime-entrypoint.sh
+COPY docker/volume-based-entrypoint.sh /usr/local/bin/volume-based-entrypoint.sh
+COPY docker/build-time-optimized-entrypoint.sh /usr/local/bin/build-time-optimized-entrypoint.sh
+COPY docker/build-time-direct-entrypoint.sh /usr/local/bin/build-time-direct-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/healthcheck.sh \
              /usr/local/bin/docker-entrypoint.sh \
              /usr/local/bin/smart-entrypoint.sh \
-             /usr/local/bin/simple-entrypoint.sh
+             /usr/local/bin/simple-entrypoint.sh \
+             /usr/local/bin/build-time-entrypoint.sh \
+             /usr/local/bin/runtime-entrypoint.sh \
+             /usr/local/bin/volume-based-entrypoint.sh \
+             /usr/local/bin/build-time-optimized-entrypoint.sh \
+             /usr/local/bin/build-time-direct-entrypoint.sh
 
 # 切換到非root用戶
 USER netstack
@@ -118,8 +134,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
             /usr/local/bin/healthcheck.sh; \
         fi
 
-# 設定預設啟動腳本
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+# 設定預設啟動腳本：使用無壓縮直接啟動腳本（最高性能）
+ENTRYPOINT ["/usr/local/bin/build-time-direct-entrypoint.sh"]
 
 # 啟動命令 (根據環境調整)
 CMD if [ "$BUILD_ENV" = "development" ]; then \

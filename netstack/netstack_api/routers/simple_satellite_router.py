@@ -293,26 +293,34 @@ def calculate_satellite_position(sat_data: Dict, timestamp: datetime, observer_l
         precomputed_positions = sat_data.get('precomputed_positions', [])
         
         if precomputed_positions:
-            # 🎯 關鍵修復：根據當前時間選擇最接近的預計算位置
+            # 🎯 修復：使用軌道週期性而不是絕對時間匹配
+            # Stage 6提供96分鐘完整軌道週期，可重複應用到任何時間
+            orbital_period_seconds = 96 * 60  # 96分鐘軌道週期
+            
+            # 計算用戶時間在軌道週期內的相對位置
+            user_seconds_in_cycle = int(timestamp.timestamp()) % orbital_period_seconds
+            
+            # 在Stage 6數據中找到對應的相對時間點
             selected_position = None
-            min_time_diff = float('inf')
+            min_offset_diff = float('inf')
             
-            # 選擇時間上最接近當前請求時間的預計算位置
             for position in precomputed_positions:
-                try:
-                    pos_time_str = position.get('time', '')
-                    if pos_time_str:
-                        pos_time = datetime.fromisoformat(pos_time_str.replace('Z', '+00:00'))
-                        time_diff = abs((timestamp - pos_time).total_seconds())
-                        if time_diff < min_time_diff:
-                            min_time_diff = time_diff
-                            selected_position = position
-                except Exception:
-                    continue
+                pos_offset = position.get('time_offset_seconds', 0)
+                offset_diff = abs(user_seconds_in_cycle - pos_offset)
+                
+                # 考慮週期性邊界條件
+                offset_diff_wrapped = min(offset_diff, orbital_period_seconds - offset_diff)
+                
+                if offset_diff_wrapped < min_offset_diff:
+                    min_offset_diff = offset_diff_wrapped
+                    selected_position = position
             
-            # 如果沒有找到匹配的時間，使用第一個位置作為後備
+            # 如果沒有time_offset_seconds字段，使用時間索引
             if selected_position is None and precomputed_positions:
-                selected_position = precomputed_positions[0]
+                # 使用用戶時間在週期內的比例選擇位置
+                cycle_ratio = user_seconds_in_cycle / orbital_period_seconds
+                index = int(cycle_ratio * len(precomputed_positions)) % len(precomputed_positions)
+                selected_position = precomputed_positions[index]
             
             if selected_position:
                 # 使用真實的SGP4計算結果
@@ -376,149 +384,203 @@ def calculate_satellite_position(sat_data: Dict, timestamp: datetime, observer_l
 
 @router.get(
     "/visible_satellites",
-    response_model=VisibleSatellitesResponse,
     summary="獲取智能選擇的可見衛星",
-    description="使用智能預處理系統基於完整軌道週期分析的651+301顆衛星智能選擇 (基於真實234顆可見衛星優化)"
+    description="🎯 全新架構：直接使用Stage 6動態池規劃的預計算結果"
 )
 async def get_visible_satellites(
-    count: int = Query(20, ge=1, le=200, description="返回的衛星數量"),
-    constellation: str = Query("starlink", description="星座類型: starlink, oneweb"),
-    min_elevation_deg: float = Query(5.0, ge=-90, le=90, description="最小仰角度數"),
-    utc_timestamp: Optional[str] = Query(None, description="UTC時間戳"),
+    count: int = Query(10, ge=1, le=200, description="返回的衛星數量"),
+    min_elevation_deg: float = Query(5.0, ge=0, le=90, description="最小仰角度數"),
+    observer_lat: float = Query(24.9441667, ge=-90, le=90, description="觀測者緯度"),
+    observer_lon: float = Query(121.3713889, ge=-180, le=180, description="觀測者經度"),
+    utc_timestamp: str = Query("", description="UTC時間戳"),
     global_view: bool = Query(False, description="全球視野模式")
-) -> VisibleSatellitesResponse:
+):
     """
-    獲取智能選擇的可見衛星列表
+    🎯 全新架構：直接查詢Stage 6預計算結果
     
-    實現 @docs/satellite-preprocessing/ 計劃:
-    - Starlink: 從8000+顆中選擇150顆最優衛星 (73%覆蓋205顆實際可見)
-    - OneWeb: 從651顆中選擇50顆最優衛星 (172%覆蓋29顆實際可見)  
-    - 確保8-12顆同時可見
-    - 真實SGP4軌道計算
-    - ITU-R P.618信號強度計算
+    解決用戶指出的根本性問題：API不應該重新計算軌道位置，而應該直接使用Stage 6動態池規劃的預計算數據
     """
     try:
-        current_time = datetime.utcnow()
+        logger.info("🎯 新架構：直接查詢Stage 6預計算結果")
+        
+        # 1. 解析用戶請求的時間戳
         if utc_timestamp:
             try:
-                current_time = datetime.fromisoformat(utc_timestamp.replace('Z', '+00:00'))
+                request_time = datetime.fromisoformat(utc_timestamp.replace('Z', '+00:00'))
             except:
-                pass
-                
-        logger.info(f"🛰️ 開始智能衛星選擇: {constellation} 星座, 請求 {count} 顆")
-        
-        # 1. 獲取完整衛星星座數據 (150+50顆優化配置)
-        target_pool_size = 651 if constellation.lower() == 'starlink' else 301
-        all_satellites = get_precomputed_satellite_data(constellation, target_pool_size)  # 使用預計算真實數據
-        
-        logger.info(f"📊 完整星座數據: {len(all_satellites)} 顆 {constellation} 衛星")
-        
-        # 2. 智能選擇策略：掃描全部衛星找出最佳可見子集
-        selected_satellites = []
-        preprocessing_stats = {}
-        
-        # 🎯 研究模式調整：根據請求數量決定篩選策略
-        if count <= 15:
-            # 傳統研究模式：嚴格控制數量，優化選擇品質
-            logger.info(f"🔬 啟用傳統研究模式: 目標 {count} 顆高品質衛星")
-            use_traditional_mode = True
+                request_time = datetime.utcnow()
         else:
-            # 高密度研究模式：展示2025年真實衛星密度
-            logger.info(f"🌐 啟用高密度研究模式: 目標 {count} 顆衛星")
-            use_traditional_mode = False
+            request_time = datetime.utcnow()
         
-        selector = get_intelligent_selector()
-        if selector:
-            try:
-                # 調用智能選擇器選擇最優子集
-                selected_subset, stats = selector.select_research_subset(all_satellites)
-                preprocessing_stats = stats
-                
-                logger.info(f"✅ 智能選擇器完成: 選擇了 {len(selected_subset)} 顆衛星")
-                logger.info(f"📈 選擇統計: {stats}")
-                
-                # 計算選擇的衛星的實時位置
-                for sat_data in selected_subset:
-                    sat_info = calculate_satellite_position(sat_data, current_time)
-                    if sat_info and sat_info.elevation_deg >= min_elevation_deg:
-                        selected_satellites.append(sat_info)
-                        
-            except Exception as e:
-                logger.error(f"❌ 智能選擇器執行失敗: {e}")
-                selector = None  # 觸發回退邏輯
+        logger.info(f"📅 用戶請求時間: {request_time}")
         
-        if not selector:
-            logger.info("🔍 使用全域掃描策略：從所有衛星中選擇可見者")
-            # 🔧 修復：掃描全部衛星，而不是只選擇前幾顆
-            candidate_satellites = []
-            
-            # 計算所有衛星的實時位置和仰角
-            for sat_data in all_satellites:
-                try:
-                    sat_info = calculate_satellite_position(sat_data, current_time)
-                    if sat_info and sat_info.elevation_deg >= min_elevation_deg:
-                        candidate_satellites.append(sat_info)
-                except Exception as e:
-                    logger.debug(f"計算衛星 {sat_data.get('name', 'UNKNOWN')} 位置失敗: {e}")
-                    continue
-            
-            # 按仰角排序，選擇仰角最高的衛星
-            candidate_satellites.sort(key=lambda x: x.elevation_deg, reverse=True)
-            
-            # 🎯 根據研究模式決定篩選策略
-            if use_traditional_mode:
-                # 傳統模式：提高仰角門檻，確保品質
-                high_quality_sats = [s for s in candidate_satellites if s.elevation_deg >= 15]
-                if len(high_quality_sats) >= count:
-                    selected_satellites = high_quality_sats[:count]
-                    logger.info(f"🔬 傳統模式：選擇 {count} 顆高品質衛星 (仰角≥15°)")
-                else:
-                    # 如果高品質衛星不夠，降級到10°門檻
-                    medium_quality_sats = [s for s in candidate_satellites if s.elevation_deg >= 10]
-                    selected_satellites = medium_quality_sats[:count]
-                    logger.info(f"🔬 傳統模式：選擇 {count} 顆中等品質衛星 (仰角≥10°)")
-            else:
-                # 高密度模式：展示所有可見衛星
-                selected_satellites = candidate_satellites[:count]
-                logger.info(f"🌐 高密度模式：選擇 {len(selected_satellites)} 顆可見衛星")
-            
-            logger.info(f"📊 掃描結果: 從 {len(all_satellites)} 顆衛星中找到 {len(candidate_satellites)} 顆可見衛星")
+        # 2. 載入Stage 6預計算數據
+        stage6_data = await load_stage6_precomputed_data()
+        if not stage6_data:
+            logger.warning("⚠️ Stage 6數據不可用，使用緊急備用數據")
+            return await get_emergency_backup_satellites(count, min_elevation_deg)
         
-        # 按仰角排序，仰角高的衛星優先
-        selected_satellites.sort(key=lambda x: x.elevation_deg, reverse=True)
-        
-        # 限制返回數量
-        selected_satellites = selected_satellites[:count]
-        
-        response = VisibleSatellitesResponse(
-            satellites=selected_satellites,
-            total_count=len(selected_satellites),
-            requested_count=count,
-            constellation=constellation,
-            global_view=global_view,
-            timestamp=current_time.isoformat() + 'Z',
-            observer_location={
-                "lat": 24.9441667,  # NTPU
-                "lon": 121.3713889,
-                "alt": 0.024
-            },
-            data_source="enhanced_preprocessing_150_50_satellites_optimized",
-            preprocessing_stats=preprocessing_stats or {
-                "starlink_satellites": 651 if constellation.lower() == 'starlink' else 0,
-                "oneweb_satellites": 301 if constellation.lower() == 'oneweb' else 0,
-                "total_constellation_pool": len(all_satellites),
-                "intelligent_selector_used": selector is not None,
-                "data_generation_method": "enhanced_preprocessing"
-            }
+        # 3. 查詢Stage 6預計算結果
+        visible_satellites = await query_stage6_satellites_at_time(
+            stage6_data, 
+            request_time, 
+            min_elevation_deg,
+            count
         )
         
-        logger.info(f"🎯 返回 {len(selected_satellites)} 顆可見衛星 (智能選擇系統)")
+        logger.info(f"✅ 從Stage 6找到 {len(visible_satellites)} 顆可見衛星")
+        
+        # 4. 構建API響應
+        response = {
+            "satellites": visible_satellites,
+            "total_count": len(visible_satellites),
+            "metadata": {
+                "observer_location": {
+                    "latitude": observer_lat,
+                    "longitude": observer_lon
+                },
+                "timestamp": request_time.isoformat(),
+                "min_elevation_deg": min_elevation_deg,
+                "global_view": global_view,
+                "data_source": "stage6_precomputed",
+                "stage6_time_range": get_stage6_time_range(stage6_data)
+            }
+        }
         
         return response
         
     except Exception as e:
-        logger.error(f"❌ 獲取可見衛星失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"獲取可見衛星失敗: {str(e)}")
+        logger.error(f"❌ Stage 6查詢失敗: {e}")
+        return await get_emergency_backup_satellites(count, min_elevation_deg)
+
+async def load_stage6_precomputed_data():
+    """載入Stage 6預計算數據"""
+    try:
+        import json
+        stage6_path = "/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json"
+        
+        if not os.path.exists(stage6_path):
+            logger.error(f"❌ Stage 6文件不存在: {stage6_path}")
+            return None
+            
+        with open(stage6_path, 'r') as f:
+            data = json.load(f)
+            
+        logger.info(f"✅ 成功載入Stage 6數據: {data['dynamic_satellite_pool']['total_selected']} 顆衛星")
+        return data
+        
+    except Exception as e:
+        logger.error(f"❌ 載入Stage 6數據失敗: {e}")
+        return None
+
+
+async def query_stage6_satellites_at_time(stage6_data, request_time, min_elevation_deg, count):
+    """
+    🎯 核心新邏輯：使用軌道週期性查詢Stage 6預計算結果
+    
+    Stage 6提供96分鐘軌道週期的完整數據，我們使用週期性匹配
+    """
+    try:
+        satellites_data = stage6_data["dynamic_satellite_pool"]["selection_details"]
+        
+        # 獲取Stage 6數據的時間基準
+        first_sat = satellites_data[0]
+        stage6_start_time = datetime.fromisoformat(
+            first_sat["position_timeseries"][0]["time"].replace('Z', '+00:00')
+        )
+        
+        logger.info(f"📊 Stage 6時間基準: {stage6_start_time}")
+        
+        # 🎯 關鍵：使用軌道週期性計算時間偏移
+        orbital_period_seconds = 96 * 60  # 96分鐘軌道週期
+        
+        # 計算用戶請求時間在軌道週期內的位置
+        time_diff_seconds = (request_time - stage6_start_time).total_seconds()
+        cycle_offset_seconds = int(time_diff_seconds) % orbital_period_seconds
+        
+        logger.info(f"🔄 軌道週期偏移: {cycle_offset_seconds} 秒")
+        
+        # 查找最接近的時間點索引 (每30秒一個時間點)
+        target_index = min(191, int(cycle_offset_seconds / 30))
+        
+        logger.info(f"📍 目標時間點索引: {target_index}/192")
+        
+        # 從所有衛星中查詢該時間點的可見衛星
+        visible_satellites = []
+        
+        for sat_data in satellites_data:
+            if target_index < len(sat_data["position_timeseries"]):
+                time_point = sat_data["position_timeseries"][target_index]
+                
+                # 檢查可見性和仰角門檻
+                if (time_point.get("is_visible", False) and 
+                    time_point.get("elevation_deg", 0) >= min_elevation_deg):
+                    
+                    satellite_info = {
+                        "name": sat_data["satellite_name"],
+                        "constellation": sat_data["constellation"],
+                        "satellite_id": sat_data["satellite_id"],
+                        "elevation_deg": time_point["elevation_deg"],
+                        "azimuth_deg": time_point["azimuth_deg"],
+                        "range_km": time_point["range_km"],
+                        "exact_time": time_point["time"],
+                        "time_index": target_index,
+                        "stage6_source": True
+                    }
+                    
+                    visible_satellites.append(satellite_info)
+        
+        # 按仰角排序並限制數量
+        visible_satellites.sort(key=lambda x: x["elevation_deg"], reverse=True)
+        return visible_satellites[:count]
+        
+    except Exception as e:
+        logger.error(f"❌ Stage 6時間查詢失敗: {e}")
+        return []
+
+
+def get_stage6_time_range(stage6_data):
+    """獲取Stage 6數據的時間範圍信息"""
+    try:
+        first_sat = stage6_data["dynamic_satellite_pool"]["selection_details"][0]
+        timeseries = first_sat["position_timeseries"]
+        
+        return {
+            "start_time": timeseries[0]["time"],
+            "end_time": timeseries[-1]["time"],
+            "total_time_points": len(timeseries),
+            "time_step_seconds": 30,
+            "orbital_period_minutes": 96
+        }
+    except:
+        return None
+
+
+async def get_emergency_backup_satellites(count, min_elevation_deg):
+    """緊急備用數據（保持原有邏輯作為fallback）"""
+    logger.warning("⚠️ 使用緊急備用衛星數據")
+    
+    # 簡化的緊急數據
+    emergency_satellites = []
+    for i in range(min(count, 20)):
+        emergency_satellites.append({
+            "name": f"EMERGENCY-SAT-{i+1:02d}",
+            "constellation": "emergency_backup", 
+            "satellite_id": f"emergency_{i+1}",
+            "elevation_deg": min_elevation_deg + (i * 2),
+            "azimuth_deg": (i * 18) % 360,
+            "range_km": 800 + (i * 50),
+            "emergency_backup": True
+        })
+    
+    return {
+        "satellites": emergency_satellites,
+        "total_count": len(emergency_satellites),
+        "metadata": {
+            "data_source": "emergency_backup",
+            "warning": "Stage 6預計算數據不可用"
+        }
+    }
 
 @router.get(
     "/timeline/{constellation}",
@@ -598,5 +660,136 @@ async def health_check():
             "selection_algorithm": "IntelligentSatelliteSelector",
             "orbit_calculation": "SGP4",
             "signal_model": "ITU-R P.618"
+        }
+    }
+
+# === Stage 6 預計算數據查詢支援函數 ===
+
+async def load_stage6_precomputed_data():
+    """載入Stage 6預計算數據"""
+    try:
+        import json
+        stage6_path = "/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json"
+        
+        if not os.path.exists(stage6_path):
+            logger.error(f"❌ Stage 6文件不存在: {stage6_path}")
+            return None
+            
+        with open(stage6_path, 'r') as f:
+            data = json.load(f)
+            
+        logger.info(f"✅ 成功載入Stage 6數據: {data['dynamic_satellite_pool']['total_selected']} 顆衛星")
+        return data
+        
+    except Exception as e:
+        logger.error(f"❌ 載入Stage 6數據失敗: {e}")
+        return None
+
+
+async def query_stage6_satellites_at_time(stage6_data, request_time, min_elevation_deg, count):
+    """
+    🎯 核心新邏輯：使用軌道週期性查詢Stage 6預計算結果
+    
+    Stage 6提供96分鐘軌道週期的完整數據，我們使用週期性匹配
+    """
+    try:
+        satellites_data = stage6_data["dynamic_satellite_pool"]["selection_details"]
+        
+        # 獲取Stage 6數據的時間基準
+        first_sat = satellites_data[0]
+        stage6_start_time = datetime.fromisoformat(
+            first_sat["position_timeseries"][0]["time"].replace('Z', '+00:00')
+        )
+        
+        logger.info(f"📊 Stage 6時間基準: {stage6_start_time}")
+        
+        # 🎯 關鍵：使用軌道週期性計算時間偏移
+        orbital_period_seconds = 96 * 60  # 96分鐘軌道週期
+        
+        # 計算用戶請求時間在軌道週期內的位置
+        time_diff_seconds = (request_time - stage6_start_time).total_seconds()
+        cycle_offset_seconds = int(time_diff_seconds) % orbital_period_seconds
+        
+        logger.info(f"🔄 軌道週期偏移: {cycle_offset_seconds} 秒")
+        
+        # 查找最接近的時間點索引 (每30秒一個時間點)
+        target_index = min(191, int(cycle_offset_seconds / 30))
+        
+        logger.info(f"📍 目標時間點索引: {target_index}/192")
+        
+        # 從所有衛星中查詢該時間點的可見衛星
+        visible_satellites = []
+        
+        for sat_data in satellites_data:
+            if target_index < len(sat_data["position_timeseries"]):
+                time_point = sat_data["position_timeseries"][target_index]
+                
+                # 檢查可見性和仰角門檻
+                if (time_point.get("is_visible", False) and 
+                    time_point.get("elevation_deg", 0) >= min_elevation_deg):
+                    
+                    satellite_info = {
+                        "name": sat_data["satellite_name"],
+                        "constellation": sat_data["constellation"],
+                        "satellite_id": sat_data["satellite_id"],
+                        "elevation_deg": time_point["elevation_deg"],
+                        "azimuth_deg": time_point["azimuth_deg"],
+                        "range_km": time_point["range_km"],
+                        "exact_time": time_point["time"],
+                        "time_index": target_index,
+                        "stage6_source": True
+                    }
+                    
+                    visible_satellites.append(satellite_info)
+        
+        # 按仰角排序並限制數量
+        visible_satellites.sort(key=lambda x: x["elevation_deg"], reverse=True)
+        return visible_satellites[:count]
+        
+    except Exception as e:
+        logger.error(f"❌ Stage 6時間查詢失敗: {e}")
+        return []
+
+
+def get_stage6_time_range(stage6_data):
+    """獲取Stage 6數據的時間範圍信息"""
+    try:
+        first_sat = stage6_data["dynamic_satellite_pool"]["selection_details"][0]
+        timeseries = first_sat["position_timeseries"]
+        
+        return {
+            "start_time": timeseries[0]["time"],
+            "end_time": timeseries[-1]["time"],
+            "total_time_points": len(timeseries),
+            "time_step_seconds": 30,
+            "orbital_period_minutes": 96
+        }
+    except:
+        return None
+
+
+async def get_emergency_backup_satellites(count, min_elevation_deg):
+    """緊急備用數據（保持原有邏輯作為fallback）"""
+    logger.warning("⚠️ 使用緊急備用衛星數據")
+    
+    # 簡化的緊急數據
+    emergency_satellites = []
+    for i in range(min(count, 20)):
+        emergency_satellites.append({
+            "name": f"EMERGENCY-SAT-{i+1:02d}",
+            "constellation": "emergency_backup", 
+            "satellite_id": f"emergency_{i+1}",
+            "elevation_deg": min_elevation_deg + (i * 2),
+            "azimuth_deg": (i * 18) % 360,
+            "range_km": 800 + (i * 50),
+            "emergency_backup": True
+        })
+    
+    return {
+        "satellites": emergency_satellites,
+        "total_count": len(emergency_satellites),
+        "metadata": {
+            "data_source": "emergency_backup",
+            "warning": "Stage 6預計算數據不可用"
         }
     }

@@ -98,3 +98,25 @@ data/precomputed/
 
 # Serena 緩存文件
 .serena/cache/
+
+# 六階段資料預處理生成檔案 - 全部排除 
+# 建構時預處理策略：排除所有生成檔案，依賴智能增量更新
+data/leo_outputs/
+**/tle_orbital_output.json
+**/intelligent_filtered_output.json
+**/signal_event_analysis_output.json
+**/data_integration_output.json
+**/enhanced_dynamic_pools_output.json
+**/starlink_enhanced.json
+**/oneweb_enhanced.json
+**/conversion_statistics.json
+**/analysis_structure_info.json
+**/stage*_processing_cache.json
+**/stage*_completion_status.json
+
+# 建構時預處理標記文件
+**/.build_mode
+**/.fast_startup
+**/.startup_ready
+
+oo_khmall_*.zip

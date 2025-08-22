@@ -15,12 +15,6 @@ from app.domains.coordinates.api.coordinate_api import router as coordinates_rou
 
 from app.domains.simulation.api.simulation_api import router as simulation_router
 
-# Phase 2 重構：移除 RF simulation (與衛星換手無關)
-# from app.domains.rf_simulation.api.rf_simulation_api import router as rf_simulation_router
-
-
-# from app.domains.system.api.system_api import router as system_router  # Removed in Phase 3
-
 
 # Import new consolidated route modules
 from app.api.routes.core import router as core_router
@@ -54,9 +48,6 @@ api_router = APIRouter()
 api_router.include_router(core_router, tags=["Core"])
 
 # Register domain API routers with clean prefixes
-# api_router.include_router(
-#     device_router, prefix="/devices", tags=["Devices (PostgreSQL)"]
-# )  # PostgreSQL 已移除，改用 MongoDB
 api_router.include_router(
     devices_mongodb_router, prefix="/devices", tags=["Devices (MongoDB)"]
 )
@@ -71,11 +62,6 @@ api_router.include_router(
     simulation_router, prefix="/simulations", tags=["Simulations"]
 )
 
-# Phase 2 重構：移除 RF simulation (與衛星換手研究無關)
-# api_router.include_router(
-#     rf_simulation_router, prefix="/rf", tags=["RF Simulation"]
-# )
-# api_router.include_router(system_router, prefix="/system", tags=["System"])  # Removed in Phase 3
 
 
 # Register new consolidated routes
@@ -85,9 +71,6 @@ api_router.include_router(
     prefix="/satellite-ops",
     tags=["Satellite Operations (Redis)"],
 )
-# api_router.include_router(
-#     integration_router, prefix="/integration", tags=["Integration"]
-# )  # 已刪除的 RL 相關功能
 
 
 # Register health routes

@@ -136,15 +136,36 @@ export class SatelliteDataService {
         }
 
         try {
-            // 🎯 使用預計算數據的時間範圍 (2025-08-18 09:42:02 to 11:17:32)
-            // 避免使用當前時間，而是在預計算數據範圍內循環
-            const dataStartTime = new Date('2025-08-18T09:42:02Z')
-            const dataEndTime = new Date('2025-08-18T11:17:32Z')
-            const dataDuration = dataEndTime.getTime() - dataStartTime.getTime()
+            // 🎯 使用預計算數據的可見性時間窗口 (基於Stage 6真實分析結果)
+            // 衛星僅在特定時間窗口可見：09:42-09:47 (5分鐘) 和 11:13-11:17 (4分鐘)
+            const visibilityWindows = [
+                {
+                    start: new Date('2025-08-18T09:42:02Z'),
+                    end: new Date('2025-08-18T09:47:02Z'),
+                    duration: 5 * 60 // 5分鐘，以秒為單位
+                },
+                {
+                    start: new Date('2025-08-18T11:13:02Z'), 
+                    end: new Date('2025-08-18T11:17:32Z'),
+                    duration: 4 * 60 + 30 // 4分30秒，以秒為單位
+                }
+            ]
             
-            // 基於當前秒數在數據範圍內循環
-            const currentSeconds = Math.floor(Date.now() / 1000) % Math.floor(dataDuration / 1000)
-            const targetTime = new Date(dataStartTime.getTime() + currentSeconds * 1000)
+            const totalVisibilityDuration = visibilityWindows.reduce((sum, window) => sum + window.duration, 0)
+            
+            // 🚀 關鍵修復：只在可見時間窗口內循環，確保每次查詢都能找到衛星
+            const currentCycle = Math.floor(Date.now() / 1000) % totalVisibilityDuration
+            let targetTime: Date
+            
+            if (currentCycle < visibilityWindows[0].duration) {
+                // 在第一個可見窗口內 (09:42-09:47)
+                const offsetInWindow = currentCycle
+                targetTime = new Date(visibilityWindows[0].start.getTime() + offsetInWindow * 1000)
+            } else {
+                // 在第二個可見窗口內 (11:13-11:17)
+                const offsetInWindow = currentCycle - visibilityWindows[0].duration
+                targetTime = new Date(visibilityWindows[1].start.getTime() + offsetInWindow * 1000)
+            }
             
             let endpoint = `/api/v1/satellite-simple/visible_satellites?count=${actualMaxCount}&min_elevation_deg=${actualMinElevation}&observer_lat=${this.config.observerLat}&observer_lon=${this.config.observerLon}&constellation=${this.config.constellation}&utc_timestamp=${targetTime.toISOString()}&global_view=false`
             
