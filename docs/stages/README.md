@@ -74,12 +74,12 @@
 ### 程式碼組織
 ```bash
 /netstack/src/stages/
-├── stage1_tle_processor.py           # TLE載入與SGP4計算
-├── stage2_filtering_processor.py     # 智能衛星篩選
-├── stage3_signal_processor.py        # 信號品質分析
-├── stage4_timeseries_processor.py    # 時間序列預處理
-├── stage5_integration_processor.py   # 數據整合與存儲
-└── stage6_dynamic_pool_planner.py    # 動態池規劃 🆕
+├── tle_orbital_calculation_processor.py     # TLE載入與SGP4計算
+├── intelligent_satellite_filter_processor.py  # 智能衛星篩選
+├── signal_quality_analysis_processor.py     # 信號品質分析
+├── timeseries_preprocessing_processor.py    # 時間序列預處理
+├── data_integration_processor.py            # 數據整合與存儲
+└── enhanced_dynamic_pool_planner.py         # 動態池規劃 🆕
 ```
 
 ### 配置檔案
@@ -91,6 +91,17 @@
 └── dynamic_pool_config.py           # 動態池規劃配置 🆕
 ```
 
+### 核心架構支援
+```bash
+/netstack/src/shared_core/
+├── data_lineage_manager.py          # 數據族系追蹤管理器 🆕
+├── auto_cleanup_manager.py          # 自動清理管理器
+├── elevation_threshold_manager.py   # 仰角門檻管理器
+├── observer_config_service.py       # 觀察者配置服務
+├── signal_quality_cache.py          # 信號品質緩存系統
+└── utils.py                         # 共用工具函數
+```
+
 ### 監控與診斷
 每個階段都提供完整的診斷指令和故障排除指南，詳見各階段文檔的「🚨 故障排除」章節。
 
@@ -100,15 +111,18 @@
 - **v2.0** (2025-08-XX): 記憶體傳遞優化（v3.0處理模式）
 - **v2.1** (2025-08-13): 混合存儲架構優化
 - **v2.2** (2025-08-14): 新增階段六動態池規劃 🆕
+- **v3.1** (2025-08-20): 數據族系追蹤修復 🆕
+- **v3.2** (2025-08-22): 文檔與實現完全同步 🆕
 
 ## ⚠️ 重要提醒
 
 1. **記憶體傳遞模式**：階段一、二採用記憶體傳遞，大幅提升性能
-2. **數字估算說明**：階段六的衛星池大小（45+20顆）為估算值，需實際開發驗證
-3. **Pure Cron架構**：定時自動更新，容器啟動時數據立即可用
-4. **混合存儲設計**：PostgreSQL處理結構化查詢，Volume存儲大型時間序列
+2. **數據族系追蹤**：所有階段嚴格區分TLE數據日期與處理執行時間 🆕
+3. **檔案名稱標準**：使用描述性命名，避免 phase/stage 數字命名
+4. **Pure Cron架構**：定時自動更新，容器啟動時數據立即可用
+5. **混合存儲設計**：PostgreSQL處理結構化查詢，Volume存儲大型時間序列
 
 ---
 **上層導航**: [數據流程總導航](../README.md)  
 **系統架構**: [README.md](../README.md)  
-*最後更新：2025-08-14 | v2.2.0*
+*最後更新：2025-08-22 | v3.2.0 - 文檔與實現完全同步*

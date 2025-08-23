@@ -259,11 +259,10 @@ class IntelligentSatelliteFilterProcessor:
         return self.execute_refactored_intelligent_filtering(orbital_data)
             
     def save_intelligent_filtering_output(self, filtered_data: Dict[str, Any]) -> str:
-        """保存智能篩選輸出數據 - v3.0 清理舊檔案版本"""
-        # 確保輸出到正確的 leo_outputs 目錄
-        leo_outputs_dir = self.output_dir / "leo_outputs"
-        leo_outputs_dir.mkdir(parents=True, exist_ok=True)
-        output_file = leo_outputs_dir / "intelligent_filtered_output.json"
+        """保存智能篩選輸出數據 - v3.1 修復路徑版本"""
+        # 🔧 修復：直接使用 output_dir，不創建 leo_outputs 子目錄
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = self.output_dir / "intelligent_filtered_output.json"
         
         # 🗑️ 清理舊檔案 - 確保資料一致性
         if output_file.exists():
@@ -276,26 +275,27 @@ class IntelligentSatelliteFilterProcessor:
         # 添加重構版標記
         filtered_data['metadata'].update({
             'filtering_timestamp': datetime.now(timezone.utc).isoformat(),
-            'file_generation': 'refactored_clean_regeneration',
+            'file_generation': 'path_fixed_version',
             'refactoring_improvements': [
                 'unified_elevation_threshold_manager',
-                'unified_visibility_service',
+                'unified_visibility_service', 
                 'removed_duplicate_elevation_logic',
-                'improved_quality_filtering'
+                'improved_quality_filtering',
+                'fixed_output_path_consistency'  # 新增路徑修復標記
             ]
         })
         
         # 💾 生成新的智能篩選輸出檔案
-        logger.info(f"💾 生成重構版智能篩選輸出檔案: {output_file}")
+        logger.info(f"💾 生成修復路徑版智能篩選輸出檔案: {output_file}")
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(filtered_data, f, indent=2, ensure_ascii=False)
             
         # 檢查新檔案大小
         new_file_size = output_file.stat().st_size
-        logger.info(f"✅ 重構版智能篩選數據已保存: {output_file}")
+        logger.info(f"✅ 修復路徑版智能篩選數據已保存: {output_file}")
         logger.info(f"   新檔案大小: {new_file_size / (1024*1024):.1f} MB")
         logger.info(f"   包含衛星數: {filtered_data['metadata'].get('unified_filtering_results', {}).get('total_selected', 'unknown')}")
-        logger.info("   🎯 重構改進: 統一管理器, 移除重複邏輯")
+        logger.info("   🎯 路徑修復: 移除額外的 leo_outputs 子目錄")
         
         return str(output_file)
         

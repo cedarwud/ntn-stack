@@ -17,8 +17,8 @@ from datetime import datetime, timezone
 class Stage5Config:
     """階段五配置參數"""
     
-    # 輸入目錄
-    input_enhanced_timeseries_dir: str = "/app/data/timeseries_preprocessing_outputs"
+    # 🎯 修復：輸入目錄直接指向data，移除子目錄
+    input_enhanced_timeseries_dir: str = "/app/data"
     
     # 輸出目錄
     output_layered_dir: str = "/app/data/layered_phase0_enhanced"
@@ -26,7 +26,7 @@ class Stage5Config:
     output_signal_analysis_dir: str = "/app/data/signal_quality_analysis"
     output_processing_cache_dir: str = "/app/data/processing_cache"
     output_status_files_dir: str = "/app/data/status_files"
-    output_data_integration_dir: str = "/app/data/data_integration_outputs"
+    output_data_integration_dir: str = "/app/data"
     
     # 分層仰角門檻
     elevation_thresholds: List[int] = None
@@ -86,8 +86,13 @@ class Stage5IntegrationProcessor:
             results["satellites"] = enhanced_data  # 為Stage6提供完整衛星數據
             results["processing_time_seconds"] = time.time() - self.processing_start_time
             
+            # 🎯 新增：保存檔案供階段六使用
+            output_file = self.save_integration_output(results)
+            results["output_file"] = output_file
+            
             self.logger.info(f"✅ 階段五完成，耗時: {results['processing_time_seconds']:.2f} 秒")
             self.logger.info(f"📊 整合衛星數據: {total_satellites} 顆衛星")
+            self.logger.info(f"💾 輸出檔案: {output_file}")
             
         except Exception as e:
             self.logger.error(f"❌ 階段五處理失敗: {e}")
@@ -121,6 +126,27 @@ class Stage5IntegrationProcessor:
                 self.logger.warning(f"⚠️ {constellation} 增強數據檔案不存在: {target_file}")
         
         return enhanced_data
+
+    def save_integration_output(self, results: Dict[str, Any]) -> str:
+        """保存階段五整合輸出，供階段六使用"""
+        output_file = Path(self.config.output_data_integration_dir) / "data_integration_output.json"
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        # 清理舊檔案
+        if output_file.exists():
+            output_file.unlink()
+            self.logger.info(f"🗑️ 清理舊整合輸出: {output_file}")
+        
+        # 保存新檔案
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
+        
+        file_size = output_file.stat().st_size / (1024*1024)  # MB
+        self.logger.info(f"💾 階段五整合輸出已保存: {output_file}")
+        self.logger.info(f"   檔案大小: {file_size:.1f} MB")
+        self.logger.info(f"   包含衛星數: {results.get('total_satellites', 0)}")
+        
+        return str(output_file)
 
 async def main():
     """主執行函數"""

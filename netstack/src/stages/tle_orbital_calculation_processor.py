@@ -373,7 +373,7 @@ class Stage1TLEProcessor:
                         tle_data['norad_id'] = successful_calculations
                     
                     # 🎯 使用 TLE epoch 時間作為計算基準，而非當前時間
-                    from datetime import datetime, timedelta
+                    from datetime import timedelta
                     
                     # 計算 TLE epoch 對應的實際時間
                     tle_epoch_year = sat_data.get('tle_epoch_year', datetime.now().year)

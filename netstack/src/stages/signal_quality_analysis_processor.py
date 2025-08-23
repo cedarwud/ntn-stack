@@ -414,11 +414,10 @@ class SignalQualityAnalysisProcessor:
         return final_data
         
     def save_signal_analysis_output(self, final_data: Dict[str, Any]) -> str:
-        """保存信號分析輸出數據 - v3.0 清理舊檔案版本"""
-        # 確保輸出到正確的 leo_outputs 目錄
-        leo_outputs_dir = self.output_dir / "leo_outputs"
-        leo_outputs_dir.mkdir(parents=True, exist_ok=True)
-        output_file = leo_outputs_dir / "signal_event_analysis_output.json"
+        """保存信號分析輸出數據 - v3.1 修復路徑版本"""
+        # 🔧 修復：直接使用 output_dir，不創建 leo_outputs 子目錄
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = self.output_dir / "signal_event_analysis_output.json"
         
         # 🗑️ 清理舊檔案 - 確保資料一致性
         if output_file.exists():
@@ -433,19 +432,24 @@ class SignalQualityAnalysisProcessor:
             'signal_analysis_completion': 'signal_event_analysis_complete',
             'signal_analysis_timestamp': datetime.now(timezone.utc).isoformat(),
             'ready_for_timeseries_preprocessing': True,
-            'file_generation': 'clean_regeneration'  # 標記為重新生成
+            'file_generation': 'path_fixed_version',  # 標記為路徑修復版本
+            'path_fix_improvements': [
+                'removed_leo_outputs_subdirectory',
+                'consistent_output_path_structure'
+            ]
         })
         
         # 💾 生成新的信號分析輸出檔案
-        logger.info(f"💾 生成新的信號分析輸出檔案: {output_file}")
+        logger.info(f"💾 生成修復路徑版信號分析輸出檔案: {output_file}")
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(final_data, f, indent=2, ensure_ascii=False)
             
         # 檢查新檔案大小
         new_file_size = output_file.stat().st_size
-        logger.info(f"✅ 信號分析數據已保存: {output_file}")
+        logger.info(f"✅ 修復路徑版信號分析數據已保存: {output_file}")
         logger.info(f"   新檔案大小: {new_file_size / (1024*1024):.1f} MB")
         logger.info(f"   包含衛星數: {final_data['metadata'].get('final_recommended_total', 'unknown')}")
+        logger.info("   🎯 路徑修復: 移除額外的 leo_outputs 子目錄")
         
         return str(output_file)
         

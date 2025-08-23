@@ -28,8 +28,8 @@ class TimeseriesPreprocessingProcessor:
     def __init__(self, input_dir: str = "/app/data", output_dir: str = "/app/data"):
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
-        # 使用標準化目錄結構，符合功能描述性命名
-        self.enhanced_dir = self.output_dir / "timeseries_preprocessing_outputs"
+        # 🎯 修復：直接使用 output_dir，移除額外的子目錄
+        self.enhanced_dir = self.output_dir
         self.enhanced_dir.mkdir(parents=True, exist_ok=True)
         
         logger.info("✅ 時間序列預處理器初始化完成")
@@ -39,8 +39,8 @@ class TimeseriesPreprocessingProcessor:
     def load_signal_analysis_output(self, signal_file: Optional[str] = None) -> Dict[str, Any]:
         """載入信號分析輸出數據"""
         if signal_file is None:
-            # 使用功能描述性檔案路徑，符合命名規範
-            signal_file = self.input_dir / "signal_analysis_outputs" / "signal_event_analysis_output.json"
+            # 🎯 修復：直接使用 input_dir，移除額外的子目錄
+            signal_file = self.input_dir / "signal_event_analysis_output.json"
         else:
             signal_file = Path(signal_file)
             
@@ -168,9 +168,11 @@ class TimeseriesPreprocessingProcessor:
             }
         
         # 2. 處理位置時間序列
-        # 🎯 關鍵修復：Stage 3 現在輸出 "position_timeseries" 而不是 "positions"
-        # 需要兼容兩種字段名稱
-        positions = satellite.get('position_timeseries', satellite.get('positions', []))
+        # 🎯 關鍵修復：優先使用Stage3的標準字段，兼容多種格式
+        # 查找順序：position_timeseries -> timeseries -> positions
+        positions = (satellite.get('position_timeseries') or 
+                    satellite.get('timeseries', []) or 
+                    satellite.get('positions', []))
         if positions:
             enhanced_satellite["position_timeseries"] = []
             for pos in positions:

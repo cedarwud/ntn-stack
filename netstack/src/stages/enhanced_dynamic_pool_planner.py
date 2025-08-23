@@ -584,8 +584,8 @@ class EnhancedDynamicPoolPlanner:
         
         return output
 
-    def process(self, input_data=None, input_file: str = None, 
-                output_file: str = "/home/sat/ntn-stack/data/leo_outputs/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json") -> Dict[str, Any]:
+    def process(self, input_file: str = None, input_data=None, 
+                output_file: str = "/app/data/enhanced_dynamic_pools_output.json") -> Dict[str, Any]:
         """
         統一處理函數 - UltraThink 架構修復
         
@@ -596,16 +596,19 @@ class EnhancedDynamicPoolPlanner:
         try:
             self.logger.info("🚀 開始增強動態衛星池規劃 (UltraThink 統一架構)...")
             
-            # UltraThink 修復：智能模式檢測
-            if input_data is not None:
-                # 記憶體傳輸模式 (v3.0)
-                self.logger.info("🧠 檢測到記憶體數據模式 - 執行 v3.0 處理")
-                return self.process_memory_data(input_data)
+            # 調試信息
+            self.logger.info(f"🐛 調試: input_file={input_file}, input_data={input_data}")
             
-            elif input_file is not None:
+            # UltraThink 修復：智能模式檢測
+            if input_file is not None:
                 # 文件模式 (向後兼容)
                 self.logger.info("📁 檢測到文件模式 - 執行向後兼容處理")
                 return self._process_file_mode(input_file, output_file)
+            
+            elif input_data is not None:
+                # 記憶體傳輸模式 (v3.0)
+                self.logger.info("🧠 檢測到記憶體數據模式 - 執行 v3.0 處理")
+                return self.process_memory_data(input_data)
             
             else:
                 raise ValueError("必須提供 input_data 或 input_file 其中之一")
@@ -651,6 +654,7 @@ class EnhancedDynamicPoolPlanner:
         processing_time = time.time() - self.processing_start_time
         output['processing_time_seconds'] = processing_time
         output['output_file'] = output_file
+        output['success'] = True  # 添加成功標記
         
         self.logger.info(f"✅ 文件模式處理完成: {processing_time:.2f} 秒")
         return output
@@ -673,15 +677,15 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="增強動態衛星池規劃器")
-    parser.add_argument("--input", default="/home/sat/ntn-stack/data/leo_outputs/data_integration_outputs/data_integration_output.json", help="輸入檔案路徑")
-    parser.add_argument("--output", default="/home/sat/ntn-stack/data/leo_outputs/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json", help="輸出檔案路徑")
+    parser.add_argument("--input", default="/app/data/data_integration_output.json", help="輸入檔案路徑")
+    parser.add_argument("--output", default="/app/data/enhanced_dynamic_pools_output.json", help="輸出檔案路徑")
     
     args = parser.parse_args()
     
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     
     processor = create_enhanced_dynamic_pool_planner()
-    result = processor.process(args.input, args.output)
+    result = processor.process(input_file=args.input, output_file=args.output)
     
     if result['success']:
         print("🎉 增強動態池規劃處理成功完成！")
