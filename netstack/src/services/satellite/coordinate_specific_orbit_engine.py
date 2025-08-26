@@ -197,9 +197,16 @@ class CoordinateSpecificOrbitEngine:
             # 創建 SGP4 衛星對象
             satellite = Satrec.twoline2rv(satellite_tle_data['line1'], satellite_tle_data['line2'])
             
-            # 計算時間點
-            total_seconds = self.orbital_period_minutes * 60
-            time_points = list(range(0, total_seconds, self.time_step_seconds))
+            # 🎯 關鍵修復：確保產生完整的192個時間點
+            # 計算時間點：96分鐘，30秒間隔 = 192個點
+            total_seconds = self.orbital_period_minutes * 60  # 96 * 60 = 5760 秒
+            time_points = list(range(0, total_seconds, self.time_step_seconds))  # 0, 30, 60, ... 5730
+            
+            # 🔍 調試：記錄時間點數量
+            logger.info(f"📊 計算時間點數量: {len(time_points)} (預期: 192)")
+            logger.debug(f"  總秒數: {total_seconds}, 時間步長: {self.time_step_seconds}")
+            logger.debug(f"  前5個時間點: {time_points[:5]}")
+            logger.debug(f"  後5個時間點: {time_points[-5:]}")
             
             orbit_data = {
                 'satellite_info': {
@@ -230,11 +237,12 @@ class CoordinateSpecificOrbitEngine:
             }
             
             current_window = None
+            positions_calculated = 0
             
-            for t_offset in time_points:
+            for i, t_offset in enumerate(time_points):
                 current_time = start_time + timedelta(seconds=t_offset)
                 
-                # 轉換為 Julian Day
+                # 轉換為Julian Day
                 jd, fr = jday(current_time.year, current_time.month, current_time.day,
                              current_time.hour, current_time.minute, current_time.second)
                 
@@ -258,6 +266,7 @@ class CoordinateSpecificOrbitEngine:
                     
                     orbit_data['positions'].append(position_data)
                     orbit_data['statistics']['total_positions'] += 1
+                    positions_calculated += 1
                     
                     if position_data['is_visible']:
                         orbit_data['statistics']['visible_positions'] += 1
@@ -289,6 +298,7 @@ class CoordinateSpecificOrbitEngine:
                             current_window = None
                 else:
                     orbit_data['statistics']['calculation_errors'] += 1
+                    logger.debug(f"  SGP4計算錯誤 (時間點 {i}/{len(time_points)}): error code {error}")
             
             # 結束最後一個窗口
             if current_window is not None:
@@ -300,6 +310,13 @@ class CoordinateSpecificOrbitEngine:
                     orbit_data['statistics']['visible_positions'] / 
                     orbit_data['statistics']['total_positions'] * 100
                 )
+            
+            # 🔍 調試：記錄實際計算的位置數量
+            logger.info(f"✅ 衛星 {satellite_tle_data['name']}: 成功計算 {positions_calculated}/{len(time_points)} 個位置")
+            
+            # 🎯 驗證：確保產生了192個時間點
+            if positions_calculated < 192:
+                logger.warning(f"⚠️ 警告：只計算了 {positions_calculated} 個位置，預期 192 個")
             
             return orbit_data
             
@@ -335,6 +352,125 @@ class CoordinateSpecificOrbitEngine:
             
             # 120分鐘週期設定
             duration_minutes = 120
+            total_seconds = duration_minutes * 60
+            
+            # 🎯 關鍵修復：標準化時間網格 - 所有衛星使用相同的時間點
+            # 將開始時間對齊到整分鐘，確保所有衛星使用相同的時間基準
+            aligned_start_time = start_time.replace(second=0, microsecond=0)
+            standard_time_points = []
+            
+            for t_offset in range(0, total_seconds, self.time_step_seconds):
+                standard_time_points.append({
+                    'offset_seconds': t_offset,
+                    'datetime': aligned_start_time + timedelta(seconds=t_offset),
+                    'timestamp': (aligned_start_time + timedelta(seconds=t_offset)).isoformat()
+                })
+            
+            # 🚨 Stage 1: 計算所有位置，不做任何地理或可見性篩選
+            all_positions = []
+            total_positions = 0
+            calculation_errors = 0
+            
+            for time_point in standard_time_points:
+                current_time = time_point['datetime']
+                t_offset = time_point['offset_seconds']
+                
+                # 轉換為 Julian Day
+                jd, fr = jday(current_time.year, current_time.month, current_time.day,
+                             current_time.hour, current_time.minute, current_time.second)
+                
+                # SGP4 計算位置和速度
+                error, position, velocity = satellite.sgp4(jd, fr)
+                
+                if error == 0:  # 無錯誤
+                    total_positions += 1
+                    
+                    # 轉換為觀測點座標（但不篩選）
+                    observer_coords = self.eci_to_observer_coordinates(position, current_time)
+                    elevation = observer_coords['elevation_deg']
+                    
+                    # Stage 1: 儲存所有位置，不做可見性篩選
+                    position_data = {
+                        'time': time_point['timestamp'],  # 使用標準化時間戳
+                        'time_offset_seconds': t_offset,
+                        'lat': observer_coords.get('satellite_lat', 0.0),
+                        'lon': observer_coords.get('satellite_lon', 0.0), 
+                        'alt_km': observer_coords['range_km'],  # 簡化：用距離代替高度
+                        'elevation_deg': round(elevation, 2),
+                        'azimuth_deg': round(observer_coords['azimuth_deg'], 2),
+                        'range_km': round(observer_coords['range_km'], 1)
+                    }
+                    
+                    all_positions.append(position_data)
+                else:
+                    calculation_errors += 1
+            
+            # Stage 1: 返回完整軌道數據，不做任何篩選
+            orbit_data = {
+                'satellite_info': {
+                    'name': satellite_tle_data['name'],
+                    'norad_id': satellite_tle_data['norad_id'],
+                    'tle_date': satellite_tle_data.get('tle_date', 'unknown')
+                },
+                'computation_metadata': {
+                    'start_time': aligned_start_time.isoformat(),  # 使用對齊的開始時間
+                    'duration_minutes': duration_minutes,
+                    'time_step_seconds': self.time_step_seconds,
+                    'total_computed_positions': total_positions,
+                    'stored_positions': len(all_positions),
+                    'time_grid_aligned': True,  # 標記使用了標準時間網格
+                    'stage': 'f1_full_orbit',  # 標記這是 F1 全量計算
+                    'observer_location': {
+                        'lat': self.observer_lat,
+                        'lon': self.observer_lon,
+                        'alt': self.observer_alt
+                    }
+                },
+                'positions': all_positions,  # 完整位置數據，不做篩選
+                'statistics': {
+                    'total_positions': total_positions,
+                    'stored_positions': len(all_positions),
+                    'calculation_errors': calculation_errors,
+                    'success_rate': round(
+                        (total_positions / (total_positions + calculation_errors) * 100) if (total_positions + calculation_errors) > 0 else 0, 2
+                    )
+                }
+            }
+            
+            return orbit_data
+            
+        except Exception as e:
+            logger.error(f"軌道計算失敗 {satellite_tle_data.get('name', 'Unknown')}: {e}")
+            return {
+                'error': str(e),
+                'satellite_info': {
+                    'name': satellite_tle_data.get('name', 'Unknown'),
+                    'norad_id': satellite_tle_data.get('norad_id', 0)
+                }
+            }
+
+    def compute_109min_orbital_cycle(self, satellite_tle_data: Dict[str, Any], 
+                                   start_time: datetime) -> Dict[str, Any]:
+        """
+        計算109分鐘軌道週期（OneWeb標準軌道週期），使用標準化時間網格確保多衛星時間對齊
+        
+        Stage 1: 全量軌道計算，不做地理篩選
+        
+        Args:
+            satellite_tle_data: 衛星 TLE 數據
+            start_time: 開始時間
+            
+        Returns:
+            Dict: 完整軌道數據（所有計算位置，不做可見性篩選）
+        """
+        try:
+            from sgp4.api import Satrec, jday
+            
+            # 創建 SGP4 衛星對象
+            satellite = Satrec.twoline2rv(satellite_tle_data['line1'], satellite_tle_data['line2'])
+            
+            # 109分鐘週期設定（OneWeb真實軌道週期）
+            duration_minutes = 109
             total_seconds = duration_minutes * 60
             
             # 🎯 關鍵修復：標準化時間網格 - 所有衛星使用相同的時間點

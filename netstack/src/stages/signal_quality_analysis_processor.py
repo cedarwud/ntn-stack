@@ -105,21 +105,53 @@ class SignalQualityAnalysisProcessor:
             with open(filtering_file, 'r', encoding='utf-8') as f:
                 filtering_data = json.load(f)
                 
-            # 驗證數據格式
-            if 'constellations' not in filtering_data:
-                raise ValueError("智能篩選數據缺少 constellations 欄位")
+            # 🎯 兼容新舊兩種格式：constellations 格式和 satellites 陣列格式
+            if 'constellations' in filtering_data:
+                # 舊格式：有 constellations 欄位
+                total_satellites = 0
+                for constellation_name, constellation_data in filtering_data['constellations'].items():
+                    # Handle both file-based and memory-based data structures  
+                    if 'satellites' in constellation_data:
+                        satellites = constellation_data.get('satellites', [])
+                    elif 'orbit_data' in constellation_data:
+                        satellites = constellation_data.get('orbit_data', {}).get('satellites', [])
+                    else:
+                        satellites = []
+                    total_satellites += len(satellites)
+                    logger.info(f"  {constellation_name}: {len(satellites)} 顆衛星")
+                    
+            elif 'satellites' in filtering_data:
+                # 🆕 新格式：直接有 satellites 陣列
+                satellites = filtering_data.get('satellites', [])
+                total_satellites = len(satellites)
                 
-            total_satellites = 0
-            for constellation_name, constellation_data in filtering_data['constellations'].items():
-                # Handle both file-based and memory-based data structures  
-                if 'satellites' in constellation_data:
-                    satellites = constellation_data.get('satellites', [])
-                elif 'orbit_data' in constellation_data:
-                    satellites = constellation_data.get('orbit_data', {}).get('satellites', [])
-                else:
-                    satellites = []
-                total_satellites += len(satellites)
-                logger.info(f"  {constellation_name}: {len(satellites)} 顆衛星")
+                # 按星座分組統計
+                constellation_counts = {}
+                for sat in satellites:
+                    const = sat.get('constellation', 'unknown')
+                    constellation_counts[const] = constellation_counts.get(const, 0) + 1
+                
+                logger.info(f"  新格式檢測到 {total_satellites} 顆衛星:")
+                for const, count in constellation_counts.items():
+                    logger.info(f"    {const}: {count} 顆")
+                    
+                # 🔄 轉換為舊格式以兼容後續處理
+                constellations_data = {}
+                for sat in satellites:
+                    const = sat.get('constellation', 'unknown')
+                    if const not in constellations_data:
+                        constellations_data[const] = {
+                            'satellites': [],
+                            'metadata': filtering_data.get('metadata', {})
+                        }
+                    constellations_data[const]['satellites'].append(sat)
+                
+                # 更新為兼容格式
+                filtering_data['constellations'] = constellations_data
+                logger.info("✅ 已轉換新格式為兼容格式")
+                
+            else:
+                raise ValueError("智能篩選數據缺少 constellations 或 satellites 欄位")
                 
             logger.info(f"✅ 智能篩選數據載入完成: 總計 {total_satellites} 顆衛星")
             return filtering_data

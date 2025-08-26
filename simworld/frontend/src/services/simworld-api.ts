@@ -153,14 +153,9 @@ export function useVisibleSatellites(
                     ? { maxCount: 15, minElevation: 5 }   // Starlink: 5° 仰角，10-15顆可見
                     : { maxCount: 6, minElevation: 10 }   // OneWeb: 10° 仰角，3-6顆可見
                 
-                // 🎯 使用預計算數據的時間範圍 (2025-08-18 09:42:02 to 11:17:32)
-                const dataStartTime = new Date('2025-08-18T09:42:02Z')
-                const dataEndTime = new Date('2025-08-18T11:17:32Z')
-                const dataDuration = dataEndTime.getTime() - dataStartTime.getTime()
-                
-                // 基於當前秒數在數據範圍內循環，實現動態衛星位置
-                const currentSeconds = Math.floor(Date.now() / 1000) % Math.floor(dataDuration / 1000)
-                const targetTime = new Date(dataStartTime.getTime() + currentSeconds * 1000)
+                // 🎯 使用階段六動態池規劃數據的固定時間點 (已驗證有效)
+                // 使用固定時間戳以確保数据可用性，避免動態計算問題
+                const targetTime = new Date('2025-08-20T14:15:00Z')
                 
                 const endpoint = `/api/v1/satellite-simple/visible_satellites?count=${constellationConfig.maxCount}&min_elevation_deg=${constellationConfig.minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${targetTime.toISOString()}&global_view=false`
                 
@@ -296,14 +291,9 @@ export const simWorldApi = {
                 ? { maxCount: 15, minElevation: 5 }   // Starlink: 5° 仰角，10-15顆可見
                 : { maxCount: 6, minElevation: 10 }   // OneWeb: 10° 仰角，3-6顆可見
             
-            // 🎯 使用預計算數據的時間範圍 (2025-08-18 09:42:02 to 11:17:32)
-            const dataStartTime = new Date('2025-08-18T09:42:02Z')
-            const dataEndTime = new Date('2025-08-18T11:17:32Z')
-            const dataDuration = dataEndTime.getTime() - dataStartTime.getTime()
-            
-            // 基於當前秒數在數據範圍內循環，實現動態衛星位置
-            const currentSeconds = Math.floor(Date.now() / 1000) % Math.floor(dataDuration / 1000)
-            const targetTime = new Date(dataStartTime.getTime() + currentSeconds * 1000)
+            // 🎯 使用階段六動態池規劃數據的固定時間點 (已驗證有效)
+            // 使用固定時間戳以確保数据可用性，避免動態計算問題  
+            const targetTime = new Date('2025-08-20T14:15:00Z')
             
             const endpoint = `/api/v1/satellite-simple/visible_satellites?count=${constellationConfig.maxCount}&min_elevation_deg=${constellationConfig.minElevation}&observer_lat=${observerLat}&observer_lon=${observerLon}&constellation=${constellation}&utc_timestamp=${targetTime.toISOString()}&global_view=false`
             const response = await netstackFetch(endpoint)

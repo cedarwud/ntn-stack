@@ -35,7 +35,7 @@ from stages.tle_orbital_calculation_processor import Stage1TLEProcessor as TLEOr
 from stages.intelligent_satellite_filter_processor import IntelligentSatelliteFilterProcessor  
 from stages.signal_quality_analysis_processor import SignalQualityAnalysisProcessor
 from stages.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
-from stages.data_integration_processor import DataIntegrationProcessor, DataIntegrationConfig
+from stages.data_integration_processor import Stage5IntegrationProcessor, Stage5Config
 from stages.enhanced_dynamic_pool_planner import EnhancedDynamicPoolPlanner, create_enhanced_dynamic_pool_planner
 
 @dataclass
@@ -273,7 +273,7 @@ class LEOMainPipelineController:
             
             processor = SignalQualityAnalysisProcessor()
             # 使用混合模式：傳入記憶體數據，並要求保存輸出檔案
-            result = processor.process_signal_quality_analysis(filter_data=filter_data, save_output=True)
+            result = processor.process_signal_quality_analysis(filtering_data=filter_data, save_output=True)
             
             processing_time = time.time() - processor_start_time
             
@@ -324,7 +324,7 @@ class LEOMainPipelineController:
             
             output_file = Path(self.config.base_data_dir) / self.config.signal_analysis_output_dir / "signal_event_analysis_output.json"
             
-            self.stage_status['stage3'] = {
+            self.processor_status['signal_quality_analysis'] = {
                 'completed': True,
                 'output_file': str(output_file),
                 'processing_time': processing_time
@@ -355,14 +355,14 @@ class LEOMainPipelineController:
         try:
             stage_start_time = time.time()
             
-            processor = Stage4TimeseriesProcessor()
-            result = processor.process_stage4(signal_analysis_output)
+            processor = TimeseriesPreprocessingProcessor()
+            result = processor.process_timeseries_preprocessing(signal_analysis_output)
             
             processing_time = time.time() - stage_start_time
             
             output_file = Path(self.config.base_data_dir) / self.config.timeseries_preprocessing_output_dir / "enhanced_timeseries_output.json"
             
-            self.stage_status['stage4'] = {
+            self.processor_status['timeseries_preprocessing'] = {
                 'completed': True,
                 'output_file': str(output_file),
                 'processing_time': processing_time
@@ -407,7 +407,7 @@ class LEOMainPipelineController:
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(result, f, indent=2, ensure_ascii=False)
             
-            self.stage_status['stage5'] = {
+            self.processor_status['data_integration'] = {
                 'completed': True,
                 'output_file': str(output_file),
                 'processing_time': processing_time
@@ -439,7 +439,7 @@ class LEOMainPipelineController:
             stage_start_time = time.time()
             
             # 創建增強版Stage6處理器
-            processor = create_enhanced_stage6_processor()
+            processor = create_enhanced_dynamic_pool_planner()
             
             output_file = Path(self.config.base_data_dir) / self.config.dynamic_pool_planning_output_dir / "enhanced_dynamic_pools_output.json"
             
@@ -448,7 +448,7 @@ class LEOMainPipelineController:
             
             processing_time = time.time() - stage_start_time
             
-            self.stage_status['stage6'] = {
+            self.processor_status['dynamic_pool_planning'] = {
                 'completed': True,
                 'output_file': str(output_file),
                 'processing_time': processing_time
@@ -482,8 +482,8 @@ class LEOMainPipelineController:
     
     def _generate_pipeline_summary(self) -> Dict[str, Any]:
         """生成流程總結報告"""
-        total_processing_time = sum(stage['processing_time'] for stage in self.stage_status.values())
-        completed_stages = sum(1 for stage in self.stage_status.values() if stage['completed'])
+        total_processing_time = sum(stage['processing_time'] for stage in self.processor_status.values())
+        completed_stages = sum(1 for stage in self.processor_status.values() if stage['completed'])
         
         return {
             'pipeline_architecture': 'six_stage_enhanced_leo_core_system',
@@ -497,7 +497,7 @@ class LEOMainPipelineController:
                     'processing_time': status['processing_time'],
                     'output_file': status['output_file']
                 }
-                for stage, status in self.stage_status.items()
+                for stage, status in self.processor_status.items()
             },
             'technology_highlights': [
                 '六階段完整流程架構',
@@ -508,9 +508,9 @@ class LEOMainPipelineController:
             ],
             'performance_metrics': {
                 'average_stage_time': round(total_processing_time / 6, 2),
-                'fastest_stage': min(self.stage_status.items(), 
+                'fastest_stage': min(self.processor_status.items(), 
                                    key=lambda x: x[1]['processing_time'] if x[1]['completed'] else float('inf'))[0],
-                'slowest_stage': max(self.stage_status.items(),
+                'slowest_stage': max(self.processor_status.items(),
                                    key=lambda x: x[1]['processing_time'] if x[1]['completed'] else 0)[0]
             }
         }
@@ -547,9 +547,9 @@ class LEOMainPipelineController:
         """獲取流程狀態"""
         return {
             'pipeline_running_time': time.time() - self.pipeline_start_time,
-            'stage_status': self.stage_status,
-            'completed_stages': [k for k, v in self.stage_status.items() if v['completed']],
-            'pending_stages': [k for k, v in self.stage_status.items() if not v['completed']]
+            'processor_status': self.processor_status,
+            'completed_processors': [k for k, v in self.processor_status.items() if v['completed']],
+            'pending_processors': [k for k, v in self.processor_status.items() if not v['completed']]
         }
 
 # 便利函數

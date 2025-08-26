@@ -8,7 +8,7 @@ Enhanced Satellite Router with Intelligent Preprocessing
 
 import sys
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
 import math
 from fastapi import APIRouter, HTTPException, Query
@@ -393,7 +393,8 @@ async def get_visible_satellites(
     observer_lat: float = Query(24.9441667, ge=-90, le=90, description="觀測者緯度"),
     observer_lon: float = Query(121.3713889, ge=-180, le=180, description="觀測者經度"),
     utc_timestamp: str = Query("", description="UTC時間戳"),
-    global_view: bool = Query(False, description="全球視野模式")
+    global_view: bool = Query(False, description="全球視野模式"),
+    constellation: str = Query("starlink", description="衛星星座 (starlink/oneweb)")
 ):
     """
     🎯 全新架構：直接查詢Stage 6預計算結果
@@ -425,7 +426,8 @@ async def get_visible_satellites(
             stage6_data, 
             request_time, 
             min_elevation_deg,
-            count
+            count,
+            constellation
         )
         
         logger.info(f"✅ 從Stage 6找到 {len(visible_satellites)} 顆可見衛星")
@@ -474,7 +476,7 @@ async def load_stage6_precomputed_data():
         return None
 
 
-async def query_stage6_satellites_at_time(stage6_data, request_time, min_elevation_deg, count):
+async def query_stage6_satellites_at_time(stage6_data, request_time, min_elevation_deg, count, constellation="starlink"):
     """
     🎯 核心新邏輯：使用軌道週期性查詢Stage 6預計算結果
     
@@ -494,21 +496,35 @@ async def query_stage6_satellites_at_time(stage6_data, request_time, min_elevati
         # 🎯 關鍵：使用軌道週期性計算時間偏移
         orbital_period_seconds = 96 * 60  # 96分鐘軌道週期
         
-        # 計算用戶請求時間在軌道週期內的位置
+        # 計算用戶請求時間在軌道週期內的位置  
+        # 確保兩個時間都有時區信息
+        if request_time.tzinfo is None:
+            request_time = request_time.replace(tzinfo=timezone.utc)
+        if stage6_start_time.tzinfo is None:
+            stage6_start_time = stage6_start_time.replace(tzinfo=timezone.utc)
+            
         time_diff_seconds = (request_time - stage6_start_time).total_seconds()
         cycle_offset_seconds = int(time_diff_seconds) % orbital_period_seconds
         
         logger.info(f"🔄 軌道週期偏移: {cycle_offset_seconds} 秒")
         
         # 查找最接近的時間點索引 (每30秒一個時間點)
-        target_index = min(191, int(cycle_offset_seconds / 30))
+        # 🔧 修復：確保索引不超過實際數據點數（Stage6只有28個時間點）
+        max_index = len(satellites_data[0]["position_timeseries"]) - 1 if satellites_data else 27
+        time_step = 30  # 秒
+        # 使用週期內的相對時間來計算索引，確保不超過實際數據範圍
+        actual_cycle_time = cycle_offset_seconds % ((max_index + 1) * time_step)
+        target_index = min(max_index, int(actual_cycle_time / time_step))
         
-        logger.info(f"📍 目標時間點索引: {target_index}/192")
+        logger.info(f"📍 目標時間點索引: {target_index}/{max_index+1}")
         
         # 從所有衛星中查詢該時間點的可見衛星
         visible_satellites = []
         
         for sat_data in satellites_data:
+            # 🎯 新增: 過濾指定星座
+            if sat_data.get("constellation", "").lower() != constellation.lower():
+                continue
             if target_index < len(sat_data["position_timeseries"]):
                 time_point = sat_data["position_timeseries"][target_index]
                 
@@ -516,13 +532,22 @@ async def query_stage6_satellites_at_time(stage6_data, request_time, min_elevati
                 if (time_point.get("is_visible", False) and 
                     time_point.get("elevation_deg", 0) >= min_elevation_deg):
                     
+                    # 從 satellite_id 中提取 NORAD ID (例如 "starlink_00271" -> "00271")
+                    sat_id = sat_data.get("satellite_id", "")
+                    norad_id = sat_id.split("_")[-1] if "_" in sat_id else sat_id
+                    
                     satellite_info = {
                         "name": sat_data["satellite_name"],
+                        "norad_id": norad_id,  # 使用提取的 NORAD ID
                         "constellation": sat_data["constellation"],
                         "satellite_id": sat_data["satellite_id"],
                         "elevation_deg": time_point["elevation_deg"],
                         "azimuth_deg": time_point["azimuth_deg"],
-                        "range_km": time_point["range_km"],
+                        "distance_km": time_point.get("range_km", 0),  # 使用 distance_km 作為標準欄位名
+                        "range_km": time_point["range_km"],  # 保留兼容性
+                        "orbit_altitude_km": 550.0,  # LEO 衛星標準高度
+                        "signal_strength": -80.0 + (time_point["elevation_deg"] / 2),  # 簡單的信號強度估算
+                        "is_visible": True,  # 已經過濾為可見衛星
                         "exact_time": time_point["time"],
                         "time_index": target_index,
                         "stage6_source": True
@@ -686,7 +711,7 @@ async def load_stage6_precomputed_data():
         return None
 
 
-async def query_stage6_satellites_at_time(stage6_data, request_time, min_elevation_deg, count):
+async def query_stage6_satellites_at_time(stage6_data, request_time, min_elevation_deg, count, constellation="starlink"):
     """
     🎯 核心新邏輯：使用軌道週期性查詢Stage 6預計算結果
     
@@ -706,21 +731,36 @@ async def query_stage6_satellites_at_time(stage6_data, request_time, min_elevati
         # 🎯 關鍵：使用軌道週期性計算時間偏移
         orbital_period_seconds = 96 * 60  # 96分鐘軌道週期
         
-        # 計算用戶請求時間在軌道週期內的位置
+        # 計算用戶請求時間在軌道週期內的位置  
+        # 確保兩個時間都有時區信息
+        if request_time.tzinfo is None:
+            request_time = request_time.replace(tzinfo=timezone.utc)
+        if stage6_start_time.tzinfo is None:
+            stage6_start_time = stage6_start_time.replace(tzinfo=timezone.utc)
+            
         time_diff_seconds = (request_time - stage6_start_time).total_seconds()
         cycle_offset_seconds = int(time_diff_seconds) % orbital_period_seconds
         
         logger.info(f"🔄 軌道週期偏移: {cycle_offset_seconds} 秒")
         
         # 查找最接近的時間點索引 (每30秒一個時間點)
-        target_index = min(191, int(cycle_offset_seconds / 30))
+        # 🔧 修復：確保索引不超過實際數據點數（Stage6只有28個時間點）
+        max_index = len(satellites_data[0]["position_timeseries"]) - 1 if satellites_data else 27
+        time_step = 30  # 秒
+        # 使用週期內的相對時間來計算索引，確保不超過實際數據範圍
+        actual_cycle_time = cycle_offset_seconds % ((max_index + 1) * time_step)
+        target_index = min(max_index, int(actual_cycle_time / time_step))
         
-        logger.info(f"📍 目標時間點索引: {target_index}/192")
+        logger.info(f"📍 目標時間點索引: {target_index}/{max_index+1}")
         
         # 從所有衛星中查詢該時間點的可見衛星
         visible_satellites = []
         
         for sat_data in satellites_data:
+            # 🎯 新增: 過濾指定星座
+            if sat_data.get("constellation", "").lower() != constellation.lower():
+                continue
+                
             if target_index < len(sat_data["position_timeseries"]):
                 time_point = sat_data["position_timeseries"][target_index]
                 
@@ -728,13 +768,22 @@ async def query_stage6_satellites_at_time(stage6_data, request_time, min_elevati
                 if (time_point.get("is_visible", False) and 
                     time_point.get("elevation_deg", 0) >= min_elevation_deg):
                     
+                    # 從 satellite_id 中提取 NORAD ID (例如 "starlink_00271" -> "00271")
+                    sat_id = sat_data.get("satellite_id", "")
+                    norad_id = sat_id.split("_")[-1] if "_" in sat_id else sat_id
+                    
                     satellite_info = {
                         "name": sat_data["satellite_name"],
+                        "norad_id": norad_id,  # 使用提取的 NORAD ID
                         "constellation": sat_data["constellation"],
                         "satellite_id": sat_data["satellite_id"],
                         "elevation_deg": time_point["elevation_deg"],
                         "azimuth_deg": time_point["azimuth_deg"],
-                        "range_km": time_point["range_km"],
+                        "distance_km": time_point.get("range_km", 0),  # 使用 distance_km 作為標準欄位名
+                        "range_km": time_point["range_km"],  # 保留兼容性
+                        "orbit_altitude_km": 550.0,  # LEO 衛星標準高度
+                        "signal_strength": -80.0 + (time_point["elevation_deg"] / 2),  # 簡單的信號強度估算
+                        "is_visible": True,  # 已經過濾為可見衛星
                         "exact_time": time_point["time"],
                         "time_index": target_index,
                         "stage6_source": True

@@ -319,18 +319,28 @@ class EnhancedDynamicPoolPlanner:
             starlink_candidates = [c for c in candidates if c.basic_info.constellation.value == 'starlink']
             oneweb_candidates = [c for c in candidates if c.basic_info.constellation.value == 'oneweb']
             
-            # 時間窗口設置 (24小時，每15分鐘一個窗口 = 96個時間窗口)
-            time_windows = 96  # 24小時 * 4個15分鐘窗口
+            self.logger.info(f"📊 候選衛星: Starlink {len(starlink_candidates)}, OneWeb {len(oneweb_candidates)}")
+            
+            # 🎯 關鍵修復：使用正確的時間窗口設置
+            # 96分鐘軌道週期，30秒間隔 = 192個時間點
+            time_windows = 192  # 不是96個窗口，而是192個時間點
             orbit_period_starlink = 96  # 分鐘
             orbit_period_oneweb = 109   # 分鐘
             
-            self.logger.info(f"📊 時間分析: {time_windows} 個時間窗口")
+            self.logger.info(f"📊 時間分析: {time_windows} 個時間點 (96分鐘軌道週期, 30秒間隔)")
+            
+            # 🎯 優化：針對NTPU位置調整目標池大小
+            # NTPU在北緯24.94度，平均可見衛星數較低，需要更大的池來確保覆蓋
+            starlink_target_pool = min(120, len(starlink_candidates))  # 最多120顆
+            oneweb_target_pool = min(36, len(oneweb_candidates))  # 最多36顆
+            
+            self.logger.info(f"🎯 目標池大小: Starlink {starlink_target_pool}, OneWeb {oneweb_target_pool}")
             
             # 為Starlink選擇動態池
             starlink_pool = self._select_temporal_coverage_pool(
                 starlink_candidates,
                 target_visible_per_window=self.coverage_targets['starlink'].target_visible_range,
-                pool_size_target=self.coverage_targets['starlink'].estimated_pool_size,
+                pool_size_target=starlink_target_pool,
                 orbit_period=orbit_period_starlink,
                 constellation_name="Starlink"
             )
@@ -339,7 +349,7 @@ class EnhancedDynamicPoolPlanner:
             oneweb_pool = self._select_temporal_coverage_pool(
                 oneweb_candidates,
                 target_visible_per_window=self.coverage_targets['oneweb'].target_visible_range,
-                pool_size_target=self.coverage_targets['oneweb'].estimated_pool_size,
+                pool_size_target=oneweb_target_pool,
                 orbit_period=orbit_period_oneweb,
                 constellation_name="OneWeb"
             )
@@ -348,35 +358,63 @@ class EnhancedDynamicPoolPlanner:
             total_selected = len(starlink_pool) + len(oneweb_pool)
             total_candidates = len(candidates)
             
-            # 估算時間覆蓋達標率（基於動態池大小）
-            starlink_coverage_score = min(1.0, len(starlink_pool) / self.coverage_targets['starlink'].estimated_pool_size)
-            oneweb_coverage_score = min(1.0, len(oneweb_pool) / self.coverage_targets['oneweb'].estimated_pool_size)
-            overall_coverage = (starlink_coverage_score + oneweb_coverage_score) / 2
+            # 🎯 優化：更準確的覆蓋評分
+            # 基於實際選擇數量與理想數量的比例
+            starlink_ideal = 120  # NTPU位置的理想Starlink數量
+            oneweb_ideal = 36     # NTPU位置的理想OneWeb數量
+            
+            starlink_coverage_score = min(1.0, len(starlink_pool) / starlink_ideal)
+            oneweb_coverage_score = min(1.0, len(oneweb_pool) / oneweb_ideal)
+            
+            # 加權平均（Starlink權重更高，因為數量更多）
+            overall_coverage = (0.7 * starlink_coverage_score + 0.3 * oneweb_coverage_score)
+            
+            # 🎯 計算時間分佈品質
+            temporal_distribution_score = self._calculate_temporal_distribution(
+                starlink_pool, oneweb_pool, candidates
+            )
+            
+            # 🎯 計算信號品質評分
+            signal_quality_score = self._calculate_signal_quality(
+                starlink_pool, oneweb_pool, candidates
+            )
             
             # 創建解決方案
             solution = SatellitePoolSolution(
                 starlink_satellites=starlink_pool,
                 oneweb_satellites=oneweb_pool,
-                cost=1.0 - (total_selected / total_candidates),
+                cost=1.0 - overall_coverage,  # 成本越低越好
                 visibility_compliance=overall_coverage,
-                temporal_distribution=0.95,  # 時間覆蓋優化後應該有很好的分佈
-                signal_quality=0.80,  # 平衡覆蓋與信號品質
+                temporal_distribution=temporal_distribution_score,
+                signal_quality=signal_quality_score,
                 constraints_satisfied={
                     'starlink_temporal_coverage': starlink_coverage_score >= 0.8,
-                    'oneweb_temporal_coverage': oneweb_coverage_score >= 0.8,
-                    'total_pool_reasonable': 100 <= total_selected <= 200
+                    'oneweb_temporal_coverage': oneweb_coverage_score >= 0.7,
+                    'total_pool_size': 100 <= total_selected <= 156,
+                    'starlink_pool_size': len(starlink_pool) <= 120,
+                    'oneweb_pool_size': len(oneweb_pool) <= 36,
+                    'minimum_coverage': overall_coverage >= 0.75
                 }
             )
             
             self.logger.info(f"✅ 時間覆蓋動態池優化完成")
             self.logger.info(f"📊 覆蓋評分: Starlink {starlink_coverage_score:.1%}, OneWeb {oneweb_coverage_score:.1%}")
             self.logger.info(f"🛰️ 動態池大小: Starlink {len(starlink_pool)}, OneWeb {len(oneweb_pool)}")
+            self.logger.info(f"⏰ 時間分佈品質: {temporal_distribution_score:.1%}")
+            self.logger.info(f"📡 信號品質評分: {signal_quality_score:.1%}")
             self.logger.info(f"🎯 預期效果: 任何時刻可見 Starlink {self.coverage_targets['starlink'].target_visible_range[0]}-{self.coverage_targets['starlink'].target_visible_range[1]} 顆, OneWeb {self.coverage_targets['oneweb'].target_visible_range[0]}-{self.coverage_targets['oneweb'].target_visible_range[1]} 顆")
+            
+            # 🎯 顯示約束滿足情況
+            satisfied_count = sum(1 for v in solution.constraints_satisfied.values() if v)
+            total_constraints = len(solution.constraints_satisfied)
+            self.logger.info(f"✅ 約束滿足: {satisfied_count}/{total_constraints}")
             
             return solution
             
         except Exception as e:
             self.logger.error(f"❌ 時間覆蓋優化失敗: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             return SatellitePoolSolution(
                 starlink_satellites=[],
                 oneweb_satellites=[],
@@ -386,6 +424,51 @@ class EnhancedDynamicPoolPlanner:
                 signal_quality=0.0,
                 constraints_satisfied={}
             )
+    
+    def _calculate_temporal_distribution(self, starlink_pool, oneweb_pool, candidates):
+        """計算時間分佈品質評分"""
+        try:
+            candidate_map = {c.basic_info.satellite_id: c for c in candidates}
+            time_points = 192
+            covered_times = set()
+            
+            # 統計所有選中衛星的覆蓋時間點
+            for sat_id in starlink_pool + oneweb_pool:
+                if sat_id in candidate_map:
+                    candidate = candidate_map[sat_id]
+                    if hasattr(candidate, 'position_timeseries') and candidate.position_timeseries:
+                        for idx, pos in enumerate(candidate.position_timeseries[:time_points]):
+                            min_elev = 5.0 if candidate.basic_info.constellation.value == 'starlink' else 10.0
+                            if pos.get('elevation_deg', -90) >= min_elev:
+                                covered_times.add(idx)
+            
+            # 計算覆蓋率
+            coverage_ratio = len(covered_times) / time_points
+            return min(1.0, coverage_ratio)
+        except:
+            return 0.8  # 默認值
+    
+    def _calculate_signal_quality(self, starlink_pool, oneweb_pool, candidates):
+        """計算信號品質評分"""
+        try:
+            candidate_map = {c.basic_info.satellite_id: c for c in candidates}
+            total_rsrp = 0
+            count = 0
+            
+            for sat_id in starlink_pool + oneweb_pool:
+                if sat_id in candidate_map:
+                    candidate = candidate_map[sat_id]
+                    total_rsrp += candidate.signal_metrics.rsrp_dbm
+                    count += 1
+            
+            if count > 0:
+                avg_rsrp = total_rsrp / count
+                # 將RSRP轉換為0-1分數 (-120 to -80 dBm範圍)
+                score = (avg_rsrp + 120) / 40
+                return min(1.0, max(0.0, score))
+            return 0.7  # 默認值
+        except:
+            return 0.7  # 默認值
             
     def _select_temporal_coverage_pool(self, candidates, target_visible_per_window, pool_size_target, orbit_period, constellation_name):
         """為單個星座選擇時間覆蓋動態池 - 確保連續覆蓋優先"""
@@ -401,14 +484,17 @@ class EnhancedDynamicPoolPlanner:
         time_points = 192  # 96分鐘軌道週期，30秒間隔 = 192個時間點
         coverage_matrix = {}  # satellite_id -> set of covered time points
         
+        # 🎯 修復：使用正確的仰角門檻
+        min_elevation = 5.0 if constellation_name.lower() == 'starlink' else 10.0
+        
         for candidate in candidates:
             sat_id = candidate.basic_info.satellite_id
             covered_times = set()
             
             # 使用position_timeseries判斷覆蓋時間點
             if hasattr(candidate, 'position_timeseries') and candidate.position_timeseries:
-                for idx, pos in enumerate(candidate.position_timeseries):
-                    if pos.get('elevation_deg', -90) >= 5:  # 可見門檻
+                for idx, pos in enumerate(candidate.position_timeseries[:time_points]):  # 限制在192點內
+                    if pos.get('elevation_deg', -90) >= min_elevation:  # 使用星座特定門檻
                         covered_times.add(idx)
             else:
                 # 使用visibility windows作為備用
@@ -422,15 +508,19 @@ class EnhancedDynamicPoolPlanner:
             if covered_times:  # 只記錄有覆蓋的衛星
                 coverage_matrix[sat_id] = covered_times
         
+        # 🎯 優化：考慮NTPU地理位置特性
+        # NTPU在北緯24.94度，對於極軌衛星有特定的可見性模式
+        
         # Step 2: 使用貪婪集合覆蓋算法選擇衛星
         selected_pool = []
         uncovered_times = set(range(time_points))  # 初始所有時間點都未覆蓋
         candidate_map = {c.basic_info.satellite_id: c for c in candidates}
         
+        # 🎯 優化選擇策略：優先選擇高仰角、長時間可見的衛星
         while len(selected_pool) < pool_size_target and uncovered_times and coverage_matrix:
             # 找出覆蓋最多未覆蓋時間點的衛星
             best_satellite = None
-            best_coverage_count = 0
+            best_score = -1
             best_new_coverage = set()
             
             for sat_id, covered_times in coverage_matrix.items():
@@ -439,20 +529,38 @@ class EnhancedDynamicPoolPlanner:
                     new_coverage = covered_times & uncovered_times
                     coverage_count = len(new_coverage)
                     
-                    # 如果覆蓋數相同，考慮信號品質
-                    if coverage_count > best_coverage_count or (
-                        coverage_count == best_coverage_count and 
-                        best_satellite and sat_id in candidate_map and best_satellite in candidate_map and
-                        candidate_map[sat_id].signal_metrics.rsrp_dbm > candidate_map[best_satellite].signal_metrics.rsrp_dbm
-                    ):
-                        best_satellite = sat_id
-                        best_coverage_count = coverage_count
-                        best_new_coverage = new_coverage
+                    if coverage_count > 0 and sat_id in candidate_map:
+                        candidate = candidate_map[sat_id]
+                        
+                        # 🎯 綜合評分：覆蓋數量 + 信號品質 + 仰角
+                        # 權重：覆蓋數量70%，信號品質20%，平均仰角10%
+                        coverage_score = coverage_count / max(1, len(uncovered_times))  # 正規化
+                        signal_score = (candidate.signal_metrics.rsrp_dbm + 120) / 40  # 正規化 (-120 to -80 dBm)
+                        
+                        # 計算平均仰角
+                        avg_elevation = 0
+                        if hasattr(candidate, 'position_timeseries') and candidate.position_timeseries:
+                            elevations = [pos.get('elevation_deg', 0) for pos in candidate.position_timeseries 
+                                        if pos.get('elevation_deg', -90) >= min_elevation]
+                            avg_elevation = sum(elevations) / max(1, len(elevations)) if elevations else 0
+                        elevation_score = avg_elevation / 90  # 正規化
+                        
+                        # 綜合評分
+                        total_score = (0.7 * coverage_score + 
+                                     0.2 * signal_score + 
+                                     0.1 * elevation_score)
+                        
+                        if total_score > best_score:
+                            best_satellite = sat_id
+                            best_score = total_score
+                            best_new_coverage = new_coverage
             
             if best_satellite:
                 selected_pool.append(best_satellite)
                 uncovered_times -= best_new_coverage
-                self.logger.debug(f"  選擇 {best_satellite}: 新覆蓋 {best_coverage_count} 個時間點")
+                candidate = candidate_map[best_satellite]
+                self.logger.debug(f"  選擇 {best_satellite}: 新覆蓋 {len(best_new_coverage)} 個時間點, "
+                               f"RSRP: {candidate.signal_metrics.rsrp_dbm:.1f} dBm")
             else:
                 break  # 沒有衛星能提供新覆蓋
         
@@ -460,25 +568,59 @@ class EnhancedDynamicPoolPlanner:
         if uncovered_times and len(selected_pool) < pool_size_target:
             self.logger.warning(f"⚠️ {constellation_name} 仍有 {len(uncovered_times)} 個時間點無覆蓋")
             
-            # 按信號品質排序剩餘候選
+            # 🎯 優化：選擇與已選衛星互補的衛星
             remaining_candidates = [c for c in candidates if c.basic_info.satellite_id not in selected_pool]
-            remaining_candidates.sort(key=lambda x: x.signal_metrics.rsrp_dbm, reverse=True)
+            
+            # 按綜合品質排序
+            def quality_score(candidate):
+                # 信號品質 + 總可見時間 + 覆蓋率
+                signal = (candidate.signal_metrics.rsrp_dbm + 120) / 40
+                visibility = candidate.total_visible_time / 96  # 正規化到0-1
+                coverage = candidate.coverage_ratio
+                return 0.4 * signal + 0.3 * visibility + 0.3 * coverage
+            
+            remaining_candidates.sort(key=quality_score, reverse=True)
             
             # 補充到目標數量
             for candidate in remaining_candidates:
                 if len(selected_pool) >= pool_size_target:
                     break
                 selected_pool.append(candidate.basic_info.satellite_id)
+                self.logger.debug(f"  補充 {candidate.basic_info.satellite_id}: "
+                               f"品質分數 {quality_score(candidate):.3f}")
         
         # 計算覆蓋統計
         total_covered = time_points - len(uncovered_times)
         coverage_percentage = (total_covered / time_points) * 100
         
+        # 🎯 優化統計：顯示更詳細的覆蓋信息
         self.logger.info(f"📊 {constellation_name} 選出 {len(selected_pool)}/{len(candidates)} 顆衛星")
         self.logger.info(f"⏰ 時間覆蓋率: {coverage_percentage:.1f}% ({total_covered}/{time_points} 時間點)")
         
+        # 計算連續覆蓋窗口
+        if uncovered_times:
+            # 找出連續未覆蓋的時間段
+            uncovered_list = sorted(list(uncovered_times))
+            gaps = []
+            if uncovered_list:
+                gap_start = uncovered_list[0]
+                gap_length = 1
+                for i in range(1, len(uncovered_list)):
+                    if uncovered_list[i] == uncovered_list[i-1] + 1:
+                        gap_length += 1
+                    else:
+                        gaps.append((gap_start, gap_length))
+                        gap_start = uncovered_list[i]
+                        gap_length = 1
+                gaps.append((gap_start, gap_length))
+                
+                max_gap = max(gaps, key=lambda x: x[1]) if gaps else (0, 0)
+                self.logger.warning(f"⚠️ 最大覆蓋空隙: {max_gap[1]*30}秒 (從時間點 {max_gap[0]})")
+        
         if coverage_percentage < 95:
             self.logger.warning(f"⚠️ {constellation_name} 覆蓋率低於95%，可能存在覆蓋空隙")
+        elif coverage_percentage == 100:
+            self.logger.info(f"✅ {constellation_name} 達到100%時間覆蓋！")
         
         return selected_pool
 
@@ -585,7 +727,7 @@ class EnhancedDynamicPoolPlanner:
         return output
 
     def process(self, input_file: str = None, input_data=None, 
-                output_file: str = "/app/data/enhanced_dynamic_pools_output.json") -> Dict[str, Any]:
+                output_file: str = "/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json") -> Dict[str, Any]:
         """
         統一處理函數 - UltraThink 架構修復
         

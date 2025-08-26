@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Shared Core 模組 - v3.1 數據血統追蹤版
+Shared Core 模組 - v3.2 統一 JSON 檔案服務版
 =====================================
 
 統一的核心服務模組，為六階段處理器提供共享功能：
@@ -11,11 +11,12 @@ Shared Core 模組 - v3.1 數據血統追蹤版
 - 數據模型
 - 工具函數
 - 🎯 數據血統追蹤管理器 (v3.1 新增)
+- 📄 統一 JSON 檔案服務 (v3.2 新增)
 
-v3.1 更新: 添加數據血統追蹤機制，確保數據來源可追蹤性
+v3.2 更新: 添加統一 JSON 檔案服務，消除重複的檔案 I/O 程式碼
 """
 
-__version__ = "3.1.0"
+__version__ = "3.2.0"
 __author__ = "LEO Satellite Research Team"
 
 # 導出主要服務
@@ -36,6 +37,11 @@ try:
         ProcessingRecord,
         DataLineage
     )
+    # 📄 v3.2 新增：統一 JSON 檔案服務
+    from .json_file_service import (
+        JSONFileService,
+        get_json_file_service
+    )
     
     __all__ = [
         'get_ntpu_coordinates',
@@ -52,7 +58,10 @@ try:
         'DataLineageManager',
         'DataSource',
         'ProcessingRecord',
-        'DataLineage'
+        'DataLineage',
+        # 📄 v3.2 統一 JSON 檔案服務
+        'JSONFileService',
+        'get_json_file_service'
     ]
     
 except ImportError as e:
