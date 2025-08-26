@@ -25,6 +25,9 @@ from src.services.satellite.intelligent_filtering.unified_intelligent_filter imp
 
 logger = logging.getLogger(__name__)
 
+# 導入統一觀測座標管理
+from shared_core.observer_config_service import get_ntpu_coordinates
+
 class IntelligentSatelliteFilterProcessor:
     """
     智能衛星篩選處理器封裝 (重構版)
@@ -41,10 +44,17 @@ class IntelligentSatelliteFilterProcessor:
     - 移除重複的仰角邏輯
     """
     
-    def __init__(self, observer_lat: float = 24.9441667, observer_lon: float = 121.3713889,
+    def __init__(self, observer_lat: float = None, observer_lon: float = None,
                  input_dir: str = "/app/data", output_dir: str = "/app/data"):
-        self.observer_lat = observer_lat
-        self.observer_lon = observer_lon
+        # 使用統一觀測座標管理，移除硬編碼
+        if observer_lat is None or observer_lon is None:
+            ntpu_lat, ntpu_lon, _ = get_ntpu_coordinates()  # 忽略高度值
+            self.observer_lat = observer_lat if observer_lat is not None else ntpu_lat
+            self.observer_lon = observer_lon if observer_lon is not None else ntpu_lon
+        else:
+            self.observer_lat = observer_lat
+            self.observer_lon = observer_lon
+            
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -57,23 +67,22 @@ class IntelligentSatelliteFilterProcessor:
         self.elevation_manager = get_elevation_threshold_manager()
         
         observer_location = ObserverLocation(
-            latitude=observer_lat,
-            longitude=observer_lon,
+            latitude=self.observer_lat,
+            longitude=self.observer_lon,
             altitude=50.0,
             location_name="NTPU"
         )
         self.visibility_service = get_visibility_service(observer_location)
         
         # 創建統一智能篩選系統
-        self.filter_system = create_unified_intelligent_filter(observer_lat, observer_lon)
+        self.filter_system = create_unified_intelligent_filter(self.observer_lat, self.observer_lon)
         
         logger.info("✅ 智能衛星篩選處理器初始化完成 (重構版)")
         logger.info(f"  輸入目錄: {self.input_dir}")
         logger.info(f"  輸出目錄: {self.output_dir}")
-        logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
+        logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°) [來自 shared_core]")
         logger.info("  🔧 使用統一仰角門檻管理器")
-        logger.info("  🔧 使用統一可見性檢查服務")
-        
+        logger.info("  🔧 使用統一可見性檢查服務")        
     def load_orbital_calculation_output(self, orbital_file: Optional[str] = None) -> Dict[str, Any]:
         """載入軌道計算輸出數據"""
         if orbital_file is None:
@@ -147,12 +156,66 @@ class IntelligentSatelliteFilterProcessor:
             original_count = len(satellites_list)
             total_processed += original_count
             
-            # 使用統一可見性服務進行篩選
-            logger.info(f"  🔍 使用統一可見性服務篩選 {original_count} 顆衛星...")
+            # 🎯 關鍵修復：轉換數據格式以匹配可見性服務期望
+            logger.info(f"  🔧 轉換 Stage 1 數據格式以匹配可見性服務...")
             
-            # 設定最小可見時間要求 (5分鐘)
+            converted_satellites = []
+            for satellite in satellites_list:
+                # 複製衛星數據
+                converted_satellite = satellite.copy()
+                
+                # 將 Stage 1 的 "positions" (lat/lon/alt_km) 轉換為可見性服務期望的格式
+                if 'positions' in satellite:
+                    positions = satellite['positions']
+                    converted_positions = []
+                    
+                    for pos in positions:
+                        # 確定星座的仰角門檻
+                        if constellation_name.lower() == 'starlink':
+                            threshold = 5.0  # Starlink 5° 門檻
+                        elif constellation_name.lower() == 'oneweb':
+                            threshold = 10.0  # OneWeb 10° 門檻
+                        else:
+                            threshold = 5.0  # 默認門檻
+                        
+                        converted_pos = {
+                            'latitude': pos.get('lat', 0),        # lat -> latitude
+                            'longitude': pos.get('lon', 0),       # lon -> longitude  
+                            'altitude': pos.get('alt_km', 0),     # alt_km -> altitude
+                            'timestamp': pos.get('time', ''),
+                            # 保留預計算的可見性數據
+                            'elevation_deg': pos.get('elevation_deg', 0),
+                            'azimuth_deg': pos.get('azimuth_deg', 0),
+                            'range_km': pos.get('range_km', 0),
+                            'is_visible': pos.get('elevation_deg', 0) >= threshold
+                        }
+                        converted_positions.append(converted_pos)
+                    
+                    # 設置轉換後的數據
+                    converted_satellite['position_timeseries'] = converted_positions
+                    logger.debug(f"    轉換衛星 {satellite.get('satellite_id', 'Unknown')}: {len(converted_positions)} 個時間點")
+                
+                converted_satellites.append(converted_satellite)
+            
+            logger.info(f"  ✅ 數據格式轉換完成: {len(converted_satellites)} 顆衛星")
+            
+            # 使用統一可見性服務進行篩選
+            logger.info(f"  🔍 使用統一可見性服務篩選...")
+            
+            # 🎯 重要修復：根據星座設定適當的最小可見時間要求
+            # Starlink (低軌道) 需要較長可見時間確保品質
+            # OneWeb (高軌道) 可見機會較少，降低時間要求
+            if constellation_name.lower() == 'starlink':
+                min_visibility_minutes = 5.0  # 5分鐘
+            elif constellation_name.lower() == 'oneweb':
+                min_visibility_minutes = 2.0  # 2分鐘 (適應高軌道特性)
+            else:
+                min_visibility_minutes = 3.0  # 其他星座使用中等要求
+            
+            logger.info(f"  ⏰ {constellation_name} 最小可見時間要求: {min_visibility_minutes} 分鐘")
+            
             visible_satellites = self.visibility_service.filter_visible_satellites(
-                satellites_list, constellation_name, min_visibility_duration_minutes=5.0
+                converted_satellites, constellation_name, min_visibility_duration_minutes=min_visibility_minutes
             )
             
             # 進一步使用統一仰角管理器進行品質篩選
@@ -166,8 +229,13 @@ class IntelligentSatelliteFilterProcessor:
                     satellite['position_timeseries'] = satellite['positions']
                     logger.debug(f"  轉換 positions -> position_timeseries for {satellite.get('satellite_id', 'Unknown')}")
                 
-                # 檢查衛星是否有足夠的高品質時間點
+                # 🔍 調試：記錄時間序列點數
                 timeseries = satellite.get('position_timeseries', satellite.get('positions', []))
+                if timeseries:
+                    logger.debug(f"  衛星 {satellite.get('satellite_id', 'Unknown')}: {len(timeseries)} 個時間點")
+                    if len(timeseries) < 192:
+                        logger.warning(f"  ⚠️ 衛星 {satellite.get('satellite_id', 'Unknown')} 只有 {len(timeseries)} 個時間點 (預期 192)")
+                
                 optimal_points = 0
                 
                 for point in timeseries:
@@ -189,6 +257,12 @@ class IntelligentSatelliteFilterProcessor:
                     satellite_copy = satellite.copy()
                     if 'positions' in satellite_copy and 'position_timeseries' not in satellite_copy:
                         satellite_copy['position_timeseries'] = satellite_copy['positions']
+                    
+                    # 🎯 驗證時間序列完整性
+                    final_timeseries = satellite_copy.get('position_timeseries', [])
+                    if len(final_timeseries) < 192:
+                        logger.warning(f"  ⚠️ 篩選後衛星 {satellite_copy.get('satellite_id', 'Unknown')} 時間序列不完整: {len(final_timeseries)}/192 點")
+                    
                     high_quality_satellites.append(satellite_copy)
             
             filtered_count = len(high_quality_satellites)
@@ -214,6 +288,13 @@ class IntelligentSatelliteFilterProcessor:
             logger.info(f"  ✅ {constellation_name} 篩選完成:")
             logger.info(f"    原始: {original_count} → 可見: {len(visible_satellites)} → 高品質: {filtered_count}")
             logger.info(f"    保留率: {filtered_count/original_count*100:.1f}%")
+            
+            # 🔍 統計時間序列完整性
+            complete_timeseries_count = sum(
+                1 for sat in high_quality_satellites 
+                if len(sat.get('position_timeseries', [])) >= 192
+            )
+            logger.info(f"    完整時間序列 (192點): {complete_timeseries_count}/{filtered_count} 顆衛星")
         
         # 生成統一篩選結果
         filtering_result = {
@@ -259,7 +340,7 @@ class IntelligentSatelliteFilterProcessor:
         return self.execute_refactored_intelligent_filtering(orbital_data)
             
     def save_intelligent_filtering_output(self, filtered_data: Dict[str, Any]) -> str:
-        """保存智能篩選輸出數據 - v3.1 修復路徑版本"""
+        """保存智能篩選輸出數據 - v3.2 修復satellites陣列問題"""
         # 🔧 修復：直接使用 output_dir，不創建 leo_outputs 子目錄
         self.output_dir.mkdir(parents=True, exist_ok=True)
         output_file = self.output_dir / "intelligent_filtered_output.json"
@@ -272,30 +353,52 @@ class IntelligentSatelliteFilterProcessor:
             output_file.unlink()
             logger.info("✅ 舊檔案已刪除")
         
+        # 🎯 關鍵修復：將constellations中的衛星合併到satellites陣列
+        all_satellites = []
+        if 'constellations' in filtered_data:
+            for constellation_name, constellation_data in filtered_data['constellations'].items():
+                satellites = constellation_data.get('satellites', [])
+                # 為每顆衛星添加星座標記
+                for sat in satellites:
+                    sat['constellation'] = constellation_name
+                all_satellites.extend(satellites)
+        
+        # 構建正確的輸出格式
+        output_data = {
+            'metadata': filtered_data['metadata'],
+            'satellites': all_satellites  # 🔧 添加扁平化的satellites陣列
+        }
+        
         # 添加重構版標記
-        filtered_data['metadata'].update({
+        output_data['metadata'].update({
             'filtering_timestamp': datetime.now(timezone.utc).isoformat(),
-            'file_generation': 'path_fixed_version',
+            'file_generation': 'satellites_array_fixed_v3.2',  # 更新版本號
             'refactoring_improvements': [
                 'unified_elevation_threshold_manager',
                 'unified_visibility_service', 
                 'removed_duplicate_elevation_logic',
                 'improved_quality_filtering',
-                'fixed_output_path_consistency'  # 新增路徑修復標記
-            ]
+                'fixed_output_path_consistency',
+                'fixed_satellites_array_structure'  # 🎯 新增修復標記
+            ],
+            'satellites_count': len(all_satellites)  # 添加衛星總數
         })
         
         # 💾 生成新的智能篩選輸出檔案
-        logger.info(f"💾 生成修復路徑版智能篩選輸出檔案: {output_file}")
+        logger.info(f"💾 生成修復版智能篩選輸出檔案: {output_file}")
+        logger.info(f"   🛰️ satellites陣列包含 {len(all_satellites)} 顆衛星")
+        
         with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(filtered_data, f, indent=2, ensure_ascii=False)
+            json.dump(output_data, f, indent=2, ensure_ascii=False)
             
         # 檢查新檔案大小
         new_file_size = output_file.stat().st_size
-        logger.info(f"✅ 修復路徑版智能篩選數據已保存: {output_file}")
+        logger.info(f"✅ 修復版智能篩選數據已保存: {output_file}")
         logger.info(f"   新檔案大小: {new_file_size / (1024*1024):.1f} MB")
-        logger.info(f"   包含衛星數: {filtered_data['metadata'].get('unified_filtering_results', {}).get('total_selected', 'unknown')}")
-        logger.info("   🎯 路徑修復: 移除額外的 leo_outputs 子目錄")
+        logger.info(f"   包含衛星數: {len(all_satellites)} (satellites陣列)")
+        logger.info(f"   Starlink: {len([s for s in all_satellites if s.get('constellation') == 'starlink'])} 顆")
+        logger.info(f"   OneWeb: {len([s for s in all_satellites if s.get('constellation') == 'oneweb'])} 顆")
+        logger.info("   🎯 修復完成: satellites陣列已正確填充")
         
         return str(output_file)
         

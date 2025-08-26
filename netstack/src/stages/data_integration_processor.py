@@ -13,6 +13,9 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+# 導入統一觀測座標管理
+from shared_core.observer_config_service import get_ntpu_coordinates
+
 @dataclass
 class Stage5Config:
     """階段五配置參數"""
@@ -43,12 +46,14 @@ class Stage5IntegrationProcessor:
         self.logger = logging.getLogger(__name__)
         self.processing_start_time = time.time()
         
-        # 使用預設觀測座標
-        self.observer_lat = 24.9441667
-        self.observer_lon = 121.3713889
-        self.observer_alt = 100.0
+        # 使用統一觀測座標管理，移除硬編碼
+        ntpu_lat, ntpu_lon, ntpu_alt = get_ntpu_coordinates()
+        self.observer_lat = ntpu_lat
+        self.observer_lon = ntpu_lon
+        self.observer_alt = ntpu_alt
         
-        self.logger.info("✅ Stage5 數據整合處理器初始化完成 (語法修復版)")
+        self.logger.info("✅ Stage5 數據整合處理器初始化完成 (使用 shared_core 座標)")
+        self.logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°) [來自 shared_core]")
         
     async def process_enhanced_timeseries(self) -> Dict[str, Any]:
         """執行完整的數據整合處理流程"""

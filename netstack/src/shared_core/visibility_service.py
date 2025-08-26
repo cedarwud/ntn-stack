@@ -254,9 +254,10 @@ class SatelliteVisibilityService:
             
             # 檢查是否滿足最小可見時間要求
             if total_visible_duration >= min_visibility_duration_minutes:
-                # 只保留可見的時間點
+                # 🎯 重要修復：保留完整時間序列，不截斷不可見時間點
+                # 這確保後續階段能獲得完整的軌道數據 (192/240個時間點)
                 filtered_satellite = satellite.copy()
-                filtered_satellite['position_timeseries'] = visible_points
+                filtered_satellite['position_timeseries'] = timeseries  # 保留完整時間序列
                 filtered_satellite['visibility_stats'] = {
                     'total_visible_duration_minutes': total_visible_duration,
                     'visible_points_count': len(visible_points),

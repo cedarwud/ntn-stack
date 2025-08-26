@@ -251,7 +251,7 @@ satellite_tle_data:        -- TLE原始數據存儲
 - **動畫流暢度**: 支援 1x-60x 倍速播放
 
 ### 資源使用優化
-- **PostgreSQL 存儲**: ~3MB/週 (96分鐘軌道週期數據，存儲於現有 RL 數據庫)
+- **PostgreSQL 存儲**: ~3MB/週 (Starlink: 96分鐘、OneWeb: 109分鐘軌道週期數據，存儲於現有 RL 數據庫)
 - **記憶體使用**: ~50MB (PostgreSQL 查詢緩存)
 - **CPU 使用**: 預計算階段 30%，查詢階段 <5%
 - **網路流量**: 僅週更新時需要，平時離線運行
@@ -362,7 +362,7 @@ class DataProcessingErrorHandler:
 ### 數據處理統計
 ```
 原始數據:     8,730 顆衛星 TLE
-Stage 1:      完整 SGP4 軌道計算 (96分鐘軌道週期 × 30秒間隔)
+Stage 1:      完整 SGP4 軌道計算 (Starlink: 96分鐘、OneWeb: 109分鐘軌道週期 × 30秒間隔)
 Stage 2:      智能篩選至 1,184 顆候選 (86.4% 減少)
 Stage 3:      3GPP A4/A5/D2 事件分析
 Stage 4:      前端動畫數據最佳化 (60-75MB)

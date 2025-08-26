@@ -383,11 +383,28 @@ class Stage1TLEProcessor:
                     # 🎯 重要修復：記錄實際使用的TLE epoch時間，而不是處理時間
                     logger.debug(f"衛星 {sat_data['satellite_id']}: TLE epoch = {tle_epoch_date.isoformat()}, 處理時間 = {current_time.isoformat()}")
                     
-                    # 使用 TLE epoch 時間作為計算基準
-                    orbit_result = orbit_engine.compute_96min_orbital_cycle(
-                        tle_data,
-                        tle_epoch_date  # 🎯 修復：使用 TLE epoch 時間而非當前時間
-                    )
+                    # 🎯 重要修復：根據星座選擇正確的軌道週期
+                    # Starlink (~550km) 使用96分鐘軌道週期
+                    # OneWeb (~1200km) 使用120分鐘軌道週期 (實際~109-110分鐘)
+                    if constellation.lower() == 'starlink':
+                        orbit_result = orbit_engine.compute_96min_orbital_cycle(
+                            tle_data,
+                            tle_epoch_date
+                        )
+                        logger.debug(f"使用96分鐘軌道週期計算 Starlink 衛星: {sat_data['satellite_id']}")
+                    elif constellation.lower() == 'oneweb':
+                        orbit_result = orbit_engine.compute_109min_orbital_cycle(
+                            tle_data,
+                            tle_epoch_date
+                        )
+                        logger.debug(f"使用109分鐘軌道週期計算 OneWeb 衛星: {sat_data['satellite_id']}")
+                    else:
+                        # 其他星座默認使用96分鐘週期
+                        orbit_result = orbit_engine.compute_96min_orbital_cycle(
+                            tle_data,
+                            tle_epoch_date
+                        )
+                        logger.warning(f"未知星座 {constellation}，使用預設96分鐘軌道週期")
                     
                     if orbit_result and 'positions' in orbit_result:
                         satellite_orbit_data = {
