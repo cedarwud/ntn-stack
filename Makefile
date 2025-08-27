@@ -174,12 +174,12 @@ netstack-start-full: ## 啟動 NetStack 服務並完成開發環境設置
 
 netstack-start-optimized: ## 啟動 NetStack 服務 (Pure Cron 驅動模式 - 整合版)
 	@echo "$(BLUE)🚀 啟動 NetStack 服務 (Pure Cron 驅動模式)..."
-	@cd ${NETSTACK_DIR} && docker compose -f compose/core-simple.yaml up -d
+	@cd ${NETSTACK_DIR} && docker compose -f compose/core.yaml up -d
 	@echo "$(YELLOW)⏳ 等待 NetStack API 健康檢查通過...$(RESET)"
-	@timeout=60; \
+	@timeout=120; \
 	while [ $$timeout -gt 0 ]; do \
 		if curl -s -f $(NETSTACK_URL)/health >/dev/null 2>&1; then \
-			echo "$(GREEN)✅ NetStack API 健康檢查通過 ($$((60-timeout)) 秒)$(RESET)"; \
+			echo "$(GREEN)✅ NetStack API 健康檢查通過 ($$((120-timeout)) 秒)$(RESET)"; \
 			break; \
 		fi; \
 		echo "$(BLUE)  等待中... (剩餘 $$timeout 秒)$(RESET)"; \
@@ -187,7 +187,7 @@ netstack-start-optimized: ## 啟動 NetStack 服務 (Pure Cron 驅動模式 - �
 		timeout=$$((timeout-2)); \
 	done; \
 	if [ $$timeout -le 0 ]; then \
-		echo "$(RED)❌ NetStack API 啟動超時 (60秒)$(RESET)"; \
+		echo "$(RED)❌ NetStack API 啟動超時 (120秒)$(RESET)"; \
 		exit 1; \
 	fi
 	@echo "$(GREEN)✅ NetStack 服務已啟動 (Pure Cron 驅動模式)$(RESET)"

@@ -351,8 +351,10 @@ services:
   netstack-api:
     image: netstack-api:latest
     container_name: netstack-api
-    entrypoint: ["/usr/local/bin/smart-entrypoint.sh"]
-    command: ["python", "-m", "netstack_api.main"]
+    # Temporarily bypass smart entrypoint to resolve startup issues
+    # entrypoint: ["/usr/local/bin/smart-entrypoint.sh"]
+    # command: ["python", "-m", "netstack_api.main"]
+    entrypoint: ["python", "-m", "netstack_api.main"]
     environment:
       - DATABASE_URL=mongodb://mongo:27017/open5gs
       - MONGO_HOST=mongo
@@ -360,7 +362,7 @@ services:
       - SATELLITE_DATABASE_URL=postgresql://netstack_user:netstack_password@netstack-postgres:5432/netstack_db
       - LOG_LEVEL=info
       - ENVIRONMENT=production
-      # - SKIP_DATA_GENERATION=true
+      - SKIP_DATA_GENERATION=true  # Temporarily skip data generation to resolve startup issues
       # - SIMWORLD_API_URL=http://simworld_backend:8000  # Removed - using Phase0 preprocessing instead
       # Phase 5 容器啟動優化環境變數
       - SATELLITE_DATA_MODE=instant_load     # 啟動時立即載入
@@ -386,7 +388,8 @@ services:
       - redis
       - postgres
       - amf
-      - smf
+      # Temporarily removed SMF dependency due to freeDiameter initialization issues
+      # - smf
     networks:
       netstack-core:
         ipv4_address: 172.20.0.41
