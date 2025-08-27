@@ -70,6 +70,7 @@ smf:
 #    - ::1
 #  ctf:
 #    enabled: auto   # auto(default)|yes|no
+  # freeDiameter disabled to avoid DNS resolution issues
   # freeDiameter: /opt/open5gs/etc/freeDiameter/smf.conf
 ################################################################################
 # SMF Info
