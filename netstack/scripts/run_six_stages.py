@@ -19,7 +19,7 @@ def run_all_stages():
     from src.stages.intelligent_satellite_filter_processor import IntelligentSatelliteFilterProcessor
     from src.stages.signal_quality_analysis_processor import SignalQualityAnalysisProcessor
     from src.stages.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
-    from src.stages.data_integration_processor import DataIntegrationProcessor
+    from src.stages.data_integration_processor import Stage5IntegrationProcessor as DataIntegrationProcessor
     from src.stages.enhanced_dynamic_pool_planner import EnhancedDynamicPoolPlanner
     
     print('🚀 六階段數據處理系統')
@@ -51,7 +51,8 @@ def run_all_stages():
         input_dir='/app/data',
         output_dir='/app/data/intelligent_filtering_outputs'
     )
-    results['stage2'] = stage2.process_intelligent_filtering(results['stage1'])
+    # 傳遞 orbital_data 作為關鍵字參數
+    results['stage2'] = stage2.process_intelligent_filtering(orbital_data=results['stage1'])
     
     if not results['stage2']:
         print('❌ 階段二失敗')
@@ -69,7 +70,8 @@ def run_all_stages():
         input_dir='/app/data',
         output_dir='/app/data/signal_analysis_outputs'
     )
-    results['stage3'] = stage3.process_signal_quality_analysis(results['stage2'])
+    # 傳遞 filtered_data 作為字典數據
+    results['stage3'] = stage3.process_signal_quality_analysis(filtered_data=results['stage2'])
     
     if not results['stage3']:
         print('❌ 階段三失敗')
@@ -83,7 +85,8 @@ def run_all_stages():
         input_dir='/app/data',
         output_dir='/app/data/timeseries_preprocessing_outputs'
     )
-    results['stage4'] = stage4.process_timeseries_preprocessing(results['stage3'])
+    # 傳遞 signal_data 作為字典數據
+    results['stage4'] = stage4.process_timeseries_preprocessing(signal_data=results['stage3'])
     
     if not results['stage4']:
         print('❌ 階段四失敗')
@@ -93,11 +96,15 @@ def run_all_stages():
     # 階段五：數據整合
     print('\n🔄 階段五：數據整合')
     print('-' * 60)
-    stage5 = DataIntegrationProcessor(
-        input_dir='/app/data',
-        output_dir='/app/data/data_integration_outputs'
+    from src.stages.data_integration_processor import Stage5Config
+    stage5_config = Stage5Config(
+        input_enhanced_timeseries_dir='/app/data',
+        output_data_integration_dir='/app/data/data_integration_outputs',
+        elevation_thresholds=[5, 10, 15]
     )
-    results['stage5'] = stage5.process_data_integration(results['stage4'])
+    stage5 = DataIntegrationProcessor(stage5_config)
+    # 傳遞 enhanced_data 作為字典數據
+    results['stage5'] = stage5.process_data_integration(enhanced_data=results['stage4'])
     
     if not results['stage5']:
         print('❌ 階段五失敗')
@@ -107,11 +114,15 @@ def run_all_stages():
     # 階段六：動態池規劃
     print('\n🎯 階段六：動態池規劃')
     print('-' * 60)
-    stage6 = EnhancedDynamicPoolPlanner(
-        input_dir='/app/data',
-        output_dir='/app/data/dynamic_pool_planning_outputs'
-    )
-    results['stage6'] = stage6.plan_dynamic_pools(results['stage5'])
+    stage6_config = {
+        'input_dir': '/app/data',
+        'output_dir': '/app/data/dynamic_pool_planning_outputs',
+        'elevation_thresholds': [5, 10, 15],
+        'pool_sizes': {'starlink': 120, 'oneweb': 36}
+    }
+    stage6 = EnhancedDynamicPoolPlanner(stage6_config)
+    # 傳遞 integrated_data 作為字典數據
+    results['stage6'] = stage6.plan_dynamic_pools(integrated_data=results['stage5'])
     
     if not results['stage6']:
         print('❌ 階段六失敗')
@@ -161,6 +172,17 @@ def verify_outputs():
 
 def main():
     """主函數"""
+    import argparse
+    
+    # 解析命令行參數
+    parser = argparse.ArgumentParser(description='六階段數據處理系統')
+    parser.add_argument('--data-dir', default='/app/data', 
+                       help='數據輸出目錄 (預設: /app/data)')
+    args = parser.parse_args()
+    
+    # 確保數據目錄存在
+    os.makedirs(args.data_dir, exist_ok=True)
+    
     try:
         # 執行六階段
         success = run_all_stages()

@@ -62,21 +62,13 @@ export default function SceneView({
         Map<string, [number, number, number]>
     >(new Map())
     const [_handoverEvents, _setHandoverEvents] = useState<HandoverEvent[]>([])
-    // 修復：連接側邊欄的速度控制到動畫配置
-    const [_animationConfig, _setAnimationConfig] = useState({
-        acceleration: handoverState.satelliteMovementSpeed || 60, // 🚀 使用側邊欄控制的速度
-        distanceScale: 0.1,
-        fps: 30,
-        smoothing: true,
-    })
-
-    // 同步側邊欄速度變更到動畫配置
-    useEffect(() => {
-        _setAnimationConfig(prev => ({
-            ...prev,
-            acceleration: handoverState.satelliteMovementSpeed || 60
-        }))
-    }, [handoverState.satelliteMovementSpeed])
+    // 🎯 移除重复的动画配置状态 - 直接使用 handoverState.satelliteMovementSpeed
+    // const [_animationConfig, _setAnimationConfig] = useState({
+    //     acceleration: handoverState.satelliteMovementSpeed || 60,
+    //     distanceScale: 0.1,
+    //     fps: 30,
+    //     smoothing: true,
+    // })
 
     // 使用統一的數據同步上下文獲取衛星數據
     const { state: _state } = useDataSync()

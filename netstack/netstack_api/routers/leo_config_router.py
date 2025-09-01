@@ -11,7 +11,7 @@ import structlog
 # Import LEO unified configuration system
 import sys
 sys.path.append('/app/config')
-sys.path.append('/app/src/leo_core')
+# sys.path.append('/app/src/leo_core')  # 已移除過時的 leo_core 系統
 
 try:
     from config.leo_config import (

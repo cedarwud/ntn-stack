@@ -491,11 +491,22 @@ class EnhancedDynamicPoolPlanner:
             sat_id = candidate.basic_info.satellite_id
             covered_times = set()
             
-            # 使用position_timeseries判斷覆蓋時間點
+            # 🎯 CRITICAL FIX: 使用position_timeseries判斷覆蓋時間點，加強NTPU可見性驗證
             if hasattr(candidate, 'position_timeseries') and candidate.position_timeseries:
+                valid_positions_count = 0
                 for idx, pos in enumerate(candidate.position_timeseries[:time_points]):  # 限制在192點內
-                    if pos.get('elevation_deg', -90) >= min_elevation:  # 使用星座特定門檻
+                    elevation = pos.get('elevation_deg', -90)
+                    is_visible = pos.get('is_visible', False)
+                    
+                    # 🎯 CRITICAL FIX: 同時檢查仰角門檻AND實際可見性標記
+                    if elevation >= min_elevation and is_visible:
                         covered_times.add(idx)
+                        valid_positions_count += 1
+                
+                # 🎯 CRITICAL FIX: 如果衛星在NTPU沒有任何可見時間點，記錄警告
+                if valid_positions_count == 0:
+                    self.logger.warning(f"⚠️ {candidate.basic_info.satellite_id} 在NTPU位置無任何可見時間點，排除出候選池")
+                    continue  # 跳過這顆衛星
             else:
                 # 使用visibility windows作為備用
                 for window in candidate.windows:
@@ -505,8 +516,27 @@ class EnhancedDynamicPoolPlanner:
                     for idx in range(start_idx, min(end_idx, time_points)):
                         covered_times.add(idx)
             
-            if covered_times:  # 只記錄有覆蓋的衛星
+            # 🎯 CRITICAL FIX: 只記錄有有效覆蓋時間點的衛星
+            if covered_times:  
                 coverage_matrix[sat_id] = covered_times
+                self.logger.debug(f"✅ {sat_id} 添加到覆蓋矩陣，有效時間點: {len(covered_times)}")
+            else:
+                self.logger.debug(f"⚠️ {sat_id} 無有效覆蓋時間點，不添加到覆蓋矩陣")
+        
+        # 🎯 CRITICAL FIX: 報告NTPU可見性驗證結果
+        valid_candidates = len(coverage_matrix)
+        total_candidates = len(candidates)
+        elimination_rate = (total_candidates - valid_candidates) / total_candidates * 100 if total_candidates > 0 else 0
+        
+        self.logger.info(f"🔍 NTPU可見性驗證結果: {valid_candidates}/{total_candidates} 候選通過 (淘汰率: {elimination_rate:.1f}%)")
+        
+        if elimination_rate > 50:
+            self.logger.warning(f"⚠️ {constellation_name} 高淘汰率 ({elimination_rate:.1f}%) - 可能需要調整仰角門檻或增加候選池")
+        
+        # 🎯 如果沒有有效候選，提前返回空列表
+        if not coverage_matrix:
+            self.logger.error(f"❌ {constellation_name} 在NTPU位置無任何可見衛星候選，無法生成覆蓋池")
+            return []
         
         # 🎯 優化：考慮NTPU地理位置特性
         # NTPU在北緯24.94度，對於極軌衛星有特定的可見性模式

@@ -4,7 +4,7 @@ set -e
 echo "🚀 NetStack 智能啟動開始..."
 
 # 🔧 緊急修復模式：自動檢測並跳過有問題的六階段系統
-if ! python -c "import sys; sys.path.append('/app/src'); from leo_core.main_pipeline_controller import main" 2>/dev/null; then
+if ! python -c "import sys; sys.path.append('/app/scripts'); import run_six_stages" 2>/dev/null; then
     echo "⚡ 檢測到六階段系統導入錯誤，啟用緊急模式：跳過數據生成，直接啟動 API"
     exec "$@"
     exit 0
@@ -119,9 +119,9 @@ regenerate_data() {
     
     # 執行增強六階段系統 (完整流程)
     echo "🔨 增強六階段系統：完整統一管道 (TLE載入→智能篩選→信號分析→時間序列→數據整合→動態池規劃)..."
-    echo "🎯 unified controller: leo_main_pipeline_controller.py"
+    echo "🎯 unified controller: run_six_stages.py"
     echo "⏱️ 預估處理時間：5-10分鐘 (開發模式) 或 20-45分鐘 (完整模式)"
-    if timeout 2700 python src/leo_core/main_pipeline_controller.py --mode full --data-dir "$DATA_DIR"; then
+    if timeout 2700 python scripts/run_six_stages.py --data-dir "$DATA_DIR"; then
         echo "✅ 增強六階段系統完成"
     else
         echo "❌ 增強六階段系統失敗或超時 (45分鐘)"

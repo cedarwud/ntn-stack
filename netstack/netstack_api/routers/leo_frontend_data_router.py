@@ -16,7 +16,7 @@ import structlog
 # Import format converter
 import sys
 sys.path.append('/app/config')
-sys.path.append('/app/src/leo_core')
+# sys.path.append('/app/src/leo_core')  # 已移除過時的 leo_core 系統
 
 try:
     from config.output_format_converter import (
@@ -104,10 +104,10 @@ async def get_frontend_data(
     P0.3: 核心端點 - 將 LEO Restructure 數據轉換為前端格式
     """
     try:
-        # Find F1→F2→F3→A1 final report
+        # Find Stage 6 dynamic pool planning output
         final_report_paths = [
-            "/app/data/leo_optimization_final_report.json",
-            "/tmp/leo_temporary_outputs/leo_optimization_final_report.json"
+            "/app/data/leo_outputs/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json",
+            "/tmp/leo_outputs/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json"
         ]
         
         final_report_path = None

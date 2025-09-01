@@ -48,12 +48,13 @@ load_preprocessed_data() {
     echo "🔍 檢查預處理數據文件..."
     
     local main_files=(
-        "$DATA_DIR/leo_outputs/intelligent_filtered_output.json"
-        "$DATA_DIR/leo_outputs/signal_analysis_outputs/signal_event_analysis_output.json"
-        "$DATA_DIR/leo_outputs/timeseries_preprocessing_outputs/starlink_enhanced.json"
-        "$DATA_DIR/leo_outputs/timeseries_preprocessing_outputs/oneweb_enhanced.json"
-        "$DATA_DIR/leo_outputs/data_integration_outputs/data_integration_output.json"
-        "$DATA_DIR/leo_outputs/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json"
+        "$DATA_DIR/tle_calculation_outputs/tle_orbital_calculation_output.json"
+        "$DATA_DIR/intelligent_filtering_outputs/intelligent_filtered_output.json"
+        "$DATA_DIR/signal_analysis_outputs/signal_event_analysis_output.json"
+        "$DATA_DIR/timeseries_preprocessing_outputs/starlink_enhanced.json"
+        "$DATA_DIR/timeseries_preprocessing_outputs/oneweb_enhanced.json"
+        "$DATA_DIR/data_integration_outputs/integrated_data_output.json"
+        "$DATA_DIR/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json"
     )
     
     for file in "${main_files[@]}"; do
@@ -67,8 +68,7 @@ load_preprocessed_data() {
     done
     
     # 檢查是否需要重新生成TLE文件（唯一排除的超大文件）
-    # 修正：檢查實際可能存在的路徑
-    if [ ! -f "$DATA_DIR/leo_outputs/tle_orbital_output.json" ] && [ ! -f "$DATA_DIR/leo_outputs/leo_outputs/tle_orbital_output.json" ]; then
+    if [ ! -f "$DATA_DIR/tle_calculation_outputs/tle_orbital_calculation_output.json" ]; then
         echo "⚠️ TLE軌道文件缺失 (2.3GB，映像檔中已排除)"
         echo "💡 將在後台重新生成此文件 (不影響API啟動)"
         ((missing_large_files++))
@@ -77,7 +77,8 @@ load_preprocessed_data() {
         (
             echo "🔄 後台重新生成TLE軌道數據..."
             cd /app && \
-            python src/stages/tle_orbital_calculation_processor.py --output "$DATA_DIR/leo_outputs/tle_orbital_output.json" >/dev/null 2>&1 && \
+            mkdir -p "$DATA_DIR/tle_calculation_outputs" && \
+            python src/stages/tle_orbital_calculation_processor.py --output "$DATA_DIR/tle_calculation_outputs/tle_orbital_calculation_output.json" >/dev/null 2>&1 && \
             echo "✅ TLE軌道數據重新生成完成" || \
             echo "❌ TLE軌道數據重新生成失敗"
         ) &
@@ -96,7 +97,7 @@ verify_data_integrity() {
     echo "🔍 驗證數據完整性..."
     
     # 檢查主要數據文件
-    local main_data_file="$DATA_DIR/leo_outputs/data_integration_outputs/data_integration_output.json"
+    local main_data_file="$DATA_DIR/data_integration_outputs/integrated_data_output.json"
     if [ ! -f "$main_data_file" ]; then
         echo "❌ 主要數據整合文件缺失"
         return 1
@@ -171,8 +172,8 @@ show_startup_info() {
     echo "🕒 啟動時間: $(date '+%Y-%m-%d %H:%M:%S %Z')"
     
     # 顯示數據目錄大小
-    if [ -d "$DATA_DIR/leo_outputs" ]; then
-        local dir_size=$(du -sh "$DATA_DIR/leo_outputs" 2>/dev/null | cut -f1)
+    if [ -d "$DATA_DIR" ]; then
+        local dir_size=$(du -sh "$DATA_DIR" 2>/dev/null | cut -f1)
         echo "📁 預處理數據: $dir_size"
     fi
     

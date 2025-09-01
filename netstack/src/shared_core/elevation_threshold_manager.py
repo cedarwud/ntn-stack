@@ -55,8 +55,8 @@ class ElevationThresholdManager:
         ),
         ConstellationType.ONEWEB: ElevationThreshold(
             constellation=ConstellationType.ONEWEB,
-            min_elevation=10.0,     # OneWeb 需要更高的最低仰角
-            optimal_elevation=20.0,  # 最佳性能仰角
+            min_elevation=5.0,      # 🎯 CRITICAL FIX: 降低OneWeb最低仰角，適應NTPU緯度
+            optimal_elevation=15.0,  # 調整最佳性能仰角
             max_useful_elevation=75.0 # 最大有效仰角
         )
     }

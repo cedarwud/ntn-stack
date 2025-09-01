@@ -47,7 +47,7 @@ RUN pip install --upgrade pip && \
 COPY . .
 
 # Enhanced Six-Stage System: 六階段增強系統 + shared_core + simulated_annealing
-# 主流程控制器：src/leo_main_pipeline_controller.py
+# 主流程控制器：scripts/run_six_stages.py
 
 # TLE 數據：複製衛星軌道數據
 COPY tle_data /app/tle_data
@@ -69,22 +69,43 @@ RUN echo "🏗️ 開始建構時六階段數據預處理..." && \
     echo "📊 Stage 1-6: 完整六階段處理" && \
     echo "⚡ 策略: 直接包含900MB數據，最高性能" && \
     echo "🎯 目標: < 5秒啟動時間（無解壓縮）" && \
-    # 執行完整六階段預處理
+    # 設定Python環境路徑（確保建構時能找到模組）
+    export PYTHONPATH="/app:/app/src:/app/netstack" && \
+    export PYTHONUNBUFFERED=1 && \
+    export PYTHONDONTWRITEBYTECODE=1 && \
+    # 檢查必要模組是否可導入
     cd /app && \
-    timeout 2700 python src/leo_core/main_pipeline_controller.py --mode build_optimized --output-dir /app/data || \
-    echo "⚠️ 建構時預處理執行中或失敗，將使用運行時處理" && \
+    python3 -c 'import sys; sys.path.insert(0, "/app"); sys.path.insert(0, "/app/src"); import aiofiles; print("✅ aiofiles module OK"); from shared_core import data_models; print("✅ shared_core module OK"); print("🔧 模組檢查通過，開始六階段處理...")' && \
+    # 執行完整六階段預處理（縮短超時時間，增強錯誤處理）
+    timeout 1800 python scripts/run_six_stages.py --data-dir /app/data > /tmp/six_stage_build.log 2>&1; \
+    BUILD_EXIT_CODE=$?; \
+    if [ $BUILD_EXIT_CODE -eq 0 ]; then \
+        echo "✅ 建構時六階段處理成功完成"; \
+        cat /tmp/six_stage_build.log | tail -10; \
+    elif [ $BUILD_EXIT_CODE -eq 124 ]; then \
+        echo "⏰ 建構時處理超時(30分鐘)，標記為運行時處理"; \
+        echo "RUNTIME_PROCESSING_REQUIRED=true" > /app/data/.build_status; \
+    else \
+        echo "⚠️ 建構時處理失敗(退出碼:$BUILD_EXIT_CODE)，標記為運行時處理"; \
+        echo "BUILD_FAILED=true" > /app/data/.build_status; \
+        echo "最後10行日誌:"; \
+        cat /tmp/six_stage_build.log | tail -10; \
+    fi && \
     # 🎯 簡化策略：只移除超大檔案（2.3GB），其餘直接保留
-    if [ -d "/app/data/leo_outputs" ]; then \
+    if [ -d "/app/data" ] && [ "$BUILD_EXIT_CODE" -eq 0 ]; then \
         echo "📊 移除超大TLE檔案，保留其餘900MB預處理數據..."; \
         # 只刪除超大的TLE軌道文件（2.3GB），運行時重新生成
-        rm -f /app/data/leo_outputs/tle_orbital_output.json || true; \
+        find /app/data -name "*tle_orbital_calculation_output.json" -type f -size +100M -delete 2>/dev/null || true; \
         echo "✅ 建構時數據準備完成 (保留~900MB預處理數據)"; \
-        du -sh /app/data/leo_outputs/ 2>/dev/null || true; \
-    fi && \
-    # 創建建構時預處理標記
-    echo "BUILD_TIME_PREPROCESSED=true" > /app/data/.build_mode && \
-    echo "NO_COMPRESSION_FAST_STARTUP=true" > /app/data/.fast_startup && \
-    du -sh /app/data/ 2>/dev/null || echo "Data size check completed"
+        du -sh /app/data/ 2>/dev/null || echo "Data size check completed"; \
+        # 創建建構時預處理標記
+        echo "BUILD_TIME_PREPROCESSED=true" > /app/data/.build_mode; \
+        echo "NO_COMPRESSION_FAST_STARTUP=true" > /app/data/.fast_startup; \
+    else \
+        echo "📋 創建運行時處理標記"; \
+        mkdir -p /app/data; \
+        echo "RUNTIME_PROCESSING_REQUIRED=true" > /app/data/.build_mode; \
+    fi
 
 # 衛星數據環境變數：從建置時生成的配置加載
 RUN if [ -f /app/data/satellite_data.env ]; then \
@@ -99,7 +120,7 @@ RUN if [ -f /app/data/satellite_data.env ]; then \
 RUN chown -R netstack:netstack /var/log/netstack /app/models /app/results \
                                /app/data /app/tle_data /tmp/matplotlib
 
-# 複製並設定啟動腳本權限 (包含新的無壓縮直接啟動腳本)
+# 複製並設定啟動腳本權限 (包含新的無壓縮直接啟動腳本和回退腳本)
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY docker/smart-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
@@ -109,6 +130,8 @@ COPY docker/runtime-entrypoint.sh /usr/local/bin/runtime-entrypoint.sh
 COPY docker/volume-based-entrypoint.sh /usr/local/bin/volume-based-entrypoint.sh
 COPY docker/build-time-optimized-entrypoint.sh /usr/local/bin/build-time-optimized-entrypoint.sh
 COPY docker/build-time-direct-entrypoint.sh /usr/local/bin/build-time-direct-entrypoint.sh
+COPY docker/fallback-entrypoint.sh /usr/local/bin/fallback-entrypoint.sh
+COPY docker/smart-startup-selector.sh /usr/local/bin/smart-startup-selector.sh
 
 RUN chmod +x /usr/local/bin/healthcheck.sh \
              /usr/local/bin/docker-entrypoint.sh \
@@ -118,7 +141,9 @@ RUN chmod +x /usr/local/bin/healthcheck.sh \
              /usr/local/bin/runtime-entrypoint.sh \
              /usr/local/bin/volume-based-entrypoint.sh \
              /usr/local/bin/build-time-optimized-entrypoint.sh \
-             /usr/local/bin/build-time-direct-entrypoint.sh
+             /usr/local/bin/build-time-direct-entrypoint.sh \
+             /usr/local/bin/fallback-entrypoint.sh \
+             /usr/local/bin/smart-startup-selector.sh
 
 # 切換到非root用戶
 USER netstack
@@ -134,8 +159,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
             /usr/local/bin/healthcheck.sh; \
         fi
 
-# 設定預設啟動腳本：使用無壓縮直接啟動腳本（最高性能）
-ENTRYPOINT ["/usr/local/bin/build-time-direct-entrypoint.sh"]
+# 設定預設啟動腳本：使用智能選擇器（自動選擇最適模式）
+ENTRYPOINT ["/usr/local/bin/smart-startup-selector.sh"]
 
 # 啟動命令 (根據環境調整)
 CMD if [ "$BUILD_ENV" = "development" ]; then \
