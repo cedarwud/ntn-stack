@@ -1,7 +1,7 @@
 # 📚 NTN Stack 技術文檔中心
 
 **版本**: 3.3.0  
-**更新日期**: 2025-08-20  
+**更新日期**: 2025-08-28  
 **專案狀態**: ✅ 生產就緒 + UltraThink 全面修復完成
 
 ## 🚀 快速開始
@@ -53,8 +53,8 @@ curl http://localhost:8080/health     # NetStack 健康檢查
 ### 📊 六階段處理流程詳解
 | 階段 | 文檔 | 處理內容 | 技術重點 |
 |------|------|----------|----------|
-| **Stage 1** | [TLE載入與SGP4計算](./stages/stage1-tle-loading.md) | 8,735顆衛星軌道計算 | SGP4算法、軌道動力學 |
-| **Stage 2** | [智能衛星篩選](./stages/stage2-filtering.md) | 智能篩選至391顆候選 | 6階段篩選管線、地理相關性 |
+| **Stage 1** | [TLE載入與SGP4計算](./stages/stage1-tle-loading.md) | 8,779顆衛星軌道計算 | SGP4算法、軌道動力學 |
+| **Stage 2** | [智能衛星篩選](./stages/stage2-filtering.md) | 智能篩選至1,113顆候選 | 6階段篩選管線、地理相關性 |
 | **Stage 3** | [信號品質分析](./stages/stage3-signal.md) | 3GPP事件分析 | A4/A5/D2事件、RSRP計算 |
 | **Stage 4** | [時間序列預處理](./stages/stage4-timeseries.md) | 前端動畫數據準備 | 1x-60x倍速、60FPS渲染 |
 | **Stage 5** | [數據整合處理](./stages/stage5-integration.md) | 跨系統數據整合 | 格式統一、驗證機制 |
@@ -90,24 +90,18 @@ curl http://localhost:8080/health     # NetStack 健康檢查
 
 ### 📊 核心數據流程
 ```
-TLE數據(8,735顆) → SGP4計算 → 智能篩選(391顆) → 信號分析 → 時間序列 → 數據整合 → 時間序列保留(156顆)
+TLE數據(8,779顆) → SGP4計算 → 智能篩選(1,113顆) → 信號分析 → 時間序列 → 數據整合 → 時間序列保留(156顆)
      Stage1           Stage2        Stage3       Stage4      Stage5      Stage6
 ```
 
 ### 🏗️ 系統架構層次
-```
-研究應用層    ← 學術研究工具、論文數據輸出
-前端展示層    ← SimWorld 3D視覺化 (:5173)  
-核心服務層    ← NetStack API (:8080) + SimWorld Backend (:8888)
-算法引擎層    ← 切換決策、軌道預測、ML模型、狀態同步
-數據服務層    ← PostgreSQL、Docker Volume、TLE數據管理
-```
+完整的系統架構設計請參考：**[系統架構總覽](./system_architecture.md)**
 
 ### 🛰️ 技術特色
 - **完整SGP4軌道計算** - 非簡化算法，符合學術研究標準  
 - **3GPP NTN標準合規** - A4/A5/D2事件完整實現
 - **Pure Cron驅動架構** - 容器純數據載入，Cron自動更新
-- **六階段智能處理** - 從8,735顆到156顆動態池，含完整時間序列數據
+- **六階段智能處理** - 從8,779顆到156顆動態池，含完整時間序列數據
 - **真實數據驅動** - CelesTrak官方TLE數據，6小時自動更新
 
 ## 📋 版本信息

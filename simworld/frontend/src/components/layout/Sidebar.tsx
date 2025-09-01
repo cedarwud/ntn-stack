@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import ConstellationSelectorCompact from '../domains/satellite/ConstellationSelectorCompact'
 import '../../styles/Sidebar.scss'
 import { UAVManualDirection } from './types/sidebar.types'
@@ -20,7 +20,8 @@ import {
     useSatelliteState,
     useHandoverState,
 } from '../../contexts/appStateHooks'
-import { useSatelliteData } from '../../contexts/SatelliteDataContext'
+// 🎯 移除重复数据源导入 - 统一使用 satelliteState
+// import { useSatelliteData } from '../../contexts/SatelliteDataContext'
 
 // 引入重構後的設備列表模組
 import DeviceListPanel from './sidebar/DeviceListPanel'
@@ -125,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     uavAnimation: _uavAnimation,
     onUavAnimationChange,
     onSelectedReceiversChange,
-    onSatelliteDataUpdate,
+    onSatelliteDataUpdate: _onSatelliteDataUpdate,
     satelliteEnabled = false,
     onSatelliteEnabledChange,
 
@@ -145,6 +146,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     void _onManualControl
     void _uavAnimation
     void _onConstellationChange
+    void _onSatelliteDataUpdate
 
     // 🎯 使用換手狀態
     const {
@@ -174,22 +176,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     // 使用 NetStack 預計算衛星數據，支援星座切換
     const satelliteState = useSatelliteState()
-    const { setSkyfieldSatellites } = satelliteState
     const skyfieldSatellites = satelliteState.skyfieldSatellites || []
     
-    // 🎯 獲取 SatelliteDataContext 數據
-    const { state: satelliteContextState } = useSatelliteData()
-    const contextSatellites = satelliteContextState.satellites || []
+    // 🎯 移除重复数据源，统一使用 satelliteState
+    // const { state: satelliteContextState } = useSatelliteData()
+    // const contextSatellites = satelliteContextState.satellites || []
     const [loadingSatellites, setLoadingSatellites] = useState<boolean>(false)
-    const satelliteRefreshIntervalRef = useRef<ReturnType<
-        typeof setInterval
-    > | null>(null)
-    const onSatelliteDataUpdateRef = useRef(onSatelliteDataUpdate)
-    
-    // Update ref when prop changes
-    useEffect(() => {
-        onSatelliteDataUpdateRef.current = onSatelliteDataUpdate
-    }, [onSatelliteDataUpdate])
 
     // 處理衛星星座顯示開關，連帶控制換手動畫顯示
     const handleSatelliteEnabledToggle = (enabled: boolean) => {
@@ -269,65 +261,13 @@ const Sidebar: React.FC<SidebarProps> = ({
         { id: 'uav', label: 'UAV 控制', icon: '🚁' },
     ]
 
-    // 靜態衛星數據管理：完全避免重新載入和重新渲染
-    const satelliteDataInitialized = useRef(false)
-    const lastConstellationRef = useRef<string>(selectedConstellation)
-
+    // 🎯 简化数据管理：完全依赖统一的 SatelliteDataContext，移除重复初始化逻辑
     useEffect(() => {
-        // 只在首次啟用衛星時載入一次，之後完全依賴內在軌道運動
-        const initializeSatellitesOnce = async () => {
-            if (!satelliteEnabled) {
-                setSkyfieldSatellites([])
-                if (onSatelliteDataUpdateRef.current) {
-                    onSatelliteDataUpdateRef.current([])
-                }
-                satelliteDataInitialized.current = false
-                setLoadingSatellites(false)
-                return
-            }
-
-            // 檢查星座是否變化，如果變化則需要重新載入
-            if (lastConstellationRef.current !== selectedConstellation) {
-                satelliteDataInitialized.current = false
-                lastConstellationRef.current = selectedConstellation
-            }
-
-            // 如果已經初始化過且星座沒有變化，就不再重新載入
-            if (satelliteDataInitialized.current && lastConstellationRef.current === selectedConstellation) {
-                return
-            }
-
-            setLoadingSatellites(true)
-
-            // 🎯 使用SatelliteDataContext的動態池數據，無需手動初始化
-            // 數據自動通過context獲取並已過濾為156顆優化衛星
-            
-            // 標記已初始化
-            satelliteDataInitialized.current = true
+        // 只处理显示状态，数据由 SatelliteDataContext 统一管理
+        if (!satelliteEnabled) {
+            setLoadingSatellites(false)
         }
-
-        // 清理任何現有的刷新間隔
-        if (satelliteRefreshIntervalRef.current) {
-            clearInterval(satelliteRefreshIntervalRef.current)
-            satelliteRefreshIntervalRef.current = null
-        }
-
-        // 只初始化一次，不設置定期刷新
-        initializeSatellitesOnce()
-
-        return () => {
-            if (satelliteRefreshIntervalRef.current) {
-                clearInterval(satelliteRefreshIntervalRef.current)
-                satelliteRefreshIntervalRef.current = null
-            }
-        }
-    }, [
-        satelliteEnabled, // 只依賴啟用狀態
-        selectedConstellation, // 當星座選擇變化時重新載入衛星數據
-        setSkyfieldSatellites, // 包含 setSkyfieldSatellites 依賴
-        contextSatellites, // 添加 contextSatellites 依賴
-        // 移除 onSatelliteDataUpdate 和 skyfieldSatellites 避免無限循環
-    ])
+    }, [satelliteEnabled])
 
     // 處理衛星顯示數量變更
 

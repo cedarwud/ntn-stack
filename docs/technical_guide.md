@@ -1,7 +1,7 @@
 # 🔧 NTN Stack 技術實施指南
 
-**版本**: 3.0.0  
-**更新日期**: 2025-08-18  
+**版本**: 3.3.0  
+**更新日期**: 2025-08-28  
 **專案狀態**: ✅ 生產就緒  
 **適用於**: LEO 衛星切換研究系統 - 完整技術實施
 
@@ -263,14 +263,18 @@ elevation_thresholds = {
 ### Cron 調度配置
 ```bash
 # /etc/cron.d/ntn-stack
+# 實際安裝的 Cron 任務 (與系統 crontab 一致)
+
 # 每6小時更新TLE數據
-0 */6 * * * /home/sat/ntn-stack/scripts/daily_tle_download_enhanced.sh >> /var/log/tle_update.log 2>&1
+0 2,8,14,20 * * * /home/sat/ntn-stack/scripts/daily_tle_download_enhanced.sh >> /tmp/tle_download.log 2>&1
 
-# 每日凌晨執行完整六階段處理
-0 2 * * * cd /home/sat/ntn-stack && /home/sat/ntn-stack/netstack/src/leo_core/main.py >> /var/log/leo_processing.log 2>&1
+# TLE下載後30分鐘執行增量處理
+30 2,8,14,20 * * * /home/sat/ntn-stack/scripts/incremental_data_processor.sh >> /tmp/incremental_update.log 2>&1
 
-# 每小時檢查系統健康狀態
-0 * * * * curl -f http://localhost:8080/health || systemctl restart ntn-stack >> /var/log/health_check.log 2>&1
+# 每日凌晨安全數據清理
+15 3 * * * /home/sat/ntn-stack/scripts/safe_data_cleanup.sh >> /tmp/safe_cleanup.log 2>&1
+
+# 注意：完整六階段處理主要在映像檔建構時執行，不依賴 Cron 調度
 
 # 每週清理舊數據
 0 3 * * 0 /home/sat/ntn-stack/scripts/safe_data_cleanup.sh >> /var/log/data_cleanup.log 2>&1

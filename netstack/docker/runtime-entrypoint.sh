@@ -107,12 +107,25 @@ else:
 emergency_regenerate() {
     echo "🚨 緊急模式：執行運行時完整重新生成..."
     
-    # 清理可能損壞的數據
+    echo "🧹 清理所有舊的六階段預處理檔案..."
+    # 清理所有階段的輸出目錄
+    rm -rf "$DATA_DIR/tle_calculation_outputs" 2>/dev/null || true
+    rm -rf "$DATA_DIR/orbital_calculation_outputs" 2>/dev/null || true
+    rm -rf "$DATA_DIR/intelligent_filtering_outputs" 2>/dev/null || true
+    rm -rf "$DATA_DIR/signal_analysis_outputs" 2>/dev/null || true
+    rm -rf "$DATA_DIR/timeseries_preprocessing_outputs" 2>/dev/null || true
+    rm -rf "$DATA_DIR/data_integration_outputs" 2>/dev/null || true
+    rm -rf "$DATA_DIR/dynamic_pool_planning_outputs" 2>/dev/null || true
+    rm -rf "$DATA_DIR/signal_cache" 2>/dev/null || true
+    rm -f "$DATA_DIR/data_integration_output.json" 2>/dev/null || true
+    rm -f "$DATA_DIR/leo_optimization_final_report.json" 2>/dev/null || true
+    # 清理所有其他 JSON 文件
     find "$DATA_DIR" -name "*.json" -type f -delete 2>/dev/null || true
+    echo "✅ 舊檔案清理完成"
     
     # 執行完整六階段處理
     cd /app
-    if timeout 2700 python src/leo_core/main_pipeline_controller.py --mode full --data-dir "$DATA_DIR"; then
+    if timeout 2700 python scripts/run_six_stages.py --data-dir "$DATA_DIR"; then
         echo "✅ 緊急重新生成完成"
         echo "$(date -Iseconds)" > "$DATA_DIR/.runtime_generation"
         return 0

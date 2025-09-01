@@ -67,16 +67,21 @@ class LEOToFrontendConverter:
                                         leo_report: Dict[str, Any],
                                         detailed_timeseries: Optional[List[Dict]] = None) -> Dict[str, Any]:
         """
-        將 LEO F1→F2→F3→A1 報告轉換為前端格式
+        將 LEO 報告轉換為前端格式 (支持舊的F1→F2→F3→A1格式和新的Stage 6格式)
         
         Args:
-            leo_report: LEO restructure leo_optimization_final_report.json
+            leo_report: LEO report (leo_optimization_final_report.json or Stage 6 output)
             detailed_timeseries: 詳細時間序列數據 (如果可用)
         
         Returns:
             前端兼容的數據格式
         """
         try:
+            # Check if this is Stage 6 format (has dynamic_satellite_pool)
+            if 'dynamic_satellite_pool' in leo_report:
+                return self.convert_stage6_to_frontend(leo_report)
+            
+            # Otherwise handle old F1→F2→F3→A1 format
             # Extract report data
             final_report = leo_report.get('final_report', leo_report)
             final_results = final_report.get('final_results', {})
@@ -269,6 +274,105 @@ class LEOToFrontendConverter:
         constellation_data['metadata']['satellites_processed'] = len(filtered_satellites)
         
         return constellation_data
+    
+    def convert_stage6_to_frontend(self, stage6_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        將 Stage 6 動態池規劃輸出轉換為前端格式
+        
+        Args:
+            stage6_data: Stage 6 enhanced_dynamic_pools_output.json
+        
+        Returns:
+            前端兼容的數據格式
+        """
+        try:
+            pool_data = stage6_data.get('dynamic_satellite_pool', {})
+            selection_details = pool_data.get('selection_details', [])
+            metadata = stage6_data.get('metadata', {})
+            
+            # Create frontend metadata
+            frontend_metadata = {
+                'computation_time': metadata.get('processing_timestamp', datetime.utcnow().isoformat()),
+                'constellation': 'mixed',
+                'time_span_minutes': 120,
+                'time_interval_seconds': 60,
+                'total_time_points': 120,
+                'data_source': 'stage6_dynamic_pool',
+                'sgp4_mode': 'optimized',
+                'selection_mode': 'intelligent',
+                'reference_location': self.ntpu_coords,
+                'satellites_processed': pool_data.get('total_selected', 0),
+                'build_timestamp': metadata.get('processing_timestamp', datetime.utcnow().isoformat())
+            }
+            
+            # Convert satellite data
+            satellites_data = []
+            for sat in selection_details:
+                sat_data = self._convert_stage6_satellite(sat)
+                if sat_data:
+                    satellites_data.append(sat_data)
+            
+            frontend_format = {
+                'metadata': frontend_metadata,
+                'satellites': satellites_data
+            }
+            
+            logger.info("Successfully converted Stage 6 format to frontend format",
+                       satellites_count=len(satellites_data))
+            
+            return frontend_format
+            
+        except Exception as e:
+            logger.error("Failed to convert Stage 6 format to frontend format", error=str(e))
+            raise
+    
+    def _convert_stage6_satellite(self, sat_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Convert a single Stage 6 satellite to frontend format"""
+        try:
+            # Extract position timeseries
+            position_timeseries = sat_data.get('position_timeseries', [])
+            
+            # Build MRL distances and orbital positions
+            mrl_distances = []
+            orbital_positions = []
+            
+            for pos in position_timeseries:
+                # Convert to frontend expected format
+                mrl_distances.append(pos.get('range_km', 0))
+                orbital_positions.append({
+                    'time': pos.get('time', ''),
+                    'latitude': pos.get('latitude', 0),
+                    'longitude': pos.get('longitude', 0),
+                    'altitude': pos.get('altitude_km', 550),
+                    'elevation': pos.get('elevation_deg', 0),
+                    'azimuth': pos.get('azimuth_deg', 0),
+                    'distance': pos.get('range_km', 0)
+                })
+            
+            # Build signal data if available
+            signal_metrics = sat_data.get('signal_metrics', {})
+            signal_data = []
+            if signal_metrics:
+                for pos in position_timeseries:
+                    signal_data.append({
+                        'time': pos.get('time', ''),
+                        'rsrp': signal_metrics.get('average_rsrp', -90),
+                        'signal_quality': signal_metrics.get('signal_quality', 0.5)
+                    })
+            
+            return {
+                'norad_id': int(sat_data.get('norad_id', 0)),
+                'name': sat_data.get('satellite_name', 'Unknown'),
+                'constellation': sat_data.get('constellation', 'unknown'),
+                'mrl_distances': mrl_distances,
+                'orbital_positions': orbital_positions,
+                'signal_data': signal_data if signal_data else None,
+                'handover_events': None  # Can be added if needed
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to convert satellite {sat_data.get('satellite_name')}: {e}")
+            return None
     
     def validate_frontend_format(self, frontend_data: Dict[str, Any]) -> bool:
         """驗證前端格式的完整性"""

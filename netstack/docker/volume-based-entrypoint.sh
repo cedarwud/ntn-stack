@@ -80,7 +80,7 @@ generate_and_cache_data() {
     
     # 執行完整六階段處理，輸出到Volume
     cd /app
-    if timeout 2700 python src/leo_core/main_pipeline_controller.py --mode full --data-dir "$DATA_DIR"; then
+    if timeout 2700 python scripts/run_six_stages.py --data-dir "$DATA_DIR"; then
         echo "✅ 數據生成完成"
         
         # 設置緩存標記
