@@ -112,6 +112,18 @@ class RouterManager:
             except ImportError:
                 logger.warning("測量事件路由器不可用，跳過註冊")
 
+            # 註冊統一衛星數據路由器（真實TLE+SGP4）
+            try:
+                from ...routers.unified_satellite_router import (
+                    router as unified_satellite_router,
+                )
+
+                self.app.include_router(unified_satellite_router, tags=["統一衛星數據"])
+                self._track_router("unified_satellite_router", "統一衛星數據", True)
+                logger.info("✅ 統一衛星數據路由器註冊完成 (真實TLE+SGP4)")
+            except ImportError as e:
+                logger.warning(f"統一衛星數據路由器註冊失敗: {e}")
+
             # 嘗試導入軌道路由器
             try:
                 from netstack_api.routers.orbit_router import router as orbit_router
@@ -190,6 +202,21 @@ class RouterManager:
                 logger.info("✅ Phase 2 狀態路由器註冊完成")
             except ImportError:
                 logger.warning("Phase 2 狀態路由器不可用，跳過註冊")
+
+            # 嘗試導入六階段管道統計路由器
+            try:
+                from ...routers.pipeline_statistics_router import (
+                    router as pipeline_statistics_router,
+                )
+
+                self.app.include_router(pipeline_statistics_router, tags=["六階段管道統計"])
+                self._track_router("pipeline_statistics_router", "六階段管道統計", True)
+                logger.info("✅ 六階段管道統計路由器註冊完成")
+            except ImportError as e:
+                logger.warning(f"六階段管道統計路由器不可用，跳過註冊: {e}")
+            except Exception as e:
+                logger.error(f"六階段管道統計路由器註冊失敗: {e}")
+                self._track_router("pipeline_statistics_router", "六階段管道統計", False, f"註冊失敗: {str(e)}")
 
             logger.info("✅ 新模組化路由器註冊完成")
         except Exception as e:

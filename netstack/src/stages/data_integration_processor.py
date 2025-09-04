@@ -20,8 +20,8 @@ from shared_core.observer_config_service import get_ntpu_coordinates
 class Stage5Config:
     """階段五配置參數"""
     
-    # 🎯 修復：輸入目錄直接指向data，移除子目錄
-    input_enhanced_timeseries_dir: str = "/app/data"
+    # 🎯 修復：輸入目錄指向正確的timeseries_preprocessing_outputs
+    input_enhanced_timeseries_dir: str = "/app/data/timeseries_preprocessing_outputs"
     
     # 輸出目錄
     output_layered_dir: str = "/app/data/layered_phase0_enhanced"

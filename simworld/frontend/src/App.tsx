@@ -8,6 +8,7 @@ import { useToast } from './hooks/useToast'
 // 懶載入 3D 場景組件
 const SceneViewer = lazy(() => import('./components/scenes/FloorView'))
 const SceneView = lazy(() => import('./components/scenes/StereogramView'))
+const SatelliteVisibilitySimplified = lazy(() => import('./components/views/SatelliteVisibilitySimplified'))
 import Layout from './components/layout/Layout'
 import ErrorBoundary from './components/shared/ui/feedback/ErrorBoundary'
 import Navbar from './components/layout/Navbar'
@@ -36,12 +37,27 @@ interface AppProps {
 }
 
 // ==================== 主要應用邏輯組件 ====================
-const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
+const AppContent: React.FC<{ currentScene: string; activeView: string }> = ({ currentScene, activeView }) => {
     // 使用專門化的狀態Hooks，減少Context耦合
     const uiState = useUIState()
     const satelliteState = useSatelliteState()
     const handoverState = useHandoverState()
     const featureState = useFeatureState()
+
+    // 根据 activeView 设置正确的 activeComponent
+    useEffect(() => {
+        let componentType = '3DRT' // 默认立体图
+        if (activeView === 'floor-plan') {
+            componentType = '2DRT'
+        } else if (activeView === 'simplified-satellite') {
+            componentType = 'SIMPLIFIED'
+        }
+        
+        if (uiState.activeComponent !== componentType) {
+            console.log(`设置 activeComponent: ${componentType} (基于 activeView: ${activeView})`)
+            uiState.setActiveComponent(componentType)
+        }
+    }, [activeView, uiState])
     const {
         tempDevices,
         updateDevicePositionFromUAV,
@@ -152,6 +168,12 @@ const AppContent: React.FC<{ currentScene: string }> = ({ currentScene }) => {
                         refreshDeviceData={refreshDeviceData}
                         sceneName={currentScene}
                     />
+                </Suspense>
+            )
+        } else if (uiState.activeComponent === 'SIMPLIFIED') {
+            return (
+                <Suspense fallback={<LoadingComponent />}>
+                    <SatelliteVisibilitySimplified />
                 </Suspense>
             )
         }
@@ -305,6 +327,7 @@ const App: React.FC<AppProps> = ({
                                     <AppContent
                                         key={currentScene}
                                         currentScene={currentScene}
+                                        activeView={_activeView}
                                     />
                                 </DataSyncProvider>
                             </SatelliteDataBridge>

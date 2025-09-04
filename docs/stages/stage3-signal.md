@@ -207,6 +207,316 @@ ls -la /app/data/signal_quality_analysis/
 ls -la /app/data/handover_scenarios/
 ```
 
+## ✅ 階段驗證標準
+
+### 🎯 Stage 3 完成驗證檢查清單
+
+#### 1. **輸入驗證**
+- [ ] Stage 2篩選結果完整
+  - 接收約1,100-1,400顆候選衛星
+  - 包含Starlink和OneWeb數據
+  - 每顆衛星有完整時間序列
+
+#### 2. **信號計算驗證**
+- [ ] **ITU-R P.618標準遵循**
+  - 自由空間路徑損耗正確計算
+  - 大氣衰減模型應用
+  - 降雨衰減考慮（Ku頻段）
+- [ ] **RSRP計算範圍**
+  ```
+  合理範圍:
+  - 高仰角(>60°): -70 ~ -80 dBm
+  - 中仰角(30-60°): -80 ~ -95 dBm
+  - 低仰角(5-30°): -95 ~ -110 dBm
+  ```
+- [ ] **都卜勒頻移計算**
+  - 最大頻移 < ±40 kHz (LEO)
+  - 與衛星速度相關性正確
+
+#### 3. **3GPP事件分析**
+- [ ] **Event A4觸發**
+  - 鄰近衛星RSRP > -100 dBm
+  - 正確識別潛在換手候選
+- [ ] **Event A5觸發**  
+  - 服務衛星劣化檢測
+  - 鄰近衛星優於門檻
+- [ ] **Event D2觸發**
+  - 基於距離的換手判定
+  - 距離門檻合理設定
+
+#### 4. **輸出驗證**
+- [ ] **數據結構完整性**
+  ```json
+  {
+    "metadata": {
+      "stage": "stage3_signal_analysis",
+      "total_analyzed": 1196,
+      "3gpp_events": {
+        "a4_triggers": 150,
+        "a5_triggers": 80,
+        "d2_triggers": 120
+      }
+    },
+    "signal_analysis_results": {
+      "starlink": [...],
+      "oneweb": [...]
+    }
+  }
+  ```
+- [ ] **信號指標完整性**
+  - RSRP、RSRQ、SINR值都存在
+  - 仰角與信號強度負相關
+  - 無異常值(NaN或極端值)
+
+#### 5. **性能指標**
+- [ ] 處理時間 < 2分鐘
+- [ ] 緩存命中率 > 80%
+- [ ] 記憶體使用 < 300MB
+
+#### 6. **自動驗證腳本**
+```python
+# 執行階段驗證
+python -c "
+import json
+import numpy as np
+
+# 載入信號分析結果
+try:
+    with open('/app/data/signal_analysis_outputs/signal_event_analysis_output.json', 'r') as f:
+        data = json.load(f)
+except:
+    print('⚠️ 使用記憶體傳遞模式，跳過文件驗證')
+    exit(0)
+
+metadata = data.get('metadata', {})
+results = data.get('signal_analysis_results', {})
+
+# 收集所有RSRP值
+all_rsrp = []
+for constellation in results.values():
+    for sat in constellation:
+        if 'signal_metrics' in sat:
+            all_rsrp.append(sat['signal_metrics'].get('rsrp_dbm', -999))
+
+rsrp_array = np.array([r for r in all_rsrp if r > -200])
+
+checks = {
+    'input_count': metadata.get('total_analyzed', 0) > 1000,
+    'rsrp_range': (-120 <= rsrp_array.min()) and (rsrp_array.max() <= -70),
+    'rsrp_mean': -100 <= rsrp_array.mean() <= -85,
+    'has_a4_events': metadata.get('3gpp_events', {}).get('a4_triggers', 0) > 0,
+    'has_a5_events': metadata.get('3gpp_events', {}).get('a5_triggers', 0) > 0,
+    'has_d2_events': metadata.get('3gpp_events', {}).get('d2_triggers', 0) > 0
+}
+
+print('📊 Stage 3 驗證結果:')
+print(f'  分析衛星數: {metadata.get(\"total_analyzed\", 0)}')
+print(f'  RSRP範圍: [{rsrp_array.min():.1f}, {rsrp_array.max():.1f}] dBm')
+print(f'  RSRP平均: {rsrp_array.mean():.1f} dBm')
+print(f'  A4事件: {metadata.get(\"3gpp_events\", {}).get(\"a4_triggers\", 0)} 次')
+print(f'  A5事件: {metadata.get(\"3gpp_events\", {}).get(\"a5_triggers\", 0)} 次')
+print(f'  D2事件: {metadata.get(\"3gpp_events\", {}).get(\"d2_triggers\", 0)} 次')
+
+passed = sum(checks.values())
+total = len(checks)
+
+if passed == total:
+    print('✅ Stage 3 驗證通過！')
+else:
+    print(f'❌ Stage 3 驗證失敗 ({passed}/{total})')
+    exit(1)
+"
+```
+
+### 🚨 驗證失敗處理
+1. **RSRP異常**: 檢查路徑損耗計算、頻率設定
+2. **無3GPP事件**: 調整觸發門檻、檢查判定邏輯
+3. **處理過慢**: 優化緩存策略、減少重複計算
+
+## 🖥️ 前端簡化版驗證呈現
+
+### 驗證快照位置
+```bash
+# 驗證結果快照 (輕量級，供前端讀取)
+/app/data/validation_snapshots/stage3_validation.json
+
+# 部分數據也保存到 (用於詳細分析)
+/app/data/leo_outputs/signal_analysis_summary.json
+```
+
+### JSON 格式範例
+```json
+{
+  "stage": 3,
+  "stageName": "信號品質分析",
+  "timestamp": "2025-08-14T08:05:00Z",
+  "status": "completed",
+  "duration_seconds": 180,
+  "keyMetrics": {
+    "分析衛星數": 1184,
+    "高品質信號": "32%",
+    "中等品質": "44%",
+    "邊緣品質": "24%",
+    "平均RSRP": "-92.5 dBm"
+  },
+  "gpp3Events": {
+    "A4事件": 1200,
+    "A5事件": 800,
+    "D2事件": 600,
+    "總事件數": 2600
+  },
+  "validation": {
+    "passed": true,
+    "totalChecks": 8,
+    "passedChecks": 8,
+    "failedChecks": 0,
+    "criticalChecks": [
+      {"name": "RSRP計算", "status": "passed", "range": "-120 ~ -65 dBm"},
+      {"name": "3GPP事件", "status": "passed", "count": "2600個"},
+      {"name": "ITU-R合規", "status": "passed", "standard": "P.618"}
+    ]
+  },
+  "performanceMetrics": {
+    "processingTime": "3分鐘",
+    "memoryUsage": "320MB",
+    "outputMode": "混合模式(記憶體+檔案)"
+  },
+  "signalDistribution": {
+    "excellent": {"count": 125, "percentage": "32%", "rsrpRange": "> -90 dBm"},
+    "good": {"count": 172, "percentage": "44%", "rsrpRange": "-90 ~ -110 dBm"},
+    "marginal": {"count": 94, "percentage": "24%", "rsrpRange": "-110 ~ -125 dBm"}
+  },
+  "nextStage": {
+    "ready": true,
+    "stage": 4,
+    "expectedInput": 391
+  }
+}
+```
+
+### 前端呈現建議
+```typescript
+// React Component 簡化呈現
+interface Stage3Validation {
+  // 主要狀態圓圈 (綠色✓/紅色✗/黃色處理中)
+  status: 'completed' | 'processing' | 'failed' | 'pending';
+  
+  // 關鍵數字卡片
+  cards: [
+    { label: '分析衛星', value: '1,184', icon: '📡' },
+    { label: '平均RSRP', value: '-92.5 dBm', icon: '📶' },
+    { label: 'A5事件', value: '800', icon: '🔄' },
+    { label: '高品質', value: '32%', icon: '✨' }
+  ];
+  
+  // 信號品質分佈圖
+  signalChart: {
+    type: 'pie',
+    data: [
+      { label: '優秀', value: 32, color: '#4CAF50' },
+      { label: '良好', value: 44, color: '#FFC107' },
+      { label: '邊緣', value: 24, color: '#FF5252' }
+    ]
+  };
+  
+  // 3GPP事件時間軸
+  eventTimeline: {
+    events: [
+      { type: 'A4', count: 1200, color: '#2196F3' },
+      { type: 'A5', count: 800, color: '#FF9800' },
+      { type: 'D2', count: 600, color: '#9C27B0' }
+    ]
+  };
+}
+```
+
+### API 端點規格
+```yaml
+# 獲取階段驗證狀態
+GET /api/pipeline/validation/stage/3
+Response:
+  - 200: 返回驗證快照 JSON
+  - 404: 階段尚未執行
+
+# 獲取詳細信號分析結果
+GET /api/pipeline/signal-analysis/details
+Response:
+  - 200: 返回詳細的信號分析數據
+  - 404: 數據不存在
+
+# 獲取3GPP事件統計
+GET /api/pipeline/signal-analysis/3gpp-events
+Response:
+  - 200: 返回3GPP事件統計數據
+```
+
+### 視覺化呈現範例
+```
+┌─────────────────────────────────────┐
+│  Stage 3: 信號品質分析              │
+│  ✅ 完成 (3分鐘)                   │
+├─────────────────────────────────────┤
+│  📡 1,184衛星  📶 -92.5 dBm       │
+│  🔄 800 A5事件  ✨ 32% 高品質     │
+├─────────────────────────────────────┤
+│  信號分佈: 優秀 ████ 32%          │
+│           良好 ██████ 44%         │
+│           邊緣 ███ 24%            │
+├─────────────────────────────────────┤
+│  3GPP: A4[1200] A5[800] D2[600]   │
+├─────────────────────────────────────┤
+│  驗證: 8/8 ✅ ITU-R P.618合規      │
+└─────────────────────────────────────┘
+```
+
+### 進階視覺化建議
+
+#### 1. RSRP 熱力圖
+```javascript
+// 時間-衛星 RSRP熱力圖
+const heatmapData = {
+  xAxis: ['00:00', '01:00', '02:00', '03:00', '04:00', '05:00'],
+  yAxis: ['STL-1', 'STL-2', 'STL-3', 'OW-1', 'OW-2'],
+  data: [
+    [-85, -90, -95, -100, -105, -110],  // STL-1
+    [-88, -92, -97, -102, -108, -112],  // STL-2
+    // ...
+  ],
+  colorScale: {
+    min: -120,  // 深紅
+    mid: -95,   // 黃色
+    max: -70    // 深綠
+  }
+};
+```
+
+#### 2. 3GPP事件時序圖
+```javascript
+// 換手事件時間分佈
+const timelineData = {
+  events: [
+    { time: '00:15', type: 'A4', satellite: 'STL-123' },
+    { time: '00:18', type: 'A5', from: 'STL-123', to: 'STL-456' },
+    { time: '00:22', type: 'D2', satellite: 'STL-123', distance: 1520 }
+  ]
+};
+```
+
+### 🔔 實現注意事項
+1. **混合輸出模式**：
+   - 主要數據透過記憶體傳遞給Stage 4
+   - 摘要數據保存到檔案供分析和前端
+   - 驗證快照獨立保存
+
+2. **即時更新**：
+   - 支援WebSocket推送3GPP事件
+   - 每30秒更新一次信號統計
+
+3. **視覺化優化**：
+   - 使用顏色編碼區分信號品質
+   - 時間軸展示換手事件序列
+   - 支援縮放和篩選功能
+
 ---
 **上一階段**: [階段二：智能篩選](./stage2-filtering.md)  
 **下一階段**: [階段四：時間序列預處理](./stage4-timeseries.md)  

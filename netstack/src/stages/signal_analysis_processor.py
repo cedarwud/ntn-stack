@@ -375,7 +375,8 @@ class SignalQualityAnalysisProcessor:
         
         final_data = {
             'metadata': event_enhanced_data.get('metadata', {}),
-            'constellations': {},
+            'satellites': [],  # 扁平化的衛星陣列供後續階段使用
+            'constellations': {},  # 保留星座分組資訊
             'selection_recommendations': {}
         }
         
@@ -419,6 +420,12 @@ class SignalQualityAnalysisProcessor:
             
             final_data['constellations'][constellation_name] = final_constellation_data
             
+            # 將衛星加入扁平化陣列（供後續階段使用）
+            for sat in scored_satellites:
+                sat_flat = sat.copy()
+                sat_flat['constellation'] = constellation_name  # 確保星座標籤存在
+                final_data['satellites'].append(sat_flat)
+            
             # 生成選擇建議
             top_satellites = scored_satellites[:5]  # 推薦前5顆
             final_data['selection_recommendations'][constellation_name] = {
@@ -441,8 +448,10 @@ class SignalQualityAnalysisProcessor:
             logger.info(f"  {constellation_name}: {len(scored_satellites)} 顆衛星完成最終評分")
         
         final_data['metadata']['final_recommended_total'] = total_recommended
+        final_data['metadata']['total_satellites'] = len(final_data['satellites'])  # 供後續階段使用
         
         logger.info(f"✅ 最終建議生成完成: {total_recommended} 顆衛星完成綜合評分")
+        logger.info(f"  扁平化衛星陣列: {len(final_data['satellites'])} 顆")
         return final_data
         
     def save_signal_analysis_output(self, final_data: Dict[str, Any]) -> str:

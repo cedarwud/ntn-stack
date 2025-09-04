@@ -32,11 +32,25 @@ def run_all_stages():
     start_time = time.time()
     
     try:
+        # 🗑️ 預處理：清理所有階段六舊輸出檔案
+        print('\n🗑️ 預處理：清理階段六舊輸出檔案')
+        print('-' * 60)
+        
+        try:
+            from stages.dynamic_pool_planner import DynamicPoolPlanner
+            # 創建臨時實例進行清理
+            temp_planner = DynamicPoolPlanner({'cleanup_only': True})
+            cleaned_count = temp_planner.cleanup_all_stage6_outputs()
+            print(f'✅ 階段六清理完成: {cleaned_count} 項目已清理')
+        except Exception as e:
+            print(f'⚠️ 階段六清理警告: {e}')
+            print('🔄 繼續執行六階段處理...')
+        
         # 階段一：TLE載入與SGP4計算
         print('\n📡 階段一：TLE載入與SGP4軌道計算')
         print('-' * 60)
         
-        from stages.tle_orbital_calculation_processor import Stage1TLEProcessor
+        from stages.orbital_calculation_processor import Stage1TLEProcessor
         stage1 = Stage1TLEProcessor(
             tle_data_dir='/app/tle_data',
             output_dir='/app/data/tle_calculation_outputs',
@@ -53,8 +67,8 @@ def run_all_stages():
         print('\n🎯 階段二：智能衛星篩選')
         print('-' * 60)
         
-        from stages.intelligent_satellite_filter_processor import IntelligentSatelliteFilterProcessor
-        stage2 = IntelligentSatelliteFilterProcessor(
+        from stages.satellite_visibility_filter_processor import SatelliteVisibilityFilterProcessor
+        stage2 = SatelliteVisibilityFilterProcessor(
             input_dir='/app/data',
             output_dir='/app/data/intelligent_filtering_outputs'
         )
@@ -82,13 +96,13 @@ def run_all_stages():
         print('\n📡 階段三：信號品質分析與3GPP事件')
         print('-' * 60)
         
-        from stages.signal_quality_analysis_processor import SignalQualityAnalysisProcessor
-        stage3 = SignalQualityAnalysisProcessor(
+        from stages.signal_analysis_processor import SignalAnalysisProcessor
+        stage3 = SignalAnalysisProcessor(
             input_dir='/app/data',
             output_dir='/app/data/signal_analysis_outputs'
         )
         # 使用filtering_data參數（注意：不是filtered_data）
-        results['stage3'] = stage3.process_signal_quality_analysis(
+        results['stage3'] = stage3.process_signal_analysis(
             filtering_data=results['stage2'],  # 正確的參數名
             save_output=True
         )
@@ -109,15 +123,15 @@ def run_all_stages():
         print('\n⏰ 階段四：時間序列預處理')
         print('-' * 60)
         
-        from stages.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
-        stage4 = TimeseriesPreprocessingProcessor(
+        from stages.timeseries_optimization_processor import TimeseriesOptimizationProcessor
+        stage4 = TimeseriesOptimizationProcessor(
             input_dir='/app/data',
             output_dir='/app/data/timeseries_preprocessing_outputs'
         )
         
-        # 使用signal_data參數
-        results['stage4'] = stage4.process_timeseries_preprocessing(
-            signal_data=results['stage3'],
+        # 使用默認輸入路徑（階段三已經保存檔案）
+        results['stage4'] = stage4.process_timeseries_optimization(
+            signal_file='/app/data/signal_analysis_outputs/signal_event_analysis_output.json',
             save_output=True
         )
         
@@ -137,36 +151,19 @@ def run_all_stages():
         print('\n🔄 階段五：數據整合')
         print('-' * 60)
         
-        # 嘗試兩種導入方式
-        try:
-            from stages.data_integration_processor import Stage5IntegrationProcessor, Stage5Config
-            
-            # 創建配置
-            stage5_config = Stage5Config(
-                input_enhanced_timeseries_dir='/app/data',
-                output_data_integration_dir='/app/data/data_integration_outputs',
-                elevation_thresholds=[5, 10, 15]
-            )
-            
-            stage5 = Stage5IntegrationProcessor(stage5_config)
-            # 使用enhanced_data參數（根據原始程式碼）
-            results['stage5'] = stage5.process_data_integration(
-                enhanced_data=results['stage4'],
-                save_output=True
-            )
-        except ImportError:
-            # 如果上面的導入失敗，嘗試另一種方式
-            from stages.data_integration_processor import Stage5IntegrationProcessor
-            
-            stage5 = Stage5IntegrationProcessor(
-                input_dir='/app/data',
-                output_dir='/app/data/data_integration_outputs'
-            )
-            # 使用timeseries_data參數
-            results['stage5'] = stage5.process_data_integration(
-                timeseries_data=results['stage4'],
-                save_output=True
-            )
+        import asyncio
+        from stages.data_integration_processor import Stage5IntegrationProcessor, Stage5Config
+        
+        # 創建配置
+        stage5_config = Stage5Config(
+            input_enhanced_timeseries_dir='/app/data',
+            output_data_integration_dir='/app/data/data_integration_outputs',
+            elevation_thresholds=[5, 10, 15]
+        )
+        
+        stage5 = Stage5IntegrationProcessor(stage5_config)
+        # 使用async方法
+        results['stage5'] = asyncio.run(stage5.process_enhanced_timeseries())
         
         if not results['stage5']:
             print('❌ 階段五失敗')
@@ -181,15 +178,16 @@ def run_all_stages():
         
         from stages.enhanced_dynamic_pool_planner import EnhancedDynamicPoolPlanner
         
-        stage6 = EnhancedDynamicPoolPlanner(
-            input_dir='/app/data',
-            output_dir='/app/data/dynamic_pool_planning_outputs'
-        )
+        stage6_config = {
+            'input_dir': '/app/data',
+            'output_dir': '/app/data/dynamic_pool_planning_outputs'
+        }
+        stage6 = DynamicPoolPlanner(stage6_config)
         
-        # 使用process_dynamic_pool_planning方法
-        results['stage6'] = stage6.process_dynamic_pool_planning(
-            integrated_data=results['stage5'],
-            save_output=True
+        # 使用process方法
+        results['stage6'] = stage6.process(
+            input_data=results['stage5'],
+            output_file='/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json'
         )
         
         if not results['stage6']:
@@ -199,8 +197,19 @@ def run_all_stages():
         # 提取最終結果
         pool_data = results['stage6'].get('dynamic_satellite_pool', {})
         total_selected = pool_data.get('total_selected', 0)
-        starlink_count = len(pool_data.get('starlink_satellites', []))
-        oneweb_count = len(pool_data.get('oneweb_satellites', []))
+        
+        # 處理可能是整數或列表的情況
+        starlink_data = pool_data.get('starlink_satellites', 0)
+        if isinstance(starlink_data, list):
+            starlink_count = len(starlink_data)
+        else:
+            starlink_count = starlink_data
+            
+        oneweb_data = pool_data.get('oneweb_satellites', 0)
+        if isinstance(oneweb_data, list):
+            oneweb_count = len(oneweb_data)
+        else:
+            oneweb_count = oneweb_data
         
         print(f'✅ 階段六完成: 總計 {total_selected} 顆衛星')
         print(f'   - Starlink: {starlink_count} 顆')

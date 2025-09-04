@@ -55,7 +55,8 @@ const Navbar: FC<NavbarProps> = ({
         console.log('Current activeComponent:', activeComponent)
         // 根據當前的視圖導航到新場景
         const currentView =
-            activeComponent === '3DRT' ? 'stereogram' : 'floor-plan'
+            activeComponent === '3DRT' ? 'stereogram' : 
+            activeComponent === 'SIMPLIFIED' ? 'simplified-satellite' : 'floor-plan'
         console.log('Navigating to:', `/${sceneKey}/${currentView}`)
         navigate(`/${sceneKey}/${currentView}`)
     }
@@ -68,6 +69,11 @@ const Navbar: FC<NavbarProps> = ({
     const handleStereogramClick = () => {
         navigate(`/${currentScene}/stereogram`)
         onMenuClick('3DRT')
+    }
+
+    const handleSimplifiedSatelliteClick = () => {
+        navigate(`/${currentScene}/simplified-satellite`)
+        onMenuClick('SIMPLIFIED')
     }
 
     const _modalConfigs: ModalConfig[] = []
@@ -169,6 +175,14 @@ const Navbar: FC<NavbarProps> = ({
                             onClick={handleFloorPlanClick}
                         >
                             平面圖
+                        </li>
+                        <li
+                            className={`navbar-item ${
+                                activeComponent === 'SIMPLIFIED' ? 'active' : ''
+                            }`}
+                            onClick={handleSimplifiedSatelliteClick}
+                        >
+                            衛星簡化版
                         </li>
                         <li
                             className={`navbar-item ${
