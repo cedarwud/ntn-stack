@@ -158,13 +158,13 @@ createRoot(document.getElementById('root')!).render(
                 element={<Navigate to="/ntpu/stereogram" replace />}
             />
 
-            {/* /ntpu 重定向到 /ntpu/stereogram */}
+            {/* /ntpu 重定向到 /ntpu/stereogram (only if exact path) */}
             <Route
                 path="/ntpu"
                 element={<Navigate to="/ntpu/stereogram" replace />}
             />
 
-            {/* /nycu 重定向到 /nycu/stereogram */}
+            {/* /nycu 重定向到 /nycu/stereogram (only if exact path) */}
             <Route
                 path="/nycu"
                 element={<Navigate to="/nycu/stereogram" replace />}
@@ -180,6 +180,12 @@ createRoot(document.getElementById('root')!).render(
             <Route
                 path="/:scenes/floor-plan"
                 element={<App activeView="floor-plan" />}
+            />
+
+            {/* 場景路由 - simplified-satellite */}
+            <Route
+                path="/:scenes/simplified-satellite"
+                element={<App activeView="simplified-satellite" />}
             />
 
             {/* 統一決策控制中心 */}

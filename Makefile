@@ -64,6 +64,7 @@ help: ## 顯示幫助信息
 	@echo ""
 	@echo "$(YELLOW)衛星數據管理:$(RESET)"
 	@echo "  $(GREEN)clean-satellite-data$(RESET) 清理衛星預計算數據 (重啟後重新計算)"
+	@echo "  $(GREEN)clean-stage6-outputs$(RESET) 清理階段六動態池規劃輸出檔案"
 	@echo "  $(GREEN)update-satellite-data$(RESET) 一鍵更新衛星數據 (TLE 更新後使用)"
 	@echo ""
 	@echo "$(YELLOW)🚀 Cron 自動調度系統:$(RESET)"
@@ -397,6 +398,11 @@ clean-satellite-data: ## 清理衛星預計算數據 volume (會導致下次啟�
 	@echo "$(YELLOW)⚠️  這會導致下次啟動時需要重新計算軌道數據 (約2-5分鐘)$(RESET)"
 	@read -p "確定要繼續嗎？ (y/N): " confirm && [ "$$confirm" = "y" ] || { echo "$(BLUE)取消操作$(RESET)"; exit 1; }
 	@docker volume rm compose_satellite_precomputed_data 2>/dev/null && echo "$(GREEN)✅ 衛星預計算數據已清理$(RESET)" || echo "$(BLUE)ℹ️  Volume 不存在或已被清理$(RESET)"
+
+clean-stage6-outputs: ## 🗑️ 清理階段六動態池規劃輸出檔案 (準備重新處理)
+	@echo "$(YELLOW)🧹 清理階段六舊輸出檔案...$(RESET)"
+	@python3 netstack/scripts/cleanup_stage6_outputs.py
+	@echo "$(GREEN)✅ 階段六清理完成，可安全執行六階段處理$(RESET)"
 
 update-satellite-data: ## 🔄 一鍵更新衛星數據：清理舊數據 + 重啟計算 (TLE 數據更新後使用)
 	@echo "$(CYAN)🔄 開始衛星數據更新流程...$(RESET)"

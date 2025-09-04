@@ -467,6 +467,444 @@ find /app/data -name "*.json" -exec echo "檢查: {}" \; -exec python -m json.to
 curl -s http://localhost:8080/api/v1/data-integration/status | jq
 ```
 
+## ✅ 階段驗證標準
+
+### 🎯 Stage 5 完成驗證檢查清單
+
+#### 1. **輸入驗證**
+- [ ] 多源數據完整性
+  - Stage 3信號分析結果
+  - Stage 4時間序列數據
+  - 基礎衛星元數據
+- [ ] 數據時間戳一致性
+  - 各階段數據時間對齊
+  - 無時間差異錯誤
+
+#### 2. **分層數據生成驗證**
+- [ ] **仰角分層正確性**
+  ```
+  分層門檻:
+  - 5度層: 全部衛星
+  - 10度層: 仰角≥10°的衛星
+  - 15度層: 仰角≥15°的衛星
+  數量遞減驗證: 5度 > 10度 > 15度
+  ```
+- [ ] **每層數據完整性**
+  - 時間序列保留
+  - 信號指標完整
+  - 可見性窗口正確
+
+#### 3. **PostgreSQL整合驗證**
+- [ ] **數據庫連接**
+  - 連接成功（172.20.0.51:5432）
+  - 資料表創建完成
+  - 索引建立正確
+- [ ] **數據寫入驗證**
+  ```sql
+  預期記錄數:
+  - satellite_tle_data: 1,100+筆
+  - satellite_signal_metrics: 200,000+筆
+  - handover_events: 300+筆
+  ```
+
+#### 4. **輸出驗證**
+- [ ] **混合存儲結構**
+  ```json
+  {
+    "metadata": {
+      "stage": "stage5_data_integration",
+      "storage_mode": "hybrid",
+      "postgresql_status": "connected",
+      "volume_status": "active"
+    },
+    "integration_summary": {
+      "elevation_5deg": {"count": 1196},
+      "elevation_10deg": {"count": 900},
+      "elevation_15deg": {"count": 600}
+    }
+  }
+  ```
+- [ ] **存儲分佈合理**
+  - PostgreSQL: < 50MB（結構化數據）
+  - Volume: < 450MB（時間序列）
+  - 總計: < 500MB
+
+#### 5. **性能指標**
+- [ ] 處理時間 < 1分鐘
+- [ ] 資料庫寫入速度 > 1000筆/秒
+- [ ] 記憶體使用 < 500MB
+
+#### 6. **自動驗證腳本**
+```python
+# 執行階段驗證
+python -c "
+import json
+import os
+import psycopg2
+
+# 檢查輸出檔案
+output_file = '/app/data/data_integration_outputs/integrated_data_output.json'
+if os.path.exists(output_file):
+    with open(output_file, 'r') as f:
+        data = json.load(f)
+    
+    metadata = data.get('metadata', {})
+    summary = data.get('integration_summary', {})
+    
+    # 檢查分層數據
+    elev_5 = summary.get('elevation_5deg', {}).get('count', 0)
+    elev_10 = summary.get('elevation_10deg', {}).get('count', 0)
+    elev_15 = summary.get('elevation_15deg', {}).get('count', 0)
+else:
+    elev_5 = elev_10 = elev_15 = 0
+
+# 檢查PostgreSQL
+try:
+    conn = psycopg2.connect(
+        host='172.20.0.51',
+        database='rl_research',
+        user='rl_user',
+        password='rl_password'
+    )
+    cur = conn.cursor()
+    cur.execute('SELECT COUNT(*) FROM satellite_tle_data')
+    db_count = cur.fetchone()[0]
+    conn.close()
+    db_connected = True
+except:
+    db_count = 0
+    db_connected = False
+
+checks = {
+    'output_exists': os.path.exists(output_file),
+    'elevation_layers': elev_5 > elev_10 > elev_15 > 0,
+    'layer_5deg_ok': elev_5 > 1000,
+    'layer_10deg_ok': elev_10 > 800,
+    'layer_15deg_ok': elev_15 > 500,
+    'db_connected': db_connected,
+    'db_has_data': db_count > 1000
+}
+
+passed = sum(checks.values())
+total = len(checks)
+
+print('📊 Stage 5 驗證結果:')
+print(f'  分層數據: 5度({elev_5}) > 10度({elev_10}) > 15度({elev_15})')
+print(f'  資料庫狀態: {\"連接成功\" if db_connected else \"連接失敗\"}')
+print(f'  資料庫記錄: {db_count}筆')
+
+for check, result in checks.items():
+    print(f'  {\"✅\" if result else \"❌\"} {check}')
+
+if passed == total:
+    print('✅ Stage 5 驗證通過！')
+else:
+    print(f'❌ Stage 5 驗證失敗 ({passed}/{total})')
+    exit(1)
+"
+```
+
+### 🚨 驗證失敗處理
+1. **分層數據異常**: 檢查仰角門檻設定
+2. **資料庫連接失敗**: 確認PostgreSQL服務狀態
+3. **存儲超限**: 優化數據結構、增加壓縮
+
+### 📊 關鍵指標
+- **分層正確性**: 5度 > 10度 > 15度遞減
+- **混合存儲**: PostgreSQL + Volume協同
+- **性能平衡**: 查詢速度與存儲效率
+
+## 🖥️ 前端簡化版驗證呈現
+
+### 驗證快照位置
+```bash
+# 驗證結果快照 (輕量級，供前端讀取)
+/app/data/validation_snapshots/stage5_validation.json
+
+# 混合存儲輸出
+/app/data/data_integration_outputs/
+├── integrated_starlink.json        # ~10-15MB
+└── integrated_oneweb.json          # ~5-7MB
+```
+
+### JSON 格式範例
+```json
+{
+  "stage": 5,
+  "stageName": "數據整合與混合存儲",
+  "timestamp": "2025-08-14T08:10:00Z",
+  "status": "completed",
+  "duration_seconds": 120,
+  "keyMetrics": {
+    "處理衛星數": 391,
+    "PostgreSQL記錄": "65MB",
+    "Volume檔案": "300MB",
+    "分層數據": "3層",
+    "總存儲量": "365MB"
+  },
+  "layeredData": {
+    "elevation_5deg": {"satellites": 391, "size": "5.5MB"},
+    "elevation_10deg": {"satellites": 351, "size": "4.0MB"},
+    "elevation_15deg": {"satellites": 277, "size": "2.8MB"}
+  },
+  "storageDistribution": {
+    "postgresql": {
+      "satellite_metadata": 1196,
+      "signal_statistics": 200000,
+      "handover_events": 856,
+      "total_size": "65MB"
+    },
+    "volume": {
+      "timeseries": "75MB",
+      "layered_data": "85MB",
+      "handover_scenarios": "55MB",
+      "signal_analysis": "65MB",
+      "cache": "20MB"
+    }
+  },
+  "validation": {
+    "passed": true,
+    "totalChecks": 7,
+    "passedChecks": 7,
+    "failedChecks": 0,
+    "criticalChecks": [
+      {"name": "PostgreSQL連接", "status": "passed", "host": "netstack-postgres"},
+      {"name": "分層數據", "status": "passed", "layers": "5°>10°>15°"},
+      {"name": "混合存儲", "status": "passed", "mode": "hybrid"}
+    ]
+  },
+  "performanceMetrics": {
+    "processingTime": "2分鐘",
+    "dbWriteSpeed": "1500筆/秒",
+    "memoryUsage": "250MB",
+    "outputMode": "混合存儲"
+  },
+  "nextStage": {
+    "ready": true,
+    "stage": 6,
+    "expectedInput": 391
+  }
+}
+```
+
+### 前端呈現建議
+```typescript
+// React Component 簡化呈現
+interface Stage5Validation {
+  // 主要狀態圓圈 (綠色✓/紅色✗/黃色處理中)
+  status: 'completed' | 'processing' | 'failed' | 'pending';
+  
+  // 關鍵數字卡片
+  cards: [
+    { label: 'PostgreSQL', value: '65MB', icon: '🐘' },
+    { label: 'Volume', value: '300MB', icon: '📁' },
+    { label: '分層', value: '3層', icon: '📊' },
+    { label: '總存儲', value: '365MB', icon: '💾' }
+  ];
+  
+  // 分層數據漏斗
+  layerFunnel: {
+    layers: [
+      { name: '5°', count: 391, width: '100%', color: '#4CAF50' },
+      { name: '10°', count: 351, width: '89%', color: '#FFC107' },
+      { name: '15°', count: 277, width: '71%', color: '#FF5722' }
+    ]
+  };
+  
+  // 存儲分佈圓餅圖
+  storageChart: {
+    type: 'donut',
+    data: [
+      { label: 'PostgreSQL', value: 65, color: '#336791' },
+      { label: 'Time Series', value: 75, color: '#2196F3' },
+      { label: 'Layered', value: 85, color: '#4CAF50' },
+      { label: 'Handover', value: 55, color: '#FF9800' },
+      { label: 'Signal', value: 65, color: '#9C27B0' },
+      { label: 'Cache', value: 20, color: '#607D8B' }
+    ]
+  };
+}
+```
+
+### API 端點規格
+```yaml
+# 獲取階段驗證狀態
+GET /api/pipeline/validation/stage/5
+Response:
+  - 200: 返回驗證快照 JSON
+  - 404: 階段尚未執行
+
+# 查詢PostgreSQL統計
+GET /api/pipeline/integration/db-stats
+Response:
+  tables: [
+    { name: 'satellite_metadata', rows: 1196 },
+    { name: 'signal_statistics', rows: 200000 },
+    { name: 'handover_events', rows: 856 }
+  ]
+
+# 獲取分層數據摘要
+GET /api/pipeline/integration/layered-summary
+Response:
+  layers: [
+    { elevation: 5, satellites: 391, size: '5.5MB' },
+    { elevation: 10, satellites: 351, size: '4.0MB' },
+    { elevation: 15, satellites: 277, size: '2.8MB' }
+  ]
+```
+
+### 視覺化呈現範例
+```
+┌─────────────────────────────────────┐
+│  Stage 5: 數據整合與混合存儲        │
+│  ✅ 完成 (2分鐘)                   │
+├─────────────────────────────────────┤
+│  🐘 PostgreSQL: 65MB               │
+│  📁 Volume: 300MB                  │
+├─────────────────────────────────────┤
+│  分層漏斗:                         │
+│  5°  [████████████] 391           │
+│  10° [██████████] 351             │
+│  15° [███████] 277                │
+├─────────────────────────────────────┤
+│  存儲分佈:                         │
+│  DB:18% VOL:82% 總:365MB          │
+├─────────────────────────────────────┤
+│  驗證: 7/7 ✅                       │
+└─────────────────────────────────────┘
+```
+
+### 進階功能建議
+
+#### 1. 存儲健康監控
+```javascript
+// 混合存儲健康狀態監控
+const StorageHealthMonitor = () => {
+  const [health, setHealth] = useState({
+    postgresql: 'checking',
+    volume: 'checking'
+  });
+  
+  useEffect(() => {
+    const checkHealth = async () => {
+      // 檢查PostgreSQL
+      const dbStatus = await fetch('/api/health/postgresql');
+      const volumeStatus = await fetch('/api/health/volume');
+      
+      setHealth({
+        postgresql: dbStatus.ok ? 'healthy' : 'unhealthy',
+        volume: volumeStatus.ok ? 'healthy' : 'unhealthy'
+      });
+    };
+    
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div className="storage-health">
+      <div className={`db-status ${health.postgresql}`}>
+        🐘 PostgreSQL: {health.postgresql}
+      </div>
+      <div className={`volume-status ${health.volume}`}>
+        📁 Volume: {health.volume}
+      </div>
+    </div>
+  );
+};
+```
+
+#### 2. 分層數據比較視圖
+```javascript
+// 分層數據對比視覺化
+const LayerComparison = ({ layers }) => {
+  return (
+    <div className="layer-comparison">
+      <h4>仰角分層對比</h4>
+      <div className="comparison-grid">
+        {layers.map(layer => (
+          <div key={layer.elevation} className="layer-card">
+            <div className="elevation">{layer.elevation}°</div>
+            <div className="satellite-count">
+              <span className="number">{layer.satellites}</span>
+              <span className="label">衛星</span>
+            </div>
+            <div className="size">
+              <span className="number">{layer.size}</span>
+              <span className="label">MB</span>
+            </div>
+            <div className="retention">
+              保留率: {((layer.satellites / 391) * 100).toFixed(1)}%
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+```
+
+#### 3. 查詢性能監控
+```javascript
+// PostgreSQL查詢性能監控
+const QueryPerformanceMonitor = () => {
+  const [queries, setQueries] = useState([]);
+  
+  return (
+    <div className="query-monitor">
+      <h4>資料庫查詢性能</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>查詢類型</th>
+            <th>平均時間</th>
+            <th>執行次數</th>
+            <th>狀態</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>衛星元數據</td>
+            <td>2.3ms</td>
+            <td>1,245</td>
+            <td>🟢</td>
+          </tr>
+          <tr>
+            <td>信號統計</td>
+            <td>15.6ms</td>
+            <td>856</td>
+            <td>🟢</td>
+          </tr>
+          <tr>
+            <td>換手事件</td>
+            <td>8.9ms</td>
+            <td>432</td>
+            <td>🟢</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+};
+```
+
+### 🔔 實現注意事項
+1. **混合存儲協調**：
+   - PostgreSQL用於結構化查詢
+   - Volume用於大型時序數據
+   - 確保兩者數據一致性
+
+2. **分層數據驗證**：
+   - 確保每層數據遞減
+   - 驗證仰角門檻正確應用
+   - 保持數據完整性
+
+3. **性能監控**：
+   - 監控資料庫查詢延遲
+   - 追蹤Volume I/O性能
+   - 實現查詢結果緩存
+
 ---
 **上一階段**: [階段四：時間序列預處理](./stage4-timeseries.md)  
 **下一階段**: [階段六：動態池規劃](./stage6-dynamic-pool.md)  

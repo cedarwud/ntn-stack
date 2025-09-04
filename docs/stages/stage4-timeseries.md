@@ -217,6 +217,372 @@ with open('/app/data/enhanced_timeseries/animation_enhanced_starlink.json') as f
 curl -w '%{time_total}s' -o /dev/null -s http://localhost:5173/data/enhanced_timeseries/animation_enhanced_starlink.json
 ```
 
+## ✅ 階段驗證標準
+
+### 🎯 Stage 4 完成驗證檢查清單
+
+#### 1. **輸入驗證**
+- [ ] Stage 3信號分析結果完整
+  - 接收約1,100-1,400顆衛星數據
+  - 包含信號指標和3GPP事件
+  - 時間序列數據連續無斷點
+
+#### 2. **數據壓縮驗證**
+- [ ] **檔案大小優化**
+  ```
+  目標範圍:
+  - Starlink: 30-40MB
+  - OneWeb: 20-30MB
+  - 總計: 50-70MB
+  壓縮率: > 70%
+  ```
+- [ ] **時間解析度保持**
+  - 30秒間隔不變
+  - 96分鐘軌道數據完整
+  - 192個時間點保留
+
+#### 3. **前端優化驗證**
+- [ ] **數據結構優化**
+  - 座標精度: 小數點後3位
+  - 仰角精度: 小數點後1位
+  - 冗餘字段移除
+- [ ] **動畫流暢度要求**
+  - 支援60 FPS渲染
+  - 無跳幀現象
+  - 軌跡連續平滑
+
+#### 4. **輸出驗證**
+- [ ] **JSON數據格式**
+  ```json
+  {
+    "metadata": {
+      "stage": "stage4_timeseries",
+      "total_frames": 192,
+      "time_resolution": 30,
+      "compression_ratio": 0.73
+    },
+    "animation_data": {
+      "starlink": {
+        "frame_count": 192,
+        "satellites": [...]
+      },
+      "oneweb": {
+        "frame_count": 192,
+        "satellites": [...]
+      }
+    }
+  }
+  ```
+- [ ] **載入性能**
+  - 初始載入 < 2秒
+  - 記憶體占用 < 200MB
+  - 瀏覽器相容性
+
+#### 5. **性能指標**
+- [ ] 處理時間 < 1分鐘
+- [ ] 輸出檔案 < 100MB總計
+- [ ] 壓縮率 > 70%
+
+#### 6. **自動驗證腳本**
+```python
+# 執行階段驗證
+python -c "
+import json
+import os
+
+# 檢查輸出檔案
+output_dir = '/app/data/timeseries_preprocessing_outputs/'
+files = {
+    'starlink': f'{output_dir}starlink_enhanced.json',
+    'oneweb': f'{output_dir}oneweb_enhanced.json'
+}
+
+checks = {}
+total_size = 0
+
+for constellation, file_path in files.items():
+    if os.path.exists(file_path):
+        size_mb = os.path.getsize(file_path) / (1024*1024)
+        total_size += size_mb
+        
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        
+        frame_count = len(data.get('frames', []))
+        sat_count = len(data.get('satellites', []))
+        
+        checks[f'{constellation}_exists'] = True
+        checks[f'{constellation}_size_ok'] = size_mb < 50
+        checks[f'{constellation}_frames'] = frame_count == 192
+        checks[f'{constellation}_has_sats'] = sat_count > 0
+    else:
+        print(f'⚠️ {constellation} 檔案不存在')
+
+checks['total_size_ok'] = total_size < 100
+checks['compression_achieved'] = total_size < 100  # 原始 > 300MB
+
+passed = sum(checks.values())
+total = len(checks)
+
+print('📊 Stage 4 驗證結果:')
+print(f'  總檔案大小: {total_size:.1f} MB')
+print(f'  壓縮率: {(1 - total_size/300)*100:.1f}%')
+
+for check, result in checks.items():
+    print(f'  {\"✅\" if result else \"❌\"} {check}')
+
+if passed == total:
+    print('✅ Stage 4 驗證通過！')
+else:
+    print(f'❌ Stage 4 驗證失敗 ({passed}/{total})')
+    exit(1)
+"
+```
+
+### 🚨 驗證失敗處理
+1. **檔案過大**: 增加壓縮、減少精度
+2. **時間點缺失**: 檢查數據完整性
+3. **載入過慢**: 優化JSON結構、考慮分頁載入
+
+### 📊 關鍵指標
+- **壓縮效率**: 70%以上壓縮率
+- **前端友善**: < 100MB總大小
+- **動畫流暢**: 192點完整軌跡
+
+## 🖥️ 前端簡化版驗證呈現
+
+### 驗證快照位置
+```bash
+# 驗證結果快照 (輕量級，供前端讀取)
+/app/data/validation_snapshots/stage4_validation.json
+
+# 主要輸出檔案 (前端動畫數據)
+/app/data/enhanced_timeseries/
+├── animation_enhanced_starlink.json    # ~45MB
+└── animation_enhanced_oneweb.json      # ~15-20MB
+```
+
+### JSON 格式範例
+```json
+{
+  "stage": 4,
+  "stageName": "時間序列預處理",
+  "timestamp": "2025-08-14T08:08:00Z",
+  "status": "completed",
+  "duration_seconds": 60,
+  "keyMetrics": {
+    "輸入衛星": 391,
+    "輸出檔案數": 2,
+    "Starlink檔案": "45MB",
+    "OneWeb檔案": "18MB",
+    "總檔案大小": "63MB",
+    "壓縮率": "73%"
+  },
+  "dataOptimization": {
+    "原始大小": "200MB",
+    "壓縮後": "63MB",
+    "數據點減量": "50%",
+    "保真度": "95%"
+  },
+  "validation": {
+    "passed": true,
+    "totalChecks": 6,
+    "passedChecks": 6,
+    "failedChecks": 0,
+    "criticalChecks": [
+      {"name": "數據壓縮", "status": "passed", "rate": "73%"},
+      {"name": "時間連續性", "status": "passed", "frames": "192"},
+      {"name": "前端相容", "status": "passed", "format": "JSON"}
+    ]
+  },
+  "performanceMetrics": {
+    "processingTime": "60秒",
+    "memoryUsage": "150MB",
+    "outputMode": "檔案輸出"
+  },
+  "animationReadiness": {
+    "framesPerSecond": 60,
+    "totalFrames": 192,
+    "timeResolution": "30秒",
+    "coordinatePrecision": 4,
+    "renderReady": true
+  },
+  "nextStage": {
+    "ready": true,
+    "stage": 5,
+    "expectedInput": 391
+  }
+}
+```
+
+### 前端呈現建議
+```typescript
+// React Component 簡化呈現
+interface Stage4Validation {
+  // 主要狀態圓圈 (綠色✓/紅色✗/黃色處理中)
+  status: 'completed' | 'processing' | 'failed' | 'pending';
+  
+  // 關鍵數字卡片
+  cards: [
+    { label: '壓縮率', value: '73%', icon: '📦' },
+    { label: 'Starlink', value: '45MB', icon: '🛰️' },
+    { label: 'OneWeb', value: '18MB', icon: '🌍' },
+    { label: 'FPS', value: '60', icon: '🎬' }
+  ];
+  
+  // 壓縮效率視覺化
+  compressionBar: {
+    original: 200,
+    compressed: 63,
+    percentage: 73,
+    color: '#4CAF50'  // 綠色表示良好壓縮
+  };
+  
+  // 動畫準備度指示器
+  animationStatus: {
+    frames: '192/192',
+    fps: 60,
+    ready: true,
+    indicator: '🟢'
+  };
+}
+```
+
+### API 端點規格
+```yaml
+# 獲取階段驗證狀態
+GET /api/pipeline/validation/stage/4
+Response:
+  - 200: 返回驗證快照 JSON
+  - 404: 階段尚未執行
+
+# 檢查動畫檔案就緒狀態
+GET /api/pipeline/animation/status
+Response:
+  files: [
+    { name: 'starlink', size: '45MB', ready: true },
+    { name: 'oneweb', size: '18MB', ready: true }
+  ]
+
+# 預覽動畫數據樣本
+GET /api/pipeline/animation/preview?constellation=starlink&frames=10
+Response:
+  - 200: 返回前10幀的數據樣本
+```
+
+### 視覺化呈現範例
+```
+┌─────────────────────────────────────┐
+│  Stage 4: 時間序列預處理            │
+│  ✅ 完成 (60秒)                    │
+├─────────────────────────────────────┤
+│  📦 壓縮: 200MB → 63MB (73%)       │
+│  🛰️ STL: 45MB  🌍 OW: 18MB        │
+├─────────────────────────────────────┤
+│  壓縮效率:                         │
+│  [███████████░░░] 73%              │
+├─────────────────────────────────────┤
+│  🎬 動畫: 192幀 @ 60FPS ✅         │
+│  📍 精度: 小數點4位                │
+├─────────────────────────────────────┤
+│  驗證: 6/6 ✅                       │
+└─────────────────────────────────────┘
+```
+
+### 動畫預覽組件
+```javascript
+// 迷你動畫預覽器
+const AnimationPreview = () => {
+  const [frame, setFrame] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  
+  return (
+    <div className="animation-preview">
+      <canvas 
+        width={200} 
+        height={100}
+        // 渲染當前幀的衛星位置
+      />
+      <div className="controls">
+        <button onClick={() => setPlaying(!playing)}>
+          {playing ? '⏸️' : '▶️'}
+        </button>
+        <span>Frame: {frame}/192</span>
+      </div>
+      <div className="stats">
+        <span>📊 391衛星</span>
+        <span>⏱️ 96分鐘軌道</span>
+        <span>📍 30秒解析度</span>
+      </div>
+    </div>
+  );
+};
+```
+
+### 進階功能建議
+
+#### 1. 即時壓縮監控
+```javascript
+// 顯示壓縮進度
+const CompressionMonitor = ({ progress }) => (
+  <div className="compression-monitor">
+    <h4>壓縮進度</h4>
+    <div className="stages">
+      <div className={progress >= 25 ? 'done' : ''}>
+        📊 數據減量
+      </div>
+      <div className={progress >= 50 ? 'done' : ''}>
+        🔄 座標轉換
+      </div>
+      <div className={progress >= 75 ? 'done' : ''}>
+        📐 精度調整
+      </div>
+      <div className={progress >= 100 ? 'done' : ''}>
+        💾 檔案輸出
+      </div>
+    </div>
+  </div>
+);
+```
+
+#### 2. 檔案大小比較圖
+```javascript
+// 檔案大小對比視覺化
+const FileSizeComparison = () => (
+  <div className="size-comparison">
+    <div className="before">
+      <div className="bar" style={{height: '200px'}}>
+        200MB
+      </div>
+      <span>處理前</span>
+    </div>
+    <div className="arrow">→</div>
+    <div className="after">
+      <div className="bar" style={{height: '63px'}}>
+        63MB
+      </div>
+      <span>處理後</span>
+    </div>
+  </div>
+);
+```
+
+### 🔔 實現注意事項
+1. **檔案直接可用**：
+   - Stage 4 輸出的JSON檔案可直接供前端使用
+   - 無需額外處理即可載入動畫
+   - 支援漸進式載入優化
+
+2. **載入優化**：
+   - 前端可分批載入衛星數據
+   - 支援按需載入特定時間範圍
+   - 實現懶加載機制
+
+3. **動畫性能**：
+   - 確保60 FPS渲染
+   - 使用Web Workers處理大量數據
+   - 實現視窗裁剪優化
+
 ---
 **上一階段**: [階段三：信號分析](./stage3-signal.md)  
 **下一階段**: [階段五：數據整合](./stage5-integration.md)  

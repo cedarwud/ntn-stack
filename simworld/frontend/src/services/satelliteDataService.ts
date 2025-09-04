@@ -167,7 +167,8 @@ export class SatelliteDataService {
                 targetTime = new Date(visibilityWindows[1].start.getTime() + offsetInWindow * 1000)
             }
             
-            let endpoint = `/api/v1/satellite-simple/visible_satellites?count=${actualMaxCount}&min_elevation_deg=${actualMinElevation}&observer_lat=${this.config.observerLat}&observer_lon=${this.config.observerLon}&constellation=${this.config.constellation}&utc_timestamp=${targetTime.toISOString()}&global_view=false`
+            // 🎯 使用統一衛星API - 基於真實TLE和SGP4軌道計算
+            let endpoint = `/api/v1/satellite/unified?constellation=${this.config.constellation}&count=${actualMaxCount}&min_elevation_deg=${actualMinElevation}&time=${targetTime.toISOString()}`
             
             let response = await netstackFetchWithRetry(endpoint)
             

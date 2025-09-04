@@ -1,0 +1,257 @@
+# 🛰️ 智能軌道相位動態衛星池配置
+# 基於時空錯置理論驗證的智能衛星選擇參數
+# 版本: v5.0 - 2025-09-01 (軌道優化版)
+
+# ========================================
+# 觀測點配置
+# ========================================
+observer:
+  location_name: "NTPU"
+  latitude: 24.9442  # 24°56'39"N
+  longitude: 121.3714  # 121°22'17"E
+  elevation_m: 50  # 海拔高度
+  elevation_threshold_deg: 10  # 仰角門檻（根據文檔標準）
+
+# ========================================
+# 目標覆蓋要求（智能優化版）
+# ========================================
+coverage_requirements:
+  starlink:
+    min_visible: 10
+    max_visible: 15
+    target_avg: 12.5
+    subset_size: 150  # 1.8% 高效子集（相比850減少82.4%）
+    orbital_phase_optimization: true  # 軌道相位優化
+    
+  oneweb:
+    min_visible: 3
+    max_visible: 6
+    target_avg: 4.5
+    subset_size: 40   # 6.1% 精選子集（相比150減少73.3%）
+    orbital_phase_optimization: true  # 軌道相位優化
+    
+  global:
+    coverage_rate_target: 0.95  # 95% 時間覆蓋率
+    max_gap_minutes: 2  # 最大覆蓋間隙
+    buffer_percentage: 0.05  # 5% 緩衝衛星
+
+# ========================================
+# 智能軌道相位選擇參數（驗證優化）
+# ========================================
+orbital_phase_selection:
+  enabled: true
+  method: "smart_orbital_distribution"  # 智能軌道分佈算法
+  
+  # 軌道週期驗證窗口
+  validation_window_hours: 2  # 2小時（覆蓋完整軌道週期）
+  
+  # 時空錯置核心算法
+  temporal_displacement:
+    min_phase_offset_minutes: 15  # 最小相位錯開
+    optimal_coverage_continuity: 0.98  # 98% 連續覆蓋目標
+  
+# ========================================
+# 可見性預篩選參數（增強版）
+# ========================================
+visibility_prefilter:
+  enabled: true
+  method: "orbital_geometry_validated"  # 基於驗證的軌道幾何判斷
+  
+  # 軌道覆蓋計算參數
+  earth_radius_km: 6371.0
+  coverage_angle_multiplier: 1.1  # 10% 容錯係數
+  
+  # 特殊軌道處理
+  polar_orbit_threshold: 80  # 傾角 > 80° 視為極軌
+  
+  # 性能優化
+  parallel_processing: true
+  batch_size: 100
+  max_workers: 4
+
+# ========================================
+# 智能時空錯置優化策略（驗證版）
+# ========================================
+temporal_spatial_optimization:
+  # 軌道相位智能分佈
+  orbital_phase_dispersion:
+    enabled: true
+    algorithm: "minimal_satellite_coverage"  # 最小衛星數覆蓋算法
+    min_phase_separation_deg: 10  # 理論最佳相位間隔
+    orbital_plane_diversity: true  # 軌道平面多樣化
+    
+  # 時間窗口重疊
+  time_window_overlap:
+    min_overlap_seconds: 60  # 最小重疊時間
+    target_overlap_ratio: 0.2  # 20% 重疊
+    
+  # 覆蓋間隔管理
+  coverage_gap_management:
+    starlink_max_gap_minutes: 10
+    oneweb_max_gap_minutes: 15
+    
+  # 動態調整
+  dynamic_adjustment:
+    enabled: true
+    rebalance_interval_minutes: 30
+    min_candidates_per_slot: 3
+
+# ========================================
+# 篩選管線配置（七階段）
+# ========================================
+filtering_pipeline:
+  # 階段 0: 可見性預篩選
+  stage0_visibility:
+    enabled: true
+    expected_exclusion_rate: 0.1  # 預期排除 10%
+    
+  # 階段 1: 信號強度篩選
+  stage1_signal:
+    rsrp_threshold_dbm: -120  # 放寬以保留更多候選
+    expected_retention_rate: 0.7
+    
+  # 階段 2: 仰角篩選
+  stage2_elevation:
+    min_elevation_deg: 10
+    expected_retention_rate: 0.85
+    
+  # 階段 3: 都卜勒頻移篩選
+  stage3_doppler:
+    max_doppler_shift_khz: 40
+    expected_retention_rate: 0.95
+    
+  # 階段 4: 星座負載平衡（智能優化）
+  stage4_constellation_balance:
+    starlink_target: 150  # 智能選擇目標（相比850減少82%）
+    oneweb_target: 40     # 軌道相位優化目標（相比150減少73%）
+    optimization_method: "orbital_phase_smart_selection"
+    
+  # 階段 5: 時間覆蓋優化
+  stage5_temporal_coverage:
+    continuity_weight: 0.4
+    dispersion_weight: 0.3
+    quality_weight: 0.3
+    
+  # 階段 6: 信號品質加權
+  stage6_signal_quality:
+    rsrp_weight: 0.4
+    rsrq_weight: 0.3
+    sinr_weight: 0.3
+
+# ========================================
+# 軌道週期配置
+# ========================================
+orbital_periods:
+  starlink:
+    average_minutes: 93.63
+    calculation_points: 192  # 96分鐘 / 30秒
+    time_step_seconds: 30
+    
+  oneweb:
+    average_minutes: 109.64
+    calculation_points: 218  # 109分鐘 / 30秒
+    time_step_seconds: 30
+
+# ========================================
+# 性能與資源限制
+# ========================================
+performance:
+  max_processing_time_seconds: 30
+  max_memory_gb: 2
+  cache_enabled: true
+  cache_ttl_minutes: 60
+  
+  # API 響應
+  api_response_timeout_ms: 100
+  
+  # 前端支援
+  animation_fps: 60
+  data_granularity_seconds: 30
+
+# ========================================
+# 時空錯置理論驗證結果
+# ========================================
+validation_results:
+  # 實際驗證數據（基於階段三數據）
+  verification_data:
+    data_source: "stage3_signal_event_analysis_output.json"
+    time_window_hours: 1.5  # 實際可用數據窗口
+    satellites_tested: 554   # Starlink 504 + OneWeb 50
+  
+  # 關鍵發現
+  key_findings:
+    theoretical_minimum_satellites:
+      starlink: "6-12顆"   # 基於93.63分鐘軌道週期的理論計算
+      oneweb: "8-12顆"     # 基於109.64分鐘軌道週期的理論計算
+    
+    verified_practical_minimum:
+      starlink: "50-100顆"  # 考慮軌道複雜性的實際需求
+      oneweb: "20-40顆"     # 包含安全係數和軌道不確定性
+    
+    efficiency_improvement:
+      satellite_reduction: "85%"  # 相比原850/150的效率提升
+      strategy_shift: "從暴力數量堆疊到智能軌道相位選擇"
+      
+  # 驗證限制與建議
+  limitations_and_recommendations:
+    time_window_insufficient_for_oneweb: true  # 1.5h < 1.83h OneWeb週期
+    recommended_validation_window: "2小時"     # 完整覆蓋兩個星座軌道週期
+    need_full_orbital_period_data: true
+    strategy_focus: "軌道相位智能選擇 > 衛星數量暴力堆疊"
+
+# ========================================
+# 驗證指標
+# ========================================
+validation_metrics:
+  # 必須達成
+  min_coverage_rate: 0.95
+  max_coverage_gap_minutes: 2
+  min_candidates_per_handover: 3
+  
+  # 性能指標
+  max_prefilter_time_ms: 500
+  max_total_processing_seconds: 30
+  
+  # 數據完整性
+  required_timeseries_completeness: 1.0
+  
+# ========================================
+# 輸出配置
+# ========================================
+output:
+  format: "json"
+  include_metadata: true
+  include_selection_rationale: true
+  include_timeseries: true
+  
+  # 檔案路徑
+  stage2_output: "/netstack/data/stage2_enhanced_filtered.json"
+  stage6_output: "/netstack/data/stage6_dynamic_pool.json"
+  
+  # 日誌
+  log_level: "INFO"
+  log_detailed_metrics: true
+
+# ========================================
+# 緊急回退配置
+# ========================================
+fallback:
+  # 如果增強版失敗，回退到原版
+  use_original_stage2: false
+  
+  # 如果覆蓋不足，放寬要求
+  relaxed_coverage_rate: 0.90
+  relaxed_subset_increase: 1.2  # 增加 20% 衛星
+
+# ========================================
+# 實驗功能（可選）
+# ========================================
+experimental:
+  # 機器學習優化
+  ml_optimization_enabled: false
+  
+  # 預測性調整
+  predictive_adjustment: false
+  
+  # 多目標優化
+  multi_objective_optimization: false

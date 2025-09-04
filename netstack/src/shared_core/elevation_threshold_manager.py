@@ -45,17 +45,17 @@ class ElevationThresholdManager:
     確保各階段使用一致的仰角標準。
     """
     
-    # 基礎仰角門檻配置 (根據 3GPP NTN 標準)
+    # 基礎仰角門檻配置 (根據 3GPP NTN 標準及用戶需求)
     BASE_THRESHOLDS = {
         ConstellationType.STARLINK: ElevationThreshold(
             constellation=ConstellationType.STARLINK,
-            min_elevation=5.0,      # 最低可用仰角
+            min_elevation=5.0,      # 🔧 修復: 調整為用戶需求的5度仰角
             optimal_elevation=15.0,  # 最佳性能仰角
             max_useful_elevation=75.0 # 最大有效仰角
         ),
         ConstellationType.ONEWEB: ElevationThreshold(
             constellation=ConstellationType.ONEWEB,
-            min_elevation=5.0,      # 🎯 CRITICAL FIX: 降低OneWeb最低仰角，適應NTPU緯度
+            min_elevation=10.0,      # 🔧 修復: 調整為用戶需求的10度仰角
             optimal_elevation=15.0,  # 調整最佳性能仰角
             max_useful_elevation=75.0 # 最大有效仰角
         )

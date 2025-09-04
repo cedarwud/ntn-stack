@@ -38,9 +38,9 @@ class Stage1TLEProcessor:
     4. 絕對不做任何篩選或取樣
     """
     
-    def __init__(self, tle_data_dir: str = "/app/tle_data", output_dir: str = "/app/data", sample_mode: bool = False, sample_size: int = 50):
+    def __init__(self, tle_data_dir: str = "/app/tle_data", output_dir: str = "/app/data", sample_mode: bool = False, sample_size: int = 800):
         """
-        階段一處理器初始化 - v3.1 重構版本（移除硬編碼座標）
+        階段一處理器初始化 - v3.2 修復過度篩選問題
         
         Args:
             tle_data_dir: TLE數據目錄路徑
@@ -48,13 +48,14 @@ class Stage1TLEProcessor:
             sample_mode: 處理模式控制
                 - False (預設): 全量處理模式（8,735顆衛星）
                 - True: 取樣模式（每星座最多sample_size顆）
-            sample_size: sample_mode=True時每個星座的取樣數量
+            sample_size: sample_mode=True時每個星座的取樣數量 (修正: 50→800，保留率10%)
         
         檔案儲存策略:
             - v3.0版本完全停用JSON檔案儲存（避免2.2GB問題）
             - 採用純記憶體傳遞給階段二
         
         重構改進:
+            - v3.2: 修復過度篩選問題，提高初始衛星保留率
             - 移除硬編碼NTPU座標
             - 使用統一觀測配置服務
             - 保持與統一配置系統的兼容性
@@ -63,9 +64,9 @@ class Stage1TLEProcessor:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # 🎯 v3.1 重構：統一觀測配置管理
+        # 🎯 v3.2 修復：提高初始保留率，避免過度篩選
         self.sample_mode = sample_mode  # True=取樣模式, False=全量處理
-        self.sample_size = sample_size  # 取樣數量
+        self.sample_size = sample_size  # 修正取樣數量: 50→800
         
         # 🔧 重構：使用統一觀測配置服務（消除硬編碼）
         try:
@@ -84,17 +85,18 @@ class Stage1TLEProcessor:
                 logger.error(f"配置載入完全失敗: {e}, {e2}")
                 raise RuntimeError("無法載入觀測點配置，請檢查配置系統")
         
-        logger.info("✅ 階段一處理器初始化完成 (v3.1 重構版)")
+        logger.info("✅ 階段一處理器初始化完成 (v3.2 修復過度篩選版)")
         logger.info(f"  TLE 數據目錄: {self.tle_data_dir}")
         logger.info(f"  輸出目錄: {self.output_dir}")
         logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
         logger.info("  📐 座標來源: 統一觀測配置服務（已消除硬編碼）")
-        logger.info("  💾 檔案策略: 檔案保存模式（支援後續階段處理）")
+        logger.info("  💾 檔案策略: 檔案保存模式（支持後續階段處理）")
         
         if self.sample_mode:
             logger.info(f"  🔬 取樣模式: 啟用（每星座取樣 {self.sample_size} 顆衛星）")
+            logger.info("  🚨 修復提醒: 取樣數量已從50提升到800（保留率~10%）")
         else:
-            logger.info("  🚀 全量模式: 處理所有 8,735 顆衛星")   
+            logger.info("  🚀 全量模式: 處理所有 8,735 顆衛星")  
     def scan_tle_data(self) -> Dict[str, Any]:
         """掃描所有可用的 TLE 數據檔案"""
         logger.info("🔍 掃描 TLE 數據檔案...")
@@ -372,37 +374,51 @@ class Stage1TLEProcessor:
                     except:
                         tle_data['norad_id'] = successful_calculations
                     
-                    # 🎯 使用 TLE epoch 時間作為計算基準，而非當前時間
+                    # 🎯 CRITICAL FIX: 動態計算基準時間，基於實際TLE數據日期
                     from datetime import timedelta
                     
-                    # 計算 TLE epoch 對應的實際時間
+                    # 🎯 修復：動態計算歷史基準時間，基於實際TLE文件日期
+                    tle_file_date_str = self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', '20250831')
+                    
+                    # 解析TLE文件日期並創建基準時間（使用中午12:00作為基準點）
+                    try:
+                        year = int(tle_file_date_str[:4])
+                        month = int(tle_file_date_str[4:6])
+                        day = int(tle_file_date_str[6:8])
+                        historical_base_time = datetime(year, month, day, 12, 0, 0, tzinfo=timezone.utc)
+                    except (ValueError, IndexError) as e:
+                        # 降級到預設日期
+                        logger.warning(f"無法解析TLE日期 '{tle_file_date_str}'，使用預設基準時間: {e}")
+                        historical_base_time = datetime(2025, 8, 31, 12, 0, 0, tzinfo=timezone.utc)
+                    
+                    # 計算 TLE epoch 對應的實際時間（用於調試和數據血統追蹤）
                     tle_epoch_year = sat_data.get('tle_epoch_year', datetime.now().year)
                     tle_epoch_day = sat_data.get('tle_epoch_day', 1.0)
                     tle_epoch_date = datetime(tle_epoch_year, 1, 1, tzinfo=timezone.utc) + timedelta(days=tle_epoch_day - 1)
                     
-                    # 🎯 重要修復：記錄實際使用的TLE epoch時間，而不是處理時間
-                    logger.debug(f"衛星 {sat_data['satellite_id']}: TLE epoch = {tle_epoch_date.isoformat()}, 處理時間 = {current_time.isoformat()}")
+                    # 🎯 重要修復：記錄動態時間基準計算結果
+                    logger.debug(f"衛星 {sat_data['satellite_id']}: TLE文件日期 = {tle_file_date_str}, 動態基準時間 = {historical_base_time.isoformat()}, TLE epoch = {tle_epoch_date.isoformat()}")
                     
-                    # 🎯 重要修復：根據星座選擇正確的軌道週期
+                    # 🎯 重要修復：根據星座選擇正確的軌道週期，使用歷史基準時間
                     # Starlink (~550km) 使用96分鐘軌道週期
-                    # OneWeb (~1200km) 使用120分鐘軌道週期 (實際~109-110分鐘)
+                    # OneWeb (~1200km) 使用109分鐘軌道週期
                     if constellation.lower() == 'starlink':
                         orbit_result = orbit_engine.compute_96min_orbital_cycle(
                             tle_data,
-                            tle_epoch_date
+                            historical_base_time  # 使用歷史基準時間
                         )
                         logger.debug(f"使用96分鐘軌道週期計算 Starlink 衛星: {sat_data['satellite_id']}")
                     elif constellation.lower() == 'oneweb':
                         orbit_result = orbit_engine.compute_109min_orbital_cycle(
                             tle_data,
-                            tle_epoch_date
+                            historical_base_time  # 使用歷史基準時間
                         )
                         logger.debug(f"使用109分鐘軌道週期計算 OneWeb 衛星: {sat_data['satellite_id']}")
                     else:
                         # 其他星座默認使用96分鐘週期
                         orbit_result = orbit_engine.compute_96min_orbital_cycle(
                             tle_data,
-                            tle_epoch_date
+                            historical_base_time  # 使用歷史基準時間
                         )
                         logger.warning(f"未知星座 {constellation}，使用預設96分鐘軌道週期")
                     
@@ -419,13 +435,14 @@ class Stage1TLEProcessor:
                                 'source_file_date': self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', 'unknown'),
                                 'epoch_year': sat_data.get('tle_epoch_year', 'unknown'),
                                 'epoch_day': sat_data.get('tle_epoch_day', 'unknown'),
-                                'calculation_base_time': tle_epoch_date.isoformat(),
-                                # 🎯 新增：明確數據血統記錄
+                                'calculation_base_time': historical_base_time.isoformat(),
+                                # 🎯 新增：明確數據血統記錄 - 修復時間基準
                                 'data_lineage': {
                                     'data_source_date': self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', 'unknown'),
                                     'tle_epoch_date': tle_epoch_date.isoformat(),
+                                    'historical_base_time': historical_base_time.isoformat(),
                                     'processing_execution_date': current_time.isoformat(),
-                                    'calculation_strategy': 'sgp4_with_tle_epoch_base'
+                                    'calculation_strategy': 'sgp4_with_historical_base_time_for_frontend_time_control'
                                 }
                             },
                             'orbit_data': orbit_result,
