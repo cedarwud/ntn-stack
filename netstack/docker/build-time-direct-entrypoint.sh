@@ -78,7 +78,7 @@ load_preprocessed_data() {
             echo "🔄 後台重新生成TLE軌道數據..."
             cd /app && \
             mkdir -p "$DATA_DIR/tle_calculation_outputs" && \
-            python src/stages/tle_orbital_calculation_processor.py --output "$DATA_DIR/tle_calculation_outputs/tle_orbital_calculation_output.json" >/dev/null 2>&1 && \
+            python src/stages/orbital_calculation_processor.py --output "$DATA_DIR/tle_calculation_outputs/tle_orbital_calculation_output.json" >/dev/null 2>&1 && \
             echo "✅ TLE軌道數據重新生成完成" || \
             echo "❌ TLE軌道數據重新生成失敗"
         ) &

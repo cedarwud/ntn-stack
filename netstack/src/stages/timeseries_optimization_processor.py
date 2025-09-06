@@ -12,14 +12,18 @@
 import os
 import sys
 import json
+import time
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
+# 導入驗證基礎類別
+from shared_core.validation_snapshot_base import ValidationSnapshotBase
+
 logger = logging.getLogger(__name__)
 
-class TimeseriesPreprocessingProcessor:
+class TimeseriesPreprocessingProcessor(ValidationSnapshotBase):
     """時間序列預處理器
     
     將信號分析的複雜數據結構轉換為後續處理需要的 enhanced_timeseries 格式
@@ -28,6 +32,10 @@ class TimeseriesPreprocessingProcessor:
     def __init__(self, input_dir: str = "/app/data", output_dir: str = "/app/data"):
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
+        
+        # Initialize ValidationSnapshotBase
+        super().__init__(stage_number=4, stage_name="階段4: 時間序列預處理", 
+                         snapshot_dir=str(self.output_dir / "validation_snapshots"))
         # 🎯 修復：直接使用 output_dir，移除額外的子目錄
         self.enhanced_dir = self.output_dir
         self.enhanced_dir.mkdir(parents=True, exist_ok=True)
@@ -36,6 +44,75 @@ class TimeseriesPreprocessingProcessor:
         logger.info(f"  輸入目錄: {self.input_dir}")
         logger.info(f"  增強時間序列輸出: {self.enhanced_dir}")
         
+    def extract_key_metrics(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
+        """提取階段4關鍵指標"""
+        # 從轉換結果中提取關鍵指標
+        conversion_stats = processing_results.get("conversion_statistics", {})
+        constellation_data = processing_results.get("constellation_data", {})
+        
+        return {
+            "處理總數": conversion_stats.get("total_processed", 0),
+            "成功轉換": conversion_stats.get("successful_conversions", 0),
+            "失敗轉換": conversion_stats.get("failed_conversions", 0),
+            "轉換率": f"{conversion_stats.get('successful_conversions', 0) / max(conversion_stats.get('total_processed', 1), 1) * 100:.1f}%",
+            "Starlink處理": constellation_data.get("starlink", {}).get("satellites_processed", 0),
+            "OneWeb處理": constellation_data.get("oneweb", {}).get("satellites_processed", 0)
+        }
+    
+    def run_validation_checks(self, processing_results: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """執行階段4特定驗證檢查"""
+        checks = []
+        
+        conversion_stats = processing_results.get("conversion_statistics", {})
+        constellation_data = processing_results.get("constellation_data", {})
+        
+        # 檢查1: 數據轉換成功率
+        total_processed = conversion_stats.get("total_processed", 0)
+        successful_conversions = conversion_stats.get("successful_conversions", 0)
+        conversion_rate = (successful_conversions / max(total_processed, 1)) * 100
+        
+        checks.append({
+            'checkName': '時間序列轉換成功率檢查',
+            'passed': conversion_rate >= 80.0,  # 要求80%以上成功率
+            'result': f"轉換成功率: {conversion_rate:.1f}% ({successful_conversions}/{total_processed})",
+            'details': f"成功轉換 {successful_conversions} 顆衛星，總處理 {total_processed} 顆衛星"
+        })
+        
+        # 檢查2: Starlink數據完整性
+        starlink_processed = constellation_data.get("starlink", {}).get("satellites_processed", 0)
+        starlink_file = constellation_data.get("starlink", {}).get("output_file")
+        
+        checks.append({
+            'checkName': 'Starlink時間序列數據檢查',
+            'passed': starlink_processed > 0 and starlink_file is not None,
+            'result': f"Starlink: {starlink_processed} 顆衛星處理完成" if starlink_processed > 0 else "Starlink數據未處理",
+            'details': f"輸出文件: {starlink_file if starlink_file else '未生成'}"
+        })
+        
+        # 檢查3: OneWeb數據完整性
+        oneweb_processed = constellation_data.get("oneweb", {}).get("satellites_processed", 0)
+        oneweb_file = constellation_data.get("oneweb", {}).get("output_file")
+        
+        checks.append({
+            'checkName': 'OneWeb時間序列數據檢查',
+            'passed': oneweb_processed > 0 and oneweb_file is not None,
+            'result': f"OneWeb: {oneweb_processed} 顆衛星處理完成" if oneweb_processed > 0 else "OneWeb數據未處理",
+            'details': f"輸出文件: {oneweb_file if oneweb_file else '未生成'}"
+        })
+        
+        # 檢查4: 輸出文件存在性
+        output_files = processing_results.get("output_files", {})
+        total_output_files = len([f for f in output_files.values() if f])
+        
+        checks.append({
+            'checkName': '增強時間序列文件生成檢查',
+            'passed': total_output_files >= 1,  # 至少生成一個文件
+            'result': f"生成 {total_output_files} 個增強時間序列文件",
+            'details': f"輸出目錄: {processing_results.get('output_directory', 'unknown')}"
+        })
+        
+        return checks
+    
     def load_signal_analysis_output(self, signal_file: Optional[str] = None) -> Dict[str, Any]:
         """載入信號分析輸出數據"""
         if signal_file is None:
@@ -176,16 +253,33 @@ class TimeseriesPreprocessingProcessor:
         if positions:
             enhanced_satellite["position_timeseries"] = []
             for pos in positions:
-                # 兼容不同的數據格式
+                # 適配新的192點時間序列格式
+                relative_obs = pos.get('relative_to_observer', {})
+                geodetic = pos.get('geodetic', {})
+                
                 enhanced_pos = {
-                    "time": pos.get('time', ''),
-                    "time_offset_seconds": pos.get('time_offset_seconds', 0),
-                    "elevation_deg": pos.get('elevation_deg', -999),
-                    "azimuth_deg": pos.get('azimuth_deg', 0),
-                    "range_km": pos.get('range_km', 0),
-                    "is_visible": pos.get('is_visible', False),
-                    "position_eci": pos.get('position_eci', {}),
-                    "velocity_eci": pos.get('velocity_eci', {})
+                    "time": pos.get('utc_time', pos.get('time', '')),
+                    "time_offset_seconds": pos.get('time_index', 0) * 30,  # 30秒間隔
+                    "elevation_deg": relative_obs.get('elevation_deg', pos.get('elevation_deg', -999)),
+                    "azimuth_deg": relative_obs.get('azimuth_deg', pos.get('azimuth_deg', 0)),
+                    "range_km": relative_obs.get('range_km', pos.get('range_km', 0)),
+                    "is_visible": relative_obs.get('is_visible', pos.get('is_visible', False)),
+                    "position_eci": {
+                        "x": pos.get('eci_position_km', [0, 0, 0])[0] if len(pos.get('eci_position_km', [])) > 0 else 0,
+                        "y": pos.get('eci_position_km', [0, 0, 0])[1] if len(pos.get('eci_position_km', [])) > 1 else 0,
+                        "z": pos.get('eci_position_km', [0, 0, 0])[2] if len(pos.get('eci_position_km', [])) > 2 else 0
+                    },
+                    "velocity_eci": {
+                        "x": pos.get('eci_velocity_km_s', [0, 0, 0])[0] if len(pos.get('eci_velocity_km_s', [])) > 0 else 0,
+                        "y": pos.get('eci_velocity_km_s', [0, 0, 0])[1] if len(pos.get('eci_velocity_km_s', [])) > 1 else 0,
+                        "z": pos.get('eci_velocity_km_s', [0, 0, 0])[2] if len(pos.get('eci_velocity_km_s', [])) > 2 else 0
+                    },
+                    # 新增地理坐標信息
+                    "geodetic": {
+                        "latitude_deg": geodetic.get('latitude_deg', 0),
+                        "longitude_deg": geodetic.get('longitude_deg', 0),
+                        "altitude_km": geodetic.get('altitude_km', 0)
+                    }
                 }
                 enhanced_satellite["position_timeseries"].append(enhanced_pos)
             logger.debug(f"  成功處理 {len(positions)} 個時間點的軌道數據")
@@ -288,57 +382,118 @@ class TimeseriesPreprocessingProcessor:
         
     def process_timeseries_preprocessing(self, signal_file: Optional[str] = None, save_output: bool = True) -> Dict[str, Any]:
         """執行完整的時間序列預處理流程"""
+        start_time = time.time()
         logger.info("🚀 開始時間序列預處理")
         
-        # 1. 載入信號分析數據
-        signal_data = self.load_signal_analysis_output(signal_file)
+        # 清理舊輸出文件
+        if self.enhanced_dir.exists():
+            for file_pattern in ["starlink_enhanced.json", "oneweb_enhanced.json", "conversion_statistics.json"]:
+                old_file = self.enhanced_dir / file_pattern
+                if old_file.exists():
+                    logger.info(f"🗑️ 清理舊檔案: {old_file}")
+                    old_file.unlink()
         
-        # 2. 轉換為增強時間序列格式
-        conversion_results = self.convert_to_enhanced_timeseries(signal_data)
+        # 清理舊驗證快照 (確保生成最新驗證快照)
+        if self.snapshot_file.exists():
+            logger.info(f"🗑️ 清理舊驗證快照: {self.snapshot_file}")
+            self.snapshot_file.unlink()
         
-        # 3. 保存增強時間序列數據
-        output_files = {}
-        if save_output:
-            output_files = self.save_enhanced_timeseries(conversion_results)
-            logger.info(f"📁 時間序列預處理數據已保存到: {self.enhanced_dir}")
-        else:
-            logger.info("🚀 時間序列預處理使用內存傳遞模式，未保存檔案")
-        
-        # 4. 組裝返回結果
-        results = {
-            "success": True,
-            "processing_type": "timeseries_preprocessing",
-            "processing_timestamp": datetime.now(timezone.utc).isoformat(),
-            "input_source": "signal_event_analysis_output.json",
-            "output_directory": str(self.enhanced_dir),
-            "output_files": output_files,
-            "conversion_statistics": conversion_results["conversion_statistics"],
-            "constellation_data": {
-                "starlink": {
-                    "satellites_processed": len(conversion_results["starlink"]["satellites"]) if conversion_results["starlink"] else 0,
-                    "output_file": output_files.get("starlink", None)
+        try:
+            # 1. 載入信號分析數據
+            signal_data = self.load_signal_analysis_output(signal_file)
+            
+            # 2. 轉換為增強時間序列格式
+            conversion_results = self.convert_to_enhanced_timeseries(signal_data)
+            
+            # 3. 保存增強時間序列數據
+            output_files = {}
+            if save_output:
+                output_files = self.save_enhanced_timeseries(conversion_results)
+                logger.info(f"📁 時間序列預處理數據已保存到: {self.enhanced_dir}")
+            else:
+                logger.info("🚀 時間序列預處理使用內存傳遞模式，未保存檔案")
+            
+            # 🔧 修復：創建合併的時間序列數據供Stage 5使用
+            all_satellites = []
+            for const_name in ['starlink', 'oneweb']:
+                const_result = conversion_results.get(const_name)
+                if const_result:
+                    satellites = const_result.get('satellites', [])
+                    all_satellites.extend(satellites)
+            
+            # 4. 組裝返回結果
+            results = {
+                "success": True,
+                "processing_type": "timeseries_preprocessing",
+                "processing_timestamp": datetime.now(timezone.utc).isoformat(),
+                "input_source": "signal_event_analysis_output.json",
+                "output_directory": str(self.enhanced_dir),
+                "output_files": output_files,
+                "conversion_statistics": conversion_results["conversion_statistics"],
+                "constellation_data": {
+                    "starlink": {
+                        "satellites_processed": len(conversion_results["starlink"]["satellites"]) if conversion_results["starlink"] else 0,
+                        "output_file": output_files.get("starlink", None)
+                    },
+                    "oneweb": {
+                        "satellites_processed": len(conversion_results["oneweb"]["satellites"]) if conversion_results["oneweb"] else 0,
+                        "output_file": output_files.get("oneweb", None)
+                    }
                 },
-                "oneweb": {
-                    "satellites_processed": len(conversion_results["oneweb"]["satellites"]) if conversion_results["oneweb"] else 0,
-                    "output_file": output_files.get("oneweb", None)
+                # 🔧 修復：添加timeseries_data字段供Stage 5使用
+                "timeseries_data": {
+                    "satellites": all_satellites,
+                    "metadata": {
+                        "total_satellites": len(all_satellites),
+                        "processing_complete": True,
+                        "data_format": "enhanced_timeseries"
+                    }
+                },
+                # 🔧 添加metadata兼容字段
+                "metadata": {
+                    "total_satellites": len(all_satellites),
+                    "successful_conversions": conversion_results["conversion_statistics"]["successful_conversions"],
+                    "failed_conversions": conversion_results["conversion_statistics"]["failed_conversions"]
                 }
             }
-        }
-        
-        total_processed = results["conversion_statistics"]["total_processed"]
-        total_successful = results["conversion_statistics"]["successful_conversions"]
-        
-        logger.info("✅ 時間序列預處理完成")
-        logger.info(f"  處理的衛星數: {total_processed}")
-        logger.info(f"  成功轉換: {total_successful}")
-        logger.info(f"  轉換率: {total_successful/total_processed*100:.1f}%" if total_processed > 0 else "  轉換率: 0%")
-        
-        if output_files:
-            logger.info(f"  輸出文件:")
-            for const, file_path in output_files.items():
-                logger.info(f"    {const}: {file_path}")
-        
-        return results
+            
+            # 5. 計算處理時間
+            end_time = time.time()
+            processing_duration = end_time - start_time
+            
+            # 6. 保存驗證快照
+            validation_success = self.save_validation_snapshot(results)
+            if validation_success:
+                logger.info("✅ Stage 4 驗證快照已保存")
+            else:
+                logger.warning("⚠️ Stage 4 驗證快照保存失敗")
+            
+            total_processed = results["conversion_statistics"]["total_processed"]
+            total_successful = results["conversion_statistics"]["successful_conversions"]
+            
+            logger.info("✅ 時間序列預處理完成")
+            logger.info(f"  處理的衛星數: {total_processed}")
+            logger.info(f"  成功轉換: {total_successful}")
+            logger.info(f"  轉換率: {total_successful/total_processed*100:.1f}%" if total_processed > 0 else "  轉換率: 0%")
+            logger.info(f"  處理時間: {processing_duration:.2f} 秒")
+            
+            if output_files:
+                logger.info(f"  輸出文件:")
+                for const, file_path in output_files.items():
+                    logger.info(f"    {const}: {file_path}")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"❌ Stage 4 時間序列預處理失敗: {e}")
+            # 保存錯誤快照
+            error_data = {
+                'error': str(e),
+                'stage': 4,
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+            self.save_validation_snapshot(error_data)
+            raise
 
 def main():
     """主函數"""

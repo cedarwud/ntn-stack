@@ -141,6 +141,46 @@
     scrollbar-width: thin;
     scrollbar-color: rgba(75, 85, 99, 0.8) rgba(31, 41, 55, 0.3);
 
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(55, 65, 81, 0.3);
+      }
+
+      .header-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        h3 {
+          margin: 0;
+          font-size: 1.1rem;
+          font-weight: 600;
+        }
+      }
+
+      .collapse-button {
+        padding: 4px;
+        min-width: auto;
+        height: auto;
+        opacity: 0.7;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+
+        &:hover {
+          opacity: 1;
+          transform: scale(1.1);
+        }
+      }
+    }
+
     &::-webkit-scrollbar {
       width: 6px;
     }
@@ -241,6 +281,196 @@
     .control-buttons {
       flex-direction: column;
       width: 100%;
+    }
+  }
+
+  // Pipeline統計單行顯示樣式
+  .pipeline-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .stages-single-row {
+    .row-title {
+      color: #d1d5db;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .stages-single-row-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+    }
+  }
+
+  .stage-item-compact {
+    background: rgba(31, 41, 55, 0.8);
+    border: 1px solid rgba(75, 85, 99, 0.3);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    min-width: 180px;
+    transition: all 0.3s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+      border-color: rgba(156, 163, 175, 0.5);
+    }
+
+    &.success {
+      border-color: rgba(34, 197, 94, 0.5);
+      background: rgba(34, 197, 94, 0.1);
+    }
+
+    &.warning {
+      border-color: rgba(251, 191, 36, 0.5);
+      background: rgba(251, 191, 36, 0.1);
+    }
+
+    &.failed {
+      border-color: rgba(239, 68, 68, 0.5);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .stage-compact-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+
+      .stage-number {
+        font-weight: 600;
+        color: #e5e7eb;
+        font-size: 0.9rem;
+      }
+    }
+
+    .stage-compact-title {
+      color: #d1d5db;
+      font-size: 0.8rem;
+      margin-bottom: 0.75rem;
+      text-align: center;
+    }
+
+    .stage-compact-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+
+      .compact-stat {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        color: #9ca3af;
+        padding: 0.125rem 0;
+      }
+    }
+
+    .stage-compact-error {
+      color: #ef4444;
+      font-size: 0.7rem;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+  }
+
+  // 數據流向圖樣式
+  .data-flow-row {
+    .flow-title {
+      color: #d1d5db;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .flow-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: rgba(31, 41, 55, 0.8);
+      border: 1px solid rgba(75, 85, 99, 0.3);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      min-width: 120px;
+
+      .flow-stage-number {
+        font-weight: 600;
+        color: #e5e7eb;
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .flow-stage-count {
+        font-weight: 700;
+        color: #3b82f6;
+        font-size: 1.1rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .flow-stage-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+        font-size: 0.7rem;
+
+        .flow-starlink {
+          color: #10b981;
+        }
+
+        .flow-oneweb {
+          color: #8b5cf6;
+        }
+      }
+    }
+
+    .flow-arrow {
+      font-size: 1.5rem;
+      color: #6b7280;
+      margin: 0 0.5rem;
+    }
+  }
+
+  // 响应式设计
+  @media (max-width: 768px) {
+    .stages-single-row-content {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .stage-item-compact {
+      min-width: 150px;
+    }
+
+    .data-flow-row .flow-diagram {
+      flex-direction: column;
+      .flow-arrow {
+        transform: rotate(90deg);
+        margin: 0.5rem 0;
+      }
+    }
+  }
+
+  @media (max-width: 480px) {
+    .stages-single-row-content {
+      grid-template-columns: 1fr;
+    }
+    
+    .stage-item-compact {
+      min-width: 100%;
     }
   }
 
@@ -407,6 +637,120 @@
       margin-bottom: 20px;
     }
 
+    .pipeline-two-columns {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 20px;
+
+      @media (max-width: 1200px) {
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .pipeline-left-column {
+        flex: 2;
+        min-width: 0;
+      }
+
+      .pipeline-right-column {
+        flex: 1;
+        min-width: 300px;
+
+        .data-flow-chart {
+          background: rgba(55, 65, 81, 0.4);
+          border: 1px solid rgba(75, 85, 99, 0.3);
+          border-radius: 8px;
+          padding: 16px;
+          height: fit-content;
+          
+          .flow-header {
+            margin-bottom: 16px;
+
+            h4 {
+              margin: 0;
+              font-size: 1rem;
+              font-weight: 500;
+              color: #f3f4f6;
+            }
+          }
+
+          .flow-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+
+            .flow-stage {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 8px 12px;
+              background: rgba(75, 85, 99, 0.3);
+              border-radius: 6px;
+              border: 1px solid rgba(107, 114, 128, 0.2);
+
+              .flow-stage-number {
+                font-size: 0.875rem;
+                color: #9ca3af;
+                font-weight: 500;
+              }
+
+              .flow-stage-count {
+                font-size: 0.875rem;
+                font-weight: 600;
+                color: #f3f4f6;
+                background: rgba(59, 130, 246, 0.2);
+                border: 1px solid rgba(59, 130, 246, 0.3);
+                border-radius: 4px;
+                padding: 2px 6px;
+              }
+
+              .flow-arrow {
+                display: none; // 在垂直布局中隱藏箭頭
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .stages-two-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+
+      .stages-row {
+        .row-title {
+          margin: 0 0 16px 0;
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #f3f4f6;
+          text-align: center;
+          padding: 12px;
+          background: rgba(75, 85, 99, 0.3);
+          border-radius: 6px;
+          border: 1px solid rgba(107, 114, 128, 0.2);
+        }
+
+        .stages-row-content {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr; // 強制每行3個項目
+          gap: 16px;
+
+          @media (max-width: 1024px) {
+            grid-template-columns: 1fr 1fr; // 中等屏幕顯示2個
+          }
+
+          @media (max-width: 768px) {
+            grid-template-columns: 1fr; // 小屏幕顯示1個
+          }
+
+          .stage-item {
+            margin: 0; // 移除額外的 margin，由 grid gap 處理
+          }
+        }
+      }
+    }
+
     .stage-item {
       background: rgba(55, 65, 81, 0.6);
       border: 1px solid rgba(75, 85, 99, 0.4);
@@ -426,6 +770,10 @@
 
       &.failed {
         border-left: 4px solid #ef4444;
+      }
+
+      &.warning {
+        border-left: 4px solid #f59e0b;
       }
 
       &.no_data {

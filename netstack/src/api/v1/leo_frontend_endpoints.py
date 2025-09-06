@@ -27,19 +27,22 @@ async def get_satellites_for_frontend(
         Dict: 前端格式的衛星數據，包含位置、可見性等信息
     """
     try:
-        # 使用 /app/data 目錄而非 /tmp
-        leo_output_dir = "/app/data/dynamic_pool_planning_outputs"
+        # 🚀 使用新的多階段數據管理器
+        from shared_core.stage_data_manager import StageDataManager
         
-        # 檢查數據是否存在
-        output_path = Path(leo_output_dir)
-        if not output_path.exists():
+        # 初始化數據管理器
+        stage_manager = StageDataManager()
+        
+        # 獲取統一格式的衛星數據
+        satellites = stage_manager.get_unified_satellite_data()
+        
+        if not satellites:
+            # 獲取階段狀態信息提供更詳細的錯誤
+            stage_num, stage_info = stage_manager.get_best_available_stage()
             raise HTTPException(
                 status_code=404, 
-                detail="LEO系統數據不存在，請先運行 LEO 系統生成數據"
+                detail=f"沒有可用的衛星數據。最佳階段 Stage {stage_num} 狀態: {stage_info.status.value}"
             )
-        
-        # 轉換數據
-        satellites = converter.convert_leo_to_frontend_format(leo_output_dir)
         
         # 應用篩選
         filtered_satellites = []
@@ -54,6 +57,9 @@ async def get_satellites_for_frontend(
             
             filtered_satellites.append(sat)
         
+        # 獲取數據源信息
+        best_stage_num, best_stage_info = stage_manager.get_best_available_stage()
+        
         # 計算統計信息
         statistics = {
             "total_satellites": len(filtered_satellites),
@@ -63,6 +69,9 @@ async def get_satellites_for_frontend(
             "max_elevation": max(s['elevation_deg'] for s in filtered_satellites) if filtered_satellites else 0,
             "min_elevation_filter": min_elevation,
             "constellation_filter": constellation,
+            "data_source_stage": best_stage_num,
+            "data_source_name": best_stage_info.stage_name,
+            "data_source_status": best_stage_info.status.value,
             "generated_at": datetime.now().isoformat()
         }
         
@@ -77,6 +86,20 @@ async def get_satellites_for_frontend(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"數據轉換失敗: {str(e)}")
 
+
+@router.get("/satellites")
+async def get_satellites_endpoint(
+    constellation: Optional[str] = Query(None, description="星座篩選 (starlink/oneweb)"),
+    min_elevation: float = Query(5.0, description="最小仰角 (度)"),
+    format: str = Query("enhanced", description="輸出格式 (basic/enhanced)")
+) -> Dict[str, Any]:
+    """獲取衛星數據API端點（支持多階段回退）"""
+    return await get_satellites_for_frontend(constellation, min_elevation, format)
+
+@router.get("/satellites/enhanced")
+async def get_enhanced_satellites_endpoint() -> Dict[str, Any]:
+    """獲取增強版衛星數據API端點（支持多階段回退）"""
+    return await get_enhanced_satellites_data()
 
 @router.get("/dynamic-pools/summary")
 async def get_dynamic_pool_summary() -> Dict[str, Any]:
@@ -137,11 +160,21 @@ async def get_enhanced_satellites_data():
         Dict: 增強版前端格式數據，包含 LEO 系統的詳細分析
     """
     try:
-        # 使用 /app/data 目錄而非 /tmp
-        leo_output_dir = "/app/data/dynamic_pool_planning_outputs"
+        # 🚀 使用新的多階段數據管理器
+        from shared_core.stage_data_manager import StageDataManager
         
-        # 獲取基本衛星數據
-        satellites = converter.convert_leo_to_frontend_format(leo_output_dir)
+        # 初始化數據管理器
+        stage_manager = StageDataManager()
+        
+        # 獲取統一格式的衛星數據
+        satellites = stage_manager.get_unified_satellite_data()
+        
+        if not satellites:
+            stage_num, stage_info = stage_manager.get_best_available_stage()
+            raise HTTPException(
+                status_code=404, 
+                detail=f"沒有可用的衛星數據。最佳階段 Stage {stage_num} 狀態: {stage_info.status.value}"
+            )
         
         # 讀取詳細的分析數據
         analysis_data = {}
@@ -158,6 +191,9 @@ async def get_enhanced_satellites_data():
             with open(event_analysis_path, 'r') as f:
                 analysis_data['event_analysis'] = json.load(f)
         
+        # 獲取數據源信息
+        best_stage_num, best_stage_info = stage_manager.get_best_available_stage()
+        
         # 構建增強版響應
         enhanced_data = {
             "success": True,
@@ -171,7 +207,10 @@ async def get_enhanced_satellites_data():
                 "avg_elevation": sum(s['elevation_deg'] for s in satellites) / len(satellites) if satellites else 0,
                 "max_elevation": max(s['elevation_deg'] for s in satellites) if satellites else 0,
                 "total_visible_time": sum(s.get('leo_visible_time_minutes', 0) for s in satellites),
-                "avg_score": sum(s.get('leo_total_score', 0) for s in satellites) / len(satellites) if satellites else 0
+                "avg_score": sum(s.get('leo_total_score', 0) for s in satellites) / len(satellites) if satellites else 0,
+                "data_source_stage": best_stage_num,
+                "data_source_name": best_stage_info.stage_name,
+                "data_source_status": best_stage_info.status.value
             },
             "capabilities": {
                 "real_orbit_calculation": True,
@@ -278,6 +317,241 @@ async def get_leo_system_status():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"狀態檢查失敗: {str(e)}")
+
+@router.get("/stages-status", response_model=Dict[str, Any])
+async def get_stages_status() -> Dict[str, Any]:
+    """
+    獲取六階段處理狀態詳情
+    
+    Returns:
+        Dict: 包含所有階段狀態信息的詳細報告
+    """
+    try:
+        from shared_core.stage_data_manager import StageDataManager
+        
+        # 初始化階段管理器
+        stage_manager = StageDataManager()
+        
+        # 獲取所有階段狀態
+        all_stages = stage_manager.get_all_stages_status()
+        
+        # 轉換為API響應格式
+        stages_status = {}
+        total_satellites = 0
+        successful_stages = 0
+        
+        for stage_num, stage_info in all_stages.items():
+            stages_status[f"stage_{stage_num}"] = {
+                "stage_number": stage_info.stage_number,
+                "stage_name": stage_info.stage_name,
+                "status": stage_info.status.value,
+                "satellite_count": stage_info.satellite_count,
+                "file_size_mb": round(stage_info.file_size_mb, 2),
+                "file_path": stage_info.file_path,
+                "processing_time": stage_info.processing_time.isoformat() if stage_info.processing_time else None,
+                "data_quality": stage_info.data_quality,
+                "error_message": stage_info.error_message
+            }
+            
+            if stage_info.status.value in ["success", "partial"]:
+                successful_stages += 1
+                if stage_info.satellite_count > total_satellites:
+                    total_satellites = stage_info.satellite_count
+        
+        # 獲取最佳可用階段
+        best_stage_num, best_stage_info = stage_manager.get_best_available_stage()
+        
+        # 數據流分析
+        data_flow = []
+        expected_flow = [
+            (1, "8791 顆衛星載入"),
+            (2, "~1200 顆高質量篩選"),
+            (3, "~1200 顆信號分析"),
+            (4, "~1200 顆時間序列"),
+            (5, "~1200 顆數據整合"),
+            (6, "260-330 顆最終優化")
+        ]
+        
+        for stage_num, expected_desc in expected_flow:
+            stage_info = all_stages.get(stage_num)
+            if stage_info:
+                actual_count = stage_info.satellite_count
+                status_icon = {
+                    "success": "✅",
+                    "partial": "⚠️", 
+                    "failed": "❌",
+                    "missing": "❌"
+                }.get(stage_info.status.value, "❓")
+                
+                data_flow.append({
+                    "stage": stage_num,
+                    "expected": expected_desc,
+                    "actual": f"{actual_count} 顆衛星",
+                    "status": stage_info.status.value,
+                    "status_icon": status_icon,
+                    "is_healthy": stage_info.status.value in ["success", "partial"]
+                })
+        
+        # @docs 合規性檢查
+        docs_compliance = {
+            "stage_2_target": {"expected": "1150-1400", "actual": all_stages[2].satellite_count if 2 in all_stages else 0},
+            "stage_6_target": {"expected": "260-330", "actual": all_stages[6].satellite_count if 6 in all_stages else 0},
+            "retention_rate": {
+                "stage_2": round((all_stages[2].satellite_count / 8791 * 100), 1) if 2 in all_stages and all_stages[2].satellite_count > 0 else 0,
+                "expected_stage_2": "12-15%"
+            }
+        }
+        
+        return {
+            "success": True,
+            "timestamp": datetime.now().isoformat(),
+            "summary": {
+                "total_stages": 6,
+                "successful_stages": successful_stages,
+                "best_available_stage": best_stage_num,
+                "best_available_data": {
+                    "stage_name": best_stage_info.stage_name,
+                    "satellite_count": best_stage_info.satellite_count,
+                    "status": best_stage_info.status.value
+                },
+                "overall_health": "healthy" if successful_stages >= 3 else "degraded" if successful_stages >= 1 else "critical"
+            },
+            "stages": stages_status,
+            "data_flow_analysis": data_flow,
+            "docs_compliance": docs_compliance,
+            "recommendations": _generate_stage_recommendations(all_stages)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"階段狀態檢查失敗: {str(e)}")
+
+@router.get("/stage/{stage_number}", response_model=Dict[str, Any])
+async def get_stage_data(
+    stage_number: int = Path(..., ge=1, le=6, description="階段編號 (1-6)"),
+    include_samples: bool = Query(False, description="是否包含衛星樣本數據"),
+    sample_count: int = Query(10, description="樣本數量")
+) -> Dict[str, Any]:
+    """
+    獲取特定階段的詳細數據
+    
+    Args:
+        stage_number: 階段編號 (1-6)
+        include_samples: 是否包含衛星樣本數據
+        sample_count: 樣本數量
+        
+    Returns:
+        Dict: 特定階段的詳細信息和可選的樣本數據
+    """
+    try:
+        from shared_core.stage_data_manager import StageDataManager
+        
+        # 初始化階段管理器
+        stage_manager = StageDataManager()
+        
+        # 獲取特定階段信息
+        stage_info = stage_manager.get_stage_info(stage_number)
+        
+        response = {
+            "success": True,
+            "timestamp": datetime.now().isoformat(),
+            "stage_info": {
+                "stage_number": stage_info.stage_number,
+                "stage_name": stage_info.stage_name,
+                "status": stage_info.status.value,
+                "satellite_count": stage_info.satellite_count,
+                "file_size_mb": round(stage_info.file_size_mb, 2),
+                "file_path": stage_info.file_path,
+                "processing_time": stage_info.processing_time.isoformat() if stage_info.processing_time else None,
+                "data_quality": stage_info.data_quality,
+                "error_message": stage_info.error_message
+            }
+        }
+        
+        # 如果請求包含樣本數據且階段可用
+        if include_samples and stage_info.status.value in ["success", "partial"]:
+            try:
+                # 載入階段數據
+                stage_data = stage_manager.load_stage_data(stage_number)
+                
+                # 轉換為統一格式並取樣本
+                unified_data = stage_manager._convert_to_unified_format(stage_data, stage_number)
+                samples = unified_data[:sample_count] if unified_data else []
+                
+                response["samples"] = {
+                    "count": len(samples),
+                    "total_available": len(unified_data),
+                    "data": samples
+                }
+                
+            except Exception as e:
+                response["samples"] = {
+                    "error": f"樣本數據載入失敗: {str(e)}"
+                }
+        
+        return response
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"階段 {stage_number} 數據獲取失敗: {str(e)}")
+
+def _generate_stage_recommendations(stages_status: Dict[int, Any]) -> List[Dict[str, str]]:
+    """生成階段狀態改進建議"""
+    recommendations = []
+    
+    # 檢查各階段並生成建議
+    for stage_num in range(1, 7):
+        if stage_num not in stages_status:
+            continue
+            
+        stage_info = stages_status[stage_num]
+        status = stage_info.status.value
+        sat_count = stage_info.satellite_count
+        
+        if status == "missing":
+            recommendations.append({
+                "priority": "high",
+                "stage": f"Stage {stage_num}",
+                "issue": f"{stage_info.stage_name} 數據缺失",
+                "suggestion": f"運行 Stage {stage_num} 處理器生成數據"
+            })
+        elif status == "failed":
+            recommendations.append({
+                "priority": "high", 
+                "stage": f"Stage {stage_num}",
+                "issue": f"{stage_info.stage_name} 處理失敗",
+                "suggestion": "檢查錯誤日誌並修復問題"
+            })
+        elif status == "partial":
+            recommendations.append({
+                "priority": "medium",
+                "stage": f"Stage {stage_num}",
+                "issue": f"衛星數量偏低 ({sat_count} 顆)",
+                "suggestion": "檢查篩選參數或輸入數據質量"
+            })
+    
+    # 數據流連續性檢查
+    successful_stages = [num for num, info in stages_status.items() if info.status.value in ["success", "partial"]]
+    if successful_stages:
+        max_stage = max(successful_stages)
+        if max_stage < 6:
+            recommendations.append({
+                "priority": "medium",
+                "stage": f"Stage {max_stage+1}-6",
+                "issue": f"數據流在 Stage {max_stage} 後中斷",
+                "suggestion": f"修復 Stage {max_stage+1} 以恢復完整流程"
+            })
+    
+    # @docs 合規性建議
+    if 6 in stages_status:
+        stage6_count = stages_status[6].satellite_count
+        if stage6_count > 0 and (stage6_count < 260 or stage6_count > 330):
+            recommendations.append({
+                "priority": "medium",
+                "stage": "Stage 6",
+                "issue": f"最終衛星數量 ({stage6_count}) 不符合 @docs 標準 (260-330)",
+                "suggestion": "調整模擬退火算法參數"
+            })
+    
+    return recommendations
 
 @router.post("/refresh", response_model=Dict[str, Any])
 async def refresh_leo_data():

@@ -76,13 +76,13 @@ class SimulatedAnnealingOptimizer:
         # LEO軌道週期~90-110分鐘，單顆可見~10-15分鐘，要維持10-15顆隨時可見需要300-500顆池
         self.targets = {
             'starlink': {
-                'pool_size': 400,  # 🔧 重大修正: 60→400 (從1029顆候選中選400顆，確保持續覆蓋)
+                'pool_size': 250,  # @docs目標: 250顆 Starlink
                 'visible_range': (10, 15),  # 🔧 恢復原始要求: 10-15顆隨時可見
                 'elevation_threshold': 5.0,
                 'orbit_period_minutes': 96
             },
             'oneweb': {
-                'pool_size': 120,   # 🔧 重大修正: 40→120 (從167顆候選中選120顆，確保持續覆蓋)
+                'pool_size': 80,   # @docs目標: 80顆 OneWeb
                 'visible_range': (3, 6),  # 🔧 恢復原始要求: 3-6顆隨時可見
                 'elevation_threshold': 10.0,
                 'orbit_period_minutes': 109

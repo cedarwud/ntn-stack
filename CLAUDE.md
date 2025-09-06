@@ -166,6 +166,38 @@ curl -s http://localhost:8080/health | jq
 - [ ] `curl http://localhost:8080/health` 回傳 200
 - [ ] `./verify-refactor.sh` 全部測試通過
 
+## 🔄 六階段管道同步執行原則 (極其重要!)
+
+### 🚨 強制清理原則 (絕對遵守)
+**每次執行六階段管道前必須完全清理舊輸出**:
+- **清理所有階段輸出** - 防止時間戳不一致
+- **確保數據完整性** - 避免混用不同批次的文件  
+- **重新創建目錄結構** - 保證輸出路徑存在
+
+### 📋 清理檢查清單 (強制執行)
+**執行管道前必須清理的路徑**:
+- [ ] `/app/data/tle_calculation_outputs/`
+- [ ] `/app/data/intelligent_filtering_outputs/`
+- [ ] `/app/data/signal_analysis_outputs/`
+- [ ] `/app/data/timeseries_preprocessing_outputs/`
+- [ ] `/app/data/data_integration_outputs/`
+- [ ] `/app/data/dynamic_pool_planning_outputs/`
+- [ ] 所有 `.json` 輸出文件
+
+### 🎯 同步執行流程
+```bash
+# 1. 執行清理和同步腳本
+python /home/sat/ntn-stack/sync_pipeline.py
+
+# 2. 驗證結果
+curl -s http://localhost:8080/api/v1/pipeline/statistics | jq '.stages[] | {stage: .stage, execution_time: .execution_time}'
+```
+
+### ⚠️ 禁止事項
+- **❌ 禁止部分執行** - 必須完整執行全部六階段
+- **❌ 禁止跳過清理** - 每次都必須先清理
+- **❌ 禁止混用舊數據** - 確保全部是同一批次
+
 ## 🐳 Docker 建置原則
 
 ### 📦 Requirements 管理規範

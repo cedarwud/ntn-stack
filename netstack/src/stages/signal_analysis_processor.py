@@ -12,6 +12,7 @@
 import os
 import sys
 import json
+import time
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,10 +27,13 @@ from src.services.satellite.intelligent_filtering.signal_calculation.rsrp_calcul
 from src.services.satellite.intelligent_filtering.event_analysis.gpp_event_analyzer import create_gpp_event_analyzer
 from src.services.satellite.intelligent_filtering.unified_intelligent_filter import UnifiedIntelligentFilter
 
+# 導入驗證基礎類別
+from shared_core.validation_snapshot_base import ValidationSnapshotBase
+
 logger = logging.getLogger(__name__)
 
-class SignalQualityAnalysisProcessor:
-    """信號品質分析與3GPP事件處理器
+class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
+    """信號品質分析及3GPP事件處理器
     
     職責：
     1. 接收智能篩選後的衛星數據
@@ -52,6 +56,9 @@ class SignalQualityAnalysisProcessor:
             - 使用統一觀測配置服務
             - 整合shared_core管理器
         """
+        # Initialize ValidationSnapshotBase
+        super().__init__(stage_number=3, stage_name="階段3: 信號分析")
+        
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -89,9 +96,93 @@ class SignalQualityAnalysisProcessor:
         logger.info("  📐 座標來源: 統一觀測配置服務（已消除硬編碼）")
         logger.info("  🔧 shared_core整合: 信號緩存 + 仰角管理器")
         
+    def extract_key_metrics(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
+        """提取階段3關鍵指標"""
+        metadata = processing_results.get('metadata', {})
+        
+        # 統計各星座處理結果
+        constellation_metrics = {}
+        total_signal_processed = 0
+        total_events_detected = 0
+        
+        for constellation_name, constellation_data in processing_results.get('constellations', {}).items():
+            satellites = constellation_data.get('satellites', [])
+            signal_processed = len([s for s in satellites if s.get('signal_quality')])
+            events_detected = len([s for s in satellites if s.get('event_potential')])
+            
+            constellation_metrics[f"{constellation_name}信號處理"] = signal_processed
+            constellation_metrics[f"{constellation_name}事件檢測"] = events_detected
+            
+            total_signal_processed += signal_processed
+            total_events_detected += events_detected
+        
+        return {
+            "輸入衛星": len(processing_results.get('satellites', [])),
+            "信號處理總數": total_signal_processed,
+            "3GPP事件檢測": total_events_detected,
+            "推薦衛星數": metadata.get('final_recommended_total', 0),
+            **constellation_metrics
+        }
+    
+    def run_validation_checks(self, processing_results: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """執行階段3特定驗證檢查"""
+        checks = []
+        
+        # 檢查1: 信號分析完整性
+        constellations = processing_results.get('constellations', {})
+        signal_completed_count = 0
+        for constellation_data in constellations.values():
+            if constellation_data.get('signal_analysis_completed', False):
+                signal_completed_count += 1
+        
+        checks.append({
+            'checkName': '信號分析完整性檢查',
+            'passed': signal_completed_count > 0,
+            'result': f"{signal_completed_count}/{len(constellations)} 個星座完成信號分析",
+            'details': f"完成信號分析的星座數: {signal_completed_count}"
+        })
+        
+        # 檢查2: 3GPP事件分析
+        event_completed_count = 0
+        for constellation_data in constellations.values():
+            if constellation_data.get('event_analysis_completed', False):
+                event_completed_count += 1
+        
+        checks.append({
+            'checkName': '3GPP事件分析檢查',
+            'passed': event_completed_count > 0,
+            'result': f"{event_completed_count}/{len(constellations)} 個星座完成事件分析",
+            'details': f"完成3GPP事件分析的星座數: {event_completed_count}"
+        })
+        
+        # 檢查3: 最終推薦生成
+        total_satellites = len(processing_results.get('satellites', []))
+        has_recommendations = len(processing_results.get('selection_recommendations', {})) > 0
+        
+        checks.append({
+            'checkName': '衛星推薦生成檢查',
+            'passed': has_recommendations and total_satellites > 0,
+            'result': f"生成 {total_satellites} 顆衛星的推薦結果" if has_recommendations else "未生成推薦結果",
+            'details': f"扁平化衛星陣列: {total_satellites} 顆，推薦系統: {'已生成' if has_recommendations else '未生成'}"
+        })
+        
+        # 檢查4: 數據結構完整性
+        required_fields = ['metadata', 'satellites', 'constellations', 'selection_recommendations']
+        missing_fields = [field for field in required_fields if field not in processing_results]
+        
+        checks.append({
+            'checkName': '輸出數據結構檢查',
+            'passed': len(missing_fields) == 0,
+            'result': "數據結構完整" if len(missing_fields) == 0 else f"缺少字段: {missing_fields}",
+            'details': f"必需字段檢查: {len(required_fields) - len(missing_fields)}/{len(required_fields)} 個字段存在"
+        })
+        
+        return checks
+    
     def load_intelligent_filtering_output(self, filtering_file: Optional[str] = None) -> Dict[str, Any]:
         """載入智能篩選輸出數據"""
         if filtering_file is None:
+            # 🔧 統一路徑：直接從統一輸出目錄載入階段二輸出
             filtering_file = self.input_dir / "intelligent_filtered_output.json"
         else:
             filtering_file = Path(filtering_file)
@@ -377,7 +468,16 @@ class SignalQualityAnalysisProcessor:
             'metadata': event_enhanced_data.get('metadata', {}),
             'satellites': [],  # 扁平化的衛星陣列供後續階段使用
             'constellations': {},  # 保留星座分組資訊
-            'selection_recommendations': {}
+            'selection_recommendations': {},
+            'gpp_events': {  # 🔧 修復：明確包含3GPP事件統計
+                'all_events': [],
+                'event_summary': {
+                    'A4': {'high_potential': 0, 'medium_potential': 0, 'low_potential': 0},
+                    'A5': {'high_potential': 0, 'medium_potential': 0, 'low_potential': 0},
+                    'D2': {'high_potential': 0, 'medium_potential': 0, 'low_potential': 0}
+                },
+                'total_event_triggers': 0
+            }
         }
         
         # 更新metadata
@@ -393,6 +493,7 @@ class SignalQualityAnalysisProcessor:
         })
         
         total_recommended = 0
+        total_events = 0
         
         for constellation_name, constellation_data in event_enhanced_data['constellations'].items():
             satellites = constellation_data.get('satellites', [])
@@ -408,6 +509,30 @@ class SignalQualityAnalysisProcessor:
                 satellite_with_score = satellite.copy()
                 satellite_with_score['composite_score'] = score
                 scored_satellites.append(satellite_with_score)
+                
+                # 🔧 修復：收集3GPP事件統計
+                event_potential = satellite.get('event_potential', {})
+                if event_potential:
+                    # 創建事件條目
+                    event_entry = {
+                        'satellite_id': satellite.get('satellite_id', 'unknown'),
+                        'constellation': constellation_name,
+                        'event_scores': event_potential,
+                        'composite_score': event_potential.get('composite', 0)
+                    }
+                    final_data['gpp_events']['all_events'].append(event_entry)
+                    total_events += 1
+                    
+                    # 更新事件統計
+                    for event_type in ['A4', 'A5', 'D2']:
+                        if event_type in event_potential:
+                            score = event_potential[event_type]
+                            if score >= 0.7:
+                                final_data['gpp_events']['event_summary'][event_type]['high_potential'] += 1
+                            elif score >= 0.4:
+                                final_data['gpp_events']['event_summary'][event_type]['medium_potential'] += 1
+                            else:
+                                final_data['gpp_events']['event_summary'][event_type]['low_potential'] += 1
             
             # 按分數排序
             scored_satellites.sort(key=lambda x: x.get('composite_score', 0), reverse=True)
@@ -447,11 +572,15 @@ class SignalQualityAnalysisProcessor:
             
             logger.info(f"  {constellation_name}: {len(scored_satellites)} 顆衛星完成最終評分")
         
+        # 🔧 修復：更新3GPP事件總數
+        final_data['gpp_events']['total_event_triggers'] = total_events
         final_data['metadata']['final_recommended_total'] = total_recommended
         final_data['metadata']['total_satellites'] = len(final_data['satellites'])  # 供後續階段使用
+        final_data['metadata']['total_3gpp_events'] = total_events  # 明確標記3GPP事件數量
         
         logger.info(f"✅ 最終建議生成完成: {total_recommended} 顆衛星完成綜合評分")
         logger.info(f"  扁平化衛星陣列: {len(final_data['satellites'])} 顆")
+        logger.info(f"  🎯 3GPP事件統計: {total_events} 個事件觸發")  # 新增日誌
         return final_data
         
     def save_signal_analysis_output(self, final_data: Dict[str, Any]) -> str:
@@ -497,52 +626,82 @@ class SignalQualityAnalysisProcessor:
     def process_signal_quality_analysis(self, filtering_file: Optional[str] = None, filtering_data: Optional[Dict[str, Any]] = None,
                       save_output: bool = True) -> Dict[str, Any]:
         """執行完整的信號品質分析處理流程"""
-        logger.info("🚀 開始信號品質分析與3GPP事件處理")
+        start_time = time.time()
+        logger.info("🚀 開始信號品質分析及3GPP事件處理")
         
-        # 1. 載入智能篩選數據（優先使用內存數據）
-        if filtering_data is not None:
-            logger.info("📥 使用提供的智能篩選內存數據")
-            # 驗證內存數據格式
-            if 'constellations' not in filtering_data:
-                raise ValueError("智能篩選數據缺少 constellations 欄位")
-            total_satellites = 0
-            for constellation_name, constellation_data in filtering_data['constellations'].items():
-                # Handle both file-based and memory-based data structures
-                if 'satellites' in constellation_data:
-                    satellites = constellation_data.get('satellites', [])
-                elif 'orbit_data' in constellation_data:
-                    satellites = constellation_data.get('orbit_data', {}).get('satellites', [])
-                else:
-                    satellites = []
-                total_satellites += len(satellites)
-                logger.info(f"  {constellation_name}: {len(satellites)} 顆衛星")
-            logger.info(f"✅ 智能篩選內存數據驗證完成: 總計 {total_satellites} 顆衛星")
-        else:
-            filtering_data = self.load_intelligent_filtering_output(filtering_file)
+        # 清理舊驗證快照 (確保生成最新驗證快照)
+        if self.snapshot_file.exists():
+            logger.info(f"🗑️ 清理舊驗證快照: {self.snapshot_file}")
+            self.snapshot_file.unlink()
         
-        # 2. 信號品質分析
-        signal_enhanced_data = self.calculate_signal_quality(filtering_data)
-        
-        # 3. 3GPP事件分析
-        event_enhanced_data = self.analyze_3gpp_events(signal_enhanced_data)
-        
-        # 4. 生成最終建議
-        final_data = self.generate_final_recommendations(event_enhanced_data)
-        
-        # 5. 可選的輸出策略
-        output_file = None
-        if save_output:
-            output_file = self.save_signal_analysis_output(final_data)
-            logger.info(f"📁 信號分析數據已保存到: {output_file}")
-        else:
-            logger.info("🚀 信號分析使用內存傳遞模式，未保存檔案")
-        
-        logger.info("✅ 信號品質分析處理完成")
-        logger.info(f"  分析的衛星數: {final_data['metadata'].get('final_recommended_total', 0)}")
-        if output_file:
-            logger.info(f"  輸出檔案: {output_file}")
-        
-        return final_data
+        try:
+            # 1. 載入智能篩選數據（優先使用內存數據）
+            if filtering_data is not None:
+                logger.info("📥 使用提供的智能篩選內存數據")
+                # 驗證內存數據格式
+                if 'constellations' not in filtering_data:
+                    raise ValueError("智能篩選數據缺少 constellations 欄位")
+                total_satellites = 0
+                for constellation_name, constellation_data in filtering_data['constellations'].items():
+                    # Handle both file-based and memory-based data structures
+                    if 'satellites' in constellation_data:
+                        satellites = constellation_data.get('satellites', [])
+                    elif 'orbit_data' in constellation_data:
+                        satellites = constellation_data.get('orbit_data', {}).get('satellites', [])
+                    else:
+                        satellites = []
+                    total_satellites += len(satellites)
+                    logger.info(f"  {constellation_name}: {len(satellites)} 顆衛星")
+                logger.info(f"✅ 智能篩選內存數據驗證完成: 總計 {total_satellites} 顆衛星")
+            else:
+                filtering_data = self.load_intelligent_filtering_output(filtering_file)
+            
+            # 2. 信號品質分析
+            signal_enhanced_data = self.calculate_signal_quality(filtering_data)
+            
+            # 3. 3GPP事件分析
+            event_enhanced_data = self.analyze_3gpp_events(signal_enhanced_data)
+            
+            # 4. 生成最終建議
+            final_data = self.generate_final_recommendations(event_enhanced_data)
+            
+            # 5. 計算處理時間
+            end_time = time.time()
+            processing_duration = end_time - start_time
+            
+            # 6. 保存驗證快照
+            validation_success = self.save_validation_snapshot(final_data)
+            if validation_success:
+                logger.info("✅ Stage 3 驗證快照已保存")
+            else:
+                logger.warning("⚠️ Stage 3 驗證快照保存失敗")
+            
+            # 7. 可選的輸出策略
+            output_file = None
+            if save_output:
+                output_file = self.save_signal_analysis_output(final_data)
+                logger.info(f"📁 信號分析數據已保存到: {output_file}")
+            else:
+                logger.info("🚀 信號分析使用內存傳遞模式，未保存檔案")
+            
+            logger.info("✅ 信號品質分析處理完成")
+            logger.info(f"  分析的衛星數: {final_data['metadata'].get('final_recommended_total', 0)}")
+            logger.info(f"  處理時間: {processing_duration:.2f} 秒")
+            if output_file:
+                logger.info(f"  輸出檔案: {output_file}")
+            
+            return final_data
+            
+        except Exception as e:
+            logger.error(f"❌ Stage 3 信號分析處理失敗: {e}")
+            # 保存錯誤快照
+            error_data = {
+                'error': str(e),
+                'stage': 3,
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+            self.save_validation_snapshot(error_data)
+            raise
         
     def _grade_signal_quality(self, mean_rsrp_dbm: float) -> str:
         """根據RSRP值評定信號品質等級"""
