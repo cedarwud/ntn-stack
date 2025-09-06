@@ -27,7 +27,7 @@ class DynamicPoolService {
     private poolData: DynamicPoolData | null = null
     private config: DynamicPoolConfig = {
         useOptimizedPool: true,  // 默認使用優化池
-        poolDataPath: '/data/leo_outputs/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json'
+        poolDataPath: '/data/enhanced_dynamic_pools_output.json'
     }
     private loadPromise: Promise<void> | null = null
 
@@ -58,28 +58,35 @@ class DynamicPoolService {
 
     private async _loadPoolData(): Promise<void> {
         try {
+            console.log('🔄 開始載入動態池數據...')
             // 從後端API載入動態池數據
             const response = await simworldFetch('/satellite/dynamic-pool')
             
             if (!response.ok) {
+                console.warn(`❌ 動態池API失敗 ${response.status}，嘗試直接載入文件...`)
                 // 如果API不存在，嘗試直接載入文件
                 const fileResponse = await fetch(this.config.poolDataPath)
                 if (fileResponse.ok) {
                     const data = await fileResponse.json()
                     this.poolData = data.dynamic_satellite_pool
+                    console.log('✅ 從文件載入動態池數據成功')
                 } else {
-                    throw new Error('無法載入動態池數據')
+                    throw new Error(`無法載入動態池數據 - API: ${response.status}, 文件: ${fileResponse.status}`)
                 }
             } else {
                 const data = await response.json()
                 this.poolData = data.dynamic_satellite_pool
+                console.log('✅ 從API載入動態池數據成功')
             }
+            
+            console.log(`📊 動態池統計: ${this.poolData?.total_selected || 0}顆衛星 (${this.poolData?.starlink_satellites?.length || 0} Starlink + ${this.poolData?.oneweb_satellites?.length || 0} OneWeb)`)
             
         } catch (error) {
             console.error('❌ 載入動態池數據失敗:', error)
             // Fallback: 設置為不使用優化池
             this.config.useOptimizedPool = false
             this.poolData = null
+            console.warn('⚠️ 將使用全量數據API作為回退方案')
         }
     }
 

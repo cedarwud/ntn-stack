@@ -218,6 +218,23 @@ class RouterManager:
                 logger.error(f"六階段管道統計路由器註冊失敗: {e}")
                 self._track_router("pipeline_statistics_router", "六階段管道統計", False, f"註冊失敗: {str(e)}")
 
+            # 嘗試導入管道驗證API路由器
+            try:
+                import sys
+                sys.path.append('/home/sat/ntn-stack/netstack')
+                from src.api.v1.pipeline_validation import (
+                    router as pipeline_validation_router,
+                )
+
+                self.app.include_router(pipeline_validation_router, tags=["管道驗證"])
+                self._track_router("pipeline_validation_router", "管道驗證", True)
+                logger.info("✅ 管道驗證API路由器註冊完成")
+            except ImportError as e:
+                logger.warning(f"管道驗證API路由器不可用，跳過註冊: {e}")
+            except Exception as e:
+                logger.error(f"管道驗證API路由器註冊失敗: {e}")
+                self._track_router("pipeline_validation_router", "管道驗證", False, f"註冊失敗: {str(e)}")
+
             logger.info("✅ 新模組化路由器註冊完成")
         except Exception as e:
             logger.exception("💥 新核心路由器註冊失敗")

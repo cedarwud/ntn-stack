@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 """
+[DEPRECATED] 此腳本已被 run_leo_preprocessing.py 取代
+============================================
+請使用: python run_leo_preprocessing.py
+============================================
+
 最終修復版六階段數據處理
 確保所有參數名稱正確
 """
@@ -37,9 +42,9 @@ def run_all_stages():
         print('-' * 60)
         
         try:
-            from stages.dynamic_pool_planner import DynamicPoolPlanner
+            from stages.dynamic_pool_planner import EnhancedDynamicPoolPlanner
             # 創建臨時實例進行清理
-            temp_planner = DynamicPoolPlanner({'cleanup_only': True})
+            temp_planner = EnhancedDynamicPoolPlanner({'cleanup_only': True})
             cleaned_count = temp_planner.cleanup_all_stage6_outputs()
             print(f'✅ 階段六清理完成: {cleaned_count} 項目已清理')
         except Exception as e:
@@ -96,8 +101,8 @@ def run_all_stages():
         print('\n📡 階段三：信號品質分析與3GPP事件')
         print('-' * 60)
         
-        from stages.signal_analysis_processor import SignalAnalysisProcessor
-        stage3 = SignalAnalysisProcessor(
+        from stages.signal_analysis_processor import SignalQualityAnalysisProcessor
+        stage3 = SignalQualityAnalysisProcessor(
             input_dir='/app/data',
             output_dir='/app/data/signal_analysis_outputs'
         )
@@ -123,14 +128,14 @@ def run_all_stages():
         print('\n⏰ 階段四：時間序列預處理')
         print('-' * 60)
         
-        from stages.timeseries_optimization_processor import TimeseriesOptimizationProcessor
-        stage4 = TimeseriesOptimizationProcessor(
+        from stages.timeseries_optimization_processor import TimeseriesPreprocessingProcessor
+        stage4 = TimeseriesPreprocessingProcessor(
             input_dir='/app/data',
             output_dir='/app/data/timeseries_preprocessing_outputs'
         )
         
         # 使用默認輸入路徑（階段三已經保存檔案）
-        results['stage4'] = stage4.process_timeseries_optimization(
+        results['stage4'] = stage4.process_timeseries_preprocessing(
             signal_file='/app/data/signal_analysis_outputs/signal_event_analysis_output.json',
             save_output=True
         )
@@ -176,13 +181,13 @@ def run_all_stages():
         print('\n🎯 階段六：動態池規劃')
         print('-' * 60)
         
-        from stages.enhanced_dynamic_pool_planner import EnhancedDynamicPoolPlanner
+        from stages.dynamic_pool_planner import EnhancedDynamicPoolPlanner
         
         stage6_config = {
             'input_dir': '/app/data',
             'output_dir': '/app/data/dynamic_pool_planning_outputs'
         }
-        stage6 = DynamicPoolPlanner(stage6_config)
+        stage6 = EnhancedDynamicPoolPlanner(stage6_config)
         
         # 使用process方法
         results['stage6'] = stage6.process(

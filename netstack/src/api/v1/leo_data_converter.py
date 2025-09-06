@@ -40,16 +40,67 @@ class LEODataConverter:
             }
         }
     
-    def convert_leo_to_frontend_format(self, leo_output_dir: str) -> List[Dict[str, Any]]:
+    def convert_leo_to_frontend_format(self, leo_output_dir: str = None) -> List[Dict[str, Any]]:
         """
-        將LEO系統輸出轉換為前端格式
+        將LEO系統輸出轉換為前端格式（多階段回退版本）
         
         Args:
-            leo_output_dir: LEO系統輸出目錄路徑
+            leo_output_dir: LEO系統輸出目錄路徑（可選，使用新的自動檢測）
             
         Returns:
             List[Dict]: 前端格式的衛星數據列表
         """
+        try:
+            # 🚀 使用新的多階段數據管理器
+            from shared_core.stage_data_manager import StageDataManager
+            
+            # 初始化數據管理器
+            data_dir = leo_output_dir if leo_output_dir else "/app/data"
+            stage_manager = StageDataManager(data_dir)
+            
+            # 獲取最佳可用階段數據
+            stage_num, stage_info = stage_manager.get_best_available_stage()
+            
+            print(f"🎯 使用 Stage {stage_num} 數據源")
+            print(f"   - 衛星數量: {stage_info.satellite_count}")
+            print(f"   - 文件大小: {stage_info.file_size_mb:.1f} MB")
+            print(f"   - 處理時間: {stage_info.processing_time}")
+            print(f"   - 數據狀態: {stage_info.status.value}")
+            
+            if stage_info.status.value == "missing":
+                print("❌ 沒有可用的階段數據")
+                return []
+            
+            # 獲取統一格式的衛星數據
+            satellites = stage_manager.get_unified_satellite_data()
+            
+            print(f"✅ 數據轉換完成: {len(satellites)} 顆衛星")
+            print(f"   - 數據來源: Stage {stage_num} ({stage_info.stage_name})")
+            
+            # 添加數據來源信息到每個衛星記錄
+            for sat in satellites:
+                sat['data_source'] = {
+                    'stage_number': stage_num,
+                    'stage_name': stage_info.stage_name,
+                    'file_path': stage_info.file_path,
+                    'processing_time': stage_info.processing_time.isoformat() if stage_info.processing_time else None
+                }
+            
+            return satellites
+            
+        except Exception as e:
+            print(f"❌ 多階段轉換失敗，嘗試回退到原始方法: {e}")
+            
+            # 回退到原始轉換邏輯
+            return self._fallback_conversion(leo_output_dir)
+    
+    def _fallback_conversion(self, leo_output_dir: str) -> List[Dict[str, Any]]:
+        """
+        回退轉換方法（保留原始邏輯）
+        """
+        if not leo_output_dir:
+            return []
+            
         output_path = Path(leo_output_dir)
         
         # 🔧 修復：前端應該讀取A1最終優化結果，而不是F2中間篩選結果
@@ -100,7 +151,7 @@ class LEODataConverter:
                 if frontend_sat:
                     frontend_satellites.append(frontend_sat)
         
-        print(f"✅ 轉換完成: {len(frontend_satellites)} 顆衛星")
+        print(f"⚠️ 回退轉換完成: {len(frontend_satellites)} 顆衛星")
         return frontend_satellites
     
     def _convert_satellite_to_frontend(self, satellite: Dict, constellation: str) -> Dict[str, Any]:

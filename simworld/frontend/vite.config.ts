@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
         proxy: {
             // 統一的 SimWorld API 代理
             '/api': {
-                target: env.VITE_SIMWORLD_PROXY_TARGET || 'http://simworld_backend:8000',
+                target: env.VITE_SIMWORLD_PROXY_TARGET || (env.VITE_ENV_MODE === 'docker' ? 'http://simworld_backend:8000' : 'http://localhost:8888'),
                 changeOrigin: true,
                 secure: false,
                 configure: (proxy) => {
@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
 
             // SimWorld v1 API 代理（用於信號分析圖表）
             '/v1': {
-                target: env.VITE_SIMWORLD_PROXY_TARGET || 'http://simworld_backend:8000',
+                target: env.VITE_SIMWORLD_PROXY_TARGET || (env.VITE_ENV_MODE === 'docker' ? 'http://simworld_backend:8000' : 'http://localhost:8888'),
                 changeOrigin: true,
                 secure: false,
                 configure: (proxy) => {

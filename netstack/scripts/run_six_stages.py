@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 """
+[DEPRECATED] 此腳本已被 run_leo_preprocessing.py 取代
+============================================
+請使用: python run_leo_preprocessing.py
+============================================
+
 六階段數據處理統一執行腳本
 修復多重實現問題後的標準版本
 """
@@ -102,7 +107,7 @@ def run_all_stages():
             output_dir='/app/data/signal_analysis_outputs'
         )
         # 使用filtering_data參數（注意：不是filtered_data）
-        results['stage3'] = stage3.process_signal_quality_analysis(
+        results['stage3'] = stage3.process_signal_analysis(
             filtering_data=results['stage2'],  # 正確的參數名
             save_output=True
         )

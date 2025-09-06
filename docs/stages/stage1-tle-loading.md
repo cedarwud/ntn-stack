@@ -4,11 +4,11 @@
 
 ## 📖 階段概述
 
-**目標**：從 8,796 顆衛星載入 TLE 數據並執行精確的 SGP4 軌道計算  
+**目標**：從 8,791 顆衛星載入 TLE 數據並執行精確的 SGP4 軌道計算  
 **輸入**：TLE 檔案（約 2.2MB）  
 **輸出**：全量數據記憶體傳遞給智能篩選處理器  
-**處理時間**：約 2-3 分鐘
-**實際處理數量**：8,145 Starlink + 651 OneWeb = 8,796 顆衛星
+**處理時間**：約 4-5 分鐘
+**實際處理數量**：8,140 Starlink + 651 OneWeb = 8,791 顆衛星
 
 ### 🚀 v3.2 過度篩選修復版本
 
@@ -57,7 +57,7 @@
 
 ```yaml
 ⚠️ 重要提醒：
-- ✅ 正確：使用 TLE 文件日期 (如: 20250816 來自 starlink_20250816.tle)
+- ✅ 正確：使用 TLE 文件日期 (如: 20250902 來自 starlink_20250902.tle)
 - ❌ 錯誤：使用程式執行日期 (如: 當前系統時間)
 - ❌ 錯誤：使用處理計算日期 (如: 資料預處理的時間戳)
 - ❌ 錯誤：使用前端當下時間 (如: new Date())
@@ -73,14 +73,14 @@
 // ✅ 正確的時間基準使用
 const getTLEBaseTime = (satelliteData) => {
   // 從數據中提取TLE日期
-  const tleDate = satelliteData.tle_source_date; // "20250816"
+  const tleDate = satelliteData.tle_source_date; // "20250902"
   const tleEpoch = satelliteData.tle_epoch_time; // TLE的epoch時間
   
   // 使用TLE日期作為動畫基準時間
   const baseTime = new Date(
     parseInt(tleDate.substr(0,4)),  // 2025
-    parseInt(tleDate.substr(4,2))-1, // 08 (月份從0開始)
-    parseInt(tleDate.substr(6,2))    // 16
+    parseInt(tleDate.substr(4,2))-1, // 09 (月份從0開始)
+    parseInt(tleDate.substr(6,2))    // 02
   );
   
   return baseTime;
@@ -111,8 +111,8 @@ const getWrongBaseTime = () => {
 ### 處理流程
 
 1. **TLE檔案掃描**：掃描兩個星座的TLE資料
-   - Starlink: 8,084顆衛星 (最新20250816數據)
-   - OneWeb: 651顆衛星 (最新20250816數據)
+   - Starlink: 8,140顆衛星 (最新20250902數據)
+   - OneWeb: 651顆衛星 (最新20250903數據)
 
 2. **原始數據載入**：解析TLE格式並驗證數據完整性
 
@@ -140,15 +140,15 @@ const getWrongBaseTime = () => {
 # 數據血統結構示例
 satellite_data = {
     'tle_data': {
-        'source_file': '/app/tle_data/starlink/tle/starlink_20250820.tle',
-        'source_file_date': '20250820',  # TLE數據實際日期
+        'source_file': '/app/tle_data/starlink/tle/starlink_20250902.tle',
+        'source_file_date': '20250902',  # TLE數據實際日期
         'epoch_year': 2025,
-        'epoch_day': 232.5,
-        'calculation_base_time': '2025-08-20T12:00:00Z',  # TLE epoch時間
+        'epoch_day': 245.5,
+        'calculation_base_time': '2025-09-02T12:00:00Z',  # TLE epoch時間
         'data_lineage': {
-            'data_source_date': '20250820',           # 數據來源日期
-            'tle_epoch_date': '2025-08-20T12:00:00Z', # TLE參考時間
-            'processing_execution_date': '2025-08-21T10:30:00Z', # 處理執行時間
+            'data_source_date': '20250902',           # 數據來源日期
+            'tle_epoch_date': '2025-09-02T12:00:00Z', # TLE參考時間
+            'processing_execution_date': '2025-09-02T14:26:00Z', # 處理執行時間
             'calculation_strategy': 'sgp4_with_tle_epoch_base'
         }
     }
@@ -236,9 +236,9 @@ with open('/app/data/tle_orbital_calculation_output.json', 'r') as f:
 - [ ] **衛星數量驗證**
   ```
   預期範圍:
-  - Starlink: 8,000-8,500顆
-  - OneWeb: 600-700顆
-  - 總計: 8,600-9,200顆
+  - Starlink: 8,000-8,200顆
+  - OneWeb: 600-700顆  
+  - 總計: 8,600-8,900顆
   ```
 - [ ] **SGP4計算驗證**
   - 每顆衛星生成192個時間點（96分鐘，30秒間隔）
@@ -252,18 +252,18 @@ with open('/app/data/tle_orbital_calculation_output.json', 'r') as f:
 - [ ] **數據結構完整性**
   ```json
   {
+    "stage_name": "SGP4軌道計算與時間序列生成",
+    "satellites": [...],  // 扁平衛星列表（8791個元素）
     "metadata": {
-      "total_satellites": 8779,  // 必須 > 8000
-      "processing_timestamp": "ISO8601格式",
+      "total_satellites": 8791,  // 必須 > 8600
+      "constellations": {
+        "starlink": {"satellite_count": 8140},
+        "oneweb": {"satellite_count": 651}
+      },
       "data_lineage": {
-        "tle_dates": {"starlink": "20250820", "oneweb": "20250820"},
-        "processing_execution_time": "ISO8601格式",
-        "calculation_base_time": "ISO8601格式"
+        "tle_dates": {"starlink": "20250902", "oneweb": "20250903"},
+        "processing_timeline": {...}
       }
-    },
-    "satellites": {
-      "starlink": {...},  // 必須包含satellites陣列
-      "oneweb": {...}     // 必須包含satellites陣列
     }
   }
   ```
@@ -277,7 +277,7 @@ with open('/app/data/tle_orbital_calculation_output.json', 'r') as f:
   - 完整的血統元數據
 
 #### 4. **性能指標**
-- [ ] 處理時間 < 3分鐘（全量8,779顆衛星）
+- [ ] 處理時間 < 5分鐘（全量8,791顆衛星）
 - [ ] 記憶體傳遞成功（無大檔案生成）
 - [ ] CPU使用率峰值 < 80%
 
@@ -290,20 +290,26 @@ import sys
 
 # 載入輸出數據
 try:
-    with open('/app/data/tle_calculation_outputs/tle_orbital_calculation_output.json', 'r') as f:
+    with open('/app/data/tle_orbital_calculation_output.json', 'r') as f:
         data = json.load(f)
-except:
-    # 記憶體模式可能沒有文件
+except FileNotFoundError:
     print('⚠️ 使用記憶體傳遞模式，跳過文件驗證')
     sys.exit(0)
 
 # 驗證項目
+metadata = data.get('metadata', {})
+satellites = data.get('satellites', [])
+constellations = metadata.get('constellations', {})
+
 checks = {
-    'total_satellites': data['metadata']['total_satellites'] > 8000,
-    'has_starlink': 'starlink' in data['satellites'],
-    'has_oneweb': 'oneweb' in data['satellites'],
-    'has_data_lineage': 'data_lineage' in data['metadata'],
-    'has_tle_dates': 'tle_dates' in data['metadata'].get('data_lineage', {})
+    'total_satellites': metadata.get('total_satellites', 0) > 8600,
+    'satellites_list': isinstance(satellites, list) and len(satellites) > 8600,
+    'has_starlink_info': 'starlink' in constellations,
+    'has_oneweb_info': 'oneweb' in constellations,
+    'has_data_lineage': 'data_lineage' in metadata,
+    'has_tle_dates': 'tle_dates' in metadata.get('data_lineage', {}),
+    'starlink_count': constellations.get('starlink', {}).get('satellite_count', 0) > 8000,
+    'oneweb_count': constellations.get('oneweb', {}).get('satellite_count', 0) > 600
 }
 
 # 計算通過率
@@ -311,6 +317,11 @@ passed = sum(checks.values())
 total = len(checks)
 
 print('📊 Stage 1 驗證結果:')
+print(f'  衛星總數: {metadata.get(\"total_satellites\", 0)}')
+print(f'  Starlink: {constellations.get(\"starlink\", {}).get(\"satellite_count\", 0)}')
+print(f'  OneWeb: {constellations.get(\"oneweb\", {}).get(\"satellite_count\", 0)}')
+print()
+
 for check, result in checks.items():
     print(f'  {\"✅\" if result else \"❌\"} {check}')
 print(f'\\n總計: {passed}/{total} 項通過')
@@ -328,116 +339,6 @@ else:
 2. **SGP4失敗**：驗證TLE格式，更新skyfield庫
 3. **血統缺失**：確認使用v3.1版本處理器
 4. **記憶體溢出**：啟用分批處理模式
-
-## 🖥️ 前端簡化版驗證呈現
-
-### 驗證快照位置
-```bash
-# 驗證結果快照 (輕量級，供前端讀取)
-/app/data/validation_snapshots/stage1_validation.json
-```
-
-### JSON 格式範例
-```json
-{
-  "stage": 1,
-  "stageName": "TLE載入與軌道計算",
-  "timestamp": "2025-08-14T08:00:00Z",
-  "status": "completed",
-  "duration_seconds": 45,
-  "keyMetrics": {
-    "輸入TLE數量": 8796,
-    "Starlink衛星": 8079,
-    "OneWeb衛星": 651,
-    "其他衛星": 66,
-    "載入成功率": "100%"
-  },
-  "validation": {
-    "passed": true,
-    "totalChecks": 7,
-    "passedChecks": 7,
-    "failedChecks": 0,
-    "criticalChecks": [
-      {"name": "TLE完整性", "status": "passed"},
-      {"name": "軌道計算精度", "status": "passed"},
-      {"name": "時間序列連續性", "status": "passed"}
-    ]
-  },
-  "performanceMetrics": {
-    "processingTime": "45秒",
-    "memoryUsage": "500MB",
-    "outputMode": "記憶體傳遞"
-  },
-  "nextStage": {
-    "ready": true,
-    "stage": 2,
-    "expectedInput": 8796
-  }
-}
-```
-
-### 前端呈現建議
-```typescript
-// React Component 簡化呈現
-interface Stage1Validation {
-  // 主要狀態圓圈 (綠色✓/紅色✗/黃色處理中)
-  status: 'completed' | 'processing' | 'failed' | 'pending';
-  
-  // 關鍵數字卡片
-  cards: [
-    { label: 'TLE數量', value: '8,796', icon: '📡' },
-    { label: 'Starlink', value: '8,079', icon: '🛰️' },
-    { label: 'OneWeb', value: '651', icon: '🌍' }
-  ];
-  
-  // 迷你進度條
-  progress: {
-    label: '載入進度',
-    percentage: 100,
-    color: '#00C851'  // 綠色表示完成
-  };
-  
-  // 驗證檢查清單 (簡化版)
-  checks: {
-    passed: 7,
-    total: 7,
-    status: '✅ 全部通過'
-  };
-}
-```
-
-### API 端點規格
-```yaml
-# 獲取階段驗證狀態
-GET /api/pipeline/validation/stage/1
-Response:
-  - 200: 返回上述 JSON 格式
-  - 404: 階段尚未執行
-  - 500: 驗證失敗
-
-# 獲取所有階段狀態總覽
-GET /api/pipeline/validation/summary
-Response:
-  stages: [
-    { stage: 1, status: 'completed', passed: true },
-    { stage: 2, status: 'completed', passed: true },
-    ...
-  ]
-```
-
-### 視覺化呈現範例
-```
-┌─────────────────────────────────────┐
-│  Stage 1: TLE載入與軌道計算         │
-│  ✅ 完成 (45秒)                    │
-├─────────────────────────────────────┤
-│  📡 8,796 TLE  🛰️ 8,079 STL       │
-│  🌍 651 OW     ✓ 100% 載入         │
-├─────────────────────────────────────┤
-│  驗證: 7/7 ✅                       │
-│  [████████████████████] 100%       │
-└─────────────────────────────────────┘
-```
 
 ---
 **下一處理器**: [智能衛星篩選處理器](./stage2-filtering.md)  

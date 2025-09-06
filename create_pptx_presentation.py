@@ -1,0 +1,483 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.enum.text import PP_ALIGN
+from pptx.dml.color import RGBColor
+import os
+
+def create_leo_satellite_presentation():
+    """創建 LEO 衛星網路多連線換手技術教學簡報"""
+    
+    # 載入模板
+    if os.path.exists('template.pptx'):
+        prs = Presentation('template.pptx')
+        print("使用模板 template.pptx")
+    else:
+        prs = Presentation()
+        print("使用預設模板")
+    
+    # 清除模板中的現有投影片（保留版型）
+    slide_count = len(prs.slides)
+    for i in range(slide_count - 1, -1, -1):
+        if i < len(prs.slides):
+            rId = prs.slides._sldIdLst[i].rId
+            prs.part.drop_rel(rId)
+            del prs.slides._sldIdLst[i]
+    
+    # 定義版型索引
+    title_layout = prs.slide_layouts[0]  # 標題投影片
+    content_layout = prs.slide_layouts[1]  # 標題及物件
+    section_layout = prs.slide_layouts[2]  # 區段標題
+    comparison_layout = prs.slide_layouts[4]  # 比對
+    blank_layout = prs.slide_layouts[6]  # 空白
+    
+    # 投影片 1: 標題頁
+    slide1 = prs.slides.add_slide(title_layout)
+    title1 = slide1.shapes.title
+    subtitle1 = slide1.placeholders[1]
+    
+    title1.text = "LEO 衛星網路多連線換手技術"
+    subtitle_text = """基於多連線與條件式換手方法提升換手性能
+
+論文作者：Mohammed Al-Ansi 等
+機構：盧森堡大學 SnT 中心
+IEEE 2024 年論文"""
+    subtitle1.text = subtitle_text
+    
+    # 投影片 2: 研究背景與動機
+    slide2 = prs.slides.add_slide(content_layout)
+    title2 = slide2.shapes.title
+    content2 = slide2.placeholders[1]
+    
+    title2.text = "研究背景與動機"
+    content2_text = """LEO 衛星網路的重要性
+• 5G 及 Beyond 的關鍵技術
+  - 全球高速網路連接能力
+  - 低延遲特性（相較於 GEO 衛星）
+  - 更佳的無線電鏈路預算
+
+非地面網路 (NTN) 發展趨勢
+• 從輔助系統演進為關鍵基礎設施
+• LEO 衛星成為全球連線生態系統核心
+
+主要挑戰
+• 衛星高速移動：7.56 km/s
+• 頻繁換手需求
+• 服務連續性保證"""
+    content2.text = content2_text
+    
+    # 投影片 3: 問題定義與挑戰
+    slide3 = prs.slides.add_slide(content_layout)
+    title3 = slide3.shapes.title
+    content3 = slide3.placeholders[1]
+    
+    title3.text = "問題定義與挑戰"
+    content3_text = """傳統換手方法的限制
+
+硬換手 (Hard Handover, HHO) 問題：
+✗ Break-before-make 機制
+✗ 服務中斷風險高
+✗ 需要緩衝區儲存資料
+✗ 無線連結失效機率增加
+
+LEO 衛星特殊挑戰：
+• 高速移動：衛星速度 7.56 km/s vs 用戶幾乎靜止
+• 多重覆蓋區域：相鄰衛星波束重疊 0-40%
+• 頻繁換手：波束駐留時間短（~7 秒）
+• 干擾問題：多衛星同頻操作"""
+    content3.text = content3_text
+    
+    # 投影片 4: 現有解決方案分析
+    slide4 = prs.slides.add_slide(content_layout)
+    title4 = slide4.shapes.title
+    content4 = slide4.placeholders[1]
+    
+    title4.text = "現有解決方案分析"
+    content4_text = """換手類型分類
+
+1. 按層級分類：
+• 鏈路層：點波束換手、衛星換手、衛星間鏈路換手
+• 網路層：IP 層換手
+
+2. 按連接方式分類：
+• 硬換手 (HHO)：單一連接、先斷後連
+• 軟換手 (SHO)：多重連接、先連後斷
+• 信令分集換手 (SDHO)：控制與資料分離
+
+現有軟換手技術
+• 分散式封包合併技術
+• 上行軟換手中繼機制
+• DAPS (Dual Active Protocol Stack)"""
+    content4.text = content4_text
+    
+    # 投影片 5: 提出的 MC-HO 方法概述
+    slide5 = prs.slides.add_slide(comparison_layout)
+    title5 = slide5.shapes.title
+    title5.text = "提出的 MC-HO 方法概述"
+    
+    # 左側內容
+    left_content = slide5.placeholders[1]
+    left_content.text = """多連線換手 (MC-HO) 核心概念
+
+Make-before-break 軟換手機制
+✓ 雙重連線架構
+✓ 條件式換手 (CHO)
+✓ 位置基準觸發
+✓ 封包複製技術"""
+    
+    # 右側內容 - 比較表格
+    right_content = slide5.placeholders[2]
+    right_content.text = """與傳統方法差異
+
+特性比較：
+SC-HO vs MC-HO
+
+連線方式：單一 vs 雙重
+換手機制：Break-before-make vs Make-before-break
+服務中斷：有 vs 無
+複雜度：低 vs 中等"""
+    
+    # 投影片 6: MC-HO 技術架構詳解
+    slide6 = prs.slides.add_slide(content_layout)
+    title6 = slide6.shapes.title
+    content6 = slide6.placeholders[1]
+    
+    title6.text = "MC-HO 技術架構詳解"
+    content6_text = """雙重連線架構
+
+主節點 (Master Node, MN)
+• 服務衛星 (SSAT) 擔任
+• 處理信令與資料傳輸
+• 與核心網路連接
+
+次節點 (Secondary Node, SN)
+• 目標衛星 (TSAT) 擔任
+• 提供額外覆蓋與容量
+• 輔助資料傳輸
+
+關鍵技術組件
+• 位置基準觸發條件：利用 GNSS 與星歷數據
+• 封包複製 (Packet Duplication)：資料同時從兩顆衛星傳送
+• 選擇比合併：選擇最高 SINR 連結
+• 路徑切換程序：TSAT 成為新 MN"""
+    content6.text = content6_text
+    
+    # 投影片 7: 演算法流程圖
+    slide7 = prs.slides.add_slide(content_layout)
+    title7 = slide7.shapes.title
+    content7 = slide7.placeholders[1]
+    
+    title7.text = "MC-HO 完整操作流程"
+    content7_text = """1. 初始連接
+   └── UE 連接 SSAT (作為 MN)
+
+2. 觸發條件檢查
+   └── 位置基準 CHO 條件滿足
+
+3. SN 新增程序
+   ├── SSAT 向 TSAT 發送 SN 新增請求
+   ├── UE 執行隨機接入程序
+   └── 建立與 TSAT 的連接
+
+4. 封包複製啟動
+   ├── 資料同時從 SSAT 和 TSAT 傳送
+   └── UE 接收雙重資料流
+
+5. 路徑切換
+   ├── TSAT 成為新 MN
+   ├── AMF 進行承載修改
+   └── 釋放與 SSAT 的連接
+
+6. 程序完成
+   └── TSAT 成為服務衛星，等待下次換手"""
+    content7.text = content7_text
+    
+    # 投影片 8: 數學模型與觸發條件
+    slide8 = prs.slides.add_slide(content_layout)
+    title8 = slide8.shapes.title
+    content8 = slide8.placeholders[1]
+    
+    title8.text = "數學模型與觸發條件"
+    content8_text = """換手觸發條件比較
+
+傳統 SC-HO 觸發條件：
+d_TSAT(t) ≤ d_SSAT(t) - d_offset
+• 確保 UE 更靠近目標衛星
+
+提出的 MC-HO 觸發條件：
+d_TSAT(t) ≤ R_b - d_offset  &&  d_SSAT(t) ≤ R_b - d_offset
+• 確保 UE 位於多覆蓋區域內
+• R_b：波束半徑 (25 km)
+
+路徑損耗計算
+接收功率： R_UE = EIRP - PL_total
+總路徑損耗： PL_total = Pr_LOS × PL_LOS + (1 - Pr_LOS) × PL_NLOS
+距離計算： d = √(R_E² sin²(α) + h₀² + 2h₀ · R_E) - R_E sin(α)"""
+    content8.text = content8_text
+    
+    # 投影片 9: 系統參數與實驗設置
+    slide9 = prs.slides.add_slide(content_layout)
+    title9 = slide9.shapes.title
+    content9 = slide9.placeholders[1]
+    
+    title9.text = "系統參數與實驗設置"
+    content9_text = """仿真參數表
+
+地球半徑 (R_E)          6371 km
+LEO 衛星高度 (h₀)       600 km
+衛星最大增益            30 dBi
+衛星波束直徑            50 km
+EIRP 密度               34 dBW/MHz
+載波頻率 (f_c)          2 GHz (S-Band)
+頻寬                    30 MHz
+雜訊功率                -121.4 dBm
+用戶密度                1 user/km²
+距離偏移                1 km / 5 km
+衛星速度                7.56 km/s
+仿真時間                200 秒
+
+評估指標
+• 平均換手次數 (每秒)
+• 無線連結失效次數 (RLF，每秒)
+• 平均系統容量 (Mbps/Hz)"""
+    content9.text = content9_text
+    
+    # 投影片 10: 實驗結果 - 換手次數比較
+    slide10 = prs.slides.add_slide(content_layout)
+    title10 = slide10.shapes.title
+    content10 = slide10.placeholders[1]
+    
+    title10.text = "實驗結果 - 換手次數比較"
+    content10_text = """不同波束重疊百分比的換手性能
+
+重疊%    SC-HO(次/秒)    MC-HO(次/秒)    改善率
+  0%         148            148          0%
+ 10%         165            162         1.8%
+ 20%         185            145        21.6%
+ 30%         212            129        39.2%
+ 40%         247            130        47.4%
+
+關鍵發現
+✓ 高重疊時效果顯著：40% 重疊時減少 47% 換手次數
+✓ 穩定性提升：MC-HO 在多覆蓋區域提供更穩定連接
+✓ 延遲換手時機：直到接近波束邊緣才執行換手"""
+    content10.text = content10_text
+    
+    # 投影片 11: 實驗結果 - 連結失效分析
+    slide11 = prs.slides.add_slide(content_layout)
+    title11 = slide11.shapes.title
+    content11 = slide11.placeholders[1]
+    
+    title11.text = "實驗結果 - 連結失效分析"
+    content11_text = """無線連結失效 (RLF) 比較
+
+重疊%    SC-HO(次/秒)    MC-HO(次/秒)    改善率
+  0%         168            168          0%
+ 10%         221            211         4.5%
+ 20%         296            265        10.5%
+ 30%         403            338        16.1%
+ 40%         532            410        22.9%
+
+RLF 減少原因
+• 傳輸分集效果：雙重連線提供冗餘
+• 最佳 SINR 選擇：動態選擇最佳信號
+• 邊緣用戶保護：避免單一衛星信號衰弱影響"""
+    content11.text = content11_text
+    
+    # 投影片 12: 時間序列分析
+    slide12 = prs.slides.add_slide(content_layout)
+    title12 = slide12.shapes.title
+    content12 = slide12.placeholders[1]
+    
+    title12.text = "時間序列分析"
+    content12_text = """40% 重疊場景下的換手行為
+
+觀察期間：100 秒
+
+SC-HO 特性：
+• 換手次數範圍：150-325 次
+• 週期性高峰：每 ~7 秒出現
+• 不穩定性：用戶集中換手造成負載峰值
+
+MC-HO 特性：
+• 換手次數範圍：100-159 次
+• 平滑性：更一致的換手模式
+• 負載分散：避免集中換手問題
+
+系統容量分析
+• MC-HO 保持較高容量：透過傳輸分集
+• 重疊增加影響：干擾增加但 MC-HO 表現仍優於 SC-HO
+• 頻譜效率：MC-HO 有效緩解干擾負面影響"""
+    content12.text = content12_text
+    
+    # 投影片 13: 技術優勢總結
+    slide13 = prs.slides.add_slide(content_layout)
+    title13 = slide13.shapes.title
+    content13 = slide13.placeholders[1]
+    
+    title13.text = "技術優勢總結"
+    content13_text = """MC-HO 主要優勢
+
+性能改善
+✓ 換手次數減少：最高達 47.4%
+✓ 連結失效減少：最高達 22.9%
+✓ 系統容量提升：傳輸分集效果
+
+技術特性
+✓ 無縫換手：Make-before-break 機制
+✓ 智慧觸發：位置基準條件式換手
+✓ 自適應性：動態選擇最佳連結
+
+實用價值
+✓ 符合 3GPP 標準：基於現有 MC 架構
+✓ 可擴展性：適用於大型 LEO 星座
+✓ 向下相容：可與現有系統整合"""
+    content13.text = content13_text
+    
+    # 投影片 14: 技術挑戰與限制
+    slide14 = prs.slides.add_slide(content_layout)
+    title14 = slide14.shapes.title
+    content14 = slide14.placeholders[1]
+    
+    title14.text = "技術挑戰與限制"
+    content14_text = """實施挑戰
+
+複雜度增加
+• 雙重協議堆疊需求
+• 封包複製的額外負載
+• 多連線管理複雜性
+
+資源消耗
+• 頻譜資源使用增加
+• 衛星處理能力需求提升
+• 信令開銷增加
+
+適用場景限制
+• 多覆蓋區域依賴：需要波束重疊設計
+• 用戶設備能力：需支援多連線功能
+• 網路規劃：需要精確的覆蓋規劃"""
+    content14.text = content14_text
+    
+    # 投影片 15: 與現有技術比較
+    slide15 = prs.slides.add_slide(content_layout)
+    title15 = slide15.shapes.title
+    content15 = slide15.placeholders[1]
+    
+    title15.text = "與現有技術比較"
+    content15_text = """技術比較表
+
+特性         傳統HHO    SHO       DAPS      MC-HO
+連線方式     單一       多重      雙重      雙重+CHO
+服務中斷     有         無        無        無
+複雜度       低         高        中等      中等
+觸發機制     測量基準   測量基準  測量基準  位置基準
+3GPP支援     ✓          ✓         ✓         ✓
+LEO最佳化    ✗          部分      部分      ✓
+
+創新點
+• 位置基準觸發：利用 LEO 軌道可預測性
+• 條件式換手整合：提前配置減少失效
+• 多覆蓋區域最佳化：充分利用重疊區域"""
+    content15.text = content15_text
+    
+    # 投影片 16: 未來研究方向
+    slide16 = prs.slides.add_slide(content_layout)
+    title16 = slide16.shapes.title
+    content16 = slide16.placeholders[1]
+    
+    title16.text = "未來研究方向"
+    content16_text = """技術改進方向
+
+系統配置優化
+• 準地球固定波束研究
+• 更高頻段適用性 (Ka/V 頻段)
+• 大型波束直徑設計
+
+演算法改進
+• 多準則觸發條件
+• 智慧排程器設計
+• 封包複製最佳化
+
+應用擴展
+• 大型 LEO 星座適用
+• 異質網路整合
+• 6G NTN 架構整合
+
+標準化工作
+• 3GPP Release 18+ 貢獻
+• ITU-R 標準化參與
+• 產業聯盟合作"""
+    content16.text = content16_text
+    
+    # 投影片 17: 結論
+    slide17 = prs.slides.add_slide(content_layout)
+    title17 = slide17.shapes.title
+    content17 = slide17.placeholders[1]
+    
+    title17.text = "結論"
+    content17_text = """研究貢獻總結
+
+理論貢獻
+• 提出位置基準 MC-HO 架構
+• 建立 LEO 衛星軟換手數學模型
+• 驗證多連線在 NTN 的有效性
+
+實用價值
+• 顯著改善換手性能（換手減少 47%，RLF 減少 23%）
+• 提供無縫連接體驗
+• 符合 5G/6G NTN 發展趨勢
+
+產業影響
+• 為 LEO 星座運營商提供技術參考
+• 推動 NTN 標準化進程
+• 促進衛星通訊產業發展
+
+關鍵訊息
+MC-HO 技術為 LEO 衛星網路換手性能優化提供了
+有效解決方案，在保持系統複雜度可控的同時，
+大幅提升了用戶體驗和網路可靠性。"""
+    content17.text = content17_text
+    
+    # 投影片 18: Q&A 與討論
+    slide18 = prs.slides.add_slide(content_layout)
+    title18 = slide18.shapes.title
+    content18 = slide18.placeholders[1]
+    
+    title18.text = "Q&A 與討論"
+    content18_text = """常見問題
+
+Q1：MC-HO 的額外成本如何評估？
+• 頻譜效率權衡分析
+• 硬體成本與性能提升比較
+• 運營成本效益評估
+
+Q2：如何處理多衛星同步問題？
+• 基於 GPS/GNSS 的時間同步
+• 衛星間鏈路 (ISL) 輔助
+• 地面站協調機制
+
+Q3：用戶設備的改動需求？
+• 多連線協議堆疊支援
+• 全向天線設計
+• 信號處理能力提升
+
+延伸思考
+• MC-HO 在其他衛星軌道的適用性
+• 與地面 5G 網路的融合方案
+• 大規模部署的技術挑戰
+
+謝謝聆聽！"""
+    content18.text = content18_text
+    
+    # 儲存簡報
+    output_filename = "LEO衛星網路多連線換手技術教學簡報.pptx"
+    prs.save(output_filename)
+    print(f"簡報已成功創建：{output_filename}")
+    print(f"總投影片數：{len(prs.slides)}")
+    
+    return output_filename
+
+if __name__ == "__main__":
+    create_leo_satellite_presentation()

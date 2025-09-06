@@ -11,8 +11,8 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# 動態池數據文件路徑 (容器內路徑)
-DYNAMIC_POOL_FILE = Path("/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json")
+# 動態池數據文件路徑 (容器內路徑) - 修正實際位置
+DYNAMIC_POOL_FILE = Path("/app/data/enhanced_dynamic_pools_output.json")
 
 @router.get("/api/satellite/dynamic-pool")
 async def get_dynamic_pool():
@@ -34,19 +34,30 @@ async def get_dynamic_pool():
         pool_data = data.get('dynamic_satellite_pool', {})
         selection_details = pool_data.get('selection_details', {})
         
-        # 解析衛星ID列表
+        # 解析衛星ID列表 - 支援新格式和舊格式
         starlink_satellites = []
         oneweb_satellites = []
         
-        # 從selection_details中提取衛星ID (處理數組格式)
-        for satellite_info in selection_details:
-            satellite_id = satellite_info.get('satellite_id', '')
-            constellation = satellite_info.get('constellation', '')
-            
-            if constellation == 'starlink':
-                starlink_satellites.append(satellite_id)
-            elif constellation == 'oneweb':
-                oneweb_satellites.append(satellite_id)
+        # 新格式：直接從dynamic_satellite_pool中的數組獲取
+        starlink_data = pool_data.get('starlink_satellites', [])
+        oneweb_data = pool_data.get('oneweb_satellites', [])
+        
+        if isinstance(starlink_data, list) and starlink_data:
+            starlink_satellites = starlink_data
+        if isinstance(oneweb_data, list) and oneweb_data:
+            oneweb_satellites = oneweb_data
+        
+        # 如果新格式為空，嘗試從selection_details中提取 (向後兼容)
+        if not starlink_satellites and not oneweb_satellites and selection_details:
+            if isinstance(selection_details, list):
+                for satellite_info in selection_details:
+                    satellite_id = satellite_info.get('satellite_id', '')
+                    constellation = satellite_info.get('constellation', '')
+                    
+                    if constellation == 'starlink':
+                        starlink_satellites.append(satellite_id)
+                    elif constellation == 'oneweb':
+                        oneweb_satellites.append(satellite_id)
         
         # 構建正確的動態池數據結構
         formatted_pool_data = {
@@ -98,10 +109,17 @@ async def get_pool_statistics():
         metrics = data.get('performance_metrics', {})
         optimization = data.get('optimization_results', {})
         
+        # 處理數據結構差異：可能是列表或計數整數
+        starlink_data = pool_data.get('starlink_satellites', [])
+        oneweb_data = pool_data.get('oneweb_satellites', [])
+        
+        starlink_count = len(starlink_data) if isinstance(starlink_data, list) else starlink_data
+        oneweb_count = len(oneweb_data) if isinstance(oneweb_data, list) else oneweb_data
+        
         stats = {
             "total_satellites": pool_data.get('total_selected', 0),
-            "starlink_count": len(pool_data.get('starlink_satellites', [])),
-            "oneweb_count": len(pool_data.get('oneweb_satellites', [])),
+            "starlink_count": starlink_count,
+            "oneweb_count": oneweb_count,
             "coverage_score": {
                 "starlink": optimization.get('starlink_coverage_score', 0),
                 "oneweb": optimization.get('oneweb_coverage_score', 0)

@@ -6,7 +6,7 @@ import { dynamicPoolService } from '../../services/DynamicPoolService';
 import { UnifiedSatelliteInfo, SatelliteDataService } from '../../services/satelliteDataService';
 import { useDataSync } from '../../contexts/DataSyncContext';
 import { useSatelliteState } from '../../contexts/appStateHooks';
-import { Play, Pause, RotateCcw, Settings, BarChart3 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
 import '../../styles/SatelliteVisibilitySimplified.scss';
 
 interface SatelliteVisibilitySimplifiedProps {
@@ -33,6 +33,8 @@ interface StageStatistics {
   output_file_size_mb?: number;
   last_updated?: string;
   error_message?: string;
+  tle_data_date?: string;  // TLE數據來源日期
+  execution_time?: string; // 實際執行時間
 }
 
 interface PipelineStatistics {
@@ -77,9 +79,10 @@ const SatelliteVisibilitySimplified: React.FC<SatelliteVisibilitySimplifiedProps
     totalVisible: 0 
   });
   const [poolInfo, setPoolInfo] = useState<any>(null);
-  const [displayMode, setDisplayMode] = useState<'satellites' | 'pipeline'>('satellites');
+  const [displayMode, setDisplayMode] = useState<'satellites' | 'pipeline'>('pipeline');
   const [pipelineStats, setPipelineStats] = useState<PipelineStatistics | null>(null);
   const [pipelineLoading, setPipelineLoading] = useState(false);
+  const [satelliteListCollapsed, setSatelliteListCollapsed] = useState(true); // 預設收合
 
   // 使用數據同步上下文和衛星狀態
   const { state } = useDataSync();
@@ -135,10 +138,8 @@ const SatelliteVisibilitySimplified: React.FC<SatelliteVisibilitySimplifiedProps
     return SatelliteDataService.getInstance();
   }, []);
 
-  // 獲取管道統計
+  // 獲取管道統計 - 移除 displayMode 依賴以避免重複載入
   const loadPipelineStatistics = useCallback(async () => {
-    if (displayMode !== 'pipeline') return;
-    
     setPipelineLoading(true);
     try {
       const { netstackFetch } = await import('../../config/api-config');
@@ -158,18 +159,25 @@ const SatelliteVisibilitySimplified: React.FC<SatelliteVisibilitySimplifiedProps
     } finally {
       setPipelineLoading(false);
     }
-  }, [displayMode]);
+  }, []); // 移除所有依賴
 
   // 載入管道統計（當切換到管道視圖時）
   useEffect(() => {
     if (displayMode === 'pipeline') {
+      console.log('📊 初次載入管道統計');
       loadPipelineStatistics();
       
-      // 每30秒刷新一次管道統計
-      const interval = setInterval(loadPipelineStatistics, 30000);
-      return () => clearInterval(interval);
+      // 每5分鐘刷新一次管道統計（減少頻率）
+      const interval = setInterval(() => {
+        console.log('🔄 定期刷新管道統計');
+        loadPipelineStatistics();
+      }, 300000); // 5分鐘 = 300000ms
+      return () => {
+        console.log('🛑 清理管道統計刷新定時器');
+        clearInterval(interval);
+      };
     }
-  }, [displayMode, loadPipelineStatistics]);
+  }, [displayMode]); // 只依賴 displayMode
 
   // 載入階段六動態池數據 - 包含完整時間序列
   const loadSatelliteData = useCallback(async (constellation: 'starlink' | 'oneweb' | 'both', time: Date) => {
@@ -180,23 +188,45 @@ const SatelliteVisibilitySimplified: React.FC<SatelliteVisibilitySimplifiedProps
       const baseTime = new Date('2025-08-31T12:00:00Z');
       const timeOffsetSeconds = Math.floor((time.getTime() - baseTime.getTime()) / 1000);
       
-      console.log(`🎯 使用全量數據API (回退方案)，時間: ${time.toISOString()}`);
+      // 確保動態池數據已載入完成
+      await dynamicPoolService.loadDynamicPool();
       
-      // 暫時使用全量數據API以獲得更好的可見性 (回退方案)
-      const { netstackFetch } = await import('../../config/api-config');
-      const response = await netstackFetch(`/api/v1/satellite/unified?constellation=${constellation}&count=20&time=${time.toISOString()}`);
-      
-      if (!response.ok) {
-        throw new Error(`全量衛星API錯誤: ${response.status}`);
+      // 優先使用動態池優化數據
+      if (dynamicPoolService.shouldUseOptimizedPool()) {
+        console.log(`🎯 使用階段六動態池數據 (優化方案)，時間: ${time.toISOString()}`);
+        
+        // 使用階段六動態池API獲取優化後的衛星數據
+        const { netstackFetch } = await import('../../config/api-config');
+        const response = await netstackFetch(`/api/v1/satellite/unified?constellation=${constellation}&count=20&time=${time.toISOString()}`);
+        
+        if (!response.ok) {
+          throw new Error(`動態池API錯誤: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        allSatellites = data.satellites || [];
+        
+        // 使用動態池過濾衛星
+        allSatellites = dynamicPoolService.filterSatellitesByPool(allSatellites);
+        
+      } else {
+        console.log(`🎯 使用全量數據API (回退方案)，時間: ${time.toISOString()}`);
+        
+        // 回退方案：使用全量數據API
+        const { netstackFetch } = await import('../../config/api-config');
+        const response = await netstackFetch(`/api/v1/satellite/unified?constellation=${constellation}&count=20&time=${time.toISOString()}`);
+        
+        if (!response.ok) {
+          throw new Error(`全量衛星API錯誤: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        allSatellites = data.satellites || [];
       }
       
-      const data = await response.json();
-      allSatellites = data.satellites || [];
-      
-      console.log(`✅ 全量數據載入: ${allSatellites.length} 顆衛星`);
-      if (data.metadata) {
-        console.log(`📊 數據源: ${data.metadata.data_source || 'real_tle_sgp4'}`);
-      }
+      console.log(`✅ 衛星數據載入: ${allSatellites.length} 顆衛星`);
+      console.log(`📊 數據源: ${dynamicPoolService.shouldUseOptimizedPool() ? '階段六動態池' : '全量數據API'}`);
+    
       
       return allSatellites;
     } catch (error) {
@@ -401,44 +431,51 @@ const SatelliteVisibilitySimplified: React.FC<SatelliteVisibilitySimplifiedProps
       {/* 主要內容區域 */}
       {displayMode === 'satellites' ? (
         <Card className="satellite-list">
-          <div className="list-header">
-            <h3>可見衛星列表</h3>
-            <Badge variant="secondary">{visibleSatellites.length} 顆衛星</Badge>
+          <div className="list-header" onClick={() => setSatelliteListCollapsed(!satelliteListCollapsed)}>
+            <div className="header-content">
+              <h3>可見衛星列表</h3>
+              <Badge variant="secondary">{visibleSatellites.length} 顆衛星</Badge>
+            </div>
+            <Button variant="ghost" size="sm" className="collapse-button">
+              {satelliteListCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            </Button>
           </div>
           
-          <div className="satellite-grid">
-            {visibleSatellites.slice(0, 20).map((sat, index) => (
-              <div key={`${sat.constellation}-${sat.id || sat.norad_id}-${index}`} className="satellite-item">
-                <div className="sat-header">
-                  <span className="sat-name">{sat.name}</span>
-                  <Badge 
-                    variant="outline" 
-                    className={`constellation-badge ${sat.constellation?.toLowerCase()}`}
-                  >
-                    {sat.constellation?.toUpperCase() || 'UNKNOWN'}
-                  </Badge>
+          {!satelliteListCollapsed && (
+            <div className="satellite-grid">
+              {visibleSatellites.slice(0, 20).map((sat, index) => (
+                <div key={`${sat.constellation}-${sat.id || sat.norad_id}-${index}`} className="satellite-item">
+                  <div className="sat-header">
+                    <span className="sat-name">{sat.name}</span>
+                    <Badge 
+                      variant="outline" 
+                      className={`constellation-badge ${sat.constellation?.toLowerCase()}`}
+                    >
+                      {sat.constellation?.toUpperCase() || 'UNKNOWN'}
+                    </Badge>
+                  </div>
+                  <div className="sat-details">
+                    <span>仰角: {sat.elevation_deg?.toFixed(1)}°</span>
+                    <span>方位: {sat.azimuth_deg?.toFixed(1)}°</span>
+                    <span>距離: {sat.distance_km?.toFixed(0)}km</span>
+                    <span>信號: {sat.signal_strength?.toFixed(1)}dBm</span>
+                  </div>
                 </div>
-                <div className="sat-details">
-                  <span>仰角: {sat.elevation_deg?.toFixed(1)}°</span>
-                  <span>方位: {sat.azimuth_deg?.toFixed(1)}°</span>
-                  <span>距離: {sat.distance_km?.toFixed(0)}km</span>
-                  <span>信號: {sat.signal_strength?.toFixed(1)}dBm</span>
+              ))}
+              
+              {visibleSatellites.length > 20 && (
+                <div className="more-satellites">
+                  還有 {visibleSatellites.length - 20} 顆衛星...
                 </div>
-              </div>
-            ))}
-            
-            {visibleSatellites.length > 20 && (
-              <div className="more-satellites">
-                還有 {visibleSatellites.length - 20} 顆衛星...
-              </div>
-            )}
-            
-            {visibleSatellites.length === 0 && (
-              <div className="no-satellites">
-                目前沒有可見的衛星 (使用全量數據API - 即時軌道計算)
-              </div>
-            )}
-          </div>
+              )}
+              
+              {visibleSatellites.length === 0 && (
+                <div className="no-satellites">
+                  目前沒有可見的衛星 (使用全量數據API - 即時軌道計算)
+                </div>
+              )}
+            </div>
+          )}
         </Card>
       ) : (
         <Card className="pipeline-stages">
@@ -456,81 +493,80 @@ const SatelliteVisibilitySimplified: React.FC<SatelliteVisibilitySimplifiedProps
               <span>載入管道統計中...</span>
             </div>
           ) : pipelineStats ? (
-            <div className="stages-grid">
-              {pipelineStats.stages.map((stage) => (
-                <div 
-                  key={stage.stage} 
-                  className={`stage-item ${stage.status}`}
-                >
-                  <div className="stage-header">
-                    <span className="stage-number">階段 {stage.stage}</span>
-                    <Badge 
-                      variant={
-                        stage.status === 'success' ? 'default' : 
-                        stage.status === 'failed' ? 'destructive' : 'secondary'
-                      }
-                    >
-                      {stage.status === 'success' ? '成功' :
-                       stage.status === 'failed' ? '失敗' : '無數據'}
-                    </Badge>
-                  </div>
-                  <div className="stage-title">{stage.stage_name}</div>
-                  <div className="stage-stats">
-                    <div className="stat-row">
-                      <span className="stat-label">總衛星:</span>
-                      <span className="stat-value">{stage.total_satellites}</span>
-                    </div>
-                    <div className="stat-row">
-                      <span className="stat-label">Starlink:</span>
-                      <span className="stat-value">{stage.starlink_count}</span>
-                    </div>
-                    <div className="stat-row">
-                      <span className="stat-label">OneWeb:</span>
-                      <span className="stat-value">{stage.oneweb_count}</span>
-                    </div>
-                    {stage.output_file_size_mb && (
-                      <div className="stat-row">
-                        <span className="stat-label">檔案大小:</span>
-                        <span className="stat-value">{stage.output_file_size_mb.toFixed(1)}MB</span>
+            <div className="pipeline-layout">
+              {/* 第一行：所有階段 1-6 */}
+              <div className="stages-single-row">
+                <h4 className="row-title">六階段處理管道</h4>
+                <div className="stages-single-row-content">
+                  {pipelineStats.stages.map((stage) => {
+                    // 修正狀態判斷：0顆衛星應該顯示為異常
+                    const actualStatus = stage.total_satellites === 0 ? 'warning' : stage.status;
+                    return (
+                      <div 
+                        key={stage.stage} 
+                        className={`stage-item-compact ${actualStatus}`}
+                      >
+                        <div className="stage-compact-header">
+                          <span className="stage-number">階段 {stage.stage}</span>
+                          <Badge 
+                            variant={
+                              actualStatus === 'success' ? 'default' : 
+                              actualStatus === 'failed' ? 'destructive' : 
+                              actualStatus === 'warning' ? 'secondary' : 'secondary'
+                            }
+                          >
+                            {actualStatus === 'success' ? '✅' :
+                             actualStatus === 'failed' ? '❌' : 
+                             actualStatus === 'warning' ? '⚠️' : '❓'}
+                          </Badge>
+                        </div>
+                        <div className="stage-compact-title">{stage.stage_name}</div>
+                        <div className="stage-compact-stats">
+                          <div className="compact-stat">🛰️ {stage.total_satellites}</div>
+                          <div className="compact-stat">⭐ {stage.starlink_count}</div>
+                          <div className="compact-stat">🔵 {stage.oneweb_count}</div>
+                          {stage.tle_data_date && (
+                            <div className="compact-stat">📅 {stage.tle_data_date}</div>
+                          )}
+                          {stage.last_updated && (
+                            <div className="compact-stat">⏰ {new Date(stage.last_updated).toLocaleString('zh-TW', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</div>
+                          )}
+                        </div>
+                        {stage.error_message && (
+                          <div className="stage-compact-error">❌ {stage.error_message}</div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  {stage.error_message && (
-                    <div className="stage-error">
-                      ❌ {stage.error_message}
-                    </div>
-                  )}
-                  {stage.last_updated && (
-                    <div className="stage-updated">
-                      更新: {new Date(stage.last_updated).toLocaleString()}
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
+              
+              {/* 第二行：數據流向圖 */}
+              {pipelineStats.summary.data_flow.length > 1 && (
+                <div className="data-flow-row">
+                  <h4 className="flow-title">數據流向圖</h4>
+                  <div className="flow-diagram">
+                    {pipelineStats.summary.data_flow.map((stage, index) => (
+                      <div key={stage.stage} className="flow-stage">
+                        <div className="flow-stage-number">階段 {stage.stage}</div>
+                        <div className="flow-stage-count">{stage.satellites}顆</div>
+                        <div className="flow-stage-details">
+                          <span className="flow-starlink">Starlink: {stage.starlink}</span>
+                          <span className="flow-oneweb">OneWeb: {stage.oneweb}</span>
+                        </div>
+                        {index < pipelineStats.summary.data_flow.length - 1 && (
+                          <div className="flow-arrow">→</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="pipeline-error">
               ❌ 無法載入管道統計數據
             </div>
-          )}
-          
-          {pipelineStats && pipelineStats.summary.data_flow.length > 1 && (
-            <Card className="data-flow-chart">
-              <div className="flow-header">
-                <h4>數據流向圖</h4>
-              </div>
-              <div className="flow-diagram">
-                {pipelineStats.summary.data_flow.map((stage, index) => (
-                  <div key={stage.stage} className="flow-stage">
-                    <div className="flow-stage-number">Stage {stage.stage}</div>
-                    <div className="flow-stage-count">{stage.satellites}顆</div>
-                    {index < pipelineStats.summary.data_flow.length - 1 && (
-                      <div className="flow-arrow">→</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Card>
           )}
         </Card>
       )}

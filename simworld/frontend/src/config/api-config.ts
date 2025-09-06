@@ -89,7 +89,7 @@ export const getApiConfig = (): ApiConfig => {
     docker: {
       netstack: {
         baseUrl: '/netstack', // 使用 Vite 代理
-        timeout: 60000 // 增加到 60 秒
+        timeout: 120000 // 增加到 120 秒以匹配管道統計API響應時間
       },
       simworld: {
         baseUrl: '/api', // 使用 Vite 代理路徑，與 vite.config.ts 中的 '/api' 代理匹配
@@ -101,11 +101,11 @@ export const getApiConfig = (): ApiConfig => {
     production: {
       netstack: {
         baseUrl: import.meta.env.VITE_NETSTACK_URL || '/netstack',
-        timeout: 20000
+        timeout: 120000 // 增加到 120 秒以匹配管道統計API響應時間
       },
       simworld: {
         baseUrl: import.meta.env.VITE_SIMWORLD_URL || '/api',
-        timeout: 20000
+        timeout: 60000 // 增加到 60 秒
       },
       mode: 'production' as const
     }
