@@ -128,11 +128,11 @@ class SGP4OrbitalEngine:
                                     time_step_seconds: int = 30,
                                     constellation: str = 'unknown') -> Dict[str, Any]:
         """
-        計算衛星192點時間序列軌道數據
+        計算衛星192點時間序列軌道數據 - 修復版：正確使用TLE基準時間
         
         Args:
             satellite_data: 衛星數據（包含skyfield satellite對象）
-            start_time: 起始時間，None則使用當前時間
+            start_time: 起始時間，符合@docs要求使用TLE文件日期
             duration_minutes: 預測時間窗口（分鐘）
             time_step_seconds: 時間步長（秒）
             
@@ -140,8 +140,22 @@ class SGP4OrbitalEngine:
             包含192個時間點軌道數據的字典
         """
         
+        # 🎯 修復：絕不使用當前時間作為默認值，符合@docs要求
         if start_time is None:
-            start_time = datetime.now(timezone.utc)
+            # 如果沒有提供start_time，這是一個嚴重錯誤，應該拋出異常
+            raise ValueError("start_time 不能為 None！@docs要求必須使用TLE文件日期作為基準時間")
+        
+        # 🎯 驗證時間基準符合@docs要求
+        current_time = datetime.now(timezone.utc)
+        time_diff_hours = abs((start_time - current_time).total_seconds() / 3600)
+        
+        # 如果時間差異小於1小時，很可能傳遞了錯誤的當前時間
+        if time_diff_hours < 1:
+            logger.warning(f"⚠️  時間基準可能錯誤：start_time={start_time.isoformat()}, 與當前時間差異僅{time_diff_hours:.1f}小時")
+            logger.warning("⚠️  @docs要求：必須使用TLE文件日期作為基準時間，而非當前時間！")
+        
+        logger.info(f"🕐 使用TLE基準時間: {start_time.isoformat()}")
+        logger.info(f"📊 計算參數: {duration_minutes}分鐘, {time_step_seconds}秒間隔, 預期{(duration_minutes*60)//time_step_seconds}個時間點")
         
         satellite = satellite_data['satellite_object']
         
@@ -200,7 +214,7 @@ class SGP4OrbitalEngine:
                 azimuth_deg = float(azimuth.degrees) if hasattr(azimuth, 'degrees') else float(azimuth)  
                 range_km = float(distance.km) if hasattr(distance, 'km') else float(distance)
                 
-                # 計算range rate (逕向速度)
+                # 計算range rate (逼向速度)
                 range_rate_km_s = 0.0  # 簡化版本，可以通過數值微分計算
                 
                 position_data = {
@@ -212,7 +226,7 @@ class SGP4OrbitalEngine:
                     'eci_position_km': position_km,
                     'eci_velocity_km_s': velocity_km_s,
                     
-                    # 地理坐標
+                    # 地理座標
                     'geodetic': {
                         'latitude_deg': lat_deg,
                         'longitude_deg': lon_deg,
@@ -238,6 +252,13 @@ class SGP4OrbitalEngine:
         # 分析可見性窗口
         visibility_analysis = self._analyze_visibility_windows(position_timeseries)
         
+        # 🎯 修復後的調試信息
+        visible_count = sum(1 for pos in position_timeseries if pos['relative_to_observer']['is_visible'])
+        visibility_pct = (visible_count / len(position_timeseries) * 100) if position_timeseries else 0
+        
+        logger.info(f"✅ {satellite_data['satellite_name']}: 計算完成 {len(position_timeseries)}/{total_points} 時間點")
+        logger.info(f"📊 可見性: {visible_count}個時間點 ({visibility_pct:.1f}%)")
+        
         result = {
             'satellite_id': satellite_data['satellite_name'],
             'norad_id': satellite_data['norad_id'],
@@ -245,11 +266,18 @@ class SGP4OrbitalEngine:
             'orbital_period_minutes': satellite_data['orbital_period_minutes'],
             
             'timeseries_metadata': {
-                'start_time': start_time.isoformat(),
+                'start_time': start_time.isoformat(),  # 🎯 記錄實際使用的TLE基準時間
                 'duration_minutes': duration_minutes,
                 'time_step_seconds': time_step_seconds,
                 'total_points': len(position_timeseries),
-                'calculation_timestamp': datetime.now(timezone.utc).isoformat()
+                'calculation_timestamp': datetime.now(timezone.utc).isoformat(),
+                # 🎯 新增：時間基準策略記錄
+                'time_base_strategy': 'tle_file_date_based_for_reproducible_research',
+                'time_base_verification': {
+                    'tle_base_time_used': start_time.isoformat(),
+                    'current_time_for_reference': current_time.isoformat(),
+                    'time_difference_hours': time_diff_hours
+                }
             },
             
             'position_timeseries': position_timeseries,
@@ -331,19 +359,41 @@ class SGP4OrbitalEngine:
             }
         }
 
-    def process_constellation_tle(self, tle_file_path: Path, constellation_name: str) -> Dict[str, Any]:
+    def process_constellation_tle(self, tle_file_path: Path, constellation_name: str, 
+                              tle_base_time: Optional[datetime] = None) -> Dict[str, Any]:
         """
-        處理整個星座的TLE文件，生成192點時間序列數據
+        處理整個星座的TLE文件，生成192點時間序列數據 - 修復版：正確使用TLE基準時間
         
         Args:
             tle_file_path: TLE檔案路徑
             constellation_name: 星座名稱（starlink或oneweb）
+            tle_base_time: TLE基準時間，符合@docs要求使用TLE文件日期
             
         Returns:
             整個星座的軌道計算結果
         """
         logger.info(f"📡 開始處理 {constellation_name} 星座TLE數據")
         logger.info(f"  檔案: {tle_file_path}")
+        
+        # 🎯 修復：檢查TLE基準時間
+        if tle_base_time is None:
+            # 從檔案名提取TLE日期作為基準時間
+            import re
+            file_name = tle_file_path.name
+            date_match = re.search(r'(\d{8})', file_name)  # 提取YYYYMMDD格式
+            
+            if date_match:
+                date_str = date_match.group(1)
+                year = int(date_str[:4])
+                month = int(date_str[4:6])
+                day = int(date_str[6:8])
+                tle_base_time = datetime(year, month, day, 12, 0, 0, tzinfo=timezone.utc)
+                logger.info(f"🕐 從檔案名提取TLE基準時間: {tle_base_time.isoformat()}")
+            else:
+                # 如果無法提取日期，拋出錯誤
+                raise ValueError(f"無法從TLE檔案名 '{file_name}' 提取日期，且未提供tle_base_time參數")
+        else:
+            logger.info(f"🕐 使用提供的TLE基準時間: {tle_base_time.isoformat()}")
         
         if not tle_file_path.exists():
             logger.error(f"TLE檔案不存在: {tle_file_path}")
@@ -365,8 +415,12 @@ class SGP4OrbitalEngine:
                     if satellite_data is None:
                         continue
                     
-                    # 計算192點軌道數據（傳遞constellation參數）
-                    orbital_data = self.calculate_position_timeseries(satellite_data, constellation=constellation_name)
+                    # 🎯 關鍵修復：傳遞TLE基準時間給軌道計算
+                    orbital_data = self.calculate_position_timeseries(
+                        satellite_data, 
+                        start_time=tle_base_time,  # 🎯 使用TLE基準時間而非當前時間
+                        constellation=constellation_name
+                    )
                     satellites_data.append(orbital_data)
                     
                     if len(satellites_data) % 100 == 0:
@@ -376,17 +430,33 @@ class SGP4OrbitalEngine:
             logger.error(f"處理TLE檔案失敗: {e}")
             return {'satellites': [], 'metadata': {'error': str(e)}}
         
+        # 🎯 修復：提取TLE檔案日期並記錄數據血統
+        file_date = 'unknown'
+        import re
+        date_match = re.search(r'(\d{8})', tle_file_path.name)
+        if date_match:
+            file_date = date_match.group(1)
+        
         result = {
             'constellation': constellation_name,
             'satellites': satellites_data,
             'metadata': {
                 'total_satellites': len(satellites_data),
                 'tle_file': str(tle_file_path),
+                'tle_file_date': file_date,  # 🎯 記錄TLE檔案日期
+                'tle_base_time_used': tle_base_time.isoformat(),  # 🎯 記錄實際使用的基準時間
                 'processing_timestamp': datetime.now(timezone.utc).isoformat(),
                 'observer_position': {
                     'latitude_deg': self.observer_lat,
                     'longitude_deg': self.observer_lon,
                     'elevation_m': self.observer_elevation_m
+                },
+                # 🎯 新增數據血統追蹤
+                'data_lineage': {
+                    'time_base_strategy': 'tle_file_date_based_for_reproducible_research',
+                    'tle_file_date': file_date,
+                    'tle_base_time': tle_base_time.isoformat(),
+                    'processing_execution_time': datetime.now(timezone.utc).isoformat()
                 }
             }
         }

@@ -50,12 +50,12 @@ def run_stages_4_to_6():
         from stages.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
         stage4 = TimeseriesPreprocessingProcessor(
             input_dir='/app/data',
-            output_dir='/app/data/timeseries_preprocessing_outputs'
+            output_dir='/app/data'
         )
         
         # Stage 4 loads from file, specify correct path
         results['stage4'] = stage4.process_timeseries_preprocessing(
-            signal_file='/app/data/signal_analysis_outputs/signal_event_analysis_output.json',
+            signal_file='/app/data/signal_event_analysis_output.json',
             save_output=True
         )
         
@@ -84,7 +84,7 @@ def run_stages_4_to_6():
             # 創建配置
             stage5_config = Stage5Config(
                 input_enhanced_timeseries_dir='/app/data',
-                output_data_integration_dir='/app/data/data_integration_outputs',
+                output_data_integration_dir='/app/data',
                 elevation_thresholds=[5, 10, 15]
             )
             
@@ -100,7 +100,7 @@ def run_stages_4_to_6():
             
             stage5 = Stage5IntegrationProcessor(
                 input_dir='/app/data',
-                output_dir='/app/data/data_integration_outputs'
+                output_dir='/app/data'
             )
             # 使用timeseries_data參數
             results['stage5'] = stage5.process_data_integration(
@@ -123,7 +123,7 @@ def run_stages_4_to_6():
         
         stage6 = EnhancedDynamicPoolPlanner(
             input_dir='/app/data',
-            output_dir='/app/data/dynamic_pool_planning_outputs'
+            output_dir='/app/data'
         )
         
         # 使用process_dynamic_pool_planning方法

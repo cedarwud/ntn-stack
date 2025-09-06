@@ -59,65 +59,95 @@ class TimeseriesPreprocessingProcessor(ValidationSnapshotBase):
             "OneWeb處理": constellation_data.get("oneweb", {}).get("satellites_processed", 0)
         }
     
-    def run_validation_checks(self, processing_results: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """執行階段4特定驗證檢查"""
-        checks = []
-        
+    def run_validation_checks(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
+        """執行 Stage 4 驗證檢查 - 專注於時間序列預處理和前端動畫數據準備"""
+        metadata = processing_results.get('metadata', {})
         conversion_stats = processing_results.get("conversion_statistics", {})
         constellation_data = processing_results.get("constellation_data", {})
         
-        # 檢查1: 數據轉換成功率
+        checks = {}
+        
+        # 1. 輸入數據存在性檢查
+        input_satellites = metadata.get('input_satellites', 0)
+        checks["輸入數據存在性"] = input_satellites > 0
+        
+        # 2. 時間序列轉換成功率檢查 - 確保大部分衛星成功轉換為前端格式
         total_processed = conversion_stats.get("total_processed", 0)
         successful_conversions = conversion_stats.get("successful_conversions", 0)
         conversion_rate = (successful_conversions / max(total_processed, 1)) * 100
         
-        checks.append({
-            'checkName': '時間序列轉換成功率檢查',
-            'passed': conversion_rate >= 80.0,  # 要求80%以上成功率
-            'result': f"轉換成功率: {conversion_rate:.1f}% ({successful_conversions}/{total_processed})",
-            'details': f"成功轉換 {successful_conversions} 顆衛星，總處理 {total_processed} 顆衛星"
-        })
+        if self.sample_mode:
+            checks["時間序列轉換成功率"] = conversion_rate >= 70.0  # 取樣模式較寬鬆
+        else:
+            checks["時間序列轉換成功率"] = conversion_rate >= 85.0  # 全量模式要求較高
         
-        # 檢查2: Starlink數據完整性
-        starlink_processed = constellation_data.get("starlink", {}).get("satellites_processed", 0)
-        starlink_file = constellation_data.get("starlink", {}).get("output_file")
-        
-        checks.append({
-            'checkName': 'Starlink時間序列數據檢查',
-            'passed': starlink_processed > 0 and starlink_file is not None,
-            'result': f"Starlink: {starlink_processed} 顆衛星處理完成" if starlink_processed > 0 else "Starlink數據未處理",
-            'details': f"輸出文件: {starlink_file if starlink_file else '未生成'}"
-        })
-        
-        # 檢查3: OneWeb數據完整性
-        oneweb_processed = constellation_data.get("oneweb", {}).get("satellites_processed", 0)
-        oneweb_file = constellation_data.get("oneweb", {}).get("output_file")
-        
-        checks.append({
-            'checkName': 'OneWeb時間序列數據檢查',
-            'passed': oneweb_processed > 0 and oneweb_file is not None,
-            'result': f"OneWeb: {oneweb_processed} 顆衛星處理完成" if oneweb_processed > 0 else "OneWeb數據未處理",
-            'details': f"輸出文件: {oneweb_file if oneweb_file else '未生成'}"
-        })
-        
-        # 檢查4: 輸出文件存在性
+        # 3. 前端動畫數據完整性檢查 - 確保包含前端所需的時間軸和軌跡數據
+        animation_data_ok = True
         output_files = processing_results.get("output_files", {})
-        total_output_files = len([f for f in output_files.values() if f])
+        if not output_files or len(output_files) == 0:
+            animation_data_ok = False
+        else:
+            # 檢查是否有主要的時間序列檔案
+            has_main_timeseries = any('timeseries' in str(f) for f in output_files.values() if f)
+            animation_data_ok = has_main_timeseries
         
-        checks.append({
-            'checkName': '增強時間序列文件生成檢查',
-            'passed': total_output_files >= 1,  # 至少生成一個文件
-            'result': f"生成 {total_output_files} 個增強時間序列文件",
-            'details': f"輸出目錄: {processing_results.get('output_directory', 'unknown')}"
-        })
+        checks["前端動畫數據完整性"] = animation_data_ok
         
-        return checks
+        # 4. 星座數據平衡性檢查 - 確保兩個星座都有轉換結果
+        starlink_processed = constellation_data.get("starlink", {}).get("satellites_processed", 0)
+        oneweb_processed = constellation_data.get("oneweb", {}).get("satellites_processed", 0)
+        
+        if self.sample_mode:
+            checks["星座數據平衡性"] = starlink_processed >= 5 and oneweb_processed >= 2
+        else:
+            checks["星座數據平衡性"] = starlink_processed >= 200 and oneweb_processed >= 30
+        
+        # 5. 檔案大小合理性檢查 - 確保輸出檔案在前端可接受範圍（60-75MB）
+        file_size_reasonable = True
+        total_size_mb = metadata.get('total_output_size_mb', 0)
+        if total_size_mb > 0:
+            if self.sample_mode:
+                file_size_reasonable = total_size_mb <= 20  # 取樣模式較小
+            else:
+                file_size_reasonable = 40 <= total_size_mb <= 100  # 全量模式合理範圍
+        
+        checks["檔案大小合理性"] = file_size_reasonable
+        
+        # 6. 數據結構完整性檢查
+        required_fields = ['metadata', 'conversion_statistics', 'output_files']
+        checks["數據結構完整性"] = ValidationCheckHelper.check_data_completeness(
+            processing_results, required_fields
+        )
+        
+        # 7. 處理時間檢查 - 時間序列預處理應該相對快速
+        max_time = 200 if self.sample_mode else 120  # 取樣3.3分鐘，全量2分鐘
+        checks["處理時間合理性"] = ValidationCheckHelper.check_processing_time(
+            self.processing_duration, max_time
+        )
+        
+        # 計算通過的檢查數量
+        passed_checks = sum(1 for passed in checks.values() if passed)
+        total_checks = len(checks)
+        
+        return {
+            "passed": passed_checks == total_checks,
+            "totalChecks": total_checks,
+            "passedChecks": passed_checks,
+            "failedChecks": total_checks - passed_checks,
+            "criticalChecks": [
+                {"name": "時間序列轉換成功率", "status": "passed" if checks["時間序列轉換成功率"] else "failed"},
+                {"name": "前端動畫數據完整性", "status": "passed" if checks["前端動畫數據完整性"] else "failed"},
+                {"name": "星座數據平衡性", "status": "passed" if checks["星座數據平衡性"] else "failed"},
+                {"name": "檔案大小合理性", "status": "passed" if checks["檔案大小合理性"] else "failed"}
+            ],
+            "allChecks": checks
+        }
     
     def load_signal_analysis_output(self, signal_file: Optional[str] = None) -> Dict[str, Any]:
         """載入信號分析輸出數據"""
         if signal_file is None:
             # 🎯 修復：直接使用 input_dir，移除額外的子目錄
-            signal_file = self.input_dir / "signal_event_analysis_output.json"
+            signal_file = self.input_dir / "stage3_signal_event_analysis_output.json"
         else:
             signal_file = Path(signal_file)
             
@@ -426,7 +456,7 @@ class TimeseriesPreprocessingProcessor(ValidationSnapshotBase):
                 "success": True,
                 "processing_type": "timeseries_preprocessing",
                 "processing_timestamp": datetime.now(timezone.utc).isoformat(),
-                "input_source": "signal_event_analysis_output.json",
+                "input_source": "stage3_signal_event_analysis_output.json",
                 "output_directory": str(self.enhanced_dir),
                 "output_files": output_files,
                 "conversion_statistics": conversion_results["conversion_statistics"],

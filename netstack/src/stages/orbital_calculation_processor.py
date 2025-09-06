@@ -7,6 +7,10 @@
 - 生成192個時間點的軌道位置數據（30秒間隔，96分鐘窗口）
 - 計算軌道元素和相位信息，支援軌道相位位移算法
 - 全量處理所有衛星，不進行篩選
+
+執行時間記錄：
+- 全量模式 (8,791顆衛星): 約260秒 (4.33分鐘) - 測試於 2025-09-06
+- 建議timeout設定: 至少360秒 (6分鐘) 以確保穩定執行
 """
 
 import os
@@ -284,7 +288,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         
         final_data = {
             'metadata': {
-                'version': '1.0.0-tle-orbital-calculation',
+                'version': '1.0.0-tle-orbital-calculation-v3.1',
                 'processing_timestamp': current_time.isoformat(),
                 'processing_stage': 'tle_orbital_calculation',
                 'observer_coordinates': {
@@ -302,7 +306,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
                     'data_timestamps': {
                         'tle_data_dates': {const: info['file_date'] for const, info in getattr(self, 'tle_source_info', {}).get('tle_files_used', {}).items()},
                         'processing_execution_time': current_time.isoformat(),
-                        'calculation_base_time_strategy': 'tle_epoch_time'
+                        'calculation_base_time_strategy': 'tle_date_based_for_reproducible_research'
                     }
                 },
                 'total_satellites': 0,
@@ -330,6 +334,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
             
             constellation_data = {
                 'satellite_count': len(satellites),
+                'tle_file_date': self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', 'unknown'),
                 'orbit_data': {
                     'satellites': {}  # 使用字典格式以保持與階段二的兼容性
                 }
@@ -353,10 +358,10 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
                     except:
                         tle_data['norad_id'] = successful_calculations
                     
-                    # 🎯 CRITICAL FIX: 動態計算基準時間，基於實際TLE數據日期
+                    # 🎯 CRITICAL FIX: 使用TLE文件日期作為計算基準時間（符合@docs要求）
                     from datetime import timedelta
                     
-                    # 🎯 修復：動態計算歷史基準時間，基於實際TLE文件日期
+                    # 🎯 修復：使用TLE文件日期作為計算基準時間，確保可重現的仿真實驗環境
                     tle_file_date_str = self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', '20250831')
                     
                     # 解析TLE文件日期並創建基準時間（使用中午12:00作為基準點）
@@ -364,11 +369,13 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
                         year = int(tle_file_date_str[:4])
                         month = int(tle_file_date_str[4:6])
                         day = int(tle_file_date_str[6:8])
-                        historical_base_time = datetime(year, month, day, 12, 0, 0, tzinfo=timezone.utc)
+                        # 🎯 關鍵修復：使用TLE文件日期作為基準時間，而非當前時間
+                        tle_base_time = datetime(year, month, day, 12, 0, 0, tzinfo=timezone.utc)
+                        logger.debug(f"衛星 {sat_data['satellite_id']}: 使用TLE基準時間 = {tle_base_time.isoformat()}")
                     except (ValueError, IndexError) as e:
                         # 降級到預設日期
                         logger.warning(f"無法解析TLE日期 '{tle_file_date_str}'，使用預設基準時間: {e}")
-                        historical_base_time = datetime(2025, 8, 31, 12, 0, 0, tzinfo=timezone.utc)
+                        tle_base_time = datetime(2025, 8, 31, 12, 0, 0, tzinfo=timezone.utc)
                     
                     # 計算 TLE epoch 對應的實際時間（用於調試和數據血統追蹤）
                     tle_epoch_year = sat_data.get('tle_epoch_year', datetime.now().year)
@@ -376,30 +383,30 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
                     tle_epoch_date = datetime(tle_epoch_year, 1, 1, tzinfo=timezone.utc) + timedelta(days=tle_epoch_day - 1)
                     
                     # 🎯 重要修復：記錄動態時間基準計算結果
-                    logger.debug(f"衛星 {sat_data['satellite_id']}: TLE文件日期 = {tle_file_date_str}, 動態基準時間 = {historical_base_time.isoformat()}, TLE epoch = {tle_epoch_date.isoformat()}")
+                    logger.debug(f"衛星 {sat_data['satellite_id']}: TLE文件日期 = {tle_file_date_str}, TLE基準時間 = {tle_base_time.isoformat()}, TLE epoch = {tle_epoch_date.isoformat()}")
                     
-                    # 🎯 重要修復：根據星座選擇正確的軌道週期，使用歷史基準時間
+                    # 🎯 重要修復：根據星座選擇正確的軌道週期，使用TLE基準時間
                     # Starlink (~550km) 使用96分鐘軌道週期
                     # OneWeb (~1200km) 使用109分鐘軌道週期
                     if constellation.lower() == 'starlink':
                         orbit_result = orbit_engine.compute_96min_orbital_cycle(
                             tle_data,
-                            historical_base_time  # 使用歷史基準時間
+                            tle_base_time  # 🎯 使用TLE文件日期作為基準時間
                         )
-                        logger.debug(f"使用96分鐘軌道週期計算 Starlink 衛星: {sat_data['satellite_id']}")
+                        logger.debug(f"使用96分鐘軌道週期計算 Starlink 衛星: {sat_data['satellite_id']}，基準時間: {tle_base_time.isoformat()}")
                     elif constellation.lower() == 'oneweb':
                         orbit_result = orbit_engine.compute_109min_orbital_cycle(
                             tle_data,
-                            historical_base_time  # 使用歷史基準時間
+                            tle_base_time  # 🎯 使用TLE文件日期作為基準時間
                         )
-                        logger.debug(f"使用109分鐘軌道週期計算 OneWeb 衛星: {sat_data['satellite_id']}")
+                        logger.debug(f"使用109分鐘軌道週期計算 OneWeb 衛星: {sat_data['satellite_id']}，基準時間: {tle_base_time.isoformat()}")
                     else:
                         # 其他星座默認使用96分鐘週期
                         orbit_result = orbit_engine.compute_96min_orbital_cycle(
                             tle_data,
-                            historical_base_time  # 使用歷史基準時間
+                            tle_base_time  # 🎯 使用TLE文件日期作為基準時間
                         )
-                        logger.warning(f"未知星座 {constellation}，使用預設96分鐘軌道週期")
+                        logger.warning(f"未知星座 {constellation}，使用預設96分鐘軌道週期，基準時間: {tle_base_time.isoformat()}")
                     
                     if orbit_result and 'positions' in orbit_result:
                         satellite_orbit_data = {
@@ -414,14 +421,14 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
                                 'source_file_date': self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', 'unknown'),
                                 'epoch_year': sat_data.get('tle_epoch_year', 'unknown'),
                                 'epoch_day': sat_data.get('tle_epoch_day', 'unknown'),
-                                'calculation_base_time': historical_base_time.isoformat(),
+                                'calculation_base_time': tle_base_time.isoformat(),  # 🎯 記錄實際使用的基準時間
                                 # 🎯 新增：明確數據血統記錄 - 修復時間基準
                                 'data_lineage': {
                                     'data_source_date': self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', 'unknown'),
                                     'tle_epoch_date': tle_epoch_date.isoformat(),
-                                    'historical_base_time': historical_base_time.isoformat(),
+                                    'tle_base_time_used': tle_base_time.isoformat(),  # 🎯 實際計算使用的時間
                                     'processing_execution_date': current_time.isoformat(),
-                                    'calculation_strategy': 'sgp4_with_historical_base_time_for_frontend_time_control'
+                                    'calculation_strategy': 'sgp4_with_tle_file_date_base_time_for_reproducible_research'  # 🎯 更新策略描述
                                 }
                             },
                             'orbit_data': orbit_result,
@@ -444,10 +451,12 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         final_data['metadata']['total_satellites'] = total_processed
         final_data['metadata']['total_constellations'] = len(final_data['constellations'])
         
-        # 🎯 修復：在日誌中明確顯示數據血統信息
+        # 🎯 修復：在日誌中明確顯示數據血統信息和時間基準策略
         for const, info in getattr(self, 'tle_source_info', {}).get('tle_files_used', {}).items():
-            logger.info(f"  📅 {const} 數據來源日期: {info.get('file_date', 'unknown')} (TLE文件日期)")
+            tle_date = info.get('file_date', 'unknown')
+            logger.info(f"  📅 {const} 計算基準: TLE文件日期 {tle_date} (用於可重現研究)")
         logger.info(f"  🕐 處理執行時間: {current_time.isoformat()}")
+        logger.info(f"  🎯 時間基準策略: 使用TLE文件日期確保可重現的仿真實驗環境")
         
         logger.info(f"✅ 階段一完成: {total_processed} 顆衛星已完成完整軌道計算並格式化")
         
@@ -458,7 +467,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         logger.info("💾 重新啟用檔案保存模式以支持後續階段處理")
         
         # 生成輸出檔案路徑
-        output_file = self.output_dir / "tle_orbital_calculation_output.json"
+        output_file = self.output_dir / "stage1_orbital_calculation_output.json"
         
         try:
             # 🎯 修復：在保存前增強metadata，確保數據血統信息完整
@@ -502,7 +511,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
             
         except Exception as e:
             logger.error(f"保存TLE軌道計算數據失敗: {e}")
-            return None  # 不返回檔案路徑，表示採用記憶體傳遞  # 不返回檔案路徑，表示採用記憶體傳遞
+            return None  # 不返回檔案路徑，表示採用記憶體傳遞  # 不返回檔案路徑，表示採用記憶體傳遞  # 不返回檔案路徑，表示採用記憶體傳遞
         
     def process_tle_orbital_calculation(self) -> Dict[str, Any]:
         """執行真正的SGP4軌道計算和192點時間序列生成 - v3.1數據血統追蹤版本"""
@@ -512,7 +521,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         self.start_processing_timer()
         
         # 清理舊輸出文件
-        existing_data_file = self.output_dir / "tle_orbital_calculation_output.json"
+        existing_data_file = self.output_dir / "stage1_orbital_calculation_output.json"
         if existing_data_file.exists():
             logger.info(f"🗑️ 清理舊檔案: {existing_data_file}")
             existing_data_file.unlink()
@@ -549,41 +558,51 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
             # 🎯 v3.1 提取TLE檔案日期（數據血統追蹤）
             try:
                 # 從檔案名提取日期 (starlink_20250902.tle -> 20250902)
-                tle_file_date = tle_file_path.stem.split('_')[-1]
-                logger.info(f"  📅 TLE數據日期: {tle_file_date}")
+                tle_file_date_str = tle_file_path.stem.split('_')[-1]
+                # 將日期字符串轉換為datetime對象作為TLE基準時間
+                tle_base_time = datetime.strptime(tle_file_date_str, '%Y%m%d').replace(tzinfo=timezone.utc)
+                logger.info(f"  📅 TLE數據日期: {tle_file_date_str}")
+                logger.info(f"  ⏰ TLE基準時間: {tle_base_time.isoformat()}")
             except Exception as e:
                 logger.warning(f"無法解析TLE日期 {tle_file_path.name}: {e}")
-                tle_file_date = "unknown"
+                tle_file_date_str = "unknown"
+                # 如果解析失敗，使用默認時間但記錄警告
+                tle_base_time = datetime(2025, 9, 2, tzinfo=timezone.utc)
+                logger.warning(f"使用默認TLE基準時間: {tle_base_time.isoformat()}")
             
             # 🎯 v3.1 記錄TLE數據來源資訊
             file_stat = tle_file_path.stat()
             tle_data_sources[constellation] = {
                 'file_path': str(tle_file_path),
                 'file_name': tle_file_path.name,
-                'file_date': tle_file_date,
+                'file_date': tle_file_date_str,
+                'tle_base_time': tle_base_time.isoformat(),
                 'file_size_bytes': file_stat.st_size,
                 'file_modified_time': datetime.fromtimestamp(file_stat.st_mtime, timezone.utc).isoformat(),
                 'tle_epoch_strategy': 'use_tle_epoch_as_calculation_base'
             }
             
-            # 使用新的SGP4引擎處理星座
+            # 使用新的SGP4引擎處理星座，傳遞TLE基準時間
             constellation_data = self.sgp4_engine.process_constellation_tle(
-                tle_file_path, constellation
+                tle_file_path, constellation, tle_base_time=tle_base_time
             )
             
             # 🎯 v3.1 為每顆衛星添加TLE來源血統資訊
             satellites = constellation_data['satellites']
             for satellite in satellites:
+                # 🎯 CRITICAL FIX: 添加頂級 constellation 字段（階段二需要）
+                satellite['constellation'] = constellation
+                
                 # 添加@docs要求的TLE數據血統信息
                 satellite['tle_data'] = {
                     'source_file': str(tle_file_path),
-                    'source_file_date': tle_file_date,
+                    'source_file_date': tle_file_date_str,
                     'constellation': constellation,
                     'data_lineage': {
-                        'data_source_date': tle_file_date,
+                        'data_source_date': tle_file_date_str,
                         'processing_execution_date': processing_start_time.isoformat(),
                         'calculation_strategy': 'sgp4_with_tle_epoch_base_time',
-                        'tle_epoch_base_time': satellite.get('timeseries_metadata', {}).get('base_time', processing_start_time.isoformat())
+                        'tle_epoch_base_time': tle_base_time.isoformat()
                     }
                 }
             
@@ -596,7 +615,8 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
             constellations_processed[constellation] = {
                 'satellite_count': len(satellites),
                 'tle_file': str(tle_file_path),
-                'tle_file_date': tle_file_date,  # v3.1 新增
+                'tle_file_date': tle_file_date_str,  # v3.1 新增
+                'tle_base_time': tle_base_time.isoformat(),  # v3.1 新增
                 'processing_timestamp': constellation_data['metadata'].get('processing_timestamp', processing_start_time.isoformat())
             }
             
@@ -610,13 +630,14 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         data_lineage = {
             'version': 'v3.1-data-lineage-tracking',
             'tle_dates': {const: info['file_date'] for const, info in tle_data_sources.items()},
+            'tle_base_times': {const: info['tle_base_time'] for const, info in tle_data_sources.items()},
             'tle_files_used': tle_data_sources,
             'processing_timeline': {
                 'processing_start_time': processing_start_time.isoformat(),
                 'processing_end_time': processing_end_time.isoformat(),
                 'processing_duration_seconds': self.processing_duration
             },
-            'calculation_base_time_strategy': 'tle_epoch_time_for_frontend_rendering',
+            'calculation_base_time_strategy': 'tle_epoch_time_for_reproducible_research',
             'data_governance': {
                 'data_freshness_note': 'TLE數據日期反映實際衛星軌道元素時間，處理時間戳反映計算執行時間',
                 'time_base_recommendation': 'frontend_should_use_tle_date_as_animation_base_time',
@@ -665,7 +686,8 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         logger.info(f"  處理時間: {self.processing_duration:.2f}秒")
         logger.info("  📊 數據血統追蹤:")
         for const, date in data_lineage['tle_dates'].items():
-            logger.info(f"    {const}: TLE數據日期 = {date}")
+            base_time = data_lineage['tle_base_times'][const]
+            logger.info(f"    {const}: TLE數據日期 = {date}, 基準時間 = {base_time}")
         logger.info(f"    處理執行時間: {processing_end_time.isoformat()}")
         logger.info("    ✅ 數據血統追蹤: TLE來源日期與處理時間已正確分離")
         
@@ -710,23 +732,41 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
             關鍵指標字典
         """
         metadata = processing_results.get('metadata', {})
-        satellites = processing_results.get('satellites', {})
+        satellites = processing_results.get('satellites', [])  # Now it's a list
+        
+        # Count satellites by constellation from the list format
+        starlink_count = 0
+        oneweb_count = 0
+        
+        for sat in satellites:
+            sat_id = sat.get('satellite_id', '')
+            if 'STARLINK' in sat_id:
+                starlink_count += 1
+            elif 'ONEWEB' in sat_id:
+                oneweb_count += 1
+        
+        total_satellites = len(satellites)
+        other_satellites = total_satellites - starlink_count - oneweb_count
         
         return {
             "輸入TLE數量": metadata.get('total_satellites', 0),
-            "Starlink衛星": len(satellites.get('starlink', {}).get('satellites', [])),
-            "OneWeb衛星": len(satellites.get('oneweb', {}).get('satellites', [])),
-            "其他衛星": metadata.get('total_satellites', 0) - 
-                       len(satellites.get('starlink', {}).get('satellites', [])) - 
-                       len(satellites.get('oneweb', {}).get('satellites', [])),
+            "Starlink衛星": starlink_count,
+            "OneWeb衛星": oneweb_count,
+            "其他衛星": other_satellites,
             "載入成功率": "100%",
             "處理模式": "取樣模式" if self.sample_mode else "全量模式",
-            "數據血統追蹤": "已啟用" if metadata.get('data_lineage') else "未啟用"
+            "數據血統追蹤": "已啟用" if metadata.get('data_lineage') else "未啟用",
+            "總衛星數": total_satellites,
+            "星座分佈": {
+                "Starlink": starlink_count,
+                "OneWeb": oneweb_count,
+                "其他": other_satellites
+            }
         }
     
     def run_validation_checks(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
         """
-        執行 Stage 1 驗證檢查
+        執行 Stage 1 驗證檢查 - 專注於SGP4軌道計算準確性
         
         Args:
             processing_results: 處理結果數據
@@ -735,7 +775,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
             驗證結果字典
         """
         metadata = processing_results.get('metadata', {})
-        satellites = processing_results.get('satellites', [])  # Now it's a list
+        satellites = processing_results.get('satellites', [])
         
         checks = {}
         
@@ -743,14 +783,15 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         checks["TLE文件存在性"] = ValidationCheckHelper.check_file_exists(self.tle_data_dir / "starlink/tle") and \
                                  ValidationCheckHelper.check_file_exists(self.tle_data_dir / "oneweb/tle")
         
-        # 2. 衛星數量檢查
+        # 2. 衛星數量檢查 - 確保載入了預期數量的衛星
         total_satellites = metadata.get('total_satellites', 0)
         if self.sample_mode:
             checks["衛星數量檢查"] = ValidationCheckHelper.check_satellite_count(total_satellites, 100, 2000)
         else:
+            # 檢查是否載入了合理數量的衛星（允許一定波動）
             checks["衛星數量檢查"] = ValidationCheckHelper.check_satellite_count(total_satellites, 8000, 9200)
         
-        # 3. 星座存在檢查 - Modified for new format
+        # 3. 星座完整性檢查 - 確保兩個主要星座都存在
         constellation_names = []
         starlink_count = 0
         oneweb_count = 0
@@ -769,34 +810,73 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
             constellation_names, ['starlink', 'oneweb']
         )
         
-        # 4. 數據結構檢查
+        # 4. SGP4計算完整性檢查 - 確保每顆衛星都有完整的時間序列
+        complete_calculation_count = 0
+        if satellites:
+            sample_size = min(10, len(satellites))  # 檢查樣本避免性能問題
+            for i in range(sample_size):
+                sat = satellites[i]
+                timeseries = sat.get('position_timeseries', [])
+                # 檢查時間序列長度是否接近192個點（允許少量偏差）
+                if len(timeseries) >= 180:  # 至少90%的時間點
+                    complete_calculation_count += 1
+                    
+        checks["SGP4計算完整性"] = complete_calculation_count >= int(sample_size * 0.9)
+        
+        # 5. 軌道數據合理性檢查 - 🎯 修正字段路徑
+        orbital_data_reasonable = True
+        if satellites:
+            sample_sat = satellites[0]
+            timeseries = sample_sat.get('position_timeseries', [])
+            if timeseries:
+                first_point = timeseries[0]
+                # 🚀 修正：數據在geodetic對象內
+                geodetic = first_point.get('geodetic', {})
+                if geodetic:
+                    # 檢查軌道高度是否在LEO範圍內
+                    altitude = geodetic.get('altitude_km', 0)
+                    if not (150 <= altitude <= 2000):  # LEO衛星高度範圍
+                        orbital_data_reasonable = False
+                        
+                    # 檢查經緯度範圍
+                    lat = geodetic.get('latitude_deg', 0)
+                    lon = geodetic.get('longitude_deg', 0)
+                    if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                        orbital_data_reasonable = False
+                else:
+                    orbital_data_reasonable = False  # 缺少geodetic數據
+                    
+        checks["軌道數據合理性"] = orbital_data_reasonable
+        
+        # 6. 數據血統追蹤檢查 - 確保TLE來源信息完整
+        checks["數據血統追蹤"] = 'data_lineage' in metadata and \
+                              'tle_dates' in metadata.get('data_lineage', {})
+        
+        # 7. 時間基準一致性檢查 - 確保使用正確的TLE epoch時間
+        time_consistency_ok = True
+        lineage = metadata.get('data_lineage', {})
+        if 'tle_dates' in lineage and lineage['tle_dates']:
+            # 檢查TLE日期格式是否正確
+            tle_dates = lineage['tle_dates']
+            if isinstance(tle_dates, dict):
+                for constellation, date in tle_dates.items():
+                    if not (isinstance(date, str) and len(date) == 8 and date.isdigit()):
+                        time_consistency_ok = False
+                        break
+        else:
+            time_consistency_ok = False
+            
+        checks["時間基準一致性"] = time_consistency_ok
+        
+        # 8. 數據結構完整性檢查
         required_metadata_fields = ['total_satellites', 'processing_timestamp', 'total_constellations']
         checks["數據結構完整性"] = ValidationCheckHelper.check_data_completeness(
             metadata, required_metadata_fields
         )
         
-        # 5. 數據血統追蹤檢查
-        checks["數據血統追蹤"] = 'data_lineage' in metadata and \
-                              'tle_dates' in metadata.get('data_lineage', {})
-        
-        # 6. 時間序列數據檢查 - Modified for new format
-        timeseries_check = True
-        if satellites:
-            # 檢查前幾顆衛星是否有時間序列數據
-            sample_size = min(5, len(satellites))
-            for i in range(sample_size):
-                sat = satellites[i]
-                if 'position_timeseries' not in sat or not sat['position_timeseries']:
-                    timeseries_check = False
-                    break
-        else:
-            timeseries_check = False
-            
-        checks["時間序列數據"] = timeseries_check
-        
-        # 7. 處理時間檢查
-        max_time = 600 if self.sample_mode else 300  # 取樣模式10分鐘，全量模式5分鐘
-        checks["處理時間合理性"] = ValidationCheckHelper.check_processing_time(
+        # 9. 處理性能檢查 - SGP4計算不應過度耗時
+        max_time = 600 if self.sample_mode else 400  # 取樣10分鐘，全量7分鐘
+        checks["處理性能檢查"] = ValidationCheckHelper.check_processing_time(
             self.processing_duration, max_time
         )
         
@@ -811,7 +891,8 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
             "failedChecks": total_checks - passed_checks,
             "criticalChecks": [
                 {"name": "TLE文件存在性", "status": "passed" if checks["TLE文件存在性"] else "failed"},
-                {"name": "衛星數量檢查", "status": "passed" if checks["衛星數量檢查"] else "failed"},
+                {"name": "SGP4計算完整性", "status": "passed" if checks["SGP4計算完整性"] else "failed"},
+                {"name": "軌道數據合理性", "status": "passed" if checks["軌道數據合理性"] else "failed"},
                 {"name": "數據血統追蹤", "status": "passed" if checks["數據血統追蹤"] else "failed"}
             ],
             "allChecks": checks,

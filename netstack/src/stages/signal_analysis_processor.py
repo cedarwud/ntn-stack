@@ -124,66 +124,112 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
             **constellation_metrics
         }
     
-    def run_validation_checks(self, processing_results: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """執行階段3特定驗證檢查"""
-        checks = []
-        
-        # 檢查1: 信號分析完整性
+    def run_validation_checks(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
+        """執行 Stage 3 驗證檢查 - 專注於信號品質分析和3GPP事件處理準確性"""
+        metadata = processing_results.get('metadata', {})
         constellations = processing_results.get('constellations', {})
-        signal_completed_count = 0
-        for constellation_data in constellations.values():
-            if constellation_data.get('signal_analysis_completed', False):
-                signal_completed_count += 1
+        satellites = processing_results.get('satellites', [])
         
-        checks.append({
-            'checkName': '信號分析完整性檢查',
-            'passed': signal_completed_count > 0,
-            'result': f"{signal_completed_count}/{len(constellations)} 個星座完成信號分析",
-            'details': f"完成信號分析的星座數: {signal_completed_count}"
-        })
+        checks = {}
         
-        # 檢查2: 3GPP事件分析
-        event_completed_count = 0
-        for constellation_data in constellations.values():
-            if constellation_data.get('event_analysis_completed', False):
-                event_completed_count += 1
+        # 1. 輸入數據存在性檢查
+        input_satellites = metadata.get('input_satellites', 0)
+        checks["輸入數據存在性"] = input_satellites > 0
         
-        checks.append({
-            'checkName': '3GPP事件分析檢查',
-            'passed': event_completed_count > 0,
-            'result': f"{event_completed_count}/{len(constellations)} 個星座完成事件分析",
-            'details': f"完成3GPP事件分析的星座數: {event_completed_count}"
-        })
+        # 2. 信號品質計算完整性檢查 - 確保RSRP、RSRQ計算完成
+        signal_quality_completed = True
+        signal_satellites_count = 0
+        if satellites:
+            sample_size = min(10, len(satellites))
+            for i in range(sample_size):
+                sat = satellites[i]
+                timeseries = sat.get('position_timeseries', [])
+                if timeseries:
+                    # 檢查是否有信號品質數據
+                    first_point = timeseries[0]
+                    if 'signal_quality' in first_point:
+                        signal_data = first_point['signal_quality']
+                        if 'rsrp_dbm' in signal_data and 'rsrq_db' in signal_data:
+                            signal_satellites_count += 1
+            
+            signal_quality_completed = signal_satellites_count >= int(sample_size * 0.8)
         
-        # 檢查3: 最終推薦生成
-        total_satellites = len(processing_results.get('satellites', []))
-        has_recommendations = len(processing_results.get('selection_recommendations', {})) > 0
+        checks["信號品質計算完整性"] = signal_quality_completed
         
-        checks.append({
-            'checkName': '衛星推薦生成檢查',
-            'passed': has_recommendations and total_satellites > 0,
-            'result': f"生成 {total_satellites} 顆衛星的推薦結果" if has_recommendations else "未生成推薦結果",
-            'details': f"扁平化衛星陣列: {total_satellites} 顆，推薦系統: {'已生成' if has_recommendations else '未生成'}"
-        })
+        # 3. 3GPP事件處理檢查 - 確保A4、A5、D2事件生成
+        gpp_events_ok = True
+        if satellites:
+            sample_sat = satellites[0]
+            timeseries = sample_sat.get('position_timeseries', [])
+            if timeseries:
+                # 檢查是否包含3GPP事件數據
+                events_found = False
+                for point in timeseries[:10]:  # 檢查前10個時間點
+                    if 'gpp_events' in point or '3gpp_events' in point:
+                        events_found = True
+                        break
+                gpp_events_ok = events_found
+            else:
+                gpp_events_ok = False
         
-        # 檢查4: 數據結構完整性
-        required_fields = ['metadata', 'satellites', 'constellations', 'selection_recommendations']
-        missing_fields = [field for field in required_fields if field not in processing_results]
+        checks["3GPP事件處理檢查"] = gpp_events_ok
         
-        checks.append({
-            'checkName': '輸出數據結構檢查',
-            'passed': len(missing_fields) == 0,
-            'result': "數據結構完整" if len(missing_fields) == 0 else f"缺少字段: {missing_fields}",
-            'details': f"必需字段檢查: {len(required_fields) - len(missing_fields)}/{len(required_fields)} 個字段存在"
-        })
+        # 4. 信號範圍合理性檢查 - 驗證RSRP在-140~-50 dBm範圍
+        signal_range_reasonable = True
+        if satellites and signal_satellites_count > 0:
+            sample_sat = satellites[0]
+            timeseries = sample_sat.get('position_timeseries', [])
+            if timeseries:
+                for point in timeseries[:5]:  # 檢查前5個時間點
+                    if 'signal_quality' in point:
+                        rsrp = point['signal_quality'].get('rsrp_dbm', 0)
+                        if not (-140 <= rsrp <= -50):  # ITU-R標準範圍
+                            signal_range_reasonable = False
+                            break
         
-        return checks
+        checks["信號範圍合理性檢查"] = signal_range_reasonable
+        
+        # 5. 星座完整性檢查 - 確保兩個星座都有信號分析
+        constellation_names = list(constellations.keys())
+        checks["星座完整性檢查"] = ValidationCheckHelper.check_constellation_presence(
+            constellation_names, ['starlink', 'oneweb']
+        )
+        
+        # 6. 數據結構完整性檢查
+        required_fields = ['metadata', 'satellites', 'processing_timestamp']
+        checks["數據結構完整性"] = ValidationCheckHelper.check_data_completeness(
+            processing_results, required_fields
+        )
+        
+        # 7. 處理時間檢查 - 信號分析需要一定時間但不應過長
+        max_time = 400 if self.sample_mode else 300  # 取樣6.7分鐘，全量5分鐘
+        checks["處理時間合理性"] = ValidationCheckHelper.check_processing_time(
+            self.processing_duration, max_time
+        )
+        
+        # 計算通過的檢查數量
+        passed_checks = sum(1 for passed in checks.values() if passed)
+        total_checks = len(checks)
+        
+        return {
+            "passed": passed_checks == total_checks,
+            "totalChecks": total_checks,
+            "passedChecks": passed_checks,
+            "failedChecks": total_checks - passed_checks,
+            "criticalChecks": [
+                {"name": "信號品質計算完整性", "status": "passed" if checks["信號品質計算完整性"] else "failed"},
+                {"name": "3GPP事件處理檢查", "status": "passed" if checks["3GPP事件處理檢查"] else "failed"},
+                {"name": "信號範圍合理性檢查", "status": "passed" if checks["信號範圍合理性檢查"] else "failed"},
+                {"name": "星座完整性檢查", "status": "passed" if checks["星座完整性檢查"] else "failed"}
+            ],
+            "allChecks": checks
+        }
     
     def load_intelligent_filtering_output(self, filtering_file: Optional[str] = None) -> Dict[str, Any]:
         """載入智能篩選輸出數據"""
         if filtering_file is None:
             # 🔧 統一路徑：直接從統一輸出目錄載入階段二輸出
-            filtering_file = self.input_dir / "intelligent_filtered_output.json"
+            filtering_file = self.input_dir / "stage2_intelligent_filtered_output.json"
         else:
             filtering_file = Path(filtering_file)
             
@@ -587,7 +633,7 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
         """保存信號分析輸出數據 - v3.1 修復路徑版本"""
         # 🔧 修復：直接使用 output_dir，不創建 leo_outputs 子目錄
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = self.output_dir / "signal_event_analysis_output.json"
+        output_file = self.output_dir / "stage3_signal_event_analysis_output.json"
         
         # 🗑️ 清理舊檔案 - 確保資料一致性
         if output_file.exists():

@@ -48,8 +48,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # 安裝 Python 依賴，使用更長的超時時間
 RUN pip install --no-cache-dir --default-timeout=600 -r requirements.txt
 
-# 6. 複製應用程式碼到工作目錄
-COPY . .
+# 🚀 VOLUME-BASED DEVELOPMENT: 代碼通過Volume掛載，無需複製到映像檔
+# COPY . .  # 已移除 - 所有應用代碼使用Volume掛載
 
 # 7. 混合模式 v2.0：數據預處理已移至 NetStack，SimWorld 僅負責 API 服務
 # 不再在建置階段執行預處理，改用運行時從 NetStack 獲取預處理數據

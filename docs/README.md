@@ -1,8 +1,8 @@
 # 📚 NTN Stack 技術文檔中心
 
-**版本**: 3.3.0  
-**更新日期**: 2025-08-28  
-**專案狀態**: ✅ 生產就緒 + UltraThink 全面修復完成
+**版本**: 4.1.0 (即時驗證架構版)  
+**更新日期**: 2025-09-06  
+**專案狀態**: ✅ 生產就緒 + 即時驗證架構 + UltraThink 全面修復完成
 
 ## 🚀 快速開始
 
@@ -40,8 +40,11 @@ curl http://localhost:8080/health     # NetStack 健康檢查
 | 文檔 | 用途 | 讀者對象 |
 |------|------|----------|
 | [系統架構總覽](./system_architecture.md) | Docker配置、服務架構、高層設計 | 系統架構師、DevOps |
+| [管道自動驗證架構](./PIPELINE_AUTO_VALIDATION_ARCHITECTURE.md) | ⭐ **NEW**: Fail-Fast自動驗證、階段品質控制 | 數據工程師、系統架構師 |
+| [即時驗證架構](./IMMEDIATE_VALIDATION_ARCHITECTURE.md) | 階段即時驗證、防無意義計算 | 數據工程師、系統架構師 |
+| [建構驗證指南](./BUILD_VALIDATION_GUIDE.md) | 建構時自動狀態檢查、三格式報告 | DevOps、系統維護 |
 | [Shared Core 統一架構](./shared_core_architecture.md) | 統一管理器、性能優化、避免重複 | 後端工程師、架構師 |
-| [數據處理流程](./data_processing_flow.md) | 六階段處理流程、Pure Cron架構 | 數據工程師、研究人員 |
+| [數據處理流程](./data_processing_flow.md) | 六階段處理流程、Pure Cron架構 + 自動驗證 | 數據工程師、研究人員 |
 | [UltraThink 系統狀態](./ultrathink_system_status.md) | 當前專案狀況、修復成果、開發指導 | 所有開發者、維護人員 |
 
 ### 🔧 技術實現文檔  
@@ -109,6 +112,7 @@ TLE數據(8,779顆) → SGP4計算 → 智能篩選(1,113顆) → 信號分析 �
 - **Pure Cron驅動架構** - 容器純數據載入，Cron自動更新
 - **六階段智能處理** - 從8,779顆到156顆動態池，含完整時間序列數據
 - **真實數據驅動** - CelesTrak官方TLE數據，6小時自動更新
+- **⚡ Fail-Fast自動驗證** - 每階段完成後立即驗證，失敗時停止後續執行
 
 ## 📋 版本信息
 

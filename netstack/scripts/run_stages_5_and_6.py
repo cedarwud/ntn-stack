@@ -75,8 +75,8 @@ def run_stages_5_and_6():
             
             # 創建配置
             stage5_config = Stage5Config(
-                input_enhanced_timeseries_dir='/app/data/timeseries_preprocessing_outputs',
-                output_data_integration_dir='/app/data/data_integration_outputs',
+                input_enhanced_timeseries_dir='/app/data',
+                output_data_integration_dir='/app/data',
                 elevation_thresholds=[5, 10, 15]
             )
             
@@ -92,8 +92,8 @@ def run_stages_5_and_6():
             try:
                 from stages.data_integration_processor import DataIntegrationProcessor
                 stage5 = DataIntegrationProcessor(
-                    input_dir='/app/data/timeseries_preprocessing_outputs',
-                    output_dir='/app/data/data_integration_outputs'
+                    input_dir='/app/data',
+                    output_dir='/app/data'
                 )
                 results['stage5'] = stage5.process_data_integration(save_output=True)
             except ImportError as e2:
@@ -117,8 +117,8 @@ def run_stages_5_and_6():
             
             # EnhancedDynamicPoolPlanner expects a config dict
             stage6_config = {
-                'input_dir': '/app/data/data_integration_outputs',
-                'output_dir': '/app/data/dynamic_pool_planning_outputs'
+                'input_dir': '/app/data',
+                'output_dir': '/app/data'
             }
             stage6 = EnhancedDynamicPoolPlanner(stage6_config)
             
@@ -131,8 +131,8 @@ def run_stages_5_and_6():
             try:
                 from stages.dynamic_pool_planner import DynamicPoolPlanner
                 stage6 = DynamicPoolPlanner(
-                    input_dir='/app/data/data_integration_outputs',
-                    output_dir='/app/data/dynamic_pool_planning_outputs'
+                    input_dir='/app/data',
+                    output_dir='/app/data'
                 )
                 results['stage6'] = stage6.process_dynamic_pool_planning(save_output=True)
             except ImportError as e2:

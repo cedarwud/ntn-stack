@@ -16,8 +16,8 @@ COPY package.json yarn.lock* package-lock.json* ./
 # 如果用 npm:
 RUN npm install
 
-# 5. 複製所有前端程式碼
-COPY . .
+# 🚀 VOLUME-BASED DEVELOPMENT: 代碼通過Volume掛載，無需複製到映像檔
+# COPY . .  # 已移除 - 所有前端代碼使用Volume掛載
 
 # 6. 暴露 Vite 開發伺服器端口
 EXPOSE 5173
