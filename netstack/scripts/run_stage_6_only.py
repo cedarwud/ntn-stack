@@ -59,13 +59,13 @@ def run_stage_6_only():
         
         # EnhancedDynamicPoolPlanner expects a config dict
         stage6_config = {
-            'input_dir': '/app/data/data_integration_outputs',
-            'output_dir': '/app/data/dynamic_pool_planning_outputs'
+            'input_dir': '/app/data',
+            'output_dir': '/app/data'
         }
         stage6 = EnhancedDynamicPoolPlanner(stage6_config)
         
         # 使用檔案模式 - 傳入input_file參數
-        output_file = '/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json'
+        output_file = '/app/data/enhanced_dynamic_pools_output.json'
         results = stage6.process(
             input_file=stage5_file,  # 使用檔案模式
             input_data=None,         # 不使用記憶體模式

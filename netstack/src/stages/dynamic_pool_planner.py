@@ -211,60 +211,209 @@ class EnhancedDynamicPoolPlanner(ValidationSnapshotBase):
             "處理耗時": f"{processing_results.get('total_processing_time', 0):.2f}秒"
         }
     
-    def run_validation_checks(self, processing_results: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """執行階段6特定驗證檢查"""
-        checks = []
+    async def run_validation_checks(self) -> Dict[str, Any]:
+        """階段六驗證：動態衛星池規劃和持續覆蓋目標達成
         
-        coverage_optimization = processing_results.get('coverage_optimization', {})
-        dynamic_pools = processing_results.get('dynamic_pools', {})
+        專注驗證：
+        - 持續覆蓋池規劃成功率
+        - 空間-時間錯置演算法執行
+        - 覆蓋連續性驗證
+        - 優化效率驗證
+        """
+        validation_results = {
+            "validation_timestamp": datetime.utcnow().isoformat(),
+            "stage_name": "Stage6_DynamicPoolPlanning",
+            "validation_focus": "動態衛星池規劃和持續覆蓋目標達成",
+            "success": False,
+            "metrics": {},
+            "issues": [],
+            "recommendations": []
+        }
         
-        # 檢查1: 覆蓋優化完成檢查
-        starlink_optimization = coverage_optimization.get('starlink', {})
-        oneweb_optimization = coverage_optimization.get('oneweb', {})
-        optimization_completed = starlink_optimization.get('success', False) or oneweb_optimization.get('success', False)
-        
-        checks.append({
-            'checkName': '時空覆蓋優化完成檢查',
-            'passed': optimization_completed,
-            'result': "覆蓋優化成功完成" if optimization_completed else "覆蓋優化未完成",
-            'details': f"Starlink: {'成功' if starlink_optimization.get('success', False) else '失敗'}, OneWeb: {'成功' if oneweb_optimization.get('success', False) else '失敗'}"
-        })
-        
-        # 檢查2: 動態池生成檢查
-        starlink_pools = dynamic_pools.get('starlink', {}).get('selected_satellites', [])
-        oneweb_pools = dynamic_pools.get('oneweb', {}).get('selected_satellites', [])
-        pool_generated = len(starlink_pools) > 0 or len(oneweb_pools) > 0
-        
-        checks.append({
-            'checkName': '動態衛星池生成檢查',
-            'passed': pool_generated,
-            'result': f"動態池生成: Starlink {len(starlink_pools)}顆, OneWeb {len(oneweb_pools)}顆",
-            'details': f"總計生成 {len(starlink_pools) + len(oneweb_pools)} 顆衛星的動態池"
-        })
-        
-        # 檢查3: 模擬退火優化檢查
-        sa_results = processing_results.get('simulated_annealing', {})
-        sa_completed = sa_results.get('optimization_completed', False)
-        
-        checks.append({
-            'checkName': '模擬退火優化檢查',
-            'passed': sa_completed,
-            'result': f"模擬退火優化: {'已完成' if sa_completed else '未完成'}",
-            'details': f"最終溫度: {sa_results.get('final_temperature', 'N/A')}, 迭代次數: {sa_results.get('iterations', 'N/A')}"
-        })
-        
-        # 檢查4: 輸出文件完整性檢查
-        output_file = processing_results.get('output_file')
-        output_file_exists = output_file and Path(output_file).exists() if output_file else False
-        
-        checks.append({
-            'checkName': '動態池輸出文件檢查',
-            'passed': output_file_exists,
-            'result': f"輸出文件: {'已生成' if output_file_exists else '未生成'}",
-            'details': f"文件路徑: {output_file if output_file else '未指定'}"
-        })
-        
-        return checks
+        try:
+            # 1. 檢查輸入數據來源 (Stage 5整合結果)
+            integration_data = None
+            if hasattr(self, 'current_integration_data') and self.current_integration_data:
+                integration_data = self.current_integration_data
+            else:
+                # 從檔案載入檢查
+                integration_file = "/app/data/data_integration_outputs/data_integration_output.json"
+                if os.path.exists(integration_file):
+                    try:
+                        with open(integration_file, 'r', encoding='utf-8') as f:
+                            integration_data = json.load(f)
+                    except Exception as e:
+                        validation_results["issues"].append(f"整合數據檔案載入失敗: {str(e)}")
+                else:
+                    validation_results["issues"].append("整合數據檔案不存在，需要先執行Stage 5")
+            
+            if not integration_data:
+                validation_results["issues"].append("Stage 5整合數據不可用")
+                return validation_results
+            
+            # 2. 持續覆蓋池規劃驗證
+            pool_planning_success = False
+            starlink_pool_size = 0
+            oneweb_pool_size = 0
+            
+            try:
+                if hasattr(self, 'optimized_pools') and self.optimized_pools:
+                    pools = self.optimized_pools
+                    if 'starlink' in pools and 'oneweb' in pools:
+                        starlink_pool_size = len(pools['starlink'])
+                        oneweb_pool_size = len(pools['oneweb'])
+                        
+                        # 檢查持續覆蓋池大小符合目標
+                        if 100 <= starlink_pool_size <= 200 and 30 <= oneweb_pool_size <= 50:
+                            pool_planning_success = True
+                        
+                        validation_results["metrics"]["starlink_continuous_pool_size"] = starlink_pool_size
+                        validation_results["metrics"]["oneweb_continuous_pool_size"] = oneweb_pool_size
+                
+                validation_results["metrics"]["pool_planning_success"] = pool_planning_success
+                
+            except Exception as e:
+                validation_results["issues"].append(f"持續覆蓋池規劃檢查失敗: {str(e)}")
+            
+            # 3. 空間-時間錯置演算法執行驗證
+            spatial_temporal_algorithm_success = False
+            
+            try:
+                if hasattr(self, 'spatial_temporal_analysis') and self.spatial_temporal_analysis:
+                    analysis = self.spatial_temporal_analysis
+                    
+                    # 檢查是否有時空錯置分析結果
+                    if ('coverage_continuity' in analysis and 
+                        'orbital_phase_distribution' in analysis and
+                        'handover_optimization' in analysis):
+                        spatial_temporal_algorithm_success = True
+                        
+                        # 提取關鍵指標
+                        if 'coverage_continuity' in analysis:
+                            coverage_rate = analysis['coverage_continuity'].get('continuous_coverage_rate', 0)
+                            validation_results["metrics"]["continuous_coverage_rate"] = coverage_rate
+                        
+                        if 'handover_optimization' in analysis:
+                            handover_efficiency = analysis['handover_optimization'].get('optimization_efficiency', 0)
+                            validation_results["metrics"]["handover_optimization_efficiency"] = handover_efficiency
+                
+                validation_results["metrics"]["spatial_temporal_algorithm_success"] = spatial_temporal_algorithm_success
+                
+            except Exception as e:
+                validation_results["issues"].append(f"空間-時間錯置演算法檢查失敗: {str(e)}")
+            
+            # 4. 覆蓋連續性目標達成驗證
+            coverage_continuity_achieved = False
+            
+            try:
+                if hasattr(self, 'coverage_analysis') and self.coverage_analysis:
+                    coverage = self.coverage_analysis
+                    
+                    # 檢查目標達成狀況：Starlink 10-15顆，OneWeb 3-6顆
+                    starlink_coverage_ok = False
+                    oneweb_coverage_ok = False
+                    
+                    if 'starlink_continuous_count' in coverage:
+                        starlink_count = coverage['starlink_continuous_count']
+                        if 10 <= starlink_count <= 15:
+                            starlink_coverage_ok = True
+                        validation_results["metrics"]["starlink_continuous_coverage_count"] = starlink_count
+                    
+                    if 'oneweb_continuous_count' in coverage:
+                        oneweb_count = coverage['oneweb_continuous_count']
+                        if 3 <= oneweb_count <= 6:
+                            oneweb_coverage_ok = True
+                        validation_results["metrics"]["oneweb_continuous_coverage_count"] = oneweb_count
+                    
+                    coverage_continuity_achieved = starlink_coverage_ok and oneweb_coverage_ok
+                
+                validation_results["metrics"]["coverage_continuity_achieved"] = coverage_continuity_achieved
+                
+            except Exception as e:
+                validation_results["issues"].append(f"覆蓋連續性驗證失敗: {str(e)}")
+            
+            # 5. 優化效率驗證
+            optimization_efficiency_acceptable = False
+            
+            try:
+                if hasattr(self, 'optimization_metrics') and self.optimization_metrics:
+                    metrics = self.optimization_metrics
+                    
+                    processing_time = metrics.get('total_processing_time_seconds', 0)
+                    memory_usage = metrics.get('peak_memory_usage_mb', 0)
+                    algorithm_iterations = metrics.get('algorithm_iterations', 0)
+                    
+                    # 效率標準：處理時間 < 300秒，記憶體 < 500MB，迭代次數合理
+                    if processing_time < 300 and memory_usage < 500 and algorithm_iterations > 0:
+                        optimization_efficiency_acceptable = True
+                    
+                    validation_results["metrics"]["processing_time_seconds"] = processing_time
+                    validation_results["metrics"]["peak_memory_usage_mb"] = memory_usage
+                    validation_results["metrics"]["algorithm_iterations"] = algorithm_iterations
+                
+                validation_results["metrics"]["optimization_efficiency_acceptable"] = optimization_efficiency_acceptable
+                
+            except Exception as e:
+                validation_results["issues"].append(f"優化效率驗證失敗: {str(e)}")
+            
+            # 6. 輸出檔案完整性檢查
+            output_file_complete = False
+            
+            try:
+                output_file = "/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json"
+                if os.path.exists(output_file):
+                    file_size = os.path.getsize(output_file)
+                    if file_size > 1024 * 1024:  # > 1MB
+                        output_file_complete = True
+                        validation_results["metrics"]["output_file_size_mb"] = file_size / (1024 * 1024)
+                    else:
+                        validation_results["issues"].append(f"輸出檔案過小: {file_size} bytes")
+                else:
+                    validation_results["issues"].append("動態池規劃輸出檔案不存在")
+                
+                validation_results["metrics"]["output_file_complete"] = output_file_complete
+                
+            except Exception as e:
+                validation_results["issues"].append(f"輸出檔案檢查失敗: {str(e)}")
+            
+            # 7. 整體成功判定
+            core_validations = [
+                pool_planning_success,
+                spatial_temporal_algorithm_success,
+                coverage_continuity_achieved,
+                optimization_efficiency_acceptable,
+                output_file_complete
+            ]
+            
+            success_count = sum(core_validations)
+            validation_results["success"] = success_count >= 4  # 至少4/5項通過
+            validation_results["metrics"]["core_validation_success_rate"] = success_count / len(core_validations)
+            
+            # 8. 建議生成
+            if not validation_results["success"]:
+                if not pool_planning_success:
+                    validation_results["recommendations"].append("檢查持續覆蓋池規劃演算法，確保池大小符合目標範圍")
+                
+                if not spatial_temporal_algorithm_success:
+                    validation_results["recommendations"].append("檢查空間-時間錯置演算法實現，確保分析結果完整")
+                
+                if not coverage_continuity_achieved:
+                    validation_results["recommendations"].append("調整覆蓋連續性參數，確保達成 Starlink 10-15顆、OneWeb 3-6顆目標")
+                
+                if not optimization_efficiency_acceptable:
+                    validation_results["recommendations"].append("優化演算法效率，減少處理時間和記憶體使用")
+                
+                if not output_file_complete:
+                    validation_results["recommendations"].append("檢查輸出檔案生成邏輯，確保完整數據輸出")
+            else:
+                validation_results["recommendations"].append("Stage 6 動態池規劃驗證通過，已實現持續覆蓋目標")
+            
+            return validation_results
+            
+        except Exception as e:
+            validation_results["issues"].append(f"驗證過程發生未預期錯誤: {str(e)}")
+            validation_results["success"] = False
+            return validation_results
 
     def cleanup_all_stage6_outputs(self):
         """

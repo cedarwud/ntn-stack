@@ -374,16 +374,16 @@ services:
       - /home/sat/ntn-stack/data/leo_outputs:/app/data
       # 🔥 CRITICAL FIX: 掛載TLE數據目錄，確保載入8735顆真實衛星
       - ../tle_data:/app/tle_data:ro
+      
+      # 🚀 DEVELOPMENT SIMPLIFICATION: 整個代碼目錄掛載（如SimWorld設計）
+      - ../src:/app/src
+      - ../netstack_api:/app/netstack_api
+      - ../scripts:/app/scripts
+      - ../config:/app/config
+      
+      # Docker Volumes for generated content
       - netstack_models:/app/models
       - netstack_results:/app/results
-      - netstack_scripts:/app/scripts
-      - ../netstack_api/routers/satellite_data_router.py:/app/netstack_api/routers/satellite_data_router.py:ro
-      - ../netstack_api/routers/coordinate_orbit_endpoints.py:/app/netstack_api/routers/coordinate_orbit_endpoints.py:ro
-      - ../netstack_api/routers/simple_satellite_router.py:/app/netstack_api/routers/simple_satellite_router.py:ro
-      - ../netstack_api/routers/pipeline_statistics_router.py:/app/netstack_api/routers/pipeline_statistics_router.py:ro
-      - ../netstack_api/app/core/router_manager.py:/app/netstack_api/app/core/router_manager.py:ro
-      # 🎯 PERSISTENCE FIX: 修復動態時間基準的TLE處理器  
-      - ../src/stages/orbital_calculation_processor.py:/app/src/stages/orbital_calculation_processor.py:ro
     ports:
       - "8080:8080"
     depends_on:

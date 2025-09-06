@@ -29,12 +29,14 @@ def cleanup_all_stage6_outputs():
     # 定義所有可能的階段六輸出路徑
     cleanup_paths = [
         # 容器內路徑
+        # 舊的子目錄路徑（向下兼容）
         Path("/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json"),
         Path("/app/data/enhanced_dynamic_pools_output.json"),
         Path("/app/data/stage6_dynamic_pool_output.json"),
         Path("/app/data/stage6_dynamic_pool.json"),
         Path("/app/data/dynamic_pools.json"),
         # 主機路徑（如果存在映射）
+        # 舊的子目錄路徑（向下兼容）
         Path("/home/sat/ntn-stack/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json"),
         Path("/home/sat/ntn-stack/data/enhanced_dynamic_pools_output.json"),
         Path("/home/sat/ntn-stack/data/stage6_dynamic_pool_output.json"),
@@ -45,8 +47,10 @@ def cleanup_all_stage6_outputs():
     # 清理目錄
     cleanup_directories = [
         # 容器內目錄
+        # 舊的子目錄（向下兼容）
         Path("/app/data/dynamic_pool_planning_outputs"),
         # 主機目錄（如果存在）
+        # 舊的子目錄（向下兼容）
         Path("/home/sat/ntn-stack/data/dynamic_pool_planning_outputs"),
     ]
     

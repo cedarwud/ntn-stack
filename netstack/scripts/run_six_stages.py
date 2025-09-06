@@ -58,7 +58,7 @@ def run_all_stages():
         from stages.orbital_calculation_processor import Stage1TLEProcessor
         stage1 = Stage1TLEProcessor(
             tle_data_dir='/app/tle_data',
-            output_dir='/app/data/tle_calculation_outputs',
+            output_dir='/app/data',
             sample_mode=False  # 全量處理模式
         )
         results['stage1'] = stage1.process_tle_orbital_calculation()
@@ -75,7 +75,7 @@ def run_all_stages():
         from stages.satellite_visibility_filter_processor import SatelliteVisibilityFilterProcessor
         stage2 = SatelliteVisibilityFilterProcessor(
             input_dir='/app/data',
-            output_dir='/app/data/intelligent_filtering_outputs'
+            output_dir='/app/data'
         )
         # 使用orbital_data參數
         results['stage2'] = stage2.process_intelligent_filtering(
@@ -104,7 +104,7 @@ def run_all_stages():
         from stages.signal_analysis_processor import SignalQualityAnalysisProcessor
         stage3 = SignalQualityAnalysisProcessor(
             input_dir='/app/data',
-            output_dir='/app/data/signal_analysis_outputs'
+            output_dir='/app/data'
         )
         # 使用filtering_data參數（注意：不是filtered_data）
         results['stage3'] = stage3.process_signal_analysis(
@@ -131,12 +131,12 @@ def run_all_stages():
         from stages.timeseries_optimization_processor import TimeseriesPreprocessingProcessor
         stage4 = TimeseriesPreprocessingProcessor(
             input_dir='/app/data',
-            output_dir='/app/data/timeseries_preprocessing_outputs'
+            output_dir='/app/data'
         )
         
         # 使用默認輸入路徑（階段三已經保存檔案）
         results['stage4'] = stage4.process_timeseries_preprocessing(
-            signal_file='/app/data/signal_analysis_outputs/signal_event_analysis_output.json',
+            signal_file='/app/data/signal_event_analysis_output.json',
             save_output=True
         )
         
@@ -162,7 +162,7 @@ def run_all_stages():
         # 創建配置
         stage5_config = Stage5Config(
             input_enhanced_timeseries_dir='/app/data',
-            output_data_integration_dir='/app/data/data_integration_outputs',
+            output_data_integration_dir='/app/data',
             elevation_thresholds=[5, 10, 15]
         )
         
@@ -185,14 +185,14 @@ def run_all_stages():
         
         stage6_config = {
             'input_dir': '/app/data',
-            'output_dir': '/app/data/dynamic_pool_planning_outputs'
+            'output_dir': '/app/data'
         }
         stage6 = EnhancedDynamicPoolPlanner(stage6_config)
         
         # 使用process方法
         results['stage6'] = stage6.process(
             input_data=results['stage5'],
-            output_file='/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json'
+            output_file='/app/data/enhanced_dynamic_pools_output.json'
         )
         
         if not results['stage6']:

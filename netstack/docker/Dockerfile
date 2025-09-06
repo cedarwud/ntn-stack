@@ -43,13 +43,13 @@ RUN pip install --upgrade pip && \
     pip config set global.retries 5 && \
     pip install --no-cache-dir --default-timeout=600 -r requirements.txt
 
-# 複製所有應用程式代碼 (一次性複製，避免覆蓋問題)
-COPY . .
+# 🚀 VOLUME-BASED DEVELOPMENT: 代碼通過Volume掛載，無需複製到映像檔
+# COPY . .  # 已移除 - 所有應用代碼使用Volume掛載 (如SimWorld設計)
 
 # Enhanced Six-Stage System: 六階段增強系統 + shared_core + simulated_annealing
-# 主流程控制器：scripts/run_six_stages.py
+# 主流程控制器：scripts/run_six_stages.py (通過Volume掛載)
 
-# TLE 數據：複製衛星軌道數據
+# TLE 數據：複製衛星軌道數據 (保留，因為是數據而非代碼)
 COPY tle_data /app/tle_data
 
 # 創建必要目錄
@@ -77,7 +77,7 @@ RUN echo "🏗️ 開始建構時六階段數據預處理..." && \
     cd /app && \
     python3 -c 'import sys; sys.path.insert(0, "/app"); sys.path.insert(0, "/app/src"); import aiofiles; print("✅ aiofiles module OK"); from shared_core import data_models; print("✅ shared_core module OK"); print("🔧 模組檢查通過，開始六階段處理...")' && \
     # 執行完整六階段預處理（縮短超時時間，增強錯誤處理）
-    timeout 1800 python scripts/run_six_stages.py --data-dir /app/data > /tmp/six_stage_build.log 2>&1; \
+    timeout 1800 python scripts/run_leo_preprocessing.py --data-dir /app/data > /tmp/six_stage_build.log 2>&1; \
     BUILD_EXIT_CODE=$?; \
     if [ $BUILD_EXIT_CODE -eq 0 ]; then \
         echo "✅ 建構時六階段處理成功完成"; \

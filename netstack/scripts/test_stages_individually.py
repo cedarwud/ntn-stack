@@ -33,7 +33,7 @@ def test_stage3():
         
         stage3 = SignalQualityAnalysisProcessor(
             input_dir='/app/data',
-            output_dir='/app/data/signal_analysis_outputs'
+            output_dir='/app/data'
         )
         
         print("🚀 開始執行階段三...")
@@ -63,7 +63,7 @@ def test_stage4():
     
     try:
         # 載入階段三的輸出
-        stage3_file = Path('/app/data/signal_analysis_outputs/signal_event_analysis_output.json')
+        stage3_file = Path('/app/data/signal_event_analysis_output.json')
         if not stage3_file.exists():
             print("❌ 階段三輸出文件不存在")
             return False
@@ -78,7 +78,7 @@ def test_stage4():
         
         stage4 = TimeseriesPreprocessingProcessor(
             input_dir='/app/data',
-            output_dir='/app/data/timeseries_preprocessing_outputs'
+            output_dir='/app/data'
         )
         
         print("🚀 開始執行階段四...")
@@ -109,12 +109,12 @@ def main():
     # 檢查現有輸出
     print("\n📊 檢查現有輸出文件：")
     stages = {
-        'Stage 1': '/app/data/tle_calculation_outputs/tle_orbital_calculation_output.json',
-        'Stage 2': '/app/data/intelligent_filtering_outputs/intelligent_filtered_output.json',
-        'Stage 3': '/app/data/signal_analysis_outputs/signal_event_analysis_output.json',
-        'Stage 4': '/app/data/timeseries_preprocessing_outputs/enhanced_timeseries_output.json',
-        'Stage 5': '/app/data/data_integration_outputs/data_integration_output.json',
-        'Stage 6': '/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json'
+        'Stage 1': '/app/data/tle_orbital_calculation_output.json',
+        'Stage 2': '/app/data/intelligent_filtered_output.json',
+        'Stage 3': '/app/data/signal_event_analysis_output.json',
+        'Stage 4': '/app/data/enhanced_timeseries_output.json',
+        'Stage 5': '/app/data/data_integration_output.json',
+        'Stage 6': '/app/data/enhanced_dynamic_pools_output.json'
     }
     
     for stage, path in stages.items():

@@ -48,8 +48,7 @@ class StageDataManager:
             1: {
                 "name": "TLE載入與SGP4軌道計算",
                 "paths": [
-                    self.data_dir / "tle_calculation_outputs" / "tle_orbital_calculation_output.json",
-                    self.data_dir / "tle_orbital_calculation_output.json"
+                    self.data_dir / "stage1_orbital_calculation_output.json"
                 ],
                 "data_keys": ["starlink", "oneweb", "satellites"],
                 "min_satellites": 8000
@@ -57,8 +56,7 @@ class StageDataManager:
             2: {
                 "name": "智能衛星篩選", 
                 "paths": [
-                    self.data_dir / "intelligent_filtering_outputs" / "intelligent_filtered_output.json",
-                    self.data_dir / "intelligent_filtered_output.json"
+                    self.data_dir / "stage2_intelligent_filtered_output.json"
                 ],
                 "data_keys": ["satellites", "constellations"],
                 "min_satellites": 150
@@ -66,8 +64,7 @@ class StageDataManager:
             3: {
                 "name": "信號品質分析與3GPP事件",
                 "paths": [
-                    self.data_dir / "signal_analysis_outputs" / "signal_event_analysis_output.json",
-                    self.data_dir / "signal_event_analysis_output.json"
+                    self.data_dir / "stage3_signal_event_analysis_output.json"
                 ],
                 "data_keys": ["satellites", "constellations"],
                 "min_satellites": 150

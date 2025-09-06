@@ -88,7 +88,7 @@ class LEOPreprocessingPipeline:
             
             stage1 = Stage1TLEProcessor(
                 tle_data_dir=str(self.tle_dir),
-                output_dir=str(self.data_dir / 'tle_calculation_outputs'),
+                output_dir=str(self.data_dir),
                 sample_mode=self.sample_mode
             )
             
@@ -117,7 +117,7 @@ class LEOPreprocessingPipeline:
             
             stage2 = SatelliteVisibilityFilterProcessor(
                 input_dir=str(self.data_dir),
-                output_dir=str(self.data_dir / 'intelligent_filtering_outputs'),
+                output_dir=str(self.data_dir),
                 sample_mode=self.sample_mode
             )
             
@@ -150,10 +150,10 @@ class LEOPreprocessingPipeline:
             
             stage3 = SignalQualityAnalysisProcessor(
                 input_dir=str(self.data_dir),
-                output_dir=str(self.data_dir / 'signal_analysis_outputs')
+                output_dir=str(self.data_dir)
             )
             
-            self.results['stage3'] = stage3.process_signal_analysis(
+            self.results['stage3'] = stage3.process_signal_quality_analysis(
                 filtering_data=self.results['stage2'],
                 save_output=True
             )
@@ -181,10 +181,10 @@ class LEOPreprocessingPipeline:
             
             stage4 = TimeseriesPreprocessingProcessor(
                 input_dir=str(self.data_dir),
-                output_dir=str(self.data_dir / 'timeseries_preprocessing_outputs')
+                output_dir=str(self.data_dir)
             )
             
-            signal_file = self.data_dir / 'signal_analysis_outputs' / 'signal_event_analysis_output.json'
+            signal_file = self.data_dir / 'stage3_signal_event_analysis_output.json'
             self.results['stage4'] = stage4.process_timeseries_preprocessing(
                 signal_file=str(signal_file),
                 save_output=True
@@ -213,7 +213,7 @@ class LEOPreprocessingPipeline:
             
             stage5_config = Stage5Config(
                 input_enhanced_timeseries_dir=str(self.data_dir),
-                output_data_integration_dir=str(self.data_dir / 'data_integration_outputs'),
+                output_data_integration_dir=str(self.data_dir),
                 elevation_thresholds=[5, 10, 15]
             )
             
@@ -245,12 +245,12 @@ class LEOPreprocessingPipeline:
             
             stage6_config = {
                 'input_dir': str(self.data_dir),
-                'output_dir': str(self.data_dir / 'dynamic_pool_planning_outputs')
+                'output_dir': str(self.data_dir)
             }
             
             stage6 = EnhancedDynamicPoolPlanner(stage6_config)
             
-            output_file = self.data_dir / 'dynamic_pool_planning_outputs' / 'enhanced_dynamic_pools_output.json'
+            output_file = self.data_dir / 'enhanced_dynamic_pools_output.json'
             self.results['stage6'] = stage6.process(
                 input_data=self.results['stage5'],
                 output_file=str(output_file)
@@ -351,7 +351,7 @@ class LEOPreprocessingPipeline:
         
         logger.info(f"\n✅ 最終報告已保存: {report_path}")
     
-    def run_pipeline(self) -> bool:
+    def run_pipeline(self, skip_stages=None) -> bool:
         """執行完整處理管線"""
         print("\n" + "="*80)
         print("🚀 LEO衛星六階段數據預處理系統")
@@ -361,25 +361,68 @@ class LEOPreprocessingPipeline:
         print("="*80)
         
         start_time = time.time()
+        skip_stages = skip_stages or []
+        executed_stages = []
         
         try:
+            # 導入驗證引擎 (修復導入路徑 - 使用容器內的正確路徑)
+            import sys
+            sys.path.insert(0, '/app/src')
+            from shared_core.validation_engine import PipelineValidationEngine
+            validator = PipelineValidationEngine(str(self.data_dir))
+            
             # 清理舊輸出
             self.cleanup_previous_outputs()
             
             # 依序執行六階段
             stages = [
-                ("階段一", self.run_stage1_tle_loading),
-                ("階段二", self.run_stage2_filtering),
-                ("階段三", self.run_stage3_signal_analysis),
-                ("階段四", self.run_stage4_timeseries),
-                ("階段五", self.run_stage5_integration),
-                ("階段六", self.run_stage6_dynamic_pool)
+                (1, "階段一", self.run_stage1_tle_loading),
+                (2, "階段二", self.run_stage2_filtering),
+                (3, "階段三", self.run_stage3_signal_analysis),
+                (4, "階段四", self.run_stage4_timeseries),
+                (5, "階段五", self.run_stage5_integration),
+                (6, "階段六", self.run_stage6_dynamic_pool)
             ]
             
-            for stage_name, stage_func in stages:
+            for stage_num, stage_name, stage_func in stages:
+                if stage_num in skip_stages:
+                    logger.info(f"⏭️ 跳過{stage_name}")
+                    continue
+                    
+                logger.info(f"🚀 開始執行{stage_name}")
+                
+                # 執行階段
                 if not stage_func():
                     logger.error(f"❌ {stage_name}執行失敗，處理中止")
                     return False
+                
+                # 記錄已執行階段
+                executed_stages.append(stage_num)
+                
+                # 自動驗證階段輸出
+                logger.info(f"📊 自動驗證{stage_name}輸出...")
+                validation_result = validator.validate_stage(stage_num)
+                
+                if validation_result.result.value == "passed":
+                    logger.info(f"✅ {stage_name}驗證通過 ({validation_result.passed_checks}/{validation_result.total_checks})")
+                    
+                elif validation_result.result.value == "missing":
+                    logger.error(f"❌ {stage_name}驗證快照缺失")
+                    logger.error(f"   錯誤: {validation_result.error_message}")
+                    logger.error("🛑 驗證失敗，停止管道執行 (Fail-Fast)")
+                    return False
+                    
+                else:  # failed
+                    logger.error(f"❌ {stage_name}驗證失敗 ({validation_result.failed_checks}/{validation_result.total_checks})")
+                    logger.error(f"   關鍵失敗: {', '.join(validation_result.critical_failures)}")
+                    if validation_result.error_message:
+                        logger.error(f"   錯誤詳情: {validation_result.error_message}")
+                    
+                    # Fail-Fast: 立即停止
+                    logger.error("🛑 驗證失敗，停止管道執行 (Fail-Fast)")
+                    return False
+                
+                logger.info(f"🎯 {stage_name}執行並驗證完成")
             
             # 處理完成
             elapsed_time = time.time() - start_time
@@ -389,10 +432,22 @@ class LEOPreprocessingPipeline:
             print("="*80)
             print(f"✅ 所有階段成功完成！")
             print(f"⏱️ 總耗時: {elapsed_time:.2f} 秒 ({elapsed_time/60:.2f} 分鐘)")
+            print(f"📋 執行階段: {executed_stages}")
+            print(f"🛡️ 自動驗證: 所有階段驗證通過")
             print("="*80)
             
             # 保存最終報告
             self.save_final_report(elapsed_time)
+            
+            # 生成驗證報告
+            validation_report = validator.generate_validation_report(executed_stages)
+            validation_report_path = self.data_dir / "validation_snapshots" / "pipeline_validation_report.json"
+            validation_report_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(validation_report_path, 'w', encoding='utf-8') as f:
+                json.dump(validation_report, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"📝 管道驗證報告已保存: {validation_report_path}")
             
             return True
             
@@ -470,7 +525,7 @@ def main():
         logger.warning("此功能僅供開發測試，生產環境請執行完整流程")
     
     # 執行管線
-    success = pipeline.run_pipeline()
+    success = pipeline.run_pipeline(skip_stages=args.skip_stages)
     
     # 返回狀態碼
     sys.exit(0 if success else 1)

@@ -75,61 +75,101 @@ class Stage5IntegrationProcessor(ValidationSnapshotBase):
             "處理耗時": f"{processing_results.get('processing_time_seconds', 0):.2f}秒"
         }
     
-    def run_validation_checks(self, processing_results: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """執行階段5特定驗證檢查"""
-        checks = []
-        
+    def run_validation_checks(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
+        """執行 Stage 5 驗證檢查 - 專注於數據整合和混合存儲架構準確性"""
+        metadata = processing_results.get('metadata', {})
         constellation_summary = processing_results.get('constellation_summary', {})
         satellites_data = processing_results.get('satellites', {})
         
-        # 檢查1: 數據整合成功率
+        checks = {}
+        
+        # 1. 輸入數據存在性檢查
+        input_satellites = metadata.get('input_satellites', 0)
+        checks["輸入數據存在性"] = input_satellites > 0
+        
+        # 2. 數據整合成功率檢查 - 確保大部分數據成功整合
         total_satellites = processing_results.get('total_satellites', 0)
         successfully_integrated = processing_results.get('successfully_integrated', 0)
         integration_rate = (successfully_integrated / max(total_satellites, 1)) * 100
         
-        checks.append({
-            'checkName': '數據整合成功率檢查',
-            'passed': integration_rate >= 95.0,  # 要求95%以上整合率
-            'result': f"整合成功率: {integration_rate:.1f}% ({successfully_integrated}/{total_satellites})",
-            'details': f"成功整合 {successfully_integrated} 顆衛星，總計 {total_satellites} 顆衛星"
-        })
+        if self.sample_mode:
+            checks["數據整合成功率"] = integration_rate >= 90.0  # 取樣模式90%
+        else:
+            checks["數據整合成功率"] = integration_rate >= 95.0  # 全量模式95%
         
-        # 檢查2: Starlink數據整合檢查
-        starlink_info = constellation_summary.get('starlink', {})
-        starlink_data_exists = 'starlink' in satellites_data and satellites_data['starlink'] is not None
-        starlink_count = starlink_info.get('satellite_count', 0)
+        # 3. PostgreSQL結構化數據檢查 - 確保關鍵結構化數據正確存儲
+        postgresql_data_ok = True
+        required_pg_tables = ['satellite_metadata', 'signal_statistics', 'event_summaries']
+        pg_summary = processing_results.get('postgresql_summary', {})
         
-        checks.append({
-            'checkName': 'Starlink數據整合檢查',
-            'passed': starlink_data_exists and starlink_count > 0,
-            'result': f"Starlink: {starlink_count} 顆衛星整合完成" if starlink_data_exists else "Starlink數據未整合",
-            'details': f"數據狀態: {'已加載' if starlink_data_exists else '未加載'}，衛星數量: {starlink_count}"
-        })
+        for table in required_pg_tables:
+            if table not in pg_summary or pg_summary[table].get('record_count', 0) == 0:
+                postgresql_data_ok = False
+                break
         
-        # 檢查3: OneWeb數據整合檢查
-        oneweb_info = constellation_summary.get('oneweb', {})
-        oneweb_data_exists = 'oneweb' in satellites_data and satellites_data['oneweb'] is not None
-        oneweb_count = oneweb_info.get('satellite_count', 0)
+        checks["PostgreSQL結構化數據"] = postgresql_data_ok
         
-        checks.append({
-            'checkName': 'OneWeb數據整合檢查',
-            'passed': oneweb_data_exists and oneweb_count > 0,
-            'result': f"OneWeb: {oneweb_count} 顆衛星整合完成" if oneweb_data_exists else "OneWeb數據未整合",
-            'details': f"數據狀態: {'已加載' if oneweb_data_exists else '未加載'}，衛星數量: {oneweb_count}"
-        })
-        
-        # 檢查4: 輸出文件生成檢查
+        # 4. Docker Volume檔案存儲檢查 - 確保大型時間序列檔案正確保存
+        volume_files_ok = True
         output_file = processing_results.get('output_file')
-        output_file_exists = output_file and Path(output_file).exists() if output_file else False
+        if output_file:
+            from pathlib import Path
+            volume_files_ok = Path(output_file).exists()
+        else:
+            volume_files_ok = False
         
-        checks.append({
-            'checkName': '整合輸出文件生成檢查',
-            'passed': output_file_exists,
-            'result': f"輸出文件生成成功: {Path(output_file).name}" if output_file_exists else "輸出文件未生成",
-            'details': f"文件路徑: {output_file if output_file else '未指定'}"
-        })
+        checks["Volume檔案存儲"] = volume_files_ok
         
-        return checks
+        # 5. 混合存儲架構平衡性檢查 - 確保PostgreSQL和Volume的數據分佈合理
+        pg_size_mb = metadata.get('postgresql_size_mb', 0)
+        volume_size_mb = metadata.get('volume_size_mb', 0)
+        
+        storage_balance_ok = True
+        if pg_size_mb > 0 and volume_size_mb > 0:
+            total_size = pg_size_mb + volume_size_mb
+            pg_ratio = pg_size_mb / total_size
+            # PostgreSQL應佔15-25%，Volume佔75-85%（根據文檔：PostgreSQL ~65MB, Volume ~300MB）
+            storage_balance_ok = 0.10 <= pg_ratio <= 0.30
+        else:
+            storage_balance_ok = False
+        
+        checks["混合存儲架構平衡性"] = storage_balance_ok
+        
+        # 6. 星座數據完整性檢查 - 確保兩個星座都成功整合
+        starlink_integrated = 'starlink' in satellites_data and constellation_summary.get('starlink', {}).get('satellite_count', 0) > 0
+        oneweb_integrated = 'oneweb' in satellites_data and constellation_summary.get('oneweb', {}).get('satellite_count', 0) > 0
+        
+        checks["星座數據完整性"] = starlink_integrated and oneweb_integrated
+        
+        # 7. 數據結構完整性檢查
+        required_fields = ['metadata', 'constellation_summary', 'postgresql_summary', 'output_file']
+        checks["數據結構完整性"] = ValidationCheckHelper.check_data_completeness(
+            processing_results, required_fields
+        )
+        
+        # 8. 處理時間檢查 - 數據整合需要一定時間但不應過長
+        max_time = 300 if self.sample_mode else 180  # 取樣5分鐘，全量3分鐘
+        checks["處理時間合理性"] = ValidationCheckHelper.check_processing_time(
+            self.processing_duration, max_time
+        )
+        
+        # 計算通過的檢查數量
+        passed_checks = sum(1 for passed in checks.values() if passed)
+        total_checks = len(checks)
+        
+        return {
+            "passed": passed_checks == total_checks,
+            "totalChecks": total_checks,
+            "passedChecks": passed_checks,
+            "failedChecks": total_checks - passed_checks,
+            "criticalChecks": [
+                {"name": "數據整合成功率", "status": "passed" if checks["數據整合成功率"] else "failed"},
+                {"name": "PostgreSQL結構化數據", "status": "passed" if checks["PostgreSQL結構化數據"] else "failed"},
+                {"name": "Volume檔案存儲", "status": "passed" if checks["Volume檔案存儲"] else "failed"},
+                {"name": "混合存儲架構平衡性", "status": "passed" if checks["混合存儲架構平衡性"] else "failed"}
+            ],
+            "allChecks": checks
+        }
     
     async def process_enhanced_timeseries(self) -> Dict[str, Any]:
         """執行完整的數據整合處理流程"""
