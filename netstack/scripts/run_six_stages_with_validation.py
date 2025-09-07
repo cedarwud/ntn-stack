@@ -20,6 +20,15 @@ sys.path.insert(0, '/app/src')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# 導入統一日誌管理器
+try:
+    from shared_core.unified_log_manager import UnifiedLogManager
+    log_manager = None
+except ImportError as e:
+    print(f"⚠️ 無法導入統一日誌管理器: {e}")
+    UnifiedLogManager = None
+    log_manager = None
+
 def validate_stage_immediately(stage_processor, processing_results, stage_num, stage_name):
     """
     階段執行後立即驗證
@@ -106,6 +115,10 @@ def check_validation_snapshot_quality(stage_num, data_dir="/app/data"):
 def run_all_stages_with_immediate_validation():
     """執行完整六階段處理流程 - 階段即時驗證版本"""
     
+    # 🔧 新增：設置完整管道模式環境變量
+    import os
+    os.environ['PIPELINE_MODE'] = 'full'
+    
     print('🚀 六階段數據處理系統 (階段即時驗證版本)')
     print('=' * 80)
     print(f'開始時間: {datetime.now(timezone.utc).isoformat()}')
@@ -118,17 +131,16 @@ def run_all_stages_with_immediate_validation():
     validation_failed_stage = None
     
     try:
-        # 🗑️ 預處理：清理所有階段舊輸出檔案
-        print('\n🗑️ 預處理：清理所有階段舊輸出檔案')
+        # 🗑️ 統一預處理清理：使用新的清理管理器
+        print('\n🗑️ 統一預處理清理：清理所有階段舊輸出檔案')
         print('-' * 60)
         
         try:
-            from stages.dynamic_pool_planner import EnhancedDynamicPoolPlanner
-            temp_planner = EnhancedDynamicPoolPlanner({'cleanup_only': True})
-            cleaned_count = temp_planner.cleanup_all_stage6_outputs()
-            print(f'✅ 清理完成: {cleaned_count} 項目已清理')
+            from shared_core.cleanup_manager import cleanup_all_stages
+            cleaned_result = cleanup_all_stages()
+            print(f'✅ 統一清理完成: {cleaned_result["files"]} 個檔案, {cleaned_result["directories"]} 個目錄已清理')
         except Exception as e:
-            print(f'⚠️ 清理警告: {e}')
+            print(f'⚠️ 統一清理警告: {e}')
         
         # 階段一：TLE載入與SGP4計算
         print('\n📡 階段一：TLE載入與SGP4軌道計算')
@@ -265,14 +277,14 @@ def run_all_stages_with_immediate_validation():
         print('\n⏰ 階段四：時間序列預處理')
         print('-' * 60)
         
-        from stages.timeseries_optimization_processor import TimeseriesPreprocessingProcessor
+        from stages.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
         stage4 = TimeseriesPreprocessingProcessor(
             input_dir='/app/data',
             output_dir='/app/data'
         )
         
         results['stage4'] = stage4.process_timeseries_preprocessing(
-            signal_file='/app/data/signal_event_analysis_output.json',
+            signal_file='/app/data/signal_quality_analysis_output.json',
             save_output=True
         )
         
@@ -424,38 +436,7 @@ def run_all_stages_with_immediate_validation():
         print('🔍 品質保證: 所有階段都經過立即驗證')
         print('=' * 80)
         
-        # 保存最終報告
-        final_report = {
-            'execution_time': datetime.now(timezone.utc).isoformat(),
-            'processing_time_seconds': elapsed_time,
-            'stages_completed': completed_stages,
-            'validation_mode': 'immediate_stage_validation',
-            'pipeline_summary': {
-                'stage1_loaded': results['stage1']['metadata']['total_satellites'],
-                'stage2_filtered': filtered_count,
-                'stage3_events': event_count,
-                'stage4_timeseries': ts_count,
-                'stage5_integrated': integrated_count,
-                'stage6_selected': total_selected
-            },
-            'final_satellite_pool': {
-                'total': total_selected,
-                'starlink': starlink_count,
-                'oneweb': oneweb_count
-            },
-            'quality_assurance': {
-                'immediate_validation': True,
-                'all_stages_validated': True,
-                'validation_method': 'stage_by_stage_immediate_check'
-            },
-            'success': True
-        }
-        
-        report_path = '/app/data/leo_optimization_final_report.json'
-        with open(report_path, 'w', encoding='utf-8') as f:
-            json.dump(final_report, f, indent=2, ensure_ascii=False)
-        
-        print(f'\n✅ 最終報告已保存: {report_path}')
+        # 移除重複的報告生成 - 使用Docker日誌和驗證快照已足夠
         
         return True, completed_stages, "所有階段成功完成並驗證通過"
         

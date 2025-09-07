@@ -128,22 +128,48 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         logger.info(f"  OneWeb條件: 仰角≥{self.filtering_criteria['oneweb']['min_elevation_deg']}°, 可見時間≥{self.filtering_criteria['oneweb']['min_visible_time_min']}分鐘")
         
     def load_orbital_calculation_output(self) -> Dict[str, Any]:
-        """載入軌道計算輸出"""
-        # 🔧 修復：Stage1直接保存到根目錄，不在子目錄中
-        orbital_file = self.input_dir / "stage1_orbital_calculation_output.json"
-        
-        logger.info(f"📥 載入軌道計算數據: {orbital_file}")
+        """載入軌道計算結果檔案 - 修復版本"""
+        # 🎯 更新為新的檔案命名
+        orbital_file = self.input_dir / "tle_orbital_calculation_output.json"
         
         if not orbital_file.exists():
-            raise FileNotFoundError(f"軌道計算輸出檔案不存在: {orbital_file}")
-            
-        with open(orbital_file, 'r', encoding='utf-8') as f:
-            orbital_data = json.load(f)
-            
-        total_sats = orbital_data.get('metadata', {}).get('total_satellites', 0)
-        logger.info(f"  載入成功: {total_sats} 顆衛星")
+            logger.error(f"❌ 軌道計算檔案不存在: {orbital_file}")
+            return {}
         
-        return orbital_data
+        try:
+            logger.info(f"📥 載入軌道計算檔案: {orbital_file}")
+            
+            with open(orbital_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # 檢查數據結構和統計
+            if 'satellites' in data:
+                satellite_count = len(data['satellites'])
+                logger.info(f"  ✅ 載入 {satellite_count} 顆衛星數據")
+                
+                # 統計星座分布
+                constellations = {}
+                for sat in data['satellites']:
+                    const = sat.get('constellation', 'unknown')
+                    constellations[const] = constellations.get(const, 0) + 1
+                
+                for const, count in constellations.items():
+                    logger.info(f"    {const}: {count} 顆衛星")
+                
+            elif 'constellations' in data:
+                # 舊格式兼容
+                total_satellites = 0
+                for const_name, const_data in data['constellations'].items():
+                    const_sat_count = const_data.get('satellite_count', 0)
+                    total_satellites += const_sat_count
+                    logger.info(f"    {const_name}: {const_sat_count} 顆衛星")
+                logger.info(f"  ✅ 載入 {total_satellites} 顆衛星數據")
+            
+            return data
+            
+        except Exception as e:
+            logger.error(f"❌ 載入軌道計算檔案失敗: {e}")
+            return {}
         
     def _visibility_prefilter(self, satellites: List[Dict]) -> List[Dict]:
         """階段 0: 可見性預篩選（保守策略）"""
@@ -249,7 +275,7 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         return filtered_starlink + filtered_oneweb
         
     def save_filtered_output(self, filtered_satellites: List[Dict], 
-                            original_count: int) -> str:
+                        original_count: int) -> str:
         """保存篩選結果（正確格式）"""
         
         # 按星座分組衛星數據
@@ -259,7 +285,7 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         # 準備輸出數據 (符合Stage 3期望格式)
         output_data = {
             'metadata': {
-                'stage': 'stage2_geographic_visibility_filtering',
+                'stage': 'satellite_visibility_filtering',  # 🎯 更新為功能性描述
                 'filtering_version': 'natural_filtering_v2.0',
                 'processing_timestamp': datetime.now(timezone.utc).isoformat(),
                 'filtering_approach': 'pure_geographic_visibility_no_quantity_limits',
@@ -294,8 +320,8 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
             'satellites': filtered_satellites  # 向後兼容：保留扁平化格式
         }
         
-        # 保存檔案
-        output_file = self.output_dir / "stage2_intelligent_filtered_output.json"
+        # 🎯 更新為新的檔案命名
+        output_file = self.output_dir / "satellite_visibility_filtered_output.json"
         
         # 清理舊檔案
         if output_file.exists():
@@ -318,10 +344,13 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         logger.info("🚀 使用提供數據進行修復版增強智能衛星篩選處理")
         logger.info("=" * 60)
         
-        # 清理舊驗證快照 (確保生成最新驗證快照)
-        if self.snapshot_file.exists():
-            logger.info(f"🗑️ 清理舊驗證快照: {self.snapshot_file}")
-            self.snapshot_file.unlink()
+        # 🔧 新版雙模式清理：使用統一清理管理器
+        try:
+            from shared_core.cleanup_manager import auto_cleanup
+            cleaned_result = auto_cleanup(current_stage=2)
+            logger.info(f"🗑️ 自動清理完成: {cleaned_result['files']} 檔案, {cleaned_result['directories']} 目錄")
+        except Exception as e:
+            logger.warning(f"⚠️ 自動清理警告: {e}")
         
         # 整理所有衛星數據 - 適配新的SGP4輸出格式
         all_satellites = []
@@ -372,7 +401,8 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
                     'output_satellites': len(filtered_satellites),
                     'retention_rate_percent': (len(filtered_satellites) / len(all_satellites)) * 100
                 },
-                'processing_complete': True
+                'processing_complete': True,
+                'cleanup_strategy': 'dual_mode_auto_cleanup'  # v3.2 新增
             },
             'satellites': filtered_satellites
         }
@@ -593,7 +623,7 @@ def main():
     
     try:
         # 檢測是否為取樣模式
-        test_file = Path("/app/data/stage1_orbital_calculation_output.json")
+        test_file = Path("/app/data/tle_orbital_calculation_output.json")
         sample_mode = False
         
         if test_file.exists():

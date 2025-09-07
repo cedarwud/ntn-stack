@@ -80,7 +80,7 @@ def get_tle_data_date_from_stage1() -> Optional[str]:
     """從階段1輸出快速獲取實際使用的TLE數據日期"""
     try:
         # 檢查階段1輸出文件
-        stage1_output_path = "/app/data/tle_calculation_outputs/tle_orbital_calculation_output.json"
+        stage1_output_path = "/app/data/tle_orbital_calculation_output.json"
         if not os.path.exists(stage1_output_path):
             return None
         

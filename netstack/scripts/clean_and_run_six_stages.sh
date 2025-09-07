@@ -1,44 +1,26 @@
 #!/bin/bash
 set -e
 
-echo "🧹 開始清理舊的六階段預處理檔案..."
+echo "🧹 使用統一清理管理器清理舊的六階段預處理檔案..."
 
-# 主機端清理
-echo "📂 清理主機端數據目錄..."
-DATA_DIR="/home/sat/ntn-stack/data/leo_outputs"
-
-# 清理所有階段的輸出目錄
-rm -rf "$DATA_DIR/tle_calculation_outputs" 2>/dev/null || true
-rm -rf "$DATA_DIR/orbital_calculation_outputs" 2>/dev/null || true
-rm -rf "$DATA_DIR/intelligent_filtering_outputs" 2>/dev/null || true
-rm -rf "$DATA_DIR/signal_analysis_outputs" 2>/dev/null || true
-rm -rf "$DATA_DIR/timeseries_preprocessing_outputs" 2>/dev/null || true
-rm -rf "$DATA_DIR/data_integration_outputs" 2>/dev/null || true
-rm -rf "$DATA_DIR/dynamic_pool_planning_outputs" 2>/dev/null || true
-rm -rf "$DATA_DIR/signal_cache" 2>/dev/null || true
-rm -f "$DATA_DIR/data_integration_output.json" 2>/dev/null || true
-rm -f "$DATA_DIR/leo_optimization_final_report.json" 2>/dev/null || true
-
-# 創建必要的目錄
-mkdir -p "$DATA_DIR/tle_calculation_outputs"
-mkdir -p "$DATA_DIR/orbital_calculation_outputs"
-mkdir -p "$DATA_DIR/intelligent_filtering_outputs"
-mkdir -p "$DATA_DIR/signal_analysis_outputs"
-mkdir -p "$DATA_DIR/timeseries_preprocessing_outputs"
-mkdir -p "$DATA_DIR/data_integration_outputs"
-mkdir -p "$DATA_DIR/dynamic_pool_planning_outputs"
-
-echo "✅ 舊檔案清理完成"
+# 使用容器內的統一清理管理器
+docker exec netstack-api python -c "
+import sys
+sys.path.insert(0, '/app/src')
+from shared_core.cleanup_manager import cleanup_all_stages
+result = cleanup_all_stages()
+print(f'✅ 統一清理完成: {result[\"files\"]} 檔案, {result[\"directories\"]} 目錄已清理')
+"
 
 echo ""
 echo "🚀 開始執行六階段預處理..."
 echo "================================"
 
-# 在容器內執行六階段處理
+# 在容器內執行六階段處理（使用最新的統一執行腳本）
 docker exec netstack-api bash -c "
 cd /app
 export PYTHONPATH='/app:/app/src:/app/netstack'
-python scripts/run_six_stages.py --data-dir /app/data
+python scripts/run_leo_preprocessing.py --data-dir /app/data
 "
 
 # 檢查結果

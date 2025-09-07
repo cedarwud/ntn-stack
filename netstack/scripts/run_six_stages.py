@@ -128,7 +128,7 @@ def run_all_stages():
         print('\n⏰ 階段四：時間序列預處理')
         print('-' * 60)
         
-        from stages.timeseries_optimization_processor import TimeseriesPreprocessingProcessor
+        from stages.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
         stage4 = TimeseriesPreprocessingProcessor(
             input_dir='/app/data',
             output_dir='/app/data'
@@ -236,32 +236,7 @@ def run_all_stages():
         print(f'   Stage 6: {total_selected} 顆衛星最終選擇')
         print('=' * 80)
         
-        # 保存最終報告
-        final_report = {
-            'execution_time': datetime.now(timezone.utc).isoformat(),
-            'processing_time_seconds': elapsed_time,
-            'stages_completed': 6,
-            'pipeline_summary': {
-                'stage1_loaded': results['stage1']['metadata']['total_satellites'],
-                'stage2_filtered': filtered_count,
-                'stage3_events': event_count,
-                'stage4_timeseries': ts_count,
-                'stage5_integrated': integrated_count,
-                'stage6_selected': total_selected
-            },
-            'final_satellite_pool': {
-                'total': total_selected,
-                'starlink': starlink_count,
-                'oneweb': oneweb_count
-            },
-            'success': True
-        }
-        
-        report_path = '/app/data/leo_optimization_final_report.json'
-        with open(report_path, 'w', encoding='utf-8') as f:
-            json.dump(final_report, f, indent=2, ensure_ascii=False)
-        
-        print(f'\n✅ 最終報告已保存: {report_path}')
+        # 移除重複的報告生成 - 使用Docker日誌和驗證快照已足夠
         
         return True
         

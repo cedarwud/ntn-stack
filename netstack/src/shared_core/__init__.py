@@ -42,6 +42,11 @@ try:
         JSONFileService,
         get_json_file_service
     )
+    # 📊 v3.3 新增：統一日誌管理器
+    from .unified_log_manager import (
+        UnifiedLogManager,
+        create_unified_log_manager
+    )
     
     __all__ = [
         'get_ntpu_coordinates',
@@ -61,7 +66,10 @@ try:
         'DataLineage',
         # 📄 v3.2 統一 JSON 檔案服務
         'JSONFileService',
-        'get_json_file_service'
+        'get_json_file_service',
+        # 📊 v3.3 統一日誌管理器
+        'UnifiedLogManager',
+        'create_unified_log_manager'
     ]
     
 except ImportError as e:
