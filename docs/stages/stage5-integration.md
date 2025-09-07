@@ -5,7 +5,7 @@
 ## 📖 階段概述
 
 **目標**：將所有處理結果整合並建立混合存儲架構  
-**輸入**：階段四的前端時間序列數據（~60-75MB）  
+**輸入**：階段四的前端動畫時間序列數據（來自 `timeseries_preprocessing_outputs/`）  
 **輸出**：PostgreSQL結構化數據 + Docker Volume檔案存儲  
 **存儲總量**：~365MB (PostgreSQL ~65MB + Volume ~300MB)  
 **處理時間**：約 2-3 分鐘
@@ -109,9 +109,10 @@ CREATE INDEX idx_handover_serving ON handover_events_summary(serving_satellite_i
 ### Volume 組織架構
 ```bash
 /app/data/
-├── enhanced_timeseries/          # 前端動畫數據 (~60-75MB)
+├── timeseries_preprocessing_outputs/    # 階段四輸出：前端動畫數據 (~60-75MB)
 │   ├── animation_enhanced_starlink.json
-│   └── animation_enhanced_oneweb.json
+│   ├── animation_enhanced_oneweb.json
+│   └── conversion_statistics.json
 │
 ├── layered_phase0_enhanced/      # 分層處理結果 (~85MB)
 │   ├── starlink_5deg_enhanced.json
@@ -366,7 +367,7 @@ else
 fi
 
 # Volume檔案檢查
-if [ -f "/app/data/enhanced_timeseries/animation_enhanced_starlink.json" ]; then
+if [ -f "/app/data/timeseries_preprocessing_outputs/animation_enhanced_starlink.json" ]; then
     echo "✅ Volume檔案: 正常"
 else
     echo "❌ Volume檔案: 遺失"

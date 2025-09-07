@@ -462,74 +462,46 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         
         return final_data
         
-    def save_tle_calculation_output(self, tle_data: Dict[str, Any]) -> Optional[str]:
-        """重新啟用檔案保存以支持階段二到六的數據讀取 - 修復數據血統追蹤"""
-        logger.info("💾 重新啟用檔案保存模式以支持後續階段處理")
-        
-        # 生成輸出檔案路徑
-        output_file = self.output_dir / "stage1_orbital_calculation_output.json"
-        
+    def save_tle_calculation_output(self, result: Dict[str, Any]) -> Optional[str]:
+        """保存SGP4計算結果"""
         try:
-            # 🎯 修復：在保存前增強metadata，確保數據血統信息完整
-            enhanced_metadata = tle_data.get('metadata', {}).copy()
+            # 🎯 更新為基於功能的命名方式
+            output_file = self.output_dir / "tle_orbital_calculation_output.json"
             
-            # 添加檔案保存特定的數據血統信息
-            enhanced_metadata['file_output'] = {
-                'output_file_path': str(output_file),
-                'file_generation_time': datetime.now(timezone.utc).isoformat(),
-                'data_governance': {
-                    'data_source_dates': enhanced_metadata.get('data_lineage', {}).get('tle_dates', {}),
-                    'processing_execution_date': enhanced_metadata.get('processing_timestamp'),
-                    'file_purpose': 'stage1_to_stage6_data_transfer',
-                    'data_freshness_note': 'TLE數據日期反映實際衛星軌道元素時間，處理時間戳反映計算執行時間'
-                }
-            }
+            # 清理舊檔案
+            if output_file.exists():
+                logger.info(f"🗑️ 清理舊檔案: {output_file}")
+                output_file.unlink()
             
-            # 更新增強後的metadata
-            tle_data['metadata'] = enhanced_metadata
-            
-            # 保存到 JSON 檔案
             with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(tle_data, f, ensure_ascii=False, indent=2)
+                json.dump(result, f, ensure_ascii=False, indent=2)
             
-            # 計算檔案大小
             file_size_mb = output_file.stat().st_size / (1024 * 1024)
             
-            logger.info(f"✅ TLE軌道計算數據已保存: {output_file}")
+            logger.info(f"💾 軌道計算結果已保存: {output_file}")
             logger.info(f"  檔案大小: {file_size_mb:.1f} MB")
-            logger.info(f"  包含衛星數: {tle_data['metadata']['total_satellites']}")
-            logger.info(f"  包含星座數: {tle_data['metadata']['total_constellations']}")
-            
-            # 🎯 修復：明確顯示數據血統信息
-            logger.info("  📊 數據血統摘要:")
-            for const, date in enhanced_metadata.get('data_lineage', {}).get('tle_dates', {}).items():
-                logger.info(f"    {const}: TLE數據日期 = {date}")
-            logger.info(f"    處理執行時間: {enhanced_metadata.get('processing_timestamp')}")
-            logger.info("    ✅ 數據血統追蹤: TLE來源日期與處理時間已正確分離")
+            logger.info(f"  衛星數量: {result['metadata']['total_satellites']} 顆")
             
             return str(output_file)
             
         except Exception as e:
-            logger.error(f"保存TLE軌道計算數據失敗: {e}")
+            logger.error(f"❌ 保存軌道計算結果失敗: {e}")
             return None  # 不返回檔案路徑，表示採用記憶體傳遞  # 不返回檔案路徑，表示採用記憶體傳遞  # 不返回檔案路徑，表示採用記憶體傳遞
         
     def process_tle_orbital_calculation(self) -> Dict[str, Any]:
-        """執行真正的SGP4軌道計算和192點時間序列生成 - v3.1數據血統追蹤版本"""
-        logger.info("🚀 開始階段一：真正的SGP4軌道計算與時間序列生成 (v3.1)")
+        """執行真正的SGP4軌道計算和192點時間序列生成 - v3.2雙模式清理版本"""
+        logger.info("🚀 開始階段一：真正的SGP4軌道計算與時間序列生成 (v3.2)")
         
         # 開始處理計時
         self.start_processing_timer()
         
-        # 清理舊輸出文件
-        existing_data_file = self.output_dir / "stage1_orbital_calculation_output.json"
-        if existing_data_file.exists():
-            logger.info(f"🗑️ 清理舊檔案: {existing_data_file}")
-            existing_data_file.unlink()
-        
-        # 清理舊驗證快照 (確保生成最新驗證快照)
-        if self.snapshot_file.exists():
-            logger.info(f"🗑️ 清理舊驗證快照: {self.snapshot_file}")
-            self.snapshot_file.unlink()
+        # 🔧 新版雙模式清理：使用統一清理管理器
+        try:
+            from shared_core.cleanup_manager import auto_cleanup
+            cleaned_result = auto_cleanup(current_stage=1)
+            logger.info(f"🗑️ 自動清理完成: {cleaned_result['files']} 檔案, {cleaned_result['directories']} 目錄")
+        except Exception as e:
+            logger.warning(f"⚠️ 自動清理警告: {e}")
         
         # 掃描TLE數據
         scan_result = self.scan_tle_data()
@@ -628,7 +600,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         
         # 🎯 v3.1 完整的數據血統追蹤系統
         data_lineage = {
-            'version': 'v3.1-data-lineage-tracking',
+            'version': 'v3.2-data-lineage-tracking-dual-cleanup',
             'tle_dates': {const: info['file_date'] for const, info in tle_data_sources.items()},
             'tle_base_times': {const: info['tle_base_time'] for const, info in tle_data_sources.items()},
             'tle_files_used': tle_data_sources,
@@ -638,6 +610,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
                 'processing_duration_seconds': self.processing_duration
             },
             'calculation_base_time_strategy': 'tle_epoch_time_for_reproducible_research',
+            'cleanup_strategy': 'dual_mode_auto_cleanup',
             'data_governance': {
                 'data_freshness_note': 'TLE數據日期反映實際衛星軌道元素時間，處理時間戳反映計算執行時間',
                 'time_base_recommendation': 'frontend_should_use_tle_date_as_animation_base_time',
@@ -645,18 +618,18 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
             }
         }
         
-        # 🎯 生成符合@docs v3.1格式的輸出結果
+        # 🎯 生成符合@docs v3.2格式的輸出結果
         result = {
             'stage_name': 'SGP4軌道計算與時間序列生成',
             'satellites': all_satellites_data,
             'metadata': {
-                'version': '1.0.0-tle-orbital-calculation-v3.1',
+                'version': '1.0.0-tle-orbital-calculation-v3.2',
                 'total_satellites': len(all_satellites_data),
                 'total_constellations': len(constellations_processed),
                 'constellations': constellations_processed,
                 'processing_duration_seconds': self.processing_duration,
                 'processing_timestamp': processing_end_time.isoformat(),
-                # 🚀 v3.1 核心功能：完整數據血統追蹤
+                # 🚀 v3.2 核心功能：完整數據血統追蹤 + 雙模式清理
                 'data_lineage': data_lineage,
                 'timeseries_format': {
                     'total_points': 192,
@@ -679,8 +652,8 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         # 保存驗證快照
         snapshot_saved = self.save_validation_snapshot(result)
         
-        # 🎯 v3.1 數據血統追蹤日誌
-        logger.info("✅ SGP4軌道計算處理完成 (v3.1數據血統追蹤版本)")
+        # 🎯 v3.2 數據血統追蹤日誌
+        logger.info("✅ SGP4軌道計算處理完成 (v3.2雙模式清理版本)")
         logger.info(f"  處理的衛星數: {len(all_satellites_data)}")
         logger.info(f"  192點時間序列: {len(all_satellites_data) * 192} 個軌道位置")
         logger.info(f"  處理時間: {self.processing_duration:.2f}秒")
@@ -690,6 +663,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
             logger.info(f"    {const}: TLE數據日期 = {date}, 基準時間 = {base_time}")
         logger.info(f"    處理執行時間: {processing_end_time.isoformat()}")
         logger.info("    ✅ 數據血統追蹤: TLE來源日期與處理時間已正確分離")
+        logger.info("    🗑️ 清理策略: 雙模式自動清理")
         
         processing_mode = f"取樣模式 (每星座{self.sample_size}顆)" if self.sample_mode else "全量處理模式"
         logger.info(f"  🎯 處理模式: {processing_mode}")

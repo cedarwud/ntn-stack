@@ -107,11 +107,12 @@ def optimize_timeseries_for_frontend(raw_data):
 
 ## 📁 輸出檔案結構
 
-### enhanced_timeseries/ 目錄
+### timeseries_preprocessing_outputs/ 目錄
 ```bash
-/app/data/enhanced_timeseries/
+/app/data/timeseries_preprocessing_outputs/
 ├── animation_enhanced_starlink.json    # Starlink動畫數據 (~45MB)
-└── animation_enhanced_oneweb.json      # OneWeb動畫數據 (~15-20MB)
+├── animation_enhanced_oneweb.json      # OneWeb動畫數據 (~15-20MB)
+└── conversion_statistics.json          # 轉換統計數據
 ```
 
 ### JSON 數據格式

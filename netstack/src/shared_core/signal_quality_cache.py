@@ -72,7 +72,8 @@ class SignalQualityCache:
             cache_size_limit: 記憶體緩存條目數量限制
         """
         self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        # 🚫 移除自動創建目錄 - signal_cache 功能未被使用
+        # self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         self.cache_size_limit = cache_size_limit
         
@@ -87,13 +88,13 @@ class SignalQualityCache:
             "cache_creation_time": datetime.now(timezone.utc).isoformat()
         }
         
-        # 載入已存在的緩存
-        self._load_existing_cache()
+        # 🚫 移除載入已存在緩存的邏輯 - 避免不必要的文件操作
+        # self._load_existing_cache()
         
-        logger.info("✅ 信號品質緩存管理器初始化完成")
-        logger.info(f"  緩存目錄: {self.cache_dir}")
+        logger.info("⚠️ 信號品質緩存管理器初始化 (未啟用模式)")
+        logger.info(f"  緩存目錄: {self.cache_dir} (不會自動創建)")
         logger.info(f"  記憶體緩存限制: {self.cache_size_limit} 條目")
-        logger.info(f"  現有緩存條目: {len(self._memory_cache)} 個")
+        logger.info(f"  現有緩存條目: {len(self._memory_cache)} 個 (未載入)")
     
     def get_cached_rsrp(self, satellite_id: str, constellation: str, 
                        elevation_deg: float) -> Optional[float]:

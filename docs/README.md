@@ -1,8 +1,8 @@
 # 📚 NTN Stack 技術文檔中心
 
-**版本**: 4.1.0 (即時驗證架構版)  
-**更新日期**: 2025-09-06  
-**專案狀態**: ✅ 生產就緒 + 即時驗證架構 + UltraThink 全面修復完成
+**版本**: 4.2.0 (統一日誌管理版)  
+**更新日期**: 2025-09-07  
+**專案狀態**: ✅ 生產就緒 + 即時驗證架構 + 統一日誌管理 + UltraThink 全面修復完成
 
 ## 🚀 快速開始
 
@@ -32,6 +32,13 @@ SimWorld API    → http://localhost:8888
 
 # 健康檢查
 curl http://localhost:8080/health     # NetStack 健康檢查
+
+# 📊 統一日誌查看 (NEW!)
+# 執行六階段處理
+docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py
+
+# 查看最新執行結果
+ls -la logs/summary/*.txt | tail -1 | awk '{print $9}' | xargs cat
 ```
 
 ## 📖 文檔導航
@@ -43,6 +50,7 @@ curl http://localhost:8080/health     # NetStack 健康檢查
 | [管道自動驗證架構](./PIPELINE_AUTO_VALIDATION_ARCHITECTURE.md) | ⭐ **NEW**: Fail-Fast自動驗證、階段品質控制 | 數據工程師、系統架構師 |
 | [即時驗證架構](./IMMEDIATE_VALIDATION_ARCHITECTURE.md) | 階段即時驗證、防無意義計算 | 數據工程師、系統架構師 |
 | [建構驗證指南](./BUILD_VALIDATION_GUIDE.md) | 建構時自動狀態檢查、三格式報告 | DevOps、系統維護 |
+| [統一日誌管理指南](./UNIFIED_LOG_MANAGEMENT_GUIDE.md) | ⭐ **NEW**: 統一日誌輸出、自動清理、TLE來源追蹤 | 所有用戶、運維人員 |
 | [Shared Core 統一架構](./shared_core_architecture.md) | 統一管理器、性能優化、避免重複 | 後端工程師、架構師 |
 | [數據處理流程](./data_processing_flow.md) | 六階段處理流程、Pure Cron架構 + 自動驗證 | 數據工程師、研究人員 |
 | [UltraThink 系統狀態](./ultrathink_system_status.md) | 當前專案狀況、修復成果、開發指導 | 所有開發者、維護人員 |

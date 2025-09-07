@@ -4,12 +4,36 @@
 
 ## 📖 階段概述
 
-**目標**：從 8,796 顆衛星智能篩選至高品質候選衛星  
-**輸入**：TLE軌道計算處理器記憶體傳遞的軌道計算結果  
-**輸出**：記憶體傳遞給信號品質分析處理器  
+**目標**：從 8,791 顆衛星智能篩選至高品質候選衛星  
+**輸入**：階段一軌道計算結果（記憶體傳遞 + `/app/data/stage1_orbital_calculation_output.json`）  
+**輸出**：篩選結果保存至 `/app/data/stage2_intelligent_filtered_output.json` + 記憶體傳遞  
 **實際結果**：3,101 顆衛星 (2,899 Starlink + 202 OneWeb)
-**篩選率**：35.3% 保留率，基於自然地理可見性篩選  
+**篩選率**：35.3% 保留率 (8,791→3,101)，基於純地理可見性篩選  
 **處理時間**：約 20-25 秒
+
+### 🗂️ 統一輸出目錄結構
+
+六階段處理系統採用統一的輸出目錄結構：
+
+```bash
+/app/data/                                    # 統一數據目錄
+├── stage1_orbital_calculation_output.json   # 階段一：軌道計算
+├── stage2_intelligent_filtered_output.json  # 階段二：智能篩選 ⭐  
+├── stage3_signal_analysis_output.json       # 階段三：信號分析
+├── stage4_timeseries_preprocessing_output.json  # 階段四：時間序列
+├── stage5_data_integration_output.json      # 階段五：數據整合
+├── stage6_dynamic_pool_output.json          # 階段六：動態池規劃
+└── validation_snapshots/                    # 驗證快照目錄
+    ├── stage1_validation.json
+    ├── stage2_validation.json               # 階段二驗證快照
+    └── ...
+```
+
+**命名規則**：
+- 所有階段輸出使用 `stage{N}_` 前綴
+- 統一保存至 `/app/data/` 目錄（容器內）
+- 驗證快照保存至 `validation_snapshots/` 子目錄
+- 無額外子目錄，保持扁平結構
 
 ### 🎯 @doc/todo.md 對應實現
 本階段實現以下核心需求：
@@ -39,19 +63,20 @@
    - 分離Starlink和OneWeb星座數據
    - 準備後續專用篩選邏輯
 
-2. **地理相關性篩選** (8,730 → 1,184)
-   - 基於NTPU觀測點的地理位置篩選
-   - 排除地理上不相關的衛星 (減少86.4%)
+2. **地理相關性篩選** (8,791 → 3,101)
+   - 基於NTPU觀測點的純地理可見性篩選
+   - 排除永遠不會在觀測點上空出現的衛星 (減少64.7%)
    - 使用統一仰角門檻：Starlink 5°, OneWeb 10°
+   - 篩選方式：pure_geographic_visibility_no_quantity_limits
 
-3. **換手適用性評分** (1,184 → 1,184)
-   - 對通過地理篩選的衛星進行換手評分
-   - 評估每顆衛星的換手潛力
+3. **換手適用性保留** (3,101 → 3,101)
+   - 保留所有通過地理篩選的衛星
+   - 為後續信號分析提供完整候選池
 
-**實際篩選結果：**
-- Starlink: 1,039顆 (從8,079顆篩選，保留率12.9%)
-- OneWeb: 145顆 (從651顆篩選，保留率22.3%)
-- 總計: 1,184顆衛星保留
+**實際篩選結果 (v3.2)：**
+- Starlink: 2,899顆 (從約8,140顆篩選，保留率35.6%)
+- OneWeb: 202顆 (從約651顆篩選，保留率31.0%)
+- 總計: 3,101顆衛星保留 (總保留率35.3%)
 
 ## 🏗️ 核心處理器架構
 

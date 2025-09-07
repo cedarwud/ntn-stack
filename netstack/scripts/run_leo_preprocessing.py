@@ -177,7 +177,7 @@ class LEOPreprocessingPipeline:
         logger.info("-"*60)
         
         try:
-            from stages.timeseries_optimization_processor import TimeseriesPreprocessingProcessor
+            from stages.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
             
             stage4 = TimeseriesPreprocessingProcessor(
                 input_dir=str(self.data_dir),
@@ -311,45 +311,13 @@ class LEOPreprocessingPipeline:
         }
     
     def save_final_report(self, elapsed_time: float):
-        """保存最終報告"""
-        report = {
-            'execution_time': datetime.now(timezone.utc).isoformat(),
-            'processing_time_seconds': elapsed_time,
-            'processing_time_minutes': elapsed_time / 60,
-            'stages_completed': len(self.results),
-            'sample_mode': self.sample_mode,
-            'pipeline_summary': {},
-            'final_satellite_pool': {},
-            'success': True
-        }
-        
-        # 添加每階段統計
-        if 'stage1' in self.results:
-            report['pipeline_summary']['stage1_loaded'] = \
-                self.results['stage1']['metadata']['total_satellites']
-        if 'stage2' in self.results:
-            report['pipeline_summary']['stage2_filtered'] = \
-                self._count_filtered_satellites(self.results['stage2'])
-        if 'stage3' in self.results:
-            report['pipeline_summary']['stage3_events'] = \
-                self._count_3gpp_events(self.results['stage3'])
-        if 'stage4' in self.results:
-            report['pipeline_summary']['stage4_timeseries'] = \
-                self._count_timeseries_satellites(self.results['stage4'])
-        if 'stage5' in self.results:
-            report['pipeline_summary']['stage5_integrated'] = \
-                self.results['stage5'].get('metadata', {}).get('total_satellites', 0)
-        if 'stage6' in self.results:
-            pool_stats = self._extract_pool_stats(self.results['stage6'])
-            report['pipeline_summary']['stage6_selected'] = pool_stats['total']
-            report['final_satellite_pool'] = pool_stats
-        
-        # 保存報告
-        report_path = self.data_dir / 'leo_optimization_final_report.json'
-        with open(report_path, 'w', encoding='utf-8') as f:
-            json.dump(report, f, indent=2, ensure_ascii=False)
-        
-        logger.info(f"\n✅ 最終報告已保存: {report_path}")
+        """
+        [REMOVED] 最終報告生成已移除
+        原因：與Docker日誌和驗證快照功能重複
+        替代方案：使用 docker logs netstack-api 查看執行日誌
+                使用 validation_snapshots/ 中的驗證報告
+        """
+        pass
     
     def run_pipeline(self, skip_stages=None) -> bool:
         """執行完整處理管線"""
@@ -436,8 +404,7 @@ class LEOPreprocessingPipeline:
             print(f"🛡️ 自動驗證: 所有階段驗證通過")
             print("="*80)
             
-            # 保存最終報告
-            self.save_final_report(elapsed_time)
+            # 移除重複的報告生成 - 使用Docker日誌和驗證快照已足夠
             
             # 生成驗證報告
             validation_report = validator.generate_validation_report(executed_stages)

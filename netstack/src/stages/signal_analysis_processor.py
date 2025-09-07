@@ -28,7 +28,7 @@ from src.services.satellite.intelligent_filtering.event_analysis.gpp_event_analy
 from src.services.satellite.intelligent_filtering.unified_intelligent_filter import UnifiedIntelligentFilter
 
 # 導入驗證基礎類別
-from shared_core.validation_snapshot_base import ValidationSnapshotBase
+from shared_core.validation_snapshot_base import ValidationSnapshotBase, ValidationCheckHelper
 
 logger = logging.getLogger(__name__)
 
@@ -43,59 +43,45 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
     5. 絕對不重複篩選邏輯
     """
     
-    def __init__(self, input_dir: str = "/app/data", output_dir: str = "/app/data"):
-        """
-        信號品質分析處理器初始化 - v3.1 重構版本（移除硬編碼座標）
-        
-        Args:
-            input_dir: 輸入目錄路徑
-            output_dir: 輸出目錄路徑
-        
-        重構改進:
-            - 移除硬編碼觀測座標參數
-            - 使用統一觀測配置服務
-            - 整合shared_core管理器
-        """
-        # Initialize ValidationSnapshotBase
-        super().__init__(stage_number=3, stage_name="階段3: 信號分析")
-        
+    def __init__(self, input_dir: str = '/app/data', output_dir: str = '/app/data'):
+        """初始化信號分析處理器"""
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
+        
+        # 確保輸出目錄存在
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # 🔧 重構：使用統一觀測配置服務（消除硬編碼）
-        try:
-            from shared_core.observer_config_service import get_ntpu_coordinates
-            self.observer_lat, self.observer_lon, self.observer_alt = get_ntpu_coordinates()
-            logger.info("✅ 使用統一觀測配置服務")
-        except Exception as e:
-            logger.error(f"觀測配置載入失敗: {e}")
-            raise RuntimeError("無法載入觀測點配置，請檢查shared_core配置")
+        # 驗證快照管理
+        self.snapshot_file = Path('/app/data/validation_snapshots/stage3_validation.json')
+        self.snapshot_file.parent.mkdir(parents=True, exist_ok=True)
         
-        # 🔧 整合shared_core管理器
+        # 處理時間追蹤
+        self.start_time = None
+        self.processing_duration = None
+        
+        # 初始化共享核心服務
         try:
-            from shared_core.signal_quality_cache import get_signal_quality_cache
+            # 🚫 移除不必要的 signal_cache - 未實際使用
+            # from shared_core.signal_quality_cache import get_signal_quality_cache
             from shared_core.elevation_threshold_manager import get_elevation_threshold_manager
             
-            self.signal_cache = get_signal_quality_cache()
+            # self.signal_cache = get_signal_quality_cache()  # 🚫 已移除
             self.elevation_manager = get_elevation_threshold_manager()
-            logger.info("✅ 整合shared_core管理器")
+            
+            logger.info("✅ 共享核心服務初始化完成")
+            # logger.info("  - 信號品質緩存")  # 🚫 已移除
+            logger.info("  - 仰角閾值管理器")
+            
         except Exception as e:
-            logger.warning(f"shared_core管理器載入失敗，使用直接計算模式: {e}")
-            self.signal_cache = None
+            logger.warning(f"⚠️ 共享核心服務初始化失敗: {e}")
+            logger.info("🔄 使用降級模式")
+            # self.signal_cache = None  # 🚫 已移除
             self.elevation_manager = None
         
-        # 初始化信號計算器
-        self.rsrp_calculator = create_rsrp_calculator(self.observer_lat, self.observer_lon)
-        self.event_analyzer = create_gpp_event_analyzer(self.rsrp_calculator)
-        
-        logger.info("✅ 信號品質分析處理器初始化完成 (v3.1 重構版)")
+        logger.info(f"✅ 信號品質分析處理器初始化完成")
         logger.info(f"  輸入目錄: {self.input_dir}")
         logger.info(f"  輸出目錄: {self.output_dir}")
-        logger.info(f"  觀測座標: ({self.observer_lat}°, {self.observer_lon}°)")
-        logger.info("  📐 座標來源: 統一觀測配置服務（已消除硬編碼）")
-        logger.info("  🔧 shared_core整合: 信號緩存 + 仰角管理器")
-        
+        logger.info(f"  驗證快照: {self.snapshot_file}")       
     def extract_key_metrics(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
         """提取階段3關鍵指標"""
         metadata = processing_results.get('metadata', {})
@@ -132,60 +118,59 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
         
         checks = {}
         
-        # 1. 輸入數據存在性檢查
-        input_satellites = metadata.get('input_satellites', 0)
+        # 1. 輸入數據存在性檢查 - 修復：使用 total_satellites 而非 input_satellites
+        input_satellites = metadata.get('total_satellites', 0)
         checks["輸入數據存在性"] = input_satellites > 0
         
-        # 2. 信號品質計算完整性檢查 - 確保RSRP、RSRQ計算完成
+        # 2. 信號品質計算完整性檢查 - 修復：檢查衛星根級別的 signal_quality
         signal_quality_completed = True
         signal_satellites_count = 0
         if satellites:
             sample_size = min(10, len(satellites))
             for i in range(sample_size):
                 sat = satellites[i]
-                timeseries = sat.get('position_timeseries', [])
-                if timeseries:
-                    # 檢查是否有信號品質數據
-                    first_point = timeseries[0]
-                    if 'signal_quality' in first_point:
-                        signal_data = first_point['signal_quality']
-                        if 'rsrp_dbm' in signal_data and 'rsrq_db' in signal_data:
-                            signal_satellites_count += 1
+                # 檢查衛星根級別是否有信號品質數據
+                if 'signal_quality' in sat:
+                    signal_data = sat['signal_quality']
+                    # 檢查是否有 rsrp_by_elevation 和統計數據
+                    if 'rsrp_by_elevation' in signal_data and 'statistics' in signal_data:
+                        signal_satellites_count += 1
             
             signal_quality_completed = signal_satellites_count >= int(sample_size * 0.8)
         
         checks["信號品質計算完整性"] = signal_quality_completed
         
-        # 3. 3GPP事件處理檢查 - 確保A4、A5、D2事件生成
+        # 3. 3GPP事件處理檢查 - 修復：檢查衛星根級別的 event_potential
         gpp_events_ok = True
         if satellites:
             sample_sat = satellites[0]
-            timeseries = sample_sat.get('position_timeseries', [])
-            if timeseries:
-                # 檢查是否包含3GPP事件數據
-                events_found = False
-                for point in timeseries[:10]:  # 檢查前10個時間點
-                    if 'gpp_events' in point or '3gpp_events' in point:
-                        events_found = True
-                        break
+            # 檢查是否包含3GPP事件潛力數據
+            if 'event_potential' in sample_sat:
+                event_data = sample_sat['event_potential']
+                # 檢查是否包含 A4, A5, D2 事件
+                required_events = ['A4', 'A5', 'D2']
+                events_found = all(event in event_data for event in required_events)
                 gpp_events_ok = events_found
             else:
                 gpp_events_ok = False
         
         checks["3GPP事件處理檢查"] = gpp_events_ok
         
-        # 4. 信號範圍合理性檢查 - 驗證RSRP在-140~-50 dBm範圍
+        # 4. 信號範圍合理性檢查 - 修復：檢查 rsrp_by_elevation 中的數值
         signal_range_reasonable = True
         if satellites and signal_satellites_count > 0:
             sample_sat = satellites[0]
-            timeseries = sample_sat.get('position_timeseries', [])
-            if timeseries:
-                for point in timeseries[:5]:  # 檢查前5個時間點
-                    if 'signal_quality' in point:
-                        rsrp = point['signal_quality'].get('rsrp_dbm', 0)
-                        if not (-140 <= rsrp <= -50):  # ITU-R標準範圍
-                            signal_range_reasonable = False
-                            break
+            if 'signal_quality' in sample_sat:
+                signal_data = sample_sat['signal_quality']
+                if 'rsrp_by_elevation' in signal_data:
+                    rsrp_values = signal_data['rsrp_by_elevation']
+                    if isinstance(rsrp_values, dict):
+                        # 檢查RSRP值是否在合理範圍 -140 到 -50 dBm
+                        for elevation, rsrp in rsrp_values.items():
+                            if isinstance(rsrp, (int, float)):
+                                if not (-140 <= rsrp <= -50):  # ITU-R標準範圍
+                                    signal_range_reasonable = False
+                                    break
         
         checks["信號範圍合理性檢查"] = signal_range_reasonable
         
@@ -195,8 +180,8 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
             constellation_names, ['starlink', 'oneweb']
         )
         
-        # 6. 數據結構完整性檢查
-        required_fields = ['metadata', 'satellites', 'processing_timestamp']
+        # 6. 數據結構完整性檢查 - 修復：使用實際存在的欄位
+        required_fields = ['metadata', 'satellites', 'constellations']
         checks["數據結構完整性"] = ValidationCheckHelper.check_data_completeness(
             processing_results, required_fields
         )
@@ -228,8 +213,8 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
     def load_intelligent_filtering_output(self, filtering_file: Optional[str] = None) -> Dict[str, Any]:
         """載入智能篩選輸出數據"""
         if filtering_file is None:
-            # 🔧 統一路徑：直接從統一輸出目錄載入階段二輸出
-            filtering_file = self.input_dir / "stage2_intelligent_filtered_output.json"
+            # 🎯 更新為新的檔案命名
+            filtering_file = self.input_dir / "satellite_visibility_filtered_output.json"
         else:
             filtering_file = Path(filtering_file)
             
@@ -630,42 +615,58 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
         return final_data
         
     def save_signal_analysis_output(self, final_data: Dict[str, Any]) -> str:
-        """保存信號分析輸出數據 - v3.1 修復路徑版本"""
-        # 🔧 修復：直接使用 output_dir，不創建 leo_outputs 子目錄
+        """保存信號分析輸出數據 - v4.0 基於功能的統一輸出規範版本"""
+        # 🎯 更新為基於功能的檔案命名
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = self.output_dir / "stage3_signal_event_analysis_output.json"
+        output_file = self.output_dir / "signal_quality_analysis_output.json"
         
-        # 🗑️ 清理舊檔案 - 確保資料一致性
+        # 🗑️ 清理可能的舊格式檔案
+        old_format_files = [
+            self.output_dir / "stage3_signal_analysis_output.json",
+            self.output_dir / "signal_event_analysis_output.json",
+            self.output_dir / "stage3_signal_event_analysis_output.json",
+        ]
+        
+        for old_file in old_format_files:
+            if old_file.exists():
+                file_size = old_file.stat().st_size
+                logger.info(f"🗑️ 清理舊格式檔案: {old_file}")
+                logger.info(f"   檔案大小: {file_size / (1024*1024):.1f} MB")
+                old_file.unlink()
+                logger.info("✅ 舊格式檔案已清理")
+        
+        # 🗑️ 清理當前輸出檔案（如果存在）
         if output_file.exists():
             file_size = output_file.stat().st_size
-            logger.info(f"🗑️ 清理舊信號分析輸出檔案: {output_file}")
+            logger.info(f"🗑️ 清理當前輸出檔案: {output_file}")
             logger.info(f"   舊檔案大小: {file_size / (1024*1024):.1f} MB")
             output_file.unlink()
-            logger.info("✅ 舊檔案已刪除")
+            logger.info("✅ 當前檔案已清理")
         
-        # 添加信號分析完成標記
+        # 添加基於功能的輸出規範標記
         final_data['metadata'].update({
-            'signal_analysis_completion': 'signal_event_analysis_complete',
+            'signal_analysis_completion': 'signal_quality_analysis_complete',
             'signal_analysis_timestamp': datetime.now(timezone.utc).isoformat(),
             'ready_for_timeseries_preprocessing': True,
-            'file_generation': 'path_fixed_version',  # 標記為路徑修復版本
-            'path_fix_improvements': [
-                'removed_leo_outputs_subdirectory',
-                'consistent_output_path_structure'
+            'file_generation': 'functional_naming_standard_v4',  # 基於功能的命名規範v4.0
+            'output_improvements': [
+                'functional_based_file_naming',
+                'consistent_signal_quality_prefix',
+                'unified_leo_outputs_directory_structure'
             ]
         })
         
-        # 💾 生成新的信號分析輸出檔案
-        logger.info(f"💾 生成修復路徑版信號分析輸出檔案: {output_file}")
+        # 📦 生成符合基於功能命名規範的檔案
+        logger.info(f"📦 生成基於功能命名規範檔案: {output_file}")
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(final_data, f, indent=2, ensure_ascii=False)
             
         # 檢查新檔案大小
         new_file_size = output_file.stat().st_size
-        logger.info(f"✅ 修復路徑版信號分析數據已保存: {output_file}")
+        logger.info(f"✅ 階段三信號品質分析輸出已保存: {output_file}")
         logger.info(f"   新檔案大小: {new_file_size / (1024*1024):.1f} MB")
         logger.info(f"   包含衛星數: {final_data['metadata'].get('final_recommended_total', 'unknown')}")
-        logger.info("   🎯 路徑修復: 移除額外的 leo_outputs 子目錄")
+        logger.info("   🎯 檔案規範: 基於功能的命名，統一leo_outputs目錄")
         
         return str(output_file)
         
@@ -675,10 +676,19 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
         start_time = time.time()
         logger.info("🚀 開始信號品質分析及3GPP事件處理")
         
-        # 清理舊驗證快照 (確保生成最新驗證快照)
-        if self.snapshot_file.exists():
-            logger.info(f"🗑️ 清理舊驗證快照: {self.snapshot_file}")
-            self.snapshot_file.unlink()
+        # 🔧 新版雙模式清理：使用統一清理管理器
+        try:
+            from shared_core.cleanup_manager import auto_cleanup
+            cleaned_result = auto_cleanup(current_stage=3)
+            logger.info(f"🗑️ 自動清理完成: {cleaned_result['files']} 檔案, {cleaned_result['directories']} 目錄")
+        except ImportError as e:
+            logger.warning(f"⚠️ 清理管理器導入失敗，使用傳統清理方式: {e}")
+            # 清理舊驗證快照 (確保生成最新驗證快照)
+            if self.snapshot_file.exists():
+                logger.info(f"🗑️ 清理舊驗證快照: {self.snapshot_file}")
+                self.snapshot_file.unlink()
+        except Exception as e:
+            logger.warning(f"⚠️ 自動清理失敗，繼續執行: {e}")
         
         try:
             # 1. 載入智能篩選數據（優先使用內存數據）
