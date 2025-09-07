@@ -20,11 +20,11 @@ current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
 # 導入所有功能模組
-from constellation_separation.constellation_separator import ConstellationSeparator
-from geographic_filtering.geographic_filter import GeographicFilter
-from handover_scoring.handover_scorer import HandoverScorer
-from signal_calculation.rsrp_calculator import RSRPCalculator, create_rsrp_calculator
-from event_analysis.gpp_event_analyzer import GPPEventAnalyzer, create_gpp_event_analyzer
+from .constellation_separator import ConstellationSeparator
+from .geographic_filter import GeographicFilter
+from .handover_scorer import HandoverScorer
+from .rsrp_calculator import RSRPCalculator, create_rsrp_calculator
+from .gpp_event_analyzer import GPPEventAnalyzer, create_gpp_event_analyzer
 
 logger = logging.getLogger(__name__)
 

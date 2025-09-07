@@ -31,10 +31,7 @@ class RouterManager:
         logger.info("🚀 開始註冊核心路由器...")
         try:
             from ..api.health import router as health_router
-            from ..api.v1.ue import router as ue_router
-            from ..api.v1.handover import (
-                router as handover_router,
-            )
+            from ...api.v1.ue import router as ue_router
 
             # 嘗試導入 WebSocket 路由器
             try:
@@ -66,8 +63,6 @@ class RouterManager:
             self._track_router("health_router", "健康檢查", True)
             self.app.include_router(ue_router, tags=["UE 管理"])
             self._track_router("ue_router", "UE 管理", True)
-            self.app.include_router(handover_router, tags=["切換管理"])
-            self._track_router("handover_router", "切換管理", True)
 
             # 註冊 WebSocket 路由器
             if websocket_available:
@@ -90,7 +85,7 @@ class RouterManager:
             try:
                 import sys
                 sys.path.append('/home/sat/ntn-stack/netstack')
-                from src.api.v1.handover_events import (
+                from ...api.v1.handover_events import (
                     router as handover_events_router,
                 )
 
@@ -222,7 +217,7 @@ class RouterManager:
             try:
                 import sys
                 sys.path.append('/home/sat/ntn-stack/netstack')
-                from src.api.v1.pipeline_validation import (
+                from ...api.v1.pipeline_validation import (
                     router as pipeline_validation_router,
                 )
 
@@ -439,7 +434,6 @@ class RouterManager:
         core_routers = [
             "health_router",
             "ue_router",
-            "handover_router",
         ]
 
         core_router_status = {}

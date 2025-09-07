@@ -23,8 +23,8 @@ sys.path.insert(0, '/app/netstack')
 sys.path.insert(0, '/app')
 
 # 引用重新組織後的模組
-from src.services.satellite.intelligent_filtering.signal_calculation.rsrp_calculator import create_rsrp_calculator
-from src.services.satellite.intelligent_filtering.event_analysis.gpp_event_analyzer import create_gpp_event_analyzer
+from src.services.satellite.intelligent_filtering.rsrp_calculator import create_rsrp_calculator
+from src.services.satellite.intelligent_filtering.gpp_event_analyzer import create_gpp_event_analyzer
 from src.services.satellite.intelligent_filtering.unified_intelligent_filter import UnifiedIntelligentFilter
 
 # 導入驗證基礎類別
@@ -71,8 +71,8 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
             from shared_core.elevation_threshold_manager import get_elevation_threshold_manager
             
             # 🔧 修復：使用正確的src.services路徑前綴
-            from src.services.satellite.intelligent_filtering.signal_calculation.rsrp_calculator import RSRPCalculator
-            from src.services.satellite.intelligent_filtering.event_analysis.gpp_event_analyzer import create_gpp_event_analyzer
+            from src.services.satellite.intelligent_filtering.rsrp_calculator import RSRPCalculator
+            from src.services.satellite.intelligent_filtering.gpp_event_analyzer import create_gpp_event_analyzer
             
             # self.signal_cache = get_signal_quality_cache()  # 🚫 已移除
             self.elevation_manager = get_elevation_threshold_manager()
