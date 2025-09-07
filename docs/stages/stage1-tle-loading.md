@@ -6,7 +6,7 @@
 
 **目標**：從 8,791 顆衛星載入 TLE 數據並執行精確的 SGP4 軌道計算  
 **輸入**：TLE 檔案（約 2.2MB）  
-**輸出**：全量數據保存至 `/app/data/stage1_orbital_calculation_output.json` + 記憶體傳遞  
+**輸出**：全量數據保存至 `/app/data/tle_orbital_calculation_output.json` + 記憶體傳遞  
 **處理時間**：約 4-5 分鐘
 **實際處理數量**：8,140 Starlink + 651 OneWeb = 8,791 顆衛星
 
@@ -16,20 +16,21 @@
 
 ```bash
 /app/data/                                    # 統一數據目錄
-├── stage1_orbital_calculation_output.json   # 階段一：軌道計算 ⭐
-├── stage2_intelligent_filtered_output.json  # 階段二：智能篩選  
-├── stage3_signal_analysis_output.json       # 階段三：信號分析
-├── stage4_timeseries_preprocessing_output.json  # 階段四：時間序列
-├── stage5_data_integration_output.json      # 階段五：數據整合
-├── stage6_dynamic_pool_output.json          # 階段六：動態池規劃
+├── tle_orbital_calculation_output.json      # 階段一：軌道計算 ⭐
+├── intelligent_filtered_output.json         # 階段二：智能篩選  
+├── signal_quality_analysis_output.json      # 階段三：信號分析
+├── timeseries_preprocessing_output.json     # 階段四：時間序列
+├── data_integration_output.json             # 階段五：數據整合
+├── enhanced_dynamic_pools_output.json       # 階段六：動態池規劃
 └── validation_snapshots/                    # 驗證快照目錄
-    ├── stage1_validation.json               # 階段一驗證快照
+    ├── stage1_validation.json               # 階段一驗證快照（僅驗證快照保留stage命名）
     ├── stage2_validation.json
     └── ...
 ```
 
 **命名規則**：
-- 所有階段輸出使用 `stage{N}_` 前綴
+- 所有階段輸出使用**功能性命名**（如 `tle_orbital_calculation_output.json`）
+- **僅驗證快照**保留 `stage{N}_validation.json` 格式
 - 統一保存至 `/app/data/` 目錄（容器內）
 - 驗證快照保存至 `validation_snapshots/` 子目錄
 - 無額外子目錄，保持扁平結構

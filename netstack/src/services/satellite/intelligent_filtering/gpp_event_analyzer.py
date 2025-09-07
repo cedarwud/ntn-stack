@@ -17,7 +17,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 try:
-    from signal_calculation.rsrp_calculator import RSRPCalculator
+    from .rsrp_calculator import RSRPCalculator
     RSRP_CALCULATOR_AVAILABLE = True
 except ImportError:
     RSRP_CALCULATOR_AVAILABLE = False

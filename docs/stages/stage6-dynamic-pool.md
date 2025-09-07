@@ -47,11 +47,33 @@
 - **覆蓋間隙零容忍**：通過精確軌道計算確保無覆蓋空窗
 - **動態緩衝機制**：預留10-20%額外衛星應對軌道攝動
 
-### 覆蓋驗證指標（基於軌道週期驗證）
+### 95%+ 覆蓋率量化驗證核心算法
+- **覆蓋率計算方法**：基於軌道週期時間窗口的精確覆蓋統計
+  - 時間採樣間隔：30秒（240個採樣點/2小時）
+  - Starlink 覆蓋統計：每個時間點計算 ≥5°仰角可見衛星數 ≥ 10顆
+  - OneWeb 覆蓋統計：每個時間點計算 ≥10°仰角可見衛星數 ≥ 3顆
+  - 覆蓋率 = 滿足要求的時間點數 ÷ 總時間點數 × 100%
+  
+- **量化驗證指標**：
+  ```python
+  覆蓋率驗證算法 = {
+      'starlink_coverage_ratio': count(starlink_visible ≥ 10) / total_timepoints,
+      'oneweb_coverage_ratio': count(oneweb_visible ≥ 3) / total_timepoints,  
+      'combined_coverage_ratio': count(starlink_visible ≥ 10 AND oneweb_visible ≥ 3) / total_timepoints,
+      'coverage_gaps': find_continuous_gaps_longer_than(threshold_minutes=2)
+  }
+  ```
+
+- **覆蓋連續性分析**：
+  - **最大容許間隙**：≤ 2分鐘（4個連續採樣點）
+  - **間隙頻率統計**：記錄所有覆蓋不足時段的長度和頻率
+  - **恢復時間分析**：記錄從覆蓋不足到恢復正常的時間
+
+### 軌道週期驗證擴充（量化版）
 - **軌道週期完整性**：2小時時間窗口覆蓋完整軌道週期
 - **時空錯置有效性**：驗證不同軌道相位衛星的接續覆蓋
 - **最小可見衛星數**：基於軌道動力學的理論最小值驗證
-- **覆蓋連續性指標**：完整軌道週期內的無中斷時間百分比
+- **95%+ 覆蓋率保證**：精確量化的覆蓋統計和間隙分析
 - **軌道相位優化效果**：相比暴力數量堆疊的效率提升
 - **服務質量保證**：在最小衛星數約束下的RSRP、RSRQ門檻達成率
 
@@ -94,6 +116,167 @@ class EnhancedSatelliteCandidate:
 /netstack/netstack_api/routers/simple_satellite_router.py
 ├── get_dynamic_pool_satellite_data()    # 優先讀取階段六數據
 └── get_precomputed_satellite_data()     # 數據源優先級控制
+```
+
+### 95%+ 覆蓋率驗證模組實現
+```python
+class CoverageValidationEngine:
+    """95%+ 覆蓋率量化驗證引擎"""
+    
+    def __init__(self, observer_lat: float = 24.9441667, observer_lon: float = 121.3713889):
+        self.observer_lat = observer_lat
+        self.observer_lon = observer_lon
+        self.sampling_interval_sec = 30  # 30秒採樣間隔
+        self.orbital_period_hours = 2    # 2小時驗證窗口
+        
+        # 覆蓋要求配置
+        self.coverage_requirements = {
+            'starlink': {'min_elevation': 5.0, 'min_satellites': 10},
+            'oneweb': {'min_elevation': 10.0, 'min_satellites': 3}
+        }
+    
+    def calculate_coverage_ratio(self, selected_satellites: Dict, time_window_hours: float = 2) -> Dict:
+        """計算95%+覆蓋率的精確量化指標"""
+        total_timepoints = int((time_window_hours * 3600) / self.sampling_interval_sec)  # 240個採樣點
+        
+        coverage_stats = {
+            'starlink_coverage_ratio': 0.0,
+            'oneweb_coverage_ratio': 0.0, 
+            'combined_coverage_ratio': 0.0,
+            'coverage_gaps': [],
+            'detailed_timeline': []
+        }
+        
+        # 遍歷每個時間點
+        starlink_satisfied_count = 0
+        oneweb_satisfied_count = 0
+        combined_satisfied_count = 0
+        
+        current_gap_start = None
+        gaps = []
+        
+        for timepoint in range(total_timepoints):
+            current_time_sec = timepoint * self.sampling_interval_sec
+            
+            # 計算當前時間點的可見衛星數
+            starlink_visible = self._count_visible_satellites(
+                selected_satellites['starlink'], 
+                current_time_sec,
+                min_elevation=self.coverage_requirements['starlink']['min_elevation']
+            )
+            
+            oneweb_visible = self._count_visible_satellites(
+                selected_satellites['oneweb'],
+                current_time_sec, 
+                min_elevation=self.coverage_requirements['oneweb']['min_elevation']
+            )
+            
+            # 檢查是否滿足覆蓋要求
+            starlink_satisfied = starlink_visible >= self.coverage_requirements['starlink']['min_satellites']
+            oneweb_satisfied = oneweb_visible >= self.coverage_requirements['oneweb']['min_satellites']
+            combined_satisfied = starlink_satisfied and oneweb_satisfied
+            
+            # 累計滿足要求的時間點
+            if starlink_satisfied:
+                starlink_satisfied_count += 1
+            if oneweb_satisfied:
+                oneweb_satisfied_count += 1
+            if combined_satisfied:
+                combined_satisfied_count += 1
+            
+            # 記錄覆蓋間隙
+            if not combined_satisfied:
+                if current_gap_start is None:
+                    current_gap_start = timepoint
+            else:
+                if current_gap_start is not None:
+                    gap_duration_min = (timepoint - current_gap_start) * self.sampling_interval_sec / 60
+                    gaps.append({
+                        'start_timepoint': current_gap_start,
+                        'end_timepoint': timepoint,
+                        'duration_minutes': gap_duration_min
+                    })
+                    current_gap_start = None
+            
+            # 記錄詳細時間線（採樣記錄）
+            if timepoint % 20 == 0:  # 每10分鐘記錄一次詳情
+                coverage_stats['detailed_timeline'].append({
+                    'timepoint': timepoint,
+                    'time_minutes': current_time_sec / 60,
+                    'starlink_visible': starlink_visible,
+                    'oneweb_visible': oneweb_visible,
+                    'starlink_satisfied': starlink_satisfied,
+                    'oneweb_satisfied': oneweb_satisfied,
+                    'combined_satisfied': combined_satisfied
+                })
+        
+        # 處理最後一個間隙
+        if current_gap_start is not None:
+            gap_duration_min = (total_timepoints - current_gap_start) * self.sampling_interval_sec / 60
+            gaps.append({
+                'start_timepoint': current_gap_start,
+                'end_timepoint': total_timepoints,
+                'duration_minutes': gap_duration_min
+            })
+        
+        # 計算覆蓋率百分比
+        coverage_stats.update({
+            'starlink_coverage_ratio': starlink_satisfied_count / total_timepoints,
+            'oneweb_coverage_ratio': oneweb_satisfied_count / total_timepoints,
+            'combined_coverage_ratio': combined_satisfied_count / total_timepoints,
+            'coverage_gaps': [gap for gap in gaps if gap['duration_minutes'] > 2],  # 只記錄超過2分鐘的間隙
+            'total_timepoints': total_timepoints,
+            'coverage_gap_analysis': {
+                'total_gaps': len([gap for gap in gaps if gap['duration_minutes'] > 2]),
+                'max_gap_minutes': max([gap['duration_minutes'] for gap in gaps], default=0),
+                'avg_gap_minutes': np.mean([gap['duration_minutes'] for gap in gaps]) if gaps else 0
+            }
+        })
+        
+        return coverage_stats
+    
+    def _count_visible_satellites(self, satellites: List[Dict], time_sec: float, min_elevation: float) -> int:
+        """計算指定時間點的可見衛星數量"""
+        visible_count = 0
+        
+        for satellite in satellites:
+            position_timeseries = satellite.get('position_timeseries', [])
+            
+            # 找到最接近的時間點
+            target_timepoint = int(time_sec / self.sampling_interval_sec)
+            
+            if target_timepoint < len(position_timeseries):
+                position_data = position_timeseries[target_timepoint]
+                elevation = position_data.get('elevation_deg', -90)
+                
+                if elevation >= min_elevation:
+                    visible_count += 1
+        
+        return visible_count
+    
+    def validate_coverage_requirements(self, coverage_stats: Dict) -> Dict:
+        """驗證是否滿足95%+覆蓋率要求"""
+        validation_result = {
+            'overall_passed': False,
+            'starlink_passed': coverage_stats['starlink_coverage_ratio'] >= 0.95,
+            'oneweb_passed': coverage_stats['oneweb_coverage_ratio'] >= 0.95, 
+            'combined_passed': coverage_stats['combined_coverage_ratio'] >= 0.95,
+            'gap_analysis_passed': coverage_stats['coverage_gap_analysis']['max_gap_minutes'] <= 2,
+            'detailed_checks': {
+                'starlink_coverage_percentage': f"{coverage_stats['starlink_coverage_ratio']:.1%}",
+                'oneweb_coverage_percentage': f"{coverage_stats['oneweb_coverage_ratio']:.1%}",
+                'combined_coverage_percentage': f"{coverage_stats['combined_coverage_ratio']:.1%}",
+                'max_gap_duration': f"{coverage_stats['coverage_gap_analysis']['max_gap_minutes']:.1f} 分鐘"
+            }
+        }
+        
+        validation_result['overall_passed'] = (
+            validation_result['starlink_passed'] and 
+            validation_result['oneweb_passed'] and
+            validation_result['gap_analysis_passed']
+        )
+        
+        return validation_result
 ```
 
 ### 關鍵修復實現
@@ -301,7 +484,21 @@ def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List
   - 包含完整時間序列數據
   - 信號指標和可見性窗口正確
 
-#### 2. **時空錯置驗證**
+#### 2. **95%+ 覆蓋率量化驗證**
+- [ ] **覆蓋率精確計算**
+  ```python
+  驗證方法:
+  - 時間採樣: 2小時/30秒間隔 = 240個採樣點
+  - Starlink驗證: count(visible_satellites ≥ 10 @ elevation ≥ 5°) / 240
+  - OneWeb驗證: count(visible_satellites ≥ 3 @ elevation ≥ 10°) / 240  
+  - 目標覆蓋率: ≥ 95% (228/240 個採樣點滿足要求)
+  ```
+- [ ] **覆蓋間隙分析**
+  - 最大容許間隙: ≤ 2分鐘（4個連續採樣點）
+  - 間隙頻率統計: 記錄所有 > 2分鐘的覆蓋不足時段
+  - 間隙恢復時間: 從不足到恢復正常的平均時間
+
+#### 3. **時空錯置驗證**
 - [ ] **軌道相位分散**
   ```
   驗證項目:
@@ -309,12 +506,8 @@ def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List
   - RAAN分散: 8個區間
   - 相位多樣性得分 > 0.7
   ```
-- [ ] **時間覆蓋連續性**
-  - Starlink: 任何時刻10-15顆可見（5度仰角）
-  - OneWeb: 任何時刻3-6顆可見（10度仰角）
-  - 覆蓋率 ≥ 95%
 
-#### 3. **衛星池規模驗證**
+#### 4. **衛星池規模驗證**
 - [ ] **最終池大小**
   ```
   目標範圍:
@@ -327,7 +520,7 @@ def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List
   - 信號品質RSRP > -100 dBm
   - 可見時間長的衛星優先
 
-#### 4. **軌道週期驗證**
+#### 5. **軌道週期驗證**
 - [ ] **完整週期覆蓋**
   - Starlink: 93.63分鐘完整驗證
   - OneWeb: 109.64分鐘完整驗證
@@ -336,7 +529,7 @@ def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List
   - 任何切換時刻至少3個候選
   - 切換成功率 > 95%
 
-#### 5. **輸出驗證**
+#### 6. **輸出驗證**
 - [ ] **數據結構完整性**
   ```json
   {
@@ -358,8 +551,27 @@ def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List
     },
     "coverage_validation": {
       "starlink_coverage_ratio": 0.96,
-      "oneweb_coverage_ratio": 0.95,
-      "phase_diversity_score": 0.75
+      "oneweb_coverage_ratio": 0.95, 
+      "combined_coverage_ratio": 0.94,
+      "phase_diversity_score": 0.75,
+      "coverage_gap_analysis": {
+        "total_gaps": 2,
+        "max_gap_minutes": 1.5,
+        "avg_gap_minutes": 0.8
+      },
+      "validation_passed": true,
+      "detailed_timeline": [
+        {
+          "timepoint": 0,
+          "time_minutes": 0,
+          "starlink_visible": 12,
+          "oneweb_visible": 4,
+          "starlink_satisfied": true,
+          "oneweb_satisfied": true,
+          "combined_satisfied": true
+        }
+        // ... 每10分鐘採樣點的詳細記錄
+      ]
     }
   }
   ```
@@ -368,12 +580,12 @@ def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List
   - 無數據缺失或跳躍
   - 支援前端平滑動畫
 
-#### 6. **性能指標**
+#### 7. **性能指標**
 - [ ] 處理時間 < 5秒
 - [ ] 記憶體使用 < 2GB
 - [ ] API響應 < 100ms
 
-#### 7. **自動驗證腳本**
+#### 8. **自動95%+覆蓋率驗證腳本**
 ```python
 # 執行階段驗證
 python -c "
@@ -405,10 +617,13 @@ checks = {
     'starlink_pool_size': 200 <= starlink_count <= 250,
     'oneweb_pool_size': 60 <= oneweb_count <= 80,
     'total_pool_size': 260 <= (starlink_count + oneweb_count) <= 330,
-    'starlink_coverage': validation.get('starlink_coverage_ratio', 0) >= 0.95,
-    'oneweb_coverage': validation.get('oneweb_coverage_ratio', 0) >= 0.95,
+    'starlink_coverage_95plus': validation.get('starlink_coverage_ratio', 0) >= 0.95,
+    'oneweb_coverage_95plus': validation.get('oneweb_coverage_ratio', 0) >= 0.95,
+    'combined_coverage_95plus': validation.get('combined_coverage_ratio', 0) >= 0.95,
+    'max_gap_under_2min': validation.get('coverage_gap_analysis', {}).get('max_gap_minutes', 10) <= 2.0,
     'phase_diversity': validation.get('phase_diversity_score', 0) >= 0.70,
-    'has_timeseries': has_timeseries
+    'has_timeseries': has_timeseries,
+    'coverage_validation_passed': validation.get('validation_passed', False)
 }
 
 passed = sum(checks.values())
@@ -419,6 +634,9 @@ print(f'  Starlink池: {starlink_count} 顆')
 print(f'  OneWeb池: {oneweb_count} 顆')
 print(f'  Starlink覆蓋率: {validation.get(\"starlink_coverage_ratio\", 0):.1%}')
 print(f'  OneWeb覆蓋率: {validation.get(\"oneweb_coverage_ratio\", 0):.1%}')
+print(f'  綜合覆蓋率: {validation.get(\"combined_coverage_ratio\", 0):.1%}')
+print(f'  最大間隙: {validation.get(\"coverage_gap_analysis\", {}).get(\"max_gap_minutes\", 0):.1f}分鐘')
+print(f'  間隙總數: {validation.get(\"coverage_gap_analysis\", {}).get(\"total_gaps\", 0)}個')
 print(f'  相位多樣性: {validation.get(\"phase_diversity_score\", 0):.2f}')
 
 print('\\n驗證項目:')
@@ -426,34 +644,59 @@ for check, result in checks.items():
     print(f'  {\"✅\" if result else \"❌\"} {check}')
 
 if passed == total:
-    print('\\n✅ Stage 6 驗證通過！')
+    print('\\n✅ Stage 6 驗證通過！95%+覆蓋率保證達成！')
     print('🎉 六階段資料預處理全部完成！')
-    print('✅ Starlink: 隨時保持10-15顆可見（5度仰角）')
-    print('✅ OneWeb: 隨時保持3-6顆可見（10度仰角）')
-    print('✅ 時空錯置策略成功實現！')
+    print('✅ Starlink: 95%+時間保持10+顆可見（5度仰角）')
+    print('✅ OneWeb: 95%+時間保持3+顆可見（10度仰角）')
+    print('✅ 覆蓋間隙: ≤2分鐘，滿足連續覆蓋要求')
+    print('✅ 時空錯置策略成功實現，LEO衛星換手研究環境就緒！')
 else:
     print(f'\\n❌ Stage 6 驗證失敗 ({passed}/{total})')
+    print('⚠️ 95%+覆蓋率保證未達成，需要調整動態池規劃參數')
     exit(1)
 "
 ```
 
-### 🚨 驗證失敗處理
-1. **衛星池過小**: 增加候選衛星數量、放寬篩選條件
-2. **覆蓋不足**: 調整時空錯置參數、增加軌道相位分散
-3. **時間序列缺失**: 確認Stage 5數據完整性
-4. **相位多樣性不足**: 優化選擇算法、增加RAAN分散
+### 🚨 95%+覆蓋率驗證失敗處理
+1. **Starlink覆蓋率不足（<95%）**: 
+   - 增加Starlink候選衛星數量（200→250顆）
+   - 降低5°仰角門檻至4°（緊急情況）
+   - 調整軌道相位分散參數，增加時空互補性
+   
+2. **OneWeb覆蓋率不足（<95%）**: 
+   - 增加OneWeb候選衛星數量（60→80顆）
+   - 檢查10°仰角門檻是否過於嚴格
+   - 優化OneWeb軌道平面選擇策略
+   
+3. **覆蓋間隙過長（>2分鐘）**: 
+   - 強化軌道相位錯開算法
+   - 增加覆蓋緩衝衛星（每個星座+20%）  
+   - 實施動態候補衛星策略
+   
+4. **綜合覆蓋率不達標**: 
+   - 同時增加兩個星座的衛星數量
+   - 重新計算最佳軌道週期時間窗口
+   - 檢查TLE數據的時效性和準確性
+   
+5. **時間序列數據缺失**: 確認Stage 5數據完整性
+6. **相位多樣性不足**: 優化選擇算法、增加RAAN分散
 
-### 📊 關鍵指標
-- **時空錯置**: 軌道相位均勻分散
-- **覆蓋連續**: 95%+時間滿足要求
-- **切換保證**: 任何時刻有充足候選
+### 📊 95%+覆蓋率關鍵指標總覽
+- **Starlink覆蓋率**: ≥95% 時間保持10+顆可見（5°仰角）  
+- **OneWeb覆蓋率**: ≥95% 時間保持3+顆可見（10°仰角）
+- **綜合覆蓋率**: ≥95% 時間同時滿足兩個星座要求
+- **最大間隙**: ≤2分鐘連續覆蓋不足時段
+- **時空錯置**: 軌道相位均勻分散，相位多樣性≥0.7
+- **切換保證**: 任何時刻有充足候選衛星
 
-### 🎯 最終驗證
+### 🎯 95%+覆蓋率最終驗證標準
 執行完Stage 6驗證後，系統應達到：
-- ✅ **Starlink**: 任何時刻10-15顆可見（5度仰角閾值）
-- ✅ **OneWeb**: 任何時刻3-6顆可見（10度仰角閾值）
-- ✅ **完整軌道週期**: 無覆蓋空隙
-- ✅ **時空錯置**: 衛星在時間和空間上錯開分佈
+- ✅ **Starlink 95%+覆蓋保證**: 95%以上時間保持10+顆可見（5°仰角閾值）
+- ✅ **OneWeb 95%+覆蓋保證**: 95%以上時間保持3+顆可見（10°仰角閾值） 
+- ✅ **綜合95%+覆蓋**: 95%以上時間同時滿足兩個星座覆蓋要求
+- ✅ **間隙控制**: 最大覆蓋間隙≤2分鐘，無長時間服務中斷
+- ✅ **完整軌道週期**: 2小時軌道週期完整驗證，240個採樣點精確統計
+- ✅ **時空錯置最佳化**: 衛星在軌道相位上錯開分佈，實現高效覆蓋
 
 ---
 
@@ -462,4 +705,10 @@ else:
 
 ---
 
-🎯 **階段六終極目標**：實現「任何時刻 NTPU 上空都有 10-15 顆 Starlink + 3-6 顆 OneWeb 可見衛星」的完美覆蓋，為 LEO 衛星切換研究提供可靠的實驗環境。
+🎯 **階段六終極目標**：實現「95%以上時間 NTPU 上空都有 10+ 顆 Starlink（5°仰角）+ 3+ 顆 OneWeb（10°仰角）可見衛星」的95%+覆蓋率保證，最大間隙≤2分鐘，為 LEO 衛星換手研究提供連續穩定的實驗環境。
+
+**📊 量化成功標準**：
+- Starlink覆蓋率 ≥ 95%（228/240個時間點滿足≥10顆可見）
+- OneWeb覆蓋率 ≥ 95%（228/240個時間點滿足≥3顆可見）
+- 綜合覆蓋率 ≥ 95%（兩個星座同時滿足要求）
+- 最大覆蓋間隙 ≤ 2分鐘（4個連續採樣點）
