@@ -262,8 +262,8 @@ netstack/
 ### 本地開發
 
 ```bash
-# 安裝開發依賴
-pip install -r requirements-dev.txt
+# 安裝生產依賴（開發環境使用相同依賴）
+pip install -r requirements.txt
 
 # 啟動開發環境
 make dev-up

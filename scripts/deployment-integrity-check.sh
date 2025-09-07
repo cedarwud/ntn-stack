@@ -35,7 +35,7 @@ check_project_structure() {
         "docs"
         "netstack/src"
         "netstack/config"
-        "netstack/docker"
+        "netstack/netstack_api/deployment"
         "netstack/compose"
         "simworld/frontend"
         "simworld/backend"
@@ -128,8 +128,8 @@ check_docker_configs() {
     echo ""
     
     local docker_configs=(
-        "netstack/docker/Dockerfile"
-        "netstack/docker/Dockerfile.multistage"
+        "netstack/netstack_api/deployment/Dockerfile"
+        "netstack/netstack_api/deployment/Dockerfile.multistage"
         "netstack/compose/core.yaml"
         "simworld/backend/Dockerfile"
         "simworld/frontend/Dockerfile"
@@ -241,7 +241,7 @@ check_unified_config() {
     done
     
     # 檢查重構後的建構腳本
-    local build_script="netstack/docker/build_with_phase0_data_refactored.py"
+    local build_script="netstack/netstack_api/deployment/build_with_phase0_data_refactored.py"
     if [[ -f "$PROJECT_DIR/$build_script" ]]; then
         log_success "重構建構腳本存在: $(basename "$build_script")"
     else

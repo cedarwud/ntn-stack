@@ -24,11 +24,11 @@ from shared_core.validation_snapshot_base import ValidationSnapshotBase, Validat
 class Stage5Config:
     """階段五配置參數 - 完整版實現"""
     
-    # 輸入目錄
-    input_enhanced_timeseries_dir: str = "/app/data/timeseries_preprocessing_outputs"
+    # 輸入目錄 - 🔧 修復：直接從主目錄讀取時間序列檔案
+    input_enhanced_timeseries_dir: str = "/app/data"
     
     # 輸出目錄
-    output_layered_dir: str = "/app/data/layered_phase0_enhanced"
+    output_layered_dir: str = "/app/data/layered_elevation_enhanced"
     output_handover_scenarios_dir: str = "/app/data/handover_scenarios"
     output_signal_analysis_dir: str = "/app/data/signal_quality_analysis"
     output_processing_cache_dir: str = "/app/data/processing_cache"

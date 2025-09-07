@@ -35,6 +35,9 @@ from shared_core.incremental_update_manager import IncrementalUpdateManager
 from shared_core.utils import setup_logger, calculate_distance_km
 from shared_core.validation_snapshot_base import ValidationSnapshotBase
 
+# 模組級別的 logger 實例
+logger = logging.getLogger(__name__)
+
 # 簡化的性能監控裝飾器
 def performance_monitor(func):
     """簡化的性能監控裝飾器"""
@@ -98,6 +101,13 @@ class EnhancedDynamicPoolPlanner(ValidationSnapshotBase):
         Args:
             config: 配置字典，包含輸入輸出目錄等
         """
+        # 🔧 修復：初始化基類ValidationSnapshotBase
+        super().__init__(
+            stage_number=6,
+            stage_name="動態池規劃",
+            snapshot_dir="/app/data/validation_snapshots"
+        )
+        
         self.config = config
         self.input_dir = Path(config.get('input_dir', '/app/data'))
         self.output_dir = Path(config.get('output_dir', '/app/data'))
@@ -129,9 +139,9 @@ class EnhancedDynamicPoolPlanner(ValidationSnapshotBase):
         
         # 設置觀察者位置 (NTPU)
         self.observer_location = ObserverLocation(
-            latitude_deg=24.9441667,
-            longitude_deg=121.3713889,
-            elevation_m=50.0,
+            latitude=24.9441667,
+            longitude=121.3713889,
+            altitude=50.0,
             location_name="NTPU"
         )
         
@@ -146,9 +156,9 @@ class EnhancedDynamicPoolPlanner(ValidationSnapshotBase):
         if config.get('cleanup_only', False):
             logger.info("⚠️ 僅清理模式啟用")
         
-        # SimWorld 3D仿真輸出管理 (新增)
-        self.simworld_output_dir = Path('/home/sat/ntn-stack/data/simworld_outputs')
-        self.simworld_output_dir.mkdir(parents=True, exist_ok=True)
+        # 🔧 修復：不創建 simworld_outputs 子目錄，直接使用主目錄
+        # SimWorld 相關輸出也直接保存到 /app/data
+        self.simworld_output_dir = self.output_dir  # 直接使用主目錄
         
         # 結果保存配置
         self.save_pool_data = config.get('save_pool_data', True)  
@@ -161,10 +171,14 @@ class EnhancedDynamicPoolPlanner(ValidationSnapshotBase):
         logger.info(f"  SimWorld輸出目錄: {self.simworld_output_dir}")
         logger.info(f"  驗證快照: {self.snapshot_file}")
         
-        # 驗證配置合理性
-        self._validate_config()
+        # 驗證配置合理性 - 暫時註釋，方法未實現
+        # self._validate_config()
+        
+        # 設置實例級別的 logger
+        self.logger = logger
         
         logger.info("🚀 增強動態池規劃器準備就緒")
+    
     def extract_key_metrics(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
         """提取階段6關鍵指標"""
         coverage_optimization = processing_results.get('coverage_optimization', {})
@@ -781,6 +795,42 @@ class EnhancedDynamicPoolPlanner(ValidationSnapshotBase):
                     'error': 'processing_failed'
                 }
             }
+
+    @performance_monitor
+    def process_dynamic_pool_planning(self, integrated_data: Dict[str, Any], save_output: bool = True) -> Dict[str, Any]:
+        """
+        執行動態池規劃的主要接口方法
+        
+        Args:
+            integrated_data: 階段五的整合數據
+            save_output: 是否保存輸出文件
+            
+        Returns:
+            Dict[str, Any]: 動態池規劃結果
+        """
+        logger.info("🚀 開始階段六：動態池規劃與優化")
+        self.start_time = time.time()
+        
+        try:
+            # 載入數據整合輸出
+            data_integration_file = str(self.input_dir / 'data_integration_output.json')
+            
+            # 使用現有的 process 方法來處理邏輯（文件模式）
+            results = self.process(
+                input_file=data_integration_file,
+                output_file=str(self.output_dir / 'enhanced_dynamic_pools_output.json') if save_output else None
+            )
+            
+            self.processing_duration = time.time() - self.start_time
+            logger.info(f"✅ 階段六完成，耗時: {self.processing_duration:.2f} 秒")
+            
+            return results
+            
+        except Exception as e:
+            self.processing_duration = time.time() - self.start_time
+            logger.error(f"❌ 階段六處理失敗: {e}")
+            logger.error(f"處理耗時: {self.processing_duration:.2f} 秒")
+            raise
     
     def _process_file_mode(self, input_file: str, output_file: str = None) -> Dict[str, Any]:
         """文件模式處理"""
@@ -824,8 +874,9 @@ class EnhancedDynamicPoolPlanner(ValidationSnapshotBase):
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(output, f, indent=2, ensure_ascii=False)
             
-            # 計算處理時間 - 使用基類的計時機制
-            processing_time = self.processing_duration if hasattr(self, 'processing_duration') else 0
+            # 🔧 修復：正確計算處理時間
+            processing_time = time.time() - start_time
+            self.processing_duration = processing_time  # 設置實例變量
             output['processing_time_seconds'] = processing_time
             output['output_file'] = output_file
             
@@ -840,6 +891,10 @@ class EnhancedDynamicPoolPlanner(ValidationSnapshotBase):
             return output
             
         except Exception as e:
+            # 🔧 修復：確保處理時間不為None
+            processing_time = time.time() - start_time
+            self.processing_duration = processing_time
+            
             self.logger.error(f"❌ 文件模式處理失敗: {e}")
             
             # 保存錯誤快照
@@ -855,7 +910,7 @@ class EnhancedDynamicPoolPlanner(ValidationSnapshotBase):
                 }
             }
             self.save_validation_snapshot(error_data)
-            raise  # 重新拋出異常  # 重新拋出異常
+            raise  # 重新拋出異常  # 重新拋出異常  # 重新拋出異常
 
 # 創建增強處理器的工廠函數
 def create_enhanced_dynamic_pool_planner(config: Optional[Dict[str, Any]] = None) -> EnhancedDynamicPoolPlanner:

@@ -111,11 +111,11 @@ async def get_dynamic_pool_summary() -> Dict[str, Any]:
     """
     try:
         # Stage 6 輸出文件路徑
-        stage6_output_path = Path("/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json")
+        stage6_output_path = Path("/app/data/enhanced_dynamic_pools_output.json")
         
         # 如果主輸出路徑不存在，嘗試替代文件名
         if not stage6_output_path.exists():
-            stage6_output_path = Path("/app/data/dynamic_pool_planning_outputs/enhanced_pools_with_3d.json")
+            stage6_output_path = Path("/app/data/enhanced_pools_with_3d.json")
         
         if not stage6_output_path.exists():
             raise HTTPException(
@@ -256,7 +256,7 @@ async def get_leo_system_status():
                 ("/app/data/tle_calculation_outputs", "tle_calculation_output.json"),
                 ("/app/data/intelligent_filtering_outputs", "intelligent_filtering_output.json"), 
                 ("/app/data/signal_analysis_outputs", "signal_event_analysis_output.json"),
-                ("/app/data/timeseries_preprocessing_outputs", "starlink_enhanced.json"),
+                ("/app/data", "animation_enhanced_starlink.json"),
                 ("/app/data/data_integration_outputs", "data_integration_output.json")
             ]
             

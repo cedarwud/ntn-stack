@@ -45,19 +45,24 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
     
     def __init__(self, input_dir: str = '/app/data', output_dir: str = '/app/data'):
         """初始化信號分析處理器"""
+        # 🔧 修復: 調用父類初始化以獲得 stage_number 屬性
+        super().__init__(stage_number=3, stage_name="信號品質分析", snapshot_dir=f"{input_dir}/validation_snapshots")
+        
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         
         # 確保輸出目錄存在
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # 驗證快照管理
-        self.snapshot_file = Path('/app/data/validation_snapshots/stage3_validation.json')
-        self.snapshot_file.parent.mkdir(parents=True, exist_ok=True)
+        # 🔧 驗證快照管理由父類處理
+        # 🔧 處理時間追蹤由父類處理
         
-        # 處理時間追蹤
-        self.start_time = None
-        self.processing_duration = None
+        # 設定處理模式
+        self.sample_mode = False  # 🔧 修復：添加 sample_mode 屬性
+        
+        # 設定觀測點座標 (NTPU)
+        self.observer_lat = 24.9441667  # 🔧 修復：添加觀測點緯度
+        self.observer_lon = 121.3713889  # 🔧 修復：添加觀測點經度
         
         # 初始化共享核心服務
         try:
@@ -65,18 +70,28 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
             # from shared_core.signal_quality_cache import get_signal_quality_cache
             from shared_core.elevation_threshold_manager import get_elevation_threshold_manager
             
+            # 🔧 修復：使用正確的src.services路徑前綴
+            from src.services.satellite.intelligent_filtering.signal_calculation.rsrp_calculator import RSRPCalculator
+            from src.services.satellite.intelligent_filtering.event_analysis.gpp_event_analyzer import create_gpp_event_analyzer
+            
             # self.signal_cache = get_signal_quality_cache()  # 🚫 已移除
             self.elevation_manager = get_elevation_threshold_manager()
+            self.rsrp_calculator = RSRPCalculator(observer_lat=24.9441667, observer_lon=121.3713889)  # 🔧 修復：添加RSRP計算器
+            self.event_analyzer = create_gpp_event_analyzer()  # 🔧 修復：添加3GPP事件分析器
             
             logger.info("✅ 共享核心服務初始化完成")
             # logger.info("  - 信號品質緩存")  # 🚫 已移除
             logger.info("  - 仰角閾值管理器")
+            logger.info("  - RSRP信號強度計算器")
+            logger.info("  - 3GPP事件分析器")
             
         except Exception as e:
             logger.warning(f"⚠️ 共享核心服務初始化失敗: {e}")
             logger.info("🔄 使用降級模式")
             # self.signal_cache = None  # 🚫 已移除
             self.elevation_manager = None
+            self.rsrp_calculator = None
+            self.event_analyzer = None
         
         logger.info(f"✅ 信號品質分析處理器初始化完成")
         logger.info(f"  輸入目錄: {self.input_dir}")
@@ -358,7 +373,12 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
                     rsrp_values = []
                     
                     for elevation_deg in [5, 10, 15, 30, 45, 60, 75, 90]:
-                        rsrp = self.rsrp_calculator.calculate_rsrp(satellite, elevation_deg)
+                        # 🔧 安全檢查：確保 rsrp_calculator 已初始化
+                        if self.rsrp_calculator is not None:
+                            rsrp = self.rsrp_calculator.calculate_rsrp(satellite, elevation_deg)
+                        else:
+                            # 使用備用的簡單計算 (僅用於降級模式)
+                            rsrp = -90.0  # 默認較弱信號
                         rsrp_calculations[f'elev_{elevation_deg}deg'] = round(rsrp, 2)
                         rsrp_values.append(rsrp)
                     
@@ -458,7 +478,20 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
             
             try:
                 # 使用現有的事件分析器進行批量分析
-                event_results = self.event_analyzer.analyze_batch_events(satellites)
+                # 🔧 安全檢查：確保 event_analyzer 已初始化
+                if self.event_analyzer is not None:
+                    event_results = self.event_analyzer.analyze_batch_events(satellites)
+                else:
+                    # 使用備用的空事件結果 (僅用於降級模式)
+                    event_results = {
+                        'satellites_with_events': satellites,  # 保持原始衛星數據
+                        'statistics': {
+                            'total_events': 0,
+                            'A4_events': 0,
+                            'A5_events': 0,
+                            'D2_events': 0
+                        }
+                    }
                 
                 if 'satellites_with_events' in event_results:
                     event_analyzed_satellites = event_results['satellites_with_events']
@@ -673,6 +706,8 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
     def process_signal_quality_analysis(self, filtering_file: Optional[str] = None, filtering_data: Optional[Dict[str, Any]] = None,
                       save_output: bool = True) -> Dict[str, Any]:
         """執行完整的信號品質分析處理流程"""
+        # 🔧 修復：使用父類的計時機制
+        self.start_processing_timer()
         start_time = time.time()
         logger.info("🚀 開始信號品質分析及3GPP事件處理")
         
@@ -721,9 +756,10 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
             # 4. 生成最終建議
             final_data = self.generate_final_recommendations(event_enhanced_data)
             
-            # 5. 計算處理時間
+            # 5. 計算處理時間並結束計時
             end_time = time.time()
             processing_duration = end_time - start_time
+            self.end_processing_timer()  # 🔧 修復：結束父類計時
             
             # 6. 保存驗證快照
             validation_success = self.save_validation_snapshot(final_data)

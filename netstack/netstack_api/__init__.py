@@ -1,7 +1,4 @@
 """
-NetStack API 包
-
-Open5GS + UERANSIM 雙 Slice 管理 API
+NetStack API 數據模組
+包含歷史 TLE 數據和其他靜態數據
 """
-
-__version__ = "1.0.0"

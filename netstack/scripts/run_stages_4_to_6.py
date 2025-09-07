@@ -83,17 +83,15 @@ def run_stages_4_to_6():
             
             # 創建配置
             stage5_config = Stage5Config(
-                input_enhanced_timeseries_dir='/app/data',
+                input_enhanced_timeseries_dir='/app/data/timeseries_preprocessing_outputs',
                 output_data_integration_dir='/app/data',
                 elevation_thresholds=[5, 10, 15]
             )
             
             stage5 = Stage5IntegrationProcessor(stage5_config)
             # 使用enhanced_data參數（根據原始程式碼）
-            results['stage5'] = stage5.process_data_integration(
-                enhanced_data=results['stage4'],
-                save_output=True
-            )
+            import asyncio
+            results['stage5'] = asyncio.run(stage5.process_enhanced_timeseries())
         except ImportError:
             # 如果上面的導入失敗，嘗試另一種方式
             from stages.data_integration_processor import Stage5IntegrationProcessor
@@ -103,10 +101,8 @@ def run_stages_4_to_6():
                 output_dir='/app/data'
             )
             # 使用timeseries_data參數
-            results['stage5'] = stage5.process_data_integration(
-                timeseries_data=results['stage4'],
-                save_output=True
-            )
+            import asyncio
+            results['stage5'] = asyncio.run(stage5.process_enhanced_timeseries())
         
         if not results['stage5']:
             print('❌ 階段五失敗')
@@ -119,12 +115,16 @@ def run_stages_4_to_6():
         print('\n🎯 階段六：動態池規劃')
         print('-' * 60)
         
-        from stages.enhanced_dynamic_pool_planner import EnhancedDynamicPoolPlanner
+        from stages.dynamic_pool_planner import EnhancedDynamicPoolPlanner
         
-        stage6 = EnhancedDynamicPoolPlanner(
-            input_dir='/app/data',
-            output_dir='/app/data'
-        )
+        # 🔧 修復：使用正確的config字典構造方式
+        stage6_config = {
+            'input_dir': '/app/data',
+            'output_dir': '/app/data',
+            'save_pool_data': True,
+            'save_optimization_results': True
+        }
+        stage6 = EnhancedDynamicPoolPlanner(stage6_config)
         
         # 使用process_dynamic_pool_planning方法
         results['stage6'] = stage6.process_dynamic_pool_planning(
@@ -152,45 +152,22 @@ def run_stages_4_to_6():
         print('📊 階段4-6處理完成總結')
         print('=' * 80)
         print(f'✅ 階段4-6成功完成！')
-        print(f'⏱️ 總耗時: {elapsed_time:.2f} 秒 ({elapsed_time/60:.2f} 分鐘)')
-        print(f'📊 數據流程:')
-        print(f'   Stage 3: {stage3_satellites} 顆衛星（已有）')
-        print(f'   Stage 4: {ts_count} 顆衛星時間序列')
-        print(f'   Stage 5: {integrated_count} 顆衛星整合')
-        print(f'   Stage 6: {total_selected} 顆衛星最終選擇')
-        print('=' * 80)
+        print(f'⏱️  總處理時間: {elapsed_time:.2f}秒')
+        print(f'📊 最終結果:')
+        print(f'   - 階段4: {ts_count} 顆衛星時間序列轉換')
+        print(f'   - 階段5: {integrated_count} 顆衛星數據整合')
+        print(f'   - 階段6: {total_selected} 顆衛星動態池規劃')
         
-        # 保存最終報告
-        final_report = {
-            'execution_time': datetime.now(timezone.utc).isoformat(),
-            'processing_time_seconds': elapsed_time,
-            'stages_completed': 3,  # 階段4-6
-            'pipeline_summary': {
-                'stage3_loaded': stage3_satellites,
-                'stage4_timeseries': ts_count,
-                'stage5_integrated': integrated_count,
-                'stage6_selected': total_selected
-            },
-            'final_satellite_pool': {
-                'total': total_selected,
-                'starlink': starlink_count,
-                'oneweb': oneweb_count
-            },
-            'success': True
-        }
-        
-        report_path = '/app/data/leo_optimization_stages_4_to_6_report.json'
-        with open(report_path, 'w', encoding='utf-8') as f:
-            json.dump(final_report, f, indent=2, ensure_ascii=False)
-        
-        print(f'\n✅ 階段4-6報告已保存: {report_path}')
+        print('\n🎯 後續可執行動作:')
+        print('   1. 檢查驗證快照: ls -la /app/data/validation_snapshots/')
+        print('   2. 查看池規劃結果: cat /app/data/stage6_dynamic_pool_output.json')
+        print('   3. SimWorld可視化: 檢查 /home/sat/ntn-stack/data/simworld_outputs/')
         
         return True
         
     except Exception as e:
-        print(f'\n❌ 發生錯誤: {e}')
-        import traceback
-        traceback.print_exc()
+        logger.exception(f'階段4-6處理時發生錯誤: {e}')
+        print(f'❌ 處理失敗: {e}')
         return False
 
 def main():

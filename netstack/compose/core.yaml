@@ -351,10 +351,8 @@ services:
   netstack-api:
     image: netstack-api:latest
     container_name: netstack-api
-    # Temporarily bypass smart entrypoint to resolve startup issues
-    # entrypoint: ["/usr/local/bin/smart-entrypoint.sh"]
-    # command: ["python", "-m", "netstack_api.main"]
-    entrypoint: ["python", "-m", "netstack_api.main"]
+    entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
+    command: ["python", "-m", "netstack_api.main"]
     environment:
       - DATABASE_URL=mongodb://mongo:27017/open5gs
       - MONGO_HOST=mongo

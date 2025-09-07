@@ -14,7 +14,7 @@ import sys
 # 添加路徑以導入共享核心模組
 sys.path.insert(0, '/app/src')
 
-from .leo_data_converter import LEODataConverter
+from ...src.api.v1.leo_data_converter import LEODataConverter
 
 router = APIRouter(prefix="/api/v1/leo-frontend", tags=["leo-frontend"])
 

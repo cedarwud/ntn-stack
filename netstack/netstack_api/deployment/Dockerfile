@@ -4,9 +4,7 @@
 
 FROM python:3.11-slim
 
-# 構建參數
-ARG BUILD_ENV=production
-ARG INSTALL_DEV_TOOLS=false
+# NetStack API 生產環境 Dockerfile
 
 # 設定工作目錄
 WORKDIR /app
@@ -22,9 +20,7 @@ RUN apt-get update && apt-get install -y \
     bc \
     gzip \
     jq \
-    && if [ "$INSTALL_DEV_TOOLS" = "true" ]; then \
-        apt-get install -y vim htop strace jq netcat-openbsd; \
-    fi \
+    \
     && rm -rf /var/lib/apt/lists/*
 
 # 創建非root用戶
@@ -120,30 +116,12 @@ RUN if [ -f /app/data/satellite_data.env ]; then \
 RUN chown -R netstack:netstack /var/log/netstack /app/models /app/results \
                                /app/data /app/tle_data /tmp/matplotlib
 
-# 複製並設定啟動腳本權限 (包含新的無壓縮直接啟動腳本和回退腳本)
-COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
-COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-COPY docker/smart-entrypoint.sh /usr/local/bin/smart-entrypoint.sh
-COPY docker/simple-entrypoint.sh /usr/local/bin/simple-entrypoint.sh
-COPY docker/build-time-entrypoint.sh /usr/local/bin/build-time-entrypoint.sh
-COPY docker/runtime-entrypoint.sh /usr/local/bin/runtime-entrypoint.sh
-COPY docker/volume-based-entrypoint.sh /usr/local/bin/volume-based-entrypoint.sh
-COPY docker/build-time-optimized-entrypoint.sh /usr/local/bin/build-time-optimized-entrypoint.sh
-COPY docker/build-time-direct-entrypoint.sh /usr/local/bin/build-time-direct-entrypoint.sh
-COPY docker/fallback-entrypoint.sh /usr/local/bin/fallback-entrypoint.sh
-COPY docker/smart-startup-selector.sh /usr/local/bin/smart-startup-selector.sh
+# 複製並設定啟動腳本權限 (簡化版本 - 只複製必需文件)
+COPY netstack_api/deployment/healthcheck.sh /usr/local/bin/healthcheck.sh
+COPY netstack_api/deployment/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/healthcheck.sh \
-             /usr/local/bin/docker-entrypoint.sh \
-             /usr/local/bin/smart-entrypoint.sh \
-             /usr/local/bin/simple-entrypoint.sh \
-             /usr/local/bin/build-time-entrypoint.sh \
-             /usr/local/bin/runtime-entrypoint.sh \
-             /usr/local/bin/volume-based-entrypoint.sh \
-             /usr/local/bin/build-time-optimized-entrypoint.sh \
-             /usr/local/bin/build-time-direct-entrypoint.sh \
-             /usr/local/bin/fallback-entrypoint.sh \
-             /usr/local/bin/smart-startup-selector.sh
+             /usr/local/bin/docker-entrypoint.sh
 
 # 切換到非root用戶
 USER netstack
@@ -151,23 +129,15 @@ USER netstack
 # 暴露埠號
 EXPOSE 8080
 
-# 健康檢查 (根據環境調整)
+# 健康檢查 (生產環境)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD if [ "$BUILD_ENV" = "development" ]; then \
-            curl -f http://localhost:8080/api/v1/satellites/health/precomputed || /usr/local/bin/healthcheck.sh; \
-        else \
-            /usr/local/bin/healthcheck.sh; \
-        fi
+    CMD /usr/local/bin/healthcheck.sh
 
-# 設定預設啟動腳本：使用智能選擇器（自動選擇最適模式）
-ENTRYPOINT ["/usr/local/bin/smart-startup-selector.sh"]
+# 設定預設啟動腳本
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# 啟動命令 (根據環境調整)
-CMD if [ "$BUILD_ENV" = "development" ]; then \
-        uvicorn netstack_api.main:app --host 0.0.0.0 --port 8080 --reload; \
-    else \
-        uvicorn netstack_api.main:app --host 0.0.0.0 --port 8080; \
-    fi
+# 啟動命令 (生產環境)
+CMD ["uvicorn", "netstack_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
 # 增強六階段系統標籤
 LABEL six_stage_enhanced.version="3.0.0"

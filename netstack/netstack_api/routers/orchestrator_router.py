@@ -22,7 +22,7 @@ except ImportError:
     GPU_AVAILABLE = False
 
 from ..services.ai_decision_integration.orchestrator import DecisionOrchestrator
-from ..services.ai_decision_integration.config.di_container import (
+from ..di_container import (
     DIContainer,
     create_default_container,
 )
