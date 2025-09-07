@@ -36,12 +36,12 @@ echo ""
 
 # 選擇 Dockerfile
 if [[ "$USE_MULTISTAGE" == "true" ]]; then
-    DOCKERFILE="$NETSTACK_DIR/docker/Dockerfile.multistage"
+    DOCKERFILE="$NETSTACK_DIR/netstack_api/deployment/Dockerfile.multistage"
     TARGET_STAGE=$BUILD_TYPE
     echo "📄 使用多階段 Dockerfile: $DOCKERFILE"
     echo "🎯 目標階段: $TARGET_STAGE"
 else
-    DOCKERFILE="$NETSTACK_DIR/docker/Dockerfile"
+    DOCKERFILE="$NETSTACK_DIR/netstack_api/deployment/Dockerfile"
     TARGET_STAGE=""
     echo "📄 使用單階段 Dockerfile: $DOCKERFILE"
 fi

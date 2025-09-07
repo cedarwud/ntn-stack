@@ -58,7 +58,7 @@ class UnifiedCleanupManager:
             ],
             validation_file="/app/data/validation_snapshots/stage4_validation.json",
             directories=[
-                "/app/data/timeseries_preprocessing_outputs"  # 階段4創建的子目錄
+                # 🔧 移除：階段4不再創建子目錄，直接輸出到主目錄
             ]
         ),
         5: CleanupTarget(
@@ -69,7 +69,7 @@ class UnifiedCleanupManager:
             validation_file="/app/data/validation_snapshots/stage5_validation.json",
             directories=[
                 "/app/data/handover_scenarios",      # 階段5創建的目錄
-                "/app/data/layered_phase0_enhanced", # 階段5創建的目錄  
+                "/app/data/layered_elevation_enhanced", # 階段5分層仰角數據目錄  
                 "/app/data/processing_cache",        # 階段5創建的目錄
                 "/app/data/signal_quality_analysis", # 階段5創建的目錄
                 "/app/data/status_files",            # 階段5創建的目錄
@@ -86,7 +86,7 @@ class UnifiedCleanupManager:
             ],
             validation_file="/app/data/validation_snapshots/stage6_validation.json",
             directories=[
-                "/app/data/dynamic_pool_planning_outputs"  # 舊子目錄
+                # 🔧 移除：階段6不再創建子目錄，直接輸出到主目錄
             ]
         )
     }

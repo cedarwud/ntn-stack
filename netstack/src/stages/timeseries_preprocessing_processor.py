@@ -24,26 +24,26 @@ class TimeseriesPreprocessingProcessor(ValidationSnapshotBase):
     """
     
     def __init__(self, input_dir: str = "/app/data", output_dir: str = "/app/data"):
-        self.input_dir = Path(input_dir)
-        self.output_dir = Path(output_dir)
-        
-        # Initialize ValidationSnapshotBase
-        super().__init__(stage_number=4, stage_name="階段4: 時間序列預處理", 
-                         snapshot_dir=str(self.output_dir / "validation_snapshots"))
-        
-        # 🎯 修復：使用文檔指定的輸出目錄結構
-        self.timeseries_preprocessing_dir = self.output_dir / "timeseries_preprocessing_outputs"
-        self.timeseries_preprocessing_dir.mkdir(parents=True, exist_ok=True)
-        
-        # 保持向後兼容，enhanced_dir 指向新目錄
-        self.enhanced_dir = self.timeseries_preprocessing_dir
-        
-        # 初始化 sample_mode 屬性
-        self.sample_mode = False  # 預設為全量模式
-        
-        logger.info("✅ 時間序列預處理器初始化完成")
-        logger.info(f"  輸入目錄: {self.input_dir}")
-        logger.info(f"  時間序列預處理輸出: {self.timeseries_preprocessing_dir}")
+    self.input_dir = Path(input_dir)
+    self.output_dir = Path(output_dir)
+    
+    # Initialize ValidationSnapshotBase
+    super().__init__(stage_number=4, stage_name="階段4: 時間序列預處理", 
+                     snapshot_dir=str(self.output_dir / "validation_snapshots"))
+    
+    # 🔧 修復：直接輸出到 /app/data，不創建子目錄
+    # 單一檔案不需要額外子目錄，遵循用戶要求
+    self.timeseries_preprocessing_dir = self.output_dir  # 直接使用主目錄
+    
+    # 保持向後兼容，enhanced_dir 指向主目錄
+    self.enhanced_dir = self.output_dir
+    
+    # 初始化 sample_mode 屬性
+    self.sample_mode = False  # 預設為全量模式
+    
+    logger.info("✅ 時間序列預處理器初始化完成")
+    logger.info(f"  輸入目錄: {self.input_dir}")
+    logger.info(f"  直接輸出到: {self.output_dir} (不創建子目錄)")
         
     def extract_key_metrics(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
         """提取階段4關鍵指標"""
@@ -437,78 +437,76 @@ class TimeseriesPreprocessingProcessor(ValidationSnapshotBase):
         return animation_data
         
     def save_enhanced_timeseries(self, conversion_results: Dict[str, Any]) -> Dict[str, str]:
-        """保存增強時間序列數據到文件"""
-        logger.info("💾 保存增強時間序列數據...")
-        
-        output_files = {}
-        
-        # 🎯 修復：使用文檔指定的檔案命名規範
-        ANIMATION_FILENAMES = {
-            "starlink": "animation_enhanced_starlink.json",
-            "oneweb": "animation_enhanced_oneweb.json"
-        }
-        
-        for const_name in ['starlink', 'oneweb']:
-            if conversion_results[const_name] is None:
-                continue
-                
-            # 使用文檔指定的動畫檔案命名
-            filename = ANIMATION_FILENAMES[const_name]
-            output_file = self.timeseries_preprocessing_dir / filename
+    """保存增強時間序列數據到文件"""
+    logger.info("💾 保存增強時間序列數據...")
+    
+    # 🔧 修復：不需要創建額外目錄，直接使用主目錄
+    # 確保主目錄存在即可（Docker Volume 保證）
+    
+    output_files = {}
+    
+    # 🎯 修復：使用文檔指定的檔案命名規範
+    ANIMATION_FILENAMES = {
+        "starlink": "animation_enhanced_starlink.json",
+        "oneweb": "animation_enhanced_oneweb.json"
+    }
+    
+    for const_name in ['starlink', 'oneweb']:
+        if conversion_results[const_name] is None:
+            continue
             
-            # 將統計信息添加到檔案內容中
-            constellation_data = conversion_results[const_name].copy()
-            satellite_count = len(constellation_data['satellites'])
-            
-            # 🎯 新增：符合文檔的動畫數據格式
-            animation_data = self._create_animation_format(constellation_data, const_name)
-            
-            # 保存文件
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(animation_data, f, indent=2, ensure_ascii=False)
-            
-            file_size = output_file.stat().st_size
-            output_files[const_name] = str(output_file)
-            
-            logger.info(f"✅ {const_name} 動畫數據已保存: {output_file}")
-            logger.info(f"   文件大小: {file_size / (1024*1024):.1f} MB")
-            logger.info(f"   衛星數量: {satellite_count} 顆")
+        # 使用文檔指定的動畫檔案命名，直接輸出到主目錄
+        filename = ANIMATION_FILENAMES[const_name]
+        output_file = self.output_dir / filename  # 直接在主目錄輸出
         
-        # 保存轉換統計到指定目錄
-        stats_file = self.timeseries_preprocessing_dir / "conversion_statistics.json"
-        with open(stats_file, 'w', encoding='utf-8') as f:
-            json.dump(conversion_results["conversion_statistics"], f, indent=2, ensure_ascii=False)
+        # 將統計信息添加到檔案內容中
+        constellation_data = conversion_results[const_name].copy()
+        satellite_count = len(constellation_data['satellites'])
         
-        logger.info(f"📊 轉換統計已保存: {stats_file}")
+        # 🎯 新增：符合文檔的動畫數據格式
+        animation_data = self._create_animation_format(constellation_data, const_name)
         
-        return output_files
+        # 保存文件
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(animation_data, f, indent=2, ensure_ascii=False)
+        
+        file_size = output_file.stat().st_size
+        output_files[const_name] = str(output_file)
+        
+        logger.info(f"✅ {const_name} 動畫數據已保存: {output_file}")
+        logger.info(f"   文件大小: {file_size / (1024*1024):.1f} MB")
+        logger.info(f"   衛星數量: {satellite_count} 顆")
+    
+    # 保存轉換統計到主目錄
+    stats_file = self.output_dir / "conversion_statistics.json"
+    with open(stats_file, 'w', encoding='utf-8') as f:
+        json.dump(conversion_results["conversion_statistics"], f, indent=2, ensure_ascii=False)
+    
+    logger.info(f"📊 轉換統計已保存: {stats_file}")
+    
+    return output_files
         
     def process_timeseries_preprocessing(self, signal_file: Optional[str] = None, save_output: bool = True) -> Dict[str, Any]:
         """執行完整的時間序列預處理流程"""
         start_time = time.time()
         logger.info("🚀 開始時間序列預處理")
         
-        # 🔧 新版雙模式清理：使用統一清理管理器
+        # 🔧 修復：直接清理主目錄中的舊輸出檔案
         try:
-            from shared_core.cleanup_manager import auto_cleanup
-            cleaned_result = auto_cleanup(current_stage=4)
-            logger.info(f"🗑️ 自動清理完成: {cleaned_result['files']} 檔案, {cleaned_result['directories']} 目錄")
-        except ImportError as e:
-            logger.warning(f"⚠️ 清理管理器導入失敗，使用傳統清理方式: {e}")
-            # 🎯 修復：清理新目錄結構中的舊輸出文件
-            if self.timeseries_preprocessing_dir.exists():
-                for file_pattern in ["animation_enhanced_starlink.json", "animation_enhanced_oneweb.json", "conversion_statistics.json"]:
-                    old_file = self.timeseries_preprocessing_dir / file_pattern
-                    if old_file.exists():
-                        logger.info(f"🗑️ 清理舊檔案: {old_file}")
-                        old_file.unlink()
+            # 清理主目錄中的時間序列檔案
+            for file_pattern in ["animation_enhanced_starlink.json", "animation_enhanced_oneweb.json", "conversion_statistics.json"]:
+                old_file = self.output_dir / file_pattern
+                if old_file.exists():
+                    logger.info(f"🗑️ 清理舊檔案: {old_file}")
+                    old_file.unlink()
             
             # 清理舊驗證快照 (確保生成最新驗證快照)
             if self.snapshot_file.exists():
                 logger.info(f"🗑️ 清理舊驗證快照: {self.snapshot_file}")
                 self.snapshot_file.unlink()
+                
         except Exception as e:
-            logger.warning(f"⚠️ 自動清理失敗，繼續執行: {e}")
+            logger.warning(f"⚠️ 清理失敗，繼續執行: {e}")
         
         try:
             # 1. 載入信號分析數據
@@ -521,7 +519,7 @@ class TimeseriesPreprocessingProcessor(ValidationSnapshotBase):
             output_files = {}
             if save_output:
                 output_files = self.save_enhanced_timeseries(conversion_results)
-                logger.info(f"📁 時間序列預處理數據已保存到: {self.timeseries_preprocessing_dir}")
+                logger.info(f"📁 時間序列預處理數據已保存到: {self.output_dir} (直接輸出模式)")
             else:
                 logger.info("🚀 時間序列預處理使用內存傳遞模式，未保存檔案")
             
@@ -548,7 +546,7 @@ class TimeseriesPreprocessingProcessor(ValidationSnapshotBase):
                 "processing_type": "timeseries_preprocessing",
                 "processing_timestamp": datetime.now(timezone.utc).isoformat(),
                 "input_source": "signal_quality_analysis_output.json",
-                "output_directory": str(self.timeseries_preprocessing_dir),
+                "output_directory": str(self.output_dir),
                 "output_files": output_files,
                 "conversion_statistics": conversion_results["conversion_statistics"],
                 "constellation_data": {

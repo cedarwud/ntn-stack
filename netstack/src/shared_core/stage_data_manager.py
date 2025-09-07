@@ -72,8 +72,8 @@ class StageDataManager:
             4: {
                 "name": "時間序列預處理",
                 "paths": [
-                    self.data_dir / "timeseries_preprocessing_outputs" / "conversion_statistics.json",
-                    self.data_dir / "timeseries_preprocessing_outputs" / "starlink_enhanced.json"
+                    self.data_dir / "conversion_statistics.json",
+                    self.data_dir / "animation_enhanced_starlink.json"
                 ],
                 "data_keys": ["total_satellites", "starlink_count", "oneweb_count"],
                 "min_satellites": 150
@@ -90,8 +90,8 @@ class StageDataManager:
             6: {
                 "name": "動態池規劃與模擬退火優化",
                 "paths": [
-                    self.data_dir / "dynamic_pool_planning_outputs" / "enhanced_dynamic_pools_output.json",
-                    self.data_dir / "dynamic_pool_planning_outputs" / "dynamic_satellite_pool_optimization_results.json"
+                    self.data_dir / "enhanced_dynamic_pools_output.json",
+                    self.data_dir / "dynamic_satellite_pool_optimization_results.json"
                 ],
                 "data_keys": ["final_solution", "satellites", "starlink_satellites", "oneweb_satellites"],
                 "min_satellites": 260

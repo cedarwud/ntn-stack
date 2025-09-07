@@ -339,30 +339,18 @@ pull: ## 📥 拉取所有必要的第三方映像檔
 build: pull ## 🏗️ 建置所有 NetStack 核心映像 (先拉取第三方映像)
 	@echo "$(GREEN)🏗️ 建置 NetStack 所有相關映像...$(NC)"
 	@echo "$(BLUE)  - 建置核心網 API 映像 (單階段統一構建)...$(NC)"
-	docker build -t netstack-api:latest -f docker/Dockerfile --build-arg BUILD_ENV=production --build-arg INSTALL_DEV_TOOLS=false .
+	docker build -t netstack-api:latest -f netstack_api/deployment/Dockerfile .
 	@echo "$(BLUE)  - NetStack 核心映像建構完成$(NC)"
 	@echo "$(GREEN)✅ 所有 NetStack 映像建置完成$(NC)"
 
 build-n: pull ## 🏗️ 建置所有 NetStack 映像 (不使用快取，先拉取第三方映像)
 	@echo "$(GREEN)🏗️ 建置 NetStack 所有相關映像 (不使用快取)...$(NC)"
 	@echo "$(BLUE)  - 建置核心網 API 映像 (單階段統一構建)...$(NC)"
-	docker build -t netstack-api:latest -f docker/Dockerfile --build-arg BUILD_ENV=production --build-arg INSTALL_DEV_TOOLS=false . --no-cache
+	docker build -t netstack-api:latest -f netstack_api/deployment/Dockerfile . --no-cache
 	@echo "$(BLUE)  - NetStack 核心映像建構完成$(NC)"
 	@echo "$(GREEN)✅ 所有 NetStack 映像建置完成 (不使用快取)$(NC)"
 
-build-dev: pull ## 🛠️ 建置開發環境映像 (包含開發工具)
-	@echo "$(GREEN)🛠️ 建置 NetStack 開發環境映像...$(NC)"
-	@echo "$(BLUE)  - 建置開發環境 API 映像 (包含開發工具)...$(NC)"
-	docker build -t netstack-api:dev -f docker/Dockerfile --build-arg BUILD_ENV=development --build-arg INSTALL_DEV_TOOLS=true .
-	@echo "$(BLUE)  - NetStack 開發映像建構完成$(NC)"
-	@echo "$(GREEN)✅ 開發環境映像建置完成$(NC)"
-
-build-dev-n: pull ## 🛠️ 建置開發環境映像 (不使用快取，包含開發工具)
-	@echo "$(GREEN)🛠️ 建置 NetStack 開發環境映像 (不使用快取)...$(NC)"
-	@echo "$(BLUE)  - 建置開發環境 API 映像 (包含開發工具)...$(NC)"
-	docker build -t netstack-api:dev -f docker/Dockerfile --build-arg BUILD_ENV=development --build-arg INSTALL_DEV_TOOLS=true . --no-cache
-	@echo "$(BLUE)  - NetStack 開發映像建構完成$(NC)"
-	@echo "$(GREEN)✅ 開發環境映像建置完成 (不使用快取)$(NC)"
+# 開發映像建構指令已移除 - 僅保留生產環境建構
 
 push: ## 📤 推送映像到 Registry
 	@echo "$(GREEN)📤 推送映像...$(NC)"
