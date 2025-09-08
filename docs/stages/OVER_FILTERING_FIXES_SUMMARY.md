@@ -48,7 +48,7 @@ def __init__(self, sample_size: int = 800):  # 10%合理取樣率
 
 **成效**: 從1.1%提升到10%保留率，或支援全量處理模式
 
-### 2. Stage 2: 智能衛星篩選過度嚴格修復
+### 2. Stage 2: 地理可見性篩選過度嚴格修復
 
 **檔案**: `/netstack/src/stages/intelligent_satellite_filter_processor.py`
 

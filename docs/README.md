@@ -71,7 +71,7 @@ ls -la logs/summary/*.txt | tail -1 | awk '{print $9}' | xargs cat
 | 階段 | 文檔 | 處理內容 | 技術重點 |
 |------|------|----------|----------|
 | **Stage 1** | [TLE載入與SGP4計算](./stages/stage1-tle-loading.md) | 8,779顆衛星軌道計算 | SGP4算法、軌道動力學 |
-| **Stage 2** | [智能衛星篩選](./stages/stage2-filtering.md) | 智能篩選至1,113顆候選 | 6階段篩選管線、地理相關性 |
+| **Stage 2** | [地理可見性篩選](./stages/stage2-filtering.md) | 地理篩選至1,113顆候選 | 基於NTPU觀測點、星座差異化 |
 | **Stage 3** | [信號品質分析](./stages/stage3-signal.md) | 3GPP事件分析 | A4/A5/D2事件、RSRP計算 |
 | **Stage 4** | [時間序列預處理](./stages/stage4-timeseries.md) | 前端動畫數據準備 | 1x-60x倍速、60FPS渲染 |
 | **Stage 5** | [數據整合處理](./stages/stage5-integration.md) | 跨系統數據整合 | 格式統一、驗證機制 |

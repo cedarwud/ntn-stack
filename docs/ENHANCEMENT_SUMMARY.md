@@ -44,10 +44,10 @@
    - 修正覆蓋率目標
    - 增加緩衝機制說明
 
-2. **階段二增強版** (`stage2-filtering-enhanced.md`) 🆕
-   - 新增可見性預篩選步驟
-   - 七階段篩選管線
-   - 時空優化策略
+2. **階段二地理可見性篩選** (`stage2-filtering.md`) ✅
+   - 基於NTPU觀測點的地理篩選
+   - 星座差異化篩選策略
+   - v3.0 記憶體傳遞模式
 
 3. **總覽 README** (`stages/README.md`)
    - 更新性能概要
@@ -64,7 +64,7 @@
 ### 階段二增強實施
 ```python
 # 核心改變：添加可見性預篩選
-class EnhancedIntelligentSatelliteFilterProcessor:
+class SatelliteVisibilityFilterProcessor:
     def process(self):
         # 新增：階段 0 - 可見性預篩選
         visible_satellites = self._visibility_prefilter(satellites)
@@ -151,7 +151,7 @@ ORBITAL_OPTIMIZATION = True       # 軌道相位智能選擇
 
 **相關文檔**:
 - [階段六動態池規劃](stages/stage6-dynamic-pool.md)
-- [階段二增強版](stages/stage2-filtering-enhanced.md)
+- [階段二地理可見性篩選](stages/stage2-filtering.md)
 - [增強配置文件](enhanced_dynamic_pool_config.yaml)
 
 **狀態**: ✅ 文檔更新完成，待實施驗證

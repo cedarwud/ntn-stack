@@ -70,7 +70,7 @@
 - `/app/data/signal_analysis_outputs/`
 - `/app/data/timeseries_preprocessing_outputs/`
 - `/app/data/data_integration_outputs/`
-- `/app/data/dynamic_pool_planning_outputs/`
+- `/app/data/enhanced_dynamic_pools_output.json`
 - `/app/data/signal_cache/`
 - `/app/data/data_integration_output.json`
 - `/app/data/leo_optimization_final_report.json`
@@ -157,7 +157,7 @@ Stage 3 執行 → [即時驗證3] → ✅ 繼續 / ❌ 停止
 ✅ 階段1品質驗證通過  
 ✅ 階段一完成並驗證通過: 8791 顆衛星
 
-🎯 階段二：智能衛星篩選
+🎯 階段二：地理可見性篩選
 ❌ 階段二驗證失敗: 路徑配置錯誤
 🚫 停止後續階段處理，避免基於錯誤數據的無意義計算
 ```
@@ -207,7 +207,7 @@ Stage 4 (時序預處理) → Stage 5 (數據整合) → Stage 6 (動態池規�
 
 💾 統一根目錄輸出存儲 (v4.1+ 架構)：
 /app/data/tle_orbital_calculation_output.json     ← Stage 1 SGP4軌道計算
-/app/data/intelligent_filtered_output.json        ← Stage 2 智能篩選結果  
+/app/data/satellite_visibility_filtered_output.json ← Stage 2 地理可見性篩選結果  
 /app/data/signal_event_analysis_output.json       ← Stage 3 信號品質分析
 /app/data/enhanced_timeseries_output.json         ← Stage 4 時間序列預處理
 /app/data/data_integration_output.json            ← Stage 5 數據整合
@@ -292,7 +292,7 @@ def process_tle_orbital_calculation(self):
 }
 ```
 
-#### **Stage 2: 智能衛星篩選** ✅ v1.1 修復版
+#### **Stage 2: 地理可見性篩選** ✅ v1.1 修復版
 **處理對象**: 從 8,796 顆篩選至 1,196 顆候選  
 **篩選率**: 13.6% 保留率 (大幅改善數據流)  
 **處理時間**: 約 1-2 分鐘
@@ -300,7 +300,7 @@ def process_tle_orbital_calculation(self):
 
 **實際實現位置**: `/netstack/src/stages/intelligent_satellite_filter_processor.py`
 ```python
-class IntelligentSatelliteFilterProcessor:
+class SatelliteVisibilityFilterProcessor:
     def process_intelligent_filtering(self, stage1_data):
         # 接收Stage 1的記憶體數據
         # 執行地理相關性篩選
@@ -412,7 +412,7 @@ def convert_to_enhanced_candidates(satellite_data):
 ├── tle_calculation_outputs/         # Stage 1: SGP4軌道計算結果
 │   └── tle_orbital_calculation_output.json  # 完整軌道數據 (可達2.3GB)
 ├── intelligent_filtering_outputs/   # Stage 2: 1,113顆篩選候選
-│   └── intelligent_filtered_output.json
+│   └── satellite_visibility_filtered_output.json
 ├── signal_analysis_outputs/         # Stage 3: 3GPP事件分析
 │   └── signal_event_analysis_output.json  
 ├── timeseries_preprocessing_outputs/ # Stage 4: 前端動畫數據 (~60MB)
@@ -420,8 +420,7 @@ def convert_to_enhanced_candidates(satellite_data):
 │   └── oneweb_enhanced.json         # OneWeb時序數據
 ├── data_integration_outputs/        # Stage 5: PostgreSQL整合狀態
 │   └── integrated_data_output.json
-└── dynamic_pool_planning_outputs/   # Stage 6: 最終動態池
-    └── enhanced_dynamic_pools_output.json
+└── enhanced_dynamic_pools_output.json  # Stage 6: 最終動態池
 ```
 
 ### Docker Volume 映射

@@ -11,17 +11,17 @@
 
 ### 修復詳情
 
-#### 階段二：智能衛星篩選處理器
+#### 階段二：地理可見性篩選處理器
 **修復前**：
 ```python
 leo_outputs_dir = self.output_dir / "leo_outputs"
-output_file = leo_outputs_dir / "intelligent_filtered_output.json"
+output_file = leo_outputs_dir / "satellite_visibility_filtered_output.json"
 ```
 
 **修復後**：
 ```python
 self.output_dir.mkdir(parents=True, exist_ok=True)
-output_file = self.output_dir / "intelligent_filtered_output.json"
+output_file = self.output_dir / "satellite_visibility_filtered_output.json"
 ```
 
 #### 階段三：信號品質分析處理器
@@ -52,7 +52,7 @@ output_file = self.output_dir / "signal_event_analysis_output.json"
 # 正確的輸出路徑結構
 /home/sat/ntn-stack/data/leo_outputs/
 ├── tle_orbital_calculation_output.json (2.3G) ✅
-├── intelligent_filtered_output.json (301M) ✅
+├── satellite_visibility_filtered_output.json (301M) ✅
 ├── signal_event_analysis_output.json (302M) ✅
 ├── starlink_enhanced.json (15M) ✅
 └── oneweb_enhanced.json (3.8M) ✅

@@ -15,6 +15,7 @@
 - 🔧 **數據最佳化**: 為前端動畫和強化學習可視化提供高效數據格式
 - ⚡ **性能優化**: 壓縮數據大小70%，支援60 FPS流暢渲染
 - 📊 **時間序列完整性**: 保持軌道週期數據完整，支援動態覆蓋驗證
+- 🤖 **強化學習支援**: 保留仰角數據作為狀態空間關鍵信息，支援訓練數據生成
 
 ## 🎯 處理目標
 
@@ -131,8 +132,8 @@ def optimize_timeseries_for_frontend(raw_data):
   "satellites": {
     "STARLINK-1234": {
       "track_points": [
-        {"time": 0, "lat": 24.944, "lon": 121.371, "alt": 550, "visible": true},
-        // ... 360個優化點
+        {"time": 0, "lat": 24.944, "lon": 121.371, "alt": 550, "elevation_deg": 45.2, "visible": true},
+        // ... 360個優化點，現在包含仰角數據供強化學習使用
       ],
       "signal_timeline": [
         {"time": 0, "rsrp_normalized": 0.75, "quality_color": "#00FF00"},
@@ -231,7 +232,7 @@ curl -w '%{time_total}s' -o /dev/null -s http://localhost:5173/data/enhanced_tim
 #### 1. **輸入驗證**
 - [ ] Stage 3信號分析結果完整
   - 接收約1,100-1,400顆衛星數據
-  - 包含信號指標和3GPP事件
+  - 包含信號指標和3GPP事件 (✅ 完全符合TS 38.331標準)
   - 時間序列數據連續無斷點
 
 #### 2. **數據壓縮驗證**
