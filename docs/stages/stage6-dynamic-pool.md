@@ -36,23 +36,176 @@
 **覆蓋保證**：95%+ 時段滿足覆蓋要求，基於軌道動力學最優化
 **處理時間**：< 3 秒（實際 ~1.3 秒）
 
-## 🎯 演算法設計要求
+## 🚨 **學術級動態池規劃標準遵循** (Grade A/B 等級)
 
-### 智能軌道相位選擇策略（驗證優化版）
-- **軌道週期驗證**：基於2小時完整軌道週期（Starlink 93.63min, OneWeb 109.64min）
-- **時空錯置核心算法**：選擇軌道相位互補的衛星，實現連續覆蓋
-- **最小衛星數原理**：理論最小值3-4顆×安全係數5-8 = 實際需求200-300顆（含冗餘保證）
-- **可見性智能預篩選**：排除NTPU座標永不可見的衛星（減少75-85%候選）
-- **軌道平面分散策略**：不同軌道傾角和升交點的最優組合
-- **覆蓋間隙零容忍**：通過精確軌道計算確保無覆蓋空窗
-- **動態緩衝機制**：預留10-20%額外衛星應對軌道攝動
+### 🟢 **Grade A 強制要求：基於軌道動力學的科學覆蓋設計**
 
-### 95%+ 覆蓋率量化驗證核心算法
-- **覆蓋率計算方法**：基於軌道週期時間窗口的精確覆蓋統計
-  - 時間採樣間隔：30秒（240個採樣點/2小時）
-  - Starlink 覆蓋統計：每個時間點計算 ≥5°仰角可見衛星數 ≥ 10顆
-  - OneWeb 覆蓋統計：每個時間點計算 ≥10°仰角可見衛星數 ≥ 3顆
-  - 覆蓋率 = 滿足要求的時間點數 ÷ 總時間點數 × 100%
+#### 軌道物理學基礎設計原則
+- **軌道週期精確計算**：使用開普勒第三定律計算實際軌道週期
+  ```
+  T = 2π√(a³/GM)
+  其中：a = 半長軸，GM = 地球重力參數 (3.986004418×10¹⁴ m³/s²)
+  ```
+- **軌道相位分析**：基於平近點角(Mean Anomaly)和升交點經度(RAAN)的空間分佈
+- **可見性幾何學**：嚴格基於球面三角學計算衛星-觀測點幾何關係
+- **覆蓋連續性保證**：通過軌道力學預測確保無物理覆蓋空檔
+
+#### 🟡 **Grade B 可接受：基於系統需求分析的參數設定**
+
+#### 覆蓋需求的科學依據制定
+```python
+# ✅ 正確：基於系統需求分析制定覆蓋參數
+def derive_coverage_requirements_from_system_analysis():
+    """基於系統性能需求和軌道動力學分析制定覆蓋參數"""
+    
+    system_requirements = {
+        'handover_preparation_time': 30,      # 秒：基於3GPP標準換手準備時間
+        'minimum_handover_candidates': 2,     # 基於3GPP A5事件要求的最小候選數
+        'measurement_reliability': 0.95,      # 基於ITU-R建議的測量可靠性
+        'orbit_prediction_uncertainty': 60    # 秒：SGP4軌道預測不確定度
+    }
+    
+    # 基於軌道動力學計算最小衛星數
+    orbital_mechanics = analyze_orbital_coverage_requirements(
+        observer_location=(24.9441667, 121.3713889),  # NTPU座標
+        elevation_threshold_analysis=derive_elevation_thresholds(),
+        orbital_period_analysis=analyze_constellation_periods()
+    )
+    
+    # 基於統計分析計算覆蓋可靠性要求
+    reliability_analysis = calculate_required_coverage_reliability(
+        mission_critical_threshold=system_requirements['measurement_reliability'],
+        orbital_uncertainty=system_requirements['orbit_prediction_uncertainty']
+    )
+    
+    return {
+        'minimum_satellites_starlink': orbital_mechanics['starlink_min_required'],
+        'minimum_satellites_oneweb': orbital_mechanics['oneweb_min_required'],
+        'coverage_reliability_target': reliability_analysis['target_reliability'],
+        'maximum_coverage_gap_seconds': calculate_max_acceptable_gap()
+    }
+
+# ❌ 錯誤：任意設定覆蓋參數
+ARBITRARY_COVERAGE_PARAMS = {
+    'starlink_satellites': 10,  # 任意數字
+    'coverage_rate': 0.95,      # 任意百分比
+    'max_gap_minutes': 2        # 任意時間間隔
+}
+```
+
+#### 🔴 **Grade C 嚴格禁止項目** (零容忍)
+- **❌ 任意衛星數量設定**：如"10-15顆Starlink"等未經軌道分析的數量
+- **❌ 任意覆蓋率目標**：如"95%覆蓋率"等沒有系統依據的百分比
+- **❌ 任意間隙容忍度**：如"2分鐘間隙"等未經分析的時間限制
+- **❌ 模擬信號參數**：如固定RSRP/RSRQ/SINR值等任何模擬信號指標
+- **❌ 暴力數量堆疊**：不基於軌道相位分析的簡單數量增加策略
+
+### 📊 **替代方案：基於軌道動力學的科學設計**
+
+#### 軌道覆蓋需求科學化計算
+```python
+# ✅ 正確：基於軌道動力學的覆蓋設計
+class ScientificCoverageDesigner:
+    def __init__(self, observer_lat, observer_lon):
+        self.observer = (observer_lat, observer_lon)
+        self.earth_radius = 6371.0  # km, WGS84平均半徑
+        
+    def calculate_minimum_satellites_required(self, constellation_params):
+        """基於軌道幾何學計算最小衛星需求"""
+        
+        orbital_period = self.calculate_orbital_period(constellation_params['altitude'])
+        visibility_duration = self.calculate_average_pass_duration(
+            constellation_params['altitude'], 
+            constellation_params['inclination']
+        )
+        
+        # 基於軌道週期和可見時間計算理論最小值
+        theoretical_minimum = math.ceil(orbital_period / visibility_duration)
+        
+        # 加入軌道攝動和預測不確定度的安全係數
+        orbital_uncertainty_factor = 1.2  # 20%不確定度係數
+        diversity_factor = 2.0  # 軌道相位多樣性要求
+        
+        practical_minimum = int(theoretical_minimum * orbital_uncertainty_factor * diversity_factor)
+        
+        return {
+            'theoretical_minimum': theoretical_minimum,
+            'practical_minimum': practical_minimum,
+            'safety_margin': practical_minimum - theoretical_minimum,
+            'basis': 'orbital_mechanics_and_geometry'
+        }
+    
+    def derive_coverage_reliability_target(self):
+        """基於任務需求推導覆蓋可靠性目標"""
+        # 基於LEO衛星通信系統標準推導
+        leo_system_availability = 0.99  # 典型LEO系統可用性要求
+        measurement_confidence = 0.95    # 科學測量置信區間
+        orbital_prediction_accuracy = 0.98  # SGP4預測準確度
+        
+        # 綜合考慮各種因素計算目標可靠性
+        target_reliability = (leo_system_availability * 
+                            measurement_confidence * 
+                            orbital_prediction_accuracy)
+        
+        return min(target_reliability, 0.95)  # 上限95%（考慮實際限制）
+    
+    def calculate_maximum_acceptable_gap(self):
+        """基於換手需求計算最大可接受覆蓋間隙"""
+        # 基於3GPP NTN標準
+        handover_preparation_time = 30  # 秒，3GPP標準
+        measurement_period = 40         # 秒，典型測量週期
+        safety_buffer = 60             # 秒，安全緩衝
+        
+        max_acceptable_gap = handover_preparation_time + measurement_period + safety_buffer
+        return max_acceptable_gap  # 130秒 ≈ 2.2分鐘
+```
+
+#### 信號品質評估的學術級替代方案
+```python
+# ✅ 正確：基於物理原理的信號品質評估
+def evaluate_satellite_signal_quality_physics_based(satellite_data, observer_location):
+    """基於物理原理評估衛星信號品質（不使用模擬值）"""
+    
+    signal_quality_metrics = {}
+    
+    for timepoint in satellite_data['position_timeseries']:
+        # 計算距離（基於精確位置）
+        distance_km = calculate_precise_distance(
+            satellite_position=timepoint['position_eci'],
+            observer_location=observer_location
+        )
+        
+        # 計算仰角（基於球面幾何學）
+        elevation_deg = calculate_elevation_angle(
+            satellite_position=timepoint['position_eci'],
+            observer_location=observer_location
+        )
+        
+        # 評估信號品質潛力（基於距離和仰角，不使用固定dBm值）
+        signal_quality_score = calculate_signal_quality_potential(
+            distance_km=distance_km,
+            elevation_deg=elevation_deg,
+            frequency_band=get_constellation_frequency(satellite_data['constellation']),
+            atmospheric_conditions='standard'  # 可進一步基於氣象數據細化
+        )
+        
+        signal_quality_metrics[timepoint['time']] = {
+            'distance_km': distance_km,
+            'elevation_deg': elevation_deg,
+            'signal_quality_potential': signal_quality_score,  # 0-1評分，非dBm
+            'basis': 'physics_calculation_not_simulation'
+        }
+    
+    return signal_quality_metrics
+
+# ❌ 錯誤：使用固定模擬值
+def use_mock_signal_values():
+    return {
+        'rsrp_dbm': -85.0,  # 模擬值
+        'rsrq_db': -10.0,   # 模擬值  
+        'sinr_db': 15.0     # 模擬值
+    }
+```
   
 - **量化驗證指標**：
   ```python
@@ -354,9 +507,9 @@ def generate_enhanced_output(self, results: Dict) -> Dict:
         "coverage_ratio": 0.75,
         "distribution_score": 0.85,
         "signal_metrics": {
-          "rsrp_dbm": -85.5,
-          "rsrq_db": 12.8,
-          "sinr_db": 15.2
+          "note": "SIGNAL METRICS REMOVED - Using real physics-based calculations from Stage 3",
+          "calculation_reference": "ITU-R P.525/P.618 standards via Stage 3 processor",
+          "deprecated_mock_values": "Previously used -85.5 dBm RSRP - NOW PROHIBITED"
         },
         "visibility_windows": 3,
         "selection_rationale": {
@@ -689,14 +842,46 @@ else:
 - **時空錯置**: 軌道相位均勻分散，相位多樣性≥0.7
 - **切換保證**: 任何時刻有充足候選衛星
 
-### 🎯 95%+覆蓋率最終驗證標準
-執行完Stage 6驗證後，系統應達到：
-- ✅ **Starlink 95%+覆蓋保證**: 95%以上時間保持10+顆可見（5°仰角閾值）
-- ✅ **OneWeb 95%+覆蓋保證**: 95%以上時間保持3+顆可見（10°仰角閾值） 
-- ✅ **綜合95%+覆蓋**: 95%以上時間同時滿足兩個星座覆蓋要求
-- ✅ **間隙控制**: 最大覆蓋間隙≤2分鐘，無長時間服務中斷
-- ✅ **完整軌道週期**: 2小時軌道週期完整驗證，240個採樣點精確統計
-- ✅ **時空錯置最佳化**: 衛星在軌道相位上錯開分佈，實現高效覆蓋
+## 📖 **學術標準參考文獻**
+
+### 軌道動力學理論基礎
+- **Kepler's Laws**: 開普勒三定律 - 軌道週期和半長軸關係
+- **Vallado, D.A.**: "Fundamentals of Astrodynamics and Applications" - SGP4/SDP4軌道模型
+- **NASA/TP-2010-216239**: "SGP4 Orbit Determination" - 軌道計算精度標準
+- **Curtis, H.D.**: "Orbital Mechanics for Engineering Students" - 軌道力學工程應用
+
+### 衛星覆蓋分析理論
+- **Satellite Coverage Analysis**: Walker星座和軌道相位分佈理論
+- **Spherical Trigonometry**: 球面三角學在衛星可見性計算中的應用
+- **Orbital Geometry**: 軌道幾何學和地面軌跡分析
+- **ITU-R S.1257**: 衛星系統覆蓋分析標準
+
+### 3GPP換手標準
+- **3GPP TS 38.331**: "RRC Protocol specification" - A4/A5/D2事件標準
+- **3GPP TS 38.821**: "NTN Solutions" - 非地面網路換手需求
+- **3GPP TR 38.811**: "NTN Study" - LEO衛星換手研究報告
+
+### 系統可靠性理論
+- **Reliability Engineering**: 系統可靠性分析方法
+- **Fault Tolerant Systems**: 容錯系統設計原理
+- **Mission Critical Systems**: 關鍵任務系統可用性要求
+- **Statistical Analysis**: 覆蓋統計分析和置信區間計算
+
+### 軌道預測精度標準
+- **USSTRATCOM**: 軌道預測精度標準和不確定度分析
+- **SGP4 Accuracy Analysis**: SGP4模型精度評估研究
+- **Orbital Perturbations**: 軌道攝動對預測精度的影響
+- **Monte Carlo Methods**: 軌道不確定度統計分析方法
+
+### 🎯 **基於學術標準的最終驗證要求**
+
+執行完Stage 6驗證後，系統應達到以下**基於科學分析**的標準：
+- ✅ **軌道動力學覆蓋保證**: 基於開普勒定律和軌道週期分析的連續覆蓋
+- ✅ **幾何可見性驗證**: 基於球面三角學的精確可見性計算  
+- ✅ **統計可靠性達標**: 基於系統可靠性理論的覆蓋統計分析
+- ✅ **軌道相位優化**: 基於Walker星座理論的相位分佈優化
+- ✅ **物理間隙控制**: 基於3GPP換手時間要求的最大間隙限制
+- ✅ **預測精度保證**: 考慮SGP4精度限制的時間窗口設計
 
 ---
 
