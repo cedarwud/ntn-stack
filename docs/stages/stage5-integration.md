@@ -5,10 +5,10 @@
 ## 📖 階段概述
 
 **目標**：將所有處理結果整合並建立混合存儲架構  
-**輸入**：階段四的前端動畫時間序列數據（來自 `timeseries_preprocessing_outputs/`）  
-**輸出**：PostgreSQL結構化數據 + Docker Volume檔案存儲  
-**存儲總量**：~365MB (PostgreSQL ~65MB + Volume ~300MB)  
-**處理時間**：約 2-3 分鐘
+**輸入**：階段三的信號分析數據（含仰角）+ 階段四的動畫數據（智能融合）  
+**輸出**：PostgreSQL結構化數據 + Docker Volume檔案存儲 + 分層仰角數據  
+**存儲總量**：~575MB (PostgreSQL ~2MB + Volume ~573MB)  
+**處理時間**：約 1-2 分鐘
 
 ### 🎯 @doc/todo.md 對應實現
 本階段支援以下需求：
@@ -145,6 +145,72 @@ CREATE INDEX idx_handover_serving ON handover_events_summary(serving_satellite_i
     └── health_check.json
 ```
 
+## 🔗 智能數據融合策略
+
+### 雙數據源整合設計
+階段五採用創新的**智能數據融合**方法，同時利用階段三和階段四的優勢：
+
+#### 數據來源分工
+```python
+DATA_FUSION_STRATEGY = {
+    'stage3_data': {
+        'source': '/app/data/signal_quality_analysis_output.json',
+        'provides': [
+            'position_timeseries',      # 完整軌道時序數據
+            'elevation_deg',            # 真實仰角數據（位於relative_to_observer）
+            'signal_quality',           # 詳細信號分析
+            'visibility_analysis',      # 可見性判斷
+            '3gpp_events'              # 3GPP標準事件
+        ],
+        'purpose': '提供科學計算所需的精確數據'
+    },
+    'stage4_data': {
+        'source': '/app/data/timeseries_preprocessing_outputs/',
+        'provides': [
+            'track_points',            # 優化的軌跡動畫點
+            'signal_timeline',         # 前端信號可視化
+            'animation_metadata'       # 動畫性能數據
+        ],
+        'purpose': '提供前端動畫和可視化優化數據'
+    }
+}
+```
+
+#### 融合邏輯實現
+```python
+async def _load_enhanced_timeseries(self) -> Dict[str, Any]:
+    """智能數據融合：結合階段三科學數據和階段四動畫數據"""
+    
+    # 1. 載入階段三數據（科學精確數據）
+    stage3_data = self._load_stage3_signal_analysis()
+    
+    # 2. 載入階段四數據（動畫優化數據） 
+    stage4_data = self._load_stage4_animation_data()
+    
+    # 3. 按衛星ID進行智能融合
+    for constellation in ["starlink", "oneweb"]:
+        for sat_id, stage3_sat in stage3_data[constellation]['satellites'].items():
+            enhanced_satellite = {
+                # 階段三提供：科學計算數據
+                **stage3_sat,  # position_timeseries, signal_quality, etc.
+                
+                # 階段四提供：動畫優化數據（如果存在）
+                'signal_timeline': stage4_data.get(sat_id, {}).get('signal_timeline', []),
+                'track_points': stage4_data.get(sat_id, {}).get('track_points', []),
+                'summary': stage4_data.get(sat_id, {}).get('summary', {})
+            }
+            
+            enhanced_data[constellation]['satellites'][sat_id] = enhanced_satellite
+    
+    return enhanced_data
+```
+
+### 融合優勢
+1. **科學精確性** - 使用階段三的真實仰角數據進行分層濾波
+2. **動畫流暢性** - 保留階段四的前端優化數據
+3. **功能完整性** - 同時滿足科學計算和可視化需求
+4. **架構彈性** - 可獨立更新各數據源而不影響其他功能
+
 ## 🔧 整合處理器實現
 
 ### 主要實現位置
@@ -169,7 +235,7 @@ CREATE INDEX idx_handover_serving ON handover_events_summary(serving_satellite_i
 class Stage5IntegrationProcessor:
     
     async def process_enhanced_timeseries(self) -> Dict[str, Any]:
-        """執行階段五完整整合處理"""
+        """執行階段五完整整合處理 - 智能數據融合版"""
         
         results = {
             "stage": "stage5_integration",
@@ -184,13 +250,13 @@ class Stage5IntegrationProcessor:
         }
         
         try:
-            # 1. 載入增強時間序列數據
+            # 1. 智能數據融合：同時載入階段三（仰角）和階段四（動畫）數據
             enhanced_data = await self._load_enhanced_timeseries()
             
             # 2. PostgreSQL 數據整合
             results["postgresql_integration"] = await self._integrate_postgresql_data(enhanced_data)
             
-            # 3. 生成分層數據增強
+            # 3. 使用真實仰角生成分層數據
             results["layered_data_enhancement"] = await self._generate_layered_data(enhanced_data)
             
             # 4. 生成換手場景專用數據
@@ -218,9 +284,9 @@ class Stage5IntegrationProcessor:
         return results
     
     async def _generate_layered_data(self, enhanced_data: Dict[str, Any]) -> Dict[str, Any]:
-        """生成分層數據增強 - 修正後的版本"""
+        """生成分層數據增強 - 使用真實仰角數據"""
         
-        self.logger.info("🔄 生成分層仰角數據")
+        self.logger.info("🔄 生成分層仰角數據（使用階段三真實仰角數據）")
         
         layered_results = {}
         
@@ -231,53 +297,78 @@ class Stage5IntegrationProcessor:
             layered_results[f"elevation_{threshold}deg"] = {}
             
             for constellation, data in enhanced_data.items():
-                if not data:
+                if not data or 'satellites' not in data:
                     continue
                 
-                # 篩選符合仰角門檻的數據
-                filtered_satellites = []
+                satellites_data = data.get('satellites', {})
+                filtered_satellites = {}
+                total_satellites = len(satellites_data)
                 
-                for satellite in data.get('satellites', []):
+                for sat_id, satellite in satellites_data.items():
+                    # 使用階段三的position_timeseries數據（包含真實仰角）
+                    position_timeseries = satellite.get('position_timeseries', [])
+                    
+                    # 篩選符合仰角門檻的時序點
                     filtered_timeseries = []
+                    for point in position_timeseries:
+                        if isinstance(point, dict):
+                            # 從relative_to_observer中獲取真實仰角數據
+                            relative_data = point.get('relative_to_observer', {})
+                            if isinstance(relative_data, dict):
+                                elevation_deg = relative_data.get('elevation_deg')
+                                is_visible = relative_data.get('is_visible', False)
+                                
+                                # 只保留可見且符合仰角門檻的點
+                                if is_visible and elevation_deg is not None and elevation_deg >= threshold:
+                                    filtered_timeseries.append(point)
                     
-                    # 修正：使用正確的時序數據欄位名稱
-                    timeseries_data = satellite.get('position_timeseries', satellite.get('timeseries', []))
-                    
-                    for point in timeseries_data:
-                        if point.get('elevation_deg', 0) >= threshold:
-                            filtered_timeseries.append(point)
-                    
+                    # 如果有符合條件的時序點，保留該衛星
                     if filtered_timeseries:
-                        filtered_satellites.append({
-                            **satellite,
-                            'position_timeseries': filtered_timeseries  # 保持原始欄位名稱
-                        })
+                        filtered_satellite = {
+                            **satellite,  # 保留所有原有數據
+                            'position_timeseries': filtered_timeseries,  # 更新為篩選後的時序數據
+                            'satellite_id': sat_id,
+                            'layered_stats': {
+                                'elevation_threshold': threshold,
+                                'filtered_points': len(filtered_timeseries),
+                                'original_points': len(position_timeseries)
+                            }
+                        }
+                        filtered_satellites[sat_id] = filtered_satellite
                 
                 # 生成分層數據檔案
+                retention_rate = round(len(filtered_satellites) / max(total_satellites, 1) * 100, 1)
                 layered_data = {
                     "metadata": {
                         **data.get('metadata', {}),
                         "elevation_threshold_deg": threshold,
+                        "total_input_satellites": total_satellites,
                         "filtered_satellites_count": len(filtered_satellites),
-                        "stage5_processing_time": datetime.now(timezone.utc).isoformat()
+                        "filter_retention_rate": retention_rate,
+                        "stage5_processing_time": datetime.now(timezone.utc).isoformat(),
+                        "constellation": constellation,
+                        "filtering_method": "real_elevation_data_from_position_timeseries"
                     },
                     "satellites": filtered_satellites
                 }
                 
                 output_file = threshold_dir / f"{constellation}_with_3gpp_events.json"
                 
-                with open(output_file, 'w') as f:
-                    json.dump(layered_data, f, indent=2)
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    json.dump(layered_data, f, indent=2, ensure_ascii=False)
                 
                 file_size_mb = output_file.stat().st_size / (1024 * 1024)
                 
                 layered_results[f"elevation_{threshold}deg"][constellation] = {
                     "file_path": str(output_file),
+                    "total_input_satellites": total_satellites,
                     "satellites_count": len(filtered_satellites),
-                    "file_size_mb": round(file_size_mb, 2)
+                    "retention_rate_percent": retention_rate,
+                    "file_size_mb": round(file_size_mb, 2),
+                    "filtering_method": "real_elevation_from_position_timeseries"
                 }
                 
-                self.logger.info(f"✅ {constellation} {threshold}度: {len(filtered_satellites)} 顆衛星, {file_size_mb:.1f}MB")
+                self.logger.info(f"✅ {constellation} {threshold}° 門檻: {len(filtered_satellites)}/{total_satellites} 顆衛星 ({retention_rate}%), {file_size_mb:.1f}MB")
         
         return layered_results
 ```

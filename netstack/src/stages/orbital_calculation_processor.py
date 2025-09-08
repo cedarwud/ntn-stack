@@ -306,7 +306,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
                     'data_timestamps': {
                         'tle_data_dates': {const: info['file_date'] for const, info in getattr(self, 'tle_source_info', {}).get('tle_files_used', {}).items()},
                         'processing_execution_time': current_time.isoformat(),
-                        'calculation_base_time_strategy': 'tle_date_based_for_reproducible_research'
+                        'calculation_base_time_strategy': 'current_time_for_realtime_tracking'  # 🔥 關鍵修復
                     }
                 },
                 'total_satellites': 0,
@@ -358,55 +358,45 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
                     except:
                         tle_data['norad_id'] = successful_calculations
                     
-                    # 🎯 CRITICAL FIX: 使用TLE文件日期作為計算基準時間（符合@docs要求）
+                    # 🔥 CRITICAL FIX: 使用當前時間作為計算基準時間，而非TLE文件日期
                     from datetime import timedelta
                     
-                    # 🎯 修復：使用TLE文件日期作為計算基準時間，確保可重現的仿真實驗環境
-                    tle_file_date_str = self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', '20250831')
+                    # 🎯 關鍵修復：使用當前時間進行軌道傳播，讓SGP4從TLE epoch自動傳播到現在
+                    calculation_base_time = current_time  # 使用當前時間而非TLE文件日期
                     
-                    # 解析TLE文件日期並創建基準時間（使用中午12:00作為基準點）
-                    try:
-                        year = int(tle_file_date_str[:4])
-                        month = int(tle_file_date_str[4:6])
-                        day = int(tle_file_date_str[6:8])
-                        # 🎯 關鍵修復：使用TLE文件日期作為基準時間，而非當前時間
-                        tle_base_time = datetime(year, month, day, 12, 0, 0, tzinfo=timezone.utc)
-                        logger.debug(f"衛星 {sat_data['satellite_id']}: 使用TLE基準時間 = {tle_base_time.isoformat()}")
-                    except (ValueError, IndexError) as e:
-                        # 降級到預設日期
-                        logger.warning(f"無法解析TLE日期 '{tle_file_date_str}'，使用預設基準時間: {e}")
-                        tle_base_time = datetime(2025, 8, 31, 12, 0, 0, tzinfo=timezone.utc)
+                    # 獲取TLE文件信息用於數據血統追蹤
+                    tle_file_date_str = self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', '20250831')
                     
                     # 計算 TLE epoch 對應的實際時間（用於調試和數據血統追蹤）
                     tle_epoch_year = sat_data.get('tle_epoch_year', datetime.now().year)
                     tle_epoch_day = sat_data.get('tle_epoch_day', 1.0)
                     tle_epoch_date = datetime(tle_epoch_year, 1, 1, tzinfo=timezone.utc) + timedelta(days=tle_epoch_day - 1)
                     
-                    # 🎯 重要修復：記錄動態時間基準計算結果
-                    logger.debug(f"衛星 {sat_data['satellite_id']}: TLE文件日期 = {tle_file_date_str}, TLE基準時間 = {tle_base_time.isoformat()}, TLE epoch = {tle_epoch_date.isoformat()}")
+                    # 🎯 重要修復：記錄動機時間基準計算結果
+                    logger.debug(f"衛星 {sat_data['satellite_id']}: TLE文件日期 = {tle_file_date_str}, TLE epoch = {tle_epoch_date.isoformat()}, 計算基準時間 = {calculation_base_time.isoformat()}")
                     
-                    # 🎯 重要修復：根據星座選擇正確的軌道週期，使用TLE基準時間
+                    # 🎯 重要修復：根據星座選擇正確的軌道週期，使用當前時間作為計算基準
                     # Starlink (~550km) 使用96分鐘軌道週期
                     # OneWeb (~1200km) 使用109分鐘軌道週期
                     if constellation.lower() == 'starlink':
                         orbit_result = orbit_engine.compute_96min_orbital_cycle(
                             tle_data,
-                            tle_base_time  # 🎯 使用TLE文件日期作為基準時間
+                            calculation_base_time  # 🔥 使用當前時間而非TLE文件日期
                         )
-                        logger.debug(f"使用96分鐘軌道週期計算 Starlink 衛星: {sat_data['satellite_id']}，基準時間: {tle_base_time.isoformat()}")
+                        logger.debug(f"使用96分鐘軌道週期計算 Starlink 衛星: {sat_data['satellite_id']}，基準時間: {calculation_base_time.isoformat()}")
                     elif constellation.lower() == 'oneweb':
                         orbit_result = orbit_engine.compute_109min_orbital_cycle(
                             tle_data,
-                            tle_base_time  # 🎯 使用TLE文件日期作為基準時間
+                            calculation_base_time  # 🔥 使用當前時間而非TLE文件日期
                         )
-                        logger.debug(f"使用109分鐘軌道週期計算 OneWeb 衛星: {sat_data['satellite_id']}，基準時間: {tle_base_time.isoformat()}")
+                        logger.debug(f"使用109分鐘軌道週期計算 OneWeb 衛星: {sat_data['satellite_id']}，基準時間: {calculation_base_time.isoformat()}")
                     else:
                         # 其他星座默認使用96分鐘週期
                         orbit_result = orbit_engine.compute_96min_orbital_cycle(
                             tle_data,
-                            tle_base_time  # 🎯 使用TLE文件日期作為基準時間
+                            calculation_base_time  # 🔥 使用當前時間而非TLE文件日期
                         )
-                        logger.warning(f"未知星座 {constellation}，使用預設96分鐘軌道週期，基準時間: {tle_base_time.isoformat()}")
+                        logger.warning(f"未知星座 {constellation}，使用預設96分鐘軌道週期，基準時間: {calculation_base_time.isoformat()}")
                     
                     if orbit_result and 'positions' in orbit_result:
                         satellite_orbit_data = {
@@ -421,14 +411,14 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
                                 'source_file_date': self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', 'unknown'),
                                 'epoch_year': sat_data.get('tle_epoch_year', 'unknown'),
                                 'epoch_day': sat_data.get('tle_epoch_day', 'unknown'),
-                                'calculation_base_time': tle_base_time.isoformat(),  # 🎯 記錄實際使用的基準時間
+                                'calculation_base_time': calculation_base_time.isoformat(),  # 🎯 記錄實際使用的基準時間
                                 # 🎯 新增：明確數據血統記錄 - 修復時間基準
                                 'data_lineage': {
                                     'data_source_date': self.tle_source_info.get('tle_files_used', {}).get(constellation, {}).get('file_date', 'unknown'),
                                     'tle_epoch_date': tle_epoch_date.isoformat(),
-                                    'tle_base_time_used': tle_base_time.isoformat(),  # 🎯 實際計算使用的時間
+                                    'calculation_base_time_used': calculation_base_time.isoformat(),  # 🔥 實際計算使用的時間（當前時間）
                                     'processing_execution_date': current_time.isoformat(),
-                                    'calculation_strategy': 'sgp4_with_tle_file_date_base_time_for_reproducible_research'  # 🎯 更新策略描述
+                                    'calculation_strategy': 'sgp4_with_current_time_for_realtime_satellite_tracking'  # 🔥 更新策略描述
                                 }
                             },
                             'orbit_data': orbit_result,
@@ -454,9 +444,9 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         # 🎯 修復：在日誌中明確顯示數據血統信息和時間基準策略
         for const, info in getattr(self, 'tle_source_info', {}).get('tle_files_used', {}).items():
             tle_date = info.get('file_date', 'unknown')
-            logger.info(f"  📅 {const} 計算基準: TLE文件日期 {tle_date} (用於可重現研究)")
-        logger.info(f"  🕐 處理執行時間: {current_time.isoformat()}")
-        logger.info(f"  🎯 時間基準策略: 使用TLE文件日期確保可重現的仿真實驗環境")
+            logger.info(f"  📅 {const} TLE數據來源: {tle_date}")
+        logger.info(f"  🕐 計算基準時間: {current_time.isoformat()} (當前時間)")
+        logger.info(f"  🎯 時間基準策略: 使用當前時間進行實時衛星軌道追蹤")
         
         logger.info(f"✅ 階段一完成: {total_processed} 顆衛星已完成完整軌道計算並格式化")
         

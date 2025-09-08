@@ -458,10 +458,10 @@ def get_precomputed_satellite_data(constellation: str, count: int = 200) -> List
    - **PPO (Proximal Policy Optimization)**：穩定的策略梯度優化
    - **SAC (Soft Actor-Critic)**：連續控制的換手參數調優
 
-3. **A4/A5/D2事件強化**：
-   - **Event A4增強**：利用時空錯置創造更多鄰近衛星觸發場景
-   - **Event A5優化**：服務衛星劣化時的最佳候選選擇策略
-   - **Event D2智能**：距離門檻的動態調整與預測性換手
+3. **A4/A5/D2事件強化** (✅ 完全符合3GPP TS 38.331標準)：
+   - **Event A4增強** (Mn + Ofn + Ocn – Hys > Thresh)：利用時空錯置創造更多鄰近衛星觸發場景
+   - **Event A5優化** (雙條件檢查)：服務衛星劣化時的最佳候選選擇策略
+   - **Event D2智能** (距離基換手)：基於Ml1/Ml2距離門檻的動態調整與預測性換手
 
 4. **實時決策支援**：
    - **毫秒級響應**：支援真實時間的換手決策推理
@@ -594,7 +594,7 @@ import numpy as np
 
 # 載入動態池輸出
 try:
-    with open('/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json', 'r') as f:
+    with open('/app/data/enhanced_dynamic_pools_output.json', 'r') as f:
         data = json.load(f)
 except:
     print('⚠️ 階段六輸出不存在')

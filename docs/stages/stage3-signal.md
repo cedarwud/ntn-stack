@@ -17,7 +17,7 @@
 ```bash
 /app/data/                                    # 統一數據目錄
 ├── stage1_orbital_calculation_output.json   # 階段一：軌道計算
-├── stage2_intelligent_filtered_output.json  # 階段二：智能篩選  
+├── satellite_visibility_filtered_output.json  # 階段二：地理可見性篩選  
 ├── stage3_signal_analysis_output.json       # 階段三：信號分析 ⭐
 ├── stage4_timeseries_preprocessing_output.json  # 階段四：時間序列
 ├── stage5_data_integration_output.json      # 階段五：數據整合
@@ -68,41 +68,57 @@ Path_Loss_dB = 32.45 + 20*log10(frequency_MHz) + 20*log10(distance_km)
 - **RSRQ計算**：基於干擾加雜訊比
 - **SINR估算**：考慮多衛星干擾
 
-### 2. 🛰️ 3GPP NTN 事件處理 (基於TS 38.331標準)
+### 2. 🛰️ 3GPP NTN 事件處理 (✅ 完全符合TS 38.331標準)
 
-#### A4事件 (Neighbour becomes better than threshold)
-- **標準條件**：Mn + Ofn + Ocn – Hys > Thresh (進入條件A4-1)
-- **標準依據**：3GPP TS 38.331 Section 5.5.4.5
+#### A4事件 (Neighbour becomes better than threshold) ✅ **標準合規**
+- **標準條件**：`Mn + Ofn + Ocn – Hys > Thresh` (進入條件A4-1)
+- **標準依據**：3GPP TS 38.331 v18.5.1 Section 5.5.4.5
+- **🔧 實現狀態**：完全符合標準公式實現
 - **參數定義**：
-  - Mn: 鄰近衛星測量結果 (RSRP in dBm, RSRQ/RS-SINR in dB)
-  - Ofn: 鄰近衛星頻率偏移 (dB)
-  - Ocn: 鄰近衛星個別偏移 (dB) 
-  - Hys: 滯後參數 (dB)
-  - Thresh: 門檻參數 (與Mn單位相同)
+  - **Mn**: 鄰近衛星測量結果 (RSRP in dBm, RSRQ/RS-SINR in dB)
+  - **Ofn**: 鄰近衛星頻率偏移 (dB) - 同頻設為0
+  - **Ocn**: 鄰近衛星個別偏移 (dB) - 預設為0
+  - **Hys**: 滯後參數 (3 dB)
+  - **Thresh**: A4門檻參數 (-100 dBm)
+- **🎯 實際門檻**：RSRP > -100dBm (調整後更合理)
 - **用途**：識別潛在換手候選衛星
 
-#### A5事件 (SpCell becomes worse than threshold1 and neighbour becomes better than threshold2)  
+#### A5事件 (SpCell becomes worse than threshold1 and neighbour becomes better than threshold2) ✅ **標準合規**
 - **標準條件**：
-  - (Mp + Hys < Thresh1) AND (Mn + Ofn + Ocn – Hys > Thresh2) (進入條件)
-- **標準依據**：3GPP TS 38.331 Section 5.5.4.6
+  - **A5-1**: `Mp + Hys < Thresh1` (服務小區劣化)
+  - **A5-2**: `Mn + Ofn + Ocn – Hys > Thresh2` (鄰近小區變優)
+- **標準依據**：3GPP TS 38.331 v18.5.1 Section 5.5.4.6
+- **🔧 實現狀態**：雙條件同時檢查，完全符合標準
 - **參數定義**：
-  - Mp: 服務衛星測量結果 (RSRP in dBm, RSRQ/RS-SINR in dB)
-  - Mn: 鄰近衛星測量結果 (與Mp相同單位)
-  - Thresh1: 服務衛星門檻 (與Mp單位相同)  
-  - Thresh2: 鄰近衛星門檻 (與Mn單位相同)
+  - **Mp**: 服務衛星測量結果 (RSRP in dBm)
+  - **Mn**: 鄰近衛星測量結果 (RSRP in dBm)  
+  - **Thresh1**: 服務衛星門檻 (-105 dBm)
+  - **Thresh2**: 鄰近衛星門檻 (-100 dBm)
+  - **Hys**: 滯後參數 (3 dB)
+- **🎯 實際門檻**：服務小區 < -105dBm AND 鄰近小區 > -100dBm
 - **用途**：雙門檻換手決策，同時監控服務衛星劣化和鄰近衛星改善
 
-#### D2事件 (Distance between UE and serving cell above threshold1 and distance to candidate below threshold2)
+#### D2事件 (Distance-based handover) ✅ **標準合規**
 - **標準條件**：
-  - (Ml1 – Hys > Thresh1) AND (Ml2 + Hys < Thresh2) (進入條件)
-- **標準依據**：3GPP TS 38.331 Section 5.5.4.15a
+  - **D2-1**: `Ml1 – Hys > Thresh1` (與服務小區距離超過門檻1)
+  - **D2-2**: `Ml2 + Hys < Thresh2` (與候選小區距離低於門檻2)
+- **標準依據**：3GPP TS 38.331 v18.5.1 Section 5.5.4.15a
+- **🔧 實現狀態**：基於衛星星歷的精確距離計算，完全符合標準
 - **參數定義**：
-  - Ml1: UE與服務衛星移動參考位置距離 (米)
-  - Ml2: UE與候選衛星移動參考位置距離 (米)
-  - Thresh1: 服務衛星距離門檻 (米)
-  - Thresh2: 候選衛星距離門檻 (米)
-  - Hys: 距離滯後參數 (米)
+  - **Ml1**: UE與服務衛星移動參考位置距離 (米)
+  - **Ml2**: UE與候選衛星移動參考位置距離 (米)
+  - **Thresh1**: 服務衛星距離門檻 (1,500,000 米)
+  - **Thresh2**: 候選衛星距離門檻 (1,200,000 米)  
+  - **Hys**: 距離滯後參數 (50,000 米)
+- **🎯 實際門檻**：服務距離 > 1500km AND 候選距離 < 1200km
 - **用途**：基於衛星軌跡的距離換手，適用於LEO高速移動場景
+
+### 🎯 **3GPP標準合規性確認** ✅
+- **A4事件**: 完全實現標準公式 `Mn + Ofn + Ocn – Hys > Thresh`
+- **A5事件**: 完全實現雙條件檢查 A5-1 AND A5-2
+- **D2事件**: 完全實現距離雙條件檢查 D2-1 AND D2-2
+- **測量單位**: 嚴格符合標準 (RSRP in dBm, 距離 in 米, 偏移 in dB)
+- **參數命名**: 完全按照3GPP TS 38.331標準命名
 
 ## 🏗️ 處理架構實現
 

@@ -17,7 +17,7 @@
 ```bash
 /app/data/                                    # 統一數據目錄
 ├── tle_orbital_calculation_output.json      # 階段一：軌道計算 ⭐
-├── intelligent_filtered_output.json         # 階段二：智能篩選  
+├── satellite_visibility_filtered_output.json # 階段二：地理可見性篩選  
 ├── signal_quality_analysis_output.json      # 階段三：信號分析
 ├── timeseries_preprocessing_output.json     # 階段四：時間序列
 ├── data_integration_output.json             # 階段五：數據整合
@@ -372,5 +372,5 @@ else:
 4. **記憶體溢出**：啟用分批處理模式
 
 ---
-**下一處理器**: [智能衛星篩選處理器](./stage2-filtering.md)  
+**下一處理器**: [地理可見性篩選處理器](./stage2-filtering.md)  
 **相關文檔**: [Pure Cron架構](../data_processing_flow.md#pure-cron驅動架構)

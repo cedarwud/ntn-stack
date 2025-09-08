@@ -54,7 +54,7 @@ stage_validation_rules = {
         "min_satellites": 8000
     },
     2: {
-        "name": "智能衛星篩選", 
+        "name": "地理可見性篩選", 
         "critical_checks": ["篩選效果檢查", "地理篩選平衡性", "數據完整性檢查"],
         "min_satellites": 100,
         "max_satellites": 4000  # 調整為更合理的限制，約佔總數的45%
@@ -109,7 +109,7 @@ def run_pipeline(self, skip_stages=None) -> bool:
 - **最小衛星數**: 8000 顆
 - **必需星座**: Starlink, OneWeb
 
-### Stage 2 - 智能衛星篩選
+### Stage 2 - 地理可見性篩選
 - **關鍵檢查**: 篩選效果檢查、地理篩選平衡性、數據完整性檢查
 - **衛星數量範圍**: 100-4000 顆
 - **實際輸出**: 約 3,101 顆 (35.3% 篩選率)

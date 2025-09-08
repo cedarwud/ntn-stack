@@ -345,7 +345,7 @@ def run_all_stages_with_immediate_validation():
         )
         
         if not validation_success:
-            print(f'❌ 階段五驗證失敗: {validation_msg}')
+            print('❌ 階段五驗證失敗: {validation_msg}')
             print('🚫 停止後續階段處理')
             return False, 5, validation_msg
         
@@ -373,6 +373,7 @@ def run_all_stages_with_immediate_validation():
         }
         stage6 = EnhancedDynamicPoolPlanner(stage6_config)
         
+        # 🎯 修正：直接輸出到 /app/data/enhanced_dynamic_pools_output.json
         results['stage6'] = stage6.process(
             input_data=results['stage5'],
             output_file='/app/data/enhanced_dynamic_pools_output.json'
