@@ -4,5 +4,3 @@
 - 經度：121°22'17"E = 121 + 22/60 + 17/3600 = 121.3714°E
 
 https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle
-
-請仔細檢查根據我的目的 @doc/todo.md 然後先閱讀完全部的 @docs/ 六階段資料預處理的計劃，然後再仔細檢查目前階段六的文件以及驗證快照的設計，目前專案的程式是否有完全實現?或是還有需要再修改的部份?

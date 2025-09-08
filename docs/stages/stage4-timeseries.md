@@ -62,49 +62,102 @@
 0 2,8,14,20 * * * root /scripts/incremental_data_processor.sh >/var/log/cron-satellite.log 2>&1
 ```
 
-## 📊 數據轉換流程
+## 🚨 **學術級時間序列處理標準遵循** (Grade A/B 等級)
 
-### 1. 時間序列最佳化
+### 🟢 **Grade A 強制要求：數據完整性優先**
+
+#### 時間序列精度保持原則
+- **時間解析度保持**：嚴格維持30秒間隔，不得任意減少採樣點
+- **軌道週期完整性**：保持完整的96分鐘軌道週期數據
+- **精度不降級**：座標精度必須足以支持學術研究分析
+
+#### 🟡 **Grade B 可接受：基於科學原理的優化**
+
+#### 座標系統轉換 (基於標準算法)
+- **WGS84地心座標 → 地理座標**：使用標準WGS84橢球體參數
+- **時間系統同步**：維持GPS時間基準一致性
+- **精度標準**：座標精度基於測量不確定度分析
+
+#### 🔴 **Grade C 嚴格禁止項目** (零容忍)
+- **❌ 任意數據點減量**：如"720點減至360點"等未經驗證的減少
+- **❌ 任意壓縮比例**：如"70%壓縮率"等沒有科學依據的目標
+- **❌ 信號強度"正規化"**：可能失真原始物理測量值
+- **❌ 量化級數簡化**：如"16級量化"等可能導致精度損失
+- **❌ 任意精度截斷**：如"小數點後4位"等未經分析的精度設定
+
+### 📊 **替代方案：基於科學原理的數據處理**
+
+#### 學術級數據保持策略
 ```python
-def optimize_timeseries_for_frontend(raw_data):
-    """最佳化時間序列數據供前端使用"""
+# ✅ 正確：基於數據完整性和科學精度要求
+def preserve_academic_data_integrity(raw_data):
+    """保持學術級數據完整性的時間序列處理"""
     
-    optimized = {}
+    processed = {}
     
     for satellite_id, data in raw_data.items():
-        # 數據點減量（保持關鍵點）
-        reduced_points = adaptive_reduction(
-            data['timeseries'], 
-            target_points=360,  # 從720點減至360點
-            preserve_peaks=True
+        # 保持原始時間解析度 (不減量)
+        full_timeseries = data['position_timeseries']  # 保持192個時間點
+        
+        # 精確座標系統轉換（基於WGS84標準）
+        geo_coordinates = wgs84_eci_to_geographic_conversion(
+            full_timeseries,
+            reference_ellipsoid="WGS84"  # 標準橢球體
         )
         
-        # 座標系統轉換（地心座標 → 地理座標）
-        geo_coordinates = convert_to_geographic(reduced_points)
+        # 保持原始信號值（不正規化）
+        original_rsrp = data['signal_quality']['rsrp_timeseries']  # 保持dBm單位
         
-        # 信號強度正規化
-        normalized_rsrp = normalize_signal_strength(
-            data['signal_quality']['timeseries']
-        )
-        
-        optimized[satellite_id] = {
-            'track_points': geo_coordinates,
-            'signal_timeline': normalized_rsrp,
-            'metadata': extract_key_metrics(data)
+        processed[satellite_id] = {
+            'position_timeseries': geo_coordinates,  # 完整時間序列
+            'signal_timeseries': original_rsrp,     # 原始信號值
+            'academic_metadata': {
+                'time_resolution_sec': 30,           # 標準時間解析度
+                'coordinate_precision': calculate_required_precision(),
+                'signal_unit': 'dBm',                # 保持物理單位
+                'reference_time': data['tle_epoch']  # TLE時間基準
+            }
         }
     
-    return optimized
+    return processed
+
+# ❌ 錯誤：任意數據處理
+def arbitrary_data_processing():
+    target_points = 360      # 任意減量
+    compression_ratio = 0.7  # 任意壓縮
+    quantization_levels = 16 # 任意量化
 ```
 
-### 2. 動畫數據生成
-- **軌跡插值**：在關鍵點間生成平滑插值
-- **時間對齊**：確保所有衛星時間戳同步
-- **視覺化準備**：預計算顏色映射和大小縮放
+#### 前端性能優化的學術級方案
+```python
+# ✅ 正確：在保持數據完整性前提下的性能優化
+def academic_frontend_optimization(full_data):
+    """在不犧牲學術精度的前提下優化前端性能"""
+    
+    # 1. 分層數據結構（不減少數據）
+    optimization = {
+        'full_precision_data': full_data,           # 完整精度數據
+        'display_optimized_data': {                 # 顯示優化（不影響計算）
+            'coordinate_display_precision': 3,       # 僅影響顯示，不影響計算
+            'time_display_format': 'iso_string',     # 顯示格式化
+        },
+        'streaming_strategy': {                     # 漸進式載入策略
+            'batch_size': calculate_optimal_batch_size(),  # 基於網路延遲分析
+            'prefetch_strategy': 'orbital_priority'        # 基於軌道可見性優先級
+        }
+    }
+    
+    return optimization
 
-### 3. 壓縮與最佳化
-- **數值精度調整**：座標精度至小數點後4位
-- **重複數據消除**：移除冗余時間點
-- **格式最佳化**：使用高效的 JSON 結構
+# 2. 基於測量不確定度的精度分析
+def calculate_required_precision():
+    """基於測量不確定度計算所需精度"""
+    sgp4_position_uncertainty_km = 1.0    # SGP4典型精度
+    required_coordinate_precision = calculate_precision_from_uncertainty(
+        uncertainty_km=sgp4_position_uncertainty_km
+    )
+    return required_coordinate_precision
+```
 
 ## 📁 輸出檔案結構
 
@@ -176,6 +229,33 @@ const loadTimeseriesData = async (constellation) => {
   }
 };
 ```
+
+## 📖 **學術標準參考文獻**
+
+### 座標系統轉換標準
+- **WGS84座標系統**: World Geodetic System 1984 - 全球標準座標系統
+- **IERS Conventions (2010)**: 國際地球自轉和參考系統服務 - 座標轉換標準
+- **ITU-R P.834**: 地球站與衛星軌道計算中的座標系統效應
+
+### 時間系統標準
+- **GPS Time Standard**: GPS時間系統規範 - 時間同步基準
+- **UTC Time Coordination**: 協調世界時標準 - 時間轉換規範
+- **IERS Technical Note No. 36**: 地球定向參數和時間系統
+
+### 數據精度與不確定度
+- **ISO/IEC Guide 98-3**: 測量不確定度表達指南
+- **NIST Special Publication 811**: 度量單位使用指南
+- **IEEE Std 754-2019**: 浮點算術標準 - 數值精度標準
+
+### 軌道精度標準
+- **SGP4/SDP4精度分析**: AIAA 2006-6753 - 軌道計算精度評估
+- **NASA/TP-2010-216239**: 軌道確定精度分析
+- **衛星追蹤精度**: USSTRATCOM軌道精度標準
+
+### 時間序列數據處理
+- **數字信號處理**: Oppenheim & Schafer - 時間序列處理理論
+- **測量數據處理**: ISO 5725 - 測量方法和結果的準確度
+- **科學數據管理**: 數據血統追蹤和完整性保持標準
 
 ## 📈 性能指標
 

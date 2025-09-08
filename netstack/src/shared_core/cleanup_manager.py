@@ -26,67 +26,78 @@ class UnifiedCleanupManager:
     
     # 定義所有階段的清理目標（基於實際處理器分析）
     STAGE_CLEANUP_TARGETS = {
+        # 階段一：TLE載入與SGP4軌道計算
         1: CleanupTarget(
             stage=1,
             output_files=[
-                "/app/data/tle_orbital_calculation_output.json"
+                "/app/data/tle_orbital_calculation_output.json"  # 1.4GB，8791顆衛星軌道計算結果
             ],
             validation_file="/app/data/validation_snapshots/stage1_validation.json",
-            directories=[]
+            directories=[
+                "/app/data/tle_calculation_outputs",  # 清理階段一專用目錄
+                "/app/data/detailed_track_data"       # 清理詳細軌道追蹤數據目錄
+            ]
         ),
+        
+        # 階段二：智能衛星篩選  
         2: CleanupTarget(
             stage=2,
             output_files=[
-                "/app/data/satellite_visibility_filtered_output.json",
-                "/app/data/intelligent_filtered_output.json"  # 當前存在的文件
+                "/app/data/satellite_visibility_filtered_output.json"  # 1.1GB，3101顆可見衛星篩選結果
             ],
-            validation_file="/app/data/validation_snapshots/stage2_validation.json", 
-            directories=[]
+            validation_file="/app/data/validation_snapshots/stage2_validation.json",
+            directories=[
+                "/app/data/intelligent_filtering_outputs"  # 清理階段二專用目錄
+            ]
         ),
+        
+        # 階段三：信號品質分析
         3: CleanupTarget(
             stage=3,
             output_files=[
-                "/app/data/signal_quality_analysis_output.json"
+                "/app/data/signal_quality_analysis_output.json"  # 1.1GB，3GPP事件分析結果
             ],
             validation_file="/app/data/validation_snapshots/stage3_validation.json",
-            directories=[]
+            directories=[
+                "/app/data/signal_analysis_outputs"  # 清理階段三專用目錄
+            ]
         ),
+        
+        # 階段四：時間序列預處理
         4: CleanupTarget(
             stage=4,
             output_files=[
-                "/app/data/timeseries_preprocessing_output.json"  # 如果有單一文件
+                "/app/data/timeseries_preprocessing_outputs/animation_enhanced_starlink.json",  # 192MB
+                "/app/data/timeseries_preprocessing_outputs/animation_enhanced_oneweb.json",    # 14MB  
+                "/app/data/timeseries_preprocessing_outputs/conversion_statistics.json"         # 90 bytes
             ],
             validation_file="/app/data/validation_snapshots/stage4_validation.json",
             directories=[
-                # 🔧 移除：階段4不再創建子目錄，直接輸出到主目錄
+                "/app/data/timeseries_preprocessing_outputs"  # 清理整個階段四目錄
             ]
         ),
+        
+        # 階段五：資料整合
         5: CleanupTarget(
             stage=5,
             output_files=[
-                "/app/data/data_integration_output.json"
+                "/app/data/data_integration_outputs/data_integration_output.json"
             ],
             validation_file="/app/data/validation_snapshots/stage5_validation.json",
             directories=[
-                "/app/data/handover_scenarios",      # 階段5創建的目錄
-                "/app/data/layered_elevation_enhanced", # 階段5分層仰角數據目錄  
-                "/app/data/processing_cache",        # 階段5創建的目錄
-                "/app/data/signal_quality_analysis", # 階段5創建的目錄
-                "/app/data/status_files",            # 階段5創建的目錄
-                "/app/data/data_integration_outputs" # 舊子目錄（向後兼容）
+                "/app/data/data_integration_outputs"  # 清理階段五專用目錄
             ]
         ),
+        
+        # 階段六：動態池規劃
         6: CleanupTarget(
             stage=6,
             output_files=[
-                "/app/data/enhanced_dynamic_pools_output.json",
-                "/app/data/dynamic_pool_output.json",      # 備用名稱
-                "/app/data/stage6_dynamic_pool.json",      # 舊名稱
-                "/app/data/dynamic_pools.json"             # API使用的文件
+                "/app/data/dynamic_pool_planning_outputs/enhanced_dynamic_pools_output.json"
             ],
             validation_file="/app/data/validation_snapshots/stage6_validation.json",
             directories=[
-                # 🔧 移除：階段6不再創建子目錄，直接輸出到主目錄
+                "/app/data/dynamic_pool_planning_outputs"  # 清理階段六專用目錄
             ]
         )
     }
@@ -103,7 +114,7 @@ class UnifiedCleanupManager:
             "single_stage": 單一階段測試
         """
         
-        # 方法1: 檢查環境變量
+        # 方案1: 檢查環境變量
         pipeline_mode = os.getenv('PIPELINE_MODE', '').lower()
         if pipeline_mode == 'full':
             self.logger.info("🔍 檢測到環境變量: PIPELINE_MODE=full")
@@ -112,9 +123,9 @@ class UnifiedCleanupManager:
             self.logger.info("🔍 檢測到環境變量: PIPELINE_MODE=single") 
             return "single_stage"
         
-        # 方法2: 檢查調用堆疊
+        # 方案2: 檢查調用堆棧
         try:
-            # 獲取調用堆疊
+            # 獲取調用堆棧
             frame_info = inspect.stack()
             
             # 檢查是否從管道腳本調用
@@ -125,7 +136,7 @@ class UnifiedCleanupManager:
                     return "full_pipeline"
                     
         except Exception as e:
-            self.logger.warning(f"調用堆疊檢測失敗: {e}")
+            self.logger.warning(f"調用堆棧檢測失敗: {e}")
         
         # 預設為單一階段模式
         self.logger.info("🔍 預設檢測結果: single_stage模式")
@@ -174,10 +185,17 @@ class UnifiedCleanupManager:
         mode = self.detect_execution_mode()
         
         if mode == "full_pipeline":
-            return self.cleanup_full_pipeline()
+            # 🔧 修復時序問題：只在第一階段清理一次，避免誤刪依賴檔案
+            if current_stage == 1:  # 只在第一階段清理
+                self.logger.info("🔧 完整管道模式：在階段一執行統一清理")
+                return self.cleanup_full_pipeline()
+            else:
+                self.logger.info(f"🔧 完整管道模式：階段 {current_stage} 跳過清理，保護依賴檔案")
+                return {"files": 0, "directories": 0}  # 其他階段跳過清理
         else:
+            # 單一階段模式保持不變
             if current_stage is None:
-                # 嘗試從調用堆疊推斷階段號碼
+                # 嘗試從調用堆棧推斷階段號碼
                 current_stage = self._infer_current_stage()
             
             if current_stage:
@@ -228,22 +246,24 @@ class UnifiedCleanupManager:
         return False
     
     def _remove_directory(self, dir_path: str) -> bool:
-        """移除目錄"""
+        """移除目錄（包含空目錄）"""
         try:
             import shutil
             path = Path(dir_path)
             if path.exists() and path.is_dir():
                 file_count = len(list(path.rglob("*")))
+                shutil.rmtree(path)
                 if file_count > 0:
-                    shutil.rmtree(path)
                     self.logger.info(f"  🗂️ 已移除目錄: {dir_path} ({file_count} 個檔案)")
-                    return True
+                else:
+                    self.logger.info(f"  🗂️ 已移除空目錄: {dir_path}")
+                return True
         except Exception as e:
             self.logger.warning(f"  ⚠️ 目錄移除失敗 {dir_path}: {e}")
         return False
     
     def _infer_current_stage(self) -> Optional[int]:
-        """從調用堆疊推斷當前階段"""
+        """從調用堆棧推斷當前階段"""
         try:
             frame_info = inspect.stack()
             
@@ -266,20 +286,19 @@ class UnifiedCleanupManager:
                     
         except Exception as e:
             self.logger.warning(f"階段推斷失敗: {e}")
-            
+        
         return None
 
 # 全局實例
 _cleanup_manager = None
 
 def get_cleanup_manager() -> UnifiedCleanupManager:
-    """獲取統一清理管理器實例"""
+    """獲取清理管理器實例（單例模式）"""
     global _cleanup_manager
     if _cleanup_manager is None:
         _cleanup_manager = UnifiedCleanupManager()
     return _cleanup_manager
 
-# 便捷函數
 def auto_cleanup(current_stage: Optional[int] = None) -> Dict[str, int]:
     """自動清理便捷函數"""
     return get_cleanup_manager().auto_cleanup(current_stage)
@@ -287,7 +306,3 @@ def auto_cleanup(current_stage: Optional[int] = None) -> Dict[str, int]:
 def cleanup_all_stages() -> Dict[str, int]:
     """清理所有階段便捷函數"""
     return get_cleanup_manager().cleanup_full_pipeline()
-
-def cleanup_stage(stage_number: int) -> Dict[str, int]:
-    """清理單一階段便捷函數"""
-    return get_cleanup_manager().cleanup_single_stage(stage_number)
