@@ -45,17 +45,34 @@ class CoordinateSpecificOrbitEngine:
     def eci_to_observer_coordinates(self, eci_position: Tuple[float, float, float], 
                                    observation_time: datetime) -> Dict[str, float]:
         """
-        將 ECI 座標轉換為觀測點相對座標
+        將 ECI 座標轉換為觀測點相對座標，並計算衛星地理座標
         
         Args:
             eci_position: ECI 座標 (x, y, z) in km
             observation_time: 觀測時間
             
         Returns:
-            Dict: 包含 elevation, azimuth, range_km 的字典
+            Dict: 包含 elevation, azimuth, range_km 和衛星地理座標的字典
         """
         try:
             x, y, z = eci_position
+            
+            # 🚀 關鍵修復: 計算衛星的地理座標 (緯度/經度/高度)
+            # 從ECI直角座標轉換為地理座標
+            satellite_range = sqrt(x*x + y*y + z*z)
+            satellite_lat_rad = asin(z / satellite_range)
+            satellite_lon_rad = atan2(y, x)
+            satellite_alt_km = satellite_range - self.earth_radius_km
+            
+            # 轉換為度數
+            satellite_lat_deg = degrees(satellite_lat_rad)
+            satellite_lon_deg = degrees(satellite_lon_rad)
+            
+            # 確保經度在 -180 到 180 度之間
+            if satellite_lon_deg > 180:
+                satellite_lon_deg -= 360
+            elif satellite_lon_deg < -180:
+                satellite_lon_deg += 360
             
             # 轉換為弧度
             lat_rad = radians(self.observer_lat)
@@ -95,10 +112,18 @@ class CoordinateSpecificOrbitEngine:
             if azimuth_deg < 0:
                 azimuth_deg += 360
             
+            # 🚀 修復：返回完整的座標信息，包括衛星地理座標
             return {
                 'elevation_deg': elevation_deg,
                 'azimuth_deg': azimuth_deg,
                 'range_km': range_km,
+                # 🚀 新增：衛星地理座標
+                'satellite_lat': satellite_lat_deg,
+                'satellite_lon': satellite_lon_deg,
+                'satellite_alt_km': satellite_alt_km,
+                # ECI原始座標 (用於調試)
+                'eci_coordinates': {'x': x, 'y': y, 'z': z},
+                # ENU座標
                 'enu_coordinates': {'east': east, 'north': north, 'up': up}
             }
             
@@ -108,6 +133,11 @@ class CoordinateSpecificOrbitEngine:
                 'elevation_deg': -90.0,
                 'azimuth_deg': 0.0,
                 'range_km': 0.0,
+                # 🚀 錯誤時也要返回衛星座標字段，避免KeyError
+                'satellite_lat': 0.0,
+                'satellite_lon': 0.0,
+                'satellite_alt_km': 0.0,
+                'eci_coordinates': {'x': 0.0, 'y': 0.0, 'z': 0.0},
                 'enu_coordinates': {'east': 0.0, 'north': 0.0, 'up': 0.0}
             }
     
@@ -508,21 +538,31 @@ class CoordinateSpecificOrbitEngine:
                     observer_coords = self.eci_to_observer_coordinates(position, current_time)
                     elevation = observer_coords['elevation_deg']
                     
+                    # 🚀 修復：使用正確的字段名獲取衛星地理座標
+                    satellite_lat = observer_coords.get('satellite_lat', 0.0)
+                    satellite_lon = observer_coords.get('satellite_lon', 0.0)
+                    satellite_alt_km = observer_coords.get('satellite_alt_km', 0.0)
+                    
                     # Stage 1: 儲存所有位置，不做可見性篩選
                     position_data = {
                         'time': time_point['timestamp'],  # 使用標準化時間戳
                         'time_offset_seconds': t_offset,
-                        'lat': observer_coords.get('satellite_lat', 0.0),
-                        'lon': observer_coords.get('satellite_lon', 0.0), 
-                        'alt_km': observer_coords['range_km'],  # 簡化：用距離代替高度
+                        'lat': satellite_lat,  # 🚀 修復：使用衛星緯度
+                        'lon': satellite_lon,  # 🚀 修復：使用衛星經度
+                        'alt_km': satellite_alt_km,  # 🚀 修復：使用衛星真實高度
                         'elevation_deg': round(elevation, 2),
                         'azimuth_deg': round(observer_coords['azimuth_deg'], 2),
-                        'range_km': round(observer_coords['range_km'], 1)
+                        'range_km': round(observer_coords['range_km'], 1),
+                        # 🚀 新增：ECI原始座標用於調試和驗證
+                        'eci_x_km': round(position[0], 3),
+                        'eci_y_km': round(position[1], 3),
+                        'eci_z_km': round(position[2], 3)
                     }
                     
                     all_positions.append(position_data)
                 else:
                     calculation_errors += 1
+                    logger.warning(f"SGP4計算錯誤 (error={error}) 在時間點 {current_time}: {satellite_tle_data.get('name', 'Unknown')}")
             
             # Stage 1: 返回完整軌道數據，不做任何篩選
             orbit_data = {
@@ -537,8 +577,9 @@ class CoordinateSpecificOrbitEngine:
                     'time_step_seconds': self.time_step_seconds,
                     'total_computed_positions': total_positions,
                     'stored_positions': len(all_positions),
+                    'calculation_errors': calculation_errors,
                     'time_grid_aligned': True,  # 標記使用了標準時間網格
-                    'stage': 'f1_full_orbit',  # 標記這是 F1 全量計算
+                    'stage': 'f1_full_orbit_fixed_coordinates',  # 標記這是修復後的版本
                     'observer_location': {
                         'lat': self.observer_lat,
                         'lon': self.observer_lon,
@@ -552,9 +593,21 @@ class CoordinateSpecificOrbitEngine:
                     'calculation_errors': calculation_errors,
                     'success_rate': round(
                         (total_positions / (total_positions + calculation_errors) * 100) if (total_positions + calculation_errors) > 0 else 0, 2
-                    )
+                    ),
+                    'position_data_validation': {
+                        'non_zero_coordinates_count': len([p for p in all_positions if p['lat'] != 0.0 or p['lon'] != 0.0]),
+                        'valid_altitude_count': len([p for p in all_positions if p['alt_km'] > 0]),
+                        'valid_range_count': len([p for p in all_positions if p['range_km'] > 0])
+                    }
                 }
             }
+            
+            # 🚀 檢查修復是否成功
+            valid_positions = [p for p in all_positions if p['lat'] != 0.0 or p['lon'] != 0.0]
+            if len(valid_positions) > 0:
+                logger.info(f"✅ 座標修復成功 {satellite_tle_data['name']}: {len(valid_positions)}/{len(all_positions)} 個有效位置")
+            else:
+                logger.warning(f"⚠️  {satellite_tle_data['name']} 仍有座標問題：所有位置仍為零值")
             
             return orbit_data
             
