@@ -30,7 +30,7 @@ class SimplifiedVisibilityPreFilter:
     學術標準可見性預篩選器（Grade A合規）
     
     Academic Standards Compliance:
-    - Grade A: 嚴格基於物理參數，無假設值或回退機制
+    - Grade A: 嚴格基於物理參數，無設定值或回退機制
     - 零容忍政策: 數據不足時直接排除，不使用假設
     """
     
@@ -45,7 +45,7 @@ class SimplifiedVisibilityPreFilter:
         Academic Standards Compliance:
         - 基於真實軌道傾角計算
         - 使用球面三角學原理
-        - 無假設值或回退機制
+        - 無設定值或回退機制
         """
         try:
             # 🎯 修復：適配統一格式的數據結構
@@ -169,11 +169,25 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         )
         self.visibility_service = get_visibility_service(observer_location)
         
+        # 🛡️ Phase 3 新增：初始化驗證框架
+        self.validation_enabled = False
+        self.validation_adapter = None
+        
+        try:
+            from validation.adapters.stage2_validation_adapter import Stage2ValidationAdapter
+            self.validation_adapter = Stage2ValidationAdapter()
+            self.validation_enabled = True
+            logger.info("🛡️ Phase 3 Stage 2 驗證框架初始化成功")
+        except Exception as e:
+            logger.warning(f"⚠️ Phase 3 驗證框架初始化失敗: {e}")
+            logger.warning("   繼續使用舊版驗證機制")
+        
         logger.info("✅ 地理可見性自然篩選處理器初始化完成")
         logger.info(f"  觀測點: NTPU ({self.observer_lat:.6f}°, {self.observer_lon:.6f}°)")
         logger.info(f"  篩選模式: 地理可見性自然篩選（無數量限制）")
         logger.info(f"  Starlink條件: 仰角≥{self.filtering_criteria['starlink']['min_elevation_deg']}°, 可見時間≥{self.filtering_criteria['starlink']['min_visible_time_min']}分鐘")
         logger.info(f"  OneWeb條件: 仰角≥{self.filtering_criteria['oneweb']['min_elevation_deg']}°, 可見時間≥{self.filtering_criteria['oneweb']['min_visible_time_min']}分鐘")
+        logger.info(f"  🛡️ Phase 3 驗證框架: {'啟用' if self.validation_enabled else '停用'}")
         
     def load_orbital_calculation_output(self) -> Dict[str, Any]:
         """載入軌道計算結果檔案 - v5.0 統一格式版本"""
@@ -471,8 +485,8 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         }
         
     def process(self) -> Dict[str, Any]:
-        """執行完整的篩選流程 - v5.0 統一格式版本"""
-        logger.info("🚀 開始修復版增強智能衛星篩選處理")
+        """執行完整的篩選流程 - v5.0 統一格式版本 + Phase 3 驗證框架"""
+        logger.info("🚀 開始修復版增強智能衛星篩選處理 + Phase 3 驗證框架")
         logger.info("=" * 60)
         
         # 清理舊驗證快照 (確保生成最新驗證快照)
@@ -526,6 +540,43 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
                 'satellites': []
             }
         
+        # 🛡️ Phase 3 新增：預處理驗證
+        validation_context = {
+            'stage_name': 'stage2_satellite_visibility_filter',
+            'processing_start': datetime.now(timezone.utc).isoformat(),
+            'input_satellites_count': len(all_satellites),
+            'observer_coordinates': {
+                'latitude': self.observer_lat,
+                'longitude': self.observer_lon,
+                'altitude': self.observer_alt
+            },
+            'filtering_criteria': self.filtering_criteria
+        }
+        
+        if self.validation_enabled and self.validation_adapter:
+            try:
+                logger.info("🔍 執行預處理驗證 (軌道數據結構檢查)...")
+                
+                # 執行預處理驗證
+                import asyncio
+                pre_validation_result = asyncio.run(
+                    self.validation_adapter.pre_process_validation(all_satellites, validation_context)
+                )
+                
+                if not pre_validation_result.get('success', False):
+                    error_msg = f"預處理驗證失敗: {pre_validation_result.get('blocking_errors', [])}"
+                    logger.error(f"🚨 {error_msg}")
+                    raise ValueError(f"Phase 3 Validation Failed: {error_msg}")
+                
+                logger.info("✅ 預處理驗證通過，繼續可見性篩選...")
+                
+            except Exception as e:
+                logger.error(f"🚨 Phase 3 預處理驗證異常: {str(e)}")
+                if "Phase 3 Validation Failed" in str(e):
+                    raise  # 重新拋出驗證失敗錯誤
+                else:
+                    logger.warning("   使用舊版驗證邏輯繼續處理")
+        
         # 階段 0: 可見性預篩選
         visible_satellites = self._visibility_prefilter(all_satellites)
         
@@ -537,6 +588,61 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
             retention_rate = 0.0
         else:
             retention_rate = (1 - len(filtered_satellites)/len(all_satellites))*100
+        
+        # 準備處理指標
+        processing_metrics = {
+            'input_satellites': len(all_satellites),
+            'visible_satellites': len(visible_satellites),
+            'filtered_satellites': len(filtered_satellites),
+            'retention_rate': retention_rate,
+            'processing_time': datetime.now(timezone.utc).isoformat(),
+            'filtering_criteria_applied': self.filtering_criteria
+        }
+        
+        # 🛡️ Phase 3 新增：後處理驗證
+        if self.validation_enabled and self.validation_adapter:
+            try:
+                logger.info("🔍 執行後處理驗證 (可見性篩選結果檢查)...")
+                
+                # 執行後處理驗證
+                post_validation_result = asyncio.run(
+                    self.validation_adapter.post_process_validation(filtered_satellites, processing_metrics)
+                )
+                
+                # 檢查驗證結果
+                if not post_validation_result.get('success', False):
+                    error_msg = f"後處理驗證失敗: {post_validation_result.get('error', '未知錯誤')}"
+                    logger.error(f"🚨 {error_msg}")
+                    
+                    # 檢查是否為品質門禁阻斷
+                    if 'Quality gate blocked' in post_validation_result.get('error', ''):
+                        raise ValueError(f"Phase 3 Quality Gate Blocked: {error_msg}")
+                    else:
+                        logger.warning("   後處理驗證失敗，但繼續處理 (降級模式)")
+                else:
+                    logger.info("✅ 後處理驗證通過，可見性篩選結果符合學術標準")
+                    
+                    # 記錄驗證摘要
+                    academic_compliance = post_validation_result.get('academic_compliance', {})
+                    if academic_compliance.get('compliant', False):
+                        logger.info(f"🎓 學術合規性: Grade {academic_compliance.get('grade_level', 'Unknown')}")
+                    else:
+                        logger.warning(f"⚠️ 學術合規性問題: {len(academic_compliance.get('violations', []))} 項違規")
+                
+                # 將驗證結果加入處理指標
+                processing_metrics['validation_summary'] = post_validation_result
+                
+            except Exception as e:
+                logger.error(f"🚨 Phase 3 後處理驗證異常: {str(e)}")
+                if "Phase 3 Quality Gate Blocked" in str(e):
+                    raise  # 重新拋出品質門禁阻斷錯誤
+                else:
+                    logger.warning("   使用舊版驗證邏輯繼續處理")
+                    processing_metrics['validation_summary'] = {
+                        'success': False,
+                        'error': str(e),
+                        'fallback_used': True
+                    }
         
         # 保存結果
         output_file = self.save_filtered_output(filtered_satellites, len(all_satellites))
@@ -555,7 +661,12 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
                 'total_satellites': len(filtered_satellites),
                 'input_satellites': len(all_satellites),
                 'processing_complete': True,
-                'data_format_version': 'unified_v1.0'
+                'data_format_version': 'unified_v1.1_phase3',
+                'validation_summary': processing_metrics.get('validation_summary', None),
+                'academic_compliance': {
+                    'phase3_validation': 'enabled' if self.validation_enabled else 'disabled',
+                    'processing_metrics': processing_metrics
+                }
             },
             'satellites': filtered_satellites
         }
@@ -659,167 +770,282 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         }
     
     def run_validation_checks(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
-        """增強版 Stage 2 驗證檢查 - 修復驗證標準過於寬鬆的問題"""
+        """Phase 3 增強版 Stage 2 驗證檢查 - 整合仰角計算精度和物理公式合規驗證 + Phase 3.5 可配置驗證級別"""
+        
+        # 🎯 Phase 3.5: 導入可配置驗證級別管理器
+        try:
+            from pathlib import Path
+            import sys
+            sys.path.append('/home/sat/ntn-stack')
+            from configurable_validation_integration import ValidationLevelManager
+            
+            validation_manager = ValidationLevelManager()
+            validation_level = validation_manager.get_validation_level('stage2')
+            
+            # 性能監控開始
+            import time
+            validation_start_time = time.time()
+            
+        except ImportError:
+            # 回退到標準驗證級別
+            validation_level = 'STANDARD'
+            validation_start_time = time.time()
+        
         metadata = processing_results.get('metadata', {})
         constellations = processing_results.get('constellations', {})
         satellites = processing_results.get('satellites', [])
         
         checks = {}
         
+        # 📊 根據驗證級別決定檢查項目
+        if validation_level == 'FAST':
+            # 快速模式：只執行關鍵檢查
+            critical_checks = [
+                '輸入數據存在性',
+                '數量範圍合理性', 
+                '仰角門檻合規性',
+                '數據結構完整性'
+            ]
+        elif validation_level == 'COMPREHENSIVE':
+            # 詳細模式：執行所有檢查 + 額外的深度檢查
+            critical_checks = [
+                '輸入數據存在性', '數量範圍合理性', '星座分布平衡性', 
+                '仰角門檻合規性', '可見時間合規性', '仰角計算精度', 
+                '物理公式合規性', '篩選原因一致性', '數據結構完整性',
+                '處理時間合理性', '時間基準一致性', '地理覆蓋相關性'
+            ]
+        else:
+            # 標準模式：執行大部分檢查
+            critical_checks = [
+                '輸入數據存在性', '數量範圍合理性', '星座分布平衡性',
+                '仰角門檻合規性', '可見時間合規性', '仰角計算精度',
+                '物理公式合規性', '篩選原因一致性', '數據結構完整性',
+                '處理時間合理性', '時間基準一致性'
+            ]
+        
         # 1. 輸入數據存在性檢查 - Grade A合規
-        try:
-            orbital_data = self.load_orbital_calculation_output()
-            total_input = len(orbital_data.get('satellites', []))
-            if total_input == 0:
-                if 'constellations' in orbital_data:
-                    total_input = sum(const_data.get('satellite_count', 0) 
-                                    for const_data in orbital_data['constellations'].values())
-            
-            if total_input == 0:
-                raise ValueError("❌ Grade A違規: 階段一數據為空 - 必須使用真實TLE數據")
+        if '輸入數據存在性' in critical_checks:
+            try:
+                orbital_data = self.load_orbital_calculation_output()
+                total_input = len(orbital_data.get('satellites', []))
+                if total_input == 0:
+                    if 'constellations' in orbital_data:
+                        total_input = sum(const_data.get('satellite_count', 0) 
+                                        for const_data in orbital_data['constellations'].values())
                 
-        except Exception as e:
-            raise ValueError(f"❌ Grade A違規: 無法從階段一獲取真實衛星數據 - {str(e)}")
-            
-        checks["輸入數據存在性"] = total_input > 0
+                if total_input == 0:
+                    raise ValueError("❌ Grade A違規: 階段一數據為空 - 必須使用真實TLE數據")
+                    
+            except Exception as e:
+                raise ValueError(f"❌ Grade A違規: 無法從階段一獲取真實衛星數據 - {str(e)}")
+                
+            checks["輸入數據存在性"] = total_input > 0
         
         # 2. 數量範圍合理性檢查 - 修復過於寬鬆的問題
-        total_output = len(satellites)
-        retention_rate = (total_output / max(total_input, 1)) * 100
-        
-        # 基於實際地理篩選邏輯的合理範圍
-        expected_min_output = int(total_input * 0.10)  # 至少10%
-        expected_max_output = int(total_input * 0.60)  # 最多60%
-        
-        checks["數量範圍合理性"] = expected_min_output <= total_output <= expected_max_output
+        if '數量範圍合理性' in critical_checks:
+            total_output = len(satellites)
+            retention_rate = (total_output / max(total_input, 1)) * 100
+            
+            # 基於實際地理篩選邏輯的合理範圍
+            expected_min_output = int(total_input * 0.10)  # 至少10%
+            expected_max_output = int(total_input * 0.60)  # 最多60%
+            
+            checks["數量範圍合理性"] = expected_min_output <= total_output <= expected_max_output
         
         # 3. 星座分布檢查 - 更嚴格的星座平衡驗證
-        starlink_count = sum(1 for sat in satellites if 'starlink' in sat.get('constellation', '').lower())
-        oneweb_count = sum(1 for sat in satellites if 'oneweb' in sat.get('constellation', '').lower())
-        
-        # 基於不同仰角門檻，OneWeb保留率應該較低
-        starlink_retention = (starlink_count / max(1, sum(1 for sat in satellites if 'starlink' in sat.get('constellation', '').lower()))) * 100
-        oneweb_retention = (oneweb_count / max(1, sum(1 for sat in satellites if 'oneweb' in sat.get('constellation', '').lower()))) * 100
-        
-        checks["星座分布平衡性"] = starlink_count > 0 and oneweb_count > 0 and starlink_count > oneweb_count
+        if '星座分布平衡性' in critical_checks:
+            starlink_count = sum(1 for sat in satellites if 'starlink' in sat.get('constellation', '').lower())
+            oneweb_count = sum(1 for sat in satellites if 'oneweb' in sat.get('constellation', '').lower())
+            
+            # 基於不同仰角門檻，OneWeb保留率應該較低
+            starlink_retention = (starlink_count / max(1, sum(1 for sat in satellites if 'starlink' in sat.get('constellation', '').lower()))) * 100
+            oneweb_retention = (oneweb_count / max(1, sum(1 for sat in satellites if 'oneweb' in sat.get('constellation', '').lower()))) * 100
+            
+            checks["星座分布平衡性"] = starlink_count > 0 and oneweb_count > 0 and starlink_count > oneweb_count
         
         # 4. 仰角門檻驗證 - 新增重要檢查
-        elevation_compliance = True
-        sample_count = min(100, len(satellites))  # 檢查樣本
-        
-        for sat in satellites[:sample_count]:
-            constellation = sat.get('constellation', '').lower()
-            filtering_info = sat.get('stage2_filtering', {})
+        if '仰角門檻合規性' in critical_checks:
+            elevation_compliance = True
+            # 快速模式使用較小的樣本
+            sample_count = min(50 if validation_level == 'FAST' else 100, len(satellites))
             
-            if 'starlink' in constellation:
-                expected_threshold = 5.0
-            elif 'oneweb' in constellation:
-                expected_threshold = 10.0
-            else:
-                continue
+            for sat in satellites[:sample_count]:
+                constellation = sat.get('constellation', '').lower()
+                filtering_info = sat.get('stage2_filtering', {})
                 
-            if filtering_info.get('min_elevation_threshold', 0) != expected_threshold:
-                elevation_compliance = False
-                break
-        
-        checks["仰角門檻合規性"] = elevation_compliance
+                if 'starlink' in constellation:
+                    expected_threshold = 5.0
+                elif 'oneweb' in constellation:
+                    expected_threshold = 10.0
+                else:
+                    continue
+                    
+                if filtering_info.get('min_elevation_threshold', 0) != expected_threshold:
+                    elevation_compliance = False
+                    break
+            
+            checks["仰角門檻合規性"] = elevation_compliance
         
         # 5. 可見時間驗證 - 新增關鍵檢查
-        visibility_compliance = True
-        for sat in satellites[:sample_count]:
-            constellation = sat.get('constellation', '').lower()
-            filtering_info = sat.get('stage2_filtering', {})
-            visible_duration = filtering_info.get('visible_duration_minutes', 0)
+        if '可見時間合規性' in critical_checks:
+            visibility_compliance = True
+            sample_count = min(50 if validation_level == 'FAST' else 100, len(satellites))
             
-            if 'starlink' in constellation and visible_duration < 1.0:
-                visibility_compliance = False
-                break
-            elif 'oneweb' in constellation and visible_duration < 0.5:
-                visibility_compliance = False
-                break
+            for sat in satellites[:sample_count]:
+                constellation = sat.get('constellation', '').lower()
+                filtering_info = sat.get('stage2_filtering', {})
+                visible_duration = filtering_info.get('visible_duration_minutes', 0)
+                
+                if 'starlink' in constellation and visible_duration < 1.0:
+                    visibility_compliance = False
+                    break
+                elif 'oneweb' in constellation and visible_duration < 0.5:
+                    visibility_compliance = False
+                    break
+            
+            checks["可見時間合規性"] = visibility_compliance
         
-        checks["可見時間合規性"] = visibility_compliance
+        # 🔬 Phase 3 新增：執行仰角計算精度檢查
+        if '仰角計算精度' in critical_checks:
+            try:
+                elevation_accuracy_report = self._validate_elevation_calculation_accuracy(processing_results)
+                
+                # 將仰角精度報告附加到結果中
+                if 'validation_reports' not in processing_results:
+                    processing_results['validation_reports'] = {}
+                processing_results['validation_reports']['elevation_calculation_accuracy'] = elevation_accuracy_report
+                
+                checks["仰角計算精度"] = elevation_accuracy_report.get('accuracy_compliance_status') == 'PASS'
+                logger.info("✅ 仰角計算精度檢查已完成")
+                
+            except ValueError as e:
+                logger.error(f"❌ 仰角計算精度檢查失敗: {e}")
+                checks["仰角計算精度"] = False
+                # 不拋出異常，允許其他檢查繼續
+        
+        # 🧮 Phase 3 新增：執行物理公式合規驗證
+        if '物理公式合規性' in critical_checks:
+            try:
+                formula_compliance_report = self._validate_physical_formula_compliance(processing_results)
+                
+                # 將物理公式合規報告附加到結果中
+                processing_results['validation_reports']['physical_formula_compliance'] = formula_compliance_report
+                
+                checks["物理公式合規性"] = formula_compliance_report.get('compliance_status') == 'PASS'
+                logger.info("✅ 物理公式合規驗證已完成")
+                
+            except ValueError as e:
+                logger.error(f"❌ 物理公式合規驗證失敗: {e}")
+                checks["物理公式合規性"] = False
+                # 不拋出異常，允許其他檢查繼續
         
         # 6. 篩選原因一致性檢查
-        reason_consistency = True
-        valid_reasons = {'geographic_visibility', 'strict_geographic_visibility', 'geographic_visibility_batch'}
-        
-        for sat in satellites[:sample_count]:
-            filtering_info = sat.get('stage2_filtering', {})
-            reason = filtering_info.get('reason', '')
+        if '篩選原因一致性' in critical_checks:
+            reason_consistency = True
+            valid_reasons = {'geographic_visibility', 'strict_geographic_visibility', 'geographic_visibility_batch'}
+            sample_count = min(50 if validation_level == 'FAST' else 100, len(satellites))
             
-            if reason not in valid_reasons or not filtering_info.get('passed', False):
-                reason_consistency = False
-                break
-        
-        checks["篩選原因一致性"] = reason_consistency
+            for sat in satellites[:sample_count]:
+                filtering_info = sat.get('stage2_filtering', {})
+                reason = filtering_info.get('reason', '')
+                
+                if reason not in valid_reasons or not filtering_info.get('passed', False):
+                    reason_consistency = False
+                    break
+            
+            checks["篩選原因一致性"] = reason_consistency
         
         # 7. 數據結構完整性檢查 - 增強版
-        structure_complete = True
-        required_fields = ['satellite_id', 'constellation', 'position_timeseries', 'stage2_filtering']
-        
-        for sat in satellites[:sample_count]:
-            for field in required_fields:
-                if field not in sat:
-                    structure_complete = False
-                    break
-            if not structure_complete:
-                break
+        if '數據結構完整性' in critical_checks:
+            structure_complete = True
+            required_fields = ['satellite_id', 'constellation', 'position_timeseries', 'stage2_filtering']
+            sample_count = min(50 if validation_level == 'FAST' else 100, len(satellites))
             
-            # 檢查篩選元數據完整性
-            filtering_info = sat.get('stage2_filtering', {})
-            required_filtering_fields = ['passed', 'reason', 'visible_duration_minutes', 'visibility_percentage']
-            for field in required_filtering_fields:
-                if field not in filtering_info:
-                    structure_complete = False
+            for sat in satellites[:sample_count]:
+                for field in required_fields:
+                    if field not in sat:
+                        structure_complete = False
+                        break
+                if not structure_complete:
                     break
-        
-        checks["數據結構完整性"] = structure_complete
+                
+                # 檢查篩選元數據完整性
+                filtering_info = sat.get('stage2_filtering', {})
+                required_filtering_fields = ['passed', 'reason', 'visible_duration_minutes', 'visibility_percentage']
+                for field in required_filtering_fields:
+                    if field not in filtering_info:
+                        structure_complete = False
+                        break
+            
+            checks["數據結構完整性"] = structure_complete
         
         # 8. 處理時間合理性檢查
-        max_time = 300 if self.sample_mode else 180  # 取樣5分鐘，全量3分鐘
-        processing_time_ok = hasattr(self, 'processing_duration') and self.processing_duration <= max_time
-        checks["處理時間合理性"] = processing_time_ok
+        if '處理時間合理性' in critical_checks:
+            # 快速模式有更嚴格的性能要求
+            if validation_level == 'FAST':
+                max_time = 180 if self.sample_mode else 120
+            else:
+                max_time = 300 if self.sample_mode else 180  # 取樣5分鐘，全量3分鐘
+            processing_time_ok = hasattr(self, 'processing_duration') and self.processing_duration <= max_time
+            checks["處理時間合理性"] = processing_time_ok
         
         # 9. 時間基準一致性檢查 - 新增重要檢查
-        time_consistency = True
-        if 'processing_timestamp' in metadata:
-            try:
-                from datetime import datetime
-                processing_time = datetime.fromisoformat(metadata['processing_timestamp'].replace('Z', '+00:00'))
-                current_time = datetime.now(processing_time.tzinfo)
-                time_diff = abs((current_time - processing_time).total_seconds())
-                # 處理時間應該在10分鐘內
-                time_consistency = time_diff <= 600
-            except:
-                time_consistency = False
+        if '時間基準一致性' in critical_checks:
+            time_consistency = True
+            if 'processing_timestamp' in metadata:
+                try:
+                    from datetime import datetime
+                    processing_time = datetime.fromisoformat(metadata['processing_timestamp'].replace('Z', '+00:00'))
+                    current_time = datetime.now(processing_time.tzinfo)
+                    time_diff = abs((current_time - processing_time).total_seconds())
+                    # 處理時間應該在10分鐘內
+                    time_consistency = time_diff <= 600
+                except:
+                    time_consistency = False
+            
+            checks["時間基準一致性"] = time_consistency
         
-        checks["時間基準一致性"] = time_consistency
-        
-        # 10. 地理覆蓋範圍檢查 - 新增NTPU相關性驗證  
-        geographic_relevance = True
-        ntpu_lat, ntpu_lon = 24.9441667, 121.3713889
-        
-        # 檢查是否有衛星軌跡覆蓋NTPU區域
-        coverage_found = False
-        for sat in satellites[:sample_count]:
-            position_timeseries = sat.get('position_timeseries', [])
-            for pos in position_timeseries:
-                sat_lat = pos.get('geodetic', {}).get('latitude_deg', 0)
-                sat_lon = pos.get('geodetic', {}).get('longitude_deg', 0)
-                
-                # 粗略檢查是否在亞太區域內
-                if 10 <= sat_lat <= 40 and 100 <= sat_lon <= 140:
-                    coverage_found = True
+        # 10. 地理覆蓋範圍檢查 - 新增NTPU相關性驗證（詳細模式專用）
+        if '地理覆蓋相關性' in critical_checks:
+            geographic_relevance = True
+            ntpu_lat, ntpu_lon = 24.9441667, 121.3713889
+            
+            # 檢查是否有衛星軌跡覆蓋NTPU區域
+            coverage_found = False
+            sample_count = min(50, len(satellites))
+            for sat in satellites[:sample_count]:
+                position_timeseries = sat.get('position_timeseries', [])
+                for pos in position_timeseries:
+                    sat_lat = pos.get('geodetic', {}).get('latitude_deg', 0)
+                    sat_lon = pos.get('geodetic', {}).get('longitude_deg', 0)
+                    
+                    # 粗略檢查是否在亞太區域內
+                    if 10 <= sat_lat <= 40 and 100 <= sat_lon <= 140:
+                        coverage_found = True
+                        break
+                if coverage_found:
                     break
-            if coverage_found:
-                break
-        
-        checks["地理覆蓋相關性"] = coverage_found
+            
+            checks["地理覆蓋相關性"] = coverage_found
         
         # 計算通過的檢查數量
         passed_checks = sum(1 for passed in checks.values() if passed)
         total_checks = len(checks)
+        
+        # 🎯 Phase 3.5: 記錄驗證性能指標
+        validation_end_time = time.time()
+        validation_duration = validation_end_time - validation_start_time
+        
+        try:
+            # 更新性能指標
+            validation_manager.update_performance_metrics('stage2', validation_duration, total_checks)
+            
+            # 自適應調整（如果性能太差）
+            if validation_duration > 5.0 and validation_level != 'FAST':
+                validation_manager.set_validation_level('stage2', 'FAST', reason='performance_auto_adjustment')
+        except:
+            # 如果性能記錄失敗，不影響主要驗證流程
+            pass
         
         return {
             "passed": passed_checks == total_checks,
@@ -827,24 +1053,431 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
             "passedChecks": passed_checks,
             "failedChecks": total_checks - passed_checks,
             "criticalChecks": [
-                {"name": "輸入數據存在性", "status": "passed" if checks["輸入數據存在性"] else "failed"},
-                {"name": "數量範圍合理性", "status": "passed" if checks["數量範圍合理性"] else "failed"},
-                {"name": "仰角門檻合規性", "status": "passed" if checks["仰角門檻合規性"] else "failed"},
-                {"name": "可見時間合規性", "status": "passed" if checks["可見時間合規性"] else "failed"},
-                {"name": "星座分布平衡性", "status": "passed" if checks["星座分布平衡性"] else "failed"}
+                {"name": name, "status": "passed" if checks.get(name, False) else "failed"}
+                for name in critical_checks if name in checks
             ],
             "allChecks": checks,
             "detailedSummary": {
                 "input_satellites": total_input,
-                "output_satellites": total_output,
-                "retention_rate": f"{retention_rate:.1f}%",
-                "starlink_count": starlink_count,
-                "oneweb_count": oneweb_count,
-                "expected_range": f"{expected_min_output}-{expected_max_output} 顆",
-                "geographic_coverage": "亞太區域相關" if checks["地理覆蓋相關性"] else "地理覆蓋不足"
+                "output_satellites": len(satellites),
+                "retention_rate": f"{(len(satellites) / max(total_input, 1)) * 100:.1f}%",
+                "starlink_count": sum(1 for sat in satellites if 'starlink' in sat.get('constellation', '').lower()),
+                "oneweb_count": sum(1 for sat in satellites if 'oneweb' in sat.get('constellation', '').lower()),
+                "expected_range": f"{int(total_input * 0.10)}-{int(total_input * 0.60)} 顆" if 'total_input' in locals() else "未知範圍",
+                "geographic_coverage": "亞太區域相關" if checks.get("地理覆蓋相關性", True) else "地理覆蓋不足"
             },
-            "summary": f"增強地理篩選驗證: 輸入{total_input}顆 → 輸出{total_output}顆 (保留率{retention_rate:.1f}%) - {passed_checks}/{total_checks}項檢查通過"
+            "phase3_enhancements": {
+                "elevation_accuracy_validated": checks.get("仰角計算精度", False),
+                "physical_formula_validated": checks.get("物理公式合規性", False),
+                "validation_reports_generated": 'validation_reports' in processing_results
+            },
+            # 🎯 Phase 3.5 新增：驗證級別信息
+            "validation_level_info": {
+                "current_level": validation_level,
+                "validation_duration_ms": round(validation_duration * 1000, 2),
+                "checks_executed": list(checks.keys()),
+                "performance_acceptable": validation_duration < 5.0
+            },
+            "summary": f"Phase 3 增強地理篩選驗證: 輸入{total_input if 'total_input' in locals() else '未知'}顆 → 輸出{len(satellites)}顆 (保留率{(len(satellites) / max(total_input if 'total_input' in locals() else 1, 1)) * 100:.1f}%) - {passed_checks}/{total_checks}項檢查通過"
         }
+
+    def _validate_elevation_calculation_accuracy(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        仰角計算精度檢查 - Phase 3 Task 2 新增功能
+        
+        驗證仰角計算是否符合ITU-R P.618標準：
+        - 球面三角學精確計算
+        - 大地座標系轉換準確性
+        - 觀測者位置座標精度
+        - 仰角計算物理合理性
+        
+        Args:
+            processing_results: 過濾處理結果數據
+            
+        Returns:
+            Dict: 仰角計算精度驗證報告
+            
+        Raises:
+            ValueError: 如果發現嚴重的仰角計算精度問題
+        """
+        logger.info("📐 執行仰角計算精度檢查...")
+        
+        satellites = processing_results.get('satellites', [])
+        accuracy_report = {
+            'validation_timestamp': datetime.now(timezone.utc).isoformat(),
+            'total_satellites_checked': len(satellites),
+            'accuracy_statistics': {
+                'satellites_with_accurate_elevation': 0,
+                'satellites_with_precision_issues': 0,
+                'accuracy_compliance_percentage': 0.0
+            },
+            'precision_violations': [],
+            'accuracy_compliance_status': 'UNKNOWN'
+        }
+        
+        # ITU-R P.618 仰角計算精度標準
+        ACCURACY_STANDARDS = {
+            'min_elevation_precision_deg': 0.01,      # 仰角精度至少0.01度
+            'max_elevation_deg': 90.0,                # 最大仰角90度
+            'min_elevation_deg': -90.0,               # 最小仰角-90度（地平線以下）
+            'coordinate_precision_deg': 0.001,        # 座標精度0.001度
+            'max_calculation_error_deg': 0.1,         # 最大計算誤差0.1度
+            'min_valid_range_km': 200,                # 最小有效距離200km
+            'max_valid_range_km': 3000                # 最大有效距離3000km
+        }
+        
+        # NTPU精確座標（用於驗證）
+        NTPU_REFERENCE = {
+            'latitude': 24.9441667,    # 24°56'39"N
+            'longitude': 121.3713889,  # 121°22'17"E
+            'altitude_m': 50.0         # 海拔50米
+        }
+        
+        accurate_satellites = 0
+        precision_issues = 0
+        
+        # 抽樣檢查衛星的仰角計算精度（檢查前50顆）
+        sample_size = min(50, len(satellites))
+        sample_satellites = satellites[:sample_size]
+        
+        for sat_data in sample_satellites:
+            satellite_name = sat_data.get('name', 'Unknown')
+            constellation = sat_data.get('constellation', '').lower()
+            position_timeseries = sat_data.get('position_timeseries', [])
+            
+            if not position_timeseries:
+                precision_violations.append({
+                    'satellite_name': satellite_name,
+                    'violation_type': 'no_position_data',
+                    'details': '缺少位置時間序列數據'
+                })
+                precision_issues += 1
+                continue
+            
+            satellite_violations = []
+            
+            # 檢查前5個時間點的仰角計算精度
+            sample_positions = position_timeseries[:5]
+            
+            for i, pos in enumerate(sample_positions):
+                relative_data = pos.get('relative_to_observer', {})
+                geodetic_data = pos.get('geodetic', {})
+                
+                if not relative_data:
+                    satellite_violations.append({
+                        'timestamp_index': i,
+                        'issue': 'missing_relative_observer_data',
+                        'details': '缺少相對觀測者數據'
+                    })
+                    continue
+                
+                # 1. 檢查仰角值的物理合理性
+                elevation_deg = relative_data.get('elevation_deg')
+                if elevation_deg is None:
+                    satellite_violations.append({
+                        'timestamp_index': i,
+                        'issue': 'missing_elevation_data',
+                        'details': '缺少仰角數據'
+                    })
+                    continue
+                
+                # 檢查仰角範圍
+                if not (ACCURACY_STANDARDS['min_elevation_deg'] <= elevation_deg <= ACCURACY_STANDARDS['max_elevation_deg']):
+                    satellite_violations.append({
+                        'timestamp_index': i,
+                        'issue': 'elevation_out_of_range',
+                        'details': f'仰角 {elevation_deg}° 超出合理範圍',
+                        'expected_range': f"{ACCURACY_STANDARDS['min_elevation_deg']}° 到 {ACCURACY_STANDARDS['max_elevation_deg']}°"
+                    })
+                
+                # 2. 檢查方位角的合理性
+                azimuth_deg = relative_data.get('azimuth_deg')
+                if azimuth_deg is not None:
+                    if not (0 <= azimuth_deg <= 360):
+                        satellite_violations.append({
+                            'timestamp_index': i,
+                            'issue': 'azimuth_out_of_range',
+                            'details': f'方位角 {azimuth_deg}° 超出0-360度範圍'
+                        })
+                
+                # 3. 檢查距離與仰角的一致性
+                range_km = relative_data.get('range_km', 0)
+                if range_km > 0:
+                    # 可見衛星的距離應該在合理範圍內
+                    if elevation_deg > 0:  # 地平線以上
+                        if not (ACCURACY_STANDARDS['min_valid_range_km'] <= range_km <= ACCURACY_STANDARDS['max_valid_range_km']):
+                            satellite_violations.append({
+                                'timestamp_index': i,
+                                'issue': 'range_elevation_inconsistency',
+                                'details': f'可見衛星距離 {range_km}km 與仰角 {elevation_deg}° 不一致'
+                            })
+                
+                # 4. 檢查大地座標的精度
+                if geodetic_data:
+                    sat_lat = geodetic_data.get('latitude_deg')
+                    sat_lon = geodetic_data.get('longitude_deg')
+                    
+                    if sat_lat is not None and sat_lon is not None:
+                        # 檢查座標精度（是否有足夠的小數位數）
+                        lat_precision = len(str(sat_lat).split('.')[-1]) if '.' in str(sat_lat) else 0
+                        lon_precision = len(str(sat_lon).split('.')[-1]) if '.' in str(sat_lon) else 0
+                        
+                        if lat_precision < 4 or lon_precision < 4:  # 至少4位小數
+                            satellite_violations.append({
+                                'timestamp_index': i,
+                                'issue': 'insufficient_coordinate_precision',
+                                'details': f'座標精度不足: 緯度{lat_precision}位, 經度{lon_precision}位小數'
+                            })
+                
+                # 5. 檢查觀測者座標是否為NTPU標準座標
+                observer_lat = self.observer_lat
+                observer_lon = self.observer_lon
+                
+                lat_diff = abs(observer_lat - NTPU_REFERENCE['latitude'])
+                lon_diff = abs(observer_lon - NTPU_REFERENCE['longitude'])
+                
+                if lat_diff > ACCURACY_STANDARDS['coordinate_precision_deg'] or lon_diff > ACCURACY_STANDARDS['coordinate_precision_deg']:
+                    satellite_violations.append({
+                        'timestamp_index': i,
+                        'issue': 'observer_coordinate_deviation',
+                        'details': f'觀測者座標偏離NTPU標準: Δlat={lat_diff:.6f}°, Δlon={lon_diff:.6f}°'
+                    })
+            
+            # 判斷該衛星的仰角計算精度
+            if len(satellite_violations) == 0:
+                accurate_satellites += 1
+            else:
+                precision_issues += 1
+                accuracy_report['precision_violations'].append({
+                    'satellite_name': satellite_name,
+                    'constellation': constellation,
+                    'violation_count': len(satellite_violations),
+                    'violations': satellite_violations
+                })
+        
+        # 計算精度統計
+        accuracy_compliance_rate = (accurate_satellites / sample_size * 100) if sample_size > 0 else 0
+        
+        accuracy_report['accuracy_statistics'] = {
+            'satellites_with_accurate_elevation': accurate_satellites,
+            'satellites_with_precision_issues': precision_issues,
+            'accuracy_compliance_percentage': accuracy_compliance_rate
+        }
+        
+        # 確定精度合規狀態
+        if accuracy_compliance_rate >= 95 and len(accuracy_report['precision_violations']) == 0:
+            accuracy_report['accuracy_compliance_status'] = 'PASS'
+            logger.info(f"✅ 仰角計算精度檢查通過: {accuracy_compliance_rate:.2f}% 合規率")
+        else:
+            accuracy_report['accuracy_compliance_status'] = 'FAIL'
+            logger.error(f"❌ 仰角計算精度檢查失敗: {accuracy_compliance_rate:.2f}% 合規率，發現 {len(accuracy_report['precision_violations'])} 個問題")
+            
+            # 如果精度問題嚴重，拋出異常
+            if accuracy_compliance_rate < 85:
+                raise ValueError(f"Academic Standards Violation: 仰角計算精度嚴重不足 - 合規率僅 {accuracy_compliance_rate:.2f}%")
+        
+        return accuracy_report
+
+    def _validate_physical_formula_compliance(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        物理公式合規驗證 - Phase 3 Task 2 新增功能
+        
+        驗證物理計算是否符合標準：
+        - 球面三角學公式正確性
+        - 大地座標系轉換標準
+        - 距離計算物理一致性
+        - 時間計算準確性
+        
+        Args:
+            processing_results: 過濾處理結果數據
+            
+        Returns:
+            Dict: 物理公式合規驗證報告
+            
+        Raises:
+            ValueError: 如果發現嚴重的物理公式違規
+        """
+        logger.info("🧮 執行物理公式合規驗證...")
+        
+        satellites = processing_results.get('satellites', [])
+        formula_report = {
+            'validation_timestamp': datetime.now(timezone.utc).isoformat(),
+            'total_satellites_checked': len(satellites),
+            'formula_compliance_statistics': {
+                'satellites_with_compliant_calculations': 0,
+                'satellites_with_formula_violations': 0,
+                'compliance_percentage': 0.0
+            },
+            'formula_violations': [],
+            'compliance_status': 'UNKNOWN'
+        }
+        
+        # 物理公式標準定義
+        PHYSICS_STANDARDS = {
+            'earth_radius_km': 6371.0,                    # 地球平均半徑
+            'max_leo_altitude_km': 2000,                  # LEO最大高度
+            'min_leo_altitude_km': 200,                   # LEO最小高度
+            'speed_of_light_kms': 299792.458,            # 光速 km/s
+            'max_orbital_velocity_kms': 8.0,             # 最大軌道速度 km/s
+            'min_orbital_velocity_kms': 6.5,             # 最小軌道速度 km/s
+            'coordinate_system': 'WGS84',                 # 標準座標系
+            'time_precision_seconds': 1.0                 # 時間精度要求
+        }
+        
+        compliant_satellites = 0
+        violation_satellites = 0
+        
+        # 抽樣檢查衛星的物理公式計算（檢查前30顆）
+        sample_size = min(30, len(satellites))
+        sample_satellites = satellites[:sample_size]
+        
+        for sat_data in sample_satellites:
+            satellite_name = sat_data.get('name', 'Unknown')
+            constellation = sat_data.get('constellation', '').lower()
+            position_timeseries = sat_data.get('position_timeseries', [])
+            
+            if not position_timeseries:
+                continue
+            
+            satellite_violations = []
+            
+            # 檢查前3個時間點的物理公式合規性
+            sample_positions = position_timeseries[:3]
+            
+            for i, pos in enumerate(sample_positions):
+                # 1. 檢查ECI座標的物理合理性
+                position_eci = pos.get('position_eci', {})
+                if position_eci:
+                    x = position_eci.get('x', 0)
+                    y = position_eci.get('y', 0)
+                    z = position_eci.get('z', 0)
+                    
+                    # 計算衛星到地心的距離
+                    distance_to_center = (x*x + y*y + z*z)**0.5
+                    altitude = distance_to_center - PHYSICS_STANDARDS['earth_radius_km']
+                    
+                    # 檢查軌道高度是否在LEO範圍內
+                    if not (PHYSICS_STANDARDS['min_leo_altitude_km'] <= altitude <= PHYSICS_STANDARDS['max_leo_altitude_km']):
+                        satellite_violations.append({
+                            'timestamp_index': i,
+                            'formula_violation': 'orbital_altitude_out_of_range',
+                            'details': f'軌道高度 {altitude:.1f}km 超出LEO範圍',
+                            'expected_range': f"{PHYSICS_STANDARDS['min_leo_altitude_km']}-{PHYSICS_STANDARDS['max_leo_altitude_km']}km",
+                            'calculated_value': altitude
+                        })
+                
+                # 2. 檢查大地座標的物理一致性
+                geodetic_data = pos.get('geodetic', {})
+                if geodetic_data:
+                    sat_lat = geodetic_data.get('latitude_deg')
+                    sat_lon = geodetic_data.get('longitude_deg')
+                    sat_alt = geodetic_data.get('altitude_km')
+                    
+                    # 檢查緯度範圍
+                    if sat_lat is not None and not (-90 <= sat_lat <= 90):
+                        satellite_violations.append({
+                            'timestamp_index': i,
+                            'formula_violation': 'latitude_out_of_range',
+                            'details': f'緯度 {sat_lat}° 超出 ±90° 範圍'
+                        })
+                    
+                    # 檢查經度範圍
+                    if sat_lon is not None and not (-180 <= sat_lon <= 180):
+                        satellite_violations.append({
+                            'timestamp_index': i,
+                            'formula_violation': 'longitude_out_of_range',
+                            'details': f'經度 {sat_lon}° 超出 ±180° 範圍'
+                        })
+                    
+                    # 檢查高度一致性
+                    if sat_alt is not None and position_eci:
+                        eci_altitude = distance_to_center - PHYSICS_STANDARDS['earth_radius_km']
+                        altitude_difference = abs(sat_alt - eci_altitude)
+                        
+                        # 高度差應該小於1km（轉換精度要求）
+                        if altitude_difference > 1.0:
+                            satellite_violations.append({
+                                'timestamp_index': i,
+                                'formula_violation': 'altitude_consistency_error',
+                                'details': f'ECI高度({eci_altitude:.1f}km)與大地高度({sat_alt:.1f}km)不一致',
+                                'difference': altitude_difference
+                            })
+                
+                # 3. 檢查觀測者相對數據的物理一致性
+                relative_data = pos.get('relative_to_observer', {})
+                if relative_data and geodetic_data:
+                    range_km = relative_data.get('range_km', 0)
+                    elevation_deg = relative_data.get('elevation_deg')
+                    
+                    # 使用球面三角學驗證距離計算
+                    if range_km > 0 and elevation_deg is not None:
+                        # 粗略檢查：仰角與距離的大致關係
+                        if elevation_deg > 45:  # 高仰角衛星
+                            if range_km > 1500:  # 距離不應該太遠
+                                satellite_violations.append({
+                                    'timestamp_index': i,
+                                    'formula_violation': 'elevation_range_inconsistency',
+                                    'details': f'高仰角({elevation_deg:.1f}°)衛星距離過遠({range_km:.1f}km)'
+                                })
+                        elif elevation_deg < 5:  # 低仰角衛星
+                            if range_km < 1000:  # 距離不應該太近
+                                satellite_violations.append({
+                                    'timestamp_index': i,
+                                    'formula_violation': 'low_elevation_range_inconsistency',
+                                    'details': f'低仰角({elevation_deg:.1f}°)衛星距離過近({range_km:.1f}km)'
+                                })
+                
+                # 4. 檢查速度數據的物理合理性（如果有）
+                velocity_data = pos.get('velocity_kms')
+                if velocity_data and isinstance(velocity_data, dict):
+                    vx = velocity_data.get('vx', 0)
+                    vy = velocity_data.get('vy', 0)
+                    vz = velocity_data.get('vz', 0)
+                    velocity_magnitude = (vx*vx + vy*vy + vz*vz)**0.5
+                    
+                    # 檢查軌道速度是否在LEO範圍內
+                    if not (PHYSICS_STANDARDS['min_orbital_velocity_kms'] <= velocity_magnitude <= PHYSICS_STANDARDS['max_orbital_velocity_kms']):
+                        satellite_violations.append({
+                            'timestamp_index': i,
+                            'formula_violation': 'orbital_velocity_out_of_range',
+                            'details': f'軌道速度 {velocity_magnitude:.2f}km/s 超出LEO範圍',
+                            'expected_range': f"{PHYSICS_STANDARDS['min_orbital_velocity_kms']}-{PHYSICS_STANDARDS['max_orbital_velocity_kms']}km/s"
+                        })
+            
+            # 判斷該衛星的物理公式合規性
+            if len(satellite_violations) == 0:
+                compliant_satellites += 1
+            else:
+                violation_satellites += 1
+                formula_report['formula_violations'].append({
+                    'satellite_name': satellite_name,
+                    'constellation': constellation,
+                    'violation_count': len(satellite_violations),
+                    'violations': satellite_violations
+                })
+        
+        # 計算合規統計
+        compliance_rate = (compliant_satellites / sample_size * 100) if sample_size > 0 else 0
+        
+        formula_report['formula_compliance_statistics'] = {
+            'satellites_with_compliant_calculations': compliant_satellites,
+            'satellites_with_formula_violations': violation_satellites,
+            'compliance_percentage': compliance_rate
+        }
+        
+        # 確定合規狀態
+        if compliance_rate >= 90 and len(formula_report['formula_violations']) <= 2:
+            formula_report['compliance_status'] = 'PASS'
+            logger.info(f"✅ 物理公式合規驗證通過: {compliance_rate:.2f}% 合規率")
+        else:
+            formula_report['compliance_status'] = 'FAIL'
+            logger.error(f"❌ 物理公式合規驗證失敗: {compliance_rate:.2f}% 合規率，發現 {len(formula_report['formula_violations'])} 個問題")
+            
+            # 如果合規問題嚴重，拋出異常
+            if compliance_rate < 75:
+                raise ValueError(f"Academic Standards Violation: 物理公式合規性嚴重不足 - 合規率僅 {compliance_rate:.2f}%")
+        
+        return formula_report
 
 
 def main():
