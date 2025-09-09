@@ -57,7 +57,7 @@ class Stage5IntegrationProcessor(ValidationSnapshotBase):
     def __init__(self, config: Stage5Config):
         # Initialize ValidationSnapshotBase
         super().__init__(stage_number=5, stage_name="階段5: 數據整合", 
-                         snapshot_dir=str(config.output_data_integration_dir + "/validation_snapshots"))
+                         snapshot_dir="/app/data/validation_snapshots")
         
         self.config = config
         self.logger = logging.getLogger(__name__)

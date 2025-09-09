@@ -48,14 +48,30 @@ class SimplifiedVisibilityPreFilter:
         - 無假設值或回退機制
         """
         try:
-            # 從orbital_elements提取傾角（新格式）
-            orbital_elements = satellite_data.get('orbital_elements', {})
-            if 'inclination_deg' in orbital_elements:
-                inclination = orbital_elements['inclination_deg']
+            # 🎯 修復：適配統一格式的數據結構
+            orbit_data = satellite_data.get('orbit_data', {})
+            
+            # 1. 優先從 orbit_data 獲取傾角（統一格式）
+            if 'inclination' in orbit_data:
+                inclination = orbit_data['inclination']
+            # 2. 回退：從 orbital_elements 獲取傾角（舊格式）
+            elif 'orbital_elements' in satellite_data:
+                orbital_elements = satellite_data.get('orbital_elements', {})
+                if 'inclination_deg' in orbital_elements:
+                    inclination = orbital_elements['inclination_deg']
+                else:
+                    logger.debug(f"衛星 {satellite_data.get('name', 'Unknown')} orbital_elements 中缺少 inclination_deg，排除")
+                    return False
+            # 3. 最後回退：從 TLE line2 解析傾角
             else:
-                # 從TLE數據提取真實軌道傾角
-                tle_data = satellite_data.get('tle_data', {})
-                tle_line2 = tle_data.get('line2', '')
+                # 嘗試從 orbit_data 獲取 TLE line2（統一格式）
+                tle_line2 = orbit_data.get('tle_line2', '')
+                
+                # 如果沒有，嘗試從 tle_data 獲取（舊格式）
+                if not tle_line2:
+                    tle_data = satellite_data.get('tle_data', {})
+                    tle_line2 = tle_data.get('line2', '')
+                
                 if not tle_line2 or len(tle_line2) < 16:
                     # 學術標準：無有效TLE數據時排除該衛星
                     logger.debug(f"衛星 {satellite_data.get('name', 'Unknown')} 缺少有效TLE數據，排除")
@@ -160,7 +176,7 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         logger.info(f"  OneWeb條件: 仰角≥{self.filtering_criteria['oneweb']['min_elevation_deg']}°, 可見時間≥{self.filtering_criteria['oneweb']['min_visible_time_min']}分鐘")
         
     def load_orbital_calculation_output(self) -> Dict[str, Any]:
-        """載入軌道計算結果檔案 - 修復版本"""
+        """載入軌道計算結果檔案 - v5.0 統一格式版本"""
         # 🎯 更新為新的檔案命名
         orbital_file = self.input_dir / "tle_orbital_calculation_output.json"
         
@@ -174,10 +190,29 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
             with open(orbital_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            # 檢查數據結構和統計
-            if 'satellites' in data:
+            # 🎯 v5.0 統一格式檢查和統計
+            if 'constellations' in data:
+                total_satellites = 0
+                for const_name, const_data in data['constellations'].items():
+                    # 🔧 修復：從 satellites 列表計算實際數量，而不是依賴 satellite_count 字段
+                    satellites = const_data.get('satellites', [])
+                    const_sat_count = len(satellites)
+                    total_satellites += const_sat_count
+                    logger.info(f"    {const_name}: {const_sat_count} 顆衛星")
+                
+                logger.info(f"  ✅ 載入 {total_satellites} 顆衛星數據")
+                
+                # 🎯 驗證統一格式
+                format_version = data.get('metadata', {}).get('data_format_version', '')
+                if format_version == 'unified_v1.0':
+                    logger.info("✅ 確認使用統一格式 v1.0")
+                else:
+                    logger.warning(f"⚠️ 格式版本不匹配: {format_version}")
+                    
+            elif 'satellites' in data:
+                # 🔧 回退兼容：處理舊的 satellites 陣列格式
                 satellite_count = len(data['satellites'])
-                logger.info(f"  ✅ 載入 {satellite_count} 顆衛星數據")
+                logger.info(f"  ✅ 載入 {satellite_count} 顆衛星數據（舊格式）")
                 
                 # 統計星座分布
                 constellations = {}
@@ -187,15 +222,11 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
                 
                 for const, count in constellations.items():
                     logger.info(f"    {const}: {count} 顆衛星")
-                
-            elif 'constellations' in data:
-                # 舊格式兼容
-                total_satellites = 0
-                for const_name, const_data in data['constellations'].items():
-                    const_sat_count = const_data.get('satellite_count', 0)
-                    total_satellites += const_sat_count
-                    logger.info(f"    {const_name}: {const_sat_count} 顆衛星")
-                logger.info(f"  ✅ 載入 {total_satellites} 顆衛星數據")
+                    
+                logger.warning("⚠️ 檢測到舊格式數據，建議使用統一格式")
+            else:
+                logger.error("❌ 數據格式錯誤：缺少 constellations 或 satellites 字段")
+                return {}
             
             return data
             
@@ -440,7 +471,7 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         }
         
     def process(self) -> Dict[str, Any]:
-        """執行完整的篩選流程"""
+        """執行完整的篩選流程 - v5.0 統一格式版本"""
         logger.info("🚀 開始修復版增強智能衛星篩選處理")
         logger.info("=" * 60)
         
@@ -452,11 +483,26 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         # 載入軌道數據
         orbital_data = self.load_orbital_calculation_output()
         
-        # 整理所有衛星數據 - 適配新的SGP4輸出格式
+        # 🎯 v5.0 統一格式：從 constellations 結構提取衛星數據
         all_satellites = []
         
-        # 檢查新的SGP4格式（直接包含satellites列表）
-        if 'satellites' in orbital_data:
+        if 'constellations' in orbital_data:
+            # 🎯 統一格式：處理 constellations 結構
+            for constellation_name, constellation_data in orbital_data.get('constellations', {}).items():
+                satellites = constellation_data.get('satellites', [])
+                
+                for sat_data in satellites:
+                    # 確保每顆衛星都有 constellation 字段
+                    sat_data['constellation'] = constellation_name
+                    
+                    # 確保有 satellite_id 字段
+                    if 'satellite_id' not in sat_data:
+                        sat_data['satellite_id'] = sat_data.get('name', f"{constellation_name}_unknown")
+                    
+                    all_satellites.append(sat_data)
+                    
+        elif 'satellites' in orbital_data:
+            # 🔧 回退兼容：處理舊的 satellites 陣列格式
             satellites_list = orbital_data.get('satellites', [])
             
             for sat_data in satellites_list:
@@ -464,23 +510,33 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
                 if 'constellation' not in sat_data:
                     sat_data['constellation'] = 'unknown'
                 all_satellites.append(sat_data)
-                
-        # 兼容舊格式
-        elif 'constellations' in orbital_data:
-            for constellation_name, constellation_data in orbital_data.get('constellations', {}).items():
-                satellites = constellation_data.get('orbit_data', {}).get('satellites', {})
-                for sat_id, sat_data in satellites.items():
-                    sat_data['constellation'] = constellation_name
-                    sat_data['satellite_id'] = sat_id
-                    all_satellites.append(sat_data)
+        else:
+            logger.error("❌ 數據格式錯誤：缺少 constellations 或 satellites 字段")
+            return {
+                'metadata': {'total_satellites': 0, 'processing_complete': False, 'error': 'invalid_data_format'},
+                'satellites': []
+            }
                 
         logger.info(f"📊 開始處理 {len(all_satellites)} 顆衛星")
+        
+        if len(all_satellites) == 0:
+            logger.error("❌ 沒有衛星數據可供處理")
+            return {
+                'metadata': {'total_satellites': 0, 'processing_complete': False, 'error': 'no_satellites_data'},
+                'satellites': []
+            }
         
         # 階段 0: 可見性預篩選
         visible_satellites = self._visibility_prefilter(all_satellites)
         
         # 簡化篩選（避免過度篩選）
         filtered_satellites = self._simple_filtering(visible_satellites)
+        
+        # 防止除零錯誤
+        if len(all_satellites) == 0:
+            retention_rate = 0.0
+        else:
+            retention_rate = (1 - len(filtered_satellites)/len(all_satellites))*100
         
         # 保存結果
         output_file = self.save_filtered_output(filtered_satellites, len(all_satellites))
@@ -490,13 +546,16 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         logger.info("✅ 修復版增強智能篩選完成")
         logger.info(f"  輸入: {len(all_satellites)} 顆")
         logger.info(f"  輸出: {len(filtered_satellites)} 顆")
-        logger.info(f"  篩選率: {(1 - len(filtered_satellites)/len(all_satellites))*100:.1f}%")
+        if len(all_satellites) > 0:
+            logger.info(f"  篩選率: {retention_rate:.1f}%")
         
         # 構建返回結果
         result = {
             'metadata': {
                 'total_satellites': len(filtered_satellites),
-                'processing_complete': True
+                'input_satellites': len(all_satellites),
+                'processing_complete': True,
+                'data_format_version': 'unified_v1.0'
             },
             'satellites': filtered_satellites
         }
@@ -600,19 +659,18 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         }
     
     def run_validation_checks(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
-        """執行 Stage 2 驗證檢查 - 專注於地理篩選準確性 (Grade A學術標準合規)"""
+        """增強版 Stage 2 驗證檢查 - 修復驗證標準過於寬鬆的問題"""
         metadata = processing_results.get('metadata', {})
         constellations = processing_results.get('constellations', {})
         satellites = processing_results.get('satellites', [])
         
         checks = {}
         
-        # 1. 輸入數據存在性檢查 - Grade A合規：必須從真實數據源獲取
+        # 1. 輸入數據存在性檢查 - Grade A合規
         try:
             orbital_data = self.load_orbital_calculation_output()
             total_input = len(orbital_data.get('satellites', []))
             if total_input == 0:
-                # 檢查舊格式兼容
                 if 'constellations' in orbital_data:
                     total_input = sum(const_data.get('satellite_count', 0) 
                                     for const_data in orbital_data['constellations'].values())
@@ -625,51 +683,139 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
             
         checks["輸入數據存在性"] = total_input > 0
         
-        # 2. 篩選效果檢查 - 地理篩選結果可能為0（學術上完全可接受）
+        # 2. 數量範圍合理性檢查 - 修復過於寬鬆的問題
         total_output = len(satellites)
         retention_rate = (total_output / max(total_input, 1)) * 100
         
-        if self.sample_mode:
-            # 取樣模式：期望有部分輸出
-            checks["篩選效果檢查"] = 5 <= retention_rate <= 70
-        else:
-            # 全量模式：地理篩選可能完全過濾，這是正常的學術結果
-            checks["篩選效果檢查"] = 0 <= retention_rate <= 50  # 包含0%的情況
+        # 基於實際地理篩選邏輯的合理範圍
+        expected_min_output = int(total_input * 0.10)  # 至少10%
+        expected_max_output = int(total_input * 0.60)  # 最多60%
         
-        # 3. 星座完整性檢查 - 當有輸出時才檢查星座
-        if total_output > 0:
-            starlink_count = sum(1 for sat in satellites if sat.get('constellation', '').lower() == 'starlink')
-            oneweb_count = sum(1 for sat in satellites if sat.get('constellation', '').lower() == 'oneweb')
-            
-            # 有輸出時至少要有一個星座
-            checks["星座完整性檢查"] = starlink_count > 0 or oneweb_count > 0
-        else:
-            # 無輸出時星座檢查自動通過（地理篩選結果）
-            checks["星座完整性檢查"] = True
+        checks["數量範圍合理性"] = expected_min_output <= total_output <= expected_max_output
         
-        # 4. 地理篩選平衡性檢查 - 基於實際地理條件調整期望
-        if total_output > 0:
-            starlink_count = sum(1 for sat in satellites if sat.get('constellation', '').lower() == 'starlink')
-            oneweb_count = sum(1 for sat in satellites if sat.get('constellation', '').lower() == 'oneweb')
+        # 3. 星座分布檢查 - 更嚴格的星座平衡驗證
+        starlink_count = sum(1 for sat in satellites if 'starlink' in sat.get('constellation', '').lower())
+        oneweb_count = sum(1 for sat in satellites if 'oneweb' in sat.get('constellation', '').lower())
+        
+        # 基於不同仰角門檻，OneWeb保留率應該較低
+        starlink_retention = (starlink_count / max(1, sum(1 for sat in satellites if 'starlink' in sat.get('constellation', '').lower()))) * 100
+        oneweb_retention = (oneweb_count / max(1, sum(1 for sat in satellites if 'oneweb' in sat.get('constellation', '').lower()))) * 100
+        
+        checks["星座分布平衡性"] = starlink_count > 0 and oneweb_count > 0 and starlink_count > oneweb_count
+        
+        # 4. 仰角門檻驗證 - 新增重要檢查
+        elevation_compliance = True
+        sample_count = min(100, len(satellites))  # 檢查樣本
+        
+        for sat in satellites[:sample_count]:
+            constellation = sat.get('constellation', '').lower()
+            filtering_info = sat.get('stage2_filtering', {})
             
-            if self.sample_mode:
-                checks["地理篩選平衡性"] = starlink_count >= 5 or oneweb_count >= 2
+            if 'starlink' in constellation:
+                expected_threshold = 5.0
+            elif 'oneweb' in constellation:
+                expected_threshold = 10.0
             else:
-                # 全量模式：根據地理條件，數量可能很少或為0
-                checks["地理篩選平衡性"] = starlink_count >= 0 and oneweb_count >= 0
-        else:
-            # 無輸出時平衡性檢查自動通過（地理條件導致）
-            checks["地理篩選平衡性"] = True
+                continue
+                
+            if filtering_info.get('min_elevation_threshold', 0) != expected_threshold:
+                elevation_compliance = False
+                break
         
-        # 5. 數據完整性檢查 - 確保基本結構正確
-        has_satellites_structure = 'satellites' in processing_results
-        has_metadata = 'total_satellites' in metadata or 'metadata' in processing_results
-        checks["數據完整性檢查"] = has_satellites_structure and has_metadata
+        checks["仰角門檻合規性"] = elevation_compliance
         
-        # 6. 處理時間合理性檢查 - 地理篩選應該相對快速
-        max_time = 200 if self.sample_mode else 60  # 取樣3.3分鐘，全量1分鐘
+        # 5. 可見時間驗證 - 新增關鍵檢查
+        visibility_compliance = True
+        for sat in satellites[:sample_count]:
+            constellation = sat.get('constellation', '').lower()
+            filtering_info = sat.get('stage2_filtering', {})
+            visible_duration = filtering_info.get('visible_duration_minutes', 0)
+            
+            if 'starlink' in constellation and visible_duration < 1.0:
+                visibility_compliance = False
+                break
+            elif 'oneweb' in constellation and visible_duration < 0.5:
+                visibility_compliance = False
+                break
+        
+        checks["可見時間合規性"] = visibility_compliance
+        
+        # 6. 篩選原因一致性檢查
+        reason_consistency = True
+        valid_reasons = {'geographic_visibility', 'strict_geographic_visibility', 'geographic_visibility_batch'}
+        
+        for sat in satellites[:sample_count]:
+            filtering_info = sat.get('stage2_filtering', {})
+            reason = filtering_info.get('reason', '')
+            
+            if reason not in valid_reasons or not filtering_info.get('passed', False):
+                reason_consistency = False
+                break
+        
+        checks["篩選原因一致性"] = reason_consistency
+        
+        # 7. 數據結構完整性檢查 - 增強版
+        structure_complete = True
+        required_fields = ['satellite_id', 'constellation', 'position_timeseries', 'stage2_filtering']
+        
+        for sat in satellites[:sample_count]:
+            for field in required_fields:
+                if field not in sat:
+                    structure_complete = False
+                    break
+            if not structure_complete:
+                break
+            
+            # 檢查篩選元數據完整性
+            filtering_info = sat.get('stage2_filtering', {})
+            required_filtering_fields = ['passed', 'reason', 'visible_duration_minutes', 'visibility_percentage']
+            for field in required_filtering_fields:
+                if field not in filtering_info:
+                    structure_complete = False
+                    break
+        
+        checks["數據結構完整性"] = structure_complete
+        
+        # 8. 處理時間合理性檢查
+        max_time = 300 if self.sample_mode else 180  # 取樣5分鐘，全量3分鐘
         processing_time_ok = hasattr(self, 'processing_duration') and self.processing_duration <= max_time
         checks["處理時間合理性"] = processing_time_ok
+        
+        # 9. 時間基準一致性檢查 - 新增重要檢查
+        time_consistency = True
+        if 'processing_timestamp' in metadata:
+            try:
+                from datetime import datetime
+                processing_time = datetime.fromisoformat(metadata['processing_timestamp'].replace('Z', '+00:00'))
+                current_time = datetime.now(processing_time.tzinfo)
+                time_diff = abs((current_time - processing_time).total_seconds())
+                # 處理時間應該在10分鐘內
+                time_consistency = time_diff <= 600
+            except:
+                time_consistency = False
+        
+        checks["時間基準一致性"] = time_consistency
+        
+        # 10. 地理覆蓋範圍檢查 - 新增NTPU相關性驗證  
+        geographic_relevance = True
+        ntpu_lat, ntpu_lon = 24.9441667, 121.3713889
+        
+        # 檢查是否有衛星軌跡覆蓋NTPU區域
+        coverage_found = False
+        for sat in satellites[:sample_count]:
+            position_timeseries = sat.get('position_timeseries', [])
+            for pos in position_timeseries:
+                sat_lat = pos.get('geodetic', {}).get('latitude_deg', 0)
+                sat_lon = pos.get('geodetic', {}).get('longitude_deg', 0)
+                
+                # 粗略檢查是否在亞太區域內
+                if 10 <= sat_lat <= 40 and 100 <= sat_lon <= 140:
+                    coverage_found = True
+                    break
+            if coverage_found:
+                break
+        
+        checks["地理覆蓋相關性"] = coverage_found
         
         # 計算通過的檢查數量
         passed_checks = sum(1 for passed in checks.values() if passed)
@@ -682,12 +828,22 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
             "failedChecks": total_checks - passed_checks,
             "criticalChecks": [
                 {"name": "輸入數據存在性", "status": "passed" if checks["輸入數據存在性"] else "failed"},
-                {"name": "篩選效果檢查", "status": "passed" if checks["篩選效果檢查"] else "failed"},
-                {"name": "星座完整性檢查", "status": "passed" if checks["星座完整性檢查"] else "failed"},
-                {"name": "地理篩選平衡性", "status": "passed" if checks["地理篩選平衡性"] else "failed"}
+                {"name": "數量範圍合理性", "status": "passed" if checks["數量範圍合理性"] else "failed"},
+                {"name": "仰角門檻合規性", "status": "passed" if checks["仰角門檻合規性"] else "failed"},
+                {"name": "可見時間合規性", "status": "passed" if checks["可見時間合規性"] else "failed"},
+                {"name": "星座分布平衡性", "status": "passed" if checks["星座分布平衡性"] else "failed"}
             ],
             "allChecks": checks,
-            "summary": f"地理篩選結果: 輸入{total_input}顆 → 輸出{total_output}顆 (保留率{retention_rate:.1f}%)"
+            "detailedSummary": {
+                "input_satellites": total_input,
+                "output_satellites": total_output,
+                "retention_rate": f"{retention_rate:.1f}%",
+                "starlink_count": starlink_count,
+                "oneweb_count": oneweb_count,
+                "expected_range": f"{expected_min_output}-{expected_max_output} 顆",
+                "geographic_coverage": "亞太區域相關" if checks["地理覆蓋相關性"] else "地理覆蓋不足"
+            },
+            "summary": f"增強地理篩選驗證: 輸入{total_input}顆 → 輸出{total_output}顆 (保留率{retention_rate:.1f}%) - {passed_checks}/{total_checks}項檢查通過"
         }
 
 

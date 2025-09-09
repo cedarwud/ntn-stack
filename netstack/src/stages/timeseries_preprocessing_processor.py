@@ -29,7 +29,7 @@ class TimeseriesPreprocessingProcessor(ValidationSnapshotBase):
         
         # Initialize ValidationSnapshotBase
         super().__init__(stage_number=4, stage_name="階段4: 時間序列預處理", 
-                         snapshot_dir=str(self.output_dir / "validation_snapshots"))
+                         snapshot_dir="/app/data/validation_snapshots")
         
         # 🔄 修改：建立專用子目錄用於階段四輸出
         self.timeseries_preprocessing_dir = self.output_dir / "timeseries_preprocessing_outputs"
@@ -44,8 +44,7 @@ class TimeseriesPreprocessingProcessor(ValidationSnapshotBase):
         logger.info("✅ 時間序列預處理器初始化完成")
         logger.info(f"  輸入目錄: {self.input_dir}")
         logger.info(f"  輸出目錄: {self.timeseries_preprocessing_dir}")
-        logger.info("  📁 使用專用子目錄結構")
-        
+        logger.info("  📁 使用專用子目錄結構")        
     def extract_key_metrics(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
         """提取階段4關鍵指標"""
         # 從轉換結果中提取關鍵指標
