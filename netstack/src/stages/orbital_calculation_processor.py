@@ -60,9 +60,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         self.tle_path_standardized = False
         
         try:
-            import sys
-            sys.path.append('/home/sat/ntn-stack')
-            from tle_data_path_manager import create_tle_path_manager
+            from validation.managers.tle_path_manager import create_tle_path_manager
             
             self.tle_path_manager = create_tle_path_manager()
             
@@ -112,7 +110,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         self.configurable_validation_enabled = False
         
         try:
-            from configurable_validation_integration import ValidationLevelManager
+            from validation.managers.validation_level_manager import ValidationLevelManager
             
             self.validation_manager = ValidationLevelManager()
             self.configurable_validation_enabled = True
@@ -1588,9 +1586,7 @@ class Stage1TLEProcessor(ValidationSnapshotBase):
         # 🎯 Phase 3.5: 導入可配置驗證級別管理器
         try:
             from pathlib import Path
-            import sys
-            sys.path.append('/home/sat/ntn-stack')
-            from configurable_validation_integration import ValidationLevelManager
+            from validation.managers.validation_level_manager import ValidationLevelManager
             
             validation_manager = ValidationLevelManager()
             validation_level = validation_manager.get_validation_level('stage1')

@@ -378,8 +378,8 @@ class Stage5IntegrationProcessor(ValidationSnapshotBase):
         try:
             from pathlib import Path
             import sys
-            sys.path.append('/home/sat/ntn-stack')
-            from configurable_validation_integration import ValidationLevelManager
+            
+            from validation.managers.validation_level_manager import ValidationLevelManager
             
             validation_manager = ValidationLevelManager()
             validation_level = validation_manager.get_validation_level('stage5')
