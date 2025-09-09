@@ -1,8 +1,8 @@
 # 📚 NTN Stack 技術文檔中心
 
-**版本**: 4.2.0 (統一日誌管理版)  
-**更新日期**: 2025-09-07  
-**專案狀態**: ✅ 生產就緒 + 即時驗證架構 + 統一日誌管理 + UltraThink 全面修復完成
+**版本**: 4.3.0 (Phase 3+ 驗證框架整合版)  
+**更新日期**: 2025-09-09  
+**專案狀態**: ✅ 生產就緒 + Phase 3+ 驗證框架 + 學術標準執行 + 可配置驗證級別
 
 ## 🚀 快速開始
 
@@ -47,6 +47,8 @@ ls -la logs/summary/*.txt | tail -1 | awk '{print $9}' | xargs cat
 | 文檔 | 用途 | 讀者對象 |
 |------|------|----------|
 | [系統架構總覽](./system_architecture.md) | Docker配置、服務架構、高層設計 | 系統架構師、DevOps |
+| [驗證框架總覽](./validation_framework_overview.md) | 🛡️ **NEW**: 六階段驗證框架、學術標準執行 | 數據工程師、研究人員 |
+| [驗證框架快速指南](./validation_quick_guide.md) | ⚡ **NEW**: 5分鐘上手驗證框架 | 所有開發者 |
 | [管道自動驗證架構](./PIPELINE_AUTO_VALIDATION_ARCHITECTURE.md) | ⭐ **NEW**: Fail-Fast自動驗證、階段品質控制 | 數據工程師、系統架構師 |
 | [即時驗證架構](./IMMEDIATE_VALIDATION_ARCHITECTURE.md) | 階段即時驗證、防無意義計算 | 數據工程師、系統架構師 |
 | [建構驗證指南](./BUILD_VALIDATION_GUIDE.md) | 建構時自動狀態檢查、三格式報告 | DevOps、系統維護 |
