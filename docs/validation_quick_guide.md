@@ -33,9 +33,30 @@ docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py -
 | 🟡 **STANDARD** | 10-13項檢查 | +10-15% | 日常生產使用 |
 | 🔴 **COMPREHENSIVE** | 14-16項完整檢查 | +15-20% | 學術發布、重要驗證 |
 
+## ⚡ 運行時檢查清單 (新增)
+
+### 🚨 每個階段必須檢查 (零容忍)
+**2025-09-09 重大強化**: 基於系統性驗證盲區發現，新增強制運行時檢查
+
+- [ ] **使用的引擎類符合文檔規格** (檢查實際類型，非聲明類型)
+- [ ] **輸出格式完全符合API契約** (嚴格檢查數據結構)
+- [ ] **無任何未授權的簡化或回退** (零容忍簡化算法)
+- [ ] **執行流程按照文檔順序** (檢查方法調用路徑)
+
+### 📋 Stage 1 運行時檢查範例
+```python
+# 🔴 強制檢查 - 任何失敗都會停止執行
+assert isinstance(engine, SGP4OrbitalEngine), f"錯誤引擎: {type(engine)}"
+assert len(timeseries) == 192, f"時間序列長度錯誤: {len(timeseries)}"  
+assert 'position_timeseries' in output, "缺少完整時間序列數據"
+assert method_name == "calculate_position_timeseries", "錯誤計算方法"
+```
+
 ## ✅ 關鍵驗證項目
 
 ### 🎯 自動強制檢查 (所有模式)
+- 🔴 **運行時架構完整性檢查** (新增) - 檢查實際使用的引擎
+- 🔴 **API契約嚴格執行** (新增) - 輸出格式100%合規
 - ❌ **零容忍OneWeb ECI座標為零** - 立即失敗
 - ✅ **SGP4時間基準檢查** - 必須使用TLE epoch時間
 - ✅ **學術標準Grade評級** - 強制達到設定標準
@@ -51,6 +72,27 @@ cat /app/data/validation_snapshots/stage1_validation.json | jq '.validation_resu
 ```
 
 ## 🚨 常見問題解決
+
+### 🔴 運行時架構違規 (新增)
+```
+錯誤：assert isinstance(engine, SGP4OrbitalEngine) 失敗
+原因：階段使用了CoordinateSpecificOrbitEngine而非SGP4OrbitalEngine  
+解決：檢查階段處理器的引擎初始化，修復為正確引擎類型
+```
+
+### 🔴 API契約違規 (新增)
+```
+錯誤：assert len(timeseries) == 192 失敗
+原因：輸出了218點而非規定的192點時間序列
+解決：檢查軌道週期設置，確保使用96分鐘標準週期
+```
+
+### 🔴 執行流程違規 (新增)
+```
+錯誤：檢測到未授權的簡化回退機制
+原因：代碼中包含了簡化算法或模擬數據
+解決：移除所有簡化算法，使用完整的學術標準實現
+```
 
 ### ❌ OneWeb ECI座標全零
 ```

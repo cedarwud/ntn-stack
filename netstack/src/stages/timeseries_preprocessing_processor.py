@@ -14,6 +14,11 @@ from typing import Dict, Any, Optional
 
 from src.shared_core.validation_snapshot_base import ValidationSnapshotBase, ValidationCheckHelper
 
+# 新增：運行時檢查組件 (Phase 2)
+from validation.runtime_architecture_checker import RuntimeArchitectureChecker, check_runtime_architecture
+from validation.api_contract_validator import APIContractValidator, validate_api_contract
+from validation.execution_flow_checker import ExecutionFlowChecker, validate_stage_completion
+
 logger = logging.getLogger(__name__)
 
 

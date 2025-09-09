@@ -16,6 +16,37 @@
 
 ## 🚀 驗證框架架構
 
+### 🛡️ 運行時驗證強化 (新增)
+
+**2025-09-09 重大更新**: 基於發現的系統性驗證盲區，新增運行時架構完整性檢查維度。
+
+#### 強制檢查維度
+```python
+# 🔴 運行時架構完整性檢查
+RuntimeArchitectureChecker:
+  - 引擎類型強制驗證 (防止替換為簡化引擎)
+  - 方法調用路徑檢查 (確保按文檔流程執行)  
+  - 依賴項完整性驗證 (檢查必需組件存在)
+
+# 🔴 API契約嚴格執行  
+APIContractValidator:
+  - 輸出格式100%合規檢查
+  - 數據結構完整性驗證
+  - 字段類型和範圍約束檢查
+
+# 🔴 執行流程完整性驗證
+ExecutionFlowChecker:
+  - 步驟順序強制檢查
+  - 參數傳遞完整性驗證
+  - 無簡化回退零容忍檢查
+```
+
+#### 實施要求
+- **100%檢測率**: 任何架構違規都必須被檢測
+- **零容忍政策**: 不允許任何形式的簡化或回退
+- **運行時檢查**: 檢查實際執行的引擎和方法，而非聲明的
+- **性能要求**: 額外檢查時間 <5%
+
 ### 📊 三級驗證模式
 
 ```python
@@ -71,15 +102,29 @@ quality_report = quality_engine.comprehensive_check(data)
 
 ### ✅ Stage 1: TLE 軌道計算驗證
 - **檔案**: `orbital_calculation_processor.py`
-- **整合狀態**: ✅ 完全整合
-- **FAST模式檢查** (4項):
+- **整合狀態**: ✅ 完全整合 + 🔴 運行時強化
+- **🚨 強制運行時檢查** (新增):
+  ```python
+  # 引擎類型強制檢查
+  assert isinstance(engine, SGP4OrbitalEngine), f"錯誤引擎: {type(engine)}"
+  # 輸出格式強制檢查  
+  assert len(timeseries) == 192, f"時間序列長度錯誤: {len(timeseries)}"
+  # API契約完整性檢查
+  assert 'position_timeseries' in output, "缺少完整時間序列數據"
+  ```
+
+- **FAST模式檢查** (6項 - 已強化):
+  - 🔴 **運行時引擎類型檢查** (新增)
+  - 🔴 **API契約格式檢查** (新增)
   - TLE文件存在性
   - 衛星數量檢查  
   - 統一格式檢查
   - SGP4計算完整性
 
-- **COMPREHENSIVE模式檢查** (14項):
+- **COMPREHENSIVE模式檢查** (16項 - 已強化):
   - 上述 FAST 檢查 +
+  - 🔴 **執行流程完整性檢查** (新增)
+  - 🔴 **無簡化回退檢查** (新增)
   - 星座完整性檢查
   - 重複數據檢查
   - 軌道數據合理性
@@ -89,7 +134,6 @@ quality_report = quality_engine.comprehensive_check(data)
   - 處理性能檢查
   - 文件大小合理性
   - 數據格式版本
-  - 軌道參數物理邊界驗證
 
 ### ✅ Stage 2: 衛星可見性篩選驗證
 - **檔案**: `satellite_visibility_filter_processor.py`

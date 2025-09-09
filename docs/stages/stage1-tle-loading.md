@@ -92,9 +92,10 @@
 
 **重要澄清**：系統中有三個不同的時間概念：
 
-1. **軌道計算週期**：96分鐘
-   - 單次處理每顆衛星的完整軌道週期
-   - 192個時間點，30秒間隔
+1. **軌道計算週期**：**星座特定設計**
+   - **Starlink**: 96分鐘軌道 → 192個時間點 (30秒間隔)
+   - **OneWeb**: 109分鐘軌道 → 218個時間點 (30秒間隔)
+   - 基於真實軌道動力學，每個星座使用其實際軌道週期
    - 用於生成連續的軌跡動畫數據
 
 2. **系統更新週期**：6小時  
@@ -107,6 +108,79 @@
    - **TLE Epoch時間**：TLE軌道元素的參考時間點
    - **處理執行時間**：軌道計算程序的實際運行時間
    - **計算基準時間**：SGP4算法使用的時間基準（採用TLE Epoch）
+
+## 🚨 強制運行時檢查 (新增)
+
+**2025-09-09 重大強化**: 基於系統性驗證盲區發現，新增強制運行時架構完整性檢查維度。
+
+### 🔴 零容忍運行時檢查 (任何失敗都會停止執行)
+
+#### 1. 引擎類型強制檢查
+```python
+# 🚨 嚴格檢查實際使用的引擎類型，而非聲明的類型
+assert isinstance(engine, SGP4OrbitalEngine), f"錯誤引擎: {type(engine)}"
+# 原因: 防止使用CoordinateSpecificOrbitEngine替代SGP4OrbitalEngine
+# 影響: 使用錯誤引擎會產生不正確的軌道計算結果
+```
+
+#### 2. API契約格式檢查  
+```python
+# 🚨 星座特定時間序列長度檢查 (修正版)
+constellation = satellite.get('constellation', '').lower()
+expected_points = {
+    'starlink': 192,  # 96分鐘軌道
+    'oneweb': 218     # 109分鐘軌道
+}.get(constellation)
+
+assert expected_points is not None, f"未知星座: {constellation}"
+assert len(timeseries) == expected_points, f"時間序列長度錯誤: {len(timeseries)} (應為{expected_points}點，星座: {constellation})"
+
+# 🚨 強制檢查輸出數據結構完整性
+assert 'position_timeseries' in output, "缺少完整時間序列數據"
+assert 'metadata' in output, "缺少元數據信息"
+assert 'constellation' in satellite, "衛星缺少星座標識"
+assert output['metadata']['total_satellites'] > 8600, "衛星數量不足"
+```
+
+#### 3. 執行流程完整性檢查
+```python
+# 🚨 檢查方法調用路徑，確保按文檔順序執行
+assert method_name == "calculate_position_timeseries", "錯誤計算方法"
+assert processing_mode == "complete_sgp4_calculation", "簡化算法檢測"
+# 原因: 防止使用簡化算法或回退機制
+# 影響: 確保學術標準Grade A完整實現
+```
+
+#### 4. 無簡化回退零容忍檢查
+```python
+# 🚨 禁止任何形式的簡化或回退
+forbidden_patterns = [
+    "simplified", "mock", "fallback", "estimated", 
+    "assumed", "default", "placeholder"
+]
+for pattern in forbidden_patterns:
+    assert pattern.lower() not in str(engine.__class__).lower(), \
+        f"檢測到禁用的簡化實現: {pattern}"
+```
+
+### 📋 Runtime Check Integration Points
+
+**檢查時機**: 
+- **初始化時**: 驗證引擎類型和配置參數
+- **計算過程中**: 監控方法調用路徑和數據流
+- **輸出前**: 嚴格檢查數據格式和結構完整性
+
+**失敗處理**:
+- **立即停止**: 任何runtime check失敗都會立即終止執行
+- **錯誤報告**: 詳細記錄失敗原因和檢測到的違規
+- **無回退機制**: 絕不允許降級或簡化處理
+
+### 🛡️ 實施要求
+
+- **100%檢測率**: 所有架構違規必須被檢測
+- **零漏檢容忍**: 不允許任何違規通過檢查
+- **性能影響**: 運行時檢查額外時間開銷 <5%
+- **學術誠信**: 確保完全符合學術級數據標準
 
 ### 🚨 衛星渲染時間基準重要說明
 

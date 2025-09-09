@@ -136,6 +136,114 @@ def assume_arbitrary_thresholds():
     return {'a4_threshold': -100}  # 任意值
 ```
 
+## 🚨 強制運行時檢查 (新增)
+
+**2025-09-09 重大強化**: 新增階段三專門的運行時架構完整性檢查維度。
+
+### 🔴 零容忍運行時檢查 (任何失敗都會停止執行)
+
+#### 1. 信號分析引擎類型強制檢查
+```python
+# 🚨 嚴格檢查實際使用的信號分析引擎類型
+assert isinstance(signal_processor, SignalQualityAnalysisProcessor), f"錯誤信號處理器: {type(signal_processor)}"
+assert isinstance(event_analyzer, GPPEventAnalyzer), f"錯誤3GPP事件分析器: {type(event_analyzer)}"
+# 原因: 確保使用完整的信號品質分析器，而非簡化版本
+# 影響: 錯誤引擎可能導致信號計算不符合ITU-R標準或缺少3GPP事件
+```
+
+#### 2. 輸入數據格式完整性檢查  
+```python
+# 🚨 強制檢查輸入數據來自階段二的完整格式
+assert 'filtered_satellites' in input_data, "缺少篩選結果"
+assert input_data['metadata']['total_filtered_satellites'] > 1000, f"篩選衛星數量不足: {input_data['metadata']['total_filtered_satellites']}"
+for satellite in input_data['filtered_satellites']['starlink'][:5]:
+    assert 'position_timeseries' in satellite, "缺少位置時間序列數據"
+    # 星座特定時間序列長度檢查 (修正版)
+    constellation = satellite.get('constellation', '').lower()
+    expected_points = 192 if constellation == 'starlink' else 218 if constellation == 'oneweb' else None
+    assert expected_points is not None, f"未知星座: {constellation}"
+    assert len(satellite['position_timeseries']) == expected_points, f"時間序列長度不符合規格: {len(satellite['position_timeseries'])} vs {expected_points} ({constellation})"
+# 原因: 確保階段二的篩選數據格式正確傳遞
+# 影響: 不完整的輸入會導致信號計算錯誤或覆蓋不足
+```
+
+#### 3. 信號計算標準合規檢查
+```python
+# 🚨 強制檢查信號計算使用ITU-R標準
+calculation_standard = config.get('signal_calculation_standard')
+assert 'ITU-R' in calculation_standard, f"信號計算標準錯誤: {calculation_standard}"
+assert calculation_method == "ITU_R_P618_standard", f"計算方法錯誤: {calculation_method}"
+# 原因: 確保使用ITU-R P.618標準進行路徑損耗和大氣衰減計算
+# 影響: 非標準計算會導致信號功率預算不准確
+```
+
+#### 4. 3GPP事件標準合規檢查
+```python
+# 🚨 強制檢查3GPP事件實現符合TS 38.331標準
+supported_events = event_analyzer.get_supported_events()
+required_events = ['A4_intra_frequency', 'A5_intra_frequency', 'D2_beam_switch']
+for event in required_events:
+    assert event in supported_events, f"缺少3GPP標準事件: {event}"
+assert event_analyzer.standard_version == "TS_38_331_v18_5_1", "3GPP標準版本錯誤"
+# 原因: 確保完整實現3GPP TS 38.331標準定義的換手事件
+# 影響: 不完整的事件實現會影響後續換手決策的準確性
+```
+
+#### 5. 信號範圍物理合理性檢查
+```python
+# 🚨 強制檢查計算出的信號範圍符合物理定律
+for satellite_result in output_results:
+    rsrp_values = satellite_result['signal_quality']['rsrp_by_elevation'].values()
+    assert all(-150 <= rsrp <= -50 for rsrp in rsrp_values), f"RSRP值超出物理合理範圍: {rsrp_values}"
+    # 檢查仰角與信號強度的負相關性
+    elevations = list(satellite_result['signal_quality']['rsrp_by_elevation'].keys())
+    rsrps = list(satellite_result['signal_quality']['rsrp_by_elevation'].values())
+    correlation = np.corrcoef(elevations, rsrps)[0,1]
+    assert correlation > 0.5, f"仰角-RSRP相關性異常: {correlation}"
+# 原因: 確保信號計算結果符合物理定律
+# 影響: 不合理的信號值會影響後續階段的決策準確性
+```
+
+#### 6. 無簡化信號模型零容忍檢查
+```python
+# 🚨 禁止任何形式的簡化信號計算
+forbidden_signal_models = [
+    "fixed_rsrp", "linear_approximation", "simplified_pathloss",
+    "mock_signal", "random_signal", "estimated_power"
+]
+for model in forbidden_signal_models:
+    assert model not in str(signal_processor.__class__).lower(), \
+        f"檢測到禁用的簡化信號模型: {model}"
+    
+# 檢查是否使用了固定信號值或隨機數生成
+for satellite in output_results:
+    rsrp_list = list(satellite['signal_quality']['rsrp_by_elevation'].values())
+    assert len(set(rsrp_list)) > 1, "檢測到固定RSRP值，可能使用了簡化模型"
+```
+
+### 📋 Runtime Check Integration Points
+
+**檢查時機**: 
+- **初始化時**: 驗證信號處理器和3GPP事件分析器類型
+- **輸入處理時**: 檢查階段二數據完整性和格式正確性
+- **信號計算時**: 監控ITU-R標準合規和計算方法正確性
+- **事件分析時**: 驗證3GPP標準事件完整實現
+- **輸出前**: 嚴格檢查信號值物理合理性和結果完整性
+
+**失敗處理**:
+- **立即停止**: 任何runtime check失敗都會立即終止執行
+- **標準檢查**: 驗證ITU-R和3GPP標準實現正確性
+- **數據回溯**: 檢查階段二輸出和配置文件正確性
+- **無降級處理**: 絕不允許使用簡化信號模型或假設參數
+
+### 🛡️ 實施要求
+
+- **ITU-R標準強制執行**: 信號計算必須100%符合ITU-R P.618標準
+- **3GPP事件完整實現**: 必須支持A4、A5、D2三種標準事件類型
+- **物理合理性保證**: 所有信號值必須符合物理定律和實際衛星系統參數
+- **跨階段數據一致性**: 確保與階段二輸出數據格式100%兼容
+- **性能影響控制**: 運行時檢查額外時間開銷 <3%
+
 ### 2. 🛰️ 3GPP NTN 事件處理 (✅ 完全符合TS 38.331標準)
 
 #### A4事件 (Neighbour becomes better than threshold) ✅ **標準合規**
