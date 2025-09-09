@@ -30,6 +30,11 @@ from src.services.satellite.intelligent_filtering.unified_intelligent_filter imp
 # 導入驗證基礎類別
 from shared_core.validation_snapshot_base import ValidationSnapshotBase, ValidationCheckHelper
 
+# 新增：運行時檢查組件 (Phase 2)
+from validation.runtime_architecture_checker import RuntimeArchitectureChecker, check_runtime_architecture
+from validation.api_contract_validator import APIContractValidator, validate_api_contract
+from validation.execution_flow_checker import ExecutionFlowChecker, validate_stage_completion
+
 logger = logging.getLogger(__name__)
 
 class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
@@ -1387,7 +1392,20 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
         
     def process_signal_quality_analysis(self, filtering_file: Optional[str] = None, filtering_data: Optional[Dict[str, Any]] = None,
                       save_output: bool = True) -> Dict[str, Any]:
-        """執行完整的信號品質分析處理流程 - v6.0 Phase 3 驗證框架版本"""
+        """執行完整的信號品質分析處理流程 - v6.0 Phase 3 驗證框架版本
+        
+        Phase 2 Enhancement: 新增運行時檢查
+        """
+        
+        # 🚨 Phase 2: 運行時檢查 - 信號處理器和事件分析器驗證
+        try:
+            check_runtime_architecture("stage3", engine=self.rsrp_calculator, component=self.event_analyzer)
+            validate_stage_completion("stage3", ["stage1", "stage2"])  # Stage 3 依賴前兩階段
+            logger.info("✅ Stage 3 運行時架構檢查通過")
+        except Exception as e:
+            logger.error(f"❌ Stage 3 運行時架構檢查失敗: {e}")
+            raise RuntimeError(f"Stage 3 runtime architecture validation failed: {e}")
+        
         # 🔧 修復：使用父類的計時機制
         self.start_processing_timer()
         start_time = time.time()

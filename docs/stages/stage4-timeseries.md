@@ -159,6 +159,122 @@ def calculate_required_precision():
     return required_coordinate_precision
 ```
 
+## 🚨 強制運行時檢查 (新增)
+
+**2025-09-09 重大強化**: 新增階段四專門的運行時架構完整性檢查維度。
+
+### 🔴 零容忍運行時檢查 (任何失敗都會停止執行)
+
+#### 1. 時間序列處理器類型強制檢查
+```python
+# 🚨 嚴格檢查實際使用的時間序列處理器類型
+assert isinstance(processor, TimeseriesPreprocessingProcessor), f"錯誤時間序列處理器: {type(processor)}"
+assert isinstance(animation_builder, CronAnimationBuilder), f"錯誤動畫建構器: {type(animation_builder)}"
+# 原因: 確保使用完整的時間序列預處理器，而非簡化版本
+# 影響: 錯誤處理器可能導致數據壓縮不當或丟失關鍵信息
+```
+
+#### 2. 輸入數據完整性檢查  
+```python
+# 🚨 強制檢查輸入數據來自階段三的完整格式
+assert 'signal_analysis_results' in input_data, "缺少信號分析結果"
+assert input_data['metadata']['total_analyzed'] > 1000, f"分析衛星數量不足: {input_data['metadata']['total_analyzed']}"
+for constellation in ['starlink', 'oneweb']:
+    constellation_data = input_data['signal_analysis_results'][constellation]
+    assert len(constellation_data) > 0, f"{constellation}信號數據為空"
+    for satellite in constellation_data[:3]:
+        assert 'signal_quality' in satellite, "缺少信號品質數據"
+        assert 'event_potential' in satellite, "缺少3GPP事件潛力數據"
+# 原因: 確保階段三的信號分析數據格式正確傳遞
+# 影響: 不完整的輸入會導致時間序列轉換錯誤或數據丟失
+```
+
+#### 3. 時間序列完整性強制檢查
+```python
+# 🚨 強制檢查時間序列數據完整性
+for satellite_result in output_results:
+    timeseries = satellite_result['track_points']
+    assert len(timeseries) >= 192, f"時間序列長度不足: {len(timeseries)}"
+    assert all('time' in point for point in timeseries), "時間點數據不完整"
+    assert all('elevation_deg' in point for point in timeseries), "缺少仰角數據"
+    assert all(point['time'] >= 0 for point in timeseries), "時間序列順序錯誤"
+# 原因: 確保時間序列數據保持軌道週期完整性
+# 影響: 不完整的時間序列會影響前端動畫和強化學習訓練
+```
+
+#### 4. 學術標準數據精度檢查
+```python
+# 🚨 強制檢查數據精度符合學術標準
+for satellite_data in output_results:
+    academic_metadata = satellite_data.get('academic_metadata', {})
+    assert academic_metadata.get('time_resolution_sec') == 30, "時間解析度被異常修改"
+    assert academic_metadata.get('signal_unit') == 'dBm', "信號單位被異常修改"
+    
+    # 檢查座標精度
+    track_points = satellite_data['track_points']
+    lat_precision = check_decimal_precision([p['lat'] for p in track_points[:10]])
+    lon_precision = check_decimal_precision([p['lon'] for p in track_points[:10]])
+    assert lat_precision >= 3, f"緯度精度不足: {lat_precision}位小數"
+    assert lon_precision >= 3, f"經度精度不足: {lon_precision}位小數"
+# 原因: 確保數據處理不降低學術研究所需精度
+# 影響: 精度不足會影響學術研究的可信度和準確性
+```
+
+#### 5. 前端性能優化合規檢查
+```python
+# 🚨 強制檢查性能優化不犧牲數據完整性
+optimization_config = processor.get_optimization_config()
+assert optimization_config.get('preserve_full_data') == True, "數據完整性保護被關閉"
+assert 'arbitrary_compression' not in optimization_config, "檢測到任意壓縮配置"
+assert 'data_quantization' not in optimization_config, "檢測到數據量化處理"
+
+# 檢查輸出文件大小合理性
+output_file_sizes = get_output_file_sizes()
+for constellation, size_mb in output_file_sizes.items():
+    expected_range = get_expected_file_size_range(constellation)
+    assert expected_range[0] <= size_mb <= expected_range[1], \
+        f"{constellation}輸出文件大小異常: {size_mb}MB (預期: {expected_range}MB)"
+# 原因: 確保性能優化基於科學原理，不是任意壓縮
+# 影響: 不當優化會導致數據丟失或前端功能異常
+```
+
+#### 6. 無簡化處理零容忍檢查
+```python
+# 🚨 禁止任何形式的簡化時間序列處理
+forbidden_processing_modes = [
+    "arbitrary_downsampling", "fixed_compression_ratio", "uniform_quantization",
+    "simplified_coordinates", "mock_timeseries", "estimated_positions"
+]
+for mode in forbidden_processing_modes:
+    assert mode not in str(processor.__class__).lower(), \
+        f"檢測到禁用的簡化處理: {mode}"
+    assert mode not in processor.get_processing_methods(), \
+        f"檢測到禁用的處理方法: {mode}"
+```
+
+### 📋 Runtime Check Integration Points
+
+**檢查時機**: 
+- **初始化時**: 驗證時間序列處理器和動畫建構器類型
+- **輸入處理時**: 檢查階段三數據完整性和格式正確性
+- **數據轉換時**: 監控時間序列完整性和精度保持
+- **優化處理時**: 驗證優化策略不犧牲數據完整性
+- **輸出前**: 嚴格檢查學術標準合規和文件大小合理性
+
+**失敗處理**:
+- **立即停止**: 任何runtime check失敗都會立即終止執行
+- **精度檢查**: 驗證學術級數據精度要求
+- **完整性驗證**: 檢查時間序列和信號數據完整性
+- **無降級處理**: 絕不允許使用簡化處理或任意壓縮
+
+### 🛡️ 實施要求
+
+- **學術標準強制執行**: 數據處理必須100%符合Grade A學術級要求
+- **時間序列完整性**: 必須保持完整的軌道週期和時間解析度
+- **精度不降級原則**: 座標和信號精度不得低於學術研究要求
+- **跨階段數據一致性**: 確保與階段三輸出數據格式100%兼容
+- **性能影響控制**: 運行時檢查額外時間開銷 <2%
+
 ## 📁 輸出檔案結構
 
 ### timeseries_preprocessing_outputs/ 目錄
@@ -401,7 +517,9 @@ for constellation, file_path in files.items():
         
         checks[f'{constellation}_exists'] = True
         checks[f'{constellation}_size_ok'] = size_mb < 50
-        checks[f'{constellation}_frames'] = frame_count == 192
+        # 星座特定幀數檢查 (修正版)
+        expected_frames = 192 if constellation == 'starlink' else 218 if constellation == 'oneweb' else None
+        checks[f'{constellation}_frames'] = frame_count == expected_frames if expected_frames else False
         checks[f'{constellation}_has_sats'] = sat_count > 0
     else:
         print(f'⚠️ {constellation} 檔案不存在')

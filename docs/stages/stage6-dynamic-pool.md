@@ -217,6 +217,156 @@ def use_mock_signal_values():
   }
   ```
 
+## 🚨 強制運行時檢查 (新增)
+
+**2025-09-09 重大強化**: 新增階段六專門的運行時架構完整性檢查維度，這是六階段系統的最終階段，必須確保所有前期階段的數據完整性和規劃算法的正確性。
+
+### 🔴 零容忍運行時檢查 (任何失敗都會停止執行)
+
+#### 1. 動態池規劃器類型強制檢查
+```python
+# 🚨 嚴格檢查實際使用的動態池規劃器類型
+assert isinstance(planner, DynamicPoolPlanner), f"錯誤動態池規劃器: {type(planner)}"
+assert isinstance(coverage_analyzer, CoverageAnalyzer), f"錯誤覆蓋分析器: {type(coverage_analyzer)}"
+# 原因: 確保使用完整的動態池規劃器，而非簡化版本
+# 影響: 錯誤規劃器可能導致覆蓋不足或衛星選擇不當
+```
+
+#### 2. 跨階段數據完整性檢查  
+```python
+# 🚨 強制檢查來自階段一至階段五的完整數據鏈
+assert 'integrated_satellites' in input_data, "缺少階段五整合數據"
+assert 'layered_elevation_data' in input_data, "缺少分層仰角數據"
+assert 'signal_quality_data' in input_data, "缺少信號品質數據"
+
+# 檢查數據鏈完整性
+integrated_data = input_data['integrated_satellites']
+assert len(integrated_data['starlink']) > 1000, f"Starlink整合數據不足: {len(integrated_data['starlink'])}"
+assert len(integrated_data['oneweb']) > 100, f"OneWeb整合數據不足: {len(integrated_data['oneweb'])}"
+
+# 檢查分層數據完整性
+layered_data = input_data['layered_elevation_data']
+required_layers = ['starlink_5deg', 'starlink_10deg', 'starlink_15deg', 'oneweb_10deg', 'oneweb_15deg']
+for layer in required_layers:
+    assert layer in layered_data, f"缺少分層數據: {layer}"
+    assert len(layered_data[layer]) > 0, f"{layer}數據為空"
+# 原因: 確保六階段數據鏈的完整性，階段六需要全部前期數據
+# 影響: 數據鏈斷裂會導致動態池規劃錯誤或覆蓋不足
+```
+
+#### 3. 軌道動力學覆蓋分析強制檢查
+```python
+# 🚨 強制檢查覆蓋分析基於軌道動力學原理
+coverage_calculator = planner.get_coverage_calculator()
+assert isinstance(coverage_calculator, OrbitalMechanicsCoverageCalculator), \
+    f"錯誤覆蓋計算器: {type(coverage_calculator)}"
+assert coverage_calculator.calculation_method == "orbital_mechanics_based", "覆蓋計算方法錯誤"
+
+# 檢查覆蓋參數基於科學計算而非任意設定
+coverage_requirements = planner.get_coverage_requirements()
+assert 'scientific_basis' in coverage_requirements, "覆蓋要求缺少科學依據"
+assert coverage_requirements['calculation_method'] != 'arbitrary_values', "檢測到任意設定的覆蓋參數"
+
+# 檢查軌道相位分散分析
+phase_analysis = planner.get_orbital_phase_analysis()
+assert 'mean_anomaly_distribution' in phase_analysis, "缺少平近點角分佈分析"
+assert 'raan_distribution' in phase_analysis, "缺少升交點經度分佈分析"
+# 原因: 確保覆蓋分析基於軌道動力學而非任意假設
+# 影響: 非科學的覆蓋分析會導致衛星池規劃不合理
+```
+
+#### 4. 動態衛星池規模合理性檢查
+```python
+# 🚨 強制檢查動態池規模基於系統需求分析
+final_pool = planner.get_selected_satellite_pool()
+starlink_count = len(final_pool['starlink'])
+oneweb_count = len(final_pool['oneweb'])
+
+# 檢查規模合理性 (不能是任意數字)
+requirements_analysis = planner.get_requirements_analysis()
+min_starlink = requirements_analysis['minimum_starlink_calculated']
+min_oneweb = requirements_analysis['minimum_oneweb_calculated']
+max_reasonable_factor = 3.0  # 最大合理係數
+
+assert starlink_count >= min_starlink, f"Starlink衛星數量不足系統需求: {starlink_count} < {min_starlink}"
+assert starlink_count <= min_starlink * max_reasonable_factor, f"Starlink衛星數量過多: {starlink_count} > {min_starlink * max_reasonable_factor}"
+assert oneweb_count >= min_oneweb, f"OneWeb衛星數量不足系統需求: {oneweb_count} < {min_oneweb}"
+assert oneweb_count <= min_oneweb * max_reasonable_factor, f"OneWeb衛星數量過多: {oneweb_count} > {min_oneweb * max_reasonable_factor}"
+# 原因: 確保衛星池規模基於系統需求而非任意設定
+# 影響: 不合理的池規模會導致資源浪費或覆蓋不足
+```
+
+#### 5. 覆蓋連續性驗證檢查
+```python
+# 🚨 強制檢查覆蓋連續性滿足系統要求
+coverage_timeline = planner.get_coverage_timeline()
+coverage_metrics = analyze_coverage_continuity(coverage_timeline)
+
+# 檢查覆蓋率
+starlink_coverage_ratio = coverage_metrics['starlink_coverage_ratio']
+oneweb_coverage_ratio = coverage_metrics['oneweb_coverage_ratio']
+combined_coverage_ratio = coverage_metrics['combined_coverage_ratio']
+
+min_acceptable_coverage = requirements_analysis['minimum_coverage_ratio']
+assert starlink_coverage_ratio >= min_acceptable_coverage, f"Starlink覆蓋率不足: {starlink_coverage_ratio:.3f} < {min_acceptable_coverage:.3f}"
+assert oneweb_coverage_ratio >= min_acceptable_coverage, f"OneWeb覆蓋率不足: {oneweb_coverage_ratio:.3f} < {min_acceptable_coverage:.3f}"
+
+# 檢查覆蓋間隙
+max_gaps = coverage_metrics['maximum_coverage_gaps']
+max_acceptable_gap = requirements_analysis['maximum_acceptable_gap_seconds']
+assert all(gap <= max_acceptable_gap for gap in max_gaps), f"檢測到過長的覆蓋間隙: {max(max_gaps)}s > {max_acceptable_gap}s"
+# 原因: 確保動態池提供連續可靠的覆蓋
+# 影響: 覆蓋間隙會影響換手連續性和系統可用性
+```
+
+#### 6. 無簡化規劃零容忍檢查
+```python
+# 🚨 禁止任何形式的簡化動態池規劃
+forbidden_planning_modes = [
+    "random_selection", "fixed_percentage", "arbitrary_coverage",
+    "mock_satellites", "estimated_visibility", "simplified_orbital"
+]
+for mode in forbidden_planning_modes:
+    assert mode not in str(planner.__class__).lower(), \
+        f"檢測到禁用的簡化規劃: {mode}"
+    assert mode not in planner.get_planning_methods(), \
+        f"檢測到禁用的規劃方法: {mode}"
+
+# 檢查是否使用了模擬信號值
+for satellite_id, satellite_data in final_pool['starlink'].items():
+    if 'signal_metrics' in satellite_data:
+        signal_values = satellite_data['signal_metrics']
+        # 檢查信號值是否過於規整（可能是模擬值）
+        rsrp_values = [v for v in signal_values.values() if isinstance(v, (int, float))]
+        if len(set(rsrp_values)) == 1 and len(rsrp_values) > 1:
+            raise AssertionError(f"檢測到固定信號值，可能使用了模擬數據: {satellite_id}")
+```
+
+### 📋 Runtime Check Integration Points
+
+**檢查時機**: 
+- **初始化時**: 驗證動態池規劃器和覆蓋分析器類型
+- **輸入處理時**: 檢查階段一至五完整數據鏈和跨階段一致性
+- **需求分析時**: 驗證覆蓋需求基於系統分析而非任意設定
+- **池規劃時**: 監控衛星選擇基於軌道動力學原理
+- **覆蓋驗證時**: 嚴格檢查覆蓋連續性和時間間隙
+- **輸出前**: 嚴格檢查最終衛星池規模和覆蓋指標
+
+**失敗處理**:
+- **立即停止**: 任何runtime check失敗都會立即終止執行
+- **數據鏈檢查**: 追溯驗證前五階段數據完整性
+- **科學性驗證**: 檢查所有參數和方法都有科學依據
+- **無降級處理**: 絕不允許使用簡化規劃或模擬數據
+
+### 🛡️ 實施要求
+
+- **六階段數據鏈完整性**: 必須確保階段一至五的完整數據傳遞
+- **軌道動力學強制執行**: 所有覆蓋分析必須基於真實軌道物理
+- **系統需求驅動**: 衛星池規模和覆蓋要求必須基於系統分析
+- **覆蓋連續性保證**: 動態池必須滿足連續覆蓋要求
+- **學術誠信維護**: 絕不允許任何形式的數據模擬或簡化
+- **性能影響控制**: 運行時檢查額外時間開銷 <5%
+
 - **覆蓋連續性分析**：
   - **最大容許間隙**：≤ 2分鐘（4個連續採樣點）
   - **間隙頻率統計**：記錄所有覆蓋不足時段的長度和頻率

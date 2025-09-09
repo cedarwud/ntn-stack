@@ -147,6 +147,98 @@ satellite_selection = select_by_coverage_contribution(candidates, coverage_requi
 target_ratios = {'starlink': 0.80, 'oneweb': 0.20}  # 任意比例
 ```
 
+## 🚨 強制運行時檢查 (新增)
+
+**2025-09-09 重大強化**: 新增階段二專門的運行時架構完整性檢查維度。
+
+### 🔴 零容忍運行時檢查 (任何失敗都會停止執行)
+
+#### 1. 篩選引擎類型強制檢查
+```python
+# 🚨 嚴格檢查實際使用的篩選引擎類型
+assert isinstance(filter_engine, UnifiedIntelligentFilter), f"錯誤篩選引擎: {type(filter_engine)}"
+# 原因: 確保使用統一智能篩選系統，而非簡化篩選器
+# 影響: 錯誤引擎可能導致篩選邏輯不完整或使用錯誤參數
+```
+
+#### 2. 輸入數據完整性檢查  
+```python
+# 🚨 強制檢查輸入衛星數據完整性
+assert input_satellites_count > 8600, f"輸入衛星數量不足: {input_satellites_count}"
+assert 'position_timeseries' in input_data[0], "輸入數據缺少軌道時間序列"
+# 星座特定時間序列長度檢查 (修正版)
+constellation = input_data[0].get('constellation', '').lower() 
+expected_points = 192 if constellation == 'starlink' else 218 if constellation == 'oneweb' else None
+assert expected_points is not None, f"未知星座: {constellation}"
+assert len(input_data[0]['position_timeseries']) == expected_points, f"時間序列長度不符合階段一輸出規格: {len(input_data[0]['position_timeseries'])} vs {expected_points} ({constellation})"
+# 原因: 確保階段一的數據完整性已正確傳遞
+# 影響: 不完整的輸入會導致篩選結果錯誤或偏差
+```
+
+#### 3. 篩選邏輯流程檢查
+```python
+# 🚨 檢查篩選流程的完整執行
+filtering_steps = ['constellation_separation', 'geographical_relevance', 'handover_suitability']
+for step in filtering_steps:
+    assert step in executed_steps, f"篩選步驟 {step} 未執行"
+assert filtering_mode == "pure_geographic_visibility", "篩選模式錯誤"
+# 原因: 確保完整的三步驟篩選流程都正確執行
+# 影響: 跳過步驟會導致篩選不完整或結果不準確
+```
+
+#### 4. 仰角門檻合規檢查
+```python
+# 🚨 強制檢查仰角門檻符合ITU-R標準
+constellation_thresholds = config.get_elevation_thresholds()
+assert constellation_thresholds['starlink'] == 5.0, f"Starlink仰角門檻錯誤: {constellation_thresholds['starlink']}"
+assert constellation_thresholds['oneweb'] == 10.0, f"OneWeb仰角門檻錯誤: {constellation_thresholds['oneweb']}"
+# 原因: 確保使用符合ITU-R P.618標準的仰角門檻
+# 影響: 錯誤門檻會影響篩選結果和後續階段的准確性
+```
+
+#### 5. 輸出數據結構完整性檢查
+```python
+# 🚨 強制檢查輸出數據結構完整性
+assert 'filtered_satellites' in output_data, "缺少篩選結果"
+assert 'starlink' in output_data['filtered_satellites'], "缺少Starlink篩選結果"
+assert 'oneweb' in output_data['filtered_satellites'], "缺少OneWeb篩選結果"
+assert output_data['metadata']['filtering_rate'] > 0.05, "篩選率過低，可能篩選過於嚴格"
+assert output_data['metadata']['filtering_rate'] < 0.50, "篩選率過高，可能篩選不足"
+```
+
+#### 6. 無簡化篩選零容忍檢查
+```python
+# 🚨 禁止任何形式的簡化篩選算法
+forbidden_filtering_modes = [
+    "simplified_filter", "basic_elevation_only", "mock_filtering", 
+    "random_sampling", "fixed_percentage", "estimated_visibility"
+]
+for mode in forbidden_filtering_modes:
+    assert mode not in str(filter_engine.__class__).lower(), \
+        f"檢測到禁用的簡化篩選: {mode}"
+```
+
+### 📋 Runtime Check Integration Points
+
+**檢查時機**: 
+- **初始化時**: 驗證篩選引擎類型和配置參數
+- **輸入處理時**: 檢查階段一數據完整性和格式符合性
+- **篩選過程中**: 監控篩選步驟執行和仰角門檻應用
+- **輸出前**: 嚴格檢查篩選結果結構和數據完整性
+
+**失敗處理**:
+- **立即停止**: 任何runtime check失敗都會立即終止執行
+- **數據回溯**: 檢查階段一輸出是否存在問題
+- **配置檢查**: 驗證篩選參數配置是否正確
+- **無降級處理**: 絕不允許使用簡化篩選算法
+
+### 🛡️ 實施要求
+
+- **跨階段一致性**: 確保與階段一輸出數據格式100%兼容
+- **ITU-R標準合規**: 強制執行國際標準的仰角門檻要求  
+- **篩選邏輯完整性**: 確保三步驟篩選流程完整執行
+- **性能影響控制**: 運行時檢查額外時間開銷 <3%
+
 ## ⚡ 性能最佳化
 
 ### 記憶體最佳化

@@ -40,6 +40,144 @@ STORAGE_STRATEGY = {
 }
 ```
 
+## 🚨 強制運行時檢查 (新增)
+
+**2025-09-09 重大強化**: 新增階段五專門的運行時架構完整性檢查維度。
+
+### 🔴 零容忍運行時檢查 (任何失敗都會停止執行)
+
+#### 1. 數據整合處理器類型強制檢查
+```python
+# 🚨 嚴格檢查實際使用的數據整合處理器類型
+assert isinstance(processor, DataIntegrationProcessor), f"錯誤數據整合處理器: {type(processor)}"
+assert isinstance(storage_manager, HybridStorageManager), f"錯誤存儲管理器: {type(storage_manager)}"
+# 原因: 確保使用完整的數據整合處理器，而非簡化版本
+# 影響: 錯誤處理器可能導致數據整合不完整或存儲策略錯誤
+```
+
+#### 2. 多階段輸入數據完整性檢查  
+```python
+# 🚨 強制檢查來自階段三和階段四的輸入數據完整性
+assert 'signal_analysis_results' in stage3_input, "缺少階段三信號分析結果"
+assert 'timeseries_data' in stage4_input, "缺少階段四時間序列數據"
+
+# 檢查階段三數據
+stage3_satellites = stage3_input['signal_analysis_results']
+assert len(stage3_satellites['starlink']) > 1000, f"Starlink信號數據不足: {len(stage3_satellites['starlink'])}"
+assert len(stage3_satellites['oneweb']) > 100, f"OneWeb信號數據不足: {len(stage3_satellites['oneweb'])}"
+
+# 檢查階段四數據
+stage4_data = stage4_input['timeseries_data']
+assert 'animation_enhanced_starlink' in stage4_data, "缺少Starlink動畫數據"
+assert 'animation_enhanced_oneweb' in stage4_data, "缺少OneWeb動畫數據"
+# 原因: 確保跨階段數據整合的輸入完整性
+# 影響: 不完整的輸入會導致數據整合錯誤或功能缺失
+```
+
+#### 3. 混合存儲架構完整性檢查
+```python
+# 🚨 強制檢查混合存儲架構正確實施
+storage_config = storage_manager.get_storage_configuration()
+assert 'postgresql' in storage_config, "缺少PostgreSQL存儲配置"
+assert 'volume_files' in storage_config, "缺少Volume文件存儲配置"
+
+# 檢查PostgreSQL連接和表結構
+db_connection = storage_manager.get_database_connection()
+assert db_connection.is_connected(), "PostgreSQL連接失敗"
+required_tables = ['satellite_metadata', 'signal_quality_statistics', 'handover_events_summary']
+existing_tables = db_connection.get_table_list()
+for table in required_tables:
+    assert table in existing_tables, f"缺少必需的數據表: {table}"
+
+# 檢查Volume存儲路徑
+volume_path = storage_manager.get_volume_path()
+assert os.path.exists(volume_path), f"Volume存儲路徑不存在: {volume_path}"
+assert os.access(volume_path, os.W_OK), f"Volume路徑無寫入權限: {volume_path}"
+# 原因: 確保混合存儲架構正確配置和可用
+# 影響: 存儲架構問題會導致數據無法正確保存或讀取
+```
+
+#### 4. 分層仰角數據完整性檢查
+```python
+# 🚨 強制檢查分層仰角數據生成完整性
+layered_data = processor.get_layered_elevation_data()
+required_layers = ['5deg', '10deg', '15deg']
+for constellation in ['starlink', 'oneweb']:
+    for layer in required_layers:
+        layer_key = f"{constellation}_{layer}_enhanced"
+        assert layer_key in layered_data, f"缺少分層數據: {layer_key}"
+        layer_satellites = layered_data[layer_key]
+        assert len(layer_satellites) > 0, f"{layer_key}分層數據為空"
+        
+        # 檢查仰角門檻正確性
+        expected_threshold = int(layer.replace('deg', ''))
+        for satellite in layer_satellites[:3]:
+            max_elevation = satellite.get('max_elevation_deg', 0)
+            assert max_elevation >= expected_threshold, \
+                f"{layer_key}衛星最大仰角{max_elevation}°低於門檻{expected_threshold}°"
+# 原因: 確保分層仰角數據正確生成和符合門檻要求
+# 影響: 錯誤的分層數據會影響換手決策和覆蓋分析
+```
+
+#### 5. 數據一致性跨階段檢查
+```python
+# 🚨 強制檢查跨階段數據一致性
+stage3_satellite_ids = set(sat['satellite_id'] for constellation in stage3_input['signal_analysis_results'].values() 
+                          for sat in constellation)
+stage4_satellite_ids = set(stage4_input['timeseries_data']['satellite_ids'])
+stage5_satellite_ids = set(processor.get_integrated_satellite_ids())
+
+# 檢查衛星ID一致性
+common_satellites = stage3_satellite_ids.intersection(stage4_satellite_ids)
+assert len(common_satellites) > 1000, f"跨階段共同衛星數量不足: {len(common_satellites)}"
+assert stage5_satellite_ids.issubset(common_satellites), "階段五包含了未在前階段出現的衛星"
+
+# 檢查數據時間戳一致性
+stage3_timestamp = stage3_input['metadata']['processing_timestamp']
+stage4_timestamp = stage4_input['metadata']['processing_timestamp']
+timestamp_diff = abs((stage3_timestamp - stage4_timestamp).total_seconds())
+assert timestamp_diff < 3600, f"階段三四時間戳差異過大: {timestamp_diff}秒"
+# 原因: 確保跨階段數據的一致性和同步性
+# 影響: 數據不一致會導致整合結果錯誤或決策偏差
+```
+
+#### 6. 無簡化整合零容忍檢查
+```python
+# 🚨 禁止任何形式的簡化數據整合
+forbidden_integration_modes = [
+    "partial_integration", "simplified_storage", "mock_database",
+    "estimated_statistics", "arbitrary_aggregation", "lossy_compression"
+]
+for mode in forbidden_integration_modes:
+    assert mode not in str(processor.__class__).lower(), \
+        f"檢測到禁用的簡化整合: {mode}"
+    assert mode not in storage_manager.get_storage_methods(), \
+        f"檢測到禁用的存儲方法: {mode}"
+```
+
+### 📋 Runtime Check Integration Points
+
+**檢查時機**: 
+- **初始化時**: 驗證數據整合處理器和存儲管理器類型
+- **輸入處理時**: 檢查階段三四數據完整性和跨階段一致性
+- **存儲配置時**: 驗證混合存儲架構正確配置和可用性
+- **數據整合時**: 監控分層數據生成和數據一致性
+- **輸出前**: 嚴格檢查整合結果完整性和存儲成功性
+
+**失敗處理**:
+- **立即停止**: 任何runtime check失敗都會立即終止執行
+- **存儲檢查**: 驗證PostgreSQL和Volume存儲正確配置
+- **一致性驗證**: 檢查跨階段數據時間戳和衛星ID一致性
+- **無降級處理**: 絕不允許使用簡化整合或不完整存儲
+
+### 🛡️ 實施要求
+
+- **跨階段一致性強制執行**: 必須確保階段三四五數據完全一致
+- **混合存儲架構完整性**: PostgreSQL和Volume存儲必須同時正確配置
+- **分層數據準確性**: 所有仰角層數據必須符合相應門檻要求
+- **數據完整性保證**: 整合過程中不得丟失任何關鍵數據
+- **性能影響控制**: 運行時檢查額外時間開銷 <3%
+
 ## 📊 PostgreSQL 數據結構
 
 ### 核心資料表設計

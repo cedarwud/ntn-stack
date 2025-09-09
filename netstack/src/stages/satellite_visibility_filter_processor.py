@@ -22,6 +22,11 @@ from shared_core.elevation_threshold_manager import get_elevation_threshold_mana
 from shared_core.visibility_service import get_visibility_service, ObserverLocation
 from shared_core.validation_snapshot_base import ValidationSnapshotBase, ValidationCheckHelper
 
+# 新增：運行時檢查組件 (Phase 2)
+from validation.runtime_architecture_checker import RuntimeArchitectureChecker, check_runtime_architecture
+from validation.api_contract_validator import APIContractValidator, validate_api_contract
+from validation.execution_flow_checker import ExecutionFlowChecker, validate_stage_completion
+
 logger = logging.getLogger(__name__)
 
 
@@ -683,8 +688,19 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
     def process_intelligent_filtering(self, orbital_data=None, save_output=True):
         """
         兼容性方法：保持與原有API接口一致
+        
+        Phase 2 Enhancement: 新增運行時檢查
         """
         logger.info("🔄 使用兼容性API呼叫process_intelligent_filtering")
+        
+        # 🚨 Phase 2: 運行時檢查 - 引擎類型和依賴驗證
+        try:
+            check_runtime_architecture("stage2", engine=self.visibility_prefilter)
+            validate_stage_completion("stage2", ["stage1"])  # Stage 2 依賴 Stage 1
+            logger.info("✅ Stage 2 運行時架構檢查通過")
+        except Exception as e:
+            logger.error(f"❌ Stage 2 運行時架構檢查失敗: {e}")
+            raise RuntimeError(f"Stage 2 runtime architecture validation failed: {e}")
         
         # 開始處理計時
         self.start_processing_timer()
@@ -695,6 +711,14 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
             result = self._process_with_data(orbital_data)
         else:
             result = self.process()
+        
+        # 🚨 Phase 2: API合約驗證 - 檢查篩選結果格式
+        try:
+            validate_api_contract("stage2", result)
+            logger.info("✅ Stage 2 API合約驗證通過")
+        except Exception as e:
+            logger.error(f"❌ Stage 2 API合約驗證失敗: {e}")
+            raise RuntimeError(f"Stage 2 API contract validation failed: {e}")
         
         # 結束處理計時
         self.end_processing_timer()
@@ -727,6 +751,7 @@ class SatelliteVisibilityFilterProcessor(ValidationSnapshotBase):
         if save_output:
             logger.info("💾 輸出已保存到文件")
         
+        logger.info("✅ Stage 2 處理完成，所有運行時檢查通過")
         return result
 
     def extract_key_metrics(self, processing_results: Dict[str, Any]) -> Dict[str, Any]:
