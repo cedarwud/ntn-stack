@@ -447,24 +447,128 @@ def run_all_stages_with_immediate_validation():
         traceback.print_exc()
         return False, completed_stages, f"執行異常: {e}"
 
+def run_single_stage_with_validation(stage_num, sample_mode=False):
+    """
+    執行單一階段處理並驗證
+    
+    Args:
+        stage_num: 要執行的階段編號 (1-6)
+        sample_mode: 是否使用取樣模式
+        
+    Returns:
+        tuple: (success, completed_stages, message)
+    """
+    try:
+        print(f'🚀 開始執行階段{stage_num}處理')
+        print(f'⚙️ 取樣模式: {"是" if sample_mode else "否"}')
+        print('=' * 80)
+        
+        stage_start_time = time.time()
+        
+        # 根據階段編號創建對應處理器
+        if stage_num == 1:
+            from stages.orbital_calculation_processor import Stage1TLEProcessor
+            processor = Stage1TLEProcessor(sample_mode=sample_mode)
+            result = processor.process_tle_orbital_calculation()
+            stage_name = "TLE軌道計算"
+            
+        elif stage_num == 2:
+            from stages.satellite_visibility_filter_processor import SatelliteVisibilityFilterProcessor
+            processor = SatelliteVisibilityFilterProcessor(sample_mode=sample_mode)
+            result = processor.process_satellite_visibility_filtering()
+            stage_name = "衛星可見性篩選"
+            
+        elif stage_num == 3:
+            from stages.signal_analysis_processor import SignalQualityAnalysisProcessor
+            processor = SignalQualityAnalysisProcessor(sample_mode=sample_mode)
+            result = processor.process_signal_quality_analysis()
+            stage_name = "信號品質分析"
+            
+        elif stage_num == 4:
+            from stages.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
+            processor = TimeseriesPreprocessingProcessor(sample_mode=sample_mode)
+            result = processor.process_timeseries_preprocessing()
+            stage_name = "時間序列預處理"
+            
+        elif stage_num == 5:
+            from stages.data_integration_processor import Stage5IntegrationProcessor
+            processor = Stage5IntegrationProcessor(sample_mode=sample_mode)
+            result = processor.process_data_integration()
+            stage_name = "數據整合"
+            
+        elif stage_num == 6:
+            from stages.dynamic_pool_planner import EnhancedDynamicPoolPlanner
+            stage6_config = {
+                'input_dir': '/app/data',
+                'output_dir': '/app/data'
+            }
+            processor = EnhancedDynamicPoolPlanner(stage6_config)
+            result = processor.run_enhanced_dynamic_pool_planning()
+            stage_name = "動態衛星池規劃"
+        
+        stage_end_time = time.time()
+        stage_duration = stage_end_time - stage_start_time
+        
+        print(f'\n⏱️ 階段{stage_num}執行時間: {stage_duration:.2f}秒')
+        
+        # 立即驗證
+        validation_success, validation_message = validate_stage_immediately(
+            processor, result, stage_num, stage_name
+        )
+        
+        if validation_success:
+            # 檢查驗證快照品質
+            quality_passed, quality_message = check_validation_snapshot_quality(stage_num)
+            
+            if quality_passed:
+                return True, 1, f'階段{stage_num}({stage_name})執行並驗證成功'
+            else:
+                return False, 0, f'階段{stage_num}驗證快照品質檢查失敗: {quality_message}'
+        else:
+            return False, 0, f'階段{stage_num}驗證失敗: {validation_message}'
+        
+    except Exception as e:
+        logger.error(f"階段{stage_num}執行異常", exc_info=True)
+        return False, 0, f'階段{stage_num}執行異常: {str(e)}'
+
 def main():
     """主程序入口"""
     import argparse
     
     parser = argparse.ArgumentParser(description='六階段數據處理系統 - 階段即時驗證版本')
     parser.add_argument('--data-dir', default='/app/data', help='數據目錄')
+    parser.add_argument('--stage', type=int, choices=[1,2,3,4,5,6], help='只執行指定階段')
+    parser.add_argument('--sample-mode', action='store_true', help='使用取樣模式 (較少衛星數據)')
     args = parser.parse_args()
     
-    # 執行六階段處理
-    success, completed_stages, message = run_all_stages_with_immediate_validation()
+    # 驗證參數組合
+    if args.stage and args.sample_mode and args.stage not in [1]:
+        print(f"⚠️ 警告: 階段{args.stage}不支援sample-mode，將忽略此參數")
+        args.sample_mode = False
+    
+    # 執行處理 (完整六階段或指定單階段)
+    if args.stage:
+        print(f"🎯 執行單一階段: 階段{args.stage}")
+        success, completed_stages, message = run_single_stage_with_validation(args.stage, args.sample_mode)
+    else:
+        print("🚀 執行完整六階段處理")
+        success, completed_stages, message = run_all_stages_with_immediate_validation()
     
     print(f'\n📊 執行總結:')
     print(f'   成功狀態: {"✅ 成功" if success else "❌ 失敗"}')
-    print(f'   完成階段: {completed_stages}/6')
+    if args.stage:
+        print(f'   執行階段: 階段{args.stage}')
+    else:
+        print(f'   完成階段: {completed_stages}/6')
     print(f'   結果信息: {message}')
     
-    if success and completed_stages == 6:
-        print('🎉 六階段處理與驗證完全成功！')
+    if success:
+        if args.stage:
+            print(f'🎉 階段{args.stage}處理與驗證成功！')
+        elif completed_stages == 6:
+            print('🎉 六階段處理與驗證完全成功！')
+        else:
+            print(f'⚠️ 部分成功: {completed_stages}/6 階段完成')
         return 0
     else:
         print(f'💥 在階段{completed_stages}發生問題: {message}')

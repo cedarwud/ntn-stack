@@ -2,6 +2,36 @@
 
 [🔄 返回文檔總覽](../README.md) | [📋 完整數據流程說明](../data_processing_flow.md) | [🧠 Shared Core 統一架構](../shared_core_architecture.md)
 
+## 🚀 快速執行指南
+
+### 完整六階段執行
+```bash
+docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py
+```
+
+### 單獨執行指定階段
+```bash
+# 執行階段1 (TLE軌道計算) - 支援取樣模式
+docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py --stage 1
+docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py --stage 1 --sample-mode
+
+# 執行階段2 (可見性篩選)
+docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py --stage 2
+
+# 執行階段6 (動態池規劃) - 注意：不支援sample-mode
+docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py --stage 6
+```
+
+### 執行腳本位置
+- **主執行程式**: `/netstack/scripts/run_six_stages_with_validation.py`
+- **建置驗證**: `/netstack/scripts/final_build_validation.py`
+- **性能優化**: `/netstack/scripts/startup_optimizer.py`
+
+### Sample Mode 說明
+- **僅階段1支援**: `--sample-mode` 只在階段1有效 (每星座限制800顆衛星)
+- **用於開發測試**: 大幅縮短處理時間，適合程式開發和功能驗證
+- **其他階段**: 階段2-6不支援sample-mode，程式會自動忽略此參數
+
 ## 🎯 快速導航
 
 六階段數據處理流程通過 **智能軌道相位選擇策略**，將 8,735 顆衛星原始數據高效優化至 **150-250 顆精選動態池**（相比暴力數量堆疊減少85%）。**詳細的架構和流程說明請參考 [數據處理流程文檔](../data_processing_flow.md)**。

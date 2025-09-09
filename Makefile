@@ -401,7 +401,7 @@ clean-satellite-data: ## 清理衛星預計算數據 volume (會導致下次啟�
 
 clean-stage6-outputs: ## 🗑️ 清理階段六動態池規劃輸出檔案 (準備重新處理)
 	@echo "$(YELLOW)🧹 清理階段六舊輸出檔案...$(RESET)"
-	@python3 netstack/scripts/cleanup_stage6_outputs.py
+	@docker exec netstack-api python -c "import sys; sys.path.insert(0, '/app/src'); from shared_core.cleanup_manager import cleanup_stage_outputs; cleanup_stage_outputs(6)"
 	@echo "$(GREEN)✅ 階段六清理完成，可安全執行六階段處理$(RESET)"
 
 update-satellite-data: ## 🔄 一鍵更新衛星數據：清理舊數據 + 重啟計算 (TLE 數據更新後使用)

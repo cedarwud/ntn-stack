@@ -46,7 +46,7 @@ class SignalQualityAnalysisProcessor(ValidationSnapshotBase):
     def __init__(self, input_dir: str = '/app/data', output_dir: str = '/app/data'):
         """初始化信號分析處理器"""
         # 🔧 修復: 調用父類初始化以獲得 stage_number 屬性
-        super().__init__(stage_number=3, stage_name="信號品質分析", snapshot_dir=f"{input_dir}/validation_snapshots")
+        super().__init__(stage_number=3, stage_name="信號品質分析", snapshot_dir="/app/data/validation_snapshots")
         
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
