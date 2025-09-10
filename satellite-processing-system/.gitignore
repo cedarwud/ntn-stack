@@ -1,0 +1,107 @@
+# =============================================================================
+# 衛星處理系統 - Git 忽略文件配置
+# =============================================================================
+
+# 🔐 敏感配置文件
+.env                    # 環境變數文件 (包含敏感信息)
+*.env                   # 所有環境變數文件
+.env.local
+.env.production
+
+# 🐍 Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 🧪 測試相關
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# 📊 數據文件 (大型數據不提交)
+data/outputs/*.json
+data/logs/*.log
+data/validation_snapshots/*.json
+*.tle
+*.csv
+*.parquet
+
+# 🛰️ 處理結果 (保留小型範例)
+data/outputs/large_*.json
+data/outputs/batch_*.json
+data/outputs/*_backup.json
+
+# 🐳 Docker
+.dockerignore
+
+# 💻 IDE 設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 📱 macOS
+.DS_Store
+
+# 🪟 Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# 🔧 工具配置
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# 📝 日誌文件
+*.log
+logs/
+*.log.*
+
+# 🚀 部署相關
+docker-compose.override.yml
+.env.production.local
+
+# 📦 依賴相關
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 🔄 暫存文件
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/
+
+# =============================================================================
+# 注意事項:
+# 1. .env 文件包含敏感配置，絕對不能提交
+# 2. .env.example 作為模板，應該提交到版本控制
+# 3. 大型數據文件不提交，但保留目錄結構
+# =============================================================================
