@@ -97,10 +97,10 @@ class DataStructureValidator(BaseValidator):
                 details={
                     'structure_results': structure_results,
                     'data_type': data_type,
-                    'general_validation': general_result
+                    'general_validation': general_result,
+                    'validation_errors': validation_errors,
+                    'validation_warnings': validation_warnings
                 },
-                errors=validation_errors,
-                warnings=validation_warnings,
                 metadata={'validation_type': 'data_structure'}
             )
             
@@ -110,9 +110,11 @@ class DataStructureValidator(BaseValidator):
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"Data structure validation error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Validation error: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Validation error: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'data_structure'}
             )
     
@@ -324,14 +326,17 @@ class StatisticalAnalyzer(BaseValidator):
             status = ValidationStatus.FAILED if validation_errors else ValidationStatus.PASSED
             level = ValidationLevel.CRITICAL if validation_errors else ValidationLevel.INFO
             
+            analysis_results.update({
+                'validation_errors': validation_errors,
+                'validation_warnings': validation_warnings
+            })
+            
             return ValidationResult(
                 validator_name=self.__class__.__name__,
                 status=status,
                 level=level,
                 message=f"Statistical analysis {'failed' if validation_errors else 'passed'}",
                 details=analysis_results,
-                errors=validation_errors,
-                warnings=validation_warnings,
                 metadata={'validation_type': 'statistical_analysis'}
             )
             
@@ -341,9 +346,11 @@ class StatisticalAnalyzer(BaseValidator):
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"Statistical analysis error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Analysis error: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Analysis error: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'statistical_analysis'}
             )
     
@@ -748,10 +755,10 @@ class CrossStageConsistencyChecker(BaseValidator):
                 message=f"Cross-stage consistency validation {'failed' if validation_errors else 'passed'}",
                 details={
                     'consistency_result': consistency_result,
-                    'data_flow_result': data_flow_result
+                    'data_flow_result': data_flow_result,
+                    'validation_errors': validation_errors,
+                    'validation_warnings': validation_warnings
                 },
-                errors=validation_errors,
-                warnings=validation_warnings,
                 metadata={'validation_type': 'cross_stage_consistency'}
             )
             
@@ -761,9 +768,11 @@ class CrossStageConsistencyChecker(BaseValidator):
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"Cross-stage consistency error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Consistency check error: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Consistency check error: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'cross_stage_consistency'}
             )
     
@@ -1134,10 +1143,10 @@ class MetadataComplianceValidator(BaseValidator):
                 details={
                     'mandatory_metadata': mandatory_result,
                     'traceability': traceability_result,
-                    'academic_compliance': academic_result
+                    'academic_compliance': academic_result,
+                    'validation_errors': validation_errors,
+                    'validation_warnings': validation_warnings
                 },
-                errors=validation_errors,
-                warnings=validation_warnings,
                 metadata={'validation_type': 'metadata_compliance'}
             )
             
@@ -1147,9 +1156,11 @@ class MetadataComplianceValidator(BaseValidator):
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"Metadata compliance error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Compliance check error: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Compliance check error: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'metadata_compliance'}
             )
     

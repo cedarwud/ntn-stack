@@ -368,8 +368,8 @@ services:
       - PRECOMPUTE_ON_STARTUP=true           # 啟動時執行預計算
       - DOCKER_CONTAINER=true                # 容器環境標識，用於跨平台路徑處理
     volumes:
-      # 🎯 F3/A1永久數據：Bind Mount到項目目錄
-      - /home/sat/ntn-stack/data/leo_outputs:/app/data
+      # 🎯 數據目錄：統一映射
+      - /home/sat/ntn-stack/data:/app/data
       # 🔥 CRITICAL FIX: 掛載TLE數據目錄，確保載入8735顆真實衛星
       - ../tle_data:/app/tle_data:ro
       

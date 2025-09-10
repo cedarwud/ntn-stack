@@ -226,6 +226,102 @@ class UnifiedIntelligentFilter:
                    f"(篩選率: {(1 - final_total/total_input)*100:.1f}%)")
         
         return result
+
+    def execute_f2_filtering_workflow(self, sgp4_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        文檔要求的F2篩選工作流程方法
+        
+        執行三步驟篩選流程：
+        1. constellation_separation - 星座分離
+        2. geographical_relevance - 地理相關性篩選 
+        3. handover_suitability - 換手適用性評分
+        
+        Args:
+            sgp4_data: 階段一SGP4軌道計算結果
+            
+        Returns:
+            篩選結果，包含執行的步驟信息
+        """
+        logger.info("🎯 執行文檔標準F2篩選工作流程")
+        
+        # 記錄執行的步驟
+        executed_steps = []
+        
+        # 提取衛星數據
+        all_satellites = self._extract_satellites_from_sgp4_data(sgp4_data)
+        total_input = len(all_satellites)
+        logger.info(f"📡 輸入衛星總數: {total_input}")
+        
+        # === 1. constellation_separation ===
+        logger.info("⚙️ 步驟1: constellation_separation")
+        separated_data = self.constellation_separator.separate_constellations(all_satellites)
+        constellation_filtered = self.constellation_separator.apply_constellation_specific_filtering(separated_data)
+        executed_steps.append("constellation_separation")
+        
+        sep_stats = self.constellation_separator.get_separation_statistics(constellation_filtered)
+        f1_total = sum(len(sats) for sats in constellation_filtered.values())
+        logger.info(f"✅ 星座分離完成: {f1_total}/{total_input} 顆衛星保留")
+        
+        # === 2. geographical_relevance ===  
+        logger.info("🌍 步驟2: geographical_relevance")
+        geo_filtered = self.geographic_filter.apply_geographic_filtering(constellation_filtered)
+        executed_steps.append("geographical_relevance")
+        
+        geo_stats = self.geographic_filter.get_filtering_statistics(constellation_filtered, geo_filtered)
+        f2_total = sum(len(sats) for sats in geo_filtered.values())
+        logger.info(f"✅ 地理相關性篩選完成: {f2_total}/{f1_total} 顆衛星保留")
+        
+        # === 3. handover_suitability ===
+        logger.info("📊 步驟3: handover_suitability") 
+        scored_data = self.handover_scorer.apply_handover_scoring(geo_filtered)
+        executed_steps.append("handover_suitability")
+        
+        scoring_stats = self.handover_scorer.get_scoring_statistics(scored_data)
+        final_total = sum(len(sats) for sats in scored_data.values())
+        logger.info(f"✅ 換手適用性評分完成: {final_total} 顆衛星已評分")
+        
+        # 構建輸出結果
+        result = self._build_f2_output(
+            sgp4_data, scored_data, {
+                'input_statistics': {'total_input': total_input},
+                'separation_stats': sep_stats,
+                'geographic_stats': geo_stats, 
+                'scoring_stats': scoring_stats,
+                'selection_summary': {
+                    'f1_separated': f1_total,
+                    'f2_geo_filtered': f2_total,
+                    'final_selected': final_total,
+                    'executed_steps': executed_steps,
+                    'filtering_mode': 'pure_geographic_visibility'
+                }
+            }
+        )
+        
+        logger.info(f"🎉 F2工作流程完成: {total_input} → {final_total} 顆衛星 "
+                   f"(篩選率: {(1 - final_total/total_input)*100:.1f}%)")
+        
+        return result
+
+    
+    def geographical_relevance_filter(self, constellation_filtered_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        文檔要求的地理相關性篩選方法
+        與文檔描述保持一致的方法名稱
+        
+        實際上是對geographic_filter的包裝調用
+        """
+        logger.info("🌍 執行地理相關性篩選（文檔標準方法）")
+        return self.geographic_filter.apply_geographic_filtering(constellation_filtered_data)
+    
+    def handover_suitability_scoring(self, geo_filtered_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        文檔要求的換手適用性評分方法
+        與文檔描述保持一致的方法名稱
+        
+        實際上是對handover_scorer的包裝調用
+        """
+        logger.info("📊 執行換手適用性評分（文檔標準方法）") 
+        return self.handover_scorer.apply_handover_scoring(geo_filtered_data)
     
     def _extract_satellites_from_sgp4_data(self, sgp4_data: Dict[str, Any]) -> List[Dict]:
         """從SGP4數據中提取衛星列表，兼容字典和列表格式"""
