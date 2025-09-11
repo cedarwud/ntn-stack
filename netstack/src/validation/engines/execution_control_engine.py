@@ -419,9 +419,18 @@ class ValidationOrchestrator:
         
         return stage_data
     
-    async def _run_validator(self, validator_name: str, data: Dict[str, Any], 
-                           context: ValidationContext) -> ValidationResult:
-        """運行單一驗證器"""
+    async def _run_validator(self, validator_name: str, data: Dict[str, Any], context: Dict[str, Any]) -> ValidationResult:
+        """
+        執行指定的驗證器
+        
+        Args:
+            validator_name: 驗證器名稱
+            data: 驗證數據
+            context: 驗證上下文
+            
+        Returns:
+            ValidationResult: 驗證結果
+        """
         try:
             # 這裡需要根據驗證器名稱創建實際的驗證器實例
             # 簡化實現：返回模擬結果
@@ -430,9 +439,11 @@ class ValidationOrchestrator:
                 status=ValidationStatus.PASSED,
                 level=ValidationLevel.INFO,
                 message=f"{validator_name} validation completed",
-                details={'simulated': True},
-                errors=[],
-                warnings=[],
+                details={
+                    'simulated': True,
+                    'validation_errors': [],
+                    'validation_warnings': []
+                },
                 metadata={'executed_at': datetime.now(timezone.utc).isoformat()}
             )
             
@@ -441,10 +452,12 @@ class ValidationOrchestrator:
                 validator_name=validator_name,
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
-                message=f"{validator_name} validation failed: {str(e)}",
-                details={'exception': str(e)},
-                errors=[str(e)],
-                warnings=[],
+                message=f"Validator execution error: {str(e)}",
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Execution failed: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'executed_at': datetime.now(timezone.utc).isoformat()}
             )
     
@@ -557,7 +570,7 @@ class ValidationOrchestrator:
             }
     
     async def _create_execution_snapshot(self, stage_id: str, 
-                                       stage_result: Dict[str, Any]) -> ExecutionSnapshot:
+                                   stage_result: Dict[str, Any]) -> ExecutionSnapshot:
         """創建執行快照"""
         snapshot_id = f"{stage_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
@@ -571,8 +584,6 @@ class ValidationOrchestrator:
                 level=ValidationLevel(result_dict.get('level', 'INFO')),
                 message=result_dict.get('message', ''),
                 details=result_dict.get('details', {}),
-                errors=result_dict.get('errors', []),
-                warnings=result_dict.get('warnings', []),
                 metadata=result_dict.get('metadata', {})
             )
             validation_results.append(validation_result)
@@ -622,14 +633,16 @@ class ValidationOrchestrator:
         all_warnings = []
         
         for result in validation_results:
-            all_errors.extend(result.errors)
-            all_warnings.extend(result.warnings)
+            # 從details中提取validation_errors和validation_warnings
+            if hasattr(result, 'details') and result.details:
+                all_errors.extend(result.details.get('validation_errors', []))
+                all_warnings.extend(result.details.get('validation_warnings', []))
         
         # 錯誤分類
         error_categories = {
-            'academic_violations': [e for e in all_errors if 'academic' in e.lower() or 'grade' in e.lower()],
-            'data_quality_issues': [e for e in all_errors if 'data' in e.lower() or 'quality' in e.lower()],
-            'technical_errors': [e for e in all_errors if 'error' in e.lower() or 'exception' in e.lower()],
+            'academic_violations': [e for e in all_errors if 'academic' in str(e).lower() or 'grade' in str(e).lower()],
+            'data_quality_issues': [e for e in all_errors if 'data' in str(e).lower() or 'quality' in str(e).lower()],
+            'technical_errors': [e for e in all_errors if 'error' in str(e).lower() or 'exception' in str(e).lower()],
             'other_issues': []
         }
         
@@ -644,7 +657,7 @@ class ValidationOrchestrator:
             'total_errors': len(all_errors),
             'total_warnings': len(all_warnings),
             'error_categories': error_categories,
-            'critical_errors': [e for e in all_errors if any(keyword in e.lower() 
+            'critical_errors': [e for e in all_errors if any(keyword in str(e).lower() 
                               for keyword in ['critical', 'blocker', 'zero', 'academic'])],
             'timestamp': datetime.now(timezone.utc).isoformat()
         }
@@ -663,7 +676,7 @@ class StageGatekeeper:
         gate_evaluation = {
             'stage_id': stage_id,
             'timestamp': datetime.now(timezone.utc).isoformat(),
-            'status': QualityGateStatus.OPEN,
+            'status': QualityGateStatus.OPEN.value,  # 轉換為字符串值
             'blocking_rules': [],
             'warning_rules': [],
             'recommendations': []
@@ -672,7 +685,7 @@ class StageGatekeeper:
         # 獲取階段配置
         stage = self.orchestrator.stages.get(stage_id)
         if not stage:
-            gate_evaluation['status'] = QualityGateStatus.CLOSED
+            gate_evaluation['status'] = QualityGateStatus.CLOSED.value  # 轉換為字符串值
             gate_evaluation['blocking_rules'].append(f"Unknown stage: {stage_id}")
             return gate_evaluation
         
@@ -685,7 +698,7 @@ class StageGatekeeper:
             if rule_result['violated']:
                 if rule_config.get('action') == 'block':
                     gate_evaluation['blocking_rules'].append(rule_result)
-                    gate_evaluation['status'] = QualityGateStatus.CLOSED
+                    gate_evaluation['status'] = QualityGateStatus.CLOSED.value  # 轉換為字符串值
                 elif rule_config.get('action') == 'warn':
                     gate_evaluation['warning_rules'].append(rule_result)
         
@@ -1106,16 +1119,25 @@ class ValidationSnapshotManager:
         try:
             snapshot_file = self.storage_path / f"{snapshot.snapshot_id}.json"
             
-            # 將快照序列化為JSON
+            # 將快照序列化為JSON - 使用asdict處理dataclass
             snapshot_data = asdict(snapshot)
             
             # 處理datetime對象
             snapshot_data['timestamp'] = snapshot_data['timestamp'].isoformat()
             
-            # 處理ValidationResult對象
+            # 處理ValidationResult對象 - 使用to_dict()方法
             for i, result in enumerate(snapshot_data['validation_results']):
-                if hasattr(result, '__dict__'):
-                    snapshot_data['validation_results'][i] = asdict(result)
+                if hasattr(result, 'to_dict'):
+                    snapshot_data['validation_results'][i] = result.to_dict()
+                elif hasattr(result, '__dict__'):
+                    snapshot_data['validation_results'][i] = result.__dict__
+                # 如果已經是字典，保持不變
+                elif isinstance(result, dict):
+                    pass
+            
+            # 處理ExecutionStatus枚舉
+            if 'execution_status' in snapshot_data and hasattr(snapshot_data['execution_status'], 'value'):
+                snapshot_data['execution_status'] = snapshot_data['execution_status'].value
             
             # 寫入文件
             with open(snapshot_file, 'w', encoding='utf-8') as f:

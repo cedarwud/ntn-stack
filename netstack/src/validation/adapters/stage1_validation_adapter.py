@@ -8,8 +8,11 @@ Stage 1 Validation Adapter
 
 from typing import Dict, List, Any, Optional, Tuple
 import json
+import logging
 from datetime import datetime, timezone
-from dataclasses import asdict
+# asdict removed - using ValidationResult.to_dict() instead
+
+logger = logging.getLogger(__name__)
 
 from validation.core.base_validator import ValidationResult, ValidationStatus, ValidationLevel
 from validation.engines.academic_standards_engine import (
@@ -34,7 +37,7 @@ from validation.config.data_quality_config import get_data_quality_config
 class Stage1ValidationAdapter:
     """Stage 1 軌道計算驗證轉接器"""
     
-    def __init__(self, output_dir: str = "/app/data/tle_calculation_outputs"):
+    def __init__(self, output_dir: str = "/app/data"):
         # 驗證引擎初始化
         self.academic_config = get_academic_config()
         self.quality_config = get_data_quality_config()
@@ -50,71 +53,81 @@ class Stage1ValidationAdapter:
         # 執行控制組件
         self.orchestrator = ValidationOrchestrator()
         self.gatekeeper = StageGatekeeper(self.orchestrator)
-        self.snapshot_manager = ValidationSnapshotManager(f"{output_dir}/validation_snapshots")
+        self.snapshot_manager = ValidationSnapshotManager("/app/data/validation_snapshots")
         
         # 驗證歷史記錄
         self.validation_history: List[Dict[str, Any]] = []
         self.current_validation_context = {}
     
-    async def pre_process_validation(self, tle_data: List[Dict[str, Any]], 
-                                   context: Dict[str, Any] = None) -> Dict[str, Any]:
-        """預處理驗證 - TLE 數據載入前檢查"""
+    async def pre_process_validation(self, input_data: Dict, validation_context: Dict) -> Dict:
+        """執行預處理驗證"""
         validation_start = datetime.now(timezone.utc)
+        validation_results = []
         
         try:
-            # 準備驗證上下文
-            validation_context = {
-                'stage_id': 'stage1_orbital_calculation',
-                'phase': 'pre_process',
-                'input_data_size': len(tle_data),
-                'validation_timestamp': validation_start.isoformat(),
-                'context': context or {}
-            }
-            self.current_validation_context = validation_context
+            logger.info("🔍 執行階段一預處理驗證...")
             
-            # TLE 數據結構驗證
-            structure_result = await self._validate_tle_structure(tle_data, validation_context)
-            
-            # TLE 數據完整性檢查
-            completeness_result = await self._validate_tle_completeness(tle_data, validation_context)
-            
-            # 時間基準預檢查
-            time_base_result = await self._pre_validate_time_base(tle_data, validation_context)
-            
-            # 綜合評估預處理結果
-            validation_results = [structure_result, completeness_result, time_base_result]
-            pre_process_success = all(
-                result.status != ValidationStatus.FAILED for result in validation_results
+            # TLE完整性檢查
+            tle_result = await self._validate_tle_completeness(
+                input_data.get('tle_data', []), 
+                validation_context
             )
+            validation_results.append(tle_result)
+            
+            # 時間基準預驗證
+            time_result = await self._pre_validate_time_base(
+                input_data.get('tle_data', []), 
+                validation_context
+            )
+            validation_results.append(time_result)
+            
+            # 學術標準預檢查
+            academic_result = await self._validate_academic_standards(
+                input_data.get('tle_data', []), 
+                validation_context
+            )
+            validation_results.append(academic_result)
+            
+            # 評估預處理驗證成功性
+            pre_process_success = self._evaluate_pre_process_success(validation_results)
             
             validation_summary = {
                 'phase': 'pre_process',
                 'start_time': validation_start.isoformat(),
                 'end_time': datetime.now(timezone.utc).isoformat(),
                 'success': pre_process_success,
-                'validation_results': [asdict(result) for result in validation_results],
+                'validation_results': [result.to_dict() for result in validation_results],
                 'context': validation_context,
                 'recommendations': self._generate_pre_process_recommendations(validation_results)
             }
             
-            # 如果預處理驗證失敗，阻止進一步處理
-            if not pre_process_success:
-                validation_summary['blocking_errors'] = [
-                    error for result in validation_results 
-                    for error in result.errors if result.status == ValidationStatus.FAILED
-                ]
-                raise ValidationError(f"Pre-process validation failed: {validation_summary['blocking_errors']}")
-            
+            logger.info(f"✅ 階段一預處理驗證完成: {'成功' if pre_process_success else '失敗'}")
             return validation_summary
             
         except Exception as e:
+            logger.error(f"❌ 階段一預處理驗證失敗: {e}")
+            error_result = ValidationResult(
+                validator_name="Pre_Processing_Validator",
+                status=ValidationStatus.ERROR,
+                level=ValidationLevel.CRITICAL,
+                message=f"Pre-processing validation error: {str(e)}",
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Pre-processing validation failed: {str(e)}"],
+                    'validation_warnings': []
+                },
+                metadata={'validation_type': 'pre_processing'}
+            )
+            
+            validation_results.append(error_result)
             return {
                 'phase': 'pre_process',
                 'start_time': validation_start.isoformat(),
                 'end_time': datetime.now(timezone.utc).isoformat(),
                 'success': False,
-                'error': str(e),
-                'context': self.current_validation_context
+                'validation_results': [result.to_dict() for result in validation_results],
+                'context': validation_context,
+                'error': str(e)
             }
     
     async def post_process_validation(self, orbital_data: List[Dict[str, Any]], 
@@ -161,7 +174,7 @@ class Stage1ValidationAdapter:
             # 品質門禁檢查
             gate_result = await self.gatekeeper.evaluate_stage_gate(
                 'stage1_orbital_calculation', 
-                {'validation_results': [asdict(result) for result in validation_results]},
+                {'validation_results': [result.to_dict() for result in validation_results]},
                 orbital_data
             )
             
@@ -178,9 +191,9 @@ class Stage1ValidationAdapter:
                 'start_time': validation_start.isoformat(),
                 'end_time': datetime.now(timezone.utc).isoformat(),
                 'success': post_process_success,
-                'validation_results': [asdict(result) for result in validation_results],
+                'validation_results': [result.to_dict() for result in validation_results],
                 'quality_gate': gate_result,
-                'snapshot': asdict(snapshot) if snapshot else None,
+                'snapshot': {'snapshot_id': snapshot.snapshot_id, 'timestamp': snapshot.timestamp.isoformat(), 'stage_id': snapshot.stage_id, 'execution_status': snapshot.execution_status.value} if snapshot else None,
                 'context': validation_context,
                 'academic_compliance': self._assess_academic_compliance(validation_results),
                 'recommendations': self._generate_post_process_recommendations(validation_results)
@@ -218,9 +231,11 @@ class Stage1ValidationAdapter:
                     status=ValidationStatus.FAILED,
                     level=ValidationLevel.CRITICAL,
                     message="No TLE data provided",
-                    details={'data_count': 0},
-                    errors=["Empty TLE dataset"],
-                    warnings=[],
+                    details={
+                        'data_count': 0,
+                        'validation_errors': ["Empty TLE dataset"],
+                        'validation_warnings': []
+                    },
                     metadata={'validation_type': 'tle_structure'}
                 )
             
@@ -236,9 +251,11 @@ class Stage1ValidationAdapter:
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"TLE structure validation error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Structure validation failed: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Structure validation failed: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'tle_structure'}
             )
     
@@ -272,10 +289,10 @@ class Stage1ValidationAdapter:
                 details={
                     'total_satellites': len(tle_data),
                     'checked_satellites': min(100, len(tle_data)),
-                    'completeness_issues': len(completeness_errors)
+                    'completeness_issues': len(completeness_errors),
+                    'validation_errors': completeness_errors,
+                    'validation_warnings': []
                 },
-                errors=completeness_errors,
-                warnings=[],
                 metadata={'validation_type': 'tle_completeness'}
             )
             
@@ -285,9 +302,11 @@ class Stage1ValidationAdapter:
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"TLE completeness validation error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Completeness validation failed: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Completeness validation failed: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'tle_completeness'}
             )
     
@@ -325,10 +344,10 @@ class Stage1ValidationAdapter:
                 message=f"Time base pre-validation {'passed' if time_base_valid else 'failed'}",
                 details={
                     'checked_satellites': min(50, len(tle_data)),
-                    'epoch_issues': len(epoch_issues)
+                    'epoch_issues': len(epoch_issues),
+                    'validation_errors': epoch_issues,
+                    'validation_warnings': []
                 },
-                errors=epoch_issues,
-                warnings=[],
                 metadata={'validation_type': 'time_base_pre_check'}
             )
             
@@ -338,9 +357,11 @@ class Stage1ValidationAdapter:
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"Time base pre-validation error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Time base pre-validation failed: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Time base pre-validation failed: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'time_base_pre_check'}
             )
     
@@ -362,9 +383,11 @@ class Stage1ValidationAdapter:
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"Academic standards validation error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Academic validation failed: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Academic validation failed: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'academic_standards'}
             )
     
@@ -395,9 +418,11 @@ class Stage1ValidationAdapter:
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"Zero value detection error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Zero value detection failed: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Zero value detection failed: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'zero_value_detection'}
             )
     
@@ -418,9 +443,11 @@ class Stage1ValidationAdapter:
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"Physics validation error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Physics validation failed: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Physics validation failed: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'orbital_physics'}
             )
     
@@ -436,9 +463,11 @@ class Stage1ValidationAdapter:
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"Statistical analysis error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Statistical analysis failed: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Statistical analysis failed: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'statistical_analysis'}
             )
     
@@ -461,9 +490,11 @@ class Stage1ValidationAdapter:
                 status=ValidationStatus.ERROR,
                 level=ValidationLevel.CRITICAL,
                 message=f"Time compliance validation error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Time compliance validation failed: {str(e)}"],
-                warnings=[],
+                details={
+                    'exception': str(e),
+                    'validation_errors': [f"Time compliance validation failed: {str(e)}"],
+                    'validation_warnings': []
+                },
                 metadata={'validation_type': 'time_compliance'}
             )
     
@@ -557,8 +588,10 @@ class Stage1ValidationAdapter:
         all_warnings = []
         
         for result in validation_results:
-            all_errors.extend(result.errors)
-            all_warnings.extend(result.warnings)
+            # ValidationResult將errors和warnings存儲在details中
+            details = result.details or {}
+            all_errors.extend(details.get('validation_errors', []))
+            all_warnings.extend(details.get('validation_warnings', []))
         
         # Stage 1 特定錯誤分類
         error_categories = {
@@ -595,7 +628,8 @@ class Stage1ValidationAdapter:
         academic_errors = []
         for result in validation_results:
             if result.validator_name in ['Academic_Standards_Validator', 'Grade_A_Data_Validator']:
-                academic_errors.extend(result.errors)
+                details = result.details or {}
+                academic_errors.extend(details.get('validation_errors', []))
         
         return {
             'grade_level': 'A',
@@ -667,7 +701,7 @@ class Stage1ValidationAdapter:
         for validation in self.validation_history:
             for result in validation.get('validation_results', []):
                 if isinstance(result, dict):
-                    all_errors.extend(result.get('errors', []))
+                    all_errors.extend(result.get('validation_errors', []))
         
         # 統計錯誤頻率
         error_counts = {}

@@ -61,66 +61,73 @@ class GradeADataValidator(BaseValidator):
         self.config = config or get_academic_config()
         self.grade_a_rules = self.config.get_grade_a_requirements()
     
-    def validate(self, data: Dict[str, Any], context: Dict[str, Any] = None) -> ValidationResult:
-        """執行 Grade A 數據驗證"""
+    def validate(self, data: Dict[str, Any], context: Dict[str, Any]) -> ValidationResult:
+        """
+        執行 Grade A 數據驗證
+        
+        Args:
+            data: 待驗證的數據
+            context: 驗證上下文
+            
+        Returns:
+            ValidationResult: 驗證結果
+        """
+        logger.info("🔍 執行 Grade A 數據標準驗證...")
+        
         validation_errors = []
         validation_warnings = []
         
-        try:
-            # ECI 座標驗證
-            eci_result = self.validate_eci_coordinates(data.get('orbital_data', []))
-            if not eci_result.is_compliant:
-                validation_errors.extend(eci_result.violation_details)
+        # 檢查 ECI 座標數據
+        eci_result = self.validate_eci_coordinates(data, context)
+        if not eci_result.is_valid:
+            validation_errors.extend(eci_result.errors)
+            validation_warnings.extend(eci_result.warnings)
+        
+        # 檢查 TLE 數據真實性
+        tle_result = self.validate_tle_data(data, context)
+        if not tle_result.is_valid:
+            validation_errors.extend(tle_result.errors)
+            validation_warnings.extend(tle_result.warnings)
+        
+        # 檢查物理參數準確性
+        physics_result = self.validate_physical_parameters(data, context)
+        if not physics_result.is_valid:
+            validation_errors.extend(physics_result.errors)
+            validation_warnings.extend(physics_result.warnings)
+        
+        # 檢查禁止的模式
+        forbidden_patterns = self.detect_forbidden_patterns(data, context)
+        validation_errors.extend(forbidden_patterns)
+        
+        # 確定驗證狀態和等級
+        if validation_errors:
+            status = ValidationStatus.FAILED
+            level = ValidationLevel.CRITICAL
+        elif validation_warnings:
+            status = ValidationStatus.WARNING
+            level = ValidationLevel.WARNING
+        else:
+            status = ValidationStatus.PASSED
+            level = ValidationLevel.INFO
             
-            # TLE 數據驗證  
-            tle_result = self.validate_tle_data(data.get('tle_data', []))
-            if not tle_result.time_base_compliance:
-                validation_errors.extend(tle_result.epoch_time_violations)
-            
-            # 物理參數驗證
-            physics_violations = self.validate_physical_parameters(data)
-            validation_errors.extend(physics_violations)
-            
-            # 禁止模式檢測
-            if 'source_code' in data:
-                forbidden_violations = self.detect_forbidden_patterns(data['source_code'])
-                validation_errors.extend(forbidden_violations)
-            
-            # 確定驗證狀態
-            if validation_errors:
-                status = ValidationStatus.FAILED
-                level = ValidationLevel.CRITICAL
-            else:
-                status = ValidationStatus.PASSED
-                level = ValidationLevel.INFO
-            
-            return ValidationResult(
-                validator_name=self.__class__.__name__,
-                status=status,
-                level=level,
-                message=f"Grade A data validation {'failed' if validation_errors else 'passed'}",
-                details={
-                    'eci_validation': eci_result,
-                    'tle_validation': tle_result,
-                    'errors': validation_errors,
-                    'warnings': validation_warnings
-                },
-                errors=validation_errors,
-                warnings=validation_warnings,
-                metadata={'grade_level': 'A', 'validation_timestamp': datetime.now(timezone.utc).isoformat()}
-            )
-            
-        except Exception as e:
-            return ValidationResult(
-                validator_name=self.__class__.__name__,
-                status=ValidationStatus.ERROR,
-                level=ValidationLevel.CRITICAL,
-                message=f"Grade A validation error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Validation engine error: {str(e)}"],
-                warnings=[],
-                metadata={'grade_level': 'A'}
-            )
+        logger.info(f"✅ Grade A 數據驗證完成: {'通過' if not validation_errors else '失敗'}")
+        
+        return ValidationResult(
+            validator_name=self.__class__.__name__,
+            status=status,
+            level=level,
+            message=f"Grade A data validation {'failed' if validation_errors else 'passed'}",
+            details={
+                'eci_validation': eci_result,
+                'tle_validation': tle_result,
+                'validation_errors': validation_errors,
+                'validation_warnings': validation_warnings
+            },
+            metadata={
+                'grade_level': 'A',
+                'validation_type': 'academic_standards'
+            }
+        )
     
     def validate_eci_coordinates(self, orbital_data: List[Dict]) -> ECICoordinateValidationResult:
         """驗證 ECI 座標數據"""
@@ -405,56 +412,69 @@ class PhysicalParameterValidator(BaseValidator):
     def __init__(self, config: AcademicStandardsConfig = None):
         self.config = config or get_academic_config()
     
-    def validate(self, data: Dict[str, Any], context: Dict[str, Any] = None) -> ValidationResult:
-        """驗證物理參數合理性"""
-        try:
-            validation_errors = []
-            validation_warnings = []
+    def validate(self, data: Dict[str, Any], context: Dict[str, Any]) -> ValidationResult:
+        """
+        執行物理參數驗證
+        
+        Args:
+            data: 待驗證的數據
+            context: 驗證上下文
             
-            # 軌道動力學參數驗證
-            orbital_result = self._validate_orbital_dynamics(data.get('orbital_data', {}))
-            validation_errors.extend(orbital_result.get('errors', []))
-            validation_warnings.extend(orbital_result.get('warnings', []))
+        Returns:
+            ValidationResult: 驗證結果
+        """
+        logger.info("🔍 執行物理參數驗證...")
+        
+        validation_errors = []
+        validation_warnings = []
+        
+        # 軌道物理驗證
+        orbital_result = self.validate_orbital_physics(data, context)
+        if not orbital_result.is_valid:
+            validation_errors.extend(orbital_result.errors)
+            validation_warnings.extend(orbital_result.warnings)
+        
+        # 傳播物理驗證  
+        propagation_result = self.validate_propagation_physics(data, context)
+        if not propagation_result.is_valid:
+            validation_errors.extend(propagation_result.errors)
+            validation_warnings.extend(propagation_result.warnings)
+        
+        # 幾何物理驗證
+        geometry_result = self.validate_geometry_physics(data, context)
+        if not geometry_result.is_valid:
+            validation_errors.extend(geometry_result.errors)
+            validation_warnings.extend(geometry_result.warnings)
+        
+        # 確定驗證狀態和等級
+        if validation_errors:
+            status = ValidationStatus.FAILED
+            level = ValidationLevel.CRITICAL
+        elif validation_warnings:
+            status = ValidationStatus.WARNING
+            level = ValidationLevel.WARNING
+        else:
+            status = ValidationStatus.PASSED
+            level = ValidationLevel.INFO
             
-            # 電磁波傳播參數驗證
-            propagation_result = self._validate_electromagnetic_propagation(data.get('signal_data', {}))
-            validation_errors.extend(propagation_result.get('errors', []))
-            validation_warnings.extend(propagation_result.get('warnings', []))
-            
-            # 幾何計算參數驗證
-            geometry_result = self._validate_geometric_calculations(data.get('geometry_data', {}))
-            validation_errors.extend(geometry_result.get('errors', []))
-            validation_warnings.extend(geometry_result.get('warnings', []))
-            
-            status = ValidationStatus.FAILED if validation_errors else ValidationStatus.PASSED
-            level = ValidationLevel.CRITICAL if validation_errors else ValidationLevel.INFO
-            
-            return ValidationResult(
-                validator_name=self.__class__.__name__,
-                status=status,
-                level=level,
-                message=f"Physical parameter validation {'failed' if validation_errors else 'passed'}",
-                details={
-                    'orbital_validation': orbital_result,
-                    'propagation_validation': propagation_result,
-                    'geometry_validation': geometry_result
-                },
-                errors=validation_errors,
-                warnings=validation_warnings,
-                metadata={'validation_type': 'physical_parameters'}
-            )
-            
-        except Exception as e:
-            return ValidationResult(
-                validator_name=self.__class__.__name__,
-                status=ValidationStatus.ERROR,
-                level=ValidationLevel.CRITICAL,
-                message=f"Physical parameter validation error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Validation error: {str(e)}"],
-                warnings=[],
-                metadata={'validation_type': 'physical_parameters'}
-            )
+        logger.info(f"✅ 物理參數驗證完成: {'通過' if not validation_errors else '失敗'}")
+        
+        return ValidationResult(
+            validator_name=self.__class__.__name__,
+            status=status,
+            level=level,
+            message=f"Physical parameter validation {'failed' if validation_errors else 'passed'}",
+            details={
+                'orbital_validation': orbital_result,
+                'propagation_validation': propagation_result,
+                'geometry_validation': geometry_result,
+                'validation_errors': validation_errors,
+                'validation_warnings': validation_warnings
+            },
+            metadata={
+                'validation_type': 'physical_parameters'
+            }
+        )
     
     def _validate_orbital_dynamics(self, orbital_data: Dict) -> Dict[str, List[str]]:
         """驗證軌道動力學參數"""
@@ -547,56 +567,69 @@ class TimeBaseContinuityChecker(BaseValidator):
     def __init__(self, config: AcademicStandardsConfig = None):
         self.config = config or get_academic_config()
     
-    def validate(self, data: Dict[str, Any], context: Dict[str, Any] = None) -> ValidationResult:
-        """檢查時間基準一致性"""
-        try:
-            validation_errors = []
-            validation_warnings = []
+    def validate(self, data: Dict[str, Any], context: Dict[str, Any]) -> ValidationResult:
+        """
+        執行時間基準連續性驗證
+        
+        Args:
+            data: 待驗證的數據
+            context: 驗證上下文
             
-            # TLE epoch 時間檢查
-            tle_time_result = self._validate_tle_epoch_usage(data)
-            validation_errors.extend(tle_time_result.get('errors', []))
-            validation_warnings.extend(tle_time_result.get('warnings', []))
+        Returns:
+            ValidationResult: 驗證結果
+        """
+        logger.info("🔍 執行時間基準連續性驗證...")
+        
+        validation_errors = []
+        validation_warnings = []
+        
+        # TLE 時間驗證
+        tle_time_result = self.validate_tle_time_consistency(data, context)
+        if not tle_time_result['is_valid']:
+            validation_errors.extend(tle_time_result['errors'])
+            validation_warnings.extend(tle_time_result['warnings'])
+        
+        # 連續性驗證
+        continuity_result = self.validate_time_continuity(data, context)
+        if not continuity_result['is_valid']:
+            validation_errors.extend(continuity_result['errors'])
+            validation_warnings.extend(continuity_result['warnings'])
+        
+        # 同步性驗證
+        sync_result = self.validate_synchronization(data, context)
+        if not sync_result['is_valid']:
+            validation_errors.extend(sync_result['errors'])
+            validation_warnings.extend(sync_result['warnings'])
+        
+        # 確定驗證狀態和等級
+        if validation_errors:
+            status = ValidationStatus.FAILED
+            level = ValidationLevel.CRITICAL
+        elif validation_warnings:
+            status = ValidationStatus.WARNING
+            level = ValidationLevel.WARNING
+        else:
+            status = ValidationStatus.PASSED
+            level = ValidationLevel.INFO
             
-            # 時間序列連續性檢查
-            continuity_result = self._validate_time_series_continuity(data)
-            validation_errors.extend(continuity_result.get('errors', []))
-            validation_warnings.extend(continuity_result.get('warnings', []))
-            
-            # UTC/GPS時間同步檢查
-            sync_result = self._validate_time_synchronization(data)
-            validation_errors.extend(sync_result.get('errors', []))
-            validation_warnings.extend(sync_result.get('warnings', []))
-            
-            status = ValidationStatus.FAILED if validation_errors else ValidationStatus.PASSED
-            level = ValidationLevel.CRITICAL if validation_errors else ValidationLevel.INFO
-            
-            return ValidationResult(
-                validator_name=self.__class__.__name__,
-                status=status,
-                level=level,
-                message=f"Time base continuity validation {'failed' if validation_errors else 'passed'}",
-                details={
-                    'tle_time_validation': tle_time_result,
-                    'continuity_validation': continuity_result,
-                    'sync_validation': sync_result
-                },
-                errors=validation_errors,
-                warnings=validation_warnings,
-                metadata={'validation_type': 'time_base_continuity'}
-            )
-            
-        except Exception as e:
-            return ValidationResult(
-                validator_name=self.__class__.__name__,
-                status=ValidationStatus.ERROR,
-                level=ValidationLevel.CRITICAL,
-                message=f"Time base validation error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Validation error: {str(e)}"],
-                warnings=[],
-                metadata={'validation_type': 'time_base_continuity'}
-            )
+        logger.info(f"✅ 時間基準連續性驗證完成: {'通過' if not validation_errors else '失敗'}")
+        
+        return ValidationResult(
+            validator_name=self.__class__.__name__,
+            status=status,
+            level=level,
+            message=f"Time base continuity validation {'failed' if validation_errors else 'passed'}",
+            details={
+                'tle_time_validation': tle_time_result,
+                'continuity_validation': continuity_result,
+                'sync_validation': sync_result,
+                'validation_errors': validation_errors,
+                'validation_warnings': validation_warnings
+            },
+            metadata={
+                'validation_type': 'time_base_continuity'
+            }
+        )
     
     def _validate_tle_epoch_usage(self, data: Dict) -> Dict[str, List[str]]:
         """驗證TLE epoch時間使用"""
@@ -699,50 +732,62 @@ class ZeroValueDetector(BaseValidator):
         self.config = config or get_academic_config()
         self.zero_tolerance = self.config.get_grade_a_requirements()['eci_coordinates']['zero_tolerance_threshold']
     
-    def validate(self, data: Dict[str, Any], context: Dict[str, Any] = None) -> ValidationResult:
-        """零值檢測驗證"""
-        try:
-            validation_errors = []
-            validation_warnings = []
+    def validate(self, data: Dict[str, Any], context: Dict[str, Any]) -> ValidationResult:
+        """
+        執行零值檢測驗證
+        
+        Args:
+            data: 待驗證的數據
+            context: 驗證上下文
             
-            # ECI座標零值檢測
-            eci_result = self._detect_eci_zero_values(data.get('eci_coordinates', []))
-            validation_errors.extend(eci_result.get('errors', []))
-            validation_warnings.extend(eci_result.get('warnings', []))
+        Returns:
+            ValidationResult: 驗證結果
+        """
+        logger.info("🔍 執行零值檢測驗證...")
+        
+        validation_errors = []
+        validation_warnings = []
+        
+        # ECI 零值檢測
+        eci_result = self.detect_eci_zero_values(data, context)
+        if not eci_result['is_valid']:
+            validation_errors.extend(eci_result['errors'])
+            validation_warnings.extend(eci_result['warnings'])
+        
+        # 通用零值檢測
+        general_result = self.detect_general_zero_values(data, context)
+        if not general_result['is_valid']:
+            validation_errors.extend(general_result['errors'])
+            validation_warnings.extend(general_result['warnings'])
+        
+        # 確定驗證狀態和等級
+        if validation_errors:
+            status = ValidationStatus.FAILED
+            level = ValidationLevel.CRITICAL
+        elif validation_warnings:
+            status = ValidationStatus.WARNING
+            level = ValidationLevel.WARNING
+        else:
+            status = ValidationStatus.PASSED
+            level = ValidationLevel.INFO
             
-            # 其他重要數值零值檢測
-            general_result = self._detect_general_zero_values(data)
-            validation_errors.extend(general_result.get('errors', []))
-            validation_warnings.extend(general_result.get('warnings', []))
-            
-            status = ValidationStatus.FAILED if validation_errors else ValidationStatus.PASSED
-            level = ValidationLevel.BLOCKER if validation_errors else ValidationLevel.INFO
-            
-            return ValidationResult(
-                validator_name=self.__class__.__name__,
-                status=status,
-                level=level,
-                message=f"Zero value detection {'failed' if validation_errors else 'passed'}",
-                details={
-                    'eci_zero_detection': eci_result,
-                    'general_zero_detection': general_result
-                },
-                errors=validation_errors,
-                warnings=validation_warnings,
-                metadata={'validation_type': 'zero_value_detection'}
-            )
-            
-        except Exception as e:
-            return ValidationResult(
-                validator_name=self.__class__.__name__,
-                status=ValidationStatus.ERROR,
-                level=ValidationLevel.CRITICAL,
-                message=f"Zero value detection error: {str(e)}",
-                details={'exception': str(e)},
-                errors=[f"Detection error: {str(e)}"],
-                warnings=[],
-                metadata={'validation_type': 'zero_value_detection'}
-            )
+        logger.info(f"✅ 零值檢測驗證完成: {'通過' if not validation_errors else '失敗'}")
+        
+        return ValidationResult(
+            validator_name=self.__class__.__name__,
+            status=status,
+            level=level,
+            message=f"Zero value detection {'failed' if validation_errors else 'passed'}",
+            details={
+                'eci_zero_detection': eci_result,
+                'general_zero_detection': general_result,
+                'validation_errors': validation_errors,
+                'validation_warnings': validation_warnings
+            },
+            metadata={
+                'validation_type': 'zero_value_detection'
+            }
+        )
     
     def _detect_eci_zero_values(self, eci_coordinates: List[Dict]) -> Dict[str, List[str]]:
         """檢測ECI座標零值"""
