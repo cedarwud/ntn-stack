@@ -62,16 +62,25 @@ def validate_stage_immediately(stage_processor, processing_results, stage_num, s
         print(f"\n🔍 階段{stage_num}立即驗證檢查...")
         print("-" * 40)
         
-        # 🔧 特殊處理階段一：驗證快照已在內部完成，無需外部調用
+        # 🔧 修正階段一驗證邏輯：檢查字典類型結果
         if stage_num == 1:
-            # 階段一返回的是output_file字符串，驗證已在處理過程中完成
-            if processing_results and isinstance(processing_results, str):
-                print(f"✅ 階段{stage_num}處理成功，輸出文件: {processing_results}")
-                print(f"✅ 階段{stage_num}驗證已在內部完成")
-                return True, f"階段{stage_num}驗證成功"
+            # 階段一返回的是dict類型的完整結果
+            if processing_results and isinstance(processing_results, dict):
+                # 檢查是否包含必要的數據結構
+                has_data = 'data' in processing_results
+                has_metadata = 'metadata' in processing_results
+                output_file = processing_results.get('metadata', {}).get('output_file', 'unknown')
+                
+                if has_data and has_metadata:
+                    print(f"✅ 階段{stage_num}處理成功，輸出文件: {output_file}")
+                    print(f"✅ 階段{stage_num}驗證已在內部完成")
+                    return True, f"階段{stage_num}驗證成功"
+                else:
+                    print(f"❌ 階段{stage_num}結果缺少必要數據結構")
+                    return False, f"階段{stage_num}結果缺少必要數據結構"
             else:
-                print(f"❌ 階段{stage_num}處理結果異常")
-                return False, f"階段{stage_num}處理結果異常"
+                print(f"❌ 階段{stage_num}處理結果類型異常: {type(processing_results)}")
+                return False, f"階段{stage_num}處理結果類型異常"
         
         # 其他階段：保存驗證快照（內含自動驗證）
         elif hasattr(stage_processor, 'save_validation_snapshot'):
@@ -142,13 +151,12 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             print('\n📡 階段一：TLE載入與SGP4軌道計算 (新模組化架構)')
             print('-' * 60)
             
-            from stages.stage1_orbital_calculation.stage1_processor import Stage1Processor
-            stage1 = Stage1Processor(
-                sample_mode=False,
-                sample_size=500
+            from stages.stage1_orbital_calculation.tle_orbital_calculation_processor import Stage1TLEProcessor
+            stage1 = Stage1TLEProcessor(
+                config={'sample_mode': False, 'sample_size': 500}
             )
             
-            results['stage1'] = stage1.process()
+            results['stage1'] = stage1.process(input_data=None)
             
             if not results['stage1']:
                 print('❌ 階段一處理失敗')
@@ -196,14 +204,14 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             return True, 2, "階段二成功完成"
             
         elif target_stage == 3:
-            # 階段三：時間序列預處理 - 使用新模組化架構
-            print('\n⏱️ 階段三：時間序列預處理 (新模組化架構)')
+            # 階段三：信號分析 - 使用新模組化架構 (moved from old stage 4)
+            print('\n📶 階段三：信號分析 (新模組化架構)')
             print('-' * 60)
             
-            from stages.stage3_timeseries_preprocessing.stage3_processor import Stage3Processor
-            stage3 = Stage3Processor(
+            from stages.stage4_signal_analysis.stage4_processor import Stage4Processor
+            stage3 = Stage4Processor(
                 input_dir='data/intelligent_filtering_outputs',
-                output_dir='data/timeseries_preprocessing_outputs'
+                output_dir='data/signal_analysis_outputs'
             )
             
             results['stage3'] = stage3.process()
@@ -214,7 +222,7 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
                 
             # 立即驗證
             validation_success, validation_msg = validate_stage_immediately(
-                stage3, results['stage3'], 3, "時間序列預處理"
+                stage3, results['stage3'], 3, "信號分析"
             )
             
             if not validation_success:
@@ -225,25 +233,23 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             return True, 3, "階段三成功完成"
             
         elif target_stage == 4:
-            # 階段四：信號分析 - 使用新模組化架構
-            print('\n📶 階段四：信號分析 (新模組化架構)')
+            # 階段四：時間序列預處理 - 使用新實現的標準架構
+            print('\n⏱️ 階段四：時間序列預處理 (完整學術級實現)')
             print('-' * 60)
             
-            from stages.stage4_signal_analysis.stage4_processor import Stage4Processor
-            stage4 = Stage4Processor(
-                input_dir='data/timeseries_preprocessing_outputs',
-                output_dir='data/signal_analysis_outputs'
-            )
+            from stages.stage4_timeseries_preprocessing.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
+            stage4 = TimeseriesPreprocessingProcessor()
             
-            results['stage4'] = stage4.process()
+            # 從階段三載入信號分析結果
+            results['stage4'] = stage4.process_timeseries_preprocessing()
             
             if not results['stage4']:
                 print('❌ 階段四處理失敗')
                 return False, 4, "階段四處理失敗"
                 
-            # 立即驗證
+            # 立即驗證 - 使用新的學術標準驗證器
             validation_success, validation_msg = validate_stage_immediately(
-                stage4, results['stage4'], 4, "信號分析"
+                stage4, results['stage4'], 4, "時間序列預處理"
             )
             
             if not validation_success:
@@ -341,13 +347,12 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         print('\n📡 階段一：TLE載入與SGP4軌道計算 (新模組化架構)')
         print('-' * 60)
         
-        from stages.stage1_orbital_calculation.stage1_processor import Stage1Processor
-        stage1 = Stage1Processor(
-            sample_mode=False,
-            sample_size=500
+        from stages.stage1_orbital_calculation.tle_orbital_calculation_processor import Stage1TLEProcessor
+        stage1 = Stage1TLEProcessor(
+            config={'sample_mode': False, 'sample_size': 500}
         )
         
-        results['stage1'] = stage1.process()
+        results['stage1'] = stage1.process(input_data=None)
         
         if not results['stage1']:
             print('❌ 階段一處理失敗')
@@ -402,14 +407,14 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         completed_stages = 2
         print(f'✅ 階段二完成並驗證通過')
         
-        # 階段三：時間序列預處理 - 使用新模組化架構
-        print('\n⏱️ 階段三：時間序列預處理 (新模組化架構)')
+        # 階段三：信號分析 - 使用新模組化架構 (moved from old stage 4)
+        print('\n📶 階段三：信號分析 (新模組化架構)')
         print('-' * 60)
         
-        from stages.stage3_timeseries_preprocessing.stage3_processor import Stage3Processor
-        stage3 = Stage3Processor(
+        from stages.stage4_signal_analysis.stage4_processor import Stage4Processor
+        stage3 = Stage4Processor(
             input_dir='data/intelligent_filtering_outputs',
-            output_dir='data/timeseries_preprocessing_outputs'
+            output_dir='data/signal_analysis_outputs'
         )
         
         results['stage3'] = stage3.process()
@@ -420,7 +425,7 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         
         # 🔍 階段三立即驗證
         validation_success, validation_msg = validate_stage_immediately(
-            stage3, results['stage3'], 3, "時間序列預處理"
+            stage3, results['stage3'], 3, "信號分析"
         )
         
         if not validation_success:
@@ -431,25 +436,23 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         completed_stages = 3
         print(f'✅ 階段三完成並驗證通過')
         
-        # 階段四：信號分析 - 使用新模組化架構
-        print('\n📶 階段四：信號分析 (新模組化架構)')
+        # 階段四：時間序列預處理 - 使用新實現的標準架構
+        print('\n⏱️ 階段四：時間序列預處理 (完整學術級實現)')
         print('-' * 60)
         
-        from stages.stage4_signal_analysis.stage4_processor import Stage4Processor
-        stage4 = Stage4Processor(
-            input_dir='data/timeseries_preprocessing_outputs',
-            output_dir='data/signal_analysis_outputs'
-        )
+        from stages.stage4_timeseries_preprocessing.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
+        stage4 = TimeseriesPreprocessingProcessor()
         
-        results['stage4'] = stage4.process()
+        # 從階段三載入信號分析結果
+        results['stage4'] = stage4.process_timeseries_preprocessing()
         
         if not results['stage4']:
             print('❌ 階段四處理失敗')
             return False, 4, "階段四處理失敗"
         
-        # 🔍 階段四立即驗證
+        # 🔍 階段四立即驗證 - 使用新的學術標準驗證器
         validation_success, validation_msg = validate_stage_immediately(
-            stage4, results['stage4'], 4, "信號分析"
+            stage4, results['stage4'], 4, "時間序列預處理"
         )
         
         if not validation_success:
@@ -525,6 +528,7 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         print('   ✅ 革命性除錯能力 - 組件級問題定位')
         print('   ✅ Grade A學術標準全面合規')
         print('   ✅ 完整驗證框架保障品質')
+        print('   ✅ 階段四時間序列預處理: 學術級60 FPS動畫數據')
         print('=' * 80)
         
         return True, 6, "全部六階段成功完成"

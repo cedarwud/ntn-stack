@@ -17,7 +17,7 @@ def check_python_environment():
         sys.path.insert(0, str(project_root / 'src'))
         
         # 測試核心模組導入
-        from stages.stage1_orbital_calculation.stage1_processor import Stage1Processor
+        from stages.stage1_orbital_calculation.tle_orbital_calculation_processor import Stage1TLEProcessor
         from shared.base_processor import BaseStageProcessor
         
         return True, "Python 環境和模組導入正常"

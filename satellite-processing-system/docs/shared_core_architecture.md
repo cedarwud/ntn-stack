@@ -66,7 +66,7 @@ lineage_id = lineage.start_new_lineage('stage1_tle_loading')
 
 # 記錄處理階段
 record = lineage.record_processing_stage(
-    stage_name='tle_orbital_calculation',
+    stage_name='stage1_orbital_calculation',
     input_sources=tle_sources,
     processing_algorithm='sgp4_orbital_propagation',
     output_description='衛星軌道位置計算結果',

@@ -261,14 +261,15 @@ Stage 4 (時序預處理) → Stage 5 (數據整合) → Stage 6 (動態池規�
 
 ### 六階段詳細處理流程
 
-#### **Stage 1: TLE 數據載入與 SGP4 軌道計算** ✅ v5.0 統一格式版
+#### **Stage 1: TLE 數據載入與 SGP4 軌道計算** ✅ v5.1 驗證修正版
 **數據源**: 本地TLE文件 (`/app/tle_data/`)  
-**處理對象**: 8,837 顆衛星 (8,186 Starlink + 651 OneWeb)  
-**處理時間**: 約 2-3 分鐘  
+**處理對象**: 8,837 顆衛星 (8,186 Starlink + 651 OneWeb) ✅ 已驗證成功 
+**處理時間**: 約 190 秒 (3分鐘10秒)
+**輸出大小**: 1.3GB 完整軌道計算數據
 **輸出模式**: 統一 UNIFIED_CONSTELLATION_FORMAT
-**🔧 v5.0 重大改進**: 消除雙重存儲架構，統一資料格式，預期減少70%文件大小
+**🔧 v5.1 修正**: 修正驗證邏輯錯誤，階段一現可完全正常執行
 
-**實際實現位置**: `/netstack/src/stages/tle_orbital_calculation_processor.py`
+**實際實現位置**: `/netstack/src/stages/stage1_orbital_calculation/tle_orbital_calculation_processor.py`
 ```python
 class Stage1TLEProcessor:
     def __init__(self, tle_data_dir="/app/tle_data", output_dir="/app/data"):
@@ -341,7 +342,7 @@ def process_tle_orbital_calculation(self):
 **處理時間**: 約 1-2 分鐘 (統一格式高效處理)
 **🔧 v2.0 更新**: 修正驗證標準，基於物理條件的自然篩選，非硬性數量限制
 
-**實際實現位置**: `/netstack/src/stages/satellite_visibility_filter_processor.py`
+**實際實現位置**: `/netstack/src/stages/stage2_visibility_filter/satellite_visibility_filter_processor.py`
 ```python
 class SatelliteVisibilityFilterProcessor:
     def process_intelligent_filtering(self, stage1_data):

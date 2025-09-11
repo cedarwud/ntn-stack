@@ -114,6 +114,16 @@ data/leo_outputs/
 **/stage*_processing_cache.json
 **/stage*_completion_status.json
 
+# 衛星處理系統大型輸出檔案 (>1GB 單檔)
+satellite-processing-system/data/outputs/
+satellite-processing-system/data/validation_snapshots/
+satellite-processing-system/data/tle_calculation_outputs/
+satellite-processing-system/data/intelligent_filtering_outputs/
+satellite-processing-system/data/signal_analysis_outputs/
+satellite-processing-system/data/timeseries_preprocessing_outputs/
+satellite-processing-system/data/data_integration_outputs/
+satellite-processing-system/data/dynamic_pool_planning_outputs/
+
 # 建構時預處理標記文件
 **/.build_mode
 **/.fast_startup

@@ -235,6 +235,8 @@ docker-compose exec satellite-dev bash
 # 在容器內執行處理
 python /satellite-processing/scripts/run_six_stages_with_validation.py
 
+# 📋 完整使用說明請查看: docs/USAGE_GUIDE.md
+
 # 服務管理
 docker-compose restart satellite-dev    # 重啟特定服務
 docker-compose build --no-cache        # 重新構建鏡像

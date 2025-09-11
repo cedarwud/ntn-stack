@@ -17,7 +17,7 @@ Stage 2: 衛星可見性過濾階段 - 模組化重構版
 - 輸出符合下一階段的標準化結果
 """
 
-from .stage2_processor import Stage2Processor
+from .satellite_visibility_filter_processor import SatelliteVisibilityFilterProcessor
 from .orbital_data_loader import OrbitalDataLoader
 from .visibility_calculator import VisibilityCalculator
 from .elevation_filter import ElevationFilter
@@ -25,7 +25,7 @@ from .visibility_analyzer import VisibilityAnalyzer
 from .result_formatter import ResultFormatter
 
 __all__ = [
-    'Stage2Processor',
+    'SatelliteVisibilityFilterProcessor',
     'OrbitalDataLoader', 
     'VisibilityCalculator',
     'ElevationFilter',

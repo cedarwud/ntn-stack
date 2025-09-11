@@ -9,6 +9,6 @@ Stage 1: 軌道計算階段 - 模組化重構版
 - result_formatter.py      # 結果格式化器
 """
 
-from .stage1_processor import Stage1Processor
+from .tle_orbital_calculation_processor import Stage1TLEProcessor
 
-__all__ = ['Stage1Processor']
+__all__ = ['Stage1TLEProcessor']

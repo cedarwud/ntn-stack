@@ -37,40 +37,74 @@
 
 ### 🎯 @doc/todo.md 對應實現 (3GPP TS 38.331標準)
 
-#### ✅ **Phase 1: 3GPP 標準化增強** (當前開發重點)
+#### ✅ **Phase 1: 3GPP 標準化增強** (已完成核心實現 ✨)
 本階段實現以下核心需求：
-- ✅ **A4事件數據支援**: 實現Mn + Ofn + Ocn – Hys > Thresh條件檢測
+- ✅ **A4事件數據支援**: **完全實現** Mn + Ofn + Ocn – Hys > Thresh條件檢測
   - 符合3GPP TS 38.331 Section 5.5.4.5標準
   - 支援RSRP (dBm)和RSRQ/RS-SINR (dB)測量
-- ✅ **A5事件數據支援**: 雙門檻條件(Mp + Hys < Thresh1) AND (Mn + Ofn + Ocn – Hys > Thresh2)
+  - 包含動態偏移配置系統 (MeasurementOffsetConfig)
+- ✅ **A5事件數據支援**: **完全實現** 雙門檻條件(Mp + Hys < Thresh1) AND (Mn + Ofn + Ocn – Hys > Thresh2)
   - 符合3GPP TS 38.331 Section 5.5.4.6標準  
   - 同時監控服務衛星劣化和鄰近衛星改善
-- ✅ **D2事件數據支援**: 距離條件(Ml1 – Hys > Thresh1) AND (Ml2 + Hys < Thresh2)
+  - 實現精確的雙條件同時檢查和任一條件退出機制
+- ✅ **D2事件數據支援**: **完全實現** 距離條件(Ml1 – Hys > Thresh1) AND (Ml2 + Hys < Thresh2)
   - 符合3GPP TS 38.331 Section 5.5.4.15a標準
   - 基於衛星星歷的移動參考位置距離測量
+  - 測量單位已修正為米（符合標準）
 
-#### 🚧 **Phase 1 開發重點** (近期增強目標)
-- 🔧 **精確 RSRP/RSRQ/RS-SINR 計算**: 完全符合 3GPP TS 36.214 測量標準
-- 🔧 **換手事件檢測引擎**: 實現標準化測量報告格式
-- 🔧 **多候選衛星評估**: 同時評估 3-5 個換手候選的信號品質
-- 🔧 **動態門檻調整**: 根據網路狀況自動調整 A4/A5/D2 門檻值
-- 🔧 **信號品質基礎**: 為強化學習提供RSRP/RSRQ/SINR狀態空間數據
+#### ✅ **Phase 1 核心成果** (2025-09-10 完成)
+- ✅ **精確 RSRP/RSRQ/RS-SINR 計算**: **完全符合** 3GPP TS 36.214 測量標準
+  - RSRP: 基於Friis公式 + ITU-R P.618大氣衰減
+  - RSRQ: N × RSRP / RSSI 公式實現
+  - RS-SINR: 信號功率 / (干擾功率 + 雜訊功率) 實現
+- ✅ **換手事件檢測引擎**: **完全實現** 標準化測量報告格式
+  - 3GPP TS 38.331標準事件狀態機
+  - 精確的進入/退出條件判斷
+  - 完整的事件元數據記錄
+- ✅ **測量偏移配置系統**: **完全實現** Ofn/Ocn動態管理
+  - 支援測量對象偏移 (Ofn) 配置
+  - 支援小區個別偏移 (Ocn) 配置  
+  - 3GPP標準範圍驗證 (-24 to 24 dB)
+- ✅ **信號品質基礎**: **完全實現** 為強化學習提供RSRP/RSRQ/SINR狀態空間數據
 
-#### 📋 **Phase 1 開發任務清單**
-1. **擴展 Stage4 信號分析處理器**:
-   - [ ] 實現精確的 RSRP/RSRQ/RS-SINR 計算模組
-   - [ ] 添加符合標準的測量報告格式
-   - [ ] 建立信號品質時間序列處理
+#### 📋 **Phase 1 已完成任務** ✅
+1. **✅ Stage4 信號分析處理器擴展**:
+   - ✅ 實現精確的 RSRP/RSRQ/RS-SINR 計算模組
+   - ✅ 添加符合標準的測量報告格式
+   - ✅ 建立信號品質時間序列處理
    
-2. **創建換手事件檢測引擎**:
-   - [ ] A4 事件: 鄰近衛星信號品質門檻檢測
-   - [ ] A5 事件: 雙門檻邏輯實現  
-   - [ ] D2 事件: 基於距離的換手觸發
+2. **✅ 換手事件檢測引擎創建**:
+   - ✅ A4 事件: 鄰近衛星信號品質門檻檢測 (標準公式)
+   - ✅ A5 事件: 雙門檻邏輯實現 (雙條件檢查)
+   - ✅ D2 事件: 基於距離的換手觸發 (雙距離門檻)
    
-3. **多候選衛星管理**:
-   - [ ] 同時跟蹤 3-5 個換手候選衛星
-   - [ ] 建立候選衛星優先級排序
-   - [ ] 實現候選衛星信號品質比較
+3. **✅ 測量偏移配置系統**:
+   - ✅ 創建 MeasurementOffsetConfig 類
+   - ✅ 整合 Ofn/Ocn 到事件檢測
+   - ✅ 支援配置文件載入/儲存
+
+#### ✅ **Phase 1 補充完成項目** (2025-09-10 最新)
+- ✅ **多候選衛星管理**: **完全實現** 同時跟蹤 3-5 個換手候選的信號品質
+  - HandoverCandidateManager: 智能候選選擇和排序
+  - 基於綜合評分的優先級管理 (信號40% + 事件25% + 穩定20% + 幾何15%)
+  - 支援動態候選池更新和換手建議生成
+- ✅ **換手決策引擎**: **完全實現** 基於3GPP事件的智能換手決策
+  - HandoverDecisionEngine: 多因素決策分析
+  - 支援立即/準備/緊急/無換手四種決策類型
+  - 決策置信度評估和解釋生成
+- ✅ **動態門檻調整**: **完全實現** 根據網路狀況自動調整 A4/A5/D2 門檻值
+  - DynamicThresholdController: 自適應門檻優化
+  - 基於網路負載、信號品質、換手成功率的智能調整
+  - 支援配置載入/儲存和調整歷史追蹤
+
+#### 🎯 **Phase 1 完整架構實現** ✨
+**核心組件已全部完成**：
+1. **信號品質計算**: RSRP/RSRQ/RS-SINR (3GPP TS 36.214標準)
+2. **3GPP事件檢測**: A4/A5/D2事件 (3GPP TS 38.331標準)
+3. **測量偏移配置**: Ofn/Ocn動態管理
+4. **候選衛星管理**: 多候選追蹤和評估
+5. **智能決策引擎**: 綜合決策分析
+6. **動態門檻調整**: 自適應優化系統
 
 ## 🎯 核心處理模組
 
@@ -322,26 +356,72 @@ for satellite in output_results:
 
 ## 🏗️ 處理架構實現
 
-### 主要實現位置
+### **Phase 1 完整架構實現位置**
 ```bash
-# 信號品質分析引擎 (實際檔案名稱)
-/netstack/src/stages/signal_analysis_processor.py
-├── SignalQualityAnalysisProcessor.calculate_signal_quality()      # 信號品質分析
-├── SignalQualityAnalysisProcessor.analyze_3gpp_events()           # 3GPP事件生成
-├── SignalQualityAnalysisProcessor.generate_final_recommendations() # 最終建議生成
-└── SignalQualityAnalysisProcessor.process_signal_quality_analysis()  # 完整流程執行
+# ✅ Stage 4 信號分析處理器 (主處理引擎)
+/satellite-processing-system/src/stages/stage4_signal_analysis/
+├── stage4_processor.py                    # 主處理器 (協調所有組件)
+├── signal_quality_calculator.py           # 信號品質計算 (RSRP/RSRQ/RS-SINR)
+├── gpp_event_analyzer.py                  # 3GPP事件分析 (A4/A5/D2)
+├── measurement_offset_config.py           # 測量偏移配置 (Ofn/Ocn)
+├── handover_candidate_manager.py          # 候選衛星管理 (3-5個候選)
+├── handover_decision_engine.py            # 換手決策引擎 (智能決策)
+└── dynamic_threshold_controller.py        # 動態門檻調整 (自適應優化)
 
-# 3GPP事件分析器 (實際位置)
-/netstack/src/services/satellite/intelligent_filtering/event_analysis/gpp_event_analyzer.py
-├── GPPEventAnalyzer.analyze_batch_events()               # 批量事件分析
-├── create_gpp_event_analyzer()                          # 工廠函數
-└── 支援 A4、A5、D2 事件類型
+# 🎯 **完整處理流程架構**:
+# Input → Signal Quality → 3GPP Events → Candidates → Decision → Output
+#   ↓         ↓              ↓            ↓          ↓         ↓
+# TLE數據 → RSRP/RSRQ → A4/A5/D2事件 → 候選排序 → 換手決策 → 建議輸出
+#                        ↑                        ↑
+#                   偏移配置(Ofn/Ocn)        動態門檻調整
 
-# 3GPP事件生成器 (輔助組件)
-/netstack/src/services/threegpp_event_generator.py
-├── ThreeGPPEventGenerator                                # 標準3GPP事件生成器
-└── MeasurementEventType                                  # 事件類型定義
+# 📊 **Phase 1 組件關係圖**:
+# SignalQualityCalculator ←→ GPPEventAnalyzer
+#         ↓                       ↓
+# MeasurementOffsetConfig → HandoverCandidateManager
+#                                ↓
+#                    HandoverDecisionEngine
+#                                ↓
+#                   DynamicThresholdController
 ```
+
+### **Phase 1 核心組件詳解**
+
+#### 1. **SignalQualityCalculator** (信號品質計算器)
+- **RSRP計算**: 基於Friis公式 + ITU-R P.618大氣衰減
+- **RSRQ計算**: N × RSRP / RSSI 公式 (3GPP TS 36.214)
+- **RS-SINR計算**: 信號功率 / (干擾+雜訊) (3GPP TS 36.214)
+- **位置**: `signal_quality_calculator.py`
+
+#### 2. **GPPEventAnalyzer** (3GPP事件分析器)
+- **A4事件**: Mn + Ofn + Ocn ± Hys vs Thresh (3GPP TS 38.331)
+- **A5事件**: 雙條件檢查 (服務劣化 AND 鄰區改善)
+- **D2事件**: 雙距離門檻 (Ml1/Ml2 距離條件)
+- **位置**: `gpp_event_analyzer.py`
+
+#### 3. **MeasurementOffsetConfig** (測量偏移配置)
+- **Ofn管理**: 測量對象特定偏移 (-24 to 24 dB)
+- **Ocn管理**: 小區個別偏移 (動態配置)
+- **標準合規**: 3GPP TS 38.331範圍驗證
+- **位置**: `measurement_offset_config.py`
+
+#### 4. **HandoverCandidateManager** (候選衛星管理)
+- **多候選追蹤**: 同時管理3-5個換手候選
+- **智能排序**: 信號40% + 事件25% + 穩定20% + 幾何15%
+- **動態更新**: 優先級隊列和候選池管理
+- **位置**: `handover_candidate_manager.py`
+
+#### 5. **HandoverDecisionEngine** (換手決策引擎)
+- **決策類型**: 立即/準備/緊急/無換手
+- **多因素分析**: 信號改善 + 事件強度 + 候選品質 + 穩定性
+- **置信度評估**: 決策可靠性量化
+- **位置**: `handover_decision_engine.py`
+
+#### 6. **DynamicThresholdController** (動態門檻調整)
+- **自適應調整**: 基於網路負載、信號品質、成功率
+- **A4/A5/D2門檻**: 動態優化各事件門檻值
+- **歷史追蹤**: 調整歷史和效果評估
+- **位置**: `dynamic_threshold_controller.py`
 
 ### 處理流程詳解
 
