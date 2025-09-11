@@ -106,8 +106,12 @@ class RSRPCalculator:
         else:
             constellation_config = self.constellation_params[constellation]
         
-        # 獲取真實高度，如果沒有則使用星座標準高度
-        altitude = orbit_data.get('altitude', constellation_config['altitude_km'])
+        # 🚨 修復：要求真實高度數據，消除預設值回退
+        if 'altitude' not in orbit_data:
+            logger.error(f"衛星 {satellite.get('satellite_id', 'unknown')} 缺少軌道高度數據")
+            raise ValueError(f"Academic Standards Violation: 衛星軌道數據不完整，缺少高度信息 - {satellite.get('satellite_id', 'unknown')}")
+        
+        altitude = orbit_data['altitude']  # 要求真實高度，無預設值回退
         frequency_ghz = constellation_config['frequency_ghz']
         satellite_eirp_dbw = constellation_config['eirp_dbw']
         
@@ -268,8 +272,13 @@ class RSRPCalculator:
         Returns:
             確定性衰落 (dB)
         """
-        # 基於衛星高度和仰角的確定性衰落
-        height_factor = altitude_km / 550.0  # 標準化高度
+        # 🚨 修復：基於ITU-R標準的高度標準化，消除硬編碼值
+        # 使用LEO標準軌道高度範圍 (400-2000km) 進行標準化
+        leo_min_altitude = 400.0  # ITU-R 最低LEO軌道
+        leo_max_altitude = 2000.0  # ITU-R 最高LEO軌道
+        
+        # 將高度標準化到 [0.1, 1.0] 範圍，避免除零和極端值
+        height_factor = max(0.1, min(1.0, (altitude_km - leo_min_altitude) / (leo_max_altitude - leo_min_altitude)))
         elevation_factor = math.sin(math.radians(elevation_deg))
         
         multipath_component = self.system_params["multipath_std_db"] * (1.0 - height_factor * 0.3)

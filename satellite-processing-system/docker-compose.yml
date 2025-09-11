@@ -1,0 +1,150 @@
+# 🛠️ 開發模式 Docker Compose 配置
+# 用於開發時的容器配置，支援熱重載和即時調試
+
+services:
+  satellite-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: satellite-dev
+    
+    # 🔄 開發模式 Volume 掛載
+    volumes:
+      # 📝 源碼熱重載掛載
+      - ./src:/satellite-processing/src                          # 六階段核心代碼
+      - ./config:/satellite-processing/config                    # 配置文件
+      - ./scripts:/satellite-processing/scripts                  # 執行腳本
+      - ./tests:/satellite-processing/tests                      # 測試文件
+      
+      # 📊 開發數據掛載 (使用本地目錄)
+      - ./data/tle_data:/satellite-processing/data/tle_data      # TLE 歷史數據
+      - ./data/outputs:/satellite-processing/data/outputs        # 通用輸出目錄
+      - ./data/outputs/stage1:/satellite-processing/data/stage1_outputs # 階段一輸出
+      - ./data/outputs/stage2:/satellite-processing/data/stage2_outputs # 階段二輸出  
+      - ./data/outputs/stage3:/satellite-processing/data/stage3_outputs # 階段三輸出
+      - ./data/outputs/stage4:/satellite-processing/data/stage4_outputs # 階段四輸出
+      - ./data/outputs/stage5:/satellite-processing/data/stage5_outputs # 階段五輸出
+      - ./data/outputs/stage6:/satellite-processing/data/stage6_outputs # 階段六輸出
+      - ./data/validation_snapshots:/satellite-processing/data/validation_snapshots  # 驗證快照
+      - ./data/logs:/satellite-processing/data/logs              # 開發日誌
+      
+      # 🛠️ 開發工具
+      - ./docs:/satellite-processing/docs                        # 文檔目錄
+      - ./.env:/satellite-processing/.env                        # 環境變量文件
+    
+    # 🌐 開發環境變量 (從 .env 文件讀取)
+    environment:
+      - PYTHONPATH=${PYTHONPATH}
+      - SATELLITE_ENV=${SATELLITE_ENV}
+      - VALIDATION_LEVEL=${VALIDATION_LEVEL}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - RELOAD_ON_CHANGE=${RELOAD_ON_CHANGE}
+      - DATA_BASE_PATH=${DATA_BASE_PATH}
+      - TLE_DATA_PATH=${TLE_DATA_PATH}
+      - OUTPUTS_PATH=${OUTPUTS_PATH}
+      - LOGS_PATH=${LOGS_PATH}
+      - VALIDATION_PATH=${VALIDATION_PATH}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_URL=${DATABASE_URL}
+    
+    # 🔌 端口映射 (從 .env 文件讀取)
+    ports:
+      - "${HEALTH_CHECK_PORT}:8900"   # 健康檢查端點
+      - "${DEV_API_PORT}:8901"        # 開發 API 端點
+      - "${PYTHON_DEBUG_PORT}:5678"   # Python 調試端口
+    
+    # 🏃 開發模式命令 (保持容器運行)
+    command: >
+      sh -c "
+        echo '🚀 六階段開發模式啟動...'
+        echo '📂 源碼目錄: /satellite-processing/src'
+        echo '📊 數據目錄: /satellite-processing/data'
+        echo '⚡ 使用 FAST 驗證模式'
+        
+        # 檢查健康狀態
+        python /satellite-processing/scripts/health_check.py
+        
+        # 保持容器運行，等待手動執行
+        echo '✅ 容器就緒，可以執行處理任務'
+        echo '💡 執行命令: docker exec satellite-dev python /satellite-processing/scripts/run_six_stages_with_validation.py'
+        
+        tail -f /dev/null
+      "
+    
+    # 🔄 開發重啟策略
+    restart: unless-stopped
+    
+    # 📋 依賴服務
+    depends_on:
+      - postgres-dev
+    
+    # 🌐 開發網路
+    networks:
+      - satellite-dev-network
+    
+    # 🏷️ 開發標籤
+    labels:
+      - "satellite.env=development"
+      - "satellite.auto-reload=true"
+
+  # 📊 開發用 PostgreSQL
+  postgres-dev:
+    image: postgres:15
+    container_name: satellite-postgres-dev
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d              # 開發用 SQL 腳本
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT}:5432"  # 避免與主機 PostgreSQL 衝突
+    networks:
+      - satellite-dev-network
+    restart: unless-stopped
+
+  # 📈 開發監控工具
+  dev-monitor:
+    image: alpine:latest
+    container_name: satellite-dev-monitor
+    command: >
+      sh -c "
+        echo '📊 開發監控啟動...'
+        while true; do
+          echo '=== $(date) ==='
+          echo '📂 輸出目錄:'
+          ls -la /data/outputs/ 2>/dev/null || echo '  (空)'
+          echo '🔍 驗證快照:'
+          ls -la /data/validation/ 2>/dev/null || echo '  (空)' 
+          echo '📝 最新日誌:'
+          tail -n 3 /data/logs/*.log 2>/dev/null || echo '  (無日誌)'
+          echo '================================='
+          sleep 30
+        done
+      "
+    volumes:
+      - ./data/outputs:/data/outputs:ro
+      - ./data/validation_snapshots:/data/validation_snapshots:ro  
+      - ./data/logs:/data/logs:ro
+    networks:
+      - satellite-dev-network
+    restart: unless-stopped
+
+# 💾 開發數據卷
+volumes:
+  postgres-dev-data:
+    driver: local
+
+# 🌐 開發網路
+networks:
+  satellite-dev-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/16
