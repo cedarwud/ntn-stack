@@ -101,8 +101,8 @@ quality_report = quality_engine.comprehensive_check(data)
 ## 📈 各階段驗證整合狀況
 
 ### ✅ Stage 1: TLE 軌道計算驗證
-- **檔案**: `orbital_calculation_processor.py`
-- **整合狀態**: ✅ 完全整合 + 🔴 運行時強化
+- **檔案**: `stage1_orbital_calculation/tle_orbital_calculation_processor.py`
+- **整合狀態**: ✅ 完全整合 + 🔴 運行時強化 + 🛠️ 驗證邏輯已修正
 - **🚨 強制運行時檢查** (新增):
   ```python
   # 引擎類型強制檢查
@@ -111,6 +111,16 @@ quality_report = quality_engine.comprehensive_check(data)
   assert len(timeseries) == 192, f"時間序列長度錯誤: {len(timeseries)}"
   # API契約完整性檢查
   assert 'position_timeseries' in output, "缺少完整時間序列數據"
+  ```
+- **🔧 驗證邏輯修正** (2025-09-11):
+  ```python
+  # 修正前: 錯誤的類型檢查
+  # if processing_results and isinstance(processing_results, str):
+  
+  # 修正後: 正確的字典類型檢查
+  if processing_results and isinstance(processing_results, dict):
+      has_data = 'data' in processing_results
+      has_metadata = 'metadata' in processing_results
   ```
 
 - **FAST模式檢查** (6項 - 已強化):
@@ -136,7 +146,7 @@ quality_report = quality_engine.comprehensive_check(data)
   - 數據格式版本
 
 ### ✅ Stage 2: 衛星可見性篩選驗證
-- **檔案**: `satellite_visibility_filter_processor.py`
+- **檔案**: `stage2_visibility_filter/satellite_visibility_filter_processor.py`
 - **整合狀態**: ✅ 完全整合
 - **關鍵檢查**:
   - 地理座標有效性
@@ -182,25 +192,15 @@ quality_report = quality_engine.comprehensive_check(data)
 
 ## 🛠️ 使用方式
 
-### 執行六階段完整處理
+**完整使用說明請查看**: [📋 完整使用指南](USAGE_GUIDE.md)
+
+**快速開始**:
 ```bash
-# 使用預設 STANDARD 驗證級別
-docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py
+# 標準驗證模式 (推薦)
+docker exec satellite-dev python /satellite-processing/scripts/run_six_stages_with_validation.py
 
-# 使用 FAST 驗證級別 (開發模式)
-docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py --validation-level=FAST
-
-# 使用 COMPREHENSIVE 驗證級別 (完整驗證)
-docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py --validation-level=COMPREHENSIVE
-```
-
-### 單階段執行
-```bash
-# Stage 1 with FAST validation
-docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py --stage=1 --validation-level=FAST
-
-# Stage 6 with COMPREHENSIVE validation  
-docker exec netstack-api python /app/scripts/run_six_stages_with_validation.py --stage=6 --validation-level=COMPREHENSIVE
+# 快速驗證模式 (開發用)  
+docker exec satellite-dev python /satellite-processing/scripts/run_six_stages_with_validation.py --validation-level=FAST
 ```
 
 ## 📊 驗證報告格式

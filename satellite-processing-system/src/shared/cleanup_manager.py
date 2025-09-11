@@ -30,12 +30,13 @@ class UnifiedCleanupManager:
         1: CleanupTarget(
             stage=1,
             output_files=[
-                "data/tle_orbital_calculation_output.json"  # 1.4GB，8791顆衛星軌道計算結果
+                "data/outputs/stage1/tle_orbital_calculation_output.json",  # 1.4GB，8791顆衛星軌道計算結果
+                "data/outputs/stage1/tle_processing_stats.json"              # 處理統計資料
             ],
             validation_file="data/validation_snapshots/stage1_validation.json",
             directories=[
-                "data/tle_calculation_outputs",  # 清理階段一專用目錄
-                "data/detailed_track_data"       # 清理詳細軌道追蹤數據目錄
+                "data/tle_calculation_outputs",  # 清理階段一專用目錄 (如果存在)
+                "data/detailed_track_data"       # 清理詳細軌道追蹤數據目錄 (如果存在)
             ]
         ),
         
@@ -174,32 +175,77 @@ class UnifiedCleanupManager:
         self.logger.info(f"🗑️ 階段 {stage_number} 清理完成: {cleaned['files']} 檔案, {cleaned['directories']} 目錄")
         
         return cleaned
+
+    
+    def cleanup_from_stage(self, start_stage: int) -> Dict[str, int]:
+        """
+        智能分階段清理
+        清理從指定階段開始的所有後續階段，保留前面階段作為輸入依賴
+        
+        Args:
+            start_stage: 開始清理的階段號碼（1-6）
+            
+        Returns:
+            清理統計結果
+        """
+        if start_stage < 1 or start_stage > 6:
+            self.logger.warning(f"⚠️ 無效的階段號碼: {start_stage}，應為 1-6")
+            return {"files": 0, "directories": 0}
+        
+        self.logger.info(f"🗑️ 智能清理：從階段 {start_stage} 開始清理（保留階段 1-{start_stage-1} 作為輸入）")
+        self.logger.info("=" * 60)
+        
+        total_cleaned = {"files": 0, "directories": 0}
+        
+        # 清理從指定階段開始的所有後續階段
+        for stage_num in range(start_stage, 7):
+            stage_cleaned = self._cleanup_stage_files(stage_num, include_validation=True)
+            total_cleaned["files"] += stage_cleaned["files"]
+            total_cleaned["directories"] += stage_cleaned["directories"]
+            
+            # 記錄每階段清理結果
+            if stage_cleaned["files"] > 0 or stage_cleaned["directories"] > 0:
+                self.logger.info(f"  📂 階段 {stage_num}: {stage_cleaned['files']} 檔案, {stage_cleaned['directories']} 目錄")
+        
+        # 顯示保留的階段
+        if start_stage > 1:
+            preserved_stages = list(range(1, start_stage))
+            self.logger.info(f"🛡️ 已保留階段 {preserved_stages} 的輸出作為後續處理的輸入依賴")
+        
+        self.logger.info("=" * 60)
+        self.logger.info(f"🗑️ 智能清理完成: {total_cleaned['files']} 檔案, {total_cleaned['directories']} 目錄")
+        
+        return total_cleaned
     
     def auto_cleanup(self, current_stage: Optional[int] = None) -> Dict[str, int]:
         """
-        自動清理 - 根據執行模式選擇清理策略
+        智能自動清理 - 根據執行模式和階段選擇最適合的清理策略
         
         Args:
-            current_stage: 當前執行的階段號碼（用於單一階段模式）
+            current_stage: 當前執行的階段號碼
+            
+        Returns:
+            清理統計結果
         """
         mode = self.detect_execution_mode()
         
         if mode == "full_pipeline":
-            # 🔧 修復時序問題：只在第一階段清理一次，避免誤刪依賴檔案
-            if current_stage == 1:  # 只在第一階段清理
-                self.logger.info("🔧 完整管道模式：在階段一執行統一清理")
+            # 完整管道模式：在第一階段執行完整清理
+            if current_stage == 1:
+                self.logger.info("🔧 完整管道模式：在階段一執行完整清理")
                 return self.cleanup_full_pipeline()
             else:
-                self.logger.info(f"🔧 完整管道模式：階段 {current_stage} 跳過清理，保護依賴檔案")
-                return {"files": 0, "directories": 0}  # 其他階段跳過清理
+                self.logger.info(f"🔧 完整管道模式：階段 {current_stage} 跳過清理，保護數據流")
+                return {"files": 0, "directories": 0}
         else:
-            # 單一階段模式保持不變
+            # 單一階段模式：使用智能清理策略
             if current_stage is None:
                 # 嘗試從調用堆棧推斷階段號碼
                 current_stage = self._infer_current_stage()
             
             if current_stage:
-                return self.cleanup_single_stage(current_stage)
+                self.logger.info(f"🧠 單一階段模式：使用智能清理策略（階段 {current_stage}）")
+                return self.cleanup_from_stage(current_stage)
             else:
                 self.logger.warning("⚠️ 單一階段模式但無法確定階段號碼，跳過清理")
                 return {"files": 0, "directories": 0}
@@ -306,3 +352,7 @@ def auto_cleanup(current_stage: Optional[int] = None) -> Dict[str, int]:
 def cleanup_all_stages() -> Dict[str, int]:
     """清理所有階段便捷函數"""
     return get_cleanup_manager().cleanup_full_pipeline()
+
+def cleanup_from_stage(start_stage: int) -> Dict[str, int]:
+    """智能分階段清理便捷函數"""
+    return get_cleanup_manager().cleanup_from_stage(start_stage)

@@ -42,17 +42,22 @@ coverage.xml
 .hypothesis/
 
 # 📊 數據文件 (大型數據不提交)
-data/outputs/*.json
+data/outputs/*                   # 整個輸出目錄內容 (>1GB 單檔)
+!data/outputs/.gitkeep           # 但保留目錄結構
+data/validation_snapshots/*      # 驗證快照目錄內容
+!data/validation_snapshots/.gitkeep  # 但保留目錄結構
 data/logs/*.log
-data/validation_snapshots/*.json
 *.tle
 *.csv
 *.parquet
 
-# 🛰️ 處理結果 (保留小型範例)
-data/outputs/large_*.json
-data/outputs/batch_*.json
-data/outputs/*_backup.json
+# 🛰️ 處理結果目錄 (重新執行可獲得)
+data/tle_calculation_outputs/    # 階段一專用輸出
+data/intelligent_filtering_outputs/  # 階段二專用輸出  
+data/signal_analysis_outputs/    # 階段三專用輸出
+data/timeseries_preprocessing_outputs/  # 階段四專用輸出
+data/data_integration_outputs/   # 階段五專用輸出
+data/dynamic_pool_planning_outputs/  # 階段六專用輸出
 
 # 🐳 Docker
 .dockerignore
@@ -103,5 +108,7 @@ temp/
 # 注意事項:
 # 1. .env 文件包含敏感配置，絕對不能提交
 # 2. .env.example 作為模板，應該提交到版本控制
-# 3. 大型數據文件不提交，但保留目錄結構
+# 3. 大型數據文件不提交，重新執行程式即可獲得
+# 4. data/outputs/ 和 data/validation_snapshots/ 包含 >1GB 單檔
+# 5. 保留 .gitkeep 檔案維持目錄結構
 # =============================================================================

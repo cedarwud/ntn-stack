@@ -19,7 +19,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 複製核心代碼 (通過 volume 掛載在開發時)
 # 生產時可以直接 COPY，開發時通過 volume 覆蓋
 COPY src/ ./src/
-COPY config/ ./config/
 COPY scripts/ ./scripts/
 
 # 設置環境變量
