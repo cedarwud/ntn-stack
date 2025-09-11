@@ -102,7 +102,7 @@ GET /api/v1/satellites/unified/timeseries
 - `constellation` (string, required): 星座名稱 (`starlink`, `oneweb`)
 - `duration_minutes` (int, optional): 時間範圍，預設120分鐘
 - `interval_seconds` (int, optional): 採樣間隔，預設30秒
-- `reference_time` (string, optional): 參考時間點，預設當前時間
+- `reference_time` (string, optional): 參考時間點，預設使用TLE數據的epoch時間
 - `observer_location` (string, optional): 觀測點 "lat,lon,alt"，預設NTPU
 
 **範例請求**:
@@ -197,7 +197,7 @@ GET /api/v1/satellites/visible_satellites
 - `observer_lat` (float): 觀測者緯度，預設24.9441667
 - `observer_lon` (float): 觀測者經度，預設121.3713889  
 - `observer_alt` (float): 觀測者高度(米)，預設24
-- `utc_timestamp` (string): 查詢時間點，預設當前時間
+- `utc_timestamp` (string): 查詢時間點，預設使用TLE數據的epoch時間
 - `constellation` (string, optional): 星座過濾
 - `global_view` (bool): 全球視野模式，預設false
 

@@ -284,7 +284,7 @@ ACADEMIC_GRADE_THRESHOLDS = {
 ### 常見驗證失敗
 1. **OneWeb ECI座標為零**: 
    - 原因: SGP4計算時間基準錯誤
-   - 解決: 使用TLE epoch時間而非當前時間
+   - 解決: 確保SGP4計算使用TLE epoch時間作為基準
 
 2. **驗證級別初始化失敗**:
    - 原因: configurable_validation_integration 模組路徑問題

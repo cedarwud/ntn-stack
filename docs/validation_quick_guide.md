@@ -97,7 +97,7 @@ cat /app/data/validation_snapshots/stage1_validation.json | jq '.validation_resu
 ### ❌ OneWeb ECI座標全零
 ```
 錯誤：651顆OneWeb衛星ECI座標全為0
-解決：檢查SGP4計算時間基準，確保使用TLE epoch時間而非當前時間
+解決：檢查SGP4計算時間基準，確保使用TLE epoch時間進行軌道計算
 ```
 
 ### ⚠️ 驗證級別初始化失敗  
