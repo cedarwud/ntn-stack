@@ -137,10 +137,10 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
     print('=' * 80)
     
     try:
-        # 統一清理
+        # 智能清理 - 單階段模式
         try:
-            from shared.cleanup_manager import cleanup_all_stages
-            cleaned_result = cleanup_all_stages()
+            from shared.cleanup_manager import auto_cleanup
+            cleaned_result = auto_cleanup(current_stage=target_stage)
             print(f'✅ 統一清理完成: {cleaned_result["files"]} 個檔案, {cleaned_result["directories"]} 個目錄已清理')
         except Exception as e:
             print(f'⚠️ 統一清理警告: {e}')
@@ -179,9 +179,9 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             print('\n🎯 階段二：智能衛星篩選 (新模組化架構)')
             print('-' * 60)
             
-            from stages.stage2_visibility_filter.stage2_processor import Stage2Processor
+            from stages.stage2_visibility_filter.satellite_visibility_filter_processor import SatelliteVisibilityFilterProcessor as Stage2Processor
             stage2 = Stage2Processor(
-                input_dir='data',
+                input_dir='data/outputs/stage1',  # 正確的階段一輸出路徑
                 output_dir='data/intelligent_filtering_outputs'
             )
             
@@ -335,10 +335,10 @@ def run_all_stages_sequential(validation_level='STANDARD'):
     print('=' * 80)
     
     try:
-        # 統一清理
+        # 智能清理 - 完整管道模式  
         try:
-            from shared.cleanup_manager import cleanup_all_stages
-            cleaned_result = cleanup_all_stages()
+            from shared.cleanup_manager import auto_cleanup
+            cleaned_result = auto_cleanup(current_stage=1)  # 完整管道從階段1開始
             print(f'✅ 統一清理完成: {cleaned_result["files"]} 個檔案, {cleaned_result["directories"]} 個目錄已清理')
         except Exception as e:
             print(f'⚠️ 統一清理警告: {e}')
@@ -382,9 +382,9 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         print('\n🎯 階段二：智能衛星篩選 (新模組化架構)')
         print('-' * 60)
         
-        from stages.stage2_visibility_filter.stage2_processor import Stage2Processor
+        from stages.stage2_visibility_filter.satellite_visibility_filter_processor import SatelliteVisibilityFilterProcessor as Stage2Processor
         stage2 = Stage2Processor(
-            input_dir='data',
+            input_dir='data/outputs/stage1',  # 正確的階段一輸出路徑
             output_dir='data/intelligent_filtering_outputs'
         )
         

@@ -2,6 +2,7 @@
 # 簡化開發和部署流程
 
 .PHONY: help build up down dev-up dev-down logs status clean test health tle-setup tle-status tle-download tle-cleanup
+.PHONY: test-runner test-sgp4 test-fast test-coverage check lint performance install-deps setup dev-check release-check view-coverage test-status
 
 # 默認目標
 help:
@@ -221,3 +222,75 @@ info:
 	@echo "  1. make dev-up       # 啟動開發環境"
 	@echo "  2. make dev-exec     # 進入容器"
 	@echo "  3. make dev-run-stages  # 執行處理"
+
+# =============================================================================
+# 🧪 測試和CI/CD命令 (TDD重構)
+# =============================================================================
+
+# 顏色定義
+BLUE = \033[0;34m
+GREEN = \033[0;32m
+YELLOW = \033[1;33m
+NC = \033[0m
+
+# 測試相關命令
+test-runner: ## 執行完整測試套件 (推薦)
+	@echo "$(BLUE)🚀 執行完整測試套件$(NC)"
+	@./scripts/test-runner.sh
+
+test-sgp4: ## 僅執行SGP4軌道引擎測試
+	@echo "$(BLUE)🛰️ 執行SGP4測試$(NC)"
+	python -m pytest tests/unit/algorithms/test_sgp4_orbital_engine.py -v
+
+test-fast: ## 快速測試 (僅關鍵測試)
+	@echo "$(BLUE)⚡ 快速測試$(NC)"
+	python -m pytest tests/unit/algorithms/test_sgp4_orbital_engine.py::TestSGP4OrbitalEngine::test_tle_epoch_time_usage_mandatory -v
+
+test-coverage: ## 生成測試覆蓋率報告
+	@echo "$(BLUE)📊 生成覆蓋率報告$(NC)"
+	python -m pytest tests/unit/ --cov=src --cov-report=html:tests/reports/coverage_html --cov-report=term-missing
+	@echo "$(GREEN)📈 覆蓋率報告: tests/reports/coverage_html/index.html$(NC)"
+
+# 代碼品質檢查
+check: ## 執行預提交檢查
+	@echo "$(BLUE)🛡️ 執行預提交檢查$(NC)"
+	@./scripts/pre-commit-check.sh
+
+lint: ## 檢查代碼語法 (輕量級)
+	@echo "$(BLUE)🐍 檢查Python語法$(NC)"
+	python -m py_compile src/shared/engines/sgp4_orbital_engine.py
+	@echo "$(GREEN)✅ 語法檢查通過$(NC)"
+
+# 性能測試
+performance: ## 執行性能基準測試
+	@echo "$(BLUE)⚡ 性能基準測試$(NC)"
+	python -m pytest tests/unit/algorithms/test_sgp4_orbital_engine.py::TestSGP4OrbitalEngine::test_sgp4_calculation_performance -v
+	python -m pytest tests/unit/algorithms/test_sgp4_orbital_engine.py::TestSGP4OrbitalEngine::test_batch_calculation_performance -v
+
+# 開發流程快捷命令
+dev-check: check test-sgp4 ## 開發檢查 (預提交 + 核心測試)
+	@echo "$(GREEN)🎉 開發檢查完成！$(NC)"
+
+release-check: test-runner test-coverage ## 發布檢查 (完整測試 + 覆蓋率)
+	@echo "$(GREEN)🚀 發布檢查完成！$(NC)"
+
+# 測試環境設置
+install-deps: ## 安裝測試依賴
+	@echo "$(BLUE)📦 安裝測試依賴$(NC)"
+	pip install -r requirements.txt
+	@echo "$(GREEN)✅ 依賴安裝完成$(NC)"
+
+test-setup: install-deps ## 初始化測試環境
+	@echo "$(BLUE)🔧 初始化測試環境$(NC)"
+	mkdir -p tests/reports
+	@echo "$(GREEN)✅ 測試環境設置完成$(NC)"
+
+# 狀態檢查
+test-status: ## 顯示測試環境狀態
+	@echo "$(BLUE)📊 測試環境狀態$(NC)"
+	@echo "================================================================"
+	@echo "Python版本: $$(python --version)"
+	@echo "pytest版本: $$(python -m pytest --version)"
+	@echo "TLE數據文件: $$(ls data/tle_data/starlink/tle/*.tle 2>/dev/null | wc -l) 個"
+	@echo "最近測試: $$(ls -t tests/reports/*.html 2>/dev/null | head -1 | xargs ls -l 2>/dev/null || echo '無')"
+	@echo "================================================================"

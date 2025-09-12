@@ -34,10 +34,16 @@ tqdm>=4.65.0
 psycopg2-binary>=2.9.0
 SQLAlchemy>=2.0.0
 
-# 🧪 開發與測試
+# 🧪 開發與測試 - TDD/BDD 完整測試套件
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
 pytest-mock>=3.11.0
+pytest-cov>=4.1.0                    # 測試覆蓋率
+pytest-benchmark>=4.0.0              # 性能基準測試
+pytest-bdd>=7.0.0                    # BDD 場景測試 (Phase 2)
+pytest-html>=4.0.0                   # HTML 測試報告
+pytest-json-report>=1.5.0            # JSON 測試報告
+allure-pytest>=2.13.0                # 詳細測試報告 (Phase 2)
 
 # 📈 日誌與監控
 structlog>=23.1.0

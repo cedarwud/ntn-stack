@@ -1,0 +1,110 @@
+# 衛星處理系統 - 測試專用 Makefile
+# 🧪 TDD重構測試自動化命令
+
+.PHONY: help test-runner test-sgp4 test-fast test-coverage check lint performance install-deps setup dev-check release-check view-coverage test-status clean-test
+
+# 預設目標
+.DEFAULT_GOAL := help
+
+# 顏色定義
+BLUE = \033[0;34m
+GREEN = \033[0;32m
+YELLOW = \033[1;33m
+RED = \033[0;31m
+NC = \033[0m
+
+help: ## 顯示所有可用測試命令
+	@echo "$(BLUE)🧪 衛星處理系統 - 測試命令$(NC)"
+	@echo "================================================================"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(YELLOW)%-20s$(NC) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(GREEN)🚀 推薦使用順序:$(NC)"
+	@echo "  1. make -f Makefile.test test-fast    # 快速檢查"
+	@echo "  2. make -f Makefile.test test-sgp4    # 核心測試"  
+	@echo "  3. make -f Makefile.test test-runner  # 完整測試"
+	@echo ""
+
+# 測試相關命令
+test-runner: ## 執行完整測試套件 (推薦)
+	@echo "$(BLUE)🚀 執行完整測試套件$(NC)"
+	@./scripts/test-runner.sh
+
+test-sgp4: ## 僅執行SGP4軌道引擎測試
+	@echo "$(BLUE)🛰️ 執行SGP4測試$(NC)"
+	python -m pytest tests/unit/algorithms/test_sgp4_orbital_engine.py -v
+
+test-fast: ## 快速測試 (僅關鍵測試)
+	@echo "$(BLUE)⚡ 快速測試$(NC)"
+	python -m pytest tests/unit/algorithms/test_sgp4_orbital_engine.py::TestSGP4OrbitalEngine::test_tle_epoch_time_usage_mandatory -v
+
+test-coverage: ## 生成測試覆蓋率報告
+	@echo "$(BLUE)📊 生成覆蓋率報告$(NC)"
+	python -m pytest tests/unit/ --cov=src --cov-report=html:tests/reports/coverage_html --cov-report=term-missing
+	@echo "$(GREEN)📈 覆蓋率報告: tests/reports/coverage_html/index.html$(NC)"
+
+# 代碼品質檢查
+check: ## 執行預提交檢查
+	@echo "$(BLUE)🛡️ 執行預提交檢查$(NC)"
+	@./scripts/pre-commit-check.sh
+
+lint: ## 檢查代碼語法 (輕量級)
+	@echo "$(BLUE)🐍 檢查Python語法$(NC)"
+	python -m py_compile src/shared/engines/sgp4_orbital_engine.py
+	@echo "$(GREEN)✅ 語法檢查通過$(NC)"
+
+# 性能測試
+performance: ## 執行性能基準測試
+	@echo "$(BLUE)⚡ 性能基準測試$(NC)"
+	python -m pytest tests/unit/algorithms/test_sgp4_orbital_engine.py::TestSGP4OrbitalEngine::test_sgp4_calculation_performance -v
+	python -m pytest tests/unit/algorithms/test_sgp4_orbital_engine.py::TestSGP4OrbitalEngine::test_batch_calculation_performance -v
+
+# 開發流程快捷命令
+dev-check: check test-sgp4 ## 開發檢查 (預提交 + 核心測試)
+	@echo "$(GREEN)🎉 開發檢查完成！$(NC)"
+
+release-check: test-runner test-coverage ## 發布檢查 (完整測試 + 覆蓋率)
+	@echo "$(GREEN)🚀 發布檢查完成！$(NC)"
+
+# 測試環境設置
+install-deps: ## 安裝測試依賴
+	@echo "$(BLUE)📦 安裝測試依賴$(NC)"
+	pip install -r requirements.txt
+	@echo "$(GREEN)✅ 依賴安裝完成$(NC)"
+
+setup: install-deps ## 初始化測試環境
+	@echo "$(BLUE)🔧 初始化測試環境$(NC)"
+	mkdir -p tests/reports
+	@echo "$(GREEN)✅ 測試環境設置完成$(NC)"
+
+# 清理
+clean-test: ## 清理測試報告和緩存
+	@echo "$(BLUE)🧹 清理測試文件$(NC)"
+	rm -rf tests/reports/
+	rm -rf .pytest_cache/
+	rm -rf __pycache__/
+	rm -rf src/__pycache__/
+	rm -rf tests/__pycache__/
+	rm -rf .coverage
+	find . -name "*.pyc" -delete
+	find . -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	@echo "$(GREEN)✅ 清理完成$(NC)"
+
+# 狀態檢查
+test-status: ## 顯示測試環境狀態
+	@echo "$(BLUE)📊 測試環境狀態$(NC)"
+	@echo "================================================================"
+	@echo "Python版本: $$(python --version)"
+	@echo "pytest版本: $$(python -m pytest --version 2>/dev/null || echo '未安裝')"
+	@echo "TLE數據文件: $$(ls data/tle_data/starlink/tle/*.tle 2>/dev/null | wc -l) 個"
+	@echo "最近測試: $$(ls -t tests/reports/*.html 2>/dev/null | head -1 | xargs ls -l 2>/dev/null || echo '無')"
+	@echo "Git hooks: $$([ -x /home/sat/ntn-stack/.git/hooks/pre-commit ] && echo '已配置' || echo '未配置')"
+	@echo "================================================================"
+
+# 報告查看
+view-coverage: ## 在瀏覽器中查看覆蓋率報告
+	@if [ -f tests/reports/coverage_html/index.html ]; then \
+		echo "$(BLUE)📊 覆蓋率報告位置: tests/reports/coverage_html/index.html$(NC)"; \
+		echo "$(YELLOW)可以用瀏覽器打開查看$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️ 覆蓋率報告不存在，請先執行: make -f Makefile.test test-coverage$(NC)"; \
+	fi
