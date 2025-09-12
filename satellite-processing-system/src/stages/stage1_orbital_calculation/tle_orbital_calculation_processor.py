@@ -237,7 +237,7 @@ class Stage1TLEProcessor(BaseStageProcessor):
     
     def _format_output_result(self, scan_result: Dict[str, Any], 
                              orbital_results: Dict[str, Any]) -> Dict[str, Any]:
-        """格式化輸出結果為標準格式"""
+        """格式化輸出結果為標準格式 - 更新為純ECI軌道計算輸出"""
         
         # 創建符合統一標準的輸出格式
         result = {
@@ -250,7 +250,7 @@ class Stage1TLEProcessor(BaseStageProcessor):
                 "stage_number": self.stage_number,
                 "stage_name": self.stage_name,
                 "processing_timestamp": datetime.now(timezone.utc).isoformat(),
-                "data_format_version": "unified_v1.2_phase3",
+                "data_format_version": "unified_v1.3_eci_only",
                 "total_records": len(orbital_results["satellites"]),
                 
                 # Stage 1特定的metadata
@@ -258,7 +258,9 @@ class Stage1TLEProcessor(BaseStageProcessor):
                     "time_points": self.time_points,
                     "time_interval_seconds": self.time_interval,
                     "sample_mode": self.sample_mode,
-                    "sample_size": self.sample_size if self.sample_mode else None
+                    "sample_size": self.sample_size if self.sample_mode else None,
+                    "output_format": "eci_coordinates_only",
+                    "observer_calculations": False
                 },
                 
                 "processing_statistics": self.processing_stats,
@@ -270,7 +272,8 @@ class Stage1TLEProcessor(BaseStageProcessor):
                     "data_source": "real_tle_data",
                     "calculation_method": "SGP4",
                     "no_fallback_used": True,
-                    "validation_passed": True
+                    "validation_passed": True,
+                    "coordinate_system": "ECI_only"
                 },
                 
                 # 數據血統
@@ -280,12 +283,20 @@ class Stage1TLEProcessor(BaseStageProcessor):
                         "tle_data_scan",
                         "satellite_data_load", 
                         "sgp4_orbital_calculation",
+                        "eci_coordinate_extraction",
                         "result_formatting"
                     ],
                     "transformations": [
                         "tle_to_orbital_elements",
-                        "sgp4_propagation",
-                        "coordinate_conversion"
+                        "sgp4_propagation", 
+                        "eci_position_calculation",
+                        "eci_velocity_calculation"
+                    ],
+                    "excluded_calculations": [
+                        "observer_relative_coordinates",
+                        "elevation_angle_calculation",
+                        "azimuth_angle_calculation", 
+                        "visibility_determination"
                     ]
                 }
             }
@@ -485,13 +496,32 @@ class Stage1TLEProcessor(BaseStageProcessor):
         return len(satellites) > 0
     
     def _check_orbital_positions(self, results: Dict[str, Any]) -> bool:
-        """檢查軌道位置數據"""
+        """檢查軌道位置數據 - 更新為檢查ECI座標格式"""
         satellites = results.get("data", {}).get("satellites", {})
         
         for sat_data in satellites.values():
             positions = sat_data.get("orbital_positions", [])
             if len(positions) < 100:  # 最少100個位置點
                 return False
+            
+            # 檢查每個位置點是否包含必要的ECI座標
+            for position in positions[:5]:  # 檢查前5個點的格式
+                if not isinstance(position, dict):
+                    return False
+                
+                # 檢查必要欄位
+                required_fields = ["timestamp", "position_eci", "velocity_eci"]
+                if not all(field in position for field in required_fields):
+                    return False
+                
+                # 檢查ECI座標格式
+                position_eci = position.get("position_eci", {})
+                velocity_eci = position.get("velocity_eci", {})
+                
+                if not all(coord in position_eci for coord in ["x", "y", "z"]):
+                    return False
+                if not all(coord in velocity_eci for coord in ["x", "y", "z"]):
+                    return False
         
         return True
     

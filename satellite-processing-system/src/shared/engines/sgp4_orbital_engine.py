@@ -22,40 +22,79 @@ from sgp4 import omm
 logger = logging.getLogger(__name__)
 
 
+class SGP4Position:
+    """SGP4位置結果"""
+    def __init__(self, x: float, y: float, z: float):
+        self.x = x  # km
+        self.y = y  # km
+        self.z = z  # km
+
+
+class SGP4Velocity:
+    """SGP4速度結果"""
+    def __init__(self, x: float, y: float, z: float):
+        self.x = x  # km/s
+        self.y = y  # km/s
+        self.z = z  # km/s
+
+
+class SGP4CalculationResult:
+    """SGP4計算結果"""
+    def __init__(self, position: SGP4Position = None, velocity: SGP4Velocity = None, 
+                 calculation_base_time: datetime = None, algorithm_used: str = "SGP4",
+                 calculation_successful: bool = False, data_source_verified: bool = False,
+                 time_warning: str = None, error_message: str = None, satellite_name: str = None,
+                 data_lineage: Dict = None):
+        self.position = position
+        self.velocity = velocity
+        self.calculation_base_time = calculation_base_time
+        self.algorithm_used = algorithm_used
+        self.calculation_successful = calculation_successful
+        self.data_source_verified = data_source_verified
+        self.time_warning = time_warning
+        self.error_message = error_message
+        self.satellite_name = satellite_name
+        self.data_lineage = data_lineage or {}
+
+
 class SGP4OrbitalEngine:
     """
     真正的SGP4軌道計算引擎
     嚴格遵循學術級數據標準 - Grade A實現
     """
     
-    def __init__(self, observer_coordinates: Tuple[float, float, float] = None):
+    def __init__(self, observer_coordinates: Tuple[float, float, float] = None, eci_only_mode: bool = False):
         """
         初始化SGP4軌道計算引擎
         
         Args:
-            observer_coordinates: (lat, lon, elevation_m) 觀測站座標
+            observer_coordinates: (lat, lon, elevation_m) 觀測站座標 (Stage 1不需要)
+            eci_only_mode: 僅輸出ECI座標模式 (Stage 1使用)
         """
         logger.info("🚀 初始化SGP4軌道計算引擎...")
         
-        # 設定觀測站座標 (預設: NTPU 32.25°N, 121.43°E, 200m)
-        if observer_coordinates:
-            self.observer_lat, self.observer_lon, self.observer_elevation_m = observer_coordinates
-        else:
-            self.observer_lat = 24.9478
-            self.observer_lon = 121.5337
-            self.observer_elevation_m = 200.0
-            
-        logger.info(f"   📍 觀測站座標: ({self.observer_lat:.4f}°N, {self.observer_lon:.4f}°E, {self.observer_elevation_m}m)")
+        self.eci_only_mode = eci_only_mode
         
         # 載入時標系統
         self.timescale = load.timescale()
         
-        # 建立觀測站位置
-        self.observer_position = wgs84.latlon(
-            self.observer_lat, 
-            self.observer_lon, 
-            elevation_m=self.observer_elevation_m
-        )
+        # 只有在非ECI-only模式下才設定觀測站（Stage 2會使用）
+        if not eci_only_mode and observer_coordinates:
+            self.observer_lat, self.observer_lon, self.observer_elevation_m = observer_coordinates
+            logger.info(f"   📍 觀測站座標: ({self.observer_lat:.4f}°N, {self.observer_lon:.4f}°E, {self.observer_elevation_m}m)")
+            
+            # 建立觀測站位置
+            self.observer_position = wgs84.latlon(
+                self.observer_lat, 
+                self.observer_lon, 
+                elevation_m=self.observer_elevation_m
+            )
+        else:
+            self.observer_position = None
+            if eci_only_mode:
+                logger.info("   🎯 ECI-only模式: 不設定觀測站座標")
+            else:
+                logger.info("   ⚠️ 未提供觀測站座標，僅輸出ECI座標")
         
         # 軌道計算統計
         self.calculation_stats = {
@@ -69,14 +108,14 @@ class SGP4OrbitalEngine:
     
     def calculate_position_timeseries(self, satellite_data: Dict[str, Any], time_range_minutes: int = 192) -> List[Dict[str, Any]]:
         """
-        計算衛星位置時間序列 - 核心SGP4計算
+        計算衛星位置時間序列 - 純ECI座標輸出（符合Stage 1文檔規範）
         
         Args:
             satellite_data: 衛星數據，包含TLE信息
             time_range_minutes: 時間範圍（分鐘）
             
         Returns:
-            List[Dict]: 位置時間序列數據
+            List[Dict]: 僅包含ECI座標的位置時間序列數據
         """
         try:
             # 🔍 從satellite_data提取TLE信息
@@ -131,55 +170,37 @@ class SGP4OrbitalEngine:
             
             position_timeseries = []
             
-            # 🧮 逐一計算每個時間點的位置（避免批量計算問題）
+            # 🧮 逐一計算每個時間點的位置（僅計算ECI座標）
             for i, t in enumerate(time_points):
                 try:
                     # 計算該時間點的位置
                     geocentric = satellite.at(t)
                     
-                    # 🔧 嘗試topocentric計算
-                    try:
-                        # 新版skyfield API
-                        topocentric = (geocentric - self.observer_position.at(t))
-                        elevation_deg = float(topocentric.elevation.degrees)
-                        azimuth_deg = float(topocentric.azimuth.degrees) 
-                        range_km = float(topocentric.distance().km)
-                    except AttributeError:
-                        # 🔧 備用方法：直接計算距離和仰角
-                        observer_pos = self.observer_position.at(t).position.km
-                        satellite_pos = geocentric.position.km
-                        
-                        diff_vector = satellite_pos - observer_pos
-                        range_km = float((diff_vector[0]**2 + diff_vector[1]**2 + diff_vector[2]**2)**0.5)
-                        
-                        # 計算仰角 (elevation)
-                        horizontal_dist = float((diff_vector[0]**2 + diff_vector[1]**2)**0.5)
-                        elevation_deg = float(math.degrees(math.atan2(diff_vector[2], horizontal_dist)))
-                        
-                        # 計算方位角 (azimuth) - 簡化版本
-                        azimuth_deg = float(math.degrees(math.atan2(diff_vector[1], diff_vector[0])))
-                        if azimuth_deg < 0:
-                            azimuth_deg += 360
-                    
-                    # ECI座標
+                    # ECI座標（地心慣性坐標系）
                     eci_position = geocentric.position.km
                     eci_x = float(eci_position[0])
                     eci_y = float(eci_position[1]) 
                     eci_z = float(eci_position[2])
                     
-                    # 可見性判斷 (仰角 > 5度)
-                    is_visible = elevation_deg > 5.0
+                    # 速度向量（如果需要）
+                    eci_velocity = geocentric.velocity.km_per_s
+                    eci_vx = float(eci_velocity[0])
+                    eci_vy = float(eci_velocity[1])
+                    eci_vz = float(eci_velocity[2])
                     
-                    # 組裝位置數據
+                    # 組裝純ECI位置數據（Stage 1只輸出軌道計算結果）
                     position_data = {
                         "timestamp": t.utc_iso(),
-                        "eci_x": eci_x,
-                        "eci_y": eci_y, 
-                        "eci_z": eci_z,
-                        "range_km": range_km,
-                        "elevation_deg": elevation_deg,
-                        "azimuth_deg": azimuth_deg,
-                        "is_visible": is_visible
+                        "position_eci": {
+                            "x": eci_x,
+                            "y": eci_y,
+                            "z": eci_z
+                        },
+                        "velocity_eci": {
+                            "x": eci_vx,
+                            "y": eci_vy,
+                            "z": eci_vz
+                        }
                     }
                     
                     position_timeseries.append(position_data)
@@ -196,7 +217,7 @@ class SGP4OrbitalEngine:
             else:
                 self.calculation_stats["failed_calculations"] += 1
             
-            logger.info(f"✅ 衛星 {satellite_name} 軌道計算完成: {len(position_timeseries)}個位置點")
+            logger.info(f"✅ 衛星 {satellite_name} ECI軌道計算完成: {len(position_timeseries)}個位置點")
             return position_timeseries
             
         except Exception as e:
@@ -204,15 +225,100 @@ class SGP4OrbitalEngine:
             self.calculation_stats["failed_calculations"] += 1
             return []
     
+    def calculate_position(self, tle_data: Dict[str, Any], calculation_time: datetime) -> 'SGP4CalculationResult':
+        """
+        計算指定時間的衛星位置 - TDD測試專用方法
+        
+        Args:
+            tle_data: TLE數據字典，包含line1, line2等
+            calculation_time: 計算時間 (必須使用TLE epoch時間作為基準)
+            
+        Returns:
+            SGP4CalculationResult: 計算結果對象
+        """
+        try:
+            # 🚨 關鍵：記錄計算基準時間
+            calculation_base_time = calculation_time
+            
+            # 提取TLE數據
+            tle_line1 = tle_data.get('line1', '')
+            tle_line2 = tle_data.get('line2', '')
+            satellite_name = tle_data.get('satellite_name', 'Unknown')
+            
+            if not tle_line1 or not tle_line2:
+                raise ValueError(f"TLE數據不完整: {satellite_name}")
+            
+            # 創建Skyfield衛星對象
+            satellite = EarthSatellite(tle_line1, tle_line2, satellite_name, self.timescale)
+            
+            # 轉換時間到Skyfield時間對象
+            skyfield_time = self.timescale.from_datetime(calculation_time)
+            
+            # SGP4軌道計算
+            geocentric = satellite.at(skyfield_time)
+            
+            # 提取位置和速度 (ECI座標系)
+            position = geocentric.position.km
+            velocity = geocentric.velocity.km_per_s
+            
+            # 檢查TLE時間基準和當前計算時間的差異
+            tle_epoch = tle_data.get('epoch_datetime')
+            time_warning = None
+            
+            if tle_epoch:
+                time_diff_days = abs((calculation_time - tle_epoch).days)
+                if time_diff_days > 3:
+                    time_warning = f"TLE數據時間差{time_diff_days}天，可能影響計算精度"
+                    logger.warning(f"⚠️ {time_warning}")
+            
+            # 創建結果對象
+            result = SGP4CalculationResult(
+                position=SGP4Position(position[0], position[1], position[2]),
+                velocity=SGP4Velocity(velocity[0], velocity[1], velocity[2]),
+                calculation_base_time=calculation_base_time,
+                algorithm_used="SGP4",
+                calculation_successful=True,
+                data_source_verified=tle_data.get('is_real_data', False),
+                time_warning=time_warning,
+                satellite_name=satellite_name,
+                data_lineage={
+                    'tle_epoch': tle_epoch.isoformat() if tle_epoch else None,
+                    'calculation_time': calculation_time.isoformat(),
+                    'time_difference_days': abs((calculation_time - tle_epoch).days) if tle_epoch else None,
+                    'data_source': tle_data.get('data_source', 'Unknown')
+                }
+            )
+            
+            # 更新統計
+            self.calculation_stats["successful_calculations"] += 1
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ SGP4單點計算失敗: {e}")
+            self.calculation_stats["failed_calculations"] += 1
+            
+            # 返回失敗結果
+            return SGP4CalculationResult(
+                position=None,
+                velocity=None,
+                calculation_base_time=calculation_time,
+                algorithm_used="SGP4",
+                calculation_successful=False,
+                error_message=str(e),
+                data_source_verified=False,
+                satellite_name=tle_data.get('satellite_name', 'Unknown')
+            )
+
     def get_calculation_statistics(self) -> Dict[str, Any]:
         """獲取計算統計信息"""
         return {
             "engine_type": "SGP4OrbitalEngine",
             "calculation_stats": self.calculation_stats,
             "observer_coordinates": {
-                "latitude": self.observer_lat,
-                "longitude": self.observer_lon,
-                "elevation_m": self.observer_elevation_m
+                "latitude": getattr(self, 'observer_lat', None),
+                "longitude": getattr(self, 'observer_lon', None),
+                "elevation_m": getattr(self, 'observer_elevation_m', None)
             }
         }
         

@@ -4,11 +4,12 @@
 
 ## 📖 階段概述
 
-**目標**：從 8,791 顆衛星載入 TLE 數據並執行精確的 SGP4 軌道計算  
+**目標**：從 8,791 顆衛星載入 TLE 數據並執行純粹的 SGP4 軌道計算（僅ECI座標）  
 **輸入**：TLE 檔案（約 2.2MB）  
-**輸出**：全量數據保存至 `/app/data/tle_orbital_calculation_output.json` + 記憶體傳遞  
+**輸出**：純軌道數據保存至 `/app/data/tle_orbital_calculation_output.json` + 記憶體傳遞  
 **處理時間**：約 4-5 分鐘
 **實際處理數量**：8,140 Starlink + 651 OneWeb = 8,791 顆衛星
+**重要**：階段一僅計算軌道，不涉及任何觀測點相關計算或可見性判斷
 
 ### 🗂️ 統一輸出目錄結構
 
@@ -37,9 +38,11 @@
 
 ### 🎯 @doc/todo.md 對應實現
 本階段實現以下核心需求：
-- ✅ **地理定位**: 設定 NTPU 觀測點座標 (24°56'39"N 121°22'17"E)
 - ✅ **數據來源**: 載入 @netstack/tle_data 兩個星座的最新TLE數據
-- 🔧 **軌道計算基礎**: 為後續可見性篩選和時空錯置分析提供精確的軌道動力學數據
+- ✅ **純軌道計算**: 使用SGP4算法計算衛星在ECI座標系中的位置和速度
+- 🔧 **軌道計算基礎**: 為後續階段提供精確的軌道動力學數據（不含觀測點相關計算）
+
+**重要說明**: 階段一不設定觀測點，不計算仰角/方位角，不判斷可見性。這些工作由階段二負責。
 
 ### 🛡️ Phase 3+ 驗證框架整合 (v4.0)
 
@@ -247,10 +250,11 @@ const getWrongBaseTime = () => {
 
 2. **原始數據載入**：解析TLE格式並驗證數據完整性
 
-3. **SGP4軌道計算**：基於真實物理模型計算衛星位置
+3. **SGP4軌道計算**：基於真實物理模型計算衛星軌道
    - 使用官方SGP4演算法（非簡化版本）
-   - 計算完整軌道週期數據（Starlink: 96分鐘/192點、OneWeb: 109分鐘/218點）
+   - 計算完整軌道週期的ECI座標（Starlink: 96分鐘/192點、OneWeb: 109分鐘/218點）
    - 時間解析度：30秒間隔，支持星座特定軌道週期
+   - **僅輸出**：ECI位置 (`position_eci`)、ECI速度 (`velocity_eci`)、時間戳
 
 4. **記憶體傳遞**：將結果直接傳遞給階段二
 
@@ -346,10 +350,9 @@ satellite_data = {
 
 ```python
 # 主要配置
-OBSERVER_LAT = 24.9441667  # NTPU緯度
-OBSERVER_LON = 121.3713889  # NTPU經度
-TIME_WINDOW_HOURS = 6       # 計算時間範圍
+TIME_WINDOW_HOURS = 6       # 計算時間範圍（基於軌道週期）
 TIME_STEP_SECONDS = 30      # 時間解析度
+# 注意：階段一不設定觀測點座標，純粹計算ECI軌道數據
 ```
 
 ## 🚨 故障排除
@@ -452,7 +455,8 @@ with open('/app/data/tle_orbital_calculation_output.json', 'r') as f:
 - [ ] **時間序列數據驗證**
   - 每顆衛星包含 `position_timeseries` 陣列
   - 時間序列長度 = 192點（或配置值）
-  - 每個時間點包含：time, position_eci, velocity_eci, elevation_deg, azimuth_deg, is_visible
+  - 每個時間點包含：timestamp, position_eci, velocity_eci
+  - **不包含**：elevation_deg, azimuth_deg, is_visible（這些由階段二計算）
 - [ ] **數據血統追蹤（v3.1）**
   - TLE數據日期正確記錄
   - 處理時間戳與數據時間戳分離

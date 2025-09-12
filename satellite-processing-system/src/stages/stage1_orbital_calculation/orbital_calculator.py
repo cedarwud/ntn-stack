@@ -22,20 +22,28 @@ class OrbitalCalculator:
     ✅ 完全符合文檔API規範
     """
     
-    def __init__(self, observer_coordinates: Tuple[float, float, float] = (24.9441667, 121.3713889, 50)):
+    def __init__(self, observer_coordinates: Tuple[float, float, float] = None, eci_only_mode: bool = True):
         """
         初始化軌道計算器 - 學術標準實現
         
         Args:
-            observer_coordinates: 觀測點坐標 (緯度, 經度, 海拔m)，預設為NTPU
+            observer_coordinates: 觀測點座標 (Stage 1不使用)
+            eci_only_mode: ECI座標專用模式 (Stage 1預設True)
         """
         self.logger = logging.getLogger(f"{__name__}.OrbitalCalculator")
         self.observer_coordinates = observer_coordinates
+        self.eci_only_mode = eci_only_mode
         
-        # 🚨 強制要求：只能使用真實SGP4引擎，絕不允許Mock回退
+        # 🚨 強制要求：Stage 1只能使用真實SGP4引擎，絕不允許Mock回退
         try:
-            self.sgp4_engine = SGP4OrbitalEngine(observer_coordinates=observer_coordinates)
-            self.logger.info(f"✅ 真實SGP4引擎初始化成功，觀測點: {observer_coordinates}")
+            self.sgp4_engine = SGP4OrbitalEngine(
+                observer_coordinates=observer_coordinates,
+                eci_only_mode=eci_only_mode
+            )
+            if eci_only_mode:
+                self.logger.info("✅ Stage 1 ECI-only SGP4引擎初始化成功")
+            else:
+                self.logger.info(f"✅ 完整SGP4引擎初始化成功，觀測點: {observer_coordinates}")
             
         except Exception as e:
             self.logger.error(f"❌ SGP4引擎初始化失敗: {e}")
@@ -54,14 +62,15 @@ class OrbitalCalculator:
             "calculation_time": 0.0,
             "engine_type": "SGP4OrbitalEngine",  # 強制記錄引擎類型
             "academic_compliance": "Grade_A",     # 學術合規等級
-            "no_fallback_used": True              # 確認未使用任何回退機制
+            "no_fallback_used": True,             # 確認未使用任何回退機制
+            "eci_only_mode": eci_only_mode        # 記錄輸出模式
         }
     
     def calculate_orbits_for_satellites(self, satellites: List[Dict[str, Any]], 
                                        time_points: int = 192,
                                        time_interval_seconds: int = 30) -> Dict[str, Any]:
         """
-        為所有衛星計算軌道 - 符合文檔API規範
+        為所有衛星計算軌道 - 符合文檔API規範 (Stage 1: 純ECI輸出)
         
         Args:
             satellites: 衛星數據列表
@@ -88,11 +97,13 @@ class OrbitalCalculator:
             "calculation_metadata": {
                 "time_points": time_points,
                 "time_interval_seconds": time_interval_seconds,
-                "observer_coordinates": self.observer_coordinates,
                 "calculation_start_time": start_time.isoformat(),
                 "sgp4_engine_type": type(self.sgp4_engine).__name__,  # 記錄實際引擎類型
                 "academic_grade": "A",
-                "no_simulation_used": True
+                "no_simulation_used": True,
+                "eci_only_mode": self.eci_only_mode,
+                "coordinate_system": "ECI_inertial_frame",
+                "stage1_compliant": True  # 符合Stage 1規範
             }
         }
         
