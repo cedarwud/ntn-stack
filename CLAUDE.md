@@ -11,6 +11,42 @@
 - **禁止執行** `npm run dev`、`npm run start` 等開發服務指令
 - **可以執行** `npm run build`、`npm run lint`、`npm run test` 等建置檢查指令
 
+## 🐳 satellite-processing-system 執行環境規範 (極其重要!)
+
+### 🚨 強制容器內執行 - 架構決策 (絕對遵守)
+**架構決策**: 為避免路徑混亂、環境不一致等問題，**強制只能在容器內執行**
+
+**✅ 唯一正確的執行方式**:
+```bash
+# 進入容器並執行
+docker exec satellite-dev bash
+cd /satellite-processing && python scripts/run_six_stages_with_validation.py
+
+# 或單階段執行
+docker exec satellite-dev python -c "
+import sys; sys.path.append('/satellite-processing/src')
+from stages.stage3_signal_analysis.stage3_signal_analysis_processor import Stage3SignalAnalysisProcessor
+stage3 = Stage3SignalAnalysisProcessor()
+results = stage3.execute()
+"
+```
+
+**📁 統一輸出路徑**:
+- 容器內: `/satellite-processing/data/stage*_outputs/`
+- 主機映射: `./data/outputs/stage*/` (透過Docker Volume同步)
+
+**🚫 主機執行已禁用**:
+- BaseProcessor 會檢測執行環境
+- 如果在主機執行會拋出 RuntimeError
+- 強制引導使用容器執行
+
+**✅ 容器執行的優點**:
+- 執行環境完全一致
+- 避免路徑混亂問題
+- 簡化維護和除錯
+- 支援熱重載開發
+- 與生產環境一致
+
 ## 🕐 時間基準計算原則 (極其重要!)
 
 ### 🚨 強制時間基準規範 (絕對遵守)

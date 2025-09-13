@@ -286,6 +286,209 @@ for mode in forbidden_filtering_modes:
 - **衛星通信系統**: 頻率規劃和補償技術
 - **3GPP NTN標準**: 都卜勒補償要求
 
+## 🧪 TDD整合自動化測試 (Phase 5.0 新增)
+
+### 🎯 自動觸發機制
+
+**觸發時機**: 階段二篩選處理完成並生成驗證快照後自動觸發
+
+```python
+def execute(self, input_data):
+    # 原有的篩選處理流程
+    # 1. 星座分離篩選
+    # 2. 地理相關性篩選  
+    # 3. 換手適用性評分
+    # 4. 統計數據收集
+    # 5. 數據結構驗證
+    # 6. 記憶體傳遞準備
+    # 7. 性能指標計算
+    
+    # 8. ✅ 生成驗證快照 (原有)
+    snapshot_success = self.save_validation_snapshot(results)
+    
+    # 9. 🆕 後置鉤子：自動觸發TDD測試
+    if snapshot_success and self.tdd_config.get("enabled", True):
+        self._trigger_tdd_tests_after_snapshot()
+        
+    return filtered_results
+```
+
+### 🔧 階段二專用測試配置
+
+#### **基礎測試類型**
+- **回歸測試**: 與歷史篩選結果比較，檢測篩選邏輯變化
+- **合規測試**: 驗證ITU-R P.618標準符合性 (Grade A 要求)
+- **整合測試**: 檢查階段一數據接收和階段三數據傳遞完整性 (開發環境)
+
+#### **階段特定驗證項目**
+```yaml
+stage2_filtering_tests:
+  # 地理可見性篩選驗證
+  geographic_visibility:
+    - elevation_threshold_compliance      # 仰角門檻合規性檢查
+    - visibility_time_requirements       # 可見時間要求驗證
+    - observer_coordinate_accuracy       # 觀測點座標精度驗證
+    
+  # 篩選引擎完整性驗證  
+  filtering_engine_integrity:
+    - unified_intelligent_filter_usage   # 確保使用統一智能篩選系統
+    - three_step_filtering_execution     # 三步驟篩選流程完整性
+    - constellation_separation_accuracy  # 星座分離準確性
+    
+  # 數據流完整性驗證
+  data_flow_integrity:
+    - input_data_completeness           # 輸入數據完整性 (8,000+顆衛星)
+    - position_timeseries_preservation  # 位置時間序列保留驗證
+    - memory_transfer_validation        # 記憶體傳遞模式驗證
+    
+  # 學術標準合規驗證 (Grade A)
+  academic_compliance:
+    - itu_r_standard_enforcement        # ITU-R P.618標準強制執行
+    - physical_parameter_verification   # 物理參數真實性驗證
+    - forbidden_simplification_check   # 禁止簡化算法檢查
+```
+
+### 📊 性能回歸檢測
+
+#### **關鍵性能基準 (Stage 2 特定)**
+```yaml
+performance_baselines:
+  processing_time:
+    target: 25_seconds        # 目標處理時間
+    warning: 35_seconds       # 警告門檻
+    critical: 50_seconds      # 關鍵門檻
+    
+  memory_usage:
+    target: 300_MB           # 目標記憶體使用
+    warning: 500_MB          # 警告門檻
+    critical: 800_MB         # 關鍵門檻
+    
+  filtering_efficiency:
+    expected_retention_rate: 0.10_to_0.15    # 預期保留率 10-15%
+    min_acceptable_rate: 0.05                # 最低可接受保留率
+    max_acceptable_rate: 0.25                # 最高可接受保留率
+    
+  data_quality:
+    min_starlink_satellites: 400             # Starlink最低數量
+    min_oneweb_satellites: 150               # OneWeb最低數量
+    constellation_balance_tolerance: 0.2     # 星座平衡容差
+```
+
+#### **回歸檢測指標**
+- **篩選率一致性**: 與歷史基準比較，容差範圍 ±5%
+- **星座分佈穩定性**: Starlink/OneWeb比例變化檢測
+- **地理覆蓋連續性**: NTPU觀測點覆蓋衛星數量穩定性
+- **數據完整性保持**: 位置時間序列數據保留完整性
+
+### 🚨 關鍵錯誤檢測
+
+#### **零容忍錯誤類型 (立即失敗)**
+```python
+critical_error_checks = {
+    "篩選引擎類型錯誤": {
+        "check": "isinstance(filter_engine, UnifiedIntelligentFilter)",
+        "impact": "可能使用簡化篩選算法，違反學術標準"
+    },
+    "輸入數據不完整": {
+        "check": "input_satellites_count > 8600",
+        "impact": "階段一數據傳遞問題，影響後續所有處理"
+    },
+    "仰角門檻不合規": {
+        "check": "starlink_threshold == 5.0 and oneweb_threshold == 10.0",
+        "impact": "違反ITU-R P.618標準，影響論文可信度"
+    },
+    "篩選流程不完整": {
+        "check": "all_filtering_steps_executed",
+        "impact": "篩選邏輯缺失，可能產生錯誤結果"
+    }
+}
+```
+
+#### **警告級別問題 (記錄但繼續)**
+- **篩選數量異常**: 篩選結果數量超出預期範圍 (但未達危險級別)
+- **處理時間超出預期**: 超出目標時間但在可接受範圍內
+- **記憶體使用偏高**: 記憶體使用超出目標但未達限制
+
+### 🔄 測試執行模式
+
+#### **同步執行模式 (開發環境)**
+- 篩選處理 → 驗證快照生成 → TDD測試執行 → 結果回報
+- 總執行時間: ~30-40秒 (包含測試時間)
+- 立即錯誤反饋，便於開發調試
+
+#### **異步執行模式 (生產環境)**
+- 篩選處理 → 驗證快照生成 → 返回結果
+- TDD測試在背景異步執行，不影響主要數據流
+- 測試結果通過警報系統或日誌回報
+
+#### **混合執行模式 (測試環境)**
+- 關鍵檢查同步執行 (零容忍錯誤)
+- 性能檢測異步執行 (不影響主流程)
+- 平衡反饋速度和系統性能
+
+### 🎯 測試覆蓋目標
+
+#### **功能覆蓋率**: ≥95%
+- 所有篩選邏輯分支覆蓋
+- 錯誤處理路徑覆蓋  
+- 星座特定參數覆蓋
+
+#### **數據覆蓋率**: ≥90%
+- 不同衛星數量情境 (7,000-9,000顆)
+- 不同星座比例情境 (Starlink/OneWeb變化)
+- 不同可見性條件情境 (時間、地理位置)
+
+#### **性能覆蓋率**: ≥85%
+- 正常負載性能基準
+- 高負載壓力測試
+- 記憶體限制情境測試
+
+### 📈 測試結果整合
+
+#### **驗證快照增強 (Stage 2 特定)**
+```json
+{
+  "stage": "stage2_intelligent_filtering",
+  "tdd_integration": {
+    "enabled": true,
+    "execution_mode": "sync|async|hybrid",
+    "test_results": {
+      "total_tests": 15,
+      "passed_tests": 15, 
+      "failed_tests": 0,
+      "critical_failures": [],
+      "performance_regressions": []
+    },
+    "filtering_quality_metrics": {
+      "retention_rate": 0.12,
+      "starlink_count": 650,
+      "oneweb_count": 180,
+      "geographic_coverage_score": 0.92
+    }
+  }
+}
+```
+
+#### **階段三數據傳遞驗證**
+- **記憶體模式驗證**: 確保篩選結果正確傳遞給階段三
+- **數據結構一致性**: 保持與階段三期望的輸入格式一致
+- **數據完整性保證**: 所有必要字段和屬性完整保留
+
+### 🔍 故障診斷整合
+
+#### **自動診斷觸發條件**
+- TDD測試失敗率 > 10%
+- 關鍵性能指標偏離基準 > 20%
+- 連續3次測試出現同類型錯誤
+
+#### **診斷數據收集**
+- 階段一輸出數據質量檢查
+- 篩選引擎配置驗證
+- 系統資源使用狀況
+- 歷史性能趨勢分析
+
+---
+
 ## 📊 篩選結果統計
 
 ### 修正後的預期輸出分佈（真正篩選）
@@ -352,6 +555,20 @@ top -p $(pgrep -f satellite_orbit_preprocessor) -n 1
 
 ## ✅ 階段驗證標準
 
+### 🎯 學術級驗證框架 (8個核心驗證)
+
+#### **基礎驗證 (目前已實現的3個)**
+1. **`output_structure_check`** - 數據結構完整性 (data, metadata, statistics)
+2. **`filtering_engine_check`** - 篩選引擎類型驗證 (UnifiedIntelligentFilter)  
+3. **`itu_r_compliance_check`** - ITU-R合規模式檢查
+
+#### **增強驗證 (新增5個達到學術標準)**
+4. **`filtering_rate_reasonableness_check`** - 篩選率合理性驗證 (5%-50%)
+5. **`constellation_threshold_compliance_check`** - 星座仰角門檻正確性
+6. **`satellite_count_consistency_check`** - 輸入輸出數量一致性
+7. **`observer_coordinate_precision_check`** - 觀測點座標精度驗證
+8. **`timeseries_continuity_check`** - 位置時間戳連續性檢查
+
 ### 🎯 Stage 2 完成驗證檢查清單
 
 #### 1. **輸入驗證**
@@ -413,62 +630,89 @@ top -p $(pgrep -f satellite_orbit_preprocessor) -n 1
 - [ ] 記憶體使用 < 500MB
 - [ ] 篩選率在合理範圍（70-95%，大部分衛星不可見被篩掉）
 
-#### 5. **自動驗證腳本**
+#### 5. **學術級驗證快照標準**
+
+**驗證快照必須包含8個核心檢查**:
+```json
+{
+  "validation": {
+    "passed": true,
+    "total_checks": 8,
+    "passed_checks": 8,
+    "failed_checks": 0,
+    "critical_checks": [],
+    "all_checks": {
+      "output_structure_check": true,
+      "filtering_engine_check": true, 
+      "itu_r_compliance_check": true,
+      "filtering_rate_reasonableness_check": true,
+      "constellation_threshold_compliance_check": true,
+      "satellite_count_consistency_check": true,
+      "observer_coordinate_precision_check": true,
+      "timeseries_continuity_check": true
+    }
+  }
+}
+```
+
+#### 6. **自動驗證腳本**
 ```python
 # 執行階段驗證
 python -c "
 import json
 import sys
 
-# 載入輸出數據（記憶體模式或文件模式）
+# 載入驗證快照
 try:
-    with open('/app/data/satellite_visibility_filtered_output.json', 'r') as f:
-        data = json.load(f)
+    with open('/app/data/validation_snapshots/stage2_validation.json', 'r') as f:
+        validation_data = json.load(f)
 except:
-    print('⚠️ 使用記憶體傳遞模式，跳過文件驗證')
-    # 在記憶體模式下，驗證應在處理器內部完成
-    sys.exit(0)
+    print('❌ 無法載入驗證快照')
+    sys.exit(1)
 
-# 驗證項目
-metadata = data.get('metadata', {})
-filtered = data.get('filtered_satellites', {})
+validation = validation_data.get('validation', {})
 
-starlink_count = len(filtered.get('starlink', []))
-oneweb_count = len(filtered.get('oneweb', []))
-total_filtered = starlink_count + oneweb_count
-
-checks = {
-    'input_count_valid': metadata.get('total_input_satellites', 0) > 8000,
-    # 階段二真正篩選，只有地理可見的衛星通過
-    'starlink_filtered': 400 <= starlink_count <= 1000,  # 預期400-1000顆Starlink可見
-    'oneweb_filtered': 100 <= oneweb_count <= 400,       # 預期100-400顆OneWeb可見
-    'total_filtered': 500 <= total_filtered <= 1400,     # 預期500-1400顆衛星可見
-    'filtering_rate': 0.70 <= metadata.get('filtering_rate', 0) <= 0.95,  # 70-95%篩選率
-    'has_timeseries': all(
-        'position_timeseries' in sat 
-        for constellation in filtered.values() 
-        for sat in constellation[:5]  # 檢查前5顆
-    )
+# 檢查是否有8個驗證
+required_checks = {
+    'output_structure_check': '數據結構完整性',
+    'filtering_engine_check': '篩選引擎類型驗證',
+    'itu_r_compliance_check': 'ITU-R合規模式檢查',
+    'filtering_rate_reasonableness_check': '篩選率合理性驗證',
+    'constellation_threshold_compliance_check': '星座仰角門檻正確性',
+    'satellite_count_consistency_check': '輸入輸出數量一致性',
+    'observer_coordinate_precision_check': '觀測點座標精度驗證',
+    'timeseries_continuity_check': '位置時間戳連續性檢查'
 }
 
-# 計算通過率
-passed = sum(checks.values())
-total = len(checks)
+all_checks = validation.get('all_checks', {})
+total_checks = validation.get('total_checks', 0)
+passed_checks = validation.get('passed_checks', 0)
 
-print('📊 Stage 2 驗證結果:')
-print(f'  輸入衛星數: {metadata.get(\"total_input_satellites\", 0)}')
-print(f'  Starlink篩選: {starlink_count} 顆')
-print(f'  OneWeb篩選: {oneweb_count} 顆')
-print(f'  總篩選率: {metadata.get(\"filtering_rate\", 0):.1%}')
-print('\\n驗證項目:')
-for check, result in checks.items():
-    print(f'  {\"✅\" if result else \"❌\"} {check}')
-print(f'\\n總計: {passed}/{total} 項通過')
+print('📊 Stage 2 學術級驗證結果:')
+print(f'  驗證總數: {total_checks}/8 (學術標準要求8個)')
+print(f'  通過驗證: {passed_checks}/{total_checks}')
+print('\\n各項驗證結果:')
 
-if passed == total:
-    print('✅ Stage 2 驗證通過！')
+missing_checks = []
+for check_name, description in required_checks.items():
+    if check_name in all_checks:
+        status = '✅' if all_checks[check_name] else '❌'
+        print(f'  {status} {description}')
+    else:
+        missing_checks.append(f'{check_name} ({description})')
+        print(f'  ⚠️ 缺失: {description}')
+
+if missing_checks:
+    print(f'\\n❌ 缺少 {len(missing_checks)} 個必要驗證:')
+    for missing in missing_checks:
+        print(f'  - {missing}')
+    print('\\n系統需要升級驗證框架以符合學術標準')
+    sys.exit(1)
+
+if total_checks == 8 and passed_checks == 8:
+    print('\\n✅ Stage 2 學術級驗證通過！符合論文發表標準')
 else:
-    print('❌ Stage 2 驗證失敗，請檢查上述項目')
+    print(f'\\n❌ 驗證不完整或有失敗項目 ({passed_checks}/{total_checks})')
     sys.exit(1)
 "
 ```

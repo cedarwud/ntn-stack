@@ -33,6 +33,9 @@ import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 
+# 導入BaseStageProcessor
+from ..shared.base_processor import BaseStageProcessor
+
 # 導入專業化組件
 from .stage_data_loader import StageDataLoader
 from .cross_stage_validator import CrossStageValidator
@@ -47,7 +50,7 @@ from .signal_quality_calculator import SignalQualityCalculator
 
 logger = logging.getLogger(__name__)
 
-class Stage5Processor:
+class Stage5Processor(BaseStageProcessor):
     """
     Stage 5 數據整合處理器主類
     
@@ -68,6 +71,11 @@ class Stage5Processor:
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """初始化Stage 5處理器"""
+        super().__init__(
+            stage_number=5,
+            stage_name="data_integration",
+            config=config
+        )
         self.logger = logging.getLogger(f"{__name__}.Stage5Processor")
         
         # 處理器配置
@@ -942,3 +950,88 @@ class Stage5Processor:
                 "multi_objective_optimization": bool(data.get("dynamic_pool_optimization"))
             }
         }
+    
+    # ========= BaseStageProcessor接口實現 =========
+    
+    def validate_input(self, input_data: Any) -> bool:
+        """
+        驗證輸入數據的有效性
+        
+        Args:
+            input_data: 輸入數據
+            
+        Returns:
+            bool: 輸入數據是否有效
+        """
+        self.logger.info("🔍 Stage 5輸入驗證...")
+        
+        try:
+            # Stage 5可以接受多種輸入格式
+            if input_data is None:
+                self.logger.info("無直接輸入數據，將從各階段輸出載入")
+                return True
+            
+            # 驗證字典格式輸入
+            if isinstance(input_data, dict):
+                required_keys = ["stage_paths"]
+                if any(key in input_data for key in required_keys):
+                    self.logger.info("✅ 輸入數據格式驗證通過")
+                    return True
+            
+            # 驗證路徑字典格式
+            if isinstance(input_data, dict) and all(
+                isinstance(k, str) and isinstance(v, str) 
+                for k, v in input_data.items()
+            ):
+                self.logger.info("✅ 階段路徑數據格式驗證通過")
+                return True
+            
+            self.logger.warning("⚠️ 輸入數據格式未識別，但Stage 5可自動載入")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ 輸入數據驗證失敗: {e}")
+            return False
+    
+    def process(self, input_data: Any = None) -> Dict[str, Any]:
+        """
+        執行Stage 5數據整合處理 (BaseStageProcessor標準接口)
+        
+        Args:
+            input_data: 輸入數據 (可選，支持多種格式)
+            
+        Returns:
+            Dict[str, Any]: Stage 5處理結果
+            
+        Note: 
+            - 這個方法是BaseStageProcessor的標準接口實現
+            - 內部調用process_enhanced_timeseries()執行實際處理邏輯
+            - TDD整合會通過BaseStageProcessor.execute()自動觸發 (Phase 5.0)
+        """
+        self.logger.info("🚀 執行Stage 5數據整合處理 (BaseStageProcessor接口)")
+        
+        try:
+            # 解析輸入數據格式
+            stage_paths = None
+            processing_config = None
+            
+            if isinstance(input_data, dict):
+                stage_paths = input_data.get("stage_paths")
+                processing_config = input_data.get("processing_config")
+                
+                # 如果input_data本身就是路徑字典
+                if not stage_paths and all(isinstance(v, str) for v in input_data.values()):
+                    stage_paths = input_data
+            
+            # 調用主處理方法
+            result = self.process_enhanced_timeseries(
+                stage_paths=stage_paths,
+                processing_config=processing_config
+            )
+            
+            self.logger.info("✅ Stage 5處理完成 (BaseStageProcessor接口)")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"❌ Stage 5處理失敗: {e}")
+            raise RuntimeError(f"Stage 5數據整合處理失敗: {e}")

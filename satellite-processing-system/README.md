@@ -21,13 +21,16 @@
 - **3GPP NTN標準合規** ✅ **已驗證** - 完全符合國際電信標準
 - **端到端整合驗證** ✅ **已完成** - Stage1-6完整處理鏈驗證
 - **學術級品質保證** ✅ **已建立** - Grade A+標準，零容忍簡化
+- **🆕 TDD整合自動化** ✅ **Phase 5.0 新增** - 後置鉤子自動觸發機制
 
 ### 🔬 **TDD測試架構概覽**
 - **核心業務測試**: 66個單元測試 (Phase 1-3)
 - **系統整合測試**: 16個整合測試 (Phase 4)
 - **標準合規驗證**: 7個3GPP NTN合規測試
+- **🆕 自動化整合測試**: 後置鉤子觸發 + 回歸檢測 (Phase 5.0)
 - **🧪 TDD架構總覽**: [完整TDD架構文檔](docs/TDD_ARCHITECTURE_OVERVIEW.md) 📋
 - **完整測試報告**: [TDD Phase 4完成報告](tests/reports/TDD_PHASE4_FINAL_COMPLETION_REPORT.md)
+- **🆕 整合測試架構**: [TDD整合測試架構設計](docs/architecture_refactoring/testing_architecture_design.md) 🎯
 
 ## 📦 快速開始
 
@@ -62,6 +65,41 @@ make dev-exec
 # 執行快速處理
 make dev-run-stages
 ```
+
+### ⚠️ **重要執行路徑說明**
+**為避免路徑錯誤，請注意以下執行環境：**
+
+1. **容器內執行** (推薦)：
+   ```bash
+   # 進入容器內執行階段處理
+   docker exec satellite-dev bash
+   cd /app && python scripts/run_six_stages_with_validation.py
+   # 輸出路徑: /app/data/outputs/stage*
+   ```
+
+2. **主機直接執行** (僅限測試)：
+   ```bash
+   # 在主機上執行 (需要Python環境)
+   cd /home/sat/ntn-stack/satellite-processing-system
+   python scripts/run_six_stages_with_validation.py
+   # 輸出路徑: /tmp/ntn-stack-dev/stage*_outputs/
+   ```
+
+3. **單階段執行**：
+   ```bash
+   # 容器內單階段執行
+   docker exec satellite-dev python -c "
+   import sys; sys.path.append('/app/src')
+   from stages.stage3_signal_analysis.stage3_signal_analysis_processor import Stage3SignalAnalysisProcessor
+   stage3 = Stage3SignalAnalysisProcessor()
+   results = stage3.execute()
+   "
+   ```
+
+**🚨 關鍵提醒：**
+- 容器內路徑：`/app/data/outputs/`
+- 主機掛載路徑：`/tmp/ntn-stack-dev/`
+- 避免混用執行環境導致路徑錯誤
 
 ## 🏗️ 系統架構
 
@@ -161,23 +199,43 @@ data/tle_data/
 
 ## 🛡️ 驗證與品質保證
 
-### 📏 三級驗證體系
+### 📏 增強三級驗證體系 (含TDD整合)
 ```bash
-# FAST模式 - 開發調試 (減少60-70%時間)
+# FAST模式 - 開發調試 (減少60-70%時間，含TDD快速檢查)
 make run-fast
 
-# STANDARD模式 - 正常生產 (預設)
+# STANDARD模式 - 正常生產 (預設，含自動TDD觸發)
 make run-stages  
 
-# COMPREHENSIVE模式 - 完整驗證
+# COMPREHENSIVE模式 - 完整驗證 (含全面TDD回歸測試)
 make run-comprehensive
+
+# 🆕 TDD專用模式 - 測試架構驗證 (Phase 5.0 新增)
+make run-tdd-integration
+```
+
+### 🧪 **TDD整合自動化驗證** (Phase 5.0 新增)
+```bash
+# 驗證TDD整合機制
+make test-tdd-integration
+
+# 檢查自動觸發狀態
+make tdd-status
+
+# 查看TDD測試報告
+make tdd-reports
+
+# 執行TDD回歸檢測
+make tdd-regression-check
 ```
 
 ### 🚨 學術級數據標準 (強制遵循)
 - **✅ 必須**: 真實 TLE 數據 (Space-Track.org)
 - **✅ 必須**: 官方標準演算法 (ITU-R、3GPP、IEEE)
 - **✅ 必須**: 實際物理參數和係數
+- **✅ 必須**: TDD整合測試自動觸發 (驗證快照後自動執行)
 - **❌ 禁止**: 任何模擬數據、假設值、簡化演算法
+- **❌ 禁止**: 跳過TDD整合驗證 (影響學術可信度)
 
 ## 📊 性能指標
 
@@ -288,13 +346,18 @@ data/
 - **[數據處理流程詳解](docs/data_processing_flow.md)**
 - **[驗證框架總覽](docs/validation_framework_overview.md)**
 - **[研究路線圖](docs/research_roadmap.md)** 🆕 **開發規劃**
+- **🆕 [TDD整合測試架構](docs/architecture_refactoring/testing_architecture_design.md)** 🧪 **Phase 5.0核心**
 
-### 📋 階段文檔與測試報告
+### 📋 階段文檔與TDD整合說明
 - **[階段導航總覽](docs/stages/README.md)** - 完整執行指南
+- **[階段一：TLE載入與SGP4](docs/stages/stage1-tle-loading.md)** 🆕 **含TDD整合說明**
+- **[階段二：地理可見性篩選](docs/stages/stage2-filtering.md)** 🆕 **含TDD整合說明**
 - **[階段三：信號分析](docs/stages/stage3-signal.md)** ✅ **TDD已驗證**
 - **[階段六：智能動態池](docs/stages/stage6-dynamic-pool.md)** ✅ **TDD已驗證**
+
+### 📊 測試報告與架構
 - **[TDD Phase 4 完成報告](tests/reports/TDD_PHASE4_FINAL_COMPLETION_REPORT.md)** 📊 **完整測試架構**
-- **[階段一：TLE載入與SGP4](docs/stages/stage1-tle-loading.md)**
+- **🆕 [TDD整合開發計劃](/home/sat/ntn-stack/tdd-integration-enhancement/README.md)** 🎯 **Phase 5.0 完整計劃**
 
 ### 🔧 技術文檔
 - **[TLE管理腳本集合](scripts/tle_management/README.md)**
@@ -325,13 +388,21 @@ make tle-download   # 手動下載
 make dev-up         # 開發環境
 make dev-exec       # 進入容器
 make dev-run-stages # 開發執行
+
+# 🆕 TDD整合管理 (Phase 5.0 新增)
+make tdd-setup      # 設置TDD整合環境
+make tdd-status     # 檢查TDD觸發狀態
+make tdd-reports    # 查看TDD測試報告
+make tdd-integration # 執行TDD整合驗證
 ```
 
-### 🚨 關鍵開發原則
+### 🚨 關鍵開發原則 (含TDD整合)
 1. **時間基準**: SGP4計算必須使用 TLE epoch 時間，絕不使用當前時間
 2. **數據真實性**: 禁止任何模擬數據、假設值、簡化演算法
 3. **標準合規**: 所有實現必須基於官方標準 (ITU-R、3GPP、IEEE)
 4. **模組化**: 遵循共享核心架構，避免代碼重複
+5. **🆕 TDD整合**: 所有階段處理必須包含後置鉤子TDD自動觸發機制
+6. **🆕 驗證增強**: 驗證快照必須包含TDD測試結果和回歸檢測
 
 ## 🚨 常見問題排除
 

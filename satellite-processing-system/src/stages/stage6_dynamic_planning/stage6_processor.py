@@ -68,7 +68,7 @@ class Stage6Processor(BaseStageProcessor):
     """
     
     def __init__(self, config: Dict[str, Any] = None):
-        super().__init__("Stage6DynamicPlanning", config)
+        super().__init__(6, "dynamic_planning", config)
         
         # 初始化專業組件
         self.data_loader = DataIntegrationLoader(

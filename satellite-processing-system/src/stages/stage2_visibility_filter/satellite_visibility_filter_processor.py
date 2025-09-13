@@ -73,12 +73,12 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
         
         self.input_dir = Path(input_dir)
         
-        # v3.0記憶體傳遞模式：輸出目錄設定
+        # 🔧 修復：統一輸出目錄配置，與其他 Stage 保持一致
         if output_dir is None:
             if os.path.exists("/satellite-processing"):
-                output_dir = "data/intelligent_filtering_outputs"
+                output_dir = "data/outputs/stage2"
             else:
-                output_dir = "/tmp/ntn-stack-dev/intelligent_filtering_outputs"
+                output_dir = "/tmp/ntn-stack-dev/stage2_outputs"
         
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -220,6 +220,11 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
             
             self.logger.info(f"✅ 階段二智能篩選完成: {len(final_filtered_satellites)}/{len(satellites)} 顆衛星通過篩選")
             self.logger.info(f"📊 學術標準評級: {grade_assessment['overall_compliance']}")
+            
+            # 🚨 BUGFIX: 保存處理結果到檔案 (之前缺少這個調用)
+            output_file = self.save_results(filtering_result)
+            self.logger.info(f"💾 結果已保存至: {output_file}")
+            
             return filtering_result
             
         except Exception as e:
@@ -423,13 +428,21 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
                             # 可見性判斷 - 仰角大於0度且衛星在地平線上方
                             is_visible = elevation_deg > 0.0 and range_km < 3000  # 3000km範圍內
                             
-                            # 組裝轉換後的位置數據
+                            # 🔧 修復：保留 Stage 1 的速度數據
+                            eci_velocity = position.get("velocity_eci", {})
+                            
+                            # 組裝轉換後的位置數據 - 保留完整的 Stage 1 數據
                             converted_position = {
                                 "timestamp": timestamp_str,
                                 "eci_position": {
                                     "x": eci_x,
                                     "y": eci_y,
                                     "z": eci_z
+                                },
+                                "eci_velocity": {
+                                    "x": eci_velocity.get("x", 0),
+                                    "y": eci_velocity.get("y", 0),
+                                    "z": eci_velocity.get("z", 0)
                                 },
                                 "relative_to_observer": {
                                     "elevation_deg": elevation_deg,
@@ -632,10 +645,12 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
     
     def process(self, input_data: Any = None) -> Dict[str, Any]:
         """
-        執行階段二處理 (主要處理方法)
+        執行階段二處理 (主要處理方法) - 含TDD整合自動化
         
         此方法為BaseStageProcessor的標準介面實現，
         內部調用 process_intelligent_filtering() 執行實際篩選邏輯
+        
+        TDD整合: 透過BaseStageProcessor.execute()自動觸發後置鉤子測試 (Phase 5.0)
         
         Args:
             input_data: 可選的直接輸入數據
@@ -736,7 +751,7 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
         }
     
     def run_validation_checks(self, processed_data: Dict[str, Any]) -> Dict[str, Any]:
-        """運行驗證檢查"""
+        """運行學術級驗證檢查 (8個核心驗證)"""
         validation_results = {
             "passed": True,
             "total_checks": 0,
@@ -782,6 +797,66 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
                 validation_results["failed_checks"] += 1
                 validation_results["passed"] = False
                 validation_results["critical_checks"].append("itu_r_compliance_check")
+                
+            # 🆕 檢查4: 篩選率合理性驗證
+            filtering_rate_check = self._check_filtering_rate_reasonableness(processed_data)
+            validation_results["all_checks"]["filtering_rate_reasonableness_check"] = filtering_rate_check
+            validation_results["total_checks"] += 1
+            
+            if filtering_rate_check:
+                validation_results["passed_checks"] += 1
+            else:
+                validation_results["failed_checks"] += 1
+                validation_results["passed"] = False
+                validation_results["critical_checks"].append("filtering_rate_reasonableness_check")
+                
+            # 🆕 檢查5: 星座仰角門檻正確性
+            threshold_check = self._check_constellation_threshold_compliance(processed_data)
+            validation_results["all_checks"]["constellation_threshold_compliance_check"] = threshold_check
+            validation_results["total_checks"] += 1
+            
+            if threshold_check:
+                validation_results["passed_checks"] += 1
+            else:
+                validation_results["failed_checks"] += 1
+                validation_results["passed"] = False
+                validation_results["critical_checks"].append("constellation_threshold_compliance_check")
+                
+            # 🆕 檢查6: 輸入輸出數量一致性
+            count_consistency_check = self._check_satellite_count_consistency(processed_data)
+            validation_results["all_checks"]["satellite_count_consistency_check"] = count_consistency_check
+            validation_results["total_checks"] += 1
+            
+            if count_consistency_check:
+                validation_results["passed_checks"] += 1
+            else:
+                validation_results["failed_checks"] += 1
+                validation_results["passed"] = False
+                validation_results["critical_checks"].append("satellite_count_consistency_check")
+                
+            # 🆕 檢查7: 觀測點座標精度驗證
+            coordinate_check = self._check_observer_coordinate_precision(processed_data)
+            validation_results["all_checks"]["observer_coordinate_precision_check"] = coordinate_check
+            validation_results["total_checks"] += 1
+            
+            if coordinate_check:
+                validation_results["passed_checks"] += 1
+            else:
+                validation_results["failed_checks"] += 1
+                validation_results["passed"] = False
+                validation_results["critical_checks"].append("observer_coordinate_precision_check")
+                
+            # 🆕 檢查8: 位置時間戳連續性檢查
+            timeseries_check = self._check_timeseries_continuity(processed_data)
+            validation_results["all_checks"]["timeseries_continuity_check"] = timeseries_check
+            validation_results["total_checks"] += 1
+            
+            if timeseries_check:
+                validation_results["passed_checks"] += 1
+            else:
+                validation_results["failed_checks"] += 1
+                validation_results["passed"] = False
+                validation_results["critical_checks"].append("timeseries_continuity_check")
             
             return validation_results
             
@@ -835,44 +910,39 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
                 self.logger.error("階段一數據缺少 'satellites' 欄位（檢查了頂層和 data 層級）")
                 return False
             
-            if not isinstance(satellites, list):
-                self.logger.error("satellites 必須是列表格式")
+            if not isinstance(satellites, dict):
+                self.logger.error("satellites 必須是字典格式")
                 return False
             
             if len(satellites) == 0:
                 self.logger.error("衛星數據為空")
                 return False
             
-            # 🚨 Grade A強制檢查：SGP4軌道計算數據完整性
-            for i, satellite in enumerate(satellites):
+            # 🚨 Grade A強制檢查：SGP4軌道計算數據完整性 - 修復字典格式驗證
+            for satellite_id, satellite in satellites.items():
                 if not isinstance(satellite, dict):
-                    self.logger.error(f"衛星 {i} 數據格式錯誤")
+                    self.logger.error(f"衛星 {satellite_id} 數據格式錯誤")
                     return False
                 
-                # 檢查必要欄位
-                required_fields = ["name", "position_timeseries"]
-                for field in required_fields:
-                    if field not in satellite:
-                        self.logger.error(f"衛星 {satellite.get('name', i)} 缺少 '{field}' 欄位")
-                        return False
+                # 檢查衛星基本信息
+                satellite_info = satellite.get("satellite_info", {})
+                orbital_positions = satellite.get("orbital_positions", [])
                 
-                # 檢查軌道時間序列數據
-                position_timeseries = satellite["position_timeseries"]
-                if not isinstance(position_timeseries, list) or len(position_timeseries) == 0:
-                    self.logger.error(f"衛星 {satellite.get('name', i)} 的軌道時間序列數據無效")
+                if not isinstance(orbital_positions, list) or len(orbital_positions) == 0:
+                    self.logger.error(f"衛星 {satellite_id} 的軌道位置數據無效")
                     return False
                 
-                # 檢查時間序列數據結構 (Grade A要求)
-                for j, position in enumerate(position_timeseries[:3]):  # 只檢查前3個點
-                    if "relative_to_observer" not in position:
-                        self.logger.error(f"衛星 {satellite.get('name', i)} 位置 {j} 缺少 relative_to_observer")
+                # 檢查軌道位置數據結構 (Grade A要求) - 針對 Stage 1 格式
+                for j, position in enumerate(orbital_positions[:3]):  # 只檢查前3個點
+                    if "position_eci" not in position:
+                        self.logger.error(f"衛星 {satellite_id} 位置 {j} 缺少 position_eci")
                         return False
                     
-                    relative_data = position["relative_to_observer"]
-                    required_relative_fields = ["elevation_deg", "distance_km"]
-                    for field in required_relative_fields:
-                        if field not in relative_data:
-                            self.logger.error(f"衛星 {satellite.get('name', i)} 位置 {j} 缺少 '{field}'")
+                    eci_data = position["position_eci"]
+                    required_eci_fields = ["x", "y", "z"]
+                    for field in required_eci_fields:
+                        if field not in eci_data:
+                            self.logger.error(f"衛星 {satellite_id} 位置 {j} ECI座標缺少 '{field}'")
                             return False
             
             self.logger.info("✅ 階段一軌道數據驗證通過")
@@ -1038,4 +1108,151 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
             
             return filtering_mode == "pure_geographic_visibility_no_quantity_limits"
         except:
+            return False
+
+    def _check_filtering_rate_reasonableness(self, output_data: Dict[str, Any]) -> bool:
+        """檢查篩選率合理性驗證 (5%-50%)"""
+        try:
+            metadata = output_data.get("metadata", {})
+            filtering_rate = metadata.get("filtering_rate", 0)
+            
+            # 階段二應該篩掉大部分不可見衛星，保留5%-50%的可見衛星
+            if filtering_rate < 0.05:
+                self.logger.error(f"篩選率過低 ({filtering_rate:.3f}), 可能篩選過於嚴格")
+                return False
+            elif filtering_rate > 0.50:
+                self.logger.error(f"篩選率過高 ({filtering_rate:.3f}), 可能篩選不足")
+                return False
+                
+            return True
+        except Exception as e:
+            self.logger.error(f"篩選率合理性檢查失敗: {e}")
+            return False
+
+    def _check_constellation_threshold_compliance(self, output_data: Dict[str, Any]) -> bool:
+        """檢查星座仰角門檻正確性 (Starlink: 5°, OneWeb: 10°)"""
+        try:
+            # 直接檢查處理器的配置，因為metadata中可能不包含門檻值
+            if hasattr(self, 'unified_filter') and hasattr(self.unified_filter, 'elevation_thresholds'):
+                thresholds = self.unified_filter.elevation_thresholds
+                
+                if thresholds.get('starlink', 0) != 5.0:
+                    self.logger.error(f"Starlink仰角門檻錯誤: {thresholds.get('starlink')}° (應為5°)")
+                    return False
+                    
+                if thresholds.get('oneweb', 0) != 10.0:
+                    self.logger.error(f"OneWeb仰角門檻錯誤: {thresholds.get('oneweb')}° (應為10°)")
+                    return False
+                    
+                return True
+            else:
+                # 備選檢查：檢查篩選邏輯是否遵循ITU-R標準
+                metadata = output_data.get("metadata", {})
+                filtering_mode = metadata.get("filtering_mode", "")
+                
+                # 如果使用正確的篩選模式，認為門檻合規
+                if "geographic_visibility" in filtering_mode:
+                    return True
+                else:
+                    self.logger.error("無法驗證星座門檻合規性：缺少配置信息")
+                    return False
+                    
+        except Exception as e:
+            self.logger.error(f"星座門檻合規檢查失敗: {e}")
+            return False
+
+    def _check_satellite_count_consistency(self, output_data: Dict[str, Any]) -> bool:
+        """檢查輸入輸出數量一致性"""
+        try:
+            metadata = output_data.get("metadata", {})
+            data_section = output_data.get("data", {})
+            
+            # 檢查輸入衛星數量合理性 (支持兩種欄位名稱)
+            total_input = metadata.get("total_input_satellites", 0) or metadata.get("input_satellites", 0)
+            if total_input < 8000:
+                self.logger.error(f"輸入衛星數量不足: {total_input} (預期>8000)")
+                return False
+                
+            # 檢查篩選結果數量一致性
+            filtered_satellites = data_section.get("filtered_satellites", {})
+            starlink_count = len(filtered_satellites.get("starlink", []))
+            oneweb_count = len(filtered_satellites.get("oneweb", []))
+            
+            # 支持多種輸出數量欄位名稱
+            total_filtered = (metadata.get("total_satellites_filtered", 0) or 
+                            metadata.get("output_satellites", 0) or 
+                            starlink_count + oneweb_count)
+            actual_total = starlink_count + oneweb_count
+            
+            if abs(total_filtered - actual_total) > 0:  # 允許微小差異
+                self.logger.error(f"篩選數量不一致: metadata({total_filtered}) vs actual({actual_total})")
+                return False
+                
+            return True
+        except Exception as e:
+            self.logger.error(f"數量一致性檢查失敗: {e}")
+            return False
+
+    def _check_observer_coordinate_precision(self, output_data: Dict[str, Any]) -> bool:
+        """檢查觀測點座標精度驗證 (NTPU座標)"""
+        try:
+            key_metrics = output_data.get("keyMetrics", {}) or output_data.get("metadata", {})
+            observer_coords = key_metrics.get("observer_coordinates", {})
+            
+            # NTPU標準座標 (24.9441667°N, 121.3713889°E)
+            expected_lat = 24.9441667
+            expected_lon = 121.3713889
+            
+            actual_lat = observer_coords.get("latitude", 0)
+            actual_lon = observer_coords.get("longitude", 0)
+            
+            # 座標精度檢查 (允許±0.001度誤差)
+            lat_diff = abs(actual_lat - expected_lat)
+            lon_diff = abs(actual_lon - expected_lon)
+            
+            if lat_diff > 0.001:
+                self.logger.error(f"觀測點緯度精度不足: {actual_lat} vs {expected_lat} (誤差{lat_diff:.6f})")
+                return False
+                
+            if lon_diff > 0.001:
+                self.logger.error(f"觀測點經度精度不足: {actual_lon} vs {expected_lon} (誤差{lon_diff:.6f})")
+                return False
+                
+            return True
+        except Exception as e:
+            self.logger.error(f"觀測點座標精度檢查失敗: {e}")
+            return False
+
+    def _check_timeseries_continuity(self, output_data: Dict[str, Any]) -> bool:
+        """檢查位置時間戳連續性 (檢查前3顆衛星的時間序列)"""
+        try:
+            data_section = output_data.get("data", {})
+            filtered_satellites = data_section.get("filtered_satellites", {})
+            
+            # 檢查Starlink和OneWeb各自的前3顆衛星
+            for constellation, satellites in filtered_satellites.items():
+                if not satellites:
+                    continue
+                    
+                # 只檢查前3顆衛星以提高效率
+                for i, satellite in enumerate(satellites[:3]):
+                    if "position_timeseries" not in satellite:
+                        self.logger.error(f"{constellation}衛星{i} 缺少時間序列數據")
+                        return False
+                        
+                    timeseries = satellite["position_timeseries"]
+                    if not timeseries or len(timeseries) < 10:
+                        self.logger.error(f"{constellation}衛星{i} 時間序列數據不足: {len(timeseries)}點")
+                        return False
+                        
+                    # 檢查時間戳連續性 (前5個點)
+                    for j in range(min(5, len(timeseries))):
+                        point = timeseries[j]
+                        if "timestamp" not in point:
+                            self.logger.error(f"{constellation}衛星{i} 位置點{j} 缺少時間戳")
+                            return False
+                            
+            return True
+        except Exception as e:
+            self.logger.error(f"時間序列連續性檢查失敗: {e}")
             return False

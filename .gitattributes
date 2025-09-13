@@ -7,3 +7,4 @@
 data/ filter=lfs diff=lfs merge=lfs -text
 data/leo_outputs/signal_analysis_outputs/*.json filter=lfs diff=lfs merge=lfs -text
 *.json filter=lfs diff=lfs merge=lfs -text lockable
+satellite-processing-system/data/validation_snapshots/*.json !filter !diff !merge

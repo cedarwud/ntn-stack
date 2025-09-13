@@ -159,7 +159,7 @@ class GPPEventAnalyzer:
         
         return event_results
 
-    def analyze_3gpp_events(self, satellite: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze_single_satellite_3gpp_events(self, satellite: Dict[str, Any]) -> Dict[str, Any]:
         """
         分析單顆衛星的3GPP事件 (Stage3處理器介面)
         
@@ -615,31 +615,6 @@ class GPPEventAnalyzer:
             return "high"
         else:
             return "severe"
-    
-    # 處理未結束的A4事件
-    if in_a4_state and a4_start_time:
-        last_point = signal_timeseries[-1] if signal_timeseries else {}
-        last_mn_rsrp = last_point.get("rsrp_dbm", -140)
-        last_entering_value = last_mn_rsrp + ofn_db + ocn_db - hysteresis
-        
-        a4_events.append({
-            "event_type": "A4",
-            "start_time": a4_start_time,
-            "end_time": last_point.get("timestamp", a4_start_time),
-            "trigger_calculation": {
-                "mn_rsrp_dbm": last_mn_rsrp,
-                "ofn_db": ofn_db,
-                "ocn_db": ocn_db,
-                "hysteresis_db": hysteresis,
-                "threshold_dbm": threshold,
-                "entering_value": last_entering_value
-            },
-            "duration_seconds": self._calculate_duration_seconds(a4_start_time, last_point.get("timestamp", a4_start_time)),
-            "3gpp_compliant": True,
-            "ongoing": True
-        })
-    
-    return a4_events
     
     def _detect_a5_events(self, signal_timeseries: List[Dict[str, Any]], offset_config: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -1257,35 +1232,20 @@ class GPPEventAnalyzer:
             return "minor"        # 輕微改善
         else:
             return "minimal"      # 最小改善
-                if d2_start_time:
-                    d2_events.append({
-                        "event_type": "D2",
-                        "start_time": d2_start_time,
-                        "end_time": timestamp,
-                        "trigger_calculation": {
-                            "ml1_distance_m": ml1_distance_m,
-                            "ml2_distance_m": ml2_distance_m,
-                            "hysteresis_m": hysteresis_m,
-                            "thresh1_m": thresh1_m,
-                            "thresh2_m": thresh2_m,
-                            "entering_condition1": entering_condition1,
-                            "entering_condition2": entering_condition2,
-                            "leaving_condition1": leaving_condition1,
-                            "leaving_condition2": leaving_condition2
-                        },
-                        "duration_seconds": self._calculate_duration_seconds(d2_start_time, timestamp),
-                        "3gpp_compliant": True,
-                        "exit_reason": "condition1" if leaving_condition1 else "condition2",
-                        "distances_km": {
-                            "ml1_km": ml1_distance_m / 1000,
-                            "ml2_km": ml2_distance_m / 1000,
-                            "thresh1_km": thresh1_m / 1000,
-                            "thresh2_km": thresh2_m / 1000
-                        }
-                    })
-                
-                in_d2_state = False
-                d2_start_time = None
+    
+    def _finalize_d2_events(self, d2_start_time, d2_events, timestamp):
+        """完成D2事件處理"""
+        if d2_start_time:
+            d2_events.append({
+                "event_type": "D2",
+                "start_time": d2_start_time,
+                "end_time": timestamp,
+                "duration_seconds": self._calculate_duration_seconds(d2_start_time, timestamp),
+                "3gpp_compliant": True,
+                "exit_reason": "condition_met"
+            })
+            return True
+        return False
         
         # 處理未結束的D2事件
         if in_d2_state and d2_start_time:
