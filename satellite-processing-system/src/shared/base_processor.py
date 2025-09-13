@@ -4,6 +4,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 import logging
 import json
+import asyncio
+import os
 
 class BaseStageProcessor(ABC):
     """所有階段處理器的基礎抽象類"""
@@ -29,15 +31,26 @@ class BaseStageProcessor(ABC):
         # 統一日誌
         self.logger = logging.getLogger(f"stage{stage_number}_{stage_name}")
         
-        # 輸出目錄 - 自動檢測環境
-        if Path("/satellite-processing").exists():
-            # 容器環境
-            self.output_dir = Path(f"data/stage{stage_number}_outputs")
-            self.validation_dir = Path("data/validation_snapshots")
-        else:
-            # 開發環境
-            self.output_dir = Path(f"/tmp/ntn-stack-dev/stage{stage_number}_outputs")
-            self.validation_dir = Path("/tmp/ntn-stack-dev/validation_snapshots")
+        # 🚨 重要：強制容器內執行 - 統一執行環境
+        # 架構決策：只支援容器執行，避免路徑和環境不一致問題
+        if not Path("/satellite-processing").exists():
+            raise RuntimeError(
+                "🚫 satellite-processing-system 必須在容器內執行！\n"
+                "正確執行方式：\n"
+                "  docker exec satellite-dev bash\n"
+                "  cd /satellite-processing && python scripts/run_six_stages_with_validation.py\n"
+                "\n"
+                "原因：\n"
+                "- 確保執行環境一致性\n"
+                "- 避免路徑混亂和數據分散\n"
+                "- 簡化維護和除錯複雜度"
+            )
+        
+        # 容器環境 - 統一執行路徑（與Volume映射一致）
+        self.output_dir = Path(f"/satellite-processing/data/outputs/stage{stage_number}")
+        self.validation_dir = Path("/satellite-processing/data/validation_snapshots")
+        self.logger.info(f"🐳 容器執行確認 - 輸出路徑: {self.output_dir}")
+        self.logger.info(f"📂 Volume映射: 容器{self.output_dir} → 主機./data/outputs/stage{stage_number}")
         
         self._initialize_directories()
         self._load_configuration()
@@ -122,7 +135,7 @@ class BaseStageProcessor(ABC):
     
     def execute(self, input_data: Any = None) -> Dict[str, Any]:
         """
-        執行完整的階段處理流程
+        執行完整的階段處理流程 (含TDD整合自動化 Phase 5.0)
         
         Args:
             input_data: 輸入數據
@@ -159,8 +172,15 @@ class BaseStageProcessor(ABC):
             self.end_processing_timer()
             results['metadata']['processing_duration'] = self.processing_duration
             
-            # 8. 保存驗證快照
-            self.save_validation_snapshot(results)
+            # 8. 生成驗證快照 (原有)
+            snapshot_success = self.save_validation_snapshot(results)
+            
+            # 9. 🆕 後置鉤子：自動觸發TDD整合測試 (Phase 5.0)
+            if snapshot_success:
+                enhanced_snapshot = self._trigger_tdd_integration_if_enabled(results)
+                if enhanced_snapshot:
+                    # 更新驗證快照包含TDD結果
+                    self._update_validation_snapshot_with_tdd(enhanced_snapshot)
             
             self.logger.info(f"Stage {self.stage_number} 執行完成，耗時 {self.processing_duration:.2f}秒")
             return results
@@ -290,3 +310,177 @@ class BaseStageProcessor(ABC):
             "start_time": self.processing_start_time.isoformat() if self.processing_start_time else None,
             "end_time": self.processing_end_time.isoformat() if self.processing_end_time else None,
         }
+
+    # ===== TDD整合自動化方法 (Phase 5.0) =====
+    
+    def _trigger_tdd_integration_if_enabled(self, stage_results: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        觸發TDD整合測試（如果啟用）
+        
+        Args:
+            stage_results: 階段處理結果
+            
+        Returns:
+            Optional[Dict[str, Any]]: 增強的驗證快照，如果TDD被禁用則返回None
+        """
+        try:
+            # 動態導入TDD整合協調器，避免循環導入
+            from .tdd_integration_coordinator import get_tdd_coordinator
+            
+            coordinator = get_tdd_coordinator()
+            
+            # 檢查TDD是否啟用
+            if not coordinator.config_manager.is_enabled(f"stage{self.stage_number}"):
+                self.logger.info(f"Stage {self.stage_number} TDD整合已禁用，跳過")
+                return None
+            
+            # 讀取當前驗證快照
+            original_snapshot = self._load_current_validation_snapshot()
+            if not original_snapshot:
+                self.logger.warning("無法載入驗證快照，TDD整合跳過")
+                return None
+            
+            # 獲取執行環境
+            environment = self._detect_execution_environment()
+            
+            # 異步執行TDD測試
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                tdd_results = loop.run_until_complete(
+                    coordinator.execute_post_hook_tests(
+                        f"stage{self.stage_number}",
+                        stage_results,
+                        original_snapshot,
+                        environment
+                    )
+                )
+                
+                # 增強驗證快照
+                enhanced_snapshot = coordinator.enhance_validation_snapshot(
+                    original_snapshot, tdd_results
+                )
+                
+                # 處理測試失敗（如有）
+                if tdd_results.critical_issues:
+                    failure_action = coordinator.handle_test_failures(
+                        tdd_results, {"stage": self.stage_number}
+                    )
+                    self._handle_tdd_failure_action(failure_action)
+                
+                self.logger.info(
+                    f"TDD整合完成 - Stage {self.stage_number}, "
+                    f"品質分數: {tdd_results.overall_quality_score:.2f}, "
+                    f"執行時間: {tdd_results.total_execution_time_ms}ms"
+                )
+                
+                return enhanced_snapshot
+                
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            self.logger.error(f"TDD整合執行失敗: {e}")
+            # TDD整合失敗不應該影響主要處理流程
+            return None
+    
+    def _load_current_validation_snapshot(self) -> Optional[Dict[str, Any]]:
+        """載入當前階段的驗證快照"""
+        try:
+            snapshot_file = self.validation_dir / f"stage{self.stage_number}_validation.json"
+            if snapshot_file.exists():
+                with open(snapshot_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            self.logger.error(f"載入驗證快照失敗: {e}")
+        
+        return None
+    
+    def _detect_execution_environment(self) -> str:
+        """檢測當前執行環境"""
+        # 檢測環境變數
+        env = os.getenv('TDD_ENVIRONMENT', '').lower()
+        if env in ['development', 'testing', 'production']:
+            return env
+        
+        # 檢測Docker環境
+        if Path('/.dockerenv').exists():
+            return 'production'
+        
+        # 檢測開發環境標誌
+        if os.getenv('DEBUG') == '1' or os.getenv('DEVELOPMENT') == '1':
+            return 'development'
+        
+        # 預設為開發環境
+        return 'development'
+    
+    def _update_validation_snapshot_with_tdd(self, enhanced_snapshot: Dict[str, Any]) -> None:
+        """更新驗證快照包含TDD結果"""
+        try:
+            snapshot_file = self.validation_dir / f"stage{self.stage_number}_validation.json"
+            with open(snapshot_file, 'w', encoding='utf-8') as f:
+                json.dump(enhanced_snapshot, f, ensure_ascii=False, indent=2)
+            
+            self.logger.info(f"驗證快照已更新包含TDD結果: {snapshot_file}")
+            
+        except Exception as e:
+            self.logger.error(f"更新TDD驗證快照失敗: {e}")
+    
+    def _handle_tdd_failure_action(self, failure_action: Dict[str, Any]) -> None:
+        """處理TDD失敗動作"""
+        action = failure_action.get('action', 'continue')
+        reason = failure_action.get('reason', '')
+        suggestions = failure_action.get('recovery_suggestions', [])
+        
+        if action == 'stop_pipeline':
+            self.logger.error(f"TDD關鍵失敗，停止管道執行: {reason}")
+            for suggestion in suggestions:
+                self.logger.error(f"  建議: {suggestion}")
+            
+            # 根據配置決定是否真正停止
+            # 在開發環境可能只記錄警告，在生產環境則停止
+            environment = self._detect_execution_environment()
+            if environment == 'production':
+                raise RuntimeError(f"TDD關鍵失敗: {reason}")
+        
+        elif action == 'continue_with_warning':
+            self.logger.warning(f"TDD警告: {reason}")
+            for suggestion in suggestions:
+                self.logger.warning(f"  建議: {suggestion}")
+        
+        else:  # continue
+            self.logger.info(f"TDD輕微問題: {reason}")
+    
+    def is_tdd_integration_enabled(self) -> bool:
+        """檢查當前階段是否啟用TDD整合"""
+        try:
+            from .tdd_integration_coordinator import get_tdd_coordinator
+            coordinator = get_tdd_coordinator()
+            return coordinator.config_manager.is_enabled(f"stage{self.stage_number}")
+        except Exception:
+            return False
+    
+    def get_tdd_integration_status(self) -> Dict[str, Any]:
+        """獲取TDD整合狀態資訊"""
+        try:
+            from .tdd_integration_coordinator import get_tdd_coordinator
+            coordinator = get_tdd_coordinator()
+            
+            stage_config = coordinator.config_manager.get_stage_config(f"stage{self.stage_number}")
+            environment = self._detect_execution_environment()
+            execution_mode = coordinator.config_manager.get_execution_mode(environment)
+            
+            return {
+                'enabled': coordinator.config_manager.is_enabled(f"stage{self.stage_number}"),
+                'environment': environment,
+                'execution_mode': execution_mode.value,
+                'enabled_tests': stage_config.get('tests', []),
+                'timeout': stage_config.get('timeout', 30),
+                'async_execution': stage_config.get('async_execution', False)
+            }
+        except Exception as e:
+            return {
+                'enabled': False,
+                'error': str(e)
+            }

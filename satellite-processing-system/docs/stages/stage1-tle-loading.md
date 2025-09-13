@@ -4,11 +4,11 @@
 
 ## 📖 階段概述
 
-**目標**：從 8,791 顆衛星載入 TLE 數據並執行純粹的 SGP4 軌道計算（僅ECI座標）  
+**目標**：從 8,837 顆衛星載入 TLE 數據並執行純粹的 SGP4 軌道計算（僅ECI座標）  
 **輸入**：TLE 檔案（約 2.2MB）  
 **輸出**：純軌道數據保存至 `/app/data/tle_orbital_calculation_output.json` + 記憶體傳遞  
-**處理時間**：約 4-5 分鐘
-**實際處理數量**：8,140 Starlink + 651 OneWeb = 8,791 顆衛星
+**處理時間**：約 2.8 分鐘 (基於實測：8,837顆衛星 = 166.48秒)
+**實際處理數量**：8,183 Starlink + 653 OneWeb = 8,837 顆衛星
 **重要**：階段一僅計算軌道，不涉及任何觀測點相關計算或可見性判斷
 
 ### 🗂️ 統一輸出目錄結構
@@ -52,23 +52,166 @@
 - **零侵入整合**：不影響原有SGP4計算邏輯
 - **性能優化**：FAST模式減少60-70%驗證時間
 
-#### 🎯 Stage 1 驗證檢查項目
+#### 🎯 Stage 1 學術級驗證檢查項目 (10項完整檢查)
 
-**FAST模式** (4項關鍵檢查):
-- ✅ TLE文件存在性檢查
-- ✅ 衛星數量檢查 (8000-9200顆)
-- ✅ 統一格式檢查 (UNIFIED_CONSTELLATION_FORMAT)
-- ✅ SGP4計算完整性檢查
+**核心驗證框架** (Grade A 學術標準):
 
-**COMPREHENSIVE模式** (14項完整檢查):
-- 上述FAST檢查 + 星座完整性、重複數據檢查、軌道數據合理性
-- 數據血統追蹤、時間基準一致性、處理性能檢查
-- 軌道參數物理邊界驗證等
+**基礎驗證檢查** (原有6項):
+1. ✅ **data_structure_check** - 數據結構完整性檢查
+2. ✅ **satellite_count_check** - 衛星數量合理性檢查 (8000-9200顆)
+3. ✅ **orbital_position_check** - SGP4軌道位置計算檢查  
+4. ✅ **metadata_completeness_check** - 元數據完整性檢查
+5. ✅ **academic_compliance_check** - 學術標準合規性檢查
+6. ✅ **time_series_continuity_check** - 時間序列連續性檢查
+
+**新增學術級驗證檢查** (新增4項):
+7. 🆕 **tle_epoch_compliance_check** - TLE Epoch時間合規性檢查
+   - 驗證TLE數據的epoch時間是否在合理範圍內
+   - 檢查時間基準一致性 (強制使用TLE epoch時間進行SGP4計算)
+   - 確保沒有使用當前系統時間進行軌道計算的錯誤
+
+8. 🆕 **constellation_orbital_parameters_check** - 星座特定軌道參數檢查
+   - Starlink: 驗證軌道高度 ~550km, 傾角 ~53°, 週期 ~96分鐘
+   - OneWeb: 驗證軌道高度 ~1200km, 傾角 ~87.4°, 週期 ~109分鐘
+   - 檢查軌道參數是否符合各星座的設計規格
+
+9. 🆕 **sgp4_calculation_precision_check** - SGP4計算精度驗證
+   - 驗證位置計算精度 (<1km誤差標準)
+   - 檢查速度向量計算合理性
+   - 確認無NaN、無限值或異常數值
+
+10. 🆕 **data_lineage_completeness_check** - 數據血統完整性檢查
+    - 驗證TLE來源文件路徑完整記錄
+    - 檢查數據時間戳與處理時間戳正確分離
+    - 確保完整的血統追蹤元數據存在
+
+**驗證標準等級**:
+- **COMPREHENSIVE模式**: 執行全部10項檢查
+- **STANDARD模式**: 執行前8項檢查 (跳過精度驗證和血統檢查)
+- **FAST模式**: 執行前6項基礎檢查
 
 **學術標準強制執行**：
 - ❌ **零容忍ECI座標為零**：OneWeb衛星ECI座標全零立即失敗
 - ✅ **時間基準強制檢查**：必須使用TLE epoch時間作為SGP4計算基準
 - ✅ **物理合理性驗證**：軌道高度、傾角、周期必須符合物理定律
+
+## 🧪 **TDD整合自動化測試** (Phase 5.0 新增)
+
+### 🎯 **自動觸發測試機制**
+
+Stage 1現已整合**後置鉤子TDD測試系統**，在每次軌道計算完成和驗證快照生成後，自動觸發相應的測試驗證：
+
+```python
+def execute(self, input_data):
+    # 1-7. SGP4軌道計算處理流程...
+    
+    # 8. ✅ 生成驗證快照 (原有)
+    snapshot_success = self.save_validation_snapshot(results)
+    
+    # 9. 🆕 後置鉤子：自動觸發TDD測試
+    if snapshot_success and self.tdd_config.get("enabled", True):
+        self._trigger_tdd_tests_after_snapshot()
+    
+    return results
+```
+
+### 📊 **Stage 1 特定測試類型**
+
+#### **🔍 回歸測試** (必要，同步執行)
+- **觸發時機**: 每次驗證快照生成後立即執行
+- **驗證內容**: 
+  - 10項驗證檢查的通過狀況對比
+  - 衛星處理數量一致性檢查
+  - 關鍵指標（處理時間、成功率）回歸檢測
+- **失敗處理**: ERROR級別，測試失敗中斷處理流程
+
+#### **⚡ 性能測試** (重要，同步執行)  
+- **觸發時機**: SGP4計算完成後
+- **監控指標**:
+  - 處理時間基準: 2.8分鐘 ±20% (8,837顆衛星)
+  - 記憶體使用峰值: <1GB
+  - 軌道計算精度: 位置誤差<1km
+- **警報閾值**: 處理時間超過3.5分鐘或記憶體>1.2GB
+
+#### **🔗 整合測試** (可選，開發環境啟用)
+- **數據流驗證**: Stage 1 → Stage 2 數據傳遞完整性
+- **座標系統檢查**: ECI座標格式和數值範圍驗證
+- **時間戳一致性**: 確保時間序列正確生成
+
+### ⚙️ **Stage 1 TDD配置範例**
+
+```yaml
+# Stage 1 專用TDD配置
+stages:
+  stage1:
+    tdd_tests: ["regression", "performance"]
+    execution_mode: "sync"              # 軌道計算必須同步驗證
+    failure_handling: "error"           # 軌道錯誤必須中斷
+    performance_thresholds:
+      max_processing_time: 180          # 3分鐘限制
+      max_memory_usage: 1024           # 1GB記憶體限制
+    custom_config:
+      tle_epoch_check: true            # TLE時間基準檢查
+      sgp4_precision_validation: true  # SGP4精度驗證
+```
+
+### 🚨 **關鍵驗證警報**
+
+**立即警報觸發條件** (ERROR級別):
+- ❌ SGP4計算失敗率>5%
+- ❌ ECI座標出現NaN或Inf值
+- ❌ 處理時間超過5分鐘
+- ❌ TLE epoch時間基準違規
+
+**性能警告觸發條件** (WARNING級別):
+- ⚠️ 處理時間回歸>20%
+- ⚠️ 記憶體使用增長>30%
+- ⚠️ 軌道精度降低
+
+### 📈 **測試執行報告**
+
+每次Stage 1執行後自動生成測試報告：
+
+```json
+{
+  "stage": 1,
+  "test_execution_summary": {
+    "total_tests_run": 3,
+    "tests_passed": 3,
+    "tests_failed": 0,
+    "execution_time": "0.2s"
+  },
+  "regression_test": {
+    "validation_checks_comparison": "10/10 passed",
+    "satellite_count_delta": 0,
+    "processing_time_delta": "+2.1%"
+  },
+  "performance_test": {
+    "current_processing_time": "168.5s",
+    "baseline_processing_time": "166.48s", 
+    "performance_score": "ACCEPTABLE",
+    "memory_peak": "756MB"
+  },
+  "alerts_generated": []
+}
+```
+
+### 🎛️ **環境特定測試策略**
+
+**開發環境**:
+- 執行回歸測試 + 整合測試
+- 詳細日誌輸出和錯誤追蹤
+- 測試失敗時提供修復建議
+
+**測試環境**: 
+- 執行全部測試類型
+- 性能基準更新
+- 完整合規性檢查
+
+**生產環境**:
+- 異步執行回歸+性能測試
+- 簡化日誌輸出
+- 重點監控關鍵指標
 
 ### 🚀 v3.2 過度篩選修復版本
 
@@ -245,8 +388,8 @@ const getWrongBaseTime = () => {
 ### 處理流程
 
 1. **TLE檔案掃描**：掃描兩個星座的TLE資料
-   - Starlink: 8,140顆衛星 (最新20250902數據)
-   - OneWeb: 651顆衛星 (最新20250903數據)
+   - Starlink: 8,183顆衛星 (最新20250902數據)
+   - OneWeb: 653顆衛星 (最新20250903數據)
 
 2. **原始數據載入**：解析TLE格式並驗證數據完整性
 
@@ -401,9 +544,73 @@ with open('/app/data/tle_orbital_calculation_output.json', 'r') as f:
 "
 ```
 
+## 🎯 學術級驗證實現規範 (v2.1 新增)
+
+### 驗證方法實現標準
+
+**新增驗證方法實現要求**:
+
+```python
+def _check_tle_epoch_compliance(self, results: Dict[str, Any]) -> bool:
+    """TLE Epoch時間合規性檢查"""
+    # 檢查是否使用TLE epoch時間作為計算基準
+    # 驗證時間差不超過7天 (TLE數據時效性)
+    # 確保沒有使用datetime.now()進行軌道計算
+    
+def _check_constellation_orbital_parameters(self, results: Dict[str, Any]) -> bool:
+    """星座特定軌道參數檢查"""  
+    # Starlink: 550±50km高度, 53±2°傾角, 95-97分鐘週期
+    # OneWeb: 1200±50km高度, 87±2°傾角, 108-110分鐘週期
+    
+def _check_sgp4_calculation_precision(self, results: Dict[str, Any]) -> bool:
+    """SGP4計算精度驗證"""
+    # 位置精度 <1km, 速度精度 <10m/s
+    # 無NaN/Inf值, ECI座標合理範圍檢查
+    
+def _check_data_lineage_completeness(self, results: Dict[str, Any]) -> bool:
+    """數據血統完整性檢查"""
+    # TLE來源文件完整記錄
+    # 時間戳分離檢查: TLE日期 ≠ 處理日期
+```
+
+### 🔥 Critical Validation Standards (零容忍原則)
+
+**Time Base Validation (時間基準驗證)**:
+```python
+# ✅ 正確的時間基準檢查
+def validate_time_base_compliance(tle_epoch_time, calculation_base_time):
+    assert calculation_base_time == tle_epoch_time, \
+        f"時間基準錯誤: 使用{calculation_base_time}, 應使用TLE epoch {tle_epoch_time}"
+    
+# ❌ 嚴格禁止的時間基準
+forbidden_time_patterns = [
+    "datetime.now()", "time.time()", "current_time", 
+    "system_time", "processing_time"
+]
+```
+
+**Constellation Parameters Validation (星座參數驗證)**:
+```python
+# Starlink 標準參數範圍
+STARLINK_VALIDATION = {
+    "altitude_km": (500, 600),      # 軌道高度
+    "inclination_deg": (51, 55),    # 軌道傾角  
+    "period_minutes": (94, 98),     # 軌道週期
+    "time_points": 192              # 時間序列點數
+}
+
+# OneWeb 標準參數範圍  
+ONEWEB_VALIDATION = {
+    "altitude_km": (1150, 1250),    # 軌道高度
+    "inclination_deg": (85, 90),    # 軌道傾角
+    "period_minutes": (107, 111),   # 軌道週期
+    "time_points": 218              # 時間序列點數
+}
+```
+
 ## ✅ 階段驗證標準
 
-### 🎯 Stage 1 完成驗證檢查清單
+### 🎯 Stage 1 完成驗證檢查清單 (更新至10項檢查)
 
 #### 1. **輸入驗證**
 - [ ] TLE文件存在性檢查
@@ -417,33 +624,48 @@ with open('/app/data/tle_orbital_calculation_output.json', 'r') as f:
   - TLE epoch時間必須存在且可解析
   - 注意：我們計算TLE epoch當天的軌道，不存在時效性問題
 
-#### 2. **處理驗證**
-- [ ] **衛星數量驗證**
-  ```
-  預期範圍:
-  - Starlink: 8,000-8,200顆
-  - OneWeb: 600-700顆  
-  - 總計: 8,600-8,900顆
-  ```
-- [ ] **SGP4計算驗證**
-  - 每顆衛星生成192個時間點（96分鐘，30秒間隔）
-  - 位置誤差 < 1km（與參考實現比較）
-  - 無NaN或無效值
-- [ ] **記憶體使用監控**
-  - 峰值記憶體 < 1GB（全量處理模式）
-  - 無記憶體洩漏（處理後釋放）
+#### 2. **處理驗證** (學術級10項檢查)
+
+**基礎驗證 (原有6項)**:
+- [ ] **data_structure_check** - 數據結構完整性
+- [ ] **satellite_count_check** - 衛星數量檢查 (8,750-9,000顆)
+- [ ] **orbital_position_check** - SGP4軌道位置計算檢查
+- [ ] **metadata_completeness_check** - 元數據完整性檢查  
+- [ ] **academic_compliance_check** - 學術標準合規性檢查
+- [ ] **time_series_continuity_check** - 時間序列連續性檢查
+
+**新增學術級驗證 (新增4項)**:
+- [ ] **tle_epoch_compliance_check** - TLE Epoch時間合規性檢查
+  - TLE數據時效性檢查 (<7天)
+  - 時間基準一致性驗證 (必須使用TLE epoch時間)
+  - 禁止使用系統當前時間進行軌道計算
+  
+- [ ] **constellation_orbital_parameters_check** - 星座特定軌道參數檢查
+  - Starlink: 軌道高度500-600km, 傾角51-55°, 週期94-98分鐘
+  - OneWeb: 軌道高度1150-1250km, 傾角85-90°, 週期107-111分鐘
+  - 星座特定時間點數: Starlink=192點, OneWeb=218點
+  
+- [ ] **sgp4_calculation_precision_check** - SGP4計算精度驗證
+  - 位置精度 <1km, 速度精度 <10m/s
+  - 無NaN/Inf值檢查
+  - ECI座標合理範圍驗證
+  
+- [ ] **data_lineage_completeness_check** - 數據血統完整性檢查
+  - TLE來源文件路徑完整記錄
+  - 時間戳正確分離 (TLE日期 ≠ 處理日期)
+  - 完整血統追蹤元數據存在
 
 #### 3. **輸出驗證**
 - [ ] **數據結構完整性**
   ```json
   {
     "stage_name": "SGP4軌道計算與時間序列生成",
-    "satellites": [...],  // 扁平衛星列表（8791個元素）
+    "satellites": [...],  // 扁平衛星列表（8837個元素）
     "metadata": {
-      "total_satellites": 8791,  // 必須 > 8600
+      "total_satellites": 8837,  // 必須 > 8750
       "constellations": {
-        "starlink": {"satellite_count": 8140},
-        "oneweb": {"satellite_count": 651}
+        "starlink": {"satellite_count": 8183},
+        "oneweb": {"satellite_count": 653}
       },
       "data_lineage": {
         "tle_dates": {"starlink": "20250902", "oneweb": "20250903"},
@@ -463,7 +685,7 @@ with open('/app/data/tle_orbital_calculation_output.json', 'r') as f:
   - 完整的血統元數據
 
 #### 4. **性能指標**
-- [ ] 處理時間 < 5分鐘（全量8,791顆衛星）
+- [ ] 處理時間 < 3分鐘（全量8,837顆衛星，實測約2.8分鐘）
 - [ ] 記憶體傳遞成功（無大檔案生成）
 - [ ] CPU使用率峰值 < 80%
 
@@ -487,35 +709,61 @@ metadata = data.get('metadata', {})
 satellites = data.get('satellites', [])
 constellations = metadata.get('constellations', {})
 
-checks = {
-    'total_satellites': metadata.get('total_satellites', 0) > 8600,
-    'satellites_list': isinstance(satellites, list) and len(satellites) > 8600,
-    'has_starlink_info': 'starlink' in constellations,
-    'has_oneweb_info': 'oneweb' in constellations,
-    'has_data_lineage': 'data_lineage' in metadata,
-    'has_tle_dates': 'tle_dates' in metadata.get('data_lineage', {}),
-    'starlink_count': constellations.get('starlink', {}).get('satellite_count', 0) > 8000,
-    'oneweb_count': constellations.get('oneweb', {}).get('satellite_count', 0) > 600
+# 🎯 學術級10項驗證檢查 (對應處理器中的檢查)
+validation_result = data.get('validation', {})
+all_checks = validation_result.get('allChecks', {})
+
+# 基礎驗證檢查 (6項)
+basic_checks = {
+    'data_structure_check': all_checks.get('data_structure_check', False),
+    'satellite_count_check': all_checks.get('satellite_count_check', False),
+    'orbital_position_check': all_checks.get('orbital_position_check', False), 
+    'metadata_completeness_check': all_checks.get('metadata_completeness_check', False),
+    'academic_compliance_check': all_checks.get('academic_compliance_check', False),
+    'time_series_continuity_check': all_checks.get('time_series_continuity_check', False)
 }
+
+# 新增學術級驗證檢查 (4項)  
+enhanced_checks = {
+    'tle_epoch_compliance_check': all_checks.get('tle_epoch_compliance_check', False),
+    'constellation_orbital_parameters_check': all_checks.get('constellation_orbital_parameters_check', False),
+    'sgp4_calculation_precision_check': all_checks.get('sgp4_calculation_precision_check', False),
+    'data_lineage_completeness_check': all_checks.get('data_lineage_completeness_check', False)
+}
+
+# 合併全部10項檢查
+checks = {**basic_checks, **enhanced_checks}
 
 # 計算通過率
 passed = sum(checks.values())
 total = len(checks)
 
-print('📊 Stage 1 驗證結果:')
-print(f'  衛星總數: {metadata.get(\"total_satellites\", 0)}')
-print(f'  Starlink: {constellations.get(\"starlink\", {}).get(\"satellite_count\", 0)}')
-print(f'  OneWeb: {constellations.get(\"oneweb\", {}).get(\"satellite_count\", 0)}')
+print('📊 Stage 1 學術級驗證結果 (10項檢查):')
+print(f'  驗證總數: {validation_result.get(\"totalChecks\", 0)}')
+print(f'  通過檢查: {validation_result.get(\"passedChecks\", 0)}')
+print(f'  失敗檢查: {validation_result.get(\"failedChecks\", 0)}')
+print(f'  驗證等級: {validation_result.get(\"validation_level_info\", {}).get(\"level\", \"N/A\")}')
+print(f'  學術評級: {validation_result.get(\"validation_level_info\", {}).get(\"academic_grade\", \"N/A\")}')
 print()
 
-for check, result in checks.items():
+# 顯示基礎驗證結果 (6項)
+print('🔧 基礎驗證檢查 (6項):')
+for check, result in basic_checks.items():
     print(f'  {\"✅\" if result else \"❌\"} {check}')
-print(f'\\n總計: {passed}/{total} 項通過')
+
+print()
+# 顯示增強驗證結果 (4項)  
+print('🎓 學術級增強驗證 (4項):')
+for check, result in enhanced_checks.items():
+    print(f'  {\"✅\" if result else \"❌\"} {check}')
+
+print(f'\\n📈 總體通過率: {passed}/{total} ({passed/total*100:.1f}%)')
 
 if passed == total:
-    print('✅ Stage 1 驗證通過！')
+    print('🎉 Stage 1 學術級驗證完全通過！')
 else:
-    print('❌ Stage 1 驗證失敗，請檢查上述項目')
+    failed_checks = [check for check, result in checks.items() if not result]
+    print(f'❌ Stage 1 驗證未完全通過，失敗檢查: {failed_checks}')
     sys.exit(1)
 "
 ```

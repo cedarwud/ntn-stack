@@ -53,16 +53,18 @@ class TimeseriesPreprocessingProcessor(BaseStageProcessor):
         Args:
             config: 處理器配置參數
         """
-        super().__init__(
-            stage_name="timeseries_preprocessing",
-            config=config
-        )
+        # 正確調用 BaseStageProcessor 構造函數
+        super().__init__(4, "timeseries_preprocessing", config)
         
         self.logger = logging.getLogger(f"{__name__}.TimeseriesPreprocessingProcessor")
         
         # 配置處理
         self.config = config or {}
         self.debug_mode = self.config.get("debug_mode", False)
+        
+        # 🔧 手動設置輸出目錄以確保路徑正確
+        self.output_dir = Path("/satellite-processing/data/outputs/stage4")
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # 學術級數據保持配置
         self.academic_config = {
@@ -90,6 +92,7 @@ class TimeseriesPreprocessingProcessor(BaseStageProcessor):
         self.logger.info("✅ TimeseriesPreprocessingProcessor 初始化完成")
         self.logger.info(f"   時間解析度: {self.academic_config['time_resolution_sec']}秒")
         self.logger.info(f"   軌道週期: {self.academic_config['orbital_period_min']}分鐘")
+        self.logger.info(f"   輸出目錄: {self.output_dir}")
         
     def _initialize_core_components(self):
         """初始化核心組件"""
@@ -224,12 +227,8 @@ class TimeseriesPreprocessingProcessor(BaseStageProcessor):
             str: 輸出檔案路徑
         """
         try:
-            # 根據文檔規範的輸出目錄結構 (測試環境使用臨時目錄)
-            if Path("/app").exists() and os.access("/app", os.W_OK):
-                output_dir = Path("/app/data/timeseries_preprocessing_outputs")
-            else:
-                import tempfile
-                output_dir = Path(tempfile.gettempdir()) / "timeseries_preprocessing_outputs"
+            # 🔧 修復：使用 BaseStageProcessor 的統一輸出目錄
+            output_dir = self.output_dir
             output_dir.mkdir(parents=True, exist_ok=True)
             
             # 分別保存各星座數據
@@ -313,6 +312,20 @@ class TimeseriesPreprocessingProcessor(BaseStageProcessor):
         except Exception as e:
             self.logger.error(f"階段四時間序列預處理失敗: {e}")
             raise RuntimeError(f"Stage4預處理失敗: {e}")
+
+    def execute(self, input_data: Any = None) -> Dict[str, Any]:
+        """
+        BaseStageProcessor execute() 方法實現
+        
+        調用具體的時間序列預處理邏輯，並確保 TDD 整合正常工作
+        
+        Args:
+            input_data: 輸入數據 (可選)
+            
+        Returns:
+            Dict[str, Any]: 處理結果
+        """
+        return self.process_timeseries_preprocessing(input_data)
     
     def process(self, input_data: Any = None) -> Dict[str, Any]:
         """
@@ -410,8 +423,10 @@ class TimeseriesPreprocessingProcessor(BaseStageProcessor):
     
     def _load_stage3_output(self) -> Dict[str, Any]:
         """載入階段三輸出數據"""
-        # 根據階段三文檔的輸出檔名
+        # 🔧 修復：使用正確的階段三輸出路徑
         possible_files = [
+            "/satellite-processing/data/outputs/stage3/stage3_signal_analysis_output.json",
+            "/app/data/outputs/stage3/stage3_signal_analysis_output.json",
             "/app/data/stage3_signal_analysis_output.json",
             "/app/data/signal_analysis_outputs/stage3_signal_analysis_output.json",
             "/tmp/ntn-stack-dev/signal_analysis_outputs/stage3_signal_analysis_output.json"

@@ -158,6 +158,11 @@ class UnifiedCleanupManager:
             total_cleaned["files"] += stage_cleaned["files"]
             total_cleaned["directories"] += stage_cleaned["directories"]
         
+        # 🆕 Phase 5.0: 清理TDD相關文件
+        tdd_cleaned = self._cleanup_tdd_files()
+        total_cleaned["files"] += tdd_cleaned["files"]
+        total_cleaned["directories"] += tdd_cleaned["directories"]
+        
         self.logger.info("=" * 50)
         self.logger.info(f"🗑️ 完整管道清理完成: {total_cleaned['files']} 檔案, {total_cleaned['directories']} 目錄")
         
@@ -265,9 +270,15 @@ class UnifiedCleanupManager:
             if self._remove_file(file_path):
                 cleaned_files += 1
         
-        # 清理驗證檔案
+        # 清理驗證檔案 (包括TDD增強版本)
         if include_validation:
+            # 清理原有驗證快照
             if self._remove_file(target.validation_file):
+                cleaned_files += 1
+            
+            # 清理TDD增強版驗證快照 (Phase 5.0 新增)
+            enhanced_validation_file = target.validation_file.replace("_validation.json", "_validation_enhanced.json")
+            if self._remove_file(enhanced_validation_file):
                 cleaned_files += 1
         
         # 清理目錄
@@ -275,6 +286,51 @@ class UnifiedCleanupManager:
             for dir_path in target.directories:
                 if self._remove_directory(dir_path):
                     cleaned_dirs += 1
+        
+        return {"files": cleaned_files, "directories": cleaned_dirs}
+    
+    def _cleanup_tdd_files(self) -> Dict[str, int]:
+        """
+        清理TDD整合相關文件 (Phase 5.0 新增)
+        
+        根據TDD配置清理以下文件：
+        - TDD測試結果
+        - TDD性能歷史記錄  
+        - TDD測試報告
+        - TDD日誌文件
+        """
+        self.logger.info("🧪 清理TDD整合相關文件...")
+        
+        cleaned_files = 0
+        cleaned_dirs = 0
+        
+        # TDD相關目錄 (基於配置文件定義)
+        tdd_directories = [
+            "data/tdd_test_results",      # TDD測試結果
+            "data/performance_history",   # 性能基線歷史
+            "data/tdd_reports",          # TDD測試報告
+            "logs/tdd_integration"       # TDD整合日誌
+        ]
+        
+        # 清理TDD相關目錄
+        for dir_path in tdd_directories:
+            if self._remove_directory(dir_path):
+                cleaned_dirs += 1
+        
+        # 清理TDD相關單獨文件 (如果有的話)
+        tdd_files = [
+            "data/tdd_baseline_performance.json",
+            "logs/tdd_integration.log"
+        ]
+        
+        for file_path in tdd_files:
+            if self._remove_file(file_path):
+                cleaned_files += 1
+        
+        if cleaned_files > 0 or cleaned_dirs > 0:
+            self.logger.info(f"  🧪 TDD文件清理: {cleaned_files} 檔案, {cleaned_dirs} 目錄")
+        else:
+            self.logger.info("  🧪 沒有找到TDD相關文件需要清理")
         
         return {"files": cleaned_files, "directories": cleaned_dirs}
     

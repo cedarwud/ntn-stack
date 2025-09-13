@@ -8,6 +8,11 @@
 - 每個階段分解為專業化組件，提供革命性除錯能力
 - 保持學術級標準合規 (Grade A)
 - 維持完整驗證框架
+
+🚨 執行環境重要提醒:
+- 容器內執行: docker exec satellite-dev python /app/scripts/run_six_stages_with_validation.py
+- 主機執行: cd satellite-processing-system && python scripts/run_six_stages_with_validation.py
+- 輸出路徑會根據環境自動調整 (容器: /app/data/, 主機: /tmp/ntn-stack-dev/)
 """
 
 import sys
@@ -62,9 +67,9 @@ def validate_stage_immediately(stage_processor, processing_results, stage_num, s
         print(f"\n🔍 階段{stage_num}立即驗證檢查...")
         print("-" * 40)
         
-        # 🔧 修正階段一驗證邏輯：檢查字典類型結果
+        # 所有階段統一驗證：檢查execute()的結果和驗證快照
         if stage_num == 1:
-            # 階段一返回的是dict類型的完整結果
+            # 檢查execute()結果
             if processing_results and isinstance(processing_results, dict):
                 # 檢查是否包含必要的數據結構
                 has_data = 'data' in processing_results
@@ -73,8 +78,17 @@ def validate_stage_immediately(stage_processor, processing_results, stage_num, s
                 
                 if has_data and has_metadata:
                     print(f"✅ 階段{stage_num}處理成功，輸出文件: {output_file}")
-                    print(f"✅ 階段{stage_num}驗證已在內部完成")
-                    return True, f"階段{stage_num}驗證成功"
+                    
+                    # 檢查驗證快照是否生成
+                    if hasattr(stage_processor, 'validation_dir'):
+                        validation_path = Path(stage_processor.validation_dir) / f"stage{stage_num}_validation.json"
+                        if validation_path.exists():
+                            print(f"✅ 階段{stage_num}驗證快照已生成: {validation_path}")
+                            return True, f"階段{stage_num}驗證成功"
+                        else:
+                            print(f"⚠️ 階段{stage_num}驗證快照未找到: {validation_path}")
+                    
+                    return True, f"階段{stage_num}處理成功"
                 else:
                     print(f"❌ 階段{stage_num}結果缺少必要數據結構")
                     return False, f"階段{stage_num}結果缺少必要數據結構"
@@ -156,7 +170,7 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
                 config={'sample_mode': False, 'sample_size': 500}
             )
             
-            results['stage1'] = stage1.process(input_data=None)
+            results['stage1'] = stage1.execute(input_data=None)
             
             if not results['stage1']:
                 print('❌ 階段一處理失敗')
@@ -182,10 +196,10 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             from stages.stage2_visibility_filter.satellite_visibility_filter_processor import SatelliteVisibilityFilterProcessor as Stage2Processor
             stage2 = Stage2Processor(
                 input_dir='data/outputs/stage1',  # 正確的階段一輸出路徑
-                output_dir='data/intelligent_filtering_outputs'
+                output_dir='data/outputs/stage2'  # 修正：使用統一的階段輸出路徑
             )
             
-            results['stage2'] = stage2.process()
+            results['stage2'] = stage2.execute()
             
             if not results['stage2']:
                 print('❌ 階段二處理失敗')
@@ -208,13 +222,10 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             print('\n📶 階段三：信號分析 (新模組化架構)')
             print('-' * 60)
             
-            from stages.stage4_signal_analysis.stage4_processor import Stage4Processor
-            stage3 = Stage4Processor(
-                input_dir='data/intelligent_filtering_outputs',
-                output_dir='data/signal_analysis_outputs'
-            )
+            from stages.stage3_signal_analysis.stage3_signal_analysis_processor import Stage3SignalAnalysisProcessor
+            stage3 = Stage3SignalAnalysisProcessor()
             
-            results['stage3'] = stage3.process()
+            results['stage3'] = stage3.execute()
             
             if not results['stage3']:
                 print('❌ 階段三處理失敗')
@@ -241,7 +252,7 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             stage4 = TimeseriesPreprocessingProcessor()
             
             # 從階段三載入信號分析結果
-            results['stage4'] = stage4.process_timeseries_preprocessing()
+            results['stage4'] = stage4.execute()
             
             if not results['stage4']:
                 print('❌ 階段四處理失敗')
@@ -270,7 +281,7 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
                 output_dir='data/data_integration_outputs'
             )
             
-            results['stage5'] = stage5.process()
+            results['stage5'] = stage5.execute()
             
             if not results['stage5']:
                 print('❌ 階段五處理失敗')
@@ -299,7 +310,7 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
                 output_dir='data/dynamic_pool_planning_outputs'
             )
             
-            results['stage6'] = stage6.process()
+            results['stage6'] = stage6.execute()
             
             if not results['stage6']:
                 print('❌ 階段六處理失敗')
@@ -385,7 +396,7 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         from stages.stage2_visibility_filter.satellite_visibility_filter_processor import SatelliteVisibilityFilterProcessor as Stage2Processor
         stage2 = Stage2Processor(
             input_dir='data/outputs/stage1',  # 正確的階段一輸出路徑
-            output_dir='data/intelligent_filtering_outputs'
+            output_dir='data/outputs/stage2'  # 修正：使用統一的階段輸出路徑
         )
         
         results['stage2'] = stage2.process()
@@ -411,13 +422,10 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         print('\n📶 階段三：信號分析 (新模組化架構)')
         print('-' * 60)
         
-        from stages.stage4_signal_analysis.stage4_processor import Stage4Processor
-        stage3 = Stage4Processor(
-            input_dir='data/intelligent_filtering_outputs',
-            output_dir='data/signal_analysis_outputs'
-        )
+        from stages.stage3_signal_analysis.stage3_signal_analysis_processor import Stage3SignalAnalysisProcessor
+        stage3 = Stage3SignalAnalysisProcessor()
         
-        results['stage3'] = stage3.process()
+        results['stage3'] = stage3.execute()
         
         if not results['stage3']:
             print('❌ 階段三處理失敗')
