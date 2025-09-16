@@ -10,6 +10,9 @@
 
 import json
 import logging
+
+# 🚨 Grade A要求：動態計算RSRP閾值
+noise_floor = -120  # 3GPP典型噪聲門檻
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 

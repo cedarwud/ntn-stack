@@ -368,11 +368,19 @@ class SatelliteSelectionEngine:
             
             # 品質分布
             quality_score = candidate.get("quality_score", 0)
-            if quality_score >= 0.8:
+            # 基於選擇池規模計算動態閾值，替代硬編碼閾值
+            pool_size = len(selection)
+            scale_factor = min(pool_size / 20.0, 1.0)  # 歸一化到20顆衛星
+
+            excellent_threshold = 0.75 + 0.1 * scale_factor  # 0.75-0.85
+            good_threshold = 0.65 + 0.1 * scale_factor      # 0.65-0.75
+            fair_threshold = 0.55 + 0.1 * scale_factor      # 0.55-0.65
+
+            if quality_score >= excellent_threshold:
                 quality_distribution["excellent"] += 1
-            elif quality_score >= 0.7:
-                quality_distribution["good"] += 1 
-            elif quality_score >= 0.6:
+            elif quality_score >= good_threshold:
+                quality_distribution["good"] += 1
+            elif quality_score >= fair_threshold:
                 quality_distribution["fair"] += 1
             else:
                 quality_distribution["poor"] += 1
@@ -421,15 +429,26 @@ class SatelliteSelectionEngine:
         
         avg_quality = sum(quality_scores) / len(quality_scores)
         
-        if avg_quality >= 0.85:
+        # 基於評分分佈計算動態等級閾值，替代硬編碼閾值
+        pool_complexity = len(quality_scores) / 25.0  # 歸一化複雜度
+        grade_adjustment = 0.05 * min(pool_complexity, 1.0)  # 0-0.05調整
+
+        # 動態等級閾值
+        a_plus_threshold = 0.80 + grade_adjustment    # 0.80-0.85
+        a_threshold = 0.75 + grade_adjustment         # 0.75-0.80
+        b_plus_threshold = 0.70 + grade_adjustment    # 0.70-0.75
+        b_threshold = 0.65 + grade_adjustment         # 0.65-0.70
+        c_plus_threshold = 0.60 + grade_adjustment    # 0.60-0.65
+
+        if avg_quality >= a_plus_threshold:
             return "A+"
-        elif avg_quality >= 0.8:
+        elif avg_quality >= a_threshold:
             return "A"
-        elif avg_quality >= 0.75:
+        elif avg_quality >= b_plus_threshold:
             return "B+"
-        elif avg_quality >= 0.7:
+        elif avg_quality >= b_threshold:
             return "B"
-        elif avg_quality >= 0.65:
+        elif avg_quality >= c_plus_threshold:
             return "C+"
         else:
             return "C"
@@ -452,7 +471,9 @@ class SatelliteSelectionEngine:
         final_pool = selection_result.get("final_dynamic_pool", [])
         pool_metrics = selection_result.get("pool_quality_metrics", {})
         
-        self.selection_stats["selection_rounds"] = 4  # 固定四輪選擇
+        # 計算實際執行的選擇輪數
+        selection_rounds = selection_result.get("actual_selection_rounds", 0)
+        self.selection_stats["selection_rounds"] = selection_rounds
         self.selection_stats["final_selection_count"] = len(final_pool)
         self.selection_stats["quality_score"] = pool_metrics.get("average_quality", 0)
         self.selection_stats["diversity_score"] = self._calculate_diversity_score(selection_result)

@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 class DataIntegrationLoader:
     """跨階段數據載入器 - 處理來自階段五的整合數據"""
     
-    def __init__(self, base_data_path: str = "data"):
+    def __init__(self, base_data_path: str = "/satellite-processing/data"):
         self.base_data_path = Path(base_data_path)
-        self.integration_outputs_path = self.base_data_path / "data_integration_outputs"
+        self.integration_outputs_path = self.base_data_path / "outputs" / "stage5"
         
         # 載入統計
         self.load_stats = {
@@ -93,35 +93,54 @@ class DataIntegrationLoader:
         return None
     
     def _validate_integration_data(self, data: Dict[str, Any]) -> bool:
-        """驗證整合數據的完整性和格式"""
+        """驗證整合數據的完整性和格式 - 適配Stage 5實際輸出格式"""
         
-        required_keys = [
-            "metadata", "satellite_data", "layered_coverage_data",
-            "handover_scenarios", "processing_summary"
-        ]
+        # 🔧 修復：適配Stage 5實際輸出格式
+        # Stage 5 實際格式：integrated_satellites在頂層
+        if "integrated_satellites" in data and "metadata" in data:
+            integrated_satellites = data.get("integrated_satellites", {})
+            
+            if not integrated_satellites:
+                raise ValueError("integrated_satellites數據為空")
+            
+            # 驗證星座數據
+            starlink_count = len(integrated_satellites.get('starlink', []))
+            oneweb_count = len(integrated_satellites.get('oneweb', []))
+            
+            if starlink_count == 0 and oneweb_count == 0:
+                raise ValueError(f"沒有找到衛星數據: Starlink={starlink_count}, OneWeb={oneweb_count}")
+            
+            logger.info(f"✅ Stage 5數據格式驗證通過: Starlink={starlink_count}, OneWeb={oneweb_count}")
+            return True
         
-        # 檢查必要字段
-        for key in required_keys:
-            if key not in data:
-                raise ValueError(f"整合數據缺少必要字段: {key}")
+        # Stage 5實際格式的備用檢查: 嵌套在data字段下
+        elif "data" in data and "metadata" in data:
+            stage5_data = data.get("data", {})
+            
+            if "integrated_satellites" not in stage5_data:
+                raise ValueError("Stage 5數據缺少integrated_satellites字段")
+                
+            integrated_satellites = stage5_data.get("integrated_satellites", {})
+            if not integrated_satellites:
+                raise ValueError("integrated_satellites數據為空")
+                
+            logger.info("✅ Stage 5嵌套數據格式驗證通過")
+            return True
         
-        # 驗證衛星數據
-        satellite_data = data.get("satellite_data", {})
-        if not satellite_data:
-            raise ValueError("衛星數據為空")
-        
-        # 驗證元數據
-        metadata = data.get("metadata", {})
-        if "processing_time" not in metadata:
-            logger.warning("元數據缺少處理時間信息")
-        
-        # 驗證分層覆蓋數據
-        layered_data = data.get("layered_coverage_data", {})
-        if not layered_data:
-            logger.warning("分層覆蓋數據為空")
-        
-        logger.info("整合數據驗證通過")
-        return True
+        else:
+            # 舊格式兼容性檢查
+            required_keys = [
+                "metadata", "satellite_data", "layered_coverage_data",
+                "handover_scenarios", "processing_summary"
+            ]
+            
+            # 檢查必要字段
+            for key in required_keys:
+                if key not in data:
+                    raise ValueError(f"整合數據缺少必要字段: {key}")
+            
+            logger.info("✅ 舊格式數據驗證通過")
+            return True
     
     def _update_load_stats(self, data: Dict[str, Any]) -> None:
         """更新載入統計信息"""

@@ -507,9 +507,9 @@ class ValidationEngine:
     
     def _validate_physics_compliance(self, dynamic_pool: List[Dict[str, Any]],
                                    physics_results: Dict[str, Any]) -> Dict[str, Any]:
-        """驗證物理合規性"""
+        """驗證物理合規性 - 增強科學嚴謹性"""
         
-        logger.info("執行物理合規性驗證")
+        logger.info("🧪 執行增強物理合規性驗證")
         
         physics_checks = []
         
@@ -520,86 +520,232 @@ class ValidationEngine:
                 "validation_status": "SKIPPED"
             }
         
-        # 檢查物理驗證結果
-        physics_validation = physics_results.get("physics_validation", {})
-        overall_validation = physics_validation.get("overall_validation", {})
+        # 🔬 檢查1: 開普勒定律驗證 (零容忍物理檢查)
+        orbital_data = physics_results.get("orbital_dynamics", {})
+        individual_orbits = orbital_data.get("individual_orbits", {})
         
-        # 檢查整體物理驗證通過率
-        physics_pass_rate = overall_validation.get("overall_pass_rate", 0)
-        min_physics_pass_rate = 0.90  # 90%通過率要求
+        kepler_violations = 0
+        total_orbital_checks = 0
         
-        if physics_pass_rate >= min_physics_pass_rate:
-            physics_checks.append({
-                "check": "physics_validation_rate",
-                "status": "PASS",
-                "value": physics_pass_rate,
-                "requirement": f">={min_physics_pass_rate}",
-                "message": f"物理驗證通過率 {physics_pass_rate:.2%} 合格"
-            })
+        # 物理常數
+        EARTH_GM = 3.986004418e14  # m³/s² (WGS84標準)
+        
+        for sat_id, orbit_params in individual_orbits.items():
+            total_orbital_checks += 1
+            
+            semi_major_axis_km = orbit_params.get("semi_major_axis_km", 0)
+            period_minutes = orbit_params.get("orbital_period_minutes", 0)
+            
+            if semi_major_axis_km > 0 and period_minutes > 0:
+                # 開普勒第三定律: T² = (4π²/GM) × a³
+                semi_major_axis_m = semi_major_axis_km * 1000
+                theoretical_period_s = 2 * math.pi * math.sqrt(
+                    (semi_major_axis_m ** 3) / EARTH_GM
+                )
+                theoretical_period_min = theoretical_period_s / 60
+                
+                period_error_percent = abs(period_minutes - theoretical_period_min) / theoretical_period_min * 100
+                
+                # 嚴格物理容忍度: 2% (考慮地球扁率J2項)
+                if period_error_percent <= 2.0:
+                    physics_checks.append({
+                        "check": f"keplers_third_law_{sat_id}",
+                        "status": "PASS",
+                        "actual_period_min": period_minutes,
+                        "theoretical_period_min": theoretical_period_min,
+                        "error_percent": period_error_percent,
+                        "tolerance_percent": 2.0,
+                        "physical_law": "開普勒第三定律",
+                        "message": f"軌道週期符合物理定律 (誤差{period_error_percent:.2f}%)"
+                    })
+                else:
+                    kepler_violations += 1
+                    physics_checks.append({
+                        "check": f"keplers_third_law_{sat_id}",
+                        "status": "FAIL",
+                        "actual_period_min": period_minutes,
+                        "theoretical_period_min": theoretical_period_min,
+                        "error_percent": period_error_percent,
+                        "tolerance_percent": 2.0,
+                        "physical_law": "開普勒第三定律",
+                        "message": f"嚴重違反開普勒第三定律 (誤差{period_error_percent:.2f}%)"
+                    })
+        
+        # 🔬 檢查2: 軌道速度物理驗證
+        velocity_violations = 0
+        for sat_id, orbit_params in individual_orbits.items():
+            velocity_kms = orbit_params.get("orbital_velocity_kms", 0)
+            altitude_km = orbit_params.get("altitude_km", 0)
+            
+            if velocity_kms > 0 and altitude_km > 0:
+                # 圓形軌道速度公式: v = √(GM/r)
+                orbital_radius_m = (6371.0 + altitude_km) * 1000  # 地球半徑 + 高度
+                theoretical_velocity_ms = math.sqrt(EARTH_GM / orbital_radius_m)
+                theoretical_velocity_kms = theoretical_velocity_ms / 1000
+                
+                velocity_error_percent = abs(velocity_kms - theoretical_velocity_kms) / theoretical_velocity_kms * 100
+                
+                # 物理容忍度: 5% (考慮橢圓軌道變化)
+                if velocity_error_percent <= 5.0:
+                    physics_checks.append({
+                        "check": f"orbital_velocity_{sat_id}",
+                        "status": "PASS", 
+                        "actual_velocity_kms": velocity_kms,
+                        "theoretical_velocity_kms": theoretical_velocity_kms,
+                        "error_percent": velocity_error_percent,
+                        "physical_law": "圓形軌道速度公式",
+                        "message": f"軌道速度符合物理定律 (誤差{velocity_error_percent:.2f}%)"
+                    })
+                else:
+                    velocity_violations += 1
+                    physics_checks.append({
+                        "check": f"orbital_velocity_{sat_id}",
+                        "status": "FAIL",
+                        "actual_velocity_kms": velocity_kms,
+                        "theoretical_velocity_kms": theoretical_velocity_kms,
+                        "error_percent": velocity_error_percent,
+                        "physical_law": "圓形軌道速度公式",
+                        "message": f"軌道速度違反物理定律 (誤差{velocity_error_percent:.2f}%)"
+                    })
+        
+        # 🔬 檢查3: 能量守恆驗證
+        energy_checks = 0
+        energy_violations = 0
+        
+        for sat_id, orbit_params in individual_orbits.items():
+            velocity_kms = orbit_params.get("orbital_velocity_kms", 0)
+            altitude_km = orbit_params.get("altitude_km", 0)
+            
+            if velocity_kms > 0 and altitude_km > 0:
+                energy_checks += 1
+                
+                # 軌道總能量: E = -GM/(2a) (對圓形軌道)
+                orbital_radius_m = (6371.0 + altitude_km) * 1000
+                kinetic_energy = 0.5 * (velocity_kms * 1000) ** 2  # 單位質量動能
+                potential_energy = -EARTH_GM / orbital_radius_m      # 單位質量位能
+                total_energy = kinetic_energy + potential_energy
+                
+                # 對於圓形軌道，總能量應該等於 -GM/(2r)
+                theoretical_total_energy = -EARTH_GM / (2 * orbital_radius_m)
+                energy_error_percent = abs(total_energy - theoretical_total_energy) / abs(theoretical_total_energy) * 100
+                
+                # 能量守恆容忍度: 1%
+                if energy_error_percent <= 1.0:
+                    physics_checks.append({
+                        "check": f"energy_conservation_{sat_id}",
+                        "status": "PASS",
+                        "total_energy": total_energy,
+                        "theoretical_energy": theoretical_total_energy,
+                        "error_percent": energy_error_percent,
+                        "physical_law": "軌道能量守恆",
+                        "message": f"能量守恆驗證通過 (誤差{energy_error_percent:.2f}%)"
+                    })
+                else:
+                    energy_violations += 1
+                    physics_checks.append({
+                        "check": f"energy_conservation_{sat_id}",
+                        "status": "FAIL",
+                        "total_energy": total_energy,
+                        "theoretical_energy": theoretical_total_energy,
+                        "error_percent": energy_error_percent,
+                        "physical_law": "軌道能量守恆",
+                        "message": f"違反能量守恆 (誤差{energy_error_percent:.2f}%)"
+                    })
+        
+        # 🔬 檢查4: 信號傳播物理驗證
+        signal_data = physics_results.get("signal_propagation", {})
+        individual_signals = signal_data.get("individual_signals", {})
+        
+        friis_violations = 0
+        signal_checks = 0
+        
+        for sat_id, signal_params in individual_signals.items():
+            signal_checks += 1
+            
+            distance_km = signal_params.get("distance_km", 0)
+            frequency_ghz = signal_params.get("frequency_ghz", 0)
+            path_loss_db = signal_params.get("free_space_path_loss_db", 0)
+            
+            if distance_km > 0 and frequency_ghz > 0 and path_loss_db > 0:
+                # Friis自由空間路徑損耗公式: FSPL = 20log₁₀(d) + 20log₁₀(f) + 92.45
+                theoretical_fspl = (20 * math.log10(distance_km) + 
+                                  20 * math.log10(frequency_ghz) + 92.45)
+                
+                fspl_error_percent = abs(path_loss_db - theoretical_fspl) / theoretical_fspl * 100
+                
+                # Friis公式是精確的，容忍度: 0.5%
+                if fspl_error_percent <= 0.5:
+                    physics_checks.append({
+                        "check": f"friis_formula_{sat_id}",
+                        "status": "PASS",
+                        "actual_fspl_db": path_loss_db,
+                        "theoretical_fspl_db": theoretical_fspl,
+                        "error_percent": fspl_error_percent,
+                        "physical_law": "Friis自由空間路徑損耗公式",
+                        "message": f"信號傳播計算正確 (誤差{fspl_error_percent:.3f}%)"
+                    })
+                else:
+                    friis_violations += 1
+                    physics_checks.append({
+                        "check": f"friis_formula_{sat_id}",
+                        "status": "FAIL",
+                        "actual_fspl_db": path_loss_db,
+                        "theoretical_fspl_db": theoretical_fspl,
+                        "error_percent": fspl_error_percent,
+                        "physical_law": "Friis自由空間路徑損耗公式",
+                        "message": f"Friis公式計算錯誤 (誤差{fspl_error_percent:.3f}%)"
+                    })
+        
+        # 🎯 整體物理驗證評估
+        total_physics_checks = len(physics_checks)
+        passed_physics_checks = sum(1 for check in physics_checks if check["status"] == "PASS")
+        
+        # 計算物理驗證通過率
+        physics_pass_rate = passed_physics_checks / total_physics_checks if total_physics_checks > 0 else 0
+        
+        # 嚴格物理等級判定
+        critical_violations = kepler_violations + velocity_violations + energy_violations + friis_violations
+        
+        if critical_violations == 0 and physics_pass_rate >= 0.95:
+            physics_grade = "A"
+            compliance_status = "優秀 - 完全符合物理定律"
+        elif critical_violations <= 2 and physics_pass_rate >= 0.90:
+            physics_grade = "B"
+            compliance_status = "良好 - 少量物理偏差"
+        elif critical_violations <= 5 and physics_pass_rate >= 0.80:
+            physics_grade = "C"
+            compliance_status = "可接受 - 存在物理問題"
         else:
-            physics_checks.append({
-                "check": "physics_validation_rate",
-                "status": "FAIL",
-                "value": physics_pass_rate,
-                "requirement": f">={min_physics_pass_rate}",
-                "message": f"物理驗證通過率 {physics_pass_rate:.2%} 不足"
-            })
+            physics_grade = "F"
+            compliance_status = "不合格 - 嚴重違反物理定律"
         
-        # 檢查物理等級
-        physics_grade = overall_validation.get("physics_grade", "C")
-        required_grade = "B"  # 最低B級要求
-        
-        grade_values = {"A": 4, "B": 3, "C": 2, "D": 1, "F": 0}
-        
-        if grade_values.get(physics_grade, 0) >= grade_values.get(required_grade, 3):
-            physics_checks.append({
-                "check": "physics_grade",
-                "status": "PASS",
-                "value": physics_grade,
-                "requirement": f">={required_grade}",
-                "message": f"物理等級 {physics_grade} 符合要求"
-            })
-        else:
-            physics_checks.append({
-                "check": "physics_grade",
-                "status": "FAIL",
-                "value": physics_grade,
-                "requirement": f">={required_grade}",
-                "message": f"物理等級 {physics_grade} 不達標"
-            })
-        
-        # 檢查軌道計算準確性
-        orbital_validation = physics_validation.get("orbital_validation", {})
-        orbital_pass_rate = orbital_validation.get("pass_rate", 0)
-        
-        if orbital_pass_rate >= 0.95:  # 95%軌道準確性
-            physics_checks.append({
-                "check": "orbital_accuracy",
-                "status": "PASS",
-                "value": orbital_pass_rate,
-                "requirement": ">=0.95",
-                "message": f"軌道計算準確性 {orbital_pass_rate:.2%} 優秀"
-            })
-        else:
-            physics_checks.append({
-                "check": "orbital_accuracy",
-                "status": "FAIL",
-                "value": orbital_pass_rate,
-                "requirement": ">=0.95",
-                "message": f"軌道計算準確性 {orbital_pass_rate:.2%} 需改善"
-            })
-        
-        # 統計結果
-        total_checks = len(physics_checks)
-        passed_checks = sum(1 for check in physics_checks if check["status"] == "PASS")
+        logger.info(f"物理驗證完成: {physics_pass_rate:.2%} 通過率, {critical_violations}個嚴重違反, 等級: {physics_grade}")
         
         return {
             "validation_checks": physics_checks,
-            "physics_validation_summary": overall_validation,
-            "total_checks": total_checks,
-            "passed_checks": passed_checks,
-            "pass_rate": passed_checks / total_checks if total_checks > 0 else 0,
-            "validation_status": "PASS" if passed_checks == total_checks else "FAIL"
+            "physics_validation_summary": {
+                "overall_pass_rate": physics_pass_rate,
+                "physics_grade": physics_grade,
+                "compliance_status": compliance_status,
+                "critical_violations": critical_violations,
+                "kepler_law_violations": kepler_violations,
+                "velocity_violations": velocity_violations,
+                "energy_conservation_violations": energy_violations,
+                "friis_formula_violations": friis_violations
+            },
+            "orbital_validation": {
+                "satellites_checked": total_orbital_checks,
+                "kepler_violations": kepler_violations,
+                "velocity_violations": velocity_violations
+            },
+            "signal_validation": {
+                "signals_checked": signal_checks,
+                "friis_violations": friis_violations
+            },
+            "total_checks": total_physics_checks,
+            "passed_checks": passed_physics_checks,
+            "pass_rate": physics_pass_rate,
+            "validation_status": "PASS" if physics_grade in ["A", "B"] else "FAIL"
         }
     
     def _validate_academic_standards(self, dynamic_pool: List[Dict[str, Any]],
@@ -924,20 +1070,242 @@ class ValidationEngine:
         }
     
     def _check_data_authenticity(self, dynamic_pool: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """檢查數據真實性 (簡化實現)"""
-        # 假設所有數據都是真實的 (實際需要檢查數據來源)
+        """檢查數據真實性 - 真實實現 (修復虛假硬編碼)"""
+        
+        logger.info("🔍 執行真實數據來源驗證")
+        
+        total_satellites = len(dynamic_pool)
+        if total_satellites == 0:
+            return {
+                "authentic_data_ratio": 0.0,
+                "data_sources_verified": False,
+                "real_data_detected": False,
+                "validation_details": "無衛星數據可驗證"
+            }
+        
+        authentic_count = 0
+        mock_indicators = 0
+        tle_source_verified = 0
+        
+        for sat in dynamic_pool:
+            sat_authentic = True
+            
+            # 檢查1: TLE數據來源驗證
+            tle_data = sat.get("tle_data", {})
+            if tle_data:
+                # 檢查TLE時間戳是否為真實格式
+                epoch = tle_data.get("epoch_timestamp", "")
+                if epoch:
+                    try:
+                        # 驗證時間戳格式和合理性
+                        from datetime import datetime, timedelta, timezone
+                        epoch_dt = datetime.fromisoformat(epoch.replace('Z', '+00:00'))
+                        now = datetime.now(timezone.utc)
+                        
+                        # TLE數據應在過去30天內且不能是未來時間
+                        if (now - timedelta(days=30)) <= epoch_dt <= now:
+                            tle_source_verified += 1
+                        else:
+                            sat_authentic = False
+                            
+                    except (ValueError, AttributeError):
+                        sat_authentic = False
+                else:
+                    sat_authentic = False
+            else:
+                sat_authentic = False
+                
+            # 檢查2: 檢測明顯的模擬數據標記
+            constellation = sat.get("constellation", "")
+            if not constellation or constellation in ["test", "mock", "simulation"]:
+                mock_indicators += 1
+                sat_authentic = False
+                
+            # 檢查3: 衛星ID格式驗證
+            sat_id = sat.get("satellite_id", "")
+            if not sat_id or "mock" in sat_id.lower() or "test" in sat_id.lower():
+                mock_indicators += 1
+                sat_authentic = False
+                
+            # 檢查4: 軌道參數合理性
+            altitude = sat.get("altitude_km", 0)
+            if altitude <= 0 or altitude < 300 or altitude > 2000:  # LEO範圍外
+                sat_authentic = False
+                
+            if sat_authentic:
+                authentic_count += 1
+                
+        # 計算真實數據比例
+        authentic_ratio = authentic_count / total_satellites
+        tle_verification_ratio = tle_source_verified / total_satellites
+        
+        # 判定數據真實性等級
+        if authentic_ratio >= 0.95 and tle_verification_ratio >= 0.90:
+            data_grade = "Grade_A"
+            sources_verified = True
+        elif authentic_ratio >= 0.85 and tle_verification_ratio >= 0.80:
+            data_grade = "Grade_B"  
+            sources_verified = True
+        elif authentic_ratio >= 0.70:
+            data_grade = "Grade_C"
+            sources_verified = False
+        else:
+            data_grade = "Grade_F"
+            sources_verified = False
+            
+        logger.info(f"數據真實性驗證完成: {authentic_ratio:.2%} 真實數據, 等級: {data_grade}")
+        
         return {
-            "authentic_data_ratio": 1.0,
-            "data_sources_verified": True,
-            "mock_data_detected": False
+            "authentic_data_ratio": authentic_ratio,
+            "data_sources_verified": sources_verified,
+            "real_data_detected": authentic_ratio > 0.70,
+            "tle_verification_ratio": tle_verification_ratio,
+            "mock_indicators_detected": mock_indicators,
+            "data_quality_grade": data_grade,
+            "validation_details": f"驗證{total_satellites}顆衛星, {authentic_count}顆通過真實性檢查"
         }
     
     def _analyze_calculation_methods(self, physics_results: Dict[str, Any]) -> Dict[str, Any]:
-        """分析計算方法 (簡化實現)"""
+        """分析計算方法學術性 - 真實實現 (修復虛假硬編碼)"""
+        
+        logger.info("📐 執行計算方法學術標準驗證")
+        
+        academic_indicators = 0
+        total_checks = 0
+        method_details = []
+        
+        # 檢查1: 軌道動力學計算方法
+        orbital_data = physics_results.get("orbital_dynamics", {})
+        if orbital_data:
+            total_checks += 1
+            
+            # 檢查是否使用標準SGP4/SDP4算法
+            calculation_metadata = orbital_data.get("calculation_metadata", {})
+            algorithm_used = calculation_metadata.get("algorithm", "unknown")
+            
+            if "sgp4" in algorithm_used.lower() or "sdp4" in algorithm_used.lower():
+                academic_indicators += 1
+                method_details.append({
+                    "method": "軌道預測算法",
+                    "standard": "SGP4/SDP4",
+                    "academic_grade": "A",
+                    "reference": "NORAD標準軌道預測模型"
+                })
+            else:
+                method_details.append({
+                    "method": "軌道預測算法", 
+                    "standard": "未知或非標準",
+                    "academic_grade": "D",
+                    "reference": "缺乏學術標準依據"
+                })
+        
+        # 檢查2: 信號傳播計算方法
+        signal_data = physics_results.get("signal_propagation", {})
+        if signal_data:
+            total_checks += 1
+            
+            # 檢查是否使用Friis公式或ITU-R標準
+            propagation_metadata = signal_data.get("calculation_metadata", {})
+            
+            # 檢查自由空間路徑損耗計算
+            individual_signals = signal_data.get("individual_signals", {})
+            if individual_signals:
+                sample_signal = next(iter(individual_signals.values()), {})
+                fspl_method = sample_signal.get("calculation_method", "")
+                
+                if "friis" in fspl_method.lower() or "itu-r" in fspl_method.lower():
+                    academic_indicators += 1
+                    method_details.append({
+                        "method": "信號傳播模型",
+                        "standard": "Friis公式/ITU-R P.618",
+                        "academic_grade": "A", 
+                        "reference": "國際電信聯盟無線電標準"
+                    })
+                else:
+                    method_details.append({
+                        "method": "信號傳播模型",
+                        "standard": "未指定標準",
+                        "academic_grade": "C",
+                        "reference": "缺乏標準傳播模型依據"
+                    })
+        
+        # 檢查3: 覆蓋幾何計算方法
+        coverage_data = physics_results.get("coverage_geometry", {})
+        if coverage_data:
+            total_checks += 1
+            
+            # 檢查是否使用球面三角學
+            geometry_metadata = coverage_data.get("calculation_metadata", {})
+            geometry_method = geometry_metadata.get("geometry_algorithm", "")
+            
+            if "spherical" in geometry_method.lower() or "vincenty" in geometry_method.lower():
+                academic_indicators += 1
+                method_details.append({
+                    "method": "覆蓋幾何計算",
+                    "standard": "球面三角學/Vincenty算法",
+                    "academic_grade": "A",
+                    "reference": "測地學標準算法"
+                })
+            else:
+                method_details.append({
+                    "method": "覆蓋幾何計算",
+                    "standard": "簡化平面幾何",
+                    "academic_grade": "B",
+                    "reference": "可能存在精度損失"
+                })
+        
+        # 檢查4: 物理驗證機制
+        physics_validation = physics_results.get("physics_validation", {})
+        if physics_validation:
+            total_checks += 1
+            
+            validation_methods = physics_validation.get("validation_methods", [])
+            if any("kepler" in method.lower() for method in validation_methods):
+                academic_indicators += 1
+                method_details.append({
+                    "method": "物理定律驗證",
+                    "standard": "開普勒定律驗證", 
+                    "academic_grade": "A",
+                    "reference": "天體力學基本定律"
+                })
+            else:
+                method_details.append({
+                    "method": "物理定律驗證",
+                    "standard": "基礎範圍檢查",
+                    "academic_grade": "C", 
+                    "reference": "缺乏深度物理驗證"
+                })
+        
+        # 計算學術方法比例
+        academic_method_ratio = academic_indicators / total_checks if total_checks > 0 else 0.0
+        
+        # 判定整體學術等級
+        if academic_method_ratio >= 0.90:
+            overall_grade = "Grade_A"
+            compliance_status = "優秀"
+        elif academic_method_ratio >= 0.75:
+            overall_grade = "Grade_B"
+            compliance_status = "良好"
+        elif academic_method_ratio >= 0.60:
+            overall_grade = "Grade_C"
+            compliance_status = "可接受"
+        else:
+            overall_grade = "Grade_D"
+            compliance_status = "需改善"
+            
+        peer_reviewed = academic_method_ratio >= 0.80
+        
+        logger.info(f"計算方法學術性分析完成: {academic_method_ratio:.2%} 學術標準, 等級: {overall_grade}")
+        
         return {
-            "academic_method_ratio": 0.95,  # 95%學術方法
-            "standard_compliance": True,
-            "peer_reviewed_methods": True
+            "academic_method_ratio": academic_method_ratio,
+            "standard_compliance": compliance_status,
+            "peer_reviewed_methods": peer_reviewed,
+            "academic_grade": overall_grade,
+            "total_methods_checked": total_checks,
+            "academic_methods_count": academic_indicators,
+            "method_analysis_details": method_details,
+            "validation_summary": f"檢查{total_checks}種計算方法, {academic_indicators}種符合學術標準"
         }
     
     def _assess_reproducibility(self, selection_result: Dict[str, Any],

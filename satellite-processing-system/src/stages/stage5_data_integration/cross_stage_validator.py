@@ -234,10 +234,18 @@ class CrossStageValidator:
             if not data or not isinstance(data, dict):
                 continue
             
-            satellites = data.get("data", {}).get("satellites", [])
+            # 支持多種數據格式：data.satellites 或直接 satellites
+            satellites = []
+            if "data" in data and isinstance(data["data"], dict) and "satellites" in data["data"]:
+                satellites = data["data"]["satellites"]
+            elif "satellites" in data:
+                satellites = data["satellites"]
+
             satellite_ids = set()
-            
+
             for satellite in satellites:
+                if not isinstance(satellite, dict):
+                    continue
                 satellite_id = satellite.get("satellite_id")
                 if satellite_id:
                     satellite_ids.add(satellite_id)

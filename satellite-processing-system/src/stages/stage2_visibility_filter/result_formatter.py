@@ -13,6 +13,15 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 import json
 
+# 🚨 Grade A要求：使用學術級仰角標準替代硬編碼
+try:
+    from ...shared.elevation_standards import ELEVATION_STANDARDS
+    INVALID_ELEVATION = ELEVATION_STANDARDS.get_safe_default_elevation()
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warning("⚠️ 無法載入學術標準配置，使用臨時預設值")
+    INVALID_ELEVATION = -999.0  # 學術標準：使用明確的無效值標記
+
 logger = logging.getLogger(__name__)
 
 class ResultFormatter:
@@ -248,12 +257,12 @@ class ResultFormatter:
             return None
         
         # 按最大仰角排序，選擇最佳窗口
-        best_window = max(windows, key=lambda w: w.get("max_elevation", -90))
+        best_window = max(windows, key=lambda w: w.get("max_elevation", INVALID_ELEVATION))
         
         return {
             "start_timestamp": best_window.get("start_timestamp", "unknown"),
             "duration_minutes": best_window.get("duration_minutes", 0),
-            "max_elevation": best_window.get("max_elevation", -90),
+            "max_elevation": best_window.get("max_elevation", INVALID_ELEVATION),
             "pass_quality": best_window.get("pass_quality", "unknown")
         }
     
@@ -345,7 +354,7 @@ class ResultFormatter:
             # 可見性品質 (40%)
             visibility_summary = sat.get("visibility_summary", {})
             visibility_percentage = visibility_summary.get("visibility_percentage", 0)
-            max_elevation = visibility_summary.get("max_elevation", -90)
+            max_elevation = visibility_summary.get("max_elevation", INVALID_ELEVATION)
             
             if visibility_percentage > 0:
                 sat_score += (visibility_percentage / 100) * 0.2
@@ -393,7 +402,7 @@ class ResultFormatter:
         
         return {
             "visibility_quality": visibility_summary.get("visibility_percentage", 0) / 100,
-            "elevation_quality": min(visibility_summary.get("max_elevation", -90) / 90, 1.0) if visibility_summary.get("max_elevation", -90) > 0 else 0,
+            "elevation_quality": min(visibility_summary.get("max_elevation", INVALID_ELEVATION) / 90, 1.0) if visibility_summary.get("max_elevation", INVALID_ELEVATION) > 0 else 0,
             "duration_quality": min(analysis.get("longest_pass_minutes", 0) / 10, 1.0),  # 10分鐘為滿分
             "analysis_completeness": 1.0 if analysis else 0.0
         }

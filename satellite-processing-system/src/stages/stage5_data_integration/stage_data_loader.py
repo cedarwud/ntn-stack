@@ -182,28 +182,30 @@ class StageDataLoader:
     def _validate_timeseries_format(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """驗證時間序列數據格式"""
         errors = []
-        
-        # 檢查必需字段
-        required_fields = ["data", "metadata"]
-        for field in required_fields:
-            if field not in data:
-                errors.append(f"缺少必需字段: {field}")
-        
-        # 檢查數據結構
-        if "data" in data:
-            if "satellites" not in data["data"]:
-                errors.append("數據中缺少衛星信息")
-            else:
-                satellites = data["data"]["satellites"]
-                if not isinstance(satellites, list):
-                    errors.append("衛星數據格式錯誤")
-                elif len(satellites) == 0:
-                    errors.append("衛星數據為空")
-        
+
+        # 檢查必需字段 - 支持不同的數據格式
+        if "metadata" not in data:
+            errors.append("缺少必需字段: metadata")
+
+        # 檢查數據結構 - 支持兩種格式：data.satellites 或直接 satellites
+        satellites = []
+        if "data" in data and isinstance(data["data"], dict) and "satellites" in data["data"]:
+            satellites = data["data"]["satellites"]
+        elif "satellites" in data:
+            satellites = data["satellites"]
+        else:
+            errors.append("數據中缺少衛星信息 (未找到 data.satellites 或 satellites)")
+
+        if satellites:
+            if not isinstance(satellites, list):
+                errors.append("衛星數據格式錯誤")
+            elif len(satellites) == 0:
+                errors.append("衛星數據為空")
+
         return {
             "valid": len(errors) == 0,
             "errors": errors,
-            "satellite_count": len(data.get("data", {}).get("satellites", []))
+            "satellite_count": len(satellites) if satellites else 0
         }
     
     def _enhance_timeseries_data(self, timeseries_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -213,14 +215,18 @@ class StageDataLoader:
         # 添加數據載入時間戳
         enhanced["loading_timestamp"] = datetime.now(timezone.utc).isoformat()
         
-        # 計算時間序列統計
-        if "data" in enhanced and "satellites" in enhanced["data"]:
+        # 計算時間序列統計 - 支持兩種格式
+        satellites = []
+        if "data" in enhanced and isinstance(enhanced["data"], dict) and "satellites" in enhanced["data"]:
             satellites = enhanced["data"]["satellites"]
-            
+        elif "satellites" in enhanced:
+            satellites = enhanced["satellites"]
+
+        if satellites:
             total_timeseries_points = sum(
-                len(sat.get("timeseries_data", [])) for sat in satellites
+                len(sat.get("timeseries_data", sat.get("position_timeseries", []))) for sat in satellites
             )
-            
+
             enhanced["enhanced_statistics"] = {
                 "total_satellites": len(satellites),
                 "total_timeseries_points": total_timeseries_points,
@@ -258,7 +264,14 @@ class StageDataLoader:
         # 以Stage 3時間序列數據為基礎
         if self.stage_data["stage3_timeseries"]:
             timeseries_data = self.stage_data["stage3_timeseries"]
-            satellites = timeseries_data.get("data", {}).get("satellites", [])
+
+            # 支持兩種階段三格式: data.satellites 或直接 satellites
+            if "data" in timeseries_data and isinstance(timeseries_data["data"], dict) and "satellites" in timeseries_data["data"]:
+                satellites = timeseries_data["data"]["satellites"]
+            elif "satellites" in timeseries_data:
+                satellites = timeseries_data["satellites"]
+            else:
+                satellites = []
             
             for satellite in satellites:
                 satellite_id = satellite.get("satellite_id")
@@ -279,12 +292,22 @@ class StageDataLoader:
     def _find_satellite_in_stage(self, stage_key: str, satellite_id: str) -> Dict[str, Any]:
         """在指定階段中查找衛星數據"""
         stage_data = self.stage_data.get(stage_key, {})
-        
-        if stage_data and "data" in stage_data and "satellites" in stage_data["data"]:
-            for satellite in stage_data["data"]["satellites"]:
-                if satellite.get("satellite_id") == satellite_id:
-                    return satellite
-        
+
+        if not stage_data:
+            return {}
+
+        # 支持多種數據格式：data.satellites 或直接 satellites
+        satellites = []
+        if "data" in stage_data and isinstance(stage_data["data"], dict) and "satellites" in stage_data["data"]:
+            satellites = stage_data["data"]["satellites"]
+        elif "satellites" in stage_data:
+            satellites = stage_data["satellites"]
+
+        # 查找匹配的衛星
+        for satellite in satellites:
+            if isinstance(satellite, dict) and satellite.get("satellite_id") == satellite_id:
+                return satellite
+
         return {}
     
     def get_loading_statistics(self) -> Dict[str, Any]:

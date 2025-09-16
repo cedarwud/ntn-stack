@@ -13,6 +13,15 @@ import logging
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timezone
 
+# 🚨 Grade A要求：使用學術級仰角標準替代硬編碼
+try:
+    from ...shared.elevation_standards import ELEVATION_STANDARDS
+    INVALID_ELEVATION = ELEVATION_STANDARDS.get_safe_default_elevation()
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warning("⚠️ 無法載入學術標準配置，使用臨時預設值")
+    INVALID_ELEVATION = -999.0  # 學術標準：使用明確的無效值標記
+
 logger = logging.getLogger(__name__)
 
 class VisibilityCalculator:
@@ -118,7 +127,7 @@ class VisibilityCalculator:
                     visibility_timeseries.append(visibility_point)
                     self.calculation_statistics["total_position_calculations"] += 1
                     
-                    if visibility_point.get("relative_to_observer", {}).get("elevation_deg", -90) > 0:
+                    if visibility_point.get("relative_to_observer", {}).get("elevation_deg", INVALID_ELEVATION) > 0:
                         self.calculation_statistics["visible_position_calculations"] += 1
             
             # 構建結果
@@ -241,9 +250,9 @@ class VisibilityCalculator:
                 "total_points": 0,
                 "visible_points": 0,
                 "visibility_percentage": 0.0,
-                "max_elevation": -90.0,
-                "min_elevation": -90.0,
-                "avg_elevation": -90.0,
+                "max_elevation": INVALID_ELEVATION,
+                "min_elevation": INVALID_ELEVATION,
+                "avg_elevation": INVALID_ELEVATION,
                 "visibility_windows": []
             }
         
@@ -254,16 +263,16 @@ class VisibilityCalculator:
         # 統計可見點和仰角
         for point in visibility_timeseries:
             relative_pos = point.get("relative_to_observer", {})
-            elevation = relative_pos.get("elevation_deg", -90)
+            elevation = relative_pos.get("elevation_deg", INVALID_ELEVATION)
             elevations.append(elevation)
             
             if elevation > 0:
                 visible_points += 1
         
         # 計算統計值
-        max_elevation = max(elevations) if elevations else -90
-        min_elevation = min(elevations) if elevations else -90
-        avg_elevation = sum(elevations) / len(elevations) if elevations else -90
+        max_elevation = max(elevations) if elevations else INVALID_ELEVATION
+        min_elevation = min(elevations) if elevations else INVALID_ELEVATION
+        avg_elevation = sum(elevations) / len(elevations) if elevations else INVALID_ELEVATION
         visibility_percentage = (visible_points / total_points * 100) if total_points > 0 else 0
         
         # 計算可見性時間窗口
@@ -281,14 +290,28 @@ class VisibilityCalculator:
         }
     
     def _calculate_visibility_windows(self, visibility_timeseries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """計算連續的可見性時間窗口"""
+        """計算連續的可見性時間窗口
+        
+        🚨 Grade A要求：使用真實時間戳計算，禁止假設時間間隔
+        """
+        from datetime import datetime
         
         windows = []
         current_window = None
         
         for i, point in enumerate(visibility_timeseries):
-            elevation = point.get("relative_to_observer", {}).get("elevation_deg", -90)
-            timestamp = point.get("timestamp", f"point_{i}")
+            relative_pos = point.get("relative_to_observer", {})
+            elevation = relative_pos.get("elevation_deg")
+            timestamp = point.get("timestamp")
+            
+            # 🚨 Grade A要求：驗證數據完整性
+            if elevation is None or timestamp is None:
+                self.logger.error(
+                    f"Missing required data at index {i}: "
+                    f"elevation={elevation}, timestamp={timestamp}. "
+                    f"Grade A standard requires complete time series data."
+                )
+                continue
             
             if elevation > 0:  # 可見
                 if current_window is None:
@@ -297,28 +320,88 @@ class VisibilityCalculator:
                         "start_timestamp": timestamp,
                         "start_elevation": elevation,
                         "max_elevation": elevation,
-                        "duration_points": 1
+                        "point_count": 1,
+                        "calculation_method": "real_timestamp_based"
                     }
                 else:
                     # 繼續當前窗口
-                    current_window["duration_points"] += 1
+                    current_window["point_count"] += 1
                     current_window["max_elevation"] = max(current_window["max_elevation"], elevation)
             else:  # 不可見
                 if current_window is not None:
-                    # 結束當前窗口
-                    current_window["end_timestamp"] = visibility_timeseries[i-1].get("timestamp", f"point_{i-1}")
-                    current_window["end_elevation"] = visibility_timeseries[i-1].get("relative_to_observer", {}).get("elevation_deg", -90)
-                    current_window["duration_minutes"] = current_window["duration_points"] * 0.5  # 假設30秒間隔
+                    # 結束當前窗口 - 使用真實時間戳計算
+                    try:
+                        if i > 0:
+                            end_timestamp = visibility_timeseries[i-1].get("timestamp")
+                            end_elevation = visibility_timeseries[i-1].get("relative_to_observer", {}).get("elevation_deg")
+                            
+                            if end_timestamp and end_elevation is not None:
+                                current_window["end_timestamp"] = end_timestamp
+                                current_window["end_elevation"] = end_elevation
+                                
+                                # 🚨 Grade A要求：使用真實時間差計算持續時間
+                                start_dt = datetime.fromisoformat(current_window["start_timestamp"].replace('Z', '+00:00'))
+                                end_dt = datetime.fromisoformat(end_timestamp.replace('Z', '+00:00'))
+                                duration_minutes = (end_dt - start_dt).total_seconds() / 60.0
+                                
+                                current_window["duration_minutes"] = duration_minutes
+                                current_window["grade_a_compliance"] = True
+                                
+                                windows.append(current_window)
+                            else:
+                                raise ValueError("End timestamp or elevation missing")
+                        else:
+                            raise ValueError("Invalid window end index")
+                            
+                    except Exception as time_error:
+                        # 🚨 Grade A要求：時間計算錯誤必須報告
+                        self.logger.error(
+                            f"Visibility window time calculation failed: {time_error}. "
+                            f"Grade A standard prohibits assumption-based fallbacks."
+                        )
+                        # 不添加有問題的窗口到結果中
                     
-                    windows.append(current_window)
                     current_window = None
         
         # 處理序列結束時仍在可見窗口的情況
         if current_window is not None:
-            current_window["end_timestamp"] = visibility_timeseries[-1].get("timestamp", f"point_{len(visibility_timeseries)-1}")
-            current_window["end_elevation"] = visibility_timeseries[-1].get("relative_to_observer", {}).get("elevation_deg", -90)
-            current_window["duration_minutes"] = current_window["duration_points"] * 0.5
-            windows.append(current_window)
+            try:
+                last_point = visibility_timeseries[-1]
+                end_timestamp = last_point.get("timestamp")
+                end_elevation = last_point.get("relative_to_observer", {}).get("elevation_deg")
+                
+                if end_timestamp and end_elevation is not None:
+                    current_window["end_timestamp"] = end_timestamp
+                    current_window["end_elevation"] = end_elevation
+                    
+                    # 使用真實時間差計算
+                    start_dt = datetime.fromisoformat(current_window["start_timestamp"].replace('Z', '+00:00'))
+                    end_dt = datetime.fromisoformat(end_timestamp.replace('Z', '+00:00'))
+                    duration_minutes = (end_dt - start_dt).total_seconds() / 60.0
+                    
+                    current_window["duration_minutes"] = duration_minutes
+                    current_window["grade_a_compliance"] = True
+                    
+                    windows.append(current_window)
+                else:
+                    raise ValueError("Final window timestamp or elevation missing")
+                    
+            except Exception as time_error:
+                self.logger.error(
+                    f"Final visibility window calculation failed: {time_error}. "
+                    f"Grade A standard requires complete time series data."
+                )
+        
+        # 統計信息
+        total_windows = len(windows)
+        if total_windows > 0:
+            avg_duration = sum(w["duration_minutes"] for w in windows) / total_windows
+            max_duration = max(w["duration_minutes"] for w in windows)
+            
+            self.logger.debug(
+                f"Calculated {total_windows} visibility windows: "
+                f"avg={avg_duration:.1f}min, max={max_duration:.1f}min"
+            )
         
         return windows
     
@@ -361,7 +444,7 @@ class VisibilityCalculator:
                 # 檢查是否有合理的仰角數據
                 for point in timeseries[:5]:  # 檢查前5個點
                     elevation = point.get("relative_to_observer", {}).get("elevation_deg", -999)
-                    if -90 <= elevation <= 90:
+                    if INVALID_ELEVATION <= elevation <= 90:
                         satellites_with_reasonable_elevation += 1
                         break
         

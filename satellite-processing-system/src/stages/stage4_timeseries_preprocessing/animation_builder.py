@@ -351,7 +351,7 @@ class AnimationBuilder:
                         coverage_area = {
                             "satellite_id": track.get("satellite_id"),
                             "center": frame_position["position"],
-                            "coverage_radius_km": 1000  # 假設1000km覆蓋半徑
+                            "coverage_radius_km": self._calculate_realistic_coverage_radius(track)
                         }
                         frame_coverage["coverage_areas"].append(coverage_area)
             
@@ -675,6 +675,69 @@ class AnimationBuilder:
         duration_factor = min(1.0, visible_duration / 100.0)
         
         return max(0.3, (elevation_factor + duration_factor) / 2)
+
+    def _calculate_realistic_coverage_radius(self, track: Dict[str, Any]) -> float:
+        """
+        基於學術級物理計算衛星覆蓋半徑 (Grade A標準)
+        
+        Args:
+            track: 衛星軌跡數據
+            
+        Returns:
+            實際覆蓋半徑 (km)
+        """
+        try:
+            # 🔬 基於球面幾何學計算覆蓋半徑
+            # 公式: R = R_earth * arccos(R_earth / (R_earth + h)) / sin(min_elevation)
+            
+            # 地球半徑 (ITU-R標準值)
+            earth_radius_km = 6371.0  # km
+            
+            # 獲取衛星高度
+            satellite_altitude_km = None
+            constellation = track.get("constellation", "unknown").lower()
+            
+            # 從學術配置獲取真實高度數據
+            try:
+                from ...shared.academic_standards_config import ACADEMIC_STANDARDS_CONFIG
+                constellation_params = ACADEMIC_STANDARDS_CONFIG.get_constellation_params(constellation)
+                satellite_altitude_km = constellation_params.get("altitude_km")
+                
+                if satellite_altitude_km is None:
+                    self.logger.warning(f"⚠️ 無法獲取{constellation}星座的高度數據")
+                    
+            except Exception as e:
+                self.logger.error(f"❌ 學術配置載入失敗: {e}")
+            
+            # 如果無法獲取真實高度，拒絕使用假設值
+            if satellite_altitude_km is None:
+                raise ValueError("無法獲取衛星真實高度數據，拒絕使用假設覆蓋半徑")
+            
+            # 最小仰角門檻 (基於ITU-R P.618建議)
+            min_elevation_deg = 10.0  # ITU-R標準最小仰角
+            min_elevation_rad = math.radians(min_elevation_deg)
+            
+            # 物理級覆蓋半徑計算
+            # 基於球面幾何學：考慮地球曲率的視線距離
+            orbital_radius = earth_radius_km + satellite_altitude_km
+            
+            # 地心角計算 (從衛星到地平線)
+            horizon_angle = math.acos(earth_radius_km / orbital_radius)
+            
+            # 考慮最小仰角的有效覆蓋角
+            effective_coverage_angle = horizon_angle - min_elevation_rad
+            
+            # 地面覆蓋半徑
+            coverage_radius_km = earth_radius_km * math.sin(effective_coverage_angle)
+            
+            self.logger.debug(f"🛰️ {constellation}覆蓋半徑計算: 高度={satellite_altitude_km}km, 半徑={coverage_radius_km:.1f}km")
+            
+            return max(100.0, min(2000.0, coverage_radius_km))  # 合理範圍限制
+            
+        except Exception as e:
+            self.logger.error(f"❌ 覆蓋半徑計算失敗: {e}")
+            # 🚨 學術標準要求：計算失敗時不得使用硬編碼回退
+            raise ValueError(f"覆蓋半徑計算失敗且無法使用假設值，請檢查衛星參數配置: {e}")
     
     def _build_global_animation_metadata(self, constellation_animations: Dict[str, Any]) -> Dict[str, Any]:
         """建構全域動畫元數據"""
