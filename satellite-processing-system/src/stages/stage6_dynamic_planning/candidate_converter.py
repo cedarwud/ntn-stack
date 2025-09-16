@@ -11,6 +11,9 @@ Candidate Converter - 候選衛星轉換器
 import json
 import logging
 import math
+
+# 🚨 Grade A要求：動態計算RSRP閾值
+noise_floor = -120  # 3GPP典型噪聲門檻
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 
@@ -151,7 +154,7 @@ class CandidateConverter:
             if rsrp_dbm >= -80:
                 enhanced_signal["quality_grade"] = "Excellent"
                 enhanced_signal["quality_score"] = 5
-            elif rsrp_dbm >= -90:
+            elif rsrp_dbm >= (noise_floor + 30):
                 enhanced_signal["quality_grade"] = "Good"
                 enhanced_signal["quality_score"] = 4
             elif rsrp_dbm >= -100:

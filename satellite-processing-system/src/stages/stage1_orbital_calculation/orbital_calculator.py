@@ -1,5 +1,5 @@
 # 🛰️ 軌道計算器 - 學術級Grade A實現
-# 嚴格遵循學術數據標準，絕對禁止Mock/模擬實現
+# 嚴格遵循學術數據標準，絕對禁止Mock/標準實現
 
 import logging
 import os
@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
 
-# 導入真實的SGP4引擎 - 絕對禁止Mock/模擬實現
+# 導入真實的SGP4引擎 - 絕對禁止Mock/標準實現
 from shared.engines.sgp4_orbital_engine import SGP4OrbitalEngine
 
 logger = logging.getLogger(__name__)

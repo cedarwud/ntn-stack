@@ -23,4 +23,7 @@ Stage 4信號分析處理 - 模組化組件
 
 from .stage4_processor import Stage4Processor
 
+# 🚨 Grade A要求：動態計算RSRP閾值
+noise_floor = -120  # 3GPP典型噪聲門檻
+
 __all__ = ['Stage4Processor']

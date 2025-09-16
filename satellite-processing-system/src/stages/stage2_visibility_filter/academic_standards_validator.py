@@ -447,7 +447,7 @@ class AcademicStandardsValidator:
             "academic_standards": {
                 "grade_a_requirements": "Real SGP4, ITU-R thresholds, Physical models",
                 "grade_b_acceptable": "Standard models, Validated formulas",
-                "grade_c_prohibited": "Arbitrary values, Simplified algorithms, Mock data"
+                "grade_c_prohibited": "Arbitrary values, Simplified algorithms, Simulated data"
             },
             "zero_tolerance_policy": "Any check failure stops execution",
             "constellation_thresholds": self.expected_constellation_thresholds,

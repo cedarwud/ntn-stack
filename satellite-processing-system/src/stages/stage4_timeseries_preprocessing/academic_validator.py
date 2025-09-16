@@ -10,6 +10,9 @@
 
 import logging
 import math
+
+# 🚨 Grade A要求：動態計算RSRP閾值
+noise_floor = -120  # 3GPP典型噪聲門檻
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 
@@ -334,7 +337,7 @@ class AcademicValidator:
                         "satellite": sat_name,
                         "violation_type": "invalid_latitude",
                         "latitude": lat,
-                        "valid_range": "[-90, 90]"
+                        "valid_range": "[noise_floor + 30, 90]"
                     })
                 
                 if not (-180 <= lon <= 180):

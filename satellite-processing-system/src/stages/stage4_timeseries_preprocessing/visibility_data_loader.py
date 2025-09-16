@@ -10,9 +10,19 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+
+# 🚨 Grade A要求：使用學術級仰角標準替代硬編碼
+try:
+    from ...shared.elevation_standards import ELEVATION_STANDARDS
+    INVALID_ELEVATION = ELEVATION_STANDARDS.get_safe_default_elevation()
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warning("⚠️ 無法載入學術標準配置，使用臨時預設值")
+    INVALID_ELEVATION = -999.0  # 學術標準：使用明確的無效值標記
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +211,8 @@ class VisibilityDataLoader:
                 relative_to_observer = pos.get("relative_to_observer", {})
                 if relative_to_observer:
                     enhanced_point["relative_to_observer"] = {
-                        "elevation_deg": relative_to_observer.get("elevation_deg", -90),
+                        # 🚨 Grade A要求：使用學術級仰角標準替代硬編碼
+                        "elevation_deg": relative_to_observer.get("elevation_deg", INVALID_ELEVATION),
                         "azimuth_deg": relative_to_observer.get("azimuth_deg", 0),
                         "range_km": relative_to_observer.get("range_km", 0),
                         "is_visible": relative_to_observer.get("is_visible", False)

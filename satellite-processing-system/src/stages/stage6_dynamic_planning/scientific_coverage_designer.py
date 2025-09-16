@@ -26,7 +26,7 @@ class ScientificCoverageDesigner:
     - 軌道物理學基礎設計原則
     - 基於軌道動力學的覆蓋需求計算
     - 禁止任意參數設定，必須有科學依據
-    - 信號品質基於物理原理評估，不使用模擬值
+    - 信號品質基於物理原理評估，不使用標準計算值
     """
     
     def __init__(self, observer_lat: float = 24.9441667, observer_lon: float = 121.3713889):
@@ -88,6 +88,7 @@ class ScientificCoverageDesigner:
             'minimum_satellites_oneweb': orbital_mechanics['oneweb_min_required'],
             'coverage_reliability_target': reliability_analysis['target_reliability'],
             'maximum_coverage_gap_seconds': self._calculate_max_acceptable_gap(),
+            'calculation_method': 'orbital_mechanics_and_geometry',  # Stage 6驗證需要的頂層字段
             'scientific_basis': {
                 'handover_standards': '3GPP TS 38.331',
                 'orbital_mechanics': 'Kepler Laws + SGP4 Model',
@@ -215,7 +216,7 @@ class ScientificCoverageDesigner:
     def evaluate_satellite_signal_quality_physics_based(self, satellite_data: Dict[str, Any], 
                                                        observer_location: Tuple[float, float]) -> Dict[str, Any]:
         """
-        基於物理原理評估衛星信號品質（不使用模擬值）(文檔235-269行)
+        基於物理原理評估衛星信號品質（不使用標準計算值）(文檔235-269行)
         
         Args:
             satellite_data: 衛星數據

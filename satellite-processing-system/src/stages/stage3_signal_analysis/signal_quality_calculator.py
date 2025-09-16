@@ -16,651 +16,574 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 class SignalQualityCalculator:
-    """信號品質計算器 - 基於學術級物理公式進行RSRP計算"""
+    """
+    Advanced signal quality calculator for satellite communications.
     
-    def __init__(self, observer_lat: float = 24.9441667, observer_lon: float = 121.3713889):
+    Implements comprehensive signal quality metrics including RSRP, RSRQ, 
+    SINR calculations based on ITU-R and 3GPP standards.
+    """
+    
+    def __init__(self, constellation: str = "starlink"):
         """
-        初始化信號品質計算器
-        
+        Initialize signal quality calculator with constellation-specific configuration.
+
         Args:
-            observer_lat: 觀測點緯度
-            observer_lon: 觀測點經度
+            constellation: Satellite constellation name (starlink, oneweb)
         """
-        self.logger = logging.getLogger(f"{__name__}.SignalQualityCalculator")
-        
-        self.observer_lat = observer_lat
-        self.observer_lon = observer_lon
-        
-        # 系統參數 (基於3GPP和實際系統規格)
-        self.system_parameters = {
-            # Starlink參數
-            "starlink": {
-                "satellite_eirp_dbm": 37.0,  # 37 dBm EIRP
-                "frequency_ghz": 12.0,       # Ku頻段下行鏈路
-                "antenna_gain_dbi": 35.0,    # 用戶終端天線增益
-                "system_noise_temp_k": 150.0 # 系統雜訊溫度
-            },
-            # OneWeb參數
-            "oneweb": {
-                "satellite_eirp_dbm": 40.0,  # 40 dBm EIRP
-                "frequency_ghz": 13.25,      # Ku頻段下行鏈路
-                "antenna_gain_dbi": 38.0,    # 用戶終端天線增益
-                "system_noise_temp_k": 140.0 # 系統雜訊溫度
-            }
-        }
-        
-        # 物理常數
-        self.SPEED_OF_LIGHT = 299792458.0  # m/s
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+        # Physical constants
+        self.SPEED_OF_LIGHT = 299792458  # m/s
         self.BOLTZMANN_CONSTANT = 1.380649e-23  # J/K
-        
-        # 計算統計
-        self.calculation_statistics = {
-            "satellites_calculated": 0,
-            "successful_calculations": 0,
-            "failed_calculations": 0,
-            "average_rsrp_dbm": 0.0,
-            "rsrp_range_dbm": {"min": float('inf'), "max": float('-inf')}
-        }
-        
-        self.logger.info("✅ 信號品質計算器初始化完成")
-        self.logger.info(f"   觀測點: ({observer_lat:.4f}°N, {observer_lon:.4f}°E)")
-        self.logger.info(f"   支持星座: {list(self.system_parameters.keys())}")
-    
-    def calculate_satellite_signal_quality(self, satellites: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        計算所有衛星的信號品質
-        
-        Args:
-            satellites: 衛星列表，包含位置時間序列
-            
-        Returns:
-            包含所有衛星信號品質計算結果的字典
-        """
-        self.logger.info(f"🔢 開始計算 {len(satellites)} 顆衛星的信號品質...")
-        
-        signal_results = {
-            "satellites": [],
-            "summary": {
-                "total_satellites": len(satellites),
-                "successful_calculations": 0,
-                "failed_calculations": 0,
-                "constellation_breakdown": {}
-            }
-        }
-        
-        constellation_counts = {}
-        constellation_rsrp_sum = {}
-        
-        for satellite in satellites:
-            self.calculation_statistics["satellites_calculated"] += 1
-            
-            try:
-                satellite_signal = self._calculate_single_satellite_signal(satellite)
-                signal_results["satellites"].append(satellite_signal)
-                
-                # 統計成功計算
-                self.calculation_statistics["successful_calculations"] += 1
-                signal_results["summary"]["successful_calculations"] += 1
-                
-                # 統計星座分布
-                constellation = satellite.get("constellation", "unknown")
-                if constellation not in constellation_counts:
-                    constellation_counts[constellation] = 0
-                    constellation_rsrp_sum[constellation] = 0.0
-                
-                constellation_counts[constellation] += 1
-                avg_rsrp = satellite_signal.get("signal_metrics", {}).get("average_rsrp_dbm", 0)
-                constellation_rsrp_sum[constellation] += avg_rsrp
-                
-                # 更新RSRP範圍
-                if avg_rsrp < self.calculation_statistics["rsrp_range_dbm"]["min"]:
-                    self.calculation_statistics["rsrp_range_dbm"]["min"] = avg_rsrp
-                if avg_rsrp > self.calculation_statistics["rsrp_range_dbm"]["max"]:
-                    self.calculation_statistics["rsrp_range_dbm"]["max"] = avg_rsrp
-                
-            except Exception as e:
-                self.logger.warning(f"衛星 {satellite.get('satellite_id', 'unknown')} 信號計算失敗: {e}")
-                self.calculation_statistics["failed_calculations"] += 1
-                signal_results["summary"]["failed_calculations"] += 1
-                continue
-        
-        # 計算星座統計
-        for constellation, count in constellation_counts.items():
-            avg_rsrp = constellation_rsrp_sum[constellation] / count if count > 0 else 0
-            signal_results["summary"]["constellation_breakdown"][constellation] = {
-                "satellite_count": count,
-                "average_rsrp_dbm": avg_rsrp
-            }
-        
-        # 更新全局平均
-        if signal_results["summary"]["successful_calculations"] > 0:
-            total_rsrp = sum(constellation_rsrp_sum.values())
-            self.calculation_statistics["average_rsrp_dbm"] = total_rsrp / signal_results["summary"]["successful_calculations"]
-        
-        self.logger.info(f"✅ 信號品質計算完成: {signal_results['summary']['successful_calculations']}/{len(satellites)} 成功")
-        
-        return signal_results
-    
-    def _calculate_single_satellite_signal(self, satellite: Dict[str, Any]) -> Dict[str, Any]:
-        """計算單顆衛星的信號品質"""
-        satellite_id = satellite.get("satellite_id", "unknown")
-        constellation = satellite.get("constellation", "unknown").lower()
-        
-        # 獲取系統參數
-        if constellation not in self.system_parameters:
-            raise ValueError(f"不支持的星座: {constellation}")
-        
-        system_params = self.system_parameters[constellation]
-        timeseries_positions = satellite.get("timeseries_positions", [])
-        
-        if not timeseries_positions:
-            raise ValueError(f"衛星 {satellite_id} 缺少位置時間序列數據")
-        
-        # 計算每個時間點的信號品質
-        signal_timeseries = []
-        rsrp_values = []
-        rsrq_values = []
-        rs_sinr_values = []
-        
-        for position_point in timeseries_positions:
-            try:
-                # 計算RSRP
-                rsrp_dbm = self._calculate_rsrp_at_position(position_point, system_params)
-                
-                # 計算RSRQ (3GPP TS 36.214標準)
-                rsrq_db = self._calculate_rsrq_at_position(position_point, system_params, rsrp_dbm)
-                
-                # 計算RS-SINR (3GPP TS 36.214標準)
-                rs_sinr_db = self._calculate_rs_sinr_at_position(position_point, system_params, rsrp_dbm)
-                
-                elevation_deg = position_point.get("elevation_deg", 0)
-                range_km = position_point.get("range_km", 0)
-                
-                signal_point = {
-                    "timestamp": position_point.get("timestamp"),
-                    "rsrp_dbm": rsrp_dbm,
-                    "rsrq_db": rsrq_db,
-                    "rs_sinr_db": rs_sinr_db,
-                    "elevation_deg": elevation_deg,
-                    "range_km": range_km,
-                    "is_visible": position_point.get("is_visible", False),
-                    "signal_quality_grade": self._grade_signal_quality(rsrp_dbm)
-                }
-                
-                # 計算大氣衰減 (ITU-R P.618)
-                atmospheric_loss_db = self._calculate_atmospheric_attenuation_p618(
-                    elevation_deg, system_params["frequency_ghz"]
-                )
-                signal_point["atmospheric_loss_db"] = atmospheric_loss_db
-                signal_point["rsrp_with_atmosphere_dbm"] = rsrp_dbm - atmospheric_loss_db
-                
-                # 3GPP標準符合性標記
-                signal_point["3gpp_measurements"] = {
-                    "rsrp_compliant": True,  # 使用標準Friis公式
-                    "rsrq_compliant": True,  # 使用3GPP TS 36.214公式
-                    "rs_sinr_compliant": True,  # 使用3GPP TS 36.214公式
-                    "units": {
-                        "rsrp": "dBm",
-                        "rsrq": "dB", 
-                        "rs_sinr": "dB"
-                    }
-                }
-                
-                signal_timeseries.append(signal_point)
-                rsrp_values.append(rsrp_dbm)
-                rsrq_values.append(rsrq_db)
-                rs_sinr_values.append(rs_sinr_db)
-                
-            except Exception as e:
-                self.logger.debug(f"位置點信號計算失敗: {e}")
-                continue
-        
-        if not rsrp_values:
-            raise ValueError(f"衛星 {satellite_id} 所有位置點信號計算失敗")
-        
-        # 計算統計指標 (增強版，包含RSRQ和RS-SINR)
-        signal_metrics = {
-            # RSRP統計
-            "average_rsrp_dbm": sum(rsrp_values) / len(rsrp_values),
-            "max_rsrp_dbm": max(rsrp_values),
-            "min_rsrp_dbm": min(rsrp_values),
-            "rsrp_std_deviation": self._calculate_std_deviation(rsrp_values),
-            
-            # RSRQ統計 (3GPP TS 36.214)
-            "average_rsrq_db": sum(rsrq_values) / len(rsrq_values),
-            "max_rsrq_db": max(rsrq_values),
-            "min_rsrq_db": min(rsrq_values),
-            "rsrq_std_deviation": self._calculate_std_deviation(rsrq_values),
-            
-            # RS-SINR統計 (3GPP TS 36.214)
-            "average_rs_sinr_db": sum(rs_sinr_values) / len(rs_sinr_values),
-            "max_rs_sinr_db": max(rs_sinr_values),
-            "min_rs_sinr_db": min(rs_sinr_values),
-            "rs_sinr_std_deviation": self._calculate_std_deviation(rs_sinr_values),
-            
-            # 綜合指標
-            "signal_stability_score": self._calculate_stability_score(rsrp_values),
-            "visible_points_count": sum(1 for p in signal_timeseries if p["is_visible"]),
-            "total_points_count": len(signal_timeseries),
-            
-            # 3GPP符合性
-            "3gpp_compliant": True,
-            "measurement_units": {
-                "rsrp": "dBm - 符合3GPP TS 38.331",
-                "rsrq": "dB - 符合3GPP TS 36.214", 
-                "rs_sinr": "dB - 符合3GPP TS 36.214"
-            }
-        }
-        
-        return {
-            "satellite_id": satellite_id,
-            "constellation": constellation,
-            "signal_timeseries": signal_timeseries,
-            "signal_metrics": signal_metrics,
-            "system_parameters": system_params
-        }
-    
-    def _calculate_rsrp_at_position(self, position_point: Dict[str, Any], system_params: Dict[str, Any]) -> float:
-        """
-        基於Friis公式計算特定位置的RSRP
-        
-        Friis公式: Pr = Pt + Gt + Gr - PL
-        其中 PL = 20*log10(4*π*d/λ)
-        """
-        range_km = position_point.get("range_km", 0)
-        elevation_deg = position_point.get("elevation_deg", 0)
-        
-        if range_km <= 0 or elevation_deg < 5:  # 低於5度視為不可見
-            return -140.0  # 極低信號強度
-        
-        # Friis公式計算
-        range_m = range_km * 1000.0
-        frequency_hz = system_params["frequency_ghz"] * 1e9
-        wavelength_m = self.SPEED_OF_LIGHT / frequency_hz
-        
-        # 自由空間路徑損耗
-        path_loss_db = 20 * math.log10(4 * math.pi * range_m / wavelength_m)
-        
-        # RSRP計算: EIRP + 接收天線增益 - 路徑損耗
-        satellite_eirp_dbm = system_params["satellite_eirp_dbm"]
-        receiver_gain_dbi = system_params["antenna_gain_dbi"]
-        
-        rsrp_dbm = satellite_eirp_dbm + receiver_gain_dbi - path_loss_db
-        
-        # 考慮仰角影響 (低仰角有額外損耗)
-        if elevation_deg < 20:
-            elevation_loss = (20 - elevation_deg) * 0.2  # 每度0.2dB額外損耗
-            rsrp_dbm -= elevation_loss
-        
-        return rsrp_dbm
 
-    def _calculate_rsrq_at_position(self, position_point: Dict[str, Any], system_params: Dict[str, Any], rsrp_dbm: float) -> float:
-        """
-        基於3GPP TS 36.214計算RSRQ (Reference Signal Received Quality)
-        
-        RSRQ = N × RSRP / RSSI (dB)
-        其中：
-        - N: 測量頻寬內的資源塊數量
-        - RSRP: 參考信號接收功率 (線性值)
-        - RSSI: 接收信號強度指示器 (線性值)
-        
-        Args:
-            position_point: 位置資訊
-            system_params: 系統參數
-            rsrp_dbm: 已計算的RSRP值 (dBm)
+        # Load constellation-specific configuration
+        self.constellation = constellation.lower()
+        self._load_configuration()
+
+    def _load_configuration(self):
+        """Load constellation-specific configuration from config manager"""
+        try:
+            # Import configuration manager
+            import sys
+            sys.path.append('/satellite-processing/src')
+            from shared.satellite_config_manager import get_satellite_config_manager
+
+            config_manager = get_satellite_config_manager()
+
+            # Get constellation-specific system config
+            self.system_config = config_manager.get_system_config_for_calculator(self.constellation)
+
+            # Get constellation configuration
+            self.constellation_config = config_manager.get_constellation_config(self.constellation)
+
+            # Load quality standards for validation
+            self.quality_standards = config_manager.get_signal_quality_standards()
+
+            # Ensure frequency is numeric for calculations
+            frequency = self.system_config.get('frequency', 2.1e9)
+            if isinstance(frequency, str):
+                frequency = float(frequency)
             
-        Returns:
-            RSRQ值 (dB)
-        """
-        elevation_deg = position_point.get("elevation_deg", 0)
-        
-        if elevation_deg < 5:  # 低於5度視為不可見
-            return -30.0  # 極低RSRQ
-        
-        # 轉換RSRP為線性值 (mW)
-        rsrp_linear = 10**(rsrp_dbm / 10.0)
-        
-        # 估算RSSI (包含所有干擾和雜訊)
-        # RSSI = RSRP + 干擾功率 + 雜訊功率
-        
-        # 1. 雜訊功率計算
-        frequency_hz = system_params["frequency_ghz"] * 1e9
-        bandwidth_hz = 20e6  # 假設20MHz頻寬
-        noise_temp_k = system_params["system_noise_temp_k"]
-        
-        # 熱雜訊功率 = kTB (瓦特)
-        thermal_noise_w = self.BOLTZMANN_CONSTANT * noise_temp_k * bandwidth_hz
-        thermal_noise_dbm = 10 * math.log10(thermal_noise_w * 1000)  # 轉換為dBm
-        thermal_noise_linear = 10**(thermal_noise_dbm / 10.0)
-        
-        # 2. 星座間干擾估算 (簡化模型)
-        # 假設來自其他衛星的干擾比信號低15-25dB
-        interference_factor = 0.1 if elevation_deg > 30 else 0.2  # 高仰角干擾較少
-        interference_linear = rsrp_linear * interference_factor
-        
-        # 3. 計算總RSSI
-        rssi_linear = rsrp_linear + interference_linear + thermal_noise_linear
-        
-        # 4. 計算RSRQ
-        # N = 資源塊數量 (20MHz頻寬約100個RB)
-        n_resource_blocks = 100
-        
-        # RSRQ = N × RSRP / RSSI (線性值)
-        rsrq_linear = n_resource_blocks * rsrp_linear / rssi_linear
-        
-        # 轉換為dB
-        rsrq_db = 10 * math.log10(rsrq_linear)
-        
-        # 限制RSRQ範圍 (-30 to 3 dB，基於3GPP規範)
-        rsrq_db = max(-30.0, min(3.0, rsrq_db))
-        
-        return rsrq_db
-    
-    def _calculate_rs_sinr_at_position(self, position_point: Dict[str, Any], system_params: Dict[str, Any], rsrp_dbm: float) -> float:
-        """
-        基於3GPP TS 36.214計算RS-SINR (Reference Signal Signal-to-Interference-plus-Noise Ratio)
-        
-        RS-SINR = 信號功率 / (干擾功率 + 雜訊功率) (dB)
-        
-        Args:
-            position_point: 位置資訊
-            system_params: 系統參數  
-            rsrp_dbm: 已計算的RSRP值 (dBm)
+            self.logger.info(f"✅ 成功加載{self.constellation}配置")
+            self.logger.info(f"   EIRP: {self.system_config['satellite_eirp']} dBm")
+            self.logger.info(f"   頻率: {frequency/1e9:.1f} GHz")
+
+        except Exception as e:
+            self.logger.error(f"❌ 配置加載失敗，使用學術標準物理常數: {e}")
             
-        Returns:
-            RS-SINR值 (dB)
-        """
-        elevation_deg = position_point.get("elevation_deg", 0)
-        range_km = position_point.get("range_km", 0)
-        
-        if elevation_deg < 5:  # 低於5度視為不可見
-            return -20.0  # 極低RS-SINR
-        
-        # 轉換RSRP為線性值 (mW)
-        signal_power_linear = 10**(rsrp_dbm / 10.0)
-        
-        # 1. 雜訊功率計算
-        frequency_hz = system_params["frequency_ghz"] * 1e9
-        bandwidth_hz = 180e3  # 參考信號頻寬約180kHz (1個RB)
-        noise_temp_k = system_params["system_noise_temp_k"]
-        
-        # 熱雜訊功率
-        thermal_noise_w = self.BOLTZMANN_CONSTANT * noise_temp_k * bandwidth_hz
-        thermal_noise_dbm = 10 * math.log10(thermal_noise_w * 1000)
-        thermal_noise_linear = 10**(thermal_noise_dbm / 10.0)
-        
-        # 2. 干擾功率估算
-        # 考慮多種干擾源
-        
-        # 2a. 星座內干擾 (同星座其他衛星)
-        intra_constellation_interference = signal_power_linear * 0.05  # 信號的5%
-        
-        # 2b. 星座間干擾 (其他星座)
-        inter_constellation_interference = signal_power_linear * 0.03  # 信號的3%
-        
-        # 2c. 地面干擾 (考慮距離衰減)
-        terrestrial_interference_factor = max(0.001, 1.0 / (range_km / 1000))  # 距離越遠干擾越小
-        terrestrial_interference = signal_power_linear * terrestrial_interference_factor * 0.02
-        
-        # 2d. 大氣散射干擾 (低仰角時更顯著)
-        if elevation_deg < 20:
-            atmospheric_interference = signal_power_linear * (20 - elevation_deg) / 20 * 0.1
-        else:
-            atmospheric_interference = 0
-        
-        # 總干擾功率
-        total_interference_linear = (intra_constellation_interference + 
-                                   inter_constellation_interference + 
-                                   terrestrial_interference + 
-                                   atmospheric_interference)
-        
-        # 3. 計算RS-SINR
-        # SINR = 信號功率 / (干擾功率 + 雜訊功率)
-        sinr_linear = signal_power_linear / (total_interference_linear + thermal_noise_linear)
-        
-        # 轉換為dB
-        rs_sinr_db = 10 * math.log10(sinr_linear)
-        
-        # 限制RS-SINR範圍 (-20 to 40 dB，基於實際測量範圍)
-        rs_sinr_db = max(-20.0, min(40.0, rs_sinr_db))
-        
-        return rs_sinr_db
-    
-    def _calculate_atmospheric_attenuation_p618(self, elevation_deg: float, frequency_ghz: float) -> float:
-        """
-        基於ITU-R P.618計算大氣衰減
-        
-        Args:
-            elevation_deg: 仰角 (度)
-            frequency_ghz: 頻率 (GHz)
-            
-        Returns:
-            大氣衰減 (dB)
-        """
-        if elevation_deg <= 0:
-            return 100.0  # 地平線以下，極大衰減
-        
-        # ITU-R P.618 模型簡化版
-        # 氣體衰減 (主要是水蒸氣和氧氣)
-        
-        # 水蒸氣密度 (g/m³) - 使用典型值
-        water_vapor_density = 7.5  # 台灣地區典型值
-        
-        # 氧氣衰減係數 (dB/km)
-        oxygen_attenuation = 0.0067 * frequency_ghz**0.8
-        
-        # 水蒸氣衰減係數 (dB/km)
-        water_vapor_attenuation = 0.05 * water_vapor_density * (frequency_ghz / 10)**1.6
-        
-        # 總衰減係數
-        total_attenuation_per_km = oxygen_attenuation + water_vapor_attenuation
-        
-        # 有效大氣厚度 (考慮仰角)
-        if elevation_deg >= 90:
-            atmospheric_path_km = 8.0  # 垂直大氣厚度約8km
-        else:
-            # 使用簡化的secant近似
-            elevation_rad = math.radians(elevation_deg)
-            atmospheric_path_km = 8.0 / math.sin(elevation_rad)
-            
-            # 限制最大路徑長度
-            atmospheric_path_km = min(atmospheric_path_km, 40.0)
-        
-        total_atmospheric_loss = total_attenuation_per_km * atmospheric_path_km
-        
-        # 考慮散射損耗 (高頻時更顯著)
-        scattering_loss = 0.001 * frequency_ghz**1.2 * atmospheric_path_km
-        
-        return total_atmospheric_loss + scattering_loss
-    
-    def _grade_signal_quality(self, rsrp_dbm: float) -> str:
-        """
-        基於RSRP值評估信號品質等級
-        
-        Args:
-            rsrp_dbm: RSRP值 (dBm)
-            
-        Returns:
-            信號品質等級字符串
-        """
-        if rsrp_dbm >= -80:
-            return "Excellent"
-        elif rsrp_dbm >= -90:
-            return "Good"
-        elif rsrp_dbm >= -100:
-            return "Fair"
-        elif rsrp_dbm >= -110:
-            return "Poor"
-        else:
-            return "Very_Poor"
-    
-    def _calculate_std_deviation(self, values: List[float]) -> float:
-        """計算標準差"""
-        if len(values) < 2:
-            return 0.0
-        
-        mean = sum(values) / len(values)
-        variance = sum((x - mean) ** 2 for x in values) / (len(values) - 1)
-        return math.sqrt(variance)
-    
-    def _calculate_stability_score(self, rsrp_values: List[float]) -> float:
-        """
-        計算信號穩定性分數 (0-100)
-        基於RSRP變異程度
-        """
-        if len(rsrp_values) < 2:
-            return 100.0
-        
-        std_dev = self._calculate_std_deviation(rsrp_values)
-        
-        # 標準差越小，穩定性越高
-        if std_dev <= 2.0:
-            return 100.0
-        elif std_dev <= 5.0:
-            return 100.0 - (std_dev - 2.0) * 10
-        elif std_dev <= 10.0:
-            return 70.0 - (std_dev - 5.0) * 6
-        else:
-            return max(0.0, 40.0 - (std_dev - 10.0) * 2)
-    
-    def calculate_constellation_performance_comparison(self, signal_results: Dict[str, Any]) -> Dict[str, Any]:
-        """計算星座間性能比較"""
-        constellation_performance = {}
-        
-        for satellite_result in signal_results.get("satellites", []):
-            constellation = satellite_result.get("constellation")
-            signal_metrics = satellite_result.get("signal_metrics", {})
-            
-            if constellation not in constellation_performance:
-                constellation_performance[constellation] = {
-                    "satellite_count": 0,
-                    "total_avg_rsrp": 0.0,
-                    "total_stability": 0.0,
-                    "max_rsrp": float('-inf'),
-                    "min_rsrp": float('inf')
+            # 使用物理常數系統作為fallback
+            try:
+                # 嘗試載入物理常數系統
+                import os
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                if current_dir not in sys.path:
+                    sys.path.append(current_dir)
+                
+                from stage3_physics_constants import get_physics_constants
+                physics_constants = get_physics_constants()
+                
+                # 獲取星座特定參數
+                constellation_params = physics_constants.get_antenna_parameters(self.constellation)
+                
+                # 根據星座設定EIRP (基於FCC/ITU文件)
+                if self.constellation.lower() == "starlink":
+                    satellite_eirp = 37.5  # FCC文件
+                elif self.constellation.lower() == "oneweb":
+                    satellite_eirp = 40.0  # ITU文件  
+                elif self.constellation.lower() == "kuiper":
+                    satellite_eirp = 38.5  # Amazon FCC文件
+                else:
+                    satellite_eirp = 38.0  # 通用值
+                
+                # 基於學術標準的fallback配置
+                self.system_config = {
+                    'frequency': 2.6e9,  # 3GPP n257頻段
+                    'bandwidth': 20e6,
+                    'noise_figure': constellation_params.get("typical_noise_figure", {}).get("nominal_db", 7.0),
+                    'temperature': physics_constants.get_all_constants()["thermal_noise"]["reference_temperature_k"],
+                    'antenna_gain': constellation_params.get("typical_gain_db", 20.0),
+                    'cable_loss': 2.0,  # 典型饋線損耗
+                    'satellite_eirp': satellite_eirp,  # 基於官方文件的EIRP
+                    'satellite_antenna_gain': constellation_params.get("gain_range_db", {}).get("max", 30.0)
+                }
+                
+                self.logger.info(f"✅ 使用學術標準物理常數: {self.constellation}")
+                self.logger.info(f"   EIRP: {satellite_eirp} dBm (官方文件)")
+                
+            except Exception as physics_error:
+                self.logger.error(f"❌ 物理常數系統也失敗，使用最終fallback: {physics_error}")
+                
+                # 最終的保守fallback
+                self.system_config = {
+                    'frequency': 2.6e9,
+                    'bandwidth': 20e6,
+                    'noise_figure': 7,
+                    'temperature': 290,
+                    'antenna_gain': 20.0,  # 保守值
+                    'cable_loss': 2.0,
+                    'satellite_eirp': 38.0,  # 保守通用值
+                    'satellite_antenna_gain': 30.0
                 }
             
-            perf = constellation_performance[constellation]
-            perf["satellite_count"] += 1
-            perf["total_avg_rsrp"] += signal_metrics.get("average_rsrp_dbm", 0)
-            perf["total_stability"] += signal_metrics.get("signal_stability_score", 0)
-            perf["max_rsrp"] = max(perf["max_rsrp"], signal_metrics.get("max_rsrp_dbm", 0))
-            perf["min_rsrp"] = min(perf["min_rsrp"], signal_metrics.get("min_rsrp_dbm", 0))
-        
-        # 計算平均值
-        for constellation, perf in constellation_performance.items():
-            if perf["satellite_count"] > 0:
-                perf["average_rsrp_dbm"] = perf["total_avg_rsrp"] / perf["satellite_count"]
-                perf["average_stability_score"] = perf["total_stability"] / perf["satellite_count"]
-                
-                # 清理臨時字段
-                del perf["total_avg_rsrp"]
-                del perf["total_stability"]
-        
-        return constellation_performance
-    
-    def get_calculation_statistics(self) -> Dict[str, Any]:
-        """獲取計算統計信息"""
-        return self.calculation_statistics.copy()
+            # 設定品質標準 (基於3GPP和ITU-R標準)
+            self.quality_standards = {
+                'rsrp_thresholds': {
+                    'excellent': -70, 'good': -80, 'fair': -90, 
+                    'poor': -100, 'very_poor': -110
+                },
+                'rsrq_thresholds': {
+                    'excellent': -8, 'good': -12, 'fair': -15, 
+                    'poor': -18, 'very_poor': -22
+                },
+                'sinr_thresholds': {
+                    'excellent': 20, 'good': 15, 'fair': 10, 
+                    'poor': 5, 'very_poor': 0
+                },
+                'assessment_weights': {
+                    'rsrp_weight': 0.4, 'rsrq_weight': 0.3, 'sinr_weight': 0.3
+                },
+                'quality_grades': {
+                    'excellent_threshold': 85, 'good_threshold': 70, 
+                    'fair_threshold': 50, 'poor_threshold': 30
+                }
+            }
 
-    def calculate_signal_quality(self, satellite: Dict[str, Any]) -> Dict[str, Any]:
+    def _get_constellation_eirp(self, constellation: str) -> float:
         """
-        計算單顆衛星的信號品質 (Stage3處理器介面)
-        
-        這是Stage3處理器所需的統一介面方法
+        獲取星座特定的EIRP值 (基於官方文件)
         
         Args:
-            satellite: 單顆衛星數據，包含position_timeseries
+            constellation: 星座名稱
             
         Returns:
-            Dict[str, Any]: 信號品質分析結果
+            EIRP值 (dBm)
+        """
+        constellation_lower = constellation.lower()
+        
+        # 基於FCC/ITU官方文件的EIRP值
+        constellation_eirp = {
+            'starlink': 37.5,    # SpaceX FCC Filing
+            'oneweb': 40.0,      # OneWeb ITU Filing  
+            'kuiper': 38.5,      # Amazon FCC Filing
+            'galileo': 39.0,     # ESA公開規格
+            'beidou': 38.0,      # CNSA公開規格
+            'iridium': 35.0      # Iridium公開規格
+        }
+        
+        # 返回星座特定EIRP或通用默認值
+        return constellation_eirp.get(constellation_lower, 38.0)  # 38.0為通用保守值
+    
+    def calculate_signal_quality(self, satellite_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Calculate comprehensive signal quality metrics.
+        
+        Args:
+            satellite_data: Satellite position and system data
+            
+        Returns:
+            Dict containing signal quality metrics
         """
         try:
-            # 轉換輸入格式以匹配現有方法
-            satellite_data = {
-                "satellite_id": satellite.get("name", "unknown"),
-                "constellation": satellite.get("constellation", "unknown"),
-                "timeseries_positions": self._convert_position_timeseries(satellite)
-            }
+            # Extract satellite parameters
+            distance = satellite_data.get('distance_km', 0) * 1000  # Convert to meters
+            satellite_id = satellite_data.get('satellite_id', 'unknown')
             
-            # 使用現有的單衛星計算方法
-            signal_result = self._calculate_single_satellite_signal(satellite_data)
+            # Calculate path loss
+            path_loss_db = self._calculate_free_space_path_loss(distance)
             
-            # 轉換輸出格式以符合Stage3文檔規範
+            # Calculate received signal power (RSRP)
+            rsrp_dbm = self._calculate_rsrp(path_loss_db)
+            
+            # Calculate RSRQ
+            rsrq_db = self._calculate_rsrq(rsrp_dbm)
+            
+            # Calculate SINR
+            sinr_db = self._calculate_sinr(rsrp_dbm)
+            
+            # Calculate additional metrics
+            snr_db = self._calculate_snr(rsrp_dbm)
+            cin_db = self._calculate_cin(rsrp_dbm)
+            
+            # Assess signal quality
+            quality_assessment = self._assess_signal_quality(rsrp_dbm, rsrq_db, sinr_db)
+            
             return {
-                "rsrp_by_elevation": self._generate_rsrp_by_elevation_map(signal_result),
-                "statistics": {
-                    "mean_rsrp_dbm": signal_result["signal_metrics"]["average_rsrp_dbm"],
-                    "std_deviation_db": signal_result["signal_metrics"]["rsrp_std_deviation"],
-                    "max_rsrp_dbm": signal_result["signal_metrics"]["max_rsrp_dbm"],
-                    "min_rsrp_dbm": signal_result["signal_metrics"]["min_rsrp_dbm"],
-                    "mean_rsrq_db": signal_result["signal_metrics"]["average_rsrq_db"],
-                    "mean_rs_sinr_db": signal_result["signal_metrics"]["average_rs_sinr_db"],
-                    "calculation_standard": "ITU-R_P.618_3GPP_compliant",
-                    "3gpp_compliant": signal_result["signal_metrics"]["3gpp_compliant"]
-                },
-                "observer_location": {
-                    "latitude": self.observer_lat,
-                    "longitude": self.observer_lon
-                },
-                "signal_timeseries": signal_result["signal_timeseries"],
-                "system_parameters": signal_result["system_parameters"]
+                'satellite_id': satellite_id,
+                'distance_km': distance / 1000,
+                'path_loss_db': round(path_loss_db, 2),
+                'rsrp_dbm': round(rsrp_dbm, 2),
+                'rsrq_db': round(rsrq_db, 2),
+                'sinr_db': round(sinr_db, 2),
+                'snr_db': round(snr_db, 2),
+                'cin_db': round(cin_db, 2),
+                'quality_grade': quality_assessment['grade'],
+                'quality_score': quality_assessment['score'],
+                'link_budget': self._calculate_link_budget(path_loss_db, rsrp_dbm),
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
             
         except Exception as e:
-            self.logger.error(f"衛星 {satellite.get('name')} 信號品質計算失敗: {e}")
-            raise
-    
-    def _convert_position_timeseries(self, satellite: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """轉換position_timeseries格式"""
-        position_timeseries = satellite.get("position_timeseries", [])
-        converted_positions = []
-        
-        for i, position in enumerate(position_timeseries):
-            relative_observer = position.get("relative_to_observer", {})
-            converted_position = {
-                "timestamp": position.get("utc_time", f"time_{i}"),
-                "elevation_deg": relative_observer.get("elevation_deg", 0),
-                "azimuth_deg": relative_observer.get("azimuth_deg", 0),
-                "range_km": relative_observer.get("distance_km", 0),
-                "is_visible": relative_observer.get("elevation_deg", 0) >= 5.0
+            self.logger.error(f"信號品質計算失敗 ({satellite_id}): {e}")
+            return {
+                'satellite_id': satellite_data.get('satellite_id', 'unknown'),
+                'error': str(e),
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
-            converted_positions.append(converted_position)
-        
-        return converted_positions
     
-    def _generate_rsrp_by_elevation_map(self, signal_result: Dict[str, Any]) -> Dict[str, float]:
-        """生成仰角-RSRP對照表 (符合文檔格式)"""
-        rsrp_by_elevation = {}
-        
-        signal_timeseries = signal_result.get("signal_timeseries", [])
-        
-        # 將仰角分組並取平均RSRP
-        elevation_groups = {}
-        for point in signal_timeseries:
-            elevation = point.get("elevation_deg", 0)
-            rsrp = point.get("rsrp_dbm", -140)
+    def _calculate_free_space_path_loss(self, distance_m: float) -> float:
+        """Calculate free space path loss using Friis equation."""
+        if distance_m <= 0:
+            return float('inf')
             
-            if elevation >= 5.0:  # 只考慮可見範圍
-                # 將仰角分組到5度區間
-                elevation_bin = int(elevation / 5) * 5
-                
-                if elevation_bin not in elevation_groups:
-                    elevation_groups[elevation_bin] = []
-                elevation_groups[elevation_bin].append(rsrp)
+        # Ensure frequency is numeric
+        frequency_hz = self.system_config.get('frequency', 2.1e9)
+        if isinstance(frequency_hz, str):
+            frequency_hz = float(frequency_hz)
         
-        # 計算每個仰角區間的平均RSRP
-        for elevation_bin, rsrp_values in elevation_groups.items():
-            if rsrp_values:
-                avg_rsrp = sum(rsrp_values) / len(rsrp_values)
-                rsrp_by_elevation[f"{float(elevation_bin)}"] = round(avg_rsrp, 1)
+        # Friis equation: FSPL = 20*log10(d) + 20*log10(f) + 20*log10(4π/c) - Gt - Gr
+        path_loss_db = (
+            20 * math.log10(float(distance_m)) + 
+            20 * math.log10(float(frequency_hz)) + 
+            20 * math.log10(4 * math.pi / self.SPEED_OF_LIGHT)
+        )
         
-        # 確保至少有一些標準仰角點
-        if not rsrp_by_elevation:
-            rsrp_by_elevation = {
-                "5.0": -120.0,
-                "15.0": -110.0,
-                "30.0": -100.0
-            }
+        return path_loss_db
+    
+    def _calculate_rsrp(self, path_loss_db: float, constellation: str = None) -> float:
+        """
+        Calculate Reference Signal Received Power using constellation-specific EIRP.
+
+        Args:
+            path_loss_db: Free space path loss in dB
+            constellation: Satellite constellation name (optional override)
+
+        Returns:
+            float: RSRP in dBm
+        """
+        # Use constellation-specific EIRP from configuration - ensure it's numeric
+        # 修復硬編碼：使用基於星座的動態EIRP值
+        default_eirp = self._get_constellation_eirp(self.constellation)
+        satellite_eirp_dbm = self.system_config.get('satellite_eirp', default_eirp)
+        if isinstance(satellite_eirp_dbm, str):
+            satellite_eirp_dbm = float(satellite_eirp_dbm)
+
+        # Override for specific satellite if provided
+        if constellation and constellation.lower() != self.constellation:
+            try:
+                from shared.satellite_config_manager import get_constellation_eirp
+                satellite_eirp_dbm = get_constellation_eirp(constellation)
+                if isinstance(satellite_eirp_dbm, str):
+                    satellite_eirp_dbm = float(satellite_eirp_dbm)
+            except Exception as e:
+                self.logger.warning(f"無法獲取{constellation}的EIRP，使用默認值: {e}")
+
+        # Ensure all parameters are numeric
+        cable_loss = self.system_config.get('cable_loss', 2.0)
+        antenna_gain = self.system_config.get('antenna_gain', 2.15)
         
-        return rsrp_by_elevation
+        if isinstance(cable_loss, str):
+            cable_loss = float(cable_loss)
+        if isinstance(antenna_gain, str):
+            antenna_gain = float(antenna_gain)
+
+        # RSRP = EIRP - Path Loss - Cable Loss + Antenna Gain
+        rsrp_dbm = (
+            float(satellite_eirp_dbm) -
+            float(path_loss_db) -
+            float(cable_loss) +
+            float(antenna_gain)
+        )
+
+        return rsrp_dbm
+    
+    def _calculate_rsrq(self, rsrp_dbm: float) -> float:
+        """
+        Calculate Reference Signal Received Quality using 3GPP-compliant method.
+
+        RSRQ = N × RSRP / RSSI
+        where N is the number of resource blocks and RSSI includes interference.
+        """
+        try:
+            # 3GPP TS 36.214: RSRQ calculation parameters
+            N = 50  # Number of resource blocks (20 MHz = 100 RBs, measurement over 50% = 50 RBs)
+
+            # Calculate thermal noise floor - ensure all values are numeric
+            bandwidth_hz = self.system_config.get('bandwidth', 20e6)
+            temperature_k = self.system_config.get('temperature', 290)
+            noise_figure_db = self.system_config.get('noise_figure', 7)
+            
+            # Convert strings to float if necessary
+            if isinstance(bandwidth_hz, str):
+                bandwidth_hz = float(bandwidth_hz)
+            if isinstance(temperature_k, str):
+                temperature_k = float(temperature_k)
+            if isinstance(noise_figure_db, str):
+                noise_figure_db = float(noise_figure_db)
+
+            thermal_noise_w = self.BOLTZMANN_CONSTANT * float(temperature_k) * float(bandwidth_hz)
+            thermal_noise_dbm = 10 * math.log10(thermal_noise_w * 1000) + float(noise_figure_db)
+
+            # Estimate interference level (typical urban NTN scenario)
+            # Based on ITU-R M.2292 NTN interference models
+            interference_dbm = thermal_noise_dbm + 3.0  # 3dB above thermal noise
+
+            # Convert to linear scale for RSSI calculation
+            rsrp_w = 10 ** ((float(rsrp_dbm) - 30) / 10)
+            noise_w = 10 ** ((thermal_noise_dbm - 30) / 10)
+            interference_w = 10 ** ((interference_dbm - 30) / 10)
+
+            # RSSI = Signal + Noise + Interference (linear)
+            rssi_w = rsrp_w + noise_w + interference_w
+
+            # RSRQ = N × RSRP / RSSI (linear)
+            rsrq_linear = N * rsrp_w / rssi_w
+            rsrq_db = 10 * math.log10(rsrq_linear)
+
+            # Apply 3GPP range constraints: -19.5 to -3 dB
+            rsrq_standards = self.quality_standards.get('rsrq_thresholds', {})
+            min_rsrq = rsrq_standards.get('very_poor', -25)
+            max_rsrq = -3.0  # 3GPP upper limit
+
+            # Ensure min_rsrq is numeric
+            if isinstance(min_rsrq, str):
+                min_rsrq = float(min_rsrq)
+
+            rsrq_db = max(float(min_rsrq), min(max_rsrq, rsrq_db))
+
+            return rsrq_db
+
+        except Exception as e:
+            self.logger.error(f"RSRQ計算異常: {e}")
+            # Fallback to simplified calculation
+            return max(-19.5, min(-3.0, -10.0))  # Conservative estimate  # Conservative estimate
+    
+    def _calculate_sinr(self, rsrp_dbm: float) -> float:
+        """Calculate Signal-to-Interference-plus-Noise Ratio using ITU-R M.2292 NTN model."""
+        # Calculate thermal noise - ensure all values are numeric
+        bandwidth_hz = self.system_config.get('bandwidth', 20e6)
+        noise_figure_db = self.system_config.get('noise_figure', 7)
+        temperature_k = self.system_config.get('temperature', 290)
+        
+        # Convert strings to float if necessary
+        if isinstance(bandwidth_hz, str):
+            bandwidth_hz = float(bandwidth_hz)
+        if isinstance(noise_figure_db, str):
+            noise_figure_db = float(noise_figure_db)
+        if isinstance(temperature_k, str):
+            temperature_k = float(temperature_k)
+        
+        # Thermal noise power: N = k*T*B + NF
+        thermal_noise_w = self.BOLTZMANN_CONSTANT * float(temperature_k) * float(bandwidth_hz)
+        thermal_noise_dbm = 10 * math.log10(thermal_noise_w * 1000) + float(noise_figure_db)
+        
+        # Convert RSRP to linear scale
+        rsrp_w = 10 ** ((float(rsrp_dbm) - 30) / 10)  # Convert dBm to W
+        noise_w = 10 ** ((thermal_noise_dbm - 30) / 10)
+
+        # ITU-R M.2292 NTN interference model
+        # For NTN systems, interference includes co-channel and adjacent channel interference
+        try:
+            # Load interference model from configuration
+            physical_constraints = {}
+            try:
+                from shared.satellite_config_manager import get_satellite_config_manager
+                config_manager = get_satellite_config_manager()
+                physical_constraints = config_manager.get_physical_constraints()
+            except:
+                pass
+
+            # ITU-R M.2292: NTN interference characteristics
+            # Interference in NTN is lower than terrestrial but still significant due to:
+            # 1. Co-channel interference from adjacent satellites
+            # 2. Adjacent channel interference
+            # 3. Atmospheric scintillation effects
+            # 
+            # For satellite systems, typical I/N ratio is 1-6 dB in good conditions
+            # to maintain SINR in ITU-R recommended range of -10 to 30 dB
+            
+            ntn_config = physical_constraints.get('ntn_interference', {})
+            interference_to_noise_ratio_db = ntn_config.get('interference_to_noise_db', 3.0)  # 3dB I/N ratio
+            
+            # Ensure it's numeric
+            if isinstance(interference_to_noise_ratio_db, str):
+                interference_to_noise_ratio_db = float(interference_to_noise_ratio_db)
+            
+            # Convert I/N ratio to linear scale
+            interference_w = noise_w * (10 ** (float(interference_to_noise_ratio_db) / 10))
+
+        except Exception:
+            # Conservative fallback: use 3dB I/N ratio (ITU-R recommended for NTN)
+            interference_to_noise_ratio_db = 3.0  # dB
+            interference_w = noise_w * (10 ** (interference_to_noise_ratio_db / 10))
+
+        total_noise_interference_w = noise_w + interference_w
+
+        # SINR = Signal / (Noise + Interference)
+        sinr_linear = rsrp_w / total_noise_interference_w
+        sinr_db = 10 * math.log10(sinr_linear)
+        
+        # Apply ITU-R M.2292 SINR range validation (-10 to 30 dB)
+        # Values outside this range indicate system configuration issues
+        sinr_db = max(-10.0, min(30.0, sinr_db))
+
+        return sinr_db
+    
+    def _calculate_snr(self, rsrp_dbm: float) -> float:
+        """Calculate Signal-to-Noise Ratio."""
+        bandwidth_hz = self.system_config['bandwidth']
+        noise_figure_db = self.system_config['noise_figure']
+        temperature_k = self.system_config['temperature']
+        
+        # Thermal noise power
+        thermal_noise_w = self.BOLTZMANN_CONSTANT * temperature_k * bandwidth_hz
+        thermal_noise_dbm = 10 * math.log10(thermal_noise_w * 1000) + noise_figure_db
+        
+        # SNR = RSRP - Noise
+        snr_db = rsrp_dbm - thermal_noise_dbm
+        
+        return snr_db
+    
+    def _calculate_cin(self, rsrp_dbm: float) -> float:
+        """Calculate Carrier-to-Interference Ratio."""
+        # Simplified C/I calculation
+        # Typical interference level estimation
+        interference_dbm = rsrp_dbm - 15  # 15 dB below signal level
+        
+        cin_db = rsrp_dbm - interference_dbm
+        
+        return cin_db
+    
+    def _assess_signal_quality(self, rsrp_dbm: float, rsrq_db: float, sinr_db: float) -> Dict[str, Any]:
+        """Assess overall signal quality using configuration-driven weights and thresholds."""
+        
+        # Quality scoring based on 3GPP standards
+        rsrp_score = self._score_rsrp(rsrp_dbm)
+        rsrq_score = self._score_rsrq(rsrq_db)
+        sinr_score = self._score_sinr(sinr_db)
+        
+        # Get weights from configuration
+        weights = self.quality_standards.get('assessment_weights', {
+            'rsrp_weight': 0.4,
+            'rsrq_weight': 0.3,
+            'sinr_weight': 0.3
+        })
+        
+        # Overall score (weighted average)
+        overall_score = (
+            rsrp_score * weights['rsrp_weight'] + 
+            rsrq_score * weights['rsrq_weight'] + 
+            sinr_score * weights['sinr_weight']
+        )
+        
+        # Get grade thresholds from configuration
+        grade_thresholds = self.quality_standards.get('quality_grades', {
+            'excellent_threshold': 85,
+            'good_threshold': 70,
+            'fair_threshold': 50,
+            'poor_threshold': 30
+        })
+        
+        # Grade assignment using configuration-driven thresholds
+        if overall_score >= grade_thresholds['excellent_threshold']:
+            grade = "EXCELLENT"
+        elif overall_score >= grade_thresholds['good_threshold']:
+            grade = "GOOD"
+        elif overall_score >= grade_thresholds['fair_threshold']:
+            grade = "FAIR"
+        elif overall_score >= grade_thresholds['poor_threshold']:
+            grade = "POOR"
+        else:
+            grade = "UNUSABLE"
+        
+        return {
+            'grade': grade,
+            'score': round(overall_score, 1),
+            'rsrp_score': rsrp_score,
+            'rsrq_score': rsrq_score,
+            'sinr_score': sinr_score
+        }
+    
+    def _score_rsrp(self, rsrp_dbm: float) -> float:
+        """Score RSRP based on 3GPP standards from configuration."""
+        thresholds = self.quality_standards.get('rsrp_thresholds', {
+            'excellent': -70,   # Default 3GPP excellent level
+            'good': -80,        # Default good level 
+            'fair': -90,        # Default fair level
+            'poor': -100,       # Default poor level
+            'very_poor': -110   # Default very poor level
+        })
+        
+        if rsrp_dbm >= thresholds['excellent']:
+            return 100
+        elif rsrp_dbm >= thresholds['good']:
+            return 90
+        elif rsrp_dbm >= thresholds['fair']:
+            return 70
+        elif rsrp_dbm >= thresholds['poor']:
+            return 50
+        elif rsrp_dbm >= thresholds['very_poor']:
+            return 30
+        else:
+            return 10
+    
+    def _score_rsrq(self, rsrq_db: float) -> float:
+        """Score RSRQ based on 3GPP standards from configuration."""
+        thresholds = self.quality_standards.get('rsrq_thresholds', {
+            'excellent': -8,    # Default 3GPP excellent level
+            'good': -12,        # Default good level
+            'fair': -15,        # Default fair level
+            'poor': -18,        # Default poor level
+            'very_poor': -22    # Default very poor level
+        })
+        
+        if rsrq_db >= thresholds['excellent']:
+            return 100
+        elif rsrq_db >= thresholds['good']:
+            return 80
+        elif rsrq_db >= thresholds['fair']:
+            return 60
+        elif rsrq_db >= thresholds['poor']:
+            return 40
+        else:
+            return 20
+    
+    def _score_sinr(self, sinr_db: float) -> float:
+        """Score SINR based on performance thresholds from configuration."""
+        thresholds = self.quality_standards.get('sinr_thresholds', {
+            'excellent': 20,    # Default high performance level
+            'good': 15,         # Default good level
+            'fair': 10,         # Default fair level  
+            'poor': 5,          # Default poor level
+            'very_poor': 0      # Default very poor level
+        })
+        
+        if sinr_db >= thresholds['excellent']:
+            return 100
+        elif sinr_db >= thresholds['good']:
+            return 80
+        elif sinr_db >= thresholds['fair']:
+            return 60
+        elif sinr_db >= thresholds['poor']:
+            return 40
+        elif sinr_db >= thresholds['very_poor']:
+            return 20
+        else:
+            return 10
+    
+    def _calculate_link_budget(self, path_loss_db: float, rsrp_dbm: float) -> Dict[str, float]:
+        """Calculate detailed link budget using configuration-driven parameters."""
+        satellite_eirp_dbm = self.system_config['satellite_eirp']
+        antenna_gain_db = self.system_config['antenna_gain']
+        cable_loss_db = self.system_config['cable_loss']
+        
+        # Get link margin reference from configuration
+        reference_threshold = self.quality_standards.get('rsrp_thresholds', {}).get('very_poor', -110)
+        
+        return {
+            'satellite_eirp_dbm': satellite_eirp_dbm,
+            'path_loss_db': path_loss_db,
+            'antenna_gain_db': antenna_gain_db,
+            'cable_loss_db': cable_loss_db,
+            'received_power_dbm': rsrp_dbm,
+            'link_margin_db': rsrp_dbm - reference_threshold  # Margin above threshold
+        }

@@ -122,7 +122,8 @@ def validate_stage_immediately(stage_processor, processing_results, stage_num, s
 def check_validation_snapshot_quality(stage_num):
     """檢查驗證快照品質"""
     try:
-        snapshot_file = f'data/validation_snapshots/stage{stage_num}_validation.json'
+        # 修復路徑問題：使用絕對路徑
+        snapshot_file = f'/satellite-processing/data/validation_snapshots/stage{stage_num}_validation.json'
         
         if not os.path.exists(snapshot_file):
             return False, f"驗證快照文件不存在: {snapshot_file}"
@@ -137,6 +138,16 @@ def check_validation_snapshot_quality(stage_num):
                 return True, f"學術標準評級: {grade}"
             else:
                 return False, f"學術標準評級不符合要求: {grade}"
+        
+        # 如果沒有academic_standards_check，檢查validation部分
+        if 'validation' in snapshot_data:
+            validation = snapshot_data['validation']
+            # 修復：使用正確的欄位名 validation_passed 而不是 passed
+            if validation.get('validation_passed', False):
+                grade = validation.get('validation_level_info', {}).get('academic_grade', 'B')
+                return True, f"驗證通過，學術等級: {grade}"
+            else:
+                return False, f"驗證未通過: {validation}"
         
         return True, "基本品質檢查通過"
         
@@ -276,10 +287,7 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             print('-' * 60)
             
             from stages.stage5_data_integration.stage5_processor import Stage5Processor
-            stage5 = Stage5Processor(
-                signal_analysis_dir='data/signal_analysis_outputs',
-                output_dir='data/data_integration_outputs'
-            )
+            stage5 = Stage5Processor()
             
             results['stage5'] = stage5.execute()
             
@@ -305,10 +313,7 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             print('-' * 60)
             
             from stages.stage6_dynamic_planning.stage6_processor import Stage6Processor
-            stage6 = Stage6Processor(
-                data_integration_dir='data/data_integration_outputs',
-                output_dir='data/dynamic_pool_planning_outputs'
-            )
+            stage6 = Stage6Processor()
             
             results['stage6'] = stage6.execute()
             
@@ -336,7 +341,7 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
         return False, target_stage, f"階段{target_stage}執行異常: {e}"
 
 def run_all_stages_sequential(validation_level='STANDARD'):
-    """順序執行所有六個階段 - 使用新模組化架構"""
+    """順序執行所有六個階段 - 修復TDD整合和清理時機"""
     results = {}
     completed_stages = 0
     
@@ -363,7 +368,7 @@ def run_all_stages_sequential(validation_level='STANDARD'):
             config={'sample_mode': False, 'sample_size': 500}
         )
         
-        results['stage1'] = stage1.process(input_data=None)
+        results['stage1'] = stage1.execute(input_data=None)
         
         if not results['stage1']:
             print('❌ 階段一處理失敗')
@@ -389,6 +394,15 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         completed_stages = 1
         print(f'✅ 階段一完成並驗證通過')
         
+        # 🔧 修復：階段前清理 - 階段二
+        try:
+            from shared.cleanup_manager import UnifiedCleanupManager
+            cleanup_manager = UnifiedCleanupManager()
+            stage2_cleaned = cleanup_manager.cleanup_single_stage(2)
+            print(f'🧹 階段二預清理: {stage2_cleaned["files"]} 檔案, {stage2_cleaned["directories"]} 目錄')
+        except Exception as e:
+            print(f'⚠️ 階段二清理警告: {e}')
+        
         # 階段二：智能衛星篩選 - 使用新模組化架構
         print('\n🎯 階段二：智能衛星篩選 (新模組化架構)')
         print('-' * 60)
@@ -399,7 +413,7 @@ def run_all_stages_sequential(validation_level='STANDARD'):
             output_dir='data/outputs/stage2'  # 修正：使用統一的階段輸出路徑
         )
         
-        results['stage2'] = stage2.process()
+        results['stage2'] = stage2.execute()
         
         if not results['stage2']:
             print('❌ 階段二處理失敗')
@@ -418,12 +432,27 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         completed_stages = 2
         print(f'✅ 階段二完成並驗證通過')
         
-        # 階段三：信號分析 - 使用新模組化架構 (moved from old stage 4)
+        # 🧹 記憶體管理：清理階段間數據
+        print('🧹 記憶體管理：清理階段間數據...')
+        import gc
+        del results['stage1']  # 釋放階段一結果
+        gc.collect()  # 強制垃圾回收
+        print('✅ 階段一數據已清理')
+        
+        # 🔧 修復：階段前清理 - 階段三
+        try:
+            stage3_cleaned = cleanup_manager.cleanup_single_stage(3)
+            print(f'🧹 階段三預清理: {stage3_cleaned["files"]} 檔案, {stage3_cleaned["directories"]} 目錄')
+        except Exception as e:
+            print(f'⚠️ 階段三清理警告: {e}')
+        
+        # 階段三：信號分析 - 使用新模組化架構 + 記憶體傳遞
         print('\n📶 階段三：信號分析 (新模組化架構)')
         print('-' * 60)
         
         from stages.stage3_signal_analysis.stage3_signal_analysis_processor import Stage3SignalAnalysisProcessor
-        stage3 = Stage3SignalAnalysisProcessor()
+        # 🔧 修復：使用記憶體傳遞模式，避免重複讀取檔案
+        stage3 = Stage3SignalAnalysisProcessor(input_data=results['stage2'])
         
         results['stage3'] = stage3.execute()
         
@@ -444,15 +473,28 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         completed_stages = 3
         print(f'✅ 階段三完成並驗證通過')
         
-        # 階段四：時間序列預處理 - 使用新實現的標準架構
-        print('\n⏱️ 階段四：時間序列預處理 (完整學術級實現)')
+        # 🧹 記憶體管理：清理階段二數據
+        print('🧹 記憶體管理：清理階段二數據...')
+        del results['stage2']  # 釋放階段二結果
+        gc.collect()  # 強制垃圾回收
+        print('✅ 階段二數據已清理')
+        
+        # 🔧 修復：階段前清理 - 階段四
+        try:
+            stage4_cleaned = cleanup_manager.cleanup_single_stage(4)
+            print(f'🧹 階段四預清理: {stage4_cleaned["files"]} 檔案, {stage4_cleaned["directories"]} 目錄')
+        except Exception as e:
+            print(f'⚠️ 階段四清理警告: {e}')
+        
+        # 階段四：時間序列預處理 - 🔧 修復TDD整合
+        print('\n⏱️ 階段四：時間序列預處理 (完整學術級實現 + TDD整合)')
         print('-' * 60)
         
         from stages.stage4_timeseries_preprocessing.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
         stage4 = TimeseriesPreprocessingProcessor()
         
-        # 從階段三載入信號分析結果
-        results['stage4'] = stage4.process_timeseries_preprocessing()
+        # 🔧 修復：使用完整的 execute() 方法，包含 TDD 整合
+        results['stage4'] = stage4.execute()
         
         if not results['stage4']:
             print('❌ 階段四處理失敗')
@@ -469,19 +511,29 @@ def run_all_stages_sequential(validation_level='STANDARD'):
             return False, 4, validation_msg
         
         completed_stages = 4
-        print(f'✅ 階段四完成並驗證通過')
+        print(f'✅ 階段四完成並驗證通過 (含TDD整合)')
+        
+        # 🧹 記憶體管理：清理階段三數據
+        print('🧹 記憶體管理：清理階段三數據...')
+        del results['stage3']  # 釋放階段三結果
+        gc.collect()  # 強制垃圾回收
+        print('✅ 階段三數據已清理')
+        
+        # 🔧 修復：階段前清理 - 階段五
+        try:
+            stage5_cleaned = cleanup_manager.cleanup_single_stage(5)
+            print(f'🧹 階段五預清理: {stage5_cleaned["files"]} 檔案, {stage5_cleaned["directories"]} 目錄')
+        except Exception as e:
+            print(f'⚠️ 階段五清理警告: {e}')
         
         # 階段五：數據整合 - 使用新模組化架構
         print('\n🔗 階段五：數據整合 (新模組化架構)')
         print('-' * 60)
         
         from stages.stage5_data_integration.stage5_processor import Stage5Processor
-        stage5 = Stage5Processor(
-            signal_analysis_dir='data/signal_analysis_outputs',
-            output_dir='data/data_integration_outputs'
-        )
+        stage5 = Stage5Processor()
         
-        results['stage5'] = stage5.process()
+        results['stage5'] = stage5.execute()
         
         if not results['stage5']:
             print('❌ 階段五處理失敗')
@@ -500,17 +552,27 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         completed_stages = 5
         print(f'✅ 階段五完成並驗證通過')
         
+        # 🧹 記憶體管理：清理階段四數據
+        print('🧹 記憶體管理：清理階段四數據...')
+        del results['stage4']  # 釋放階段四結果
+        gc.collect()  # 強制垃圾回收
+        print('✅ 階段四數據已清理')
+        
+        # 🔧 修復：階段前清理 - 階段六
+        try:
+            stage6_cleaned = cleanup_manager.cleanup_single_stage(6)
+            print(f'🧹 階段六預清理: {stage6_cleaned["files"]} 檔案, {stage6_cleaned["directories"]} 目錄')
+        except Exception as e:
+            print(f'⚠️ 階段六清理警告: {e}')
+        
         # 階段六：動態池規劃 - 使用新模組化架構
         print('\n🌐 階段六：動態池規劃 (新模組化架構)')
         print('-' * 60)
         
         from stages.stage6_dynamic_planning.stage6_processor import Stage6Processor
-        stage6 = Stage6Processor(
-            data_integration_dir='data/data_integration_outputs',
-            output_dir='data/dynamic_pool_planning_outputs'
-        )
+        stage6 = Stage6Processor()
         
-        results['stage6'] = stage6.process()
+        results['stage6'] = stage6.execute()
         
         if not results['stage6']:
             print('❌ 階段六處理失敗')
@@ -537,6 +599,9 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         print('   ✅ Grade A學術標準全面合規')
         print('   ✅ 完整驗證框架保障品質')
         print('   ✅ 階段四時間序列預處理: 學術級60 FPS動畫數據')
+        print('   ✅ 記憶體優化管理 - 防止累積過載')
+        print('   ✅ TDD整合自動化 - 零容忍品質控制')
+        print('   ✅ 階段前清理機制 - 確保數據新鮮度')
         print('=' * 80)
         
         return True, 6, "全部六階段成功完成"
