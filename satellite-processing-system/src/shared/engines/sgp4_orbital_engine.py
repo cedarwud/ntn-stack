@@ -110,6 +110,8 @@ class SGP4OrbitalEngine:
         """
         計算衛星位置時間序列 - 純ECI座標輸出（符合Stage 1文檔規範）
         
+        🚨 關鍵修復：使用TLE epoch時間作為計算基準，而非當前系統時間
+        
         Args:
             satellite_data: 衛星數據，包含TLE信息
             time_range_minutes: 時間範圍（分鐘）
@@ -136,9 +138,18 @@ class SGP4OrbitalEngine:
             # 🛰️ 創建EarthSatellite對象
             satellite = EarthSatellite(tle_line1, tle_line2, satellite_name, self.timescale)
             
-            # 🕐 計算時間基準 - 使用TLE epoch時間
+            # 🚨 關鍵修復：使用TLE epoch時間作為計算基準時間
             tle_epoch = satellite.epoch
+            calculation_base_time = tle_epoch
+            
             logger.info(f"   📅 TLE Epoch時間: {tle_epoch.utc_iso()}")
+            logger.info(f"   🎯 計算基準時間: {calculation_base_time.utc_iso()}")
+            
+            # 檢查時間差警告
+            current_time = self.timescale.now()
+            time_diff_days = abs(current_time.tt - tle_epoch.tt)
+            if time_diff_days > 3:
+                logger.warning(f"⚠️ TLE數據與當前時間差{time_diff_days:.1f}天，使用TLE epoch時間作為基準")
             
             # 🔧 生成時間點（根據星座類型決定點數）
             time_points = []
@@ -162,6 +173,7 @@ class SGP4OrbitalEngine:
             
             for i in range(num_points):
                 minutes_offset = i * interval_minutes
+                # 🚨 關鍵修復：基於TLE epoch時間計算，而非當前時間
                 time_point = self.timescale.tt_jd(tle_epoch.tt + minutes_offset / (24 * 60))
                 time_points.append(time_point)
             
@@ -200,6 +212,13 @@ class SGP4OrbitalEngine:
                             "x": eci_vx,
                             "y": eci_vy,
                             "z": eci_vz
+                        },
+                        # 🆕 添加計算元數據
+                        "calculation_metadata": {
+                            "tle_epoch": tle_epoch.utc_iso(),
+                            "time_from_epoch_minutes": minutes_offset,
+                            "calculation_base": "tle_epoch_time",
+                            "real_sgp4_calculation": True
                         }
                     }
                     
@@ -214,10 +233,11 @@ class SGP4OrbitalEngine:
             if position_timeseries:
                 self.calculation_stats["successful_calculations"] += 1
                 self.calculation_stats["total_position_points"] += len(position_timeseries)
+                logger.info(f"✅ 衛星 {satellite_name} ECI軌道計算完成: {len(position_timeseries)}個位置點")
             else:
                 self.calculation_stats["failed_calculations"] += 1
+                logger.error(f"❌ 衛星 {satellite_name} 軌道計算失敗: 無有效位置點")
             
-            logger.info(f"✅ 衛星 {satellite_name} ECI軌道計算完成: {len(position_timeseries)}個位置點")
             return position_timeseries
             
         except Exception as e:
@@ -236,6 +256,8 @@ class SGP4OrbitalEngine:
         Returns:
             SGP4CalculationResult: 計算結果對象
         """
+        import warnings
+        
         try:
             # 🚨 關鍵：記錄計算基準時間
             calculation_base_time = calculation_time
@@ -270,6 +292,8 @@ class SGP4OrbitalEngine:
                 if time_diff_days > 3:
                     time_warning = f"TLE數據時間差{time_diff_days}天，可能影響計算精度"
                     logger.warning(f"⚠️ {time_warning}")
+                    # 🔧 修復：同時發出 Python 警告供測試檢測
+                    warnings.warn(time_warning, UserWarning, stacklevel=2)
             
             # 創建結果對象
             result = SGP4CalculationResult(

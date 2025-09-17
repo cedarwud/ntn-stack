@@ -4,16 +4,121 @@
 
 ## 📖 階段概述
 
-**目標**：從 8,791 顆衛星中篩選出對NTPU觀測點地理可見的候選衛星  
-**輸入**：階段一純ECI軌道數據（記憶體傳遞 + `/app/data/tle_orbital_calculation_output.json`）  
-**輸出**：篩選結果保存至 `/app/data/satellite_visibility_filtered_output.json` + 記憶體傳遞  
+**目標**：從 8,791 顆衛星中篩選出對NTPU觀測點地理可見的候選衛星
+**輸入**：階段一純ECI軌道數據（記憶體傳遞 + `/app/data/tle_orbital_calculation_output.json`）
+**輸出**：篩選結果保存至 `/app/data/satellite_visibility_filtered_output.json` + 記憶體傳遞
 **核心工作**：
 1. 從ECI座標計算相對NTPU觀測點的仰角、方位角、距離
 2. 判斷衛星可見性（`is_visible`）並應用ITU-R標準篩選
 3. 篩選掉地理不可見或不符合標準的衛星
-**實際結果**：約500-1000顆符合可見性標準的候選衛星  
-**篩選邏輯**：嚴格地理可見性篩選 + ITU-R標準檢查  
+**實際結果**：約500-1000顆符合可見性標準的候選衛星
+**篩選邏輯**：嚴格地理可見性篩選 + ITU-R標準檢查
 **處理時間**：約 20-25 秒
+
+### 🚨 v5.1 座標轉換修復需求 (2025-09-16)
+
+**潛在問題**: 當前的ECI→地平座標轉換可能存在精度問題：
+- **TEME→ITRS轉換鏈**: 可能存在精度損失
+- **地平座標計算**: 仰角/方位角計算可能不準確
+- **時間同步**: 與Stage1的時間基準需保持一致
+
+**修復策略**:
+- 整合Skyfield庫的座標轉換（已在直接計算中驗證）
+- 使用統一的時間基準（TLE epoch時間）
+- 確保與Stage1修復後的數據格式兼容
+- 詳見[直接計算解決方案](../DIRECT_CALCULATION_SOLUTION.md)
+
+### 🎯 v6.0 時間基準繼承重構 (2025-09-17)
+
+**核心重構目標**: Stage 2正確繼承並使用Stage 1的時間基準，確保計算一致性
+
+#### 🚨 Stage 2 時間基準繼承責任 (強制要求)
+
+**Stage 2 必須正確繼承Stage 1的時間基準信息**:
+
+```python
+# ✅ v6.0 要求：Stage 2 時間基準繼承檢查
+def load_stage1_output(self) -> Dict[str, Any]:
+    """載入Stage 1軌道計算輸出並繼承時間基準"""
+    stage1_data = self.orbital_data_loader.load_stage1_output()
+
+    # 🚨 v6.0 重構：檢查並使用繼承的時間基準
+    inherited_time_base = stage1_data.get("inherited_time_base")
+    if inherited_time_base:
+        self.logger.info(f"🎯 v6.0 重構：使用繼承的Stage 1時間基準: {inherited_time_base}")
+        self.calculation_base_time = inherited_time_base
+    else:
+        self.logger.error("❌ Stage 1數據中未找到inherited_time_base")
+        raise ValueError("v6.0重構：Stage 2無法繼承時間基準，Stage 1輸出不符合要求")
+
+    return stage1_data
+```
+
+**Stage 2 時間基準使用檢查清單**:
+- ✅ **必須檢查**: `inherited_time_base` 存在於Stage 1輸出中
+- ✅ **必須使用**: 繼承的時間基準進行所有可見性計算
+- ❌ **絕對禁止**: 使用當前系統時間或預設時間基準
+- ❌ **絕對禁止**: 忽略Stage 1時間基準信息
+
+#### 🔧 v6.0 座標轉換標準化
+
+**Skyfield Library 強制整合**:
+- **替換**: 自實現ECI→ECEF轉換 → 標準Skyfield庫
+- **精度提升**: 米級精度 (提升自公里級)
+- **時間同步**: 完美對齊Stage 1的計算基準時間
+- **學術標準**: 與單檔案計算器同等精度標準
+
+**實施要求**:
+```python
+# ✅ v6.0 標準：使用Skyfield進行座標轉換
+from skyfield.api import load, wgs84
+from skyfield.timelib import Time
+
+# 使用繼承的時間基準
+ts = load.timescale()
+calculation_time = ts.ut1_jd(inherited_time_base_jd)
+
+# 高精度座標轉換
+satellite_skyfield = EarthSatellite(tle_line1, tle_line2, name, ts)
+geocentric = satellite_skyfield.at(calculation_time)
+observer_location = wgs84.latlon(observer_lat, observer_lon, observer_alt_m)
+topocentric = geocentric - observer_location.at(calculation_time)
+alt, az, distance = topocentric.altaz()
+```
+
+#### 📊 v6.0 數據一致性保證
+
+**高精度可見性計算**:
+- **仰角精度**: 0.01° (提升自0.1°)
+- **方位角精度**: 0.01° (提升自0.1°)
+- **距離精度**: 米級 (提升自公里級)
+- **時間同步**: 完美對齊Stage 1時間基準
+
+#### 🚨 v6.0 強制驗證擴展
+
+**新增v6.0特定驗證項目**:
+1. **time_base_inheritance_check** - 時間基準繼承驗證
+   - 檢查Stage 1時間基準正確繼承
+   - 驗證沒有使用當前系統時間
+   - 確認計算基準時間一致性
+
+2. **skyfield_coordinate_precision_check** - Skyfield座標精度檢查
+   - 驗證使用標準Skyfield進行座標轉換
+   - 確認仰角/方位角計算高精度
+   - 檢查與學術標準一致性
+
+3. **visibility_calculation_accuracy_check** - 可見性計算準確性檢查
+   - 驗證可見性結果與單檔案計算器一致
+   - 確認時間基準統一帶來的精度提升
+   - 檢查衛星識別準確度達到預期 (>3,000顆)
+
+#### 🎯 v6.0 學術標準對齊
+
+**Grade A++ 一致性要求**:
+- **時間基準**: 100%繼承Stage 1時間基準，零偏差容忍
+- **座標精度**: 使用標準庫實現，非自製算法
+- **可見性判斷**: 與物理原理完全一致
+- **數據統一**: Stage 1和Stage 2使用完全相同的時間參考系
 
 ### 🗂️ 統一輸出目錄結構
 

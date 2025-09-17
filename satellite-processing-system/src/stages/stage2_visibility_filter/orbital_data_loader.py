@@ -58,8 +58,10 @@ class OrbitalDataLoader:
         stage1_data = None
         
         for filename in possible_files:
-            input_file = self.input_dir / filename
-            if input_file.exists():
+            # 🚨 v6.0修復: 使用os.path.join進行路徑拼接，避免str / str錯誤
+            import os
+            input_file = os.path.join(str(self.input_dir), filename)
+            if os.path.exists(input_file):
                 self.logger.info(f"找到Stage 1輸出文件: {input_file}")
                 try:
                     with open(input_file, 'r', encoding='utf-8') as f:
@@ -79,8 +81,13 @@ class OrbitalDataLoader:
         
         # 驗證數據格式
         validated_data = self._validate_and_normalize_stage1_data(stage1_data)
-        
+
+        # 🚨 v6.0 重構：提取Stage 1時間基準
+        stage1_time_base = self._extract_stage1_time_base(stage1_data)
+        validated_data["inherited_time_base"] = stage1_time_base
+
         self.logger.info(f"✅ Stage 1數據載入成功: {self.load_statistics['satellites_loaded']} 顆衛星")
+        self.logger.info(f"🎯 繼承Stage 1時間基準: {stage1_time_base}")
         return validated_data
     
     def _validate_and_normalize_stage1_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -316,5 +323,51 @@ class OrbitalDataLoader:
         if time_continuity_issues > 0:
             validation_result["overall_valid"] = False
             validation_result["issues"].append(f"{time_continuity_issues} 顆衛星時間序列不連續")
-        
+
         return validation_result
+
+    def _extract_stage1_time_base(self, stage1_data: Dict[str, Any]) -> str:
+        """
+        從Stage 1 metadata提取計算基準時間
+
+        v6.0 重構：確保Stage 2正確繼承Stage 1的時間基準
+        """
+        try:
+            metadata = stage1_data.get("metadata", {})
+
+            # 優先使用TLE epoch時間
+            tle_epoch_time = metadata.get("tle_epoch_time")
+            calculation_base_time = metadata.get("calculation_base_time")
+
+            if tle_epoch_time:
+                self.logger.info(f"🎯 使用Stage 1 TLE epoch時間: {tle_epoch_time}")
+                return tle_epoch_time
+            elif calculation_base_time:
+                self.logger.info(f"🎯 使用Stage 1計算基準時間: {calculation_base_time}")
+                return calculation_base_time
+            else:
+                # 檢查data section中的metadata
+                data_section = stage1_data.get("data", {})
+                if isinstance(data_section, dict) and "metadata" in data_section:
+                    data_metadata = data_section["metadata"]
+                    tle_epoch_time = data_metadata.get("tle_epoch_time")
+                    calculation_base_time = data_metadata.get("calculation_base_time")
+
+                    if tle_epoch_time:
+                        self.logger.info(f"🎯 從data section使用TLE epoch時間: {tle_epoch_time}")
+                        return tle_epoch_time
+                    elif calculation_base_time:
+                        self.logger.info(f"🎯 從data section使用計算基準時間: {calculation_base_time}")
+                        return calculation_base_time
+
+                # 如果都找不到，這是一個嚴重問題
+                self.logger.error("❌ Stage 1 metadata缺失時間基準信息")
+                self.logger.error(f"可用metadata欄位: {list(metadata.keys())}")
+                if isinstance(data_section, dict) and "metadata" in data_section:
+                    self.logger.error(f"data.metadata欄位: {list(data_section['metadata'].keys())}")
+
+                raise ValueError("Stage 1 metadata缺失時間基準信息，無法執行時間基準繼承")
+
+        except Exception as e:
+            self.logger.error(f"❌ 提取Stage 1時間基準失敗: {e}")
+            raise

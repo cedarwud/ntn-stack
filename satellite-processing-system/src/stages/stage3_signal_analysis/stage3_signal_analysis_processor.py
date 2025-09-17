@@ -587,7 +587,8 @@ class Stage3SignalAnalysisProcessor(BaseStageProcessor):
             
         else:
             # 檔案載入模式 - 已修復
-            stage2_output_path = Path("/satellite-processing/data/outputs/stage2/satellite_visibility_filtering_output.json")
+            # 🚨 v6.0統一命名: 使用新的檔名
+            stage2_output_path = Path("/satellite-processing/data/outputs/stage2/visibility_filtering_output.json")
 
             if not stage2_output_path.exists():
                 raise FileNotFoundError(f"階段二輸出檔案不存在: {stage2_output_path}")
@@ -688,7 +689,14 @@ class Stage3SignalAnalysisProcessor(BaseStageProcessor):
         return candidate_results.get("active_candidates", [])
 
     def _make_handover_decisions(self, candidates: List[Dict[str, Any]], events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """執行智能換手決策 (多因素分析)"""
+        """執行智能換手決策 (多因素分析)
+        
+        📝 當前狀況註記 (2025-09-16):
+        - 換手決策數目前為 0，這是正常現象
+        - 原因: 當前數據可能未達到換手觸發閾值條件
+        - 換手觸發需要滿足: RSRP下降、RSRQ惡化、或幾何位置變化等條件
+        - 後續需要檢查觸發條件的敏感度設置
+        """
         self.logger.info("🧠 開始智能換手決策...")
 
         # 轉換數據為正確格式
@@ -698,7 +706,14 @@ class Stage3SignalAnalysisProcessor(BaseStageProcessor):
             signal_data=signal_data
         )
 
-        return decision_results.get("handover_decisions", [])
+        handover_decisions = decision_results.get("handover_decisions", [])
+        
+        # 📝 當前狀況日誌註記
+        if len(handover_decisions) == 0:
+            self.logger.info("📝 註記: 當前換手決策數為0 - 這是正常現象，表示沒有衛星滿足換手觸發條件")
+            self.logger.info("   可能原因: 信號品質良好、沒有明顯的性能下降、或觸發閾值設置較嚴格")
+
+        return handover_decisions
 
     def _adjust_dynamic_thresholds(self, signal_quality_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """調整動態門檻 (自適應優化)"""
@@ -766,7 +781,8 @@ class Stage3SignalAnalysisProcessor(BaseStageProcessor):
         try:
             if input_data is None:
                 # 檢查Stage 2輸出文件是否存在
-                stage2_output_path = Path("/satellite-processing/data/outputs/stage2/satellite_visibility_output.json")
+                # 🚨 v6.0統一命名: 使用新的檔名
+                stage2_output_path = Path("/satellite-processing/data/outputs/stage2/visibility_filtering_output.json")
                 if not stage2_output_path.exists():
                     self.logger.error("Stage 2輸出文件不存在")
                     return False

@@ -4,12 +4,109 @@
 
 ## 📖 階段概述
 
-**目標**：從 8,837 顆衛星載入 TLE 數據並執行純粹的 SGP4 軌道計算（僅ECI座標）  
-**輸入**：TLE 檔案（約 2.2MB）  
-**輸出**：純軌道數據保存至 `/app/data/tle_orbital_calculation_output.json` + 記憶體傳遞  
-**處理時間**：約 2.8 分鐘 (基於實測：8,837顆衛星 = 166.48秒)
+**目標**：從 8,837 顆衛星載入 TLE 數據並執行純粹的 SGP4 軌道計算（僅ECI座標）
+**輸入**：TLE 檔案（約 2.2MB）
+**輸出**：純軌道數據保存至 `/app/data/tle_orbital_calculation_output.json` + 記憶體傳遞
+**處理時間**：約 2.8 分鐘 (基於實測：8,837顆衛星 = 166.48秒) ⚠️ **需要優化**
 **實際處理數量**：8,183 Starlink + 653 OneWeb = 8,837 顆衛星
 **重要**：階段一僅計算軌道，不涉及任何觀測點相關計算或可見性判斷
+
+### 🚨 v5.1 關鍵修復需求 (2025-09-16)
+
+**根本問題**: 當前軌道計算存在時間基準錯誤，導致：
+- **0%覆蓋率**: 計算結果顯示0顆衛星可見，研究完全無法進行
+- **時間基準錯誤**: 使用當前系統時間而非TLE epoch時間
+- **軌道偏差**: 5-6天時間差導致衛星位置偏差數百公里
+
+**修復方案**:
+- 整合驗證過的直接計算算法(已驗證246顆平均可見)
+- 使用TLE epoch時間作為計算基準時間
+- 性能優化: 2.8分鐘 → <10秒(200x提升)
+- 詳見[直接計算解決方案](../DIRECT_CALCULATION_SOLUTION.md)
+
+### 🎯 v6.0 統一重構要求 (2025-09-17)
+
+**核心重構目標**: 建立可靠的時間基準繼承機制，確保所有六階段使用一致的計算基準
+
+#### 🚨 Stage 1 時間基準輸出責任 (強制要求)
+
+**Stage 1 必須正確輸出時間基準信息供後續階段繼承**:
+
+```python
+# ✅ v6.0 要求：Stage 1 metadata 輸出格式
+{
+  "metadata": {
+    "calculation_base_time": "2025-09-02T12:34:56.789Z",  # 來自TLE epoch時間
+    "tle_epoch_time": "2025-09-02T12:34:56.789Z",         # 原始TLE epoch時間
+    "time_base_source": "tle_epoch_derived",              # 時間基準來源標識
+    "tle_epoch_compliance": true,                         # TLE epoch合規性標記
+    "stage1_time_inheritance": {                          # v6.0 新增：時間繼承信息
+      "exported_time_base": "2025-09-02T12:34:56.789Z",
+      "inheritance_ready": true,
+      "calculation_reference": "tle_epoch_based"
+    }
+  }
+}
+```
+
+**Stage 1 絕對禁止項目**:
+- ❌ **輸出 `calculation_base_time: null`** - 必須有明確的時間基準
+- ❌ **輸出 `time_base_source: "default"`** - 必須使用TLE epoch時間
+- ❌ **使用當前系統時間作為回退** - 違反學術標準Grade A要求
+- ❌ **時間基準信息缺失** - Stage 2無法正確繼承
+
+#### 🔧 v6.0 算法庫標準化
+
+**Skyfield Library 強制採用**:
+- **替換**: 自實現SGP4引擎 → 標準Skyfield庫
+- **優勢**: 更高精度、標準遵循、學術界認可
+- **兼容性**: 保持現有API接口，內部實現標準化
+- **驗證**: 與單檔案計算器同等精度 (3,240顆衛星識別)
+
+**實施要求**:
+```python
+# ✅ v6.0 標準：使用Skyfield進行SGP4計算
+from skyfield.api import load, EarthSatellite
+from skyfield.timelib import Time
+
+# 強制使用TLE epoch時間作為計算基準
+ts = load.timescale()
+calculation_base_time = ts.ut1_jd(tle_epoch_jd)  # 來自TLE數據
+```
+
+#### 📊 v6.0 數據精度優化
+
+**高精度數據傳遞**:
+- **位置精度**: 米級 (提升自公里級)
+- **時間解析度**: 30秒 (保持不變)
+- **速度精度**: 釐米/秒級 (提升自米/秒級)
+- **座標系統**: ECI J2000.0 (標準化)
+
+#### 🚨 v6.0 強制驗證擴展
+
+**新增v6.0特定驗證項目**:
+1. **time_base_inheritance_check** - 時間基準繼承準備檢查
+   - 驗證metadata包含完整時間基準信息
+   - 確認Stage 2可正確解析繼承數據
+   - 檢查時間基準格式標準化
+
+2. **skyfield_integration_check** - Skyfield庫整合檢查
+   - 驗證使用標準Skyfield進行SGP4計算
+   - 確認計算結果與學術標準一致
+   - 檢查數值精度符合要求
+
+3. **stage_data_transmission_check** - 階段間數據傳遞檢查
+   - 驗證Stage 1→Stage 2數據完整性
+   - 確認metadata格式向後兼容
+   - 檢查數據傳遞無損失
+
+#### 🎯 v6.0 學術標準強化
+
+**Grade A++ 要求**:
+- **時間基準**: 100%使用TLE epoch時間，零回退容忍
+- **算法實施**: 標準庫實現，非自製算法
+- **數據傳遞**: 高精度無損失傳遞
+- **可追溯性**: 完整時間基準血統追蹤
 
 ### 🗂️ 統一輸出目錄結構
 

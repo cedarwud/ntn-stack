@@ -15,8 +15,12 @@ from datetime import datetime, timezone, timedelta
 
 # 🚨 Grade A要求：使用學術級標準替代硬編碼
 try:
-    from ...shared.elevation_standards import ELEVATION_STANDARDS
-    from ...shared.academic_standards_config import ACADEMIC_STANDARDS_CONFIG
+    # 修復導入路徑問題
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+    from shared.elevation_standards import ELEVATION_STANDARDS
+    from shared.academic_standards_config import ACADEMIC_STANDARDS_CONFIG
 
     INVALID_ELEVATION = ELEVATION_STANDARDS.get_safe_default_elevation()
     RSRP_CONFIG = ACADEMIC_STANDARDS_CONFIG.get_3gpp_parameters()["rsrp"]

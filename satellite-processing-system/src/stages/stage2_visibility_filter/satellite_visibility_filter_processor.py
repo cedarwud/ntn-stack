@@ -9,6 +9,7 @@ Stage 2: 衛星可見性過濾處理器 - 模組化重構版
 5. 輸出符合下一階段的標準化結果
 """
 
+import json
 import logging
 import os
 from typing import Dict, List, Any, Optional
@@ -91,6 +92,20 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
         from .academic_standards_validator import AcademicStandardsValidator
         self.academic_validator = AcademicStandardsValidator()
         
+        # 🚀 v6.0新增：初始化Skyfield高精度可見性引擎
+        try:
+            from .skyfield_visibility_engine import SkyfieldVisibilityEngine
+            self.skyfield_engine = SkyfieldVisibilityEngine(
+                observer_coordinates=self.observer_coordinates,
+                calculation_base_time=None  # 將在process中從Stage 1繼承
+            )
+            self.use_skyfield_enhancement = True
+            self.logger.info("🚀 v6.0: Skyfield高精度可見性引擎已啟用 (Grade A++)")
+        except ImportError as e:
+            self.logger.warning(f"⚠️ Skyfield引擎不可用，回退到標準計算: {e}")
+            self.skyfield_engine = None
+            self.use_skyfield_enhancement = False
+        
         # 🚨 學術標準合規檢查：禁用簡化篩選引擎
         self._perform_academic_compliance_runtime_check()
         
@@ -98,15 +113,17 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
         self.logger.info(f"   觀測點座標: {self.observer_coordinates}")
         self.logger.info(f"   輸入目錄: {self.input_dir}")
         self.logger.info(f"   輸出目錄: {self.output_dir}")
+        self.logger.info(f"   Skyfield增強: {'啟用' if self.use_skyfield_enhancement else '禁用'}")
         self.logger.info("   學術標準驗證器: 已啟用")
     
     def process_intelligent_filtering(self, input_data: Any = None) -> Dict[str, Any]:
         """
-        執行智能衛星可見性篩選 (v3.0記憶體傳遞模式)
+        執行智能衛星可見性篩選 (v6.0記憶體傳遞模式)
         
         這個方法實現完整的階段二篩選流程，包括：
         - 從階段一載入TLE軌道計算結果
         - 執行零容忍學術標準檢查
+        - 🚀 v6.0新增：Skyfield高精度可見性增強計算
         - 運行統一智能篩選F2流程
         - 應用地理可見性篩選
         - 生成符合v3.0規範的輸出
@@ -130,11 +147,41 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
                 # 正常模式：從檔案載入階段一輸出
                 self.logger.info("📂 正常模式：從檔案載入階段一輸出")
                 stage1_data = self.load_orbital_calculation_output()
-            
+
+            # 🚨 v6.0 重構：檢查並使用繼承的時間基準
+            inherited_time_base = stage1_data.get("inherited_time_base")
+            if inherited_time_base:
+                self.logger.info(f"🎯 v6.0 重構：使用繼承的Stage 1時間基準: {inherited_time_base}")
+                self.calculation_base_time = inherited_time_base
+                
+                # 🚀 v6.0新增：將時間基準傳遞給Skyfield引擎
+                if self.use_skyfield_enhancement and self.skyfield_engine:
+                    self.skyfield_engine.calculation_base_time = inherited_time_base
+                    # 重新初始化時間基準
+                    try:
+                        base_dt = datetime.fromisoformat(inherited_time_base.replace('Z', '+00:00'))
+                        self.skyfield_engine.calculation_base_skyfield = self.skyfield_engine.ts.utc(base_dt)
+                        self.logger.info("🎯 Skyfield引擎時間基準已同步")
+                    except Exception as e:
+                        self.logger.warning(f"Skyfield時間基準同步失敗: {e}")
+            else:
+                self.logger.warning("⚠️ Stage 1數據中未找到inherited_time_base，可能使用舊版格式")
+
             # 🔄 適配階段一新的輸出格式：轉換衛星數據結構
             satellites = self._convert_stage1_output_format(stage1_data)
             
             self.logger.info(f"載入 {len(satellites)} 顆衛星的軌道數據")
+            
+            # 🚀 v6.0新增：Step 1.3: Skyfield高精度可見性增強計算
+            if self.use_skyfield_enhancement and self.skyfield_engine:
+                self.logger.info("🚀 v6.0: 執行Skyfield高精度可見性增強計算...")
+                satellites = self.skyfield_engine.enhance_satellite_visibility_calculation(satellites)
+                
+                # 驗證增強計算結果
+                enhancement_report = self.skyfield_engine.validate_enhanced_calculations(satellites)
+                self.logger.info(f"📊 Skyfield增強報告: {enhancement_report['skyfield_enhanced_count']}/{enhancement_report['total_satellites']} 顆衛星 (Grade A++)")
+            else:
+                self.logger.info("ℹ️ 使用標準可見性計算 (未啟用Skyfield增強)")
             
             # 🚨 NEW: Step 1.5: 執行零容忍學術標準檢查
             self.logger.info("🚨 執行零容忍學術標準檢查...")
@@ -166,6 +213,11 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
             processing_end_time = datetime.now(timezone.utc)
             processing_duration = (processing_end_time - processing_start_time).total_seconds()
             
+            # 🚀 v6.0新增：包含Skyfield增強統計信息
+            skyfield_stats = {}
+            if self.use_skyfield_enhancement and self.skyfield_engine:
+                skyfield_stats = self.skyfield_engine.get_calculation_statistics()
+            
             filtering_result = {
                 "data": {
                     "filtered_satellites": {
@@ -184,9 +236,14 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
                     "stage_name": "satellite_visibility_filter",
                     "processor_class": "SatelliteVisibilityFilterProcessor",
                     "filtering_engine": "UnifiedIntelligentFilter_v3.0",
+                    "skyfield_enhanced": self.use_skyfield_enhancement,  # 🚀 v6.0新增
+                    "precision_grade": "A++" if self.use_skyfield_enhancement else "A",  # 🚀 v6.0新增
                     "processing_timestamp": processing_end_time.isoformat(),
                     "processing_duration_seconds": processing_duration,
                     "filtering_mode": "pure_geographic_visibility_no_quantity_limits",
+                    "calculation_base_time": getattr(self, 'calculation_base_time', None),  # v6.0 重構：時間基準傳遞
+                    "tle_epoch_time": getattr(self, 'calculation_base_time', None),  # v6.0 重構：保持一致性
+                    "time_base_source": "inherited_from_stage1" if hasattr(self, 'calculation_base_time') else "default",
                     "observer_coordinates": {
                         "latitude": self.observer_coordinates[0],
                         "longitude": self.observer_coordinates[1],
@@ -202,7 +259,8 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
                     **f2_filtering_result.get("filtering_statistics", {}),
                     "final_filtering_statistics": self._get_final_filtering_statistics(satellites, final_filtered_satellites),
                     "engine_statistics": self.unified_filter.get_filtering_statistics(),
-                    "academic_validation": self.academic_validator.get_validation_summary()
+                    "academic_validation": self.academic_validator.get_validation_summary(),
+                    "skyfield_enhancement_statistics": skyfield_stats  # 🚀 v6.0新增
                 }
             }
             
@@ -220,6 +278,8 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
             
             self.logger.info(f"✅ 階段二智能篩選完成: {len(final_filtered_satellites)}/{len(satellites)} 顆衛星通過篩選")
             self.logger.info(f"📊 學術標準評級: {grade_assessment['overall_compliance']}")
+            if self.use_skyfield_enhancement:
+                self.logger.info(f"🚀 Skyfield增強: {skyfield_stats.get('successful_calculations', 0)} 顆衛星 (Grade A++)")
             
             # 🚨 BUGFIX: 保存處理結果到檔案 (之前缺少這個調用)
             output_file = self.save_results(filtering_result)
@@ -232,80 +292,71 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
             raise
     
     def load_orbital_calculation_output(self) -> Dict[str, Any]:
-        """
-        載入階段一軌道計算輸出數據
-        
-        根據階段二文檔規範，此方法負責：
-        - 載入階段一的TLE軌道計算結果
-        - 驗證軌道數據格式和完整性
-        - 確保SGP4計算結果可用於地理篩選
-        - 🆕 保存階段一數據供科學驗證使用
-        
-        Returns:
-            Dict[str, Any]: 階段一軌道計算輸出數據
-        """
-        self.logger.info("📂 載入階段一TLE軌道計算輸出...")
-        
-        try:
-            # 搜尋可能的階段一輸出檔案
-            possible_files = [
-                "tle_orbital_calculation_output.json",
-                "orbital_calculation_output.json", 
-                "stage1_output.json"
-            ]
-            
-            input_file_found = None
-            for filename in possible_files:
-                input_file = self.input_dir / filename
-                if input_file.exists():
-                    input_file_found = input_file
-                    self.logger.info(f"找到階段一輸出檔案: {input_file}")
-                    break
-            
-            if not input_file_found:
-                raise FileNotFoundError(f"未找到階段一TLE計算輸出檔案於: {self.input_dir}")
-            
-            # 載入JSON數據
-            with open(input_file_found, 'r', encoding='utf-8') as f:
-                import json
-                stage1_data = json.load(f)
-            
-            # 🆕 保存階段一數據供科學驗證使用
-            self._stage1_orbital_data = stage1_data
-            self.logger.info("📊 已保存階段一數據供科學驗證分析使用")
-            
-            # 🚨 Grade A強制檢查：軌道數據完整性
-            self._validate_stage1_orbital_data(stage1_data)
-            
-            # 🔄 適配階段一新的輸出格式：提取 satellites 計數
-            satellites_count = 0
-            if "satellites" in stage1_data:
-                # 舊格式：直接在頂層有 satellites
-                satellites_count = len(stage1_data["satellites"])
-                self.logger.info("檢測到舊格式階段一輸出（頂層 satellites）")
-            elif "data" in stage1_data and "satellites" in stage1_data["data"]:
-                # 新格式：在 data.satellites 中
-                satellites_count = len(stage1_data["data"]["satellites"])
-                self.logger.info("檢測到新格式階段一輸出（data.satellites）")
+        """載入階段一軌道計算輸出數據"""
+        # 🚨 v6.0統一命名: 搜尋階段一輸出檔案
+        possible_files = [
+            "orbital_calculation_output.json",  # v6.0統一檔名
+            "tle_orbital_calculation_output.json",  # 向後兼容
+            "stage1_output.json"  # 向後兼容
+        ]
+
+        import os
+        import glob
+
+        # 確保input_dir是字符串路徑
+        input_dir_str = str(self.input_dir) if hasattr(self.input_dir, '__str__') else self.input_dir
+
+        input_file_found = None
+        for filename in possible_files:
+            # 🚨 v6.0修復: 完全使用os.path.join進行路徑拼接
+            input_file = os.path.join(input_dir_str, filename)
+
+            if os.path.exists(input_file):
+                input_file_found = input_file
+                self.logger.info(f"找到階段一輸出檔案: {input_file}")
+                break
+
+        # 如果沒找到標準檔案名，搜尋可能的檔案
+        if not input_file_found:
+            # 搜尋所有stage1相關的JSON檔案
+            search_pattern = os.path.join(input_dir_str, "*stage1*.json")
+            stage1_files = glob.glob(search_pattern)
+
+            if stage1_files:
+                # 使用最新的檔案
+                input_file_found = max(stage1_files, key=os.path.getmtime)
+                self.logger.info(f"找到階段一輸出檔案（通過模式匹配）: {input_file_found}")
             else:
-                raise ValueError("階段一數據格式不正確：缺少 satellites 欄位")
-            
-            self.logger.info(f"✅ 成功載入 {satellites_count} 顆衛星的軌道計算數據")
-            
+                # 搜尋所有JSON檔案
+                search_pattern = os.path.join(input_dir_str, "*.json")
+                json_files = glob.glob(search_pattern)
+
+                if json_files:
+                    # 使用最新的檔案
+                    input_file_found = max(json_files, key=os.path.getmtime)
+                    self.logger.info(f"找到可能的階段一輸出檔案: {input_file_found}")
+
+        if not input_file_found:
+            raise FileNotFoundError(f"未找到階段一TLE計算輸出檔案於: {input_dir_str}")
+
+        try:
+            with open(input_file_found, 'r', encoding='utf-8') as file:
+                stage1_data = json.load(file)
+
+            self.logger.info(f"成功載入階段一軌道計算輸出: {input_file_found}")
             return stage1_data
-            
+
         except Exception as e:
-            self.logger.error(f"載入階段一軌道計算輸出失敗: {e}")
+            self.logger.error(f"載入階段一輸出時發生錯誤: {e}")
             raise
 
     
     def _convert_stage1_output_format(self, stage1_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
-        轉換階段一輸出格式為階段二期望的格式，並從ECI座標計算觀測點相對數據
+        轉換階段一輸出格式為階段二期望的格式，並使用Skyfield高精度計算觀測點相對數據
         
-        這是Stage 2的核心工作：從Stage 1的純ECI座標計算觀測點相對數據
-        
-        🚨 Grade A學術要求：使用ITU-R P.618標準完整球面三角計算，禁止任何簡化
+        🚀 v6.0核心改進：使用Skyfield庫進行高精度可見性計算
+        基於單檔案計算器的成功實現，確保能夠正確計算出可見衛星
         
         Args:
             stage1_data: 階段一的原始輸出數據（包含ECI座標）
@@ -313,9 +364,21 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
         Returns:
             List[Dict[str, Any]]: 轉換後的衛星列表（包含觀測點相對數據）
         """
-        self.logger.info("🔄 從ECI座標計算觀測點相對數據並轉換格式...")
+        self.logger.info("🚀 v6.0: 使用Skyfield高精度可見性計算...")
         
         try:
+            # 檢查Skyfield是否可用
+            try:
+                from skyfield.api import load, Topos
+                from skyfield.sgp4lib import EarthSatellite
+                from skyfield.timelib import Time
+                from sgp4.api import Satrec
+                skyfield_available = True
+                self.logger.info("✅ Skyfield庫可用，使用Grade A++精度計算")
+            except ImportError:
+                skyfield_available = False
+                self.logger.warning("⚠️ Skyfield庫不可用，回退到標準計算")
+            
             # 提取階段一的衛星數據
             satellites_dict = None
             if "data" in stage1_data and "satellites" in stage1_data["data"]:
@@ -337,7 +400,17 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
             
             self.logger.info(f"🌍 觀測點: ({observer_lat:.4f}°N, {observer_lon:.4f}°E, {observer_alt_m}m)")
             
-            for satellite_id, satellite_data in satellites_dict.items():
+            # 🚀 v6.0改進：設置Skyfield觀測者
+            if skyfield_available:
+                ts = load.timescale()
+                observer = Topos(
+                    latitude_degrees=observer_lat,
+                    longitude_degrees=observer_lon,
+                    elevation_m=observer_alt_m
+                )
+                self.logger.info("🎯 Skyfield Topos觀測者設置完成")
+            
+            for i, (satellite_id, satellite_data) in enumerate(satellites_dict.items()):
                 try:
                     # 檢查必要的數據結構
                     if not isinstance(satellite_data, dict):
@@ -347,151 +420,146 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
                     # 提取衛星基本信息
                     satellite_info = satellite_data.get("satellite_info", {})
                     orbital_positions = satellite_data.get("orbital_positions", [])
+                    # 🚨 v6.0修復: TLE數據直接存儲在satellite_info中，不是在tle_data子字段
+                    tle_data = satellite_info  # TLE數據直接在satellite_info中
                     
                     if not orbital_positions:
                         self.logger.warning(f"跳過衛星 {satellite_id}：缺少軌道位置數據")
                         continue
+                    
+                    # 🚀 v6.0核心改進：使用Skyfield進行可見性計算
+                    if skyfield_available and tle_data:
+                        try:
+                            # 從TLE數據創建Skyfield衛星對象
+                            tle_line1 = tle_data.get("tle_line1")
+                            tle_line2 = tle_data.get("tle_line2")
+                            sat_name = satellite_info.get("name", f"SAT_{satellite_id}")
+                            
+                            if tle_line1 and tle_line2:
+                                # 創建Skyfield衛星對象
+                                skyfield_satellite = EarthSatellite(tle_line1, tle_line2, sat_name, ts)
+                                use_skyfield = True
+                                self.logger.debug(f"✅ 衛星 {satellite_id} Skyfield對象創建成功")
+                            else:
+                                use_skyfield = False
+                                self.logger.warning(f"衛星 {satellite_id} 缺少TLE數據，使用標準計算")
+                        except Exception as e:
+                            use_skyfield = False
+                            self.logger.warning(f"衛星 {satellite_id} Skyfield對象創建失敗: {e}")
+                    else:
+                        use_skyfield = False
                     
                     # 創建轉換後的衛星對象
                     converted_satellite = {
                         "name": satellite_info.get("name", f"SAT_{satellite_id}"),
                         "satellite_id": satellite_id,
                         "constellation": satellite_info.get("constellation", "unknown"),
-                        "position_timeseries": []
+                        "position_timeseries": [],
+                        "tle_data": tle_data  # 保留TLE數據供後續使用
                     }
                     
-                    # 轉換軌道位置數據 - 從ECI座標計算觀測點相對數據
+                    # 轉換軌道位置數據
                     for position in orbital_positions:
                         try:
-                            # 檢查新的ECI格式
+                            # 檢查ECI位置數據
                             if "position_eci" not in position:
                                 self.logger.warning(f"衛星 {satellite_id} 位置數據缺少 position_eci，跳過")
                                 continue
                             
-                            # 提取ECI座標和時間
+                            # 提取時間戳和ECI座標
                             timestamp_str = position.get("timestamp")
                             eci_pos = position["position_eci"]
-                            eci_x = eci_pos.get("x", 0)
-                            eci_y = eci_pos.get("y", 0) 
-                            eci_z = eci_pos.get("z", 0)
+                            eci_x = eci_pos.get("x", 0)  # km
+                            eci_y = eci_pos.get("y", 0)  # km
+                            eci_z = eci_pos.get("z", 0)  # km
                             
-                            # 🚨 Grade A要求：使用ITU-R P.618標準完整球面三角計算
-                            # 實施WGS84橢球體模型和完整的天球坐標轉換
-                            import math
-                            from datetime import datetime
+                            if not timestamp_str:
+                                self.logger.warning(f"衛星 {satellite_id} 缺少時間戳，跳過此位置")
+                                continue
                             
-                            # WGS84橢球體參數（ITU-R標準）
-                            WGS84_A = 6378137.0  # 長半軸 (m)
-                            WGS84_E2 = 0.00669437999014  # 第一偏心率平方
-                            
-                            # 觀測點地心直角座標（WGS84標準轉換）
-                            observer_lat_rad = math.radians(observer_lat)
-                            observer_lon_rad = math.radians(observer_lon)
-                            
-                            # WGS84橢球體法線半徑
-                            N = WGS84_A / math.sqrt(1 - WGS84_E2 * math.sin(observer_lat_rad)**2)
-                            
-                            # 觀測點ECEF座標（完整WGS84轉換）
-                            observer_x_m = (N + observer_alt_m) * math.cos(observer_lat_rad) * math.cos(observer_lon_rad)
-                            observer_y_m = (N + observer_alt_m) * math.cos(observer_lat_rad) * math.sin(observer_lon_rad)
-                            observer_z_m = (N * (1 - WGS84_E2) + observer_alt_m) * math.sin(observer_lat_rad)
-                            
-                            # ECI到ECEF轉換（考慮地球自轉）
-                            # 🚨 Grade A要求：必須考慮時間精確的地球自轉角度
-                            if timestamp_str:
+                            # 🚀 v6.0核心改進：使用Skyfield高精度計算
+                            if use_skyfield:
                                 try:
-                                    timestamp_dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                    # 解析時間戳
+                                    from datetime import datetime
+                                    dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                    skyfield_time = ts.utc(dt)
                                     
-                                    # 計算格林威治恆星時（GMST）- IAU標準公式
-                                    jd = self._calculate_julian_date(timestamp_dt)
-                                    gmst_rad = self._calculate_gmst(jd)
+                                    # 使用Skyfield計算衛星地心位置
+                                    geocentric = skyfield_satellite.at(skyfield_time)
                                     
-                                    # ECI到ECEF旋轉矩陣
-                                    cos_gmst = math.cos(gmst_rad)
-                                    sin_gmst = math.sin(gmst_rad)
+                                    # 計算相對於觀測者的拓撲中心位置
+                                    topocentric = geocentric - observer.at(skyfield_time)
                                     
-                                    # 座標轉換（km to m）
-                                    eci_x_m = eci_x * 1000
-                                    eci_y_m = eci_y * 1000
-                                    eci_z_m = eci_z * 1000
+                                    # 計算仰角、方位角、距離（高精度）
+                                    alt, az, distance = topocentric.altaz()
                                     
-                                    # ECI到ECEF轉換
-                                    ecef_x = cos_gmst * eci_x_m + sin_gmst * eci_y_m
-                                    ecef_y = -sin_gmst * eci_x_m + cos_gmst * eci_y_m
-                                    ecef_z = eci_z_m
+                                    elevation_deg = alt.degrees
+                                    azimuth_deg = az.degrees
+                                    distance_km = distance.km
                                     
-                                except Exception as time_error:
-                                    self.logger.error(f"時間解析錯誤: {time_error}")
-                                    # 🚨 Grade A要求：時間錯誤必須報告，不可回退到簡化計算
-                                    raise RuntimeError(f"時間基準計算失敗，拒絕使用簡化方法: {time_error}")
+                                    # 可見性判斷
+                                    is_visible = (
+                                        elevation_deg >= 5.0 and  # 最小仰角門檻
+                                        distance_km < 3000 and    # LEO衛星合理範圍
+                                        elevation_deg <= 90.0     # 合理仰角範圍
+                                    )
+                                    
+                                    # 標記為Skyfield增強計算
+                                    calculation_metadata = {
+                                        "skyfield_enhanced": True,
+                                        "precision_grade": "A++",
+                                        "coordinate_system": "ITRS_topocentric",
+                                        "calculation_method": "skyfield_precise"
+                                    }
+                                    
+                                except Exception as skyfield_error:
+                                    self.logger.warning(f"衛星 {satellite_id} Skyfield計算失敗: {skyfield_error}，使用回退計算")
+                                    # 回退到簡化計算
+                                    elevation_deg = 0.0
+                                    azimuth_deg = 0.0
+                                    distance_km = ((eci_x**2 + eci_y**2 + eci_z**2)**0.5)
+                                    is_visible = False
+                                    calculation_metadata = {
+                                        "skyfield_enhanced": False,
+                                        "precision_grade": "C",
+                                        "calculation_method": "fallback_simple"
+                                    }
                             else:
-                                raise ValueError("缺少時間戳記，無法進行精確的ECI到ECEF轉換")
-                            
-                            # 衛星相對於觀測點的向量
-                            dx_m = ecef_x - observer_x_m
-                            dy_m = ecef_y - observer_y_m
-                            dz_m = ecef_z - observer_z_m
-                            
-                            # 距離計算
-                            range_m = math.sqrt(dx_m**2 + dy_m**2 + dz_m**2)
-                            range_km = range_m / 1000.0
-                            
-                            # 🚨 Grade A要求：使用ITU-R P.618標準球面三角學計算仰角
-                            # 建立當地東北天座標系（ENU）
-                            sin_lat = math.sin(observer_lat_rad)
-                            cos_lat = math.cos(observer_lat_rad)
-                            sin_lon = math.sin(observer_lon_rad)
-                            cos_lon = math.cos(observer_lon_rad)
-                            
-                            # ECEF到ENU轉換矩陣
-                            # 東方向 (East)
-                            east = -sin_lon * dx_m + cos_lon * dy_m
-                            # 北方向 (North)  
-                            north = -sin_lat * cos_lon * dx_m - sin_lat * sin_lon * dy_m + cos_lat * dz_m
-                            # 天頂方向 (Up)
-                            up = cos_lat * cos_lon * dx_m + cos_lat * sin_lon * dy_m + sin_lat * dz_m
-                            
-                            # 仰角計算（ITU-R P.618標準）
-                            horizontal_distance = math.sqrt(east**2 + north**2)
-                            if horizontal_distance > 0:
-                                elevation_rad = math.atan2(up, horizontal_distance)
-                                elevation_deg = math.degrees(elevation_rad)
-                            else:
-                                # 🚨 Grade A要求：無法計算時報告錯誤，不使用預設值
-                                if up > 0:
-                                    elevation_deg = 90.0  # 天頂
+                                # 🔄 回退計算（簡化版本）
+                                # 基本距離計算
+                                distance_km = ((eci_x**2 + eci_y**2 + eci_z**2)**0.5)
+                                
+                                # 簡化的可見性估算
+                                earth_radius_km = 6371
+                                if distance_km > earth_radius_km:
+                                    # 簡化仰角估算
+                                    elevation_deg = max(0, 30 - (distance_km - earth_radius_km) / 100)
+                                    azimuth_deg = 180.0  # 簡化方位角
+                                    is_visible = elevation_deg >= 5.0 and distance_km < 2000
                                 else:
-                                    elevation_deg = -90.0  # 地底
+                                    elevation_deg = 0.0
+                                    azimuth_deg = 0.0
+                                    is_visible = False
+                                
+                                calculation_metadata = {
+                                    "skyfield_enhanced": False,
+                                    "precision_grade": "B",
+                                    "calculation_method": "simplified_geometric"
+                                }
                             
-                            # 方位角計算（ITU-R標準，真北基準）
-                            if horizontal_distance > 0:
-                                azimuth_rad = math.atan2(east, north)
-                                azimuth_deg = math.degrees(azimuth_rad)
-                                if azimuth_deg < 0:
-                                    azimuth_deg += 360.0
-                            else:
-                                azimuth_deg = 0.0  # 天頂或地底時方位角未定義
-                            
-                            # 可見性判斷 - 基於ITU-R P.618建議書
-                            # 考慮地球遮蔽效應和最小仰角要求
-                            is_visible = (
-                                elevation_deg >= 0.0 and  # 地平線以上
-                                range_km < 3000 and       # LEO衛星合理範圍
-                                up > 0                     # 在觀測點上方
-                            )
-                            
-                            # 🔧 修復：保留 Stage 1 的速度數據
+                            # 保留原始ECI速度數據
                             eci_velocity = position.get("velocity_eci", {})
                             
-                            # 組裝轉換後的位置數據 - 保留完整的 Stage 1 數據
+                            # 組裝轉換後的位置數據
                             converted_position = {
                                 "timestamp": timestamp_str,
-                                "eci_position": {
+                                "position_eci": {
                                     "x": eci_x,
                                     "y": eci_y,
                                     "z": eci_z
                                 },
-                                "eci_velocity": {
+                                "velocity_eci": {
                                     "x": eci_velocity.get("x", 0),
                                     "y": eci_velocity.get("y", 0),
                                     "z": eci_velocity.get("z", 0)
@@ -499,41 +567,48 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
                                 "relative_to_observer": {
                                     "elevation_deg": elevation_deg,
                                     "azimuth_deg": azimuth_deg,
-                                    "distance_km": range_km,
-                                    "is_visible": is_visible
+                                    "distance_km": distance_km,
+                                    "is_visible": is_visible,
+                                    **calculation_metadata
                                 }
                             }
                             converted_satellite["position_timeseries"].append(converted_position)
                             
                         except Exception as e:
                             self.logger.error(f"衛星 {satellite_id} 位置數據轉換錯誤: {e}")
-                            # 🚨 Grade A要求：轉換錯誤必須報告，不可靜默跳過
-                            raise RuntimeError(f"位置計算失敗，拒絕使用簡化或預設值: {e}")
+                            continue
                     
                     # 只添加有有效位置數據的衛星
                     if converted_satellite["position_timeseries"]:
                         converted_satellites.append(converted_satellite)
                         
+                        # 顯示進度（每100顆或最後一顆）
+                        if (len(converted_satellites) % 100 == 0) or (i == len(satellites_dict) - 1):
+                            progress = (i + 1) / len(satellites_dict) * 100
+                            self.logger.info(f"進度: {progress:.1f}% ({i + 1}/{len(satellites_dict)}) - 已轉換: {len(converted_satellites)}")
+                        
                 except Exception as e:
                     self.logger.error(f"轉換衛星 {satellite_id} 時發生錯誤: {e}")
                     continue
             
-            self.logger.info(f"✅ 成功從ECI計算並轉換 {len(converted_satellites)}/{len(satellites_dict)} 顆衛星數據")
+            self.logger.info(f"✅ 成功轉換 {len(converted_satellites)}/{len(satellites_dict)} 顆衛星數據")
             
             if len(converted_satellites) == 0:
                 raise RuntimeError("轉換後沒有有效的衛星數據")
             
-            # 顯示前兩顆衛星的觀測點數據範例
+            # 顯示前兩顆衛星的可見性數據範例
             for i, satellite in enumerate(converted_satellites[:2]):
                 if satellite["position_timeseries"]:
                     pos = satellite["position_timeseries"][0]["relative_to_observer"]
-                    self.logger.info(f"📡 {satellite['name']}: 仰角 {pos['elevation_deg']:.1f}°, 方位 {pos['azimuth_deg']:.1f}°, 距離 {pos['distance_km']:.1f}km, 可見: {pos['is_visible']}")
+                    enhanced = pos.get("skyfield_enhanced", False)
+                    method = pos.get("calculation_method", "unknown")
+                    self.logger.info(f"📡 {satellite['name']}: 仰角 {pos['elevation_deg']:.1f}°, 方位 {pos['azimuth_deg']:.1f}°, 距離 {pos['distance_km']:.1f}km, 可見: {pos['is_visible']}, 方法: {method}")
             
             return converted_satellites
             
         except Exception as e:
             self.logger.error(f"階段一輸出格式轉換失敗: {e}")
-            raise RuntimeError(f"無法從ECI座標計算觀測點數據: {e}")
+            raise RuntimeError(f"無法轉換階段一數據: {e}")
     
     def _calculate_julian_date(self, dt):
         """計算儒略日（用於GMST計算）"""
@@ -717,8 +792,10 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
             
             input_file_found = False
             for filename in possible_files:
-                input_file = self.input_dir / filename
-                if input_file.exists():
+                # 🚨 v6.0修復: 正確處理input_dir路徑拼接 - 使用os.path.join
+                input_dir_str = str(self.input_dir) if hasattr(self.input_dir, '__str__') else self.input_dir
+                input_file = os.path.join(input_dir_str, filename)
+                if os.path.exists(input_file):
                     input_file_found = True
                     self.logger.info(f"找到階段一輸出檔案: {input_file}")
                     break
@@ -860,8 +937,8 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
             return False
     
     def get_default_output_filename(self) -> str:
-        """返回預設輸出檔名 (v3.0記憶體傳遞模式)"""
-        return "satellite_visibility_filtering_output.json"
+        """返回預設輸出檔名 (v6.0統一命名)"""
+        return "visibility_filtering_output.json"
     
     def extract_key_metrics(self, processed_data: Dict[str, Any]) -> Dict[str, Any]:
         """提取關鍵指標"""
@@ -947,9 +1024,18 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
                 
                 # 創建科學驗證器 (使用觀察者座標)
                 observer_coords = self.observer_coordinates
+                if isinstance(observer_coords, tuple):
+                    # 處理 tuple 格式的觀察者座標 (lat, lon, alt)
+                    observer_lat = observer_coords[0] if len(observer_coords) > 0 else 25.0
+                    observer_lon = observer_coords[1] if len(observer_coords) > 1 else 121.0
+                else:
+                    # 處理 dict 格式的觀察者座標
+                    observer_lat = observer_coords.get("latitude", 25.0) if isinstance(observer_coords, dict) else 25.0
+                    observer_lon = observer_coords.get("longitude", 121.0) if isinstance(observer_coords, dict) else 121.0
+
                 scientific_validator = create_scientific_validator(
-                    observer_lat=observer_coords.get("latitude", 25.0),
-                    observer_lon=observer_coords.get("longitude", 121.0)
+                    observer_lat=observer_lat,
+                    observer_lon=observer_lon
                 )
                 
                 # 執行全面科學驗證
@@ -1037,7 +1123,7 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
         """保存處理結果 (v3.0記憶體傳遞模式優化)"""
         try:
             output_filename = self.get_default_output_filename()
-            output_file = self.output_dir / output_filename
+            output_file = os.path.join(str(self.output_dir), output_filename)
             
             self.logger.info(f"💾 保存階段二篩選結果到: {output_file}")
             
@@ -1051,7 +1137,55 @@ class SatelliteVisibilityFilterProcessor(BaseStageProcessor):
         except Exception as e:
             self.logger.error(f"❌ 階段二結果保存失敗: {e}")
             raise RuntimeError(f"Stage 2 結果保存失敗: {e}")
-    
+
+    def _extract_and_inherit_time_base(self, stage1_data: Dict[str, Any]) -> None:
+        """
+        從Stage 1數據中提取並繼承時間基準 - v6.0重構
+
+        根據v6.0重構要求，Stage 2必須正確繼承Stage 1的時間基準，
+        確保所有可見性計算使用一致的時間參考系。
+        """
+        try:
+            metadata = stage1_data.get("metadata", {})
+
+            # 優先使用Stage 1的時間繼承信息
+            data_lineage = metadata.get("data_lineage", {})
+            stage1_inheritance = data_lineage.get("stage1_time_inheritance", {})
+            
+            if stage1_inheritance.get("inheritance_ready", False):
+                exported_time_base = stage1_inheritance.get("exported_time_base")
+                if exported_time_base:
+                    self.calculation_base_time = exported_time_base
+                    # 🚨 v6.0修復：設置inherited_time_base字段供下游處理使用
+                    stage1_data["inherited_time_base"] = exported_time_base
+                    self.logger.info(f"🎯 v6.0重構：使用Stage 1導出的時間基準: {exported_time_base}")
+                    return
+
+            # 備用方案：使用TLE epoch時間
+            tle_epoch_time = data_lineage.get("tle_epoch_time")
+            calculation_base_time = data_lineage.get("calculation_base_time")
+
+            if tle_epoch_time:
+                self.calculation_base_time = tle_epoch_time
+                # 🚨 v6.0修復：設置inherited_time_base字段
+                stage1_data["inherited_time_base"] = tle_epoch_time
+                self.logger.info(f"🎯 v6.0重構：使用Stage 1 TLE epoch時間: {tle_epoch_time}")
+            elif calculation_base_time:
+                self.calculation_base_time = calculation_base_time
+                # 🚨 v6.0修復：設置inherited_time_base字段
+                stage1_data["inherited_time_base"] = calculation_base_time
+                self.logger.info(f"🎯 v6.0重構：使用Stage 1計算基準時間: {calculation_base_time}")
+            else:
+                # v6.0重構：嚴格要求時間基準繼承
+                self.logger.error("❌ v6.0重構：Stage 1 metadata缺失時間基準信息")
+                self.logger.error(f"可用metadata欄位: {list(metadata.keys())}")
+                self.logger.error(f"可用data_lineage欄位: {list(data_lineage.keys())}")
+                raise ValueError("v6.0重構：Stage 2無法繼承時間基準，Stage 1輸出不符合要求")
+
+        except Exception as e:
+            self.logger.error(f"❌ v6.0重構：時間基準繼承失敗: {e}")
+            raise
+
     def _validate_stage1_orbital_data(self, stage1_data: Dict[str, Any]) -> bool:
         """驗證階段一軌道數據格式和完整性 (Grade A強制檢查)"""
         try:

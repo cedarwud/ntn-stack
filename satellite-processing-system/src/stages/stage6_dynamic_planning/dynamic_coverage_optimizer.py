@@ -502,10 +502,79 @@ class DynamicCoverageOptimizer:
         return 0.8
 
     def _execute_physics_based_optimization(self, candidates, temporal_analysis, spatial_analysis):
-        return {"selected_satellites": candidates[:100]}
+        """
+        基於物理標準的優化 - 符合文檔要求的衛星池規模
+        
+        文檔要求:
+        - Starlink: 200-250顆衛星
+        - OneWeb: 60-80顆衛星
+        - 總計: 260-330顆衛星
+        """
+        
+        # 按星座分組
+        starlink_candidates = [c for c in candidates if c.get('constellation') == 'starlink']
+        oneweb_candidates = [c for c in candidates if c.get('constellation') == 'oneweb']
+        
+        logger.info(f"📊 候選分布: Starlink {len(starlink_candidates)}顆, OneWeb {len(oneweb_candidates)}顆")
+        
+        # 🎯 按照文檔要求選擇衛星數量
+        target_starlink = min(250, len(starlink_candidates))  # 最多250顆Starlink
+        target_oneweb = min(80, len(oneweb_candidates))      # 最多80顆OneWeb
+        
+        # 確保最少符合基本要求
+        target_starlink = max(200, min(target_starlink, len(starlink_candidates)))  # 至少200顆
+        target_oneweb = max(60, min(target_oneweb, len(oneweb_candidates)))         # 至少60顆
+        
+        # 如果候選不足，使用所有可用候選
+        if len(starlink_candidates) < 200:
+            target_starlink = len(starlink_candidates)
+            logger.warning(f"⚠️ Starlink候選不足200顆，使用全部{target_starlink}顆")
+            
+        if len(oneweb_candidates) < 60:
+            target_oneweb = len(oneweb_candidates)  
+            logger.warning(f"⚠️ OneWeb候選不足60顆，使用全部{target_oneweb}顆")
+        
+        # 🎯 基於品質排序選擇最佳候選
+        # 對Starlink按仰角排序選擇最佳
+        starlink_sorted = sorted(starlink_candidates, 
+                               key=lambda x: x.get('elevation', 0), reverse=True)
+        selected_starlink = starlink_sorted[:target_starlink]
+        
+        # 對OneWeb按仰角排序選擇最佳  
+        oneweb_sorted = sorted(oneweb_candidates,
+                             key=lambda x: x.get('elevation', 0), reverse=True)
+        selected_oneweb = oneweb_sorted[:target_oneweb]
+        
+        # 合併選擇結果
+        selected_satellites = selected_starlink + selected_oneweb
+        
+        total_selected = len(selected_satellites)
+        
+        logger.info(f"✅ 物理優化完成: Starlink {len(selected_starlink)}顆, OneWeb {len(selected_oneweb)}顆, 總計 {total_selected}顆")
+        logger.info(f"📊 符合文檔要求: 260-330顆範圍內" if 260 <= total_selected <= 330 else f"⚠️ 超出文檔範圍: {total_selected}顆")
+        
+        return {
+            "selected_satellites": selected_satellites,
+            "selection_summary": {
+                "starlink_selected": len(selected_starlink),
+                "oneweb_selected": len(selected_oneweb),
+                "total_selected": total_selected,
+                "meets_doc_requirements": 260 <= total_selected <= 330,
+                "selection_method": "elevation_based_quality_ranking"
+            }
+        }
 
     def _validate_coverage_itu_standards(self, result):
         return result
 
     def _update_optimization_stats(self, result):
         pass
+
+    def get_optimization_statistics(self) -> Dict[str, Any]:
+        """
+        獲取優化統計數據
+        
+        Returns:
+            Dict[str, Any]: 優化統計信息的副本
+        """
+        return self.optimization_stats.copy()

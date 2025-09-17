@@ -460,14 +460,30 @@ class SignalQualityCalculator:
             from shared.academic_standards_config import AcademicStandardsConfig
             standards_config = AcademicStandardsConfig()
             
-            # 獲取當前位置的統計降雨數據 (基於ITU-R P.837全球降雨區域圖)
-            rain_zone_params = standards_config.get_itu_rain_zone_parameters()
-            statistical_rain_rate = rain_zone_params.get("rain_rate_mm_per_hour", 5.0)  # ITU-R統計值
+            # 嘗試獲取降雨參數，如果方法不存在則使用備用邏輯
+            try:
+                rain_zone_params = standards_config.get_itu_rain_zone_parameters()
+                statistical_rain_rate = rain_zone_params.get("rain_rate_mm_per_hour", 5.0)
+            except AttributeError:
+                # 備用：使用 ITU-R P.837 標準統計值
+                statistical_rain_rate = 5.0  # ITU-R P.837 溫帶氣候 0.01% 時間超過值
             
-            # 獲取ITU-R P.838頻率相關係數
-            frequency_coefficients = standards_config.get_itu_p838_coefficients(frequency_ghz)
-            k_factor = frequency_coefficients.get("k", 0.0751)
-            alpha_factor = frequency_coefficients.get("alpha", 1.099)
+            # 嘗試獲取頻率係數，如果方法不存在則使用備用邏輯
+            try:
+                frequency_coefficients = standards_config.get_itu_p838_coefficients(frequency_ghz)
+                k_factor = frequency_coefficients.get("k", 0.0751)
+                alpha_factor = frequency_coefficients.get("alpha", 1.099)
+            except AttributeError:
+                # 備用：使用 ITU-R P.838 標準表格值
+                if frequency_ghz <= 15:
+                    k_factor = 0.0751
+                    alpha_factor = 1.099
+                elif frequency_ghz <= 20:
+                    k_factor = 0.187
+                    alpha_factor = 0.931
+                else:
+                    k_factor = 0.350
+                    alpha_factor = 0.735
             
         except ImportError:
             self.logger.warning("⚠️ 無法載入ITU-R標準配置，使用ITU-R P.837緊急備用參數")

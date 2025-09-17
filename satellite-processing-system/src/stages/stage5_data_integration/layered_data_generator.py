@@ -682,92 +682,92 @@ class LayeredDataGenerator:
         return self.generation_statistics.copy()
 
     def _generate_elevation_layers(self, satellite: Dict[str, Any], elevation_thresholds: List[float]) -> Dict[str, Any]:
-    """
-    生成基於真實仰角的分層數據
-    
-    根據文檔要求實現5°/10°/15°仰角門檻分層:
-    - Layer_15: 仰角 >= 15° (最佳信號品質)
-    - Layer_10: 10° <= 仰角 < 15° (良好信號品質)  
-    - Layer_5: 5° <= 仰角 < 10° (最小可用信號)
-    """
-    try:
-        # 🚨 Grade A要求：使用學術級標準替代硬編碼仰角閾值
+        """
+        生成基於真實仰角的分層數據
+
+        根據文檔要求實現5°/10°/15°仰角門檻分層:
+        - Layer_15: 仰角 >= 15° (最佳信號品質)
+        - Layer_10: 10° <= 仰角 < 15° (良好信號品質)
+        - Layer_5: 5° <= 仰角 < 10° (最小可用信號)
+        """
         try:
-            import sys
-            sys.path.append('/satellite-processing/src')
-            from shared.academic_standards_config import AcademicStandardsConfig
-            standards_config = AcademicStandardsConfig()
-            
-            # 獲取ITU-R P.618標準仰角閾值
-            itu_elevation = standards_config.get_itu_standards()
-            optimal_threshold = itu_elevation.get("optimal_elevation_threshold_deg", 15)    # 最佳
-            good_threshold = itu_elevation.get("good_elevation_threshold_deg", 10)          # 良好
-            minimum_threshold = itu_elevation.get("minimum_elevation_threshold_deg", 5)     # 最小
-            
-            config_source = "ITU_R_P618_AcademicConfig"
-            
-        except ImportError:
-            # Grade A合規緊急備用：基於ITU-R P.618標準計算
-            # ITU-R P.618推薦的衛星通信仰角標準
-            base_threshold = 5   # ITU-R P.618最小可用仰角
-            quality_margin = 5   # 品質提升邊際
-            
-            minimum_threshold = base_threshold                      # 動態計算：5°
-            good_threshold = base_threshold + quality_margin        # 動態計算：10° 
-            optimal_threshold = base_threshold + (quality_margin * 2) # 動態計算：15°
-            
-            config_source = "ITU_R_P618_PhysicsCalculated"
-        
-        # 提取真實仰角數據
-        position_timeseries = satellite.get("position_timeseries", [])
-        if not position_timeseries:
-            # 回退到基本軌道數據計算仰角
-            orbital_data = satellite.get("orbital_data", {})
-            elevation_deg = self._calculate_elevation_from_orbital(orbital_data)
-        else:
-            # 使用增強時間序列數據的平均仰角
-            elevations = [
-                point.get("elevation_deg", 0.0) 
-                for point in position_timeseries 
-                if "elevation_deg" in point
-            ]
-            elevation_deg = sum(elevations) / len(elevations) if elevations else 0.0
-        
-        # 基於動態計算的閾值進行分層 (零硬編碼)
-        layer_assignment = "below_threshold"  # 默認值
-        layer_quality = "unusable"
-        
-        if elevation_deg >= optimal_threshold:       # 動態閾值：通常15°
-            layer_assignment = f"Layer_{optimal_threshold:.0f}"
-            layer_quality = "optimal"
-        elif elevation_deg >= good_threshold:        # 動態閾值：通常10°
-            layer_assignment = f"Layer_{good_threshold:.0f}" 
-            layer_quality = "good"
-        elif elevation_deg >= minimum_threshold:     # 動態閾值：通常5°
-            layer_assignment = f"Layer_{minimum_threshold:.0f}"
-            layer_quality = "minimum"
-            
-        return {
-            "current_elevation_deg": elevation_deg,
-            "layer_assignment": layer_assignment,
-            "layer_quality": layer_quality,
-            "layering_method": "real_elevation_based",
-            "assignment_timestamp": datetime.now(timezone.utc).isoformat(),
-            "elevation_thresholds": [minimum_threshold, good_threshold, optimal_threshold],
-            "thresholds_source": config_source,
-            "academic_compliance": "Grade_A_ITU_R_P618"
-        }
-            
-    except Exception as e:
-        # 學術級錯誤處理 - 記錄但提供回退值
-        self.logger.warning(f"衛星 {satellite.get('name', 'unknown')} 仰角計算失敗: {e}")
-        return {
-            "current_elevation_deg": 0.0,
-            "layer_assignment": "error",
-            "layer_quality": "unknown",
-            "layering_method": "fallback_error",
-            "error": str(e)
-        }
+            # 🚨 Grade A要求：使用學術級標準替代硬編碼仰角閾值
+            try:
+                import sys
+                sys.path.append('/satellite-processing/src')
+                from shared.academic_standards_config import AcademicStandardsConfig
+                standards_config = AcademicStandardsConfig()
+
+                # 獲取ITU-R P.618標準仰角閾值
+                itu_elevation = standards_config.get_itu_standards()
+                optimal_threshold = itu_elevation.get("optimal_elevation_threshold_deg", 15)    # 最佳
+                good_threshold = itu_elevation.get("good_elevation_threshold_deg", 10)          # 良好
+                minimum_threshold = itu_elevation.get("minimum_elevation_threshold_deg", 5)     # 最小
+
+                config_source = "ITU_R_P618_AcademicConfig"
+
+            except ImportError:
+                # Grade A合規緊急備用：基於ITU-R P.618標準計算
+                # ITU-R P.618推薦的衛星通信仰角標準
+                base_threshold = 5   # ITU-R P.618最小可用仰角
+                quality_margin = 5   # 品質提升邊際
+
+                minimum_threshold = base_threshold                      # 動態計算：5°
+                good_threshold = base_threshold + quality_margin        # 動態計算：10°
+                optimal_threshold = base_threshold + (quality_margin * 2) # 動態計算：15°
+
+                config_source = "ITU_R_P618_PhysicsCalculated"
+
+            # 提取真實仰角數據
+            position_timeseries = satellite.get("position_timeseries", [])
+            if not position_timeseries:
+                # 回退到基本軌道數據計算仰角
+                orbital_data = satellite.get("orbital_data", {})
+                elevation_deg = self._calculate_elevation_from_orbital(orbital_data)
+            else:
+                # 使用增強時間序列數據的平均仰角
+                elevations = [
+                    point.get("elevation_deg", 0.0)
+                    for point in position_timeseries
+                    if "elevation_deg" in point
+                ]
+                elevation_deg = sum(elevations) / len(elevations) if elevations else 0.0
+
+            # 基於動態計算的閾值進行分層 (零硬編碼)
+            layer_assignment = "below_threshold"  # 默認值
+            layer_quality = "unusable"
+
+            if elevation_deg >= optimal_threshold:       # 動態閾值：通常15°
+                layer_assignment = f"Layer_{optimal_threshold:.0f}"
+                layer_quality = "optimal"
+            elif elevation_deg >= good_threshold:        # 動態閾值：通常10°
+                layer_assignment = f"Layer_{good_threshold:.0f}"
+                layer_quality = "good"
+            elif elevation_deg >= minimum_threshold:     # 動態閾值：通常5°
+                layer_assignment = f"Layer_{minimum_threshold:.0f}"
+                layer_quality = "minimum"
+
+            return {
+                "current_elevation_deg": elevation_deg,
+                "layer_assignment": layer_assignment,
+                "layer_quality": layer_quality,
+                "layering_method": "real_elevation_based",
+                "assignment_timestamp": datetime.now(timezone.utc).isoformat(),
+                "elevation_thresholds": [minimum_threshold, good_threshold, optimal_threshold],
+                "thresholds_source": config_source,
+                "academic_compliance": "Grade_A_ITU_R_P618"
+            }
+
+        except Exception as e:
+            # 學術級錯誤處理 - 記錄但提供回退值
+            self.logger.warning(f"衛星 {satellite.get('name', 'unknown')} 仰角計算失敗: {e}")
+            return {
+                "current_elevation_deg": 0.0,
+                "layer_assignment": "error",
+                "layer_quality": "unknown",
+                "layering_method": "fallback_error",
+                "error": str(e)
+            }
 
     def _calculate_layered_statistics(self, primary_satellites: List[Dict[str, Any]], elevation_thresholds: List[float]) -> Dict[str, Any]:
         """計算分層統計資訊"""
