@@ -320,19 +320,34 @@ class OrbitalCalculator:
         if time_continuity_issues > 0:
             validation_result["passed"] = False
         
-        # 檢查4: 學術標準合規性 - 確保無Mock數據
+        # 檢查4: 學術標準合規性 - v6.0改進：支援多種引擎
         academic_compliance_passed = True
         metadata = orbital_results.get("calculation_metadata", {})
         
-        if metadata.get("sgp4_engine_type") != "SGP4OrbitalEngine":
-            validation_result["issues"].append(f"檢測到非標準引擎: {metadata.get('sgp4_engine_type')}")
+        # 🚀 v6.0改進：接受標準軌道引擎 (SGP4和Skyfield)
+        engine_type = metadata.get("sgp4_engine_type", "")
+        valid_engines = ["SGP4OrbitalEngine", "SkyfieldOrbitalEngine"]
+        
+        if engine_type not in valid_engines:
+            validation_result["issues"].append(f"檢測到非標準引擎: {engine_type}")
             academic_compliance_passed = False
+        else:
+            # 特別驗證Skyfield引擎的Grade A++標準
+            if engine_type == "SkyfieldOrbitalEngine":
+                # 檢查Skyfield特有的精度標記
+                engine_stats = metadata.get("calculation_stats", {})
+                if engine_stats.get("precision_grade") != "A++":
+                    validation_result["issues"].append(f"Skyfield引擎精度等級異常: {engine_stats.get('precision_grade')}")
+                    academic_compliance_passed = False
+                else:
+                    validation_result["issues"].append("✅ v6.0 Skyfield引擎驗證通過 (Grade A++)")
         
         if not metadata.get("no_simulation_used", False):
             validation_result["issues"].append("檢測到可能使用了模擬數據")
             academic_compliance_passed = False
         
         validation_result["validation_checks"]["academic_compliance_check"] = {
+            "engine_type": engine_type,
             "passed": academic_compliance_passed
         }
         

@@ -71,11 +71,12 @@ ls -la logs/summary/*.txt | tail -1 | awk '{print $9}' | xargs cat
 | [Shared Core 統一架構](./shared_core_architecture.md) | 統一管理器、性能優化、避免重複 | 後端工程師、架構師 |
 | [數據處理流程](./data_processing_flow.md) | 六階段處理流程、Pure Cron架構 + 自動驗證 | 數據工程師、研究人員 |
 
-### 🔧 技術實現文檔  
+### 🔧 技術實現文檔
 | 文檔 | 用途 | 讀者對象 |
 |------|------|----------|
 | [算法實現手冊](./algorithms_implementation.md) | 3GPP標準、SGP4算法、換手邏輯 | 算法工程師、研究人員 |
 | [技術實施指南](./technical_guide.md) | 部署配置、開發環境、故障排除 | 後端開發者、運維 |
+| [**直接計算解決方案**](./DIRECT_CALCULATION_SOLUTION.md) | **🚨 v5.1關鍵修復** - 時間基準錯誤修復、性能優化 | **所有開發者** ⚠️ |
 
 ### 🛰️ 專業標準文檔
 | 文檔 | 用途 | 讀者對象 |

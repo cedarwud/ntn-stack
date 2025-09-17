@@ -8,13 +8,13 @@ from typing import List, Dict, Any
 
 # 導入待測試的模組
 import sys
-sys.path.append('/home/sat/ntn-stack/satellite-processing-system/src')
+sys.path.append('/satellite-processing/src')
 
 # 直接導入信號計算器，避免複雜的依賴鏈
 import importlib.util
 spec = importlib.util.spec_from_file_location(
-    "signal_quality_calculator", 
-    "/home/sat/ntn-stack/satellite-processing-system/src/stages/stage3_signal_analysis/signal_quality_calculator.py"
+    "signal_quality_calculator",
+    "/satellite-processing/src/stages/stage3_signal_analysis/signal_quality_calculator.py"
 )
 signal_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(signal_module)
@@ -35,11 +35,8 @@ class TestSignalQualityCalculator:
     @pytest.fixture
     def signal_calculator(self):
         """信號品質計算器 fixture"""
-        # 使用NTPU觀測點座標
-        return SignalQualityCalculator(
-            observer_lat=24.9441667,  # 24°56'39"N
-            observer_lon=121.3713889  # 121°22'17"E
-        )
+        # 使用 Starlink 星座配置
+        return SignalQualityCalculator(constellation="starlink")
     
     @pytest.fixture
     def mock_position_data(self):

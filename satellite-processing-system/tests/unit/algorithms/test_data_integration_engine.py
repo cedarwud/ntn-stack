@@ -27,6 +27,7 @@ Author: TDD Architecture Refactoring Team
 import pytest
 import json
 import math
+import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch
@@ -455,262 +456,331 @@ def mock_system_parameters():
     }
 
 
-class TestStage5DataIntegrationEngine:
+class TestStage5DataIntegrationEngine(unittest.TestCase):
     """Stage5 數據整合引擎測試類"""
-    
+
+    def _create_data_integration_processor(self):
+        """創建數據整合處理器 (替代 fixture)"""
+        config = {
+            "output_directory": "/tmp/stage5_test_outputs",
+            "postgresql_config": {"host": "localhost", "port": 5432},
+            "cache_config": {"max_size_mb": 1000},
+            "storage_config": {"max_utilization": 0.8}
+        }
+        return SimpleStage5Processor(config)
+
+    def _create_mock_stage5_input_data(self):
+        """創建 Mock Stage5 輸入數據 (替代 fixture)"""
+        return {
+            "satellite_count": 100,
+            "timeseries_count": 1000,
+            "stage1_output": {"record_count": 150},
+            "stage2_output": {"record_count": 120},
+            "stage3_output": {"record_count": 100},
+            "stage4_output": {"record_count": 100},
+            "processing_config": {
+                "enable_postgresql": True,
+                "enable_caching": True,
+                "storage_optimization": True
+            }
+        }
+
+    def _create_mock_system_parameters(self):
+        """創建 Mock 系統參數 (替代 fixture)"""
+        return {
+            "frequency_ghz": 2.0,          # S-band 頻率
+            "tx_power_dbm": 43.0,          # 20W EIRP (3GPP NTN)
+            "antenna_gain_db": 20.0,       # 高增益天線
+            "noise_figure_db": 3.0,        # 低雜訊放大器
+            "bandwidth_mhz": 20.0,         # LTE 20MHz 頻寬
+            "implementation_loss_db": 2.0   # 實施損耗
+        }
+
     @pytest.mark.academic_compliance_a
-    def test_stage5_processor_initialization(self, data_integration_processor):
+    def test_stage5_processor_initialization(self):
         """測試 Stage5 處理器初始化 - Grade A"""
+        # 創建數據整合處理器
+        config = {
+            "output_directory": "/tmp/stage5_test_outputs",
+            "postgresql_config": {"host": "localhost", "port": 5432},
+            "cache_config": {"max_size_mb": 1000},
+            "storage_config": {"max_utilization": 0.8}
+        }
+        data_integration_processor = SimpleStage5Processor(config)
+
         # 驗證處理器正確初始化
-        assert data_integration_processor is not None
-        assert len(data_integration_processor.processing_stages) == 12
+        self.assertIsNotNone(data_integration_processor)
+        self.assertEqual(len(data_integration_processor.processing_stages), 12)
         
         # 驗證所有組件都已初始化
-        assert hasattr(data_integration_processor, 'stage_data_loader')
-        assert hasattr(data_integration_processor, 'cross_stage_validator')
-        assert hasattr(data_integration_processor, 'layered_data_generator')
-        assert hasattr(data_integration_processor, 'handover_scenario_engine')
-        assert hasattr(data_integration_processor, 'postgresql_integrator')
-        assert hasattr(data_integration_processor, 'storage_balance_analyzer')
-        
+        self.assertTrue(hasattr(data_integration_processor, 'stage_data_loader'))
+        self.assertTrue(hasattr(data_integration_processor, 'cross_stage_validator'))
+        self.assertTrue(hasattr(data_integration_processor, 'layered_data_generator'))
+        self.assertTrue(hasattr(data_integration_processor, 'handover_scenario_engine'))
+        self.assertTrue(hasattr(data_integration_processor, 'postgresql_integrator'))
+        self.assertTrue(hasattr(data_integration_processor, 'storage_balance_analyzer'))
+
         # 驗證配置設定
-        assert data_integration_processor.config is not None
-        assert "output_directory" in data_integration_processor.config
+        self.assertIsNotNone(data_integration_processor.config)
+        self.assertIn("output_directory", data_integration_processor.config)
     
     @pytest.mark.academic_compliance_a
-    def test_enhanced_timeseries_processing(self, data_integration_processor, mock_stage5_input_data):
+    def test_enhanced_timeseries_processing(self):
         """測試增強時間序列處理 - Grade A 完整性檢查"""
+        data_integration_processor = self._create_data_integration_processor()
+        mock_stage5_input_data = self._create_mock_stage5_input_data()
+
         # 執行數據整合處理
         results = data_integration_processor.process_enhanced_timeseries(mock_stage5_input_data)
-        
+
         # 驗證處理結果結構
-        assert results["stage"] == "stage5_data_integration"
-        assert results["total_stages"] == 12
-        assert len(results["stages_executed"]) == 12
-        
+        self.assertEqual(results["stage"], "stage5_data_integration")
+        self.assertEqual(results["total_stages"], 12)
+        self.assertEqual(len(results["stages_executed"]), 12)
+
         # 驗證數據整合結果
         data_results = results["data_integration_results"]
-        assert data_results["satellites_processed"] == 100
-        assert data_results["timeseries_points"] == 1000
-        
+        self.assertEqual(data_results["satellites_processed"], 100)
+        self.assertEqual(data_results["timeseries_points"], 1000)
+
         # 驗證所有階段成功執行
         for stage_result in results["stages_executed"]:
-            assert stage_result["status"] == "completed"
-            assert stage_result["records_processed"] >= 0
+            self.assertEqual(stage_result["status"], "completed")
+            self.assertGreaterEqual(stage_result["records_processed"], 0)
         
         # 驗證處理統計
         stats = results["processing_statistics"]
-        assert stats["successful_stages"] == 12
-        assert stats["failed_stages"] == 0
-        assert stats["total_execution_time"] > 0
+        self.assertEqual(stats["successful_stages"], 12)
+        self.assertEqual(stats["failed_stages"], 0)
+        self.assertGreater(stats["total_execution_time"], 0)
     
     @pytest.mark.academic_compliance_a
-    def test_cross_stage_data_loading(self, data_integration_processor, mock_stage5_input_data):
+    def test_cross_stage_data_loading(self):
         """測試跨階段數據載入 - Grade A 數據一致性"""
+        data_integration_processor = self._create_data_integration_processor()
+        mock_stage5_input_data = self._create_mock_stage5_input_data()
         loader = data_integration_processor.stage_data_loader
-        
+
         # 測試數據載入功能
         result = loader.load_cross_stage_data(mock_stage5_input_data)
-        
+
         # 驗證載入結果
-        assert result["status"] == "completed"
-        assert result["records"] > 0
-        assert len(result["stages_loaded"]) == 4
-        assert "stage1" in result["stages_loaded"]
-        assert "stage4" in result["stages_loaded"]
-        
+        self.assertEqual(result["status"], "completed")
+        self.assertGreater(result["records"], 0)
+        self.assertEqual(len(result["stages_loaded"]), 4)
+        self.assertIn("stage1", result["stages_loaded"])
+        self.assertIn("stage4", result["stages_loaded"])
+
         # 驗證數據大小計算
-        assert result["total_size_mb"] > 0
-        assert result["total_size_mb"] == result["records"] * 0.001
+        self.assertGreater(result["total_size_mb"], 0)
+        self.assertEqual(result["total_size_mb"], result["records"] * 0.001)
     
     @pytest.mark.academic_compliance_a
-    def test_cross_stage_validation(self, data_integration_processor, mock_stage5_input_data):
+    def test_cross_stage_validation(self):
         """測試跨階段驗證 - Grade A 一致性檢查"""
+        data_integration_processor = self._create_data_integration_processor()
+        mock_stage5_input_data = self._create_mock_stage5_input_data()
         validator = data_integration_processor.cross_stage_validator
-        
+
         # 測試數據一致性驗證
         result = validator.validate_data_consistency(mock_stage5_input_data)
-        
+
         # 驗證驗證結果
-        assert result["status"] == "passed"
-        assert result["error_count"] == 0
-        
+        self.assertEqual(result["status"], "passed")
+        self.assertEqual(result["error_count"], 0)
+
         # 驗證所有一致性檢查
         validations = result["validations"]
-        assert validations["timestamp_consistency"] is True
-        assert validations["satellite_id_consistency"] is True
-        assert validations["coordinate_system_consistency"] is True
-        assert validations["data_format_consistency"] is True
+        self.assertTrue(validations["timestamp_consistency"])
+        self.assertTrue(validations["satellite_id_consistency"])
+        self.assertTrue(validations["coordinate_system_consistency"])
+        self.assertTrue(validations["data_format_consistency"])
     
     @pytest.mark.academic_compliance_a
-    def test_layered_data_generation(self, data_integration_processor, mock_stage5_input_data):
+    def test_layered_data_generation(self):
         """測試分層數據生成 - Grade A 架構分層"""
+        data_integration_processor = self._create_data_integration_processor()
+        mock_stage5_input_data = self._create_mock_stage5_input_data()
         generator = data_integration_processor.layered_data_generator
-        
+
         # 測試分層數據生成
         result = generator.generate_layered_data(mock_stage5_input_data)
-        
+
         # 驗證分層結構
-        assert result["status"] == "completed"
-        assert result["layers_generated"] == 3
-        assert result["records"] > 0
-        
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["layers_generated"], 3)
+        self.assertGreater(result["records"], 0)
+
         # 驗證各層數據
         layers = result["layer_details"]
-        assert "network_layer" in layers
-        assert "service_layer" in layers
-        assert "application_layer" in layers
-        
+        self.assertIn("network_layer", layers)
+        self.assertIn("service_layer", layers)
+        self.assertIn("application_layer", layers)
+
         # 驗證網路層數據類型
         network_layer = layers["network_layer"]
-        assert "handover_events" in network_layer["data_types"]
-        assert "signal_measurements" in network_layer["data_types"]
+        self.assertIn("handover_events", network_layer["data_types"])
+        self.assertIn("signal_measurements", network_layer["data_types"])
     
     @pytest.mark.academic_compliance_a
-    def test_handover_scenario_analysis(self, data_integration_processor, mock_stage5_input_data):
+    def test_handover_scenario_analysis(self):
         """測試換手場景分析 - Grade A NTN 換手標準"""
+        data_integration_processor = self._create_data_integration_processor()
+        mock_stage5_input_data = self._create_mock_stage5_input_data()
         engine = data_integration_processor.handover_scenario_engine
-        
+
         # 測試換手場景分析
         result = engine.analyze_handover_scenarios(mock_stage5_input_data)
-        
+
         # 驗證換手分析結果
-        assert result["status"] == "completed"
-        assert result["records"] == 300  # 100 satellites * 3 scenarios
-        assert result["handover_success_rate"] >= 0.9  # 高成功率要求
-        
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["records"], 300)  # 100 satellites * 3 scenarios
+        self.assertGreaterEqual(result["handover_success_rate"], 0.9)  # 高成功率要求
+
         # 驗證換手類型分布
         scenario_types = result["scenario_types"]
-        assert "intra_plane_handover" in scenario_types
-        assert "inter_plane_handover" in scenario_types
-        assert "ground_station_handover" in scenario_types
-        assert "emergency_handover" in scenario_types
-        
+        self.assertIn("intra_plane_handover", scenario_types)
+        self.assertIn("inter_plane_handover", scenario_types)
+        self.assertIn("ground_station_handover", scenario_types)
+        self.assertIn("emergency_handover", scenario_types)
+
         # 驗證換手時間符合 NTN 標準 (< 300ms)
-        assert result["average_handover_time"] < 300
+        self.assertLess(result["average_handover_time"], 300)
     
     @pytest.mark.academic_compliance_a
-    def test_postgresql_integration(self, data_integration_processor, mock_stage5_input_data):
+    def test_postgresql_integration(self):
         """測試 PostgreSQL 整合 - Grade A 資料庫操作"""
+        data_integration_processor = self._create_data_integration_processor()
+        mock_stage5_input_data = self._create_mock_stage5_input_data()
         integrator = data_integration_processor.postgresql_integrator
-        
+
         # 測試資料庫整合
         result = integrator.integrate_data(mock_stage5_input_data)
-        
+
         # 驗證資料庫操作
-        assert result["status"] == "completed"
-        assert result["records"] == 1000  # 100 satellites * 10 records
-        
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["records"], 1000)  # 100 satellites * 10 records
+
         # 驗證資料庫操作類型
         operations = result["database_operations"]
-        assert operations["inserts"] > 0
-        assert operations["updates"] > 0
-        assert operations["deletes"] >= 0
-        
+        self.assertGreater(operations["inserts"], 0)
+        self.assertGreater(operations["updates"], 0)
+        self.assertGreaterEqual(operations["deletes"], 0)
+
         # 驗證表格統計
         table_stats = result["table_stats"]
-        assert "satellite_positions" in table_stats
-        assert "signal_measurements" in table_stats
-        assert "handover_events" in table_stats
-        assert "system_metrics" in table_stats
+        self.assertIn("satellite_positions", table_stats)
+        self.assertIn("signal_measurements", table_stats)
+        self.assertIn("handover_events", table_stats)
+        self.assertIn("system_metrics", table_stats)
     
     @pytest.mark.academic_compliance_a
-    def test_storage_balance_analysis(self, data_integration_processor, mock_stage5_input_data):
+    def test_storage_balance_analysis(self):
         """測試存儲平衡分析 - Grade A 存儲優化"""
+        data_integration_processor = self._create_data_integration_processor()
+        mock_stage5_input_data = self._create_mock_stage5_input_data()
         analyzer = data_integration_processor.storage_balance_analyzer
-        
+
         # 測試存儲分析
         result = analyzer.analyze_storage_balance(mock_stage5_input_data)
-        
+
         # 驗證存儲分析結果
-        assert result["status"] == "balanced"
-        assert result["records"] > 0
-        
+        self.assertEqual(result["status"], "balanced")
+        self.assertGreater(result["records"], 0)
+
         # 驗證存儲指標
         metrics = result["storage_metrics"]
-        assert metrics["total_size_mb"] > 0
-        assert metrics["available_space_mb"] > 0
-        assert 0 <= metrics["utilization_percent"] <= 100
-        assert metrics["fragmentation_percent"] >= 0
-        
+        self.assertGreater(metrics["total_size_mb"], 0)
+        self.assertGreater(metrics["available_space_mb"], 0)
+        self.assertGreaterEqual(metrics["utilization_percent"], 0)
+        self.assertLessEqual(metrics["utilization_percent"], 100)
+        self.assertGreaterEqual(metrics["fragmentation_percent"], 0)
+
         # 驗證建議
-        assert len(result["recommendations"]) > 0
+        self.assertGreater(len(result["recommendations"]), 0)
     
     @pytest.mark.academic_compliance_b
-    def test_processing_cache_management(self, data_integration_processor, mock_stage5_input_data):
+    def test_processing_cache_management(self):
         """測試處理快取管理 - Grade B 性能優化"""
+        data_integration_processor = self._create_data_integration_processor()
+        mock_stage5_input_data = self._create_mock_stage5_input_data()
         cache_manager = data_integration_processor.processing_cache_manager
-        
+
         # 測試快取管理
         result = cache_manager.manage_cache(mock_stage5_input_data)
-        
+
         # 驗證快取管理結果
-        assert result["status"] == "optimized"
-        assert result["records"] == 500  # 100 satellites * 5 cache entries
-        
+        self.assertEqual(result["status"], "optimized")
+        self.assertEqual(result["records"], 500)  # 100 satellites * 5 cache entries
+
         # 驗證快取指標
         metrics = result["cache_metrics"]
-        assert metrics["hit_rate_percent"] > 80  # 高命中率
-        assert metrics["miss_rate_percent"] < 20  # 低未命中率
-        assert metrics["memory_usage_mb"] > 0
-        
+        self.assertGreater(metrics["hit_rate_percent"], 80)  # 高命中率
+        self.assertLess(metrics["miss_rate_percent"], 20)  # 低未命中率
+        self.assertGreater(metrics["memory_usage_mb"], 0)
+
         # 驗證快取操作
         operations = result["operations"]
-        assert operations["cache_hits"] > operations["cache_misses"]
+        self.assertGreater(operations["cache_hits"], operations["cache_misses"])
     
     @pytest.mark.academic_compliance_a
-    def test_signal_quality_calculation_integration(self, data_integration_processor, mock_system_parameters):
+    def test_signal_quality_calculation_integration(self):
         """測試信號品質計算整合 - Grade A Friis 公式驗證"""
+        data_integration_processor = self._create_data_integration_processor()
+        mock_system_parameters = self._create_mock_system_parameters()
         calculator = data_integration_processor.signal_quality_calculator
-        
+
         # 測試位置數據 - 典型 LEO 衛星距離
         position_data = {
             "range_km": 550.0,  # 典型 LEO 軌道高度
             "elevation_deg": 45.0,
             "azimuth_deg": 180.0
         }
-        
+
         # 執行信號品質計算
         result = calculator.calculate_signal_quality(position_data, mock_system_parameters)
-        
+
         # 驗證 RSRP 計算結果 - 基於 Friis 公式
-        assert "rsrp_dbm" in result
-        assert "rsrq_db" in result
-        assert "path_loss_db" in result
-        
+        self.assertIn("rsrp_dbm", result)
+        self.assertIn("rsrq_db", result)
+        self.assertIn("path_loss_db", result)
+
         # 驗證 RSRP 值合理範圍 (LEO 衛星典型值 -90 to -110 dBm)
         rsrp = result["rsrp_dbm"]
-        assert -120 <= rsrp <= -80, f"RSRP {rsrp} dBm 超出合理範圍"
-        
+        self.assertGreaterEqual(rsrp, -120, f"RSRP {rsrp} dBm 超出合理範圍")
+        self.assertLessEqual(rsrp, -80, f"RSRP {rsrp} dBm 超出合理範圍")
+
         # 驗證路徑損耗計算
         expected_path_loss = 20 * math.log10(4 * math.pi * 550 * 1000 / 0.15)  # 2GHz wavelength ≈ 0.15m
-        assert abs(result["path_loss_db"] - expected_path_loss) < 1.0
+        self.assertLess(abs(result["path_loss_db"] - expected_path_loss), 1.0)
     
     @pytest.mark.academic_compliance_a
-    def test_intelligent_data_fusion_engine(self, data_integration_processor, mock_stage5_input_data):
+    def test_intelligent_data_fusion_engine(self):
         """測試智能數據融合引擎 - Grade A 多源數據融合"""
+        data_integration_processor = self._create_data_integration_processor()
+        mock_stage5_input_data = self._create_mock_stage5_input_data()
         fusion_engine = data_integration_processor.intelligent_data_fusion_engine
-        
+
         # 測試多源數據融合
         result = fusion_engine.fuse_multi_source_data(mock_stage5_input_data)
-        
+
         # 驗證融合結果
-        assert result["status"] == "completed"
-        assert result["records"] == 800  # 100 satellites * 8 fusion records
-        
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["records"], 800)  # 100 satellites * 8 fusion records
+
         # 驗證融合數據源
         sources = result["fusion_sources"]
-        assert sources["orbital_data"] is True
-        assert sources["signal_measurements"] is True
-        assert sources["handover_events"] is True
-        assert sources["system_telemetry"] is True
-        
+        self.assertTrue(sources["orbital_data"])
+        self.assertTrue(sources["signal_measurements"])
+        self.assertTrue(sources["handover_events"])
+        self.assertTrue(sources["system_telemetry"])
+
         # 驗證融合品質指標
         quality = result["fusion_quality"]
-        assert quality["data_completeness"] >= 0.9
-        assert quality["temporal_alignment"] >= 0.9
-        assert quality["spatial_consistency"] >= 0.9
-        assert quality["overall_quality_score"] >= 0.9
+        self.assertGreaterEqual(quality["data_completeness"], 0.9)
+        self.assertGreaterEqual(quality["temporal_alignment"], 0.9)
+        self.assertGreaterEqual(quality["spatial_consistency"], 0.9)
+        self.assertGreaterEqual(quality["overall_quality_score"], 0.9)
 
     def test_signal_calculation_numerical_accuracy(self):
         """測試信號計算數值準確性 (Grade A: 驗證Friis公式實現)"""
@@ -777,7 +847,7 @@ class TestStage5DataIntegrationEngine:
         
         # 測試A5事件檢測邏輯 (服務衛星劣於門檻1，鄰居優於門檻2)
         rsrp_serving = -115.0   # 服務衛星RSRP
-        rsrp_neighbor = -105.0  # 鄰居衛星RSRP
+        rsrp_neighbor = -102.0  # 鄰居衛星RSRP (修正: 需要大於 -108.0 + 3.0 = -105.0)
         a5_threshold1 = -110.0  # 服務衛星門檻
         a5_threshold2 = -108.0  # 鄰居衛星門檻
         
@@ -821,11 +891,11 @@ class TestStage5DataIntegrationEngine:
             wrong_base_time = current_time          # ❌ 錯誤：使用當前時間
             
             # 斷言：計算基準時間應該是TLE epoch時間
-            self.assertEqual(calculation_base_time, tle_epoch_date,
-                           "必須使用TLE epoch時間作為軌道計算基準")
-            
-            self.assertNotEqual(calculation_base_time, wrong_base_time,
-                              "禁止使用當前系統時間作為軌道計算基準")
+            assert calculation_base_time == tle_epoch_date, \
+                "必須使用TLE epoch時間作為軌道計算基準"
+
+            assert calculation_base_time != wrong_base_time, \
+                "禁止使用當前系統時間作為軌道計算基準"
             
             print(f"✅ TLE時間基準合規性驗證通過: 使用epoch時間 {tle_epoch_date}")
             

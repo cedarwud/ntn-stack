@@ -144,11 +144,15 @@ class BaseStageProcessor(ABC):
             Dict[str, Any]: 處理結果
         """
         self.logger.info(f"開始執行 Stage {self.stage_number}: {self.stage_name}")
-        
+
         try:
+            # 0. 🚨 自動清理舊輸出 - 確保每次執行都從乾淨狀態開始
+            self.logger.info("🧹 執行階段前自動清理...")
+            self.cleanup_previous_output()
+
             # 1. 開始計時
             self.start_processing_timer()
-            
+
             # 2. 載入輸入數據（如果未提供）
             if input_data is None:
                 input_data = self.load_input_data()
@@ -314,36 +318,36 @@ class BaseStageProcessor(ABC):
     
     def cleanup_previous_output(self) -> None:
         """
-        清理之前的輸出文件和對應的驗證快照
+        完全清理整個階段的輸出資料夾和對應的驗證快照
         
-        🎯 修復：保持驗證快照與階段輸出的同步清理，避免數據不一致
+        🎯 策略：完全移除整個 stageX 資料夾再重新創建，確保徹底清理
         """
-        cleaned_files = 0
+        cleaned_items = 0
         
-        # 1. 清理輸出目錄的所有文件
+        # 1. 🗑️ 完全移除整個階段輸出資料夾 (例如: data/outputs/stage1)
         if self.output_dir.exists():
-            for file in self.output_dir.glob("*"):
-                if file.is_file():
-                    file.unlink()
-                    cleaned_files += 1
-                    self.logger.info(f"已清理舊輸出文件: {file}")
+            import shutil
+            shutil.rmtree(self.output_dir)
+            cleaned_items += 1
+            self.logger.info(f"🗑️ 已完全移除整個階段資料夾: {self.output_dir}")
         
-        # 2. 🎯 同步清理對應的驗證快照文件
+        # 2. 🗑️ 同步清理對應的驗證快照文件
         validation_file = self.validation_dir / f"stage{self.stage_number}_validation.json"
         if validation_file.exists():
             validation_file.unlink()
-            cleaned_files += 1
-            self.logger.info(f"已同步清理驗證快照: {validation_file}")
+            cleaned_items += 1
+            self.logger.info(f"🗑️ 已同步清理驗證快照: {validation_file}")
         
-        # 3. 記錄清理統計
-        if cleaned_files > 0:
-            self.logger.info(f"✅ Stage {self.stage_number} 清理完成: {cleaned_files} 個文件 (包含輸出數據和驗證快照)")
-        else:
-            self.logger.info(f"ℹ️ Stage {self.stage_number} 無需清理 (無舊文件)")
-        
-        # 4. 確保輸出目錄存在
+        # 3. 📁 重新創建乾淨的階段資料夾結構
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.validation_dir.mkdir(parents=True, exist_ok=True)
+        self.logger.info(f"📁 已重新創建乾淨的階段資料夾: {self.output_dir}")
+        
+        # 4. 記錄清理統計
+        if cleaned_items > 0:
+            self.logger.info(f"✅ Stage {self.stage_number} 完全清理完成: 移除整個階段資料夾並重建")
+        else:
+            self.logger.info(f"ℹ️ Stage {self.stage_number} 無需清理 (階段資料夾不存在)")
     
     def get_processing_statistics(self) -> Dict[str, Any]:
         """

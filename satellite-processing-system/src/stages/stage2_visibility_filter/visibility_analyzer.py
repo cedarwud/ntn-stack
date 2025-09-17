@@ -53,6 +53,135 @@ class VisibilityAnalyzer:
         self.logger.info("✅ 可見性分析器初始化完成")
         self.logger.info(f"   最小過境時間: {min_pass_duration}秒")
         self.logger.info(f"   窗口合併間隔: {max_gap_seconds}秒")
+
+    def initialize_temporal_spatial_analysis(self, config: Optional[Dict] = None):
+        """
+        🆕 Stage2增強：初始化時空錯開分析功能
+        
+        整合從TemporalSpatialAnalysisEngine提取的24個時空分析方法，
+        為Stage2提供增強的可見性篩選能力。
+        
+        Args:
+            config: 時空分析配置參數
+        """
+        from .temporal_spatial_filter import TemporalSpatialFilter
+        
+        self.temporal_spatial_filter = TemporalSpatialFilter(config)
+        self.temporal_spatial_enabled = True
+        
+        # 更新分析統計以包含時空分析
+        self.analysis_statistics.update({
+            "temporal_spatial_analysis_enabled": True,
+            "coverage_windows_analyzed": 0,
+            "temporal_coverage_gaps_identified": 0,
+            "spatial_optimization_applied": False
+        })
+        
+        self.logger.info("🔧 時空錯開分析功能已整合到可見性分析器")
+        return self.temporal_spatial_filter
+
+    def analyze_visibility_with_temporal_spatial_optimization(self, satellites: List[Dict], 
+                                                            time_points: Optional[List[datetime]] = None) -> Dict[str, Any]:
+        """
+        🆕 Stage2增強：結合時空錯開優化的可見性分析
+        
+        這是Stage2的主要增強功能，整合了從Stage6提取的時空分析能力。
+        
+        Args:
+            satellites: 衛星數據列表
+            time_points: 分析時間點列表（可選）
+            
+        Returns:
+            包含時空優化的可見性分析結果
+        """
+        if not hasattr(self, 'temporal_spatial_filter'):
+            self.logger.warning("⚠️ 時空錯開分析未初始化，使用標準可見性分析")
+            return self.analyze_visibility_windows(satellites)
+            
+        self.logger.info("🚀 開始時空錯開優化的可見性分析...")
+        
+        try:
+            # Step 1: 標準可見性分析
+            standard_analysis = self.analyze_visibility_windows(satellites)
+            
+            # Step 2: 覆蓋窗口分析 (從TemporalSpatialAnalysisEngine提取)
+            coverage_analysis = self.temporal_spatial_filter._analyze_coverage_windows(satellites)
+            self.analysis_statistics["coverage_windows_analyzed"] = len(coverage_analysis.get('coverage_windows', []))
+            
+            # Step 3: 時間覆蓋間隙分析
+            if time_points is None:
+                # 生成默認時間點（未來24小時，每30分鐘一個點）
+                time_points = self._generate_default_time_points()
+                
+            gap_analysis = self.temporal_spatial_filter._calculate_temporal_coverage_gaps(satellites, time_points)
+            self.analysis_statistics["temporal_coverage_gaps_identified"] = len(gap_analysis.get('identified_gaps', []))
+            
+            # Step 4: 空間分佈優化
+            spatial_optimization = self.temporal_spatial_filter._optimize_spatial_distribution(satellites)
+            self.analysis_statistics["spatial_optimization_applied"] = True
+            
+            # Step 5: 整合分析結果
+            enhanced_analysis = {
+                **standard_analysis,  # 保留原有可見性分析結果
+                'temporal_spatial_enhancement': {
+                    'coverage_analysis': coverage_analysis,
+                    'gap_analysis': gap_analysis,
+                    'spatial_optimization': spatial_optimization,
+                    'enhancement_metadata': {
+                        'stage2_enhanced': True,
+                        'analysis_timestamp': datetime.now().isoformat(),
+                        'methods_applied': ['coverage_windows', 'temporal_gaps', 'spatial_optimization'],
+                        'total_improvements': {
+                            'coverage_windows_count': len(coverage_analysis.get('coverage_windows', [])),
+                            'temporal_gaps_identified': len(gap_analysis.get('identified_gaps', [])),
+                            'spatial_diversity_improvement': spatial_optimization.get('optimization_effectiveness', {}).get('diversity_improvement', 0.0)
+                        }
+                    }
+                }
+            }
+            
+            self.logger.info("✅ 時空錯開優化可見性分析完成")
+            self.logger.info(f"   覆蓋窗口數量: {len(coverage_analysis.get('coverage_windows', []))}")
+            self.logger.info(f"   識別時間間隙: {len(gap_analysis.get('identified_gaps', []))}")
+            self.logger.info(f"   空間多樣性提升: {spatial_optimization.get('optimization_effectiveness', {}).get('diversity_improvement', 0.0):.3f}")
+            
+            return enhanced_analysis
+            
+        except Exception as e:
+            self.logger.error(f"時空錯開分析失敗: {e}")
+            self.logger.warning("回退到標準可見性分析")
+            return self.analyze_visibility_windows(satellites)
+
+    def _generate_default_time_points(self) -> List[datetime]:
+        """生成默認的分析時間點（未來24小時）"""
+        time_points = []
+        current_time = datetime.now()
+        
+        for i in range(48):  # 24小時，每30分鐘一個點
+            time_point = current_time + timedelta(minutes=i * 30)
+            time_points.append(time_point)
+            
+        return time_points
+
+    def get_temporal_spatial_statistics(self) -> Dict[str, Any]:
+        """
+        🆕 獲取時空錯開分析統計信息
+        
+        Returns:
+            時空分析的詳細統計數據
+        """
+        if not hasattr(self, 'temporal_spatial_filter'):
+            return {'temporal_spatial_enabled': False}
+            
+        return {
+            'temporal_spatial_enabled': self.temporal_spatial_enabled,
+            'analysis_statistics': self.analysis_statistics,
+            'filter_configuration': {
+                'time_window_minutes': self.temporal_spatial_filter.temporal_analysis_config['time_window_minutes'],
+                'gap_threshold_seconds': self.temporal_spatial_filter.temporal_analysis_config['coverage_gap_threshold_seconds'],
+                'spatial_diversity_threshold': self.temporal_spatial_filter.temporal_analysis_config['spatial_diversity_threshold']
+            }
+        }
     
     def analyze_visibility_windows(self, satellites: List[Dict[str, Any]]) -> Dict[str, Any]:
         """

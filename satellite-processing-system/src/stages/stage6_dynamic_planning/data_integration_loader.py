@@ -147,15 +147,29 @@ class DataIntegrationLoader:
         
         self.load_stats["files_loaded"] = 1
         
-        # 統計衛星數量
-        satellite_data = data.get("satellite_data", {})
+        # 🔥 修復：統計衛星數量 - 從正確的數據結構提取
         total_satellites = 0
         
-        for constellation, satellites in satellite_data.items():
-            if isinstance(satellites, list):
-                total_satellites += len(satellites)
-            elif isinstance(satellites, dict):
-                total_satellites += len(satellites.keys())
+        # 檢查Stage5的嵌套數據結構: data.integrated_satellites
+        nested_data = data.get("data", {})
+        integrated_satellites = nested_data.get("integrated_satellites", {})
+        
+        if integrated_satellites:
+            # 從integrated_satellites提取
+            for constellation, satellites in integrated_satellites.items():
+                if isinstance(satellites, list):
+                    total_satellites += len(satellites)
+                elif isinstance(satellites, dict):
+                    total_satellites += len(satellites.keys())
+            logger.info(f"✅ Stage 5嵌套數據格式驗證通過")
+        else:
+            # 回退：檢查舊格式 satellite_data
+            satellite_data = data.get("satellite_data", {})
+            for constellation, satellites in satellite_data.items():
+                if isinstance(satellites, list):
+                    total_satellites += len(satellites)
+                elif isinstance(satellites, dict):
+                    total_satellites += len(satellites.keys())
         
         self.load_stats["total_satellites"] = total_satellites
     

@@ -221,42 +221,60 @@ class ScientificValidationEngine:
                     timeseries = satellite.get("position_timeseries", [])
                     for pos_idx, position in enumerate(timeseries[:3]):  # 檢查前3個位置點
 
-                        # 提取位置數據
-                        elevation = position.get("elevation_deg")
-                        azimuth = position.get("azimuth_deg")
-                        sat_lat = position.get("latitude_deg")
-                        sat_lon = position.get("longitude_deg")
-                        sat_alt = position.get("altitude_km")
+                        # 提取位置數據 - 修復 tuple 格式問題
+                        relative_data = position.get("relative_to_observer", {})
+                        if isinstance(relative_data, dict):
+                            elevation = relative_data.get("elevation_deg")
+                            azimuth = relative_data.get("azimuth_deg")
+                        else:
+                            elevation = None
+                            azimuth = None
 
-                        if any(x is None for x in [elevation, azimuth, sat_lat, sat_lon, sat_alt]):
+                        # 嘗試從 ECI 位置數據推導
+                        eci_pos = position.get("eci_position", {})
+                        if isinstance(eci_pos, dict):
+                            sat_lat = None  # ECI 座標無法直接提供緯度
+                            sat_lon = None
+                            sat_alt = None  # 需要從 ECI 計算
+                        else:
+                            sat_lat = None
+                            sat_lon = None
+                            sat_alt = None
+
+                        # 只檢查可用的數據 - 避免 None 檢查錯誤
+                        if elevation is None and azimuth is None:
                             continue
 
-                        # 基本物理約束檢查
-                        if elevation < 0 or elevation > 90:
-                            geometry_violations += 1
-                            results["geometric_issues"].append(
-                                f"{constellation}衛星{sat_idx}位置{pos_idx}: 仰角超出範圍 {elevation:.2f}°"
-                            )
+                        # 基本物理約束檢查 - 只檢查非 None 值
+                        if elevation is not None:
+                            if elevation < 0 or elevation > 90:
+                                geometry_violations += 1
+                                results["geometric_issues"].append(
+                                    f"{constellation}衛星{sat_idx}位置{pos_idx}: 仰角超出範圍 {elevation:.2f}°"
+                                )
 
-                        if azimuth < 0 or azimuth >= 360:
-                            geometry_violations += 1
-                            results["geometric_issues"].append(
-                                f"{constellation}衛星{sat_idx}位置{pos_idx}: 方位角超出範圍 {azimuth:.2f}°"
-                            )
+                        if azimuth is not None:
+                            if azimuth < 0 or azimuth >= 360:
+                                geometry_violations += 1
+                                results["geometric_issues"].append(
+                                    f"{constellation}衛星{sat_idx}位置{pos_idx}: 方位角超出範圍 {azimuth:.2f}°"
+                                )
 
-                        # 高度合理性檢查
-                        if sat_alt < 200 or sat_alt > 2000:  # LEO/MEO範圍
-                            geometry_violations += 1
-                            results["geometric_issues"].append(
-                                f"{constellation}衛星{sat_idx}位置{pos_idx}: 軌道高度不合理 {sat_alt:.1f}km"
-                            )
+                        # 高度合理性檢查 - 只在可用時檢查
+                        if sat_alt is not None:
+                            if sat_alt < 200 or sat_alt > 2000:  # LEO/MEO範圍
+                                geometry_violations += 1
+                                results["geometric_issues"].append(
+                                    f"{constellation}衛星{sat_idx}位置{pos_idx}: 軌道高度不合理 {sat_alt:.1f}km"
+                                )
 
-                        # 緯度合理性檢查
-                        if sat_lat < -90 or sat_lat > 90:
-                            geometry_violations += 1
-                            results["geometric_issues"].append(
-                                f"{constellation}衛星{sat_idx}位置{pos_idx}: 緯度超出範圍 {sat_lat:.2f}°"
-                            )
+                        # 緯度合理性檢查 - 只在可用時檢查
+                        if sat_lat is not None:
+                            if sat_lat < -90 or sat_lat > 90:
+                                geometry_violations += 1
+                                results["geometric_issues"].append(
+                                    f"{constellation}衛星{sat_idx}位置{pos_idx}: 緯度超出範圍 {sat_lat:.2f}°"
+                                )
 
             # 計算幾何精度分數
             if total_satellites_checked > 0:

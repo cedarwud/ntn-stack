@@ -17,7 +17,11 @@ from datetime import datetime
 
 # 🚨 Grade A要求：使用學術級仰角標準替代硬編碼
 try:
-    from ...shared.elevation_standards import ELEVATION_STANDARDS
+    # 修復導入路徑問題
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+    from shared.elevation_standards import ELEVATION_STANDARDS
     INVALID_ELEVATION = ELEVATION_STANDARDS.get_safe_default_elevation()
 except ImportError:
     logger = logging.getLogger(__name__)

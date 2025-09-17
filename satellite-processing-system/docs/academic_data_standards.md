@@ -46,8 +46,32 @@
   orbit_result = orbit_engine.compute_96min_orbital_cycle(tle_data, current_time)  # 錯誤！
   ```
 
-- **實例教訓**: 
+- **實例教訓**:
   - **問題**: 8000+顆衛星計算結果顯示0顆可見 → 原因：使用當前時間進行軌道計算
+  - **解決方案**: v6.0重構確保Stage 2正確繼承Stage 1的TLE epoch時間
+  - **驗證**: 單一檔案計算器使用正確時間基準達到3,240顆衛星識別準確度
+
+## 🚨 v6.0 重構：時間基準統一要求
+
+### **六階段系統時間基準一致性**
+- **Stage 1**: 必須使用TLE epoch時間作為`calculation_base_time`
+- **Stage 2**: 必須從Stage 1 metadata正確繼承`calculation_base_time`
+- **Stage 3-6**: 必須使用前級階段傳遞的時間基準，不得重新計算
+- **驗證**: 所有階段metadata中的`calculation_base_time`必須一致
+
+### **時間基準傳遞檢查清單**
+```python
+# ✅ Stage 1輸出檢查
+assert "calculation_base_time" in stage1_metadata
+assert "tle_epoch_time" in stage1_metadata
+
+# ✅ Stage 2輸入檢查
+stage1_time = extract_stage1_time_base(stage1_data)
+assert stage2_time_base == stage1_time
+
+# ✅ 後續階段檢查
+assert all_stages_use_same_time_base()
+```
   - **根本錯誤**: 計算基準時間設置錯誤，與TLE epoch時間不一致
   - **修復**: 強制使用 `calculation_base_time = tle_epoch_time` 進行軌道計算
 
