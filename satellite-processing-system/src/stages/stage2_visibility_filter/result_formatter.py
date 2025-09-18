@@ -19,7 +19,9 @@ try:
     INVALID_ELEVATION = ELEVATION_STANDARDS.get_safe_default_elevation()
 except ImportError:
     logger = logging.getLogger(__name__)
-    logger.warning("⚠️ 無法載入學術標準配置，使用臨時預設值")
+    # 使用全局警告管理器避免無限循環
+    from .academic_warning_manager import AcademicConfigWarningManager
+    AcademicConfigWarningManager.show_warning_once(logger)
     INVALID_ELEVATION = -999.0  # 學術標準：使用明確的無效值標記
 
 logger = logging.getLogger(__name__)

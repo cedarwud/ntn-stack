@@ -202,19 +202,69 @@ class Stage1TLEProcessor(BaseStageProcessor):
             raise RuntimeError(f"軌道計算失敗: {e}")
     
     def save_tle_calculation_output(self, formatted_result: Dict[str, Any]) -> str:
-        """保存TLE計算輸出 - 符合文檔API規範"""
+        """保存TLE計算輸出 - 優化大文件處理"""
         try:
-            # 🚨 v6.0修復: 簡化檔名，資料夾已表示階段
-            output_file = self.output_dir / "orbital_calculation_output.json"
+            import gzip
+            import os
             
-            # 確保輸出目錄存在
-            output_file.parent.mkdir(parents=True, exist_ok=True)
+            # 🎯 v6.1優化: 智能文件格式選擇
+            file_size_estimate = len(str(formatted_result)) / (1024*1024)  # MB
+            use_compression = file_size_estimate > 100  # 超過100MB使用壓縮
             
-            # 保存結果到JSON文件
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(formatted_result, f, indent=2, ensure_ascii=False)
+            if use_compression:
+                # 使用壓縮格式
+                output_file = self.output_dir / "orbital_calculation_output.json.gz"
+                self.logger.info(f"📦 大文件檢測 ({file_size_estimate:.1f}MB) - 啟用壓縮保存")
+                
+                # 確保輸出目錄存在
+                output_file.parent.mkdir(parents=True, exist_ok=True)
+                
+                # 壓縮保存
+                with gzip.open(output_file, 'wt', encoding='utf-8') as f:
+                    json.dump(formatted_result, f, indent=1, ensure_ascii=False)
+            else:
+                # 標準格式
+                output_file = self.output_dir / "orbital_calculation_output.json"
+                
+                # 確保輸出目錄存在
+                output_file.parent.mkdir(parents=True, exist_ok=True)
+                
+                # 標準保存
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    json.dump(formatted_result, f, indent=2, ensure_ascii=False)
             
-            self.logger.info(f"💾 TLE計算結果已保存: {output_file}")
+            # 檢查實際文件大小
+            actual_size_mb = os.path.getsize(output_file) / (1024*1024)
+            compression_ratio = file_size_estimate / actual_size_mb if use_compression else 1.0
+            
+            if use_compression:
+                self.logger.info(f"💾 壓縮保存完成: {output_file}")
+                self.logger.info(f"📊 壓縮效果: {file_size_estimate:.1f}MB → {actual_size_mb:.1f}MB (壓縮率: {compression_ratio:.1f}x)")
+            else:
+                self.logger.info(f"💾 TLE計算結果已保存: {output_file}")
+            
+            # 📝 創建未壓縮的小摘要文件以供 Stage 2 快速讀取
+            summary_file = self.output_dir / "orbital_calculation_summary.json"
+            summary = {
+                "metadata": formatted_result.get("metadata", {}),
+                "data_info": {
+                    "total_satellites": len(formatted_result.get("data", {}).get("satellites", [])),
+                    "total_constellations": len(formatted_result.get("data", {}).get("constellations", {})),
+                    "compressed_output": use_compression,
+                    "main_output_file": str(output_file.name),
+                    "file_size_mb": actual_size_mb
+                },
+                "processing_summary": {
+                    "success_rate": formatted_result.get("metadata", {}).get("success_rate", 0),
+                    "processing_duration": formatted_result.get("metadata", {}).get("processing_duration", 0),
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            }
+            
+            with open(summary_file, 'w', encoding='utf-8') as f:
+                json.dump(summary, f, indent=2, ensure_ascii=False)
+            
+            self.logger.info(f"📋 處理摘要已保存: {summary_file}")
             
             # 保存處理統計到單獨文件
             stats_file = self.output_dir / "tle_processing_stats.json"
@@ -223,7 +273,13 @@ class Stage1TLEProcessor(BaseStageProcessor):
                     "processing_statistics": self.processing_stats,
                     "loader_statistics": self.tle_loader.get_load_statistics(),
                     "calculator_statistics": self.orbital_calculator.get_calculation_statistics(),
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "file_optimization": {
+                        "compression_used": use_compression,
+                        "estimated_size_mb": file_size_estimate,
+                        "actual_size_mb": actual_size_mb,
+                        "compression_ratio": compression_ratio
+                    }
                 }, f, indent=2, ensure_ascii=False)
             
             return str(output_file)
@@ -585,8 +641,18 @@ class Stage1TLEProcessor(BaseStageProcessor):
         """提取關鍵指標 - 包含TLE epoch時間修復驗證"""
         try:
             metadata = results.get("metadata", {})
-            satellites = results.get("data", {}).get("satellites", {})
+            # 🚨 修復：satellites實際上是list，不是dict
+            satellites_data = results.get("data", {}).get("satellites", [])
             constellations = results.get("data", {}).get("constellations", {})
+            
+            # 轉換list為dict格式以兼容現有邏輯
+            satellites = {}
+            if isinstance(satellites_data, list):
+                for sat in satellites_data:
+                    sat_id = sat.get("satellite_id", sat.get("name", "unknown"))
+                    satellites[sat_id] = sat
+            elif isinstance(satellites_data, dict):
+                satellites = satellites_data
             
             # 計算每個星座的衛星數量
             constellation_counts = {}
@@ -597,23 +663,50 @@ class Stage1TLEProcessor(BaseStageProcessor):
             tle_epoch_metrics = {}
             calculation_config = metadata.get("calculation_config", {})
             
-            # 檢查是否使用了正確的TLE epoch時間作為計算基準
-            calculation_base = calculation_config.get("calculation_base")
-            tle_epoch_compliance = calculation_base == "tle_epoch_time"
+            # 🎯 修復：從實際衛星數據中檢查計算基準，而不是從config
+            calculation_base_found = False
+            tle_epoch_compliance = False
+            
+            # 檢查實際衛星數據中的計算基準
+            if satellites:
+                # 檢查第一顆衛星的數據作為代表
+                first_sat_id = list(satellites.keys())[0]
+                first_sat = satellites[first_sat_id]
+                
+                # 檢查metadata或orbital_positions
+                if "metadata" in first_sat:
+                    calculation_base = first_sat["metadata"].get("calculation_base")
+                elif "position_timeseries" in first_sat and first_sat["position_timeseries"]:
+                    first_pos = first_sat["position_timeseries"][0]
+                    calc_metadata = first_pos.get("calculation_metadata", {})
+                    calculation_base = calc_metadata.get("calculation_base")
+                else:
+                    calculation_base = None
+                
+                if calculation_base:
+                    calculation_base_found = True
+                    tle_epoch_compliance = calculation_base == "tle_epoch_time"
+                    self.logger.info(f"🔍 實際檢測到的計算基準: {calculation_base}")
+            
+            # 如果沒有找到，回退到config檢查
+            if not calculation_base_found:
+                calculation_base = calculation_config.get("calculation_base")
+                tle_epoch_compliance = calculation_base == "tle_epoch_time"
+                self.logger.warning(f"⚠️ 從config檢查計算基準: {calculation_base}")
             
             # 提取TLE數據日期信息
             tle_dates = self._extract_tle_dates(results)
             
             tle_epoch_metrics = {
                 "calculation_base_correct": tle_epoch_compliance,
-                "calculation_base_used": calculation_base or "unknown",
+                "calculation_base_used": calculation_base if calculation_base_found else "unknown",
                 "tle_epoch_compliance_rate": 100.0 if tle_epoch_compliance else 0.0,
                 "tle_data_dates": tle_dates,
                 "sgp4_engine_status": calculation_config.get("sgp4_engine", "unknown"),
                 "time_base_fix_applied": tle_epoch_compliance
             }
             
-            # 💯 修復前後對比指標
+            # 📯 修復前後對比指標
             fix_verification = {
                 "before_fix_issue": "使用當前時間導致0%可見衛星",
                 "after_fix_solution": "使用TLE epoch時間作為計算基準",
@@ -796,8 +889,17 @@ class Stage1TLEProcessor(BaseStageProcessor):
         if not satellites:
             return 0.0
         
+        # 🚨 修復：確保satellites是字典格式
+        if isinstance(satellites, list):
+            # 轉換list為dict格式
+            satellites_dict = {}
+            for sat in satellites:
+                sat_id = sat.get("satellite_id", sat.get("name", "unknown"))
+                satellites_dict[sat_id] = sat
+            satellites = satellites_dict
+        
         total_positions = sum(
-            len(sat_data.get("orbital_positions", []))
+            len(sat_data.get("orbital_positions", sat_data.get("position_timeseries", [])))
             for sat_data in satellites.values()
         )
         
@@ -837,9 +939,17 @@ class Stage1TLEProcessor(BaseStageProcessor):
     
     def _check_orbital_positions(self, results: Dict[str, Any]) -> bool:
         """檢查軌道位置數據 - 更新為檢查ECI座標格式"""
-        satellites = results.get("data", {}).get("satellites", {})
+        # 🚨 修復：satellites實際上是list，不是dict
+        satellites_data = results.get("data", {}).get("satellites", [])
         
-        for sat_data in satellites.values():
+        # 處理list格式的衛星數據
+        if isinstance(satellites_data, list):
+            satellites_list = satellites_data
+        else:
+            # 兼容性：如果還是dict格式，轉換為list
+            satellites_list = list(satellites_data.values()) if isinstance(satellites_data, dict) else []
+        
+        for sat_data in satellites_list:
             positions = sat_data.get("orbital_positions", [])
             if len(positions) < 100:  # 最少100個位置點
                 return False
@@ -905,20 +1015,27 @@ class Stage1TLEProcessor(BaseStageProcessor):
     
     def _check_time_series_continuity(self, results: Dict[str, Any]) -> bool:
         """檢查時間序列連續性 (修復: 移除隨機採樣，使用確定性驗證)"""
-        satellites = results.get("data", {}).get("satellites", {})
+        # 🚨 修復：satellites實際上是list，不是dict
+        satellites_data = results.get("data", {}).get("satellites", [])
         
-        # 🔧 使用確定性採樣替代隨機採樣 (取前5個衛星進行驗證)
-        satellite_ids = list(satellites.keys())
-        if not satellite_ids:
+        # 處理list格式的衛星數據
+        if isinstance(satellites_data, list):
+            satellites_list = satellites_data
+        else:
+            # 兼容性：如果還是dict格式，轉換為list
+            satellites_list = list(satellites_data.values()) if isinstance(satellites_data, dict) else []
+        
+        if not satellites_list:
             return True
         
         # 確定性選擇：按衛星ID排序後取前5個
-        sample_satellites = sorted(satellite_ids)[:min(5, len(satellite_ids))]
+        sample_satellites = satellites_list[:min(5, len(satellites_list))]
         
         self.logger.info(f"📊 檢查時間序列連續性: {len(sample_satellites)} 顆衛星 (確定性採樣)")
         
-        for sat_id in sample_satellites:
-            positions = satellites[sat_id].get("orbital_positions", [])
+        for sat_data in sample_satellites:
+            sat_id = sat_data.get("satellite_id", sat_data.get("name", "unknown"))
+            positions = sat_data.get("orbital_positions", [])
             if len(positions) < 2:
                 continue
                 
@@ -944,11 +1061,20 @@ class Stage1TLEProcessor(BaseStageProcessor):
         🚨 修復版本：強制驗證使用TLE epoch時間作為計算基準
         """
         try:
-            # 檢查衛星數據中的計算元數據
-            satellites = results.get("data", {}).get("satellites", {})
-            if not satellites:
+            # 🚨 修復：處理satellites為list的情況
+            satellites_data = results.get("data", {}).get("satellites", [])
+            if not satellites_data:
                 self.logger.error("❌ 無衛星數據可供驗證")
                 return False
+            
+            # 轉換為統一格式處理
+            satellites = {}
+            if isinstance(satellites_data, list):
+                for sat in satellites_data:
+                    sat_id = sat.get("satellite_id", sat.get("name", "unknown"))
+                    satellites[sat_id] = sat
+            elif isinstance(satellites_data, dict):
+                satellites = satellites_data
             
             # 統計驗證結果
             total_satellites = len(satellites)
@@ -956,12 +1082,13 @@ class Stage1TLEProcessor(BaseStageProcessor):
             time_warnings = 0
             
             for sat_id, sat_data in satellites.items():
-                orbital_positions = sat_data.get("orbital_positions", [])
-                if not orbital_positions:
+                # 檢查position_timeseries或orbital_positions
+                positions = sat_data.get("position_timeseries", sat_data.get("orbital_positions", []))
+                if not positions:
                     continue
 
                 # 檢查第一個時間點的計算元數據
-                first_position = orbital_positions[0]
+                first_position = positions[0]
                 calc_metadata = first_position.get("calculation_metadata", {})
                 
                 # 🚨 關鍵驗證：確認使用TLE epoch時間作為基準
@@ -1012,7 +1139,15 @@ class Stage1TLEProcessor(BaseStageProcessor):
     def _check_constellation_orbital_parameters(self, results: Dict[str, Any]) -> bool:
         """星座特定軌道參數檢查"""
         try:
-            satellites = results.get("data", {}).get("satellites", {})
+            # 🚨 修復：satellites實際上是list，不是dict
+            satellites_data = results.get("data", {}).get("satellites", [])
+            
+            # 處理list格式的衛星數據
+            if isinstance(satellites_data, list):
+                satellites_list = satellites_data
+            else:
+                # 兼容性：如果還是dict格式，轉換為list
+                satellites_list = list(satellites_data.values()) if isinstance(satellites_data, dict) else []
             
             # 星座參數驗證標準
             CONSTELLATION_PARAMS = {
@@ -1030,11 +1165,11 @@ class Stage1TLEProcessor(BaseStageProcessor):
                 }
             }
             
-            # 隨機抽樣檢查
-            # import random  # 🚨 已移除：使用確定性採樣替代
+            # 確定性採樣檢查
             constellation_samples = {"starlink": [], "oneweb": []}
             
-            for sat_id, sat_data in satellites.items():
+            for sat_data in satellites_list:
+                sat_id = sat_data.get("satellite_id", sat_data.get("name", "unknown"))
                 constellation = sat_data.get("constellation", "").lower()
                 if constellation in constellation_samples and len(constellation_samples[constellation]) < 5:
                     constellation_samples[constellation].append((sat_id, sat_data))
@@ -1073,7 +1208,17 @@ class Stage1TLEProcessor(BaseStageProcessor):
         🚨 修復版本：增強驗證TLE epoch時間基準和計算元數據
         """
         try:
-            satellites = results.get("data", {}).get("satellites", {})
+            # 🚨 修復：處理satellites為list的情況
+            satellites_data = results.get("data", {}).get("satellites", [])
+            
+            # 轉換為統一格式處理
+            satellites = {}
+            if isinstance(satellites_data, list):
+                for sat in satellites_data:
+                    sat_id = sat.get("satellite_id", sat.get("name", "unknown"))
+                    satellites[sat_id] = sat
+            elif isinstance(satellites_data, dict):
+                satellites = satellites_data
             
             # 使用確定性採樣替代隨機採樣 (按衛星ID排序後取前10個)
             satellite_ids = list(satellites.keys())

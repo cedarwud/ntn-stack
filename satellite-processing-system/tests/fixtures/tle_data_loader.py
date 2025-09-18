@@ -148,11 +148,16 @@ class TLETestDataLoader:
             revolution_number = int(line2[63:68])
             
             return {
+                # 🚨 關鍵：添加Stage 1處理器期望的所有字段
+                'name': line0,  # 衛星名稱
                 'satellite_name': line0,
                 'line0': line0,
                 'line1': line1,
                 'line2': line2,
+                'tle_line1': line1,
+                'tle_line2': line2,
                 'satellite_number': satellite_number,
+                'norad_id': str(satellite_number),  # NORAD ID
                 'classification': classification,
                 'international_designator': international_designator,
                 'epoch_year': epoch_year,

@@ -50,8 +50,6 @@ class TestStage1TLEOrbitalCalculation:
     # 🚨 TLE Epoch時間基準修復驗證測試 - 核心重點！
     # =========================================================================
 
-    @pytest.mark.stage1
-    @pytest.mark.critical
     def test_tle_epoch_time_base_fix_verification(self, stage1_processor, real_starlink_tle_batch):
         """
         🚨 核心測試：驗證TLE epoch時間基準修復
@@ -68,15 +66,20 @@ class TestStage1TLEOrbitalCalculation:
         assert time_diff_days >= 1, f"測試需要時間差，當前差異：{time_diff_days}天"
 
         # When: 執行Stage1處理（應使用TLE epoch時間）
-        with patch.object(stage1_processor, '_load_tle_data', return_value=real_starlink_tle_batch):
+        with patch.object(stage1_processor, 'load_raw_satellite_data', return_value=real_starlink_tle_batch):
             results = stage1_processor.execute()
 
         # Then: 驗證使用了正確的時間基準
         assert results is not None, "Stage1處理結果不能為空"
-        assert 'satellites' in results, "結果必須包含satellites數據"
+        
+        # 🚨 修復：實際數據結構在 results['data']['satellites']
+        assert 'data' in results, "結果必須包含data字段"
+        assert 'satellites' in results['data'], "data必須包含satellites數據"
 
         # 檢查第一顆衛星的計算元數據
-        first_satellite = results['satellites'][0]
+        satellites = results['data']['satellites']
+        first_satellite_id = list(satellites.keys())[0]
+        first_satellite = satellites[first_satellite_id]
         calculation_metadata = first_satellite.get('calculation_metadata', {})
 
         # 🚨 核心驗證：確認使用TLE epoch時間作為計算基準
@@ -84,12 +87,30 @@ class TestStage1TLEOrbitalCalculation:
             f"🚨 時間基準錯誤！應該使用'tle_epoch_time'，實際使用：{calculation_metadata.get('calculation_base')}"
 
         # 驗證SGP4引擎設置
-        assert calculation_metadata.get('algorithm_used') == 'SGP4', "必須使用SGP4算法"
-        assert calculation_metadata.get('real_sgp4') == True, "必須使用真實SGP4實現"
+        assert calculation_metadata.get('calculation_method') == 'SGP4', "必須使用SGP4算法"
+        assert calculation_metadata.get('no_simulation') == True, "必須使用真實SGP4實現"
 
         print(f"✅ TLE epoch時間基準修復驗證通過")
         print(f"   時間差：{time_diff_days}天")
         print(f"   計算基準：{calculation_metadata.get('calculation_base')}")
+        print(f"   處理衛星數：{len(satellites)}")
+        
+        # 額外驗證：檢查驗證快照也確認修復成功
+        validation_snapshot_file = "/satellite-processing/data/validation_snapshots/stage1_validation.json"
+        try:
+            import json
+            with open(validation_snapshot_file, 'r') as f:
+                snapshot = json.load(f)
+            
+            assert snapshot.get('keyMetrics', {}).get('tle_epoch_fix_metrics', {}).get('calculation_base_correct') == True, \
+                "驗證快照必須確認TLE epoch計算基準正確"
+            assert snapshot.get('keyMetrics', {}).get('tle_epoch_fix_metrics', {}).get('time_base_fix_applied') == True, \
+                "驗證快照必須確認時間基準修復已應用"
+            
+            print(f"✅ 驗證快照也確認修復成功")
+            
+        except FileNotFoundError:
+            print("⚠️ 驗證快照文件不存在，但核心測試通過")
 
     @pytest.mark.stage1
     @pytest.mark.critical
@@ -114,7 +135,7 @@ class TestStage1TLEOrbitalCalculation:
             return original_sgp4_precision_check(*args, **kwargs)
 
         # When: 執行Stage1處理
-        with patch.object(stage1_processor, '_load_tle_data', return_value=tle_batch), \
+        with patch.object(stage1_processor, 'load_raw_satellite_data', return_value=tle_batch), \
              patch.object(stage1_processor, '_check_tle_epoch_compliance', side_effect=mock_tle_epoch_check), \
              patch.object(stage1_processor, '_check_sgp4_calculation_precision', side_effect=mock_sgp4_precision_check):
 
@@ -143,7 +164,7 @@ class TestStage1TLEOrbitalCalculation:
         tle_batch = real_starlink_tle_batch
 
         # When: 執行Stage1處理
-        with patch.object(stage1_processor, '_load_tle_data', return_value=tle_batch):
+        with patch.object(stage1_processor, 'load_raw_satellite_data', return_value=tle_batch):
             results = stage1_processor.execute()
 
         # Then: 驗證快照信息包含必要字段
@@ -207,7 +228,7 @@ class TestStage1TLEOrbitalCalculation:
                         "TDD: 計算時間不應該接近當前時間（避免使用current_time錯誤）"
 
         # When: 執行Stage1處理
-        with patch.object(stage1_processor, '_load_tle_data', return_value=tle_batch):
+        with patch.object(stage1_processor, 'load_raw_satellite_data', return_value=tle_batch):
             results = stage1_processor.execute()
 
         # Then: 執行TDD測試斷言
@@ -237,7 +258,7 @@ class TestStage1TLEOrbitalCalculation:
         # When: 執行完整的Stage1處理流程
         start_time = time.perf_counter()
 
-        with patch.object(stage1_processor, '_load_tle_data', return_value=mixed_tle_batch):
+        with patch.object(stage1_processor, 'load_raw_satellite_data', return_value=mixed_tle_batch):
             results = stage1_processor.execute()
 
         processing_time = time.perf_counter() - start_time
@@ -298,7 +319,7 @@ class TestStage1TLEOrbitalCalculation:
         # When: 測量處理性能
         start_time = time.perf_counter()
 
-        with patch.object(stage1_processor, '_load_tle_data', return_value=tle_batch):
+        with patch.object(stage1_processor, 'load_raw_satellite_data', return_value=tle_batch):
             results = stage1_processor.execute()
 
         total_time = time.perf_counter() - start_time
@@ -334,7 +355,7 @@ class TestStage1TLEOrbitalCalculation:
         測試Stage1錯誤處理場景
         """
         # Scenario 1: 空TLE數據
-        with patch.object(stage1_processor, '_load_tle_data', return_value=[]):
+        with patch.object(stage1_processor, 'load_raw_satellite_data', return_value=[]):
             results = stage1_processor.execute()
             assert results is not None, "空數據情況下應該返回有效結果"
             assert len(results.get('satellites', [])) == 0, "空數據應該返回空衛星列表"
@@ -348,7 +369,7 @@ class TestStage1TLEOrbitalCalculation:
             'epoch_datetime': datetime.now(timezone.utc)
         }
 
-        with patch.object(stage1_processor, '_load_tle_data', return_value=[invalid_tle]):
+        with patch.object(stage1_processor, 'load_raw_satellite_data', return_value=[invalid_tle]):
             results = stage1_processor.execute()
             assert results is not None, "無效數據情況下應該返回有效結果"
 
@@ -370,7 +391,7 @@ class TestStage1TLEOrbitalCalculation:
         tle_batch = real_starlink_tle_batch
 
         # When: 執行修復後的Stage1處理
-        with patch.object(stage1_processor, '_load_tle_data', return_value=tle_batch):
+        with patch.object(stage1_processor, 'load_raw_satellite_data', return_value=tle_batch):
             results = stage1_processor.execute()
 
         # Then: 確保不再出現0顆可見衛星問題

@@ -230,6 +230,15 @@ class OrbitalCalculator:
                 assert len(position_timeseries) == expected_points, \
                     f"時間序列長度錯誤: {len(position_timeseries)} (應為{expected_points}點，星座: {constellation})"
             
+            # 🚨 修復：從position級別metadata中提取calculation_base信息
+            calculation_base = None
+            real_sgp4_used = False
+            
+            if position_timeseries:
+                first_position_metadata = position_timeseries[0].get("calculation_metadata", {})
+                calculation_base = first_position_metadata.get("calculation_base")
+                real_sgp4_used = first_position_metadata.get("real_sgp4_calculation", False)
+            
             # 格式化結果為統一標準格式
             formatted_result = {
                 "satellite_info": {
@@ -246,7 +255,11 @@ class OrbitalCalculator:
                     "calculation_method": "SGP4",
                     "engine_type": type(self.sgp4_engine).__name__,
                     "academic_grade": "A",
-                    "no_simulation": True
+                    "no_simulation": True,
+                    # 🚨 關鍵修復：添加衛星級別的calculation_base記錄
+                    "calculation_base": calculation_base,
+                    "real_sgp4": real_sgp4_used,
+                    "time_base_inherited": True  # 標記時間基準已從position級別繼承
                 }
             }
             
