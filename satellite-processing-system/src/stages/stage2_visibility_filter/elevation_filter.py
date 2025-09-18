@@ -32,34 +32,16 @@ class ElevationFilter:
         """
         self.logger = logging.getLogger(f"{__name__}.ElevationFilter")
         
-        # 🚨 Grade A要求：使用學術級仰角標準替代硬編碼
-        try:
-            from ...shared.elevation_standards import ELEVATION_STANDARDS
-            from ...shared.academic_standards_config import AcademicStandardsConfig
-            
-            standards_config = AcademicStandardsConfig()
-            elevation_config = standards_config.get_elevation_config()
-            
-            # 使用學術標準的預設閾值
-            if primary_threshold is None:
-                primary_threshold = elevation_config.get("default_threshold", 10.0)
-                
-            # 使用標準化的分層閾值系統
-            self.layered_thresholds = elevation_config.get("layered_thresholds", {
-                "critical": 5.0,
-                "standard": 10.0, 
-                "preferred": 15.0
-            })
-            
-        except ImportError:
-            self.logger.warning("⚠️ 學術標準配置未找到，使用緊急備用值")
-            if primary_threshold is None:
-                primary_threshold = 10.0
-            self.layered_thresholds = {
-                "critical": 5.0,   # ITU-R P.618 最低建議值
-                "standard": 10.0,  # 標準門檻
-                "preferred": 15.0  # 優選門檻
-            }
+        # 🚨 Grade A要求：使用ITU-R P.618學術標準仰角門檻，避免配置依賴
+        if primary_threshold is None:
+            primary_threshold = 10.0  # ITU-R P.618-13標準門檻
+
+        # 使用標準化的分層閾值系統（基於ITU-R P.618-13標準）
+        self.layered_thresholds = {
+            "critical": 5.0,   # ITU-R P.618 最低建議值
+            "standard": 10.0,  # 標準門檻
+            "preferred": 15.0  # 優選門檻
+        }
         
         self.primary_threshold = primary_threshold
         self.environment_type = environment_type.lower()

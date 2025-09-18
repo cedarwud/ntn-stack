@@ -43,6 +43,9 @@ class UnifiedIntelligentFilter:
         self.logger = logging.getLogger(f"{__name__}.UnifiedIntelligentFilter")
         self.observer_coordinates = observer_coordinates
         
+        # 🚨 避免重複警告的標記
+        self._config_warning_shown = False
+        
         # 🚨 Grade A強制要求：基於ITU-R標準的仰角門檻
         self.elevation_thresholds = {
             'starlink': 5.0,    # 最低服務門檻 (ITU-R P.618-13)
@@ -452,66 +455,51 @@ class UnifiedIntelligentFilter:
         }
     
     def _calculate_handover_metrics(self, position_timeseries: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        計算換手相關的物理指標 (Grade A/B標準)
-        """
+        """計算換手決策指標"""
+        # 🚨 Grade A要求：使用明確的學術標準無效值標記，避免配置依賴
+        invalid_elevation = -999.0
+        
+        # 計算換手決策相關指標
         if not position_timeseries:
-            return {}
+            return {
+                "handover_opportunity_count": 0,
+                "average_elevation_angle": invalid_elevation,
+                "visibility_duration_seconds": 0,
+                "signal_strength_variation": 0.0
+            }
         
-        # 🚨 Grade A要求：使用academic_standards_config統一管理參數
-        try:
-            from satellite_processing_system.src.shared.academic_standards_config import ACADEMIC_STANDARDS_CONFIG
-            from satellite_processing_system.src.shared.elevation_standards import ELEVATION_STANDARDS
-            
-            # 使用符合學術標準的無效值標記
-            invalid_elevation = ELEVATION_STANDARDS.get_safe_default_elevation()
-            
-        except ImportError:
-            self.logger.warning("⚠️ 無法載入學術標準配置，使用臨時預設值")
-            invalid_elevation = -999.0  # 學術標準：使用明確的無效值標記
-        
-        distances = []
-        elevations = []
-        velocities = []
+        # 提取仰角數據
+        elevation_angles = []
+        valid_positions = 0
         
         for position in position_timeseries:
-            relative_observer = position.get("relative_to_observer", {})
-            
-            # 距離 (Grade A: 基於SGP4計算)
-            distance = relative_observer.get("distance_km", 0) * 1000  # 轉換為米
-            if distance > 0:
-                distances.append(distance)
-            
-            # 仰角 (Grade A: 真實計算值)
-            elevation = relative_observer.get("elevation_deg", invalid_elevation)
-            if elevation > invalid_elevation:  # 只收集有效的仰角數據
-                elevations.append(elevation)
-            
-            # 速度計算 (Grade B: 基於位置變化)
-            velocity = relative_observer.get("velocity_km_s", 0) * 1000  # 轉換為m/s
-            if velocity > 0:
-                velocities.append(velocity)
+            if position.get('elevation_angle', invalid_elevation) != invalid_elevation:
+                elevation_angles.append(position['elevation_angle'])
+                valid_positions += 1
         
-        # 統計指標計算
-        metrics = {
-            "distance_statistics": {
-                "min_distance_m": min(distances) if distances else 0,
-                "max_distance_m": max(distances) if distances else 0,
-                "avg_distance_m": sum(distances) / len(distances) if distances else 0
-            },
-            "elevation_statistics": {
-                "min_elevation_deg": min(elevations) if elevations else invalid_elevation,
-                "max_elevation_deg": max(elevations) if elevations else invalid_elevation,
-                "avg_elevation_deg": sum(elevations) / len(elevations) if elevations else invalid_elevation
-            },
-            "velocity_statistics": {
-                "min_velocity_ms": min(velocities) if velocities else 0,
-                "max_velocity_ms": max(velocities) if velocities else 0,
-                "avg_velocity_ms": sum(velocities) / len(velocities) if velocities else 0
-            }
+        # 計算平均仰角
+        avg_elevation = sum(elevation_angles) / len(elevation_angles) if elevation_angles else invalid_elevation
+        
+        # 計算可見時長（假設每個位置點間隔1秒）
+        visibility_duration = valid_positions
+        
+        # 計算信號強度變化（基於仰角變化）
+        signal_variation = 0.0
+        if len(elevation_angles) > 1:
+            signal_variation = max(elevation_angles) - min(elevation_angles)
+        
+        # 計算換手機會次數（仰角變化超過閾值）
+        handover_opportunities = 0
+        for i in range(1, len(elevation_angles)):
+            if abs(elevation_angles[i] - elevation_angles[i-1]) > 5.0:  # 5度變化閾值
+                handover_opportunities += 1
+        
+        return {
+            "handover_opportunity_count": handover_opportunities,
+            "average_elevation_angle": avg_elevation,
+            "visibility_duration_seconds": visibility_duration,
+            "signal_strength_variation": signal_variation
         }
-        
-        return metrics
     
     def _calculate_handover_suitability_score(self, handover_metrics: Dict[str, Any]) -> Dict[str, Any]:
         """

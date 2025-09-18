@@ -48,7 +48,8 @@ class BaseStageProcessor(ABC):
         
         # 容器環境 - 統一執行路徑（與Volume映射一致）
         self.output_dir = Path(f"/satellite-processing/data/outputs/stage{stage_number}")
-        self.validation_dir = Path("/satellite-processing/data/validation_snapshots")
+        # 🎯 用戶要求：驗證快照輸出到 NetStack 目錄
+        self.validation_dir = Path("/netstack/src/services/satellite/data/validation_snapshots")
         self.logger.info(f"🐳 容器執行確認 - 輸出路徑: {self.output_dir}")
         self.logger.info(f"📂 Volume映射: 容器{self.output_dir} → 主機./data/outputs/stage{stage_number}")
         
@@ -259,14 +260,18 @@ class BaseStageProcessor(ABC):
                 def default(self, obj):
                     if isinstance(obj, datetime):
                         return obj.isoformat()
+                    elif isinstance(obj, bool):  # Handle Python bool first
+                        return str(obj).lower()  # True -> "true", False -> "false"
                     elif isinstance(obj, np.bool_):
-                        return bool(obj)
+                        return str(bool(obj)).lower()  # Convert numpy bool -> Python bool -> string
                     elif isinstance(obj, (np.integer, np.int64, np.int32)):
                         return int(obj)
                     elif isinstance(obj, (np.floating, np.float64, np.float32)):
                         return float(obj)
                     elif isinstance(obj, Decimal):
                         return float(obj)
+                    elif isinstance(obj, (set, frozenset)):
+                        return list(obj)
                     elif hasattr(obj, 'item'):
                         return obj.item()
                     elif hasattr(obj, 'tolist'):
@@ -483,7 +488,7 @@ class BaseStageProcessor(ABC):
         try:
             snapshot_file = self.validation_dir / f"stage{self.stage_number}_validation.json"
             with open(snapshot_file, 'w', encoding='utf-8') as f:
-                json.dump(enhanced_snapshot, f, ensure_ascii=False, indent=2)
+                json.dump(enhanced_snapshot, f, cls=SafeJSONEncoder, ensure_ascii=False, indent=2)
             
             self.logger.info(f"驗證快照已更新包含TDD結果: {snapshot_file}")
             
