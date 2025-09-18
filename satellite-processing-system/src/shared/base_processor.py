@@ -48,10 +48,11 @@ class BaseStageProcessor(ABC):
         
         # 容器環境 - 統一執行路徑（與Volume映射一致）
         self.output_dir = Path(f"/satellite-processing/data/outputs/stage{stage_number}")
-        # 🎯 用戶要求：驗證快照輸出到 NetStack 目錄
-        self.validation_dir = Path("/netstack/src/services/satellite/data/validation_snapshots")
+        # 🔧 修復：將驗證快照路徑改為已映射的路徑
+        self.validation_dir = Path(f"/satellite-processing/data/validation_snapshots")
         self.logger.info(f"🐳 容器執行確認 - 輸出路徑: {self.output_dir}")
         self.logger.info(f"📂 Volume映射: 容器{self.output_dir} → 主機./data/outputs/stage{stage_number}")
+        self.logger.info(f"📋 驗證快照路徑: {self.validation_dir}")
         
         self._initialize_directories()
         self._load_configuration()
@@ -328,12 +329,14 @@ class BaseStageProcessor(ABC):
         🎯 策略：完全移除整個 stageX 資料夾再重新創建，確保徹底清理
         """
         cleaned_items = 0
+        cleanup_details = []
         
         # 1. 🗑️ 完全移除整個階段輸出資料夾 (例如: data/outputs/stage1)
         if self.output_dir.exists():
             import shutil
             shutil.rmtree(self.output_dir)
             cleaned_items += 1
+            cleanup_details.append(f"removed_output_dir: {self.output_dir}")
             self.logger.info(f"🗑️ 已完全移除整個階段資料夾: {self.output_dir}")
         
         # 2. 🗑️ 同步清理對應的驗證快照文件
@@ -341,18 +344,30 @@ class BaseStageProcessor(ABC):
         if validation_file.exists():
             validation_file.unlink()
             cleaned_items += 1
+            cleanup_details.append(f"removed_validation_file: {validation_file}")
             self.logger.info(f"🗑️ 已同步清理驗證快照: {validation_file}")
         
         # 3. 📁 重新創建乾淨的階段資料夾結構
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.validation_dir.mkdir(parents=True, exist_ok=True)
+        cleanup_details.append(f"recreated_output_dir: {self.output_dir}")
         self.logger.info(f"📁 已重新創建乾淨的階段資料夾: {self.output_dir}")
         
-        # 4. 記錄清理統計
+        # 4. 🎯 記錄清理統計到實例變量供後續metadata使用
+        self.cleanup_stats = {
+            "cleanup_triggered": True,
+            "cleaned_items_count": cleaned_items,
+            "cleanup_timestamp": datetime.now(timezone.utc).isoformat(),
+            "cleanup_details": cleanup_details
+        }
+        
+        # 5. 記錄清理結果
         if cleaned_items > 0:
-            self.logger.info(f"✅ Stage {self.stage_number} 完全清理完成: 移除整個階段資料夾並重建")
+            self.logger.info(f"✅ Stage {self.stage_number} 完全清理完成: 移除整個階段資料夾並重建 ({cleaned_items} 項)")
         else:
             self.logger.info(f"ℹ️ Stage {self.stage_number} 無需清理 (階段資料夾不存在)")
+            # 即使無需清理也標記為觸發了清理程式
+            self.cleanup_stats["cleanup_triggered"] = True
     
     def get_processing_statistics(self) -> Dict[str, Any]:
         """
