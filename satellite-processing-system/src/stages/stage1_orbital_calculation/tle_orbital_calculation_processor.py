@@ -106,7 +106,7 @@ class Stage1TLEProcessor(BaseStageProcessor):
             if not self.tle_loader:
                 raise ValueError("TLE載入器未初始化")
             
-            scan_result = self.tle_loader.scan_tle_files()
+            scan_result = self.tle_loader.scan_tle_data()
             
             self.logger.info(f"📊 TLE掃描完成: {scan_result.get('total_satellites', 0)} 顆衛星")
             return scan_result
@@ -122,9 +122,15 @@ class Stage1TLEProcessor(BaseStageProcessor):
         try:
             if not self.tle_loader:
                 raise ValueError("TLE載入器未初始化")
-            
-            raw_data = self.tle_loader.load_all_satellites()
-            
+
+            # 先掃描TLE數據
+            scan_result = self.tle_loader.scan_tle_data()
+            if not scan_result or scan_result.get('total_satellites', 0) == 0:
+                raise ValueError("無可用的TLE數據")
+
+            # 載入衛星數據
+            raw_data = self.tle_loader.load_satellite_data(scan_result)
+
             self.logger.info(f"✅ TLE數據載入完成: {len(raw_data)} 顆衛星")
             return {
                 "satellites": raw_data,
@@ -149,10 +155,10 @@ class Stage1TLEProcessor(BaseStageProcessor):
                 raise ValueError("無衛星數據可供計算")
             
             # 執行軌道計算
-            orbital_results = self.orbital_calculator.calculate_orbital_positions(
-                satellites, 
+            orbital_results = self.orbital_calculator.calculate_orbits_for_satellites(
+                satellites,
                 time_points=self.time_points,
-                time_interval=self.time_interval
+                time_interval_seconds=self.time_interval
             )
             
             self.logger.info(f"✅ 軌道計算完成: {len(orbital_results.get('satellites', {}))} 顆衛星")
@@ -168,7 +174,7 @@ class Stage1TLEProcessor(BaseStageProcessor):
             self.logger.info("💾 保存Stage 1軌道計算輸出...")
             
             # 確保輸出目錄存在
-            output_path = Path("/app/data/stage1_orbital_calculation_output.json")
+            output_path = Path(self.output_dir) / "stage1_orbital_calculation_output.json"
             output_path.parent.mkdir(parents=True, exist_ok=True)
             
             # 添加保存時間戳
@@ -270,7 +276,7 @@ class Stage1TLEProcessor(BaseStageProcessor):
 
     # BaseStageProcessor 必需方法實現
 
-    def validate_input(self) -> bool:
+    def validate_input(self, input_data: Any) -> bool:
         """驗證輸入數據和配置"""
         try:
             self.logger.info("🔍 驗證Stage 1輸入...")
@@ -297,7 +303,7 @@ class Stage1TLEProcessor(BaseStageProcessor):
             self.logger.error(f"❌ 輸入驗證失敗: {e}")
             return False
 
-    def process(self) -> Dict[str, Any]:
+    def process(self, input_data: Any) -> Dict[str, Any]:
         """主要處理方法"""
         self.logger.info("🚀 執行Stage 1處理...")
         
@@ -410,7 +416,7 @@ class Stage1TLEProcessor(BaseStageProcessor):
         """保存處理結果"""
         return self.save_tle_calculation_output(result)
 
-    def extract_key_metrics(self) -> Dict[str, Any]:
+    def extract_key_metrics(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """提取關鍵指標"""
         try:
             return {
@@ -435,7 +441,7 @@ class Stage1TLEProcessor(BaseStageProcessor):
             self.logger.error(f"關鍵指標提取失敗: {e}")
             return {"error": str(e)}
 
-    def run_validation_checks(self) -> Dict[str, Any]:
+    def run_validation_checks(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """運行驗證檢查"""
         self.logger.info("🔍 運行Stage 1驗證檢查...")
         
@@ -563,41 +569,454 @@ class Stage1TLEProcessor(BaseStageProcessor):
         return 0.95  # 簡化實現
 
     def _check_data_structure(self) -> Dict[str, Any]:
-        """檢查數據結構"""
-        return {"passed": True, "message": "數據結構正常"}
+        """檢查數據結構 - 真實檢查輸出文件是否存在"""
+        try:
+            output_path = Path(self.output_dir) / "stage1_orbital_calculation_output.json"
+            if not output_path.exists():
+                return {"passed": False, "message": f"輸出文件不存在: {output_path}"}
+            file_size = output_path.stat().st_size
+            if file_size == 0:
+                return {"passed": False, "message": "輸出文件為空"}
+            try:
+                with open(output_path, 'r') as f:
+                    data = json.load(f)
+                if not isinstance(data, dict):
+                    return {"passed": False, "message": "輸出文件不是有效的JSON字典"}
+                return {"passed": True, "message": f"數據結構正常，文件大小: {file_size/1024/1024:.1f}MB"}
+            except json.JSONDecodeError as e:
+                return {"passed": False, "message": f"JSON格式錯誤: {e}"}
+        except Exception as e:
+            return {"passed": False, "message": f"檢查失敗: {e}"}
 
     def _check_satellite_count(self) -> Dict[str, Any]:
-        """檢查衛星數量"""
-        return {"passed": True, "message": "衛星數量正常"}
+        """檢查衛星數量 - 真實檢查文件中的衛星數據"""
+        try:
+            output_path = Path(self.output_dir) / "stage1_orbital_calculation_output.json"
+            if not output_path.exists():
+                return {"passed": False, "message": "輸出文件不存在，無法檢查衛星數量"}
+            with open(output_path, 'r') as f:
+                data = json.load(f)
+            if 'satellites' not in data:
+                return {"passed": False, "message": "輸出文件缺少satellites字段"}
+            satellites = data['satellites']
+            satellite_count = len(satellites)
+            if satellite_count == 0:
+                return {"passed": False, "message": "沒有處理任何衛星"}
+            return {"passed": True, "message": f"成功處理 {satellite_count} 顆衛星"}
+        except Exception as e:
+            return {"passed": False, "message": f"檢查失敗: {e}"}
 
     def _check_orbital_positions(self) -> Dict[str, Any]:
-        """檢查軌道位置"""
-        return {"passed": True, "message": "軌道位置計算正常"}
+        """檢查軌道位置數據"""
+        try:
+            output_path = Path(self.output_dir) / "stage1_orbital_calculation_output.json"
+            if not output_path.exists():
+                return {"passed": False, "message": f"輸出文件不存在: {output_path}"}
+                
+            with open(output_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            satellites = data.get('satellites', {})
+            if not satellites:
+                return {"passed": False, "message": "無衛星軌道位置數據"}
+                
+            # 檢查軌道位置數據完整性
+            valid_positions = 0
+            for sat_id, sat_data in satellites.items():
+                orbital_positions = sat_data.get('orbital_positions', [])
+                if orbital_positions and len(orbital_positions) > 0:
+                    # 檢查第一個位置點的數據結構
+                    first_pos = orbital_positions[0]
+                    if ('timestamp' in first_pos and 
+                        'eci_position' in first_pos and
+                        'eci_velocity' in first_pos):
+                        valid_positions += 1
+                        
+            total_satellites = len(satellites)
+            position_ratio = valid_positions / total_satellites if total_satellites > 0 else 0
+            
+            if position_ratio < 0.95:  # 至少95%的衛星應該有軌道位置
+                return {
+                    "passed": False, 
+                    "message": f"軌道位置數據不足: {valid_positions}/{total_satellites} ({position_ratio:.1%})"
+                }
+                
+            return {
+                "passed": True, 
+                "message": f"軌道位置數據完整: {valid_positions}/{total_satellites} ({position_ratio:.1%}) 位置完整"
+            }
+            
+        except Exception as e:
+            return {"passed": False, "message": f"軌道位置檢查失敗: {e}"}
 
     def _check_metadata_completeness(self) -> Dict[str, Any]:
         """檢查元數據完整性"""
-        return {"passed": True, "message": "元數據完整"}
+        try:
+            output_path = Path(self.output_dir) / "stage1_orbital_calculation_output.json"
+            if not output_path.exists():
+                return {"passed": False, "message": f"輸出文件不存在: {output_path}"}
+                
+            with open(output_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # 檢查必要的元數據字段
+            metadata = data.get('metadata', {})
+            required_fields = [
+                'calculation_timestamp', 'processing_duration', 
+                'data_source', 'calculation_method', 'stage_completed'
+            ]
+            
+            missing_fields = []
+            for field in required_fields:
+                if field not in metadata or metadata[field] is None:
+                    missing_fields.append(field)
+            
+            if missing_fields:
+                return {
+                    "passed": False, 
+                    "message": f"元數據缺失字段: {missing_fields}"
+                }
+            
+            # 檢查統計數據
+            statistics = data.get('statistics', {})
+            required_stats = ['total_satellites', 'successfully_processed']
+            
+            missing_stats = []
+            for stat in required_stats:
+                if stat not in statistics:
+                    missing_stats.append(stat)
+            
+            if missing_stats:
+                return {
+                    "passed": False, 
+                    "message": f"統計數據缺失: {missing_stats}"
+                }
+                
+            return {
+                "passed": True, 
+                "message": f"元數據完整性檢查通過"
+            }
+            
+        except Exception as e:
+            return {"passed": False, "message": f"元數據完整性檢查失敗: {e}"}
 
     def _check_academic_compliance(self) -> Dict[str, Any]:
         """檢查學術標準合規性"""
-        return {"passed": True, "message": "符合學術標準"}
+        try:
+            output_path = Path(self.output_dir) / "stage1_orbital_calculation_output.json"
+            if not output_path.exists():
+                return {"passed": False, "message": f"輸出文件不存在: {output_path}"}
+                
+            with open(output_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # 檢查是否使用真實TLE數據
+            metadata = data.get('metadata', {})
+            data_source = metadata.get('data_source', '')
+            
+            if 'mock' in data_source.lower() or 'simulated' in data_source.lower():
+                return {
+                    "passed": False, 
+                    "message": "檢測到模擬數據，不符合學術級Grade A標準"
+                }
+            
+            # 檢查SGP4算法使用
+            calculation_method = metadata.get('calculation_method', '')
+            if 'sgp4' not in calculation_method.lower():
+                return {
+                    "passed": False, 
+                    "message": "未使用標準SGP4算法"
+                }
+            
+            # 檢查TLE epoch時間基準使用
+            tle_epoch_used = metadata.get('tle_epoch_used', False)
+            if not tle_epoch_used:
+                return {
+                    "passed": False, 
+                    "message": "未使用TLE epoch時間基準，違反時間計算原則"
+                }
+                
+            return {
+                "passed": True, 
+                "message": "學術標準合規性檢查通過：使用真實TLE數據、標準SGP4算法、正確時間基準"
+            }
+            
+        except Exception as e:
+            return {"passed": False, "message": f"學術標準合規性檢查失敗: {e}"}
 
     def _check_time_series_continuity(self) -> Dict[str, Any]:
         """檢查時間序列連續性"""
-        return {"passed": True, "message": "時間序列連續"}
+        try:
+            output_path = Path(self.output_dir) / "stage1_orbital_calculation_output.json"
+            if not output_path.exists():
+                return {"passed": False, "message": f"輸出文件不存在: {output_path}"}
+                
+            with open(output_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            satellites = data.get('satellites', {})
+            if not satellites:
+                return {"passed": False, "message": "無衛星時間序列數據"}
+                
+            # 檢查時間序列連續性
+            continuity_issues = 0
+            total_satellites = len(satellites)
+            
+            for sat_id, sat_data in satellites.items():
+                orbital_positions = sat_data.get('orbital_positions', [])
+                if len(orbital_positions) < 2:
+                    continuity_issues += 1
+                    continue
+                
+                # 檢查時間間隔一致性
+                prev_timestamp = None
+                for position in orbital_positions:
+                    timestamp = position.get('timestamp')
+                    if timestamp:
+                        if prev_timestamp:
+                            # 檢查時間間隔是否接近預期值(30秒)
+                            try:
+                                from datetime import datetime
+                                prev_dt = datetime.fromisoformat(prev_timestamp.replace('Z', '+00:00'))
+                                curr_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                                interval = (curr_dt - prev_dt).total_seconds()
+                                
+                                # 允許±5秒的誤差
+                                if abs(interval - 30) > 5:
+                                    continuity_issues += 1
+                                    break
+                            except ValueError:
+                                continuity_issues += 1
+                                break
+                        prev_timestamp = timestamp
+            
+            continuity_ratio = (total_satellites - continuity_issues) / total_satellites if total_satellites > 0 else 0
+            
+            if continuity_ratio < 0.98:  # 至少98%的衛星應該有連續的時間序列
+                return {
+                    "passed": False, 
+                    "message": f"時間序列連續性問題: {continuity_issues}/{total_satellites} 衛星有問題 ({continuity_ratio:.1%} 正常)"
+                }
+                
+            return {
+                "passed": True, 
+                "message": f"時間序列連續性檢查通過: {total_satellites - continuity_issues}/{total_satellites} ({continuity_ratio:.1%}) 衛星時間序列正常"
+            }
+            
+        except Exception as e:
+            return {"passed": False, "message": f"時間序列連續性檢查失敗: {e}"}
 
     def _check_tle_epoch_compliance(self) -> Dict[str, Any]:
         """檢查TLE Epoch合規性"""
-        return {"passed": True, "message": "TLE Epoch時間基準正確"}
+        try:
+            output_path = Path(self.output_dir) / "stage1_orbital_calculation_output.json"
+            if not output_path.exists():
+                return {"passed": False, "message": f"輸出文件不存在: {output_path}"}
+
+            with open(output_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            # 檢查是否使用了TLE epoch時間基準
+            metadata = data.get('metadata', {})
+            tle_epoch_used = metadata.get('tle_epoch_used', False)
+            calculation_base = metadata.get('calculation_base_time')
+
+            if not tle_epoch_used:
+                return {"passed": False, "message": "未使用TLE epoch時間基準"}
+
+            if calculation_base:
+                return {"passed": True, "message": f"TLE Epoch時間基準正確: {calculation_base}"}
+            else:
+                return {"passed": True, "message": "TLE Epoch時間基準正確"}
+
+        except Exception as e:
+            return {"passed": False, "message": f"TLE epoch檢查失敗: {e}"}
 
     def _check_constellation_orbital_parameters(self) -> Dict[str, Any]:
         """檢查星座軌道參數"""
-        return {"passed": True, "message": "星座軌道參數正常"}
+        try:
+            output_path = Path(self.output_dir) / "stage1_orbital_calculation_output.json"
+            if not output_path.exists():
+                return {"passed": False, "message": f"輸出文件不存在: {output_path}"}
+                
+            with open(output_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            satellites = data.get('satellites', [])
+            if not satellites:
+                return {"passed": False, "message": "無衛星軌道數據"}
+                
+            # 檢查軌道參數完整性
+            valid_params = 0
+            for sat in satellites:
+                orbital_params = sat.get('orbital_parameters', {})
+                
+                # 檢查關鍵軌道參數是否存在
+                required_params = ['semi_major_axis', 'eccentricity', 'inclination', 'mean_motion']
+                missing_params = []
+                
+                for param in required_params:
+                    if param not in orbital_params or orbital_params[param] is None:
+                        missing_params.append(param)
+                
+                # 檢查軌道參數數值範圍
+                if not missing_params:
+                    semi_major_axis = orbital_params.get('semi_major_axis', 0)
+                    eccentricity = orbital_params.get('eccentricity', -1)
+                    inclination = orbital_params.get('inclination', -1)
+                    
+                    # LEO軌道參數合理性檢查
+                    if (6500 <= semi_major_axis <= 8000 and  # LEO範圍
+                        0 <= eccentricity <= 0.1 and        # 近圓軌道
+                        0 <= inclination <= 180):           # 傾角範圍
+                        valid_params += 1
+                        
+            total_satellites = len(satellites)
+            param_ratio = valid_params / total_satellites if total_satellites > 0 else 0
+            
+            if param_ratio < 0.9:  # 至少90%的軌道參數應該合理
+                return {
+                    "passed": False, 
+                    "message": f"軌道參數異常比例過高: {valid_params}/{total_satellites} ({param_ratio:.1%})"
+                }
+                
+            return {
+                "passed": True, 
+                "message": f"星座軌道參數正常: {valid_params}/{total_satellites} ({param_ratio:.1%}) 參數合理"
+            }
+            
+        except Exception as e:
+            return {"passed": False, "message": f"星座軌道參數檢查失敗: {str(e)}"}
 
     def _check_sgp4_calculation_precision(self) -> Dict[str, Any]:
         """檢查SGP4計算精度"""
-        return {"passed": True, "message": "SGP4計算精度符合標準"}
+        try:
+            output_path = Path(self.output_dir) / "stage1_orbital_calculation_output.json"
+            if not output_path.exists():
+                return {"passed": False, "message": f"輸出文件不存在: {output_path}"}
+                
+            with open(output_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            satellites = data.get('satellites', [])
+            if not satellites:
+                return {"passed": False, "message": "無衛星軌道數據"}
+                
+            # 檢查SGP4計算結果的精度指標
+            valid_calculations = 0
+            for sat in satellites:
+                # 檢查位置數據精度
+                pos = sat.get('position', {})
+                vel = sat.get('velocity', {})
+                
+                # 確保位置和速度數據存在且為合理數值
+                if (isinstance(pos.get('latitude'), (int, float)) and
+                    isinstance(pos.get('longitude'), (int, float)) and
+                    isinstance(pos.get('altitude'), (int, float)) and
+                    isinstance(vel.get('x'), (int, float)) and
+                    isinstance(vel.get('y'), (int, float)) and
+                    isinstance(vel.get('z'), (int, float))):
+                    
+                    # 檢查速度向量大小是否合理 (LEO衛星速度約7-8 km/s)
+                    vel_magnitude = (vel['x']**2 + vel['y']**2 + vel['z']**2)**0.5
+                    if 6.5 <= vel_magnitude <= 8.5:  # km/s
+                        valid_calculations += 1
+                        
+            total_satellites = len(satellites)
+            precision_ratio = valid_calculations / total_satellites if total_satellites > 0 else 0
+            
+            if precision_ratio < 0.95:  # 至少95%的計算應該精確
+                return {
+                    "passed": False, 
+                    "message": f"SGP4計算精度不足: {valid_calculations}/{total_satellites} ({precision_ratio:.1%})"
+                }
+                
+            return {
+                "passed": True, 
+                "message": f"SGP4計算精度符合標準: {valid_calculations}/{total_satellites} ({precision_ratio:.1%}) 計算精確"
+            }
+            
+        except Exception as e:
+            return {"passed": False, "message": f"SGP4計算精度檢查失敗: {str(e)}"}
 
     def _check_data_lineage_completeness(self) -> Dict[str, Any]:
         """檢查數據族系完整性"""
-        return {"passed": True, "message": "數據族系追蹤完整"}
+        try:
+            output_path = Path(self.output_dir) / "stage1_orbital_calculation_output.json"
+            if not output_path.exists():
+                return {"passed": False, "message": f"輸出文件不存在: {output_path}"}
+                
+            with open(output_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # 檢查數據族系元數據完整性
+            metadata = data.get('metadata', {})
+            
+            # 必要的族系信息
+            required_lineage = [
+                'load_timestamp', 'calculation_timestamp', 'tle_epoch_date',
+                'processing_duration', 'data_source', 'calculation_method'
+            ]
+            
+            missing_lineage = []
+            for field in required_lineage:
+                if field not in metadata or metadata[field] is None:
+                    missing_lineage.append(field)
+            
+            if missing_lineage:
+                return {
+                    "passed": False, 
+                    "message": f"數據族系信息缺失: {missing_lineage}"
+                }
+            
+            # 檢查時間戳格式和合理性
+            timestamps = ['load_timestamp', 'calculation_timestamp']
+            for ts_field in timestamps:
+                ts_value = metadata.get(ts_field)
+                if ts_value:
+                    try:
+                        # 驗證ISO格式時間戳
+                        from datetime import datetime
+                        datetime.fromisoformat(ts_value.replace('Z', '+00:00'))
+                    except ValueError:
+                        return {
+                            "passed": False, 
+                            "message": f"時間戳格式錯誤: {ts_field} = {ts_value}"
+                        }
+            
+            # 檢查處理時長合理性
+            duration = metadata.get('processing_duration')
+            if duration and (duration < 0 or duration > 3600):  # 0-1小時範圍
+                return {
+                    "passed": False, 
+                    "message": f"處理時長異常: {duration} 秒"
+                }
+            
+            # 檢查衛星數據族系完整性
+            satellites = data.get('satellites', [])
+            lineage_complete = 0
+            
+            for sat in satellites:
+                # 每顆衛星應該有明確的數據來源追蹤
+                sat_lineage = sat.get('data_lineage', {})
+                if (sat_lineage.get('tle_source') and 
+                    sat_lineage.get('calculation_time') and
+                    sat_lineage.get('epoch_time')):
+                    lineage_complete += 1
+            
+            total_satellites = len(satellites)
+            lineage_ratio = lineage_complete / total_satellites if total_satellites > 0 else 0
+            
+            if lineage_ratio < 0.98:  # 至少98%的衛星數據應該有完整族系
+                return {
+                    "passed": False, 
+                    "message": f"衛星數據族系不完整: {lineage_complete}/{total_satellites} ({lineage_ratio:.1%})"
+                }
+                
+            return {
+                "passed": True, 
+                "message": f"數據族系追蹤完整: {lineage_complete}/{total_satellites} ({lineage_ratio:.1%}) 完整追蹤"
+            }
+            
+        except Exception as e:
+            return {"passed": False, "message": f"數據族系完整性檢查失敗: {str(e)}"}

@@ -448,15 +448,205 @@ class CrossStageValidator:
     
     def _check_metadata_consistency(self, stage_data: Dict[str, Any]) -> Dict[str, Any]:
         """檢查元數據一致性"""
-        return {"passed": True, "info": "元數據一致性檢查通過"}
+        try:
+            metadata_fields = []
+            processing_versions = set()
+            consistency_errors = []
+
+            # 檢查每個階段的元數據
+            for stage_name, data in stage_data.items():
+                if not data or not isinstance(data, dict):
+                    consistency_errors.append(f"{stage_name}: 數據格式錯誤")
+                    continue
+
+                metadata = data.get("metadata", {})
+                if not metadata:
+                    consistency_errors.append(f"{stage_name}: 缺少metadata")
+                    continue
+
+                # 檢查基本字段存在性
+                required_fields = ["processing_timestamp", "processor_version"]
+                for field in required_fields:
+                    if field not in metadata:
+                        consistency_errors.append(f"{stage_name}: 缺少{field}字段")
+
+                # 收集版本信息
+                version = metadata.get("processor_version")
+                if version:
+                    processing_versions.add(version)
+
+                metadata_fields.append({
+                    "stage": stage_name,
+                    "fields_count": len(metadata),
+                    "has_timestamp": "processing_timestamp" in metadata,
+                    "has_version": "processor_version" in metadata
+                })
+
+            # 檢查版本一致性
+            if len(processing_versions) > 1:
+                consistency_errors.append(f"發現多個處理器版本: {list(processing_versions)}")
+
+            passed = len(consistency_errors) == 0
+            info = f"檢查了{len(metadata_fields)}個階段的元數據"
+            if not passed:
+                info += f"，發現{len(consistency_errors)}個一致性問題"
+
+            return {
+                "passed": passed,
+                "info": info,
+                "metadata_fields": metadata_fields,
+                "processing_versions": list(processing_versions),
+                "errors": consistency_errors
+            }
+        except Exception as e:
+            return {
+                "passed": False,
+                "info": f"元數據一致性檢查失敗: {str(e)}",
+                "errors": [str(e)]
+            }
     
     def _check_data_version_compatibility(self, stage_data: Dict[str, Any]) -> Dict[str, Any]:
         """檢查數據版本兼容性"""
-        return {"passed": True, "info": "數據版本兼容性檢查通過"}
+        try:
+            version_info = {}
+            compatibility_errors = []
+
+            # 收集各階段版本信息
+            for stage_name, data in stage_data.items():
+                if not data or not isinstance(data, dict):
+                    continue
+
+                metadata = data.get("metadata", {})
+                data_version = metadata.get("data_version", "unknown")
+                processor_version = metadata.get("processor_version", "unknown")
+                schema_version = metadata.get("schema_version", "unknown")
+
+                version_info[stage_name] = {
+                    "data_version": data_version,
+                    "processor_version": processor_version,
+                    "schema_version": schema_version
+                }
+
+            # 檢查版本兼容性
+            unique_data_versions = set(info["data_version"] for info in version_info.values())
+            unique_schema_versions = set(info["schema_version"] for info in version_info.values())
+
+            # 數據版本應該相近或相同
+            if len(unique_data_versions) > 2:
+                compatibility_errors.append(f"數據版本差異過大: {list(unique_data_versions)}")
+
+            # Schema版本應該兼容
+            if len(unique_schema_versions) > 1:
+                # 允許minor version差異，但major version應該相同
+                major_versions = set()
+                for version in unique_schema_versions:
+                    if version != "unknown" and "." in str(version):
+                        major_version = str(version).split(".")[0]
+                        major_versions.add(major_version)
+
+                if len(major_versions) > 1:
+                    compatibility_errors.append(f"Schema主版本不兼容: {list(unique_schema_versions)}")
+
+            passed = len(compatibility_errors) == 0
+            info = f"檢查了{len(version_info)}個階段的版本信息"
+            if not passed:
+                info += f"，發現{len(compatibility_errors)}個兼容性問題"
+
+            return {
+                "passed": passed,
+                "info": info,
+                "version_info": version_info,
+                "unique_data_versions": list(unique_data_versions),
+                "unique_schema_versions": list(unique_schema_versions),
+                "errors": compatibility_errors
+            }
+        except Exception as e:
+            return {
+                "passed": False,
+                "info": f"數據版本兼容性檢查失敗: {str(e)}",
+                "errors": [str(e)]
+            }
     
     def _check_pipeline_integrity(self, stage_data: Dict[str, Any]) -> Dict[str, Any]:
         """檢查流水線完整性"""
-        return {"passed": True, "info": "流水線完整性檢查通過"}
+        try:
+            pipeline_info = {}
+            integrity_errors = []
+
+            # 定義期望的流水線階段順序
+            expected_stages = ["stage1_orbital", "stage2_visibility", "stage3_signal", "stage4_timeseries", "stage5_integration"]
+            available_stages = [stage for stage in expected_stages if stage in stage_data and stage_data[stage]]
+
+            # 檢查階段完整性
+            missing_stages = [stage for stage in expected_stages if stage not in available_stages]
+            if missing_stages:
+                integrity_errors.append(f"缺少流水線階段: {missing_stages}")
+
+            # 檢查數據流向一致性
+            for i, stage in enumerate(available_stages):
+                data = stage_data[stage]
+                if not isinstance(data, dict):
+                    integrity_errors.append(f"{stage}: 數據格式錯誤")
+                    continue
+
+                # 檢查輸入來源 (stage2+應該引用前一階段)
+                metadata = data.get("metadata", {})
+                input_source = metadata.get("input_source")
+
+                if i > 0:  # 非第一階段
+                    previous_stage = available_stages[i-1]
+                    if input_source and previous_stage not in str(input_source):
+                        integrity_errors.append(f"{stage}: 輸入來源不匹配，期望來自{previous_stage}")
+
+                # 檢查處理狀態
+                processing_status = metadata.get("processing_status", "unknown")
+                if processing_status == "failed":
+                    integrity_errors.append(f"{stage}: 處理狀態為失敗")
+                elif processing_status == "unknown":
+                    integrity_errors.append(f"{stage}: 處理狀態未知")
+
+                pipeline_info[stage] = {
+                    "available": True,
+                    "input_source": input_source,
+                    "processing_status": processing_status,
+                    "has_data": "data" in data and bool(data["data"]),
+                    "satellite_count": len(data.get("data", {}).get("satellites", []))
+                }
+
+            # 檢查數據量級一致性 (相鄰階段的衛星數量不應該差異過大)
+            for i in range(len(available_stages) - 1):
+                current_stage = available_stages[i]
+                next_stage = available_stages[i + 1]
+
+                current_count = pipeline_info[current_stage]["satellite_count"]
+                next_count = pipeline_info[next_stage]["satellite_count"]
+
+                if current_count > 0 and next_count > 0:
+                    reduction_ratio = (current_count - next_count) / current_count
+                    if reduction_ratio > 0.5:  # 數據減少超過50%
+                        integrity_errors.append(
+                            f"{current_stage}到{next_stage}數據減少過多: {current_count}→{next_count} ({reduction_ratio*100:.1f}%)"
+                        )
+
+            passed = len(integrity_errors) == 0
+            info = f"檢查了{len(available_stages)}/{len(expected_stages)}個流水線階段"
+            if not passed:
+                info += f"，發現{len(integrity_errors)}個完整性問題"
+
+            return {
+                "passed": passed,
+                "info": info,
+                "pipeline_info": pipeline_info,
+                "available_stages": available_stages,
+                "missing_stages": missing_stages,
+                "errors": integrity_errors
+            }
+        except Exception as e:
+            return {
+                "passed": False,
+                "info": f"流水線完整性檢查失敗: {str(e)}",
+                "errors": [str(e)]
+            }
     
     def get_validation_statistics(self) -> Dict[str, Any]:
         """獲取驗證統計信息"""
