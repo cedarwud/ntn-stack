@@ -185,94 +185,135 @@ class IntelligentDataFusionEngine:
             return {"error": f"數據融合失敗: {e}", "fusion_statistics": self.fusion_statistics}
     
     async def _load_stage3_signal_analysis(self, stage3_path: Optional[str] = None) -> Dict[str, Any]:
-        """載入階段三信號分析數據"""
+        """載入階段三信號分析數據 - 重構版：使用統一數據載入器"""
+        from .stage_data_loader import StageDataLoader
         
-        # 確定數據路徑
-        if stage3_path is None:
+        try:
+            # 使用統一的數據載入器
+            data_loader = StageDataLoader()
+            all_stage_data = data_loader.load_all_stage_outputs()
+            
+            stage3_data = data_loader.get_stage_data("stage3")
+            if stage3_data:
+                # 驗證數據結構
+                if self._validate_stage3_structure(stage3_data):
+                    self.fusion_statistics["data_sources_loaded"].append("stage3")
+                    
+                    # 統計衛星數量
+                    satellites_count = 0
+                    for constellation in ["starlink", "oneweb"]:
+                        constellation_data = stage3_data.get("satellites", {}).get(constellation, {})
+                        if isinstance(constellation_data, dict):
+                            satellites_count += len(constellation_data)
+                    
+                    self.fusion_statistics["stage3_satellites_loaded"] = satellites_count
+                    self.logger.info(f"✅ 階段三數據載入成功 (使用統一載入器): {satellites_count}顆衛星")
+                    
+                    return stage3_data
+                    
+        except Exception as e:
+            self.logger.warning(f"⚠️ 統一數據載入器失敗，使用回退機制: {e}")
+            
+            # 如果統一載入器失敗，使用原有的直接文件載入作為回退
             possible_paths = [
                 "/app/data/signal_quality_analysis_output.json",
                 "/app/data/signal_analysis_outputs/signal_event_analysis_output.json",
                 "data/signal_analysis_outputs/signal_event_analysis_output.json"
             ]
-        else:
-            possible_paths = [stage3_path]
-        
-        for path in possible_paths:
-            if os.path.exists(path):
-                try:
-                    with open(path, 'r', encoding='utf-8') as f:
-                        stage3_data = json.load(f)
-                    
-                    # 驗證數據結構
-                    if self._validate_stage3_structure(stage3_data):
-                        self.fusion_statistics["data_sources_loaded"].append("stage3")
+            
+            if stage3_path:
+                possible_paths = [stage3_path] + possible_paths
+            
+            for path in possible_paths:
+                if os.path.exists(path):
+                    try:
+                        with open(path, 'r', encoding='utf-8') as f:
+                            stage3_data = json.load(f)
                         
-                        # 統計衛星數量
-                        satellites_count = 0
-                        for constellation in ["starlink", "oneweb"]:
-                            constellation_data = stage3_data.get("satellites", {}).get(constellation, {})
-                            if isinstance(constellation_data, dict):
-                                satellites_count += len(constellation_data)
-                        
-                        self.fusion_statistics["stage3_satellites_loaded"] = satellites_count
-                        self.logger.info(f"✅ 階段三數據載入成功: {path} ({satellites_count}顆衛星)")
-                        
-                        return stage3_data
-                        
-                except Exception as e:
-                    self.logger.warning(f"⚠️ 階段三數據載入失敗: {path} - {e}")
-                    continue
+                        if self._validate_stage3_structure(stage3_data):
+                            self.fusion_statistics["data_sources_loaded"].append("stage3_fallback")
+                            self.logger.info(f"✅ 階段三數據回退載入成功: {path}")
+                            return stage3_data
+                            
+                    except Exception as load_error:
+                        self.logger.warning(f"⚠️ 回退載入失敗: {path} - {load_error}")
+                        continue
         
         # 如果無法載入真實數據，使用回退機制
         self.logger.warning("⚠️ 無法載入階段三數據，使用回退機制")
         return self._create_fallback_stage3_data()
     
     async def _load_stage4_animation_data(self, stage4_path: Optional[str] = None) -> Dict[str, Any]:
-        """載入階段四動畫數據"""
+        """載入階段四動畫數據 - 重構版：使用統一數據載入器"""
+        from .stage_data_loader import StageDataLoader
         
-        # 確定數據路徑
-        if stage4_path is None:
+        try:
+            # 使用統一的數據載入器
+            data_loader = StageDataLoader()
+            all_stage_data = data_loader.load_all_stage_outputs()
+            
+            stage4_data = data_loader.get_stage_data("stage4")
+            if stage4_data:
+                satellites_count = 0
+                
+                # 統計衛星數量
+                for constellation in ["starlink", "oneweb"]:
+                    constellation_data = stage4_data.get(constellation, {})
+                    if isinstance(constellation_data, dict):
+                        satellites_count += len(constellation_data.get("satellites", {}))
+                
+                if stage4_data:
+                    self.fusion_statistics["data_sources_loaded"].append("stage4")
+                    self.fusion_statistics["stage4_satellites_loaded"] = satellites_count
+                    self.logger.info(f"✅ 階段四數據載入成功 (使用統一載入器): {satellites_count}顆衛星")
+                    return stage4_data
+                    
+        except Exception as e:
+            self.logger.warning(f"⚠️ 統一數據載入器失敗，使用回退機制: {e}")
+            
+            # 如果統一載入器失敗，使用原有的直接文件載入作為回退
             possible_directories = [
                 "/app/data/timeseries_preprocessing_outputs/",
                 "data/timeseries_preprocessing_outputs/"
             ]
-        else:
-            possible_directories = [stage4_path]
-        
-        stage4_data = {}
-        
-        for base_dir in possible_directories:
-            if os.path.exists(base_dir):
-                try:
-                    # 查找星座數據文件
-                    starlink_file = os.path.join(base_dir, "starlink_enhanced.json")
-                    oneweb_file = os.path.join(base_dir, "oneweb_enhanced.json")
-                    
-                    satellites_count = 0
-                    
-                    # 載入Starlink數據
-                    if os.path.exists(starlink_file):
-                        with open(starlink_file, 'r', encoding='utf-8') as f:
-                            starlink_data = json.load(f)
-                        stage4_data["starlink"] = starlink_data
-                        satellites_count += len(starlink_data.get("satellites", {}))
-                    
-                    # 載入OneWeb數據  
-                    if os.path.exists(oneweb_file):
-                        with open(oneweb_file, 'r', encoding='utf-8') as f:
-                            oneweb_data = json.load(f)
-                        stage4_data["oneweb"] = oneweb_data
-                        satellites_count += len(oneweb_data.get("satellites", {}))
-                    
-                    if stage4_data:
-                        self.fusion_statistics["data_sources_loaded"].append("stage4")
-                        self.fusion_statistics["stage4_satellites_loaded"] = satellites_count
-                        self.logger.info(f"✅ 階段四數據載入成功: {base_dir} ({satellites_count}顆衛星)")
-                        return stage4_data
+            
+            if stage4_path:
+                possible_directories = [stage4_path] + possible_directories
+            
+            stage4_data = {}
+            
+            for base_dir in possible_directories:
+                if os.path.exists(base_dir):
+                    try:
+                        # 查找星座數據文件
+                        starlink_file = os.path.join(base_dir, "starlink_enhanced.json")
+                        oneweb_file = os.path.join(base_dir, "oneweb_enhanced.json")
                         
-                except Exception as e:
-                    self.logger.warning(f"⚠️ 階段四數據載入失敗: {base_dir} - {e}")
-                    continue
+                        satellites_count = 0
+                        
+                        # 載入Starlink數據
+                        if os.path.exists(starlink_file):
+                            with open(starlink_file, 'r', encoding='utf-8') as f:
+                                starlink_data = json.load(f)
+                            stage4_data["starlink"] = starlink_data
+                            satellites_count += len(starlink_data.get("satellites", {}))
+                        
+                        # 載入OneWeb數據  
+                        if os.path.exists(oneweb_file):
+                            with open(oneweb_file, 'r', encoding='utf-8') as f:
+                                oneweb_data = json.load(f)
+                            stage4_data["oneweb"] = oneweb_data
+                            satellites_count += len(oneweb_data.get("satellites", {}))
+                        
+                        if stage4_data:
+                            self.fusion_statistics["data_sources_loaded"].append("stage4_fallback")
+                            self.fusion_statistics["stage4_satellites_loaded"] = satellites_count
+                            self.logger.info(f"✅ 階段四數據回退載入成功: {base_dir} ({satellites_count}顆衛星)")
+                            return stage4_data
+                            
+                    except Exception as load_error:
+                        self.logger.warning(f"⚠️ 回退載入失敗: {base_dir} - {load_error}")
+                        continue
         
         # 如果無法載入真實數據，使用回退機制
         self.logger.warning("⚠️ 無法載入階段四數據，使用回退機制")

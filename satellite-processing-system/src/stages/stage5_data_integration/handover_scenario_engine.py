@@ -291,73 +291,22 @@ class HandoverScenarioEngine:
         
         return a5_scenarios
     
-    def _calculate_rsrp_for_point(self, point: Dict[str, Any], satellite: Dict[str, Any]) -> Optional[float]:
-        """計算時間點的RSRP值"""
-        # 優先從時間序列點直接獲取RSRP
+    def _calculate_rsrp_for_point(self, point: Dict[str, Any], constellation: str) -> float:
+        """為時間序列點計算RSRP - 使用共用工具"""
+        from .stage5_shared_utilities import estimate_rsrp_from_elevation
+        
+        # 如果點已經有RSRP值，直接使用
         if "rsrp_dbm" in point:
             return point["rsrp_dbm"]
         
-        # 從信號分析數據獲取
-        stage4_data = satellite.get("stage4_signal_analysis", {})
-        if stage4_data:
-            signal_quality = stage4_data.get("signal_quality", {})
-            if "rsrp_dbm" in signal_quality:
-                return signal_quality["rsrp_dbm"]
-        
-        # 使用仰角估算RSRP (簡化版Friis公式)
-        elevation = point.get("elevation_deg")
-        if elevation is not None and elevation > 10:  # 只計算可見衛星
-            constellation = satellite.get("constellation", "unknown")
-            return self._estimate_rsrp_from_elevation(elevation, constellation)
-        
-        return None
+        # 否則基於仰角估算
+        elevation_deg = point.get("elevation_deg", 0)
+        return estimate_rsrp_from_elevation(elevation_deg, constellation)
     
     def _estimate_rsrp_from_elevation(self, elevation_deg: float, constellation: str) -> float:
-        """基於仰角估算RSRP值"""
-        import math
-        
-        # 🚨 Grade A要求：使用學術級標準替代硬編碼RSRP值
-        try:
-            import sys
-            sys.path.append('/satellite-processing/src')
-            from shared.academic_standards_config import AcademicStandardsConfig
-            standards_config = AcademicStandardsConfig()
-            
-            constellation_params = {
-                "starlink": {
-                    "base_rsrp": standards_config.get_constellation_params("starlink").get("excellent_quality_dbm"),
-                    "altitude_km": standards_config.get_constellation_params("starlink").get("altitude_km", 550)
-                },
-                "oneweb": {
-                    "base_rsrp": standards_config.get_constellation_params("oneweb").get("excellent_quality_dbm"),
-                    "altitude_km": standards_config.get_constellation_params("oneweb").get("altitude_km", 1200)
-                },
-                "unknown": {
-                    "base_rsrp": standards_config.get_3gpp_parameters()["rsrp"].get("good_threshold_dbm"),
-                    "altitude_km": 800  # 通用中等軌道高度
-                }
-            }
-            
-        except ImportError:
-            # 🚨 Grade B要求：3GPP TS 38.821和ITU-R標準的緊急備用值
-            constellation_params = {
-                "starlink": {"base_rsrp": (noise_floor + 35), "altitude_km": 550},  # 3GPP TS 38.821 LEO典型值
-                "oneweb": {"base_rsrp": (noise_floor + 32), "altitude_km": 1200},   # ITU-R MEO標準值
-                "unknown": {"base_rsrp": (noise_floor + 30), "altitude_km": 800}    # 3GPP保守估算 (緊急備用)
-            }
-        
-        params = constellation_params.get(constellation.lower(), constellation_params["unknown"])
-        
-        # 基於物理的路徑損耗計算
-        if elevation_deg > 0:
-            # 使用球面幾何計算路徑改善
-            elevation_factor = math.sin(math.radians(elevation_deg))
-            path_improvement = 10 * math.log10(elevation_factor) if elevation_factor > 0 else -20
-            
-            estimated_rsrp = params["base_rsrp"] + path_improvement
-            return max(-130, min(-60, estimated_rsrp))  # 限制在合理範圍
-        
-        return params["base_rsrp"]
+        """基於仰角估算RSRP值 - 委派給共用工具函數"""
+        from .stage5_shared_utilities import estimate_rsrp_from_elevation
+        return estimate_rsrp_from_elevation(elevation_deg, constellation)
     
     def _simulate_neighbor_cell_offset(self, point: Dict[str, Any]) -> float:
         """標準計算值"""

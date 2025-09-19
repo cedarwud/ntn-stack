@@ -5,13 +5,15 @@ Stage 5: 數據整合處理器 - 模組化組件
 
 📊 核心組件架構：
 1. StageDataLoader - 跨階段數據載入器
-2. CrossStageValidator - 跨階段一致性驗證器  
+2. CrossStageValidator - 跨階段一致性驗證器
 3. LayeredDataGenerator - 分層數據生成器
 4. HandoverScenarioEngine - 換手場景引擎
 5. PostgreSQLIntegrator - PostgreSQL數據庫整合器
 6. StorageBalanceAnalyzer - 存儲平衡分析器
 7. ProcessingCacheManager - 處理快取管理器
-8. SignalQualityCalculator - 信號品質計算器
+
+已移除的重複組件：
+❌ SignalQualityCalculator → 使用Stage 3的信號品質計算
 
 🎯 Stage5Processor - 主處理器整合所有組件
 
