@@ -116,32 +116,13 @@ class SimpleStage2Processor(BaseStageProcessor):
             if 'data' not in data:
                 raise ValueError("Stage 1 數據格式無效: 缺少 'data' 字段")
 
-            # 適配新的數據格式 (data.satellites 而不是分別的 starlink_satellites/oneweb_satellites)
-            satellites_data = data['data']
+            # 使用統一的數據格式適配工具函數
+            from ...shared.utils import parse_satellite_data_format
             
-            if 'satellites' in satellites_data:
-                # 新格式: 所有衛星在 satellites 字典中，按 norad_id 分組
-                all_satellites = satellites_data['satellites']
-                starlink_count = 0
-                oneweb_count = 0
-                
-                for sat_id, sat_info in all_satellites.items():
-                    constellation = sat_info.get('satellite_info', {}).get('constellation', '').lower()
-                    if constellation == 'starlink':
-                        starlink_count += 1
-                    elif constellation == 'oneweb':
-                        oneweb_count += 1
-                        
-                self.logger.info(f"📊 載入完成: {starlink_count} Starlink + {oneweb_count} OneWeb (新格式)")
-                
-            elif 'starlink_satellites' in satellites_data and 'oneweb_satellites' in satellites_data:
-                # 舊格式: 分別的 starlink_satellites 和 oneweb_satellites 列表
-                starlink_count = len(satellites_data.get('starlink_satellites', []))
-                oneweb_count = len(satellites_data.get('oneweb_satellites', []))
-                self.logger.info(f"📊 載入完成: {starlink_count} Starlink + {oneweb_count} OneWeb (舊格式)")
-                
-            else:
-                raise ValueError("Stage 1 數據格式無效: 找不到衛星數據")
+            satellites_data = data['data']
+            starlink_satellites, oneweb_satellites = parse_satellite_data_format(satellites_data)
+            
+            self.logger.info(f"📊 載入完成: {len(starlink_satellites)} Starlink + {len(oneweb_satellites)} OneWeb")
 
             return data
 

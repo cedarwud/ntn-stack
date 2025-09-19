@@ -312,3 +312,37 @@ def validate_distance(distance_km: float) -> bool:
 def validate_elevation(elevation_deg: float) -> bool:
     """驗證仰角合理性"""
     return -90.0 <= elevation_deg <= 90.0
+
+def parse_satellite_data_format(satellites_data: Dict) -> Tuple[List, List]:
+    """
+    統一處理新舊格式的衛星數據，避免重複的格式適配邏輯
+    
+    Args:
+        satellites_data: 衛星數據字典，可能是新格式或舊格式
+        
+    Returns:
+        Tuple[List, List]: (starlink_satellites, oneweb_satellites)
+    """
+    starlink_satellites = []
+    oneweb_satellites = []
+    
+    if 'satellites' in satellites_data:
+        # 新格式: 所有衛星在 satellites 字典中，按 norad_id 分組
+        all_satellites = satellites_data['satellites']
+        
+        for sat_id, sat_info in all_satellites.items():
+            constellation = sat_info.get('satellite_info', {}).get('constellation', '').lower()
+            if constellation == 'starlink':
+                starlink_satellites.append(sat_info)
+            elif constellation == 'oneweb':
+                oneweb_satellites.append(sat_info)
+                
+    elif 'starlink_satellites' in satellites_data and 'oneweb_satellites' in satellites_data:
+        # 舊格式: 分別的 starlink_satellites 和 oneweb_satellites 列表
+        starlink_satellites = satellites_data.get('starlink_satellites', [])
+        oneweb_satellites = satellites_data.get('oneweb_satellites', [])
+    else:
+        # 無法識別的格式，返回空列表
+        pass
+        
+    return starlink_satellites, oneweb_satellites
