@@ -24,6 +24,7 @@ Stage 1 Processor - 軌道計算處理器 (重構版)
 import json
 import logging
 import math
+import gzip
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 from datetime import datetime, timezone
@@ -185,12 +186,18 @@ class Stage1TLEProcessor(BaseStageProcessor):
                 "output_format": "eci_only"
             }
             
-            # 保存到文件
-            with open(output_path, 'w', encoding='utf-8') as f:
+            # 保存到壓縮文件 (gzip)
+            compressed_path = output_path.with_suffix('.json.gz')
+            with gzip.open(compressed_path, 'wt', encoding='utf-8') as f:
                 json.dump(orbital_results, f, indent=2, ensure_ascii=False)
-            
-            file_size = output_path.stat().st_size / (1024 * 1024)  # MB
-            self.logger.info(f"✅ Stage 1輸出已保存: {output_path} ({file_size:.2f}MB)")
+
+            # 計算壓縮前後大小
+            uncompressed_size = len(json.dumps(orbital_results, indent=2, ensure_ascii=False).encode('utf-8'))
+            compressed_size = compressed_path.stat().st_size
+            compression_ratio = compressed_size / uncompressed_size
+
+            self.logger.info(f"✅ Stage 1壓縮輸出已保存: {compressed_path}")
+            self.logger.info(f"📊 壓縮統計: {uncompressed_size/(1024*1024):.2f}MB → {compressed_size/(1024*1024):.2f}MB (壓縮率: {compression_ratio:.1%})")
             return True
             
         except Exception as e:
