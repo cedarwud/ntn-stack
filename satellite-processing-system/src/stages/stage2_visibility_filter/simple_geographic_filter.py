@@ -46,11 +46,19 @@ class SimpleGeographicFilter:
         self.logger.info("🚀 開始基本地理可見性過濾")
 
         try:
-            # 使用統一的數據格式適配工具函數
-            from ...shared.utils import parse_satellite_data_format
-            
+            # 直接使用數據格式，不依賴外部解析工具
             satellites_data = stage1_data.get('data', {})
-            starlink_satellites, oneweb_satellites = parse_satellite_data_format(satellites_data)
+            
+            # 分離 Starlink 和 OneWeb 衛星
+            starlink_satellites = []
+            oneweb_satellites = []
+            
+            for sat_id, sat_data in satellites_data.items():
+                constellation = sat_data.get('satellite_info', {}).get('constellation', '').lower()
+                if constellation == 'starlink':
+                    starlink_satellites.append(sat_data)
+                elif constellation == 'oneweb':
+                    oneweb_satellites.append(sat_data)
 
             self.logger.info(f"📥 輸入數據: {len(starlink_satellites)} Starlink + {len(oneweb_satellites)} OneWeb")
 
