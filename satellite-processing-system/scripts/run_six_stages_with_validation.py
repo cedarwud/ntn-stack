@@ -67,37 +67,8 @@ def validate_stage_immediately(stage_processor, processing_results, stage_num, s
         print(f"\n🔍 階段{stage_num}立即驗證檢查...")
         print("-" * 40)
         
-        # 所有階段統一驗證：檢查execute()的結果和驗證快照
-        if stage_num == 1:
-            # 檢查execute()結果
-            if processing_results and isinstance(processing_results, dict):
-                # 檢查是否包含必要的數據結構
-                has_data = 'data' in processing_results
-                has_metadata = 'metadata' in processing_results
-                output_file = processing_results.get('metadata', {}).get('output_file', 'unknown')
-                
-                if has_data and has_metadata:
-                    print(f"✅ 階段{stage_num}處理成功，輸出文件: {output_file}")
-                    
-                    # 檢查驗證快照是否生成
-                    if hasattr(stage_processor, 'validation_dir'):
-                        validation_path = Path(stage_processor.validation_dir) / f"stage{stage_num}_validation.json"
-                        if validation_path.exists():
-                            print(f"✅ 階段{stage_num}驗證快照已生成: {validation_path}")
-                            return True, f"階段{stage_num}驗證成功"
-                        else:
-                            print(f"⚠️ 階段{stage_num}驗證快照未找到: {validation_path}")
-                    
-                    return True, f"階段{stage_num}處理成功"
-                else:
-                    print(f"❌ 階段{stage_num}結果缺少必要數據結構")
-                    return False, f"階段{stage_num}結果缺少必要數據結構"
-            else:
-                print(f"❌ 階段{stage_num}處理結果類型異常: {type(processing_results)}")
-                return False, f"階段{stage_num}處理結果類型異常"
-        
-        # 其他階段：保存驗證快照（內含自動驗證）
-        elif hasattr(stage_processor, 'save_validation_snapshot'):
+        # 所有階段統一驗證：保存驗證快照（內含自動驗證）
+        if hasattr(stage_processor, 'save_validation_snapshot'):
             validation_success = stage_processor.save_validation_snapshot(processing_results)
             
             if validation_success:
@@ -205,10 +176,7 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             print('-' * 60)
             
             from stages.stage2_visibility_filter.satellite_visibility_filter_processor import SatelliteVisibilityFilterProcessor as Stage2Processor
-            stage2 = Stage2Processor(
-                input_dir='data/outputs/stage1',  # 正確的階段一輸出路徑
-                output_dir='data/outputs/stage2'  # 修正：使用統一的階段輸出路徑
-            )
+            stage2 = Stage2Processor(debug_mode=False)  # 修正：只傳入debug_mode參數
             
             results['stage2'] = stage2.execute()
             
