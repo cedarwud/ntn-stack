@@ -145,11 +145,26 @@ class SGP4OrbitalEngine:
             logger.info(f"   📅 TLE Epoch時間: {tle_epoch.utc_iso()}")
             logger.info(f"   🎯 計算基準時間: {calculation_base_time.utc_iso()}")
             
-            # 檢查時間差警告
+            # 檢查TLE數據新鮮度（重要：TLE精度隨時間衰減）
             current_time = self.timescale.now()
-            time_diff_days = abs(current_time.tt - tle_epoch.tt)
-            if time_diff_days > 3:
-                logger.warning(f"⚠️ TLE數據與當前時間差{time_diff_days:.1f}天，使用TLE epoch時間作為基準")
+
+            # 正確計算時間差（以天為單位）
+            time_diff_seconds = abs((current_time.utc_datetime() - tle_epoch.utc_datetime()).total_seconds())
+            time_diff_days = time_diff_seconds / 86400.0  # 86400秒 = 1天
+
+            logger.info(f"📅 TLE Epoch: {tle_epoch.utc_datetime().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+            logger.info(f"🕐 當前時間: {current_time.utc_datetime().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+            logger.info(f"⏱️ TLE數據年齡: {time_diff_days:.1f} 天")
+
+            # TLE精度警告（重要：超過3天精度明顯下降）
+            if time_diff_days > 7:
+                logger.error(f"🚨 TLE數據過舊({time_diff_days:.1f}天)，軌道預測可能嚴重失準！")
+            elif time_diff_days > 3:
+                logger.warning(f"⚠️ TLE數據較舊({time_diff_days:.1f}天)，建議使用更新數據提高精度")
+            elif time_diff_days > 1:
+                logger.info(f"ℹ️ TLE數據年齡({time_diff_days:.1f}天)在可接受範圍內")
+            else:
+                logger.info(f"✅ TLE數據非常新鮮({time_diff_days:.1f}天)，預測精度最佳")
             
             # 🔧 生成時間點（根據星座類型決定點數）
             time_points = []
