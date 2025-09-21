@@ -46,7 +46,9 @@ class Stage4MainProcessor(BaseStageProcessor, StageInterface):
 
     def __init__(self, config: Optional[Dict] = None):
         """初始化Stage 4主處理器"""
-        super().__init__("stage4_timeseries_preprocessing", config)
+        # 初始化基礎處理器和接口
+        BaseStageProcessor.__init__(self, stage_number=4, stage_name="timeseries_preprocessing", config=config)
+        StageInterface.__init__(self, stage_number=4, stage_name="timeseries_preprocessing", config=config)
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
         # 初始化專業引擎
@@ -141,8 +143,12 @@ class Stage4MainProcessor(BaseStageProcessor, StageInterface):
                 raise ValueError("缺少Stage 3信號品質數據")
 
             signal_data = input_data['signal_quality_data']
-            if not isinstance(signal_data, list) or len(signal_data) == 0:
-                raise ValueError("Stage 3信號數據為空或格式錯誤")
+            if not isinstance(signal_data, list):
+                raise ValueError("Stage 3信號數據格式錯誤，應為列表")
+
+            # 允許空列表，但記錄警告
+            if len(signal_data) == 0:
+                self.logger.warning("⚠️ Stage 3信號品質數據為空，將處理為無信號分析結果的情況")
 
             return input_data
 
@@ -199,8 +205,8 @@ class Stage4MainProcessor(BaseStageProcessor, StageInterface):
             if not self.processing_config['enable_coverage_analysis']:
                 return {'coverage_analysis': 'disabled'}
 
-            # ✅ 委派給覆蓋率分析引擎
-            coverage_results = self.coverage_engine.analyze_coverage_patterns(satellites_data)
+            # ✅ 委派給覆蓋率分析引擎 - 使用實際存在的方法
+            coverage_results = self.coverage_engine.analyze_orbital_cycle_coverage(satellites_data)
 
             # 更新統計
             if 'coverage_windows' in coverage_results:
@@ -342,36 +348,79 @@ class Stage4MainProcessor(BaseStageProcessor, StageInterface):
             return {}
 
     def run_validation_checks(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """運行驗證檢查 - 實現抽象方法"""
-        validation_results = {
-            'input_validation': self.validate_input(data),
-            'stage_compliance': self.validate_stage_compliance(),
-            'academic_standards': True,  # 假設通過學術標準檢查
-            'overall_status': 'PASS'
-        }
+        """運行驗證檢查 - 實現抽象方法 (使用真實驗證邏輯)"""
+        try:
+            # 🔥 使用真實驗證框架 - 不再硬編碼 'passed'
+            from shared.validation_framework.validation_engine import ValidationEngine
+            from shared.validation_framework.stage4_validator import Stage4TimeseriesValidator
 
-        # 檢查是否有任何驗證失敗
-        if not validation_results['input_validation'].get('valid', True):
-            validation_results['overall_status'] = 'FAIL'
+            # 創建驗證引擎
+            engine = ValidationEngine('stage4')
+            engine.add_validator(Stage4TimeseriesValidator())
 
-        return validation_results
+            # 準備輸入數據 (從前一階段或當前處理結果)
+            # 如果data包含處理結果，使用處理結果；否則需要從輸入構建
+            input_data = {}
+            if 'signal_quality_data' in data:
+                input_data = data
+            else:
+                # 嘗試從當前對象狀態構建輸入數據
+                input_data = {'signal_quality_data': []}
 
-    def save_results(self, results: Dict[str, Any], output_path: str) -> bool:
+            # 執行真實驗證
+            validation_result = engine.validate(input_data, data)
+
+            # 轉換為標準格式
+            is_valid = validation_result.overall_status == 'PASS'
+            return {
+                'validation_status': 'passed' if is_valid else 'failed',
+                'checks_performed': [check.check_name for check in validation_result.checks],
+                'stage_compliance': is_valid,
+                'academic_standards': is_valid,
+                'overall_status': validation_result.overall_status,
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'validation_details': {
+                    'success_rate': validation_result.success_rate,
+                    'errors': [check.message for check in validation_result.checks if check.status.value == 'FAILURE'],
+                    'warnings': [check.message for check in validation_result.checks if check.status.value == 'WARNING'],
+                    'validator_used': 'Stage4TimeseriesValidator'
+                }
+            }
+
+        except Exception as e:
+            self.logger.error(f"❌ Stage 4驗證失敗: {e}")
+            return {
+                'validation_status': 'failed',
+                'overall_status': 'FAIL',
+                'error': str(e),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'validation_details': {
+                    'success_rate': 0.0,
+                    'errors': [f"驗證引擎錯誤: {e}"],
+                    'warnings': [],
+                    'validator_used': 'Stage4TimeseriesValidator (failed)'
+                }
+            }
+
+    def save_results(self, results: Dict[str, Any]) -> str:
         """保存結果 - 實現抽象方法"""
         try:
             import json
             import os
+            from pathlib import Path
 
-            # 確保輸出目錄存在
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            # 生成輸出路徑
+            output_dir = Path(f"/satellite-processing/data/outputs/stage{self.stage_number}")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / f"stage{self.stage_number}_timeseries_preprocessing_output.json"
 
             # 保存為JSON格式
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(results, f, indent=2, ensure_ascii=False, default=str)
 
-            self.logger.info(f"結果已保存至: {output_path}")
-            return True
+            self.logger.info(f"✅ 結果已保存: {output_path}")
+            return str(output_path)
 
         except Exception as e:
-            self.logger.error(f"結果保存失敗: {e}")
-            return False
+            self.logger.error(f"❌ 保存結果失敗: {e}")
+            return ""

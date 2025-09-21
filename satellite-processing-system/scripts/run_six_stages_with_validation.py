@@ -200,11 +200,34 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             # 階段三：信號分析 - 使用新模組化架構 (moved from old stage 4)
             print('\n📶 階段三：信號分析 (新模組化架構)')
             print('-' * 60)
-            
-            from stages.stage3_signal_analysis.stage3_signal_analysis_processor import Stage3SignalAnalysisProcessor
+
+            from stages.stage3_signal_analysis.stage3_main_processor import Stage3MainProcessor as Stage3SignalAnalysisProcessor
             stage3 = Stage3SignalAnalysisProcessor()
-            
-            results['stage3'] = stage3.execute()
+
+            # 載入階段二的輸出作為階段三的輸入
+            import json
+            stage2_output_file = "/satellite-processing/data/outputs/stage2/stage2_complete_aggregation_output.json"
+            try:
+                with open(stage2_output_file, 'r', encoding='utf-8') as f:
+                    stage2_data = json.load(f)
+
+                # 轉換數據格式：從 visible_satellites 字典轉為 filtered_satellites 列表
+                visible_satellites = stage2_data.get('visible_satellites', {})
+                filtered_satellites = list(visible_satellites.values())
+
+                # 構建階段三期望的輸入格式
+                stage3_input = {
+                    'filtered_satellites': filtered_satellites,
+                    'metadata': stage2_data.get('metadata', {}),
+                    'processing_summary': stage2_data.get('processing_summary', {})
+                }
+
+                satellites_count = len(filtered_satellites)
+                print(f"✅ 載入階段二數據: {satellites_count} 顆衛星")
+                results['stage3'] = stage3.execute(stage3_input)
+            except FileNotFoundError:
+                print(f"❌ 階段二輸出文件不存在: {stage2_output_file}")
+                return False, 3, "階段二輸出文件不存在"
             
             if not results['stage3']:
                 print('❌ 階段三處理失敗')
@@ -229,9 +252,18 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             
             from stages.stage4_timeseries_preprocessing.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
             stage4 = TimeseriesPreprocessingProcessor()
-            
-            # 從階段三載入信號分析結果
-            results['stage4'] = stage4.execute()
+
+            # 載入階段三的輸出作為階段四的輸入
+            import json
+            stage3_output_file = "/satellite-processing/data/outputs/stage3/stage3_signal_analysis_output.json"
+            try:
+                with open(stage3_output_file, 'r', encoding='utf-8') as f:
+                    stage3_data = json.load(f)
+                print(f"✅ 載入階段三數據: {stage3_data.get('stage', 'unknown')} 階段結果")
+                results['stage4'] = stage4.execute(stage3_data)
+            except FileNotFoundError:
+                print(f"❌ 階段三輸出文件不存在: {stage3_output_file}")
+                return False, 4, "階段三輸出文件不存在"
             
             if not results['stage4']:
                 print('❌ 階段四處理失敗')
@@ -327,12 +359,12 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         except Exception as e:
             print(f'⚠️ 統一清理警告: {e}')
         
-        # 階段一：TLE載入與SGP4計算 - 使用新模組化架構
-        print('\n📡 階段一：TLE載入與SGP4軌道計算 (新模組化架構)')
+        # 階段一：數據載入層 - v2.0模組化架構
+        print('\n📦 階段一：數據載入層 (v2.0模組化架構)')
         print('-' * 60)
         
-        from stages.stage1_orbital_calculation.tle_orbital_calculation_processor import Stage1TLEProcessor
-        stage1 = Stage1TLEProcessor(
+        from stages.stage1_orbital_calculation.stage1_data_loading_processor import Stage1DataLoadingProcessor
+        stage1 = Stage1DataLoadingProcessor(
             config={'sample_mode': False, 'sample_size': 500}
         )
         
@@ -344,7 +376,7 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         
         # 🔍 階段一立即驗證
         validation_success, validation_msg = validate_stage_immediately(
-            stage1, results['stage1'], 1, "TLE載入與SGP4計算"
+            stage1, results['stage1'], 1, "數據載入層"
         )
         
         if not validation_success:
@@ -371,17 +403,16 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         except Exception as e:
             print(f'⚠️ 階段二清理警告: {e}')
         
-        # 階段二：智能衛星篩選 - 使用新模組化架構
-        print('\n🎯 階段二：智能衛星篩選 (新模組化架構)')
+        # 階段二：軌道計算層 - v2.0模組化架構
+        print('\n🔄 階段二：軌道計算層 (v2.0模組化架構)')
         print('-' * 60)
         
-        from stages.stage2_visibility_filter.satellite_visibility_filter_processor import SatelliteVisibilityFilterProcessor as Stage2Processor
-        stage2 = Stage2Processor(
-            input_dir='data/outputs/stage1',  # 正確的階段一輸出路徑
-            output_dir='data/outputs/stage2'  # 修正：使用統一的階段輸出路徑
+        from stages.stage2_visibility_filter.stage2_orbital_computing_processor import Stage2OrbitalComputingProcessor
+        stage2 = Stage2OrbitalComputingProcessor(
+            config={'min_elevation_deg': 10.0, 'prediction_horizon_hours': 24}
         )
-        
-        results['stage2'] = stage2.execute()
+
+        results['stage2'] = stage2.process(results['stage1'])
         
         if not results['stage2']:
             print('❌ 階段二處理失敗')
@@ -389,7 +420,7 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         
         # 🔍 階段二立即驗證
         validation_success, validation_msg = validate_stage_immediately(
-            stage2, results['stage2'], 2, "智能衛星篩選"
+            stage2, results['stage2'], 2, "軌道計算層"
         )
         
         if not validation_success:

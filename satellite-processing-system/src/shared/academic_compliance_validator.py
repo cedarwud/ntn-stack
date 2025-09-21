@@ -77,7 +77,7 @@ class AcademicComplianceValidator:
                 "Friis", "path_loss", "atmospheric_attenuation", "SGP4", "orbital_mechanics"
             ],
             "academic_compliance": [
-                "academic_standards_config", "elevation_standards", "reinforcement_learning_standards"
+                "academic_standards_config", "elevation_standards"
             ]
         }
 

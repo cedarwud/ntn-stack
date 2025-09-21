@@ -110,7 +110,8 @@ class SGP4OrbitalEngine:
         """
         計算衛星位置時間序列 - 純ECI座標輸出（符合Stage 1文檔規範）
         
-        🚨 關鍵修復：使用TLE epoch時間作為計算基準，而非當前系統時間
+        🚨 關鍵修復：使用當前時間作為計算基準，用於可見性分析
+        ⚡ 效能優化：減少日誌輸出、批量計算時間點
         
         Args:
             satellite_data: 衛星數據，包含TLE信息
@@ -138,36 +139,27 @@ class SGP4OrbitalEngine:
             # 🛰️ 創建EarthSatellite對象
             satellite = EarthSatellite(tle_line1, tle_line2, satellite_name, self.timescale)
             
-            # 🚨 關鍵修復：使用TLE epoch時間作為計算基準時間
+            # 🚨 關鍵修復：使用當前時間作為計算基準，而非TLE epoch時間
+            # 這樣才能正確計算當前和未來的衛星可見性
             tle_epoch = satellite.epoch
-            calculation_base_time = tle_epoch
+            current_time = self.timescale.now()
+            calculation_base_time = current_time  # 改為使用當前時間
             
-            logger.info(f"   📅 TLE Epoch時間: {tle_epoch.utc_iso()}")
-            logger.info(f"   🎯 計算基準時間: {calculation_base_time.utc_iso()}")
+            # ⚡ 效能優化：只輸出重要信息，減少日誌量
+            logger.debug(f"   📅 {satellite_name} TLE Epoch: {tle_epoch.utc_iso()}")
+            logger.debug(f"   🕐 計算基準時間: {calculation_base_time.utc_iso()}")
             
             # 檢查TLE數據新鮮度（重要：TLE精度隨時間衰減）
-            current_time = self.timescale.now()
-
-            # 正確計算時間差（以天為單位）
             time_diff_seconds = abs((current_time.utc_datetime() - tle_epoch.utc_datetime()).total_seconds())
             time_diff_days = time_diff_seconds / 86400.0  # 86400秒 = 1天
 
-            logger.info(f"📅 TLE Epoch: {tle_epoch.utc_datetime().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-            logger.info(f"🕐 當前時間: {current_time.utc_datetime().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-            logger.info(f"⏱️ TLE數據年齡: {time_diff_days:.1f} 天")
-
-            # TLE精度警告（重要：超過3天精度明顯下降）
+            # ⚡ 效能優化：只在數據過舊時警告，減少日誌輸出
             if time_diff_days > 7:
-                logger.error(f"🚨 TLE數據過舊({time_diff_days:.1f}天)，軌道預測可能嚴重失準！")
+                logger.warning(f"🚨 {satellite_name} TLE數據過舊({time_diff_days:.1f}天)，軌道預測可能嚴重失準！")
             elif time_diff_days > 3:
-                logger.warning(f"⚠️ TLE數據較舊({time_diff_days:.1f}天)，建議使用更新數據提高精度")
-            elif time_diff_days > 1:
-                logger.info(f"ℹ️ TLE數據年齡({time_diff_days:.1f}天)在可接受範圍內")
-            else:
-                logger.info(f"✅ TLE數據非常新鮮({time_diff_days:.1f}天)，預測精度最佳")
+                logger.debug(f"⚠️ {satellite_name} TLE數據較舊({time_diff_days:.1f}天)")
             
             # 🔧 生成時間點（根據星座類型決定點數）
-            time_points = []
             constellation = satellite_data.get('constellation', '').lower()
             
             if constellation == 'starlink':
@@ -186,19 +178,20 @@ class SGP4OrbitalEngine:
             
             interval_minutes = actual_duration_minutes / num_points
             
+            # ⚡ 效能優化：批量生成時間點陣列
+            time_points = []
             for i in range(num_points):
                 minutes_offset = i * interval_minutes
-                # 🚨 關鍵修復：基於TLE epoch時間計算，而非當前時間
-                time_point = self.timescale.tt_jd(tle_epoch.tt + minutes_offset / (24 * 60))
-                time_points.append(time_point)
+                # 🚨 關鍵修復：基於當前時間計算，而非TLE epoch時間
+                time_point = self.timescale.tt_jd(calculation_base_time.tt + minutes_offset / (24 * 60))
+                time_points.append((time_point, minutes_offset))
             
-            logger.info(f"   ⏰ {constellation} 軌道計算: {num_points}個位置點，間隔{interval_minutes*60:.1f}秒")
-            logger.info(f"   🔍 DEBUG: constellation='{constellation}', num_points={num_points}, actual_duration={actual_duration_minutes}分鐘")
+            logger.debug(f"   ⏰ {constellation} 軌道計算: {num_points}個位置點，間隔{interval_minutes*60:.1f}秒")
             
             position_timeseries = []
             
-            # 🧮 逐一計算每個時間點的位置（僅計算ECI座標）
-            for i, t in enumerate(time_points):
+            # ⚡ 效能優化：批量計算位置，減少函數調用開銷
+            for i, (t, minutes_offset) in enumerate(time_points):
                 try:
                     # 計算該時間點的位置
                     geocentric = satellite.at(t)
@@ -231,8 +224,9 @@ class SGP4OrbitalEngine:
                         # 🆕 添加計算元數據
                         "calculation_metadata": {
                             "tle_epoch": tle_epoch.utc_iso(),
-                            "time_from_epoch_minutes": minutes_offset,
-                            "calculation_base": "tle_epoch_time",
+                            "calculation_base_time": calculation_base_time.utc_iso(),
+                            "time_from_base_minutes": minutes_offset,
+                            "calculation_base": "current_time",
                             "real_sgp4_calculation": True
                         }
                     }
@@ -240,7 +234,9 @@ class SGP4OrbitalEngine:
                     position_timeseries.append(position_data)
                     
                 except Exception as pos_error:
-                    logger.warning(f"⚠️ 時間點 {i} 位置計算失敗: {pos_error}")
+                    # ⚡ 效能優化：只記錄關鍵錯誤，避免過多日誌
+                    if i < 5:  # 只記錄前5個錯誤
+                        logger.warning(f"⚠️ 時間點 {i} 位置計算失敗: {pos_error}")
                     continue
             
             # 統計更新
@@ -248,7 +244,7 @@ class SGP4OrbitalEngine:
             if position_timeseries:
                 self.calculation_stats["successful_calculations"] += 1
                 self.calculation_stats["total_position_points"] += len(position_timeseries)
-                logger.info(f"✅ 衛星 {satellite_name} ECI軌道計算完成: {len(position_timeseries)}個位置點")
+                logger.debug(f"✅ 衛星 {satellite_name} ECI軌道計算完成: {len(position_timeseries)}個位置點")
             else:
                 self.calculation_stats["failed_calculations"] += 1
                 logger.error(f"❌ 衛星 {satellite_name} 軌道計算失敗: 無有效位置點")

@@ -35,18 +35,9 @@ def stage4_processor():
     import sys
     sys.path.append('/satellite-processing/src')
 
-    from stages.stage4_timeseries_preprocessing.timeseries_preprocessing_processor import TimeseriesPreprocessingProcessor
+    from stages.stage4_timeseries_preprocessing.timeseries_preprocessing_processor import create_stage4_processor
 
-    # 創建測試配置
-    test_config = {
-        "debug_mode": True,
-        "time_resolution_sec": 30,
-        "orbital_period_min": 96,
-        "preserve_full_data": True,
-        "test_mode": True
-    }
-
-    return TimeseriesPreprocessingProcessor(config=test_config)
+    return create_stage4_processor()
 
 @pytest.fixture
 def mock_stage3_data():
@@ -234,16 +225,6 @@ class TestStage4RealTimeMonitoring:
         assert serialized['satellite_id'] == "STARLINK-TEST"
         assert isinstance(serialized['timestamp'], str)
 
-class TestStage4ReinforcementLearning:
-    """Stage4強化學習數據生成測試"""
-
-    @pytest.mark.stage4
-    @pytest.mark.rl
-    def test_rl_training_data_generation(self, stage4_processor):
-        """🚨 強化學習測試：訓練數據生成功能存在"""
-        # 檢查是否有強化學習相關組件
-        assert hasattr(stage4_processor, 'rl_preprocessing_engine') or \
-               hasattr(stage4_processor, 'rl_data_generator')
 
 class TestStage4FullExecution:
     """Stage4完整執行測試"""

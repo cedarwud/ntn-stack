@@ -110,8 +110,8 @@ class PureSignalQualityCalculator:
             )
 
             # ✅ 使用共享模組計算可見性
-            visibility_info = self.visibility_calculator.calculate_visibility_metrics(
-                current_position
+            visibility_info = self.visibility_calculator.assess_satellite_visibility(
+                current_position, {}  # 空的觀測者位置，使用預設台北
             )
 
             # 3GPP NTN合規性檢查
@@ -226,3 +226,116 @@ class PureSignalQualityCalculator:
         stats['stage_violation_fixed'] = 'removed_position_timeseries_processing'
         stats['cross_stage_compliance'] = 'pure_stage3_responsibilities'
         return stats
+
+    def _create_invalid_result(self, satellite_id: str, reason: str) -> Dict[str, Any]:
+        """創建無效結果"""
+        self.logger.warning(f"⚠️ 衛星 {satellite_id} 處理無效: {reason}")
+        return {
+            'satellite_id': satellite_id,
+            'status': 'invalid',
+            'reason': reason,
+            'signal_quality': None,
+            'handover_candidates': [],
+            'processing_timestamp': datetime.now(timezone.utc).isoformat()
+        }
+
+    def _create_error_result(self, satellite_id: str, error_message: str) -> Dict[str, Any]:
+        """創建錯誤結果"""
+        self.logger.error(f"❌ 衛星 {satellite_id} 處理錯誤: {error_message}")
+        return {
+            'satellite_id': satellite_id,
+            'status': 'error',
+            'error_message': error_message,
+            'signal_quality': None,
+            'handover_candidates': [],
+            'processing_timestamp': datetime.now(timezone.utc).isoformat()
+        }
+
+    def _assess_rsrp_level(self, rsrp_dbm: float) -> str:
+        """評估RSRP級別 (基於3GPP TS 36.214)"""
+        if rsrp_dbm >= -80:
+            return "excellent"
+        elif rsrp_dbm >= -95:
+            return "good"
+        elif rsrp_dbm >= -110:
+            return "fair"
+        elif rsrp_dbm >= -125:
+            return "poor"
+        else:
+            return "unusable"
+
+    def _assess_rsrq_level(self, rsrq_db: float) -> str:
+        """評估RSRQ級別 (基於3GPP TS 36.214)"""
+        if rsrq_db >= -8:
+            return "excellent"
+        elif rsrq_db >= -12:
+            return "good"
+        elif rsrq_db >= -15:
+            return "fair"
+        elif rsrq_db >= -18:
+            return "poor"
+        else:
+            return "unusable"
+
+    def _assess_sinr_level(self, sinr_db: float) -> str:
+        """評估SINR級別 (基於ITU-R M.2292)"""
+        if sinr_db >= 15:
+            return "excellent"
+        elif sinr_db >= 8:
+            return "good"
+        elif sinr_db >= 3:
+            return "fair"
+        elif sinr_db >= 0:
+            return "poor"
+        else:
+            return "unusable"
+
+    def _identify_handover_candidates(self, signal_quality: Dict[str, Any],
+                                    visibility_info: Dict[str, Any],
+                                    satellite_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """識別切換候選 (基於3GPP TS 36.331)"""
+        candidates = []
+
+        try:
+            # 檢查信號品質是否符合切換標準
+            rsrp = signal_quality.get('rsrp_dbm', -999)
+            sinr = signal_quality.get('sinr_db', -999)
+
+            # A4事件：信號強度超過門檻
+            if rsrp >= -110 and sinr >= 0:  # 基本可用門檻
+                candidate = {
+                    'satellite_id': satellite_data.get('satellite_id'),
+                    'constellation': satellite_data.get('constellation', 'unknown'),
+                    'rsrp_dbm': rsrp,
+                    'sinr_db': sinr,
+                    'handover_priority': self._calculate_handover_priority(signal_quality, visibility_info),
+                    'recommended': rsrp >= -95 and sinr >= 3  # 良好品質推薦
+                }
+                candidates.append(candidate)
+
+        except Exception as e:
+            self.logger.error(f"❌ 切換候選識別失敗: {e}")
+
+        return candidates
+
+    def _calculate_handover_priority(self, signal_quality: Dict[str, Any],
+                                   visibility_info: Dict[str, Any]) -> float:
+        """計算切換優先級 (0-1分數)"""
+        try:
+            rsrp = signal_quality.get('rsrp_dbm', -999)
+            sinr = signal_quality.get('sinr_db', -999)
+
+            # 正規化RSRP分數 (-125 to -60 dBm)
+            rsrp_score = max(0, min(1, (rsrp + 125) / 65))
+
+            # 正規化SINR分數 (-10 to 30 dB)
+            sinr_score = max(0, min(1, (sinr + 10) / 40))
+
+            # 加權平均
+            priority = 0.6 * rsrp_score + 0.4 * sinr_score
+
+            return round(priority, 3)
+
+        except Exception as e:
+            self.logger.error(f"❌ 切換優先級計算失敗: {e}")
+            return 0.0

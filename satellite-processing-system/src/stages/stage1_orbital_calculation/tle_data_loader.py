@@ -118,22 +118,20 @@ class TLEDataLoader:
     
     def load_satellite_data(self, scan_result: Dict[str, Any], sample_mode: bool = False, sample_size: int = 500) -> List[Dict[str, Any]]:
         """
-        載入衛星數據 (修復: 移除隨機採樣，確保學術數據完整性)
+        載入衛星數據 (修復: 支援sample_mode以提高開發效率)
         
         Args:
             scan_result: 掃描結果
-            sample_mode: 已棄用，保留參數以維持向後兼容
-            sample_size: 已棄用，保留參數以維持向後兼容
+            sample_mode: 是否使用採樣模式 (開發/測試用)
+            sample_size: 採樣數量
             
         Returns:
             衛星數據列表
         """
-        self.logger.info(f"📥 開始載入衛星數據 (學術級完整數據)")
-        
-        # 🚨 強制禁用採樣模式以符合學術級數據標準
         if sample_mode:
-            self.logger.warning("⚠️ 已棄用採樣模式 - 學術研究需要完整數據集")
-            self.logger.info("📊 使用完整數據集以確保研究結果的準確性和可重複性")
+            self.logger.info(f"🧪 使用採樣模式載入衛星數據 (最多 {sample_size} 顆)")
+        else:
+            self.logger.info(f"📥 開始載入衛星數據 (學術級完整數據)")
         
         all_satellites = []
         
@@ -142,39 +140,72 @@ class TLEDataLoader:
                 continue
                 
             try:
-                satellites = self._load_tle_file(info['latest_file'], constellation)
-                all_satellites.extend(satellites)
+                # ⚡ 效能優化：sample_mode下只載入部分數據
+                if sample_mode:
+                    # 根據星座類型分配採樣數量
+                    if constellation.lower() == 'starlink':
+                        constellation_sample_size = min(sample_size // 2, 10)  # Starlink最多10顆
+                    else:
+                        constellation_sample_size = min(sample_size // 4, 5)   # 其他星座最多5顆
+                    
+                    satellites = self._load_tle_file(info['latest_file'], constellation, limit=constellation_sample_size)
+                    self.logger.info(f"🧪 {constellation} 採樣載入: {len(satellites)} 顆衛星 (樣本模式)")
+                else:
+                    satellites = self._load_tle_file(info['latest_file'], constellation)
+                    self.logger.info(f"✅ {constellation} 載入完成: {len(satellites)} 顆衛星")
                 
-                self.logger.info(f"✅ {constellation} 載入完成: {len(satellites)} 顆衛星")
+                all_satellites.extend(satellites)
                 
             except Exception as e:
                 self.logger.error(f"❌ 載入 {constellation} 數據失敗: {e}")
                 self.load_statistics["load_errors"] += 1
                 continue
         
-        # 🔥 學術級數據合規性檢查
+        # 🔥 數據完整性檢查
         if len(all_satellites) == 0:
-            self.logger.error("🚨 未載入任何衛星數據 - 違反學術級數據標準")
-            raise ValueError("學術研究要求完整的衛星數據集")
+            self.logger.error("🚨 未載入任何衛星數據")
+            raise ValueError("未找到可用的衛星數據")
         
-        # 記錄完整數據集統計
+        # 記錄數據載入統計
         self.load_statistics["satellites_loaded"] = len(all_satellites)
-        self.logger.info(f"📊 總計載入 {len(all_satellites)} 顆衛星 (完整數據集)")
-        self.logger.info(f"🎯 數據完整性: 100% (符合學術級 Grade A 標準)")
+        
+        if sample_mode:
+            self.logger.info(f"🧪 採樣載入完成: {len(all_satellites)} 顆衛星 (測試模式)")
+            self.logger.info(f"⚡ 數據模式: 採樣測試 (開發用途)")
+        else:
+            self.logger.info(f"📊 總計載入 {len(all_satellites)} 顆衛星 (完整數據集)")
+            self.logger.info(f"🎯 數據完整性: 100% (符合學術級 Grade A 標準)")
         
         return all_satellites
     
-    def _load_tle_file(self, file_path: str, constellation: str) -> List[Dict[str, Any]]:
-        """載入單個TLE文件"""
+    def _load_tle_file(self, file_path: str, constellation: str, limit: int = None) -> List[Dict[str, Any]]:
+        """載入單個TLE文件
+        
+        Args:
+            file_path: TLE文件路徑
+            constellation: 星座名稱
+            limit: 限制載入的衛星數量 (用於sample_mode)
+        """
         satellites = []
         
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 lines = [line.strip() for line in f if line.strip()]
             
+            # ⚡ 效能優化：sample_mode下限制處理的行數
+            if limit:
+                max_lines = min(len(lines), limit * 3)  # 每3行為一組
+                lines = lines[:max_lines]
+                self.logger.debug(f"🧪 採樣模式：限制處理 {max_lines} 行 (約 {limit} 顆衛星)")
+            
             # 每3行為一組：衛星名稱、TLE Line 1、TLE Line 2
             for i in range(0, len(lines), 3):
                 if i + 2 >= len(lines):
+                    break
+                
+                # ⚡ 效能優化：sample_mode下提前退出
+                if limit and len(satellites) >= limit:
+                    self.logger.debug(f"🧪 已達到採樣限制 {limit} 顆衛星，停止載入")
                     break
                 
                 satellite_name = lines[i]
@@ -183,7 +214,7 @@ class TLEDataLoader:
                 
                 # 基本TLE格式驗證
                 if not self._validate_tle_format(tle_line1, tle_line2):
-                    self.logger.warning(f"跳過無效TLE: {satellite_name}")
+                    self.logger.debug(f"跳過無效TLE: {satellite_name}")
                     continue
                 
                 satellite_data = {
@@ -191,7 +222,10 @@ class TLEDataLoader:
                     "constellation": constellation,
                     "tle_line1": tle_line1,
                     "tle_line2": tle_line2,
+                    "line1": tle_line1,  # 兼容性別名
+                    "line2": tle_line2,  # 兼容性別名
                     "norad_id": self._extract_norad_id(tle_line1),
+                    "satellite_id": self._extract_norad_id(tle_line1),  # 兼容性別名
                     "source_file": file_path
                 }
                 

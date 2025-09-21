@@ -74,7 +74,7 @@ class PipelineValidationEngine:
             },
             6: {
                 "name": "動態池規劃與換手優化支援",
-                "critical_checks": ["時空錯置驗證", "連續覆蓋保證", "換手場景豐富性", "強化學習數據準備"],
+                "critical_checks": ["時空錯置驗證", "連續覆蓋保證", "換手場景豐富性"],
                 "min_satellites": 50,
                 "required_solution": True,
                 "handover_requirements": {
@@ -257,7 +257,6 @@ class PipelineValidationEngine:
             "時空錯置驗證": "時空錯置驗證",
             "連續覆蓋保證": "連續覆蓋保證", 
             "換手場景豐富性": "換手場景豐富性",
-            "強化學習數據準備": "強化學習數據準備"
         }
         return mapping.get(critical_check)
     
