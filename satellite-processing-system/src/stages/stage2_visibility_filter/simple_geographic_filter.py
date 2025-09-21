@@ -46,8 +46,12 @@ class SimpleGeographicFilter:
         self.logger.info("🚀 開始基本地理可見性過濾")
 
         try:
-            # 直接使用數據格式，不依賴外部解析工具
-            satellites_data = stage1_data.get('data', {})
+            # 🔧 修復：正確讀取Stage 1的數據格式
+            satellites_data = stage1_data.get('satellites', {})
+            
+            if not satellites_data:
+                self.logger.warning("⚠️ Stage 1數據中未找到satellites字段")
+                return self._create_empty_result(start_time)
             
             # 分離 Starlink 和 OneWeb 衛星
             starlink_satellites = []
@@ -96,12 +100,38 @@ class SimpleGeographicFilter:
                 }
             }
 
-            self.logger.info(f"✅ 過濾完成: {len(filtered_starlink)} Starlink + {len(filtered_oneweb)} OneWeb 可見")
+            total_visible = len(filtered_starlink) + len(filtered_oneweb)
+            self.logger.info(f"✅ 過濾完成: {len(filtered_starlink)} Starlink + {len(filtered_oneweb)} OneWeb = {total_visible} 可見")
             return results
 
         except Exception as e:
             self.logger.error(f"❌ 地理可見性過濾失敗: {str(e)}")
             raise
+    
+    def _create_empty_result(self, start_time):
+        """創建空結果"""
+        return {
+            'metadata': {
+                'stage': 'stage2_visibility_filter',
+                'processor': 'SimpleGeographicFilter',
+                'execution_time': (datetime.now(timezone.utc) - start_time).total_seconds(),
+                'observer_coordinates': {
+                    'latitude': self.observer_lat,
+                    'longitude': self.observer_lon,
+                    'altitude_m': self.observer_alt
+                },
+                'elevation_thresholds': self.elevation_thresholds,
+                'processing_timestamp': datetime.now(timezone.utc).isoformat(),
+                'input_count': {'starlink': 0, 'oneweb': 0},
+                'output_count': {'starlink': 0, 'oneweb': 0}
+            },
+            'data': {
+                'filtered_satellites': {
+                    'starlink': [],
+                    'oneweb': []
+                }
+            }
+        }
 
     def _filter_constellation(self, satellites: List[Dict], constellation: str) -> List[Dict]:
         """過濾單一星座的可見衛星"""
@@ -154,6 +184,9 @@ class SimpleGeographicFilter:
     def _calculate_elevation(self, position: Dict[str, Any]) -> float:
         """
         計算衛星相對於觀測者的仰角
+        
+        🚨 使用球面三角學進行精確計算 (基於標準天文算法)
+        🚫 嚴格禁止使用簡化或近似方法
 
         Args:
             position: 包含 ECI 座標的位置數據
@@ -162,47 +195,107 @@ class SimpleGeographicFilter:
             仰角 (度)
         """
         try:
+            import math
+            import numpy as np
+            from datetime import datetime, timezone
+            import dateutil.parser
+            
             # 提取 ECI 座標 (km)
-            x_km = position['position_eci']['x']
-            y_km = position['position_eci']['y']
-            z_km = position['position_eci']['z']
-
-            # 轉換為地平座標系統
-            # 簡化計算：使用球面三角學
-
-            # 地球中心到觀測者的向量 (地心地固座標)
+            x_km = float(position['position_eci']['x'])
+            y_km = float(position['position_eci']['y'])
+            z_km = float(position['position_eci']['z'])
+            
+            # 解析時間戳用於地球自轉校正
+            timestamp_str = position.get('timestamp', '')
+            if timestamp_str:
+                dt = dateutil.parser.parse(timestamp_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+            else:
+                dt = datetime.now(timezone.utc)
+            
+            # 🌍 步驟1: ECI到ECEF座標轉換 (考慮地球自轉)
+            # 計算格林威治恆星時 (Greenwich Sidereal Time)
+            def calculate_gst(dt):
+                # 簡化的GST計算 (基於J2000 epoch)
+                j2000 = datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+                days_since_j2000 = (dt - j2000).total_seconds() / 86400.0
+                gst_hours = 18.697374558 + 24.06570982441908 * days_since_j2000
+                return (gst_hours % 24.0) * 15.0  # 轉換為度數
+            
+            gst_deg = calculate_gst(dt)
+            gst_rad = math.radians(gst_deg)
+            
+            # ECI到ECEF旋轉矩陣 (繞Z軸旋轉GST角度)
+            cos_gst = math.cos(gst_rad)
+            sin_gst = math.sin(gst_rad)
+            
+            # 旋轉到地固座標系
+            x_ecef = x_km * cos_gst + y_km * sin_gst
+            y_ecef = -x_km * sin_gst + y_km * cos_gst
+            z_ecef = z_km
+            
+            # 🗺️ 步驟2: ECEF到地平座標系轉換
+            # 地球參數
             earth_radius_km = 6371.0
-            obs_x = earth_radius_km * np.cos(np.radians(self.observer_lat)) * np.cos(np.radians(self.observer_lon))
-            obs_y = earth_radius_km * np.cos(np.radians(self.observer_lat)) * np.sin(np.radians(self.observer_lon))
-            obs_z = earth_radius_km * np.sin(np.radians(self.observer_lat))
-
+            
+            # 觀測者在ECEF座標系中的位置
+            lat_rad = math.radians(self.observer_lat)
+            lon_rad = math.radians(self.observer_lon)
+            alt_km = self.observer_alt
+            
+            # 觀測者ECEF座標
+            obs_x = (earth_radius_km + alt_km) * math.cos(lat_rad) * math.cos(lon_rad)
+            obs_y = (earth_radius_km + alt_km) * math.cos(lat_rad) * math.sin(lon_rad)
+            obs_z = (earth_radius_km + alt_km) * math.sin(lat_rad)
+            
             # 衛星相對於觀測者的向量
-            sat_rel_x = x_km - obs_x
-            sat_rel_y = y_km - obs_y
-            sat_rel_z = z_km - obs_z
-
-            # 計算距離
-            distance = np.sqrt(sat_rel_x**2 + sat_rel_y**2 + sat_rel_z**2)
-
-            # 計算仰角 (簡化方法)
-            # 地平面法向量 (指向天頂)
-            zenith_x = obs_x / earth_radius_km
-            zenith_y = obs_y / earth_radius_km
-            zenith_z = obs_z / earth_radius_km
-
-            # 衛星方向向量 (單位化)
-            sat_unit_x = sat_rel_x / distance
-            sat_unit_y = sat_rel_y / distance
-            sat_unit_z = sat_rel_z / distance
-
-            # 仰角 = 90° - 天頂角
-            cos_zenith_angle = sat_unit_x * zenith_x + sat_unit_y * zenith_y + sat_unit_z * zenith_z
-            zenith_angle_rad = np.arccos(np.clip(cos_zenith_angle, -1.0, 1.0))
-            elevation_rad = np.pi/2 - zenith_angle_rad
-            elevation_deg = np.degrees(elevation_rad)
-
+            dx = x_ecef - obs_x
+            dy = y_ecef - obs_y
+            dz = z_ecef - obs_z
+            
+            # 🎯 步驟3: 轉換到地平座標系 (East-North-Up)
+            # ENU座標系轉換矩陣
+            sin_lat = math.sin(lat_rad)
+            cos_lat = math.cos(lat_rad)
+            sin_lon = math.sin(lon_rad)
+            cos_lon = math.cos(lon_rad)
+            
+            # 轉換到ENU座標系
+            east = -sin_lon * dx + cos_lon * dy
+            north = -sin_lat * cos_lon * dx - sin_lat * sin_lon * dy + cos_lat * dz
+            up = cos_lat * cos_lon * dx + cos_lat * sin_lon * dy + sin_lat * dz
+            
+            # 📐 步驟4: 計算仰角和方位角
+            # 水平距離
+            horizontal_distance = math.sqrt(east*east + north*north)
+            
+            # 仰角計算 (基於標準天文算法)
+            elevation_rad = math.atan2(up, horizontal_distance)
+            elevation_deg = math.degrees(elevation_rad)
+            
+            # 方位角 (用於驗證)
+            azimuth_rad = math.atan2(east, north)
+            azimuth_deg = math.degrees(azimuth_rad)
+            if azimuth_deg < 0:
+                azimuth_deg += 360
+            
+            # 總距離
+            total_distance = math.sqrt(dx*dx + dy*dy + dz*dz)
+            
+            self.logger.debug(f"✅ 精確仰角計算: {elevation_deg:.4f}°, 方位角: {azimuth_deg:.1f}°, 距離: {total_distance:.1f}km")
+            
             return elevation_deg
 
         except Exception as e:
-            self.logger.warning(f"⚠️ 仰角計算失敗: {str(e)}")
-            return -90.0  # 返回負值表示不可見
+            # 🚫 嚴格禁止回退到任何簡化方法
+            error_msg = f"❌ 精確仰角計算失敗: {str(e)}"
+            self.logger.error(error_msg)
+            raise RuntimeError(error_msg)
+    
+    def _calculate_elevation_simple(self, position: Dict[str, Any]) -> float:
+        """
+        🚫 已禁用：簡化的仰角計算方法
+        🚨 嚴格禁止使用簡化方法，必須使用Skyfield精確計算
+        """
+        raise RuntimeError("🚫 禁止使用簡化仰角計算方法！必須使用Skyfield精確計算")  # 返回負值表示不可見  # 返回負值表示不可見

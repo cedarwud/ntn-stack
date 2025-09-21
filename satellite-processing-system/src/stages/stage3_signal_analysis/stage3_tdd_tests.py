@@ -273,6 +273,46 @@ class TestAcademicCompliance(unittest.TestCase):
                                f"類別 {category} 缺少官方標準來源: {source}")
 
 
+class TestActualProcessingValidation(unittest.TestCase):
+    """測試實際處理結果驗證 - 防止0輸出通過測試的邏輯失效"""
+
+    def test_stage3_processing_must_produce_results(self):
+        """🚨 強制測試：Stage 3 必須產生實際處理結果"""
+        # 檢查最新的Stage 3輸出檔案
+        import json
+        import os
+
+        output_file = "/satellite-processing/data/outputs/stage3/stage3_signal_analysis_output.json"
+
+        # 檔案必須存在
+        self.assertTrue(os.path.exists(output_file), "Stage 3輸出檔案不存在")
+
+        # 檔案必須非空
+        self.assertGreater(os.path.getsize(output_file), 0, "Stage 3輸出檔案為空")
+
+        # 載入並檢查內容
+        with open(output_file, 'r') as f:
+            result = json.load(f)
+
+        # 檢查關鍵字段
+        self.assertIn('signal_quality_data', result, "缺少signal_quality_data字段")
+        self.assertIn('processing_summary', result, "缺少processing_summary字段")
+
+        # 🚨 關鍵檢查：signal_quality_data不能為空
+        signal_data = result['signal_quality_data']
+        processing_summary = result['processing_summary']
+
+        # 如果輸入了衛星但輸出為0，則測試失敗
+        satellites_analyzed = processing_summary.get('total_satellites_analyzed', 0)
+
+        if satellites_analyzed == 0:
+            # 檢查是否是因為沒有輸入數據
+            statistics = result.get('statistics', {})
+            satellites_processed = statistics.get('satellites_processed', 0)
+
+            if satellites_processed > 0:
+                self.fail(f"❌ 驗證邏輯失效：處理了{satellites_processed}顆衛星但分析結果為0！")
+
 class TestValidationSnapshots(unittest.TestCase):
     """測試驗證快照系統"""
 
@@ -326,11 +366,15 @@ class TestValidationSnapshots(unittest.TestCase):
 
     def _calculate_benchmark_rsrp(self) -> float:
         """計算基準RSRP值 (550km LEO衛星)"""
-        # 使用標準參數計算基準RSRP
+        # 使用物理常數系統參數計算基準RSRP
         distance_km = 550.0
         frequency_hz = 2.6e9
-        transmit_power_dbm = 37.5  # Starlink EIRP
-        antenna_gain_db = 15.0
+
+        # 從物理常數獲取參數而非硬編碼
+        physics_constants = get_physics_constants()
+        starlink_params = physics_constants.get_antenna_parameters("starlink")
+        transmit_power_dbm = starlink_params.get("eirp_dbm", 37.5)
+        antenna_gain_db = starlink_params.get("typical_gain_db", 15.0)
 
         wavelength_m = 3e8 / frequency_hz
         path_loss_db = 20 * math.log10(4 * math.pi * distance_km * 1000 / wavelength_m)

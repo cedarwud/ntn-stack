@@ -20,9 +20,8 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 
-# 使用基礎處理器和接口
-from shared.base_processor import BaseStageProcessor
-from shared.core_modules.stage_interface import StageInterface
+# 使用統一處理器接口
+from shared.interfaces.processor_interface import BaseProcessor, ProcessingResult, ProcessingStatus, create_processing_result
 
 # 使用專業引擎
 from .pool_generation_engine import PoolGenerationEngine
@@ -32,7 +31,7 @@ from .scientific_validation_engine import ScientificValidationEngine
 
 logger = logging.getLogger(__name__)
 
-class Stage6MainProcessor(BaseStageProcessor, StageInterface):
+class Stage6MainProcessor(BaseProcessor):
     """
     Stage 6 主處理器 - 修復跨階段違規版本
     
@@ -45,7 +44,7 @@ class Stage6MainProcessor(BaseStageProcessor, StageInterface):
     
     def __init__(self, config: Optional[Dict] = None):
         """初始化Stage 6主處理器"""
-        super().__init__(config)
+        super().__init__("Stage6DynamicPoolPlanning")
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         
         # 初始化專業引擎 - 不使用違規的DataIntegrationLoader
@@ -72,7 +71,7 @@ class Stage6MainProcessor(BaseStageProcessor, StageInterface):
         
         self.logger.info("✅ Stage 6主處理器初始化完成 (修復跨階段違規版本)")
     
-    def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    def process(self, input_data: Any) -> ProcessingResult:
         """
         Stage 6主處理流程 - 修復版本
         
@@ -127,12 +126,29 @@ class Stage6MainProcessor(BaseStageProcessor, StageInterface):
             }
             
             self.logger.info(f"✅ Stage 6處理完成 (修復版本): {processing_time:.2f}s")
-            return result
+            return create_processing_result(
+                status=ProcessingStatus.SUCCESS,
+                data=result,
+                message=f"Stage 6動態池規劃處理完成，耗時{processing_time:.2f}秒"
+            )
             
         except Exception as e:
             self.logger.error(f"❌ Stage 6處理失敗: {e}")
-            return self._create_error_result(str(e))
-    
+            return create_processing_result(
+                status=ProcessingStatus.FAILED,
+                data={},
+                message=f"Stage 6處理失敗: {str(e)}"
+            )
+
+    def _validate_input_not_empty(self, input_data: Any) -> None:
+        """驗證輸入數據不為空"""
+        if input_data is None:
+            raise ValueError("輸入數據不能為None")
+        if not isinstance(input_data, dict):
+            raise ValueError("輸入數據必須是字典格式")
+        if not input_data:
+            raise ValueError("輸入數據不能為空字典")
+
     def _validate_stage5_input(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """驗證Stage 5輸入數據"""
         try:
@@ -284,3 +300,190 @@ class Stage6MainProcessor(BaseStageProcessor, StageInterface):
             ],
             'compliance_status': 'COMPLIANT_fixed_violations'
         }
+
+    # 實現抽象方法 (來自 BaseStageProcessor 和 StageInterface)
+    def validate_input(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """驗證輸入數據 - 實現抽象方法"""
+        validation_result = {'valid': True, 'errors': [], 'warnings': []}
+
+        # 檢查必要的整合數據字段
+        if not isinstance(input_data, dict):
+            validation_result['errors'].append("輸入數據必須是字典格式")
+            validation_result['valid'] = False
+            return validation_result
+
+        # 檢查 Stage 5 整合數據
+        if 'integrated_data' not in input_data:
+            validation_result['warnings'].append("缺少 integrated_data 字段，將使用空數據")
+
+        return validation_result
+
+    def validate_output(self, output_data: Dict[str, Any]) -> Dict[str, Any]:
+        """驗證輸出數據 - 實現抽象方法"""
+        validation_result = {'valid': True, 'errors': [], 'warnings': []}
+
+        # 檢查必要字段
+        required_fields = ['stage', 'dynamic_pool_data', 'metadata']
+        for field in required_fields:
+            if field not in output_data:
+                validation_result['errors'].append(f"缺少必要字段: {field}")
+                validation_result['valid'] = False
+
+        # 檢查池規劃結果
+        if 'dynamic_pool_data' in output_data:
+            pool_data = output_data['dynamic_pool_data']
+            if not isinstance(pool_data, dict):
+                validation_result['errors'].append("dynamic_pool_data必須是字典格式")
+                validation_result['valid'] = False
+
+        return validation_result
+
+    def extract_key_metrics(self, result_data: Dict[str, Any]) -> Dict[str, Any]:
+        """提取關鍵指標 - 實現抽象方法"""
+        try:
+            return {
+                'satellites_processed': result_data.get('statistics', {}).get('satellites_processed', 0),
+                'pools_generated': result_data.get('statistics', {}).get('pools_generated', 0),
+                'coverage_optimizations_performed': result_data.get('statistics', {}).get('coverage_optimizations_performed', 0),
+                'processing_time_seconds': result_data.get('statistics', {}).get('processing_time_seconds', 0),
+                'success_rate': 1.0 if 'error' not in result_data else 0.0
+            }
+        except Exception as e:
+            self.logger.error(f"關鍵指標提取失敗: {e}")
+            return {}
+
+    def run_validation_checks(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """運行驗證檢查 - 實現抽象方法 - 真實業務邏輯驗證"""
+        validation_results = {
+            'validation_status': 'pending',
+            'checks_performed': [],
+            'stage_compliance': False,
+            'academic_standards': False,
+            'overall_status': 'PENDING'
+        }
+
+        checks = [
+            ('pool_generation_quality', self._validate_pool_generation, data),
+            ('coverage_optimization', self._validate_coverage_optimization, data),
+            ('resource_allocation', self._validate_resource_allocation, data),
+            ('performance_metrics', self._validate_performance_metrics, data)
+        ]
+
+        passed_checks = 0
+        for check_name, check_func, check_data in checks:
+            try:
+                result = check_func(check_data)
+                validation_results['checks_performed'].append(check_name)
+                validation_results[f'{check_name}_result'] = result
+                if result.get('passed', False):
+                    passed_checks += 1
+            except Exception as e:
+                validation_results['checks_performed'].append(f"{check_name}_failed")
+                validation_results[f'{check_name}_result'] = {'passed': False, 'error': str(e)}
+
+        # 真實的驗證結果判定
+        total_checks = len(checks)
+        success_rate = passed_checks / total_checks if total_checks > 0 else 0
+
+        if success_rate >= 0.75:  # 75% 通過率
+            validation_results['validation_status'] = 'passed'
+            validation_results['overall_status'] = 'PASS'
+            validation_results['stage_compliance'] = True
+            validation_results['academic_standards'] = success_rate >= 0.9  # 90% 學術標準
+        else:
+            validation_results['validation_status'] = 'failed'
+            validation_results['overall_status'] = 'FAIL'
+
+        validation_results['success_rate'] = success_rate
+        validation_results['timestamp'] = datetime.now(timezone.utc).isoformat()
+
+        return validation_results
+
+    def _validate_pool_generation(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """驗證池生成品質"""
+        try:
+            statistics = data.get('statistics', {})
+            pools_generated = statistics.get('pools_generated', 0)
+
+            if pools_generated == 0:
+                return {'passed': False, 'message': '未生成任何衛星池'}
+
+            satellites_processed = statistics.get('satellites_processed', 0)
+            if satellites_processed == 0:
+                return {'passed': False, 'message': '未處理任何衛星數據'}
+
+            return {'passed': True, 'message': f'成功生成 {pools_generated} 個衛星池，處理 {satellites_processed} 顆衛星'}
+
+        except Exception as e:
+            return {'passed': False, 'message': f'池生成驗證失敗: {e}'}
+
+    def _validate_coverage_optimization(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """驗證覆蓋率優化"""
+        try:
+            statistics = data.get('statistics', {})
+            optimizations = statistics.get('coverage_optimizations_performed', 0)
+
+            if optimizations == 0:
+                return {'passed': False, 'message': '未執行覆蓋率優化'}
+
+            return {'passed': True, 'message': f'成功執行 {optimizations} 次覆蓋率優化'}
+
+        except Exception as e:
+            return {'passed': False, 'message': f'覆蓋率優化驗證失敗: {e}'}
+
+    def _validate_resource_allocation(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """驗證資源分配"""
+        try:
+            dynamic_pool_data = data.get('dynamic_pool_data', {})
+            if not dynamic_pool_data:
+                return {'passed': False, 'message': '無動態池規劃數據'}
+
+            return {'passed': True, 'message': '資源分配驗證通過'}
+
+        except Exception as e:
+            return {'passed': False, 'message': f'資源分配驗證失敗: {e}'}
+
+    def _validate_performance_metrics(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """驗證性能指標"""
+        try:
+            statistics = data.get('statistics', {})
+            processing_time = statistics.get('processing_time_seconds', 0)
+
+            if processing_time <= 0:
+                return {'passed': False, 'message': '處理時間異常'}
+
+            if processing_time > 300:  # 超過5分鐘視為異常
+                return {'passed': False, 'message': f'處理時間過長: {processing_time:.2f}秒'}
+
+            return {'passed': True, 'message': f'性能指標正常: {processing_time:.2f}秒'}
+
+        except Exception as e:
+            return {'passed': False, 'message': f'性能指標驗證失敗: {e}'}
+
+    def save_results(self, results: Dict[str, Any]) -> str:
+        """保存結果 - 實現抽象方法"""
+        try:
+            import json
+            import os
+            from pathlib import Path
+
+            # 生成輸出路徑
+            output_dir = Path(f"/satellite-processing/data/outputs/stage{self.stage_number}")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / f"stage{self.stage_number}_dynamic_pool_planning_output.json"
+
+            # 保存為JSON格式
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(results, f, indent=2, ensure_ascii=False, default=str)
+
+            self.logger.info(f"✅ 結果已保存: {output_path}")
+            return str(output_path)
+
+        except Exception as e:
+            self.logger.error(f"❌ 保存結果失敗: {e}")
+            return ""
+
+
+def create_stage6_processor() -> Stage6MainProcessor:
+    """創建Stage 6處理器實例"""
+    return Stage6MainProcessor()

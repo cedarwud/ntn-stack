@@ -16,7 +16,8 @@ from unittest.mock import patch, MagicMock
 # 添加src路徑到模組搜索路徑
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "src"))
 
-from stages.stage1_orbital_calculation.tle_orbital_calculation_processor import Stage1TLEProcessor
+from stages.stage1_orbital_calculation.stage1_data_loading_processor import create_stage1_processor
+from shared.interfaces.processor_interface import ProcessingStatus, ProcessingResult
 
 
 class TestStage1RefactoredProcessor:
@@ -25,20 +26,20 @@ class TestStage1RefactoredProcessor:
     @pytest.fixture
     def processor(self):
         """創建Stage1處理器實例"""
-        return Stage1TLEProcessor()
+        return create_stage1_processor()
 
     @pytest.mark.unit
     @pytest.mark.stage1
     def test_processor_initialization_refactored(self, processor):
         """測試重構後的處理器初始化"""
-        # 驗證基礎屬性
-        assert processor.stage_name == "stage1_tle_orbital_calculation"
-        assert processor.logger is not None
+        # 驗證BaseProcessor接口
+        from shared.interfaces.processor_interface import BaseProcessor
+        assert isinstance(processor, BaseProcessor)
 
-        # 🔧 重構驗證: 確認觀測者計算相關屬性已移除
-        assert not hasattr(processor, 'observer_calculations')
-        assert not hasattr(processor, 'observer_coordinates')
-        assert not hasattr(processor, 'elevation_threshold')
+        # 驗證必要方法存在
+        assert hasattr(processor, 'process')
+        assert hasattr(processor, 'validate_input')
+        assert hasattr(processor, 'validate_output')
 
     @pytest.mark.unit
     @pytest.mark.stage1
@@ -60,82 +61,47 @@ class TestStage1RefactoredProcessor:
     @pytest.mark.unit
     @pytest.mark.stage1
     @pytest.mark.sgp4
-    def test_orbital_calculation_only(self, processor):
-        """測試重構後只進行軌道計算，不包含觀測者計算"""
-        # 模擬TLE數據
-        mock_tle_data = {
-            "starlink": [
-                {
-                    "name": "STARLINK-1234",
-                    "line1": "1 12345U 19074A   25260.50000000  .00000000  00000-0  00000-0 0  9999",
-                    "line2": "2 12345  53.0000   0.0000 0001000   0.0000   0.0000 15.50000000 12345",
-                    "epoch_year": 2025,
-                    "epoch_day": 260.5
-                }
-            ]
-        }
+    def test_tle_data_loading_process(self, processor):
+        """測試TLE數據載入處理功能"""
+        # 執行處理
+        result = processor.process(None)
 
-        with patch.object(processor, '_load_tle_data', return_value=mock_tle_data):
-            # 執行處理
-            result = processor.execute()
+        # 驗證返回ProcessingResult
+        assert isinstance(result, ProcessingResult)
+        assert hasattr(result, 'status')
+        assert hasattr(result, 'data')
+        assert hasattr(result, 'metadata')
 
-            # 驗證輸出只包含軌道計算結果
-            assert "metadata" in result
-            assert "orbital_data" in result
-            assert result["success"] is True
+        # 檢查成功狀態
+        assert result.status == ProcessingStatus.SUCCESS
 
-            # 🔧 重構驗證: 確認不包含觀測者相關數據
-            orbital_data = result["orbital_data"]
-            for constellation_data in orbital_data.values():
-                for satellite in constellation_data:
-                    # 應該只有ECI位置和速度，沒有觀測者幾何
-                    assert "position_eci" in satellite
-                    assert "velocity_eci" in satellite
+        # 驗證數據結構
+        assert 'tle_data' in result.data
+        assert isinstance(result.data['tle_data'], list)
+        assert len(result.data['tle_data']) > 1000  # 應該有大量衛星數據
 
-                    # 這些觀測者相關欄位不應該存在
-                    observer_fields = [
-                        "elevation_deg", "azimuth_deg", "range_km",
-                        "observer_geometry", "visibility_status"
-                    ]
-                    for field in observer_fields:
-                        assert field not in satellite, f"觀測者欄位 {field} 不應該存在"
+        # 檢查TLE數據結構
+        if result.data['tle_data']:
+            sample_tle = result.data['tle_data'][0]
+            required_fields = ['satellite_id', 'line1', 'line2']
+            for field in required_fields:
+                assert field in sample_tle, f"缺少必要字段: {field}"
 
     @pytest.mark.unit
     @pytest.mark.stage1
     @pytest.mark.critical
-    def test_tle_epoch_time_usage(self, processor):
-        """驗證使用TLE epoch時間而非當前時間進行計算"""
-        mock_tle_data = {
-            "starlink": [
-                {
-                    "name": "STARLINK-TEST",
-                    "line1": "1 12345U 19074A   25260.50000000  .00000000  00000-0  00000-0 0  9999",
-                    "line2": "2 12345  53.0000   0.0000 0001000   0.0000   0.0000 15.50000000 12345",
-                    "epoch_year": 2025,
-                    "epoch_day": 260.5  # 2025年第260.5天
-                }
-            ]
-        }
+    def test_validate_input_method(self, processor):
+        """測試validate_input方法"""
+        # Stage 1不需要輸入數據，任何輸入都應該被接受
+        result = processor.validate_input(None)
+        assert isinstance(result, dict)
+        assert 'valid' in result
+        assert 'errors' in result
+        assert result['valid'] is True
 
-        with patch.object(processor, '_load_tle_data', return_value=mock_tle_data):
-            with patch('stages.stage1_orbital_calculation.tle_orbital_calculation_processor.datetime') as mock_datetime:
-                # 設定當前時間為與TLE epoch不同的時間
-                mock_current_time = datetime(2025, 9, 18, tzinfo=timezone.utc)  # 第261天
-                mock_datetime.now.return_value = mock_current_time
-                mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
-
-                result = processor.execute()
-
-                # 驗證使用了TLE epoch時間
-                metadata = result["metadata"]
-
-                # 🔧 重構關鍵驗證: 計算基準時間應該是TLE epoch而非當前時間
-                expected_epoch_date = datetime(2025, 1, 1, tzinfo=timezone.utc) + timedelta(days=260.5-1)
-
-                # 確認元數據中記錄了正確的時間基準
-                assert "calculation_base_time" in metadata
-                assert "tle_epoch_used" in metadata
-                assert metadata["tle_epoch_used"] is True
+        # 測試字典輸入
+        result = processor.validate_input({'some': 'data'})
+        assert result['valid'] is True
 
     @pytest.mark.unit
     @pytest.mark.stage1
@@ -153,77 +119,42 @@ class TestStage1RefactoredProcessor:
         for method in stage3_methods:
             assert not hasattr(processor, method)
 
-        # 確認只有軌道計算相關方法
-        orbital_methods = ['_load_tle_data', '_calculate_orbital_positions', 'execute']
-        for method in orbital_methods:
-            assert hasattr(processor, method), f"軌道計算方法 {method} 應該存在"
+        # 確認只有核心處理方法
+        core_methods = ['process', 'validate_input', 'validate_output']
+        for method in core_methods:
+            assert hasattr(processor, method), f"核心方法 {method} 應該存在"
 
     @pytest.mark.integration
     @pytest.mark.stage1
-    def test_output_format_compliance(self, processor):
-        """測試輸出格式符合Stage間介面規範"""
-        mock_tle_data = {
-            "starlink": [
-                {
-                    "name": "STARLINK-TEST",
-                    "line1": "1 12345U 19074A   25260.50000000  .00000000  00000-0  00000-0 0  9999",
-                    "line2": "2 12345  53.0000   0.0000 0001000   0.0000   0.0000 15.50000000 12345",
-                    "epoch_year": 2025,
-                    "epoch_day": 260.5
-                }
-            ]
+    def test_validate_output_method(self, processor):
+        """測試validate_output方法"""
+        # 測試有效輸出
+        valid_output = {
+            'stage': 'stage1_data_loading',
+            'tle_data': [{'satellite_id': '12345', 'line1': 'test', 'line2': 'test'}],
+            'metadata': {'timestamp': datetime.now().isoformat()}
         }
+        result = processor.validate_output(valid_output)
+        assert isinstance(result, dict)
+        assert 'valid' in result
 
-        with patch.object(processor, '_load_tle_data', return_value=mock_tle_data):
-            result = processor.execute()
-
-            # 驗證標準輸出格式
-            assert isinstance(result, dict)
-            assert "metadata" in result
-            assert "orbital_data" in result
-            assert "success" in result
-
-            # 驗證metadata結構
-            metadata = result["metadata"]
-            required_metadata = [
-                "stage", "execution_time_seconds", "timestamp",
-                "total_satellites", "calculation_base_time"
-            ]
-            for field in required_metadata:
-                assert field in metadata
-
-            # 確認不包含觀測者相關metadata
-            observer_metadata = [
-                "observer_coordinates", "elevation_threshold",
-                "visibility_count", "observer_geometry"
-            ]
-            for field in observer_metadata:
-                assert field not in metadata, f"觀測者metadata {field} 不應該存在"
+        # 測試無效輸出
+        invalid_output = {'invalid': 'data'}
+        result = processor.validate_output(invalid_output)
+        assert result['valid'] is False
+        assert len(result['errors']) > 0
 
     @pytest.mark.performance
     @pytest.mark.stage1
-    def test_refactored_performance_improvement(self, processor):
-        """驗證重構後性能提升 (移除不必要計算)"""
-        mock_tle_data = {
-            "starlink": [{"name": f"STARLINK-{i}",
-                         "line1": "1 12345U 19074A   25260.50000000  .00000000  00000-0  00000-0 0  9999",
-                         "line2": "2 12345  53.0000   0.0000 0001000   0.0000   0.0000 15.50000000 12345",
-                         "epoch_year": 2025, "epoch_day": 260.5} for i in range(100)]
-        }
+    def test_next_stage_readiness(self, processor):
+        """測試為下一階段準備的數據格式"""
+        result = processor.process(None)
 
-        with patch.object(processor, '_load_tle_data', return_value=mock_tle_data):
-            import time
-            start_time = time.time()
-
-            result = processor.execute()
-
-            execution_time = time.time() - start_time
-
-            # 重構後應該更快 (移除了觀測者計算)
-            # 100顆衛星應該在5秒內完成 (純軌道計算)
-            assert execution_time < 5.0, f"執行時間 {execution_time:.2f}s 超過預期"
-            assert result["success"] is True
-            assert len(result["orbital_data"]["starlink"]) == 100
+        if result.status == ProcessingStatus.SUCCESS:
+            # 檢查輸出格式適合Stage 2消費
+            assert 'tle_data' in result.data
+            assert 'next_stage_ready' in result.data
+            assert result.data['next_stage_ready'] is True
 
 
 # 重構後快照標記
@@ -234,18 +165,13 @@ class TestStage1RefactoringSnapshot:
 
     def test_refactoring_completeness(self):
         """驗證重構完整性"""
-        processor = Stage1TLEProcessor()
+        processor = create_stage1_processor()
 
-        # 確認所有觀測者相關功能已移除
-        removed_attributes = [
-            'observer_calculations', 'observer_coordinates',
-            'elevation_threshold', 'azimuth_range'
-        ]
+        # 確認BaseProcessor接口實現
+        from shared.interfaces.processor_interface import BaseProcessor
+        assert isinstance(processor, BaseProcessor)
 
-        for attr in removed_attributes:
-            assert not hasattr(processor, attr), f"屬性 {attr} 應該已被移除"
-
-        # 確認核心軌道計算功能保留
-        essential_methods = ['execute', '_load_tle_data']
+        # 確認核心方法保留
+        essential_methods = ['process', 'validate_input', 'validate_output']
         for method in essential_methods:
             assert hasattr(processor, method), f"核心方法 {method} 應該保留"

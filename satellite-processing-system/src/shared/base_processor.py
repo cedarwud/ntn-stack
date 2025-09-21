@@ -501,6 +501,30 @@ class BaseStageProcessor(ABC):
     def _update_validation_snapshot_with_tdd(self, enhanced_snapshot: Dict[str, Any]) -> None:
         """更新驗證快照包含TDD結果"""
         try:
+            # 定義安全的JSON編碼器
+            import numpy as np
+            from decimal import Decimal
+
+            class SafeJSONEncoder(json.JSONEncoder):
+                def default(self, obj):
+                    if isinstance(obj, datetime):
+                        return obj.isoformat()
+                    elif isinstance(obj, np.bool_):
+                        return bool(obj)
+                    elif isinstance(obj, (np.integer, np.int64, np.int32)):
+                        return int(obj)
+                    elif isinstance(obj, (np.floating, np.float64, np.float32)):
+                        return float(obj)
+                    elif isinstance(obj, Decimal):
+                        return float(obj)
+                    elif isinstance(obj, (set, frozenset)):
+                        return list(obj)
+                    elif hasattr(obj, 'item'):
+                        return obj.item()
+                    elif hasattr(obj, 'tolist'):
+                        return obj.tolist()
+                    return super().default(obj)
+
             snapshot_file = self.validation_dir / f"stage{self.stage_number}_validation.json"
             with open(snapshot_file, 'w', encoding='utf-8') as f:
                 json.dump(enhanced_snapshot, f, cls=SafeJSONEncoder, ensure_ascii=False, indent=2)

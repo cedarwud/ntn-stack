@@ -50,10 +50,10 @@ class SimpleStage5Processor:
         self.config = config or {}
         self.processing_statistics = {}
         self.processing_stages = [
-            "data_loading", "validation", "layered_generation", 
+            "data_loading", "validation", "layered_generation",
             "handover_analysis", "signal_quality", "postgresql_integration",
             "storage_analysis", "cache_management", "temporal_spatial_analysis",
-            "trajectory_prediction", "rl_preprocessing", "dynamic_pool_optimization"
+            "trajectory_prediction", "dynamic_pool_optimization"
         ]
         self._initialize_simple_components()
     
@@ -121,7 +121,6 @@ class SimpleStage5Processor:
             "cache_management": self._process_cache_management,
             "temporal_spatial_analysis": self._process_temporal_spatial_analysis,
             "trajectory_prediction": self._process_trajectory_prediction,
-            "rl_preprocessing": self._process_rl_preprocessing,
             "dynamic_pool_optimization": self._process_dynamic_pool_optimization
         }
         
@@ -160,9 +159,6 @@ class SimpleStage5Processor:
     
     def _process_trajectory_prediction(self, input_data):
         return {"records": input_data.get("satellite_count", 0) * 5}
-    
-    def _process_rl_preprocessing(self, input_data):
-        return {"records": input_data.get("satellite_count", 0) * 3}
     
     def _process_dynamic_pool_optimization(self, input_data):
         return {"records": input_data.get("satellite_count", 0)}
@@ -933,12 +929,12 @@ class TestStage5AcademicComplianceValidation:
         """測試處理管道完整性 - Zero Tolerance Grade A"""
         results = data_integration_processor.process_enhanced_timeseries(mock_stage5_input_data)
         
-        # 驗證所有 12 個階段都已執行
+        # 驗證所有 11 個階段都已執行
         expected_stages = [
-            "data_loading", "validation", "layered_generation", 
+            "data_loading", "validation", "layered_generation",
             "handover_analysis", "signal_quality", "postgresql_integration",
             "storage_analysis", "cache_management", "temporal_spatial_analysis",
-            "trajectory_prediction", "rl_preprocessing", "dynamic_pool_optimization"
+            "trajectory_prediction", "dynamic_pool_optimization"
         ]
         
         executed_stage_names = [stage["stage"] for stage in results["stages_executed"]]
@@ -947,7 +943,7 @@ class TestStage5AcademicComplianceValidation:
         
         # 驗證沒有階段失敗
         assert results["processing_statistics"]["failed_stages"] == 0
-        assert results["processing_statistics"]["successful_stages"] == 12
+        assert results["processing_statistics"]["successful_stages"] == 11
     
     @pytest.mark.academic_compliance_a
     def test_data_integration_output_validation(self, data_integration_processor, mock_stage5_input_data):

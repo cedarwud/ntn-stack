@@ -30,6 +30,9 @@ Stage 5: 數據整合處理器 - 模組化組件
 - ITU-R標準信號計算
 """
 
-from .stage5_processor import Stage5Processor
+from .data_integration_processor import DataIntegrationProcessor
 
-__all__ = ['Stage5Processor']
+# 為向後相容性提供別名
+Stage5Processor = DataIntegrationProcessor
+
+__all__ = ['DataIntegrationProcessor', 'Stage5Processor']

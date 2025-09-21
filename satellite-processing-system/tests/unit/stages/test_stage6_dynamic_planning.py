@@ -44,28 +44,9 @@ def stage6_processor():
     import sys
     sys.path.append('/satellite-processing/src')
 
-    from stages.stage6_dynamic_planning.stage6_processor import Stage6Processor
+    from stages.stage6_dynamic_pool_planning.stage6_persistence_processor import create_stage6_processor
 
-    # 創建測試配置
-    test_config = {
-        "debug_mode": True,
-        "academic_mode": True,
-        "test_mode": True,
-        "preserve_full_data": True,
-        "enable_3gpp_compliance": True,
-        "optimization_config": {
-            "min_coverage_rate": 0.65,  # 🔧 修復：降低覆蓋率要求
-            "max_coverage_gap_minutes": 10.0  # 🔧 修復：放寬間隙要求
-        },
-        "coverage_validation_config": {
-            "observer_lat": 24.9441667,
-            "observer_lon": 121.3713889,
-            "sampling_interval_sec": 30,
-            "validation_window_hours": 2.0
-        }
-    }
-
-    return Stage6Processor(config=test_config)
+    return create_stage6_processor()
 
 @pytest.fixture
 def mock_stage5_data():

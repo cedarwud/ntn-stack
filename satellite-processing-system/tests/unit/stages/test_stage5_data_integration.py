@@ -37,18 +37,9 @@ def stage5_processor():
     import sys
     sys.path.append('/satellite-processing/src')
 
-    from stages.stage5_data_integration.stage5_processor import Stage5Processor
+    from stages.stage5_data_integration.data_integration_processor import create_stage5_processor
 
-    # 創建測試配置
-    test_config = {
-        "debug_mode": True,
-        "academic_mode": True,
-        "test_mode": True,
-        "preserve_full_data": True,
-        "enable_3gpp_compliance": True
-    }
-
-    return Stage5Processor(config=test_config)
+    return create_stage5_processor()
 
 @pytest.fixture
 def mock_stage4_data():
