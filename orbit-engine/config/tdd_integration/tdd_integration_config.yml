@@ -1,0 +1,266 @@
+# 🧪 TDD整合配置模板
+# 版本: 1.0.0
+# 用途: 定義TDD整合的全局配置參數
+
+# =============================================================================
+# 🎯 全局TDD整合設定
+# =============================================================================
+tdd_integration:
+  # 基本開關
+  enabled: true                          # 是否啟用TDD整合
+  framework_version: "1.0.0"             # TDD整合框架版本
+  
+  # 預設執行模式
+  default_execution_mode: "sync"         # sync/async/hybrid
+  
+  # 全局錯誤處理策略
+  default_failure_handling: "warning"    # error/warning/ignore
+  
+  # 測試執行超時設定 (秒)
+  test_timeouts:
+    regression: 30                       # 回歸測試超時
+    performance: 20                      # 性能測試超時
+    integration: 60                      # 整合測試超時
+    compliance: 15                       # 合規測試超時
+
+# =============================================================================
+# 🏗️ 階段特定配置
+# =============================================================================
+stages:
+  # Stage 1: TLE軌道計算
+  stage1:
+    tdd_tests: ["regression", "performance"]
+    execution_mode: "sync"               # 同步執行確保軌道計算正確
+    failure_handling: "error"            # 軌道計算錯誤必須停止
+    performance_thresholds:
+      max_processing_time: 180           # 最大處理時間 (秒)
+      max_memory_usage: 1024             # 最大記憶體使用 (MB)
+    custom_config:
+      tle_epoch_check: true              # 啟用TLE epoch時間檢查
+      sgp4_precision_validation: true    # 啟用SGP4精度驗證
+  
+  # Stage 2: 可見性過濾
+  stage2:
+    tdd_tests: ["regression", "integration"]
+    execution_mode: "sync"               # 同步執行確保過濾正確
+    failure_handling: "error"            # 過濾邏輯錯誤需要停止
+    performance_thresholds:
+      max_processing_time: 60
+      max_memory_usage: 512
+    custom_config:
+      elevation_threshold_validation: true  # 仰角門檻驗證
+      coordinate_precision_check: true      # 座標精度檢查
+  
+  # Stage 3: 信號分析  
+  stage3:
+    tdd_tests: ["regression", "performance", "integration"]
+    execution_mode: "hybrid"            # 關鍵測試同步，性能測試異步
+    failure_handling: "warning"         # 信號分析問題可以警告繼續
+    performance_thresholds:
+      max_processing_time: 90
+      max_memory_usage: 768
+    custom_config:
+      signal_quality_validation: true   # 信號品質驗證
+      itu_r_compliance_check: true      # ITU-R標準合規檢查
+  
+  # Stage 4: 時間序列預處理
+  stage4:
+    tdd_tests: ["regression", "integration"]  
+    execution_mode: "async"             # 異步執行不影響處理速度
+    failure_handling: "warning"
+    performance_thresholds:
+      max_processing_time: 45
+      max_memory_usage: 512
+    custom_config:
+      timeseries_continuity_check: true # 時間序列連續性檢查
+      coordinate_conversion_validation: true # 座標轉換驗證
+  
+  # Stage 5: 數據整合
+  stage5:
+    tdd_tests: ["regression", "integration", "performance"]
+    execution_mode: "hybrid"
+    failure_handling: "warning"
+    performance_thresholds:
+      max_processing_time: 120
+      max_memory_usage: 1024
+    custom_config:
+      data_fusion_validation: true      # 數據融合驗證
+      handover_scenario_check: true     # 換手場景檢查
+  
+  # Stage 6: 動態池規劃
+  stage6:
+    tdd_tests: ["regression", "performance", "integration", "compliance"]
+    execution_mode: "sync"              # 最終階段需要同步確認
+    failure_handling: "error"           # 最終結果錯誤必須停止
+    performance_thresholds:
+      max_processing_time: 150
+      max_memory_usage: 1536
+    custom_config:
+      optimization_convergence_check: true  # 優化收斂性檢查
+      pool_configuration_validation: true   # 池配置驗證
+
+# =============================================================================
+# 🌍 環境特定配置
+# =============================================================================
+environments:
+  # 開發環境
+  development:
+    tdd_integration:
+      enabled: true
+      default_execution_mode: "sync"    # 開發時需要即時反饋
+      default_failure_handling: "warning"
+    test_coverage:
+      regression_tests: true
+      performance_tests: false          # 開發時跳過性能測試
+      integration_tests: true
+      compliance_tests: false           # 開發時跳過合規測試
+    logging:
+      level: "DEBUG"
+      detailed_test_output: true
+  
+  # 測試環境  
+  testing:
+    tdd_integration:
+      enabled: true
+      default_execution_mode: "hybrid"  # 平衡速度和完整性
+      default_failure_handling: "error"
+    test_coverage:
+      regression_tests: true
+      performance_tests: true
+      integration_tests: true  
+      compliance_tests: true            # 測試環境執行全面驗證
+    logging:
+      level: "INFO"
+      detailed_test_output: true
+  
+  # 生產環境
+  production:
+    tdd_integration:
+      enabled: true
+      default_execution_mode: "async"   # 生產環境優先保證處理速度
+      default_failure_handling: "warning"
+    test_coverage:
+      regression_tests: true
+      performance_tests: true
+      integration_tests: false          # 生產環境跳過耗時整合測試
+      compliance_tests: true
+    logging:
+      level: "WARN"
+      detailed_test_output: false       # 生產環境減少日誌輸出
+
+# =============================================================================  
+# 📊 性能監控配置
+# =============================================================================
+performance_monitoring:
+  # 性能基準收集
+  baseline_collection:
+    enabled: true
+    history_length: 20                  # 保留最近20次執行記錄
+    update_frequency: "per_execution"   # 每次執行後更新
+  
+  # 回歸檢測閾值
+  regression_thresholds:
+    processing_time: 1.2                # 處理時間回歸閾值 (120%)
+    memory_usage: 1.3                   # 記憶體使用回歸閾值 (130%)
+    success_rate: 0.95                  # 成功率最低閾值 (95%)
+  
+  # 警報設定
+  alerts:
+    performance_regression: true        # 性能回歸警報
+    test_failure_spike: true           # 測試失敗激增警報
+    resource_usage_high: true          # 資源使用過高警報
+
+# =============================================================================
+# 🧪 測試特定配置  
+# =============================================================================
+test_configuration:
+  # 回歸測試
+  regression:
+    baseline_comparison:
+      validation_checks_count: true     # 驗證檢查項目數量
+      key_metrics_consistency: true     # 關鍵指標一致性
+      processing_success_rate: true     # 處理成功率
+    tolerance:
+      numeric_precision: 0.001          # 數值精度容忍度
+      percentage_variation: 5.0         # 百分比變異容忍度 (%)
+  
+  # 性能測試
+  performance:
+    metrics:
+      processing_time: true
+      memory_usage: true
+      cpu_usage: false                  # CPU使用率監控 (可選)
+    benchmarking:
+      warmup_runs: 1                    # 預熱執行次數
+      measurement_runs: 3               # 測量執行次數
+      statistical_method: "median"      # 統計方法 (mean/median/percentile)
+  
+  # 整合測試
+  integration:
+    data_flow_validation:
+      cross_stage_consistency: true     # 跨階段一致性檢查
+      data_transformation_integrity: true # 數據轉換完整性檢查
+      pipeline_continuity: true         # 管道連續性檢查
+    timeout_multiplier: 2.0            # 整合測試超時倍數
+  
+  # 合規測試
+  compliance:
+    academic_standards:
+      grade_a_validation: true          # Grade A學術標準驗證
+      data_lineage_check: true         # 數據血統檢查
+      reproducibility_validation: true # 可重現性驗證
+    regulatory_compliance:
+      itu_r_standards: true            # ITU-R標準合規
+      three_gpp_ntn_compliance: true  # 3GPP NTN合規
+
+# =============================================================================
+# 📁 路徑與文件配置
+# =============================================================================
+paths:
+  # 基礎路徑
+  base_directory: "/app"
+  validation_snapshots_dir: "/app/data/validation_snapshots"
+  test_results_dir: "/app/data/tdd_test_results"
+  performance_history_dir: "/app/data/performance_history"
+  
+  # 測試相關路徑
+  test_templates_dir: "/app/tests/tdd_integration"
+  test_fixtures_dir: "/app/tests/fixtures"
+  test_reports_dir: "/app/data/tdd_reports"
+  
+  # 日誌路徑
+  tdd_logs_dir: "/app/logs/tdd_integration"
+  detailed_test_logs: true
+
+# =============================================================================
+# 🔧 高級設定
+# =============================================================================
+advanced_settings:
+  # 並行執行
+  parallel_execution:
+    enabled: false                      # 並行測試執行 (實驗性功能)
+    max_concurrent_tests: 3            # 最大並發測試數
+  
+  # 快取設定
+  caching:
+    test_result_cache: true            # 測試結果快取
+    cache_expiry_hours: 24             # 快取過期時間 (小時)
+    cache_size_limit_mb: 100          # 快取大小限制 (MB)
+  
+  # 實驗性功能
+  experimental_features:
+    ai_assisted_debugging: false       # AI輔助除錯 (未實現)
+    predictive_performance_analysis: false # 預測性能分析 (未實現)
+    auto_recovery_suggestions: false   # 自動恢復建議 (未實現)
+
+# =============================================================================
+# 📞 聯絡與支援資訊
+# =============================================================================
+support:
+  documentation_url: "file:///app/docs/tdd_integration/"
+  issue_tracker_url: "https://github.com/your-org/ntn-stack/issues"
+  maintainer_email: "tdd-integration@your-org.com"
+  version_info:
+    config_version: "1.0.0"
+    last_updated: "2025-09-12"
+    compatibility: "orbit-engine-system >= 2.0.0"

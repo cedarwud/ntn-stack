@@ -1,0 +1,182 @@
+# 🛠️ Orbit Engine 開發模式 Docker Compose 配置
+# 用於開發時的容器配置，支援熱重載和即時調試
+# 統一使用 orbit-engine 路徑命名規範
+
+services:
+  orbit-engine-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orbit-engine-dev
+
+    # 🚀 GPU 支援配置 (RTX 4090) - 已啟用
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # 🔄 開發模式 Volume 掛載 - Orbit Engine 統一路徑
+    volumes:
+      # 📝 源碼熱重載掛載
+      - ./src:/orbit-engine/src                                  # 六階段核心代碼
+      - ./config:/orbit-engine/config                            # 配置文件
+      - ./scripts:/orbit-engine/scripts                          # 執行腳本
+      - ./tests:/orbit-engine/tests                              # 測試文件
+
+      # 📊 開發數據掛載 - 統一 orbit-engine 路徑
+      - ./data/tle_data:/orbit-engine/data/tle_data              # TLE 歷史數據
+      - ./data/outputs:/orbit-engine/data/outputs                # 通用輸出目錄
+      - ./data/outputs/stage1:/orbit-engine/data/outputs/stage1  # 階段一輸出 (統一路徑)
+      - ./data/outputs/stage2:/orbit-engine/data/outputs/stage2  # 階段二輸出 (統一路徑)
+      - ./data/outputs/stage3:/orbit-engine/data/outputs/stage3  # 階段三輸出 (統一路徑)
+      - ./data/outputs/stage4:/orbit-engine/data/outputs/stage4  # 階段四輸出 (統一路徑)
+      - ./data/outputs/stage5:/orbit-engine/data/outputs/stage5  # 階段五輸出 (統一路徑)
+      - ./data/outputs/stage6:/orbit-engine/data/outputs/stage6  # 階段六輸出 (統一路徑)
+      - ./data/validation_snapshots:/orbit-engine/data/validation_snapshots  # 驗證快照
+      - ./data/logs:/orbit-engine/data/logs                      # 開發日誌
+
+      # 🛠️ 開發工具
+      - ./docs:/orbit-engine/docs                                # 文檔目錄
+      - ./.env.orbit-engine:/orbit-engine/.env                   # 環境變量文件 (統一配置)
+
+    # 🌐 開發環境變量 - Orbit Engine 配置
+    environment:
+      # 🚀 核心路徑配置
+      - ORBIT_ENGINE_NAME=orbit-engine
+      - PROJECT_ROOT_NAME=orbit-engine-system
+      - CONTAINER_ROOT=/orbit-engine
+      - PYTHONPATH=/orbit-engine/src
+
+      # 📂 數據路徑配置
+      - CONTAINER_DATA_ROOT=/orbit-engine/data
+      - CONTAINER_OUTPUTS_ROOT=/orbit-engine/data/outputs
+      - CONTAINER_TLE_DATA=/orbit-engine/data/tle_data
+      - CONTAINER_VALIDATION_SNAPSHOTS=/orbit-engine/data/validation_snapshots
+      - CONTAINER_LOGS=/orbit-engine/data/logs
+
+      # 📊 階段輸出路徑
+      - CONTAINER_STAGE1_OUTPUT=/orbit-engine/data/outputs/stage1
+      - CONTAINER_STAGE2_OUTPUT=/orbit-engine/data/outputs/stage2
+      - CONTAINER_STAGE3_OUTPUT=/orbit-engine/data/outputs/stage3
+      - CONTAINER_STAGE4_OUTPUT=/orbit-engine/data/outputs/stage4
+      - CONTAINER_STAGE5_OUTPUT=/orbit-engine/data/outputs/stage5
+      - CONTAINER_STAGE6_OUTPUT=/orbit-engine/data/outputs/stage6
+
+      # 🔧 開發配置
+      - SATELLITE_ENV=development
+      - VALIDATION_LEVEL=FAST
+      - LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
+      - RELOAD_ON_CHANGE=true
+
+      # 🚀 GPU 支援環境變量
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+      # 📊 PostgreSQL 配置
+      - POSTGRES_HOST=orbit-postgres-dev
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=orbit_engine_dev
+      - POSTGRES_USER=orbit_engine_user
+      - POSTGRES_PASSWORD=orbit_engine_dev_pass
+      - DATABASE_URL=postgresql://orbit_engine_user:orbit_engine_dev_pass@orbit-postgres-dev:5432/orbit_engine_dev
+
+    # 🔌 端口映射
+    ports:
+      - "8900:8900"   # 健康檢查端點
+      - "8901:8901"   # 開發 API 端點
+      - "5678:5678"   # Python 調試端口
+
+    # 🏃 開發模式命令 (保持容器運行)
+    command: >
+      sh -c "
+        echo '🚀 Orbit Engine 開發模式啟動...'
+        echo '📂 源碼目錄: /orbit-engine/src'
+        echo '📊 數據目錄: /orbit-engine/data'
+        echo '⚡ 使用 FAST 驗證模式'
+
+        # 檢查健康狀態
+        python /orbit-engine/scripts/health_check.py
+
+        # 保持容器運行，等待手動執行
+        echo '✅ Orbit Engine 容器就緒，可以執行處理任務'
+        echo '💡 執行命令: docker exec orbit-engine-dev python /orbit-engine/scripts/run_six_stages_with_validation.py'
+
+        tail -f /dev/null
+      "
+
+    # 🔄 開發重啟策略
+    restart: unless-stopped
+
+    # 📋 依賴服務
+    depends_on:
+      - orbit-postgres-dev
+
+    # 🌐 開發網路
+    networks:
+      - orbit-engine-dev-network
+
+    # 🏷️ 開發標籤
+    labels:
+      - "orbit-engine.env=development"
+      - "orbit-engine.auto-reload=true"
+
+  # 📊 開發用 PostgreSQL
+  orbit-postgres-dev:
+    image: postgres:15
+    container_name: orbit-postgres-dev
+    environment:
+      - POSTGRES_DB=orbit_engine_dev
+      - POSTGRES_USER=orbit_engine_user
+      - POSTGRES_PASSWORD=orbit_engine_dev_pass
+    volumes:
+      - orbit-postgres-dev-data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d              # 開發用 SQL 腳本
+    ports:
+      - "5433:5432"  # 避免與主機 PostgreSQL 衝突
+    networks:
+      - orbit-engine-dev-network
+    restart: unless-stopped
+
+  # 📈 開發監控工具
+  orbit-dev-monitor:
+    image: alpine:latest
+    container_name: orbit-dev-monitor
+    command: >
+      sh -c "
+        echo '📊 Orbit Engine 開發監控啟動...'
+        while true; do
+          echo '=== $(date) ==='
+          echo '📂 輸出目錄:'
+          ls -la /data/outputs/ 2>/dev/null || echo '  (空)'
+          echo '🔍 驗證快照:'
+          ls -la /data/validation/ 2>/dev/null || echo '  (空)'
+          echo '📝 最新日誌:'
+          tail -n 3 /data/logs/*.log 2>/dev/null || echo '  (無日誌)'
+          echo '================================='
+          sleep 30
+        done
+      "
+    volumes:
+      - ./data/outputs:/data/outputs:ro
+      - ./data/validation_snapshots:/data/validation_snapshots:ro
+      - ./data/logs:/data/logs:ro
+    networks:
+      - orbit-engine-dev-network
+    restart: unless-stopped
+
+# 💾 開發數據卷
+volumes:
+  orbit-postgres-dev-data:
+    driver: local
+
+# 🌐 開發網路
+networks:
+  orbit-engine-dev-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.32.0.0/16
