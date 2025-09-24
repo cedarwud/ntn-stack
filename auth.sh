@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+export ANTHROPIC_BASE_URL=""
+export ANTHROPIC_AUTH_TOKEN=""

@@ -15,7 +15,7 @@ ENV PYTHONUNBUFFERED=1
 # 減少 TensorFlow 日誌
 ENV TF_CPP_MIN_LOG_LEVEL="3"
 # 讓 Dr.Jit 能找到 LLVM shared lib
-ENV DRJIT_LIBLLVM_PATH=/usr/lib/x86_64-linux-gnu/libLLVM-14.so.1
+ENV DRJIT_LIBLLVM_PATH=/usr/lib/x86_64-linux-gnu/libLLVM-19.so
 # 設定 PyOpenGL 默認使用 EGL (可通過環境變數覆蓋)
 ENV PYOPENGL_PLATFORM=egl
 
@@ -23,14 +23,15 @@ ENV PYOPENGL_PLATFORM=egl
 #    - 渲染相關：更完整的 OpenGL/EGL/OSMesa 支持
 #    - 資料庫相關：PostgreSQL, GDAL, PostGIS
 RUN apt update && apt install -y --no-install-recommends \
-    libgl1-mesa-glx \
-    libegl1-mesa \
+    libgl1-mesa-dev \
+    libgl1-mesa-dri \
+    libegl1-mesa-dev \
     libosmesa6 \
-    libopengl0 \
-    libglfw3 \
+    libopengl-dev \
+    libglfw3-dev \
     xvfb \
     llvm-dev \
-    libllvm14 \
+    llvm \
     build-essential \
     libpq-dev \
     gdal-bin \
